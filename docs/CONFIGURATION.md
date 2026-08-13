@@ -472,6 +472,18 @@ Where the compositor or X11 exposes a focus-change signal, Neru applies per-app 
 
 Each mode can define hotkeys active only while that mode is running. Follows the same [merging rules](#merging-behavior) as global hotkeys.
 
+**Precedence while a mode is open.** The mode's own table is asked first; a key it
+does not bind falls back to `[hotkeys]`, so a global chord such as
+`"Super+;" = "recursive_grid --toggle"` still fires from inside the mode and
+toggles it back to idle no matter how you entered that mode. To give the chord a
+different meaning in one mode, bind it in that mode's `[<mode>.hotkeys]` — the
+more specific binding wins. `__disabled__` is not the way to silence it there:
+it removes the *mode's* binding, which hands the key back to the global one.
+
+Only chords carrying `Ctrl`, `Alt` or `Cmd`/`Super` fall back. A bare key or a
+`Shift`-only combo inside a mode is that mode's input — a hint label, a grid cell
+key, a navigation key — and stays the mode's whatever `[hotkeys]` says about it.
+
 ```toml
 [hints.hotkeys]
 "Escape"    = "idle"

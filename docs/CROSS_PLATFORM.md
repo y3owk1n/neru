@@ -491,7 +491,8 @@ fits. An unreadable `/dev/input` points at the `input` group; a no-cgo build
 points at the build, and is warned about once, since no retry changes how the
 binary was compiled. Both name the same fallback — bind `neru <mode>` as a
 compositor keybinding. While a mode is active the in-mode event tap grabs the
-same devices, so the listener naturally goes quiet until the mode exits.
+same devices, so the listener naturally goes quiet until the mode exits — which
+is what **A global chord while a mode is active** below is about.
 
 **Native alerts on Linux.** Notifications and alerts both go to the session's
 freedesktop notification daemon over D-Bus — the same session bus the tray's
@@ -627,6 +628,61 @@ left-most held button, since one event cannot describe more.
 common `hotkeys/linux/manager.go`, which delegates to the evdev listener in the
 eventtap package.
 
+**A global chord while a mode is active.** A `[hotkeys]` binding keeps working
+from inside a mode on macOS, Windows and Linux Wayland, and each gets there its
+own way, because whichever mechanism can see the chord has to be the only one
+that runs it. macOS hands it back: the in-mode tap looks the chord up in the
+hotkey table the app pushed into it and returns the event untouched, so the
+per-hotkey tap that registered it fires and the handler never sees the key
+([eventtap_darwin.m](../internal/adapter/platform/darwin/eventtap_darwin.m)).
+Windows does the same for a Ctrl/Alt/Cmd chord, one layer up — the low-level hook
+runs ahead of the system's hotkey processing, so it passes the chord on without
+dispatching and leaves it to `RegisterHotKey`. Both are told which chords the
+backend actually *took* rather than which ones the configuration asked for
+(`Deps.PublishRegisteredHotkeys`, [hotkey.go](../internal/app/keybinding/hotkey.go)),
+because a chord another process already owns is refused and is then owned by
+nobody: handing that one back would drop it, so it is dispatched instead. Linux
+cannot hand it to anybody: the in-mode capture is exclusive (`EVIOCGRAB`, or
+`XGrabKeyboard`) and the mechanism that registered the chord is deaf for as long
+as a mode is up. So there the chord reaches the mode handler and the handler
+resolves the global table itself, after the active mode's own table has had its
+say ([keymap.go](../internal/app/modes/keymap.go), `settledKeymaps`). That
+fallback is shared code rather than a Linux branch, and is simply unreachable on
+the two platforms whose taps hand the chord back. Only chords carrying
+Ctrl/Alt/Cmd fall back, on the same reasoning modifier passthrough uses below: a
+bare key inside a mode is a hint label or a grid cell key.
+
+**X11 assembles chords too, from the keysym.** The X11 in-mode tap used to
+dispatch a bare key and report modifiers only as separate sticky-modifier events,
+so no chord was assembled at all while a mode was open — which left the fallback
+above, and every `[<mode>.hotkeys]` entry written as a Ctrl/Alt/Super chord, unable
+to match there. It now names the key from the **keysym** `XLookupString` returns
+rather than from the string, because with Ctrl held the two disagree (`Ctrl+C`
+gives `\x03` as a string and `XK_c` as a keysym), and prepends the modifiers it
+already tracks (`x11ChordFromLookup`,
+[x11_cgo.go](../internal/adapter/eventtap/linux/x11_cgo.go)). The keysym is
+state-resolved, so Shift has chosen the level the same way
+`xkb_state_key_get_one_sym` does for the evdev reader — which is what makes both
+backends call `Shift+;` the same thing. A keysym outside Latin-1 that the name
+table does not cover falls back to the character the server produced, unprefixed,
+so a non-Latin layout is no worse off than before. One consequence of the exclusive
+capture is still shared by both Linux backends: while a mode is open, a chord bound
+in the *compositor* rather than in `[hotkeys]` cannot fire, because the compositor
+is not reading the keyboard.
+
+**One key, one name.** Both Linux readers of `/dev/input` resolve a scan code
+through the compositor's XKB keymap — the in-mode tap and the passive hotkey
+listener alike (`keyName`/`modifierName`,
+[evdev_xkb_cgo.go](../internal/adapter/eventtap/linux/evdev_xkb_cgo.go)). They
+have to agree, because only one of them can see any given press: while the
+listener named keys by raw scan code and the tap named them by keymap, one written
+chord answered one physical key from idle and a different one inside a mode, on
+every layout that is not `us`. Following the keymap is what makes a binding mean
+the key that *types* that character, and is the same reason XKB options like
+`ctrl:swapcaps` reach Neru's own bindings. **On a non-QWERTY layout this decides
+which physical key a `[hotkeys]` chord answers** — the one bearing that character
+on the active layout, in both places.
+
 **Modifier passthrough (Wayland evdev only).** While a mode is active Neru
 captures the keyboard exclusively, so shortcuts it does not bind (`Ctrl+C`,
 `Ctrl+Tab`) are normally swallowed. With `general.passthrough_unbounded_keys`,
@@ -638,8 +694,10 @@ which bypasses that grab and reaches the app with no feedback loop (see
 X11 — an `XGrabKeyboard` routes Neru's own synthetic XTest events back to
 itself, and `XSendEvent` is ignored by most apps — nor on the rare wl-keyboard
 fallback, which has no injection path. Classification (blacklist,
-mode-intercepted keys, the mode's own hotkeys) and the post-passthrough hint
-refresh are shared in
+mode-intercepted keys, the mode's own hotkeys, and the global chords it falls
+back to — passed through, the user's own hotkey would reach the application in
+front of them and the fallback above would never see the key) and the
+post-passthrough hint refresh are shared in
 [passthrough.go](../internal/app/modes/passthrough.go); only the final
 re-injection is backend-specific. The blacklist keeps chosen chords consumed,
 and `general.should_exit_after_passthrough` exits the mode after a passthrough.

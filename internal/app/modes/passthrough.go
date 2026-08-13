@@ -38,26 +38,30 @@ func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
 
 	h.setPassthroughCallback(h.passthroughCallbackFor(mode, enabled))
 
-	// The keymap is only consulted when passthrough is on: with it off the tap
+	// The keymaps are only consulted when passthrough is on: with it off the tap
 	// consumes everything anyway, and a mode that is not open binds nothing.
 	keymap := configpkg.Keymap{}
+	globalHotkeys := configpkg.Keymap{}
 	blacklist := []string(nil)
 
 	if enabled {
-		keymap = h.settledKeymap()
+		keymap, globalHotkeys = h.settledKeymaps()
 
 		blacklist = append(blacklist, h.config.General.PassthroughUnboundedKeysBlacklist...)
 
 		// The keys the mode binds must also be blacklisted so the event tap
-		// consumes them instead of passing them through.
-		for _, key := range keymap.Keys() {
+		// consumes them instead of passing them through. So must the global
+		// chords the mode falls back to, and for the same reason: passed through,
+		// the tap would hand the user's own hotkey to the application in front of
+		// them and the fallback would never see the key at all.
+		for _, key := range append(keymap.Keys(), globalHotkeys.Keys()...) {
 			blacklist = append(blacklist, configpkg.CanonicalHotkeyForPlatform(key))
 		}
 	}
 
 	h.setModifierPassthrough(enabled, blacklist)
 
-	h.setInterceptedModifierKeys(modeModifierKeys(keymap))
+	h.setInterceptedModifierKeys(modeModifierKeys(keymap, globalHotkeys))
 }
 
 // passthroughEnabledFor reports whether the event tap should hand unbound
@@ -112,7 +116,11 @@ func (h *Handler) RefreshPassthroughForFocusedAppChange() {
 		return
 	}
 
-	if !h.passthroughEnabledFor(mode) || !h.activeModeHasAppHotkeyOverrides() {
+	// The last of the three asks about both tables in force, not just the mode's
+	// own: a global chord the mode falls back to is on the blacklist too, and an
+	// [[app_configs]] entry can rebind one, so the focused application moving can
+	// move that half as well.
+	if !h.passthroughEnabledFor(mode) || !h.focusedAppCanChangeWhatIsBound(mode) {
 		return
 	}
 
@@ -133,31 +141,38 @@ func (h *handlerState) passthroughCallbackFor(mode domain.Mode, enabled bool) fu
 
 const initialCapacity = 16
 
-// modeModifierKeys is the modifier chords the keymap binds, in the form the
-// platform canonicalizes them to: the event tap intercepts these instead of
+// modeModifierKeys is the modifier chords the given keymaps bind, in the form
+// the platform canonicalizes them to: the event tap intercepts these instead of
 // passing them through to the focused application.
-func modeModifierKeys(keymap configpkg.Keymap) []string {
-	if keymap.Len() == 0 {
-		return nil
-	}
-
+//
+// It takes both tables in force while a mode is open — the mode's own, and the
+// global chords it falls back to — because the tap asks a single question about a
+// chord, so the two reach it as one list. A chord both tables bind is one entry,
+// which is also the answer either way.
+func modeModifierKeys(mode, global configpkg.Keymap) []string {
 	keys := make([]string, 0, initialCapacity)
 	seen := make(map[string]struct{}, initialCapacity)
 
-	for _, key := range keymap.Keys() {
-		trimmed := strings.TrimSpace(key)
-		if trimmed == "" || !configpkg.HasPassthroughModifier(trimmed) {
-			continue
+	for _, keymap := range []configpkg.Keymap{mode, global} {
+		for _, key := range keymap.Keys() {
+			trimmed := strings.TrimSpace(key)
+			if trimmed == "" || !configpkg.HasPassthroughModifier(trimmed) {
+				continue
+			}
+
+			normalized := configpkg.CanonicalHotkeyForPlatform(trimmed)
+			if _, exists := seen[normalized]; exists {
+				continue
+			}
+
+			seen[normalized] = struct{}{}
+
+			keys = append(keys, normalized)
 		}
+	}
 
-		normalized := configpkg.CanonicalHotkeyForPlatform(trimmed)
-		if _, exists := seen[normalized]; exists {
-			continue
-		}
-
-		seen[normalized] = struct{}{}
-
-		keys = append(keys, normalized)
+	if len(keys) == 0 {
+		return nil
 	}
 
 	slices.Sort(keys)

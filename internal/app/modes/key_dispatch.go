@@ -270,8 +270,8 @@ func (h *handlerState) handleHotkey(key string) (
 		return nil, "", false
 	}
 
-	keymap := h.settledKeymap()
-	if keymap.Len() == 0 {
+	keymap, globalHotkeys := h.settledKeymaps()
+	if keymap.Len() == 0 && globalHotkeys.Len() == 0 {
 		return nil, "", false
 	}
 
@@ -302,6 +302,18 @@ func (h *handlerState) handleHotkey(key string) (
 
 	// Phase 2: direct single-key match.
 	if binding, ok := keymap.Lookup(normalizedKey); ok {
+		h.dispatchHotkeyActions(currentModeName, binding.Key, key, binding.Steps)
+
+		return binding.Steps, binding.Key, true
+	}
+
+	// Phase 2b: the global [hotkeys] chord for the same key. The mode's own table
+	// has already had its say above, so a mode that binds the chord keeps
+	// winning it and this is reached only for one the mode leaves alone — where
+	// the global binding is what the user still expects to work, and where the
+	// exclusive Linux capture leaves nothing else able to run it
+	// (settledKeymaps).
+	if binding, ok := globalHotkeys.Lookup(normalizedKey); ok {
 		h.dispatchHotkeyActions(currentModeName, binding.Key, key, binding.Steps)
 
 		return binding.Steps, binding.Key, true

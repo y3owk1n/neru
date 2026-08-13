@@ -320,7 +320,15 @@ type evdevModifierState struct {
 	linuxModifierState
 }
 
-func (s *evdevModifierState) prefix() string {
+// prefix is the modifier part of a chord name, in the fixed shift+ctrl+alt+cmd
+// order every reader and every blacklist entry is canonicalized to.
+//
+// It sits on the shared state rather than the evdev one because both Linux
+// backends spell a chord with it: the evdev tap and hotkey listener through their
+// modifier refcounts, and the X11 tap through the counts it keeps from KeyPress
+// and KeyRelease. One spelling is what lets a binding written once match on
+// either (docs/CROSS_PLATFORM.md, "One key, one name").
+func (s *linuxModifierState) prefix() string {
 	if s == nil {
 		return ""
 	}

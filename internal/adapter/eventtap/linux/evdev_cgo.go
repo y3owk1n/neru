@@ -88,6 +88,25 @@ func IsWaylandEvdevKeyboardActive() bool {
 	return waylandEvdevKeyboardActive.Load()
 }
 
+// waylandEvdevGrabGeneration counts the grabs that have ended. It is what lets a
+// passive reader of the same devices know that events happened which it did not
+// see: while a grab is held it receives nothing at all, so it cannot observe the
+// grab directly and cannot tell a quiet keyboard from a captured one.
+//
+// Comparing the generation it last saw against this one on the next event it does
+// receive answers "has a mode been and gone since I last looked", which is
+// exactly when everything it believes about which keys are down may be wrong —
+// in both directions, since it missed presses and releases alike.
+var waylandEvdevGrabGeneration atomic.Uint64
+
+// endEvdevGrabGeneration records that a grab has ended. Paired with the flag
+// above, and set in the same place, so no exit path can clear one and not the
+// other.
+func endEvdevGrabGeneration() {
+	waylandEvdevKeyboardActive.Store(false)
+	waylandEvdevGrabGeneration.Add(1)
+}
+
 var (
 	errWaylandEvdevUnavailable = errors.New("wayland evdev capture unavailable")
 	errWaylandEvdevGrabFailed  = errors.New("wayland evdev grab failed")
@@ -151,6 +170,10 @@ type waylandEvdevKeyState struct {
 	// never reached libinput.  We inject synthetic releases for these
 	// at shutdown so libinput's per-keycode hw_is_key_down is cleared.
 	releasedDuringGrab map[uint16]bool
+	// grabGeneration is the value of waylandEvdevGrabGeneration this state was
+	// last reconciled against, and belongs to the passive listener alone — see
+	// needsReconcileAfterGrab for why the tap has no use for it.
+	grabGeneration uint64
 	// passthroughHeld maps a base keycode that is currently being passed
 	// through to the focused app to the modifier names we pressed on the
 	// virtual keyboard for it. The modifiers stay held (refcounted by the
@@ -159,6 +182,85 @@ type waylandEvdevKeyState struct {
 	// released on the physical key-up. Presence also marks the release as
 	// "already passed through" so no stray key-up leaks into Neru.
 	passthroughHeld map[uint16][]string
+}
+
+// modifierTransition is what tracking a modifier key event turned out to mean.
+//
+// It exists because both readers of the devices track modifiers the same way and
+// answer the third case differently, so the shared part is the tracking and the
+// difference is what the caller does with this.
+type modifierTransition int
+
+const (
+	// modifierHeld is a press: the modifier is now down. A press for a key
+	// already tracked as down is the kernel repeating itself and still answers
+	// this, having counted nothing twice.
+	modifierHeld modifierTransition = iota
+	// modifierDropped is the release of a press this state saw.
+	modifierDropped
+	// modifierReleaseUnmatched is a release with no press behind it, so nothing
+	// was counted and nothing was decremented. It means this reader missed
+	// events — the other one had the devices grabbed — and the caller decides
+	// whether that is expected (the tap, whose grab has just started) or a
+	// picture worth rebuilding (the listener, whose count would otherwise go
+	// negative and stay there).
+	modifierReleaseUnmatched
+)
+
+// needsReconcileAfterGrab reports whether a grab has begun and ended since this
+// state was last reconciled, and records the generation either way.
+//
+// It is how the passive listener learns that its picture of the keyboard is stale:
+// a grab hands it no events at all, so the arithmetic it does on the events it
+// *does* get silently describes a keyboard it stopped watching. Both directions go
+// wrong across such a window — a press it missed leaves a modifier uncounted, a
+// release it missed leaves one counted forever — and only the second announces
+// itself (as an unmatched release). This catches both, at the first event after
+// the mode is gone.
+//
+// The tap never needs it: it builds a fresh state for each grab it holds, so it
+// cannot be behind one.
+func (state *waylandEvdevKeyState) needsReconcileAfterGrab(generation uint64) bool {
+	if state.grabGeneration == generation {
+		return false
+	}
+
+	state.grabGeneration = generation
+
+	return true
+}
+
+// trackModifier records a modifier key event against the held-key picture and
+// reports what it meant.
+//
+// The refcount is per modifier *name*, not per key, so the two Shift keys held
+// together count twice and releasing one leaves the modifier down. A press for a
+// code already down is not counted again: the kernel repeats a held key, and
+// counting each repeat would leave the modifier held after the single release
+// that follows.
+func (state *waylandEvdevKeyState) trackModifier(
+	code uint16,
+	modifier string,
+	isDown bool,
+) modifierTransition {
+	switch {
+	case isDown:
+		alreadyTracked := state.pressed[code]
+		state.trackKey(code, true)
+
+		if !alreadyTracked {
+			state.modifiers.update(modifier, true)
+		}
+
+		return modifierHeld
+	case state.pressed[code]:
+		state.trackKey(code, false)
+		state.modifiers.update(modifier, false)
+
+		return modifierDropped
+	default:
+		return modifierReleaseUnmatched
+	}
 }
 
 type waylandEvdevCapture struct {

@@ -2752,3 +2752,65 @@ func TestSimulation_ConfigSetRelabelsTheGridWithoutAReload(t *testing.T) {
 		}
 	}
 }
+
+// The two halves of the reported --toggle case: a global chord bound to the
+// toggle, and the scroll-mode key that hands over to recursive grid. The chord
+// is written in the tap's own modifier order, which is what a keymap lookup
+// compares against.
+const (
+	globalToggleChord    = "Ctrl+Alt+;"
+	scrollToRecursiveKey = "Space"
+)
+
+// TestSimulation_GlobalHotkeyTogglesAModeEnteredFromAnotherMode is the journey
+// behind #1519's neighbor: --toggle exits the mode it names whenever that mode
+// is the active one, and how the user got there is not part of the question.
+//
+// It presses the chord the way the in-mode capture delivers it rather than
+// through the hotkey port, because that is the only way it arrives on Linux: the
+// evdev grab silences the listener that registered it, so the handler resolving
+// the global table itself is what makes the toggle work at all
+// (internal/app/modes/keymap.go, settledKeymaps).
+func TestSimulation_GlobalHotkeyTogglesAModeEnteredFromAnotherMode(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[globalToggleChord] = []string{"recursive_grid --toggle"}
+	cfg.Scroll.Hotkeys[scrollToRecursiveKey] = config.StringOrStringArray{
+		config.ModeNameRecursiveGrid,
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	// Into recursive grid the way the report describes it: from another mode,
+	// through that mode's own binding, never through the global chord.
+	sim.press(scrollToRecursiveKey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+
+	sim.press(globalToggleChord)
+
+	sim.waitFor("the global chord toggling the mode it named back to idle", func() bool {
+		return sim.app.CurrentMode() == domain.ModeIdle
+	})
+}
+
+// The same chord from the same mode entered the other way. Both paths answer the
+// toggle, which is the property the report found broken on one of them.
+func TestSimulation_GlobalHotkeyTogglesAModeItEnteredItself(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[globalToggleChord] = []string{"recursive_grid --toggle"}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	sim.press(globalToggleChord)
+
+	sim.waitFor("the global chord toggling the mode it opened back to idle", func() bool {
+		return sim.app.CurrentMode() == domain.ModeIdle
+	})
+}
