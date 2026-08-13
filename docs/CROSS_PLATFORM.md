@@ -90,10 +90,27 @@ CI job rather than by use. Coverage is what a checklist can establish; that
 these hold up on a real compositor, under a real workload, over weeks of
 ordinary use, is not.
 
-**Linux moves to Stable** after six consecutive releases in which no
-`platform: linux` bug is filed that a macOS user would not also hit —
-`gh issue list --label "platform: linux" --label bug`. Not before, and still
-not on a judgment call.
+**Linux moves to Stable** after six consecutive releases in which no Linux-only
+bug is filed — one a macOS user would not also hit. Count bugs *filed* in that
+window rather than ones still open at the end of it: a bug found and fixed still
+happened, and it is evidence about the platform either way.
+
+```bash
+since=$(gh release view <tag-six-back> --json publishedAt --jq .publishedAt)
+gh issue list --state all --label "platform: linux" --label bug \
+  --search "created:>=${since%%T*}"
+```
+
+That query returns candidates, not an answer, and two things it cannot do a
+person must. It cannot tell a Linux-only bug from one macOS shares, so read what
+comes back and discount anything that is really a cross-platform bug wearing a
+platform label. And it sees only what was labelled — a Linux bug filed without
+`platform: linux` is invisible to it, so this is worth no more than the triage
+feeding it.
+
+Reading an individual bug is a judgment; whether the label flips is not. That
+distinction is the whole point — see
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md).
 
 ### Per-platform
 

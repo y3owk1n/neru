@@ -293,10 +293,19 @@ with no criterion either never moves or moves on a feeling" is exactly the
 failure a nervous maintainer reaches for when the checklist runs out, and
 replacing a firing criterion with a judgment call would be this ADR defeated on
 its last page. The replacement is falsifiable: Linux moves to Stable after six
-consecutive releases in which no `platform: linux` bug is filed that a macOS
-user would not also hit, which `gh issue list` answers. Releases rather than
+consecutive releases in which no Linux-only bug is filed. Releases rather than
 calendar time, so a pause in shipping pauses the clock — exposure is the thing
-being measured, and an unreleased month provides none.
+being measured, and an unreleased month provides none. Bugs *filed* in the
+window rather than still open at the end of it, because a bug found and fixed
+still happened; the query that finds them is in `CROSS_PLATFORM.md`, along with
+the two things it hands back to a person rather than settling.
+
+Falsifiable is not the same as mechanical, and the difference is worth stating
+so the next reader does not mistake one for the other. Whether an individual bug
+is Linux-only is a reading, and no label makes it otherwise. What this criterion
+removes is the judgment that actually rotted the old one: whether the platform
+*feels* ready. Six releases and a countable set of bugs is an answer a
+maintainer can be wrong about but cannot indefinitely defer.
 
 Two limits, recorded rather than papered over:
 
