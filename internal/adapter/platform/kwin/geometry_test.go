@@ -10,9 +10,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// initialGeneration is the generation a bridge that has seen no compositor
+// change is on, which is what an attempt started before any of them carries.
+const initialGeneration = 0
+
 // errTestInstallFailed stands in for whatever kept the KWin script from being
-// installed; Bounds only has to carry it back, not interpret it.
-var errTestInstallFailed = errors.New("org.kde.KWin is not on the session bus")
+// installed. It is deliberately not errKWinAbsent: what is pinned is that the
+// reason reaches the caller verbatim, whatever it happens to be.
+var errTestInstallFailed = errors.New("the session bus refused the connection")
 
 // TestGeometry_BoundsBeforeAnyUpdate pins the cold answer. Nothing has been
 // pushed yet, so the bridge reports "nothing to say" — not a zero rectangle a
@@ -89,8 +94,8 @@ func TestGeometry_UpdateActiveWindowRejectsUnusablePayloads(t *testing.T) {
 }
 
 // TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass keeps the geometry
-// working when the class is absent — it is a diagnostic, not part of the
-// answer.
+// working when the class is absent — it is a correlation key, not part of the
+// answer, and a KWin version that reports no class must still report a window.
 func TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
@@ -102,6 +107,101 @@ func TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass(t *testing.T) {
 	}
 }
 
+// TestGeometry_FocusedCarriesTheWindowIdentity pins the half of the payload the
+// AT-SPI origin path correlates with. Without it a cached rectangle can only be
+// checked by size, and two same-sized windows are indistinguishable (#972).
+//
+// The caption is last in the payload because it is the one field that can
+// contain a comma, so a title with one has to survive the split whole.
+func TestGeometry_FocusedCarriesTheWindowIdentity(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	_ = geometry.UpdateActiveWindow(
+		"100,50,800,600,konsole,konsole,one, two and three — Konsole")
+
+	window, ok, err := geometry.Focused()
+	if !ok || err != nil {
+		t.Fatalf("Focused() = (%v, %v, %v), want a window", window, ok, err)
+	}
+
+	want := Window{
+		Rect:  image.Rect(100, 50, 900, 650),
+		Class: "konsole",
+		Name:  "konsole",
+		Title: "one, two and three — Konsole",
+	}
+	if window != want {
+		t.Errorf("Focused() = %+v, want %+v", window, want)
+	}
+}
+
+// TestGeometry_ClearActiveWindowEmptiesTheCache is the other half of the fix
+// this bridge needed: a rectangle that has stopped describing anything.
+//
+// KWin reported on activation and nothing else, so once a window had been seen
+// the cache could never empty — after the last one closed, "where is the
+// focused window" was answered with the rectangle the dead window had. Emptying
+// it is not a failure and must not be reported as one: the bridge is installed
+// and working, and what it has to say is that nothing is focused.
+func TestGeometry_ClearActiveWindowEmptiesTheCache(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	_ = geometry.UpdateActiveWindow("100,50,800,600,konsole,konsole,Konsole")
+
+	dbusErr := geometry.ClearActiveWindow("closed")
+	if dbusErr != nil {
+		t.Fatalf("ClearActiveWindow returned %v, want nil", dbusErr)
+	}
+
+	rect, ok, err := geometry.Bounds()
+	if ok || err != nil {
+		t.Fatalf("Bounds() after a clear = (%v, %v, %v), want (empty, false, nil) — "+
+			"nothing is focused, which is an answer and not a failure", rect, ok, err)
+	}
+}
+
+// TestGeometry_UpdateAfterAClearReportsAgain keeps a clear from being terminal.
+// Focus leaving every window is the ordinary state of a desktop between two
+// windows, not the end of the bridge's usefulness.
+func TestGeometry_UpdateAfterAClearReportsAgain(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	_ = geometry.UpdateActiveWindow("100,50,800,600,konsole,konsole,Konsole")
+	_ = geometry.ClearActiveWindow("desktop")
+	_ = geometry.UpdateActiveWindow("10,20,300,400,kate,kate,Kate")
+
+	rect, ok, err := geometry.Bounds()
+	if !ok || err != nil || rect != image.Rect(10, 20, 310, 420) {
+		t.Errorf("Bounds() = (%v, %v, %v), want the newly pushed rectangle", rect, ok, err)
+	}
+}
+
+// TestGeometry_ClearActiveWindowIsNotAMalformedPush pins the distinction the
+// two methods exist to draw.
+//
+// A malformed push is a push that failed, and the previous rectangle survives
+// it as the best available answer. A clear is KWin saying that rectangle
+// describes nothing on screen. Collapsing them — a clear expressed as an empty
+// payload, say — would make one of the two behave as the other.
+func TestGeometry_ClearActiveWindowIsNotAMalformedPush(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	_ = geometry.UpdateActiveWindow("100,50,800,600,konsole,konsole,Konsole")
+	_ = geometry.UpdateActiveWindow("")
+
+	_, cached, _ := geometry.Bounds()
+	if !cached {
+		t.Fatal("a malformed push emptied the cache; only a clear may do that")
+	}
+
+	_ = geometry.ClearActiveWindow("closed")
+
+	_, cached, _ = geometry.Bounds()
+	if cached {
+		t.Error("a clear left the previous rectangle in place")
+	}
+}
+
 // TestGeometry_BoundsReportsAFailedInstall is the honesty half. A bridge that
 // never installed cannot answer, and saying "no focused window" there is the
 // silent fallback this source exists to end: the caller would constrain to the
@@ -109,7 +209,7 @@ func TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass(t *testing.T) {
 func TestGeometry_BoundsReportsAFailedInstall(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
-	geometry.endStart(errTestInstallFailed)
+	geometry.endStart(initialGeneration, errTestInstallFailed)
 
 	_, ok, err := geometry.Bounds()
 	if ok {
@@ -127,7 +227,7 @@ func TestGeometry_BoundsReportsAFailedInstall(t *testing.T) {
 func TestGeometry_BoundsPrefersLiveGeometryOverAStaleFailure(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
-	geometry.endStart(errTestInstallFailed)
+	geometry.endStart(initialGeneration, errTestInstallFailed)
 	_ = geometry.UpdateActiveWindow("10,20,300,400,kate")
 
 	rect, ok, err := geometry.Bounds()
@@ -148,23 +248,23 @@ func TestGeometry_BoundsPrefersLiveGeometryOverAStaleFailure(t *testing.T) {
 func TestGeometry_BeginStartRetriesUntilTheScriptIsInstalled(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
-	if !geometry.beginStart() {
+	if _, ok := geometry.beginStart(); !ok {
 		t.Fatal("the first caller was not allowed to install")
 	}
 
-	if geometry.beginStart() {
+	if _, ok := geometry.beginStart(); ok {
 		t.Error("a second caller started a duplicate install while one was in flight")
 	}
 
-	geometry.endStart(errTestInstallFailed)
+	geometry.endStart(initialGeneration, errTestInstallFailed)
 
-	if !geometry.beginStart() {
+	if _, ok := geometry.beginStart(); !ok {
 		t.Fatal("a failed install was never retried; the daemon would run blind until restart")
 	}
 
-	geometry.endStart(nil)
+	geometry.endStart(initialGeneration, nil)
 
-	if geometry.beginStart() {
+	if _, ok := geometry.beginStart(); ok {
 		t.Error("an installed script was reinstalled")
 	}
 }
@@ -175,10 +275,10 @@ func TestGeometry_ASuccessfulRetryClearsTheRecordedReason(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
 	geometry.beginStart()
-	geometry.endStart(errTestInstallFailed)
+	geometry.endStart(initialGeneration, errTestInstallFailed)
 
 	geometry.beginStart()
-	geometry.endStart(nil)
+	geometry.endStart(initialGeneration, nil)
 
 	_, ok, err := geometry.Bounds()
 	if ok || err != nil {
@@ -209,8 +309,8 @@ func TestGeometry_RunInstallRetriesWithoutWaitingForACaller(t *testing.T) {
 		return nil
 	}
 
-	geometry.beginStart()
-	geometry.runInstall(install, 0)
+	generation, _ := geometry.beginStart()
+	geometry.runInstall(generation, install, 0)
 
 	if attempts != 3 {
 		t.Fatalf(
@@ -224,7 +324,7 @@ func TestGeometry_RunInstallRetriesWithoutWaitingForACaller(t *testing.T) {
 		t.Fatalf("Bounds() after a successful retry = (%v, %v), want (false, nil)", ok, err)
 	}
 
-	if geometry.beginStart() {
+	if _, ok := geometry.beginStart(); ok {
 		t.Error("an installed script was reinstalled")
 	}
 }
@@ -244,8 +344,8 @@ func TestGeometry_RunInstallStopsRetryingAndReportsTheReason(t *testing.T) {
 		return errTestInstallFailed
 	}
 
-	geometry.beginStart()
-	geometry.runInstall(install, 0)
+	generation, _ := geometry.beginStart()
+	geometry.runInstall(generation, install, 0)
 
 	if attempts != installRetries+1 {
 		t.Fatalf("install ran %d times, want %d", attempts, installRetries+1)
@@ -256,7 +356,7 @@ func TestGeometry_RunInstallStopsRetryingAndReportsTheReason(t *testing.T) {
 		t.Fatalf("Bounds() = (%v, %v), want the recorded reason", ok, err)
 	}
 
-	if !geometry.beginStart() {
+	if _, ok := geometry.beginStart(); !ok {
 		t.Error("a bounded retry that gave up also stopped the next caller from trying")
 	}
 }
@@ -283,8 +383,8 @@ func TestGeometry_RunInstallReportsEachFailureAsItHappens(t *testing.T) {
 		return errTestInstallFailed
 	}
 
-	geometry.beginStart()
-	geometry.runInstall(install, 0)
+	generation, _ := geometry.beginStart()
+	geometry.runInstall(generation, install, 0)
 
 	if !errors.Is(duringBackoff, errTestInstallFailed) {
 		t.Errorf("Bounds() between attempts = %v, want the failure already recorded", duringBackoff)

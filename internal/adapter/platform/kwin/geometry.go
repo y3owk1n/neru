@@ -8,8 +8,6 @@ import (
 	"image"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,12 +25,8 @@ const (
 	scriptingPath  = "/Scripting"
 	scriptingIface = "org.kde.kwin.Scripting"
 
-	dbusNameHasOwner = "org.freedesktop.DBus.NameHasOwner"
-
-	// UpdateActiveWindow payload is "x,y,w,h,resourceClass": up to 5 fields,
-	// with the geometry minimum being the first 4 (resourceClass is optional).
-	payloadParts    = 5
-	payloadMinParts = 4
+	dbusIface        = "org.freedesktop.DBus"
+	dbusNameHasOwner = dbusIface + ".NameHasOwner"
 
 	// The geometry script is only readable/writable by the owner.
 	scriptFileMode = 0o600
@@ -57,64 +51,60 @@ const scriptFileName = "neru-kwin-geometry.js"
 // answers and only one of them should send a caller to the active screen.
 var errKWinAbsent = errors.New("org.kde.KWin is not on the session bus")
 
-// geometryScript is loaded into KWin. It reports the focused window's client
-// geometry (content rect, excludes the titlebar so it aligns 1:1 with the
-// AT-SPI content origin). It ignores Neru's own overlay so that activating the
-// hint overlay does not overwrite the real window's geometry.
+// Window is what KWin last said about the focused window: where it is, and
+// which window it is.
 //
-// neruIgnore filters out non-application surfaces that briefly take activation
-// but are never hint targets: panels/docks/OSD/popups/tooltips/utility windows
-// (caught by KWin's window-type flags), plus a few known transient classes
-// (the XWayland video bridge, plasmashell, and the portal consent dialog).
-// Without this, focus flicking to e.g. plasmashell or the RemoteDesktop consent
-// dialog would clobber the real window origin and mis-offset hint clicks.
-// Accessing an absent KWin property yields undefined (falsy), so listing extra
-// type flags is safe across KWin versions.
-const geometryScript = `
-function neruIgnore(c) {
-    if (!c) return true;
-    if (c.resourceClass == "neru") return true;
-    if (c.specialWindow || c.dock || c.desktopWindow || c.splash ||
-        c.utility || c.toolbar || c.menu || c.dropdownMenu || c.popupMenu ||
-        c.tooltip || c.notification || c.criticalNotification ||
-        c.onScreenDisplay || c.comboBox || c.dndIcon) return true;
-    var cls = ("" + c.resourceClass).toLowerCase();
-    if (cls == "xwaylandvideobridge" || cls == "plasmashell" ||
-        cls == "org.kde.plasmashell" ||
-        cls == "org.freedesktop.impl.portal.desktop.kde") return true;
-    return false;
+// The identity travels with the rectangle because a caller pairing the
+// rectangle with something of its own — the AT-SPI frame it is about to walk —
+// has no other way to tell that the two describe the same window.
+//
+// Class, Name and Title are KWin's resourceClass, resourceName and caption, and
+// any of them can be empty: they are a correlation key, never a requirement.
+// Both application identifiers are here because they disagree for some windows
+// (an XWayland Firefox is class "firefox" and name "navigator") and a reader
+// comparing against a third spelling of the same application should be able to
+// match either.
+type Window struct {
+	Rect  image.Rectangle
+	Class string
+	Name  string
+	Title string
 }
-function neruPush(c) {
-    if (neruIgnore(c)) return;
-    var g = c.clientGeometry ? c.clientGeometry : c.frameGeometry;
-    if (!g) return;
-    callDBus("org.neru.KWinBridge", "/org/neru/KWinBridge", "org.neru.KWinBridge",
-             "UpdateActiveWindow",
-             "" + Math.round(g.x) + "," + Math.round(g.y) + "," +
-             Math.round(g.width) + "," + Math.round(g.height) + "," + c.resourceClass);
-}
-workspace.windowActivated.connect(neruPush);
-neruPush(workspace.activeWindow);
-`
 
-// Geometry caches the focused window's on-screen client rectangle, fed by the
-// KWin script through the exported D-Bus method. It answers two questions from
-// that one cache: the window's origin (AT-SPI reports element coordinates
-// relative to it on Wayland) and the window's rectangle
-// (SystemPort.FocusedWindowBounds).
+// Geometry caches the focused window, fed by the KWin script through the
+// exported D-Bus methods. It answers two questions from that one cache: the
+// window's origin (AT-SPI reports element coordinates relative to it on
+// Wayland) and the window's rectangle (SystemPort.FocusedWindowBounds).
 type Geometry struct {
 	// logger is whatever the first caller with one handed in. Both callers
 	// reach this through Shared and only one of them carries a logger, so it
 	// is set once and read from any goroutine.
 	logger atomic.Pointer[zap.Logger]
 
+	// watching is the restart watch's one-shot claim (restart_watch.go).
+	watching claim
+
 	startMu   sync.Mutex
 	starting  bool
 	installed bool
 	warned    bool
 
+	// installer is what one attempt runs. It is a field rather than a method
+	// call so a test can drive the whole claim-and-generation machinery —
+	// including the reinstall that a retired attempt has to schedule — without
+	// a session bus to install into.
+	installer func() error
+
+	// generation counts how many times what an install attempt is *about* has
+	// stopped being true — KWin changing hands underneath one in flight. An
+	// attempt carries the generation it began in and publishes nothing unless
+	// that is still the current one, so a success against a compositor that has
+	// since gone cannot mark the bridge installed or erase the record of its
+	// going. Guarded by startMu.
+	generation uint64
+
 	mu       sync.RWMutex
-	rect     image.Rectangle
+	window   Window
 	valid    bool
 	startErr error
 }
@@ -143,6 +133,7 @@ func Shared(logger *zap.Logger) *Geometry {
 
 func newGeometry(logger *zap.Logger) *Geometry {
 	geometry := &Geometry{}
+	geometry.installer = geometry.install
 	geometry.adoptLogger(logger)
 
 	return geometry
@@ -161,78 +152,112 @@ func newGeometry(logger *zap.Logger) *Geometry {
 // the activation path and nothing else. The install converging without a caller
 // is what start covers.
 func (g *Geometry) EnsureStarted() {
-	if g.beginStart() {
-		go g.start()
+	if generation, ok := g.beginStart(); ok {
+		go g.start(generation)
 	}
 }
 
-// UpdateActiveWindow is the exported D-Bus method the KWin script calls. The
-// payload is "x,y,w,h,resourceClass" (a single string, to avoid KWin number
-// marshaling quirks).
+// UpdateActiveWindow is the exported D-Bus method the KWin script calls when
+// there is a focused window to report. The payload is
+// "x,y,w,h,resourceClass,resourceName,caption" (a single string, to avoid KWin
+// number marshaling quirks).
 //
 // A push that does not describe a window on screen is dropped rather than
 // cached: the previous geometry is a better answer than an empty rectangle,
-// which a caller cannot tell from a real one.
+// which a caller cannot tell from a real one. That is why there is a second
+// method — ClearActiveWindow — for the case where the previous geometry is not
+// an answer at all.
 func (g *Geometry) UpdateActiveWindow(payload string) *dbus.Error {
-	parts := strings.SplitN(payload, ",", payloadParts)
-	if len(parts) < payloadMinParts {
+	window, ok := parseWindowPayload(payload)
+	if !ok {
 		return nil
-	}
-
-	originX, errX := strconv.Atoi(strings.TrimSpace(parts[0]))
-	originY, errY := strconv.Atoi(strings.TrimSpace(parts[1]))
-	width, errW := strconv.Atoi(strings.TrimSpace(parts[2]))
-	height, errH := strconv.Atoi(strings.TrimSpace(parts[3]))
-
-	if errX != nil || errY != nil || errW != nil || errH != nil {
-		return nil //nolint:nilerr // best-effort: malformed payloads are ignored, not surfaced to KWin.
-	}
-
-	if width <= 0 || height <= 0 {
-		return nil
-	}
-
-	class := ""
-	if len(parts) == payloadParts {
-		class = parts[4]
 	}
 
 	g.mu.Lock()
-	g.rect, g.valid = image.Rect(originX, originY, originX+width, originY+height), true
+	g.window, g.valid = window, true
 	g.mu.Unlock()
 
+	// The title is a window's contents by any reasonable reading — a document
+	// name, a chat, a page — so it is correlated with and never logged. The
+	// class is an application identity, which the app watcher already logs.
 	g.log().Debug("KWin active window geometry",
-		zap.Int("x", originX), zap.Int("y", originY),
-		zap.Int("w", width), zap.Int("h", height),
-		zap.String("class", class))
+		zap.Int("x", window.Rect.Min.X), zap.Int("y", window.Rect.Min.Y),
+		zap.Int("w", window.Rect.Dx()), zap.Int("h", window.Rect.Dy()),
+		zap.String("class", window.Class))
 
 	return nil
 }
 
-// Bounds returns the focused window's on-screen client rectangle as KWin last
-// reported it.
+// ClearActiveWindow is the exported D-Bus method the KWin script calls when
+// activation has left every window it can report on: the desktop is focused,
+// the focused window was minimized, or the last one closed.
 //
-// The three answers are distinct on purpose. A rectangle with ok is what KWin
+// It is a separate method rather than a shape of UpdateActiveWindow's payload
+// because the two say opposite things about the cache. A malformed or
+// degenerate push is a push that failed, and the previous rectangle survives it
+// as the best available answer. This is KWin saying the previous rectangle
+// describes nothing on screen, and keeping it would answer "the focused window
+// is here" with a rectangle no window is in — the confidently wrong answer this
+// bridge exists to end.
+//
+// Emptying the cache is not a failure: the bridge is installed and working, and
+// what it reports is that nothing is focused. Callers widen to the active
+// screen knowingly, which is what they should do.
+//
+// The reason is a fixed word from the script naming which of those happened. It
+// takes an argument at all so the call has the same shape as UpdateActiveWindow
+// — a KWin script's callDBus with no arguments would be the one call here whose
+// marshaling nothing has ever exercised, and a clear that silently failed would
+// restore exactly the stale rectangle this method exists to remove.
+func (g *Geometry) ClearActiveWindow(reason string) *dbus.Error {
+	g.invalidate()
+
+	g.log().Debug("KWin reports no focused window", zap.String("reason", reason))
+
+	return nil
+}
+
+// Focused returns the focused window as KWin last reported it.
+//
+// The three answers are distinct on purpose. A window with ok is what KWin
 // says. ok=false with no error means the bridge is installed (or installing for
-// the first time) and has been told about no window — the desktop is focused,
-// or activation has not moved since the daemon started. A non-nil error means
-// the bridge could not be installed, which is the one case a caller must not
-// read as "there is no focused window".
+// the first time) and has nothing to report — the desktop is focused, the
+// focused window was minimized or closed, or activation has not moved since the
+// daemon started. A non-nil error means the bridge could not be installed,
+// which is the one case a caller must not read as "there is no focused window".
 //
 // A retry already in flight does not soften the last failure into that middle
 // answer. It is the failure that is true right now, and reporting "installing"
 // on every call would hide a session with no KWin behind a permanent maybe —
 // the silent widening to the active screen this bridge exists to end. The
 // reason is cleared the moment an attempt supersedes it.
-func (g *Geometry) Bounds() (image.Rectangle, bool, error) {
+func (g *Geometry) Focused() (Window, bool, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
 	if g.valid {
-		return g.rect, true, nil
+		return g.window, true, nil
 	}
 
-	return image.Rectangle{}, false, g.startErr
+	return Window{}, false, g.startErr
+}
+
+// Bounds returns just the focused window's on-screen client rectangle, for the
+// caller that has nothing to correlate it against — SystemPort.FocusedWindowBounds
+// answers about "the focused window" as such, so KWin's own answer to that is
+// the whole of it. It carries Focused's three answers unchanged.
+func (g *Geometry) Bounds() (image.Rectangle, bool, error) {
+	window, ok, err := g.Focused()
+
+	return window.Rect, ok, err
+}
+
+// invalidate empties the cache without saying anything about why. It is what a
+// clear and a compositor restart have in common.
+func (g *Geometry) invalidate() {
+	g.mu.Lock()
+	g.window, g.valid = Window{}, false
+	g.mu.Unlock()
 }
 
 // adoptLogger takes the first real logger offered and keeps it. Callers reach
@@ -267,51 +292,95 @@ func (g *Geometry) log() *zap.Logger {
 // does not stack a second installer; each failure is still published as it
 // happens, so Bounds keeps naming the current reason rather than going quiet
 // for the length of the backoff.
-func (g *Geometry) start() {
-	g.runInstall(g.install, installRetryBackoff)
+func (g *Geometry) start(generation uint64) {
+	g.runInstall(generation, g.installer, installRetryBackoff)
 }
 
 // runInstall is start's loop with its two dependencies passed in, so the retry
 // policy can be tested without a session bus or a wall-clock wait.
-func (g *Geometry) runInstall(install func() error, backoff time.Duration) {
+func (g *Geometry) runInstall(
+	generation uint64,
+	install func() error,
+	backoff time.Duration,
+) {
 	for attempt := range installRetries + 1 {
 		err := install()
 		if err == nil || attempt == installRetries {
-			g.endStart(err)
+			g.endStart(generation, err)
 
 			return
 		}
 
-		g.recordAttempt(err)
+		g.recordAttempt(generation, err)
 		time.Sleep(backoff << attempt)
 	}
 }
 
-// beginStart claims the right to run an install attempt. It is false when one
-// is already in flight or the script is installed, so callers can ask on every
-// request without stacking attempts or reinstalling.
-func (g *Geometry) beginStart() bool {
+// beginStart claims the right to run an install attempt and hands back the
+// generation that attempt is about. It is false when one is already in flight or
+// the script is installed, so callers can ask on every request without stacking
+// attempts or reinstalling.
+func (g *Geometry) beginStart() (uint64, bool) {
 	g.startMu.Lock()
 	defer g.startMu.Unlock()
 
 	if g.starting || g.installed {
-		return false
+		return 0, false
 	}
 
 	g.starting = true
 
-	return true
+	return g.generation, true
 }
 
 // endStart records the last attempt of a sequence and releases the claim, so
 // the next caller can retry a failure and none can repeat a success.
-func (g *Geometry) endStart(err error) {
+//
+// An attempt from a superseded generation publishes nothing. It was about a
+// compositor that has since changed hands, so its success is not evidence that
+// this one is installed, and its outcome must not overwrite what the departure
+// recorded — a stale success would otherwise leave an empty cache with no
+// reason, which reads as an unfocused desktop and sends callers silently back to
+// the active screen.
+//
+// It schedules a fresh attempt on its way out instead, because it was holding
+// the claim for the whole time it was stale: a compositor that arrived in that
+// window found the claim taken, could not start an installer of its own, and has
+// nobody else coming. Leaving that to the next caller would mean the request
+// that discovers it is the one that pays, which for the AT-SPI origin is a
+// screenful of hints placed window-relative.
+func (g *Geometry) endStart(generation uint64, err error) {
 	g.startMu.Lock()
 	g.starting = false
-	g.installed = err == nil
+	current := generation == g.generation
+
+	if current {
+		g.installed = err == nil
+	}
+
 	g.startMu.Unlock()
 
-	g.recordAttempt(err)
+	if !current {
+		g.log().Debug("KWin geometry install finished for a compositor that has since gone")
+		g.EnsureStarted()
+
+		return
+	}
+
+	g.recordAttempt(generation, err)
+}
+
+// forgetInstall puts the bridge back where it was before it ever installed
+// anything and retires every attempt in flight, returning the generation that
+// replaces them so the caller can speak for the new state itself.
+func (g *Geometry) forgetInstall() uint64 {
+	g.startMu.Lock()
+	defer g.startMu.Unlock()
+
+	g.installed = false
+	g.generation++
+
+	return g.generation
 }
 
 // recordAttempt publishes an attempt's outcome without releasing the claim, for
@@ -321,8 +390,17 @@ func (g *Geometry) endStart(err error) {
 // loud once, since the error reaches every later caller anyway and a session
 // with no KWin would otherwise warn on every hint activation. A success clears
 // the reason: it described a condition that has passed.
-func (g *Geometry) recordAttempt(err error) {
+//
+// A superseded generation publishes nothing, for the reason endStart gives.
+func (g *Geometry) recordAttempt(generation uint64, err error) {
 	g.startMu.Lock()
+
+	if generation != g.generation {
+		g.startMu.Unlock()
+
+		return
+	}
+
 	firstFailure := err != nil && !g.warned
 	g.warned = g.warned || err != nil
 	g.startMu.Unlock()
@@ -341,17 +419,22 @@ func (g *Geometry) recordAttempt(err error) {
 	}
 }
 
-// install exports the D-Bus receiver and loads the KWin script.
+// install arms the restart watch, then exports the D-Bus receiver and loads the
+// KWin script.
 //
-// KWin's presence is checked before anything leaves this process. The bridge is
-// reached from a backend decision, not from an environment guess, but a
-// KDE-labeled session with no running KWin would otherwise still own a bus
-// name and write a script into $XDG_RUNTIME_DIR for nobody to read (#1430).
+// KWin's presence is checked before anything is exported. The bridge is reached
+// from a backend decision, not from an environment guess, but a KDE-labeled
+// session with no running KWin would otherwise still own a bus name and write a
+// script into $XDG_RUNTIME_DIR for nobody to read (#1430). The watch is armed
+// ahead of that check on purpose — watchKWin says why it is not the same kind
+// of act.
 func (g *Geometry) install() error {
 	conn, err := dbus.SessionBus()
 	if err != nil {
 		return fmt.Errorf("session bus: %w", err)
 	}
+
+	g.watchKWin(conn)
 
 	var hasOwner bool
 

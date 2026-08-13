@@ -53,7 +53,7 @@ type niriOutput struct {
 // (niri#2381). Without it there is no origin to compute, so the second query is
 // never made — and a focused-output query that would have failed cannot turn
 // niri's ordinary layout into a reported failure on every activation.
-func (n *niriOriginSource) originFor(frameW, frameH int) (image.Point, bool, error) {
+func (n *niriOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
 	var win niriWindow
 
 	winErr := compositorcli.Query(&win, "niri", "msg", "-j", "focused-window")
@@ -61,7 +61,7 @@ func (n *niriOriginSource) originFor(frameW, frameH int) (image.Point, bool, err
 		return image.Point{}, false, winErr
 	}
 
-	tileX, tileY, ok := niriOriginTile(win, frameW, frameH, n.logger)
+	tileX, tileY, ok := niriOriginTile(win, frame.Width, frame.Height, n.logger)
 	if !ok {
 		return image.Point{}, false, nil
 	}

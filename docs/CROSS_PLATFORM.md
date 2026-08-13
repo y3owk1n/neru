@@ -771,7 +771,7 @@ a session that backend did not identify:
 
 | Compositor | Source                                                       | Limits                                                                                                                    |
 | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| KDE / KWin | KWin script pushing focused-window geometry over D-Bus ([platform/kwin](../internal/adapter/platform/kwin)) | The script reports on **activation** and nothing else, so the cache lags in two ways: a window moved or resized without a focus change keeps its old rectangle until focus returns to it, and once a window has been seen the cache never empties — after the last one closes, the focused-window answer is the rectangle the dead window had rather than "nothing is focused". The AT-SPI origin path catches the first through its frame-size check; `FocusedWindowBounds` has no such signal. |
+| KDE / KWin | KWin script pushing focused-window geometry over D-Bus ([platform/kwin](../internal/adapter/platform/kwin)) | The script reports on activation, on the focused window's geometry changing, and on it going away, so the cache follows a drag, resize, tile or maximize and empties when the desktop is focused or the last window closes. It lives inside the compositor, so Neru watches `org.kde.KWin` on the session bus and reinstalls it when KWin restarts. A drag reports its final rectangle rather than every frame, so a query made mid-drag reads the position the drag started from. |
 | niri       | `niri msg -j focused-window` / `focused-output`              | Floating and fullscreen windows only. **Tiled** windows — including a maximized column (`Mod+F`) — expose no on-screen position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are misaligned there. |
 | Sway       | `swaymsg -t get_tree`, focused node `rect` + `window_rect`   | —                                                                                                                          |
 | Hyprland   | `hyprctl -j activewindow` `at` / `size`                      | —                                                                                                                          |
@@ -780,6 +780,22 @@ a session that backend did not identify:
 Each source verifies the reported window size matches the AT-SPI frame (a focus
 change can race the query) and is best-effort: an unavailable origin degrades to
 unoffset window-relative coordinates rather than misplacing hints.
+
+The KWin source checks identity as well as size, because its rectangle is a
+cache rather than a live query. The script reports the window's `resourceClass`,
+`resourceName` and caption alongside the geometry, and the AT-SPI frame carries
+the focused app_id and title it was selected with — both read from KWin, so a
+disagreement means the cached rectangle belongs to a different window, including
+a second window of the same application at the same size, which size alone
+cannot tell apart.
+
+Both comparisons are written to be sure before they refuse, because a false
+reject unoffsets hints that were placed correctly while a false accept costs no
+more than having no check at all. Either identifier may be the one that matches
+the app_id (they disagree for XWayland windows), the app_id comparison tolerates
+reverse-DNS spelling, the caption comparison accepts a prefix in either
+direction (KWin appends its own shortcut and `<2>` suffixes), and an identity
+neither side reported is not a mismatch.
 
 **A compositor that did not answer is not a compositor with no origin.** The
 three CLI sources go through

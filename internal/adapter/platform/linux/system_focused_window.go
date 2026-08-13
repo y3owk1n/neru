@@ -111,9 +111,11 @@ func waylandFocusedWindowBounds(backend string) (image.Rectangle, bool, error) {
 // on its own, so a session bus that was not up yet is usually resolved before
 // anything asks rather than at the expense of whoever asks first.
 //
-// Nothing leaves this process on a session that is not running KWin: the
-// install probes for it on the bus before it exports, owns a name or writes a
-// script (#1430).
+// Nothing is exported, owned or written on a session that is not running KWin:
+// the install probes for it on the bus before it does any of those (#1430). It
+// does subscribe to the bus first, so it hears a compositor that starts after
+// the daemon — which is a subscription rather than a claim, and the KWin bridge
+// says why that is the one thing worth doing ahead of the probe.
 func warmFocusedWindowSource(backend string) {
 	if backend != backendWaylandKDE {
 		return

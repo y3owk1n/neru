@@ -49,6 +49,10 @@ focused-window geometry over D-Bus to translate them into global compositor
 space — the same script every other focused-window answer here reads (see
 [window-origin offsets](CROSS_PLATFORM.md#accessibility-and-hints)).
 
+A `kwin --replace` or a Plasma crash takes that script with it; see the KWin row
+under [window-origin offsets](CROSS_PLATFORM.md#accessibility-and-hints) for what
+happens then.
+
 ### Protocol support (KWin 6.6.4, measured)
 
 | Protocol                              | Purpose                   | KWin 6.6.4 |

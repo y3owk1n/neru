@@ -301,11 +301,14 @@ func (c *Client) ClickableNodes(
 		return nil, nil
 	}
 
-	// Validate the cached KWin origin against the frame actually being walked
-	// (by size): a stale origin from a previous window would offset every hint
-	// to the wrong screen position. When the frame extents are unavailable the
-	// origin cannot be validated, so no offset is applied at all — unoffset
-	// hints beat hints offset to a previous window or monitor.
+	// Validate the compositor's origin against the frame actually being walked:
+	// an origin from a different window would offset every hint to the wrong
+	// screen position. The frame is described by its size and by the focused
+	// identity it was selected with, so a source that can compare identities
+	// (KWin) can tell apart two windows that a size comparison cannot. When the
+	// frame extents are unavailable the origin cannot be validated at all, so no
+	// offset is applied — unoffset hints beat hints offset to a previous window
+	// or monitor.
 	var (
 		offX, offY int
 		haveOrigin bool
@@ -313,9 +316,12 @@ func (c *Client) ClickableNodes(
 
 	frameRect, frameOK := c.extents(ctx, conn, win.ref)
 	if frameOK {
-		origin, originKnown, originErr := c.windowOrigin.originFor(
-			frameRect.Dx(), frameRect.Dy(),
-		)
+		origin, originKnown, originErr := c.windowOrigin.originFor(windowFrame{
+			Width:        frameRect.Dx(),
+			Height:       frameRect.Dy(),
+			FocusedAppID: win.focusedAppID,
+			FocusedTitle: win.focusedTitle,
+		})
 		if originErr != nil {
 			// The two ways of having no origin are not the same event. A
 			// compositor that answered and has none to give is routine, and
