@@ -3,15 +3,13 @@
 package atspi
 
 import (
-	"context"
-	"encoding/json"
+	"image"
 	"os"
-	"os/exec"
-	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // Window-origin sources for Wayland. A Wayland client cannot know its own
@@ -19,31 +17,51 @@ import (
 // window. To turn those into true screen coordinates for the hint overlay, the
 // focused window's screen origin is supplied by a compositor-specific source:
 // KWin (KDE) pushes it over D-Bus; the wlroots family (niri, Sway, Hyprland)
-// exposes it via their IPC. Every source is best-effort — when the origin
-// cannot be determined, callers fall back to unoffset (window-relative)
-// coordinates.
+// exposes it through their CLI, asked through
+// [github.com/y3owk1n/neru/internal/adapter/platform/compositorcli] — the same
+// query SystemPort.FocusedWindowBounds shells out with, because it is the same
+// process answering the same question.
 //
-// compositorQueryTimeout bounds each compositor IPC call so a wedged
-// compositor cannot stall hint activation.
-const compositorQueryTimeout = 500 * time.Millisecond
+// Every source degrades rather than refuses: when no origin is available,
+// callers fall back to unoffset (window-relative) coordinates. What a source
+// must still separate is a compositor that answered and has no origin to give
+// from a query that never happened, because the second is a fault a person can
+// fix and the first is the ordinary case this fallback exists for.
 
 // coordPairLen is the length of a [x,y] / [w,h] pair in compositor JSON.
 const coordPairLen = 2
 
-// compositorJSON runs a compositor CLI (name + args) and decodes its JSON
-// stdout into dst. Returns false on spawn error, non-zero exit, timeout, or
-// malformed JSON — callers then fall back to unoffset coordinates.
-func compositorJSON(dst any, name string, args ...string) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), compositorQueryTimeout)
-	defer cancel()
+// reportOriginFailure says out loud that the focused window's position could
+// not be read, and says it again only when the reason changes.
+//
+// The failure has to be visible: hints in this window are about to be drawn at
+// window-relative coordinates, which on Wayland means a screenful of them in
+// the wrong place, and until now that happened silently. But it is almost
+// always a property of the session rather than of this activation — a
+// compositor CLI that is not installed stays not installed — and this runs on
+// every hint activation. So the reason is warned once and recorded at debug
+// after that: repeating one fact hundreds of times a day is how a log stops
+// being read, which costs the same as saying nothing.
+func (c *Client) reportOriginFailure(err error) {
+	reason := derrors.Message(err)
 
-	out, err := exec.CommandContext(ctx, name, args...).Output()
-	if err != nil {
-		return false
+	if previous := c.originFailure.Load(); previous != nil && *previous == reason {
+		c.logger.Debug("Focused window position still unavailable", zap.Error(err))
+
+		return
 	}
 
-	return json.Unmarshal(out, dst) == nil
+	c.originFailure.Store(&reason)
+
+	c.logger.Warn(
+		"Could not read the focused window's position; hints stay window-relative",
+		zap.Error(err),
+	)
 }
+
+// clearOriginFailure forgets the last reported reason, so a source that starts
+// working and later breaks again is heard the second time too.
+func (c *Client) clearOriginFailure() { c.originFailure.Store(nil) }
 
 // windowOriginSizeTolerance is the max per-dimension difference (px) allowed
 // between the compositor-reported window size and the AT-SPI frame extents
@@ -68,9 +86,16 @@ type windowOriginSource interface {
 	start()
 	// originFor returns the focused window's screen origin, but only when its
 	// size matches the given AT-SPI frame extents within
-	// windowOriginSizeTolerance. ok is false when the origin is unknown or
-	// stale, in which case callers use unoffset coordinates.
-	originFor(frameW, frameH int) (x, y int, ok bool)
+	// windowOriginSizeTolerance.
+	//
+	// The three answers are distinct. An origin with ok is what the compositor
+	// said. ok=false with no error is the compositor answering that it has no
+	// origin to give — nothing focused, a stale cached rectangle, or a niri
+	// window whose tiling gives it no on-screen position. A non-nil error is
+	// the source failing to answer at all, which callers must not read as the
+	// second: both fall back to unoffset coordinates, and only one of them is
+	// something a person can fix.
+	originFor(frameW, frameH int) (origin image.Point, ok bool, err error)
 }
 
 // noWindowOrigin is the source for a session no compositor bridge belongs on:
@@ -102,7 +127,28 @@ func (s noWindowOrigin) start() {
 	)
 }
 
-func (noWindowOrigin) originFor(_, _ int) (int, int, bool) { return 0, 0, false }
+// originFor answers differently for the two sessions that share this type,
+// because they are not the same fact.
+//
+// On X11 nothing failed and nothing is missing: AT-SPI already reports screen
+// coordinates, so having no origin to add is the correct and complete answer.
+// On a Wayland compositor Neru has no source for — GNOME, River, Wayfire — the
+// fact is that there is nobody to ask, which the platform contract says to
+// report rather than dress up as an answer (internal/adapter/platform/AGENTS.md,
+// "Stubs are loud"). It is the same refusal SystemPort.FocusedWindowBounds
+// gives such a session, for the same reason: hints land window-relative either
+// way, and only one of the two says so.
+func (s noWindowOrigin) originFor(_, _ int) (image.Point, bool, error) {
+	if s.backend == platform.BackendX11 {
+		return image.Point{}, false, nil
+	}
+
+	return image.Point{}, false, derrors.New(
+		derrors.CodeNotSupported,
+		"no window-origin source on linux backend "+s.backend.String()+
+			": this compositor exposes no way to ask where the focused window is",
+	)
+}
 
 // newWindowOriginSource selects the geometry source for the backend
 // platform.DetectLinuxBackend identified. The backend decides first and the

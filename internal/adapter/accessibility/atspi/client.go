@@ -141,6 +141,11 @@ type Client struct {
 	logger       *zap.Logger
 	windowOrigin windowOriginSource
 
+	// originFailure is the reason the window-origin source last gave for not
+	// answering, so a session-long failure is warned about once rather than on
+	// every activation. Read and written from whichever goroutine is scanning.
+	originFailure atomic.Pointer[string]
+
 	mu        sync.Mutex
 	a11y      *dbus.Conn
 	a11yReady bool
@@ -308,16 +313,29 @@ func (c *Client) ClickableNodes(
 
 	frameRect, frameOK := c.extents(ctx, conn, win.ref)
 	if frameOK {
-		originX, originY, ok := c.windowOrigin.originFor(frameRect.Dx(), frameRect.Dy())
-		if ok {
+		origin, originKnown, originErr := c.windowOrigin.originFor(
+			frameRect.Dx(), frameRect.Dy(),
+		)
+
+		switch {
+		case originErr != nil:
+			// The two ways of having no origin are not the same event. A
+			// compositor that answered and has none to give is routine, and
+			// window-relative coordinates are the answer. A source that could
+			// not be asked leaves every hint in this window at the wrong screen
+			// position, and the reason has to be readable without a debug build.
+			c.reportOriginFailure(originErr)
+		case originKnown:
 			// AT-SPI reports element coordinates in the app's own space, where the
 			// frame content sits at frameRect.Min — non-zero when the toolkit adds a
 			// margin (e.g. a GTK client-side-decoration shadow). The compositor
 			// origin is the content's screen position, so shift element coordinates
 			// by (compositor origin − frame margin) to avoid a constant offset.
-			offX = originX - frameRect.Min.X
-			offY = originY - frameRect.Min.Y
+			offX = origin.X - frameRect.Min.X
+			offY = origin.Y - frameRect.Min.Y
 			haveOrigin = true
+
+			c.clearOriginFailure()
 		}
 	}
 

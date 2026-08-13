@@ -671,15 +671,27 @@ Each source verifies the reported window size matches the AT-SPI frame (a focus
 change can race the query) and is best-effort: an unavailable origin degrades to
 unoffset window-relative coordinates rather than misplacing hints.
 
+**A compositor that did not answer is not a compositor with no origin.** The
+three CLI sources go through
+[platform/compositorcli](../internal/adapter/platform/compositorcli), which
+reports a CLI that could not be run, that exited non-zero, that outlived its
+timeout or that printed something undecodable as a failure naming the command
+and the reason. A compositor that _did_ answer and has no position to
+give — nothing focused, a tiled niri window — stays a plain not-found, so the
+compositor's ordinary layout never warns. Both still degrade the same way; only
+one of them says why, in a log line at `warn`.
+
 **The same sources answer `FocusedWindowBounds`,** which is what scopes vision
 detection and `neru action move_mouse --window` to the focused window. The
 rectangle and the origin are one fact, so KWin has one geometry bridge shared by
 both callers rather than a second implementation per caller — the KWin arm of
 [system_focused_window.go](../internal/adapter/platform/linux/system_focused_window.go)
-reads the cache the AT-SPI path offsets by. A Wayland compositor with no source
-at all (River, Wayfire) reports `CodeNotSupported` there rather than "no focused
-window": both send the caller to the active screen, but only one of them says
-so, and the difference is what stopped this being invisible on KDE.
+reads the cache the AT-SPI path offsets by, and the wlroots arms shell out
+through the same `compositorcli` query the origin sources use. A Wayland
+compositor with no source at all (River, Wayfire) reports `CodeNotSupported`
+there rather than "no focused window": both send the caller to the active
+screen, but only one of them says so, and the difference is what stopped this
+being invisible on KDE.
 
 ---
 
@@ -1515,7 +1527,12 @@ usually the mechanism:
   `internal/adapter/accessibility/atspi/kwin_origin.go`, or in a DE-named
   package when more than one subsystem needs the same fact —
   `internal/adapter/platform/kwin` holds the KWin geometry bridge because the
-  AT-SPI window origin and `FocusedWindowBounds` are two readings of it.
+  AT-SPI window origin and `FocusedWindowBounds` are two readings of it. What is
+  shared across compositors rather than specific to one goes in a package named
+  for the mechanism instead — `internal/adapter/platform/compositorcli` is how
+  both of those callers ask niri, Sway and Hyprland their question, because
+  spawning the CLI and telling a failed query from an empty answer is the same
+  work on all three.
 
 Use a `*_linux_wayland_<compositor>.go` sub-slot only when a compositor family
 needs a path no other family shares — spelled without the OS token inside

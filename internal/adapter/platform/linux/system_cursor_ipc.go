@@ -6,6 +6,8 @@ import (
 	"context"
 	"image"
 	"os"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform/compositorcli"
 )
 
 // Wayland compositor-IPC cursor position. A Wayland client cannot query the
@@ -42,12 +44,21 @@ func waylandCompositorCursorPosition(ctx context.Context) (image.Point, bool) {
 // wlroots_client.c), so on a scaled monitor both sides shrink together and
 // containment checks against screen bounds stay consistent — the same
 // agreement hyprlandFocusedWindowBounds already relies on for `activewindow`.
+//
+// This is the one caller that keeps a failed query and "no such query here" as
+// the same answer, and it is not the conflation #1493 removed from the bounds
+// path. There the fallback is a guess — the whole active screen, reported as
+// though it were the window — so a caller has to know it is guessing. Here the
+// fallback is layer-shell discovery, another way of learning the same position,
+// and both answers lead to it: a reason would change nothing the caller does.
 func hyprlandCursorPosition(ctx context.Context) (image.Point, bool) {
 	var pos struct {
 		X int `json:"x"`
 		Y int `json:"y"`
 	}
-	if !compositorJSONContext(ctx, &pos, "hyprctl", "-j", "cursorpos") {
+
+	err := compositorcli.QueryContext(ctx, &pos, "hyprctl", "-j", "cursorpos")
+	if err != nil {
 		return image.Point{}, false
 	}
 

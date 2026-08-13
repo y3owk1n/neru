@@ -68,7 +68,11 @@ type SystemPort interface {
 	// A platform that cannot answer the question at all — a Wayland compositor
 	// exposing no window geometry to other clients — returns CodeNotSupported
 	// rather than false, so a caller scoping itself to the whole screen instead
-	// knows it is falling back rather than obeying an answer.
+	// knows it is falling back rather than obeying an answer. Any other error
+	// means the source exists and did not answer this time: a compositor IPC
+	// that could not be run, refused or timed out. Both are the same fallback
+	// and neither is false, because a caller that widens to the whole screen
+	// must be able to tell that it is guessing.
 	FocusedWindowBounds(ctx context.Context) (image.Rectangle, bool, error)
 
 	// MoveCursorToPoint moves the mouse cursor to the specified point.
