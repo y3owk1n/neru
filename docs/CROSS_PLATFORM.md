@@ -398,7 +398,10 @@ as the bundle identifier for per-app config — but not its PID, because a Wayla
 client cannot read another client's process credentials.
 `SystemPort.FocusedApplicationPID` best-effort matches the app_id against
 `/proc`; with no match it returns `CodeNotSupported` carrying the app_id rather
-than a fabricated number.
+than a fabricated number. A session where *nothing* is focused is a different
+answer from that one and says so: the foreign-toplevel manager answered, and
+`neru doctor` explains it the way the X11 arm's unfocused desktop is explained
+below rather than as an unavailable capability.
 
 **An unfocused desktop is not a failure on X11 either.** The X11 arm of the same
 method reads `_NET_ACTIVE_WINDOW`, which has four ways of not giving you a
@@ -412,6 +415,23 @@ it was. `neru doctor` downgrades the `process` capability to
 `stub` either way, because a live probe reports what a caller observes right
 now; the `Focused app:` line beside it is what separates "focus a window" from
 "install or fix something".
+
+**And neither is a window that publishes no pid.** One property further down,
+`_NET_WM_PID` splits the same way: a window that is alive and simply does not
+advertise a pid — EWMH makes the property a convention, older toolkits omit it,
+and a client on another machine has none this one could use — is
+`CodeNotSupported` with its own explanation, while a window that closed under
+the query, a failed read and a malformed property are `CodeActionFailed`. The
+two "not supported" answers are separate sentences on purpose: focusing another
+window fixes one and cannot fix the other.
+
+**`FocusedWindowBounds` on X11 tells the same two apart.** The X11 arm reads the
+geometry of whatever `_NET_ACTIVE_WINDOW` names. Nothing focused is `found=false`
+with no error — the caller widens to the active screen and is obeying an answer.
+A display with no live window manager, a failed or malformed property, or a
+window the X server would not describe is an error, so a caller that widens the
+same way can tell it is guessing. That is what the Wayland arms report under
+[Accessibility And Hints](#accessibility-and-hints), on the X11 path.
 
 **App watcher.** macOS gets focus changes pushed from an NSWorkspace observer.
 Linux has no equivalent single API, so `appwatcher/platform_linux.go` subscribes

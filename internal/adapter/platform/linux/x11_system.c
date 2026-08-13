@@ -178,12 +178,16 @@ int neru_x11_get_active_window(Display *display, Window *out) {
 // property behind pointing at a window that has since died. The X server
 // answers BadWindow, and Xlib's default handler calls exit() — reproduced on
 // Xvfb, where a stale id took the whole process down. So each of them runs
-// inside the shared protocol-error trap and reports "nothing to say" instead.
+// inside the shared protocol-error trap and reports the trap instead of dying:
+// the pid query names it as its own answer, the ones whose signature carries no
+// answer report "nothing to say".
 
-unsigned long neru_x11_get_window_pid(Display *display, Window window, int *ok) {
+int neru_x11_get_window_pid(Display *display, Window window, unsigned long *out) {
 	if (window == 0) {
-		*ok = 0;
-		return 0;
+		// Nobody to ask. The active-window query answers before this one is
+		// reached, so this is the same state as a window that died: there is no
+		// window there to read a property off.
+		return NERU_X11_WINDOW_PID_WINDOW_GONE;
 	}
 
 	Atom property = XInternAtom(display, "_NET_WM_PID", False);
@@ -199,19 +203,38 @@ unsigned long neru_x11_get_window_pid(Display *display, Window window, int *ok) 
 	    &data);
 	int trapped = neru_x11_error_trap_end(display);
 
-	if (trapped || status != Success || data == NULL || item_count == 0) {
-		if (data != NULL) {
-			XFree(data);
-		}
-		*ok = 0;
-		return 0;
+	// One classification, then one free: a trapped call can still have allocated
+	// before it errored, so every arm below has something to release.
+	int result;
+
+	if (trapped) {
+		// A trapped protocol error is BadWindow: the id _NET_ACTIVE_WINDOW named
+		// has closed since it was read. That is the failure this call can hit,
+		// and it is not the same event as a window that is alive and sets no pid.
+		result = NERU_X11_WINDOW_PID_WINDOW_GONE;
+	} else if (status != Success) {
+		result = NERU_X11_WINDOW_PID_QUERY_FAILED;
+	} else if (actual_type == None) {
+		// An absent property comes back as Success with an actual type of
+		// None — the window is alive and simply does not advertise a pid, which
+		// EWMH permits and no client can be made to fix.
+		result = NERU_X11_WINDOW_PID_ABSENT;
+	} else if (actual_type != XA_CARDINAL || actual_format != 32 || item_count == 0 || data == NULL) {
+		// A type or format mismatch is also Success with nothing fetched, so
+		// anything that is not the 32-bit CARDINAL EWMH specifies is malformed
+		// rather than missing — and reading a narrower format as an unsigned
+		// long would read past the property.
+		result = NERU_X11_WINDOW_PID_MALFORMED;
+	} else {
+		*out = *((unsigned long *)data);
+		result = NERU_X11_WINDOW_PID_OK;
 	}
 
-	*ok = 1;
-	unsigned long pid = *((unsigned long *)data);
-	XFree(data);
+	if (data != NULL) {
+		XFree(data);
+	}
 
-	return pid;
+	return result;
 }
 
 char *neru_x11_get_window_class(Display *display, Window window) {
@@ -290,12 +313,8 @@ NeruX11Monitor *neru_x11_get_monitors(Display *display, int *count) {
 	return result;
 }
 
-int neru_x11_get_focused_window_bounds(Display *display, int *x, int *y, int *w, int *h) {
-	// Bounds callers get one bit either way: without a focused window there is
-	// no geometry to report, and they widen to the active screen. Which of the
-	// four answers came back is the focused-app path's business, not theirs.
-	Window window;
-	if (neru_x11_get_active_window(display, &window) != NERU_X11_ACTIVE_WINDOW_OK) {
+int neru_x11_get_window_bounds(Display *display, Window window, int *x, int *y, int *w, int *h) {
+	if (window == 0) {
 		return 0;
 	}
 

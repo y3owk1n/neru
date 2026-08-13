@@ -49,9 +49,11 @@ const (
 // explains it differently from a failure, because focusing any window fixes it
 // and installing something does not.
 //
-// Only the X11 arm wraps it today. The Wayland arm reports its own
-// CodeNotSupported for the same state without the sentinel, so `neru doctor`
-// still explains that one as an unavailable capability.
+// Both arms wrap it: the X11 one for a display whose _NET_ACTIVE_WINDOW reads
+// None, and the wlroots one for a foreign-toplevel manager with nothing
+// activated (waylandNoFocusedAppError). What it does not cover is a window that
+// has focus and no pid to report — that is errNoWindowPID, a sibling sentinel,
+// because the sentence this one buys would be false there.
 var errNoFocusedWindow = errors.New("no window has focus")
 
 // x11ActiveWindowQueryError returns the error a caller owes for result, or nil

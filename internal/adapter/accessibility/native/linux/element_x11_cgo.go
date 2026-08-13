@@ -69,10 +69,17 @@ func linuxFocusedApplicationIdentity() (string, int) {
 		C.free(unsafe.Pointer(className))
 	}
 
-	var ok C.int
-	pid := int(C.neru_x11_get_window_pid(display, window, &ok))
+	// The pid answers collapse here the same way the active-window ones do: this
+	// signature has no error to carry, and a window that advertises no pid and
+	// one that closed under the query both leave this caller with no pid to
+	// report. system_x11_window_pid.go is where the difference is told, for the
+	// caller that can act on it.
+	var pid C.ulong
+	if C.neru_x11_get_window_pid(display, window, &pid) != C.int(C.NERU_X11_WINDOW_PID_OK) {
+		pid = 0
+	}
 
-	return bundleID, pid
+	return bundleID, int(pid)
 }
 
 func linuxApplicationBundleIdentifier(pid int) string {

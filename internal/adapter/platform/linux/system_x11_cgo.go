@@ -122,20 +122,37 @@ func x11FocusedApplicationPID() (int, error) {
 		return 0, queryErr
 	}
 
-	var ok C.int
-	pid := C.neru_x11_get_window_pid(display, window, &ok)
-	if ok == 0 {
-		// Either the window exposes no pid, or _NET_ACTIVE_WINDOW named one
-		// that has since closed — a window manager that exited leaves the
-		// property behind pointing at a window nobody updates any more.
-		return 0, derrors.New(
-			derrors.CodeActionFailed,
-			"failed to query _NET_WM_PID for the active X11 window; it exposes no pid, "+
-				"or the window it names has closed",
-		)
+	var pid C.ulong
+
+	pidErr := x11WindowPIDError(x11WindowPIDQuery(display, window, &pid))
+	if pidErr != nil {
+		return 0, pidErr
 	}
 
 	return int(pid), nil
+}
+
+// x11WindowPIDQuery reads _NET_WM_PID off window and translates the C result
+// code into this package's vocabulary. Like x11ActiveWindowQuery, the mapping is
+// by name rather than by value, so the two numberings are free to differ.
+func x11WindowPIDQuery(display *C.Display, window C.Window, pid *C.ulong) x11WindowPIDResult {
+	switch C.neru_x11_get_window_pid(display, window, pid) {
+	case C.int(C.NERU_X11_WINDOW_PID_OK):
+		return x11WindowPIDFound
+	case C.int(C.NERU_X11_WINDOW_PID_ABSENT):
+		return x11WindowPIDAbsent
+	case C.int(C.NERU_X11_WINDOW_PID_WINDOW_GONE):
+		return x11WindowPIDWindowGone
+	case C.int(C.NERU_X11_WINDOW_PID_QUERY_FAILED):
+		return x11WindowPIDQueryFailed
+	case C.int(C.NERU_X11_WINDOW_PID_MALFORMED):
+		return x11WindowPIDMalformed
+	default:
+		// A result the header grew and this switch has not. Reporting it as a
+		// failed query is the safe direction: the caller surfaces it instead of
+		// degrading past a state nobody has classified.
+		return x11WindowPIDQueryFailed
+	}
 }
 
 // x11FocusedAppID returns the WM_CLASS "class" of the active X11 window, used
@@ -236,9 +253,13 @@ func x11ScreenEventFD() (int, bool) {
 }
 
 // x11FocusedWindowBounds returns the global bounds of the currently focused
-// window via _NET_ACTIVE_WINDOW. found is false (with a nil error) when there is
-// no active window or its geometry could not be queried, so callers fall back to
-// the active-screen bounds.
+// window via _NET_ACTIVE_WINDOW.
+//
+// found is false with a nil error only when the display answered that nothing
+// has focus; callers widen to the active-screen bounds and are obeying an
+// answer. A query that never got one — no live window manager, a failed or
+// malformed property, or a window the X server would not describe — is an error,
+// so the same widening can be told apart from guessing.
 func x11FocusedWindowBounds() (image.Rectangle, bool, error) {
 	display, err := x11OpenDisplay()
 	if err != nil {
@@ -246,12 +267,20 @@ func x11FocusedWindowBounds() (image.Rectangle, bool, error) {
 	}
 	defer C.neru_x11_close_display(display)
 
-	var posX, posY, width, height C.int
-	found := C.neru_x11_get_focused_window_bounds(
-		display, &posX, &posY, &width, &height,
-	)
-	if found == 0 {
+	window, result := x11ActiveWindowQuery(display)
+
+	readGeometry, queryErr := x11ShouldReadWindowGeometry(result)
+	if queryErr != nil {
+		return image.Rectangle{}, false, queryErr
+	}
+
+	if !readGeometry {
 		return image.Rectangle{}, false, nil
+	}
+
+	var posX, posY, width, height C.int
+	if C.neru_x11_get_window_bounds(display, window, &posX, &posY, &width, &height) == 0 {
+		return image.Rectangle{}, false, x11WindowGeometryError()
 	}
 
 	return image.Rect(
