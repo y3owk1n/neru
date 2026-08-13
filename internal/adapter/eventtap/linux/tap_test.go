@@ -4,6 +4,7 @@ package linux
 
 import (
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -260,5 +261,56 @@ func TestSetModifierPassthroughDisabledStillMatchesBlacklist(t *testing.T) {
 
 	if eventTap.shouldPassthroughChord("Ctrl+y") {
 		t.Fatal("expected no passthrough while disabled")
+	}
+}
+
+// TestEventTap_Destroy_WaitsForAnInFlightKeyDispatch pins the Linux half of
+// what makes eventtap.Adapter.Destroy's lock discipline load-bearing.
+//
+// Tearing this tap down closes the dispatch channel and waits for the dispatch
+// goroutine, so Destroy runs for as long as the key that goroutine is
+// delivering takes — and that key is delivered into the mode handler under its
+// own lock. The adapter must therefore not hold its lock across this call, and
+// the tap must not hold et.mu either: the callback here takes it while Destroy
+// is waiting, which is what the unlock before the wait buys.
+func TestEventTap_Destroy_WaitsForAnInFlightKeyDispatch(t *testing.T) {
+	t.Parallel()
+
+	var eventTap *EventTap
+
+	callbackEntered := make(chan struct{})
+	releaseCallback := make(chan struct{})
+
+	eventTap = NewEventTap(func(string) {
+		close(callbackEntered)
+		<-releaseCallback
+
+		// Parks forever if Destroy is holding et.mu across its wait.
+		eventTap.SetHotkeys(nil)
+	}, nil)
+
+	eventTap.dispatchKey("u")
+	<-callbackEntered
+
+	destroyReturned := make(chan struct{})
+
+	go func() {
+		defer close(destroyReturned)
+
+		eventTap.Destroy()
+	}()
+
+	select {
+	case <-destroyReturned:
+		t.Fatal("Destroy returned while a key was still being delivered")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(releaseCallback)
+
+	select {
+	case <-destroyReturned:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Destroy never returned: the dispatcher is parked on a lock Destroy holds")
 	}
 }
