@@ -74,11 +74,19 @@ jobs:
                       session: Xvfb with openbox (X11)
                       session_packages: xvfb x11-utils openbox
         runs-on: ${{ matrix.os }}
-        # Both desktop legs are advisory, for the reason docs/DEVELOPMENT.md
-        # gives. Making one blocking is excluding it from this expression and
-        # adding its job name — "desktop (ubuntu-latest)" or
-        # "desktop-x11 (ubuntu-latest)" — to the branch protection rule.
-        continue-on-error: ${{ startsWith(matrix.check, 'desktop') }}
+        # Both desktop legs block. They are the only jobs that observe Linux
+        # behavior at all — Neru is developed on macOS, where none of it can
+        # run — so ADR 0013's promises are worth exactly as much as the jobs
+        # that check them, and an advisory job nobody has to read is not a
+        # check. The two legs owe different bars (behavioral parity on the
+        # blessed stack, capability parity on X11), which is a statement about
+        # what the tests assert, not about whether a suite that passes today may
+        # start failing unnoticed.
+        #
+        # They earned it on a measurement rather than a feeling: 40 runs each
+        # across pull requests and main with no failing step. Job-level
+        # `continue-on-error` reports a failed job as successful, so that was
+        # counted from step conclusions. docs/DEVELOPMENT.md carries the detail.
         steps:
             # Default checkout: on pull_request events this tests the merge
             # commit (PR + main combined), which is what will actually land —
@@ -543,9 +551,9 @@ jobs:
                   # is not mistaken for one.
                   blind=$(grep -c -E '_test\.go:[0-9]+: no display server' "$log" || true)
                   {
-                    echo "### Linux desktop tier — ${SESSION} — advisory"
+                    echo "### Linux desktop tier — ${SESSION}"
                     echo ""
-                    echo "Advisory: this leg does not gate the merge button."
+                    echo "Blocking: a failure here reds the pull request."
                     echo "See docs/DEVELOPMENT.md for what it covers."
                     echo ""
                     echo "| | Count |"
