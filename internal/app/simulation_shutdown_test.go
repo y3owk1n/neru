@@ -29,35 +29,58 @@ import (
 // the ordering is what covers them, and the overlay adapter's own guard
 // (`TestAdapterDestroy_StopsEveryPortCallFromReachingTheBackend`) is what
 // covers a caller that arrives anyway.
+//
+// The shutdown under test is the harness's own — stop the app, wait for Run to
+// return, then clean up — rather than a Cleanup called from the body. Cleaning
+// up while Run is still bringing the daemon the rest of the way up races the
+// startup it has not finished, which is a fixture problem and not the one this
+// journey is about. That puts the assertions in a t.Cleanup registered before
+// the harness's, so LIFO runs them after the shutdown they are about.
 func TestSimulation_ShutdownDrainsTheEventTapBeforeReleasingTheOverlay(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), nil)
-
 	var (
+		sim                 *simHarness
 		drained             bool
 		overlayAliveAtDrain bool
 	)
 
+	t.Cleanup(func() {
+		if !drained {
+			t.Error("shutdown never tore the event tap down, so nothing was drained")
+
+			return
+		}
+
+		if !overlayAliveAtDrain {
+			t.Error(
+				"a key drained by the event tap's teardown was delivered after the overlay " +
+					"had been destroyed",
+			)
+		}
+
+		if !sim.overlay.isDestroyed() {
+			t.Error("shutdown left the overlay unreleased")
+		}
+	})
+
+	sim = newSimHarness(t, simConfig(), nil)
+
+	// The key is delivered from a goroutine the drain then joins, because that
+	// is the shape the real teardown has: the dispatcher is a goroutine of its
+	// own, and what a backend's Destroy spends its time on is waiting for it.
+	// Delivering inline would pin the ordering and model nothing, and would
+	// give the -race pass nothing to see.
 	sim.tap.drain = func() {
-		drained = true
-		overlayAliveAtDrain = !sim.overlay.isDestroyed()
+		dispatched := make(chan struct{})
 
-		sim.press(gridHotkey)
-	}
+		go func() {
+			defer close(dispatched)
 
-	sim.app.Cleanup()
+			drained = true
+			overlayAliveAtDrain = !sim.overlay.isDestroyed()
 
-	if !drained {
-		t.Fatal("shutdown never tore the event tap down, so nothing was drained")
-	}
+			sim.press(gridHotkey)
+		}()
 
-	if !overlayAliveAtDrain {
-		t.Error(
-			"a key drained by the event tap's teardown was delivered after the overlay " +
-				"had been destroyed",
-		)
-	}
-
-	if !sim.overlay.isDestroyed() {
-		t.Error("shutdown left the overlay unreleased")
+		<-dispatched
 	}
 }
