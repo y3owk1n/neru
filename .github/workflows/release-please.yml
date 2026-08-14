@@ -39,6 +39,14 @@ jobs:
             - release-please
             - prepare-release-macos-version
         if: ${{ needs.release-please.outputs.release_created == 'true' }}
+        # A called workflow can only narrow what its caller granted, so the
+        # build-provenance permissions publish-artifacts.yml declares have to be
+        # granted here too. Scoped to this job rather than raised workflow-wide:
+        # the release-please job above has no business minting an OIDC token.
+        permissions:
+            contents: write
+            id-token: write
+            attestations: write
         uses: ./.github/workflows/publish-artifacts.yml
         with:
             release_tag: ${{ needs.release-please.outputs.tag_name }}

@@ -71,6 +71,18 @@ Download the latest release for your OS from [GitHub Releases](https://github.co
 | Windows  | x86_64                | `neru-windows-amd64.zip` |
 | Windows  | ARM64                 | `neru-windows-arm64.zip` |
 
+Every archive is built by GitHub Actions and carries a signed build provenance
+attestation, so you can confirm the one you downloaded came from this repository
+before you unpack it:
+
+```bash
+gh attestation verify neru-darwin-arm64.zip --repo y3owk1n/neru
+```
+
+Each archive also ships a `.sha256` file next to it, readable by `shasum -a 256 -c`
+(macOS) or `sha256sum -c` (Linux). That checks the download arrived intact; the
+attestation above is what checks where it came from.
+
 Extract the binary or executable and place it on your PATH.
 
 </details>

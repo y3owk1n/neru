@@ -87,6 +87,15 @@ jobs:
 
     publish-nightly-artifacts:
         needs: prepare-nightly-release
+        # A called workflow can only narrow what its caller granted, so the
+        # build-provenance permissions publish-artifacts.yml declares have to be
+        # granted here too. Nightly zips are published for people to download,
+        # so they are attested on the same terms as a tagged release rather than
+        # on a second code path that only breaks when someone tries to verify.
+        permissions:
+            contents: write
+            id-token: write
+            attestations: write
         uses: ./.github/workflows/publish-artifacts.yml
         with:
             release_tag: ${{ needs.prepare-nightly-release.outputs.release_tag }}

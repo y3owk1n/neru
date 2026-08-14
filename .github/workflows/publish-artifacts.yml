@@ -34,19 +34,46 @@ on:
 
 name: publish-artifacts
 
+# Three things below are repeated six times, once per target, so the reasoning
+# lives here instead of six times over:
+#
+#  - Every job attests its zip with actions/attest-build-provenance, so a
+#    download can be traced back to this workflow, this commit and this runner
+#    with `gh attestation verify <file> --repo y3owk1n/neru`. That is the
+#    property the .sha256 files never had: they are produced by the same job and
+#    uploaded with the same token as the binary they describe, so they prove the
+#    download was not corrupted, not that the build was ours. Attestation needs
+#    `id-token: write` (to sign) and `attestations: write` (to store), granted
+#    per job rather than workflow-wide. A reusable workflow can only narrow the
+#    permissions its caller granted, never widen them, so nightly.yml and
+#    release-please.yml must grant the same three on the job that says
+#    `uses: ./.github/workflows/publish-artifacts.yml` — drop them there and
+#    signing here stops silently.
+#
+#  - Third-party actions are pinned by commit, not by tag: a tag is a movable
+#    pointer, and these jobs later hand the release token to `gh release
+#    upload`. Dependabot's github-actions ecosystem updates a SHA pin that
+#    carries a version comment, so the trailing `# vX.Y.Z` is load-bearing.
+#    actions/* stays tag-pinned, as it does everywhere else in this repo.
+#
+#  - The Go toolchain comes from go.mod, as it already does in ci.yml. The
+#    literal that used to sit here drifted: six jobs still said 1.26.4 after the
+#    module had moved on, and nothing failed to say so.
 jobs:
     build-darwin-arm64-artifacts:
         runs-on: macos-15
         permissions:
-            contents: write
+            contents: write # gh release upload
+            id-token: write # attest-build-provenance: sign the provenance
+            attestations: write # attest-build-provenance: store it on the repo
         steps:
             - uses: actions/checkout@v7
 
             - uses: actions/setup-go@v7
               with:
-                  go-version: "1.26.4"
+                  go-version-file: "go.mod"
 
-            - uses: extractions/setup-just@v4
+            - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
               with:
                   just-version: "1.54.0"
 
@@ -103,10 +130,19 @@ jobs:
                   zip -r ../../neru-darwin-arm64.zip bin Neru.app share
                   cd ../..
 
+            # `hash  filename` — the format `shasum -c` and `sha256sum -c` read.
+            # The bare digest this used to emit could be fed to neither, so the
+            # checksum a user downloaded had to be eyeballed. The -c line is the
+            # assertion that the file we just wrote really is consumable.
             - name: Generate darwin arm64 checksum
               run: |
-                  shasum -a 256 neru-darwin-arm64.zip | awk '{print $1}' > neru-darwin-arm64.zip.sha256
-                  ls -l neru-darwin-arm64.zip neru-darwin-arm64.zip.sha256
+                  shasum -a 256 neru-darwin-arm64.zip > neru-darwin-arm64.zip.sha256
+                  shasum -a 256 -c neru-darwin-arm64.zip.sha256
+
+            - name: Attest darwin arm64 build provenance
+              uses: actions/attest-build-provenance@v4
+              with:
+                  subject-path: neru-darwin-arm64.zip
 
             - name: Upload darwin arm64 release artifacts
               env:
@@ -117,15 +153,17 @@ jobs:
     build-darwin-amd64-artifacts:
         runs-on: macos-15-intel
         permissions:
-            contents: write
+            contents: write # gh release upload
+            id-token: write # attest-build-provenance: sign the provenance
+            attestations: write # attest-build-provenance: store it on the repo
         steps:
             - uses: actions/checkout@v7
 
             - uses: actions/setup-go@v7
               with:
-                  go-version: "1.26.4"
+                  go-version-file: "go.mod"
 
-            - uses: extractions/setup-just@v4
+            - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
               with:
                   just-version: "1.54.0"
 
@@ -184,8 +222,13 @@ jobs:
 
             - name: Generate darwin amd64 checksum
               run: |
-                  shasum -a 256 neru-darwin-amd64.zip | awk '{print $1}' > neru-darwin-amd64.zip.sha256
-                  ls -l neru-darwin-amd64.zip neru-darwin-amd64.zip.sha256
+                  shasum -a 256 neru-darwin-amd64.zip > neru-darwin-amd64.zip.sha256
+                  shasum -a 256 -c neru-darwin-amd64.zip.sha256
+
+            - name: Attest darwin amd64 build provenance
+              uses: actions/attest-build-provenance@v4
+              with:
+                  subject-path: neru-darwin-amd64.zip
 
             - name: Upload darwin amd64 release artifacts
               env:
@@ -196,7 +239,9 @@ jobs:
     build-linux-amd64-artifacts:
         runs-on: ubuntu-latest
         permissions:
-            contents: write
+            contents: write # gh release upload
+            id-token: write # attest-build-provenance: sign the provenance
+            attestations: write # attest-build-provenance: store it on the repo
         steps:
             - uses: actions/checkout@v7
 
@@ -221,9 +266,9 @@ jobs:
 
             - uses: actions/setup-go@v7
               with:
-                  go-version: "1.26.4"
+                  go-version-file: "go.mod"
 
-            - uses: extractions/setup-just@v4
+            - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
               with:
                   just-version: "1.54.0"
 
@@ -247,8 +292,13 @@ jobs:
 
             - name: Generate linux amd64 checksum
               run: |
-                  sha256sum neru-linux-amd64.zip | awk '{print $1}' > neru-linux-amd64.zip.sha256
-                  ls -l neru-linux-amd64.zip neru-linux-amd64.zip.sha256
+                  sha256sum neru-linux-amd64.zip > neru-linux-amd64.zip.sha256
+                  sha256sum -c neru-linux-amd64.zip.sha256
+
+            - name: Attest linux amd64 build provenance
+              uses: actions/attest-build-provenance@v4
+              with:
+                  subject-path: neru-linux-amd64.zip
 
             - name: Upload linux amd64 release artifacts
               env:
@@ -259,7 +309,9 @@ jobs:
     build-linux-arm64-artifacts:
         runs-on: ubuntu-24.04-arm
         permissions:
-            contents: write
+            contents: write # gh release upload
+            id-token: write # attest-build-provenance: sign the provenance
+            attestations: write # attest-build-provenance: store it on the repo
         steps:
             - uses: actions/checkout@v7
 
@@ -284,9 +336,9 @@ jobs:
 
             - uses: actions/setup-go@v7
               with:
-                  go-version: "1.26.4"
+                  go-version-file: "go.mod"
 
-            - uses: extractions/setup-just@v4
+            - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
               with:
                   just-version: "1.54.0"
 
@@ -310,8 +362,13 @@ jobs:
 
             - name: Generate linux arm64 checksum
               run: |
-                  sha256sum neru-linux-arm64.zip | awk '{print $1}' > neru-linux-arm64.zip.sha256
-                  ls -l neru-linux-arm64.zip neru-linux-arm64.zip.sha256
+                  sha256sum neru-linux-arm64.zip > neru-linux-arm64.zip.sha256
+                  sha256sum -c neru-linux-arm64.zip.sha256
+
+            - name: Attest linux arm64 build provenance
+              uses: actions/attest-build-provenance@v4
+              with:
+                  subject-path: neru-linux-arm64.zip
 
             - name: Upload linux arm64 release artifacts
               env:
@@ -322,15 +379,17 @@ jobs:
     build-windows-amd64-artifacts:
         runs-on: windows-latest
         permissions:
-            contents: write
+            contents: write # gh release upload
+            id-token: write # attest-build-provenance: sign the provenance
+            attestations: write # attest-build-provenance: store it on the repo
         steps:
             - uses: actions/checkout@v7
 
             - uses: actions/setup-go@v7
               with:
-                  go-version: "1.26.4"
+                  go-version-file: "go.mod"
 
-            - uses: extractions/setup-just@v4
+            - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
               with:
                   just-version: "1.54.0"
 
@@ -350,11 +409,26 @@ jobs:
                   Copy-Item build/man/*.1 build/windows-amd64/share/man/man1/
                   Compress-Archive -Path build/windows-amd64/* -DestinationPath neru-windows-amd64.zip
 
+            # Set-Content would end the line with CRLF, and `sha256sum -c` folds
+            # that CR into the filename and then reports the file as missing —
+            # so the bytes are written explicitly, and the CR check below is the
+            # assertion rather than a hope.
             - name: Generate windows amd64 checksum
               shell: pwsh
               run: |
-                  $hash = (Get-FileHash neru-windows-amd64.zip -Algorithm SHA256).Hash.ToLower()
-                  Set-Content -Path neru-windows-amd64.zip.sha256 -Value $hash
+                  $name = "neru-windows-amd64.zip"
+                  $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLower()
+                  $path = Join-Path $PWD "$name.sha256"
+                  [System.IO.File]::WriteAllText($path, "$hash  $name`n")
+                  if ([System.IO.File]::ReadAllBytes($path) -contains 13) {
+                      throw "checksum file contains a CR; sha256sum -c cannot read it"
+                  }
+                  Get-Content $path
+
+            - name: Attest windows amd64 build provenance
+              uses: actions/attest-build-provenance@v4
+              with:
+                  subject-path: neru-windows-amd64.zip
 
             - name: Upload windows amd64 release artifacts
               env:
@@ -365,15 +439,17 @@ jobs:
     build-windows-arm64-artifacts:
         runs-on: windows-latest
         permissions:
-            contents: write
+            contents: write # gh release upload
+            id-token: write # attest-build-provenance: sign the provenance
+            attestations: write # attest-build-provenance: store it on the repo
         steps:
             - uses: actions/checkout@v7
 
             - uses: actions/setup-go@v7
               with:
-                  go-version: "1.26.4"
+                  go-version-file: "go.mod"
 
-            - uses: extractions/setup-just@v4
+            - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
               with:
                   just-version: "1.54.0"
 
@@ -396,8 +472,19 @@ jobs:
             - name: Generate windows arm64 checksum
               shell: pwsh
               run: |
-                  $hash = (Get-FileHash neru-windows-arm64.zip -Algorithm SHA256).Hash.ToLower()
-                  Set-Content -Path neru-windows-arm64.zip.sha256 -Value $hash
+                  $name = "neru-windows-arm64.zip"
+                  $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLower()
+                  $path = Join-Path $PWD "$name.sha256"
+                  [System.IO.File]::WriteAllText($path, "$hash  $name`n")
+                  if ([System.IO.File]::ReadAllBytes($path) -contains 13) {
+                      throw "checksum file contains a CR; sha256sum -c cannot read it"
+                  }
+                  Get-Content $path
+
+            - name: Attest windows arm64 build provenance
+              uses: actions/attest-build-provenance@v4
+              with:
+                  subject-path: neru-windows-arm64.zip
 
             - name: Upload windows arm64 release artifacts
               env:
