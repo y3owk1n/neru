@@ -71,9 +71,9 @@ Download the latest release for your OS from [GitHub Releases](https://github.co
 | Windows  | x86_64                | `neru-windows-amd64.zip` |
 | Windows  | ARM64                 | `neru-windows-arm64.zip` |
 
-Every archive is built by GitHub Actions and carries a signed build provenance
-attestation, so you can confirm the one you downloaded came from this repository
-before you unpack it:
+Archives are built by GitHub Actions, and those published from August 2026
+onwards carry a signed build provenance attestation, so you can confirm the one
+you downloaded came from this repository before you unpack it:
 
 ```bash
 gh attestation verify neru-darwin-arm64.zip --repo y3owk1n/neru

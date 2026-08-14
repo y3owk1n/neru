@@ -50,11 +50,12 @@ name: publish-artifacts
 #    `uses: ./.github/workflows/publish-artifacts.yml` — drop them there and
 #    signing here stops silently.
 #
-#  - Third-party actions are pinned by commit, not by tag: a tag is a movable
-#    pointer, and these jobs later hand the release token to `gh release
-#    upload`. Dependabot's github-actions ecosystem updates a SHA pin that
-#    carries a version comment, so the trailing `# vX.Y.Z` is load-bearing.
-#    actions/* stays tag-pinned, as it does everywhere else in this repo.
+#  - setup-just is pinned by commit, not by tag: a tag is a movable pointer, and
+#    these jobs later hand the release token to `gh release upload`.
+#    Dependabot's github-actions ecosystem updates a SHA pin that carries a
+#    version comment, so the trailing `# vX.Y.Z` is load-bearing. actions/*,
+#    googleapis/* and golangci/* are deliberately left tag-pinned across this
+#    repo — accepted residual risk, weighed against the update churn.
 #
 #  - The Go toolchain comes from go.mod, as it already does in ci.yml. The
 #    literal that used to sit here drifted: six jobs still said 1.26.4 after the
@@ -134,6 +135,13 @@ jobs:
             # The bare digest this used to emit could be fed to neither, so the
             # checksum a user downloaded had to be eyeballed. The -c line is the
             # assertion that the file we just wrote really is consumable.
+            #
+            # One file per artifact rather than one SHA256SUMS per release: the
+            # six jobs run on six runners in parallel and upload independently,
+            # so an aggregate would need a seventh job re-downloading all six —
+            # and for the `nightly` tag, which is clobbered on every push to
+            # main, an aggregate left half-updated by one failed leg is worse
+            # than none. Authenticity comes from the attestation either way.
             - name: Generate darwin arm64 checksum
               run: |
                   shasum -a 256 neru-darwin-arm64.zip > neru-darwin-arm64.zip.sha256

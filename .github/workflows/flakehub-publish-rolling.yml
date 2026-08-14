@@ -17,14 +17,17 @@ jobs:
             # by ref: this job holds `id-token: write`, so whatever they resolve
             # to can mint an OIDC token and publish a flake as this repo. A tag
             # is a movable pointer and a branch is a moving one, so neither is a
-            # statement about which code runs. Dependabot's github-actions
-            # ecosystem updates SHA pins carrying a version comment.
+            # statement about which code runs. The one below carries a version
+            # comment, which is what lets Dependabot keep bumping it; the one
+            # after it cannot, for the reason given there.
             - uses: "DeterminateSystems/determinate-nix-action@61cbfe2efc2d4e7a8a6d56967c3c1058e846c858" # v3.21.9
             # flakehub-push has no maintained major tag: upstream's own README
             # says `@main` everywhere, and its newest release (v6, Jul 2025) is
             # 147 commits behind `main` and still declares `using: node20`.
             # Pinning v6 would be a year-long rollback, so this pins the commit
-            # `main` pointed at instead. Bump it deliberately, not on a whim.
+            # `main` pointed at instead. That has a cost: with no version in the
+            # comment, Dependabot cannot track this one, and may even offer v6
+            # as an "update". It is the pin to bump by hand.
             - uses: "DeterminateSystems/flakehub-push@abcff4fb351e63f852f5fb2b9af0ae4e69de07d4" # main as of 2026-07-29
               with:
                   name: "y3owk1n/neru"
