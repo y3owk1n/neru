@@ -1533,6 +1533,17 @@ systemd user unit on Linux; where the Linux unit is written, what it contains,
 and what happens on a machine booted by another init system are in
 [LINUX_SETUP.md](LINUX_SETUP.md#systemd-user-service).
 
+The macOS agent leaves the daemon's standard output alone — the rotated log file
+already holds every log line — and sends its standard error to
+`~/Library/Logs/neru/daemon.err.log`, beside that log file, where a crash or a
+failure raised before the log file is open ends up. Both stay inside the user's
+own log directory; neither goes to a shared path.
+
+An agent installed by an earlier version wrote those two streams to `/tmp`
+instead, and installing over it is refused rather than silently rewritten. To
+move an existing one, run `neru services uninstall && neru services install`,
+then delete the files it left behind at `/tmp/neru.log` and `/tmp/neru.err.log`.
+
 `status` reports a machine where the service was never installed as exactly
 that, rather than failing.
 
