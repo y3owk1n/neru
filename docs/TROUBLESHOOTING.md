@@ -413,8 +413,10 @@ neru launch
 # Check status
 neru status
 
-# If still failing, check for stale socket (path is printed in logs; typically under /var/folders/.../T)
-rm -f /var/folders/*/*/T/neru.sock
+# If still failing, clear a stale socket. The daemon prints its endpoint at
+# startup; both of these are places it can be, and only one will exist.
+rm -f "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/neru/neru.sock
+rm -f "${TMPDIR:-/tmp}"/neru-"$(id -u)"/neru.sock
 neru launch
 ```
 
@@ -444,6 +446,26 @@ EOF
 neru launch
 ```
 
+### "Is it running?" right after an upgrade
+
+**The daemon still running is the one the old binary started.**
+
+The IPC endpoint moved to a per-user location (see
+[ARCHITECTURE.md](ARCHITECTURE.md#runtime-shape)), so a daemon that has been up
+since before the upgrade is listening in the old one.
+
+On macOS and Linux the new CLI still finds it and answers with a version
+mismatch asking you to restart the daemon — do that and it moves to the new
+endpoint. On Windows it cannot: stop the old daemon before starting the new
+one, or you end up running two.
+
+**Solution:**
+
+```bash
+pkill neru      # taskkill /IM neru.exe on Windows
+neru launch
+```
+
 ### Daemon stops responding
 
 **IPC socket issue or daemon hung.**
@@ -454,8 +476,10 @@ neru launch
 # Force quit
 pkill -9 neru
 
-# Clean up socket (path is printed in logs; typically under /var/folders/.../T)
-rm -f /var/folders/*/*/T/neru.sock
+# Clean up the socket. The daemon prints its endpoint at startup; both of these
+# are places it can be, and only one will exist.
+rm -f "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/neru/neru.sock
+rm -f "${TMPDIR:-/tmp}"/neru-"$(id -u)"/neru.sock
 
 # Restart
 neru launch

@@ -3,10 +3,72 @@ package ipc
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
+
+// Running out of budget has to be distinguishable from a stream that simply
+// ended, or an oversized command would be reported as malformed JSON.
+func TestBoundedReader_Read(t *testing.T) {
+	t.Parallel()
+
+	const payload = "hello"
+
+	tests := []struct {
+		name      string
+		input     string
+		remaining int64
+		want      string
+		wantErr   error
+	}{
+		{
+			name:      "reads a payload that fits",
+			input:     payload,
+			remaining: 16,
+			want:      payload,
+			wantErr:   nil,
+		},
+		{
+			// A decoder stops as soon as it has a whole JSON value, so it never
+			// asks for the byte past the budget; io.ReadAll always does.
+			name:      "spends the budget exactly",
+			input:     payload,
+			remaining: 5,
+			want:      payload,
+			wantErr:   errCommandTooLarge,
+		},
+		{
+			name:      "refuses a payload past the budget",
+			input:     payload + " world",
+			remaining: 5,
+			want:      payload,
+			wantErr:   errCommandTooLarge,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			reader := &boundedReader{
+				reader:    strings.NewReader(testCase.input),
+				remaining: testCase.remaining,
+			}
+
+			read, err := io.ReadAll(reader)
+			if !errors.Is(err, testCase.wantErr) {
+				t.Fatalf("io.ReadAll() error = %v, want %v", err, testCase.wantErr)
+			}
+
+			if string(read) != testCase.want {
+				t.Errorf("io.ReadAll() = %q, want %q", read, testCase.want)
+			}
+		})
+	}
+}
 
 // A handler is free to outlive the deadline set when the connection was
 // accepted — an action sequence can sleep, or wait for the user to finish a
