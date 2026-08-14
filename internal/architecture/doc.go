@@ -27,6 +27,8 @@
 //     chain rather than recomputed at its reader.
 //   - config_example_test.go — the pairing between the config schema and the
 //     example TOML shipped with it.
+//   - daemon_log_test.go — the daemon's log carries facts rather than content,
+//     and every service definition sends its output to a per-user path.
 //   - darwin_entry_point_headers_test.go — every non-static Neru* entry point
 //     the darwin bridge defines is declared in its own subsystem's header.
 //   - dependency_boundary_test.go — the darwin One Rule: only darwin-tagged

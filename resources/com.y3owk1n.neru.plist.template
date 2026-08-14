@@ -13,10 +13,14 @@
     <true/>
     <key>KeepAlive</key>
     <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/neru.log</string>
+    <!-- Standard output is not redirected: neru's own log file already holds
+         every log line, rotated, at ~/Library/Logs/neru/app.log. Standard error
+         catches what that file cannot — a crash, or a failure before the log
+         file is open — so it goes beside it. launchd expands nothing, so
+         NERU_STDERR_PATH must be replaced with an absolute path inside your own
+         home directory; never a shared one such as /tmp. -->
     <key>StandardErrorPath</key>
-    <string>/tmp/neru.err.log</string>
+    <string>NERU_STDERR_PATH</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>

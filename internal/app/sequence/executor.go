@@ -2,6 +2,7 @@ package sequence
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"strings"
 
@@ -341,11 +342,17 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 
 	commandOutput, commandErr := command.CombinedOutput()
 	if commandErr != nil {
+		// The command string and its output are the two things this must not
+		// write down: the command is config content, and the output is whatever
+		// the user's own shell printed. Their sizes and the exit code say as
+		// much about the failure as the log is entitled to know — matching the
+		// success path below, and the caller still receives the wrapped error.
 		e.logger.Error(
 			"exec step failed",
 			zap.String("source", source),
-			zap.String("cmd", cmdString),
-			zap.ByteString("output", commandOutput),
+			zap.Int("cmd_length", len(cmdString)),
+			zap.Int("output_bytes", len(commandOutput)),
+			zap.Int("exit_code", exitCodeOf(commandErr)),
 			zap.Error(commandErr),
 		)
 
@@ -360,6 +367,19 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 	)
 
 	return nil
+}
+
+// exitCodeOf reports the exit status behind a failed command, or -1 when the
+// command never ran far enough to have one (a missing shell, a timeout, a
+// signal). It exists so the failure log can be specific about *how* the step
+// failed without quoting anything the command said.
+func exitCodeOf(commandErr error) int {
+	var exitErr *exec.ExitError
+	if errors.As(commandErr, &exitErr) {
+		return exitErr.ExitCode()
+	}
+
+	return -1
 }
 
 // stepContext builds the context each step of a sequence runs under: the base

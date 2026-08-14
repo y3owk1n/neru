@@ -580,9 +580,11 @@ func (s *Service) SaveOverrideField(key, value string) error {
 		return saveErr
 	}
 
+	// The key names a schema field, which is not the user's content; the value
+	// is, and a value can be an exec command line, so only its length is logged.
 	s.logger.Info("Config override persisted",
 		zap.String("key", key),
-		zap.String("value", value),
+		zap.Int("value_length", len(value)),
 		zap.String("override_path", overridePath))
 
 	return nil
