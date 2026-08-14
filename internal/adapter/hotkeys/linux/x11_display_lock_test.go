@@ -1,5 +1,3 @@
-//go:build linux
-
 package linux_test
 
 import (
@@ -25,6 +23,12 @@ import (
 // C calls no race detector watches, on a path that misbehaves as a corrupted
 // connection rather than as a crash at the call site. These tests are what
 // keeps it true.
+//
+// They read the sources instead of running them, and carry no build tag for
+// the same reason: the edit they exist to catch — a new Xlib call added to
+// x11_cgo.go — is made on the maintainer's macOS host, where neither the file
+// nor a Linux-tagged test compiles. A rule checked only on the CI leg is a rule
+// found broken later than it was written.
 
 // x11DisplayCalls are the cgo entry points that speak on the hotkey connection.
 // Each takes the Display as an argument, and each therefore writes to or reads
