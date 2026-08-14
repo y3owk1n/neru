@@ -243,9 +243,17 @@ else
       CGO_CFLAGS_ALLOW = "-fno-strict-overflow";
     };
 
-    # Allow Go to use any available toolchain
+    # Build with the toolchain nixpkgs ships, never a downloaded one. go.mod
+    # carries a `toolchain` line pointing at a Go patch release newer than
+    # nixpkgs has, so that everyone building with a network — contributors, CI,
+    # the release workflow — picks up the fixed standard library. This sandbox
+    # has no network, so honouring that line would fail the build outright
+    # rather than silently fall back. `local` ignores it and uses the nixpkgs
+    # Go, which still satisfies the `go` directive (the actual floor). Nix
+    # builds therefore track nixpkgs' Go patch level, as they always have, and
+    # pick the fixed standard library up when nixpkgs does.
     preBuild = ''
-      export GOTOOLCHAIN=auto
+      export GOTOOLCHAIN=local
     '';
 
     postInstall = ''
