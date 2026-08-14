@@ -189,7 +189,7 @@ func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 	logger = logger.Named("ipc")
 	// The daemon binds the transport's preferred endpoint, never the one
 	// SocketPath may have resolved to some other running daemon's.
-	socketPath := endpointPath()
+	socketPath := daemonEndpointPath()
 
 	listener, listenerErr := listenEndpoint(context.Background(), socketPath)
 	if listenerErr != nil {

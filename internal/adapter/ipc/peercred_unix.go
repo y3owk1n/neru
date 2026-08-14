@@ -27,6 +27,9 @@ func authorizePeer(connection net.Conn) error {
 
 	uid, uidErr := peerUID(unixConn)
 	if uidErr != nil {
+		// Deliberately re-coded, including over the CodeNotSupported a platform
+		// without an implementation returns: a peer that cannot be identified
+		// is refused, and that is not a capability a caller may degrade past.
 		return derrors.Wrap(
 			uidErr,
 			derrors.CodeIPCFailed,

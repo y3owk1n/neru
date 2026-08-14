@@ -55,9 +55,9 @@ func listenAt(t *testing.T, path string, dirPerms os.FileMode) {
 func TestListenEndpoint_PutsTheSocketInAnOwnerOnlyDirectory(t *testing.T) {
 	runtimeDir, _ := isolateEndpoint(t)
 
-	path := endpointPath()
+	path := daemonEndpointPath()
 	if want := filepath.Join(runtimeDir, endpointDirName, SocketName); path != want {
-		t.Fatalf("endpointPath() = %s, want %s", path, want)
+		t.Fatalf("daemonEndpointPath() = %s, want %s", path, want)
 	}
 
 	listener, listenErr := listenEndpoint(context.Background(), path)
@@ -103,7 +103,7 @@ func TestListenEndpoint_TightensADirectoryLeftOpen(t *testing.T) {
 		t.Fatalf("Chmod(%s) error = %v", dir, chmodErr)
 	}
 
-	listener, listenErr := listenEndpoint(context.Background(), endpointPath())
+	listener, listenErr := listenEndpoint(context.Background(), daemonEndpointPath())
 	if listenErr != nil {
 		t.Fatalf("listenEndpoint() error = %v", listenErr)
 	}
@@ -266,7 +266,7 @@ func TestClientEndpointPath_IgnoresAnEndpointInAWorldReachableDirectory(t *testi
 		t.Fatalf("clientEndpointPath() = %s, want the exposed endpoint ignored", got)
 	}
 
-	if want := endpointPath(); got != want {
+	if want := daemonEndpointPath(); got != want {
 		t.Errorf("clientEndpointPath() = %s, want the preferred path %s", got, want)
 	}
 }
@@ -276,7 +276,7 @@ func TestClientEndpointPath_IgnoresAnEndpointInAWorldReachableDirectory(t *testi
 func TestClientEndpointPath_ReportsThePreferredPathWhenNothingIsListening(t *testing.T) {
 	isolateEndpoint(t)
 
-	if got, want := clientEndpointPath(), endpointPath(); got != want {
+	if got, want := clientEndpointPath(), daemonEndpointPath(); got != want {
 		t.Errorf("clientEndpointPath() = %s, want %s", got, want)
 	}
 }

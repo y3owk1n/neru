@@ -6,7 +6,15 @@ import (
 	"net"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
+
+// xucredVersion is XUCRED_VERSION from <sys/ucred.h>, the layout the fields
+// below are read at. Darwin fills it in on every successful call; a different
+// value would mean the struct is not the one this code knows, and a uid read
+// out of it would be a guess.
+const xucredVersion = 0
 
 // peerUID reports the uid of the process at the other end of connection, as
 // recorded by the kernel when the connection was made rather than as claimed by
@@ -35,6 +43,15 @@ func peerUID(connection *net.UnixConn) (uint32, error) {
 
 	if sockoptErr != nil {
 		return 0, sockoptErr
+	}
+
+	if credentials.Version != xucredVersion {
+		return 0, derrors.Newf(
+			derrors.CodeIPCFailed,
+			"peer credentials came back in layout version %d rather than %d",
+			credentials.Version,
+			xucredVersion,
+		)
 	}
 
 	return credentials.Uid, nil

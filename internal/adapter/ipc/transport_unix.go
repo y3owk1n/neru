@@ -40,6 +40,9 @@ const (
 
 	// runtimeDirRoot is where a Linux login session's runtime directory lives.
 	// It is probed only when $XDG_RUNTIME_DIR is absent; see endpointDirs.
+	// Nothing here is darwin-only or linux-only by construction: macOS has no
+	// such directory, so the probe finds nothing and costs one Lstat, and it
+	// honors $XDG_RUNTIME_DIR if a macOS user has exported one.
 	runtimeDirRoot = "/run/user"
 
 	// endpointDirCandidates is how many directories endpointDirs can name: the
@@ -88,13 +91,14 @@ func sessionRuntimeDir(uid int) string {
 	return sessionDir
 }
 
-// endpointPath is where the daemon listens.
-func endpointPath() string {
+// daemonEndpointPath is where the daemon listens.
+func daemonEndpointPath() string {
 	return filepath.Join(endpointDirs()[0], SocketName)
 }
 
-// legacyEndpointPath is where neru up to and including v1 put the socket:
-// straight in the temporary directory, with its mode as the only gate.
+// legacyEndpointPath is where neru put the socket before the endpoint was
+// scoped to one user: straight in the temporary directory, with its mode as the
+// only gate.
 //
 // It is still dialed, but only when it is a socket this user owns and only when
 // no endpoint exists in the current location. That is enough for an upgraded
@@ -115,12 +119,12 @@ func clientEndpointPath() string {
 
 	for _, dir := range dirs {
 		candidate := filepath.Join(dir, SocketName)
-		if verifyPrivateDir(dir) == nil && verifySocketOwner(candidate) == nil {
+		if verifyPrivateDir(dir) == nil && verifyOwnedSocket(candidate) == nil {
 			return candidate
 		}
 	}
 
-	if legacy := legacyEndpointPath(); verifySocketOwner(legacy) == nil {
+	if legacy := legacyEndpointPath(); verifyOwnedSocket(legacy) == nil {
 		return legacy
 	}
 
@@ -172,31 +176,13 @@ func prepareEndpointDir(dir string) error {
 // prepareEndpoint clears the way for a fresh listener, refusing to unlink
 // anything that is not this user's own socket.
 func prepareEndpoint(path string) error {
-	info, lstatErr := os.Lstat(path)
-	if lstatErr != nil {
-		if errors.Is(lstatErr, fs.ErrNotExist) {
+	ownedErr := verifyOwnedSocket(path)
+	if ownedErr != nil {
+		if errors.Is(ownedErr, fs.ErrNotExist) {
 			return nil
 		}
 
-		return derrors.Wrapf(
-			lstatErr,
-			derrors.CodeIPCFailed,
-			"cannot inspect the existing IPC endpoint %s",
-			path,
-		)
-	}
-
-	if info.Mode()&fs.ModeSocket == 0 {
-		return derrors.Newf(
-			derrors.CodeIPCFailed,
-			"%s already exists and is not a socket; neru will not replace it",
-			path,
-		)
-	}
-
-	ownerErr := verifyOwner(path, info)
-	if ownerErr != nil {
-		return ownerErr
+		return ownedErr
 	}
 
 	removeErr := os.Remove(path)
@@ -321,8 +307,11 @@ func verifyPrivateDir(dir string) error {
 	return nil
 }
 
-// verifySocketOwner reports whether path is a socket belonging to this user.
-func verifySocketOwner(path string) error {
+// verifyOwnedSocket reports whether path is a socket belonging to this user.
+// A missing path is reported as such: the error wraps fs.ErrNotExist, which is
+// the one failure the daemon reads as "nothing in the way" rather than as a
+// refusal.
+func verifyOwnedSocket(path string) error {
 	info, lstatErr := os.Lstat(path)
 	if lstatErr != nil {
 		return derrors.Wrapf(
@@ -334,7 +323,11 @@ func verifySocketOwner(path string) error {
 	}
 
 	if info.Mode()&fs.ModeSocket == 0 {
-		return derrors.Newf(derrors.CodeIPCFailed, "%s is not a socket", path)
+		return derrors.Newf(
+			derrors.CodeIPCFailed,
+			"%s exists and is not a socket; neru will not replace it",
+			path,
+		)
 	}
 
 	return verifyOwner(path, info)

@@ -24,7 +24,8 @@ const (
 	// pipePrefix is the stem every neru endpoint name is built from.
 	pipePrefix = `\\.\pipe\neru`
 
-	// legacyPipePath is the machine-wide name neru up to and including v1 used.
+	// legacyPipePath is the machine-wide name neru used before the endpoint was
+	// scoped to one user.
 	// It is never dialed — an unauthenticated name is exactly what the per-user
 	// name replaces — but it is what an older daemon is still listening on, so
 	// endpointHint mentions it when a connection fails.
@@ -57,11 +58,11 @@ func pipeSecurityDescriptor(sid string) string {
 	return "D:P(A;;GA;;;" + sid + ")"
 }
 
-// endpointPath is where the daemon listens. It is empty when the user's SID
+// daemonEndpointPath is where the daemon listens. It is empty when the user's SID
 // cannot be read: the alternative would be to fall back to the machine-wide
 // name, which is the thing being scoped away. listenEndpoint and dialEndpoint
 // report the reason instead.
-func endpointPath() string {
+func daemonEndpointPath() string {
 	sid, sidErr := pipeIdentity()
 	if sidErr != nil {
 		return ""
@@ -75,7 +76,7 @@ func endpointPath() string {
 // can check before connecting, so the only name trusted is the one derived from
 // this user's own SID.
 func clientEndpointPath() string {
-	return endpointPath()
+	return daemonEndpointPath()
 }
 
 // endpointHint returns extra guidance for a failed connection.
