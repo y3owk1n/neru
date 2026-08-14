@@ -117,9 +117,12 @@ jobs:
                     libpipewire-0.3-dev
 
             # Install Devbox on macOS only
+            # Pinned by commit: a tag is a movable pointer, so `@v0.15.0` is a
+            # request rather than a statement about which code runs. Dependabot
+            # updates SHA pins that carry a version comment.
             - name: Install Devbox
               if: runner.os == 'macOS'
-              uses: jetify-com/devbox-install-action@v0.15.0
+              uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
               with:
                   enable-cache: true
 
@@ -142,7 +145,7 @@ jobs:
             # Install just directly on Windows & Linux
             - name: Install just
               if: runner.os == 'Windows' || runner.os == 'Linux'
-              uses: extractions/setup-just@v4
+              uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
             # Run checks with Devbox on macOS
             - name: Run just lint
