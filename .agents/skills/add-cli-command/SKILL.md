@@ -6,8 +6,8 @@ description: "Add a Neru CLI command or flag: cobra command in internal/cli, IPC
 # Adding a CLI command to Neru
 
 Neru is a daemon plus a thin CLI: almost every command just serializes an IPC
-request to the running daemon over the Unix socket (`$TMPDIR/neru.sock`) or
-Windows named pipe. A new command therefore touches three layers plus docs —
+request to the running daemon over its per-user Unix socket or Windows named
+pipe. A new command therefore touches three layers plus docs —
 skipping the IPC layer and calling app code directly from `internal/cli` is
 wrong even when it compiles.
 

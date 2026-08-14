@@ -58,9 +58,17 @@ current per-platform support is tracked in
 
 Neru is a **daemon plus a thin CLI**. `neru launch` starts the daemon;
 `neru hints`, `neru action left_click`, `neru config reload` and friends dial a
-Unix domain socket (`$TMPDIR/neru.sock`, mode 0600) or a Windows named pipe —
-see `internal/adapter/ipc` for the transport and
+Unix domain socket or a Windows named pipe — see `internal/adapter/ipc` for the
+transport and
 `internal/app/ipcctrl` for the command handlers.
+
+The endpoint is scoped to one user. On macOS and Linux that is a socket at
+`$XDG_RUNTIME_DIR/neru/neru.sock` where the session provides a runtime
+directory, otherwise `$TMPDIR/neru-<uid>/neru.sock`: mode 0600, inside a
+directory the daemon creates 0700 and owns, so the socket's own mode is never
+the only gate. On Windows it is `\\.\pipe\neru-<SID>`, created with a protected
+DACL naming that SID alone. The daemon reads the connecting process's uid from
+the kernel and serves only its own. `neru doctor` prints the endpoint in use.
 
 New user-facing behavior therefore usually needs three pieces: a CLI command
 (`internal/cli/`, registered in an `init()`), an IPC handler, and the

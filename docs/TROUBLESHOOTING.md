@@ -413,8 +413,9 @@ neru launch
 # Check status
 neru status
 
-# If still failing, check for stale socket (path is printed in logs; typically under /var/folders/.../T)
-rm -f /var/folders/*/*/T/neru.sock
+# If still failing, check for a stale socket. The daemon prints its endpoint at
+# startup; it lives in a directory of its own, named neru or neru-<uid>.
+rm -f "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"/neru*/neru.sock
 neru launch
 ```
 
@@ -454,8 +455,9 @@ neru launch
 # Force quit
 pkill -9 neru
 
-# Clean up socket (path is printed in logs; typically under /var/folders/.../T)
-rm -f /var/folders/*/*/T/neru.sock
+# Clean up the socket. The daemon prints its endpoint at startup; it lives in a
+# directory of its own, named neru or neru-<uid>.
+rm -f "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"/neru*/neru.sock
 
 # Restart
 neru launch

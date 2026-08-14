@@ -46,6 +46,14 @@ const (
 	// DefaultSocketPerms is the default socket permissions.
 	DefaultSocketPerms = 0o600
 
+	// maxCommandBytes bounds one command. A command is a verb, a small
+	// parameter map and its arguments; the largest realistic one — a config
+	// value or a sequence definition traveling in Args — is orders of
+	// magnitude below this. The cap exists so a peer cannot make the daemon
+	// buffer without limit, not to police command shape, which
+	// DisallowUnknownFields already does.
+	maxCommandBytes = 64 << 10
+
 	// defaultBuildVersion is the fallback version when SetBuildVersion is not called.
 	defaultBuildVersion = "dev"
 )
@@ -133,9 +141,43 @@ type Server struct {
 // CommandHandler is the interface for processing IPC commands.
 type CommandHandler func(ctx context.Context, cmd Command) Response
 
-// SocketPath returns the platform IPC endpoint path (Unix socket or named pipe).
+// SocketPath returns the platform IPC endpoint path (Unix socket or named pipe)
+// a client should use.
+//
+// It is the endpoint the daemon listens on in every ordinary case. Where the
+// transport can tell that a live daemon answers somewhere else — an endpoint
+// left by a daemon started before this version, or one in a runtime directory
+// this process's environment does not name — it returns that instead, so a CLI
+// reaches the daemon that is actually running rather than reporting none.
 func SocketPath() string {
-	return endpointPath()
+	return clientEndpointPath()
+}
+
+// errCommandTooLarge is returned by boundedReader once a command has spent its
+// budget. It is a sentinel so the decode failure can be reported as the size
+// refusal it is rather than as the truncated JSON it looks like.
+var errCommandTooLarge = errors.New("command exceeds the maximum size")
+
+// boundedReader is io.LimitReader with a distinguishable ending: hitting the
+// limit is an error rather than a clean EOF.
+type boundedReader struct {
+	reader    io.Reader
+	remaining int64
+}
+
+func (b *boundedReader) Read(buf []byte) (int, error) {
+	if b.remaining <= 0 {
+		return 0, errCommandTooLarge
+	}
+
+	if int64(len(buf)) > b.remaining {
+		buf = buf[:b.remaining]
+	}
+
+	read, err := b.reader.Read(buf)
+	b.remaining -= int64(read)
+
+	return read, err
 }
 
 // NewServer creates a new IPC server instance with the specified handler.
@@ -145,7 +187,9 @@ func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 	}
 
 	logger = logger.Named("ipc")
-	socketPath := SocketPath()
+	// The daemon binds the transport's preferred endpoint, never the one
+	// SocketPath may have resolved to some other running daemon's.
+	socketPath := endpointPath()
 
 	listener, listenerErr := listenEndpoint(context.Background(), socketPath)
 	if listenerErr != nil {
@@ -273,6 +317,17 @@ func (s *Server) handleConnection(connection net.Conn) {
 		s.wg.Done()
 	}()
 
+	// Who is on the other end is settled before anything they sent is read.
+	// A connection that fails this gets no reply at all: there is nothing
+	// useful to tell a caller that should not have reached the daemon, and a
+	// reply would confirm the endpoint to whoever found it.
+	authErr := authorizePeer(connection)
+	if authErr != nil {
+		logger.Warn("Refused an IPC connection from another user", zap.Error(authErr))
+
+		return
+	}
+
 	// Only the read side is bounded here: this guards a client that connects
 	// and never sends a command. The write side gets its own deadline once the
 	// handler has finished, in writeResponse.
@@ -283,7 +338,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 		return
 	}
 
-	decoder := json.NewDecoder(connection)
+	decoder := json.NewDecoder(&boundedReader{reader: connection, remaining: maxCommandBytes})
 	decoder.DisallowUnknownFields()
 
 	encoder := json.NewEncoder(connection)
@@ -306,6 +361,18 @@ func (s *Server) handleConnection(connection net.Conn) {
 
 	decodeCommandErr := decoder.Decode(&cmd)
 	if decodeCommandErr != nil {
+		if errors.Is(decodeCommandErr, errCommandTooLarge) {
+			logger.Error("Refused an oversized command", zap.Int("limit_bytes", maxCommandBytes))
+
+			reply(Response{
+				Success: false,
+				Message: fmt.Sprintf("command exceeds the %d byte limit", maxCommandBytes),
+				Code:    CodeInvalidInput,
+			})
+
+			return
+		}
+
 		logger.Error("Failed to decode command", zap.Error(decodeCommandErr))
 
 		reply(Response{
@@ -422,7 +489,7 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 		return Response{}, derrors.Wrap(
 			connectionErr,
 			derrors.CodeIPCFailed,
-			"failed to connect to neru (is it running?)",
+			connectFailureMessage(),
 		)
 	}
 
@@ -508,6 +575,19 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 	}
 
 	return response, nil
+}
+
+// connectFailureMessage explains a connection that never got off the ground,
+// adding whatever the transport can say about where else a daemon might be.
+func connectFailureMessage() string {
+	message := "failed to connect to neru (is it running?)"
+
+	hint := endpointHint()
+	if hint != "" {
+		message += "; " + hint
+	}
+
+	return message
 }
 
 // IsServerRunning determines if the IPC server is currently accepting connections.
