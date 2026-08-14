@@ -31,6 +31,12 @@ const (
 	// The geometry script is only readable/writable by the owner.
 	scriptFileMode = 0o600
 
+	// scriptDirShared are the permission bits that would make the directory
+	// holding the script reachable by anyone but its owner. The script is code
+	// KWin executes, so the directory it is written into has to be private
+	// before the file's own mode means anything.
+	scriptDirShared = 0o077
+
 	// installRetries is how many further attempts the installer makes on its
 	// own after a failed one, and installRetryBackoff the wait before the
 	// first of them, doubling each time (~1s, 2s, 4s). The window being
@@ -50,6 +56,21 @@ const scriptFileName = "neru-kwin-geometry.js"
 // because "KWin never answered" and "no window is focused" are different
 // answers and only one of them should send a caller to the active screen.
 var errKWinAbsent = errors.New("org.kde.KWin is not on the session bus")
+
+// errNoRuntimeDir and errRuntimeDirNotPrivate are the two ways a session can
+// fail to offer somewhere the geometry script may live. They are separate
+// because a user fixes them differently: the first is a session started outside
+// logind, the second a runtime directory pointed somewhere it should not be.
+var (
+	errNoRuntimeDir = errors.New(
+		"XDG_RUNTIME_DIR is not set, so there is no private directory to load " +
+			"the KWin geometry script from",
+	)
+	errRuntimeDirNotPrivate = errors.New(
+		"XDG_RUNTIME_DIR is not a directory private to this user, so it is not " +
+			"somewhere the KWin geometry script may be loaded from",
+	)
+)
 
 // Window is what KWin last said about the focused window: where it is, and
 // which window it is.
@@ -465,14 +486,14 @@ func (g *Geometry) install() error {
 
 // installScript writes the KWin script to disk and loads + starts it.
 func (g *Geometry) installScript(conn *dbus.Conn) error {
-	dir := os.Getenv("XDG_RUNTIME_DIR")
-	if dir == "" {
-		dir = os.TempDir()
+	dir, dirErr := scriptDir()
+	if dirErr != nil {
+		return dirErr
 	}
 
 	path := filepath.Join(dir, scriptFileName)
 
-	writeErr := os.WriteFile(path, []byte(geometryScript), scriptFileMode)
+	writeErr := writeScript(path)
 	if writeErr != nil {
 		return writeErr
 	}
@@ -495,4 +516,97 @@ func (g *Geometry) installScript(conn *dbus.Conn) error {
 	}
 
 	return nil
+}
+
+// scriptDir resolves the directory the geometry script is loaded from, which
+// is $XDG_RUNTIME_DIR and nowhere else.
+//
+// It used to fall back to os.TempDir() when the variable was unset, which is
+// /tmp: a directory every user on the machine can write into, holding a file
+// with a fixed name, whose contents the compositor then executes. There is no
+// version of that which is safe to keep, and the answer to a session with no
+// runtime directory is to say so — a KDE session started by logind always has
+// one, so nothing that works today stops working, and a session that does not
+// have one gets the same loud, recorded reason as a session with no KWin.
+//
+// The mode is checked rather than assumed. The XDG base directory
+// specification requires $XDG_RUNTIME_DIR to be owned by the user and
+// accessible to nobody else, and logind creates it 0700, so the check is a
+// formality on every real session; what it catches is a runtime directory
+// pointed somewhere shared, which is the same exposure the fallback was.
+//
+// The mode is the whole of the check because ownership adds nothing a caller
+// could act on: a 0700 directory belonging to somebody else is one this
+// process cannot write into either, so the write below fails and says so. What
+// matters is that nobody else can write into the directory the compositor
+// loads from, and that is what the mode says.
+func scriptDir() (string, error) {
+	dir := os.Getenv("XDG_RUNTIME_DIR")
+	if dir == "" {
+		return "", errNoRuntimeDir
+	}
+
+	// Stat, not Lstat: a symlinked runtime directory is judged by what it
+	// resolves to, which is the directory the script would really land in.
+	info, err := os.Stat(dir)
+	if err != nil {
+		return "", fmt.Errorf("XDG_RUNTIME_DIR: %w", err)
+	}
+
+	if !info.IsDir() {
+		return "", fmt.Errorf("%w: %s is not a directory at all", errRuntimeDirNotPrivate, dir)
+	}
+
+	if info.Mode().Perm()&scriptDirShared != 0 {
+		return "", fmt.Errorf(
+			"%w: %s is mode %04o, wanted 0700",
+			errRuntimeDirNotPrivate, dir, info.Mode().Perm(),
+		)
+	}
+
+	return dir, nil
+}
+
+// writeScript puts the script at path by writing a fresh file beside it and
+// renaming it over whatever was there, the way the portal restore token is
+// written (internal/adapter/platform/linux/portal_restore_token.go).
+//
+// Two things follow from that which truncating in place does not give. The new
+// file carries this package's mode whatever an earlier version or a stray copy
+// left behind, instead of inheriting it; and the path only ever names a
+// complete script, so the loadScript that follows cannot hand KWin half of one
+// — which matters more here than for a token, because KWin executes what it
+// reads.
+func writeScript(path string) error {
+	// The temporary file is named after the script it will become, so a
+	// leftover is recognizable and two daemons racing to install cannot write
+	// over each other's half-written copy.
+	temp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+
+	// From here on the temporary file must not be left behind on any path.
+	defer func() { _ = os.Remove(temp.Name()) }()
+
+	err = temp.Chmod(scriptFileMode)
+	if err != nil {
+		_ = temp.Close()
+
+		return err
+	}
+
+	_, err = temp.WriteString(geometryScript)
+	if err != nil {
+		_ = temp.Close()
+
+		return err
+	}
+
+	err = temp.Close()
+	if err != nil {
+		return err
+	}
+
+	return os.Rename(temp.Name(), path)
 }
