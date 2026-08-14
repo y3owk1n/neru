@@ -5,6 +5,7 @@ package windows
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -72,7 +73,24 @@ var (
 	procPostThreadMessageW  = user32.NewProc("PostThreadMessageW")
 	procGetCurrentThreadID  = kernel32.NewProc("GetCurrentThreadId")
 
-	activeKeyboardHook *KeyboardHook
+	// activeKeyboardHook is the hook keyboardHookProc dispatches to. It is
+	// atomic because the two sides never share a lock: run stores it under h.mu
+	// on the hook goroutine, and the hook procedure loads it on whichever
+	// thread Windows delivers the key event on.
+	activeKeyboardHook atomic.Pointer[KeyboardHook]
+
+	// keyboardHookProcPtr is the WH_KEYBOARD_LL procedure pointer
+	// SetWindowsHookExW is handed, allocated on first use and never again —
+	// for the reason monitorEnumProcPtr in win32.go carries in full: a callback
+	// slot is never freed and the process gets a fixed 2000 of them.
+	//
+	// StartKeyboardHook runs on every EventTap.Enable cycle, so a callback
+	// allocated there was spent on every mode activation. One procedure serves
+	// every hook because it carries no per-hook state: it reads
+	// activeKeyboardHook, which is whichever hook is currently installed.
+	keyboardHookProcPtr = sync.OnceValue(func() uintptr {
+		return syscall.NewCallback(keyboardHookProc)
+	})
 )
 
 var (
@@ -169,55 +187,58 @@ func (h *KeyboardHook) Stop() {
 	}
 }
 
-func (h *KeyboardHook) run() {
-	defer close(h.doneCh)
-
-	// lParam is typed unsafe.Pointer (not uintptr) so the KBDLLHOOKSTRUCT
-	// dereference is a Pointer->*T conversion, which keeps go vet's unsafeptr
-	// check happy. syscall.NewCallback accepts pointer-kind parameters.
-	hookProc := syscall.NewCallback(func(code int, wParam uintptr, lParam unsafe.Pointer) uintptr {
-		if code < 0 {
-			ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
-
-			return ret
-		}
-
-		current := activeKeyboardHook
-		if current == nil || current.callback == nil {
-			ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
-
-			return ret
-		}
-
-		kbd := (*kbdLLHookStruct)(lParam)
-
-		// Keys this process injected come back through this hook. Handing one
-		// to the callback would re-enter the mode handler from the hook
-		// thread, and the down/up pair a modified scroll holds reads as the
-		// user tapping that modifier — latching a sticky modifier nobody
-		// pressed. Only Neru's own injection is skipped (neruInjectedTag);
-		// another tool's synthetic input is still seen.
-		if kbd.dwExtraInfo == neruInjectedTag {
-			ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
-
-			return ret
-		}
-
-		isUp := wParam == wmKeyUp || wParam == wmSysKeyUp || kbd.flags&llkhfUp != 0
-
-		key := hookKeyName(kbd.vkCode, isUp)
-		if key != "" && current.callback(key, isUp) {
-			return 1
-		}
-
+// keyboardHookProc is the WH_KEYBOARD_LL procedure Windows calls for every key
+// event, for whichever hook is currently installed.
+//
+// lParam is typed unsafe.Pointer (not uintptr) so the KBDLLHOOKSTRUCT
+// dereference is a Pointer->*T conversion, which keeps go vet's unsafeptr
+// check happy. syscall.NewCallback accepts pointer-kind parameters.
+func keyboardHookProc(code int, wParam uintptr, lParam unsafe.Pointer) uintptr {
+	if code < 0 {
 		ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
 
 		return ret
-	})
+	}
+
+	current := activeKeyboardHook.Load()
+	if current == nil || current.callback == nil {
+		ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
+
+		return ret
+	}
+
+	kbd := (*kbdLLHookStruct)(lParam)
+
+	// Keys this process injected come back through this hook. Handing one
+	// to the callback would re-enter the mode handler from the hook
+	// thread, and the down/up pair a modified scroll holds reads as the
+	// user tapping that modifier — latching a sticky modifier nobody
+	// pressed. Only Neru's own injection is skipped (neruInjectedTag);
+	// another tool's synthetic input is still seen.
+	if kbd.dwExtraInfo == neruInjectedTag {
+		ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
+
+		return ret
+	}
+
+	isUp := wParam == wmKeyUp || wParam == wmSysKeyUp || kbd.flags&llkhfUp != 0
+
+	key := hookKeyName(kbd.vkCode, isUp)
+	if key != "" && current.callback(key, isUp) {
+		return 1
+	}
+
+	ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
+
+	return ret
+}
+
+func (h *KeyboardHook) run() {
+	defer close(h.doneCh)
 
 	handle, _, _ := procSetWindowsHookExW.Call(
 		whKeyboardLL,
-		hookProc,
+		keyboardHookProcPtr(),
 		moduleHandle(),
 		0,
 	)
@@ -233,7 +254,7 @@ func (h *KeyboardHook) run() {
 	h.hook = handle
 	threadID, _, _ := procGetCurrentThreadID.Call()
 	h.threadID = uint32(threadID)
-	activeKeyboardHook = h
+	activeKeyboardHook.Store(h)
 	h.mu.Unlock()
 
 	// Signal successful install so StartKeyboardHook can return the hook.
@@ -246,9 +267,10 @@ func (h *KeyboardHook) run() {
 			h.hook = 0
 		}
 
-		if activeKeyboardHook == h {
-			activeKeyboardHook = nil
-		}
+		// Only this hook's own registration is cleared: a later hook may
+		// already have installed itself, and clearing unconditionally would
+		// leave that one receiving key events with nowhere to deliver them.
+		activeKeyboardHook.CompareAndSwap(h, nil)
 		h.mu.Unlock()
 	}()
 
