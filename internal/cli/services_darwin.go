@@ -83,13 +83,20 @@ func daemonStderrPath() (string, error) {
 	return filepath.Join(logDir, daemonStderrFileName), nil
 }
 
+// plistTextEscaper escapes what cannot appear literally inside a plist
+// <string> element. A filesystem path is arbitrary text as far as XML is
+// concerned — a directory called "A&B" is perfectly legal on macOS — and an
+// unescaped one produces a plist launchctl refuses to load, leaving a file
+// behind that the next install then refuses to write over.
+var plistTextEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+
 // renderPlist fills the launchd agent template in with the two absolute paths
 // launchd cannot work out for itself: the binary to run, and the file its
 // standard error is appended to.
 func renderPlist(binPath, stderrPath string) string {
 	return strings.NewReplacer(
-		"NERU_BINARY_PATH", binPath,
-		"NERU_STDERR_PATH", stderrPath,
+		"NERU_BINARY_PATH", plistTextEscaper.Replace(binPath),
+		"NERU_STDERR_PATH", plistTextEscaper.Replace(stderrPath),
 	).Replace(plistTemplate)
 }
 

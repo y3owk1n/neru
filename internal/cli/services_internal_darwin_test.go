@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/xml"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,6 +69,48 @@ func TestRenderPlist_SendsOutputOnlyToThePathItIsGiven(t *testing.T) {
 					testCase.present,
 					plist,
 				)
+			}
+		})
+	}
+}
+
+// TestRenderPlist_EscapesPathsThatAreNotValidXML keeps a legal directory name
+// from producing an illegal plist. Paths are arbitrary text — "A&B" is a
+// perfectly good directory on macOS — and launchctl refuses to load a plist
+// whose XML does not parse, after the file has already been written, so the
+// next install refuses too rather than replacing it.
+func TestRenderPlist_EscapesPathsThatAreNotValidXML(t *testing.T) {
+	testCases := []struct {
+		name       string
+		binPath    string
+		stderrPath string
+		want       string
+	}{
+		{
+			name:       "ampersand in the binary path",
+			binPath:    "/Users/tester/A&B/neru",
+			stderrPath: "/Users/tester/Library/Logs/neru/daemon.err.log",
+			want:       "<string>/Users/tester/A&amp;B/neru</string>",
+		},
+		{
+			name:       "angle brackets in the log path",
+			binPath:    "/Users/tester/bin/neru",
+			stderrPath: "/Users/tester/<logs>/daemon.err.log",
+			want:       "<string>/Users/tester/&lt;logs&gt;/daemon.err.log</string>",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			plist := renderPlist(testCase.binPath, testCase.stderrPath)
+
+			if !strings.Contains(plist, testCase.want) {
+				t.Errorf("rendered plist does not contain %q:\n%s", testCase.want, plist)
+			}
+
+			decodeErr := xml.Unmarshal([]byte(plist), new(any))
+			if decodeErr != nil {
+				t.Errorf("rendered plist is not well-formed XML: %v", decodeErr)
 			}
 		})
 	}
