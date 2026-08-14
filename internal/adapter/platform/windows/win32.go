@@ -8,6 +8,7 @@ import (
 	"image"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -187,45 +188,115 @@ type monitorEnumState struct {
 	monitors []displayMonitor
 }
 
+var (
+	// monitorEnumMu serializes enumeration passes. It is held across the whole
+	// EnumDisplayMonitors call, which is what makes the single shared collector
+	// below safe: Windows invokes MONITORENUMPROC synchronously, on the
+	// goroutine that made the call, before the call returns.
+	//
+	// It is an ordinary non-reentrant mutex held across a syscall, so nothing
+	// reached from the callback may enumerate again. Nothing does today
+	// (getMonitorInfo and monitorFriendlyName are the only calls it makes), and
+	// a future caller that did would deadlock rather than misbehave quietly.
+	monitorEnumMu sync.Mutex
+
+	// monitorEnumTarget is where collectMonitor appends, installed by the pass
+	// holding monitorEnumMu. The collector lives here rather than in the
+	// callback's captures because the callback is allocated once for the
+	// process (monitorEnumProcPtr) and so cannot capture anything per-call.
+	monitorEnumTarget *monitorEnumState
+
+	// monitorEnumProcPtr is the MONITORENUMPROC pointer EnumDisplayMonitors is
+	// handed, allocated on first use and never again.
+	//
+	// Go's runtime keys registered callbacks on the function value and never
+	// frees a slot, and the table is a fixed cb_max = 2000 entries
+	// (runtime/zcallback_windows.go). Every distinct closure passed to
+	// syscall.NewCallback therefore burns one permanently. enumerateMonitors
+	// runs on repeated mode activations — activeScreenBounds,
+	// screenBoundsByName, screenNames and NewOverlayWindow all reach it — so a
+	// per-call closure made a long session a countdown to "too many callback
+	// functions", which is a runtime throw rather than a panic: unrecoverable,
+	// and it takes the daemon with it.
+	//
+	// Hoisting it also keeps the property the closure was written for: the
+	// per-call state never round-trips through the dwData uintptr, so there is
+	// no uintptr-to-pointer conversion for go vet's unsafeptr check to object
+	// to.
+	monitorEnumProcPtr = sync.OnceValue(func() uintptr {
+		return syscall.NewCallback(collectMonitor)
+	})
+)
+
+// collectMonitor is the MONITORENUMPROC Windows calls once per monitor. It
+// appends to whichever collector the enumeration pass installed.
+//
+// Returning 1 continues the enumeration: a monitor whose info cannot be read is
+// dropped rather than costing the caller the monitors after it. A nil target
+// cannot happen while the pass holds monitorEnumMu, and is treated the same way
+// rather than dereferenced.
+func collectMonitor(hMonitor uintptr, _ uintptr, _ uintptr, _ uintptr) uintptr {
+	if monitorEnumTarget == nil {
+		return 1
+	}
+
+	info, err := getMonitorInfo(windows.Handle(hMonitor))
+	if err != nil {
+		return 1
+	}
+
+	deviceName := windows.UTF16ToString(info.szDevice[:])
+	monitorEnumTarget.monitors = append(monitorEnumTarget.monitors, displayMonitor{
+		name:   monitorFriendlyName(deviceName),
+		bounds: rectToImage(info.rcMonitor),
+	})
+
+	return 1
+}
+
 func enumerateMonitors() ([]displayMonitor, error) {
+	monitors, err := runMonitorEnumeration()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(monitors) == 0 {
+		return nil, errNoMonitors
+	}
+
+	return monitors, nil
+}
+
+// runMonitorEnumeration performs one EnumDisplayMonitors pass and returns the
+// monitors it collected.
+//
+// Installing and clearing the shared collector is the whole reason this is its
+// own function: the lock and the target have to be released together and on
+// every path out, including a panic from the lazy proc lookup, and a deferred
+// pair here is what keeps that from being spread across the caller.
+func runMonitorEnumeration() ([]displayMonitor, error) {
 	state := &monitorEnumState{}
 
-	// The callback captures state directly, so there is no need to round-trip a
-	// pointer through dwData (which would trip govet's unsafeptr check).
-	callback := syscall.NewCallback(func(
-		hMonitor uintptr,
-		_ uintptr,
-		_ uintptr,
-		_ uintptr,
-	) uintptr {
-		info, err := getMonitorInfo(windows.Handle(hMonitor))
-		if err != nil {
-			return 1
-		}
+	monitorEnumMu.Lock()
 
-		deviceName := windows.UTF16ToString(info.szDevice[:])
-		state.monitors = append(state.monitors, displayMonitor{
-			name:   monitorFriendlyName(deviceName),
-			bounds: rectToImage(info.rcMonitor),
-		})
+	defer func() {
+		monitorEnumTarget = nil
 
-		return 1
-	})
+		monitorEnumMu.Unlock()
+	}()
+
+	monitorEnumTarget = state
 
 	ret, _, err := procEnumDisplayMonitors.Call(
 		0,
 		0,
-		callback,
+		monitorEnumProcPtr(),
 		0,
 	)
 
 	callErr := win32Bool(ret, err)
 	if callErr != nil {
 		return nil, fmt.Errorf("EnumDisplayMonitors: %w", callErr)
-	}
-
-	if len(state.monitors) == 0 {
-		return nil, errNoMonitors
 	}
 
 	return state.monitors, nil
