@@ -1,6 +1,6 @@
 module github.com/y3owk1n/neru
 
-go 1.26.4
+go 1.26.5
 
 toolchain go1.26.6
 
