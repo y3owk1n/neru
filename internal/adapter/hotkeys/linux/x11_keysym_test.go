@@ -193,6 +193,18 @@ func TestX11KeysymFor_EveryNamedKeyResolves(t *testing.T) {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 
+			// A mouse button is a named key that is not a keystroke, so there
+			// is no keysym for it to resolve to and none should be invented.
+			// The invariant this test protects is about a key a grab could
+			// reject; a button never reaches a grab at all. X11 reports
+			// buttons through pointer events rather than the keyboard, so
+			// binding one on Linux is a no-op today — the same shape as
+			// F21-F24 and Insert, which the vocabulary carries on macOS
+			// precisely so one config file works on every platform.
+			if keyvocab.IsMouseButton(key) {
+				t.Skipf("%q is a mouse button, not a keystroke: no X11 keysym names it", key)
+			}
+
 			if x11KeysymFor(key) == 0 {
 				t.Fatalf("named key %q resolves to no X11 keysym", key)
 			}
