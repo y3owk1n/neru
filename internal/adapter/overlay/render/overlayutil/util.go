@@ -75,19 +75,16 @@ func releaseCallbackID(callbackID uint64) {
 
 	if !allocatedCallbackIDs[callbackID] {
 		allocatedCallbackIDsMu.Unlock()
-		// ID is not allocated, nothing to release
 		return
 	}
 
 	delete(allocatedCallbackIDs, callbackID)
 	allocatedCallbackIDsMu.Unlock()
 
-	// Remove from global registry
 	callbackManagerRegistryMu.Lock()
 	delete(callbackManagerRegistry, callbackID)
 	callbackManagerRegistryMu.Unlock()
 
-	// Return the ID to the free pool for reuse
 	freeCallbackIDsMu.Lock()
 
 	freeCallbackIDs = append(freeCallbackIDs, callbackID)
@@ -127,16 +124,11 @@ func CompleteGlobalCallback(callbackID uint64, expectedGeneration uint64) {
 		return
 	}
 
-	// Atomically remove the registry entry so no concurrent deferred release
-	// or new allocation can race with us on this callback ID.
 	delete(callbackManagerRegistry, callbackID)
 	callbackManagerRegistryMu.Unlock()
 
 	entry.manager.CompleteCallback(callbackID)
 
-	// Return the ID to the free pool. Since we already deleted the registry
-	// entry above, releaseCallbackID will skip the registry delete (no-op)
-	// but will still clear allocatedCallbackIDs and return the ID to the pool.
 	releaseCallbackID(callbackID)
 }
 
@@ -269,10 +261,7 @@ func (c *CallbackManager) CompleteCallback(callbackID uint64) {
 // This should be called when the overlay is being destroyed.
 // Safe to call multiple times - only executes cleanup once.
 func (c *CallbackManager) Cleanup() {
-	// Use sync.Once to ensure cleanup only happens once
-	// This prevents panic from double-close of the cancel channel
 	c.cleanupOnce.Do(func() {
-		// Close the cancel channel to stop all background goroutines
 		close(c.cancelCh)
 
 		// Snapshot and clear callbackMap under callbackMu first, then remove

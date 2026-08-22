@@ -13,30 +13,23 @@ import (
 func TestGridManager_RouterIntegration(t *testing.T) {
 	logger := logger.Get()
 
-	// Create a test grid
 	testGrid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1000, 1000), logger)
 
-	// Create grid manager
 	gridManager := grid.NewManager(
 		testGrid,
 		domain.GridDimensions{Rows: 3, Cols: 3}, "asdf",
 		func(redraw bool) {
-			// Update callback
 		},
 		func(cell *grid.Cell) {
-			// Show sub callback
 		},
 		logger,
 	)
 
-	// Create grid router
 	gridRouter := grid.NewRouter(gridManager, logger)
 
 	t.Run("Grid routing workflow", func(t *testing.T) {
-		// Test typing "a" - should be valid input (4-char labels needed)
 		gridRouter.RouteKey("a")
 
-		// Test typing "s" - still not complete
 		result2 := gridRouter.RouteKey("s")
 
 		if result2.Complete() {
@@ -50,14 +43,12 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 			t.Error("Expected not complete on three characters")
 		}
 
-		// Test typing "f" - should complete coordinate
 		result4 := gridRouter.RouteKey("f")
 
 		if !result4.Complete() {
 			t.Error("Expected complete on fourth character")
 		}
 
-		// Check target point
 		targetPoint := result4.TargetPoint()
 		if targetPoint.X == 0 || targetPoint.Y == 0 {
 			t.Error("Expected non-zero target point")
@@ -65,17 +56,13 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 	})
 
 	t.Run("Grid manager input handling", func(t *testing.T) {
-		// Test input handling - this tests the grid manager's coordinate processing
-		// With subgrid enabled, single characters might complete selections
 		gridManager.HandleInput("a")
 
-		// Test tab key handling - should move to next subgrid
-		pointTab, completeTab := gridManager.HandleInput("\t") // Tab key
+		pointTab, completeTab := gridManager.HandleInput("\t")
 		if completeTab {
 			t.Logf("Tab completed selection at point: %v", pointTab)
 		}
 
-		// Test that we can handle multiple inputs
 		gridManager.HandleInput("s")
 		gridManager.HandleInput("d")
 		point4, _ := gridManager.HandleInput("f")
@@ -86,7 +73,6 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 	})
 
 	t.Run("Grid escape and tab handling", func(t *testing.T) {
-		// Escape handling is now done by top-level custom hotkeys, not grid router.
 		result := gridRouter.RouteKey("escape")
 
 		if result.Complete() {
@@ -128,12 +114,10 @@ func TestManager_CurrentInput(t *testing.T) {
 		logger,
 	)
 
-	// Initially empty
 	if input := manager.CurrentInput(); input != "" {
 		t.Errorf("CurrentInput() = %q, want empty", input)
 	}
 
-	// After input
 	manager.HandleInput("A")
 
 	if input := manager.CurrentInput(); input != "A" {
@@ -143,7 +127,6 @@ func TestManager_CurrentInput(t *testing.T) {
 
 func TestManager_Reset(t *testing.T) {
 	logger := logger.Get()
-	// Use unique parameters to avoid cache conflicts
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 50, 50), logger)
 
 	manager := grid.NewManager(
@@ -181,14 +164,12 @@ func TestManager_IgnoresNonSingleCharKey(t *testing.T) {
 		logger,
 	)
 
-	// Type a valid character
 	manager.HandleInput("A")
 
 	if manager.CurrentInput() != "A" {
 		t.Fatalf("expected input 'A' before reset, got %q", manager.CurrentInput())
 	}
 
-	// Multi-character key names are ignored by HandleInput.
 	point, complete := manager.HandleInput("Ctrl+R")
 	if complete {
 		t.Fatalf("multi-character key should not complete selection")
@@ -205,7 +186,6 @@ func TestManager_IgnoresNonSingleCharKey(t *testing.T) {
 
 func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 	logger := logger.Get()
-	// Create grid with only numbers and symbols
 	testGrid := grid.NewGrid("123!@", image.Rect(0, 0, 500, 500), logger)
 
 	manager := grid.NewManager(
@@ -217,7 +197,6 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 		logger,
 	)
 
-	// Test that numbers are accepted
 	_, complete := manager.HandleInput("1")
 	if complete {
 		t.Error("Expected not complete after single number")
@@ -229,7 +208,6 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 
 	manager.Reset()
 
-	// Test that symbols are accepted
 	_, complete2 := manager.HandleInput("!")
 	if complete2 {
 		t.Error("Expected not complete after single symbol")
@@ -246,7 +224,6 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 	// Create grid with custom labels containing symbols
 	testGrid := grid.NewGridWithLabels("ABC", "',.PYF", "AOEU", image.Rect(0, 0, 300, 300), logger)
 
-	// Check that ValidCharacters includes the comma
 	validChars := testGrid.ValidCharacters()
 	if !strings.Contains(validChars, ",") {
 		t.Errorf("ValidCharacters() = %q, should contain ','", validChars)
@@ -261,7 +238,6 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 		logger,
 	)
 
-	// Test that regular characters work
 	_, complete := manager.HandleInput("A")
 	if complete {
 		t.Error("Expected not complete after A")
@@ -271,19 +247,15 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want 'A'", input)
 	}
 
-	// Test that symbols from row_labels are accepted only if they lead to valid coordinates
-	// Note: "," is now the reset key, so we use "." instead for testing symbols
 	_, complete = manager.HandleInput(".")
 	if complete {
 		t.Error("Expected not complete after period")
 	}
 
-	// Since "A." doesn't match any coordinate prefix, it should be rejected
 	if input := manager.CurrentInput(); input != "A" {
 		t.Errorf("CurrentInput() = %q, want 'A' (period should be rejected)", input)
 	}
 
-	// Test that a valid next character is accepted
 	_, complete = manager.HandleInput("A") // "AA" should match some coordinates
 	if complete {
 		t.Error("Expected not complete after AA")
@@ -293,25 +265,21 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want 'AA'", input)
 	}
 
-	// Reset API should clear input.
 	manager.Reset()
 
 	if input := manager.CurrentInput(); input != "" {
 		t.Errorf("CurrentInput() = %q, want '' after reset", input)
 	}
 
-	// Test that invalid character is rejected (input stays empty after reset)
 	_, complete = manager.HandleInput("Z") // Z not in valid characters
 	if complete {
 		t.Error("Expected not complete for invalid character")
 	}
 
-	// Input should still be empty after reset + invalid char
 	if input := manager.CurrentInput(); input != "" {
 		t.Errorf("CurrentInput() = %q, want '' (input stays empty after reset)", input)
 	}
 
-	// Now test that a valid character after reset is accepted
 	_, complete = manager.HandleInput("A")
 	if complete {
 		t.Error("Expected not complete after A following reset")
@@ -381,7 +349,6 @@ func TestGridManager_ResetClearsInputAndFiresCallback(t *testing.T) {
 func TestManager_InputValidation(t *testing.T) {
 	logger := logger.Get()
 
-	// Create a simple grid with known coordinates: AA, AB, AC, BA, BB, BC, CA, CB, CC
 	testGrid := grid.NewGrid("ABC", image.Rect(0, 0, 100, 100), logger)
 	manager := grid.NewManager(
 		testGrid,
@@ -392,7 +359,6 @@ func TestManager_InputValidation(t *testing.T) {
 		logger,
 	)
 
-	// Test 1: Valid first character should be accepted
 	_, complete := manager.HandleInput("A")
 	if complete {
 		t.Error("Expected not complete after first character")
@@ -402,23 +368,19 @@ func TestManager_InputValidation(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want 'A'", input)
 	}
 
-	// Test 2: Valid second character that completes coordinate should enter subgrid
 	_, complete = manager.HandleInput("A") // "AA" is a valid coordinate - enters subgrid
 	if complete {
 		t.Error("Expected not complete after 'AA' (enters subgrid)")
 	}
-	// When entering subgrid, input is reset to ""
+
 	if input := manager.CurrentInput(); input != "" {
 		t.Errorf("CurrentInput() = %q, want '' (reset for subgrid)", input)
 	}
 
-	// Test 3: Invalid character that doesn't lead to matches should be rejected
 	manager.Reset() // Start fresh
 
-	// Put in a state where next character would be invalid
 	_, _ = manager.HandleInput("A")
 
-	// Try a character that doesn't continue any valid coordinate
 	invalidChar := "Z" // Z doesn't appear in any coordinate starting with A
 
 	_, complete = manager.HandleInput(invalidChar)

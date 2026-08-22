@@ -12,16 +12,9 @@ func (a *Adapter) convertToDomainElement(node ax.Node) (*element.Element, error)
 		return nil, derrors.New(derrors.CodeInvalidInput, "node is nil")
 	}
 
-	// Create element ID from unique identifier
 	elementID := element.ID(node.ID())
-
-	// Get bounds
 	bounds := node.Bounds()
-
-	// Convert role
 	role := element.Role(node.Role())
-
-	// Determine if clickable
 	isClickable := node.IsClickable()
 
 	searchText := ""

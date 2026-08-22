@@ -116,7 +116,6 @@ func isServiceLoaded() bool {
 }
 
 func installService() error {
-	// Check if service is already loaded
 	if isServiceLoaded() {
 		return errServiceAlreadyLoaded
 	}
@@ -147,7 +146,6 @@ func installService() error {
 		return fmt.Errorf("failed to expand LaunchAgents path: %w", err)
 	}
 
-	// Check if plist already exists
 	expandedPlist := filepath.Join(expandedDir, serviceLabel+".plist")
 
 	_, statErr := os.Stat(expandedPlist)
@@ -159,7 +157,6 @@ func installService() error {
 		)
 	}
 
-	// Ensure directory exists
 	const dirPerm = 0o755
 
 	err = os.MkdirAll(expandedDir, dirPerm)
@@ -167,7 +164,6 @@ func installService() error {
 		return fmt.Errorf("failed to create LaunchAgents directory: %w", err)
 	}
 
-	// Write plist
 	const filePerm = 0o644
 
 	err = os.WriteFile(expandedPlist, []byte(plistContent), filePerm)

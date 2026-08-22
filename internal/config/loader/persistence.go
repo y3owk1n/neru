@@ -116,7 +116,6 @@ func writeStringOrStringArrayMap(
 
 // Save writes the configuration to the specified path.
 func Save(cfg *config.Config, path string) error {
-	// Create directory if it doesn't exist
 	dir := filepath.Dir(path)
 
 	mkdirErr := os.MkdirAll(dir, config.DefaultDirPerms)
@@ -128,7 +127,6 @@ func Save(cfg *config.Config, path string) error {
 		)
 	}
 
-	// Create file
 	var closeErr error
 	// #nosec G304 -- Path is validated and controlled by the application
 	file, fileErr := os.Create(path)

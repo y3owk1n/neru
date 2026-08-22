@@ -152,7 +152,6 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 
 // initializeRecursiveGridManager initializes the recursive-grid manager.
 func (h *handlerState) initializeRecursiveGridManager(screenBounds image.Rectangle) {
-	// Ensure recursiveGrid component is initialized
 	if h.recursiveGrid == nil {
 		h.recursiveGrid = &components.RecursiveGridComponent{
 			Context: &componentrecursivegrid.Context{},

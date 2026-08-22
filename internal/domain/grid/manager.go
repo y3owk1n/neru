@@ -96,7 +96,6 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 
 	// Note: reset key already handled above (supports modifiers and single chars).
 
-	// Validate input key against grid characters
 	if !m.validateInputKey(upperKey) {
 		return image.Point{}, false
 	}
@@ -108,7 +107,6 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		return m.handleLabelLengthReached()
 	}
 
-	// Update overlay to highlight matched cells
 	if m.onUpdate != nil {
 		m.onUpdate(false)
 	}

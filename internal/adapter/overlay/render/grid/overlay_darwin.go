@@ -370,7 +370,6 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 		runtime.ReadMemStats(&msBefore)
 	}
 
-	// Check if we can do incremental updates (always try if we have previous state)
 	o.gridStateMu.RLock()
 	canIncrementalUpdate := o.previousGrid != nil
 	o.gridStateMu.RUnlock()
@@ -582,7 +581,6 @@ func (o *Overlay) drawGridIncremental(
 		return false // No previous state to compare against
 	}
 
-	// Check if only the input changed (common case for typing)
 	if o.gridsAreStructurallyEqual(grid, previousGrid) && style == previousStyle {
 		// Only input changed - we can do incremental match updates
 		if currentInput != previousInput {
@@ -623,7 +621,6 @@ func (o *Overlay) gridsAreStructurallyEqual(a, b *domainGrid.Grid) bool {
 		return false
 	}
 
-	// Check if all cells have the same coordinates and bounds
 	for i, aCell := range aCells {
 		bCell := bCells[i]
 		if aCell.Coordinate() != bCell.Coordinate() ||

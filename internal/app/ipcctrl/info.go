@@ -131,7 +131,6 @@ func (h *InfoHandler) ResolveConfigPath() string {
 		return "using default config"
 	}
 
-	// Check if the config file actually exists
 	_, err := os.Stat(configPath)
 	if os.IsNotExist(err) {
 		return "using default config"

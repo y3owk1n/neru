@@ -48,7 +48,6 @@ func TestDefaultElementFilter(t *testing.T) {
 		t.Error("Expected IncludeScreenCapture to be false by default")
 	}
 
-	// Check that slices are initialized
 	if filter.Roles != nil {
 		t.Error("Expected Roles to be nil by default")
 	}
@@ -59,7 +58,6 @@ func TestDefaultElementFilter(t *testing.T) {
 }
 
 func TestElementFilterStruct(t *testing.T) {
-	// Test that we can create and modify an ElementFilter
 	filter := ports.ElementFilter{
 		Roles:                     []element.Role{element.RoleButton},
 		MinSize:                   image.Point{X: 10, Y: 10},
