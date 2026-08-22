@@ -171,7 +171,6 @@ func TestAllTypes(t *testing.T) {
 		t.Errorf("AllTypes() returned %d types, want 15", len(types))
 	}
 
-	// Check that all types are unique
 	seen := make(map[action.Type]bool)
 	for _, typ := range types {
 		if seen[typ] {
@@ -181,7 +180,6 @@ func TestAllTypes(t *testing.T) {
 		seen[typ] = true
 	}
 
-	// Check that all expected types are present
 	expected := []action.Type{
 		action.TypeLeftClick,
 		action.TypeRightClick,
@@ -208,7 +206,6 @@ func TestAllTypes(t *testing.T) {
 }
 
 func TestParseType_RoundTrip(t *testing.T) {
-	// Test that String() and ParseType() are inverses
 	for _, typ := range action.AllTypes() {
 		str := typ.String()
 
@@ -348,7 +345,6 @@ func TestKnownNames(t *testing.T) {
 		t.Errorf("KnownNames() returned %d names, want 15", len(names))
 	}
 
-	// Check that all names are unique
 	seen := make(map[action.Name]bool)
 	for _, name := range names {
 		if seen[name] {
@@ -358,7 +354,6 @@ func TestKnownNames(t *testing.T) {
 		seen[name] = true
 	}
 
-	// Check that all expected names are present
 	expected := []action.Name{
 		action.NameLeftClick,
 		action.NameRightClick,
@@ -387,7 +382,6 @@ func TestKnownNames(t *testing.T) {
 func TestSupportedNamesString(t *testing.T) {
 	str := action.SupportedNamesString()
 
-	// Should contain all action names
 	expectedNames := []string{
 		testLeftClick,
 		testRightClick,

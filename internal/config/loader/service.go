@@ -407,14 +407,12 @@ func (s *Service) GetConfigPath() string {
 
 // Reload reloads the configuration from the specified path.
 func (s *Service) Reload(ctx context.Context, path string) error {
-	// Load and validate new config
 	loadResult := s.LoadWithValidation(path)
 
 	if loadResult.ValidationError != nil {
 		return loadResult.ValidationError
 	}
 
-	// Update configuration atomically
 	s.mu.Lock()
 	s.config = loadResult.Config
 	s.written = loadResult.Written
@@ -423,7 +421,6 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
 
-	// Notify watchers (outside the lock to avoid deadlock)
 	for _, watcher := range watchers {
 		if !safeSendConfig(watcher, loadResult.Config) {
 			s.logger.Debug("Watcher channel full, skipping notification")
@@ -431,7 +428,6 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 			continue
 		}
 
-		// Check if context was canceled during send
 		select {
 		case <-ctx.Done():
 			return derrors.WrapContextCanceled(ctx, "notify config watchers")

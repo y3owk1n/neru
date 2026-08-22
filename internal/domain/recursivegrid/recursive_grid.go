@@ -262,13 +262,9 @@ func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 
 	selected := cells[idx]
 
-	// Compute center from the cell bounds before any state mutation.
 	center := rectCenter(selected)
 
 	if !qg.CanDivide() {
-		// The grid has bottomed out, so this cell is the final selection.
-		// Record it: currentBounds stays on the parent, so it is the only
-		// place the user's actual position is kept.
 		qg.finalCell = cell
 		qg.hasFinalCell = true
 
@@ -286,12 +282,10 @@ func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 // CanDivide checks if the current bounds can be divided further.
 // Returns false when the cell would be smaller than minSize or maxDepth is reached.
 func (qg *RecursiveGrid) CanDivide() bool {
-	// Check depth limit
 	if qg.depth >= qg.maxDepth {
 		return false
 	}
 
-	// Check size constraints using the layout for the current depth
 	layout := qg.LayoutForDepth(qg.depth)
 	cellWidth := qg.currentBounds.Dx() / layout.GridCols
 	cellHeight := qg.currentBounds.Dy() / layout.GridRows
@@ -429,7 +423,6 @@ func divRound(numerator, denominator int) int {
 		return 0
 	}
 
-	// Handle negative results correctly: round toward nearest, not toward zero.
 	if (numerator < 0) != (denominator < 0) {
 		return (numerator - denominator/2) / denominator
 	}

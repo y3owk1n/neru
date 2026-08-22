@@ -16,13 +16,11 @@ func (a *Adapter) MatchesFilter(
 	elem *element.Element,
 	filter ports.ElementFilter,
 ) bool {
-	// Check minimum size
 	bounds := elem.Bounds()
 	if bounds.Dx() < filter.MinSize.X || bounds.Dy() < filter.MinSize.Y {
 		return false
 	}
 
-	// Check role inclusion
 	if len(filter.Roles) > 0 {
 		found := slices.Contains(filter.Roles, elem.Role())
 		if !found {
@@ -30,14 +28,10 @@ func (a *Adapter) MatchesFilter(
 		}
 	}
 
-	// Check role exclusion
 	if slices.Contains(filter.ExcludeRoles, elem.Role()) {
 		return false
 	}
 
-	// Check title contains filter
-	// NOTE: filter.TitleContains is expected to be pre-lowercased by the caller (e.g. ClickableElements).
-	// Direct callers of MatchesFilter must also lowercase filter strings before passing them.
 	titleMatched := false
 	if filter.TitleContains != "" {
 		title := elem.Title()
@@ -47,7 +41,6 @@ func (a *Adapter) MatchesFilter(
 		}
 	}
 
-	// Check description contains filter
 	descMatched := false
 	if filter.DescriptionContains != "" {
 		description := elem.Description()
@@ -60,7 +53,6 @@ func (a *Adapter) MatchesFilter(
 		}
 	}
 
-	// Check value contains filter
 	valueMatched := false
 	if filter.ValueContains != "" {
 		value := textForFilter(elem)
@@ -70,7 +62,6 @@ func (a *Adapter) MatchesFilter(
 		}
 	}
 
-	// Check any of the additional text substrings match (OR logic)
 	textListMatched := false
 	if len(filter.TextContainsList) > 0 {
 		title := elem.Title()

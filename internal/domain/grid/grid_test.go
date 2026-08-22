@@ -52,7 +52,6 @@ func TestGrid_CellByCoordinate(t *testing.T) {
 	logger := logger.Get()
 	grid := grid.NewGrid("ABC", image.Rect(0, 0, 300, 300), logger)
 
-	// Get a valid coordinate from the generated grid
 	cells := grid.AllCells()
 	if len(cells) == 0 {
 		t.Fatal("Expected cells to be generated")
@@ -263,14 +262,12 @@ func TestGrid_WithCustomLabels(t *testing.T) {
 	logger := logger.Get()
 	bounds := image.Rect(0, 0, 300, 300)
 
-	// Test with custom row and column labels
 	gridInstance := grid.NewGridWithLabels(testCharacters, "123", "XYZ", bounds, logger)
 
 	if gridInstance.Characters() != testCharacters {
 		t.Errorf("Characters() = %q, want %q", gridInstance.Characters(), testCharacters)
 	}
 
-	// Check ValidCharacters includes all used characters
 	validChars := gridInstance.ValidCharacters()
 
 	expectedChars := "ABC123XYZ"
@@ -280,13 +277,11 @@ func TestGrid_WithCustomLabels(t *testing.T) {
 		}
 	}
 
-	// Check that cells use the custom labels
 	cells := gridInstance.Cells()
 	if len(cells) == 0 {
 		t.Fatal("No cells generated")
 	}
 
-	// Check for unique coordinates
 	foundLabels := make(map[string]bool)
 	for _, cell := range cells {
 		if foundLabels[cell.Coordinate()] {
@@ -306,14 +301,12 @@ func TestGrid_CustomLabelsWithSymbols(t *testing.T) {
 	logger := logger.Get()
 	bounds := image.Rect(0, 0, 500, 500)
 
-	// Test with symbols in labels (like user's config)
 	characters := "AOEUIDHTNSPYFGKXBM"
 	rowLabels := "',.PYFGCRL/AOEUIDHTNS-;QJKXBMWVZ="
 	colLabels := "AOEUIDHTNS"
 
 	gridInstance := grid.NewGridWithLabels(characters, rowLabels, colLabels, bounds, logger)
 
-	// Check ValidCharacters includes symbols
 	validChars := gridInstance.ValidCharacters()
 
 	expectedSymbols := "',./-;=QJKXBMWVZPYFGCRL"
@@ -323,7 +316,6 @@ func TestGrid_CustomLabelsWithSymbols(t *testing.T) {
 		}
 	}
 
-	// Check cells have unique coordinates
 	cells := gridInstance.Cells()
 
 	coordMap := make(map[string]bool)
@@ -381,22 +373,18 @@ func TestGrid_HasCoordinatePrefix(t *testing.T) {
 	logger := logger.Get()
 	bounds := image.Rect(0, 0, 300, 300)
 
-	// Create first grid
 	grid1 := grid.NewGrid(testCharacters, bounds, logger)
 
-	// Test that prefixes work on the first grid
 	cells := grid1.Cells()
 	if len(cells) == 0 {
 		t.Fatal("Grid should have cells")
 	}
 
-	// Get a sample coordinate
 	sampleCoord := cells[0].Coordinate()
 	if len(sampleCoord) < 2 {
 		t.Fatalf("Expected coordinate length >= 2, got %d", len(sampleCoord))
 	}
 
-	// Test prefixes of the sample coordinate
 	for i := 1; i <= len(sampleCoord); i++ {
 		prefix := sampleCoord[:i]
 		if !grid1.HasCoordinatePrefix(prefix) {
@@ -408,15 +396,12 @@ func TestGrid_HasCoordinatePrefix(t *testing.T) {
 		}
 	}
 
-	// Test invalid prefix
 	if grid1.HasCoordinatePrefix("INVALID") {
 		t.Error("HasCoordinatePrefix should return false for invalid prefix")
 	}
 
-	// Create second grid with same parameters (should hit cache)
 	grid2 := grid.NewGrid(testCharacters, bounds, logger)
 
-	// Test that prefixes still work on the cached grid
 	for i := 1; i <= len(sampleCoord); i++ {
 		prefix := sampleCoord[:i]
 		if !grid2.HasCoordinatePrefix(prefix) {
@@ -428,7 +413,6 @@ func TestGrid_HasCoordinatePrefix(t *testing.T) {
 		}
 	}
 
-	// Test invalid prefix on cached grid
 	if grid2.HasCoordinatePrefix("INVALID") {
 		t.Error("HasCoordinatePrefix should return false for invalid prefix on cached grid")
 	}

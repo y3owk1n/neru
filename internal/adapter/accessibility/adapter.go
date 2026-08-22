@@ -53,9 +53,7 @@ var elementSlicePool = sync.Pool{
 }
 
 // Adapter implements ports.AccessibilityPort by wrapping the ax.Client.
-// It converts between domain models and infrastructure types.
 type Adapter struct {
-	// logger for adapter.
 	logger               *zap.Logger
 	client               ax.Client
 	excludedBundles      map[string]bool
@@ -86,13 +84,11 @@ func NewAdapter(
 }
 
 // Logger returns the logger for the adapter.
-// It is used for testing mainly.
 func (a *Adapter) Logger() *zap.Logger {
 	return a.logger
 }
 
 // ClickableRoles returns the list of clickable roles.
-// It is used for testing mainly.
 func (a *Adapter) ClickableRoles() []string {
 	return a.clickableRoles
 }
@@ -179,7 +175,6 @@ func (a *Adapter) PerformAction(
 	element *element.Element,
 	actionType action.Type,
 ) error {
-	// Check context
 	select {
 	case <-ctx.Done():
 		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
@@ -283,8 +278,6 @@ func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
 }
 
 // ReleaseHeldButtons releases any mouse button this process still holds down.
-// The per-platform release lives in element_<os>.go; it is unexported because
-// only this adapter and the infra client may reach it.
 func (a *Adapter) ReleaseHeldButtons(ctx context.Context) error {
 	err := a.checkContext(ctx)
 	if err != nil {
@@ -356,16 +349,14 @@ func (a *Adapter) processClickableNodes(
 	clickableNodes []ax.Node,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
-	// Get pooled slice and reset it
 	elementsPtr, ok := elementSlicePool.Get().(*[]*element.Element)
 	if !ok {
 		s := make([]*element.Element, 0, TypicalElementCount)
 		elementsPtr = &s
 	}
 
-	elements := (*elementsPtr)[:0] // Reset to zero length but keep capacity
+	elements := (*elementsPtr)[:0]
 	defer func() {
-		// Clear references before returning to pool
 		for i := range elements {
 			elements[i] = nil
 		}
@@ -381,13 +372,11 @@ func (a *Adapter) processClickableNodes(
 		)
 	}()
 
-	// Concurrent processing for large number of nodes
 	if len(clickableNodes) > ConcurrentProcessingThreshold {
 		return a.processClickableNodesConcurrent(ctx, clickableNodes, filter)
 	}
 
 	for index, node := range clickableNodes {
-		// Check context periodically
 		if index%contextCheckInterval == 0 {
 			err := a.checkContext(ctx)
 			if err != nil {
@@ -418,7 +407,6 @@ func (a *Adapter) processClickableNodes(
 		}
 	}
 
-	// Make a copy to return since we're returning the pooled slice
 	result := make([]*element.Element, len(elements))
 	copy(result, elements)
 
@@ -432,9 +420,7 @@ func (a *Adapter) processClickableNodesConcurrent(
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	numWorkers := min(
-		// Use available parallelism
 		runtime.GOMAXPROCS(0),
-		// Cap to avoid diminishing returns
 		maxConcurrentWorkers)
 
 	chunkSize := (len(nodes) + numWorkers - 1) / numWorkers
@@ -464,7 +450,6 @@ func (a *Adapter) processClickableNodesConcurrent(
 		go func(chunk []ax.Node) {
 			defer waitGroup.Done()
 
-			// Use local slice to avoid locking
 			localElements := make([]*element.Element, 0, len(chunk))
 
 			for idx, node := range chunk {
@@ -501,8 +486,6 @@ func (a *Adapter) processClickableNodesConcurrent(
 		close(results)
 	}()
 
-	// Collect results
-	// Pre-allocate based on input size estimate (conservative)
 	allElements := make([]*element.Element, 0, len(nodes)/EstimatedFilteringRatio)
 
 	for res := range results {

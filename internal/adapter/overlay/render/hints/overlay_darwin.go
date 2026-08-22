@@ -410,7 +410,6 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		}
 	}
 
-	// Check if we can do incremental updates
 	o.hintStateMu.RLock()
 	canIncrementalUpdate := len(o.previousHints) > 0
 	o.hintStateMu.RUnlock()
@@ -571,7 +570,6 @@ func (o *Overlay) drawHintsIncremental(
 		return false // No previous state to compare against
 	}
 
-	// Check if only the input changed (common case for typing)
 	if o.hintsAreStructurallyEqual(hints, previousHints) && style == previousStyle {
 		// Only input changed - we can do incremental match updates
 		if currentInput != previousInput {

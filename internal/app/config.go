@@ -40,7 +40,6 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 		return err
 	}
 
-	// Validate the new config.
 	valErr := newCfg.Validate()
 	if valErr != nil {
 		a.restoreHotkeysAfterFailedReload()
@@ -48,7 +47,6 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 		return derrors.Wrap(valErr, derrors.CodeInvalidConfig, "config-set validation")
 	}
 
-	// Update the config service (notifies watchers with the new config).
 	updateErr := a.configService.Update(newCfg, newWritten)
 	if updateErr != nil {
 		a.restoreHotkeysAfterFailedReload()
@@ -56,7 +54,6 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 		return updateErr
 	}
 
-	// Build a LoadResult for the reconfiguration helpers.
 	loadResult := &config.LoadResult{
 		Config:     newCfg,
 		Written:    newWritten,

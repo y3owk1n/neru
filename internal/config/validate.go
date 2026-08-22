@@ -77,7 +77,6 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return err
 	}
 
-	// Validate global hotkey app configs
 	err = validateHotkeysAppConfigs("app_configs", c.AppConfigs)
 	if err != nil {
 		return err

@@ -240,7 +240,6 @@ func TestAlphabetGenerator_Generate(t *testing.T) {
 		t.Errorf("Generate() returned %d hints, want %d", len(hints), len(elements))
 	}
 
-	// Check that all labels are unique
 	seen := make(map[string]bool)
 	for _, hint := range hints {
 		if seen[hint.Label()] {
@@ -250,7 +249,6 @@ func TestAlphabetGenerator_Generate(t *testing.T) {
 		seen[hint.Label()] = true
 	}
 
-	// Check that all labels are uppercase
 	for _, hint := range hints {
 		label := hint.Label()
 		for _, r := range label {

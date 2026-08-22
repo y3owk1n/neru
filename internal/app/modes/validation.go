@@ -55,7 +55,6 @@ func (h *handlerState) validateModeActivation(
 		return derrors.Newf(derrors.CodeInvalidInput, "mode %s is disabled", modeName)
 	}
 
-	// Check if focused app is excluded
 	if bundleID != "" {
 		if h.actionService.IsAppExcluded(h.ctx, bundleID) {
 			return derrors.New(derrors.CodeInvalidInput, "focused app is excluded")

@@ -698,7 +698,6 @@ func TestHintService_Health(t *testing.T) {
 	ctx := context.Background()
 	health := service.Health(ctx)
 
-	// Check that health map has both keys
 	if len(health) != 2 {
 		t.Errorf("Health() returned %d entries, want 2", len(health))
 	}
@@ -711,7 +710,6 @@ func TestHintService_Health(t *testing.T) {
 		t.Error("Health() missing 'overlay' key")
 	}
 
-	// Check that overlay has error
 	if health["overlay"] == nil {
 		t.Error("Health() overlay should have error")
 	}
