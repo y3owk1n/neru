@@ -320,12 +320,8 @@ func (h *handlerState) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 	h.setScreenBounds(targetBounds)
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(targetBounds)
 
-	gridInstance := domainGrid.NewGridWithLabels(
-		h.config.GridCharacters(),
-		h.config.Grid.RowLabels,
-		h.config.Grid.ColLabels,
-		normalizedBounds,
-		h.logger,
+	gridInstance := domainGrid.NewGridWithOptions(
+		h.config.GridOptions(), normalizedBounds, h.logger,
 	)
 	h.grid.Context.SetGridInstanceValue(gridInstance)
 

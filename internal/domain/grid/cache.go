@@ -5,8 +5,6 @@ import (
 	"image"
 	"sync"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -46,17 +44,6 @@ var (
 	gridCache        = newCache(DefaultCacheSize, DefaultGridCacheTTL)
 	gridCacheEnabled = true
 )
-
-// Prewarm initializes the grid cache with commonly used grid sizes to improve startup performance.
-func Prewarm(characters string, sizes []image.Rectangle) {
-	if !gridCacheEnabled {
-		return
-	}
-
-	for _, rect := range sizes {
-		_ = NewGrid(characters, rect, zap.NewNop())
-	}
-}
 
 func newCacheKey(alpha gridAlphabet, maxLabelLength int, bounds image.Rectangle) CacheKey {
 	return CacheKey{

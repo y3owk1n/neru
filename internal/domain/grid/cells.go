@@ -149,6 +149,7 @@ func cellCoordinate(
 	case LabelLength2:
 		stringBuilder.Grow(StringBuilderGrow2)
 		stringBuilder.WriteRune(regionChar1)
+
 		localIndex := rowIndex*regionCols + colIndex
 		stringBuilder.WriteRune(colChars[localIndex%len(colChars)])
 	case LabelLength3:

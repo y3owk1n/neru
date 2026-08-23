@@ -401,7 +401,11 @@ func TestGrid_MaxLabelLengthCapsCoarseSelection(t *testing.T) {
 	}
 
 	if covered := assertCellsAbut(t, limited.Cells()); covered != bounds.Dx()*bounds.Dy() {
-		t.Fatalf("two-key cells cover %d pixels, want the full %d", covered, bounds.Dx()*bounds.Dy())
+		t.Fatalf(
+			"two-key cells cover %d pixels, want the full %d",
+			covered,
+			bounds.Dx()*bounds.Dy(),
+		)
 	}
 
 	bottomRight := image.Point{X: bounds.Max.X - 1, Y: bounds.Max.Y - 1}
@@ -412,6 +416,7 @@ func TestGrid_MaxLabelLengthCapsCoarseSelection(t *testing.T) {
 	assertGridPrefixesFormRectangles(t, limited.Cells())
 
 	var selected *grid.Cell
+
 	manager := grid.NewManager(
 		limited,
 		domain.GridDimensions{Rows: 3, Cols: 3},
@@ -450,6 +455,7 @@ func assertGridPrefixesFormRectangles(t *testing.T, cells []*grid.Cell) {
 	regions := make(map[byte]region)
 	for _, cell := range cells {
 		prefix := cell.Coordinate()[0]
+
 		current, exists := regions[prefix]
 		if !exists {
 			current.bounds = cell.Bounds()

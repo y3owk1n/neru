@@ -238,6 +238,7 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnMaxLabelLengthChange(t *testi
 	}
 
 	component.UpdateConfig(cfg, zap.NewNop())
+
 	if component.Manager.Grid() != after {
 		t.Error("reloading an unchanged max_label_length rebuilt the grid")
 	}

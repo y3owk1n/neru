@@ -39,7 +39,10 @@ func TestGenerateCellsWithRegions_SurvivesDegenerateDimensions(t *testing.T) {
 			cells := generateCellsWithRegions(
 				chars, chars, chars,
 				gridPlan{
-					dimensions:  domain.GridDimensions{Rows: testCase.gridRows, Cols: testCase.gridCols},
+					dimensions: domain.GridDimensions{
+						Rows: testCase.gridRows,
+						Cols: testCase.gridCols,
+					},
 					region:      domain.GridDimensions{Rows: 1, Cols: len(chars)},
 					labelLength: LabelLength2,
 					regionCount: len(chars),

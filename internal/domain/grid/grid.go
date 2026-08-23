@@ -438,6 +438,7 @@ func planGridDimensions(
 
 	regionCols := len(alpha.colChars)
 	regionRows := len(alpha.rowChars)
+
 	maxPossibleCells := numChars * numColChars * numRowChars
 	if labelLength == LabelLength4 {
 		maxPossibleCells *= numChars

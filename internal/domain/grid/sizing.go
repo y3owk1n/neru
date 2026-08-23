@@ -39,12 +39,14 @@ func planTwoKeyGrid(
 	maxUsableCells := min(int64(targetCells), int64(prefixKeys)*int64(localKeys))
 
 	var best twoKeyCandidate
+
 	found := false
 
 	for _, prefix := range prefixStages {
 		for _, local := range localStages {
 			cols := prefix.Cols * local.Cols
 			rows := prefix.Rows * local.Rows
+
 			cells := cols * rows
 			if cols > targetCols || rows > targetRows || cells < MinCharactersLength {
 				continue
