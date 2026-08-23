@@ -60,16 +60,22 @@ func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 				charactersChanged := newCharacters != oldGrid.Characters()
 				rowLabelsChanged := newRowLabels != oldGrid.RowLabels()
 				colLabelsChanged := newColLabels != oldGrid.ColLabels()
+				maxLabelLengthChanged := cfg.Grid.MaxLabelLength != oldGrid.MaxLabelLength()
 
-				if charactersChanged || rowLabelsChanged || colLabelsChanged {
+				if charactersChanged || rowLabelsChanged || colLabelsChanged ||
+					maxLabelLengthChanged {
 					logger.Debug("Recreating grid due to config changes",
 						zap.Bool("charactersChanged", charactersChanged),
 						zap.Bool("rowLabelsChanged", rowLabelsChanged),
-						zap.Bool("colLabelsChanged", colLabelsChanged))
-					newGrid := domainGrid.NewGridWithLabels(
-						characters,
-						cfg.Grid.RowLabels,
-						cfg.Grid.ColLabels,
+						zap.Bool("colLabelsChanged", colLabelsChanged),
+						zap.Bool("maxLabelLengthChanged", maxLabelLengthChanged))
+					newGrid := domainGrid.NewGridWithOptions(
+						domainGrid.Options{
+							Characters:     characters,
+							RowLabels:      cfg.Grid.RowLabels,
+							ColLabels:      cfg.Grid.ColLabels,
+							MaxLabelLength: cfg.Grid.MaxLabelLength,
+						},
 						oldGrid.Bounds(),
 						logger,
 					)

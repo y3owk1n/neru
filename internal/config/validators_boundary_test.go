@@ -259,6 +259,40 @@ func TestConfig_VisionIntBoundaries(t *testing.T) {
 	runIntBounds(t, visionIntBounds())
 }
 
+// TestConfig_GridMaxLabelLengthBoundaries covers the default, a custom limit,
+// and both rejected sides of the grid coordinate formats the domain supports.
+func TestConfig_GridMaxLabelLengthBoundaries(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   int
+		wantErr bool
+	}{
+		{name: "default", value: config.DefaultConfig().Grid.MaxLabelLength},
+		{name: "two-key coarse selection", value: 2},
+		{name: "three-key coarse selection", value: 3},
+		{name: "below supported coordinate length", value: 1, wantErr: true},
+		{name: "above supported coordinate length", value: 5, wantErr: true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := validBase(t)
+			cfg.Grid.MaxLabelLength = testCase.value
+
+			err := cfg.ValidateGrid(nil, config.WrittenConfig{})
+			if testCase.wantErr {
+				assertRejected(t, err, "grid.max_label_length", testCase.value)
+
+				return
+			}
+
+			if err != nil {
+				t.Errorf("grid.max_label_length = %d was rejected: %v", testCase.value, err)
+			}
+		})
+	}
+}
+
 // unitFloatBound describes a float field constrained to a 0..1 confidence or
 // ratio range. inclusiveZero distinguishes validateUnitFloat (accepts 0) from
 // validatePositiveUnitFloat (rejects 0) — mixing the two up would let a

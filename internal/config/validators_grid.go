@@ -44,6 +44,16 @@ func (c *Config) ValidateGrid(warnings *Warnings, written WrittenConfig) error {
 		}
 	}
 
+	if c.Grid.MaxLabelLength < domainGrid.MinLabelLength ||
+		c.Grid.MaxLabelLength > domainGrid.DefaultMaxLabelLength {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"grid.max_label_length must be between %d and %d",
+			domainGrid.MinLabelLength,
+			domainGrid.DefaultMaxLabelLength,
+		)
+	}
+
 	err := validateColors([]colorField{
 		{c.Grid.UI.BackgroundColor, "grid.ui.background_color"},
 		{c.Grid.UI.TextColor, "grid.ui.text_color"},

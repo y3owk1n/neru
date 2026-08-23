@@ -1055,6 +1055,7 @@ Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode fol
 | `enabled`           | bool   | `true`                        | Enable/disable grid mode    |
 | `characters`        | string | `"abcdefghijklmnpqrstuvwxyz"` | Primary grid labels         |
 | `sublayer_keys`     | string | `"abcdefghijklmnpqrstuvwxyz"` | Subgrid labels; empty is resolved at load time to the characters the grid is labelled with, the same ones `row_labels` is inferred from. Only the first 9 are used — the subgrid is 3×3 |
+| `max_label_length`  | int    | `4`                           | Maximum coarse-grid label length (2–4). Lower values enlarge the coarse cells so the available labels still cover the screen; the following subgrid refinement remains one keypress |
 | `row_labels`        | string | `""`                          | Custom row labels; empty is resolved at load time to the labels inferred from `characters` |
 | `col_labels`        | string | `""`                          | Custom column labels; empty is resolved the same way as `row_labels`                       |
 | `live_match_update` | bool   | `true`                        | Highlight cells as you type |

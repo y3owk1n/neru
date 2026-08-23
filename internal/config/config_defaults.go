@@ -508,8 +508,9 @@ func defaultGrid() GridConfig {
 		// the grid falls back to that same set when the configured characters
 		// cannot label anything. Two literals is what they were, and they
 		// drifted (see grid.DefaultCharacters).
-		Characters:   domainGrid.DefaultCharacters,
-		SublayerKeys: domainGrid.DefaultCharacters,
+		Characters:     domainGrid.DefaultCharacters,
+		SublayerKeys:   domainGrid.DefaultCharacters,
+		MaxLabelLength: domainGrid.DefaultMaxLabelLength,
 
 		// Empty is the meaning, not a missing default: "" tells the grid to
 		// infer its row and column labels from the characters it is drawn

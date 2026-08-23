@@ -18,11 +18,12 @@ const (
 
 // CacheKey is a key for the grid cache.
 type CacheKey struct {
-	characters string
-	rowLabels  string
-	colLabels  string
-	width      int
-	height     int
+	characters     string
+	rowLabels      string
+	colLabels      string
+	maxLabelLength int
+	width          int
+	height         int
 }
 
 // CacheEntry is an entry in the grid cache.
@@ -53,7 +54,13 @@ func Prewarm(characters string, sizes []image.Rectangle) {
 	}
 
 	for _, rect := range sizes {
-		if _, ok := gridCache.get(characters, "", "", rect); ok {
+		if _, ok := gridCache.get(
+			characters,
+			"",
+			"",
+			DefaultMaxLabelLength,
+			rect,
+		); ok {
 			continue
 		}
 
@@ -73,14 +80,16 @@ func newCache(capacity int, ttl time.Duration) *Cache {
 
 func (c *Cache) get(
 	characters, rowLabels, colLabels string,
+	maxLabelLength int,
 	bounds image.Rectangle,
 ) ([]*Cell, bool) {
 	cacheKey := CacheKey{
-		characters: characters,
-		rowLabels:  rowLabels,
-		colLabels:  colLabels,
-		width:      bounds.Dx(),
-		height:     bounds.Dy(),
+		characters:     characters,
+		rowLabels:      rowLabels,
+		colLabels:      colLabels,
+		maxLabelLength: maxLabelLength,
+		width:          bounds.Dx(),
+		height:         bounds.Dy(),
 	}
 
 	c.mu.Lock()
@@ -111,15 +120,17 @@ func (c *Cache) get(
 
 func (c *Cache) put(
 	characters, rowLabels, colLabels string,
+	maxLabelLength int,
 	bounds image.Rectangle,
 	cells []*Cell,
 ) {
 	cacheKey := CacheKey{
-		characters: characters,
-		rowLabels:  rowLabels,
-		colLabels:  colLabels,
-		width:      bounds.Dx(),
-		height:     bounds.Dy(),
+		characters:     characters,
+		rowLabels:      rowLabels,
+		colLabels:      colLabels,
+		maxLabelLength: maxLabelLength,
+		width:          bounds.Dx(),
+		height:         bounds.Dy(),
 	}
 
 	c.mu.Lock()

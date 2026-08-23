@@ -10,6 +10,7 @@ enabled = false
 [grid]
 enabled = true
 characters = "abcdefghijklmnpqrstuvwxyz"
+max_label_length = 4
 prewarm_enabled = true
 enable_gc = false
 

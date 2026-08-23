@@ -217,6 +217,32 @@ func TestGridComponent_UpdateConfig_RecreatedGridKeepsBounds(t *testing.T) {
 	}
 }
 
+// TestGridComponent_UpdateConfig_RecreatesGridOnMaxLabelLengthChange pins hot
+// reload for the geometry option: the manager must start using the new coarse
+// label bound immediately, and an unchanged follow-up reload must keep it.
+func TestGridComponent_UpdateConfig_RecreatesGridOnMaxLabelLengthChange(t *testing.T) {
+	component := newGridComponent(t, testCharacters, "", "")
+	before := component.Manager.Grid()
+
+	cfg := gridConfig(testCharacters, "", "")
+	cfg.Grid.MaxLabelLength = 2
+	component.UpdateConfig(cfg, zap.NewNop())
+
+	after := component.Manager.Grid()
+	if after == before {
+		t.Fatal("changing max_label_length did not recreate the grid")
+	}
+
+	if got := after.MaxLabelLength(); got != 2 {
+		t.Errorf("MaxLabelLength() = %d, want 2", got)
+	}
+
+	component.UpdateConfig(cfg, zap.NewNop())
+	if component.Manager.Grid() != after {
+		t.Error("reloading an unchanged max_label_length rebuilt the grid")
+	}
+}
+
 // TestGridComponent_UpdateConfig_DisabledGridIsLeftAlone makes sure a disabled
 // grid is not silently rebuilt behind the user's back.
 func TestGridComponent_UpdateConfig_DisabledGridIsLeftAlone(t *testing.T) {

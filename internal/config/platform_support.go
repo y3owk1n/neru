@@ -269,6 +269,7 @@ func PlatformSupport() parity.Declaration {
 			"grid.enabled",
 			"grid.characters",
 			"grid.sublayer_keys",
+			"grid.max_label_length",
 			"grid.row_labels",
 			"grid.col_labels",
 			"grid.ui.font_size",

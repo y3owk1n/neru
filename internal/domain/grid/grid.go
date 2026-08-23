@@ -92,6 +92,13 @@ const (
 	// LabelLength4 is the label length 4.
 	LabelLength4 = 4
 
+	// MinLabelLength is the shortest coordinate format supported by the grid.
+	MinLabelLength = LabelLength2
+
+	// DefaultMaxLabelLength preserves the grid's existing automatic 2–4 key
+	// coordinate selection when no explicit limit is supplied.
+	DefaultMaxLabelLength = LabelLength4
+
 	// CountsCapacity is the capacity for counts.
 	CountsCapacity = 5
 
@@ -101,13 +108,14 @@ const (
 
 // Grid is a coordinate grid system for spatial navigation with optimized cell sizing.
 type Grid struct {
-	characters string          // Characters used for coordinates (e.g., "asdfghjkl")
-	rowChars   []rune          // Characters used for row labels
-	colChars   []rune          // Characters used for column labels
-	bounds     image.Rectangle // Screen bounds
-	cells      []*Cell         // All cells with 3-char coordinates
-	index      map[string]*Cell
-	prefixes   map[string]bool // Set of all coordinate prefixes for fast lookup
+	characters     string          // Characters used for coordinates (e.g., "asdfghjkl")
+	rowChars       []rune          // Characters used for row labels
+	colChars       []rune          // Characters used for column labels
+	maxLabelLength int             // Longest coordinate the planner may choose
+	bounds         image.Rectangle // Screen bounds
+	cells          []*Cell         // All cells with uniform-length coordinates
+	index          map[string]*Cell
+	prefixes       map[string]bool // Set of all coordinate prefixes for fast lookup
 }
 
 // Cell is a grid cell containing coordinate, bounds, and center point information.
@@ -143,7 +151,7 @@ func (c *Cell) Center() image.Point {
 //
 // Empty rowLabels or colLabels are inferred from characters.
 func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Grid {
-	return NewGridWithLabels(characters, "", "", bounds, logger)
+	return NewGridWithOptions(Options{Characters: characters}, bounds, logger)
 }
 
 // NewGridWithLabels creates a grid with custom row and column labels.
@@ -153,20 +161,41 @@ func NewGridWithLabels(
 	bounds image.Rectangle,
 	logger *zap.Logger,
 ) *Grid {
+	return NewGridWithOptions(Options{
+		Characters: characters,
+		RowLabels:  rowLabels,
+		ColLabels:  colLabels,
+	}, bounds, logger)
+}
+
+// Options are the label inputs that affect a grid's geometry.
+type Options struct {
+	Characters     string
+	RowLabels      string
+	ColLabels      string
+	MaxLabelLength int
+}
+
+// NewGridWithOptions creates a grid from label options. MaxLabelLength limits
+// the coarse coordinate to 2–4 keypresses; zero keeps the default limit of 4.
+func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Logger) *Grid {
 	// Constructors in this tree accept a nil logger and fall back to a no-op
 	// rather than panicking on first use.
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
+	maxLabelLength := normalizeMaxLabelLength(options.MaxLabelLength)
+
 	logger.Debug("Creating new grid",
-		zap.String("characters", characters),
-		zap.String("rowLabels", rowLabels),
-		zap.String("colLabels", colLabels),
+		zap.String("characters", options.Characters),
+		zap.String("rowLabels", options.RowLabels),
+		zap.String("colLabels", options.ColLabels),
+		zap.Int("max_label_length", maxLabelLength),
 		zap.Int("bounds_width", bounds.Dx()),
 		zap.Int("bounds_height", bounds.Dy()))
 
-	alpha := newGridAlphabet(characters, rowLabels, colLabels)
+	alpha := newGridAlphabet(options.Characters, options.RowLabels, options.ColLabels)
 
 	width := bounds.Max.X - bounds.Min.X
 	height := bounds.Max.Y - bounds.Min.Y
@@ -178,13 +207,14 @@ func NewGridWithLabels(
 	if gridCacheEnabled {
 		if cells, ok := gridCache.get(
 			alpha.characters,
-			strings.ToUpper(rowLabels),
-			strings.ToUpper(colLabels),
+			strings.ToUpper(options.RowLabels),
+			strings.ToUpper(options.ColLabels),
+			maxLabelLength,
 			bounds,
 		); ok {
 			logger.Debug("Grid cache hit", zap.Int("cell_count", len(cells)))
 
-			return newGridFromCells(alpha, bounds, cells)
+			return newGridFromCells(alpha, maxLabelLength, bounds, cells)
 		}
 
 		logger.Debug("Grid cache miss")
@@ -196,11 +226,12 @@ func NewGridWithLabels(
 			zap.Int("height", height))
 
 		return &Grid{
-			characters: alpha.characters,
-			bounds:     bounds,
-			cells:      []*Cell{},
-			index:      make(map[string]*Cell),
-			prefixes:   make(map[string]bool),
+			characters:     alpha.characters,
+			maxLabelLength: maxLabelLength,
+			bounds:         bounds,
+			cells:          []*Cell{},
+			index:          make(map[string]*Cell),
+			prefixes:       make(map[string]bool),
 		}
 	}
 
@@ -209,7 +240,12 @@ func NewGridWithLabels(
 	width = gridMin(width, MaxDisplayDimension)
 	height = gridMin(height, MaxDisplayDimension)
 
-	gridCols, gridRows, labelLength := planGridDimensions(width, height, alpha)
+	gridCols, gridRows, labelLength := planGridDimensions(
+		width,
+		height,
+		alpha,
+		maxLabelLength,
+	)
 
 	baseCellWidth := width / gridCols
 	baseCellHeight := height / gridRows
@@ -241,15 +277,16 @@ func NewGridWithLabels(
 	if gridCacheEnabled {
 		gridCache.put(
 			alpha.characters,
-			strings.ToUpper(rowLabels),
-			strings.ToUpper(colLabels),
+			strings.ToUpper(options.RowLabels),
+			strings.ToUpper(options.ColLabels),
+			maxLabelLength,
 			bounds,
 			cells,
 		)
 		logger.Debug("Grid cache store", zap.Int("cell_count", len(cells)))
 	}
 
-	return newGridFromCells(alpha, bounds, cells)
+	return newGridFromCells(alpha, maxLabelLength, bounds, cells)
 }
 
 // gridAlphabet is the normalized character sets a grid is labeled from.
@@ -343,27 +380,37 @@ func ResolveCharacters(characters string) string {
 }
 
 // newGridFromCells assembles a Grid and its lookup indexes from finished cells.
-func newGridFromCells(alpha gridAlphabet, bounds image.Rectangle, cells []*Cell) *Grid {
+func newGridFromCells(
+	alpha gridAlphabet,
+	maxLabelLength int,
+	bounds image.Rectangle,
+	cells []*Cell,
+) *Grid {
 	index := make(map[string]*Cell, len(cells))
 	for _, cell := range cells {
 		index[cell.Coordinate()] = cell
 	}
 
 	return &Grid{
-		characters: alpha.characters,
-		rowChars:   alpha.rowChars,
-		colChars:   alpha.colChars,
-		bounds:     bounds,
-		cells:      cells,
-		index:      index,
-		prefixes:   buildPrefixIndex(cells),
+		characters:     alpha.characters,
+		rowChars:       alpha.rowChars,
+		colChars:       alpha.colChars,
+		maxLabelLength: maxLabelLength,
+		bounds:         bounds,
+		cells:          cells,
+		index:          index,
+		prefixes:       buildPrefixIndex(cells),
 	}
 }
 
 // planGridDimensions picks the column and row counts and the label length for a
 // screen, keeping cells as square as possible and never planning more cells
 // than the alphabet can label or the regions can reach.
-func planGridDimensions(width, height int, alpha gridAlphabet) (int, int, int) {
+func planGridDimensions(
+	width, height int,
+	alpha gridAlphabet,
+	maxLabelLength int,
+) (int, int, int) {
 	numChars := len(alpha.chars)
 	numRowChars := len(alpha.rowChars)
 	numColChars := len(alpha.colChars)
@@ -382,6 +429,7 @@ func planGridDimensions(width, height int, alpha gridAlphabet) (int, int, int) {
 
 	totalCells := gridRows * gridCols
 	labelLength := calculateLabelLength(totalCells, numChars, numRowChars, numColChars)
+	labelLength = gridMin(labelLength, maxLabelLength)
 
 	var maxPossibleCells int
 	switch labelLength {
@@ -414,6 +462,17 @@ func planGridDimensions(width, height int, alpha gridAlphabet) (int, int, int) {
 	return gridCols, gridRows, labelLength
 }
 
+// normalizeMaxLabelLength gives the domain a safe zero value for callers that
+// do not come through config validation, then bounds malformed values so the
+// coordinate builder never receives a format it does not support.
+func normalizeMaxLabelLength(maxLabelLength int) int {
+	if maxLabelLength == 0 {
+		return DefaultMaxLabelLength
+	}
+
+	return gridMin(gridMax(maxLabelLength, MinLabelLength), DefaultMaxLabelLength)
+}
+
 // Characters returns the characters used for coordinates.
 func (g *Grid) Characters() string {
 	return g.characters
@@ -427,6 +486,11 @@ func (g *Grid) RowLabels() string {
 // ColLabels returns the column labels used for coordinates.
 func (g *Grid) ColLabels() string {
 	return string(g.colChars)
+}
+
+// MaxLabelLength returns the coarse-coordinate limit used to plan the grid.
+func (g *Grid) MaxLabelLength() int {
+	return g.maxLabelLength
 }
 
 // ValidCharacters returns all characters that can appear in grid coordinates.
@@ -464,7 +528,7 @@ func (g *Grid) Bounds() image.Rectangle {
 	return g.bounds
 }
 
-// Cells returns all cells with 3-char coordinates.
+// Cells returns all cells with uniform-length coordinates.
 func (g *Grid) Cells() []*Cell {
 	return g.cells
 }

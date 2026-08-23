@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/logger"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/grid"
 )
 
@@ -366,6 +367,65 @@ func TestGrid_BackwardCompatibility(t *testing.T) {
 		}
 
 		coordMap[cell.Coordinate()] = true
+	}
+}
+
+// TestGrid_MaxLabelLengthCapsCoarseSelection pins the issue #1536 workflow:
+// the main region is selected in at most two keypresses, then the existing
+// subgrid supplies the local refinement key. The two grids deliberately share
+// every cache input except the label limit, so this also catches a cache key
+// that would return the old geometry after a config change.
+func TestGrid_MaxLabelLengthCapsCoarseSelection(t *testing.T) {
+	bounds := image.Rect(0, 0, 1920, 1080)
+	log := logger.Get()
+
+	automatic := grid.NewGrid("abcd", bounds, log)
+	if got := len(automatic.Cells()[0].Coordinate()); got <= grid.LabelLength2 {
+		t.Fatalf("automatic label length = %d, want more than 2 for this fixture", got)
+	}
+
+	limited := grid.NewGridWithOptions(grid.Options{
+		Characters:     "abcd",
+		MaxLabelLength: grid.LabelLength2,
+	}, bounds, log)
+
+	for _, cell := range limited.Cells() {
+		if got := len(cell.Coordinate()); got != grid.LabelLength2 {
+			t.Fatalf("coordinate %q has length %d, want 2", cell.Coordinate(), got)
+		}
+	}
+
+	if covered := assertCellsAbut(t, limited.Cells()); covered != bounds.Dx()*bounds.Dy() {
+		t.Fatalf("two-key cells cover %d pixels, want the full %d", covered, bounds.Dx()*bounds.Dy())
+	}
+
+	bottomRight := image.Point{X: bounds.Max.X - 1, Y: bounds.Max.Y - 1}
+	if cell := limited.CellForPoint(bottomRight); cell == nil {
+		t.Fatalf("two-key grid does not cover bottom-right point %v", bottomRight)
+	}
+
+	var selected *grid.Cell
+	manager := grid.NewManager(
+		limited,
+		domain.GridDimensions{Rows: 3, Cols: 3},
+		"asdfghjkl",
+		nil,
+		func(cell *grid.Cell) { selected = cell },
+		log,
+	)
+
+	for _, key := range limited.Cells()[0].Coordinate() {
+		if _, complete := manager.HandleInput(string(key)); complete {
+			t.Fatal("coarse selection completed before local refinement")
+		}
+	}
+
+	if selected == nil {
+		t.Fatal("two-key coordinate did not open the local refinement subgrid")
+	}
+
+	if _, complete := manager.HandleInput("a"); !complete {
+		t.Fatal("subgrid key did not complete the refined selection")
 	}
 }
 
