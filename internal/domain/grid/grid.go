@@ -96,7 +96,7 @@ const (
 	MinLabelLength = LabelLength2
 
 	// DefaultMaxLabelLength preserves the grid's existing automatic 2–4 key
-	// coordinate selection when no explicit limit is supplied.
+	// coordinate selection and layout when no lower limit is supplied.
 	DefaultMaxLabelLength = LabelLength4
 
 	// CountsCapacity is the capacity for counts.
@@ -398,8 +398,9 @@ type gridPlan struct {
 }
 
 // planGridDimensions picks the column and row counts, label length and prefix
-// region shape for a screen. Two-key grids get a staged 2D layout so both keys
-// contribute to both axes; longer labels retain their existing region layout.
+// region shape for a screen. A two-key limit gets a staged 2D layout only when
+// it shortens the automatically selected label; an automatic two-key grid and
+// longer labels retain their existing region layouts.
 func planGridDimensions(
 	width, height int,
 	alpha gridAlphabet,
@@ -422,10 +423,15 @@ func planGridDimensions(
 	gridRows = gridMin(gridRows, MaxGridRows)
 
 	totalCells := gridRows * gridCols
-	labelLength := calculateLabelLength(totalCells, numChars, numRowChars, numColChars)
-	labelLength = gridMin(labelLength, maxLabelLength)
+	automaticLabelLength := calculateLabelLength(
+		totalCells,
+		numChars,
+		numRowChars,
+		numColChars,
+	)
+	labelLength := gridMin(automaticLabelLength, maxLabelLength)
 
-	if labelLength == LabelLength2 {
+	if labelLength == LabelLength2 && labelLength < automaticLabelLength {
 		return planTwoKeyGrid(
 			width,
 			height,
@@ -440,7 +446,14 @@ func planGridDimensions(
 	regionRows := len(alpha.rowChars)
 
 	maxPossibleCells := numChars * numColChars * numRowChars
-	if labelLength == LabelLength4 {
+	switch labelLength {
+	case LabelLength2:
+		// The original two-key format uses one prefix per horizontal row
+		// segment. Keep that layout whenever the maximum did not shorten the
+		// automatically selected label.
+		regionRows = 1
+		maxPossibleCells = numChars * numColChars
+	case LabelLength4:
 		maxPossibleCells *= numChars
 	}
 

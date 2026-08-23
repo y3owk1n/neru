@@ -5,6 +5,34 @@ import (
 	"testing"
 )
 
+// TestPlanGridDimensions_DefaultLimitKeepsLegacyTwoKeyRegions pins the
+// compatibility promise of max_label_length = 4. When the automatic planner
+// already chooses two keys, the maximum has not bounded anything, so the
+// original one-row prefix regions must stay in use.
+func TestPlanGridDimensions_DefaultLimitKeepsLegacyTwoKeyRegions(t *testing.T) {
+	const characters = "abcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()-_=+"
+
+	alpha := newGridAlphabet(characters, "", "")
+	plan := planGridDimensions(1920, 1080, alpha, DefaultMaxLabelLength)
+
+	if plan.labelLength != LabelLength2 {
+		t.Fatalf("label length = %d, want the automatic two-key fixture", plan.labelLength)
+	}
+
+	if plan.region.Rows != 1 || plan.region.Cols != len(alpha.colChars) {
+		t.Errorf(
+			"region = %dx%d, want the legacy %dx1 region",
+			plan.region.Cols,
+			plan.region.Rows,
+			len(alpha.colChars),
+		)
+	}
+
+	if plan.regionCount != len(alpha.chars) {
+		t.Errorf("region count = %d, want %d", plan.regionCount, len(alpha.chars))
+	}
+}
+
 // TestPlanTwoKeyGrid_KeepsCellsNearSquareAcrossScreenShapes pins the reason
 // the two-stage planner exists: a two-key cap must not collapse a wide or tall
 // display into one-row prefix bands. Each stage stays within its own key budget

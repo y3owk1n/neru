@@ -182,7 +182,7 @@ generic_clickable_min_confidence = 0.5       # Minimum confidence for generic cl
 enabled = true
 characters = "abcdefghijklmnpqrstuvwxyz"    # Primary grid labels
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz" # Subgrid labels, first 9 used (empty = infer from characters)
-max_label_length = 4                        # Maximum coarse grid label length (2–4)
+max_label_length = 4                        # Maximum coarse label length (2–4); 4 keeps the legacy automatic layout
 row_labels = ""                             # Custom row labels (empty = infer from characters)
 col_labels = ""                             # Custom column labels (empty = infer from characters)
 live_match_update = true                    # Highlight cells as you type
