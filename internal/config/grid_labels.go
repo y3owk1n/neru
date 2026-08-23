@@ -21,6 +21,16 @@ func (c *Config) GridCharacters() string {
 	return c.Grid.Characters
 }
 
+// GridOptions returns the resolved inputs used to construct a grid.
+func (c *Config) GridOptions() domainGrid.Options {
+	return domainGrid.Options{
+		Characters:     c.GridCharacters(),
+		RowLabels:      c.Grid.RowLabels,
+		ColLabels:      c.Grid.ColLabels,
+		MaxLabelLength: c.Grid.MaxLabelLength,
+	}
+}
+
 // inferredGridKeys is what an empty grid.row_labels, grid.col_labels or
 // grid.sublayer_keys settles to: the characters the grid is built from, in the
 // case they are drawn in, or a-z when that set is too small to label with.

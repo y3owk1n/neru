@@ -70,12 +70,7 @@ func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 						zap.Bool("colLabelsChanged", colLabelsChanged),
 						zap.Bool("maxLabelLengthChanged", maxLabelLengthChanged))
 					newGrid := domainGrid.NewGridWithOptions(
-						domainGrid.Options{
-							Characters:     characters,
-							RowLabels:      cfg.Grid.RowLabels,
-							ColLabels:      cfg.Grid.ColLabels,
-							MaxLabelLength: cfg.Grid.MaxLabelLength,
-						},
+						cfg.GridOptions(),
 						oldGrid.Bounds(),
 						logger,
 					)

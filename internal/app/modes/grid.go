@@ -120,12 +120,7 @@ func (h *handlerState) createGridInstance() *domainGrid.Grid {
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(screenBounds)
 
 	gridInstance := domainGrid.NewGridWithOptions(
-		domainGrid.Options{
-			Characters:     h.config.GridCharacters(),
-			RowLabels:      h.config.Grid.RowLabels,
-			ColLabels:      h.config.Grid.ColLabels,
-			MaxLabelLength: h.config.Grid.MaxLabelLength,
-		},
+		h.config.GridOptions(),
 		normalizedBounds,
 		h.logger,
 	)
@@ -155,12 +150,7 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
 		gridInstance = domainGrid.NewGridWithOptions(
-			domainGrid.Options{
-				Characters:     h.config.GridCharacters(),
-				RowLabels:      h.config.Grid.RowLabels,
-				ColLabels:      h.config.Grid.ColLabels,
-				MaxLabelLength: h.config.Grid.MaxLabelLength,
-			},
+			h.config.GridOptions(),
 			bounds,
 			h.logger,
 		)

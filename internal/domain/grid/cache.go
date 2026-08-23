@@ -54,18 +54,18 @@ func Prewarm(characters string, sizes []image.Rectangle) {
 	}
 
 	for _, rect := range sizes {
-		if _, ok := gridCache.get(
-			characters,
-			"",
-			"",
-			DefaultMaxLabelLength,
-			rect,
-		); ok {
-			continue
-		}
+		_ = NewGrid(characters, rect, zap.NewNop())
+	}
+}
 
-		grid := NewGrid(characters, rect, zap.NewNop())
-		_ = grid
+func newCacheKey(alpha gridAlphabet, maxLabelLength int, bounds image.Rectangle) CacheKey {
+	return CacheKey{
+		characters:     alpha.characters,
+		rowLabels:      string(alpha.rowChars),
+		colLabels:      string(alpha.colChars),
+		maxLabelLength: maxLabelLength,
+		width:          bounds.Dx(),
+		height:         bounds.Dy(),
 	}
 }
 
@@ -78,20 +78,7 @@ func newCache(capacity int, ttl time.Duration) *Cache {
 	}
 }
 
-func (c *Cache) get(
-	characters, rowLabels, colLabels string,
-	maxLabelLength int,
-	bounds image.Rectangle,
-) ([]*Cell, bool) {
-	cacheKey := CacheKey{
-		characters:     characters,
-		rowLabels:      rowLabels,
-		colLabels:      colLabels,
-		maxLabelLength: maxLabelLength,
-		width:          bounds.Dx(),
-		height:         bounds.Dy(),
-	}
-
+func (c *Cache) get(cacheKey CacheKey) ([]*Cell, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -118,21 +105,7 @@ func (c *Cache) get(
 	return nil, false
 }
 
-func (c *Cache) put(
-	characters, rowLabels, colLabels string,
-	maxLabelLength int,
-	bounds image.Rectangle,
-	cells []*Cell,
-) {
-	cacheKey := CacheKey{
-		characters:     characters,
-		rowLabels:      rowLabels,
-		colLabels:      colLabels,
-		maxLabelLength: maxLabelLength,
-		width:          bounds.Dx(),
-		height:         bounds.Dy(),
-	}
-
+func (c *Cache) put(cacheKey CacheKey, cells []*Cell) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

@@ -379,19 +379,24 @@ func TestGrid_MaxLabelLengthCapsCoarseSelection(t *testing.T) {
 	bounds := image.Rect(0, 0, 1920, 1080)
 	log := logger.Get()
 
-	automatic := grid.NewGrid("abcd", bounds, log)
+	automatic := grid.NewGrid(grid.DefaultCharacters, bounds, log)
 	if got := len(automatic.Cells()[0].Coordinate()); got <= grid.LabelLength2 {
 		t.Fatalf("automatic label length = %d, want more than 2 for this fixture", got)
 	}
 
 	limited := grid.NewGridWithOptions(grid.Options{
-		Characters:     "abcd",
+		Characters:     grid.DefaultCharacters,
 		MaxLabelLength: grid.LabelLength2,
 	}, bounds, log)
 
 	for _, cell := range limited.Cells() {
 		if got := len(cell.Coordinate()); got != grid.LabelLength2 {
 			t.Fatalf("coordinate %q has length %d, want 2", cell.Coordinate(), got)
+		}
+
+		aspect := float64(cell.Bounds().Dx()) / float64(cell.Bounds().Dy())
+		if aspect < 0.9 || aspect > 1.1 {
+			t.Fatalf("cell %q aspect ratio = %.2f, want near-square", cell.Coordinate(), aspect)
 		}
 	}
 
@@ -403,6 +408,8 @@ func TestGrid_MaxLabelLengthCapsCoarseSelection(t *testing.T) {
 	if cell := limited.CellForPoint(bottomRight); cell == nil {
 		t.Fatalf("two-key grid does not cover bottom-right point %v", bottomRight)
 	}
+
+	assertGridPrefixesFormRectangles(t, limited.Cells())
 
 	var selected *grid.Cell
 	manager := grid.NewManager(
@@ -426,6 +433,43 @@ func TestGrid_MaxLabelLengthCapsCoarseSelection(t *testing.T) {
 
 	if _, complete := manager.HandleInput("a"); !complete {
 		t.Fatal("subgrid key did not complete the refined selection")
+	}
+}
+
+// assertGridPrefixesFormRectangles keeps the first key spatially meaningful:
+// every cell sharing it forms one solid coarse region rather than scattered
+// cells that merely happen to have square final geometry.
+func assertGridPrefixesFormRectangles(t *testing.T, cells []*grid.Cell) {
+	t.Helper()
+
+	type region struct {
+		bounds image.Rectangle
+		area   int
+	}
+
+	regions := make(map[byte]region)
+	for _, cell := range cells {
+		prefix := cell.Coordinate()[0]
+		current, exists := regions[prefix]
+		if !exists {
+			current.bounds = cell.Bounds()
+		} else {
+			current.bounds = current.bounds.Union(cell.Bounds())
+		}
+
+		current.area += cell.Bounds().Dx() * cell.Bounds().Dy()
+		regions[prefix] = current
+	}
+
+	for prefix, region := range regions {
+		if want := region.bounds.Dx() * region.bounds.Dy(); region.area != want {
+			t.Errorf(
+				"prefix %q covers %d pixels inside a %d-pixel bounding box; want one rectangle",
+				prefix,
+				region.area,
+				want,
+			)
+		}
 	}
 }
 

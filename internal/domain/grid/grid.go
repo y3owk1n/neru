@@ -196,6 +196,7 @@ func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Log
 		zap.Int("bounds_height", bounds.Dy()))
 
 	alpha := newGridAlphabet(options.Characters, options.RowLabels, options.ColLabels)
+	cacheKey := newCacheKey(alpha, maxLabelLength, bounds)
 
 	width := bounds.Max.X - bounds.Min.X
 	height := bounds.Max.Y - bounds.Min.Y
@@ -205,13 +206,7 @@ func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Log
 		zap.Int("height", height))
 
 	if gridCacheEnabled {
-		if cells, ok := gridCache.get(
-			alpha.characters,
-			strings.ToUpper(options.RowLabels),
-			strings.ToUpper(options.ColLabels),
-			maxLabelLength,
-			bounds,
-		); ok {
+		if cells, ok := gridCache.get(cacheKey); ok {
 			logger.Debug("Grid cache hit", zap.Int("cell_count", len(cells)))
 
 			return newGridFromCells(alpha, maxLabelLength, bounds, cells)
@@ -240,26 +235,23 @@ func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Log
 	width = gridMin(width, MaxDisplayDimension)
 	height = gridMin(height, MaxDisplayDimension)
 
-	gridCols, gridRows, labelLength := planGridDimensions(
+	plan := planGridDimensions(
 		width,
 		height,
 		alpha,
 		maxLabelLength,
 	)
 
-	baseCellWidth := width / gridCols
-	baseCellHeight := height / gridRows
-	remainderWidth := width % gridCols
-	remainderHeight := height % gridRows
+	baseCellWidth := width / plan.dimensions.Cols
+	baseCellHeight := height / plan.dimensions.Rows
+	remainderWidth := width % plan.dimensions.Cols
+	remainderHeight := height % plan.dimensions.Rows
 
 	cells := generateCellsWithRegions(
 		alpha.chars,
 		alpha.rowChars,
 		alpha.colChars,
-		len(alpha.chars),
-		gridCols,
-		gridRows,
-		labelLength,
+		plan,
 		bounds,
 		baseCellWidth,
 		baseCellHeight,
@@ -270,19 +262,12 @@ func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Log
 
 	logger.Debug("Grid created successfully",
 		zap.Int("cell_count", len(cells)),
-		zap.Int("grid_cols", gridCols),
-		zap.Int("grid_rows", gridRows),
-		zap.Int("label_length", labelLength))
+		zap.Int("grid_cols", plan.dimensions.Cols),
+		zap.Int("grid_rows", plan.dimensions.Rows),
+		zap.Int("label_length", plan.labelLength))
 
 	if gridCacheEnabled {
-		gridCache.put(
-			alpha.characters,
-			strings.ToUpper(options.RowLabels),
-			strings.ToUpper(options.ColLabels),
-			maxLabelLength,
-			bounds,
-			cells,
-		)
+		gridCache.put(cacheKey, cells)
 		logger.Debug("Grid cache store", zap.Int("cell_count", len(cells)))
 	}
 
@@ -403,14 +388,23 @@ func newGridFromCells(
 	}
 }
 
-// planGridDimensions picks the column and row counts and the label length for a
-// screen, keeping cells as square as possible and never planning more cells
-// than the alphabet can label or the regions can reach.
+// gridPlan is the complete geometry the cell generator needs. region is the
+// rectangular group selected by the coordinate prefix.
+type gridPlan struct {
+	dimensions  domain.GridDimensions
+	region      domain.GridDimensions
+	labelLength int
+	regionCount int
+}
+
+// planGridDimensions picks the column and row counts, label length and prefix
+// region shape for a screen. Two-key grids get a staged 2D layout so both keys
+// contribute to both axes; longer labels retain their existing region layout.
 func planGridDimensions(
 	width, height int,
 	alpha gridAlphabet,
 	maxLabelLength int,
-) (int, int, int) {
+) gridPlan {
 	numChars := len(alpha.chars)
 	numRowChars := len(alpha.rowChars)
 	numColChars := len(alpha.colChars)
@@ -431,14 +425,22 @@ func planGridDimensions(
 	labelLength := calculateLabelLength(totalCells, numChars, numRowChars, numColChars)
 	labelLength = gridMin(labelLength, maxLabelLength)
 
-	var maxPossibleCells int
-	switch labelLength {
-	case LabelLength2:
-		maxPossibleCells = numChars * numColChars
-	case LabelLength3:
-		maxPossibleCells = numChars * numColChars * numRowChars
-	default:
-		maxPossibleCells = numChars * numChars * numColChars * numRowChars
+	if labelLength == LabelLength2 {
+		return planTwoKeyGrid(
+			width,
+			height,
+			gridCols,
+			gridRows,
+			numChars,
+			numColChars,
+		)
+	}
+
+	regionCols := len(alpha.colChars)
+	regionRows := len(alpha.rowChars)
+	maxPossibleCells := numChars * numColChars * numRowChars
+	if labelLength == LabelLength4 {
+		maxPossibleCells *= numChars
 	}
 
 	// Cap the grid to what the alphabet can label.
@@ -455,11 +457,25 @@ func planGridDimensions(
 	// leaving screen area with no cell at all (a 4-character set on 1000x3000
 	// lost the bottom ~430px). Shrink until the regions reach every cell; the
 	// default 25-character alphabet comes through untouched.
+	availablePrefixes := numChars
+	if labelLength == LabelLength4 {
+		availablePrefixes *= numChars
+	}
+
 	gridCols, gridRows = fitToAvailableRegions(
-		gridCols, gridRows, numChars, numRowChars, numColChars, labelLength,
+		gridCols,
+		gridRows,
+		regionCols,
+		regionRows,
+		availablePrefixes,
 	)
 
-	return gridCols, gridRows, labelLength
+	return gridPlan{
+		dimensions:  domain.GridDimensions{Rows: gridRows, Cols: gridCols},
+		region:      domain.GridDimensions{Rows: regionRows, Cols: regionCols},
+		labelLength: labelLength,
+		regionCount: availablePrefixes,
+	}
 }
 
 // normalizeMaxLabelLength gives the domain a safe zero value for callers that

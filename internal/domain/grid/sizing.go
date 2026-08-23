@@ -1,12 +1,105 @@
 package grid
 
-import "sync"
+import (
+	"math"
+	"sync"
+
+	"github.com/y3owk1n/neru/internal/domain"
+)
 
 // Candidate is a valid grid configuration.
 type Candidate struct {
 	cols, rows   int
 	cellW, cellH int
 	score        float64
+}
+
+// twoKeyCandidate is a staged two-key layout and the qualities used to rank it.
+type twoKeyCandidate struct {
+	plan           gridPlan
+	score          float64
+	cells          int
+	twoDimensional bool
+}
+
+// planTwoKeyGrid divides both keypresses into 2D stages. The first key selects
+// one rectangular region and the second selects a cell inside it, so the final
+// column/row counts are the products of the two stages.
+//
+// Candidates stay within the cell-size planner's target dimensions. Their
+// score balances square cells with using more available label pairs, matching
+// findValidGridConfigurations without forcing a one-row region that distorts
+// the final grid.
+func planTwoKeyGrid(
+	width, height, targetCols, targetRows, prefixKeys, localKeys int,
+) gridPlan {
+	prefixStages := keyStageLayouts(prefixKeys, targetCols, targetRows)
+	localStages := keyStageLayouts(localKeys, targetCols, targetRows)
+	targetCells := targetCols * targetRows
+	maxUsableCells := min(int64(targetCells), int64(prefixKeys)*int64(localKeys))
+
+	var best twoKeyCandidate
+	found := false
+
+	for _, prefix := range prefixStages {
+		for _, local := range localStages {
+			cols := prefix.Cols * local.Cols
+			rows := prefix.Rows * local.Rows
+			cells := cols * rows
+			if cols > targetCols || rows > targetRows || cells < MinCharactersLength {
+				continue
+			}
+
+			cellWidth := float64(width) / float64(cols)
+			cellHeight := float64(height) / float64(rows)
+			precisionPenalty := float64(maxUsableCells-int64(cells)) /
+				float64(maxUsableCells) * ScoreWeight
+			candidate := twoKeyCandidate{
+				plan: gridPlan{
+					dimensions:  domain.GridDimensions{Rows: rows, Cols: cols},
+					region:      local,
+					labelLength: LabelLength2,
+					regionCount: prefixKeys,
+				},
+				score:          math.Abs(cellWidth/cellHeight-1) + precisionPenalty,
+				cells:          cells,
+				twoDimensional: cols >= MinGridCols && rows >= MinGridRows,
+			}
+
+			if !found || betterTwoKeyCandidate(candidate, best) {
+				best = candidate
+				found = true
+			}
+		}
+	}
+
+	return best.plan
+}
+
+// keyStageLayouts returns every rectangular layout addressable by keyCount,
+// bounded by the final grid target so unused labels do not inflate the search.
+func keyStageLayouts(keyCount, maxCols, maxRows int) []domain.GridDimensions {
+	var layouts []domain.GridDimensions
+
+	for cols := 1; cols <= gridMin(keyCount, maxCols); cols++ {
+		rowsLimit := gridMin(keyCount/cols, maxRows)
+		for rows := 1; rows <= rowsLimit; rows++ {
+			layouts = append(layouts, domain.GridDimensions{Rows: rows, Cols: cols})
+		}
+	}
+
+	return layouts
+}
+
+func betterTwoKeyCandidate(candidate, current twoKeyCandidate) bool {
+	switch {
+	case candidate.twoDimensional != current.twoDimensional:
+		return candidate.twoDimensional
+	case candidate.score != current.score:
+		return candidate.score < current.score
+	default:
+		return candidate.cells > current.cells
+	}
 }
 
 // calculateOptimalCellSizes determines optimal cell size constraints based on screen characteristics.
@@ -117,10 +210,7 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 				// Calculate how square the cells are (aspect ratio deviation from 1.0)
 				cellAspect := float64(cellWidth) / float64(cellHeight)
 
-				aspectDiff := cellAspect - 1.0
-				if aspectDiff < 0 {
-					aspectDiff = -aspectDiff
-				}
+				aspectDiff := math.Abs(cellAspect - 1)
 
 				// Prefer configurations with more cells for finer precision
 				totalCells := float64(col * rowIndex)
