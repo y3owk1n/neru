@@ -28,7 +28,7 @@ jobs:
             # `main` pointed at instead. That has a cost: with no version in the
             # comment, Dependabot cannot track this one, and may even offer v6
             # as an "update". It is the pin to bump by hand.
-            - uses: "DeterminateSystems/flakehub-push@abcff4fb351e63f852f5fb2b9af0ae4e69de07d4" # main as of 2026-07-29
+            - uses: "DeterminateSystems/flakehub-push@f960928265d16ba43227dfd48812a8b1de17a441" # main as of 2026-07-29
               with:
                   name: "y3owk1n/neru"
                   rolling: true
