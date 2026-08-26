@@ -1034,6 +1034,12 @@ green in every cell while an option means nothing, which is exactly how
 | `recursive_grid.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
 | `scroll.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
 | `app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `hints.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `grid.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `recursive_grid.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `scroll.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
 | `recursive_grid.animation.enabled` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
 | `recursive_grid.animation.duration_ms` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
 | `monitor_select.enabled` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
@@ -1068,6 +1074,7 @@ green in every cell while an option means nothing, which is exactly how
 | `smooth_scroll.duration_per_pixel` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `--split-word` | mode flag | ✅ | ✅ | ❌ | splitting detected text into words needs the vision strategy, which Windows has no engine for; there the flag is refused rather than ignored |
 | `--strategy=vision` | mode flag | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so detection returns nothing and no hints appear; use axtree |
+| `--strategy=wl-kbptr` | mode flag | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
 | `hide_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `show_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `scroll_left` | action | ✅ | ✅ | ❌ | the Windows wheel event carries no horizontal delta, so a sideways scroll injects nothing |

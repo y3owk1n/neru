@@ -4,6 +4,7 @@ package vision
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"time"
 
@@ -154,6 +155,69 @@ func toRecognizedWords(words []platformlinux.OCRWord) []recognizedWord {
 // CaptureScreen returns the pixels currently on the active screen.
 func (a *Adapter) CaptureScreen(ctx context.Context) (*image.RGBA, error) {
 	return a.captureRegion(ctx, image.Rectangle{})
+}
+
+// DetectWLKBPTR captures screenBounds and detects clickable UI targets using the
+// wl-kbptr contour detection algorithm.
+func (a *Adapter) DetectWLKBPTR(
+	ctx context.Context,
+	screenBounds image.Rectangle,
+) ([]*element.Element, error) {
+	select {
+	case <-ctx.Done():
+		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+	default:
+	}
+
+	region := screenBounds.Canon()
+	if region.Empty() {
+		return nil, derrors.Newf(
+			derrors.CodeActionFailed,
+			"wl-kbptr detection needs a region to read; %v is empty",
+			screenBounds,
+		)
+	}
+
+	img, err := a.captureRegion(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	scale := 1.0
+	if region.Dy() > 0 && img.Rect.Dy() > 0 {
+		scale = float64(img.Rect.Dy()) / float64(region.Dy())
+	}
+
+	rects := platformlinux.DetectWLKBPTRTargets(img, scale)
+	elements := make([]*element.Element, 0, len(rects))
+
+	for _, r := range rects {
+		globalBounds := image.Rect(
+			region.Min.X+r.Min.X,
+			region.Min.Y+r.Min.Y,
+			region.Min.X+r.Max.X,
+			region.Min.Y+r.Max.Y,
+		)
+		id := element.ID(fmt.Sprintf("wlkbptr-%d-%d-%d-%d",
+			globalBounds.Min.X,
+			globalBounds.Min.Y,
+			globalBounds.Dx(),
+			globalBounds.Dy(),
+		))
+		el, elErr := element.NewElement(
+			id,
+			globalBounds,
+			element.RoleButton,
+			element.WithClickable(true),
+			element.WithVisionOnly(),
+		)
+		if elErr != nil {
+			continue
+		}
+		elements = append(elements, el)
+	}
+
+	return elements, nil
 }
 
 // Health reports whether the vision strategy can run on this machine, by

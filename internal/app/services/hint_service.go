@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"image"
 	"slices"
 	"sync"
 	"time"
@@ -135,6 +136,8 @@ func (s *HintService) GenerateHints(
 	switch strategy {
 	case domain.StrategyVision:
 		elements = s.generateHintsVision(ctx, bundleID, filter, splitWord)
+	case domain.StrategyWLKBPTR:
+		elements = s.generateHintsWLKBPTR(ctx, bundleID)
 	default:
 		elements, genErr = s.generateHintsAX(ctx, filter)
 	}
@@ -365,6 +368,98 @@ func (s *HintService) generateHintsVision(
 	}
 
 	return allElements
+}
+
+// generateHintsWLKBPTR detects interactive targets across the active screen
+// using the wl-kbptr contour detection algorithm. Scanning the active screen
+// rather than only the focused window ensures that desktop notifications,
+// status bars, and adjacent tiled windows are all detected as clickable targets.
+func (s *HintService) generateHintsWLKBPTR(
+	ctx context.Context,
+	_ string,
+) []*element.Element {
+	screenBounds, screenErr := s.resolveWLKBPTRScreenBounds(ctx)
+	if screenErr != nil || screenBounds.Empty() {
+		s.logger.Error("Failed to resolve screen bounds for wl-kbptr detection", zap.Error(screenErr))
+
+		return nil
+	}
+
+	wlkbptrStart := time.Now()
+	elements, err := s.vision.DetectWLKBPTR(ctx, screenBounds)
+	s.logger.Debug("TIMING: Window elements (wl-kbptr)",
+		zap.Duration("elapsed", time.Since(wlkbptrStart)),
+		zap.Int("count", len(elements)),
+		zap.Error(err),
+	)
+
+	if err != nil {
+		s.logger.Error("Failed to detect elements via wl-kbptr", zap.Error(err))
+
+		return nil
+	}
+
+	return elements
+}
+
+// resolveWLKBPTRScreenBounds determines the active display bounds for wl-kbptr detection.
+// It prefers the monitor holding the focused window (matching resolveHintsScreenBounds)
+// so multi-monitor setups capture the display the user is interacting with, and falls back
+// to the monitor holding the cursor.
+func (s *HintService) resolveWLKBPTRScreenBounds(ctx context.Context) (image.Rectangle, error) {
+	var fallback image.Rectangle
+	if s.system != nil {
+		if b, err := s.system.ScreenBounds(ctx); err == nil {
+			fallback = b
+		}
+	}
+
+	if s.system == nil {
+		if !fallback.Empty() {
+			return fallback, nil
+		}
+
+		return image.Rectangle{}, derrors.New(derrors.CodeInternal, "system port is nil")
+	}
+
+	windowBounds, found, err := s.system.FocusedWindowBounds(ctx)
+	if err != nil || !found || windowBounds.Empty() {
+		if !fallback.Empty() {
+			return fallback, nil
+		}
+
+		return image.Rectangle{}, err
+	}
+
+	if fallback.Empty() {
+		fallback = windowBounds
+	}
+
+	center := image.Point{
+		X: windowBounds.Min.X + windowBounds.Dx()/2,
+		Y: windowBounds.Min.Y + windowBounds.Dy()/2,
+	}
+
+	if !fallback.Empty() && center.In(fallback) {
+		return fallback, nil
+	}
+
+	names, namesErr := s.system.ScreenNames(ctx)
+	if namesErr != nil || len(names) == 0 {
+		return fallback, nil
+	}
+
+	for _, name := range names {
+		bounds, foundScreen, bErr := s.system.ScreenBoundsByName(ctx, name)
+		if bErr != nil || !foundScreen {
+			continue
+		}
+		if center.In(bounds) {
+			return bounds, nil
+		}
+	}
+
+	return fallback, nil
 }
 
 // notifyVisionUnavailable tells the user, once, that the vision strategy

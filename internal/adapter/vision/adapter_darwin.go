@@ -209,3 +209,14 @@ func (a *Adapter) Health(ctx context.Context) error {
 
 	return nil
 }
+
+// DetectWLKBPTR reports not-supported: wl-kbptr strategy is only implemented on Linux.
+func (a *Adapter) DetectWLKBPTR(
+	_ context.Context,
+	_ image.Rectangle,
+) ([]*element.Element, error) {
+	return nil, derrors.New(
+		derrors.CodeNotSupported,
+		"the wl-kbptr strategy is only implemented on Linux",
+	)
+}

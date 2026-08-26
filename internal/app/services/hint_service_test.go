@@ -761,12 +761,142 @@ func (m *mockVisionPort) DetectElements(
 	return m.detectedElements, nil
 }
 
+func (m *mockVisionPort) DetectWLKBPTR(
+	context.Context,
+	image.Rectangle,
+) ([]*element.Element, error) {
+	if m.detectErr != nil {
+		return nil, m.detectErr
+	}
+
+	return m.detectedElements, nil
+}
+
 func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {
 	return nil, derrors.New(derrors.CodeBridgeFailed, "capture screen not implemented")
 }
 
 func (m *mockVisionPort) Health(context.Context) error {
 	return nil
+}
+
+func TestHintService_GenerateHintsWLKBPTR(t *testing.T) {
+	t.Parallel()
+
+	el, err := element.NewElement(
+		element.ID("test-btn"),
+		image.Rect(100, 100, 150, 120),
+		element.RoleButton,
+		element.WithClickable(true),
+		element.WithVisionOnly(),
+	)
+	if err != nil {
+		t.Fatalf("NewElement failed: %v", err)
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{
+			FocusedAppBundleIDFunc: func(context.Context) (string, error) {
+				return "com.example.app", nil
+			},
+		},
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{
+			FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rect(0, 0, 800, 600), true, nil
+			},
+		},
+		generator,
+		config.DefaultConfig().Hints,
+		zap.NewNop(),
+		&mockVisionPort{detectedElements: []*element.Element{el}},
+	)
+
+	hints, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		domain.StrategyWLKBPTR,
+		"",
+		false,
+	)
+
+	if err != nil {
+		t.Fatalf("GenerateHints() failed: %v", err)
+	}
+
+	if len(hints) != 1 {
+		t.Fatalf("len(hints) = %d, want 1", len(hints))
+	}
+}
+
+func TestHintService_GenerateHintsWLKBPTR_ScansActiveScreenBounds(t *testing.T) {
+	t.Parallel()
+
+	el, err := element.NewElement(
+		element.ID("notif-btn"),
+		image.Rect(1800, 50, 1900, 90),
+		element.RoleButton,
+		element.WithClickable(true),
+		element.WithVisionOnly(),
+	)
+	if err != nil {
+		t.Fatalf("NewElement failed: %v", err)
+	}
+
+	var capturedRegion image.Rectangle
+	mockVision := &mocks.MockVisionPort{
+		DetectWLKBPTRFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+			capturedRegion = region
+			return []*element.Element{el}, nil
+		},
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{
+			FocusedAppBundleIDFunc: func(context.Context) (string, error) {
+				return "com.example.app", nil
+			},
+		},
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{
+			ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
+				return image.Rect(0, 0, 1920, 1080), nil
+			},
+			FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rect(100, 100, 800, 600), true, nil
+			},
+		},
+		generator,
+		config.DefaultConfig().Hints,
+		zap.NewNop(),
+		mockVision,
+	)
+
+	hints, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		domain.StrategyWLKBPTR,
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() failed: %v", err)
+	}
+
+	if len(hints) != 1 {
+		t.Fatalf("len(hints) = %d, want 1", len(hints))
+	}
+
+	wantScreen := image.Rect(0, 0, 1920, 1080)
+	if capturedRegion != wantScreen {
+		t.Errorf("DetectWLKBPTR captured region = %v, want active screen %v", capturedRegion, wantScreen)
+	}
 }
 
 func TestHintService_GenerateHintsRejectsSplitWordForNonVisionStrategy(t *testing.T) {
