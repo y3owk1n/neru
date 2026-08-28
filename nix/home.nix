@@ -17,7 +17,7 @@ let
       "/usr/bin"
       "/bin"
     ]
-    ++ lib.optionals pkgs.stdenv.isDarwin [ "/opt/homebrew/bin" ]
+    ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ "/opt/homebrew/bin" ]
   );
   effectiveEnv = {
     PATH = defaultPath;
@@ -160,7 +160,7 @@ in
 
 
     # Launch agent for macOS
-    launchd.agents.neru = lib.mkIf pkgs.stdenv.isDarwin {
+    launchd.agents.neru = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
       enable = cfg.launchd.enable;
       config = {
         ProgramArguments = [
@@ -192,7 +192,7 @@ in
     };
 
     # Systemd user service for Linux
-    systemd.user.services.neru = lib.mkIf (pkgs.stdenv.isLinux && cfg.systemd.enable) {
+    systemd.user.services.neru = lib.mkIf (pkgs.stdenv.hostPlatform.isLinux && cfg.systemd.enable) {
       Unit = {
         Description = "Neru keyboard navigation daemon";
         After = [ "graphical-session.target" ];
