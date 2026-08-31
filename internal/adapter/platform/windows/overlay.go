@@ -358,6 +358,12 @@ func (o *OverlayWindow) Show() {
 			}
 		}
 
+		// A hidden layered window retains its last presented bitmap. Publish
+		// the current pixels before showing it, otherwise reopening briefly
+		// exposes the previous frame before Clear's transparent pixels and
+		// the new draw are presented.
+		o.flushPixels()
+
 		discardCall(procShowWindow.Call(uintptr(o.hwnd), swShowNoActivate))
 
 		const (
@@ -375,9 +381,6 @@ func (o *OverlayWindow) Show() {
 			swpNoActivate|swpShowWindow|swpNomove|swpNosize,
 		))
 		o.visible = true
-
-		// Force a flush on show so content is visible immediately.
-		o.flushPixels()
 	})
 }
 
