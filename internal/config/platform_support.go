@@ -20,10 +20,6 @@ const (
 		"so it finds nothing there and none of its settings are read; use axtree"
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
 		"even where the vision strategy lands; that half is text-only"
-	noteCaptureScope = "capture_scope only shapes the vision and contour strategies, " +
-		"and Windows has no capture backend for either"
-	noteContourStrategy = "the contour strategy runs edge detection over a screen capture, " +
-		"which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree"
 	noteRecursiveGridAnimation = "the Windows overlay backend has no grid transition animation"
 	noteMonitorSelect          = "monitor_select needs the optional MonitorSelector overlay " +
 		"extension, which the Windows backend does not implement"
@@ -45,12 +41,11 @@ const (
 		"draw on demand"
 )
 
-// visionStrategy and contourStrategy are strategy option values.
-// The option itself is recognized everywhere; these values are not.
-const (
-	visionStrategy  = "vision"
-	contourStrategy = "contour"
-)
+// visionStrategy is the strategy option value that selects the vision engine.
+// The option itself is recognized everywhere; this one value of it is not.
+// The contour value carries no declaration: every platform captures the screen
+// it runs over.
+const visionStrategy = "vision"
 
 // strategyOptions are every path the strategy option is written at: the hints
 // section and the four per-app override tables that shadow it, plus the
@@ -66,7 +61,9 @@ var strategyOptions = []string{
 }
 
 // captureScopeOptions are the same six paths for capture_scope, which shadows
-// the hints section per app the way strategy does.
+// the hints section per app the way strategy does. They are declared
+// everywhere: the option only shapes the capture strategies, and every
+// platform has a capture backend now.
 var captureScopeOptions = []string{
 	"hints.capture_scope",
 	"hints.app_configs.capture_scope",
@@ -187,12 +184,6 @@ func PlatformSupport() parity.Declaration {
 		parity.ValueOn(parity.KindOption, darwinAndLinux, noteVisionStrategy,
 			visionStrategy, strategyOptions...,
 		),
-		parity.ValueOn(parity.KindOption, darwinAndLinux, noteContourStrategy,
-			contourStrategy, strategyOptions...,
-		),
-		parity.On(parity.KindOption, darwinAndLinux, noteCaptureScope,
-			captureScopeOptions...,
-		),
 
 		parity.On(parity.KindOption, darwinAndLinux, noteRecursiveGridAnimation,
 			"recursive_grid.animation.enabled",
@@ -238,6 +229,7 @@ func PlatformSupport() parity.Declaration {
 			"smooth_scroll.duration_per_pixel",
 		),
 
+		parity.Everywhere(parity.KindOption, captureScopeOptions...),
 		parity.Everywhere(parity.KindOption,
 			"general.excluded_apps",
 			"general.exec_shell",

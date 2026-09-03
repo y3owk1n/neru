@@ -409,7 +409,33 @@ func focusedWindowBounds() (image.Rectangle, bool, error) {
 		return image.Rectangle{}, false, fmt.Errorf("GetWindowRect: %w", callErr)
 	}
 
-	return rectToImage(rect), true, nil
+	return clipToScreen(rectToImage(rect))
+}
+
+// clipToScreen intersects a window rectangle with the virtual screen, the
+// rectangle every monitor fits inside.
+//
+// GetWindowRect reports the frame Windows tracks rather than the frame a user
+// sees: a maximized window overhangs its monitor by the invisible resize border
+// on every side. That overhang holds nothing hintable, and a screen-capture
+// strategy that asked for it would be refused, because a frame that leaves the
+// screen cannot be placed. The clip is to the whole desktop rather than to one
+// monitor so a window dragged across a seam keeps both halves; BitBlt reads
+// across the seam. It lives here, where every consumer of the focused window
+// sees the same rectangle, rather than in the capture path alone. A window
+// with nothing left on screen reads as no focused window.
+func clipToScreen(rect image.Rectangle) (image.Rectangle, bool, error) {
+	desktop, err := virtualScreenBounds()
+	if err != nil {
+		return image.Rectangle{}, false, err
+	}
+
+	clipped := rect.Intersect(desktop)
+	if clipped.Empty() {
+		return image.Rectangle{}, false, nil
+	}
+
+	return clipped, true, nil
 }
 
 // ForegroundWindowHandle returns the foreground top-level window handle for

@@ -195,7 +195,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **System cursor hide**        | ✅ `CGDisplayHideCursor` | ➖                     | ➖                           | ➖                      | ➖                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
 | **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream input ⁴  | 🟡 key-stream input ⁴        | 🟡 key-stream input ⁴   | 🟡 key-stream input ⁴        |
-| **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ⚠️ portal ScreenCast, consent ⁵ | ❌                   |
+| **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ⚠️ portal ScreenCast, consent ⁵ | ✅ `BitBlt` ⁵        |
 | **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁶ | ⚠️ tesseract, text only ⁶ | ⚠️ tesseract, text only ⁶ | ❌                           |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
 | **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | 🟡 `CodeNotSupported` |
@@ -332,6 +332,16 @@ compositor answers in **physical pixels**, so it can be larger than the logical
 region by the output's scale factor — the same thing a Retina capture does on
 macOS. The image's own bounds start at `(0, 0)`; the region passed in is what
 places those pixels.
+
+Windows reads the desktop DC back with `BitBlt` into a top-down 32-bit DIB
+section, no consent gate and no cgo. The desktop DC is one surface across every
+monitor, so a region may straddle a seam, and it must still lie inside the
+virtual screen. The process is per-monitor-v2 DPI aware through its manifest,
+so the frame is the region's own size in physical pixels: the same pixels
+`GetCursorPos` and `EnumDisplayMonitors` report, on a mixed-DPI arrangement
+too. The focused window is the foreground window's rect clipped to the virtual
+screen, because `GetWindowRect` overhangs it by the invisible resize border on
+a maximized window; a window straddling a seam keeps both halves.
 
 ⁶ Linux `vision` is **text-only**, and permanently so. macOS runs three Vision
 requests — text recognition, rectangle detection and saliency — and an OCR
@@ -1060,18 +1070,6 @@ green in every cell while an option means nothing, which is exactly how
 | `recursive_grid.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
 | `scroll.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
 | `app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
-| `hints.app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
-| `grid.app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
-| `recursive_grid.app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
-| `scroll.app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
-| `app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
-| `hints.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
-| `hints.app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
-| `grid.app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
-| `recursive_grid.app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
-| `scroll.app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
-| `app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
 | `recursive_grid.animation.enabled` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
 | `recursive_grid.animation.duration_ms` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
 | `monitor_select.enabled` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
@@ -1106,8 +1104,6 @@ green in every cell while an option means nothing, which is exactly how
 | `smooth_scroll.duration_per_pixel` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `--split-word` | mode flag | ✅ | ✅ | ❌ | splitting detected text into words needs the vision strategy, which Windows has no engine for; there the flag is refused rather than ignored |
 | `--strategy=vision` | mode flag | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so detection returns nothing and no hints appear; use axtree |
-| `--strategy=contour` | mode flag | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
-| `--capture-scope` | mode flag | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
 | `hide_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `show_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `scroll_left` | action | ✅ | ✅ | ❌ | the Windows wheel event carries no horizontal delta, so a sideways scroll injects nothing |

@@ -1,4 +1,4 @@
-//go:build !darwin && !linux
+//go:build !darwin && !linux && !windows
 
 package vision
 
@@ -12,7 +12,8 @@ import (
 )
 
 // DetectElements reports not-supported on the platforms with no vision
-// implementation at all (Windows today).
+// implementation at all: the CGO-less `other` slot, which no supported OS
+// builds into.
 func (a *Adapter) DetectElements(
 	_ context.Context,
 	_ image.Rectangle,
@@ -26,7 +27,7 @@ func (a *Adapter) DetectElements(
 }
 
 // DetectContours reports not-supported: the detector is platform-neutral, but
-// Windows has no capture backend to feed it a frame.
+// this slot has no capture backend to feed it a frame.
 func (a *Adapter) DetectContours(
 	_ context.Context,
 	_ image.Rectangle,
@@ -37,8 +38,8 @@ func (a *Adapter) DetectContours(
 	)
 }
 
-// CaptureScreen reports not-supported: Windows has no capture backend here.
-// Linux does, in adapter_linux.go.
+// CaptureScreen reports not-supported: this slot has no capture backend.
+// Linux has one in adapter_linux.go and Windows in adapter_windows.go.
 func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
