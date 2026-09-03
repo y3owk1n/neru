@@ -172,12 +172,8 @@ func wlrootsClickButtonAtPoint(
 	return nil
 }
 
-// wlrootsPressModifiers presses the modifiers a pointer action presents.
-//
-// The set going down and the set coming back up are the same here, because a
-// caller that fails to press has nothing left held. What it must not do is
-// unwind a modifier it never pressed, which is why the pressed set is what
-// pressWaylandModifiers reports rather than what this call was handed.
+// wlrootsPressModifiers presses the modifiers a pointer action presents. A
+// failure unwinds only what went down, which is pressWaylandModifiers' job.
 func wlrootsPressModifiers(modifiers action.Modifiers) error {
 	_, err := pressWaylandModifiers(modifiers)
 

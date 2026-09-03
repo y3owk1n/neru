@@ -1509,21 +1509,22 @@ int neru_wlr_sync(NeruWlrootsClient *c, int timeout_ms) {
 	if (!req)
 		return 0;
 
+	// want is read here and never again: the moment the mutex is dropped the
+	// dispatch thread may answer this sync, and the callback frees req.
 	pthread_mutex_lock(&c->display_mutex);
 	req->client = c;
 	req->id = ++c->sync_issued;
+	unsigned int want = req->id;
 	struct wl_callback *cb = wl_display_sync(c->display);
 	if (cb)
 		wl_callback_add_listener(cb, &neru_wlr_sync_listener, req);
 	wl_display_flush(c->display);
-	pthread_mutex_unlock(&c->display_mutex);
-
 	if (!cb) {
 		free(req);
+		pthread_mutex_unlock(&c->display_mutex);
 		return 0;
 	}
-
-	unsigned int want = req->id;
+	pthread_mutex_unlock(&c->display_mutex);
 
 	for (int waited = 0; waited < timeout_ms * 1000; waited += NERU_WLR_SYNC_POLL_INTERVAL_US) {
 		// Unsigned subtraction so a wrapped counter still compares correctly.

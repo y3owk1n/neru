@@ -616,11 +616,6 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 // hyprlandKeepsUinputScroll reports whether a modified scroll on this session
 // keeps the uinput batch and presses the modifier beside it, rather than moving
 // the whole scroll onto the wlroots virtual pointer.
-//
-// It is the Wayland check and the compositor check together because either one
-// alone answers the wrong question: the backend says the virtual keyboard is
-// reachable, and the compositor says the virtual pointer is the half that
-// cannot be trusted with the scroll.
 func hyprlandKeepsUinputScroll() bool {
 	return currentLinuxBackend() == linuxBackendWayland && platform.IsHyprlandSession()
 }

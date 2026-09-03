@@ -4,6 +4,7 @@ package linux
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -52,14 +53,8 @@ func withModifierRecorder(t *testing.T, recorder *modifierRecorder) {
 func assertEvents(t *testing.T, got []string, want []string) {
 	t.Helper()
 
-	if len(got) != len(want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("key events = %v, want %v", got, want)
-	}
-
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("key events = %v, want %v", got, want)
-		}
 	}
 }
 

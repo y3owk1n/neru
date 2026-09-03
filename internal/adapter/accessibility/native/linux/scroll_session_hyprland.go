@@ -61,10 +61,6 @@ func (s *hyprlandScrollSession) inject(deltaX, deltaY float64) error {
 // hands it exact multiples of a notch, so the rounding here settles
 // floating-point error rather than a real fraction.
 func (s *hyprlandScrollSession) notchAxis(axis int, delta float64) error {
-	if delta == 0 {
-		return nil
-	}
-
 	notches := int(math.Round(math.Abs(delta) / scrollPixelsPerNotch))
 	if notches == 0 {
 		return nil
