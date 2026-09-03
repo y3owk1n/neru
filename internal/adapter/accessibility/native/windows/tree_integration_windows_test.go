@@ -21,6 +21,11 @@ import (
 // two below the window: a walk that only reads the window's direct children
 // reports three controls where four exist.
 //
+// The window is a caption-less popup: an overlapped window's title bar adds
+// Minimize, Maximize and Close as Button hints of its own. Controls are
+// counted by role because a Win32 edit box takes its UIA Name from a
+// neighboring label rather than its own text.
+//
 // The window and the query share one locked thread: Win32 controls answer the
 // MSAA proxy's WM_GETTEXT with SendMessage, which is synchronous on the
 // creating thread and would need a message pump from any other.
@@ -34,13 +39,12 @@ var (
 )
 
 const (
-	fixtureOverlappedWindow = 0x00CF0000
-	fixtureVisible          = 0x10000000
-	fixtureChild            = 0x40000000
-	fixtureCheckBox         = 0x2
-	fixtureUseDefault       = 0x80000000
-	fixtureWindowSize       = 320
-	fixtureControlSize      = 40
+	fixturePopup       = 0x80000000
+	fixtureVisible     = 0x10000000
+	fixtureChild       = 0x40000000
+	fixtureCheckBox    = 0x2
+	fixtureWindowSize  = 320
+	fixtureControlSize = 40
 
 	// fixtureDeadline is the budget hints mode gives element collection
 	// (modes.HintTimeout); the adapter cannot import modes, so the value is
@@ -106,8 +110,8 @@ func TestBuildTree_ReportsControlsNestedBelowTheWindow(t *testing.T) {
 	const child = fixtureChild | fixtureVisible
 
 	window := createFixtureWindow(t, "STATIC", "neru-uia-fixture",
-		fixtureOverlappedWindow|fixtureVisible,
-		image.Pt(fixtureUseDefault, fixtureUseDefault), fixtureWindowSize, fixtureWindowSize, 0)
+		fixturePopup|fixtureVisible,
+		image.Pt(0, 0), fixtureWindowSize, fixtureWindowSize, 0)
 
 	createFixtureWindow(t, "BUTTON", "neru-fixture-button", child,
 		image.Pt(10, 10), fixtureControlSize*3, fixtureControlSize, window)
@@ -138,27 +142,26 @@ func TestBuildTree_ReportsControlsNestedBelowTheWindow(t *testing.T) {
 
 	hints := ProcessClickableNodes(tree, config.HintsConfig{})
 
-	want := map[string]bool{
-		"neru-fixture-button":        false,
-		"neru-fixture-edit":          false,
-		"neru-fixture-checkbox":      false,
-		"neru-fixture-nested-button": false,
-	}
+	want := map[string]int{uiaControlButton: 2, uiaControlCheckBox: 1, uiaControlEdit: 1}
+	got := make(map[string]int, len(want))
+	nested := false
 
 	for _, hint := range hints {
-		if _, known := want[hint.Info().Title()]; known {
-			want[hint.Info().Title()] = true
+		got[hint.Info().Role()]++
+
+		if hint.Info().Title() == "neru-fixture-nested-button" {
+			nested = true
 		}
 	}
 
-	for title, seen := range want {
-		if !seen {
-			t.Errorf("hint for %q missing; got %d hints", title, len(hints))
+	for role, count := range want {
+		if got[role] != count {
+			t.Errorf("%s hints = %d, want %d (all roles: %v)", role, got[role], count, got)
 		}
 	}
 
-	if len(hints) != len(want) {
-		t.Errorf("got %d hints, want %d", len(hints), len(want))
+	if !nested {
+		t.Errorf("the button nested inside the child pane was not reported; hints: %v", got)
 	}
 
 	t.Logf("built tree with %d hints in %v", len(hints), time.Since(started))
