@@ -88,6 +88,11 @@ func (l *windowsAppWatcher) start() {
 	events := make(chan uintptr, 1)
 	l.lastID, l.lastName = "", ""
 
+	// The app in front now is offered before the hook goes live, so a focus
+	// change in between arrives after it and wins; the other order let a
+	// stale snapshot overwrite a newer event.
+	offer(events, l.foreground())
+
 	unhook, err := l.subscribe(func(hwnd uintptr) { offer(events, hwnd) })
 	if err != nil {
 		l.watcher.logger.Warn(
@@ -104,8 +109,6 @@ func (l *windowsAppWatcher) start() {
 	l.wg.Add(1)
 
 	go l.loop(l.stopCh, events)
-
-	offer(events, l.foreground())
 }
 
 // stop unhooks first, so nothing offers after the loop is told to exit, then
