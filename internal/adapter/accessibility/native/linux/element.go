@@ -518,7 +518,16 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 				return err
 			}
 
-			defer func() { _ = releaseWaylandModifiers(pressed) }()
+			// Both sides wait. ScrollDeviceScrollBatch returns once the kernel
+			// has taken the write, not once the compositor has read it, so a
+			// release that follows the batch immediately can lift the modifier
+			// out from under notches still being delivered — the same race as
+			// scrolling before the press lands, running the other way.
+			defer func() {
+				waitForWaylandModifiers()
+
+				_ = releaseWaylandModifiers(pressed)
+			}()
 
 			waitForWaylandModifiers()
 		}
