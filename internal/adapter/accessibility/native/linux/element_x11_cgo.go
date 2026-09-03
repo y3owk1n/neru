@@ -6,6 +6,7 @@ package linux
 #cgo linux pkg-config: x11 xtst
 #include <stdlib.h>
 #include "../../../platform/linux/x11_accessibility.h"
+#include "../../../platform/linux/x11_system.h"
 */
 import "C"
 
@@ -30,6 +31,20 @@ const (
 	mouseButtonBack   = 7
 )
 
+// linuxFocusedApplicationIdentity answers which application owns the focused
+// X11 window, as a WM_CLASS/pid pair, and ("", 0) when it cannot say.
+//
+// The active window and the identity of whatever it names come from the system
+// bridge (x11_system.h) rather than from a second copy in this one. They were
+// two copies until #1499: the system one had learned to tell a window manager
+// with nothing focused from a display owned by none, and to survive a property
+// naming a window that has since closed, while the copy here still let that
+// close exit the daemon.
+//
+// The five answers that bridge distinguishes collapse to one here on purpose.
+// This signature has no error to carry, and its callers — focused-app identity
+// and the frontmost-window queries behind it — re-sample on the next focus
+// event either way, so "no identity" is the whole of what they can act on.
 func linuxFocusedApplicationIdentity() (string, int) {
 	if os.Getenv("DISPLAY") == "" {
 		return "", 0
@@ -42,11 +57,11 @@ func linuxFocusedApplicationIdentity() (string, int) {
 	defer C.neru_ax_close_display(display)
 
 	var window C.Window
-	if C.neru_ax_get_active_window(display, &window) == 0 {
+	if C.neru_x11_get_active_window(display, &window) != C.int(C.NERU_X11_ACTIVE_WINDOW_OK) {
 		return "", 0
 	}
 
-	className := C.neru_ax_window_class(display, window)
+	className := C.neru_x11_get_window_class(display, window)
 
 	bundleID := ""
 	if className != nil {
@@ -54,10 +69,17 @@ func linuxFocusedApplicationIdentity() (string, int) {
 		C.free(unsafe.Pointer(className))
 	}
 
-	var ok C.int
-	pid := int(C.neru_ax_window_pid(display, window, &ok))
+	// The pid answers collapse here the same way the active-window ones do: this
+	// signature has no error to carry, and a window that advertises no pid and
+	// one that closed under the query both leave this caller with no pid to
+	// report. system_x11_window_pid.go is where the difference is told, for the
+	// caller that can act on it.
+	var pid C.ulong
+	if C.neru_x11_get_window_pid(display, window, &pid) != C.int(C.NERU_X11_WINDOW_PID_OK) {
+		pid = 0
+	}
 
-	return bundleID, pid
+	return bundleID, int(pid)
 }
 
 func linuxApplicationBundleIdentifier(pid int) string {
@@ -158,8 +180,11 @@ func x11MouseUpAtPoint(
 	return x11MouseButtonAtPoint(point, modifiers, x11Button(button), false, false)
 }
 
-// x11MouseUp releases button at the cursor, then releases modifiers — the set
-// its press is holding, which nothing else will undo.
+// x11MouseUp releases button at the cursor and undoes the hold its press took —
+// the modifiers that press is presenting, which nothing else will undo.
+//
+// modifiers is what the caller believes the press is holding, and is used only
+// when this connection finds no press to pick up from.
 func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	display, err := x11ActionDisplay()
 	if err != nil {
@@ -167,8 +192,11 @@ func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	}
 	defer C.neru_ax_close_display(display)
 
-	// Runs before the display is closed: defers unwind last-in first-out.
-	defer x11ReleaseModifiers(display, modifiers)
+	// Taken before the button event so the release still goes out under the
+	// modifiers the press presented, and undone after it. Runs before the
+	// display is closed: defers unwind last-in first-out.
+	hold := x11ResumeModifierHold(display, x11Button(button), modifiers)
+	defer hold.release()
 
 	if C.neru_ax_button(display, x11Button(button), 0) == 0 {
 		return derrors.Newf(
@@ -189,15 +217,13 @@ func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	defer C.neru_ax_close_display(display)
 
 	// Held across every scroll button click, the way a person holding ctrl and
-	// turning the wheel produces a zoom. Runs before the display is closed:
-	// defers unwind last-in first-out.
-	//
-	// These are the same unconditional helpers the click paths use, so the
-	// release lets go of the whole named set — including a key the user is
-	// physically holding, or one a sticky modifier is holding through XTest.
-	// That gap predates this caller and is not narrowed here.
-	x11PressModifiers(display, modifiers)
-	defer x11ReleaseModifiers(display, modifiers)
+	// turning the wheel produces a zoom — and, just as much, *not* held when
+	// nothing asked for it: an X11 button event carries whatever the server
+	// records as down, so a plain scroll_down bound to Ctrl+J would zoom. The
+	// hold presents exactly this set for the length of the whole loop. Runs
+	// before the display is closed: defers unwind last-in first-out.
+	hold := x11HoldModifiers(display, modifiers)
+	defer hold.release()
 
 	// X11 scrolling is simulated via discrete button clicks (4, 5, 6, 7).
 	// Incoming deltas are pixel-level values from the scroll service config
@@ -285,8 +311,8 @@ const (
 // do is spread those notches over time on the same eased curve every other
 // backend uses, which is why granularity is a whole notch rather than zero.
 type x11ScrollSession struct {
-	display   *C.Display
-	modifiers action.Modifiers
+	display *C.Display
+	hold    x11ModifierHold
 }
 
 // x11ScrollBackendAvailable answers whether an animated scroll could inject
@@ -308,12 +334,10 @@ func newX11ScrollSession(modifiers action.Modifiers) (scrollSession, error) {
 		return nil, err
 	}
 
-	// The same unconditional helpers the click paths use: the release lets go
-	// of the whole named set, including a key the user is physically holding.
-	// That gap predates this caller and is not narrowed here.
-	x11PressModifiers(display, modifiers)
-
-	return &x11ScrollSession{display: display, modifiers: modifiers}, nil
+	// Taken once for the whole animation rather than per chunk, so every chunk
+	// goes out under the same modifier state: the requested set presented, and
+	// anything the user happens to be holding suppressed for the duration.
+	return &x11ScrollSession{display: display, hold: x11HoldModifiers(display, modifiers)}, nil
 }
 
 func (s *x11ScrollSession) granularity() float64 { return scrollPixelsPerNotch }
@@ -353,7 +377,7 @@ func (s *x11ScrollSession) clickAxis(delta float64, positive, negative C.uint) e
 }
 
 func (s *x11ScrollSession) close() {
-	x11ReleaseModifiers(s.display, s.modifiers)
+	s.hold.release()
 	C.neru_ax_close_display(s.display)
 }
 
@@ -371,8 +395,14 @@ func x11ClickButtonAtPoint(
 	defer C.neru_ax_close_display(display)
 
 	original := x11CurrentCursorPosition()
-	x11PressModifiers(display, modifiers)
-	defer x11ReleaseModifiers(display, modifiers)
+
+	// An X11 button event carries whatever the server records as down rather
+	// than a set the sender chooses, so the click presents exactly this set:
+	// a modifier the user's hand is on is suppressed for the length of the
+	// click, and one they are holding is left held afterwards. Runs before the
+	// display is closed: defers unwind last-in first-out.
+	hold := x11HoldModifiers(display, modifiers)
+	defer hold.release()
 
 	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 {
 		return derrors.Newf(
@@ -412,21 +442,29 @@ func x11MouseButtonAtPoint(
 	defer C.neru_ax_close_display(display)
 
 	original := x11CurrentCursorPosition()
-	x11PressModifiers(display, modifiers)
 
-	// Only release modifiers within this function for mouse-up events.
-	// For mouse-down (isDown=true), modifiers must stay held until the
-	// corresponding mouse-up call; releasing them here would break
-	// modifier+drag operations (e.g. Shift+drag).
-	if !isDown {
-		defer x11ReleaseModifiers(display, modifiers)
+	// A press takes the hold; a release picks up the one its press took, so
+	// both events and the drag between them present the same modifiers.
+	//
+	// A press keeps its hold until that release — undoing it here would make a
+	// modified drag unmodified from its first pixel of movement — so only a
+	// release undoes it on the way out. That defer runs before the display is
+	// closed: defers unwind last-in first-out.
+	var hold x11ModifierHold
+
+	if isDown {
+		hold = x11HoldModifiers(display, modifiers)
+	} else {
+		hold = x11ResumeModifierHold(display, button, modifiers)
+
+		defer hold.release()
 	}
 
 	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 {
-		// If we failed to move and modifiers are held for a mouse-down,
-		// release them now to avoid stuck modifier keys.
+		// Nothing will come to release a press that never happened, so a
+		// failure has to undo its own hold rather than leave keys stuck.
 		if isDown {
-			x11ReleaseModifiers(display, modifiers)
+			hold.release()
 		}
 
 		return derrors.Newf(
@@ -443,15 +481,21 @@ func x11MouseButtonAtPoint(
 	}
 
 	if C.neru_ax_button(display, button, C.int(pressed)) == 0 {
-		// Release modifiers on failure to avoid stuck keys.
+		// Same as above: no release is coming, so undo the hold here.
 		if isDown {
-			x11ReleaseModifiers(display, modifiers)
+			hold.release()
 		}
 
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to dispatch X11 mouse button event",
 		)
+	}
+
+	// The press succeeded, so its hold outlives this call and this connection:
+	// the release picks it up from here.
+	if isDown {
+		hold.keepForRelease(button)
 	}
 
 	if restoreCursor {
@@ -478,34 +522,4 @@ func x11ActionDisplay() (*C.Display, error) {
 	}
 
 	return display, nil
-}
-
-func x11PressModifiers(display *C.Display, modifiers action.Modifiers) {
-	if modifiers.Has(action.ModShift) {
-		C.neru_ax_press_modifier(display, C.XK_Shift_L)
-	}
-	if modifiers.Has(action.ModCtrl) {
-		C.neru_ax_press_modifier(display, C.XK_Control_L)
-	}
-	if modifiers.Has(action.ModAlt) {
-		C.neru_ax_press_modifier(display, C.XK_Alt_L)
-	}
-	if modifiers.Has(action.ModCmd) {
-		C.neru_ax_press_modifier(display, C.XK_Super_L)
-	}
-}
-
-func x11ReleaseModifiers(display *C.Display, modifiers action.Modifiers) {
-	if modifiers.Has(action.ModCmd) {
-		C.neru_ax_release_modifier(display, C.XK_Super_L)
-	}
-	if modifiers.Has(action.ModAlt) {
-		C.neru_ax_release_modifier(display, C.XK_Alt_L)
-	}
-	if modifiers.Has(action.ModCtrl) {
-		C.neru_ax_release_modifier(display, C.XK_Control_L)
-	}
-	if modifiers.Has(action.ModShift) {
-		C.neru_ax_release_modifier(display, C.XK_Shift_L)
-	}
 }

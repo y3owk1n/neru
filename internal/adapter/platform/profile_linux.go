@@ -18,6 +18,10 @@ func linuxProfileForCurrentBackend() Profile {
 	return linuxProfile(backend.displayServer())
 }
 
+// Every plan here carries a Name only. This profile describes one live stack to
+// the user running on it, so the contributor-facing BuildMode/Notes pair the
+// target-by-target profiles use has nothing to add: the answer is whatever the
+// KDE backend already does.
 func linuxKDEProfile() Profile {
 	return Profile{
 		OS:              Linux,
@@ -31,13 +35,14 @@ func linuxKDEProfile() Profile {
 		},
 		KeyboardCapture: BackendPlan{
 			Name: "evdev capture + key injection via uinput when /dev/uinput is writable, " +
-				"else libei via RemoteDesktop portal (consent per daemon launch)",
+				"else libei via RemoteDesktop portal (one-time consent, restored from " +
+				"a stored grant on later starts)",
 		},
 		Overlay: BackendPlan{
 			Name: "wlr-layer-shell via KWin",
 		},
 		Notifications: BackendPlan{
-			Name: "not implemented",
+			Name: "freedesktop notifications (" + notificationDaemonCaveat + ")",
 		},
 	}
 }

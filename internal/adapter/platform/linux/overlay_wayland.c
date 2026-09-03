@@ -1,5 +1,6 @@
 #include "overlay_wayland.h"
 
+#include "shm_file.h"
 #include "wlr_protocol/fractional-scale-v1.h"
 #include "wlr_protocol/layer-shell.h"
 #include "wlr_protocol/viewporter.h"
@@ -7,8 +8,6 @@
 #include "wlr_protocol/xdg-shell.h"
 
 #include <cairo/cairo.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <math.h>
 #include <poll.h>
 #include <stdio.h>
@@ -60,38 +59,6 @@ static const char *neru_modifier_name_from_keysym(xkb_keysym_t keysym) {
 	default:
 		return NULL;
 	}
-}
-
-// Create anonymous shared memory
-static int create_shm_file(off_t size) {
-	int ret, fd;
-
-#ifdef __NR_memfd_create
-	fd = syscall(__NR_memfd_create, "neru-overlay-shm", 0);
-	if (fd >= 0) {
-		do {
-			ret = ftruncate(fd, size);
-		} while (ret < 0 && errno == EINTR);
-		if (ret >= 0)
-			return fd;
-		close(fd);
-	}
-#endif
-
-	// Fallback if no memfd
-	char name[] = "/tmp/neru-shm-XXXXXX";
-	fd = mkstemp(name);
-	if (fd < 0)
-		return -1;
-	unlink(name);
-	do {
-		ret = ftruncate(fd, size);
-	} while (ret < 0 && errno == EINTR);
-	if (ret < 0) {
-		close(fd);
-		return -1;
-	}
-	return fd;
 }
 
 static void neru_layer_surface_configure(
@@ -600,7 +567,7 @@ static int neru_create_single_buffer(
     NeruWaylandOverlay *overlay, NeruWaylandOverlayScreen *scr, int buf_idx, int buf_width, int buf_height, int stride,
     double scale) {
 	size_t buf_size = (size_t)stride * (size_t)buf_height;
-	int fd = create_shm_file(buf_size);
+	int fd = neru_shm_file_create("neru-overlay-shm", buf_size);
 	if (fd < 0)
 		return -1;
 

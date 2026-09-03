@@ -71,6 +71,18 @@ Download the latest release for your OS from [GitHub Releases](https://github.co
 | Windows  | x86_64                | `neru-windows-amd64.zip` |
 | Windows  | ARM64                 | `neru-windows-arm64.zip` |
 
+Archives are built by GitHub Actions, and those published from August 2026
+onwards carry a signed build provenance attestation, so you can confirm the one
+you downloaded came from this repository before you unpack it:
+
+```bash
+gh attestation verify neru-darwin-arm64.zip --repo y3owk1n/neru
+```
+
+Each archive also ships a `.sha256` file next to it, readable by `shasum -a 256 -c`
+(macOS) or `sha256sum -c` (Linux). That checks the download arrived intact; the
+attestation above is what checks where it came from.
+
 Extract the binary or executable and place it on your PATH.
 
 </details>
@@ -220,7 +232,7 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 | Grid                      |  ✅   |  ✅   |   ✅    |
 | Vim-Style Scroll          |  ✅   |  ✅   |   ✅    |
 | Hints (Accessibility API) |  ✅   |  🔵   |   🔵    |
-| Hints (Vision OCR)        |  ✅   |  🔲   |   🔲    |
+| Hints (Vision OCR)        |  ✅   |  🔵   |   🔲    |
 | Direct Mouse Injection    |  ✅   |  ✅   |   ✅    |
 | Global Hotkeys            |  ✅   |  ✅   |   ✅    |
 | Native Overlays           |  ✅   |  ✅   |   ✅    |
@@ -230,10 +242,13 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 
 **Hints caveats.** On **Linux**, hints work through AT-SPI, so coverage depends
 on the app exposing an accessibility tree (GTK/Qt do; Chromium and Electron apps
-need `--force-renderer-accessibility`). On **Windows**, UI Automation coverage is
-initial and the tree walk is shallow, and per-app config does not re-apply when
-you change windows. **Linux requires X11 or Wayland on wlroots/KWin — GNOME
-Wayland is not supported**; use a GNOME X11 session.
+need `--force-renderer-accessibility`). Where that tree is too thin, Vision OCR
+is the fallback — tesseract, text only, and on KDE behind a one-time
+screen-sharing prompt, because KWin's only pixel source is the desktop portal.
+On **Windows**, UI Automation coverage is initial and the
+tree walk is shallow, per-app config does not re-apply when you change windows,
+and there is no OCR fallback at all. **Linux requires X11 or Wayland on
+wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
 
 → [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
 

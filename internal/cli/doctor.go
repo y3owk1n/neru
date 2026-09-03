@@ -44,7 +44,13 @@ can use it to verify accessibility permissions before launching.`,
 
 		printPlatformSupportCheck(cmd, loadResult)
 
+		// The endpoint is named after the user it belongs to, so on a system
+		// that will not say who that is there is no path to print — and
+		// nowhere for the daemon to listen either.
 		endpointPath := ipc.SocketPath()
+		if endpointPath == "" {
+			endpointPath = "cannot be determined for this user"
+		}
 
 		if !ipc.IsServerRunning() {
 			cmd.Printf("  ❌ %-24s %s\n", "ipc_endpoint", "not reachable: "+endpointPath)

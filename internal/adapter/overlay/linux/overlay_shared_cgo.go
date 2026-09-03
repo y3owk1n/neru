@@ -98,6 +98,17 @@ type sharedOverlay struct {
 	cachedGrid     *domainGrid.Grid
 	cachedStyle    gridcomponent.Style
 
+	// gridPointer is the pointer stand-in grid mode has asked for, kept
+	// because it is painted in the same pass as the cells rather than into a
+	// window of its own — the same thing recursive grid does with the pointer
+	// its frame carries, except that grid mode's arrives between draws instead
+	// of on one. Every repaint of the grid surface reads it, so narrowing a
+	// prefix or opening a subgrid keeps the pointer where the mode put it.
+	//
+	// The zero value is the pointer being off screen, which is what the mode
+	// asks for on activation and again on exit.
+	gridPointer recursivegridcomponent.VirtualPointerState
+
 	// originOffset is the active screen's top-left origin in global device
 	// pixels. Grid, recursive-grid and hint content arrives in screen-local
 	// coordinates (origin 0,0); adding this offset places it on the correct
@@ -141,9 +152,9 @@ type sharedOverlay struct {
 }
 
 // The exported methods below are what the manager calls on a backend. They
-// live here rather than once per backend because fifteen of the sixteen make
+// live here rather than once per backend because seventeen of the eighteen make
 // no C call at all — the whole of each was a nil-guard prologue and one
-// delegate into the code beneath it — and the sixteenth, Flush, goes through
+// delegate into the code beneath it — and the eighteenth, Flush, goes through
 // the surfaceFlush primitive this seam already declares. Show, Resize and
 // Destroy stay per-backend: Wayland re-runs buffer setup before showing, layer
 // shells auto-resize so Resize is empty there, and Wayland's Destroy waits on
@@ -185,8 +196,31 @@ func (o *sharedOverlay) UpdateGridMatches(prefix string) {
 	o.updateGridMatches(prefix)
 }
 
-func (o *sharedOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
-	if !o.drawable() || cell == nil {
+// ShowSubgrid opens the finer grid inside one cell, with the pointer stand-in
+// the same keystroke moved.
+//
+// The pointer is recorded past the nil cell and before the surface check, which
+// is the same line SetGridPointer draws: a record kept without a surface is
+// state the next repaint reads rather than a draw of its own, but a call with
+// no cell is a call that said nothing about this surface at all — recording its
+// pointer would leave the record describing a screen nobody asked for, and
+// SetGridPointer's equality guard would then swallow the call that meant it.
+//
+// Recording it and letting showSubgrid's own repaint paint it is the whole of
+// what #1492 buys — no equality guard here, because an open repaints the
+// surface whether or not the pointer moved.
+func (o *sharedOverlay) ShowSubgrid(
+	cell *domainGrid.Cell,
+	_ gridcomponent.Style,
+	pointer recursivegridcomponent.VirtualPointerState,
+) {
+	if cell == nil {
+		return
+	}
+
+	o.gridPointer = pointer
+
+	if !o.drawable() {
 		return
 	}
 
@@ -206,6 +240,39 @@ func (o *sharedOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcom
 	}
 
 	o.drawGrid(g, input, style)
+}
+
+// SetGridPointer records where grid mode's pointer stand-in belongs and
+// repaints the grid surface so it appears there, or takes it off when the
+// state it is handed is not visible.
+//
+// The record is kept whether or not there is a surface to paint on, because
+// it is state the next repaint reads rather than a draw of its own — the same
+// reason SetHideUnmatched keeps its flag. What asks drawable is the repaint.
+//
+// A state equal to the one already held paints nothing: grid mode refreshes
+// the pointer on every keystroke and it moves only when a cell is chosen, so
+// the common key would otherwise cost a second full repaint of the surface the
+// narrowing has already repainted.
+//
+// Repainting the whole surface for one glyph is the deliberate half of the
+// cost. The alternative is the sticky badge's incremental shape — clear the
+// rectangle the pointer covered, paint it at its new place — and it is wrong
+// here for the reason hiding the hint search badge repaints rather than erases:
+// this surface is one Cairo target, so clearing a rectangle out of it takes a
+// bite out of the cell borders underneath.
+func (o *sharedOverlay) SetGridPointer(pointer recursivegridcomponent.VirtualPointerState) {
+	if pointer == o.gridPointer {
+		return
+	}
+
+	o.gridPointer = pointer
+
+	if !o.drawable() {
+		return
+	}
+
+	o.redrawGrid()
 }
 
 func (o *sharedOverlay) DrawRecursiveGridWithSubKeyPreview(
@@ -326,6 +393,14 @@ func (o *sharedOverlay) setRenderMu(mu *sync.Mutex) {
 	o.renderMu = mu
 }
 
+// forgetGridPointer drops grid mode's pointer stand-in without repainting. It
+// follows a Clear or a Hide, which take the whole surface away: there is
+// nothing left to paint it onto, and a record kept past one would put the
+// pointer back on the first repaint of whatever comes next.
+func (o *sharedOverlay) forgetGridPointer() {
+	o.gridPointer = recursivegridcomponent.VirtualPointerState{}
+}
+
 // drawable reports whether there is a native surface to draw on: a backend
 // whose overlaySurface was wired and whose handle is still open. It is the
 // guard the exported delegates above share, standing in for the per-backend
@@ -361,17 +436,90 @@ func (o *sharedOverlay) updateGridMatches(prefix string) {
 	o.redrawGrid()
 }
 
+// showSubgrid replaces what is on the grid surface with the finer grid inside
+// one cell.
+//
+// It records the cell before painting anything, because currentSubgrid is what
+// the surface *shows* from here until a Frame replaces it — every repaint below
+// reads it, including the one that follows a frame this call could not begin.
 func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 	o.currentSubgrid = cell
-	o.srf.ensureBuffers()
-	o.clear()
 
-	if !o.srf.beginFrame() {
+	if !o.paintSubgridSurface(cell) {
 		return
 	}
 
-	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
+	// Dropped only once the frame was painted, so a frame that could not begin
+	// leaves both still describing the screen it did not touch: the
+	// recursive-grid animation must not zoom out of bounds that are gone, and
+	// hiding the hint search badge must not repaint labels that are gone.
+	//
+	// currentSubgrid above is deliberately not one of these. It records what the
+	// mode has open rather than what was painted, which is why it is set outside
+	// the guard.
+	o.hasLast = false
+	o.lastHints = nil
+}
+
+// paintSubgridSurface paints the finer grid inside one cell, alone on the
+// surface, and reports whether the frame was painted.
+//
+// It is the one copy of what an open subgrid looks like, and the single copy is
+// the point (#1491): the open and every repaint after it used to answer "what
+// is behind a subgrid" separately, and the narrowing keystroke answered it with
+// the parent cells. macOS settles which answer is right and the answer is
+// nothing: its ShowSubgrid (adapter/overlay/render/grid/overlay_darwin.go)
+// clears the overlay window and hands NeruDrawGridCells the nine subgrid cells,
+// and that bridge (adapter/platform/darwin/overlay_darwin.m) replaces the view's
+// cell array rather than adding to it — so the parent cells leave the reference
+// platform's overlay for as long as the subgrid is up, and its own narrowing
+// call only re-marks the cells already there.
+//
+// The order of the first two calls is the load-bearing part: beginFrame is what
+// selects the writable buffer on Wayland, so clearing before it wipes the
+// buffer that is on screen and leaves the one about to be shown holding
+// whatever it last held.
+//
+// It clears through the surface primitive rather than through clear(): every
+// caller reaches it with renderMu held, and clear() begins by canceling a
+// running animation, which waits on a goroutine that takes renderMu on every
+// frame. The cancel an open owes is Manager.ShowSubgrid's, made before it takes
+// the lock — no repaint of this surface calls clear().
+func (o *sharedOverlay) paintSubgridSurface(cell *domainGrid.Cell) bool {
+	o.srf.ensureBuffers()
+
+	if !o.srf.beginFrame() {
+		return false
+	}
+
+	o.srf.surfaceClear()
+	o.paintSubgridContent(cell)
 	o.srf.surfaceFlush()
+
+	return true
+}
+
+// paintSubgridContent draws the finer grid inside one cell, with the pointer
+// riding the same pass, into a frame the caller has begun and cleared.
+func (o *sharedOverlay) paintSubgridContent(cell *domainGrid.Cell) {
+	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
+	o.paintGridPointer()
+}
+
+// paintGridPointer puts grid mode's pointer stand-in on the surface, in the
+// pass the caller has already begun. The position it holds is screen-local
+// like the cells it sits among, so it is translated onto the active monitor
+// here — the same translation the recursive-grid draw makes on the pointer its
+// frame carries.
+func (o *sharedOverlay) paintGridPointer() {
+	if !o.gridPointer.Visible {
+		return
+	}
+
+	placed := o.gridPointer
+	placed.Position = placed.Position.Add(o.originOffset)
+
+	o.drawVirtualPointer(placed)
 }
 
 func (o *sharedOverlay) drawGrid(grid *domainGrid.Grid, input string, style gridcomponent.Style) {
@@ -1156,7 +1304,26 @@ func (o *sharedOverlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPoin
 		badge.ParseHexARGB(vp.FillColor))
 }
 
+// redrawGrid paints the grid surface as it currently stands, which is either
+// the subgrid one cell was opened into or the cells themselves. It is the only
+// answer to "what does this surface show", so a narrowing keystroke, a pointer
+// move and a fresh set of cells all arrive at the same screen.
+//
+// The subgrid is the whole surface while one is open (#1491) — paintSubgridSurface
+// says what settles that — and the guard lives here rather than at each caller
+// because updateGridMatches reaches this on a keystroke: a narrowing that put
+// the parent cells back under the subgrid would change what is on screen
+// without the user asking for it.
+//
+// Its own sequence is that function's, and clears through the surface primitive
+// for the same reason.
 func (o *sharedOverlay) redrawGrid() {
+	if o.currentSubgrid != nil {
+		o.paintSubgridSurface(o.currentSubgrid)
+
+		return
+	}
+
 	if o.cachedGrid == nil {
 		return
 	}
@@ -1195,9 +1362,7 @@ func (o *sharedOverlay) redrawGrid() {
 			style.FontFamily(), style.LabelFontSize(), text)
 	}
 
-	if o.currentSubgrid != nil {
-		o.drawSubgrid(o.currentSubgrid.Bounds(), style)
-	}
+	o.paintGridPointer()
 
 	o.srf.surfaceFlush()
 }

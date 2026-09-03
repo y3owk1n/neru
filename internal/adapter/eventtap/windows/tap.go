@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
@@ -91,7 +92,9 @@ func (et *EventTap) Destroy() {
 	et.Disable()
 }
 
-// SetHotkeys sets the hotkeys.
+// SetHotkeys sets the hotkeys. These are the global [hotkeys] chords the
+// platform backend registered, which handleKey leaves to RegisterHotKey rather
+// than dispatching itself.
 func (et *EventTap) SetHotkeys(hotkeys []string) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
@@ -167,6 +170,27 @@ func IsWaylandEvdevKeyboardActive() bool {
 	return false
 }
 
+// isRegisteredHotkey reports whether key is one of the chords registered as a
+// global hotkey, compared in the normalized form both sides are matched in so a
+// binding written "Primary+G" answers for the "Ctrl+G" the hook reads.
+func (et *EventTap) isRegisteredHotkey(key string) bool {
+	normalized := config.NormalizeKeyForComparison(key)
+	if normalized == "" {
+		return false
+	}
+
+	et.mu.RLock()
+	defer et.mu.RUnlock()
+
+	for _, hotkey := range et.hotkeys {
+		if config.NormalizeKeyForComparison(hotkey) == normalized {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (et *EventTap) handleKey(key string, isUp bool) bool {
 	if key == "" {
 		return false
@@ -188,15 +212,32 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 		return false
 	}
 
+	normalized := keyvocab.NormalizeKey(key)
+
 	// Key-down with system-level modifiers (ctrl, alt, cmd) should pass through
 	// to the application so system shortcuts like Ctrl+C, Alt+Tab, Win+D still
 	// work while a mode is active. The mode handler still receives the key for
 	// hotkey matching.
-	normalized := keyvocab.NormalizeKey(key)
-
 	lower := strings.ToLower(normalized)
 	if strings.Contains(lower, "ctrl+") || strings.Contains(lower, "alt+") ||
 		strings.Contains(lower, "cmd+") {
+		// Unless the chord is one RegisterHotKey owns. That mechanism keeps
+		// firing while a mode is active and this hook runs ahead of it, so
+		// passing the key on without dispatching leaves exactly one of the two
+		// to run the binding. Dispatching as well would run it twice, because
+		// the mode handler falls back to the global table for a chord the mode
+		// does not bind (internal/app/modes/keymap.go, settledKeymaps),
+		// and a double-run of "recursive_grid --toggle" exits the mode and
+		// re-enters it. macOS answers the same question the same way, in its own
+		// tap's hotkey check (platform/darwin/eventtap_darwin.m).
+		//
+		// Bare keys and Shift-only combos are deliberately not asked about: the
+		// tap consumes those below so a mode keeps every key it reads as input,
+		// and the handler's fallback leaves them alone for the same reason.
+		if et.isRegisteredHotkey(normalized) {
+			return false
+		}
+
 		et.dispatchKey(normalized)
 
 		return false

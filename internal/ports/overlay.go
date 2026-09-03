@@ -290,6 +290,13 @@ type OverlayPort interface {
 	// ClearFrame takes whatever frame is on screen off it, content and all,
 	// and returns the overlay to idle. It is the leaving half of the same
 	// sequence, owned in the same place.
+	//
+	// "Content and all" includes what the incremental calls below left on the
+	// grid surface — the hide-unmatched flag and the pointer stand-in (#1492).
+	// A mode used to reset those itself on the way out, which on a backend
+	// that repaints the whole surface per call meant repainting a grid twice
+	// to throw it away; and a caller that has to take half a surface down
+	// itself is a caller that can leave half of it behind.
 	ClearFrame(ctx context.Context) error
 
 	// SetActiveScreen names the display the overlay's screen-local content
@@ -349,7 +356,15 @@ type OverlayPort interface {
 	// ShowGridSubgrid opens the finer grid drawn inside one cell, over the
 	// grid already on screen. It fires on the keystroke that picks the cell,
 	// so it is an update rather than a frame for the same reason.
-	ShowGridSubgrid(cell *grid.Cell)
+	//
+	// It carries the pointer stand-in the way a recursive-grid frame does, and
+	// for the same reason (#1492): the keystroke that picks a cell is also the
+	// keystroke that moves the selection, and on a backend that paints both
+	// onto one surface — every Linux one — saying it in two calls repaints
+	// that surface twice. The pointer travels here so one call paints both.
+	// It is the pointer as it should stand *after* the cell was picked, so an
+	// invisible one takes it off the subgrid the same call opens.
+	ShowGridSubgrid(cell *grid.Cell, pointer GridPointer)
 
 	// UpdateGridPointer moves the pointer stand-in drawn on a grid surface,
 	// or takes it off. The mode names which surface — grid or recursive grid
@@ -357,8 +372,10 @@ type OverlayPort interface {
 	//
 	// A recursive-grid frame carries the same value, because that backend
 	// paints the pointer in the same pass as the cells and a redraw without it
-	// would wipe it. This call is for the keystrokes that move the pointer and
-	// nothing else, which is most of them.
+	// would wipe it. ShowGridSubgrid carries it for the same reason. This call
+	// is for the keystrokes that move the pointer and nothing else — the
+	// activation that places it, the toggle that hides it, the screen change
+	// that invalidates it.
 	UpdateGridPointer(mode domain.Mode, pointer GridPointer)
 
 	// DrawModeIndicator draws a mode indicator at the specified position.
@@ -436,6 +453,13 @@ type OverlayPort interface {
 	// connections. It runs on the shutdown path, after the modes have already
 	// cleared what they drew, and must be safe to call when nothing was ever
 	// shown.
+	//
+	// It is final: every other method on this port is a no-op afterwards, and
+	// the ones that answer report what a screenless overlay honestly can — a
+	// drawing call succeeds without drawing, IsVisible is false, the hint
+	// search bounds are empty and Health reports CodeNotSupported. A caller
+	// racing a shutdown is a race the shutdown already won, not a failure it
+	// needs told about (#1515).
 	Destroy()
 }
 

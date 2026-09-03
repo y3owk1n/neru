@@ -52,7 +52,7 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 		{
 			"the vision strategy is a value, not the option",
 			hintsStrategy, visionStrategy,
-			parity.Platforms{parity.Darwin},
+			parity.Platforms{parity.Darwin, parity.Linux},
 		},
 		{
 			"monitor_select has no Windows overlay extension",
@@ -133,12 +133,18 @@ func TestInertWords_Options(t *testing.T) {
 		{
 			name:    "a value is reported only when it is the one declared",
 			written: map[string]string{hintsStrategy: visionStrategy},
-			target:  parity.Linux,
+			target:  parity.Windows,
 			want:    []string{"hints.strategy = vision"},
 		},
 		{
 			name:    "the same option with another value is not reported",
 			written: map[string]string{hintsStrategy: "axtree"},
+			target:  parity.Windows,
+			want:    nil,
+		},
+		{
+			name:    "the vision strategy is silent on the platform that grew an engine",
+			written: map[string]string{hintsStrategy: visionStrategy},
 			target:  parity.Linux,
 			want:    nil,
 		},
@@ -216,12 +222,18 @@ func TestInertWords_Steps(t *testing.T) {
 		{
 			name:   "a mode flag value with no engine is reported",
 			steps:  []string{"hints --strategy=vision"},
-			target: parity.Linux,
+			target: parity.Windows,
 			want:   []string{"--strategy=vision"},
 		},
 		{
 			name:   "the same flag with a supported value is not",
 			steps:  []string{"hints --strategy=axtree"},
+			target: parity.Windows,
+			want:   nil,
+		},
+		{
+			name:   "the same flag value is silent where an engine landed",
+			steps:  []string{"hints --strategy=vision --split-word"},
 			target: parity.Linux,
 			want:   nil,
 		},

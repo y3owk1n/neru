@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // This is a whitebox test — it calls the unexported generator directly, which
@@ -36,7 +38,15 @@ func TestGenerateCellsWithRegions_SurvivesDegenerateDimensions(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			cells := generateCellsWithRegions(
 				chars, chars, chars,
-				len(chars), testCase.gridCols, testCase.gridRows, LabelLength2,
+				gridPlan{
+					dimensions: domain.GridDimensions{
+						Rows: testCase.gridRows,
+						Cols: testCase.gridCols,
+					},
+					region:      domain.GridDimensions{Rows: 1, Cols: len(chars)},
+					labelLength: LabelLength2,
+					regionCount: len(chars),
+				},
 				bounds,
 				10, 10, 0, 0,
 				zap.NewNop(),

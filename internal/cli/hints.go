@@ -27,8 +27,13 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     --role button,link           Only hint buttons and links
     --text "Submit,Cancel"        Only hint elements containing "Submit" or "Cancel"
 
-  Use --strategy vision to use the Vision Framework (macOS) for element
-  detection instead of the default AX API.
+  Use --strategy vision to detect elements by recognizing what is on screen
+  instead of walking the accessibility tree — the Vision framework on macOS,
+  tesseract OCR on Linux, where it finds text only. Not available on Windows.
+
+  Use --strategy wl-kbptr on Linux to detect interactive targets (buttons,
+  icons, text) via contour analysis of the captured window screen image
+  using the embedded wl-kbptr algorithm without external libraries.
 
   Use --split-word to split detected text into word-level regions (requires
   vision strategy).
@@ -49,7 +54,8 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     neru hints --search                      Start with search input shown
     neru hints --search --hide-on-empty-search  Start search with hints hidden until you type
     neru hints --role button                 Hint only buttons
-    neru hints --strategy vision             Use Vision Framework detection
+    neru hints --strategy vision             Detect elements by screen recognition
+    neru hints --strategy wl-kbptr           Detect buttons and icons via contour analysis
     neru hints --strategy vision --split-word  Use vision strategy with word-level splitting
     neru hints --debug                       Print detected elements, no overlay (used on windows),
     neru hints --label-direction reverse     Use spread labels for this run`,

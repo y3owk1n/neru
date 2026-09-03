@@ -85,8 +85,13 @@ in
           EnvironmentVariables = effectiveEnv;
           KeepAlive = cfg.launchd.keepAlive;
           RunAtLoad = true;
-          StandardOutPath = "/tmp/neru.log";
-          StandardErrorPath = "/tmp/neru.err.log";
+          # Neither stream is redirected. This agent is installed system-wide
+          # and runs for whichever user logs in, so no per-user log path can be
+          # written here at build time, and a shared one (/tmp) would put the
+          # daemon's output where every local user can read it. Neru writes its
+          # own rotated log to ~/Library/Logs/neru/app.log regardless; for a
+          # single-user machine that also wants crash output captured, use the
+          # home-manager module, which can name the user's own log directory.
           ProcessType = "Interactive";
           LimitLoadToSessionType = "Aqua";
           Nice = -10;

@@ -141,6 +141,11 @@ type Client struct {
 	logger       *zap.Logger
 	windowOrigin windowOriginSource
 
+	// originFailure is the reason the window-origin source last gave for not
+	// answering, so a session-long failure is warned about once rather than on
+	// every activation. Read and written from whichever goroutine is scanning.
+	originFailure atomic.Pointer[string]
+
 	mu        sync.Mutex
 	a11y      *dbus.Conn
 	a11yReady bool
@@ -296,11 +301,14 @@ func (c *Client) ClickableNodes(
 		return nil, nil
 	}
 
-	// Validate the cached KWin origin against the frame actually being walked
-	// (by size): a stale origin from a previous window would offset every hint
-	// to the wrong screen position. When the frame extents are unavailable the
-	// origin cannot be validated, so no offset is applied at all — unoffset
-	// hints beat hints offset to a previous window or monitor.
+	// Validate the compositor's origin against the frame actually being walked:
+	// an origin from a different window would offset every hint to the wrong
+	// screen position. The frame is described by its size and by the focused
+	// identity it was selected with, so a source that can compare identities
+	// (KWin) can tell apart two windows that a size comparison cannot. When the
+	// frame extents are unavailable the origin cannot be validated at all, so no
+	// offset is applied — unoffset hints beat hints offset to a previous window
+	// or monitor.
 	var (
 		offX, offY int
 		haveOrigin bool
@@ -308,16 +316,37 @@ func (c *Client) ClickableNodes(
 
 	frameRect, frameOK := c.extents(ctx, conn, win.ref)
 	if frameOK {
-		originX, originY, ok := c.windowOrigin.originFor(frameRect.Dx(), frameRect.Dy())
-		if ok {
-			// AT-SPI reports element coordinates in the app's own space, where the
-			// frame content sits at frameRect.Min — non-zero when the toolkit adds a
-			// margin (e.g. a GTK client-side-decoration shadow). The compositor
-			// origin is the content's screen position, so shift element coordinates
-			// by (compositor origin − frame margin) to avoid a constant offset.
-			offX = originX - frameRect.Min.X
-			offY = originY - frameRect.Min.Y
-			haveOrigin = true
+		origin, originKnown, originErr := c.windowOrigin.originFor(windowFrame{
+			Width:        frameRect.Dx(),
+			Height:       frameRect.Dy(),
+			FocusedAppID: win.focusedAppID,
+			FocusedTitle: win.focusedTitle,
+		})
+		if originErr != nil {
+			// The two ways of having no origin are not the same event. A
+			// compositor that answered and has none to give is routine, and
+			// window-relative coordinates are the answer. A source that could
+			// not be asked leaves every hint in this window at the wrong screen
+			// position, and the reason has to be readable without a debug build.
+			c.reportOriginFailure(originErr)
+		} else {
+			// The source answered, which is what makes a later failure news
+			// again — whether or not it had a position to give. A tiled niri
+			// window and an unfocused desktop are working sources with nothing
+			// to report, so they end a recorded failure exactly as a window
+			// with an origin does.
+			c.clearOriginFailure()
+
+			if originKnown {
+				// AT-SPI reports element coordinates in the app's own space, where the
+				// frame content sits at frameRect.Min — non-zero when the toolkit adds a
+				// margin (e.g. a GTK client-side-decoration shadow). The compositor
+				// origin is the content's screen position, so shift element coordinates
+				// by (compositor origin − frame margin) to avoid a constant offset.
+				offX = origin.X - frameRect.Min.X
+				offY = origin.Y - frameRect.Min.Y
+				haveOrigin = true
+			}
 		}
 	}
 

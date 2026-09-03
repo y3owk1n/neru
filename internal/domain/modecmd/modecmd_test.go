@@ -40,7 +40,7 @@ const (
 	// The messages both this file and the diagnosis cases pin, so that the two
 	// readings of the same command are held to the same sentence.
 	msgRepeatNeedsAction = "--repeat requires --action"
-	msgStrategyValue     = "--strategy requires axtree or vision"
+	msgStrategyValue     = "--strategy requires axtree, vision, or wl-kbptr"
 	msgGridRejectsSearch = "grid does not accept --search"
 )
 

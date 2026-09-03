@@ -60,6 +60,11 @@ func (a *App) Run() error {
 		zap.String("log_level", cfg.Logging.LogLevel),
 		zap.Bool("file_logging", !cfg.Logging.DisableFileLogging))
 
+	// Immediately after the identity line and before anything can fail: a build
+	// outside the parity boundary says so once, here, rather than one stubbed
+	// keystroke at a time.
+	announceBuildBoundary(a.logger, platform.CurrentOS(), cgoEnabled)
+
 	err := a.ipcServer.Start(a.ctx)
 	if err != nil {
 		a.logger.Error("Failed to start IPC server", zap.Error(err))
@@ -514,18 +519,35 @@ func (a *App) Cleanup() {
 			a.hotkeys.Unregister()
 		}
 
-		if a.overlayPort != nil {
-			a.overlayPort.Destroy()
-		}
-
+		// Unsubscribe from screen-share state before the overlay is released,
+		// for the same reason the layout-change closure goes first: a callback
+		// registered against a destroyed overlay is a call nothing should
+		// still be making. It narrows the window rather than closing it —
+		// AppState publishes on a goroutine per subscriber, so one already
+		// launched is unaffected by unsubscribing — and what closes it is the
+		// darwin manager serializing SetSharingType against its own teardown.
 		if a.screenShareSubscriptionID != 0 {
 			a.appState.OffScreenShareStateChanged(a.screenShareSubscriptionID)
 			a.screenShareSubscriptionID = 0
 		}
 
+		// The event tap goes before the overlay, and the order is load-bearing
+		// (#1515): tearing the tap down drains its key dispatcher, and that
+		// drain delivers whatever key was still queued into the mode handler,
+		// which draws. Released the other way round, a key arriving in the
+		// window between the two calls is handled after the overlay is gone.
+		// The overlay adapter refuses to draw once it has been destroyed, so
+		// this is no longer the only thing standing between a drained key and
+		// a freed native window — but it is what keeps the drain finishing
+		// while there is still a surface to finish onto.
 		if a.eventTap != nil {
 			a.eventTap.Destroy()
 		}
+
+		if a.overlayPort != nil {
+			a.overlayPort.Destroy()
+		}
+
 		// Close the accessibility client to release platform resources
 		// (e.g. AT-SPI D-Bus connection and a11y status on Linux).
 		if a.axClient != nil {

@@ -191,7 +191,10 @@ that promise broken, and the matrix is structurally unable to see it.
   flips when the Linux entries in Known Gaps are empty for the blessed stack
   and the sway CI job is green and required for merge. A label with no
   criterion either never moves or moves on a feeling; fourteen tickets with no
-  defined end state is how "beta" becomes permanent.
+  defined end state is how "beta" becomes permanent. *(Amended: both halves came
+  true and the label did not flip. This criterion gated Stable on parity while
+  observing in the same sentence that Stable was parity restated — see the
+  second amendment at the end.)*
 - **Two new words in `CONTEXT.md`.** *Parity* and *Blessed stack*. The first
   because the word is the decision and it was previously used loosely enough to
   mean either measure; the second because without it *Parity* has to re-explain
@@ -257,3 +260,64 @@ the same day otherwise:
   contract), and the uinput `REL_WHEEL_HI_RES` route, which that job cannot
   observe at all. An Xvfb harness would let the X11 half be checked rather than
   argued.
+
+## Amendment: Stable was parity restated, so it could not gate on parity
+
+The graduation criterion this ADR set has been met and is not being honoured as
+written. Both halves came true — the Linux entries in Known Gaps are empty for
+the blessed stack, and the headless-sway job blocks merges — and Linux stays
+Beta. That is a change to this ADR rather than a lapse from it, and the reason
+is in the consequence itself.
+
+"Linux graduates on a stated criterion" observed that `CROSS_PLATFORM.md`
+defined **Stable** as "fully featured — a gap on this platform is a bug", which
+is "nearly a restatement of parity", and then adopted that definition as the
+trigger anyway. So the label was always going to flip the moment parity closed,
+and not because Linux had been shown to be reliable — because Stable had never
+been defined as reliable. The criterion measured coverage twice and exposure
+never. Parity closing is what made that visible; nothing about the fourteen
+tickets went wrong.
+
+So the two claims separate. **Parity** is a claim about coverage: every name a
+person can write means here what it means on macOS, provable against a
+checklist, and now true. **Stable** is a claim about reliability, which no
+checklist establishes — fourteen capabilities landed in a fortnight on a
+platform the maintainer does not daily-drive, each proven by a CI job rather
+than by use, and a CI job cannot tell us how they behave on a real compositor
+under a real workload over weeks. `CROSS_PLATFORM.md` now defines Stable as
+"fully featured *and* proven in use", which is the definition it should have
+carried before it was pressed into service as a gate.
+
+The discipline this ADR insisted on survives intact, because it has to. "A label
+with no criterion either never moves or moves on a feeling" is exactly the
+failure a nervous maintainer reaches for when the checklist runs out, and
+replacing a firing criterion with a judgment call would be this ADR defeated on
+its last page. The replacement is falsifiable: Linux moves to Stable after six
+consecutive releases in which no Linux-only bug is filed. Releases rather than
+calendar time, so a pause in shipping pauses the clock — exposure is the thing
+being measured, and an unreleased month provides none. Bugs *filed* in the
+window rather than still open at the end of it, because a bug found and fixed
+still happened; the query that finds them is in `CROSS_PLATFORM.md`, along with
+the two things it hands back to a person rather than settling.
+
+Falsifiable is not the same as mechanical, and the difference is worth stating
+so the next reader does not mistake one for the other. Whether an individual bug
+is Linux-only is a reading, and no label makes it otherwise. What this criterion
+removes is the judgment that actually rotted the old one: whether the platform
+*feels* ready. Six releases and a countable set of bugs is an answer a
+maintainer can be wrong about but cannot indefinitely defer.
+
+Two limits, recorded rather than papered over:
+
+- **It can graduate on silence.** If few people run Neru on Linux, no bugs are
+  filed and the criterion passes for want of users rather than want of defects.
+  This is not fixable — user counts are not observable from here — and the
+  alternative, a gate on adoption we cannot measure, is worse than a gate that
+  can be satisfied quietly. A platform generating no reports is at least
+  generating no harm.
+- **Performance is not in the criterion, because nothing measures it.** "Latency
+  is the product", and the only benchmarks in the tree run through the
+  platform-neutral simulation harness in `internal/app/simulation_benchmark_test.go`
+  — there is no Linux latency measurement to gate on. A performance bar with no
+  benchmark behind it is the judgment call under a different name. Gating on it
+  means building the measurement first.

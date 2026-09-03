@@ -181,9 +181,14 @@ func (b *Base) ResizeIndicatorToActiveScreen(indicator ports.Indicator) {
 // DrawGridPointer puts the pointer stand-in on the surface a grid mode draws
 // on. A mode names the mode; which render component that is, and whether it
 // was ever built, is this package's business.
-func (b *Base) DrawGridPointer(mode Mode, point image.Point, size int, fillColor string) {
+//
+// A render component takes the size and the fill only: the char and the family
+// it draws with are the ones ConfigureComponents already handed it. A backend
+// that paints the pointer onto its own surface instead reads the rest of the
+// appearance out of the argument, which is why it travels whole.
+func (b *Base) DrawGridPointer(mode Mode, point image.Point, appearance PointerAppearance) {
 	if surface := b.gridPointerSurfaceFor(mode); surface != nil {
-		surface.ShowVirtualPointer(point, size, fillColor)
+		surface.ShowVirtualPointer(point, appearance.FontSize, appearance.FillColor)
 	}
 }
 
@@ -192,6 +197,31 @@ func (b *Base) HideGridPointer(mode Mode) {
 	if surface := b.gridPointerSurfaceFor(mode); surface != nil {
 		surface.HideVirtualPointer()
 	}
+}
+
+// ApplyGridPointer puts a pointer state onto a grid mode's surface, or takes
+// the pointer off when the state is not visible. It is the state-shaped form of
+// the two calls above, for the draws that carry the pointer with them rather
+// than being followed by a call of their own (#1492) — a subgrid open, today.
+//
+// A backend that overrides DrawGridPointer must not reach this: Go dispatches
+// the two calls below to Base, not to the override. The backends that paint the
+// pointer themselves — the Linux ones — implement the carrying draw themselves
+// too, so the only callers here are the ones whose pointer is a layer of its
+// own and costs nothing to apply after the draw.
+func (b *Base) ApplyGridPointer(mode Mode, pointer recursivegrid.VirtualPointerState) {
+	if !pointer.Visible {
+		b.HideGridPointer(mode)
+
+		return
+	}
+
+	b.DrawGridPointer(mode, pointer.Position, PointerAppearance{
+		FillColor:  pointer.FillColor,
+		FontFamily: pointer.FontName,
+		Char:       pointer.Char,
+		FontSize:   pointer.Size,
+	})
 }
 
 // gridPointerSurface is the pointer half the grid and recursive-grid render

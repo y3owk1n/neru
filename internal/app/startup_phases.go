@@ -377,16 +377,7 @@ func initializeIPCController(app *App) {
 
 	// The binder needs the executor, so it is built here rather than with the
 	// rest of the infrastructure.
-	app.hotkeys = keybinding.New(keybinding.Deps{
-		Manager:     app.hotkeyManager,
-		Modes:       app.modes,
-		State:       app.appState,
-		FocusedApp:  app.actionService,
-		Config:      app.configSnapshot,
-		RunSequence: app.runActionSequence,
-		Context:     func() context.Context { return app.ctx },
-		Logger:      app.logger,
-	})
+	app.hotkeys = keybinding.New(hotkeyBinderDeps(app))
 
 	// Set the config-set callback so runtime field changes propagate to
 	// app components (services, overlays, hotkeys, etc.). Uses the setter
@@ -419,6 +410,37 @@ func cleanupScreenShareStateSubscription(app *App) {
 	}
 }
 
+// hotkeyBinderDeps is what the hotkey binder is built from.
+//
+// It is a function rather than a literal at the call site so the one thing about
+// it that is easy to get wrong can be tested: this phase runs before the phase
+// that builds the event tap, so every dependency here has to tolerate a field
+// that is still nil. Reading one *now* to hand over a method value panics on the
+// spot, which is a crash before the daemon has logged anything it could be
+// diagnosed from (TestHotkeyBinderDeps_PublishSurvivesAnEventTapThatDoesNotExistYet).
+func hotkeyBinderDeps(app *App) keybinding.Deps {
+	return keybinding.Deps{
+		Manager:     app.hotkeyManager,
+		Modes:       app.modes,
+		State:       app.appState,
+		FocusedApp:  app.actionService,
+		Config:      app.configSnapshot,
+		RunSequence: app.runActionSequence,
+		// The taps hand a registered chord back to the mechanism that owns it, so
+		// they are told what registration actually took rather than what the
+		// configuration asked for. Late-bound for the reason above: the field is
+		// filled by phase 8 and the nil check keeps a startup that never reaches
+		// it harmless.
+		PublishRegisteredHotkeys: func(keys []string) {
+			if app.eventTap != nil {
+				app.eventTap.SetHotkeys(keys)
+			}
+		},
+		Context: func() context.Context { return app.ctx },
+		Logger:  app.logger,
+	}
+}
+
 // initializeEventTapAndIPC sets up the event tap for key capture and
 // the IPC server for external communication.
 func initializeEventTapAndIPC(app *App) error {
@@ -430,6 +452,12 @@ func initializeEventTapAndIPC(app *App) error {
 		tap := eventtapadapter.NewEventTap(app.HandleKeyPress, logger)
 		if tap != nil {
 			app.eventTap = eventtapadapter.NewAdapter(tap, logger)
+
+			// A backend that presents an action's modifiers by pressing real
+			// keys has to say so, or the tap reads its own injection as the
+			// user pressing that modifier. Which backends need it is a
+			// per-platform answer; the concrete tap is only in reach here.
+			registerSyntheticModifierSink(tap, logger)
 		}
 	}
 
@@ -546,6 +574,10 @@ func cleanupEventTapAndIPC(app *App) {
 	if app.eventTap != nil {
 		app.eventTap.Destroy()
 		app.eventTap = nil
+
+		// The injection backend holds the tap in a slot of its own, which
+		// outlives this App unless it is let go of here.
+		registerSyntheticModifierSink(nil, app.logger)
 	}
 
 	// Clean up IPC controller

@@ -221,14 +221,33 @@ type Interface interface {
 		virtualPointer recursivegrid.VirtualPointerState,
 	) error
 	UpdateGridMatches(prefix string)
-	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
+	// ShowSubgrid replaces the cells on the grid surface with the finer grid
+	// inside one cell.
+	//
+	// It takes the pointer stand-in the way DrawRecursiveGrid does, and for the
+	// same reason (#1492): a backend that paints both onto one surface repaints
+	// that surface once per call, and the keystroke that opens a subgrid is the
+	// keystroke that moves the pointer. A backend whose pointer is a layer of
+	// its own applies it after the open and pays nothing for the pairing.
+	ShowSubgrid(
+		cell *domainGrid.Cell,
+		style grid.Style,
+		virtualPointer recursivegrid.VirtualPointerState,
+	)
 	SetHideUnmatched(hide bool)
 
 	// DrawGridPointer and HideGridPointer drive the pointer stand-in drawn on
 	// a grid mode's own surface, which is not one of the cursor-following
 	// Indicators: it belongs to the mode's drawing, and the mode names it by
 	// mode rather than by render component.
-	DrawGridPointer(mode Mode, point image.Point, size int, fillColor string)
+	//
+	// The whole resolved appearance travels with the position, not the size
+	// and fill alone: a backend that paints the glyph on its own surface —
+	// every Linux one — holds no render component with the pointer's
+	// configuration in it, so the char and the family have nowhere else to
+	// come from. The darwin components read them from the configuration
+	// ConfigureComponents hands them and ignore these two.
+	DrawGridPointer(mode Mode, point image.Point, appearance PointerAppearance)
 	HideGridPointer(mode Mode)
 	Flush()
 	SetSharingType(hide bool)

@@ -99,9 +99,12 @@ func derefStruct(field reflect.Value) reflect.Value {
 	return field
 }
 
-// many variants (Chan, Map, Func, etc.) that are never valid config field types.
+// setLeafValue handles only config-relevant reflect.Kind variants (String,
+// Int, Float, Bool, Slice, Struct); all others are unreachable in valid config
+// paths. The exhaustive linter is suppressed because adding every Kind would be
+// noise.
 //
-//nolint:exhaustive // Only config-relevant types are handled; reflect.Kind has
+//nolint:exhaustive
 func setLeafValue(field reflect.Value, value string) error {
 	field = derefStruct(field)
 

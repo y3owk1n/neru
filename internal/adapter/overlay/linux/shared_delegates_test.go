@@ -67,7 +67,7 @@ func (s *closedSurface) textPrim(_, _ string, _, _, _ float64, _ uint32) {
 	s.touched("textPrim")
 }
 
-// movedDelegate is one of the sixteen exported methods the two backends used
+// movedDelegate is one of the eighteen methods the two backends used
 // to declare identically and now share, called with arguments that would draw.
 // Passing empty ones would let a delegate look guarded when it was only
 // short-circuiting on its input.
@@ -90,7 +90,10 @@ func movedDelegates() []movedDelegate {
 		{"Clear", func(o *sharedOverlay) { o.Clear() }},
 		{"ClearRect", func(o *sharedOverlay) { o.ClearRect(image.Rect(1, 1, 20, 20)) }},
 		{"UpdateGridMatches", func(o *sharedOverlay) { o.UpdateGridMatches("ab") }},
-		{"ShowSubgrid", func(o *sharedOverlay) { o.ShowSubgrid(cell, gridcomponent.Style{}) }},
+		{
+			"ShowSubgrid",
+			func(o *sharedOverlay) { o.ShowSubgrid(cell, gridcomponent.Style{}, noGridPointer) },
+		},
 		{"SetHideUnmatched", func(o *sharedOverlay) { o.SetHideUnmatched(true) }},
 		{"DrawGrid", func(o *sharedOverlay) {
 			o.DrawGrid(domainGrid.NewGrid("abc", bounds, zap.NewNop()), "a", gridcomponent.Style{})
@@ -136,10 +139,16 @@ func movedDelegates() []movedDelegate {
 			o.HideHintSearchInput(image.Rect(10, 20, 310, 60))
 		}},
 		{"setOriginOffset", func(o *sharedOverlay) { o.setOriginOffset(image.Pt(1920, 0)) }},
+		{"SetGridPointer", func(o *sharedOverlay) {
+			o.SetGridPointer(recursivegridcomponent.VirtualPointerState{
+				Visible: true, Position: image.Pt(40, 60), Size: 12, Char: "●",
+			})
+		}},
+		{"forgetGridPointer", func(o *sharedOverlay) { o.forgetGridPointer() }},
 	}
 }
 
-// The sixteen delegates on sharedOverlay (fourteen moved there in #1415) are promoted
+// The eighteen delegates on sharedOverlay (fourteen moved there in #1415) are promoted
 // into both backends, so the per-backend `o != nil && o.raw != nil` prologue
 // they each carried is gone. The receiver half of it is the manager's job —
 // promotion panics before any guard could run, which is why manager.go's

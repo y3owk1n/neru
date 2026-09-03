@@ -24,10 +24,12 @@ type MockVisionPort struct {
 		bool,
 	) ([]*element.Element, error)
 	CaptureScreenFunc func(context.Context) (*image.RGBA, error)
+	DetectWLKBPTRFunc func(context.Context, image.Rectangle) ([]*element.Element, error)
 
 	mu       sync.Mutex
 	detectN  int
 	captureN int
+	wlkbptrN int
 }
 
 // Health implements ports.VisionPort.
@@ -70,6 +72,22 @@ func (m *MockVisionPort) CaptureScreen(ctx context.Context) (*image.RGBA, error)
 	return nil, derrors.New(derrors.CodeNotSupported, "screen capture is only supported on macOS")
 }
 
+// DetectWLKBPTR implements ports.VisionPort.
+func (m *MockVisionPort) DetectWLKBPTR(
+	ctx context.Context,
+	screenBounds image.Rectangle,
+) ([]*element.Element, error) {
+	m.mu.Lock()
+	m.wlkbptrN++
+	m.mu.Unlock()
+
+	if m.DetectWLKBPTRFunc != nil {
+		return m.DetectWLKBPTRFunc(ctx, screenBounds)
+	}
+
+	return nil, derrors.New(derrors.CodeNotSupported, "wl-kbptr is only supported on Linux")
+}
+
 // DetectCallCount reports how many times DetectElements was called.
 func (m *MockVisionPort) DetectCallCount() int {
 	m.mu.Lock()
@@ -84,6 +102,14 @@ func (m *MockVisionPort) CaptureCallCount() int {
 	defer m.mu.Unlock()
 
 	return m.captureN
+}
+
+// DetectWLKBPTRCallCount reports how many times DetectWLKBPTR was called.
+func (m *MockVisionPort) DetectWLKBPTRCallCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.wlkbptrN
 }
 
 // Ensure MockVisionPort implements ports.VisionPort.

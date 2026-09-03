@@ -110,26 +110,68 @@ type keymapInputs struct {
 	mustAsk    bool
 }
 
-// settledKeymap returns the bindings in force, settling them first if the
-// mode, the focused app or the configuration has changed since they last were.
+// settledKeymap returns the mode's own bindings in force, settling them first if
+// the mode, the focused app or the configuration has changed since they last
+// were.
 //
-// This is the only thing key dispatch consults, and it is deliberately the only
-// place the three merge sites became: whoever needs to know what is bound reads
-// this rather than merging a copy of their own.
+// This is what key dispatch consults first, and it is deliberately the only
+// place the three merge sites became: whoever needs to know what a mode binds
+// reads this rather than merging a copy of their own.
 //
 // Caller must hold h.mu.
 func (h *handlerState) settledKeymap() configpkg.Keymap {
+	h.settleKeymaps()
+
+	return h.keymap
+}
+
+// settledKeymaps returns both tables in force: the active mode's own, and the
+// global chords it falls back to.
+//
+// The first return is the active mode's own table and the second is the global
+// one it falls back to, in the order dispatch asks them.
+//
+// It exists so a caller that needs the pair settles once. Key dispatch is that
+// caller, and asking twice put a second keymapInputs — an [[app_configs]] scan
+// and a mode-extension assertion among it — on every keystroke, which is the
+// kind of cost the event tap's position on every keystroke makes it wrong to pay
+// (root AGENTS.md, Product Direction).
+//
+// Caller must hold h.mu.
+func (h *handlerState) settledKeymaps() (configpkg.Keymap, configpkg.Keymap) {
+	h.settleKeymaps()
+
+	return h.keymap, h.globalHotkeys
+}
+
+// settleKeymaps settles both tables in force — the mode's own and the global
+// fallback — if any of their shared inputs has changed since they last were.
+//
+// One settling for the two of them is what keeps the focused app resolved once:
+// asking the platform for it is the call ADR 0005 keeps off the keystroke path,
+// so a second table may not mean a second ask.
+//
+// Caller must hold h.mu.
+func (h *handlerState) settleKeymaps() {
 	inputs := h.keymapInputs()
 	if h.keymapSettled && h.keymapSettledFor == inputs {
-		return h.keymap
+		return
 	}
 
 	h.keymap = configpkg.Keymap{}
+	h.globalHotkeys = configpkg.Keymap{}
+
 	if inputs.config != nil {
-		h.keymap = inputs.config.ResolveKeymap(
-			domain.ModeString(inputs.mode),
-			h.resolveFocusedApp(inputs),
-		)
+		focusedApp := h.resolveFocusedApp(inputs)
+
+		h.keymap = inputs.config.ResolveKeymap(domain.ModeString(inputs.mode), focusedApp)
+
+		// Idle takes no fallback. Nothing is captured there, so the platform's
+		// own hotkey mechanism is what runs a global binding — and a key fed
+		// over IPC into idle must not fire one behind its back.
+		if inputs.mode != domain.ModeIdle {
+			h.globalHotkeys = inputs.config.ResolveGlobalKeymap(focusedApp).ModifierChords()
+		}
 	}
 
 	h.keymapSettledFor = inputs
@@ -138,9 +180,8 @@ func (h *handlerState) settledKeymap() configpkg.Keymap {
 	h.logger.Debug("Keymap settled",
 		zap.String("mode", domain.ModeString(inputs.mode)),
 		zap.Int("binding_count", h.keymap.Len()),
+		zap.Int("global_fallback_count", h.globalHotkeys.Len()),
 		zap.Bool("asked_the_platform", inputs.mustAsk))
-
-	return h.keymap
 }
 
 // keymapInputs reads what the keymap depends on. It asks the platform nothing,
@@ -154,7 +195,7 @@ func (h *handlerState) keymapInputs() keymapInputs {
 		config: h.config,
 	}
 
-	if !h.activeModeHasAppHotkeyOverrides() {
+	if !h.focusedAppCanChangeWhatIsBound(inputs.mode) {
 		// No override can apply, so which application is focused cannot change
 		// what is bound and is not worth learning.
 		return inputs
@@ -165,6 +206,25 @@ func (h *handlerState) keymapInputs() keymapInputs {
 	inputs.mustAsk = !published
 
 	return inputs
+}
+
+// focusedAppCanChangeWhatIsBound reports whether which application is focused
+// can change the answer a keystroke gets.
+//
+// Two tables are in force while a mode is open — the mode's own and the global
+// one it falls back to — and either of them carrying a per-app override is
+// enough to make the focused app worth learning. The global half is asked only
+// outside idle, because that is where the fallback exists at all.
+//
+// Caller must hold h.mu.
+func (h *handlerState) focusedAppCanChangeWhatIsBound(mode domain.Mode) bool {
+	if h.activeModeHasAppHotkeyOverrides() {
+		return true
+	}
+
+	return mode != domain.ModeIdle &&
+		h.config != nil &&
+		h.config.HasGlobalAppHotkeyOverrides()
 }
 
 // resolveFocusedApp answers which application's overrides the keymap is being

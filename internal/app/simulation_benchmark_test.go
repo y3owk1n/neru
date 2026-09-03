@@ -26,6 +26,7 @@ package app_test
 import (
 	"image"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -86,6 +87,89 @@ func BenchmarkGridNarrowingKeystroke(b *testing.B) {
 		b.Fatalf("grid redrawn %d times while narrowing; the keystrokes took the draw path",
 			drawn)
 	}
+}
+
+// BenchmarkGridSelectionKeystroke measures the other keystroke grid mode has:
+// the one that completes a cell's label. It opens the subgrid inside that cell
+// *and* moves the selection onto it, and on a backend that paints both into one
+// surface — every Linux one — that used to be two full repaints of it (#1492).
+//
+// The session has cursor-follow turned off, because that is the one this is
+// about: with the real cursor riding the selection there is no pointer stand-in
+// to move and nothing was ever paid twice.
+//
+// surface-updates/op is the number that matters and the one a host without a
+// display can still produce: how many times the keystroke asked the grid
+// surface to change. Time and allocations are reported beside it so a change
+// that bought a repaint with a slower key path cannot hide.
+func BenchmarkGridSelectionKeystroke(b *testing.B) {
+	sim := newSimHarness(b, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	stopCursorFollowing(sim)
+
+	cells := sim.overlay.lastGrid().Cells()
+	if len(cells) == 0 {
+		b.Fatal("grid drawn with zero cells")
+	}
+
+	label := []rune(cells[0].Coordinate())
+	if len(label) < 2 {
+		b.Fatalf("grid label %q is one character; it has no keystroke before the selection",
+			string(label))
+	}
+
+	// The narrowing half is typed once, outside the loop: each iteration
+	// re-enters the subgrid from the same prefix, which is where backing out of
+	// one leaves the input.
+	sim.typeLabel(string(label[:len(label)-1]))
+
+	selectionKey := strings.ToLower(string(label[len(label)-1]))
+	subgridsBefore := sim.overlay.subgridCount()
+
+	// Counted per iteration rather than over the whole run, because backing out
+	// of the subgrid re-runs the update callback and its surface updates are
+	// not the keystroke's. Both reads are outside the timer.
+	surfaceUpdates := 0
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for range b.N {
+		b.StopTimer()
+
+		updatesBefore := sim.overlay.gridSurfaceUpdates()
+
+		b.StartTimer()
+
+		sim.press(selectionKey)
+
+		b.StopTimer()
+
+		surfaceUpdates += sim.overlay.gridSurfaceUpdates() - updatesBefore
+
+		backOutOfSubgrid(sim)
+		b.StartTimer()
+	}
+
+	b.StopTimer()
+
+	if mode := sim.app.CurrentMode(); mode != domain.ModeGrid {
+		b.Fatalf("benchmark left grid mode for %s; the numbers are not grid's",
+			domain.ModeString(mode))
+	}
+
+	// Every timed keystroke has to have opened a subgrid, or the benchmark
+	// measured keys that selected nothing.
+	if opened := sim.overlay.subgridCount() - subgridsBefore; opened != b.N {
+		b.Fatalf("%d subgrids opened for %d keystrokes; some keys selected nothing",
+			opened, b.N)
+	}
+
+	b.ReportMetric(float64(surfaceUpdates)/float64(b.N), "surface-updates/op")
 }
 
 // BenchmarkRecursiveGridKeystroke measures one keystroke in recursive-grid
@@ -221,6 +305,20 @@ func clearGridNarrowing(sim *simHarness) {
 		prefix, narrowed := sim.overlay.lastMatchPrefix()
 
 		return narrowed && prefix == ""
+	})
+}
+
+// backOutOfSubgrid leaves an open subgrid without leaving grid mode, which puts
+// the input back at the prefix the selection keystroke was pressed from.
+// Backspace is a mode hotkey, so the app runs it on a goroutine and this waits
+// for the grid it restores to be drawn.
+func backOutOfSubgrid(sim *simHarness) {
+	drawn := sim.overlay.gridDrawCount()
+
+	sim.press(backspaceKey)
+
+	settle(sim, "the subgrid closed", func() bool {
+		return sim.overlay.gridDrawCount() > drawn
 	})
 }
 

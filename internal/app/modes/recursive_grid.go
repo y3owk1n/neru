@@ -47,7 +47,9 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 		// The overlay is cleared unconditionally below.
 		h.stopIndicatorPolling()
 	} else {
-		h.exitMode()
+		// Coming from another mode, the keyboard is handed over rather than
+		// given back: exit now, release at return if nothing is entered.
+		defer h.exitModeForTransition()()
 	}
 
 	// Get screen bounds
@@ -150,7 +152,6 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 
 // initializeRecursiveGridManager initializes the recursive-grid manager.
 func (h *handlerState) initializeRecursiveGridManager(screenBounds image.Rectangle) {
-	// Ensure recursiveGrid component is initialized
 	if h.recursiveGrid == nil {
 		h.recursiveGrid = &components.RecursiveGridComponent{
 			Context: &componentrecursivegrid.Context{},

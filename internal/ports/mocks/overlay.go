@@ -186,12 +186,16 @@ func (m *MockOverlayPort) SetGridHideUnmatched(hide bool) {
 	m.gridHideUnmatched = hide
 }
 
-// ShowGridSubgrid implements ports.OverlayPort.
-func (m *MockOverlayPort) ShowGridSubgrid(_ *grid.Cell) {
+// ShowGridSubgrid implements ports.OverlayPort. The pointer it carries is
+// recorded where UpdateGridPointer records one, because from a caller's side it
+// is the same statement about the same surface — made in the same call so the
+// surface is painted once (#1492).
+func (m *MockOverlayPort) ShowGridSubgrid(_ *grid.Cell, pointer ports.GridPointer) {
 	m.gridMu.Lock()
 	defer m.gridMu.Unlock()
 
 	m.gridSubgrids++
+	m.recordGridPointerLocked(domain.ModeGrid, pointer)
 }
 
 // UpdateGridPointer implements ports.OverlayPort.
@@ -199,11 +203,7 @@ func (m *MockOverlayPort) UpdateGridPointer(mode domain.Mode, pointer ports.Grid
 	m.gridMu.Lock()
 	defer m.gridMu.Unlock()
 
-	if m.gridPointers == nil {
-		m.gridPointers = make(map[domain.Mode]ports.GridPointer)
-	}
-
-	m.gridPointers[mode] = pointer
+	m.recordGridPointerLocked(mode, pointer)
 }
 
 // GridPrefixes returns every prefix the grid was narrowed to, in order.
@@ -529,6 +529,16 @@ func (m *MockOverlayPort) Health(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// recordGridPointerLocked stores the pointer a grid surface was last asked for.
+// Caller must hold gridMu.
+func (m *MockOverlayPort) recordGridPointerLocked(mode domain.Mode, pointer ports.GridPointer) {
+	if m.gridPointers == nil {
+		m.gridPointers = make(map[domain.Mode]ports.GridPointer)
+	}
+
+	m.gridPointers[mode] = pointer
 }
 
 func (m *MockOverlayPort) setIndicatorVisible(indicator ports.Indicator, visible bool) {

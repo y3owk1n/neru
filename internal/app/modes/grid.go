@@ -44,7 +44,9 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 		// The overlay is cleared unconditionally below.
 		h.stopIndicatorPolling()
 	} else {
-		h.exitMode()
+		// Coming from another mode, the keyboard is handed over rather than
+		// given back: exit now, release at return if nothing is entered.
+		defer h.exitModeForTransition()()
 	}
 
 	gridInstance := h.createGridInstance()
@@ -117,10 +119,8 @@ func (h *handlerState) createGridInstance() *domainGrid.Grid {
 	// Normalize normalizedBounds to window-local coordinates using helper function
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(screenBounds)
 
-	gridInstance := domainGrid.NewGridWithLabels(
-		h.config.GridCharacters(),
-		h.config.Grid.RowLabels,
-		h.config.Grid.ColLabels,
+	gridInstance := domainGrid.NewGridWithOptions(
+		h.config.GridOptions(),
 		normalizedBounds,
 		h.logger,
 	)
@@ -149,10 +149,8 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 		}
 
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
-		gridInstance = domainGrid.NewGridWithLabels(
-			h.config.GridCharacters(),
-			h.config.Grid.RowLabels,
-			h.config.Grid.ColLabels,
+		gridInstance = domainGrid.NewGridWithOptions(
+			h.config.GridOptions(),
 			bounds,
 			h.logger,
 		)
@@ -217,8 +215,11 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 				h.grid.Context.SetSelectionPoint(absoluteCenter)
 
 				if !h.grid.Context.CursorFollowSelection() {
-					h.showGridSubgrid(cell)
-					h.refreshGridVirtualPointer()
+					// One call, because the surface is one surface: the
+					// pointer just moved onto the cell this subgrid opens
+					// inside, and saying so separately repaints the subgrid a
+					// second time (#1492).
+					h.showGridSubgrid(cell, h.gridPointer())
 
 					return
 				}
@@ -229,9 +230,11 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 				h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 			}
 
-			// Draw 3x3 subgrid inside selected cell
-			h.showGridSubgrid(cell)
-			h.refreshGridVirtualPointer()
+			// Draw 3x3 subgrid inside selected cell. The real cursor is on the
+			// selection here, so the pointer this carries stands for nothing
+			// and is invisible — the open still says so, rather than leaving
+			// whatever the surface last held.
+			h.showGridSubgrid(cell, h.gridPointer())
 		},
 		h.logger,
 	)

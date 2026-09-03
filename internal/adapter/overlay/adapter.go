@@ -17,10 +17,37 @@ import (
 )
 
 // Adapter implements ports.OverlayPort by wrapping the existing overlay.Manager.
+//
+// Destroy is final: every method below no-ops once it has run, the way
+// eventtap.Adapter's do since #1514. The shutdown is what needs it — the event
+// tap's teardown drains its dispatcher, and that drain delivers whatever key
+// was still queued into the mode handler, which draws — so a caller can reach
+// this adapter after the backend it wraps has been freed. The ordering in
+// App.Cleanup answers that for the caller it knows about; this answers it for
+// every caller, including the ones a later change adds.
 type Adapter struct {
 	manager ManagerInterface
 	styles  StyleOwner
 	logger  *zap.Logger
+
+	// destroyed is set by Destroy before it releases the backend. It is an
+	// atomic rather than the mutex the event tap adapter guards the same state
+	// with, because this adapter holds no lock of its own and must not grow
+	// one: a draw runs under the mode handler's h.mu and may block in the
+	// backend's renderMu, so a lock between them would sit on the h.mu ->
+	// renderMu edge that every keystroke's draw crosses.
+	destroyed atomic.Bool
+
+	// teardownDone is closed once the backend has been released. A second
+	// caller waits on it rather than returning early, so Destroy keeps its
+	// postcondition — the overlay is released when it returns — for the caller
+	// that raced the first one. It is allocated by NewAdapter rather than by
+	// the claim, which is where the event tap adapter allocates its own: that
+	// one claims under a mutex it already had, and this one claims with a
+	// compare-and-swap because the flag above is an atomic. NewAdapter is the
+	// only constructor — every other field is unexported and a zero Adapter has
+	// no backend to release.
+	teardownDone chan struct{}
 
 	// subgridDrawn is whether a subgrid is on the grid surface. It is the one
 	// piece of screen state this adapter keeps, and it keeps it because it is
@@ -48,9 +75,10 @@ func NewAdapter(
 	}
 
 	return &Adapter{
-		manager: manager,
-		styles:  styles,
-		logger:  logger.Named("overlay"),
+		manager:      manager,
+		styles:       styles,
+		logger:       logger.Named("overlay"),
+		teardownDone: make(chan struct{}),
 	}
 }
 
@@ -60,6 +88,10 @@ func NewAdapter(
 // where getting the order wrong showed an empty overlay or left the previous
 // mode's on screen.
 func (a *Adapter) ShowFrame(ctx context.Context, frame ports.Frame) error {
+	if a.releasedReporting("ShowFrame") {
+		return nil
+	}
+
 	err := contextAlive(ctx)
 	if err != nil {
 		return err
@@ -118,6 +150,10 @@ func drawsOnSharedWindow(frame ports.Frame) bool {
 // every keystroke; the window sequence is skipped so a keystroke costs a draw
 // and nothing else (ADR 0003).
 func (a *Adapter) RedrawFrame(ctx context.Context, frame ports.Frame) error {
+	if a.releasedReporting("RedrawFrame") {
+		return nil
+	}
+
 	err := contextAlive(ctx)
 	if err != nil {
 		return err
@@ -127,7 +163,26 @@ func (a *Adapter) RedrawFrame(ctx context.Context, frame ports.Frame) error {
 }
 
 // ClearFrame takes the frame on screen off it and returns the overlay to idle.
+//
+// It also drops what the grid's incremental calls left behind, which grid mode
+// used to reset for itself on the way out (#1492). Both run after the surface
+// has been cleared, which is what makes them cost nothing where the reset used
+// to cost a repaint: the hide-unmatched flag is a flag, and a backend that
+// repaints on a pointer change has already forgotten the pointer, so the hide
+// is the statement without the repaint. What each backend does beyond that is
+// its own — macOS marks its emptied view for redisplay either way — and this is
+// teardown, not a keystroke. The match prefix needs no reset at all: a grid
+// coming back up is a transition, which clears and redraws in full.
+//
+// The pair is unconditional rather than gated on grid mode having been the one
+// on screen. The leaving half does not ask which mode it is leaving — that is
+// what stops a caller from having to remember — and neither call means anything
+// to a surface no grid was drawn on.
 func (a *Adapter) ClearFrame(ctx context.Context) error {
+	if a.releasedReporting("ClearFrame") {
+		return nil
+	}
+
 	err := contextAlive(ctx)
 	if err != nil {
 		return err
@@ -138,6 +193,8 @@ func (a *Adapter) ClearFrame(ctx context.Context) error {
 	a.manager.Clear()
 	a.manager.ClearCache()
 	a.hideMonitorSelect()
+	a.manager.SetHideUnmatched(false)
+	a.manager.HideGridPointer(ModeGrid)
 	a.manager.Hide()
 	a.manager.SwitchTo(ModeIdle)
 	a.subgridDrawn.Store(false)
@@ -148,11 +205,19 @@ func (a *Adapter) ClearFrame(ctx context.Context) error {
 // SetActiveScreen names the display the overlay's screen-local content belongs
 // to.
 func (a *Adapter) SetActiveScreen(screen image.Rectangle) {
+	if a.released() {
+		return
+	}
+
 	a.manager.SetActiveScreenOrigin(screen.Min)
 }
 
 // Flush commits everything drawn since the last flush.
 func (a *Adapter) Flush() {
+	if a.released() {
+		return
+	}
+
 	a.manager.Flush()
 }
 
@@ -167,6 +232,10 @@ func (a *Adapter) Flush() {
 // search itself keeps working, because the query reaches the hints through the
 // key stream — so the warning that explains the missing box is logged here.
 func (a *Adapter) DrawHintSearch(search ports.HintSearch) error {
+	if a.releasedReporting("DrawHintSearch") {
+		return nil
+	}
+
 	style := ResolvedStyle(a.styles)
 
 	frame, frameErr := searchInputFrame(style.HintSearchLayout, search.Screen)
@@ -198,6 +267,10 @@ func (a *Adapter) DrawHintSearch(search ports.HintSearch) error {
 
 // HideHintSearch takes the search input off the screen.
 func (a *Adapter) HideHintSearch() {
+	if a.released() {
+		return
+	}
+
 	a.manager.HideHintSearchInput()
 }
 
@@ -211,6 +284,13 @@ func (a *Adapter) HideHintSearch() {
 // draw path logs the reason, which is why this one does not repeat it on every
 // search that opens.
 func (a *Adapter) HintSearchBounds(screen image.Rectangle) image.Rectangle {
+	// A destroyed overlay answers the empty rectangle for the same reason a
+	// refused anchor does: there is no box on screen for the platform's IME
+	// field to be put over.
+	if a.released() {
+		return image.Rectangle{}
+	}
+
 	layout := ResolvedStyle(a.styles).HintSearchLayout
 
 	placed, placeErr := searchInputFrame(layout, screen)
@@ -226,25 +306,50 @@ func (a *Adapter) HintSearchBounds(screen image.Rectangle) image.Rectangle {
 
 // UpdateGridMatches narrows the grid on screen to a prefix.
 func (a *Adapter) UpdateGridMatches(prefix string) {
+	if a.released() {
+		return
+	}
+
 	a.manager.UpdateGridMatches(prefix)
 }
 
 // SetGridHideUnmatched says whether cells that no longer match disappear.
 func (a *Adapter) SetGridHideUnmatched(hide bool) {
+	if a.released() {
+		return
+	}
+
 	a.manager.SetHideUnmatched(hide)
 }
 
 // ShowGridSubgrid opens the finer grid inside one cell, with the grid Style
-// the overlay already resolved.
-func (a *Adapter) ShowGridSubgrid(cell *domainGrid.Cell) {
-	a.manager.ShowSubgrid(cell, ResolvedStyle(a.styles).Grid)
+// the overlay already resolved and the pointer stand-in that belongs on the
+// same surface.
+//
+// The pointer rides the open rather than following it in a call of its own
+// (#1492), which is what makes the keystroke that picks a cell cost one repaint
+// on a backend that paints the two into one surface. Meeting it with the
+// resolved Style happens here, as it does for the pointer a recursive-grid
+// frame carries — appearance never travels from a mode.
+func (a *Adapter) ShowGridSubgrid(cell *domainGrid.Cell, pointer ports.GridPointer) {
+	if a.released() {
+		return
+	}
+
+	style := ResolvedStyle(a.styles)
+
+	a.manager.ShowSubgrid(cell, style.Grid, gridSurfacePointer(pointer, style.VirtualPointer))
 	a.subgridDrawn.Store(true)
 }
 
 // UpdateGridPointer places the pointer stand-in on a grid mode's surface, or
-// takes it off. Its size and color come from the resolved Style, so no caller
-// carries appearance here.
+// takes it off. Its whole appearance — size, fill, char and family — comes from
+// the resolved Style, so no caller carries any of it here.
 func (a *Adapter) UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer) {
+	if a.released() {
+		return
+	}
+
 	surface, surfaceErr := overlayMode(mode)
 	if surfaceErr != nil {
 		a.logger.Debug("Grid pointer names no mode this adapter draws",
@@ -259,9 +364,11 @@ func (a *Adapter) UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer)
 		return
 	}
 
-	style := ResolvedStyle(a.styles).VirtualPointer
-
-	a.manager.DrawGridPointer(surface, pointer.Position, style.FontSize, style.FillColor)
+	a.manager.DrawGridPointer(
+		surface,
+		pointer.Position,
+		pointerAppearance(ResolvedStyle(a.styles).VirtualPointer),
+	)
 }
 
 // overlayMode translates a mode into the overlay's own name for it. The two
@@ -292,35 +399,59 @@ func contextAlive(ctx context.Context) error {
 
 // DrawModeIndicator draws a mode indicator at the specified position.
 func (a *Adapter) DrawModeIndicator(x, y int) {
+	if a.released() {
+		return
+	}
+
 	a.manager.DrawModeIndicator(x, y)
 }
 
 // DrawStickyModifiersIndicator draws the sticky modifiers indicator at the specified position.
 func (a *Adapter) DrawStickyModifiersIndicator(x, y int, symbols string) {
+	if a.released() {
+		return
+	}
+
 	a.manager.DrawStickyModifiersIndicator(x, y, symbols)
 }
 
 // DrawVirtualPointer draws the cursor-following virtual pointer. Its size and
 // color come from the resolved Style the adapter already holds, so a caller
 // never carries appearance through the mode layer to get here.
-func (a *Adapter) DrawVirtualPointer(x, y int) {
+func (a *Adapter) DrawVirtualPointer(posX, posY int) {
+	if a.released() {
+		return
+	}
+
 	style := ResolvedStyle(a.styles).VirtualPointer
 
-	a.manager.DrawVirtualPointer(x, y, style.FontSize, style.FillColor)
+	a.manager.DrawVirtualPointer(posX, posY, style.FontSize, style.FillColor)
 }
 
 // ShowIndicator makes an indicator visible.
 func (a *Adapter) ShowIndicator(indicator ports.Indicator) {
+	if a.released() {
+		return
+	}
+
 	a.manager.ShowIndicator(indicator)
 }
 
 // HideIndicator takes an indicator off the screen, content and all.
 func (a *Adapter) HideIndicator(indicator ports.Indicator) {
+	if a.released() {
+		return
+	}
+
 	a.manager.HideIndicator(indicator)
 }
 
 // ResizeIndicatorToActiveScreen sizes an indicator to the active display.
 func (a *Adapter) ResizeIndicatorToActiveScreen(indicator ports.Indicator) {
+	if a.released() {
+		return
+	}
+
 	a.manager.ResizeIndicatorToActiveScreen(indicator)
 }
 
@@ -329,16 +460,29 @@ func (a *Adapter) DrawMouseActionIndicator(
 	point image.Point,
 	style ports.MouseActionIndicatorStyle,
 ) {
+	if a.released() {
+		return
+	}
+
 	a.manager.DrawMouseActionIndicator(point, style)
 }
 
-// IsVisible returns true if any overlay is currently visible.
+// IsVisible returns true if any overlay is currently visible. A destroyed
+// overlay answers false: nothing it drew is on screen any more.
 func (a *Adapter) IsVisible() bool {
+	if a.released() {
+		return false
+	}
+
 	return a.manager.Mode() != ModeIdle
 }
 
 // Refresh updates the overlay display.
 func (a *Adapter) Refresh(ctx context.Context) error {
+	if a.releasedReporting("Refresh") {
+		return nil
+	}
+
 	err := contextAlive(ctx)
 	if err != nil {
 		return err
@@ -357,7 +501,7 @@ func (a *Adapter) Refresh(ctx context.Context) error {
 // overlay; the fan-out it replaced is what left an overlay in the old colors
 // when a call site was missed.
 func (a *Adapter) ApplyConfig(cfg *config.Config) {
-	if a.styles == nil {
+	if a.released() || a.styles == nil {
 		return
 	}
 
@@ -367,7 +511,7 @@ func (a *Adapter) ApplyConfig(cfg *config.Config) {
 // RefreshStyles re-resolves those Styles against the configuration the overlay
 // already holds. A light/dark change goes through here.
 func (a *Adapter) RefreshStyles() {
-	if a.styles == nil {
+	if a.released() || a.styles == nil {
 		return
 	}
 
@@ -377,11 +521,45 @@ func (a *Adapter) RefreshStyles() {
 // SetHiddenInScreenShare excludes the overlay from screen captures, or stops
 // excluding it. Backends that cannot exclude themselves ignore it.
 func (a *Adapter) SetHiddenInScreenShare(hidden bool) {
+	if a.released() {
+		return
+	}
+
 	a.manager.SetSharingType(hidden)
 }
 
-// Destroy releases everything the overlay owns.
+// Destroy releases everything the overlay owns, and is safe to call twice.
+//
+// The adapter marks itself destroyed before the backend is released rather
+// than after, so a caller arriving during the teardown finds an overlay that
+// has already stopped answering instead of one whose native window is being
+// freed underneath it. What the flag does not do is close that window: a
+// caller already past the check when this runs is still inside the backend, and
+// nothing here waits for it. Serializing the two would mean a lock across every
+// draw, which is exactly what this adapter must not have — the release reaches
+// a backend that may block (Linux takes renderMu, macOS dispatch_syncs to the
+// main queue) and this adapter sits on the mode handler's h.mu -> renderMu
+// edge. What closes the window is the caller: App.Cleanup tears the event tap
+// down first, so the drain that delivers a queued key has finished before this
+// runs.
+//
+// The one call that arrives on a goroutine of its own is
+// SetHiddenInScreenShare — AppState publishes screen-share state with a
+// goroutine per subscriber — so ordering cannot be what closes that one, and
+// unsubscribing does not either: a goroutine already launched is past the
+// point where removing the subscription reaches it. It is closed where the
+// state it touches lives, in the darwin manager, which takes the mutex
+// dedicated to that flag across its own teardown (darwin/manager.go). Every
+// other backend answers SetSharingType with a no-op and has no such pair.
 func (a *Adapter) Destroy() {
+	if !a.destroyed.CompareAndSwap(false, true) {
+		<-a.teardownDone
+
+		return
+	}
+
+	defer close(a.teardownDone)
+
 	a.manager.Destroy()
 }
 
@@ -393,6 +571,10 @@ func (a *Adapter) Destroy() {
 // gate on the event tap, and a backend with no grab to release implements
 // manager.KeyboardCaptureController as a no-op or not at all.
 func (a *Adapter) SetKeyboardCaptureEnabled(enabled bool) {
+	if a.released() {
+		return
+	}
+
 	controller, ok := a.manager.(KeyboardCaptureController)
 	if !ok {
 		return
@@ -402,7 +584,15 @@ func (a *Adapter) SetKeyboardCaptureEnabled(enabled bool) {
 }
 
 // Health checks if the overlay manager is responsive.
+//
+// A destroyed overlay reports CodeNotSupported rather than answering healthy:
+// there is no surface left, and the code is the one every caller already
+// degrades on.
 func (a *Adapter) Health(_ context.Context) error {
+	if a.released() {
+		return derrors.New(derrors.CodeNotSupported, "the overlay has been destroyed")
+	}
+
 	if reporter, ok := a.manager.(CapabilityReporter); ok {
 		capability := reporter.OverlayCapabilities()
 		if !capability.Supported() {
@@ -411,6 +601,28 @@ func (a *Adapter) Health(_ context.Context) error {
 	}
 
 	return nil
+}
+
+// released reports whether the overlay has been destroyed, which every method
+// on the port answers by doing nothing.
+func (a *Adapter) released() bool {
+	return a.destroyed.Load()
+}
+
+// releasedReporting is released for the methods that answer an error. They
+// report a success they did not achieve, the way the event tap adapter's
+// Enable and Disable do, so the refusal is logged and the log is what explains
+// the difference afterwards. The methods that answer nothing have nothing to
+// correct and ask the plain question.
+func (a *Adapter) releasedReporting(call string) bool {
+	if !a.released() {
+		return false
+	}
+
+	a.logger.Debug("Overlay call ignored: the overlay has been destroyed",
+		zap.String("call", call))
+
+	return true
 }
 
 // drawKind says whether a draw is bringing its frame up or repainting one
@@ -530,7 +742,7 @@ func (a *Adapter) drawRecursiveGrid(frame ports.RecursiveGridFrame, kind drawKin
 		frame.NextLayout.Keys,
 		frame.NextLayout.Dimensions,
 		style.RecursiveGrid,
-		recursiveGridPointer(frame.Pointer, style.VirtualPointer),
+		gridSurfacePointer(frame.Pointer, style.VirtualPointer),
 	)
 	if drawErr != nil {
 		if derrors.IsNotSupported(drawErr) {
@@ -635,10 +847,10 @@ func (a *Adapter) drawScroll(kind drawKind) error {
 	return nil
 }
 
-// recursiveGridPointer meets the pointer a frame describes with the Style the
-// overlay resolved. Position is the caller's; everything else is appearance,
-// and appearance never travels on a frame.
-func recursiveGridPointer(
+// gridSurfacePointer meets the pointer a frame or a subgrid open describes with
+// the Style the overlay resolved. Position is the caller's; everything else is
+// appearance, and appearance never travels from a mode.
+func gridSurfacePointer(
 	pointer ports.GridPointer,
 	style VirtualPointerStyle,
 ) overlayRecursiveGrid.VirtualPointerState {

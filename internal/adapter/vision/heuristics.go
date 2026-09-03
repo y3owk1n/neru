@@ -20,19 +20,21 @@ type DetectedRegion struct {
 // regionClassifier applies geometric and saliency heuristics to assign
 // roles to detected regions. It is the first-pass classifier used on all
 // platforms; a Core ML model can be swapped in later for improved accuracy.
+//
+// roles is the native role vocabulary it answers in — see classifier_roles.go
+// for why the answer is native rather than semantic. Build one with
+// newRegionClassifier rather than by literal: a zero roles field would emit
+// empty role names, which match nothing and hint nothing.
 type regionClassifier struct {
-	cfg config.HintsVisionConfig
+	cfg   config.HintsVisionConfig
+	roles classifierRoles
 }
 
-// roleButton is the role assigned to a detected region. It is a native macOS
-// AX role name because vision detection only has a darwin backend
-// (adapter_other.go reports CodeNotSupported), so this is the vocabulary the
-// configured clickable roles resolve to on the only platform that runs it.
-//
-// A Linux or Windows vision backend must emit that platform's native role name
-// instead — "push button" or "Button" — since role filtering compares against
-// native names. See internal/domain/element/vocabulary.go.
-const roleButton = "AXButton"
+// newRegionClassifier builds a classifier that answers in the running
+// platform's accessibility vocabulary.
+func newRegionClassifier(cfg config.HintsVisionConfig) regionClassifier {
+	return regionClassifier{cfg: cfg, roles: currentClassifierRoles()}
+}
 
 // Classify assigns a role to a detected region based on its geometry and
 // saliency score. Returns the role string and whether the region is considered
@@ -43,24 +45,24 @@ func (c *regionClassifier) Classify(region DetectedRegion) (string, bool) {
 	height := float64(bounds.Dy())
 
 	if width <= 0 || height <= 0 {
-		return "AXUnknown", false
+		return c.roles.Unknown, false
 	}
 
 	aspectRatio := width / height
 
 	switch {
 	case region.IsText && c.isLikelyButton(aspectRatio, region.Score, width, height):
-		return roleButton, true
+		return c.roles.Button, true
 	case region.IsText && c.isLikelyLink(aspectRatio, width, height):
-		return "AXLink", true
+		return c.roles.Link, true
 	case region.IsText:
-		return "AXStaticText", false
+		return c.roles.StaticText, false
 	case c.isLikelyCheckBox(aspectRatio, width, height):
-		return "AXCheckBox", true
+		return c.roles.CheckBox, true
 	case c.isLikelyButton(aspectRatio, region.Score, width, height):
-		return roleButton, true
+		return c.roles.Button, true
 	case c.isLikelyImage(aspectRatio, width, height):
-		return "AXImage", false
+		return c.roles.Image, false
 	default:
 		minConf := 0.5
 		if c.cfg.GenericClickableMinConfidence > 0 {
@@ -68,10 +70,10 @@ func (c *regionClassifier) Classify(region DetectedRegion) (string, bool) {
 		}
 
 		if region.Score > minConf {
-			return roleButton, true
+			return c.roles.Button, true
 		}
 
-		return "AXGenericElement", false
+		return c.roles.Generic, false
 	}
 }
 

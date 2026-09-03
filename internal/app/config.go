@@ -40,7 +40,6 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 		return err
 	}
 
-	// Validate the new config.
 	valErr := newCfg.Validate()
 	if valErr != nil {
 		a.restoreHotkeysAfterFailedReload()
@@ -48,7 +47,6 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 		return derrors.Wrap(valErr, derrors.CodeInvalidConfig, "config-set validation")
 	}
 
-	// Update the config service (notifies watchers with the new config).
 	updateErr := a.configService.Update(newCfg, newWritten)
 	if updateErr != nil {
 		a.restoreHotkeysAfterFailedReload()
@@ -56,7 +54,6 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 		return updateErr
 	}
 
-	// Build a LoadResult for the reconfiguration helpers.
 	loadResult := &config.LoadResult{
 		Config:     newCfg,
 		Written:    newWritten,
@@ -73,9 +70,12 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 			"config set at runtime but failed to persist (the change will not survive a restart)")
 	}
 
+	// Only the key: it names a schema field. The value is what the user typed,
+	// and the log is not a place config content goes — the same rule the IPC
+	// controller states in handleConfigSetInMemory.
 	a.logger.Info("Config field updated at runtime",
 		zap.String("key", key),
-		zap.String("value", value),
+		zap.Int("value_length", len(value)),
 	)
 
 	return nil

@@ -138,6 +138,24 @@ func getCommonGridSizes() []image.Rectangle {
 	}
 }
 
+func prewarm(config config.GridConfig) {
+	if !config.PrewarmEnabled {
+		return
+	}
+
+	options := domainGrid.Options{
+		Characters:     config.Characters,
+		RowLabels:      config.RowLabels,
+		ColLabels:      config.ColLabels,
+		MaxLabelLength: config.MaxLabelLength,
+	}
+	go func() {
+		for _, rect := range getCommonGridSizes() {
+			_ = domainGrid.NewGridWithOptions(options, rect, zap.NewNop())
+		}
+	}()
+}
+
 // NewOverlay creates a new grid overlay instance with its own window and prewarms common grid sizes.
 func NewOverlay(config config.GridConfig, logger *zap.Logger) (*Overlay, error) {
 	base, err := overlayutil.NewBaseOverlay(logger)
@@ -146,11 +164,7 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) (*Overlay, error) 
 	}
 	base.CallbackManager.SetComponent("grid")
 	initGridPools()
-	chars := config.Characters
-
-	if config.PrewarmEnabled {
-		go domainGrid.Prewarm(chars, getCommonGridSizes())
-	}
+	prewarm(config)
 
 	return &Overlay{
 		window:          C.OverlayWindow(base.Window),
@@ -169,11 +183,7 @@ func NewOverlayWithWindow(
 	windowPtr unsafe.Pointer,
 ) *Overlay {
 	initGridPools()
-	chars := config.Characters
-
-	if config.PrewarmEnabled {
-		go domainGrid.Prewarm(chars, getCommonGridSizes())
-	}
+	prewarm(config)
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
 	base.CallbackManager.SetComponent("grid")
 
@@ -370,7 +380,6 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 		runtime.ReadMemStats(&msBefore)
 	}
 
-	// Check if we can do incremental updates (always try if we have previous state)
 	o.gridStateMu.RLock()
 	canIncrementalUpdate := o.previousGrid != nil
 	o.gridStateMu.RUnlock()
@@ -582,7 +591,6 @@ func (o *Overlay) drawGridIncremental(
 		return false // No previous state to compare against
 	}
 
-	// Check if only the input changed (common case for typing)
 	if o.gridsAreStructurallyEqual(grid, previousGrid) && style == previousStyle {
 		// Only input changed - we can do incremental match updates
 		if currentInput != previousInput {
@@ -623,7 +631,6 @@ func (o *Overlay) gridsAreStructurallyEqual(a, b *domainGrid.Grid) bool {
 		return false
 	}
 
-	// Check if all cells have the same coordinates and bounds
 	for i, aCell := range aCells {
 		bCell := bCells[i]
 		if aCell.Coordinate() != bCell.Coordinate() ||

@@ -132,7 +132,6 @@ func (a *App) IsOverlayHiddenForScreenShare() bool {
 
 // SetOverlayHiddenForScreenShare sets whether the overlay should be hidden from screen sharing.
 func (a *App) SetOverlayHiddenForScreenShare(hide bool) {
-	// Update app state (this will trigger callbacks)
 	a.appState.SetHiddenForScreenShare(hide)
 }
 

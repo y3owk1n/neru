@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"image"
 	"slices"
 	"sync"
 	"time"
@@ -33,6 +34,9 @@ type HintService struct {
 	config           config.HintsConfig
 	logger           *zap.Logger
 	vision           ports.VisionPort
+	// visionNotice is the last "the vision strategy cannot run here" reason a
+	// user was told, so the same one is not repeated on every activation.
+	visionNotice string
 }
 
 // NewHintService creates a new hint service with the given dependencies.
@@ -82,6 +86,10 @@ func (s *HintService) GenerateHints(
 	labelDirectionOverride string,
 	splitWord bool,
 ) ([]*hint.Interface, error) {
+	// This read must not be widened to span the strategy switch below: the
+	// vision branch takes s.mu for writing (notifyVisionUnavailable), and a
+	// sync.RWMutex is neither reentrant nor upgradable, so a read lock still
+	// held there would deadlock this goroutine against itself.
 	s.mu.RLock()
 	cfg := s.config
 	s.mu.RUnlock()
@@ -128,6 +136,8 @@ func (s *HintService) GenerateHints(
 	switch strategy {
 	case domain.StrategyVision:
 		elements = s.generateHintsVision(ctx, bundleID, filter, splitWord)
+	case domain.StrategyWLKBPTR:
+		elements = s.generateHintsWLKBPTR(ctx, bundleID)
 	default:
 		elements, genErr = s.generateHintsAX(ctx, filter)
 	}
@@ -293,10 +303,19 @@ func (s *HintService) generateHintsVision(
 	// Get focused window bounds for vision detection
 	windowBounds, found, boundsErr := s.system.FocusedWindowBounds(ctx)
 	if boundsErr != nil || !found {
-		s.logger.Debug(
-			"No focused window bounds, falling back to full screen",
-			zap.Error(boundsErr),
-		)
+		// The two ways of getting here are not the same event. found=false with
+		// no error is a desktop with nothing focused — routine, and the whole
+		// screen is the right answer. An error means the platform could not
+		// answer at all, and then scanning the whole screen is a degradation
+		// nobody asked for: slower, noisier, and silent until now.
+		if boundsErr != nil {
+			s.logger.Warn(
+				"Could not read the focused window, scanning the whole screen instead",
+				zap.Error(boundsErr),
+			)
+		} else {
+			s.logger.Debug("No focused window, scanning the whole screen")
+		}
 
 		windowBounds, boundsErr = s.system.ScreenBounds(ctx)
 		if boundsErr != nil {
@@ -322,6 +341,16 @@ func (s *HintService) generateHintsVision(
 	if visionErr != nil {
 		s.logger.Error("Failed to detect elements via vision", zap.Error(visionErr))
 
+		// CodeNotSupported here means the machine cannot run this strategy at
+		// all, and the error names what to install or which display server has
+		// no path. That has to reach a person: what a user otherwise sees is an
+		// overlay with nothing on it, because the supplementary elements kept
+		// above are macOS surfaces with no counterpart elsewhere, and a log
+		// line reaches nobody (ADR 0002). Transient failures stay in the log.
+		if derrors.IsNotSupported(visionErr) {
+			s.notifyVisionUnavailable(ctx, visionErr.Error())
+		}
+
 		return allElements
 	}
 
@@ -339,6 +368,169 @@ func (s *HintService) generateHintsVision(
 	}
 
 	return allElements
+}
+
+// generateHintsWLKBPTR detects interactive targets across the active screen
+// using the wl-kbptr contour detection algorithm. Scanning the active screen
+// rather than only the focused window ensures that desktop notifications,
+// status bars, and adjacent tiled windows are all detected as clickable targets.
+func (s *HintService) generateHintsWLKBPTR(
+	ctx context.Context,
+	_ string,
+) []*element.Element {
+	screenBounds, screenErr := s.resolveWLKBPTRScreenBounds(ctx)
+	if screenErr != nil || screenBounds.Empty() {
+		s.logger.Error(
+			"Failed to resolve screen bounds for wl-kbptr detection",
+			zap.Error(screenErr),
+		)
+
+		return nil
+	}
+
+	wlkbptrStart := time.Now()
+	elements, err := s.vision.DetectWLKBPTR(ctx, screenBounds)
+	s.logger.Debug("TIMING: Window elements (wl-kbptr)",
+		zap.Duration("elapsed", time.Since(wlkbptrStart)),
+		zap.Int("count", len(elements)),
+		zap.Error(err),
+	)
+
+	if err != nil {
+		s.logger.Error("Failed to detect elements via wl-kbptr", zap.Error(err))
+
+		return nil
+	}
+
+	return elements
+}
+
+// resolveWLKBPTRScreenBounds determines the active display bounds for wl-kbptr detection.
+// It prefers the monitor holding the focused window (matching resolveHintsScreenBounds)
+// so multi-monitor setups capture the display the user is interacting with, and falls back
+// to the monitor holding the cursor.
+func (s *HintService) resolveWLKBPTRScreenBounds(ctx context.Context) (image.Rectangle, error) {
+	var fallback image.Rectangle
+	if s.system != nil {
+		bounds, boundsErr := s.system.ScreenBounds(ctx)
+		if boundsErr == nil {
+			fallback = bounds
+		}
+	}
+
+	if s.system == nil {
+		if !fallback.Empty() {
+			return fallback, nil
+		}
+
+		return image.Rectangle{}, derrors.New(derrors.CodeInternal, "system port is nil")
+	}
+
+	windowBounds, found, err := s.system.FocusedWindowBounds(ctx)
+	if err != nil || !found || windowBounds.Empty() {
+		if !fallback.Empty() {
+			return fallback, nil
+		}
+
+		return image.Rectangle{}, err
+	}
+
+	if fallback.Empty() {
+		fallback = windowBounds
+	}
+
+	center := image.Point{
+		X: windowBounds.Min.X + windowBounds.Dx()/2,
+		Y: windowBounds.Min.Y + windowBounds.Dy()/2,
+	}
+
+	if !fallback.Empty() && center.In(fallback) {
+		return fallback, nil
+	}
+
+	names, namesErr := s.system.ScreenNames(ctx)
+	if namesErr != nil {
+		names = nil
+	}
+
+	for _, name := range names {
+		bounds, foundScreen, bErr := s.system.ScreenBoundsByName(ctx, name)
+		if bErr != nil || !foundScreen {
+			continue
+		}
+
+		if center.In(bounds) {
+			return bounds, nil
+		}
+	}
+
+	return fallback, nil
+}
+
+// notifyVisionUnavailable tells the user, once, that the vision strategy
+// cannot run here, carrying the reason the port gave.
+//
+// Once per distinct reason: a user who keeps pressing the hotkey gets one
+// notification rather than one per press, and a different reason (the language
+// data arrived, the session changed) is a new thing worth saying. The notice is
+// the port's own sentence, which names a package or a display server and never
+// anything read off the screen.
+//
+// Three things about how it is sent, each of which decides whether it arrives:
+//
+// It goes out on its own goroutine, because showing a notification is a
+// session-bus round trip on Linux and three of the four callers of
+// GenerateHints reach here holding the mode handler's lock.
+//
+// It drops the activation context's cancellation. Those callers build the
+// context with a hint timeout and cancel it on return, which is microseconds
+// after this is reached — and the Linux notification path honors a caller's
+// deadline, so keeping it would cancel the very first send, the one that also
+// dials the session bus. The send is still bounded, by the deadline that path
+// imposes itself.
+//
+// And "told" is only remembered if the telling worked. A send claimed under the
+// lock so two activations cannot both fire, and released again when it fails,
+// so a session that had no notification daemon at the first attempt is not
+// silenced for the life of the daemon.
+//
+// Locking: s.mu sits below the mode handler's lock — nothing held under it does
+// I/O or reaches the handler, which is what makes taking it from locked context
+// safe (internal/app/modes/AGENTS.md).
+func (s *HintService) notifyVisionUnavailable(ctx context.Context, reason string) {
+	if s.system == nil {
+		return
+	}
+
+	s.mu.Lock()
+
+	alreadyTold := s.visionNotice == reason
+	if !alreadyTold {
+		s.visionNotice = reason
+	}
+	s.mu.Unlock()
+
+	if alreadyTold {
+		return
+	}
+
+	notifyCtx := context.WithoutCancel(ctx)
+	system, log := s.system, s.logger
+
+	go func() {
+		err := system.ShowNotification(notifyCtx, "neru hints", reason)
+		if err == nil {
+			return
+		}
+
+		log.Warn("Could not notify that the vision strategy is unavailable", zap.Error(err))
+
+		s.mu.Lock()
+		if s.visionNotice == reason {
+			s.visionNotice = ""
+		}
+		s.mu.Unlock()
+	}()
 }
 
 // hintFilter builds the element filter for one activation. The second result

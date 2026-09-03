@@ -12,7 +12,6 @@ import "C"
 
 import (
 	"context"
-	"fmt"
 	"image"
 	"unsafe"
 
@@ -130,45 +129,14 @@ func (a *Adapter) DetectElements(
 	}
 
 	// Classify and convert to domain elements
-	classifier := regionClassifier{cfg: cfg}
-	elements := make([]*element.Element, 0, len(windowElements))
+	classifier := newRegionClassifier(cfg)
 
-	for _, region := range windowElements {
-		if region.Bounds.Empty() {
-			continue
-		}
-
-		role, clickable := classifier.Classify(region)
-
-		opts := []element.Option{
-			element.WithVisionOnly(),
-		}
-		if clickable {
-			opts = append(opts, element.WithClickable(true))
-		}
-		if region.Label != "" {
-			opts = append(opts, element.WithTitle(region.Label))
-			opts = append(opts, element.WithSearchText(region.Label))
-		}
-
-		elem, err := element.NewElement(
-			element.ID("vision-"+regionBoundsKey(region.Bounds)),
-			region.Bounds,
-			element.Role(role),
-			opts...,
-		)
-		if err != nil {
-			a.logger.Debug("Skipping invalid vision region", zap.Error(err))
-
-			continue
-		}
-
-		elements = append(elements, elem)
-	}
+	elements, skipped := elementsFromRegions(windowElements, &classifier)
 
 	a.logger.Debug("Vision detection complete",
 		zap.Int("raw_regions", count),
 		zap.Int("merged_elements", len(elements)),
+		zap.Int("skipped_regions", skipped),
 	)
 
 	return elements, nil
@@ -242,8 +210,13 @@ func (a *Adapter) Health(ctx context.Context) error {
 	return nil
 }
 
-// regionBoundsKey returns a deterministic string key for a rectangle,
-// used as element ID for vision-detected elements.
-func regionBoundsKey(r image.Rectangle) string {
-	return fmt.Sprintf("%d-%d-%d-%d", r.Min.X, r.Min.Y, r.Max.X, r.Max.Y)
+// DetectWLKBPTR reports not-supported: wl-kbptr strategy is only implemented on Linux.
+func (a *Adapter) DetectWLKBPTR(
+	_ context.Context,
+	_ image.Rectangle,
+) ([]*element.Element, error) {
+	return nil, derrors.New(
+		derrors.CodeNotSupported,
+		"the wl-kbptr strategy is only implemented on Linux",
+	)
 }

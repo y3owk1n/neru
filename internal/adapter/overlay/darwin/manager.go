@@ -51,9 +51,22 @@ type Manager struct {
 	window C.OverlayWindow
 	logger *zap.Logger
 
-	// shareMu guards hideInScreenShare. It is deliberately separate from the
+	// shareMu guards hideInScreenShare and everything SetSharingType reaches
+	// through: the shared window handle and the render overlays that own their
+	// own. Destroy takes it too, because the screen-share callback is the one
+	// port call that arrives on a goroutine of its own (state.AppState notifies
+	// on `go callback(...)`) and can therefore overlap a teardown — reading a
+	// window handle the release is about to hand to CFBridgingRelease is a
+	// use-after-free, not a stale write. It is deliberately separate from the
 	// Base mode/subscriber mutex so SetSharingType can never contend with
 	// SwitchTo/Subscribe callers.
+	//
+	// What makes a teardown safe to run under it is a property of the callers,
+	// not of the lock: every native call SetSharingType makes is a
+	// dispatch_async, so a holder always finishes without needing the main
+	// thread, and a Destroy waiting here can never be waiting on something
+	// waiting on it. Destroy's own calls are not async — which is why Destroy
+	// is main-thread-only.
 	shareMu           sync.RWMutex
 	hideInScreenShare bool
 }
@@ -215,7 +228,23 @@ func (m *Manager) SetKeyboardCaptureEnabled(_ bool) {}
 func (m *Manager) SetActiveScreenOrigin(_ image.Point) {}
 
 // Destroy destroys the overlay window and cleans up all overlay resources.
+//
+// It runs under shareMu so an in-flight SetSharingType cannot overlap it: the
+// adapter's destroyed flag stops calls that arrive after the release begins,
+// but a screen-share callback already past that check is inside this manager,
+// and the two touch the same window handles.
+//
+// It must be called on the main thread, which both callers are —
+// App.Cleanup (cmd/neru/daemon_host_darwin.go runs it once the Cocoa loop has
+// stopped) and the startup unwind, which reaches the manager before any
+// screen-share subscription exists. Off it, the native release below is a
+// dispatch_sync, and the indicator teardown takes a draw mutex whose holder
+// dispatch_syncs as well: shareMu would then be held across a wait on the main
+// queue, and every later screen-share callback would park behind it.
 func (m *Manager) Destroy() {
+	m.shareMu.Lock()
+	defer m.shareMu.Unlock()
+
 	// Clean up Go-side resources (callbackManager, styleCache, labelCache) for
 	// overlays that share the manager's window. We call Cleanup() instead of
 	// Destroy() because the shared window is destroyed below — calling each
@@ -245,9 +274,13 @@ func (m *Manager) Destroy() {
 		m.UseStickyModifiersOverlay(nil)
 	}
 
-	if m.window != nil {
-		C.NeruDestroyOverlayWindow(m.window)
-		m.window = nil
+	// Forget the handle before releasing it, so a second Destroy cannot hand
+	// the same pointer to CFBridgingRelease twice.
+	window := m.window
+	m.window = nil
+
+	if window != nil {
+		C.NeruDestroyOverlayWindow(window)
 	}
 }
 
@@ -451,12 +484,24 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 	m.GridOverlay().UpdateMatches(prefix)
 }
 
-// ShowSubgrid shows a subgrid for the specified cell.
-func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
+// ShowSubgrid shows a subgrid for the specified cell, with the pointer
+// stand-in the selection that opened it asks for.
+//
+// The pointer is a layer of the overlay window here rather than something
+// painted into the cells, so applying it after the subgrid costs a layer
+// update and no redraw — which is why this platform never paid the double
+// repaint #1492 is about, and why taking the pointer as an argument changes
+// nothing it does.
+func (m *Manager) ShowSubgrid(
+	cell *domainGrid.Cell,
+	style grid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
+) {
 	if m.GridOverlay() == nil {
 		return
 	}
 	m.GridOverlay().ShowSubgrid(cell, style)
+	m.ApplyGridPointer(manager.ModeGrid, virtualPointer)
 }
 
 // SetHideUnmatched sets whether to hide unmatched cells.

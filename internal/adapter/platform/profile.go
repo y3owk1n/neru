@@ -33,6 +33,11 @@ const (
 const (
 	defaultPrimaryModifier                 = "ctrl"
 	backendPlanNameX11OrCompositorSpecific = "x11 or compositor-specific backend"
+	// notificationDaemonCaveat is the freedesktop backend's only precondition,
+	// in one phrasing. Every Linux profile states it, and the backend is the
+	// same one on all of them, so they say it in the same words rather than
+	// each inventing its own.
+	notificationDaemonCaveat = "needs a notification daemon running"
 )
 
 // BackendPlan describes the intended backend family for one subsystem and
@@ -172,7 +177,7 @@ func linuxProfile(ds DisplayServer) Profile {
 			Name:      "freedesktop notifications",
 			BuildMode: BuildModePureGo,
 			Notes: "org.freedesktop.Notifications over the session bus, on every backend " +
-				"and with no CGO; needs a notification daemon running",
+				"and with no CGO; " + notificationDaemonCaveat,
 		},
 	}
 }

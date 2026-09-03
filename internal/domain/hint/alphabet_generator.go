@@ -141,7 +141,6 @@ func NewAlphabetGenerator(
 		)
 	}
 
-	// Build uppercase mapping and deduplicate characters
 	uppercaseRuneMap := make(map[rune]rune)
 
 	var (
@@ -173,12 +172,9 @@ func NewAlphabetGenerator(
 		)
 	}
 
-	// Calculate max hints: up to 3 chars
-	// Max capacity for fixed-length 3-char base-N encoding is N^3
 	n := charCount
 	maxHints := n * n * n
 
-	// Pre-cache single character strings
 	for _, r := range uppercaseChars {
 		if _, ok := singleCharCache.Load(r); !ok {
 			singleCharCache.Store(r, string(r))
@@ -203,7 +199,6 @@ func (g *AlphabetGenerator) Generate(
 		return nil, nil
 	}
 
-	// Check context cancellation
 	select {
 	case <-ctx.Done():
 		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
@@ -211,10 +206,8 @@ func (g *AlphabetGenerator) Generate(
 	}
 
 	// Sort elements by position (top-to-bottom, left-to-right)
-	// Sort in-place if we can modify the input, otherwise copy
 	sorted := elements
 	if len(elements) > 0 {
-		// Create a copy to avoid modifying the input slice
 		sorted = make([]*element.Element, len(elements))
 		copy(sorted, elements)
 	}
@@ -235,10 +228,8 @@ func (g *AlphabetGenerator) Generate(
 
 	labels := g.generateLabels(len(sorted))
 
-	// Create hints
 	hints := make([]*Interface, len(sorted))
 	for index, element := range sorted {
-		// Use element center as hint position
 		position := element.Center()
 
 		hint, err := NewHint(labels[index], element, position)
@@ -368,7 +359,6 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 		return nil
 	}
 
-	// Check bounded LRU cache first (key: "chars:direction:count")
 	cacheKey := g.uppercaseChars + ":" + g.labelDirection.String() + ":" + strconv.Itoa(count)
 
 	labelCacheMu.Lock()
@@ -381,7 +371,6 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 	}
 	labelCacheMu.Unlock()
 
-	// Generate labels if not cached
 	labels := g.computeLabels(count)
 
 	// Store in bounded LRU cache for future use.

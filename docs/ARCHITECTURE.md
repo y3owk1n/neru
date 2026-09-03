@@ -58,9 +58,24 @@ current per-platform support is tracked in
 
 Neru is a **daemon plus a thin CLI**. `neru launch` starts the daemon;
 `neru hints`, `neru action left_click`, `neru config reload` and friends dial a
-Unix domain socket (`$TMPDIR/neru.sock`, mode 0600) or a Windows named pipe —
-see `internal/adapter/ipc` for the transport and
+Unix domain socket or a Windows named pipe — see `internal/adapter/ipc` for the
+transport and
 `internal/app/ipcctrl` for the command handlers.
+
+The endpoint is scoped to one user, in where it lives and in what the daemon
+checks before serving a connection:
+
+- **Unix socket** — `$XDG_RUNTIME_DIR/neru/neru.sock` where the session
+  provides a runtime directory, otherwise `$TMPDIR/neru-<uid>/neru.sock`, mode
+  0600 inside a directory the daemon creates 0700 and owns. The daemon then
+  reads the connecting process's uid from the kernel and serves only its own.
+- **Named pipe** — `\\.\pipe\neru-<SID>`, created with a protected DACL naming
+  that SID alone. There the kernel checks the descriptor before the connection
+  is ever accepted, which is the same question asked earlier.
+
+`neru doctor` prints the endpoint in use. What each *client* can establish
+about the daemon before it connects differs by platform, and is a
+[Known Gap](CROSS_PLATFORM.md#known-gaps) rather than part of this shape.
 
 New user-facing behavior therefore usually needs three pieces: a CLI command
 (`internal/cli/`, registered in an `init()`), an IPC handler, and the
@@ -458,8 +473,9 @@ its own.
    key logging.
 2. **Permissions** — Accessibility permission is required on macOS; Neru requests
    only the minimum needed for UI interaction.
-3. **IPC security** — the Unix domain socket is created with restricted file
-   permissions (0600), so only the current user can talk to the daemon.
+3. **IPC security** — the endpoint is scoped to one user, and the daemon checks
+   that for itself rather than trusting the scoping; see Runtime Shape above,
+   which owns the detail.
 
 ---
 

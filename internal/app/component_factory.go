@@ -85,7 +85,11 @@ func (f *ComponentFactory) CreateGridComponent() *components.GridComponent {
 			f.overlayPort.UpdateGridMatches(component.Manager.CurrentInput())
 		},
 		func(cell *domainGrid.Cell) {
-			f.overlayPort.ShowGridSubgrid(cell)
+			// No pointer: this manager is the one the component is built with
+			// and the handler replaces it on every activation, so nothing here
+			// has a selection to stand for. The one that does builds the
+			// pointer from the mode's context (modes/grid.go).
+			f.overlayPort.ShowGridSubgrid(cell, ports.GridPointer{})
 		},
 		f.logger,
 	)

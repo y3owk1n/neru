@@ -191,6 +191,16 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 		out[string(ports.CapabilityNotifications)+detailSuffix] = detail
 	}
 
+	// Focused-app inspection is the third, gated the same way, because the one
+	// thing a bare "stub" cannot say is that nothing is wrong. Linux probes it
+	// live, so a desktop with no window focused reports the same status as a
+	// session with no window manager — and only the detail separates "focus
+	// something" from "install something".
+	if detail := capabilities.Process.Detail; detail != "" &&
+		!capabilities.Process.Supported() {
+		out[string(ports.CapabilityProcess)+detailSuffix] = detail
+	}
+
 	return out
 }
 

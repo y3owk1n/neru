@@ -10,7 +10,9 @@ package linux
 import "C"
 
 import (
+	"context"
 	"sync"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -29,6 +31,11 @@ const libeiConnectTimeoutMs = 1500
 // consent dialog appears while no overlay is up, giving the user a comfortable
 // window to find and approve the one-time "Remote Control" prompt. Once
 // approved here, every later action reuses the session with no further wait.
+//
+// It is also the only place the prompt is expected to be paid at all: warm-up
+// presents the stored restore token, so a restart normally establishes the
+// session with no dialog and well inside this budget. The long timeout is what
+// the first grant on a machine costs, not what every start costs.
 const libeiWarmupTimeoutMs = 120000
 
 // libeiState owns the libei/RemoteDesktop session used for input injection on
@@ -38,7 +45,12 @@ const libeiWarmupTimeoutMs = 120000
 type libeiState struct {
 	mu     sync.Mutex
 	client *C.NeruEiClient
-	ready  bool
+	// closePortal ends the RemoteDesktop session this client injects through
+	// and drops the bus connection holding it. It is nil when the session came
+	// from the liboeffis fallback below, which owns its session inside the C
+	// client and tears it down with neru_ei_disconnect.
+	closePortal func()
+	ready       bool
 }
 
 var globalLibeiState = &libeiState{}
@@ -50,26 +62,112 @@ func (s *libeiState) ensureLocked() error {
 
 // ensureLockedTimeout establishes the portal session with an explicit connect
 // timeout. The caller holds mu.
+//
+// The whole budget is one deadline, shared by both attempts below, so a session
+// never costs more wall clock than the caller allowed — which is what keeps the
+// mid-action path from freezing the goroutine holding the keyboard grab even
+// when the portal is unresponsive.
 func (s *libeiState) ensureLockedTimeout(timeoutMs int) error {
 	if s.ready {
 		return nil
 	}
 
-	client := C.neru_ei_connect(C.int(timeoutMs))
+	deadline := time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
+
+	client, closePortal, portalErr := connectViaPortal(deadline)
+	if portalErr == nil {
+		s.client, s.closePortal, s.ready = client, closePortal, true
+
+		return nil
+	}
+
+	// A refusal the user made themselves is final. The fallback below opens a
+	// second session and would put the same dialog back in front of them, which
+	// is the one outcome worse than having no session.
+	if !promptingFallbackAllowed(portalErr) {
+		return libeiSessionError(portalErr)
+	}
+
+	// Fall back to the liboeffis handshake inside the C client. It cannot reuse
+	// a grant, so it costs the user a consent prompt, but a session that
+	// prompts is worth far more than no session at all — and this is the path
+	// every KDE install used before restore existed, so a portal Neru's own
+	// handshake cannot drive still works exactly as well as it used to.
+	remainingMs := int(time.Until(deadline).Milliseconds())
+	if remainingMs <= 0 {
+		return libeiSessionError(portalErr)
+	}
+
+	client = C.neru_ei_connect(C.int(remainingMs))
 	if client == nil {
-		return derrors.New(
+		return libeiSessionError(portalErr)
+	}
+
+	s.client, s.closePortal, s.ready = client, nil, true
+
+	return nil
+}
+
+// connectViaPortal runs Neru's own RemoteDesktop handshake — the one that can
+// present a stored restore token — and attaches libei to the EIS socket it
+// yields. It returns the C client and the function that ends the session.
+//
+// The EIS file descriptor's ownership passes to neru_ei_connect_fd, which
+// closes it on every path, so nothing here closes it: the portal session is
+// what this function still has to unwind.
+func connectViaPortal(deadline time.Time) (*C.NeruEiClient, func(), error) {
+	store, err := newFileRestoreTokenStore(remoteDesktopTokenFileName)
+	if err != nil {
+		return nil, nil, derrors.Wrap(
+			err,
 			derrors.CodeActionFailed,
-			"could not establish a libei input session via the RemoteDesktop "+
-				"portal; approve the one-time \"Remote Control\" consent prompt "+
-				"(KDE Plasma routes input through xdg-desktop-portal because KWin "+
-				"does not implement zwlr_virtual_pointer_v1)",
+			"could not resolve where to keep the RemoteDesktop portal grant",
 		)
 	}
 
-	s.client = client
-	s.ready = true
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
 
-	return nil
+	grant, err := establishPortalGrant(ctx, store, openRemoteDesktopSession)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Whatever is left of the budget, the socket is handed over rather than
+	// short-circuited on: neru_ei_connect_fd is the only thing that closes the
+	// descriptor, so a branch that skipped it would leak one per attempt. A
+	// budget already spent buys a call that gives up immediately, which is what
+	// was wanted anyway — and the floor is 1, because the C side reads a
+	// non-positive timeout as "use the default", which is 30 seconds.
+	remainingMs := max(int(time.Until(deadline).Milliseconds()), 1)
+
+	client := C.neru_ei_connect_fd(C.int(grant.eisFD), C.int(remainingMs))
+	if client == nil {
+		grant.close()
+
+		return nil, nil, derrors.Wrap(
+			errPortalGrantYieldedNoDevices,
+			derrors.CodeActionFailed,
+			"the RemoteDesktop portal granted a session but no pointer device came "+
+				"up on it",
+		)
+	}
+
+	return client, grant.close, nil
+}
+
+// libeiSessionError phrases the failure for the user, carrying the portal's own
+// reason as the cause. Nothing here can name the restore token: the token never
+// reaches an error value, by construction (portal_restore_token.go).
+func libeiSessionError(cause error) error {
+	return derrors.Wrap(
+		cause,
+		derrors.CodeActionFailed,
+		"could not establish a libei input session via the RemoteDesktop "+
+			"portal; approve the one-time \"Remote Control\" consent prompt "+
+			"(KDE Plasma routes input through xdg-desktop-portal because KWin "+
+			"does not implement zwlr_virtual_pointer_v1)",
+	)
 }
 
 // libeiEnsure establishes the portal session without injecting input. The
@@ -78,6 +176,13 @@ func (s *libeiState) ensureLockedTimeout(timeoutMs int) error {
 // past the IPC timeout. This is the only path allowed to hold mu across the
 // long consent wait; mid-action input uses tryAcquire so it never blocks here.
 // libeiEnsure brings up the libei session this backend injects through.
+//
+// It is also where a stored grant is restored, which is why restoring belongs
+// here and not on the first action: the handshake runs on the startup
+// goroutine, before any keyboard grab exists, and by the time a mode can ask
+// for input the session is already up. The mid-action path can still establish
+// one — after a suspend/resume reset, say — but it does so under the short
+// budget above, never the warm-up one.
 //
 // This file is the KDE Plasma input slot, sibling to the wlroots one. KWin does
 // not implement zwlr_virtual_pointer_v1, so input goes through libei via the
@@ -259,9 +364,17 @@ func LibeiReset() {
 		return
 	}
 
+	// libei first: it owns the EIS socket, and closing the portal session out
+	// from under it would leave the client emitting into a dead transport for
+	// as long as the teardown takes.
 	if globalLibeiState.client != nil {
 		C.neru_ei_disconnect(globalLibeiState.client)
 		globalLibeiState.client = nil
+	}
+
+	if globalLibeiState.closePortal != nil {
+		globalLibeiState.closePortal()
+		globalLibeiState.closePortal = nil
 	}
 
 	globalLibeiState.ready = false

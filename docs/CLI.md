@@ -99,12 +99,13 @@ Accepted by every command.
 | [`toggle-screen-share`](#neru-toggle-screen-share)           | Hide overlays while sharing     | Yes | macOS |
 | [`roles`](#neru-roles)                                       | List the role vocabulary        | No  | All |
 | [`services`](#neru-services)                                 | Manage the system service       | No  | macOS · Linux |
-| [`docs`](#neru-docs)                                         | Open documentation in a browser | No  | macOS |
+| [`docs`](#neru-docs)                                         | Open documentation in a browser | No  | macOS · Linux |
 
 ¹ Element discovery quality differs by platform: a full accessibility tree on
 macOS, an AT-SPI walk on Linux whose coverage depends on the application, and an
-initial shallow UI Automation walk on Windows. The `vision` strategy is macOS
-only. See [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
+initial shallow UI Automation walk on Windows. The `vision` strategy is the
+fallback where that tree is thin, on macOS and Linux; Windows has no engine for
+it. See [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
 
 ² Two action subcommands are limited: `hide_cursor` and `show_cursor` are macOS
 only, and `scroll_left` / `scroll_right` have no effect on Windows. See
@@ -301,7 +302,7 @@ nothing.
 | `--hide-on-empty-search` |  | none | `hints` | Hide all hints when search query is empty (requires --search) |
 | `--role` |  | value, repeatable | `hints` | Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more |
 | `--text` |  | value, repeatable | `hints` | Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more |
-| `--strategy` |  | value | `hints` | Element detection strategy: axtree (macOS AX API) or vision (Vision Framework) |
+| `--strategy` |  | value | `hints` | Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux), or wl-kbptr (contour detection via embedded C) |
 | `--label-direction` |  | value | `hints` | Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet) |
 | `--split-word` |  | none | `hints` | Split detected text into word-level regions (requires vision strategy) |
 | `--zoom-to-depth` |  | value | `recursive_grid` | Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position |
@@ -321,7 +322,9 @@ nothing.
   any of them.
 - `--label-direction` is explained under
   [Choosing a label direction](CONFIGURATION.md#choosing-a-label-direction).
-- `--strategy vision` and `--split-word` are macOS only. See
+- `--strategy vision` and `--split-word` work on macOS and Linux, and do
+  nothing on Windows, which has no element-detection engine. On Linux the
+  strategy is text-only. See
   [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
 
 **Where the defaults come from**
@@ -1530,6 +1533,17 @@ systemd user unit on Linux; where the Linux unit is written, what it contains,
 and what happens on a machine booted by another init system are in
 [LINUX_SETUP.md](LINUX_SETUP.md#systemd-user-service).
 
+The macOS agent leaves the daemon's standard output alone — the rotated log file
+already holds every log line — and sends its standard error to
+`~/Library/Logs/neru/daemon.err.log`, beside that log file, where a crash or a
+failure raised before the log file is open ends up. Both stay inside the user's
+own log directory; neither goes to a shared path.
+
+An agent installed by an earlier version wrote those two streams to `/tmp`
+instead, and installing over it is refused rather than silently rewritten. To
+move an existing one, run `neru services uninstall && neru services install`,
+then delete the files it left behind at `/tmp/neru.log` and `/tmp/neru.err.log`.
+
 `status` reports a machine where the service was never installed as exactly
 that, rather than failing.
 
@@ -1543,7 +1557,7 @@ Open documentation in a browser.
 neru docs config|cli
 ```
 
-**Platforms:** macOS only; other platforms return `ERR_NOT_SUPPORTED`.
+**Platforms:** macOS and Linux; other platforms return `ERR_NOT_SUPPORTED`.
 
 URLs point at the Git tag matching the installed version. Development builds
 fall back to `main`.

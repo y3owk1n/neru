@@ -401,9 +401,10 @@ type GridUI struct {
 
 // GridConfig defines the visual and behavioral settings for grid mode.
 type GridConfig struct {
-	Enabled      bool   `json:"enabled"      toml:"enabled"`
-	Characters   string `json:"characters"   toml:"characters"`
-	SublayerKeys string `json:"sublayerKeys" toml:"sublayer_keys"`
+	Enabled        bool   `json:"enabled"        toml:"enabled"`
+	Characters     string `json:"characters"     toml:"characters"`
+	SublayerKeys   string `json:"sublayerKeys"   toml:"sublayer_keys"`
+	MaxLabelLength int    `json:"maxLabelLength" toml:"max_label_length"`
 	// Optional custom labels for rows and columns
 	// If not provided, labels will be inferred from characters
 	RowLabels       string `json:"rowLabels"       toml:"row_labels"`

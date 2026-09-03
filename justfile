@@ -288,9 +288,12 @@ test-foundation:
         ./internal/flagref ./internal/supportref \
         ./internal/adapter/logger \
         ./internal/adapter/overlay/render/badge \
+        ./internal/adapter/platform/compositorcli \
         ./internal/adapter/platform/fontcache \
         ./internal/adapter/platform/fontgeneric \
+        ./internal/adapter/platform/modifierstate \
         ./internal/adapter/platform/mousestate \
+        ./internal/adapter/systray/icon \
         ./internal/ports ./internal/ports/mocks \
         ./internal/domain/geometry
     @echo "✓ Cross-platform foundation tests passed"
@@ -598,6 +601,7 @@ test-linux:
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
         libxinerama-dev libxfixes-dev libxkbcommon-dev wayland-protocols \
         libei-dev liboeffis-dev libxi-dev libxrender-dev libfontconfig1-dev \
+        libtesseract-dev tesseract-ocr-eng libpipewire-0.3-dev \
         pkg-config >/dev/null 2>&1
     DOCKERFILE
     echo "Running the Linux test suite (CGO on, headless)..."
@@ -656,6 +660,7 @@ lint-cross:
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
         libxinerama-dev libxfixes-dev libxkbcommon-dev wayland-protocols \
         libei-dev liboeffis-dev libxi-dev libxrender-dev libfontconfig1-dev \
+        libtesseract-dev tesseract-ocr-eng libpipewire-0.3-dev \
         pkg-config >/dev/null 2>&1
     BASE
     docker build -q -t neru-linux-lint - >/dev/null <<'LINT'

@@ -48,6 +48,19 @@ func (b *Binder) registerHotkeys(bundleID string) {
 		bindings = cfg.GlobalHotkeysForApp(bundleID)
 	}
 
+	// What the backend actually took, which is not what was asked for: a chord
+	// another process already owns is refused, logged and skipped below. The taps
+	// are told the difference because they hand a registered chord back to the
+	// mechanism that owns it, and one nobody owns has to be dispatched instead
+	// (see Deps.PublishRegisteredHotkeys).
+	registered := make([]string, 0, len(bindings))
+
+	defer func() {
+		if b.publishRegistered != nil {
+			b.publishRegistered(registered)
+		}
+	}()
+
 	for key, actions := range bindings {
 		trimmedKey := strings.TrimSpace(key)
 
@@ -105,6 +118,8 @@ func (b *Binder) registerHotkeys(bundleID string) {
 
 			continue
 		}
+
+		registered = append(registered, bindKey)
 	}
 }
 

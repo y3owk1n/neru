@@ -274,7 +274,7 @@ esac
 
 # If the login agent was installed it is already running Neru. Otherwise
 # nothing is running yet, so offer to launch the daemon once, detached so
-# it survives this shell (logs mirror the launchd agent's paths).
+# it survives this shell (output goes where the launchd agent's does).
 if [ "$service_installed" -eq 1 ]; then
     echo "Neru runs as a login agent and should be running now."
 else
@@ -287,8 +287,18 @@ else
             if "$neru_bin" status >/dev/null 2>&1; then
                 echo "Neru is already running."
             else
-                nohup "$neru_bin" launch >/tmp/neru.log 2>/tmp/neru.err.log &
-                echo "Launching Neru (logs: /tmp/neru.log)."
+                # Standard output is dropped: Neru's own rotated log file
+                # already holds every log line. Standard error is kept
+                # beside that file, for a crash or a failure raised before
+                # it is open — and dropped as well if the directory cannot
+                # be created, rather than failing an install over a log.
+                log_dir="$HOME/Library/Logs/neru"
+                err_log=/dev/null
+                if mkdir -p "$log_dir" 2>/dev/null; then
+                    err_log="$log_dir/daemon.err.log"
+                fi
+                nohup "$neru_bin" launch >/dev/null 2>>"$err_log" &
+                echo "Launching Neru (logs: $log_dir/app.log)."
             fi
             ;;
         *)

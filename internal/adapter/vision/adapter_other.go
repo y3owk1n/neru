@@ -25,6 +25,17 @@ func (a *Adapter) DetectElements(
 	)
 }
 
+// DetectWLKBPTR reports not-supported on non-Linux platforms.
+func (a *Adapter) DetectWLKBPTR(
+	_ context.Context,
+	_ image.Rectangle,
+) ([]*element.Element, error) {
+	return nil, derrors.New(
+		derrors.CodeNotSupported,
+		"wl-kbptr element detection is only implemented on Linux",
+	)
+}
+
 // CaptureScreen reports not-supported: Windows has no capture backend here.
 // Linux does, in adapter_linux.go.
 func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {

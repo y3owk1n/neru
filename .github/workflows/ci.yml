@@ -51,17 +51,42 @@ jobs:
                     # numbers that differ only by which build tags were active.
                     - os: macos-latest
                       check: coverage
-                    # The desktop-driving test tier, on the blessed Linux stack
-                    # of ADR 0013: sway with the wlroots headless backend. What
-                    # this leg covers and what it does not is stated in
+                    # The desktop-driving test tier, once per Linux display
+                    # stack. `desktop` is the blessed stack of ADR 0013 — sway
+                    # on the wlroots headless backend, where parity is a
+                    # behavioral claim. `desktop-x11` is the same tier under
+                    # Xvfb, where ADR 0013 asks for capability parity instead:
+                    # a lower bar than behavior, but not the zero bar it had
+                    # while nothing observed X11 at all.
+                    #
+                    # Every step below is shared between the two legs except
+                    # the one that starts the display server and the one that
+                    # asserts it; `session_packages` is that difference in apt
+                    # form, and `session` is the name the job summary prints.
+                    # What each leg covers and what it does not is stated in
                     # docs/DEVELOPMENT.md, with the rest of the test tiers.
                     - os: ubuntu-latest
                       check: desktop
+                      session: headless sway (wlroots Wayland)
+                      session_packages: sway wayland-utils
+                    - os: ubuntu-latest
+                      check: desktop-x11
+                      session: Xvfb with openbox (X11)
+                      session_packages: xvfb x11-utils openbox
         runs-on: ${{ matrix.os }}
-        # The desktop leg is advisory, for the reason docs/DEVELOPMENT.md gives.
-        # Making it blocking is deleting this key and adding
-        # "desktop (ubuntu-latest)" to the branch protection rule.
-        continue-on-error: ${{ matrix.check == 'desktop' }}
+        # Both desktop legs block. They are the only jobs that observe Linux
+        # behavior at all — Neru is developed on macOS, where none of it can
+        # run — so ADR 0013's promises are worth exactly as much as the jobs
+        # that check them, and an advisory job nobody has to read is not a
+        # check. The two legs owe different bars (behavioral parity on the
+        # blessed stack, capability parity on X11), which is a statement about
+        # what the tests assert, not about whether a suite that passes today may
+        # start failing unnoticed.
+        #
+        # They earned it on a measurement rather than a feeling: 40 runs each
+        # across pull requests and main with no failing step. Job-level
+        # `continue-on-error` reports a failed job as successful, so that was
+        # counted from step conclusions. docs/DEVELOPMENT.md carries the detail.
         steps:
             # Default checkout: on pull_request events this tests the merge
             # commit (PR + main combined), which is what will actually land —
@@ -86,12 +111,18 @@ jobs:
                     libxkbcommon-dev \
                     wayland-protocols \
                     libei-dev \
-                    liboeffis-dev
+                    liboeffis-dev \
+                    libtesseract-dev \
+                    tesseract-ocr-eng \
+                    libpipewire-0.3-dev
 
             # Install Devbox on macOS only
+            # Pinned by commit: a tag is a movable pointer, so `@v0.15.0` is a
+            # request rather than a statement about which code runs. Dependabot
+            # updates SHA pins that carry a version comment.
             - name: Install Devbox
               if: runner.os == 'macOS'
-              uses: jetify-com/devbox-install-action@v0.15.0
+              uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
               with:
                   enable-cache: true
 
@@ -111,17 +142,12 @@ jobs:
                   version: v2.12.2
                   install-only: true
 
-            # Install just on Windows
-            - name: Install just (Windows)
-              if: runner.os == 'Windows'
-              run: |
-                  choco install just -y
-              shell: pwsh
-
-            # Install just on Linux
-            - name: Install just (Linux)
-              if: runner.os == 'Linux'
-              uses: extractions/setup-just@v4
+            # Install just directly on Windows & Linux
+            - name: Install just
+              if: runner.os == 'Windows' || runner.os == 'Linux'
+              uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+              with:
+                  just-version: "1.58.0"
 
             # Run checks with Devbox on macOS
             - name: Run just lint
@@ -193,30 +219,39 @@ jobs:
               shell: bash
 
             # ---------------------------------------------------------------
-            # The headless-sway desktop leg: everything below runs only for
-            # matrix.check == 'desktop'. It stands up the session the desktop
-            # tier needs — a wlroots compositor, a session bus, and AT-SPI on
-            # it — and runs the tier against it. What that covers and what it
-            # does not is in docs/DEVELOPMENT.md.
+            # The desktop legs: everything below runs only for a matrix.check
+            # starting with 'desktop'. It stands up the session the desktop
+            # tier needs — a display server, a session bus, and AT-SPI on it —
+            # and runs the tier against it. Only the two display-server steps
+            # differ between the wlroots and X11 legs; the bus, AT-SPI, the
+            # CGO and a11y assertions, the tier itself, the reporting and the
+            # log artifact are one copy each. What the legs cover and what they
+            # do not is in docs/DEVELOPMENT.md.
             # ---------------------------------------------------------------
 
-            - name: Install headless desktop session
-              if: matrix.check == 'desktop'
+            - name: Install the desktop session
+              if: startsWith(matrix.check, 'desktop')
+              env:
+                  SESSION_PACKAGES: ${{ matrix.session_packages }}
               run: |
+                  # Word-splitting SESSION_PACKAGES is the point: it is the one
+                  # per-leg difference in an otherwise shared install.
+                  # shellcheck disable=SC2086
                   sudo apt-get install -y \
-                    sway \
                     dbus-x11 \
                     at-spi2-core \
-                    wayland-utils
+                    $SESSION_PACKAGES
 
-            - name: Start sway, session bus and AT-SPI
-              if: matrix.check == 'desktop'
+            - name: Start the session bus
+              if: startsWith(matrix.check, 'desktop')
               shell: bash
               run: |
                   set -euo pipefail
 
                   # A Wayland compositor puts its socket in XDG_RUNTIME_DIR and
-                  # refuses a world-readable one. The runner has neither.
+                  # refuses a world-readable one. The runner has neither. X11
+                  # does not need it, but a session without one is not a session
+                  # either stack should be tested in.
                   runtime_dir="${RUNNER_TEMP}/xdg-runtime"
                   mkdir -p "$runtime_dir"
                   chmod 700 "$runtime_dir"
@@ -226,11 +261,22 @@ jobs:
                   # GITHUB_ENV.
                   eval "$(dbus-launch --sh-syntax)"
 
+                  {
+                    echo "XDG_RUNTIME_DIR=$runtime_dir"
+                    echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS"
+                  } >> "$GITHUB_ENV"
+
+            - name: Start sway
+              if: matrix.check == 'desktop'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
                   cat > "${RUNNER_TEMP}/sway.conf" <<'SWAYCONF'
                   # Xwayland is off deliberately. It would set DISPLAY, and
                   # neru's Linux backend detection would then have an X11 answer
                   # available on the one job whose purpose is the wlroots
-                  # Wayland stack.
+                  # Wayland stack. X11 gets its own leg instead.
                   xwayland disable
                   output HEADLESS-1 resolution 1920x1080 position 0 0
                   SWAYCONF
@@ -240,7 +286,6 @@ jobs:
                   WLR_BACKENDS=headless \
                   WLR_RENDERER=pixman \
                   WLR_LIBINPUT_NO_DEVICES=1 \
-                  XDG_RUNTIME_DIR="$runtime_dir" \
                   XDG_SESSION_TYPE=wayland \
                   XDG_CURRENT_DESKTOP=sway \
                   setsid sway -c "${RUNNER_TEMP}/sway.conf" -d \
@@ -248,7 +293,7 @@ jobs:
 
                   socket=""
                   for _ in $(seq 1 100); do
-                    socket=$(find "$runtime_dir" -maxdepth 1 -name 'wayland-*' \
+                    socket=$(find "$XDG_RUNTIME_DIR" -maxdepth 1 -name 'wayland-*' \
                       ! -name '*.lock' -print -quit)
                     [ -n "$socket" ] && break
                     sleep 0.2
@@ -264,7 +309,7 @@ jobs:
                   # promises, so it gets the same wait and the same diagnostic.
                   swaysock=""
                   for _ in $(seq 1 50); do
-                    swaysock=$(find "$runtime_dir" -maxdepth 1 \
+                    swaysock=$(find "$XDG_RUNTIME_DIR" -maxdepth 1 \
                       -name 'sway-ipc.*.sock' -print -quit)
                     [ -n "$swaysock" ] && break
                     sleep 0.2
@@ -274,6 +319,81 @@ jobs:
                     cat "${RUNNER_TEMP}/sway.log" >&2
                     exit 1
                   fi
+
+                  {
+                    echo "WAYLAND_DISPLAY=$(basename "$socket")"
+                    echo "SWAYSOCK=$swaysock"
+                    echo "XDG_SESSION_TYPE=wayland"
+                    echo "XDG_CURRENT_DESKTOP=sway"
+                  } >> "$GITHUB_ENV"
+
+            # Xvfb is a bare X server: it serves the extensions neru's X11
+            # paths call (XTEST for injection, XFIXES for the click-through
+            # overlay shape, RANDR for screen enumeration) but it is not a
+            # window manager, and EWMH properties are a window manager's job.
+            # Without one the root window has no _NET_SUPPORTED at all, so
+            # x11_system.c and x11_accessibility.c — which both read
+            # _NET_ACTIVE_WINDOW to answer "what is focused" — would find
+            # nothing and the leg would report a session no user runs. openbox
+            # is the smallest EWMH-aware answer in the archive; the verify step
+            # below turns that reasoning into an assertion rather than a claim.
+            - name: Start Xvfb and a window manager
+              if: matrix.check == 'desktop-x11'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  display=":99"
+
+                  # 1920x1080x24 mirrors the sway leg's output so both legs
+                  # answer the same screen geometry to XRandR and to
+                  # wlr-output-management.
+                  setsid Xvfb "$display" -screen 0 1920x1080x24 -nolisten tcp \
+                    +extension RANDR +extension XTEST +extension XFIXES \
+                    > "${RUNNER_TEMP}/xvfb.log" 2>&1 &
+
+                  for attempt in $(seq 1 100); do
+                    if DISPLAY="$display" xdpyinfo > /dev/null 2>&1; then
+                      break
+                    fi
+                    if [ "$attempt" = "100" ]; then
+                      echo "Xvfb never accepted a connection on $display. Its log:" >&2
+                      cat "${RUNNER_TEMP}/xvfb.log" >&2
+                      exit 1
+                    fi
+                    sleep 0.2
+                  done
+
+                  DISPLAY="$display" setsid openbox \
+                    > "${RUNNER_TEMP}/openbox.log" 2>&1 &
+
+                  # The window manager owns _NET_SUPPORTED, so its appearance on
+                  # the root window is the readiness signal — openbox having
+                  # been exec'd is not the same thing.
+                  for attempt in $(seq 1 100); do
+                    if DISPLAY="$display" xprop -root _NET_SUPPORTED 2>/dev/null \
+                      | grep -q _NET_ACTIVE_WINDOW; then
+                      break
+                    fi
+                    if [ "$attempt" = "100" ]; then
+                      echo "openbox never claimed EWMH on $display. Its log:" >&2
+                      cat "${RUNNER_TEMP}/openbox.log" >&2
+                      exit 1
+                    fi
+                    sleep 0.2
+                  done
+
+                  {
+                    echo "DISPLAY=$display"
+                    echo "XDG_SESSION_TYPE=x11"
+                    echo "XDG_CURRENT_DESKTOP=openbox"
+                  } >> "$GITHUB_ENV"
+
+            - name: Start AT-SPI
+              if: startsWith(matrix.check, 'desktop')
+              shell: bash
+              run: |
+                  set -euo pipefail
 
                   # at-spi2-core ships its launcher in libexec, and the
                   # directory moved between releases, so ask rather than assume.
@@ -291,25 +411,14 @@ jobs:
                     echo "at-spi-bus-launcher not found; AT-SPI would be absent" >&2
                     exit 1
                   fi
-                  XDG_RUNTIME_DIR="$runtime_dir" \
                   setsid "$launcher" --launch-immediately \
                     > "${RUNNER_TEMP}/at-spi.log" 2>&1 &
 
-                  {
-                    echo "XDG_RUNTIME_DIR=$runtime_dir"
-                    echo "WAYLAND_DISPLAY=$(basename "$socket")"
-                    echo "SWAYSOCK=$swaysock"
-                    echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS"
-                    echo "XDG_SESSION_TYPE=wayland"
-                    echo "XDG_CURRENT_DESKTOP=sway"
-                  } >> "$GITHUB_ENV"
-
             # The tier is only worth its runtime if the session really is the
             # blessed stack, so this asserts the two globals neru's wlroots
-            # paths bind (overlay_wayland.c, wlroots_client.h), that CGO is on,
-            # and that the accessibility bus answers. A missing one fails here,
-            # where it reads as a broken environment rather than as test
-            # failures.
+            # paths bind (overlay_wayland.c, wlroots_client.h). A missing one
+            # fails here, where it reads as a broken environment rather than as
+            # test failures.
             - name: Verify the session is the blessed stack
               if: matrix.check == 'desktop'
               shell: bash
@@ -324,6 +433,47 @@ jobs:
                     fi
                     echo "advertised: $global"
                   done
+
+            # The X11 counterpart of the step above: the extensions neru's X11
+            # code calls, and the EWMH property that decides whether a window
+            # manager was needed here. It was: a bare Xvfb has no
+            # _NET_SUPPORTED, so this assertion fails without openbox running,
+            # which is what makes the previous step's window manager evidence
+            # rather than superstition.
+            - name: Verify the session is a usable X11 stack
+              if: matrix.check == 'desktop-x11'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  xdpyinfo > "${RUNNER_TEMP}/xdpyinfo.log"
+                  # The extension list is the block between those two headings;
+                  # matching the whole file would let "RANDR" in a screen's
+                  # description stand in for the extension itself.
+                  offered=$(sed -n '/number of extensions:/,/^default screen number/p' \
+                    "${RUNNER_TEMP}/xdpyinfo.log")
+                  for extension in XTEST XFIXES RANDR; do
+                    if ! printf '%s\n' "$offered" \
+                      | grep -q "^[[:space:]]*${extension}\$"; then
+                      echo "X server does not offer the $extension extension" >&2
+                      exit 1
+                    fi
+                    echo "offered: $extension"
+                  done
+
+                  supported="${RUNNER_TEMP}/net-supported.log"
+                  xprop -root _NET_SUPPORTED > "$supported"
+                  if ! grep -q _NET_ACTIVE_WINDOW "$supported"; then
+                    echo "no EWMH window manager owns this display" >&2
+                    cat "$supported" >&2
+                    exit 1
+                  fi
+                  echo "EWMH: _NET_ACTIVE_WINDOW is supported"
+
+            - name: Verify CGO and the accessibility bus
+              if: startsWith(matrix.check, 'desktop')
+              shell: bash
+              run: |
+                  set -euo pipefail
 
                   # ADR 0013 blesses the CGO build; the CGO-off Linux build is a
                   # near-total stub, and a green run of it would prove nothing.
@@ -348,8 +498,14 @@ jobs:
                     sleep 0.4
                   done
 
+            # Both legs run this tier on a desktop with nothing focused, which
+            # is a state no other job here reaches: the X11 leg found a real
+            # defect in it on its first run (#1495, the X11 sibling of #1493),
+            # fixed before this leg landed. Capability status is
+            # docs/CROSS_PLATFORM.md's to state; docs/DEVELOPMENT.md says what
+            # these legs cover and what they do not.
             - name: Run just test-desktop
-              if: matrix.check == 'desktop'
+              if: startsWith(matrix.check, 'desktop')
               shell: bash
               timeout-minutes: 40
               run: |
@@ -357,33 +513,58 @@ jobs:
                   just test-desktop 2>&1 | tee "${RUNNER_TEMP}/test-desktop.log"
 
             # A skip in this tier is a claim that Linux behavior went unchecked,
-            # which is the thing the job exists to make visible — so skips and
-            # failures are counted into the job summary rather than left in
-            # 20,000 lines of -v output nobody opens.
-            - name: Report skips and failures
-              if: always() && matrix.check == 'desktop'
+            # which is the thing the job exists to make visible — so executions,
+            # skips and failures are counted into the job summary rather than
+            # left in 20,000 lines of -v output nobody opens.
+            #
+            # The counts are also a floor, not decoration: a leg that skips its
+            # way to green is worth less than no leg at all, so this step fails
+            # when nothing executed, and when a test skipped because it could
+            # not see the display server this job exists to provide.
+            - name: Report what ran, skipped and failed
+              if: always() && startsWith(matrix.check, 'desktop')
               shell: bash
+              env:
+                  SESSION: ${{ matrix.session }}
               run: |
                   set -euo pipefail
                   log="${RUNNER_TEMP}/test-desktop.log"
                   if [ ! -f "$log" ]; then
-                    echo "The desktop tier never ran; see the session steps above." \
+                    echo "The ${SESSION} desktop tier never ran; see the session steps above." \
                       >> "$GITHUB_STEP_SUMMARY"
-                    exit 0
+                    echo "::error::the desktop tier never ran under ${SESSION}"
+                    exit 1
                   fi
+                  passes=$(grep -c -- '--- PASS: ' "$log" || true)
                   skips=$(grep -c -- '--- SKIP: ' "$log" || true)
                   fails=$(grep -c -- '--- FAIL: ' "$log" || true)
+                  # Executed means started, so a failure counts. Passes alone
+                  # would report "this leg ran nothing" for a run where
+                  # everything ran and everything broke, which is the opposite
+                  # of the truth and the opposite of what the floor is for.
+                  executed=$((passes + fails))
                   # A package that fails to build reports FAIL with no failing
                   # test in it, so the per-test count alone would read as green.
                   badpkgs=$(grep -c '^FAIL[[:space:]]' "$log" || true)
+                  # The skip reason a test gives when neither DISPLAY nor
+                  # WAYLAND_DISPLAY reached it — owned by
+                  # screencapture_integration_linux_test.go. On this job that is
+                  # never a property of the test; it means the session steps
+                  # above built a display server the test process never saw.
+                  # Anchored to the file:line a t.Skip reason carries, so the
+                  # phrase appearing anywhere else in 20,000 lines of -v output
+                  # is not mistaken for one.
+                  blind=$(grep -c -E '_test\.go:[0-9]+: no display server' "$log" || true)
                   {
-                    echo "### Linux desktop tier (headless sway) — advisory"
+                    echo "### Linux desktop tier — ${SESSION}"
                     echo ""
-                    echo "Advisory: this leg does not gate the merge button."
+                    echo "Blocking: a failure here reds the pull request."
                     echo "See docs/DEVELOPMENT.md for what it covers."
                     echo ""
                     echo "| | Count |"
                     echo "| --- | --- |"
+                    echo "| Executed (PASS + FAIL lines, subtests included) | ${executed} |"
+                    echo "| Passed | ${passes} |"
                     echo "| \`--- FAIL:\` lines | ${fails} |"
                     echo "| Packages reporting FAIL | ${badpkgs} |"
                     echo "| Skipped tests | ${skips} |"
@@ -425,18 +606,42 @@ jobs:
                         { prev = $0 }
                       ' "$log"
                       echo '```'
+                      echo ""
+                    fi
+                    if [ "$executed" = "0" ] || [ "$blind" != "0" ]; then
+                      echo "#### This leg proved nothing"
+                      echo ""
+                      echo "It is failing on its own floor, not on a test:"
+                      echo "an executed count of zero, or a test that could not"
+                      echo "see the display server this job exists to provide."
                     fi
                   } >> "$GITHUB_STEP_SUMMARY"
 
+                  if [ "$executed" = "0" ]; then
+                    echo "::error::the desktop tier executed no tests under ${SESSION}"
+                    exit 1
+                  fi
+                  if [ "$blind" != "0" ]; then
+                    echo "::error::${blind} test(s) skipped for want of a display server under ${SESSION}; the session never reached the test process"
+                    exit 1
+                  fi
+
             - name: Upload desktop tier logs
-              if: always() && matrix.check == 'desktop'
+              if: always() && startsWith(matrix.check, 'desktop')
               uses: actions/upload-artifact@v7
               with:
-                  name: linux-desktop-logs
+                  # linux-desktop-logs for the sway leg, linux-desktop-x11-logs
+                  # for the X11 one: artifact names are unique per run, so the
+                  # two legs cannot share one.
+                  name: linux-${{ matrix.check }}-logs
                   path: |
                       ${{ runner.temp }}/test-desktop.log
                       ${{ runner.temp }}/sway.log
                       ${{ runner.temp }}/at-spi.log
                       ${{ runner.temp }}/wayland-info.log
+                      ${{ runner.temp }}/xvfb.log
+                      ${{ runner.temp }}/openbox.log
+                      ${{ runner.temp }}/xdpyinfo.log
+                      ${{ runner.temp }}/net-supported.log
                   if-no-files-found: warn
                   retention-days: 14

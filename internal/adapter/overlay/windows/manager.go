@@ -799,14 +799,27 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 }
 
 // ShowSubgrid shows a subgrid inside the selected cell.
-func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
-	m.renderMu.Lock()
-	defer m.renderMu.Unlock()
+//
+// The pointer stand-in it carries reaches the render component the way every
+// other grid-pointer call does, and that component draws nothing on Windows —
+// this platform has no grid pointer at all (docs/CROSS_PLATFORM.md). Passing it
+// on rather than dropping it here is what keeps the day it grows one a change
+// to the component and not to this signature.
+//
+// It is applied outside renderMu, as darwin applies it with no lock at all, and
+// that is not tidiness: Base.ApplyGridPointer dispatches statically, so a
+// Windows pointer grown as a Manager override of DrawGridPointer — the way
+// Linux grew one — would be bypassed, and the obvious repair of routing the
+// apply through the interface instead would deadlock on this line if it were
+// made while holding the lock.
+func (m *Manager) ShowSubgrid(
+	cell *domainGrid.Cell,
+	style grid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
+) {
+	m.showSubgridLocked(cell, style)
 
-	if m.win != nil {
-		m.syncSublayerKeysLocked()
-		m.win.ShowSubgrid(cell, style)
-	}
+	m.ApplyGridPointer(manager.ModeGrid, virtualPointer)
 }
 
 // SetHideUnmatched toggles hiding unmatched grid cells.
@@ -972,6 +985,18 @@ func scaleColorAlpha(hexColor string, opacity float64) uint32 {
 	res := (newA << 24) | (redVal << 16) | (greenVal << 8) | blueVal //nolint:mnd
 
 	return res
+}
+
+// showSubgridLocked draws the subgrid under renderMu. It exists so ShowSubgrid
+// can release the lock before the pointer apply above.
+func (m *Manager) showSubgridLocked(cell *domainGrid.Cell, style grid.Style) {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.win != nil {
+		m.syncSublayerKeysLocked()
+		m.win.ShowSubgrid(cell, style)
+	}
 }
 
 func (m *Manager) ensureWinOverlayLocked() {

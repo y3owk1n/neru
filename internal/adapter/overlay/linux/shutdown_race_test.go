@@ -7,10 +7,14 @@ import (
 	"sync"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
 const (
@@ -22,6 +26,8 @@ const (
 	raceScreenWidth  = 800
 	raceScreenHeight = 600
 	raceGridSide     = 2
+
+	racePointerFontSize = 20
 )
 
 // attachedBackend builds a Manager with one backend attached. The overlay is a
@@ -91,6 +97,54 @@ func cancelingCalls() []cancelingCall {
 				_ = mgr.DrawMonitorSelect(nil, manager.MonitorSelectStyle{})
 			},
 		},
+		{
+			name: "ShowSubgrid",
+			call: func(mgr *Manager) {
+				mgr.ShowSubgrid(firstGridCell(), grid.Style{}, recursivegrid.VirtualPointerState{})
+			},
+		},
+	}
+}
+
+// firstGridCell is one cell of a grid the size of the fake screen this package's
+// tests draw on, which is what opening a subgrid takes. It lives here rather
+// than beside the subgrid tests because this file carries the broader build tag
+// of the two, so both the cgo and the no-cgo build see it.
+func firstGridCell() *domainGrid.Cell {
+	return domainGrid.NewGrid(
+		"ab",
+		image.Rect(0, 0, raceScreenWidth, raceScreenHeight),
+		zap.NewNop(),
+	).AllCells()[0]
+}
+
+// gridPointerCalls are the two entry points grid mode's pointer stand-in
+// travels on (#1463). They belong in a table of their own because they cancel
+// no animation: each reads the backend pointer and dispatches through it, both
+// inside renderMu, and that containment is the whole of what stops Destroy
+// nilling the pointer between the two — a promoted method reached through a nil
+// backend panics on the promotion (ADR 0010).
+func gridPointerCalls() []cancelingCall {
+	return []cancelingCall{
+		{
+			name: "DrawGridPointer",
+			call: func(mgr *Manager) {
+				mgr.DrawGridPointer(
+					manager.ModeGrid,
+					image.Pt(raceScreenWidth/2, raceScreenHeight/2),
+					manager.PointerAppearance{
+						FillColor:  "#123456",
+						FontFamily: "Test Sans",
+						Char:       "✛",
+						FontSize:   racePointerFontSize,
+					},
+				)
+			},
+		},
+		{
+			name: "HideGridPointer",
+			call: func(mgr *Manager) { mgr.HideGridPointer(manager.ModeGrid) },
+		},
 	}
 }
 
@@ -110,6 +164,38 @@ func TestManager_Destroy_RacedByCancelingCalls(t *testing.T) {
 
 	for _, backend := range attachedBackends() {
 		for _, entry := range cancelingCalls() {
+			t.Run(backend.name+"/"+entry.name, func(t *testing.T) {
+				t.Parallel()
+
+				for range concurrentDestroyRounds {
+					mgr := backend.attach()
+
+					raceAgainstDestroy(mgr, entry.call)
+
+					if !mgr.Headless() {
+						t.Fatalf(
+							"%s left a backend attached after Destroy returned; "+
+								"the overlay would go on drawing into a torn-down surface",
+							entry.name,
+						)
+					}
+				}
+			})
+		}
+	}
+}
+
+// The grid pointer takes the same shape as the calls above and none of their
+// cancel: what it has to survive is Destroy nilling the backend pointer between
+// the nil-test and the dispatch, which only holding renderMu across both
+// prevents. Without this the property is asserted by reading the code alone,
+// and the case above exercises the cancel-outside-the-lock calls instead — a
+// different hazard, on a different pair of lines.
+func TestManager_Destroy_RacedByGridPointerCalls(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range attachedBackends() {
+		for _, entry := range gridPointerCalls() {
 			t.Run(backend.name+"/"+entry.name, func(t *testing.T) {
 				t.Parallel()
 

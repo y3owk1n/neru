@@ -60,12 +60,14 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 
 Three words carry the whole promise, so they are worth pinning down:
 
-**Stable** — fully featured. Everything Neru does works here. This is the
-reference implementation, and a gap on this platform is a bug.
+**Stable** — fully featured *and* proven in use. Everything Neru does works
+here, and it has been exercised long enough that a gap is a surprise rather
+than an expectation. A gap on this platform is a bug.
 
 **Beta** — good for daily driving. Every navigation mode works and behaves the
-same as it does on a stable platform; what is missing sits around the edges
-(a few animations, the OCR hint strategy) rather than in your way.
+same as it does on a stable platform. A platform is beta either because
+something is still missing, or because what is there has not yet been proven
+outside CI. Which one applies is stated per platform below.
 
 **Alpha** — worth trying, not yet worth switching to. Core navigation works, but
 hint coverage is incomplete and per-app config does not re-apply on focus
@@ -75,10 +77,40 @@ Every claim behind these labels is enumerated in the
 [Capability Matrix](#capability-matrix) and [Known Gaps](#known-gaps). If a
 label and the matrix disagree, the matrix is right.
 
-**Linux moves from Beta to Stable** when its [Known Gaps](#known-gaps) entries
-are empty for the blessed stack and the headless-sway CI job is green and
-required for merge — not before, and not on a judgment call
-([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
+**Linux parity is complete.** Every option, mode flag, action and command means
+on the blessed stack what it means on macOS, [Known Gaps](#known-gaps) carries
+no Linux entry, and the headless-sway job gates merges. That was the whole of
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)'s promise,
+and it is kept.
+
+**Linux stays Beta anyway**, because parity is a claim about coverage and
+Stable is a claim about reliability. Fourteen capabilities landed in a
+fortnight on a platform the maintainer does not daily-drive, each proven by a
+CI job rather than by use. Coverage is what a checklist can establish; that
+these hold up on a real compositor, under a real workload, over weeks of
+ordinary use, is not.
+
+**Linux moves to Stable** after six consecutive releases in which no Linux-only
+bug is filed — one a macOS user would not also hit. Count bugs *filed* in that
+window rather than ones still open at the end of it: a bug found and fixed still
+happened, and it is evidence about the platform either way.
+
+```bash
+since=$(gh release view <tag-six-back> --json publishedAt --jq .publishedAt)
+gh issue list --state all --label "platform: linux" --label bug \
+  --search "created:>=${since%%T*}"
+```
+
+That query returns candidates, not an answer, and two things it cannot do a
+person must. It cannot tell a Linux-only bug from one macOS shares, so read what
+comes back and discount anything that is really a cross-platform bug wearing a
+platform label. And it sees only what was labelled — a Linux bug filed without
+`platform: linux` is invisible to it, so this is worth no more than the triage
+feeding it.
+
+Reading an individual bug is a judgment; whether the label flips is not. That
+distinction is the whole point — see
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md).
 
 ### Per-platform
 
@@ -144,9 +176,9 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ⚠️ asked when the keymap settles ¹ |
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ compositor IPC (Hyprland) / sync-surface trick | ✅ sync-surface trick | ✅ `GetCursorPos` |
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
-| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest               | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
-| **Scroll injection**          | ✅ both axes             | ✅ both axes           | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
-| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold | ✅ virtual keyboard, uinput batch skipped | ✅ libei | ✅ `SendInput` key hold |
+| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁸             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
+| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁸         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
+| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁸ | ✅ virtual keyboard, uinput batch skipped | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
 | **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ⁴ | ✅ continuous virtual-pointer axis ⁴ | ⚠️ libei scroll delta, unverified ⁴ | ❌       |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
@@ -156,15 +188,15 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ❌                           |
 | **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
 | **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ²  |
-| **System tray**               | ✅ NSStatusItem          | ✅ D-Bus StatusNotifierItem | ✅ StatusNotifierItem        | ✅ StatusNotifierItem   | ✅ Win32 notification area   |
+| **System tray**               | ✅ NSStatusItem ⁹        | ✅ D-Bus StatusNotifierItem ⁹ | ✅ StatusNotifierItem ⁹      | ✅ StatusNotifierItem ⁹ | ✅ Win32 notification area ⁹ |
 | **Native alerts**             | ✅ NSAlert               | ⚠️ D-Bus, not modal    | ⚠️ D-Bus, not modal          | ⚠️ D-Bus, not modal     | ✅ `MessageBoxW`             |
 | **Native notifications**      | ✅ UNNotification        | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | 🟡          |
 | **Secure input detection**    | ✅                       | ➖ always false        | ➖ always false              | ➖ always false         | ➖ always false              |
 | **System cursor hide**        | ✅ `CGDisplayHideCursor` | ➖                     | ➖                           | ➖                      | ➖                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
 | **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream input ⁵  | 🟡 key-stream input ⁵        | 🟡 key-stream input ⁵   | 🟡 key-stream input ⁵        |
-| **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ❌ ⁶                    | ❌                           |
-| **Vision / OCR detection**    | ✅ Vision framework      | ❌ no OCR engine       | ❌ no OCR engine             | ❌ no OCR engine        | ❌                           |
+| **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ⚠️ portal ScreenCast, consent ⁶ | ❌                   |
+| **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁷ | ⚠️ tesseract, text only ⁷ | ⚠️ tesseract, text only ⁷ | ❌                           |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
 | **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | 🟡 `CodeNotSupported` |
 
@@ -275,28 +307,120 @@ X11 reads the root window back with `XGetImage`; wlroots-family compositors
 implement `wlr-screencopy-unstable-v1`, which needs no consent because the
 client is already trusted with the session.
 
-**KWin implements neither**, and its only pixel source is the portal's
-ScreenCast session, which delivers frames over PipeWire — a required system
-library Neru does not link and a build-dependency change beyond this row. KDE
-Plasma therefore reports `CodeNotSupported` naming itself, and it is
-[Known Gaps](#known-gaps) Linux entry 2. Capture is a **region** operation on
-both implemented backends: the caller's rectangle is what gets read back, so
-constraining detection to the focused window costs a window rather than a
-display.
+**KWin implements neither**, so KDE Plasma is the one backend that pays the
+portal: its pixels come from an `org.freedesktop.portal.ScreenCast` session,
+delivered over PipeWire (`libpipewire-0.3`, a required
+[build dependency](./LINUX_SETUP.md#build-dependencies) on every Linux
+install). That is the ⚠️ in the row, and it is a **permission** rather than a
+missing capability — which is why `CheckScreenCapturePermission` and
+`RequestScreenCapturePermission` report the portal's real consent state there
+and report "no gate" on X11 and wlroots. The prompt is paid **once**: the grant
+is persisted with a restore token in
+`$XDG_STATE_HOME/neru/screen-cast.token`, restored silently on every later
+start, and it is never asked for by a capture — the mode handler's permission
+preflight is the only thing that can raise a dialog, and it runs off its lock
+with a budget sized for a human. Sources are requested as monitors with the
+cursor left out; windows are not asked for, because a window stream carries no
+position and a region has to be placeable.
+
+Capture is a **region** operation on all three backends: the caller's rectangle
+is what gets read back, so constraining detection to the focused window costs a
+window rather than a display.
 
 What comes back covers **exactly** the region asked for, and that is enforced
 rather than hoped for: a rectangle that leaves the screen, that is degenerate,
-or that spans two monitors on Wayland (`wlr-screencopy` captures one output)
-**fails** instead of coming back clipped. A clipped frame carries nothing that
-says where its own top-left is, so a caller could no longer map a pixel back to
-a screen coordinate — and a caller asking for one window must never silently
-receive the whole display.
+or that spans two monitors on Wayland (`wlr-screencopy` captures one output,
+and a ScreenCast stream is one monitor) **fails** instead of coming back
+clipped. A clipped frame carries nothing that says where its own top-left is,
+so a caller could no longer map a pixel back to a screen coordinate — and a
+caller asking for one window must never silently receive the whole display. On
+KDE a region on a monitor the user chose **not** to share fails the same way,
+and says so.
 
 One thing to know before reading a frame: on a scaled Wayland output the
 compositor answers in **physical pixels**, so it can be larger than the logical
 region by the output's scale factor — the same thing a Retina capture does on
 macOS. The image's own bounds start at `(0, 0)`; the region passed in is what
 places those pixels.
+
+⁷ Linux `vision` is **text-only**, and permanently so. macOS runs three Vision
+requests — text recognition, rectangle detection and saliency — and an OCR
+engine answers the first. `hints.vision.detect_rectangles` and the four
+`rectangle_*` options are therefore declared macOS-only rather than met with a
+contour-detection library, which would be a heavy new required dependency for a
+sub-feature of a non-default strategy
+([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)). The
+other fourteen `hints.vision.*` options are read on Linux exactly as they are on
+macOS.
+
+The engine is **tesseract**, linked through `#cgo pkg-config: tesseract` like
+every other native dependency here, and it is required rather than optional:
+under dynamic linking a missing `libtesseract.so` stops the daemon before any
+Neru code runs, so [LINUX_SETUP.md](./LINUX_SETUP.md) lists it with the rest.
+Its **language data is a separate package** and is resolved at *use* rather than
+at link time — `TESSDATA_PREFIX` first, then the paths distributions install
+into. A machine with the library and no `eng.traineddata` gets
+`CodeNotSupported` naming that file, from `VisionPort.Health` and from
+`DetectElements`, rather than a strategy that silently finds nothing.
+
+Recognition runs at word level for `neru hints --split-word` and at line level
+otherwise, on the LSTM engine in sparse-text page segmentation — UI text is
+scattered labels, not paragraphs. Detection is scoped to the region the caller
+asks about, which is the focused window: full-display OCR takes seconds where
+one window takes tens of milliseconds. Recognized text is screen content and is
+treated as such — never logged, never written to disk, and cleared out of the
+engine before each recognition returns.
+
+⁸ An X11 pointer event carries the modifiers the server records as **held**,
+rather than a set the sender chooses the way `CGEventSetFlags` does, so an
+injected click or scroll used to pick up whatever the user's hand was on:
+binding `Ctrl+J` to a plain `scroll_down` sent ctrl+scroll, which most
+applications read as zoom, and a click fired while ctrl was down arrived as a
+ctrl+click, which browsers read as open-in-new-tab. Neru reads the live key
+state with `XQueryKeymap`, releases the modifiers the injection would otherwise
+falsify, presses the ones that were asked for, and undoes both when it is done —
+so a click, drag or scroll presents exactly what `--modifier` named and nothing
+else, held across every chunk of an animated scroll. A modifier that is both
+held and asked for is left alone rather than pressed a second time, which is
+what keeps a modified click from releasing a modifier the user never let go of.
+
+**A drag holds that state for as long as the button is down.** Its press and its
+release are separate calls on separate display connections, so the press leaves
+its suppressions and presses in place — the drag in between has to carry the
+same modifiers the press did — and the release undoes them. An X keycode names a
+key on the server rather than on the connection that read it, which is what lets
+the release finish what the press started.
+
+**Letting go inside that window is not observed.** An XTEST release makes the
+user's own release a no-op at the master keyboard, so a modifier released during
+an injected scroll — or during a drag, where the window is as long as the user
+holds the button — is pressed back and reads as held until it is pressed and
+released once more. Restoring is the deliberate bias: the opposite one drops a
+modifier the user is still holding out of everything they do next.
+
+⁹ **The tray icon carries the paused state on every platform**, because the
+tray is the only place a user can see that Neru is paused without pressing a
+key. macOS swaps between two hand-drawn template glyphs, which the menu bar
+themes for it. A host that renders icon bytes literally — the SNI hosts on
+Linux, the Win32 notification area — cannot restyle anything for us, so it is
+handed the brand tile desaturated and flattened towards grey, derived from the
+running tile itself ([icon/paused.go](../internal/adapter/systray/icon/paused.go))
+so the two can never drift apart. It is a color change rather than a
+translucency one on purpose: the icon bytes reach Win32 with straight alpha
+where GDI's icon path wants it premultiplied, so a faded tile would render at
+the host's discretion rather than ours.
+
+**Hover text works everywhere and is the tray icon's**, not a menu item's:
+`NSStatusItem.toolTip`, the SNI `ToolTip` property, and `NOTIFYICONDATA.szTip`
+all carry the "Neru - Running" / "Neru - Paused" string, which is the only
+tooltip `ports.SystrayPort` declares. Per-item menu tooltips are a different
+thing, and Neru sets none — `com.canonical.dbusmenu` defines no per-item
+tooltip property at all (an item carries `label`, `enabled`, `visible`,
+`icon-data` and the `toggle-*` pair), so `MenuItem.SetTooltip` in
+[systray/linux/systray.go](../internal/adapter/systray/linux/systray.go) is an
+empty body by protocol rather than unfinished work, as is its Win32
+popup-menu twin. The macOS backend has no such method at all. Nothing a user
+can hover therefore differs between the three.
 
 ### Notes on the ⚠️ entries
 
@@ -306,7 +430,40 @@ as the bundle identifier for per-app config — but not its PID, because a Wayla
 client cannot read another client's process credentials.
 `SystemPort.FocusedApplicationPID` best-effort matches the app_id against
 `/proc`; with no match it returns `CodeNotSupported` carrying the app_id rather
-than a fabricated number.
+than a fabricated number. A session where *nothing* is focused is a different
+answer from that one and says so: the foreign-toplevel manager answered, and
+`neru doctor` explains it the way the X11 arm's unfocused desktop is explained
+below rather than as an unavailable capability.
+
+**An unfocused desktop is not a failure on X11 either.** The X11 arm of the same
+method reads `_NET_ACTIVE_WINDOW`, which has four ways of not giving you a
+window, and it reports them as two kinds. A desktop where nothing is focused —
+the wallpaper clicked, the last window closed — is `CodeNotSupported`, so
+callers degrade exactly as they do on Wayland. A display no *live* EWMH window
+manager owns (the `_NET_SUPPORTING_WM_CHECK` handshake, not the presence of
+`_NET_SUPPORTED`, which a window manager leaves behind when it dies), a failed
+property read and a malformed property are `CodeActionFailed`, each naming which
+it was. `neru doctor` downgrades the `process` capability to
+`stub` either way, because a live probe reports what a caller observes right
+now; the `Focused app:` line beside it is what separates "focus a window" from
+"install or fix something".
+
+**And neither is a window that publishes no pid.** One property further down,
+`_NET_WM_PID` splits the same way: a window that is alive and simply does not
+advertise a pid — EWMH makes the property a convention, older toolkits omit it,
+and a client on another machine has none this one could use — is
+`CodeNotSupported` with its own explanation, while a window that closed under
+the query, a failed read and a malformed property are `CodeActionFailed`. The
+two "not supported" answers are separate sentences on purpose: focusing another
+window fixes one and cannot fix the other.
+
+**`FocusedWindowBounds` on X11 tells the same two apart.** The X11 arm reads the
+geometry of whatever `_NET_ACTIVE_WINDOW` names. Nothing focused is `found=false`
+with no error — the caller widens to the active screen and is obeying an answer.
+A display with no live window manager, a failed or malformed property, or a
+window the X server would not describe is an error, so a caller that widens the
+same way can tell it is guessing. That is what the Wayland arms report under
+[Accessibility And Hints](#accessibility-and-hints), on the X11 path.
 
 **App watcher.** macOS gets focus changes pushed from an NSWorkspace observer.
 Linux has no equivalent single API, so `appwatcher/platform_linux.go` subscribes
@@ -334,7 +491,8 @@ fits. An unreadable `/dev/input` points at the `input` group; a no-cgo build
 points at the build, and is warned about once, since no retry changes how the
 binary was compiled. Both name the same fallback — bind `neru <mode>` as a
 compositor keybinding. While a mode is active the in-mode event tap grabs the
-same devices, so the listener naturally goes quiet until the mode exits.
+same devices, so the listener naturally goes quiet until the mode exits — which
+is what **A global chord while a mode is active** below is about.
 
 **Native alerts on Linux.** Notifications and alerts both go to the session's
 freedesktop notification daemon over D-Bus — the same session bus the tray's
@@ -424,7 +582,11 @@ NULL-source event is born carrying whatever the combined session state currently
 holds, so an unstamped scroll inherits ambient modifiers rather than carrying
 none — and on every chunk of a smooth-scroll animation, since a zoom applied to
 the first frame only is not a zoom. The other
-three press the real key, scroll, and release it. On Wayland that forces a
+three press the real key, scroll, and release it. On X11 that key event feeds
+back into Neru's own `XGrabKeyboard` with nothing on it to say whose it is, so
+each one is announced to the event tap before it goes out and consumed on the
+way back in — otherwise an injected press and release read as the user tapping
+that modifier, and `sticky_modifiers` latched one nobody pressed. On Wayland that forces a
 choice: the modifier can only go out on the virtual keyboard (libei on KDE),
 while the fast path for the scroll is the uinput device, so a modified scroll
 skips the uinput batch entirely and goes out on the wlroots/libei seat. A path
@@ -466,6 +628,61 @@ left-most held button, since one event cannot describe more.
 common `hotkeys/linux/manager.go`, which delegates to the evdev listener in the
 eventtap package.
 
+**A global chord while a mode is active.** A `[hotkeys]` binding keeps working
+from inside a mode on macOS, Windows and Linux Wayland, and each gets there its
+own way, because whichever mechanism can see the chord has to be the only one
+that runs it. macOS hands it back: the in-mode tap looks the chord up in the
+hotkey table the app pushed into it and returns the event untouched, so the
+per-hotkey tap that registered it fires and the handler never sees the key
+([eventtap_darwin.m](../internal/adapter/platform/darwin/eventtap_darwin.m)).
+Windows does the same for a Ctrl/Alt/Cmd chord, one layer up — the low-level hook
+runs ahead of the system's hotkey processing, so it passes the chord on without
+dispatching and leaves it to `RegisterHotKey`. Both are told which chords the
+backend actually *took* rather than which ones the configuration asked for
+(`Deps.PublishRegisteredHotkeys`, [hotkey.go](../internal/app/keybinding/hotkey.go)),
+because a chord another process already owns is refused and is then owned by
+nobody: handing that one back would drop it, so it is dispatched instead. Linux
+cannot hand it to anybody: the in-mode capture is exclusive (`EVIOCGRAB`, or
+`XGrabKeyboard`) and the mechanism that registered the chord is deaf for as long
+as a mode is up. So there the chord reaches the mode handler and the handler
+resolves the global table itself, after the active mode's own table has had its
+say ([keymap.go](../internal/app/modes/keymap.go), `settledKeymaps`). That
+fallback is shared code rather than a Linux branch, and is simply unreachable on
+the two platforms whose taps hand the chord back. Only chords carrying
+Ctrl/Alt/Cmd fall back, on the same reasoning modifier passthrough uses below: a
+bare key inside a mode is a hint label or a grid cell key.
+
+**X11 assembles chords too, from the keysym.** The X11 in-mode tap used to
+dispatch a bare key and report modifiers only as separate sticky-modifier events,
+so no chord was assembled at all while a mode was open — which left the fallback
+above, and every `[<mode>.hotkeys]` entry written as a Ctrl/Alt/Super chord, unable
+to match there. It now names the key from the **keysym** `XLookupString` returns
+rather than from the string, because with Ctrl held the two disagree (`Ctrl+C`
+gives `\x03` as a string and `XK_c` as a keysym), and prepends the modifiers it
+already tracks (`x11ChordFromLookup`,
+[x11_cgo.go](../internal/adapter/eventtap/linux/x11_cgo.go)). The keysym is
+state-resolved, so Shift has chosen the level the same way
+`xkb_state_key_get_one_sym` does for the evdev reader — which is what makes both
+backends call `Shift+;` the same thing. A keysym outside Latin-1 that the name
+table does not cover falls back to the character the server produced, unprefixed,
+so a non-Latin layout is no worse off than before. One consequence of the exclusive
+capture is still shared by both Linux backends: while a mode is open, a chord bound
+in the *compositor* rather than in `[hotkeys]` cannot fire, because the compositor
+is not reading the keyboard.
+
+**One key, one name.** Both Linux readers of `/dev/input` resolve a scan code
+through the compositor's XKB keymap — the in-mode tap and the passive hotkey
+listener alike (`keyName`/`modifierName`,
+[evdev_xkb_cgo.go](../internal/adapter/eventtap/linux/evdev_xkb_cgo.go)). They
+have to agree, because only one of them can see any given press: while the
+listener named keys by raw scan code and the tap named them by keymap, one written
+chord answered one physical key from idle and a different one inside a mode, on
+every layout that is not `us`. Following the keymap is what makes a binding mean
+the key that *types* that character, and is the same reason XKB options like
+`ctrl:swapcaps` reach Neru's own bindings. **On a non-QWERTY layout this decides
+which physical key a `[hotkeys]` chord answers** — the one bearing that character
+on the active layout, in both places.
+
 **Modifier passthrough (Wayland evdev only).** While a mode is active Neru
 captures the keyboard exclusively, so shortcuts it does not bind (`Ctrl+C`,
 `Ctrl+Tab`) are normally swallowed. With `general.passthrough_unbounded_keys`,
@@ -477,8 +694,10 @@ which bypasses that grab and reaches the app with no feedback loop (see
 X11 — an `XGrabKeyboard` routes Neru's own synthetic XTest events back to
 itself, and `XSendEvent` is ignored by most apps — nor on the rare wl-keyboard
 fallback, which has no injection path. Classification (blacklist,
-mode-intercepted keys, the mode's own hotkeys) and the post-passthrough hint
-refresh are shared in
+mode-intercepted keys, the mode's own hotkeys, and the global chords it falls
+back to — passed through, the user's own hotkey would reach the application in
+front of them and the fallback above would never see the key) and the
+post-passthrough hint refresh are shared in
 [passthrough.go](../internal/app/modes/passthrough.go); only the final
 re-injection is backend-specific. The blacklist keeps chosen chords consumed,
 and `general.should_exit_after_passthrough` exits the mode after a passthrough.
@@ -509,7 +728,9 @@ put in force.
 macOS builds the richest tree by a wide margin: it walks multiple window and
 system sources, applies per-app strategy overrides, can fall back to the Vision
 framework for OCR-discovered targets, and deduplicates overlapping elements.
-Linux and Windows each walk a single tree with no OCR fallback.
+Linux walks a single tree and has the OCR fallback beside it — tesseract, text
+only, selected with `hints.strategy = vision`. Windows walks a single tree with
+no fallback at all.
 
 **Linux is ⚠️, not a stub.** Hints genuinely work: `ATSPIClient` enables
 assistive-tech mode, finds the active frame, and walks it (`ClickableNodes`)
@@ -550,7 +771,7 @@ a session that backend did not identify:
 
 | Compositor | Source                                                       | Limits                                                                                                                    |
 | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| KDE / KWin | KWin script pushing focused-window geometry over D-Bus       | —                                                                                                                          |
+| KDE / KWin | KWin script pushing focused-window geometry over D-Bus ([platform/kwin](../internal/adapter/platform/kwin)) | The script reports on activation, on the focused window's geometry changing, and on it going away, so the cache follows a drag, resize, tile or maximize and empties when the desktop is focused or the last window closes. It lives inside the compositor, so Neru watches `org.kde.KWin` on the session bus and reinstalls it when KWin restarts. A drag reports its final rectangle rather than every frame, so a query made mid-drag reads the position the drag started from. |
 | niri       | `niri msg -j focused-window` / `focused-output`              | Floating and fullscreen windows only. **Tiled** windows — including a maximized column (`Mod+F`) — expose no on-screen position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are misaligned there. |
 | Sway       | `swaymsg -t get_tree`, focused node `rect` + `window_rect`   | —                                                                                                                          |
 | Hyprland   | `hyprctl -j activewindow` `at` / `size`                      | —                                                                                                                          |
@@ -559,6 +780,44 @@ a session that backend did not identify:
 Each source verifies the reported window size matches the AT-SPI frame (a focus
 change can race the query) and is best-effort: an unavailable origin degrades to
 unoffset window-relative coordinates rather than misplacing hints.
+
+The KWin source checks identity as well as size, because its rectangle is a
+cache rather than a live query. The script reports the window's `resourceClass`,
+`resourceName` and caption alongside the geometry, and the AT-SPI frame carries
+the focused app_id and title it was selected with — both read from KWin, so a
+disagreement means the cached rectangle belongs to a different window, including
+a second window of the same application at the same size, which size alone
+cannot tell apart.
+
+Both comparisons are written to be sure before they refuse, because a false
+reject unoffsets hints that were placed correctly while a false accept costs no
+more than having no check at all. Either identifier may be the one that matches
+the app_id (they disagree for XWayland windows), the app_id comparison tolerates
+reverse-DNS spelling, the caption comparison accepts a prefix in either
+direction (KWin appends its own shortcut and `<2>` suffixes), and an identity
+neither side reported is not a mismatch.
+
+**A compositor that did not answer is not a compositor with no origin.** The
+three CLI sources go through
+[platform/compositorcli](../internal/adapter/platform/compositorcli), which
+reports a CLI that could not be run, that exited non-zero, that outlived its
+timeout or that printed something undecodable as a failure naming the command
+and the reason. A compositor that _did_ answer and has no position to
+give — nothing focused, a tiled niri window — stays a plain not-found, so the
+compositor's ordinary layout never warns. Both still degrade the same way; only
+one of them says why, in a log line at `warn`.
+
+**The same sources answer `FocusedWindowBounds`,** which is what scopes vision
+detection and `neru action move_mouse --window` to the focused window. The
+rectangle and the origin are one fact, so KWin has one geometry bridge shared by
+both callers rather than a second implementation per caller — the KWin arm of
+[system_focused_window.go](../internal/adapter/platform/linux/system_focused_window.go)
+reads the cache the AT-SPI path offsets by, and the wlroots arms shell out
+through the same `compositorcli` query the origin sources use. A Wayland
+compositor with no source at all (River, Wayfire) reports `CodeNotSupported`
+there rather than "no focused window": both send the caller to the active
+screen, but only one of them says so, and the difference is what stopped this
+being invisible on KDE.
 
 ---
 
@@ -618,13 +877,14 @@ discovery rather than the mode itself.
 | Mode              | Feature                        | macOS                      | Linux                      | Windows                     |
 | ----------------- | ------------------------------ | -------------------------- | -------------------------- | --------------------------- |
 | **Hints**         | Element discovery              | ✅ full AX tree            | ⚠️ AT-SPI, toolkit-dependent | ⚠️ UIA, shallow tree      |
-| **Hints**         | `vision` strategy + per-app overrides | ✅                  | ❌ macOS-only              | ❌ macOS-only               |
+| **Hints**         | `vision` strategy + per-app overrides | ✅                  | ⚠️ tesseract; text only, no rectangles | ❌ macOS-only   |
 | **Hints**         | Menubar / dock elements        | ✅                         | 🟡                         | 🟡                          |
 | **Hints**         | Search input badge             | ✅                         | ✅ Cairo badge             | ✅                          |
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ✅ sampled triangle, see below |
 | **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ✅ top / center / bottom   |
 | **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
-| **Grid**          | Virtual pointer indicator      | ✅                         | ❌ no-op                   | ❌ no-op                    |
+| **Grid**          | Virtual pointer indicator      | ✅                         | ✅                         | ❌ no-op                    |
+| **Grid**          | What an open subgrid shows     | ✅ the subgrid alone       | ✅ the subgrid alone       | ⚠️ the parent cells return under it on the next repaint |
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Sub-key preview                | ✅ mini-grid of next keys  | ✅ mini-grid of next keys  | ✅ mini-grid of next keys   |
@@ -634,10 +894,12 @@ discovery rather than the mode itself.
 Everything else is shared: multi-letter labels, label direction, hide-unmatched,
 split-word, interactive search *behavior* (only the on-screen badge differs),
 boundary highlight, mode indicator, sticky-modifier indicator, all pending
-actions on grid cells, subgrid zoom, backtracking, and every scroll granularity.
+actions on grid cells, backtracking, and every scroll granularity. Opening a
+subgrid is shared too — the keys, the cells and the point each one selects — and
+only what is left on screen behind it differs, which is the row above.
 
 > The **cursor-replacement virtual pointer** — the pointer drawn when the real
-> cursor is hidden — is separate from the recursive-grid indicator above and is
+> cursor is hidden — is separate from the two grid indicators above and is
 > macOS-only: `virtualpointer.Overlay` is a no-op on every non-darwin build, and
 > it is paired with `CGDisplayHideCursor`, which has no equivalent elsewhere.
 
@@ -747,31 +1009,37 @@ green in every cell while an option means nothing, which is exactly how
 | `app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
 | `app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
 | `grid.prewarm_enabled` | option | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
-| `hints.vision.detect_text` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.request_timeout_ms` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.minimum_confidence` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.merge_iou_threshold` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.button_min_confidence` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.button_min_aspect` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.button_max_aspect` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.button_icon_max_size` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.link_min_aspect` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.link_max_height` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.link_min_width` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.image_min_size` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.checkbox_max_size` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.vision.generic_clickable_min_confidence` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.detect_text` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.request_timeout_ms` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.minimum_confidence` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.merge_iou_threshold` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.button_min_confidence` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.button_min_aspect` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.button_max_aspect` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.button_icon_max_size` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.link_min_aspect` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.link_max_height` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.link_min_width` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.image_min_size` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.checkbox_max_size` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.generic_clickable_min_confidence` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
 | `hints.vision.detect_rectangles` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_max_candidates` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_min_size` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_min_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_max_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
-| `hints.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `grid.app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `recursive_grid.app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `scroll.app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
-| `app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `grid.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `recursive_grid.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `scroll.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `hints.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `grid.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `recursive_grid.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `scroll.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
 | `recursive_grid.animation.enabled` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
 | `recursive_grid.animation.duration_ms` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
 | `monitor_select.enabled` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
@@ -804,8 +1072,9 @@ green in every cell while an option means nothing, which is exactly how
 | `smooth_scroll.steps` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `smooth_scroll.max_duration` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `smooth_scroll.duration_per_pixel` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
-| `--split-word` | mode flag | ✅ | ❌ | ❌ | splitting detected text into words needs the vision strategy, which only macOS has an engine for; elsewhere the flag is refused rather than ignored |
-| `--strategy=vision` | mode flag | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so detection returns nothing and no hints appear; use axtree |
+| `--split-word` | mode flag | ✅ | ✅ | ❌ | splitting detected text into words needs the vision strategy, which Windows has no engine for; there the flag is refused rather than ignored |
+| `--strategy=vision` | mode flag | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so detection returns nothing and no hints appear; use axtree |
+| `--strategy=wl-kbptr` | mode flag | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
 | `hide_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `show_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `scroll_left` | action | ✅ | ✅ | ❌ | the Windows wheel event carries no horizontal delta, so a sideways scroll injects nothing |
@@ -864,44 +1133,14 @@ command — that means less here than it does on macOS, whether or not the
 
 **Linux**
 
-1. `neru docs` — returns `CodeNotSupported` although the tray already opens
-   URLs through `xdg-open` in the same repo
-2. Screen capture on KDE — X11 (`XGetImage`) and the wlroots family
-   (`wlr-screencopy-unstable-v1`) capture real pixels and honor a region, so
-   the blessed stack is done. KWin implements no screencopy protocol Neru can
-   use and reports `CodeNotSupported` naming itself. Its only pixel source is
-   the portal's ScreenCast session, whose frames arrive over PipeWire — a new
-   required system library, so closing this adds `libpipewire-0.3` to the Linux
-   dependency list, the packaging and the CI images. It may share a solution
-   with entry 5, which already holds a portal session
-3. `vision` hint strategy — no engine. Met by linking one through
-   `#cgo pkg-config`, as every other native dependency here is, with the engine
-   added to the required Linux library list and its language data checked at
-   use so a missing `tessdata` reports `CodeNotSupported` naming what is
-   absent. Note the strategy is wider than OCR: macOS also runs rectangle
-   detection and saliency, which no OCR engine answers, so
-   `hints.vision.detect_rectangles` and the four `rectangle_*` options are
-   declared macOS-only and Linux `vision` is text-only. The capture half it
-   needs is in place on X11 and wlroots; on KDE it inherits entry 2
-4. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
-   `XTestFakeButtonEvent` still carries whatever the X server records the user as
-   physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
-   ctrl+scroll for as long as ctrl is down. macOS forces the empty set onto the
-   event instead; a real-key backend has no per-event field to zero, so closing
-   this means reading the live key state through `XQueryKeymap` in the C bridge
-5. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
-   consent prompt returns on every start
-6. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
-   draws it on all three platforms
-7. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
-   back to the active screen
-8. Wayland global hotkeys — a setup requirement rather than missing code: they
-   need `input`-group membership and a CGO build. Failing loudly with the
-   remedy, and documenting it as a first-class setup step, is the work
-9. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
-   tray has one icon for both running and paused states where macOS has two,
-   and the `CGO_ENABLED=0` build should announce its boundary once at startup
-   rather than failing feature by feature
+None — parity is complete on the blessed stack.
+[What the labels mean](#what-the-labels-mean) says why the label is still Beta.
+
+The `input`-group membership Wayland global hotkeys need is a host setup step
+rather than a gap, and belongs here only if it stops being one: Neru warns with
+the remedy that fits when the listener cannot start, and
+[LINUX_SETUP.md](./LINUX_SETUP.md#install-time-environment-adjustments) carries
+it as install-time item 2.
 
 The gaps above are the work; what a person writes and finds inert *today* is
 [Platform Support Per Word](#platform-support-per-word), which is generated
@@ -917,6 +1156,20 @@ modifier passthrough is impossible for the display server rather than unbuilt �
 applications; and `neru services` on a non-systemd init is a stated boundary,
 not unfinished work.
 
+**The `CGO_ENABLED=0` Linux build is outside the boundary too**, and says so
+itself. It is a distribution convenience for a configuration macOS does not
+offer at all: cursor, clicks, scroll, hotkeys, keyboard capture, overlay,
+screen enumeration, display hotplug, focused app, `neru key` and the `vision`
+strategy are all `CodeNotSupported` mirrors there, so the daemon starts and
+then fails feature by feature. It therefore announces what kind of build it is once at
+startup — naming what will not work and how to leave it — rather than letting a
+user discover the boundary one keystroke at a time
+([ADR 0012](./adr/0012-the-first-hour-must-not-lie.md),
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)). A CGO
+build never prints it: a warning every ordinary run carries is one people learn
+to scroll past. The tray, notifications and alerts are pure Go and keep
+working, which is exactly why the build exists.
+
 **Windows**
 
 1. App watcher — no foreground-window change notifications, so per-app config never re-applies
@@ -924,13 +1177,25 @@ not unfinished work.
 3. Native notifications — no toast support
 4. UIA tree depth — shallow walk; complex apps under-report clickable elements
 5. Grid and recursive-grid transition animation — not implemented
-6. Smooth cursor and smooth scroll animation — not implemented
-7. Modifier passthrough and `PostModifierEvent` — no-ops
-8. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
-9. `monitor_select` mode — returns `CodeNotSupported`
-10. Font resolution — alias mapping only, no system font enumeration
-11. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+6. Grid virtual-pointer indicator — a no-op, while recursive grid draws it.
+   `virtual_pointer.ui.*` is therefore partly inert here rather than wholly, so
+   it stays declared everywhere and is tracked as this entry instead
+7. Smooth cursor and smooth scroll animation — not implemented
+8. Modifier passthrough and `PostModifierEvent` — no-ops
+9. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
+10. `monitor_select` mode — returns `CodeNotSupported`
+11. Font resolution — alias mapping only, no system font enumeration
+12. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
     installs a launchd agent and Linux a systemd user unit
+13. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+    every platform, but only the Unix client checks that for itself before
+    connecting. A named pipe carries no ownership a client can read without
+    opening it, so the Windows CLI trusts the name it derives from its own SID.
+    The same gap covers the upgrade path: a Unix CLI still reaches a daemon
+    left running on the previous endpoint and gets the version-mismatch message
+    asking for a restart, while on Windows the previous name is named in the
+    failure text rather than dialed, and an old daemon has to be stopped by
+    hand before `neru launch` starts a new one
 
 **macOS**
 
@@ -1012,7 +1277,10 @@ Current ports: `SystemPort`, `AccessibilityPort`, `OverlayPort`, `EventTapPort`,
 Optional extensions, reached by type assertion (Tier 3): `RelativeCursorMover`
 and `CursorSynchronizer` on `SystemPort`, `HotkeyReleaseRegistrar` and
 `HotkeyHealthReporter` on `HotkeyPort`, `OverlayKeyboardPassthroughReporter` on
-`EventTapPort`, and `OverlayCapabilityReporter` on `OverlayPort`.
+`EventTapPort`, `OverlayCapabilityReporter` on `OverlayPort`, and
+`SyntheticModifierSink` on the `tap.Tap` backend contract (Linux only — it is
+declared in a `_linux.go` file beside `Tap`, because only X11 cannot tell its
+own injected key events apart from the user's).
 
 [`keyfeed`](../internal/adapter/keyfeed/) is the reference example: shared
 normalization untagged in `keyfeed.go`, one unexported `postKey` per platform,
@@ -1403,7 +1671,15 @@ usually the mechanism:
   lacks it.
 - **Genuinely DE-specific** — active-window geometry (KWin D-Bus vs Mutter
   D-Bus) and hotkey registration. These belong in DE-named files such as
-  `internal/adapter/accessibility/atspi/kwin_geometry.go`.
+  `internal/adapter/accessibility/atspi/kwin_origin.go`, or in a DE-named
+  package when more than one subsystem needs the same fact —
+  `internal/adapter/platform/kwin` holds the KWin geometry bridge because the
+  AT-SPI window origin and `FocusedWindowBounds` are two readings of it. What is
+  shared across compositors rather than specific to one goes in a package named
+  for the mechanism instead — `internal/adapter/platform/compositorcli` is how
+  both of those callers ask niri, Sway and Hyprland their question, because
+  spawning the CLI and telling a failed query from an empty answer is the same
+  work on all three.
 
 Use a `*_linux_wayland_<compositor>.go` sub-slot only when a compositor family
 needs a path no other family shares — spelled without the OS token inside

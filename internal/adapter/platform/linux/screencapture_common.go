@@ -3,6 +3,7 @@
 package linux
 
 import (
+	"context"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -97,23 +98,16 @@ func captureError(status captureStatus, what string) error {
 
 // Names capture errors use for the display server that refused. They are the
 // user-facing half of every message in captureError, so they live beside it.
+//
+// KDE is spelled out because its backend is the portal rather than the
+// compositor's own protocol: "this Wayland compositor failed to capture the
+// screen" would send someone looking at KWin for a failure that belongs to
+// xdg-desktop-portal or PipeWire.
 const (
 	captureLabelXServer    = "the X server"
 	captureLabelCompositor = "this Wayland compositor"
 	captureLabelKDE        = "KDE Plasma (KWin)"
 )
-
-// captureCompositorLabel names the compositor family in capture errors. KDE is
-// spelled out because it is the one that reaches captureStatusNoProtocol on a
-// healthy session, and the documentation stakes a Known Gaps entry on it
-// saying so.
-func captureCompositorLabel(backend string) string {
-	if backend == backendWaylandKDE {
-		return captureLabelKDE
-	}
-
-	return captureLabelCompositor
-}
 
 // CaptureScreenRegion captures the pixels currently inside region and returns
 // them as an RGBA image.
@@ -135,18 +129,39 @@ func captureCompositorLabel(backend string) string {
 //
 // backend is the label NewSystemAdapter takes ("x11", "wayland-wlroots",
 // "wayland-kde"). Capture is per-backend by construction: X11 reads the root
-// window back, wlroots-family compositors implement wlr-screencopy, and a
-// display server with neither reports CodeNotSupported naming itself.
+// window back, wlroots-family compositors implement wlr-screencopy, KDE Plasma
+// reads a PipeWire stream off the portal's ScreenCast session because KWin
+// implements neither, and a display server with none of the three reports
+// CodeNotSupported naming itself.
 //
 // On a scaled Wayland output the compositor answers in physical pixels, so the
 // returned image can be larger than the requested region by the output's scale
 // factor — the same thing a Retina capture does on macOS.
 //
+// ctx bounds the capture where a backend can observe it, which today means the
+// KDE one: its D-Bus round trips compose — a session establishment, then a
+// PipeWire connection, then a frame — so without the caller's budget on top of
+// them a capture could cost more wall clock than the caller allowed, and this
+// call runs under the mode handler's lock. The X11 and wlroots backends make a
+// single native call each, already bounded by screenCaptureTimeoutMS and not
+// cancelable once entered, so for them ctx is a check at the door rather than a
+// deadline they carry — a Go deadline is only worth threading where the callee
+// reads it (internal/app/modes/AGENTS.md).
+//
 // Privacy: the returned image is the only copy that outlives this call. The
 // native buffers are wiped before they are freed or unmapped. Callers must
 // never log it, derive log text from it, write it to disk, or hold it past the
 // detection that asked for it.
-func CaptureScreenRegion(backend string, region image.Rectangle) (*image.RGBA, error) {
+func CaptureScreenRegion(
+	ctx context.Context,
+	backend string,
+	region image.Rectangle,
+) (*image.RGBA, error) {
+	err := ctx.Err()
+	if err != nil {
+		return nil, derrors.Wrap(err, derrors.CodeContextCanceled, "screen capture canceled")
+	}
+
 	if backend == backendX11 {
 		resolved, err := resolveCaptureRegion(region, x11ActiveScreenBounds)
 		if err != nil {
@@ -156,16 +171,52 @@ func CaptureScreenRegion(backend string, region image.Rectangle) (*image.RGBA, e
 		return x11CaptureRegion(resolved)
 	}
 
+	// KDE is checked before the wlroots family it shares a client stack with:
+	// KWin speaks the same wl_output protocols, which is why the active screen is
+	// resolved the same way, but it advertises no screencopy and reads its pixels
+	// through the portal instead.
+	if backend == backendWaylandKDE {
+		resolved, err := resolveCaptureRegion(region, wlrootsScreenBounds)
+		if err != nil {
+			return nil, err
+		}
+
+		return kdeCaptureRegion(ctx, resolved)
+	}
+
 	if backendUsesWlrClientStack(backend) {
 		resolved, err := resolveCaptureRegion(region, wlrootsScreenBounds)
 		if err != nil {
 			return nil, err
 		}
 
-		return wlrootsCaptureRegion(resolved, backend)
+		return wlrootsCaptureRegion(resolved)
 	}
 
 	return nil, derrors.New(derrors.CodeNotSupported, unsupportedCaptureBackend(backend))
+}
+
+// ScreenCaptureSupported reports whether backend has a capture path at all,
+// without capturing anything.
+//
+// It exists for the callers that need to know whether a capability built on
+// capture is available *before* deciding to use it — the vision hint strategy's
+// health check, which must not read the user's screen to answer a question
+// about which display server is running. nil means the backend implements
+// capture; the error is the same CodeNotSupported sentence a capture attempt
+// would have produced, naming the display server that has none.
+//
+// It answers on the label alone, so it says nothing about whether this session
+// can capture *right now*. KDE's backend is behind a consent gate, and whether
+// that gate is open is what SystemPort.CheckScreenCapturePermission answers;
+// asking here would mean a health check that decides how a display server is
+// configured by dialing the portal.
+func ScreenCaptureSupported(backend string) error {
+	if backend == backendX11 || backendUsesWlrClientStack(backend) {
+		return nil
+	}
+
+	return derrors.New(derrors.CodeNotSupported, unsupportedCaptureBackend(backend))
 }
 
 // unsupportedCaptureBackend explains which display server has no capture path.

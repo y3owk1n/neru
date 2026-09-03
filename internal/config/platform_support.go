@@ -15,10 +15,12 @@ import (
 const (
 	noteScreenShareHide = "hiding the overlay from a screen share is an NSWindow sharing level, " +
 		"a Quartz concept with no X11, Wayland or Win32 counterpart"
-	noteVisionStrategy = "no element-detection engine outside macOS answers the vision " +
-		"strategy, so it finds nothing there and none of its settings are read; use axtree"
+	noteVisionStrategy = "the vision strategy needs an element-detection engine, which " +
+		"macOS has in the Vision framework and Linux in tesseract; Windows has neither, " +
+		"so it finds nothing there and none of its settings are read; use axtree"
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
 		"even where the vision strategy lands; that half is text-only"
+	noteWLKBPTRStrategy        = "the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux"
 	noteRecursiveGridAnimation = "the Windows overlay backend has no grid transition animation"
 	noteMonitorSelect          = "monitor_select needs the optional MonitorSelector overlay " +
 		"extension, which the Windows backend does not implement"
@@ -40,9 +42,12 @@ const (
 		"draw on demand"
 )
 
-// visionStrategy is the value of the strategy option that selects the vision
-// engine. The option itself is recognized everywhere; this one value is not.
-const visionStrategy = "vision"
+// visionStrategy and wlkbptrStrategy are strategy option values.
+// The option itself is recognized everywhere; these values are not.
+const (
+	visionStrategy  = "vision"
+	wlkbptrStrategy = "wl-kbptr"
+)
 
 // strategyOptions are every path the strategy option is written at: the hints
 // section and the four per-app override tables that shadow it, plus the
@@ -57,13 +62,12 @@ var strategyOptions = []string{
 	"app_configs.strategy",
 }
 
-// darwinOnly and darwinAndLinux are the narrow columns this schema uses today,
-// named so a reader compares two options by the same words. A darwin+windows
-// column existed for the hints search badge until Linux drew it too; add one
-// back the moment an option needs it rather than reaching for the nearest fit.
+// darwinOnly, darwinAndLinux, and linuxOnly are the narrow columns this schema uses today,
+// named so a reader compares two options by the same words.
 var (
 	darwinOnly     = parity.Platforms{parity.Darwin}
 	darwinAndLinux = parity.Platforms{parity.Darwin, parity.Linux}
+	linuxOnly      = parity.Platforms{parity.Linux}
 )
 
 // PlatformSupport declares, for every option in the schema, the platforms on
@@ -141,7 +145,7 @@ func PlatformSupport() parity.Declaration {
 			"grid.prewarm_enabled",
 		),
 
-		parity.On(parity.KindOption, darwinOnly, noteVisionStrategy,
+		parity.On(parity.KindOption, darwinAndLinux, noteVisionStrategy,
 			"hints.vision.detect_text",
 			"hints.vision.request_timeout_ms",
 			"hints.vision.minimum_confidence",
@@ -164,8 +168,11 @@ func PlatformSupport() parity.Declaration {
 			"hints.vision.rectangle_min_aspect",
 			"hints.vision.rectangle_max_aspect",
 		),
-		parity.ValueOn(parity.KindOption, darwinOnly, noteVisionStrategy,
+		parity.ValueOn(parity.KindOption, darwinAndLinux, noteVisionStrategy,
 			visionStrategy, strategyOptions...,
+		),
+		parity.ValueOn(parity.KindOption, linuxOnly, noteWLKBPTRStrategy,
+			wlkbptrStrategy, strategyOptions...,
 		),
 
 		parity.On(parity.KindOption, darwinAndLinux, noteRecursiveGridAnimation,
@@ -268,6 +275,7 @@ func PlatformSupport() parity.Declaration {
 			"grid.enabled",
 			"grid.characters",
 			"grid.sublayer_keys",
+			"grid.max_label_length",
 			"grid.row_labels",
 			"grid.col_labels",
 			"grid.ui.font_size",

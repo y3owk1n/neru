@@ -256,3 +256,87 @@ func TestKeymap_KeysAreTheSpellingsWritten(t *testing.T) {
 		}
 	}
 }
+
+// The global keymap is the other table a keystroke can resolve against: the
+// mode handler falls back to it for a chord the active mode does not bind, so it
+// has to answer the same merge rules the mode tables do.
+func TestConfig_ResolveGlobalKeymap_AppliesFocusedAppOverrides(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultConfig()
+	cfg.Hotkeys.Bindings = map[string][]string{
+		keymapCmdL: {leftClickStep},
+		"Cmd+G":    {config.ModeNameGrid},
+	}
+	cfg.AppConfigs = []config.AppConfig{
+		{
+			BundleID: keymapTestApp,
+			Hotkeys: map[string]config.StringOrStringArray{
+				keymapCmdL: {rightClickStep},
+				"Cmd+G":    {config.DisabledSentinel},
+			},
+		},
+	}
+
+	keymap := cfg.ResolveGlobalKeymap(keymapTestApp)
+
+	binding, bound := keymap.Lookup(config.NormalizeKeyForComparison(keymapCmdL))
+	if !bound {
+		t.Fatal("Cmd+L is not bound; the focused app's override replaced nothing")
+	}
+
+	if len(binding.Steps) != 1 || binding.Steps[0] != rightClickStep {
+		t.Errorf("Cmd+L runs %v, want the focused app's override %v",
+			binding.Steps, []string{rightClickStep})
+	}
+
+	if _, bound := keymap.Lookup(config.NormalizeKeyForComparison("Cmd+G")); bound {
+		t.Error("Cmd+G is still bound; the disabled sentinel removed no global binding")
+	}
+
+	// The base table stands for an application with no entry of its own.
+	base := cfg.ResolveGlobalKeymap(keymapOtherApp)
+
+	baseBinding, bound := base.Lookup(config.NormalizeKeyForComparison(keymapCmdL))
+	if !bound || len(baseBinding.Steps) != 1 || baseBinding.Steps[0] != leftClickStep {
+		t.Errorf("Cmd+L runs %v for an app with no overrides, want the base %v",
+			baseBinding.Steps, []string{leftClickStep})
+	}
+}
+
+// ModifierChords is what keeps the global table from shadowing what a mode reads
+// as input: only a chord carrying Ctrl, Alt or Cmd survives it.
+func TestKeymap_ModifierChordsKeepsOnlyShortcuts(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultConfig()
+	cfg.Hotkeys.Bindings = map[string][]string{
+		keymapCmdL:  {leftClickStep},
+		"Alt+J":     {scrollDownSteps},
+		"Primary+K": {scrollDownSteps},
+		"Shift+M":   {leftClickStep},
+		"g":         {leftClickStep},
+		"gg":        {leftClickStep},
+	}
+
+	chords := cfg.ResolveGlobalKeymap("").ModifierChords()
+
+	for _, key := range []string{keymapCmdL, "Alt+J", "Primary+K"} {
+		if _, bound := chords.Lookup(config.NormalizeKeyForComparison(key)); !bound {
+			t.Errorf("%s is not bound; a modifier chord was dropped", key)
+		}
+	}
+
+	// Shift-only combos and bare keys are a mode's own input, so they may not
+	// reach a table consulted while a mode is open.
+	for _, key := range []string{"Shift+M", "g", "gg"} {
+		if _, bound := chords.Lookup(config.NormalizeKeyForComparison(key)); bound {
+			t.Errorf("%s is bound; it is input a mode reads, not a shortcut", key)
+		}
+	}
+
+	// A sequence cannot be spelled with a modifier, so nothing here starts one.
+	if chords.IsSequenceStart("g") {
+		t.Error("g starts a sequence in the modifier chords")
+	}
+}

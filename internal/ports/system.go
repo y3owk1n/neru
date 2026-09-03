@@ -64,6 +64,15 @@ type SystemPort interface {
 	// FocusedWindowBounds returns the bounds of the currently focused window.
 	// Returns the bounds and true if a window was found, or a zero rectangle
 	// and false if no focused window exists (e.g. the desktop is focused).
+	//
+	// A platform that cannot answer the question at all — a Wayland compositor
+	// exposing no window geometry to other clients — returns CodeNotSupported
+	// rather than false, so a caller scoping itself to the whole screen instead
+	// knows it is falling back rather than obeying an answer. Any other error
+	// means the source exists and did not answer this time: a compositor IPC
+	// that could not be run, refused or timed out. Both are the same fallback
+	// and neither is false, because a caller that widens to the whole screen
+	// must be able to tell that it is guessing.
 	FocusedWindowBounds(ctx context.Context) (image.Rectangle, bool, error)
 
 	// MoveCursorToPoint moves the mouse cursor to the specified point.
@@ -83,8 +92,11 @@ type SystemPort interface {
 	// CheckScreenCapturePermission reports whether screen recording is
 	// permitted, without prompting.
 	//
-	// Only the vision hint strategy needs this, and only macOS gates screen
-	// capture behind a permission — platforms with no such gate report true.
+	// Only the vision hint strategy needs this. Two backends gate screen
+	// capture: macOS behind TCC, and KDE Plasma behind the xdg-desktop-portal
+	// ScreenCast grant its compositor leaves as the only way to read the
+	// screen. Everywhere else — X11, wlroots, Windows — there is no such gate
+	// and the answer is true, which is a statement rather than a silent no-op.
 	CheckScreenCapturePermission(ctx context.Context) bool
 
 	// RequestScreenCapturePermission shows the platform's guidance for
@@ -93,6 +105,11 @@ type SystemPort interface {
 	// It blocks on a modal dialog, so callers must not hold a lock across it.
 	// Platforms with no permission gate return ScreenCaptureGranted without
 	// showing anything.
+	//
+	// It is also the only place a gated backend may put a consent prompt on
+	// screen: a capture runs while the user waits for a mode to open, so the
+	// prompt belongs here, where the caller has already taken it off its lock
+	// and given it a budget sized for a human.
 	//
 	// Returning ScreenCaptureGranted implies a subsequent
 	// CheckScreenCapturePermission reports true — callers retry a blocked

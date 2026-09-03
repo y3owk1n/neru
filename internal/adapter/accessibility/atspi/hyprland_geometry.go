@@ -3,7 +3,11 @@
 package atspi
 
 import (
+	"image"
+
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform/compositorcli"
 )
 
 // Hyprland window-origin source. `hyprctl -j activewindow` reports the focused
@@ -30,13 +34,17 @@ type hyprlandWindow struct {
 	Size []int `json:"size"`
 }
 
-func (h *hyprlandOriginSource) originFor(frameW, frameH int) (int, int, bool) {
+func (h *hyprlandOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
 	var win hyprlandWindow
-	if !compositorJSON(&win, "hyprctl", "-j", "activewindow") {
-		return 0, 0, false
+
+	err := compositorcli.Query(&win, "hyprctl", "-j", "activewindow")
+	if err != nil {
+		return image.Point{}, false, err
 	}
 
-	return hyprlandComputeOrigin(win, frameW, frameH, h.logger)
+	origin, ok := hyprlandComputeOrigin(win, frame.Width, frame.Height, h.logger)
+
+	return origin, ok, nil
 }
 
 // hyprlandComputeOrigin derives the focused window's screen origin from
@@ -45,9 +53,9 @@ func hyprlandComputeOrigin(
 	win hyprlandWindow,
 	frameW, frameH int,
 	logger *zap.Logger,
-) (int, int, bool) {
+) (image.Point, bool) {
 	if len(win.At) < coordPairLen || len(win.Size) < coordPairLen {
-		return 0, 0, false
+		return image.Point{}, false
 	}
 
 	if absInt(win.Size[0]-frameW) > windowOriginSizeTolerance ||
@@ -56,8 +64,8 @@ func hyprlandComputeOrigin(
 			zap.Ints("windowSize", win.Size),
 			zap.Int("frameW", frameW), zap.Int("frameH", frameH))
 
-		return 0, 0, false
+		return image.Point{}, false
 	}
 
-	return win.At[0], win.At[1], true
+	return image.Pt(win.At[0], win.At[1]), true
 }

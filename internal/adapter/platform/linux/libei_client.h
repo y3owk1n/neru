@@ -12,9 +12,25 @@ typedef struct NeruEiClient NeruEiClient;
 
 // Establish a RemoteDesktop portal session and a libei sender context, blocking
 // until the absolute-pointer device is ready or timeout_ms elapses. The portal
-// shows a one-time consent dialog the user must approve. Returns NULL on
-// denial, timeout, or any setup failure.
+// shows a consent dialog the user must approve. Returns NULL on denial,
+// timeout, or any setup failure.
+//
+// liboeffis exposes no restore token, so the session this opens cannot be
+// reused after a restart and the dialog appears on every start. It is the
+// fallback for a session the Go-side portal handshake could not open; the
+// reusable path is neru_ei_connect_fd.
 NeruEiClient *neru_ei_connect(int timeout_ms);
+
+// Attach a libei sender context to an EIS socket the caller already obtained
+// from org.freedesktop.portal.RemoteDesktop.ConnectToEIS, blocking until the
+// absolute-pointer device is ready or timeout_ms elapses. This is the path that
+// can reuse a stored grant, because the Go caller runs the portal handshake and
+// can present a restore token there.
+//
+// Takes ownership of eis_fd unconditionally: on success libei closes it at
+// teardown, and on failure it is closed before returning NULL. Returns NULL on
+// timeout or any setup failure.
+NeruEiClient *neru_ei_connect_fd(int eis_fd, int timeout_ms);
 
 // Tear down the libei context and portal session.
 void neru_ei_disconnect(NeruEiClient *c);

@@ -1,14 +1,13 @@
-//go:build !darwin && !windows
+//go:build !darwin && !linux && !windows
 
 package systray
 
 import (
 	"context"
-	"os/exec"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Opens a URL or file path with xdg-open (Linux and other XDG desktops).
-// Does not validate the target or wait for the launched app.
-func openExternal(ctx context.Context, target string) error {
-	return exec.CommandContext(ctx, "xdg-open", target).Run()
+func openExternal(_ context.Context, _ string) error {
+	return derrors.New(derrors.CodeNotSupported, "opening external targets is not supported")
 }

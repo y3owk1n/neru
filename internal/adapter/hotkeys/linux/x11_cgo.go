@@ -29,6 +29,23 @@ type x11HotkeyBinding struct {
 }
 
 type x11HotkeyState struct {
+	// displayMu serializes every Xlib call made on display.
+	//
+	// Xlib is thread-safe only when XInitThreads runs before the first
+	// XOpenDisplay, and nothing in this process calls it. Manager.mu guards the
+	// Go maps and says nothing about the connection, so without this lock a
+	// registration on a caller's goroutine and the poll loop on its own would
+	// be inside the same connection buffers at once: XPending flushes the
+	// output buffer and reads from the socket, which is exactly what the
+	// XGrabKey/XSelectInput/XFlush sequence beside it is doing.
+	//
+	// It is never held across a call that waits for a key. The loop polls with
+	// neru_hotkeys_pending and only calls XNextEvent when an event is already
+	// queued, so the longest a registration can wait behind it is one
+	// non-blocking read — holding it across a bare XNextEvent would wedge
+	// registration until the user pressed something.
+	displayMu sync.Mutex
+
 	display  *C.Display
 	root     C.Window
 	bindings map[ports.HotkeyID]x11HotkeyBinding
@@ -36,6 +53,100 @@ type x11HotkeyState struct {
 	stopCh   chan struct{} // signals runX11HotkeyLoop to exit
 	doneCh   chan struct{} // closed when runX11HotkeyLoop has exited
 	once     sync.Once
+}
+
+// x11IgnoredModifierMasks are the lock modifiers a grab has to be repeated
+// under, because the server reports them in a key event's state and a grab
+// naming a different state does not match: Lock is CapsLock, and Mod2 is where
+// NumLock conventionally sits.
+//
+// The set is stated once so a grab and the ungrab that undoes it cannot drift:
+// an ungrab that misses a mask leaves a hotkey grabbed after Neru forgot it.
+func x11IgnoredModifierMasks() [4]C.uint {
+	return [4]C.uint{0, C.Mod2Mask, C.LockMask, C.Mod2Mask | C.LockMask}
+}
+
+// grab resolves keyString against the connection's keymap and installs the
+// grabs for it, as one critical section.
+//
+// The resolve belongs inside the lock rather than beside it: XKeysymToKeycode
+// is an Xlib call on this same connection, so it is one of the calls being
+// serialized, not a pure computation that happens to precede them.
+func (s *x11HotkeyState) grab(keyString string) (x11HotkeyBinding, error) {
+	s.displayMu.Lock()
+	defer s.displayMu.Unlock()
+
+	keycode, modifiers, err := parseX11Hotkey(s.display, keyString)
+	if err != nil {
+		return x11HotkeyBinding{}, err
+	}
+
+	for _, mask := range x11IgnoredModifierMasks() {
+		C.XGrabKey(
+			s.display,
+			C.int(keycode),
+			modifiers|mask,
+			s.root,
+			C.True,
+			C.GrabModeAsync,
+			C.GrabModeAsync,
+		)
+	}
+
+	C.XSelectInput(s.display, s.root, C.KeyPressMask)
+	C.XFlush(s.display)
+
+	return x11HotkeyBinding{keycode: C.int(keycode), modifiers: modifiers}, nil
+}
+
+// ungrab releases the grabs grab installed for one binding.
+func (s *x11HotkeyState) ungrab(binding x11HotkeyBinding) {
+	s.displayMu.Lock()
+	defer s.displayMu.Unlock()
+
+	for _, mask := range x11IgnoredModifierMasks() {
+		C.XUngrabKey(
+			s.display,
+			binding.keycode,
+			binding.modifiers|mask,
+			s.root,
+		)
+	}
+
+	C.XFlush(s.display)
+}
+
+// nextEvent takes one queued event off the connection, reporting false when
+// none was waiting.
+//
+// The pending check and the read are one critical section because they are one
+// sequence: XPending answering "an event is queued" is only a fact about this
+// connection while nothing else is draining it, and an XNextEvent whose event
+// another thread has taken blocks until the next one arrives — with displayMu
+// held, which is the one way this lock could wedge registration.
+func (s *x11HotkeyState) nextEvent() (C.XEvent, bool) {
+	s.displayMu.Lock()
+	defer s.displayMu.Unlock()
+
+	var event C.XEvent
+
+	if C.neru_hotkeys_pending(s.display) == 0 {
+		return event, false
+	}
+
+	C.XNextEvent(s.display, &event)
+
+	return event, true
+}
+
+// closeDisplay tears down the connection. Callers must have stopped the poll
+// loop first — the lock orders this against a registration, not against a read
+// of a display that has been freed.
+func (s *x11HotkeyState) closeDisplay() {
+	s.displayMu.Lock()
+	defer s.displayMu.Unlock()
+
+	C.XCloseDisplay(s.display)
 }
 
 var x11States sync.Map
@@ -46,27 +157,13 @@ func (m *Manager) registerX11Hotkey(hotkeyID ports.HotkeyID, keyString string) e
 		return err
 	}
 
-	keycode, modifiers, parseErr := parseX11Hotkey(state.display, keyString)
-	if parseErr != nil {
-		return parseErr
+	binding, grabErr := state.grab(keyString)
+	if grabErr != nil {
+		return grabErr
 	}
 
-	for _, mask := range []C.uint{0, C.Mod2Mask, C.LockMask, C.Mod2Mask | C.LockMask} {
-		C.XGrabKey(
-			state.display,
-			C.int(keycode),
-			modifiers|mask,
-			state.root,
-			C.True,
-			C.GrabModeAsync,
-			C.GrabModeAsync,
-		)
-	}
-	C.XSelectInput(state.display, state.root, C.KeyPressMask)
-	C.XFlush(state.display)
-
-	state.bindings[hotkeyID] = x11HotkeyBinding{keycode: C.int(keycode), modifiers: modifiers}
-	state.ids[x11BindingKey(keycode, modifiers)] = hotkeyID
+	state.bindings[hotkeyID] = binding
+	state.ids[x11BindingKey(C.uint(binding.keycode), binding.modifiers)] = hotkeyID
 
 	return nil
 }
@@ -86,15 +183,7 @@ func (m *Manager) unregisterX11Hotkey(hotkeyID ports.HotkeyID) {
 		return
 	}
 
-	for _, mask := range []C.uint{0, C.Mod2Mask, C.LockMask, C.Mod2Mask | C.LockMask} {
-		C.XUngrabKey(
-			state.display,
-			binding.keycode,
-			binding.modifiers|mask,
-			state.root,
-		)
-	}
-	C.XFlush(state.display)
+	state.ungrab(binding)
 
 	delete(state.ids, x11BindingKey(C.uint(binding.keycode), binding.modifiers))
 	delete(state.bindings, hotkeyID)
@@ -120,7 +209,7 @@ func (m *Manager) unregisterAllX11Hotkeys() {
 		close(state.stopCh)
 		<-state.doneCh
 
-		C.XCloseDisplay(state.display)
+		state.closeDisplay()
 		x11States.Delete(m)
 	})
 }
@@ -135,6 +224,10 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 		return state, nil
 	}
 
+	// XOpenDisplay and the root-window read are the two Xlib calls here that do
+	// not go through displayMu, and the only ones that need not: they run
+	// before the state exists to lock, before it is published to x11States and
+	// before the poll loop that would share the connection is started.
 	display := C.XOpenDisplay(nil)
 	if display == nil {
 		return nil, derrors.New(
@@ -167,18 +260,19 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 		default:
 		}
 
-		// Use XPending to check for queued events instead of calling the
-		// blocking XNextEvent directly. This allows the stop channel to be
-		// checked between iterations, preventing a goroutine leak and a
-		// use-after-free when unregisterAllX11Hotkeys closes the display.
-		if C.neru_hotkeys_pending(state.display) == 0 {
+		// nextEvent polls with XPending instead of calling the blocking
+		// XNextEvent directly. This allows the stop channel to be checked
+		// between iterations, preventing a goroutine leak and a
+		// use-after-free when unregisterAllX11Hotkeys closes the display —
+		// and it is what lets every Xlib call on this connection share one
+		// lock without a registration ever waiting on a keystroke.
+		event, hasEvent := state.nextEvent()
+		if !hasEvent {
 			time.Sleep(x11HotkeyPollInterval)
 
 			continue
 		}
 
-		var event C.XEvent
-		C.XNextEvent(state.display, &event)
 		if C.neru_xevent_type(&event) != C.KeyPress {
 			continue
 		}

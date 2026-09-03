@@ -41,12 +41,17 @@ all pointer and keyboard injection goes through **libei** via
 Routing lives in `system_wayland_input.go` — if the compositor advertises
 `zwlr_virtual_pointer_v1` it uses the virtual pointer, otherwise libei. The two
 paths never overlap. Code slots: `platform/linux/system_wayland_kde_*.go`,
-`accessibility/atspi/kwin_geometry.go`, `accessibility/atspi/client.go`.
+`platform/kwin/`, `accessibility/atspi/kwin_origin.go`,
+`accessibility/atspi/client.go`.
 
 AT-SPI reports window-relative coordinates, so a KWin script pushes
 focused-window geometry over D-Bus to translate them into global compositor
-space (see
+space — the same script every other focused-window answer here reads (see
 [window-origin offsets](CROSS_PLATFORM.md#accessibility-and-hints)).
+
+A `kwin --replace` or a Plasma crash takes that script with it; see the KWin row
+under [window-origin offsets](CROSS_PLATFORM.md#accessibility-and-hints) for what
+happens then.
 
 ### Protocol support (KWin 6.6.4, measured)
 
@@ -64,19 +69,23 @@ Re-measure with the one-liner under
 
 `zwlr_screencopy_manager_v1` is absent here too — KWin's own capture path is
 `zkde_screencast_unstable_v1` and the portal's ScreenCast session, both of which
-deliver frames over PipeWire. Screen capture therefore reports
-`CodeNotSupported` naming KDE Plasma; it is
-[Known Gaps](CROSS_PLATFORM.md#known-gaps) Linux entry 2. That claim is read
-from KWin's protocol set rather than taken from the measured session above; the
-one-liner below now greps for it, so you can confirm it on your own KWin.
+deliver frames over PipeWire. Neru therefore captures the screen here through
+`org.freedesktop.portal.ScreenCast`, which is a consent gate rather than a
+protocol Neru can simply bind: see
+[Screen-sharing consent](#screen-sharing-consent) below. That claim about the
+protocol set is read from KWin rather than taken from the measured session
+above; the one-liner below now greps for it, so you can confirm it on your own
+KWin.
 
 ### Setup notes (beyond LINUX_SETUP.md)
 
-1. **RemoteDesktop consent** — the first input in a session shows a "Remote
-   Control" portal prompt. Approve it once per daemon lifetime. The prompt
-   **reappears on every fresh daemon start** (reboot, logout, relaunch):
-   `liboeffis` does not expose restore-token / `persist_mode`, so KDE cannot
-   persist the grant across launches.
+1. **RemoteDesktop consent** — the first daemon start on a machine shows a
+   "Remote Control" portal prompt. Approve it once and later starts reuse the
+   same grant with no prompt: Neru asks the portal to persist the session and
+   keeps the restore token it hands back in
+   `$XDG_STATE_HOME/neru/remote-desktop.token` (`~/.local/state/neru/…` by
+   default), readable by you alone. Deleting that file, or revoking the
+   permission in System Settings, brings the prompt back on the next start.
 2. **Hotkeys** — Neru's own `[hotkeys]` config works on KDE Wayland when the
    daemon can read `/dev/input` (see
    [Global hotkeys on Wayland](#global-hotkeys-on-wayland)). If you would rather
@@ -92,13 +101,36 @@ one-liner below now greps for it, so you can confirm it on your own KWin.
     | Scroll         | `/home/<you>/.local/bin/neru scroll`         |
 
 3. **Portal services** — input needs `xdg-desktop-portal` and
-   `xdg-desktop-portal-kde` running in the session.
+   `xdg-desktop-portal-kde` running in the session. So does screen capture.
+
+### Screen-sharing consent
+
+KWin has no screencopy protocol, so `hints.strategy = vision` reads the screen
+through the portal's ScreenCast session — a second, separate grant from the
+"Remote Control" one above, because sharing your screen and driving your
+pointer are two different permissions and KDE asks them separately.
+
+The prompt appears the first time a vision-strategy hint activation needs a
+frame, not at startup, and it is a source picker rather than a yes/no dialog.
+Pick every screen you are willing to have read: a region on a screen you did
+not share fails rather than coming back cropped, and Neru asks for monitors
+only — never windows — because only a monitor stream says where on screen its
+pixels are. The pointer is left out of the frames.
+
+Approve it once. Neru asks the portal to persist the session and keeps the
+restore token in `$XDG_STATE_HOME/neru/screen-cast.token`
+(`~/.local/state/neru/…` by default), readable by you alone, so later starts
+restore the same grant with no picker. Deleting that file, or revoking the
+permission in **System Settings → Apps & Window Management → Application
+Permissions**, brings the picker back. No capture ever raises the dialog by
+itself — a hint refresh that finds no grant fails and says a grant is needed.
+
+The session is established once and reused; the PipeWire connection under it is
+opened per capture and closed with it, so KWin is not streaming your screen
+between the frames Neru actually reads.
 
 ### Known issues
 
-- **Consent re-prompt every daemon launch** — see above. Planned follow-up:
-  drive `org.freedesktop.portal.RemoteDesktop` directly with a stored
-  `restore_token` + `persist_mode` instead of relying on `liboeffis` alone.
 - **Modifier keys need a keyboard device from the portal** — if the grant
   includes only a pointer device, modified clicks degrade.
 - **Key feeding needs a keyboard device from the portal** — `action feed`
@@ -115,6 +147,11 @@ one-liner below now greps for it, so you can confirm it on your own KWin.
 Approve the consent dialog before the connect times out. If denied, revoke and
 re-grant in System Settings (Apps & Window Management / portal permissions).
 Confirm the portal services are running.
+
+A grant that was revoked while Neru still held its restore token needs no
+manual cleanup: the stored token is dropped on the first refusal and the prompt
+is shown once more, on that same start. If you would rather start clean, delete
+`~/.local/state/neru/remote-desktop.token`.
 
 **"compositor does not support zwlr_virtual_pointer_v1" on KDE**
 

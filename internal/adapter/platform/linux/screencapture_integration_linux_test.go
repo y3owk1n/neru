@@ -3,6 +3,7 @@
 package linux
 
 import (
+	"context"
 	"image"
 	"os"
 	"testing"
@@ -49,7 +50,7 @@ func liveCaptureBackend(t *testing.T) string {
 func requireCapture(t *testing.T, backend string, region image.Rectangle) *image.RGBA {
 	t.Helper()
 
-	img, err := CaptureScreenRegion(backend, region)
+	img, err := CaptureScreenRegion(context.Background(), backend, region)
 	if derrors.IsNotSupported(err) {
 		t.Skipf("this display server cannot capture: %v", err)
 	}
@@ -91,6 +92,45 @@ func TestCaptureScreenRegion_ReturnsPixels(t *testing.T) {
 	}
 }
 
+// TestCaptureScreenRegion_SurvivesRepeatedUse is the case nothing exercised
+// until the vision hint strategy landed.
+//
+// Before OCR there was no caller that captured more than once in a process, so
+// a backend that works on the first frame and not the second would have shipped
+// green: every other test here captures once. A hint activation captures every
+// time, so "works once" is the shape a capture bug takes for a user, and it is
+// the shape this asserts against.
+//
+// The regions differ deliberately. Both the wlroots client and the X11 path
+// resolve an output and validate the rectangle per call, and a state bug that
+// only shows when the geometry changes would pass a loop over one rectangle.
+func TestCaptureScreenRegion_SurvivesRepeatedUse(t *testing.T) {
+	backend := liveCaptureBackend(t)
+	full := requireCapture(t, backend, image.Rectangle{})
+
+	regions := []image.Rectangle{
+		{},
+		image.Rect(0, 0, full.Rect.Dx()/2, full.Rect.Dy()/2),
+		image.Rect(0, 0, full.Rect.Dx()/4, full.Rect.Dy()/4),
+		{},
+	}
+
+	for round := range 2 {
+		for index, region := range regions {
+			img, err := CaptureScreenRegion(context.Background(), backend, region)
+			if err != nil {
+				t.Fatalf("round %d region %d (%v): capture %d of this process failed: %v",
+					round, index, region, round*len(regions)+index+2, err)
+			}
+
+			if img.Rect.Dx() <= 0 || img.Rect.Dy() <= 0 {
+				t.Fatalf("round %d region %d (%v): captured an empty %v image",
+					round, index, region, img.Rect)
+			}
+		}
+	}
+}
+
 // TestCaptureScreenRegion_HonorsTheRegion is the other half of the contract: a
 // caller constrained to one window must pay for one window, not for the whole
 // display.
@@ -124,7 +164,7 @@ func TestCaptureScreenRegion_RejectsAPartiallyOffScreenRegion(t *testing.T) {
 
 	overhanging := image.Rect(full.Rect.Dx()-10, 0, full.Rect.Dx()+200, 100)
 
-	img, err := CaptureScreenRegion(backend, overhanging)
+	img, err := CaptureScreenRegion(context.Background(), backend, overhanging)
 	if err == nil {
 		t.Fatalf("capturing %v, which leaves the screen, succeeded and returned %v",
 			overhanging, img.Rect)
@@ -140,7 +180,11 @@ func TestCaptureScreenRegion_RejectsAPartiallyOffScreenRegion(t *testing.T) {
 func TestCaptureScreenRegion_RejectsAnOffScreenRegion(t *testing.T) {
 	backend := liveCaptureBackend(t)
 
-	img, err := CaptureScreenRegion(backend, image.Rect(1_000_000, 1_000_000, 1_000_100, 1_000_100))
+	img, err := CaptureScreenRegion(
+		context.Background(),
+		backend,
+		image.Rect(1_000_000, 1_000_000, 1_000_100, 1_000_100),
+	)
 	if err == nil {
 		t.Fatalf("capturing a region off every screen succeeded, returning %v", img.Rect)
 	}

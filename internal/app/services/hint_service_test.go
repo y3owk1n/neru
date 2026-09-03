@@ -2,10 +2,17 @@ package services_test
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
+	"time"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -218,6 +225,231 @@ func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
 
 	if hints[0].Element().ID() != supplementElement.ID() {
 		t.Errorf("hint element = %q, want %q", hints[0].Element().ID(), supplementElement.ID())
+	}
+}
+
+// TestHintService_GenerateHintsVisionNotifiesWhenTheStrategyIsUnavailable is
+// about a failure a log line cannot fix.
+//
+// When vision detection reports CodeNotSupported the machine cannot run the
+// strategy at all — no tesseract language data, no capture backend, a build
+// with no engine in it — and the error names what to install. Swallowing that
+// leaves the user pressing the hotkey and getting an overlay with nothing on
+// it, since the supplementary elements the pipeline keeps are macOS surfaces
+// with no counterpart elsewhere. The message has to reach a person, which is
+// what ADR 0002 says a log line does not do.
+func TestHintService_GenerateHintsVisionNotifiesWhenTheStrategyIsUnavailable(t *testing.T) {
+	const missing = "install the tesseract eng language data"
+
+	notified := make(chan string, 4)
+
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+		return image.Rect(0, 0, 200, 200), true, nil
+	}
+	mockSystem.ShowNotificationFunc = func(_ context.Context, _, message string) error {
+		notified <- message
+
+		return nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{},
+		logger.Get(),
+		&mockVisionPort{detectErr: derrors.New(derrors.CodeNotSupported, missing)},
+	)
+
+	for range 3 {
+		_, err := service.GenerateHints(
+			context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", false,
+		)
+		if err != nil {
+			t.Fatalf("GenerateHints() unexpected error: %v", err)
+		}
+	}
+
+	select {
+	case message := <-notified:
+		if !strings.Contains(message, missing) {
+			t.Errorf("notification %q does not carry what the error named", message)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("vision reported CodeNotSupported and the user was never told")
+	}
+
+	// Three activations, one notification: a user who keeps pressing the hotkey
+	// is told once, not once per press.
+	select {
+	case extra := <-notified:
+		t.Errorf("the same failure notified twice: %q", extra)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+// TestHintService_GenerateHintsVisionNoticeSurvivesTheActivationContext is the
+// regression test for the way this notification is easiest to lose.
+//
+// Every caller that reaches vision detection under the mode handler's lock
+// builds its context with a hint timeout and cancels it on return, microseconds
+// after the notification is queued — and the Linux notification path honors a
+// caller's deadline. A notice that carried that context would be canceled
+// before the first send, which is also the send that dials the session bus, and
+// the user would be told nothing.
+func TestHintService_GenerateHintsVisionNoticeSurvivesTheActivationContext(t *testing.T) {
+	// proceed holds the send until the activation context has been canceled,
+	// so this observes the hazard rather than racing it.
+	proceed := make(chan struct{})
+	sent := make(chan error, 1)
+
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+		return image.Rect(0, 0, 200, 200), true, nil
+	}
+	mockSystem.ShowNotificationFunc = func(ctx context.Context, _, _ string) error {
+		<-proceed
+
+		sent <- ctx.Err()
+
+		return nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{},
+		logger.Get(),
+		&mockVisionPort{detectErr: derrors.New(derrors.CodeNotSupported, "no language data")},
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	_, err := service.GenerateHints(
+		ctx, nil, nil, "com.example.app", domain.StrategyVision, "", false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	// What every locked caller does on return.
+	cancel()
+	close(proceed)
+
+	select {
+	case ctxErr := <-sent:
+		if ctxErr != nil {
+			t.Errorf("the notification was sent on a canceled context: %v", ctxErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the notification was never sent")
+	}
+}
+
+// TestHintService_GenerateHintsVisionRetriesANoticeThatFailedToSend pins that
+// the dedupe remembers a *telling*, not an attempt. A session whose
+// notification daemon was not up at the first activation would otherwise be
+// silenced for the life of the daemon, which is the same silence the
+// notification exists to break.
+func TestHintService_GenerateHintsVisionRetriesANoticeThatFailedToSend(t *testing.T) {
+	attempts := make(chan struct{}, 4)
+
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+		return image.Rect(0, 0, 200, 200), true, nil
+	}
+	mockSystem.ShowNotificationFunc = func(context.Context, string, string) error {
+		attempts <- struct{}{}
+
+		return derrors.New(derrors.CodeActionFailed, "no notification daemon on the bus")
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{},
+		logger.Get(),
+		&mockVisionPort{detectErr: derrors.New(derrors.CodeNotSupported, "no language data")},
+	)
+
+	// The release of a failed notice happens on the sending goroutine, so which
+	// later activation retries is a scheduling detail rather than a promise.
+	// What is asserted is that one of them does: a dedupe that remembered the
+	// attempt would let none of them.
+	seen := 0
+	deadline := time.After(5 * time.Second)
+
+	for seen < 2 {
+		_, err := service.GenerateHints(
+			context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", false,
+		)
+		if err != nil {
+			t.Fatalf("GenerateHints() unexpected error: %v", err)
+		}
+
+		select {
+		case <-attempts:
+			seen++
+		case <-deadline:
+			t.Fatalf("a failed notice was never retried: %d attempts", seen)
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}
+
+// TestHintService_GenerateHintsVisionStaysQuietForAnOrdinaryFailure keeps the
+// notification for the case a user can act on. A capture that timed out or an
+// engine that failed one frame is a transient fault, and a toast on every
+// hotkey press for those would be noise rather than help.
+func TestHintService_GenerateHintsVisionStaysQuietForAnOrdinaryFailure(t *testing.T) {
+	notified := make(chan string, 2)
+
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+		return image.Rect(0, 0, 200, 200), true, nil
+	}
+	mockSystem.ShowNotificationFunc = func(_ context.Context, _, message string) error {
+		notified <- message
+
+		return nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{},
+		logger.Get(),
+		&mockVisionPort{
+			detectErr: derrors.New(
+				derrors.CodeActionFailed,
+				"the compositor did not answer in time",
+			),
+		},
+	)
+
+	_, err := service.GenerateHints(
+		context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	select {
+	case message := <-notified:
+		t.Errorf("a transient vision failure notified the user: %q", message)
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 
@@ -466,7 +698,6 @@ func TestHintService_Health(t *testing.T) {
 	ctx := context.Background()
 	health := service.Health(ctx)
 
-	// Check that health map has both keys
 	if len(health) != 2 {
 		t.Errorf("Health() returned %d entries, want 2", len(health))
 	}
@@ -479,7 +710,6 @@ func TestHintService_Health(t *testing.T) {
 		t.Error("Health() missing 'overlay' key")
 	}
 
-	// Check that overlay has error
 	if health["overlay"] == nil {
 		t.Error("Health() overlay should have error")
 	}
@@ -531,12 +761,147 @@ func (m *mockVisionPort) DetectElements(
 	return m.detectedElements, nil
 }
 
+func (m *mockVisionPort) DetectWLKBPTR(
+	context.Context,
+	image.Rectangle,
+) ([]*element.Element, error) {
+	if m.detectErr != nil {
+		return nil, m.detectErr
+	}
+
+	return m.detectedElements, nil
+}
+
 func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {
 	return nil, derrors.New(derrors.CodeBridgeFailed, "capture screen not implemented")
 }
 
 func (m *mockVisionPort) Health(context.Context) error {
 	return nil
+}
+
+func TestHintService_GenerateHintsWLKBPTR(t *testing.T) {
+	t.Parallel()
+
+	elem, err := element.NewElement(
+		element.ID("test-btn"),
+		image.Rect(100, 100, 150, 120),
+		element.RoleButton,
+		element.WithClickable(true),
+		element.WithVisionOnly(),
+	)
+	if err != nil {
+		t.Fatalf("NewElement failed: %v", err)
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{
+			FocusedAppBundleIDFunc: func(context.Context) (string, error) {
+				return "com.example.app", nil
+			},
+		},
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{
+			FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rect(0, 0, 800, 600), true, nil
+			},
+		},
+		generator,
+		config.DefaultConfig().Hints,
+		zap.NewNop(),
+		&mockVisionPort{detectedElements: []*element.Element{elem}},
+	)
+
+	hints, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		domain.StrategyWLKBPTR,
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() failed: %v", err)
+	}
+
+	if len(hints) != 1 {
+		t.Fatalf("len(hints) = %d, want 1", len(hints))
+	}
+}
+
+func TestHintService_GenerateHintsWLKBPTR_ScansActiveScreenBounds(t *testing.T) {
+	t.Parallel()
+
+	elem, err := element.NewElement(
+		element.ID("notif-btn"),
+		image.Rect(1800, 50, 1900, 90),
+		element.RoleButton,
+		element.WithClickable(true),
+		element.WithVisionOnly(),
+	)
+	if err != nil {
+		t.Fatalf("NewElement failed: %v", err)
+	}
+
+	var capturedRegion image.Rectangle
+
+	mockVision := &mocks.MockVisionPort{
+		DetectWLKBPTRFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+			capturedRegion = region
+
+			return []*element.Element{elem}, nil
+		},
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{
+			FocusedAppBundleIDFunc: func(context.Context) (string, error) {
+				return "com.example.app", nil
+			},
+		},
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{
+			ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
+				return image.Rect(0, 0, 1920, 1080), nil
+			},
+			FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rect(100, 100, 800, 600), true, nil
+			},
+		},
+		generator,
+		config.DefaultConfig().Hints,
+		zap.NewNop(),
+		mockVision,
+	)
+
+	hints, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		domain.StrategyWLKBPTR,
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() failed: %v", err)
+	}
+
+	if len(hints) != 1 {
+		t.Fatalf("len(hints) = %d, want 1", len(hints))
+	}
+
+	wantScreen := image.Rect(0, 0, 1920, 1080)
+	if capturedRegion != wantScreen {
+		t.Errorf(
+			"DetectWLKBPTR captured region = %v, want active screen %v",
+			capturedRegion,
+			wantScreen,
+		)
+	}
 }
 
 func TestHintService_GenerateHintsRejectsSplitWordForNonVisionStrategy(t *testing.T) {
@@ -717,6 +1082,100 @@ func TestHintService_GenerateHintsRoleFlagOverridesConfig(t *testing.T) {
 			t.Errorf("filter.Roles = %v, configured role %q leaked past the override",
 				captured, role)
 		}
+	}
+}
+
+// newVisionHintService builds a vision-strategy service whose focused-window
+// answer is whatever the caller wants to observe the fallback for.
+func newVisionHintService(
+	log *zap.Logger,
+	bounds func(context.Context) (image.Rectangle, bool, error),
+) *services.HintService {
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = bounds
+	mockSystem.ScreenBoundsFunc = func(context.Context) (image.Rectangle, error) {
+		return image.Rect(0, 0, 1920, 1080), nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+
+	return services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{},
+		log,
+		&mockVisionPort{},
+	)
+}
+
+// TestHintService_GenerateHintsVisionSaysWhyItFellBackToTheScreen pins the
+// difference between the two ways vision ends up scanning a whole monitor.
+//
+// A platform that cannot report focused-window geometry — a wlroots compositor
+// with no IPC, a KWin bridge that never installed — is not the same event as a
+// desktop with nothing focused, and it used to be logged as if it were. Scoping
+// OCR to the entire screen instead of one window is slower and noisier, and the
+// reason has to be readable without a debug build.
+func TestHintService_GenerateHintsVisionSaysWhyItFellBackToTheScreen(t *testing.T) {
+	tests := []struct {
+		name      string
+		bounds    func(context.Context) (image.Rectangle, bool, error)
+		wantLevel zapcore.Level
+		wantText  string
+	}{
+		{
+			name: "a platform that cannot answer is a warning",
+			bounds: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rectangle{}, false, derrors.New(
+					derrors.CodeNotSupported,
+					"no focused-window geometry source on linux backend wayland-wlroots",
+				)
+			},
+			wantLevel: zapcore.WarnLevel,
+			wantText:  "wayland-wlroots",
+		},
+		{
+			name: "nothing focused is routine",
+			bounds: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rectangle{}, false, nil
+			},
+			wantLevel: zapcore.DebugLevel,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			core, logs := observer.New(zap.DebugLevel)
+
+			service := newVisionHintService(zap.New(core), testCase.bounds)
+
+			_, err := service.GenerateHints(
+				context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", false,
+			)
+			if err != nil {
+				t.Fatalf("GenerateHints() unexpected error: %v", err)
+			}
+
+			entries := logs.FilterLevelExact(testCase.wantLevel).
+				FilterMessageSnippet("focused window").
+				All()
+			if len(entries) == 0 {
+				t.Fatalf("no %s entry about the focused window; logged %v",
+					testCase.wantLevel, logs.All())
+			}
+
+			if testCase.wantText == "" {
+				return
+			}
+
+			logged := fmt.Sprint(entries[0].Message, entries[0].ContextMap())
+			if !strings.Contains(logged, testCase.wantText) {
+				t.Errorf("entry %q does not carry %q, so the reason is unreadable",
+					logged, testCase.wantText)
+			}
+		})
 	}
 }
 

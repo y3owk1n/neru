@@ -31,10 +31,8 @@ func TestDivide(t *testing.T) {
 
 	cells := grid.Divide()
 
-	// Verify 4 cells
 	assert.Len(t, cells, 4, "Should have 4 cells for 2x2 grid")
 
-	// Verify top-left cell
 	expectedTL := image.Rect(0, 0, 50, 50)
 	assert.Equal(
 		t,
@@ -43,7 +41,6 @@ func TestDivide(t *testing.T) {
 		"Top-left cell should be correct",
 	)
 
-	// Verify top-right cell
 	expectedTR := image.Rect(50, 0, 100, 50)
 	assert.Equal(
 		t,
@@ -52,7 +49,6 @@ func TestDivide(t *testing.T) {
 		"Top-right cell should be correct",
 	)
 
-	// Verify bottom-left cell
 	expectedBL := image.Rect(0, 50, 50, 100)
 	assert.Equal(
 		t,
@@ -61,7 +57,6 @@ func TestDivide(t *testing.T) {
 		"Bottom-left cell should be correct",
 	)
 
-	// Verify bottom-right cell
 	expectedBR := image.Rect(50, 50, 100, 100)
 	assert.Equal(
 		t,
@@ -89,10 +84,8 @@ func TestSelectCell(t *testing.T) {
 	assert.Equal(t, expectedCenter, center, "Center should be at (25, 25)")
 	assert.False(t, completed, "Should not be completed after first selection")
 
-	// Verify depth increased
 	assert.Equal(t, 1, grid.CurrentDepth(), "Depth should be 1")
 
-	// Verify bounds narrowed
 	expectedBounds := image.Rect(0, 0, 50, 50)
 	assert.Equal(
 		t,
@@ -121,7 +114,6 @@ func TestSelectCellCompletion(t *testing.T) {
 	// The user gets one more selection at this final depth.
 	center, completed := grid.SelectCell(recursivegrid.TopLeft)
 
-	// After selecting top-left, bounds are (0,0)-(25,25), center rounded to nearest pixel
 	expectedCenter := image.Point{X: 13, Y: 13}
 	assert.Equal(t, expectedCenter, center, "Center should be at (13, 13)")
 	assert.False(
@@ -130,12 +122,9 @@ func TestSelectCellCompletion(t *testing.T) {
 		"Should NOT be completed yet — user gets one more selection at final depth",
 	)
 
-	// Now at final depth (CanDivide is false), selecting a sub-cell completes
 	center2, completed2 := grid.SelectCell(recursivegrid.BottomRight)
 	assert.True(t, completed2, "Should be completed after selection at final depth")
 
-	// Cells are distributed contiguously: (0,0)-(13,13), (13,0)-(25,13),
-	// (0,13)-(13,25), (13,13)-(25,25). BottomRight cell is (13,13)-(25,25), center rounded.
 	expectedCenter2 := image.Point{X: 19, Y: 19}
 	assert.Equal(t, expectedCenter2, center2, "Center should be at (19, 19)")
 }

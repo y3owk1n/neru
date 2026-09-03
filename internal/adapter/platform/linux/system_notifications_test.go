@@ -22,7 +22,7 @@ var errNoBus = errors.New("dbus: couldn't determine address of session bus")
 // unreachableNotifier is a notifier whose session bus cannot be reached, which
 // is what a daemon started outside a desktop session sees.
 func unreachableNotifier() *notifier {
-	return &notifier{connect: func() (*dbus.Conn, error) { return nil, errNoBus }}
+	return newNotifier(func() (*dbus.Conn, error) { return nil, errNoBus })
 }
 
 // idleTransport is enough of a connection for godbus to build a *dbus.Conn
@@ -90,15 +90,7 @@ func TestNotifier_SendGivesUpOnADialThatNeverReturns(t *testing.T) {
 	// Each dial announces itself, so a second one is observable.
 	dials := make(chan struct{}, 2)
 
-	wedged := &notifier{
-		connect: func() (*dbus.Conn, error) {
-			dials <- struct{}{}
-
-			<-release
-
-			return nil, errNoBus
-		},
-	}
+	wedged := newNotifier(wedgedConnect(dials, release))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -159,20 +151,18 @@ func TestNotifier_SessionReportsAFailedRedialRatherThanTheDroppedConnection(t *t
 
 	dials := 0
 
-	reconnecting := &notifier{
-		connect: func() (*dbus.Conn, error) {
-			dials++
+	reconnecting := newNotifier(func() (*dbus.Conn, error) {
+		dials++
 
-			switch dials {
-			case 1:
-				return dropped, nil
-			case 2:
-				return nil, errNoBus
-			default:
-				return redialed, nil
-			}
-		},
-	}
+		switch dials {
+		case 1:
+			return dropped, nil
+		case 2:
+			return nil, errNoBus
+		default:
+			return redialed, nil
+		}
+	})
 
 	first, err := reconnecting.session(context.Background())
 	if err != nil {

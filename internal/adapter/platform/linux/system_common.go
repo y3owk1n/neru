@@ -52,6 +52,8 @@ func NewSystemAdapter(backend string) *SystemAdapter {
 	// keeps every method a safe no-op elsewhere.
 	adapter.relativeAnimator = newRelativeCursorAnimator(wlrootsMoveCursorBy)
 
+	warmFocusedWindowSource(backend)
+
 	return adapter
 }
 
@@ -265,12 +267,14 @@ func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 // FocusedWindowBounds returns the global bounds of the currently focused window
 // on Linux, used to constrain hint/vision detection to the active window's
 // monitor (matching darwin). X11 reads _NET_ACTIVE_WINDOW geometry directly.
-// Wayland has no protocol exposing another client's on-screen geometry, so it
-// queries the running wlroots-family compositor's IPC (niri/Sway/Hyprland);
-// KWin and GNOME return not-found and callers fall back to the active screen.
+// Wayland has no protocol exposing another client's on-screen geometry, so the
+// answer comes from the compositor: an IPC CLI on the wlroots family, the KWin
+// geometry script on KDE.
 //
-// found=false with a nil error means "no focused window bounds available" — a
-// normal fallback, not an error.
+// A compositor with no source at all says so with CodeNotSupported, because a
+// caller that falls back to the active screen should know it is falling back.
+// found=false with a nil error is the ordinary "no bounds available" answer —
+// most often an unfocused desktop.
 func (s *SystemAdapter) FocusedWindowBounds(
 	ctx context.Context,
 ) (image.Rectangle, bool, error) {
@@ -279,7 +283,7 @@ func (s *SystemAdapter) FocusedWindowBounds(
 	}
 
 	if s.waylandUsesWlrClientStack() {
-		return waylandFocusedWindowBounds()
+		return waylandFocusedWindowBounds(s.backend)
 	}
 
 	return image.Rectangle{}, false, derrors.New(
@@ -517,18 +521,49 @@ func (s *SystemAdapter) ShowNotification(ctx context.Context, title, message str
 	return ShowNotification(ctx, title, message)
 }
 
-// CheckScreenCapturePermission reports true: Linux does not gate screen capture
-// behind a permission.
+// CheckScreenCapturePermission reports whether the screen can be read right
+// now, without prompting.
+//
+// Two of the three Linux backends have no gate at all and report true, which is
+// the "this platform has no such gate" answer ports/system.go specifies rather
+// than a silent no-op: X11 reads the root window back and the wlroots family
+// implements wlr-screencopy, and a client already trusted with the session
+// needs no further permission for either.
+//
+// KDE Plasma is the exception and the reason this method stopped answering
+// unconditionally. KWin implements no screencopy protocol, so capture goes
+// through xdg-desktop-portal's ScreenCast session — which *is* a consent gate,
+// and a preflight that reported it open regardless would leave the one Linux
+// backend with a permission the only one whose permission was never checked.
+//
+// A build with no native backends compiled in has no gate either, because it
+// has no capture: the refusal belongs to the capture, which names CGO, rather
+// than to a consent prompt that could not help.
 func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
-	return true
+	if s.backend != backendWaylandKDE || !nativeBackendsCompiledIn {
+		return true
+	}
+
+	return screenCastConsentHeld()
 }
 
-// RequestScreenCapturePermission reports granted without prompting: Linux has no
-// screen-recording permission to request.
+// RequestScreenCapturePermission establishes KDE's screen-sharing consent and
+// reports what the user chose; on every other Linux backend it reports granted
+// without showing anything, because there is nothing to ask for.
+//
+// On KDE it runs the ScreenCast handshake, which shows the portal's source
+// picker when there is no stored grant to restore and shows nothing when there
+// is. It blocks — the caller is contractually required not to hold a lock
+// across it — and it is where the whole prompt budget is spent, so that no
+// capture ever waits on a dialog.
 func (s *SystemAdapter) RequestScreenCapturePermission(
-	_ context.Context,
+	ctx context.Context,
 ) ports.ScreenCaptureConsent {
-	return ports.ScreenCaptureGranted
+	if s.backend != backendWaylandKDE || !nativeBackendsCompiledIn {
+		return ports.ScreenCaptureGranted
+	}
+
+	return requestScreenCastConsent(ctx)
 }
 
 // capabilityProbeTimeout bounds how long a single capability probe may take
@@ -633,6 +668,28 @@ func userFacingReason(err error) string {
 // unavailableDetail explains why a probed capability is unavailable, in terms
 // the user can act on.
 func (s *SystemAdapter) unavailableDetail(feature string, cause error) string {
+	// An unfocused desktop is not an unavailable capability. The probe still
+	// downgrades the entry — FocusedApplicationPID refuses right now, and the
+	// matrix `neru doctor` prints has to agree with what a caller observes —
+	// but describing that as "unavailable" sends the user looking for a portal
+	// to install or a session to restart when focusing any window is the whole
+	// fix. This branch comes first because reaching this sentinel at all proves
+	// a native backend answered, which makes every explanation below wrong.
+	if errors.Is(cause, errNoFocusedWindow) {
+		return feature + " found no focused window on linux backend " + s.backendLabel() +
+			": the query works and answers as soon as a window takes focus"
+	}
+
+	// The same argument one property down, and the reason it is a second
+	// sentinel rather than the first: a window is focused, and it advertises no
+	// _NET_WM_PID. Nothing is broken and nothing can be installed to change it —
+	// EWMH does not require the property — so the sentence above would send the
+	// user to focus a window they already focused.
+	if errors.Is(cause, errNoWindowPID) {
+		return feature + " found no _NET_WM_PID on the focused window on linux backend " +
+			s.backendLabel() + ": the query works and answers for a window that publishes one"
+	}
+
 	if !nativeBackendsCompiledIn {
 		return feature + " is unavailable: this binary was built without CGO, so the X11 " +
 			"and wlroots client stacks are absent; use a CGO-enabled build"

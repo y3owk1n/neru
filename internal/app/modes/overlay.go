@@ -70,7 +70,7 @@ type overlaySurface interface {
 	// off the frame path for the latency reason ADR 0003 gives.
 	UpdateGridMatches(prefix string)
 	SetGridHideUnmatched(hide bool)
-	ShowGridSubgrid(cell *domainGrid.Cell)
+	ShowGridSubgrid(cell *domainGrid.Cell, pointer ports.GridPointer)
 	UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer)
 
 	// SetKeyboardCaptureEnabled is the Linux keyboard grab, gated on the event

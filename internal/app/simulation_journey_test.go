@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -280,6 +281,171 @@ func TestSimulation_GridNarrowingCostsNoRedraw(t *testing.T) {
 
 	if !sim.overlay.isVisible() {
 		t.Error("the grid left the screen while the user was typing")
+	}
+}
+
+// stopCursorFollowing turns cursor-follow-selection off with the key bound to
+// it and waits for the change to land. The toggle is a mode hotkey, so the app
+// runs it on a goroutine; the pointer refresh it owes is what says it ran.
+func stopCursorFollowing(sim *simHarness) {
+	sim.t.Helper()
+
+	before := sim.overlay.gridSurfaceUpdates()
+
+	sim.press("`")
+
+	sim.waitFor("the cursor stopped following the selection", func() bool {
+		return sim.overlay.gridSurfaceUpdates() > before
+	})
+}
+
+// TestSimulation_GridSelectionUpdatesTheSurfaceOnce is the other half of what
+// ADR 0003 promises, and what #1492 was: the keystroke that picks a cell opens
+// the subgrid *and* moves the selection, and where both are painted onto one
+// surface saying it in two calls repaints that surface twice for one key. The
+// mode says it once.
+//
+// Cursor-follow is turned off first ("`"), because that is the session this is
+// about: with the real cursor following the selection there is no pointer
+// stand-in to move and the second update never existed. The last keystroke of
+// the label is the one measured — the ones before it narrow, which is the path
+// the test above covers.
+func TestSimulation_GridSelectionUpdatesTheSurfaceOnce(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	stopCursorFollowing(sim)
+
+	cells := sim.overlay.lastGrid().Cells()
+	if len(cells) == 0 {
+		t.Fatal("grid drawn with zero cells")
+	}
+
+	label := []rune(cells[len(cells)/2].Coordinate())
+	if len(label) < 2 {
+		t.Fatalf("grid label %q is one character; it has no narrowing half", string(label))
+	}
+
+	sim.typeLabel(string(label[:len(label)-1]))
+
+	updatesBefore := sim.overlay.gridSurfaceUpdates()
+	subgridsBefore := sim.overlay.subgridCount()
+
+	sim.press(strings.ToLower(string(label[len(label)-1])))
+
+	sim.waitFor("the subgrid opened", func() bool {
+		return sim.overlay.subgridCount() > subgridsBefore
+	})
+
+	if got := sim.overlay.gridSurfaceUpdates() - updatesBefore; got != 1 {
+		t.Errorf("the selection keystroke asked the grid surface to change %d times, want 1",
+			got)
+	}
+
+	// And the one call carried both: the pointer stands on the cell the subgrid
+	// was opened inside, which is the only thing on screen saying where the
+	// selection is for this user.
+	pointer, drawn := sim.overlay.lastGridPointer()
+	if !drawn || !pointer.Visible {
+		t.Errorf("selection pointer = %+v (drawn = %v), want it on screen with the subgrid",
+			pointer, drawn)
+	}
+}
+
+// moveCellKey is the key this file's arrow-key journey binds `move_cell` to.
+// Grid mode's default hotkeys point the arrows at `move_mouse_*`, so sliding an
+// open subgrid is a binding a user writes — and it reaches the same subgrid
+// callback the selection keystroke does, which is why it is measured here.
+const moveCellKey = "Right"
+
+// TestSimulation_MovingAnOpenSubgridUpdatesTheSurfaceOncePerPress is the third
+// keystroke #1492 names: a held arrow inside a subgrid re-opens the subgrid over
+// the neighboring cell and moves the selection with it, once per repeat. Each
+// press must cost the surface one change, or a held key multiplies the one the
+// spec is about.
+func TestSimulation_MovingAnOpenSubgridUpdatesTheSurfaceOncePerPress(t *testing.T) {
+	cfg := simConfig()
+	cfg.Grid.Hotkeys[moveCellKey] = config.StringOrStringArray{
+		"action move_cell --direction=right",
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	stopCursorFollowing(sim)
+
+	cells := sim.overlay.lastGrid().Cells()
+	if len(cells) == 0 {
+		t.Fatal("grid drawn with zero cells")
+	}
+
+	// The first cell, so there is a neighbor to the right to slide onto.
+	sim.typeLabel(cells[0].Coordinate())
+
+	sim.waitFor("the subgrid opened", func() bool { return sim.overlay.subgridCount() > 0 })
+
+	const presses = 3
+
+	for press := range presses {
+		subgridsBefore := sim.overlay.subgridCount()
+		updatesBefore := sim.overlay.gridSurfaceUpdates()
+
+		sim.press(moveCellKey)
+
+		sim.waitFor("the subgrid moved", func() bool {
+			return sim.overlay.subgridCount() > subgridsBefore
+		})
+
+		if got := sim.overlay.gridSurfaceUpdates() - updatesBefore; got != 1 {
+			t.Fatalf("press %d asked the grid surface to change %d times, want 1",
+				press+1, got)
+		}
+	}
+}
+
+// TestSimulation_LeavingGridRepaintsNothingOnTheWayOut is the teardown half of
+// the same promise (#1492): the grid is about to be taken off the screen, so
+// resetting what the overlay still holds for it must not repaint it first. The
+// overlay's own leaving half drops that state, and a mode that reset it from
+// here repainted a grid twice to throw it away a moment later.
+func TestSimulation_LeavingGridRepaintsNothingOnTheWayOut(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	// A visible pointer is the state teardown used to repaint for.
+	stopCursorFollowing(sim)
+
+	cells := sim.overlay.lastGrid().Cells()
+	if len(cells) == 0 {
+		t.Fatal("grid drawn with zero cells")
+	}
+
+	sim.typeLabel(cells[len(cells)/2].Coordinate())
+
+	sim.waitFor("the selection is on screen", func() bool {
+		pointer, drawn := sim.overlay.lastGridPointer()
+
+		return drawn && pointer.Visible
+	})
+
+	updatesBefore := sim.overlay.gridSurfaceUpdates()
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+	sim.waitFor("grid off screen", func() bool { return !sim.overlay.isVisible() })
+
+	if got := sim.overlay.gridSurfaceUpdates() - updatesBefore; got != 0 {
+		t.Errorf("leaving grid mode asked the grid surface to change %d times, want 0: it was "+
+			"repainted on the way to being cleared", got)
 	}
 }
 
@@ -1260,6 +1426,185 @@ func TestSimulation_RapidModeSwitching(t *testing.T) {
 	}
 }
 
+// TestSimulation_ModeSwitchNeverDropsTheKeyboard is the regression for a
+// reported Linux bug: the journey is a user going from one mode straight into
+// another, and what must not happen in between is Neru letting go of the
+// keyboard.
+//
+// It was letting go — every mode but scroll ran the full exit, which releases
+// the capture, and only took it back after the next mode had queried the
+// screen, built its state and drawn its overlay. On Linux that is long enough
+// to type into: the user switched from scroll to recursive grid, pressed their
+// grid keys, and watched them arrive in Discord as text.
+//
+// The whole assertion is that no disable reaches the tap between the two
+// activations, because a disable *is* the window: there is no way for the
+// capture to drop and the keys in it to still be Neru's.
+func TestSimulation_ModeSwitchNeverDropsTheKeyboard(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), threeButtons(t))
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	// Record from here: the calls made on the way into scroll are not what
+	// this journey is about.
+	var (
+		releasedMu sync.Mutex
+		released   bool
+	)
+
+	sim.tap.SetOnCall(func(label string) {
+		if label != "disable" {
+			return
+		}
+
+		releasedMu.Lock()
+		defer releasedMu.Unlock()
+
+		released = true
+	})
+
+	// Every mode-to-mode pair goes through the same exit, so the two that are
+	// not scroll are worth walking as well: scroll was the only one already
+	// carrying the carve-out this fixes.
+	for _, step := range []struct {
+		hotkey string
+		mode   domain.Mode
+	}{
+		{recursiveGridHotkey, domain.ModeRecursiveGrid},
+		{gridHotkey, domain.ModeGrid},
+		{hintsHotkey, domain.ModeHints},
+	} {
+		sim.pressHotkey(step.hotkey)
+		sim.waitMode(step.mode)
+
+		releasedMu.Lock()
+		dropped := released
+		releasedMu.Unlock()
+
+		if dropped {
+			t.Fatalf(
+				"the keyboard was released on the way into %s: "+
+					"everything typed in that window reaches the focused application instead of Neru",
+				domain.ModeString(step.mode),
+			)
+		}
+
+		if !sim.tap.IsEnabled() {
+			t.Fatalf("%s is active with no keyboard capture", domain.ModeString(step.mode))
+		}
+	}
+}
+
+// TestSimulation_KeyPressedDuringAModeSwitchLandsInTheNewMode is the reporter's
+// original ask, which the two tests around this one do not actually cover:
+// "I would at least like it if those inputs are delayed than if they are
+// ignored". Keeping the keyboard is what makes that possible, but what delivers
+// it is the lock — an activation holds h.mu from start to finish and the tap's
+// dispatcher delivers through HandleKeyPress, which takes the same lock — and
+// nothing pinned that the key actually arrives.
+//
+// The switch is held open at the overlay draw, which is where a real Linux
+// activation spends its time and which runs under h.mu. With the activation
+// parked there, a grid key is pressed. It must not be dropped, and it must not
+// be handled by the mode being left: it has to wait and land in the mode coming
+// up, which is observable as the recursive grid zooming into the cell that key
+// names.
+//
+// This pins the delivery half only, and deliberately: press() calls
+// HandleKeyPress directly, the way the tap's dispatcher does, so what is
+// asserted here is that a key arriving mid-activation waits on the lock and is
+// handled by the new mode. That it is *captured* rather than leaked to the
+// focused application in the first place is the other half, and belongs to
+// TestSimulation_ModeSwitchNeverDropsTheKeyboard above. Neither test is the
+// whole claim on its own.
+//
+// What none of the three covers is the race that remains: a key the tap reads
+// *before* the activation takes h.mu is still the old mode's, and scroll drops
+// it (handleGenericScrollKey does nothing). The hotkey dispatch and the tap's
+// dispatcher are separate goroutines contending for the lock unordered, so that
+// window is not closed by anything here — see exitModeForTransition, which says
+// so rather than claiming the whole ask is delivered.
+func TestSimulation_KeyPressedDuringAModeSwitchLandsInTheNewMode(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	var (
+		activationParked = make(chan struct{})
+		releaseGate      = make(chan struct{})
+		parkOnce         sync.Once
+	)
+
+	sim.overlay.setShowFrameGate(func(frame ports.Frame) {
+		if _, isRecursiveGrid := frame.(ports.RecursiveGridFrame); !isRecursiveGrid {
+			return
+		}
+
+		parkOnce.Do(func() {
+			close(activationParked)
+			<-releaseGate
+		})
+	})
+
+	go sim.pressHotkey(recursiveGridHotkey)
+
+	<-activationParked
+
+	// The activation is now inside the draw, holding h.mu. This press goes to
+	// the tap's side of the handler and can only be delivered once the lock is
+	// free, by which time recursive grid is the active mode. "r" is the
+	// top-left cell of the default 3x3 layout.
+	keyDelivered := make(chan struct{})
+
+	go func() {
+		defer close(keyDelivered)
+
+		sim.press("r")
+	}()
+
+	// Give the press long enough to be wrongly handled by scroll — where the
+	// generic key handler does nothing — before letting the activation finish.
+	time.Sleep(simPollInterval)
+	close(releaseGate)
+
+	sim.waitMode(domain.ModeRecursiveGrid)
+	<-keyDelivered
+
+	sim.overlay.setShowFrameGate(nil)
+
+	topLeftThird := image.Rect(0, 0, simScreen.Dx()/3+1, simScreen.Dy()/3+1)
+	sim.waitFor("the key pressed mid-switch zoomed the new mode's grid", func() bool {
+		bounds, ok := sim.overlay.lastRecursiveGridBounds()
+
+		return ok && bounds.In(topLeftThird)
+	})
+}
+
+// TestSimulation_AbandonedModeSwitchGivesTheKeyboardBack is the other half of
+// the journey above, and the reason keeping the capture is safe: the transition
+// hands the keyboard to a mode that may never arrive.
+//
+// Here it does not — hints is asked for on a screen with nothing clickable, so
+// the activation gives up after the exit that kept the capture. The app is left
+// idle, and idle holding the keyboard would be worse than the bug being fixed:
+// every key the user pressed would go nowhere at all.
+func TestSimulation_AbandonedModeSwitchGivesTheKeyboardBack(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeIdle)
+
+	sim.waitFor("the keyboard given back", func() bool { return !sim.tap.IsEnabled() })
+}
+
 // TestSimulation_ThemeChangeReachesVisibleOverlay covers the journey the
 // overlay's Style ownership exists for: hints are on screen when the system
 // switches to dark mode, and the user sees them redrawn in the new theme
@@ -1494,6 +1839,7 @@ const moveMonitorHotkey = "Primary+Shift+N"
 // the calls in between.
 func TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay(t *testing.T) {
 	cfg := simConfig()
+	cfg.Grid.MaxLabelLength = 2
 	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{
 		"action move_monitor --name " + secondDisplayName,
 	}
@@ -1527,6 +1873,10 @@ func TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay(t *testing.T) {
 
 	if sim.app.CurrentMode() != domain.ModeGrid {
 		t.Fatalf("mode after monitor move = %v, want grid", sim.app.CurrentMode())
+	}
+
+	if got := sim.overlay.lastGrid().MaxLabelLength(); got != cfg.Grid.MaxLabelLength {
+		t.Errorf("grid label limit after monitor move = %d, want %d", got, cfg.Grid.MaxLabelLength)
 	}
 }
 
@@ -1665,7 +2015,7 @@ func TestSimulation_ScreenChangeRebuildsGridAndClearsSelection(t *testing.T) {
 	sim.typeLabel(cells[len(cells)/2].Coordinate())
 
 	sim.waitFor("the selection is on screen", func() bool {
-		pointer, drawn := sim.overlay.lastGridPointer(domain.ModeGrid)
+		pointer, drawn := sim.overlay.lastGridPointer()
 
 		return drawn && pointer.Visible
 	})
@@ -1683,7 +2033,7 @@ func TestSimulation_ScreenChangeRebuildsGridAndClearsSelection(t *testing.T) {
 			got, want)
 	}
 
-	if pointer, _ := sim.overlay.lastGridPointer(domain.ModeGrid); pointer.Visible {
+	if pointer, _ := sim.overlay.lastGridPointer(); pointer.Visible {
 		t.Errorf(
 			"the selection at %v survived the screen change; it points at a place on a display that is gone",
 			pointer.Position,
@@ -2406,4 +2756,66 @@ func TestSimulation_ConfigSetRelabelsTheGridWithoutAReload(t *testing.T) {
 			t.Fatalf("cell labeled %q, which the new characters cannot spell", cell.Coordinate())
 		}
 	}
+}
+
+// The two halves of the reported --toggle case: a global chord bound to the
+// toggle, and the scroll-mode key that hands over to recursive grid. The chord
+// is written in the tap's own modifier order, which is what a keymap lookup
+// compares against.
+const (
+	globalToggleChord    = "Ctrl+Alt+;"
+	scrollToRecursiveKey = "Space"
+)
+
+// TestSimulation_GlobalHotkeyTogglesAModeEnteredFromAnotherMode is the journey
+// behind #1519's neighbor: --toggle exits the mode it names whenever that mode
+// is the active one, and how the user got there is not part of the question.
+//
+// It presses the chord the way the in-mode capture delivers it rather than
+// through the hotkey port, because that is the only way it arrives on Linux: the
+// evdev grab silences the listener that registered it, so the handler resolving
+// the global table itself is what makes the toggle work at all
+// (internal/app/modes/keymap.go, settledKeymaps).
+func TestSimulation_GlobalHotkeyTogglesAModeEnteredFromAnotherMode(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[globalToggleChord] = []string{"recursive_grid --toggle"}
+	cfg.Scroll.Hotkeys[scrollToRecursiveKey] = config.StringOrStringArray{
+		config.ModeNameRecursiveGrid,
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	// Into recursive grid the way the report describes it: from another mode,
+	// through that mode's own binding, never through the global chord.
+	sim.press(scrollToRecursiveKey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+
+	sim.press(globalToggleChord)
+
+	sim.waitFor("the global chord toggling the mode it named back to idle", func() bool {
+		return sim.app.CurrentMode() == domain.ModeIdle
+	})
+}
+
+// The same chord from the same mode entered the other way. Both paths answer the
+// toggle, which is the property the report found broken on one of them.
+func TestSimulation_GlobalHotkeyTogglesAModeItEnteredItself(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[globalToggleChord] = []string{"recursive_grid --toggle"}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	sim.press(globalToggleChord)
+
+	sim.waitFor("the global chord toggling the mode it opened back to idle", func() bool {
+		return sim.app.CurrentMode() == domain.ModeIdle
+	})
 }

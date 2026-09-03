@@ -112,7 +112,12 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		// fails.
 		h.stopIndicatorPolling()
 	} else {
-		h.exitMode()
+		// Coming from another mode, the keyboard is handed over rather than
+		// given back: exit now, release at return if nothing is entered. Hints
+		// has more ways to give up than any other mode — every
+		// abandonHintActivation below, plus the permission dialog that suspends
+		// the activation — and the deferred release covers all of them.
+		defer h.exitModeForTransition()()
 	}
 
 	if actionString == domain.UnknownAction {
@@ -358,6 +363,12 @@ func (h *Handler) resumeHintActivationAfterPermission(
 	case ports.ScreenCaptureQuit:
 		h.shutdown()
 	case ports.ScreenCaptureCanceled:
+		// Canceled is the platform's answer for "the user said no" *and* for a
+		// permission gate that could not be reached at all — a stopped
+		// xdg-desktop-portal on KDE, say — because the consent vocabulary has no
+		// third word for it. Leaving the mode without a line would make the two
+		// indistinguishable from a hint activation that silently did nothing.
+		h.logger.Info("Screen capture was not permitted; leaving hints mode")
 		h.exitMode()
 	case ports.ScreenCaptureGranted:
 		// A Granted consent implies the check now passes (the SystemPort

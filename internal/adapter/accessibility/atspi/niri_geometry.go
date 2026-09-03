@@ -3,7 +3,11 @@
 package atspi
 
 import (
+	"image"
+
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform/compositorcli"
 )
 
 // niri window-origin source. niri exposes the focused window's position within
@@ -42,30 +46,49 @@ type niriOutput struct {
 	} `json:"logical"`
 }
 
-func (n *niriOriginSource) originFor(frameW, frameH int) (int, int, bool) {
+// originFor asks niri where the focused window is, in two queries with a gate
+// between them.
+//
+// The gate is the tile position, which niri populates for floating windows only
+// (niri#2381). Without it there is no origin to compute, so the second query is
+// never made — and a focused-output query that would have failed cannot turn
+// niri's ordinary layout into a reported failure on every activation.
+func (n *niriOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
 	var win niriWindow
-	if !compositorJSON(&win, "niri", "msg", "-j", "focused-window") {
-		return 0, 0, false
+
+	winErr := compositorcli.Query(&win, "niri", "msg", "-j", "focused-window")
+	if winErr != nil {
+		return image.Point{}, false, winErr
+	}
+
+	tileX, tileY, ok := niriOriginTile(win, frame.Width, frame.Height, n.logger)
+	if !ok {
+		return image.Point{}, false, nil
 	}
 
 	var out niriOutput
-	if !compositorJSON(&out, "niri", "msg", "-j", "focused-output") {
-		return 0, 0, false
+
+	outErr := compositorcli.Query(&out, "niri", "msg", "-j", "focused-output")
+	if outErr != nil {
+		return image.Point{}, false, outErr
 	}
 
-	return niriComputeOrigin(win, out, frameW, frameH, n.logger)
+	return niriComputeOrigin(out, tileX, tileY), true, nil
 }
 
-// niriComputeOrigin derives the focused window's screen origin from niri's
-// focused-window + focused-output data. It reports no origin for tiled windows
-// (tile_pos_in_workspace_view absent — niri#2381) and when the window size does
+// niriOriginTile returns the focused window's position within the workspace
+// view, or false when niri has none to give: a tiled window
+// (tile_pos_in_workspace_view absent — niri#2381), or a window whose size does
 // not match the AT-SPI frame (a focus change raced the query).
-func niriComputeOrigin(
+//
+// The pair is returned unpacked — x, then y, then whether there is one — rather
+// than as niri's own slice, so the length check that makes it a pair cannot be
+// separated from the values it guards.
+func niriOriginTile(
 	win niriWindow,
-	out niriOutput,
 	frameW, frameH int,
 	logger *zap.Logger,
-) (int, int, bool) {
+) (float64, float64, bool) {
 	tile := win.Layout.TilePosInWorkspaceView
 	if len(tile) < coordPairLen {
 		logger.Debug("niri origin unavailable: tiled window (niri#2381)")
@@ -83,5 +106,11 @@ func niriComputeOrigin(
 		return 0, 0, false
 	}
 
-	return out.Logical.X + int(tile[0]), out.Logical.Y + int(tile[1]), true
+	return tile[0], tile[1], true
+}
+
+// niriComputeOrigin places a workspace-view tile position on screen by adding
+// the focused output's logical origin.
+func niriComputeOrigin(out niriOutput, tileX, tileY float64) image.Point {
+	return image.Pt(out.Logical.X+int(tileX), out.Logical.Y+int(tileY))
 }

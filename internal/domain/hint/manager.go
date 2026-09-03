@@ -80,14 +80,11 @@ func (m *Manager) SetHints(hints *Collection) error {
 		return err
 	}
 
-	// Cancel any pending debounced updates
 	if m.debounceTimer != nil {
 		m.debounceTimer.Stop()
 		m.debounceTimer = nil
 	}
 
-	// Bump generation so any already-fired (but blocked) debounce goroutine
-	// will see a stale generation and skip its onUpdate call.
 	m.mu.Lock()
 	m.updateGen++
 	m.mu.Unlock()
@@ -95,14 +92,12 @@ func (m *Manager) SetHints(hints *Collection) error {
 	m.hints = hints
 	m.SetCurrentInput("")
 
-	// Reset cached count to match the full hint set
 	if hints != nil {
 		m.lastFilteredLen = len(hints.All())
 	} else {
 		m.lastFilteredLen = 0
 	}
 
-	// Trigger immediate update callback with all hints on initial set
 	if hints != nil {
 		m.mu.Lock()
 		callback := m.onUpdate
@@ -124,28 +119,23 @@ func (m *Manager) Reset() error {
 		return err
 	}
 
-	// Cancel any pending debounced updates
 	if m.debounceTimer != nil {
 		m.debounceTimer.Stop()
 		m.debounceTimer = nil
 	}
 
-	// Bump generation so any already-fired (but blocked) debounce goroutine
-	// will see a stale generation and skip its onUpdate call.
 	m.mu.Lock()
 	m.updateGen++
 	m.mu.Unlock()
 
 	m.SetCurrentInput("")
 
-	// Reset cached count to match the full hint set
 	if m.hints != nil {
 		m.lastFilteredLen = len(m.hints.All())
 	} else {
 		m.lastFilteredLen = 0
 	}
 
-	// Trigger immediate update callback with all hints
 	if m.hints != nil {
 		m.mu.Lock()
 		callback := m.onUpdate
@@ -201,14 +191,12 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, error) {
 			zap.String("current_input", m.CurrentInput()))
 	}
 
-	// Ignore non-single-character keys
 	if len(key) != 1 {
 		return nil, false, nil
 	}
 
 	prevLen := m.lastFilteredLen
 
-	// Accumulate input (convert to uppercase to match hints)
 	m.SetCurrentInput(m.CurrentInput() + strings.ToUpper(key))
 
 	filtered := m.hints.FilterByPrefix(m.CurrentInput())
@@ -241,7 +229,6 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, error) {
 		return nil, false, nil
 	}
 
-	// Update matched prefix for all filtered hints using cached buffer
 	if cap(m.cachedFilteredHints) < len(filtered) {
 		m.cachedFilteredHints = make([]*Interface, len(filtered))
 	} else {
@@ -252,22 +239,17 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, error) {
 		m.cachedFilteredHints[i] = h.WithMatchedPrefix(m.CurrentInput())
 	}
 
-	// Check for exact match
 	if len(m.cachedFilteredHints) == 1 && m.cachedFilteredHints[0].Label() == m.CurrentInput() {
 		if m.Logger != nil {
 			m.Logger.Debug("Hint manager: Exact match found",
 				zap.String("label", m.cachedFilteredHints[0].Label()))
 		}
 
-		// Cancel any pending debounced update so it doesn't fire stale data
-		// after the caller acts on the match (e.g., exits hint mode).
 		if m.debounceTimer != nil {
 			m.debounceTimer.Stop()
 			m.debounceTimer = nil
 		}
 
-		// Bump generation so any already-fired (but blocked) debounce
-		// goroutine will see a stale generation and skip its callback.
 		m.mu.Lock()
 		m.updateGen++
 		m.mu.Unlock()
@@ -320,7 +302,6 @@ func (m *Manager) HandleBackspace() error {
 		prevLen := m.lastFilteredLen
 		m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
 
-		// Update overlay to show filtered hints with new prefix
 		if m.hints != nil {
 			filtered := m.hints.FilterByPrefix(m.CurrentInput())
 
@@ -391,14 +372,11 @@ func (m *Manager) immediateUpdate(hints []*Interface) error {
 		return err
 	}
 
-	// Cancel any pending debounced update so it doesn't fire stale data.
 	if m.debounceTimer != nil {
 		m.debounceTimer.Stop()
 		m.debounceTimer = nil
 	}
 
-	// Bump generation so any already-fired (but blocked) debounce goroutine
-	// will see a stale generation and skip its onUpdate call.
 	m.mu.Lock()
 	m.updateGen++
 
@@ -414,14 +392,10 @@ func (m *Manager) immediateUpdate(hints []*Interface) error {
 
 // debouncedUpdate schedules a debounced update of the overlay.
 func (m *Manager) debouncedUpdate(hints []*Interface) {
-	// Cancel any existing timer
 	if m.debounceTimer != nil {
 		m.debounceTimer.Stop()
 	}
 
-	// Bump generation and capture it for the closure. If a newer update
-	// (immediate or debounced) occurs before the timer fires, the captured
-	// generation will be stale and the callback will be skipped.
 	m.mu.Lock()
 	m.updateGen++
 	gen := m.updateGen
@@ -440,11 +414,6 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 			defer m.externalMu.Unlock()
 		}
 
-		// Read callback and check generation under m.mu, then release
-		// before invoking the callback. This matches the pattern used by
-		// immediateUpdate, SetHints, and Reset — keeping the callback
-		// invocation outside m.mu prevents a deadlock if the callback
-		// ever re-enters a m.mu-protected method (e.g., SetUpdateCallback).
 		m.mu.Lock()
 
 		// A newer update (immediate or debounced) has occurred since this

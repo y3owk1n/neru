@@ -31,9 +31,7 @@ import (
 
 //export recursiveGridResizeCompletionCallback
 func recursiveGridResizeCompletionCallback(context unsafe.Pointer) {
-	// Read callback context from the C-heap-allocated CallbackContext
 	ctx := *(*overlayutil.CallbackContext)(context)
-	// Free the C-allocated context now that we've copied the values
 	overlayutil.FreeCallbackContext(context)
 	overlayutil.CompleteGlobalCallback(ctx.CallbackID, ctx.Generation)
 }
@@ -304,7 +302,6 @@ func (o *Overlay) DrawRecursiveGrid(
 	dims = usableDims
 	keyCount := dims.CellCount()
 
-	// Validate keys length matches grid dimensions
 	keyRunes := []rune(keys)
 	if len(keyRunes) != keyCount {
 		o.logger.Warn(
@@ -316,7 +313,6 @@ func (o *Overlay) DrawRecursiveGrid(
 	// draw call so that freeLabelCache cannot free labels mid-draw.
 	o.drawMu.RLock()
 
-	// Compute cell positions using the shared helper (same as Divide()).
 	cellRects := recursivegrid.ComputeGridCells(bounds, dims)
 
 	cells := make([]C.GridCell, keyCount)
@@ -339,9 +335,6 @@ func (o *Overlay) DrawRecursiveGrid(
 		}
 	}
 
-	// Build sub-key preview labels.
-	// When a label char override is set, repeat it to match the grid cell count
-	// so the native renderer gets the expected number of labels.
 	subKeyLabel := style.SubKeyPreviewLabelChar()
 	if subKeyLabel != "" {
 		subKeyLabel = strings.Repeat(subKeyLabel, nextDims.CellCount())

@@ -3,6 +3,7 @@
   fetchurl,
   gitUpdater,
   installShellFiles,
+  makeWrapper,
   stdenv,
   versionCheckHook,
   lib,
@@ -20,6 +21,20 @@
   libxrender,
   libxtst,
   libxi,
+  # tesseract backs the `vision` hint strategy on Linux. It is a required
+  # dependency rather than an optional one: neru links libtesseract dynamically,
+  # so a missing library stops the daemon before any neru code runs, whatever
+  # hints.strategy is set to. The language data ships in the same derivation, at
+  # $out/share/tessdata, and the wrapper below is what points neru at it — a Nix
+  # store path is not somewhere the runtime search of /usr/share could find.
+  tesseract,
+  # pipewire is how KDE Plasma sessions read the screen. KWin implements no
+  # screencopy protocol, so capture there goes through xdg-desktop-portal's
+  # ScreenCast session and its frames arrive over PipeWire. Like tesseract it is
+  # required rather than optional: neru links libpipewire-0.3 dynamically, so a
+  # missing library stops the daemon before any neru code runs, whatever desktop
+  # it was started on.
+  pipewire,
   version ? "main",
   useZip ? false,
   commitHash ? null,
@@ -37,23 +52,23 @@ if useZip then
       {
         "aarch64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-arm64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.50.0/neru-darwin-arm64.zip)`
-          sha256 = "sha256-l1Tm+DxO5J+TN2B12iJo8Dw9fIYvNM0OITqTuCT9cTI=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.51.0/neru-darwin-arm64.zip)`
+          sha256 = "sha256-3kPIHczQLOlRRN8/skmKaVtM6SIyh63vaZPS7zFLFCA=";
         };
         "x86_64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-amd64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.50.0/neru-darwin-amd64.zip)`
-          sha256 = "sha256-s9UfMtjsShnM5W2V7tvg0PHpnZCBTtD9Wu56GRATRK8=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.51.0/neru-darwin-amd64.zip)`
+          sha256 = "sha256-GXDU01tSx1oBUbzTPhSCkcHlIXwT46goo6i8iNxCtTw=";
         };
         "aarch64-linux" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-arm64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.50.0/neru-linux-arm64.zip)`
-          sha256 = "sha256-LzOQekN5CVKE7sjJAjRNJqRSadxu2SJvJSAR5E7VrtU=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.51.0/neru-linux-arm64.zip)`
+          sha256 = "sha256-wYGt20QCfQ5sQ8Le0jxfAa1jzeHdhvm/mTicdPKxbCA=";
         };
         "x86_64-linux" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-amd64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.50.0/neru-linux-amd64.zip)`
-          sha256 = "sha256-oIVbbdw+Zxh5t8kUYtz8ieYktincq0+116ew7ztEYoM=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.51.0/neru-linux-amd64.zip)`
+          sha256 = "sha256-h8d/FzWIcczJnn2mflfdjVpFi4tfO35d8QCF2z8Zp9Q=";
         };
       }
       .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
@@ -79,6 +94,7 @@ if useZip then
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       autoPatchelfHook
+      makeWrapper
     ];
 
     buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
@@ -94,6 +110,8 @@ if useZip then
       libxrender
       libxtst
       libxi
+      tesseract
+      pipewire
     ];
 
     installPhase = ''
@@ -131,6 +149,12 @@ if useZip then
               --fish <($out/Applications/Neru.app/Contents/MacOS/neru completion fish) \
               --zsh <($out/Applications/Neru.app/Contents/MacOS/neru completion zsh)
       fi
+    ''
+    + lib.optionalString stdenv.hostPlatform.isLinux ''
+      # --set-default, so a user who exports their own TESSDATA_PREFIX (a
+      # tessdata_fast checkout, another language) keeps it.
+      wrapProgram $out/bin/neru \
+        --set-default TESSDATA_PREFIX ${tesseract}/share/tessdata
     '';
 
     doInstallCheck = true;
@@ -168,7 +192,7 @@ else
     # `nix-shell -p go --run 'go mod vendor'`
     # `nix hash path vendor`
     # `rm -rf vendor`
-    vendorHash = "sha256-NU8b5M+KIrpODqci6QoQwgl28M1Eq3LiLBTnbZrhrmc=";
+    vendorHash = "sha256-EkmJ2Pr2PjbiKNZpLfpzVXn4NDmBAKO6rxirIQOL7tQ=";
 
     ldflags = [
       "-s"
@@ -187,6 +211,7 @@ else
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       pkg-config
+      makeWrapper
     ];
 
     buildInputs =
@@ -203,14 +228,32 @@ else
         libxrender
         libxtst
         libxi
+        tesseract
+        pipewire
       ]
       ++ lib.optionals stdenv.hostPlatform.isDarwin [
         apple-sdk_15
       ];
 
-    # Allow Go to use any available toolchain
+    # pipewire's libspa-0.2.pc carries `-fno-strict-overflow` in its Cflags, and
+    # libpipewire-0.3 pulls it in via Requires. cgo refuses any pkg-config flag
+    # outside its allowlist, and that one is not on it, so the linux adapter
+    # fails to build until cgo is told the flag is safe.
+    env = lib.optionalAttrs stdenv.hostPlatform.isLinux {
+      CGO_CFLAGS_ALLOW = "-fno-strict-overflow";
+    };
+
+    # Build with the toolchain nixpkgs ships, never a downloaded one. go.mod
+    # carries a `toolchain` line pointing at a Go patch release newer than
+    # nixpkgs has, so that everyone building with a network — contributors, CI,
+    # the release workflow — picks up the fixed standard library. This sandbox
+    # has no network, so honouring that line would fail the build outright
+    # rather than silently fall back. `local` ignores it and uses the nixpkgs
+    # Go, which still satisfies the `go` directive (the actual floor). Nix
+    # builds therefore track nixpkgs' Go patch level, as they always have, and
+    # pick the fixed standard library up when nixpkgs does.
     preBuild = ''
-      export GOTOOLCHAIN=auto
+      export GOTOOLCHAIN=local
     '';
 
     postInstall = ''
@@ -225,6 +268,13 @@ else
       	--fish <($out/bin/neru completion fish) \
       	--zsh <($out/bin/neru completion zsh)
       fi
+    ''
+    + lib.optionalString stdenv.hostPlatform.isLinux ''
+      # tesseract resolves its language data at run time, and it lives in a
+      # store path no filesystem search would find. --set-default, so a user who
+      # exports their own TESSDATA_PREFIX keeps it.
+      wrapProgram $out/bin/neru \
+        --set-default TESSDATA_PREFIX ${tesseract}/share/tessdata
     ''
     + lib.optionalString stdenv.hostPlatform.isDarwin ''
       # Create a simple .app bundle on the fly for macOS source builds.

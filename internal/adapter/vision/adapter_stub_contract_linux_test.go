@@ -13,30 +13,98 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Linux holds exactly one half of ports.VisionPort: it can capture the screen,
-// and it cannot recognize anything in what it captured. This file pins that
-// split, because both halves of it are easy to break in opposite directions.
-
-// TestVisionAdapter_RecognitionStaysNotSupportedOnLinux is the half that
-// protects the user.
+// Linux implements both halves of ports.VisionPort: screen capture through
+// wlr-screencopy or XGetImage, and text recognition through tesseract. Neither
+// half can be exercised for real on a runner with no display server and,
+// depending on the image, no language data — so this file pins the *shape* of
+// every answer, which is where a half-implemented port does its damage.
 //
-// The hint pipeline picks between the accessibility strategy and the vision
-// strategy by calling Health and checking IsNotSupported. Screen capture
-// landing makes it tempting to report Health healthy — capture works, after
-// all — and the result would be the pipeline selecting vision on Linux, then
-// getting nothing back from DetectElements, and the user seeing no hints and no
-// error. Health stays not-supported until there is an engine that can read a
-// captured frame.
-func TestVisionAdapter_RecognitionStaysNotSupportedOnLinux(t *testing.T) {
-	adapter := vision.NewAdapter(nil)
-	ctx := context.Background()
+// The rule these tests share: never neither, never both. A method returns a
+// result or an error, and an error that means "this machine cannot do this"
+// says which piece is missing rather than "vision failed".
 
-	for i := range 3 {
-		err := adapter.Health(ctx)
-		if !derrors.IsNotSupported(err) {
-			t.Fatalf("Health call %d returned %v, want CodeNotSupported every time", i+1, err)
-		}
+// TestVisionAdapter_DetectElementsAnswersOnLinux is the half that protects the
+// user. Reporting no elements and no error is how a strategy silently produces
+// no hints: the hint pipeline logs nothing a user sees and shows an empty
+// overlay. Detection either finds text, finds none because there is none, or
+// says what stopped it.
+func TestVisionAdapter_DetectElementsAnswersOnLinux(t *testing.T) {
+	adapter := vision.NewAdapter(nil)
+
+	elements, err := adapter.DetectElements(
+		context.Background(),
+		image.Rect(0, 0, 100, 100),
+		config.DefaultConfig().Hints.Vision,
+		false,
+	)
+
+	if err != nil && elements != nil {
+		t.Errorf("DetectElements returned %d elements alongside its error %v", len(elements), err)
 	}
+
+	if err != nil && strings.Contains(err.Error(), "not implemented on Linux") {
+		t.Errorf("DetectElements still refuses as unimplemented: %v", err)
+	}
+}
+
+// TestVisionAdapter_DetectElementsHonorsDetectTextOff is the one documented
+// "neither" answer, and it is worth pinning precisely because it looks like the
+// failure the rule above forbids.
+//
+// Text is the whole of what this backend detects — rectangle detection has no
+// OCR equivalent and is declared macOS-only — so hints.vision.detect_text = false
+// leaves nothing to run. That is the user's own instruction rather than a
+// failure, so it is an empty result and not an error, and it must come back
+// without capturing the screen first.
+func TestVisionAdapter_DetectElementsHonorsDetectTextOff(t *testing.T) {
+	cfg := config.DefaultConfig().Hints.Vision
+	cfg.DetectText = false
+
+	elements, err := vision.NewAdapter(nil).DetectElements(
+		context.Background(),
+		image.Rect(0, 0, 100, 100),
+		cfg,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("DetectElements failed with text detection off: %v", err)
+	}
+
+	if len(elements) != 0 {
+		t.Errorf("got %d elements with text detection off, want none", len(elements))
+	}
+}
+
+// TestVisionAdapter_DetectElementsRefusesAnEmptyRegion pins the one request
+// that has no correct answer. The region is what places every result on the
+// screen, so an empty one cannot be read as "capture everything" — hints would
+// land wherever the frame happened to start.
+func TestVisionAdapter_DetectElementsRefusesAnEmptyRegion(t *testing.T) {
+	adapter := vision.NewAdapter(nil)
+
+	elements, err := adapter.DetectElements(
+		context.Background(),
+		image.Rectangle{},
+		config.DefaultConfig().Hints.Vision,
+		false,
+	)
+	if err == nil {
+		t.Fatalf("DetectElements accepted an empty region and returned %d elements", len(elements))
+	}
+
+	if elements != nil {
+		t.Error("DetectElements returned elements alongside its error")
+	}
+}
+
+// TestVisionAdapter_DetectElementsIsCancelable keeps a caller that has given up
+// from paying for a capture and a recognition nobody will read. Detection is
+// the most expensive call in this adapter by a wide margin.
+func TestVisionAdapter_DetectElementsIsCancelable(t *testing.T) {
+	adapter := vision.NewAdapter(nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
 	elements, err := adapter.DetectElements(
 		ctx,
@@ -44,13 +112,73 @@ func TestVisionAdapter_RecognitionStaysNotSupportedOnLinux(t *testing.T) {
 		config.DefaultConfig().Hints.Vision,
 		false,
 	)
-	if !derrors.IsNotSupported(err) {
-		t.Errorf("DetectElements returned %v (code %q), want CodeNotSupported",
-			err, derrors.GetCode(err))
+	if err == nil {
+		t.Fatal("DetectElements ignored a canceled context")
 	}
 
 	if elements != nil {
-		t.Errorf("DetectElements returned %d elements alongside its error, want nil", len(elements))
+		t.Error("DetectElements returned elements for a canceled context")
+	}
+}
+
+// TestVisionAdapter_HealthNamesWhatIsMissingOnLinux is the acceptance criterion
+// for the pieces no linking decision can settle. The strategy needs two things
+// this machine may not have — a display server that can be captured, and
+// tesseract language data, which is a package separate from the library Neru
+// links — so a build that starts perfectly well can still be unable to run it.
+// When that is the case Health must report CodeNotSupported *naming which one*,
+// because "the vision strategy is unavailable" is not something a user can act
+// on.
+func TestVisionAdapter_HealthNamesWhatIsMissingOnLinux(t *testing.T) {
+	// The pieces Health can find missing, each named by the word a user would
+	// search for. A runner with no session hits the first; a machine with the
+	// library and no language pack hits "traineddata"; a CGO_ENABLED=0 build
+	// hits "CGO".
+	//
+	// Which one this run hits is not chosen here: the display backend is
+	// detected once per process (platform.DetectLinuxBackend caches it), so a
+	// test cannot put this adapter on a different display server than the one
+	// the suite is running under. What is pinned is that whichever half is
+	// missing, the sentence names it.
+	nameable := []string{"display", "screencopy", "traineddata", "CGO"}
+
+	adapter := vision.NewAdapter(nil)
+
+	err := adapter.Health(context.Background())
+	if err == nil {
+		// A session that can be captured, with the language data installed —
+		// the state a machine with the documented dependencies is in.
+		return
+	}
+
+	if !derrors.IsNotSupported(err) {
+		t.Fatalf("Health failed with code %q, want CodeNotSupported so callers degrade: %v",
+			derrors.GetCode(err), err)
+	}
+
+	for _, piece := range nameable {
+		if strings.Contains(err.Error(), piece) {
+			return
+		}
+	}
+
+	t.Errorf("Health refuses without naming any of %v: %v", nameable, err)
+}
+
+// TestVisionAdapter_HealthIsRepeatable guards the engine cache behind
+// recognition: Health warms tesseract, and a warm-up that answered differently
+// the second time would make the strategy's availability depend on how many
+// times it had been asked about.
+func TestVisionAdapter_HealthIsRepeatable(t *testing.T) {
+	adapter := vision.NewAdapter(nil)
+	ctx := context.Background()
+
+	first := derrors.GetCode(adapter.Health(ctx))
+
+	for i := range 2 {
+		if got := derrors.GetCode(adapter.Health(ctx)); got != first {
+			t.Fatalf("Health call %d reported %q, want %q", i+2, got, first)
+		}
 	}
 }
 

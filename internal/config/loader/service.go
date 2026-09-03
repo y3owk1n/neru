@@ -407,14 +407,12 @@ func (s *Service) GetConfigPath() string {
 
 // Reload reloads the configuration from the specified path.
 func (s *Service) Reload(ctx context.Context, path string) error {
-	// Load and validate new config
 	loadResult := s.LoadWithValidation(path)
 
 	if loadResult.ValidationError != nil {
 		return loadResult.ValidationError
 	}
 
-	// Update configuration atomically
 	s.mu.Lock()
 	s.config = loadResult.Config
 	s.written = loadResult.Written
@@ -423,7 +421,6 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
 
-	// Notify watchers (outside the lock to avoid deadlock)
 	for _, watcher := range watchers {
 		if !safeSendConfig(watcher, loadResult.Config) {
 			s.logger.Debug("Watcher channel full, skipping notification")
@@ -431,7 +428,6 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 			continue
 		}
 
-		// Check if context was canceled during send
 		select {
 		case <-ctx.Done():
 			return derrors.WrapContextCanceled(ctx, "notify config watchers")
@@ -580,9 +576,11 @@ func (s *Service) SaveOverrideField(key, value string) error {
 		return saveErr
 	}
 
+	// The key names a schema field, which is not the user's content; the value
+	// is, and a value can be an exec command line, so only its length is logged.
 	s.logger.Info("Config override persisted",
 		zap.String("key", key),
-		zap.String("value", value),
+		zap.Int("value_length", len(value)),
 		zap.String("override_path", overridePath))
 
 	return nil

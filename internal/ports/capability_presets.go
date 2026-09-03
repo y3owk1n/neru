@@ -71,7 +71,7 @@ func LinuxCapabilities() PlatformCapabilities {
 			"clickable-element discovery via AT-SPI (D-Bus) tree walk; " +
 				"click/scroll injection via XTest (X11) or virtual-pointer/libei " +
 				"(Wayland wlroots/KDE). Coverage depends on the app's AT-SPI " +
-				"support; there is no Vision/OCR fallback",
+				"support; hints.strategy = vision is the OCR fallback where it is thin",
 		),
 		Overlay: supportedCapability(
 			"native overlays available via X11 windows or Wayland layer-shell + Cairo",
@@ -119,16 +119,21 @@ func LinuxCapabilities() PlatformCapabilities {
 				"key stream, so dead keys and IME composition do not reach it; " +
 				"the overlay draws the search badge",
 		),
-		// Half of this port is implemented: screen capture works through
-		// wlr-screencopy on wlroots compositors and XGetImage on X11. The
-		// status stays stub because the capability the key names is element
-		// detection, and no OCR engine is linked to turn those pixels into
-		// elements — reporting supported would tell `neru doctor` a strategy is
-		// selectable when selecting it still yields no hints.
-		Vision: stubCapability(
-			"screen capture works (wlr-screencopy on wlroots, XGetImage on X11, " +
-				"unavailable on KWin), but no OCR engine is linked, so there is no " +
-				"vision element detection; hints come from AT-SPI only",
+		// Both halves are implemented on every backend: capture through
+		// wlr-screencopy, XGetImage or the portal's ScreenCast session,
+		// recognition through tesseract. The detail names the three things that
+		// can still be missing on a given machine — KDE's screen-sharing consent
+		// has to be approved once, the tesseract language data is a separate
+		// distribution package from the library Neru links, and the CGO-off
+		// build has no engine — because this preset is static and `neru doctor`
+		// reports it without probing. VisionPort.Health answers the same
+		// question for the live session, and names which one it is.
+		Vision: supportedCapability(
+			"vision element detection via tesseract OCR over a screen capture " +
+				"(wlr-screencopy on wlroots, XGetImage on X11, the xdg-desktop-portal " +
+				"ScreenCast session on KDE, which asks for screen-sharing consent " +
+				"once); text only, with no rectangle detection; needs a cgo build " +
+				"and the tesseract eng language data installed",
 		),
 		KeyFeed: supportedCapability(
 			"key injection via a uinput virtual keyboard when /dev/uinput is " +

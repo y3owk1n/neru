@@ -699,6 +699,63 @@ func (m *Manager) DrawRecursiveGrid(
 	)
 }
 
+// DrawGridPointer puts grid mode's pointer stand-in on the shared surface.
+//
+// Recursive grid does not come through here: the pointer it draws rides the
+// frame its every keystroke hands over (DrawRecursiveGrid), so it is already
+// painted in the same pass as the cells and a second path would repaint a grid
+// that mode never drew. Grid mode has no such frame — narrowing a prefix and
+// opening a subgrid are plain calls (ADR 0003) — so its pointer arrives on its
+// own and is kept until the next repaint reads it.
+//
+// Overrides the Base method, which resolves a mode to a render component: off
+// darwin those components own no surface, which is why the pointer was a no-op
+// in grid mode here (#1463). Recursive grid is still delegated so the Base
+// keeps answering for a mode this backend does not paint itself.
+func (m *Manager) DrawGridPointer(
+	mode manager.Mode,
+	point image.Point,
+	appearance manager.PointerAppearance,
+) {
+	if m == nil {
+		return
+	}
+
+	if mode != manager.ModeGrid {
+		m.Base.DrawGridPointer(mode, point, appearance)
+
+		return
+	}
+
+	m.dispatchGridPointer(recursivegrid.VirtualPointerState{
+		Visible:   true,
+		Position:  point,
+		Size:      appearance.FontSize,
+		FillColor: appearance.FillColor,
+		Char:      appearance.Char,
+		FontName:  appearance.FontFamily,
+	})
+}
+
+// HideGridPointer takes grid mode's pointer stand-in off the shared surface,
+// leaving the grid on it. It is what mode teardown calls before the frame is
+// cleared, so the repaint it triggers is the first one without the pointer —
+// and the mode's own selection going away is the other caller, where that
+// repaint is the whole of what the user sees happen.
+func (m *Manager) HideGridPointer(mode manager.Mode) {
+	if m == nil {
+		return
+	}
+
+	if mode != manager.ModeGrid {
+		m.Base.HideGridPointer(mode)
+
+		return
+	}
+
+	m.dispatchGridPointer(recursivegrid.VirtualPointerState{})
+}
+
 // UpdateGridMatches updates the grid overlay matches.
 func (m *Manager) UpdateGridMatches(prefix string) {
 	m.renderMu.Lock()
@@ -711,19 +768,45 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 	}
 }
 
-// ShowSubgrid shows the subgrid overlay.
-func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
+// ShowSubgrid shows the subgrid overlay, with the pointer stand-in that belongs
+// on the same surface once the cell has been picked.
+//
+// This is where the pointer riding the open earns its place (#1492). Both are
+// painted into one Cairo target here, so a mode that opened the subgrid and
+// then moved the pointer repainted that target twice for one keystroke — and
+// arrow keys inside a subgrid come through here on every repeat. Handing the
+// pointer to the backend before it paints leaves the keystroke the one repaint
+// the open always had.
+//
+// Canceling before the lock is what HideHintSearchInput does and for the same
+// reason: the subgrid replaces the whole surface, and an animation still running
+// would paint over it. It happens out here because cancelAnimation waits for a
+// goroutine that takes renderMu on every frame — canceling from under the lock
+// is a deadlock, not a slow path. The same call answers whether there is a
+// backend at all.
+func (m *Manager) ShowSubgrid(
+	cell *domainGrid.Cell,
+	style grid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
+) {
+	if !m.cancelBackendAnimation() {
+		return
+	}
+
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	// Nil-checked like every other dispatch here rather than trusting the
+	// answer above: that one was taken before renderMu was released for the
+	// cancel, so a Destroy landing in between leaves this pointer nil.
 	if m.x11 != nil {
 		m.syncSublayerKeysLocked(&m.x11.sublayerKeys)
 
-		m.x11.ShowSubgrid(cell, style)
+		m.x11.ShowSubgrid(cell, style, virtualPointer)
 	} else if m.wlroots != nil {
 		m.syncSublayerKeysLocked(&m.wlroots.sublayerKeys)
 
-		m.wlroots.ShowSubgrid(cell, style)
+		m.wlroots.ShowSubgrid(cell, style, virtualPointer)
 	}
 }
 
@@ -1106,6 +1189,28 @@ func (m *Manager) overlayScale() float64 {
 	return 1
 }
 
+// dispatchGridPointer hands the pointer state to the attached backend, which
+// keeps it and repaints the grid surface with it.
+//
+// No animation is canceled first, the way DrawHintsWithStyle and
+// HideHintSearchInput do: this repaints the same surface UpdateGridMatches
+// already repaints on every keystroke and takes renderMu the same way, and the
+// only animation painting *that* surface is the recursive-grid transition,
+// which the frame coming up cleared and canceled before grid mode drew a cell.
+// The mouse-action indicator animates too and is not a counter-example: it runs
+// on its own backend instance behind indicatorRenderMu (DrawMouseActionIndicator
+// below), so it shares neither this surface nor this lock.
+func (m *Manager) dispatchGridPointer(pointer recursivegrid.VirtualPointerState) {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 != nil {
+		m.x11.SetGridPointer(pointer)
+	} else if m.wlroots != nil {
+		m.wlroots.SetGridPointer(pointer)
+	}
+}
+
 // forgetBadgesLocked drops every record of what is painted on the shared
 // surface. It follows a Hide or a Clear, which take the whole surface away
 // rather than one badge at a time, so there is nothing left to erase and the
@@ -1116,6 +1221,15 @@ func (m *Manager) forgetBadgesLocked() {
 	m.modeIndicatorBadgeVisible = false
 	m.modeIndicatorBadgeRect = image.Rectangle{}
 	m.searchBadgeRect = image.Rectangle{}
+
+	// The grid pointer is the one record kept on the backend rather than here,
+	// because the pass that paints it is the backend's, but it describes the
+	// same surface these do and goes with them.
+	if m.x11 != nil {
+		m.x11.forgetGridPointer()
+	} else if m.wlroots != nil {
+		m.wlroots.forgetGridPointer()
+	}
 }
 
 func (m *Manager) clearStickyBadgeLocked() {

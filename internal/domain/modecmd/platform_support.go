@@ -4,16 +4,29 @@ import "github.com/y3owk1n/neru/internal/domain/parity"
 
 // Why a mode flag's platform column is narrower than every platform.
 const (
-	noteVisionStrategy = "no element-detection engine outside macOS answers the " +
-		"vision strategy, so detection returns nothing and no hints appear; use axtree"
+	noteVisionStrategy = "the vision strategy needs an element-detection engine, which " +
+		"macOS has in the Vision framework and Linux in tesseract; Windows has neither, " +
+		"so detection returns nothing and no hints appear; use axtree"
 	noteSplitWord = "splitting detected text into words needs the vision strategy, " +
-		"which only macOS has an engine for; elsewhere the flag is refused rather " +
-		"than ignored"
+		"which Windows has no engine for; there the flag is refused rather than ignored"
+	noteWLKBPTRStrategy = "the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux"
 )
 
 // visionStrategy is the --strategy value that selects the vision engine. The
 // flag itself is recognized everywhere; this one value of it is not.
-const visionStrategy = "vision"
+const (
+	visionStrategy  = "vision"
+	wlkbptrStrategy = "wl-kbptr"
+)
+
+// darwinAndLinux is the column the vision words carry: both platforms have an
+// element-detection engine behind the strategy, and Windows has none. Named
+// rather than written out at each site so a reader compares the two by the same
+// words, as config's declaration does.
+var (
+	darwinAndLinux = parity.Platforms{parity.Darwin, parity.Linux}
+	linuxOnly      = parity.Platforms{parity.Linux}
+)
 
 // PlatformSupport declares, for every mode flag, the platforms on which
 // writing it does something.
@@ -27,11 +40,15 @@ const visionStrategy = "vision"
 // (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
 func PlatformSupport() parity.Declaration {
 	return parity.Join(
-		parity.On(parity.KindModeFlag, parity.Platforms{parity.Darwin}, noteSplitWord,
+		parity.On(parity.KindModeFlag, darwinAndLinux, noteSplitWord,
 			FlagSplitWord.String(),
 		),
-		parity.ValueOn(parity.KindModeFlag, parity.Platforms{parity.Darwin}, noteVisionStrategy,
+		parity.ValueOn(parity.KindModeFlag, darwinAndLinux, noteVisionStrategy,
 			visionStrategy,
+			FlagStrategy.String(),
+		),
+		parity.ValueOn(parity.KindModeFlag, linuxOnly, noteWLKBPTRStrategy,
+			wlkbptrStrategy,
 			FlagStrategy.String(),
 		),
 

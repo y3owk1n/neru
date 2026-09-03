@@ -27,6 +27,8 @@
 //     chain rather than recomputed at its reader.
 //   - config_example_test.go — the pairing between the config schema and the
 //     example TOML shipped with it.
+//   - daemon_log_test.go — the daemon's log carries facts rather than content,
+//     and every service definition sends its output to a per-user path.
 //   - darwin_entry_point_headers_test.go — every non-static Neru* entry point
 //     the darwin bridge defines is declared in its own subsystem's header.
 //   - dependency_boundary_test.go — the darwin One Rule: only darwin-tagged
@@ -59,6 +61,9 @@
 //     stated position in the lock order that package's guide gives.
 //   - mode_lock_release_test.go — the mode handler releases every lock via
 //     defer, in the scope that took it.
+//   - mode_transition_release_test.go — an activation that exits another mode
+//     keeps the keyboard and gives it back at return, written as one deferred
+//     double call, so no call site can hand it over and forget to release it.
 //   - named_key_tables_test.go — the two Objective-C key-name tables spell the
 //     named-key vocabulary, agree with each other, and gap only where macOS has
 //     no keycode.

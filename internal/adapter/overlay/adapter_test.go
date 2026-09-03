@@ -116,6 +116,8 @@ type screenManager struct {
 	matchPrefix       string
 	hideUnmatched     bool
 	subgridCell       *domainGrid.Cell
+	subgridPointer    renderrecursivegrid.VirtualPointerState
+	subgridOpens      int
 
 	recursiveGrid      recursiveGridDraw
 	recursiveGridDraws int
@@ -137,11 +139,10 @@ type recursiveGridDraw struct {
 
 // gridPointerDraw is the pointer stand-in a grid surface was last asked for.
 type gridPointerDraw struct {
-	mode      overlay.Mode
-	visible   bool
-	point     image.Point
-	size      int
-	fillColor string
+	mode       overlay.Mode
+	visible    bool
+	point      image.Point
+	appearance overlay.PointerAppearance
 }
 
 func newScreenManager() *screenManager {
@@ -204,8 +205,14 @@ func (m *screenManager) UpdateGridMatches(prefix string) {
 
 func (m *screenManager) SetHideUnmatched(hide bool) { m.hideUnmatched = hide }
 
-func (m *screenManager) ShowSubgrid(cell *domainGrid.Cell, _ rendergrid.Style) {
+func (m *screenManager) ShowSubgrid(
+	cell *domainGrid.Cell,
+	_ rendergrid.Style,
+	virtualPointer renderrecursivegrid.VirtualPointerState,
+) {
 	m.subgridCell = cell
+	m.subgridPointer = virtualPointer
+	m.subgridOpens++
 }
 
 func (m *screenManager) DrawRecursiveGrid(
@@ -235,15 +242,13 @@ func (m *screenManager) DrawRecursiveGrid(
 func (m *screenManager) DrawGridPointer(
 	mode overlay.Mode,
 	point image.Point,
-	size int,
-	fillColor string,
+	appearance overlay.PointerAppearance,
 ) {
 	m.pointer = gridPointerDraw{
-		mode:      mode,
-		visible:   true,
-		point:     point,
-		size:      size,
-		fillColor: fillColor,
+		mode:       mode,
+		visible:    true,
+		point:      point,
+		appearance: appearance,
 	}
 }
 
@@ -502,7 +507,7 @@ func TestAdapterRedrawFrame_ErasesASubgridTheGridReplaces(t *testing.T) {
 		t.Fatal("fixture grid has no cells")
 	}
 
-	adapter.ShowGridSubgrid(cells[0])
+	adapter.ShowGridSubgrid(cells[0], ports.GridPointer{})
 
 	err := adapter.RedrawFrame(context.Background(), gridFrame(t, ""))
 	if err != nil {
@@ -654,16 +659,90 @@ func TestAdapterGridUpdates_ReachTheOverlayWithoutAFrame(t *testing.T) {
 		t.Fatal("fixture grid has no cells")
 	}
 
-	adapter.ShowGridSubgrid(cells[0])
+	adapter.ShowGridSubgrid(cells[0], ports.GridPointer{})
 
 	if manager.subgridCell != cells[0] {
 		t.Error("the subgrid's cell never reached the overlay")
 	}
 }
 
+// TestAdapterShowGridSubgrid_CarriesThePointerIntoTheSameCall is what #1492
+// asks of this seam: the keystroke that picks a cell moves the selection too,
+// and a backend that paints both into one surface must be told both at once or
+// it repaints that surface twice for one key.
+//
+// The appearance is asserted with the cell, because the pointer travels as
+// position alone from a mode: a subgrid open that carried the position and left
+// the Style behind would draw the default glyph rather than the user's.
+func TestAdapterShowGridSubgrid_CarriesThePointerIntoTheSameCall(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, pointerStyles{}, zap.NewNop())
+
+	cells := gridFrame(t, "").Grid.Cells()
+	if len(cells) == 0 {
+		t.Fatal("fixture grid has no cells")
+	}
+
+	adapter.ShowGridSubgrid(cells[0], ports.GridPointer{
+		Visible:  true,
+		Position: image.Pt(120, 240),
+	})
+
+	if manager.subgridOpens != 1 {
+		t.Fatalf("subgrid opened %d times, want 1", manager.subgridOpens)
+	}
+
+	want := renderrecursivegrid.VirtualPointerState{
+		Visible:   true,
+		Position:  image.Pt(120, 240),
+		Size:      pointerSize,
+		FillColor: pointerFill,
+		Char:      pointerChar,
+		FontName:  pointerFontFamily,
+	}
+	if manager.subgridPointer != want {
+		t.Errorf("subgrid opened with pointer %+v, want %+v", manager.subgridPointer, want)
+	}
+
+	if manager.pointer.mode != "" {
+		t.Errorf("the open also made a pointer call of its own (%+v); one call paints both",
+			manager.pointer)
+	}
+}
+
+// TestAdapterUpdateGridPointer_CarriesTheWholeResolvedAppearance pins what a
+// backend that paints the glyph itself needs and used to be denied: the char
+// and the font family travel with the size and the fill, so a backend with no
+// render component holding the pointer's configuration can still draw the
+// pointer the user configured rather than a hardcoded fallback.
+func TestAdapterUpdateGridPointer_CarriesTheWholeResolvedAppearance(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, pointerStyles{}, zap.NewNop())
+
+	adapter.UpdateGridPointer(
+		domain.ModeGrid,
+		ports.GridPointer{Visible: true, Position: image.Pt(12, 34)},
+	)
+
+	want := overlay.PointerAppearance{
+		FillColor:  pointerFill,
+		FontFamily: pointerFontFamily,
+		Char:       pointerChar,
+		FontSize:   pointerSize,
+	}
+	if manager.pointer.appearance != want {
+		t.Errorf("pointer appearance = %+v, want the resolved style %+v",
+			manager.pointer.appearance, want)
+	}
+}
+
 // TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface pins that the
-// caller says which grid surface the pointer belongs to and nothing else: its
-// size and color are the Style the overlay already resolved.
+// caller says which grid surface the pointer belongs to and where it sits, and
+// nothing else: its appearance is the Style the overlay already resolved.
 func TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface(t *testing.T) {
 	t.Parallel()
 
@@ -683,9 +762,12 @@ func TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface(t *testing.T
 		t.Errorf("pointer drawn at %v, want (12,34)", manager.pointer.point)
 	}
 
-	if manager.pointer.size != pointerSize || manager.pointer.fillColor != pointerFill {
+	if manager.pointer.appearance.FontSize != pointerSize ||
+		manager.pointer.appearance.FillColor != pointerFill {
 		t.Errorf("pointer drawn with size %d and fill %q, want the resolved style's %d and %q",
-			manager.pointer.size, manager.pointer.fillColor, pointerSize, pointerFill)
+			manager.pointer.appearance.FontSize,
+			manager.pointer.appearance.FillColor,
+			pointerSize, pointerFill)
 	}
 
 	adapter.UpdateGridPointer(domain.ModeRecursiveGrid, ports.GridPointer{})
@@ -698,8 +780,10 @@ func TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface(t *testing.T
 // pointerSize and pointerFill are the resolved virtual-pointer style the
 // pointer test expects to arrive without the caller naming it.
 const (
-	pointerSize = 24
-	pointerFill = "#abcdef"
+	pointerSize       = 24
+	pointerFill       = "#abcdef"
+	pointerChar       = "✛"
+	pointerFontFamily = "Test Sans"
 )
 
 // pointerStyles resolves only the virtual pointer's appearance.
@@ -711,8 +795,10 @@ func (pointerStyles) Refresh()               {}
 func (pointerStyles) Style() overlay.Style {
 	return overlay.Style{
 		VirtualPointer: overlay.VirtualPointerStyle{
-			FontSize:  pointerSize,
-			FillColor: pointerFill,
+			FontSize:   pointerSize,
+			FillColor:  pointerFill,
+			Char:       pointerChar,
+			FontFamily: pointerFontFamily,
 		},
 	}
 }
@@ -755,6 +841,47 @@ func TestAdapterClearFrame_TakesTheFrameOffScreen(t *testing.T) {
 
 	if adapter.IsVisible() {
 		t.Error("IsVisible() = true after the frame was cleared")
+	}
+}
+
+// TestAdapterClearFrame_DropsWhatTheGridUpdatesLeft is the other half of "content
+// and all" (#1492): the hide-unmatched flag and the pointer stand-in outlive a
+// clear unless this call drops them, and grid mode used to drop them itself —
+// which meant repainting a grid on the way to taking it off the screen.
+//
+// It is also what makes that free: both run after the surface is cleared, so a
+// backend that repaints on a pointer change has nothing left to repaint and its
+// own record is already empty. Losing this call would put the flag back on the
+// next session's first draw.
+func TestAdapterClearFrame_DropsWhatTheGridUpdatesLeft(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, pointerStyles{}, zap.NewNop())
+
+	adapter.SetGridHideUnmatched(true)
+	adapter.UpdateGridPointer(
+		domain.ModeGrid,
+		ports.GridPointer{Visible: true, Position: image.Pt(12, 34)},
+	)
+
+	clearErr := adapter.ClearFrame(context.Background())
+	if clearErr != nil {
+		t.Fatalf("ClearFrame() error = %v", clearErr)
+	}
+
+	if manager.hideUnmatched {
+		t.Error("unmatched cells are still asked to hide after the frame was cleared")
+	}
+
+	if manager.pointer.mode != overlay.ModeGrid || manager.pointer.visible {
+		t.Errorf("grid pointer left as %+v, want it taken off the grid surface",
+			manager.pointer)
+	}
+
+	// The clear comes first, so neither reset had a surface to paint on.
+	if manager.cleared == 0 {
+		t.Error("the surface was never cleared, so the resets ran against a live one")
 	}
 }
 

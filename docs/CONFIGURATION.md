@@ -107,8 +107,12 @@ than absent:
   (it pairs with system cursor hiding, a
   [platform exclusive](CROSS_PLATFORM.md#platform-exclusives)), while these same
   options style the recursive-grid in-frame pointer on every platform.
-- `hints.strategy = "vision"` fails silently rather than degrading: detection
-  returns nothing and no hints appear. Set `axtree` on Linux and Windows.
+- `hints.strategy = "vision"` works on macOS and Linux, and fails silently on
+  Windows rather than degrading: detection returns nothing and no hints appear,
+  so set `axtree` there. On Linux it is **text-only** — tesseract OCR answers
+  the text half of the strategy, so `detect_rectangles` and the four
+  `rectangle_*` options below are macOS-only, and it needs the tesseract English
+  language data installed ([Linux setup](LINUX_SETUP.md#build-dependencies)).
 
 Accessibility coverage for hints also differs in kind rather than by option; see
 [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
@@ -336,6 +340,12 @@ which of the two applies to your session.
 | `Shift`   |                                         |
 | `Primary` | `Cmd` on macOS, `Ctrl` on Linux/Windows |
 
+**Shift and a symbol: write the character Shift produces.** On Linux a key is
+named by what the active layout makes it mean, so `Shift` plus the `;` key is
+`"Shift+:"` and not `"Shift+;"` — the same for `"Shift+\""` over `"Shift+'"`, and
+so on for every symbol with a shifted twin. Letters are unaffected: `"Shift+L"` is
+right either way.
+
 **Available keys** (the `Key` part after modifiers):
 
 | Category   | Keys                                                                                                    |
@@ -467,6 +477,16 @@ Where the compositor or X11 exposes a focus-change signal, Neru applies per-app 
 ### Per-Mode Hotkeys
 
 Each mode can define hotkeys active only while that mode is running. Follows the same [merging rules](#merging-behavior) as global hotkeys.
+
+**Precedence while a mode is open.** The mode's own table is asked first, and a
+Ctrl/Alt/Cmd chord it does not bind falls back to `[hotkeys]` — so a global
+`"Super+;" = "recursive_grid --toggle"` still toggles the mode off from inside it,
+however you got there. Bind the chord in `[<mode>.hotkeys]` to give it a different
+meaning in that mode; `__disabled__` does not silence it there, it removes the
+*mode's* binding and hands the key back to the global one. Bare keys and
+`Shift`-only combos are never taken this way — inside a mode those are its input.
+How each platform delivers a chord to an open mode, and what that costs on X11,
+is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#keyboard-capture-and-hotkeys).
 
 ```toml
 [hints.hotkeys]
@@ -745,7 +765,7 @@ Explicit component colors override theme derivation. Omitted colors inherit from
 
 ## [hints]
 
-Labels clickable UI elements with short overlay labels. By default uses the macOS Accessibility API (`axtree` strategy). Optionally uses Vision Framework (`vision` strategy) for apps with poor AX trees — detects elements via screen capture + text/rectangle recognition scoped to the focused window.
+Labels clickable UI elements with short overlay labels. By default uses the platform accessibility tree (`axtree` strategy). Optionally uses on-screen recognition (`vision` strategy) for apps whose accessibility tree is too thin to hint from — detects elements from a screen capture scoped to the focused window, through the Vision framework on macOS (text plus rectangles) and tesseract OCR on Linux (text only). On Linux, the `wl-kbptr` strategy detects buttons, icons, and text by running contour detection directly on the captured window buffer without external library dependencies.
 
 Press `/` to text-search elements. `Space` for multi-word queries. `Return` confirms filtered hints (first is auto-selected). `Escape` cancels search.
 
@@ -756,7 +776,7 @@ Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#neru-hints
 | Option                             | Type         | Default                 | Description                                                                                                                                                                                                                                                                                                                          |
 | ---------------------------------- | ------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `enabled`                          | bool         | `true`                  | Enable/disable hints mode                                                                                                                                                                                                                                                                                                            |
-| `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (macOS Accessibility API) or `"vision"` (Vision Framework). Vision mode detects the frontmost window content via screen capture + text/rectangle recognition while still using AX for system elements (menubar, dock, NC). Overridable per-app via `[hints.app_configs]`.                     |
+| `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (the platform accessibility tree), `"vision"` (screen recognition — Vision framework on macOS, tesseract OCR on Linux, unavailable on Windows), or `"wl-kbptr"` (Linux only contour detection replicated from wl-kbptr). Vision and wl-kbptr modes detect the frontmost window content from a screen capture while still using the accessibility tree for system elements (menubar, dock, NC). Overridable per-app via `[hints.app_configs]`. |
 | `hint_characters`                  | string       | `"asdfghjkl"`           | Characters used for labels                                                                                                                                                                                                                                                                                                           |
 | `label_direction`                  | string       | `"normal"`              | Hint label algorithm: `"normal"` (default, prefix-avoidance greedy) or `"reverse"` (reverse-order tiers). Empty value defaults to `"normal"`. Overridable per-app via `[hints.app_configs]` and per-activation via the `neru hints --label-direction` CLI flag. See [Choosing a label direction](#choosing-a-label-direction) below. |
 | `max_depth`                        | int          | `50`                    | Max accessibility tree depth (0 = unlimited)                                                                                                                                                                                                                                                                                         |
@@ -925,17 +945,24 @@ width = 320
 
 Tunable settings for Vision-based hint detection (only used when `hints.strategy` or the app-specific `strategy` override is set to `"vision"`).
 
+The engine differs by platform and the options do not: macOS runs the Vision
+framework, Linux runs tesseract OCR over a screen capture of the focused window.
+The one visible consequence is that **rectangle detection is macOS-only** — an
+OCR engine answers text and nothing else — so `detect_rectangles` and the four
+`rectangle_*` options are read on macOS alone and warn once at load if written
+elsewhere. Every other option below is read on both.
+
 | Option                             | Type  | Default | Description                                                                                       |
 | ---------------------------------- | ----- | ------- | ------------------------------------------------------------------------------------------------- |
-| `detect_text`                      | bool  | `true`  | Enable text detection via the Vision framework.                                                   |
-| `detect_rectangles`                | bool  | `true`  | Enable rectangle detection via the Vision framework.                                              |
-| `request_timeout_ms`               | int   | `5000`  | Timeout in milliseconds for Vision framework analysis requests.                                   |
-| `minimum_confidence`               | float | `0.0`   | Minimum confidence score (0.0 to 1.0) for keeping Vision framework observations.                  |
+| `detect_text`                      | bool  | `true`  | Enable text detection. With this off, Linux detects nothing at all.                               |
+| `detect_rectangles`                | bool  | `true`  | Enable rectangle detection.                                                       |
+| `request_timeout_ms`               | int   | `5000`  | Timeout in milliseconds for one analysis request (one OCR pass on Linux).                         |
+| `minimum_confidence`               | float | `0.0`   | Minimum confidence score (0.0 to 1.0) for keeping an observation.                                 |
 | `merge_iou_threshold`              | float | `0.5`   | Intersection-over-Union (IoU) overlap threshold for merging redundant overlapping bounding boxes. |
-| `rectangle_max_candidates`         | int   | `100`   | Maximum number of rectangle candidate observations to evaluate.                                   |
-| `rectangle_min_size`               | float | `0.01`  | Minimum normalized size of detected rectangles (e.g. `0.01` is 1% of screen/window dimensions).   |
-| `rectangle_min_aspect`             | float | `0.3`   | Minimum aspect ratio (width/height) for rectangle elements.                                       |
-| `rectangle_max_aspect`             | float | `10.0`  | Maximum aspect ratio (width/height) for rectangle elements.                                       |
+| `rectangle_max_candidates`         | int   | `100`   | Maximum number of rectangle candidate observations to evaluate.                   |
+| `rectangle_min_size`               | float | `0.01`  | Minimum normalized size of detected rectangles (e.g. `0.01` is 1% of screen/window dimensions). |
+| `rectangle_min_aspect`             | float | `0.3`   | Minimum aspect ratio (width/height) for rectangle elements.                       |
+| `rectangle_max_aspect`             | float | `10.0`  | Maximum aspect ratio (width/height) for rectangle elements.                       |
 | `button_min_confidence`            | float | `0.3`   | Minimum confidence score threshold for classifying a rectangle as a button.                       |
 | `button_min_aspect`                | float | `0.8`   | Minimum aspect ratio for button elements.                                                         |
 | `button_max_aspect`                | float | `8.0`   | Maximum aspect ratio for button elements.                                                         |
@@ -996,7 +1023,7 @@ You can also mix directions per-app via `[hints.app_configs]` or per-activation 
 | Field                        | Type   | Description                                                                                                                                                                               |
 | ---------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bundle_id`                  | string | App bundle ID                                                                                                                                                                             |
-| `strategy`                   | string | Override element detection strategy for this app (`"axtree"` or `"vision"`). Empty string = use global `hints.strategy`.                                                                  |
+| `strategy`                   | string | Override element detection strategy for this app (`"axtree"`, `"vision"`, or `"wl-kbptr"`). Empty string = use global `hints.strategy`.                                                                  |
 | `label_direction`            | string | Override hint label algorithm for this app (`"normal"` or `"reverse"`). Empty string = use global `hints.label_direction`. See [Choosing a label direction](#choosing-a-label-direction). |
 | `additional_clickable_roles` | array  | Extra roles to treat as clickable, same vocabulary as [`clickable_roles`](#clickable-roles)                                                                                              |
 | `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app                                                                                                                                                  |
@@ -1028,6 +1055,7 @@ Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode fol
 | `enabled`           | bool   | `true`                        | Enable/disable grid mode    |
 | `characters`        | string | `"abcdefghijklmnpqrstuvwxyz"` | Primary grid labels         |
 | `sublayer_keys`     | string | `"abcdefghijklmnpqrstuvwxyz"` | Subgrid labels; empty is resolved at load time to the characters the grid is labelled with, the same ones `row_labels` is inferred from. Only the first 9 are used — the subgrid is 3×3 |
+| `max_label_length`  | int    | `4`                           | Maximum coarse-grid label length (2–4). The default preserves the legacy automatic 2–4-key layout. When a limit of 2 shortens an automatically longer label, the coarse grid is enlarged and spatially rebalanced while still covering the screen; the following subgrid refinement remains one keypress |
 | `row_labels`        | string | `""`                          | Custom row labels; empty is resolved at load time to the labels inferred from `characters` |
 | `col_labels`        | string | `""`                          | Custom column labels; empty is resolved the same way as `row_labels`                       |
 | `live_match_update` | bool   | `true`                        | Highlight cells as you type |
@@ -1540,6 +1568,14 @@ sends it in a different *currency*: a continuous delta rather than a count of
 wheel notches, and an application is free to scale those two differently. So
 turning the animation on can change how far a `scroll_down` reaches in a given
 application, and `scroll.scroll_step` is the setting to trim if it does.
+
+The same holds for a key held down under [`[held_repeat]`](#held_repeat). A
+repeat tick preempts the animation still in flight, and folds whatever that
+animation had not yet sent into its own, so N repeats travel as far as N
+discrete presses — on X11, within a wheel notch per repeat, since nothing there
+can express a fraction of one. A binding with a *different* modifier set still
+cancels outright: a plain `scroll_down` arriving mid-zoom finishes unmodified,
+and the zoom's remaining distance is dropped rather than sent as a plain scroll.
 
 | Option               | Type  | Default | Description                        |
 | -------------------- | ----- | ------- | ---------------------------------- |
