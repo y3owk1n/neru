@@ -4,7 +4,7 @@
 // in adapter/accessibility/native/windows.
 //
 // Anything that talks to a thread-affine Win32 API (the keyboard hook,
-// RegisterHotKey, SetWinEventHook, message-only windows) runs its own
+// RegisterHotKey, SetWinEventHook, hidden message windows) runs its own
 // runtime.LockOSThread message loop; never call those APIs from an arbitrary
 // goroutine.
 //

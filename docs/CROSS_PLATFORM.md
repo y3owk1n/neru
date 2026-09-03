@@ -170,7 +170,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | Capability                    | macOS                    | Linux X11              | Linux Wayland (wlroots)      | Linux Wayland (KDE)     | Windows                      |
 | ----------------------------- | ------------------------ | ---------------------- | ---------------------------- | ----------------------- | ---------------------------- |
 | **Screen bounds / enumeration** | ✅ Cocoa               | ✅ XRandR              | ✅ xdg-output                | ✅ xdg-output           | ✅ `EnumDisplayMonitors`     |
-| **Display hotplug events**    | ✅ screen-params notif.  | ✅ RandR event fd      | ✅ `wl_output` events        | ✅ `wl_output` events   | 🟡                           |
+| **Display hotplug events**    | ✅ screen-params notif.  | ✅ RandR event fd      | ✅ `wl_output` events        | ✅ `wl_output` events   | ✅ `WM_DISPLAYCHANGE`        |
 | **Focused app identity**      | ✅ NSWorkspace + AX      | ✅ `_NET_ACTIVE_WINDOW` / `WM_CLASS` | ⚠️ app_id only (see below) | ⚠️ app_id only     | ✅ `GetForegroundWindow`     |
 | **App watcher (focus change)**| ✅ NSWorkspace observer  | ✅ event-driven        | ✅ event-driven              | ✅ event-driven         | ✅ `SetWinEventHook`         |
 | **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher |
@@ -493,8 +493,13 @@ Control events remain macOS-only. Windows has a single API for it after all:
 through `SetWinEventHook` on a message-loop thread of its own, hands each new
 foreground HWND to a goroutine, and resolves it there to the **executable
 path** — the identity `GetForegroundWindow` already gives the focused app, so
-per-app configuration keys on one string however it is learned. Only
-activate and deactivate are emitted there; display hotplug is still a gap.
+per-app configuration keys on one string however it is learned. Display
+changes ride the same dispatch goroutine from a second source: a hidden
+top-level window on a pump thread of its own receives `WM_DISPLAYCHANGE` and
+`WM_DPICHANGED` (`platform/windows/display_watcher.go`) and coalesces them into
+one screen-parameters event, so a resolution or arrangement change re-lays-out
+the overlay as it does on macOS. Only activate, deactivate and screen-params
+are emitted there; launch, terminate and Mission Control stay macOS-only.
 
 **Global hotkeys on Wayland.** No Wayland protocol lets an ordinary client
 register a global hotkey, so Neru reads `/dev/input/event*` directly with a
@@ -869,7 +874,7 @@ important thing to know before touching overlay code:
 | **Always on top**     | `NSScreenSaverWindowLevel`               | `_NET_WM_STATE_ABOVE` + `MapRaised`    | overlay layer                                    | `HWND_TOPMOST`                     |
 | **Focus prevention**  | non-activating panel                     | `override_redirect=YES`                | controlled keyboard interactivity                | `WS_EX_NOACTIVATE`                 |
 | **HiDPI**             | dynamic `contentsScale` + backing-change callback | `Xft.dpi`, one global factor  | `wl_output` scale + `wp_fractional_scale_v1` / `wp_viewporter` | not explicit           |
-| **Multi-monitor**     | per-display clamping, screen-change tracking | all monitors enumerated, per-monitor render, live RandR hotplug | one `wl_surface` per output (max 16), live hotplug | cursor-screen tracking, separate indicator/sticky windows |
+| **Multi-monitor**     | per-display clamping, screen-change tracking | all monitors enumerated, per-monitor render, live RandR hotplug | one `wl_surface` per output (max 16), live hotplug | cursor-screen tracking, live `WM_DISPLAYCHANGE` hotplug, separate indicator/sticky windows |
 | **Buffers**           | layer-backed, OS-managed                 | single Cairo surface                   | triple-buffered SHM pool                         | single pixel buffer                |
 | **Rounded rects / borders** | NSBezierPath                       | Cairo arc path + stroke                | Cairo arc path + stroke                          | software SDF fill + multi-pass stroke |
 | **Text**              | NSFontManager                            | Cairo `select_font_face` / `show_text` | Cairo `select_font_face` / `show_text`           | GDI `CreateFontW` + `DrawTextW` + alpha composite |
@@ -1200,21 +1205,20 @@ working, which is exactly why the build exists.
 
 **Windows**
 
-1. Display hotplug — no screen-parameter change events
-2. Native notifications — no toast support
-3. UIA tree depth — shallow walk; complex apps under-report clickable elements
-4. Grid and recursive-grid transition animation — not implemented
-5. Grid virtual-pointer indicator — a no-op, while recursive grid draws it.
+1. Native notifications — no toast support
+2. UIA tree depth — shallow walk; complex apps under-report clickable elements
+3. Grid and recursive-grid transition animation — not implemented
+4. Grid virtual-pointer indicator — a no-op, while recursive grid draws it.
    `virtual_pointer.ui.*` is therefore partly inert here rather than wholly, so
    it stays declared everywhere and is tracked as this entry instead
-6. Smooth cursor and smooth scroll animation — not implemented
-7. Modifier passthrough and `PostModifierEvent` — no-ops
-8. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
-9. `monitor_select` mode — returns `CodeNotSupported`
-10. Font resolution — alias mapping only, no system font enumeration
-11. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+5. Smooth cursor and smooth scroll animation — not implemented
+6. Modifier passthrough and `PostModifierEvent` — no-ops
+7. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
+8. `monitor_select` mode — returns `CodeNotSupported`
+9. Font resolution — alias mapping only, no system font enumeration
+10. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
     installs a launchd agent and Linux a systemd user unit
-12. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+11. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.
