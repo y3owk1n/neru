@@ -544,9 +544,8 @@ Inside a mode, the dispatch order is:
 
 The merged result is resolved once — when the mode opens, when the focused app
 changes, or when the configuration is replaced — and every keystroke consults
-it. Where the focused app is learned by being told, switching apps mid-mode
-puts the new app's overrides in force on your next key; on Windows they settle
-when the mode opens instead. See
+it. The focused app is learned by being told, so switching apps mid-mode puts
+the new app's overrides in force on your next key. See
 [Keymap learns the focused app](CROSS_PLATFORM.md#capability-matrix).
 
 With `general.passthrough_unbounded_keys` on, which chords Neru consumes rather

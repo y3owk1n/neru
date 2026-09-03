@@ -361,7 +361,12 @@ func screenNames() ([]string, error) {
 }
 
 func foregroundWindowHandle() (windows.HWND, error) {
-	hwnd := windows.GetForegroundWindow()
+	return usableWindowHandle(windows.GetForegroundWindow())
+}
+
+// usableWindowHandle rejects the handles that stand for "no application has
+// focus": a null handle, a handle that is no longer a window, and the desktop.
+func usableWindowHandle(hwnd windows.HWND) (windows.HWND, error) {
 	if hwnd == 0 {
 		return 0, derrors.New(derrors.CodeElementNotFound, "no foreground window")
 	}
@@ -425,9 +430,14 @@ func focusedApplicationPID() (int, error) {
 		return 0, err
 	}
 
+	return windowProcessID(hwnd)
+}
+
+// windowProcessID returns the PID owning hwnd.
+func windowProcessID(hwnd windows.HWND) (int, error) {
 	var pid uint32
 
-	_, err = windows.GetWindowThreadProcessId(hwnd, &pid)
+	_, err := windows.GetWindowThreadProcessId(hwnd, &pid)
 	if err != nil {
 		return 0, fmt.Errorf("GetWindowThreadProcessId: %w", err)
 	}
@@ -474,7 +484,13 @@ func applicationNameByPID(pid int) (string, error) {
 		return "", err
 	}
 
-	return strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)), nil
+	return applicationNameFromPath(path), nil
+}
+
+// applicationNameFromPath is the display name for an executable path: the
+// base name without its extension.
+func applicationNameFromPath(path string) string {
+	return strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 }
 
 func applicationBundleIDByPID(pid int) (string, error) {
