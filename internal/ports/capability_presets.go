@@ -202,9 +202,10 @@ func WindowsCapabilities() PlatformCapabilities {
 			"native hint-search field not implemented yet; hint search falls back " +
 				"to the event tap's key stream",
 		),
-		Vision: stubCapability(
-			"no OCR/vision element detection; the contour strategy runs over a " +
-				"BitBlt screen capture, text hints come from UI Automation only",
+		Vision: supportedCapability(
+			"vision element detection via Windows.Media.Ocr over a BitBlt screen " +
+				"capture; text only, and it needs an OCR language pack for one of the " +
+				"account's languages",
 		),
 		KeyFeed: stubCapability(
 			"key injection not implemented yet; target SendInput",

@@ -16,30 +16,131 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// Windows answers the capture half of this port with GDI (BitBlt off the
-// desktop DC, platform/windows/screencapture.go) and has no recognition
-// engine yet, so the contour strategy runs here and the vision strategy does
-// not. Every method below either returns a result or says which half stopped
-// it, never neither and never both; adapter_stub_contract_windows_test.go pins
-// that shape.
+// Windows answers this port with two native pieces: screen capture through GDI
+// (BitBlt off the desktop DC, platform/windows/screencapture.go) and text
+// recognition through Windows.Media.Ocr (platform/windows/ocr.go), the WinRT
+// engine every Windows 10 and 11 desktop ships.
 //
-// Privacy: captured pixels are screen content. They reach the contour
-// detector and nowhere else; the debug lines carry durations and dimensions.
+// Like Linux it answers the *text* half of the strategy only. macOS runs three
+// Vision requests — text recognition, rectangle detection and saliency — and
+// an OCR engine answers the first, so hints.vision.detect_rectangles and its
+// four rectangle_* companions stay declared macOS-only
+// (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md). The engine
+// reports no per-word confidence either, so the three confidence floors are
+// declared inert here and every word carries a score of one.
+//
+// Privacy runs through every line below. Recognized text is screen content: it
+// reaches an element's title and search text, where the hint pipeline needs it,
+// and nowhere else. Nothing here logs it, counts characters of it into a
+// message, or writes it anywhere; the debug lines carry durations and counts.
 
-// DetectElements reports not-supported: text recognition has no engine on
-// Windows yet, and the hint pipeline reads this as "the vision strategy is
-// unavailable here" rather than as an empty screen.
+// DetectElements captures screenBounds and returns the text found in it as
+// hintable elements.
+//
+// screenBounds is where the caller wants hints — normally the focused window —
+// in global top-left-origin unscaled pixels, and it is honored rather than
+// widened: it is what places the results, so an empty rectangle is refused
+// rather than read as "the whole screen".
 func (a *Adapter) DetectElements(
-	_ context.Context,
-	_ image.Rectangle,
-	_ config.HintsVisionConfig,
-	_ bool,
+	ctx context.Context,
+	screenBounds image.Rectangle,
+	cfg config.HintsVisionConfig,
+	splitWord bool,
 ) ([]*element.Element, error) {
-	return nil, derrors.New(
-		derrors.CodeNotSupported,
-		"vision element detection needs a text recognition engine, which Windows "+
-			"does not have yet; use the contour or axtree strategy",
+	select {
+	case <-ctx.Done():
+		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+	default:
+	}
+
+	region := screenBounds.Canon()
+	if region.Empty() {
+		return nil, derrors.Newf(
+			derrors.CodeActionFailed,
+			"vision detection needs a region to read; %v is empty",
+			screenBounds,
+		)
+	}
+
+	if !cfg.DetectText {
+		// Text is the whole of what this backend detects, so with
+		// hints.vision.detect_text off there is nothing left to run.
+		a.logger.Debug("Vision detection skipped: text detection is disabled")
+
+		return nil, nil
+	}
+
+	// The engine is checked before the screen is read: a machine with no OCR
+	// language pack would otherwise have its focused window captured on every
+	// activation only to be told there is nothing to read it with. After the
+	// first call this is a cached handle.
+	engineErr := platformwindows.OCRHealth()
+	if engineErr != nil {
+		return nil, engineErr
+	}
+
+	img, err := a.captureRegion(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	words, stats, err := platformwindows.RecognizeText(img, platformwindows.OCRParams{
+		WordLevel: splitWord,
+		TimeoutMS: cfg.RequestTimeoutMS,
+	})
+	if err != nil {
+		// Dimensions and durations describe the work, never its content.
+		a.logger.Error("Vision detection failed",
+			zap.Duration("recognition", stats.Recognition),
+			zap.Int("budget_ms", cfg.RequestTimeoutMS),
+			zap.Int("frame_width", img.Rect.Dx()),
+			zap.Int("frame_height", img.Rect.Dy()),
+			zap.Error(err),
+		)
+
+		return nil, err
+	}
+
+	regions := regionsFromWords(
+		toRecognizedWords(words),
+		region,
+		img.Rect,
+		cfg.MinimumConfidence,
 	)
+
+	merged := MergeRegions(regions, cfg.MergeIOUThreshold)
+
+	classifier := newRegionClassifier(cfg)
+
+	elements, skipped := elementsFromRegions(merged, &classifier)
+
+	a.logger.Debug("Vision detection complete",
+		zap.Duration("recognition", stats.Recognition),
+		zap.Int("frame_width", img.Rect.Dx()),
+		zap.Int("frame_height", img.Rect.Dy()),
+		zap.Int("raw_words", len(words)),
+		zap.Int("merged_elements", len(elements)),
+		zap.Int("skipped_regions", skipped),
+		zap.Bool("word_level", splitWord),
+	)
+
+	return elements, nil
+}
+
+// toRecognizedWords adapts the platform bridge's word type to the shared one
+// the region mapping is written against.
+func toRecognizedWords(words []platformwindows.OCRWord) []recognizedWord {
+	converted := make([]recognizedWord, 0, len(words))
+
+	for _, word := range words {
+		converted = append(converted, recognizedWord{
+			Text:       word.Text,
+			Bounds:     word.Bounds,
+			Confidence: word.Confidence,
+		})
+	}
+
+	return converted
 }
 
 // CaptureScreen returns the pixels currently on the active screen, the
@@ -88,14 +189,22 @@ func (a *Adapter) DetectContours(
 	return contour.Elements(region.Min, region, rects), nil
 }
 
-// Health reports not-supported: the vision strategy is text recognition, and
-// Windows has no engine for it yet. Capture being available is what lets the
-// contour strategy run, and that strategy does not consult Health.
-func (a *Adapter) Health(_ context.Context) error {
-	return derrors.New(
-		derrors.CodeNotSupported,
-		"the vision strategy needs a text recognition engine, which Windows does not have yet",
-	)
+// Health reports whether the vision strategy can run on this machine.
+//
+// Capture needs no probe: every interactive Windows desktop can read its own
+// pixels, and a session without one fails at the capture rather than here.
+// The recognition half catches the failure a user can fix: the OCR language
+// pack is installed per language, separately from Windows itself, so a
+// machine that runs Neru can still have none. The error names the remedy.
+// Asking also warms the engine; the handle is kept for the process.
+func (a *Adapter) Health(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+	default:
+	}
+
+	return platformwindows.OCRHealth()
 }
 
 // captureRegion captures region, global top-left origin, Y down, unscaled

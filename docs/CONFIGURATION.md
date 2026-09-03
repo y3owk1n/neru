@@ -107,12 +107,14 @@ than absent:
   (it pairs with system cursor hiding, a
   [platform exclusive](CROSS_PLATFORM.md#platform-exclusives)), while these same
   options style the recursive-grid in-frame pointer on every platform.
-- `hints.strategy = "vision"` works on macOS and Linux, and fails silently on
-  Windows rather than degrading: detection returns nothing and no hints appear,
-  so set `axtree` there. On Linux it is **text-only** — tesseract OCR answers
-  the text half of the strategy, so `detect_rectangles` and the four
-  `rectangle_*` options below are macOS-only, and it needs the tesseract English
-  language data installed ([Linux setup](LINUX_SETUP.md#build-dependencies)).
+- `hints.strategy = "vision"` works everywhere. On Linux and Windows it is
+  **text-only** — tesseract OCR on Linux and `Windows.Media.Ocr` on Windows
+  answer the text half of the strategy, so `detect_rectangles` and the four
+  `rectangle_*` options below are macOS-only. Linux needs the tesseract English
+  language data installed ([Linux setup](LINUX_SETUP.md#build-dependencies));
+  Windows needs an OCR language pack for one of the account's languages, which
+  a language's *Basic typing* feature installs. `Windows.Media.Ocr` reports no
+  per-word confidence, so the three `*_confidence` floors are inert there.
 
 Accessibility coverage for hints also differs in kind rather than by option; see
 [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
@@ -766,7 +768,7 @@ Explicit component colors override theme derivation. Omitted colors inherit from
 
 Labels clickable UI elements with short overlay labels. By default uses the platform accessibility tree (`axtree` strategy). Two screen-capture strategies exist for apps whose accessibility tree is too thin to hint from; both scan the focused window by default (`capture_scope` widens that to the whole screen), both add the system surfaces the `include_*` options ask for from the accessibility tree, and `vision` is not available on Windows, which has no text recognition engine yet:
 
-- `vision`: on-screen recognition. The Vision framework on macOS (text plus rectangles), tesseract OCR on Linux (text only). Detected text becomes the element's title, so hint search (`--search`) and `--split-word` work. Costs an ML or OCR pass per activation, and on Linux needs tesseract installed.
+- `vision`: on-screen recognition. The Vision framework on macOS (text plus rectangles), tesseract OCR on Linux and `Windows.Media.Ocr` on Windows (text only). Detected text becomes the element's title, so hint search (`--search`) and `--split-word` work. Costs an ML or OCR pass per activation; Linux needs tesseract installed and Windows an OCR language pack.
 - `contour`: edge and contour analysis of the window pixels, an algorithm ported from [wl-kbptr](https://github.com/moverest/wl-kbptr). Finds anything with a visible outline (buttons, icons, toolbar items, text runs) in a few milliseconds with no external dependency. Elements carry no text, so search and word splitting do not apply, and `hints.vision.*` is not read.
 
 Pick `vision` when you want to type what you see, or the app is text-heavy. Pick `contour` when latency matters, the targets are icons rather than words, or OCR is not installed. Both are overridable per-app.
@@ -780,7 +782,7 @@ Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#neru-hints
 | Option                             | Type         | Default                 | Description                                                                                                                                                                                                                                                                                                                          |
 | ---------------------------------- | ------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `enabled`                          | bool         | `true`                  | Enable/disable hints mode                                                                                                                                                                                                                                                                                                            |
-| `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (the platform accessibility tree), `"vision"` (screen recognition — Vision framework on macOS, tesseract OCR on Linux, unavailable on Windows), or `"contour"` (edge and contour analysis ported from wl-kbptr, every platform). Both capture strategies detect the focused window content from a screen capture; see the section intro for when to pick which. Overridable per-app via `[hints.app_configs]`. |
+| `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (the platform accessibility tree), `"vision"` (screen recognition — Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or `"contour"` (edge and contour analysis ported from wl-kbptr, every platform). Both capture strategies detect the focused window content from a screen capture; see the section intro for when to pick which. Overridable per-app via `[hints.app_configs]`. |
 | `capture_scope`                    | string       | `"window"`              | Region the `vision` and `contour` strategies scan: `"window"` (the focused window, or the whole screen when nothing is focused) or `"screen"` (the whole active screen, so notifications, panels and adjacent tiled windows get hints too, at the cost of a bigger capture). Ignored by `axtree`. Overridable per-app via `[hints.app_configs]` and per-activation via `neru hints --capture-scope`. |
 | `hint_characters`                  | string       | `"asdfghjkl"`           | Characters used for labels                                                                                                                                                                                                                                                                                                           |
 | `label_direction`                  | string       | `"normal"`              | Hint label algorithm: `"normal"` (default, prefix-avoidance greedy) or `"reverse"` (reverse-order tiers). Empty value defaults to `"normal"`. Overridable per-app via `[hints.app_configs]` and per-activation via the `neru hints --label-direction` CLI flag. See [Choosing a label direction](#choosing-a-label-direction) below. |
@@ -950,12 +952,16 @@ width = 320
 
 Tunable settings for Vision-based hint detection (only used when `hints.strategy` or the app-specific `strategy` override is set to `"vision"`).
 
-The engine differs by platform and the options do not: macOS runs the Vision
-framework, Linux runs tesseract OCR over a screen capture of the focused window.
-The one visible consequence is that **rectangle detection is macOS-only** — an
-OCR engine answers text and nothing else — so `detect_rectangles` and the four
-`rectangle_*` options are read on macOS alone and warn once at load if written
-elsewhere. Every other option below is read on both.
+The engine differs by platform and the options mostly do not: macOS runs the
+Vision framework, Linux runs tesseract OCR and Windows runs `Windows.Media.Ocr`,
+each over a screen capture of the focused window. Two consequences are visible.
+**Rectangle detection is macOS-only** — an OCR engine answers text and nothing
+else — so `detect_rectangles` and the four `rectangle_*` options are read on
+macOS alone and warn once at load if written elsewhere. And `Windows.Media.Ocr`
+reports no per-word confidence, so `minimum_confidence`,
+`button_min_confidence` and `generic_clickable_min_confidence` are inert on
+Windows: every word scores one there. Every other option below is read on all
+three.
 
 | Option                             | Type  | Default | Description                                                                                       |
 | ---------------------------------- | ----- | ------- | ------------------------------------------------------------------------------------------------- |

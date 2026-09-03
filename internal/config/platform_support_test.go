@@ -17,6 +17,7 @@ const (
 	hideCursorStep      = "action hide_cursor"
 	hideCursorAction    = "hide_cursor"
 	visionStrategy      = "vision"
+	visionMinConfidence = "hints.vision.minimum_confidence"
 	trueValue           = "true"
 )
 
@@ -50,8 +51,8 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 			parity.Platforms{parity.Darwin},
 		},
 		{
-			"the vision strategy is a value, not the option",
-			hintsStrategy, visionStrategy,
+			"Windows.Media.Ocr reports no confidence, so the floor is inert there",
+			visionMinConfidence, "",
 			parity.Platforms{parity.Darwin, parity.Linux},
 		},
 		{
@@ -131,22 +132,16 @@ func TestInertWords_Options(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name:    "a value is reported only when it is the one declared",
+			name:    "the vision strategy is silent now that every platform has an engine",
 			written: map[string]string{hintsStrategy: visionStrategy},
-			target:  parity.Windows,
-			want:    []string{"hints.strategy = vision"},
-		},
-		{
-			name:    "the same option with another value is not reported",
-			written: map[string]string{hintsStrategy: "axtree"},
 			target:  parity.Windows,
 			want:    nil,
 		},
 		{
-			name:    "the vision strategy is silent on the platform that grew an engine",
-			written: map[string]string{hintsStrategy: visionStrategy},
-			target:  parity.Linux,
-			want:    nil,
+			name:    "a floor the Windows engine cannot honor is reported there",
+			written: map[string]string{visionMinConfidence: "0.5"},
+			target:  parity.Windows,
+			want:    []string{visionMinConfidence},
 		},
 		{
 			name:    "a leaf below a color reports the color",
@@ -220,28 +215,10 @@ func TestInertWords_Steps(t *testing.T) {
 			want:   nil,
 		},
 		{
-			name:   "a mode flag value with no engine is reported",
-			steps:  []string{"hints --strategy=vision"},
-			target: parity.Windows,
-			want:   []string{"--strategy=vision"},
-		},
-		{
-			name:   "the same flag with a supported value is not",
-			steps:  []string{"hints --strategy=axtree"},
-			target: parity.Windows,
-			want:   nil,
-		},
-		{
-			name:   "the same flag value is silent where an engine landed",
-			steps:  []string{"hints --strategy=vision --split-word"},
-			target: parity.Linux,
-			want:   nil,
-		},
-		{
-			name:   "a flag inert whatever its value is reported alongside one",
+			name:   "the vision flags are silent now that every platform has an engine",
 			steps:  []string{"hints --strategy=vision --split-word"},
 			target: parity.Windows,
-			want:   []string{"--strategy=vision", "--split-word"},
+			want:   nil,
 		},
 		{
 			name:   "a mode command with no narrow flag is silent",

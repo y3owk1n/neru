@@ -5,6 +5,7 @@ package vision_test
 import (
 	"context"
 	"image"
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/vision"
@@ -12,22 +13,23 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Windows implements the capture half of ports.VisionPort (BitBlt off the
-// desktop DC) and not the recognition half, so this file pins the shape of
-// each answer: capture and contour return a result or a live reason, never
-// neither and never both, and never "not supported", because every Windows
-// desktop can read its own pixels; recognition and Health refuse loudly, so
-// the hint pipeline learns the vision strategy is unavailable here rather than
-// showing an empty overlay.
+// Windows implements both halves of ports.VisionPort — capture through BitBlt
+// off the desktop DC and recognition through Windows.Media.Ocr — so this file
+// pins the shape of each answer rather than a refusal: every method returns a
+// result or a live reason, never neither and never both. The one
+// CodeNotSupported recognition may answer with is a missing OCR language
+// pack, and that answer has to say so, because it is the failure a user can
+// fix.
 //
-// The capture tests here run on a headless CI runner too: they accept a live
-// failure (no interactive desktop) and reject only the two answers a caller
-// could misread.
+// The tests here run on a headless CI runner too: capture accepts a live
+// failure (no interactive desktop), recognition accepts a missing language
+// pack, and both reject only the answers a caller could misread.
 
-// TestVisionAdapter_RecognitionReportsNotSupportedOnWindows is the half that
-// protects the user: a nil from DetectElements or Health would select the
-// vision strategy and then silently produce no hints.
-func TestVisionAdapter_RecognitionReportsNotSupportedOnWindows(t *testing.T) {
+// TestVisionAdapter_RecognitionAnswersOnWindows is the half that protects the
+// user: a nil from DetectElements or Health would select the vision strategy
+// and then silently produce no hints, and an unexplained CodeNotSupported
+// would send them to the wrong remedy.
+func TestVisionAdapter_RecognitionAnswersOnWindows(t *testing.T) {
 	adapter := vision.NewAdapter(nil)
 	ctx := context.Background()
 
@@ -48,7 +50,7 @@ func TestVisionAdapter_RecognitionReportsNotSupportedOnWindows(t *testing.T) {
 					config.DefaultConfig().Hints.Vision,
 					false,
 				)
-				if elements != nil {
+				if err != nil && elements != nil {
 					t.Errorf(
 						"DetectElements returned %d elements alongside its error",
 						len(elements),
@@ -64,13 +66,13 @@ func TestVisionAdapter_RecognitionReportsNotSupportedOnWindows(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			err := testCase.call()
 			if err == nil {
-				t.Fatalf("%s returned nil; the hint pipeline would select the vision "+
-					"strategy and then silently produce no hints", testCase.name)
+				return
 			}
 
-			if !derrors.IsNotSupported(err) {
-				t.Errorf("%s returned %v (code %q), want CodeNotSupported",
-					testCase.name, err, derrors.GetCode(err))
+			if derrors.IsNotSupported(err) && !strings.Contains(err.Error(), "language") {
+				t.Errorf("%s reports CodeNotSupported without naming the OCR language "+
+					"pack, which is the only thing Windows can be missing: %v",
+					testCase.name, err)
 			}
 		})
 	}
@@ -113,19 +115,34 @@ func TestVisionAdapter_CaptureAnswersOnWindows(t *testing.T) {
 	}
 }
 
-// TestVisionAdapter_DetectContoursRefusesAnEmptyRegion pins the one input that
-// must not be widened: an empty rectangle would otherwise be read as "the whole
-// screen" by the capture underneath, and a caller asking for a window must
-// never receive the display.
-func TestVisionAdapter_DetectContoursRefusesAnEmptyRegion(t *testing.T) {
+// TestVisionAdapter_DetectionRefusesAnEmptyRegion pins the one input that
+// must not be widened: an empty rectangle would otherwise be read as "the
+// whole screen" by the capture underneath, and a caller asking for a window
+// must never receive the display.
+func TestVisionAdapter_DetectionRefusesAnEmptyRegion(t *testing.T) {
 	adapter := vision.NewAdapter(nil)
+	ctx := context.Background()
 
-	elements, err := adapter.DetectContours(context.Background(), image.Rectangle{})
+	contours, err := adapter.DetectContours(ctx, image.Rectangle{})
 	if err == nil {
-		t.Fatalf("DetectContours accepted an empty region and returned %d elements", len(elements))
+		t.Fatalf("DetectContours accepted an empty region and returned %d elements", len(contours))
+	}
+
+	if contours != nil {
+		t.Error("DetectContours returned elements alongside its error")
+	}
+
+	elements, err := adapter.DetectElements(
+		ctx,
+		image.Rectangle{},
+		config.DefaultConfig().Hints.Vision,
+		false,
+	)
+	if err == nil {
+		t.Fatalf("DetectElements accepted an empty region and returned %d elements", len(elements))
 	}
 
 	if elements != nil {
-		t.Error("DetectContours returned elements alongside its error")
+		t.Error("DetectElements returned elements alongside its error")
 	}
 }

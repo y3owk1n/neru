@@ -104,8 +104,7 @@ Accepted by every command.
 ¹ Element discovery quality differs by platform: a full accessibility tree on
 macOS, an AT-SPI walk on Linux whose coverage depends on the application, and an
 initial shallow UI Automation walk on Windows. The `vision` strategy is the
-fallback where that tree is thin, on macOS and Linux; Windows has no engine for
-it. See [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
+fallback where that tree is thin. See [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
 
 ² Two action subcommands are limited: `hide_cursor` and `show_cursor` are macOS
 only, and `scroll_left` / `scroll_right` have no effect on Windows. See
@@ -302,7 +301,7 @@ nothing.
 | `--hide-on-empty-search` |  | none | `hints` | Hide all hints when search query is empty (requires --search) |
 | `--role` |  | value, repeatable | `hints` | Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more |
 | `--text` |  | value, repeatable | `hints` | Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more |
-| `--strategy` |  | value | `hints` | Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr) |
+| `--strategy` |  | value | `hints` | Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr) |
 | `--capture-scope` |  | value | `hints` | Region the vision and contour strategies scan: window (the focused window) or screen (the whole active screen) |
 | `--label-direction` |  | value | `hints` | Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet) |
 | `--split-word` |  | none | `hints` | Split detected text into word-level regions (requires vision strategy) |
@@ -323,9 +322,8 @@ nothing.
   any of them.
 - `--label-direction` is explained under
   [Choosing a label direction](CONFIGURATION.md#choosing-a-label-direction).
-- `--strategy vision` and `--split-word` work on macOS and Linux, and do
-  nothing on Windows, which has no element-detection engine. On Linux the
-  strategy is text-only. See
+- `--strategy vision` and `--split-word` work everywhere. On Linux and Windows
+  the strategy is text-only, and Windows needs an OCR language pack. See
   [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
 
 **Where the defaults come from**
