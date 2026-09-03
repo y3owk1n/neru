@@ -1839,6 +1839,7 @@ const moveMonitorHotkey = "Primary+Shift+N"
 // the calls in between.
 func TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay(t *testing.T) {
 	cfg := simConfig()
+	cfg.Grid.MaxLabelLength = 2
 	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{
 		"action move_monitor --name " + secondDisplayName,
 	}
@@ -1872,6 +1873,10 @@ func TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay(t *testing.T) {
 
 	if sim.app.CurrentMode() != domain.ModeGrid {
 		t.Fatalf("mode after monitor move = %v, want grid", sim.app.CurrentMode())
+	}
+
+	if got := sim.overlay.lastGrid().MaxLabelLength(); got != cfg.Grid.MaxLabelLength {
+		t.Errorf("grid label limit after monitor move = %d, want %d", got, cfg.Grid.MaxLabelLength)
 	}
 }
 

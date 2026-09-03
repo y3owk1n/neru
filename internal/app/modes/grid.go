@@ -119,10 +119,8 @@ func (h *handlerState) createGridInstance() *domainGrid.Grid {
 	// Normalize normalizedBounds to window-local coordinates using helper function
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(screenBounds)
 
-	gridInstance := domainGrid.NewGridWithLabels(
-		h.config.GridCharacters(),
-		h.config.Grid.RowLabels,
-		h.config.Grid.ColLabels,
+	gridInstance := domainGrid.NewGridWithOptions(
+		h.config.GridOptions(),
 		normalizedBounds,
 		h.logger,
 	)
@@ -151,10 +149,8 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 		}
 
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
-		gridInstance = domainGrid.NewGridWithLabels(
-			h.config.GridCharacters(),
-			h.config.Grid.RowLabels,
-			h.config.Grid.ColLabels,
+		gridInstance = domainGrid.NewGridWithOptions(
+			h.config.GridOptions(),
 			bounds,
 			h.logger,
 		)

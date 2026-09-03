@@ -95,6 +95,27 @@ func TestCreateGridInstance_UsesTheResolvedLabels(t *testing.T) {
 	}
 }
 
+// TestCreateGridInstance_UsesMaxLabelLength pins the mode-to-domain wiring for
+// the two-key coarse selection option.
+func TestCreateGridInstance_UsesMaxLabelLength(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Grid.Enabled = true
+	cfg.Grid.Characters = "abcd"
+	cfg.Grid.MaxLabelLength = 2
+	cfg.ResolveGridLabels()
+
+	gridInstance := newGridLabelHandler(cfg).createGridInstance()
+	if got := gridInstance.MaxLabelLength(); got != 2 {
+		t.Fatalf("grid MaxLabelLength() = %d, want 2", got)
+	}
+
+	for _, cell := range gridInstance.Cells() {
+		if got := len(cell.Coordinate()); got > 2 {
+			t.Fatalf("coordinate %q has length %d, want at most 2", cell.Coordinate(), got)
+		}
+	}
+}
+
 // TestInitializeGridManager_FallbackGridUsesTheResolvedLabels covers the
 // defensive branch that builds its own grid when handed none. It reached for
 // grid.characters directly while the path above reached for the hint

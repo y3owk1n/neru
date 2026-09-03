@@ -11,16 +11,20 @@ import (
 // top to bottom, so labels sharing a prefix stay spatially grouped.
 func generateCellsWithRegions(
 	chars, rowChars, colChars []rune,
-	numChars, gridCols, gridRows, labelLength int,
+	plan gridPlan,
 	bounds image.Rectangle,
 	baseCellWidth, baseCellHeight, remainderWidth, remainderHeight int,
 	logger *zap.Logger,
 ) []*Cell {
+	numChars := len(chars)
+	gridCols := plan.dimensions.Cols
+	gridRows := plan.dimensions.Rows
+
 	logger.Debug("Generating cells with regions",
 		zap.Int("num_chars", numChars),
 		zap.Int("grid_cols", gridCols),
 		zap.Int("grid_rows", gridRows),
-		zap.Int("label_length", labelLength))
+		zap.Int("label_length", plan.labelLength))
 
 	// Clamp both dimensions into [1, Max]. Dimensions arrive as parameters, so
 	// a zero or negative count would otherwise reach the arithmetic below, and
@@ -50,20 +54,18 @@ func generateCellsWithRegions(
 
 	var cells []*Cell
 
-	regionCols, regionRows := regionSpan(rowChars, colChars, labelLength)
 	xStarts, yStarts := cellEdges(bounds, gridCols, gridRows,
 		baseCellWidth, baseCellHeight, remainderWidth, remainderHeight)
 
 	currentCol := 0
 	currentRow := 0
 	regionIndex := 0
-	maxRegions := numChars * numChars
 
-	for regionIndex < maxRegions && currentRow < gridRows {
-		regionChar1, regionChar2 := regionPrefix(chars, numChars, regionIndex, labelLength)
+	for regionIndex < plan.regionCount && currentRow < gridRows {
+		regionChar1, regionChar2 := regionPrefix(chars, numChars, regionIndex, plan.labelLength)
 
-		colsForRegion := gridMin(regionCols, gridCols-currentCol)
-		rowsForRegion := gridMin(regionRows, gridRows-currentRow)
+		colsForRegion := gridMin(plan.region.Cols, gridCols-currentCol)
+		rowsForRegion := gridMin(plan.region.Rows, gridRows-currentRow)
 
 		for rowIndex := range rowsForRegion {
 			for colIndex := range colsForRegion {
@@ -75,8 +77,8 @@ func generateCellsWithRegions(
 				}
 
 				coordinate := cellCoordinate(
-					labelLength, regionChar1, regionChar2,
-					colChars, rowChars, colIndex, rowIndex,
+					plan.labelLength, regionChar1, regionChar2,
+					colChars, rowChars, plan.region.Cols, colIndex, rowIndex,
 				)
 
 				// Distribute the remainder pixels across the leading cells.
@@ -123,15 +125,6 @@ func generateCellsWithRegions(
 	return cells
 }
 
-// regionSpan returns how many columns and rows one region covers.
-func regionSpan(rowChars, colChars []rune, labelLength int) (int, int) {
-	if labelLength == LabelLength2 {
-		return len(colChars), 1
-	}
-
-	return len(colChars), len(rowChars)
-}
-
 // regionPrefix returns the one or two characters naming a region.
 func regionPrefix(chars []rune, numChars, regionIndex, labelLength int) (rune, rune) {
 	if labelLength == LabelLength2 || labelLength == LabelLength3 {
@@ -141,13 +134,14 @@ func regionPrefix(chars []rune, numChars, regionIndex, labelLength int) (rune, r
 	return chars[regionIndex/numChars%numChars], chars[regionIndex%numChars]
 }
 
-// cellCoordinate builds one cell's label: the region prefix, then the column
-// character, then (for longer labels) the row character.
+// cellCoordinate builds one cell's label. A two-key region uses its second key
+// as a row-major local-cell index; longer labels retain their column and row
+// characters after the region prefix.
 func cellCoordinate(
 	labelLength int,
 	regionChar1, regionChar2 rune,
 	colChars, rowChars []rune,
-	colIndex, rowIndex int,
+	regionCols, colIndex, rowIndex int,
 ) string {
 	var stringBuilder strings.Builder
 
@@ -155,7 +149,9 @@ func cellCoordinate(
 	case LabelLength2:
 		stringBuilder.Grow(StringBuilderGrow2)
 		stringBuilder.WriteRune(regionChar1)
-		stringBuilder.WriteRune(colChars[colIndex%len(colChars)])
+
+		localIndex := rowIndex*regionCols + colIndex
+		stringBuilder.WriteRune(colChars[localIndex%len(colChars)])
 	case LabelLength3:
 		stringBuilder.Grow(StringBuilderGrow3)
 		stringBuilder.WriteRune(regionChar1)
@@ -203,25 +199,6 @@ func cellEdges(
 	return xStarts, yStarts
 }
 
-// regionShape returns how many columns and rows one region spans, and how many
-// distinct region prefixes the label scheme provides.
-//
-// These must agree with generateCellsWithRegions: it derives the same shape
-// from labelLength and bounds its loop by the same prefix count.
-func regionShape(numChars, numRowChars, numColChars, labelLength int) (int, int, int) {
-	switch labelLength {
-	case LabelLength2:
-		// One region character, and a region is a single row of columns.
-		return numColChars, 1, numChars
-	case LabelLength3:
-		// One region character spanning a full column-by-row block.
-		return numColChars, numRowChars, numChars
-	default:
-		// Two region characters, so the prefix space is squared.
-		return numColChars, numRowChars, numChars * numChars
-	}
-}
-
 // regionsNeeded returns how many regions it takes to cover a gridCols x
 // gridRows grid, counting a clipped edge region as a whole one because that is
 // how the fill loop consumes them.
@@ -243,12 +220,8 @@ func regionsNeeded(gridCols, gridRows, regionCols, regionRows int) int {
 // as close to the screen's aspect ratio as the prefix budget allows, and never
 // shrinks below the minimum usable grid.
 func fitToAvailableRegions(
-	gridCols, gridRows, numChars, numRowChars, numColChars, labelLength int,
+	gridCols, gridRows, regionCols, regionRows, availablePrefixes int,
 ) (int, int) {
-	regionCols, regionRows, availablePrefixes := regionShape(
-		numChars, numRowChars, numColChars, labelLength,
-	)
-
 	if regionCols < 1 || regionRows < 1 || availablePrefixes < 1 {
 		return gridCols, gridRows
 	}

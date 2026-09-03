@@ -5,8 +5,6 @@ import (
 	"image"
 	"sync"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -18,11 +16,12 @@ const (
 
 // CacheKey is a key for the grid cache.
 type CacheKey struct {
-	characters string
-	rowLabels  string
-	colLabels  string
-	width      int
-	height     int
+	characters     string
+	rowLabels      string
+	colLabels      string
+	maxLabelLength int
+	width          int
+	height         int
 }
 
 // CacheEntry is an entry in the grid cache.
@@ -46,19 +45,14 @@ var (
 	gridCacheEnabled = true
 )
 
-// Prewarm initializes the grid cache with commonly used grid sizes to improve startup performance.
-func Prewarm(characters string, sizes []image.Rectangle) {
-	if !gridCacheEnabled {
-		return
-	}
-
-	for _, rect := range sizes {
-		if _, ok := gridCache.get(characters, "", "", rect); ok {
-			continue
-		}
-
-		grid := NewGrid(characters, rect, zap.NewNop())
-		_ = grid
+func newCacheKey(alpha gridAlphabet, maxLabelLength int, bounds image.Rectangle) CacheKey {
+	return CacheKey{
+		characters:     alpha.characters,
+		rowLabels:      string(alpha.rowChars),
+		colLabels:      string(alpha.colChars),
+		maxLabelLength: maxLabelLength,
+		width:          bounds.Dx(),
+		height:         bounds.Dy(),
 	}
 }
 
@@ -71,18 +65,7 @@ func newCache(capacity int, ttl time.Duration) *Cache {
 	}
 }
 
-func (c *Cache) get(
-	characters, rowLabels, colLabels string,
-	bounds image.Rectangle,
-) ([]*Cell, bool) {
-	cacheKey := CacheKey{
-		characters: characters,
-		rowLabels:  rowLabels,
-		colLabels:  colLabels,
-		width:      bounds.Dx(),
-		height:     bounds.Dy(),
-	}
-
+func (c *Cache) get(cacheKey CacheKey) ([]*Cell, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -109,19 +92,7 @@ func (c *Cache) get(
 	return nil, false
 }
 
-func (c *Cache) put(
-	characters, rowLabels, colLabels string,
-	bounds image.Rectangle,
-	cells []*Cell,
-) {
-	cacheKey := CacheKey{
-		characters: characters,
-		rowLabels:  rowLabels,
-		colLabels:  colLabels,
-		width:      bounds.Dx(),
-		height:     bounds.Dy(),
-	}
-
+func (c *Cache) put(cacheKey CacheKey, cells []*Cell) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

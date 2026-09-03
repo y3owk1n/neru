@@ -138,6 +138,24 @@ func getCommonGridSizes() []image.Rectangle {
 	}
 }
 
+func prewarm(config config.GridConfig) {
+	if !config.PrewarmEnabled {
+		return
+	}
+
+	options := domainGrid.Options{
+		Characters:     config.Characters,
+		RowLabels:      config.RowLabels,
+		ColLabels:      config.ColLabels,
+		MaxLabelLength: config.MaxLabelLength,
+	}
+	go func() {
+		for _, rect := range getCommonGridSizes() {
+			_ = domainGrid.NewGridWithOptions(options, rect, zap.NewNop())
+		}
+	}()
+}
+
 // NewOverlay creates a new grid overlay instance with its own window and prewarms common grid sizes.
 func NewOverlay(config config.GridConfig, logger *zap.Logger) (*Overlay, error) {
 	base, err := overlayutil.NewBaseOverlay(logger)
@@ -146,11 +164,7 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) (*Overlay, error) 
 	}
 	base.CallbackManager.SetComponent("grid")
 	initGridPools()
-	chars := config.Characters
-
-	if config.PrewarmEnabled {
-		go domainGrid.Prewarm(chars, getCommonGridSizes())
-	}
+	prewarm(config)
 
 	return &Overlay{
 		window:          C.OverlayWindow(base.Window),
@@ -169,11 +183,7 @@ func NewOverlayWithWindow(
 	windowPtr unsafe.Pointer,
 ) *Overlay {
 	initGridPools()
-	chars := config.Characters
-
-	if config.PrewarmEnabled {
-		go domainGrid.Prewarm(chars, getCommonGridSizes())
-	}
+	prewarm(config)
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
 	base.CallbackManager.SetComponent("grid")
 
