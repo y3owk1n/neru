@@ -16,7 +16,7 @@
 // everything.
 //
 // The contour strategy is a third detector, the wl-kbptr algorithm in the
-// contour subpackage, which is pure C and platform-neutral; darwin and linux
+// contour subpackage, which is pure Go and platform-neutral; darwin and linux
 // each feed it a frame from their own capture backend, so it lands wherever
 // capture does.
 //
