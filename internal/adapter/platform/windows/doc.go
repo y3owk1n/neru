@@ -4,8 +4,9 @@
 // in adapter/accessibility/native/windows.
 //
 // Anything that talks to a thread-affine Win32 API (the keyboard hook,
-// RegisterHotKey, message-only windows) runs its own runtime.LockOSThread
-// message loop; never call those APIs from an arbitrary goroutine.
+// RegisterHotKey, SetWinEventHook, message-only windows) runs its own
+// runtime.LockOSThread message loop; never call those APIs from an arbitrary
+// goroutine.
 //
 // The newest backend, so some capabilities are stubs — ports.WindowsCapabilities
 // is the authoritative list. Stubs return derrors.CodeNotSupported, never a

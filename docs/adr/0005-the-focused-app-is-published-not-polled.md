@@ -66,6 +66,8 @@ exit included, since it takes the same lock.
 - **Staleness is bounded by watcher latency, and that is a real bound only
   where a watcher exists.** darwin and Linux have one; Windows and `other` get
   an empty `platformStartWatcher()`, so there the keymap settles by asking.
+  (Windows has since gained a watcher, #1572; the reasoning below still holds
+  for `other` and for the pre-watcher ask.)
   That is affordable precisely there: `FocusedApplication` on Windows is
   `GetForegroundWindow` plus `GetWindowThreadProcessId`
   (`platform/windows/win32.go:351-366`) — local, and unable to block on another

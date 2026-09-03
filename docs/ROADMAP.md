@@ -43,8 +43,8 @@ The two largest open areas:
 - **Linux** — Wayland global hotkeys, which need `input`-group membership and a
   CGO build rather than missing code, and whose remaining work is failing
   loudly with the remedy.
-- **Windows** — foreground-window and display-hotplug events, which currently
-  block per-app config re-application and monitor tracking.
+- **Windows** — display-hotplug events, which currently block monitor
+  tracking.
 
 GNOME Wayland remains unsupported; the daemon refuses to start there. Reviving
 it needs libei plus a GNOME Shell extension — see

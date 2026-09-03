@@ -172,45 +172,35 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Screen bounds / enumeration** | ✅ Cocoa               | ✅ XRandR              | ✅ xdg-output                | ✅ xdg-output           | ✅ `EnumDisplayMonitors`     |
 | **Display hotplug events**    | ✅ screen-params notif.  | ✅ RandR event fd      | ✅ `wl_output` events        | ✅ `wl_output` events   | 🟡                           |
 | **Focused app identity**      | ✅ NSWorkspace + AX      | ✅ `_NET_ACTIVE_WINDOW` / `WM_CLASS` | ⚠️ app_id only (see below) | ⚠️ app_id only     | ✅ `GetForegroundWindow`     |
-| **App watcher (focus change)**| ✅ NSWorkspace observer  | ✅ event-driven        | ✅ event-driven              | ✅ event-driven         | 🟡                           |
-| **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ⚠️ asked when the keymap settles ¹ |
+| **App watcher (focus change)**| ✅ NSWorkspace observer  | ✅ event-driven        | ✅ event-driven              | ✅ event-driven         | ✅ `SetWinEventHook`         |
+| **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher |
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ compositor IPC (Hyprland) / sync-surface trick | ✅ sync-surface trick | ✅ `GetCursorPos` |
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
-| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁸             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
-| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁸         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
-| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁸ | ✅ virtual keyboard, uinput batch skipped (kept on Hyprland ¹⁰) | ✅ libei | ✅ `SendInput` key hold |
+| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
+| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
+| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard, uinput batch skipped (kept on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
-| **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ⁴ | ✅ continuous virtual-pointer axis ⁴ (whole notches when modified on Hyprland ¹⁰) | ⚠️ libei scroll delta, unverified ⁴ | ❌       |
+| **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous virtual-pointer axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ❌       |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ layered HWND + GDI        |
 | **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ⚠️ passive evdev read        | ⚠️ passive evdev read   | ✅ `RegisterHotKey`          |
 | **Keyboard capture**          | ✅ CGEventTap            | ✅ `XGrabKeyboard`     | ✅ evdev grab (wl-keyboard fallback) | ✅ evdev grab   | ✅ `WH_KEYBOARD_LL`          |
 | **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ❌                           |
 | **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
-| **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ²  |
-| **System tray**               | ✅ NSStatusItem ⁹        | ✅ D-Bus StatusNotifierItem ⁹ | ✅ StatusNotifierItem ⁹      | ✅ StatusNotifierItem ⁹ | ✅ Win32 notification area ⁹ |
+| **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ¹  |
+| **System tray**               | ✅ NSStatusItem ⁸        | ✅ D-Bus StatusNotifierItem ⁸ | ✅ StatusNotifierItem ⁸      | ✅ StatusNotifierItem ⁸ | ✅ Win32 notification area ⁸ |
 | **Native alerts**             | ✅ NSAlert               | ⚠️ D-Bus, not modal    | ⚠️ D-Bus, not modal          | ⚠️ D-Bus, not modal     | ✅ `MessageBoxW`             |
 | **Native notifications**      | ✅ UNNotification        | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | 🟡          |
 | **Secure input detection**    | ✅                       | ➖ always false        | ➖ always false              | ➖ always false         | ➖ always false              |
 | **System cursor hide**        | ✅ `CGDisplayHideCursor` | ➖                     | ➖                           | ➖                      | ➖                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
-| **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream input ⁵  | 🟡 key-stream input ⁵        | 🟡 key-stream input ⁵   | 🟡 key-stream input ⁵        |
-| **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ⚠️ portal ScreenCast, consent ⁶ | ❌                   |
-| **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁷ | ⚠️ tesseract, text only ⁷ | ⚠️ tesseract, text only ⁷ | ❌                           |
+| **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream input ⁴  | 🟡 key-stream input ⁴        | 🟡 key-stream input ⁴   | 🟡 key-stream input ⁴        |
+| **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ⚠️ portal ScreenCast, consent ⁵ | ❌                   |
+| **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁶ | ⚠️ tesseract, text only ⁶ | ⚠️ tesseract, text only ⁶ | ❌                           |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
-| **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | 🟡 `CodeNotSupported` |
+| **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | 🟡 `CodeNotSupported` |
 
-¹ Per-app hotkey overrides need to know which application is focused. Where the
-app watcher fires, it publishes that identity to the mode handler and the keymap
-is re-settled from it, so switching applications mid-mode changes what the next
-key does; the platform is asked at most until the watcher first fires. Windows
-has no watcher, so the keymap asks each time it settles — which means overrides
-there settle **when the mode opens** rather than the instant you switch apps.
-The same applies to a Linux session whose compositor exposes no focused-app
-source (GNOME/Mutter). No platform is asked on a keystroke; ADR 0005 has the
-reasoning.
-
-² macOS and Linux resolve font *families* through the OS (NSFont, fontconfig).
+¹ macOS and Linux resolve font *families* through the OS (NSFont, fontconfig).
 Windows only maps the generic aliases `sans` / `serif` / `mono` to Segoe UI /
 Cambria / Consolas and passes every other name straight to GDI without checking
 it; an unavailable family falls back to whatever GDI substitutes.
@@ -246,13 +236,13 @@ resolver — it is remembered under the family name exactly as written
 each time. Either way what a name resolves to depends on that name alone and
 never on what was resolved before it.
 
-³ The Linux columns of this table are display servers, and service management is
+² The Linux columns of this table are display servers, and service management is
 the one row whose limit sits on a different axis: it needs **systemd**, on every
 Linux backend alike. A machine booted by runit, OpenRC or s6 gets
 `CodeNotSupported` from every `neru services` subcommand — a stated boundary
 rather than a gap, see "Service management on Linux" below.
 
-⁴ `smooth_scroll` animates on every Linux backend, but only Wayland can make a
+³ `smooth_scroll` animates on every Linux backend, but only Wayland can make a
 step shorter than a wheel notch. `zwlr_virtual_pointer_v1.axis` carries a
 fractional value with no discrete step count, and wlroots forwards exactly that
 to the focused client as a continuous `wl_pointer.axis`; libei's
@@ -271,7 +261,7 @@ nothing else. From two notches up (`scroll_step_half`, `scroll_step_full`, or a
 `scroll_step` above 60) the same eased curve applies as everywhere else, and
 those are the scrolls the animation is worth having for.
 
-⁵ This row is about the native *field* — a platform text control that owns
+⁴ This row is about the native *field* — a platform text control that owns
 keyboard focus and brings the system's input method with it. Only macOS has
 one. Everywhere else the query is read from the event tap's key stream, which
 is why dead keys and IME composition do not work there and a hint search takes
@@ -299,7 +289,7 @@ hardware**, and neither is the uinput `REL_WHEEL_HI_RES` route — the
 headless-sway job reads no input devices at all, so nothing written to a uinput
 device reaches the compositor there.
 
-⁶ Capture is taken per backend rather than through xdg-desktop-portal
+⁵ Capture is taken per backend rather than through xdg-desktop-portal
 ScreenCast everywhere, because a consent picker in front of what becomes a hint
 refresh is a latency and consent-fatigue regression the blessed stack has no
 need to pay ([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
@@ -343,7 +333,7 @@ region by the output's scale factor — the same thing a Retina capture does on
 macOS. The image's own bounds start at `(0, 0)`; the region passed in is what
 places those pixels.
 
-⁷ Linux `vision` is **text-only**, and permanently so. macOS runs three Vision
+⁶ Linux `vision` is **text-only**, and permanently so. macOS runs three Vision
 requests — text recognition, rectangle detection and saliency — and an OCR
 engine answers the first. `hints.vision.detect_rectangles` and the four
 `rectangle_*` options are therefore declared macOS-only: they tune the Vision
@@ -372,7 +362,7 @@ one window takes tens of milliseconds. Recognized text is screen content and is
 treated as such — never logged, never written to disk, and cleared out of the
 engine before each recognition returns.
 
-⁸ An X11 pointer event carries the modifiers the server records as **held**,
+⁷ An X11 pointer event carries the modifiers the server records as **held**,
 rather than a set the sender chooses the way `CGEventSetFlags` does, so an
 injected click or scroll used to pick up whatever the user's hand was on:
 binding `Ctrl+J` to a plain `scroll_down` sent ctrl+scroll, which most
@@ -399,7 +389,7 @@ holds the button — is pressed back and reads as held until it is pressed and
 released once more. Restoring is the deliberate bias: the opposite one drops a
 modifier the user is still holding out of everything they do next.
 
-⁹ **The tray icon carries the paused state on every platform**, because the
+⁸ **The tray icon carries the paused state on every platform**, because the
 tray is the only place a user can see that Neru is paused without pressing a
 key. macOS swaps between two hand-drawn template glyphs, which the menu bar
 themes for it. A host that renders icon bytes literally — the SNI hosts on
@@ -423,7 +413,7 @@ empty body by protocol rather than unfinished work, as is its Win32
 popup-menu twin. The macOS backend has no such method at all. Nothing a user
 can hover therefore differs between the three.
 
-¹⁰ **Hyprland makes the opposite trade on a modified scroll**, because it
+⁹ **Hyprland makes the opposite trade on a modified scroll**, because it
 fails the other way round: with a virtual-keyboard modifier held, the
 `zwlr_virtual_pointer` scroll can produce no event at all
 ([#1474](https://github.com/y3owk1n/neru/pull/1474)). So the modifier is the
@@ -498,7 +488,13 @@ identity is the **WM_CLASS** (X11) or **app_id** (Wayland). A sibling goroutine
 watches a display-configuration fd and dispatches screen-parameter changes, so
 monitor hotplug regenerates overlays like it does on macOS. Only
 activate/deactivate/screen-params are emitted; launch, terminate, and Mission
-Control events remain macOS-only.
+Control events remain macOS-only. Windows has a single API for it after all:
+`appwatcher/platform_windows.go` installs an `EVENT_SYSTEM_FOREGROUND` hook
+through `SetWinEventHook` on a message-loop thread of its own, hands each new
+foreground HWND to a goroutine, and resolves it there to the **executable
+path** — the identity `GetForegroundWindow` already gives the focused app, so
+per-app configuration keys on one string however it is learned. Only
+activate and deactivate are emitted there; display hotplug is still a gap.
 
 **Global hotkeys on Wayland.** No Wayland protocol lets an ordinary client
 register a global hotkey, so Neru reads `/dev/input/event*` directly with a
@@ -614,7 +610,7 @@ choice: the modifier can only go out on the virtual keyboard (libei on KDE),
 while the fast path for the scroll is the uinput device, so a modified scroll
 skips the uinput batch entirely and goes out on the wlroots/libei seat —
 everywhere but Hyprland, which makes the opposite trade for the reason
-footnote ¹⁰ gives. A path
+footnote ⁹ gives. A path
 with no backend to press through answers `CodeNotSupported`; none of them
 scrolls unmodified and reports success.
 
@@ -1135,7 +1131,7 @@ Two entries left this table in ADR 0013 and neither is coming back.
 scroll event stream"; the spike found one on Wayland — a
 `zwlr_virtual_pointer_v1` axis event with no discrete step count, and libei's
 pixel-precise scroll delta on KWin — and it now animates on every Linux backend,
-with X11 limited to whole notches for the reason footnote ⁴ of the
+with X11 limited to whole notches for the reason footnote ³ of the
 [Capability Matrix](#capability-matrix) gives. A limit on one backend is not an
 exclusive: it is that backend's documented limit, which is what
 [ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md) says the
@@ -1204,22 +1200,21 @@ working, which is exactly why the build exists.
 
 **Windows**
 
-1. App watcher — no foreground-window change notifications, so per-app config never re-applies
-2. Display hotplug — no screen-parameter change events
-3. Native notifications — no toast support
-4. UIA tree depth — shallow walk; complex apps under-report clickable elements
-5. Grid and recursive-grid transition animation — not implemented
-6. Grid virtual-pointer indicator — a no-op, while recursive grid draws it.
+1. Display hotplug — no screen-parameter change events
+2. Native notifications — no toast support
+3. UIA tree depth — shallow walk; complex apps under-report clickable elements
+4. Grid and recursive-grid transition animation — not implemented
+5. Grid virtual-pointer indicator — a no-op, while recursive grid draws it.
    `virtual_pointer.ui.*` is therefore partly inert here rather than wholly, so
    it stays declared everywhere and is tracked as this entry instead
-7. Smooth cursor and smooth scroll animation — not implemented
-8. Modifier passthrough and `PostModifierEvent` — no-ops
-9. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
-10. `monitor_select` mode — returns `CodeNotSupported`
-11. Font resolution — alias mapping only, no system font enumeration
-12. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+6. Smooth cursor and smooth scroll animation — not implemented
+7. Modifier passthrough and `PostModifierEvent` — no-ops
+8. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
+9. `monitor_select` mode — returns `CodeNotSupported`
+10. Font resolution — alias mapping only, no system font enumeration
+11. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
     installs a launchd agent and Linux a systemd user unit
-13. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+12. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.

@@ -235,13 +235,10 @@ func (h *handlerState) focusedAppCanChangeWhatIsBound(mode domain.Mode) bool {
 // entered or a configuration being replaced — never on a keystroke, which is
 // the whole point. A keystroke can only re-settle from something the watcher
 // published, and something published is never asked for. Where a watcher exists
-// the platform is asked at most until it first fires; where none does — Windows,
-// a Linux session whose compositor exposes no focused-app source — it is asked
-// once per mode opened. That is affordable exactly there: the Windows query is
-// a local window-handle lookup that cannot block on another process, whereas
-// the platforms that can block are the ones that can be told instead of asked.
-// The consequence, documented in docs/CROSS_PLATFORM.md, is that overrides
-// settle when the mode opens rather than the instant the user switches apps.
+// the platform is asked at most until it first fires; where none does — a Linux
+// session whose compositor exposes no focused-app source — it is asked once per
+// mode opened, and there overrides settle when the mode opens rather than the
+// instant the user switches apps.
 //
 // Caller must hold h.mu.
 func (h *handlerState) resolveFocusedApp(inputs keymapInputs) string {
