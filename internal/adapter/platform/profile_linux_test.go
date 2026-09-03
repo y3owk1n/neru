@@ -33,7 +33,7 @@ func TestProfileFor_LinuxReportsTheStackTheDaemonDrives(t *testing.T) {
 		{
 			name:           "sway launched without WAYLAND_DISPLAY in its unit",
 			sessionType:    sessionTypeWayland,
-			currentDesktop: "sway",
+			currentDesktop: desktopSway,
 			xDisplay:       ":0",
 			wantBackend:    BackendX11,
 			wantDisplay:    DisplayServerX11,
@@ -48,7 +48,7 @@ func TestProfileFor_LinuxReportsTheStackTheDaemonDrives(t *testing.T) {
 		{
 			name:           "wlroots wayland session",
 			sessionType:    sessionTypeWayland,
-			currentDesktop: "Hyprland",
+			currentDesktop: desktopHyprland,
 			waylandDisplay: waylandDisplay,
 			wantBackend:    BackendWaylandWlroots,
 			wantDisplay:    DisplayServerWayland,
@@ -56,7 +56,7 @@ func TestProfileFor_LinuxReportsTheStackTheDaemonDrives(t *testing.T) {
 		{
 			name:           "kde wayland session",
 			sessionType:    sessionTypeWayland,
-			currentDesktop: "KDE",
+			currentDesktop: desktopKDE,
 			waylandDisplay: waylandDisplay,
 			wantBackend:    BackendWaylandKDE,
 			wantDisplay:    DisplayServerWaylandKDE,

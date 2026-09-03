@@ -6,6 +6,13 @@ import "testing"
 
 const waylandDisplay = "wayland-1"
 
+// Desktop identities, in the vocabulary XDG_CURRENT_DESKTOP reports them.
+const (
+	desktopSway     = "sway"
+	desktopHyprland = "Hyprland"
+	desktopKDE      = "KDE"
+)
+
 // TestLinuxBackend_IsWayland pins the Wayland/X11 split every subsystem with two
 // implementations dispatches on: the event tap's capture mechanism, the hotkey
 // manager's listener. Both used to answer it for themselves.
@@ -70,13 +77,13 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 	}{
 		{
 			name:           "wayland wlroots desktop",
-			currentDesktop: "sway",
+			currentDesktop: desktopSway,
 			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandWlroots,
 		},
 		{
 			name:           "wayland hyprland desktop",
-			currentDesktop: "Hyprland",
+			currentDesktop: desktopHyprland,
 			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandWlroots,
 		},
@@ -88,7 +95,7 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 		},
 		{
 			name:           "wayland kde desktop",
-			currentDesktop: "KDE",
+			currentDesktop: desktopKDE,
 			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandKDE,
 		},
@@ -118,6 +125,64 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 			)
 			if got != testCase.want {
 				t.Fatalf("detectLinuxBackendFromEnv() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
+// TestIsHyprlandFromEnv pins the one compositor LinuxBackend does not name.
+// The wlroots arm covers five compositors, so a caller with a Hyprland-only
+// quirk has to ask this instead — and it has to answer no for the four others,
+// for KDE (whose modifier goes out on libei, not the wlroots keyboard), and for
+// a desktop variable left over from a session that is not running.
+func TestIsHyprlandFromEnv(t *testing.T) {
+	tests := []struct {
+		name           string
+		currentDesktop string
+		waylandDisplay string
+		want           bool
+	}{
+		{
+			name:           "hyprland wayland session",
+			currentDesktop: desktopHyprland,
+			waylandDisplay: waylandDisplay,
+			want:           true,
+		},
+		{
+			name:           "hyprland beside another desktop name",
+			currentDesktop: "Hyprland:wlroots",
+			waylandDisplay: waylandDisplay,
+			want:           true,
+		},
+		{
+			name:           "sway is not hyprland",
+			currentDesktop: desktopSway,
+			waylandDisplay: waylandDisplay,
+			want:           false,
+		},
+		{
+			name:           "kde is not hyprland",
+			currentDesktop: desktopKDE,
+			waylandDisplay: waylandDisplay,
+			want:           false,
+		},
+		{
+			name:           "a hyprland desktop with no wayland socket is a stale variable",
+			currentDesktop: desktopHyprland,
+			want:           false,
+		},
+		{
+			name:           "an unset desktop stays plain wlroots",
+			waylandDisplay: waylandDisplay,
+			want:           false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := isHyprlandFromEnv(testCase.currentDesktop, testCase.waylandDisplay)
+			if got != testCase.want {
+				t.Fatalf("isHyprlandFromEnv() = %v, want %v", got, testCase.want)
 			}
 		})
 	}

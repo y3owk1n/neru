@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -82,6 +83,17 @@ func beginScrollSession(modifiers action.Modifiers) (scrollSession, error) {
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
+		// Hyprland only needs its own session when there is a modifier to hold:
+		// without one the virtual pointer carries the chunks as it does
+		// everywhere else, and continuously, which beats whole notches. With
+		// uinput unavailable it falls back to the same session, which is the
+		// path a modified animated scroll took before Hyprland was named here.
+		if modifiers != 0 &&
+			hyprlandKeepsUinputScroll() &&
+			eventtaplinux.IsUinputScrollAvailable() {
+			return newHyprlandScrollSession(modifiers)
+		}
+
 		return newWaylandScrollSession(modifiers)
 	}
 

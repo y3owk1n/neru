@@ -172,74 +172,21 @@ func wlrootsClickButtonAtPoint(
 	return nil
 }
 
+// wlrootsPressModifiers presses the modifiers a pointer action presents. A
+// failure unwinds only what went down, which is pressWaylandModifiers' job.
 func wlrootsPressModifiers(modifiers action.Modifiers) error {
-	if modifiers.Has(action.ModShift) {
-		err := linux.WaylandModifierEvent("shift", true)
-		if err != nil {
-			return err
-		}
-	}
+	_, err := pressWaylandModifiers(modifiers)
 
-	if modifiers.Has(action.ModCtrl) {
-		err := linux.WaylandModifierEvent("ctrl", true)
-		if err != nil {
-			_ = linux.WaylandModifierEvent("shift", false)
-
-			return err
-		}
-	}
-
-	if modifiers.Has(action.ModAlt) {
-		err := linux.WaylandModifierEvent("alt", true)
-		if err != nil {
-			_ = linux.WaylandModifierEvent("ctrl", false)
-			_ = linux.WaylandModifierEvent("shift", false)
-
-			return err
-		}
-	}
-
-	if modifiers.Has(action.ModCmd) {
-		err := linux.WaylandModifierEvent("cmd", true)
-		if err != nil {
-			_ = linux.WaylandModifierEvent("alt", false)
-			_ = linux.WaylandModifierEvent("ctrl", false)
-			_ = linux.WaylandModifierEvent("shift", false)
-
-			return err
-		}
-	}
-
-	return nil
+	return err
 }
 
+// wlrootsReleaseModifiers lets go of the modifiers a pointer action presented.
+//
+// It takes the set the matching press was given rather than the set it got
+// down, because the two callers that hold across a boundary — a drag, and a
+// release with no press behind it — have only the former to hand back.
 func wlrootsReleaseModifiers(modifiers action.Modifiers) error {
-	var firstErr error
-
-	release := func(modifier string) {
-		err := linux.WaylandModifierEvent(modifier, false)
-		if err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
-
-	if modifiers.Has(action.ModCmd) {
-		release("cmd")
-	}
-
-	if modifiers.Has(action.ModAlt) {
-		release("alt")
-	}
-
-	if modifiers.Has(action.ModCtrl) {
-		release("ctrl")
-	}
-
-	if modifiers.Has(action.ModShift) {
-		release("shift")
-	}
-
-	return firstErr
+	return releaseWaylandModifiers(modifiers)
 }
 
 func wlrootsMouseUp(button action.MouseButton) error {

@@ -178,9 +178,9 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁸             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes ⁸         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
-| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁸ | ✅ virtual keyboard, uinput batch skipped | ✅ libei | ✅ `SendInput` key hold |
+| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁸ | ✅ virtual keyboard, uinput batch skipped (kept on Hyprland ¹⁰) | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
-| **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ⁴ | ✅ continuous virtual-pointer axis ⁴ | ⚠️ libei scroll delta, unverified ⁴ | ❌       |
+| **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ⁴ | ✅ continuous virtual-pointer axis ⁴ (whole notches when modified on Hyprland ¹⁰) | ⚠️ libei scroll delta, unverified ⁴ | ❌       |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ layered HWND + GDI        |
 | **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ⚠️ passive evdev read        | ⚠️ passive evdev read   | ✅ `RegisterHotKey`          |
@@ -422,6 +422,28 @@ empty body by protocol rather than unfinished work, as is its Win32
 popup-menu twin. The macOS backend has no such method at all. Nothing a user
 can hover therefore differs between the three.
 
+¹⁰ **Hyprland makes the opposite trade on a modified scroll**, because it
+fails the other way round: with a virtual-keyboard modifier held, the
+`zwlr_virtual_pointer` scroll can produce no event at all
+([#1474](https://github.com/y3owk1n/neru/pull/1474)). So the modifier is the
+half that gives there and the uinput batch is the half that stays — the
+compositor is left to merge seat state across two devices, which is exactly
+what the wlroots arm avoids by never asking. The merge is not left to chance
+in one direction: a `wl_display.sync` confirms the compositor has applied the
+modifier before the first notch is written, rather than a fixed delay hoping
+it landed. The other direction has no such barrier — nothing reports how far
+a compositor has read through a kernel evdev device it polls on its own — so
+the release waits a fixed period and is written as the heuristic it is.
+
+**`smooth_scroll` still applies**, in whole notches rather than the continuous
+axis an unmodified Wayland scroll animates on, because uinput scrolling is
+`REL_WHEEL` clicks and has no sub-notch value to send. The alternative was to
+stop animating modified scrolls on Hyprland, which is a setting quietly
+ceasing to apply to one binding. The compositor is named from
+`XDG_CURRENT_DESKTOP` beside the backend detection and not from
+`HYPRLAND_INSTANCE_SIGNATURE`, which says which compositor is reachable rather
+than which one is running.
+
 ### Notes on the ⚠️ entries
 
 **Focused app on Wayland.** wlroots and KWin resolve the focused window through
@@ -589,7 +611,9 @@ way back in — otherwise an injected press and release read as the user tapping
 that modifier, and `sticky_modifiers` latched one nobody pressed. On Wayland that forces a
 choice: the modifier can only go out on the virtual keyboard (libei on KDE),
 while the fast path for the scroll is the uinput device, so a modified scroll
-skips the uinput batch entirely and goes out on the wlroots/libei seat. A path
+skips the uinput batch entirely and goes out on the wlroots/libei seat —
+everywhere but Hyprland, which makes the opposite trade for the reason
+footnote ¹⁰ gives. A path
 with no backend to press through answers `CodeNotSupported`; none of them
 scrolls unmodified and reports success.
 

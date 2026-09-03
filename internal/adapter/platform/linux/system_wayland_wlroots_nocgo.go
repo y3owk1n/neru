@@ -4,6 +4,7 @@ package linux
 
 import (
 	"image"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -117,6 +118,12 @@ func wlrootsModifierEvent(modifier string, isDown bool) error {
 		derrors.CodeNotSupported,
 		"wlroots backend requires CGO-enabled Linux builds",
 	)
+}
+
+func wlrootsSync(timeout time.Duration) bool {
+	_ = timeout
+
+	return false
 }
 
 func wlrootsHasVirtualPointer() (bool, error) {

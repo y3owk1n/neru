@@ -2,7 +2,10 @@
 
 package linux
 
-import "image"
+import (
+	"image"
+	"time"
+)
 
 var globalWlrootsModifierDispatcher = newWlrootsModifierDispatcher(waylandModifierEvent)
 
@@ -71,6 +74,23 @@ func WlrootsScrollBatch(axis int, deltas, discretes []int) error {
 // WaylandModifierEvent presses or releases a modifier key.
 func WaylandModifierEvent(modifier string, isDown bool) error {
 	return globalWlrootsModifierDispatcher.event(modifier, isDown)
+}
+
+// WaylandSyncModifiers waits until the compositor has processed the modifier
+// events issued on this connection so far, and reports whether it answered
+// within timeout.
+//
+// It is the barrier a caller mixing injection layers needs: a virtual-keyboard
+// modifier and a uinput scroll reach the compositor through different sources
+// with nothing ordering them, and the only side that can say "I am applied" is
+// this one. A false answer means the compositor did not answer in time, or
+// there is no virtual keyboard to ask — the caller falls back to waiting a
+// fixed period, which is what it did before this existed.
+//
+// KDE is not a caller: its modifier goes out on libei, which has no equivalent
+// request to sync against, and its scroll never leaves the wlroots seat.
+func WaylandSyncModifiers(timeout time.Duration) bool {
+	return wlrootsSync(timeout)
 }
 
 // WaylandKeyEvent presses (pressed=true) or releases (pressed=false) a single
