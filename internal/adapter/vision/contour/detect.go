@@ -33,6 +33,10 @@ type component struct {
 	nextSibling            int
 }
 
+func (c component) area() int64 {
+	return int64(c.maxX-c.minX+1) * int64(c.maxY-c.minY+1)
+}
+
 // Detect detects interactive UI target bounding boxes from an RGBA image
 // buffer using the contour detection algorithm ported from wl-kbptr: grayscale,
 // 5x5 Gaussian blur, Sobel, non-maximum suppression, Canny hysteresis,
@@ -335,13 +339,18 @@ func connectedComponents(dilated []uint8, width, height int) []component {
 }
 
 // buildHierarchy links each component to the smallest other component whose
-// box encloses it, with one pixel of slack on every side.
+// box encloses it, with one pixel of slack on every side. A parent must be
+// strictly larger than its child, which keeps the parent links acyclic so the
+// child walk in filterTargets always ends. Dilated blobs are thick and
+// 4-connected, so two disjoint ones cannot share a box within the slack; the
+// rule is a guard on that argument, not a case a frame is known to reach.
 //
 //nolint:varnamelen // i and j index two components being compared
 func buildHierarchy(comps []component) {
 	for i := range comps {
 		bestParent := -1
 		bestArea := int64(-1)
+		ownArea := comps[i].area()
 
 		for j := range comps {
 			if i == j {
@@ -351,8 +360,8 @@ func buildHierarchy(comps []component) {
 			c, p := &comps[i], &comps[j]
 			if p.minX <= c.minX+1 && p.maxX >= c.maxX-1 &&
 				p.minY <= c.minY+1 && p.maxY >= c.maxY-1 {
-				area := int64(p.maxX-p.minX+1) * int64(p.maxY-p.minY+1)
-				if bestArea < 0 || area < bestArea {
+				area := p.area()
+				if area > ownArea && (bestArea < 0 || area < bestArea) {
 					bestArea = area
 					bestParent = j
 				}
