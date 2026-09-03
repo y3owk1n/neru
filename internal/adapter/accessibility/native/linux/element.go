@@ -507,12 +507,12 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 				return wlrootsScrollAtCursor(deltaX, deltaY, modifiers)
 			}
 
-			err := pressWaylandScrollModifiers(modifiers)
+			pressed, err := pressWaylandModifiers(modifiers)
 			if err != nil {
 				return err
 			}
 
-			defer func() { _ = releaseWaylandScrollModifiers(modifiers) }()
+			defer func() { _ = releaseWaylandModifiers(pressed) }()
 
 			// Keyboard and uinput events arrive through separate input sources.
 			// Let Hyprland apply the modifier before the scroll device reports it.
@@ -614,46 +614,67 @@ func hyprlandKeepsUinputScroll() bool {
 	return currentLinuxBackend() == linuxBackendWayland && platform.IsHyprlandSession()
 }
 
-func pressWaylandScrollModifiers(modifiers action.Modifiers) error {
-	for _, item := range []struct {
-		mod  action.Modifiers
-		name string
-	}{
-		{action.ModShift, "shift"},
-		{action.ModCtrl, "ctrl"},
-		{action.ModAlt, "alt"},
-		{action.ModCmd, "cmd"},
-	} {
-		if !modifiers.Has(item.mod) {
-			continue
-		}
+// waylandModifierEvent is the virtual-keyboard press or release the two helpers
+// below go through. It is a variable so a test can read back what they emitted
+// and fail one of them, which is the only way to reach the unwind path without
+// a compositor.
+var waylandModifierEvent = linuxplatform.WaylandModifierEvent
 
-		err := linuxplatform.WaylandModifierEvent(item.name, true)
-		if err != nil {
-			_ = releaseWaylandScrollModifiers(modifiers)
-			return err
-		}
-	}
-
-	return nil
+// waylandModifierKeys is the modifier vocabulary the wlroots virtual keyboard
+// speaks, in press order. A release walks it backwards, so a set going down
+// shift-first comes back up shift-last.
+var waylandModifierKeys = []struct {
+	modifier action.Modifiers
+	name     string
+}{
+	{action.ModShift, "shift"},
+	{action.ModCtrl, "ctrl"},
+	{action.ModAlt, "alt"},
+	{action.ModCmd, "cmd"},
 }
 
-func releaseWaylandScrollModifiers(modifiers action.Modifiers) error {
-	var firstErr error
-	for _, item := range []struct {
-		mod  action.Modifiers
-		name string
-	}{
-		{action.ModCmd, "cmd"},
-		{action.ModAlt, "alt"},
-		{action.ModCtrl, "ctrl"},
-		{action.ModShift, "shift"},
-	} {
-		if !modifiers.Has(item.mod) {
+// pressWaylandModifiers presses each requested modifier on the virtual keyboard
+// and reports the set that actually went down, which the caller has to release.
+//
+// A failure unwinds that set and nothing else. The dispatcher behind
+// WaylandModifierEvent refcounts holders and emits a real key-up when the count
+// reaches zero, so releasing a modifier this call never pressed does not
+// cancel out — it lets go of one the user is physically holding, and every key
+// they press next arrives without it.
+func pressWaylandModifiers(modifiers action.Modifiers) (action.Modifiers, error) {
+	var pressed action.Modifiers
+
+	for _, key := range waylandModifierKeys {
+		if !modifiers.Has(key.modifier) {
 			continue
 		}
 
-		err := linuxplatform.WaylandModifierEvent(item.name, false)
+		err := waylandModifierEvent(key.name, true)
+		if err != nil {
+			_ = releaseWaylandModifiers(pressed)
+
+			return 0, err
+		}
+
+		pressed |= key.modifier
+	}
+
+	return pressed, nil
+}
+
+// releaseWaylandModifiers releases exactly the set pressWaylandModifiers
+// reported, reporting the first failure and letting go of the rest regardless:
+// stopping at the first error would leave the modifiers after it held.
+func releaseWaylandModifiers(pressed action.Modifiers) error {
+	var firstErr error
+
+	for i := len(waylandModifierKeys) - 1; i >= 0; i-- {
+		key := waylandModifierKeys[i]
+		if !pressed.Has(key.modifier) {
+			continue
+		}
+
+		err := waylandModifierEvent(key.name, false)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
