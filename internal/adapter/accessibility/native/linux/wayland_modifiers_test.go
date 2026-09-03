@@ -9,6 +9,15 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
+const (
+	ctrlDown = "ctrl down"
+	ctrlUp   = "ctrl up"
+)
+
+// errVirtualKeyboardRefused is what the recorder answers when a test asks it to
+// fail a key event.
+var errVirtualKeyboardRefused = errors.New("virtual keyboard refused the event")
+
 // modifierRecorder stands in for the virtual keyboard, remembering every key
 // event in order and failing whichever press the test names.
 type modifierRecorder struct {
@@ -18,7 +27,7 @@ type modifierRecorder struct {
 
 func (r *modifierRecorder) event(modifier string, isDown bool) error {
 	if isDown && modifier == r.failPress {
-		return errors.New("virtual keyboard refused the press")
+		return errVirtualKeyboardRefused
 	}
 
 	direction := "up"
@@ -60,7 +69,7 @@ func assertEvents(t *testing.T, got []string, want []string) {
 // The dispatcher behind the virtual keyboard refcounts holders and emits a real
 // key-up when the count reaches zero, so an unwind that releases the modifier
 // whose press just failed, or one it never reached, lets go of a key the user
-// may be physically holding rather than cancelling out.
+// may be physically holding rather than canceling out.
 func TestPressWaylandModifiers_UnwindsOnlyWhatWentDown(t *testing.T) {
 	recorder := &modifierRecorder{failPress: "alt"}
 	withModifierRecorder(t, recorder)
@@ -77,7 +86,7 @@ func TestPressWaylandModifiers_UnwindsOnlyWhatWentDown(t *testing.T) {
 	}
 
 	assertEvents(t, recorder.events, []string{
-		"shift down", "ctrl down", "ctrl up", "shift up",
+		"shift down", ctrlDown, ctrlUp, "shift up",
 	})
 }
 
@@ -96,7 +105,7 @@ func TestPressWaylandModifiers_ReportsWhatTheCallerMustRelease(t *testing.T) {
 		t.Fatalf("pressWaylandModifiers() reported %v, want ctrl and cmd", pressed)
 	}
 
-	assertEvents(t, recorder.events, []string{"ctrl down", "cmd down"})
+	assertEvents(t, recorder.events, []string{ctrlDown, "cmd down"})
 }
 
 // TestReleaseWaylandModifiers_LetsGoOfEveryKeyDespiteAFailure keeps a failed
@@ -106,17 +115,16 @@ func TestReleaseWaylandModifiers_LetsGoOfEveryKeyDespiteAFailure(t *testing.T) {
 	recorder := &modifierRecorder{}
 	withModifierRecorder(t, recorder)
 
-	failing := errors.New("virtual keyboard refused the release")
 	waylandModifierEvent = func(modifier string, isDown bool) error {
 		if modifier == "cmd" {
-			return failing
+			return errVirtualKeyboardRefused
 		}
 
 		return recorder.event(modifier, isDown)
 	}
 
 	err := releaseWaylandModifiers(action.ModShift | action.ModAlt | action.ModCmd)
-	if !errors.Is(err, failing) {
+	if !errors.Is(err, errVirtualKeyboardRefused) {
 		t.Fatalf("releaseWaylandModifiers() = %v, want the recorder's refusal", err)
 	}
 

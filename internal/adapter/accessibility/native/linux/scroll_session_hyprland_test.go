@@ -4,10 +4,15 @@ package linux
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
+
+// errScrollDeviceGone is what the recorder answers when a test asks it to fail
+// a batch.
+var errScrollDeviceGone = errors.New("uinput scroll device is gone")
 
 // uinputScrollRecorder stands in for the uinput scroll device, remembering the
 // batch each axis was handed.
@@ -75,7 +80,7 @@ func TestHyprlandScrollSession_HoldsTheModifierAcrossEveryChunk(t *testing.T) {
 
 	session.close()
 
-	assertEvents(t, modifiers.events, []string{"ctrl down", "ctrl up"})
+	assertEvents(t, modifiers.events, []string{ctrlDown, ctrlUp})
 
 	if len(scrolls.batches) != 3 {
 		t.Fatalf("scroll batches = %v, want one per chunk", scrolls.batches)
@@ -144,13 +149,12 @@ func TestHyprlandScrollSession_Inject(t *testing.T) {
 // device from reading as a scroll: the animator stops on an injection error,
 // and a nil here would ease its way through the whole curve moving nothing.
 func TestHyprlandScrollSession_InjectReportsAFailedBatch(t *testing.T) {
-	failing := errors.New("uinput scroll device is gone")
-	withUinputScrollRecorder(t, &uinputScrollRecorder{err: failing})
+	withUinputScrollRecorder(t, &uinputScrollRecorder{err: errScrollDeviceGone})
 
 	session := &hyprlandScrollSession{}
 
 	err := session.inject(0, scrollPixelsPerNotch)
-	if !errors.Is(err, failing) {
+	if !errors.Is(err, errScrollDeviceGone) {
 		t.Fatalf("inject() = %v, want the recorder's refusal", err)
 	}
 }
@@ -173,15 +177,10 @@ func assertScrollBatches(t *testing.T, got, want []uinputScrollBatchRecord) {
 		t.Fatalf("scroll batches = %v, want %v", got, want)
 	}
 
-	for i := range want {
-		if got[i].axis != want[i].axis || len(got[i].values) != len(want[i].values) {
+	for batch := range want {
+		if got[batch].axis != want[batch].axis ||
+			!slices.Equal(got[batch].values, want[batch].values) {
 			t.Fatalf("scroll batches = %v, want %v", got, want)
-		}
-
-		for j := range want[i].values {
-			if got[i].values[j] != want[i].values[j] {
-				t.Fatalf("scroll batches = %v, want %v", got, want)
-			}
 		}
 	}
 }

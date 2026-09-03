@@ -123,6 +123,14 @@ typedef struct NeruWlrootsClient {
 	pthread_mutex_t display_mutex;
 	_Atomic int dispatch_running;
 
+	// Barrier bookkeeping for neru_wlr_sync. sync_issued is the id of the last
+	// wl_display.sync request sent, stamped under display_mutex; sync_completed
+	// is the id of the last one the compositor answered, stored by the callback
+	// on the dispatch thread. Callbacks complete in the order they were issued,
+	// so a waiter watching for its own id cannot be satisfied by an earlier one.
+	unsigned int sync_issued;  // guarded by display_mutex
+	_Atomic unsigned int sync_completed;
+
 	int connected;
 } NeruWlrootsClient;
 
@@ -144,6 +152,14 @@ int neru_wlr_scroll_batch(NeruWlrootsClient *c, int axis, int *deltas, int *disc
 // notch possible.  value is in the same units neru_wlr_scroll's delta uses.
 int neru_wlr_scroll_continuous(NeruWlrootsClient *c, int axis, double value);
 int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_down);
+
+// neru_wlr_sync waits until the compositor has processed every request issued
+// on this connection so far, or until timeout_ms elapses. Returns 1 when the
+// compositor answered, 0 on timeout or with no connection to wait on.
+//
+// It is how a caller that has just injected a virtual-keyboard modifier learns
+// the modifier is applied, rather than guessing with a sleep.
+int neru_wlr_sync(NeruWlrootsClient *c, int timeout_ms);
 int neru_wlr_get_cursor(NeruWlrootsClient *c, int *x, int *y);
 void neru_wlr_set_cursor(NeruWlrootsClient *c, int x, int y);
 int neru_wlr_screen_count(NeruWlrootsClient *c);

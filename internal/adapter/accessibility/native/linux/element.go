@@ -5,6 +5,7 @@ package linux
 import (
 	"image"
 	"os"
+	"slices"
 	"time"
 
 	"go.uber.org/zap"
@@ -521,15 +522,14 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 			// Both sides wait. ScrollDeviceScrollBatch returns once the kernel
 			// has taken the write, not once the compositor has read it, so a
 			// release that follows the batch immediately can lift the modifier
-			// out from under notches still being delivered — the same race as
-			// scrolling before the press lands, running the other way.
+			// out from under notches still being delivered.
 			defer func() {
-				waitForWaylandModifiers()
+				waitForScrollDelivery()
 
 				_ = releaseWaylandModifiers(pressed)
 			}()
 
-			waitForWaylandModifiers()
+			waitForWaylandModifierPress()
 		}
 
 		// Scale factor: each uinput scroll event approximates ~1 line.
@@ -631,20 +631,48 @@ const (
 	uinputScrollAxisHorizontal = 1
 )
 
-// modifierSettleDelay is how long a Wayland modifier is given to reach the
-// compositor before the scroll device reports its own events.
-//
 // The virtual keyboard and the uinput scroll device are separate input sources,
 // so nothing orders one against the other: a scroll notch that overtakes the
 // modifier arrives unmodified, and one that outlives its release arrives
-// modified when it should not.
-const modifierSettleDelay = 5 * time.Millisecond
+// modified when it should not. Both sides of a hold therefore wait — but only
+// one of them has something real to wait on.
+const (
+	// modifierSyncTimeout bounds the barrier a press waits on. It is generous
+	// because it is not a delay: a compositor that answers in a millisecond
+	// costs a millisecond. What it bounds is a compositor that has stopped
+	// answering, and a scroll is not worth blocking the dispatch goroutine on
+	// for longer than this.
+	modifierSyncTimeout = 100 * time.Millisecond
+	// modifierSettleDelay is the fixed wait used where no barrier exists.
+	modifierSettleDelay = 5 * time.Millisecond
+)
 
-// waitForWaylandModifiers gives an injected modifier transition time to land.
+// waitForWaylandModifierPress blocks until the compositor has applied the
+// modifier that was just pressed.
 //
-// Every caller pairs it with a press or a release rather than with the scroll,
-// so the two sides of a hold wait the same amount.
-func waitForWaylandModifiers() {
+// wl_display.sync answers once every request issued before it has been
+// processed, so this is a real barrier rather than a guess: after it returns
+// true, the modifier is applied and the uinput notches written next cannot
+// overtake it. The fixed delay is the fallback for the cases with nothing to
+// ask — a build without cgo, a compositor that stopped answering, a session
+// with no virtual keyboard.
+func waitForWaylandModifierPress() {
+	if linuxplatform.WaylandSyncModifiers(modifierSyncTimeout) {
+		return
+	}
+
+	time.Sleep(modifierSettleDelay)
+}
+
+// waitForScrollDelivery gives uinput notches already written time to be read
+// before the modifier holding them is let go.
+//
+// This side has no barrier, and syncing the Wayland connection would not be
+// one: it would report that the compositor processed our Wayland requests,
+// which says nothing about how far it has got through a kernel evdev device it
+// reads on its own. Nothing on that path reports back, so the wait is a fixed
+// period and is named as the heuristic it is.
+func waitForScrollDelivery() {
 	time.Sleep(modifierSettleDelay)
 }
 
@@ -706,8 +734,7 @@ func pressWaylandModifiers(modifiers action.Modifiers) (action.Modifiers, error)
 func releaseWaylandModifiers(pressed action.Modifiers) error {
 	var firstErr error
 
-	for i := len(waylandModifierKeys) - 1; i >= 0; i-- {
-		key := waylandModifierKeys[i]
+	for _, key := range slices.Backward(waylandModifierKeys) {
 		if !pressed.Has(key.modifier) {
 			continue
 		}

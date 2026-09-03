@@ -6,6 +6,13 @@ import "testing"
 
 const waylandDisplay = "wayland-1"
 
+// Desktop identities, in the vocabulary XDG_CURRENT_DESKTOP reports them.
+const (
+	desktopSway     = "sway"
+	desktopHyprland = "Hyprland"
+	desktopKDE      = "KDE"
+)
+
 // TestLinuxBackend_IsWayland pins the Wayland/X11 split every subsystem with two
 // implementations dispatches on: the event tap's capture mechanism, the hotkey
 // manager's listener. Both used to answer it for themselves.
@@ -70,13 +77,13 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 	}{
 		{
 			name:           "wayland wlroots desktop",
-			currentDesktop: "sway",
+			currentDesktop: desktopSway,
 			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandWlroots,
 		},
 		{
 			name:           "wayland hyprland desktop",
-			currentDesktop: "Hyprland",
+			currentDesktop: desktopHyprland,
 			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandWlroots,
 		},
@@ -88,7 +95,7 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 		},
 		{
 			name:           "wayland kde desktop",
-			currentDesktop: "KDE",
+			currentDesktop: desktopKDE,
 			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandKDE,
 		},
@@ -137,7 +144,7 @@ func TestIsHyprlandFromEnv(t *testing.T) {
 	}{
 		{
 			name:           "hyprland wayland session",
-			currentDesktop: "Hyprland",
+			currentDesktop: desktopHyprland,
 			waylandDisplay: waylandDisplay,
 			want:           true,
 		},
@@ -149,19 +156,19 @@ func TestIsHyprlandFromEnv(t *testing.T) {
 		},
 		{
 			name:           "sway is not hyprland",
-			currentDesktop: "sway",
+			currentDesktop: desktopSway,
 			waylandDisplay: waylandDisplay,
 			want:           false,
 		},
 		{
 			name:           "kde is not hyprland",
-			currentDesktop: "KDE",
+			currentDesktop: desktopKDE,
 			waylandDisplay: waylandDisplay,
 			want:           false,
 		},
 		{
 			name:           "a hyprland desktop with no wayland socket is a stale variable",
-			currentDesktop: "Hyprland",
+			currentDesktop: desktopHyprland,
 			want:           false,
 		},
 		{

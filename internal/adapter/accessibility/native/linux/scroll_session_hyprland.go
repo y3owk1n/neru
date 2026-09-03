@@ -41,7 +41,7 @@ func newHyprlandScrollSession(modifiers action.Modifiers) (scrollSession, error)
 		return nil, err
 	}
 
-	waitForWaylandModifiers()
+	waitForWaylandModifierPress()
 
 	return &hyprlandScrollSession{pressed: pressed}, nil
 }
@@ -90,7 +90,7 @@ func (s *hyprlandScrollSession) close() {
 		return
 	}
 
-	waitForWaylandModifiers()
+	waitForScrollDelivery()
 
 	_ = releaseWaylandModifiers(s.pressed)
 }

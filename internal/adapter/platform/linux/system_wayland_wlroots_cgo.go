@@ -16,6 +16,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	// Blank-import to link the wayland-scanner generated protocol objects.
@@ -718,6 +719,31 @@ func wlrootsModifierEvent(modifier string, isDown bool) error {
 	}
 
 	return nil
+}
+
+// wlrootsSync waits until the compositor has processed every request this
+// connection has issued, and reports whether it answered within timeout.
+//
+// A caller that has just injected a virtual-keyboard modifier uses it to learn
+// the modifier is applied rather than sleeping and hoping. False means the
+// compositor did not answer in time, or there is no wlroots connection to ask —
+// never that the modifier is known not to have landed.
+func wlrootsSync(timeout time.Duration) bool {
+	err := ensureWlrootsState()
+	if err != nil {
+		return false
+	}
+
+	globalWlrootsState.mu.Lock()
+	client := globalWlrootsState.client
+	defer globalWlrootsState.mu.Unlock()
+
+	milliseconds := timeout.Milliseconds()
+	if milliseconds <= 0 {
+		return false
+	}
+
+	return C.neru_wlr_sync(client, C.int(milliseconds)) != 0
 }
 
 // wlrootsHasVirtualKeyboard reports whether the connected compositor advertises

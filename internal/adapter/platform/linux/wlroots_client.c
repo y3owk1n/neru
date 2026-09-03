@@ -1460,6 +1460,81 @@ int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_d
 	return 1;
 }
 
+// ---------- Request barrier ----------
+
+// neru_wlr_sync_request is one outstanding wl_display.sync. The callback owns
+// it and frees it, so a waiter that gives up early leaves nothing dangling.
+typedef struct {
+	NeruWlrootsClient *client;
+	unsigned int id;
+} NeruWlrootsSyncRequest;
+
+static void neru_wlr_sync_done(void *data, struct wl_callback *cb, uint32_t serial) {
+	(void)serial;
+	NeruWlrootsSyncRequest *req = (NeruWlrootsSyncRequest *)data;
+	// Callbacks are answered in issue order, so storing rather than maxing is
+	// monotonic: id here is always at least the one stored before it.
+	atomic_store(&req->client->sync_completed, req->id);
+	wl_callback_destroy(cb);
+	free(req);
+}
+
+static const struct wl_callback_listener neru_wlr_sync_listener = {
+    .done = neru_wlr_sync_done,
+};
+
+// neru_wlr_sync_poll_interval_us is how often the waiter checks. Two hundred
+// microseconds is well under the round trip it is waiting on and coarse enough
+// not to spin.
+#define NERU_WLR_SYNC_POLL_INTERVAL_US 200
+
+int neru_wlr_sync(NeruWlrootsClient *c, int timeout_ms) {
+	if (!c || !c->display || timeout_ms <= 0)
+		return 0;
+
+	// With no dispatch thread running, nothing would ever read the answer, so
+	// the waiter has to do the reading itself. This is the same split
+	// neru_wlr_refresh_cursor makes: roundtrip when this thread owns the
+	// display, poll an atomic when the dispatch thread does — calling
+	// wl_display_roundtrip while that thread sits in wl_display_prepare_read is
+	// what the split exists to avoid.
+	if (!atomic_load(&c->dispatch_running)) {
+		pthread_mutex_lock(&c->display_mutex);
+		int rc = wl_display_roundtrip(c->display);
+		pthread_mutex_unlock(&c->display_mutex);
+		return rc >= 0;
+	}
+
+	NeruWlrootsSyncRequest *req = calloc(1, sizeof(*req));
+	if (!req)
+		return 0;
+
+	pthread_mutex_lock(&c->display_mutex);
+	req->client = c;
+	req->id = ++c->sync_issued;
+	struct wl_callback *cb = wl_display_sync(c->display);
+	if (cb)
+		wl_callback_add_listener(cb, &neru_wlr_sync_listener, req);
+	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
+
+	if (!cb) {
+		free(req);
+		return 0;
+	}
+
+	unsigned int want = req->id;
+
+	for (int waited = 0; waited < timeout_ms * 1000; waited += NERU_WLR_SYNC_POLL_INTERVAL_US) {
+		// Unsigned subtraction so a wrapped counter still compares correctly.
+		if ((int)(atomic_load(&c->sync_completed) - want) >= 0)
+			return 1;
+		usleep(NERU_WLR_SYNC_POLL_INTERVAL_US);
+	}
+
+	return (int)(atomic_load(&c->sync_completed) - want) >= 0;
+}
+
 int neru_wlr_get_cursor(NeruWlrootsClient *c, int *x, int *y) {
 	if (!c)
 		return 0;
