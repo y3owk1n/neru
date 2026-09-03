@@ -191,21 +191,23 @@ func (a *Adapter) DetectWLKBPTR(
 	rects := platformlinux.DetectWLKBPTRTargets(img, scale)
 	elements := make([]*element.Element, 0, len(rects))
 
-	for _, r := range rects {
+	for _, rect := range rects {
 		globalBounds := image.Rect(
-			region.Min.X+r.Min.X,
-			region.Min.Y+r.Min.Y,
-			region.Min.X+r.Max.X,
-			region.Min.Y+r.Max.Y,
+			region.Min.X+rect.Min.X,
+			region.Min.Y+rect.Min.Y,
+			region.Min.X+rect.Max.X,
+			region.Min.Y+rect.Max.Y,
 		)
-		id := element.ID(fmt.Sprintf("wlkbptr-%d-%d-%d-%d",
+
+		elementID := element.ID(fmt.Sprintf("wlkbptr-%d-%d-%d-%d",
 			globalBounds.Min.X,
 			globalBounds.Min.Y,
 			globalBounds.Dx(),
 			globalBounds.Dy(),
 		))
-		el, elErr := element.NewElement(
-			id,
+
+		elem, elErr := element.NewElement(
+			elementID,
 			globalBounds,
 			element.RoleButton,
 			element.WithClickable(true),
@@ -214,7 +216,8 @@ func (a *Adapter) DetectWLKBPTR(
 		if elErr != nil {
 			continue
 		}
-		elements = append(elements, el)
+
+		elements = append(elements, elem)
 	}
 
 	return elements, nil

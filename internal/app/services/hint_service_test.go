@@ -783,7 +783,7 @@ func (m *mockVisionPort) Health(context.Context) error {
 func TestHintService_GenerateHintsWLKBPTR(t *testing.T) {
 	t.Parallel()
 
-	el, err := element.NewElement(
+	elem, err := element.NewElement(
 		element.ID("test-btn"),
 		image.Rect(100, 100, 150, 120),
 		element.RoleButton,
@@ -810,7 +810,7 @@ func TestHintService_GenerateHintsWLKBPTR(t *testing.T) {
 		generator,
 		config.DefaultConfig().Hints,
 		zap.NewNop(),
-		&mockVisionPort{detectedElements: []*element.Element{el}},
+		&mockVisionPort{detectedElements: []*element.Element{elem}},
 	)
 
 	hints, err := service.GenerateHints(
@@ -822,7 +822,6 @@ func TestHintService_GenerateHintsWLKBPTR(t *testing.T) {
 		"",
 		false,
 	)
-
 	if err != nil {
 		t.Fatalf("GenerateHints() failed: %v", err)
 	}
@@ -835,7 +834,7 @@ func TestHintService_GenerateHintsWLKBPTR(t *testing.T) {
 func TestHintService_GenerateHintsWLKBPTR_ScansActiveScreenBounds(t *testing.T) {
 	t.Parallel()
 
-	el, err := element.NewElement(
+	elem, err := element.NewElement(
 		element.ID("notif-btn"),
 		image.Rect(1800, 50, 1900, 90),
 		element.RoleButton,
@@ -847,10 +846,12 @@ func TestHintService_GenerateHintsWLKBPTR_ScansActiveScreenBounds(t *testing.T) 
 	}
 
 	var capturedRegion image.Rectangle
+
 	mockVision := &mocks.MockVisionPort{
 		DetectWLKBPTRFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
 			capturedRegion = region
-			return []*element.Element{el}, nil
+
+			return []*element.Element{elem}, nil
 		},
 	}
 
@@ -895,7 +896,11 @@ func TestHintService_GenerateHintsWLKBPTR_ScansActiveScreenBounds(t *testing.T) 
 
 	wantScreen := image.Rect(0, 0, 1920, 1080)
 	if capturedRegion != wantScreen {
-		t.Errorf("DetectWLKBPTR captured region = %v, want active screen %v", capturedRegion, wantScreen)
+		t.Errorf(
+			"DetectWLKBPTR captured region = %v, want active screen %v",
+			capturedRegion,
+			wantScreen,
+		)
 	}
 }
 

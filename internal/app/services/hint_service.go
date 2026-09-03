@@ -380,7 +380,10 @@ func (s *HintService) generateHintsWLKBPTR(
 ) []*element.Element {
 	screenBounds, screenErr := s.resolveWLKBPTRScreenBounds(ctx)
 	if screenErr != nil || screenBounds.Empty() {
-		s.logger.Error("Failed to resolve screen bounds for wl-kbptr detection", zap.Error(screenErr))
+		s.logger.Error(
+			"Failed to resolve screen bounds for wl-kbptr detection",
+			zap.Error(screenErr),
+		)
 
 		return nil
 	}
@@ -409,8 +412,9 @@ func (s *HintService) generateHintsWLKBPTR(
 func (s *HintService) resolveWLKBPTRScreenBounds(ctx context.Context) (image.Rectangle, error) {
 	var fallback image.Rectangle
 	if s.system != nil {
-		if b, err := s.system.ScreenBounds(ctx); err == nil {
-			fallback = b
+		bounds, boundsErr := s.system.ScreenBounds(ctx)
+		if boundsErr == nil {
+			fallback = bounds
 		}
 	}
 
@@ -445,8 +449,8 @@ func (s *HintService) resolveWLKBPTRScreenBounds(ctx context.Context) (image.Rec
 	}
 
 	names, namesErr := s.system.ScreenNames(ctx)
-	if namesErr != nil || len(names) == 0 {
-		return fallback, nil
+	if namesErr != nil {
+		names = nil
 	}
 
 	for _, name := range names {
@@ -454,6 +458,7 @@ func (s *HintService) resolveWLKBPTRScreenBounds(ctx context.Context) (image.Rec
 		if bErr != nil || !foundScreen {
 			continue
 		}
+
 		if center.In(bounds) {
 			return bounds, nil
 		}

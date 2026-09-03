@@ -565,7 +565,8 @@ func Lookup(name Flag) (Descriptor, bool) {
 // nothing, so it has an argument list of its own. Reading the vocabulary from
 // here is what stops the two from disagreeing about what "axtree" means.
 func ParseStrategy(value string) (string, error) {
-	if value != domain.StrategyAXTree && value != domain.StrategyVision && value != domain.StrategyWLKBPTR {
+	if value != domain.StrategyAXTree && value != domain.StrategyVision &&
+		value != domain.StrategyWLKBPTR {
 		return "", invalid(msgStrategyValue)
 	}
 

@@ -41,6 +41,7 @@ func TestDetectWLKBPTRTargets_ButtonDetection(t *testing.T) {
 		img.Set(x, btnRect.Min.Y, black)
 		img.Set(x, btnRect.Max.Y-1, black)
 	}
+
 	for y := btnRect.Min.Y; y < btnRect.Max.Y; y++ {
 		img.Set(btnRect.Min.X, y, black)
 		img.Set(btnRect.Max.X-1, y, black)
@@ -62,7 +63,11 @@ func TestDetectWLKBPTRTargets_ButtonDetection(t *testing.T) {
 	}
 
 	if !found {
-		t.Errorf("did not find target matching button rect %v in detected targets: %v", btnRect, targets)
+		t.Errorf(
+			"did not find target matching button rect %v in detected targets: %v",
+			btnRect,
+			targets,
+		)
 	}
 }
 
@@ -72,6 +77,7 @@ func TestDetectWLKBPTRTargets_FiltersNoiseAndOversized(t *testing.T) {
 	w, h := 400, 300
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+
 	black := color.Black
 
 	// 1. Tiny noise: 2x2 dot at (50, 50)
@@ -86,6 +92,7 @@ func TestDetectWLKBPTRTargets_FiltersNoiseAndOversized(t *testing.T) {
 		img.Set(x, 80, black)
 		img.Set(x, 259, black)
 	}
+
 	for y := 80; y < 260; y++ {
 		img.Set(50, y, black)
 		img.Set(349, y, black)
@@ -96,8 +103,12 @@ func TestDetectWLKBPTRTargets_FiltersNoiseAndOversized(t *testing.T) {
 		if target.Min.X >= 48 && target.Max.X <= 54 && target.Min.Y >= 48 && target.Max.Y <= 54 {
 			t.Errorf("tiny noise dot should have been filtered out, got %v", target)
 		}
+
 		if target.Min.X >= 45 && target.Max.X <= 355 && target.Dy() >= 160 {
-			t.Errorf("oversized panel (height >= 160) should have been filtered out, got %v", target)
+			t.Errorf(
+				"oversized panel (height >= 160) should have been filtered out, got %v",
+				target,
+			)
 		}
 	}
 }
@@ -108,6 +119,7 @@ func TestDetectWLKBPTRTargets_NotificationCardWithoutButtons(t *testing.T) {
 	w, h := 500, 300
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+
 	black := color.Black
 
 	// Draw an isolated notification card (350x75) at (50, 50) with no child buttons
@@ -116,6 +128,7 @@ func TestDetectWLKBPTRTargets_NotificationCardWithoutButtons(t *testing.T) {
 		img.Set(x, card.Min.Y, black)
 		img.Set(x, card.Max.Y-1, black)
 	}
+
 	for y := card.Min.Y; y < card.Max.Y; y++ {
 		img.Set(card.Min.X, y, black)
 		img.Set(card.Max.X-1, y, black)
@@ -134,7 +147,11 @@ func TestDetectWLKBPTRTargets_NotificationCardWithoutButtons(t *testing.T) {
 	}
 
 	if !foundCard {
-		t.Errorf("did not find target matching notification card %v in detected targets: %v", card, targets)
+		t.Errorf(
+			"did not find target matching notification card %v in detected targets: %v",
+			card,
+			targets,
+		)
 	}
 }
 
@@ -144,6 +161,7 @@ func TestDetectWLKBPTRTargets_ButtonInsideEnclosingContainer(t *testing.T) {
 	w, h := 500, 400
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+
 	black := color.Black
 
 	// Draw an enclosing dialog/popup box (250x120) at (50, 50) -> height 120 >= 50
@@ -152,6 +170,7 @@ func TestDetectWLKBPTRTargets_ButtonInsideEnclosingContainer(t *testing.T) {
 		img.Set(x, dialog.Min.Y, black)
 		img.Set(x, dialog.Max.Y-1, black)
 	}
+
 	for y := dialog.Min.Y; y < dialog.Max.Y; y++ {
 		img.Set(dialog.Min.X, y, black)
 		img.Set(dialog.Max.X-1, y, black)
@@ -163,6 +182,7 @@ func TestDetectWLKBPTRTargets_ButtonInsideEnclosingContainer(t *testing.T) {
 		img.Set(x, btn.Min.Y, black)
 		img.Set(x, btn.Max.Y-1, black)
 	}
+
 	for y := btn.Min.Y; y < btn.Max.Y; y++ {
 		img.Set(btn.Min.X, y, black)
 		img.Set(btn.Max.X-1, y, black)
@@ -176,7 +196,8 @@ func TestDetectWLKBPTRTargets_ButtonInsideEnclosingContainer(t *testing.T) {
 	foundButton := false
 	for _, target := range targets {
 		// Button should be close to (150, 110, 220, 138) with dilation padding
-		if target.Min.X >= 145 && target.Max.X <= 225 && target.Min.Y >= 105 && target.Max.Y <= 143 {
+		if target.Min.X >= 145 && target.Max.X <= 225 && target.Min.Y >= 105 &&
+			target.Max.Y <= 143 {
 			foundButton = true
 		}
 		// The outer dialog box itself (height 120 >= 50) should not be returned as a clickable target
@@ -186,6 +207,10 @@ func TestDetectWLKBPTRTargets_ButtonInsideEnclosingContainer(t *testing.T) {
 	}
 
 	if !foundButton {
-		t.Errorf("did not find target matching button rect %v in detected targets: %v", btn, targets)
+		t.Errorf(
+			"did not find target matching button rect %v in detected targets: %v",
+			btn,
+			targets,
+		)
 	}
 }

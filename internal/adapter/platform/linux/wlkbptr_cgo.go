@@ -3,6 +3,7 @@
 package linux
 
 /*
+#cgo linux LDFLAGS: -lm
 #include "wlkbptr.h"
 #include <stdlib.h>
 */
@@ -44,15 +45,16 @@ func DetectWLKBPTRTargets(img *image.RGBA, scale float64) []image.Rectangle {
 	cRects := unsafe.Slice(result.rects, count)
 	rects := make([]image.Rectangle, 0, count)
 
-	for _, r := range cRects {
-		if r.w <= 0 || r.h <= 0 {
+	for _, rect := range cRects {
+		if rect.w <= 0 || rect.h <= 0 {
 			continue
 		}
+
 		rects = append(rects, image.Rect(
-			int(r.x),
-			int(r.y),
-			int(r.x+r.w),
-			int(r.y+r.h),
+			int(rect.x),
+			int(rect.y),
+			int(rect.x+rect.w),
+			int(rect.y+rect.h),
 		))
 	}
 

@@ -16,13 +16,7 @@ typedef struct {
 } Component;
 
 int neru_wlkbptr_detect(
-	const unsigned char *rgba,
-	int width,
-	int height,
-	int stride,
-	double scale,
-	NeruTargetResult *out_result
-) {
+    const unsigned char *rgba, int width, int height, int stride, double scale, NeruTargetResult *out_result) {
 	if (rgba == NULL || width <= 0 || height <= 0 || out_result == NULL) {
 		return NERU_WLKBPTR_ERR_INVALID;
 	}
@@ -69,8 +63,8 @@ int neru_wlkbptr_detect(
 			int xm1 = (x >= 1) ? x - 1 : 0;
 			int xp1 = (x + 1 < width) ? x + 1 : width - 1;
 			int xp2 = (x + 2 < width) ? x + 2 : width - 1;
-			tmp[yw + x] = (uint8_t)((gray[yw + xm2] + 4 * gray[yw + xm1] + 6 * gray[yw + x] +
-			                         4 * gray[yw + xp1] + gray[yw + xp2] + 8) >>
+			tmp[yw + x] = (uint8_t)((gray[yw + xm2] + 4 * gray[yw + xm1] + 6 * gray[yw + x] + 4 * gray[yw + xp1] +
+			                         gray[yw + xp2] + 8) >>
 			                        4);
 		}
 	}
@@ -122,13 +116,13 @@ int neru_wlkbptr_detect(
 			mag[yw + x] = (int16_t)(abs_gx + abs_gy);
 
 			if (abs_gy * 1024 <= abs_gx * 424) {
-				dir[yw + x] = 0; // Horizontal normal
+				dir[yw + x] = 0;  // Horizontal normal
 			} else if (abs_gy * 1024 >= abs_gx * 2472) {
-				dir[yw + x] = 2; // Vertical normal
+				dir[yw + x] = 2;  // Vertical normal
 			} else if ((gx > 0 && gy > 0) || (gx < 0 && gy < 0)) {
-				dir[yw + x] = 1; // 45 deg diagonal
+				dir[yw + x] = 1;  // 45 deg diagonal
 			} else {
-				dir[yw + x] = 3; // 135 deg diagonal
+				dir[yw + x] = 3;  // 135 deg diagonal
 			}
 		}
 	}

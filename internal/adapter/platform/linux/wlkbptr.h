@@ -37,13 +37,7 @@ typedef struct {
 // Returns NERU_WLKBPTR_OK on success, or an error code on failure.
 // Result rects must be freed with neru_wlkbptr_free().
 int neru_wlkbptr_detect(
-	const unsigned char *rgba,
-	int width,
-	int height,
-	int stride,
-	double scale,
-	NeruTargetResult *out_result
-);
+    const unsigned char *rgba, int width, int height, int stride, double scale, NeruTargetResult *out_result);
 
 void neru_wlkbptr_free(NeruTargetResult *result);
 
