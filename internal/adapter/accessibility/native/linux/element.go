@@ -432,18 +432,29 @@ const scrollPixelsPerNotch = 30
 // Linux has no event-flags concept, so a modifier is a real key press around
 // the scroll. On Wayland that forces a choice of injection layer: the modifier
 // can only be pressed on the wlroots virtual keyboard (or libei on KDE), while
-// the fast path for the scroll itself is the uinput evdev device. Hyprland
-// reliably handles the uinput path, provided the virtual keyboard modifier has
-// had time to reach the compositor first.
+// the fast path for the scroll itself is the uinput evdev device. Interleaving
+// the two leaves the compositor to merge seat state across devices, which it is
+// not obliged to do — so a modified scroll goes out entirely through
+// wlroots/libei and skips the uinput batch. That costs throughput on a large
+// modified scroll and buys a modifier that actually arrives.
+//
+// Hyprland is the exception, and the reason it is named rather than folded into
+// the Wayland arm is that it fails the other way round: its virtual-pointer
+// scroll is what goes missing (#1474), so the modifier is the half that has to
+// give and the uinput batch is the half that stays. Every other wlroots
+// compositor, and KDE — whose modifier goes out on libei, further from the
+// uinput scroll than wlroots is, not closer — keeps the merge-free path above.
 //
 // With smooth_scroll.enabled the scroll is handed to the animator instead and
-// arrives as a sequence of eased chunks. Modified Wayland scrolls use the
-// immediate uinput path instead, because Hyprland does not reliably merge the
-// virtual keyboard modifier with virtual-pointer scroll events.
+// arrives as a sequence of eased chunks, which is what the same setting does on
+// macOS. The backend is asked whether it can inject at all before that handoff,
+// because the animation runs on a worker goroutine where a refusal has nobody
+// to go back to — and a refusal that reaches nobody is exactly the silent
+// no-op turning this option on must not introduce.
 func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	cfg := currentLinuxConfig()
 	if cfg != nil && cfg.SmoothScroll.Enabled {
-		if currentLinuxBackend() == linuxBackendWayland && modifiers != 0 {
+		if modifiers != 0 && hyprlandKeepsUinputScroll() {
 			scrollAnim.stop()
 
 			return scrollAtCursorNow(deltaX, deltaY, modifiers)
@@ -486,16 +497,27 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
-		err := pressWaylandScrollModifiers(modifiers)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = releaseWaylandScrollModifiers(modifiers) }()
-
-		// Keyboard and uinput events arrive through separate input sources.
-		// Let Hyprland apply the modifier before the scroll device reports it.
 		if modifiers != 0 {
+			if !hyprlandKeepsUinputScroll() {
+				// Uncapped, unlike the X11 path's 50-click ceiling, because this
+				// is the same event count the uinput batch below would send for
+				// the same delta — the events are merely slower per round trip.
+				// Capping here would make a modified go_bottom travel a different
+				// distance from an unmodified one, which is worse than slow.
+				return wlrootsScrollAtCursor(deltaX, deltaY, modifiers)
+			}
+
+			err := pressWaylandScrollModifiers(modifiers)
+			if err != nil {
+				return err
+			}
+
+			defer func() { _ = releaseWaylandScrollModifiers(modifiers) }()
+
+			// Keyboard and uinput events arrive through separate input sources.
+			// Let Hyprland apply the modifier before the scroll device reports it.
 			const modifierSettleDelay = 5 * time.Millisecond
+
 			time.Sleep(modifierSettleDelay)
 		}
 
@@ -578,6 +600,18 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	return nil
+}
+
+// hyprlandKeepsUinputScroll reports whether a modified scroll on this session
+// keeps the uinput batch and presses the modifier beside it, rather than moving
+// the whole scroll onto the wlroots virtual pointer.
+//
+// It is the Wayland check and the compositor check together because either one
+// alone answers the wrong question: the backend says the virtual keyboard is
+// reachable, and the compositor says the virtual pointer is the half that
+// cannot be trusted with the scroll.
+func hyprlandKeepsUinputScroll() bool {
+	return currentLinuxBackend() == linuxBackendWayland && platform.IsHyprlandSession()
 }
 
 func pressWaylandScrollModifiers(modifiers action.Modifiers) error {

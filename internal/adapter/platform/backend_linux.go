@@ -82,8 +82,10 @@ func (b LinuxBackend) displayServer() DisplayServer {
 }
 
 var (
-	cachedBackend     LinuxBackend
-	cachedBackendOnce sync.Once
+	cachedBackend      LinuxBackend
+	cachedBackendOnce  sync.Once
+	cachedHyprland     bool
+	cachedHyprlandOnce sync.Once
 )
 
 // resetLinuxBackendCache resets the cached backend detection result.
@@ -91,6 +93,8 @@ var (
 func resetLinuxBackendCache() {
 	cachedBackendOnce = sync.Once{}
 	cachedBackend = BackendUnknown
+	cachedHyprlandOnce = sync.Once{}
+	cachedHyprland = false
 }
 
 // detectLinuxBackend inspects the process environment and determines which
@@ -113,6 +117,46 @@ func detectLinuxBackend() LinuxBackend {
 // process environment.
 func DetectLinuxBackend() LinuxBackend {
 	return detectLinuxBackend()
+}
+
+// IsHyprlandSession reports whether the wlroots session this process runs under
+// is Hyprland.
+//
+// LinuxBackend deliberately does not carry this. One value covers Sway,
+// Hyprland, niri, River and Wayfire, because every subsystem dispatching on the
+// backend wants the protocol family rather than the compositor's name, and
+// splitting the enum would make each of them answer a question it does not ask.
+// A quirk belonging to one compositor still has to be named somewhere, and it is
+// named here rather than at the call site because the compositor family is
+// decided in this file and nowhere else (internal/adapter/platform/AGENTS.md).
+//
+// It reads XDG_CURRENT_DESKTOP, the identity variable the backend is already
+// detected from, and not HYPRLAND_INSTANCE_SIGNATURE: the socket says which
+// compositor is reachable, not which one this session runs, and a unit that
+// imported it into another session would answer yes
+// (internal/architecture/compositor_socket_test.go). So a Hyprland session
+// exporting no XDG_CURRENT_DESKTOP reads as plain wlroots here, which leaves it
+// on the path every wlroots compositor took before this predicate existed.
+func IsHyprlandSession() bool {
+	cachedHyprlandOnce.Do(func() {
+		cachedHyprland = isHyprlandFromEnv(
+			os.Getenv("XDG_CURRENT_DESKTOP"),
+			os.Getenv("WAYLAND_DISPLAY"),
+		)
+	})
+
+	return cachedHyprland
+}
+
+// isHyprlandFromEnv answers behind the backend rather than beside it: a desktop
+// naming Hyprland on a session the detector did not call wlroots is not a
+// Hyprland session, it is a stale variable.
+func isHyprlandFromEnv(currentDesktop string, waylandDisplay string) bool {
+	if detectLinuxBackendFromEnv(currentDesktop, waylandDisplay, "") != BackendWaylandWlroots {
+		return false
+	}
+
+	return strings.Contains(strings.ToUpper(currentDesktop), "HYPRLAND")
 }
 
 func detectLinuxBackendFromEnv(

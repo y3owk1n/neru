@@ -122,3 +122,61 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 		})
 	}
 }
+
+// TestIsHyprlandFromEnv pins the one compositor LinuxBackend does not name.
+// The wlroots arm covers five compositors, so a caller with a Hyprland-only
+// quirk has to ask this instead — and it has to answer no for the four others,
+// for KDE (whose modifier goes out on libei, not the wlroots keyboard), and for
+// a desktop variable left over from a session that is not running.
+func TestIsHyprlandFromEnv(t *testing.T) {
+	tests := []struct {
+		name           string
+		currentDesktop string
+		waylandDisplay string
+		want           bool
+	}{
+		{
+			name:           "hyprland wayland session",
+			currentDesktop: "Hyprland",
+			waylandDisplay: waylandDisplay,
+			want:           true,
+		},
+		{
+			name:           "hyprland beside another desktop name",
+			currentDesktop: "Hyprland:wlroots",
+			waylandDisplay: waylandDisplay,
+			want:           true,
+		},
+		{
+			name:           "sway is not hyprland",
+			currentDesktop: "sway",
+			waylandDisplay: waylandDisplay,
+			want:           false,
+		},
+		{
+			name:           "kde is not hyprland",
+			currentDesktop: "KDE",
+			waylandDisplay: waylandDisplay,
+			want:           false,
+		},
+		{
+			name:           "a hyprland desktop with no wayland socket is a stale variable",
+			currentDesktop: "Hyprland",
+			want:           false,
+		},
+		{
+			name:           "an unset desktop stays plain wlroots",
+			waylandDisplay: waylandDisplay,
+			want:           false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := isHyprlandFromEnv(testCase.currentDesktop, testCase.waylandDisplay)
+			if got != testCase.want {
+				t.Fatalf("isHyprlandFromEnv() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
