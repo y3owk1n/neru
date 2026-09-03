@@ -15,8 +15,8 @@ import (
 )
 
 // Pure-Go IUIAutomation (COM) element discovery for the Windows hints mode.
-// Does not perform actions or build a deep cached tree; it returns a flat
-// list of on-screen, clickable controls for the given top-level window.
+// Does not perform actions; it returns a flat list of on-screen, clickable
+// controls at any depth under the given top-level window.
 //
 // roleUnknown is the AX-style role returned for UIA control types that neru
 // does not treat as clickable hint targets.
@@ -75,20 +75,41 @@ const (
 	vtRelease = 2
 
 	// IUIAutomation.
-	vtElementFromHandle   = 6
-	vtCreateTrueCondition = 21
+	vtElementFromHandle       = 6
+	vtGetControlViewCondition = 18
+	vtCreateCacheRequest      = 20
 
-	// IUIAutomationElement.
-	vtFindAll                     = 6
-	vtGetCurrentControlType       = 21
-	vtGetCurrentName              = 23
-	vtGetCurrentIsOffscreen       = 38
-	vtGetCurrentBoundingRectangle = 43
+	// IUIAutomationElement. Only the cached getters are called: every property
+	// the walk reads is fetched by the cache request, so a Current* getter
+	// would be a second cross-process call for data already in hand.
+	vtFindAllBuildCache          = 8
+	vtGetCachedControlType       = 53
+	vtGetCachedName              = 55
+	vtGetCachedIsOffscreen       = 70
+	vtGetCachedBoundingRectangle = 75
+
+	// IUIAutomationCacheRequest.
+	vtCacheAddProperty              = 3
+	vtCachePutTreeFilter            = 9
+	vtCachePutAutomationElementMode = 11
 
 	// IUIAutomationElementArray.
 	vtArrayGetLength  = 3
 	vtArrayGetElement = 4
 )
+
+// UIA property ids the cache request prefetches (UIA_*PropertyId).
+const (
+	propBoundingRectangle = 30001
+	propControlType       = 30003
+	propName              = 30005
+	propIsOffscreen       = 30022
+)
+
+// AutomationElementMode_None: cached elements carry only the requested
+// properties and no live reference back to the provider, which is all the
+// walk needs since every value is copied out before the array is released.
+const automationElementModeNone = 0
 
 // UI Automation control-type names referenced from more than one place.
 const (
@@ -98,6 +119,7 @@ const (
 	uiaControlCustom      = "Custom"
 	uiaControlSplitButton = "SplitButton"
 	uiaControlPane        = "Pane"
+	uiaControlCheckBox    = "CheckBox"
 )
 
 // controlTypeNames maps UI Automation CONTROLTYPEID values to the programmatic
@@ -110,7 +132,7 @@ const (
 var controlTypeNames = map[int32]string{
 	50000: uiaControlButton,
 	50001: "Calendar",
-	50002: "CheckBox",
+	50002: uiaControlCheckBox,
 	50003: "ComboBox",
 	50004: uiaControlEdit,
 	50005: uiaControlHyperlink,
@@ -151,7 +173,7 @@ var controlTypeNames = map[int32]string{
 	50040: "AppBar",
 }
 
-// winRect mirrors the Win32 RECT returned by get_CurrentBoundingRectangle.
+// winRect mirrors the Win32 RECT returned by get_CachedBoundingRectangle.
 type winRect struct {
 	left   int32
 	top    int32
@@ -241,19 +263,29 @@ func enumerateClickableElements(hwnd uintptr, keptRoles map[string]struct{}) []w
 
 	var condition unsafe.Pointer
 
-	hresult = comCall(automation, vtCreateTrueCondition, uintptr(unsafe.Pointer(&condition)))
+	hresult = comCall(automation, vtGetControlViewCondition, uintptr(unsafe.Pointer(&condition)))
 	if failed(hresult) || condition == nil {
 		return nil
 	}
 	defer comCall(condition, vtRelease)
 
+	cache := createCacheRequest(automation, condition)
+	if cache == nil {
+		return nil
+	}
+	defer comCall(cache, vtRelease)
+
 	var array unsafe.Pointer
 
+	// One cross-process round trip fetches the whole control-view subtree with
+	// every property the walk reads already attached, so depth costs nothing
+	// per node.
 	hresult = comCall(
 		root,
-		vtFindAll,
+		vtFindAllBuildCache,
 		uintptr(treeScopeDescendants),
 		uintptr(condition),
+		uintptr(cache),
 		uintptr(unsafe.Pointer(&array)),
 	)
 	if failed(hresult) || array == nil {
@@ -262,6 +294,35 @@ func enumerateClickableElements(hwnd uintptr, keptRoles map[string]struct{}) []w
 	defer comCall(array, vtRelease)
 
 	return collectArray(array, keptRoles)
+}
+
+// createCacheRequest builds the cache request FindAllBuildCache fills: the
+// four properties extractWinElement reads, filtered to the control view so
+// the provider never serializes raw-view scaffolding.
+func createCacheRequest(automation unsafe.Pointer, filter unsafe.Pointer) unsafe.Pointer {
+	var cache unsafe.Pointer
+
+	hresult := comCall(automation, vtCreateCacheRequest, uintptr(unsafe.Pointer(&cache)))
+	if failed(hresult) || cache == nil {
+		return nil
+	}
+
+	for _, property := range []uintptr{propControlType, propName, propBoundingRectangle, propIsOffscreen} {
+		if failed(comCall(cache, vtCacheAddProperty, property)) {
+			comCall(cache, vtRelease)
+
+			return nil
+		}
+	}
+
+	if failed(comCall(cache, vtCachePutTreeFilter, uintptr(filter))) ||
+		failed(comCall(cache, vtCachePutAutomationElementMode, automationElementModeNone)) {
+		comCall(cache, vtRelease)
+
+		return nil
+	}
+
+	return cache
 }
 
 // createAutomation creates the default IUIAutomation instance.
@@ -318,13 +379,13 @@ func collectArray(array unsafe.Pointer, keptRoles map[string]struct{}) []winElem
 // It returns ok=false for offscreen or zero-size controls, and for controls
 // whose role is not in keptRoles.
 //
-// Role selection happens here rather than downstream because UIA is queried
-// with a true condition: the whole subtree comes back, and rejecting an
-// element before its bounds and name are read saves three cross-process COM
-// calls per unwanted element.
+// Role selection happens here rather than downstream because the cache request
+// returns the whole control-view subtree: rejecting an element by role before
+// its bounds and name are decoded keeps the per-element work to one cached
+// read.
 func extractWinElement(element unsafe.Pointer, keptRoles map[string]struct{}) (winElement, bool) {
 	var controlType int32
-	if failed(comCall(element, vtGetCurrentControlType, uintptr(unsafe.Pointer(&controlType)))) {
+	if failed(comCall(element, vtGetCachedControlType, uintptr(unsafe.Pointer(&controlType)))) {
 		return winElement{}, false
 	}
 
@@ -340,13 +401,13 @@ func extractWinElement(element unsafe.Pointer, keptRoles map[string]struct{}) (w
 	}
 
 	var offscreen int32
-	if !failed(comCall(element, vtGetCurrentIsOffscreen, uintptr(unsafe.Pointer(&offscreen)))) &&
+	if !failed(comCall(element, vtGetCachedIsOffscreen, uintptr(unsafe.Pointer(&offscreen)))) &&
 		offscreen != 0 {
 		return winElement{}, false
 	}
 
 	var rect winRect
-	if failed(comCall(element, vtGetCurrentBoundingRectangle, uintptr(unsafe.Pointer(&rect)))) {
+	if failed(comCall(element, vtGetCachedBoundingRectangle, uintptr(unsafe.Pointer(&rect)))) {
 		return winElement{}, false
 	}
 
@@ -358,15 +419,15 @@ func extractWinElement(element unsafe.Pointer, keptRoles map[string]struct{}) (w
 	return winElement{
 		bounds:    bounds,
 		role:      role,
-		name:      currentName(element),
+		name:      cachedName(element),
 		clickable: true,
 	}, true
 }
 
-// currentName reads the element's name (BSTR) and frees it.
-func currentName(element unsafe.Pointer) string {
+// cachedName reads the element's cached name (BSTR) and frees it.
+func cachedName(element unsafe.Pointer) string {
 	var bstr *uint16
-	if failed(comCall(element, vtGetCurrentName, uintptr(unsafe.Pointer(&bstr)))) || bstr == nil {
+	if failed(comCall(element, vtGetCachedName, uintptr(unsafe.Pointer(&bstr)))) || bstr == nil {
 		return ""
 	}
 

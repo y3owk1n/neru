@@ -181,7 +181,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard, uinput batch skipped (kept on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
 | **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous virtual-pointer axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ❌       |
-| **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
+| **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, control view only    |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ layered HWND + GDI        |
 | **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ⚠️ passive evdev read        | ⚠️ passive evdev read   | ✅ `RegisterHotKey`          |
 | **Keyboard capture**          | ✅ CGEventTap            | ✅ `XGrabKeyboard`     | ✅ evdev grab (wl-keyboard fallback) | ✅ evdev grab   | ✅ `WH_KEYBOARD_LL`          |
@@ -780,8 +780,11 @@ macOS builds the richest tree by a wide margin: it walks multiple window and
 system sources, applies per-app strategy overrides, can fall back to the Vision
 framework for OCR-discovered targets, and deduplicates overlapping elements.
 Linux walks a single tree and has the OCR fallback beside it — tesseract, text
-only, selected with `hints.strategy = vision`. Windows walks a single tree with
-the same fallback beside it — `Windows.Media.Ocr`, text only.
+only, selected with `hints.strategy = vision`. Windows fetches the window's
+control-view tree in one cached UI Automation query, at any depth, with the
+same fallback beside it — `Windows.Media.Ocr`, text only. The ⚠️ there is the
+control view: an element a provider exposes only in the raw view is not a hint,
+and the answer is a role or filter default, never a per-app branch.
 
 **Linux is ⚠️, not a stub.** Hints genuinely work: `ATSPIClient` enables
 assistive-tech mode, finds the active frame, and walks it (`ClickableNodes`)
@@ -927,7 +930,7 @@ discovery rather than the mode itself.
 
 | Mode              | Feature                        | macOS                      | Linux                      | Windows                     |
 | ----------------- | ------------------------------ | -------------------------- | -------------------------- | --------------------------- |
-| **Hints**         | Element discovery              | ✅ full AX tree            | ⚠️ AT-SPI, toolkit-dependent | ⚠️ UIA, shallow tree      |
+| **Hints**         | Element discovery              | ✅ full AX tree            | ⚠️ AT-SPI, toolkit-dependent | ⚠️ UIA, control view only |
 | **Hints**         | `vision` strategy + per-app overrides | ✅                  | ⚠️ tesseract; text only, no rectangles | ⚠️ `Windows.Media.Ocr`; text only, no rectangles, no confidence |
 | **Hints**         | Menubar / dock elements        | ✅                         | 🟡                         | 🟡                          |
 | **Hints**         | Search input badge             | ✅                         | ✅ Cairo badge             | ✅                          |
@@ -1199,19 +1202,18 @@ working, which is exactly why the build exists.
 **Windows**
 
 1. Native notifications — no toast support
-2. UIA tree depth — shallow walk; complex apps under-report clickable elements
-3. Grid and recursive-grid transition animation — not implemented
-4. Grid virtual-pointer indicator — a no-op, while recursive grid draws it.
+2. Grid and recursive-grid transition animation — not implemented
+3. Grid virtual-pointer indicator — a no-op, while recursive grid draws it.
    `virtual_pointer.ui.*` is therefore partly inert here rather than wholly, so
    it stays declared everywhere and is tracked as this entry instead
-5. Smooth cursor and smooth scroll animation — not implemented
-6. Modifier passthrough and `PostModifierEvent` — no-ops
-7. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
-8. `monitor_select` mode — returns `CodeNotSupported`
-9. Font resolution — alias mapping only, no system font enumeration
-10. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+4. Smooth cursor and smooth scroll animation — not implemented
+5. Modifier passthrough and `PostModifierEvent` — no-ops
+6. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
+7. `monitor_select` mode — returns `CodeNotSupported`
+8. Font resolution — alias mapping only, no system font enumeration
+9. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
     installs a launchd agent and Linux a systemd user unit
-11. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+10. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.

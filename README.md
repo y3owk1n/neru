@@ -245,8 +245,8 @@ on the app exposing an accessibility tree (GTK/Qt do; Chromium and Electron apps
 need `--force-renderer-accessibility`). Where that tree is too thin, Vision OCR
 is the fallback — tesseract, text only, and on KDE behind a one-time
 screen-sharing prompt, because KWin's only pixel source is the desktop portal.
-On **Windows**, UI Automation coverage is initial and the
-tree walk is shallow, per-app config does not re-apply when you change windows,
+On **Windows**, UI Automation reports the control view only,
+per-app config does not re-apply when you change windows,
 and the OCR fallback is `Windows.Media.Ocr`, text only, needing a language pack. **Linux requires X11 or Wayland on
 wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
 

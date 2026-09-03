@@ -22,7 +22,7 @@ func TestControlTypeName(t *testing.T) {
 		wantKnown   bool
 	}{
 		{"button", 50000, uiaControlButton, true},
-		{"checkbox", 50002, "CheckBox", true},
+		{"checkbox", 50002, uiaControlCheckBox, true},
 		{"combobox", 50003, "ComboBox", true},
 		{"edit", 50004, uiaControlEdit, true},
 		{"hyperlink", 50005, uiaControlHyperlink, true},
