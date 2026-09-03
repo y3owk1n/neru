@@ -5,16 +5,19 @@ package windows
 import (
 	"context"
 	"image"
+	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// TreeNode is a node in the accessibility element hierarchy. On Windows
-// the tree is shallow: a root window node whose children are the flat list of
-// clickable controls discovered via UI Automation. Each node owns a unique
-// *Element so callers can use the pointer identity as a stable element ID.
+// TreeNode is a node in the accessibility element hierarchy. On Windows the
+// tree is flat: a root window node whose children are the clickable controls
+// UI Automation found at any depth below the window, in one cached query.
+// Each node owns a unique *Element so callers can use the pointer identity as
+// a stable element ID.
 type TreeNode struct {
 	element  *Element
 	info     *ElementInfo
@@ -96,6 +99,7 @@ func (n *TreeNode) Release(_ map[*Element]struct{}) {}
 type TreeOptions struct {
 	MaxDepth int
 	Bounds   image.Rectangle
+	logger   *zap.Logger
 	// Roles is the set of UIA control-type names to enumerate. An empty set
 	// falls back to the shipped defaults. It is applied during enumeration so
 	// unwanted controls are rejected before their properties are read.
@@ -103,12 +107,21 @@ type TreeOptions struct {
 }
 
 // DefaultTreeOptions returns the default tree options.
-func DefaultTreeOptions(_ *zap.Logger) TreeOptions { return TreeOptions{} }
+func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 
-// SetCache is a no-op on Windows (no native cache request).
+	return TreeOptions{logger: logger}
+}
+
+// SetCache is a no-op on Windows: the UIA cache request is built inside every
+// enumeration rather than handed in by the caller.
 func (o *TreeOptions) SetCache(_ any) {}
 
-// SetMaxDepth records the maximum tree depth.
+// SetMaxDepth records the maximum tree depth. The UIA query has no depth
+// knob (TreeScope_Descendants is all or nothing), so the value is recorded and
+// not applied; hints.max_depth is declared inert on Windows for that reason.
 func (o *TreeOptions) SetMaxDepth(depth int) { o.MaxDepth = depth }
 
 // SetBundleID is a no-op on Windows.
@@ -126,7 +139,12 @@ func (o *TreeOptions) SetRoles(roles map[string]struct{}) { o.Roles = roles }
 // BuildTree enumerates the clickable controls under the given window element
 // via UI Automation and returns a root node with one child per control. For
 // non-window elements (no HWND) it returns an empty root.
-func BuildTree(_ context.Context, root *Element, opts TreeOptions) (*TreeNode, error) {
+//
+// The UIA query is one blocking COM call and cannot be interrupted, so the
+// context is honored at its edges: a deadline that has already passed skips
+// the query, and one that passes during it discards the result rather than
+// handing stale elements to a caller that has stopped waiting.
+func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode, error) {
 	if root == nil {
 		return &TreeNode{}, nil
 	}
@@ -142,7 +160,21 @@ func BuildTree(_ context.Context, root *Element, opts TreeOptions) (*TreeNode, e
 		return rootNode, nil
 	}
 
+	if ctx.Err() != nil {
+		return nil, derrors.WrapContextCanceled(ctx, "UIA tree build")
+	}
+
+	started := time.Now()
+
 	controls := enumerateClickableElements(root.hwnd, opts.Roles)
+
+	if ctx.Err() != nil {
+		return nil, derrors.WrapContextCanceled(ctx, "UIA tree build")
+	}
+
+	opts.logger.Debug("Built UIA tree",
+		zap.Int("count", len(controls)),
+		zap.Duration("duration", time.Since(started)))
 
 	children := make([]*TreeNode, 0, len(controls))
 
