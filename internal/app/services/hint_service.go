@@ -83,6 +83,7 @@ func (s *HintService) GenerateHints(
 	filterTextContains []string,
 	bundleID string,
 	strategyOverride string,
+	captureScopeOverride string,
 	labelDirectionOverride string,
 	splitWord bool,
 ) ([]*hint.Interface, error) {
@@ -116,6 +117,11 @@ func (s *HintService) GenerateHints(
 		strategy = strategyOverride
 	}
 
+	captureScope := cfg.CaptureScopeForApp(bundleID)
+	if captureScopeOverride != "" {
+		captureScope = captureScopeOverride
+	}
+
 	labelDirection := cfg.LabelDirectionForApp(bundleID)
 	if labelDirectionOverride != "" {
 		labelDirection = labelDirectionOverride
@@ -135,9 +141,9 @@ func (s *HintService) GenerateHints(
 
 	switch strategy {
 	case domain.StrategyVision:
-		elements = s.generateHintsVision(ctx, bundleID, filter, splitWord)
-	case domain.StrategyWLKBPTR:
-		elements = s.generateHintsWLKBPTR(ctx, bundleID)
+		elements = s.generateHintsVision(ctx, filter, captureScope, splitWord)
+	case domain.StrategyContour:
+		elements = s.generateHintsContour(ctx, filter, captureScope)
 	default:
 		elements, genErr = s.generateHintsAX(ctx, filter)
 	}
@@ -270,29 +276,11 @@ func (s *HintService) generateHintsAX(
 // uses vision-based detection for apps with poor AX trees.
 func (s *HintService) generateHintsVision(
 	ctx context.Context,
-	_ string,
 	filter ports.ElementFilter,
+	captureScope string,
 	splitWord bool,
 ) []*element.Element {
-	// Collect supplementary elements (menubar, dock, NC, etc.) via AX.
-	// These are system-level components that vision should not attempt to detect.
-	var allElements []*element.Element
-
-	supplementStart := time.Now()
-	supplementFilter := filter
-	supplementFilter.Roles = nil               // no role filtering for supplementary elements
-	supplementFilter.SkipWindowElements = true // vision handles the window
-
-	supplementElements, err := s.accessibility.ClickableElements(ctx, supplementFilter)
-	if err != nil {
-		s.logger.Debug("Failed to get supplementary elements via AX", zap.Error(err))
-	} else {
-		allElements = append(allElements, supplementElements...)
-	}
-
-	s.logger.Debug("TIMING: Supplementary elements (AX)",
-		zap.Duration("elapsed", time.Since(supplementStart)),
-		zap.Int("count", len(supplementElements)))
+	allElements := s.supplementaryElements(ctx, filter)
 
 	if s.vision == nil {
 		s.logger.Warn("Vision strategy selected but vision port is unavailable")
@@ -300,29 +288,9 @@ func (s *HintService) generateHintsVision(
 		return allElements
 	}
 
-	// Get focused window bounds for vision detection
-	windowBounds, found, boundsErr := s.system.FocusedWindowBounds(ctx)
-	if boundsErr != nil || !found {
-		// The two ways of getting here are not the same event. found=false with
-		// no error is a desktop with nothing focused — routine, and the whole
-		// screen is the right answer. An error means the platform could not
-		// answer at all, and then scanning the whole screen is a degradation
-		// nobody asked for: slower, noisier, and silent until now.
-		if boundsErr != nil {
-			s.logger.Warn(
-				"Could not read the focused window, scanning the whole screen instead",
-				zap.Error(boundsErr),
-			)
-		} else {
-			s.logger.Debug("No focused window, scanning the whole screen")
-		}
-
-		windowBounds, boundsErr = s.system.ScreenBounds(ctx)
-		if boundsErr != nil {
-			s.logger.Error("Failed to get screen bounds for vision detection", zap.Error(boundsErr))
-
-			return allElements
-		}
+	windowBounds, ok := s.resolveDetectionBounds(ctx, captureScope)
+	if !ok {
+		return allElements
 	}
 
 	// Detect window elements via vision
@@ -370,101 +338,113 @@ func (s *HintService) generateHintsVision(
 	return allElements
 }
 
-// generateHintsWLKBPTR detects interactive targets across the active screen
-// using the wl-kbptr contour detection algorithm. Scanning the active screen
-// rather than only the focused window ensures that desktop notifications,
-// status bars, and adjacent tiled windows are all detected as clickable targets.
-func (s *HintService) generateHintsWLKBPTR(
+// supplementaryElements collects the system surfaces the include_* options
+// ask for (menubar, dock, notification center, stage manager) through the
+// accessibility tree, with the window itself skipped because a capture
+// strategy is about to scan it. Roles are not filtered here: the role filter
+// is meant for the window's own elements.
+func (s *HintService) supplementaryElements(
 	ctx context.Context,
-	_ string,
+	filter ports.ElementFilter,
 ) []*element.Element {
-	screenBounds, screenErr := s.resolveWLKBPTRScreenBounds(ctx)
-	if screenErr != nil || screenBounds.Empty() {
-		s.logger.Error(
-			"Failed to resolve screen bounds for wl-kbptr detection",
-			zap.Error(screenErr),
-		)
+	supplementStart := time.Now()
+	supplementFilter := filter
+	supplementFilter.Roles = nil
+	supplementFilter.SkipWindowElements = true
+
+	supplementElements, err := s.accessibility.ClickableElements(ctx, supplementFilter)
+	if err != nil {
+		s.logger.Debug("Failed to get supplementary elements via AX", zap.Error(err))
 
 		return nil
 	}
 
-	wlkbptrStart := time.Now()
-	elements, err := s.vision.DetectWLKBPTR(ctx, screenBounds)
-	s.logger.Debug("TIMING: Window elements (wl-kbptr)",
-		zap.Duration("elapsed", time.Since(wlkbptrStart)),
+	s.logger.Debug("TIMING: Supplementary elements (AX)",
+		zap.Duration("elapsed", time.Since(supplementStart)),
+		zap.Int("count", len(supplementElements)))
+
+	return supplementElements
+}
+
+// generateHintsContour is the vision path with the contour detector in place
+// of recognition: the same include_* supplement from the accessibility tree,
+// the same focused-window region, so the two strategies are interchangeable
+// per app.
+func (s *HintService) generateHintsContour(
+	ctx context.Context,
+	filter ports.ElementFilter,
+	captureScope string,
+) []*element.Element {
+	allElements := s.supplementaryElements(ctx, filter)
+
+	if s.vision == nil {
+		s.logger.Warn("Contour strategy selected but vision port is unavailable")
+
+		return allElements
+	}
+
+	windowBounds, ok := s.resolveDetectionBounds(ctx, captureScope)
+	if !ok {
+		return allElements
+	}
+
+	contourStart := time.Now()
+	elements, err := s.vision.DetectContours(ctx, windowBounds)
+	s.logger.Debug("TIMING: Window elements (contour)",
+		zap.Duration("elapsed", time.Since(contourStart)),
 		zap.Int("count", len(elements)),
 		zap.Error(err),
 	)
 
 	if err != nil {
-		s.logger.Error("Failed to detect elements via wl-kbptr", zap.Error(err))
+		s.logger.Error("Failed to detect elements via contour", zap.Error(err))
 
-		return nil
+		if derrors.IsNotSupported(err) {
+			s.notifyVisionUnavailable(ctx, err.Error())
+		}
+
+		return allElements
 	}
 
-	return elements
+	return append(allElements, elements...)
 }
 
-// resolveWLKBPTRScreenBounds determines the active display bounds for wl-kbptr detection.
-// It prefers the monitor holding the focused window (matching resolveHintsScreenBounds)
-// so multi-monitor setups capture the display the user is interacting with, and falls back
-// to the monitor holding the cursor.
-func (s *HintService) resolveWLKBPTRScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	var fallback image.Rectangle
-	if s.system != nil {
-		bounds, boundsErr := s.system.ScreenBounds(ctx)
-		if boundsErr == nil {
-			fallback = bounds
+// resolveDetectionBounds is the region a screen-capture strategy scans: the
+// whole screen when capture_scope asks for it, otherwise the focused window,
+// or the whole screen when nothing is focused. The two ways of lacking a
+// window are not the same event. found=false with no error is a
+// desktop with nothing focused, routine, and the whole screen is the right
+// answer. An error means the platform could not answer at all, and then
+// scanning the whole screen is a degradation nobody asked for: slower, noisier,
+// and silent until now, so it is logged at warn.
+func (s *HintService) resolveDetectionBounds(
+	ctx context.Context,
+	captureScope string,
+) (image.Rectangle, bool) {
+	if captureScope != domain.CaptureScopeScreen {
+		windowBounds, found, boundsErr := s.system.FocusedWindowBounds(ctx)
+
+		switch {
+		case boundsErr == nil && found:
+			return windowBounds, true
+		case boundsErr != nil:
+			s.logger.Warn(
+				"Could not read the focused window, scanning the whole screen instead",
+				zap.Error(boundsErr),
+			)
+		default:
+			s.logger.Debug("No focused window, scanning the whole screen")
 		}
 	}
 
-	if s.system == nil {
-		if !fallback.Empty() {
-			return fallback, nil
-		}
+	screenBounds, screenErr := s.system.ScreenBounds(ctx)
+	if screenErr != nil {
+		s.logger.Error("Failed to get screen bounds for detection", zap.Error(screenErr))
 
-		return image.Rectangle{}, derrors.New(derrors.CodeInternal, "system port is nil")
+		return image.Rectangle{}, false
 	}
 
-	windowBounds, found, err := s.system.FocusedWindowBounds(ctx)
-	if err != nil || !found || windowBounds.Empty() {
-		if !fallback.Empty() {
-			return fallback, nil
-		}
-
-		return image.Rectangle{}, err
-	}
-
-	if fallback.Empty() {
-		fallback = windowBounds
-	}
-
-	center := image.Point{
-		X: windowBounds.Min.X + windowBounds.Dx()/2,
-		Y: windowBounds.Min.Y + windowBounds.Dy()/2,
-	}
-
-	if !fallback.Empty() && center.In(fallback) {
-		return fallback, nil
-	}
-
-	names, namesErr := s.system.ScreenNames(ctx)
-	if namesErr != nil {
-		names = nil
-	}
-
-	for _, name := range names {
-		bounds, foundScreen, bErr := s.system.ScreenBoundsByName(ctx, name)
-		if bErr != nil || !foundScreen {
-			continue
-		}
-
-		if center.In(bounds) {
-			return bounds, nil
-		}
-	}
-
-	return fallback, nil
+	return screenBounds, true
 }
 
 // notifyVisionUnavailable tells the user, once, that the vision strategy

@@ -137,6 +137,26 @@ static CGImageRef captureDisplayImage(CGDirectDisplayID displayID) {
 	return createDisplayImage(displayID);
 }
 
+// displayContaining resolves which display holds rect, falling back to the
+// main display when none does.
+static CGDirectDisplayID displayContaining(CGRect rect) {
+	CGDirectDisplayID displays[32];
+	uint32_t displayCount;
+	CGError err = CGGetDisplaysWithRect(rect, 32, displays, &displayCount);
+	if (err != kCGErrorSuccess || displayCount == 0) {
+		return CGMainDisplayID();
+	}
+	return displays[0];
+}
+
+CGImageRef NeruCaptureDisplayContaining(CGRect rect, CGRect *outBounds) {
+	CGDirectDisplayID display = displayContaining(rect);
+	if (outBounds) {
+		*outBounds = CGDisplayBounds(display);
+	}
+	return captureDisplayImage(display);
+}
+
 static NSArray<VNRectangleObservation *> *detectRectangles(CGImageRef image, NeruVisionConfig config) {
 	VNDetectRectanglesRequest *request = [[VNDetectRectanglesRequest alloc] init];
 	request.maximumObservations = config.rectangleMaxCandidates;
@@ -177,20 +197,8 @@ static CGRect visionRectToCGRect(CGRect imageBounds, CGRect normalizedRect) {
 
 VisionResult *NeruDetectElements(CGRect screenBounds, NeruVisionConfig config) {
 	@autoreleasepool {
-		// Resolve which display contains the window
-		CGDirectDisplayID displays[32];
-		uint32_t displayCount;
-		CGError err = CGGetDisplaysWithRect(screenBounds, 32, displays, &displayCount);
-		CGDirectDisplayID display;
-		if (err != kCGErrorSuccess || displayCount == 0) {
-			display = CGMainDisplayID();
-		} else {
-			display = displays[0];
-		}
-
-		CGRect displayBounds = CGDisplayBounds(display);
-
-		CGImageRef image = captureDisplayImage(display);
+		CGRect displayBounds;
+		CGImageRef image = NeruCaptureDisplayContaining(screenBounds, &displayBounds);
 		if (!image) {
 			return emptyVisionResult();
 		}

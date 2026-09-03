@@ -32,9 +32,10 @@ type VisionPort interface {
 		splitWord bool,
 	) ([]*element.Element, error)
 
-	// DetectWLKBPTR captures a screenshot of the frontmost window and returns
-	// detected interactive UI elements using the wl-kbptr contour detection algorithm.
-	DetectWLKBPTR(
+	// DetectContours captures screenBounds and returns the interactive targets
+	// the contour detector (ported from wl-kbptr) finds in it, as clickable
+	// vision-only buttons with no title.
+	DetectContours(
 		ctx context.Context,
 		screenBounds image.Rectangle,
 	) ([]*element.Element, error)

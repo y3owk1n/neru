@@ -248,7 +248,13 @@ func hintsCases() []hintsCase {
 		{
 			name:      "bad strategy",
 			breakIt:   func(c *Config) { c.Hints.Strategy = "telepathy" },
-			message:   "[INVALID_CONFIG] hints.strategy must be \"axtree\", \"vision\", or \"wl-kbptr\"",
+			message:   "[INVALID_CONFIG] hints.strategy must be \"axtree\", \"vision\", or \"contour\"",
+			placement: HintPlacementBottom,
+		},
+		{
+			name:      "bad capture scope",
+			breakIt:   func(c *Config) { c.Hints.CaptureScope = "desk" },
+			message:   "[INVALID_CONFIG] hints.capture_scope must be \"window\" or \"screen\"",
 			placement: HintPlacementBottom,
 		},
 		{
@@ -300,7 +306,7 @@ func hintsCases() []hintsCase {
 				c.Hints.Strategy = "telepathy"
 				c.Hints.LabelDirection = placementSideways
 			},
-			message:   "[INVALID_CONFIG] hints.strategy must be \"axtree\", \"vision\", or \"wl-kbptr\"",
+			message:   "[INVALID_CONFIG] hints.strategy must be \"axtree\", \"vision\", or \"contour\"",
 			placement: HintPlacementBottom,
 		},
 	}

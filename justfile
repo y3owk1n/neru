@@ -294,6 +294,7 @@ test-foundation:
         ./internal/adapter/platform/modifierstate \
         ./internal/adapter/platform/mousestate \
         ./internal/adapter/systray/icon \
+        ./internal/adapter/vision/contour \
         ./internal/ports ./internal/ports/mocks \
         ./internal/domain/geometry
     @echo "✓ Cross-platform foundation tests passed"

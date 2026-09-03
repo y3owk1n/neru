@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -129,6 +130,8 @@ type repoFile struct {
 func walkRepoFiles(t *testing.T, repoRoot string, visit func(file repoFile)) {
 	t.Helper()
 
+	ignored := ignoredRepoFiles(t, repoRoot)
+
 	walkErr := filepath.WalkDir(
 		repoRoot,
 		func(entryPath string, entry os.DirEntry, err error) error {
@@ -150,6 +153,9 @@ func walkRepoFiles(t *testing.T, repoRoot string, visit func(file repoFile)) {
 			}
 
 			slashed := filepath.ToSlash(relPath)
+			if ignored[slashed] {
+				return nil
+			}
 
 			visit(repoFile{
 				abs:  entryPath,
@@ -164,6 +170,34 @@ func walkRepoFiles(t *testing.T, repoRoot string, visit func(file repoFile)) {
 	if walkErr != nil {
 		t.Fatalf("walking the checkout at %s: %v", repoRoot, walkErr)
 	}
+}
+
+// ignoredRepoFiles lists the files git ignores in the checkout, relative to
+// repoRoot and slash-separated. A stale build output at the root or a private
+// note under .git/info/exclude is not part of the tree a guardrail is guarding,
+// and judging it reports a path no diff contains and cannot fix.
+func ignoredRepoFiles(t *testing.T, repoRoot string) map[string]bool {
+	t.Helper()
+
+	ignored := map[string]bool{}
+
+	// A root that is not a checkout (the fixtures the walk's own tests build
+	// in a temp dir) ignores nothing.
+	out, err := exec.CommandContext(
+		t.Context(),
+		"git", "-C", repoRoot, "ls-files", "-z", "--others", "--ignored", "--exclude-standard",
+	).Output()
+	if err != nil {
+		return ignored
+	}
+
+	for rel := range strings.SplitSeq(string(out), "\x00") {
+		if rel != "" {
+			ignored[filepath.ToSlash(rel)] = true
+		}
+	}
+
+	return ignored
 }
 
 // assertWalkedAtLeast fails the test when a guardrail reached fewer than floor

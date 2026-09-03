@@ -47,6 +47,9 @@ const (
 	// FlagStrategy chooses how elements are detected.
 	FlagStrategy Flag = "strategy"
 
+	// FlagCaptureScope chooses the region the capture strategies scan.
+	FlagCaptureScope Flag = "capture-scope"
+
 	// FlagLabelDirection chooses how hint labels are enumerated.
 	FlagLabelDirection Flag = "label-direction"
 
@@ -74,7 +77,8 @@ const (
 	msgOnExitValue              = "--on-exit requires a value"
 	msgRoleValue                = "--role requires a value (use comma-separated: --role=button,link)"
 	msgTextValue                = "--text requires a value (use comma-separated: --text=foo,bar)"
-	msgStrategyValue            = "--strategy requires axtree, vision, or wl-kbptr"
+	msgStrategyValue            = "--strategy requires axtree, vision, or contour"
+	msgCaptureScopeValue        = "--capture-scope requires window or screen"
 	msgLabelDirectionValue      = "--label-direction requires normal or reverse"
 	msgZoomToDepthValue         = "--zoom-to-depth requires a non-negative integer"
 	msgCursorSelectionModeValue = "--cursor-selection-mode requires follow or hold"
@@ -103,7 +107,8 @@ const (
 	usageHideOnEmptySearch   = "Hide all hints when search query is empty (requires --search)"
 	usageRole                = "Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more"
 	usageText                = "Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more"
-	usageStrategy            = "Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux), or wl-kbptr (contour detection via embedded C)"
+	usageStrategy            = "Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr)"
+	usageCaptureScope        = "Region the vision and contour strategies scan: window (the focused window) or screen (the whole active screen)"
 	usageLabelDirection      = "Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)"
 	usageSplitWord           = "Split detected text into word-level regions (requires vision strategy)"
 	usageZoomToDepth         = "Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position"
@@ -472,6 +477,21 @@ var descriptors = []Descriptor{
 			return renderValue(FlagStrategy, activation.Strategy)
 		},
 	),
+	valueFlag(FlagCaptureScope, "", usageCaptureScope, msgCaptureScopeValue, hintsOnly,
+		func(activation *Activation, value string) error {
+			scope, err := ParseCaptureScope(value)
+			if err != nil {
+				return err
+			}
+
+			activation.CaptureScope = &scope
+
+			return nil
+		},
+		func(activation Activation) []string {
+			return renderValue(FlagCaptureScope, activation.CaptureScope)
+		},
+	),
 	valueFlag(FlagLabelDirection, "", usageLabelDirection, msgLabelDirectionValue, hintsOnly,
 		func(activation *Activation, value string) error {
 			if value != domain.LabelDirectionNormal && value != domain.LabelDirectionReverse {
@@ -566,8 +586,18 @@ func Lookup(name Flag) (Descriptor, bool) {
 // here is what stops the two from disagreeing about what "axtree" means.
 func ParseStrategy(value string) (string, error) {
 	if value != domain.StrategyAXTree && value != domain.StrategyVision &&
-		value != domain.StrategyWLKBPTR {
+		value != domain.StrategyContour {
 		return "", invalid(msgStrategyValue)
+	}
+
+	return value, nil
+}
+
+// ParseCaptureScope reads a capture scope, the value --capture-scope accepts.
+// Exported for the hints probe, for the reason ParseStrategy is.
+func ParseCaptureScope(value string) (string, error) {
+	if value != domain.CaptureScopeWindow && value != domain.CaptureScopeScreen {
+		return "", invalid(msgCaptureScopeValue)
 	}
 
 	return value, nil

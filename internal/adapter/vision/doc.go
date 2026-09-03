@@ -15,6 +15,11 @@
 // text-only (docs/adr/0013). adapter_other.go has neither half and refuses
 // everything.
 //
+// The contour strategy is a third detector, the wl-kbptr algorithm in the
+// contour subpackage, which is pure C and platform-neutral; darwin and linux
+// each feed it a frame from their own capture backend, so it lands wherever
+// capture does.
+//
 // Captured pixels and recognized text are both screen content. Neither is
 // logged, written to disk, or held past the call that asked for it; the native
 // buffers behind them are wiped before they are released, and the engine is

@@ -150,7 +150,7 @@ func TestHintService_GenerateHintsVisionCombinesSupplementaryAndWindowElements(
 		nil,
 		nil,
 		"com.example.app",
-		domain.StrategyVision,
+		domain.StrategyVision, "",
 		"",
 		false,
 	)
@@ -211,7 +211,7 @@ func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
 		nil,
 		nil,
 		"com.example.app",
-		domain.StrategyVision,
+		domain.StrategyVision, "",
 		"",
 		false,
 	)
@@ -266,7 +266,7 @@ func TestHintService_GenerateHintsVisionNotifiesWhenTheStrategyIsUnavailable(t *
 
 	for range 3 {
 		_, err := service.GenerateHints(
-			context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", false,
+			context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", "", false,
 		)
 		if err != nil {
 			t.Fatalf("GenerateHints() unexpected error: %v", err)
@@ -332,7 +332,7 @@ func TestHintService_GenerateHintsVisionNoticeSurvivesTheActivationContext(t *te
 	ctx, cancel := context.WithCancel(context.Background())
 
 	_, err := service.GenerateHints(
-		ctx, nil, nil, "com.example.app", domain.StrategyVision, "", false,
+		ctx, nil, nil, "com.example.app", domain.StrategyVision, "", "", false,
 	)
 	if err != nil {
 		t.Fatalf("GenerateHints() unexpected error: %v", err)
@@ -390,7 +390,7 @@ func TestHintService_GenerateHintsVisionRetriesANoticeThatFailedToSend(t *testin
 
 	for seen < 2 {
 		_, err := service.GenerateHints(
-			context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", false,
+			context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", "", false,
 		)
 		if err != nil {
 			t.Fatalf("GenerateHints() unexpected error: %v", err)
@@ -440,7 +440,7 @@ func TestHintService_GenerateHintsVisionStaysQuietForAnOrdinaryFailure(t *testin
 	)
 
 	_, err := service.GenerateHints(
-		context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", false,
+		context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", "", false,
 	)
 	if err != nil {
 		t.Fatalf("GenerateHints() unexpected error: %v", err)
@@ -625,7 +625,7 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 	// to the default normal generator. The normal algorithm keeps 3
 	// single-char slots ([A S D]) and expands the 4th alphabet slot (F)
 	// into 2-char labels starting at [FA].
-	hints, err := service.GenerateHints(ctx, nil, nil, "", "", "", false)
+	hints, err := service.GenerateHints(ctx, nil, nil, "", "", "", "", false)
 	if err != nil {
 		t.Fatalf("GenerateHints() unexpected error: %v", err)
 	}
@@ -646,7 +646,16 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 	// The reverse algorithm fills all 4 single-char slots ([AA SA DA FA])
 	// before yielding a 2-char label ([AS]). The 1st and 5th labels (AA, AS)
 	// prove the override actually engaged.
-	hints, err = service.GenerateHints(ctx, nil, nil, "", "", domain.LabelDirectionReverse, false)
+	hints, err = service.GenerateHints(
+		ctx,
+		nil,
+		nil,
+		"",
+		"",
+		"",
+		domain.LabelDirectionReverse,
+		false,
+	)
 	if err != nil {
 		t.Fatalf("GenerateHints() with reverse override unexpected error: %v", err)
 	}
@@ -761,7 +770,7 @@ func (m *mockVisionPort) DetectElements(
 	return m.detectedElements, nil
 }
 
-func (m *mockVisionPort) DetectWLKBPTR(
+func (m *mockVisionPort) DetectContours(
 	context.Context,
 	image.Rectangle,
 ) ([]*element.Element, error) {
@@ -780,7 +789,7 @@ func (m *mockVisionPort) Health(context.Context) error {
 	return nil
 }
 
-func TestHintService_GenerateHintsWLKBPTR(t *testing.T) {
+func TestHintService_GenerateHintsContour(t *testing.T) {
 	t.Parallel()
 
 	elem, err := element.NewElement(
@@ -818,7 +827,7 @@ func TestHintService_GenerateHintsWLKBPTR(t *testing.T) {
 		nil,
 		nil,
 		"com.example.app",
-		domain.StrategyWLKBPTR,
+		domain.StrategyContour, "",
 		"",
 		false,
 	)
@@ -831,12 +840,79 @@ func TestHintService_GenerateHintsWLKBPTR(t *testing.T) {
 	}
 }
 
-func TestHintService_GenerateHintsWLKBPTR_ScansActiveScreenBounds(t *testing.T) {
+func TestHintService_GenerateHintsContourCombinesSupplementaryAndWindowElements(
+	t *testing.T,
+) {
+	supplementElement := mustNewElement("menubar", image.Rect(10, 0, 60, 20))
+	windowElement := mustNewElement("window", image.Rect(10, 40, 60, 90))
+
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockAcc.ClickableElementsFunc = func(
+		_ context.Context,
+		filter ports.ElementFilter,
+	) ([]*element.Element, error) {
+		if !filter.SkipWindowElements {
+			t.Error("accessibility should not collect window elements when using contour strategy")
+
+			return nil, nil
+		}
+
+		return []*element.Element{supplementElement}, nil
+	}
+
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+		return image.Rect(0, 0, 200, 200), true, nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
+	service := services.NewHintService(
+		mockAcc,
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{
+			ClickableRoles:      []string{string(element.SemanticButton)},
+			IncludeMenubarHints: true,
+			IncludeDockHints:    true,
+		},
+		logger.Get(),
+		&mocks.MockVisionPort{
+			DetectContoursFunc: func(context.Context, image.Rectangle) ([]*element.Element, error) {
+				return []*element.Element{windowElement}, nil
+			},
+		},
+	)
+
+	hints, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		domain.StrategyContour, "",
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	seen := map[element.ID]int{}
+	for _, generatedHint := range hints {
+		seen[generatedHint.Element().ID()]++
+	}
+
+	if seen[supplementElement.ID()] != 1 || seen[windowElement.ID()] != 1 {
+		t.Errorf("hint ids = %v, want one supplementary and one window element", seen)
+	}
+}
+
+func TestHintService_GenerateHintsContour_ScansFocusedWindow(t *testing.T) {
 	t.Parallel()
 
 	elem, err := element.NewElement(
-		element.ID("notif-btn"),
-		image.Rect(1800, 50, 1900, 90),
+		element.ID("window-btn"),
+		image.Rect(200, 150, 300, 190),
 		element.RoleButton,
 		element.WithClickable(true),
 		element.WithVisionOnly(),
@@ -848,7 +924,7 @@ func TestHintService_GenerateHintsWLKBPTR_ScansActiveScreenBounds(t *testing.T) 
 	var capturedRegion image.Rectangle
 
 	mockVision := &mocks.MockVisionPort{
-		DetectWLKBPTRFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+		DetectContoursFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
 			capturedRegion = region
 
 			return []*element.Element{elem}, nil
@@ -882,7 +958,7 @@ func TestHintService_GenerateHintsWLKBPTR_ScansActiveScreenBounds(t *testing.T) 
 		nil,
 		nil,
 		"com.example.app",
-		domain.StrategyWLKBPTR,
+		domain.StrategyContour, "",
 		"",
 		false,
 	)
@@ -894,13 +970,123 @@ func TestHintService_GenerateHintsWLKBPTR_ScansActiveScreenBounds(t *testing.T) 
 		t.Fatalf("len(hints) = %d, want 1", len(hints))
 	}
 
+	wantWindow := image.Rect(100, 100, 800, 600)
+	if capturedRegion != wantWindow {
+		t.Errorf(
+			"DetectContours captured region = %v, want focused window %v",
+			capturedRegion,
+			wantWindow,
+		)
+	}
+}
+
+func TestHintService_GenerateHintsContour_ScreenScopeSkipsTheWindow(t *testing.T) {
+	t.Parallel()
+
+	var capturedRegion image.Rectangle
+
+	mockVision := &mocks.MockVisionPort{
+		DetectContoursFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+			capturedRegion = region
+
+			return nil, nil
+		},
+	}
+
+	cfg := config.DefaultConfig().Hints
+	cfg.CaptureScope = domain.CaptureScopeScreen
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{
+			ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
+				return image.Rect(0, 0, 1920, 1080), nil
+			},
+			FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+				t.Error("screen scope must not ask for the focused window")
+
+				return image.Rect(100, 100, 800, 600), true, nil
+			},
+		},
+		generator,
+		cfg,
+		zap.NewNop(),
+		mockVision,
+	)
+
+	_, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		domain.StrategyContour, "",
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() failed: %v", err)
+	}
+
 	wantScreen := image.Rect(0, 0, 1920, 1080)
 	if capturedRegion != wantScreen {
-		t.Errorf(
-			"DetectWLKBPTR captured region = %v, want active screen %v",
-			capturedRegion,
-			wantScreen,
-		)
+		t.Errorf("DetectContours captured region = %v, want screen %v", capturedRegion, wantScreen)
+	}
+}
+
+func TestHintService_GenerateHintsContour_AppConfigWidensCaptureScope(t *testing.T) {
+	t.Parallel()
+
+	var capturedRegion image.Rectangle
+
+	cfg := config.DefaultConfig().Hints
+	cfg.AppConfigs = []config.AppConfig{{
+		BundleID:     "com.example.tiled",
+		CaptureScope: domain.CaptureScopeScreen,
+	}}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{
+			ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
+				return image.Rect(0, 0, 1920, 1080), nil
+			},
+			FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rect(100, 100, 800, 600), true, nil
+			},
+		},
+		generator,
+		cfg,
+		zap.NewNop(),
+		&mocks.MockVisionPort{
+			DetectContoursFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+				capturedRegion = region
+
+				return nil, nil
+			},
+		},
+	)
+
+	_, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.tiled",
+		domain.StrategyContour,
+		"",
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() failed: %v", err)
+	}
+
+	wantScreen := image.Rect(0, 0, 1920, 1080)
+	if capturedRegion != wantScreen {
+		t.Errorf("captured region = %v, want the app's screen scope %v", capturedRegion, wantScreen)
 	}
 }
 
@@ -925,7 +1111,7 @@ func TestHintService_GenerateHintsRejectsSplitWordForNonVisionStrategy(t *testin
 		nil,
 		nil,
 		"",
-		domain.StrategyAXTree,
+		domain.StrategyAXTree, "",
 		"",
 		true, // splitWord
 	)
@@ -996,7 +1182,7 @@ func TestHintService_GenerateHintsRoleFilterResolvingToNothing(t *testing.T) {
 				testCase.filterRoles,
 				nil,
 				"com.example.app",
-				"",
+				"", "",
 				"",
 				false,
 			)
@@ -1053,7 +1239,7 @@ func TestHintService_GenerateHintsRoleFlagOverridesConfig(t *testing.T) {
 		[]string{string(element.SemanticLink)},
 		nil,
 		"com.example.app",
-		"",
+		"", "",
 		"",
 		false,
 	)
@@ -1152,7 +1338,14 @@ func TestHintService_GenerateHintsVisionSaysWhyItFellBackToTheScreen(t *testing.
 			service := newVisionHintService(zap.New(core), testCase.bounds)
 
 			_, err := service.GenerateHints(
-				context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", false,
+				context.Background(),
+				nil,
+				nil,
+				"com.example.app",
+				domain.StrategyVision,
+				"",
+				"",
+				false,
 			)
 			if err != nil {
 				t.Fatalf("GenerateHints() unexpected error: %v", err)

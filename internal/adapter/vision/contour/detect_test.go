@@ -1,6 +1,6 @@
-//go:build linux && cgo
+//go:build cgo
 
-package linux_test
+package contour_test
 
 import (
 	"image"
@@ -8,23 +8,26 @@ import (
 	"image/draw"
 	"testing"
 
-	platformlinux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
 )
 
-func TestDetectWLKBPTRTargets_NilOrEmpty(t *testing.T) {
+func TestDetect_NilOrEmpty(t *testing.T) {
 	t.Parallel()
 
-	if res := platformlinux.DetectWLKBPTRTargets(nil, 1.0); res != nil {
-		t.Errorf("expected nil for nil image, got %v", res)
+	res, err := contour.Detect(nil, 1.0)
+	if err == nil || res != nil {
+		t.Errorf("Detect(nil) = %v, %v; want nil and an error", res, err)
 	}
 
 	empty := image.NewRGBA(image.Rect(0, 0, 0, 0))
-	if res := platformlinux.DetectWLKBPTRTargets(empty, 1.0); res != nil {
-		t.Errorf("expected nil for empty image, got %v", res)
+
+	res, err = contour.Detect(empty, 1.0)
+	if err == nil || res != nil {
+		t.Errorf("Detect(empty) = %v, %v; want nil and an error", res, err)
 	}
 }
 
-func TestDetectWLKBPTRTargets_ButtonDetection(t *testing.T) {
+func TestDetect_ButtonDetection(t *testing.T) {
 	t.Parallel()
 
 	w, h := 300, 200
@@ -47,7 +50,11 @@ func TestDetectWLKBPTRTargets_ButtonDetection(t *testing.T) {
 		img.Set(btnRect.Max.X-1, y, black)
 	}
 
-	targets := platformlinux.DetectWLKBPTRTargets(img, 1.0)
+	targets, err := contour.Detect(img, 1.0)
+	if err != nil {
+		t.Fatalf("Detect() error = %v", err)
+	}
+
 	if len(targets) == 0 {
 		t.Fatalf("expected at least 1 detected button target, got 0")
 	}
@@ -71,7 +78,7 @@ func TestDetectWLKBPTRTargets_ButtonDetection(t *testing.T) {
 	}
 }
 
-func TestDetectWLKBPTRTargets_FiltersNoiseAndOversized(t *testing.T) {
+func TestDetect_FiltersNoiseAndOversized(t *testing.T) {
 	t.Parallel()
 
 	w, h := 400, 300
@@ -98,7 +105,11 @@ func TestDetectWLKBPTRTargets_FiltersNoiseAndOversized(t *testing.T) {
 		img.Set(349, y, black)
 	}
 
-	targets := platformlinux.DetectWLKBPTRTargets(img, 1.0)
+	targets, err := contour.Detect(img, 1.0)
+	if err != nil {
+		t.Fatalf("Detect() error = %v", err)
+	}
+
 	for _, target := range targets {
 		if target.Min.X >= 48 && target.Max.X <= 54 && target.Min.Y >= 48 && target.Max.Y <= 54 {
 			t.Errorf("tiny noise dot should have been filtered out, got %v", target)
@@ -113,7 +124,7 @@ func TestDetectWLKBPTRTargets_FiltersNoiseAndOversized(t *testing.T) {
 	}
 }
 
-func TestDetectWLKBPTRTargets_NotificationCardWithoutButtons(t *testing.T) {
+func TestDetect_NotificationCardWithoutButtons(t *testing.T) {
 	t.Parallel()
 
 	w, h := 500, 300
@@ -134,7 +145,11 @@ func TestDetectWLKBPTRTargets_NotificationCardWithoutButtons(t *testing.T) {
 		img.Set(card.Max.X-1, y, black)
 	}
 
-	targets := platformlinux.DetectWLKBPTRTargets(img, 1.0)
+	targets, err := contour.Detect(img, 1.0)
+	if err != nil {
+		t.Fatalf("Detect() error = %v", err)
+	}
+
 	if len(targets) == 0 {
 		t.Fatalf("expected notification card to be detected, got 0 targets")
 	}
@@ -155,7 +170,7 @@ func TestDetectWLKBPTRTargets_NotificationCardWithoutButtons(t *testing.T) {
 	}
 }
 
-func TestDetectWLKBPTRTargets_ButtonInsideEnclosingContainer(t *testing.T) {
+func TestDetect_ButtonInsideEnclosingContainer(t *testing.T) {
 	t.Parallel()
 
 	w, h := 500, 400
@@ -188,7 +203,11 @@ func TestDetectWLKBPTRTargets_ButtonInsideEnclosingContainer(t *testing.T) {
 		img.Set(btn.Max.X-1, y, black)
 	}
 
-	targets := platformlinux.DetectWLKBPTRTargets(img, 1.0)
+	targets, err := contour.Detect(img, 1.0)
+	if err != nil {
+		t.Fatalf("Detect() error = %v", err)
+	}
+
 	if len(targets) == 0 {
 		t.Fatalf("expected button inside enclosing dialog to be detected, got 0 targets")
 	}

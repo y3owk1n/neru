@@ -202,12 +202,22 @@ func (c *Config) ValidateAppConfigs() error {
 			}
 
 			switch appConfig.Strategy {
-			case domain.StrategyAXTree, domain.StrategyVision, domain.StrategyWLKBPTR, "":
+			case domain.StrategyAXTree, domain.StrategyVision, domain.StrategyContour, "":
 			default:
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,
 					"hints.app_configs[%d].strategy must be %q, %q, or %q",
-					idx, domain.StrategyAXTree, domain.StrategyVision, domain.StrategyWLKBPTR,
+					idx, domain.StrategyAXTree, domain.StrategyVision, domain.StrategyContour,
+				)
+			}
+
+			switch appConfig.CaptureScope {
+			case domain.CaptureScopeWindow, domain.CaptureScopeScreen, "":
+			default:
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"hints.app_configs[%d].capture_scope must be %q or %q",
+					idx, domain.CaptureScopeWindow, domain.CaptureScopeScreen,
 				)
 			}
 

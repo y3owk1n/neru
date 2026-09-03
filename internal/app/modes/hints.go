@@ -198,6 +198,7 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		activation.FilterTextContains,
 		bundleID,
 		overrides.strategy,
+		overrides.captureScope,
 		overrides.labelDirection,
 		overrides.splitWord,
 	)

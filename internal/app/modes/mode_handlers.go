@@ -243,6 +243,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 		filterTextContains := h.hints.Context.FilterTextContains()
 		startWithSearch := h.hints.Context.StartWithSearch()
 		strategyOverride := h.hints.Context.StrategyOverride()
+		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 		splitWord := h.hints.Context.SplitWord()
 
@@ -260,6 +261,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 					FilterTextContains:    filterTextContains,
 					Search:                &startWithSearch,
 					Strategy:              &strategyOverride,
+					CaptureScope:          &captureScopeOverride,
 					LabelDirection:        &labelDirectionOverride,
 					SplitWord:             &splitWord,
 					// OnExit is left nil to preserve the stored steps across
@@ -278,6 +280,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 					h.hints.Context.SetFilterTextContains(filterTextContains)
 					h.hints.Context.SetStartWithSearch(startWithSearch)
 					h.hints.Context.SetStrategyOverride(strategyOverride)
+					h.hints.Context.SetCaptureScopeOverride(captureScopeOverride)
 					h.hints.Context.SetLabelDirectionOverride(labelDirectionOverride)
 					h.hints.Context.SetSplitWord(splitWord)
 				}

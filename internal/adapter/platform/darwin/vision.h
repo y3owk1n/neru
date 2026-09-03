@@ -37,5 +37,10 @@ VisionResult *NeruDetectElements(CGRect detectionRect, NeruVisionConfig config);
 // Returns a CGImageRef (caller must CFRelease).
 CGImageRef NeruCaptureScreen(void);
 
+// Captures the display containing rect (global top-left-origin points) and
+// reports that display's bounds in the same coordinates through outBounds.
+// Returns a CGImageRef (caller must CFRelease), or NULL when capture fails.
+CGImageRef NeruCaptureDisplayContaining(CGRect rect, CGRect *outBounds);
+
 // Frees a VisionResult previously returned by NeruDetectElements.
 void NeruFreeVisionResult(VisionResult *result);

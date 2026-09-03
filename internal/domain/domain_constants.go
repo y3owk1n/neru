@@ -76,9 +76,17 @@ const (
 	// StrategyVision detects elements from the screen image instead.
 	StrategyVision = "vision"
 
-	// StrategyWLKBPTR detects interactive targets from the screen image using
-	// the wl-kbptr contour detection algorithm.
-	StrategyWLKBPTR = "wl-kbptr"
+	// CaptureScopeWindow scans the focused window; the whole screen when
+	// nothing is focused.
+	CaptureScopeWindow = "window"
+
+	// CaptureScopeScreen scans the whole active screen, so notifications,
+	// panels and adjacent tiled windows get hints too.
+	CaptureScopeScreen = "screen"
+
+	// StrategyContour detects interactive targets from the screen image by
+	// edge and contour analysis, an algorithm ported from wl-kbptr.
+	StrategyContour = "contour"
 )
 
 // Hint label enumeration orders, the values hints.label_direction accepts.

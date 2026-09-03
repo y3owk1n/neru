@@ -28,6 +28,7 @@ var probeFlags = []modecmd.Flag{
 	modecmd.FlagRole,
 	modecmd.FlagText,
 	modecmd.FlagStrategy,
+	modecmd.FlagCaptureScope,
 	modecmd.FlagSplitWord,
 }
 

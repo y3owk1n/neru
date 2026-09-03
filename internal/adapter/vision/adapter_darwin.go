@@ -18,6 +18,7 @@ import (
 	"go.uber.org/zap"
 
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin" // ensure darwin CGo .m files are compiled
+	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -151,6 +152,11 @@ func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
 
 	defer C.CGImageRelease(cgImage)
 
+	return cgImageToRGBA(cgImage)
+}
+
+// cgImageToRGBA copies a CGImage into an RGBA buffer at its native pixel size.
+func cgImageToRGBA(cgImage C.CGImageRef) (*image.RGBA, error) {
 	width := int(C.CGImageGetWidth(cgImage))
 	height := int(C.CGImageGetHeight(cgImage))
 
@@ -210,13 +216,60 @@ func (a *Adapter) Health(ctx context.Context) error {
 	return nil
 }
 
-// DetectWLKBPTR reports not-supported: wl-kbptr strategy is only implemented on Linux.
-func (a *Adapter) DetectWLKBPTR(
-	_ context.Context,
-	_ image.Rectangle,
+// DetectContours captures the display holding screenBounds and runs the
+// contour detector over it. The frame is the whole display because that is
+// the unit the capture backend hands out; the rectangles come back in points,
+// are offset by the display origin (CGDisplayBounds is already global
+// top-left, so no flip is needed) and trimmed to screenBounds.
+func (a *Adapter) DetectContours(
+	ctx context.Context,
+	screenBounds image.Rectangle,
 ) ([]*element.Element, error) {
-	return nil, derrors.New(
-		derrors.CodeNotSupported,
-		"the wl-kbptr strategy is only implemented on Linux",
-	)
+	select {
+	case <-ctx.Done():
+		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+	default:
+	}
+
+	region := screenBounds.Canon()
+	if region.Empty() {
+		return nil, derrors.Newf(
+			derrors.CodeActionFailed,
+			"contour detection needs a region to read; %v is empty",
+			screenBounds,
+		)
+	}
+
+	cgRect := C.CGRect{
+		origin: C.CGPoint{x: C.double(region.Min.X), y: C.double(region.Min.Y)},
+		size:   C.CGSize{width: C.double(region.Dx()), height: C.double(region.Dy())},
+	}
+
+	var displayBounds C.CGRect
+
+	cgImage := C.NeruCaptureDisplayContaining(cgRect, &displayBounds)
+	if uintptr(cgImage) == 0 {
+		return nil, derrors.New(derrors.CodeInternal, "failed to capture display")
+	}
+
+	defer C.CGImageRelease(cgImage)
+
+	img, err := cgImageToRGBA(cgImage)
+	if err != nil {
+		return nil, err
+	}
+
+	scale := 1.0
+	if displayBounds.size.height > 0 {
+		scale = float64(img.Rect.Dy()) / float64(displayBounds.size.height)
+	}
+
+	origin := image.Pt(int(displayBounds.origin.x), int(displayBounds.origin.y))
+
+	rects, err := contour.Detect(img, scale)
+	if err != nil {
+		return nil, err
+	}
+
+	return contour.Elements(origin, region, rects), nil
 }

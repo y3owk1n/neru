@@ -397,6 +397,7 @@ func (h *handlerState) refreshHintsForMonitorMove(
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()
 	strategyOverride := h.hints.Context.StrategyOverride()
+	captureScopeOverride := h.hints.Context.CaptureScopeOverride()
 	labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 
 	splitWordOverride := false
@@ -410,6 +411,7 @@ func (h *handlerState) refreshHintsForMonitorMove(
 		filterTextContains,
 		"",
 		strategyOverride,
+		captureScopeOverride,
 		labelDirectionOverride,
 		splitWordOverride,
 	)

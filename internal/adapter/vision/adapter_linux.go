@@ -4,7 +4,6 @@ package vision
 
 import (
 	"context"
-	"fmt"
 	"image"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	platformlinux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -157,9 +157,8 @@ func (a *Adapter) CaptureScreen(ctx context.Context) (*image.RGBA, error) {
 	return a.captureRegion(ctx, image.Rectangle{})
 }
 
-// DetectWLKBPTR captures screenBounds and detects clickable UI targets using the
-// wl-kbptr contour detection algorithm.
-func (a *Adapter) DetectWLKBPTR(
+// DetectContours captures screenBounds and runs the contour detector over it.
+func (a *Adapter) DetectContours(
 	ctx context.Context,
 	screenBounds image.Rectangle,
 ) ([]*element.Element, error) {
@@ -173,7 +172,7 @@ func (a *Adapter) DetectWLKBPTR(
 	if region.Empty() {
 		return nil, derrors.Newf(
 			derrors.CodeActionFailed,
-			"wl-kbptr detection needs a region to read; %v is empty",
+			"contour detection needs a region to read; %v is empty",
 			screenBounds,
 		)
 	}
@@ -188,39 +187,12 @@ func (a *Adapter) DetectWLKBPTR(
 		scale = float64(img.Rect.Dy()) / float64(region.Dy())
 	}
 
-	rects := platformlinux.DetectWLKBPTRTargets(img, scale)
-	elements := make([]*element.Element, 0, len(rects))
-
-	for _, rect := range rects {
-		globalBounds := image.Rect(
-			region.Min.X+rect.Min.X,
-			region.Min.Y+rect.Min.Y,
-			region.Min.X+rect.Max.X,
-			region.Min.Y+rect.Max.Y,
-		)
-
-		elementID := element.ID(fmt.Sprintf("wlkbptr-%d-%d-%d-%d",
-			globalBounds.Min.X,
-			globalBounds.Min.Y,
-			globalBounds.Dx(),
-			globalBounds.Dy(),
-		))
-
-		elem, elErr := element.NewElement(
-			elementID,
-			globalBounds,
-			element.RoleButton,
-			element.WithClickable(true),
-			element.WithVisionOnly(),
-		)
-		if elErr != nil {
-			continue
-		}
-
-		elements = append(elements, elem)
+	rects, err := contour.Detect(img, scale)
+	if err != nil {
+		return nil, err
 	}
 
-	return elements, nil
+	return contour.Elements(region.Min, region, rects), nil
 }
 
 // Health reports whether the vision strategy can run on this machine, by

@@ -400,6 +400,7 @@ func defaultHints() HintsConfig {
 	return HintsConfig{
 		Enabled:        true,
 		Strategy:       domain.StrategyAXTree,
+		CaptureScope:   domain.CaptureScopeWindow,
 		HintCharacters: "asdfghjkl",
 		LabelDirection: domain.LabelDirectionNormal,
 		MaxDepth:       DefaultMaxDepth,

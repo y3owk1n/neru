@@ -9,24 +9,24 @@ const (
 		"so detection returns nothing and no hints appear; use axtree"
 	noteSplitWord = "splitting detected text into words needs the vision strategy, " +
 		"which Windows has no engine for; there the flag is refused rather than ignored"
-	noteWLKBPTRStrategy = "the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux"
+	noteCaptureScope = "capture_scope only shapes the vision and contour strategies, " +
+		"and Windows has no capture backend for either"
+	noteContourStrategy = "the contour strategy runs edge detection over a screen capture, " +
+		"which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree"
 )
 
 // visionStrategy is the --strategy value that selects the vision engine. The
 // flag itself is recognized everywhere; this one value of it is not.
 const (
 	visionStrategy  = "vision"
-	wlkbptrStrategy = "wl-kbptr"
+	contourStrategy = "contour"
 )
 
 // darwinAndLinux is the column the vision words carry: both platforms have an
 // element-detection engine behind the strategy, and Windows has none. Named
 // rather than written out at each site so a reader compares the two by the same
 // words, as config's declaration does.
-var (
-	darwinAndLinux = parity.Platforms{parity.Darwin, parity.Linux}
-	linuxOnly      = parity.Platforms{parity.Linux}
-)
+var darwinAndLinux = parity.Platforms{parity.Darwin, parity.Linux}
 
 // PlatformSupport declares, for every mode flag, the platforms on which
 // writing it does something.
@@ -47,9 +47,12 @@ func PlatformSupport() parity.Declaration {
 			visionStrategy,
 			FlagStrategy.String(),
 		),
-		parity.ValueOn(parity.KindModeFlag, linuxOnly, noteWLKBPTRStrategy,
-			wlkbptrStrategy,
+		parity.ValueOn(parity.KindModeFlag, darwinAndLinux, noteContourStrategy,
+			contourStrategy,
 			FlagStrategy.String(),
+		),
+		parity.On(parity.KindModeFlag, darwinAndLinux, noteCaptureScope,
+			FlagCaptureScope.String(),
 		),
 
 		parity.Everywhere(parity.KindModeFlag,

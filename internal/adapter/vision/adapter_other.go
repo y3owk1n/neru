@@ -25,14 +25,15 @@ func (a *Adapter) DetectElements(
 	)
 }
 
-// DetectWLKBPTR reports not-supported on non-Linux platforms.
-func (a *Adapter) DetectWLKBPTR(
+// DetectContours reports not-supported: the detector is platform-neutral, but
+// Windows has no capture backend to feed it a frame.
+func (a *Adapter) DetectContours(
 	_ context.Context,
 	_ image.Rectangle,
 ) ([]*element.Element, error) {
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
-		"wl-kbptr element detection is only implemented on Linux",
+		"contour element detection needs a screen capture backend, which this platform lacks",
 	)
 }
 
