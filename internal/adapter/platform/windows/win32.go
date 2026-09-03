@@ -62,6 +62,7 @@ var (
 	procEnumDisplayMonitors = user32.NewProc("EnumDisplayMonitors")
 	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
 	procMonitorFromPoint    = user32.NewProc("MonitorFromPoint")
+	procMonitorFromWindow   = user32.NewProc("MonitorFromWindow")
 	procEnumDisplayDevicesW = user32.NewProc("EnumDisplayDevicesW")
 )
 
@@ -409,7 +410,41 @@ func focusedWindowBounds() (image.Rectangle, bool, error) {
 		return image.Rectangle{}, false, fmt.Errorf("GetWindowRect: %w", callErr)
 	}
 
-	return rectToImage(rect), true, nil
+	return clipToOwnMonitor(hwnd, rectToImage(rect))
+}
+
+// clipToOwnMonitor intersects a window rectangle with the monitor the window
+// is on.
+//
+// GetWindowRect reports the frame Windows tracks rather than the frame a user
+// sees: a maximized window overhangs its monitor by the invisible resize border
+// on every side, and a window dragged across a seam straddles two monitors.
+// Neither overhang holds anything hintable, and a screen-capture strategy that
+// asked for it would be refused, because a frame that leaves the screen cannot
+// be placed. The window is clipped here, where every consumer of the focused
+// window sees the same rectangle, rather than in the capture path alone. A
+// window with nothing left on its monitor reads as no focused window.
+func clipToOwnMonitor(hwnd windows.HWND, rect image.Rectangle) (image.Rectangle, bool, error) {
+	ret, _, err := procMonitorFromWindow.Call(uintptr(hwnd), uintptr(monitorDefaultToNearest))
+	if ret == 0 {
+		if err != nil && !errors.Is(err, syscall.Errno(0)) {
+			return image.Rectangle{}, false, fmt.Errorf("MonitorFromWindow: %w", err)
+		}
+
+		return rect, true, nil
+	}
+
+	info, infoErr := getMonitorInfo(windows.Handle(ret))
+	if infoErr != nil {
+		return image.Rectangle{}, false, infoErr
+	}
+
+	clipped := rect.Intersect(rectToImage(info.rcMonitor))
+	if clipped.Empty() {
+		return image.Rectangle{}, false, nil
+	}
+
+	return clipped, true, nil
 }
 
 // ForegroundWindowHandle returns the foreground top-level window handle for

@@ -247,7 +247,7 @@ is the fallback — tesseract, text only, and on KDE behind a one-time
 screen-sharing prompt, because KWin's only pixel source is the desktop portal.
 On **Windows**, UI Automation coverage is initial and the
 tree walk is shallow, per-app config does not re-apply when you change windows,
-and there is no OCR fallback at all. **Linux requires X11 or Wayland on
+and the capture fallback is `contour` rather than OCR. **Linux requires X11 or Wayland on
 wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
 
 → [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)

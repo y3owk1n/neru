@@ -9,18 +9,13 @@ const (
 		"so detection returns nothing and no hints appear; use axtree"
 	noteSplitWord = "splitting detected text into words needs the vision strategy, " +
 		"which Windows has no engine for; there the flag is refused rather than ignored"
-	noteCaptureScope = "capture_scope only shapes the vision and contour strategies, " +
-		"and Windows has no capture backend for either"
-	noteContourStrategy = "the contour strategy runs edge detection over a screen capture, " +
-		"which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree"
 )
 
 // visionStrategy is the --strategy value that selects the vision engine. The
-// flag itself is recognized everywhere; this one value of it is not.
-const (
-	visionStrategy  = "vision"
-	contourStrategy = "contour"
-)
+// flag itself is recognized everywhere; this one value of it is not. The
+// contour value carries no declaration: every platform captures the screen it
+// runs over.
+const visionStrategy = "vision"
 
 // darwinAndLinux is the column the vision words carry: both platforms have an
 // element-detection engine behind the strategy, and Windows has none. Named
@@ -47,13 +42,6 @@ func PlatformSupport() parity.Declaration {
 			visionStrategy,
 			FlagStrategy.String(),
 		),
-		parity.ValueOn(parity.KindModeFlag, darwinAndLinux, noteContourStrategy,
-			contourStrategy,
-			FlagStrategy.String(),
-		),
-		parity.On(parity.KindModeFlag, darwinAndLinux, noteCaptureScope,
-			FlagCaptureScope.String(),
-		),
 
 		parity.Everywhere(parity.KindModeFlag,
 			FlagAction.String(),
@@ -66,6 +54,7 @@ func PlatformSupport() parity.Declaration {
 			FlagRole.String(),
 			FlagText.String(),
 			FlagStrategy.String(),
+			FlagCaptureScope.String(),
 			FlagLabelDirection.String(),
 			FlagZoomToDepth.String(),
 			FlagCursorSelectionMode.String(),

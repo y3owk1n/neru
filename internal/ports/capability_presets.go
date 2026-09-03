@@ -203,7 +203,8 @@ func WindowsCapabilities() PlatformCapabilities {
 				"to the event tap's key stream",
 		),
 		Vision: stubCapability(
-			"no OCR/vision element detection; hints come from UI Automation only",
+			"no OCR/vision element detection; the contour strategy runs over a " +
+				"BitBlt screen capture, text hints come from UI Automation only",
 		),
 		KeyFeed: stubCapability(
 			"key injection not implemented yet; target SendInput",
