@@ -13,7 +13,10 @@ import (
 // broadcast to the watcher's own hidden window and checks that it comes out
 // the callback.
 
-var procPostMessageW = user32.NewProc("PostMessageW")
+var (
+	procPostMessageW = user32.NewProc("PostMessageW")
+	procSendMessageW = user32.NewProc("SendMessageW")
+)
 
 func waitForCount(t *testing.T, counter *atomic.Int32, want int32) {
 	t.Helper()
@@ -48,10 +51,9 @@ func TestDisplayWatcher_ObservesDisplayChangePostedToHiddenWindow(t *testing.T) 
 
 	waitForCount(t, &fired, 1)
 
-	ret, _, callErr = procPostMessageW.Call(hwnd, wmDPIChanged, 0, 0)
-	if ret == 0 {
-		t.Fatalf("PostMessageW(WM_DPICHANGED): %v", callErr)
-	}
+	// WM_DPICHANGED carries a pointer and may only be sent, not posted; the
+	// send returns once the pump thread has run the window procedure.
+	discardCall(procSendMessageW.Call(hwnd, wmDPIChanged, 0, 0))
 
 	waitForCount(t, &fired, 2)
 
