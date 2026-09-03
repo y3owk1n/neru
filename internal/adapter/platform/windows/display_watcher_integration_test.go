@@ -11,12 +11,11 @@ import (
 // Real Win32 test for the display watcher. Changing the display mode on a CI
 // runner is not an option, so the test posts the message Windows would
 // broadcast to the watcher's own hidden window and checks that it comes out
-// the callback.
+// the callback. WM_DPICHANGED is not exercised: Windows validates it (it must
+// carry a RECT and only be sent, never posted) and a synthetic one does not
+// reach the window procedure.
 
-var (
-	procPostMessageW = user32.NewProc("PostMessageW")
-	procSendMessageW = user32.NewProc("SendMessageW")
-)
+var procPostMessageW = user32.NewProc("PostMessageW")
 
 func waitForCount(t *testing.T, counter *atomic.Int32, want int32) {
 	t.Helper()
@@ -50,12 +49,6 @@ func TestDisplayWatcher_ObservesDisplayChangePostedToHiddenWindow(t *testing.T) 
 	}
 
 	waitForCount(t, &fired, 1)
-
-	// WM_DPICHANGED carries a pointer and may only be sent, not posted; the
-	// send returns once the pump thread has run the window procedure.
-	discardCall(procSendMessageW.Call(hwnd, wmDPIChanged, 0, 0))
-
-	waitForCount(t, &fired, 2)
 
 	watcher.Stop()
 
