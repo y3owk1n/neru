@@ -448,12 +448,22 @@ func validateMissionControlSteps(field string, steps []string) error {
 // behaviors: how elements are found, and how labels are enumerated.
 func (c *Config) validateHintVocabulary() error {
 	switch c.Hints.Strategy {
-	case domain.StrategyAXTree, domain.StrategyVision, domain.StrategyWLKBPTR, "":
+	case domain.StrategyAXTree, domain.StrategyVision, domain.StrategyContour, "":
 	default:
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
 			"hints.strategy must be %q, %q, or %q",
-			domain.StrategyAXTree, domain.StrategyVision, domain.StrategyWLKBPTR,
+			domain.StrategyAXTree, domain.StrategyVision, domain.StrategyContour,
+		)
+	}
+
+	switch c.Hints.CaptureScope {
+	case domain.CaptureScopeWindow, domain.CaptureScopeScreen, "":
+	default:
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"hints.capture_scope must be %q or %q",
+			domain.CaptureScopeWindow, domain.CaptureScopeScreen,
 		)
 	}
 

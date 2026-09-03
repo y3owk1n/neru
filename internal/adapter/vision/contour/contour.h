@@ -1,5 +1,5 @@
-#ifndef NERU_WLKBPTR_H
-#define NERU_WLKBPTR_H
+#ifndef NERU_CONTOUR_H
+#define NERU_CONTOUR_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -8,9 +8,9 @@
 extern "C" {
 #endif
 
-#define NERU_WLKBPTR_OK 0
-#define NERU_WLKBPTR_ERR_INVALID 1
-#define NERU_WLKBPTR_ERR_ALLOC 2
+#define NERU_CONTOUR_OK 0
+#define NERU_CONTOUR_ERR_INVALID 1
+#define NERU_CONTOUR_ERR_ALLOC 2
 
 typedef struct {
 	int x;
@@ -24,7 +24,8 @@ typedef struct {
 	int count;
 } NeruTargetResult;
 
-// neru_wlkbptr_detect replicates the target detection algorithm from wl-kbptr:
+// neru_contour_detect is a port of the target detection algorithm in wl-kbptr
+// (https://github.com/moverest/wl-kbptr, MIT):
 // 1. Convert RGBA to Grayscale
 // 2. 5x5 Gaussian blur
 // 3. Sobel edge detection & gradient magnitude
@@ -34,15 +35,15 @@ typedef struct {
 // 7. Suzuki-Abe border following for hierarchical contour extraction
 // 8. Bounding box computation and hierarchical heuristic filtering
 //
-// Returns NERU_WLKBPTR_OK on success, or an error code on failure.
-// Result rects must be freed with neru_wlkbptr_free().
-int neru_wlkbptr_detect(
+// Returns NERU_CONTOUR_OK on success, or an error code on failure.
+// Result rects must be freed with neru_contour_free().
+int neru_contour_detect(
     const unsigned char *rgba, int width, int height, int stride, double scale, NeruTargetResult *out_result);
 
-void neru_wlkbptr_free(NeruTargetResult *result);
+void neru_contour_free(NeruTargetResult *result);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* NERU_WLKBPTR_H */
+#endif /* NERU_CONTOUR_H */

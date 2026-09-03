@@ -16,6 +16,7 @@ type baseContext struct {
 	filterTextContains     []string
 	startWithSearch        bool
 	strategyOverride       string
+	captureScopeOverride   string
 	labelDirectionOverride string
 	splitWord              bool
 }
@@ -89,6 +90,7 @@ func (c *baseContext) Reset() {
 	c.filterTextContains = nil
 	c.startWithSearch = false
 	c.strategyOverride = ""
+	c.captureScopeOverride = ""
 	c.labelDirectionOverride = ""
 	c.splitWord = false
 }
@@ -131,6 +133,16 @@ func (c *baseContext) SetStrategyOverride(strategy string) {
 // StrategyOverride returns the session hint collection strategy override.
 func (c *baseContext) StrategyOverride() string {
 	return c.strategyOverride
+}
+
+// SetCaptureScopeOverride stores the session capture scope override.
+func (c *baseContext) SetCaptureScopeOverride(scope string) {
+	c.captureScopeOverride = scope
+}
+
+// CaptureScopeOverride returns the session capture scope override.
+func (c *baseContext) CaptureScopeOverride() string {
+	return c.captureScopeOverride
 }
 
 // SetLabelDirectionOverride stores the session hint label direction override.

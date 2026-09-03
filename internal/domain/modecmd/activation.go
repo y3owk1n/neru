@@ -66,6 +66,9 @@ type Activation struct {
 	// Strategy chooses how elements are detected.
 	Strategy *string
 
+	// CaptureScope chooses the region the capture strategies scan.
+	CaptureScope *string
+
 	// LabelDirection chooses how hint labels are enumerated.
 	LabelDirection *string
 }

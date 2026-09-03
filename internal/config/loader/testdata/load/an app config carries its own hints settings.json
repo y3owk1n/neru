@@ -2,6 +2,7 @@
   "delta": [
     "+ .appConfigs[0].additionalClickable = null",
     "+ .appConfigs[0].bundleId = \"com.apple.Safari\"",
+    "+ .appConfigs[0].captureScope = \"\"",
     "+ .appConfigs[0].hotkeys = null",
     "+ .appConfigs[0].ignoreClickableCheck = null",
     "+ .appConfigs[0].labelDirection = \"\"",

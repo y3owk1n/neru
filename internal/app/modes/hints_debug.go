@@ -28,6 +28,7 @@ func (h *Handler) DebugProbeHints(
 	filterRoles []string,
 	filterTextContains []string,
 	strategy string,
+	captureScope string,
 	splitWord bool,
 ) (string, error) {
 	bundleID, bundleErr := h.actionService.FocusedAppBundleID(ctx)
@@ -46,6 +47,7 @@ func (h *Handler) DebugProbeHints(
 		filterTextContains,
 		bundleID,
 		strategy,
+		captureScope,
 		"", // labelDirectionOverride: probe uses the configured default
 		splitWord,
 	)

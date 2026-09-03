@@ -144,6 +144,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 		filterTextContains := h.hints.Context.FilterTextContains()
 		startWithSearch := h.hints.Context.StartWithSearch()
 		strategyOverride := h.hints.Context.StrategyOverride()
+		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 		splitWord := h.hints.Context.SplitWord()
 
@@ -154,6 +155,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 				FilterTextContains: filterTextContains,
 				Search:             &startWithSearch,
 				Strategy:           &strategyOverride,
+				CaptureScope:       &captureScopeOverride,
 				LabelDirection:     &labelDirectionOverride,
 				SplitWord:          &splitWord,
 				// OnExit is left nil to preserve the stored steps across
@@ -172,6 +174,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 				h.hints.Context.SetFilterTextContains(filterTextContains)
 				h.hints.Context.SetStartWithSearch(startWithSearch)
 				h.hints.Context.SetStrategyOverride(strategyOverride)
+				h.hints.Context.SetCaptureScopeOverride(captureScopeOverride)
 				h.hints.Context.SetLabelDirectionOverride(labelDirectionOverride)
 				h.hints.Context.SetSplitWord(splitWord)
 			}

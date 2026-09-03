@@ -346,9 +346,10 @@ places those pixels.
 ⁷ Linux `vision` is **text-only**, and permanently so. macOS runs three Vision
 requests — text recognition, rectangle detection and saliency — and an OCR
 engine answers the first. `hints.vision.detect_rectangles` and the four
-`rectangle_*` options are therefore declared macOS-only rather than met with a
-contour-detection library, which would be a heavy new required dependency for a
-sub-feature of a non-default strategy
+`rectangle_*` options are therefore declared macOS-only: they tune the Vision
+framework's rectangle request, which has no OCR equivalent. The `contour`
+strategy is a separate, dependency-free detector, not an implementation of
+`detect_rectangles`
 ([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)). The
 other fourteen `hints.vision.*` options are read on Linux exactly as they are on
 macOS.
@@ -1058,12 +1059,18 @@ green in every cell while an option means nothing, which is exactly how
 | `recursive_grid.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
 | `scroll.app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
 | `app_configs.strategy = vision` | option | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so it finds nothing there and none of its settings are read; use axtree |
-| `hints.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
-| `hints.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
-| `grid.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
-| `recursive_grid.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
-| `scroll.app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
-| `app_configs.strategy = wl-kbptr` | option | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `hints.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
+| `hints.app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
+| `grid.app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
+| `recursive_grid.app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
+| `scroll.app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
+| `app_configs.strategy = contour` | option | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
+| `hints.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
+| `hints.app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
+| `grid.app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
+| `recursive_grid.app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
+| `scroll.app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
+| `app_configs.capture_scope` | option | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
 | `recursive_grid.animation.enabled` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
 | `recursive_grid.animation.duration_ms` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
 | `monitor_select.enabled` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
@@ -1098,7 +1105,8 @@ green in every cell while an option means nothing, which is exactly how
 | `smooth_scroll.duration_per_pixel` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `--split-word` | mode flag | ✅ | ✅ | ❌ | splitting detected text into words needs the vision strategy, which Windows has no engine for; there the flag is refused rather than ignored |
 | `--strategy=vision` | mode flag | ✅ | ✅ | ❌ | the vision strategy needs an element-detection engine, which macOS has in the Vision framework and Linux in tesseract; Windows has neither, so detection returns nothing and no hints appear; use axtree |
-| `--strategy=wl-kbptr` | mode flag | ❌ | ✅ | ❌ | the wl-kbptr strategy detects UI elements via contour analysis of screen captures on Linux |
+| `--strategy=contour` | mode flag | ✅ | ✅ | ❌ | the contour strategy runs edge detection over a screen capture, which macOS and Linux can take and Windows cannot; there it finds nothing, use axtree |
+| `--capture-scope` | mode flag | ✅ | ✅ | ❌ | capture_scope only shapes the vision and contour strategies, and Windows has no capture backend for either |
 | `hide_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `show_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `scroll_left` | action | ✅ | ✅ | ❌ | the Windows wheel event carries no horizontal delta, so a sideways scroll injects nothing |

@@ -59,6 +59,10 @@ func applyHintFlagOverrides(ctx *hints.Context, activation modecmd.Activation) {
 		ctx.SetStrategyOverride(*activation.Strategy)
 	}
 
+	if activation.CaptureScope != nil {
+		ctx.SetCaptureScopeOverride(*activation.CaptureScope)
+	}
+
 	if activation.LabelDirection != nil {
 		ctx.SetLabelDirectionOverride(*activation.LabelDirection)
 	}
@@ -83,6 +87,7 @@ func applyHintFlagsFresh(ctx *hints.Context, activation modecmd.Activation) {
 	ctx.SetStartWithSearch(activation.Search != nil && *activation.Search)
 	ctx.SetHideOnEmptySearch(activation.HideOnEmptySearch != nil && *activation.HideOnEmptySearch)
 	ctx.SetStrategyOverride(derefOr(activation.Strategy, ""))
+	ctx.SetCaptureScopeOverride(derefOr(activation.CaptureScope, ""))
 	ctx.SetLabelDirectionOverride(derefOr(activation.LabelDirection, ""))
 	ctx.SetSplitWord(derefOr(activation.SplitWord, false))
 }
@@ -100,6 +105,7 @@ func derefOr[T any](value *T, fallback T) T {
 // hintOverrides are the settings that decide how a hint scan runs.
 type hintOverrides struct {
 	strategy       string
+	captureScope   string
 	labelDirection string
 	splitWord      bool
 }
@@ -112,6 +118,7 @@ func (h *handlerState) resolveHintOverrides(activation modecmd.Activation) hintO
 	if h.hints != nil && h.hints.Context != nil {
 		return hintOverrides{
 			strategy:       h.hints.Context.StrategyOverride(),
+			captureScope:   h.hints.Context.CaptureScopeOverride(),
 			labelDirection: h.hints.Context.LabelDirectionOverride(),
 			splitWord:      h.hints.Context.SplitWord(),
 		}
@@ -119,6 +126,7 @@ func (h *handlerState) resolveHintOverrides(activation modecmd.Activation) hintO
 
 	return hintOverrides{
 		strategy:       derefOr(activation.Strategy, ""),
+		captureScope:   derefOr(activation.CaptureScope, ""),
 		labelDirection: derefOr(activation.LabelDirection, ""),
 		splitWord:      derefOr(activation.SplitWord, false),
 	}

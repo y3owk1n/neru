@@ -40,7 +40,7 @@ const (
 	// The messages both this file and the diagnosis cases pin, so that the two
 	// readings of the same command are held to the same sentence.
 	msgRepeatNeedsAction = "--repeat requires --action"
-	msgStrategyValue     = "--strategy requires axtree, vision, or wl-kbptr"
+	msgStrategyValue     = "--strategy requires axtree, vision, or contour"
 	msgGridRejectsSearch = "grid does not accept --search"
 )
 
@@ -143,6 +143,12 @@ func flagCases() map[modecmd.Flag]flagCase {
 			args:    []string{"--strategy=vision"},
 			applied: func(a modecmd.Activation) bool { return a.Strategy != nil },
 			build:   func(a *modecmd.Activation) { a.Strategy = new("vision") },
+		},
+		modecmd.FlagCaptureScope: {
+			mode:    domain.ModeHints,
+			args:    []string{"--capture-scope=screen"},
+			applied: func(a modecmd.Activation) bool { return a.CaptureScope != nil },
+			build:   func(a *modecmd.Activation) { a.CaptureScope = new("screen") },
 		},
 		modecmd.FlagLabelDirection: {
 			mode:    domain.ModeHints,

@@ -31,9 +31,14 @@ var HintsCmd = BuildModeCommand(ModeConfig{
   instead of walking the accessibility tree — the Vision framework on macOS,
   tesseract OCR on Linux, where it finds text only. Not available on Windows.
 
-  Use --strategy wl-kbptr on Linux to detect interactive targets (buttons,
-  icons, text) via contour analysis of the captured window screen image
-  using the embedded wl-kbptr algorithm without external libraries.
+  Use --strategy contour to detect interactive targets (buttons, icons,
+  text) by edge and contour analysis of the focused window's pixels, an
+  algorithm ported from wl-kbptr. Faster than vision and needs no OCR engine,
+  but yields no text to search. Not available on Windows.
+
+  Both capture strategies scan the focused window. Use --capture-scope screen
+  to scan the whole active screen instead, so notifications, panels and
+  adjacent windows get hints too.
 
   Use --split-word to split detected text into word-level regions (requires
   vision strategy).
@@ -55,7 +60,8 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     neru hints --search --hide-on-empty-search  Start search with hints hidden until you type
     neru hints --role button                 Hint only buttons
     neru hints --strategy vision             Detect elements by screen recognition
-    neru hints --strategy wl-kbptr           Detect buttons and icons via contour analysis
+    neru hints --strategy contour           Detect buttons and icons via contour analysis
+    neru hints --strategy contour --capture-scope screen  Hint the whole screen, not just the window
     neru hints --strategy vision --split-word  Use vision strategy with word-level splitting
     neru hints --debug                       Print detected elements, no overlay (used on windows),
     neru hints --label-direction reverse     Use spread labels for this run`,

@@ -19,6 +19,7 @@ type probeOptions struct {
 	FilterRoles        []string
 	FilterTextContains []string
 	Strategy           string
+	CaptureScope       string
 	SplitWord          bool
 }
 
@@ -64,6 +65,21 @@ func readProbeFlag(args *probeArgs, opts *probeOptions) *ipc.Response {
 		}
 
 		opts.Strategy = strategy
+
+		return nil
+
+	case args.is(modecmd.FlagCaptureScope):
+		value, resp := args.take(valueMessage(modecmd.FlagCaptureScope))
+		if resp != nil {
+			return resp
+		}
+
+		scope, err := modecmd.ParseCaptureScope(value)
+		if err != nil {
+			return refuse(valueMessage(modecmd.FlagCaptureScope))
+		}
+
+		opts.CaptureScope = scope
 
 		return nil
 
@@ -125,6 +141,7 @@ func (h *ModesHandler) handleHintsProbe(ctx context.Context, cmd ipc.Command) ip
 		opts.FilterRoles,
 		opts.FilterTextContains,
 		opts.Strategy,
+		opts.CaptureScope,
 		opts.SplitWord,
 	)
 	if probeErr != nil {

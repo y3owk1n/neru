@@ -223,6 +223,7 @@ type StickyModifiersConfig struct {
 type AppConfig struct {
 	BundleID             string                         `json:"bundleId"             toml:"bundle_id"`
 	Strategy             string                         `json:"strategy"             toml:"strategy"`
+	CaptureScope         string                         `json:"captureScope"         toml:"capture_scope"`
 	LabelDirection       string                         `json:"labelDirection"       toml:"label_direction"`
 	AdditionalClickable  []string                       `json:"additionalClickable"  toml:"additional_clickable_roles"`
 	IgnoreClickableCheck *bool                          `json:"ignoreClickableCheck" toml:"ignore_clickable_check,omitempty"`
@@ -357,6 +358,7 @@ type HintsVisionConfig struct {
 type HintsConfig struct {
 	Enabled           bool                `json:"enabled"           toml:"enabled"`
 	Strategy          string              `json:"strategy"          toml:"strategy"`
+	CaptureScope      string              `json:"captureScope"      toml:"capture_scope"`
 	HintCharacters    string              `json:"hintCharacters"    toml:"hint_characters"`
 	LabelDirection    string              `json:"labelDirection"    toml:"label_direction"`
 	MaxDepth          int                 `json:"maxDepth"          toml:"max_depth"`

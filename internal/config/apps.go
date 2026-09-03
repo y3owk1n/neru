@@ -49,6 +49,10 @@ func (c *HintsConfig) MergedForApp(bundleID string) HintsConfig {
 		merged.Strategy = appConfig.Strategy
 	}
 
+	if appConfig.CaptureScope != "" {
+		merged.CaptureScope = appConfig.CaptureScope
+	}
+
 	if appConfig.LabelDirection != "" {
 		merged.LabelDirection = appConfig.LabelDirection
 	}
@@ -179,4 +183,10 @@ func (c *HintsConfig) ResolvedClickableRoles() []string {
 // Delegates to MergedForApp to handle the root→app-config override chain.
 func (c *HintsConfig) StrategyForApp(bundleID string) string {
 	return c.MergedForApp(bundleID).Strategy
+}
+
+// CaptureScopeForApp returns the region the capture strategies scan for the
+// given bundle ID, following the same root to app-config override chain.
+func (c *HintsConfig) CaptureScopeForApp(bundleID string) string {
+	return c.MergedForApp(bundleID).CaptureScope
 }

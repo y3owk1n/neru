@@ -1,4 +1,4 @@
-#include "wlkbptr.h"
+#include "contour.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -15,10 +15,10 @@ typedef struct {
 	int next_sibling;
 } Component;
 
-int neru_wlkbptr_detect(
+int neru_contour_detect(
     const unsigned char *rgba, int width, int height, int stride, double scale, NeruTargetResult *out_result) {
 	if (rgba == NULL || width <= 0 || height <= 0 || out_result == NULL) {
-		return NERU_WLKBPTR_ERR_INVALID;
+		return NERU_CONTOUR_ERR_INVALID;
 	}
 	if (scale <= 0.0) {
 		scale = 1.0;
@@ -32,7 +32,7 @@ int neru_wlkbptr_detect(
 	// 1. Grayscale conversion (ITU-R BT.601 integer arithmetic)
 	uint8_t *gray = (uint8_t *)malloc(total_pixels);
 	if (gray == NULL) {
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	for (int y = 0; y < height; y++) {
@@ -53,7 +53,7 @@ int neru_wlkbptr_detect(
 		free(gray);
 		free(tmp);
 		free(blurred);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	for (int y = 0; y < height; y++) {
@@ -91,7 +91,7 @@ int neru_wlkbptr_detect(
 		free(blurred);
 		free(mag);
 		free(dir);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	for (int y = 1; y < height - 1; y++) {
@@ -133,7 +133,7 @@ int neru_wlkbptr_detect(
 	if (nms == NULL) {
 		free(mag);
 		free(dir);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	for (int y = 1; y < height - 1; y++) {
@@ -180,7 +180,7 @@ int neru_wlkbptr_detect(
 		free(nms);
 		free(edges);
 		free(queue);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	int q_head = 0, q_tail = 0;
@@ -230,7 +230,7 @@ int neru_wlkbptr_detect(
 		free(edges);
 		free(dilated_h);
 		free(dilated);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	int radius_x = kw / 2;
@@ -271,7 +271,7 @@ int neru_wlkbptr_detect(
 		free(dilated);
 		free(visited);
 		free(ccl_queue);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	size_t comp_cap = 256;
@@ -281,7 +281,7 @@ int neru_wlkbptr_detect(
 		free(dilated);
 		free(visited);
 		free(ccl_queue);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	for (int y = 0; y < height; y++) {
@@ -297,7 +297,7 @@ int neru_wlkbptr_detect(
 						free(visited);
 						free(ccl_queue);
 						free(comps);
-						return NERU_WLKBPTR_ERR_ALLOC;
+						return NERU_CONTOUR_ERR_ALLOC;
 					}
 					comps = re;
 				}
@@ -393,7 +393,7 @@ int neru_wlkbptr_detect(
 		free(ry);
 		free(rw);
 		free(rh);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	for (size_t i = 0; i < comp_count; i++) {
@@ -420,7 +420,7 @@ int neru_wlkbptr_detect(
 		free(ry);
 		free(rw);
 		free(rh);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	int exp_count = 0;
@@ -511,7 +511,7 @@ int neru_wlkbptr_detect(
 		free(ry);
 		free(rw);
 		free(rh);
-		return NERU_WLKBPTR_ERR_ALLOC;
+		return NERU_CONTOUR_ERR_ALLOC;
 	}
 
 	int out_idx = 0;
@@ -531,10 +531,10 @@ int neru_wlkbptr_detect(
 	free(rw);
 	free(rh);
 
-	return NERU_WLKBPTR_OK;
+	return NERU_CONTOUR_OK;
 }
 
-void neru_wlkbptr_free(NeruTargetResult *result) {
+void neru_contour_free(NeruTargetResult *result) {
 	if (result != NULL && result->rects != NULL) {
 		free(result->rects);
 		result->rects = NULL;
