@@ -91,7 +91,7 @@ func initializeServicesAndAdapters(app *App) error {
 
 	// Initialize config service
 	cfgService := app.newConfigService(logger)
-	configurePlatformRuntimeConfigProviders(cfgService)
+	configurePlatformRuntimeConfigProviders(cfgService, logger)
 
 	// Initialize adapters
 	// accAdapter is retained on the App because the focus-change path calls

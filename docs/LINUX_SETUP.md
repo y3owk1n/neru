@@ -45,6 +45,7 @@ Host changes required before Neru runs correctly (not code changes):
 | 1   | Install [build dependencies](#build-dependencies)           | CGO backends and runtime libs         | All Linux | Yes                     |
 | 2   | Add user to `input` group: `sudo usermod -aG input "$USER"` | `evdev` keyboard capture **and Neru's own global hotkeys** on Wayland | Wayland | Yes (re-login required) |
 | 3   | Bind `neru <mode>` in compositor keybindings                | Only needed if you skip item 2        | Wayland   | Yes (user config)       |
+| 4   | Make `/dev/uinput` writable (udev rule below)               | Scroll injection through a uinput wheel; without it scrolling falls back to the compositor virtual pointer, which Chromium and Electron apps on Hyprland ignore. Also the fast path for `neru key` | Wayland | Yes (udev rule) |
 
 Notes:
 
@@ -55,6 +56,8 @@ Notes:
   the compositor only if you would rather not grant `/dev/input` access. See
   [Global hotkeys on Wayland](./LINUX_DESKTOPS.md#global-hotkeys-on-wayland).
 - Item 3 cannot be automated by a package; ship example snippets where helpful.
+- Item 4 is what `neru doctor` reports under `capability.scroll` when it is
+  missing, and the daemon warns once at the first scroll that falls back.
 
 ---
 
@@ -75,6 +78,30 @@ Log out and back in, then confirm `id` lists the `input` group.
 When capture works, Neru logs `Using Wayland evdev keyboard capture`. Without
 device access it falls back to overlay-focused capture; basic navigation still
 works but modified clicks may degrade.
+
+---
+
+## Wayland scroll injection permissions
+
+On Wayland, Neru scrolls through a virtual mouse wheel it creates on
+`/dev/uinput`, so the events enter the input stack below the compositor and
+reach every client like a physical wheel. Most distros ship that node as
+root-only (`crw-rw---- root root`). The `input` group from the previous section
+does not cover it; grant it with a udev rule:
+
+```bash
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/99-neru-uinput.rules
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+Confirm with `ls -l /dev/uinput` (group `input`, mode `0660`) and restart the
+daemon. If the node is missing entirely, load the module: `sudo modprobe uinput`.
+
+Without it Neru still scrolls, through the compositor's virtual pointer, but
+that path is not honored by every client: Chromium and Electron apps on
+Hyprland scroll a few pixels and then stop. `neru doctor` reports the downgrade
+under `capability.scroll` with the open error, and the daemon logs one warning
+at the first scroll that falls back.
 
 ---
 

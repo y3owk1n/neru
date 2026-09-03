@@ -38,6 +38,8 @@ const (
 	CapabilityScreen CapabilityKey = "screen"
 	// CapabilityCursor covers cursor movement and position tracking.
 	CapabilityCursor CapabilityKey = "cursor"
+	// CapabilityScroll covers scroll injection at the cursor.
+	CapabilityScroll CapabilityKey = "scroll"
 	// CapabilityAccessibility covers clickable-element discovery.
 	CapabilityAccessibility CapabilityKey = "accessibility"
 	// CapabilityOverlay covers native overlay windows.
@@ -73,6 +75,7 @@ type PlatformCapabilities struct {
 	Process           FeatureCapability
 	Screen            FeatureCapability
 	Cursor            FeatureCapability
+	Scroll            FeatureCapability
 	Accessibility     FeatureCapability
 	Overlay           FeatureCapability
 	Notifications     FeatureCapability
@@ -108,6 +111,7 @@ func (c PlatformCapabilities) Entries() []CapabilityEntry {
 		{Key: CapabilityProcess, Field: "Process", FeatureCapability: c.Process},
 		{Key: CapabilityScreen, Field: "Screen", FeatureCapability: c.Screen},
 		{Key: CapabilityCursor, Field: "Cursor", FeatureCapability: c.Cursor},
+		{Key: CapabilityScroll, Field: "Scroll", FeatureCapability: c.Scroll},
 		{
 			Key:               CapabilityAccessibility,
 			Field:             "Accessibility",

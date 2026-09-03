@@ -30,6 +30,10 @@ const (
 	// This package cannot import platform (the factory there imports this one),
 	// so the label is duplicated rather than referenced.
 	backendUnknown = "unknown"
+
+	// uinputDevicePath is the node the scroll wheel and key feed are created
+	// on, named in the words `neru doctor` prints.
+	uinputDevicePath = "/dev/uinput"
 )
 
 // SystemAdapter is a Linux system adapter.
@@ -123,7 +127,34 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 			return err
 		})
 
+	// Scroll on Wayland is the one capability whose fast path can be missing
+	// while the call still returns nil: the uinput wheel falls back to the
+	// compositor's virtual pointer, and Chromium and Electron clients on
+	// Hyprland ignore that stream. The probe creates and destroys the same
+	// wheel device, so every ioctl the real path runs is exercised.
+	if s.backend == backendWaylandWlroots || s.backend == backendWaylandKDE {
+		capabilities.Scroll = scrollCapability(capabilities.Scroll, uinputScrollDeviceError())
+	}
+
 	return capabilities
+}
+
+// scrollCapability downgrades the declared scroll capability when the uinput
+// wheel device cannot be opened, naming the fix in the words the user reads
+// in `neru doctor`.
+func scrollCapability(declared ports.FeatureCapability, uinputErr error) ports.FeatureCapability {
+	if uinputErr == nil {
+		return declared
+	}
+
+	return ports.FeatureCapability{
+		Status: ports.FeatureStatusStub,
+		Detail: "scroll injection is falling back to the compositor virtual pointer, " +
+			"which Chromium and Electron apps on Hyprland ignore: " + uinputErr.Error() +
+			". Grant write access to " + uinputDevicePath + " (udev rule " +
+			`KERNEL=="uinput", GROUP="input", MODE="0660"` +
+			", then reload udev or reboot); see docs/LINUX_SETUP.md",
+	}
 }
 
 // xdgDir resolves an XDG base directory per the Base Directory spec: the

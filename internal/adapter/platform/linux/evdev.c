@@ -95,33 +95,45 @@ int neru_evdev_get_pressed_keys(int fd, unsigned int *out_keys, int max_keys) {
 	return count;
 }
 
+/* Close fd without disturbing the errno the caller is about to report. */
+static void neru_uinput_fail(int fd) {
+	int saved = errno;
+	close(fd);
+	errno = saved;
+}
+
+/* On failure errno describes the /dev/uinput open (or the ioctl that
+ * refused), so the Go side can tell "permission denied" from "no such
+ * device" instead of reporting a bare "unavailable". */
 int neru_uinput_create_scroll(int *out_fd) {
 	int fd = open("/dev/uinput", O_RDWR);
 	if (fd < 0) {
+		int open_errno = errno;
 		fd = open("/dev/input/uinput", O_RDWR);
-	}
-	if (fd < 0) {
-		return 0;
+		if (fd < 0) {
+			errno = open_errno;
+			return 0;
+		}
 	}
 
 	if (ioctl(fd, UI_SET_EVBIT, EV_REL) < 0) {
-		close(fd);
+		neru_uinput_fail(fd);
 		return 0;
 	}
 	if (ioctl(fd, UI_SET_RELBIT, REL_WHEEL) < 0) {
-		close(fd);
+		neru_uinput_fail(fd);
 		return 0;
 	}
 	if (ioctl(fd, UI_SET_RELBIT, REL_HWHEEL) < 0) {
-		close(fd);
+		neru_uinput_fail(fd);
 		return 0;
 	}
 	if (ioctl(fd, UI_SET_RELBIT, REL_WHEEL_HI_RES) < 0) {
-		close(fd);
+		neru_uinput_fail(fd);
 		return 0;
 	}
 	if (ioctl(fd, UI_SET_RELBIT, REL_HWHEEL_HI_RES) < 0) {
-		close(fd);
+		neru_uinput_fail(fd);
 		return 0;
 	}
 
@@ -132,15 +144,29 @@ int neru_uinput_create_scroll(int *out_fd) {
 	usetup.id.product = 0x5678;
 	strcpy(usetup.name, "neru-scroll");
 	if (ioctl(fd, UI_DEV_SETUP, &usetup) < 0) {
-		close(fd);
+		neru_uinput_fail(fd);
 		return 0;
 	}
 	if (ioctl(fd, UI_DEV_CREATE) < 0) {
-		close(fd);
+		neru_uinput_fail(fd);
 		return 0;
 	}
 
 	*out_fd = fd;
+	return 1;
+}
+
+/* Create the scroll wheel the way the scroll path does, then tear it down
+ * again. Opening the node alone is not the question `neru doctor` asks: the
+ * UI_SET_* and UI_DEV_CREATE ioctls can refuse on a node that opened. On
+ * failure errno is the same one neru_uinput_create_scroll leaves. */
+int neru_uinput_probe_scroll(void) {
+	int fd;
+	if (!neru_uinput_create_scroll(&fd)) {
+		return 0;
+	}
+	ioctl(fd, UI_DEV_DESTROY);
+	close(fd);
 	return 1;
 }
 

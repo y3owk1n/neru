@@ -2,6 +2,10 @@
 
 package app
 
-import "github.com/y3owk1n/neru/internal/config/loader"
+import (
+	"go.uber.org/zap"
 
-func configurePlatformRuntimeConfigProviders(_ *loader.Service) {}
+	"github.com/y3owk1n/neru/internal/config/loader"
+)
+
+func configurePlatformRuntimeConfigProviders(_ *loader.Service, _ *zap.Logger) {}
