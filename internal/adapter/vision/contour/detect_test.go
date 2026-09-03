@@ -1,11 +1,10 @@
-//go:build cgo
-
 package contour_test
 
 import (
 	"image"
 	"image/color"
 	"image/draw"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
@@ -232,4 +231,54 @@ func TestDetect_ButtonInsideEnclosingContainer(t *testing.T) {
 			targets,
 		)
 	}
+}
+
+func BenchmarkDetect_FullScreenFrame(b *testing.B) {
+	img := syntheticFrame(rand.New(rand.NewPCG(3, 4)), 2560, 1440)
+
+	for b.Loop() {
+		_, _ = contour.Detect(img, 2)
+	}
+}
+
+// syntheticFrame draws a light background with random dark-bordered boxes,
+// some nested, plus speckle noise: a stand-in for a busy desktop.
+func syntheticFrame(rng *rand.Rand, width, height int) *image.RGBA {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for i := 0; i < len(img.Pix); i += 4 {
+		v := uint8(230 + rng.IntN(20))
+		img.Pix[i], img.Pix[i+1], img.Pix[i+2], img.Pix[i+3] = v, v, v, 255
+	}
+
+	box := func(rect image.Rectangle) {
+		rect = rect.Intersect(img.Bounds())
+		for x := rect.Min.X; x < rect.Max.X; x++ {
+			img.Set(x, rect.Min.Y, image.Black)
+			img.Set(x, rect.Max.Y-1, image.Black)
+		}
+
+		for y := rect.Min.Y; y < rect.Max.Y; y++ {
+			img.Set(rect.Min.X, y, image.Black)
+			img.Set(rect.Max.X-1, y, image.Black)
+		}
+	}
+
+	for range 5 + rng.IntN(20) {
+		boxW := 4 + rng.IntN(300)
+		boxH := 2 + rng.IntN(120)
+		x := rng.IntN(max(width-boxW, 1))
+		y := rng.IntN(max(height-boxH, 1))
+		rect := image.Rect(x, y, x+boxW, y+boxH)
+		box(rect)
+
+		if rng.IntN(2) == 0 && boxW > 30 && boxH > 20 {
+			box(rect.Inset(rng.IntN(4) + 2))
+		}
+	}
+
+	for range width * height / 200 {
+		img.Set(rng.IntN(width), rng.IntN(height), image.Black)
+	}
+
+	return img
 }
