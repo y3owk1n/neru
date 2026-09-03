@@ -75,7 +75,11 @@ func TestRecognizeText_ReadsAWordOffTheScreen(t *testing.T) {
 		t.Fatalf("CaptureScreenRegion(%v): %v", card, err)
 	}
 
-	words, stats, err := RecognizeText(img, OCRParams{WordLevel: true, TimeoutMS: 5000})
+	words, stats, err := RecognizeText(
+		context.Background(),
+		img,
+		OCRParams{WordLevel: true, TimeoutMS: 5000},
+	)
 	if err != nil {
 		t.Fatalf("RecognizeText: %v", err)
 	}
@@ -109,10 +113,10 @@ func TestRecognizeText_ReadsAWordOffTheScreen(t *testing.T) {
 		return
 	}
 
-	// Naming the text here is not a privacy question: it is a literal a few
-	// lines up, drawn by this test, rather than anything off a screen.
+	// The frame is a region of a live desktop, so what the engine read there
+	// is screen content: only the boxes are logged, never the text.
 	for _, got := range words {
-		t.Logf("recognized %q at %v", got.Text, got.Bounds)
+		t.Logf("recognized a run of %d characters at %v", len(got.Text), got.Bounds)
 	}
 
 	t.Errorf("recognized %d runs, none of them %q", len(words), word)
@@ -130,7 +134,7 @@ func TestRecognizeText_BlankFrameIsNotAnError(t *testing.T) {
 		img.Pix[i] = 0xFF
 	}
 
-	words, _, err := RecognizeText(img, OCRParams{TimeoutMS: 5000})
+	words, _, err := RecognizeText(context.Background(), img, OCRParams{TimeoutMS: 5000})
 	if err != nil {
 		t.Fatalf("RecognizeText on a blank frame: %v", err)
 	}
@@ -151,7 +155,7 @@ func TestRecognizeText_AcceptsAFrameWiderThanTheEngineLimit(t *testing.T) {
 		img.Pix[i] = 0xFF
 	}
 
-	words, _, err := RecognizeText(img, OCRParams{TimeoutMS: 10000})
+	words, _, err := RecognizeText(context.Background(), img, OCRParams{TimeoutMS: 10000})
 	if err != nil {
 		t.Fatalf("RecognizeText on a 3840-wide frame: %v", err)
 	}
@@ -166,7 +170,11 @@ func TestRecognizeText_AcceptsAFrameWiderThanTheEngineLimit(t *testing.T) {
 // TestRecognizeText_RefusesADegenerateImage keeps a caller from reading "no
 // words" out of an image the engine never looked at.
 func TestRecognizeText_RefusesADegenerateImage(t *testing.T) {
-	words, _, err := RecognizeText(image.NewRGBA(image.Rectangle{}), OCRParams{})
+	words, _, err := RecognizeText(
+		context.Background(),
+		image.NewRGBA(image.Rectangle{}),
+		OCRParams{},
+	)
 	if err == nil {
 		t.Fatalf("RecognizeText accepted an empty image and returned %d words", len(words))
 	}

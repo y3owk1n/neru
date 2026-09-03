@@ -84,7 +84,7 @@ func (a *Adapter) DetectElements(
 		return nil, err
 	}
 
-	words, stats, err := platformwindows.RecognizeText(img, platformwindows.OCRParams{
+	words, stats, err := platformwindows.RecognizeText(ctx, img, platformwindows.OCRParams{
 		WordLevel: splitWord,
 		TimeoutMS: cfg.RequestTimeoutMS,
 	})

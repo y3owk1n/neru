@@ -3,6 +3,7 @@
 package windows
 
 import (
+	"context"
 	"image"
 	"runtime"
 	"strings"
@@ -263,11 +264,19 @@ func OCRHealth() error {
 // img's own pixel space. WordLevel asks for one run per word; otherwise a run
 // is a line, and its box is the union of its words'.
 //
+// ctx is read while the engine works: a hint activation that is canceled or
+// runs past its own deadline cancels the recognition rather than waiting on
+// params.TimeoutMS, which is the user's budget for the engine alone.
+//
 // The engine caps both image dimensions (MaxImageDimension, 2600 on current
 // builds), which a 4K monitor exceeds. A frame past the cap is box-averaged
 // down by the smallest whole factor that fits, and the boxes are scaled back
 // up before they are returned, so the caller never sees the resampling.
-func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, error) {
+func RecognizeText(
+	ctx context.Context,
+	img *image.RGBA,
+	params OCRParams,
+) ([]OCRWord, OCRStats, error) {
 	if img == nil || img.Rect.Empty() {
 		return nil, OCRStats{}, derrors.New(derrors.CodeActionFailed,
 			"text recognition needs a frame with pixels in it")
@@ -288,7 +297,7 @@ func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, erro
 
 		var recognizeErr error
 
-		words, stats, recognizeErr = bridge.recognize(img, params)
+		words, stats, recognizeErr = bridge.recognize(ctx, img, params)
 
 		return recognizeErr
 	})
@@ -300,7 +309,11 @@ func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, erro
 }
 
 // recognize is RecognizeText on the worker thread with the engine made.
-func (w *ocrWorker) recognize(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, error) {
+func (w *ocrWorker) recognize(
+	ctx context.Context,
+	img *image.RGBA,
+	params OCRParams,
+) ([]OCRWord, OCRStats, error) {
 	longest := max(img.Rect.Dx(), img.Rect.Dy())
 	factor := (longest + w.maxImage - 1) / w.maxImage
 
@@ -317,7 +330,7 @@ func (w *ocrWorker) recognize(img *image.RGBA, params OCRParams) ([]OCRWord, OCR
 
 	started := time.Now()
 
-	result, err := w.recognizeBitmap(bitmap, params.TimeoutMS)
+	result, err := w.recognizeBitmap(ctx, bitmap, params.TimeoutMS)
 
 	stats := OCRStats{Recognition: time.Since(started)}
 	if err != nil {
@@ -336,7 +349,11 @@ func (w *ocrWorker) recognize(img *image.RGBA, params OCRParams) ([]OCRWord, OCR
 // recognizeBitmap runs the engine over bitmap and waits for the result,
 // polling the operation's status rather than registering a completion
 // handler. Worker thread only.
-func (w *ocrWorker) recognizeBitmap(bitmap unsafe.Pointer, timeoutMS int) (unsafe.Pointer, error) {
+func (w *ocrWorker) recognizeBitmap(
+	ctx context.Context,
+	bitmap unsafe.Pointer,
+	timeoutMS int,
+) (unsafe.Pointer, error) {
 	var operation unsafe.Pointer
 
 	hresult := winrtCall(
@@ -399,6 +416,14 @@ func (w *ocrWorker) recognizeBitmap(bitmap unsafe.Pointer, timeoutMS int) (unsaf
 				derrors.CodeActionFailed, "text recognition failed")
 		case asyncStatusCanceled:
 			return nil, derrors.New(derrors.CodeActionFailed, "text recognition was canceled")
+		}
+
+		ctxErr := ctx.Err()
+		if ctxErr != nil {
+			winrtCall(info, asyncInfoCancel)
+
+			return nil, derrors.Wrap(ctxErr, derrors.CodeContextCanceled,
+				"text recognition canceled")
 		}
 
 		if !deadline.IsZero() && time.Now().After(deadline) {
