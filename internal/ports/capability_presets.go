@@ -191,7 +191,8 @@ func WindowsCapabilities() PlatformCapabilities {
 		),
 		AppWatcher: supportedCapability(
 			"focused-app change detection keyed on the executable path, pushed by a " +
-				"SetWinEventHook EVENT_SYSTEM_FOREGROUND hook",
+				"SetWinEventHook EVENT_SYSTEM_FOREGROUND hook; display changes pushed by " +
+				"WM_DISPLAYCHANGE on a hidden window",
 		),
 		DarkModeDetection: supportedCapability(
 			"dark mode detection available via the Windows personalization registry " +

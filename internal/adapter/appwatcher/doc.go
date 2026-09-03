@@ -6,5 +6,5 @@
 // platform_other.go as the no-op fallback), so this package compiles on all
 // platforms. On macOS the events come from the Objective-C NSWorkspace
 // observer, on Linux from a compositor or X11 focus source, and on Windows
-// from an EVENT_SYSTEM_FOREGROUND hook.
+// from an EVENT_SYSTEM_FOREGROUND hook plus a hidden window's WM_DISPLAYCHANGE.
 package appwatcher

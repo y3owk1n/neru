@@ -21,6 +21,13 @@ import (
 // GetForegroundWindow resolves to for the focused app, so per-app
 // configuration keys on one string whichever way it is learned.
 //
+// Display changes take the same route from a second source: a hidden window
+// (winplatform.StartDisplayWatcher) receives WM_DISPLAYCHANGE and
+// WM_DPICHANGED on its own pump thread, offers a token to a one-slot channel,
+// and the dispatch goroutine turns it into HandleScreenParametersChanged —
+// the event macOS's screen-parameters notification and Linux's RandR fd
+// produce, so the app re-lays-out the overlay the same way on all three.
+//
 // globalWindowsWatcher is the process-wide backend, mirroring
 // globalLinuxWatcher. NewWatcher registers itself here via
 // platformRegisterWatcher.
@@ -32,6 +39,14 @@ var globalWindowsWatcher = &windowsAppWatcher{
 		}
 
 		return hook.Stop, nil
+	},
+	subscribeDisplay: func(callback func()) (func(), error) {
+		watcher, err := winplatform.StartDisplayWatcher(callback)
+		if err != nil {
+			return nil, err
+		}
+
+		return watcher.Stop, nil
 	},
 	foreground: func() uintptr {
 		hwnd, _ := winplatform.ForegroundWindowHandle()
@@ -47,6 +62,9 @@ type windowsAppWatcher struct {
 	// subscribe installs the foreground hook and returns its stop function;
 	// injectable for tests.
 	subscribe func(callback func(uintptr)) (func(), error)
+	// subscribeDisplay installs the display-change window and returns its stop
+	// function; injectable for tests.
+	subscribeDisplay func(callback func()) (func(), error)
 	// foreground samples the current foreground HWND once at start, so the
 	// keymap has a published app before the first switch.
 	foreground func() uintptr
@@ -58,7 +76,9 @@ type windowsAppWatcher struct {
 	watcher *Watcher
 	stopCh  chan struct{}
 	unhook  func()
-	wg      sync.WaitGroup
+	// unhookDisplay stops the display watcher; nil when it failed to install.
+	unhookDisplay func()
+	wg            sync.WaitGroup
 
 	// lastID and lastName are the most recently dispatched identity ("" means
 	// none focused). Owned by the dispatch goroutine, so they need no lock.
@@ -86,6 +106,7 @@ func (l *windowsAppWatcher) start() {
 	}
 
 	events := make(chan uintptr, 1)
+	displayEvents := make(chan struct{}, 1)
 	l.lastID, l.lastName = "", ""
 
 	unhook, err := l.subscribe(func(hwnd uintptr) { offer(events, hwnd) })
@@ -108,12 +129,24 @@ func (l *windowsAppWatcher) start() {
 	default:
 	}
 
+	// A display watcher that fails to install costs only hotplug: the
+	// foreground hook is already live and the overlay is still re-sized on
+	// each activation, so the watcher runs on without it and says so.
+	unhookDisplay, err := l.subscribeDisplay(func() { offerToken(displayEvents) })
+	if err != nil {
+		l.watcher.logger.Warn(
+			"App watcher: display-change window install failed; overlays follow display changes on the next activation only",
+			zap.Error(err),
+		)
+	}
+
 	l.unhook = unhook
+	l.unhookDisplay = unhookDisplay
 	l.stopCh = make(chan struct{})
 
 	l.wg.Add(1)
 
-	go l.loop(l.stopCh, events)
+	go l.loop(l.stopCh, events, displayEvents)
 }
 
 // stop unhooks first, so nothing offers after the loop is told to exit, then
@@ -127,12 +160,17 @@ func (l *windowsAppWatcher) stop() {
 		return
 	}
 
-	stopCh, unhook := l.stopCh, l.unhook
-	l.stopCh, l.unhook = nil, nil
+	stopCh, unhook, unhookDisplay := l.stopCh, l.unhook, l.unhookDisplay
+	l.stopCh, l.unhook, l.unhookDisplay = nil, nil, nil
 
 	l.mu.Unlock()
 
 	unhook()
+
+	if unhookDisplay != nil {
+		unhookDisplay()
+	}
+
 	close(stopCh)
 	l.wg.Wait()
 }
@@ -156,7 +194,22 @@ func offer(events chan uintptr, hwnd uintptr) {
 	}
 }
 
-func (l *windowsAppWatcher) loop(stopCh <-chan struct{}, events <-chan uintptr) {
+// offerToken is offer for the display channel: a burst of display messages
+// coalesces to a single pending refresh, because the refresh re-reads the
+// display and has nothing to learn from the count. It runs on the display
+// watcher's pump thread.
+func offerToken(events chan struct{}) {
+	select {
+	case events <- struct{}{}:
+	default:
+	}
+}
+
+func (l *windowsAppWatcher) loop(
+	stopCh <-chan struct{},
+	events <-chan uintptr,
+	displayEvents <-chan struct{},
+) {
 	defer l.wg.Done()
 
 	for {
@@ -165,6 +218,8 @@ func (l *windowsAppWatcher) loop(stopCh <-chan struct{}, events <-chan uintptr) 
 			return
 		case hwnd := <-events:
 			l.tick(hwnd)
+		case <-displayEvents:
+			l.watcher.HandleScreenParametersChanged()
 		}
 	}
 }

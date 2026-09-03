@@ -12,6 +12,7 @@ import (
 const (
 	kindActivate   = "activate"
 	kindDeactivate = "deactivate"
+	kindScreen     = "screen"
 
 	hwndNotepad = uintptr(0x10)
 	hwndCode    = uintptr(0x20)
@@ -113,6 +114,41 @@ func (f *fakeHook) fire(hwnd uintptr) {
 	}
 }
 
+// fakeDisplayHook stands in for the hidden display-change window.
+type fakeDisplayHook struct {
+	mu       sync.Mutex
+	callback func()
+	unhooked bool
+	err      error
+}
+
+func (f *fakeDisplayHook) subscribe(callback func()) (func(), error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+
+	f.mu.Lock()
+	f.callback = callback
+	f.mu.Unlock()
+
+	return func() {
+		f.mu.Lock()
+		f.unhooked = true
+		f.callback = nil
+		f.mu.Unlock()
+	}, nil
+}
+
+func (f *fakeDisplayHook) fire() {
+	f.mu.Lock()
+	callback := f.callback
+	f.mu.Unlock()
+
+	if callback != nil {
+		callback()
+	}
+}
+
 func identityFor(hwnd uintptr) (string, string, bool) {
 	switch hwnd {
 	case hwndNotepad:
@@ -125,16 +161,26 @@ func identityFor(hwnd uintptr) (string, string, bool) {
 }
 
 func newTestBackend(hook *fakeHook, foreground uintptr) (*windowsAppWatcher, *eventRecorder) {
+	return newTestBackendWithDisplay(hook, &fakeDisplayHook{}, foreground)
+}
+
+func newTestBackendWithDisplay(
+	hook *fakeHook,
+	display *fakeDisplayHook,
+	foreground uintptr,
+) (*windowsAppWatcher, *eventRecorder) {
 	watcher := NewWatcher(nil)
 	recorder := &eventRecorder{}
 
 	watcher.OnActivate(func(name, bundle string) { recorder.add(kindActivate, name, bundle) })
 	watcher.OnDeactivate(func(name, bundle string) { recorder.add(kindDeactivate, name, bundle) })
+	watcher.OnScreenParametersChanged(func() { recorder.add(kindScreen, "", "") })
 
 	backend := &windowsAppWatcher{
-		subscribe:  hook.subscribe,
-		foreground: func() uintptr { return foreground },
-		identity:   identityFor,
+		subscribe:        hook.subscribe,
+		subscribeDisplay: display.subscribe,
+		foreground:       func() uintptr { return foreground },
+		identity:         identityFor,
 	}
 	backend.register(watcher)
 
@@ -206,4 +252,38 @@ func TestWindowsAppWatcher_Start_HookFailureLeavesWatcherIdle(t *testing.T) {
 	backend.stop()
 
 	recorder.waitFor(t, nil)
+}
+
+func TestWindowsAppWatcher_Start_PublishesDisplayChanges(t *testing.T) {
+	display := &fakeDisplayHook{}
+	backend, recorder := newTestBackendWithDisplay(&fakeHook{}, display, hwndDesktop)
+
+	backend.start()
+	defer backend.stop()
+
+	display.fire()
+	recorder.waitFor(t, []watchEvent{{kindScreen, "", ""}})
+
+	backend.stop()
+
+	if !display.unhooked {
+		t.Fatal("stop did not stop the display watcher")
+	}
+
+	display.fire()
+	time.Sleep(20 * time.Millisecond)
+
+	recorder.waitFor(t, []watchEvent{{kindScreen, "", ""}})
+}
+
+func TestWindowsAppWatcher_Start_DisplayWatcherFailureKeepsForegroundLive(t *testing.T) {
+	hook := &fakeHook{}
+	display := &fakeDisplayHook{err: errHookInstall}
+	backend, recorder := newTestBackendWithDisplay(hook, display, hwndDesktop)
+
+	backend.start()
+	defer backend.stop()
+
+	hook.fire(hwndNotepad)
+	recorder.waitFor(t, []watchEvent{{kindActivate, nameNotepad, pathNotepad}})
 }
