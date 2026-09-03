@@ -15,9 +15,9 @@ import (
 const (
 	noteScreenShareHide = "hiding the overlay from a screen share is an NSWindow sharing level, " +
 		"a Quartz concept with no X11, Wayland or Win32 counterpart"
-	noteVisionStrategy = "the vision strategy needs an element-detection engine, which " +
-		"macOS has in the Vision framework and Linux in tesseract; Windows has neither, " +
-		"so it finds nothing there and none of its settings are read; use axtree"
+	noteVisionConfidence = "Windows.Media.Ocr reports no per-word confidence, so every word " +
+		"scores one there and a floor keeps everything; the Vision framework and tesseract " +
+		"score each word"
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
 		"even where the vision strategy lands; that half is text-only"
 	noteRecursiveGridAnimation = "the Windows overlay backend has no grid transition animation"
@@ -40,25 +40,6 @@ const (
 	noteGridPrewarm = "only the darwin grid overlay prewarms its layers; the other backends " +
 		"draw on demand"
 )
-
-// visionStrategy is the strategy option value that selects the vision engine.
-// The option itself is recognized everywhere; this one value of it is not.
-// The contour value carries no declaration: every platform captures the screen
-// it runs over.
-const visionStrategy = "vision"
-
-// strategyOptions are every path the strategy option is written at: the hints
-// section and the four per-app override tables that shadow it, plus the
-// top-level one. A value declared on one and forgotten on the others would warn
-// about a config file and stay silent about the same setting written per app.
-var strategyOptions = []string{
-	"hints.strategy",
-	"hints.app_configs.strategy",
-	"grid.app_configs.strategy",
-	"recursive_grid.app_configs.strategy",
-	"scroll.app_configs.strategy",
-	"app_configs.strategy",
-}
 
 // captureScopeOptions are the same six paths for capture_scope, which shadows
 // the hints section per app the way strategy does. They are declared
@@ -158,20 +139,9 @@ func PlatformSupport() parity.Declaration {
 			"grid.prewarm_enabled",
 		),
 
-		parity.On(parity.KindOption, darwinAndLinux, noteVisionStrategy,
-			"hints.vision.detect_text",
-			"hints.vision.request_timeout_ms",
+		parity.On(parity.KindOption, darwinAndLinux, noteVisionConfidence,
 			"hints.vision.minimum_confidence",
-			"hints.vision.merge_iou_threshold",
 			"hints.vision.button_min_confidence",
-			"hints.vision.button_min_aspect",
-			"hints.vision.button_max_aspect",
-			"hints.vision.button_icon_max_size",
-			"hints.vision.link_min_aspect",
-			"hints.vision.link_max_height",
-			"hints.vision.link_min_width",
-			"hints.vision.image_min_size",
-			"hints.vision.checkbox_max_size",
 			"hints.vision.generic_clickable_min_confidence",
 		),
 		parity.On(parity.KindOption, darwinOnly, noteVisionRectangles,
@@ -180,9 +150,6 @@ func PlatformSupport() parity.Declaration {
 			"hints.vision.rectangle_min_size",
 			"hints.vision.rectangle_min_aspect",
 			"hints.vision.rectangle_max_aspect",
-		),
-		parity.ValueOn(parity.KindOption, darwinAndLinux, noteVisionStrategy,
-			visionStrategy, strategyOptions...,
 		),
 
 		parity.On(parity.KindOption, darwinAndLinux, noteRecursiveGridAnimation,
@@ -230,6 +197,22 @@ func PlatformSupport() parity.Declaration {
 		),
 
 		parity.Everywhere(parity.KindOption, captureScopeOptions...),
+		// The vision strategy's text half runs everywhere: the Vision framework
+		// on macOS, tesseract on Linux, Windows.Media.Ocr on Windows. The
+		// strategy value itself carries no declaration, like contour.
+		parity.Everywhere(parity.KindOption,
+			"hints.vision.detect_text",
+			"hints.vision.request_timeout_ms",
+			"hints.vision.merge_iou_threshold",
+			"hints.vision.button_min_aspect",
+			"hints.vision.button_max_aspect",
+			"hints.vision.button_icon_max_size",
+			"hints.vision.link_min_aspect",
+			"hints.vision.link_max_height",
+			"hints.vision.link_min_width",
+			"hints.vision.image_min_size",
+			"hints.vision.checkbox_max_size",
+		),
 		parity.Everywhere(parity.KindOption,
 			"general.excluded_apps",
 			"general.exec_shell",
