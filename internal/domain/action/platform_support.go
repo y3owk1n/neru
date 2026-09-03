@@ -6,8 +6,6 @@ import "github.com/y3owk1n/neru/internal/domain/parity"
 const (
 	noteCursorVisibility = "a Wayland client may not hide another client's cursor, " +
 		"and the blessed Linux stack is Wayland; Windows has no equivalent either"
-	noteHorizontalScroll = "the Windows wheel event carries no horizontal delta, " +
-		"so a sideways scroll injects nothing"
 	noteKeyFeed = "Windows has no key-injection path yet, so the key it would post is " +
 		"never sent; the key_feed capability reports stub to match"
 )
@@ -30,19 +28,13 @@ func PlatformSupport() parity.Declaration {
 		parity.On(
 			parity.KindAction,
 			parity.Platforms{parity.Darwin, parity.Linux},
-			noteHorizontalScroll,
-			string(NameScrollLeft),
-			string(NameScrollRight),
-		),
-
-		parity.On(
-			parity.KindAction,
-			parity.Platforms{parity.Darwin, parity.Linux},
 			noteKeyFeed,
 			string(NameFeed),
 		),
 
 		parity.Everywhere(parity.KindAction,
+			string(NameScrollLeft),
+			string(NameScrollRight),
 			string(NameLeftClick),
 			string(NameRightClick),
 			string(NameMiddleClick),

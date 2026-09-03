@@ -11,7 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
@@ -322,22 +321,10 @@ func MouseUp(button action.MouseButton) error {
 	return MouseUpAtPoint(pos, button, 0)
 }
 
-// ScrollAtCursor scrolls the mouse, with modifiers presented as held.
-//
-// Windows scroll injection has no horizontal axis, so a horizontal delta is
-// dropped — a long-standing, documented no-op. Dropping a modifier along with
-// it is a different matter: the user asked for a zoom and would be told it
-// happened, so a horizontal scroll carrying one is refused instead.
+// ScrollAtCursor scrolls the mouse on both axes, with modifiers presented as
+// held.
 func ScrollAtCursor(deltaX int, deltaY int, modifiers action.Modifiers) error {
-	if deltaY == 0 && deltaX != 0 && modifiers != 0 {
-		return derrors.Newf(
-			derrors.CodeNotSupported,
-			"horizontal scroll is not supported on Windows, so its %s modifier cannot be honored",
-			modifiers,
-		)
-	}
-
-	return winplatform.ScrollWheel(deltaY, modifiers)
+	return winplatform.ScrollWheel(deltaX, deltaY, modifiers)
 }
 
 // CurrentCursorPosition returns the cursor position.

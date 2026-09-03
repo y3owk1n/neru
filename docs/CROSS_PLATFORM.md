@@ -177,7 +177,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ compositor IPC (Hyprland) / sync-surface trick | ✅ sync-surface trick | ✅ `GetCursorPos` |
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
-| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
+| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ✅ both axes                 |
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard, uinput batch skipped (kept on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
 | **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous virtual-pointer axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ❌       |
@@ -620,9 +620,10 @@ Go; only the final injection primitive differs:
 | Linux Wayland KDE     | libei via `org.freedesktop.portal.RemoteDesktop`                              |
 | Windows               | `SendInput` / `SetCursorPos`                                                  |
 
-**The one behavioral difference:** Windows `ScrollAtCursor` ignores `deltaX`, so
-horizontal scrolling is a no-op there. Everything else behaves the same on all
-three platforms.
+Scrolling behaves the same on all three platforms, both axes included: Windows
+posts `MOUSEEVENTF_HWHEEL` for the horizontal component, with the sign flipped
+because Win32 reads a positive horizontal notch as right where Neru, macOS and
+X11 read it as left.
 
 **Modifiers on a scroll** reach the injection primitive by two different routes,
 because only one of the primitives has a field for them. macOS stamps
@@ -1105,8 +1106,6 @@ green in every cell while an option means nothing, which is exactly how
 | `smooth_scroll.duration_per_pixel` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `hide_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `show_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
-| `scroll_left` | action | ✅ | ✅ | ❌ | the Windows wheel event carries no horizontal delta, so a sideways scroll injects nothing |
-| `scroll_right` | action | ✅ | ✅ | ❌ | the Windows wheel event carries no horizontal delta, so a sideways scroll injects nothing |
 | `feed` | action | ✅ | ✅ | ❌ | Windows has no key-injection path yet, so the key it would post is never sent; the key_feed capability reports stub to match |
 
 <!-- END GENERATED PLATFORM SUPPORT -->
@@ -1208,12 +1207,11 @@ working, which is exactly why the build exists.
    it stays declared everywhere and is tracked as this entry instead
 4. Smooth cursor and smooth scroll animation — not implemented
 5. Modifier passthrough and `PostModifierEvent` — no-ops
-6. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
-7. `monitor_select` mode — returns `CodeNotSupported`
-8. Font resolution — alias mapping only, no system font enumeration
-9. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
-    installs a launchd agent and Linux a systemd user unit
-10. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+6. `monitor_select` mode — returns `CodeNotSupported`
+7. Font resolution — alias mapping only, no system font enumeration
+8. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+   installs a launchd agent and Linux a systemd user unit
+9. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.

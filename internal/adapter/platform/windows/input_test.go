@@ -3,6 +3,7 @@
 package windows
 
 import (
+	"slices"
 	"testing"
 	"unsafe"
 )
@@ -35,5 +36,69 @@ func TestSendInputStructLayout(t *testing.T) {
 
 	if got := unsafe.Offsetof(keyInput{}.ki); got != 8 {
 		t.Fatalf("offsetof(keyInput.ki) = %d, want 8", got)
+	}
+}
+
+// notches converts a signed wheel count into the two's-complement mouseData
+// SendInput reads, the same way wheelEvents does.
+func notches(count int) uint32 {
+	return uint32(int32(count) * wheelDelta)
+}
+
+// TestWheelEvents_NegatesHorizontalDelta pins the sign convention across the
+// SendInput seam: Neru's positive deltaX means left everywhere, while
+// MOUSEEVENTF_HWHEEL reads positive as right, so scroll_left must arrive as
+// a negative HWHEEL notch and scroll_right as a positive one.
+func TestWheelEvents_NegatesHorizontalDelta(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		deltaX int
+		deltaY int
+		want   []wheelEvent
+	}{
+		{name: "no movement sends nothing"},
+		{
+			name:   "scroll up is a positive wheel notch",
+			deltaY: 1,
+			want:   []wheelEvent{{flags: mouseeventfWheel, data: notches(1)}},
+		},
+		{
+			name:   "scroll left is a negative hwheel notch",
+			deltaX: 1,
+			want:   []wheelEvent{{flags: mouseeventfHWheel, data: notches(-1)}},
+		},
+		{
+			name:   "scroll right is a positive hwheel notch",
+			deltaX: -2,
+			want:   []wheelEvent{{flags: mouseeventfHWheel, data: notches(2)}},
+		},
+		{
+			name:   "both axes send vertical first",
+			deltaX: -1,
+			deltaY: -1,
+			want: []wheelEvent{
+				{flags: mouseeventfWheel, data: notches(-1)},
+				{flags: mouseeventfHWheel, data: notches(1)},
+			},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := wheelEvents(testCase.deltaX, testCase.deltaY)
+			if !slices.Equal(got, testCase.want) {
+				t.Fatalf(
+					"wheelEvents(%d, %d) = %+v, want %+v",
+					testCase.deltaX,
+					testCase.deltaY,
+					got,
+					testCase.want,
+				)
+			}
+		})
 	}
 }
