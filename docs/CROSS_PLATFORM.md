@@ -339,9 +339,9 @@ monitor, so a region may straddle a seam, and it must still lie inside the
 virtual screen. The process is per-monitor-v2 DPI aware through its manifest,
 so the frame is the region's own size in physical pixels: the same pixels
 `GetCursorPos` and `EnumDisplayMonitors` report, on a mixed-DPI arrangement
-too. The focused window is the foreground window's rect clipped to its monitor,
-because `GetWindowRect` overhangs the screen by the invisible resize border on
-a maximized window.
+too. The focused window is the foreground window's rect clipped to the virtual
+screen, because `GetWindowRect` overhangs it by the invisible resize border on
+a maximized window; a window straddling a seam keeps both halves.
 
 ⁶ Linux `vision` is **text-only**, and permanently so. macOS runs three Vision
 requests — text recognition, rectangle detection and saliency — and an OCR

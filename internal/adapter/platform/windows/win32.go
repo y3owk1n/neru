@@ -62,7 +62,6 @@ var (
 	procEnumDisplayMonitors = user32.NewProc("EnumDisplayMonitors")
 	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
 	procMonitorFromPoint    = user32.NewProc("MonitorFromPoint")
-	procMonitorFromWindow   = user32.NewProc("MonitorFromWindow")
 	procEnumDisplayDevicesW = user32.NewProc("EnumDisplayDevicesW")
 )
 
@@ -410,36 +409,28 @@ func focusedWindowBounds() (image.Rectangle, bool, error) {
 		return image.Rectangle{}, false, fmt.Errorf("GetWindowRect: %w", callErr)
 	}
 
-	return clipToOwnMonitor(hwnd, rectToImage(rect))
+	return clipToScreen(rectToImage(rect))
 }
 
-// clipToOwnMonitor intersects a window rectangle with the monitor the window
-// is on.
+// clipToScreen intersects a window rectangle with the virtual screen, the
+// rectangle every monitor fits inside.
 //
 // GetWindowRect reports the frame Windows tracks rather than the frame a user
 // sees: a maximized window overhangs its monitor by the invisible resize border
-// on every side, and a window dragged across a seam straddles two monitors.
-// Neither overhang holds anything hintable, and a screen-capture strategy that
-// asked for it would be refused, because a frame that leaves the screen cannot
-// be placed. The window is clipped here, where every consumer of the focused
-// window sees the same rectangle, rather than in the capture path alone. A
-// window with nothing left on its monitor reads as no focused window.
-func clipToOwnMonitor(hwnd windows.HWND, rect image.Rectangle) (image.Rectangle, bool, error) {
-	ret, _, err := procMonitorFromWindow.Call(uintptr(hwnd), uintptr(monitorDefaultToNearest))
-	if ret == 0 {
-		if err != nil && !errors.Is(err, syscall.Errno(0)) {
-			return image.Rectangle{}, false, fmt.Errorf("MonitorFromWindow: %w", err)
-		}
-
-		return rect, true, nil
+// on every side. That overhang holds nothing hintable, and a screen-capture
+// strategy that asked for it would be refused, because a frame that leaves the
+// screen cannot be placed. The clip is to the whole desktop rather than to one
+// monitor so a window dragged across a seam keeps both halves; BitBlt reads
+// across the seam. It lives here, where every consumer of the focused window
+// sees the same rectangle, rather than in the capture path alone. A window
+// with nothing left on screen reads as no focused window.
+func clipToScreen(rect image.Rectangle) (image.Rectangle, bool, error) {
+	desktop, err := virtualScreenBounds()
+	if err != nil {
+		return image.Rectangle{}, false, err
 	}
 
-	info, infoErr := getMonitorInfo(windows.Handle(ret))
-	if infoErr != nil {
-		return image.Rectangle{}, false, infoErr
-	}
-
-	clipped := rect.Intersect(rectToImage(info.rcMonitor))
+	clipped := rect.Intersect(desktop)
 	if clipped.Empty() {
 		return image.Rectangle{}, false, nil
 	}

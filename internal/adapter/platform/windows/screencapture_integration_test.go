@@ -195,11 +195,11 @@ func TestCaptureScreenRegion_RejectsARegionOffTheScreen(t *testing.T) {
 	}
 }
 
-// TestClipToOwnMonitor_KeepsAWindowInsideItsMonitor pins the clip the focused
-// window gets: the bounds a capture strategy is handed never leave the monitor
-// the window is on. It uses the desktop window, which every session has and
-// which spans the primary monitor exactly.
-func TestClipToOwnMonitor_KeepsAWindowInsideItsMonitor(t *testing.T) {
+// TestClipToScreen_KeepsAWindowOnScreen pins the clip the focused window gets:
+// the bounds a capture strategy is handed never leave the virtual screen. It
+// uses the desktop window, which every session has and which spans the
+// primary monitor exactly, widened by the border a maximized window overhangs.
+func TestClipToScreen_KeepsAWindowOnScreen(t *testing.T) {
 	captureTestDPIOnce()
 
 	desktop := windows.GetDesktopWindow()
@@ -214,19 +214,23 @@ func TestClipToOwnMonitor_KeepsAWindowInsideItsMonitor(t *testing.T) {
 		t.Skip("GetWindowRect on the desktop window failed")
 	}
 
-	frame := rectToImage(rect)
-	overhanging := frame.Inset(-8)
-
-	clipped, found, err := clipToOwnMonitor(desktop, overhanging)
+	screen, err := virtualScreenBounds()
 	if err != nil {
-		t.Fatalf("clipToOwnMonitor: %v", err)
+		t.Skipf("no monitors: %v", err)
+	}
+
+	overhanging := rectToImage(rect).Inset(-8)
+
+	clipped, found, err := clipToScreen(overhanging)
+	if err != nil {
+		t.Fatalf("clipToScreen: %v", err)
 	}
 
 	if !found {
-		t.Fatal("clipToOwnMonitor reported no window for the desktop")
+		t.Fatal("clipToScreen reported no window for the desktop")
 	}
 
-	if !clipped.In(frame) {
-		t.Errorf("clipped %v to %v, which still leaves the desktop window", overhanging, clipped)
+	if !clipped.In(screen) {
+		t.Errorf("clipped %v to %v, which still leaves the screen %v", overhanging, clipped, screen)
 	}
 }
