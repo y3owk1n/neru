@@ -542,6 +542,10 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 		// the compositor and client can process events incrementally.
 		const maxBatchEvents = 50
 
+		// fallbackCause is the uinput error that sends the rest of the scroll
+		// to the virtual pointer, for the one-time warning below.
+		var fallbackCause error
+
 		sendScaledScroll := func(axis int, delta int) int {
 			if delta == 0 {
 				return 0
@@ -571,6 +575,7 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 						// remaining delta is retried via wlroots virtual pointer
 						// fallback without double-counting already-sent notches.
 						remainingNotches += len(batch)
+						fallbackCause = err
 
 						break
 					}
@@ -596,7 +601,7 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 			return nil
 		}
 
-		warnUinputScrollFallback()
+		warnUinputScrollFallback(fallbackCause)
 
 		return wlrootsScrollAtCursor(remainX, remainY, 0)
 	}
@@ -625,13 +630,15 @@ var uinputScrollFallbackOnce sync.Once
 // from the log otherwise, and only the virtual pointer one is ignored by
 // Chromium and Electron clients on Hyprland — which is how a user with a
 // root-only /dev/uinput reads as "scroll works in Firefox but not Discord".
-func warnUinputScrollFallback() {
+// cause is the batch error that triggered it: the device creation failure,
+// reason included, or a write that failed after a good start.
+func warnUinputScrollFallback(cause error) {
 	uinputScrollFallbackOnce.Do(func() {
 		currentLogger().Warn(
 			"Scrolling through the wlroots virtual pointer instead of uinput; "+
 				"some clients ignore that path (grant write access to /dev/uinput, "+
 				"see docs/LINUX_SETUP.md)",
-			zap.Error(eventtaplinux.UinputScrollError()),
+			zap.Error(cause),
 		)
 	})
 }

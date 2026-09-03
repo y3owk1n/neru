@@ -71,15 +71,6 @@ func IsUinputScrollAvailable() bool {
 	return errUinputScroll == nil
 }
 
-// UinputScrollError reports why the uinput scroll device could not be
-// created, or nil when it is usable. The reason is what the scroll fallback
-// warning and `neru doctor` show the user.
-func UinputScrollError() error {
-	_, err := getUinputScrollFd()
-
-	return err
-}
-
 // ScrollDeviceScroll sends a scroll event via the uinput virtual device.
 func ScrollDeviceScroll(axis, value int) error {
 	scrollFd, err := getUinputScrollFd()

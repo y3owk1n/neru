@@ -156,6 +156,20 @@ int neru_uinput_create_scroll(int *out_fd) {
 	return 1;
 }
 
+/* Create the scroll wheel the way the scroll path does, then tear it down
+ * again. Opening the node alone is not the question `neru doctor` asks: the
+ * UI_SET_* and UI_DEV_CREATE ioctls can refuse on a node that opened. On
+ * failure errno is the same one neru_uinput_create_scroll leaves. */
+int neru_uinput_probe_scroll(void) {
+	int fd;
+	if (!neru_uinput_create_scroll(&fd)) {
+		return 0;
+	}
+	ioctl(fd, UI_DEV_DESTROY);
+	close(fd);
+	return 1;
+}
+
 int neru_uinput_scroll(int fd, int axis, int value) {
 	struct input_event ev;
 	memset(&ev, 0, sizeof(ev));

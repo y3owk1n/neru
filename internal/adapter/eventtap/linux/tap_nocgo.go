@@ -48,11 +48,6 @@ func IsUinputScrollAvailable() bool {
 	return false
 }
 
-// UinputScrollError reports that uinput scroll injection is compiled out.
-func UinputScrollError() error {
-	return errUinputScrollNoCGO("uinput scroll")
-}
-
 // IsWaylandEvdevKeyboardActive is always false without CGO (no evdev grab).
 // IsWaylandEvdevKeyboardActive reports false: evdev capture needs cgo.
 func IsWaylandEvdevKeyboardActive() bool {

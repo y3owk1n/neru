@@ -32,7 +32,7 @@ const (
 	backendUnknown = "unknown"
 
 	// uinputDevicePath is the node the scroll wheel and key feed are created
-	// on; the legacy /dev/input/uinput location is tried after it.
+	// on, named in the words `neru doctor` prints.
 	uinputDevicePath = "/dev/uinput"
 )
 
@@ -130,35 +130,13 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 	// Scroll on Wayland is the one capability whose fast path can be missing
 	// while the call still returns nil: the uinput wheel falls back to the
 	// compositor's virtual pointer, and Chromium and Electron clients on
-	// Hyprland ignore that stream. The probe is the open the wheel device does.
+	// Hyprland ignore that stream. The probe creates and destroys the same
+	// wheel device, so every ioctl the real path runs is exercised.
 	if s.backend == backendWaylandWlroots || s.backend == backendWaylandKDE {
 		capabilities.Scroll = scrollCapability(capabilities.Scroll, uinputScrollDeviceError())
 	}
 
 	return capabilities
-}
-
-// uinputScrollDeviceError reports whether this process can open the uinput
-// device the scroll path creates its wheel on, trying the same two nodes it
-// does. The first error is the one to show: the second node is a legacy
-// location that is absent on every current distro.
-func uinputScrollDeviceError() error {
-	var firstErr error
-
-	for _, path := range []string{uinputDevicePath, "/dev/input/uinput"} {
-		file, err := os.OpenFile(path, os.O_RDWR, 0)
-		if err == nil {
-			_ = file.Close()
-
-			return nil
-		}
-
-		if firstErr == nil {
-			firstErr = err
-		}
-	}
-
-	return firstErr
 }
 
 // scrollCapability downgrades the declared scroll capability when the uinput
