@@ -88,11 +88,6 @@ func (l *windowsAppWatcher) start() {
 	events := make(chan uintptr, 1)
 	l.lastID, l.lastName = "", ""
 
-	// The app in front now is offered before the hook goes live, so a focus
-	// change in between arrives after it and wins; the other order let a
-	// stale snapshot overwrite a newer event.
-	offer(events, l.foreground())
-
 	unhook, err := l.subscribe(func(hwnd uintptr) { offer(events, hwnd) })
 	if err != nil {
 		l.watcher.logger.Warn(
@@ -101,6 +96,16 @@ func (l *windowsAppWatcher) start() {
 		)
 
 		return
+	}
+
+	// The app in front now is published without waiting for a switch. The
+	// hook is live first so no change slips between sample and install, the
+	// snapshot yields to a hook event already in the slot because that event
+	// is newer, and the loop starts only afterwards so nothing is consumed
+	// between the two — any interleaving publishes the newest identity last.
+	select {
+	case events <- l.foreground():
+	default:
 	}
 
 	l.unhook = unhook
