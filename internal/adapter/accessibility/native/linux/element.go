@@ -584,14 +584,7 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 				}
 			}
 
-			notchesSent := totalNotches - remainingNotches
-
-			pixelsSent := notchesSent * scrollScale
-			if delta > 0 {
-				return max(delta-pixelsSent, 0)
-			}
-
-			return min(delta+pixelsSent, 0)
+			return uinputScrollRemainder(delta, totalNotches, remainingNotches, scrollScale)
 		}
 
 		remainY := sendScaledScroll(uinputScrollAxisVertical, deltaY)
@@ -619,6 +612,50 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	return nil
+}
+
+// uinputScrollRemainder is the part of a scroll the uinput wheel did not
+// send, in the caller's pixels, for the virtual pointer to finish.
+//
+// It is zero whenever every notch went out, even when the delta was not a
+// whole number of notches: a 50 px step is one 30 px notch, and the 20 px
+// left over is rounding, not a lost scroll. Handing it on used to add a
+// second, opposite-signed notch to every press on Hyprland, which Chromium
+// and Electron clients summed to nothing.
+func uinputScrollRemainder(delta, totalNotches, remainingNotches, scale int) int {
+	if remainingNotches == 0 {
+		return 0
+	}
+
+	pixelsSent := (totalNotches - remainingNotches) * scale
+	if delta > 0 {
+		return max(delta-pixelsSent, 0)
+	}
+
+	return min(delta+pixelsSent, 0)
+}
+
+// wlrootsScrollNotch is one wheel notch for the virtual pointer: the pixel
+// step and the discrete count, in the Wayland convention where positive is
+// down on the vertical axis and right on the horizontal one. The caller's
+// delta is positive-up on the vertical axis, so that axis flips both values
+// together; a discrete count that disagrees with the step makes a client
+// that reads axis_value120 scroll the opposite way from one that reads axis.
+func wlrootsScrollNotch(axis, delta, step int) (int, int) {
+	if delta < 0 {
+		step = -step
+	}
+
+	if axis == uinputScrollAxisVertical {
+		step = -step
+	}
+
+	disc := 1
+	if step < 0 {
+		disc = -1
+	}
+
+	return step, disc
 }
 
 // uinputScrollFallbackOnce keeps the fallback warning to one line per
