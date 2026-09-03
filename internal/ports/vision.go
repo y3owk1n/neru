@@ -32,6 +32,13 @@ type VisionPort interface {
 		splitWord bool,
 	) ([]*element.Element, error)
 
+	// DetectWLKBPTR captures a screenshot of the frontmost window and returns
+	// detected interactive UI elements using the wl-kbptr contour detection algorithm.
+	DetectWLKBPTR(
+		ctx context.Context,
+		screenBounds image.Rectangle,
+	) ([]*element.Element, error)
+
 	// CaptureScreen returns the current screen image. Which screen "current"
 	// means is the platform's own answer: macOS captures the primary display,
 	// Linux the screen holding the cursor, because Wayland exposes no primary

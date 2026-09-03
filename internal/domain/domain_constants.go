@@ -75,6 +75,10 @@ const (
 
 	// StrategyVision detects elements from the screen image instead.
 	StrategyVision = "vision"
+
+	// StrategyWLKBPTR detects interactive targets from the screen image using
+	// the wl-kbptr contour detection algorithm.
+	StrategyWLKBPTR = "wl-kbptr"
 )
 
 // Hint label enumeration orders, the values hints.label_direction accepts.
