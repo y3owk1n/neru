@@ -27,6 +27,9 @@ func DarwinCapabilities() PlatformCapabilities {
 		Cursor: supportedCapability(
 			"cursor movement and tracking available via Quartz events",
 		),
+		Scroll: supportedCapability(
+			"scroll injection via Quartz scroll-wheel events, both axes",
+		),
 		Accessibility: supportedCapability(
 			"macOS accessibility integration available via AXUIElement",
 		),
@@ -66,6 +69,15 @@ func LinuxCapabilities() PlatformCapabilities {
 		),
 		Cursor: supportedCapability(
 			"cursor movement/tracking available via XTest and Wayland virtual-pointer",
+		),
+		// Live-probed by the Linux SystemAdapter on Wayland, which downgrades
+		// this to a stub when /dev/uinput is not writable: the virtual-pointer
+		// fallback still scrolls most clients, but not Chromium or Electron on
+		// Hyprland. See linux.SystemAdapter.scrollCapability.
+		Scroll: supportedCapability(
+			"scroll injection via XTest (X11) or a uinput wheel device when " +
+				"/dev/uinput is writable (Wayland), falling back to the wlroots " +
+				"virtual pointer or libei (KDE)",
 		),
 		Accessibility: supportedCapability(
 			"clickable-element discovery via AT-SPI (D-Bus) tree walk; " +
@@ -158,6 +170,9 @@ func WindowsCapabilities() PlatformCapabilities {
 		),
 		Cursor: supportedCapability(
 			"cursor movement and tracking available via SetCursorPos/GetCursorPos",
+		),
+		Scroll: supportedCapability(
+			"scroll injection via SendInput mouse-wheel events, vertical only",
 		),
 		Accessibility: supportedCapability(
 			"clickable-element discovery available via UI Automation (initial coverage)",

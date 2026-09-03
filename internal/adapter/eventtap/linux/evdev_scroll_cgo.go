@@ -38,11 +38,17 @@ var (
 var uinputScrollMu sync.Mutex
 
 func initUinputScroll() error {
-	var fd C.int
-	if C.neru_uinput_create_scroll(&fd) == 0 {
-		return fmt.Errorf("%w", errUinputScrollUnavailable)
+	var deviceFd C.int
+
+	created, errno := C.neru_uinput_create_scroll(&deviceFd)
+	if created == 0 {
+		// errno is the /dev/uinput open failure, which is what a user has to
+		// act on: "permission denied" means a udev rule or group, "no such
+		// file" means the uinput module is not loaded.
+		return fmt.Errorf("%w: /dev/uinput: %w", errUinputScrollUnavailable, errno)
 	}
-	uinputScrollFd = int(fd)
+
+	uinputScrollFd = int(deviceFd)
 
 	return nil
 }
@@ -63,6 +69,15 @@ func IsUinputScrollAvailable() bool {
 	_, _ = getUinputScrollFd()
 
 	return errUinputScroll == nil
+}
+
+// UinputScrollError reports why the uinput scroll device could not be
+// created, or nil when it is usable. The reason is what the scroll fallback
+// warning and `neru doctor` show the user.
+func UinputScrollError() error {
+	_, err := getUinputScrollFd()
+
+	return err
 }
 
 // ScrollDeviceScroll sends a scroll event via the uinput virtual device.

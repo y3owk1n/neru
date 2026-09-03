@@ -6,6 +6,7 @@ import (
 	"image"
 	"os"
 	"slices"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -595,6 +596,8 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 			return nil
 		}
 
+		warnUinputScrollFallback()
+
 		return wlrootsScrollAtCursor(remainX, remainY, 0)
 	}
 
@@ -611,6 +614,26 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	return nil
+}
+
+// uinputScrollFallbackOnce keeps the fallback warning to one line per
+// process: the condition is a session fact, and every scroll would repeat it.
+var uinputScrollFallbackOnce sync.Once
+
+// warnUinputScrollFallback says, once, that scrolling left the uinput wheel
+// for the compositor's virtual pointer and why. The two paths look the same
+// from the log otherwise, and only the virtual pointer one is ignored by
+// Chromium and Electron clients on Hyprland — which is how a user with a
+// root-only /dev/uinput reads as "scroll works in Firefox but not Discord".
+func warnUinputScrollFallback() {
+	uinputScrollFallbackOnce.Do(func() {
+		currentLogger().Warn(
+			"Scrolling through the wlroots virtual pointer instead of uinput; "+
+				"some clients ignore that path (grant write access to /dev/uinput, "+
+				"see docs/LINUX_SETUP.md)",
+			zap.Error(eventtaplinux.UinputScrollError()),
+		)
+	})
 }
 
 // hyprlandKeepsUinputScroll reports whether a modified scroll on this session

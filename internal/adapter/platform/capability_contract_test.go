@@ -263,6 +263,7 @@ func TestCapabilities_ProbeCoverageIsDocumented(t *testing.T) {
 	// device) or has only a mutating entry point, so it is checked by that
 	// subsystem's own tests instead of here.
 	uncovered := map[ports.CapabilityKey]string{
+		ports.CapabilityScroll:        "injects a real scroll into the focused app",
 		ports.CapabilityAccessibility: "needs an AX client fixture; covered by internal/adapter/accessibility",
 		ports.CapabilityOverlay:       "needs a live overlay manager; covered by internal/adapter/overlay",
 		ports.CapabilityNotifications: "only entry point displays UI to the user",

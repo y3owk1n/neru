@@ -191,6 +191,13 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 		out[string(ports.CapabilityNotifications)+detailSuffix] = detail
 	}
 
+	// Scroll gets the notification treatment: a Linux downgrade names the
+	// device the user has to make writable, which is the whole fix.
+	if detail := capabilities.Scroll.Detail; detail != "" &&
+		!capabilities.Scroll.Supported() {
+		out[string(ports.CapabilityScroll)+detailSuffix] = detail
+	}
+
 	// Focused-app inspection is the third, gated the same way, because the one
 	// thing a bare "stub" cannot say is that nothing is wrong. Linux probes it
 	// live, so a desktop with no window focused reports the same status as a
