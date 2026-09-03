@@ -51,11 +51,12 @@ func Detect(img *image.RGBA, scale float64) ([]image.Rectangle, error) {
 		)
 	}
 
+	// Freed even when empty: malloc(0) may hand back a live pointer.
+	defer C.neru_contour_free(&result)
+
 	if result.count == 0 || result.rects == nil {
 		return nil, nil
 	}
-
-	defer C.neru_contour_free(&result)
 
 	count := int(result.count)
 	cRects := unsafe.Slice(result.rects, count)
