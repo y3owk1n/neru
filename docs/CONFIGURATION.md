@@ -358,8 +358,32 @@ right either way.
 | Named      | `Space`, `Return`, `Enter`, `Escape`, `Tab`, `Delete`, `Backspace`                                      |
 | Navigation | `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown`, `Insert` (Linux and Windows only)   |
 | Function   | `F1`–`F24` (`F21`–`F24` on Linux and Windows only)                                                      |
+| Mouse      | `MouseLeft`, `MouseRight`, `MouseMiddle` (macOS only, mode tables only — see below)                     |
 
 See [CLI.md](CLI.md#neru-action-feed) for a full key reference with key codes and platform behavior.
+
+**Mouse buttons** are reported only while a mode is active, so they belong in a
+per-mode hotkey table. Writing one in the global `[hotkeys]` table is refused
+with an error rather than accepted and silently never fired. They also behave
+differently from keys in two ways:
+
+- **The click is never swallowed.** The binding runs *in addition to* the click
+  reaching the application underneath, so the click still does whatever it
+  normally would.
+- **Modifiers are not encoded.** `Cmd`-click and `Shift`-click both report
+  `MouseLeft`; there is no `Cmd+MouseLeft`.
+
+Clicks that Neru itself performs (`action left_click`, `--action left_click`) do
+not trigger these, so a binding cannot recurse into itself.
+
+The main use is dismissing an overlay when you click with a real mouse — handy
+if a pointing device or a keyboard with a mouse-button key sits alongside
+keyboard navigation:
+
+```toml
+[recursive_grid.hotkeys]
+"MouseLeft" = "idle"    # Clicking anywhere closes the grid
+```
 
 Multi-key sequences (e.g. `gg`, `ab`) are supported for per-mode hotkeys with a 500ms timeout.
 

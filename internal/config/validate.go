@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 // Validate validates the configuration, reporting only what stops it loading.
@@ -189,6 +190,22 @@ func (c *Config) ValidateHotkeyBindings() error {
 		err := ValidateHotkey(key, fieldName)
 		if err != nil {
 			return err
+		}
+
+		// A global hotkey is resolved to a virtual key code, which no mouse
+		// button has. Left to validate, the binding would parse and then never
+		// fire — the silent failure a mode binding exists to avoid. Refusing
+		// keeps the behavior these keys already had before the vocabulary
+		// carried them, so no configuration that loads today stops loading.
+		if keyvocab.IsMouseButton(key) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s cannot bind a mouse button (%s); mouse buttons are reported "+
+					"only while a mode is active, so bind them in a mode's "+
+					"[<mode>.hotkeys] table instead",
+				fieldName,
+				strings.Join(keyvocab.MouseButtons(), ", "),
+			)
 		}
 
 		if len(actions) == 0 {
