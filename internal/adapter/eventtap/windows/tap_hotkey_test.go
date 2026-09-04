@@ -85,7 +85,7 @@ func TestEventTap_HandleKey_StickyModifierDoesNotFireGlobalHotkey(t *testing.T) 
 		t.Fatal("Ctrl+J with sticky Shift was handed to RegisterHotKey instead of consumed")
 	}
 
-	if len(dispatched) != 1 || dispatched[0] != "Ctrl+Shift+J" {
+	if len(dispatched) != 1 || dispatched[0] != "Ctrl+Shift+j" {
 		t.Fatalf("dispatched = %v, want the chord handed to the mode handler", dispatched)
 	}
 
