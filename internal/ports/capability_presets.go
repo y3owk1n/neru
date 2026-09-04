@@ -187,7 +187,8 @@ func WindowsCapabilities() PlatformCapabilities {
 			"global hotkeys available via RegisterHotKey",
 		),
 		KeyboardEventTap: supportedCapability(
-			"keyboard event tap available via WH_KEYBOARD_LL hook",
+			"keyboard event tap available via WH_KEYBOARD_LL hook; unbound modifier " +
+				"shortcuts pass through to the focused application when asked to",
 		),
 		AppWatcher: supportedCapability(
 			"focused-app change detection keyed on the executable path, pushed by a " +

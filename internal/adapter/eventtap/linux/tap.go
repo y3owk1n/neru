@@ -3,7 +3,6 @@
 package linux
 
 import (
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -78,7 +77,7 @@ type EventTap struct {
 	// backend (handleWaylandEvdevEvent): with a virtual-keyboard injection path
 	// it can re-emit an unbound chord to the focused app. The X11 grab and the
 	// wl-keyboard fallback cannot re-inject selectively, so this stays inert
-	// there. Chords are stored canonicalized via canonicalChordForMatch.
+	// there. Chords are stored canonicalized via tap.CanonicalChord.
 	passthroughEnabled   bool
 	passthroughBlacklist map[string]struct{}
 	interceptedChords    map[string]struct{}
@@ -251,7 +250,7 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 // unbound (the mode layer folds the active mode's own hotkeys into this list).
 // Only the Wayland evdev backend acts on it; see the struct field comment.
 func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {
-	set := canonicalChordSet(blacklist)
+	set := tap.CanonicalChordSet(blacklist)
 
 	et.mu.Lock()
 	et.passthroughEnabled = enabled
@@ -262,7 +261,7 @@ func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {
 // SetInterceptedModifierKeys records the modifier chords the active mode still
 // wants Neru to consume while passthrough is enabled.
 func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
-	set := canonicalChordSet(keys)
+	set := tap.CanonicalChordSet(keys)
 
 	et.mu.Lock()
 	et.interceptedChords = set
@@ -275,74 +274,6 @@ func (et *EventTap) SetPassthroughCallback(cb tap.PassthroughCallback) {
 	defer et.mu.Unlock()
 
 	et.passthroughCallback = cb
-}
-
-// canonicalChordSet builds a lookup set of chords normalized via
-// canonicalChordForMatch so runtime lookups are independent of the order the
-// user wrote their hotkeys in.
-func canonicalChordSet(chords []string) map[string]struct{} {
-	set := make(map[string]struct{}, len(chords))
-
-	for _, chord := range chords {
-		if canonical := canonicalChordForMatch(chord); canonical != "" {
-			set[canonical] = struct{}{}
-		}
-	}
-
-	return set
-}
-
-// canonicalChordForMatch normalizes a modifier chord to a stable,
-// order-independent form for passthrough matching: aliases are resolved and
-// tokens lowercased via config.NormalizeKeyForComparison, then the modifiers
-// are re-emitted in the fixed shift+ctrl+alt+cmd order that
-// evdevModifierState.prefix() produces, with the base key last. Applying it to
-// both the configured blacklist/intercepted entries and the runtime evdev chord
-// makes lookups agree regardless of modifier ordering.
-func canonicalChordForMatch(chord string) string {
-	normalized := config.NormalizeKeyForComparison(strings.TrimSpace(chord))
-	if normalized == "" {
-		return ""
-	}
-
-	parts := strings.Split(normalized, "+")
-	base := strings.TrimSpace(parts[len(parts)-1])
-
-	var hasShift, hasCtrl, hasAlt, hasCmd bool
-
-	for _, part := range parts[:len(parts)-1] {
-		switch keyvocab.CanonicalModifier(part) {
-		case evdevModifierShift:
-			hasShift = true
-		case evdevModifierCtrl:
-			hasCtrl = true
-		case evdevModifierAlt:
-			hasAlt = true
-		case evdevModifierCmd:
-			hasCmd = true
-		}
-	}
-
-	var builder strings.Builder
-
-	for _, mod := range []struct {
-		held bool
-		name string
-	}{
-		{hasShift, evdevModifierShift},
-		{hasCtrl, evdevModifierCtrl},
-		{hasAlt, evdevModifierAlt},
-		{hasCmd, evdevModifierCmd},
-	} {
-		if mod.held {
-			builder.WriteString(mod.name)
-			builder.WriteByte('+')
-		}
-	}
-
-	builder.WriteString(base)
-
-	return builder.String()
 }
 
 // SetStickyModifierToggle enables/disables sticky modifier toggle.
@@ -519,7 +450,7 @@ func (et *EventTap) shouldPassthroughChord(chord string) bool {
 		return false
 	}
 
-	canonical := canonicalChordForMatch(chord)
+	canonical := tap.CanonicalChord(chord)
 
 	et.mu.RLock()
 	defer et.mu.RUnlock()

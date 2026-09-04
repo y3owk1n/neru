@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"slices"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -252,26 +251,22 @@ func wheelEvents(deltaX, deltaY int) []wheelEvent {
 	return events
 }
 
-// ScrollWheel scrolls at the current cursor position on both axes, holding
-// modifiers down for the duration.
-//
-// A SendInput wheel event carries no modifier field — unlike a CGEvent, which
-// takes flags — so the only way to present a held ctrl is to press the real
-// key, wheel, and release it. Releasing only what this call pressed leaves a
-// modifier the user is physically holding untouched.
+// ScrollWheel scrolls at the current cursor position on both axes, presenting
+// exactly modifiers as held for the duration — see holdModifiers for why a
+// modifier the user is physically holding has to be suppressed rather than
+// merely not pressed.
 func ScrollWheel(deltaX, deltaY int, modifiers action.Modifiers) error {
 	events := wheelEvents(deltaX, deltaY)
 	if len(events) == 0 {
 		return nil
 	}
 
-	pressed, pressErr := pressModifiers(modifiers)
-	if pressErr != nil {
-		return pressErr
+	hold, err := holdModifiers(modifiers)
+	if err != nil {
+		return err
 	}
 
-	// Only what this call actually pressed, never the whole requested set.
-	defer releaseModifiers(pressed)
+	defer hold.release()
 
 	for _, event := range events {
 		err := sendMouseInput(event.flags, event.data)
@@ -281,74 +276,6 @@ func ScrollWheel(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	return nil
-}
-
-// modifierKeys lists the virtual-key code (keys.go) for each modifier bit, in
-// the order they are pressed. Release walks it backwards.
-var modifierKeys = []struct {
-	bit action.Modifiers
-	key uint16
-}{
-	{bit: action.ModShift, key: vkShift},
-	{bit: action.ModCtrl, key: vkControl},
-	{bit: action.ModAlt, key: vkMenu},
-	{bit: action.ModCmd, key: vkLWin},
-}
-
-// pressModifiers holds down every key in modifiers that is not already down,
-// and reports the set it actually pressed so the caller releases only that.
-// A key that fails releases what came before it, so a partial set is never
-// left latched.
-//
-// Skipping keys the user is already holding is the point, not an optimization.
-// A binding like "Ctrl+K" = "action scroll_up --modifier ctrl" fires with ctrl
-// physically down, and a key is one bit of OS state rather than a count: press
-// it a second time and our release afterwards tells every application the user
-// let go, while they are still holding it. Everything they type or click until
-// they release and press again would arrive unmodified.
-//
-// SendInput delivers these to Neru's own low-level keyboard hook, which runs
-// its callback inline on the hook thread and from there reaches the mode
-// handler's lock. neruInjectedTag is what stops that: keep it on every
-// synthesized key, or this becomes a call into the handler from whatever
-// goroutine is injecting.
-func pressModifiers(modifiers action.Modifiers) (action.Modifiers, error) {
-	var pressed action.Modifiers
-
-	for _, modifier := range modifierKeys {
-		if !modifiers.Has(modifier.bit) {
-			continue
-		}
-
-		if isVirtualKeyDown(uint32(modifier.key)) {
-			continue
-		}
-
-		err := sendKeyboardInput(modifier.key, false)
-		if err != nil {
-			releaseModifiers(pressed)
-
-			return 0, err
-		}
-
-		pressed |= modifier.bit
-	}
-
-	return pressed, nil
-}
-
-// releaseModifiers lets go of every key in modifiers, in reverse press order.
-// Callers pass what pressModifiers reported pressing, never the requested set,
-// so a key the user is holding is left alone.
-//
-// Errors are dropped: a release that fails has nothing better to try, and
-// reporting it would mask the outcome of the action it wraps.
-func releaseModifiers(modifiers action.Modifiers) {
-	for _, modifier := range slices.Backward(modifierKeys) {
-		if modifiers.Has(modifier.bit) {
-			_ = sendKeyboardInput(modifier.key, true)
-		}
-	}
 }
 
 // CurrentCursorPosition returns the current cursor location.
