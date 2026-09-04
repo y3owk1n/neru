@@ -20,9 +20,8 @@ const (
 		"score each word"
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
 		"even where the vision strategy lands; that half is text-only"
-	noteRecursiveGridAnimation = "the Windows overlay backend has no grid transition animation"
-	noteSmoothCursor           = "cursor movement is not animated on Windows"
-	noteSmoothScroll           = "the Windows scroll is injected in one step; macOS and Linux animate it, " +
+	noteSmoothCursor = "cursor movement is not animated on Windows"
+	noteSmoothScroll = "the Windows scroll is injected in one step; macOS and Linux animate it, " +
 		"and on X11 the steps are whole wheel notches because X has no smaller scroll to send"
 	noteKeyboardLayout = "the keyboard layout is detected rather than chosen outside macOS"
 	noteMacOSSurfaces  = "the menu bar, the Dock, Notification Center, Stage Manager, " +
@@ -143,7 +142,7 @@ func PlatformSupport() parity.Declaration {
 			"hints.vision.rectangle_max_aspect",
 		),
 
-		parity.On(parity.KindOption, darwinAndLinux, noteRecursiveGridAnimation,
+		parity.Everywhere(parity.KindOption,
 			"recursive_grid.animation.enabled",
 			"recursive_grid.animation.duration_ms",
 		),

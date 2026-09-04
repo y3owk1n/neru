@@ -923,7 +923,7 @@ important thing to know before touching overlay code:
 
 | Animation                    | macOS                                | Linux X11 / Wayland                | Windows                            |
 | ---------------------------- | ------------------------------------ | ---------------------------------- | ---------------------------------- |
-| **Grid transition**          | CoreAnimation, ease-in-out @120Hz    | goroutine, smoothstep @120fps      | ❌                                 |
+| **Grid transition**          | CoreAnimation, ease-in-out @120Hz    | goroutine, smoothstep @120fps      | goroutine, smoothstep @120fps, presented on the UI thread |
 | **Mouse action indicator**   | `CABasicAnimation` (scale + opacity) | goroutine, scale + opacity @120fps | goroutine, cubic easing @60fps     |
 | **Smooth cursor**            | ✅ stepped linear interpolation      | ✅ stepped linear interpolation    | ❌                                 |
 | **Smooth scroll**            | ✅ ease-out cubic                    | ❌                                 | ❌                                 |
@@ -946,10 +946,10 @@ discovery rather than the mode itself.
 | **Hints**         | Search input badge             | ✅                         | ✅ Cairo badge             | ✅                          |
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ✅ sampled triangle, see below |
 | **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ✅ top / center / bottom   |
-| **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
+| **Grid**          | Transition animation           | ✅                         | ✅                         | ✅                          |
 | **Grid**          | Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Grid**          | What an open subgrid shows     | ✅ the subgrid alone       | ✅ the subgrid alone       | ⚠️ the parent cells return under it on the next repaint |
-| **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
+| **Recursive grid**| Transition animation           | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Sub-key preview                | ✅ mini-grid of next keys  | ✅ mini-grid of next keys  | ✅ mini-grid of next keys   |
 | **Scroll**        | Smooth scroll animation        | ✅                         | ✅ (X11: whole notches)    | ❌                          |
@@ -1078,8 +1078,6 @@ green in every cell while an option means nothing, which is exactly how
 | `hints.vision.rectangle_min_size` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_min_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_max_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
-| `recursive_grid.animation.enabled` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
-| `recursive_grid.animation.duration_ms` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
 | `smooth_cursor.move_mouse_enabled` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
 | `smooth_cursor.steps` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
 | `smooth_cursor.max_duration` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
@@ -1186,12 +1184,11 @@ working, which is exactly why the build exists.
 **Windows**
 
 1. Native notifications — no toast support
-2. Grid and recursive-grid transition animation — not implemented
-3. Smooth cursor and smooth scroll animation — not implemented
-4. Font resolution — alias mapping only, no system font enumeration
-5. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+2. Smooth cursor and smooth scroll animation — not implemented
+3. Font resolution — alias mapping only, no system font enumeration
+4. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
    installs a launchd agent and Linux a systemd user unit
-6. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+5. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.

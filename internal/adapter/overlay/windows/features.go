@@ -5,9 +5,11 @@ package windows
 import (
 	"image"
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/motion"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
@@ -53,6 +55,7 @@ func (o *winOverlay) DrawHints(
 	}
 
 	// Hints own the surface; drop any cached grid so Show() does not redraw it.
+	o.forgetTransition()
 	o.cachedGrid = nil
 	o.currentSubgrid = nil
 	o.suppressDraw = false
@@ -217,22 +220,29 @@ func outsetHintArrow(arrow badge.HintArrow, width int) badge.HintArrow {
 // as a mini-grid of the keys that would select its sub-cells. They are zero when
 // the region can no longer be divided, and then nothing is previewed.
 //
-// The dimensions arrive as domain.GridDimensions rather than as a column count
-// beside a row count so that this backend has no pair to transpose on its way
-// to ComputeGridCells (#1313).
+// A depth other than the one last drawn zooms the cells there over
+// animDuration when animEnabled says so (transition.go); a zero duration, a
+// first draw and a redraw at the same depth paint in place. The dimensions
+// arrive as domain.GridDimensions rather than as a column count beside a row
+// count so that this backend has no pair to transpose on its way to
+// ComputeGridCells (#1313).
 func (o *winOverlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
+	depth int,
 	keys string,
 	dims domain.GridDimensions,
 	nextKeys string,
 	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
+	animEnabled bool,
+	animDuration time.Duration,
 ) {
 	if o == nil {
 		return
 	}
 
+	o.cancelTransition()
 	o.ensureWindowForDraw()
 
 	if o.window == nil {
@@ -251,13 +261,51 @@ func (o *winOverlay) DrawRecursiveGrid(
 	o.currentSubgrid = nil
 	o.suppressDraw = false
 
-	o.Clear()
-
 	keyRunes := []rune(strings.ToUpper(keys))
 	nextKeyRunes := []rune(strings.ToUpper(nextKeys))
+	cellRects := recursivegrid.ComputeGridCells(bounds, dims)
+
+	shouldAnimate := animEnabled && animDuration > 0 && o.hasLast &&
+		depth != o.lastDepth && !o.lastBounds.Empty()
+
+	if shouldAnimate {
+		o.startTransition(transitionPlan{
+			fromRects: motion.TransitionOrigins(
+				cellRects, bounds, o.animRects, o.lastRects, o.lastBounds,
+			),
+			toRects:      cellRects,
+			keyRunes:     keyRunes,
+			nextKeyRunes: nextKeyRunes,
+			nextDims:     nextDims,
+			style:        style,
+			pointer:      virtualPointer,
+			duration:     animDuration,
+		})
+	} else {
+		o.animRects = nil
+		o.paintRecursiveGrid(cellRects, keyRunes, nextKeyRunes, nextDims, style, virtualPointer)
+	}
+
+	o.hasLast = true
+	o.lastDepth = depth
+	o.lastBounds = bounds
+	o.lastRects = cellRects
+}
+
+// paintRecursiveGrid paints one whole recursive-grid frame, the cells at the
+// rectangles given: the settled layout of a depth, or an interpolated step of
+// the zoom between two.
+func (o *winOverlay) paintRecursiveGrid(
+	cellRects []image.Rectangle,
+	keyRunes, nextKeyRunes []rune,
+	nextDims domain.GridDimensions,
+	style recursivegridcomponent.Style,
+	virtualPointer recursivegridcomponent.VirtualPointerState,
+) {
+	o.Clear()
+
 	drawSubPreview := style.PreviewsNextDepth(len(nextKeyRunes), nextDims)
 
-	cellRects := recursivegrid.ComputeGridCells(bounds, dims)
 	for idx, cell := range cellRects {
 		if style.HighlightColorARGB() != 0 {
 			o.window.FillRect(cell, style.HighlightColorARGB())
