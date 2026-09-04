@@ -9,8 +9,8 @@ import "github.com/y3owk1n/neru/internal/ports"
 // behave deterministically, and returns every other family as written — the
 // same answer the fontconfig build gives for a family that is installed. What
 // it cannot do is see that a family is missing, so nothing falls back to the
-// generic here; Cairo substitutes when the text is drawn, as it does for macOS
-// and Windows. CGO builds (the default) get the fontconfig adapter in
+// generic here; Cairo substitutes when the text is drawn, as NSFont does on
+// macOS. CGO builds (the default) get the fontconfig adapter in
 // font_cgo.go.
 func NewFontResolver() ports.FontResolver {
 	return &passthroughResolver{}
