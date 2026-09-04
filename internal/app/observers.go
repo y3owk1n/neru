@@ -26,6 +26,10 @@ func (a *App) stopSleepObserver() {
 	a.observerMu.Lock()
 	stop := a.sleepObserverStop
 	a.sleepObserverStop = nil
+	// The check shares the observer's wait group, and the IPC server is still
+	// accepting a reload while this runs: one arriving now must find nothing
+	// to schedule rather than add to a group teardown is about to wait on.
+	a.postReloadVerify = nil
 	a.observerMu.Unlock()
 
 	if stop != nil {
@@ -36,12 +40,14 @@ func (a *App) stopSleepObserver() {
 // schedulePostReloadVerification runs the platform's post-config-reload
 // health check, if any. Only Linux registers one: it verifies the evdev
 // hotkey listener actually came back after a reload.
+//
+// The hook runs under the lock: it only starts a goroutine, and running it
+// there means it is never called after stopSleepObserver has cleared it.
 func (a *App) schedulePostReloadVerification() {
 	a.observerMu.Lock()
-	verify := a.postReloadVerify
-	a.observerMu.Unlock()
+	defer a.observerMu.Unlock()
 
-	if verify != nil {
-		verify()
+	if a.postReloadVerify != nil {
+		a.postReloadVerify()
 	}
 }
