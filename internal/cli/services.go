@@ -9,16 +9,18 @@ import (
 // macOS: backed by a launchd user agent.
 // Linux: backed by a systemd user unit; other init systems return
 // CodeNotSupported.
+// Windows: backed by a Task Scheduler logon task for the current user.
 // Other platforms: stubbed and returns CodeNotSupported until implemented.
 var ServicesCmd = &cobra.Command{
 	Use:   "services",
-	Short: "Manage the Neru system service (macOS launchd, Linux systemd)",
+	Short: "Manage the Neru system service (launchd, systemd, Task Scheduler)",
 	Long: `Manage the Neru system service for automatic startup on login.
 
-On macOS this manages a launchd agent, and on Linux a systemd user unit
-ordered after graphical-session.target, so Neru starts automatically once
-your graphical session is up. Linux service management covers systemd
-only; other init systems report ERR_NOT_SUPPORTED.
+On macOS this manages a launchd agent, on Linux a systemd user unit
+ordered after graphical-session.target, and on Windows a Task Scheduler
+task with a logon trigger, so Neru starts automatically once your
+session is up. Linux service management covers systemd only; other init
+systems report ERR_NOT_SUPPORTED.
 
 Subcommands:
   install     Install and load the system service
@@ -33,7 +35,7 @@ Subcommands:
 var ServicesInstallCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Install and load the system service",
-	Long:  `Install the Neru service so it starts automatically on login: a launchd plist loaded with launchctl on macOS, a systemd user unit enabled with systemctl --user on Linux.`,
+	Long:  `Install the Neru service so it starts automatically on login: a launchd plist loaded with launchctl on macOS, a systemd user unit enabled with systemctl --user on Linux, a Task Scheduler logon task on Windows.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := installService()
 		if err != nil {
@@ -50,7 +52,7 @@ var ServicesInstallCmd = &cobra.Command{
 var ServicesUninstallCmd = &cobra.Command{
 	Use:   "uninstall",
 	Short: "Unload and remove the system service",
-	Long:  `Unload the Neru service and remove the file that describes it — the launchd plist on macOS, the systemd user unit on Linux. Neru will no longer start automatically on login.`,
+	Long:  `Unload the Neru service and remove what describes it — the launchd plist on macOS, the systemd user unit on Linux, the Task Scheduler task on Windows. Neru will no longer start automatically on login.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := uninstallService()
 		if err != nil {
