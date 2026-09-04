@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.52.0](https://github.com/y3owk1n/neru/compare/v1.51.0...v1.52.0) (2026-09-04)
+
+
+### Features
+
+* **grid:** allow bounded coarse selection labels ([#1537](https://github.com/y3owk1n/neru/issues/1537)) ([ed456c4](https://github.com/y3owk1n/neru/commit/ed456c4dca166fc3ab24f0e7d7f363ecf33ccfdb))
+* **hints:** add wl-kbptr contour-based hint strategy on Linux ([#1543](https://github.com/y3owk1n/neru/issues/1543)) ([c3aaea9](https://github.com/y3owk1n/neru/commit/c3aaea989d2c800e0cfa5791e9b2e6358a51c70a))
+* **hints:** bring the contour strategy to macOS with a capture scope ([#1550](https://github.com/y3owk1n/neru/issues/1550)) ([3509ed3](https://github.com/y3owk1n/neru/commit/3509ed30d57b2836dc89bb24625242f19c38710a))
+* **windows:** capture the screen with BitBlt so the contour strategy works ([#1575](https://github.com/y3owk1n/neru/issues/1575)) ([52bcf64](https://github.com/y3owk1n/neru/commit/52bcf642c4786ec318d27b72ecffd3938d0716d7))
+* **windows:** draw the virtual-pointer indicator in grid mode ([#1581](https://github.com/y3owk1n/neru/issues/1581)) ([3a1f787](https://github.com/y3owk1n/neru/commit/3a1f787d1ca67d2f10056a07cc8141ba4ac75959))
+* **windows:** grid and recursive-grid transition animation ([#1583](https://github.com/y3owk1n/neru/issues/1583)) ([97587e4](https://github.com/y3owk1n/neru/commit/97587e4a5df232d7866565263d5446fa30d66286))
+* **windows:** horizontal scroll injection ([#1578](https://github.com/y3owk1n/neru/issues/1578)) ([bed6ccf](https://github.com/y3owk1n/neru/commit/bed6ccf2fcf39e73e8d396350cfe47454a1d75aa))
+* **windows:** key feed via SendInput ([#1594](https://github.com/y3owk1n/neru/issues/1594)) ([ceada7a](https://github.com/y3owk1n/neru/commit/ceada7adbe4f1a61bfdabb44e35419202ce430a6))
+* **windows:** modifier passthrough and PostModifierEvent ([#1579](https://github.com/y3owk1n/neru/issues/1579)) ([8ce1292](https://github.com/y3owk1n/neru/commit/8ce1292e9e2a797bef94052991a8c881f3946e4c))
+* **windows:** monitor_select mode ([#1580](https://github.com/y3owk1n/neru/issues/1580)) ([2bd90d7](https://github.com/y3owk1n/neru/commit/2bd90d711dd80577a019345898be202ee9dba3a1))
+* **windows:** native notifications via tray balloon tips ([#1586](https://github.com/y3owk1n/neru/issues/1586)) ([623c0cd](https://github.com/y3owk1n/neru/commit/623c0cd1e2ea59d32ab50b6b68e76d61ab082c9d))
+* **windows:** neru services via Task Scheduler ([#1587](https://github.com/y3owk1n/neru/issues/1587)) ([d396055](https://github.com/y3owk1n/neru/commit/d3960559b51634fd191f12472d999b7c01fe5759))
+* **windows:** publish display changes as screen-parameter events ([#1573](https://github.com/y3owk1n/neru/issues/1573)) ([77a203b](https://github.com/y3owk1n/neru/commit/77a203b8c5f5fd84ff5443681f22c567158f2886))
+* **windows:** publish foreground-window changes through the app watcher ([#1572](https://github.com/y3owk1n/neru/issues/1572)) ([fd20eb4](https://github.com/y3owk1n/neru/commit/fd20eb40eac448c1742b61342aa327f94ec33cfa))
+* **windows:** resolve font families against installed fonts ([#1588](https://github.com/y3owk1n/neru/issues/1588)) ([fc89ada](https://github.com/y3owk1n/neru/commit/fc89adaa097f143726ae1afbbab0183530ce02b9))
+* **windows:** smooth cursor animation, including relative moves ([#1584](https://github.com/y3owk1n/neru/issues/1584)) ([39309dc](https://github.com/y3owk1n/neru/commit/39309dcb43b56ec3c0a0f9204e56c31fbb39300e))
+* **windows:** smooth scroll animation ([#1585](https://github.com/y3owk1n/neru/issues/1585)) ([110d22b](https://github.com/y3owk1n/neru/commit/110d22b8db7eb585481b4bff6fb8beefd8827b84))
+* **windows:** verify the named-pipe server owner before connecting ([#1589](https://github.com/y3owk1n/neru/issues/1589)) ([9a3987b](https://github.com/y3owk1n/neru/commit/9a3987bf4e63dc3dfb3a57d2bf65f6ecfaea183d))
+* **windows:** vision strategy via Windows.Media.Ocr ([#1576](https://github.com/y3owk1n/neru/issues/1576)) ([47bdcf8](https://github.com/y3owk1n/neru/commit/47bdcf856fe2a68233735377ee21432a07c48cc1))
+* **windows:** walk the full UIA tree with a cached FindAll ([#1577](https://github.com/y3owk1n/neru/issues/1577)) ([320448d](https://github.com/y3owk1n/neru/commit/320448dbd85b83e01d320d0e515aeb9ecccd866d))
+
+
+### Bug Fixes
+
+* **app:** guard observer hooks against a config reload racing startup ([#1590](https://github.com/y3owk1n/neru/issues/1590)) ([7ba7e26](https://github.com/y3owk1n/neru/commit/7ba7e26cf26b18f638989abc7747d8aec20a6ecb))
+* **cli:** present the Linux and Windows startup notice as beta status ([#1595](https://github.com/y3owk1n/neru/issues/1595)) ([6518697](https://github.com/y3owk1n/neru/commit/65186971430a9dcd54efda6999c170601962ede4))
+* **linux:** make modified scroll work on hyprland ([#1474](https://github.com/y3owk1n/neru/issues/1474)) ([5792e25](https://github.com/y3owk1n/neru/commit/5792e251db0ce9ff54af09ecaa862195ad9fcdf9))
+* **linux:** report when scrolling falls back from uinput on wayland ([#1570](https://github.com/y3owk1n/neru/issues/1570)) ([2199826](https://github.com/y3owk1n/neru/commit/219982663352bfc6a9105cfd2263205a0c81db42))
+* **linux:** stop wayland scroll sending a second, reversed notch per press ([#1571](https://github.com/y3owk1n/neru/issues/1571)) ([8df1c41](https://github.com/y3owk1n/neru/commit/8df1c41c03bb196218ba8bebe14f80a096151abe))
+* **windows:** keep sticky modifiers out of global hotkey matching ([#1591](https://github.com/y3owk1n/neru/issues/1591)) ([945bf4b](https://github.com/y3owk1n/neru/commit/945bf4b70e1df03fd0b6c43ebd29252a924de3b9))
+* **windows:** prevent overlay flashes when reopening ([#1545](https://github.com/y3owk1n/neru/issues/1545)) ([2611b0f](https://github.com/y3owk1n/neru/commit/2611b0f67399718a78ef6dd5c805bae0873eb70d))
+
+
+### Performance Improvements
+
+* **windows:** draw the overlay through DirectComposition and Direct2D ([#1582](https://github.com/y3owk1n/neru/issues/1582)) ([3fcb25e](https://github.com/y3owk1n/neru/commit/3fcb25e0af5d9b397cb1036aa778df393fe37b78))
+
 ## [1.51.0](https://github.com/y3owk1n/neru/compare/v1.50.0...v1.51.0) (2026-08-14)
 
 
