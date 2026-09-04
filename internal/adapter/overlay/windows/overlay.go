@@ -216,10 +216,7 @@ func (o *winOverlay) ShowSubgrid(
 
 	o.currentSubgrid = cell
 	o.gridPointer = pointer
-	o.Clear()
-	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
-	o.drawGridPointer(o.gridPointer)
-	o.flushOverlay("subgrid")
+	o.repaintSubgrid()
 }
 
 // SetGridPointer records where grid mode's pointer stand-in belongs and
@@ -249,7 +246,7 @@ func (o *winOverlay) SetGridPointer(pointer recursivegridcomponent.VirtualPointe
 	}
 
 	if o.currentSubgrid != nil {
-		o.ShowSubgrid(o.currentSubgrid, o.cachedStyle, pointer)
+		o.repaintSubgrid()
 
 		return
 	}
@@ -448,6 +445,17 @@ func (o *winOverlay) flushOverlay(context string) {
 
 		return
 	}
+}
+
+// repaintSubgrid paints the open subgrid and the pointer on it as the whole
+// surface (#1491). The keys it draws with were handed over by the manager
+// when the subgrid was opened, and the surface has not been rebuilt since:
+// only a manager draw rebuilds it, and every one of those syncs the keys.
+func (o *winOverlay) repaintSubgrid() {
+	o.Clear()
+	o.drawSubgrid(o.currentSubgrid.Bounds(), o.cachedStyle)
+	o.drawGridPointer(o.gridPointer)
+	o.flushOverlay("subgrid")
 }
 
 func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
