@@ -49,6 +49,10 @@ type Manager struct {
 
 	// mouseWin is a small dedicated layered window for mouse action indicators.
 	mouseWin *winplatform.OverlayWindow
+
+	// monitorWins are the monitor_select panels, one layered window per
+	// display, in target order (monitor_select.go).
+	monitorWins []*winplatform.OverlayWindow
 	// mouseActionCancel cancels any running mouse action animation.
 	mouseActionCancel context.CancelFunc
 }
@@ -206,6 +210,8 @@ func (m *Manager) Destroy() {
 		m.mouseWin.Destroy()
 		m.mouseWin = nil
 	}
+
+	m.destroyMonitorWindowsLocked()
 }
 
 // WindowPtr returns the native overlay window handle.

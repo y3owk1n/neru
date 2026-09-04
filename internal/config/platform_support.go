@@ -21,10 +21,8 @@ const (
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
 		"even where the vision strategy lands; that half is text-only"
 	noteRecursiveGridAnimation = "the Windows overlay backend has no grid transition animation"
-	noteMonitorSelect          = "monitor_select needs the optional MonitorSelector overlay " +
-		"extension, which the Windows backend does not implement"
-	noteSmoothCursor = "cursor movement is not animated on Windows"
-	noteSmoothScroll = "the Windows scroll is injected in one step; macOS and Linux animate it, " +
+	noteSmoothCursor           = "cursor movement is not animated on Windows"
+	noteSmoothScroll           = "the Windows scroll is injected in one step; macOS and Linux animate it, " +
 		"and on X11 the steps are whole wheel notches because X has no smaller scroll to send"
 	noteKeyboardLayout = "the keyboard layout is detected rather than chosen outside macOS"
 	noteMacOSSurfaces  = "the menu bar, the Dock, Notification Center, Stage Manager, " +
@@ -150,7 +148,7 @@ func PlatformSupport() parity.Declaration {
 			"recursive_grid.animation.duration_ms",
 		),
 
-		parity.On(parity.KindOption, darwinAndLinux, noteMonitorSelect,
+		parity.Everywhere(parity.KindOption,
 			"monitor_select.enabled",
 			"monitor_select.characters",
 			"monitor_select.ui.font_size",
