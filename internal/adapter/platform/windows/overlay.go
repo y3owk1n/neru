@@ -656,6 +656,39 @@ func (o *OverlayWindow) DrawTextCentered(
 	o.mu.Unlock()
 }
 
+// pointerGlyphDefault is the glyph a pointer stand-in draws when the
+// configured char is empty.
+const pointerGlyphDefault = "\u25CF"
+
+// DrawPointerGlyph queues the pointer stand-in a grid mode draws at its
+// selection: one glyph centered on center in a box of the given size. Both
+// grid and recursive grid draw theirs through here, so the two cannot drift.
+//
+// The box's half is floored at 1 so a pointer configured to size 0 or 1 still
+// has a rectangle to draw its glyph in rather than an empty one DrawTextCentered
+// would drop.
+func (o *OverlayWindow) DrawPointerGlyph(
+	center image.Point,
+	size int,
+	char string,
+	fontFamily string,
+	color uint32,
+) {
+	if char == "" {
+		char = pointerGlyphDefault
+	}
+
+	halfSize := max(size/2, 1) //nolint:mnd
+
+	o.DrawTextCentered(
+		char,
+		image.Rect(center.X-halfSize, center.Y-halfSize, center.X+halfSize, center.Y+halfSize),
+		fontFamily,
+		float64(size),
+		color,
+	)
+}
+
 // CompositeCurrent composites all queued draw commands into the pixel buffer
 // in-place and clears the command queues. Use this when you need to render
 // each object as an atomic unit (e.g. per-hint) so that later objects render

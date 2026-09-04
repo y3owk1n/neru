@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
@@ -33,6 +34,12 @@ type winOverlay struct {
 	cachedGrid     *domainGrid.Grid
 	cachedStyle    gridcomponent.Style
 	suppressDraw   bool
+	// gridPointer is where grid mode's pointer stand-in belongs. It is state
+	// the next repaint of the grid surface reads rather than a draw of its
+	// own, the same shape the Linux backends keep (#1463), because this
+	// surface is one pixel buffer: the pointer has to be painted in the same
+	// pass as the cells or the subgrid it sits on.
+	gridPointer recursivegridcomponent.VirtualPointerState
 
 	lastHints     []*hintscomponent.Hint
 	lastHintStyle hintscomponent.StyleMode
@@ -128,6 +135,7 @@ func (o *winOverlay) Hide() {
 
 	o.suppressDraw = true
 	o.currentSubgrid = nil
+	o.gridPointer = recursivegridcomponent.VirtualPointerState{}
 
 	if o.window != nil {
 		o.window.Hide()
@@ -153,6 +161,7 @@ func (o *winOverlay) ClearCache() {
 	o.cachedStyle = gridcomponent.Style{}
 	o.currentPrefix = ""
 	o.currentSubgrid = nil
+	o.gridPointer = recursivegridcomponent.VirtualPointerState{}
 	o.lastHints = nil
 	o.lastHintStyle = hintscomponent.StyleMode{}
 	o.lastHintOffset = badge.HintOnTarget
@@ -191,15 +200,50 @@ func (o *winOverlay) UpdateGridMatches(prefix string) {
 	o.redrawGrid()
 }
 
-func (o *winOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
+// ShowSubgrid opens the finer grid inside one cell, with the pointer stand-in
+// the same keystroke moved painted in the same pass (#1492). The pointer is
+// recorded only for a call that names a cell: one without says nothing about
+// this surface, and a record kept from it would describe a screen nobody
+// asked for.
+func (o *winOverlay) ShowSubgrid(
+	cell *domainGrid.Cell,
+	_ gridcomponent.Style,
+	pointer recursivegridcomponent.VirtualPointerState,
+) {
 	if o == nil || o.window == nil || cell == nil {
 		return
 	}
 
 	o.currentSubgrid = cell
+	o.gridPointer = pointer
 	o.Clear()
 	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
+	o.drawGridPointer(o.gridPointer)
 	o.flushOverlay("subgrid")
+}
+
+// SetGridPointer records where grid mode's pointer stand-in belongs and
+// repaints the grid surface so it appears there, or takes it off when the
+// state is not visible.
+//
+// A state equal to the one held paints nothing: grid mode refreshes the
+// pointer on every keystroke and it moves only when a cell is chosen, so the
+// common key would otherwise repaint a surface the narrowing already
+// repainted. The record is kept even when nothing can be painted yet, for the
+// same reason UpdateGridMatches keeps its prefix while the window is hidden:
+// the next Show reads it.
+func (o *winOverlay) SetGridPointer(pointer recursivegridcomponent.VirtualPointerState) {
+	if o == nil || pointer == o.gridPointer {
+		return
+	}
+
+	o.gridPointer = pointer
+
+	if o.cachedGrid == nil || o.suppressDraw || o.window == nil || !o.window.Visible() {
+		return
+	}
+
+	o.redrawGrid()
 }
 
 func (o *winOverlay) SetHideUnmatched(hide bool) {
@@ -359,6 +403,8 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 	if o.currentSubgrid != nil {
 		o.drawSubgrid(o.currentSubgrid.Bounds(), style)
 	}
+
+	o.drawGridPointer(o.gridPointer)
 
 	if o.logger != nil {
 		o.logger.Debug(

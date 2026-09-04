@@ -247,3 +247,52 @@ func TestAlphaFillTriangle_ClipsToTheBuffer(t *testing.T) {
 		})
 	}
 }
+
+// TestDrawPointerGlyph_CentersTheGlyphOnThePoint pins the primitive the grid
+// and recursive-grid pointer stand-ins share: one text command, boxed around
+// the selection point, drawn with the configured char and color.
+func TestDrawPointerGlyph_CentersTheGlyphOnThePoint(t *testing.T) {
+	t.Parallel()
+
+	window := &OverlayWindow{width: 100, height: 100}
+	window.DrawPointerGlyph(image.Pt(40, 50), 20, "x", "Segoe UI", 0xFF00FF00)
+
+	if len(window.texts) != 1 {
+		t.Fatalf("queued %d texts, want 1", len(window.texts))
+	}
+
+	got := window.texts[0]
+	if want := image.Rect(30, 40, 50, 60); got.rect != want {
+		t.Errorf("glyph rect = %v, want %v", got.rect, want)
+	}
+
+	if got.text != "x" || got.color != 0xFF00FF00 || got.fontSize != 20 {
+		t.Errorf("queued %q size %v color %#x, want the configured char, size and color",
+			got.text, got.fontSize, got.color)
+	}
+}
+
+// TestDrawPointerGlyph_TinySizeStillDraws pins the floor on the box: a pointer
+// configured to size 0 or 1 keeps a rectangle rather than vanishing into an
+// empty one, and an empty char falls back to the default disc.
+func TestDrawPointerGlyph_TinySizeStillDraws(t *testing.T) {
+	t.Parallel()
+
+	for _, size := range []int{0, 1} {
+		window := &OverlayWindow{width: 100, height: 100}
+		window.DrawPointerGlyph(image.Pt(10, 10), size, "", "", 0xFF0000FF)
+
+		if len(window.texts) != 1 {
+			t.Fatalf("size %d queued %d texts, want 1", size, len(window.texts))
+		}
+
+		got := window.texts[0]
+		if want := image.Rect(9, 9, 11, 11); got.rect != want {
+			t.Errorf("size %d glyph rect = %v, want %v", size, got.rect, want)
+		}
+
+		if got.text != pointerGlyphDefault {
+			t.Errorf("size %d drew %q, want the default disc", size, got.text)
+		}
+	}
+}
