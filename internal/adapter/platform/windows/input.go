@@ -28,7 +28,8 @@ const (
 	mouseeventfHWheel     = 0x1000
 	mouseeventfAbsolute   = 0x8000
 
-	keyeventfKeyUp = 0x0002
+	keyeventfExtendedKey = 0x0001
+	keyeventfKeyUp       = 0x0002
 
 	// neruInjectedTag rides in dwExtraInfo on every keyboard event this
 	// process synthesizes, so the low-level keyboard hook can tell Neru's own
@@ -126,17 +127,29 @@ func sendMouseInput(flags uint32, data uint32) error {
 
 // sendKeyboardInput presses or releases one virtual key.
 func sendKeyboardInput(virtualKey uint16, isUp bool) error {
+	return sendKeyEvent(virtualKey, 0, keyUpFlag(isUp))
+}
+
+// sendKeyEvent posts one KEYBDINPUT record, tagged as Neru's own so the
+// keyboard hook does not read it back as the user typing.
+func sendKeyEvent(virtualKey uint16, scanCode uint16, flags uint32) error {
 	var event keyInput
 
 	event.inputType = inputKeyboard
 	event.ki.wVk = virtualKey
+	event.ki.wScan = scanCode
+	event.ki.dwFlags = flags
 	event.ki.dwExtraInfo = neruInjectedTag
 
+	return sendOneInput(unsafe.Pointer(&event), unsafe.Sizeof(event))
+}
+
+func keyUpFlag(isUp bool) uint32 {
 	if isUp {
-		event.ki.dwFlags = keyeventfKeyUp
+		return keyeventfKeyUp
 	}
 
-	return sendOneInput(unsafe.Pointer(&event), unsafe.Sizeof(event))
+	return 0
 }
 
 // MoveMouseTo moves the cursor to the given screen point.

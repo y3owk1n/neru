@@ -83,12 +83,11 @@ no Linux entry, and the headless-sway job gates merges. That was the whole of
 [ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)'s promise,
 and it is kept.
 
-**Windows parity is one word short.** Every mode works, and every option, mode
-flag, action and command means what it means on macOS except the `feed` action
-and `neru key`, which have no key-injection path yet — Windows entry 1 under
-[Known Gaps](#known-gaps). The three `hints.vision.*_confidence` floors are
-inert there too, but as a stated boundary of the OCR engine rather than
-unbuilt work. The native `windows-latest` job gates merges.
+**Windows parity is complete too.** Every mode works, and every option, mode
+flag, action and command means what it means on macOS; [Known Gaps](#known-gaps)
+carries no Windows entry. The three `hints.vision.*_confidence` floors are
+inert there, but as a stated boundary of the OCR engine rather than unbuilt
+work. The native `windows-latest` job gates merges.
 
 **Both stay Beta anyway**, because parity is a claim about coverage and
 Stable is a claim about reliability. Fourteen Linux capabilities landed in a
@@ -207,7 +206,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream input ⁴  | 🟡 key-stream input ⁴        | 🟡 key-stream input ⁴   | 🟡 key-stream input ⁴        |
 | **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ⚠️ portal ScreenCast, consent ⁵ | ✅ `BitBlt` ⁵        |
 | **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁶ | ⚠️ tesseract, text only ⁶ | ⚠️ tesseract, text only ⁶ | ⚠️ `Windows.Media.Ocr`, text only ⁶ |
-| **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
+| **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | ✅ `SendInput`               |
 | **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | ✅ Task Scheduler logon task |
 
 ¹ Every platform resolves font *families* through the OS: NSFont on macOS,
@@ -1102,7 +1101,6 @@ green in every cell while an option means nothing, which is exactly how
 | `hints.vision.rectangle_max_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hide_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `show_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
-| `feed` | action | ✅ | ✅ | ❌ | Windows has no key-injection path yet, so the key it would post is never sent; the key_feed capability reports stub to match |
 
 <!-- END GENERATED PLATFORM SUPPORT -->
 
@@ -1197,10 +1195,8 @@ working, which is exactly why the build exists.
 
 **Windows**
 
-1. Key feed — the `feed` action and `neru key` return `CodeNotSupported`
-   because `keyfeed_other.go` is the Windows slot; the target is `SendInput`
-   with `KEYBDINPUT` events, the call the pointer and modifier passthrough
-   already use ([#1593](https://github.com/y3owk1n/neru/issues/1593)).
+None — parity is complete; the `feed` action and `neru key` inject through
+`SendInput`, the call the pointer and modifier passthrough already use.
 
 **Not a Windows gap**: the three `hints.vision.*_confidence` floors are inert
 because `Windows.Media.Ocr` reports no per-word confidence, so there is nothing

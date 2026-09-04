@@ -28,7 +28,7 @@ Work that is not tied to any one platform:
 
 Linux and Windows are both
 [beta](CROSS_PLATFORM.md#what-the-labels-mean) — good for daily driving, with
-Linux parity complete and Windows one word short. What moves either to Stable
+parity complete on both. What moves either to Stable
 is the six-clean-releases rule written there, not a feature. Every remaining
 item is tracked as a numbered entry in
 [Known Gaps](CROSS_PLATFORM.md#known-gaps) — pick one from there rather than
