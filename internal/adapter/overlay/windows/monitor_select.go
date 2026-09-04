@@ -176,9 +176,11 @@ func (m *Manager) DrawMonitorSelect(
 		subtitleRect = subtitleRect.Sub(target.Bounds.Min)
 
 		win.FillRoundedRect(panel, radius, background)
+
 		if borderWidth > 0 {
 			win.StrokeRoundedRect(panel, radius, border, borderWidth)
 		}
+
 		win.DrawTextCentered(target.Label, labelRect, style.FontFamily, labelFont, text)
 
 		if target.Subtitle != "" {
