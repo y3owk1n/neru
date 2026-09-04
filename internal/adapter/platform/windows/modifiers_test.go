@@ -83,3 +83,27 @@ func TestModifierKeysFrom_PlansAgainstTheLiveKeyboard(t *testing.T) {
 		})
 	}
 }
+
+// TestNoteModifierReleased_RecordsOnlyWhileAHoldIsOpen pins the window a
+// physical release is remembered in: a key-up the hook sees between a hold's
+// open and its release is what keeps that key from being pressed back, and
+// one seen outside a hold means nothing.
+func TestNoteModifierReleased_RecordsOnlyWhileAHoldIsOpen(t *testing.T) {
+	noteModifierReleased(vkLShift)
+
+	if released := endReleaseTracking(); len(released) != 0 {
+		t.Fatalf("a release outside a hold was recorded: %v", released)
+	}
+
+	beginReleaseTracking()
+	noteModifierReleased(vkLShift)
+
+	released := endReleaseTracking()
+	if _, ok := released[vkLShift]; !ok || len(released) != 1 {
+		t.Fatalf("released = %v, want exactly left shift", released)
+	}
+
+	if again := endReleaseTracking(); again != nil {
+		t.Fatalf("the record survived its hold: %v", again)
+	}
+}

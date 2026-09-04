@@ -35,6 +35,17 @@ var windowsModifierKeys = []struct {
 	{vkRWin, action.ModCmd, false},
 }
 
+// isModifierVirtualKey reports whether vk is one of windowsModifierKeys.
+func isModifierVirtualKey(vk uint32) bool {
+	for _, key := range windowsModifierKeys {
+		if uint32(key.key) == vk {
+			return true
+		}
+	}
+
+	return false
+}
+
 // modifierKeysFrom reads every modifier key through down, which answers
 // whether a virtual key is held right now.
 func modifierKeysFrom(down func(vk uint32) bool) []modifierstate.Key {
@@ -74,6 +85,46 @@ func heldModifierKeycodes() []uint32 {
 // physically held ctrl reads up until they tap it again.
 var modifierHoldMu sync.Mutex
 
+// releasedDuringHold is the modifier keys the user physically let go of while
+// a hold was open, or nil when none is. The keyboard hook fills it and release
+// reads it, because the keyboard itself cannot answer the question: a key the
+// hold suppressed reads up whether the user is still holding it or not, and
+// pressing back one they released latches it with nothing to ever let go.
+// That window was one synchronous injection wide until the scroll animator
+// started holding modifiers for the length of an animation.
+var (
+	releasedDuringHoldMu sync.Mutex
+	releasedDuringHold   map[uint32]struct{}
+)
+
+// noteModifierReleased records a physical modifier key-up seen by the
+// keyboard hook. Outside a hold it records nothing.
+func noteModifierReleased(vk uint32) {
+	releasedDuringHoldMu.Lock()
+	defer releasedDuringHoldMu.Unlock()
+
+	if releasedDuringHold != nil {
+		releasedDuringHold[vk] = struct{}{}
+	}
+}
+
+func beginReleaseTracking() {
+	releasedDuringHoldMu.Lock()
+	defer releasedDuringHoldMu.Unlock()
+
+	releasedDuringHold = make(map[uint32]struct{})
+}
+
+func endReleaseTracking() map[uint32]struct{} {
+	releasedDuringHoldMu.Lock()
+	defer releasedDuringHoldMu.Unlock()
+
+	released := releasedDuringHold
+	releasedDuringHold = nil
+
+	return released
+}
+
 // modifierHold is one injection's worth of falsified modifier state: what it
 // released so the injection would not carry it, and what it pressed so the
 // injection would.
@@ -108,6 +159,7 @@ type modifierHold struct {
 // failure path alike.
 func holdModifiers(modifiers action.Modifiers) (modifierHold, error) {
 	modifierHoldMu.Lock()
+	beginReleaseTracking()
 
 	hold := modifierHold{plan: modifierstate.PlanFor(modifierKeysFrom(isVirtualKeyDown), modifiers)}
 
@@ -138,14 +190,16 @@ func holdModifiers(modifiers action.Modifiers) (modifierHold, error) {
 // release lets go of what the hold pressed and presses back what it
 // suppressed, skipping any key that reads down again: something pressed it
 // after we let go, and a second press would leave a hold our release never
-// answers. A key the user let go of mid-injection reads up and is pressed back
-// regardless; the keyboard cannot tell that release from ours, and the window
-// is one synchronous injection wide.
+// answers. A key the user let go of while the hold was open reads up exactly
+// as one we suppressed does, so the keyboard hook's record of physical
+// releases decides: one the user released stays up.
 //
 // Errors are dropped: a release that fails has nothing better to try, and
 // reporting it would mask the outcome of the action it wraps.
 func (h modifierHold) release() {
 	defer modifierHoldMu.Unlock()
+
+	released := endReleaseTracking()
 
 	for _, edit := range h.plan.Press {
 		_ = sendKeyboardInput(uint16(edit.Keycode), true)
@@ -156,6 +210,10 @@ func (h modifierHold) release() {
 	}
 
 	for _, edit := range h.plan.Restore(heldModifierKeycodes()) {
+		if _, userReleased := released[edit.Keycode]; userReleased {
+			continue
+		}
+
 		_ = sendKeyboardInput(uint16(edit.Keycode), false)
 	}
 }
