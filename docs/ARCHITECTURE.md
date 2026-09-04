@@ -73,9 +73,9 @@ checks before serving a connection:
   that SID alone. There the kernel checks the descriptor before the connection
   is ever accepted, which is the same question asked earlier.
 
-`neru doctor` prints the endpoint in use. What each *client* can establish
-about the daemon before it connects differs by platform, and is a
-[Known Gap](CROSS_PLATFORM.md#known-gaps) rather than part of this shape.
+`neru doctor` prints the endpoint in use. On every platform the client also
+confirms, before sending anything, that the process serving the endpoint runs
+as this user.
 
 New user-facing behavior therefore usually needs three pieces: a CLI command
 (`internal/cli/`, registered in an `init()`), an IPC handler, and the
