@@ -232,6 +232,11 @@ func (o *winOverlay) ShowSubgrid(
 // repainted. The record is kept even when nothing can be painted yet, for the
 // same reason UpdateGridMatches keeps its prefix while the window is hidden:
 // the next Show reads it.
+//
+// With a subgrid open, the repaint is the subgrid's own: a full grid redraw
+// here would put the parent cells back under it, which is the repaint
+// docs/CROSS_PLATFORM.md already reports for a narrowing keystroke and one
+// this call has no reason to add to.
 func (o *winOverlay) SetGridPointer(pointer recursivegridcomponent.VirtualPointerState) {
 	if o == nil || pointer == o.gridPointer {
 		return
@@ -240,6 +245,12 @@ func (o *winOverlay) SetGridPointer(pointer recursivegridcomponent.VirtualPointe
 	o.gridPointer = pointer
 
 	if o.cachedGrid == nil || o.suppressDraw || o.window == nil || !o.window.Visible() {
+		return
+	}
+
+	if o.currentSubgrid != nil {
+		o.ShowSubgrid(o.currentSubgrid, o.cachedStyle, pointer)
+
 		return
 	}
 
@@ -277,6 +288,11 @@ func (o *winOverlay) DrawGrid(gridValue *domainGrid.Grid, input string, style gr
 	o.cachedStyle = style
 	o.currentPrefix = strings.ToUpper(input)
 	o.currentSubgrid = nil
+	// A frame describes a grid whose selection is gone with the one it
+	// replaces: every path that draws one clears the selection and refreshes
+	// the pointer right after, so a record kept here would flash the previous
+	// pointer onto the new cells for one paint.
+	o.gridPointer = recursivegridcomponent.VirtualPointerState{}
 	o.suppressDraw = false
 	o.redrawGrid()
 }
