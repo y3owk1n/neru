@@ -18,7 +18,7 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
-// Win32 overlay backend used by the Windows overlay manager for grid rendering.
+// Overlay window used by the Windows overlay manager for grid rendering.
 // Does not manage singleton lifecycle or mode subscriptions.
 const (
 	winSubgridFontScale = 0.7
@@ -65,11 +65,32 @@ func newWinOverlay(logger *zap.Logger) *winOverlay {
 		bounds := window.Bounds()
 		logger.Info(
 			"Windows overlay window ready",
+			zap.String("backend", window.Backend()),
 			zap.Int("x", bounds.Min.X),
 			zap.Int("y", bounds.Min.Y),
 			zap.Int("width", bounds.Dx()),
 			zap.Int("height", bounds.Dy()),
 		)
+
+		// Per-frame cost, on the overlay UI thread after each present. Counts
+		// and durations only, which is what a report of "still laggy" needs.
+		window.SetFrameObserver(func(stats winplatform.FrameStats) {
+			if stats.Err != nil {
+				logger.Warn("overlay frame not presented", zap.Error(stats.Err))
+
+				return
+			}
+
+			logger.Debug(
+				"overlay frame presented",
+				zap.String("backend", stats.Backend),
+				zap.Int("commands", stats.Commands),
+				zap.Int("dirty_width", stats.Dirty.Dx()),
+				zap.Int("dirty_height", stats.Dirty.Dy()),
+				zap.Duration("raster", stats.Raster),
+				zap.Duration("present", stats.Present),
+			)
+		})
 	}
 
 	return &winOverlay{window: window, logger: logger}
@@ -348,6 +369,16 @@ func (o *winOverlay) screenBounds() (image.Rectangle, bool) {
 	}
 
 	return bounds, true
+}
+
+// backendName reports which surface the window presents through, for the
+// capability detail.
+func (o *winOverlay) backendName() string {
+	if o == nil || o.window == nil {
+		return ""
+	}
+
+	return o.window.Backend()
 }
 
 func (o *winOverlay) redrawGrid() {

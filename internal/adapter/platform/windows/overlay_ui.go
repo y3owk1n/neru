@@ -74,6 +74,22 @@ func runOnOverlayUI(callback func()) {
 	<-done
 }
 
+// postOnOverlayUI queues callback on the overlay UI thread and returns without
+// waiting for it. On the UI thread itself it runs inline, as runOnOverlayUI
+// does. It is how a Flush leaves the keyboard hook's thread before a pixel is
+// painted.
+func postOnOverlayUI(callback func()) {
+	startOverlayUIThread()
+
+	if overlayUIGID.Load() == curGoroutineID() {
+		callback()
+
+		return
+	}
+
+	overlayUIOps <- callback
+}
+
 func curGoroutineID() uint64 {
 	var buf [64]byte
 

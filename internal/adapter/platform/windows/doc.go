@@ -1,6 +1,7 @@
 // Package windows implements ports.SystemPort over pure-Go Win32 bindings, no
 // cgo: monitor enumeration, SendInput, the WH_KEYBOARD_LL hook, RegisterHotKey,
-// GDI layered-window overlays, BitBlt screen capture, Windows.Media.Ocr text
+// DirectComposition + Direct2D overlays with a GDI layered-window fallback,
+// BitBlt screen capture, Windows.Media.Ocr text
 // recognition over raw WinRT vtables, dark-mode via the registry. UI
 // Automation lives in adapter/accessibility/native/windows.
 //

@@ -462,7 +462,10 @@ its own.
    ([style_cache.go](../internal/adapter/overlay/render/overlayutil/style_cache.go))
    keep repeated activations off the hot path.
 4. **Native rendering** — GPU-accelerated CoreAnimation on macOS, Cairo on
-   Linux, GDI on Windows.
+   Linux, Direct2D on a DirectComposition swapchain on Windows (GDI on a
+   layered window where that cannot come up). The Windows draw queues
+   commands and returns; a dedicated UI thread paints and presents them,
+   coalescing frames, so no keystroke waits on pixels.
 
 ---
 

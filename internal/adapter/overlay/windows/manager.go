@@ -25,8 +25,10 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Manager manages overlay rendering on Windows, backed by a layered Win32
-// HWND and GDI rendering of grid, hints, and recursive-grid overlays.
+// Manager manages overlay rendering on Windows, backed by a click-through
+// Win32 HWND — DirectComposition and Direct2D where they come up, a layered
+// window updated from GDI otherwise — drawing grid, hints, and recursive-grid
+// overlays.
 // Does not implement keyboard capture (handled by the low-level keyboard hook).
 type Manager struct {
 	manager.Base
@@ -255,9 +257,14 @@ func (m *Manager) WaylandKeyboardChannel() <-chan string {
 // OverlayCapabilities reports Windows overlay support.
 func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 	if m.win != nil && m.win.Healthy() {
+		detail := "native Windows overlays available via DirectComposition + Direct2D"
+		if m.win.backendName() == "gdi" {
+			detail = "native Windows overlays available via layered Win32 window + GDI"
+		}
+
 		return ports.FeatureCapability{
 			Status: ports.FeatureStatusSupported,
-			Detail: "native Windows overlays available via layered Win32 window + GDI",
+			Detail: detail,
 		}
 	}
 
@@ -267,7 +274,7 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 	}
 }
 
-// DrawHintsWithStyle draws the hints overlay using the Windows GDI backend.
+// DrawHintsWithStyle draws the hints overlay on the Windows overlay window.
 //
 // The placement is resolved once, before anything is drawn: it is the same for
 // every badge in the frame, and a placement this overlay cannot draw is
@@ -759,7 +766,7 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 	return nil
 }
 
-// DrawRecursiveGrid draws the recursive-grid overlay using the Windows GDI backend.
+// DrawRecursiveGrid draws the recursive-grid overlay on the Windows overlay window.
 //
 // The next-depth keys and dimensions are handed on to the draw, which previews
 // them as a mini-grid inside each cell. The depth is not: this backend has no

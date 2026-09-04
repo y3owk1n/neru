@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"math"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -17,17 +17,23 @@ import (
 const (
 	overlayClassName = "NeruOverlayWindow"
 
-	wsPopup          = 0x80000000
-	wsExLayered      = 0x00080000
-	wsExTransparent  = 0x00000020
-	wsExTopmost      = 0x00000008
-	wsExToolWindow   = 0x00000080
-	wsExNoActivate   = 0x08000000
-	swHide           = 0
-	swShowNoActivate = 4
-	hwndTopMost      = ^uintptr(0)
-	swpNoActivate    = 0x0010
-	swpShowWindow    = 0x0040
+	wsPopup                 = 0x80000000
+	wsExLayered             = 0x00080000
+	wsExTransparent         = 0x00000020
+	wsExTopmost             = 0x00000008
+	wsExToolWindow          = 0x00000080
+	wsExNoActivate          = 0x08000000
+	wsExNoRedirectionBitmap = 0x00200000
+	swHide                  = 0
+	swShowNoActivate        = 4
+	hwndTopMost             = ^uintptr(0)
+	swpNoActivate           = 0x0010
+	swpShowWindow           = 0x0040
+	swpNoMove               = 0x0002
+	swpNoSize               = 0x0001
+
+	wmNCHitTest   = 0x0084
+	htTransparent = ^uintptr(0) // HTTRANSPARENT, LRESULT -1
 
 	defaultOverlayFont = "Segoe UI"
 	fwBold             = 700
@@ -52,18 +58,18 @@ const (
 	maskBlue  = 0x000000FF
 	maskAlpha = 0xFF000000
 
-	// Windows sRGB color space identifier ('Win ').
-	colorSpaceWinRGB = 0x206E6957
-
-	// Half-pixel offset for SDF sample points to match the pixel-as-area model.
-	pixelHalf = 0.5
-
 	// ARGB compositing constants.
 	alphaMax = 255
 
 	// GDI text rendering defaults.
 	defaultFontSize = 14
 	gdiWhiteText    = 0x00FFFFFF
+
+	// LCS_WINDOWS_COLOR_SPACE, 'Win ' as a little-endian FOURCC.
+	colorSpaceWinRGB = 0x206E6957
+
+	// pixelHalf is the offset from a pixel's corner to its center.
+	pixelHalf = 0.5
 
 	// Triangle rasterization. A filled triangle has no signed-distance form as
 	// cheap as sdRoundedBox, so coverage is sampled on a grid inside each pixel
@@ -93,19 +99,19 @@ var (
 	procSetTextColor       = gdi32.NewProc("SetTextColor")
 	procCreateFontW        = gdi32.NewProc("CreateFontW")
 
-	procRegisterClassExW    = user32.NewProc("RegisterClassExW")
-	procCreateWindowExW     = user32.NewProc("CreateWindowExW")
-	procDestroyWindow       = user32.NewProc("DestroyWindow")
-	procShowWindow          = user32.NewProc("ShowWindow")
-	procSetWindowPos        = user32.NewProc("SetWindowPos")
-	procDefWindowProcW      = user32.NewProc("DefWindowProcW")
-	procIsWindow            = user32.NewProc("IsWindow")
-	procUpdateLayeredWindow = user32.NewProc("UpdateLayeredWindow")
+	procRegisterClassExW            = user32.NewProc("RegisterClassExW")
+	procCreateWindowExW             = user32.NewProc("CreateWindowExW")
+	procDestroyWindow               = user32.NewProc("DestroyWindow")
+	procShowWindow                  = user32.NewProc("ShowWindow")
+	procSetWindowPos                = user32.NewProc("SetWindowPos")
+	procDefWindowProcW              = user32.NewProc("DefWindowProcW")
+	procIsWindow                    = user32.NewProc("IsWindow")
+	procUpdateLayeredWindowIndirect = user32.NewProc("UpdateLayeredWindowIndirect")
+	procDrawTextW                   = user32.NewProc("DrawTextW")
 
 	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
 
 	procGetModuleHandleW = kernel32.NewProc("GetModuleHandleW")
-	procRtlMoveMemory    = kernel32.NewProc("RtlMoveMemory")
 
 	overlayClassOnce  sync.Once
 	errOverlayClass   error
@@ -129,74 +135,105 @@ type wndClassEx struct {
 	hIconSm       windows.Handle
 }
 
-type rectFill struct {
-	rect   image.Rectangle
-	color  uint32
-	radius float64
-}
+// drawKind says which primitive a drawCmd is.
+type drawKind uint8
 
-type rectStroke struct {
-	rect   image.Rectangle
-	color  uint32
-	width  int
-	radius float64
-}
+const (
+	drawFill drawKind = iota
+	drawRoundedFill
+	drawStroke
+	drawRoundedStroke
+	drawTriangle
+	drawText
+)
 
-// triFill is one filled triangle: the connector arrow a hint badge grows when
-// `hints.ui.placement` puts it above or below its target. It is its own command
-// because no rectangle can describe it.
-type triFill struct {
-	vertices [triangleVertices]image.Point
+// drawCmd is one queued primitive. Commands are kept in the order they were
+// queued and painted in that order, so a later shape always lands over an
+// earlier one — the ordering every other backend has, and the one a hint
+// badge drawn over its neighbor relies on.
+type drawCmd struct {
+	kind     drawKind
+	rect     image.Rectangle
 	color    uint32
+	radius   float64
+	width    int
+	vertices [triangleVertices]image.Point
+	text     string
+	font     string
+	fontSize float64
 }
 
-type textDraw struct {
-	text       string
-	rect       image.Rectangle
-	fontFamily string
-	fontSize   float64
-	color      uint32
+// bounds is the rectangle a command can touch, before clipping to the surface.
+func (c drawCmd) bounds() image.Rectangle {
+	if c.kind != drawTriangle {
+		// A text command paints one pixel of anti-aliasing padding around
+		// its rectangle (gdiTextRenderer.paint); the same inset serves every
+		// rectangular command.
+		return c.rect.Inset(-1)
+	}
+
+	rect := image.Rectangle{Min: c.vertices[0], Max: c.vertices[0]}
+	for _, vertex := range c.vertices {
+		rect.Min.X = min(rect.Min.X, vertex.X)
+		rect.Min.Y = min(rect.Min.Y, vertex.Y)
+		rect.Max.X = max(rect.Max.X, vertex.X+1)
+		rect.Max.Y = max(rect.Max.Y, vertex.Y+1)
+	}
+
+	return rect
 }
 
-type bitmapV4Header struct {
-	Size          uint32
-	Width         int32
-	Height        int32
-	Planes        uint16
-	BitCount      uint16
-	Compression   uint32
-	SizeImage     uint32
-	XPelsPerMeter int32
-	YPelsPerMeter int32
-	ClrUsed       uint32
-	ClrImportant  uint32
-	RedMask       uint32
-	GreenMask     uint32
-	BlueMask      uint32
-	AlphaMask     uint32
-	CSType        uint32
-	Endpoints     [9]uint32
-	GammaRed      uint32
-	GammaGreen    uint32
-	GammaBlue     uint32
+// frame is what Flush hands the UI thread: the commands queued since the last
+// Flush, and whether the surface is to be cleared before they are painted.
+// Frames coalesce — a Flush that finds one still waiting appends to it, and a
+// Clear folds every waiting command away — so a burst of keystrokes presents
+// once, with the newest state.
+type frame struct {
+	clear bool
+	cmds  []drawCmd
 }
 
-type blendFunction struct {
-	BlendOp             byte
-	BlendFlags          byte
-	SourceConstantAlpha byte
-	AlphaFormat         byte
+// FrameStats describes one presented frame: what it cost and where. Counts,
+// durations and rectangles only; nothing about what was drawn.
+type FrameStats struct {
+	// Backend names the surface that presented: "direct2d" or "gdi".
+	Backend string
+	// Commands is how many primitives the frame painted.
+	Commands int
+	// Dirty is the surface rectangle the frame changed.
+	Dirty image.Rectangle
+	// Raster is how long painting the commands took.
+	Raster time.Duration
+	// Present is how long handing the pixels to the compositor took.
+	Present time.Duration
+	// Err is why the frame was not presented, when it was not: the surface
+	// failed and could not be rebuilt on GDI. Flush returns before the paint,
+	// so this is the only place that failure surfaces.
+	Err error
 }
 
-type point struct {
-	X, Y int32
+// overlaySurface is what actually holds pixels for a window. The window owns
+// the command queue and the HWND; the surface owns whatever the pixels live in
+// — a DIB the layered window is updated from, or a DirectComposition swapchain
+// — and paints one frame at a time. Every method runs on the overlay UI thread.
+type overlaySurface interface {
+	// name is the value FrameStats.Backend carries.
+	name() string
+	// render paints a frame and presents it. It returns an error only when
+	// the surface itself is broken (a lost device), never for a bad command.
+	render(f *frame) (FrameStats, error)
+	// resize replaces the pixel store for a new window size.
+	resize(width, height int) error
+	// destroy releases the native resources.
+	destroy()
 }
 
-type size struct {
-	CX, CY int32
-}
-
-// OverlayWindow is a fullscreen click-through layered HWND with per-pixel alpha.
+// OverlayWindow is a fullscreen click-through HWND with per-pixel alpha.
+//
+// Drawing is a queue of commands. Flush hands the queue to the overlay UI
+// thread and returns at once; the thread paints and presents when it gets to
+// it, and coalesces frames that pile up. Nothing on the caller's thread — the
+// keyboard hook's, on a keystroke — waits for pixels.
 type OverlayWindow struct {
 	mu      sync.Mutex
 	hwnd    windows.HWND
@@ -206,15 +243,28 @@ type OverlayWindow struct {
 	visible bool
 	dirty   bool
 
-	fills   []rectFill
-	tris    []triFill
-	strokes []rectStroke
-	texts   []textDraw
+	cmds         []drawCmd
+	clearPending bool
+	pending      *frame
+	renderQueued bool
 
-	pixels []byte
+	// surface is touched only on the overlay UI thread.
+	surface overlaySurface
+	// noDComp is set once DirectComposition failed for this window, so a
+	// rebuild does not try it again.
+	noDComp bool
+
+	observer func(FrameStats)
 }
 
 func overlayWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	// Click-through. WS_EX_TRANSPARENT makes a layered window pass the mouse
+	// on; a DirectComposition window is not layered, so answer the hit test
+	// directly and both kinds behave the same.
+	if msg == wmNCHitTest {
+		return htTransparent
+	}
+
 	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
 
 	return ret
@@ -249,7 +299,7 @@ func registerOverlayWindowClass() error {
 	return errOverlayClass
 }
 
-// NewOverlayWindow creates a layered overlay sized to the active monitor.
+// NewOverlayWindow creates an overlay sized to the active monitor.
 func NewOverlayWindow() (*OverlayWindow, error) {
 	err := registerOverlayWindowClass()
 	if err != nil {
@@ -261,24 +311,10 @@ func NewOverlayWindow() (*OverlayWindow, error) {
 		return nil, err
 	}
 
-	overlay := &OverlayWindow{
-		bounds: bounds,
-	}
-
-	var createErr error
-
-	runOnOverlayUI(func() {
-		createErr = overlay.createHWNDLocked()
-	})
-
-	if createErr != nil {
-		return nil, createErr
-	}
-
-	return overlay, nil
+	return newOverlayWindowWithBounds(bounds)
 }
 
-// NewOverlayWindowAt creates a layered overlay at the given screen position and
+// NewOverlayWindowAt creates an overlay at the given screen position and
 // size. Used for small transient windows like the mode indicator badge.
 func NewOverlayWindowAt(posX, posY, width, height int) (*OverlayWindow, error) {
 	if width <= 0 || height <= 0 {
@@ -290,9 +326,11 @@ func NewOverlayWindowAt(posX, posY, width, height int) (*OverlayWindow, error) {
 		return nil, err
 	}
 
-	overlay := &OverlayWindow{
-		bounds: image.Rect(posX, posY, posX+width, posY+height),
-	}
+	return newOverlayWindowWithBounds(image.Rect(posX, posY, posX+width, posY+height))
+}
+
+func newOverlayWindowWithBounds(bounds image.Rectangle) (*OverlayWindow, error) {
+	overlay := &OverlayWindow{bounds: bounds}
 
 	var createErr error
 
@@ -309,16 +347,17 @@ func NewOverlayWindowAt(posX, posY, width, height int) (*OverlayWindow, error) {
 
 // HWND returns the native window handle.
 func (o *OverlayWindow) HWND() windows.HWND {
-	return o.hwnd
+	return o.handle()
 }
 
 // Healthy reports whether the overlay window is initialized and still valid.
 func (o *OverlayWindow) Healthy() bool {
-	if o == nil || o.hwnd == 0 {
+	hwnd := o.handle()
+	if hwnd == 0 {
 		return false
 	}
 
-	ret, _, _ := procIsWindow.Call(uintptr(o.hwnd))
+	ret, _, _ := procIsWindow.Call(uintptr(hwnd))
 
 	return ret != 0
 }
@@ -341,10 +380,44 @@ func (o *OverlayWindow) Bounds() image.Rectangle {
 	return o.bounds
 }
 
-// SetColorBlendRGB is a no-op since the overlay now uses per-pixel alpha.
+// Backend names the surface this window presents through: "direct2d" when
+// DirectComposition came up, "gdi" otherwise, and "" before the window exists.
+func (o *OverlayWindow) Backend() string {
+	if o == nil {
+		return ""
+	}
+
+	var name string
+
+	runOnOverlayUI(func() {
+		if o.surface != nil {
+			name = o.surface.name()
+		}
+	})
+
+	return name
+}
+
+// SetFrameObserver registers a callback that receives the statistics of every
+// presented frame. It is called on the overlay UI thread, so it must not block
+// and must not call back into this window.
+func (o *OverlayWindow) SetFrameObserver(observer func(FrameStats)) {
+	if o == nil {
+		return
+	}
+
+	o.mu.Lock()
+	o.observer = observer
+	o.mu.Unlock()
+}
+
+// SetColorBlendRGB is a no-op since the overlay uses per-pixel alpha.
 func (o *OverlayWindow) SetColorBlendRGB(uint32) {}
 
 // Show displays the overlay without taking focus.
+//
+// A frame still waiting is presented first, so the window comes up showing
+// what was last drawn rather than the frame before it.
 func (o *OverlayWindow) Show() {
 	if o == nil {
 		return
@@ -358,19 +431,9 @@ func (o *OverlayWindow) Show() {
 			}
 		}
 
-		// A hidden layered window retains its last presented bitmap. Publish
-		// the current pixels before showing it, otherwise reopening briefly
-		// exposes the previous frame before Clear's transparent pixels and
-		// the new draw are presented.
-		o.flushPixels()
+		o.renderPending()
 
 		discardCall(procShowWindow.Call(uintptr(o.hwnd), swShowNoActivate))
-
-		const (
-			swpNomove = 0x0002
-			swpNosize = 0x0001
-		)
-
 		discardCall(procSetWindowPos.Call(
 			uintptr(o.hwnd),
 			hwndTopMost,
@@ -378,25 +441,32 @@ func (o *OverlayWindow) Show() {
 			0,
 			0,
 			0,
-			swpNoActivate|swpShowWindow|swpNomove|swpNosize,
+			swpNoActivate|swpShowWindow|swpNoMove|swpNoSize,
 		))
+
+		o.mu.Lock()
 		o.visible = true
+		o.mu.Unlock()
 	})
 }
 
 // Hide hides the overlay window without taking focus.
 func (o *OverlayWindow) Hide() {
-	if o == nil || o.hwnd == 0 {
+	if o.handle() == 0 {
 		return
 	}
 
 	runOnOverlayUI(func() {
 		discardCall(procShowWindow.Call(uintptr(o.hwnd), swHide))
+
+		o.mu.Lock()
 		o.visible = false
+		o.mu.Unlock()
 	})
 }
 
-// Clear resets queued draw commands and clears the pixel buffer.
+// Clear drops every queued command and marks the surface to be emptied when
+// the next frame is presented.
 func (o *OverlayWindow) Clear() {
 	if o == nil {
 		return
@@ -405,15 +475,8 @@ func (o *OverlayWindow) Clear() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	o.fills = o.fills[:0]
-	o.tris = o.tris[:0]
-	o.strokes = o.strokes[:0]
-	o.texts = o.texts[:0]
-	// Clear pixel buffer to transparent black (all zeros).
-	for i := range o.pixels {
-		o.pixels[i] = 0
-	}
-
+	o.cmds = o.cmds[:0]
+	o.clearPending = true
 	o.dirty = true
 }
 
@@ -432,43 +495,11 @@ func (o *OverlayWindow) ResizeToActiveScreen() error {
 		return nil
 	}
 
-	o.mu.Lock()
-	o.bounds = bounds
-	o.width = bounds.Dx()
-	o.height = bounds.Dy()
-	o.dirty = true
-	o.mu.Unlock()
-
-	if o.hwnd == 0 {
-		return nil
-	}
-
-	runOnOverlayUI(func() {
-		o.mu.Lock()
-		o.pixels = make([]byte, o.width*o.height*bytesPerPixel)
-		o.mu.Unlock()
-
-		flags := uintptr(swpNoActivate)
-		if o.visible {
-			flags |= swpShowWindow
-		}
-
-		discardCall(procSetWindowPos.Call(
-			uintptr(o.hwnd),
-			hwndTopMost,
-			uintptr(bounds.Min.X),
-			uintptr(bounds.Min.Y),
-			uintptr(o.width),
-			uintptr(o.height),
-			flags,
-		))
-	})
-
-	return nil
+	return o.ResizeTo(bounds.Min.X, bounds.Min.Y, bounds.Dx(), bounds.Dy())
 }
 
 // ResizeTo repositions and resizes the overlay window to the given screen
-// coordinates and dimensions, reallocating the pixel buffer as needed.
+// coordinates and dimensions, replacing the pixel store as needed.
 func (o *OverlayWindow) ResizeTo(posX, posY, width, height int) error {
 	if o == nil {
 		return errOverlayNil
@@ -479,23 +510,22 @@ func (o *OverlayWindow) ResizeTo(posX, posY, width, height int) error {
 	}
 
 	o.mu.Lock()
+	sameSize := o.width == width && o.height == height
 	o.bounds = image.Rect(posX, posY, posX+width, posY+height)
 	o.width = width
 	o.height = height
 	o.dirty = true
 	o.mu.Unlock()
 
-	if o.hwnd == 0 {
+	if o.handle() == 0 {
 		return nil
 	}
 
-	runOnOverlayUI(func() {
-		o.mu.Lock()
-		o.pixels = make([]byte, o.width*o.height*bytesPerPixel)
-		o.mu.Unlock()
+	var resizeErr error
 
+	runOnOverlayUI(func() {
 		flags := uintptr(swpNoActivate)
-		if o.visible {
+		if o.Visible() {
 			flags |= swpShowWindow
 		}
 
@@ -508,9 +538,15 @@ func (o *OverlayWindow) ResizeTo(posX, posY, width, height int) error {
 			uintptr(height),
 			flags,
 		))
+
+		// The indicator badges are moved to the cursor every tick at the size
+		// they already have; that is a move, and the pixel store stays.
+		if o.surface != nil && !sameSize {
+			resizeErr = o.surface.resize(width, height)
+		}
 	})
 
-	return nil
+	return resizeErr
 }
 
 // Destroy releases native overlay resources.
@@ -535,10 +571,7 @@ func (o *OverlayWindow) FillRect(bounds image.Rectangle, color uint32) {
 		return
 	}
 
-	o.mu.Lock()
-	o.fills = append(o.fills, rectFill{rect: rect, color: color, radius: 0})
-	o.dirty = true
-	o.mu.Unlock()
+	o.queue(drawCmd{kind: drawFill, rect: rect, color: color})
 }
 
 // StrokeRect draws a rectangular border with the given ARGB color and width.
@@ -547,24 +580,18 @@ func (o *OverlayWindow) StrokeRect(bounds image.Rectangle, color uint32, lineWid
 		return
 	}
 
-	width := max(int(lineWidth), 1)
-
-	o.mu.Lock()
-	o.strokes = append(o.strokes, rectStroke{rect: bounds, color: color, width: width, radius: 0})
-	o.dirty = true
-	o.mu.Unlock()
+	o.queue(drawCmd{kind: drawStroke, rect: bounds, color: color, width: max(int(lineWidth), 1)})
 }
 
-// FillRoundedRect fills a rounded rectangle with an ARGB color using
-// signed-distance-function anti-aliasing.
+// FillRoundedRect fills a rounded rectangle with an ARGB color.
 //
 // A rectangle hanging off the surface is queued whole, unlike the square fill
-// above: the distance field is derived from the rectangle's own center and
+// above: the shape is derived from the rectangle's own center and
 // half-extents, so handing it a clipped rectangle would round the corners of
 // the *visible* part instead — a badge at the screen edge would be redrawn as
 // a smaller, differently rounded badge, while its stroke and its label (which
-// are not clipped here) stayed where the real one was. The rasterizer clamps
-// its own loop to the buffer, so nothing is drawn out of bounds either way.
+// are not clipped here) stayed where the real one was. The surface clips its
+// own painting to the buffer, so nothing is drawn out of bounds either way.
 func (o *OverlayWindow) FillRoundedRect(bounds image.Rectangle, radius float64, color uint32) {
 	if o == nil || bounds.Empty() || radius <= 0 {
 		o.FillRect(bounds, color)
@@ -576,14 +603,11 @@ func (o *OverlayWindow) FillRoundedRect(bounds image.Rectangle, radius float64, 
 		return
 	}
 
-	o.mu.Lock()
-	o.fills = append(o.fills, rectFill{rect: bounds, color: color, radius: radius})
-	o.dirty = true
-	o.mu.Unlock()
+	o.queue(drawCmd{kind: drawRoundedFill, rect: bounds, color: color, radius: radius})
 }
 
 // StrokeRoundedRect draws a rounded rectangular border with the given ARGB
-// color, width, and corner radius, using signed-distance-function anti-aliasing.
+// color, width, and corner radius.
 func (o *OverlayWindow) StrokeRoundedRect(
 	bounds image.Rectangle,
 	radius float64,
@@ -596,39 +620,34 @@ func (o *OverlayWindow) StrokeRoundedRect(
 		return
 	}
 
-	width := max(int(lineWidth), 1)
-
-	o.mu.Lock()
-	o.strokes = append(
-		o.strokes,
-		rectStroke{rect: bounds, color: color, width: width, radius: radius},
-	)
-	o.dirty = true
-	o.mu.Unlock()
+	o.queue(drawCmd{
+		kind:   drawRoundedStroke,
+		rect:   bounds,
+		color:  color,
+		radius: radius,
+		width:  max(int(lineWidth), 1),
+	})
 }
 
 // FillTriangle fills the triangle through the three points with an ARGB color,
-// anti-aliased by area sampling.
+// anti-aliased.
 //
-// It is queued with the fills and composited after them, so a triangle drawn to
-// tie a badge back to its target lands over the badge's own fill rather than
-// under it; the badge's stroke still runs last and closes the shared edge.
+// It is painted in queue order, so a triangle drawn to tie a badge back to its
+// target lands over the badge's own fill; the badge's stroke, queued after it,
+// closes the shared edge.
 func (o *OverlayWindow) FillTriangle(vertexA, vertexB, vertexC image.Point, color uint32) {
 	if o == nil {
 		return
 	}
 
-	o.mu.Lock()
-	o.tris = append(o.tris, triFill{
+	o.queue(drawCmd{
+		kind:     drawTriangle,
 		vertices: [triangleVertices]image.Point{vertexA, vertexB, vertexC},
 		color:    color,
 	})
-	o.dirty = true
-	o.mu.Unlock()
 }
 
-// DrawTextCentered renders centered text inside bounds using GDI onto the
-// pixel buffer with alpha compositing.
+// DrawTextCentered renders centered text inside bounds.
 func (o *OverlayWindow) DrawTextCentered(
 	text string,
 	bounds image.Rectangle,
@@ -644,21 +663,19 @@ func (o *OverlayWindow) DrawTextCentered(
 		fontFamily = defaultOverlayFont
 	}
 
-	o.mu.Lock()
-	o.texts = append(o.texts, textDraw{
-		text:       text,
-		rect:       bounds,
-		fontFamily: fontFamily,
-		fontSize:   fontSize,
-		color:      color,
+	o.queue(drawCmd{
+		kind:     drawText,
+		rect:     bounds,
+		color:    color,
+		text:     text,
+		font:     fontFamily,
+		fontSize: fontSize,
 	})
-	o.dirty = true
-	o.mu.Unlock()
 }
 
 // pointerGlyphDefault is the glyph a pointer stand-in draws when the
 // configured char is empty.
-const pointerGlyphDefault = "\u25CF"
+const pointerGlyphDefault = "●"
 
 // DrawPointerGlyph queues the pointer stand-in a grid mode draws at its
 // selection: one glyph centered on center in a box of the given size. Both
@@ -689,64 +706,19 @@ func (o *OverlayWindow) DrawPointerGlyph(
 	)
 }
 
-// CompositeCurrent composites all queued draw commands into the pixel buffer
-// in-place and clears the command queues. Use this when you need to render
-// each object as an atomic unit (e.g. per-hint) so that later objects render
-// fully on top of earlier ones, avoiding fill/stroke/text batching across
-// objects. Call Flush() at the end to present the final buffer.
-func (o *OverlayWindow) CompositeCurrent() {
-	if o == nil {
-		return
-	}
-
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	fills := append([]rectFill(nil), o.fills...)
-	tris := append([]triFill(nil), o.tris...)
-	strokes := append([]rectStroke(nil), o.strokes...)
-	texts := append([]textDraw(nil), o.texts...)
-	o.fills = o.fills[:0]
-	o.tris = o.tris[:0]
-	o.strokes = o.strokes[:0]
-	o.texts = o.texts[:0]
-
-	for _, f := range fills {
-		if f.radius > 0 {
-			alphaFillRoundedRect(o.pixels, o.width, o.height, f.rect, f.radius, f.color)
-		} else {
-			alphaFillRect(o.pixels, o.width, o.height, f.rect, f.color)
-		}
-	}
-
-	for _, t := range tris {
-		alphaFillTriangle(o.pixels, o.width, o.height, t.vertices, t.color)
-	}
-
-	for _, s := range strokes {
-		if s.radius > 0 {
-			alphaStrokeRoundedRect(o.pixels, o.width, o.height, s.rect, s.radius, s.color, s.width)
-		} else {
-			alphaStrokeRect(o.pixels, o.width, o.height, s.rect, s.color, s.width)
-		}
-	}
-
-	for _, t := range texts {
-		renderTextAlphaInto(o.pixels, o.width, o.height, t)
-	}
-}
-
-// Flush composites all queued draw commands into the pixel buffer and presents
-// them via UpdateLayeredWindow.
+// Flush hands the queued commands to the overlay UI thread and returns. The
+// thread paints and presents them when it gets to them; a Flush that arrives
+// while an earlier frame is still waiting joins that frame, so the window is
+// never more than one paint behind the newest state and the caller never
+// waits for one.
 func (o *OverlayWindow) Flush() error {
-	if o == nil || o.hwnd == 0 {
+	if o.handle() == 0 {
 		return errOverlayNotInit
 	}
 
 	o.mu.Lock()
 
-	dirty := o.dirty
-	if !dirty {
+	if !o.dirty {
 		o.mu.Unlock()
 
 		return nil
@@ -754,65 +726,127 @@ func (o *OverlayWindow) Flush() error {
 
 	o.dirty = false
 
-	fills := append([]rectFill(nil), o.fills...)
-	tris := append([]triFill(nil), o.tris...)
-	strokes := append([]rectStroke(nil), o.strokes...)
-	texts := append([]textDraw(nil), o.texts...)
+	if o.pending == nil {
+		o.pending = &frame{}
+	}
 
-	o.fills = o.fills[:0]
-	o.tris = o.tris[:0]
-	o.strokes = o.strokes[:0]
-	o.texts = o.texts[:0]
-	// Copy pixels under the lock so compositing outside the lock is safe.
-	pixels := make([]byte, len(o.pixels))
-	copy(pixels, o.pixels)
+	if o.clearPending {
+		o.pending.clear = true
+		o.pending.cmds = o.pending.cmds[:0]
+		o.clearPending = false
+	}
+
+	o.pending.cmds = append(o.pending.cmds, o.cmds...)
+	o.cmds = o.cmds[:0]
+
+	enqueue := !o.renderQueued
+	o.renderQueued = true
 	o.mu.Unlock()
 
-	// Render fills with alpha compositing.
-	for _, f := range fills {
-		if f.radius > 0 {
-			alphaFillRoundedRect(pixels, o.width, o.height, f.rect, f.radius, f.color)
-		} else {
-			alphaFillRect(pixels, o.width, o.height, f.rect, f.color)
-		}
+	if enqueue {
+		postOnOverlayUI(o.renderPending)
 	}
-
-	// Render triangles over the fills they attach to.
-	for _, t := range tris {
-		alphaFillTriangle(pixels, o.width, o.height, t.vertices, t.color)
-	}
-
-	// Render strokes with alpha compositing.
-	for _, s := range strokes {
-		if s.radius > 0 {
-			alphaStrokeRoundedRect(pixels, o.width, o.height, s.rect, s.radius, s.color, s.width)
-		} else {
-			alphaStrokeRect(pixels, o.width, o.height, s.rect, s.color, s.width)
-		}
-	}
-
-	// Render text via GDI onto a temporary bitmap, then composite.
-	for _, t := range texts {
-		renderTextAlphaInto(pixels, o.width, o.height, t)
-	}
-
-	runOnOverlayUI(func() {
-		// Swap rendered pixels under the lock.
-		o.mu.Lock()
-		o.pixels = pixels
-		o.mu.Unlock()
-		o.flushPixels()
-	})
 
 	return nil
 }
 
-func (o *OverlayWindow) createHWNDLocked() error {
-	className, err := windows.UTF16PtrFromString(overlayClassName)
+// handle reads the window handle under the lock: a rebuild on the UI thread
+// (rebuildOnGDI) replaces it mid-life, and every caller off that thread
+// reads it through here.
+func (o *OverlayWindow) handle() windows.HWND {
+	if o == nil {
+		return 0
+	}
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	return o.hwnd
+}
+
+func (o *OverlayWindow) setHandle(hwnd windows.HWND) {
+	o.mu.Lock()
+	o.hwnd = hwnd
+	o.mu.Unlock()
+}
+
+func (o *OverlayWindow) queue(cmd drawCmd) {
+	o.mu.Lock()
+	o.cmds = append(o.cmds, cmd)
+	o.dirty = true
+	o.mu.Unlock()
+}
+
+// renderPending paints and presents the waiting frame, if any. UI thread only.
+func (o *OverlayWindow) renderPending() {
+	o.mu.Lock()
+	pending := o.pending
+	o.pending = nil
+	o.renderQueued = false
+	observer := o.observer
+	o.mu.Unlock()
+
+	if pending == nil || o.surface == nil {
+		return
+	}
+
+	stats, err := o.surface.render(pending)
+	if err != nil {
+		// The surface is gone (a lost device, most likely). Come back on GDI
+		// and paint the frame there; the commands are just rectangles.
+		rebuildErr := o.rebuildOnGDI()
+		if rebuildErr != nil {
+			stats = FrameStats{Err: fmt.Errorf("%w; rebuilding on gdi: %w", err, rebuildErr)}
+		} else {
+			stats, err = o.surface.render(pending)
+			if err != nil {
+				stats = FrameStats{Backend: o.surface.name(), Err: err}
+			}
+		}
+	}
+
+	if observer != nil {
+		observer(stats)
+	}
+}
+
+// rebuildOnGDI tears the window down and recreates it on the GDI surface,
+// keeping it visible if it was. UI thread only.
+func (o *OverlayWindow) rebuildOnGDI() error {
+	o.mu.Lock()
+	visible := o.visible
+	o.mu.Unlock()
+
+	o.destroyHWNDLocked()
+	o.noDComp = true
+
+	err := o.createHWNDLocked()
 	if err != nil {
 		return err
 	}
 
+	if visible {
+		discardCall(procShowWindow.Call(uintptr(o.hwnd), swShowNoActivate))
+		discardCall(procSetWindowPos.Call(
+			uintptr(o.hwnd),
+			hwndTopMost,
+			0,
+			0,
+			0,
+			0,
+			swpNoActivate|swpShowWindow|swpNoMove|swpNoSize,
+		))
+	}
+
+	return nil
+}
+
+// createHWNDLocked creates the window and its surface. UI thread only.
+//
+// DirectComposition is tried first where the build supports it; the window
+// it needs is not a layered one, so a surface that fails to come up costs the
+// HWND too, and the GDI surface gets a fresh layered window of its own.
+func (o *OverlayWindow) createHWNDLocked() error {
 	width := o.bounds.Dx()
 
 	height := o.bounds.Dy()
@@ -820,8 +854,30 @@ func (o *OverlayWindow) createHWNDLocked() error {
 		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, o.bounds)
 	}
 
+	if !o.noDComp && dcompAvailable() {
+		err := o.createWindowWithSurface(width, height, wsExNoRedirectionBitmap, newDCompSurface)
+		if err == nil {
+			return nil
+		}
+
+		o.noDComp = true
+	}
+
+	return o.createWindowWithSurface(width, height, wsExLayered, newGDISurface)
+}
+
+func (o *OverlayWindow) createWindowWithSurface(
+	width, height int,
+	exStyle uintptr,
+	newSurface func(hwnd windows.HWND, width, height int) (overlaySurface, error),
+) error {
+	className, err := windows.UTF16PtrFromString(overlayClassName)
+	if err != nil {
+		return err
+	}
+
 	hwnd, _, err := procCreateWindowExW.Call(
-		wsExLayered|wsExTransparent|wsExTopmost|wsExToolWindow|wsExNoActivate,
+		exStyle|wsExTransparent|wsExTopmost|wsExToolWindow|wsExNoActivate,
 		uintptr(unsafe.Pointer(className)),
 		0,
 		wsPopup,
@@ -838,16 +894,18 @@ func (o *OverlayWindow) createHWNDLocked() error {
 		return fmt.Errorf("CreateWindowExW: %w", err)
 	}
 
-	o.hwnd = windows.HWND(hwnd)
+	surface, err := newSurface(windows.HWND(hwnd), width, height)
+	if err != nil {
+		discardCall(procDestroyWindow.Call(hwnd))
+
+		return err
+	}
+
+	o.setHandle(windows.HWND(hwnd))
 	o.width = width
 	o.height = height
-	o.pixels = make([]byte, width*height*bytesPerPixel)
-	overlayRegistry.Store(o.hwnd, o)
-
-	const (
-		swpNomove = 0x0002
-		swpNosize = 0x0001
-	)
+	o.surface = surface
+	overlayRegistry.Store(windows.HWND(hwnd), o)
 
 	discardCall(procSetWindowPos.Call(
 		hwnd,
@@ -856,671 +914,32 @@ func (o *OverlayWindow) createHWNDLocked() error {
 		0,
 		0,
 		0,
-		swpNoActivate|swpNomove|swpNosize,
+		swpNoActivate|swpNoMove|swpNoSize,
 	))
 	discardCall(procShowWindow.Call(hwnd, swHide))
 
+	o.mu.Lock()
 	o.visible = false
+	o.mu.Unlock()
 
 	return nil
 }
 
 func (o *OverlayWindow) destroyHWNDLocked() {
-	if o.hwnd != 0 {
-		overlayRegistry.Delete(o.hwnd)
-		discardCall(procDestroyWindow.Call(uintptr(o.hwnd)))
-		o.hwnd = 0
-		o.pixels = nil
+	if o.surface != nil {
+		o.surface.destroy()
+		o.surface = nil
+	}
+
+	if hwnd := o.handle(); hwnd != 0 {
+		overlayRegistry.Delete(hwnd)
+		discardCall(procDestroyWindow.Call(uintptr(hwnd)))
+		o.setHandle(0)
 	}
 }
 
 func (o *OverlayWindow) localBounds() image.Rectangle {
 	return image.Rect(0, 0, o.width, o.height)
-}
-
-func (o *OverlayWindow) flushPixels() {
-	if o == nil || o.hwnd == 0 {
-		return
-	}
-
-	hdcMem, _, _ := procCreateCompatibleDC.Call(0)
-
-	if hdcMem == 0 {
-		return
-	}
-	defer func() { discardCall(procDeleteDC.Call(hdcMem)) }()
-
-	bih := bitmapV4Header{
-		Size:        bmpV4Size,
-		Width:       int32(o.width),
-		Height:      -int32(o.height), // negative = top-down bitmap
-		Planes:      1,
-		BitCount:    dibBitCount,
-		Compression: biBitfields,
-		SizeImage:   uint32(o.width * o.height * bytesPerPixel),
-		RedMask:     maskRed,
-		GreenMask:   maskGreen,
-		BlueMask:    maskBlue,
-		AlphaMask:   maskAlpha,
-		CSType:      colorSpaceWinRGB,
-	}
-
-	var bits unsafe.Pointer
-
-	hDib, _, _ := procCreateDIBSection.Call(
-		hdcMem,
-		uintptr(unsafe.Pointer(&bih)),
-		0, // DIB_RGB_COLORS
-		uintptr(unsafe.Pointer(&bits)),
-		0,
-		0,
-	)
-
-	if hDib == 0 {
-		return
-	}
-	defer func() { discardCall(procDeleteObject.Call(hDib)) }()
-
-	// Copy pre-multiplied pixel data into the DIBSection.
-	discardCall(procRtlMoveMemory.Call(
-		uintptr(bits),
-		uintptr(unsafe.Pointer(&o.pixels[0])),
-		uintptr(len(o.pixels)),
-	))
-
-	prevObj, _, _ := procSelectObject.Call(hdcMem, hDib)
-
-	if prevObj == 0 {
-		return
-	}
-	defer func() { discardCall(procSelectObject.Call(hdcMem, prevObj)) }()
-
-	blend := blendFunction{
-		BlendOp:             acSrcOver,
-		AlphaFormat:         acSrcAlpha,
-		SourceConstantAlpha: alphaMax,
-	}
-
-	discardCall(procUpdateLayeredWindow.Call(
-		uintptr(o.hwnd),
-		hdcMem,
-		uintptr(unsafe.Pointer(&point{X: int32(o.bounds.Min.X), Y: int32(o.bounds.Min.Y)})),
-		uintptr(unsafe.Pointer(&size{CX: int32(o.width), CY: int32(o.height)})),
-		hdcMem,
-		uintptr(unsafe.Pointer(&point{})),
-		0,
-		uintptr(unsafe.Pointer(&blend)),
-		ulwAlpha,
-	))
-}
-
-func renderTextAlphaInto(pixels []byte, bufW, bufH int, textCmd textDraw) {
-	// Clamp text rect to overlay bounds.
-	textRect := textCmd.rect.Intersect(image.Rect(0, 0, bufW, bufH))
-	if textRect.Empty() {
-		return
-	}
-
-	// Add 1px padding around text rect for anti-aliasing at edges.
-	pad := 1
-	texW := textRect.Dx() + pad*2 //nolint:mnd
-	texH := textRect.Dy() + pad*2 //nolint:mnd
-	textX := textRect.Min.X - pad
-	textY := textRect.Min.Y - pad
-
-	// Clamp to overlay.
-	if textX < 0 {
-		texW += textX
-		textX = 0
-	}
-
-	if textY < 0 {
-		texH += textY
-		textY = 0
-	}
-
-	if textX+texW > bufW {
-		texW = bufW - textX
-	}
-
-	if textY+texH > bufH {
-		texH = bufH - textY
-	}
-
-	if texW <= 0 || texH <= 0 {
-		return
-	}
-
-	hdcMem, _, _ := procCreateCompatibleDC.Call(0)
-
-	if hdcMem == 0 {
-		return
-	}
-	defer func() { discardCall(procDeleteDC.Call(hdcMem)) }()
-
-	bih := bitmapV4Header{
-		Size:        bmpV4Size,
-		Width:       int32(texW),
-		Height:      -int32(texH),
-		Planes:      1,
-		BitCount:    dibBitCount,
-		Compression: biBitfields,
-		SizeImage:   uint32(texW * texH * bytesPerPixel),
-		RedMask:     maskRed,
-		GreenMask:   maskGreen,
-		BlueMask:    maskBlue,
-		AlphaMask:   maskAlpha,
-		CSType:      colorSpaceWinRGB,
-	}
-
-	var bits unsafe.Pointer
-
-	hDib, _, _ := procCreateDIBSection.Call(
-		hdcMem,
-		uintptr(unsafe.Pointer(&bih)),
-		0,
-		uintptr(unsafe.Pointer(&bits)),
-		0,
-		0,
-	)
-
-	if hDib == 0 {
-		return
-	}
-	defer func() { discardCall(procDeleteObject.Call(hDib)) }()
-
-	prevObj, _, _ := procSelectObject.Call(hdcMem, hDib)
-
-	if prevObj == 0 {
-		return
-	}
-	defer func() { discardCall(procSelectObject.Call(hdcMem, prevObj)) }()
-
-	tmpPixels := (*[1 << 30]byte)(bits)[: texW*texH*bytesPerPixel : texW*texH*bytesPerPixel]
-	for i := range tmpPixels {
-		tmpPixels[i] = 0
-	}
-
-	size := int(-textCmd.fontSize)
-	if size == 0 {
-		size = -defaultFontSize
-	}
-
-	fontName, err := windows.UTF16PtrFromString(textCmd.fontFamily)
-	if err != nil {
-		return
-	}
-
-	hFont, _, _ := procCreateFontW.Call(
-		uintptr(size), 0, 0, 0, fwBold, 0, 0, 0, 1, 0, 0, 0, 0,
-		uintptr(unsafe.Pointer(fontName)),
-	)
-
-	if hFont == 0 {
-		return
-	}
-	defer func() { discardCall(procDeleteObject.Call(hFont)) }()
-
-	prevFont, _, _ := procSelectObject.Call(hdcMem, hFont)
-
-	if prevFont == 0 {
-		return
-	}
-	defer func() { discardCall(procSelectObject.Call(hdcMem, prevFont)) }()
-
-	discardCall(procSetBkMode.Call(hdcMem, transparentBk))
-	discardCall(procSetTextColor.Call(hdcMem, gdiWhiteText))
-
-	utf16Text, err := windows.UTF16FromString(textCmd.text)
-	if err != nil {
-		return
-	}
-
-	// Draw text centered inside the text bounding box, offset by padding.
-	drawRect := windows.Rect{
-		Left:   int32(pad),
-		Top:    int32(pad),
-		Right:  int32(pad + textRect.Dx()),
-		Bottom: int32(pad + textRect.Dy()),
-	}
-
-	procDrawTextW := user32.NewProc("DrawTextW")
-	discardCall(procDrawTextW.Call(
-		hdcMem,
-		uintptr(unsafe.Pointer(&utf16Text[0])),
-		uintptr(^uint32(0)),
-		uintptr(unsafe.Pointer(&drawRect)),
-		dtCenter|dtVCenter|dtSingleLine,
-	))
-
-	// Composite the small text bitmap into the main pixel buffer at the correct offset.
-	alphaCompositeTextAt(pixels, bufW, bufH, tmpPixels, texW, texH, textX, textY, textCmd.color)
-}
-
-// alphaFillRect composites a semi-transparent ARGB fill over the pixel buffer.
-func alphaFillRect(pixels []byte, bufW, bufH int, rect image.Rectangle, color uint32) {
-	colA := color >> alphaShift
-	if colA == 0 {
-		return
-	}
-
-	colR := (color >> redShift) & byteMask
-	colG := (color >> greenShift) & byteMask
-	colB := color & byteMask
-
-	// Pre-multiply the source color by its alpha.
-	srcR := colR * colA
-	srcG := colG * colA
-	srcB := colB * colA
-
-	invA := alphaMax - colA
-	startY := clamp(rect.Min.Y, bufH)
-	endY := clamp(rect.Max.Y, bufH)
-	startX := clamp(rect.Min.X, bufW)
-	endX := clamp(rect.Max.X, bufW)
-
-	for y := startY; y < endY; y++ {
-		row := y * bufW * bytesPerPixel
-		for x := startX; x < endX; x++ {
-			idx := row + x*bytesPerPixel
-			dstB := uint32(pixels[idx])
-			dstG := uint32(pixels[idx+1])
-			dstR := uint32(pixels[idx+2])
-			dstA := uint32(pixels[idx+3])
-
-			pixels[idx] = byte((srcB + dstB*invA) / alphaMax)
-			pixels[idx+1] = byte((srcG + dstG*invA) / alphaMax)
-			pixels[idx+2] = byte((srcR + dstR*invA) / alphaMax)
-			pixels[idx+3] = byte(colA + (dstA*invA)/alphaMax)
-		}
-	}
-}
-
-// alphaStrokeRect composites a stroked rectangle border over the pixel buffer.
-func alphaStrokeRect(
-	pixels []byte,
-	bufW, bufH int,
-	rect image.Rectangle,
-	color uint32,
-	lineWidth int,
-) {
-	if lineWidth < 1 {
-		return
-	}
-
-	for i := range lineWidth {
-		inset := rect.Inset(i)
-		// Top edge
-		alphaFillRect(pixels, bufW, bufH,
-			image.Rect(inset.Min.X, inset.Min.Y, inset.Max.X, inset.Min.Y+1), color)
-		// Bottom edge
-		alphaFillRect(pixels, bufW, bufH,
-			image.Rect(inset.Min.X, inset.Max.Y-1, inset.Max.X, inset.Max.Y), color)
-		// Left edge
-		alphaFillRect(pixels, bufW, bufH,
-			image.Rect(inset.Min.X, inset.Min.Y, inset.Min.X+1, inset.Max.Y), color)
-		// Right edge
-		alphaFillRect(pixels, bufW, bufH,
-			image.Rect(inset.Max.X-1, inset.Min.Y, inset.Max.X, inset.Max.Y), color)
-	}
-}
-
-// triangleCoverage returns how much of the pixel at (col, row) the triangle
-// covers, as a fraction of 1, by testing a triangleSamples x triangleSamples
-// grid of points inside it against the triangle's three edges.
-//
-// A point is inside when it is on the same side of all three directed edges;
-// the winding is unknown, so both all-non-negative and all-non-positive count.
-// A degenerate triangle (three collinear points) has every cross product zero
-// and would read as fully covered, so the caller drops it before sampling.
-func triangleCoverage(vertices [triangleVertices]image.Point, col, row int) float64 {
-	step := 1.0 / float64(triangleSamples)
-	inside := 0
-
-	for sampleY := range triangleSamples {
-		pointY := float64(row) + (float64(sampleY)+pixelHalf)*step
-
-		for sampleX := range triangleSamples {
-			pointX := float64(col) + (float64(sampleX)+pixelHalf)*step
-
-			negative, positive := false, false
-
-			for edge := range triangleVertices {
-				from := vertices[edge]
-				to := vertices[(edge+1)%triangleVertices]
-
-				cross := (float64(to.X-from.X))*(pointY-float64(from.Y)) -
-					(float64(to.Y-from.Y))*(pointX-float64(from.X))
-
-				if cross < 0 {
-					negative = true
-				}
-
-				if cross > 0 {
-					positive = true
-				}
-			}
-
-			if !negative || !positive {
-				inside++
-			}
-		}
-	}
-
-	return float64(inside) / float64(triangleSamples*triangleSamples)
-}
-
-// alphaFillTriangle composites an anti-aliased filled triangle over the pixel
-// buffer. It is what draws the connector arrow between an offset hint badge and
-// the element it labels; the Cairo and Quartz backends get the same shape from
-// a path primitive they already have.
-func alphaFillTriangle(
-	pixels []byte,
-	bufW, bufH int,
-	vertices [triangleVertices]image.Point,
-	color uint32,
-) {
-	colA := color >> alphaShift
-	if colA == 0 {
-		return
-	}
-
-	// A triangle with no area covers nothing; sampling it would read every
-	// point as "inside" because all three cross products are zero.
-	area := (vertices[1].X-vertices[0].X)*(vertices[2].Y-vertices[0].Y) -
-		(vertices[1].Y-vertices[0].Y)*(vertices[2].X-vertices[0].X)
-	if area == 0 {
-		return
-	}
-
-	colR := (color >> redShift) & byteMask
-	colG := (color >> greenShift) & byteMask
-	colB := color & byteMask
-
-	bounds := image.Rectangle{Min: vertices[0], Max: vertices[0]}
-	for _, vertex := range vertices {
-		bounds.Min.X = min(bounds.Min.X, vertex.X)
-		bounds.Min.Y = min(bounds.Min.Y, vertex.Y)
-		bounds.Max.X = max(bounds.Max.X, vertex.X)
-		bounds.Max.Y = max(bounds.Max.Y, vertex.Y)
-	}
-
-	startY := clamp(bounds.Min.Y, bufH)
-	endY := clamp(bounds.Max.Y+1, bufH)
-	startX := clamp(bounds.Min.X, bufW)
-	endX := clamp(bounds.Max.X+1, bufW)
-
-	for y := startY; y < endY; y++ {
-		row := y * bufW * bytesPerPixel
-
-		for col := startX; col < endX; col++ {
-			coverage := triangleCoverage(vertices, col, y)
-			if coverage == 0 {
-				continue
-			}
-
-			pixelAlpha := uint32(coverage * float64(colA))
-			if pixelAlpha == 0 {
-				continue
-			}
-
-			invA := alphaMax - pixelAlpha
-			idx := row + col*bytesPerPixel
-			dstB := uint32(pixels[idx])
-			dstG := uint32(pixels[idx+1])
-			dstR := uint32(pixels[idx+2])
-			dstA := uint32(pixels[idx+3])
-
-			pixels[idx] = byte((colB*pixelAlpha + dstB*invA) / alphaMax)
-			pixels[idx+1] = byte((colG*pixelAlpha + dstG*invA) / alphaMax)
-			pixels[idx+2] = byte((colR*pixelAlpha + dstR*invA) / alphaMax)
-			pixels[idx+3] = byte(pixelAlpha + (dstA*invA)/alphaMax)
-		}
-	}
-}
-
-// sdRoundedBox computes the signed distance from a point (px, py) to a rounded
-// rectangle centered at the origin with half-extents (halfW, halfH) and corner
-// radius r.  Negative inside, positive outside, zero at the boundary.
-func sdRoundedBox(ptX, ptY, halfW, halfH, radius float64) float64 {
-	distX := math.Abs(ptX) - halfW + radius
-	distY := math.Abs(ptY) - halfH + radius
-
-	insideX := math.Max(distX, 0)
-	insideY := math.Max(distY, 0)
-	outside := math.Sqrt(insideX*insideX+insideY*insideY) - radius
-
-	inside := math.Min(math.Max(distX, distY), 0)
-
-	return outside + inside
-}
-
-// alphaFillRoundedRect composites an anti-aliased rounded rectangle fill
-// using signed-distance-function edge smoothing.
-func alphaFillRoundedRect(
-	pixels []byte,
-	bufW, bufH int,
-	rect image.Rectangle,
-	radius float64,
-	color uint32,
-) {
-	colA := color >> alphaShift
-	if colA == 0 {
-		return
-	}
-
-	colR := (color >> redShift) & byteMask
-	colG := (color >> greenShift) & byteMask
-	colB := color & byteMask
-
-	halfW := float64(rect.Dx()) / 2.0 //nolint:mnd // simple arithmetic
-	halfH := float64(rect.Dy()) / 2.0 //nolint:mnd // simple arithmetic
-	centerX := float64(rect.Min.X) + halfW
-	centerY := float64(rect.Min.Y) + halfH
-
-	startY := clamp(rect.Min.Y, bufH)
-	endY := clamp(rect.Max.Y, bufH)
-	startX := clamp(rect.Min.X, bufW)
-	endX := clamp(rect.Max.X, bufW)
-
-	// Inner region is fully inside the rounded rect (no SDF needed).
-	innerMinX := float64(rect.Min.X) + radius
-	innerMaxX := float64(rect.Max.X) - radius
-	innerMinY := float64(rect.Min.Y) + radius
-	innerMaxY := float64(rect.Max.Y) - radius
-
-	srcR := colR * colA
-	srcG := colG * colA
-	srcB := colB * colA
-
-	for y := startY; y < endY; y++ {
-		row := y * bufW * bytesPerPixel
-		floatY := float64(y) + pixelHalf
-
-		for col := startX; col < endX; col++ {
-			floatX := float64(col) + pixelHalf
-
-			// Fast path: pixel is well inside the rounded rect.
-			if floatX >= innerMinX && floatX <= innerMaxX && floatY >= innerMinY &&
-				floatY <= innerMaxY {
-				idx := row + col*bytesPerPixel
-				dstB := uint32(pixels[idx])
-				dstG := uint32(pixels[idx+1])
-				dstR := uint32(pixels[idx+2])
-				dstA := uint32(pixels[idx+3])
-
-				pixels[idx] = byte((srcB + dstB*(alphaMax-colA)) / alphaMax)
-				pixels[idx+1] = byte((srcG + dstG*(alphaMax-colA)) / alphaMax)
-				pixels[idx+2] = byte((srcR + dstR*(alphaMax-colA)) / alphaMax)
-				pixels[idx+3] = byte(colA + (dstA*(alphaMax-colA))/alphaMax)
-
-				continue
-			}
-
-			dist := sdRoundedBox(floatX-centerX, floatY-centerY, halfW, halfH, radius)
-			if dist > 1 {
-				continue
-			}
-
-			pixelAlpha := uint32(math.Max(0, math.Min(1, 1.0-dist)) * float64(colA))
-			if pixelAlpha == 0 {
-				continue
-			}
-
-			invA := alphaMax - pixelAlpha
-			idx := row + col*bytesPerPixel
-			dstB := uint32(pixels[idx])
-			dstG := uint32(pixels[idx+1])
-			dstR := uint32(pixels[idx+2])
-			dstA := uint32(pixels[idx+3])
-
-			pixels[idx] = byte((colB*pixelAlpha + dstB*invA) / alphaMax)
-			pixels[idx+1] = byte((colG*pixelAlpha + dstG*invA) / alphaMax)
-			pixels[idx+2] = byte((colR*pixelAlpha + dstR*invA) / alphaMax)
-			pixels[idx+3] = byte(pixelAlpha + (dstA*invA)/alphaMax)
-		}
-	}
-}
-
-// alphaStrokeRoundedRect composites an anti-aliased rounded rectangle stroke
-// using signed-distance-function edge smoothing at both outer and inner edges.
-func alphaStrokeRoundedRect(
-	pixels []byte,
-	bufW, bufH int,
-	rect image.Rectangle,
-	radius float64,
-	color uint32,
-	lineWidth int,
-) {
-	if lineWidth < 1 {
-		return
-	}
-
-	colA := color >> alphaShift
-	if colA == 0 {
-		return
-	}
-
-	colR := (color >> redShift) & byteMask
-	colG := (color >> greenShift) & byteMask
-	colB := color & byteMask
-
-	halfW := float64(rect.Dx()) / 2.0 //nolint:mnd // simple arithmetic
-	halfH := float64(rect.Dy()) / 2.0 //nolint:mnd // simple arithmetic
-	centerX := float64(rect.Min.X) + halfW
-	centerY := float64(rect.Min.Y) + halfH
-
-	strokeW := float64(lineWidth)
-	innerRadius := math.Max(radius-strokeW, 0)
-	innerHalfW := math.Max(halfW-strokeW, 0)
-	innerHalfH := math.Max(halfH-strokeW, 0)
-
-	startY := clamp(rect.Min.Y, bufH)
-	endY := clamp(rect.Max.Y, bufH)
-	startX := clamp(rect.Min.X, bufW)
-	endX := clamp(rect.Max.X, bufW)
-
-	for y := startY; y < endY; y++ {
-		row := y * bufW * bytesPerPixel
-		for col := startX; col < endX; col++ {
-			relX := float64(col) + pixelHalf - centerX
-			relY := float64(y) + pixelHalf - centerY
-
-			dOuter := sdRoundedBox(relX, relY, halfW, halfH, radius)
-			if dOuter > 1 {
-				continue
-			}
-
-			dInner := sdRoundedBox(relX, relY, innerHalfW, innerHalfH, innerRadius)
-			if dInner < -1 {
-				continue // inside inner hole, not part of stroke
-			}
-
-			outerAlpha := math.Max(0, math.Min(1, 1.0-dOuter))
-			innerAlpha := math.Max(0, math.Min(1, 1.0-dInner))
-
-			pixelAlpha := uint32(outerAlpha * (1.0 - innerAlpha) * float64(colA))
-			if pixelAlpha == 0 {
-				continue
-			}
-
-			invA := alphaMax - pixelAlpha
-			srcR := colR * pixelAlpha
-			srcG := colG * pixelAlpha
-			srcB := colB * pixelAlpha
-
-			idx := row + col*bytesPerPixel
-			dstB := uint32(pixels[idx])
-			dstG := uint32(pixels[idx+1])
-			dstR := uint32(pixels[idx+2])
-			dstA := uint32(pixels[idx+3])
-
-			pixels[idx] = byte((srcB + dstB*invA) / alphaMax)
-			pixels[idx+1] = byte((srcG + dstG*invA) / alphaMax)
-			pixels[idx+2] = byte((srcR + dstR*invA) / alphaMax)
-			pixels[idx+3] = byte(pixelAlpha + (dstA*invA)/alphaMax)
-		}
-	}
-}
-
-// alphaCompositeTextAt composites a text bitmap of size (tw x th) at position
-// (offX, offY) in the main pixel buffer using the given ARGB color.
-func alphaCompositeTextAt(
-	pixels []byte,
-	bufW, bufH int,
-	textPixels []byte,
-	texW, texH, offX, offY int,
-	color uint32,
-) {
-	textA := (color >> alphaShift) & byteMask
-	if textA == 0 {
-		return
-	}
-
-	textR := (color >> redShift) & byteMask
-	textG := (color >> greenShift) & byteMask
-	textB := color & byteMask
-
-	for texY := range texH {
-		dstY := offY + texY
-		if dstY < 0 || dstY >= bufH {
-			continue
-		}
-
-		srcRow := texY * texW * bytesPerPixel
-		dstRow := dstY * bufW * bytesPerPixel
-
-		for texX := range texW {
-			dstX := offX + texX
-			if dstX < 0 || dstX >= bufW {
-				continue
-			}
-
-			srcIdx := srcRow + texX*bytesPerPixel
-
-			coverage := uint32(textPixels[srcIdx+2])
-			if coverage == 0 {
-				continue
-			}
-
-			srcA := coverage * textA / alphaMax
-			srcR := textR * srcA
-			srcG := textG * srcA
-			srcB := textB * srcA
-			invA := alphaMax - srcA
-
-			dstIdx := dstRow + dstX*bytesPerPixel
-			dstB := uint32(pixels[dstIdx])
-			dstG := uint32(pixels[dstIdx+1])
-			dstR := uint32(pixels[dstIdx+2])
-			dstA := uint32(pixels[dstIdx+3])
-
-			pixels[dstIdx] = byte((srcB + dstB*invA) / alphaMax)
-			pixels[dstIdx+1] = byte((srcG + dstG*invA) / alphaMax)
-			pixels[dstIdx+2] = byte((srcR + dstR*invA) / alphaMax)
-			pixels[dstIdx+3] = byte(srcA + (dstA*invA)/alphaMax)
-		}
-	}
 }
 
 func clamp(val, maxVal int) int {

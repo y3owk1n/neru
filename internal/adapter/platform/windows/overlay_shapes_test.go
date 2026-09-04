@@ -29,11 +29,11 @@ func TestFillRoundedRect_QueuesTheUnclippedRectangle(t *testing.T) {
 	hangingOff := image.Rect(10, 80, 60, 120)
 	window.FillRoundedRect(hangingOff, 6, 0xFF0000FF)
 
-	if len(window.fills) != 1 {
-		t.Fatalf("queued %d fills, want 1", len(window.fills))
+	if len(window.cmds) != 1 {
+		t.Fatalf("queued %d commands, want 1", len(window.cmds))
 	}
 
-	if got := window.fills[0].rect; got != hangingOff {
+	if got := window.cmds[0].rect; got != hangingOff {
 		t.Errorf("queued rect = %v, want the unclipped %v", got, hangingOff)
 	}
 }
@@ -46,19 +46,19 @@ func TestFillRoundedRect_DropsAFullyOffscreenRectangle(t *testing.T) {
 	window := &OverlayWindow{width: 100, height: 100}
 	window.FillRoundedRect(image.Rect(200, 200, 260, 240), 6, 0xFF0000FF)
 
-	if len(window.fills) != 0 {
-		t.Errorf("queued %d fills for an offscreen rect, want none", len(window.fills))
+	if len(window.cmds) != 0 {
+		t.Errorf("queued %d commands for an offscreen rect, want none", len(window.cmds))
 	}
 }
 
 // TestClear_DrainsEveryCommandQueue pins that nothing queued before a Clear
-// survives it. Each queue is drained in three places (here, CompositeCurrent
-// and Flush) and one left out of this one is a shape painted onto a surface
-// that was just emptied, with whatever it belonged to gone.
+// survives it, and that the clear itself is what the next frame carries: a
+// shape queued before the Clear painted onto a surface the Clear emptied would
+// be a shape with whatever it belonged to gone.
 func TestClear_DrainsEveryCommandQueue(t *testing.T) {
 	t.Parallel()
 
-	window := &OverlayWindow{width: 100, height: 100, pixels: make([]byte, 100*100*bytesPerPixel)}
+	window := &OverlayWindow{width: 100, height: 100}
 
 	window.FillRect(image.Rect(1, 1, 9, 9), 0xFF0000FF)
 	window.FillRoundedRect(image.Rect(1, 1, 9, 9), 2, 0xFF0000FF)
@@ -68,17 +68,12 @@ func TestClear_DrainsEveryCommandQueue(t *testing.T) {
 
 	window.Clear()
 
-	queued := map[string]int{
-		"fills":   len(window.fills),
-		"tris":    len(window.tris),
-		"strokes": len(window.strokes),
-		"texts":   len(window.texts),
+	if count := len(window.cmds); count != 0 {
+		t.Errorf("%d commands survived Clear, want the queue drained", count)
 	}
 
-	for queue, count := range queued {
-		if count != 0 {
-			t.Errorf("%d %s survived Clear, want the queue drained", count, queue)
-		}
+	if !window.clearPending {
+		t.Error("Clear did not mark the surface to be emptied on the next frame")
 	}
 }
 
@@ -257,11 +252,11 @@ func TestDrawPointerGlyph_CentersTheGlyphOnThePoint(t *testing.T) {
 	window := &OverlayWindow{width: 100, height: 100}
 	window.DrawPointerGlyph(image.Pt(40, 50), 20, "x", "Segoe UI", 0xFF00FF00)
 
-	if len(window.texts) != 1 {
-		t.Fatalf("queued %d texts, want 1", len(window.texts))
+	if len(window.cmds) != 1 || window.cmds[0].kind != drawText {
+		t.Fatalf("queued %d commands, want one text", len(window.cmds))
 	}
 
-	got := window.texts[0]
+	got := window.cmds[0]
 	if want := image.Rect(30, 40, 50, 60); got.rect != want {
 		t.Errorf("glyph rect = %v, want %v", got.rect, want)
 	}
@@ -282,11 +277,11 @@ func TestDrawPointerGlyph_TinySizeStillDraws(t *testing.T) {
 		window := &OverlayWindow{width: 100, height: 100}
 		window.DrawPointerGlyph(image.Pt(10, 10), size, "", "", 0xFF0000FF)
 
-		if len(window.texts) != 1 {
-			t.Fatalf("size %d queued %d texts, want 1", size, len(window.texts))
+		if len(window.cmds) != 1 || window.cmds[0].kind != drawText {
+			t.Fatalf("size %d queued %d commands, want one text", size, len(window.cmds))
 		}
 
-		got := window.texts[0]
+		got := window.cmds[0]
 		if want := image.Rect(9, 9, 11, 11); got.rect != want {
 			t.Errorf("size %d glyph rect = %v, want %v", size, got.rect, want)
 		}
