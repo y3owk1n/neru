@@ -5,6 +5,7 @@ package windows
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform/modifierstate"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -64,6 +65,15 @@ func heldModifierKeycodes() []uint32 {
 	return held
 }
 
+// modifierHoldMu serializes every hold from the read of the keyboard to the
+// release that undoes it. A hold reads process-wide keyboard state and then
+// changes it, so two overlapping ones — a mode action and an IPC action can run
+// on different goroutines — would each plan against the other's edits: the
+// first releases a user-held ctrl, the second reads it up and presses it, the
+// first then skips restoring it and the second releases it, and the user's
+// physically held ctrl reads up until they tap it again.
+var modifierHoldMu sync.Mutex
+
 // modifierHold is one injection's worth of falsified modifier state: what it
 // released so the injection would not carry it, and what it pressed so the
 // injection would.
@@ -93,7 +103,12 @@ type modifierHold struct {
 //
 // Every key this presses or releases carries neruInjectedTag, so the low-level
 // keyboard hook hands it on without reading it as the user tapping a modifier.
+//
+// The hold owns modifierHoldMu until release, on the success path and the
+// failure path alike.
 func holdModifiers(modifiers action.Modifiers) (modifierHold, error) {
+	modifierHoldMu.Lock()
+
 	hold := modifierHold{plan: modifierstate.PlanFor(modifierKeysFrom(isVirtualKeyDown), modifiers)}
 
 	for index, edit := range hold.plan.Suppress {
@@ -130,6 +145,8 @@ func holdModifiers(modifiers action.Modifiers) (modifierHold, error) {
 // Errors are dropped: a release that fails has nothing better to try, and
 // reporting it would mask the outcome of the action it wraps.
 func (h modifierHold) release() {
+	defer modifierHoldMu.Unlock()
+
 	for _, edit := range h.plan.Press {
 		_ = sendKeyboardInput(uint16(edit.Keycode), true)
 	}
