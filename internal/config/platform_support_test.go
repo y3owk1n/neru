@@ -203,15 +203,9 @@ func TestInertWords_Steps(t *testing.T) {
 			want:   []string{hideCursorAction},
 		},
 		{
-			name:   "horizontal scroll is reported on Windows",
+			name:   "horizontal scroll is silent now that Windows injects both axes",
 			steps:  []string{"action scroll_right"},
 			target: parity.Windows,
-			want:   []string{"scroll_right"},
-		},
-		{
-			name:   "horizontal scroll is silent on Linux",
-			steps:  []string{"action scroll_right"},
-			target: parity.Linux,
 			want:   nil,
 		},
 		{

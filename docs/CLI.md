@@ -106,8 +106,7 @@ macOS, an AT-SPI walk on Linux whose coverage depends on the application, and a
 cached UI Automation walk of the control view on Windows. The `vision` strategy is the
 fallback where that tree is thin. See [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
 
-² Two action subcommands are limited: `hide_cursor` and `show_cursor` are macOS
-only, and `scroll_left` / `scroll_right` have no effect on Windows. See
+² `hide_cursor` and `show_cursor` are macOS only. See
 [Action platform support](#action-platform-support).
 
 ---
@@ -577,7 +576,6 @@ Every action not listed here behaves identically on macOS, Linux, and Windows.
 | Action                            | macOS | Linux | Windows | Note                                                     |
 | --------------------------------- | :---: | :---: | :-----: | -------------------------------------------------------- |
 | `hide_cursor`, `show_cursor`      | Yes   | No    | No      | Uses a Quartz API with no cross-platform equivalent; a no-op elsewhere. |
-| `scroll_left`, `scroll_right`     | Yes   | Yes   | No      | Windows scroll injection ignores the horizontal delta.    |
 | `move_monitor`                    | Yes   | Yes   | Yes     | Requires more than one display.                           |
 
 The injection mechanism differs per platform even where behaviour matches:
@@ -810,9 +808,8 @@ A modified scroll is what most applications read as zoom, so
 modifier is not implied by the binding: `"Ctrl+K" = "action scroll_up"` scrolls
 unmodified, and it is `--modifier ctrl` that makes it zoom.
 
-**Platforms:** vertical scrolling works everywhere. Horizontal scrolling
-(`scroll_left`, `scroll_right`) is not implemented on Windows and has no effect
-there. For what each backend does with `--modifier`, see the
+**Platforms:** scrolling works on both axes everywhere. For what each backend
+does with `--modifier`, see the
 [capability matrix](CROSS_PLATFORM.md#capability-matrix).
 
 **Examples**

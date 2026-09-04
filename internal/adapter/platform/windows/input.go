@@ -26,6 +26,7 @@ const (
 	mouseeventfMiddleDown = 0x0020
 	mouseeventfMiddleUp   = 0x0040
 	mouseeventfWheel      = 0x0800
+	mouseeventfHWheel     = 0x1000
 	mouseeventfAbsolute   = 0x8000
 
 	keyeventfKeyUp = 0x0002
@@ -218,15 +219,49 @@ func MouseUp(point image.Point, button action.MouseButton) error {
 	return sendMouseInput(flagsForButton(button).up, 0)
 }
 
-// ScrollWheel scrolls vertically at the current cursor position, holding
+// wheelEvent is one MOUSEEVENTF_WHEEL or MOUSEEVENTF_HWHEEL record, before
+// it is posted.
+type wheelEvent struct {
+	flags uint32
+	data  uint32
+}
+
+// wheelEvents turns a scroll delta into the wheel records SendInput needs,
+// one per axis that moves. Deltas follow Neru's shared convention: positive
+// deltaY scrolls up and positive deltaX scrolls left, which is what macOS
+// posts verbatim and what X11 maps to buttons 4 and 6. MOUSEEVENTF_WHEEL
+// agrees on the vertical sign, but MOUSEEVENTF_HWHEEL reads positive as
+// right, so the horizontal component is negated.
+func wheelEvents(deltaX, deltaY int) []wheelEvent {
+	var events []wheelEvent
+
+	if deltaY != 0 {
+		events = append(events, wheelEvent{
+			flags: mouseeventfWheel,
+			data:  uint32(int32(deltaY) * wheelDelta),
+		})
+	}
+
+	if deltaX != 0 {
+		events = append(events, wheelEvent{
+			flags: mouseeventfHWheel,
+			data:  uint32(int32(-deltaX) * wheelDelta),
+		})
+	}
+
+	return events
+}
+
+// ScrollWheel scrolls at the current cursor position on both axes, holding
 // modifiers down for the duration.
 //
 // A SendInput wheel event carries no modifier field — unlike a CGEvent, which
 // takes flags — so the only way to present a held ctrl is to press the real
 // key, wheel, and release it. Releasing only what this call pressed leaves a
 // modifier the user is physically holding untouched.
-func ScrollWheel(deltaLines int, modifiers action.Modifiers) error {
-	if deltaLines == 0 {
+func ScrollWheel(deltaX, deltaY int, modifiers action.Modifiers) error {
+	events := wheelEvents(deltaX, deltaY)
+	if len(events) == 0 {
 		return nil
 	}
 
@@ -238,7 +273,14 @@ func ScrollWheel(deltaLines int, modifiers action.Modifiers) error {
 	// Only what this call actually pressed, never the whole requested set.
 	defer releaseModifiers(pressed)
 
-	return sendMouseInput(mouseeventfWheel, uint32(int32(deltaLines)*wheelDelta))
+	for _, event := range events {
+		err := sendMouseInput(event.flags, event.data)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // modifierKeys lists the virtual-key code (keys.go) for each modifier bit, in
