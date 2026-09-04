@@ -28,7 +28,7 @@ This guide covers installation methods for Neru, with the most complete support 
 - **macOS**: 14.0 or later, plus Accessibility permission (granted during setup)
 - **Linux** (beta): X11 or a supported Wayland compositor — see
   [LINUX_SETUP.md](LINUX_SETUP.md) for host requirements per backend
-- **Windows** (alpha): Windows 10 or later; expect gaps — see the
+- **Windows** (beta): Windows 10 or later — see the
   [capability matrix](CROSS_PLATFORM.md#capability-matrix)
 
 ---

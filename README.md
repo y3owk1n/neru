@@ -16,11 +16,11 @@ _Built for the person who already remapped Caps Lock._
 
 **Free and open-source.** No subscription. No trial. No catch.
 
-|    macOS    |      Linux       |      Windows      |
-| :---------: | :--------------: | :---------------: |
-|  Stable ✅  | Beta — daily 🔵  | Alpha — try it 🟡 |
+|    macOS    |      Linux       |     Windows      |
+| :---------: | :--------------: | :--------------: |
+|  Stable ✅  | Beta — daily 🔵  | Beta — daily 🔵  |
 
-<sub>[What these mean](docs/CROSS_PLATFORM.md#what-the-labels-mean) — stable is fully featured, beta is good for daily driving, alpha is worth trying but not yet worth switching to.</sub>
+<sub>[What these mean](docs/CROSS_PLATFORM.md#what-the-labels-mean) — stable is fully featured and proven in use, beta is good for daily driving.</sub>
 
 </div>
 

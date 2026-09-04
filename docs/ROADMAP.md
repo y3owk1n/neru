@@ -26,12 +26,13 @@ Work that is not tied to any one platform:
 
 ## Cross-platform foundations
 
-Linux is [beta and Windows alpha](CROSS_PLATFORM.md#what-the-labels-mean) —
-meaning Linux is good for daily driving, while Windows is worth trying but not
-yet worth switching to. Every remaining item is tracked as a numbered entry in
-[Known Gaps](CROSS_PLATFORM.md#known-gaps) — pick one from there rather than
-from a duplicate list here, so the status you read is the status the code
-reports.
+Linux and Windows are both
+[beta](CROSS_PLATFORM.md#what-the-labels-mean) — good for daily driving, with
+parity complete on each. What moves either to Stable is the six-clean-releases
+rule written there, not a feature. Any gap that reappears is tracked as a
+numbered entry in [Known Gaps](CROSS_PLATFORM.md#known-gaps) — pick one from
+there rather than from a duplicate list here, so the status you read is the
+status the code reports.
 
 What Linux owes macOS, and what it does not, is settled in
 [ADR 0013](adr/0013-parity-is-measured-in-words-not-subsystems.md): parity is a
