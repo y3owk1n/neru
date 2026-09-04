@@ -13,7 +13,8 @@ func NewSystemPort() (ports.SystemPort, error) {
 }
 
 // NewFontResolver returns a Windows-backed FontResolver that maps generic
-// aliases to native Windows font families.
+// aliases to native Windows font families and checks the rest against the
+// fonts GDI has installed.
 func NewFontResolver() ports.FontResolver {
 	return windows.NewFontResolver()
 }

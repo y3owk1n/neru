@@ -20,9 +20,9 @@ type FontResolver interface {
 	//     the family the caller asked for, not the family the platform would
 	//     render in its place
 	//   - the one exception is a family the platform can see is not installed,
-	//     which falls back to the resolved generic family. Only the
-	//     fontconfig-backed Linux resolver can see that; macOS, Windows and
-	//     the non-CGO Linux build check nothing, pass the written name on, and
+	//     which falls back to the sans family. The fontconfig-backed Linux
+	//     resolver and the GDI-backed Windows one can see that; macOS and the
+	//     non-CGO Linux build check nothing, pass the written name on, and
 	//     leave substitution to the native text layer, which does it when the
 	//     text is drawn either way
 	Resolve(family string) string
