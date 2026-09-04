@@ -30,6 +30,9 @@ const (
 var procSetFocus = user32.NewProc("SetFocus")
 
 func TestFeedKey_ArrivesInOwnedWindow(t *testing.T) {
+	// The window, the injection and the pump must share one thread: a
+	// window's messages land on the queue of the thread that created it,
+	// and t.Run would move each case onto another goroutine.
 	runtime.LockOSThread()
 
 	defer runtime.UnlockOSThread()
@@ -46,24 +49,17 @@ func TestFeedKey_ArrivesInOwnedWindow(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.key, func(t *testing.T) {
-			err := FeedKey(test.key)
-			if err != nil {
-				t.Fatalf("FeedKey(%q): %v", test.key, err)
-			}
+		err := FeedKey(test.key)
+		if err != nil {
+			t.Fatalf("FeedKey(%q): %v", test.key, err)
+		}
 
-			down := awaitKeyMessages(t, hwnd, test.virtualKey)
+		down := awaitKeyMessages(t, hwnd, test.key, test.virtualKey)
 
-			extended := down&extendedKeyBit != 0
-			if extended != test.extended {
-				t.Fatalf(
-					"FeedKey(%q): extended flag = %v, want %v",
-					test.key,
-					extended,
-					test.extended,
-				)
-			}
-		})
+		extended := down&extendedKeyBit != 0
+		if extended != test.extended {
+			t.Fatalf("FeedKey(%q): extended flag = %v, want %v", test.key, extended, test.extended)
+		}
 	}
 }
 
@@ -119,7 +115,7 @@ func newForegroundTestWindow(t *testing.T) uintptr {
 
 // awaitKeyMessages pumps the window's queue until WM_KEYUP for virtualKey
 // arrives, returning the WM_KEYDOWN lParam, and fails at the deadline.
-func awaitKeyMessages(t *testing.T, hwnd uintptr, virtualKey uintptr) uintptr {
+func awaitKeyMessages(t *testing.T, hwnd uintptr, key string, virtualKey uintptr) uintptr {
 	t.Helper()
 
 	deadline := time.Now().Add(keyFeedArrival)
@@ -155,7 +151,8 @@ func awaitKeyMessages(t *testing.T, hwnd uintptr, virtualKey uintptr) uintptr {
 	}
 
 	t.Fatalf(
-		"no WM_KEYUP for virtual key %#x within %v (WM_KEYDOWN seen: %v)",
+		"FeedKey(%q): no WM_KEYUP for virtual key %#x within %v (WM_KEYDOWN seen: %v)",
+		key,
 		virtualKey,
 		keyFeedArrival,
 		sawDown,
