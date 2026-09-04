@@ -36,11 +36,12 @@ type EventTap struct {
 
 	// postedModifiers are the sticky modifiers PostModifierEvent is holding
 	// down; the hook reads them into every chord like a physical hold.
-	// heldModifiers counts the keys of each modifier the user's hands hold,
-	// from the hook's own modifier events (left and right count separately),
-	// so a modifier both posted and held stays in the chord.
+	// heldModifiers are the ones the user's hands hold, from the hook's own
+	// modifier events, so a modifier both posted and held stays in the chord.
+	// A set rather than a count: a held key autorepeats its key-down, and the
+	// left and right keys of one modifier are not told apart here.
 	postedModifiers map[string]struct{}
-	heldModifiers   map[string]int
+	heldModifiers   map[string]struct{}
 
 	hook *winplatform.KeyboardHook
 }
@@ -247,19 +248,17 @@ func (et *EventTap) noteHeldModifier(modifier string, isDown bool) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
-	if isDown {
-		if et.heldModifiers == nil {
-			et.heldModifiers = make(map[string]int)
-		}
-
-		et.heldModifiers[modifier]++
+	if !isDown {
+		delete(et.heldModifiers, modifier)
 
 		return
 	}
 
-	if et.heldModifiers[modifier] > 0 {
-		et.heldModifiers[modifier]--
+	if et.heldModifiers == nil {
+		et.heldModifiers = make(map[string]struct{})
 	}
+
+	et.heldModifiers[modifier] = struct{}{}
 }
 
 // physicalChord returns chord without the modifiers only this tap holds, as
@@ -278,7 +277,10 @@ func (et *EventTap) physicalChord(chord string) string {
 	for i, part := range parts {
 		if i < len(parts)-1 {
 			mod := keyvocab.CanonicalModifier(part)
-			if _, posted := et.postedModifiers[mod]; posted && et.heldModifiers[mod] == 0 {
+			_, posted := et.postedModifiers[mod]
+			_, held := et.heldModifiers[mod]
+
+			if posted && !held {
 				continue
 			}
 		}

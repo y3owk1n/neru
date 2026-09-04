@@ -97,14 +97,8 @@ func TestEventTap_HandleKey_StickyModifierDoesNotFireGlobalHotkey(t *testing.T) 
 		t.Fatal("physical Shift+Ctrl+J under sticky Shift was not handed to RegisterHotKey")
 	}
 
-	// Both Shift keys held, one released: the chord is still the user's.
+	// A held modifier autorepeats its key-down; one release still ends it.
 	tap.handleKey("Shift", false)
-	tap.handleKey("Shift", true)
-
-	if tap.handleKey("Ctrl+Shift+J", false) {
-		t.Fatal("releasing one of two held Shift keys dropped the physical chord")
-	}
-
 	tap.handleKey("Shift", true)
 
 	if !tap.handleKey("Ctrl+Shift+J", false) {
