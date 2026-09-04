@@ -4,7 +4,6 @@ package windows
 
 import (
 	"context"
-	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -25,6 +24,14 @@ type EventTap struct {
 	hotkeys              []string
 	stickyModifierToggle bool
 	enabled              bool
+
+	// Modifier passthrough state, populated by SetModifierPassthrough and
+	// SetInterceptedModifierKeys and read by handleKey. Chords are stored
+	// canonicalized via tap.CanonicalChord so the form the hook assembles a
+	// chord in matches the form the user wrote a hotkey in.
+	passthroughEnabled   bool
+	passthroughBlacklist map[string]struct{}
+	interceptedChords    map[string]struct{}
 
 	hook *winplatform.KeyboardHook
 }
@@ -102,11 +109,29 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 	et.hotkeys = append([]string(nil), hotkeys...)
 }
 
-// SetModifierPassthrough sets modifier passthrough.
-func (et *EventTap) SetModifierPassthrough(_ bool, _ []string) {}
+// SetModifierPassthrough enables or disables modifier passthrough and records
+// the blacklist of chords Neru must keep consuming even when they are otherwise
+// unbound (the mode layer folds the active mode's own hotkeys into this list).
+func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {
+	set := tap.CanonicalChordSet(blacklist)
 
-// SetInterceptedModifierKeys sets intercepted modifier keys.
-func (et *EventTap) SetInterceptedModifierKeys(_ []string) {}
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	et.passthroughEnabled = enabled
+	et.passthroughBlacklist = set
+}
+
+// SetInterceptedModifierKeys records the modifier chords the active mode still
+// wants Neru to consume while passthrough is enabled.
+func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
+	set := tap.CanonicalChordSet(keys)
+
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	et.interceptedChords = set
+}
 
 // SetPassthroughCallback sets the passthrough callback.
 func (et *EventTap) SetPassthroughCallback(cb tap.PassthroughCallback) {
@@ -124,8 +149,21 @@ func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 	et.stickyModifierToggle = enabled
 }
 
-// PostModifierEvent simulates a physical modifier key press or release.
-func (et *EventTap) PostModifierEvent(_ string, _ bool) {}
+// PostModifierEvent simulates a physical modifier key press or release. The
+// key goes out tagged as Neru's own, so the hook hands it on without reading
+// it as a modifier toggle; nothing has to be remembered here the way the X11
+// tap remembers its XTest events.
+func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
+	modifier = keyvocab.CanonicalModifier(modifier)
+	if modifier == "" {
+		return
+	}
+
+	err := winplatform.PostModifierKey(modifier, isDown)
+	if err != nil {
+		et.logger.Warn("Failed to post modifier event", zap.Error(err))
+	}
+}
 
 // SetKeyboardLayout sets the keyboard layout.
 func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
@@ -214,14 +252,12 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 
 	normalized := keyvocab.NormalizeKey(key)
 
-	// Key-down with system-level modifiers (ctrl, alt, cmd) should pass through
-	// to the application so system shortcuts like Ctrl+C, Alt+Tab, Win+D still
-	// work while a mode is active. The mode handler still receives the key for
-	// hotkey matching.
-	lower := strings.ToLower(normalized)
-	if strings.Contains(lower, "ctrl+") || strings.Contains(lower, "alt+") ||
-		strings.Contains(lower, "cmd+") {
-		// Unless the chord is one RegisterHotKey owns. That mechanism keeps
+	// A chord carrying a system-level modifier (ctrl, alt, cmd) is either the
+	// application's or Neru's, never both: handing the event on and dispatching
+	// it too would run a mode binding and type into the window behind the
+	// overlay at once.
+	if config.HasPassthroughModifier(normalized) {
+		// A chord RegisterHotKey owns is handed back. That mechanism keeps
 		// firing while a mode is active and this hook runs ahead of it, so
 		// passing the key on without dispatching leaves exactly one of the two
 		// to run the binding. Dispatching as well would run it twice, because
@@ -230,17 +266,24 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 		// and a double-run of "recursive_grid --toggle" exits the mode and
 		// re-enters it. macOS answers the same question the same way, in its own
 		// tap's hotkey check (platform/darwin/eventtap_darwin.m).
-		//
-		// Bare keys and Shift-only combos are deliberately not asked about: the
-		// tap consumes those below so a mode keeps every key it reads as input,
-		// and the handler's fallback leaves them alone for the same reason.
 		if et.isRegisteredHotkey(normalized) {
+			return false
+		}
+
+		// An unbound chord the user asked to have passed through reaches the
+		// application as the real key event it is. Unlike an evdev grab, a
+		// low-level hook forwards or blocks each event on its own, so nothing
+		// has to be replayed: the modifiers were forwarded when they went
+		// down, and the app reads them off the same keyboard state Neru does.
+		if et.shouldPassthroughChord(normalized) {
+			et.firePassthroughCallback()
+
 			return false
 		}
 
 		et.dispatchKey(normalized)
 
-		return false
+		return true
 	}
 
 	// Non-modifier key-down (single character, Shift+letter, named key like
@@ -250,6 +293,47 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 	et.dispatchKey(normalized)
 
 	return true
+}
+
+// shouldPassthroughChord reports whether an unbound modifier chord should be
+// passed through to the focused application instead of consumed by Neru. It
+// mirrors the macOS event-tap decision: passthrough must be enabled and the
+// chord must be neither blacklisted nor in the mode's intercepted set. The
+// caller has already established that the chord carries Ctrl/Alt/Cmd;
+// shift-only chords stay usable inside modes.
+func (et *EventTap) shouldPassthroughChord(chord string) bool {
+	et.mu.RLock()
+	defer et.mu.RUnlock()
+
+	if !et.passthroughEnabled {
+		return false
+	}
+
+	canonical := tap.CanonicalChord(chord)
+
+	if _, ok := et.passthroughBlacklist[canonical]; ok {
+		return false
+	}
+
+	if _, ok := et.interceptedChords[canonical]; ok {
+		return false
+	}
+
+	return true
+}
+
+// firePassthroughCallback invokes the registered passthrough callback (if any)
+// on its own goroutine and without holding et.mu. The hook procedure runs on
+// the hook thread, where the mode handler's lock must not be taken: mode exit
+// stops the hook while holding it (see KeyboardHook.Stop).
+func (et *EventTap) firePassthroughCallback() {
+	et.mu.RLock()
+	callback := et.passthroughCallback
+	et.mu.RUnlock()
+
+	if callback != nil {
+		go callback()
+	}
 }
 
 func (et *EventTap) dispatchKey(key string) {

@@ -185,7 +185,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ layered HWND + GDI        |
 | **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ⚠️ passive evdev read        | ⚠️ passive evdev read   | ✅ `RegisterHotKey`          |
 | **Keyboard capture**          | ✅ CGEventTap            | ✅ `XGrabKeyboard`     | ✅ evdev grab (wl-keyboard fallback) | ✅ evdev grab   | ✅ `WH_KEYBOARD_LL`          |
-| **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ❌                           |
+| **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ✅ `WH_KEYBOARD_LL` forwards or blocks per event |
 | **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
 | **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ¹  |
 | **System tray**               | ✅ NSStatusItem ⁸        | ✅ D-Bus StatusNotifierItem ⁸ | ✅ StatusNotifierItem ⁸      | ✅ StatusNotifierItem ⁸ | ✅ Win32 notification area ⁸ |
@@ -670,8 +670,8 @@ left-most held button, since one event cannot describe more.
 | **Global hotkeys**    | Per-key CGEventTap     | `XGrabKey`              | Passive evdev read                       | `RegisterHotKey`        |
 | **CGO needed**        | Yes                    | Yes                     | Yes                                      | No                      |
 | **Press/release**     | ✅ separate callbacks  | ✅ KeyPress/KeyRelease  | ⚠️ press-only in some configs            | ✅ `WM_HOTKEY` flags    |
-| **Modifier passthrough** | ✅                  | ❌ grab is all-or-nothing | ✅ evdev only                          | ❌ no-op                |
-| **`PostModifierEvent`** | ✅                   | ✅                      | ✅ (`zwp_virtual_keyboard_v1`)           | ❌ no-op                |
+| **Modifier passthrough** | ✅                  | ❌ grab is all-or-nothing | ✅ evdev only                          | ✅ hook forwards per event |
+| **`PostModifierEvent`** | ✅                   | ✅                      | ✅ (`zwp_virtual_keyboard_v1`)           | ✅ `SendInput`          |
 | **Sticky modifiers**  | ✅                     | ✅                      | ✅                                       | ✅                      |
 | **Capture files**     | `eventtap/darwin/`     | `eventtap/linux/x11_cgo.go` | `eventtap/linux/wayland_cgo.go`, `evdev_cgo.go` | `eventtap/windows/` |
 | **Hotkey files**      | `hotkeys/darwin/`      | `hotkeys/linux/x11_cgo.go`  | `hotkeys/linux/manager.go` + `eventtap/linux/global_hotkey_cgo.go` ³ | `hotkeys/windows/` |
@@ -735,17 +735,20 @@ the key that *types* that character, and is the same reason XKB options like
 which physical key a `[hotkeys]` chord answers** — the one bearing that character
 on the active layout, in both places.
 
-**Modifier passthrough (Wayland evdev only).** While a mode is active Neru
-captures the keyboard exclusively, so shortcuts it does not bind (`Ctrl+C`,
-`Ctrl+Tab`) are normally swallowed. With `general.passthrough_unbounded_keys`,
-unbound Ctrl/Alt/Cmd chords are re-injected to the focused app instead. This
-works on the Wayland evdev backend because Neru holds `EVIOCGRAB` on the
-physical device but injects through a *separate* `zwp_virtual_keyboard_v1`,
-which bypasses that grab and reaches the app with no feedback loop (see
-`handleWaylandEvdevEvent` → `passthroughEvdevChord`). It is **not** available on
-X11 — an `XGrabKeyboard` routes Neru's own synthetic XTest events back to
-itself, and `XSendEvent` is ignored by most apps — nor on the rare wl-keyboard
-fallback, which has no injection path. Classification (blacklist,
+**Modifier passthrough (Wayland evdev, and Windows).** While a mode is active
+Neru captures the keyboard exclusively, so shortcuts it does not bind
+(`Ctrl+C`, `Ctrl+Tab`) are normally swallowed. With
+`general.passthrough_unbounded_keys`, unbound Ctrl/Alt/Cmd chords reach the
+focused app instead. This works on the Wayland evdev backend because Neru holds
+`EVIOCGRAB` on the physical device but injects through a *separate*
+`zwp_virtual_keyboard_v1`, which bypasses that grab and reaches the app with no
+feedback loop (see `handleWaylandEvdevEvent` → `passthroughEvdevChord`). It is
+**not** available on X11 — an `XGrabKeyboard` routes Neru's own synthetic XTest
+events back to itself, and `XSendEvent` is ignored by most apps — nor on the
+rare wl-keyboard fallback, which has no injection path. Windows needs no
+re-injection at all: a `WH_KEYBOARD_LL` hook forwards or blocks each event on
+its own, so an unbound chord is simply handed on as the real key event it is,
+and a bound one is blocked (`eventtap/windows/tap.go`, `handleKey`). Classification (blacklist,
 mode-intercepted keys, the mode's own hotkeys, and the global chords it falls
 back to — passed through, the user's own hotkey would reach the application in
 front of them and the fallback above would never see the key) and the
@@ -1037,9 +1040,6 @@ green in every cell while an option means nothing, which is exactly how
 | ---- | ---- | --- | --- | --- | --- |
 | `general.hide_overlay_in_screen_share` | option | ✅ | ❌ | ❌ | hiding the overlay from a screen share is an NSWindow sharing level, a Quartz concept with no X11, Wayland or Win32 counterpart |
 | `general.kb_layout_to_use` | option | ✅ | ❌ | ❌ | the keyboard layout is detected rather than chosen outside macOS |
-| `general.passthrough_unbounded_keys` | option | ✅ | ✅ | ❌ | unbound modifier chords reach the focused application on macOS and on the Wayland evdev tap; X11 cannot pass them through at all and Windows does not |
-| `general.passthrough_unbounded_keys_blacklist` | option | ✅ | ✅ | ❌ | unbound modifier chords reach the focused application on macOS and on the Wayland evdev tap; X11 cannot pass them through at all and Windows does not |
-| `general.should_exit_after_passthrough` | option | ✅ | ✅ | ❌ | unbound modifier chords reach the focused application on macOS and on the Wayland evdev tap; X11 cannot pass them through at all and Windows does not |
 | `hints.include_menubar_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.additional_menubar_hints_targets` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.include_dock_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
@@ -1206,12 +1206,11 @@ working, which is exactly why the build exists.
    `virtual_pointer.ui.*` is therefore partly inert here rather than wholly, so
    it stays declared everywhere and is tracked as this entry instead
 4. Smooth cursor and smooth scroll animation — not implemented
-5. Modifier passthrough and `PostModifierEvent` — no-ops
-6. `monitor_select` mode — returns `CodeNotSupported`
-7. Font resolution — alias mapping only, no system font enumeration
-8. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+5. `monitor_select` mode — returns `CodeNotSupported`
+6. Font resolution — alias mapping only, no system font enumeration
+7. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
    installs a launchd agent and Linux a systemd user unit
-9. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+8. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.

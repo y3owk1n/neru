@@ -27,9 +27,7 @@ const (
 	noteSmoothScroll = "the Windows scroll is injected in one step; macOS and Linux animate it, " +
 		"and on X11 the steps are whole wheel notches because X has no smaller scroll to send"
 	noteKeyboardLayout = "the keyboard layout is detected rather than chosen outside macOS"
-	notePassthrough    = "unbound modifier chords reach the focused application on macOS and " +
-		"on the Wayland evdev tap; X11 cannot pass them through at all and Windows does not"
-	noteMacOSSurfaces = "the menu bar, the Dock, Notification Center, Stage Manager, " +
+	noteMacOSSurfaces  = "the menu bar, the Dock, Notification Center, Stage Manager, " +
 		"picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart"
 	noteMissionControl = "Mission Control is a macOS concept, so the detection never fires " +
 		"and the hooks never run"
@@ -95,11 +93,6 @@ func PlatformSupport() parity.Declaration {
 		),
 		parity.On(parity.KindOption, darwinOnly, noteKeyboardLayout,
 			"general.kb_layout_to_use",
-		),
-		parity.On(parity.KindOption, darwinAndLinux, notePassthrough,
-			"general.passthrough_unbounded_keys",
-			"general.passthrough_unbounded_keys_blacklist",
-			"general.should_exit_after_passthrough",
 		),
 
 		parity.On(parity.KindOption, darwinOnly, noteMacOSSurfaces,
@@ -212,6 +205,15 @@ func PlatformSupport() parity.Declaration {
 			"hints.vision.link_min_width",
 			"hints.vision.image_min_size",
 			"hints.vision.checkbox_max_size",
+		),
+		// Unbound modifier chords reach the focused application on macOS, on
+		// the Wayland evdev tap and on Windows. X11 cannot pass them through
+		// at all, which is a display-server limit rather than a column: the
+		// blessed Linux stack is Wayland (Known Gaps, docs/CROSS_PLATFORM.md).
+		parity.Everywhere(parity.KindOption,
+			"general.passthrough_unbounded_keys",
+			"general.passthrough_unbounded_keys_blacklist",
+			"general.should_exit_after_passthrough",
 		),
 		parity.Everywhere(parity.KindOption,
 			"general.excluded_apps",
