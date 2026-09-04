@@ -83,17 +83,27 @@ no Linux entry, and the headless-sway job gates merges. That was the whole of
 [ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)'s promise,
 and it is kept.
 
-**Linux stays Beta anyway**, because parity is a claim about coverage and
-Stable is a claim about reliability. Fourteen capabilities landed in a
-fortnight on a platform the maintainer does not daily-drive, each proven by a
-CI job rather than by use. Coverage is what a checklist can establish; that
-these hold up on a real compositor, under a real workload, over weeks of
-ordinary use, is not.
+**Windows parity is one word short.** Every mode works, and every option, mode
+flag, action and command means what it means on macOS except the `feed` action
+and `neru key`, which have no key-injection path yet — Windows entry 1 under
+[Known Gaps](#known-gaps). The three `hints.vision.*_confidence` floors are
+inert there too, but as a stated boundary of the OCR engine rather than
+unbuilt work. The native `windows-latest` job gates merges.
 
-**Linux moves to Stable** after six consecutive releases in which no Linux-only
-bug is filed — one a macOS user would not also hit. Count bugs *filed* in that
-window rather than ones still open at the end of it: a bug found and fixed still
-happened, and it is evidence about the platform either way.
+**Both stay Beta anyway**, because parity is a claim about coverage and
+Stable is a claim about reliability. Fourteen Linux capabilities landed in a
+fortnight and seventeen Windows tickets in one push, on platforms the
+maintainer does not daily-drive, each proven by a CI job rather than by use.
+Coverage is what a checklist can establish; that these hold up on a real
+compositor or a real desktop, under a real workload, over weeks of ordinary
+use, is not.
+
+**A Beta platform moves to Stable** after six consecutive releases in which no
+bug specific to it is filed — one a macOS user would not also hit. Count bugs
+*filed* in that window rather than ones still open at the end of it: a bug
+found and fixed still happened, and it is evidence about the platform either
+way. The rule is the same for Linux and Windows; only the label in the query
+changes.
 
 ```bash
 since=$(gh release view <tag-six-back> --json publishedAt --jq .publishedAt)
@@ -102,11 +112,11 @@ gh issue list --state all --label "platform: linux" --label bug \
 ```
 
 That query returns candidates, not an answer, and two things it cannot do a
-person must. It cannot tell a Linux-only bug from one macOS shares, so read what
-comes back and discount anything that is really a cross-platform bug wearing a
-platform label. And it sees only what was labelled — a Linux bug filed without
-`platform: linux` is invisible to it, so this is worth no more than the triage
-feeding it.
+person must. It cannot tell a platform-only bug from one macOS shares, so read
+what comes back and discount anything that is really a cross-platform bug
+wearing a platform label. And it sees only what was labelled — a Linux bug
+filed without `platform: linux`, or a Windows bug without `platform: windows`,
+is invisible to it, so this is worth no more than the triage feeding it.
 
 Reading an individual bug is a judgment; whether the label flips is not. That
 distinction is the whole point — see
@@ -116,7 +126,7 @@ distinction is the whole point — see
 
 | Aspect               | macOS (Darwin)              | Linux                                    | Windows                        |
 | -------------------- | --------------------------- | ---------------------------------------- | ------------------------------ |
-| **Status**           | **Stable**                  | **Beta**                                 | **Alpha**                      |
+| **Status**           | **Stable**                  | **Beta**                                 | **Beta**                       |
 | **Build tag**        | `darwin`                    | `linux`                                  | `windows`                      |
 | **CGO**              | Required (Objective-C)      | Per-backend; most Linux backends need it | Not used (pure Go Win32 / COM) |
 | **Primary modifier** | `Cmd`                       | `Ctrl`                                   | `Ctrl`                         |
@@ -1187,7 +1197,16 @@ working, which is exactly why the build exists.
 
 **Windows**
 
-None.
+1. Key feed — the `feed` action and `neru key` return `CodeNotSupported`
+   because `keyfeed_other.go` is the Windows slot; the target is `SendInput`
+   with `KEYBDINPUT` events, the call the pointer and modifier passthrough
+   already use ([#1593](https://github.com/y3owk1n/neru/issues/1593)).
+
+**Not a Windows gap**: the three `hints.vision.*_confidence` floors are inert
+because `Windows.Media.Ocr` reports no per-word confidence, so there is nothing
+for a floor to compare against — a boundary of the engine, not unbuilt work,
+in the same way X11 modifier passthrough is a boundary of the display server.
+[What the labels mean](#what-the-labels-mean) says why the label is Beta.
 
 **macOS**
 
@@ -1692,7 +1711,9 @@ Per-DE decisions, measured protocol support, and known issues live in
 
 ## Windows Model
 
-Windows is one backend family with alpha-level support. Prefer:
+Windows is one backend family, Beta because every mode works and what is there
+is proven by CI rather than by use; [What the labels mean](#what-the-labels-mean)
+carries the rule that moves it to Stable. Prefer:
 
 - `*_windows.go` as the implementation slot
 - pure Go Win32 / COM bindings (via `x/sys/windows` or syscall) over CGO

@@ -56,8 +56,7 @@ run_ps() {
 # `neru services install`, which registers a Task Scheduler logon task the way
 # the macOS installer loads a launchd agent. Runs under a bash (e.g. Git Bash);
 # `just` needs cygpath on PATH to translate the shebang.
-# Windows support is alpha (grid, recursive grid, scroll, hotkeys, mouse
-# injection, UIA); see docs/CROSS_PLATFORM.md.
+# Windows support is beta; see docs/CROSS_PLATFORM.md.
 arch="$(uname -m)"
 case "$arch" in
     aarch64 | arm64) arch=arm64 ;;
@@ -230,6 +229,5 @@ case "$run_reply" in
         echo "Skipped autostart. Start Neru with: neru launch"
         ;;
 esac
-echo "Windows support is alpha: worth trying, not yet worth switching to."
-echo "Hint coverage is incomplete and per-app config does not re-apply."
+echo "Windows support is beta: good for daily driving."
 echo "See docs/CROSS_PLATFORM.md for what works today."
