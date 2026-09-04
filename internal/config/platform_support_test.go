@@ -12,7 +12,6 @@ import (
 // cannot disagree about how one of them is spelled.
 const (
 	screenShareHide     = "general.hide_overlay_in_screen_share"
-	smoothScrollEnabled = "smooth_scroll.enabled"
 	hintsStrategy       = "hints.strategy"
 	hideCursorStep      = "action hide_cursor"
 	hideCursorAction    = "hide_cursor"
@@ -39,11 +38,6 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 			"hiding the overlay from a screen share is a Quartz concept",
 			screenShareHide, "",
 			parity.Platforms{parity.Darwin},
-		},
-		{
-			"smooth scroll animates on macOS and Linux, not Windows",
-			smoothScrollEnabled, "",
-			parity.Platforms{parity.Darwin, parity.Linux},
 		},
 		{
 			"rectangle detection has no OCR answer",
@@ -135,7 +129,7 @@ func TestInertWords_Options(t *testing.T) {
 		},
 		{
 			name:    "an option inert only on Windows is silent on Linux",
-			written: map[string]string{smoothScrollEnabled: "true"},
+			written: map[string]string{visionMinConfidence: "0.5"},
 			target:  parity.Linux,
 			want:    nil,
 		},

@@ -180,7 +180,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ✅ both axes                 |
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard, uinput batch skipped (kept on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in |
-| **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous virtual-pointer axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ❌       |
+| **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous virtual-pointer axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ✅ 120ths of a notch ³ |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, control view only    |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ DirectComposition + Direct2D (GDI fallback; windows/arm64 is GDI only ⁷) |
 | **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ⚠️ passive evdev read        | ⚠️ passive evdev read   | ✅ `RegisterHotKey`          |
@@ -252,7 +252,12 @@ X11 has no such value to send: core scrolling is buttons 4 to 7 and a button
 event is one notch by definition, and the XTEST pointer the server creates for
 `XTestFakeButtonEvent` is allocated with two axes, `Rel X` and `Rel Y`
 (`CorePointerProc` in xorg-server's `dix/devices.c`), so it has no scroll
-valuator for the smooth XI2 path real devices use.
+valuator for the smooth XI2 path real devices use. Windows sits with Wayland:
+`MOUSEEVENTF_WHEEL` carries an integer count of `WHEEL_DELTA`/120ths, so the
+animator steps in 120ths of a notch, and a modifier is one real key held for
+the length of the animation, as on Linux. Thirty pixels are one notch there,
+the figure X11 uses for its button clicks, and the animated and unanimated
+paths both send that fraction rather than rounding it to a detent.
 
 **So X11 animates in notches, and a scroll worth one notch is not animated at
 all.** The default `scroll.scroll_step` of 50 pixels is exactly one notch there,
@@ -926,7 +931,7 @@ important thing to know before touching overlay code:
 | **Grid transition**          | NSTimer @120Hz, ease-in-out, full redraw | goroutine, ease-in-out @120fps  | goroutine, ease-in-out @120fps, presented on the UI thread |
 | **Mouse action indicator**   | `CABasicAnimation` (scale + opacity) | goroutine, scale + opacity @120fps | goroutine, cubic easing @60fps     |
 | **Smooth cursor**            | ✅ stepped linear interpolation      | ✅ stepped linear interpolation    | ✅ stepped linear interpolation    |
-| **Smooth scroll**            | ✅ ease-out cubic                    | ❌                                 | ❌                                 |
+| **Smooth scroll**            | ✅ ease-out cubic                    | ✅ ease-out cubic                  | ✅ ease-out cubic, 120ths of a notch |
 
 ---
 
@@ -951,7 +956,7 @@ discovery rather than the mode itself.
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Sub-key preview                | ✅ mini-grid of next keys  | ✅ mini-grid of next keys  | ✅ mini-grid of next keys   |
-| **Scroll**        | Smooth scroll animation        | ✅                         | ✅ (X11: whole notches)    | ❌                          |
+| **Scroll**        | Smooth scroll animation        | ✅                         | ✅ (X11: whole notches)    | ✅ (120ths of a notch)     |
 | **Monitor select**| Whole mode                     | ✅ native panels           | ✅ Cairo panels            | ✅ one layered window per display |
 
 Everything else is shared: multi-letter labels, label direction, hide-unmatched,
@@ -1077,10 +1082,6 @@ green in every cell while an option means nothing, which is exactly how
 | `hints.vision.rectangle_min_size` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_min_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_max_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
-| `smooth_scroll.enabled` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
-| `smooth_scroll.steps` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
-| `smooth_scroll.max_duration` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
-| `smooth_scroll.duration_per_pixel` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `hide_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `show_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 | `feed` | action | ✅ | ✅ | ❌ | Windows has no key-injection path yet, so the key it would post is never sent; the key_feed capability reports stub to match |
@@ -1106,8 +1107,9 @@ Two entries left this table in ADR 0013 and neither is coming back.
 **Smooth scroll animation** was recorded as needing "a synthesizable continuous
 scroll event stream"; the spike found one on Wayland — a
 `zwlr_virtual_pointer_v1` axis event with no discrete step count, and libei's
-pixel-precise scroll delta on KWin — and it now animates on every Linux backend,
-with X11 limited to whole notches for the reason footnote ³ of the
+pixel-precise scroll delta on KWin — and it now animates on every Linux backend
+and on Windows, whose `MOUSEEVENTF_WHEEL` counts 120ths of a notch, with X11
+limited to whole notches for the reason footnote ³ of the
 [Capability Matrix](#capability-matrix) gives. A limit on one backend is not an
 exclusive: it is that backend's documented limit, which is what
 [ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md) says the
@@ -1178,11 +1180,10 @@ working, which is exactly why the build exists.
 **Windows**
 
 1. Native notifications — no toast support
-2. Smooth scroll animation — not implemented
-3. Font resolution — alias mapping only, no system font enumeration
-4. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+2. Font resolution — alias mapping only, no system font enumeration
+3. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
    installs a launchd agent and Linux a systemd user unit
-5. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+4. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.

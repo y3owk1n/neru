@@ -39,6 +39,17 @@ const (
 	neruInjectedTag = 0x4E455255 // 'N','E','R','U'
 
 	wheelDelta = 120
+
+	// scrollPixelsPerNotch maps the pixel delta every caller sends to wheel
+	// notches. Linux uses the same figure for its X11 button clicks, so one
+	// scroll_step travels the same number of notches on both; before it the
+	// pixel count was sent as a notch count and one scroll_step of 50 pixels
+	// was fifty notches.
+	scrollPixelsPerNotch = 30
+	// wheelUnitsPerPixel is that mapping in mouseData units: WHEEL_DELTA is
+	// 120 per notch, so a pixel is four units and an application accumulates
+	// the fraction the way it does for a high-resolution wheel.
+	wheelUnitsPerPixel = wheelDelta / scrollPixelsPerNotch
 )
 
 // mouseInput and input mirror Win32 MOUSEINPUT/INPUT on 64-bit Windows (40 bytes).
@@ -225,27 +236,28 @@ type wheelEvent struct {
 	data  uint32
 }
 
-// wheelEvents turns a scroll delta into the wheel records SendInput needs,
-// one per axis that moves. Deltas follow Neru's shared convention: positive
-// deltaY scrolls up and positive deltaX scrolls left, which is what macOS
-// posts verbatim and what X11 maps to buttons 4 and 6. MOUSEEVENTF_WHEEL
+// wheelEvents turns a pixel scroll delta into the wheel records SendInput
+// needs, one per axis that moves. Deltas follow Neru's shared convention:
+// positive deltaY scrolls up and positive deltaX scrolls left, which is what
+// macOS posts verbatim and what X11 maps to buttons 4 and 6. MOUSEEVENTF_WHEEL
 // agrees on the vertical sign, but MOUSEEVENTF_HWHEEL reads positive as
 // right, so the horizontal component is negated.
 func wheelEvents(deltaX, deltaY int) []wheelEvent {
+	return wheelRecords(int32(deltaY)*wheelUnitsPerPixel, int32(-deltaX)*wheelUnitsPerPixel)
+}
+
+// wheelRecords is wheelEvents below the sign convention: vertical and
+// horizontal are already in WHEEL_DELTA units with Win32's signs, and a zero
+// axis sends nothing.
+func wheelRecords(vertical, horizontal int32) []wheelEvent {
 	var events []wheelEvent
 
-	if deltaY != 0 {
-		events = append(events, wheelEvent{
-			flags: mouseeventfWheel,
-			data:  uint32(int32(deltaY) * wheelDelta),
-		})
+	if vertical != 0 {
+		events = append(events, wheelEvent{flags: mouseeventfWheel, data: uint32(vertical)})
 	}
 
-	if deltaX != 0 {
-		events = append(events, wheelEvent{
-			flags: mouseeventfHWheel,
-			data:  uint32(int32(-deltaX) * wheelDelta),
-		})
+	if horizontal != 0 {
+		events = append(events, wheelEvent{flags: mouseeventfHWheel, data: uint32(horizontal)})
 	}
 
 	return events
@@ -255,12 +267,41 @@ func wheelEvents(deltaX, deltaY int) []wheelEvent {
 // exactly modifiers as held for the duration — see holdModifiers for why a
 // modifier the user is physically holding has to be suppressed rather than
 // merely not pressed.
+//
+// With smooth_scroll.enabled the scroll is handed to the animator instead and
+// arrives as a sequence of eased chunks, which is what the same setting does
+// on macOS and Linux. The chunks are integer 120ths of a notch, so unlike X11
+// the steps go below a wheel notch.
 func ScrollWheel(deltaX, deltaY int, modifiers action.Modifiers) error {
-	events := wheelEvents(deltaX, deltaY)
-	if len(events) == 0 {
+	if deltaX == 0 && deltaY == 0 {
 		return nil
 	}
 
+	cfg := currentWindowsConfig()
+	if cfg != nil && cfg.SmoothScroll.Enabled {
+		scrollAnim.animate(
+			deltaX,
+			deltaY,
+			modifiers,
+			cfg.SmoothScroll.Steps,
+			cfg.SmoothScroll.MaxDuration,
+			cfg.SmoothScroll.DurationPerPixel,
+		)
+
+		return nil
+	}
+
+	// A scroll arriving with the animation switched off must not be chased by
+	// chunks scheduled before the reload.
+	scrollAnim.stop()
+
+	return scrollWheelNow(deltaX, deltaY, modifiers)
+}
+
+// scrollWheelNow injects the whole scroll in one go, which is what every
+// caller got before smooth scroll existed and what a caller still gets with
+// it switched off.
+func scrollWheelNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 	hold, err := holdModifiers(modifiers)
 	if err != nil {
 		return err
@@ -268,7 +309,7 @@ func ScrollWheel(deltaX, deltaY int, modifiers action.Modifiers) error {
 
 	defer hold.release()
 
-	for _, event := range events {
+	for _, event := range wheelEvents(deltaX, deltaY) {
 		err := sendMouseInput(event.flags, event.data)
 		if err != nil {
 			return err
