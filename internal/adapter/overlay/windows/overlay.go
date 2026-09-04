@@ -3,8 +3,10 @@
 package windows
 
 import (
+	"context"
 	"image"
 	"strings"
+	"sync"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -25,8 +27,11 @@ const (
 )
 
 type winOverlay struct {
-	window         *winplatform.OverlayWindow
-	logger         *zap.Logger
+	window *winplatform.OverlayWindow
+	logger *zap.Logger
+	// renderMu is the manager's lock, which every draw here runs under; the
+	// transition goroutine takes it per frame (transition.go).
+	renderMu       *sync.Mutex
 	currentPrefix  string
 	hideUnmatched  bool
 	currentSubgrid *domainGrid.Cell
@@ -49,9 +54,30 @@ type winOverlay struct {
 	// accepted with is what is on screen, and re-resolving would hand a
 	// void-returning redraw a refusal it has nowhere to report.
 	lastHintOffset badge.HintOffset
+
+	// The depth the recursive grid last drew, which is what a depth change
+	// zooms from (transition.go). hasLast says whether there is one; a clear,
+	// a resize or another mode's draw forgets it.
+	hasLast    bool
+	lastDepth  int
+	lastBounds image.Rectangle
+	lastRects  []image.Rectangle
+	// animRects are the cells the last transition frame painted, so a depth
+	// change arriving mid-zoom continues from the screen rather than jumping.
+	animRects []image.Rectangle
+	// animSettled says the transition that painted animRects reached its
+	// last frame; one that has not is continued rather than restarted.
+	animSettled bool
+	// animPointer is where the last transition frame painted the virtual
+	// pointer, and lastPointer where the last settled frame did: the pointer
+	// rides the zoom from one of them to where the new frame puts it.
+	animPointer      image.Point
+	lastPointer      recursivegridcomponent.VirtualPointerState
+	transitionCancel context.CancelFunc
+	transitionDone   chan struct{}
 }
 
-func newWinOverlay(logger *zap.Logger) *winOverlay {
+func newWinOverlay(logger *zap.Logger, renderMu *sync.Mutex) *winOverlay {
 	window, err := winplatform.NewOverlayWindow()
 	if err != nil {
 		if logger != nil {
@@ -93,7 +119,7 @@ func newWinOverlay(logger *zap.Logger) *winOverlay {
 		})
 	}
 
-	return &winOverlay{window: window, logger: logger}
+	return &winOverlay{window: window, logger: logger, renderMu: renderMu}
 }
 
 func (o *winOverlay) Healthy() bool {
@@ -154,6 +180,7 @@ func (o *winOverlay) Hide() {
 		return
 	}
 
+	o.cancelTransition()
 	o.suppressDraw = true
 	o.currentSubgrid = nil
 	o.gridPointer = recursivegridcomponent.VirtualPointerState{}
@@ -178,6 +205,7 @@ func (o *winOverlay) ClearCache() {
 		return
 	}
 
+	o.forgetTransition()
 	o.cachedGrid = nil
 	o.cachedStyle = gridcomponent.Style{}
 	o.currentPrefix = ""
@@ -193,13 +221,23 @@ func (o *winOverlay) Resize() {
 		return
 	}
 
+	before := o.window.Bounds()
+
 	err := o.window.ResizeToActiveScreen()
 	if err != nil && o.logger != nil {
 		o.logger.Warn("failed to resize Windows overlay", zap.Error(err))
 	}
+
+	// Every recursive-grid draw resizes first, so only a window that moved
+	// forgets the depth it drew: the old cells belong to a screen that is gone.
+	if o.window.Bounds() != before {
+		o.forgetTransition()
+	}
 }
 
 func (o *winOverlay) Destroy() {
+	o.cancelTransition()
+
 	if o != nil && o.window != nil {
 		o.window.Destroy()
 		o.window = nil
@@ -302,6 +340,7 @@ func (o *winOverlay) DrawGrid(gridValue *domainGrid.Grid, input string, style gr
 		return
 	}
 
+	o.forgetTransition()
 	o.cachedGrid = gridValue
 	o.cachedStyle = style
 	o.currentPrefix = strings.ToUpper(input)

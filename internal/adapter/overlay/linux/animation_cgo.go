@@ -6,6 +6,8 @@ import (
 	"image"
 	"math"
 	"time"
+
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/motion"
 )
 
 const (
@@ -34,30 +36,6 @@ const (
 	alphaRoundBias        = 0.5
 )
 
-// easeInOut applies a smoothstep ease-in-out interpolation.
-// Matches the visual feel of kCAMediaTimingFunctionEaseInEaseOut on macOS.
-func easeInOut(progress float64) float64 {
-	const (
-		smoothStep3 = 3
-		smoothStep2 = 2
-	)
-
-	if progress <= 0 {
-		return 0
-	}
-
-	if progress >= 1 {
-		return 1
-	}
-
-	return progress * progress * (smoothStep3 - smoothStep2*progress)
-}
-
-// lerp linearly interpolates between a and b by t.
-func lerp(a, b, t float64) float64 {
-	return a + (b-a)*t
-}
-
 // applyEasing maps a linear progress in [0,1] through the named easing curve,
 // matching the easing names accepted by the mouse-action-indicator config
 // (linear, ease_in, ease_out, ease_in_out). Unknown names fall back to
@@ -77,7 +55,7 @@ func applyEasing(easing string, progress float64) float64 {
 	case easingEaseIn:
 		return progress * progress * progress
 	case easingEaseInOut:
-		return easeInOut(progress)
+		return motion.EaseInOut(progress)
 	case easingEaseOut:
 		// Computed below, shared with the unknown-name fallback.
 	}

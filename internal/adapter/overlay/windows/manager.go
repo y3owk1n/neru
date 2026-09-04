@@ -66,11 +66,13 @@ var (
 
 // NewOverlayManager creates a new overlay Manager.
 func NewOverlayManager(logger *zap.Logger) *Manager {
-	return &Manager{
+	mgr := &Manager{
 		Base:   manager.NewBase(logger),
 		logger: logger,
-		win:    newWinOverlay(logger),
 	}
+	mgr.win = newWinOverlay(logger, &mgr.renderMu)
+
+	return mgr
 }
 
 // Get returns the global overlay Manager.
@@ -138,6 +140,7 @@ func (m *Manager) Clear() {
 	defer m.renderMu.Unlock()
 
 	if m.win != nil {
+		m.win.forgetTransition()
 		m.win.Clear()
 	}
 }
@@ -769,12 +772,13 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 // DrawRecursiveGrid draws the recursive-grid overlay on the Windows overlay window.
 //
 // The next-depth keys and dimensions are handed on to the draw, which previews
-// them as a mini-grid inside each cell. The depth is not: this backend has no
-// transition animation, so nothing here compares the depth against the last one
-// drawn (docs/CROSS_PLATFORM.md owns that status).
+// them as a mini-grid inside each cell. So is the depth: the surface compares
+// it against the last one drawn and zooms between them when
+// recursive_grid.animation says to (transition.go), the way the Linux
+// backends do.
 func (m *Manager) DrawRecursiveGrid(
 	bounds image.Rectangle,
-	_ int,
+	depth int,
 	keys string,
 	dims domain.GridDimensions,
 	nextKeys string,
@@ -794,9 +798,23 @@ func (m *Manager) DrawRecursiveGrid(
 		)
 	}
 
+	var (
+		animEnabled  bool
+		animDuration time.Duration
+	)
+
+	if m.RecursiveGridOverlay() != nil {
+		animCfg := m.RecursiveGridOverlay().Config().Animation
+		animEnabled = animCfg.Enabled
+		animDuration = time.Duration(animCfg.DurationMS) * time.Millisecond
+	}
+
 	// Shared activation may draw before the resize; enforce monitor bounds here.
 	m.win.Resize()
-	m.win.DrawRecursiveGrid(bounds, keys, dims, nextKeys, nextDims, style, virtualPointer)
+	m.win.DrawRecursiveGrid(
+		bounds, depth, keys, dims, nextKeys, nextDims, style, virtualPointer,
+		animEnabled, animDuration,
+	)
 
 	return nil
 }
@@ -1071,7 +1089,7 @@ func (m *Manager) ensureWinOverlayLocked() {
 		m.win = nil
 	}
 
-	m.win = newWinOverlay(m.logger)
+	m.win = newWinOverlay(m.logger, &m.renderMu)
 	if m.win == nil && m.logger != nil {
 		m.logger.Error("Windows overlay window is unavailable; grid overlay cannot render")
 	}
