@@ -172,7 +172,7 @@ func WindowsCapabilities() PlatformCapabilities {
 			"cursor movement and tracking available via SetCursorPos/GetCursorPos",
 		),
 		Scroll: supportedCapability(
-			"scroll injection via SendInput mouse-wheel events, vertical only",
+			"scroll injection via SendInput mouse-wheel events on both axes",
 		),
 		Accessibility: supportedCapability(
 			"clickable-element discovery available via UI Automation (initial coverage)",
