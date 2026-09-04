@@ -36,7 +36,10 @@ type EventTap struct {
 
 	// postedModifiers are the sticky modifiers PostModifierEvent is holding
 	// down; the hook reads them into every chord like a physical hold.
+	// heldModifiers are the ones the user's hands hold, from the hook's own
+	// modifier events, so a modifier both posted and held stays in the chord.
 	postedModifiers map[string]struct{}
+	heldModifiers   map[string]struct{}
 
 	hook *winplatform.KeyboardHook
 }
@@ -63,6 +66,7 @@ func (et *EventTap) Enable() {
 	}
 
 	et.enabled = true
+	et.heldModifiers = nil
 	et.mu.Unlock()
 
 	hook, err := winplatform.StartKeyboardHook(et.handleKey)
@@ -92,6 +96,7 @@ func (et *EventTap) Disable() {
 	hook := et.hook
 	et.hook = nil
 	et.enabled = false
+	et.heldModifiers = nil
 	et.mu.Unlock()
 
 	if hook != nil {
@@ -223,27 +228,40 @@ func (et *EventTap) notePostedModifier(modifier string, isDown bool) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
-	if isDown {
-		if et.postedModifiers == nil {
-			et.postedModifiers = make(map[string]struct{})
-		}
-
-		et.postedModifiers[modifier] = struct{}{}
-
-		return
-	}
-
-	delete(et.postedModifiers, modifier)
+	et.postedModifiers = setModifier(et.postedModifiers, modifier, isDown)
 }
 
-// physicalChord returns chord without the modifiers this tap posted itself,
-// as the user's hands pressed it.
+// noteHeldModifier records a modifier the user pressed or released.
+func (et *EventTap) noteHeldModifier(modifier string, isDown bool) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	et.heldModifiers = setModifier(et.heldModifiers, modifier, isDown)
+}
+
+func setModifier(set map[string]struct{}, modifier string, isDown bool) map[string]struct{} {
+	if !isDown {
+		delete(set, modifier)
+
+		return set
+	}
+
+	if set == nil {
+		set = make(map[string]struct{})
+	}
+
+	set[modifier] = struct{}{}
+
+	return set
+}
+
+// physicalChord returns chord without the modifiers only this tap holds, as
+// the user's hands pressed it.
 func (et *EventTap) physicalChord(chord string) string {
 	et.mu.RLock()
-	posted := et.postedModifiers
-	et.mu.RUnlock()
+	defer et.mu.RUnlock()
 
-	if len(posted) == 0 {
+	if len(et.postedModifiers) == 0 {
 		return chord
 	}
 
@@ -252,7 +270,11 @@ func (et *EventTap) physicalChord(chord string) string {
 
 	for i, part := range parts {
 		if i < len(parts)-1 {
-			if _, ok := posted[keyvocab.CanonicalModifier(part)]; ok {
+			mod := keyvocab.CanonicalModifier(part)
+			_, posted := et.postedModifiers[mod]
+			_, held := et.heldModifiers[mod]
+
+			if posted && !held {
 				continue
 			}
 		}
@@ -290,6 +312,8 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 	}
 
 	if mod := keyvocab.CanonicalModifier(key); mod != "" {
+		et.noteHeldModifier(mod, !isUp)
+
 		if et.stickyToggleEnabled() {
 			et.dispatchKey(keyvocab.ModifierToggleEvent(mod, !isUp))
 		}

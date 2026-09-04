@@ -89,6 +89,20 @@ func TestEventTap_HandleKey_StickyModifierDoesNotFireGlobalHotkey(t *testing.T) 
 		t.Fatalf("dispatched = %v, want the chord handed to the mode handler", dispatched)
 	}
 
+	// The user pressing Shift as well makes it their chord again, even while
+	// the sticky one is still posted.
+	tap.handleKey("Shift", false)
+
+	if tap.handleKey("Ctrl+Shift+J", false) {
+		t.Fatal("physical Shift+Ctrl+J under sticky Shift was not handed to RegisterHotKey")
+	}
+
+	tap.handleKey("Shift", true)
+
+	if !tap.handleKey("Ctrl+Shift+J", false) {
+		t.Fatal("Ctrl+J after the physical Shift release was handed to RegisterHotKey")
+	}
+
 	// Releasing the sticky modifier restores the handoff for a physical press.
 	tap.notePostedModifier("shift", false)
 
