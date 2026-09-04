@@ -4,6 +4,7 @@ package windows
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -33,6 +34,15 @@ type EventTap struct {
 	passthroughBlacklist map[string]struct{}
 	interceptedChords    map[string]struct{}
 
+	// postedModifiers are the sticky modifiers PostModifierEvent is holding
+	// down; the hook reads them into every chord like a physical hold.
+	// heldModifiers are the ones the user's hands hold, from the hook's own
+	// modifier events, so a modifier both posted and held stays in the chord.
+	// A set rather than a count: a held key autorepeats its key-down, and the
+	// left and right keys of one modifier are not told apart here.
+	postedModifiers map[string]struct{}
+	heldModifiers   map[string]struct{}
+
 	hook *winplatform.KeyboardHook
 }
 
@@ -58,6 +68,7 @@ func (et *EventTap) Enable() {
 	}
 
 	et.enabled = true
+	et.heldModifiers = nil
 	et.mu.Unlock()
 
 	hook, err := winplatform.StartKeyboardHook(et.handleKey)
@@ -87,6 +98,7 @@ func (et *EventTap) Disable() {
 	hook := et.hook
 	et.hook = nil
 	et.enabled = false
+	et.heldModifiers = nil
 	et.mu.Unlock()
 
 	if hook != nil {
@@ -162,7 +174,11 @@ func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 	err := winplatform.PostModifierKey(modifier, isDown)
 	if err != nil {
 		et.logger.Warn("Failed to post modifier event", zap.Error(err))
+
+		return
 	}
+
+	et.notePostedModifier(modifier, isDown)
 }
 
 // SetKeyboardLayout sets the keyboard layout.
@@ -208,6 +224,73 @@ func IsWaylandEvdevKeyboardActive() bool {
 	return false
 }
 
+// notePostedModifier records a modifier this tap holds down (or released) on
+// the handler's behalf.
+func (et *EventTap) notePostedModifier(modifier string, isDown bool) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	if !isDown {
+		delete(et.postedModifiers, modifier)
+
+		return
+	}
+
+	if et.postedModifiers == nil {
+		et.postedModifiers = make(map[string]struct{})
+	}
+
+	et.postedModifiers[modifier] = struct{}{}
+}
+
+// noteHeldModifier records a modifier the user pressed or released.
+func (et *EventTap) noteHeldModifier(modifier string, isDown bool) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	if !isDown {
+		delete(et.heldModifiers, modifier)
+
+		return
+	}
+
+	if et.heldModifiers == nil {
+		et.heldModifiers = make(map[string]struct{})
+	}
+
+	et.heldModifiers[modifier] = struct{}{}
+}
+
+// physicalChord returns chord without the modifiers only this tap holds, as
+// the user's hands pressed it.
+func (et *EventTap) physicalChord(chord string) string {
+	et.mu.RLock()
+	defer et.mu.RUnlock()
+
+	if len(et.postedModifiers) == 0 {
+		return chord
+	}
+
+	parts := strings.Split(chord, "+")
+	kept := parts[:0]
+
+	for i, part := range parts {
+		if i < len(parts)-1 {
+			mod := keyvocab.CanonicalModifier(part)
+			_, posted := et.postedModifiers[mod]
+			_, held := et.heldModifiers[mod]
+
+			if posted && !held {
+				continue
+			}
+		}
+
+		kept = append(kept, part)
+	}
+
+	return strings.Join(kept, "+")
+}
+
 // isRegisteredHotkey reports whether key is one of the chords registered as a
 // global hotkey, compared in the normalized form both sides are matched in so a
 // binding written "Primary+G" answers for the "Ctrl+G" the hook reads.
@@ -235,6 +318,8 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 	}
 
 	if mod := keyvocab.CanonicalModifier(key); mod != "" {
+		et.noteHeldModifier(mod, !isUp)
+
 		if et.stickyToggleEnabled() {
 			et.dispatchKey(keyvocab.ModifierToggleEvent(mod, !isUp))
 		}
@@ -266,7 +351,14 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 		// and a double-run of "recursive_grid --toggle" exits the mode and
 		// re-enters it. macOS answers the same question the same way, in its own
 		// tap's hotkey check (platform/darwin/eventtap_darwin.m).
-		if et.isRegisteredHotkey(normalized) {
+		//
+		// Only the chord the user physically pressed qualifies. A sticky
+		// modifier is held by this tap, so with Shift sticky a Ctrl+J press
+		// reads as Ctrl+Shift+J; handing that back would fire a Ctrl+Shift+J
+		// global hotkey the user never pressed. Sticky modifiers are for the
+		// next action, not for hotkeys, so the chord is consumed and dispatched
+		// instead, and the handler strips the sticky part before resolving it.
+		if et.physicalChord(normalized) == normalized && et.isRegisteredHotkey(normalized) {
 			return false
 		}
 

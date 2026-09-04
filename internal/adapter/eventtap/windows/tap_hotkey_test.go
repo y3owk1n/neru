@@ -68,3 +68,47 @@ func TestEventTap_SetHotkeys_ReplacesTheList(t *testing.T) {
 		t.Error("Ctrl+H is not treated as registered after the list was replaced")
 	}
 }
+
+// A sticky modifier is held by the tap itself, so the hook reads it into every
+// chord. A chord that only spells a registered hotkey because of that modifier
+// is the user's Ctrl+J, not their Ctrl+Shift+J, and stays with the mode.
+func TestEventTap_HandleKey_StickyModifierDoesNotFireGlobalHotkey(t *testing.T) {
+	t.Parallel()
+
+	var dispatched []string
+
+	tap := NewEventTap(func(key string) { dispatched = append(dispatched, key) }, nil)
+	tap.SetHotkeys([]string{"Ctrl+Shift+J"})
+	tap.notePostedModifier("shift", true)
+
+	if !tap.handleKey("Ctrl+Shift+J", false) {
+		t.Fatal("Ctrl+J with sticky Shift was handed to RegisterHotKey instead of consumed")
+	}
+
+	if len(dispatched) != 1 || dispatched[0] != "Ctrl+Shift+j" {
+		t.Fatalf("dispatched = %v, want the chord handed to the mode handler", dispatched)
+	}
+
+	// The user pressing Shift as well makes it their chord again, even while
+	// the sticky one is still posted.
+	tap.handleKey("Shift", false)
+
+	if tap.handleKey("Ctrl+Shift+J", false) {
+		t.Fatal("physical Shift+Ctrl+J under sticky Shift was not handed to RegisterHotKey")
+	}
+
+	// A held modifier autorepeats its key-down; one release still ends it.
+	tap.handleKey("Shift", false)
+	tap.handleKey("Shift", true)
+
+	if !tap.handleKey("Ctrl+Shift+J", false) {
+		t.Fatal("Ctrl+J after the physical Shift release was handed to RegisterHotKey")
+	}
+
+	// Releasing the sticky modifier restores the handoff for a physical press.
+	tap.notePostedModifier("shift", false)
+
+	if tap.handleKey("Ctrl+Shift+J", false) {
+		t.Fatal("physical Ctrl+Shift+J was consumed instead of handed to RegisterHotKey")
+	}
+}
