@@ -288,6 +288,7 @@ test-foundation:
         ./internal/flagref ./internal/supportref \
         ./internal/adapter/logger \
         ./internal/adapter/overlay/render/badge \
+        ./internal/adapter/overlay/render/motion \
         ./internal/adapter/platform/compositorcli \
         ./internal/adapter/platform/fontcache \
         ./internal/adapter/platform/fontgeneric \

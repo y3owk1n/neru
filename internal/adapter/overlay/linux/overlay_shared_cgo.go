@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/motion"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
@@ -899,8 +900,8 @@ func (o *sharedOverlay) startMouseActionAnimation(
 		}
 
 		eased := applyEasing(style.Easing, rawProgress)
-		scale := max(lerp(style.StartScale, style.EndScale, eased), 0)
-		opacity := lerp(style.StartOpacity, style.EndOpacity, eased)
+		scale := max(motion.Lerp(style.StartScale, style.EndScale, eased), 0)
+		opacity := motion.Lerp(style.StartOpacity, style.EndOpacity, eased)
 		diameter := baseSize * scale
 		rect := mouseActionIndicatorRect(point, diameter)
 		fill := applyOpacity(fillBase, opacity)
@@ -1027,57 +1028,14 @@ func (o *sharedOverlay) cancelAnimation() {
 	}
 }
 
-//nolint:mnd,varnamelen
+// buildFromRects answers where each cell of the new depth starts its zoom
+// (motion.TransitionOrigins), from the cells a running transition was
+// interrupted on or the ones the last depth drew.
 func (o *sharedOverlay) buildFromRects(
 	toRects []image.Rectangle,
 	bounds image.Rectangle,
 ) []image.Rectangle {
-	if len(o.currentAnimRects) == len(toRects) {
-		from := make([]image.Rectangle, len(o.currentAnimRects))
-		copy(from, o.currentAnimRects)
-
-		return from
-	}
-
-	if len(o.lastRects) == len(toRects) {
-		from := make([]image.Rectangle, len(o.lastRects))
-		copy(from, o.lastRects)
-
-		return from
-	}
-
-	if o.lastBounds.Empty() {
-		from := make([]image.Rectangle, len(toRects))
-		for idx, rect := range toRects {
-			cx := rect.Min.X + rect.Dx()/2
-			cy := rect.Min.Y + rect.Dy()/2
-			from[idx] = image.Rect(cx, cy, cx, cy)
-		}
-
-		return from
-	}
-
-	fromBounds := o.lastBounds
-	fw := float64(fromBounds.Dx())
-	fh := float64(fromBounds.Dy())
-	dw := float64(bounds.Dx())
-	dh := float64(bounds.Dy())
-
-	from := make([]image.Rectangle, len(toRects))
-	for idx, rect := range toRects {
-		nx := (float64(rect.Min.X+rect.Dx()/2) - float64(bounds.Min.X)) / dw
-		ny := (float64(rect.Min.Y+rect.Dy()/2) - float64(bounds.Min.Y)) / dh
-		cx := int(float64(fromBounds.Min.X) + nx*fw)
-		cy := int(float64(fromBounds.Min.Y) + ny*fh)
-		rw := rect.Dx()
-		rh := rect.Dy()
-		from[idx] = image.Rect(
-			cx-rw/2, cy-rh/2,
-			cx+rw/2, cy+rh/2,
-		)
-	}
-
-	return from
+	return motion.TransitionOrigins(toRects, bounds, o.currentAnimRects, o.lastRects, o.lastBounds)
 }
 
 func (o *sharedOverlay) startGridAnimation(
@@ -1099,19 +1057,7 @@ func (o *sharedOverlay) startGridAnimation(
 			rawProgress = 1.0
 		}
 
-		progress := easeInOut(rawProgress)
-
-		interpCells := make([]image.Rectangle, len(toRects))
-		for i := range toRects {
-			src := fromRects[i]
-			dst := toRects[i]
-			interpCells[i] = image.Rect(
-				int(lerp(float64(src.Min.X), float64(dst.Min.X), progress)),
-				int(lerp(float64(src.Min.Y), float64(dst.Min.Y), progress)),
-				int(lerp(float64(src.Max.X), float64(dst.Max.X), progress)),
-				int(lerp(float64(src.Max.Y), float64(dst.Max.Y), progress)),
-			)
-		}
+		interpCells := motion.LerpRects(fromRects, toRects, motion.EaseInOut(rawProgress))
 
 		if !o.srf.beginFrame() {
 			return
