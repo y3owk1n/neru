@@ -139,13 +139,16 @@ func newDIBSection(width, height int) (*dibSection, error) {
 		return nil, fmt.Errorf("%w: SelectObject failed", errGDISurfaceUnavailable)
 	}
 
-	length := width * height * bytesPerPixel
+	// Start transparent. The first frame erases only what earlier frames
+	// painted, and nothing documents the section's bits as zeroed.
+	pixels := unsafe.Slice((*byte)(bits), width*height*bytesPerPixel)
+	clear(pixels)
 
 	return &dibSection{
 		dc:      hdc,
 		bitmap:  bitmap,
 		prevObj: prevObj,
-		pixels:  unsafe.Slice((*byte)(bits), length),
+		pixels:  pixels,
 		width:   width,
 		height:  height,
 	}, nil
