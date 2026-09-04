@@ -77,13 +77,18 @@ Every claim behind these labels is enumerated in the
 [Capability Matrix](#capability-matrix) and [Known Gaps](#known-gaps). If a
 label and the matrix disagree, the matrix is right.
 
-**Linux and Windows parity is complete.** Every option, mode flag, action and
-command means on the blessed Linux stack and on Windows what it means on macOS,
-[Known Gaps](#known-gaps) carries no entry for either, and CI gates merges on
-both: the headless-sway job for Linux, the native `windows-latest` job for
-Windows. That was the whole of
+**Linux parity is complete.** Every option, mode flag, action and command means
+on the blessed stack what it means on macOS, [Known Gaps](#known-gaps) carries
+no Linux entry, and the headless-sway job gates merges. That was the whole of
 [ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)'s promise,
 and it is kept.
+
+**Windows parity is one word short.** Every mode works, and every option, mode
+flag, action and command means what it means on macOS except the `feed` action
+and `neru key`, which have no key-injection path yet — Windows entry 1 under
+[Known Gaps](#known-gaps). The three `hints.vision.*_confidence` floors are
+inert there too, but as a stated boundary of the OCR engine rather than
+unbuilt work. The native `windows-latest` job gates merges.
 
 **Both stay Beta anyway**, because parity is a claim about coverage and
 Stable is a claim about reliability. Fourteen Linux capabilities landed in a
@@ -1192,8 +1197,16 @@ working, which is exactly why the build exists.
 
 **Windows**
 
-None — parity is complete.
-[What the labels mean](#what-the-labels-mean) says why the label is still Beta.
+1. Key feed — the `feed` action and `neru key` return `CodeNotSupported`
+   because `keyfeed_other.go` is the Windows slot; the target is `SendInput`
+   with `KEYBDINPUT` events, the call the pointer and modifier passthrough
+   already use ([#1593](https://github.com/y3owk1n/neru/issues/1593)).
+
+**Not a Windows gap**: the three `hints.vision.*_confidence` floors are inert
+because `Windows.Media.Ocr` reports no per-word confidence, so there is nothing
+for a floor to compare against — a boundary of the engine, not unbuilt work,
+in the same way X11 modifier passthrough is a boundary of the display server.
+[What the labels mean](#what-the-labels-mean) says why the label is Beta.
 
 **macOS**
 
@@ -1698,9 +1711,9 @@ Per-DE decisions, measured protocol support, and known issues live in
 
 ## Windows Model
 
-Windows is one backend family, Beta because parity is complete and proven by
-CI rather than by use; [What the labels mean](#what-the-labels-mean) carries
-the rule that moves it to Stable. Prefer:
+Windows is one backend family, Beta because every mode works and what is there
+is proven by CI rather than by use; [What the labels mean](#what-the-labels-mean)
+carries the rule that moves it to Stable. Prefer:
 
 - `*_windows.go` as the implementation slot
 - pure Go Win32 / COM bindings (via `x/sys/windows` or syscall) over CGO
