@@ -941,7 +941,7 @@ discovery rather than the mode itself.
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ✅ sampled triangle, see below |
 | **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ✅ top / center / bottom   |
 | **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
-| **Grid**          | Virtual pointer indicator      | ✅                         | ✅                         | ❌ no-op                    |
+| **Grid**          | Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Grid**          | What an open subgrid shows     | ✅ the subgrid alone       | ✅ the subgrid alone       | ⚠️ the parent cells return under it on the next repaint |
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
@@ -1181,14 +1181,11 @@ working, which is exactly why the build exists.
 
 1. Native notifications — no toast support
 2. Grid and recursive-grid transition animation — not implemented
-3. Grid virtual-pointer indicator — a no-op, while recursive grid draws it.
-   `virtual_pointer.ui.*` is therefore partly inert here rather than wholly, so
-   it stays declared everywhere and is tracked as this entry instead
-4. Smooth cursor and smooth scroll animation — not implemented
-5. Font resolution — alias mapping only, no system font enumeration
-6. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+3. Smooth cursor and smooth scroll animation — not implemented
+4. Font resolution — alias mapping only, no system font enumeration
+5. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
    installs a launchd agent and Linux a systemd user unit
-7. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+6. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.

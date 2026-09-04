@@ -804,28 +804,75 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 	}
 }
 
-// ShowSubgrid shows a subgrid inside the selected cell.
+// ShowSubgrid shows a subgrid inside the selected cell, with the pointer
+// stand-in that belongs on the same surface once the cell has been picked.
 //
-// The pointer stand-in it carries reaches the render component the way every
-// other grid-pointer call does, and that component draws nothing on Windows —
-// this platform has no grid pointer at all (docs/CROSS_PLATFORM.md). Passing it
-// on rather than dropping it here is what keeps the day it grows one a change
-// to the component and not to this signature.
-//
-// It is applied outside renderMu, as darwin applies it with no lock at all, and
-// that is not tidiness: Base.ApplyGridPointer dispatches statically, so a
-// Windows pointer grown as a Manager override of DrawGridPointer — the way
-// Linux grew one — would be bypassed, and the obvious repair of routing the
-// apply through the interface instead would deadlock on this line if it were
-// made while holding the lock.
+// Both are painted into one pixel buffer here, so the pointer rides the open
+// (#1492) rather than following it as a call of its own: applied afterwards
+// through Base.ApplyGridPointer it would dispatch statically past the
+// DrawGridPointer override below and repaint the surface a second time for
+// one keystroke, arrow keys inside a subgrid included.
 func (m *Manager) ShowSubgrid(
 	cell *domainGrid.Cell,
 	style grid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) {
-	m.showSubgridLocked(cell, style)
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
 
-	m.ApplyGridPointer(manager.ModeGrid, virtualPointer)
+	if m.win != nil {
+		m.syncSublayerKeysLocked()
+		m.win.ShowSubgrid(cell, style, virtualPointer)
+	}
+}
+
+// DrawGridPointer puts grid mode's pointer stand-in on the layered window.
+//
+// Overrides the Base method, which resolves a mode to a render component: off
+// darwin those components own no surface, which is why the pointer was a no-op
+// in grid mode here while recursive grid, whose pointer rides the frame every
+// keystroke hands over, drew it. Recursive grid is still delegated so the Base
+// keeps answering for a mode this backend does not paint on its own.
+func (m *Manager) DrawGridPointer(
+	mode manager.Mode,
+	point image.Point,
+	appearance manager.PointerAppearance,
+) {
+	if m == nil {
+		return
+	}
+
+	if mode != manager.ModeGrid {
+		m.Base.DrawGridPointer(mode, point, appearance)
+
+		return
+	}
+
+	m.dispatchGridPointer(recursivegrid.VirtualPointerState{
+		Visible:   true,
+		Position:  point,
+		Size:      appearance.FontSize,
+		FillColor: appearance.FillColor,
+		Char:      appearance.Char,
+		FontName:  appearance.FontFamily,
+	})
+}
+
+// HideGridPointer takes grid mode's pointer stand-in off the window, leaving
+// the grid on it. Mode teardown calls it before the frame is cleared, and the
+// mode's own selection going away is the other caller.
+func (m *Manager) HideGridPointer(mode manager.Mode) {
+	if m == nil {
+		return
+	}
+
+	if mode != manager.ModeGrid {
+		m.Base.HideGridPointer(mode)
+
+		return
+	}
+
+	m.dispatchGridPointer(recursivegrid.VirtualPointerState{})
 }
 
 // SetHideUnmatched toggles hiding unmatched grid cells.
@@ -993,15 +1040,17 @@ func scaleColorAlpha(hexColor string, opacity float64) uint32 {
 	return res
 }
 
-// showSubgridLocked draws the subgrid under renderMu. It exists so ShowSubgrid
-// can release the lock before the pointer apply above.
-func (m *Manager) showSubgridLocked(cell *domainGrid.Cell, style grid.Style) {
+// dispatchGridPointer hands the pointer state to the backend, which keeps it
+// and repaints the grid surface with it. It takes renderMu the way
+// UpdateGridMatches does for the same repaint, and no caller holds the lock
+// already: the adapter reaches it directly from UpdateGridPointer and
+// ClearFrame.
+func (m *Manager) dispatchGridPointer(pointer recursivegrid.VirtualPointerState) {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
 	if m.win != nil {
-		m.syncSublayerKeysLocked()
-		m.win.ShowSubgrid(cell, style)
+		m.win.SetGridPointer(pointer)
 	}
 }
 

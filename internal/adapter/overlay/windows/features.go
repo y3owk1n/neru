@@ -296,38 +296,30 @@ func (o *winOverlay) DrawRecursiveGrid(
 		}
 	}
 
-	if virtualPointer.Visible {
-		vpChar := virtualPointer.Char
-		if vpChar == "" {
-			vpChar = "\u25CF"
-		}
-
-		// FontName arrives resolved: it comes from the Style, which settles
-		// every family it hands out. Resolving again here would be a lock and
-		// a cache lookup per drawn frame for the same answer.
-		fontName := virtualPointer.FontName
-
-		fontSize := float64(virtualPointer.Size)
-		// Not badge.CenteredOn: the half is floored at 1 so a pointer
-		// configured to size 0 or 1 still has a box to draw its glyph in.
-		halfSize := max(virtualPointer.Size/2, 1) //nolint:mnd
-
-		vpBounds := image.Rect(
-			virtualPointer.Position.X-halfSize,
-			virtualPointer.Position.Y-halfSize,
-			virtualPointer.Position.X+halfSize,
-			virtualPointer.Position.Y+halfSize,
-		)
-		o.drawTextCentered(
-			vpChar,
-			vpBounds,
-			fontName,
-			fontSize,
-			badge.ParseHexARGB(virtualPointer.FillColor),
-		)
-	}
+	o.drawGridPointer(virtualPointer)
 
 	o.flushOverlay("recursive-grid")
+}
+
+// drawGridPointer paints a grid mode's pointer stand-in into the pass the
+// caller has begun, or nothing when the state is not visible. Grid and
+// recursive grid both draw theirs here, on the one primitive the window owns.
+//
+// FontName arrives resolved: it comes from the Style, which settles every
+// family it hands out. Resolving again here would be a lock and a cache lookup
+// per drawn frame for the same answer.
+func (o *winOverlay) drawGridPointer(pointer recursivegridcomponent.VirtualPointerState) {
+	if !pointer.Visible || o.window == nil {
+		return
+	}
+
+	o.window.DrawPointerGlyph(
+		pointer.Position,
+		pointer.Size,
+		pointer.Char,
+		pointer.FontName,
+		badge.ParseHexARGB(pointer.FillColor),
+	)
 }
 
 // drawFilledRect fills bounds then strokes its border, optionally with rounded
