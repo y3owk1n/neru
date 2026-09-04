@@ -3,6 +3,7 @@
 package windows
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -55,19 +56,13 @@ func FeedKey(key string) error {
 	for _, modifier := range modifiers {
 		err = sendKeyboardInput(modifier, false)
 		if err != nil {
-			releaseKeys(pressed)
-
-			return wrapSendInput(err)
+			return wrapSendInput(errors.Join(err, releaseKeys(pressed)))
 		}
 
 		pressed = append(pressed, modifier)
 	}
 
-	err = tapKey(virtualKey)
-
-	releaseKeys(pressed)
-
-	return wrapSendInput(err)
+	return wrapSendInput(errors.Join(tapKey(virtualKey), releaseKeys(pressed)))
 }
 
 // tapKey presses and releases one key with its layout scan code.
@@ -87,13 +82,17 @@ func tapKey(virtualKey uint16) error {
 	return sendKeyEvent(virtualKey, uint16(scan), flags|keyeventfKeyUp)
 }
 
-// releaseKeys lifts modifiers in reverse press order. Failures are dropped:
-// a release that cannot be sent has no better fallback, and the caller is
-// already reporting the first error.
-func releaseKeys(keys []uint16) {
+// releaseKeys lifts modifiers in reverse press order. Every release is
+// attempted even after one fails, so a modifier is never left held because
+// an earlier one could not be lifted; the failures are joined.
+func releaseKeys(keys []uint16) error {
+	var errs []error
+
 	for _, key := range slices.Backward(keys) {
-		_ = sendKeyboardInput(key, true)
+		errs = append(errs, sendKeyboardInput(key, true))
 	}
+
+	return errors.Join(errs...)
 }
 
 func wrapSendInput(err error) error {
@@ -164,12 +163,13 @@ func feedModifierKey(token string) (uint16, error) {
 }
 
 // feedVirtualKey resolves a base key name to its virtual key plus the
-// modifiers the active layout needs to produce it. Named keys, letters and
-// digits carry none; any other single character asks VkKeyScan, which is the
-// only source that knows "!" is Shift+1 on US and Shift+8 on French.
+// modifiers the active layout needs to produce it. Named keys and letters
+// carry none; any other single character, digits included, asks VkKeyScan,
+// which is the only source that knows "1" is Shift+& on French and "!" is
+// Shift+1 on US.
 func feedVirtualKey(name string) (uint16, []uint16, bool) {
-	if keyRune, size := utf8.DecodeRuneInString(name); size == len(name) &&
-		!unicode.IsLetter(keyRune) && !unicode.IsDigit(keyRune) {
+	keyRune, size := utf8.DecodeRuneInString(name)
+	if size == len(name) && !unicode.IsLetter(keyRune) {
 		return virtualKeyWithLayoutModifiers(keyRune)
 	}
 
