@@ -36,10 +36,11 @@ type EventTap struct {
 
 	// postedModifiers are the sticky modifiers PostModifierEvent is holding
 	// down; the hook reads them into every chord like a physical hold.
-	// heldModifiers are the ones the user's hands hold, from the hook's own
-	// modifier events, so a modifier both posted and held stays in the chord.
+	// heldModifiers counts the keys of each modifier the user's hands hold,
+	// from the hook's own modifier events (left and right count separately),
+	// so a modifier both posted and held stays in the chord.
 	postedModifiers map[string]struct{}
-	heldModifiers   map[string]struct{}
+	heldModifiers   map[string]int
 
 	hook *winplatform.KeyboardHook
 }
@@ -228,7 +229,17 @@ func (et *EventTap) notePostedModifier(modifier string, isDown bool) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
-	et.postedModifiers = setModifier(et.postedModifiers, modifier, isDown)
+	if !isDown {
+		delete(et.postedModifiers, modifier)
+
+		return
+	}
+
+	if et.postedModifiers == nil {
+		et.postedModifiers = make(map[string]struct{})
+	}
+
+	et.postedModifiers[modifier] = struct{}{}
 }
 
 // noteHeldModifier records a modifier the user pressed or released.
@@ -236,23 +247,19 @@ func (et *EventTap) noteHeldModifier(modifier string, isDown bool) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
-	et.heldModifiers = setModifier(et.heldModifiers, modifier, isDown)
-}
+	if isDown {
+		if et.heldModifiers == nil {
+			et.heldModifiers = make(map[string]int)
+		}
 
-func setModifier(set map[string]struct{}, modifier string, isDown bool) map[string]struct{} {
-	if !isDown {
-		delete(set, modifier)
+		et.heldModifiers[modifier]++
 
-		return set
+		return
 	}
 
-	if set == nil {
-		set = make(map[string]struct{})
+	if et.heldModifiers[modifier] > 0 {
+		et.heldModifiers[modifier]--
 	}
-
-	set[modifier] = struct{}{}
-
-	return set
 }
 
 // physicalChord returns chord without the modifiers only this tap holds, as
@@ -271,10 +278,7 @@ func (et *EventTap) physicalChord(chord string) string {
 	for i, part := range parts {
 		if i < len(parts)-1 {
 			mod := keyvocab.CanonicalModifier(part)
-			_, posted := et.postedModifiers[mod]
-			_, held := et.heldModifiers[mod]
-
-			if posted && !held {
+			if _, posted := et.postedModifiers[mod]; posted && et.heldModifiers[mod] == 0 {
 				continue
 			}
 		}
