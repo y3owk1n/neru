@@ -39,6 +39,17 @@ const (
 	neruInjectedTag = 0x4E455255 // 'N','E','R','U'
 
 	wheelDelta = 120
+
+	// scrollPixelsPerNotch maps the pixel delta every caller sends to wheel
+	// notches. Linux uses the same figure for its X11 button clicks, so one
+	// scroll_step travels the same number of notches on both; before it the
+	// pixel count was sent as a notch count and one scroll_step of 50 pixels
+	// was fifty notches.
+	scrollPixelsPerNotch = 30
+	// wheelUnitsPerPixel is that mapping in mouseData units: WHEEL_DELTA is
+	// 120 per notch, so a pixel is four units and an application accumulates
+	// the fraction the way it does for a high-resolution wheel.
+	wheelUnitsPerPixel = wheelDelta / scrollPixelsPerNotch
 )
 
 // mouseInput and input mirror Win32 MOUSEINPUT/INPUT on 64-bit Windows (40 bytes).
@@ -225,14 +236,14 @@ type wheelEvent struct {
 	data  uint32
 }
 
-// wheelEvents turns a scroll delta into the wheel records SendInput needs,
-// one per axis that moves. Deltas follow Neru's shared convention: positive
-// deltaY scrolls up and positive deltaX scrolls left, which is what macOS
-// posts verbatim and what X11 maps to buttons 4 and 6. MOUSEEVENTF_WHEEL
+// wheelEvents turns a pixel scroll delta into the wheel records SendInput
+// needs, one per axis that moves. Deltas follow Neru's shared convention:
+// positive deltaY scrolls up and positive deltaX scrolls left, which is what
+// macOS posts verbatim and what X11 maps to buttons 4 and 6. MOUSEEVENTF_WHEEL
 // agrees on the vertical sign, but MOUSEEVENTF_HWHEEL reads positive as
 // right, so the horizontal component is negated.
 func wheelEvents(deltaX, deltaY int) []wheelEvent {
-	return wheelRecords(int32(deltaY)*wheelDelta, int32(-deltaX)*wheelDelta)
+	return wheelRecords(int32(deltaY)*wheelUnitsPerPixel, int32(-deltaX)*wheelUnitsPerPixel)
 }
 
 // wheelRecords is wheelEvents below the sign convention: vertical and

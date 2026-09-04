@@ -255,7 +255,9 @@ event is one notch by definition, and the XTEST pointer the server creates for
 valuator for the smooth XI2 path real devices use. Windows sits with Wayland:
 `MOUSEEVENTF_WHEEL` carries an integer count of `WHEEL_DELTA`/120ths, so the
 animator steps in 120ths of a notch, and a modifier is one real key held for
-the length of the animation, as on Linux.
+the length of the animation, as on Linux. Thirty pixels are one notch there,
+the figure X11 uses for its button clicks, and the animated and unanimated
+paths both send that fraction rather than rounding it to a detent.
 
 **So X11 animates in notches, and a scroll worth one notch is not animated at
 all.** The default `scroll.scroll_step` of 50 pixels is exactly one notch there,

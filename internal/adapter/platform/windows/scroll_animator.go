@@ -27,12 +27,12 @@ const (
 	// so a direct caller cannot divide by zero.
 	defaultScrollSteps = 12
 	// scrollGranularity is the smallest distance a wheel event can carry, in
-	// the caller's units. The caller's delta is in notches (wheelEvents sends
-	// deltaY * WHEEL_DELTA) and MOUSEINPUT.mouseData is an integer count of
-	// WHEEL_DELTA/120ths, so a step can be as short as one 120th of a notch.
-	// That is what makes this animate below a notch the way Wayland does and
-	// X11 cannot.
-	scrollGranularity = 1.0 / wheelDelta
+	// the caller's pixels: MOUSEINPUT.mouseData is an integer count of
+	// WHEEL_DELTA/120ths and wheelUnitsPerPixel of them make a pixel, so a
+	// step can be as short as a quarter pixel, one 120th of a notch. That is
+	// what makes this animate below a notch the way Wayland does and X11
+	// cannot.
+	scrollGranularity = 1.0 / wheelUnitsPerPixel
 )
 
 // scrollSession is one animation's hold on the injection path.
@@ -68,8 +68,8 @@ func (s *sendInputScrollSession) inject(deltaX, deltaY float64) error {
 	// The same sign convention wheelEvents applies: positive deltaY is up and
 	// positive deltaX is left, and only the horizontal axis needs negating.
 	records := wheelRecords(
-		int32(math.Round(deltaY*wheelDelta)),
-		int32(math.Round(-deltaX*wheelDelta)),
+		int32(math.Round(deltaY*wheelUnitsPerPixel)),
+		int32(math.Round(-deltaX*wheelUnitsPerPixel)),
 	)
 
 	for _, event := range records {
@@ -91,8 +91,10 @@ func (s *sendInputScrollSession) close() {
 //
 // The curve is eased on the cumulative position and each chunk is the
 // difference between two positions on it, so rounding never accumulates: a
-// fraction of a 120th that one chunk cannot express stays in the difference
-// and goes out with a later chunk.
+// fraction of a wheel unit that one chunk cannot express stays in the
+// difference and goes out with a later chunk. The schedule is laid out in
+// whole wheel units and the last chunk takes whatever is left, so the steps
+// together travel exactly the units the delta rounds to.
 //
 // delta is a float rather than the integer the caller's action carries
 // because a request can arrive holding the undelivered remainder of the one
@@ -104,21 +106,25 @@ func scrollChunks(delta float64, steps int) []float64 {
 	}
 
 	chunks := make([]float64, steps)
-	if delta == 0 {
+
+	total := math.Round(delta * wheelUnitsPerPixel)
+	if total == 0 {
 		return chunks
 	}
 
 	var sent float64
 
-	for step := 1; step <= steps; step++ {
+	for step := 1; step < steps; step++ {
 		progress := float64(step) / float64(steps)
 		eased := 1 - math.Pow(1-progress, easeOutCubicExponent)
 
-		chunk := math.Trunc((delta*eased-sent)/scrollGranularity) * scrollGranularity
+		chunk := math.Trunc(total*eased - sent)
 
-		chunks[step-1] = chunk
+		chunks[step-1] = chunk * scrollGranularity
 		sent += chunk
 	}
+
+	chunks[steps-1] = (total - sent) * scrollGranularity
 
 	return chunks
 }
@@ -343,8 +349,13 @@ func (a *scrollAnimator) runOnce(
 
 	// Opening presses real modifier keys, so it takes the fence too: without
 	// it a worker starting here could press ctrl before a worker stopped a
-	// moment ago released it.
-	a.underFence(func() { session, err = a.begin(req.modifiers) }, nil)
+	// moment ago released it. It also checks stopCh under the fence, because
+	// a request the worker took just before stop() must not press a key the
+	// direct scroll that replaced it then has to wait out.
+	opened := a.underFence(func() { session, err = a.begin(req.modifiers) }, stopCh)
+	if !opened {
+		return scrollRequest{}, false
+	}
 
 	if err != nil {
 		// Reported the way the cursor animator reports a failed step, which

@@ -82,8 +82,8 @@ func waitFor(t *testing.T, condition func() bool) {
 
 // TestScrollChunks_TravelsTheRequestedDistance is the property the whole
 // animation rests on: switching smooth scroll on changes when a scroll
-// arrives, never how far it goes. Every chunk is a whole number of 120ths, so
-// the total is exact for any whole-notch delta.
+// arrives, never how far it goes. Every chunk is a whole number of wheel
+// units, so the total is exact for any whole-pixel delta.
 func TestScrollChunks_TravelsTheRequestedDistance(t *testing.T) {
 	t.Parallel()
 
@@ -92,10 +92,11 @@ func TestScrollChunks_TravelsTheRequestedDistance(t *testing.T) {
 		delta float64
 		steps int
 	}{
-		{name: "one notch down", delta: -1, steps: 20},
+		{name: "one line down", delta: -50, steps: 20},
 		{name: "half a page up", delta: 500, steps: 20},
 		{name: "a single step", delta: 300, steps: 1},
-		{name: "more steps than notches", delta: 7, steps: 64},
+		{name: "more steps than pixels", delta: 7, steps: 64},
+		{name: "a single pixel", delta: 1, steps: 12},
 	}
 
 	for _, test := range tests {
@@ -125,18 +126,24 @@ func TestScrollChunks_EasesOutInWholeWheelUnits(t *testing.T) {
 	chunks := scrollChunks(-10, 12)
 
 	for index, chunk := range chunks {
-		if units := chunk * wheelDelta; math.Abs(units-math.Round(units)) > 1e-9 {
-			t.Errorf("chunk %d = %v notches, which is not a whole number of 120ths", index, chunk)
+		if units := chunk * wheelUnitsPerPixel; math.Abs(units-math.Round(units)) > 1e-9 {
+			t.Errorf(
+				"chunk %d = %v pixels, which is not a whole number of wheel units",
+				index,
+				chunk,
+			)
 		}
 
-		if index > 0 && math.Abs(chunk) > math.Abs(chunks[index-1])+1e-9 {
+		// The last chunk carries whatever truncation left over, which can be
+		// one unit after a run of zeros; the curve is read from the rest.
+		if index > 0 && index < len(chunks)-1 && math.Abs(chunk) > math.Abs(chunks[index-1])+1e-9 {
 			t.Fatalf("chunk %d (%v) is longer than chunk %d (%v); the curve is not easing out",
 				index, chunk, index-1, chunks[index-1])
 		}
 	}
 
 	if chunks[0] >= 0 || chunks[0] <= -10 {
-		t.Errorf("first chunk = %v, want a negative fraction of the -10 notch delta", chunks[0])
+		t.Errorf("first chunk = %v, want a negative fraction of the -10 pixel delta", chunks[0])
 	}
 }
 

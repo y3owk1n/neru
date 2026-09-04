@@ -40,9 +40,16 @@ func TestSendInputStructLayout(t *testing.T) {
 }
 
 // notches converts a signed wheel count into the two's-complement mouseData
-// SendInput reads, the same way wheelEvents does.
+// SendInput reads, the same way wheelEvents does for a whole notch's worth of
+// pixels.
 func notches(count int) uint32 {
 	return uint32(int32(count) * wheelDelta)
+}
+
+// pixels converts a signed pixel delta into mouseData the same way
+// wheelEvents does: scrollPixelsPerNotch pixels are one notch.
+func pixels(count int) uint32 {
+	return uint32(int32(count) * wheelUnitsPerPixel)
 }
 
 // TestWheelEvents_NegatesHorizontalDelta pins the sign convention across the
@@ -60,24 +67,29 @@ func TestWheelEvents_NegatesHorizontalDelta(t *testing.T) {
 	}{
 		{name: "no movement sends nothing"},
 		{
-			name:   "scroll up is a positive wheel notch",
-			deltaY: 1,
+			name:   "a notch's worth of pixels up is one positive wheel notch",
+			deltaY: scrollPixelsPerNotch,
 			want:   []wheelEvent{{flags: mouseeventfWheel, data: notches(1)}},
 		},
 		{
+			name:   "a pixel is a fraction of a notch, not a notch",
+			deltaY: 1,
+			want:   []wheelEvent{{flags: mouseeventfWheel, data: pixels(1)}},
+		},
+		{
 			name:   "scroll left is a negative hwheel notch",
-			deltaX: 1,
+			deltaX: scrollPixelsPerNotch,
 			want:   []wheelEvent{{flags: mouseeventfHWheel, data: notches(-1)}},
 		},
 		{
 			name:   "scroll right is a positive hwheel notch",
-			deltaX: -2,
+			deltaX: -2 * scrollPixelsPerNotch,
 			want:   []wheelEvent{{flags: mouseeventfHWheel, data: notches(2)}},
 		},
 		{
 			name:   "both axes send vertical first",
-			deltaX: -1,
-			deltaY: -1,
+			deltaX: -scrollPixelsPerNotch,
+			deltaY: -scrollPixelsPerNotch,
 			want: []wheelEvent{
 				{flags: mouseeventfWheel, data: notches(-1)},
 				{flags: mouseeventfHWheel, data: notches(1)},
