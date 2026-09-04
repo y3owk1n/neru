@@ -201,7 +201,8 @@ var (
 	trayMu          sync.Mutex
 	trayHWND        uintptr
 	trayThreadID    uint32
-	trayHeadless    bool
+	trayStarted     bool
+	trayIconShown   bool
 	trayQuit        bool
 	trayIconHandle  uintptr
 	trayNID         notifyIconData
@@ -341,7 +342,7 @@ func runTray(withIcon bool, onReadyFunc, onExitFunc func()) {
 	}
 
 	trayThreadID = currentThreadID()
-	trayHeadless = !withIcon
+	trayStarted = true
 	trayMu.Unlock()
 
 	if withIcon {
@@ -401,7 +402,7 @@ func SetTooltip(tooltip string) {
 
 	copyTip(&trayNID, tooltip)
 	trayNID.uFlags = nifMessage | nifIcon | nifTip
-	shellNotify(nimModify, &trayNID)
+	_ = shellNotify(nimModify, &trayNID)
 }
 
 // SetIcon replaces the tray icon with one built from the passed PNG bytes.
@@ -436,7 +437,7 @@ func SetIcon(iconBytes []byte) {
 	trayIconHandle = newIcon
 	trayNID.hIcon = newIcon
 	trayNID.uFlags = nifMessage | nifIcon | nifTip
-	shellNotify(nimModify, &trayNID)
+	_ = shellNotify(nimModify, &trayNID)
 
 	if oldIcon != 0 {
 		discardCall(procDestroyIcon.Call(oldIcon))
@@ -450,16 +451,25 @@ func SetTemplateIcon(iconBytes []byte, template bool) {
 	SetIcon(iconBytes)
 }
 
-// Headless reports whether this process started its tray loop without an
-// icon (systray.enabled = false). It is false before the loop starts, so a
-// process that never runs a tray, such as the CLI, keeps the static capability
-// rather than reporting a tray it was never going to show.
-func Headless() bool {
+// TrayState reports (started, shown): whether this process has started its tray loop and
+// whether the shell currently holds its icon. started is false in a process
+// that never runs a tray, such as the CLI, so a caller can tell "not shown"
+// from "not knowable here". shown tracks the NIM_ADD result, so a headless
+// run (systray.enabled = false) and a failed registration read the same.
+func TrayState() (bool, bool) {
 	trayMu.Lock()
 	defer trayMu.Unlock()
 
-	return trayHeadless
+	return trayStarted, trayIconShown
 }
+
+// noTrayIconDetail is the reason a notification cannot be shown without a
+// registered tray icon; the capability row carries the same words.
+const noTrayIconDetail = "notifications are tray balloon tips on Windows and the " +
+	"tray icon is not shown; enable systray.enabled to see them"
+
+// NoTrayIconDetail returns noTrayIconDetail for the capability row.
+func NoTrayIconDetail() string { return noTrayIconDetail }
 
 // ShowBalloon shows a balloon tip (a toast on Windows 10 and 11) anchored to
 // the tray icon. It is the Windows notification path: the shell renders
@@ -470,12 +480,8 @@ func ShowBalloon(title, message string) error {
 	trayMu.Lock()
 	defer trayMu.Unlock()
 
-	if trayHWND == 0 {
-		return derrors.New(
-			derrors.CodeNotSupported,
-			"notifications are tray balloon tips on Windows and the tray icon is "+
-				"not shown; enable systray.enabled to see them",
-		)
+	if !trayIconShown {
+		return derrors.New(derrors.CodeNotSupported, noTrayIconDetail)
 	}
 
 	nid := notifyIconData{
@@ -651,7 +657,7 @@ func addTrayIcon() {
 		hIcon:            icon,
 	}
 	copyTip(&trayNID, "Neru")
-	shellNotify(nimAdd, &trayNID)
+	trayIconShown = shellNotify(nimAdd, &trayNID)
 }
 
 func removeTrayIcon() {
@@ -662,7 +668,8 @@ func removeTrayIcon() {
 		return
 	}
 
-	shellNotify(nimDelete, &trayNID)
+	_ = shellNotify(nimDelete, &trayNID)
+	trayIconShown = false
 }
 
 // loadBrandIcon builds an HICON from the embedded brand PNG, falling back to
@@ -676,8 +683,11 @@ func loadBrandIcon() uintptr {
 	return icon
 }
 
-func shellNotify(message uint32, nid *notifyIconData) {
-	discardCall(procShellNotifyIconW.Call(uintptr(message), uintptr(unsafe.Pointer(nid))))
+// shellNotify reports whether the shell accepted the message.
+func shellNotify(message uint32, nid *notifyIconData) bool {
+	ret, _, _ := procShellNotifyIconW.Call(uintptr(message), uintptr(unsafe.Pointer(nid)))
+
+	return ret != 0
 }
 
 func pumpMessages() {

@@ -43,17 +43,19 @@ func (s *SystemAdapter) Health(ctx context.Context) error {
 
 // Capabilities returns the current Windows capability surface.
 //
-// Notifications are balloon tips on the tray icon, so a daemon whose tray runs
-// headless downgrades the row live: the code path exists, but nothing will be
-// shown, and neru doctor should say so rather than repeat the static preset.
+// Notifications are balloon tips on the tray icon, so once this process has
+// started its tray loop the row follows whether the shell holds the icon: a
+// headless run or a failed registration downgrades it live with the reason,
+// and neru doctor says so rather than repeating the static preset. Before the
+// loop starts, and in a process that never runs one, the preset stands.
 func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 	capabilities := ports.WindowsCapabilities()
 
-	if wintray.Headless() {
+	started, shown := wintray.TrayState()
+	if started && !shown {
 		capabilities.Notifications = ports.FeatureCapability{
 			Status: ports.FeatureStatusStub,
-			Detail: "notifications are tray balloon tips and the tray icon is not " +
-				"shown; enable systray.enabled to see them",
+			Detail: wintray.NoTrayIconDetail(),
 		}
 	}
 
