@@ -7,5 +7,6 @@
 //
 // Platform slots: keyfeed_darwin.go (CGEventPost), keyfeed_linux.go (a uinput
 // virtual keyboard where /dev/uinput is writable, else zwp_virtual_keyboard_v1
-// on wlroots), and keyfeed_other.go, which returns CodeNotSupported.
+// on wlroots), keyfeed_windows.go (SendInput), and keyfeed_other.go, which
+// returns CodeNotSupported.
 package keyfeed

@@ -210,9 +210,7 @@ func WindowsCapabilities() PlatformCapabilities {
 				"capture; text only, and it needs an OCR language pack for one of the " +
 				"account's languages",
 		),
-		KeyFeed: stubCapability(
-			"key injection not implemented yet; target SendInput",
-		),
+		KeyFeed: supportedCapability("key injection available via SendInput"),
 		Systray: supportedCapability(
 			"tray icon available via the Win32 notification area (Shell_NotifyIcon)",
 		),

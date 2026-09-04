@@ -6,8 +6,6 @@ import "github.com/y3owk1n/neru/internal/domain/parity"
 const (
 	noteCursorVisibility = "a Wayland client may not hide another client's cursor, " +
 		"and the blessed Linux stack is Wayland; Windows has no equivalent either"
-	noteKeyFeed = "Windows has no key-injection path yet, so the key it would post is " +
-		"never sent; the key_feed capability reports stub to match"
 )
 
 // PlatformSupport declares, for every action name, the platforms on which
@@ -25,14 +23,8 @@ func PlatformSupport() parity.Declaration {
 			string(NameShowCursor),
 		),
 
-		parity.On(
-			parity.KindAction,
-			parity.Platforms{parity.Darwin, parity.Linux},
-			noteKeyFeed,
-			string(NameFeed),
-		),
-
 		parity.Everywhere(parity.KindAction,
+			string(NameFeed),
 			string(NameScrollLeft),
 			string(NameScrollRight),
 			string(NameLeftClick),
