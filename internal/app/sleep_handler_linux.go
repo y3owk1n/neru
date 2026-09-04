@@ -59,6 +59,10 @@ func (a *App) setupSleepObserver() {
 	// reads it at call time, so the degraded no-bus path leaves it nil.
 	var dbusClose func() error
 
+	// Under observerMu: the IPC server is already live, so a reload can be
+	// reading postReloadVerify while Run is still in here.
+	a.observerMu.Lock()
+
 	a.sleepObserverStop = func() {
 		close(stopChan)
 
@@ -82,6 +86,8 @@ func (a *App) setupSleepObserver() {
 			}
 		})
 	}
+
+	a.observerMu.Unlock()
 
 	conn, err := dbus.ConnectSystemBus()
 	if err != nil {

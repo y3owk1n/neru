@@ -2614,8 +2614,13 @@ func TestSimulation_FocusChangeMidModeRebindsTheKey(t *testing.T) {
 
 	sim.press(sharedKey)
 
-	sim.waitFor("a binding for the shared key to run", func() bool {
-		return sim.app.CurrentMode() != domain.ModeGrid
+	// A mode-to-mode switch runs off the keystroke on a goroutine and passes
+	// through idle on its way in, so idle is a moment in the transition rather
+	// than an answer: wait for whichever mode the binding opens.
+	sim.waitFor("a binding for the shared key to open a mode", func() bool {
+		mode := sim.app.CurrentMode()
+
+		return mode != domain.ModeGrid && mode != domain.ModeIdle
 	})
 
 	if got := sim.app.CurrentMode(); got != domain.ModeRecursiveGrid {

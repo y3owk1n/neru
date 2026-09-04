@@ -10,33 +10,43 @@ package app
 // once. Platforms whose observer stops with the app context leave the field
 // nil, making this a no-op.
 func (a *App) stopThemeObserver() {
-	if a.themeObserverStop == nil {
-		return
-	}
-
+	a.observerMu.Lock()
 	stop := a.themeObserverStop
 	a.themeObserverStop = nil
+	a.observerMu.Unlock()
 
-	stop()
+	if stop != nil {
+		stop()
+	}
 }
 
 // stopSleepObserver runs this instance's sleep observer teardown, at most
 // once. Only Linux registers one; see setupSleepObserver.
 func (a *App) stopSleepObserver() {
-	if a.sleepObserverStop == nil {
-		return
-	}
-
+	a.observerMu.Lock()
 	stop := a.sleepObserverStop
 	a.sleepObserverStop = nil
+	// The check shares the observer's wait group, and the IPC server is still
+	// accepting a reload while this runs: one arriving now must find nothing
+	// to schedule rather than add to a group teardown is about to wait on.
+	a.postReloadVerify = nil
+	a.observerMu.Unlock()
 
-	stop()
+	if stop != nil {
+		stop()
+	}
 }
 
 // schedulePostReloadVerification runs the platform's post-config-reload
 // health check, if any. Only Linux registers one: it verifies the evdev
 // hotkey listener actually came back after a reload.
+//
+// The hook runs under the lock: it only starts a goroutine, and running it
+// there means it is never called after stopSleepObserver has cleared it.
 func (a *App) schedulePostReloadVerification() {
+	a.observerMu.Lock()
+	defer a.observerMu.Unlock()
+
 	if a.postReloadVerify != nil {
 		a.postReloadVerify()
 	}

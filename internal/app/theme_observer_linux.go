@@ -54,6 +54,8 @@ func (a *App) setupThemeObserver() {
 	// reads it at call time, so the early polling fallbacks leave it nil.
 	var dbusClose func() error
 
+	a.observerMu.Lock()
+
 	a.themeObserverStop = func() {
 		close(stopChan)
 
@@ -63,6 +65,8 @@ func (a *App) setupThemeObserver() {
 
 		waitGroup.Wait()
 	}
+
+	a.observerMu.Unlock()
 
 	dialCtx, cancelDial := context.WithTimeout(a.ctx, themeBusDialTimeout)
 	defer cancelDial()

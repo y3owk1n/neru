@@ -119,6 +119,10 @@ type App struct {
 	// Per-instance observer teardown and hooks, assigned by the platform
 	// setup functions and consumed by the shared entry points in
 	// observers.go. Closures keep platform types off this struct.
+	//
+	// observerMu guards the three: Run assigns them after the IPC server is
+	// already accepting a reload, and the reload path reads postReloadVerify.
+	observerMu        sync.Mutex
 	themeObserverStop func()
 	sleepObserverStop func()
 	postReloadVerify  func()
