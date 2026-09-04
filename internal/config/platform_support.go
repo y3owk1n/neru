@@ -20,7 +20,6 @@ const (
 		"score each word"
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
 		"even where the vision strategy lands; that half is text-only"
-	noteSmoothCursor = "cursor movement is not animated on Windows"
 	noteSmoothScroll = "the Windows scroll is injected in one step; macOS and Linux animate it, " +
 		"and on X11 the steps are whole wheel notches because X has no smaller scroll to send"
 	noteKeyboardLayout = "the keyboard layout is detected rather than chosen outside macOS"
@@ -171,7 +170,7 @@ func PlatformSupport() parity.Declaration {
 			"mode_indicator.monitor_select.border_color",
 		),
 
-		parity.On(parity.KindOption, darwinAndLinux, noteSmoothCursor,
+		parity.Everywhere(parity.KindOption,
 			"smooth_cursor.move_mouse_enabled",
 			"smooth_cursor.steps",
 			"smooth_cursor.max_duration",

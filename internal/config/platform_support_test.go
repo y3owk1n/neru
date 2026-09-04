@@ -55,11 +55,6 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 			visionMinConfidence, "",
 			parity.Platforms{parity.Darwin, parity.Linux},
 		},
-		{
-			"smooth cursor is not animated on Windows",
-			"smooth_cursor.steps", "",
-			parity.Platforms{parity.Darwin, parity.Linux},
-		},
 	}
 
 	for _, test := range tests {
@@ -140,7 +135,7 @@ func TestInertWords_Options(t *testing.T) {
 		},
 		{
 			name:    "an option inert only on Windows is silent on Linux",
-			written: map[string]string{"smooth_cursor.steps": "20"},
+			written: map[string]string{smoothScrollEnabled: "true"},
 			target:  parity.Linux,
 			want:    nil,
 		},

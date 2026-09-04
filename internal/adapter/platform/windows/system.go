@@ -13,15 +13,24 @@ import (
 	"path/filepath"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // SystemAdapter implements ports.SystemPort for Windows.
-type SystemAdapter struct{}
+type SystemAdapter struct {
+	cursorAnimator *smoothCursorAnimator
+}
 
 // NewSystemAdapter creates a new SystemAdapter.
 func NewSystemAdapter() *SystemAdapter {
-	return &SystemAdapter{}
+	adapter := &SystemAdapter{}
+	adapter.cursorAnimator = newSmoothCursorAnimator(
+		adapter.currentCursorPosition,
+		moveCursorTo,
+	)
+
+	return adapter
 }
 
 // PlatformLabel returns "windows".
@@ -173,21 +182,95 @@ func (s *SystemAdapter) FocusedWindowBounds(
 }
 
 // MoveCursorToPoint moves the mouse cursor to the specified point on Windows.
+//
+// When smooth cursor is enabled (config smooth_cursor.move_mouse_enabled) and
+// the caller has not requested a bypass, the move is animated by the shared
+// cursor animator, which steps SetCursorPos over time; callers that need the
+// cursor settled before acting pair this with WaitForCursorIdle. Otherwise
+// (bypass, disabled, or no config wired) it warps directly.
 func (s *SystemAdapter) MoveCursorToPoint(
 	ctx context.Context,
 	point image.Point,
-	_ bool,
+	bypassSmooth bool,
 ) error {
 	err := ctx.Err()
 	if err != nil {
 		return err
 	}
 
+	cfg := currentWindowsConfig()
+	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
+		s.cursorAnimator.animateTo(
+			point,
+			cfg.SmoothCursor.Steps,
+			cfg.SmoothCursor.MaxDuration,
+			cfg.SmoothCursor.DurationPerPixel,
+		)
+
+		return nil
+	}
+
+	// Stop before warping: stop() drains the animator's injection mutex, so on
+	// return no animation step is in flight and none will start, and this warp
+	// lands last instead of racing a stale step back to an intermediate point.
+	s.cursorAnimator.stop()
+
 	return moveCursorTo(point)
 }
 
-// WaitForCursorIdle returns immediately on Windows until smooth cursor support exists.
+// MoveCursorBy applies a relative cursor move. With smooth cursor enabled
+// (smooth_cursor.move_mouse_enabled) the delta extends the animator's pending
+// endpoint, clamped to the active screen, and animates over the fixed
+// per-move duration smooth_cursor.relative_movement_duration, matching macOS.
+// Otherwise it reports handled == false so the caller keeps its
+// CursorPosition + MoveCursorToPoint fallback, the instant warp Windows always
+// used.
+func (s *SystemAdapter) MoveCursorBy(
+	ctx context.Context,
+	delta image.Point,
+) (bool, error) {
+	cfg := currentWindowsConfig()
+	if cfg == nil || !cfg.SmoothCursor.MoveMouseEnabled {
+		return false, nil
+	}
+
+	// Without bounds there is nothing to clamp against, so fall through to
+	// the caller's fallback, which clamps at the service layer.
+	bounds, err := s.ScreenBounds(ctx)
+	if err == nil {
+		s.cursorAnimator.animateRelativeBy(
+			delta,
+			func(point image.Point) image.Point {
+				return image.Point{
+					X: geometry.ClampInt(point.X, bounds.Min.X, max(bounds.Max.X-1, bounds.Min.X)),
+					Y: geometry.ClampInt(point.Y, bounds.Min.Y, max(bounds.Max.Y-1, bounds.Min.Y)),
+				}
+			},
+			cfg.SmoothCursor.Steps,
+			cfg.SmoothCursor.RelativeMovementDuration,
+		)
+
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// WaitForCursorIdle blocks until any in-flight smooth cursor animation settles,
+// or ctx is canceled. It returns immediately when no animation is active, the
+// common case on the direct (non-smooth) move path.
 func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
+	return s.cursorAnimator.wait(ctx)
+}
+
+// SettleCursor finishes any in-flight cursor animation immediately: the
+// worker is stopped and the cursor warps straight to the endpoint it was
+// animating toward. Action paths call this before resolving their target
+// point from the cursor, so an action firing mid-animation acts at the point
+// the user aimed for without paying the animation's remaining duration.
+func (s *SystemAdapter) SettleCursor(ctx context.Context) error {
+	s.cursorAnimator.settle()
+
 	return nil
 }
 
@@ -252,5 +335,23 @@ func (s *SystemAdapter) RequestScreenCapturePermission(
 	return ports.ScreenCaptureGranted
 }
 
-// Ensure SystemAdapter implements ports.SystemPort.
-var _ ports.SystemPort = (*SystemAdapter)(nil)
+// currentCursorPosition returns the current cursor position for the animator,
+// collapsing the error to a zero point. The animator samples this once per
+// request to seed interpolation; a bad read only skews the glide path, never
+// the final landing point (the last step lands exactly on the target).
+func (s *SystemAdapter) currentCursorPosition() image.Point {
+	point, err := cursorPosition()
+	if err != nil {
+		return image.Point{}
+	}
+
+	return point
+}
+
+// Ensure SystemAdapter implements ports.SystemPort and its optional cursor
+// extensions.
+var (
+	_ ports.SystemPort          = (*SystemAdapter)(nil)
+	_ ports.RelativeCursorMover = (*SystemAdapter)(nil)
+	_ ports.CursorSettler       = (*SystemAdapter)(nil)
+)

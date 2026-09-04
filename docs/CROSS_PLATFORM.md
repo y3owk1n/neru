@@ -179,7 +179,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ✅ both axes                 |
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard, uinput batch skipped (kept on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold |
-| **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
+| **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in |
 | **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous virtual-pointer axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ❌       |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, control view only    |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ DirectComposition + Direct2D (GDI fallback; windows/arm64 is GDI only ⁷) |
@@ -925,7 +925,7 @@ important thing to know before touching overlay code:
 | ---------------------------- | ------------------------------------ | ---------------------------------- | ---------------------------------- |
 | **Grid transition**          | NSTimer @120Hz, ease-in-out, full redraw | goroutine, ease-in-out @120fps  | goroutine, ease-in-out @120fps, presented on the UI thread |
 | **Mouse action indicator**   | `CABasicAnimation` (scale + opacity) | goroutine, scale + opacity @120fps | goroutine, cubic easing @60fps     |
-| **Smooth cursor**            | ✅ stepped linear interpolation      | ✅ stepped linear interpolation    | ❌                                 |
+| **Smooth cursor**            | ✅ stepped linear interpolation      | ✅ stepped linear interpolation    | ✅ stepped linear interpolation    |
 | **Smooth scroll**            | ✅ ease-out cubic                    | ❌                                 | ❌                                 |
 
 ---
@@ -1077,11 +1077,6 @@ green in every cell while an option means nothing, which is exactly how
 | `hints.vision.rectangle_min_size` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_min_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hints.vision.rectangle_max_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
-| `smooth_cursor.move_mouse_enabled` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
-| `smooth_cursor.steps` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
-| `smooth_cursor.max_duration` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
-| `smooth_cursor.duration_per_pixel` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
-| `smooth_cursor.relative_movement_duration` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
 | `smooth_scroll.enabled` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `smooth_scroll.steps` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `smooth_scroll.max_duration` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
@@ -1183,7 +1178,7 @@ working, which is exactly why the build exists.
 **Windows**
 
 1. Native notifications — no toast support
-2. Smooth cursor and smooth scroll animation — not implemented
+2. Smooth scroll animation — not implemented
 3. Font resolution — alias mapping only, no system font enumeration
 4. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
    installs a launchd agent and Linux a systemd user unit
@@ -1708,6 +1703,19 @@ Windows is one backend family with alpha-level support. Prefer:
 Do not introduce additional Windows backend naming until there is a real reason.
 See [Known Gaps](#known-gaps) for the current Windows to-do list — several
 entries there are well-scoped starter tasks.
+
+**Smooth cursor animation on Windows.** Off by default; opt in with
+`smooth_cursor.move_mouse_enabled`, the same `SmoothCursorConfig` macOS and
+Linux read. When enabled, `SystemAdapter.MoveCursorToPoint` routes through
+`smoothCursorAnimator`
+([mouse_animator.go](../internal/adapter/platform/windows/mouse_animator.go)),
+the Linux animator's shape with `SetCursorPos` as the sink: one worker
+goroutine samples `GetCursorPos` once per request, then steps toward the target
+by linear interpolation, coalescing so the latest target wins, and
+`WaitForCursorIdle` blocks until it settles. Relative (hjkl) moves extend the
+pending endpoint over the fixed per-move duration
+`smooth_cursor.relative_movement_duration`, clamped to the active screen, and
+position-dependent actions settle the in-flight animation before acting.
 
 ## CGO Guidance
 
