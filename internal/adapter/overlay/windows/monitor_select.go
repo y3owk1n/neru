@@ -136,7 +136,7 @@ func (m *Manager) DrawMonitorSelect(
 	border := badge.ParseHexARGB(style.BorderColor)
 	text := badge.ParseHexARGB(style.TextColor)
 	subtitleText := badge.ParseHexARGB(style.SubtitleTextColor)
-	borderWidth := float64(max(style.BorderWidth, 1))
+	borderWidth := float64(style.BorderWidth)
 	labelFont := monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont)
 	subtitleFont := monitorSelectFontOr(style.SubtitleFontSize, monitorSelectDefaultSubFont)
 
@@ -176,7 +176,9 @@ func (m *Manager) DrawMonitorSelect(
 		subtitleRect = subtitleRect.Sub(target.Bounds.Min)
 
 		win.FillRoundedRect(panel, radius, background)
-		win.StrokeRoundedRect(panel, radius, border, borderWidth)
+		if borderWidth > 0 {
+			win.StrokeRoundedRect(panel, radius, border, borderWidth)
+		}
 		win.DrawTextCentered(target.Label, labelRect, style.FontFamily, labelFont, text)
 
 		if target.Subtitle != "" {
