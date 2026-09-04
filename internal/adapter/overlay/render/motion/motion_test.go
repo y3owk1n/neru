@@ -58,6 +58,51 @@ func TestLerpRects_EndpointsAndMidpoint(t *testing.T) {
 	}
 }
 
+func TestEased_ContinuingTransitionStaysLinear(t *testing.T) {
+	t.Parallel()
+
+	if got := motion.Eased(0.25, false); got != motion.EaseInOut(0.25) {
+		t.Fatalf("a fresh transition eases: got %v, want %v", got, motion.EaseInOut(0.25))
+	}
+
+	if got := motion.Eased(0.25, true); got != 0.25 {
+		t.Fatalf("a continued transition is linear: got %v, want 0.25", got)
+	}
+
+	if got := motion.Eased(2, true); got != 1 {
+		t.Fatalf("a continued transition clamps: got %v, want 1", got)
+	}
+}
+
+func TestPointerOrigin_NoPointerBeforeAppearsInPlace(t *testing.T) {
+	t.Parallel()
+
+	target, settled, interrupted := image.Pt(1, 1), image.Pt(2, 2), image.Pt(3, 3)
+
+	if got := motion.PointerOrigin(target, settled, interrupted, false, true); got != target {
+		t.Fatalf("no pointer before: got %v, want %v", got, target)
+	}
+
+	if got := motion.PointerOrigin(target, settled, interrupted, true, true); got != interrupted {
+		t.Fatalf("continuing: got %v, want %v", got, interrupted)
+	}
+
+	if got := motion.PointerOrigin(target, settled, interrupted, true, false); got != settled {
+		t.Fatalf("settled: got %v, want %v", got, settled)
+	}
+}
+
+func TestLerpPoint_LandsOnTheNearestPixel(t *testing.T) {
+	t.Parallel()
+
+	// 0 -> 3 at a third is 1.0 exactly for X; 0 -> 5 at a third is 1.67,
+	// which truncation would have put on 1 and rounding puts on 2.
+	got := motion.LerpPoint(image.Pt(0, 0), image.Pt(3, 5), 1.0/3.0)
+	if want := image.Pt(1, 2); got != want {
+		t.Fatalf("LerpPoint = %v, want %v", got, want)
+	}
+}
+
 func TestLerpRects_MissingOriginIsAlreadyArrived(t *testing.T) {
 	t.Parallel()
 

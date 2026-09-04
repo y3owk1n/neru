@@ -269,6 +269,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 		depth != o.lastDepth && !o.lastBounds.Empty()
 
 	if shouldAnimate {
+		continuing := len(o.animRects) > 0 && !o.animSettled
 		o.startTransition(transitionPlan{
 			fromRects: motion.TransitionOrigins(
 				cellRects, bounds, o.animRects, o.lastRects, o.lastBounds,
@@ -279,7 +280,12 @@ func (o *winOverlay) DrawRecursiveGrid(
 			nextDims:     nextDims,
 			style:        style,
 			pointer:      virtualPointer,
-			duration:     animDuration,
+			fromPointer: motion.PointerOrigin(
+				virtualPointer.Position, o.lastPointer.Position, o.animPointer,
+				o.lastPointer.Visible, continuing,
+			),
+			continuing: continuing,
+			duration:   animDuration,
 		})
 	} else {
 		o.animRects = nil
@@ -290,6 +296,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 	o.lastDepth = depth
 	o.lastBounds = bounds
 	o.lastRects = cellRects
+	o.lastPointer = virtualPointer
 }
 
 // paintRecursiveGrid paints one whole recursive-grid frame, the cells at the

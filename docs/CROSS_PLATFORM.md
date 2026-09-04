@@ -923,7 +923,7 @@ important thing to know before touching overlay code:
 
 | Animation                    | macOS                                | Linux X11 / Wayland                | Windows                            |
 | ---------------------------- | ------------------------------------ | ---------------------------------- | ---------------------------------- |
-| **Grid transition**          | CoreAnimation, ease-in-out @120Hz    | goroutine, smoothstep @120fps      | goroutine, smoothstep @120fps, presented on the UI thread |
+| **Grid transition**          | NSTimer @120Hz, ease-in-out, full redraw | goroutine, ease-in-out @120fps  | goroutine, ease-in-out @120fps, presented on the UI thread |
 | **Mouse action indicator**   | `CABasicAnimation` (scale + opacity) | goroutine, scale + opacity @120fps | goroutine, cubic easing @60fps     |
 | **Smooth cursor**            | ✅ stepped linear interpolation      | ✅ stepped linear interpolation    | ❌                                 |
 | **Smooth scroll**            | ✅ ease-out cubic                    | ❌                                 | ❌                                 |
@@ -946,7 +946,6 @@ discovery rather than the mode itself.
 | **Hints**         | Search input badge             | ✅                         | ✅ Cairo badge             | ✅                          |
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ✅ sampled triangle, see below |
 | **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ✅ top / center / bottom   |
-| **Grid**          | Transition animation           | ✅                         | ✅                         | ✅                          |
 | **Grid**          | Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Grid**          | What an open subgrid shows     | ✅ the subgrid alone       | ✅ the subgrid alone       | ⚠️ the parent cells return under it on the next repaint |
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ✅                          |

@@ -64,7 +64,15 @@ type winOverlay struct {
 	lastRects  []image.Rectangle
 	// animRects are the cells the last transition frame painted, so a depth
 	// change arriving mid-zoom continues from the screen rather than jumping.
-	animRects        []image.Rectangle
+	animRects []image.Rectangle
+	// animSettled says the transition that painted animRects reached its
+	// last frame; one that has not is continued rather than restarted.
+	animSettled bool
+	// animPointer is where the last transition frame painted the virtual
+	// pointer, and lastPointer where the last settled frame did: the pointer
+	// rides the zoom from one of them to where the new frame puts it.
+	animPointer      image.Point
+	lastPointer      recursivegridcomponent.VirtualPointerState
 	transitionCancel context.CancelFunc
 	transitionDone   chan struct{}
 }

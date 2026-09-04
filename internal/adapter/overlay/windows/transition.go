@@ -32,7 +32,11 @@ type transitionPlan struct {
 	nextDims           domain.GridDimensions
 	style              recursivegridcomponent.Style
 	pointer            recursivegridcomponent.VirtualPointerState
-	duration           time.Duration
+	fromPointer        image.Point
+	// continuing says the transition picks up one still running, which
+	// keeps the curve linear (motion.Eased).
+	continuing bool
+	duration   time.Duration
 }
 
 // startTransition begins painting plan over its duration. The caller holds
@@ -43,6 +47,8 @@ func (o *winOverlay) startTransition(plan transitionPlan) {
 	o.transitionCancel = cancel
 	o.transitionDone = done
 
+	o.animSettled = false
+
 	go o.runTransition(ctx, plan, done)
 }
 
@@ -52,11 +58,13 @@ func (o *winOverlay) runTransition(ctx context.Context, plan transitionPlan, don
 	startTime := time.Now()
 
 	for {
-		rawProgress := min(float64(time.Since(startTime))/float64(plan.duration), 1)
-
 		frameStart := time.Now()
 
 		o.renderMu.Lock()
+
+		// Read after the lock, so a frame that waited on it paints where the
+		// cells are now rather than where they were when it was scheduled.
+		rawProgress := min(float64(time.Since(startTime))/float64(plan.duration), 1)
 
 		// The draw that canceled this transition may have been waiting for
 		// the lock this frame now holds; its cancel is the last word.
@@ -69,16 +77,20 @@ func (o *winOverlay) runTransition(ctx context.Context, plan transitionPlan, don
 		}
 
 		if o.window != nil && o.window.Healthy() {
-			o.animRects = motion.LerpRects(
-				plan.fromRects, plan.toRects, motion.EaseInOut(rawProgress),
-			)
+			progress := motion.Eased(rawProgress, plan.continuing)
+			pointer := plan.pointer
+			pointer.Position = motion.LerpPoint(plan.fromPointer, plan.pointer.Position, progress)
+
+			o.animRects = motion.LerpRects(plan.fromRects, plan.toRects, progress)
+			o.animPointer = pointer.Position
+			o.animSettled = rawProgress >= 1
 			o.paintRecursiveGrid(
 				o.animRects,
 				plan.keyRunes,
 				plan.nextKeyRunes,
 				plan.nextDims,
 				plan.style,
-				plan.pointer,
+				pointer,
 			)
 		}
 

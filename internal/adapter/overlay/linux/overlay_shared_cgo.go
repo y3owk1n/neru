@@ -150,6 +150,14 @@ type sharedOverlay struct {
 	lastDepth        int
 	lastRects        []image.Rectangle
 	currentAnimRects []image.Rectangle
+	// animSettled says the transition that painted currentAnimRects reached
+	// its last frame; one that has not is continued rather than restarted.
+	animSettled bool
+	// animPointer is where the last transition frame painted the virtual
+	// pointer, and lastPointer where the last settled frame did: the pointer
+	// rides the zoom from one of them to where the new frame puts it.
+	animPointer image.Point
+	lastPointer recursivegridcomponent.VirtualPointerState
 }
 
 // The exported methods below are what the manager calls on a backend. They
@@ -565,7 +573,12 @@ func (o *sharedOverlay) drawRecursiveGridWithSubKeyPreview(
 			duration = 50 * time.Millisecond
 		}
 
+		continuing := len(o.currentAnimRects) > 0 && !o.animSettled
 		fromRects := o.buildFromRects(cellRects, bounds)
+		fromPointer := motion.PointerOrigin(
+			virtualPointer.Position, o.lastPointer.Position, o.animPointer,
+			o.lastPointer.Visible, continuing,
+		)
 		keyRunes := []rune(strings.ToUpper(keys))
 		nextKeyRunes := []rune(strings.ToUpper(nextKeys))
 
@@ -578,7 +591,7 @@ func (o *sharedOverlay) drawRecursiveGridWithSubKeyPreview(
 			fromRects, cellRects,
 			keyRunes, nextKeyRunes,
 			nextDims,
-			style, virtualPointer,
+			style, virtualPointer, fromPointer, continuing,
 			duration, animStop, animDone,
 		)
 	} else {
@@ -592,6 +605,7 @@ func (o *sharedOverlay) drawRecursiveGridWithSubKeyPreview(
 	o.hasLast = true
 	o.lastBounds = bounds
 	o.lastDepth = depth
+	o.lastPointer = virtualPointer
 	o.lastRects = make([]image.Rectangle, len(cellRects))
 	copy(o.lastRects, cellRects)
 }
@@ -1044,6 +1058,8 @@ func (o *sharedOverlay) startGridAnimation(
 	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
+	fromPointer image.Point,
+	continuing bool,
 	duration time.Duration,
 	stopCh chan struct{},
 	doneCh chan struct{},
@@ -1051,19 +1067,26 @@ func (o *sharedOverlay) startGridAnimation(
 	o.srf.syncBeforeAnimation()
 
 	startTime := time.Now()
+	o.animSettled = false
 
-	renderFrame := func(rawProgress float64) {
-		if rawProgress >= 1.0 {
-			rawProgress = 1.0
-		}
+	// Called under renderMu. The progress is read here rather than before the
+	// lock was taken, so a frame that waited on it paints where the cells are
+	// now rather than where they were when it was scheduled.
+	renderFrame := func() float64 {
+		rawProgress := min(float64(time.Since(startTime))/float64(duration), 1)
+		progress := motion.Eased(rawProgress, continuing)
 
-		interpCells := motion.LerpRects(fromRects, toRects, motion.EaseInOut(rawProgress))
+		interpCells := motion.LerpRects(fromRects, toRects, progress)
+		pointer := virtualPointer
+		pointer.Position = motion.LerpPoint(fromPointer, virtualPointer.Position, progress)
 
 		if !o.srf.beginFrame() {
-			return
+			return rawProgress
 		}
 
 		o.currentAnimRects = interpCells
+		o.animPointer = pointer.Position
+		o.animSettled = rawProgress >= 1
 
 		o.srf.clearFrame()
 		o.drawFrame(
@@ -1072,8 +1095,10 @@ func (o *sharedOverlay) startGridAnimation(
 			nextKeyRunes,
 			nextDims,
 			style,
-			virtualPointer,
+			pointer,
 		)
+
+		return rawProgress
 	}
 
 	go func() {
@@ -1097,13 +1122,6 @@ func (o *sharedOverlay) startGridAnimation(
 			default:
 			}
 
-			elapsed := time.Since(startTime)
-
-			rawProgress := float64(elapsed) / float64(duration)
-			if rawProgress >= 1.0 {
-				rawProgress = 1.0
-			}
-
 			renderStart := time.Now()
 
 			renderMu := o.renderMu
@@ -1122,13 +1140,13 @@ func (o *sharedOverlay) startGridAnimation(
 				}
 			}
 
-			renderFrame(rawProgress)
+			rawProgress := renderFrame()
 
 			if renderMu != nil {
 				renderMu.Unlock()
 			}
 
-			if rawProgress >= 1.0 {
+			if rawProgress >= 1 {
 				return
 			}
 

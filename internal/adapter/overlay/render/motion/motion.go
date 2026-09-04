@@ -2,12 +2,15 @@
 // transition: the easing curve, the interpolation between the cells of two
 // depths, and where a transition starts from. The Linux (Cairo) and Windows
 // (Direct2D / GDI) backends both drive a frame loop from here, so a depth
-// change zooms the same way on each; macOS hands the same curve to
-// CoreAnimation as kCAMediaTimingFunctionEaseInEaseOut.
+// change zooms the same way on each. macOS evaluates the same curve, the
+// kCAMediaTimingFunctionEaseInEaseOut control points, on its own 120Hz timer
+// (platform/darwin/overlay_darwin.m), and the choices that make its zoom read
+// as smooth are written down here beside the arithmetic they belong to.
 package motion
 
 import (
 	"image"
+	"math"
 	"time"
 )
 
@@ -36,9 +39,52 @@ func EaseInOut(progress float64) float64 {
 	return progress * progress * (smoothStep3 - smoothStep2*progress)
 }
 
+// Eased maps a raw progress in [0,1] onto the transition curve. A transition
+// that continues one still running keeps a linear curve: the cells are
+// already moving, and easing in again from where they are reads as a
+// stutter on every fast keystroke. macOS makes the same choice.
+func Eased(rawProgress float64, continuing bool) float64 {
+	if continuing {
+		return min(max(rawProgress, 0), 1)
+	}
+
+	return EaseInOut(rawProgress)
+}
+
 // Lerp linearly interpolates between a and b by t.
 func Lerp(a, b, t float64) float64 {
 	return a + (b-a)*t
+}
+
+// lerpPixel interpolates one coordinate and lands it on the nearest pixel.
+// Truncating instead would pull every edge towards the origin by up to a
+// pixel, unevenly between the two ends of a cell, which is the jitter that
+// made the software transition read as rough.
+func lerpPixel(from, to int, progress float64) int {
+	return int(math.Round(Lerp(float64(from), float64(to), progress)))
+}
+
+// PointerOrigin answers where the virtual pointer starts its ride on a
+// transition towards target: where an interrupted zoom last painted it, where
+// the last settled frame drew it, or, with no pointer on screen before, at the
+// target itself, so it appears in place rather than flying in.
+func PointerOrigin(
+	target, settled, interrupted image.Point,
+	hadPointer, continuing bool,
+) image.Point {
+	switch {
+	case !hadPointer:
+		return target
+	case continuing:
+		return interrupted
+	default:
+		return settled
+	}
+}
+
+// LerpPoint interpolates a point by progress, to the nearest pixel.
+func LerpPoint(from, to image.Point, progress float64) image.Point {
+	return image.Pt(lerpPixel(from.X, to.X, progress), lerpPixel(from.Y, to.Y, progress))
 }
 
 // LerpRects interpolates each rectangle of from towards the one at the same
@@ -56,12 +102,10 @@ func LerpRects(from, to []image.Rectangle, progress float64) []image.Rectangle {
 		}
 
 		src := from[idx]
-		out[idx] = image.Rect(
-			int(Lerp(float64(src.Min.X), float64(dst.Min.X), progress)),
-			int(Lerp(float64(src.Min.Y), float64(dst.Min.Y), progress)),
-			int(Lerp(float64(src.Max.X), float64(dst.Max.X), progress)),
-			int(Lerp(float64(src.Max.Y), float64(dst.Max.Y), progress)),
-		)
+		out[idx] = image.Rectangle{
+			Min: LerpPoint(src.Min, dst.Min, progress),
+			Max: LerpPoint(src.Max, dst.Max, progress),
+		}
 	}
 
 	return out
