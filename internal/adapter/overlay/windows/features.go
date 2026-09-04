@@ -13,7 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 )
 
-// Win32/GDI rendering for hints and recursive-grid overlays on Windows.
+// Hint and recursive-grid drawing for the Windows overlay window.
 // Does not own window lifecycle or grid rendering (see overlay.go).
 const (
 	winPaddingMultiplier            = 2
@@ -23,11 +23,11 @@ const (
 	winMouseActionMinSquareRadius   = 2.0
 )
 
-// DrawHints renders the hint overlay using GDI, mirroring the cross-platform
-// software renderer: a label badge per hint, placed against the element the
-// hint labels. Each hint is rendered as an atomic unit (fill + arrow + stroke +
-// text) so that overlapping hints have correct Z-ordering — later hints are
-// fully on top of earlier ones, matching macOS behavior.
+// DrawHints renders the hint overlay, mirroring the cross-platform software
+// renderer: a label badge per hint, placed against the element the hint
+// labels. Each hint is queued as a unit (fill + arrow + stroke + text) and the
+// window paints in queue order, so overlapping hints have correct Z-ordering —
+// later hints are fully on top of earlier ones, matching macOS behavior.
 //
 // offset is the resolved `hints.ui.placement`: the caller reads the vocabulary
 // and refuses a placement this backend cannot draw before anything is painted
@@ -145,21 +145,18 @@ func (o *winOverlay) DrawHints(
 			)
 		}
 
-		// The window's own text call rather than drawTextCentered, so the
-		// label lands inside this hint's composite boundary — but the family
-		// arrives resolved here for the same reason drawTextCentered
-		// documents, and this is the surface that redraws on every keystroke.
-		o.window.DrawTextCentered(
+		// The family arrives resolved here for the same reason
+		// drawTextCentered documents, and this is the surface that redraws on
+		// every keystroke. The window paints commands in the order they were
+		// queued, so this hint's fill, arrow, stroke and label land as one
+		// unit over every hint queued before it.
+		o.drawTextCentered(
 			hint.Label(),
 			bounds,
 			style.FontFamily(),
 			fontSize,
 			badge.ParseHexARGB(textColor),
 		)
-
-		// Composite this hint atomically so its content lands as a unit,
-		// giving correct Z-ordering with overlapping hints.
-		o.window.CompositeCurrent()
 	}
 
 	o.flushOverlay("hints")
@@ -212,7 +209,7 @@ func outsetHintArrow(arrow badge.HintArrow, width int) badge.HintArrow {
 	}
 }
 
-// DrawRecursiveGrid renders the recursive-grid overlay using GDI, mirroring the
+// DrawRecursiveGrid renders the recursive-grid overlay, mirroring the
 // cross-platform software renderer (cell subdivision, labels, sub-key preview,
 // and the virtual pointer indicator).
 //
