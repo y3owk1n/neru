@@ -64,7 +64,7 @@ func TestProfileFor(t *testing.T) {
 			wantKeyboardBuild: BuildModePureGo,
 			wantOverlay:       "layered win32 window",
 			wantOverlayBuild:  BuildModePureGo,
-			wantNotify:        "windows toast",
+			wantNotify:        "tray balloon tips",
 			wantNotifyBuild:   BuildModePureGo,
 		},
 	}

@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/adapter/systray/icon"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // Win32 notification-area (system tray) icon + popup menu via pure syscall.
@@ -41,6 +42,11 @@ const (
 	nifMessage = 0x0001
 	nifIcon    = 0x0002
 	nifTip     = 0x0004
+	nifInfo    = 0x0010
+
+	// niifNone: no stock glyph on the balloon; Windows 10 and 11 render the
+	// tip as a toast that already carries the tray icon.
+	niifNone = 0x0000
 
 	tpmRightButton = 0x0002
 	tpmReturnCmd   = 0x0100
@@ -126,6 +132,8 @@ type winMsg struct {
 	lPrivate uint32
 }
 
+// notifyIconData mirrors the full NOTIFYICONDATAW so cbSize selects the
+// Vista+ layout, which is what makes NIF_INFO balloon tips available.
 type notifyIconData struct {
 	cbSize           uint32
 	hWnd             uintptr
@@ -134,6 +142,14 @@ type notifyIconData struct {
 	uCallbackMessage uint32
 	hIcon            uintptr
 	szTip            [128]uint16
+	dwState          uint32
+	dwStateMask      uint32
+	szInfo           [256]uint16
+	uVersion         uint32
+	szInfoTitle      [64]uint16
+	dwInfoFlags      uint32
+	guidItem         [16]byte
+	hBalloonIcon     uintptr
 }
 
 type bitmapInfoHeader struct {
@@ -185,6 +201,7 @@ var (
 	trayMu          sync.Mutex
 	trayHWND        uintptr
 	trayThreadID    uint32
+	trayHeadless    bool
 	trayQuit        bool
 	trayIconHandle  uintptr
 	trayNID         notifyIconData
@@ -324,6 +341,7 @@ func runTray(withIcon bool, onReadyFunc, onExitFunc func()) {
 	}
 
 	trayThreadID = currentThreadID()
+	trayHeadless = !withIcon
 	trayMu.Unlock()
 
 	if withIcon {
@@ -430,6 +448,57 @@ func SetIcon(iconBytes []byte) {
 // rendered literally.
 func SetTemplateIcon(iconBytes []byte, template bool) {
 	SetIcon(iconBytes)
+}
+
+// Headless reports whether this process started its tray loop without an
+// icon (systray.enabled = false). It is false before the loop starts, so a
+// process that never runs a tray, such as the CLI, keeps the static capability
+// rather than reporting a tray it was never going to show.
+func Headless() bool {
+	trayMu.Lock()
+	defer trayMu.Unlock()
+
+	return trayHeadless
+}
+
+// ShowBalloon shows a balloon tip (a toast on Windows 10 and 11) anchored to
+// the tray icon. It is the Windows notification path: the shell renders
+// NIF_INFO tips for any icon in the notification area, with no AppUserModelID
+// or WinRT involved. Without a tray icon there is nothing to anchor to, so it
+// reports CodeNotSupported naming the reason rather than dropping the message.
+func ShowBalloon(title, message string) error {
+	trayMu.Lock()
+	defer trayMu.Unlock()
+
+	if trayHWND == 0 {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"notifications are tray balloon tips on Windows and the tray icon is "+
+				"not shown; enable systray.enabled to see them",
+		)
+	}
+
+	nid := notifyIconData{
+		cbSize:      uint32(unsafe.Sizeof(notifyIconData{})),
+		hWnd:        trayHWND,
+		uID:         trayNID.uID,
+		uFlags:      nifInfo,
+		dwInfoFlags: niifNone,
+	}
+	copyUTF16(nid.szInfoTitle[:], title)
+	// An empty szInfo removes the current balloon instead of showing one.
+	copyUTF16(nid.szInfo[:], message)
+
+	ret, _, err := procShellNotifyIconW.Call(nimModify, uintptr(unsafe.Pointer(&nid)))
+	if ret == 0 {
+		return derrors.Wrap(
+			err,
+			derrors.CodeActionFailed,
+			"Shell_NotifyIcon NIM_MODIFY balloon failed",
+		)
+	}
+
+	return nil
 }
 
 // AddMenuItem adds a top-level menu item to the tray menu.
@@ -850,15 +919,19 @@ func iconFromPNG(data []byte) uintptr {
 }
 
 func copyTip(nid *notifyIconData, tip string) {
-	runes := utf16FromString(tip)
+	copyUTF16(nid.szTip[:], tip)
+}
 
-	for i := range nid.szTip {
-		nid.szTip[i] = 0
-	}
+// copyUTF16 writes s into a fixed NOTIFYICONDATA text field, truncated to
+// leave the terminating NUL.
+func copyUTF16(dst []uint16, s string) {
+	runes := utf16FromString(s)
 
-	limit := min(len(runes), len(nid.szTip)-1)
+	clear(dst)
 
-	copy(nid.szTip[:limit], runes[:limit])
+	limit := min(len(runes), len(dst)-1)
+
+	copy(dst[:limit], runes[:limit])
 }
 
 func currentThreadID() uint32 {

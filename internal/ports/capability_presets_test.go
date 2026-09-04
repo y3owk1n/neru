@@ -37,7 +37,7 @@ func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 		// Windows discovers them via UI Automation. Linux notifications go to
 		// the freedesktop notification daemon over the same session bus, so the
 		// preset is supported and the adapter downgrades it live when no daemon
-		// is running; Windows has no toast implementation at all.
+		// is running; Windows anchors balloon tips to the tray icon it owns.
 		{
 			name:                "linux",
 			capabilities:        ports.LinuxCapabilities(),
@@ -48,7 +48,7 @@ func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 			name:                "windows",
 			capabilities:        ports.WindowsCapabilities(),
 			accessibilityStatus: ports.FeatureStatusSupported,
-			notificationsStatus: ports.FeatureStatusStub,
+			notificationsStatus: ports.FeatureStatusSupported,
 		},
 	}
 

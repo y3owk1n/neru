@@ -43,8 +43,8 @@ The two largest open areas:
 - **Linux** — Wayland global hotkeys, which need `input`-group membership and a
   CGO build rather than missing code, and whose remaining work is failing
   loudly with the remedy.
-- **Windows** — the remaining Known Gaps entries: notifications, UIA tree
-  depth and `monitor_select`.
+- **Windows** — the remaining Known Gaps entries: UIA tree depth and
+  `monitor_select`.
 
 GNOME Wayland remains unsupported; the daemon refuses to start there. Reviving
 it needs libei plus a GNOME Shell extension — see
