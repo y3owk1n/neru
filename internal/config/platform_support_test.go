@@ -56,11 +56,6 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 			parity.Platforms{parity.Darwin, parity.Linux},
 		},
 		{
-			"monitor_select has no Windows overlay extension",
-			"monitor_select.enabled", "",
-			parity.Platforms{parity.Darwin, parity.Linux},
-		},
-		{
 			"smooth cursor is not animated on Windows",
 			"smooth_cursor.steps", "",
 			parity.Platforms{parity.Darwin, parity.Linux},
@@ -142,12 +137,6 @@ func TestInertWords_Options(t *testing.T) {
 			written: map[string]string{visionMinConfidence: "0.5"},
 			target:  parity.Windows,
 			want:    []string{visionMinConfidence},
-		},
-		{
-			name:    "a leaf below a color reports the color",
-			written: map[string]string{"monitor_select.ui.background_color.light": "#fff"},
-			target:  parity.Windows,
-			want:    []string{"monitor_select.ui.background_color"},
 		},
 		{
 			name:    "an option inert only on Windows is silent on Linux",
