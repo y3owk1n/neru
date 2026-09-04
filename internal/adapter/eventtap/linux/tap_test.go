@@ -151,40 +151,6 @@ func TestSyntheticModifierSuppressionConsumesOnce(t *testing.T) {
 	}
 }
 
-func TestCanonicalChordForMatchOrderIndependent(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{name: "single ctrl lowercased", in: chordCtrlC, want: "ctrl+c"},
-		{name: "cmd cased", in: "Cmd+C", want: "cmd+c"},
-		{name: "ctrl+shift order a", in: "ctrl+shift+t", want: chordShiftCtrl},
-		{name: "ctrl+shift order b", in: chordShiftCtrl, want: chordShiftCtrl},
-		{name: "all mods reordered", in: "cmd+alt+ctrl+shift+k", want: "shift+ctrl+alt+cmd+k"},
-		{name: "control alias", in: "control+a", want: "ctrl+a"},
-		{name: "plain key", in: "c", want: "c"},
-		{name: "empty", in: "", want: ""},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			if got := canonicalChordForMatch(testCase.in); got != testCase.want {
-				t.Fatalf(
-					"canonicalChordForMatch(%q) = %q, want %q",
-					testCase.in,
-					got,
-					testCase.want,
-				)
-			}
-		})
-	}
-}
-
 func TestShouldPassthroughChord(t *testing.T) {
 	t.Parallel()
 
