@@ -12,7 +12,8 @@ import (
 	"time"
 )
 
-const chordCtrlC = "Ctrl+C"
+// The hook spells a chord the way pressedModifierNames assembles it: lowercase.
+const chordCtrlC = "ctrl+c"
 
 // routedKey drives handleKey for one key-down and reports where it went.
 func routedKey(t *testing.T, eventTap *EventTap, key string) ([]string, bool) {
@@ -99,7 +100,7 @@ func TestEventTap_HandleKey_KeepsAChordTheModeBinds(t *testing.T) {
 			eventTap := NewEventTap(nil, nil)
 			testCase.setup(eventTap)
 
-			dispatched, consumed := routedKey(t, eventTap, "Ctrl+Shift+C")
+			dispatched, consumed := routedKey(t, eventTap, "ctrl+shift+c")
 
 			if !consumed || len(dispatched) != 1 {
 				t.Errorf(
