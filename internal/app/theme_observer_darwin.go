@@ -18,6 +18,9 @@ func (a *App) setupThemeObserver() {
 	})
 	darwin.StartThemeObserver()
 
+	a.observerMu.Lock()
+	defer a.observerMu.Unlock()
+
 	a.themeObserverStop = func() {
 		darwin.SetThemeChangeHandler(nil)
 		darwin.StopThemeObserver()
