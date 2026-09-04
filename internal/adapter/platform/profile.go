@@ -123,9 +123,10 @@ func ProfileFor(target OS) Profile {
 				Notes:     "Keep the first overlay implementation CGO-free if practical",
 			},
 			Notifications: BackendPlan{
-				Name:      "windows toast",
+				Name:      "tray balloon tips",
 				BuildMode: BuildModePureGo,
-				Notes:     "Toast APIs are expected to be reachable without CGO",
+				Notes: "Shell_NotifyIcon NIF_INFO on the tray icon, shown as toasts on " +
+					"Windows 10 and 11; needs the tray icon, no AppUserModelID",
 			},
 		}
 	case Unknown:

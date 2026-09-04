@@ -190,7 +190,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ¹  |
 | **System tray**               | ✅ NSStatusItem ⁸        | ✅ D-Bus StatusNotifierItem ⁸ | ✅ StatusNotifierItem ⁸      | ✅ StatusNotifierItem ⁸ | ✅ Win32 notification area ⁸ |
 | **Native alerts**             | ✅ NSAlert               | ⚠️ D-Bus, not modal    | ⚠️ D-Bus, not modal          | ⚠️ D-Bus, not modal     | ✅ `MessageBoxW`             |
-| **Native notifications**      | ✅ UNNotification        | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | 🟡          |
+| **Native notifications**      | ✅ UNNotification        | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | ✅ Tray balloon tips ⁸ |
 | **Secure input detection**    | ✅                       | ➖ always false        | ➖ always false              | ➖ always false         | ➖ always false              |
 | **System cursor hide**        | ✅ `CGDisplayHideCursor` | ➖                     | ➖                           | ➖                      | ➖                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | ✅ layered panels            |
@@ -436,6 +436,15 @@ so the two can never drift apart. It is a color change rather than a
 translucency one on purpose: the icon bytes reach Win32 with straight alpha
 where GDI's icon path wants it premultiplied, so a faded tile would render at
 the host's discretion rather than ours.
+
+**Notifications on Windows are balloon tips on that same tray icon**, sent
+with `Shell_NotifyIcon` and `NIF_INFO`, which Windows 10 and 11 render as
+toasts. WinRT toasts need an AppUserModelID an unpackaged exe does not have,
+and the tray icon is one Neru already owns. The tray is therefore the anchor:
+with `systray.enabled = false` there is nothing to attach a tip to, so
+`ShowNotification` reports `CodeNotSupported` naming that reason and every
+caller logs it rather than dropping the message. Alerts are `MessageBoxW` and
+do not depend on the tray.
 
 **Hover text works everywhere and is the tray icon's**, not a menu item's:
 `NSStatusItem.toolTip`, the SNI `ToolTip` property, and `NOTIFYICONDATA.szTip`
@@ -1179,11 +1188,10 @@ working, which is exactly why the build exists.
 
 **Windows**
 
-1. Native notifications — no toast support
-2. Font resolution — alias mapping only, no system font enumeration
-3. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+1. Font resolution — alias mapping only, no system font enumeration
+2. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
    installs a launchd agent and Linux a systemd user unit
-4. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+3. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.

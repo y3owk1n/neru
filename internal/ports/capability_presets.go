@@ -180,8 +180,10 @@ func WindowsCapabilities() PlatformCapabilities {
 		Overlay: supportedCapability(
 			"native overlays available via DirectComposition + Direct2D (GDI fallback)",
 		),
-		Notifications: stubCapability(
-			"native notifications not implemented yet; target Windows toast notifications",
+		Notifications: supportedCapability(
+			"notifications shown as balloon tips on the tray icon (Shell_NotifyIcon " +
+				"NIF_INFO), rendered as toasts on Windows 10 and 11; they need " +
+				"systray.enabled, and alerts use MessageBoxW",
 		),
 		GlobalHotkeys: supportedCapability(
 			"global hotkeys available via RegisterHotKey",

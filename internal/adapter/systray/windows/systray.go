@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/adapter/systray/icon"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // Win32 notification-area (system tray) icon + popup menu via pure syscall.
@@ -41,6 +42,11 @@ const (
 	nifMessage = 0x0001
 	nifIcon    = 0x0002
 	nifTip     = 0x0004
+	nifInfo    = 0x0010
+
+	// niifNone: no stock glyph on the balloon; Windows 10 and 11 render the
+	// tip as a toast that already carries the tray icon.
+	niifNone = 0x0000
 
 	tpmRightButton = 0x0002
 	tpmReturnCmd   = 0x0100
@@ -126,6 +132,8 @@ type winMsg struct {
 	lPrivate uint32
 }
 
+// notifyIconData mirrors the full NOTIFYICONDATAW so cbSize selects the
+// Vista+ layout, which is what makes NIF_INFO balloon tips available.
 type notifyIconData struct {
 	cbSize           uint32
 	hWnd             uintptr
@@ -134,6 +142,14 @@ type notifyIconData struct {
 	uCallbackMessage uint32
 	hIcon            uintptr
 	szTip            [128]uint16
+	dwState          uint32
+	dwStateMask      uint32
+	szInfo           [256]uint16
+	uVersion         uint32
+	szInfoTitle      [64]uint16
+	dwInfoFlags      uint32
+	guidItem         [16]byte
+	hBalloonIcon     uintptr
 }
 
 type bitmapInfoHeader struct {
@@ -185,6 +201,8 @@ var (
 	trayMu          sync.Mutex
 	trayHWND        uintptr
 	trayThreadID    uint32
+	trayStarted     bool
+	trayIconShown   bool
 	trayQuit        bool
 	trayIconHandle  uintptr
 	trayNID         notifyIconData
@@ -324,6 +342,7 @@ func runTray(withIcon bool, onReadyFunc, onExitFunc func()) {
 	}
 
 	trayThreadID = currentThreadID()
+	trayStarted = true
 	trayMu.Unlock()
 
 	if withIcon {
@@ -383,7 +402,7 @@ func SetTooltip(tooltip string) {
 
 	copyTip(&trayNID, tooltip)
 	trayNID.uFlags = nifMessage | nifIcon | nifTip
-	shellNotify(nimModify, &trayNID)
+	_ = shellNotify(nimModify, &trayNID)
 }
 
 // SetIcon replaces the tray icon with one built from the passed PNG bytes.
@@ -418,7 +437,7 @@ func SetIcon(iconBytes []byte) {
 	trayIconHandle = newIcon
 	trayNID.hIcon = newIcon
 	trayNID.uFlags = nifMessage | nifIcon | nifTip
-	shellNotify(nimModify, &trayNID)
+	_ = shellNotify(nimModify, &trayNID)
 
 	if oldIcon != 0 {
 		discardCall(procDestroyIcon.Call(oldIcon))
@@ -430,6 +449,62 @@ func SetIcon(iconBytes []byte) {
 // rendered literally.
 func SetTemplateIcon(iconBytes []byte, template bool) {
 	SetIcon(iconBytes)
+}
+
+// TrayState reports (started, shown): whether this process has started its tray loop and
+// whether the shell currently holds its icon. started is false in a process
+// that never runs a tray, such as the CLI, so a caller can tell "not shown"
+// from "not knowable here". shown tracks the NIM_ADD result, so a headless
+// run (systray.enabled = false) and a failed registration read the same.
+func TrayState() (bool, bool) {
+	trayMu.Lock()
+	defer trayMu.Unlock()
+
+	return trayStarted, trayIconShown
+}
+
+// noTrayIconDetail is the reason a notification cannot be shown without a
+// registered tray icon; the capability row carries the same words.
+const noTrayIconDetail = "notifications are tray balloon tips on Windows and the " +
+	"tray icon is not shown; enable systray.enabled to see them"
+
+// NoTrayIconDetail returns noTrayIconDetail for the capability row.
+func NoTrayIconDetail() string { return noTrayIconDetail }
+
+// ShowBalloon shows a balloon tip (a toast on Windows 10 and 11) anchored to
+// the tray icon. It is the Windows notification path: the shell renders
+// NIF_INFO tips for any icon in the notification area, with no AppUserModelID
+// or WinRT involved. Without a tray icon there is nothing to anchor to, so it
+// reports CodeNotSupported naming the reason rather than dropping the message.
+func ShowBalloon(title, message string) error {
+	trayMu.Lock()
+	defer trayMu.Unlock()
+
+	if !trayIconShown {
+		return derrors.New(derrors.CodeNotSupported, noTrayIconDetail)
+	}
+
+	nid := notifyIconData{
+		cbSize:      uint32(unsafe.Sizeof(notifyIconData{})),
+		hWnd:        trayHWND,
+		uID:         trayNID.uID,
+		uFlags:      nifInfo,
+		dwInfoFlags: niifNone,
+	}
+	copyUTF16(nid.szInfoTitle[:], title)
+	// An empty szInfo removes the current balloon instead of showing one.
+	copyUTF16(nid.szInfo[:], message)
+
+	ret, _, err := procShellNotifyIconW.Call(nimModify, uintptr(unsafe.Pointer(&nid)))
+	if ret == 0 {
+		return derrors.Wrap(
+			err,
+			derrors.CodeActionFailed,
+			"Shell_NotifyIcon NIM_MODIFY balloon failed",
+		)
+	}
+
+	return nil
 }
 
 // AddMenuItem adds a top-level menu item to the tray menu.
@@ -582,7 +657,7 @@ func addTrayIcon() {
 		hIcon:            icon,
 	}
 	copyTip(&trayNID, "Neru")
-	shellNotify(nimAdd, &trayNID)
+	trayIconShown = shellNotify(nimAdd, &trayNID)
 }
 
 func removeTrayIcon() {
@@ -593,7 +668,8 @@ func removeTrayIcon() {
 		return
 	}
 
-	shellNotify(nimDelete, &trayNID)
+	_ = shellNotify(nimDelete, &trayNID)
+	trayIconShown = false
 }
 
 // loadBrandIcon builds an HICON from the embedded brand PNG, falling back to
@@ -607,8 +683,11 @@ func loadBrandIcon() uintptr {
 	return icon
 }
 
-func shellNotify(message uint32, nid *notifyIconData) {
-	discardCall(procShellNotifyIconW.Call(uintptr(message), uintptr(unsafe.Pointer(nid))))
+// shellNotify reports whether the shell accepted the message.
+func shellNotify(message uint32, nid *notifyIconData) bool {
+	ret, _, _ := procShellNotifyIconW.Call(uintptr(message), uintptr(unsafe.Pointer(nid)))
+
+	return ret != 0
 }
 
 func pumpMessages() {
@@ -850,15 +929,19 @@ func iconFromPNG(data []byte) uintptr {
 }
 
 func copyTip(nid *notifyIconData, tip string) {
-	runes := utf16FromString(tip)
+	copyUTF16(nid.szTip[:], tip)
+}
 
-	for i := range nid.szTip {
-		nid.szTip[i] = 0
-	}
+// copyUTF16 writes s into a fixed NOTIFYICONDATA text field, truncated to
+// leave the terminating NUL.
+func copyUTF16(dst []uint16, s string) {
+	runes := utf16FromString(s)
 
-	limit := min(len(runes), len(nid.szTip)-1)
+	clear(dst)
 
-	copy(nid.szTip[:limit], runes[:limit])
+	limit := min(len(runes), len(dst)-1)
+
+	copy(dst[:limit], runes[:limit])
 }
 
 func currentThreadID() uint32 {

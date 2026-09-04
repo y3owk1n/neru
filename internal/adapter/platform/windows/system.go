@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/y3owk1n/neru/internal/derrors"
+	wintray "github.com/y3owk1n/neru/internal/adapter/systray/windows"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -42,8 +42,24 @@ func (s *SystemAdapter) Health(ctx context.Context) error {
 }
 
 // Capabilities returns the current Windows capability surface.
+//
+// Notifications are balloon tips on the tray icon, so once this process has
+// started its tray loop the row follows whether the shell holds the icon: a
+// headless run or a failed registration downgrades it live with the reason,
+// and neru doctor says so rather than repeating the static preset. Before the
+// loop starts, and in a process that never runs one, the preset stands.
 func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
-	return ports.WindowsCapabilities()
+	capabilities := ports.WindowsCapabilities()
+
+	started, shown := wintray.TrayState()
+	if started && !shown {
+		capabilities.Notifications = ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: wintray.NoTrayIconDetail(),
+		}
+	}
+
+	return capabilities
 }
 
 // ConfigDir returns the Windows-specific configuration directory.
@@ -310,15 +326,11 @@ func (s *SystemAdapter) ShowAlert(_ context.Context, title, message string) erro
 	return nil
 }
 
-// ShowNotification reports CodeNotSupported on Windows: there is no toast
-// implementation yet, and the port carries an error precisely so a caller is
-// told the message was dropped rather than assuming it was shown.
-// TODO(windows): implement using Windows Toast Notifications API.
+// ShowNotification shows a balloon tip on the tray icon, which Windows 10 and
+// 11 render as a toast. The tray is the anchor, so with systray.enabled off the
+// call reports CodeNotSupported with that reason and the caller logs it.
 func (s *SystemAdapter) ShowNotification(_ context.Context, title, message string) error {
-	return derrors.New(
-		derrors.CodeNotSupported,
-		"ShowNotification not yet implemented on windows; target toast notifications",
-	)
+	return wintray.ShowBalloon(title, message)
 }
 
 // CheckScreenCapturePermission reports true: Windows does not gate screen capture
