@@ -95,7 +95,7 @@ func printPlatformStartupNotice(platformLabel string) {
 
 	fmt.Fprintf(
 		os.Stderr,
-		"⚠️  Neru is running on %s. Run 'neru doctor' for platform capabilities.\n\n",
+		"Neru on %s is in beta. Run 'neru doctor' to see what is supported.\n\n",
 		platformLabel,
 	)
 }
