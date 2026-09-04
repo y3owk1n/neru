@@ -4,6 +4,7 @@ package windows
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -32,6 +33,10 @@ type EventTap struct {
 	passthroughEnabled   bool
 	passthroughBlacklist map[string]struct{}
 	interceptedChords    map[string]struct{}
+
+	// postedModifiers are the sticky modifiers PostModifierEvent is holding
+	// down; the hook reads them into every chord like a physical hold.
+	postedModifiers map[string]struct{}
 
 	hook *winplatform.KeyboardHook
 }
@@ -162,7 +167,11 @@ func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 	err := winplatform.PostModifierKey(modifier, isDown)
 	if err != nil {
 		et.logger.Warn("Failed to post modifier event", zap.Error(err))
+
+		return
 	}
+
+	et.notePostedModifier(modifier, isDown)
 }
 
 // SetKeyboardLayout sets the keyboard layout.
@@ -206,6 +215,52 @@ func IsUinputScrollAvailable() bool {
 // IsWaylandEvdevKeyboardActive returns false on Windows (no evdev / Wayland).
 func IsWaylandEvdevKeyboardActive() bool {
 	return false
+}
+
+// notePostedModifier records a modifier this tap holds down (or released) on
+// the handler's behalf.
+func (et *EventTap) notePostedModifier(modifier string, isDown bool) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	if isDown {
+		if et.postedModifiers == nil {
+			et.postedModifiers = make(map[string]struct{})
+		}
+
+		et.postedModifiers[modifier] = struct{}{}
+
+		return
+	}
+
+	delete(et.postedModifiers, modifier)
+}
+
+// physicalChord returns chord without the modifiers this tap posted itself,
+// as the user's hands pressed it.
+func (et *EventTap) physicalChord(chord string) string {
+	et.mu.RLock()
+	posted := et.postedModifiers
+	et.mu.RUnlock()
+
+	if len(posted) == 0 {
+		return chord
+	}
+
+	parts := strings.Split(chord, "+")
+	kept := parts[:0]
+
+	for i, part := range parts {
+		if i < len(parts)-1 {
+			if _, ok := posted[keyvocab.CanonicalModifier(part)]; ok {
+				continue
+			}
+		}
+
+		kept = append(kept, part)
+	}
+
+	return strings.Join(kept, "+")
 }
 
 // isRegisteredHotkey reports whether key is one of the chords registered as a
@@ -266,7 +321,14 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 		// and a double-run of "recursive_grid --toggle" exits the mode and
 		// re-enters it. macOS answers the same question the same way, in its own
 		// tap's hotkey check (platform/darwin/eventtap_darwin.m).
-		if et.isRegisteredHotkey(normalized) {
+		//
+		// Only the chord the user physically pressed qualifies. A sticky
+		// modifier is held by this tap, so with Shift sticky a Ctrl+J press
+		// reads as Ctrl+Shift+J; handing that back would fire a Ctrl+Shift+J
+		// global hotkey the user never pressed. Sticky modifiers are for the
+		// next action, not for hotkeys, so the chord is consumed and dispatched
+		// instead, and the handler strips the sticky part before resolving it.
+		if et.physicalChord(normalized) == normalized && et.isRegisteredHotkey(normalized) {
 			return false
 		}
 
