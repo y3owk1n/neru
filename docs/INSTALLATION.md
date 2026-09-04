@@ -547,7 +547,8 @@ just install   # copies neru to ~/.local/bin, offers a systemd user service,
 # Windows (from Git Bash): build the exe, then install it
 just build-windows
 just install   # copies neru.exe under %LOCALAPPDATA%, and offers a user PATH entry,
-               # a Start Menu shortcut, and a login autostart entry
+               # a Start Menu shortcut, and a Task Scheduler logon task via
+               # `neru services install`
 ```
 
 `just install` refuses to run over a Homebrew or Nix-managed install and tells you
@@ -593,7 +594,8 @@ open -a Neru
 # Or CLI
 neru launch
 
-# Or install as launchd service for auto-startup
+# Or install as a login service for auto-startup: a launchd agent on macOS,
+# a systemd user unit on Linux, a Task Scheduler task on Windows
 neru services install
 ```
 
@@ -745,10 +747,13 @@ sudo gpasswd -d "$USER" input
 <summary>Windows (PowerShell)</summary>
 
 ```powershell
+# Stop and remove the Task Scheduler task (if installed); an install made
+# before `neru services` reached Windows used a Run key instead
+neru services uninstall
+Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name Neru -ErrorAction SilentlyContinue
 Stop-Process -Name neru -Force -ErrorAction SilentlyContinue
 
-# Autostart and Start Menu shortcut
-Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name Neru
+# Start Menu shortcut
 Remove-Item "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Neru.lnk"
 
 # Binary

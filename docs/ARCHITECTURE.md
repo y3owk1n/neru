@@ -394,10 +394,13 @@ unconditionally and delegates to unexported helpers (`installService`,
 [services_darwin.go](../internal/cli/services_darwin.go) (`//go:build darwin`)
 drives `launchctl` and `.plist` files,
 [services_linux.go](../internal/cli/services_linux.go) (`//go:build linux`)
-drives `systemctl --user` and a unit file, and
-[services_other.go](../internal/cli/services_other.go)
-(`//go:build !darwin && !linux`) returns `CodeNotSupported`. Registration is
-shared, so a platform joining the set adds one file and no `init()`.
+drives `systemctl --user` and a unit file,
+[services_windows.go](../internal/cli/services_windows.go)
+(`//go:build windows`) drives the Task Scheduler COM API with an XML task
+definition, and [services_other.go](../internal/cli/services_other.go)
+(`//go:build !darwin && !linux && !windows`) returns `CodeNotSupported`.
+Registration is shared, so a platform joining the set adds one file and no
+`init()`.
 
 **`IsRunningFromAppBundle`** — [root.go](../internal/cli/root.go) delegates to
 a build-tagged implementation: [root_darwin.go](../internal/cli/root_darwin.go)

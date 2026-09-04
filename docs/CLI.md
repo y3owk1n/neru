@@ -1509,11 +1509,12 @@ Manage Neru as a system service that starts on login.
 neru services install|uninstall|start|stop|restart|status
 ```
 
-**Platforms:** macOS, using a launchd user agent, and Linux, using a systemd
-user unit. Windows returns `ERR_NOT_SUPPORTED`. When Neru was installed through
-Nix, Homebrew, home-manager, or another package manager that manages the service
-itself, use that tool instead — on Linux, `install` and `uninstall` both refuse
-rather than touching a unit Neru did not write.
+**Platforms:** macOS, using a launchd user agent; Linux, using a systemd user
+unit; Windows, using a Task Scheduler task with a logon trigger. When Neru was
+installed through Nix, Homebrew, home-manager, or another package manager that
+manages the service itself, use that tool instead — on Linux and Windows,
+`install` and `uninstall` both refuse rather than touching a unit or task Neru
+did not write.
 
 | Subcommand  | Description                                |
 | ----------- | ------------------------------------------ |
@@ -1524,10 +1525,17 @@ rather than touching a unit Neru did not write.
 | `restart`   | Restart the service                         |
 | `status`    | Report whether the service is installed and running |
 
-The definition is a launchd plist in `~/Library/LaunchAgents` on macOS and a
-systemd user unit on Linux; where the Linux unit is written, what it contains,
-and what happens on a machine booted by another init system are in
+The definition is a launchd plist in `~/Library/LaunchAgents` on macOS, a
+systemd user unit on Linux, and a task named `\Neru` in the Task Scheduler root
+folder on Windows; where the Linux unit is written, what it contains, and what
+happens on a machine booted by another init system are in
 [LINUX_SETUP.md](LINUX_SETUP.md#systemd-user-service).
+
+The Windows task runs `neru launch` as the installing user with an interactive
+token, restarts it on failure, and carries no execution time limit, so the
+scheduler never stops the daemon on its own. `status` reads the scheduler's own
+task state (running, ready, queued, disabled), and `stop` ends the running
+instance the way `schtasks /End` would. No administrator rights are needed.
 
 The macOS agent leaves the daemon's standard output alone — the rotated log file
 already holds every log line — and sends its standard error to

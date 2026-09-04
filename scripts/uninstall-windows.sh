@@ -104,16 +104,30 @@ else
 fi
 
 # Step 1: autostart. Removed first so a half-finished uninstall never leaves a
-# Run key pointing at a binary that is already gone.
+# login task pointing at a binary that is already gone. The task is Neru's own
+# to remove, through the binary about to be deleted; an install made before
+# `neru services` reached Windows wrote a Run key instead, so that is checked
+# for as well.
 echo "Step 1/5: Autostart"
+if [ -x "$dst_exe" ] && "$dst_exe" services status 2>/dev/null | grep -q '^Service installed'; then
+    if "$dst_exe" services uninstall >/dev/null 2>&1; then
+        echo "✓ Removed the Task Scheduler login task"
+    else
+        # Stopping here keeps the binary the task points at, and with it the
+        # command that can still remove the task.
+        echo "Could not remove the login task, so nothing else was removed." >&2
+        echo "Run '$(win_path "$dst_exe")' services uninstall, or delete the task 'Neru' in Task Scheduler, then run 'just uninstall' again." >&2
+        exit 1
+    fi
+else
+    echo "  No login task found"
+fi
 if MSYS2_ARG_CONV_EXCL='*' reg query "$run_key" /v Neru >/dev/null 2>&1; then
     if MSYS2_ARG_CONV_EXCL='*' reg delete "$run_key" /v Neru /f >/dev/null 2>&1; then
-        echo "✓ Removed the login autostart entry"
+        echo "✓ Removed the Run key entry an older installer wrote"
     else
         echo "Could not remove the Run key; delete 'Neru' from $run_key yourself." >&2
     fi
-else
-    echo "  No autostart entry found"
 fi
 
 # Step 2: Start Menu shortcut.

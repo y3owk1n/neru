@@ -198,7 +198,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ⚠️ portal ScreenCast, consent ⁵ | ✅ `BitBlt` ⁵        |
 | **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁶ | ⚠️ tesseract, text only ⁶ | ⚠️ tesseract, text only ⁶ | ⚠️ `Windows.Media.Ocr`, text only ⁶ |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
-| **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | 🟡 `CodeNotSupported` |
+| **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | ✅ Task Scheduler logon task |
 
 ¹ macOS and Linux resolve font *families* through the OS (NSFont, fontconfig).
 Windows only maps the generic aliases `sans` / `serif` / `mono` to Segoe UI /
@@ -1189,9 +1189,7 @@ working, which is exactly why the build exists.
 **Windows**
 
 1. Font resolution — alias mapping only, no system font enumeration
-2. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
-   installs a launchd agent and Linux a systemd user unit
-3. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
+2. IPC endpoint, client side — the daemon's endpoint is scoped to one user on
     every platform, but only the Unix client checks that for itself before
     connecting. A named pipe carries no ownership a client can read without
     opening it, so the Windows CLI trusts the name it derives from its own SID.

@@ -1,4 +1,4 @@
-//go:build !darwin && !linux
+//go:build !darwin && !linux && !windows
 
 package cli
 
@@ -7,14 +7,15 @@ import (
 )
 
 // unsupportedServices is the one sentence every subcommand says on a platform
-// with no service manager behind it. macOS drives a launchd agent and Linux a
-// systemd user unit; nothing else does, so the refusal names both rather than
-// leaving a reader to guess which platform they are missing out on.
+// with no service manager behind it. macOS drives a launchd agent, Linux a
+// systemd user unit and Windows a Task Scheduler task; nothing else does, so
+// the refusal names all three rather than leaving a reader to guess which
+// platform they are missing out on.
 func unsupportedServices(action string) error {
 	return derrors.New(
 		derrors.CodeNotSupported,
-		"services "+action+" is supported on macOS (launchd) and Linux (systemd "+
-			"user units) only",
+		"services "+action+" is supported on macOS (launchd), Linux (systemd "+
+			"user units) and Windows (Task Scheduler) only",
 	)
 }
 

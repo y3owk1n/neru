@@ -53,10 +53,9 @@ run_ps() {
 
 # Minimal Windows install: a per-user binary, a Start Menu shortcut so Neru is
 # searchable from the taskbar like any other app, and optional autostart via
-# the registry Run key. Windows has no launchd or systemd and `neru services`
-# is macOS-only, so autostart is authored here, not by Neru. Runs under a bash
-# (e.g. Git Bash); `just` needs cygpath on PATH to translate the shebang, and
-# reg is called with MSYS2_ARG_CONV_EXCL so its /flags are not path-mangled.
+# `neru services install`, which registers a Task Scheduler logon task the way
+# the macOS installer loads a launchd agent. Runs under a bash (e.g. Git Bash);
+# `just` needs cygpath on PATH to translate the shebang.
 # Windows support is alpha (grid, recursive grid, scroll, hotkeys, mouse
 # injection, UIA); see docs/CROSS_PLATFORM.md.
 arch="$(uname -m)"
@@ -201,19 +200,30 @@ PS
         ;;
 esac
 
-# Step 4: autostart via the per-user Run key (no admin). Uses the full
-# exe path, so it does not depend on PATH.
+# Step 4: autostart via `neru services install`, run from the binary just
+# installed so the Task Scheduler task points at it whether or not PATH was
+# updated. No admin: the task runs as the current user with a logon trigger.
 echo "Step 4/4: Autostart"
-run_reply="$(ask "Start Neru at login (a registry Run entry)? [y/N] ")"
+run_reply="$(ask "Start Neru at login (a Task Scheduler task via 'neru services install')? [y/N] ")"
 case "$run_reply" in
     [Yy] | [Yy][Ee][Ss])
-        # MSYS2_ARG_CONV_EXCL='*' stops Git Bash from rewriting reg's
-        # /v /t /d /f flags (and the HKCU\... key) as POSIX paths.
-        if MSYS2_ARG_CONV_EXCL='*' reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v Neru /t REG_SZ /d "\"$win_dst_exe\" launch" /f >/dev/null 2>&1; then
+        if "$dst_exe" services install; then
             echo "✓ Neru will start at login"
-            echo "  Remove later with: MSYS2_ARG_CONV_EXCL='*' reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v Neru /f"
+            echo "  Inspect with: neru services status"
+            echo "  Remove later with: neru services uninstall"
+            # An installer before this one wrote a Run key for the same
+            # purpose; left in place it would launch a second daemon at
+            # every login, racing the task for the socket.
+            run_key="HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+            if MSYS2_ARG_CONV_EXCL='*' reg query "$run_key" /v Neru >/dev/null 2>&1; then
+                if MSYS2_ARG_CONV_EXCL='*' reg delete "$run_key" /v Neru /f >/dev/null 2>&1; then
+                    echo "✓ Removed the Run key entry an older installer wrote"
+                else
+                    echo "Could not remove the older Run key entry; delete 'Neru' from $run_key yourself, or Neru starts twice at login." >&2
+                fi
+            fi
         else
-            echo "Could not write the Run key; add autostart manually." >&2
+            echo "Could not register the login task; run 'neru services install' yourself." >&2
         fi
         ;;
     *)
