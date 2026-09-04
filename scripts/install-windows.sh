@@ -211,6 +211,17 @@ case "$run_reply" in
             echo "✓ Neru will start at login"
             echo "  Inspect with: neru services status"
             echo "  Remove later with: neru services uninstall"
+            # An installer before this one wrote a Run key for the same
+            # purpose; left in place it would launch a second daemon at
+            # every login, racing the task for the socket.
+            run_key="HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+            if MSYS2_ARG_CONV_EXCL='*' reg query "$run_key" /v Neru >/dev/null 2>&1; then
+                if MSYS2_ARG_CONV_EXCL='*' reg delete "$run_key" /v Neru /f >/dev/null 2>&1; then
+                    echo "✓ Removed the Run key entry an older installer wrote"
+                else
+                    echo "Could not remove the older Run key entry; delete 'Neru' from $run_key yourself, or Neru starts twice at login." >&2
+                fi
+            fi
         else
             echo "Could not register the login task; run 'neru services install' yourself." >&2
         fi

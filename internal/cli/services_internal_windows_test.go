@@ -87,21 +87,33 @@ func TestDescribeServiceStatus_ReadsAsAStatementNotAnError(t *testing.T) {
 		{
 			name: "running and enabled",
 			state: serviceTaskState{
-				installed: true,
-				path:      serviceTaskPath,
-				state:     taskStateRunning,
-				enabled:   true,
+				installed:      true,
+				path:           serviceTaskPath,
+				state:          taskStateRunning,
+				enabled:        true,
+				triggerEnabled: true,
 			},
 			want: []string{"Service installed", taskWordRunning, "enabled at login"},
 		},
 		{
 			name: "ready but disabled",
 			state: serviceTaskState{
+				installed:      true,
+				path:           serviceTaskPath,
+				state:          taskStateReady,
+				triggerEnabled: true,
+			},
+			want: []string{taskWordReady, "disabled at login"},
+		},
+		{
+			name: "task enabled but its logon trigger switched off",
+			state: serviceTaskState{
 				installed: true,
 				path:      serviceTaskPath,
 				state:     taskStateReady,
+				enabled:   true,
 			},
-			want: []string{taskWordReady, "disabled at login"},
+			want: []string{"disabled at login"},
 		},
 	}
 
@@ -132,5 +144,39 @@ func TestNewBSTR_CarriesTheByteLengthPrefix(t *testing.T) {
 
 	if value.buf[2] != 'a' || value.buf[3] != 'b' || value.buf[4] != 0 {
 		t.Errorf("newBSTR(%q) text = %v, want a, b, NUL", "ab", value.buf[2:])
+	}
+}
+
+func TestLogonTriggerEnabled_ReadsTheTriggersOwnFlag(t *testing.T) {
+	testCases := []struct {
+		name string
+		xml  string
+		want bool
+	}{
+		{
+			name: "rendered template",
+			xml:  renderServiceTask(`C:\neru.exe`, "S-1-5-21-1"),
+			want: true,
+		},
+		{name: "no logon trigger", xml: "<Task><Triggers></Triggers></Task>", want: false},
+		{
+			name: "trigger switched off",
+			xml:  "<Task><Triggers><LogonTrigger><Enabled>false</Enabled></LogonTrigger></Triggers></Task>",
+			want: false,
+		},
+		{
+			name: "another trigger off, logon on",
+			xml: "<Task><Triggers><BootTrigger><Enabled>false</Enabled></BootTrigger>" +
+				"<LogonTrigger><Enabled>true</Enabled></LogonTrigger></Triggers></Task>",
+			want: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := logonTriggerEnabled(testCase.xml); got != testCase.want {
+				t.Errorf("logonTriggerEnabled() = %v, want %v", got, testCase.want)
+			}
+		})
 	}
 }

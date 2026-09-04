@@ -211,15 +211,17 @@ func guidMust(value string) windows.GUID {
 // variant is a VARIANT laid out for 64-bit Windows. Every VARIANT the
 // scheduler takes here is VT_EMPTY, and every one is passed by value, which on
 // x64 and ARM64 means a pointer to a copy: the struct is larger than a
-// register, so both ABIs pass it by reference.
+// register, so both ABIs pass it by reference. The copy lives in a variable
+// the caller owns across the call and keeps alive after it, so the collector
+// cannot take it back while COM reads it.
 type variant struct {
 	vt       uint16
 	reserved [3]uint16
 	value    [2]uintptr
 }
 
-func emptyVariant() uintptr {
-	return uintptr(unsafe.Pointer(new(variant)))
+func (v *variant) ptr() uintptr {
+	return uintptr(unsafe.Pointer(v))
 }
 
 // bstr is a BSTR built in Go memory for the scheduler to read: a four-byte
@@ -358,14 +360,18 @@ func withTaskFolder(body func(taskFolder) error) error {
 
 	// Connect(serverName, user, domain, password), all empty: the local
 	// machine as the current user.
+	var connectArgs [4]variant
+
 	hresult = comCall(
 		service,
 		vtServiceConnect,
-		emptyVariant(),
-		emptyVariant(),
-		emptyVariant(),
-		emptyVariant(),
+		connectArgs[0].ptr(),
+		connectArgs[1].ptr(),
+		connectArgs[2].ptr(),
+		connectArgs[3].ptr(),
 	)
+	runtime.KeepAlive(&connectArgs)
+
 	if failed(hresult) {
 		return hresultError("connect to the Task Scheduler service", hresult)
 	}
@@ -430,7 +436,12 @@ func (f taskFolder) registerTask(path, xml string) error {
 		return err
 	}
 
-	var task unsafe.Pointer
+	var (
+		task     unsafe.Pointer
+		userID   variant
+		password variant
+		sddl     variant
+	)
 
 	// RegisterTask(path, xmlText, flags, userId, password, logonType, sddl,
 	// ppTask). The user and password stay empty because the definition's own
@@ -441,14 +452,17 @@ func (f taskFolder) registerTask(path, xml string) error {
 		taskPath.ptr(),
 		definition.ptr(),
 		taskCreate,
-		emptyVariant(),
-		emptyVariant(),
+		userID.ptr(),
+		password.ptr(),
 		taskLogonInteractiveToken,
-		emptyVariant(),
+		sddl.ptr(),
 		uintptr(unsafe.Pointer(&task)),
 	)
 	runtime.KeepAlive(taskPath)
 	runtime.KeepAlive(definition)
+	runtime.KeepAlive(&userID)
+	runtime.KeepAlive(&password)
+	runtime.KeepAlive(&sddl)
 
 	if failed(hresult) {
 		return hresultError("register the Task Scheduler task "+path, hresult)
@@ -514,9 +528,14 @@ func taskXML(task unsafe.Pointer) (string, error) {
 // runTask is IRegisteredTask::Run, which starts an instance now regardless of
 // the trigger.
 func runTask(task unsafe.Pointer) error {
-	var running unsafe.Pointer
+	var (
+		running unsafe.Pointer
+		params  variant
+	)
 
-	hresult := comCall(task, vtTaskRun, emptyVariant(), uintptr(unsafe.Pointer(&running)))
+	hresult := comCall(task, vtTaskRun, params.ptr(), uintptr(unsafe.Pointer(&running)))
+	runtime.KeepAlive(&params)
+
 	if failed(hresult) {
 		return hresultError("start the task", hresult)
 	}
@@ -725,9 +744,27 @@ type serviceTaskState struct {
 	installed bool
 	// path is where Neru registers its task, whether or not it is there yet.
 	path string
-	// state is the scheduler's TASK_STATE, and enabled its Enabled flag.
-	state   int32
-	enabled bool
+	// state is the scheduler's TASK_STATE. enabled is the task's Enabled flag
+	// and triggerEnabled the logon trigger's own, which Task Scheduler's window
+	// lets a person switch off separately; both have to hold for the task to
+	// start at login.
+	state          int32
+	enabled        bool
+	triggerEnabled bool
+}
+
+// logonTriggerEnabled reads the logon trigger's enabled state out of a task
+// definition. A trigger with no <Enabled> element is enabled, and a task with
+// no logon trigger at all starts at login under no circumstances.
+func logonTriggerEnabled(xml string) bool {
+	_, trigger, found := strings.Cut(xml, "<LogonTrigger")
+	if !found {
+		return false
+	}
+
+	trigger, _, _ = strings.Cut(trigger, "</LogonTrigger>")
+
+	return !strings.Contains(trigger, "<Enabled>false</Enabled>")
 }
 
 // The scheduler's states in the words its own window uses, with "ready"
@@ -765,7 +802,7 @@ func describeServiceStatus(state serviceTaskState) string {
 	}
 
 	enabled := "enabled"
-	if !state.enabled {
+	if !state.enabled || !state.triggerEnabled {
 		enabled = taskWordDisabled
 	}
 
@@ -795,8 +832,18 @@ func statusServiceTask(path string) string {
 		}
 
 		state.enabled, err = taskEnabled(task)
+		if err != nil {
+			return err
+		}
 
-		return err
+		xml, err := taskXML(task)
+		if err != nil {
+			return err
+		}
+
+		state.triggerEnabled = logonTriggerEnabled(xml)
+
+		return nil
 	})
 	if err != nil {
 		return "Service status unavailable: " + err.Error()

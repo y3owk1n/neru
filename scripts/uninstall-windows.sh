@@ -113,7 +113,11 @@ if [ -x "$dst_exe" ] && "$dst_exe" services status 2>/dev/null | grep -q '^Servi
     if "$dst_exe" services uninstall >/dev/null 2>&1; then
         echo "✓ Removed the Task Scheduler login task"
     else
-        echo "Could not remove the login task; run 'neru services uninstall' yourself." >&2
+        # Stopping here keeps the binary the task points at, and with it the
+        # command that can still remove the task.
+        echo "Could not remove the login task, so nothing else was removed." >&2
+        echo "Run '$(win_path "$dst_exe")' services uninstall, or delete the task 'Neru' in Task Scheduler, then run 'just uninstall' again." >&2
+        exit 1
     fi
 else
     echo "  No login task found"
