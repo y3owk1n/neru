@@ -310,10 +310,11 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	h.startIndicatorPolling(domain.ModeHints)
 }
 
-// needsScreenCapturePermission reports whether the vision strategy is blocked
-// on the screen-recording permission.
+// needsScreenCapturePermission reports whether a screen-capture strategy is
+// blocked on the screen-recording permission. Vision and contour both read the
+// window's pixels, so both pay the gate. Axtree never touches the screen.
 func (h *handlerState) needsScreenCapturePermission(strategy string) bool {
-	if strategy != domain.StrategyVision {
+	if strategy != domain.StrategyVision && strategy != domain.StrategyContour {
 		return false
 	}
 
