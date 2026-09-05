@@ -30,6 +30,7 @@ const (
 	wmQuit       = 0x0012
 	llkhfUp      = 0x0080
 	pmRemove     = 0x0001
+	pmNoRemove   = 0x0000
 )
 
 type kbdLLHookStruct struct {
@@ -156,8 +157,9 @@ func (h *KeyboardHook) Stop() {
 		// loop. Without this, Stop deadlocks on doneCh (the loop's own
 		// stopCh check only runs between GetMessage calls, which it never
 		// reaches while blocked). The in-loop stopCh check still covers a Stop
-		// that fires before the first GetMessage. The WM_QUIT that leaves queued
-		// dies with the locked thread (see run).
+		// that fires before the first GetMessage. The queue exists by then (run
+		// creates it before signaling readiness), and the WM_QUIT this leaves
+		// queued dies with the locked thread.
 		h.mu.Lock()
 		threadID := h.threadID
 		h.mu.Unlock()
@@ -268,6 +270,15 @@ func (h *KeyboardHook) run() {
 
 		return
 	}
+
+	// A thread gets a message queue on its first call that needs one, and
+	// PostThreadMessage to a thread without one fails. Stop posts WM_QUIT as
+	// soon as StartKeyboardHook returns, which can be before the loop's first
+	// GetMessage, so the queue is forced into existence here, ahead of the
+	// readiness signal. PeekMessage with PM_NOREMOVE is the documented way.
+	var probe msg
+
+	discardCall(procPeekMessageW.Call(uintptr(unsafe.Pointer(&probe)), 0, 0, 0, pmNoRemove))
 
 	h.mu.Lock()
 	h.hook = handle
