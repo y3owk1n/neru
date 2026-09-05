@@ -44,7 +44,7 @@ func IsWaylandEvdevKeyboardActive() bool {
 var (
 	errWaylandEvdevUnavailable  = errors.New("wayland evdev capture unavailable")
 	errWaylandEvdevProxyStopped = errors.New("wayland evdev proxy stopped")
-	errWaylandEvdevShortWrite   = errors.New("short write to the proxy keyboard")
+	errWaylandEvdevShortWrite   = errors.New("short write to the proxy device")
 	errWaylandEvdevPassive      = errors.New(
 		"wayland evdev proxy is passive: /dev/uinput is not writable, so keys cannot be captured",
 	)
@@ -53,7 +53,8 @@ var (
 const waylandEvdevDeviceNameSize = 256
 
 // neruInjectionDevicePrefix identifies Neru's own synthetic uinput devices
-// (the proxy keyboard itself, "neru-keyboard" from key feeding, "neru-scroll").
+// (the proxy keyboard and pointer, "neru-keyboard" from key feeding,
+// "neru-scroll").
 // Capture must never grab these: grabbing the proxy would loop every key back
 // into the reader, and grabbing the feed keyboard would swallow fed keys before
 // they reach the focused app.
@@ -65,6 +66,7 @@ func isNeruInjectionDevice(name string) bool {
 
 const (
 	evdevEventSyn uint16 = 0x00
+	evdevEventRel uint16 = 0x02
 	evdevEventMsc uint16 = 0x04
 	evdevEventLed uint16 = 0x11
 
