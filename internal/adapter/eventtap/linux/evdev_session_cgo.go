@@ -36,6 +36,12 @@ type evdevSession struct {
 	// forwardedModifiers is the activation chord's modifiers still down when
 	// the session began: sticky detection arms once they are all up.
 	forwardedModifiers map[uint16]bool
+
+	// ended is closed by the proxy if it detaches the session itself, which
+	// it does on failing open: the keyboards reach the compositor again, so a
+	// session still reading them would hand the mode every key the focused
+	// app also gets. The tap then falls back to the overlay's keyboard focus.
+	ended chan struct{}
 }
 
 func newEvdevSession(tap *EventTap) *evdevSession {
@@ -44,6 +50,7 @@ func newEvdevSession(tap *EventTap) *evdevSession {
 		state:              newWaylandEvdevKeyState(),
 		dispatchedDown:     make(map[uint16]bool),
 		forwardedModifiers: make(map[uint16]bool),
+		ended:              make(chan struct{}),
 	}
 }
 
@@ -183,7 +190,9 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
-	err = proxy.startSession(newEvdevSession(et))
+	session := newEvdevSession(et)
+
+	err = proxy.startSession(session)
 	if err != nil {
 		if et.logger != nil {
 			et.logger.Warn(
@@ -214,9 +223,18 @@ func (et *EventTap) runWaylandEvdev() bool {
 		)
 	}
 
-	<-et.stopCh
+	select {
+	case <-et.stopCh:
+		proxy.stopSession()
 
-	proxy.stopSession()
+		return true
+	case <-session.ended:
+		if et.logger != nil {
+			et.logger.Warn(
+				"Evdev proxy released the keyboards mid-mode; falling back to overlay keyboard focus",
+			)
+		}
 
-	return true
+		return false
+	}
 }

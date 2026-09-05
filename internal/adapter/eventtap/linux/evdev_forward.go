@@ -5,13 +5,13 @@ package linux
 // evdevKeyCodeCount is KEY_CNT: one past the highest evdev key code.
 const evdevKeyCodeCount = 0x300
 
-// evdevBitsPerWord is the width of one word of a key bitmap, here and in the
+// evdevBitsPerWord is the width of one word of a key bitmap, as in the
 // kernel's EVIOCGKEY answer.
 const evdevBitsPerWord = 64
 
 // forwardRule decides, per key event, whether the proxy re-emits it to the
-// compositor or keeps it. It holds one bit per key code: set while a press this
-// rule forwarded is still down.
+// compositor or keeps it. It holds one count per key code: how many forwarded
+// presses of that key are still down, across every keyboard.
 //
 // The whole of it is one invariant, and the invariant is what makes an instant
 // grab safe: **a release is forwarded exactly when its press was.** A press is
@@ -24,16 +24,22 @@ const evdevBitsPerWord = 64
 // released before grabbing, with the mode's first hundred milliseconds of input
 // going to the focused application instead (#1087 and what it cost).
 //
+// A count rather than a bit, because the proxy is one keyboard standing in for
+// several: the same key held on two of them is one key down to the compositor,
+// which sees it go up when the last of them lets go, as it would with a single
+// keyboard. Their presses are forwarded either way (the kernel drops the second
+// on a device that already has the key down); only the last release is.
+//
 // It is pure Go with no lock: the proxy's run goroutine is the only caller.
 type forwardRule struct {
-	down [evdevKeyCodeCount / evdevBitsPerWord]uint64
+	down [evdevKeyCodeCount]uint8
 }
 
-// seed marks code as down and forwarded without an event: the kernel reported
+// seed counts code as down and forwarded without an event: the kernel reported
 // it held when its device was grabbed, so the compositor saw the press and is
 // owed the release.
 func (r *forwardRule) seed(code uint16) {
-	r.set(code)
+	r.add(code)
 }
 
 // press decides a key-down. withhold is whether a consumer wants the press for
@@ -44,7 +50,7 @@ func (r *forwardRule) press(code uint16, withhold bool) bool {
 		return false
 	}
 
-	r.set(code)
+	r.add(code)
 
 	return true
 }
@@ -54,34 +60,24 @@ func (r *forwardRule) repeat(code uint16) bool {
 	return r.isDown(code)
 }
 
-// release decides a key-up: forwarded exactly when the press was.
+// release decides a key-up: forwarded exactly when the press was, and for a
+// key held on more than one keyboard, only for the last one to let go.
 func (r *forwardRule) release(code uint16) bool {
-	forwarded := r.isDown(code)
-	r.clear(code)
-
-	return forwarded
-}
-
-func (r *forwardRule) isDown(code uint16) bool {
-	if int(code) >= evdevKeyCodeCount {
+	if !r.isDown(code) {
 		return false
 	}
 
-	return r.down[code/evdevBitsPerWord]&(1<<(code%evdevBitsPerWord)) != 0
+	r.down[code]--
+
+	return r.down[code] == 0
 }
 
-func (r *forwardRule) set(code uint16) {
-	if int(code) >= evdevKeyCodeCount {
-		return
-	}
-
-	r.down[code/evdevBitsPerWord] |= 1 << (code % evdevBitsPerWord)
+func (r *forwardRule) isDown(code uint16) bool {
+	return int(code) < evdevKeyCodeCount && r.down[code] > 0
 }
 
-func (r *forwardRule) clear(code uint16) {
-	if int(code) >= evdevKeyCodeCount {
-		return
+func (r *forwardRule) add(code uint16) {
+	if int(code) < evdevKeyCodeCount && r.down[code] < ^uint8(0) {
+		r.down[code]++
 	}
-
-	r.down[code/evdevBitsPerWord] &^= 1 << (code % evdevBitsPerWord)
 }

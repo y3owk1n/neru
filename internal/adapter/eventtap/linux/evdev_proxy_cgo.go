@@ -423,6 +423,14 @@ func (p *evdevProxy) failOpen(err error) {
 
 	p.capture.ungrabAll()
 
+	// The keys now reach the compositor as well, so a session reading them
+	// would hand the mode what the focused app also gets. Runs on the run
+	// goroutine, the session's owner, because writes happen nowhere else.
+	if p.session != nil {
+		close(p.session.ended)
+		p.session = nil
+	}
+
 	p.logger.Error(
 		"Keyboard proxy write failed; released the keyboards to the compositor, "+
 			"mode keyboard capture is off until the daemon restarts",

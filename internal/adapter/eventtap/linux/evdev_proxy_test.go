@@ -120,8 +120,8 @@ func TestForwardRule_AReleaseGoesWhereItsPressWent(t *testing.T) {
 		{name: "idle: forwarded throughout", wantPress: true, wantRepeat: true, wantRelease: true},
 		{name: "capturing: withheld throughout", withholdPress: true},
 		{
-			name:          "capturing a key already down: forwarded, because its release will be",
-			withholdPress: true, seeded: true, wantPress: true, wantRepeat: true, wantRelease: true,
+			name:   "a seeded key: the compositor saw the press, so it gets the release",
+			seeded: true, withholdPress: true, wantRepeat: true, wantRelease: true,
 		},
 	}
 
@@ -133,9 +133,7 @@ func TestForwardRule_AReleaseGoesWhereItsPressWent(t *testing.T) {
 
 			if testCase.seeded {
 				rule.seed(evdevKeyA)
-			}
-
-			if got := rule.press(evdevKeyA, testCase.withholdPress); got != testCase.wantPress {
+			} else if got := rule.press(evdevKeyA, testCase.withholdPress); got != testCase.wantPress {
 				t.Errorf("press forwarded = %v, want %v", got, testCase.wantPress)
 			}
 
@@ -151,6 +149,29 @@ func TestForwardRule_AReleaseGoesWhereItsPressWent(t *testing.T) {
 				t.Error("the key is still down after its release")
 			}
 		})
+	}
+}
+
+// One key held on two keyboards is one key to the compositor: it goes up when
+// the last of them lets go, not the first.
+func TestForwardRule_AKeyHeldOnTwoKeyboardsReleasesWithTheLast(t *testing.T) {
+	t.Parallel()
+
+	var rule forwardRule
+
+	rule.press(evdevKeyA, false)
+	rule.press(evdevKeyA, true) // the second keyboard, during a mode
+
+	if rule.release(evdevKeyA) {
+		t.Error("the first release was forwarded while the other keyboard still holds the key")
+	}
+
+	if !rule.isDown(evdevKeyA) {
+		t.Error("the key is up after one of two holds ended")
+	}
+
+	if !rule.release(evdevKeyA) {
+		t.Error("the last release was withheld")
 	}
 }
 
@@ -416,6 +437,9 @@ func TestEvdevProxy_FailOpenReleasesTheKeyboardsAndRefusesSessions(t *testing.T)
 	proxy.forwarding.Store(true)
 	proxy.capture.grab = true
 
+	tap, keys := collectKeys(t)
+	session := beginSession(proxy, tap)
+
 	proxy.failOpen(errWaylandEvdevProxyStopped)
 
 	if proxy.forwarding.Load() {
@@ -425,6 +449,17 @@ func TestEvdevProxy_FailOpenReleasesTheKeyboardsAndRefusesSessions(t *testing.T)
 	if proxy.capture.grab {
 		t.Error("the capture would still grab a keyboard that arrives later")
 	}
+
+	select {
+	case <-session.ended:
+	default:
+		t.Error(
+			"the mode session was left attached to a proxy whose keyboards now reach the app too",
+		)
+	}
+
+	proxy.handle(keyEvent(evdevKeyA, evdevValuePress))
+	noKey(t, keys)
 
 	err := proxy.startSession(newEvdevSession(nil))
 	if err == nil {
