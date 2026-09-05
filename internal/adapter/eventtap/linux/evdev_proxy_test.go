@@ -477,6 +477,77 @@ func TestEvdevProxy_FailOpenReleasesTheKeyboardsAndRefusesSessions(t *testing.T)
 	}
 }
 
+// A remapper's device auto-detect grabbing a proxy device closes a loop the
+// compositor sees no side of; the probe on the run goroutine is what opens it.
+func TestEvdevProxy_ProbeOwnDevices_FailsOpenWhenAnotherProcessHoldsAProxy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		held func(proxy *evdevProxy) *proxyNode
+	}{
+		{
+			name: "the keyboard proxy is held",
+			held: func(proxy *evdevProxy) *proxyNode { return proxy.keyboardNode },
+		},
+		{
+			name: "the pointer proxy is held",
+			held: func(proxy *evdevProxy) *proxyNode { return proxy.pointerNode },
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			proxy := newTestProxy()
+			proxy.forwarding.Store(true)
+			proxy.capture.grab = true
+			proxy.keyboardNode = &proxyNode{}
+			proxy.pointerNode = &proxyNode{}
+
+			taken := false
+			probes := 0
+			proxy.heldByAnother = func(node *proxyNode) bool {
+				probes++
+
+				return taken && node == testCase.held(proxy)
+			}
+
+			proxy.probeOwnDevices()
+
+			if !proxy.forwarding.Load() {
+				t.Fatal("a probe that found both nodes free failed open")
+			}
+
+			taken = true
+
+			proxy.probeOwnDevices()
+
+			if proxy.forwarding.Load() {
+				t.Error("the proxy still forwards with another process holding its device")
+			}
+
+			if proxy.capture.grab {
+				t.Error("the capture would still grab a keyboard that arrives later")
+			}
+
+			err := proxy.startSession(newEvdevSession(nil))
+			if err == nil {
+				t.Error("a session was accepted with the keyboards released")
+			}
+
+			before := probes
+
+			proxy.probeOwnDevices()
+
+			if probes != before {
+				t.Error("a proxy that has let go keeps probing its devices")
+			}
+		})
+	}
+}
+
 // Detaching the bindings is all a stop does now: the proxy keeps being the
 // keyboard, and a listener that has stopped matches nothing.
 func TestGlobalHotkeyListener_StopDetachesTheBindings(t *testing.T) {

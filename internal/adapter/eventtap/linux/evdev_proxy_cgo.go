@@ -21,6 +21,7 @@ package linux
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -56,6 +57,14 @@ type evdevProxy struct {
 	// pointerFrame is whether the frame being read has put anything on the
 	// pointer proxy, so its sync report is sent there too.
 	pointerFrame bool
+
+	// keyboardNode and pointerNode are the proxy's own event nodes, opened on
+	// the run goroutine once udev has created them, and probed from there for
+	// a grab by another process (probeOwnDevices). heldByAnother is the probe,
+	// a field so a test can stand in for the kernel.
+	keyboardNode  *proxyNode
+	pointerNode   *proxyNode
+	heldByAnother func(*proxyNode) bool
 
 	bindings atomic.Pointer[map[string]func()]
 
@@ -145,12 +154,13 @@ func newEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 	capture.refreshXkbState()
 
 	proxy := &evdevProxy{
-		logger:   logger,
-		capture:  capture,
-		uinputFd: uinputFd,
-		global:   newWaylandEvdevKeyState(),
-		control:  make(chan proxyCommand),
-		done:     make(chan struct{}),
+		logger:        logger,
+		capture:       capture,
+		uinputFd:      uinputFd,
+		global:        newWaylandEvdevKeyState(),
+		control:       make(chan proxyCommand),
+		done:          make(chan struct{}),
+		heldByAnother: (*proxyNode).heldByAnother,
 	}
 
 	proxy.forwarding.Store(uinputFd >= 0)
@@ -242,6 +252,9 @@ func (p *evdevProxy) run() {
 	keymap := time.NewTicker(waylandEvdevKeymapPollInterval)
 	defer keymap.Stop()
 
+	probe := time.NewTicker(waylandEvdevProxyProbeInterval)
+	defer probe.Stop()
+
 	for {
 		select {
 		case cmd := <-p.control:
@@ -261,6 +274,42 @@ func (p *evdevProxy) run() {
 			p.handle(event)
 		case <-keymap.C:
 			p.refreshKeymap()
+		case <-probe.C:
+			p.probeOwnDevices()
+		}
+	}
+}
+
+// probeOwnDevices fails open when another process has grabbed one of the
+// proxy's own devices. That is what a key remapper's device auto-detect does
+// to a new keyboard node, and with the remapper's output grabbed here it
+// closes a loop that reaches the compositor from neither side: every key the
+// user types circles between the two processes, and the keyboard is dead until
+// one of them lets go. Letting go here returns the remapper's output to the
+// compositor, so the user's keys and remaps work again; what is lost is
+// capturing keys for a mode, as after any other fail-open.
+//
+// The nodes are opened here rather than at construction, because udev creates
+// them a moment after the uinput device, and the pointer proxy exists only once
+// a keyboard that needs it is grabbed.
+func (p *evdevProxy) probeOwnDevices() {
+	if !p.forwarding.Load() {
+		return
+	}
+
+	if p.keyboardNode == nil {
+		p.keyboardNode = openProxyNode(p.uinputFd)
+	}
+
+	if pointer := p.capture.pointer.Load(); p.pointerNode == nil && pointer != nil {
+		p.pointerNode = openProxyNode(pointer.fd)
+	}
+
+	for _, node := range []*proxyNode{p.keyboardNode, p.pointerNode} {
+		if node != nil && p.heldByAnother(node) {
+			p.failOpen(errWaylandEvdevProxyGrabbed)
+
+			return
 		}
 	}
 }
@@ -488,6 +537,17 @@ func (p *evdevProxy) failOpen(err error) {
 	if p.session != nil {
 		close(p.session.ended)
 		p.session = nil
+	}
+
+	if errors.Is(err, errWaylandEvdevProxyGrabbed) {
+		p.logger.Error(
+			"Another process grabbed a neru proxy device, which a key remapper's device " +
+				"auto-detect does; released the keyboards to the compositor so your keys and " +
+				"remaps work, mode keyboard capture is off until the daemon restarts. Exclude " +
+				"the neru- devices in the remapper's config (docs/LINUX_SETUP.md)",
+		)
+
+		return
 	}
 
 	p.logger.Error(

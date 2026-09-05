@@ -31,6 +31,7 @@ int neru_evdev_has_rel_axes(int fd);
 int neru_evdev_get_key_state(int fd, unsigned long *bits, size_t bits_size);
 int neru_uinput_create_proxy_keyboard(int *out_fd);
 int neru_uinput_create_proxy_pointer(int *out_fd);
+int neru_uinput_get_sysname(int fd, char *name, size_t name_size);
 int neru_uinput_destroy(int fd);
 ssize_t neru_evdev_write_event(int fd, const struct input_event *event);
 ssize_t neru_evdev_write_events(int fd, const struct input_event *events, int count);

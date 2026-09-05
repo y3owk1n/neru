@@ -476,6 +476,11 @@ int neru_uinput_create_proxy_pointer(int *out_fd) {
 	return 1;
 }
 
+/* The sysfs name ("input12") of the device behind a created uinput fd, so
+ * the proxy can find its own event node and ask whether another process holds
+ * it (openProxyNode). Negative on failure, with errno set. */
+int neru_uinput_get_sysname(int fd, char *name, size_t name_size) { return ioctl(fd, UI_GET_SYSNAME(name_size), name); }
+
 int neru_uinput_destroy(int fd) {
 	if (fd < 0)
 		return -1;

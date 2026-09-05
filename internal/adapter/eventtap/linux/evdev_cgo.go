@@ -28,6 +28,19 @@ const (
 	// down is asked whether the key has come up, so it can be grabbed. Paid
 	// once per device (waitIdle), never per activation.
 	waylandEvdevIdlePollInterval = 10 * time.Millisecond
+
+	// waylandEvdevProxyProbeInterval is how often the proxy asks whether
+	// another process has grabbed one of its own devices (probeOwnDevices).
+	// Two ioctls per tick, nothing on the keystroke path; it bounds how long
+	// the keyboard is dead when a remapper closes the loop.
+	waylandEvdevProxyProbeInterval = 500 * time.Millisecond
+
+	// waylandEvdevYieldGrace is how long a physical keyboard yielded to a
+	// remapper that just started stays with the compositor before the capture
+	// takes back one the remapper did not want. Kanata grabs its inputs two
+	// seconds after creating its output device (its startup delay), so this
+	// is that with room for its idle wait.
+	waylandEvdevYieldGrace = 3 * time.Second
 )
 
 // waylandEvdevKeyboardActive reports whether a mode session currently owns the
@@ -50,6 +63,7 @@ var (
 	errWaylandEvdevUnavailable  = errors.New("wayland evdev capture unavailable")
 	errWaylandEvdevProxyStopped = errors.New("wayland evdev proxy stopped")
 	errWaylandEvdevShortWrite   = errors.New("short write to the proxy device")
+	errWaylandEvdevProxyGrabbed = errors.New("another process holds a proxy device")
 	errWaylandEvdevPassive      = errors.New(
 		"wayland evdev proxy is passive: /dev/uinput is not writable, so keys cannot be captured",
 	)

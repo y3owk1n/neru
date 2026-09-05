@@ -99,14 +99,36 @@ degrade. Without `/dev/input` access there is no proxy at all.
 
 Three consequences of holding the keyboards:
 
-- A key remapper (kanata, keyd) grabs its input keyboards the same way. Start
-  it before Neru: a device that refuses the grab is left to its owner and the
-  remapper's virtual output keyboard is captured instead, which is the one that
-  carries your keys. That device also advertises mouse motion and buttons, so a
-  key can move the pointer; Neru re-emits those through a second device of its
-  own, `neru-pointer-proxy`, created the first time such a keyboard is grabbed.
-  Quitting the remapper while Neru runs is fine: Neru takes the keyboards it
-  released, and hands them back when the remapper's output device reappears.
+- A key remapper (kanata, keyd) grabs its input keyboards the same way, and
+  its device auto-detect will grab Neru's own devices too, since to it they
+  look like keyboards. That closes a loop the compositor sees no side of, so
+  tell the remapper to leave them alone. For kanata:
+
+  ```lisp
+  (defcfg
+    linux-dev-names-exclude ("neru-keyboard-proxy" "neru-pointer-proxy" "neru-keyboard")
+  )
+  ```
+
+  or list your physical keyboards in `linux-dev-names-include`, which
+  bypasses auto-detect. For keyd, exclude Neru's ids under `[ids]`:
+  `-1234:567a`, `-1234:567b` and `-1234:5679`. Should a remapper grab a Neru
+  device anyway, Neru releases every keyboard to the compositor and logs why;
+  your keys and your remaps keep working, and mode key capture is off until
+  the daemon restarts. Start order does not matter with kanata: a keyboard
+  the remapper already holds is left to it and its virtual output keyboard is
+  captured instead, which is the one that carries your keys, and a remapper
+  that starts while Neru holds the keyboards, whether launched later,
+  restarted, or started by systemd in the same instant as Neru, is handed
+  them as soon as its output device appears. Neru takes back any keyboard the
+  remapper has not claimed three seconds later. Keyd and `kanata --nodelay`
+  grab in the instant they start, before Neru can see their output device, so
+  start those before Neru. Neru's hotkeys match the keys the remapper emits,
+  so write them as it sends them. The output device also advertises mouse
+  motion and buttons, so a key can move the pointer; Neru re-emits those
+  through a second device of its own, `neru-pointer-proxy`, created the first
+  time such a keyboard is grabbed. Quitting the remapper while Neru runs is
+  fine: Neru takes the keyboards it released.
 - A keyboard that reports absolute axes (a built-in trackpad on the same node)
   is never grabbed, so its keys are not captured.
 - Compositor settings applied per input device (an `input` block in Sway or

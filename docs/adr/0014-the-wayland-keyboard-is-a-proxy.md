@@ -99,18 +99,45 @@ it, so a hint label typed while Super is still coming up is the label.
   the compositor sets on the proxy is carried back to the physical devices.
 - A key remapper (kanata, keyd) that holds its input keyboards refuses Neru's
   grab and is left alone; its virtual output keyboard is captured instead,
-  because it carries the user's keys. A remapper started after Neru finds its
-  input keyboards held and cannot start, so remappers start first.
+  because it carries the user's keys.
+- A remapper that starts while the daemon holds the keyboards, launched later,
+  restarted, or started by systemd in the same instant, finds them held; kanata
+  treats the failed grab as a warning and runs with no input until a node is
+  created under `/dev/input`. So the arrival of a remapper's output device, a
+  uinput keyboard from another process (sysfs files it directly under
+  `devices/virtual/input`, `isVirtualInputNode`, pinned by
+  `TestIsVirtualInputNode_OnlyAUinputDeviceIsVirtual`), yields every physical
+  keyboard the capture holds (`yieldPhysicalKeyboards`): each is ungrabbed and
+  revoked (`EVIOCREVOKE`) once no key on it is down, so a forwarded press is
+  never parted from its release, and the revoke wakes its reader with ENODEV
+  and leaves the fd dead rather than reusable until the reader closes it. Kanata
+  grabs its inputs two seconds after creating its output device, its startup
+  delay, so three seconds after yielding the capture adopts again whatever is
+  still free, which is a keyboard the remapper did not want. The initial scan
+  runs the same yield when it finds such a device, for a remapper still inside
+  its delay. Keyd and `kanata --nodelay` grab in the instant they start, before
+  their output device can be seen, and are started first.
 - A remapper that exits releases its input keyboards in the instant its output
   device disappears, and the released keyboards are existing nodes that no
   inotify event announces. So a captured device vanishing starts a rescan of
-  `/dev/input`, and what the rescan adopts is borrowed against the vanished
-  device's name. When a device of that name reappears, the remapper is back and
-  about to grab its inputs again, so the borrowed keyboards are returned to it:
-  ungrabbed and revoked (`EVIOCREVOKE`), which wakes their readers with ENODEV
-  and leaves each fd dead rather than reusable until its reader closes it.
-  Kanata creates its output device two seconds before it grabs its inputs, which
-  is the window the return has to land in; it lands within its hotplug poll.
+  `/dev/input`, which adopts them; when the remapper's output device comes
+  back, the yield above hands them over again.
+- A remapper's device auto-detect takes any node that advertises keyboard
+  keys. Kanata's excludes only a device named `kanata`, keyd's only its own
+  virtual keyboard, so either grabs `neru-keyboard-proxy` when the daemon
+  creates it, or on its own start when the daemon is already up. With the
+  remapper's output grabbed here that is a loop: every key circles between
+  the two processes and reaches the compositor from neither. Neru cannot
+  change the remapper's filter, so the proxy probes its own nodes every half
+  second from the run goroutine, a grab and ungrab no key can fall inside
+  because that goroutine is the device's only writer, and fails open when
+  another process holds one (`probeOwnDevices`, pinned by
+  `TestEvdevProxy_ProbeOwnDevices_FailsOpenWhenAnotherProcessHoldsAProxy`; the
+  probe against a real kernel is
+  `TestProxyNode_HeldByAnother_SeesAGrabFromAnotherFd`). The remapper's
+  output returns to the compositor, so the user's keys and remaps work; what
+  is lost is capturing keys for a mode. The setup guide tells remapper users
+  to exclude the `neru-` devices instead.
 - A remapper's output keyboard also advertises relative motion and mouse
   buttons, so a key can move the pointer, and so does a receiver that exposes a
   mouse and a keyboard on one node. Grabbing such a device takes its motion, so
