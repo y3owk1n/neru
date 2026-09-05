@@ -86,9 +86,31 @@ it, so a hint label typed while Super is still coming up is the label.
   grab and is left alone; its virtual output keyboard is captured instead,
   because it carries the user's keys. A remapper started after Neru finds its
   input keyboards held and cannot start, so remappers start first.
-- A device that reports pointer axes is never grabbed, since its motion would
-  have nowhere to go: a receiver that exposes a mouse and a keyboard on one node
-  keeps its keys out of Neru's reach, as X11's grab already leaves them.
+- A remapper that exits releases its input keyboards in the instant its output
+  device disappears, and the released keyboards are existing nodes that no
+  inotify event announces. So a captured device vanishing starts a rescan of
+  `/dev/input`, and what the rescan adopts is borrowed against the vanished
+  device's name. When a device of that name reappears, the remapper is back and
+  about to grab its inputs again, so the borrowed keyboards are returned to it:
+  ungrabbed and revoked (`EVIOCREVOKE`), which wakes their readers with ENODEV
+  and leaves each fd dead rather than reusable until its reader closes it.
+  Kanata creates its output device two seconds before it grabs its inputs, which
+  is the window the return has to land in; it lands within its hotplug poll.
+- A remapper's output keyboard also advertises relative motion and mouse
+  buttons, so a key can move the pointer, and so does a receiver that exposes a
+  mouse and a keyboard on one node. Grabbing such a device takes its motion, so
+  the motion is given somewhere to go: a second uinput device,
+  `neru-pointer-proxy`, created the first time such a keyboard is grabbed and
+  never otherwise, carries every relative axis and the mouse buttons. Buttons
+  are not keys to the forward rule, the matcher or a mode; they and the motion
+  bypass all three (`isPointerButton`), and a button outside the mouse range is
+  dropped rather than advertised, since a joystick or gamepad button on the
+  pointer proxy would have udev class it as a joystick (`isMouseButton`). The
+  proxy keyboard itself stays a pure keyboard for the same reason.
+- A device that reports absolute axes (a keyboard with a built-in trackpad on
+  the same node) is never grabbed: re-emitting touches would need its axis
+  ranges and slots, so it keeps its keys out of Neru's reach, as X11's grab
+  already leaves them.
 - Every keystroke on the system crosses the daemon while it runs. The run
   goroutine takes no lock the mode handler can hold, and a crashed daemon is
   recovered by the kernel, which drops every grab and the uinput device with the

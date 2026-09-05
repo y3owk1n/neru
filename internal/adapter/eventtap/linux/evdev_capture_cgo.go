@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -43,6 +44,37 @@ type waylandEvdevCapture struct {
 	// xkbState holds a C xkb_state initialized from the compositor's keymap.
 	// Used to resolve evdev scan codes to key names that respect XKB options.
 	xkbState unsafe.Pointer // *C.neru_xkb_state
+
+	// devices is what the capture knows about each tracked file beyond its
+	// path; guarded by deviceMu like files.
+	devices map[*os.File]trackedDevice
+
+	// pointer is the pointer proxy, or nil until a grabbed keyboard needs one:
+	// the uinput mouse the relative motion and the buttons of a keyboard that
+	// carries them are re-emitted on. Created under deviceMu by whichever
+	// scan grabs the first such keyboard, read without it by the run goroutine.
+	pointer atomic.Pointer[pointerProxy]
+}
+
+// pointerProxy is the pointer half of the proxy device, held by its uinput fd.
+type pointerProxy struct {
+	fd C.int
+}
+
+type trackedDevice struct {
+	// name is the device name read at open, so a device that vanishes can be
+	// named to the rescan it starts.
+	name string
+
+	// borrowedFor is the name of the vanished device whose rescan adopted this
+	// one, or empty. A remapper that exits releases its input keyboards as its
+	// output device disappears; a borrowed keyboard is one of those, and goes
+	// back when a device of that name reappears (returnBorrowed).
+	borrowedFor string
+
+	// released is whether this capture revoked the file on purpose, so its
+	// reader's exit is not mistaken for a device that vanished.
+	released bool
 }
 
 // newWaylandEvdevCapture opens every keyboard under /dev/input. With grab set,
@@ -51,8 +83,10 @@ type waylandEvdevCapture struct {
 //
 // A device another process already holds (a key remapper such as kanata or keyd
 // grabs its input keyboards for its own lifetime) refuses the grab and is
-// skipped; the remapper's virtual output keyboard is a keyboard like any other
-// and is taken instead, which is the one that carries the user's keys.
+// skipped; the remapper's virtual output keyboard is taken instead, which is the
+// one that carries the user's keys. That device also advertises mouse motion and
+// buttons, so a key can move the pointer; they are re-emitted on the pointer
+// proxy, which is created the first time such a keyboard is grabbed.
 func newWaylandEvdevCapture(logger *zap.Logger, grab bool) (*waylandEvdevCapture, error) {
 	paths, err := filepath.Glob("/dev/input/event*")
 	if err != nil {
@@ -61,6 +95,7 @@ func newWaylandEvdevCapture(logger *zap.Logger, grab bool) (*waylandEvdevCapture
 
 	capture := &waylandEvdevCapture{
 		files:     make([]*os.File, 0, len(paths)),
+		devices:   make(map[*os.File]trackedDevice),
 		events:    make(chan waylandEvdevEvent, waylandEvdevEventBufferSize),
 		logger:    logger,
 		grab:      grab,
@@ -114,6 +149,11 @@ func (capture *waylandEvdevCapture) Close() {
 		}
 
 		capture.files = nil
+
+		if pointer := capture.pointer.Swap(nil); pointer != nil {
+			C.neru_uinput_destroy(pointer.fd)
+		}
+
 		capture.deviceMu.Unlock()
 
 		// Wait for all reader goroutines to finish. A reader blocked in read
@@ -165,7 +205,7 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []ui
 	// A Neru device is known by its vendor id as well as its name, so the proxy
 	// cannot grab its own output even on a node whose name did not read.
 	if C.neru_evdev_is_keyboard(descriptor) == 0 ||
-		C.neru_evdev_has_pointer_axes(descriptor) != 0 ||
+		C.neru_evdev_has_abs_axes(descriptor) != 0 ||
 		C.neru_evdev_is_neru_device(descriptor) != 0 ||
 		isNeruInjectionDevice(name) {
 		_ = file.Close()
@@ -199,12 +239,59 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []ui
 			return nil, nil, false
 		}
 
+		// A keyboard with relative motion on it is kept only once that motion
+		// has somewhere to go; otherwise it is handed back to the compositor,
+		// keys and all, rather than held with its motion swallowed. After the
+		// grab, so a keyboard another grabber owns creates no pointer proxy.
+		if C.neru_evdev_has_rel_axes(descriptor) != 0 && !capture.ensurePointerProxyLocked(path) {
+			C.neru_evdev_grab(descriptor, 0)
+			_ = file.Close()
+
+			return nil, nil, false
+		}
+
 		seeds = heldKeys(descriptor)
 	}
 
 	capture.files = append(capture.files, file)
+	capture.devices[file] = trackedDevice{name: name}
 
 	return file, seeds, true
+}
+
+// ensurePointerProxyLocked creates the pointer proxy if there is none yet and
+// reports whether there is one. The caller holds deviceMu, so two scans cannot
+// create two.
+func (capture *waylandEvdevCapture) ensurePointerProxyLocked(path string) bool {
+	if capture.pointer.Load() != nil {
+		return true
+	}
+
+	var pointerFd C.int = -1
+
+	created, errno := C.neru_uinput_create_proxy_pointer(&pointerFd)
+	if created == 0 {
+		if capture.logger != nil {
+			capture.logger.Warn(
+				"Keyboard reports pointer motion and the pointer proxy could not be created; "+
+					"leaving it to the compositor, so its keys are not captured",
+				zap.String("device", path),
+				zap.Error(errno),
+			)
+		}
+
+		return false
+	}
+
+	capture.pointer.Store(&pointerProxy{fd: pointerFd})
+
+	if capture.logger != nil {
+		capture.logger.Info(
+			"Evdev pointer proxy created for a keyboard that reports pointer motion",
+		)
+	}
+
+	return true
 }
 
 // heldKeys is every key the kernel reports down on fd, read right after the
@@ -281,9 +368,23 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 			// Device disconnected — remove it from the tracked files slice
 			// so we don't attempt to write LEDs to a stale fd.
 			capture.deviceMu.Lock()
+			device := capture.devices[file]
 			capture.removeFileLocked(file)
 			capture.deviceMu.Unlock()
 			_ = file.Close()
+
+			// A device that is gone may have been a remapper's output, whose
+			// exit also freed the keyboards it held; pick those up. Not for a
+			// device this capture let go of itself, which its remapper wants.
+			if device.released {
+				return
+			}
+
+			select {
+			case <-capture.stopCh:
+			default:
+				go capture.rescan(device.name)
+			}
 
 			return
 		}
@@ -303,6 +404,8 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 // removeFileLocked removes file from the tracked files slice.
 // Must be called with capture.deviceMu held.
 func (capture *waylandEvdevCapture) removeFileLocked(file *os.File) {
+	delete(capture.devices, file)
+
 	for i, f := range capture.files {
 		if f == file {
 			capture.files = append(capture.files[:i], capture.files[i+1:]...)

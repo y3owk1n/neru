@@ -53,6 +53,10 @@ type evdevProxy struct {
 	global  waylandEvdevKeyState
 	session *evdevSession
 
+	// pointerFrame is whether the frame being read has put anything on the
+	// pointer proxy, so its sync report is sent there too.
+	pointerFrame bool
+
 	bindings atomic.Pointer[map[string]func()]
 
 	control chan proxyCommand
@@ -260,17 +264,42 @@ func (p *evdevProxy) refreshKeymap() {
 
 // handle applies the forward rule to one event and hands it to the consumer.
 //
-// Only key, scan-code and sync events are re-emitted. LED events come back to
-// the physical device from the compositor by way of the proxy (ledLoop), and
-// re-emitting the device's own echo of them would send each one round again.
+// Keys, scan codes and sync reports are re-emitted on the proxy keyboard.
+// Relative motion and buttons are not keys: they bypass the rule, the matcher
+// and the session and go straight to the pointer proxy, with the sync report
+// that closes their frame; a button the pointer proxy does not advertise goes
+// nowhere (isMouseButton). LED events come back to the physical device from the
+// compositor by way of the proxy (ledLoop), and re-emitting the device's own
+// echo of them would send each one round again.
 func (p *evdevProxy) handle(event waylandEvdevEvent) {
 	switch event.eventType {
 	case evdevEventSeed:
+		if isPointerButton(event.code) {
+			return
+		}
+
 		p.rule.seed(event.code)
 		p.trackGlobal(event.code, true)
 	case evdevEventKey:
+		if isPointerButton(event.code) {
+			if isMouseButton(event.code) {
+				p.emitPointer(event)
+			}
+
+			return
+		}
+
 		p.handleKey(event)
-	case evdevEventSyn, evdevEventMsc:
+	case evdevEventRel:
+		p.emitPointer(event)
+	case evdevEventSyn:
+		p.emit(event)
+
+		if p.pointerFrame {
+			p.pointerFrame = false
+			p.emitPointer(event)
+		}
+	case evdevEventMsc:
 		p.emit(event)
 	}
 }
@@ -375,7 +404,28 @@ func (p *evdevProxy) emit(event waylandEvdevEvent) {
 	raw.code = C.ushort(event.code)
 	raw.value = C.int(event.value)
 
-	p.write(&raw, 1)
+	p.write(p.uinputFd, &raw, 1)
+}
+
+// emitPointer re-emits one event on the pointer proxy. Without one nothing is
+// emitted, which is the passive proxy, where nothing is grabbed and the motion
+// reaches the compositor on its own device.
+func (p *evdevProxy) emitPointer(event waylandEvdevEvent) {
+	pointer := p.capture.pointer.Load()
+	if pointer == nil {
+		return
+	}
+
+	if event.eventType != evdevEventSyn {
+		p.pointerFrame = true
+	}
+
+	var raw C.struct_input_event
+	raw._type = C.ushort(event.eventType)
+	raw.code = C.ushort(event.code)
+	raw.value = C.int(event.value)
+
+	p.write(pointer.fd, &raw, 1)
 }
 
 // emitKey re-emits a key event of the proxy's own making, with the sync report
@@ -388,17 +438,17 @@ func (p *evdevProxy) emitKey(code uint16, value int32) {
 	frame[1]._type = C.ushort(evdevEventSyn)
 	frame[1].code = C.ushort(evdevSynReport)
 
-	p.write(&frame[0], len(frame))
+	p.write(p.uinputFd, &frame[0], len(frame))
 }
 
-// write puts count events on the proxy keyboard, whole. Anything less means the
+// write puts count events on one proxy device, whole. Anything less means the
 // device is gone from under the grab, and the grab is let go of (failOpen).
-func (p *evdevProxy) write(events *C.struct_input_event, count int) {
+func (p *evdevProxy) write(fd C.int, events *C.struct_input_event, count int) {
 	if !p.forwarding.Load() {
 		return
 	}
 
-	written, err := C.neru_evdev_write_events(p.uinputFd, events, C.int(count))
+	written, err := C.neru_evdev_write_events(fd, events, C.int(count))
 	if int(written) == count*int(unsafe.Sizeof(C.struct_input_event{})) {
 		return
 	}

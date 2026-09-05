@@ -97,12 +97,18 @@ the proxy reads passively: hotkeys still work, but modes fall back to
 overlay-focused capture, where basic navigation works and modified clicks may
 degrade. Without `/dev/input` access there is no proxy at all.
 
-Two consequences of holding the keyboards:
+Three consequences of holding the keyboards:
 
 - A key remapper (kanata, keyd) grabs its input keyboards the same way. Start
   it before Neru: a device that refuses the grab is left to its owner and the
   remapper's virtual output keyboard is captured instead, which is the one that
-  carries your keys.
+  carries your keys. That device also advertises mouse motion and buttons, so a
+  key can move the pointer; Neru re-emits those through a second device of its
+  own, `neru-pointer-proxy`, created the first time such a keyboard is grabbed.
+  Quitting the remapper while Neru runs is fine: Neru takes the keyboards it
+  released, and hands them back when the remapper's output device reappears.
+- A keyboard that reports absolute axes (a built-in trackpad on the same node)
+  is never grabbed, so its keys are not captured.
 - Compositor settings applied per input device (an `input` block in Sway or
   Hyprland, a per-device keyboard layout in KDE) apply to
   `neru-keyboard-proxy` while the daemon runs, since that is the keyboard the

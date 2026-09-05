@@ -430,6 +430,46 @@ func TestEvdevProxy_PassthroughForwardsTheChordAndItsHeldModifiers(t *testing.T)
 // A proxy whose device stopped taking writes lets go of the keyboards rather
 // than hold keys it can no longer deliver, and refuses to capture for a mode
 // from then on, so the tap falls back to the overlay's keyboard focus.
+// A remapper's output keyboard also carries mouse motion and buttons. Those are
+// not keys: a mode does not capture a click, the matcher does not spell a chord
+// with one, and the forward rule owes the compositor nothing for it.
+func TestEvdevProxy_PointerEventsAreNotKeys(t *testing.T) {
+	t.Parallel()
+
+	const btnLeft uint16 = 0x110
+
+	proxy := newTestProxy()
+	fired := bindTestChord(proxy)
+	tap, keys := collectKeys(t)
+	beginSession(proxy, tap)
+
+	proxy.handle(waylandEvdevEvent{eventType: evdevEventSeed, code: btnLeft})
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
+	proxy.handle(keyEvent(btnLeft, evdevValuePress))
+	proxy.handle(waylandEvdevEvent{eventType: evdevEventRel, code: 0, value: 3})
+	proxy.handle(waylandEvdevEvent{eventType: evdevEventSyn})
+	proxy.handle(keyEvent(btnLeft, evdevValueRelease))
+	proxy.handle(waylandEvdevEvent{eventType: evdevEventSyn})
+
+	if proxy.rule.isDown(btnLeft) {
+		t.Error("a mouse button was counted as a forwarded key")
+	}
+
+	if proxy.global.pressed[btnLeft] {
+		t.Error("a mouse button was tracked as a held key")
+	}
+
+	if waitFired(t, fired) {
+		t.Error("a binding fired on pointer events")
+	}
+
+	noKey(t, keys)
+
+	if proxy.pointerFrame {
+		t.Error("the pointer frame was left open after its sync report")
+	}
+}
+
 func TestEvdevProxy_FailOpenReleasesTheKeyboardsAndRefusesSessions(t *testing.T) {
 	t.Parallel()
 

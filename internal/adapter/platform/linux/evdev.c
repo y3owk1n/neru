@@ -15,6 +15,12 @@
 
 int neru_evdev_grab(int fd, int grab) { return ioctl(fd, EVIOCGRAB, grab); }
 
+/* Revoke fd: every read on it, including one already blocked, returns ENODEV,
+ * and the fd stays a dead descriptor until its owner closes it, so the number
+ * cannot be reused under a reader that still holds it. The argument must be
+ * NULL; the kernel refuses anything else. */
+int neru_evdev_revoke(int fd) { return ioctl(fd, EVIOCREVOKE, NULL); }
+
 int neru_evdev_key_down(int fd, unsigned int keycode) {
 	unsigned long key_bits[(KEY_MAX + 8 * sizeof(unsigned long)) / (8 * sizeof(unsigned long))];
 	memset(key_bits, 0, sizeof(key_bits));
@@ -313,11 +319,7 @@ int neru_uinput_key(int fd, int keycode, int pressed) {
 	return (written == (ssize_t)sizeof(ev)) ? 1 : 0;
 }
 
-/* A node that reports relative or absolute axes is a pointer with keys on it
- * (a receiver that exposes its mouse and keyboard on one node, a keyboard with
- * a built-in trackpad). Grabbing it for its keys would swallow its motion, and
- * the proxy keyboard has no axes to re-emit that motion on. */
-int neru_evdev_has_pointer_axes(int fd) {
+static int neru_evdev_has_event_type(int fd, int type) {
 	unsigned long ev_bits[(EV_MAX + 8 * sizeof(unsigned long)) / (8 * sizeof(unsigned long))];
 	memset(ev_bits, 0, sizeof(ev_bits));
 
@@ -325,8 +327,20 @@ int neru_evdev_has_pointer_axes(int fd) {
 		return 0;
 	}
 
-	return NERU_TEST_KEY(ev_bits, EV_REL) || NERU_TEST_KEY(ev_bits, EV_ABS);
+	return NERU_TEST_KEY(ev_bits, type);
 }
+
+/* A node that reports absolute axes is a touch surface or a tablet with keys
+ * on it (a keyboard with a built-in trackpad). Grabbing it for its keys would
+ * swallow its touches, and re-emitting those would need the device's own axis
+ * ranges and slots, so it is left alone. */
+int neru_evdev_has_abs_axes(int fd) { return neru_evdev_has_event_type(fd, EV_ABS); }
+
+/* A node that reports relative axes is a keyboard with a pointer on it: a
+ * receiver that exposes its mouse and keyboard on one node, or a remapper's
+ * output device, which advertises mouse motion and buttons so a key can move
+ * the pointer (kanata, keyd). Its motion is re-emitted on the pointer proxy. */
+int neru_evdev_has_rel_axes(int fd) { return neru_evdev_has_event_type(fd, EV_REL); }
 
 /* The keys the kernel reports down on fd, as the EVIOCGKEY bitmap. bits_size
  * is in bytes and must cover KEY_MAX. */
@@ -395,6 +409,64 @@ int neru_uinput_create_proxy_keyboard(int *out_fd) {
 	usetup.id.vendor = NERU_UINPUT_VENDOR;
 	usetup.id.product = 0x567a;
 	strcpy(usetup.name, "neru-keyboard-proxy");
+	if (ioctl(fd, UI_DEV_SETUP, &usetup) < 0 || ioctl(fd, UI_DEV_CREATE) < 0) {
+		neru_uinput_fail(fd);
+		return 0;
+	}
+
+	*out_fd = fd;
+	return 1;
+}
+
+/* The pointer half of the proxy: where the relative motion and the mouse
+ * buttons of a grabbed keyboard that carries them go. Created only once such a
+ * keyboard is grabbed, so a setup without one sees no virtual mouse. Only the
+ * mouse buttons are advertised: BTN_1 or a joystick or gamepad button would
+ * have udev class the device as a joystick (isMouseButton is the Go side of
+ * this range). On failure errno is as neru_uinput_create_proxy_keyboard leaves
+ * it. */
+int neru_uinput_create_proxy_pointer(int *out_fd) {
+	int fd = open("/dev/uinput", O_RDWR);
+	if (fd < 0) {
+		int open_errno = errno;
+		fd = open("/dev/input/uinput", O_RDWR);
+		if (fd < 0) {
+			errno = open_errno;
+			return 0;
+		}
+	}
+
+	if (ioctl(fd, UI_SET_EVBIT, EV_KEY) < 0 || ioctl(fd, UI_SET_EVBIT, EV_SYN) < 0 ||
+	    ioctl(fd, UI_SET_EVBIT, EV_REL) < 0 || ioctl(fd, UI_SET_PROPBIT, INPUT_PROP_POINTER) < 0) {
+		neru_uinput_fail(fd);
+		return 0;
+	}
+
+	for (int code = BTN_LEFT; code <= BTN_TASK; code++) {
+		if (ioctl(fd, UI_SET_KEYBIT, code) < 0) {
+			neru_uinput_fail(fd);
+			return 0;
+		}
+	}
+
+	/* Every relative axis, so whatever motion a grabbed device reports has a
+	 * code here; the kernel drops an event for a code a device does not
+	 * advertise, and a dropped event on a grabbed device reaches nothing. */
+	for (int code = 0; code <= REL_MAX; code++) {
+		if (code == REL_RESERVED)
+			continue;
+		if (ioctl(fd, UI_SET_RELBIT, code) < 0) {
+			neru_uinput_fail(fd);
+			return 0;
+		}
+	}
+
+	struct uinput_setup usetup;
+	memset(&usetup, 0, sizeof(usetup));
+	usetup.id.bustype = BUS_VIRTUAL;
+	usetup.id.vendor = NERU_UINPUT_VENDOR;
+	usetup.id.product = 0x567b;
+	strcpy(usetup.name, "neru-pointer-proxy");
 	if (ioctl(fd, UI_DEV_SETUP, &usetup) < 0 || ioctl(fd, UI_DEV_CREATE) < 0) {
 		neru_uinput_fail(fd);
 		return 0;
