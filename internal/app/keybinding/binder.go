@@ -100,9 +100,10 @@ func (b *Binder) registerHotkeys(bundleID string) {
 				},
 			)
 		} else {
-			// Backend without release events (currently Windows and Linux): held-key
-			// repeat is not possible, so a single mode-aware dispatch is the whole
-			// behavior.
+			// Backend without release events: held-key repeat is not possible, so
+			// a single mode-aware dispatch is the whole behavior. Every shipped
+			// manager reports releases; this is the fallback the port's optional
+			// extension rules require.
 			_, registerHotkeyErr = b.hotkeyManager.Register(bindKey, func() {
 				b.dispatchModeAwareHotkeyAsync(bindKey, bindActions)
 			})

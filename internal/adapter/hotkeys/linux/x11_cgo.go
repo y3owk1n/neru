@@ -15,6 +15,7 @@ import (
 	"time"
 	"unsafe"
 
+	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
@@ -50,6 +51,10 @@ type x11HotkeyState struct {
 	root     C.Window
 	bindings map[ports.HotkeyID]x11HotkeyBinding
 	ids      map[string]ports.HotkeyID
+	// held is owned by the poll loop, the only goroutine that reads key events,
+	// and dispatch runs the callbacks it fires, in order, off it.
+	held     x11HeldHotkeys
+	dispatch *eventtaplinux.HotkeyDispatcher
 	stopCh   chan struct{} // signals runX11HotkeyLoop to exit
 	doneCh   chan struct{} // closed when runX11HotkeyLoop has exited
 	once     sync.Once
@@ -93,7 +98,7 @@ func (s *x11HotkeyState) grab(keyString string) (x11HotkeyBinding, error) {
 		)
 	}
 
-	C.XSelectInput(s.display, s.root, C.KeyPressMask)
+	C.XSelectInput(s.display, s.root, C.KeyPressMask|C.KeyReleaseMask)
 	C.XFlush(s.display)
 
 	return x11HotkeyBinding{keycode: C.int(keycode), modifiers: modifiers}, nil
@@ -209,6 +214,7 @@ func (m *Manager) unregisterAllX11Hotkeys() {
 		close(state.stopCh)
 		<-state.doneCh
 
+		state.dispatch.Stop()
 		state.closeDisplay()
 		x11States.Delete(m)
 	})
@@ -236,11 +242,26 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 		)
 	}
 
+	// A held key is otherwise reported as release/press pairs at the server's
+	// autorepeat rate, and every one of those releases would end the hold.
+	// With detectable autorepeat the hold is further KeyPress events and one
+	// KeyRelease when the key comes up, which is the edge the binder repeats
+	// on. Per connection, so the in-mode tap asks for the same on its own
+	// (platform/linux/x11_eventtap.c).
+	if C.neru_hotkeys_set_detectable_autorepeat(display) == 0 {
+		m.logger.Warn(
+			"X server does not support detectable autorepeat; a held global hotkey " +
+				"repeats at the server's autorepeat rate instead of held_repeat's",
+		)
+	}
+
 	state := &x11HotkeyState{
 		display:  display,
 		root:     C.neru_hotkeys_root_window(display),
 		bindings: make(map[ports.HotkeyID]x11HotkeyBinding),
 		ids:      make(map[string]ports.HotkeyID),
+		held:     make(x11HeldHotkeys),
+		dispatch: eventtaplinux.NewHotkeyDispatcher(),
 		stopCh:   make(chan struct{}),
 		doneCh:   make(chan struct{}),
 	}
@@ -273,30 +294,47 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 			continue
 		}
 
-		if C.neru_xevent_type(&event) != C.KeyPress {
-			continue
-		}
-
 		keycode := C.neru_xkey_keycode(&event)
-		modifiers := C.neru_xkey_state(&event) &^ (C.Mod2Mask | C.LockMask)
 
-		// Hold m.mu while reading state.ids — Register/Unregister write
-		// to this map under the same lock, so an unguarded read here is a
-		// concurrent map read/write (runtime crash under the race detector).
-		// We also fetch the callback in the same critical section to avoid
-		// a second lock acquisition via callbackFor.
-		m.mu.RLock()
-		id, ok := state.ids[x11BindingKey(keycode, modifiers)]
+		switch C.neru_xevent_type(&event) {
+		case C.KeyPress:
+			modifiers := C.neru_xkey_state(&event) &^ (C.Mod2Mask | C.LockMask)
 
-		var callback ports.HotkeyCallback
-		if ok {
-			callback = m.callbacks[id]
-		}
+			// Hold m.mu while reading state.ids — Register/Unregister write
+			// to this map under the same lock, so an unguarded read here is a
+			// concurrent map read/write (runtime crash under the race
+			// detector). The callback is fetched in the same critical section
+			// to avoid a second lock acquisition.
+			m.mu.RLock()
+			hotkeyID, bound := state.ids[x11BindingKey(keycode, modifiers)]
 
-		m.mu.RUnlock()
+			var callbacks hotkeyCallbacks
+			if bound {
+				callbacks = m.callbacks[hotkeyID]
+			}
 
-		if callback != nil {
-			go callback()
+			m.mu.RUnlock()
+
+			if !bound || !state.held.press(uint32(keycode), hotkeyID) {
+				continue
+			}
+
+			if callbacks.press != nil {
+				state.dispatch.Dispatch(callbacks.press)
+			}
+		case C.KeyRelease:
+			hotkeyID, wasDown := state.held.release(uint32(keycode))
+			if !wasDown {
+				continue
+			}
+
+			m.mu.RLock()
+			release := m.callbacks[hotkeyID].release
+			m.mu.RUnlock()
+
+			if release != nil {
+				state.dispatch.Dispatch(release)
+			}
 		}
 	}
 }

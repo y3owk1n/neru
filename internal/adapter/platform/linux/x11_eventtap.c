@@ -1,5 +1,6 @@
 #include "x11_eventtap.h"
 
+#include <X11/XKBlib.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/XTest.h>
@@ -8,6 +9,18 @@
 #include <string.h>
 
 Display *neru_eventtap_open(void) { return XOpenDisplay(NULL); }
+
+// A held key is otherwise reported as release/press pairs at the server's
+// autorepeat rate, and the tap turned each of those releases into a key-up
+// that ended the mode's own held repeat after its first tick. Detectable
+// autorepeat reports the hold as further KeyPress events and one KeyRelease,
+// so the key-up means the key came up. Per connection; the hotkey connection
+// asks for the same (x11_hotkeys.c). Returns 1 when the server honors it.
+int neru_eventtap_set_detectable_autorepeat(Display *display) {
+	Bool supported = False;
+	XkbSetDetectableAutoRepeat(display, True, &supported);
+	return supported ? 1 : 0;
+}
 
 void neru_eventtap_close(Display *display) {
 	if (display != NULL) {

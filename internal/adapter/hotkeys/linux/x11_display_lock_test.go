@@ -46,6 +46,8 @@ var x11DisplayCalls = map[string]struct{}{
 	"XUngrabKey":               {},
 	"neru_hotkeys_pending":     {},
 	"neru_hotkeys_root_window": {},
+	// XkbSetDetectableAutoRepeat: a request on the connection.
+	"neru_hotkeys_set_detectable_autorepeat": {},
 }
 
 // x11ConnectionFreeCalls are the cgo calls that touch no connection: type
@@ -92,9 +94,10 @@ var x11DisplayLockCallees = map[string]string{
 // the lock, with the reason each is sound. An entry here is a claim that no
 // second goroutine can be inside the connection at that moment.
 var x11DisplayLockExemptions = map[string]string{
-	"ensureX11State": "opens the connection and reads the root window before " +
-		"the state is published to x11States and before the poll loop starts, " +
-		"so there is no second user of the connection yet and no lock to take",
+	"ensureX11State": "opens the connection, asks it for detectable autorepeat " +
+		"and reads the root window before the state is published to x11States " +
+		"and before the poll loop starts, so there is no second user of the " +
+		"connection yet and no lock to take",
 }
 
 // x11HotkeySourceFile is the only file in this package permitted to speak on

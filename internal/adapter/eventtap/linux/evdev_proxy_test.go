@@ -36,8 +36,10 @@ func newTestProxy() *evdevProxy {
 		done:     make(chan struct{}),
 	}
 
-	empty := map[string]func(){}
+	empty := map[string]hotkeyBinding{}
 	proxy.bindings.Store(&empty)
+	proxy.heldHotkeys = make(map[uint16]func())
+	proxy.dispatch = NewHotkeyDispatcher()
 
 	return proxy
 }
@@ -45,8 +47,8 @@ func newTestProxy() *evdevProxy {
 func bindTestChord(proxy *evdevProxy) chan struct{} {
 	fired := make(chan struct{}, 4)
 
-	proxy.setBindings(map[string]func(){
-		canonicalChordSignature(testChord): func() { fired <- struct{}{} },
+	proxy.setBindings(map[string]hotkeyBinding{
+		canonicalChordSignature(testChord): {press: func() { fired <- struct{}{} }},
 	})
 
 	return fired
@@ -186,6 +188,54 @@ func TestForwardRule_IgnoresCodesOutsideTheKeyRange(t *testing.T) {
 
 	if rule.isDown(evdevKeyCodeCount) {
 		t.Fatal("a code past KEY_MAX was recorded")
+	}
+}
+
+// A held chord is one press and one release to the binder, which is what lets
+// it repeat the binding for as long as the key is down: the kernel's repeats
+// fire nothing, and the release comes when the key comes up, whether or not
+// the modifier is still held by then.
+func TestEvdevProxy_AHeldChordFiresPressOnceAndReleaseWhenItsKeyComesUp(t *testing.T) {
+	t.Parallel()
+
+	proxy := newTestProxy()
+	pressed := make(chan struct{}, 4)
+	released := make(chan struct{}, 4)
+
+	proxy.setBindings(map[string]hotkeyBinding{
+		canonicalChordSignature(testChord): {
+			press:   func() { pressed <- struct{}{} },
+			release: func() { released <- struct{}{} },
+		},
+	})
+
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
+	proxy.handle(keyEvent(evdevKeySemicolon, evdevValuePress))
+
+	if !waitFired(t, pressed) {
+		t.Fatal("the chord did not match")
+	}
+
+	proxy.handle(keyEvent(evdevKeySemicolon, evdevValueRepeat))
+	proxy.handle(keyEvent(evdevKeySemicolon, evdevValueRepeat))
+
+	select {
+	case <-pressed:
+		t.Fatal(
+			"a repeat fired the press again; the binder would restart its repeat from the delay",
+		)
+	case <-released:
+		t.Fatal("the release fired while the key was still down")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	// The modifier comes up first, so the key's release is no longer the
+	// chord. The release is owed to the key, not the chord.
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValueRelease))
+	proxy.handle(keyEvent(evdevKeySemicolon, evdevValueRelease))
+
+	if !waitFired(t, released) {
+		t.Fatal("the key came up and no release fired; the binder would repeat forever")
 	}
 }
 
@@ -612,7 +662,7 @@ func TestGlobalHotkeyListener_StopDetachesTheBindings(t *testing.T) {
 
 	proxy := newTestProxy()
 	listener := NewGlobalHotkeyListener(nil)
-	listener.SetBinding(testChord, func() {})
+	listener.SetBinding(testChord, func() {}, nil)
 
 	listener.mu.Lock()
 	listener.proxy = proxy

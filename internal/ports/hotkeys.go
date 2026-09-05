@@ -38,9 +38,13 @@ type HotkeyPort interface {
 //
 // The rules for optional extensions are in system.go and apply here too.
 //
-// Implemented by the macOS manager, whose per-hotkey CGEventTaps see both
-// edges. X11's XGrabKey and Win32's RegisterHotKey deliver press only, so those
-// backends do not implement it.
+// Implemented by all three managers, each from a different source: the macOS
+// per-hotkey CGEventTaps see both edges; on Linux the evdev proxy reads every
+// release and an XGrabKey delivers KeyRelease to the grabbing client; Win32's
+// RegisterHotKey reports the press only, so the Windows manager polls the
+// key's state while it is held. A hold is one press and one release however
+// long it lasts — autorepeat fires nothing — which is what held-key repeat
+// ([held_repeat]) is built on.
 //
 // Callers must fall back to Register — a press-only binding is a working
 // binding; only hold-to-activate behavior is lost.

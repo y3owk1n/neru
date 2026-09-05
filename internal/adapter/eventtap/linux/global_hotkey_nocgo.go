@@ -21,7 +21,7 @@ func NewGlobalHotkeyListener(_ *zap.Logger) *GlobalHotkeyListener {
 }
 
 // SetBinding is a no-op without cgo.
-func (l *GlobalHotkeyListener) SetBinding(_ string, _ func()) {}
+func (l *GlobalHotkeyListener) SetBinding(_ string, _, _ func()) {}
 
 // ClearBindings is a no-op without cgo.
 func (l *GlobalHotkeyListener) ClearBindings() {}
