@@ -45,14 +45,14 @@ Host changes required before Neru runs correctly (not code changes):
 | 1   | Install [build dependencies](#build-dependencies)           | CGO backends and runtime libs         | All Linux | Yes                     |
 | 2   | Add user to `input` group: `sudo usermod -aG input "$USER"` | `evdev` keyboard capture **and Neru's own global hotkeys** on Wayland | Wayland | Yes (re-login required) |
 | 3   | Bind `neru <mode>` in compositor keybindings                | Only needed if you skip item 2        | Wayland   | Yes (user config)       |
-| 4   | Make `/dev/uinput` writable (udev rule below)               | Scroll injection through a uinput wheel; without it scrolling falls back to the compositor virtual pointer, which Chromium and Electron apps on Hyprland ignore. Also the fast path for `neru key` | Wayland | Yes (udev rule) |
+| 4   | Make `/dev/uinput` writable (udev rule below)               | Keyboard capture for modes (Neru re-emits the keyboards it holds through a uinput proxy; without it modes fall back to the overlay's keyboard focus and a hotkey chord also reaches the focused app), scroll injection through a uinput wheel (without it scrolling falls back to the compositor virtual pointer, which Chromium and Electron apps on Hyprland ignore), and the fast path for `neru key` | Wayland | Yes (udev rule) |
 
 Notes:
 
 - X11 only needs item 1; global hotkeys work via `XGrabKey` from Neru config.
 - Item 2 takes effect after a full logout/login or reboot.
 - Item 3 is a **fallback, not a requirement**: with item 2 in place Neru's own
-  `[hotkeys]` config works on Wayland through a passive evdev listener. Bind in
+  `[hotkeys]` config works on Wayland through the evdev keyboard proxy. Bind in
   the compositor only if you would rather not grant `/dev/input` access. See
   [Global hotkeys on Wayland](./LINUX_DESKTOPS.md#global-hotkeys-on-wayland).
 - Item 3 cannot be automated by a package; ship example snippets where helpful.
@@ -63,8 +63,12 @@ Notes:
 
 ## Wayland keyboard capture permissions
 
-On Wayland, Neru uses direct `evdev` keyboard capture during active modes so
-modified clicks and sticky modifiers work reliably.
+On Wayland, Neru holds every keyboard (`EVIOCGRAB`) for the daemon's lifetime and
+re-emits it through a uinput keyboard of its own, `neru-keyboard-proxy`. The
+compositor reads that one device, so a mode captures keys the instant it opens
+and a hotkey chord never reaches the focused app; between modes every key is
+passed straight through. This needs item 2 (read `/dev/input`) and item 4
+(write `/dev/uinput`) from the table above.
 
 ```bash
 sudo usermod -aG input "$USER"
@@ -75,9 +79,22 @@ Log out and back in, then confirm `id` lists the `input` group.
 > Membership in `input` allows reading system-wide keyboard events. Use a tighter
 > distro-specific `udev`/ACL setup if the group is too broad for your environment.
 
-When capture works, Neru logs `Using Wayland evdev keyboard capture`. Without
-device access it falls back to overlay-focused capture; basic navigation still
-works but modified clicks may degrade.
+When capture works, Neru logs `Evdev keyboard proxy running` at startup and
+`Using Wayland evdev keyboard capture` when a mode opens. Without `/dev/uinput`
+the proxy reads passively: hotkeys still work, but modes fall back to
+overlay-focused capture, where basic navigation still works and modified clicks
+may degrade. Without `/dev/input` access there is no proxy at all.
+
+Two things to know about holding the keyboards:
+
+- A key remapper (kanata, keyd) grabs its input keyboards the same way. Start it
+  before Neru: a device that refuses the grab is left to its owner and the
+  remapper's virtual output keyboard is captured instead, which is the one that
+  carries your keys.
+- Compositor settings applied per input device (an `input` block in Sway or
+  Hyprland, a keyboard layout set per device in KDE) apply to
+  `neru-keyboard-proxy` while the daemon runs, since that is the keyboard the
+  compositor sees.
 
 ---
 
@@ -285,8 +302,8 @@ that version when validating locally.
 
 **X11:** Hotkeys in `config.toml` work via `XGrabKey`.
 
-**Wayland:** Hotkeys in `config.toml` also work, through a passive `evdev`
-listener, provided the daemon can read `/dev/input` (see item 2 above). If you
+**Wayland:** Hotkeys in `config.toml` also work, through the evdev keyboard
+proxy, provided the daemon can read `/dev/input` (see item 2 above). If you
 would rather not grant that access, bind `neru <mode>` in the compositor
 instead — see [Global hotkeys on Wayland](./LINUX_DESKTOPS.md#global-hotkeys-on-wayland).
 Compositor examples:
@@ -416,8 +433,8 @@ there unloaded.
 
 ## Known limitations
 
-1. **Wayland global hotkeys** — Neru's own `[hotkeys]` config works via a passive
-   evdev listener, which needs `input`-group access and a CGO build; otherwise
+1. **Wayland global hotkeys** — Neru's own `[hotkeys]` config works via the evdev
+   keyboard proxy, which needs `input`-group access and a CGO build; otherwise
    bind the modes in your compositor instead. See
    [Global hotkeys on Wayland](./LINUX_DESKTOPS.md#global-hotkeys-on-wayland).
 2. **Hints need AT-SPI** — Grid and scroll work without it; hints coverage varies
@@ -467,6 +484,13 @@ wl-info   # wayland-utils package
 
 Add the user to `input`, re-login, confirm with `id`. See
 [keyboard permissions](#wayland-keyboard-capture-permissions).
+
+### "Keyboard capture unavailable: /dev/uinput is not writable"
+
+The proxy has keyboards to read but nothing to re-emit them through, so it reads
+passively and modes fall back to the overlay's keyboard focus. Add the udev rule
+from [scroll injection permissions](#wayland-scroll-injection-permissions) and
+restart the daemon.
 
 ### Sticky modifier indicator shows `[][][][]`
 

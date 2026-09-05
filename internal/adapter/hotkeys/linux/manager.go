@@ -26,8 +26,9 @@ type Manager struct {
 	backend   platform.LinuxBackend
 	mu        sync.RWMutex
 
-	// waylandHotkeys honors config keybindings on Wayland via passive evdev
-	// reads, since compositors do not expose global hotkeys to clients.
+	// waylandHotkeys honors config keybindings on Wayland by matching chords
+	// on the evdev keyboard proxy, since compositors do not expose global
+	// hotkeys to clients.
 	waylandHotkeys *eventtaplinux.GlobalHotkeyListener
 	waylandStarted bool
 	// waylandUnsupportedLogged latches the CodeNotSupported refusal so the
@@ -149,7 +150,7 @@ var _ ports.HotkeyHealthReporter = (*Manager)(nil)
 
 // HealthCheck returns true when the global hotkey listener is healthy.
 // On non-Wayland backends (X11) it always returns true because there is no
-// passive evdev listener to monitor. Callers (the app health-check loop)
+// evdev listener to monitor. Callers (the app health-check loop)
 // reinitialize the listener if this returns false.
 func (m *Manager) HealthCheck() bool {
 	m.mu.RLock()

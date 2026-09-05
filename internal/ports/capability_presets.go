@@ -98,15 +98,19 @@ func LinuxCapabilities() PlatformCapabilities {
 				"dismissed, not a modal dialog",
 		),
 		GlobalHotkeys: supportedCapability(
-			"global hotkeys available via X11 XGrabKey; on Wayland via a passive " +
-				"evdev listener on /dev/input that honors neru's own keybindings " +
-				"(needs input-group access and a cgo build), falling back to " +
-				"compositor keybindings otherwise",
+			"global hotkeys available via X11 XGrabKey; on Wayland via the evdev " +
+				"keyboard proxy on /dev/input that honors neru's own keybindings " +
+				"(needs input-group access and a cgo build; with /dev/uinput " +
+				"writable a matched chord is consumed before the focused app sees " +
+				"it), falling back to compositor keybindings otherwise",
 		),
 		KeyboardEventTap: supportedCapability(
-			"keyboard event tap available via X11 grab and Wayland evdev/layer-shell " +
-				"keyboard interactivity; modifier passthrough of unbound shortcuts is " +
-				"supported on the Wayland evdev backend only (X11's exclusive grab and " +
+			"keyboard event tap available via X11 grab and, on Wayland, the evdev " +
+				"keyboard proxy (every keyboard held and re-emitted through a uinput " +
+				"device, so a mode captures keys the instant it opens; needs input-group " +
+				"access and a writable /dev/uinput) with layer-shell keyboard " +
+				"interactivity as the fallback; modifier passthrough of unbound " +
+				"shortcuts is supported on the proxy only (X11's exclusive grab and " +
 				"the wl-keyboard fallback cannot re-inject selectively)",
 		),
 		AppWatcher: supportedCapability(

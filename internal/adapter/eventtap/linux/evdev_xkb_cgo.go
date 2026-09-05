@@ -103,12 +103,33 @@ func (capture *waylandEvdevCapture) feedKey(code uint16, isDown bool) {
 	C.neru_xkb_state_key((*C.neru_xkb_state)(capture.xkbState), C.uint16_t(code), down)
 }
 
-// refreshXkbState rebuilds xkb_state so lock modifiers and layout group reflect
-// the current compositor state, then syncs LED state from the devices.
-//
-// It is called when a reader starts on the devices — mode activation for the
-// tap, Start for the listener — because that is when the layout in force may
-// have changed since the last time either asked.
+// pollKeymap asks the compositor connection behind the xkb state for anything
+// it sent since the last call, without blocking, and rebuilds the state when
+// the keymap was replaced or the connection is gone. It is what keeps the
+// names the proxy resolves following a layout the user changes mid-session,
+// now that the state is built once rather than at every mode start.
+func (capture *waylandEvdevCapture) pollKeymap() {
+	// A state that never came up already said so once; asking again every
+	// two seconds would say it again every two seconds.
+	if capture == nil || capture.xkbState == nil {
+		return
+	}
+
+	switch C.neru_xkb_state_dispatch((*C.neru_xkb_state)(capture.xkbState)) {
+	case 0:
+		return
+	case 1:
+		// The state under the keymap is fresh, so its lock modifiers are not:
+		// read them off the devices again.
+		capture.syncLeds()
+	default:
+		capture.refreshXkbState()
+	}
+}
+
+// refreshXkbState rebuilds xkb_state from the compositor's keymap, then syncs
+// lock modifiers from the devices' LEDs. It runs once when the proxy starts
+// and again whenever pollKeymap finds the connection gone.
 func (capture *waylandEvdevCapture) refreshXkbState() {
 	if capture == nil {
 		return
@@ -132,6 +153,17 @@ func (capture *waylandEvdevCapture) refreshXkbState() {
 		return
 	}
 
+	capture.syncLeds()
+}
+
+// syncLeds sets the xkb state's lock modifiers from the devices' LEDs, which
+// are the kernel's word on NumLock and CapsLock at a moment the state has no
+// key history for.
+func (capture *waylandEvdevCapture) syncLeds() {
+	if capture == nil || capture.xkbState == nil {
+		return
+	}
+
 	numLock := C.int(0)
 	capsLock := C.int(0)
 
@@ -148,5 +180,5 @@ func (capture *waylandEvdevCapture) refreshXkbState() {
 	}
 	capture.deviceMu.Unlock()
 
-	C.neru_xkb_state_sync_leds(xkb, numLock, capsLock)
+	C.neru_xkb_state_sync_leds((*C.neru_xkb_state)(capture.xkbState), numLock, capsLock)
 }
