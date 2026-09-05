@@ -782,7 +782,7 @@ discovery rather than the mode itself.
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ✅ sampled triangle, see below |
 | **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ✅ top / center / bottom   |
 | **Grid**          | Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
-| **Grid**          | What an open subgrid shows     | ✅ the subgrid alone       | ✅ the subgrid alone       | ⚠️ the parent cells return under it on the next repaint |
+| **Grid**          | What an open subgrid shows     | ✅ the subgrid alone       | ✅ the subgrid alone       | ✅ the subgrid alone       |
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Sub-key preview                | ✅ mini-grid of next keys  | ✅ mini-grid of next keys  | ✅ mini-grid of next keys   |

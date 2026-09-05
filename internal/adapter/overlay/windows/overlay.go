@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"go.uber.org/zap"
+	"golang.org/x/sys/windows"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
@@ -26,8 +27,40 @@ const (
 	winSubgridFontScale = 0.7
 )
 
+// overlayWindow is the surface the grid overlay paints on: what winOverlay
+// asks of a winplatform.OverlayWindow, and nothing it does not. The concrete
+// window is the one implementation that ships; the tests in this package
+// stand a recording one in for it, because reaching the drawing code through
+// the real type means creating a layered HWND on an interactive desktop.
+type overlayWindow interface {
+	HWND() windows.HWND
+	Healthy() bool
+	Visible() bool
+	Bounds() image.Rectangle
+	Backend() string
+	Show()
+	Hide()
+	Clear()
+	ResizeToActiveScreen() error
+	Destroy()
+	FillRect(bounds image.Rectangle, color uint32)
+	StrokeRect(bounds image.Rectangle, color uint32, lineWidth float64)
+	FillRoundedRect(bounds image.Rectangle, radius float64, color uint32)
+	StrokeRoundedRect(bounds image.Rectangle, radius float64, color uint32, lineWidth float64)
+	FillTriangle(vertexA, vertexB, vertexC image.Point, color uint32)
+	DrawTextCentered(
+		text string,
+		bounds image.Rectangle,
+		fontFamily string,
+		fontSize float64,
+		color uint32,
+	)
+	DrawPointerGlyph(center image.Point, size int, char string, fontFamily string, color uint32)
+	Flush() error
+}
+
 type winOverlay struct {
-	window *winplatform.OverlayWindow
+	window overlayWindow
 	logger *zap.Logger
 	// renderMu is the manager's lock, which every draw here runs under; the
 	// transition goroutine takes it per frame (transition.go).
@@ -275,7 +308,7 @@ func (o *winOverlay) ShowSubgrid(
 
 	o.currentSubgrid = cell
 	o.gridPointer = pointer
-	o.repaintSubgrid()
+	o.redrawGrid()
 }
 
 // SetGridPointer records where grid mode's pointer stand-in belongs and
@@ -288,11 +321,6 @@ func (o *winOverlay) ShowSubgrid(
 // repainted. The record is kept even when nothing can be painted yet, for the
 // same reason UpdateGridMatches keeps its prefix while the window is hidden:
 // the next Show reads it.
-//
-// With a subgrid open, the repaint is the subgrid's own: a full grid redraw
-// here would put the parent cells back under it, which is the repaint
-// docs/CROSS_PLATFORM.md already reports for a narrowing keystroke and one
-// this call has no reason to add to.
 func (o *winOverlay) SetGridPointer(pointer recursivegridcomponent.VirtualPointerState) {
 	if o == nil || pointer == o.gridPointer {
 		return
@@ -301,12 +329,6 @@ func (o *winOverlay) SetGridPointer(pointer recursivegridcomponent.VirtualPointe
 	o.gridPointer = pointer
 
 	if o.cachedGrid == nil || o.suppressDraw || o.window == nil || !o.window.Visible() {
-		return
-	}
-
-	if o.currentSubgrid != nil {
-		o.repaintSubgrid()
-
 		return
 	}
 
@@ -420,6 +442,21 @@ func (o *winOverlay) backendName() string {
 	return o.window.Backend()
 }
 
+// redrawGrid paints the grid surface as it currently stands, which is either
+// the subgrid one cell was opened into or the cells themselves, with the
+// pointer stand-in on whichever it is. It is the only answer to "what does
+// this surface show", so the open, a narrowing keystroke, a pointer move and
+// the hide-unmatched toggle's next repaint all arrive at the same screen.
+//
+// The subgrid is the whole surface while one is open (#1491, #1610). macOS
+// settles that: its ShowSubgrid (adapter/overlay/render/grid/overlay_darwin.go)
+// clears the overlay window and hands NeruDrawGridCells the nine subgrid cells,
+// and that bridge replaces the view's cell array rather than adding to it, so
+// the parent cells leave the reference platform's overlay for as long as the
+// subgrid is up. Linux agrees since #1491. The guard lives here rather than at
+// each caller because every repaint reaches this: a narrowing keystroke that
+// put the parent cells back under the subgrid changed what was on screen
+// without the user asking for it.
 func (o *winOverlay) redrawGrid() {
 	o.redrawGridWithoutFlush()
 	o.flushOverlay("grid")
@@ -448,6 +485,27 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 
 	o.Clear()
 
+	if o.currentSubgrid != nil {
+		o.drawSubgrid(o.currentSubgrid.Bounds(), o.cachedStyle)
+	} else {
+		o.drawGridCells()
+	}
+
+	o.drawGridPointer(o.gridPointer)
+
+	if o.logger != nil {
+		o.logger.Debug(
+			"redraw complete",
+			zap.Int("cells", len(o.cachedGrid.AllCells())),
+			zap.Bool("subgrid", o.currentSubgrid != nil),
+			zap.Bool("healthy", o.window.Healthy()),
+		)
+	}
+}
+
+// drawGridCells paints every cell of the cached grid, marked against the
+// prefix typed so far and thinned by hide-unmatched.
+func (o *winOverlay) drawGridCells() {
 	style := o.cachedStyle
 	prefix := o.currentPrefix
 
@@ -482,20 +540,6 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 			)
 		}
 	}
-
-	if o.currentSubgrid != nil {
-		o.drawSubgrid(o.currentSubgrid.Bounds(), style)
-	}
-
-	o.drawGridPointer(o.gridPointer)
-
-	if o.logger != nil {
-		o.logger.Debug(
-			"redraw complete",
-			zap.Int("cells", len(o.cachedGrid.AllCells())),
-			zap.Bool("healthy", o.window.Healthy()),
-		)
-	}
 }
 
 func (o *winOverlay) flushOverlay(context string) {
@@ -517,17 +561,10 @@ func (o *winOverlay) flushOverlay(context string) {
 	}
 }
 
-// repaintSubgrid paints the open subgrid and the pointer on it as the whole
-// surface (#1491). The keys it draws with were handed over by the manager
-// when the subgrid was opened, and the surface has not been rebuilt since:
-// only a manager draw rebuilds it, and every one of those syncs the keys.
-func (o *winOverlay) repaintSubgrid() {
-	o.Clear()
-	o.drawSubgrid(o.currentSubgrid.Bounds(), o.cachedStyle)
-	o.drawGridPointer(o.gridPointer)
-	o.flushOverlay("subgrid")
-}
-
+// drawSubgrid paints the finer grid inside one cell. The keys it draws with
+// were handed over by the manager when the subgrid was opened, and the
+// surface has not been rebuilt since: only a manager draw rebuilds it, and
+// every one of those syncs the keys.
 func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
 	// The keys the subgrid is drawn with, which are the keys the mode layer
 	// selects on (internal/domain/grid/subgrid_keys.go).
