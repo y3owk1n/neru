@@ -15,6 +15,7 @@ import (
 	"time"
 	"unsafe"
 
+	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
@@ -50,11 +51,13 @@ type x11HotkeyState struct {
 	root     C.Window
 	bindings map[ports.HotkeyID]x11HotkeyBinding
 	ids      map[string]ports.HotkeyID
-	// held is owned by the poll loop, the only goroutine that reads key events.
-	held   x11HeldHotkeys
-	stopCh chan struct{} // signals runX11HotkeyLoop to exit
-	doneCh chan struct{} // closed when runX11HotkeyLoop has exited
-	once   sync.Once
+	// held is owned by the poll loop, the only goroutine that reads key events,
+	// and dispatch runs the callbacks it fires, in order, off it.
+	held     x11HeldHotkeys
+	dispatch *eventtaplinux.HotkeyDispatcher
+	stopCh   chan struct{} // signals runX11HotkeyLoop to exit
+	doneCh   chan struct{} // closed when runX11HotkeyLoop has exited
+	once     sync.Once
 }
 
 // x11IgnoredModifierMasks are the lock modifiers a grab has to be repeated
@@ -211,6 +214,7 @@ func (m *Manager) unregisterAllX11Hotkeys() {
 		close(state.stopCh)
 		<-state.doneCh
 
+		state.dispatch.Stop()
 		state.closeDisplay()
 		x11States.Delete(m)
 	})
@@ -247,7 +251,7 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 	if C.neru_hotkeys_set_detectable_autorepeat(display) == 0 {
 		m.logger.Warn(
 			"X server does not support detectable autorepeat; a held global hotkey " +
-				"fires once instead of repeating",
+				"repeats at the server's autorepeat rate instead of held_repeat's",
 		)
 	}
 
@@ -257,6 +261,7 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 		bindings: make(map[ports.HotkeyID]x11HotkeyBinding),
 		ids:      make(map[string]ports.HotkeyID),
 		held:     make(x11HeldHotkeys),
+		dispatch: eventtaplinux.NewHotkeyDispatcher(m.logger),
 		stopCh:   make(chan struct{}),
 		doneCh:   make(chan struct{}),
 	}
@@ -315,7 +320,7 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 			}
 
 			if callbacks.press != nil {
-				go callbacks.press()
+				state.dispatch.Dispatch(callbacks.press)
 			}
 		case C.KeyRelease:
 			hotkeyID, wasDown := state.held.release(uint32(keycode))
@@ -328,7 +333,7 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 			m.mu.RUnlock()
 
 			if release != nil {
-				go release()
+				state.dispatch.Dispatch(release)
 			}
 		}
 	}

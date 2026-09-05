@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -63,14 +64,26 @@ type hotkeyUnregisterRequest struct {
 	id int
 }
 
+// hotkeyHold is one press's release watcher. released is set the moment the
+// key reads up, and done is closed once the release callback has run (or the
+// watcher was stopped), so a WM_HOTKEY that arrives between the two is told
+// apart from an autorepeat and waits for the release to land before it is a
+// new press: delivered the other way round, the stale release would cancel the
+// repeat the new press had just started.
+type hotkeyHold struct {
+	stop     chan struct{}
+	done     chan struct{}
+	released atomic.Bool
+}
+
 // HotkeyRegistry manages RegisterHotKey bindings on a dedicated message thread.
 type HotkeyRegistry struct {
 	mu        sync.Mutex
 	callbacks map[int]hotkeyCallbacks
-	// held is the stop channel of the release watcher for each hotkey whose
-	// key is down, by registry id. A WM_HOTKEY for an id already here is the
-	// key still held and fires nothing.
-	held map[int]chan struct{}
+	// held is the release watcher for each hotkey whose key is down, by
+	// registry id. A WM_HOTKEY for an id already here is the key still held
+	// and fires nothing.
+	held map[int]*hotkeyHold
 	// keyDown reads whether a virtual key is down right now; a test stands in
 	// for GetAsyncKeyState here.
 	keyDown      func(vk uint32) bool
@@ -101,7 +114,7 @@ func GlobalHotkeyRegistry() (*HotkeyRegistry, error) {
 	globalHotkeyOnce.Do(func() {
 		registry := &HotkeyRegistry{
 			callbacks:    make(map[int]hotkeyCallbacks),
-			held:         make(map[int]chan struct{}),
+			held:         make(map[int]*hotkeyHold),
 			keyDown:      isVirtualKeyDown,
 			registered:   make(map[int]hotkeyRegistration),
 			threadStop:   make(chan struct{}),
@@ -326,8 +339,8 @@ func (r *HotkeyRegistry) handleUnregister(req hotkeyUnregisterRequest) {
 
 	// A hotkey unregistered while held owes no release: the binder stops every
 	// repeat before it unregisters.
-	if stop, held := r.held[req.id]; held {
-		close(stop)
+	if hold, held := r.held[req.id]; held {
+		close(hold.stop)
 		delete(r.held, req.id)
 	}
 }
@@ -336,14 +349,7 @@ func (r *HotkeyRegistry) handleHotkeyMessage(hotkeyID int) {
 	r.mu.Lock()
 	reg, hasReg := r.registered[hotkeyID]
 	callbacks := r.callbacks[hotkeyID]
-	_, held := r.held[hotkeyID]
-
-	var stop chan struct{}
-
-	if hasReg && !held && callbacks.release != nil {
-		stop = make(chan struct{})
-		r.held[hotkeyID] = stop
-	}
+	previous, held := r.held[hotkeyID]
 	r.mu.Unlock()
 
 	if !hasReg {
@@ -358,36 +364,55 @@ func (r *HotkeyRegistry) handleHotkeyMessage(hotkeyID int) {
 		zap.Int("id", hotkeyID),
 	)
 
-	// The key is still down from the press that started the watcher, so this
-	// is an autorepeat MOD_NOREPEAT did not fold, and the hold is already
-	// being reported.
 	if held {
-		return
+		// The key is still down from the press that started the watcher, so
+		// this is an autorepeat MOD_NOREPEAT did not fold, and the hold is
+		// already being reported.
+		if !previous.released.Load() {
+			return
+		}
+
+		// The key came up and went down again while its release was being
+		// delivered. The release lands first.
+		<-previous.done
+	}
+
+	var hold *hotkeyHold
+
+	if callbacks.release != nil {
+		hold = &hotkeyHold{stop: make(chan struct{}), done: make(chan struct{})}
+
+		r.mu.Lock()
+		r.held[hotkeyID] = hold
+		r.mu.Unlock()
 	}
 
 	if callbacks.press != nil {
 		callbacks.press()
 	}
 
-	if stop != nil {
-		go r.watchRelease(hotkeyID, reg.virtualKey, stop, callbacks.release)
+	if hold != nil {
+		go r.watchRelease(hotkeyID, reg.virtualKey, hold, callbacks.release)
 	}
 }
 
 // watchRelease reads the key every hotkeyPollInterval until it is up, then
-// fires release, unless stop closes first (the hotkey was unregistered).
+// fires release, unless the hold is stopped first (the hotkey was
+// unregistered).
 func (r *HotkeyRegistry) watchRelease(
 	hotkeyID int,
 	virtualKey uint32,
-	stop chan struct{},
+	hold *hotkeyHold,
 	release func(),
 ) {
+	defer close(hold.done)
+
 	ticker := time.NewTicker(hotkeyPollInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-stop:
+		case <-hold.stop:
 			return
 		case <-ticker.C:
 		}
@@ -396,15 +421,14 @@ func (r *HotkeyRegistry) watchRelease(
 			continue
 		}
 
-		// The hold ends under the lock before release runs, so the next
-		// press's WM_HOTKEY finds the id free.
+		hold.released.Store(true)
+		release()
+
 		r.mu.Lock()
-		if r.held[hotkeyID] == stop {
+		if r.held[hotkeyID] == hold {
 			delete(r.held, hotkeyID)
 		}
 		r.mu.Unlock()
-
-		release()
 
 		return
 	}

@@ -24,7 +24,7 @@ func TestHotkeyRegistry_AHeldHotkeyIsOnePressAndOneRelease(t *testing.T) {
 	polls := 0
 	registry := &HotkeyRegistry{
 		callbacks:  make(map[int]hotkeyCallbacks),
-		held:       make(map[int]chan struct{}),
+		held:       make(map[int]*hotkeyHold),
 		registered: make(map[int]hotkeyRegistration),
 		logger:     zap.NewNop(),
 		keyDown: func(uint32) bool {
@@ -65,11 +65,12 @@ func TestHotkeyRegistry_AHeldHotkeyIsOnePressAndOneRelease(t *testing.T) {
 		t.Fatal("the key read up and no release fired; the binder would repeat forever")
 	}
 
-	registry.mu.Lock()
-	_, held := registry.held[hotkeyID]
-	registry.mu.Unlock()
+	// The next press is a new hold, however soon it follows the release.
+	registry.handleHotkeyMessage(hotkeyID)
 
-	if held {
-		t.Fatal("the hold is still recorded after the release; the next press would fire nothing")
+	select {
+	case <-pressed:
+	default:
+		t.Fatal("a press after the release fired nothing")
 	}
 }

@@ -100,8 +100,8 @@ func (et *EventTap) runX11() {
 	if C.neru_eventtap_set_detectable_autorepeat(display) == 0 {
 		x11AutorepeatWarned.Do(func() {
 			et.logger.Warn(
-				"X server does not support detectable autorepeat; a held key's " +
-					"repeat stops after its first tick",
+				"X server does not support detectable autorepeat; a held key repeats " +
+					"at the server's autorepeat rate instead of held_repeat's",
 			)
 		})
 	}

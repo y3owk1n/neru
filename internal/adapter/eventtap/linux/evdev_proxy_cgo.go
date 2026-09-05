@@ -75,6 +75,10 @@ type evdevProxy struct {
 	// comes up, whichever consumer the events reached in between.
 	heldHotkeys map[uint16]func()
 
+	// dispatch runs the matched bindings' callbacks, in order, off this
+	// goroutine.
+	dispatch *HotkeyDispatcher
+
 	control chan proxyCommand
 	done    chan struct{}
 }
@@ -176,6 +180,7 @@ func newEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 		done:          make(chan struct{}),
 		heldByAnother: (*proxyNode).heldByAnother,
 		heldHotkeys:   make(map[uint16]func()),
+		dispatch:      NewHotkeyDispatcher(logger),
 	}
 
 	proxy.forwarding.Store(uinputFd >= 0)
@@ -484,7 +489,7 @@ func (p *evdevProxy) matchHotkey(code uint16) bool {
 		p.heldHotkeys[code] = binding.release
 	}
 
-	go binding.press()
+	p.dispatch.Dispatch(binding.press)
 
 	return true
 }
@@ -500,7 +505,7 @@ func (p *evdevProxy) releaseHotkey(code uint16) {
 
 	delete(p.heldHotkeys, code)
 
-	go release()
+	p.dispatch.Dispatch(release)
 }
 
 // emit re-emits one event on the proxy keyboard.
