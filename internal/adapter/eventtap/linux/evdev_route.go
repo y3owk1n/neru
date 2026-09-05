@@ -8,6 +8,8 @@ package linux
 // them is classed as a pointer or a joystick, and what the pointer proxy carries.
 const (
 	evdevBtnMisc         uint16 = 0x100
+	evdevBtnLeft         uint16 = 0x110
+	evdevBtnTask         uint16 = 0x117
 	evdevKeyOk           uint16 = 0x160
 	evdevBtnTriggerHappy uint16 = 0x2c0
 )
@@ -19,4 +21,14 @@ const (
 // motion does.
 func isPointerButton(code uint16) bool {
 	return (code >= evdevBtnMisc && code < evdevKeyOk) || code >= evdevBtnTriggerHappy
+}
+
+// isMouseButton reports whether a button is one the pointer proxy advertises,
+// BTN_LEFT through BTN_TASK (neru_uinput_create_proxy_pointer). Any other
+// button on a grabbed keyboard is dropped rather than sent to a device that
+// would drop it: the joystick and gamepad blocks would have udev class the
+// proxy as a joystick, and a device carrying them has absolute axes and is
+// never grabbed.
+func isMouseButton(code uint16) bool {
+	return code >= evdevBtnLeft && code <= evdevBtnTask
 }

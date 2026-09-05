@@ -224,15 +224,6 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []ui
 	var seeds []uint16
 
 	if capture.grab {
-		// A keyboard with relative motion on it is grabbed only once that
-		// motion has somewhere to go; otherwise it is left to the compositor,
-		// keys and all, rather than grabbed with its motion swallowed.
-		if C.neru_evdev_has_rel_axes(descriptor) != 0 && !capture.ensurePointerProxyLocked(path) {
-			_ = file.Close()
-
-			return nil, nil, false
-		}
-
 		if C.neru_evdev_grab(descriptor, 1) != 0 {
 			// Owned by another grabber, which is what a remapper looks like.
 			// Debug, not warn: its output device is captured in its place.
@@ -243,6 +234,17 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []ui
 				)
 			}
 
+			_ = file.Close()
+
+			return nil, nil, false
+		}
+
+		// A keyboard with relative motion on it is kept only once that motion
+		// has somewhere to go; otherwise it is handed back to the compositor,
+		// keys and all, rather than held with its motion swallowed. After the
+		// grab, so a keyboard another grabber owns creates no pointer proxy.
+		if C.neru_evdev_has_rel_axes(descriptor) != 0 && !capture.ensurePointerProxyLocked(path) {
+			C.neru_evdev_grab(descriptor, 0)
 			_ = file.Close()
 
 			return nil, nil, false

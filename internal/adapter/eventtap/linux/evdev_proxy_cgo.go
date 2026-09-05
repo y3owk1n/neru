@@ -267,7 +267,8 @@ func (p *evdevProxy) refreshKeymap() {
 // Keys, scan codes and sync reports are re-emitted on the proxy keyboard.
 // Relative motion and buttons are not keys: they bypass the rule, the matcher
 // and the session and go straight to the pointer proxy, with the sync report
-// that closes their frame. LED events come back to the physical device from the
+// that closes their frame; a button the pointer proxy does not advertise goes
+// nowhere (isMouseButton). LED events come back to the physical device from the
 // compositor by way of the proxy (ledLoop), and re-emitting the device's own
 // echo of them would send each one round again.
 func (p *evdevProxy) handle(event waylandEvdevEvent) {
@@ -281,7 +282,9 @@ func (p *evdevProxy) handle(event waylandEvdevEvent) {
 		p.trackGlobal(event.code, true)
 	case evdevEventKey:
 		if isPointerButton(event.code) {
-			p.emitPointer(event)
+			if isMouseButton(event.code) {
+				p.emitPointer(event)
+			}
 
 			return
 		}

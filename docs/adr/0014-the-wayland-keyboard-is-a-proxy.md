@@ -101,10 +101,12 @@ it, so a hint label typed while Super is still coming up is the label.
   mouse and a keyboard on one node. Grabbing such a device takes its motion, so
   the motion is given somewhere to go: a second uinput device,
   `neru-pointer-proxy`, created the first time such a keyboard is grabbed and
-  never otherwise, carries its relative axes and buttons. Buttons are not keys
-  to the forward rule, the matcher or a mode; they and the motion bypass all
-  three (`isPointerButton`). The proxy keyboard itself stays a pure keyboard,
-  since advertising buttons on it would have udev class it as a pointer.
+  never otherwise, carries every relative axis and the mouse buttons. Buttons
+  are not keys to the forward rule, the matcher or a mode; they and the motion
+  bypass all three (`isPointerButton`), and a button outside the mouse range is
+  dropped rather than advertised, since a joystick or gamepad button on the
+  pointer proxy would have udev class it as a joystick (`isMouseButton`). The
+  proxy keyboard itself stays a pure keyboard for the same reason.
 - A device that reports absolute axes (a keyboard with a built-in trackpad on
   the same node) is never grabbed: re-emitting touches would need its axis
   ranges and slots, so it keeps its keys out of Neru's reach, as X11's grab

@@ -420,9 +420,11 @@ int neru_uinput_create_proxy_keyboard(int *out_fd) {
 
 /* The pointer half of the proxy: where the relative motion and the mouse
  * buttons of a grabbed keyboard that carries them go. Created only once such a
- * keyboard is grabbed, so a setup without one sees no virtual mouse. The BTN_*
- * codes are exactly the ones the proxy keyboard leaves out. On failure errno is
- * as neru_uinput_create_proxy_keyboard leaves it. */
+ * keyboard is grabbed, so a setup without one sees no virtual mouse. Only the
+ * mouse buttons are advertised: BTN_1 or a joystick or gamepad button would
+ * have udev class the device as a joystick (isMouseButton is the Go side of
+ * this range). On failure errno is as neru_uinput_create_proxy_keyboard leaves
+ * it. */
 int neru_uinput_create_proxy_pointer(int *out_fd) {
 	int fd = open("/dev/uinput", O_RDWR);
 	if (fd < 0) {
@@ -447,9 +449,13 @@ int neru_uinput_create_proxy_pointer(int *out_fd) {
 		}
 	}
 
-	static const int axes[] = {REL_X, REL_Y, REL_WHEEL, REL_HWHEEL, REL_WHEEL_HI_RES, REL_HWHEEL_HI_RES};
-	for (size_t i = 0; i < sizeof(axes) / sizeof(axes[0]); i++) {
-		if (ioctl(fd, UI_SET_RELBIT, axes[i]) < 0) {
+	/* Every relative axis, so whatever motion a grabbed device reports has a
+	 * code here; the kernel drops an event for a code a device does not
+	 * advertise, and a dropped event on a grabbed device reaches nothing. */
+	for (int code = 0; code <= REL_MAX; code++) {
+		if (code == REL_RESERVED)
+			continue;
+		if (ioctl(fd, UI_SET_RELBIT, code) < 0) {
 			neru_uinput_fail(fd);
 			return 0;
 		}
