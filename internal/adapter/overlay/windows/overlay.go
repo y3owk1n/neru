@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"go.uber.org/zap"
+	"golang.org/x/sys/windows"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
@@ -26,8 +27,40 @@ const (
 	winSubgridFontScale = 0.7
 )
 
+// overlayWindow is the surface the grid overlay paints on: what winOverlay
+// asks of a winplatform.OverlayWindow, and nothing it does not. The concrete
+// window is the one implementation that ships; the tests in this package
+// stand a recording one in for it, because reaching the drawing code through
+// the real type means creating a layered HWND on an interactive desktop.
+type overlayWindow interface {
+	HWND() windows.HWND
+	Healthy() bool
+	Visible() bool
+	Bounds() image.Rectangle
+	Backend() string
+	Show()
+	Hide()
+	Clear()
+	ResizeToActiveScreen() error
+	Destroy()
+	FillRect(bounds image.Rectangle, color uint32)
+	StrokeRect(bounds image.Rectangle, color uint32, lineWidth float64)
+	FillRoundedRect(bounds image.Rectangle, radius float64, color uint32)
+	StrokeRoundedRect(bounds image.Rectangle, radius float64, color uint32, lineWidth float64)
+	FillTriangle(vertexA, vertexB, vertexC image.Point, color uint32)
+	DrawTextCentered(
+		text string,
+		bounds image.Rectangle,
+		fontFamily string,
+		fontSize float64,
+		color uint32,
+	)
+	DrawPointerGlyph(center image.Point, size int, char string, fontFamily string, color uint32)
+	Flush() error
+}
+
 type winOverlay struct {
-	window *winplatform.OverlayWindow
+	window overlayWindow
 	logger *zap.Logger
 	// renderMu is the manager's lock, which every draw here runs under; the
 	// transition goroutine takes it per frame (transition.go).
