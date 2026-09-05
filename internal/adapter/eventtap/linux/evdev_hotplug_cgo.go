@@ -150,29 +150,29 @@ func (capture *waylandEvdevCapture) handleInotifyEvents(buf []byte) {
 // handleNewDevice opens a newly created /dev/input/event* device and, if it
 // is a keyboard this capture should read, adds it under the same rules as the
 // initial scan — grabbed and seeded when the capture grabs — and starts a
-// reader for it. A device that comes back under the name of one whose exit
-// had this capture borrow keyboards gets those keyboards back.
+// reader for it. A uinput keyboard from another process is a remapper's output
+// device, and the remapper is about to grab its inputs: the physical keyboards
+// are yielded to it, whether it is starting for the first time with this
+// capture already up, or starting again after an exit that had the capture
+// take the keyboards it released (rescan).
 func (capture *waylandEvdevCapture) handleNewDevice(name string) {
 	// Give udev a moment to fully initialize the device node and populate
 	// the input capabilities before we interrogate it.
 	time.Sleep(waylandEvdevHotplugSettleDelay)
 
-	deviceName, ok := capture.adopt(filepath.Join("/dev/input", name), "")
-	if !ok {
-		return
+	adopted, virtual := capture.adopt(filepath.Join("/dev/input", name), "it appeared")
+	if adopted && virtual {
+		capture.yieldPhysicalKeyboards()
 	}
-
-	capture.returnBorrowed(deviceName)
 }
 
-// rescan runs after a captured device named vanished is gone, looking for
-// keyboards that refused the grab earlier and are free now. A remapper (kanata,
-// keyd) that exits releases the physical keyboards it held in the same instant
-// its output device, the one this capture was reading, disappears; the released
-// keyboards are existing nodes, so no inotify event announces them, and without
-// this the user's keys would bypass the proxy until the daemon restarted. What
-// it adopts is borrowed against the vanished name (returnBorrowed).
-func (capture *waylandEvdevCapture) rescan(vanished string) {
+// rescan runs after a captured device is gone, looking for keyboards that
+// refused the grab earlier and are free now. A remapper (kanata, keyd) that
+// exits releases the physical keyboards it held in the same instant its output
+// device, the one this capture was reading, disappears; the released keyboards
+// are existing nodes, so no inotify event announces them, and without this the
+// user's keys would bypass the proxy until the daemon restarted.
+func (capture *waylandEvdevCapture) rescan() {
 	// The remapper's fds close in whatever order its process teardown picks;
 	// give the release of its inputs a moment to land before trying them.
 	time.Sleep(waylandEvdevHotplugSettleDelay)
@@ -183,88 +183,52 @@ func (capture *waylandEvdevCapture) rescan(vanished string) {
 	}
 
 	for _, path := range paths {
-		capture.adopt(path, vanished)
+		capture.adopt(path, "a remapper released it")
 	}
 }
 
 // adopt takes path into the capture if it is a keyboard this capture should
-// read and is not tracked already, starts a reader for it, and answers the
-// device's name. A keyboard with a key down is adopted once it is idle instead.
-// borrowedFor names the vanished device a rescan is adopting on behalf of, or
-// is empty. Nothing is adopted once the capture is closing: a reader started
-// then would outlive the wait Close makes on the readers, which is why the
-// reader is counted under the same lock the closing check takes.
-func (capture *waylandEvdevCapture) adopt(path string, borrowedFor string) (string, bool) {
+// read and is not tracked already, and starts a reader for it. It reports
+// whether it did, and whether the keyboard is another process's uinput device.
+// A keyboard with a key down is adopted once it is idle instead. reason is
+// what brought the path here, for the log. Nothing is adopted once the capture
+// is closing: a reader started then would outlive the wait Close makes on the
+// readers, which is why the reader is counted under the same lock the closing
+// check takes.
+func (capture *waylandEvdevCapture) adopt(path string, reason string) (bool, bool) {
 	capture.deviceMu.Lock()
 
 	select {
 	case <-capture.stopCh:
 		capture.deviceMu.Unlock()
 
-		return "", false
+		return false, false
 	default:
 	}
 
 	file, outcome := capture.addDeviceLocked(path)
 	if outcome != deviceAdopted {
 		if outcome == deviceBusy {
-			capture.grabWhenIdleLocked(path, borrowedFor)
+			capture.grabWhenIdleLocked(path)
 		}
 
 		capture.deviceMu.Unlock()
 
-		return "", false
+		return false, false
 	}
 
-	device := capture.devices[file]
-	device.borrowedFor = borrowedFor
-	capture.devices[file] = device
+	virtual := capture.devices[file].virtual
 	capture.startReader(file)
 	capture.deviceMu.Unlock()
 
 	if capture.logger != nil {
 		capture.logger.Info(
-			"New keyboard device detected and captured",
+			"Keyboard device captured",
 			zap.String("device", path),
-			zap.Bool("borrowed", borrowedFor != ""),
+			zap.String("reason", reason),
+			zap.Bool("virtual", virtual),
 		)
 	}
 
-	return device.name, true
-}
-
-// returnBorrowed hands back every keyboard borrowed against name: the remapper
-// whose output device just came back is about to grab its inputs again, and a
-// keyboard this capture still held would refuse it. Each is ungrabbed and
-// revoked, which wakes its reader with ENODEV so the reader closes it on its own
-// fd (readLoop); the release is recorded so that exit starts no rescan.
-func (capture *waylandEvdevCapture) returnBorrowed(name string) {
-	capture.deviceMu.Lock()
-
-	returned := 0
-
-	for file, device := range capture.devices {
-		if device.borrowedFor != name {
-			continue
-		}
-
-		device.borrowedFor = ""
-		device.released = true
-		capture.devices[file] = device
-
-		fd := C.int(file.Fd())
-		C.neru_evdev_grab(fd, 0)
-		C.neru_evdev_revoke(fd)
-
-		returned++
-	}
-
-	capture.deviceMu.Unlock()
-
-	if returned > 0 && capture.logger != nil {
-		capture.logger.Info(
-			"Returned keyboards to a remapper whose output device came back",
-			zap.Int("keyboards", returned),
-		)
-	}
+	return true, virtual
 }

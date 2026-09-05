@@ -9,6 +9,8 @@ package linux
 // press went.
 
 import (
+	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -474,6 +476,99 @@ func TestEvdevProxy_FailOpenReleasesTheKeyboardsAndRefusesSessions(t *testing.T)
 	err := proxy.startSession(newEvdevSession(nil))
 	if err == nil {
 		t.Error("a session was accepted with nothing to re-emit keys through")
+	}
+}
+
+// A keyboard yielded to a remapper is with the compositor until the remapper
+// claims it or it is taken back; a mode started meanwhile would get nothing
+// while its keys went to the focused app, so it is refused and falls back.
+func TestEvdevProxy_StartSession_RefusesWhileAKeyboardIsYielded(t *testing.T) {
+	t.Parallel()
+
+	proxy := newTestProxy()
+	proxy.forwarding.Store(true)
+	proxy.capture.grab = true
+	proxy.capture.files = []*os.File{nil}
+	proxy.capture.yielded = 1
+
+	err := proxy.startSession(newEvdevSession(nil))
+	if !errors.Is(err, errWaylandEvdevYielded) {
+		t.Fatalf("startSession error = %v, want the keyboards reported as yielded", err)
+	}
+
+	if proxy.capture.sessionActive {
+		t.Error("a refused session was recorded as capturing keys")
+	}
+}
+
+// A remapper's device auto-detect grabbing a proxy device closes a loop the
+// compositor sees no side of; the probe on the run goroutine is what opens it.
+func TestEvdevProxy_ProbeOwnDevices_FailsOpenWhenAnotherProcessHoldsAProxy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		held func(proxy *evdevProxy) *proxyNode
+	}{
+		{
+			name: "the keyboard proxy is held",
+			held: func(proxy *evdevProxy) *proxyNode { return proxy.keyboardNode },
+		},
+		{
+			name: "the pointer proxy is held",
+			held: func(proxy *evdevProxy) *proxyNode { return proxy.pointerNode },
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			proxy := newTestProxy()
+			proxy.forwarding.Store(true)
+			proxy.capture.grab = true
+			proxy.keyboardNode = &proxyNode{}
+			proxy.pointerNode = &proxyNode{}
+
+			taken := false
+			probes := 0
+			proxy.heldByAnother = func(node *proxyNode) bool {
+				probes++
+
+				return taken && node == testCase.held(proxy)
+			}
+
+			proxy.probeOwnDevices()
+
+			if !proxy.forwarding.Load() {
+				t.Fatal("a probe that found both nodes free failed open")
+			}
+
+			taken = true
+
+			proxy.probeOwnDevices()
+
+			if proxy.forwarding.Load() {
+				t.Error("the proxy still forwards with another process holding its device")
+			}
+
+			if proxy.capture.grab {
+				t.Error("the capture would still grab a keyboard that arrives later")
+			}
+
+			err := proxy.startSession(newEvdevSession(nil))
+			if err == nil {
+				t.Error("a session was accepted with the keyboards released")
+			}
+
+			before := probes
+
+			proxy.probeOwnDevices()
+
+			if probes != before {
+				t.Error("a proxy that has let go keeps probing its devices")
+			}
+		})
 	}
 }
 
