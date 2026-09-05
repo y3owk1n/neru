@@ -18,7 +18,7 @@ import (
 // keyboardHookStopJoinTimeout bounds how long Stop waits for the hook goroutine
 // to exit before reaping it in the background. The normal teardown completes in
 // well under a millisecond (WM_QUIT wakes GetMessage), so this only ever trips
-// in the lock-inversion race described in Stop.
+// when the hook thread is stuck inside a Windows call, as described in Stop.
 const keyboardHookStopJoinTimeout = 250 * time.Millisecond
 
 const (
@@ -175,15 +175,14 @@ func (h *KeyboardHook) Stop() {
 	})
 
 	// Wait for the hook goroutine to exit, but never block the caller forever.
-	// The hook's key callback acquires the handler mutex (HandleKeyPress), and
-	// mode-exit calls Stop while holding that same mutex. If a key event is
-	// in-flight (e.g. a modifier key-up after a Shift+click), the callback is
-	// parked on the mutex and the goroutine cannot finish until the caller
-	// returns and releases it. Joining synchronously here would deadlock, so
-	// fall back to reaping in the background: the caller returns, releases the
-	// mutex, the callback drains, and the goroutine then observes stopCh/WM_QUIT
-	// and exits. Human-scale latency before the next mode re-enable makes a
-	// double-hook overlap during that window effectively impossible.
+	// Mode exit calls Stop while holding the handler mutex, and the key
+	// callback no longer takes it: the event tap classifies the key on the
+	// hook thread and hands it to its own dispatcher, so a key in flight
+	// cannot park this thread on the lock. The bound is a backstop for a hook
+	// thread wedged inside a Windows call. Past it the join moves to the
+	// background: the goroutine observes stopCh/WM_QUIT and exits, and
+	// human-scale latency before the next mode re-enable makes a double-hook
+	// overlap during that window effectively impossible.
 	select {
 	case <-h.doneCh:
 	case <-time.After(keyboardHookStopJoinTimeout):
@@ -214,11 +213,11 @@ func keyboardHookProc(code int, wParam uintptr, lParam unsafe.Pointer) uintptr {
 	kbd := (*kbdLLHookStruct)(lParam)
 
 	// Keys this process injected come back through this hook. Handing one
-	// to the callback would re-enter the mode handler from the hook
-	// thread, and the down/up pair a modified scroll holds reads as the
-	// user tapping that modifier — latching a sticky modifier nobody
-	// pressed. Only Neru's own injection is skipped (neruInjectedTag);
-	// another tool's synthetic input is still seen.
+	// to the callback would feed the mode handler its own output, and the
+	// down/up pair a modified scroll holds reads as the user tapping that
+	// modifier — latching a sticky modifier nobody pressed. Only Neru's
+	// own injection is skipped (neruInjectedTag); another tool's synthetic
+	// input is still seen.
 	if kbd.dwExtraInfo == neruInjectedTag {
 		ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
 
