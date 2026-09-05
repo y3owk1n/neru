@@ -17,9 +17,9 @@ const blockedCallTimeout = 2 * time.Second
 // fakeTap stands in for a platform tap. Every method records that it was
 // reached, so a test can say what the adapter did and did not forward.
 //
-// onDestroy is what makes it useful here: both real backends spend their
-// Destroy waiting for the key dispatcher to drain — dispatchWg.Wait() on Linux,
-// stopDispatcher on macOS — and that wait runs whatever the dispatcher is in
+// onDestroy is what makes it useful here: all three real backends spend their
+// Destroy waiting for the key dispatcher to drain — dispatchWg.Wait() on Linux
+// and Windows, stopDispatcher on macOS — and that wait runs whatever the dispatcher is in
 // the middle of delivering. onDestroy is where a test puts that.
 type fakeTap struct {
 	mu     sync.Mutex

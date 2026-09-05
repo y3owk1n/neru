@@ -75,13 +75,13 @@ func TestEventTap_SetHotkeys_ReplacesTheList(t *testing.T) {
 func TestEventTap_HandleKey_StickyModifierDoesNotFireGlobalHotkey(t *testing.T) {
 	t.Parallel()
 
-	var dispatched []string
-
-	tap := NewEventTap(func(key string) { dispatched = append(dispatched, key) }, nil)
+	tap := newTestTap(t)
 	tap.SetHotkeys([]string{"Ctrl+Shift+J"})
 	tap.notePostedModifier("shift", true)
 
-	if !tap.handleKey("Ctrl+Shift+J", false) {
+	dispatched, consumed := routedKey(t, tap, "Ctrl+Shift+J")
+
+	if !consumed {
 		t.Fatal("Ctrl+J with sticky Shift was handed to RegisterHotKey instead of consumed")
 	}
 

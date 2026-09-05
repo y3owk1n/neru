@@ -202,9 +202,10 @@ func (a *Adapter) PostModifierEvent(modifier string, isDown bool) {
 // through SetModifierPassthrough, which takes mu. Holding mu across the wait
 // inverts the documented handler → adapter order, so a shutdown racing a focus
 // change deadlocked with neither side able to give way. The Linux tap's own
-// Destroy releases its lock before waiting for the same reason. Windows waits
-// too, but bounded: its hook join gives up after 250ms and reaps in the
-// background, for this same hazard one layer down.
+// Destroy releases its lock before waiting for the same reason, and the
+// Windows tap waits the same way since it gained a dispatcher
+// (dispatchWg.Wait() in eventtap/windows/tap.go); only the hook join beneath
+// it stays bounded at 250ms.
 //
 // What mu still covers is the state: the adapter marks itself destroyed and
 // disabled under it, in one hold, before letting go — so a caller racing the

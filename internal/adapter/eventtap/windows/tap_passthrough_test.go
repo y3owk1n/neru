@@ -16,22 +16,42 @@ import (
 const chordCtrlC = "ctrl+c"
 
 // routedKey drives handleKey for one key-down and reports where it went.
+// Delivery is asynchronous, so a sentinel is queued behind the key and the
+// keys that arrive ahead of it are the ones the chord dispatched: the
+// dispatcher delivers in order, which is what makes the sentinel a fence.
 func routedKey(t *testing.T, eventTap *EventTap, key string) ([]string, bool) {
 	t.Helper()
 
-	var dispatched []string
+	const sentinel = "routedKey-sentinel"
 
-	eventTap.SetHandler(func(key string) { dispatched = append(dispatched, key) })
+	arrived := make(chan string, 8)
+
+	eventTap.SetHandler(func(key string) { arrived <- key })
 
 	consumed := eventTap.handleKey(key, false)
 
-	return dispatched, consumed
+	eventTap.dispatchKey(sentinel)
+
+	var dispatched []string
+
+	for {
+		select {
+		case delivered := <-arrived:
+			if delivered == sentinel {
+				return dispatched, consumed
+			}
+
+			dispatched = append(dispatched, delivered)
+		case <-time.After(time.Second):
+			t.Fatal("the dispatcher never delivered the sentinel queued behind the key")
+		}
+	}
 }
 
 func TestEventTap_HandleKey_ConsumesAnUnboundChordWithPassthroughOff(t *testing.T) {
 	t.Parallel()
 
-	eventTap := NewEventTap(nil, nil)
+	eventTap := newTestTap(t)
 	eventTap.SetModifierPassthrough(false, nil)
 
 	dispatched, consumed := routedKey(t, eventTap, chordCtrlC)
@@ -48,7 +68,7 @@ func TestEventTap_HandleKey_ConsumesAnUnboundChordWithPassthroughOff(t *testing.
 func TestEventTap_HandleKey_PassesAnUnboundChordThrough(t *testing.T) {
 	t.Parallel()
 
-	eventTap := NewEventTap(nil, nil)
+	eventTap := newTestTap(t)
 	eventTap.SetModifierPassthrough(true, nil)
 
 	fired := make(chan struct{}, 1)
@@ -97,7 +117,7 @@ func TestEventTap_HandleKey_KeepsAChordTheModeBinds(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			eventTap := NewEventTap(nil, nil)
+			eventTap := newTestTap(t)
 			testCase.setup(eventTap)
 
 			dispatched, consumed := routedKey(t, eventTap, "ctrl+shift+c")
@@ -118,7 +138,7 @@ func TestEventTap_HandleKey_KeepsAChordTheModeBinds(t *testing.T) {
 func TestEventTap_HandleKey_ConsumesShiftOnlyChordsWithPassthroughOn(t *testing.T) {
 	t.Parallel()
 
-	eventTap := NewEventTap(nil, nil)
+	eventTap := newTestTap(t)
 	eventTap.SetModifierPassthrough(true, nil)
 
 	for _, key := range []string{"Shift+A", "a", "Return"} {
@@ -133,7 +153,7 @@ func TestEventTap_HandleKey_ConsumesShiftOnlyChordsWithPassthroughOn(t *testing.
 func TestEventTap_HandleKey_HandsARegisteredHotkeyBack(t *testing.T) {
 	t.Parallel()
 
-	eventTap := NewEventTap(nil, nil)
+	eventTap := newTestTap(t)
 	eventTap.SetHotkeys([]string{"Ctrl+G"})
 	eventTap.SetModifierPassthrough(false, nil)
 

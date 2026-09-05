@@ -6,6 +6,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"go.uber.org/zap"
 
@@ -14,6 +15,19 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
+
+// dispatchChBufferSize bounds how many events the hook thread can queue ahead
+// of the dispatcher. The Linux tap uses the same figure.
+const dispatchChBufferSize = 256
+
+// dispatchEvent is one item on the dispatcher's queue: a key for the handler,
+// or a passthrough notification, which rides the same queue so it lands after
+// the keys that preceded it.
+type dispatchEvent struct {
+	key         string
+	passthrough tap.PassthroughCallback
+	epoch       uint64
+}
 
 // EventTap is a keyboard event interceptor on Windows.
 type EventTap struct {
@@ -44,6 +58,26 @@ type EventTap struct {
 	heldModifiers   map[string]struct{}
 
 	hook *winplatform.KeyboardHook
+
+	// dispatchCh carries events from the hook thread to dispatchLoop, the one
+	// goroutine that calls the handler. Windows silently removes a
+	// WH_KEYBOARD_LL hook whose procedure overruns LowLevelHooksTimeout, and
+	// the handler holds the mode lock across a click, a mode exit or a hint
+	// refresh, so the hook procedure only classifies the event and enqueues.
+	// The channel and loop live for the tap's lifetime, like the Linux tap's;
+	// stopDispatch ends them from Destroy, and the channel is never closed,
+	// so a key the hook delivers during teardown is dropped rather than sent
+	// on a closed channel.
+	dispatchCh   chan dispatchEvent
+	stopDispatch chan struct{}
+	stopOnce     sync.Once
+	dispatchWg   sync.WaitGroup
+
+	// dispatchEpoch is stamped on every event as it is queued and bumped on
+	// every Disable. dispatchLoop drops an event stamped with an earlier
+	// epoch, so a key the hook read while the mode was exiting is not
+	// delivered to whatever mode comes next.
+	dispatchEpoch atomic.Uint64
 }
 
 // NewEventTap creates a new event tap.
@@ -52,10 +86,16 @@ func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 		logger = zap.NewNop()
 	}
 
-	return &EventTap{
-		logger:   logger.Named("eventtap"),
-		callback: callback,
+	eventTap := &EventTap{
+		logger:       logger.Named("eventtap"),
+		callback:     callback,
+		dispatchCh:   make(chan dispatchEvent, dispatchChBufferSize),
+		stopDispatch: make(chan struct{}),
 	}
+
+	eventTap.dispatchWg.Go(eventTap.dispatchLoop)
+
+	return eventTap
 }
 
 // Enable enables the event tap.
@@ -104,11 +144,33 @@ func (et *EventTap) Disable() {
 	if hook != nil {
 		hook.Stop()
 	}
+
+	// Anything still queued was read by the hook before it stopped and belongs
+	// to the mode that just exited. The bump covers an event dispatchLoop has
+	// already taken off the channel; the drain empties the rest. Disable runs
+	// on the dispatcher itself when a key exits the mode, which is why neither
+	// step may wait on it.
+	et.dispatchEpoch.Add(1)
+
+	for {
+		select {
+		case <-et.dispatchCh:
+		default:
+			return
+		}
+	}
 }
 
-// Destroy destroys the event tap.
+// Destroy disables the tap and stops its dispatcher, waiting for a key that
+// is being delivered to finish. Safe to call more than once.
 func (et *EventTap) Destroy() {
 	et.Disable()
+
+	et.stopOnce.Do(func() {
+		close(et.stopDispatch)
+	})
+
+	et.dispatchWg.Wait()
 }
 
 // SetHotkeys sets the hotkeys. These are the global [hotkeys] chords the
@@ -414,27 +476,66 @@ func (et *EventTap) shouldPassthroughChord(chord string) bool {
 	return true
 }
 
-// firePassthroughCallback invokes the registered passthrough callback (if any)
-// on its own goroutine and without holding et.mu. The hook procedure runs on
-// the hook thread, where the mode handler's lock must not be taken: mode exit
-// stops the hook while holding it (see KeyboardHook.Stop).
+// firePassthroughCallback queues the registered passthrough callback (if any)
+// for the dispatcher, so it runs off the hook thread and after the keys that
+// preceded it.
 func (et *EventTap) firePassthroughCallback() {
 	et.mu.RLock()
 	callback := et.passthroughCallback
 	et.mu.RUnlock()
 
 	if callback != nil {
-		go callback()
+		et.enqueue(dispatchEvent{passthrough: callback})
 	}
 }
 
+// dispatchKey queues a key for the dispatcher. It never blocks: the hook
+// procedure calls it on the hook thread, which has to return before Windows
+// gives up on it.
 func (et *EventTap) dispatchKey(key string) {
+	if key != "" {
+		et.enqueue(dispatchEvent{key: key})
+	}
+}
+
+func (et *EventTap) enqueue(event dispatchEvent) {
+	event.epoch = et.dispatchEpoch.Load()
+
+	select {
+	case <-et.stopDispatch:
+	case et.dispatchCh <- event:
+	default:
+		et.logger.Warn("Dispatch queue full, dropping event")
+	}
+}
+
+// dispatchLoop delivers queued events to the handler, in order, on this one
+// goroutine.
+func (et *EventTap) dispatchLoop() {
+	for {
+		select {
+		case <-et.stopDispatch:
+			return
+		case event := <-et.dispatchCh:
+			et.deliver(event)
+		}
+	}
+}
+
+func (et *EventTap) deliver(event dispatchEvent) {
+	if et.dispatchEpoch.Load() != event.epoch {
+		return
+	}
+
 	et.mu.RLock()
 	callback := et.callback
 	et.mu.RUnlock()
 
-	if callback != nil && key != "" {
-		callback(key)
+	switch {
+	case event.passthrough != nil:
+		event.passthrough()
+	case callback != nil:
+		callback(event.key)
 	}
 }
 
