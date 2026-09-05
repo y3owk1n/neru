@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.53.0](https://github.com/y3owk1n/neru/compare/v1.52.0...v1.53.0) (2026-09-05)
+
+
+### Features
+
+* **linux:** make Wayland mode activation instant with a lifetime keyboard proxy ([#1600](https://github.com/y3owk1n/neru/issues/1600)) ([52fa240](https://github.com/y3owk1n/neru/commit/52fa24021162d4d4fe99a3e712765d3c920013ed))
+
+
+### Bug Fixes
+
+* **hints:** ask for screen-capture consent before the contour strategy runs ([#1596](https://github.com/y3owk1n/neru/issues/1596)) ([71d1b34](https://github.com/y3owk1n/neru/commit/71d1b34fee6de79eb5290eccc8947a674557f634))
+* **linux:** keep the Wayland keyboard alive when a remapper grabs Neru's proxy or starts after it ([#1604](https://github.com/y3owk1n/neru/issues/1604)) ([1e8e7da](https://github.com/y3owk1n/neru/commit/1e8e7da995c17772634b08f9a123d3452be4e25a))
+* **linux:** keep Wayland hotkeys working with a key remapper across its restarts ([#1602](https://github.com/y3owk1n/neru/issues/1602)) ([cffb996](https://github.com/y3owk1n/neru/commit/cffb99652a10ddcaa27c3c20a123d6e80cf7487a))
+* **linux:** name keys by the character they type so Shift+Tab and PageUp bindings fire ([#1599](https://github.com/y3owk1n/neru/issues/1599)) ([1516fb7](https://github.com/y3owk1n/neru/commit/1516fb79754a68d3b4e7c8f5c410ac3386202be0))
+* **linux:** release forwarded keys on the proxy keyboard when it fails open ([#1619](https://github.com/y3owk1n/neru/issues/1619)) ([00715b3](https://github.com/y3owk1n/neru/commit/00715b38a6f71d5dcd6d9cb3e2f1ab4ec3d9973b))
+* **linux:** round a scroll to the nearest notch instead of truncating it ([#1618](https://github.com/y3owk1n/neru/issues/1618)) ([ad4dc5c](https://github.com/y3owk1n/neru/commit/ad4dc5cb67bda4df9d51a10373f28ebf08927436))
+* **linux:** stop a modifier sticking after a Wayland mode launched from a compositor binding ([#1603](https://github.com/y3owk1n/neru/issues/1603)) ([7831a5b](https://github.com/y3owk1n/neru/commit/7831a5bb1d6bc99f2635b834069fffba61904761))
+* **scroll:** apply a sticky modifier to scroll actions ([#1615](https://github.com/y3owk1n/neru/issues/1615)) ([2eb92ff](https://github.com/y3owk1n/neru/commit/2eb92ffa693e109f57a90dcb809fbedd6446e7e0))
+* **windows:** carry the action's modifiers on injected clicks and drags ([#1614](https://github.com/y3owk1n/neru/issues/1614)) ([c331fa2](https://github.com/y3owk1n/neru/commit/c331fa29cf96ed755c90e07084961d23f326f201))
+* **windows:** dispatch keys off the low-level hook thread, as the other taps do ([#1617](https://github.com/y3owk1n/neru/issues/1617)) ([f151a66](https://github.com/y3owk1n/neru/commit/f151a66d43adb84b15110ce2063027cc1bb93d64))
+* **windows:** keep a stopped keyboard hook's WM_QUIT off other message pumps ([#1598](https://github.com/y3owk1n/neru/issues/1598)) ([73730a9](https://github.com/y3owk1n/neru/commit/73730a967f2bf05e3f569aed9fff579664d418e6))
+
 ## [1.52.0](https://github.com/y3owk1n/neru/compare/v1.51.0...v1.52.0) (2026-09-04)
 
 
