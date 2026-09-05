@@ -11,6 +11,7 @@ import "C"
 
 import (
 	"os"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -24,6 +25,10 @@ const (
 	x11KeyBufferSize   = 64
 	x11BitsPerByte     = 8
 )
+
+// x11AutorepeatWarned says the refusal once: runX11 opens a connection per
+// mode activation, and the server's answer does not change between them.
+var x11AutorepeatWarned sync.Once
 
 // x11QueryModifierState queries the X11 server for the current keyboard
 // state and returns a linuxModifierState counting any held modifier keys.
@@ -92,6 +97,15 @@ func (et *EventTap) runX11() {
 	}
 	defer C.neru_eventtap_close(display)
 
+	if C.neru_eventtap_set_detectable_autorepeat(display) == 0 {
+		x11AutorepeatWarned.Do(func() {
+			et.logger.Warn(
+				"X server does not support detectable autorepeat; a held key's " +
+					"repeat stops after its first tick",
+			)
+		})
+	}
+
 	if C.neru_eventtap_grab_keyboard(display) != C.GrabSuccess {
 		return
 	}
@@ -103,6 +117,13 @@ func (et *EventTap) runX11() {
 	// return true prematurely when only some of the held modifiers have
 	// been released — arming detection while others are still held.
 	modState := x11QueryModifierState(display)
+
+	// Keycodes down since the grab. With detectable autorepeat (set by
+	// neru_eventtap_open) a held key is repeated KeyPress events, and a
+	// modifier's repeats must not be counted as further presses: modState is
+	// a count, and one that never returns to zero never re-arms sticky
+	// detection.
+	down := make(map[C.uint]struct{})
 
 	for {
 		select {
@@ -124,6 +145,16 @@ func (et *EventTap) runX11() {
 		}
 
 		xkey := (*C.XKeyEvent)(unsafe.Pointer(&event))
+
+		_, wasDown := down[xkey.keycode]
+		repeat := eventType == C.KeyPress && wasDown
+
+		if eventType == C.KeyPress {
+			down[xkey.keycode] = struct{}{}
+		} else {
+			delete(down, xkey.keycode)
+		}
+
 		buffer := make([]C.char, x11KeyBufferSize)
 		var keysym C.KeySym
 		length := C.XLookupString(
@@ -135,6 +166,10 @@ func (et *EventTap) runX11() {
 		)
 
 		if modifier := x11ModifierName(keysym); modifier != "" {
+			if repeat {
+				continue
+			}
+
 			isDown := eventType == C.KeyPress
 			modState.update(modifier, isDown)
 

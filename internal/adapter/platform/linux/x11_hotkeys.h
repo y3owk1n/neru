@@ -5,6 +5,7 @@
 #include <X11/Xutil.h>
 
 Window neru_hotkeys_root_window(Display *display);
+int neru_hotkeys_set_detectable_autorepeat(Display *display);
 int neru_hotkeys_pending(Display *display);
 int neru_xevent_type(XEvent *ev);
 unsigned int neru_xkey_keycode(XEvent *ev);

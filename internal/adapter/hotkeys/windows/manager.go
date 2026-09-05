@@ -46,10 +46,26 @@ func NewManager(logger *zap.Logger) *Manager {
 	}
 }
 
-// Register adds a new global hotkey.
+// Register adds a new global hotkey that fires callback once per press.
 func (m *Manager) Register(
 	keyString string,
 	callback ports.HotkeyCallback,
+) (ports.HotkeyID, error) {
+	return m.RegisterWithRelease(keyString, callback, nil)
+}
+
+// RegisterHotKey reports the press only; the registry finds the release by
+// polling the key's state while it is held (HotkeyRegistry.RegisterWithRelease).
+// The binder reaches this by type assertion, so a signature drift would
+// silently return every hotkey to press-only instead of failing to compile.
+var _ ports.HotkeyReleaseRegistrar = (*Manager)(nil)
+
+// RegisterWithRelease adds a new global hotkey with press and optional release
+// callbacks. A held chord is one press and one release, however long it is held.
+func (m *Manager) RegisterWithRelease(
+	keyString string,
+	pressCallback ports.HotkeyCallback,
+	releaseCallback ports.HotkeyCallback,
 ) (ports.HotkeyID, error) {
 	if m.registry == nil {
 		return 0, derrors.New(
@@ -64,12 +80,12 @@ func (m *Manager) Register(
 	hotkeyID := m.nextID
 	m.nextID++
 
-	nativeID, err := m.registry.Register(keyString, callback)
+	nativeID, err := m.registry.RegisterWithRelease(keyString, pressCallback, releaseCallback)
 	if err != nil {
 		return 0, derrors.Wrap(err, derrors.CodeHotkeyRegisterFailed, "failed to register hotkey")
 	}
 
-	m.callbacks[hotkeyID] = callback
+	m.callbacks[hotkeyID] = pressCallback
 	m.keys[hotkeyID] = keyString
 	m.nativeIDs[hotkeyID] = nativeID
 

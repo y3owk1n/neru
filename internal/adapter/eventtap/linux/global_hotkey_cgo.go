@@ -20,7 +20,7 @@ type GlobalHotkeyListener struct {
 	logger *zap.Logger
 
 	mu       sync.Mutex
-	bindings map[string]func()
+	bindings map[string]hotkeyBinding
 	proxy    *evdevProxy
 	running  bool
 }
@@ -34,22 +34,23 @@ func NewGlobalHotkeyListener(logger *zap.Logger) *GlobalHotkeyListener {
 
 	return &GlobalHotkeyListener{
 		logger:   logger.Named("hotkeys.evdev"),
-		bindings: make(map[string]func()),
+		bindings: make(map[string]hotkeyBinding),
 	}
 }
 
-// SetBinding registers a callback for a chord string (e.g. "Ctrl+Shift+G").
-// Safe to call before or after Start.
-func (l *GlobalHotkeyListener) SetBinding(chord string, callback func()) {
+// SetBinding registers the callbacks for a chord string (e.g. "Ctrl+Shift+G"):
+// press when the chord's key goes down, release (nil for none) when it comes
+// up. Safe to call before or after Start.
+func (l *GlobalHotkeyListener) SetBinding(chord string, press, release func()) {
 	signature := canonicalChordSignature(chord)
-	if signature == "" || callback == nil {
+	if signature == "" || press == nil {
 		return
 	}
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.bindings[signature] = callback
+	l.bindings[signature] = hotkeyBinding{press: press, release: release}
 	l.publishLocked()
 }
 
@@ -58,7 +59,7 @@ func (l *GlobalHotkeyListener) ClearBindings() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.bindings = make(map[string]func())
+	l.bindings = make(map[string]hotkeyBinding)
 	l.publishLocked()
 }
 

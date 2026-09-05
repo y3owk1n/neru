@@ -66,7 +66,14 @@ type evdevProxy struct {
 	pointerNode   *proxyNode
 	heldByAnother func(*proxyNode) bool
 
-	bindings atomic.Pointer[map[string]func()]
+	bindings atomic.Pointer[map[string]hotkeyBinding]
+
+	// heldHotkeys is the release callback owed for each key whose press
+	// matched a chord and is still down, by key code. Owned by the run
+	// goroutine. It is what lets a binding repeat while its key is held: the
+	// press fires once, at match time, and the release fires when this key
+	// comes up, whichever consumer the events reached in between.
+	heldHotkeys map[uint16]func()
 
 	control chan proxyCommand
 	done    chan struct{}
@@ -78,6 +85,13 @@ type evdevProxy struct {
 type proxyCommand struct {
 	session *evdevSession
 	ack     chan struct{}
+}
+
+// hotkeyBinding is what the idle matcher fires for a chord: press when the
+// chord's key goes down, release (which may be nil) when that key comes up.
+type hotkeyBinding struct {
+	press   func()
+	release func()
 }
 
 var (
@@ -161,11 +175,12 @@ func newEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 		control:       make(chan proxyCommand),
 		done:          make(chan struct{}),
 		heldByAnother: (*proxyNode).heldByAnother,
+		heldHotkeys:   make(map[uint16]func()),
 	}
 
 	proxy.forwarding.Store(uinputFd >= 0)
 
-	empty := map[string]func(){}
+	empty := map[string]hotkeyBinding{}
 	proxy.bindings.Store(&empty)
 
 	go proxy.run()
@@ -200,8 +215,8 @@ func (p *evdevProxy) alive() bool {
 
 // setBindings replaces the chords the idle matcher fires on. The map is read
 // on the run goroutine without a lock, so it is swapped whole and never edited.
-func (p *evdevProxy) setBindings(bindings map[string]func()) {
-	copied := make(map[string]func(), len(bindings))
+func (p *evdevProxy) setBindings(bindings map[string]hotkeyBinding) {
+	copied := make(map[string]hotkeyBinding, len(bindings))
 	maps.Copy(copied, bindings)
 
 	p.bindings.Store(&copied)
@@ -412,6 +427,7 @@ func (p *evdevProxy) handleKey(event waylandEvdevEvent) {
 	case evdevValueRelease:
 		p.capture.feedKey(code, false)
 		p.trackGlobal(code, false)
+		p.releaseHotkey(code)
 
 		forwarded := p.rule.release(code)
 		if forwarded {
@@ -439,7 +455,8 @@ func (p *evdevProxy) trackGlobal(code uint16, isDown bool) {
 }
 
 // matchHotkey fires the binding for the chord a press completes, if there is
-// one, and reports whether it did.
+// one, and reports whether it did. A press fires once per hold: the kernel
+// reports a held key as repeats, not presses, so none of those reach here.
 func (p *evdevProxy) matchHotkey(code uint16) bool {
 	bindings := *p.bindings.Load()
 	if len(bindings) == 0 {
@@ -456,16 +473,34 @@ func (p *evdevProxy) matchHotkey(code uint16) bool {
 		return false
 	}
 
-	callback := bindings[signature]
-	if callback == nil {
+	binding, bound := bindings[signature]
+	if !bound || binding.press == nil {
 		return false
 	}
 
 	p.logger.Debug("Global hotkey matched", zap.String("chord", signature))
 
-	go callback()
+	if binding.release != nil {
+		p.heldHotkeys[code] = binding.release
+	}
+
+	go binding.press()
 
 	return true
+}
+
+// releaseHotkey fires the release owed for a key whose press matched a chord.
+// It is keyed by the key alone, not the chord: the binder needs the release
+// whether or not the modifier is still down when the key comes up.
+func (p *evdevProxy) releaseHotkey(code uint16) {
+	release, held := p.heldHotkeys[code]
+	if !held {
+		return
+	}
+
+	delete(p.heldHotkeys, code)
+
+	go release()
 }
 
 // emit re-emits one event on the proxy keyboard.

@@ -16,9 +16,16 @@ import (
 
 const waylandStopTimeout = 3 * time.Second
 
+// hotkeyCallbacks is what one registration fires: press once when the chord
+// goes down, and release (nil for Register) once when its key comes up.
+type hotkeyCallbacks struct {
+	press   ports.HotkeyCallback
+	release ports.HotkeyCallback
+}
+
 // Manager handles the registration, unregistration, and dispatching of global hotkeys.
 type Manager struct {
-	callbacks map[ports.HotkeyID]ports.HotkeyCallback
+	callbacks map[ports.HotkeyID]hotkeyCallbacks
 	keys      map[ports.HotkeyID]string
 	logger    *zap.Logger
 	rawLogger *zap.Logger
@@ -46,7 +53,7 @@ func NewManager(logger *zap.Logger) *Manager {
 	}
 
 	mgr := &Manager{
-		callbacks: make(map[ports.HotkeyID]ports.HotkeyCallback),
+		callbacks: make(map[ports.HotkeyID]hotkeyCallbacks),
 		keys:      make(map[ports.HotkeyID]string),
 		logger:    logger.Named("hotkeys"),
 		rawLogger: logger,
@@ -61,17 +68,34 @@ func NewManager(logger *zap.Logger) *Manager {
 	return mgr
 }
 
-// Register adds a new global hotkey (Linux stub).
+// Register adds a new global hotkey that fires callback once per press.
 func (m *Manager) Register(
 	keyString string,
 	callback ports.HotkeyCallback,
+) (ports.HotkeyID, error) {
+	return m.RegisterWithRelease(keyString, callback, nil)
+}
+
+// Both backends see the key come up: the evdev proxy reads every release, and
+// an XGrabKey delivers KeyRelease to the grabbing client. The binder reaches
+// this by type assertion, so a signature drift would silently return every
+// hotkey to press-only instead of failing to compile.
+var _ ports.HotkeyReleaseRegistrar = (*Manager)(nil)
+
+// RegisterWithRelease adds a new global hotkey with press and optional release
+// callbacks. A held chord is one press and one release, however long it is
+// held: the backends report the hold as repeats, which fire nothing.
+func (m *Manager) RegisterWithRelease(
+	keyString string,
+	pressCallback ports.HotkeyCallback,
+	releaseCallback ports.HotkeyCallback,
 ) (ports.HotkeyID, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	hotkeyID := m.nextID
 	m.nextID++
-	m.callbacks[hotkeyID] = callback
+	m.callbacks[hotkeyID] = hotkeyCallbacks{press: pressCallback, release: releaseCallback}
 	m.keys[hotkeyID] = keyString
 
 	switch m.backend {
@@ -134,7 +158,7 @@ func (m *Manager) UnregisterAll() {
 		m.unregisterAllX11Hotkeys()
 	}
 
-	m.callbacks = make(map[ports.HotkeyID]ports.HotkeyCallback)
+	m.callbacks = make(map[ports.HotkeyID]hotkeyCallbacks)
 	m.keys = make(map[ports.HotkeyID]string)
 
 	if m.backend.IsWayland() {
@@ -189,7 +213,8 @@ func (m *Manager) rebuildWaylandBindings() {
 	m.waylandHotkeys.ClearBindings()
 
 	for id, key := range m.keys {
-		m.waylandHotkeys.SetBinding(key, m.callbacks[id])
+		callbacks := m.callbacks[id]
+		m.waylandHotkeys.SetBinding(key, callbacks.press, callbacks.release)
 	}
 }
 

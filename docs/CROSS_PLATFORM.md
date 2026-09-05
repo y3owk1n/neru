@@ -526,7 +526,7 @@ compositor infer the drag.
 | **In-mode capture**   | `CGEventTapCreate`     | `XGrabKeyboard`         | evdev proxy (lifetime `EVIOCGRAB` + uinput re-emit), wl-keyboard fallback | `WH_KEYBOARD_LL`        |
 | **Global hotkeys**    | Per-key CGEventTap     | `XGrabKey`              | Chord matcher on the evdev proxy         | `RegisterHotKey`        |
 | **CGO needed**        | Yes                    | Yes                     | Yes                                      | No                      |
-| **Press/release**     | ✅ separate callbacks  | ✅ KeyPress/KeyRelease  | ⚠️ press-only in some configs            | ✅ `WM_HOTKEY` flags    |
+| **Press/release**     | ✅ separate callbacks  | ✅ KeyPress/KeyRelease  | ✅ evdev press/release                   | ✅ press, then `GetAsyncKeyState` poll |
 | **Modifier passthrough** | ✅                  | ❌ grab is all-or-nothing | ✅ evdev only                          | ✅ hook forwards per event |
 | **`PostModifierEvent`** | ✅                   | ✅                      | ✅ (`zwp_virtual_keyboard_v1`)           | ✅ `SendInput`          |
 | **Sticky modifiers**  | ✅                     | ✅                      | ✅                                       | ✅                      |
@@ -536,6 +536,23 @@ compositor infer the drag.
 There is no separate Wayland hotkey file. The Wayland path lives in the common
 `hotkeys/linux/manager.go`, which delegates to the evdev listener in the
 eventtap package.
+
+**A held global hotkey.** Every manager implements `HotkeyReleaseRegistrar`,
+and reports a hold as one press and one release however long it lasts, which is
+what `[held_repeat]` repeats between. macOS folds autorepeat in the per-hotkey
+tap. The evdev proxy fires the release when the chord's key comes up, whether or
+not the modifier is still down by then. X11 asks the server for detectable
+autorepeat on both of its connections (`XkbSetDetectableAutoRepeat`), so a held
+key is repeated `KeyPress` events and one `KeyRelease` rather than the
+release/press pairs that would end the hold at the server's repeat rate; the
+in-mode tap needs the same, or the mode's own held repeat stops after its first
+tick. `RegisterHotKey` reports the press only, so the Windows registry registers
+with `MOD_NOREPEAT` and reads the key through `GetAsyncKeyState` every 10 ms
+from the `WM_HOTKEY` until it reads up. The poll runs only while a hotkey is
+held; the other source of releases, the `WH_KEYBOARD_LL` hook, sits on every
+keystroke for as long as it is installed, and installing it for the daemon's
+lifetime would put a hook procedure on the idle path to pay for a release only a
+held hotkey needs.
 
 **A global chord while a mode is active.** A `[hotkeys]` binding keeps working
 from inside a mode on macOS, Windows and Linux Wayland, and each gets there its
