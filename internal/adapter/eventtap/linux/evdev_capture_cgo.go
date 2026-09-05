@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -49,6 +50,14 @@ type waylandEvdevCapture struct {
 	// path; guarded by deviceMu like files.
 	devices map[*os.File]trackedDevice
 
+	// pending is the keyboards the constructor found with a key down, whose
+	// grab waits for them to go idle; startReaders launches those waits.
+	pending []string
+
+	// pendingGrabs counts the waits in flight, so a session asked for while a
+	// keyboard is still on its way in can be refused by name; deviceMu.
+	pendingGrabs int
+
 	// pointer is the pointer proxy, or nil until a grabbed keyboard needs one:
 	// the uinput mouse the relative motion and the buttons of a keyboard that
 	// carries them are re-emitted on. Created under deviceMu by whichever
@@ -78,8 +87,8 @@ type trackedDevice struct {
 }
 
 // newWaylandEvdevCapture opens every keyboard under /dev/input. With grab set,
-// each is taken exclusively on the way in and the keys the kernel reports held
-// on it are pushed as seed events, ahead of anything the device sends.
+// each is taken exclusively on the way in, and only while no key on it is down
+// (deviceBusy): a keyboard with a key held is grabbed once it goes idle.
 //
 // A device another process already holds (a key remapper such as kanata or keyd
 // grabs its input keyboards for its own lifetime) refuses the grab and is
@@ -104,12 +113,12 @@ func newWaylandEvdevCapture(logger *zap.Logger, grab bool) (*waylandEvdevCapture
 	}
 
 	for _, path := range paths {
-		if _, seeds, ok := capture.addDeviceLocked(path); ok {
-			capture.sendSeeds(seeds)
+		if _, outcome := capture.addDeviceLocked(path); outcome == deviceBusy {
+			capture.pending = append(capture.pending, path)
 		}
 	}
 
-	if len(capture.files) == 0 {
+	if len(capture.files) == 0 && len(capture.pending) == 0 {
 		logger.Warn(
 			"No keyboard /dev/input/event* devices could be opened initially; "+
 				"hotplug watcher will monitor for newly connected keyboard devices",
@@ -119,6 +128,7 @@ func newWaylandEvdevCapture(logger *zap.Logger, grab bool) (*waylandEvdevCapture
 		logger.Debug(
 			"Evdev capture created",
 			zap.Int("keyboard_devices", len(capture.files)),
+			zap.Int("keyboards_with_a_key_down", len(capture.pending)),
 			zap.Int("total_event_devices", len(paths)),
 			zap.Bool("grabbed", grab),
 		)
@@ -175,13 +185,27 @@ func (capture *waylandEvdevCapture) Close() {
 	})
 }
 
+// deviceOutcome is what addDeviceLocked made of a path.
+type deviceOutcome int
+
+const (
+	// deviceSkipped is a node that is not a keyboard this capture reads, or
+	// one it already has, or one another grabber owns.
+	deviceSkipped deviceOutcome = iota
+	// deviceAdopted is a keyboard now tracked, grabbed when the capture grabs.
+	deviceAdopted
+	// deviceBusy is a keyboard with a key down, which the capture will not
+	// hold: libinput keeps that key down until a release arrives on the same
+	// device, and a release re-emitted on the proxy is discarded as a release
+	// for a key never pressed there (ADR 0014). The device is grabbed once it
+	// is idle instead (waitIdle).
+	deviceBusy
+)
+
 // addDeviceLocked opens path and keeps it when it is a keyboard this capture
-// should read, answering the file and the keys the kernel reported held on it
-// at grab time. The caller holds deviceMu, or is the constructor before anyone
-// else can, and sends the seeds itself once it no longer holds the lock — the
-// proxy's run loop takes deviceMu too, so a send made under it could wait on
-// the one goroutine that would drain it.
-func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []uint16, bool) {
+// should read and no key on it is down. The caller holds deviceMu, or is the
+// constructor before anyone else can.
+func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, deviceOutcome) {
 	// Read-write so the compositor's LED changes can be written back to the
 	// device; a node that only grants reading is still a keyboard to read.
 	file, openErr := os.OpenFile(path, os.O_RDWR, 0)
@@ -190,7 +214,7 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []ui
 	}
 
 	if openErr != nil {
-		return nil, nil, false
+		return nil, deviceSkipped
 	}
 
 	descriptor := C.int(file.Fd())
@@ -210,18 +234,16 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []ui
 		isNeruInjectionDevice(name) {
 		_ = file.Close()
 
-		return nil, nil, false
+		return nil, deviceSkipped
 	}
 
 	for _, tracked := range capture.files {
 		if tracked.Name() == path {
 			_ = file.Close()
 
-			return nil, nil, false
+			return nil, deviceSkipped
 		}
 	}
-
-	var seeds []uint16
 
 	if capture.grab {
 		if C.neru_evdev_grab(descriptor, 1) != 0 {
@@ -236,7 +258,7 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []ui
 
 			_ = file.Close()
 
-			return nil, nil, false
+			return nil, deviceSkipped
 		}
 
 		// A keyboard with relative motion on it is kept only once that motion
@@ -247,16 +269,25 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []ui
 			C.neru_evdev_grab(descriptor, 0)
 			_ = file.Close()
 
-			return nil, nil, false
+			return nil, deviceSkipped
 		}
 
-		seeds = heldKeys(descriptor)
+		// Asked under the grab, so no press can land between the answer and
+		// the grab; a key found down means the grab is let go again at once,
+		// and its release reaches the compositor as the press did.
+		held, heldErr := keysHeld(descriptor)
+		if held || heldErr != nil {
+			C.neru_evdev_grab(descriptor, 0)
+			_ = file.Close()
+
+			return nil, deviceBusy
+		}
 	}
 
 	capture.files = append(capture.files, file)
 	capture.devices[file] = trackedDevice{name: name}
 
-	return file, seeds, true
+	return file, deviceAdopted
 }
 
 // ensurePointerProxyLocked creates the pointer proxy if there is none yet and
@@ -294,49 +325,113 @@ func (capture *waylandEvdevCapture) ensurePointerProxyLocked(path string) bool {
 	return true
 }
 
-// heldKeys is every key the kernel reports down on fd, read right after the
-// grab so the compositor's picture of them can be honored (forwardRule.seed).
-func heldKeys(fd C.int) []uint16 {
+// keysHeld reports whether the kernel has any key down on fd. The error is a
+// device that cannot answer, which is one that is gone.
+func keysHeld(fd C.int) (bool, error) {
 	var bits [evdevKeyCodeCount / evdevBitsPerWord]C.ulong
-	if C.neru_evdev_get_key_state(fd, &bits[0], C.size_t(unsafe.Sizeof(bits))) != 0 {
-		return nil
+
+	result, err := C.neru_evdev_get_key_state(fd, &bits[0], C.size_t(unsafe.Sizeof(bits)))
+	if result != 0 {
+		return false, err
 	}
 
-	var codes []uint16
-
-	for code := range uint16(evdevKeyCodeCount) {
-		if bits[code/evdevBitsPerWord]&(1<<(code%evdevBitsPerWord)) != 0 {
-			codes = append(codes, code)
+	for _, word := range bits {
+		if word != 0 {
+			return true, nil
 		}
 	}
 
-	return codes
+	return false, nil
 }
 
-// sendSeeds pushes one seed event per held key. It has to run before the
-// device's reader starts, so the seeds reach the proxy ahead of the device's
-// first event.
-func (capture *waylandEvdevCapture) sendSeeds(codes []uint16) {
-	for _, code := range codes {
-		select {
-		case capture.events <- waylandEvdevEvent{eventType: evdevEventSeed, code: code}:
-		case <-capture.stopCh:
-			return
-		}
-	}
-}
-
-// startReaders launches reader goroutines for each captured keyboard device
-// and starts the inotify hotplug watcher for detecting device hotplug.
-// These goroutines run for the entire lifetime of the capture.
+// startReaders launches reader goroutines for each captured keyboard device,
+// the idle waits for the keyboards found with a key down, and the inotify
+// hotplug watcher. These goroutines run for the entire lifetime of the capture.
 func (capture *waylandEvdevCapture) startReaders() {
 	capture.deviceMu.Lock()
 	for _, file := range capture.files {
 		capture.startReader(file)
 	}
+
+	for _, path := range capture.pending {
+		capture.grabWhenIdleLocked(path, "")
+	}
+
+	capture.pending = nil
 	capture.deviceMu.Unlock()
 
 	capture.startHotplugWatcher()
+}
+
+// grabWhenIdleLocked starts the wait that grabs a busy keyboard once no key
+// on it is down. The caller holds deviceMu.
+func (capture *waylandEvdevCapture) grabWhenIdleLocked(path string, borrowedFor string) {
+	capture.pendingGrabs++
+
+	if capture.logger != nil {
+		capture.logger.Info(
+			"Keyboard has a key down; holding it once the key is released",
+			zap.String("device", path),
+		)
+	}
+
+	go capture.waitIdle(path, borrowedFor)
+}
+
+// waitIdle adopts path once the kernel reports no key down on it. It polls the
+// key state rather than reading the device, so it takes nothing from the
+// device's owner; the poll quantum is paid once per device, when a daemon or a
+// remapper is launched from a binding, and never per activation.
+func (capture *waylandEvdevCapture) waitIdle(path string, borrowedFor string) {
+	defer func() {
+		capture.deviceMu.Lock()
+		capture.pendingGrabs--
+		capture.deviceMu.Unlock()
+	}()
+
+	file, err := os.Open(path)
+	if err != nil {
+		return
+	}
+
+	defer func() { _ = file.Close() }()
+
+	descriptor := C.int(file.Fd())
+
+	ticker := time.NewTicker(waylandEvdevIdlePollInterval)
+	defer ticker.Stop()
+
+	for {
+		held, err := keysHeld(descriptor)
+		if err != nil {
+			return
+		}
+
+		if !held {
+			break
+		}
+
+		select {
+		case <-capture.stopCh:
+			return
+		case <-ticker.C:
+		}
+	}
+
+	capture.adopt(path, borrowedFor)
+}
+
+// pendingCount is how many keyboards are waiting to go idle before they are
+// grabbed.
+func (capture *waylandEvdevCapture) pendingCount() int {
+	if capture == nil {
+		return 0
+	}
+
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
+
+	return capture.pendingGrabs
 }
 
 func (capture *waylandEvdevCapture) startReader(file *os.File) {

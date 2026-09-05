@@ -23,6 +23,11 @@ const (
 	// rare and a stale name costs one mistyped binding, so this is slow; the
 	// same check runs at every mode start, where it is free.
 	waylandEvdevKeymapPollInterval = 2 * time.Second
+
+	// waylandEvdevIdlePollInterval is how often a keyboard found with a key
+	// down is asked whether the key has come up, so it can be grabbed. Paid
+	// once per device (waitIdle), never per activation.
+	waylandEvdevIdlePollInterval = 10 * time.Millisecond
 )
 
 // waylandEvdevKeyboardActive reports whether a mode session currently owns the
@@ -48,6 +53,10 @@ var (
 	errWaylandEvdevPassive      = errors.New(
 		"wayland evdev proxy is passive: /dev/uinput is not writable, so keys cannot be captured",
 	)
+	errWaylandEvdevGrabPending = errors.New(
+		"wayland evdev proxy holds no keyboard yet: every keyboard has a key down, " +
+			"and each is held once its key is released",
+	)
 )
 
 const waylandEvdevDeviceNameSize = 256
@@ -71,12 +80,6 @@ const (
 	evdevEventLed uint16 = 0x11
 
 	evdevSynReport uint16 = 0
-
-	// evdevEventSeed is not a kernel event type. A device layer pushes one per
-	// key the kernel reported down when it grabbed a device, ahead of that
-	// device's first real event, so the forward rule learns which releases it
-	// owes the compositor (forwardRule.seed).
-	evdevEventSeed uint16 = 0xffff
 )
 
 type waylandEvdevEvent struct {

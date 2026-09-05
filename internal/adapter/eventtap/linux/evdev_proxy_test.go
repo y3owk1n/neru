@@ -120,7 +120,7 @@ func TestForwardRule_AReleaseGoesWhereItsPressWent(t *testing.T) {
 		{name: "idle: forwarded throughout", wantPress: true, wantRepeat: true, wantRelease: true},
 		{name: "capturing: withheld throughout", withholdPress: true},
 		{
-			name:   "a seeded key: the compositor saw the press, so it gets the release",
+			name:   "re-emitted by the proxy: the compositor saw the press, so it gets the release",
 			seeded: true, withholdPress: true, wantRepeat: true, wantRelease: true,
 		},
 	}
@@ -247,35 +247,6 @@ func TestEvdevProxy_MatchesTheChordEveryTime(t *testing.T) {
 				attempt,
 			)
 		}
-	}
-}
-
-// A key the kernel reported down when its device was grabbed had its press
-// seen by the compositor, so its release is owed there — and it is not a
-// chord's base key just because a modifier comes down after it.
-func TestEvdevProxy_SeededKeyReleasesToTheCompositor(t *testing.T) {
-	t.Parallel()
-
-	proxy := newTestProxy()
-	fired := bindTestChord(proxy)
-
-	proxy.handle(waylandEvdevEvent{eventType: evdevEventSeed, code: evdevKeySemicolon})
-	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
-
-	if proxy.rule.repeat(evdevKeySemicolon) != true {
-		t.Error("a seeded key's repeat was withheld")
-	}
-
-	proxy.handle(keyEvent(evdevKeySemicolon, evdevValueRelease))
-
-	if proxy.rule.isDown(evdevKeySemicolon) {
-		t.Error("the seeded key is still down after its release")
-	}
-
-	select {
-	case <-fired:
-		t.Fatal("a seeded key's release matched the chord")
-	case <-time.After(50 * time.Millisecond):
 	}
 }
 
@@ -443,7 +414,6 @@ func TestEvdevProxy_PointerEventsAreNotKeys(t *testing.T) {
 	tap, keys := collectKeys(t)
 	beginSession(proxy, tap)
 
-	proxy.handle(waylandEvdevEvent{eventType: evdevEventSeed, code: btnLeft})
 	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
 	proxy.handle(keyEvent(btnLeft, evdevValuePress))
 	proxy.handle(waylandEvdevEvent{eventType: evdevEventRel, code: 0, value: 3})
