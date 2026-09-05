@@ -230,20 +230,10 @@ func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	// (e.g. ScrollStep=50, ScrollStepHalf=500, ScrollStepFull=1000000).
 	// We scale them to a capped number of clicks to avoid flooding X11
 	// with tens of thousands of button events on large scrolls.
-	const (
-		scale     = scrollPixelsPerNotch
-		maxClicks = maxScrollUnitsPerRequest
-	)
+	const maxClicks = maxScrollUnitsPerRequest
 
 	if deltaY != 0 {
-		yClicks := abs(deltaY) / scale
-		if yClicks == 0 {
-			yClicks = 1
-		}
-
-		if yClicks > maxClicks {
-			yClicks = maxClicks
-		}
+		yClicks := min(scrollNotches(deltaY), maxClicks)
 
 		for range yClicks {
 			const mouseButtonVerticalScroll = 4
@@ -261,14 +251,7 @@ func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	if deltaX != 0 {
-		xClicks := abs(deltaX) / scale
-		if xClicks == 0 {
-			xClicks = 1
-		}
-
-		if xClicks > maxClicks {
-			xClicks = maxClicks
-		}
+		xClicks := min(scrollNotches(deltaX), maxClicks)
 
 		for range xClicks {
 			const mouseButtonHorizontalScrollRight = 7

@@ -134,23 +134,23 @@ func TestScrollChunks_KeepsAGranularBackendOnWholeUnits(t *testing.T) {
 		}
 	}
 
-	// The unanimated X11 path sends abs(delta)/30 clicks, truncated: 16 here.
-	// Rounding per step would lose several of them.
-	if got, want := sum(chunks), -16*float64(notch); got != want {
-		t.Errorf("chunks total %v, want %v (16 notches)", got, want)
+	// The unanimated X11 path sends scrollNotches(delta) clicks, which is 500
+	// px rounded to the nearest notch, 17. Rounding per step would lose several.
+	if got, want := sum(chunks), -17*float64(notch); got != want {
+		t.Errorf("chunks total %v, want %v (17 notches)", got, want)
 	}
 }
 
 // TestScrollChunks_SendsAOneUnitScrollImmediately covers the case that is not
-// an animation at all, and the one the default configuration hits on X11: a
-// scroll_step of 50 pixels is a single wheel notch there. One event goes out
-// either way, so scheduling it anywhere but the first step would deliver the
-// same scroll later — added latency and nothing else.
+// an animation at all: a scroll that rounds to a single wheel notch on X11.
+// One event goes out either way, so scheduling it anywhere but the first step
+// would deliver the same scroll later — added latency and nothing else.
 func TestScrollChunks_SendsAOneUnitScrollImmediately(t *testing.T) {
 	const notch = scrollPixelsPerNotch
 
-	// Shorter than a notch, exactly a notch, and the shipped scroll_step.
-	for _, delta := range []float64{10, -10, 1, -1, notch, -notch, 50, -50} {
+	// Shorter than a notch, exactly a notch, and the last step that still
+	// rounds down to one.
+	for _, delta := range []float64{10, -10, 1, -1, notch, -notch, 44, -44} {
 		chunks := scrollChunks(delta, 20, notch, maxScrollUnitsPerRequest)
 
 		want := float64(notch)
@@ -535,14 +535,15 @@ func TestScrollAnimator_Animate_HeldRepeatOnAGranularBackend(t *testing.T) {
 		time.Sleep(scrollTestRepeatInterval)
 	}
 
+	// What ten discrete presses send: each rounds to the nearest notch.
 	var (
-		asked     = float64(ticks * -scrollTestHalfPage)
+		asked     = float64(ticks * scrollNotches(scrollTestHalfPage) * notch)
 		tolerance = float64(ticks * notch)
 	)
 
 	// The last tick is still draining, so the floor is what has to be waited
 	// for; the ceiling holds at every instant, since no schedule can send more
-	// than was asked for.
+	// notches than the presses would.
 	waitFor(t, func() bool { return -log.traveled() >= asked-tolerance })
 
 	time.Sleep(60 * time.Millisecond)

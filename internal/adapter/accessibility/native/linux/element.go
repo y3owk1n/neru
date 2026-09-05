@@ -429,6 +429,16 @@ func MouseUp(button action.MouseButton) error {
 // different distance depending on which backend answered.
 const scrollPixelsPerNotch = 30
 
+// scrollNotches is how many wheel notches a scroll of delta pixels is: the
+// nearest whole notch, and never fewer than one so a step shorter than a notch
+// still moves. Truncating instead left a default 50 px step one notch short
+// of the two it rounds to, and a 59 px step no further than a 30 px one.
+// Every unanimated Linux path and the animated total share this, so the two
+// travel the same distance.
+func scrollNotches(delta int) int {
+	return max((abs(delta)+scrollPixelsPerNotch/2)/scrollPixelsPerNotch, 1)
+}
+
 // ScrollAtCursor scrolls at the cursor, presenting modifiers as held.
 //
 // Linux has no event-flags concept, so a modifier is a real key press around
@@ -533,9 +543,6 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 			waitForWaylandModifierPress()
 		}
 
-		// Scale factor: each uinput scroll event approximates ~1 line.
-		const scrollScale = scrollPixelsPerNotch
-
 		// maxBatchEvents caps the number of uinput events sent per
 		// write/flush to avoid overflowing the kernel evdev buffer (~8192
 		// bytes) or the Wayland socket buffer.  Each batch is kept small so
@@ -551,10 +558,7 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 				return 0
 			}
 
-			totalNotches := abs(delta) / scrollScale
-			if totalNotches == 0 {
-				totalNotches = 1
-			}
+			totalNotches := scrollNotches(delta)
 
 			remainingNotches := totalNotches
 			batch := make([]int, 0, maxBatchEvents)
@@ -584,7 +588,9 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 				}
 			}
 
-			return uinputScrollRemainder(delta, totalNotches, remainingNotches, scrollScale)
+			return uinputScrollRemainder(
+				delta, totalNotches, remainingNotches, scrollPixelsPerNotch,
+			)
 		}
 
 		remainY := sendScaledScroll(uinputScrollAxisVertical, deltaY)
@@ -618,10 +624,12 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 // send, in the caller's pixels, for the virtual pointer to finish.
 //
 // It is zero whenever every notch went out, even when the delta was not a
-// whole number of notches: a 50 px step is one 30 px notch, and the 20 px
-// left over is rounding, not a lost scroll. Handing it on used to add a
-// second, opposite-signed notch to every press on Hyprland, which Chromium
-// and Electron clients summed to nothing.
+// whole number of notches: a 50 px step is two 30 px notches, and the 10 px
+// left over is rounding, not a lost scroll. Handing it on used to add an
+// extra, opposite-signed notch to every press on Hyprland, which Chromium
+// and Electron clients summed to nothing. When some notches remain, the
+// pixels handed on round to exactly the unsent count, so the virtual pointer
+// finishes the same scroll rather than a re-rounded one.
 func uinputScrollRemainder(delta, totalNotches, remainingNotches, scale int) int {
 	if remainingNotches == 0 {
 		return 0
