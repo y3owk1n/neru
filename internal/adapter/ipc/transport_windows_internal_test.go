@@ -4,10 +4,12 @@ package ipc
 
 import (
 	"context"
+	"net"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Microsoft/go-winio"
 	"go.uber.org/zap"
@@ -87,8 +89,16 @@ func TestAuthorizePeer_DefersToThePipeSecurityDescriptor(t *testing.T) {
 	}
 }
 
-// servePipe listens on path as this user and accepts connections until the
-// test ends, so a dial has something real on the other end to be checked.
+// servePipe listens on path as this user and accepts the one connection the
+// test dials, so that dial has something real on the other end to be checked.
+//
+// The listener is closed only once that accept has returned. go-winio's
+// listener cannot be closed while an accept is still setting up: a Close that
+// lands between the accept's own closed check and its connect call hands the
+// accept an invalid-handle error instead of the closed one, the listener loops
+// back believing it is still open, and Close waits on it forever. Accepting in
+// a loop put a fresh accept in that window on every run, and one in a while
+// the cleanup hit it, seen as a ten-minute test timeout on Windows CI.
 func servePipe(t *testing.T, path string) {
 	t.Helper()
 
@@ -97,18 +107,27 @@ func servePipe(t *testing.T, path string) {
 		t.Fatalf("listenEndpoint(%s) error = %v", path, listenErr)
 	}
 
-	t.Cleanup(func() { _ = listener.Close() })
+	accepted := make(chan net.Conn, 1)
 
 	go func() {
-		for {
-			conn, acceptErr := listener.Accept()
-			if acceptErr != nil {
-				return
-			}
-
-			t.Cleanup(func() { _ = conn.Close() })
-		}
+		conn, _ := listener.Accept()
+		accepted <- conn
 	}()
+
+	t.Cleanup(func() {
+		// A test that never dialed leaves the accept pending on a connect
+		// issued long ago, which Close cancels cleanly; only a fresh accept
+		// is unsafe, and nothing issues one here.
+		select {
+		case conn := <-accepted:
+			if conn != nil {
+				_ = conn.Close()
+			}
+		case <-time.After(time.Second):
+		}
+
+		_ = listener.Close()
+	})
 }
 
 // The name is the only thing the client chose, and a name is what another
