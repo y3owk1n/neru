@@ -39,7 +39,7 @@ func newTestProxy() *evdevProxy {
 	empty := map[string]hotkeyBinding{}
 	proxy.bindings.Store(&empty)
 	proxy.heldHotkeys = make(map[uint16]func())
-	proxy.dispatch = NewHotkeyDispatcher(nil)
+	proxy.dispatch = NewHotkeyDispatcher()
 
 	return proxy
 }

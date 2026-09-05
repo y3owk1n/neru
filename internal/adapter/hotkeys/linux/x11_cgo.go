@@ -261,7 +261,7 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 		bindings: make(map[ports.HotkeyID]x11HotkeyBinding),
 		ids:      make(map[string]ports.HotkeyID),
 		held:     make(x11HeldHotkeys),
-		dispatch: eventtaplinux.NewHotkeyDispatcher(m.logger),
+		dispatch: eventtaplinux.NewHotkeyDispatcher(),
 		stopCh:   make(chan struct{}),
 		doneCh:   make(chan struct{}),
 	}

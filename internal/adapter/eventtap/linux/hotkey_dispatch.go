@@ -2,12 +2,7 @@
 
 package linux
 
-import "go.uber.org/zap"
-
-// hotkeyDispatchBufferSize bounds how many callbacks can wait on the
-// dispatcher. Two per hotkey is the most a hold produces; the rest is slack for
-// a handler that is briefly busy.
-const hotkeyDispatchBufferSize = 64
+import "sync"
 
 // HotkeyDispatcher runs hotkey callbacks off the goroutine that reads key
 // events, one at a time, in the order they were queued.
@@ -18,47 +13,70 @@ const hotkeyDispatchBufferSize = 64
 // goroutine per callback has none: a release and the press that follows it
 // could run swapped, and the release would then cancel the repeat the new
 // press had just started, leaving a held key that stops repeating.
+//
+// The queue is unbounded rather than dropping under pressure, because a
+// release is the one thing that ends a held key's repeat: dropped, the repeat
+// would outlive the key. What queues is two callbacks per hotkey press, so
+// even a handler stuck for the length of a hold grows it by a few entries.
 type HotkeyDispatcher struct {
-	logger *zap.Logger
-	queue  chan func()
+	mu      sync.Mutex
+	ready   *sync.Cond
+	queue   []func()
+	stopped bool
 }
 
 // NewHotkeyDispatcher starts a dispatcher.
-func NewHotkeyDispatcher(logger *zap.Logger) *HotkeyDispatcher {
-	if logger == nil {
-		logger = zap.NewNop()
-	}
-
-	dispatcher := &HotkeyDispatcher{
-		logger: logger,
-		queue:  make(chan func(), hotkeyDispatchBufferSize),
-	}
+func NewHotkeyDispatcher() *HotkeyDispatcher {
+	dispatcher := &HotkeyDispatcher{}
+	dispatcher.ready = sync.NewCond(&dispatcher.mu)
 
 	go dispatcher.run()
 
 	return dispatcher
 }
 
-// Dispatch queues callback. It never blocks the reader: a full queue means the
-// handler is wedged, and the callback is dropped with a warning, as the taps
-// drop keys.
+// Dispatch queues callback. It never blocks the reader.
 func (d *HotkeyDispatcher) Dispatch(callback func()) {
-	select {
-	case d.queue <- callback:
-	default:
-		d.logger.Warn("Hotkey dispatch queue full, dropping callback")
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.stopped {
+		return
 	}
+
+	d.queue = append(d.queue, callback)
+	d.ready.Signal()
 }
 
-// Stop ends the dispatcher once it has run what is queued. Only the reader
-// queues, so the owner calls this after the reader has exited; it does not
-// wait, because a queued callback may be waiting on a lock the owner holds.
+// Stop ends the dispatcher once it has run what is queued. It does not wait,
+// because a queued callback may be waiting on a lock the owner holds.
 func (d *HotkeyDispatcher) Stop() {
-	close(d.queue)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.stopped = true
+	d.ready.Signal()
 }
 
 func (d *HotkeyDispatcher) run() {
-	for callback := range d.queue {
+	for {
+		d.mu.Lock()
+
+		for len(d.queue) == 0 && !d.stopped {
+			d.ready.Wait()
+		}
+
+		if len(d.queue) == 0 {
+			d.mu.Unlock()
+
+			return
+		}
+
+		callback := d.queue[0]
+		d.queue[0] = nil
+		d.queue = d.queue[1:]
+		d.mu.Unlock()
+
 		callback()
 	}
 }

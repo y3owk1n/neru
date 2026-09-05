@@ -180,7 +180,7 @@ func newEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 		done:          make(chan struct{}),
 		heldByAnother: (*proxyNode).heldByAnother,
 		heldHotkeys:   make(map[uint16]func()),
-		dispatch:      NewHotkeyDispatcher(logger),
+		dispatch:      NewHotkeyDispatcher(),
 	}
 
 	proxy.forwarding.Store(uinputFd >= 0)
