@@ -65,6 +65,42 @@ func TestPlanFor_SuppressesAHeldModifierNobodyAskedFor(t *testing.T) {
 	}
 }
 
+// TestPlanFor_PresentsAClicksOwnModifiersOverAHeldHotkeyChord is the click
+// shape of the same bug: a hotkey chord still held while a hint is chosen
+// rides along on the injected click, so a shift+click asked for from a
+// Ctrl+Alt chord has to release both chord keys and press shift, and the
+// mouse-up that ends a drag undoes exactly that.
+func TestPlanFor_PresentsAClicksOwnModifiersOverAHeldHotkeyChord(t *testing.T) {
+	keys := []modifierstate.Key{
+		{Keycode: controlLeft, Modifier: action.ModCtrl, Held: true, Canonical: true},
+		{Keycode: altLeft, Modifier: action.ModAlt, Held: true, Canonical: true},
+		{Keycode: shiftLeft, Modifier: action.ModShift, Canonical: true},
+	}
+
+	plan := modifierstate.PlanFor(keys, action.ModShift)
+
+	if !equalEdits(plan.Suppress, edits(controlLeft, altLeft)) {
+		t.Fatalf(
+			"PlanFor suppressed %v, want the held chord keys %d and %d",
+			plan.Suppress,
+			controlLeft,
+			altLeft,
+		)
+	}
+
+	if !equalEdits(plan.Press, edits(shiftLeft)) {
+		t.Fatalf(
+			"PlanFor pressed %v, want the shift key %d the click asked for",
+			plan.Press,
+			shiftLeft,
+		)
+	}
+
+	if restore := plan.Restore(nil); !equalEdits(restore, edits(controlLeft, altLeft)) {
+		t.Fatalf("Restore = %v, want both chord keys pressed back after the click", restore)
+	}
+}
+
 // TestPlanFor_PressesOnlyWhatNothingIsAlreadyHolding pins the other half: a key
 // is one bit of keyboard state rather than a count, so pressing a modifier the
 // user is already holding means our release afterwards tells every application

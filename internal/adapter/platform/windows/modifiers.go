@@ -218,6 +218,60 @@ func (h modifierHold) release() {
 	}
 }
 
+// windowsDragModifiers is the hold a mouse-down took, kept until the mouse-up
+// that ends the drag comes to undo it. Keys are action.MouseButton values.
+var windowsDragModifiers modifierstate.Stash
+
+// keepForRelease keeps this hold for the release of button to pick up, instead
+// of undoing it when the call that took it returns.
+//
+// A press has to keep presenting its modifiers for as long as the button is
+// down, because the drag in between is what carries them: releasing them at
+// the end of the press would make a shift+drag an unmodified one from the
+// first pixel of movement.
+//
+// What is kept is the plan alone. The lock and the record of physical releases
+// both go here, because a drag is as long as the user makes it and a scroll
+// fired mid-drag needs both for itself. That leaves the release with the same
+// bias X11's drag carries: a suppressed key the user lets go of mid-drag is
+// pressed back at the end and reads as held until they tap it once more,
+// which is safer than dropping a modifier they are still holding.
+func (h modifierHold) keepForRelease(button action.MouseButton) {
+	defer modifierHoldMu.Unlock()
+
+	endReleaseTracking()
+	windowsDragModifiers.Put(uint32(button), h.plan)
+}
+
+// resumeModifierHold picks up the hold the press of button kept, so its
+// release can undo it, and takes a fresh hold of modifiers when there was no
+// such press: a bare mouse-up action, or one whose press this process never
+// made.
+//
+// The keyboard is read once, by the press. What the release replays is the
+// press's plan rather than a fresh reading, so a modifier the user takes hold
+// of or lets go of mid-drag is presented on the release event as it was at the
+// press. Re-reading at the release would decide the drag's modifiers twice,
+// which is the one thing a drag cannot have.
+//
+// Like holdModifiers, the hold returned owns modifierHoldMu until release.
+func resumeModifierHold(
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) (modifierHold, error) {
+	modifierHoldMu.Lock()
+
+	if plan, held := windowsDragModifiers.Take(uint32(button)); held {
+		beginReleaseTracking()
+
+		return modifierHold{plan: plan}, nil
+	}
+
+	modifierHoldMu.Unlock()
+
+	return holdModifiers(modifiers)
+}
+
 var errUnknownModifier = errors.New("unknown modifier")
 
 // PostModifierKey presses or releases the canonical key for one modifier, named

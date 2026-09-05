@@ -157,51 +157,6 @@ func MoveMouseTo(point image.Point) error {
 	return moveCursorTo(point)
 }
 
-// LeftClickAt performs a left click at the given point.
-func LeftClickAt(point image.Point) error {
-	err := moveCursorTo(point)
-	if err != nil {
-		return err
-	}
-
-	err = sendMouseInput(mouseeventfLeftDown, 0)
-	if err != nil {
-		return err
-	}
-
-	return sendMouseInput(mouseeventfLeftUp, 0)
-}
-
-// RightClickAt performs a right click at the given point.
-func RightClickAt(point image.Point) error {
-	err := moveCursorTo(point)
-	if err != nil {
-		return err
-	}
-
-	err = sendMouseInput(mouseeventfRightDown, 0)
-	if err != nil {
-		return err
-	}
-
-	return sendMouseInput(mouseeventfRightUp, 0)
-}
-
-// MiddleClickAt performs a middle click at the given point.
-func MiddleClickAt(point image.Point) error {
-	err := moveCursorTo(point)
-	if err != nil {
-		return err
-	}
-
-	err = sendMouseInput(mouseeventfMiddleDown, 0)
-	if err != nil {
-		return err
-	}
-
-	return sendMouseInput(mouseeventfMiddleUp, 0)
-}
-
 // buttonFlags holds the SendInput flags that press and release one mouse button.
 type buttonFlags struct {
 	down uint32
@@ -222,24 +177,72 @@ func flagsForButton(button action.MouseButton) buttonFlags {
 	}
 }
 
-// MouseDown presses the given button at the given point.
-func MouseDown(point image.Point, button action.MouseButton) error {
-	err := moveCursorTo(point)
+// ClickAt presses and releases the given button at the given point, with
+// exactly modifiers presented as held for both events. A SendInput button
+// event carries no modifier field any more than a wheel event does, so the
+// same hold scrollWheelNow takes is what keeps a hotkey chord still held while
+// a hint is chosen from turning the click into a ctrl+click.
+func ClickAt(point image.Point, button action.MouseButton, modifiers action.Modifiers) error {
+	hold, err := holdModifiers(modifiers)
 	if err != nil {
 		return err
 	}
 
-	return sendMouseInput(flagsForButton(button).down, 0)
+	defer hold.release()
+
+	flags := flagsForButton(button)
+
+	err = buttonEventAt(point, flags.down)
+	if err != nil {
+		return err
+	}
+
+	return sendMouseInput(flags.up, 0)
 }
 
-// MouseUp releases the given button at the given point.
-func MouseUp(point image.Point, button action.MouseButton) error {
+// buttonEventAt moves the cursor to point and posts one button event there.
+func buttonEventAt(point image.Point, flags uint32) error {
 	err := moveCursorTo(point)
 	if err != nil {
 		return err
 	}
 
-	return sendMouseInput(flagsForButton(button).up, 0)
+	return sendMouseInput(flags, 0)
+}
+
+// MouseDown presses the given button at the given point and keeps modifiers
+// presented until the matching MouseUp, so the drag in between carries them.
+// A press that fails undoes its own hold: no release is coming to do it.
+func MouseDown(point image.Point, button action.MouseButton, modifiers action.Modifiers) error {
+	hold, err := holdModifiers(modifiers)
+	if err != nil {
+		return err
+	}
+
+	err = buttonEventAt(point, flagsForButton(button).down)
+	if err != nil {
+		hold.release()
+
+		return err
+	}
+
+	hold.keepForRelease(button)
+
+	return nil
+}
+
+// MouseUp releases the given button at the given point, undoing the hold its
+// press kept, or presenting modifiers for the length of the release event
+// when no press of this process is behind it.
+func MouseUp(point image.Point, button action.MouseButton, modifiers action.Modifiers) error {
+	hold, err := resumeModifierHold(button, modifiers)
+	if err != nil {
+		return err
+	}
+
+	defer hold.release()
+
+	return buttonEventAt(point, flagsForButton(button).up)
 }
 
 // wheelEvent is one MOUSEEVENTF_WHEEL or MOUSEEVENTF_HWHEEL record, before
