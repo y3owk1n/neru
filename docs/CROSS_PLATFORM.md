@@ -761,7 +761,19 @@ every layout that is not `us`. Following the keymap is what makes a binding mean
 the key that *types* that character, and is the same reason XKB options like
 `ctrl:swapcaps` reach Neru's own bindings. **On a non-QWERTY layout this decides
 which physical key a `[hotkeys]` chord answers** — the one bearing that character
-on the active layout, in both places.
+on the active layout, in both places. The keysym is named by the **character it
+types** when it types one, and by keysym name only otherwise
+(`neru_xkb_keysym_name`,
+[wayland_keymap.c](../internal/adapter/platform/linux/wayland_keymap.c)) — the
+same rule the X11 tap applies. Shift has already chosen the level by the time a
+keysym exists, and the shifted level's *name* is not its character (`Shift+[`
+is `braceleft`, and a non-us layout runs to `sterling` and `adiaeresis`), so a
+hand-written name table could never be complete. The one named key XKB renames
+under Shift, `ISO_Left_Tab`, folds back to `Tab` on both backends, which is what
+lets the default `Shift+Tab` hint binding fire on Linux. The fold rows are keyed
+by the name libxkbcommon actually answers, which is the first one
+`xkbcommon-keysyms.h` lists for a keysym: the page keys are `Prior` and `Next`
+there, and a row keyed `Page_Up` was dead.
 
 **Modifier passthrough (Wayland evdev, and Windows).** While a mode is active
 Neru captures the keyboard exclusively, so shortcuts it does not bind

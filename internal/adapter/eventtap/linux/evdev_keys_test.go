@@ -83,8 +83,10 @@ func TestEvdevKeyNameFunctionKeysContiguous(t *testing.T) {
 // and each `keysym` records which keysym the keypad reports for that key with
 // NumLock off, so the `want` column can be checked against the fold table
 // neru_normalize_xkb_name applies to it
-// (internal/adapter/platform/linux/wayland_keymap.c). Every name below is
-// copied from that table; none is chosen here.
+// (internal/adapter/platform/linux/wayland_keymap.c). Every navigation name
+// below is copied from that table, and every operator is the character its
+// keysym types, which neru_xkb_keysym_name answers before the table; none is
+// chosen here.
 var keypadKeyNameCases = []struct {
 	name   string
 	keysym string
@@ -101,12 +103,12 @@ var keypadKeyNameCases = []struct {
 	// Dual-function, named for what they do with NumLock off.
 	{name: "KEY_KP7", keysym: "KP_Home", code: 71, want: evdevKeyNameHome},
 	{name: "KEY_KP8", keysym: "KP_Up", code: 72, want: evdevKeyNameUp},
-	{name: "KEY_KP9", keysym: "KP_Page_Up", code: 73, want: evdevKeyNamePageUp},
+	{name: "KEY_KP9", keysym: "KP_Prior", code: 73, want: evdevKeyNamePageUp},
 	{name: "KEY_KP4", keysym: "KP_Left", code: 75, want: evdevKeyNameLeft},
 	{name: "KEY_KP6", keysym: "KP_Right", code: 77, want: evdevKeyNameRight},
 	{name: "KEY_KP1", keysym: "KP_End", code: 79, want: evdevKeyNameEnd},
 	{name: "KEY_KP2", keysym: "KP_Down", code: 80, want: evdevKeyNameDown},
-	{name: "KEY_KP3", keysym: "KP_Page_Down", code: 81, want: evdevKeyNamePageDown},
+	{name: "KEY_KP3", keysym: "KP_Next", code: 81, want: evdevKeyNamePageDown},
 	{name: "KEY_KP0", keysym: "KP_Insert", code: 82, want: evdevKeyNameInsert},
 	{name: "KEY_KPDOT", keysym: "KP_Delete", code: 83, want: evdevKeyNameDelete},
 

@@ -27,11 +27,16 @@ const (
 	// keypadFoldFunc is the C function that decides what a keysym is called.
 	keypadFoldFunc = "neru_normalize_xkb_name"
 
-	// keypadFoldTable is the literal inside it that spells the decision, and
-	// keypadFoldDigitRule is the name this pin gives the KP_0-KP_9 rule written
-	// below the table.
-	keypadFoldTable     = "table[]"
-	keypadFoldDigitRule = "the KP_0-KP_9 rule"
+	// keypadFoldTable is the literal inside it that spells the decision.
+	keypadFoldTable = "table[]"
+
+	// keypadCharacterFunc is the C function that names a keysym by the
+	// character it types before the fold table is consulted, and
+	// keypadCharacterRule is the name this pin gives that step. It is what
+	// makes KP_0 through KP_9, the keysyms the keypad reports with NumLock on,
+	// reach a binding as the bare digit the X11 tap answers for the same keys.
+	keypadCharacterFunc = "neru_xkb_keysym_name"
+	keypadCharacterRule = "the character-first rule"
 
 	// keypadEvdevTable is the fallback table the evdev tap and the global
 	// hotkey reader name a raw key code through, and keypadEvdevCases is the
@@ -92,6 +97,9 @@ type keypadFold struct {
 	// which is the key into the C table.
 	keysym string
 
+	// foldAbsent is why the C table carries no row for this keysym.
+	foldAbsent string
+
 	// evdevAbsent is why the evdev fallback names no key for this keysym.
 	evdevAbsent string
 
@@ -99,8 +107,16 @@ type keypadFold struct {
 	x11Absent string
 }
 
-// The two reasons a keypad keysym reaches no Go copy.
+// The reasons a keypad keysym reaches no table row, or no Go copy.
 const (
+	// characterNamesTheKeysym covers the keypad operators and KP_Decimal on
+	// the Wayland side: they type a character, so neru_xkb_keysym_name names
+	// them by it and the fold table is never consulted. A row for one of them
+	// would be dead, and this pin fails on it rather than holding the Go copies
+	// to a name the resolver never produces.
+	characterNamesTheKeysym = "the character-first rule names this keysym by the character " +
+		"it types, so it never reaches the fold table"
+
 	// xlookupAnswersWithACharacter covers the keysyms Xlib's XLookupString
 	// resolves to a character — the keypad operators and KP_Decimal, which the
 	// keypad reports only with NumLock on. Those reach x11KeyFromLookup through
@@ -135,17 +151,19 @@ const (
 // written down here — they are read out of the C source, which is the whole
 // point.
 //
-// KP_Decimal is excused from both copies, so what this pin buys for that one
-// row is presence and not agreement: no Go table spells the name the Wayland
-// keymap gives it, which makes it the one keypad row that is not a decision
-// made twice. Renaming it in the C source alone would pass, and saying so is
-// better than implying a check that is not there.
+// The keypad operators and KP_Decimal are excused from the table itself: they
+// type a character, and the character-first rule names them before the table
+// is read, on both Linux backends. What this pin buys for those five is that
+// the table does not grow a dead row for them; the name they reach a binding
+// as is libxkbcommon's answer, which no source in the tree spells and so
+// nothing here can hold a copy to. KP_Decimal is excused from the evdev copy
+// besides, and saying so is better than implying a check that is not there.
 func keypadFolds() []keypadFold {
 	return []keypadFold{
 		{keysym: "KP_Home"},
 		{keysym: "KP_End"},
-		{keysym: "KP_Page_Up"},
-		{keysym: "KP_Page_Down"},
+		{keysym: "KP_Prior"},
+		{keysym: "KP_Next"},
 		{keysym: "KP_Up"},
 		{keysym: "KP_Down"},
 		{keysym: "KP_Left"},
@@ -153,13 +171,30 @@ func keypadFolds() []keypadFold {
 		{keysym: "KP_Insert"},
 		{keysym: "KP_Delete"},
 		{keysym: "KP_Begin"},
-		{keysym: "KP_Add", x11Absent: xlookupAnswersWithACharacter},
-		{keysym: "KP_Subtract", x11Absent: xlookupAnswersWithACharacter},
-		{keysym: "KP_Multiply", x11Absent: xlookupAnswersWithACharacter},
-		{keysym: "KP_Divide", x11Absent: xlookupAnswersWithACharacter},
+		{
+			keysym:     "KP_Add",
+			foldAbsent: characterNamesTheKeysym,
+			x11Absent:  xlookupAnswersWithACharacter,
+		},
+		{
+			keysym:     "KP_Subtract",
+			foldAbsent: characterNamesTheKeysym,
+			x11Absent:  xlookupAnswersWithACharacter,
+		},
+		{
+			keysym:     "KP_Multiply",
+			foldAbsent: characterNamesTheKeysym,
+			x11Absent:  xlookupAnswersWithACharacter,
+		},
+		{
+			keysym:     "KP_Divide",
+			foldAbsent: characterNamesTheKeysym,
+			x11Absent:  xlookupAnswersWithACharacter,
+		},
 		{keysym: "KP_Enter", x11Absent: xlookupAnswersKeypadEnterLikeReturn},
 		{
 			keysym:      "KP_Decimal",
+			foldAbsent:  characterNamesTheKeysym,
 			evdevAbsent: numLockOnKeysym,
 			x11Absent:   xlookupAnswersWithACharacter,
 		},
@@ -175,11 +210,11 @@ func keypadFolds() []keypadFold {
 // longer carries fails too.
 //
 // The whole table is parsed and only its keypad rows are pinned, which is a
-// boundary rather than an oversight. The rest of it renames punctuation
-// keysyms, Page_Up and Page_Down, and Caps_Lock, and each would need a join
-// this one does not have: evdevKeyNames answers those by key code, and only for
-// the keypad does the tree say which keysym a code reports — that is what
-// keypadKeyNameCases is. Page_Up and Page_Down could be held to the X11 cascade
+// boundary rather than an oversight. The rest of it renames ISO_Left_Tab,
+// Prior and Next, and Caps_Lock, and each would need a join this one does not
+// have: evdevKeyNames answers those by key code, and only for the keypad does
+// the tree say which keysym a code reports — that is what keypadKeyNameCases
+// is. Prior and Next could be held to the X11 cascade
 // alone, since that side is keyed by keysym, and pinning one copy of two under
 // a heading that says "the keypad" is how a pin comes to claim more than it
 // holds. A row outside the keypad this pin cannot read is still reported,
@@ -318,9 +353,14 @@ func keypadDrifts(tree keypadCopies) []keypadDrift {
 			apply: keypadDriftIn(func(copies *keypadCopies) { copies.folds["KP_Separator"] = "," }),
 		},
 		{
-			name:  "the KP_0-KP_9 rule gone",
+			name:  "a dead row for a character-named keypad key",
 			where: keypadFoldSource,
-			apply: keypadDriftIn(func(copies *keypadCopies) { copies.foldsDigits = false }),
+			apply: keypadDriftIn(func(copies *keypadCopies) { copies.folds["KP_Add"] = "+" }),
+		},
+		{
+			name:  "the character-first rule gone",
+			where: keypadFoldSource,
+			apply: keypadDriftIn(func(copies *keypadCopies) { copies.namesByCharacter = false }),
 		},
 	}
 
@@ -495,6 +535,13 @@ func keypadUnreadableSources(t *testing.T, tree keypadSources) []keypadUnreadabl
 			sources: keypadDoctored(t, tree, keypadFoldSource, "} table[] = {", "} folds[] = {"),
 		},
 		{
+			name: "the character-first resolver renamed",
+			sources: keypadDoctored(t, tree, keypadFoldSource,
+				"int "+keypadCharacterFunc+"(uint32_t keysym, char *buf, size_t buf_size) {",
+				"int neru_xkb_keysym_spell(uint32_t keysym, char *buf, size_t buf_size) {",
+			),
+		},
+		{
 			name: "a fold row whose name is built at runtime",
 			sources: keypadDoctored(
 				t,
@@ -623,9 +670,9 @@ type keypadCopies struct {
 	// rewrites it to. It carries the whole table, keypad rows and all.
 	folds map[string]string
 
-	// foldsDigits records whether the rule below the table still turns KP_0
-	// through KP_9 into the bare digit.
-	foldsDigits bool
+	// namesByCharacter records whether the resolver still names a keysym by
+	// the character it types before it reads the table.
+	namesByCharacter bool
 
 	// evdevEntries is the keypad half of evdevKeyNames, in the order the table
 	// writes it.
@@ -666,12 +713,12 @@ type keypadEvdevCase struct {
 // clone copies every table, so a drift applied to one is not seen by the next.
 func (copies keypadCopies) clone() keypadCopies {
 	return keypadCopies{
-		folds:        maps.Clone(copies.folds),
-		foldsDigits:  copies.foldsDigits,
-		evdevEntries: slices.Clone(copies.evdevEntries),
-		evdevCases:   maps.Clone(copies.evdevCases),
-		x11Names:     maps.Clone(copies.x11Names),
-		x11Cases:     maps.Clone(copies.x11Cases),
+		folds:            maps.Clone(copies.folds),
+		namesByCharacter: copies.namesByCharacter,
+		evdevEntries:     slices.Clone(copies.evdevEntries),
+		evdevCases:       maps.Clone(copies.evdevCases),
+		x11Names:         maps.Clone(copies.x11Names),
+		x11Cases:         maps.Clone(copies.x11Cases),
 	}
 }
 
@@ -694,7 +741,7 @@ func keypadX11Problems(copies keypadCopies) []string {
 
 	for _, fold := range keypadFolds() {
 		canonical, folded := copies.folds[fold.keysym]
-		if !folded {
+		if !folded && fold.foldAbsent == "" {
 			continue
 		}
 
@@ -944,7 +991,16 @@ func keypadFoldTableProblems(copies keypadCopies) []string {
 	declared := keypadDeclaredKeysyms()
 
 	for _, fold := range keypadFolds() {
-		if _, folded := copies.folds[fold.keysym]; !folded {
+		_, folded := copies.folds[fold.keysym]
+
+		switch {
+		case fold.foldAbsent != "" && folded:
+			problems = append(problems, fmt.Sprintf(
+				"%s: %s has a row for %q, which keypadFolds() excuses it from (%s); "+
+					"that row never runs, so drop it or the excuse",
+				keypadFoldSource, keypadFoldTable, fold.keysym, fold.foldAbsent,
+			))
+		case fold.foldAbsent == "" && !folded:
 			problems = append(problems, fmt.Sprintf(
 				"%s: %s has no row for %q, which keypadFolds() declares; "+
 					"a keypad key the table stopped folding is one the Go copies still name",
@@ -963,13 +1019,13 @@ func keypadFoldTableProblems(copies keypadCopies) []string {
 		}
 	}
 
-	if !copies.foldsDigits {
+	if !copies.namesByCharacter {
 		problems = append(problems, fmt.Sprintf(
-			"%s: %s no longer turns KP_0 through KP_9 into the bare digit, "+
-				"or is written in a shape this pin does not read; those are the keysyms "+
-				"the keypad reports with NumLock on, and the bare digit is what the X11 "+
-				"tap answers for the same keys",
-			keypadFoldSource, keypadFoldDigitRule,
+			"%s: %s no longer names a keysym by the character it types ahead of "+
+				"the table, or is written in a shape this pin does not read; KP_0 "+
+				"through KP_9 are the keysyms the keypad reports with NumLock on, and "+
+				"the bare digit is what the X11 tap answers for the same keys",
+			keypadFoldSource, keypadCharacterRule,
 		))
 	}
 
@@ -992,20 +1048,24 @@ var (
 	)
 )
 
-// keypadDigitRuleFragments are the parts of the KP_0-KP_9 rule this pin reads,
-// in the order the C source writes them. Together they say: a name of exactly
-// four characters, beginning "KP_" and ending in a digit, becomes that digit
-// alone. The length guard is one of them — without it "KP_01" would be
-// truncated to "0", which is a different rule.
-var keypadDigitRuleFragments = []string{
-	`blen == 4`,
-	`buf[0] == 'K'`,
-	`buf[1] == 'P'`,
-	`buf[2] == '_'`,
-	`buf[3] >= '0'`,
-	`buf[3] <= '9'`,
-	`buf[0] = buf[3];`,
-	`buf[1] = '\0';`,
+// keypadCharacterFuncPattern finds the resolver the character-first rule lives
+// in, by the one signature this pin reads.
+var keypadCharacterFuncPattern = regexp.MustCompile(
+	`(?m)^int ` + keypadCharacterFunc + `\(uint32_t keysym, char \*buf, size_t buf_size\)[ \t]*\{`,
+)
+
+// keypadCharacterRuleFragments are the parts of the character-first rule this
+// pin reads, in the order the C source writes them. Together they say: ask
+// libxkbcommon for the character, keep it when it is printable and not a
+// space, and only then fall through to the name and the fold table. The two
+// guards are part of the rule — without them Tab would be named "\t" and Space
+// " ", neither of which a binding spells.
+var keypadCharacterRuleFragments = []string{
+	`xkb_keysym_to_utf8(keysym, buf, buf_size)`,
+	`> 0x20`,
+	`!= 0x7f`,
+	`xkb_keysym_get_name(keysym, buf, buf_size)`,
+	keypadFoldFunc + `(buf, buf_size)`,
 }
 
 // readKeypadCopies reads every copy out of the tree, failing the test when it
@@ -1064,12 +1124,22 @@ func parseKeypadCopies(sources keypadSources) (keypadCopies, string) {
 		return keypadCopies{}, keypadFoldSource + ": " + problem
 	}
 
-	folds, tail, problem := parseKeypadFoldTable(body)
+	folds, problem := parseKeypadFoldTable(body)
 	if problem != "" {
 		return keypadCopies{}, keypadFoldSource + ": " + problem
 	}
 
-	copies := keypadCopies{folds: folds, foldsDigits: keypadFoldsDigits(tail)}
+	resolver, problem := nativeRuleMethodBody(
+		sources[keypadFoldSource],
+		keypadCharacterFuncPattern,
+		keypadCharacterFunc,
+		"int "+keypadCharacterFunc+"(uint32_t keysym, char *buf, size_t buf_size) {",
+	)
+	if problem != "" {
+		return keypadCopies{}, keypadFoldSource + ": " + problem
+	}
+
+	copies := keypadCopies{folds: folds, namesByCharacter: keypadNamesByCharacter(resolver)}
 
 	evdev, problem := parseKeypadGoFile(keypadEvdevSource, sources[keypadEvdevSource])
 	if problem != "" {
@@ -1830,15 +1900,14 @@ func keypadGoNumberValue(value ast.Expr) (uint16, bool) {
 	return uint16(number), err == nil
 }
 
-// parseKeypadFoldTable reads the `{"KP_Home", "Home"},` rows of the fold table,
-// and returns what follows it in the function so the digit rule can be read
-// too. Every line inside the literal has to be a row, a comment or blank: a
-// line this pin cannot read is one it would otherwise skip past, which is how a
-// pin comes to cover less than it claims.
-func parseKeypadFoldTable(body string) (map[string]string, string, string) {
+// parseKeypadFoldTable reads the `{"KP_Home", "Home"},` rows of the fold table.
+// Every line inside the literal has to be a row, a comment or blank: a line this
+// pin cannot read is one it would otherwise skip past, which is how a pin comes
+// to cover less than it claims.
+func parseKeypadFoldTable(body string) (map[string]string, string) {
 	opening := keypadFoldTableOpeningPattern.FindStringIndex(body)
 	if opening == nil {
-		return nil, "", fmt.Sprintf(
+		return nil, fmt.Sprintf(
 			"no `} %s = {` literal to read the fold table from (renamed?)",
 			keypadFoldTable,
 		)
@@ -1848,7 +1917,7 @@ func parseKeypadFoldTable(body string) (map[string]string, string, string) {
 
 	closing := keypadFoldTableClosingPattern.FindStringIndex(rest)
 	if closing == nil {
-		return nil, "", fmt.Sprintf("the %s literal is never closed by `};`", keypadFoldTable)
+		return nil, fmt.Sprintf("the %s literal is never closed by `};`", keypadFoldTable)
 	}
 
 	folds := make(map[string]string)
@@ -1861,7 +1930,7 @@ func parseKeypadFoldTable(body string) (map[string]string, string, string) {
 
 		row := keypadFoldRowPattern.FindStringSubmatch(trimmed)
 		if row == nil {
-			return nil, "", fmt.Sprintf(
+			return nil, fmt.Sprintf(
 				"%s holds `%s`, which this pin does not read; it reads "+
 					"`{\"<keysym>\", \"<name>\"},` rows",
 				keypadFoldTable, trimmed,
@@ -1870,7 +1939,7 @@ func parseKeypadFoldTable(body string) (map[string]string, string, string) {
 
 		keysym, name, unquoted := unquoteKeypadFoldRow(row[1], row[2])
 		if !unquoted {
-			return nil, "", fmt.Sprintf(
+			return nil, fmt.Sprintf(
 				"%s holds `%s`, whose strings this pin cannot read",
 				keypadFoldTable, trimmed,
 			)
@@ -1880,7 +1949,7 @@ func parseKeypadFoldTable(body string) (map[string]string, string, string) {
 		// for the same keysym is dead code — and reading it would have this pin
 		// hold the Go copies to a name the keypad never produces.
 		if existing, folded := folds[keysym]; folded {
-			return nil, "", fmt.Sprintf(
+			return nil, fmt.Sprintf(
 				"%s folds %q twice, to %q and then to %q; "+
 					"the second row never runs",
 				keypadFoldTable, keysym, existing, name,
@@ -1891,10 +1960,10 @@ func parseKeypadFoldTable(body string) (map[string]string, string, string) {
 	}
 
 	if len(folds) == 0 {
-		return nil, "", "the " + keypadFoldTable + " literal is empty"
+		return nil, "the " + keypadFoldTable + " literal is empty"
 	}
 
-	return folds, rest[closing[1]:], ""
+	return folds, ""
 }
 
 // unquoteKeypadFoldRow reads the two C string literals of one row. C and Go
@@ -1914,17 +1983,21 @@ func unquoteKeypadFoldRow(keysymLiteral, nameLiteral string) (string, string, bo
 	return keysym, name, true
 }
 
-// keypadFoldsDigits reports whether the rule below the table still spells "a
-// KP_<digit> name becomes that digit". It is read as fragments rather than as a
-// whole line, because the rule is a C condition and a body rather than a table
-// row; what matters is that every part of it is there.
-func keypadFoldsDigits(tail string) bool {
-	collapsed := strings.Join(strings.Fields(tail), " ")
+// keypadNamesByCharacter reports whether the resolver still spells "a keysym
+// with a printable character is that character, and only otherwise its folded
+// name". It is read as fragments in order rather than as whole lines, because
+// the rule is a C condition and two calls rather than a table row; what matters
+// is that every part of it is there, and that the character comes first.
+func keypadNamesByCharacter(resolver string) bool {
+	rest := strings.Join(strings.Fields(resolver), " ")
 
-	for _, fragment := range keypadDigitRuleFragments {
-		if !strings.Contains(collapsed, fragment) {
+	for _, fragment := range keypadCharacterRuleFragments {
+		at := strings.Index(rest, fragment)
+		if at < 0 {
 			return false
 		}
+
+		rest = rest[at+len(fragment):]
 	}
 
 	return true
