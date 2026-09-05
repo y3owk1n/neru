@@ -1264,6 +1264,34 @@ func TestSimulation_StickyModifierClick(t *testing.T) {
 	}
 }
 
+// TestSimulation_StickyModifierScroll pins that a sticky modifier reaches a
+// scroll the way it reaches a click: tapping ctrl in scroll mode and then
+// scrolling is the user asking for a ctrl+scroll, which most applications read
+// as zoom, and the plain scroll that used to go out instead read as a broken
+// binding.
+func TestSimulation_StickyModifierScroll(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+
+	sim.press("__modifier_ctrl_down", "__modifier_ctrl_up")
+
+	sim.waitFor("sticky indicator drawn", func() bool {
+		return sim.overlay.stickyIndicatorDrawCount() > 0
+	})
+
+	// Sticky posts ctrl physically, so the scroll key arrives as a ctrl chord
+	// that Neru strips for binding resolution.
+	sim.press("Ctrl+j")
+
+	sim.waitFor("scroll recorded", func() bool { return len(sim.ax.recordedScrolls()) > 0 })
+
+	if mods := sim.ax.recordedScrollModifiers()[0]; !mods.Has(action.ModCtrl) {
+		t.Fatalf("expected the scroll to carry the sticky Ctrl modifier, got %v", mods)
+	}
+}
+
 // TestSimulation_HeldRepeatScroll covers held-key repeat: holding j keeps
 // scrolling on the configured interval, and the key release stops it.
 func TestSimulation_HeldRepeatScroll(t *testing.T) {

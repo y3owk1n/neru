@@ -773,6 +773,7 @@ type simAXPort struct {
 	clicks         []simClick
 	elementActions []action.Type
 	scrolls        []image.Point
+	scrollMods     []action.Modifiers
 	releases       int
 
 	// focusedApp is which application the fixture desktop routes keystrokes
@@ -836,12 +837,13 @@ func (a *simAXPort) PerformActionAtPoint(
 func (a *simAXPort) Scroll(
 	_ context.Context,
 	deltaX, deltaY int,
-	_ action.Modifiers,
+	modifiers action.Modifiers,
 ) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	a.scrolls = append(a.scrolls, image.Point{X: deltaX, Y: deltaY})
+	a.scrollMods = append(a.scrollMods, modifiers)
 
 	return nil
 }
@@ -925,6 +927,18 @@ func (a *simAXPort) recordedScrolls() []image.Point {
 
 	out := make([]image.Point, len(a.scrolls))
 	copy(out, a.scrolls)
+
+	return out
+}
+
+// recordedScrollModifiers is the modifier set each recorded scroll carried,
+// in the same order as recordedScrolls.
+func (a *simAXPort) recordedScrollModifiers() []action.Modifiers {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	out := make([]action.Modifiers, len(a.scrollMods))
+	copy(out, a.scrollMods)
 
 	return out
 }
