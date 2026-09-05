@@ -222,13 +222,26 @@ func (p *evdevProxy) startSession(session *evdevSession) error {
 		return errWaylandEvdevUnavailable
 	}
 
-	return p.send(proxyCommand{session: session, ack: make(chan struct{})})
+	err := p.capture.beginSession()
+	if err != nil {
+		return err
+	}
+
+	err = p.send(proxyCommand{session: session, ack: make(chan struct{})})
+	if err != nil {
+		p.capture.endSession()
+
+		return err
+	}
+
+	return nil
 }
 
 // stopSession returns keys to the compositor and the idle matcher, and returns
 // once no event can reach the session any more.
 func (p *evdevProxy) stopSession() {
 	_ = p.send(proxyCommand{ack: make(chan struct{})})
+	p.capture.endSession()
 }
 
 func (p *evdevProxy) send(cmd proxyCommand) error {
@@ -537,6 +550,7 @@ func (p *evdevProxy) failOpen(err error) {
 	if p.session != nil {
 		close(p.session.ended)
 		p.session = nil
+		p.capture.endSession()
 	}
 
 	if errors.Is(err, errWaylandEvdevProxyGrabbed) {

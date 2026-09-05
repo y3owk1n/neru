@@ -67,6 +67,10 @@ var (
 	errWaylandEvdevPassive      = errors.New(
 		"wayland evdev proxy is passive: /dev/uinput is not writable, so keys cannot be captured",
 	)
+	errWaylandEvdevYielded = errors.New(
+		"wayland evdev proxy has yielded the keyboards to a remapper that just started, " +
+			"and takes back in a moment any it does not claim",
+	)
 	errWaylandEvdevGrabPending = errors.New(
 		"wayland evdev proxy holds no keyboard yet: every keyboard has a key down, " +
 			"and each is held once its key is released",

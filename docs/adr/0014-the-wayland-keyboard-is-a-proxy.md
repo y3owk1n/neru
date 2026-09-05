@@ -119,9 +119,13 @@ it, so a hint label typed while Super is still coming up is the label.
   their output device can be seen, and are started first. Any uinput keyboard
   from another process looks like a remapper's output, so one that is not (a
   key injector, a controller mapper) costs the same three seconds once, with
-  keys reaching the compositor unremapped and hotkeys silent; a yield that
-  would land while a mode is capturing keys waits for the mode to end instead,
-  so the mode's keys never reach the focused application (`yieldAfterSession`).
+  keys reaching the compositor unremapped and hotkeys silent. A mode never
+  pays it: a keyboard is not let go while a session is capturing keys, the
+  release and a session's start both happen under the device lock so neither
+  slips past the other, and a session asked for while a keyboard is yielded is
+  refused (`TestEvdevProxy_StartSession_RefusesWhileAKeyboardIsYielded`), so
+  the mode falls back to the overlay's keyboard focus as it does while a key
+  is held.
 - A remapper that exits releases its input keyboards in the instant its output
   device disappears, and the released keyboards are existing nodes that no
   inotify event announces. So a captured device vanishing starts a rescan of

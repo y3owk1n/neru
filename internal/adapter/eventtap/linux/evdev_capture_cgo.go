@@ -59,10 +59,13 @@ type waylandEvdevCapture struct {
 	// still on its way in can be refused by name; deviceMu.
 	pendingPaths map[string]struct{}
 
-	// yieldDeferred is whether a yield is waiting for the mode session to end
-	// (yieldAfterSession), so a second remapper output arriving meanwhile does
-	// not start a second wait; deviceMu.
-	yieldDeferred bool
+	// sessionActive is whether a mode session is capturing keys, kept under
+	// deviceMu so a yield deciding to let a keyboard go (releaseIfIdle) and a
+	// session starting (beginSession) cannot cross. yielded counts the
+	// keyboards let go and not yet claimed or taken back, which is when a
+	// session is refused; deviceMu.
+	sessionActive bool
+	yielded       int
 
 	// pointer is the pointer proxy, or nil until a grabbed keyboard needs one:
 	// the uinput mouse the relative motion and the buttons of a keyboard that
@@ -559,25 +562,14 @@ func (capture *waylandEvdevCapture) removeFileLocked(file *os.File) {
 // Any uinput keyboard from another process looks like a remapper's output, so
 // one that is not (a key injector, a controller mapper) costs the same window:
 // keys go to the compositor unremapped and hotkeys are silent until the
-// keyboards are taken back. While a mode session is capturing keys that
-// window would hand the mode's keys to the focused application instead, so
-// the yield waits for the session to end (yieldAfterSession).
+// keyboards are taken back. A mode never pays it: a keyboard is not let go
+// while a session is capturing keys (releaseIfIdle), and a session asked for
+// while keyboards are yielded is refused (beginSession), so the mode falls
+// back to the overlay's keyboard focus as it does while a key is held.
 func (capture *waylandEvdevCapture) yieldPhysicalKeyboards() {
 	capture.deviceMu.Lock()
 
 	if !capture.grab {
-		capture.deviceMu.Unlock()
-
-		return
-	}
-
-	if waylandEvdevKeyboardActive.Load() {
-		if !capture.yieldDeferred {
-			capture.yieldDeferred = true
-
-			go capture.yieldAfterSession()
-		}
-
 		capture.deviceMu.Unlock()
 
 		return
@@ -614,32 +606,40 @@ func (capture *waylandEvdevCapture) yieldPhysicalKeyboards() {
 	}
 }
 
-// yieldAfterSession runs the yield once no mode session is capturing keys.
-func (capture *waylandEvdevCapture) yieldAfterSession() {
-	ticker := time.NewTicker(waylandEvdevIdlePollInterval)
-	defer ticker.Stop()
+// beginSession records that a mode session is capturing keys, or refuses it
+// while a keyboard is yielded: its keys would reach the focused application
+// rather than the mode until the remapper claimed it or it was taken back.
+func (capture *waylandEvdevCapture) beginSession() error {
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
 
-	for waylandEvdevKeyboardActive.Load() {
-		select {
-		case <-capture.stopCh:
-			return
-		case <-ticker.C:
-		}
+	if capture.yielded > 0 {
+		return errWaylandEvdevYielded
 	}
 
-	capture.deviceMu.Lock()
-	capture.yieldDeferred = false
-	capture.deviceMu.Unlock()
+	capture.sessionActive = true
+	waylandEvdevKeyboardActive.Store(true)
 
-	capture.yieldPhysicalKeyboards()
+	return nil
 }
 
-// yieldDevice lets go of one held keyboard once no key on it is down, so a
-// press this capture forwarded is not left without its release in the
-// compositor's picture of the proxy (the invariant ADR 0014 rests on). The
-// release is an ungrab and a revoke, which wakes the reader with ENODEV; the
-// remapper's grab then succeeds. After the grace the device is adopted again
-// if it is still free, which is a remapper that did not want it.
+// endSession records that no mode session is capturing keys.
+func (capture *waylandEvdevCapture) endSession() {
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
+
+	capture.sessionActive = false
+	waylandEvdevKeyboardActive.Store(false)
+}
+
+// yieldDevice lets go of one held keyboard once no key on it is down and no
+// mode session is capturing keys, so a press this capture forwarded is not
+// left without its release in the compositor's picture of the proxy (the
+// invariant ADR 0014 rests on) and a mode's keys never reach the focused
+// application. The release is an ungrab and a revoke, which wakes the reader
+// with ENODEV; the remapper's grab then succeeds. After the grace the device
+// is adopted again if it is still free, which is a remapper that did not want
+// it.
 func (capture *waylandEvdevCapture) yieldDevice(file *os.File) {
 	ticker := time.NewTicker(waylandEvdevIdlePollInterval)
 	defer ticker.Stop()
@@ -668,19 +668,29 @@ func (capture *waylandEvdevCapture) yieldDevice(file *os.File) {
 	}
 
 	capture.adopt(file.Name(), "the remapper left it")
+
+	capture.deviceMu.Lock()
+	capture.yielded--
+	capture.deviceMu.Unlock()
 }
 
-// releaseIfIdle ungrabs and revokes file if no key on it is down, and reports
-// whether it did, or whether the device is gone. The key state is read under
-// deviceMu after checking the file is still tracked: the reader removes a
-// vanished device under the same lock before it closes the file, so the
-// descriptor cannot be closed under the ioctl.
+// releaseIfIdle ungrabs and revokes file if no key on it is down and no mode
+// session is capturing keys, and reports whether it did, or whether the
+// device is gone. It runs under deviceMu after checking the file is still
+// tracked: the reader removes a vanished device under the same lock before it
+// closes the file, so the descriptor cannot be closed under the ioctl, and a
+// session begins under the same lock (beginSession), so one cannot slip in
+// between the check and the release.
 func (capture *waylandEvdevCapture) releaseIfIdle(file *os.File) (bool, bool) {
 	capture.deviceMu.Lock()
 	defer capture.deviceMu.Unlock()
 
 	if _, tracked := capture.devices[file]; !tracked {
 		return false, true
+	}
+
+	if capture.sessionActive {
+		return false, false
 	}
 
 	descriptor := C.int(file.Fd())
@@ -696,6 +706,7 @@ func (capture *waylandEvdevCapture) releaseIfIdle(file *os.File) (bool, bool) {
 
 	C.neru_evdev_grab(descriptor, 0)
 	C.neru_evdev_revoke(descriptor)
+	capture.yielded++
 
 	return true, false
 }

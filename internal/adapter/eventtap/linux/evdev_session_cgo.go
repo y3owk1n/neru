@@ -204,9 +204,6 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
-	waylandEvdevKeyboardActive.Store(true)
-	defer waylandEvdevKeyboardActive.Store(false)
-
 	// The proxy owns the keyboard, so the overlay stays keyboard-passive: a
 	// layer-surface grab would only deactivate the focused app's toplevel on
 	// wlroots. Said once, on the first session; the overlay keeps it.

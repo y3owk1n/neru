@@ -9,6 +9,8 @@ package linux
 // press went.
 
 import (
+	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -474,6 +476,28 @@ func TestEvdevProxy_FailOpenReleasesTheKeyboardsAndRefusesSessions(t *testing.T)
 	err := proxy.startSession(newEvdevSession(nil))
 	if err == nil {
 		t.Error("a session was accepted with nothing to re-emit keys through")
+	}
+}
+
+// A keyboard yielded to a remapper is with the compositor until the remapper
+// claims it or it is taken back; a mode started meanwhile would get nothing
+// while its keys went to the focused app, so it is refused and falls back.
+func TestEvdevProxy_StartSession_RefusesWhileAKeyboardIsYielded(t *testing.T) {
+	t.Parallel()
+
+	proxy := newTestProxy()
+	proxy.forwarding.Store(true)
+	proxy.capture.grab = true
+	proxy.capture.files = []*os.File{nil}
+	proxy.capture.yielded = 1
+
+	err := proxy.startSession(newEvdevSession(nil))
+	if !errors.Is(err, errWaylandEvdevYielded) {
+		t.Fatalf("startSession error = %v, want the keyboards reported as yielded", err)
+	}
+
+	if proxy.capture.sessionActive {
+		t.Error("a refused session was recorded as capturing keys")
 	}
 }
 
