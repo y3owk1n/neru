@@ -278,8 +278,10 @@ func x11KeysymName(keysym C.KeySym) string {
 		return evdevKeyNameReturn
 	case C.XK_space:
 		return "Space"
-	case C.XK_Tab:
-		return "Tab"
+	// XKB calls the Tab key ISO_Left_Tab once Shift has chosen the level. It
+	// is the same key, and a binding written Shift+Tab has to reach it.
+	case C.XK_Tab, C.XK_ISO_Left_Tab:
+		return evdevKeyNameTab
 	case C.XK_Escape:
 		return evdevKeyNameEscape
 	case C.XK_BackSpace:
@@ -299,9 +301,12 @@ func x11KeysymName(keysym C.KeySym) string {
 		return evdevKeyNameHome
 	case C.XK_End, C.XK_KP_End:
 		return evdevKeyNameEnd
-	case C.XK_Page_Up, C.XK_KP_Page_Up:
+	// Prior and Next are the page keys: the same keysyms as XK_Page_Up and
+	// XK_Page_Down, under the name xkbcommon lists first, which is how the
+	// Wayland fold table spells them.
+	case C.XK_Prior, C.XK_KP_Prior:
 		return evdevKeyNamePageUp
-	case C.XK_Page_Down, C.XK_KP_Page_Down:
+	case C.XK_Next, C.XK_KP_Next:
 		return evdevKeyNamePageDown
 	case C.XK_Insert, C.XK_KP_Insert:
 		return evdevKeyNameInsert

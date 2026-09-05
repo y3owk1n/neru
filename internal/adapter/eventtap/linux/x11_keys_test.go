@@ -11,8 +11,8 @@ import "testing"
 // the cgo parameter type at the call site.
 const (
 	x11KeysymHome     = 0xFF50 // XK_Home
-	x11KeysymPageUp   = 0xFF55 // XK_Page_Up / XK_Prior
-	x11KeysymPageDown = 0xFF56 // XK_Page_Down / XK_Next
+	x11KeysymPageUp   = 0xFF55 // XK_Prior / XK_Page_Up
+	x11KeysymPageDown = 0xFF56 // XK_Next / XK_Page_Down
 	x11KeysymEnd      = 0xFF57 // XK_End
 	x11KeysymInsert   = 0xFF63 // XK_Insert
 )
@@ -24,8 +24,8 @@ const (
 	x11KeysymKPUp       = 0xFF97 // XK_KP_Up
 	x11KeysymKPRight    = 0xFF98 // XK_KP_Right
 	x11KeysymKPDown     = 0xFF99 // XK_KP_Down
-	x11KeysymKPPageUp   = 0xFF9A // XK_KP_Page_Up / XK_KP_Prior
-	x11KeysymKPPageDown = 0xFF9B // XK_KP_Page_Down / XK_KP_Next
+	x11KeysymKPPageUp   = 0xFF9A // XK_KP_Prior / XK_KP_Page_Up
+	x11KeysymKPPageDown = 0xFF9B // XK_KP_Next / XK_KP_Page_Down
 	x11KeysymKPEnd      = 0xFF9C // XK_KP_End
 	x11KeysymKPBegin    = 0xFF9D // XK_KP_Begin
 	x11KeysymKPInsert   = 0xFF9E // XK_KP_Insert

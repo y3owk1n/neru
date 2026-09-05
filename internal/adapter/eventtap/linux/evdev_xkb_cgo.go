@@ -45,6 +45,18 @@ func (capture *waylandEvdevCapture) keyName(code uint16) string {
 	return evdevKeyName(code)
 }
 
+// xkbKeysymName names a state-resolved keysym by the rule keyName applies to a
+// scan code, without needing a keymap: the character it types, else the folded
+// keysym name. It exists so that rule can be pinned from a test.
+func xkbKeysymName(keysym uint32) string {
+	var buf [64]C.char
+	if C.neru_xkb_keysym_name(C.uint32_t(keysym), &buf[0], C.size_t(len(buf))) != 0 {
+		return ""
+	}
+
+	return C.GoString(&buf[0])
+}
+
 // modifierName returns the canonical evdev modifier name for the given scan code
 // as resolved by the XKB keymap, or empty string when the key is not a modifier.
 // When XKB remaps a physical modifier to a different function (e.g. ctrl:swapcaps

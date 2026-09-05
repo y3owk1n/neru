@@ -14,14 +14,15 @@ import "testing"
 
 // X11 keysyms from X11/keysym.h, all frozen protocol numbers.
 const (
-	x11KeysymSpace     = 0x020  // XK_space
-	x11KeysymSemicolon = 0x03b  // XK_semicolon
-	x11KeysymColon     = 0x03a  // XK_colon
-	x11KeysymUpperG    = 0x047  // XK_G
-	x11KeysymLowerC    = 0x063  // XK_c
-	x11KeysymLowerG    = 0x067  // XK_g
-	x11KeysymReturnKey = 0xFF0D // XK_Return
-	x11KeysymCyrillicA = 0x6C1  // XK_Cyrillic_a — outside Latin-1
+	x11KeysymSpace      = 0x020  // XK_space
+	x11KeysymSemicolon  = 0x03b  // XK_semicolon
+	x11KeysymColon      = 0x03a  // XK_colon
+	x11KeysymUpperG     = 0x047  // XK_G
+	x11KeysymLowerC     = 0x063  // XK_c
+	x11KeysymLowerG     = 0x067  // XK_g
+	x11KeysymReturnKey  = 0xFF0D // XK_Return
+	x11KeysymCyrillicA  = 0x6C1  // XK_Cyrillic_a — outside Latin-1
+	x11KeysymISOLeftTab = 0xFE20 // XK_ISO_Left_Tab — what Shift+Tab resolves to
 )
 
 func TestX11BaseKeyName(t *testing.T) {
@@ -95,6 +96,14 @@ func TestX11ChordName(t *testing.T) {
 			mods:   linuxModifierState{shift: 1, ctrl: 1, alt: 1, cmd: 1},
 			keysym: x11KeysymLowerG,
 			want:   "Shift+Ctrl+Alt+Cmd+g",
+		},
+		{
+			// The server resolves Shift+Tab to a keysym of its own, and the
+			// chord has to be the one a config file writes.
+			name:   "shifted tab is Shift+Tab",
+			mods:   linuxModifierState{shift: 1},
+			keysym: x11KeysymISOLeftTab,
+			want:   "Shift+Tab",
 		},
 		{
 			// Unnamed and no string to fall back to: nothing to dispatch.
