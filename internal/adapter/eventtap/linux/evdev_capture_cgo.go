@@ -59,6 +59,11 @@ type waylandEvdevCapture struct {
 	// still on its way in can be refused by name; deviceMu.
 	pendingPaths map[string]struct{}
 
+	// yieldDeferred is whether a yield is waiting for the mode session to end
+	// (yieldAfterSession), so a second remapper output arriving meanwhile does
+	// not start a second wait; deviceMu.
+	yieldDeferred bool
+
 	// pointer is the pointer proxy, or nil until a grabbed keyboard needs one:
 	// the uinput mouse the relative motion and the buttons of a keyboard that
 	// carries them are re-emitted on. Created under deviceMu by whichever
@@ -550,10 +555,29 @@ func (capture *waylandEvdevCapture) removeFileLocked(file *os.File) {
 // (yieldDevice), and taken back after the remapper's grab window if the
 // remapper did not want it. Virtual keyboards, another remapper's output among
 // them, are not a remapper's input and stay.
+//
+// Any uinput keyboard from another process looks like a remapper's output, so
+// one that is not (a key injector, a controller mapper) costs the same window:
+// keys go to the compositor unremapped and hotkeys are silent until the
+// keyboards are taken back. While a mode session is capturing keys that
+// window would hand the mode's keys to the focused application instead, so
+// the yield waits for the session to end (yieldAfterSession).
 func (capture *waylandEvdevCapture) yieldPhysicalKeyboards() {
 	capture.deviceMu.Lock()
 
 	if !capture.grab {
+		capture.deviceMu.Unlock()
+
+		return
+	}
+
+	if waylandEvdevKeyboardActive.Load() {
+		if !capture.yieldDeferred {
+			capture.yieldDeferred = true
+
+			go capture.yieldAfterSession()
+		}
+
 		capture.deviceMu.Unlock()
 
 		return
@@ -588,6 +612,26 @@ func (capture *waylandEvdevCapture) yieldPhysicalKeyboards() {
 	for _, file := range yielded {
 		go capture.yieldDevice(file)
 	}
+}
+
+// yieldAfterSession runs the yield once no mode session is capturing keys.
+func (capture *waylandEvdevCapture) yieldAfterSession() {
+	ticker := time.NewTicker(waylandEvdevIdlePollInterval)
+	defer ticker.Stop()
+
+	for waylandEvdevKeyboardActive.Load() {
+		select {
+		case <-capture.stopCh:
+			return
+		case <-ticker.C:
+		}
+	}
+
+	capture.deviceMu.Lock()
+	capture.yieldDeferred = false
+	capture.deviceMu.Unlock()
+
+	capture.yieldPhysicalKeyboards()
 }
 
 // yieldDevice lets go of one held keyboard once no key on it is down, so a

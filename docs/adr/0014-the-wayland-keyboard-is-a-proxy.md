@@ -116,7 +116,12 @@ it, so a hint label typed while Super is still coming up is the label.
   still free, which is a keyboard the remapper did not want. The initial scan
   runs the same yield when it finds such a device, for a remapper still inside
   its delay. Keyd and `kanata --nodelay` grab in the instant they start, before
-  their output device can be seen, and are started first.
+  their output device can be seen, and are started first. Any uinput keyboard
+  from another process looks like a remapper's output, so one that is not (a
+  key injector, a controller mapper) costs the same three seconds once, with
+  keys reaching the compositor unremapped and hotkeys silent; a yield that
+  would land while a mode is capturing keys waits for the mode to end instead,
+  so the mode's keys never reach the focused application (`yieldAfterSession`).
 - A remapper that exits releases its input keyboards in the instant its output
   device disappears, and the released keyboards are existing nodes that no
   inotify event announces. So a captured device vanishing starts a rescan of
