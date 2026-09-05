@@ -28,9 +28,7 @@ func (h *ActionsHandler) handleScrollAction(
 	}
 
 	// Scroll never reaches performTargetedAction, so it validates the flag
-	// combinations itself. Sticky modifiers are deliberately not merged in
-	// here: they are a click affordance, and a scroll that silently picked one
-	// up would zoom where the user asked to pan.
+	// combinations itself.
 	flagErrResp := validateActionFlags(actionName, parsed)
 	if flagErrResp != nil {
 		return *flagErrResp
@@ -39,6 +37,15 @@ func (h *ActionsHandler) handleScrollAction(
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
 	if modErr != nil {
 		return refuseAction(modErr.Error())
+	}
+
+	// A sticky modifier reaches a scroll the way it reaches a click: the user
+	// tapped it inside the mode and the indicator shows it, so a scroll that
+	// dropped it would pan where they asked to zoom. The chord they are
+	// physically holding is a different matter, and the backend's flag
+	// stamping or key hold keeps that off the event.
+	if h.modesHandler != nil {
+		modifiers |= h.modesHandler.StickyModifiers()
 	}
 
 	direction, amount, ok := scrollActionMapping(actionName)
