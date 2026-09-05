@@ -1,13 +1,17 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform"
+	"github.com/y3owk1n/neru/internal/buildinfo"
 )
 
 // DocsCmd is the CLI docs command for opening Neru documentation in the browser.
 //
-// macOS: uses open. Linux: uses xdg-open.
-// Other platforms return CodeNotSupported.
+// The page opens through platform.OpenExternal, the same handler the tray uses.
 var DocsCmd = &cobra.Command{
 	Use:   "docs",
 	Short: "Open documentation in the browser",
@@ -44,6 +48,10 @@ var DocsConfigCmd = &cobra.Command{
 	RunE: func(_ *cobra.Command, _ []string) error {
 		return openDocsPage("docs/CONFIGURATION.md")
 	},
+}
+
+func openDocsPage(path string) error {
+	return platform.OpenExternal(context.Background(), buildinfo.DocsURL(path, buildinfo.Version))
 }
 
 func init() {
