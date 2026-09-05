@@ -4,6 +4,7 @@ package windows
 
 import (
 	"errors"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -29,6 +30,7 @@ const (
 	wmQuit       = 0x0012
 	llkhfUp      = 0x0080
 	pmRemove     = 0x0001
+	pmNoRemove   = 0x0000
 )
 
 type kbdLLHookStruct struct {
@@ -154,8 +156,10 @@ func (h *KeyboardHook) Stop() {
 		// WM_QUIT to the hook thread makes GetMessage return 0 and end the
 		// loop. Without this, Stop deadlocks on doneCh (the loop's own
 		// stopCh check only runs between GetMessage calls, which it never
-		// reaches while blocked). The in-loop check still covers the race
-		// where Stop fires before the first GetMessage.
+		// reaches while blocked). The in-loop stopCh check still covers a Stop
+		// that fires before the first GetMessage. The queue exists by then (run
+		// creates it before signaling readiness), and the WM_QUIT this leaves
+		// queued dies with the locked thread.
 		h.mu.Lock()
 		threadID := h.threadID
 		h.mu.Unlock()
@@ -241,6 +245,16 @@ func keyboardHookProc(code int, wParam uintptr, lParam unsafe.Pointer) uintptr {
 }
 
 func (h *KeyboardHook) run() {
+	// The hook and its message queue are thread-affine (doc.go), and the
+	// thread is deliberately never unlocked: a goroutine that exits while
+	// locked takes its OS thread down with it, queue included. Stop's WM_QUIT
+	// is consumed by the GetMessage it wakes, but a Stop that lands before the
+	// first GetMessage leaves it queued, and a thread handed back to the
+	// scheduler with a WM_QUIT in its queue ends the next message pump that
+	// runs on it. The display and foreground watchers lock whatever thread
+	// they start on and would exit before their first real message.
+	runtime.LockOSThread()
+
 	defer close(h.doneCh)
 
 	handle, _, _ := procSetWindowsHookExW.Call(
@@ -256,6 +270,15 @@ func (h *KeyboardHook) run() {
 
 		return
 	}
+
+	// A thread gets a message queue on its first call that needs one, and
+	// PostThreadMessage to a thread without one fails. Stop posts WM_QUIT as
+	// soon as StartKeyboardHook returns, which can be before the loop's first
+	// GetMessage, so the queue is forced into existence here, ahead of the
+	// readiness signal. PeekMessage with PM_NOREMOVE is the documented way.
+	var probe msg
+
+	discardCall(procPeekMessageW.Call(uintptr(unsafe.Pointer(&probe)), 0, 0, 0, pmNoRemove))
 
 	h.mu.Lock()
 	h.hook = handle
@@ -285,15 +308,6 @@ func (h *KeyboardHook) run() {
 	for {
 		select {
 		case <-h.stopCh:
-			if h.threadID != 0 {
-				_, _, _ = procPostThreadMessageW.Call(
-					uintptr(h.threadID),
-					wmQuit,
-					0,
-					0,
-				)
-			}
-
 			return
 		default:
 		}
