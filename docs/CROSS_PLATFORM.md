@@ -163,9 +163,9 @@ answer.
 | **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher |
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ `hyprctl` on Hyprland, else sync-surface cache | ✅ sync-surface cache | ✅ `GetCursorPos` |
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
-| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
-| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput, virtual-pointer fallback) | ✅ both axes (uinput, libei fallback) | ✅ both axes                 |
-| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard + virtual pointer (uinput on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold |
+| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput` ⁷             |
+| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput, virtual-pointer fallback) | ✅ both axes (uinput, libei fallback) | ✅ both axes ⁷               |
+| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard + virtual pointer (uinput on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold ⁷ |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in |
 | **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ✅ 120ths of a notch ³ |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, control view only    |
@@ -307,13 +307,16 @@ installs; without one `VisionPort.Health` and `DetectElements` report
 smallest whole factor that fits and the word boxes scaled back. Every word
 scores one.
 
-⁷ **X11 modifiers on injected input.** An X11 pointer event carries the
-modifiers the server records as **held**, so an injected click or scroll used to
-pick up whatever the user's hand was on: `Ctrl+J` bound to a plain
-`scroll_down` sent ctrl+scroll, which most applications read as zoom. Neru
-reads the live key state with `XQueryKeymap`, releases the modifiers the
-injection would otherwise falsify, presses the ones asked for, and undoes both
-when done, held across every chunk of an animated scroll. A modifier both held
+⁷ **Modifiers on injected input (X11 and Windows).** An X11 pointer event
+carries the modifiers the server records as **held**, and a `SendInput` mouse
+event carries whatever the keyboard holds, so an injected click or scroll used
+to pick up whatever the user's hand was on: `Ctrl+J` bound to a plain
+`scroll_down` sent ctrl+scroll, which most applications read as zoom, and a
+hotkey chord still held while a hint was chosen made the click a ctrl+click.
+Neru reads the live key state (`XQueryKeymap`, `GetAsyncKeyState`), releases
+the modifiers the injection would otherwise falsify, presses the ones asked
+for, and undoes both when done, held across every chunk of an animated
+scroll. A modifier both held
 and asked for is left alone. A drag holds that state for as long as the button
 is down: press and release are separate calls, and the release undoes what the
 press set up. Letting go of a modifier inside that window is not observed, and

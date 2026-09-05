@@ -107,3 +107,59 @@ func TestNoteModifierReleased_RecordsOnlyWhileAHoldIsOpen(t *testing.T) {
 		t.Fatalf("the record survived its hold: %v", again)
 	}
 }
+
+// A drag is two calls with the user's movement in between, so the hold the
+// press took has to reach the release intact: the same plan, with the lock and
+// the release record reopened for it, and let go of in between so a scroll
+// fired mid-drag can take them.
+func TestModifierHold_KeepForRelease_HandsThePlanToTheMatchingRelease(t *testing.T) {
+	plan := modifierstate.Plan{
+		Suppress: []modifierstate.Edit{{Keycode: vkLControl, Modifier: action.ModCtrl}},
+		Press:    []modifierstate.Edit{{Keycode: vkLShift, Modifier: action.ModShift}},
+	}
+
+	modifierHoldMu.Lock()
+	beginReleaseTracking()
+
+	modifierHold{plan: plan}.keepForRelease(action.ButtonLeft)
+
+	if !modifierHoldMu.TryLock() {
+		t.Fatal("keepForRelease kept the hold lock across the drag")
+	}
+
+	modifierHoldMu.Unlock()
+
+	noteModifierReleased(vkLControl)
+
+	if released := endReleaseTracking(); released != nil {
+		t.Fatalf("release tracking stayed open across the drag: %v", released)
+	}
+
+	resumed, err := resumeModifierHold(action.ButtonLeft, 0)
+	if err != nil {
+		t.Fatalf("resumeModifierHold: %v", err)
+	}
+
+	if !slices.Equal(keycodes(resumed.plan.Suppress), keycodes(plan.Suppress)) ||
+		!slices.Equal(keycodes(resumed.plan.Press), keycodes(plan.Press)) {
+		t.Fatalf("resumed plan = %+v, want the press's plan %+v", resumed.plan, plan)
+	}
+
+	if modifierHoldMu.TryLock() {
+		modifierHoldMu.Unlock()
+		t.Fatal("resumeModifierHold did not take the hold lock for the release")
+	}
+
+	noteModifierReleased(vkLControl)
+
+	released := endReleaseTracking()
+	modifierHoldMu.Unlock()
+
+	if _, ok := released[vkLControl]; !ok {
+		t.Fatalf("release tracking was not reopened for the release: %v", released)
+	}
+
+	if _, held := windowsDragModifiers.Take(uint32(action.ButtonLeft)); held {
+		t.Fatal("the press's plan survived its release")
+	}
+}
