@@ -2,66 +2,82 @@
 
 What we intend to work on next, and where help is most valuable.
 
-This document holds **intent and priority only**. It deliberately does not
-restate what currently works — that lives in one place, the
-[Capability Matrix](CROSS_PLATFORM.md#capability-matrix), with the outstanding
-per-platform items enumerated under
-[Known Gaps](CROSS_PLATFORM.md#known-gaps).
+This document holds **intent and priority only**. It does not restate what
+works today. That lives in one place, the
+[Capability Matrix](CROSS_PLATFORM.md#capability-matrix), with anything still
+missing enumerated under [Known Gaps](CROSS_PLATFORM.md#known-gaps).
 
-**Related:** [Cross-Platform Guide](CROSS_PLATFORM.md#feature-parity-reference) ·
+**Related:** [Cross-Platform Guide](CROSS_PLATFORM.md) ·
 [Contributing](../CONTRIBUTING.md) · [Architecture](ARCHITECTURE.md)
 
 ---
 
+## Where things stand
+
+- **macOS** is Stable and the reference implementation.
+- **Linux** and **Windows** are both Beta with parity complete: every option,
+  mode flag, action and command means what it means on macOS, and
+  [Known Gaps](CROSS_PLATFORM.md#known-gaps) carries no entry for either.
+  Nothing is left to build for the label. What moves a platform to Stable is
+  the six-clean-releases rule under
+  [What the labels mean](CROSS_PLATFORM.md#what-the-labels-mean), which is
+  earned by use rather than by a feature.
+
+So the roadmap has no platform feature list. The work now is proving both
+platforms under real workloads and keeping the core reliable.
+
 ## Near term
 
-Work that is not tied to any one platform:
+1. **Prove Linux and Windows in use.** A bug filed against either platform
+   outranks any new capability. The Windows push landed seventeen features in
+   one release and has been exercised only by CI, so expect and report rough
+   edges. The open one today is
+   [#1483](https://github.com/y3owk1n/neru/issues/1483), an injected scroll on
+   Windows carrying modifiers the user is physically holding.
+2. **Reliability over features.** Startup, config reload and mode transitions
+   fail loudly and recover cleanly. Regressions here are fixed before anything
+   else ships.
+3. **Guardrails keep growing.** Contracts that fail silently earn a test in
+   `internal/architecture` (ADR 0011). Reload behavior and port contracts are
+   the areas still thinnest.
 
-- Strengthen macOS reliability around startup, config reloads, and mode
-  transitions.
-- Keep reducing global state to the minimum required by native bridge callbacks.
-- Expand contract tests around ports, adapters, and reload behavior.
-- Make unsupported platform capabilities fail loudly instead of silently
-  no-oping.
+## Open direction
 
-## Cross-platform foundations
+Ideas with maintainer interest and no schedule. Each is an issue rather than a
+promise, and a Discussion is where a new one starts
+([Contributing](../CONTRIBUTING.md#feature-requests)).
 
-Linux and Windows are both
-[beta](CROSS_PLATFORM.md#what-the-labels-mean) — good for daily driving, with
-parity complete on both. What moves either to Stable
-is the six-clean-releases rule written there, not a feature. Every remaining
-item is tracked as a numbered entry in
-[Known Gaps](CROSS_PLATFORM.md#known-gaps) — pick one from there rather than
-from a duplicate list here, so the status you read is the status the code
-reports.
-
-What Linux owes macOS, and what it does not, is settled in
-[ADR 0013](adr/0013-parity-is-measured-in-words-not-subsystems.md): parity is a
-behavioral promise about every option, mode flag, action and command, made on
-wlroots Wayland with a CGO build, with a closed set of macOS-only exemptions.
-
-The two largest open areas:
-
-- **Linux** — Wayland global hotkeys, which need `input`-group membership and a
-  CGO build rather than missing code, and whose remaining work is failing
-  loudly with the remedy.
-- **Windows** — the remaining Known Gaps entries: UIA tree depth and
-  `monitor_select`.
-
-GNOME Wayland remains unsupported; the daemon refuses to start there. Reviving
-it needs libei plus a GNOME Shell extension — see
-[LINUX_DESKTOPS.md](LINUX_DESKTOPS.md#gnome-not-supported).
+- **React to a real mouse click inside a mode**
+  ([#1417](https://github.com/y3owk1n/neru/issues/1417)).
+- **Subgrid preview** in recursive grid, the boundary counterpart of
+  `sub_key_preview` ([#1116](https://github.com/y3owk1n/neru/issues/1116)).
+- **Auto-refresh hints when the accessibility tree changes**
+  ([#1002](https://github.com/y3owk1n/neru/issues/1002)).
+- **COSMIC** ([#898](https://github.com/y3owk1n/neru/issues/898)). COSMIC
+  advertises layer-shell and the virtual pointer, so most of the wlroots path
+  should apply as-is. A contributor's branch got it building; the remaining
+  work is focused-window geometry for the overlay and hint search. Until it
+  lands the daemon refuses to start there as `wayland-other`.
+- **GNOME Wayland** stays unsupported and is not scheduled. Reviving it needs
+  libei plus a GNOME Shell extension for window geometry, see
+  [LINUX_DESKTOPS.md](LINUX_DESKTOPS.md#gnome-not-supported).
 
 ## Contributor priorities
 
-The highest-leverage areas, roughly in order:
+In priority order:
 
-1. Platform adapter implementations in `internal/adapter/platform`.
-2. Overlay implementations and capability reporting.
-3. Config reload regression coverage.
-4. Reducing compatibility globals behind explicit interfaces.
+1. **Platform bugs on Linux and Windows.** Issues labelled
+   `needs: linux contributor` or `needs: windows contributor` are the ones the
+   maintainer cannot reproduce on their own hardware.
+2. **A new desktop** (COSMIC first). Add the backend by mechanism rather than
+   by desktop, per
+   [organize by mechanism](CROSS_PLATFORM.md#organize-by-mechanism-not-by-desktop).
+3. **Config reload regression coverage** through the simulation harness in
+   `internal/app/simulation_harness_test.go`.
+4. **Retiring remaining globals** behind explicit interfaces, where the native
+   bridge callbacks allow it.
 
 New to the codebase?
-[Contributing safely](CROSS_PLATFORM.md#contributing-safely) lists good starter
+[Contributing safely](CROSS_PLATFORM.md#contributing-safely) lists starter
 tasks, the changes worth opening an issue for first, and the five-point bar a
 platform change has to clear before it lands.
