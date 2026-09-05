@@ -60,9 +60,10 @@ Notes:
 - Item 2 takes effect after a full logout/login or reboot.
 - Without item 3 Neru still runs, with two downgrades: modes capture keys
   through the overlay's keyboard focus (a hotkey chord also reaches the focused
-  app), and scrolling falls back to the compositor virtual pointer, which
-  Chromium and Electron apps on Hyprland ignore. `neru doctor` reports the
-  scroll downgrade under `scroll`, and the daemon warns once at the first
+  app), and scrolling falls back from the uinput wheel to the compositor seat:
+  the virtual pointer on wlroots, which Chromium and Electron apps on Hyprland
+  ignore, or libei through the portal session on KDE. `neru doctor` reports
+  the scroll downgrade under `scroll`, and the daemon warns once at the first
   scroll that falls back.
 - Item 4 is a **fallback, not a requirement**. With item 2 in place Neru's own
   `[hotkeys]` config works on Wayland. Bind in the compositor only if you would
