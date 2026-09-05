@@ -384,18 +384,29 @@ func (capture *waylandEvdevCapture) grabWhenIdleLocked(path string, borrowedFor 
 	go capture.waitIdle(path, borrowedFor)
 }
 
-// waitIdle adopts path once the kernel reports no key down on it. It polls the
-// key state rather than reading the device, so it takes nothing from the
-// device's owner; the poll quantum is paid once per device, when a daemon or a
-// remapper is launched from a binding, and never per activation.
+// waitIdle adopts path once the kernel reports no key down on it. The wait is
+// forgotten before adopt runs, not deferred past it: a key pressed again in the
+// gap makes adopt register a replacement wait on the same path, which a
+// cleanup running afterwards would erase.
 func (capture *waylandEvdevCapture) waitIdle(path string, borrowedFor string) {
-	// Before adopt rather than deferred past it: a key pressed again in the
-	// gap makes adopt start a new wait, which the old one must not shadow.
-	defer capture.waitDone(path)
+	idle := capture.pollUntilIdle(path)
 
+	capture.waitDone(path)
+
+	if idle {
+		capture.adopt(path, borrowedFor)
+	}
+}
+
+// pollUntilIdle reports whether path reached a state with no key down. It
+// polls the key state rather than reading the device, so it takes nothing from
+// the device's owner; the poll quantum is paid once per device, when a daemon
+// or a remapper is launched from a binding, and never per activation. False
+// is a device that is gone, or a capture that is closing.
+func (capture *waylandEvdevCapture) pollUntilIdle(path string) bool {
 	file, err := os.Open(path)
 	if err != nil {
-		return
+		return false
 	}
 
 	defer func() { _ = file.Close() }()
@@ -408,26 +419,22 @@ func (capture *waylandEvdevCapture) waitIdle(path string, borrowedFor string) {
 	for {
 		held, err := keysHeld(descriptor)
 		if err != nil {
-			return
+			return false
 		}
 
 		if !held {
-			break
+			return true
 		}
 
 		select {
 		case <-capture.stopCh:
-			return
+			return false
 		case <-ticker.C:
 		}
 	}
-
-	capture.waitDone(path)
-	capture.adopt(path, borrowedFor)
 }
 
-// waitDone forgets the wait on path. Idempotent, so the deferred call after a
-// successful wait finds nothing to forget.
+// waitDone forgets the wait on path.
 func (capture *waylandEvdevCapture) waitDone(path string) {
 	capture.deviceMu.Lock()
 	delete(capture.pendingPaths, path)
