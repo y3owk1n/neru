@@ -27,6 +27,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"go.uber.org/zap"
 )
@@ -40,6 +41,12 @@ type evdevProxy struct {
 	// compositor rather than grabbed, hotkeys still match, and a mode session
 	// is refused — there is nothing to re-emit the keys it would not capture.
 	uinputFd C.int
+
+	// forwarding is whether keys are re-emitted on uinputFd. It starts true
+	// with the device and goes false for good if a write to it ever fails
+	// (failOpen), which is the one way the proxy can lose the keyboard after
+	// grabbing it — so that is when it lets go.
+	forwarding atomic.Bool
 
 	// Owned by the run goroutine.
 	rule    forwardRule
@@ -130,6 +137,8 @@ func newEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 		done:     make(chan struct{}),
 	}
 
+	proxy.forwarding.Store(uinputFd >= 0)
+
 	empty := map[string]func(){}
 	proxy.bindings.Store(&empty)
 
@@ -144,14 +153,10 @@ func newEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 	logger.Info(
 		"Evdev keyboard proxy running",
 		zap.Int("devices", capture.deviceCount()),
-		zap.Bool("forwarding", uinputFd >= 0),
+		zap.Bool("forwarding", proxy.forwarding.Load()),
 	)
 
 	return proxy, nil
-}
-
-func (p *evdevProxy) forwarding() bool {
-	return p.uinputFd >= 0
 }
 
 func (p *evdevProxy) deviceCount() int {
@@ -179,7 +184,7 @@ func (p *evdevProxy) setBindings(bindings map[string]func()) {
 // startSession routes every key to session from the next event on, and returns
 // once that is so.
 func (p *evdevProxy) startSession(session *evdevSession) error {
-	if !p.forwarding() {
+	if !p.forwarding.Load() {
 		return errWaylandEvdevPassive
 	}
 
@@ -224,7 +229,7 @@ func (p *evdevProxy) run() {
 
 			if cmd.session != nil {
 				cmd.session.begin(p)
-				p.capture.pollKeymap()
+				p.refreshKeymap()
 			}
 
 			close(cmd.ack)
@@ -235,8 +240,21 @@ func (p *evdevProxy) run() {
 
 			p.handle(event)
 		case <-keymap.C:
-			p.capture.pollKeymap()
+			p.refreshKeymap()
 		}
+	}
+}
+
+// refreshKeymap picks up a keymap the compositor replaced and, since the state
+// under a new keymap has no key history, feeds it the keys the user is
+// holding, so a modifier held across a layout change keeps choosing the level.
+func (p *evdevProxy) refreshKeymap() {
+	if !p.capture.pollKeymap() {
+		return
+	}
+
+	for code := range p.global.pressed {
+		p.capture.feedKey(code, true)
 	}
 }
 
@@ -352,25 +370,17 @@ func (p *evdevProxy) matchHotkey(code uint16) bool {
 
 // emit re-emits one event on the proxy keyboard.
 func (p *evdevProxy) emit(event waylandEvdevEvent) {
-	if !p.forwarding() {
-		return
-	}
-
 	var raw C.struct_input_event
 	raw._type = C.ushort(event.eventType)
 	raw.code = C.ushort(event.code)
 	raw.value = C.int(event.value)
 
-	C.neru_evdev_write_event(p.uinputFd, &raw)
+	p.write(&raw, 1)
 }
 
 // emitKey re-emits a key event of the proxy's own making, with the sync report
 // that makes it a complete frame.
 func (p *evdevProxy) emitKey(code uint16, value int32) {
-	if !p.forwarding() {
-		return
-	}
-
 	var frame [2]C.struct_input_event
 	frame[0]._type = C.ushort(evdevEventKey)
 	frame[0].code = C.ushort(code)
@@ -378,7 +388,46 @@ func (p *evdevProxy) emitKey(code uint16, value int32) {
 	frame[1]._type = C.ushort(evdevEventSyn)
 	frame[1].code = C.ushort(evdevSynReport)
 
-	C.neru_evdev_write_events(p.uinputFd, &frame[0], C.int(len(frame)))
+	p.write(&frame[0], len(frame))
+}
+
+// write puts count events on the proxy keyboard, whole. Anything less means the
+// device is gone from under the grab, and the grab is let go of (failOpen).
+func (p *evdevProxy) write(events *C.struct_input_event, count int) {
+	if !p.forwarding.Load() {
+		return
+	}
+
+	written, err := C.neru_evdev_write_events(p.uinputFd, events, C.int(count))
+	if int(written) == count*int(unsafe.Sizeof(C.struct_input_event{})) {
+		return
+	}
+
+	if err == nil {
+		err = fmt.Errorf("%w: %d bytes for %d events", errWaylandEvdevShortWrite, written, count)
+	}
+
+	p.failOpen(err)
+}
+
+// failOpen releases the keyboards to the compositor and stops re-emitting, for
+// the one failure that would otherwise take the user's keyboard with it: a
+// proxy device that no longer accepts writes while the physical ones are held.
+// Typing works again at once; what is lost is capturing keys for a mode, which
+// a session asked for from here on is refused, and the tap falls back to the
+// overlay's keyboard focus. The daemon has to restart to get the proxy back.
+func (p *evdevProxy) failOpen(err error) {
+	if !p.forwarding.CompareAndSwap(true, false) {
+		return
+	}
+
+	p.capture.ungrabAll()
+
+	p.logger.Error(
+		"Keyboard proxy write failed; released the keyboards to the compositor, "+
+			"mode keyboard capture is off until the daemon restarts",
+		zap.Error(err),
+	)
 }
 
 // forwardWithheld hands a press the session had withheld to the compositor

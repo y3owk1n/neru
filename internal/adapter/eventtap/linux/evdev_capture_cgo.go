@@ -312,6 +312,24 @@ func (capture *waylandEvdevCapture) removeFileLocked(file *os.File) {
 	}
 }
 
+// ungrabAll hands every device back to the compositor and stops grabbing the
+// ones that arrive later. It is the proxy failing open: with nothing to re-emit
+// through, holding the keyboards would be holding the user's keys.
+func (capture *waylandEvdevCapture) ungrabAll() {
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
+
+	if !capture.grab {
+		return
+	}
+
+	capture.grab = false
+
+	for _, file := range capture.files {
+		C.neru_evdev_grab(C.int(file.Fd()), 0)
+	}
+}
+
 func (capture *waylandEvdevCapture) deviceCount() int {
 	if capture == nil {
 		return 0

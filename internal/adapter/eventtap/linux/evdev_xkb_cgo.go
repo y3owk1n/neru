@@ -108,16 +108,19 @@ func (capture *waylandEvdevCapture) feedKey(code uint16, isDown bool) {
 // the keymap was replaced or the connection is gone. It is what keeps the
 // names the proxy resolves following a layout the user changes mid-session,
 // now that the state is built once rather than at every mode start.
-func (capture *waylandEvdevCapture) pollKeymap() {
+//
+// It reports whether the state is fresh. A fresh state has no key history: the
+// caller, which knows what is held, feeds that back in.
+func (capture *waylandEvdevCapture) pollKeymap() bool {
 	// A state that never came up already said so once; asking again every
 	// two seconds would say it again every two seconds.
 	if capture == nil || capture.xkbState == nil {
-		return
+		return false
 	}
 
 	switch C.neru_xkb_state_dispatch((*C.neru_xkb_state)(capture.xkbState)) {
 	case 0:
-		return
+		return false
 	case 1:
 		// The state under the keymap is fresh, so its lock modifiers are not:
 		// read them off the devices again.
@@ -125,6 +128,8 @@ func (capture *waylandEvdevCapture) pollKeymap() {
 	default:
 		capture.refreshXkbState()
 	}
+
+	return true
 }
 
 // refreshXkbState rebuilds xkb_state from the compositor's keymap, then syncs

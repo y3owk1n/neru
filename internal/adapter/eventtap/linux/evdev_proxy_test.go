@@ -406,6 +406,32 @@ func TestEvdevProxy_PassthroughForwardsTheChordAndItsHeldModifiers(t *testing.T)
 	}
 }
 
+// A proxy whose device stopped taking writes lets go of the keyboards rather
+// than hold keys it can no longer deliver, and refuses to capture for a mode
+// from then on, so the tap falls back to the overlay's keyboard focus.
+func TestEvdevProxy_FailOpenReleasesTheKeyboardsAndRefusesSessions(t *testing.T) {
+	t.Parallel()
+
+	proxy := newTestProxy()
+	proxy.forwarding.Store(true)
+	proxy.capture.grab = true
+
+	proxy.failOpen(errWaylandEvdevProxyStopped)
+
+	if proxy.forwarding.Load() {
+		t.Error("the proxy still reports forwarding after a failed write")
+	}
+
+	if proxy.capture.grab {
+		t.Error("the capture would still grab a keyboard that arrives later")
+	}
+
+	err := proxy.startSession(newEvdevSession(nil))
+	if err == nil {
+		t.Error("a session was accepted with nothing to re-emit keys through")
+	}
+}
+
 // Detaching the bindings is all a stop does now: the proxy keeps being the
 // keyboard, and a listener that has stopped matches nothing.
 func TestGlobalHotkeyListener_StopDetachesTheBindings(t *testing.T) {

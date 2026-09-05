@@ -44,6 +44,7 @@ func IsWaylandEvdevKeyboardActive() bool {
 var (
 	errWaylandEvdevUnavailable  = errors.New("wayland evdev capture unavailable")
 	errWaylandEvdevProxyStopped = errors.New("wayland evdev proxy stopped")
+	errWaylandEvdevShortWrite   = errors.New("short write to the proxy keyboard")
 	errWaylandEvdevPassive      = errors.New(
 		"wayland evdev proxy is passive: /dev/uinput is not writable, so keys cannot be captured",
 	)
