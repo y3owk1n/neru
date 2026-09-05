@@ -145,8 +145,16 @@ it, so a hint label typed while Super is still coming up is the label.
   probe against a real kernel is
   `TestProxyNode_HeldByAnother_SeesAGrabFromAnotherFd`). The remapper's
   output returns to the compositor, so the user's keys and remaps work; what
-  is lost is capturing keys for a mode. The setup guide tells remapper users
-  to exclude the `neru-` devices instead.
+  is lost is capturing keys for a mode. Failing open is the one time the
+  proxy lets a keyboard go without waiting for it to be idle, so a key down
+  at that instant, whose press the proxy re-emitted, is released on the proxy
+  keyboard first (`releaseForwarded`, pinned by
+  `TestEvdevProxy_FailOpen_ReleasesEveryKeyItForwarded`): its physical
+  release goes to the physical device, whose libinput never saw the press
+  and drops it, and a key left down on the proxy would stay down for the
+  daemon's lifetime, a Super that Hyprland merged into every key typed
+  afterwards. The setup guide tells remapper users to exclude the `neru-`
+  devices instead.
 - A remapper's output keyboard also advertises relative motion and mouse
   buttons, so a key can move the pointer, and so does a receiver that exposes a
   mouse and a keyboard on one node. Grabbing such a device takes its motion, so

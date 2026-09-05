@@ -502,6 +502,12 @@ func (p *evdevProxy) emitPointer(event waylandEvdevEvent) {
 // emitKey re-emits a key event of the proxy's own making, with the sync report
 // that makes it a complete frame.
 func (p *evdevProxy) emitKey(code uint16, value int32) {
+	frame := keyFrame(code, value)
+	p.write(p.uinputFd, &frame[0], len(frame))
+}
+
+// keyFrame is one key event and the sync report that completes it.
+func keyFrame(code uint16, value int32) [2]C.struct_input_event {
 	var frame [2]C.struct_input_event
 	frame[0]._type = C.ushort(evdevEventKey)
 	frame[0].code = C.ushort(code)
@@ -509,7 +515,7 @@ func (p *evdevProxy) emitKey(code uint16, value int32) {
 	frame[1]._type = C.ushort(evdevEventSyn)
 	frame[1].code = C.ushort(evdevSynReport)
 
-	p.write(p.uinputFd, &frame[0], len(frame))
+	return frame
 }
 
 // write puts count events on one proxy device, whole. Anything less means the
@@ -542,6 +548,8 @@ func (p *evdevProxy) failOpen(err error) {
 		return
 	}
 
+	p.releaseForwarded()
+
 	p.capture.ungrabAll()
 
 	// The keys now reach the compositor as well, so a session reading them
@@ -569,6 +577,38 @@ func (p *evdevProxy) failOpen(err error) {
 			"mode keyboard capture is off until the daemon restarts",
 		zap.Error(err),
 	)
+}
+
+// releaseForwarded re-emits a release on the proxy keyboard for every key the
+// rule counts as forwarded and down, then zeroes the rule. Failing open is the
+// one time a keyboard is let go without waiting for it to be idle: a key down
+// at that instant had its press re-emitted here, and its release goes to the
+// physical device next, whose libinput never saw the press and drops it. Left
+// down on the proxy keyboard it would stay down for the daemon's lifetime, and
+// a compositor that merges modifiers across keyboards (Hyprland) would put
+// that Super on every key typed afterwards. Base keys go up before modifiers,
+// the way a chord is let go of. The writes bypass the forwarding flag, which
+// failOpen has cleared; on a proxy that stopped taking writes they fail as the
+// last one did, and there is nothing more to do for it.
+func (p *evdevProxy) releaseForwarded() {
+	var keys, modifiers []uint16
+
+	for code := range uint16(evdevKeyCodeCount) {
+		switch {
+		case !p.rule.isDown(code):
+		case p.capture.modifierName(code) != "":
+			modifiers = append(modifiers, code)
+		default:
+			keys = append(keys, code)
+		}
+	}
+
+	p.rule = forwardRule{}
+
+	for _, code := range append(keys, modifiers...) {
+		frame := keyFrame(code, evdevValueRelease)
+		C.neru_evdev_write_events(p.uinputFd, &frame[0], C.int(len(frame)))
+	}
 }
 
 // forwardWithheld hands a press the session had withheld to the compositor

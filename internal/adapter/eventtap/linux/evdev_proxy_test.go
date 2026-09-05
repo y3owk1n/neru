@@ -479,6 +479,39 @@ func TestEvdevProxy_FailOpenReleasesTheKeyboardsAndRefusesSessions(t *testing.T)
 	}
 }
 
+// A key down when the proxy fails open had its press re-emitted on the proxy
+// keyboard, and its release goes to the physical device next, where libinput
+// never saw the press: the proxy releases what it forwarded before it lets
+// the keyboards go, or the key stays down on the proxy for the daemon's life.
+func TestEvdevProxy_FailOpen_ReleasesEveryKeyItForwarded(t *testing.T) {
+	t.Parallel()
+
+	proxy := newTestProxy()
+
+	// The activation chord, forwarded: no session is capturing.
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
+	proxy.handle(keyEvent(evdevKeyJ, evdevValuePress))
+
+	if !proxy.rule.isDown(evdevKeyLeftMeta) || !proxy.rule.isDown(evdevKeyJ) {
+		t.Fatal("the chord was not forwarded before the proxy failed open")
+	}
+
+	proxy.forwarding.Store(true)
+	proxy.capture.grab = true
+	proxy.failOpen(errWaylandEvdevProxyGrabbed)
+
+	for _, code := range []uint16{evdevKeyLeftMeta, evdevKeyJ} {
+		if proxy.rule.isDown(code) {
+			t.Errorf("key %d is still down on the proxy keyboard after it failed open", code)
+		}
+	}
+
+	// The physical releases that follow are the physical device's now.
+	if proxy.rule.release(evdevKeyJ) || proxy.rule.release(evdevKeyLeftMeta) {
+		t.Error("a release was forwarded for a key the fail-open already released")
+	}
+}
+
 // A keyboard yielded to a remapper is with the compositor until the remapper
 // claims it or it is taken back; a mode started meanwhile would get nothing
 // while its keys went to the focused app, so it is refused and falls back.
