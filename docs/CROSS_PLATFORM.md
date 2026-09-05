@@ -3,14 +3,14 @@
 Neru runs on macOS, Linux, and Windows from one shared Go core. This document
 covers both sides of that:
 
-- **[Part 1 — Feature Parity Reference](#feature-parity-reference)**: what
-  actually works on each platform, and how it is implemented.
-- **[Part 2 — Contributor Guide](#contributor-guide)**: where platform code
+- **[Part 1: Feature Parity Reference](#feature-parity-reference)**: what
+  works on each platform, and how it is implemented.
+- **[Part 2: Contributor Guide](#contributor-guide)**: where platform code
   lives, and how to add to it.
 
-Every claim in Part 1 is derived from code under `internal/adapter/`,
-`internal/app/`. **If this document and the code
-disagree, the code wins** — and the disagreement is a bug worth fixing here.
+Every claim in Part 1 is derived from code under `internal/adapter/` and
+`internal/app/`. **If this document and the code disagree, the code wins**,
+and the disagreement is a bug worth fixing here.
 
 **Related:** [Architecture](./ARCHITECTURE.md) · [Linux setup](./LINUX_SETUP.md) ·
 [Linux desktops](./LINUX_DESKTOPS.md) · [Development Guide](./DEVELOPMENT.md)
@@ -19,7 +19,7 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 
 ## Table of Contents
 
-**Part 1 — [Feature Parity Reference](#feature-parity-reference)**
+**Part 1: [Feature Parity Reference](#feature-parity-reference)**
 
 - [Platform Status](#platform-status)
 - [Capability Matrix](#capability-matrix)
@@ -32,7 +32,7 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 - [Platform Exclusives](#platform-exclusives)
 - [Known Gaps](#known-gaps)
 
-**Part 2 — [Contributor Guide](#contributor-guide)**
+**Part 2: [Contributor Guide](#contributor-guide)**
 
 - [First Stops](#first-stops)
 - [The Three Tiers](#the-three-tiers)
@@ -58,51 +58,37 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 
 ### What the labels mean
 
-Three words carry the whole promise, so they are worth pinning down:
+**Stable**: fully featured *and* proven in use. A gap on this platform is a
+bug.
 
-**Stable** — fully featured *and* proven in use. Everything Neru does works
-here, and it has been exercised long enough that a gap is a surprise rather
-than an expectation. A gap on this platform is a bug.
+**Beta**: good for daily driving. Every navigation mode works and behaves as it
+does on a stable platform. A platform is Beta either because something is still
+missing, or because what is there has not yet been proven outside CI. Which one
+applies is stated per platform below.
 
-**Beta** — good for daily driving. Every navigation mode works and behaves the
-same as it does on a stable platform. A platform is beta either because
-something is still missing, or because what is there has not yet been proven
-outside CI. Which one applies is stated per platform below.
-
-**Alpha** — worth trying, not yet worth switching to. Core navigation works, but
+**Alpha**: worth trying, not yet worth switching to. Core navigation works, but
 hint coverage is incomplete and per-app config does not re-apply on focus
-change. You will notice the difference in ordinary use.
+change.
 
 Every claim behind these labels is enumerated in the
 [Capability Matrix](#capability-matrix) and [Known Gaps](#known-gaps). If a
 label and the matrix disagree, the matrix is right.
 
-**Linux parity is complete.** Every option, mode flag, action and command means
-on the blessed stack what it means on macOS, [Known Gaps](#known-gaps) carries
-no Linux entry, and the headless-sway job gates merges. That was the whole of
-[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)'s promise,
-and it is kept.
+**Linux and Windows parity is complete.** On both, every option, mode flag,
+action and command means what it means on macOS, and
+[Known Gaps](#known-gaps) carries no entry for either. That is the promise of
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md), and it is
+kept. The headless-sway and native `windows-latest` CI jobs gate merges.
 
-**Windows parity is complete too.** Every mode works, and every option, mode
-flag, action and command means what it means on macOS; [Known Gaps](#known-gaps)
-carries no Windows entry. The three `hints.vision.*_confidence` floors are
-inert there, but as a stated boundary of the OCR engine rather than unbuilt
-work. The native `windows-latest` job gates merges.
-
-**Both stay Beta anyway**, because parity is a claim about coverage and
-Stable is a claim about reliability. Fourteen Linux capabilities landed in a
-fortnight and seventeen Windows tickets in one push, on platforms the
-maintainer does not daily-drive, each proven by a CI job rather than by use.
-Coverage is what a checklist can establish; that these hold up on a real
-compositor or a real desktop, under a real workload, over weeks of ordinary
-use, is not.
+**Both stay Beta anyway**, because parity is a claim about coverage and Stable
+is a claim about reliability. Fourteen Linux capabilities landed in a fortnight
+and seventeen Windows tickets in one push, on platforms the maintainer does not
+daily-drive, each proven by a CI job rather than by use.
 
 **A Beta platform moves to Stable** after six consecutive releases in which no
-bug specific to it is filed — one a macOS user would not also hit. Count bugs
-*filed* in that window rather than ones still open at the end of it: a bug
-found and fixed still happened, and it is evidence about the platform either
-way. The rule is the same for Linux and Windows; only the label in the query
-changes.
+bug specific to it is filed, meaning one a macOS user would not also hit. Count
+bugs *filed* in that window, not ones still open at the end of it. The rule is
+the same for Linux and Windows; only the label changes:
 
 ```bash
 since=$(gh release view <tag-six-back> --json publishedAt --jq .publishedAt)
@@ -110,16 +96,8 @@ gh issue list --state all --label "platform: linux" --label bug \
   --search "created:>=${since%%T*}"
 ```
 
-That query returns candidates, not an answer, and two things it cannot do a
-person must. It cannot tell a platform-only bug from one macOS shares, so read
-what comes back and discount anything that is really a cross-platform bug
-wearing a platform label. And it sees only what was labelled — a Linux bug
-filed without `platform: linux`, or a Windows bug without `platform: windows`,
-is invisible to it, so this is worth no more than the triage feeding it.
-
-Reading an individual bug is a judgment; whether the label flips is not. That
-distinction is the whole point — see
-[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md).
+The query returns candidates. A person still has to discount cross-platform
+bugs wearing a platform label, and it sees only what triage labelled.
 
 ### Per-platform
 
@@ -137,27 +115,27 @@ distinction is the whole point — see
 
 Linux is not one target. The live backend is detected once at startup from
 `XDG_CURRENT_DESKTOP`, `WAYLAND_DISPLAY`, and `DISPLAY`
-([backend_linux.go](../internal/adapter/platform/backend_linux.go)). This is the
-only place the compositor *family* is decided — the `display_server` field in
-`neru info` and `neru doctor` names the stack of whichever row below matched,
-rather than reading the environment a second time:
+([backend_linux.go](../internal/adapter/platform/backend_linux.go)). This is
+the only place the compositor *family* is decided. The `display_server` field
+in `neru info` and `neru doctor` is derived from the matched row rather than
+read from the environment a second time.
 
-| Backend                | Detected when                                       | Status                       |
-| ---------------------- | --------------------------------------------------- | ---------------------------- |
-| `x11`                  | `DISPLAY` set, no `WAYLAND_DISPLAY`                 | Supported                    |
-| `wayland-wlroots`      | Sway, Hyprland, niri, River, Wayfire, or unset `XDG_CURRENT_DESKTOP` | Supported   |
-| `wayland-kde`          | `XDG_CURRENT_DESKTOP` contains `KDE`                | Supported                    |
-| `wayland-gnome`        | `XDG_CURRENT_DESKTOP` contains `GNOME`              | **Not supported**            |
-| `wayland-other`        | Any other Wayland compositor                        | **Not supported**            |
-| `unknown`              | Neither `WAYLAND_DISPLAY` nor `DISPLAY`             | **Not supported**            |
+| Backend                | Detected when                                                          | Status            |
+| ---------------------- | ---------------------------------------------------------------------- | ----------------- |
+| `x11`                  | `DISPLAY` set, no `WAYLAND_DISPLAY`                                    | Supported         |
+| `wayland-wlroots`      | Sway, Hyprland, niri, River, Wayfire, or unset `XDG_CURRENT_DESKTOP`   | Supported         |
+| `wayland-kde`          | `XDG_CURRENT_DESKTOP` contains `KDE`                                   | Supported         |
+| `wayland-gnome`        | `XDG_CURRENT_DESKTOP` contains `GNOME`                                 | **Not supported** |
+| `wayland-other`        | Any other Wayland compositor                                           | **Not supported** |
+| `unknown`              | Neither `WAYLAND_DISPLAY` nor `DISPLAY`                                | **Not supported** |
 
 > **GNOME Wayland does not run at all.** `platform.NewSystemPort` returns
 > `CodeNotSupported` for `wayland-gnome`, `wayland-other`, and `unknown`, and
-> that is the first step of daemon startup — the daemon exits instead of
-> starting in a degraded state. Mutter implements neither `wlr-layer-shell`
-> (overlays) nor `wlr-foreign-toplevel-management` (focused app), and exposes no
+> that is the first step of daemon startup, so the daemon exits instead of
+> starting degraded. Mutter implements neither `wlr-layer-shell` (overlays) nor
+> `wlr-foreign-toplevel-management` (focused app), and exposes no
 > input-injection path Neru can use. **Use an X11 session under GNOME.** The
-> tables below therefore have no GNOME column: nothing runs there.
+> tables below have no GNOME column: nothing runs there.
 
 ---
 
@@ -171,10 +149,10 @@ Wayland with `wlr-layer-shell` overlays.
 or no-op) · ❌ no code path · ➖ macOS-only capability, exempt from parity
 (see [Platform Exclusives](#platform-exclusives))
 
-This table answers whether a *subsystem* works. It cannot answer whether every
-option, mode flag, action and command means the same thing on each platform —
-that is what [Known Gaps](#known-gaps) tracks, per
-[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md).
+This table answers whether a *subsystem* works. Whether every option, mode
+flag, action and command means the same thing on each platform is what
+[Known Gaps](#known-gaps) and [Platform Support Per Word](#platform-support-per-word)
+answer.
 
 | Capability                    | macOS                    | Linux X11              | Linux Wayland (wlroots)      | Linux Wayland (KDE)     | Windows                      |
 | ----------------------------- | ------------------------ | ---------------------- | ---------------------------- | ----------------------- | ---------------------------- |
@@ -183,15 +161,15 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Focused app identity**      | ✅ NSWorkspace + AX      | ✅ `_NET_ACTIVE_WINDOW` / `WM_CLASS` | ⚠️ app_id only (see below) | ⚠️ app_id only     | ✅ `GetForegroundWindow`     |
 | **App watcher (focus change)**| ✅ NSWorkspace observer  | ✅ event-driven        | ✅ event-driven              | ✅ event-driven         | ✅ `SetWinEventHook`         |
 | **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher |
-| **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ compositor IPC (Hyprland) / sync-surface trick | ✅ sync-surface trick | ✅ `GetCursorPos` |
+| **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ `hyprctl` on Hyprland, else sync-surface cache | ✅ sync-surface cache | ✅ `GetCursorPos` |
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
-| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ✅ both axes                 |
-| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard, uinput batch skipped (kept on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold |
+| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput, virtual-pointer fallback) | ✅ libei     | ✅ both axes                 |
+| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard + virtual pointer (uinput on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in |
-| **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous virtual-pointer axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ✅ 120ths of a notch ³ |
+| **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ✅ 120ths of a notch ³ |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, control view only    |
-| **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ DirectComposition + Direct2D (GDI fallback; windows/arm64 is GDI only ⁷) |
+| **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ DirectComposition + Direct2D (GDI fallback; windows/arm64 is GDI only ¹⁰) |
 | **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ✅ evdev proxy (`input` group) | ✅ evdev proxy (`input` group) | ✅ `RegisterHotKey`          |
 | **Keyboard capture**          | ✅ CGEventTap            | ✅ `XGrabKeyboard`     | ✅ evdev proxy (uinput; wl-keyboard fallback) | ✅ evdev proxy (uinput) | ✅ `WH_KEYBOARD_LL`          |
 | **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ✅ `WH_KEYBOARD_LL` forwards or blocks per event |
@@ -209,441 +187,281 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | ✅ `SendInput`               |
 | **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | ⚠️ systemd user unit only ² | ✅ Task Scheduler logon task |
 
-¹ Every platform resolves font *families* through the OS: NSFont on macOS,
-fontconfig on Linux, GDI's `EnumFontFamiliesExW` on Windows.
+¹ **Font resolution.** Every platform resolves font *families* through the OS.
+A family somebody named resolves to **that name**, not to what the platform
+would render in its place. The exception is a family the platform can see is
+missing: Linux (fontconfig) and Windows (GDI) send it to the sans baseline,
+DejaVu Sans and Segoe UI, rather than to the platform's own substitute, so
+`font_family = "Arial"` without Arial installed reports DejaVu Sans on Linux and
+not the Liberation Sans that `fc-match Arial` names. A missing serif or mono
+family lands on the sans baseline too. macOS, the non-CGO Linux build, and a
+build whose fontconfig or GDI cannot be consulted check nothing and hand the
+name to NSFont / Cairo / DirectWrite, which substitute at draw time.
 
-A family somebody named resolves to **that name**: the answer is the family the
-config asked for, not the family the platform would render in its place. The
-exception is a family the platform can see is missing, which the two backends
-that can tell an installed family from a missing one — Linux with fontconfig
-and Windows — send to the sans baseline rather than to the platform's own
-substitution for the name, so `font_family = "Arial"` without Arial installed
-reports DejaVu Sans on Linux and Segoe UI on Windows, not the Liberation Sans
-`fc-match Arial` names. It is the sans baseline whatever face the name asked
-for: the serif and mono baselines are what the `serif` and `mono` aliases
-resolve to, so a missing `Times New Roman` also lands on the sans one. Where the
-Linux baseline is itself missing, fontconfig chooses that machine's generic, so
-the fallback is always a family it has. Segoe UI ships with every supported
-Windows. macOS, the non-CGO Linux build, and a build whose fontconfig or GDI
-cannot be consulted at all check nothing: they hand the written name to NSFont
-/ DirectWrite / Cairo, which substitute when the text is drawn — as Cairo and
-DirectWrite do for whichever name they are given.
+The generic names are the same on all three: `sans`, `sans serif`, `serif`,
+`mono`, `monospace` and the empty string, matched ignoring case, whitespace and
+the separator between words (`internal/adapter/platform/fontgeneric`, ADR 0007).
+What each resolves to is the platform's own: Helvetica Neue / Times New Roman /
+Menlo on macOS, DejaVu Sans / Serif / Sans Mono on Linux, Segoe UI / Cambria /
+Consolas on Windows. Resolved answers are cached under the family name
+exactly as written (`internal/adapter/platform/fontcache`); the non-CGO Linux
+build re-derives each time.
 
-Which names count as generic is the same on all three: `sans`, `sans serif`,
-`serif`, `mono`, `monospace` and the empty string, matched ignoring case,
-surrounding whitespace and the separator between words — `sans-serif`,
-`sans_serif` and `sansserif` are one name. Every other family name is passed to
-the platform trimmed. One parser answers that for all three
-(`internal/adapter/platform/fontgeneric`, ADR 0007); what each generic resolves
-to is the platform's own — Helvetica Neue / Times New Roman / Menlo on macOS,
-DejaVu Sans / DejaVu Serif / DejaVu Sans Mono on Linux, the Windows families
-above.
+² **Service management** is the one row whose limit is not the display server:
+it needs **systemd**, on every Linux backend. runit, OpenRC and s6 get
+`CodeNotSupported` from every `neru services` subcommand, a stated boundary
+rather than a gap. See "Service management on Linux" below.
 
-Where an answer is remembered — macOS, Windows and the fontconfig-backed Linux
-resolver — it is remembered under the family name exactly as written
-(`internal/adapter/platform/fontcache`); the non-CGO Linux build re-derives it
-each time. Either way what a name resolves to depends on that name alone and
-never on what was resolved before it.
-
-² The Linux columns of this table are display servers, and service management is
-the one row whose limit sits on a different axis: it needs **systemd**, on every
-Linux backend alike. A machine booted by runit, OpenRC or s6 gets
-`CodeNotSupported` from every `neru services` subcommand — a stated boundary
-rather than a gap, see "Service management on Linux" below.
-
-³ `smooth_scroll` animates on every Linux backend, but only Wayland can make a
-step shorter than a wheel notch. `zwlr_virtual_pointer_v1.axis` carries a
-fractional value with no discrete step count, and wlroots forwards exactly that
-to the focused client as a continuous `wl_pointer.axis`; libei's
-`ei_device_scroll_delta` is pixel-precise and KWin forwards it the same way.
-X11 has no such value to send: core scrolling is buttons 4 to 7 and a button
-event is one notch by definition, and the XTEST pointer the server creates for
-`XTestFakeButtonEvent` is allocated with two axes, `Rel X` and `Rel Y`
-(`CorePointerProc` in xorg-server's `dix/devices.c`), so it has no scroll
-valuator for the smooth XI2 path real devices use. Windows sits with Wayland:
-`MOUSEEVENTF_WHEEL` carries an integer count of `WHEEL_DELTA`/120ths, so the
-animator steps in 120ths of a notch, and a modifier is one real key held for
-the length of the animation, as on Linux. Thirty pixels are one notch there,
-the figure X11 uses for its button clicks, and the animated and unanimated
-paths both send that fraction rather than rounding it to a detent.
+³ **Smooth scroll granularity.** `smooth_scroll` animates everywhere, but only
+some primitives can send a step shorter than a wheel notch. `zwlr_virtual_pointer_v1.axis`
+carries a fractional value and wlroots forwards it as a continuous
+`wl_pointer.axis`; libei's `ei_device_scroll_delta` is pixel-precise and KWin
+forwards it the same way. X11 core scrolling is buttons 4 to 7, one notch per
+event, and the XTEST pointer has no scroll valuator for the smooth XI2 path.
+Windows sits with Wayland: `MOUSEEVENTF_WHEEL` counts 120ths of `WHEEL_DELTA`,
+so the animator steps in 120ths of a notch.
 
 **So X11 animates in notches, and a scroll worth one notch is not animated at
-all.** The default `scroll.scroll_step` of 50 pixels is exactly one notch there,
-so a plain `scroll_down` on X11 arrives as the single wheel click it always did
-— deliberately, and immediately: delivering it late would be added latency and
-nothing else. From two notches up (`scroll_step_half`, `scroll_step_full`, or a
-`scroll_step` above 60) the same eased curve applies as everywhere else, and
-those are the scrolls the animation is worth having for.
+all.** The default `scroll.scroll_step` of 50 pixels is exactly one notch
+there, so a plain `scroll_down` on X11 arrives as the single wheel click it
+always did. From two notches up the same eased curve applies as everywhere
+else.
 
-⁴ This row is about the native *field* — a platform text control that owns
-keyboard focus and brings the system's input method with it. Only macOS has
-one. Everywhere else the query is read from the event tap's key stream, which
-is why dead keys and IME composition do not work there and a hint search takes
-plain characters.
-
-**What the box on screen is, is a different question, and every platform draws
-one.** Linux paints the search badge onto the shared overlay surface with the
-same Cairo primitives as its other badges, so `hints.search_input_ui.*` means
-what it says on all three; the badge is a display of the query the mode handler
-already holds, and it never captures a key.
-
-Neru sends the same distance on every backend; only the granularity of a step
-differs — though on Wayland the animated path spends that distance as a
-continuous delta where the unanimated one spends it as notches, and an
-application may scale the two differently, so switching the animation on can
-change how far a scroll reaches there. Wayland steps also declare axis source
-`continuous` rather than `wheel`, because a wheel source invites a toolkit to
-round the fraction back to a detent.
-
-Measured on wlroots (sway) by
+Neru sends the same distance on every backend. On Wayland the animated path
+spends that distance as a continuous delta where the unanimated one spends it
+as notches, and an application may scale the two differently, so switching the
+animation on can change how far a scroll reaches. Wayland steps declare axis
+source `continuous` rather than `wheel`, because a wheel source invites a
+toolkit to round the fraction back to a detent. Measured on wlroots (sway) by
 `TestScrollAtCursor_DeliversSubNotchStepsWithSmoothScroll`, which maps a real
-`xdg-shell` window and reads what the compositor delivers to it. **The X11 and
-KDE conclusions are read from the sources named above and are not measured on
-hardware**, and neither is the uinput `REL_WHEEL_HI_RES` route — the
-headless-sway job reads no input devices at all, so nothing written to a uinput
-device reaches the compositor there.
+`xdg-shell` window and reads what the compositor delivers. **The X11 and KDE
+conclusions are read from the sources named above and are not measured on
+hardware**, and neither is the uinput `REL_WHEEL_HI_RES` route: the
+headless-sway job reads no input devices at all.
 
-⁵ Capture is taken per backend rather than through xdg-desktop-portal
-ScreenCast everywhere, because a consent picker in front of what becomes a hint
-refresh is a latency and consent-fatigue regression the blessed stack has no
-need to pay ([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
-X11 reads the root window back with `XGetImage`; wlroots-family compositors
-implement `wlr-screencopy-unstable-v1`, which needs no consent because the
-client is already trusted with the session.
+⁴ **Native hint-search field.** Only macOS has a platform text control that
+owns keyboard focus and brings the system input method with it. Everywhere else
+the query is read from the event tap's key stream, so dead keys and IME
+composition do not work there and a hint search takes plain characters. The
+search *badge* on screen is a different thing and every platform draws one:
+`hints.search_input_ui.*` means what it says on all three, and the badge never
+captures a key.
 
-**KWin implements neither**, so KDE Plasma is the one backend that pays the
-portal: its pixels come from an `org.freedesktop.portal.ScreenCast` session,
-delivered over PipeWire (`libpipewire-0.3`, a required
-[build dependency](./LINUX_SETUP.md#build-dependencies) on every Linux
-install). That is the ⚠️ in the row, and it is a **permission** rather than a
-missing capability — which is why `CheckScreenCapturePermission` and
-`RequestScreenCapturePermission` report the portal's real consent state there
-and report "no gate" on X11 and wlroots. The prompt is paid **once**: the grant
-is persisted with a restore token in
-`$XDG_STATE_HOME/neru/screen-cast.token`, restored silently on every later
-start, and it is never asked for by a capture — the mode handler's permission
-preflight is the only thing that can raise a dialog, and it runs off its lock
-with a budget sized for a human. Sources are requested as monitors with the
-cursor left out; windows are not asked for, because a window stream carries no
-position and a region has to be placeable.
+⁵ **Screen capture** is taken per backend rather than through the desktop
+portal everywhere, because a consent picker in front of a hint refresh is a
+latency and consent-fatigue regression the blessed stack has no need to pay.
+X11 reads the root window back with `XGetImage`; wlroots compositors implement
+`wlr-screencopy-unstable-v1`, which needs no consent. Windows reads the desktop
+DC with `BitBlt` into a 32-bit DIB, no consent gate and no cgo; the process is
+per-monitor-v2 DPI aware, so the frame is the region's size in physical pixels.
 
-Capture is a **region** operation on all three backends: the caller's rectangle
-is what gets read back, so constraining detection to the focused window costs a
-window rather than a display.
+**KWin implements neither**, so KDE Plasma pays the portal: pixels come from an
+`org.freedesktop.portal.ScreenCast` session over PipeWire (`libpipewire-0.3`, a
+required [build dependency](./LINUX_SETUP.md#build-dependencies) on every Linux
+install). It is a **permission** rather than a missing capability, which is why
+`CheckScreenCapturePermission` and `RequestScreenCapturePermission` report the
+portal's real consent state there and "no gate" on X11, wlroots and Windows. The
+prompt is paid once: the grant is persisted with a restore token in
+`$XDG_STATE_HOME/neru/screen-cast.token`, and only the mode handler's
+permission preflight can raise the dialog, never a capture. Sources are
+requested as monitors with the cursor left out; windows are not asked for,
+because a window stream carries no position.
 
-What comes back covers **exactly** the region asked for, and that is enforced
-rather than hoped for: a rectangle that leaves the screen, that is degenerate,
-or that spans two monitors on Wayland (`wlr-screencopy` captures one output,
-and a ScreenCast stream is one monitor) **fails** instead of coming back
-clipped. A clipped frame carries nothing that says where its own top-left is,
-so a caller could no longer map a pixel back to a screen coordinate — and a
-caller asking for one window must never silently receive the whole display. On
-KDE a region on a monitor the user chose **not** to share fails the same way,
-and says so.
+Capture is a **region** operation on every backend, and what comes back covers
+exactly the region asked for. A rectangle that leaves the screen, is
+degenerate, or spans two monitors on Wayland (`wlr-screencopy` and a ScreenCast
+stream are one output each) **fails** instead of coming back clipped, because a
+clipped frame carries nothing that says where its own top-left is. On KDE a
+region on a monitor the user chose not to share fails the same way. On a scaled
+Wayland output the frame is in physical pixels, larger than the logical region
+by the scale factor, as a Retina capture is on macOS.
 
-One thing to know before reading a frame: on a scaled Wayland output the
-compositor answers in **physical pixels**, so it can be larger than the logical
-region by the output's scale factor — the same thing a Retina capture does on
-macOS. The image's own bounds start at `(0, 0)`; the region passed in is what
-places those pixels.
-
-Windows reads the desktop DC back with `BitBlt` into a top-down 32-bit DIB
-section, no consent gate and no cgo. The desktop DC is one surface across every
-monitor, so a region may straddle a seam, and it must still lie inside the
-virtual screen. The process is per-monitor-v2 DPI aware through its manifest,
-so the frame is the region's own size in physical pixels: the same pixels
-`GetCursorPos` and `EnumDisplayMonitors` report, on a mixed-DPI arrangement
-too. The focused window is the foreground window's rect clipped to the virtual
-screen, because `GetWindowRect` overhangs it by the invisible resize border on
-a maximized window; a window straddling a seam keeps both halves.
-
-⁷ The Direct2D binding is pure Go and passes floats through Go's stdcall
-shim, which mirrors integer arguments into the XMM registers on amd64 only, so
-windows/arm64 builds the GDI surface alone
-(`platform/windows/overlay_dcomp_other.go`).
-
-⁶ Linux and Windows `vision` are **text-only**, and permanently so. macOS runs
-three Vision requests — text recognition, rectangle detection and saliency —
-and an OCR engine answers the first. `hints.vision.detect_rectangles` and the
-four `rectangle_*` options are therefore declared macOS-only: they tune the
-Vision framework's rectangle request, which has no OCR equivalent. The
-`contour` strategy is a separate, dependency-free detector, not an
-implementation of `detect_rectangles`
-([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)). The
-other fourteen `hints.vision.*` options are read on Linux exactly as they are on
-macOS; Windows reads eleven of them, because its engine reports no per-word
+⁶ **Vision on Linux and Windows is text-only**, and permanently so. macOS runs
+three Vision requests (text, rectangles, saliency); an OCR engine answers the
+first. `hints.vision.detect_rectangles` and the four `rectangle_*` options are
+therefore declared macOS-only. The `contour` strategy is a separate,
+dependency-free detector on every platform, not an implementation of
+`detect_rectangles`. The other fourteen `hints.vision.*` options are read on
+Linux as on macOS; Windows reads eleven, because its engine reports no per-word
 confidence and the three `*_confidence` floors are declared inert there.
 
+On Linux the engine is **tesseract**, linked through `#cgo pkg-config` like
+every other native dependency, and required: a missing `libtesseract.so` stops
+the daemon before any Neru code runs. Its **language data is a separate
+package**, resolved at use (`TESSDATA_PREFIX` first, then the distribution
+paths); a machine with no `eng.traineddata` gets `CodeNotSupported` naming that
+file from `VisionPort.Health` and from `DetectElements`. Recognition runs at
+word level for `--split-word` and at line level otherwise, LSTM engine in
+sparse-text segmentation, scoped to the focused window (full-display OCR takes
+seconds where one window takes tens of milliseconds). Recognized text is screen
+content: never logged, never written to disk, cleared out of the engine before
+each recognition returns.
+
 On Windows the engine is **`Windows.Media.Ocr`**, the WinRT engine every
-Windows 10 and 11 desktop ships, driven through raw vtables with no CGO like UI
-Automation is (`platform/windows/ocr.go`). It is created from the account's
-profile languages and needs the **OCR language pack** for one of them, which a
-language's *Basic typing* feature installs; a machine without one gets
-`CodeNotSupported` naming that remedy, from `VisionPort.Health` and from
-`DetectElements`. The engine caps both image dimensions at 2600 pixels, so a
-frame wider than that — any 4K monitor — is box-averaged down by the smallest
-whole factor that fits and the word boxes scaled back, which trades some small
-text for a strategy that works on every display. Recognition runs on one OS
-thread kept in the WinRT apartment for the process, so the engine is created
-once; the frame reaches it through a `SoftwareBitmap` and the words come back
-with a score of one each.
+Windows 10 and 11 desktop ships, driven through raw vtables with no CGO
+(`platform/windows/ocr.go`). It needs the **OCR language pack** for one of the
+account's profile languages, which a language's *Basic typing* feature
+installs; without one `VisionPort.Health` and `DetectElements` report
+`CodeNotSupported` naming that remedy. The engine caps both image dimensions at
+2600 pixels, so a wider frame (any 4K monitor) is box-averaged down by the
+smallest whole factor that fits and the word boxes scaled back. Every word
+scores one.
 
-On Linux the engine is **tesseract**, linked through `#cgo pkg-config: tesseract` like
-every other native dependency here, and it is required rather than optional:
-under dynamic linking a missing `libtesseract.so` stops the daemon before any
-Neru code runs, so [LINUX_SETUP.md](./LINUX_SETUP.md) lists it with the rest.
-Its **language data is a separate package** and is resolved at *use* rather than
-at link time — `TESSDATA_PREFIX` first, then the paths distributions install
-into. A machine with the library and no `eng.traineddata` gets
-`CodeNotSupported` naming that file, from `VisionPort.Health` and from
-`DetectElements`, rather than a strategy that silently finds nothing.
+⁷ **X11 modifiers on injected input.** An X11 pointer event carries the
+modifiers the server records as **held**, so an injected click or scroll used to
+pick up whatever the user's hand was on: `Ctrl+J` bound to a plain
+`scroll_down` sent ctrl+scroll, which most applications read as zoom. Neru
+reads the live key state with `XQueryKeymap`, releases the modifiers the
+injection would otherwise falsify, presses the ones asked for, and undoes both
+when done, held across every chunk of an animated scroll. A modifier both held
+and asked for is left alone. A drag holds that state for as long as the button
+is down: press and release are separate calls, and the release undoes what the
+press set up. Letting go of a modifier inside that window is not observed, and
+the modifier reads as held until pressed and released once more. Restoring is
+the deliberate bias, since the opposite drops a modifier the user is still
+holding.
 
-Recognition runs at word level for `neru hints --split-word` and at line level
-otherwise, on the LSTM engine in sparse-text page segmentation — UI text is
-scattered labels, not paragraphs. Detection is scoped to the region the caller
-asks about, which is the focused window: full-display OCR takes seconds where
-one window takes tens of milliseconds. Recognized text is screen content and is
-treated as such — never logged, never written to disk, and cleared out of the
-engine before each recognition returns.
+⁸ **Tray and notifications.** The tray icon carries the paused state on every
+platform, since it is the only place a user can see that Neru is paused without
+pressing a key. macOS swaps two template glyphs. Hosts that render icon bytes
+literally (SNI hosts on Linux, the Win32 notification area) get the brand tile
+desaturated toward grey, derived from the running tile
+([icon/paused.go](../internal/adapter/systray/icon/paused.go)) so the two never
+drift. Hover text is the tray icon's own ("Neru - Running" / "Neru - Paused")
+on all three. Per-item menu tooltips exist nowhere: `com.canonical.dbusmenu`
+defines no per-item tooltip property, so `MenuItem.SetTooltip` in
+[systray/linux/systray.go](../internal/adapter/systray/linux/systray.go) is
+empty by protocol, as is its Win32 twin.
 
-⁷ An X11 pointer event carries the modifiers the server records as **held**,
-rather than a set the sender chooses the way `CGEventSetFlags` does, so an
-injected click or scroll used to pick up whatever the user's hand was on:
-binding `Ctrl+J` to a plain `scroll_down` sent ctrl+scroll, which most
-applications read as zoom, and a click fired while ctrl was down arrived as a
-ctrl+click, which browsers read as open-in-new-tab. Neru reads the live key
-state with `XQueryKeymap`, releases the modifiers the injection would otherwise
-falsify, presses the ones that were asked for, and undoes both when it is done —
-so a click, drag or scroll presents exactly what `--modifier` named and nothing
-else, held across every chunk of an animated scroll. A modifier that is both
-held and asked for is left alone rather than pressed a second time, which is
-what keeps a modified click from releasing a modifier the user never let go of.
+**Notifications on Windows are balloon tips on that tray icon** (`Shell_NotifyIcon`
+with `NIF_INFO`, rendered as toasts on Windows 10 and 11), because WinRT toasts
+need an AppUserModelID an unpackaged exe does not have. With
+`systray.enabled = false` there is nothing to attach a tip to, so
+`ShowNotification` reports `CodeNotSupported` naming that reason. Alerts are
+`MessageBoxW` and do not depend on the tray.
 
-**A drag holds that state for as long as the button is down.** Its press and its
-release are separate calls on separate display connections, so the press leaves
-its suppressions and presses in place — the drag in between has to carry the
-same modifiers the press did — and the release undoes them. An X keycode names a
-key on the server rather than on the connection that read it, which is what lets
-the release finish what the press started.
-
-**Letting go inside that window is not observed.** An XTEST release makes the
-user's own release a no-op at the master keyboard, so a modifier released during
-an injected scroll — or during a drag, where the window is as long as the user
-holds the button — is pressed back and reads as held until it is pressed and
-released once more. Restoring is the deliberate bias: the opposite one drops a
-modifier the user is still holding out of everything they do next.
-
-⁸ **The tray icon carries the paused state on every platform**, because the
-tray is the only place a user can see that Neru is paused without pressing a
-key. macOS swaps between two hand-drawn template glyphs, which the menu bar
-themes for it. A host that renders icon bytes literally — the SNI hosts on
-Linux, the Win32 notification area — cannot restyle anything for us, so it is
-handed the brand tile desaturated and flattened towards grey, derived from the
-running tile itself ([icon/paused.go](../internal/adapter/systray/icon/paused.go))
-so the two can never drift apart. It is a color change rather than a
-translucency one on purpose: the icon bytes reach Win32 with straight alpha
-where GDI's icon path wants it premultiplied, so a faded tile would render at
-the host's discretion rather than ours.
-
-**Notifications on Windows are balloon tips on that same tray icon**, sent
-with `Shell_NotifyIcon` and `NIF_INFO`, which Windows 10 and 11 render as
-toasts. WinRT toasts need an AppUserModelID an unpackaged exe does not have,
-and the tray icon is one Neru already owns. The tray is therefore the anchor:
-with `systray.enabled = false` there is nothing to attach a tip to, so
-`ShowNotification` reports `CodeNotSupported` naming that reason and every
-caller logs it rather than dropping the message. Alerts are `MessageBoxW` and
-do not depend on the tray.
-
-**Hover text works everywhere and is the tray icon's**, not a menu item's:
-`NSStatusItem.toolTip`, the SNI `ToolTip` property, and `NOTIFYICONDATA.szTip`
-all carry the "Neru - Running" / "Neru - Paused" string, which is the only
-tooltip `ports.SystrayPort` declares. Per-item menu tooltips are a different
-thing, and Neru sets none — `com.canonical.dbusmenu` defines no per-item
-tooltip property at all (an item carries `label`, `enabled`, `visible`,
-`icon-data` and the `toggle-*` pair), so `MenuItem.SetTooltip` in
-[systray/linux/systray.go](../internal/adapter/systray/linux/systray.go) is an
-empty body by protocol rather than unfinished work, as is its Win32
-popup-menu twin. The macOS backend has no such method at all. Nothing a user
-can hover therefore differs between the three.
-
-⁹ **Hyprland makes the opposite trade on a modified scroll**, because it
-fails the other way round: with a virtual-keyboard modifier held, the
-`zwlr_virtual_pointer` scroll can produce no event at all
-([#1474](https://github.com/y3owk1n/neru/pull/1474)). So the modifier is the
-half that gives there and the uinput batch is the half that stays — the
-compositor is left to merge seat state across two devices, which is exactly
-what the wlroots arm avoids by never asking. The merge is not left to chance
-in one direction: a `wl_display.sync` confirms the compositor has applied the
-modifier before the first notch is written, rather than a fixed delay hoping
-it landed. The other direction has no such barrier — nothing reports how far
-a compositor has read through a kernel evdev device it polls on its own — so
-the release waits a fixed period and is written as the heuristic it is.
-
-**`smooth_scroll` still applies**, in whole notches rather than the continuous
-axis an unmodified Wayland scroll animates on, because uinput scrolling is
-`REL_WHEEL` clicks and has no sub-notch value to send. The alternative was to
-stop animating modified scrolls on Hyprland, which is a setting quietly
-ceasing to apply to one binding. The compositor is named from
-`XDG_CURRENT_DESKTOP` beside the backend detection and not from
+⁹ **Hyprland modified scroll.** With a virtual-keyboard modifier held, a
+`zwlr_virtual_pointer` scroll produces no event on Hyprland
+([#1474](https://github.com/y3owk1n/neru/pull/1474)), so there the modifier
+goes out on the virtual keyboard and the scroll on the uinput wheel, leaving
+the compositor to merge seat state across two devices. A `wl_display.sync`
+confirms the modifier landed before the first notch is written; the release
+waits a fixed period, since nothing reports how far a compositor has read a
+kernel evdev device. `smooth_scroll` still applies, in whole notches, because
+`REL_WHEEL` has no sub-notch value. The compositor is named from
+`XDG_CURRENT_DESKTOP` beside the backend detection, not from
 `HYPRLAND_INSTANCE_SIGNATURE`, which says which compositor is reachable rather
 than which one is running.
+
+¹⁰ **windows/arm64 overlay.** The Direct2D binding is pure Go and passes floats
+through Go's stdcall shim, which mirrors integer arguments into the XMM
+registers on amd64 only, so windows/arm64 builds the GDI surface alone
+(`platform/windows/overlay_dcomp_other.go`).
 
 ### Notes on the ⚠️ entries
 
 **Focused app on Wayland.** wlroots and KWin resolve the focused window through
-`wlr-foreign-toplevel-management`, which exposes the window's **app_id** — used
-as the bundle identifier for per-app config — but not its PID, because a Wayland
-client cannot read another client's process credentials.
+`wlr-foreign-toplevel-management`, which exposes the window's **app_id** (the
+identity per-app config keys on) but not its PID, because a Wayland client
+cannot read another client's process credentials.
 `SystemPort.FocusedApplicationPID` best-effort matches the app_id against
 `/proc`; with no match it returns `CodeNotSupported` carrying the app_id rather
 than a fabricated number. A session where *nothing* is focused is a different
-answer from that one and says so: the foreign-toplevel manager answered, and
-`neru doctor` explains it the way the X11 arm's unfocused desktop is explained
-below rather than as an unavailable capability.
+answer and says so.
 
-**An unfocused desktop is not a failure on X11 either.** The X11 arm of the same
-method reads `_NET_ACTIVE_WINDOW`, which has four ways of not giving you a
-window, and it reports them as two kinds. A desktop where nothing is focused —
-the wallpaper clicked, the last window closed — is `CodeNotSupported`, so
-callers degrade exactly as they do on Wayland. A display no *live* EWMH window
-manager owns (the `_NET_SUPPORTING_WM_CHECK` handshake, not the presence of
-`_NET_SUPPORTED`, which a window manager leaves behind when it dies), a failed
-property read and a malformed property are `CodeActionFailed`, each naming which
-it was. `neru doctor` downgrades the `process` capability to
-`stub` either way, because a live probe reports what a caller observes right
-now; the `Focused app:` line beside it is what separates "focus a window" from
-"install or fix something".
+**An unfocused desktop is not a failure on X11 either.** `_NET_ACTIVE_WINDOW`
+has four ways of not giving a window, reported as two kinds. Nothing focused is
+`CodeNotSupported`, so callers degrade as they do on Wayland. A display no
+*live* EWMH window manager owns (the `_NET_SUPPORTING_WM_CHECK` handshake, not
+the leftover `_NET_SUPPORTED`), a failed read and a malformed property are
+`CodeActionFailed`, each naming which. `_NET_WM_PID` splits the same way: a live
+window that publishes no pid is `CodeNotSupported`, a window that closed under
+the query is `CodeActionFailed`. `FocusedWindowBounds` on X11 tells the same two
+apart: nothing focused is `found=false` with no error, the rest is an error, so
+a caller widening to the active screen knows whether it is obeying an answer or
+guessing.
 
-**And neither is a window that publishes no pid.** One property further down,
-`_NET_WM_PID` splits the same way: a window that is alive and simply does not
-advertise a pid — EWMH makes the property a convention, older toolkits omit it,
-and a client on another machine has none this one could use — is
-`CodeNotSupported` with its own explanation, while a window that closed under
-the query, a failed read and a malformed property are `CodeActionFailed`. The
-two "not supported" answers are separate sentences on purpose: focusing another
-window fixes one and cannot fix the other.
-
-**`FocusedWindowBounds` on X11 tells the same two apart.** The X11 arm reads the
-geometry of whatever `_NET_ACTIVE_WINDOW` names. Nothing focused is `found=false`
-with no error — the caller widens to the active screen and is obeying an answer.
-A display with no live window manager, a failed or malformed property, or a
-window the X server would not describe is an error, so a caller that widens the
-same way can tell it is guessing. That is what the Wayland arms report under
-[Accessibility And Hints](#accessibility-and-hints), on the X11 path.
-
-**App watcher.** macOS gets focus changes pushed from an NSWorkspace observer.
-Linux has no equivalent single API, so `appwatcher/platform_linux.go` subscribes
-to a backend focus-change fd (`linux.SubscribeFocusedApp`: X11 event fd, or the
-wlroots toplevel manager) and re-samples on each wake — near-instant per-app
-hotkey re-registration — with a 3s safety re-sample against coalesced events.
-When no fd is available it degrades to polling `FocusedAppID` every 400ms. The
-identity is the **WM_CLASS** (X11) or **app_id** (Wayland). A sibling goroutine
-watches a display-configuration fd and dispatches screen-parameter changes, so
-monitor hotplug regenerates overlays like it does on macOS. Only
-activate/deactivate/screen-params are emitted; launch, terminate, and Mission
-Control events remain macOS-only. Windows has a single API for it after all:
-`appwatcher/platform_windows.go` installs an `EVENT_SYSTEM_FOREGROUND` hook
-through `SetWinEventHook` on a message-loop thread of its own, hands each new
-foreground HWND to a goroutine, and resolves it there to the **executable
-path** — the identity `GetForegroundWindow` already gives the focused app, so
-per-app configuration keys on one string however it is learned. Display
-changes ride the same dispatch goroutine from a second source: a hidden
-top-level window on a pump thread of its own receives `WM_DISPLAYCHANGE` and
-`WM_DPICHANGED` (`platform/windows/display_watcher.go`) and coalesces them into
-one screen-parameters event, so a resolution or arrangement change re-lays-out
-the overlay as it does on macOS. Only activate, deactivate and screen-params
-are emitted there; launch, terminate and Mission Control stay macOS-only.
+**App watcher.** macOS gets focus changes from an NSWorkspace observer. Linux
+subscribes to a backend focus-change fd (`linux.SubscribeFocusedApp`: X11 event
+fd, or the wlroots toplevel manager) in `appwatcher/platform_linux.go` and
+re-samples on each wake, with a 3s safety re-sample against coalesced events;
+with no fd it polls `FocusedAppID` every 400ms. The identity is `WM_CLASS` (X11)
+or `app_id` (Wayland). A sibling goroutine watches a display-configuration fd
+and dispatches screen-parameter changes, so monitor hotplug regenerates
+overlays. Windows installs an `EVENT_SYSTEM_FOREGROUND` hook through
+`SetWinEventHook` on its own message-loop thread
+(`appwatcher/platform_windows.go`) and resolves each foreground HWND to the
+**executable path**, the identity `GetForegroundWindow` already gives. Display
+changes come from a hidden top-level window receiving `WM_DISPLAYCHANGE` and
+`WM_DPICHANGED` (`platform/windows/display_watcher.go`), coalesced into one
+screen-parameters event. On both, only activate, deactivate and screen-params
+are emitted; launch, terminate and Mission Control stay macOS-only.
 
 **Global hotkeys on Wayland.** No Wayland protocol lets an ordinary client
 register a global hotkey, so Neru matches chords itself on the evdev keyboard
-proxy — the one reader of `/dev/input/event*` that the in-mode capture also
-runs on ([global_hotkey_cgo.go](../internal/adapter/eventtap/linux/global_hotkey_cgo.go),
-[evdev_proxy_cgo.go](../internal/adapter/eventtap/linux/evdev_proxy_cgo.go);
+proxy, the one reader of `/dev/input/event*` that the in-mode capture also runs
+on ([global_hotkey_cgo.go](../internal/adapter/eventtap/linux/global_hotkey_cgo.go),
+[evdev_proxy_cgo.go](../internal/adapter/eventtap/linux/evdev_proxy_cgo.go),
 [ADR 0014](adr/0014-the-wayland-keyboard-is-a-proxy.md)). With `/dev/uinput`
 writable the proxy holds every keyboard and re-emits it through a uinput device
-of its own, so a matched chord is withheld and the focused app never sees the
-activation chord, as on the other platforms. Without it the proxy reads
-passively, the chord matches all the same, and the app receives it too. Two
-conditions apply: the process needs read access to `/dev/input` (add your user
-to the `input` group), and it requires CGO — a `CGO_ENABLED=0` build gets a stub
-whose `Start` reports `CodeNotSupported`
-([global_hotkey_nocgo.go](../internal/adapter/eventtap/linux/global_hotkey_nocgo.go)).
-Either way the listener cannot start, and Neru warns with the remediation that
-fits. An unreadable `/dev/input` points at the `input` group; a no-cgo build
-points at the build, and is warned about once, since no retry changes how the
-binary was compiled. Both name the same fallback — bind `neru <mode>` as a
-compositor keybinding. While a mode is active the proxy hands every press to the
-mode session instead, so the matcher naturally goes quiet until the mode exits —
-which is what **A global chord while a mode is active** below is about.
+of its own, so a matched chord is withheld from the focused app. Without it the
+proxy reads passively, the chord matches all the same, and the app receives it
+too. The process needs read access to `/dev/input` (the `input` group) and a
+CGO build; a `CGO_ENABLED=0` build gets a stub whose `Start` reports
+`CodeNotSupported` ([global_hotkey_nocgo.go](../internal/adapter/eventtap/linux/global_hotkey_nocgo.go)).
+Either way Neru warns once with the remedy that fits and names the fallback,
+binding `neru <mode>` in the compositor. While a mode is active the proxy hands
+every press to the mode session, which is what **A global chord while a mode is
+active** below is about.
 
 **Native alerts on Linux.** Notifications and alerts both go to the session's
-freedesktop notification daemon over D-Bus — the same session bus the tray's
-StatusNotifierItem uses, in pure Go, so a `CGO_ENABLED=0` build shows them too.
-An alert differs from a notification only in insistence: critical urgency and no
-expiry, which the specification requires a daemon to leave on screen until it is
-dismissed. What it is *not* is modal. macOS's `NSAlert` stops the world and
-returns which button was pressed; no ordinary Wayland or X11 client can do that,
-so a Linux alert informs rather than asks, and callers that would have branched
-on the answer take the safe default. The two startup alerts are where that shows
-up: a missing config file starts Neru on built-in defaults and says so, instead
-of offering create / defaults / quit. Delivery depends on the session having a
-notification daemon (mako, dunst, or the desktop's own) — either running, or
-registered with the bus to be started on demand, which is how most desktops ship
-theirs and which `neru doctor` counts as present. With none, `ShowNotification`
-and `ShowAlert` report `CodeNotSupported` naming what is absent, `neru doctor`
-probes the session and downgrades the notifications row with a line saying what
-to install, and the two startup alerts fall back to stderr.
+freedesktop notification daemon over D-Bus, in pure Go, so a `CGO_ENABLED=0`
+build shows them too. An alert differs from a notification only in insistence:
+critical urgency and no expiry. It is *not* modal: `NSAlert` stops the world and
+returns which button was pressed, and no Wayland or X11 client can do that, so
+a Linux alert informs rather than asks and callers take the safe default. A
+missing config file therefore starts Neru on built-in defaults and says so,
+instead of offering create / defaults / quit. Delivery needs a notification
+daemon (mako, dunst, or the desktop's own) running or D-Bus activatable, which
+`neru doctor` counts as present. With none, `ShowNotification` and `ShowAlert`
+report `CodeNotSupported`, `neru doctor` downgrades the notifications row with
+what to install, and the two startup alerts fall back to stderr.
 
 **Service management on Linux.** The mechanism is a **systemd user unit**
-anchored on `graphical-session.target` — `After=` and `WantedBy=` it because
-every backend needs a display server and starting before one exists would only
-produce a crash loop, `PartOf=` it so a logout/login cycle restarts the daemon
-instead of leaving an orphan attached to a display that is gone.
-
-Coverage is **systemd and no other init system**: runit, OpenRC and s6 report
-`CodeNotSupported` naming systemd, which
-[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md) records as a
-stated boundary rather than a gap. What answers the question is systemd's own
-runtime marker, `/run/systemd/system`, not `systemctl` on `PATH` — that binary
-ships in packages installed on machines running something else. `status` on a
-machine where the unit was never installed says so instead of failing. Where the
-unit is written and how a user drives it:
-[LINUX_SETUP.md](./LINUX_SETUP.md#systemd-user-service).
+anchored on `graphical-session.target`: `After=` and `WantedBy=` it because
+every backend needs a display server, `PartOf=` it so a logout/login cycle
+restarts the daemon instead of leaving an orphan. Coverage is systemd and no
+other init system. What answers the question is systemd's runtime marker,
+`/run/systemd/system`, not `systemctl` on `PATH`, which ships in packages
+installed on machines running something else. Where the unit is written and
+how a user drives it: [LINUX_SETUP.md](./LINUX_SETUP.md#systemd-user-service).
 
 **Smooth cursor animation on Linux.** Off by default; opt in with
-`smooth_cursor.move_mouse_enabled` (the same cross-platform `SmoothCursorConfig`
-macOS uses). When enabled, `SystemAdapter.MoveCursorToPoint` routes through
-`smoothCursorAnimator` ([mouse_animator.go](../internal/adapter/platform/linux/mouse_animator.go)):
+`smooth_cursor.move_mouse_enabled`. When enabled, `SystemAdapter.MoveCursorToPoint`
+routes through `smoothCursorAnimator`
+([mouse_animator.go](../internal/adapter/platform/linux/mouse_animator.go)):
 one worker goroutine samples the current position, then steps the per-backend
 warp (XTest / `zwlr_virtual_pointer` / libei) toward the target by linear
-interpolation, and `WaitForCursorIdle` blocks until it settles. This mirrors the
-darwin animator (coalescing, latest-target-wins) but drives discrete warps
-rather than a Quartz event stream, so there is no drag-event distinction. It
-covers the same flows macOS animates — grid/recursive-grid cursor-follow,
-`move_mouse`, selection moves; clicks stay instant. On Wayland the interpolation
-start point comes from the client-side cursor cache, so a stale read only skews
-the glide path, never the landing point.
-
-Relative (hjkl) moves animate too, with the fixed per-move duration
-`smooth_cursor.relative_movement_duration`, matching macOS. X11 and KDE extend
-the absolute animator's pending endpoint; wlroots instead drains the delta in
-integer chunks through native relative motion
-([relative_animator.go](../internal/adapter/platform/linux/relative_animator.go)) —
-the animation never reads the client position cache, preserving the exactness
-that made wlroots apply deltas natively in the first place. Position-dependent
-actions (clicks, scrolls) settle the in-flight animation before acting, so an
-action fired mid-glide lands where the user aimed.
+interpolation, coalescing so the latest target wins, and `WaitForCursorIdle`
+blocks until it settles. It covers the flows macOS animates (grid cursor-follow,
+`move_mouse`, selection moves); clicks stay instant. On Wayland the start point
+comes from the client-side cursor cache, so a stale read skews the glide path,
+never the landing point. Relative (hjkl) moves animate over
+`smooth_cursor.relative_movement_duration`: X11 and KDE extend the absolute
+animator's endpoint, wlroots drains the delta in integer chunks through native
+relative motion ([relative_animator.go](../internal/adapter/platform/linux/relative_animator.go))
+so it never reads the position cache. Position-dependent actions settle the
+in-flight animation before acting.
 
 ---
 
 ## Input Injection
 
-Every action type in
-[action.go](../internal/domain/action/action.go) — left/right/middle click,
-per-button down/up/toggle, absolute and relative moves, drag-while-held, and
-scroll — is dispatched through the shared `InfraAXClient.PerformAction`. The
-dispatch, the action set, and the mode logic that drives it are platform-neutral
-Go; only the final injection primitive differs:
+Every action type in [action.go](../internal/domain/action/action.go), click,
+per-button down/up/toggle, absolute and relative moves, drag-while-held and
+scroll, is dispatched through the shared `InfraAXClient.PerformAction`. The
+dispatch, the action set and the mode logic are platform-neutral Go; only the
+final injection primitive differs:
 
 | Platform              | Primitive                                                                    |
 | --------------------- | ---------------------------------------------------------------------------- |
@@ -653,45 +471,33 @@ Go; only the final injection primitive differs:
 | Linux Wayland KDE     | libei via `org.freedesktop.portal.RemoteDesktop`                              |
 | Windows               | `SendInput` / `SetCursorPos`                                                  |
 
-Scrolling behaves the same on all three platforms, both axes included: Windows
-posts `MOUSEEVENTF_HWHEEL` for the horizontal component, with the sign flipped
-because Win32 reads a positive horizontal notch as right where Neru, macOS and
-X11 read it as left.
+Scrolling behaves the same on all three platforms, both axes included. Windows
+posts `MOUSEEVENTF_HWHEEL` for the horizontal component with the sign flipped,
+because Win32 reads a positive horizontal notch as right where the others read
+it as left.
 
-**Modifiers on a scroll** reach the injection primitive by two different routes,
-because only one of the primitives has a field for them. macOS stamps
-`CGEventSetFlags` on the scroll event — always, the empty set included, because a
-NULL-source event is born carrying whatever the combined session state currently
-holds, so an unstamped scroll inherits ambient modifiers rather than carrying
-none — and on every chunk of a smooth-scroll animation, since a zoom applied to
-the first frame only is not a zoom. The other
-three press the real key, scroll, and release it. On X11 that key event feeds
-back into Neru's own `XGrabKeyboard` with nothing on it to say whose it is, so
-each one is announced to the event tap before it goes out and consumed on the
-way back in — otherwise an injected press and release read as the user tapping
-that modifier, and `sticky_modifiers` latched one nobody pressed. On Wayland that forces a
-choice: the modifier can only go out on the virtual keyboard (libei on KDE),
-while the fast path for the scroll is the uinput device, so a modified scroll
-skips the uinput batch entirely and goes out on the wlroots/libei seat —
-everywhere but Hyprland, which makes the opposite trade for the reason
-footnote ⁹ gives. A path
-with no backend to press through answers `CodeNotSupported`; none of them
-scrolls unmodified and reports success.
+**Modifiers on a scroll** reach the primitive by two routes, because only one
+primitive has a field for them. macOS stamps `CGEventSetFlags` on the scroll
+event, always (the empty set included, since a NULL-source event inherits the
+ambient session modifiers otherwise) and on every chunk of an animation. The
+other three press the real key, scroll, and release it. On X11 that key event
+feeds back into Neru's own `XGrabKeyboard`, so each one is announced to the
+event tap before it goes out and consumed on the way back in; otherwise
+`sticky_modifiers` latched a modifier nobody pressed. On Wayland the modifier
+can only go out on the virtual keyboard (libei on KDE), so a modified scroll
+skips the uinput batch and goes out on the wlroots/libei seat, everywhere but
+Hyprland (footnote ⁹). A path with no backend to press through answers
+`CodeNotSupported`; none scrolls unmodified and reports success.
 
-**Held mouse buttons.** Press and release are separate actions, so every backend
-must remember what it pressed — and that bookkeeping is shared, not
-per-platform. Each adapter keeps a
-[`mousestate.Tracker`](../internal/adapter/platform/mousestate/tracker.go)
+**Held mouse buttons.** Press and release are separate actions, so every
+backend keeps a [`mousestate.Tracker`](../internal/adapter/platform/mousestate/tracker.go)
 recording which buttons are down, where, and with which modifiers. It drives
-three behaviors identically everywhere: toggle actions resolve against it (held
-→ release, free → press), `EnsureMouseUp` releases every held button when Neru
-returns to idle, and on macOS it selects the drag event type for cursor moves.
-macOS is the only backend needing that last distinction — Quartz requires
-`kCGEventLeftMouseDragged` / `RightMouseDragged` / `OtherMouseDragged` with a
-matching button number instead of `kCGEventMouseMoved`, while X11, Wayland, and
-Windows simply warp the pointer and let the compositor or OS infer the drag.
-When several buttons are held at once a macOS move is attributed to the
-left-most held button, since one event cannot describe more.
+three behaviors identically everywhere: toggle actions resolve against it,
+`EnsureMouseUp` releases every held button when Neru returns to idle, and on
+macOS it selects the drag event type for cursor moves. Quartz requires
+`kCGEventLeftMouseDragged` and friends with a matching button number instead of
+`kCGEventMouseMoved`; X11, Wayland and Windows warp the pointer and let the
+compositor infer the drag.
 
 ---
 
@@ -707,10 +513,10 @@ left-most held button, since one event cannot describe more.
 | **`PostModifierEvent`** | ✅                   | ✅                      | ✅ (`zwp_virtual_keyboard_v1`)           | ✅ `SendInput`          |
 | **Sticky modifiers**  | ✅                     | ✅                      | ✅                                       | ✅                      |
 | **Capture files**     | `eventtap/darwin/`     | `eventtap/linux/x11_cgo.go` | `eventtap/linux/evdev_proxy_cgo.go`, `evdev_session_cgo.go`, `wayland_cgo.go` | `eventtap/windows/` |
-| **Hotkey files**      | `hotkeys/darwin/`      | `hotkeys/linux/x11_cgo.go`  | `hotkeys/linux/manager.go` + `eventtap/linux/global_hotkey_cgo.go` ³ | `hotkeys/windows/` |
+| **Hotkey files**      | `hotkeys/darwin/`      | `hotkeys/linux/x11_cgo.go`  | `hotkeys/linux/manager.go` + `eventtap/linux/global_hotkey_cgo.go` | `hotkeys/windows/` |
 
-³ There is no separate Wayland hotkey file — the Wayland path lives in the
-common `hotkeys/linux/manager.go`, which delegates to the evdev listener in the
+There is no separate Wayland hotkey file. The Wayland path lives in the common
+`hotkeys/linux/manager.go`, which delegates to the evdev listener in the
 eventtap package.
 
 **A global chord while a mode is active.** A `[hotkeys]` binding keeps working
@@ -718,100 +524,76 @@ from inside a mode on macOS, Windows and Linux Wayland, and each gets there its
 own way, because whichever mechanism can see the chord has to be the only one
 that runs it. macOS hands it back: the in-mode tap looks the chord up in the
 hotkey table the app pushed into it and returns the event untouched, so the
-per-hotkey tap that registered it fires and the handler never sees the key
-([eventtap_darwin.m](../internal/adapter/platform/darwin/eventtap_darwin.m)).
-Windows does the same for a Ctrl/Alt/Cmd chord, one layer up — the low-level hook
-runs ahead of the system's hotkey processing, so it passes the chord on without
-dispatching and leaves it to `RegisterHotKey`. Both are told which chords the
-backend actually *took* rather than which ones the configuration asked for
-(`Deps.PublishRegisteredHotkeys`, [hotkey.go](../internal/app/keybinding/hotkey.go)),
-because a chord another process already owns is refused and is then owned by
-nobody: handing that one back would drop it, so it is dispatched instead. Linux
-cannot hand it to anybody: on X11 the in-mode capture is an exclusive
-`XGrabKeyboard`, and on Wayland the proxy hands every press to exactly one
-consumer, the mode session while one is open, so the chord matcher is deaf for
-as long as a mode is up. So there the chord reaches the mode handler and the handler
-resolves the global table itself, after the active mode's own table has had its
-say ([keymap.go](../internal/app/modes/keymap.go), `settledKeymaps`). That
-fallback is shared code rather than a Linux branch, and is simply unreachable on
-the two platforms whose taps hand the chord back. Only chords carrying
-Ctrl/Alt/Cmd fall back, on the same reasoning modifier passthrough uses below: a
-bare key inside a mode is a hint label or a grid cell key.
+per-hotkey tap fires ([eventtap_darwin.m](../internal/adapter/platform/darwin/eventtap_darwin.m)).
+Windows does the same for a Ctrl/Alt/Cmd chord one layer up: the low-level hook
+passes it on without dispatching and leaves it to `RegisterHotKey`. Both are
+told which chords the backend *took* rather than which ones the
+configuration asked for (`Deps.PublishRegisteredHotkeys`,
+[hotkey.go](../internal/app/keybinding/hotkey.go)), because a chord another
+process owns is refused and handing that one back would drop it. Linux cannot
+hand it to anybody: X11's in-mode capture is an exclusive `XGrabKeyboard`, and
+the Wayland proxy hands every press to the mode session while one is open. So
+there the chord reaches the mode handler, which resolves the global table
+itself after the active mode's own table
+([keymap.go](../internal/app/modes/keymap.go), `settledKeymaps`). That fallback
+is shared code, unreachable on the two platforms whose taps hand the
+chord back. Only chords carrying Ctrl/Alt/Cmd fall back: a bare key inside a
+mode is a hint label or a grid cell key.
 
-**X11 assembles chords too, from the keysym.** The X11 in-mode tap used to
-dispatch a bare key and report modifiers only as separate sticky-modifier events,
-so no chord was assembled at all while a mode was open — which left the fallback
-above, and every `[<mode>.hotkeys]` entry written as a Ctrl/Alt/Super chord, unable
-to match there. It now names the key from the **keysym** `XLookupString` returns
-rather than from the string, because with Ctrl held the two disagree (`Ctrl+C`
-gives `\x03` as a string and `XK_c` as a keysym), and prepends the modifiers it
-already tracks (`x11ChordFromLookup`,
+**X11 assembles chords from the keysym.** The X11 in-mode tap names the key
+from the **keysym** `XLookupString` returns rather than from the string,
+because with Ctrl held the two disagree (`Ctrl+C` gives `\x03` as a string and
+`XK_c` as a keysym), and prepends the modifiers it tracks (`x11ChordFromLookup`,
 [x11_cgo.go](../internal/adapter/eventtap/linux/x11_cgo.go)). The keysym is
 state-resolved, so Shift has chosen the level the same way
-`xkb_state_key_get_one_sym` does for the evdev reader — which is what makes both
-backends call `Shift+;` the same thing. A keysym outside Latin-1 that the name
-table does not cover falls back to the character the server produced, unprefixed,
-so a non-Latin layout is no worse off than before. One consequence of the exclusive
-capture is still shared by both Linux backends: while a mode is open, a chord bound
-in the *compositor* rather than in `[hotkeys]` cannot fire, because the compositor
-is not reading the keyboard.
+`xkb_state_key_get_one_sym` does for the evdev reader, which is what makes both
+backends call `Shift+;` the same thing. A keysym outside Latin-1 falls back to
+the character the server produced, unprefixed. One consequence of the exclusive
+capture is shared by both Linux backends: while a mode is open, a chord bound
+in the *compositor* rather than in `[hotkeys]` cannot fire.
 
-**One key, one name.** Both Linux readers of `/dev/input` resolve a scan code
-through the compositor's XKB keymap — the in-mode tap and the passive hotkey
-listener alike (`keyName`/`modifierName`,
+**One key, one name.** Both Linux readers of `/dev/input`, the in-mode tap and
+the passive hotkey listener, resolve a scan code through the compositor's XKB
+keymap (`keyName`/`modifierName`,
 [evdev_xkb_cgo.go](../internal/adapter/eventtap/linux/evdev_xkb_cgo.go)). They
-have to agree, because only one of them can see any given press: while the
-listener named keys by raw scan code and the tap named them by keymap, one written
-chord answered one physical key from idle and a different one inside a mode, on
-every layout that is not `us`. Following the keymap is what makes a binding mean
-the key that *types* that character, and is the same reason XKB options like
-`ctrl:swapcaps` reach Neru's own bindings. **On a non-QWERTY layout this decides
-which physical key a `[hotkeys]` chord answers** — the one bearing that character
-on the active layout, in both places. The keysym is named by the **character it
-types** when it types one, and by keysym name only otherwise
+have to agree, because only one of them sees any given press. Following the
+keymap is what makes a binding mean the key that *types* that character, and
+what lets XKB options like `ctrl:swapcaps` reach Neru's own bindings. **On a
+non-QWERTY layout this decides which physical key a `[hotkeys]` chord answers**:
+the one bearing that character on the active layout. The keysym is named by
+the character it types when it types one, and by keysym name only otherwise
 (`neru_xkb_keysym_name`,
-[wayland_keymap.c](../internal/adapter/platform/linux/wayland_keymap.c)) — the
-same rule the X11 tap applies. Shift has already chosen the level by the time a
+[wayland_keymap.c](../internal/adapter/platform/linux/wayland_keymap.c)), the
+rule the X11 tap applies too. Shift has already chosen the level by the time a
 keysym exists, and the shifted level's *name* is not its character (`Shift+[`
-is `braceleft`, and a non-us layout runs to `sterling` and `adiaeresis`), so a
-hand-written name table could never be complete. The one named key XKB renames
-under Shift, `ISO_Left_Tab`, folds back to `Tab` on both backends, which is what
-lets the default `Shift+Tab` hint binding fire on Linux. The fold rows are keyed
-by the name libxkbcommon actually answers, which is the first one
-`xkbcommon-keysyms.h` lists for a keysym: the page keys are `Prior` and `Next`
-there, and a row keyed `Page_Up` was dead.
+is `braceleft`), so a hand-written name table could never be complete. The one
+named key XKB renames under Shift, `ISO_Left_Tab`, folds back to `Tab` on both
+backends, which is what lets the default `Shift+Tab` hint binding fire. Fold
+rows are keyed by the name libxkbcommon answers, the first one
+`xkbcommon-keysyms.h` lists: the page keys are `Prior` and `Next`, and a row
+keyed `Page_Up` was dead.
 
 **Modifier passthrough (Wayland evdev, and Windows).** While a mode is active
 Neru captures the keyboard exclusively, so shortcuts it does not bind
-(`Ctrl+C`, `Ctrl+Tab`) are normally swallowed. With
-`general.passthrough_unbounded_keys`, unbound Ctrl/Alt/Cmd chords reach the
-focused app instead. This works on the Wayland evdev backend because the proxy
-keyboard is the only keyboard the compositor sees: a chord the mode lets through
-is simply re-emitted on it, together with the modifiers the user is physically
-holding, and each stays the compositor's until it is released — no re-tap per
-auto-repeat and nothing to unwind when the mode ends (see
-`evdevSession.handlePress` → `evdevProxy.forwardWithheld`). It is
-**not** available on X11 — an `XGrabKeyboard` routes Neru's own synthetic XTest
-events back to itself, and `XSendEvent` is ignored by most apps — nor on the
-rare wl-keyboard fallback, which has no injection path. Windows needs no
-re-injection at all: a `WH_KEYBOARD_LL` hook forwards or blocks each event on
-its own, so an unbound chord is simply handed on as the real key event it is,
-and a bound one is blocked (`eventtap/windows/tap.go`, `handleKey`). Classification (blacklist,
+(`Ctrl+C`, `Ctrl+Tab`) are swallowed. With `general.passthrough_unbounded_keys`,
+unbound Ctrl/Alt/Cmd chords reach the focused app instead. On the Wayland evdev
+backend the proxy keyboard is the only keyboard the compositor sees, so a chord
+the mode lets through is re-emitted on it together with the modifiers the user
+is physically holding, and each stays the compositor's until released
+(`evdevSession.handlePress` and `evdevProxy.forwardWithheld`). It is **not**
+available on X11 (an `XGrabKeyboard` routes Neru's own XTest events back to
+itself, and `XSendEvent` is ignored by most apps) nor on the rare wl-keyboard
+fallback, which has no injection path. Windows needs no re-injection: a
+`WH_KEYBOARD_LL` hook forwards or blocks each event on its own
+(`eventtap/windows/tap.go`, `handleKey`). Classification (blacklist,
 mode-intercepted keys, the mode's own hotkeys, and the global chords it falls
-back to — passed through, the user's own hotkey would reach the application in
-front of them and the fallback above would never see the key) and the
-post-passthrough hint refresh are shared in
+back to) and the post-passthrough hint refresh are shared in
 [passthrough.go](../internal/app/modes/passthrough.go); only the final
-re-injection is backend-specific. The blacklist keeps chosen chords consumed,
-and `general.should_exit_after_passthrough` exits the mode after a passthrough.
-Both lists are re-derived whenever a mode opens, the configuration is replaced,
-hints refresh after a passthrough, or — where a per-app override could move
-them — the focused application changes under an open mode. That last trigger is
-what keeps per-app overrides meaningful after passing `Cmd+Tab` through and
-carrying on in the application you landed in; it runs as soon as the mode
-handler is free rather than in step with the focus change, so a chord pressed
-in the same instant can still be routed by the lists the application you left
-put in force.
+re-injection is backend-specific. `general.should_exit_after_passthrough` exits
+the mode after a passthrough. Both lists are re-derived whenever a mode opens,
+the configuration is replaced, hints refresh after a passthrough, or the
+focused application changes under an open mode, which keeps per-app overrides
+meaningful after passing `Cmd+Tab` through.
 
 ---
 
@@ -820,110 +602,86 @@ put in force.
 | Aspect                  | macOS                                       | Linux                                              | Windows                              |
 | ----------------------- | ------------------------------------------- | -------------------------------------------------- | ------------------------------------ |
 | **Backend**             | AXUIElement (CGO ObjC bridge)               | AT-SPI over D-Bus (pure Go)                        | UI Automation over COM (pure Go)     |
-| **Client**              | `InfraAXClient` → ObjC bridge               | `ATSPIClient` → `org.a11y.atspi`                   | `UIAClient` → raw COM vtables        |
-| **Files**               | `element_darwin.go`, `tree.go`              | `element_linux.go`, `atspi_linux.go`               | `element_windows.go`, `uia_windows.go`, `tree_windows.go` |
-| **Traversal**           | Full recursive walk of the AXUIElement hierarchy | Recursive walk of the active frame's subtree, depth/node capped | Shallow walk of root-level nodes |
-| **Sources collected**   | Frontmost + all windows, popovers, menubar, dock, notification center, Stage Manager, PIP | Active frame's subtree only          | Root element's children only         |
+| **Client**              | `InfraAXClient` → ObjC bridge               | `atspi.Client` → `org.a11y.atspi`                  | `UIAClient` → raw COM vtables        |
+| **Files**               | `native/darwin/element.go`, `tree.go`       | `accessibility/atspi/`, `native/linux/element.go`, `factory_linux.go` | `native/windows/automation.go`, `element.go`, `tree.go` |
+| **Traversal**           | Full recursive walk of the AXUIElement hierarchy | Recursive walk of the active frame's subtree, depth/node capped | Control-view tree in one cached `FindAll`, any depth |
+| **Sources collected**   | Frontmost + all windows, popovers, menubar, dock, notification center, Stage Manager, PIP | Active frame's subtree only          | Foreground window's control view     |
 | **Filtering**           | Role matching, size/position heuristics, excluded apps, dedup | Native AT-SPI roles, `SHOWING` state, on-screen extents | `IsControlElement` + `IsContentElement`, non-zero bounds |
 | **Strategies**          | `axtree` (default), `vision` and `contour`, incl. per-app overrides | `axtree`, `vision` (text only) and `contour` | `axtree`, `vision` (text only) and `contour` |
 | **Popovers / menus**    | ✅ dedicated detection                      | ⚠️ only if inside the active frame's subtree       | 🟡                                   |
 
-macOS builds the richest tree by a wide margin: it walks multiple window and
-system sources, applies per-app strategy overrides, can fall back to the Vision
-framework for OCR-discovered targets, and deduplicates overlapping elements.
-Linux walks a single tree and has the OCR fallback beside it — tesseract, text
-only, selected with `hints.strategy = vision`. Windows fetches the window's
-control-view tree in one cached UI Automation query, at any depth, with the
-same fallback beside it — `Windows.Media.Ocr`, text only. The ⚠️ there is the
-control view: an element a provider exposes only in the raw view is not a hint,
-and the answer is a role or filter default, never a per-app branch.
+macOS builds the richest tree by a wide margin: multiple window and system
+sources, per-app strategy overrides, the Vision fallback, and deduplication.
+Linux walks a single tree with tesseract beside it. Windows fetches the
+window's control-view tree in one cached UI Automation query with
+`Windows.Media.Ocr` beside it; the ⚠️ is the control view, since an element a
+provider exposes only in the raw view is not a hint, and the answer is a role
+or filter default, never a per-app branch.
 
-**Linux is ⚠️, not a stub.** Hints genuinely work: `ATSPIClient` enables
-assistive-tech mode, finds the active frame, and walks it (`ClickableNodes`)
-emitting native AT-SPI role names. Configured roles are resolved into that same
-vocabulary at config load (`element.ResolveRoles`), so both sides of the filter
-speak AT-SPI. This is the path the Linux adapter actually uses
-(`platform_client_linux.go` → `Adapter.ClickableElements` → `client.ClickableNodes`);
-the `TreeNode` / `BuildTree` stub in `tree_linux.go` is the macOS-style tree API
-and is **not** on the Linux hints path. The ⚠️ is about coverage: it depends on
-each app exposing AT-SPI. Qt and GTK apps do with accessibility enabled; some
-toolkits expose almost nothing, and there is no Vision/OCR fallback.
+**Linux is ⚠️, not a stub.** `atspi.Client` enables assistive-tech mode, finds
+the active frame, and walks it (`ClickableNodes`) emitting native AT-SPI role
+names. Configured roles are resolved into that vocabulary at config load
+(`element.ResolveRoles`), so both sides of the filter speak AT-SPI. The
+`BuildTree` stub in `native/linux/tree.go` is the macOS-style tree API and is
+**not** on the Linux hints path. The ⚠️ is coverage: it depends on each app
+exposing AT-SPI.
 
-**Chromium and Electron apps on Linux.** Chromium-based apps (Chrome, Electron,
-forks such as Helium) do not expose their web-content tree over AT-SPI by
-default — they gate it behind their own runtime detection, and unlike macOS
-there is no per-app attribute Neru can toggle to force it (the macOS
-`AXManualAccessibility` nudge in `electron.EnsureAccessibility` is a no-op on
-Linux). The result is an AT-SPI frame with a single empty child, so hints find
-nothing inside such windows. Launch the app with
-`--force-renderer-accessibility` to force the full tree. Native GTK/Qt apps and
-Firefox need no flag. This is Chromium behavior, not a Neru limitation.
+**Chromium and Electron apps on Linux** do not expose their web-content tree
+over AT-SPI by default, and unlike macOS there is no per-app attribute Neru can
+toggle to force it. The result is a frame with a single empty child. Launch the
+app with `--force-renderer-accessibility`. Native GTK/Qt apps and Firefox need
+no flag. This is Chromium behavior, not a Neru limitation.
 
-**Picking the active frame on Wayland.** The AT-SPI `ACTIVE` state is unreliable
-on wlroots compositors (niri, Sway, Hyprland) — the focused window can report
-`ACTIVE=false` while background frames report `ACTIVE=true`. Neru therefore
-matches the AT-SPI frame against the compositor's focused **app_id** (from
-`wlr-foreign-toplevel-management`, the same source as the app watcher), falling
-back to the `ACTIVE`/`SHOWING` heuristic only on X11 or when no app_id is
-available. See `findActiveFrame` in `atspi_linux.go`.
+**Picking the active frame on Wayland.** The AT-SPI `ACTIVE` state is
+unreliable on wlroots compositors (the focused window can report `ACTIVE=false`
+while background frames report `ACTIVE=true`), so Neru matches the AT-SPI frame
+against the compositor's focused **app_id** from
+`wlr-foreign-toplevel-management`, falling back to the `ACTIVE`/`SHOWING`
+heuristic on X11 or when no app_id is available (`findActiveFrame` in
+`atspi/scan.go`).
 
 **Window-origin offset on Wayland.** A Wayland client cannot know its own
 on-screen position, so AT-SPI reports element coordinates relative to the
 window. Neru offsets them by the focused window's screen origin, supplied by a
 compositor-specific `windowOriginSource`
-([window_origin.go](../internal/adapter/accessibility/atspi/window_origin.go)),
-chosen from the backend `DetectLinuxBackend` reported — so nothing here starts on
-a session that backend did not identify:
+([window_origin.go](../internal/adapter/accessibility/atspi/window_origin.go))
+chosen from the detected backend:
 
 | Compositor | Source                                                       | Limits                                                                                                                    |
 | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| KDE / KWin | KWin script pushing focused-window geometry over D-Bus ([platform/kwin](../internal/adapter/platform/kwin)) | The script reports on activation, on the focused window's geometry changing, and on it going away, so the cache follows a drag, resize, tile or maximize and empties when the desktop is focused or the last window closes. It lives inside the compositor, so Neru watches `org.kde.KWin` on the session bus and reinstalls it when KWin restarts. A drag reports its final rectangle rather than every frame, so a query made mid-drag reads the position the drag started from. |
-| niri       | `niri msg -j focused-window` / `focused-output`              | Floating and fullscreen windows only. **Tiled** windows — including a maximized column (`Mod+F`) — expose no on-screen position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are misaligned there. |
-| Sway       | `swaymsg -t get_tree`, focused node `rect` + `window_rect`   | —                                                                                                                          |
-| Hyprland   | `hyprctl -j activewindow` `at` / `size`                      | —                                                                                                                          |
-| Anything else — X11, GNOME, other Wayland | none                                          | X11 needs none — AT-SPI already reports screen coordinates there. The rest report no origin, so hints stay window-relative. |
+| KDE / KWin | KWin script pushing focused-window geometry over D-Bus ([platform/kwin](../internal/adapter/platform/kwin)) | Reports on activation, on the focused window's geometry changing, and on it going away, so the cache follows a drag, resize, tile or maximize and empties when the desktop is focused. Neru watches `org.kde.KWin` on the session bus and reinstalls the script when KWin restarts. A drag reports its final rectangle, so a mid-drag query reads the start position. |
+| niri       | `niri msg -j focused-window` / `focused-output`              | Floating and fullscreen windows only. **Tiled** windows, including a maximized column, expose no on-screen position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are misaligned there. |
+| Sway       | `swaymsg -t get_tree`, focused node `rect` + `window_rect`   | none                                                                                                                       |
+| Hyprland   | `hyprctl -j activewindow` `at` / `size`                      | none                                                                                                                       |
+| Anything else (X11, River, Wayfire) | none                                                | X11 needs none, AT-SPI already reports screen coordinates there. The rest report no origin, so hints stay window-relative. |
 
-Each source verifies the reported window size matches the AT-SPI frame (a focus
-change can race the query) and is best-effort: an unavailable origin degrades to
-unoffset window-relative coordinates rather than misplacing hints.
-
-The KWin source checks identity as well as size, because its rectangle is a
-cache rather than a live query. The script reports the window's `resourceClass`,
-`resourceName` and caption alongside the geometry, and the AT-SPI frame carries
-the focused app_id and title it was selected with — both read from KWin, so a
-disagreement means the cached rectangle belongs to a different window, including
-a second window of the same application at the same size, which size alone
-cannot tell apart.
-
-Both comparisons are written to be sure before they refuse, because a false
-reject unoffsets hints that were placed correctly while a false accept costs no
-more than having no check at all. Either identifier may be the one that matches
-the app_id (they disagree for XWayland windows), the app_id comparison tolerates
-reverse-DNS spelling, the caption comparison accepts a prefix in either
-direction (KWin appends its own shortcut and `<2>` suffixes), and an identity
-neither side reported is not a mismatch.
+Each source verifies the reported window size matches the AT-SPI frame (a
+focus change can race the query) and is best-effort: an unavailable origin
+degrades to unoffset coordinates rather than misplacing hints. The KWin source
+checks identity as well as size, because its rectangle is a cache: the script
+reports `resourceClass`, `resourceName` and caption, the AT-SPI frame carries
+the app_id and title it was selected with, and a disagreement means the cached
+rectangle belongs to a different window. Both comparisons are written to be
+sure before they refuse (reverse-DNS app_id spelling tolerated, caption prefix
+accepted in either direction, an identity neither side reported is not a
+mismatch), because a false reject unoffsets hints that were placed correctly.
 
 **A compositor that did not answer is not a compositor with no origin.** The
 three CLI sources go through
 [platform/compositorcli](../internal/adapter/platform/compositorcli), which
-reports a CLI that could not be run, that exited non-zero, that outlived its
-timeout or that printed something undecodable as a failure naming the command
-and the reason. A compositor that _did_ answer and has no position to
-give — nothing focused, a tiled niri window — stays a plain not-found, so the
-compositor's ordinary layout never warns. Both still degrade the same way; only
-one of them says why, in a log line at `warn`.
+reports a CLI that could not be run, exited non-zero, timed out or printed
+something undecodable as a failure naming the command, at `warn`. A compositor
+that *did* answer and has no position to give (nothing focused, a tiled niri
+window) stays a plain not-found, so ordinary layout never warns.
 
-**The same sources answer `FocusedWindowBounds`,** which is what scopes vision
-detection and `neru action move_mouse --window` to the focused window. The
-rectangle and the origin are one fact, so KWin has one geometry bridge shared by
-both callers rather than a second implementation per caller — the KWin arm of
+**The same sources answer `FocusedWindowBounds`,** which scopes vision and
+contour detection and `neru action move_mouse --window` to the focused window.
+The KWin arm of
 [system_focused_window.go](../internal/adapter/platform/linux/system_focused_window.go)
-reads the cache the AT-SPI path offsets by, and the wlroots arms shell out
-through the same `compositorcli` query the origin sources use. A Wayland
-compositor with no source at all (River, Wayfire) reports `CodeNotSupported`
-there rather than "no focused window": both send the caller to the active
-screen, but only one of them says so, and the difference is what stopped this
-being invisible on KDE.
+reads the cache the AT-SPI path offsets by, and the wlroots arms use the same
+`compositorcli` query. A Wayland compositor with no source (River, Wayfire)
+reports `CodeNotSupported` there rather than "no focused window": both send the
+caller to the active screen, but only one says so.
 
 ---
 
@@ -931,13 +689,13 @@ being invisible on KDE.
 
 ### Architecture
 
-The three platforms split responsibility differently, which is the single most
+The platforms split responsibility differently, which is the single most
 important thing to know before touching overlay code:
 
-- **macOS** — each render component owns its own NSPanel. Files such as
+- **macOS**: each render component owns its own NSPanel. Files such as
   `adapter/overlay/render/hints/overlay_darwin.go` call the Objective-C bridge
   directly, and rendering is GPU-backed via CoreAnimation.
-- **Linux and Windows** — the render components hold the shared `Style` and a
+- **Linux and Windows**: the render components hold the shared `Style` and a
   thin wrapper; all real rendering happens in the overlay **manager**
   (`overlay/linux/x11_cgo.go`, `overlay/linux/wayland_cgo.go`,
   `overlay/windows/manager.go`), drawing every element into one shared
@@ -953,8 +711,8 @@ important thing to know before touching overlay code:
 | **Click-through**     | `setIgnoresMouseEvents:YES`              | XFixes empty input region              | empty `wl_surface` input region                  | `WS_EX_TRANSPARENT` + `HTTRANSPARENT`  |
 | **Always on top**     | `NSScreenSaverWindowLevel`               | `_NET_WM_STATE_ABOVE` + `MapRaised`    | overlay layer                                    | `HWND_TOPMOST`                     |
 | **Focus prevention**  | non-activating panel                     | `override_redirect=YES`                | controlled keyboard interactivity                | `WS_EX_NOACTIVATE`                 |
-| **HiDPI**             | dynamic `contentsScale` + backing-change callback | `Xft.dpi`, one global factor  | `wl_output` scale + `wp_fractional_scale_v1` / `wp_viewporter` | not explicit           |
-| **Multi-monitor**     | per-display clamping, screen-change tracking | all monitors enumerated, per-monitor render, live RandR hotplug | one `wl_surface` per output (max 16), live hotplug | cursor-screen tracking, live `WM_DISPLAYCHANGE` hotplug, separate indicator/sticky windows, one panel window per display for monitor_select |
+| **HiDPI**             | dynamic `contentsScale` + backing-change callback | `Xft.dpi`, one global factor  | `wl_output` scale + `wp_fractional_scale_v1` / `wp_viewporter` | per-monitor-v2 DPI aware |
+| **Multi-monitor**     | per-display clamping, screen-change tracking | all monitors enumerated, per-monitor render, live RandR hotplug | one `wl_surface` per output (max 16), live hotplug | cursor-screen tracking, live `WM_DISPLAYCHANGE` hotplug, one panel window per display for monitor_select |
 | **Buffers**           | layer-backed, OS-managed                 | single Cairo surface                   | triple-buffered SHM pool                         | canvas bitmap + 2-buffer flip swapchain; one persistent DIB on the fallback |
 | **Rounded rects / borders** | NSBezierPath                       | Cairo arc path + stroke                | Cairo arc path + stroke                          | Direct2D rounded rects; software SDF on the fallback |
 | **Text**              | NSFontManager                            | Cairo `select_font_face` / `show_text` | Cairo `select_font_face` / `show_text`           | DirectWrite text formats, cached per family and size; cached GDI fonts + `DrawTextW` on the fallback |
@@ -974,10 +732,10 @@ important thing to know before touching overlay code:
 
 ## Mode Coverage
 
-Mode logic — labelling, alphabets, matching, search filtering, grid subdivision,
-recursion depth, scroll amounts, cell navigation — is pure domain Go under
-`internal/domain/` and behaves **identically on all three platforms**. Only
-the rows below differ, and every difference traces to rendering or element
+Mode logic (labelling, alphabets, matching, search filtering, grid subdivision,
+recursion depth, scroll amounts, cell navigation) is pure domain Go under
+`internal/domain/` and behaves **identically on all three platforms**. Only the
+rows below differ, and every difference traces to rendering or element
 discovery rather than the mode itself.
 
 | Mode              | Feature                        | macOS                      | Linux                      | Windows                     |
@@ -996,68 +754,45 @@ discovery rather than the mode itself.
 | **Scroll**        | Smooth scroll animation        | ✅                         | ✅ (X11: whole notches)    | ✅ (120ths of a notch)     |
 | **Monitor select**| Whole mode                     | ✅ native panels           | ✅ Cairo panels            | ✅ one layered window per display |
 
-Everything else is shared: multi-letter labels, label direction, hide-unmatched,
-split-word, interactive search *behavior* (only the on-screen badge differs),
-boundary highlight, mode indicator, sticky-modifier indicator, all pending
-actions on grid cells, backtracking, and every scroll granularity. Opening a
-subgrid is shared too — the keys, the cells and the point each one selects — and
-only what is left on screen behind it differs, which is the row above.
+Everything else is shared: multi-letter labels, label direction,
+hide-unmatched, split-word, interactive search *behavior*, boundary highlight,
+mode indicator, sticky-modifier indicator, all pending actions on grid cells,
+backtracking, and every scroll granularity.
 
-> The **cursor-replacement virtual pointer** — the pointer drawn when the real
-> cursor is hidden — is separate from the two grid indicators above and is
-> macOS-only: `virtualpointer.Overlay` is a no-op on every non-darwin build, and
-> it is paired with `CGDisplayHideCursor`, which has no equivalent elsewhere.
+> The **cursor-replacement virtual pointer**, drawn when the real cursor is
+> hidden, is separate from the two grid indicators above and is macOS-only:
+> `virtualpointer.Overlay` is a no-op on every non-darwin build, paired with
+> `CGDisplayHideCursor`, which has no equivalent elsewhere.
 
-> **`hints.ui.placement` means the same thing on all three platforms.** Each
-> backend offsets the badge from the target point at the element's centre,
-> keeping it horizontally centred there: `top` puts the badge above that point
-> with a connector arrow pointing down at it, `center` over it with no arrow,
-> `bottom` below it with an arrow pointing up (the default).
->
-> The rule is shared; the exact pixels are not. Linux and Windows take the
-> offsets and the arrow from one implementation
-> (`adapter/overlay/render/badge.PlaceHint`), so a configured placement lands
-> on the same pixel on both. macOS computes its own in Objective-C — the
-> deliberate exception ADR 0007 records — with a shorter, wider arrow, so an
-> offset badge sits a few pixels closer to its element there than it does on
-> the other two.
->
-> One detail of the arrow differs on Windows
-> ([#1303](https://github.com/y3owk1n/neru/issues/1303), which is also where
-> that backend started reading the option at all). macOS and Linux build the
-> badge and the arrow as a single outline, so the border runs around both,
-> while the Win32 surface has no path primitive: it draws the arrow as a
-> triangle over a slightly larger one in the border colour, which borders its
-> two slanted edges but leaves the badge's own edge running across the arrow's
-> base.
+> **`hints.ui.placement` means the same thing on all three platforms.** `top`
+> puts the badge above the element's centre with an arrow pointing down at it,
+> `center` over it with no arrow, `bottom` below it with an arrow pointing up
+> (the default). Linux and Windows take the offsets and the arrow from one
+> implementation (`adapter/overlay/render/badge.PlaceHint`), so a placement
+> lands on the same pixel on both. macOS computes its own in Objective-C (the
+> deliberate exception ADR 0007 records) with a shorter, wider arrow, so a badge
+> sits a few pixels closer to its element there. On Windows the Win32 surface
+> has no path primitive, so the arrow is a triangle over a slightly larger one
+> in the border colour, which leaves the badge's own edge running across the
+> arrow's base ([#1303](https://github.com/y3owk1n/neru/issues/1303)).
 
 > **`recursive_grid.ui.sub_key_preview` is one drawing on all three platforms**
-> as of [#1297](https://github.com/y3owk1n/neru/issues/1297). Each backend
-> divides the cell by the *next* level's grid dimensions and draws the key that
-> selects each sub-cell in its own place, so the preview shows **where** each key
-> lands; the center sub-cell of an odd-by-odd division is left blank, because the
-> cell's own label is drawn there. None of them previews anything at the deepest
-> level, where there is no next level to show.
->
-> Windows drew a single label along the bottom of the cell until then, and its
-> `sub_key_preview_autohide_multiplier` measured the **whole cell** to match.
-> All three now measure a **sub-cell** — the cell divided by the next level's
-> dimensions — which must reach `sub_key_preview_font_size × multiplier` in both
-> width and height, from one implementation
-> (`recursivegrid.Style.ShowSubKeyPreviewIn`, with the macOS copy held to it by
-> `internal/architecture/sub_key_preview_autohide_rule_test.go`). **A Windows
-> user's configured multiplier therefore hides the preview in larger cells than
-> it used to**: with a 3×3 next level the preview now disappears at roughly three
-> times the cell size it used to survive down to. Lower the multiplier to keep a
-> preview in cells that small — it is the same number Linux and macOS have always
-> read.
+> ([#1297](https://github.com/y3owk1n/neru/issues/1297)). Each backend divides
+> the cell by the *next* level's grid dimensions and draws the key that selects
+> each sub-cell in its own place; the centre sub-cell of an odd-by-odd division
+> is left blank for the cell's own label, and nothing is previewed at the
+> deepest level. `sub_key_preview_autohide_multiplier` measures a **sub-cell**,
+> which must reach `sub_key_preview_font_size × multiplier` in both width and
+> height, from one implementation (`recursivegrid.Style.ShowSubKeyPreviewIn`,
+> with the macOS copy held to it by
+> `internal/architecture/sub_key_preview_autohide_rule_test.go`).
 
 ---
 
 ## Platform Support Per Word
 
 Every option, mode flag and action carries a platform column, declared once
-beside the vocabulary that owns it —
+beside the vocabulary that owns it:
 [`internal/config/platform_support.go`](../internal/config/platform_support.go),
 [`internal/domain/modecmd/platform_support.go`](../internal/domain/modecmd/platform_support.go)
 and
@@ -1067,19 +802,16 @@ daemon prints once at load and the `platform_support` row in `neru doctor`
 ([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
 
 It lists only the words whose column is narrower than every platform. The
-several hundred that work everywhere are declared too — being supported
-everywhere is written down rather than assumed — and
+several hundred that work everywhere are declared too, and
 `internal/architecture/platform_support_test.go` fails the build when a word is
 neither. Writing one of these where it is inert is never a config error: the
-file loads, the daemon runs, and one warning says which lines mean nothing here,
-so that one configuration can be carried between platforms
+file loads, the daemon runs, and one warning says which lines mean nothing
+here, so one configuration can be carried between platforms
 ([ADR 0008](./adr/0008-a-vocabulary-has-one-home.md)).
 
 This table answers a different question from the
 [Capability Matrix](#capability-matrix). The matrix says whether a subsystem
-works; this says whether a word a person wrote does anything. A subsystem can be
-green in every cell while an option means nothing, which is exactly how
-`smooth_scroll` shipped.
+works; this says whether a word a person wrote does anything.
 
 <!-- BEGIN GENERATED PLATFORM SUPPORT: edit the platform_support.go declarations, then run `just gensupportref` -->
 
@@ -1129,7 +861,7 @@ green in every cell while an option means nothing, which is exactly how
 ## Platform Exclusives
 
 Features available on exactly one platform, with why they do not port. This is
-a **closed set** — anything not listed here is a gap rather than an exclusive,
+a **closed set**: anything not listed here is a gap rather than an exclusive,
 whatever the [Capability Matrix](#capability-matrix) currently reports
 ([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
 
@@ -1139,99 +871,74 @@ whatever the [Capability Matrix](#capability-matrix) currently reports
 | Screen-sharing hide                       | macOS    | `platform/darwin/overlay_darwin.m`                      | NSWindow sharing level is a Quartz concept                    |
 | Secure input detection                    | macOS    | `platform/darwin/secureinput.go`                        | `CGSessionCopyCurrentDictionary`, a private API; neither X11 nor Wayland has the concept |
 
-Two entries left this table in ADR 0013 and neither is coming back.
-**Smooth scroll animation** was recorded as needing "a synthesizable continuous
-scroll event stream"; the spike found one on Wayland — a
-`zwlr_virtual_pointer_v1` axis event with no discrete step count, and libei's
-pixel-precise scroll delta on KWin — and it now animates on every Linux backend
-and on Windows, whose `MOUSEEVENTF_WHEEL` counts 120ths of a notch, with X11
-limited to whole notches for the reason footnote ³ of the
-[Capability Matrix](#capability-matrix) gives. A limit on one backend is not an
-exclusive: it is that backend's documented limit, which is what
-[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md) says the
-non-blessed stacks carry. The **Vision (OCR) hint
-strategy** was recorded as needing macOS-only `VNRequest` APIs; the API is
-macOS-only but the capability is not, so it was a Linux and Windows gap — met
-on Linux by an OCR engine linked the way every other native dependency here is,
-with its language data resolved at use, and on Windows by the first-party
-`Windows.Media.Ocr` engine with its language pack resolved at use. Its
+Two entries left this table in ADR 0013 and neither is coming back. **Smooth
+scroll animation** now animates on every backend, with X11 limited to whole
+notches (footnote ³), and a limit on one backend is that backend's documented
+limit rather than an exclusive. The **Vision (OCR) hint strategy** was met on
+Linux by tesseract and on Windows by `Windows.Media.Ocr`; its
 rectangle-detection half has no OCR answer, so `detect_rectangles` and the four
 `rectangle_*` options stay macOS-only and are declared as such.
 
-Linux and Windows have no exclusive *user-facing* features — their unique
-elements (evdev, `zwlr_virtual_pointer`, libei, the Wayland sync-cursor surface,
-`WH_KEYBOARD_LL`, `RegisterHotKey`, SDF rendering) are platform *mechanisms*
-serving cross-platform features, and are listed in the
+Linux and Windows have no exclusive *user-facing* features. Their unique
+elements (evdev, `zwlr_virtual_pointer`, libei, the Wayland sync-cursor
+surface, `WH_KEYBOARD_LL`, `RegisterHotKey`, SDF rendering) are mechanisms
+serving cross-platform features, listed in the
 [Capability Matrix](#capability-matrix).
 
 ---
 
 ## Known Gaps
 
-Work that is genuinely missing, as opposed to deliberately platform-specific.
-A gap is anything a person can *write* — an option, a mode flag, an action, a
-command — that means less here than it does on macOS, whether or not the
+Work that is missing, as opposed to deliberately platform-specific.
+A gap is anything a person can *write* (an option, a mode flag, an action, a
+command) that means less here than it does on macOS, whether or not the
 [Capability Matrix](#capability-matrix) reports its subsystem as supported
 ([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
 
 **Linux**
 
-None — parity is complete on the blessed stack.
+None. Parity is complete on the blessed stack;
 [What the labels mean](#what-the-labels-mean) says why the label is still Beta.
 
 The `input`-group membership Wayland global hotkeys need is a host setup step
-rather than a gap, and belongs here only if it stops being one: Neru warns with
-the remedy that fits when the listener cannot start, and
-[LINUX_SETUP.md](./LINUX_SETUP.md#install-time-environment-adjustments) carries
-it as install-time item 2.
-
-The gaps above are the work; what a person writes and finds inert *today* is
-[Platform Support Per Word](#platform-support-per-word), which is generated
-from the declaration the load-time warning and `neru doctor` also read. A gap
-closing is the same edit in both places: the code lands and the word's column
-widens.
+rather than a gap: Neru warns with the remedy when the listener cannot start,
+and [LINUX_SETUP.md](./LINUX_SETUP.md#install-time-environment-adjustments)
+carries it as install-time item 2.
 
 **Not Linux gaps**, and deliberately so: secure input detection and system
-cursor hide are [Platform Exclusives](#platform-exclusives); GNOME/Mutter
-Wayland and Cosmic are supported-desktop decisions, not capabilities; X11
-modifier passthrough is impossible for the display server rather than unbuilt —
-`XGrabKeyboard` is all-or-nothing and `XSendEvent` is ignored by most
-applications; and `neru services` on a non-systemd init is a stated boundary,
-not unfinished work.
+cursor hide are [Platform Exclusives](#platform-exclusives); GNOME Wayland and
+COSMIC are supported-desktop decisions, not capabilities; X11 modifier
+passthrough is impossible for the display server (`XGrabKeyboard` is
+all-or-nothing and `XSendEvent` is ignored by most applications); and
+`neru services` on a non-systemd init is a stated boundary.
 
 **The `CGO_ENABLED=0` Linux build is outside the boundary too**, and says so
-itself. It is a distribution convenience for a configuration macOS does not
-offer at all: cursor, clicks, scroll, hotkeys, keyboard capture, overlay,
-screen enumeration, display hotplug, focused app, `neru key` and the `vision`
-strategy are all `CodeNotSupported` mirrors there, so the daemon starts and
-then fails feature by feature. It therefore announces what kind of build it is once at
-startup — naming what will not work and how to leave it — rather than letting a
-user discover the boundary one keystroke at a time
-([ADR 0012](./adr/0012-the-first-hour-must-not-lie.md),
-[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)). A CGO
-build never prints it: a warning every ordinary run carries is one people learn
-to scroll past. The tray, notifications and alerts are pure Go and keep
-working, which is exactly why the build exists.
+itself. It is a distribution convenience: cursor, clicks, scroll, hotkeys,
+keyboard capture, overlay, screen enumeration, display hotplug, focused app,
+`neru key` and the `vision` strategy are all `CodeNotSupported` there, so it
+announces what kind of build it is once at startup, naming what will not work
+and how to leave it ([ADR 0012](./adr/0012-the-first-hour-must-not-lie.md)). A
+CGO build never prints it. The tray, notifications and alerts are pure Go and
+keep working, which is why the build exists.
 
 **Windows**
 
-None — parity is complete; the `feed` action and `neru key` inject through
+None. Parity is complete; the `feed` action and `neru key` inject through
 `SendInput`, the call the pointer and modifier passthrough already use.
 
 **Not a Windows gap**: the three `hints.vision.*_confidence` floors are inert
-because `Windows.Media.Ocr` reports no per-word confidence, so there is nothing
-for a floor to compare against — a boundary of the engine, not unbuilt work,
-in the same way X11 modifier passthrough is a boundary of the display server.
-[What the labels mean](#what-the-labels-mean) says why the label is Beta.
+because `Windows.Media.Ocr` reports no per-word confidence, a boundary of the
+engine in the same way X11 modifier passthrough is a boundary of the display
+server. [What the labels mean](#what-the-labels-mean) says why the label is
+Beta.
 
 **macOS**
 
-1. Named keys without a Carbon keycode — `Insert` and `F21`–`F24` validate but
+1. Named keys without a Carbon keycode: `Insert` and `F21` to `F24` validate but
    never fire, because Carbon declares no virtual key code for them. They stay
    in the shared key vocabulary so one config file works on every platform
    ([ADR 0008](./adr/0008-a-vocabulary-has-one-home.md)), and the absence is
-   pinned by `internal/architecture/named_key_tables_test.go` — the day macOS
-   grows a keycode, that test fails.
+   pinned by `internal/architecture/named_key_tables_test.go`.
 
 Otherwise none; macOS is the reference implementation.
 
@@ -1251,74 +958,68 @@ Guiding principles:
 
 Read these before changing platform code:
 
-- [The Three Tiers](#the-three-tiers) — **start here**; it decides where your code goes
-- [platform/profile.go](../internal/adapter/platform/profile.go) — per-subsystem backend family and CGO expectations
-- [ports/system.go](../internal/ports/system.go) — the main OS contract, plus the optional-extension pattern
-- [ports/capabilities.go](../internal/ports/capabilities.go) and [capability_presets.go](../internal/ports/capability_presets.go) — the capability registry `neru doctor` reports
-- [ports/font.go](../internal/ports/font.go) — FontResolver port
-- [architecture/platform_slots_test.go](../internal/architecture/platform_slots_test.go) — the file-layout rules, as executable checks
+- [The Three Tiers](#the-three-tiers): **start here**, it decides where your code goes
+- [platform/profile.go](../internal/adapter/platform/profile.go): per-subsystem backend family and CGO expectations
+- [ports/system.go](../internal/ports/system.go): the main OS contract, plus the optional-extension pattern
+- [ports/capabilities.go](../internal/ports/capabilities.go) and [capability_presets.go](../internal/ports/capability_presets.go): the capability registry `neru doctor` reports
+- [ports/font.go](../internal/ports/font.go): the FontResolver port
+- [architecture/platform_slots_test.go](../internal/architecture/platform_slots_test.go): the file-layout rules, as executable checks
 - [ARCHITECTURE.md](./ARCHITECTURE.md) and the root [AGENTS.md](../AGENTS.md) conventions
 
-Contributing Linux support? Nothing is reserved and waiting for you — read the
-Linux files the package already has before writing anything. Where they sit
-depends on the package: a single-platform directory such as
-`internal/adapter/platform/linux/` drops the OS token and splits by backend
-(`system_x11_cgo.go`, `system_wayland_wlroots_cgo.go`), while a mixed package
-carries it (`internal/adapter/platform/factory_linux.go`,
-`internal/adapter/overlay/backend_linux.go`). The slot table below is the full
-set.
+Contributing Linux support? Nothing is reserved and waiting for you. Read the
+Linux files the package already has before writing anything. A
+single-platform directory such as `internal/adapter/platform/linux/` drops the
+OS token and splits by backend (`system_x11_cgo.go`,
+`system_wayland_wlroots_cgo.go`), while a mixed package carries it
+(`internal/adapter/platform/factory_linux.go`,
+`internal/adapter/overlay/backend_linux.go`).
 
 ## The Three Tiers
 
 Before choosing a file, choose a **tier**. Every platform-varying capability in
-Neru is expressed one of exactly three ways, and picking the wrong one is the
-most common way platform code becomes hard to navigate.
-
-The deciding question is **who needs the capability**:
+Neru is expressed one of exactly three ways, and the deciding question is **who
+needs the capability**:
 
 | Tier                            | Use when                                                              | Mechanism                                                                  |
 | ------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **1 — Port**                    | app, domain, or more than one adapter package needs it                  | interface in `internal/ports`, adapter in `internal/adapter`        |
-| **2 — In-package dispatch**     | exactly one adapter package needs it                                    | build-tagged `platform_<os>.go` files, **unexported** functions             |
-| **3 — Optional port extension** | only some platforms can offer it, and the caller has a real fallback  | interface **declared in `ports`**, reached by type assertion                |
+| **1: Port**                     | app, domain, or more than one adapter package needs it                  | interface in `internal/ports`, adapter in `internal/adapter`        |
+| **2: In-package dispatch**      | exactly one adapter package needs it                                    | build-tagged `platform_<os>.go` files, **unexported** functions             |
+| **3: Optional port extension**  | only some platforms can offer it, and the caller has a real fallback  | interface **declared in `ports`**, reached by type assertion                |
 
-### Tier 1 — Port
+### Tier 1: Port
 
 The app and domain layers must never import an adapter package to reach an OS
-capability. If they need it, it is a port.
-
-Requirements — all four, or it is not done:
+capability. If they need it, it is a port. All four, or it is not done:
 
 1. Interface in `internal/ports`, documented with what each platform is
    expected to do and what a caller must do when it cannot.
 2. Adapter in `internal/adapter/<subsystem>/`, with
    `var _ ports.XPort = (*Adapter)(nil)`.
-3. Mock in `internal/ports/mocks/`. Hand-rolled fakes in `_test.go` files
-   rot silently when the contract changes — the shared mock does not.
+3. Mock in `internal/ports/mocks/`. Hand-rolled fakes in `_test.go` files rot
+   silently when the contract changes; the shared mock does not.
 4. An entry in `ports.PlatformCapabilities` so `neru doctor` reports it.
 
 Current ports: `SystemPort`, `AccessibilityPort`, `OverlayPort`, `EventTapPort`,
 `HotkeyPort`, `IPCPort`, `VisionPort`, `TextInputPort`, `KeyFeedPort`,
 `AppWatcherPort`, `SystrayPort`, `FontResolver`.
 
-Optional extensions, reached by type assertion (Tier 3): `RelativeCursorMover`
-and `CursorSynchronizer` on `SystemPort`, `HotkeyReleaseRegistrar` and
-`HotkeyHealthReporter` on `HotkeyPort`, `OverlayKeyboardPassthroughReporter` on
-`EventTapPort`, `OverlayCapabilityReporter` on `OverlayPort`, and
-`SyntheticModifierSink` on the `tap.Tap` backend contract (Linux only — it is
-declared in a `_linux.go` file beside `Tap`, because only X11 cannot tell its
-own injected key events apart from the user's).
+Optional extensions (Tier 3): `RelativeCursorMover` and `CursorSynchronizer`
+on `SystemPort`, `HotkeyReleaseRegistrar` and `HotkeyHealthReporter` on
+`HotkeyPort`, `OverlayKeyboardPassthroughReporter` on `EventTapPort`,
+`OverlayCapabilityReporter` on `OverlayPort`, and `SyntheticModifierSink` on
+the `tap.Tap` backend contract (Linux only, declared in a `_linux.go` file
+beside `Tap`, because only X11 cannot tell its own injected key events apart
+from the user's).
 
 [`keyfeed`](../internal/adapter/keyfeed/) is the reference example: shared
 normalization untagged in `keyfeed.go`, one unexported `postKey` per platform,
 `Adapter` implementing the port, capability entry, mock, contract tests.
 
-### Tier 2 — In-package dispatch
+### Tier 2: In-package dispatch
 
-A capability only one adapter package uses does **not** become a port. Wrapping it
-in an interface buys no test seam and no substitutability — just indirection.
-
-Use build-tagged files inside that package with **unexported** functions:
+A capability only one adapter package uses does **not** become a port. Wrapping
+it in an interface buys no test seam and no substitutability. Use build-tagged
+files inside that package with **unexported** functions:
 
 ```go
 // platform_darwin.go
@@ -1330,14 +1031,13 @@ func platformActiveScreenBounds() image.Rectangle { return image.Rectangle{} }
 
 Keeping them unexported is the whole point: an exported one becomes another
 package's dependency, and the seam has quietly become a badly-specified port.
-
 Examples: `accessibility/priming_*.go`, `accessibility/supplementary_*.go`,
 `appwatcher/platform_*.go`, `ipc/transport_unix.go`.
 
-### Tier 3 — Optional port extension
+### Tier 3: Optional port extension
 
 Some platforms can do a job better than shared code can, but not all can do it
-at all — so it cannot go on the base port without forcing every adapter to carry
+at all, so it cannot go on the base port without forcing every adapter to carry
 a stub. Declare a small interface **in `ports`, next to the port it extends**,
 and let the caller find it by type assertion:
 
@@ -1354,29 +1054,25 @@ if mover, ok := s.system.(ports.RelativeCursorMover); ok { /* fast path */ }
 Two rules:
 
 - **Declare it in `ports`.** An interface defined in the consuming package is
-  undiscoverable — a contributor on another platform has no way to learn the
-  extension exists. This is why `relativeCursorMover` and `cursorSyncer` moved
-  out of `services` and `modes`.
+  undiscoverable to a contributor on another platform.
 - **The caller must have a working fallback.** An optional extension is an
   optimization or a platform-native shortcut, never the only path.
 
 Adapters opting in should assert it: `var _ ports.RelativeCursorMover =
-(*SystemAdapter)(nil)`. Callers reach these by type assertion, so a signature
-drift would otherwise silently downgrade the platform to the generic path
-instead of failing to compile.
+(*SystemAdapter)(nil)`, so a signature drift fails to compile instead of
+silently downgrading the platform to the generic path.
 
 ### Not ports
 
 Do not lift these behind interfaces: `platform/{darwin,linux,windows}`
-internals, `wlr_protocol`, overlay drawing in `internal/adapter/overlay`, `logger`,
-and IPC transport. They are implementation, reached through a port that already
-exists.
+internals, `wlr_protocol`, overlay drawing in `internal/adapter/overlay`,
+`logger`, and IPC transport. They are implementation, reached through a port
+that already exists.
 
 ### Dependency direction
 
-The tiers only mean something if the arrows point one way. Three rules, all
-enforced by
-[layering_test.go](../internal/architecture/layering_test.go):
+The tiers only mean something if the arrows point one way. Three rules,
+enforced by [layering_test.go](../internal/architecture/layering_test.go):
 
 | Rule                                                | Why |
 | --------------------------------------------------- | --- |
@@ -1386,38 +1082,29 @@ enforced by
 
 The third rule has three deliberate escapes, all narrow:
 
-- **Shared vocabulary** — `adapter/ipc` (the CLI/daemon wire protocol),
+- **Shared vocabulary**: `adapter/ipc` (the CLI/daemon wire protocol),
   `adapter/logger`, and `adapter/platform` (the SystemPort factory plus the
   `Profile` that `neru doctor` prints). These are data and plumbing, not OS
   behavior.
-- **Composition root** — `wiring.go`, `startup_phases.go`, `cmd/neru/main.go`.
-  Wiring adapters to ports is their job. `component_factory.go` was on this
-  list until #1213 and came off it: with the overlay's render components no
-  longer handed back to the app, it names no adapter at all.
-- **Build-tagged dispatch** — any `*_darwin.go` / `*_linux*.go` /
+- **Composition root**: `wiring.go`, `startup_phases.go`, `cmd/neru/main.go`.
+  Wiring adapters to ports is their job.
+- **Build-tagged dispatch**: any `*_darwin.go` / `*_linux*.go` /
   `*_windows.go` / `*_other.go` file in the app layer is Tier 2.
 
 Anything else is a violation. `knownLayeringExceptions` exists for edges that
-cannot be fixed in the same change; it is currently **empty**, and a second test
-fails if an entry stops being a real violation, so the list can only shrink.
-
-> `internal/adapter/overlay` was the worked example of an escape, and is now
-> the worked example of retiring one. It carried a shared-vocabulary entry
-> until #1213, because the app named its render models and its manager
-> interface directly. The entry went when the things above it moved: the port
-> took `ports.Frame` for transitions, the adapter took over resolving Styles
-> and building its own render components, and the per-mode `Context` types —
-> which were mode state, not drawing — moved up into
-> `internal/app/components/`. Nothing about the render models moved down. The
-> lesson is that an allowlist entry is retired by finding what does not belong
-> on the other side of the line, not by relocating what does.
+cannot be fixed in the same change; it is **empty**, and a second test fails
+if an entry stops being a real violation, so the list can only shrink.
+`internal/adapter/overlay` carried an entry until #1213 and retired it by
+moving what did not belong above the line (the per-mode `Context` types, which
+are mode state and live in `internal/app/components/`) rather than relocating
+the render models that do belong below it.
 
 ## File Layout Rules
 
 Once the tier is settled, the filename declares the slot. These rules are
 enforced by
-[platform_slots_test.go](../internal/architecture/platform_slots_test.go), so a
-violation fails `just test` rather than review:
+[platform_slots_test.go](../internal/architecture/platform_slots_test.go), so
+a violation fails `just test` rather than review:
 
 | Suffix                            | Meaning                                                   |
 | --------------------------------- | --------------------------------------------------------- |
@@ -1435,58 +1122,47 @@ violation fails `just test` rather than review:
 | `*_integration_cgo.go`            | cgo scaffolding for an integration test, `//go:build … && integration` so it never ships |
 
 Inside a package that is already one platform (`adapter/*/darwin`,
-`adapter/*/linux`, `adapter/platform/windows`, …) the OS token is dropped —
-the directory carries it. `overlay/linux/wayland_cgo.go` and
+`adapter/*/linux`, `adapter/platform/windows`, and so on) the OS token is
+dropped, because the directory carries it. `overlay/linux/wayland_cgo.go` and
 `platform/linux/system_x11_cgo.go` keep only the axes that still vary; a
-`system_linux_x11_cgo.go` inside `platform/linux/` would say linux twice.
+`system_linux_x11_cgo.go` inside `platform/linux/` would say linux twice. That
+is why the four Linux backend rows above hold no files today: every Linux
+backend split lives inside a single-platform directory. The rows are the
+spelling to use if a mixed package ever needs one.
 
-The `*_integration_cgo.go` row exists for one situation and should stay rare:
-Go rejects `import "C"` in a `_test.go` file outright, so an integration test
-that needs C — `accessibility/native/linux/scroll_probe_integration_cgo.go`
-mapping a Wayland window to measure what a compositor delivers — has to put it
-in a non-test file. The `integration` term is what keeps that file out of every
-build the product is made from, and the C stays inline in the cgo preamble
-rather than in a `.c` file beside it, because a `.c` file compiles into the
-package unconditionally.
-
-That is why the four Linux backend rows above hold no files today: every Linux
-backend split in the tree lives inside a single-platform directory and has
-dropped the token. The rows are the spelling to use if a mixed package ever
-needs one — not files waiting to be opened.
+The `*_integration_cgo.go` row exists for one situation and should stay rare.
+Go rejects `import "C"` in a `_test.go` file, so an integration test that needs
+C (`accessibility/native/linux/scroll_probe_integration_cgo.go`, mapping a
+Wayland window to measure what a compositor delivers) puts it in a non-test
+file. The `integration` term keeps that file out of every product build, and
+the C stays inline in the cgo preamble, because a `.c` file beside it would
+compile into the package unconditionally.
 
 What the guardrail test checks:
 
-- A file constrained to exactly one GOOS must carry that OS as a name token.
-  Go's implicit suffix rule already prevents the forward mistake; this catches
-  the reverse — a `tree.go` that is secretly `//go:build darwin` is invisible to
-  anyone scanning the directory.
+- A file constrained to exactly one GOOS must carry that OS as a name token. A
+  `tree.go` that is secretly `//go:build darwin` is invisible to anyone
+  scanning the directory.
 - A file whose constraint is a pure negation is a fallback and must be named
-  `*_other.go`. `_stub.go`, `_stubs.go`, `_default.go`, `_fallback.go`,
-  `_noop.go` and friends are rejected — one slot, one spelling.
-- A file gated on cgo must say so: `*_cgo.go` or `*_nocgo.go`. Before this rule
-  a plain name usually meant the cgo variant, but in the overlay package it
-  meant the opposite, and reading the build tag was the only way to tell.
-- Every file in a **single-platform package** declares its OS tag. Such a
-  package is exempt from the suffix rule — the directory carries the meaning —
-  which only holds if nothing untagged leaks in. The set of exempt directories
-  is derived from the tree, not listed: a directory earns the exemption when
-  every file in it targets the same one OS.
+  `*_other.go`. `_stub.go`, `_default.go`, `_fallback.go`, `_noop.go` and
+  friends are rejected: one slot, one spelling.
+- A file gated on cgo must say so: `*_cgo.go` or `*_nocgo.go`.
+- Every file in a **single-platform package** declares its OS tag. The set of
+  exempt directories is derived from the tree: a directory earns the exemption
+  when every file in it targets the same one OS.
 - Every relative `#include` resolves
-  ([cgo_includes_test.go](../internal/architecture/cgo_includes_test.go)). This
-  one exists because a broken include is invisible to `go vet` and to
-  `just check-cross` — `CGO_ENABLED=0` skips the file — and only surfaces when
-  the target OS compiles with cgo on.
+  ([cgo_includes_test.go](../internal/architecture/cgo_includes_test.go)). A
+  broken include is invisible to `go vet` and to `just check-cross`, since
+  `CGO_ENABLED=0` skips the file.
 
-Two rules that save review cycles:
-
-- **Do not invent new ad hoc platform filenames** when a slot already exists.
-- **Do not create empty `darwin` / `linux` / `windows` files for symmetry.** Add
-  a file only when there is a real implementation slot behind it.
+Two rules that save review cycles: do not invent new ad hoc platform filenames
+when a slot already exists, and do not create empty `darwin` / `linux` /
+`windows` files for symmetry.
 
 ## Backend Packages
 
-Every OS capability is a contract plus one directory per operating system, and
-each backend directory is named for its GOOS:
+Every OS capability is a contract plus one directory per operating system,
+each named for its GOOS:
 
 ```
 adapter/accessibility/{ax, atspi, native/{darwin,linux,windows}}
@@ -1497,90 +1173,59 @@ adapter/overlay/{manager, darwin, linux, windows}
 ```
 
 The directory names the platform, so the filenames inside do not have to, and
-`ls` answers "what do I touch for Wayland?". Because the word `darwin` means the
-same thing in every one of them, the guardrails that key on it need no
-per-package list.
-
-The parent package keeps the port adapter and a small build-tagged factory —
-usually ten lines — which is the only place that knows which implementation
-exists.
+`ls` answers "what do I touch for Wayland?". The parent package keeps the port
+adapter and a small build-tagged factory, usually ten lines, which is the only
+place that knows which implementation exists.
 
 ### When a backend does not earn a package
 
-The test is whether every platform has something substantial to say. If one does
-and the others answer in eighty-line stubs, build-tagged files in a single
-package are clearer: three directories where two hold stubs is ceremony rather
-than navigation.
-
-That is the case for
-`overlay/render/{grid,hints,recursivegrid,modeindicator,stickyindicator}`. Each
-is one real renderer plus small stubs, and `overlay_other.go` is already the
-obvious file to open.
+The test is whether every platform has something substantial to say. If one
+does and the others answer in eighty-line stubs, build-tagged files in a single
+package are clearer. That is the case for
+`overlay/render/{grid,hints,recursivegrid,modeindicator,stickyindicator}`: each
+is one real renderer plus small stubs, and `overlay_other.go` is the obvious
+file to open.
 
 ### Giving a capability its own packages
 
-A package that reads as "shared code plus platform files" is usually one generic
-shell specialised by build-tagged concrete types. It has no interface seam, so
-there is nothing for a backend package to implement, and creating one is three
-moves in order:
+A package that reads as "shared code plus platform files" is usually one
+generic shell specialised by build-tagged concrete types. Creating a backend
+package for it is three moves in order:
 
 1. **Find the seam.** List the methods the shell calls on the platform type.
-   For `eventtap` that is ten — small enough to write down in one sitting.
 2. **Extract the contract into a leaf package** (`accessibility/ax`,
-   `eventtap/tap`). It has to be a leaf: the backends import it to satisfy it
-   and the factory imports the backends, so anything else is an import cycle.
+   `eventtap/tap`). It has to be a leaf: the backends import it and the factory
+   imports the backends, so anything else is an import cycle.
 3. **Move each platform into a package behind a build-tagged factory.**
 
 When the shell talks to *package-level* symbols rather than to methods on a
-value, there is a cheaper route: alias instead of abstracting.
-`accessibility/native` works this way. Its shell is generic over `Element`,
-`ElementInfo`, `TreeNode`, `TreeOptions` and roughly forty package-level
-functions; each platform's files live in their own package and a build-tagged
-file aliases the four types and binds the functions, leaving the shell itself
-platform-agnostic without an interface.
+value, alias instead of abstracting. `accessibility/native` works this way:
+each platform's files live in their own package and a build-tagged file aliases
+the four types and binds the functions, leaving the shell platform-agnostic
+without an interface.
 
-Two traps worth knowing before you start:
-
-- **Named function types do not interchange.** A method taking
-  `darwin.Callback` does not satisfy an interface wanting `func(string)`, even
-  though the underlying types are identical. Put callback types in the contract
-  package and have the backends use them.
-- **Typed nil.** A factory returning a concrete `*T` as an interface hands back
-  a non-nil interface holding a nil pointer, and every caller's `if x != nil`
-  silently passes. Check before returning; `staticcheck` reports this as
-  SA4023.
+Two traps: **named function types do not interchange** (a method taking
+`darwin.Callback` does not satisfy an interface wanting `func(string)`, so put
+callback types in the contract package), and **typed nil** (a factory returning
+a concrete `*T` as an interface hands back a non-nil interface holding a nil
+pointer; `staticcheck` reports this as SA4023).
 
 ### Where the render models live
 
 `hints.Hint`, `grid.Style` and the other render models sit under
-`adapter/overlay/render/` rather than in the domain, even though nothing about
-them is platform-specific.
+`adapter/overlay/render/` rather than in the domain, because `hints.Hint`,
+`hints.StyleMode` and `hints.Overlay` are one concept every backend needs all
+three of, and splitting them by layer produces two packages named `hints`.
+Nothing above the overlay names them any more (#1213). The per-mode `Context`
+types, which are mode state rather than render models, live in
+`internal/app/components/{hints,grid,recursivegrid}`.
 
-They stay there because `hints.Hint`, `hints.StyleMode` and `hints.Overlay` are
-one concept, and every backend needs all three to draw. Splitting them by layer
-produces two packages named `hints` — likewise `grid` and `recursivegrid` —
-which every site touching both halves must then alias, and three of the six
-render packages have no platform-neutral content at all.
-
-Nothing above the overlay names them any more (#1213), so their home is now a
-question about the adapter alone. What did move out was the per-mode `Context`
-types, which sat in `render/hints`, `render/grid` and `render/recursivegrid`
-without being render models at all: they are the state one mode session keeps,
-they know no colour and no surface, and they live in
-`internal/app/components/{hints,grid,recursivegrid}` beside the scroll context
-that always did.
-
-### Styles are one type per concept
-
-`grid.Style`, `recursivegrid.Style` and `hints.StyleMode` are each declared once
-for every platform. Their fields hold the values the configuration writes — hex
-color strings, integer sizes — and the packed-ARGB and float forms that Cairo
-and GDI want are accessors that convert at the point of use.
-
-Keeping representation out of the struct is what lets `manager.Interface` name
-these types in a signature every platform shares. When a type looks
-platform-specific, check whether it differs in meaning or only in
-representation; the second kind belongs in an accessor.
+`grid.Style`, `recursivegrid.Style` and `hints.StyleMode` are each declared
+once for every platform. Their fields hold the values the configuration writes,
+and the packed-ARGB and float forms Cairo and GDI want are accessors that
+convert at the point of use. When a type looks platform-specific, check whether
+it differs in meaning or only in representation; the second kind belongs in an
+accessor.
 
 ## Where To Implement What
 
@@ -1594,11 +1239,11 @@ representation; the second kind belongs in an accessor.
 | overlay rendering by mode (**macOS only**; stubs elsewhere)  | `internal/adapter/overlay/render/*/overlay_*.go`          |
 | app watcher and other isolated platform hooks                | dispatch-style `platform_*.go` in the relevant package       |
 
-Worked examples:
-
-- X11 hotkeys → [x11_cgo.go](../internal/adapter/hotkeys/linux/x11_cgo.go)
-- Wayland keyboard capture → [wayland_cgo.go](../internal/adapter/eventtap/linux/wayland_cgo.go)
-- shared Linux system fallbacks → [system_common.go](../internal/adapter/platform/linux/system_common.go)
+Worked examples: X11 hotkeys in
+[x11_cgo.go](../internal/adapter/hotkeys/linux/x11_cgo.go), Wayland keyboard
+capture in [wayland_cgo.go](../internal/adapter/eventtap/linux/wayland_cgo.go),
+shared Linux system fallbacks in
+[system_common.go](../internal/adapter/platform/linux/system_common.go).
 
 ## Build And Test Commands
 
@@ -1606,71 +1251,60 @@ Every build and test recipe is catalogued in
 [DEVELOPMENT.md](./DEVELOPMENT.md#common-tasks). Two apply specifically to
 platform work:
 
-- `just build && just test-foundation` — the cross-platform-safe baseline to run
-  before touching anything. Do that first, then find the slot you expect to
-  change before writing code.
+- `just build && just test-foundation`: the cross-platform-safe baseline to run
+  before touching anything.
 - `just release-ci-linux <arch> <version>` / `just release-ci-windows <arch>
-  <version>` — the tagged release binaries CI produces.
+  <version>`: the tagged release binaries CI produces.
 
-Only the target OS can run `just test` meaningfully — integration tests are
-tagged per-OS.
+Only the target OS can run `just test` meaningfully, since integration tests
+are tagged per-OS.
 
 ### `just build-linux` needs a Linux-targeting C compiler
 
 `just build-windows` cross-compiles from any host, because Windows is a CGO-off
 build. `just build-linux` does not: Linux needs CGO for the X11 and Wayland
-backends, which drags in Go's own cgo runtime (`linux_syscall.c`,
-`gcc_<arch>.S`). A macOS clang compiles that against the macOS SDK and fails.
+backends, and a macOS clang compiles Go's cgo runtime against the macOS SDK and
+fails. The recipe checks the compiler's target triple up front and refuses with
+the alternatives. From a macOS host, use:
 
-The recipe checks the compiler's target triple up front and refuses with the
-alternatives rather than failing inside Go's runtime. From a macOS host, use:
-
-- `just lint-cross` — compiles and lints the linux/amd64 build with CGO on, in
+- `just lint-cross`: compiles and lints the linux/amd64 build with CGO on, in
   Docker
-- `just check-cross` — a fast CGO-off type-check of the Linux and Windows
+- `just check-cross`: a fast CGO-off type-check of the Linux and Windows
   builds, no Docker needed
-- `CGO_ENABLED=0 GOOS=linux GOARCH=<arch> go build ./cmd/neru` — a pure-Go Linux
-  binary. The CGO-only backends compile out, so it is not the shipped product
+- `CGO_ENABLED=0 GOOS=linux GOARCH=<arch> go build ./cmd/neru`: a pure-Go
+  Linux binary. The CGO-only backends compile out, so it is not the shipped
+  product
 
-`just build-linux` still runs on a Linux host, and on any host whose `CC` is a
-Linux cross toolchain. The guard fails open — it only refuses when the compiler
-positively reports a non-Linux target — so it never blocks a build that would
-have worked. The tagged Linux release binaries are built by CI on a native Linux
-runner (`just release-ci-linux`).
+The guard fails open: it only refuses when the compiler positively reports a
+non-Linux target. The tagged Linux release binaries are built by CI on a native
+Linux runner.
 
 ### `just lint` only sees your own platform
 
 golangci-lint honours build tags, so a `//go:build linux` file is invisible to
-`just lint` on macOS. A change can be locally clean and still fail the Linux or
-Windows lint job.
-
-A *build* break in one of those files no longer gets that far — `just ci` runs
-`just check-cross`, which catches it before you push. Lint findings are the
-part that still needs reproducing, and for one of those:
+`just lint` on macOS. A *build* break in one of those files is caught by
+`just check-cross`, which `just ci` runs. Lint findings still need reproducing:
 
 ```bash
 CGO_ENABLED=0 GOOS=linux golangci-lint run ./internal/...
 ```
 
-Read the output with care. Without cgo, the `*_cgo.go` files are excluded, so
-anything they alone use is reported as `unused` and any helper they alone call
-with a second value is reported by `unparam`. Those are artifacts of the
-no-cgo build, not real findings — CI lints Linux with cgo enabled. Findings in
-plain-`linux` files (`funcorder`, `godoclint`, `revive`, and similar) are real.
-
-The cgo-only Linux paths need a real Linux toolchain, so the host cannot lint
-them directly. `just lint-cross` runs them in the same container image the Linux
-CI job uses; without Docker, CI is the check for those.
+Without cgo, the `*_cgo.go` files are excluded, so anything they alone use is
+reported as `unused` and any helper they alone call is reported by `unparam`.
+Those are artifacts of the no-cgo build; CI lints Linux with cgo enabled.
+Findings in plain-`linux` files are real. The cgo-only paths need a Linux
+toolchain: `just lint-cross` runs them in the Linux CI image, and without
+Docker, CI is the check.
 
 ## Linux Backend Model
 
 Linux is a backend *family*, not a single target. Keep two axes separate:
 
-- **Compile-time axis (OS + CGO)** — expressed by build tags and file suffixes.
+- **Compile-time axis (OS + CGO)**, expressed by build tags and file suffixes.
   Build tags cannot distinguish compositors: KDE and GNOME are both `linux` +
-  Wayland at compile time. A suffix therefore never encodes a single desktop
-  environment on its own.
-- **Runtime axis (which compositor is live)** — expressed by the `LinuxBackend`
+  Wayland at compile time, so a suffix never encodes a single desktop on its
+  own.
+- **Runtime axis (which compositor is live)**, expressed by the `LinuxBackend`
   family in [backend_linux.go](../internal/adapter/platform/backend_linux.go),
   detected from environment variables and routed by `factory.go` plus dispatch
   seams such as `system_wayland_input.go`.
@@ -1683,38 +1317,33 @@ Within the compile-time axis, choose the slot by purpose:
 | `x11`     | X11 display enumeration, event capture, overlays, pointer queries and warps |
 | `wayland` | compositor capture/overlay behavior, layer-shell, output enumeration        |
 
-Not every package must implement both backends immediately — but new code should
-land in the right slot from the start. Accessibility is the main exception: most
-Linux accessibility stays shared around AT-SPI even where other subsystems split.
+Accessibility is the main exception: most Linux accessibility stays shared
+around AT-SPI even where other subsystems split.
 
 ### Organize by mechanism, not by desktop
 
-Desktop environments share mechanisms, so the axis that actually varies is
+Desktop environments share mechanisms, so the axis that varies is
 usually the mechanism:
 
-- **Input** — KDE and GNOME both use libei (RemoteDesktop portal); wlroots and
-  COSMIC use `zwlr_virtual_pointer`. One libei backend serves several DEs; do
-  not duplicate it per DE.
-- **Overlay** — layer-shell works on KDE, wlroots, and COSMIC; only GNOME/Mutter
-  lacks it.
-- **Genuinely DE-specific** — active-window geometry (KWin D-Bus vs Mutter
+- **Input**: KDE and GNOME both use libei (RemoteDesktop portal); wlroots and
+  COSMIC use `zwlr_virtual_pointer`. One libei backend serves several DEs.
+- **Overlay**: layer-shell works on KDE, wlroots, and COSMIC; only
+  GNOME/Mutter lacks it.
+- **Genuinely DE-specific**: active-window geometry (KWin D-Bus vs Mutter
   D-Bus) and hotkey registration. These belong in DE-named files such as
   `internal/adapter/accessibility/atspi/kwin_origin.go`, or in a DE-named
-  package when more than one subsystem needs the same fact —
+  package when more than one subsystem needs the same fact:
   `internal/adapter/platform/kwin` holds the KWin geometry bridge because the
-  AT-SPI window origin and `FocusedWindowBounds` are two readings of it. What is
-  shared across compositors rather than specific to one goes in a package named
-  for the mechanism instead — `internal/adapter/platform/compositorcli` is how
-  both of those callers ask niri, Sway and Hyprland their question, because
-  spawning the CLI and telling a failed query from an empty answer is the same
-  work on all three.
+  AT-SPI window origin and `FocusedWindowBounds` are two readings of it. What
+  is shared across compositors goes in a package named for the mechanism:
+  `internal/adapter/platform/compositorcli` is how both callers ask niri, Sway
+  and Hyprland their question.
 
 Use a `*_linux_wayland_<compositor>.go` sub-slot only when a compositor family
-needs a path no other family shares — spelled without the OS token inside
-`internal/adapter/platform/linux/`, which is where every one of them lives
-today: `system_wayland_wlroots_*.go` (virtual-pointer input) and
-`system_wayland_kde_*.go` (libei input), with `system_wayland_input.go` as the
-shared routing seam.
+needs a path no other family shares, spelled without the OS token inside
+`internal/adapter/platform/linux/`: `system_wayland_wlroots_*.go`
+(virtual-pointer input) and `system_wayland_kde_*.go` (libei input), with
+`system_wayland_input.go` as the shared routing seam.
 
 **To add a compositor** (COSMIC, say): add a `LinuxBackend` value and detection
 in `backend_linux.go`, route it in the factory and the relevant dispatch seams,
@@ -1728,58 +1357,47 @@ Per-DE decisions, measured protocol support, and known issues live in
 ## Windows Model
 
 Windows is one backend family, Beta because every mode works and what is there
-is proven by CI rather than by use; [What the labels mean](#what-the-labels-mean)
-carries the rule that moves it to Stable. Prefer:
+is proven by CI rather than by use;
+[What the labels mean](#what-the-labels-mean) carries the rule that moves it to
+Stable. Prefer `*_windows.go` as the implementation slot and pure Go Win32 /
+COM bindings (via `x/sys/windows` or syscall) over CGO. Do not introduce
+additional Windows backend naming until there is a real reason.
 
-- `*_windows.go` as the implementation slot
-- pure Go Win32 / COM bindings (via `x/sys/windows` or syscall) over CGO
-
-Do not introduce additional Windows backend naming until there is a real reason.
-[Known Gaps](#known-gaps) lists any Windows work still open.
-
-**Smooth cursor animation on Windows.** Off by default; opt in with
-`smooth_cursor.move_mouse_enabled`, the same `SmoothCursorConfig` macOS and
-Linux read. When enabled, `SystemAdapter.MoveCursorToPoint` routes through
-`smoothCursorAnimator`
-([mouse_animator.go](../internal/adapter/platform/windows/mouse_animator.go)),
-the Linux animator's shape with `SetCursorPos` as the sink: one worker
-goroutine samples `GetCursorPos` once per request, then steps toward the target
-by linear interpolation, coalescing so the latest target wins, and
-`WaitForCursorIdle` blocks until it settles. Relative (hjkl) moves extend the
-pending endpoint over the fixed per-move duration
-`smooth_cursor.relative_movement_duration`, clamped to the active screen, and
-position-dependent actions settle the in-flight animation before acting.
+**Smooth cursor animation on Windows** is the Linux animator's shape with
+`SetCursorPos` as the sink
+([mouse_animator.go](../internal/adapter/platform/windows/mouse_animator.go)):
+off by default, opt in with `smooth_cursor.move_mouse_enabled`, one worker
+goroutine sampling `GetCursorPos` once per request and stepping toward the
+target with the latest target winning. Relative moves extend the pending
+endpoint over `smooth_cursor.relative_movement_duration`, clamped to the active
+screen, and position-dependent actions settle the animation before acting.
 
 ## CGO Guidance
 
 **Do not decide CGO usage by OS alone.** CGO is a per-backend decision, and
 [profile.go](../internal/adapter/platform/profile.go) is the source of truth.
-
 Current intent:
 
-- **macOS** — CGO required throughout (Objective-C bridge)
-- **Linux** — backend-dependent; several backends already require it, and
-  `*_nocgo.go` variants must still compile and degrade honestly
-- **Windows** — pure Go first
+- **macOS**: CGO required throughout (Objective-C bridge)
+- **Linux**: backend-dependent; several backends require it, and `*_nocgo.go`
+  variants must still compile and degrade honestly
+- **Windows**: pure Go first
 
-Good default instincts:
-
-- AT-SPI and freedesktop notifications should prefer pure Go / D-Bus paths
-- X11 may be feasible in pure Go depending on library choice
-- Wayland and compositor integrations often need CGO or native helpers
-- Win32 hotkeys, hooks, monitor APIs, and UIA should prefer pure Go bindings
+Good default instincts: AT-SPI and freedesktop notifications prefer pure Go /
+D-Bus; Wayland and compositor integrations often need CGO or native helpers;
+Win32 hotkeys, hooks, monitor APIs, and UIA prefer pure Go bindings.
 
 If you introduce a backend that changes the build story, update
 [profile.go](../internal/adapter/platform/profile.go), the
-[justfile](../justfile), and this document — and state the build assumption
-explicitly in your PR description and the backend's package comments.
+[justfile](../justfile), and this document, and state the build assumption in
+your PR description and the backend's package comments.
 
 ## Hotkeys And Modifiers
 
 Shared code must not hard-code macOS conventions:
 
-- use `Primary` when you mean "the main accelerator modifier"
-- `Primary` maps to `Cmd` on macOS and `Ctrl` on Linux/Windows
+- use `Primary` when you mean "the main accelerator modifier"; it maps to
+  `Cmd` on macOS and `Ctrl` on Linux/Windows
 - keep backend-specific key translation inside `adapter/platform` code
 - never leak X11, Wayland, Carbon, or Win32 naming into shared app logic
 
@@ -1793,11 +1411,11 @@ names to layout-aware keycodes.
 
 ## Adding A New Capability
 
-Start from [The Three Tiers](#the-three-tiers) — the tier decides everything
+Start from [The Three Tiers](#the-three-tiers). The tier decides everything
 below.
 
 **Tier 1, extending an existing port** (a new OS operation the app needs, and a
-port already covers that subsystem — e.g. another screen query):
+port already covers that subsystem):
 
 1. Add the method to the port, documenting what each platform should do
 2. Implement it in the darwin adapter
@@ -1808,20 +1426,18 @@ port already covers that subsystem — e.g. another screen query):
 6. Add the method to the mock in `internal/ports/mocks/`
 7. Update capability reporting if the support surface changed
 
-**Tier 1, a whole new port** (a subsystem no port covers yet): everything above,
-plus a new `internal/ports/<name>.go`, an adapter package under
-`internal/adapter/`, a `PlatformCapabilities` field **and** its `Entries()`
-registration, and wiring in `startup_phases.go`. Copy the shape of
+**Tier 1, a whole new port**: everything above, plus a new
+`internal/ports/<name>.go`, an adapter package under `internal/adapter/`, a
+`PlatformCapabilities` field **and** its `Entries()` registration, and wiring in
+`startup_phases.go`. Copy the shape of
 [`keyfeed`](../internal/adapter/keyfeed/).
 
-**Tier 2, one adapter package only** (isolated platform behavior):
+**Tier 2, one adapter package only**: keep the shared package code
+platform-agnostic, use `platform_darwin.go` / `platform_other.go` dispatch
+files with unexported functions, and add Linux backend files inside that
+package rather than pushing detection up into shared app or service code.
 
-1. Keep the shared package code platform-agnostic
-2. Use `platform_darwin.go` / `platform_other.go` dispatch files, unexported
-3. Add Linux backend files inside that package rather than pushing detection up
-   into shared app or service code
-
-**Tier 3, an optional extension:** declare the interface in `ports` beside the
+**Tier 3, an optional extension**: declare the interface in `ports` beside the
 port it extends, implement it on the adapters that can, assert compliance with
 `var _ ports.X = (*SystemAdapter)(nil)`, and give the caller a fallback.
 
@@ -1830,14 +1446,13 @@ port it extends, implement it on the adapters that can, assert compliance with
 `PlatformCapabilities` is a registry, not just a struct. Add the field, add a
 `CapabilityKey` constant, and register the pair in `Entries()`. Every renderer
 (`neru doctor`, the IPC info map) iterates `Entries()`, so that is the only
-edit — and
-[capabilities_test.go](../internal/ports/capabilities_test.go) fails if a
-field is added without registering it. Then fill the entry in all three presets
-in [capability_presets.go](../internal/ports/capability_presets.go).
+edit, and [capabilities_test.go](../internal/ports/capabilities_test.go) fails
+if a field is added without registering it. Then fill the entry in all three
+presets in [capability_presets.go](../internal/ports/capability_presets.go).
 
 ## Errors And Capability Reporting
 
-Unimplemented platform behavior returns `CodeNotSupported` — never a silent
+Unimplemented platform behavior returns `CodeNotSupported`, never a silent
 no-op, unless the behavior is explicitly documented as best-effort:
 
 ```go
@@ -1845,63 +1460,58 @@ return derrors.New(derrors.CodeNotSupported, "ScreenBounds not yet implemented o
 ```
 
 Name the missing operation and the platform in the message. Callers degrade
-gracefully via `derrors.IsNotSupported(err)`.
+via `derrors.IsNotSupported(err)`.
 
 **A word is not the same question as a subsystem.** When the thing you shipped
-or stubbed is an option, a mode flag or an action rather than a capability,
-the answer goes in the `PlatformSupport()` declaration beside that vocabulary —
-`internal/config/platform_support.go`,
+or stubbed is an option, a mode flag or an action rather than a capability, the
+answer goes in the `PlatformSupport()` declaration beside that vocabulary
+(`internal/config/platform_support.go`,
 `internal/domain/modecmd/platform_support.go`,
-`internal/domain/action/platform_support.go` — and
+`internal/domain/action/platform_support.go`), and
 `internal/architecture/platform_support_test.go` fails the build while a word
-has no column. Regenerate the published table with `just gensupportref`. A
-subsystem can be green in every cell of the matrix while an option a person
-wrote means nothing
-([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
+has no column. Regenerate the published table with `just gensupportref`.
 
-Capability reporting is part of the contract, not a user nicety — it is what
-`neru doctor` prints. When you implement or partially implement a feature,
-review [capabilities.go](../internal/ports/capabilities.go),
+Capability reporting is part of the contract, since it is what `neru doctor`
+prints. When you implement or partially implement a feature, review
+[capabilities.go](../internal/ports/capabilities.go),
 [capability_presets.go](../internal/ports/capability_presets.go), and
 [info.go](../internal/app/ipcctrl/info.go). A stub must report `stub`, not
-`supported` — and a shipped feature must stop reporting `stub`. When a feature
-becomes real: replace the `CodeNotSupported` return, update the capability
-detail, and delete TODO wording that no longer applies.
+`supported`, and a shipped feature must stop reporting `stub`.
 
 ## Testing Checklist
 
 - **unit tests** for shared parsing, normalization, routing, or config logic
   (`*_test.go`, using mocks from `internal/ports/mocks`)
-- **contract tests** pinning `CodeNotSupported` behavior and capability semantics
+- **contract tests** pinning `CodeNotSupported` behavior and capability
+  semantics
 - **integration tests** for real platform behavior, tagged per-OS
   (`*_integration_linux_test.go`, `*_integration_darwin_test.go`,
   `*_integration_windows_test.go`)
 
-Questions your tests should answer:
-
-- does the adapter return the right error when the feature is unsupported?
-- does the capability matrix reflect the new state?
-- does backend selection route to the intended Linux slot?
-- does shared logic stay platform-neutral?
+Questions your tests should answer: does the adapter return the right error
+when the feature is unsupported? Does the capability matrix reflect the new
+state? Does backend selection route to the intended Linux slot? Does shared
+logic stay platform-neutral?
 
 ## Documentation Checklist
 
-Land docs in the same PR as the platform work. Each fact has exactly one home —
-update the one that owns it rather than restating it elsewhere:
+Land docs in the same PR as the platform work. Each fact has exactly one home.
+Update the one that owns it rather than restating it elsewhere:
 
 | What changed                                    | Update                                                        |
 | ----------------------------------------------- | ------------------------------------------------------------- |
-| A capability's status or mechanism              | **this file** — the parity tables in Part 1                   |
-| A gap closed or discovered                      | **this file** — [Known Gaps](#known-gaps)                     |
+| A capability's status or mechanism              | **this file**, the parity tables in Part 1                    |
+| A gap closed or discovered                      | **this file**, [Known Gaps](#known-gaps)                      |
 | Which platforms an option, mode flag or action does anything on | the `PlatformSupport()` declaration beside that vocabulary, then `just gensupportref` |
 | Desktop-specific setup, protocol support, or a DE workaround | [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md)         |
-| Host dependencies, permissions, or deployment   | [LINUX_SETUP.md](./LINUX_SETUP.md) — keep DE-agnostic         |
+| Host dependencies, permissions, or deployment   | [LINUX_SETUP.md](./LINUX_SETUP.md), kept DE-agnostic          |
 | A layer boundary, port contract, or data flow   | [ARCHITECTURE.md](./ARCHITECTURE.md)                          |
 | A build recipe or test tier                     | [DEVELOPMENT.md](./DEVELOPMENT.md)                            |
 | Go style, logging, or naming                    | [AGENTS.md](../AGENTS.md) (Conventions)                       |
 | What the project claims to support, at a glance | [README.md](../README.md)                                     |
+| What comes next                                 | [ROADMAP.md](./ROADMAP.md), intent and priority only          |
 
-ARCHITECTURE.md deliberately does **not** track per-platform support — it
+ARCHITECTURE.md deliberately does **not** track per-platform support. It
 describes shape, not status. Do not add a capability table there.
 
 ## Contributing Safely
@@ -1909,12 +1519,11 @@ describes shape, not status. Do not add a capability table there.
 **Good starter tasks:**
 
 - improve capability detail text for an existing platform slice
-- replace a Linux `CodeNotSupported` return with real X11 or AT-SPI behavior
 - add a contract test for a currently stubbed feature
-- pick a numbered item from [Known Gaps](#known-gaps)
+- reproduce and fix a bug labelled `platform: linux` or `platform: windows`
 - document missing backend assumptions in the package you are touching
 
-**Higher-risk — open or link an issue first:**
+**Higher-risk, open or link an issue first:**
 
 - changing shared input semantics
 - introducing CGO to a backend that was previously pure Go
@@ -1924,5 +1533,5 @@ describes shape, not status. Do not add a capability table there.
 **A good platform PR** leaves the repo better in five ways: the implementation
 sits in the intended file slot, unsupported paths stay explicit and honest,
 capability reporting is updated, tests cover the new behavior or contract, and
-the docs tell the next contributor what changed. That is the bar even for small
-slices.
+the docs tell the next contributor what changed. That is the bar even for
+small slices.
