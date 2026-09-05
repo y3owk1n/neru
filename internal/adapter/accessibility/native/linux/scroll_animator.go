@@ -155,18 +155,26 @@ func scrollChunks(delta float64, steps int, granularity float64, maxUnits int) [
 
 	total := delta
 
-	if granularity > 0 && maxUnits > 0 {
-		ceiling := float64(maxUnits) * granularity
-		total = math.Max(math.Min(total, ceiling), -ceiling)
+	// A granular backend travels the nearest whole number of units, never
+	// fewer than one, exactly as the unanimated path counts them in
+	// scrollNotches. The animation spreads the same notches over time, it
+	// does not shorten the scroll. Rounding up front rather than per step
+	// is what lets the eased chunks below truncate and still add up to it.
+	if granularity > 0 {
+		units := math.Max(math.Round(math.Abs(total)/granularity), 1)
+		if maxUnits > 0 {
+			units = math.Min(units, float64(maxUnits))
+		}
+
+		total = math.Copysign(units*granularity, total)
 	}
 
-	// A scroll worth one unit or less on a granular backend is not an
-	// animation: whatever the curve says, exactly one event goes out. Putting
-	// it anywhere but the first step would deliver the same single wheel click
-	// the unanimated path sends, only later — pure added latency, which is the
-	// one thing this must not buy. X11 with the default scroll_step of 50
-	// pixels is exactly that case.
-	if granularity > 0 && math.Trunc(math.Abs(total)/granularity) <= 1 {
+	// A scroll worth one unit on a granular backend is not an animation:
+	// whatever the curve says, exactly one event goes out. Putting it anywhere
+	// but the first step would deliver the same single wheel click the
+	// unanimated path sends, only later — pure added latency, which is the one
+	// thing this must not buy. A scroll_step under 45 pixels is that case.
+	if granularity > 0 && math.Abs(total) == granularity {
 		unit := granularity
 		if total < 0 {
 			unit = -granularity

@@ -221,11 +221,22 @@ event, and the XTEST pointer has no scroll valuator for the smooth XI2 path.
 Windows sits with Wayland: `MOUSEEVENTF_WHEEL` counts 120ths of `WHEEL_DELTA`,
 so the animator steps in 120ths of a notch.
 
-**So X11 animates in notches, and a scroll worth one notch is not animated at
-all.** The default `scroll.scroll_step` of 50 pixels is exactly one notch
-there, so a plain `scroll_down` on X11 arrives as the single wheel click it
-always did. From two notches up the same eased curve applies as everywhere
-else.
+**What a `scroll_step` number means differs per platform.** macOS posts
+pixel-unit wheel events, so a step of 50 scrolls 50 px. Windows sends
+`WHEEL_DELTA` units at 4 per pixel (120 per 30 px notch), so 50 px is 200
+units, delivered exactly, and an application accumulates the fraction the
+way it does for a high-resolution wheel. Linux converts at 30 px per notch on
+each path that sends notches (uinput, the wlroots virtual pointer, XTest) and
+rounds to the nearest, never fewer than one. 44 px is one notch, 45 px and
+the default 50 px are two, 500 px is seventeen. Rounding rather than
+truncation is what keeps a 59 px step from travelling no further than a
+30 px one. On KDE, libei carries the pixel delta as is.
+
+**So X11 animates in notches, and a scroll that rounds to one notch is not
+animated at all.** A `scroll_step` under 45 pixels on X11 arrives as the
+single wheel click it always did. From two notches up, the default included,
+the same eased curve applies as everywhere else, and the animated scroll
+travels the same notch count as the unanimated one.
 
 Neru sends the same distance on every backend. On Wayland the animated path
 spends that distance as a continuous delta where the unanimated one spends it

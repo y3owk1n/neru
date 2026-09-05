@@ -206,12 +206,10 @@ func wlrootsMouseUp(button action.MouseButton) error {
 	return nil
 }
 
-// wlrootsScrollScale mirrors the uinput scroll scaling constant so
-// that both backends produce comparable scroll behavior from the same
-// pixel-level delta values supplied by the scroll service
-// (e.g. ScrollStep=50, ScrollStepHalf=500, ScrollStepFull=1000000).
+// wlrootsScrollStep is the pixel value one virtual-pointer notch carries,
+// the same figure the uinput path counts notches in, so the two backends
+// travel the same distance from the same scroll service delta.
 const (
-	wlrootsScrollScale     = scrollPixelsPerNotch
 	wlrootsScrollMaxEvents = 50
 	wlrootsScrollStep      = scrollPixelsPerNotch // pixels per notch
 )
@@ -340,10 +338,7 @@ func (s *waylandScrollSession) close() {
 // Application  convention: positive delta = scroll up (axis 0) / right (axis 1).
 // Vertical axis sign is negated to convert between the two.
 func wlrootsScrollAxis(axis int, delta int) error {
-	totalNotches := abs(delta) / wlrootsScrollScale
-	if totalNotches == 0 {
-		totalNotches = 1
-	}
+	totalNotches := scrollNotches(delta)
 
 	step, disc := wlrootsScrollNotch(axis, delta, wlrootsScrollStep)
 
