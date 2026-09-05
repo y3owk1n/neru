@@ -1,6 +1,5 @@
-// Evdev capture lifecycle: device scanning, reader goroutines, and the
-// exclusive grab/ungrab dance, plus modifier-state queries against the
-// captured devices.
+// The device layer of the evdev proxy: scanning /dev/input for keyboards,
+// grabbing them, and reading them onto one channel for the proxy's run loop.
 
 //go:build linux && cgo
 
@@ -13,15 +12,48 @@ package linux
 import "C"
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
+	"sync"
+	"unsafe"
 
 	"go.uber.org/zap"
 )
 
-func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
+type waylandEvdevCapture struct {
+	files  []*os.File
+	events chan waylandEvdevEvent
+	logger *zap.Logger
+
+	// grab is whether devices are taken exclusively (EVIOCGRAB) as they are
+	// opened. The proxy grabs; a passive capture, which has no uinput device
+	// to re-emit through, reads alongside the compositor instead.
+	grab bool
+
+	closeOnce sync.Once
+	stopCh    chan struct{}
+	done      sync.WaitGroup
+
+	deviceMu      sync.Mutex
+	inotifyFd     int
+	hotplugStopCh chan struct{}
+	hotplugOnce   sync.Once
+	hotplugWg     sync.WaitGroup
+
+	// xkbState holds a C xkb_state initialized from the compositor's keymap.
+	// Used to resolve evdev scan codes to key names that respect XKB options.
+	xkbState unsafe.Pointer // *C.neru_xkb_state
+}
+
+// newWaylandEvdevCapture opens every keyboard under /dev/input. With grab set,
+// each is taken exclusively on the way in and the keys the kernel reports held
+// on it are pushed as seed events, ahead of anything the device sends.
+//
+// A device another process already holds (a key remapper such as kanata or keyd
+// grabs its input keyboards for its own lifetime) refuses the grab and is
+// skipped; the remapper's virtual output keyboard is a keyboard like any other
+// and is taken instead, which is the one that carries the user's keys.
+func newWaylandEvdevCapture(logger *zap.Logger, grab bool) (*waylandEvdevCapture, error) {
 	paths, err := filepath.Glob("/dev/input/event*")
 	if err != nil {
 		return nil, err
@@ -31,35 +63,15 @@ func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
 		files:     make([]*os.File, 0, len(paths)),
 		events:    make(chan waylandEvdevEvent, waylandEvdevEventBufferSize),
 		logger:    logger,
+		grab:      grab,
+		stopCh:    make(chan struct{}),
 		inotifyFd: -1,
 	}
 
 	for _, path := range paths {
-		file, openErr := os.Open(path)
-		if openErr != nil {
-			continue
+		if _, seeds, ok := capture.addDeviceLocked(path); ok {
+			capture.sendSeeds(seeds)
 		}
-
-		fileDescriptor := C.int(file.Fd())
-		if C.neru_evdev_is_keyboard(fileDescriptor) == 0 {
-			_ = file.Close()
-
-			continue
-		}
-
-		var deviceName [waylandEvdevDeviceNameSize]C.char
-		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) <= 0 {
-			deviceName[0] = 0
-		}
-
-		name := C.GoString(&deviceName[0])
-		if isUinputVirtualDevice(fileDescriptor, name) {
-			_ = file.Close()
-
-			continue
-		}
-
-		capture.files = append(capture.files, file)
 	}
 
 	if len(capture.files) == 0 {
@@ -73,6 +85,7 @@ func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
 			"Evdev capture created",
 			zap.Int("keyboard_devices", len(capture.files)),
 			zap.Int("total_event_devices", len(paths)),
+			zap.Bool("grabbed", grab),
 		)
 	}
 
@@ -85,24 +98,28 @@ func (capture *waylandEvdevCapture) Close() {
 	}
 
 	capture.closeOnce.Do(func() {
+		close(capture.stopCh)
+
 		// Stop the hotplug watcher first: closing the inotify fd unblocks
 		// the hotplugLoop goroutine, causing it to exit.
 		capture.stopHotplugWatcher()
 
 		capture.deviceMu.Lock()
-		capture.ungrabAllLocked()
-
 		for _, file := range capture.files {
+			if capture.grab {
+				C.neru_evdev_grab(C.int(file.Fd()), 0)
+			}
+
 			_ = file.Close()
 		}
 
 		capture.files = nil
 		capture.deviceMu.Unlock()
 
-		// Wait for all reader goroutines to finish. Closing the files above
-		// makes neru_evdev_read_event return immediately, causing each reader
-		// to exit. We must wait here so that no reader can send on the events
-		// channel after we close it below.
+		// Wait for all reader goroutines to finish. A reader blocked in read
+		// returns on the device's next event or on the closed fd, and one
+		// blocked handing an event on returns on stopCh. We must wait here so
+		// that no reader can send on the events channel after we close it.
 		capture.done.Wait()
 
 		close(capture.events)
@@ -118,17 +135,117 @@ func (capture *waylandEvdevCapture) Close() {
 	})
 }
 
+// addDeviceLocked opens path and keeps it when it is a keyboard this capture
+// should read, answering the file and the keys the kernel reported held on it
+// at grab time. The caller holds deviceMu, or is the constructor before anyone
+// else can, and sends the seeds itself once it no longer holds the lock — the
+// proxy's run loop takes deviceMu too, so a send made under it could wait on
+// the one goroutine that would drain it.
+func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, []uint16, bool) {
+	// Read-write so the compositor's LED changes can be written back to the
+	// device; a node that only grants reading is still a keyboard to read.
+	file, openErr := os.OpenFile(path, os.O_RDWR, 0)
+	if openErr != nil {
+		file, openErr = os.Open(path)
+	}
+
+	if openErr != nil {
+		return nil, nil, false
+	}
+
+	descriptor := C.int(file.Fd())
+
+	var deviceName [waylandEvdevDeviceNameSize]C.char
+	if C.neru_evdev_get_name(descriptor, &deviceName[0], waylandEvdevDeviceNameSize) <= 0 {
+		deviceName[0] = 0
+	}
+
+	name := C.GoString(&deviceName[0])
+
+	// A Neru device is known by its vendor id as well as its name, so the proxy
+	// cannot grab its own output even on a node whose name did not read.
+	if C.neru_evdev_is_keyboard(descriptor) == 0 ||
+		C.neru_evdev_has_pointer_axes(descriptor) != 0 ||
+		C.neru_evdev_is_neru_device(descriptor) != 0 ||
+		isNeruInjectionDevice(name) {
+		_ = file.Close()
+
+		return nil, nil, false
+	}
+
+	for _, tracked := range capture.files {
+		if tracked.Name() == path {
+			_ = file.Close()
+
+			return nil, nil, false
+		}
+	}
+
+	var seeds []uint16
+
+	if capture.grab {
+		if C.neru_evdev_grab(descriptor, 1) != 0 {
+			// Owned by another grabber, which is what a remapper looks like.
+			// Debug, not warn: its output device is captured in its place.
+			if capture.logger != nil {
+				capture.logger.Debug(
+					"Keyboard device refused the grab; leaving it to its owner",
+					zap.String("device", path),
+				)
+			}
+
+			_ = file.Close()
+
+			return nil, nil, false
+		}
+
+		seeds = heldKeys(descriptor)
+	}
+
+	capture.files = append(capture.files, file)
+
+	return file, seeds, true
+}
+
+// heldKeys is every key the kernel reports down on fd, read right after the
+// grab so the compositor's picture of them can be honored (forwardRule.seed).
+func heldKeys(fd C.int) []uint16 {
+	var bits [evdevKeyCodeCount / evdevBitsPerWord]C.ulong
+	if C.neru_evdev_get_key_state(fd, &bits[0], C.size_t(unsafe.Sizeof(bits))) != 0 {
+		return nil
+	}
+
+	var codes []uint16
+
+	for code := range uint16(evdevKeyCodeCount) {
+		if bits[code/evdevBitsPerWord]&(1<<(code%evdevBitsPerWord)) != 0 {
+			codes = append(codes, code)
+		}
+	}
+
+	return codes
+}
+
+// sendSeeds pushes one seed event per held key. It has to run before the
+// device's reader starts, so the seeds reach the proxy ahead of the device's
+// first event.
+func (capture *waylandEvdevCapture) sendSeeds(codes []uint16) {
+	for _, code := range codes {
+		select {
+		case capture.events <- waylandEvdevEvent{eventType: evdevEventSeed, code: code}:
+		case <-capture.stopCh:
+			return
+		}
+	}
+}
+
 // startReaders launches reader goroutines for each captured keyboard device
 // and starts the inotify hotplug watcher for detecting device hotplug.
-// These goroutines run for the entire lifetime of the capture, outliving
-// individual Enable/Disable cycles. Events are sent to capture.events with
-// a non-blocking send so that a full buffer (e.g. while Neru is disabled)
-// simply drops stale events instead of blocking the reader.
+// These goroutines run for the entire lifetime of the capture.
 func (capture *waylandEvdevCapture) startReaders() {
 	capture.deviceMu.Lock()
 	for _, file := range capture.files {
-		capture.done.Add(1)
-		go capture.readLoop(file)
+		capture.startReader(file)
 	}
 	capture.deviceMu.Unlock()
 
@@ -140,6 +257,9 @@ func (capture *waylandEvdevCapture) startReader(file *os.File) {
 	go capture.readLoop(file)
 }
 
+// readLoop hands every event the device produces to the proxy. The send blocks
+// rather than drops: with the device grabbed, an event dropped here is a key the
+// user pressed that reaches nothing.
 func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 	defer capture.done.Done()
 
@@ -159,7 +279,7 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 			}
 
 			// Device disconnected — remove it from the tracked files slice
-			// so we don't attempt to grab/query a stale fd on the next cycle.
+			// so we don't attempt to write LEDs to a stale fd.
 			capture.deviceMu.Lock()
 			capture.removeFileLocked(file)
 			capture.deviceMu.Unlock()
@@ -168,16 +288,14 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 			return
 		}
 
-		// Non-blocking send: if the events channel is full (Neru is disabled
-		// between modes and stale events have accumulated), silently drop the
-		// event rather than blocking the reader.
 		select {
 		case capture.events <- waylandEvdevEvent{
 			eventType: uint16(inputEvent._type),
 			code:      uint16(inputEvent.code),
 			value:     int32(inputEvent.value),
 		}:
-		default:
+		case <-capture.stopCh:
+			return
 		}
 	}
 }
@@ -194,235 +312,43 @@ func (capture *waylandEvdevCapture) removeFileLocked(file *os.File) {
 	}
 }
 
-func (capture *waylandEvdevCapture) grabAll() error {
-	capture.deviceMu.Lock()
-	defer capture.deviceMu.Unlock()
-
-	return capture.grabAllLocked()
-}
-
-func (capture *waylandEvdevCapture) grabAllLocked() error {
-	if capture == nil || capture.grabbed {
-		return nil
-	}
-
-	var grabbedFiles []*os.File
-	var failedFiles []string
-
-	for _, file := range capture.files {
-		fd := C.int(file.Fd())
-		if C.neru_evdev_grab(fd, 1) != 0 {
-			failedFiles = append(failedFiles, file.Name())
-
-			continue
-		}
-
-		grabbedFiles = append(grabbedFiles, file)
-	}
-
-	if len(grabbedFiles) == 0 {
-		for _, f := range capture.files {
-			_ = f.Close()
-		}
-
-		virtualFile := capture.findVirtualDevice()
-		if virtualFile != nil {
-			kfd := C.int(virtualFile.Fd())
-			if C.neru_evdev_grab(kfd, 1) != 0 {
-				_ = virtualFile.Close()
-			} else {
-				capture.files = []*os.File{virtualFile}
-				capture.grabbed = true
-
-				return nil
-			}
-		}
-
-		return fmt.Errorf(
-			"%w: all keyboards failed to grab (tried: %v)",
-			errWaylandEvdevGrabFailed,
-			failedFiles,
-		)
-	}
-
-	if capture.logger != nil && len(failedFiles) > 0 {
-		capture.logger.Warn(
-			"Partial keyboard grab failure; some keyboards not captured",
-			zap.Strings("failed", failedFiles),
-		)
-	}
-
-	var remainingFiles []*os.File
-	for _, file := range capture.files {
-		if !slices.Contains(grabbedFiles, file) {
-			_ = file.Close()
-		} else {
-			remainingFiles = append(remainingFiles, file)
-		}
-	}
-
-	capture.files = remainingFiles
-	capture.grabbed = true
-
-	return nil
-}
-
-func (capture *waylandEvdevCapture) findVirtualDevice() *os.File {
-	paths, _ := filepath.Glob("/dev/input/event*")
-	for _, path := range paths {
-		file, openErr := os.Open(path)
-		if openErr != nil {
-			continue
-		}
-
-		fileDescriptor := C.int(file.Fd())
-
-		var deviceName [waylandEvdevDeviceNameSize]C.char
-		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) <= 0 {
-			deviceName[0] = 0
-		}
-
-		name := C.GoString(&deviceName[0])
-		if !isUinputVirtualDevice(fileDescriptor, name) || isNeruInjectionDevice(name) {
-			_ = file.Close()
-
-			continue
-		}
-
-		if C.neru_evdev_is_keyboard(fileDescriptor) != 0 {
-			return file
-		}
-
-		_ = file.Close()
-	}
-
-	return nil
-}
-
+// ungrabAll hands every device back to the compositor and stops grabbing the
+// ones that arrive later. It is the proxy failing open: with nothing to re-emit
+// through, holding the keyboards would be holding the user's keys.
 func (capture *waylandEvdevCapture) ungrabAll() {
 	capture.deviceMu.Lock()
 	defer capture.deviceMu.Unlock()
 
-	capture.ungrabAllLocked()
-}
-
-func (capture *waylandEvdevCapture) ungrabAllLocked() {
-	if capture == nil || !capture.grabbed {
+	if !capture.grab {
 		return
 	}
 
-	for _, file := range capture.files {
-		fd := C.int(file.Fd())
-		C.neru_evdev_grab(fd, 0)
-	}
+	capture.grab = false
 
-	capture.grabbed = false
+	for _, file := range capture.files {
+		C.neru_evdev_grab(C.int(file.Fd()), 0)
+	}
 }
 
-func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
+func (capture *waylandEvdevCapture) deviceCount() int {
 	if capture == nil {
-		return false
+		return 0
 	}
 
 	capture.deviceMu.Lock()
 	defer capture.deviceMu.Unlock()
 
-	modifierCodes := []uint16{
-		evdevKeyLeftShift,
-		evdevKeyRightShift,
-		evdevKeyLeftCtrl,
-		evdevKeyRightCtrl,
-		evdevKeyLeftAlt,
-		evdevKeyRightAlt,
-		evdevKeyLeftMeta,
-		evdevKeyRightMeta,
-	}
-
-	for _, file := range capture.files {
-		fd := C.int(file.Fd())
-
-		for _, code := range modifierCodes {
-			if C.neru_evdev_key_down(fd, C.uint(code)) != 0 {
-				return true
-			}
-		}
-	}
-
-	return false
+	return len(capture.files)
 }
 
-// queryAllPressedKeys retrieves all currently pressed keys via EVIOCGKEY from
-// each captured device and records them in the pressed map. This is called
-// after EVIOCGRAB because the kernel replays the current key state through the
-// SYN_DROPPED mechanism. By querying the state here we can distinguish keys
-// that were held before mode activation from keys pressed during the mode.
-func queryAllPressedKeys(capture *waylandEvdevCapture, pressed map[uint16]bool) {
-	if capture == nil {
-		return
-	}
-
+// writeToDevices writes one event to every captured device. It is how the
+// compositor's LED changes, which land on the proxy keyboard, reach the lights
+// on the physical ones.
+func (capture *waylandEvdevCapture) writeToDevices(event *C.struct_input_event) {
 	capture.deviceMu.Lock()
 	defer capture.deviceMu.Unlock()
 
-	keycodes := make([]C.uint, evdevMaxPressedKeys)
-
 	for _, file := range capture.files {
-		fd := C.int(file.Fd())
-		n := int(C.neru_evdev_get_pressed_keys(fd, &keycodes[0], C.int(len(keycodes))))
-		if n <= 0 {
-			continue
-		}
-
-		for i := range min(n, len(keycodes)) {
-			code := uint16(keycodes[i])
-			pressed[code] = true
-		}
+		C.neru_evdev_write_event(C.int(file.Fd()), event)
 	}
-}
-
-// queryEvdevModifierState queries the current evdev key state and returns
-// a linuxModifierState counting any held modifier keys across all captured
-// devices. Keys that are physically held are also recorded in pressed so that
-// the event-loop press handler can avoid double-counting when the
-// corresponding evdev press event is processed from the buffer.
-func queryEvdevModifierState(
-	capture *waylandEvdevCapture,
-	pressed map[uint16]bool,
-) linuxModifierState {
-	if capture == nil {
-		return linuxModifierState{}
-	}
-
-	capture.deviceMu.Lock()
-	defer capture.deviceMu.Unlock()
-
-	var state linuxModifierState
-
-	type modifierKey struct {
-		code     uint16
-		modifier string
-	}
-	modifierKeys := []modifierKey{
-		{evdevKeyLeftShift, evdevModifierShift},
-		{evdevKeyRightShift, evdevModifierShift},
-		{evdevKeyLeftCtrl, evdevModifierCtrl},
-		{evdevKeyRightCtrl, evdevModifierCtrl},
-		{evdevKeyLeftAlt, evdevModifierAlt},
-		{evdevKeyRightAlt, evdevModifierAlt},
-		{evdevKeyLeftMeta, evdevModifierCmd},
-		{evdevKeyRightMeta, evdevModifierCmd},
-	}
-
-	for _, file := range capture.files {
-		fd := C.int(file.Fd())
-
-		for _, mk := range modifierKeys {
-			if C.neru_evdev_key_down(fd, C.uint(mk.code)) != 0 {
-				state.update(mk.modifier, true)
-				pressed[mk.code] = true
-			}
-		}
-	}
-
-	return state
 }

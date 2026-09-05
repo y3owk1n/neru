@@ -9,6 +9,10 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+/* Every uinput device Neru creates carries this vendor id, so the keyboard
+ * proxy can tell its own output from a keyboard whatever the device is named. */
+#define NERU_UINPUT_VENDOR 0x1234
+
 int neru_evdev_grab(int fd, int grab) { return ioctl(fd, EVIOCGRAB, grab); }
 
 int neru_evdev_key_down(int fd, unsigned int keycode) {
@@ -55,6 +59,14 @@ int neru_evdev_led_is_on(int fd, unsigned int led) {
 	int idx = led / (8 * (int)sizeof(unsigned long));
 	int bit = led % (8 * (int)sizeof(unsigned long));
 	return (led_bits[idx] >> bit) & 1UL;
+}
+
+int neru_evdev_is_neru_device(int fd) {
+	struct input_id id;
+	if (ioctl(fd, EVIOCGID, &id) < 0) {
+		return 0;
+	}
+	return id.bustype == BUS_VIRTUAL && id.vendor == NERU_UINPUT_VENDOR;
 }
 
 int neru_evdev_get_bustype(int fd) {
@@ -140,7 +152,7 @@ int neru_uinput_create_scroll(int *out_fd) {
 	struct uinput_setup usetup;
 	memset(&usetup, 0, sizeof(usetup));
 	usetup.id.bustype = BUS_USB;
-	usetup.id.vendor = 0x1234;
+	usetup.id.vendor = NERU_UINPUT_VENDOR;
 	usetup.id.product = 0x5678;
 	strcpy(usetup.name, "neru-scroll");
 	if (ioctl(fd, UI_DEV_SETUP, &usetup) < 0) {
@@ -262,7 +274,7 @@ int neru_uinput_create_keyboard(int *out_fd) {
 	// (isUinputVirtualDevice) skips it — otherwise EVIOCGRAB would grab our
 	// injected keys and loop them straight back into the event tap.
 	usetup.id.bustype = BUS_VIRTUAL;
-	usetup.id.vendor = 0x1234;
+	usetup.id.vendor = NERU_UINPUT_VENDOR;
 	usetup.id.product = 0x5679;
 	strcpy(usetup.name, "neru-keyboard");
 	if (ioctl(fd, UI_DEV_SETUP, &usetup) < 0) {
@@ -299,4 +311,121 @@ int neru_uinput_key(int fd, int keycode, int pressed) {
 
 	ssize_t written = write(fd, ev, sizeof(ev));
 	return (written == (ssize_t)sizeof(ev)) ? 1 : 0;
+}
+
+/* A node that reports relative or absolute axes is a pointer with keys on it
+ * (a receiver that exposes its mouse and keyboard on one node, a keyboard with
+ * a built-in trackpad). Grabbing it for its keys would swallow its motion, and
+ * the proxy keyboard has no axes to re-emit that motion on. */
+int neru_evdev_has_pointer_axes(int fd) {
+	unsigned long ev_bits[(EV_MAX + 8 * sizeof(unsigned long)) / (8 * sizeof(unsigned long))];
+	memset(ev_bits, 0, sizeof(ev_bits));
+
+	if (ioctl(fd, EVIOCGBIT(0, sizeof(ev_bits)), ev_bits) < 0) {
+		return 0;
+	}
+
+	return NERU_TEST_KEY(ev_bits, EV_REL) || NERU_TEST_KEY(ev_bits, EV_ABS);
+}
+
+/* The keys the kernel reports down on fd, as the EVIOCGKEY bitmap. bits_size
+ * is in bytes and must cover KEY_MAX. */
+int neru_evdev_get_key_state(int fd, unsigned long *bits, size_t bits_size) {
+	memset(bits, 0, bits_size);
+	return ioctl(fd, EVIOCGKEY(bits_size), bits) < 0 ? -1 : 0;
+}
+
+/* Every key code a keyboard can carry, and none of the button codes: the
+ * BTN_* block (BTN_MISC up to KEY_OK) and BTN_TRIGGER_HAPPY* would make udev
+ * class the device as a joystick or a pointer and libinput treat it
+ * accordingly. Advertising the full keyboard range rather than the union of
+ * the grabbed devices means a keyboard plugged in later needs no new device. */
+static int neru_uinput_proxy_is_keyboard_code(int code) {
+	if (code >= BTN_MISC && code < KEY_OK)
+		return 0;
+	if (code >= BTN_TRIGGER_HAPPY)
+		return 0;
+	return 1;
+}
+
+/* On failure errno describes the /dev/uinput open or the ioctl that refused,
+ * as neru_uinput_create_scroll leaves it. */
+int neru_uinput_create_proxy_keyboard(int *out_fd) {
+	/* Blocking on purpose: a write to uinput never waits, and the LED relay
+	 * reads this fd for the compositor's LED changes, which it waits on. */
+	int fd = open("/dev/uinput", O_RDWR);
+	if (fd < 0) {
+		int open_errno = errno;
+		fd = open("/dev/input/uinput", O_RDWR);
+		if (fd < 0) {
+			errno = open_errno;
+			return 0;
+		}
+	}
+
+	if (ioctl(fd, UI_SET_EVBIT, EV_KEY) < 0 || ioctl(fd, UI_SET_EVBIT, EV_SYN) < 0 ||
+	    ioctl(fd, UI_SET_EVBIT, EV_MSC) < 0 || ioctl(fd, UI_SET_MSCBIT, MSC_SCAN) < 0 ||
+	    ioctl(fd, UI_SET_EVBIT, EV_LED) < 0) {
+		neru_uinput_fail(fd);
+		return 0;
+	}
+
+	for (int code = 1; code < KEY_MAX; code++) {
+		if (!neru_uinput_proxy_is_keyboard_code(code))
+			continue;
+		if (ioctl(fd, UI_SET_KEYBIT, code) < 0) {
+			neru_uinput_fail(fd);
+			return 0;
+		}
+	}
+
+	static const int leds[] = {LED_NUML, LED_CAPSL, LED_SCROLLL, LED_COMPOSE, LED_KANA};
+	for (size_t i = 0; i < sizeof(leds) / sizeof(leds[0]); i++) {
+		if (ioctl(fd, UI_SET_LEDBIT, leds[i]) < 0) {
+			neru_uinput_fail(fd);
+			return 0;
+		}
+	}
+
+	struct uinput_setup usetup;
+	memset(&usetup, 0, sizeof(usetup));
+	/* BUS_VIRTUAL and the neru- prefix are what keep the capture from
+	 * grabbing its own output (isNeruInjectionDevice). */
+	usetup.id.bustype = BUS_VIRTUAL;
+	usetup.id.vendor = NERU_UINPUT_VENDOR;
+	usetup.id.product = 0x567a;
+	strcpy(usetup.name, "neru-keyboard-proxy");
+	if (ioctl(fd, UI_DEV_SETUP, &usetup) < 0 || ioctl(fd, UI_DEV_CREATE) < 0) {
+		neru_uinput_fail(fd);
+		return 0;
+	}
+
+	*out_fd = fd;
+	return 1;
+}
+
+int neru_uinput_destroy(int fd) {
+	if (fd < 0)
+		return -1;
+	ioctl(fd, UI_DEV_DESTROY);
+	return close(fd);
+}
+
+ssize_t neru_evdev_write_event(int fd, const struct input_event *event) {
+	ssize_t n;
+	do {
+		n = write(fd, event, sizeof(struct input_event));
+	} while (n < 0 && errno == EINTR);
+	return n;
+}
+
+ssize_t neru_evdev_write_events(int fd, const struct input_event *events, int count) {
+	if (count <= 0)
+		return 0;
+	size_t total = (size_t)count * sizeof(struct input_event);
+	ssize_t n;
+	do {
+		n = write(fd, events, total);
+	} while (n < 0 && errno == EINTR);
+	return n;
 }

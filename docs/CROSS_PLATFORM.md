@@ -192,8 +192,8 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous virtual-pointer axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ✅ 120ths of a notch ³ |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, control view only    |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ DirectComposition + Direct2D (GDI fallback; windows/arm64 is GDI only ⁷) |
-| **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ⚠️ passive evdev read        | ⚠️ passive evdev read   | ✅ `RegisterHotKey`          |
-| **Keyboard capture**          | ✅ CGEventTap            | ✅ `XGrabKeyboard`     | ✅ evdev grab (wl-keyboard fallback) | ✅ evdev grab   | ✅ `WH_KEYBOARD_LL`          |
+| **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ✅ evdev proxy (`input` group) | ✅ evdev proxy (`input` group) | ✅ `RegisterHotKey`          |
+| **Keyboard capture**          | ✅ CGEventTap            | ✅ `XGrabKeyboard`     | ✅ evdev proxy (uinput; wl-keyboard fallback) | ✅ evdev proxy (uinput) | ✅ `WH_KEYBOARD_LL`          |
 | **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ✅ `WH_KEYBOARD_LL` forwards or blocks per event |
 | **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
 | **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ✅ GDI `EnumFontFamiliesExW` ¹ |
@@ -555,21 +555,26 @@ the overlay as it does on macOS. Only activate, deactivate and screen-params
 are emitted there; launch, terminate and Mission Control stay macOS-only.
 
 **Global hotkeys on Wayland.** No Wayland protocol lets an ordinary client
-register a global hotkey, so Neru reads `/dev/input/event*` directly with a
-**passive** evdev listener — it does not grab devices or inject anything, so the
-focused app still receives every key
-([global_hotkey_cgo.go](../internal/adapter/eventtap/linux/global_hotkey_cgo.go)).
-Two conditions apply: the process needs read access to `/dev/input` (add your
-user to the `input` group), and it requires CGO — a `CGO_ENABLED=0` build gets a
-stub whose `Start` reports `CodeNotSupported`
+register a global hotkey, so Neru matches chords itself on the evdev keyboard
+proxy — the one reader of `/dev/input/event*` that the in-mode capture also
+runs on ([global_hotkey_cgo.go](../internal/adapter/eventtap/linux/global_hotkey_cgo.go),
+[evdev_proxy_cgo.go](../internal/adapter/eventtap/linux/evdev_proxy_cgo.go);
+[ADR 0014](adr/0014-the-wayland-keyboard-is-a-proxy.md)). With `/dev/uinput`
+writable the proxy holds every keyboard and re-emits it through a uinput device
+of its own, so a matched chord is withheld and the focused app never sees the
+activation chord, as on the other platforms. Without it the proxy reads
+passively, the chord matches all the same, and the app receives it too. Two
+conditions apply: the process needs read access to `/dev/input` (add your user
+to the `input` group), and it requires CGO — a `CGO_ENABLED=0` build gets a stub
+whose `Start` reports `CodeNotSupported`
 ([global_hotkey_nocgo.go](../internal/adapter/eventtap/linux/global_hotkey_nocgo.go)).
 Either way the listener cannot start, and Neru warns with the remediation that
 fits. An unreadable `/dev/input` points at the `input` group; a no-cgo build
 points at the build, and is warned about once, since no retry changes how the
 binary was compiled. Both name the same fallback — bind `neru <mode>` as a
-compositor keybinding. While a mode is active the in-mode event tap grabs the
-same devices, so the listener naturally goes quiet until the mode exits — which
-is what **A global chord while a mode is active** below is about.
+compositor keybinding. While a mode is active the proxy hands every press to the
+mode session instead, so the matcher naturally goes quiet until the mode exits —
+which is what **A global chord while a mode is active** below is about.
 
 **Native alerts on Linux.** Notifications and alerts both go to the session's
 freedesktop notification daemon over D-Bus — the same session bus the tray's
@@ -694,14 +699,14 @@ left-most held button, since one event cannot describe more.
 
 | Aspect                | macOS                  | Linux X11               | Linux Wayland                            | Windows                 |
 | --------------------- | ---------------------- | ----------------------- | ---------------------------------------- | ----------------------- |
-| **In-mode capture**   | `CGEventTapCreate`     | `XGrabKeyboard`         | evdev `EVIOCGRAB`, wl-keyboard fallback  | `WH_KEYBOARD_LL`        |
-| **Global hotkeys**    | Per-key CGEventTap     | `XGrabKey`              | Passive evdev read                       | `RegisterHotKey`        |
+| **In-mode capture**   | `CGEventTapCreate`     | `XGrabKeyboard`         | evdev proxy (lifetime `EVIOCGRAB` + uinput re-emit), wl-keyboard fallback | `WH_KEYBOARD_LL`        |
+| **Global hotkeys**    | Per-key CGEventTap     | `XGrabKey`              | Chord matcher on the evdev proxy         | `RegisterHotKey`        |
 | **CGO needed**        | Yes                    | Yes                     | Yes                                      | No                      |
 | **Press/release**     | ✅ separate callbacks  | ✅ KeyPress/KeyRelease  | ⚠️ press-only in some configs            | ✅ `WM_HOTKEY` flags    |
 | **Modifier passthrough** | ✅                  | ❌ grab is all-or-nothing | ✅ evdev only                          | ✅ hook forwards per event |
 | **`PostModifierEvent`** | ✅                   | ✅                      | ✅ (`zwp_virtual_keyboard_v1`)           | ✅ `SendInput`          |
 | **Sticky modifiers**  | ✅                     | ✅                      | ✅                                       | ✅                      |
-| **Capture files**     | `eventtap/darwin/`     | `eventtap/linux/x11_cgo.go` | `eventtap/linux/wayland_cgo.go`, `evdev_cgo.go` | `eventtap/windows/` |
+| **Capture files**     | `eventtap/darwin/`     | `eventtap/linux/x11_cgo.go` | `eventtap/linux/evdev_proxy_cgo.go`, `evdev_session_cgo.go`, `wayland_cgo.go` | `eventtap/windows/` |
 | **Hotkey files**      | `hotkeys/darwin/`      | `hotkeys/linux/x11_cgo.go`  | `hotkeys/linux/manager.go` + `eventtap/linux/global_hotkey_cgo.go` ³ | `hotkeys/windows/` |
 
 ³ There is no separate Wayland hotkey file — the Wayland path lives in the
@@ -722,9 +727,10 @@ backend actually *took* rather than which ones the configuration asked for
 (`Deps.PublishRegisteredHotkeys`, [hotkey.go](../internal/app/keybinding/hotkey.go)),
 because a chord another process already owns is refused and is then owned by
 nobody: handing that one back would drop it, so it is dispatched instead. Linux
-cannot hand it to anybody: the in-mode capture is exclusive (`EVIOCGRAB`, or
-`XGrabKeyboard`) and the mechanism that registered the chord is deaf for as long
-as a mode is up. So there the chord reaches the mode handler and the handler
+cannot hand it to anybody: on X11 the in-mode capture is an exclusive
+`XGrabKeyboard`, and on Wayland the proxy hands every press to exactly one
+consumer, the mode session while one is open, so the chord matcher is deaf for
+as long as a mode is up. So there the chord reaches the mode handler and the handler
 resolves the global table itself, after the active mode's own table has had its
 say ([keymap.go](../internal/app/modes/keymap.go), `settledKeymaps`). That
 fallback is shared code rather than a Linux branch, and is simply unreachable on
@@ -779,10 +785,12 @@ there, and a row keyed `Page_Up` was dead.
 Neru captures the keyboard exclusively, so shortcuts it does not bind
 (`Ctrl+C`, `Ctrl+Tab`) are normally swallowed. With
 `general.passthrough_unbounded_keys`, unbound Ctrl/Alt/Cmd chords reach the
-focused app instead. This works on the Wayland evdev backend because Neru holds
-`EVIOCGRAB` on the physical device but injects through a *separate*
-`zwp_virtual_keyboard_v1`, which bypasses that grab and reaches the app with no
-feedback loop (see `handleWaylandEvdevEvent` → `passthroughEvdevChord`). It is
+focused app instead. This works on the Wayland evdev backend because the proxy
+keyboard is the only keyboard the compositor sees: a chord the mode lets through
+is simply re-emitted on it, together with the modifiers the user is physically
+holding, and each stays the compositor's until it is released — no re-tap per
+auto-repeat and nothing to unwind when the mode ends (see
+`evdevSession.handlePress` → `evdevProxy.forwardWithheld`). It is
 **not** available on X11 — an `XGrabKeyboard` routes Neru's own synthetic XTest
 events back to itself, and `XSendEvent` is ignored by most apps — nor on the
 rare wl-keyboard fallback, which has no injection path. Windows needs no

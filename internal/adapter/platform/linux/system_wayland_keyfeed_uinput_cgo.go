@@ -44,9 +44,10 @@ var uinputKeyboardMu sync.Mutex
 // the focused surface exactly like a physical press, uniformly across X11,
 // wlroots and KWin, and sidesteps the fragile RemoteDesktop consent path on KDE.
 //
-// The device is tagged BUS_VIRTUAL so Neru's own evdev capture skips it (see
-// isUinputVirtualDevice); an active EVIOCGRAB would otherwise grab the injected
-// keys and loop them back into the event tap.
+// The device carries Neru's uinput vendor id and the neru- name prefix, which
+// is how the evdev keyboard proxy knows not to grab it (neru_evdev_is_neru_device,
+// isNeruInjectionDevice); its lifetime EVIOCGRAB would otherwise re-read the
+// injected keys and loop them back into the event tap.
 func ensureUinputKeyboard() error {
 	uinputKeyboardOnce.Do(func() {
 		var deviceFd C.int

@@ -1,19 +1,12 @@
 // Hotplug tracking for the evdev capture: an inotify watcher over
-// /dev/input that folds newly attached keyboards into an active grab.
+// /dev/input that folds newly attached keyboards into the capture.
 
 //go:build linux && cgo
 
 package linux
 
-/*
-#include "../../platform/linux/evdev.h"
-#include "../../platform/linux/wayland_keymap.h"
-*/
-import "C"
-
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -60,6 +53,7 @@ func (capture *waylandEvdevCapture) startHotplugWatcher() {
 	if capture.inotifyFd != -1 {
 		// A watcher is already running; clean up the duplicate.
 		capture.deviceMu.Unlock()
+
 		_ = syscall.Close(inotifyFd)
 
 		return
@@ -102,6 +96,7 @@ func (capture *waylandEvdevCapture) hotplugLoop() {
 	defer capture.hotplugWg.Done()
 
 	buf := make([]byte, waylandEvdevHotplugBufSize)
+
 	ticker := time.NewTicker(waylandEvdevHotplugPollInterval)
 	defer ticker.Stop()
 
@@ -132,67 +127,41 @@ func (capture *waylandEvdevCapture) handleInotifyEvents(buf []byte) {
 	for offset+syscall.SizeofInotifyEvent <= len(buf) {
 		event := (*syscall.InotifyEvent)(unsafe.Pointer(&buf[offset]))
 		nameLen := int(event.Len)
+
 		if nameLen > 0 && event.Mask&syscall.IN_CREATE != 0 {
 			nameStart := offset + syscall.SizeofInotifyEvent
-			nameEnd := nameStart + nameLen
-			nameEnd = min(nameEnd, len(buf))
+			nameEnd := min(nameStart+nameLen, len(buf))
 			name := strings.TrimRight(string(buf[nameStart:nameEnd]), "\x00")
+
 			if strings.HasPrefix(name, "event") {
 				capture.handleNewDevice(name)
 			}
 		}
+
 		offset += syscall.SizeofInotifyEvent + nameLen
 	}
 }
 
 // handleNewDevice opens a newly created /dev/input/event* device and, if it
-// is a keyboard, adds it to the capture and starts a reader goroutine. If
-// the capture is currently in a grabbed state, the new device is also grabbed
-// immediately so Neru stays in full control.
+// is a keyboard this capture should read, adds it under the same rules as the
+// initial scan — grabbed and seeded when the capture grabs — and starts a
+// reader for it.
 func (capture *waylandEvdevCapture) handleNewDevice(name string) {
 	// Give udev a moment to fully initialize the device node and populate
 	// the input capabilities before we interrogate it.
 	time.Sleep(waylandEvdevHotplugSettleDelay)
 
 	path := filepath.Join("/dev/input", name)
-	file, err := os.Open(path)
-	if err != nil {
-		return
-	}
-
-	fd := C.int(file.Fd())
-	if C.neru_evdev_is_keyboard(fd) == 0 {
-		_ = file.Close()
-
-		return
-	}
 
 	capture.deviceMu.Lock()
+	file, seeds, ok := capture.addDeviceLocked(path)
+	capture.deviceMu.Unlock()
 
-	// Avoid duplicates: the device might already be tracked if the inotify
-	// event fired for a device that was open at initial scan time (unlikely
-	// but possible on some kernels).
-	for _, f := range capture.files {
-		if f.Name() == path {
-			capture.deviceMu.Unlock()
-			_ = file.Close()
-
-			return
-		}
-	}
-
-	// If the capture is currently grabbed, grab the new device under the
-	// same lock so Disable cannot race ahead and ungrab before we finish.
-	if capture.grabbed && C.neru_evdev_grab(C.int(file.Fd()), 1) != 0 {
-		capture.deviceMu.Unlock()
-		_ = file.Close()
-
+	if !ok {
 		return
 	}
 
-	capture.files = append(capture.files, file)
-	capture.deviceMu.Unlock()
-
+	capture.sendSeeds(seeds)
 	capture.startReader(file)
 
 	if capture.logger != nil {

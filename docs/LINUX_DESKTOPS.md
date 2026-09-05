@@ -283,9 +283,12 @@ Applies to both KDE and wlroots. X11 is unaffected — it uses `XGrabKey`.
 No Wayland protocol lets an ordinary client register a global hotkey, so Neru
 offers two paths and prefers the first:
 
-1. **Neru's own `[hotkeys]` config**, through a passive `evdev` listener. It
-   never grabs devices or injects anything, so the focused application still
-   receives every key.
+1. **Neru's own `[hotkeys]` config**, through the evdev keyboard proxy. Neru
+   holds the keyboards and re-emits every key through a uinput keyboard of its
+   own, so a matched chord is consumed before the focused application sees it
+   and a mode captures keys the instant it opens. Without a writable
+   `/dev/uinput` the proxy reads passively instead: the chord still matches,
+   but the application receives it too.
 2. **Compositor keybindings** — bind `neru hints`, `neru grid`, and friends in
    your compositor config or System Settings. Always available, needs no
    permissions, and the right choice if you would rather not grant `/dev/input`
@@ -306,9 +309,10 @@ the `input` group and the compositor-binding fallback on failure. The hotkey
 manager health-check re-initializes the listener if it dies or ends up with zero
 devices.
 
-Why a passive listener is the only option, and how it interacts with the in-mode
-event tap, is explained in
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md#keyboard-capture-and-hotkeys).
+How the proxy shares one reader between hotkeys and the in-mode event tap is
+explained in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#keyboard-capture-and-hotkeys),
+and why it holds the keyboards at all in
+[ADR 0014](adr/0014-the-wayland-keyboard-is-a-proxy.md).
 
 ---
 

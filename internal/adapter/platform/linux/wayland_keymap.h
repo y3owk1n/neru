@@ -11,6 +11,12 @@ typedef struct neru_xkb_state neru_xkb_state;
 // via wl_keyboard to create an xkb_state. Returns NULL on failure.
 neru_xkb_state *neru_xkb_state_create(void);
 
+// Read whatever the compositor has sent since the last call without blocking,
+// so a keymap it replaced (a layout or option change) takes effect on the
+// state. Returns 1 when the keymap was replaced, 0 when it was not, -1 when the
+// display connection is gone and the state has to be rebuilt.
+int neru_xkb_state_dispatch(neru_xkb_state *state);
+
 // Destroy the xkb_state and associated Wayland resources.
 void neru_xkb_state_destroy(neru_xkb_state *state);
 

@@ -48,10 +48,7 @@ func IsUinputScrollAvailable() bool {
 	return false
 }
 
-// IsWaylandEvdevKeyboardActive is always false without CGO (no evdev grab).
 // IsWaylandEvdevKeyboardActive reports false: evdev capture needs cgo.
 func IsWaylandEvdevKeyboardActive() bool {
 	return false
 }
-
-func (et *EventTap) closeEvdevCapture() {}

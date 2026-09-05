@@ -1,5 +1,6 @@
 #include "wayland_keymap.h"
 
+#include <poll.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -10,6 +11,10 @@
 struct keymap_ready {
 	struct xkb_state *state;
 	int ready;
+	// Set when a keymap arrived after the first one, so the reader that
+	// dispatches this display knows the state it resolves names against has
+	// been replaced (neru_xkb_state_dispatch reports and clears it).
+	int changed;
 };
 
 struct neru_xkb_state {
@@ -32,8 +37,18 @@ static void neru_keyboard_keymap(
 				struct xkb_keymap *keymap =
 				    xkb_keymap_new_from_string(ctx, map_str, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
 				if (keymap) {
-					kr->state = xkb_state_new(keymap);
+					struct xkb_state *fresh = xkb_state_new(keymap);
 					xkb_keymap_unref(keymap);
+					if (fresh) {
+						// A later keymap replaces the first: the compositor
+						// changed its layout or options, and every name
+						// resolved from here on has to follow it.
+						if (kr->state) {
+							xkb_state_unref(kr->state);
+							kr->changed = 1;
+						}
+						kr->state = fresh;
+					}
 				}
 				xkb_context_unref(ctx);
 			}
@@ -160,6 +175,38 @@ neru_xkb_state *neru_xkb_state_create(void) {
 	state->state = state->kr.state;
 
 	return state;
+}
+
+int neru_xkb_state_dispatch(neru_xkb_state *state) {
+	if (!state || !state->display)
+		return -1;
+
+	// The libwayland read protocol: announce the intent to read, flush what
+	// is queued, read only if the socket has something, and never block.
+	while (wl_display_prepare_read(state->display) != 0) {
+		if (wl_display_dispatch_pending(state->display) < 0)
+			return -1;
+	}
+
+	wl_display_flush(state->display);
+
+	struct pollfd pfd = {.fd = wl_display_get_fd(state->display), .events = POLLIN};
+	if (poll(&pfd, 1, 0) > 0) {
+		if (wl_display_read_events(state->display) < 0)
+			return -1;
+	} else {
+		wl_display_cancel_read(state->display);
+	}
+
+	if (wl_display_dispatch_pending(state->display) < 0)
+		return -1;
+
+	if (!state->kr.changed)
+		return 0;
+
+	state->kr.changed = 0;
+	state->state = state->kr.state;
+	return 1;
 }
 
 void neru_xkb_state_destroy(neru_xkb_state *state) {

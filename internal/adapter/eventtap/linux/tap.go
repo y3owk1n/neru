@@ -10,8 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -74,8 +72,8 @@ type EventTap struct {
 
 	// Modifier passthrough state. Populated by SetModifierPassthrough /
 	// SetInterceptedModifierKeys and consulted only by the Wayland evdev
-	// backend (handleWaylandEvdevEvent): with a virtual-keyboard injection path
-	// it can re-emit an unbound chord to the focused app. The X11 grab and the
+	// backend (evdevSession.handlePress): the proxy keyboard can re-emit an
+	// unbound chord to the focused app. The X11 grab and the
 	// wl-keyboard fallback cannot re-inject selectively, so this stays inert
 	// there. Chords are stored canonicalized via tap.CanonicalChord.
 	passthroughEnabled   bool
@@ -109,12 +107,9 @@ type EventTap struct {
 	// stale buffered events from leaking across enable/disable cycles.
 	dispatchEpoch atomic.Uint64
 
-	// evdevWaylandCapture holds a *waylandEvdevCapture created once and
-	// reused across Enable/Disable cycles. This avoids re-scanning
-	// /dev/input/event* devices on every mode activation, which was the
-	// source of a mild delay before the grid/hints mode accepted input.
-	evdevWaylandCapture     any
-	evdevWaylandCaptureInit sync.Mutex
+	// overlayPassiveOnce gates the one call that tells the Wayland overlay to
+	// stop asking for keyboard focus once the evdev proxy owns the keys.
+	overlayPassiveOnce sync.Once
 }
 
 // NewEventTap creates a new EventTap.
@@ -144,20 +139,6 @@ func (et *EventTap) Enable() {
 	et.doneCh = make(chan struct{})
 	et.enabled = true
 	et.mu.Unlock()
-
-	// Initialize uinput scroll device on Enable for Wayland backends.
-	// If successful, scroll events will go directly to applications
-	// via the virtual device, bypassing the overlay.
-	go func() {
-		_, err := getUinputScrollFd()
-		if err == nil {
-			// Scroll device created - disable exclusive keyboard
-			// so scroll events pass through to active application
-			if controller, ok := overlay.Get().(overlaymanager.KeyboardCaptureController); ok {
-				controller.SetKeyboardCaptureEnabled(false)
-			}
-		}
-	}()
 
 	go et.run()
 }
@@ -214,12 +195,6 @@ func (et *EventTap) Destroy() {
 	et.mu.Unlock()
 
 	et.Disable()
-
-	// Clean up the persistent evdev capture (closes file descriptors
-	// and drains reader goroutines). The closeEvdevCapture method is
-	// defined in the cgo build-tagged file for Wayland+cgo builds;
-	// it is a no-op when the capture was never initialized.
-	et.closeEvdevCapture()
 
 	// Stop the dispatch goroutine and wait for it to finish.
 	// The dispatchCh is created once in NewEventTap and lives for the
