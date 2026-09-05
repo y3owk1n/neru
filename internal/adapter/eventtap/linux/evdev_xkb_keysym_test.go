@@ -68,7 +68,11 @@ func TestXkbKeysymName(t *testing.T) {
 		// onto the main-keyboard names; with NumLock on, characters.
 		{name: "keypad enter is return", keysym: xkbKeysymKPEnter, want: evdevKeyNameReturn},
 		{name: "keypad home folds to home", keysym: xkbKeysymKPHome, want: evdevKeyNameHome},
-		{name: "keypad page up folds to page up", keysym: xkbKeysymKPPrior, want: evdevKeyNamePageUp},
+		{
+			name:   "keypad page up folds to page up",
+			keysym: xkbKeysymKPPrior,
+			want:   evdevKeyNamePageUp,
+		},
 		{name: "keypad begin is its digit", keysym: xkbKeysymKPBegin, want: "5"},
 		{name: "keypad add is its character", keysym: xkbKeysymKPAdd, want: "+"},
 		{name: "keypad digit is its character", keysym: xkbKeysymKP7, want: "7"},
