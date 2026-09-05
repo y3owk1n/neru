@@ -54,9 +54,10 @@ type waylandEvdevCapture struct {
 	// grab waits for them to go idle; startReaders launches those waits.
 	pending []string
 
-	// pendingGrabs counts the waits in flight, so a session asked for while a
-	// keyboard is still on its way in can be refused by name; deviceMu.
-	pendingGrabs int
+	// pendingPaths is the keyboards whose wait is in flight, so overlapping
+	// scans start one wait per keyboard and a session asked for while one is
+	// still on its way in can be refused by name; deviceMu.
+	pendingPaths map[string]struct{}
 
 	// pointer is the pointer proxy, or nil until a grabbed keyboard needs one:
 	// the uinput mouse the relative motion and the buttons of a keyboard that
@@ -103,13 +104,14 @@ func newWaylandEvdevCapture(logger *zap.Logger, grab bool) (*waylandEvdevCapture
 	}
 
 	capture := &waylandEvdevCapture{
-		files:     make([]*os.File, 0, len(paths)),
-		devices:   make(map[*os.File]trackedDevice),
-		events:    make(chan waylandEvdevEvent, waylandEvdevEventBufferSize),
-		logger:    logger,
-		grab:      grab,
-		stopCh:    make(chan struct{}),
-		inotifyFd: -1,
+		files:        make([]*os.File, 0, len(paths)),
+		devices:      make(map[*os.File]trackedDevice),
+		pendingPaths: make(map[string]struct{}),
+		events:       make(chan waylandEvdevEvent, waylandEvdevEventBufferSize),
+		logger:       logger,
+		grab:         grab,
+		stopCh:       make(chan struct{}),
+		inotifyFd:    -1,
 	}
 
 	for _, path := range paths {
@@ -364,9 +366,13 @@ func (capture *waylandEvdevCapture) startReaders() {
 }
 
 // grabWhenIdleLocked starts the wait that grabs a busy keyboard once no key
-// on it is down. The caller holds deviceMu.
+// on it is down, unless one is already waiting on it. The caller holds deviceMu.
 func (capture *waylandEvdevCapture) grabWhenIdleLocked(path string, borrowedFor string) {
-	capture.pendingGrabs++
+	if _, waiting := capture.pendingPaths[path]; waiting {
+		return
+	}
+
+	capture.pendingPaths[path] = struct{}{}
 
 	if capture.logger != nil {
 		capture.logger.Info(
@@ -383,11 +389,9 @@ func (capture *waylandEvdevCapture) grabWhenIdleLocked(path string, borrowedFor 
 // device's owner; the poll quantum is paid once per device, when a daemon or a
 // remapper is launched from a binding, and never per activation.
 func (capture *waylandEvdevCapture) waitIdle(path string, borrowedFor string) {
-	defer func() {
-		capture.deviceMu.Lock()
-		capture.pendingGrabs--
-		capture.deviceMu.Unlock()
-	}()
+	// Before adopt rather than deferred past it: a key pressed again in the
+	// gap makes adopt start a new wait, which the old one must not shadow.
+	defer capture.waitDone(path)
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -418,7 +422,16 @@ func (capture *waylandEvdevCapture) waitIdle(path string, borrowedFor string) {
 		}
 	}
 
+	capture.waitDone(path)
 	capture.adopt(path, borrowedFor)
+}
+
+// waitDone forgets the wait on path. Idempotent, so the deferred call after a
+// successful wait finds nothing to forget.
+func (capture *waylandEvdevCapture) waitDone(path string) {
+	capture.deviceMu.Lock()
+	delete(capture.pendingPaths, path)
+	capture.deviceMu.Unlock()
 }
 
 // pendingCount is how many keyboards are waiting to go idle before they are
@@ -431,7 +444,7 @@ func (capture *waylandEvdevCapture) pendingCount() int {
 	capture.deviceMu.Lock()
 	defer capture.deviceMu.Unlock()
 
-	return capture.pendingGrabs
+	return len(capture.pendingPaths)
 }
 
 func (capture *waylandEvdevCapture) startReader(file *os.File) {
