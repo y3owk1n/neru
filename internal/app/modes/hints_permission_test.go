@@ -64,13 +64,24 @@ func newVisionHintsHandler(
 	logger *zap.Logger,
 	shutdown func(),
 ) *Handler {
+	return newCaptureHintsHandler(domain.StrategyVision, systemMock, logger, shutdown)
+}
+
+// newCaptureHintsHandler builds a handler whose configured hint strategy is
+// strategy and whose screen-capture permission comes from systemMock.
+func newCaptureHintsHandler(
+	strategy string,
+	systemMock *portmocks.MockSystemPort,
+	logger *zap.Logger,
+	shutdown func(),
+) *Handler {
 	handler := newHandlerWithState(handlerState{
 		ctx:    context.Background(),
 		logger: logger,
 		config: &configpkg.Config{
 			Hints: configpkg.HintsConfig{
 				Enabled:  true,
-				Strategy: domain.StrategyVision,
+				Strategy: strategy,
 			},
 		},
 		appState:      state.NewAppState(),
@@ -119,6 +130,20 @@ func TestActivateMode_PermissionDialogDoesNotBlockOrHoldLock(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("quit consent never reached shutdown")
 	}
+}
+
+func TestActivateMode_ContourStrategyRequestsScreenCapturePermission(t *testing.T) {
+	modal := newPermissionModal()
+	handler := newCaptureHintsHandler(domain.StrategyContour, modal.system, zap.NewNop(), func() {})
+
+	// Contour reads the window's pixels just like vision does, so an
+	// activation without consent must raise the dialog instead of letting the
+	// capture fail under the mode handler's lock.
+	handler.ActivateMode(modecmd.Activation{Mode: domain.ModeHints})
+
+	modal.awaitOpen(t)
+
+	modal.consent <- ports.ScreenCaptureCanceled
 }
 
 func TestResumeHintActivationAfterPermission_DoesNotRepromptWhenCheckStillFails(t *testing.T) {
