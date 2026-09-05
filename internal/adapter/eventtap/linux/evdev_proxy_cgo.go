@@ -107,6 +107,18 @@ func acquireEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 	return proxy, nil
 }
 
+// WarmEvdevProxy builds the proxy at daemon start, so the keyboards are held
+// before any key that could be down at a mode's activation. Built lazily by the
+// first mode instead, the proxy met a user who launches modes from compositor
+// bindings with the binding's modifier still down at grab time: the device then
+// waits for that key to come up (waitIdle), and a session asked for inside the
+// wait is refused. The hotkey listener and the tap borrow the proxy afterwards.
+func WarmEvdevProxy(logger *zap.Logger) error {
+	_, err := acquireEvdevProxy(logger)
+
+	return err
+}
+
 func newEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 	var uinputFd C.int = -1
 
@@ -193,6 +205,10 @@ func (p *evdevProxy) startSession(session *evdevSession) error {
 	}
 
 	if p.deviceCount() == 0 {
+		if p.capture.pendingCount() > 0 {
+			return errWaylandEvdevGrabPending
+		}
+
 		return errWaylandEvdevUnavailable
 	}
 
@@ -273,13 +289,6 @@ func (p *evdevProxy) refreshKeymap() {
 // echo of them would send each one round again.
 func (p *evdevProxy) handle(event waylandEvdevEvent) {
 	switch event.eventType {
-	case evdevEventSeed:
-		if isPointerButton(event.code) {
-			return
-		}
-
-		p.rule.seed(event.code)
-		p.trackGlobal(event.code, true)
 	case evdevEventKey:
 		if isPointerButton(event.code) {
 			if isMouseButton(event.code) {

@@ -189,9 +189,11 @@ func (capture *waylandEvdevCapture) rescan(vanished string) {
 
 // adopt takes path into the capture if it is a keyboard this capture should
 // read and is not tracked already, starts a reader for it, and answers the
-// device's name. borrowedFor names the vanished device a rescan is adopting on
-// behalf of, or is empty. Nothing is adopted once the capture is closing: a
-// reader started then would outlive the wait Close makes on the readers.
+// device's name. A keyboard with a key down is adopted once it is idle instead.
+// borrowedFor names the vanished device a rescan is adopting on behalf of, or
+// is empty. Nothing is adopted once the capture is closing: a reader started
+// then would outlive the wait Close makes on the readers, which is why the
+// reader is counted under the same lock the closing check takes.
 func (capture *waylandEvdevCapture) adopt(path string, borrowedFor string) (string, bool) {
 	capture.deviceMu.Lock()
 
@@ -203,8 +205,12 @@ func (capture *waylandEvdevCapture) adopt(path string, borrowedFor string) (stri
 	default:
 	}
 
-	file, seeds, ok := capture.addDeviceLocked(path)
-	if !ok {
+	file, outcome := capture.addDeviceLocked(path)
+	if outcome != deviceAdopted {
+		if outcome == deviceBusy {
+			capture.grabWhenIdleLocked(path, borrowedFor)
+		}
+
 		capture.deviceMu.Unlock()
 
 		return "", false
@@ -213,10 +219,8 @@ func (capture *waylandEvdevCapture) adopt(path string, borrowedFor string) (stri
 	device := capture.devices[file]
 	device.borrowedFor = borrowedFor
 	capture.devices[file] = device
-	capture.deviceMu.Unlock()
-
-	capture.sendSeeds(seeds)
 	capture.startReader(file)
+	capture.deviceMu.Unlock()
 
 	if capture.logger != nil {
 		capture.logger.Info(

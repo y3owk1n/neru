@@ -40,6 +40,21 @@ either direction. Everything the old design carried to repair that picture —
 the pre-grab waits, `initialKeys`, the synthetic releases injected at shutdown,
 the passive listener's reconciliation — is deleted rather than rewritten.
 
+The invariant covers presses the proxy saw, so the proxy has to be there before
+the first one. It is built when the daemon starts, not by the first mode, and a
+device is never held with a key down: a keyboard found with a key down under a
+fresh grab (a daemon, or a remapper, launched from a compositor binding with the
+binding's modifier still held) is let go again at once and grabbed once it is
+idle, polled ten milliseconds apart. That wait is paid once per device, never
+per activation. It replaces the first version's seeds, which pushed a key found
+held as an already-forwarded press so its release would be re-emitted, and that
+was the second rejected option below in another guise: libinput drops a release
+for a key it never saw pressed on the proxy, the modifier stays down on the
+physical device, and on Hyprland, which merges modifier state across every
+keyboard, every key typed afterwards carried Super. It surfaced first for a
+kanata user on Hyprland with no `[hotkeys]`, where nothing built the proxy
+until a mode did, under the binding that launched it.
+
 It buys three more things the tap could not have. A matched hotkey chord is
 withheld, so the focused application never sees the activation chord, which is
 what every other platform's hotkey mechanism already does. Modifier passthrough

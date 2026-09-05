@@ -5,9 +5,12 @@ package main
 import (
 	"go.uber.org/zap"
 
+	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/adapter/systray"
 	"github.com/y3owk1n/neru/internal/app"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 type linuxDaemonHost struct{}
@@ -21,6 +24,23 @@ func (linuxDaemonHost) Run(application *app.App) error {
 	// Cleanup is idempotent (sync.Once), so the duplicate call from OnExit is
 	// harmless. Mirrors the darwin/windows daemon hosts.
 	defer application.Cleanup()
+
+	// Hold the keyboards now, while nothing is pressed, rather than under the
+	// binding that launches the first mode (WarmEvdevProxy). Without cgo,
+	// /dev/input or /dev/uinput access the first mode says what it fell back to.
+	if platform.DetectLinuxBackend().IsWayland() {
+		logger := application.Logger()
+
+		go func() {
+			err := eventtaplinux.WarmEvdevProxy(logger)
+			if err != nil && !derrors.IsNotSupported(err) {
+				logger.Info(
+					"Wayland keyboard proxy unavailable at launch; modes will use the overlay's keyboard focus",
+					zap.Error(err),
+				)
+			}
+		}()
+	}
 
 	// On KDE/KWin, input is injected via libei through the RemoteDesktop
 	// portal, which shows a one-time consent prompt. Warm it up at startup (in

@@ -35,9 +35,9 @@ type forwardRule struct {
 	down [evdevKeyCodeCount]uint8
 }
 
-// seed counts code as down and forwarded without an event: the kernel reported
-// it held when its device was grabbed, so the compositor saw the press and is
-// owed the release.
+// seed counts code as down and forwarded without an event: the proxy re-emitted
+// the press itself (forwardWithheld), so the compositor saw it and is owed the
+// release.
 func (r *forwardRule) seed(code uint16) {
 	r.add(code)
 }

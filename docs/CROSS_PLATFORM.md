@@ -403,8 +403,12 @@ proxy, the one reader of `/dev/input/event*` that the in-mode capture also runs
 on ([global_hotkey_cgo.go](../internal/adapter/eventtap/linux/global_hotkey_cgo.go),
 [evdev_proxy_cgo.go](../internal/adapter/eventtap/linux/evdev_proxy_cgo.go),
 [ADR 0014](adr/0014-the-wayland-keyboard-is-a-proxy.md)). With `/dev/uinput`
-writable the proxy holds every keyboard and re-emits it through a uinput device
-of its own, so a matched chord is withheld from the focused app. Without it the
+writable the proxy holds every keyboard from daemon launch, whether or not
+`[hotkeys]` is set, and re-emits it through a uinput device of its own, so a
+matched chord is withheld from the focused app. It never keeps a keyboard that
+has a key down: a daemon or a remapper started from a compositor binding is
+held once the binding's modifier comes up, so no modifier is left stuck in the
+compositor's picture of the device. Without it the
 proxy reads passively, the chord matches all the same, and the app receives it
 too. The process needs read access to `/dev/input` (the `input` group) and a
 CGO build; a `CGO_ENABLED=0` build gets a stub whose `Start` reports

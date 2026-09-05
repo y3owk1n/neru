@@ -76,3 +76,15 @@ func TestGlobalHotkeyListener_IsRunningStaysFalseAfterStart(t *testing.T) {
 		t.Errorf("DeviceCount() = %d without cgo, want 0", got)
 	}
 }
+
+// TestWarmEvdevProxy_ReportsNotSupportedWithoutCgo pins the launch-time
+// warm-up's stub. Its caller, the Linux daemon host, reads a nil as "the proxy
+// is up" and says nothing, so a stub answering nil would hide that no keyboard
+// is held until the first mode fell back.
+func TestWarmEvdevProxy_ReportsNotSupportedWithoutCgo(t *testing.T) {
+	err := WarmEvdevProxy(nil)
+	if !derrors.IsNotSupported(err) {
+		t.Errorf("WarmEvdevProxy returned %v (code %q), want CodeNotSupported",
+			err, derrors.GetCode(err))
+	}
+}
