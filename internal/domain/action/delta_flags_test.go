@@ -6,6 +6,11 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
+const (
+	prefix = "action"
+	name   = "move_mouse_relative"
+)
+
 func TestParseDeltaFlags(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -15,23 +20,23 @@ func TestParseDeltaFlags(t *testing.T) {
 	}{
 		{
 			"joined flags",
-			[]string{"action", "move_mouse_relative", "--dx=10", "--dy=-5"},
+			[]string{prefix, name, "--dx=10", "--dy=-5"},
 			10,
 			-5,
 			true,
 		},
 		{
 			"spaced flags",
-			[]string{"action", "move_mouse_relative", "--dx", "10", "--dy", "0"},
+			[]string{prefix, name, "--dx", "10", "--dy", "0"},
 			10,
 			0,
 			true,
 		},
-		{"missing dy", []string{"action", "move_mouse_relative", "--dx=10"}, 0, 0, false},
-		{"non-integer", []string{"action", "move_mouse_relative", "--dx=a", "--dy=1"}, 0, 0, false},
+		{"missing dy", []string{prefix, name, "--dx=10"}, 0, 0, false},
+		{"non-integer", []string{prefix, name, "--dx=a", "--dy=1"}, 0, 0, false},
 		{
 			"trailing flag without value",
-			[]string{"action", "move_mouse_relative", "--dy=1", "--dx"},
+			[]string{prefix, name, "--dy=1", "--dx"},
 			0,
 			0,
 			false,
