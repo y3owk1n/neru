@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/app/heldmotion"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -1405,8 +1407,18 @@ func TestSimulation_HeldMotionDiagonal(t *testing.T) {
 		},
 	)
 
+	// The two presses and the two releases each land as separate events, so
+	// a tick can fire while only one key is held and move that axis alone.
+	// A late tick integrates up to the controller's cap, so the bound is that
+	// much travel at the base speed: under the defaults four fifths of a
+	// step. Anything past that is a real drift, since an autorepeat that got
+	// through moves a whole step.
+	_, step, _ := cfg.HeldRepeat.HeldMotion([]string{config.CmdMoveMouseRight})
+	tickShare := heldmotion.MaxTickDelta.Seconds() / cfg.HeldRepeat.Ramp().Interval.Seconds()
+	strayTick := int(math.Ceil(float64(step) * tickShare))
+
 	end := sim.cursor.position()
-	if end.X-start.X != end.Y-start.Y {
+	if drift := (end.X - start.X) - (end.Y - start.Y); drift < -strayTick || drift > strayTick {
 		t.Fatalf("diagonal drifted: start %v, end %v", start, end)
 	}
 

@@ -18,9 +18,9 @@ import (
 // TickInterval is the motion loop's period.
 const TickInterval = 10 * time.Millisecond
 
-// maxTickDelta caps the time a late tick may integrate, so a stalled
+// MaxTickDelta caps the time a late tick may integrate, so a stalled
 // scheduler produces a stutter rather than a jump.
-const maxTickDelta = 4 * TickInterval
+const MaxTickDelta = 4 * TickInterval
 
 type heldKey struct {
 	group, key string
@@ -296,7 +296,7 @@ func (c *Controller) run(id uint64) {
 		pos := integrator.Step(
 			input.ramp.ParamsFor(input.step),
 			input.dir,
-			min(now.Sub(last), maxTickDelta),
+			min(now.Sub(last), MaxTickDelta),
 		)
 		last = now
 
