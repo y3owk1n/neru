@@ -359,6 +359,9 @@ right either way.
 | Navigation | `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown`, `Insert` (Linux and Windows only)   |
 | Function   | `F1`–`F24` (`F21`–`F24` on Linux and Windows only)                                                      |
 
+`Delete` and `Backspace` both name the backspace key, the one that erases to the
+left, on every platform. The forward-delete key has no hotkey name.
+
 See [CLI.md](CLI.md#neru-action-feed) for a full key reference with key codes and platform behavior.
 
 Multi-key sequences (e.g. `gg`, `ab`) are supported for per-mode hotkeys with a 500ms timeout.

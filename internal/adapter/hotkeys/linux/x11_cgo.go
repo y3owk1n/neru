@@ -398,11 +398,14 @@ func parseX11Hotkey(display *C.Display, keyString string) (C.uint, C.uint, error
 // coincidence of spelling, not a contract.
 //
 // "Backspace" is the same story with a sharper edge: X11 spells it "BackSpace",
-// so it resolved through neither path, and the repair that suggests itself —
-// folding the name through the vocabulary's aliases — grabs the wrong physical
-// key, for the reason x11CanonicalKeyName below sets out. Delete and Insert are
-// mapped alongside it rather than left to their matching spellings, so a reader
-// sees the three editing keys and their distinct keysyms in one place.
+// so it resolved through neither path. "Delete" reaches the same keysym on
+// purpose: in [hotkeys] the name means the backspace key on every platform —
+// kVK_Delete on macOS, VK_BACK on Windows — and X11's own "Delete", the
+// forward-delete key, is what a config file would have grabbed here alone.
+// The forward-delete key has no hotkey name; one that all three platforms can
+// bind is the way to add it, not a Linux-only meaning for this one. Insert is
+// mapped alongside the pair rather than left to its matching spelling, so a
+// reader sees the editing keys in one place.
 //
 // The rest fall through to XStringToKeysym: punctuation, and F1-F24, where
 // X11's own name for the key is the name Neru writes. Those are pinned by test
@@ -429,10 +432,8 @@ func x11KeysymFor(key string) C.KeySym {
 		return C.XK_Tab
 	case keyvocab.KeyEscape:
 		return C.XK_Escape
-	case keyvocab.KeyBackspace:
+	case keyvocab.KeyBackspace, keyvocab.KeyDelete:
 		return C.XK_BackSpace
-	case keyvocab.KeyDelete:
-		return C.XK_Delete
 	case keyvocab.KeyInsert:
 		return C.XK_Insert
 	case keyvocab.KeyUp:
@@ -468,12 +469,13 @@ func x11KeysymFor(key string) C.KeySym {
 // strings reaching this adapter were already canonicalized — config's
 // CanonicalHotkeyForPlatform display-cases the base key without folding
 // aliases — and it is what a grab needs: a grab names a physical key, and the
-// vocabulary's aliases cross keys that X11 keeps apart. Folding "Backspace" to
-// "Delete" the way the taps do would resolve XK_Delete and grab the
-// forward-delete key for a binding written "Backspace". So a named key keeps
-// its own spelling here — "Enter" does not become "Return", though both are
-// mapped above — and only "esc", which the vocabulary deliberately keeps out of
-// the named-key set, resolves through its alias.
+// switch above is where each name is given one. Folding "Backspace" to
+// "Delete" the way the taps do and then handing "Delete" to XStringToKeysym
+// is how a binding written "Backspace" once grabbed the forward-delete key.
+// So a named key keeps its own spelling here — "Enter" does not become
+// "Return", though both are mapped above — and only "esc", which the
+// vocabulary deliberately keeps out of the named-key set, resolves through
+// its alias.
 func x11CanonicalKeyName(key string) string {
 	if display, isNamed := keyvocab.NamedKeyDisplay(key); isNamed {
 		return display

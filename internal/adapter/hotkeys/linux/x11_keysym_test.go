@@ -33,7 +33,6 @@ const (
 	x11KeysymInsert    = 0xFF63 // XK_Insert
 	x11KeysymF1        = 0xFFBE // XK_F1
 	x11KeysymF24       = 0xFFD5 // XK_F24
-	x11KeysymDelete    = 0xFFFF // XK_Delete
 	x11KeysymJ         = 0x006A // XK_j
 )
 
@@ -73,10 +72,10 @@ func TestX11KeysymFor_NavigationKeys(t *testing.T) {
 // TestX11KeysymFor_EditingKeys pins Backspace, Delete and Insert, and pins them
 // together because the first two are the pair a hotkey can get wrong without
 // noticing. X11 spells the erase-left key "BackSpace", so Neru's "Backspace"
-// resolves only when the lookup maps it; and the vocabulary makes "Backspace"
-// an alias of "Delete", so a lookup that folded aliases would grab X11's
-// forward-delete key instead. Both spellings must reach their own keysym, and
-// neither may reach the other's.
+// resolves only when the lookup maps it; and X11 spells the forward-delete key
+// "Delete", so Neru's "Delete" — the backspace key, as on macOS and Windows —
+// resolves to the right key only when the lookup maps it too. Both spellings
+// must reach XK_BackSpace, and neither may reach XK_Delete.
 func TestX11KeysymFor_EditingKeys(t *testing.T) {
 	t.Parallel()
 
@@ -87,8 +86,8 @@ func TestX11KeysymFor_EditingKeys(t *testing.T) {
 	}{
 		{name: "backspace", key: keyvocab.KeyBackspace, want: x11KeysymBackSpace},
 		{name: "lowercased backspace", key: "backspace", want: x11KeysymBackSpace},
-		{name: "delete", key: keyvocab.KeyDelete, want: x11KeysymDelete},
-		{name: "lowercased delete", key: "delete", want: x11KeysymDelete},
+		{name: "delete", key: keyvocab.KeyDelete, want: x11KeysymBackSpace},
+		{name: "lowercased delete", key: "delete", want: x11KeysymBackSpace},
 		{name: "insert", key: keyvocab.KeyInsert, want: x11KeysymInsert},
 		{name: "lowercased insert", key: "insert", want: x11KeysymInsert},
 	}

@@ -42,7 +42,7 @@ func NewGlobalHotkeyListener(logger *zap.Logger) *GlobalHotkeyListener {
 // press when the chord's key goes down, release (nil for none) when it comes
 // up. Safe to call before or after Start.
 func (l *GlobalHotkeyListener) SetBinding(chord string, press, release func()) {
-	signature := canonicalChordSignature(chord)
+	signature := canonicalBindingSignature(chord)
 	if signature == "" || press == nil {
 		return
 	}
