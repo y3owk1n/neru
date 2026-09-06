@@ -279,6 +279,20 @@ func TestBindingInspectionSeesModesInsideRun(t *testing.T) {
 			wantModeSwitch: true,
 		},
 		{
+			// A declared mode is entered by the mode word, so the chord that
+			// enters it has its modifiers suppressed like any other.
+			name:           "declared mode by the mode word",
+			actions:        []string{"mode window"},
+			wantModeSwitch: true,
+		},
+		{
+			// Idle is a mode command that leaves a mode, and nothing about the
+			// chord that left needs suppressing.
+			name:           "idle leaves rather than enters",
+			actions:        []string{"idle"},
+			wantModeSwitch: false,
+		},
+		{
 			name:           "mode inside run",
 			actions:        []string{"run 'action save_cursor_pos' '" + hintsStep + "'"},
 			wantModeSwitch: true,

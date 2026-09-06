@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -42,10 +43,12 @@ func isValidModifier(mod string) bool {
 
 // ValidateHotkeys validates per-mode hotkey syntax and actions.
 func (c *Config) ValidateHotkeys() error {
-	modeHotkeys := []struct {
+	type modeTable struct {
 		modeName string
 		table    map[string]StringOrStringArray
-	}{
+	}
+
+	modeHotkeys := slices.Grow([]modeTable{
 		{ModeNameHints, c.Hints.Hotkeys},
 		{ModeNameGrid, c.Grid.Hotkeys},
 		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
@@ -53,6 +56,10 @@ func (c *Config) ValidateHotkeys() error {
 		// monitor_select binds keys like the other modes and dispatches them
 		// through the same executor, so its table is checked like theirs.
 		{ModeNameMonitorSelect, c.MonitorSelect.Hotkeys},
+	}, len(c.Modes))
+
+	for name, mode := range c.Modes {
+		modeHotkeys = append(modeHotkeys, modeTable{customModeField(name), mode.Hotkeys})
 	}
 
 	for _, mode := range modeHotkeys {
@@ -110,20 +117,44 @@ func validateHotkeyTable(fieldPrefix string, table map[string]StringOrStringArra
 }
 
 func (c *Config) checkHotkeysConflicts() error {
-	modes := []struct {
+	type modeTable struct {
 		modeName string
 		table    map[string]StringOrStringArray
-	}{
+	}
+
+	modes := slices.Grow([]modeTable{
 		{ModeNameHints, c.Hints.Hotkeys},
 		{ModeNameGrid, c.Grid.Hotkeys},
 		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
 		{ModeNameScroll, c.Scroll.Hotkeys},
+	}, len(c.Modes))
+
+	for name, mode := range c.Modes {
+		modes = append(modes, modeTable{customModeField(name), mode.Hotkeys})
 	}
 
 	for _, mode := range modes {
 		err := checkHotkeyConflicts(mode.modeName+".hotkeys", mode.table)
 		if err != nil {
 			return err
+		}
+	}
+
+	for name, mode := range c.Modes {
+		for idx, appConfig := range mode.AppConfigs {
+			err := checkHotkeyConflicts(
+				fmt.Sprintf(
+					"%s.hotkeys merged with %s.app_configs[%d] (%s)",
+					customModeField(name),
+					customModeField(name),
+					idx,
+					appConfig.BundleID,
+				),
+				c.HotkeysForModeAndApp(name, appConfig.BundleID),
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

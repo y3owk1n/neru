@@ -17,19 +17,24 @@ import (
 // resolves the per-mode label both managers render.
 type Overlay struct {
 	indicatorConfig config.ModeIndicatorConfig
-	theme           config.ThemeProvider
-	logger          *zap.Logger
-	configMu        sync.RWMutex
+	// customLabels is the indicator text of every declared mode that has one,
+	// by name; see the darwin overlay for why it sits beside the config.
+	customLabels map[string]string
+	theme        config.ThemeProvider
+	logger       *zap.Logger
+	configMu     sync.RWMutex
 }
 
 // NewOverlay creates a new mode indicator overlay instance with its own window (non-darwin stub).
 func NewOverlay(
 	indicatorCfg config.ModeIndicatorConfig,
+	customLabels map[string]string,
 	theme config.ThemeProvider,
 	logger *zap.Logger,
 ) (*Overlay, error) {
 	return &Overlay{
 		indicatorConfig: indicatorCfg,
+		customLabels:    customLabels,
 		theme:           theme,
 		logger:          logger,
 	}, nil
@@ -60,17 +65,14 @@ func (o *Overlay) ResizeToActiveScreen() {}
 // Destroy destroys the mode indicator overlay (non-darwin stub).
 func (o *Overlay) Destroy() {}
 
-// SetConfig updates the indicator configuration (non-darwin stub).
-func (o *Overlay) SetConfig(cfg config.ModeIndicatorConfig) {
+// SetConfig updates the indicator configuration and the labels of the declared
+// modes (non-darwin stub).
+func (o *Overlay) SetConfig(cfg config.ModeIndicatorConfig, customLabels map[string]string) {
 	o.configMu.Lock()
 	defer o.configMu.Unlock()
 
 	o.indicatorConfig = cfg
-}
-
-// SetIndicatorConfig updates the indicator configuration (non-darwin stub).
-func (o *Overlay) SetIndicatorConfig(cfg config.ModeIndicatorConfig) {
-	o.SetConfig(cfg)
+	o.customLabels = customLabels
 }
 
 // IndicatorConfig returns the indicator configuration (non-darwin stub).
@@ -130,6 +132,6 @@ func (o *Overlay) resolveModeConfigLocked(mode string) *config.ModeIndicatorMode
 	case "recursive_grid":
 		return &o.indicatorConfig.RecursiveGrid
 	default:
-		return nil
+		return customModeConfig(o.customLabels, mode)
 	}
 }

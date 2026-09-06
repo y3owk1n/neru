@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -110,11 +112,18 @@ func (c *Config) validateActionStep(field, step string, depth int) error {
 
 	// A nested step is a step: it has to name a real command, exactly like one
 	// written directly in the binding. Reaching it only through this walk is
-	// why a step inside a run or an --on-exit went unchecked before.
+	// why a step inside a run or an --on-exit went unchecked before. The
+	// declared mode a nested "mode <name>" enters is checked here for the
+	// same reason; a top-level one is checked by ValidateModeCommands.
 	if depth > 0 {
 		err := validateHotkeyActionString(step)
 		if err != nil {
 			return derrors.Wrapf(err, derrors.CodeInvalidConfig, "%s", field)
+		}
+
+		err = c.checkDeclaredMode(field, step)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -268,14 +277,29 @@ func (c *Config) modeBindingTables() []modeBindingTable {
 		{field: ModeNameMonitorSelect + ".hotkeys", table: c.MonitorSelect.Hotkeys},
 	}
 
-	appTables := []struct {
+	type appTable struct {
 		configs  []AppConfig
 		modeName string
-	}{
+	}
+
+	appTables := slices.Grow([]appTable{
 		{configs: c.Hints.AppConfigs, modeName: ModeNameHints},
 		{configs: c.Grid.AppConfigs, modeName: ModeNameGrid},
 		{configs: c.RecursiveGrid.AppConfigs, modeName: ModeNameRecursiveGrid},
 		{configs: c.Scroll.AppConfigs, modeName: ModeNameScroll},
+	}, len(c.Modes))
+
+	// Declared modes are walked in name order so a fault is reported at the
+	// same binding on every load.
+	for _, name := range slices.Sorted(maps.Keys(c.Modes)) {
+		tables = append(tables, modeBindingTable{
+			field: customModeField(name) + ".hotkeys",
+			table: c.Modes[name].Hotkeys,
+		})
+		appTables = append(appTables, appTable{
+			configs:  c.Modes[name].AppConfigs,
+			modeName: customModeField(name),
+		})
 	}
 
 	for _, mode := range appTables {

@@ -19,6 +19,11 @@ type Activation struct {
 	// Mode is the mode being entered. It decides which flags are accepted.
 	Mode domain.Mode
 
+	// Name is the declared mode a custom activation enters, the "window" in
+	// "mode window". It is empty for every built-in mode, and a custom
+	// activation without one is refused: the word alone names nothing.
+	Name string
+
 	// Action is the mouse button action to perform on the selection. Commas
 	// chain several, which is how a double-click is written.
 	Action *string

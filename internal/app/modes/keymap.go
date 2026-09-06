@@ -96,7 +96,11 @@ func (h *Handler) PublishFocusedApp(focusedApp string) {
 // still the answer. It is comparable, so settling is one equality rather than
 // an invalidation flag per trigger.
 type keymapInputs struct {
-	mode   domain.Mode
+	mode domain.Mode
+	// name is the declared mode a ModeCustom session is in, and empty
+	// otherwise. Two declared modes share the enum value and bind different
+	// tables, so the name is part of what the keymap is settled for.
+	name   string
 	config *configpkg.Config
 	// focusedApp is the app whose overrides apply, and mustAsk says settling
 	// has to learn it from the platform because nothing published it. It stays
@@ -108,6 +112,16 @@ type keymapInputs struct {
 	// never asks again — see resolveFocusedApp.
 	focusedApp string
 	mustAsk    bool
+}
+
+// keymapModeName is the name the configuration files a mode's table under: the
+// mode's own for a built-in mode, the declared name for a custom one.
+func (inputs keymapInputs) keymapModeName() string {
+	if inputs.mode == domain.ModeCustom {
+		return inputs.name
+	}
+
+	return domain.ModeString(inputs.mode)
 }
 
 // settledKeymap returns the mode's own bindings in force, settling them first if
@@ -164,7 +178,7 @@ func (h *handlerState) settleKeymaps() {
 	if inputs.config != nil {
 		focusedApp := h.resolveFocusedApp(inputs)
 
-		h.keymap = inputs.config.ResolveKeymap(domain.ModeString(inputs.mode), focusedApp)
+		h.keymap = inputs.config.ResolveKeymap(inputs.keymapModeName(), focusedApp)
 
 		// Idle takes no fallback. Nothing is captured there, so the platform's
 		// own hotkey mechanism is what runs a global binding — and a key fed
@@ -192,6 +206,7 @@ func (h *handlerState) settleKeymaps() {
 func (h *handlerState) keymapInputs() keymapInputs {
 	inputs := keymapInputs{
 		mode:   h.appState.CurrentMode(),
+		name:   h.appState.CustomModeName(),
 		config: h.config,
 	}
 

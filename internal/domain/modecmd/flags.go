@@ -1,6 +1,7 @@
 package modecmd
 
 import (
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -343,6 +344,7 @@ var (
 		domain.ModeRecursiveGrid,
 		domain.ModeScroll,
 		domain.ModeMonitorSelect,
+		domain.ModeCustom,
 	}
 
 	// hintsOnly are the flags that describe element detection, which only
@@ -366,6 +368,21 @@ var (
 // build failure.
 func Modes() []domain.Mode {
 	return slices.Clone(modes)
+}
+
+// modeNamePattern is what a declared mode may be called: the same identifier
+// shape a macro name takes, so a mode command is read by splitting on spaces
+// and the second token is the whole name.
+var modeNamePattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
+
+// ValidModeName reports whether name may be used as a declared mode's name.
+//
+// It is exported for the configuration, which judges the keys of [modes] by
+// the same rule the grammar judges the argument of a mode command: a name one
+// accepts and the other refuses is a mode that can be declared and never
+// entered.
+func ValidModeName(name string) bool {
+	return modeNamePattern.MatchString(name)
 }
 
 // LookupMode returns the mode a command word names.

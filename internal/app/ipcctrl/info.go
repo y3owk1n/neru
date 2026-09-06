@@ -174,7 +174,7 @@ func (h *InfoHandler) handleStatus(_ context.Context, _ ipc.Command) ipc.Respons
 
 	status := map[string]any{
 		"enabled":                h.appState.IsEnabled(),
-		"mode":                   domain.ModeString(h.appState.CurrentMode()),
+		"mode":                   h.appState.ModeName(),
 		"config":                 configPath,
 		"hints_enabled":          cfg.Hints.Enabled,
 		"grid_enabled":           cfg.Grid.Enabled,

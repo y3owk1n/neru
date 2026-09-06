@@ -106,7 +106,7 @@ func TestDiagnose_WarnsAboutACommandThatStillRuns(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			warnings, err := modecmd.Diagnose(testCase.mode, testCase.args)
+			_, warnings, err := modecmd.Diagnose(testCase.mode, testCase.args)
 			if err != nil {
 				t.Fatalf("Diagnose(%v) refused the command: %v", testCase.args, err)
 			}
@@ -181,7 +181,7 @@ func TestDiagnose_RefusesACommandThatCouldNotRun(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			warnings, err := modecmd.Diagnose(testCase.mode, testCase.args)
+			_, warnings, err := modecmd.Diagnose(testCase.mode, testCase.args)
 			if err == nil {
 				t.Fatalf("Diagnose(%v) was accepted; want a refusal", testCase.args)
 			}
@@ -222,7 +222,7 @@ func TestDiagnose_AcceptsACleanCommand(t *testing.T) {
 		t.Run(domain.ModeString(testCase.mode), func(t *testing.T) {
 			t.Parallel()
 
-			warnings, err := modecmd.Diagnose(testCase.mode, testCase.args)
+			_, warnings, err := modecmd.Diagnose(testCase.mode, testCase.args)
 			if err != nil {
 				t.Fatalf("Diagnose(%v) refused a clean command: %v", testCase.args, err)
 			}
@@ -260,7 +260,7 @@ func TestDiagnose_SaysWhatParseSays(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			warnings, diagnoseErr := modecmd.Diagnose(testCase.mode, testCase.args)
+			_, warnings, diagnoseErr := modecmd.Diagnose(testCase.mode, testCase.args)
 
 			_, parseErr := modecmd.Parse(testCase.mode, testCase.args)
 			if parseErr == nil {

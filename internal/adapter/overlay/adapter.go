@@ -97,7 +97,7 @@ func (a *Adapter) ShowFrame(ctx context.Context, frame ports.Frame) error {
 		return err
 	}
 
-	mode, modeErr := overlayMode(frame.Mode())
+	mode, modeErr := frameSurface(frame)
 	if modeErr != nil {
 		return modeErr
 	}
@@ -128,7 +128,9 @@ func (a *Adapter) ShowFrame(ctx context.Context, frame ports.Frame) error {
 // Linux the mode and sticky-modifier indicators are badges painted on that
 // surface: the shared window's visibility is theirs. Deciding otherwise would
 // encode macOS's one-window-per-indicator model in shared code and leave a
-// Linux user in scroll mode with no indicator after a monitor move.
+// Linux user in scroll mode with no indicator after a monitor move. A declared
+// mode draws nothing of its own either, and needs the window for the same
+// reason.
 //
 // Every mode is named rather than defaulted, so a mode added without an answer
 // here fails the `exhaustive` linter instead of silently inheriting one. The
@@ -139,7 +141,7 @@ func drawsOnSharedWindow(frame ports.Frame) bool {
 	case domain.ModeMonitorSelect:
 		return false
 	case domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid,
-		domain.ModeScroll, domain.ModeIdle:
+		domain.ModeScroll, domain.ModeCustom, domain.ModeIdle:
 		return true
 	}
 
@@ -369,6 +371,20 @@ func (a *Adapter) UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer)
 		pointer.Position,
 		pointerAppearance(ResolvedStyle(a.styles).VirtualPointer),
 	)
+}
+
+// frameSurface names the overlay mode a frame is realized in.
+//
+// A declared mode's frame is the one case where the enum is not the name: every
+// declaration shares domain.ModeCustom, and the overlay tells them apart by the
+// declared name, which is what the indicator's label is looked up by. So the
+// surface is the name itself, and the built-in modes go through overlayMode.
+func frameSurface(frame ports.Frame) (Mode, error) {
+	if custom, isCustom := frame.(ports.CustomFrame); isCustom {
+		return Mode(custom.Name), nil
+	}
+
+	return overlayMode(frame.Mode())
 }
 
 // overlayMode translates a mode into the overlay's own name for it. The two

@@ -35,8 +35,12 @@ const (
 type Overlay struct {
 	window          C.OverlayWindow
 	indicatorConfig config.ModeIndicatorConfig
-	theme           config.ThemeProvider
-	logger          *zap.Logger
+	// customLabels is the indicator text of every declared mode that has one,
+	// by name. A declared mode has no per-mode section of its own: its label
+	// is the declaration's, and its colors are the shared UI defaults.
+	customLabels map[string]string
+	theme        config.ThemeProvider
+	logger       *zap.Logger
 
 	// styleCache holds cached C style strings for the currently drawn mode.
 	// It is shared across all modes and invalidated on mode change via
@@ -65,6 +69,7 @@ type Overlay struct {
 // NewOverlay creates a new mode indicator overlay instance with its own window.
 func NewOverlay(
 	indicatorCfg config.ModeIndicatorConfig,
+	customLabels map[string]string,
 	theme config.ThemeProvider,
 	logger *zap.Logger,
 ) (*Overlay, error) {
@@ -76,6 +81,7 @@ func NewOverlay(
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
 		indicatorConfig: indicatorCfg,
+		customLabels:    customLabels,
 		theme:           theme,
 		logger:          logger,
 		styleCache:      base.StyleCache,
@@ -277,10 +283,15 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	C.NeruDrawHints(o.window, &hint, 1, style)
 }
 
-// SetConfig sets the overlay configuration.
-func (o *Overlay) SetConfig(indicatorCfg config.ModeIndicatorConfig) {
+// SetConfig sets the overlay configuration, and the labels of the declared
+// modes alongside it.
+func (o *Overlay) SetConfig(
+	indicatorCfg config.ModeIndicatorConfig,
+	customLabels map[string]string,
+) {
 	o.configMu.Lock()
 	o.indicatorConfig = indicatorCfg
+	o.customLabels = customLabels
 	o.configMu.Unlock()
 	// Invalidate caches when config changes
 	o.freeAllCaches()
@@ -319,7 +330,7 @@ func (o *Overlay) resolveModeConfig(mode string) *config.ModeIndicatorModeConfig
 	case domain.ModeNameRecursiveGrid:
 		return &o.indicatorConfig.RecursiveGrid
 	default:
-		return nil
+		return customModeConfig(o.customLabels, mode)
 	}
 }
 

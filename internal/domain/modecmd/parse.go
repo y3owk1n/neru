@@ -82,6 +82,12 @@ func read(mode domain.Mode, args []string) (Activation, []Flag, error) {
 			// travel all the way to the mode as an unusable action name.
 			return Activation{}, nil, invalid(msgUnknownFlag + arg)
 
+		case mode == domain.ModeCustom && activation.Name == "":
+			// The first argument of a custom activation is the declared mode
+			// it enters, which is the one thing a bare word can mean there:
+			// a custom mode makes no selection, so it takes no action.
+			activation.Name = arg
+
 		case activation.Action == nil && accepts(FlagAction, mode):
 			// An argument matching no flag is the positional action, which is
 			// how "hints left_click" is written. Once an action is set there

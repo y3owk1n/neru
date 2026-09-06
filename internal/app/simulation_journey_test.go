@@ -535,7 +535,7 @@ func TestSimulation_ModeIndicatorDisappearsWhenModeExits(t *testing.T) {
 	sim.waitMode(domain.ModeScroll)
 
 	sim.waitFor("mode indicator shown", func() bool {
-		visible, asked := sim.overlay.indicatorVisibility(ports.ModeIndicator)
+		visible, asked := sim.overlay.modeIndicatorVisibility()
 
 		return asked && visible
 	})
@@ -544,7 +544,7 @@ func TestSimulation_ModeIndicatorDisappearsWhenModeExits(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 
 	sim.waitFor("mode indicator hidden", func() bool {
-		visible, asked := sim.overlay.indicatorVisibility(ports.ModeIndicator)
+		visible, asked := sim.overlay.modeIndicatorVisibility()
 
 		return asked && !visible
 	})
@@ -553,7 +553,7 @@ func TestSimulation_ModeIndicatorDisappearsWhenModeExits(t *testing.T) {
 	// stopped before the indicator is hidden, and a late tick would show it.
 	time.Sleep(4 * indicatorSettleWindow)
 
-	if visible, _ := sim.overlay.indicatorVisibility(ports.ModeIndicator); visible {
+	if visible, _ := sim.overlay.modeIndicatorVisibility(); visible {
 		t.Fatal("mode indicator was shown again after the mode exited")
 	}
 }

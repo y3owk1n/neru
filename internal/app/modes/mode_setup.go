@@ -40,11 +40,9 @@ func (h *handlerState) syncStickyModifierToggle(mode domain.Mode) {
 		return
 	}
 
-	isNavMode := mode == domain.ModeHints ||
-		mode == domain.ModeGrid ||
-		mode == domain.ModeRecursiveGrid ||
-		mode == domain.ModeScroll ||
-		mode == domain.ModeMonitorSelect
+	// Every mode but idle captures the keyboard, and sticky modifiers are a
+	// captured keyboard's to toggle.
+	isNavMode := mode != domain.ModeIdle
 
 	enabled := isNavMode && h.config != nil && h.config.StickyModifiers.Enabled
 

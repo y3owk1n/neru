@@ -16,6 +16,10 @@ import (
 // [hotkeys] as a nested table rather than a binding, so the merge skips it.
 const appConfigsKey = "app_configs"
 
+// modesKey names the table of user-declared modes, [modes.<name>], each of
+// which carries a hotkey table read the way the built-in modes' are.
+const modesKey = "modes"
+
 // LoadWithValidation turns a config file into the Config the daemon runs on.
 // It reports a rejection in the result rather than returning an error, so the
 // caller can keep running on the defaults and still tell the user what was
@@ -395,49 +399,80 @@ func modeHotkeyTargets(cfg *config.Config) []modeHotkeyTarget {
 // entry into an array, which means they must be read from the raw map here.
 func (s *Service) applyModeHotkeys(cfg *config.Config, raw map[string]any) error {
 	for _, target := range modeHotkeyTargets(cfg) {
-		table, present := modeHotkeyTable(raw, target.modeKey)
-		if !present {
+		modeRaw, isTable := raw[target.modeKey].(map[string]any)
+		if !isTable {
 			continue
 		}
 
-		if len(table) == 0 {
-			*target.dest = make(map[string]config.StringOrStringArray)
+		applyErr := s.applyModeHotkeyTable(target, modeRaw)
+		if applyErr != nil {
+			return applyErr
+		}
+	}
 
-			continue
+	return s.applyCustomModeHotkeys(cfg, raw)
+}
+
+// applyCustomModeHotkeys gives every declared mode its table: the default
+// Escape binding, with whatever [modes.<name>.hotkeys] the user wrote merged
+// over it by the rules the built-in tables follow.
+//
+// The typed decode has already filled cfg.Modes with every declaration, so
+// the walk is over those rather than the raw table: a mode declared with no
+// hotkeys of its own still gets the default. It runs once per file that can
+// declare a mode — the configuration and then the override `neru config set`
+// writes — so a mode already given a table keeps it and the later file merges
+// over it, and a mode the later file is the first to declare is seeded there.
+func (s *Service) applyCustomModeHotkeys(cfg *config.Config, raw map[string]any) error {
+	modesRaw, _ := raw[modesKey].(map[string]any)
+
+	for name, mode := range cfg.Modes {
+		hotkeys := mode.Hotkeys
+		if hotkeys == nil {
+			hotkeys = config.DefaultCustomModeHotkeys()
 		}
 
-		duplicateErr := validateRawHotkeyTable(target.modeKey+".hotkeys", table)
-		if duplicateErr != nil {
-			s.logger.Warn("Duplicate normalized custom hotkey in config",
-				zap.String("mode", target.modeKey),
-				zap.Error(duplicateErr))
+		target := modeHotkeyTarget{modeKey: modesKey + "." + name, dest: &hotkeys}
 
-			return duplicateErr
+		if modeRaw, isTable := modesRaw[name].(map[string]any); isTable {
+			applyErr := s.applyModeHotkeyTable(target, modeRaw)
+			if applyErr != nil {
+				return applyErr
+			}
 		}
 
-		mergeErr := s.mergeModeHotkeys(target, table)
-		if mergeErr != nil {
-			return mergeErr
-		}
+		mode.Hotkeys = hotkeys
+		cfg.Modes[name] = mode
 	}
 
 	return nil
 }
 
-// modeHotkeyTable reaches [<mode>.hotkeys] in the raw decode. A non-table at
-// either level means no section to merge; the typed decode reports bad shapes.
-func modeHotkeyTable(raw map[string]any, modeKey string) (map[string]any, bool) {
-	modeRaw, isTable := raw[modeKey].(map[string]any)
-	if !isTable {
-		return nil, false
-	}
-
+// applyModeHotkeyTable merges one mode's raw "hotkeys" table over its
+// defaults. A missing table leaves the defaults alone, and an empty one
+// clears them, which is how a mode's bindings are switched off wholesale.
+func (s *Service) applyModeHotkeyTable(target modeHotkeyTarget, modeRaw map[string]any) error {
 	table, isTable := modeRaw["hotkeys"].(map[string]any)
 	if !isTable {
-		return nil, false
+		return nil
 	}
 
-	return table, true
+	if len(table) == 0 {
+		*target.dest = make(map[string]config.StringOrStringArray)
+
+		return nil
+	}
+
+	duplicateErr := validateRawHotkeyTable(target.modeKey+".hotkeys", table)
+	if duplicateErr != nil {
+		s.logger.Warn("Duplicate normalized custom hotkey in config",
+			zap.String("mode", target.modeKey),
+			zap.Error(duplicateErr))
+
+		return duplicateErr
+	}
+
+	return s.mergeModeHotkeys(target, table)
 }
 
 // mergeModeHotkeys lays one mode's entries over its defaults.
@@ -504,6 +539,22 @@ func (s *Service) validateNestedHotkeys(raw map[string]any) *config.LoadResult {
 		}
 	}
 
+	modesRaw, _ := raw[modesKey].(map[string]any)
+	for name, modeAny := range modesRaw {
+		modeRaw, isTable := modeAny.(map[string]any)
+		if !isTable {
+			continue
+		}
+
+		if result := validateAppConfigsHotkeys(
+			s.logger,
+			modesKey+"."+name,
+			modeRaw,
+		); result != nil {
+			return result
+		}
+	}
+
 	return nil
 }
 
@@ -532,6 +583,15 @@ func overrideFileToLayer(configPath string) string {
 func (s *Service) applyOverrideFile(cfg *config.Config, overridePath string) error {
 	s.logger.Info("Loading config overrides from", zap.String("path", overridePath))
 
+	// The typed decode below replaces the entry of every declared mode the
+	// override names, and the hotkey table on it is tagged toml:"-", so the
+	// table the configuration gave the mode would go with it. It is kept
+	// aside and put back before the override's own tables merge over it.
+	kept := make(map[string]map[string]config.StringOrStringArray, len(cfg.Modes))
+	for name, mode := range cfg.Modes {
+		kept[name] = mode.Hotkeys
+	}
+
 	_, decodeErr := toml.DecodeFile(overridePath, cfg)
 	if decodeErr != nil {
 		wrapped := derrors.WrapConfigFailed(decodeErr, "parse config override file")
@@ -543,5 +603,23 @@ func (s *Service) applyOverrideFile(cfg *config.Config, overridePath string) err
 		return wrapped
 	}
 
-	return nil
+	// A declared mode's hotkey table is tagged toml:"-" like every mode's, so
+	// the typed decode above dropped any the override wrote. They are read
+	// from the raw decode the way the configuration's are, over whatever the
+	// configuration already gave the mode.
+	for name, hotkeys := range kept {
+		if mode, declared := cfg.Modes[name]; declared {
+			mode.Hotkeys = hotkeys
+			cfg.Modes[name] = mode
+		}
+	}
+
+	var raw map[string]any
+
+	_, rawErr := toml.DecodeFile(overridePath, &raw)
+	if rawErr != nil {
+		return derrors.WrapConfigFailed(rawErr, "parse config override file")
+	}
+
+	return s.applyCustomModeHotkeys(cfg, raw)
 }

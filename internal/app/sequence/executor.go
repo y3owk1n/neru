@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // CommandHandler dispatches one action step. It is the IPC controller's
@@ -279,15 +280,8 @@ func (e *Executor) action(ctx context.Context, source, actionStr string) error {
 	actionStr = actionParts[0]
 	params := actionParts[1:]
 
-	if e.suppressModifiers != nil {
-		switch actionStr {
-		case domain.ModeString(domain.ModeHints),
-			domain.ModeString(domain.ModeGrid),
-			domain.ModeString(domain.ModeRecursiveGrid),
-			domain.ModeString(domain.ModeScroll),
-			domain.ModeString(domain.ModeMonitorSelect):
-			e.suppressModifiers(source)
-		}
+	if e.suppressModifiers != nil && entersAMode(actionStr) {
+		e.suppressModifiers(source)
 	}
 
 	if e.commands == nil {
@@ -310,6 +304,15 @@ func (e *Executor) action(ctx context.Context, source, actionStr string) error {
 	)
 
 	return nil
+}
+
+// entersAMode reports whether a command word enters a mode, as opposed to
+// leaving one: idle is a mode command too, and the modifiers of the chord that
+// left need no suppressing.
+func entersAMode(word string) bool {
+	mode, isMode := modecmd.LookupMode(word)
+
+	return isMode && mode != domain.ModeIdle
 }
 
 // shell executes an "exec ..." step through the configured shell.

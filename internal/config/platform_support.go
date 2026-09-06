@@ -223,6 +223,7 @@ func PlatformSupport() parity.Declaration {
 			"theme.dark.text",
 
 			"macros",
+			"modes",
 
 			"hints.enabled",
 			"hints.strategy",

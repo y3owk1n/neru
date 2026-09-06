@@ -46,7 +46,7 @@ func newModeTestController() *ipcctrl.Controller {
 }
 
 // TestHandleCommand_EveryModeCommandReadsTheGrammar pins that no mode is an
-// exception. Each of the six answers a command it cannot read with a refusal
+// exception. Each of the seven answers a command it cannot read with a refusal
 // of its own rather than with "unknown command" or a silent success.
 func TestHandleCommand_EveryModeCommandReadsTheGrammar(t *testing.T) {
 	controller := newModeTestController()
@@ -58,6 +58,7 @@ func TestHandleCommand_EveryModeCommandReadsTheGrammar(t *testing.T) {
 		domain.ModeScroll,
 		domain.ModeMonitorSelect,
 		domain.ModeIdle,
+		domain.ModeCustom,
 	} {
 		name := domain.ModeString(mode)
 

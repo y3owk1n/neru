@@ -31,6 +31,7 @@ keeps its default. "The daemon" below means the process started by
 | Section                                       | Controls                                     |
 | --------------------------------------------- | -------------------------------------------- |
 | [`[macros]`](#macros)                         | Named action sequences reused across bindings |
+| [`[modes]`](#modes)                           | Modes you declare: a keymap and an indicator  |
 | [`[general]`](#general)                       | Global behaviour, passthrough, `exec` shell   |
 | [`[theme]`](#theme)                           | Base palette all components derive from       |
 | [`[hints]`](#hints)                           | Hints mode and element discovery              |
@@ -709,6 +710,70 @@ shares the same definition rather than keeping its own copy:
 ```bash
 neru macro window_click 100 70
 ```
+
+---
+
+## [modes]
+
+Modes you declare yourself. A declared mode has no logic of its own: it is a
+name, an indicator label, and a hotkey table. While it is open Neru captures
+the keyboard, shows the indicator, and answers every key from that table, the
+way [scroll mode](#scroll) does with its own. Use one as a layer: a set of
+bare-letter bindings that only mean something after you enter the mode.
+
+```toml
+[modes.window]
+indicator = "Window"            # mode-indicator text; "" hides it
+
+[modes.window.hotkeys]
+"h" = "exec yabai -m window --focus west"
+"l" = "exec yabai -m window --focus east"
+"f" = ["exec yabai -m window --toggle zoom-fullscreen", "idle"]
+"s" = "scroll"                  # mode-to-mode transition, like any other
+
+[hotkeys]
+"Primary+Shift+W" = "mode window"
+```
+
+**Entering one.** The step is `mode <name>`, from a global hotkey, a macro, a
+`run`, or the command line as [`neru mode <name>`](CLI.md#neru-mode). It
+accepts `--toggle` and nothing else: a declared mode makes no selection, so
+none of the selection flags apply. A step naming a mode that is not declared
+is refused at load, like a typo'd flag.
+
+**Leaving one.** `Escape` is bound to `idle` by default, as it is in every
+mode, and `"Escape" = "__disabled__"` removes it. Any binding whose steps end
+in `idle` or another mode leaves too. While the mode is open, an unbound
+Ctrl/Alt/Cmd chord falls back to `[hotkeys]` under the
+[usual precedence](#per-mode-hotkeys); an unbound bare key is swallowed, as
+in scroll mode.
+
+### Options
+
+| Option      | Type   | Default | Description                                                 |
+| ----------- | ------ | ------- | ----------------------------------------------------------- |
+| `indicator` | string | `""`    | [Mode indicator](#mode_indicator) text while the mode is open; empty hides it |
+| `hotkeys`   | map    | `{ "Escape" = "idle" }` | The mode's [hotkeys](#per-mode-hotkeys), merged over the default |
+
+The name is the table key: letters, digits, `_` and `-`, starting with a
+letter. A built-in mode's name (`hints`, `grid`, `recursive_grid`, `scroll`,
+`monitor_select`, `idle`) and the word `mode` are refused.
+
+### Per-App Config
+
+| Field       | Type   | Description                                           |
+| ----------- | ------ | ----------------------------------------------------- |
+| `bundle_id` | string | App bundle ID                                         |
+| `hotkeys`   | map    | [per-app hotkey overrides](#per-app-hotkey-overrides) |
+
+```toml
+[[modes.window.app_configs]]
+bundle_id = "com.apple.Safari"
+hotkeys = { "h" = "action scroll_left", "l" = "action scroll_right" }
+```
+
+The indicator's style comes from [`[mode_indicator.ui]`](#mode_indicator),
+shared with the built-in modes.
 
 ## [general]
 

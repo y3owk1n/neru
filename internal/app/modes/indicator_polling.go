@@ -310,6 +310,10 @@ func (h *handlerState) modeIndicatorEnabled(mode domain.Mode) bool {
 		return h.config.ModeIndicator.RecursiveGrid.Enabled
 	case domain.ModeMonitorSelect:
 		return h.config.ModeIndicator.MonitorSelect.Enabled
+	case domain.ModeCustom:
+		// A declared mode has no enabled flag: its indicator is shown when it
+		// was given text, and an undeclared name reads the zero value.
+		return h.config.Modes[h.appState.CustomModeName()].Indicator != ""
 	default:
 		return false
 	}

@@ -9,6 +9,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -39,6 +41,7 @@ func newTestModesHandler(
 		Logger:                logger,
 		AppState:              appState,
 		CursorState:           state.NewCursorState(),
+		ScrollComponent:       &components.ScrollComponent{Context: &scroll.Context{}},
 		ActionService:         actionService,
 		RefreshHotkeys:        func() {},
 		ExecuteActionSequence: func(string, []string) {},

@@ -100,7 +100,12 @@ func (b *Base) BuildComponents(spec ComponentSpec) (Components, error) {
 		}
 	}
 
-	modeIndicator, err := modeindicator.NewOverlay(cfg.ModeIndicator, spec.Theme, logger)
+	modeIndicator, err := modeindicator.NewOverlay(
+		cfg.ModeIndicator,
+		cfg.CustomModeIndicators(),
+		spec.Theme,
+		logger,
+	)
 	if err != nil {
 		logger.Warn("Failed to build the mode indicator overlay", zap.Error(err))
 	} else {
@@ -193,7 +198,7 @@ func (b *Base) ConfigureComponents(cfg *config.Config, pointer PointerAppearance
 	}
 
 	if overlay := b.modeIndicatorOverlay; overlay != nil {
-		overlay.SetConfig(cfg.ModeIndicator)
+		overlay.SetConfig(cfg.ModeIndicator, cfg.CustomModeIndicators())
 	}
 
 	if overlay := b.stickyModifiersOverlay; overlay != nil {

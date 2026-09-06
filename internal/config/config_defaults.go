@@ -385,6 +385,16 @@ func defaultGeneral() GeneralConfig {
 	}
 }
 
+// DefaultCustomModeHotkeys is the table a declared mode's [modes.<name>.hotkeys]
+// merges over: Escape returns to idle, as it does in every built-in mode. A
+// mode declared with no table at all still gets it, so no declaration can be
+// entered and not left; `"Escape" = "__disabled__"` removes it on purpose.
+func DefaultCustomModeHotkeys() map[string]StringOrStringArray {
+	return map[string]StringOrStringArray{
+		KeyDisplayEscape: {CmdIdle},
+	}
+}
+
 func defaultHotkeys() HotkeysConfig {
 	return HotkeysConfig{
 		Bindings: map[string][]string{

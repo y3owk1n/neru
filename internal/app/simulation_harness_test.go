@@ -534,13 +534,13 @@ func (m *simOverlayPort) drawnModeNames() []string {
 	return names
 }
 
-// indicatorVisibility reports the visibility an indicator was last asked for,
+// modeIndicatorVisibility reports the visibility the mode indicator was last asked for,
 // and whether it was ever asked at all.
-func (m *simOverlayPort) indicatorVisibility(indicator ports.Indicator) (bool, bool) {
+func (m *simOverlayPort) modeIndicatorVisibility() (bool, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	visible, asked := m.indicatorVisible[indicator]
+	visible, asked := m.indicatorVisible[ports.ModeIndicator]
 
 	return visible, asked
 }

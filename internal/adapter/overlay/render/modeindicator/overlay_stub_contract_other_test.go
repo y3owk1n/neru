@@ -27,7 +27,7 @@ import (
 func TestOverlay_DrawModeIndicatorReportsNotSupportedOffDarwin(t *testing.T) {
 	t.Parallel()
 
-	overlay, err := modeindicator.NewOverlay(config.DefaultConfig().ModeIndicator, nil, nil)
+	overlay, err := modeindicator.NewOverlay(config.DefaultConfig().ModeIndicator, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("NewOverlay returned error: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestOverlay_DrawModeIndicatorReportsNotSupportedOffDarwin(t *testing.T) {
 func TestOverlay_DrawModeIndicatorIsStableAcrossCalls(t *testing.T) {
 	t.Parallel()
 
-	overlay, err := modeindicator.NewOverlay(config.DefaultConfig().ModeIndicator, nil, nil)
+	overlay, err := modeindicator.NewOverlay(config.DefaultConfig().ModeIndicator, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("NewOverlay returned error: %v", err)
 	}

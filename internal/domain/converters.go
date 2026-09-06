@@ -10,6 +10,11 @@ const (
 	ModeNameScroll        = "scroll"
 	ModeNameRecursiveGrid = "recursive_grid"
 	ModeNameMonitorSelect = "monitor_select"
+	// ModeNameCustom is the command word that enters a user-declared mode:
+	// "mode <name>". It is the word wherever a built-in mode is called by its
+	// name, so the CLI command, the IPC action and the binding step all agree;
+	// the declared name travels beside it as the first argument.
+	ModeNameCustom = "mode"
 )
 
 // ModeString converts a Mode to its string representation.
@@ -27,6 +32,8 @@ func ModeString(mode Mode) string {
 		return ModeNameRecursiveGrid
 	case ModeMonitorSelect:
 		return ModeNameMonitorSelect
+	case ModeCustom:
+		return ModeNameCustom
 	default:
 		return UnknownMode
 	}
