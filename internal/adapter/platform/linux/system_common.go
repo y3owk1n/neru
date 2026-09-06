@@ -365,6 +365,33 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	return s.moveCursorDirect(point)
 }
 
+// MoveCursorInstantly posts one cursor move and returns at once
+// (ports.InstantCursorMover). Both animators are stopped first so a stale
+// step cannot land after it. On wlroots the move is injected as a relative
+// delta against the client-side cache — the same reason MoveCursorBy stays in
+// delta space there: nothing can query the real pointer, so an absolute warp
+// would jump by however stale the cache is. X11 and KDE warp directly.
+func (s *SystemAdapter) MoveCursorInstantly(ctx context.Context, point image.Point) error {
+	err := ctx.Err()
+	if err != nil {
+		return err
+	}
+
+	s.relativeAnimator.stop()
+	s.cursorAnimator.stop()
+
+	if s.backend == backendWaylandWlroots {
+		cached, err := waylandCursorPosition()
+		if err != nil {
+			return err
+		}
+
+		return wlrootsMoveCursorBy(point.Sub(cached))
+	}
+
+	return s.moveCursorDirect(point)
+}
+
 // MoveCursorBy applies a relative cursor move. With smooth cursor enabled
 // (smooth_cursor.move_mouse_enabled) the move animates over the fixed
 // per-move duration smooth_cursor.relative_movement_duration:
@@ -1081,3 +1108,6 @@ func darkModeCapability(value int, source darkModeSource, ok bool) ports.Feature
 		Detail: "current state: " + label + " (source=" + string(source) + ")",
 	}
 }
+
+// SystemAdapter posts single moves without waiting for the held-key glide.
+var _ ports.InstantCursorMover = (*SystemAdapter)(nil)

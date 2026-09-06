@@ -1614,16 +1614,16 @@ duration_per_pixel = 1.0
 
 ## [held_repeat]
 
-Repeatedly dispatches scroll, page, relative-mouse-move, and `move_cell` actions while the key is held, with a configurable initial delay and repeat interval. Disable held-key repeat entirely by setting `enabled = false`.
+Repeatedly dispatches scroll, page, and `move_cell` actions while the key is held, with a configurable initial delay and repeat interval, and glides the cursor for a held `move_mouse_relative` (see [Glide](#glide)). Disable held-key behaviour entirely by setting `enabled = false`.
 
 | Option                 | Type     | Default                   | Description                                      |
 | ---------------------- | -------- | ------------------------- | ------------------------------------------------ |
-| `enabled`              | bool     | `false`                   | Master toggle for held-key repeat                |
+| `enabled`              | bool     | `false`                   | Master toggle for held-key repeat and the glide  |
 | `initial_delay_ms`     | int      | `50`                      | Delay before first repeat fires (ms)             |
 | `interval_ms`          | int      | `50`                      | Interval between subsequent repeats (ms)         |
-| `accel_enabled`        | bool     | `false`                   | Ramp step distance up the longer the key is held |
+| `accel_enabled`        | bool     | `false`                   | Ramp the glide's speed up the longer the key stays held |
 | `accel_ramp_ms`        | int      | `500`                     | Hold time to reach `accel_max_multiplier` (ms)   |
-| `accel_max_multiplier` | float    | `4.0`                     | Step distance multiplier at full ramp            |
+| `accel_max_multiplier` | float    | `4.0`                     | Speed multiplier at full ramp                    |
 | `accel_targets`        | string[] | `["move_mouse_relative"]` | Action names eligible for acceleration           |
 
 ```toml
@@ -1637,29 +1637,41 @@ accel_max_multiplier = 4.0
 accel_targets = ["move_mouse_relative"]
 ```
 
+### Glide
+
+With `enabled = true`, holding a key bound to a lone `move_mouse_relative` does
+not repeat its step. The key contributes a direction, read from the sign of its
+`--dx`/`--dy`, to one continuous glide: the cursor starts moving the moment the
+key goes down at the binding's step per `interval_ms` (the default 10px step
+every 50ms is 200px/s) and keeps that speed until release. Two keys held
+together move diagonally at the same speed as one key moves straight, and
+opposite keys cancel; when held keys have different steps the larger one sets
+the speed. A short tap still travels about one step.
+
+The glide runs on its own 10ms tick from the moment a key goes down until the
+last direction key is released, with a subpixel position so slow speeds stay
+smooth, so `initial_delay_ms` does not apply to it. It works across monitors,
+and a click or any other action fired while moving acts at the cursor's live
+position. Scroll, page and `move_cell` keep their fixed step and repeat on
+`interval_ms` as before.
+
 ### Acceleration
 
-With `accel_enabled = true`, a held key ramps linearly from 1x to `accel_max_multiplier`
-over `accel_ramp_ms`, then holds there until release. With the values above the
-multiplier is 2.5x at 250ms and 4x from 500ms onward, so a binding of
-`action move_mouse_relative --dx=20 --dy=0` moves 50px per tick at 250ms and 80px per
-tick from 500ms. The repeat interval never changes, only the per-tick distance, which is
-how pointer acceleration works at the OS level and avoids rescheduling the repeat timer
-on every tick.
+With `accel_enabled = true`, the glide's speed ramps linearly to
+`accel_max_multiplier` times the binding's speed over `accel_ramp_ms`, then holds
+there until release. With the values above a 10px binding is at 500px/s after
+250ms and 800px/s from 500ms onward. Leave it off for a glide at constant speed.
 
-The ramp is measured from the first repeat, not from the key press, so `initial_delay_ms`
-does not eat into it.
+Acceleration only applies to actions listed in `accel_targets`. Only
+`move_mouse_relative` glides, so that is currently the sole valid entry:
+anything else is a config error rather than a binding that silently never
+accelerates. An empty `accel_targets` while `accel_enabled = true` is rejected
+for the same reason.
 
-Acceleration only applies to actions listed in `accel_targets`. Scaling acts on the
-action's `--dx`/`--dy` flags, which only `move_mouse_relative` accepts, so that is
-currently the sole valid entry: anything else is a config error rather than a binding
-that silently never accelerates. An empty `accel_targets` while `accel_enabled = true` is
-rejected for the same reason. Scroll and page keep their fixed step.
-
-`accel_enabled = true` while `enabled = false` is not an error: acceleration scales a
-repeat, so with no repeat to scale it simply does nothing, and refusing the file would
-stop you turning held-key repeat off without also unwinding the settings under it.
-`neru config validate` reports it as a warning instead.
+`accel_enabled = true` while `enabled = false` is not an error: acceleration
+shapes a glide, so with no glide to shape it simply does nothing, and refusing
+the file would stop you turning held-key behaviour off without also unwinding
+the settings under it. `neru config validate` reports it as a warning instead.
 
 ---
 

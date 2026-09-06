@@ -179,6 +179,10 @@ func (b *Binder) dispatchModeAwareHeldHotkey(key string, globalActions []string)
 		b.modes.SuppressModifiersForHotkey(ModifiersFromKey(key))
 	}
 
+	if repeat && b.startMotion(key, actions) {
+		return
+	}
+
 	if repeat {
 		b.startHotkeyRepeat(key, actions)
 
@@ -186,6 +190,23 @@ func (b *Binder) dispatchModeAwareHeldHotkey(key string, globalActions []string)
 	}
 
 	b.dispatchHotkeyActionsAsync(key, actions)
+}
+
+// startMotion presses key into the glide's held set when its binding
+// qualifies, reporting whether it did. The release callback drops it again.
+func (b *Binder) startMotion(key string, actions []string) bool {
+	if b.motion == nil {
+		return false
+	}
+
+	dir, step, ok := b.settings().HeldRepeat.HeldMotion(actions)
+	if !ok {
+		return false
+	}
+
+	b.motion.Press(key, dir, step)
+
+	return true
 }
 
 // effectiveHeldHotkey resolves which actions a global hotkey press should run
@@ -268,6 +289,8 @@ func (b *Binder) startHotkeyRepeat(key string, actions []string) {
 }
 
 func (b *Binder) stopHotkeyRepeat(key string) {
+	b.motion.Release(key)
+
 	b.hotkeyRepeatMu.Lock()
 
 	cancel := b.hotkeyRepeatCancels[key]
@@ -282,6 +305,8 @@ func (b *Binder) stopHotkeyRepeat(key string) {
 }
 
 func (b *Binder) stopAllHotkeyRepeats() {
+	b.motion.ReleaseAll()
+
 	b.hotkeyRepeatMu.Lock()
 	cancels := b.hotkeyRepeatCancels
 	b.hotkeyRepeatCancels = nil

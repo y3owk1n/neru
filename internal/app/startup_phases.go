@@ -13,6 +13,7 @@ import (
 	textinputadapter "github.com/y3owk1n/neru/internal/adapter/textinput"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/systray"
+	"github.com/y3owk1n/neru/internal/app/heldmotion"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/modes"
@@ -20,6 +21,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -319,6 +321,13 @@ func initializeModeHandler(app *App) {
 		},
 	}
 
+	app.motion = heldmotion.New(
+		app.ctx,
+		app.systemPort,
+		func() motion.Ramp { return app.configSnapshot().HeldRepeat.Ramp() },
+		deps.logger,
+	)
+
 	app.modes = modes.NewHandler(modes.HandlerDeps{
 		Ctx:                    app.ctx,
 		Config:                 deps.config,
@@ -342,6 +351,7 @@ func initializeModeHandler(app *App) {
 		Shutdown:               app.Quit,
 		TextInput:              app.textInput,
 		System:                 app.systemPort,
+		Motion:                 app.motion.Group("modes"),
 	})
 }
 
@@ -437,6 +447,7 @@ func hotkeyBinderDeps(app *App) keybinding.Deps {
 			}
 		},
 		Context: func() context.Context { return app.ctx },
+		Motion:  app.motion.Group("hotkeys"),
 		Logger:  app.logger,
 	}
 }

@@ -48,7 +48,12 @@ func (h *Handler) HandleFedKeyPress(key string) {
 	defer h.mu.Unlock()
 
 	repeatBefore := h.heldRepeatingKey
+
+	// A fed key has no release to come, so it must never enter the glide:
+	// it takes the discrete path and the synthesized release below.
+	h.fedPress = true
 	h.handleKeyPress(key)
+	h.fedPress = false
 
 	// Only release a repeat this fed press just started; leave any pre-existing
 	// (physically held) repeat untouched.
@@ -73,6 +78,8 @@ func (h *handlerState) handleKeyPress(key string) {
 	// The eventtap emits modifier-free key names on key-up, so we compare
 	// only the base key name (last segment after "+") case-insensitively.
 	if releasedKey, ok := strings.CutPrefix(key, keyUpPrefix); ok {
+		h.motion.Release(motionKeyOf(releasedKey))
+
 		if h.heldRepeatingKey != "" {
 			baseHeld := h.heldRepeatingKey
 			if i := strings.LastIndex(baseHeld, "+"); i >= 0 {
@@ -90,7 +97,8 @@ func (h *handlerState) handleKeyPress(key string) {
 	// Suppress macOS native key repeats when a custom held-key repeat is active.
 	// The custom goroutine handles repeat dispatch at heldRepeatInterval.
 	// heldRepeatingKey stores the sticky-stripped key, so we strip before comparing.
-	if h.heldRepeatingKey != "" {
+	// The same suppression covers a key steering an held-key glide.
+	if h.heldRepeatingKey != "" || h.motion != nil {
 		suppressKey := key
 
 		activeMods := h.stickyModifiers()
@@ -99,6 +107,10 @@ func (h *handlerState) handleKeyPress(key string) {
 		}
 
 		if suppressKey == h.heldRepeatingKey {
+			return
+		}
+
+		if h.motion.IsHeld(motionKeyOf(suppressKey)) {
 			return
 		}
 	}
@@ -336,6 +348,12 @@ func (h *handlerState) dispatchHotkeyActions(
 	rawKey string,
 	actions []string,
 ) {
+	// A gliding key moves the cursor for as long as it is down; its
+	// discrete step is never dispatched.
+	if h.startMotion(rawKey, actions) {
+		return
+	}
+
 	h.logger.Debug("Hotkey matched",
 		zap.String("mode", modeName),
 		zap.String("bindKey", bindKey),
@@ -381,7 +399,7 @@ func (h *handlerState) dispatchHotkeyActions(
 // bindKey is the normalised config-binding key (for consistent logging).
 // Caller must hold h.mu.
 func (h *handlerState) maybeStartHeldRepeat(key, bindKey string, actions []string) {
-	if h.heldRepeatingCancel != nil {
+	if h.heldRepeatingCancel != nil || h.motionApplies(actions) {
 		return
 	}
 
@@ -424,4 +442,44 @@ func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
 // held-repeatable action (scroll, page, relative mouse move, or cell move).
 func isHeldRepeatAction(actions []string) bool {
 	return action.IsHeldRepeatAction(action.Name(config.HeldRepeatActionName(actions)))
+}
+
+// motionKeyOf reduces a key to the name its release event carries: the base
+// segment, case-folded, since the event tap emits key-ups without modifiers.
+func motionKeyOf(key string) string {
+	if i := strings.LastIndex(key, "+"); i >= 0 {
+		key = key[i+1:]
+	}
+
+	return strings.ToLower(key)
+}
+
+// motionApplies reports whether a held binding glides rather than repeats.
+// Caller must hold h.mu.
+func (h *handlerState) motionApplies(actions []string) bool {
+	if h.motion == nil {
+		return false
+	}
+
+	_, _, ok := h.config.HeldRepeat.HeldMotion(actions)
+
+	return ok
+}
+
+// startMotion presses key into the glide's held set when its binding
+// qualifies, reporting whether it did. Caller must hold h.mu; the controller's
+// lock sits below it and never calls back.
+func (h *handlerState) startMotion(key string, actions []string) bool {
+	if h.motion == nil || h.fedPress {
+		return false
+	}
+
+	dir, step, ok := h.config.HeldRepeat.HeldMotion(actions)
+	if !ok {
+		return false
+	}
+
+	h.motion.Press(motionKeyOf(key), dir, step)
+
+	return true
 }

@@ -126,6 +126,14 @@ func (s *SystemAdapter) MoveCursorBy(
 	return MoveMouseRelativeSmooth(delta), nil
 }
 
+// MoveCursorInstantly posts one cursor move without animating or waiting
+// (ports.InstantCursorMover).
+func (s *SystemAdapter) MoveCursorInstantly(ctx context.Context, point image.Point) error {
+	PostMouseMove(point)
+
+	return nil
+}
+
 // WaitForCursorIdle blocks until any in-flight cursor movement animation settles.
 func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 	return cursorAnimator.wait(ctx)
@@ -225,6 +233,9 @@ var _ ports.SystemPort = (*SystemAdapter)(nil)
 // Ensure SystemAdapter opts into relative cursor movement (animated relative
 // moves when smooth cursor is enabled).
 var _ ports.RelativeCursorMover = (*SystemAdapter)(nil)
+
+// SystemAdapter posts single moves without waiting for the held-key glide.
+var _ ports.InstantCursorMover = (*SystemAdapter)(nil)
 
 // Ensure SystemAdapter opts into settling in-flight cursor animations before
 // position-dependent actions.

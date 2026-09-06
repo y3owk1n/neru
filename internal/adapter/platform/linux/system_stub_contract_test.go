@@ -406,9 +406,10 @@ func TestSystemAdapter_StartsNoCompositorBridgeOffKDE(t *testing.T) {
 	}
 }
 
-// TestSystemAdapter_MoveCursorToPointReportsNotSupported covers the one mutating
-// method worth pinning here. It is safe on an unimplemented backend precisely
-// because nothing is wired up to move — which is the behavior being asserted.
+// TestSystemAdapter_MoveCursorToPointReportsNotSupported covers the two mutating
+// methods worth pinning here (its sibling below is the second). They are safe on
+// an unimplemented backend precisely because nothing is wired up to move — which
+// is the behavior being asserted.
 func TestSystemAdapter_MoveCursorToPointReportsNotSupported(t *testing.T) {
 	adapter := linux.NewSystemAdapter(unimplementedBackend)
 
@@ -419,6 +420,20 @@ func TestSystemAdapter_MoveCursorToPointReportsNotSupported(t *testing.T) {
 
 	if !derrors.IsNotSupported(err) {
 		t.Errorf("MoveCursorToPoint returned %v (code %q), want CodeNotSupported",
+			err, derrors.GetCode(err))
+	}
+}
+
+func TestSystemAdapter_MoveCursorInstantlyReportsNotSupported(t *testing.T) {
+	adapter := linux.NewSystemAdapter(unimplementedBackend)
+
+	err := adapter.MoveCursorInstantly(context.Background(), image.Point{X: 10, Y: 10})
+	if err == nil {
+		t.Fatal("MoveCursorInstantly on an unimplemented backend returned nil")
+	}
+
+	if !derrors.IsNotSupported(err) {
+		t.Errorf("MoveCursorInstantly returned %v (code %q), want CodeNotSupported",
 			err, derrors.GetCode(err))
 	}
 }

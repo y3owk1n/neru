@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/app/heldmotion"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -72,6 +73,9 @@ type Deps struct {
 	PublishRegisteredHotkeys func(keys []string)
 	// Context bounds held-key repeat, so shutdown stops a repeating key.
 	Context func() context.Context
+	// Motion is the binder's namespace in the held-key glide controller;
+	// nil leaves every held move_mouse_relative on the repeat path.
+	Motion *heldmotion.Group
 
 	Logger *zap.Logger
 }
@@ -90,6 +94,7 @@ type Binder struct {
 	runActionSequence func(source string, steps []string)
 	publishRegistered func(keys []string)
 	ctx               func() context.Context
+	motion            *heldmotion.Group
 	logger            *zap.Logger
 
 	// hotkeyRepeatMu guards the repeat cancel table against the event-tap
@@ -118,6 +123,7 @@ func New(deps Deps) *Binder {
 		configSnapshot:      deps.Config,
 		runActionSequence:   deps.RunSequence,
 		publishRegistered:   deps.PublishRegisteredHotkeys,
+		motion:              deps.Motion,
 		ctx:                 deps.Context,
 		logger:              logger.Named("app.hotkey"),
 		hotkeyRepeatCancels: make(map[string]context.CancelFunc),

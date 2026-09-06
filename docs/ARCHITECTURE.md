@@ -262,7 +262,12 @@ clearer is covered in
 2. **Adapters** — [adapter.go](../internal/adapter/eventtap/adapter.go)
    receives and dispatches them
 3. **Application** — [handler.go](../internal/app/modes/handler.go) routes the
-   key to the active [Mode](../internal/app/modes/base.go)
+   key to the active [Mode](../internal/app/modes/base.go). A held direction
+   key in the held-key glide is the one exception: the handler and the global
+   hotkey binder both press it into
+   [heldmotion](../internal/app/heldmotion/controller.go), whose fixed-rate
+   loop integrates the held set into cursor moves and posts them straight to
+   the system port, never through a mode
 4. **Service** — the mode calls into
    [hint_service.go](../internal/app/services/hint_service.go) and friends
 5. **Keyboard layout changes** — on macOS the mode-level CGEventTap rebuilds its

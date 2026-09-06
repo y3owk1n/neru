@@ -167,6 +167,7 @@ answer.
 | **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput, virtual-pointer fallback) | ✅ both axes (uinput, libei fallback) | ✅ both axes ⁷               |
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard + virtual pointer (uinput on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold ⁷ |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in |
+| **Held-key glide (`held_repeat`)** | ✅ `CGEventPost` per tick | ✅ XTest per tick | ✅ virtual-pointer relative motion per tick | ✅ libei per tick | ✅ `SetCursorPos` per tick |
 | **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ³ | ✅ continuous axis ³ (whole notches when modified on Hyprland ⁹) | ⚠️ libei scroll delta, unverified ³ | ✅ 120ths of a notch ³ |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, control view only    |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ DirectComposition + Direct2D (GDI fallback; windows/arm64 is GDI only ¹⁰) |
@@ -1042,8 +1043,8 @@ Current ports: `SystemPort`, `AccessibilityPort`, `OverlayPort`, `EventTapPort`,
 `HotkeyPort`, `IPCPort`, `VisionPort`, `TextInputPort`, `KeyFeedPort`,
 `AppWatcherPort`, `SystrayPort`, `FontResolver`.
 
-Optional extensions (Tier 3): `RelativeCursorMover` and `CursorSynchronizer`
-on `SystemPort`, `HotkeyReleaseRegistrar` and `HotkeyHealthReporter` on
+Optional extensions (Tier 3): `RelativeCursorMover`, `CursorSynchronizer`
+and `InstantCursorMover` on `SystemPort`, `HotkeyReleaseRegistrar` and `HotkeyHealthReporter` on
 `HotkeyPort`, `OverlayKeyboardPassthroughReporter` on `EventTapPort`,
 `OverlayCapabilityReporter` on `OverlayPort`, and `SyntheticModifierSink` on
 the `tap.Tap` backend contract (Linux only, declared in a `_linux.go` file

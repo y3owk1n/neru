@@ -199,6 +199,9 @@ func (h *handlerState) cleanupGridMode() {
 func (h *handlerState) performCommonCleanup(keepEventTap bool) {
 	h.stopIndicatorPolling()
 	h.stopHeldRepeat()
+	// Key-ups stop arriving once the tap is down, so every key this mode
+	// pressed into the held-key glide is released with it.
+	h.motion.ReleaseAll()
 	h.clearOverlayFrame()
 
 	// Stop any pending hints refresh timer to prevent re-activation after exit

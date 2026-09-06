@@ -205,3 +205,15 @@ type CursorSynchronizer interface {
 	// the platform's authoritative source.
 	SyncCursorPosition(ctx context.Context) error
 }
+
+// InstantCursorMover is an optional SystemPort extension for platforms whose
+// plain MoveCursorToPoint waits for the window server to process the move.
+// MoveCursorInstantly posts one absolute move (or drag, while a button is
+// held) and returns at once, which is what a fixed-rate motion loop needs:
+// a 10 ms tick cannot afford a 10 ms wait per step. It cancels any cursor
+// animation in flight. Fall back to MoveCursorToPoint with bypassSmooth
+// when unimplemented.
+type InstantCursorMover interface {
+	// MoveCursorInstantly posts one cursor move without animating or waiting.
+	MoveCursorInstantly(ctx context.Context, point image.Point) error
+}

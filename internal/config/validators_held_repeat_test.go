@@ -4,7 +4,6 @@ import (
 	"math"
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/y3owk1n/neru/internal/config"
 )
@@ -139,73 +138,13 @@ func TestConfigValidateHeldRepeat_AccelWithRepeatIsSilent(t *testing.T) {
 	}
 }
 
-func TestHeldRepeatAccelMultiplierAt(t *testing.T) {
-	accelerating := config.HeldRepeatConfig{
-		AccelEnabled:       true,
-		AccelRampMs:        500,
-		AccelMaxMultiplier: 4,
-	}
-
-	tests := []struct {
-		name string
-		cfg  config.HeldRepeatConfig
-		held time.Duration
-		want float64
-	}{
-		{"press starts at 1x", accelerating, 0, 1},
-		{"quarter ramp", accelerating, 125 * time.Millisecond, 1.75},
-		{"half ramp", accelerating, 250 * time.Millisecond, 2.5},
-		{"full ramp", accelerating, 500 * time.Millisecond, 4},
-		{"past ramp stays clamped", accelerating, 5 * time.Second, 4},
-		{
-			name: "disabled never scales",
-			cfg: config.HeldRepeatConfig{
-				AccelEnabled:       false,
-				AccelRampMs:        500,
-				AccelMaxMultiplier: 4,
-			},
-			held: time.Second,
-			want: 1,
-		},
-		{
-			name: "max multiplier of one never scales",
-			cfg: config.HeldRepeatConfig{
-				AccelEnabled:       true,
-				AccelRampMs:        500,
-				AccelMaxMultiplier: 1,
-			},
-			held: time.Second,
-			want: 1,
-		},
-		{
-			name: "zero ramp jumps straight to max",
-			cfg: config.HeldRepeatConfig{
-				AccelEnabled:       true,
-				AccelRampMs:        0,
-				AccelMaxMultiplier: 4,
-			},
-			held: time.Millisecond,
-			want: 4,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.cfg.AccelMultiplierAt(tt.held)
-			if got != tt.want {
-				t.Errorf("AccelMultiplierAt(%v) = %v, want %v", tt.held, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestHeldRepeatAccelAppliesTo(t *testing.T) {
 	enabled := config.HeldRepeatConfig{
 		AccelEnabled: true,
-		AccelTargets: []string{"move_mouse_relative"},
+		AccelTargets: []string{testMoveMouseRelative},
 	}
 
-	if !enabled.AccelAppliesTo("move_mouse_relative") {
+	if !enabled.AccelAppliesTo(testMoveMouseRelative) {
 		t.Error("expected move_mouse_relative to be accelerated")
 	}
 
@@ -220,7 +159,7 @@ func TestHeldRepeatAccelAppliesTo(t *testing.T) {
 	disabled := enabled
 	disabled.AccelEnabled = false
 
-	if disabled.AccelAppliesTo("move_mouse_relative") {
+	if disabled.AccelAppliesTo(testMoveMouseRelative) {
 		t.Error("expected no acceleration while accel_enabled is false")
 	}
 }

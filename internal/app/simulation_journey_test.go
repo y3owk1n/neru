@@ -1359,6 +1359,61 @@ func TestSimulation_HeldRepeatScroll(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
+// TestSimulation_HeldMotionDiagonal covers the held-key glide: two held direction
+// keys glide the cursor diagonally on the motion tick, native autorepeat of a
+// held key is ignored, and releasing both keys stops the glide.
+func TestSimulation_HeldMotionDiagonal(t *testing.T) {
+	// stopSampleWindow is how long the stop check lets the loop run between
+	// its two samples.
+	const stopSampleWindow = 100 * time.Millisecond
+
+	cfg := simConfig()
+	cfg.HeldRepeat.Enabled = true
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+
+	start := sim.cursor.position()
+
+	// Right and Down are bound to relative mouse movement; held together they
+	// steer one diagonal glide. The repeated Right is what the OS autorepeat
+	// delivers for a key that stays down.
+	sim.press("Right")
+	sim.press("Down")
+	sim.press("Right")
+
+	sim.waitFor("cursor glided down-right", func() bool {
+		pos := sim.cursor.position()
+
+		return pos.X > start.X && pos.Y > start.Y
+	})
+
+	sim.press("__keyup_Right")
+	sim.press("__keyup_Down")
+
+	sim.waitForWithin(
+		simWaitHeadroom+2*stopSampleWindow,
+		"glide stopped after both keys were released",
+		func() bool {
+			before := sim.cursor.moveCount()
+
+			time.Sleep(stopSampleWindow)
+
+			return sim.cursor.moveCount() == before
+		},
+	)
+
+	end := sim.cursor.position()
+	if end.X-start.X != end.Y-start.Y {
+		t.Fatalf("diagonal drifted: start %v, end %v", start, end)
+	}
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}
+
 // TestSimulation_DragJourney covers the drag primitives: mouse down at the
 // cursor, arrow-key relative movement while holding, mouse up at the new
 // position.

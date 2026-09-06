@@ -105,6 +105,16 @@ func MoveMouse(point image.Point, bypassSmooth bool) {
 	}
 }
 
+// PostMouseMove posts one absolute cursor move (or drag, while a button is
+// held) and returns at once. Unlike MoveMouse it neither animates nor spins
+// the run loop, so a fixed-rate motion loop can call it every tick.
+func PostMouseMove(point image.Point) {
+	cursorAnimator.stop()
+
+	eventType, button := dragEventType()
+	postCursorMoveEvent(point, uint32(eventType), uint32(button))
+}
+
 // MoveMouseSmooth moves the mouse cursor smoothly to the specified point.
 func MoveMouseSmooth(end image.Point, steps int, eventType, button uint32) {
 	cursorAnimator.animateTo(end, steps, eventType, button)

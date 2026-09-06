@@ -592,9 +592,9 @@ type HeldRepeatConfig struct {
 	Enabled            bool     `json:"enabled"            toml:"enabled"`              // Master toggle for held-key repeat
 	InitialDelay       int      `json:"initialDelay"       toml:"initial_delay_ms"`     // Delay before first repeat fires (ms)
 	Interval           int      `json:"interval"           toml:"interval_ms"`          // Interval between subsequent repeats (ms)
-	AccelEnabled       bool     `json:"accelEnabled"       toml:"accel_enabled"`        // Ramp step distance up while the key stays held
+	AccelEnabled       bool     `json:"accelEnabled"       toml:"accel_enabled"`        // Ramp the glide's speed up the longer the key stays held
 	AccelRampMs        int      `json:"accelRampMs"        toml:"accel_ramp_ms"`        // Hold time to reach accel_max_multiplier (ms)
-	AccelMaxMultiplier float64  `json:"accelMaxMultiplier" toml:"accel_max_multiplier"` // Step distance multiplier at full ramp
+	AccelMaxMultiplier float64  `json:"accelMaxMultiplier" toml:"accel_max_multiplier"` // Speed multiplier at full ramp
 	AccelTargets       []string `json:"accelTargets"       toml:"accel_targets"`        // Action names eligible for acceleration
 }
 

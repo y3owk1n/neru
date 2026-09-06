@@ -416,12 +416,12 @@ duration_per_pixel = 1.00                   # Ms per pixel for adaptive duration
 # Held-key repeat (fires scroll/page/mouse-move actions repeatedly while held)
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#held_repeat
 [held_repeat]
-enabled = false                         # Master toggle for held-key repeat
+enabled = false                         # Master toggle for held-key repeat (a held move_mouse_relative glides)
 initial_delay_ms = 50                   # Delay before first repeat fires (ms)
 interval_ms = 50                        # Interval between subsequent repeats (ms)
-accel_enabled = false                   # Ramp step distance up the longer the key is held
+accel_enabled = false                   # Ramp the glide's speed up the longer the key stays held
 accel_ramp_ms = 500                     # Hold time to reach accel_max_multiplier (ms)
-accel_max_multiplier = 4.0              # Step distance multiplier at full ramp
+accel_max_multiplier = 4.0              # Speed multiplier at full ramp
 accel_targets = ["move_mouse_relative"] # Action names eligible for acceleration
 
 # Systray
