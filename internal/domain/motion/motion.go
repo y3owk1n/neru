@@ -129,6 +129,23 @@ func (i *Integrator) Step(params Params, dir Direction, elapsed time.Duration) i
 	return i.Position()
 }
 
+// Nudge moves distance pixels in dir at once, outside the velocity ramp,
+// and returns the position to post. A diagonal nudge covers distance along
+// the diagonal, not per axis.
+func (i *Integrator) Nudge(dir Direction, distance float64) image.Point {
+	unitX, unitY := float64(dir.X), float64(dir.Y)
+	if dir.X != 0 && dir.Y != 0 {
+		unitX *= diagonalScale
+		unitY *= diagonalScale
+	}
+
+	i.x += unitX * distance
+	i.y += unitY * distance
+	i.clamp()
+
+	return i.Position()
+}
+
 // Position is the current subpixel position rounded to the pixel grid.
 func (i *Integrator) Position() image.Point {
 	return image.Point{X: int(math.Round(i.x)), Y: int(math.Round(i.y))}

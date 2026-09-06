@@ -91,6 +91,14 @@ func TestHeldRepeatConfig_HeldMotion(t *testing.T) {
 	}{
 		{"right", accelOn, []string{testMotionRight}, motion.Direction{X: 1}, 10, true},
 		{
+			"quoted flags parse as the executor would",
+			accelOn,
+			[]string{`action move_mouse_relative "--dx=10" "--dy=0"`},
+			motion.Direction{X: 1},
+			10,
+			true,
+		},
+		{
 			"up-left reduces to signs, largest axis is the step",
 			accelOn,
 			[]string{"action move_mouse_relative --dx -30 --dy -5"},

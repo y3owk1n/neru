@@ -30,12 +30,14 @@ func (c HeldRepeatConfig) AccelAppliesTo(name string) bool {
 // HeldMotion reports whether a held binding glides, with the direction it
 // points in and its step size. Only a lone move_mouse_relative with parsable,
 // non-zero --dx/--dy qualifies, and only while held_repeat.enabled is set.
+// The flags are read with the executor's quote-aware grammar, so a binding
+// that runs also glides.
 func (c HeldRepeatConfig) HeldMotion(actions []string) (motion.Direction, int, bool) {
 	if !c.Enabled || action.Name(HeldRepeatActionName(actions)) != action.NameMoveMouseRelative {
 		return motion.Direction{}, 0, false
 	}
 
-	deltaX, deltaY, ok := action.ParseDeltaFlags(actions[0])
+	deltaX, deltaY, ok := action.ParseDeltaFlags(SplitStepArgs(actions[0]))
 	if !ok {
 		return motion.Direction{}, 0, false
 	}

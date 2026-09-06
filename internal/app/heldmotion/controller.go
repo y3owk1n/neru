@@ -29,8 +29,17 @@ type heldKey struct {
 // heldEntry is what one held key contributes: where it points and how far its
 // binding steps, which is what sets the glide's speed.
 type heldEntry struct {
-	dir  motion.Direction
-	step int
+	dir       motion.Direction
+	step      int
+	pressedAt time.Time
+}
+
+// tap is the travel a key released within one interval of its press is still
+// owed: the glide had not yet moved it a full step, and a tap on a stepped
+// binding always moved one.
+type tap struct {
+	dir      motion.Direction
+	distance float64
 }
 
 // Controller owns the held-key set and the loop that consumes it. Its mutex
@@ -43,14 +52,17 @@ type Controller struct {
 
 	mu      sync.Mutex
 	held    map[heldKey]heldEntry
+	taps    []tap
+	current motion.Ramp
 	running bool
 	loopID  uint64
 }
 
-// New wires a controller. ramp is read on every press so a reload takes
-// effect at the next key down; it runs inside Press under whatever lock the
-// caller holds, so it must not block or reach the mode handler. A nil logger
-// is replaced with a no-op.
+// New wires a controller. ramp is read on every press, and the loop reads
+// the latest value on every tick, so a reload takes effect at the next key
+// down even mid-glide; it runs inside Press under whatever lock the caller
+// holds, so it must not block or reach the mode handler. A nil logger is
+// replaced with a no-op.
 func New(
 	ctx context.Context,
 	system ports.SystemPort,
@@ -138,10 +150,12 @@ func (g *Group) ReleaseAll() {
 
 func (c *Controller) press(key heldKey, entry heldEntry) {
 	ramp := c.ramp()
+	entry.pressedAt = time.Now()
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.current = ramp
 	c.held[key] = entry
 
 	if c.running {
@@ -151,42 +165,70 @@ func (c *Controller) press(key heldKey, entry heldEntry) {
 	c.running = true
 	c.loopID++
 
-	go c.run(c.loopID, ramp)
+	go c.run(c.loopID)
 }
 
+// release drops the key and, when it was held for less than one interval,
+// owes the loop the rest of a step: a tap on a stepped binding always moved
+// one, and the glide may not have ticked at all yet.
 func (c *Controller) release(key heldKey) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.held[key]
+	entry, ok := c.held[key]
 	delete(c.held, key)
 
-	return ok
+	if !ok || c.current.Interval <= 0 {
+		return ok
+	}
+
+	held := time.Since(entry.pressedAt)
+	if held >= c.current.Interval {
+		return true
+	}
+
+	owed := float64(entry.step) * (1 - held.Seconds()/c.current.Interval.Seconds())
+	c.taps = append(c.taps, tap{dir: entry.dir, distance: owed})
+
+	return true
 }
 
-// direction combines the held set into where to go and the largest step
-// among the keys, which sets the speed. When nothing is held it marks the loop
-// finished under the same lock hold, so a press racing the last release
-// either joins this loop or starts the next one, never neither.
-func (c *Controller) direction() (motion.Direction, int, bool) {
+// tickInput is what one tick of the loop acts on: any taps owed since the
+// last tick, then the held set combined into where to go, the largest step
+// among the keys (which sets the speed), and the ramp as last read.
+type tickInput struct {
+	taps []tap
+	dir  motion.Direction
+	step int
+	ramp motion.Ramp
+}
+
+// nextTick hands the loop its input and takes the owed taps. When nothing is
+// held and nothing is owed it marks the loop finished under the same lock
+// hold, so a press racing the last release either joins this loop or starts
+// the next one, never neither.
+func (c *Controller) nextTick() (tickInput, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if len(c.held) == 0 {
+	if len(c.held) == 0 && len(c.taps) == 0 {
 		c.running = false
 
-		return motion.Direction{}, 0, false
+		return tickInput{}, false
 	}
+
+	input := tickInput{taps: c.taps, ramp: c.current}
+	c.taps = nil
 
 	dirs := make([]motion.Direction, 0, len(c.held))
-	step := 0
-
 	for _, entry := range c.held {
 		dirs = append(dirs, entry.dir)
-		step = max(step, entry.step)
+		input.step = max(input.step, entry.step)
 	}
 
-	return motion.Combine(dirs...), step, true
+	input.dir = motion.Combine(dirs...)
+
+	return input, true
 }
 
 // finish marks loop id as no longer running, unless a newer loop has since
@@ -200,7 +242,7 @@ func (c *Controller) finish(id uint64) {
 	}
 }
 
-func (c *Controller) run(id uint64, ramp motion.Ramp) {
+func (c *Controller) run(id uint64) {
 	defer c.finish(id)
 
 	ctx := c.ctx
@@ -238,12 +280,20 @@ func (c *Controller) run(id uint64, ramp motion.Ramp) {
 		case now = <-ticker.C:
 		}
 
-		dir, step, ok := c.direction()
+		input, ok := c.nextTick()
 		if !ok {
 			return
 		}
 
-		pos := integrator.Step(ramp.ParamsFor(step), dir, min(now.Sub(last), maxTickDelta))
+		for _, owed := range input.taps {
+			integrator.Nudge(owed.dir, owed.distance)
+		}
+
+		pos := integrator.Step(
+			input.ramp.ParamsFor(input.step),
+			input.dir,
+			min(now.Sub(last), maxTickDelta),
+		)
 		last = now
 
 		if pos == posted {

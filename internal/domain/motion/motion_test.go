@@ -163,3 +163,15 @@ func TestIntegrator_Step_ZeroDirectionRests(t *testing.T) {
 		t.Errorf("first tick after rest moved %d px, want the floor", moved)
 	}
 }
+
+func TestIntegrator_Nudge_MovesOneStepAtOnce(t *testing.T) {
+	integ := motion.NewIntegrator(image.Point{X: 50, Y: 50}, image.Rect(0, 0, 100, 100))
+
+	if pos := integ.Nudge(motion.Direction{X: -1}, stepPx); pos.X != 40 || pos.Y != 50 {
+		t.Errorf("Nudge left by %d = %v, want (40, 50)", stepPx, pos)
+	}
+
+	if pos := integ.Nudge(motion.Direction{X: 1}, 1000); pos.X != 99 {
+		t.Errorf("Nudge past the edge = %v, want clamped at 99", pos)
+	}
+}

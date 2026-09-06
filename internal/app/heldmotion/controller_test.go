@@ -199,3 +199,23 @@ func waitQuiet(t *testing.T, rec *recorder) (image.Point, int) {
 		}
 	}
 }
+
+// TestGroup_Release_ShortTapStillTravelsOneStep pins what a stepped binding
+// always did on a tap: the key is released before the loop has ticked, and
+// the cursor still moves its step.
+func TestGroup_Release_ShortTapStillTravelsOneStep(t *testing.T) {
+	rec := &recorder{}
+	keys := newController(t, rec).Group("test")
+
+	keys.Press("h", motion.Direction{X: -1}, 10)
+	keys.Release("h")
+
+	last, count := waitQuiet(t, rec)
+	if count == 0 {
+		t.Fatal("a tap posted no cursor move")
+	}
+
+	if last.X < 88 || last.X > 92 || last.Y != 100 {
+		t.Fatalf("tap landed at %v, want about (90, 100)", last)
+	}
+}
