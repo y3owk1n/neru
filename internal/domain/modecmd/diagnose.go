@@ -17,17 +17,21 @@ import "github.com/y3owk1n/neru/internal/domain"
 // below is a refusal. The sentences are the same either way, so the same
 // mistake reads the same whether it was typed, sent over the socket, or found
 // in a binding.
-func Diagnose(mode domain.Mode, args []string) ([]error, error) {
+//
+// The activation is returned alongside, for the one question the grammar
+// cannot answer on its own: whether the declared mode a custom activation
+// names exists is the configuration's to know.
+func Diagnose(mode domain.Mode, args []string) (Activation, []error, error) {
 	activation, unsupported, err := read(mode, args)
 	if err != nil {
-		return nil, err
+		return Activation{}, nil, err
 	}
 
 	// A command holding both an unreadable value and an inert flag is
 	// unreadable: there is nothing left to weigh once it cannot run.
 	valueErr := validateValues(activation)
 	if valueErr != nil {
-		return nil, valueErr
+		return Activation{}, nil, valueErr
 	}
 
 	warnings := make([]error, 0, len(unsupported))
@@ -36,5 +40,5 @@ func Diagnose(mode domain.Mode, args []string) ([]error, error) {
 		warnings = append(warnings, notAccepted(mode, name))
 	}
 
-	return append(warnings, unmetDependencies(activation)...), nil
+	return activation, append(warnings, unmetDependencies(activation)...), nil
 }

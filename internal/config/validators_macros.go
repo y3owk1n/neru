@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -268,14 +270,30 @@ func (c *Config) modeBindingTables() []modeBindingTable {
 		{field: ModeNameMonitorSelect + ".hotkeys", table: c.MonitorSelect.Hotkeys},
 	}
 
-	appTables := []struct {
+	type appTable struct {
 		configs  []AppConfig
 		modeName string
-	}{
-		{configs: c.Hints.AppConfigs, modeName: ModeNameHints},
-		{configs: c.Grid.AppConfigs, modeName: ModeNameGrid},
-		{configs: c.RecursiveGrid.AppConfigs, modeName: ModeNameRecursiveGrid},
-		{configs: c.Scroll.AppConfigs, modeName: ModeNameScroll},
+	}
+
+	appTables := make([]appTable, 0, builtInModeCount+len(c.Modes))
+	appTables = append(appTables,
+		appTable{configs: c.Hints.AppConfigs, modeName: ModeNameHints},
+		appTable{configs: c.Grid.AppConfigs, modeName: ModeNameGrid},
+		appTable{configs: c.RecursiveGrid.AppConfigs, modeName: ModeNameRecursiveGrid},
+		appTable{configs: c.Scroll.AppConfigs, modeName: ModeNameScroll},
+	)
+
+	// Declared modes are walked in name order so a fault is reported at the
+	// same binding on every load.
+	for _, name := range slices.Sorted(maps.Keys(c.Modes)) {
+		tables = append(tables, modeBindingTable{
+			field: customModeField(name) + ".hotkeys",
+			table: c.Modes[name].Hotkeys,
+		})
+		appTables = append(appTables, appTable{
+			configs:  c.Modes[name].AppConfigs,
+			modeName: customModeField(name),
+		})
 	}
 
 	for _, mode := range appTables {

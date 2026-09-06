@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
@@ -18,6 +19,9 @@ const (
 	msgModifierRequiresAction          = "--modifier requires --action"
 	msgHideOnEmptySearchRequiresSearch = "--hide-on-empty-search requires --search"
 	msgModifierEmpty                   = "modifier values cannot be empty"
+	msgNameRequired                    = "mode requires the name of a declared mode: mode <name>"
+	msgNameInvalid                     = "a mode name starts with a letter and continues with letters, digits, _ or -"
+	msgNameNotAccepted                 = " does not take a mode name; only mode <name> does"
 )
 
 // Validate applies every rule that needs more than one flag to judge: which
@@ -113,12 +117,40 @@ func unmetDependencies(activation Activation) []error {
 // an unmet dependency, nothing about the rest of the command can make one of
 // these mean anything.
 func validateValues(activation Activation) error {
+	nameErr := validateName(activation)
+	if nameErr != nil {
+		return nameErr
+	}
+
 	modifierErr := validateModifier(activation)
 	if modifierErr != nil {
 		return modifierErr
 	}
 
 	return validateAction(activation)
+}
+
+// validateName holds the declared name to the custom mode: required and
+// well-formed there, and refused anywhere else, where a name would be dropped
+// by the rendering and so could never have meant anything.
+func validateName(activation Activation) error {
+	if activation.Mode != domain.ModeCustom {
+		if activation.Name != "" {
+			return invalid(domain.ModeString(activation.Mode) + msgNameNotAccepted)
+		}
+
+		return nil
+	}
+
+	if activation.Name == "" {
+		return invalid(msgNameRequired)
+	}
+
+	if !ValidModeName(activation.Name) {
+		return invalid(msgNameInvalid)
+	}
+
+	return nil
 }
 
 // validateModifier refuses a --modifier value that names no modifier key. An

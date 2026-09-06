@@ -164,8 +164,12 @@ type handlerState struct {
 	shutdown              func()
 	refreshHintsTimer     *time.Timer
 	modeSession           uint64
-	hotkeyLastKey         string
-	hotkeyLastKeyTime     int64
+	// customModeName is the declared mode a ModeCustom session is in, and
+	// empty outside one. It is what tells one declaration from another
+	// wherever the enum alone cannot: the keymap, the indicator, the frame.
+	customModeName    string
+	hotkeyLastKey     string
+	hotkeyLastKeyTime int64
 
 	textInput                  ports.TextInputPort
 	hintSearchTextInputActive  bool

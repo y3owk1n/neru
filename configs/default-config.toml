@@ -60,6 +60,22 @@ text = "#E8EEFF"
 # [hints.hotkeys]
 # "Enter" = "macro click_and_exit"
 
+# Declared modes — a keymap with a name and an indicator, no logic of its own.
+# Enter one with "mode <name>" from a hotkey, a sequence step, or `neru mode
+# <name>`. Escape returns to idle unless the mode rebinds it.
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#modes
+#
+# [modes.window]
+# indicator = "Window"
+#
+# [modes.window.hotkeys]
+# "h" = "exec yabai -m window --focus west"
+# "l" = "exec yabai -m window --focus east"
+# "s" = "scroll"
+#
+# [hotkeys]
+# "Primary+Shift+W" = "mode window"
+
 # Hint mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hints
 [hints]

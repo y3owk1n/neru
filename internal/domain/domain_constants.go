@@ -22,6 +22,11 @@ const (
 	ModeRecursiveGrid
 	// ModeMonitorSelect is the interactive monitor selection mode.
 	ModeMonitorSelect
+	// ModeCustom is a mode the user declared in [modes.<name>]. It has no
+	// logic of its own: a keymap and an indicator label, and the declared
+	// name says which. One value serves every declared mode, so the switches
+	// that name a mode gain one arm rather than one per declaration.
+	ModeCustom
 )
 
 // IPC Commands.

@@ -19,7 +19,11 @@ const (
 	stepIdle           = "idle"
 )
 
-// modeCommands are the six commands the builder produces, each against the mode
+// strayArgument is what a user might type after a mode command, thinking it
+// asks for an action.
+const strayArgument = "left_click"
+
+// modeCommands are the seven commands the builder produces, each against the mode
 // it enters.
 //
 // Which flags each one offers is not asserted here: that the command line
@@ -34,6 +38,7 @@ func modeCommands() map[domain.Mode]*cobra.Command {
 		domain.ModeScroll:        ScrollCmd,
 		domain.ModeMonitorSelect: MonitorSelectCmd,
 		domain.ModeIdle:          IdleCmd,
+		domain.ModeCustom:        ModeCmd,
 	}
 }
 
@@ -47,7 +52,14 @@ func TestModeCommands_RefuseStrayArguments(t *testing.T) {
 		t.Run(domain.ModeString(mode), func(t *testing.T) {
 			t.Parallel()
 
-			err := cmd.Args(cmd, []string{"left_click"})
+			// The custom mode command takes the declared name and nothing
+			// after it, so its stray argument is a second one.
+			stray := []string{strayArgument}
+			if mode == domain.ModeCustom {
+				stray = []string{"window", strayArgument}
+			}
+
+			err := cmd.Args(cmd, stray)
 			if err == nil {
 				t.Error("a stray argument was accepted; want it refused rather than dropped")
 			}
@@ -242,7 +254,7 @@ func TestReadModeCommand_RefusesWhatTheGrammarRefuses(t *testing.T) {
 				t.Fatalf("ParseFlags(%v) error = %v", testCase.argv, parseErr)
 			}
 
-			_, err := readModeCommand(cmd, testCase.config)
+			_, err := readModeCommand(cmd, cmd.Flags().Args(), testCase.config)
 			if err == nil {
 				t.Fatalf("%v was accepted; want a refusal", testCase.argv)
 			}
@@ -275,7 +287,7 @@ func readTyped(t *testing.T, config ModeConfig, argv []string) modeRequest {
 		t.Fatalf("ParseFlags(%v) error = %v", argv, parseErr)
 	}
 
-	request, err := readModeCommand(cmd, config)
+	request, err := readModeCommand(cmd, cmd.Flags().Args(), config)
 	if err != nil {
 		t.Fatalf("readModeCommand(%v) error = %v", argv, err)
 	}

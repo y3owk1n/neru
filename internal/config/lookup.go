@@ -33,6 +33,8 @@ func (c *Config) HotkeysForModeAndApp(
 		appConfig = c.Scroll.AppConfigForBundleID(bundleID)
 	case ModeNameMonitorSelect:
 		return base
+	default:
+		appConfig = c.Modes[modeName].AppConfigForBundleID(bundleID)
 	}
 
 	if appConfig == nil || len(appConfig.Hotkeys) == 0 {
@@ -182,6 +184,35 @@ func (c *ScrollConfig) HasAppHotkeyOverrides() bool {
 	}
 
 	return false
+}
+
+// HasAppHotkeyOverrides reports whether any [[modes.<name>.app_configs]] entry
+// has a non-empty Hotkeys map. While it is false the focused app cannot change
+// what the mode binds, which is what lets the keymap settle without asking
+// the platform which app is focused.
+func (m CustomModeConfig) HasAppHotkeyOverrides() bool {
+	for idx := range m.AppConfigs {
+		if len(m.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// AppConfigForBundleID returns the matching app config of a declared mode for
+// the given bundle ID, nil when none matches. Bundle ID matching is
+// case-insensitive after trimming whitespace, as it is for every mode.
+func (m CustomModeConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
+
+	for idx := range m.AppConfigs {
+		if strings.ToLower(strings.TrimSpace(m.AppConfigs[idx].BundleID)) == lowerBundleID {
+			return &m.AppConfigs[idx]
+		}
+	}
+
+	return nil
 }
 
 // AppConfigForBundleID returns the matching hints app config for the given bundle ID.

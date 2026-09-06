@@ -67,10 +67,11 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		Long:    config.Long,
 		// A mode command is its flags and nothing else. Refusing a stray
 		// argument is what stops "neru idle left_click" from looking like it
-		// asked for something.
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			request, err := readModeCommand(cmd, config)
+		// asked for something. The custom mode command is the exception by
+		// design: the one argument it takes is the declared mode it enters.
+		Args: modeArgs(config.Mode),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			request, err := readModeCommand(cmd, args, config)
 			if err != nil {
 				return err
 			}
@@ -89,6 +90,16 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 	registerModeFlags(cmd, config)
 
 	return cmd
+}
+
+// modeArgs is the positional shape a mode command takes: none, except for the
+// custom mode command, whose single argument names the declared mode.
+func modeArgs(mode domain.Mode) cobra.PositionalArgs {
+	if mode == domain.ModeCustom {
+		return cobra.ExactArgs(1)
+	}
+
+	return cobra.NoArgs
 }
 
 // registerModeFlags offers exactly the flags the mode accepts, spelled and
@@ -139,10 +150,14 @@ type modeRequest struct {
 // grammar judges it, and the grammar writes it back out — so a command refused
 // on the wire is refused here in the same words, and one that travels is
 // spelled the way the daemon reads it.
-func readModeCommand(cmd *cobra.Command, config ModeConfig) (modeRequest, error) {
+func readModeCommand(cmd *cobra.Command, args []string, config ModeConfig) (modeRequest, error) {
 	activation, err := readActivation(cmd, config.Mode)
 	if err != nil {
 		return modeRequest{}, err
+	}
+
+	if config.Mode == domain.ModeCustom {
+		activation.Name = args[0]
 	}
 
 	probeWanted, err := probeRequested(cmd, config)

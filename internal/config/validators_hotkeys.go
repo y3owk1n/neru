@@ -36,23 +36,34 @@ var validModifiers = map[string]bool{
 
 const minModifierComboParts = 2
 
+// builtInModeCount sizes the tables that list one entry per built-in mode
+// before the declared modes are appended.
+const builtInModeCount = 5
+
 func isValidModifier(mod string) bool {
 	return validModifiers[mod]
 }
 
 // ValidateHotkeys validates per-mode hotkey syntax and actions.
 func (c *Config) ValidateHotkeys() error {
-	modeHotkeys := []struct {
+	type modeTable struct {
 		modeName string
 		table    map[string]StringOrStringArray
-	}{
-		{ModeNameHints, c.Hints.Hotkeys},
-		{ModeNameGrid, c.Grid.Hotkeys},
-		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
-		{ModeNameScroll, c.Scroll.Hotkeys},
+	}
+
+	modeHotkeys := make([]modeTable, 0, builtInModeCount+len(c.Modes))
+	modeHotkeys = append(modeHotkeys,
+		modeTable{ModeNameHints, c.Hints.Hotkeys},
+		modeTable{ModeNameGrid, c.Grid.Hotkeys},
+		modeTable{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		modeTable{ModeNameScroll, c.Scroll.Hotkeys},
 		// monitor_select binds keys like the other modes and dispatches them
 		// through the same executor, so its table is checked like theirs.
-		{ModeNameMonitorSelect, c.MonitorSelect.Hotkeys},
+		modeTable{ModeNameMonitorSelect, c.MonitorSelect.Hotkeys},
+	)
+
+	for name, mode := range c.Modes {
+		modeHotkeys = append(modeHotkeys, modeTable{customModeField(name), mode.Hotkeys})
 	}
 
 	for _, mode := range modeHotkeys {
@@ -110,20 +121,45 @@ func validateHotkeyTable(fieldPrefix string, table map[string]StringOrStringArra
 }
 
 func (c *Config) checkHotkeysConflicts() error {
-	modes := []struct {
+	type modeTable struct {
 		modeName string
 		table    map[string]StringOrStringArray
-	}{
-		{ModeNameHints, c.Hints.Hotkeys},
-		{ModeNameGrid, c.Grid.Hotkeys},
-		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
-		{ModeNameScroll, c.Scroll.Hotkeys},
+	}
+
+	modes := make([]modeTable, 0, builtInModeCount+len(c.Modes))
+	modes = append(modes,
+		modeTable{ModeNameHints, c.Hints.Hotkeys},
+		modeTable{ModeNameGrid, c.Grid.Hotkeys},
+		modeTable{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		modeTable{ModeNameScroll, c.Scroll.Hotkeys},
+	)
+
+	for name, mode := range c.Modes {
+		modes = append(modes, modeTable{customModeField(name), mode.Hotkeys})
 	}
 
 	for _, mode := range modes {
 		err := checkHotkeyConflicts(mode.modeName+".hotkeys", mode.table)
 		if err != nil {
 			return err
+		}
+	}
+
+	for name, mode := range c.Modes {
+		for idx, appConfig := range mode.AppConfigs {
+			err := checkHotkeyConflicts(
+				fmt.Sprintf(
+					"%s.hotkeys merged with %s.app_configs[%d] (%s)",
+					customModeField(name),
+					customModeField(name),
+					idx,
+					appConfig.BundleID,
+				),
+				c.HotkeysForModeAndApp(name, appConfig.BundleID),
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

@@ -2,9 +2,11 @@ package loader
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -202,6 +204,21 @@ func Save(cfg *config.Config, path string) error {
 	}
 	for _, section := range hotkeysSections {
 		err = writeStringOrStringArrayMap(file, section.header, section.hotkeys, section.defaults)
+		if err != nil {
+			return err
+		}
+	}
+
+	// A declared mode's table is written the same way, after the encoder has
+	// written the declaration it belongs under. Sorted, so two saves of the
+	// same configuration produce the same file.
+	for _, name := range slices.Sorted(maps.Keys(cfg.Modes)) {
+		err = writeStringOrStringArrayMap(
+			file,
+			modesKey+"."+name+".hotkeys",
+			cfg.Modes[name].Hotkeys,
+			config.DefaultCustomModeHotkeys(),
+		)
 		if err != nil {
 			return err
 		}

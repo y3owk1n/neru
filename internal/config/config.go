@@ -111,6 +111,7 @@ type Config struct {
 	Theme           ThemeConfig                    `json:"theme"           toml:"theme"`
 	Hotkeys         HotkeysConfig                  `json:"hotkeys"         toml:"-"`
 	Macros          map[string]StringOrStringArray `json:"macros"          toml:"macros"`
+	Modes           map[string]CustomModeConfig    `json:"modes"           toml:"modes"`
 	Hints           HintsConfig                    `json:"hints"           toml:"hints"`
 	Grid            GridConfig                     `json:"grid"            toml:"grid"`
 	RecursiveGrid   RecursiveGridConfig            `json:"recursiveGrid"   toml:"recursive_grid"`
@@ -257,6 +258,25 @@ type ScrollConfig struct {
 	ScrollStepFull int `json:"scrollStepFull" toml:"scroll_step_full"`
 
 	InvertScroll bool `json:"invertScroll" toml:"invert_scroll"`
+
+	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
+
+	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
+}
+
+// CustomModeConfig is one mode the user declared under [modes.<name>]: a mode
+// with no logic of its own, entered by "mode <name>", that captures the
+// keyboard and answers every key from its own hotkey table.
+//
+// The hotkey table is tagged toml:"-" like every mode's, and read from the raw
+// decode by the loader for the same reason; [DefaultCustomModeHotkeys] is what
+// a declared table merges over. Per-app overrides reuse AppConfig so the
+// same walk and the same __disabled__ sentinel apply, and the fields on it
+// that belong to hints or scroll are refused here as they are for grid.
+type CustomModeConfig struct {
+	// Indicator is the mode indicator's text while the mode is open. Empty
+	// hides the indicator.
+	Indicator string `json:"indicator" toml:"indicator"`
 
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
@@ -648,7 +668,9 @@ func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringAr
 	case ModeNameMonitorSelect:
 		return c.MonitorSelect.Hotkeys
 	default:
-		return nil
+		// A name no built-in mode answers to is a declared one, or nothing:
+		// an undeclared name reads the zero value, whose table is nil.
+		return c.Modes[modeName].Hotkeys
 	}
 }
 

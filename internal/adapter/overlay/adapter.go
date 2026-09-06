@@ -128,7 +128,9 @@ func (a *Adapter) ShowFrame(ctx context.Context, frame ports.Frame) error {
 // Linux the mode and sticky-modifier indicators are badges painted on that
 // surface: the shared window's visibility is theirs. Deciding otherwise would
 // encode macOS's one-window-per-indicator model in shared code and leave a
-// Linux user in scroll mode with no indicator after a monitor move.
+// Linux user in scroll mode with no indicator after a monitor move. A declared
+// mode draws nothing of its own either, and needs the window for the same
+// reason.
 //
 // Every mode is named rather than defaulted, so a mode added without an answer
 // here fails the `exhaustive` linter instead of silently inheriting one. The
@@ -139,7 +141,7 @@ func drawsOnSharedWindow(frame ports.Frame) bool {
 	case domain.ModeMonitorSelect:
 		return false
 	case domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid,
-		domain.ModeScroll, domain.ModeIdle:
+		domain.ModeScroll, domain.ModeCustom, domain.ModeIdle:
 		return true
 	}
 

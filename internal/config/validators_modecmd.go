@@ -31,7 +31,7 @@ func (c *Config) ValidateModeCommands(warnings *Warnings) error {
 			return nil
 		}
 
-		reported, err := modecmd.Diagnose(mode, args)
+		activation, reported, err := modecmd.Diagnose(mode, args)
 		if err != nil {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
@@ -39,6 +39,21 @@ func (c *Config) ValidateModeCommands(warnings *Warnings) error {
 				field,
 				derrors.Message(err),
 			)
+		}
+
+		// The grammar reads the name; only the configuration knows whether a
+		// mode by that name was declared. A binding that enters one that was
+		// not is a key that does nothing, so it is refused like a typo'd flag.
+		if mode == domain.ModeCustom {
+			if _, declared := c.Modes[activation.Name]; !declared {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s: mode %q is not declared; declare it as [modes.%s]",
+					field,
+					activation.Name,
+					activation.Name,
+				)
+			}
 		}
 
 		for _, warning := range reported {

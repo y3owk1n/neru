@@ -134,6 +134,13 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return err
 	}
 
+	// Declared modes are checked before their tables are, so a fault in a
+	// table is reported against a mode already known to be well-formed.
+	err = c.ValidateCustomModes()
+	if err != nil {
+		return err
+	}
+
 	// Validate per-mode custom hotkeys
 	err = c.ValidateHotkeys()
 	if err != nil {

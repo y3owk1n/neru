@@ -295,7 +295,7 @@ nothing.
 | `--modifier` |  | value | `hints` · `grid` · `recursive_grid` | Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action) |
 | `--on-exit` |  | value, repeatable | `hints` · `grid` · `recursive_grid` | Step to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Repeat the flag to run several steps in order. Requires --action; not run on manual escape/idle |
 | `--repeat` | `-r` | none | `hints` · `grid` · `recursive_grid` | Re-activate mode after performing the action (requires --action) |
-| `--toggle` | `-t` | none | `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select` | Toggle mode on/off (exit to idle if already active) |
+| `--toggle` | `-t` | none | `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select` · `mode` | Toggle mode on/off (exit to idle if already active) |
 | `--search` | `-s` | none | `hints` | Show search input when the mode is activated |
 | `--hide-on-empty-search` |  | none | `hints` | Hide all hints when search query is empty (requires --search) |
 | `--role` |  | value, repeatable | `hints` | Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more |
