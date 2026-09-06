@@ -467,8 +467,11 @@ The `bundle_id` key selects which app an override applies to — for both `[[app
 | macOS | Bundle ID, reverse-DNS (e.g. `com.apple.Safari`) | `osascript -e 'id of app "Safari"'` |
 | Linux · X11 | Window `WM_CLASS` — the *class* field | `xprop WM_CLASS`, then click the window |
 | Linux · Wayland (wlroots: Sway/Hyprland/niri/COSMIC, and KWin/KDE) | Toplevel `app_id` | `swaymsg -t get_tree` (Sway), `hyprctl activewindow` (Hyprland), `niri msg windows` (niri), or your compositor's window inspector |
+| Windows | Full path of the focused window's executable (e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe`) | Task Manager, Details tab, right-click the process, **Open file location**, or `(Get-Process chrome).Path` in PowerShell |
 
 On Linux, put the `WM_CLASS` or `app_id` in the `bundle_id` field. Matching is case-insensitive but exact — no globbing or partial matches.
+
+On Windows, put the executable path in the `bundle_id` field, and use a TOML literal string (`'C:\...'`) or double every backslash so the path survives parsing. Matching is case-insensitive but otherwise exact, so the same program installed somewhere else (a per-user install under `%LOCALAPPDATA%`, a portable copy) is a different identity and needs its own entry. Packaged apps from the Microsoft Store all present their window through `ApplicationFrameHost.exe`, so they share one identity and cannot be told apart today.
 
 > **Heads up:** Linux identity strings vary by toolkit and distribution. GTK, Qt, Electron, and XWayland apps often report a `WM_CLASS`/`app_id` you would not guess (e.g. `Google-chrome`, `code`, `org.kde.konsole`). Always confirm with the commands above rather than assuming a reverse-DNS name.
 
@@ -766,7 +769,7 @@ Explicit component colors override theme derivation. Omitted colors inherit from
 
 ## [hints]
 
-Labels clickable UI elements with short overlay labels. By default uses the platform accessibility tree (`axtree` strategy). Two screen-capture strategies exist for apps whose accessibility tree is too thin to hint from; both scan the focused window by default (`capture_scope` widens that to the whole screen), both add the system surfaces the `include_*` options ask for from the accessibility tree, and `vision` is not available on Windows, which has no text recognition engine yet:
+Labels clickable UI elements with short overlay labels. By default uses the platform accessibility tree (`axtree` strategy). Two screen-capture strategies exist for apps whose accessibility tree is too thin to hint from; both scan the focused window by default (`capture_scope` widens that to the whole screen), and both add the system surfaces the `include_*` options ask for from the accessibility tree:
 
 - `vision`: on-screen recognition. The Vision framework on macOS (text plus rectangles), tesseract OCR on Linux and `Windows.Media.Ocr` on Windows (text only). Detected text becomes the element's title, so hint search (`--search`) and `--split-word` work. Costs an ML or OCR pass per activation; Linux needs tesseract installed and Windows an OCR language pack.
 - `contour`: edge and contour analysis of the window pixels, an algorithm ported from [wl-kbptr](https://github.com/moverest/wl-kbptr). Finds anything with a visible outline (buttons, icons, toolbar items, text runs) in a few milliseconds with no external dependency. Elements carry no text, so search and word splitting do not apply, and `hints.vision.*` is not read.
