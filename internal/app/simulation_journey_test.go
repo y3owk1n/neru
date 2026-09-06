@@ -1408,11 +1408,13 @@ func TestSimulation_HeldMotionDiagonal(t *testing.T) {
 	)
 
 	// The two presses and the two releases each land as separate events, so
-	// a tick can fire while only one key is held and move that axis alone by
-	// one tick's travel at the base speed. Anything past that is a real
-	// drift: an autorepeat that got through moves a whole step.
+	// a tick can fire while only one key is held and move that axis alone.
+	// A late tick integrates up to the controller's cap, so the bound is that
+	// much travel at the base speed: under the defaults four fifths of a
+	// step. Anything past that is a real drift, since an autorepeat that got
+	// through moves a whole step.
 	_, step, _ := cfg.HeldRepeat.HeldMotion([]string{config.CmdMoveMouseRight})
-	tickShare := heldmotion.TickInterval.Seconds() / cfg.HeldRepeat.Ramp().Interval.Seconds()
+	tickShare := heldmotion.MaxTickDelta.Seconds() / cfg.HeldRepeat.Ramp().Interval.Seconds()
 	strayTick := int(math.Ceil(float64(step) * tickShare))
 
 	end := sim.cursor.position()
