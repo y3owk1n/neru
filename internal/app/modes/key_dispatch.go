@@ -479,6 +479,13 @@ func (h *handlerState) startMotion(key string, actions []string) bool {
 		return false
 	}
 
+	// The discrete step would have gone through the IPC handler, which drops
+	// the mode's selection so a later click lands where the cursor went. The
+	// glide never gets there, so the selection is dropped here.
+	if tracker, ok := activeModeExtension[selectionTracker](h); ok {
+		tracker.ClearSelectionPoint()
+	}
+
 	h.motion.Press(motionKeyOf(key), dir, step)
 
 	return true

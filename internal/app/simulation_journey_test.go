@@ -1414,6 +1414,62 @@ func TestSimulation_HeldMotionDiagonal(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
+// TestSimulation_HeldMotionDropsTheGridSelection pins that a held-key glide
+// leaves the click where the cursor went, not on the region the grid had
+// selected: select a region, glide away from it, click.
+func TestSimulation_HeldMotionDropsTheGridSelection(t *testing.T) {
+	cfg := simConfig()
+	cfg.HeldRepeat.Enabled = true
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+
+	sim.waitFor("recursive grid drawn", func() bool {
+		_, ok := sim.overlay.lastRecursiveGridBounds()
+
+		return ok
+	})
+
+	movesBefore := sim.cursor.moveCount()
+
+	// "r" selects the top-left cell, which moves the cursor onto its center.
+	sim.press("r")
+
+	sim.waitFor("cursor moved onto the selected region", func() bool {
+		return sim.cursor.moveCount() > movesBefore
+	})
+
+	selected := sim.cursor.position()
+
+	sim.press("Right")
+
+	sim.waitFor("cursor glided right", func() bool {
+		return sim.cursor.position().X > selected.X
+	})
+
+	sim.press("__keyup_Right")
+
+	sim.press("Shift+L") // left_click
+
+	sim.waitFor("click recorded", func() bool {
+		return len(sim.ax.recordedClicks()) >= 1
+	})
+
+	got := sim.ax.recordedClicks()[0]
+	if got.action != action.TypeLeftClick {
+		t.Fatalf("expected a left click, got %+v", got)
+	}
+
+	if got.point.Y != selected.Y || got.point.X <= selected.X {
+		t.Fatalf("click at %v, expected to the right of the grid selection %v", got.point, selected)
+	}
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}
+
 // TestSimulation_DragJourney covers the drag primitives: mouse down at the
 // cursor, arrow-key relative movement while holding, mouse up at the new
 // position.
