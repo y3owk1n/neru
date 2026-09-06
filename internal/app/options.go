@@ -36,6 +36,18 @@ func WithWrittenConfig(cfg *config.Config) Option {
 	}
 }
 
+// WithConfigWarnings carries the warnings the launch-time load found, for the
+// app to log once its logger exists. The load runs before there is a logger to
+// hand it, and a warning nobody prints is a warning nobody can act on (ADR
+// 0002); a hot reload logs its own through the config service.
+func WithConfigWarnings(warnings []string) Option {
+	return func(a *App) error {
+		a.configWarnings = warnings
+
+		return nil
+	}
+}
+
 // WithConfigPath sets the configuration file path.
 func WithConfigPath(path string) Option {
 	return func(a *App) error {

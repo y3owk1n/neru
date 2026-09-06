@@ -4,9 +4,6 @@ import (
 	"errors"
 
 	"github.com/spf13/cobra"
-
-	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 // errConfigValidationFailed is returned when config validation fails.
@@ -34,7 +31,7 @@ func init() {
 }
 
 func runConfigValidate(cmd *cobra.Command) error {
-	svc := loader.NewService(config.DefaultConfig(), "", nil, nil)
+	svc := clientConfigLoader()
 
 	path := configPath
 	if path == "" {

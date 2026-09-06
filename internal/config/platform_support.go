@@ -204,11 +204,8 @@ func PlatformSupport() parity.Declaration {
 		// the Wayland evdev tap and on Windows. X11 cannot pass them through
 		// at all, which is a display-server limit rather than a column: the
 		// blessed Linux stack is Wayland (Known Gaps, docs/CROSS_PLATFORM.md).
-		parity.Everywhere(parity.KindOption,
-			"general.passthrough_unbounded_keys",
-			"general.passthrough_unbounded_keys_blacklist",
-			"general.should_exit_after_passthrough",
-		),
+		// X11InertWords is where that limit is said.
+		parity.Everywhere(parity.KindOption, passthroughOptions...),
 		parity.Everywhere(parity.KindOption,
 			"general.excluded_apps",
 			"general.exec_shell",
@@ -473,6 +470,62 @@ type Written struct {
 	Options map[string]string
 	// Steps are the action strings the files write, in no particular order.
 	Steps []string
+}
+
+// passthroughOptions are the options that mean nothing without modifier
+// passthrough, declared once so the column and the X11 limit below cannot
+// disagree about which they are.
+var passthroughOptions = []string{
+	"general.passthrough_unbounded_keys",
+	"general.passthrough_unbounded_keys_blacklist",
+	"general.should_exit_after_passthrough",
+}
+
+// noteX11Passthrough is why the X11 backend cannot honor the options above. It
+// is read by a user in a warning and in the doctor row, so it names the gap in
+// the display server's own words.
+const noteX11Passthrough = "the X11 backend cannot pass an unbound chord " +
+	"through: XGrabKeyboard is all-or-nothing and XSendEvent is ignored by most " +
+	"applications, so passthrough needs the Wayland evdev backend " +
+	"(Known Gaps, docs/CROSS_PLATFORM.md)"
+
+// X11InertWords reports the passthrough options a configuration writes that
+// the X11 backend cannot honor.
+//
+// The platform column is per OS and cannot say "Linux, except X11", and
+// teaching the declaration a backend axis is far too much machinery for one
+// row. So the one limit finer than a column is declared beside the column: the
+// same Word shape, the same Note, and the loader appends the findings to the
+// ones InertWords made, which is what gets them the same warning voice and the
+// same doctor row (#1613).
+//
+// It reads the loaded configuration for whether passthrough is on, because a
+// written bool arrives as a bare path with no value (Written.Options), and a
+// `passthrough_unbounded_keys = false` a user left in the file is not a promise
+// this backend is failing to keep. The dependents are reported only when they
+// were written: they are inert everywhere without passthrough, which is a
+// cross-field question and not this one.
+func X11InertWords(cfg *Config, written Written) parity.Declaration {
+	if !cfg.General.PassthroughUnboundedKeys {
+		return nil
+	}
+
+	var inert parity.Declaration
+
+	for _, name := range passthroughOptions {
+		if _, wrote := written.Options[name]; !wrote {
+			continue
+		}
+
+		inert = append(inert, parity.Word{
+			Kind:      parity.KindOption,
+			Name:      name,
+			Platforms: parity.AllPlatforms,
+			Note:      noteX11Passthrough,
+		})
+	}
+
+	return inert
 }
 
 // InertWords reports every word a configuration writes that does nothing on the

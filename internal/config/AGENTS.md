@@ -21,7 +21,7 @@ Adding or changing an option touches **five links every time, and up to four mor
 
 `held_repeat.accel_*` needed all four conditional links, which is how one option came to touch nine files — ten, since the platform column became a link of its own.
 
-Link 5 exempts nothing, and collapses one shape: a `Color` is declared at the field rather than at its `light` and `dark` leaves, because a Color is one option to whoever writes it.
+Link 5 exempts nothing, and collapses one shape: a `Color` is declared at the field rather than at its `light` and `dark` leaves, because a Color is one option to whoever writes it. The column is per OS and has no backend axis on purpose; the one limit finer than a column, passthrough on X11, is declared beside it as `X11InertWords` and injected into the loader by the roots that detect the backend (`loader.Service.WithBackendInert`). A second such limit is a reason to reconsider the axis, not to add a second function.
 
 **What the guardrails do not reach.** Links 2 and 3 exempt three shapes, and an option with one of them can skip both with nothing failing: the `light`/`dark` leaves under a `Color` (`ResolveThemeDefaults()` fills those), a collection that ships empty, and every field of a repeated table nobody ships entries for (`app_configs`, `layers`). The exemptions are structural and recomputed from the live defaults each run, and the named allowlist beside each is empty — adding to it is a decision that wants a written reason (ADR 0006). If your option is one of those shapes, the reviewer is the only check.
 

@@ -627,9 +627,10 @@ type LoadResult struct {
 	Warnings []string
 
 	// Inert are the words the user's files write that do nothing on this
-	// platform, as [InertWords] found them. One of the warnings above says the
-	// same thing in a sentence; this is the same finding with its platform
-	// column and its reason still attached, which is what `neru doctor` prints
+	// platform, as [InertWords] found them, or on the display backend it is
+	// running, as [X11InertWords] found them. The warnings above say the same
+	// thing in a sentence; this is the same finding with its platform column
+	// and its reason still attached, which is what `neru doctor` prints
 	// (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
 	Inert parity.Declaration
 }

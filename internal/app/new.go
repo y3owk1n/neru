@@ -37,6 +37,12 @@ func New(opts ...Option) (*App, error) {
 		app.logger = logger
 	}
 
+	// Under the same name and message the config service logs a reload's, so
+	// the two reads of the same file are one line to search for.
+	for _, warning := range app.configWarnings {
+		app.logger.Named("config").Warn("Configuration warning", zap.String("warning", warning))
+	}
+
 	// Initialize the rest of the application
 	return initializeApp(app)
 }

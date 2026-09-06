@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -15,9 +16,18 @@ import (
 // app was constructed with: the configuration to run on, and the one it was
 // derived from. Passing only the first leaves the service deriving from its own
 // output, which cannot re-infer — so the two travel together from here on.
+//
+// The backend limit is wired the same way main.go wires it for the first load,
+// so a hot reload warns about the same words the launch did.
 func (a *App) newConfigService(logger *zap.Logger) *loader.Service {
-	return loader.NewService(a.config, a.ConfigPath, logger, a.systemPort).
+	svc := loader.NewService(a.config, a.ConfigPath, logger, a.systemPort).
 		WithWritten(a.writtenConfig)
+
+	if platform.CurrentProfile().DisplayServer == platform.DisplayServerX11 {
+		svc = svc.WithBackendInert(config.X11InertWords)
+	}
+
+	return svc
 }
 
 // SetConfigField applies a single runtime config field change with full

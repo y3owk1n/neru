@@ -181,9 +181,12 @@ characters = "ab c"
 
 // loadWithObservedLogger writes a config file, and an override file when one is
 // given, then loads them the way the daemon does with a logger that records.
+// The configure hooks stand in for what a composition root wires onto the
+// service before the load.
 func loadWithObservedLogger(
 	t *testing.T,
 	configTOML, overrideTOML string,
+	configure ...func(*loader.Service) *loader.Service,
 ) (*config.LoadResult, *observer.ObservedLogs) {
 	t.Helper()
 
@@ -208,7 +211,12 @@ func loadWithObservedLogger(
 
 	core, logs := observer.New(zap.WarnLevel)
 
-	result := loader.NewService(nil, path, zap.New(core), nil).LoadWithValidation(path)
+	svc := loader.NewService(nil, path, zap.New(core), nil)
+	for _, hook := range configure {
+		svc = hook(svc)
+	}
+
+	result := svc.LoadWithValidation(path)
 	if result == nil || result.Config == nil {
 		t.Fatalf("LoadWithValidation returned no config")
 	}

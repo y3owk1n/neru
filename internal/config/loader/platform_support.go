@@ -55,6 +55,34 @@ func warnInertWords(
 	return inert
 }
 
+// warnBackendInert records one warning for everything a configuration writes
+// that the display backend this process runs under cannot honor, and hands the
+// findings back for the result to carry beside the platform-inert ones.
+//
+// One warning for the set, in the voice of warnInertWords, with the reason in
+// the sentence: the platform warning can defer its reasons to `neru doctor`
+// because there is one per word, while every word here shares the one note,
+// and a person on X11 reading "passthrough does nothing here" wants to know why
+// before they go and read anything else.
+func warnBackendInert(warnings *config.Warnings, inert parity.Declaration) parity.Declaration {
+	if len(inert) == 0 {
+		return nil
+	}
+
+	warnings.Addf(
+		"%d %s in this configuration %s nothing here and %s ignored: %s, because %s. "+
+			"They load and the daemon runs",
+		len(inert),
+		plural(len(inert), "setting", "settings"),
+		plural(len(inert), "does", "do"),
+		plural(len(inert), "is", "are"),
+		listInert(inert),
+		inert[0].Note,
+	)
+
+	return inert
+}
+
 // listInert names the findings, stopping at listedInertWords and counting the
 // rest.
 func listInert(inert parity.Declaration) string {
