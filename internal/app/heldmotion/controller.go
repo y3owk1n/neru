@@ -32,6 +32,9 @@ type heldEntry struct {
 	dir       motion.Direction
 	step      int
 	pressedAt time.Time
+	// interval is one step's worth of travel as configured at press time, so
+	// a reload mid-hold does not skew what a tap is owed.
+	interval time.Duration
 }
 
 // tap is the travel a key released within one interval of its press is still
@@ -151,6 +154,7 @@ func (g *Group) ReleaseAll() {
 func (c *Controller) press(key heldKey, entry heldEntry) {
 	ramp := c.ramp()
 	entry.pressedAt = time.Now()
+	entry.interval = ramp.Interval
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -178,16 +182,16 @@ func (c *Controller) release(key heldKey) bool {
 	entry, ok := c.held[key]
 	delete(c.held, key)
 
-	if !ok || c.current.Interval <= 0 {
+	if !ok || entry.interval <= 0 {
 		return ok
 	}
 
 	held := time.Since(entry.pressedAt)
-	if held >= c.current.Interval {
+	if held >= entry.interval {
 		return true
 	}
 
-	owed := float64(entry.step) * (1 - held.Seconds()/c.current.Interval.Seconds())
+	owed := float64(entry.step) * (1 - held.Seconds()/entry.interval.Seconds())
 	c.taps = append(c.taps, tap{dir: entry.dir, distance: owed})
 
 	return true
