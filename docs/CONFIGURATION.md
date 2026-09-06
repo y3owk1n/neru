@@ -471,7 +471,7 @@ The `bundle_id` key selects which app an override applies to — for both `[[app
 
 On Linux, put the `WM_CLASS` or `app_id` in the `bundle_id` field. Matching is case-insensitive but exact — no globbing or partial matches.
 
-On Windows, put the executable path in the `bundle_id` field, and use a TOML literal string (`'C:\...'`) or double every backslash so the path survives parsing. The match is exact, so the same program installed somewhere else (a per-user install under `%LOCALAPPDATA%`, a portable copy) is a different identity and needs its own entry. Packaged apps from the Microsoft Store all present their window through `ApplicationFrameHost.exe`, so they share one identity and cannot be told apart today.
+On Windows, put the executable path in the `bundle_id` field, and use a TOML literal string (`'C:\...'`) or double every backslash so the path survives parsing. Matching is case-insensitive but otherwise exact, so the same program installed somewhere else (a per-user install under `%LOCALAPPDATA%`, a portable copy) is a different identity and needs its own entry. Packaged apps from the Microsoft Store all present their window through `ApplicationFrameHost.exe`, so they share one identity and cannot be told apart today.
 
 > **Heads up:** Linux identity strings vary by toolkit and distribution. GTK, Qt, Electron, and XWayland apps often report a `WM_CLASS`/`app_id` you would not guess (e.g. `Google-chrome`, `code`, `org.kde.konsole`). Always confirm with the commands above rather than assuming a reverse-DNS name.
 
