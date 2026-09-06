@@ -42,3 +42,42 @@ func TestCanonicalChordSignatureMatchesAcrossSides(t *testing.T) {
 		t.Fatal("config and live spellings of Ctrl+Shift+G do not match")
 	}
 }
+
+// TestCanonicalBindingSignature_DeleteNamesTheBackspaceKey pins what a
+// configured "Delete" binds on the Wayland listener: the backspace key, as on
+// macOS and Windows and the X11 grab. The config side folds the name, and the
+// live side does not, so a press of the forward-delete key — which the
+// decoder also spells "Delete" — keeps a signature no configured chord carries.
+func TestCanonicalBindingSignature_DeleteNamesTheBackspaceKey(t *testing.T) {
+	const wantModifiedDelete = "ctrl+shift+" + canonicalKeyBackspace
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"config delete", evdevKeyNameDelete, canonicalKeyBackspace},
+		{"config delete with modifiers", "Ctrl+Shift+Delete", wantModifiedDelete},
+		{"config backspace", evdevKeyNameBackspace, canonicalKeyBackspace},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := canonicalBindingSignature(tc.in); got != tc.want {
+				t.Fatalf("canonicalBindingSignature(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+
+	live := canonicalChordSignature(evdevKeyNameDelete)
+	if live == canonicalBindingSignature(evdevKeyNameDelete) {
+		t.Fatalf(
+			"a live forward-delete press canonicalizes to %q, the signature a configured Delete binds",
+			live,
+		)
+	}
+
+	if got := canonicalChordSignature(evdevKeyNameBackspace); got != canonicalKeyBackspace {
+		t.Fatalf("live backspace press canonicalizes to %q, want %q", got, canonicalKeyBackspace)
+	}
+}

@@ -19,7 +19,23 @@ const (
 	canonicalKeyTab       = "tab"
 	canonicalKeyEscape    = "escape"
 	canonicalKeyBackspace = "backspace"
+
+	// canonicalKeyDelete is the spelling a configured "Delete" arrives as. It
+	// is a binding-side name only: canonicalBindingBaseKey folds it to
+	// canonicalKeyBackspace, so no stored chord ever carries it.
+	canonicalKeyDelete = "delete"
 )
+
+// canonicalBindingSignature is canonicalChordSignature for a chord read from
+// the config, the side that can spell "Delete". In [hotkeys] that name means
+// the backspace key on every platform — kVK_Delete on macOS, VK_BACK on
+// Windows, XK_BackSpace on X11 — so it is folded to the signature a press of
+// that key produces. A live press never takes this fold: the forward-delete
+// key keeps the "delete" signature, which no configured chord can carry, and
+// so matches nothing, as it does on the other platforms.
+func canonicalBindingSignature(chord string) string {
+	return chordSignature(chord, canonicalBindingBaseKey)
+}
 
 // canonicalChordSignature normalizes a chord such as "Ctrl+Shift+G" or the
 // evdev-decoded "Shift+Ctrl+g" into a stable signature like "ctrl+shift+g":
@@ -27,6 +43,12 @@ const (
 // This lets the config side and the live keyboard side match regardless of the
 // order or casing each produced.
 func canonicalChordSignature(chord string) string {
+	return chordSignature(chord, canonicalBaseKey)
+}
+
+// chordSignature is the normalization both signatures share; baseKey is how
+// the non-modifier key is spelled.
+func chordSignature(chord string, baseKey func(string) string) string {
 	chord = strings.TrimSpace(chord)
 	if chord == "" {
 		return ""
@@ -37,7 +59,7 @@ func canonicalChordSignature(chord string) string {
 		return ""
 	}
 
-	base := canonicalBaseKey(parts[len(parts)-1])
+	base := baseKey(parts[len(parts)-1])
 	if base == "" {
 		return ""
 	}
@@ -79,6 +101,17 @@ func canonicalModifierToken(token string) string {
 		return evdevModifierCmd
 	default:
 		return ""
+	}
+}
+
+// canonicalBindingBaseKey is canonicalBaseKey plus the fold
+// canonicalBindingSignature describes: "Delete" names the backspace key.
+func canonicalBindingBaseKey(base string) string {
+	switch strings.ToLower(strings.TrimSpace(base)) {
+	case canonicalKeyDelete:
+		return canonicalKeyBackspace
+	default:
+		return canonicalBaseKey(base)
 	}
 }
 
