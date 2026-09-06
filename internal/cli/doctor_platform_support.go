@@ -33,7 +33,8 @@ func doctorConfigLoad() *config.LoadResult {
 }
 
 // printPlatformSupportCheck reports the options, actions and mode flags this
-// configuration writes that do nothing on this platform.
+// configuration writes that do nothing on this platform or on the display
+// backend it is running.
 //
 // It never fails the doctor. An inert word is not a broken configuration — the
 // same file is meant to work on every platform, which is why writing one is a
@@ -61,7 +62,11 @@ func printPlatformSupportCheck(cmd *cobra.Command, loadResult *config.LoadResult
 		return
 	}
 
-	cmd.Printf("  ⚠️  %-24s %d %s nothing on %s (written and ignored; the daemon runs)\n",
+	// "This session" rather than the platform: the list carries the words the
+	// display backend cannot honor beside the ones the platform cannot, and
+	// passthrough on X11 does nothing here without doing nothing on Linux.
+	cmd.Printf(
+		"  ⚠️  %-24s %d %s nothing on this %s session (written and ignored; the daemon runs)\n",
 		platformSupportRow,
 		len(loadResult.Inert),
 		pluralSettingsDo(len(loadResult.Inert)),
