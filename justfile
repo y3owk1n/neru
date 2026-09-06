@@ -272,7 +272,8 @@ test-foundation:
     @echo "Running cross-platform foundation tests..."
     go test ./internal/config ./internal/config/loader \
         ./internal/app/components ./internal/app/components/scroll \
-        ./internal/app/heldrepeat ./internal/app/ipcctrl \
+        ./internal/app/heldmotion ./internal/app/heldrepeat \
+        ./internal/app/ipcctrl \
         ./internal/app/keybinding \
         ./internal/app/services ./internal/app/services/indicator \
         ./internal/app/services/modeindicator \
@@ -282,7 +283,8 @@ test-foundation:
         ./internal/domain ./internal/domain/action \
         ./internal/domain/element ./internal/domain/grid \
         ./internal/domain/hint ./internal/domain/keyvocab \
-        ./internal/domain/modecmd ./internal/domain/parity \
+        ./internal/domain/modecmd ./internal/domain/motion \
+        ./internal/domain/parity \
         ./internal/domain/recursivegrid \
         ./internal/domain/state ./internal/derrors \
         ./internal/flagref ./internal/supportref \

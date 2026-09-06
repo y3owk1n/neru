@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/heldmotion"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
@@ -208,6 +209,13 @@ type handlerState struct {
 	// and a custom goroutine drives the repeat at heldRepeatInterval.
 	heldRepeatingKey    string
 	heldRepeatingCancel context.CancelFunc
+
+	// motion is this handler's namespace in the held-key glide controller;
+	// nil (or a nil-safe empty group) when the app runs without one.
+	motion *heldmotion.Group
+	// fedPress is set for the duration of a key fed over IPC, which has no
+	// release event and so must take the discrete path, never the glide.
+	fedPress bool
 }
 
 // HandlerDeps collects everything NewHandler needs.
@@ -257,6 +265,9 @@ type HandlerDeps struct {
 
 	TextInput ports.TextInputPort
 	System    ports.SystemPort
+
+	// Motion is the handler's namespace in the held-key glide controller.
+	Motion *heldmotion.Group
 }
 
 // NewHandler creates a mode handler from deps.
@@ -309,6 +320,7 @@ func NewHandler(deps HandlerDeps) *Handler {
 		executeActionSequence:  deps.ExecuteActionSequence,
 		shutdown:               deps.Shutdown,
 		textInput:              deps.TextInput,
+		motion:                 deps.Motion,
 		system:                 deps.System,
 		focusedApp:             &focusedAppCell{},
 		cycleHintIndex:         -1,

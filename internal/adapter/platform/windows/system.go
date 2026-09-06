@@ -234,6 +234,20 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	return moveCursorTo(point)
 }
 
+// MoveCursorInstantly warps the cursor with SetCursorPos and returns at once
+// (ports.InstantCursorMover). Like the bypass branch of MoveCursorToPoint it
+// stops the animator first, so a stale glide step cannot land after the warp.
+func (s *SystemAdapter) MoveCursorInstantly(ctx context.Context, point image.Point) error {
+	err := ctx.Err()
+	if err != nil {
+		return err
+	}
+
+	s.cursorAnimator.stop()
+
+	return moveCursorTo(point)
+}
+
 // MoveCursorBy applies a relative cursor move. With smooth cursor enabled
 // (smooth_cursor.move_mouse_enabled) the delta extends the animator's pending
 // endpoint, clamped to the active screen, and animates over the fixed
@@ -367,3 +381,6 @@ var (
 	_ ports.RelativeCursorMover = (*SystemAdapter)(nil)
 	_ ports.CursorSettler       = (*SystemAdapter)(nil)
 )
+
+// SystemAdapter posts single moves without waiting for the held-key glide.
+var _ ports.InstantCursorMover = (*SystemAdapter)(nil)

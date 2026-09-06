@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 // Run blocks, repeating actions until ctx is canceled. The dispatch on key-down
@@ -18,8 +17,6 @@ func Run(
 	actions []string,
 	dispatch func([]string),
 ) {
-	accelerate := cfg.AccelAppliesTo(config.HeldRepeatActionName(actions))
-
 	initialTimer := time.NewTimer(time.Duration(cfg.InitialDelay) * time.Millisecond)
 	defer initialTimer.Stop()
 
@@ -29,10 +26,6 @@ func Run(
 	case <-initialTimer.C:
 	}
 
-	// Timed from the first repeat, not the press: nothing moves during
-	// initial_delay, so an earlier start would land tick one mid-ramp.
-	repeatingSince := time.Now()
-
 	ticker := time.NewTicker(time.Duration(cfg.Interval) * time.Millisecond)
 	defer ticker.Stop()
 
@@ -41,15 +34,7 @@ func Run(
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			tickActions := actions
-			if accelerate {
-				tickActions = action.ScaleAllDeltaFlags(
-					actions,
-					cfg.AccelMultiplierAt(time.Since(repeatingSince)),
-				)
-			}
-
-			dispatch(tickActions)
+			dispatch(actions)
 		}
 	}
 }

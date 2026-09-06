@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/heldmotion"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/modes"
@@ -54,6 +55,7 @@ type App struct {
 	logger         *zap.Logger
 
 	systemPort    ports.SystemPort
+	motion        *heldmotion.Controller
 	accessibility ports.AccessibilityPort
 
 	appState    *state.AppState
