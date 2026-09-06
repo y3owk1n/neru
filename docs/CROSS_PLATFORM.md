@@ -618,7 +618,11 @@ is physically holding, and each stays the compositor's until released
 (`evdevSession.handlePress` and `evdevProxy.forwardWithheld`). It is **not**
 available on X11 (an `XGrabKeyboard` routes Neru's own XTest events back to
 itself, and `XSendEvent` is ignored by most apps) nor on the rare wl-keyboard
-fallback, which has no injection path. Windows needs no re-injection: a
+fallback, which has no injection path. The platform column cannot say "Linux,
+except X11", so a configuration that turns passthrough on under X11 warns once
+at load, in the same voice as the parity warning, and `neru doctor` lists the
+option and its two dependents in its `platform_support` row
+(`config.X11InertWords`). Windows needs no re-injection: a
 `WH_KEYBOARD_LL` hook forwards or blocks each event on its own
 (`eventtap/windows/tap.go`, `handleKey`). Classification (blacklist,
 mode-intercepted keys, the mode's own hotkeys, and the global chords it falls

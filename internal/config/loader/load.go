@@ -85,12 +85,17 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 	// and past the merge a default nobody chose reads the same as a line
 	// somebody typed. A build for a platform no declaration has a column for
 	// claims nothing, so it warns about nothing.
+	writtenWords := writtenConfiguration(raw, overridePath)
+
 	if platform, known := parity.Current(); known {
-		result.Inert = warnInertWords(
-			warnings,
-			writtenConfiguration(raw, overridePath),
-			platform,
-		)
+		result.Inert = warnInertWords(warnings, writtenWords, platform)
+	}
+
+	// The backend's limit rides on the same list, one warning of its own: a
+	// column says where an option does anything, and X11 is not a column.
+	if s.backendInert != nil {
+		result.Inert = append(result.Inert,
+			warnBackendInert(warnings, s.backendInert(result.Config, writtenWords))...)
 	}
 
 	validateErr := result.Config.ValidateWithWarnings(warnings, config.AsWritten(written))

@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -85,6 +86,76 @@ func TestPlatformSupport_DeclaresTheOptionBehindAValue(t *testing.T) {
 	if !word.Platforms.Everywhere() {
 		t.Errorf("hints.strategy is declared as %v; the option is written everywhere, "+
 			"and only its vision value is not", word.Platforms)
+	}
+}
+
+// TestX11InertWords_ReportsWrittenPassthroughOnlyWhenItIsOn pins the one limit
+// finer than a platform column (#1613): the X11 backend cannot honor
+// passthrough, so the option and whichever dependents were written are
+// reported, and only while passthrough is actually on.
+func TestX11InertWords_ReportsWrittenPassthroughOnlyWhenItIsOn(t *testing.T) {
+	t.Parallel()
+
+	const (
+		passthrough = "general.passthrough_unbounded_keys"
+		blacklist   = "general.passthrough_unbounded_keys_blacklist"
+		exitAfter   = "general.should_exit_after_passthrough"
+	)
+
+	tests := []struct {
+		name    string
+		on      bool
+		written map[string]string
+		want    []string
+	}{
+		{
+			name:    "passthrough written off is not a promise X11 fails to keep",
+			on:      false,
+			written: map[string]string{passthrough: "", blacklist: ""},
+			want:    nil,
+		},
+		{
+			name:    "passthrough on is reported with the dependents that were written",
+			on:      true,
+			written: map[string]string{passthrough: "", blacklist: "", exitAfter: ""},
+			want:    []string{passthrough, blacklist, exitAfter},
+		},
+		{
+			name:    "a dependent nobody wrote is not reported",
+			on:      true,
+			written: map[string]string{passthrough: ""},
+			want:    []string{passthrough},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := config.DefaultConfig()
+			cfg.General.PassthroughUnboundedKeys = test.on
+
+			got := config.X11InertWords(cfg, config.Written{Options: test.written})
+			if names := got.Names(); !slices.Equal(names, test.want) {
+				t.Errorf(
+					"X11InertWords(on=%t, %v) = %v, want %v",
+					test.on,
+					test.written,
+					names,
+					test.want,
+				)
+			}
+
+			for _, word := range got {
+				if !strings.Contains(word.Note, "X11") {
+					t.Errorf(
+						"%s carries the note %q, want it to name the X11 backend",
+						word.Name,
+						word.Note,
+					)
+				}
+			}
+		})
 	}
 }
 

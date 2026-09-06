@@ -16,6 +16,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
 // validateAppConfigsHotkeys validates hotkeys in app_configs sections from raw config.
@@ -241,6 +242,14 @@ type Service struct {
 	// LoadWithValidation. It is initialized from config.DefaultConfigForDecoding()
 	// in NewService, but can be overridden by tests via withDefaults.
 	defaults *config.Config
+
+	// backendInert reports the words a configuration writes that the display
+	// backend this process runs under cannot honor, a limit finer than the
+	// platform column InertWords judges by. Nil, the default, means the
+	// backend keeps every promise the column makes. It is injected rather than
+	// detected here, because the detector is an adapter and this package sits
+	// below the adapters; WithBackendInert says who supplies it.
+	backendInert func(*config.Config, config.Written) parity.Declaration
 }
 
 // NewService creates a new configuration service.
@@ -265,6 +274,19 @@ func NewService(
 		logger:        logger.Named("config"),
 		alertProvider: alertProvider,
 	}
+}
+
+// WithBackendInert names the words the display backend this process runs
+// under cannot honor, for LoadWithValidation to warn about beside the
+// platform-inert ones. The only one today is [config.X11InertWords], which the
+// composition roots pass when the detected backend is X11; a test passes it to
+// stand in for that detection.
+func (s *Service) WithBackendInert(
+	inert func(*config.Config, config.Written) parity.Declaration,
+) *Service {
+	s.backendInert = inert
+
+	return s
 }
 
 // WithDefaults sets the base defaults used by LoadWithValidation. This is

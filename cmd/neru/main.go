@@ -55,6 +55,13 @@ func LaunchDaemon(configPath string) {
 		zap.NewNop(),
 		newAlertProvider(systemPort),
 	)
+
+	// The display backend is a limit the platform column cannot say, so the
+	// root that knows the backend hands the loader the words it cannot honor.
+	if platform.CurrentProfile().DisplayServer == platform.DisplayServerX11 {
+		service = service.WithBackendInert(config.X11InertWords)
+	}
+
 	configResult := service.LoadWithValidation(configPath)
 
 	// If there's a validation error, show alert and exit

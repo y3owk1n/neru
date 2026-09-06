@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
@@ -162,5 +163,104 @@ hint_characters = ""
 				"running is the defaults",
 			result.Inert.Names(),
 		)
+	}
+}
+
+// passthroughConfigTOML turns modifier passthrough on and writes both of the
+// options that mean nothing without it, which is the whole set the X11 backend
+// cannot honor.
+const passthroughConfigTOML = `
+[general]
+passthrough_unbounded_keys = true
+should_exit_after_passthrough = true
+passthrough_unbounded_keys_blacklist = ["Ctrl+C"]
+`
+
+// passthroughOptions are the words the two tests below expect, in declaration
+// order.
+var passthroughOptions = []string{
+	"general.passthrough_unbounded_keys",
+	"general.passthrough_unbounded_keys_blacklist",
+	"general.should_exit_after_passthrough",
+}
+
+// onX11 stands in for the backend detection a composition root does: it wires
+// the X11 limit onto the loader the way main.go does when the display server
+// it detected is X11. Faked rather than detected so the sentence an X11 user is
+// shown can be read from any machine (#1613).
+func onX11(svc *loader.Service) *loader.Service {
+	return svc.WithBackendInert(config.X11InertWords)
+}
+
+// TestLoadWithValidation_WarnsOnceWhenTheX11BackendCannotPassThrough is the
+// load-time half of #1613: passthrough on the X11 backend is a word that means
+// nothing, and the file says so once, naming the options, the backend and why.
+func TestLoadWithValidation_WarnsOnceWhenTheX11BackendCannotPassThrough(t *testing.T) {
+	result, logs := loadWithObservedLogger(t, passthroughConfigTOML, "", onX11)
+
+	if result.ValidationError != nil {
+		t.Fatalf("passthrough on X11 was refused: %v", result.ValidationError)
+	}
+
+	for _, want := range passthroughOptions {
+		if !slices.Contains(result.Inert.Names(), want) {
+			t.Errorf("result.Inert = %v, want it to carry %s for `neru doctor`",
+				result.Inert.Names(), want)
+		}
+	}
+
+	var about []string
+
+	for _, warning := range result.Warnings {
+		if strings.Contains(warning, "passthrough_unbounded_keys") {
+			about = append(about, warning)
+		}
+	}
+
+	if len(about) != 1 {
+		t.Fatalf("got %d warnings about passthrough, want exactly 1: %q", len(about), about)
+	}
+
+	for _, want := range append(
+		[]string{"3 settings", "X11", "XGrabKeyboard", "the daemon runs"},
+		passthroughOptions...,
+	) {
+		if !strings.Contains(about[0], want) {
+			t.Errorf("the warning %q does not mention %q", about[0], want)
+		}
+	}
+
+	if logged := countLogged(logs, "XGrabKeyboard"); logged != 1 {
+		t.Errorf("the X11 passthrough warning was logged %d times, want exactly 1", logged)
+	}
+
+	// A warning reports, it does not undo: the option stays as written for the
+	// day the same file is loaded under Wayland.
+	if !result.Config.General.PassthroughUnboundedKeys {
+		t.Error("passthrough_unbounded_keys was cleared, want it left as written")
+	}
+}
+
+// TestLoadWithValidation_SaysNothingAboutPassthroughOffX11 keeps the warning
+// off every backend that honors the option. No root wires the X11 limit under
+// Wayland, so the loader has nothing to say about passthrough there.
+func TestLoadWithValidation_SaysNothingAboutPassthroughOffX11(t *testing.T) {
+	result, logs := loadWithObservedLogger(t, passthroughConfigTOML, "")
+
+	for _, name := range passthroughOptions {
+		if slices.Contains(result.Inert.Names(), name) {
+			t.Errorf("result.Inert = %v names %s off X11, where the option works",
+				result.Inert.Names(), name)
+		}
+	}
+
+	for _, warning := range result.Warnings {
+		if strings.Contains(warning, "passthrough_unbounded_keys") {
+			t.Errorf("result.Warnings carries %q off X11, want nothing about passthrough", warning)
+		}
+	}
+
+	if logged := countLogged(logs, "XGrabKeyboard"); logged != 0 {
+		t.Errorf("the X11 passthrough warning was logged %d times off X11, want 0", logged)
 	}
 }
