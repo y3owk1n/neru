@@ -79,6 +79,7 @@ func LaunchDaemon(configPath string) {
 		app.WithConfig(configResult.Config),
 		app.WithWrittenConfig(configResult.Written),
 		app.WithConfigPath(configResult.ConfigPath),
+		app.WithConfigWarnings(configResult.Warnings),
 	)
 	if appErr != nil {
 		fmt.Fprintf(os.Stderr, "Error creating app: %v\n", appErr)

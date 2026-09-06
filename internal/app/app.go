@@ -47,8 +47,11 @@ type App struct {
 	// handed to the config service so a later `neru config set` derives from
 	// what the user wrote rather than from what was derived for them.
 	writtenConfig *config.Config
-	ConfigPath    string
-	logger        *zap.Logger
+	// configWarnings are what the launch-time load found wrong but loadable,
+	// logged once the logger exists (WithConfigWarnings).
+	configWarnings []string
+	ConfigPath     string
+	logger         *zap.Logger
 
 	systemPort    ports.SystemPort
 	accessibility ports.AccessibilityPort
