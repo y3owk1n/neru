@@ -87,8 +87,8 @@ func TestCustomMode_Activate_EntersTheDeclaredModeAndAnswersItsKeys(t *testing.T
 		t.Fatalf("mode = %v after activation, want ModeCustom", got)
 	}
 
-	if handler.customModeName != declaredWindow {
-		t.Fatalf("customModeName = %q, want %q", handler.customModeName, declaredWindow)
+	if handler.appState.CustomModeName() != declaredWindow {
+		t.Fatalf("customModeName = %q, want %q", handler.appState.CustomModeName(), declaredWindow)
 	}
 
 	handler.HandleKeyPress("h")
@@ -103,8 +103,11 @@ func TestCustomMode_Activate_EntersTheDeclaredModeAndAnswersItsKeys(t *testing.T
 		t.Fatalf("mode = %v after idle, want ModeIdle", got)
 	}
 
-	if handler.customModeName != "" {
-		t.Errorf("customModeName = %q after leaving, want it cleared", handler.customModeName)
+	if handler.appState.CustomModeName() != "" {
+		t.Errorf(
+			"customModeName = %q after leaving, want it cleared",
+			handler.appState.CustomModeName(),
+		)
 	}
 }
 
@@ -124,8 +127,8 @@ func TestCustomMode_Activate_SwitchesBetweenDeclarations(t *testing.T) {
 		t.Fatalf("toggling another declaration exited to %v, want a switch", got)
 	}
 
-	if handler.customModeName != declaredTabs {
-		t.Fatalf("customModeName = %q, want %q", handler.customModeName, declaredTabs)
+	if handler.appState.CustomModeName() != declaredTabs {
+		t.Fatalf("customModeName = %q, want %q", handler.appState.CustomModeName(), declaredTabs)
 	}
 
 	handler.HandleKeyPress("n")

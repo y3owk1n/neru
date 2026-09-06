@@ -164,12 +164,8 @@ type handlerState struct {
 	shutdown              func()
 	refreshHintsTimer     *time.Timer
 	modeSession           uint64
-	// customModeName is the declared mode a ModeCustom session is in, and
-	// empty outside one. It is what tells one declaration from another
-	// wherever the enum alone cannot: the keymap, the indicator, the frame.
-	customModeName    string
-	hotkeyLastKey     string
-	hotkeyLastKeyTime int64
+	hotkeyLastKey         string
+	hotkeyLastKeyTime     int64
 
 	textInput                  ports.TextInputPort
 	hintSearchTextInputActive  bool
@@ -416,7 +412,7 @@ func (h *Handler) ActivateMode(activation modecmd.Activation) {
 	// enum value, so there "already active" also means the same name: toggling
 	// one declared mode from inside another switches rather than exits.
 	if activation.Toggle != nil && *activation.Toggle && h.appState.CurrentMode() == mode &&
-		(mode != domain.ModeCustom || h.customModeName == activation.Name) {
+		(mode != domain.ModeCustom || h.appState.CustomModeName() == activation.Name) {
 		h.exitMode()
 
 		return
@@ -467,9 +463,10 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	// to settle and no way out but this one, so the session ends here rather
 	// than leaving the keyboard captured by a mode that answers nothing.
 	if h.appState.CurrentMode() == domain.ModeCustom {
-		if _, declared := config.Modes[h.customModeName]; !declared {
+		name := h.appState.CustomModeName()
+		if _, declared := config.Modes[name]; !declared {
 			h.logger.Info("Custom mode exited: the reloaded configuration no longer declares it",
-				zap.String("mode", h.customModeName))
+				zap.String("mode", name))
 			h.exitMode()
 		}
 	}

@@ -19,7 +19,7 @@ The same content is available as manpages (`man neru`) after installation.
 - [Global flags](#global-flags)
 - [Command index](#command-index)
 - [Daemon lifecycle](#daemon-lifecycle) — `launch` · `start` · `stop` · `idle` · `status` · `doctor`
-- [Navigation modes](#navigation-modes) — `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select`
+- [Navigation modes](#navigation-modes) — `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select` · `mode`
 - [Actions](#actions) — `action` and its subcommands
 - [Sequences](#sequences) — `run` · `macro`
 - [Configuration commands](#configuration-commands) — `config`
@@ -90,6 +90,7 @@ Accepted by every command.
 | [`recursive_grid`](#neru-recursive_grid)                     | Recursive cell navigation       | Yes | All |
 | [`scroll`](#neru-scroll)                                     | Vim-style scrolling             | Yes | All |
 | [`monitor_select`](#neru-monitor_select)                     | Jump the cursor to a display    | Yes | macOS · Linux |
+| [`mode`](#neru-mode)                                         | Enter a mode declared in config | Yes | All |
 | [`action`](#actions)                                         | One-shot mouse/scroll/key input | Yes | All ² |
 | [`run`](#neru-run)                                           | Run several actions in order    | Yes | All |
 | [`macro`](#neru-macro)                                       | Run a named sequence from config | Yes | All |
@@ -189,7 +190,7 @@ Requires a running daemon.
 | Field    | Values                                                  |
 | -------- | ------------------------------------------------------- |
 | `Status` | `running`, `disabled`                                   |
-| `Mode`   | `idle`, `hints`, `grid`, `recursive_grid`, `scroll`, `monitor_select` |
+| `Mode`   | `idle`, `hints`, `grid`, `recursive_grid`, `scroll`, `monitor_select`, or the name of the open [declared mode](CONFIGURATION.md#modes) |
 
 **JSON output**
 
@@ -270,8 +271,8 @@ the check. The full set is
 
 # Navigation modes
 
-Modes take over the keyboard until you select a target or exit. All five
-require a running daemon.
+Modes take over the keyboard until you select a target or exit. Every mode
+command requires a running daemon.
 
 ## Mode flag reference
 
@@ -518,6 +519,35 @@ Labels come from `monitor_select.characters` (default `123456789`).
 ```bash
 neru monitor_select
 neru monitor_select --toggle
+```
+
+---
+
+## neru mode
+
+Enter a mode you declared under [`[modes.<name>]`](CONFIGURATION.md#modes).
+
+```
+neru mode <name> [flags]
+```
+
+A declared mode has no logic of its own: it captures the keyboard, shows its
+indicator, and answers every key from its own `[modes.<name>.hotkeys]` table.
+`Escape` returns to idle unless the table rebinds it. The same command is a
+binding step, `"mode <name>"`, from any hotkey table or macro.
+
+**Flags** — every flag listed for `mode` in the
+[mode flag reference](#mode-flag-reference): `--toggle` and nothing else, since
+a declared mode makes no selection.
+
+A name nothing declares is refused with `ERR_INVALID_INPUT`, the same way a
+binding into one is refused at load.
+
+**Examples**
+
+```bash
+neru mode window
+neru mode window --toggle
 ```
 
 ---
@@ -1631,8 +1661,9 @@ scripts are safe.
 ```
 
 `action` names either a mode command — `hints`, `grid`, `recursive_grid`,
-`scroll`, `monitor_select`, `idle` — or one of the standalone commands. `args`
-carries the same flags a user would type.
+`scroll`, `monitor_select`, `idle`, or `mode` with the declared name as the
+first entry of `args` — or one of the standalone commands. `args` carries the
+same flags a user would type.
 
 A mode command's flags are read exactly as the CLI reads them, and answered
 with the same message: an unknown flag, a flag the named mode does not accept,

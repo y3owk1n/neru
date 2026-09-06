@@ -167,6 +167,7 @@ neru hints          # trigger hints mode
 neru grid           # trigger grid mode
 neru recursive_grid # trigger recursive grid mode
 neru scroll         # trigger scroll mode
+neru mode window    # enter a mode you declared in config
 neru config reload  # hot-reload config without restarting
 neru status         # check daemon state and permissions
 ```

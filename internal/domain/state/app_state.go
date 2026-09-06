@@ -26,6 +26,7 @@ type AppState struct {
 	// Core state
 	enabled              bool
 	currentMode          domain.Mode
+	customModeName       string
 	hiddenForScreenShare bool
 	scrollInverted       bool
 	modeExitReason       ModeExitReason
@@ -352,7 +353,47 @@ func (s *AppState) SetMode(mode domain.Mode) {
 		s.modeExitReasonValid = false
 	}
 
+	// The declared name belongs to a ModeCustom session and to nothing else:
+	// a declared mode names itself before entering, and any other mode
+	// clears it on the way in.
+	if mode != domain.ModeCustom {
+		s.customModeName = ""
+	}
+
 	s.currentMode = mode
+}
+
+// SetCustomModeName records which declared mode a ModeCustom session is in.
+// It is called before SetMode(ModeCustom), because entering the mode settles
+// the keymap and the keymap of a declared mode is looked up by this name.
+func (s *AppState) SetCustomModeName(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.customModeName = name
+}
+
+// CustomModeName returns the declared mode a ModeCustom session is in, and
+// the empty string outside one.
+func (s *AppState) CustomModeName() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.customModeName
+}
+
+// ModeName returns the current mode as a user reads it: a built-in mode's own
+// name, or the declared name of the custom mode that is open. It is what the
+// status report answers with, where "mode" alone would name nothing.
+func (s *AppState) ModeName() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.currentMode == domain.ModeCustom && s.customModeName != "" {
+		return s.customModeName
+	}
+
+	return domain.ModeString(s.currentMode)
 }
 
 // SetModeExitReason records how the current mode session exited. Must be

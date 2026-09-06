@@ -206,7 +206,7 @@ func (h *handlerState) settleKeymaps() {
 func (h *handlerState) keymapInputs() keymapInputs {
 	inputs := keymapInputs{
 		mode:   h.appState.CurrentMode(),
-		name:   h.customModeName,
+		name:   h.appState.CustomModeName(),
 		config: h.config,
 	}
 

@@ -58,9 +58,9 @@ func (m *CustomMode) RefreshForMonitorMove(_ context.Context, _ image.Rectangle)
 	m.handler.showFrame(m.handler.customFrame(), "refresh custom mode after monitor move")
 }
 
-// Exit tears the declared mode down. The name is cleared when the handler
-// leaves ModeCustom, in setAppMode, so a late reader still sees which
-// declaration the session was in until then.
+// Exit tears the declared mode down. The name is cleared when the app state
+// leaves ModeCustom, so a late reader still sees which declaration the
+// session was in until then.
 func (m *CustomMode) Exit() {
 	// Common cleanup takes the frame off the screen; stopping the poller
 	// first keeps a late tick from putting an indicator back.
@@ -80,7 +80,7 @@ func (m *CustomMode) HasAppHotkeyOverrides() bool {
 		return false
 	}
 
-	return m.handler.config.Modes[m.handler.customModeName].HasAppHotkeyOverrides()
+	return m.handler.config.Modes[m.handler.appState.CustomModeName()].HasAppHotkeyOverrides()
 }
 
 // startCustomMode enters the declared mode called name.
@@ -112,7 +112,7 @@ func (h *handlerState) startCustomMode(name string) {
 			zap.String("from", h.CurrModeString()))
 	}
 
-	h.customModeName = name
+	h.appState.SetCustomModeName(name)
 
 	h.enterMode(domain.ModeCustom)
 
@@ -129,7 +129,7 @@ func (h *handlerState) startCustomMode(name string) {
 //
 // Caller must hold h.mu.
 func (h *handlerState) customFrame() ports.CustomFrame {
-	return ports.CustomFrame{Name: h.customModeName}
+	return ports.CustomFrame{Name: h.appState.CustomModeName()}
 }
 
 // DeclaresMode reports whether the configuration declares a mode called name,

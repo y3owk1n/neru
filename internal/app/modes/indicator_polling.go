@@ -313,7 +313,7 @@ func (h *handlerState) modeIndicatorEnabled(mode domain.Mode) bool {
 	case domain.ModeCustom:
 		// A declared mode has no enabled flag: its indicator is shown when it
 		// was given text, and an undeclared name reads the zero value.
-		return h.config.Modes[h.customModeName].Indicator != ""
+		return h.config.Modes[h.appState.CustomModeName()].Indicator != ""
 	default:
 		return false
 	}
