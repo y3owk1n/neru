@@ -1398,6 +1398,20 @@ Stable. Prefer `*_windows.go` as the implementation slot and pure Go Win32 /
 COM bindings (via `x/sys/windows` or syscall) over CGO. Do not introduce
 additional Windows backend naming until there is a real reason.
 
+**Elevated windows are out of reach.** User Interface Privilege Isolation
+blocks `SendInput`, `SetCursorPos` and the `WH_KEYBOARD_LL` hook against a
+window running at a higher integrity level than the caller, and against the
+secure desktop a UAC prompt sits on. A Neru started from a normal shell, or by
+the task `neru services install` writes, therefore cannot click, move the
+cursor or see keystrokes while an elevated app (an installer, an admin
+terminal, Task Manager run as administrator) has focus. The global hotkey
+does not fire there, and a mode opened beforehand neither sees its keys nor
+lands its click. The remedy is to run Neru elevated too, and it costs
+something: the daemon then holds an administrator token while it watches every
+keystroke and screen element, the service task has to be edited to run with
+highest privileges since `neru services install` does not, and each manual
+launch asks for UAC consent. The secure desktop stays out of reach either way.
+
 **Smooth cursor animation on Windows** is the Linux animator's shape with
 `SetCursorPos` as the sink
 ([mouse_animator.go](../internal/adapter/platform/windows/mouse_animator.go)):
