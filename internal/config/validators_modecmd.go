@@ -41,18 +41,9 @@ func (c *Config) ValidateModeCommands(warnings *Warnings) error {
 			)
 		}
 
-		// The grammar reads the name; only the configuration knows whether a
-		// mode by that name was declared. A binding that enters one that was
-		// not is a key that does nothing, so it is refused like a typo'd flag.
-		if mode == domain.ModeCustom {
-			if _, declared := c.Modes[activation.Name]; !declared {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"%s: %s",
-					field,
-					derrors.Message(modecmd.NotDeclared(activation.Name)),
-				)
-			}
+		err = c.refuseUndeclared(field, activation)
+		if err != nil {
+			return err
 		}
 
 		for _, warning := range reported {
@@ -61,6 +52,46 @@ func (c *Config) ValidateModeCommands(warnings *Warnings) error {
 
 		return nil
 	})
+}
+
+// checkDeclaredMode refuses a step that enters a declared mode nothing
+// declares, wherever the step sits: ValidateModeCommands reads the top-level
+// steps, and the binding walk hands the ones nested in a run or an --on-exit
+// here, so a typo'd name is reported at load at any depth.
+func (c *Config) checkDeclaredMode(field, step string) error {
+	mode, args, isModeCommand := parseModeCommand(step)
+	if !isModeCommand || mode != domain.ModeCustom {
+		return nil
+	}
+
+	activation, _, err := modecmd.Diagnose(mode, args)
+	if err != nil {
+		return derrors.Newf(derrors.CodeInvalidConfig, "%s: %s", field, derrors.Message(err))
+	}
+
+	return c.refuseUndeclared(field, activation)
+}
+
+// refuseUndeclared is the refusal for a custom activation naming a mode the
+// configuration does not declare. The grammar reads the name; only the
+// configuration knows whether anything declares it, and a binding into a
+// mode nothing declares is a key that does nothing, so it is refused like a
+// typo'd flag.
+func (c *Config) refuseUndeclared(field string, activation modecmd.Activation) error {
+	if activation.Mode != domain.ModeCustom {
+		return nil
+	}
+
+	if _, declared := c.Modes[activation.Name]; declared {
+		return nil
+	}
+
+	return derrors.Newf(
+		derrors.CodeInvalidConfig,
+		"%s: %s",
+		field,
+		derrors.Message(modecmd.NotDeclared(activation.Name)),
+	)
 }
 
 // parseModeCommand splits a step into the mode it enters and the arguments it

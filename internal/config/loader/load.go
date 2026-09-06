@@ -419,12 +419,19 @@ func (s *Service) applyModeHotkeys(cfg *config.Config, raw map[string]any) error
 //
 // The typed decode has already filled cfg.Modes with every declaration, so
 // the walk is over those rather than the raw table: a mode declared with no
-// hotkeys of its own still gets the default.
+// hotkeys of its own still gets the default. It runs once per file that can
+// declare a mode — the configuration and then the override `neru config set`
+// writes — so a mode already given a table keeps it and the later file merges
+// over it, and a mode the later file is the first to declare is seeded there.
 func (s *Service) applyCustomModeHotkeys(cfg *config.Config, raw map[string]any) error {
 	modesRaw, _ := raw[modesKey].(map[string]any)
 
 	for name, mode := range cfg.Modes {
-		hotkeys := config.DefaultCustomModeHotkeys()
+		hotkeys := mode.Hotkeys
+		if hotkeys == nil {
+			hotkeys = config.DefaultCustomModeHotkeys()
+		}
+
 		target := modeHotkeyTarget{modeKey: modesKey + "." + name, dest: &hotkeys}
 
 		if modeRaw, isTable := modesRaw[name].(map[string]any); isTable {
@@ -576,6 +583,15 @@ func overrideFileToLayer(configPath string) string {
 func (s *Service) applyOverrideFile(cfg *config.Config, overridePath string) error {
 	s.logger.Info("Loading config overrides from", zap.String("path", overridePath))
 
+	// The typed decode below replaces the entry of every declared mode the
+	// override names, and the hotkey table on it is tagged toml:"-", so the
+	// table the configuration gave the mode would go with it. It is kept
+	// aside and put back before the override's own tables merge over it.
+	kept := make(map[string]map[string]config.StringOrStringArray, len(cfg.Modes))
+	for name, mode := range cfg.Modes {
+		kept[name] = mode.Hotkeys
+	}
+
 	_, decodeErr := toml.DecodeFile(overridePath, cfg)
 	if decodeErr != nil {
 		wrapped := derrors.WrapConfigFailed(decodeErr, "parse config override file")
@@ -587,5 +603,23 @@ func (s *Service) applyOverrideFile(cfg *config.Config, overridePath string) err
 		return wrapped
 	}
 
-	return nil
+	// A declared mode's hotkey table is tagged toml:"-" like every mode's, so
+	// the typed decode above dropped any the override wrote. They are read
+	// from the raw decode the way the configuration's are, over whatever the
+	// configuration already gave the mode.
+	for name, hotkeys := range kept {
+		if mode, declared := cfg.Modes[name]; declared {
+			mode.Hotkeys = hotkeys
+			cfg.Modes[name] = mode
+		}
+	}
+
+	var raw map[string]any
+
+	_, rawErr := toml.DecodeFile(overridePath, &raw)
+	if rawErr != nil {
+		return derrors.WrapConfigFailed(rawErr, "parse config override file")
+	}
+
+	return s.applyCustomModeHotkeys(cfg, raw)
 }

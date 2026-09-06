@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -36,10 +37,6 @@ var validModifiers = map[string]bool{
 
 const minModifierComboParts = 2
 
-// builtInModeCount sizes the tables that list one entry per built-in mode
-// before the declared modes are appended.
-const builtInModeCount = 5
-
 func isValidModifier(mod string) bool {
 	return validModifiers[mod]
 }
@@ -51,16 +48,15 @@ func (c *Config) ValidateHotkeys() error {
 		table    map[string]StringOrStringArray
 	}
 
-	modeHotkeys := make([]modeTable, 0, builtInModeCount+len(c.Modes))
-	modeHotkeys = append(modeHotkeys,
-		modeTable{ModeNameHints, c.Hints.Hotkeys},
-		modeTable{ModeNameGrid, c.Grid.Hotkeys},
-		modeTable{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
-		modeTable{ModeNameScroll, c.Scroll.Hotkeys},
+	modeHotkeys := slices.Grow([]modeTable{
+		{ModeNameHints, c.Hints.Hotkeys},
+		{ModeNameGrid, c.Grid.Hotkeys},
+		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		{ModeNameScroll, c.Scroll.Hotkeys},
 		// monitor_select binds keys like the other modes and dispatches them
 		// through the same executor, so its table is checked like theirs.
-		modeTable{ModeNameMonitorSelect, c.MonitorSelect.Hotkeys},
-	)
+		{ModeNameMonitorSelect, c.MonitorSelect.Hotkeys},
+	}, len(c.Modes))
 
 	for name, mode := range c.Modes {
 		modeHotkeys = append(modeHotkeys, modeTable{customModeField(name), mode.Hotkeys})
@@ -126,13 +122,12 @@ func (c *Config) checkHotkeysConflicts() error {
 		table    map[string]StringOrStringArray
 	}
 
-	modes := make([]modeTable, 0, builtInModeCount+len(c.Modes))
-	modes = append(modes,
-		modeTable{ModeNameHints, c.Hints.Hotkeys},
-		modeTable{ModeNameGrid, c.Grid.Hotkeys},
-		modeTable{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
-		modeTable{ModeNameScroll, c.Scroll.Hotkeys},
-	)
+	modes := slices.Grow([]modeTable{
+		{ModeNameHints, c.Hints.Hotkeys},
+		{ModeNameGrid, c.Grid.Hotkeys},
+		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		{ModeNameScroll, c.Scroll.Hotkeys},
+	}, len(c.Modes))
 
 	for name, mode := range c.Modes {
 		modes = append(modes, modeTable{customModeField(name), mode.Hotkeys})

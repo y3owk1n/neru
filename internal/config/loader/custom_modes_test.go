@@ -181,3 +181,57 @@ func TestSave_WritesDeclaredModeHotkeysTheLoaderReadsBack(t *testing.T) {
 		}
 	}
 }
+
+// TestLoad_ReadsDeclaredModeHotkeysFromTheOverrideFile pins the second file a
+// declaration can come from: the override `neru config set` writes is decoded
+// into the same toml:"-" field, so its tables have to be read from the raw
+// decode too. A mode both files declare gets the override merged over the
+// configuration's table, and a mode only the override declares is seeded with
+// the default Escape binding like any other.
+func TestLoad_ReadsDeclaredModeHotkeysFromTheOverrideFile(t *testing.T) {
+	t.Parallel()
+
+	override := `
+[modes.window.hotkeys]
+"h" = "action scroll_left"
+"k" = "action scroll_up"
+
+[modes.tabs]
+indicator = "Tabs"
+
+[modes.tabs.hotkeys]
+"n" = "action feed ctrl+tab"
+`
+
+	cfg := loadWithOverride(t, declaredModesConfig, override).Config
+
+	window := cfg.Modes["window"]
+	if got := window.Hotkeys["h"]; len(got) != 1 || got[0] != "action scroll_left" {
+		t.Errorf("modes.window.hotkeys.h = %v, want the override's step", got)
+	}
+
+	if got := window.Hotkeys["k"]; len(got) != 1 || got[0] != "action scroll_up" {
+		t.Errorf("modes.window.hotkeys.k = %v, want the override's added step", got)
+	}
+
+	if got := window.Hotkeys["f"]; len(got) != 2 {
+		t.Errorf("modes.window.hotkeys.f = %v, want the configuration's binding kept", got)
+	}
+
+	if got := window.Hotkeys["Escape"]; len(got) != 1 || got[0] != config.CmdIdle {
+		t.Errorf("modes.window.hotkeys.Escape = %v, want the default kept", got)
+	}
+
+	tabs, declared := cfg.Modes["tabs"]
+	if !declared {
+		t.Fatal("a mode declared only in the override was not loaded")
+	}
+
+	if got := tabs.Hotkeys["n"]; len(got) != 1 || got[0] != "action feed ctrl+tab" {
+		t.Errorf("modes.tabs.hotkeys.n = %v, want the override's step", got)
+	}
+
+	if got := tabs.Hotkeys["Escape"]; len(got) != 1 || got[0] != config.CmdIdle {
+		t.Errorf("modes.tabs.hotkeys.Escape = %v, want the default seeded", got)
+	}
+}

@@ -108,6 +108,23 @@ func TestValidateCustomModes_RefusesWhatCouldNeverBeEntered(t *testing.T) {
 			want: `modes.window.hotkeys.t: mode "tabs" is not declared`,
 		},
 		{
+			// A step below the top level is still a step the daemon will run.
+			name: "an undeclared mode nested in a run",
+			breakIt: func(cfg *config.Config) {
+				cfg.Hotkeys.Bindings = map[string][]string{"w": {"run 'mode window'"}}
+			},
+			want: `hotkeys.w: mode "window" is not declared`,
+		},
+		{
+			name: "an undeclared mode in an --on-exit",
+			breakIt: func(cfg *config.Config) {
+				cfg.Hotkeys.Bindings = map[string][]string{
+					"w": {"hints --action left_click --on-exit 'mode window'"},
+				}
+			},
+			want: `hotkeys.w: mode "window" is not declared`,
+		},
+		{
 			name: "a per-app field that belongs to hints",
 			breakIt: func(cfg *config.Config) {
 				mode := declaredMode(nil)
