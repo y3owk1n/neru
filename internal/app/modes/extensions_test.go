@@ -133,6 +133,9 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionInputEditing,
 		extensionThemeRefresh,
 	},
+	domain.ModeCustom: {
+		extensionHotkeyOverrides,
+	},
 }
 
 // TestModeExtensionMatrix pins what every registered mode does on every

@@ -224,6 +224,19 @@ func validateAction(activation Activation) error {
 	return nil
 }
 
+// NotDeclared is the refusal for a custom activation naming a mode the
+// configuration does not declare. The grammar cannot judge that itself, but it
+// owns the sentence, so a binding read at load and a command sent over the
+// socket are refused in the same words.
+func NotDeclared(name string) error {
+	return derrors.Newf(
+		derrors.CodeInvalidInput,
+		"mode %q is not declared; declare it as [modes.%s]",
+		name,
+		name,
+	)
+}
+
 // isTrue reads a presence-only flag: absent and false are the same answer.
 func isTrue(value *bool) bool {
 	return value != nil && *value

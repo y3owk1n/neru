@@ -16,6 +16,13 @@ func (h *handlerState) setAppMode(mode domain.Mode) {
 	h.modeSession++
 	h.appState.SetMode(mode)
 
+	// The declared name belongs to a ModeCustom session and to nothing else.
+	// A declared mode sets it before entering, so it survives this call on
+	// the way in and is cleared on the way to any other mode.
+	if mode != domain.ModeCustom {
+		h.customModeName = ""
+	}
+
 	// Reset sticky modifier state before enabling detection for the new session.
 	// Activation-hotkey modifiers are suppressed explicitly by the hotkey path.
 	if h.modifierState != nil {
@@ -40,11 +47,9 @@ func (h *handlerState) syncStickyModifierToggle(mode domain.Mode) {
 		return
 	}
 
-	isNavMode := mode == domain.ModeHints ||
-		mode == domain.ModeGrid ||
-		mode == domain.ModeRecursiveGrid ||
-		mode == domain.ModeScroll ||
-		mode == domain.ModeMonitorSelect
+	// Every mode but idle captures the keyboard, and sticky modifiers are a
+	// captured keyboard's to toggle.
+	isNavMode := mode != domain.ModeIdle
 
 	enabled := isNavMode && h.config != nil && h.config.StickyModifiers.Enabled
 

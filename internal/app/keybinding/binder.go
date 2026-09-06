@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -346,22 +347,14 @@ func ModifiersFromKey(key string) action.Modifiers {
 	return mods
 }
 
-// actionsContainModeSwitch reports whether any action in the list is a
-// mode-switch action (hints, grid, recursive_grid, scroll, monitor_select).
+// actionsContainModeSwitch reports whether any action in the list enters a
+// mode: a built-in one by its name, or a declared one by "mode <name>". Idle
+// is a mode command that leaves one, and does not count.
 func actionsContainModeSwitch(actions []string, cfg *config.Config) bool {
 	return anyBindingStep(actions, cfg, func(step string) bool {
-		// The action format is "<mode_name>" with optional args, so split
-		// to get just the mode name for comparison.
-		switch commandOf(step) {
-		case domain.ModeString(domain.ModeHints),
-			domain.ModeString(domain.ModeGrid),
-			domain.ModeString(domain.ModeRecursiveGrid),
-			domain.ModeString(domain.ModeScroll),
-			domain.ModeString(domain.ModeMonitorSelect):
-			return true
-		default:
-			return false
-		}
+		mode, isMode := modecmd.LookupMode(commandOf(step))
+
+		return isMode && mode != domain.ModeIdle
 	})
 }
 

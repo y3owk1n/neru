@@ -48,10 +48,9 @@ func (c *Config) ValidateModeCommands(warnings *Warnings) error {
 			if _, declared := c.Modes[activation.Name]; !declared {
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,
-					"%s: mode %q is not declared; declare it as [modes.%s]",
+					"%s: %s",
 					field,
-					activation.Name,
-					activation.Name,
+					derrors.Message(modecmd.NotDeclared(activation.Name)),
 				)
 			}
 		}

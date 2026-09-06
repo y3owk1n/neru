@@ -186,6 +186,21 @@ func (c *ScrollConfig) HasAppHotkeyOverrides() bool {
 	return false
 }
 
+// CustomModeIndicators returns the indicator label of every declared mode, by
+// name, leaving out the ones declared with none: an absent name is what tells
+// the overlay to draw nothing.
+func (c *Config) CustomModeIndicators() map[string]string {
+	labels := make(map[string]string, len(c.Modes))
+
+	for name, mode := range c.Modes {
+		if mode.Indicator != "" {
+			labels[name] = mode.Indicator
+		}
+	}
+
+	return labels
+}
+
 // HasAppHotkeyOverrides reports whether any [[modes.<name>.app_configs]] entry
 // has a non-empty Hotkeys map. While it is false the focused app cannot change
 // what the mode binds, which is what lets the keymap settle without asking

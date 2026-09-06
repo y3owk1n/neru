@@ -54,6 +54,7 @@ var activationMessages = map[domain.Mode]string{
 	domain.ModeScroll:        "scroll mode activated",
 	domain.ModeMonitorSelect: "monitor_select mode activated",
 	domain.ModeIdle:          "idle mode activated",
+	domain.ModeCustom:        "custom mode activated",
 }
 
 // activationHandler answers a mode command by entering the mode it names.
@@ -73,6 +74,13 @@ func (h *ModesHandler) activationHandler(
 		activation, err := modecmd.Parse(mode, cmd.Args)
 		if err != nil {
 			return refusalFor(err)
+		}
+
+		// The grammar reads the declared name; whether anything declares it
+		// is the configuration's answer, and a caller is told here rather
+		// than by an activation that cannot report back.
+		if mode == domain.ModeCustom && !h.modes.DeclaresMode(activation.Name) {
+			return refusalFor(modecmd.NotDeclared(activation.Name))
 		}
 
 		h.modes.ActivateMode(activation)

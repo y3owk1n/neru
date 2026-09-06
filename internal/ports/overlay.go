@@ -174,6 +174,23 @@ func (ScrollFrame) Mode() domain.Mode { return domain.ModeScroll }
 
 func (ScrollFrame) frame() {}
 
+// CustomFrame is the surface of a mode the user declared, which draws nothing
+// of its own for the reason ScrollFrame draws nothing: a declared mode is a
+// keymap the indicators report, not content.
+//
+// It carries the declared name because the overlay names its modes by name,
+// and the indicator's label is the declaration's to give. Mode() answers with
+// the one enum value every declared mode shares.
+type CustomFrame struct {
+	// Name is the declared mode, the "window" in [modes.window].
+	Name string
+}
+
+// Mode names the mode a custom frame draws.
+func (CustomFrame) Mode() domain.Mode { return domain.ModeCustom }
+
+func (CustomFrame) frame() {}
+
 // GridPointer is the pointer stand-in a grid surface draws where the selection
 // is, for a user who has told the cursor not to follow it. It carries position
 // only: how big it is and what color it is are Style, resolved by the overlay.

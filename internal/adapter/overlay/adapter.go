@@ -97,7 +97,7 @@ func (a *Adapter) ShowFrame(ctx context.Context, frame ports.Frame) error {
 		return err
 	}
 
-	mode, modeErr := overlayMode(frame.Mode())
+	mode, modeErr := frameSurface(frame)
 	if modeErr != nil {
 		return modeErr
 	}
@@ -371,6 +371,20 @@ func (a *Adapter) UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer)
 		pointer.Position,
 		pointerAppearance(ResolvedStyle(a.styles).VirtualPointer),
 	)
+}
+
+// frameSurface names the overlay mode a frame is realized in.
+//
+// A declared mode's frame is the one case where the enum is not the name: every
+// declaration shares domain.ModeCustom, and the overlay tells them apart by the
+// declared name, which is what the indicator's label is looked up by. So the
+// surface is the name itself, and the built-in modes go through overlayMode.
+func frameSurface(frame ports.Frame) (Mode, error) {
+	if custom, isCustom := frame.(ports.CustomFrame); isCustom {
+		return Mode(custom.Name), nil
+	}
+
+	return overlayMode(frame.Mode())
 }
 
 // overlayMode translates a mode into the overlay's own name for it. The two

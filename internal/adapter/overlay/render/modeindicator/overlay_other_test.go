@@ -26,7 +26,7 @@ func TestOverlay_ResolveLabelText_Semantics(t *testing.T) {
 		},
 	}
 
-	overlay, err := modeindicator.NewOverlay(cfg, nil, nil)
+	overlay, err := modeindicator.NewOverlay(cfg, map[string]string{"window": "Window"}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewOverlay returned error: %v", err)
 	}
@@ -40,6 +40,9 @@ func TestOverlay_ResolveLabelText_Semantics(t *testing.T) {
 		{name: "empty text falls back to mode name", mode: "grid", want: "grid"},
 		{name: "disabled mode draws nothing even with text", mode: "scroll", want: ""},
 		{name: "unknown mode draws nothing", mode: "bogus", want: ""},
+		// A declared mode is named by its declaration, and its label is the
+		// one the declaration gave it.
+		{name: "declared mode shows its declared label", mode: "window", want: "Window"},
 	}
 
 	for _, tc := range tests {
@@ -59,7 +62,7 @@ func TestOverlay_ResolveLabelText_Semantics(t *testing.T) {
 func TestOverlay_ResolveModeConfig_UnknownMode(t *testing.T) {
 	t.Parallel()
 
-	overlay, err := modeindicator.NewOverlay(config.ModeIndicatorConfig{}, nil, nil)
+	overlay, err := modeindicator.NewOverlay(config.ModeIndicatorConfig{}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("NewOverlay returned error: %v", err)
 	}

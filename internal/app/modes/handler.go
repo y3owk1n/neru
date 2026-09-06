@@ -351,6 +351,7 @@ func newModes(state *handlerState) map[domain.Mode]Mode {
 		domain.ModeScroll:        NewScrollMode(state),
 		domain.ModeRecursiveGrid: NewRecursiveGridMode(state),
 		domain.ModeMonitorSelect: NewMonitorSelectMode(state),
+		domain.ModeCustom:        NewCustomMode(state),
 	}
 }
 
@@ -411,8 +412,11 @@ func (h *Handler) ActivateMode(activation modecmd.Activation) {
 	mode := activation.Mode
 
 	// Toggle: if the mode is already active and --toggle was specified,
-	// exit to idle instead of re-activating
-	if activation.Toggle != nil && *activation.Toggle && h.appState.CurrentMode() == mode {
+	// exit to idle instead of re-activating. Every declared mode shares one
+	// enum value, so there "already active" also means the same name: toggling
+	// one declared mode from inside another switches rather than exits.
+	if activation.Toggle != nil && *activation.Toggle && h.appState.CurrentMode() == mode &&
+		(mode != domain.ModeCustom || h.customModeName == activation.Name) {
 		h.exitMode()
 
 		return
@@ -458,6 +462,17 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	h.config = config
 
 	h.updateComponentConfigs(config)
+
+	// A declared mode the new configuration no longer declares has no keymap
+	// to settle and no way out but this one, so the session ends here rather
+	// than leaving the keyboard captured by a mode that answers nothing.
+	if h.appState.CurrentMode() == domain.ModeCustom {
+		if _, declared := config.Modes[h.customModeName]; !declared {
+			h.logger.Info("Custom mode exited: the reloaded configuration no longer declares it",
+				zap.String("mode", h.customModeName))
+			h.exitMode()
+		}
+	}
 
 	// Replacing the configuration replaces what is bound, and settling it here
 	// rather than on the next keystroke is what keeps the keystroke path unable
