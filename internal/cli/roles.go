@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -102,7 +101,7 @@ func runRolesList(cmd *cobra.Command) {
 
 // runRolesExplain resolves the loaded configuration and reports each entry.
 func runRolesExplain(cmd *cobra.Command) error {
-	svc := loader.NewService(config.DefaultConfig(), "", nil, nil)
+	svc := clientConfigLoader()
 
 	path := configPath
 	if path == "" {

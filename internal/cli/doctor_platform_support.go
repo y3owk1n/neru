@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
@@ -23,7 +22,7 @@ const platformSupportRow = "platform_support"
 // One load for all of them: two would be two chances to disagree about which
 // file is even being judged, and the load is what discovers that file.
 func doctorConfigLoad() *config.LoadResult {
-	svc := loader.NewService(config.DefaultConfig(), "", nil, nil)
+	svc := clientConfigLoader()
 
 	path := configPath
 	if path == "" {
