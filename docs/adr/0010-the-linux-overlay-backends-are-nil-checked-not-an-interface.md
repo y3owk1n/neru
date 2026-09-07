@@ -101,8 +101,10 @@ surface. This ADR extends that seam rather than adding a second one beside it.
   exists (`docs/CROSS_PLATFORM.md:104-110`). It becomes reachable the moment a
   compositor moves out of that bucket. COSMIC (#898) moved out as
   `wayland-cosmic` and took the wlroots layer-shell overlay backend, so the
-  nil path stayed unreachable. A compositor landing without layer-shell fixes
-  `Init` in the same change.
+  nil path stayed unreachable. GNOME landed without layer-shell and took the
+  X11 overlay backend over Xwayland instead, and the factory refuses a GNOME
+  session that has no Xwayland, so the nil path is still unreachable. A
+  compositor landing with neither fixes `Init` in the same change.
 - The shutdown race this decision was drafted beside is **fixed**, and not by
   this decision. Every call that cancelled an animation before taking `renderMu`
   used to read `m.x11`/`m.wlroots` beside the lock rather than under it, racing

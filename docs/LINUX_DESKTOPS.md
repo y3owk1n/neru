@@ -20,7 +20,7 @@ each capability, which protocol or API implements it and why, is in the
 - [COSMIC (Wayland)](#cosmic-wayland)
 - [wlroots compositors](#wlroots-compositors)
 - [X11 sessions](#x11-sessions)
-- [GNOME (not supported)](#gnome-not-supported)
+- [GNOME (Wayland)](#gnome-wayland)
 - [Global hotkeys on Wayland](#global-hotkeys-on-wayland)
 - [Checking compositor protocols](#checking-compositor-protocols)
 
@@ -313,36 +313,84 @@ notches. Build dependencies and systemd deployment are in
 
 ---
 
-## GNOME (not supported)
+## GNOME (Wayland)
 
 **Backend:** `wayland-gnome`
-**Status:** Not supported
+**Status:** Supported with Xwayland (GNOME Shell 50 / Mutter, measured); no
+focused-window source, so per-app config does not apply and hints in native
+Wayland apps stay window-relative
 
-**The daemon does not start in a GNOME Wayland session.**
-`platform.NewSystemPort` returns `CodeNotSupported` during the first
-initialization phase rather than running in a degraded state.
+Mutter implements none of the wlr family beyond `zxdg_output_manager_v1`, so
+GNOME borrows more mechanisms from other desktops than any of them:
 
-GNOME Shell uses private protocols instead of the wlr family: Mutter implements
-neither `wlr-layer-shell` (overlays) nor `wlr-foreign-toplevel-management`
-(focused app), and exposes no input-injection path Neru can use.
+- **Screens** come off xdg-output through the shared wlroots client, as on
+  every other Wayland desktop.
+- **Pointer input** goes through libei via `org.freedesktop.portal.RemoteDesktop`,
+  the KDE and COSMIC path, with the same one-time "Remote Control" consent and
+  stored restore token described under
+  [KDE setup notes](#setup-notes-beyond-linux_setupmd). GNOME's portal grants
+  the keyboard device together with the pointer, so modified clicks and
+  `neru action feed` work from the first grant.
+- **Screen capture** is the portal's ScreenCast stream, with the
+  [screen-sharing consent](#screen-sharing-consent) picker on the first
+  capture-strategy hint refresh.
+- **Keyboard capture and global hotkeys** are the evdev proxy, as on every
+  Wayland session, and there is no compositor fallback. Without `/dev/input`
+  access, bind the modes in **Settings > Keyboard > Custom Shortcuts** and
+  expect no keyboard capture inside a mode.
+- **The overlay is drawn on Xwayland.** Mutter has no layer shell. A
+  fullscreen `xdg_toplevel` was the obvious substitute and I measured it. It
+  is the wrong shape for an overlay, because GNOME Shell animates its map and
+  unmap and gives it keyboard focus. Mutter stacks an override-redirect X
+  window with an empty input shape above every toplevel, never animates or
+  focuses it, and passes clicks through it, so the X11 overlay serves GNOME
+  unchanged. The daemon refuses to start on a GNOME session with no
+  `DISPLAY`, naming Xwayland.
+- **Cursor position** uses the same trick. Neru maps a transparent
+  override-redirect window that accepts input, the compositor sends the
+  pointer's entry with global coordinates, and Neru destroys the window
+  again, all inside a frame. Mutter keeps the X root in the logical layout,
+  so those coordinates are the ones every other subsystem uses.
 
-The same applies to every desktop built on Mutter. Budgie identifies itself as
-GNOME and lands on this backend. Cinnamon (Muffin) and Pantheon (Gala) do not,
-so they resolve to `wayland-other` and are refused with the generic message,
-but the reason is identical.
+### Protocol support (Mutter 50.4, measured)
 
-**Use a GNOME X11 session instead.** Everything works there through the `x11`
-backend.
+| Protocol                              | Purpose                   | Mutter 50.4 |
+| ------------------------------------- | ------------------------- | ----------- |
+| `zxdg_output_manager_v1`              | Screen geometry           | yes (v3)    |
+| `zwlr_layer_shell_v1`                 | Overlay surfaces          | **no**      |
+| `zwlr_virtual_pointer_v1`             | Pointer move / click      | **no**      |
+| `zwp_virtual_keyboard_manager_v1`     | Sticky-modifier injection | **no**      |
+| `zwlr_foreign_toplevel_manager_v1`    | Focused-app app_id        | **no**      |
+| `ext_foreign_toplevel_list_v1`        | Focused-app app_id        | **no**      |
+| `zwlr_screencopy_manager_v1`          | Screen capture            | **no**      |
 
-Future work targets libei (the same family as KDE) plus a GNOME Shell extension.
-See
-[wayland_gnome/PLACEHOLDER.md](../internal/adapter/platform/linux/wayland_gnome/PLACEHOLDER.md).
+### Known issues
+
+- **No focused-window source.** Mutter tells a client neither which window
+  is focused nor where it is, and GNOME Shell's `org.gnome.Shell.Introspect`
+  interface is off by default and carries no geometry. So `[apps]` entries
+  never match, the app watcher has nothing to watch, and nothing can correct
+  AT-SPI's window-relative coordinates, so hints in native Wayland
+  applications land relative to the window's own origin. Applications running
+  under Xwayland report global coordinates and are unaffected. Grid, recursive
+  grid and scroll do not depend on any of this. A GNOME Shell extension is the
+  known way to close the gap ([ROADMAP.md](ROADMAP.md#open-direction)).
+- **HiDPI needs Mutter's default Xwayland scaling.** The overlay draws in the
+  X root's coordinate space, which Mutter keeps equal to the logical layout
+  by default, and Mutter then upscales the overlay with every other X client
+  on a scaled monitor. With the `xwayland-native-scaling` experimental feature on,
+  the root is in physical pixels and the overlay lands at the wrong place on
+  scaled monitors. The daemon warns at startup when Xft.dpi says so.
+- **Budgie** identifies itself as GNOME and takes this backend untested.
+  Cinnamon (Muffin) and Pantheon (Gala) are Mutter-based too but resolve to
+  `wayland-other` and are refused. Someone has to run the protocol check
+  below on each before it can be admitted.
 
 ---
 
 ## Global hotkeys on Wayland
 
-Applies to both KDE and wlroots. X11 is unaffected, it uses `XGrabKey`.
+Applies to every Wayland desktop. X11 is unaffected, it uses `XGrabKey`.
 
 No Wayland protocol lets an ordinary client register a global hotkey, so Neru
 offers two paths and prefers the first:
@@ -395,7 +443,9 @@ wayland-info | grep -E 'zwlr_layer_shell|zwlr_virtual_pointer|zwp_virtual_keyboa
 
 Neru's wlroots input path needs **both** `zwlr_layer_shell_v1` and
 `zwlr_virtual_pointer_v1`. If the pointer protocol is missing, the compositor
-needs a desktop-specific input path. KDE uses libei; GNOME has none yet.
+needs a desktop-specific input path. KDE, COSMIC and GNOME use libei. If the
+layer shell is missing too, the overlay needs one as well, and GNOME draws it
+on Xwayland.
 
 When evaluating a new desktop: if both protocols are present the shared
 wlroots path applies as-is, and the work is adding the compositor to backend

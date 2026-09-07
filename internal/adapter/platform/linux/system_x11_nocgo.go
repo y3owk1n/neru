@@ -3,6 +3,7 @@
 package linux
 
 import (
+	"context"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -72,5 +73,12 @@ func x11ScreenNames() ([]string, error) {
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
 		"X11 screen enumeration requires CGO-enabled Linux builds",
+	)
+}
+
+func xwaylandRefreshCursorPosition(_ context.Context) error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"Xwayland cursor discovery requires CGO-enabled Linux builds",
 	)
 }

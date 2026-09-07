@@ -13,7 +13,7 @@ func unsupportedLinuxBackendError(backend LinuxBackend) error {
 	case BackendWaylandGNOME:
 		return derrors.New(
 			derrors.CodeNotSupported,
-			"neru does not yet support GNOME Wayland. See docs/LINUX_DESKTOPS.md and internal/adapter/platform/linux/wayland_gnome/PLACEHOLDER.md.",
+			"neru on GNOME Wayland draws its overlay on Xwayland, and this session exposes no X server (DISPLAY is unset). Enable Xwayland in the GNOME session, or use a GNOME X11 session. See docs/LINUX_DESKTOPS.md.",
 		)
 	case BackendWaylandOther:
 		return derrors.Newf(

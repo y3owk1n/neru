@@ -117,7 +117,8 @@ func LinuxCapabilities() PlatformCapabilities {
 			"focused-app change detection keyed on the WM_CLASS (X11) or " +
 				"foreign-toplevel app_id (Wayland wlroots/KDE/COSMIC), event-driven " +
 				"where the compositor/X11 exposes a focus-change signal and polling " +
-				"otherwise; GNOME/Mutter exposes no focused-app source",
+				"otherwise; GNOME/Mutter exposes no focused-app source, so per-app " +
+				"config does not apply there",
 		),
 		// Default placeholder; the Linux SystemAdapter overrides this with
 		// the live-probed state (current color-scheme + source) on each

@@ -19,6 +19,10 @@ static Visual *neru_x11_argb_visual(Display *display, int screen) {
 	return DefaultVisual(display, screen);
 }
 
+// neru_x11_overlay_window_height is the X window's height for a screen of
+// the given height: one more, see the note at XCreateWindow below.
+static unsigned int neru_x11_overlay_window_height(int height) { return (unsigned int)height + 1u; }
+
 NeruX11Overlay *neru_x11_overlay_new(void) {
 	Display *display = XOpenDisplay(NULL);
 	if (display == NULL) {
@@ -45,9 +49,15 @@ NeruX11Overlay *neru_x11_overlay_new(void) {
 	attrs.border_pixel = 0;
 	attrs.event_mask = ExposureMask;
 
+	// One row taller than the screen, on purpose. Mutter treats an
+	// override-redirect window whose rectangle equals a monitor as a
+	// fullscreen window, and GNOME Shell then hides its top bar for as long
+	// as the overlay is mapped. The extra row hangs off the bottom edge and
+	// draws nothing; every other server ignores it.
 	overlay->window = XCreateWindow(
-	    display, overlay->root, 0, 0, overlay->width, overlay->height, 0, 32, InputOutput, overlay->visual,
-	    CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel | CWEventMask, &attrs);
+	    display, overlay->root, 0, 0, overlay->width, neru_x11_overlay_window_height(overlay->height), 0, 32,
+	    InputOutput, overlay->visual, CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel | CWEventMask,
+	    &attrs);
 
 	Atom dock = XInternAtom(display, "_NET_WM_WINDOW_TYPE_DOCK", False);
 	Atom window_type = XInternAtom(display, "_NET_WM_WINDOW_TYPE", False);
@@ -61,8 +71,8 @@ NeruX11Overlay *neru_x11_overlay_new(void) {
 	XFixesSetWindowShapeRegion(display, overlay->window, ShapeInput, 0, 0, region);
 	XFixesDestroyRegion(display, region);
 
-	overlay->surface =
-	    cairo_xlib_surface_create(display, overlay->window, overlay->visual, overlay->width, overlay->height);
+	overlay->surface = cairo_xlib_surface_create(
+	    display, overlay->window, overlay->visual, overlay->width, neru_x11_overlay_window_height(overlay->height));
 	overlay->cr = cairo_create(overlay->surface);
 	XFlush(display);
 
@@ -141,8 +151,8 @@ void neru_x11_overlay_resize(NeruX11Overlay *overlay) {
 	}
 	overlay->width = width;
 	overlay->height = height;
-	XResizeWindow(overlay->display, overlay->window, width, height);
-	cairo_xlib_surface_set_size(overlay->surface, width, height);
+	XResizeWindow(overlay->display, overlay->window, width, neru_x11_overlay_window_height(height));
+	cairo_xlib_surface_set_size(overlay->surface, width, neru_x11_overlay_window_height(height));
 	XFlush(overlay->display);
 }
 

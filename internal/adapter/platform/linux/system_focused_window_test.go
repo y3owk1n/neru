@@ -18,6 +18,7 @@ const (
 	niriSocketEnv        = "NIRI_SOCKET"
 	swaySocketEnv        = "SWAYSOCK"
 	hyprlandSignatureEnv = "HYPRLAND_INSTANCE_SIGNATURE"
+	staleSwaySocket      = "/run/sway.sock"
 )
 
 // TestWaylandFocusedWindowSource_FollowsTheBackend pins which source answers
@@ -36,7 +37,7 @@ func TestWaylandFocusedWindowSource_FollowsTheBackend(t *testing.T) {
 		{
 			"kde ignores a stale wlroots socket",
 			backendWaylandKDE,
-			map[string]string{swaySocketEnv: "/run/sway.sock"},
+			map[string]string{swaySocketEnv: staleSwaySocket},
 			focusedWindowSourceKWin,
 		},
 		{
@@ -48,7 +49,7 @@ func TestWaylandFocusedWindowSource_FollowsTheBackend(t *testing.T) {
 		{
 			"wlroots picks sway by its socket",
 			backendWaylandWlroots,
-			map[string]string{swaySocketEnv: "/run/sway.sock"},
+			map[string]string{swaySocketEnv: staleSwaySocket},
 			focusedWindowSourceSway,
 		},
 		{
@@ -62,6 +63,12 @@ func TestWaylandFocusedWindowSource_FollowsTheBackend(t *testing.T) {
 			backendWaylandCOSMIC,
 			map[string]string{niriSocketEnv: "/run/niri.sock"},
 			focusedWindowSourceCosmic,
+		},
+		{
+			"gnome has no source and ignores a stale wlroots socket",
+			backendWaylandGNOME,
+			map[string]string{swaySocketEnv: staleSwaySocket},
+			focusedWindowSourceNone,
 		},
 		{
 			"a wlroots compositor with no IPC has no source",

@@ -24,6 +24,7 @@ const (
 	wlrootsBackend = "wayland-wlroots"
 	kdeBackend     = "wayland-kde"
 	cosmicBackend  = "wayland-cosmic"
+	gnomeBackend   = "wayland-gnome"
 )
 
 // stubCall names a SystemAdapter method and invokes it, discarding any
@@ -224,6 +225,7 @@ func TestSystemAdapter_CapabilitiesMatchBackendBehavior(t *testing.T) {
 		wlrootsBackend,
 		kdeBackend,
 		cosmicBackend,
+		gnomeBackend,
 	}
 
 	ctx := context.Background()
@@ -391,7 +393,7 @@ func TestSystemAdapter_FocusedWindowBoundsRefusesWithNoGeometrySource(t *testing
 // KWin script at construction so the first caller is not answered from a cold
 // cache; every other backend must leave $XDG_RUNTIME_DIR alone.
 func TestSystemAdapter_StartsNoCompositorBridgeOffKDE(t *testing.T) {
-	for _, backend := range []string{x11Backend, wlrootsBackend, cosmicBackend, unimplementedBackend} {
+	for _, backend := range []string{x11Backend, wlrootsBackend, cosmicBackend, gnomeBackend, unimplementedBackend} {
 		t.Run(backend, func(t *testing.T) {
 			runtimeDir := t.TempDir()
 			t.Setenv("XDG_RUNTIME_DIR", runtimeDir)
@@ -443,5 +445,29 @@ func TestSystemAdapter_MoveCursorInstantlyReportsNotSupported(t *testing.T) {
 	if !derrors.IsNotSupported(err) {
 		t.Errorf("MoveCursorInstantly returned %v (code %q), want CodeNotSupported",
 			err, derrors.GetCode(err))
+	}
+}
+
+// TestSystemAdapter_FocusedApplicationPIDOnGNOMENamesTheMissingSource pins
+// that GNOME does not borrow the wlr client's "nothing focused" answer: that
+// sentence promises a PID once a window takes focus, and Mutter offers no
+// protocol that could ever deliver one.
+func TestSystemAdapter_FocusedApplicationPIDOnGNOMENamesTheMissingSource(t *testing.T) {
+	adapter := linux.NewSystemAdapter(gnomeBackend)
+
+	_, err := adapter.FocusedApplicationPID(context.Background())
+	if !derrors.IsNotSupported(err) {
+		t.Fatalf("FocusedApplicationPID() error = %v, want CodeNotSupported", err)
+	}
+
+	if !strings.Contains(err.Error(), "Mutter") {
+		t.Fatalf("FocusedApplicationPID() error = %q, want it to name Mutter", err.Error())
+	}
+
+	if strings.Contains(err.Error(), "focused window") {
+		t.Fatalf(
+			"FocusedApplicationPID() error = %q, must not promise an answer once a window is focused",
+			err.Error(),
+		)
 	}
 }

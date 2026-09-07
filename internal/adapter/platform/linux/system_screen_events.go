@@ -16,7 +16,7 @@ func SubscribeScreenChange(backend string) (int, bool) {
 	switch backend {
 	case backendX11:
 		return x11ScreenEventFD()
-	case backendWaylandWlroots, backendWaylandKDE, backendWaylandCOSMIC:
+	case backendWaylandWlroots, backendWaylandKDE, backendWaylandCOSMIC, backendWaylandGNOME:
 		return wlrootsScreenEventFD()
 	default:
 		return -1, false
@@ -29,7 +29,7 @@ func SubscribeScreenChange(backend string) (int, bool) {
 // no-op on other backends.
 func RefreshScreens(backend string) {
 	switch backend {
-	case backendWaylandWlroots, backendWaylandKDE, backendWaylandCOSMIC:
+	case backendWaylandWlroots, backendWaylandKDE, backendWaylandCOSMIC, backendWaylandGNOME:
 		wlrootsRefreshScreens()
 	}
 }

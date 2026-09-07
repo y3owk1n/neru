@@ -16,6 +16,8 @@ const (
 	DisplayServerWaylandKDE DisplayServer = "wayland (KDE Plasma)"
 	// DisplayServerWaylandCOSMIC is Wayland on COSMIC (doctor/runtime label).
 	DisplayServerWaylandCOSMIC DisplayServer = "wayland (COSMIC)"
+	// DisplayServerWaylandGNOME is Wayland on GNOME Shell (doctor/runtime label).
+	DisplayServerWaylandGNOME DisplayServer = "wayland (GNOME)"
 	// DisplayServerUnknown means the display server could not be identified yet.
 	DisplayServerUnknown DisplayServer = "unknown"
 )

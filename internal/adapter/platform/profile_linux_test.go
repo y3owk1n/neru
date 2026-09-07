@@ -67,7 +67,7 @@ func TestProfileFor_LinuxReportsTheStackTheDaemonDrives(t *testing.T) {
 			currentDesktop: "ubuntu:GNOME",
 			waylandDisplay: waylandDisplay,
 			wantBackend:    BackendWaylandGNOME,
-			wantDisplay:    DisplayServerWayland,
+			wantDisplay:    DisplayServerWaylandGNOME,
 		},
 		{
 			name:           "cosmic wayland session",

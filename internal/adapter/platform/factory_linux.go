@@ -16,7 +16,16 @@ func NewSystemPort() (ports.SystemPort, error) {
 	switch backend := detectLinuxBackend(); backend {
 	case BackendX11, BackendWaylandWlroots, BackendWaylandKDE, BackendWaylandCOSMIC:
 		return linux.NewSystemAdapter(backend.String()), nil
-	case BackendUnknown, BackendWaylandGNOME, BackendWaylandOther:
+	case BackendWaylandGNOME:
+		// The overlay is the one piece Mutter gives no Wayland path for, and
+		// it is drawn on Xwayland; a session without one has nowhere to draw,
+		// and refusing here beats a daemon whose every mode is invisible.
+		if !XwaylandAvailable() {
+			return nil, unsupportedLinuxBackendError(backend)
+		}
+
+		return linux.NewSystemAdapter(backend.String()), nil
+	case BackendUnknown, BackendWaylandOther:
 		return nil, unsupportedLinuxBackendError(backend)
 	default:
 		return nil, unsupportedLinuxBackendError(backend)

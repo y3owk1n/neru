@@ -266,8 +266,9 @@ is the fallback — tesseract, text only, and on KDE behind a one-time
 screen-sharing prompt, because KWin's only pixel source is the desktop portal.
 On **Windows**, UI Automation reports the control view only,
 per-app config does not re-apply when you change windows,
-and the OCR fallback is `Windows.Media.Ocr`, text only, needing a language pack. **Linux requires X11 or Wayland on
-wlroots/KWin/COSMIC — GNOME Wayland is not supported**; use a GNOME X11 session.
+and the OCR fallback is `Windows.Media.Ocr`, text only, needing a language pack. **Linux runs on X11 or Wayland on
+wlroots/KWin/COSMIC/GNOME**; on GNOME Wayland the overlay is drawn through
+Xwayland and hints stay window-relative in native Wayland apps.
 
 → [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
 

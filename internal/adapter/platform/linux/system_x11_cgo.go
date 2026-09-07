@@ -11,11 +11,13 @@ package linux
 import "C"
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"os"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -387,4 +389,49 @@ func x11ScreenNames() ([]string, error) {
 	}
 
 	return names, nil
+}
+
+// xwaylandDiscoveryTimeout bounds the wait for the pointer's entry into the
+// discovery window. Mutter answers within a frame or two; the bound is for a
+// pointer that is on no X-visible output at all, where nothing ever arrives.
+const xwaylandDiscoveryTimeout = 120 * time.Millisecond
+
+// xwaylandRefreshCursorPosition re-learns the physical cursor position on a
+// GNOME session and mirrors it into the wlroots cursor cache, which is where
+// every Wayland caller reads it from. XQueryPointer is not the answer here:
+// Xwayland sees the pointer only while it is over an X window, so the query
+// reports where the pointer last left one. A mapped override-redirect window
+// that accepts input, the same shape the overlay takes on GNOME, is what makes
+// the compositor say where the pointer is now. The position is in the X root's
+// space, which Mutter keeps equal to the logical layout the wlroots client's
+// screens live in (docs/LINUX_DESKTOPS.md, GNOME).
+//
+// A discovery that finds nothing is an error, not a silent keep: the caller is
+// re-syncing because it distrusts the cache, and a cache it cannot confirm is
+// what it should be told about.
+func xwaylandRefreshCursorPosition(ctx context.Context) error {
+	timeout := xwaylandDiscoveryTimeout
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = min(timeout, time.Until(deadline))
+	}
+
+	if timeout <= 0 {
+		return context.DeadlineExceeded
+	}
+
+	display, err := x11OpenDisplay()
+	if err != nil {
+		return err
+	}
+	defer C.neru_x11_close_display(display)
+
+	var posX, posY C.int
+	if C.neru_x11_discover_pointer(display, C.int(timeout/time.Millisecond), &posX, &posY) == 0 {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"failed to discover the pointer position through Xwayland",
+		)
+	}
+
+	return wlrootsSetCursor(image.Pt(int(posX), int(posY)))
 }

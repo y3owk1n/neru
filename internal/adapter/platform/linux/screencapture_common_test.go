@@ -110,7 +110,6 @@ func TestCaptureScreenRegion_UnknownBackendReportsNotSupported(t *testing.T) {
 		backend string
 		want    string
 	}{
-		{name: "gnome", backend: "wayland-gnome", want: "wayland-gnome"},
 		{name: "other wayland", backend: "wayland-other", want: "wayland-other"},
 		{name: "no backend detected", backend: "", want: "no display backend"},
 		// What DetectLinuxBackend actually returns for a session it could not
@@ -165,7 +164,7 @@ func TestCaptureScreenRegion_HeadlessSessionFailsLoudly(t *testing.T) {
 	// that has one as much as on the CI runner that does not.
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 
-	for _, backend := range []string{"x11", "wayland-wlroots", "wayland-kde", "wayland-cosmic"} {
+	for _, backend := range []string{"x11", "wayland-wlroots", "wayland-kde", "wayland-cosmic", "wayland-gnome"} {
 		t.Run(backend, func(t *testing.T) {
 			img, err := CaptureScreenRegion(context.Background(), backend, image.Rect(0, 0, 10, 10))
 			if err == nil {

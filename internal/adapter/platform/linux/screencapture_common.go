@@ -232,7 +232,7 @@ func unsupportedCaptureBackend(backend string) string {
 	}
 
 	return "screen capture is not implemented on linux backend " + backend +
-		"; supported backends are x11, wayland-wlroots, wayland-kde and wayland-cosmic"
+		"; supported backends are x11, wayland-wlroots, wayland-kde, wayland-cosmic and wayland-gnome"
 }
 
 // resolveCaptureRegion turns the caller's request into the rectangle handed to

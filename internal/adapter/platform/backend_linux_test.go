@@ -50,7 +50,7 @@ func TestLinuxBackend_DisplayServer(t *testing.T) {
 	}{
 		{backend: BackendX11, want: DisplayServerX11},
 		{backend: BackendWaylandWlroots, want: DisplayServerWayland},
-		{backend: BackendWaylandGNOME, want: DisplayServerWayland},
+		{backend: BackendWaylandGNOME, want: DisplayServerWaylandGNOME},
 		{backend: BackendWaylandOther, want: DisplayServerWayland},
 		{backend: BackendWaylandKDE, want: DisplayServerWaylandKDE},
 		{backend: BackendWaylandCOSMIC, want: DisplayServerWaylandCOSMIC},

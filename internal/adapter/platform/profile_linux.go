@@ -19,6 +19,10 @@ func linuxProfileForCurrentBackend() Profile {
 		return linuxCOSMICProfile()
 	}
 
+	if backend == BackendWaylandGNOME {
+		return linuxGNOMEProfile()
+	}
+
 	return linuxProfile(backend.displayServer())
 }
 
@@ -72,6 +76,35 @@ func linuxCOSMICProfile() Profile {
 		},
 		Overlay: BackendPlan{
 			Name: "wlr-layer-shell via cosmic-comp",
+		},
+		Notifications: BackendPlan{
+			Name: "freedesktop notifications (" + notificationDaemonCaveat + ")",
+		},
+	}
+}
+
+// linuxGNOMEProfile describes the GNOME stack: the portal-driven pointer KDE
+// and COSMIC use, with the overlay drawn on Xwayland because Mutter has no
+// layer shell, and no window-geometry source at all, so hints stay
+// window-relative in native Wayland applications.
+func linuxGNOMEProfile() Profile {
+	return Profile{
+		OS:              Linux,
+		PrimaryModifier: defaultPrimaryModifier,
+		DisplayServer:   DisplayServerWaylandGNOME,
+		Accessibility: BackendPlan{
+			Name: "AT-SPI over D-Bus (no window-geometry source; hints are window-relative in Wayland apps)",
+		},
+		Hotkeys: BackendPlan{
+			Name: "evdev from /dev/input (requires input group; or bind triggers in GNOME Settings > Keyboard)",
+		},
+		KeyboardCapture: BackendPlan{
+			Name: "evdev capture + key injection via uinput when /dev/uinput is writable, " +
+				"else libei via RemoteDesktop portal; pointer via libei through the " +
+				"RemoteDesktop portal (one-time consent, restored from a stored grant)",
+		},
+		Overlay: BackendPlan{
+			Name: "override-redirect X window on Xwayland (Mutter has no layer shell)",
 		},
 		Notifications: BackendPlan{
 			Name: "freedesktop notifications (" + notificationDaemonCaveat + ")",

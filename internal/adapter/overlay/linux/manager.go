@@ -125,6 +125,7 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 		instance.x11 = newX11Overlay(logger)
 		if instance.x11 != nil {
 			instance.x11.setRenderMu(&instance.renderMu)
+			warnXwaylandScaleMismatch(logger, instance.x11.Scale())
 		}
 	case linuxOverlayBackendWaylandWlroots:
 		instance.wlroots = newWlrootsOverlay(logger)
@@ -837,6 +838,27 @@ func (m *Manager) Flush() {
 	}
 }
 
+// warnXwaylandScaleMismatch says so when the GNOME overlay is about to draw in
+// a coordinate space other than the one every other subsystem uses. Shared
+// code hands the overlay logical-layout coordinates, and Mutter keeps the X
+// root equal to that layout by default. With Mutter's xwayland-native-scaling
+// experimental feature on, the root is in physical pixels instead and Xft.dpi
+// announces the factor; the overlay would then land at the wrong place on any
+// scaled monitor, and so would the cursor position learned through the same
+// X root. The daemon still starts, since grid and scroll on a 1x layout are
+// unaffected, but the mismatch must not be silent.
+func warnXwaylandScaleMismatch(logger *zap.Logger, scale float64) {
+	if logger == nil || scale == 1 ||
+		platform.DetectLinuxBackend() != platform.BackendWaylandGNOME {
+		return
+	}
+
+	logger.Warn(
+		"Xwayland reports a HiDPI scale on GNOME; overlay geometry and cursor sync will be misaligned on scaled monitors (disable Mutter's xwayland-native-scaling)",
+		zap.Float64("xft_scale", scale),
+	)
+}
+
 // detectLinuxOverlayBackend delegates to the canonical
 // platform.DetectLinuxBackend so that compositor-family detection (GNOME, KDE,
 // wlroots, etc.) is consistent across all layers.
@@ -844,10 +866,17 @@ func detectLinuxOverlayBackend() linuxOverlayBackend {
 	switch platform.DetectLinuxBackend() {
 	case platform.BackendX11:
 		return linuxOverlayBackendX11
+	case platform.BackendWaylandGNOME:
+		// Mutter has no layer shell, and a fullscreen xdg_toplevel is
+		// animated on map and takes keyboard focus. An override-redirect
+		// window on Xwayland is stacked above every toplevel, honors an
+		// empty input shape, and is neither animated nor focused, so the X11
+		// overlay serves GNOME as it is; the factory has already refused a
+		// GNOME session with no Xwayland (platform.XwaylandAvailable).
+		return linuxOverlayBackendX11
 	case platform.BackendWaylandWlroots, platform.BackendWaylandKDE, platform.BackendWaylandCOSMIC:
 		return linuxOverlayBackendWaylandWlroots
-	case platform.BackendUnknown, platform.BackendWaylandGNOME,
-		platform.BackendWaylandOther:
+	case platform.BackendUnknown, platform.BackendWaylandOther:
 		return linuxOverlayBackendUnknown
 	}
 

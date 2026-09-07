@@ -65,6 +65,12 @@ func waylandFocusedWindowSource(backend string) focusedWindowSource {
 		return focusedWindowSourceCosmic
 	}
 
+	// Mutter exposes no window geometry to a client at all; a wlroots socket
+	// inherited from another session would not describe its windows either.
+	if backend == backendWaylandGNOME {
+		return focusedWindowSourceNone
+	}
+
 	switch {
 	case os.Getenv("NIRI_SOCKET") != "":
 		return focusedWindowSourceNiri

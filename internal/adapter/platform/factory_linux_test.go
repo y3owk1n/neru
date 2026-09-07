@@ -7,7 +7,9 @@ import (
 	"testing"
 )
 
-func TestNewSystemPort_GNOMEWaylandReturnsHelpfulError(t *testing.T) {
+// A GNOME session draws its overlay on Xwayland, so one that exposes no X
+// server has nowhere to draw and is refused up front, naming the reason.
+func TestNewSystemPort_GNOMEWaylandWithoutXwaylandReturnsHelpfulError(t *testing.T) {
 	resetLinuxBackendCache()
 
 	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
@@ -23,8 +25,27 @@ func TestNewSystemPort_GNOMEWaylandReturnsHelpfulError(t *testing.T) {
 		t.Fatal("NewSystemPort() systemPort != nil, want nil")
 	}
 
-	if !strings.Contains(err.Error(), "GNOME") {
-		t.Fatalf("NewSystemPort() error = %q, want mention of GNOME", err.Error())
+	for _, want := range []string{"GNOME", "Xwayland", "DISPLAY"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("NewSystemPort() error = %q, want mention of %q", err.Error(), want)
+		}
+	}
+}
+
+func TestNewSystemPort_GNOMEWaylandWithXwaylandReturnsSystemPort(t *testing.T) {
+	resetLinuxBackendCache()
+
+	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
+	t.Setenv("DISPLAY", ":0")
+	t.Setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+
+	systemPort, err := NewSystemPort()
+	if err != nil {
+		t.Fatalf("NewSystemPort() error = %v, want nil", err)
+	}
+
+	if got := systemPort.Capabilities().Platform; got != "linux/wayland-gnome" {
+		t.Fatalf("Capabilities().Platform = %q, want %q", got, "linux/wayland-gnome")
 	}
 }
 

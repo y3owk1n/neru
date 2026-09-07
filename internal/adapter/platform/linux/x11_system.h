@@ -46,6 +46,7 @@ typedef enum {
 Display *neru_x11_open_display(void);
 void neru_x11_close_display(Display *display);
 int neru_x11_query_pointer(Display *display, int *x, int *y);
+int neru_x11_discover_pointer(Display *display, int timeout_ms, int *x, int *y);
 int neru_x11_move_pointer(Display *display, int x, int y);
 // neru_x11_get_active_window reads _NET_ACTIVE_WINDOW from the root window. It
 // returns one NeruX11ActiveWindowResult value, typed int like every other entry

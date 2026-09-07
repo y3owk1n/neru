@@ -55,8 +55,8 @@ identical on all three platforms, as a `Platforms:` line or a `Platforms`
 column. Anything without such a note works the same on macOS, Linux, and
 Windows. Commands that are unavailable return `ERR_NOT_SUPPORTED`.
 
-On Linux, "supported" means an X11 session or a Wayland session on wlroots or
-KWin. GNOME Wayland is not supported at all — the daemon exits at startup. See
+On Linux, "supported" means an X11 session or a Wayland session on wlroots,
+KWin, COSMIC or GNOME (with Xwayland). See
 [CROSS_PLATFORM.md](CROSS_PLATFORM.md#platform-status).
 
 `-h`, `--help` is accepted by every command and is omitted from the flag tables

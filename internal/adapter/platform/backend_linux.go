@@ -18,7 +18,11 @@ const (
 	BackendX11
 	// BackendWaylandWlroots targets wlroots-based compositors on Wayland.
 	BackendWaylandWlroots
-	// BackendWaylandGNOME targets GNOME Wayland, which is not implemented yet.
+	// BackendWaylandGNOME targets GNOME Shell (Mutter) on Wayland. Mutter
+	// implements none of the wlr protocols beyond xdg-output, so the overlay
+	// is an override-redirect window on Xwayland, pointer input goes through
+	// libei and screen capture through the portal, the way KDE does. It is
+	// served only while Xwayland is reachable (XwaylandAvailable).
 	BackendWaylandGNOME
 	// BackendWaylandKDE targets KDE Plasma Wayland (KWin exposes the same
 	// wlr-style layer-shell and virtual-pointer protocols Neru uses on wlroots).
@@ -85,7 +89,9 @@ func (b LinuxBackend) displayServer() DisplayServer {
 		return DisplayServerWaylandKDE
 	case BackendWaylandCOSMIC:
 		return DisplayServerWaylandCOSMIC
-	case BackendWaylandWlroots, BackendWaylandGNOME, BackendWaylandOther:
+	case BackendWaylandGNOME:
+		return DisplayServerWaylandGNOME
+	case BackendWaylandWlroots, BackendWaylandOther:
 		return DisplayServerWayland
 	case BackendUnknown:
 		return DisplayServerUnknown
@@ -99,6 +105,8 @@ var (
 	cachedBackendOnce  sync.Once
 	cachedHyprland     bool
 	cachedHyprlandOnce sync.Once
+	cachedXwayland     bool
+	cachedXwaylandOnce sync.Once
 )
 
 // resetLinuxBackendCache resets the cached backend detection result.
@@ -108,6 +116,8 @@ func resetLinuxBackendCache() {
 	cachedBackend = BackendUnknown
 	cachedHyprlandOnce = sync.Once{}
 	cachedHyprland = false
+	cachedXwaylandOnce = sync.Once{}
+	cachedXwayland = false
 }
 
 // detectLinuxBackend inspects the process environment and determines which
@@ -159,6 +169,23 @@ func IsHyprlandSession() bool {
 	})
 
 	return cachedHyprland
+}
+
+// XwaylandAvailable reports whether a Wayland session also exposes an X server,
+// which on Wayland is Xwayland. It is what the GNOME backend draws on: Mutter
+// has no layer shell, and an override-redirect X window is the one surface it
+// stacks above every toplevel without animating it (docs/LINUX_DESKTOPS.md).
+//
+// It lives here, and not beside its one caller, because DISPLAY is one of the
+// variables that decide the backend, and reading it a second time elsewhere is
+// the disagreement #1429 was (internal/architecture/compositor_detector_test.go).
+// On an X11 session the answer is trivially true and nothing asks.
+func XwaylandAvailable() bool {
+	cachedXwaylandOnce.Do(func() {
+		cachedXwayland = os.Getenv("DISPLAY") != ""
+	})
+
+	return cachedXwayland
 }
 
 // isHyprlandFromEnv answers behind the backend rather than beside it: a desktop

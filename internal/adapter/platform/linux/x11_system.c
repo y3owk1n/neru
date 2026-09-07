@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 Display *neru_x11_open_display(void) { return XOpenDisplay(NULL); }
@@ -33,6 +34,80 @@ int neru_x11_query_pointer(Display *display, int *x, int *y) {
 	unsigned int mask_return;
 
 	return XQueryPointer(display, root, &root_return, &child_return, x, y, &win_x, &win_y, &mask_return);
+}
+
+// neru_x11_discover_pointer learns the global pointer position on an X server
+// that cannot answer XQueryPointer truthfully. Xwayland only sees the pointer
+// while it is over an X window, so the query returns wherever it last was, or
+// the screen centre before it ever was. Mapping a full-root override-redirect
+// window that accepts input makes the compositor send the pointer's entry, and
+// the position that arrives with it (or with the motion right behind it) is
+// the truth. The window is unmapped again before returning; it draws nothing
+// and takes no focus, so nothing on screen notices. timeout_ms bounds the wait.
+int neru_x11_discover_pointer(Display *display, int timeout_ms, int *x, int *y) {
+	int screen = DefaultScreen(display);
+	Window root = neru_x11_root_window(display);
+
+	// InputOutput, not InputOnly: Xwayland gives a Wayland surface only to
+	// windows that can be drawn, and a window with no surface is one the
+	// compositor never sends the pointer into. A 32-bit visual with no
+	// background keeps the surface fully transparent for the frame it lives.
+	XVisualInfo visual_info;
+	if (!XMatchVisualInfo(display, screen, 32, TrueColor, &visual_info)) {
+		return 0;
+	}
+
+	XSetWindowAttributes attrs;
+	attrs.override_redirect = True;
+	attrs.event_mask = EnterWindowMask | PointerMotionMask;
+	attrs.colormap = XCreateColormap(display, root, visual_info.visual, AllocNone);
+	attrs.background_pixel = 0;
+	attrs.border_pixel = 0;
+	// No error trap: every resource here is our own and the visual matches
+	// the colormap, so none of these requests can legitimately fail.
+	Window probe = XCreateWindow(
+	    display, root, 0, 0, (unsigned int)DisplayWidth(display, screen), (unsigned int)DisplayHeight(display, screen),
+	    0, visual_info.depth, InputOutput, visual_info.visual,
+	    CWOverrideRedirect | CWEventMask | CWColormap | CWBackPixel | CWBorderPixel, &attrs);
+
+	XMapRaised(display, probe);
+	XFlush(display);
+
+	int found = 0;
+	int fd = ConnectionNumber(display);
+	struct timespec start;
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	for (;;) {
+		while (XPending(display) > 0) {
+			XEvent event;
+			XNextEvent(display, &event);
+			if (event.type == EnterNotify && event.xcrossing.window == probe) {
+				*x = event.xcrossing.x_root;
+				*y = event.xcrossing.y_root;
+				found = 1;
+			} else if (event.type == MotionNotify && event.xmotion.window == probe) {
+				*x = event.xmotion.x_root;
+				*y = event.xmotion.y_root;
+				found = 1;
+			}
+		}
+		if (found) {
+			break;
+		}
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		long elapsed_ms = (now.tv_sec - start.tv_sec) * 1000L + (now.tv_nsec - start.tv_nsec) / 1000000L;
+		if (elapsed_ms >= timeout_ms) {
+			break;
+		}
+		struct pollfd pfd = {fd, POLLIN, 0};
+		poll(&pfd, 1, (int)(timeout_ms - elapsed_ms));
+	}
+
+	XDestroyWindow(display, probe);
+	XFreeColormap(display, attrs.colormap);
+	XFlush(display);
+	return found;
 }
 
 int neru_x11_move_pointer(Display *display, int x, int y) {

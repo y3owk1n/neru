@@ -53,9 +53,10 @@ promise, and a Discussion is where a new one starts
   `sub_key_preview` ([#1116](https://github.com/y3owk1n/neru/issues/1116)).
 - **Auto-refresh hints when the accessibility tree changes**
   ([#1002](https://github.com/y3owk1n/neru/issues/1002)).
-- **GNOME Wayland** stays unsupported and is not scheduled. Reviving it needs
-  libei plus a GNOME Shell extension for window geometry, see
-  [LINUX_DESKTOPS.md](LINUX_DESKTOPS.md#gnome-not-supported).
+- **GNOME Wayland window geometry.** GNOME runs, but Mutter tells a client
+  neither which window is focused nor where it is, so per-app config and
+  hint alignment in native Wayland apps wait on a GNOME Shell extension, see
+  [LINUX_DESKTOPS.md](LINUX_DESKTOPS.md#gnome-wayland).
 
 ## Contributor priorities
 
