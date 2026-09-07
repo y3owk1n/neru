@@ -635,6 +635,9 @@ just install -y   # accept every prompt
 
 On Windows `just install` runs `scripts/install.ps1` through PowerShell, so the
 installer's flags use their PowerShell spelling there (`-Yes`, `-NoService`).
+It needs Git for Windows on PATH, which `just` already requires for every
+recipe on Windows: `just` runs recipe lines through `sh`, and the release
+layout step is a bash script.
 
 A source build reports its version as a git describe string, so the installer
 classifies it as a `source` install. Running the curl installer on top of it

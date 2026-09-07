@@ -393,30 +393,40 @@ if [ "$uninstall" = 1 ]; then
         "$HOME/.zsh/completions/_neru"
         "${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/neru.fish"
     )
-    # The manifest is user-writable and some removals run under sudo, so its
-    # paths are hints, not authority: each must still look like the thing
-    # this script installs (its basename, and for the app the binary inside)
-    # before it is removed.
+    # The manifest is user-writable and some removals run under sudo, so it
+    # never chooses a privileged target. A manifest path is honoured only
+    # when it lies inside $HOME (no sudo there) or is exactly the location
+    # this run would use anyway; anything else needs --bin-dir/--app-dir.
+    trusted() {
+        case "$1" in
+            "$HOME"/*) return 0 ;;
+        esac
+        [ "$1" = "$2" ]
+    }
     app_dst=""
     link=""
     if [ -f "$manifest" ]; then
         while IFS='=' read -r k v; do
             case "$k" in
-                binary) [ "$(basename "$v")" = neru ] && [ -f "$v" ] && [ ! -L "$v" ] && neru_bin="$v" ;;
-                app) [ "$(basename "$v")" = Neru.app ] && [ -f "$v/Contents/MacOS/neru" ] && app_dst="$v" ;;
-                link) [ "$(basename "$v")" = neru ] && [ -L "$v" ] && link="$v" ;;
-                man_dir) [ "$(basename "$v")" = man1 ] && man_dirs+=("$v") ;;
-                completion) case "$(basename "$v")" in neru | _neru | neru.fish) comps+=("$v") ;; esac ;;
+                binary) [ "$(basename "$v")" = neru ] && [ -f "$v" ] && [ ! -L "$v" ] && trusted "$v" "$bin_dir/neru" && neru_bin="$v" ;;
+                app) [ "$(basename "$v")" = Neru.app ] && [ -f "$v/Contents/MacOS/neru" ] && trusted "$v" "$app_dir/Neru.app" && app_dst="$v" ;;
+                link) [ "$(basename "$v")" = neru ] && [ -L "$v" ] && trusted "$v" "$bin_dir/neru" && link="$v" ;;
+                man_dir) [ "$(basename "$v")" = man1 ] && trusted "$v" "$man_dir" && man_dirs+=("$v") ;;
+                completion) case "$(basename "$v")" in neru | _neru | neru.fish) trusted "$v" "" && comps+=("$v") ;; esac ;;
             esac
         done <"$manifest"
     fi
     if [ "$os" = darwin ]; then
         link="${link:-$bin_dir/neru}"
         # The PATH symlink points into the app, so it locates a bundle
-        # installed with --app-dir even when the manifest is unusable.
+        # installed with --app-dir even when the manifest is unusable,
+        # under the same trust rule.
         if [ -z "$app_dst" ] && [ -L "$link" ]; then
-            case "$(readlink "$link")" in
-                */Neru.app/Contents/MacOS/neru) target="$(readlink "$link")"; app_dst="${target%/Contents/MacOS/neru}" ;;
+            target="$(readlink "$link")"
+            case "$target" in
+                */Neru.app/Contents/MacOS/neru)
+                    trusted "${target%/Contents/MacOS/neru}" "$app_dir/Neru.app" && app_dst="${target%/Contents/MacOS/neru}"
+                    ;;
             esac
         fi
         app_dst="${app_dst:-$app_dir/Neru.app}"

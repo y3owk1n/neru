@@ -73,9 +73,30 @@ function Write-Note([string]$Text) { Write-Piece "  $Text" 'DarkGray' }
 function Write-Warn([string]$Text) { Write-Piece '  ' -NoNewline; Write-Piece '!' 'Yellow' -NoNewline; Write-Piece " $Text" }
 function Write-KV([string]$Key, [string]$Value) { Write-Piece ('  {0,-10} ' -f $Key) 'DarkGray' -NoNewline; Write-Piece $Value }
 
+# An update removes a registered login task before swapping the binary. If
+# the run dies anywhere after that, put the task back on whichever neru.exe
+# is at the install path now, so a failed update never costs autostart.
+$script:serviceUnloaded = $false
+function Restore-LoginTask {
+    if (-not $script:serviceUnloaded) { return }
+    $script:serviceUnloaded = $false
+    $restored = $false
+    if (Test-Path $exe) {
+        Invoke-Neru services install | Out-Null
+        $restored = ($script:neruExit -eq 0)
+    }
+    if ($restored) {
+        Write-Warn 'Re-registered the login task that was unloaded for the update.'
+    } else {
+        Write-Warn 'The login task was unloaded for the update and could not be restored. Run: neru services install'
+    }
+}
+trap { Restore-LoginTask; break }
+
 function Fail([string]$Message) {
     Write-Host ''
     Write-Piece "  $([char]0x2717) $Message" 'Red'
+    Restore-LoginTask
     exit 1
 }
 
@@ -397,7 +418,7 @@ try {
     $stopped = Stop-InstalledNeru
     $serviceWasInstalled = $stopped.Service
     $daemonWasRunning = $stopped.Daemon
-    $serviceUnloaded = $serviceWasInstalled
+    $script:serviceUnloaded = $serviceWasInstalled
     if ($serviceWasInstalled) { Write-Info 'Paused the login task for the update' }
     if ($daemonWasRunning) { Write-Info 'Stopped the running daemon' }
 
@@ -410,15 +431,6 @@ try {
         Copy-Item -Path $manSrc -Destination $manDst -Recurse
     }
     Write-Ok "neru.exe $([char]0x2192) $installDir"
-} catch {
-    # A failed update must not cost the user autostart: put the login task
-    # back on whichever neru.exe is at the install path now.
-    if ($serviceUnloaded -and (Test-Path $exe)) {
-        Invoke-Neru services install | Out-Null
-        if ($script:neruExit -eq 0) { Write-Warn 'Re-registered the login task that was unloaded for the update.' }
-        else { Write-Warn 'The login task was unloaded for the update and could not be restored. Run: neru services install' }
-    }
-    throw
 } finally {
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
@@ -497,6 +509,7 @@ if (-not $NoCompletions) {
 $serviceState = 'none'
 if (-not $NoService) {
     if ($serviceWasInstalled) {
+        $script:serviceUnloaded = $false
         Invoke-Neru services install | Out-Null
         if ($script:neruExit -eq 0) {
             $serviceState = 'restarted'
