@@ -95,6 +95,20 @@ export PATH="/usr/local/bin:$PATH"
 brew update && brew reinstall --cask neru
 ```
 
+**Windows: "profile.ps1 cannot be loaded because running scripts is disabled"**
+
+The installer added tab completion to your PowerShell profile, and the default
+`Restricted` execution policy blocks profiles along with every other script.
+Allow local scripts for your user account, then open a new window:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+Newer installer versions check the policy first and offer this before writing
+the profile. To drop the completion instead, delete the two lines under
+`# neru shell completion (managed by install.ps1)` in the profile.
+
 **Linux: "error while loading shared libraries: libtesseract.so.5"** (Fedora)
 
 Fedora names the library `libtesseract.so.5.5`. Add a compatibility symlink; see

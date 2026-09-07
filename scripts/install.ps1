@@ -56,6 +56,12 @@ $ghBase = "https://github.com/$repo"
 $apiBase = "https://api.github.com/repos/$repo"
 if ($env:NERU_YES -eq '1') { $Yes = $true }
 
+# Under `irm ... | iex` this script runs inside the user's session, where
+# `exit` would close their window. Early exits therefore throw a sentinel
+# that the driver at the bottom turns into a return, or into a real exit
+# code when the script was run as a file.
+function Stop-Installer([int]$Code) { throw "NERU_EXIT:$Code" }
+
 # ------------------------------------------------------------ presentation --
 
 $script:useColor = -not $env:NO_COLOR
@@ -91,14 +97,14 @@ function Restore-LoginTask {
         Write-Warn 'The login task was unloaded for the update and could not be restored. Run: neru services install'
     }
 }
-trap { Restore-LoginTask; break }
-
 function Fail([string]$Message) {
     Write-Host ''
     Write-Piece "  $([char]0x2717) $Message" 'Red'
     Restore-LoginTask
-    exit 1
+    Stop-Installer 1
 }
+
+function Invoke-NeruInstaller {
 
 # Ask returns $true when the user says yes. -Yes answers for them.
 function Ask([string]$Prompt) {
@@ -136,15 +142,19 @@ if ($From) {
 
 # ---------------------------------------------------------------- platform --
 
-$arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
-    'Arm64' { 'arm64' }
-    'X64' { 'amd64' }
-    default { Fail "Unsupported architecture '$_' (releases ship amd64 and arm64)." }
+# PROCESSOR_ARCHITEW6432 names the real machine when this PowerShell runs
+# emulated (x86 Windows PowerShell on an ARM64 machine, say); the .NET
+# RuntimeInformation call is not reliable there under Windows PowerShell 5.1.
+$machine = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+$arch = switch ($machine) {
+    'ARM64' { 'arm64' }
+    'AMD64' { 'amd64' }
+    default { Fail "Unsupported architecture '$machine' (releases ship amd64 and arm64)." }
 }
 $asset = "neru-windows-$arch.zip"
 
 $installDir = Join-Path $env:LOCALAPPDATA 'Programs\neru'
-$exe = Join-Path $installDir 'neru.exe'
+$script:exe = Join-Path $installDir 'neru.exe'
 $manifest = Join-Path $installDir 'install-manifest'
 $shortcutPath = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Neru.lnk'
 
@@ -259,7 +269,7 @@ if ($Uninstall) {
     if (-not (Test-Path $exe) -and -not (Test-Path $shortcutPath) -and -not (Test-UserPathEntry) -and -not (Test-ProfileCompletion)) {
         Write-Host ''
         Write-Host '  Nothing to uninstall.'
-        exit 0
+        Stop-Installer 0
     }
     Write-Step 'Removing Neru'
     Write-Note 'The login task, executable, PATH entry, Start Menu shortcut and completion go.'
@@ -271,7 +281,7 @@ if ($Uninstall) {
     if (-not (Ask 'Uninstall Neru?')) {
         Write-Host ''
         Write-Host '  Nothing changed.'
-        exit 0
+        Stop-Installer 0
     }
     $stopped = Stop-InstalledNeru
     if ($stopped.Service) { Write-Ok 'Login task removed' }
@@ -319,7 +329,7 @@ if ($Uninstall) {
     Write-Piece '  Neru is uninstalled.' 'Green'
     if (-not $Purge) { Write-Note 'Config, data and logs were kept. Rerun with -Uninstall -Purge to remove them.' }
     Write-Host ''
-    exit 0
+    Stop-Installer 0
 }
 
 # ----------------------------------------------------------------- channel --
@@ -354,7 +364,7 @@ if ($installedChannel -and $installedChannel -ne $Channel) {
     if (-not (Ask "Switch to $Channel`?")) {
         Write-Host ''
         Write-Host '  Nothing changed.'
-        exit 0
+        Stop-Installer 0
     }
 }
 
@@ -387,7 +397,7 @@ try {
             Write-Piece "  Neru $tag is already installed and up to date." 'Green'
             Write-Note 'Pass -Force to reinstall it anyway.'
             Write-Host ''
-            exit 0
+            Stop-Installer 0
         }
         $targetLabel = if ($Channel -eq 'nightly') { 'the latest nightly build' } else { "Neru $tag" }
 
@@ -496,7 +506,22 @@ if (-not $NoCompletions) {
     } else {
         Write-Step 'PowerShell completion'
         Write-Note "Tab completion loads from your profile: $profilePath"
-        if (Ask 'Add PowerShell tab completion for neru to your profile?') {
+        # A profile is a script, so a Restricted or AllSigned policy would
+        # block it and print an error at every new session. Offer the usual
+        # per-user policy first rather than plant that error.
+        $policy = Get-ExecutionPolicy
+        $policyOk = $policy -notin 'Restricted', 'AllSigned'
+        if (-not $policyOk) {
+            Write-Warn "Your execution policy is $policy, which stops PowerShell from loading a profile."
+            if (Ask 'Set it to RemoteSigned for your user account so local scripts and profiles run?') {
+                Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+                $policyOk = $true
+                Write-Ok 'Execution policy set to RemoteSigned for your user'
+            } else {
+                Write-Info 'Skipped completion; the profile would not load under this policy.'
+            }
+        }
+        if ($policyOk -and (Ask 'Add PowerShell tab completion for neru to your profile?')) {
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $profilePath) | Out-Null
             Add-Content -Path $profilePath -Value "`n$marker`nif (Get-Command neru -ErrorAction SilentlyContinue) { neru completion powershell | Out-String | Invoke-Expression }"
             $completionState = 'added'
@@ -577,3 +602,23 @@ Write-Note 'Windows support is beta; see docs/CROSS_PLATFORM.md for what works t
 Write-Note "Manage the task with 'neru services status|stop|restart'. Rerun this script to update,"
 Write-Note 'add -Channel stable|nightly to switch, or -Uninstall to remove.'
 Write-Host ''
+}
+
+$exitCode = 0
+try {
+    Invoke-NeruInstaller
+} catch {
+    if ($_.Exception.Message -match '^NERU_EXIT:(\d+)$') {
+        $exitCode = [int]$Matches[1]
+    } else {
+        Write-Host ''
+        Write-Piece "  $([char]0x2717) Unexpected failure: $($_.Exception.Message)" 'Red'
+        Write-Note "  at $($_.InvocationInfo.PositionMessage -replace '\s+', ' ')"
+        Write-Note "Please report this with the lines above at $ghBase/issues."
+        Restore-LoginTask
+        $exitCode = 1
+    }
+}
+# Run as a file (-File, or just install) the exit code matters and exiting is
+# safe. Piped into iex there is no file, and exit would close the session.
+if ($MyInvocation.MyCommand.Path) { exit $exitCode }

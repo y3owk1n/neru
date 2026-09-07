@@ -118,7 +118,10 @@ that Wayland keyboard capture needs.
 
 On Windows it puts `neru.exe` under `%LOCALAPPDATA%\Programs\neru`, adds that
 directory to your user PATH, creates a Start Menu shortcut, and offers PowerShell
-completion in your profile and a Task Scheduler logon task.
+completion in your profile and a Task Scheduler logon task. Completion lives in
+your profile, which PowerShell will not load under the default `Restricted`
+execution policy, so the script offers to set `RemoteSigned` for your user
+account first and skips completion if you decline.
 
 When a login service is already registered, the script unloads it before it
 replaces the binary and registers it again afterwards. It refuses to run over a
