@@ -11,6 +11,7 @@ package linux
 import (
 	"errors"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -271,6 +272,111 @@ func TestEvdevProxy_MatchesAChordAndWithholdsIt(t *testing.T) {
 
 	if forwarded := proxy.rule.release(evdevKeyLeftMeta); !forwarded {
 		t.Error("the modifier's release was withheld after its press was forwarded")
+	}
+}
+
+// A modifier pressed and released with nothing between is a launcher shortcut
+// on KDE and GNOME and a release bind on Hyprland. The chord's key is what
+// would have been between, and the proxy keeps it, so it puts a symbol-less
+// tap there instead. A forwarded key is between already, and a key withheld
+// under no modifier has no shortcut to cancel.
+func TestEvdevProxy_AWithheldPressUnderAModifierCancelsTheModifierOnlyShortcut(t *testing.T) {
+	t.Parallel()
+
+	type emitted struct {
+		code  uint16
+		value int32
+	}
+
+	cancelTap := []emitted{{evdevKeyUnknown, evdevValuePress}, {evdevKeyUnknown, evdevValueRelease}}
+
+	tests := []struct {
+		name   string
+		events []waylandEvdevEvent
+		want   []emitted
+	}{
+		{
+			name: "hotkey chord under Super",
+			events: []waylandEvdevEvent{
+				keyEvent(evdevKeyLeftMeta, evdevValuePress),
+				keyEvent(evdevKeySemicolon, evdevValuePress),
+			},
+			want: cancelTap,
+		},
+		{
+			name: "unbound key under Super is forwarded",
+			events: []waylandEvdevEvent{
+				keyEvent(evdevKeyLeftMeta, evdevValuePress),
+				keyEvent(evdevKeyJ, evdevValuePress),
+			},
+			want: nil,
+		},
+		{
+			name: "Super alone",
+			events: []waylandEvdevEvent{
+				keyEvent(evdevKeyLeftMeta, evdevValuePress),
+				keyEvent(evdevKeyLeftMeta, evdevValueRelease),
+			},
+			want: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			proxy := newTestProxy()
+			bindTestChord(proxy)
+
+			var got []emitted
+
+			proxy.emitted = func(code uint16, value int32) {
+				got = append(got, emitted{code, value})
+			}
+
+			for _, event := range test.events {
+				proxy.handle(event)
+			}
+
+			if !slices.Equal(got, test.want) {
+				t.Fatalf("proxy emitted %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+// A mode's keys are withheld too, and one typed under a held modifier would
+// otherwise leave the modifier alone to the compositor when it comes up.
+func TestEvdevProxy_SessionKeyUnderAModifierCancelsTheModifierOnlyShortcut(t *testing.T) {
+	t.Parallel()
+
+	proxy := newTestProxy()
+	tap, _ := collectKeys(t)
+	beginSession(proxy, tap)
+
+	taps := 0
+
+	proxy.emitted = func(code uint16, _ int32) {
+		if code == evdevKeyUnknown {
+			taps++
+		}
+	}
+
+	proxy.handle(keyEvent(evdevKeyJ, evdevValuePress))
+	proxy.handle(keyEvent(evdevKeyJ, evdevValueRelease))
+
+	if taps != 0 {
+		t.Fatalf("a key withheld under no modifier emitted %d cancel events", taps)
+	}
+
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
+	proxy.handle(keyEvent(evdevKeyJ, evdevValuePress))
+
+	if taps != 2 {
+		t.Fatalf(
+			"a key withheld under Super emitted %d cancel events, want a press and a release",
+			taps,
+		)
 	}
 }
 

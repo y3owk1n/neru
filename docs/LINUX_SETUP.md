@@ -344,9 +344,12 @@ match it when validating locally.
 **X11:** Hotkeys in `config.toml` work via `XGrabKey`.
 
 **Wayland:** Hotkeys in `config.toml` also work, through the evdev keyboard
-proxy, provided the daemon can read `/dev/input` (item 2 above). If you would
-rather not grant that access, bind `neru <mode>` in the compositor instead.
-Compositor examples:
+proxy, provided the daemon can read `/dev/input` (item 2 above). A chord on
+`Super` does not also fire the desktop's Super-alone shortcut (the KDE and
+GNOME launchers, a Hyprland `bindr`): Neru taps a symbol-less key in place of
+the chord's key so the compositor sees Super was not pressed alone. If you
+would rather not grant that access, bind `neru <mode>` in the compositor
+instead. Compositor examples:
 
 Sway (`~/.config/sway/config`):
 

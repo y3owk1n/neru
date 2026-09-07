@@ -109,18 +109,22 @@ const (
 	evdevKeyDelete     uint16 = 111
 	evdevKeyLeftMeta   uint16 = 125
 	evdevKeyRightMeta  uint16 = 126
-	evdevKeyF13        uint16 = 183
-	evdevKeyF14        uint16 = 184
-	evdevKeyF15        uint16 = 185
-	evdevKeyF16        uint16 = 186
-	evdevKeyF17        uint16 = 187
-	evdevKeyF18        uint16 = 188
-	evdevKeyF19        uint16 = 189
-	evdevKeyF20        uint16 = 190
-	evdevKeyF21        uint16 = 191
-	evdevKeyF22        uint16 = 192
-	evdevKeyF23        uint16 = 193
-	evdevKeyF24        uint16 = 194
+	// evdevKeyUnknown is KEY_UNKNOWN: a key code with no symbol in any xkb
+	// keymap, so nothing acts on it, which is what the proxy taps to cancel a
+	// compositor's modifier-only shortcut (cancelModifierShortcut).
+	evdevKeyUnknown uint16 = 240
+	evdevKeyF13     uint16 = 183
+	evdevKeyF14     uint16 = 184
+	evdevKeyF15     uint16 = 185
+	evdevKeyF16     uint16 = 186
+	evdevKeyF17     uint16 = 187
+	evdevKeyF18     uint16 = 188
+	evdevKeyF19     uint16 = 189
+	evdevKeyF20     uint16 = 190
+	evdevKeyF21     uint16 = 191
+	evdevKeyF22     uint16 = 192
+	evdevKeyF23     uint16 = 193
+	evdevKeyF24     uint16 = 194
 
 	evdevModifierShift = "shift"
 	evdevModifierCtrl  = "ctrl"

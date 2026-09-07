@@ -64,6 +64,18 @@ auto-repeat and nothing to unwind when the mode ends. And a mode never sees the
 activation chord's modifier, since the session counts only presses withheld for
 it, so a hint label typed while Super is still coming up is the label.
 
+Withholding has one side effect the tap never had, because the tap left the
+chord's key with the compositor. A modifier pressed and released with nothing
+between is a shortcut of its own: KWin and Mutter open the launcher on it, and
+a Hyprland release bind fires on it, each deciding "nothing between" by whether
+another key went down under the modifier. Neru keeps that key, so with
+`Super+;` bound the launcher opened on every activation. The proxy therefore
+taps `KEY_UNKNOWN` in the place of any non-modifier press it withholds under a
+held modifier (`cancelModifierShortcut`), a chord's key or a mode's. The code
+has no symbol in any xkb keymap, so no application acts on it, and it is a key
+pressed under the modifier all the same, which is all the compositor's check
+asks.
+
 ## Considered options
 
 - **Keep the on-demand grab and tune the waits.** Sharing one reader between

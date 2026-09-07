@@ -66,6 +66,10 @@ type evdevProxy struct {
 	pointerNode   *proxyNode
 	heldByAnother func(*proxyNode) bool
 
+	// emitted sees every key event the proxy makes up on its own, as opposed
+	// to one it re-emits: a test's record of what reached the compositor.
+	emitted func(code uint16, value int32)
+
 	bindings atomic.Pointer[map[string]hotkeyBinding]
 
 	// heldHotkeys is the release callback owed for each key whose press
@@ -415,6 +419,8 @@ func (p *evdevProxy) handleKey(event waylandEvdevEvent) {
 		forwarded := p.rule.press(code, withhold)
 		if forwarded {
 			p.emit(event)
+		} else if modifier == "" && !p.global.modifiers.allZero() {
+			p.cancelModifierShortcut()
 		}
 
 		if p.session != nil {
@@ -443,6 +449,19 @@ func (p *evdevProxy) handleKey(event waylandEvdevEvent) {
 			p.session.handleRelease(code, modifier, forwarded)
 		}
 	}
+}
+
+// cancelModifierShortcut stands in for a withheld press under a held modifier.
+// KWin and Mutter open the launcher on a modifier pressed and released alone,
+// and a Hyprland release bind does the same, and each of them calls the
+// modifier alone when no other key went down in between. The compositor saw
+// the modifier's press and will see its release; the key between them, Neru
+// kept. So it is given another: a tap of KEY_UNKNOWN, which carries no symbol
+// and reaches no application, and is a key pressed under the modifier all the
+// same.
+func (p *evdevProxy) cancelModifierShortcut() {
+	p.emitKey(evdevKeyUnknown, evdevValuePress)
+	p.emitKey(evdevKeyUnknown, evdevValueRelease)
 }
 
 // trackGlobal keeps the proxy's own picture of the keyboard, which is the
@@ -542,6 +561,10 @@ func (p *evdevProxy) emitPointer(event waylandEvdevEvent) {
 // emitKey re-emits a key event of the proxy's own making, with the sync report
 // that makes it a complete frame.
 func (p *evdevProxy) emitKey(code uint16, value int32) {
+	if p.emitted != nil {
+		p.emitted(code, value)
+	}
+
 	frame := keyFrame(code, value)
 	p.write(p.uinputFd, &frame[0], len(frame))
 }
