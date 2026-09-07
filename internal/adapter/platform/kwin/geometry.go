@@ -106,7 +106,7 @@ type Geometry struct {
 	// is set once and read from any goroutine.
 	logger atomic.Pointer[zap.Logger]
 
-	// watching is the restart watch's one-shot claim (restart_watch.go).
+	// watching is the restart watch's per-connection claim (restart_watch.go).
 	watching claim
 
 	// conn is the bridge's own session-bus connection, dialed by connection.
@@ -519,10 +519,11 @@ func (g *Geometry) connection() (*dbus.Conn, error) {
 }
 
 // connectionClosed is how a watcher reports that its channel closed. It is
-// true, and the watcher's claim released, only for the connection the bridge
-// still holds: a watcher whose connection was replaced while it was busy
-// handing over an owner change must not release the claim its successor took,
-// empty the successor's cache, or schedule a third install.
+// true only for the connection the bridge still holds: a watcher whose
+// connection was replaced while it was busy handing over an owner change must
+// not empty the successor's cache or schedule a third install. Its claim is
+// its own to release either way, and keyed by connection so releasing it
+// cannot touch the successor's.
 func (g *Geometry) connectionClosed(conn *dbus.Conn) bool {
 	g.startMu.Lock()
 	defer g.startMu.Unlock()
@@ -532,7 +533,6 @@ func (g *Geometry) connectionClosed(conn *dbus.Conn) bool {
 	}
 
 	g.conn = nil
-	g.watching.release()
 
 	return true
 }

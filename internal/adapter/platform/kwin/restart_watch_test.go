@@ -245,24 +245,37 @@ func TestKWinOwnerFrom_ReadsOnlyKWinOwnerChanges(t *testing.T) {
 	}
 }
 
-// TestClaim_TakeAdmitsOneHolderAtATime pins what keeps the installer's retries
-// and every later reinstall from each adding a match rule and a goroutine that
-// live as long as the daemon does — while still letting an arming that failed
-// be tried again.
-func TestClaim_TakeAdmitsOneHolderAtATime(t *testing.T) {
+// TestClaim_TakeAdmitsOneHolderPerConnection pins what keeps the installer's
+// retries and every later reinstall from each adding a match rule and a
+// goroutine that live as long as the daemon does — while still letting an
+// arming that failed be tried again, and letting a replacement connection arm
+// its own watch while the retired one is still winding down.
+func TestClaim_TakeAdmitsOneHolderPerConnection(t *testing.T) {
 	var watching claim
 
-	if !watching.take() {
+	first, second := &dbus.Conn{}, &dbus.Conn{}
+
+	if !watching.take(first) {
 		t.Fatal("the first caller was not allowed to arm the restart watch")
 	}
 
-	if watching.take() {
-		t.Error("a second caller armed the restart watch again")
+	if watching.take(first) {
+		t.Error("a second caller armed the restart watch on the same connection again")
 	}
 
-	watching.release()
+	if !watching.take(second) {
+		t.Error("a replacement connection could not arm its watch while the old claim stood")
+	}
 
-	if !watching.take() {
+	watching.release(first)
+
+	if watching.take(second) {
+		t.Error("the retired watcher's release freed the replacement's claim")
+	}
+
+	watching.release(second)
+
+	if !watching.take(second) {
 		t.Error("a watch that could not be armed was never retried")
 	}
 }

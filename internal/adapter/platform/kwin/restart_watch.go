@@ -35,34 +35,38 @@ const (
 	ownerSignalBuffer = 32
 )
 
-// claim is a one-shot flag: the first taker gets it and everyone after is told
-// no, until whoever holds it gives it back. It exists so setup that must happen
-// once cannot happen twice when two callers race, without each such flag
-// growing its own mutex and its own pair of methods.
+// claim is the restart watch's ownership, keyed by the connection the watch
+// was armed on. One connection gets one watcher: a second take for the same
+// connection is refused, while a replacement connection takes its own claim
+// even if the retired watcher has not exited yet, and a retired watcher
+// releasing on its way out releases only what it took.
 type claim struct {
 	mu   sync.Mutex
-	held bool
+	conn *dbus.Conn
 }
 
-// take reports whether the caller is the one that should do the work.
-func (c *claim) take() bool {
+// take reports whether the caller is the one that should arm the watch on conn.
+func (c *claim) take(conn *dbus.Conn) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.held {
+	if c.conn == conn {
 		return false
 	}
 
-	c.held = true
+	c.conn = conn
 
 	return true
 }
 
-// release hands the claim back, for a taker that could not finish.
-func (c *claim) release() {
+// release hands the claim back, for the taker of conn only.
+func (c *claim) release(conn *dbus.Conn) {
 	c.mu.Lock()
-	c.held = false
-	c.mu.Unlock()
+	defer c.mu.Unlock()
+
+	if c.conn == conn {
+		c.conn = nil
+	}
 }
 
 // watchKWin asks the bus to say when org.kde.KWin changes hands. Losing the
@@ -83,9 +87,9 @@ func (c *claim) release() {
 // claim. Nothing is exported, no name is owned, and nothing is written to disk
 // until KWin has answered for itself.
 //
-// The watch is armed once and outlives any number of restarts.
+// The watch is armed once per connection and outlives any number of restarts.
 func (g *Geometry) watchKWin(conn *dbus.Conn) {
-	if !g.watching.take() {
+	if !g.watching.take(conn) {
 		return
 	}
 
@@ -95,7 +99,7 @@ func (g *Geometry) watchKWin(conn *dbus.Conn) {
 		dbus.WithMatchArg(0, scriptingDest),
 	)
 	if matchErr != nil {
-		g.watching.release()
+		g.watching.release(conn)
 		g.log().Debug("KWin restart watch unavailable", zap.Error(matchErr))
 
 		return
@@ -121,6 +125,8 @@ func (g *Geometry) serveOwnerChanges(conn *dbus.Conn, signals <-chan *dbus.Signa
 
 		g.kwinOwnerChanged(owner)
 	}
+
+	g.watching.release(conn)
 
 	if !g.connectionClosed(conn) {
 		return
