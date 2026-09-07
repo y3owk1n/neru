@@ -35,6 +35,10 @@ func TestExtensionDir_FollowsXDGDataHome(t *testing.T) {
 func TestInstall_WritesOnceAndLeavesAnUpToDateCopyAlone(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), UUID)
 
+	if Installed(dir) {
+		t.Fatal("Installed() = true before anything was written")
+	}
+
 	changed, err := Install(dir)
 	if err != nil || !changed {
 		t.Fatalf("first Install() = (%v, %v), want a write", changed, err)
@@ -50,6 +54,10 @@ func TestInstall_WritesOnceAndLeavesAnUpToDateCopyAlone(t *testing.T) {
 	changed, err = Install(dir)
 	if err != nil || changed {
 		t.Fatalf("second Install() = (%v, %v), want nothing written", changed, err)
+	}
+
+	if !Installed(dir) {
+		t.Fatal("Installed() = false after a write")
 	}
 
 	err = os.WriteFile(filepath.Join(dir, "extension.js"), []byte("stale"), extensionFileMode)

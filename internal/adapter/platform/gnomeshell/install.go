@@ -116,23 +116,40 @@ func (b *Bridge) installIfShellIsUp(conn *dbus.Conn) string {
 		return ""
 	}
 
+	// Only a first install is enabled here. A copy that is already on disk
+	// and not on the bus is one the user disabled, or one the next login
+	// has not loaded yet, and neither is Neru's to switch back on.
+	fresh := !Installed(dir)
+
 	changed, err := Install(dir)
 	if err != nil {
 		return "it could not be installed into " + dir + ": " + err.Error()
 	}
 
-	enabled := enable()
+	if !fresh {
+		verb := "it is installed in "
+		if changed {
+			verb = "it has been updated in "
+		}
 
-	verb := "it is installed in "
-	if changed {
-		verb = "it has been installed into "
+		return verb + dir + "; if it is enabled, log out and back in to load it, " +
+			"otherwise run `gnome-extensions enable " + UUID + "`"
 	}
 
-	if !enabled {
-		return verb + dir + "; run `gnome-extensions enable " + UUID + "`, then log out and back in to load it"
+	if !enable() {
+		return "it has been installed into " + dir + "; log out and back in, then run " +
+			"`gnome-extensions enable " + UUID + "` to load it"
 	}
 
-	return verb + dir + " and enabled; log out and back in to load it"
+	return "it has been installed into " + dir + " and enabled; log out and back in to load it"
+}
+
+// Installed reports whether an extension is on disk at dir, whatever its
+// version: the file the shell requires to list it is there.
+func Installed(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, "metadata.json"))
+
+	return err == nil
 }
 
 // enable lists the extension in the shell's enabled-extensions setting so the
