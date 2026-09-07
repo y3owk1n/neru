@@ -194,8 +194,11 @@ function Invoke-Neru {
 
 function Get-InstalledVersion {
     if (-not (Test-Path $exe)) { return '' }
-    $line = Invoke-Neru --version | Select-String -Pattern '^Neru version (.+)$' | Select-Object -First 1
-    if ($line) { return $line.Matches[0].Groups[1].Value.Trim() }
+    # Invoke-Neru hands back one multi-line string, so split before matching:
+    # ^ and $ would otherwise anchor to the whole output and never match.
+    foreach ($line in ((Invoke-Neru --version) -split "`r?`n")) {
+        if ($line -match '^Neru version (.+)$') { return $Matches[1].Trim() }
+    }
     return ''
 }
 
