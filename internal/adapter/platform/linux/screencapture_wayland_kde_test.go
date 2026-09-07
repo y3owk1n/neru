@@ -74,8 +74,8 @@ func TestPipewireCaptureError_NamesKDEForTheSharedFailures(t *testing.T) {
 			t.Fatalf("pipewireCaptureError(%d) = nil, want an error", status)
 		}
 
-		if !strings.Contains(err.Error(), captureLabelKDE) {
-			t.Errorf("error = %q, which does not name %q", err.Error(), captureLabelKDE)
+		if !strings.Contains(err.Error(), captureLabelPortal) {
+			t.Errorf("error = %q, which does not name %q", err.Error(), captureLabelPortal)
 		}
 	}
 }

@@ -23,6 +23,11 @@ const (
 	// BackendWaylandKDE targets KDE Plasma Wayland (KWin exposes the same
 	// wlr-style layer-shell and virtual-pointer protocols Neru uses on wlroots).
 	BackendWaylandKDE
+	// BackendWaylandCOSMIC targets System76 COSMIC (cosmic-comp on Smithay). It
+	// implements layer-shell and the virtual keyboard like wlroots, but neither
+	// the virtual pointer nor screencopy, so pointer input goes through libei
+	// and screen capture through the portal, the way KDE does.
+	BackendWaylandCOSMIC
 	// BackendWaylandOther means a non-wlroots Wayland compositor was detected.
 	BackendWaylandOther
 )
@@ -40,6 +45,8 @@ func (b LinuxBackend) String() string {
 		return "wayland-gnome"
 	case BackendWaylandKDE:
 		return "wayland-kde"
+	case BackendWaylandCOSMIC:
+		return "wayland-cosmic"
 	case BackendWaylandOther:
 		return "wayland-other"
 	case BackendUnknown:
@@ -53,7 +60,11 @@ func (b LinuxBackend) String() string {
 // split every subsystem with two implementations dispatches on.
 func (b LinuxBackend) IsWayland() bool {
 	switch b {
-	case BackendWaylandWlroots, BackendWaylandKDE, BackendWaylandGNOME, BackendWaylandOther:
+	case BackendWaylandWlroots,
+		BackendWaylandKDE,
+		BackendWaylandCOSMIC,
+		BackendWaylandGNOME,
+		BackendWaylandOther:
 		return true
 	case BackendX11, BackendUnknown:
 		return false
@@ -72,6 +83,8 @@ func (b LinuxBackend) displayServer() DisplayServer {
 		return DisplayServerX11
 	case BackendWaylandKDE:
 		return DisplayServerWaylandKDE
+	case BackendWaylandCOSMIC:
+		return DisplayServerWaylandCOSMIC
 	case BackendWaylandWlroots, BackendWaylandGNOME, BackendWaylandOther:
 		return DisplayServerWayland
 	case BackendUnknown:
@@ -172,6 +185,8 @@ func detectLinuxBackendFromEnv(
 			return BackendWaylandGNOME
 		case strings.Contains(desktop, "KDE"):
 			return BackendWaylandKDE
+		case strings.Contains(desktop, "COSMIC"):
+			return BackendWaylandCOSMIC
 		case desktop == "":
 			return BackendWaylandWlroots
 		case strings.Contains(desktop, "SWAY"),

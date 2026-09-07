@@ -62,13 +62,13 @@ func LinuxCapabilities() PlatformCapabilities {
 		Platform: "linux",
 		Process: supportedCapability(
 			"focused app inspection available via X11 _NET_WM_PID and Wayland " +
-				"wlr-foreign-toplevel app_id (wlroots/KDE; PID best-effort via /proc)",
+				"wlr-foreign-toplevel or ext-foreign-toplevel-list app_id (wlroots/KDE/COSMIC; PID best-effort via /proc)",
 		),
 		Screen: supportedCapability(
 			"screen enumeration available via XRandR and Wayland xdg-output",
 		),
 		Cursor: supportedCapability(
-			"cursor movement/tracking available via XTest and Wayland virtual-pointer",
+			"cursor movement/tracking available via XTest, Wayland virtual-pointer, or libei (KDE/COSMIC)",
 		),
 		// Live-probed by the Linux SystemAdapter on Wayland, which downgrades
 		// this to a stub when /dev/uinput is not writable: the virtual-pointer
@@ -77,12 +77,12 @@ func LinuxCapabilities() PlatformCapabilities {
 		Scroll: supportedCapability(
 			"scroll injection via XTest (X11) or a uinput wheel device when " +
 				"/dev/uinput is writable (Wayland), falling back to the wlroots " +
-				"virtual pointer or libei (KDE)",
+				"virtual pointer or libei (KDE/COSMIC)",
 		),
 		Accessibility: supportedCapability(
 			"clickable-element discovery via AT-SPI (D-Bus) tree walk; " +
 				"click/scroll injection via XTest (X11) or virtual-pointer/libei " +
-				"(Wayland wlroots/KDE). Coverage depends on the app's AT-SPI " +
+				"(Wayland wlroots/KDE/COSMIC). Coverage depends on the app's AT-SPI " +
 				"support; hints.strategy = vision is the OCR fallback where it is thin",
 		),
 		Overlay: supportedCapability(
@@ -115,7 +115,7 @@ func LinuxCapabilities() PlatformCapabilities {
 		),
 		AppWatcher: supportedCapability(
 			"focused-app change detection keyed on the WM_CLASS (X11) or " +
-				"wlr-foreign-toplevel app_id (Wayland wlroots/KDE), event-driven " +
+				"foreign-toplevel app_id (Wayland wlroots/KDE/COSMIC), event-driven " +
 				"where the compositor/X11 exposes a focus-change signal and polling " +
 				"otherwise; GNOME/Mutter exposes no focused-app source",
 		),
@@ -147,14 +147,14 @@ func LinuxCapabilities() PlatformCapabilities {
 		Vision: supportedCapability(
 			"vision element detection via tesseract OCR over a screen capture " +
 				"(wlr-screencopy on wlroots, XGetImage on X11, the xdg-desktop-portal " +
-				"ScreenCast session on KDE, which asks for screen-sharing consent " +
+				"ScreenCast session on KDE and COSMIC, which asks for screen-sharing consent " +
 				"once); text only, with no rectangle detection; needs a cgo build " +
 				"and the tesseract eng language data installed",
 		),
 		KeyFeed: supportedCapability(
 			"key injection via a uinput virtual keyboard when /dev/uinput is " +
-				"writable (works on X11, wlroots, and KWin), falling back to " +
-				"zwp_virtual_keyboard_v1 on wlroots compositors",
+				"writable (works on X11, wlroots, KWin, and cosmic-comp), falling back to " +
+				"zwp_virtual_keyboard_v1 on wlroots compositors and cosmic-comp",
 		),
 		Systray: supportedCapability(
 			"tray icon available via the D-Bus StatusNotifierItem + dbusmenu protocols",

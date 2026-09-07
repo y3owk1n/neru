@@ -267,7 +267,7 @@ screen-sharing prompt, because KWin's only pixel source is the desktop portal.
 On **Windows**, UI Automation reports the control view only,
 per-app config does not re-apply when you change windows,
 and the OCR fallback is `Windows.Media.Ocr`, text only, needing a language pack. **Linux requires X11 or Wayland on
-wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
+wlroots/KWin/COSMIC — GNOME Wayland is not supported**; use a GNOME X11 session.
 
 → [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
 

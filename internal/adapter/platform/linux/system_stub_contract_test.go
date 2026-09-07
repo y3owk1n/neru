@@ -23,6 +23,7 @@ const (
 	x11Backend     = "x11"
 	wlrootsBackend = "wayland-wlroots"
 	kdeBackend     = "wayland-kde"
+	cosmicBackend  = "wayland-cosmic"
 )
 
 // stubCall names a SystemAdapter method and invokes it, discarding any
@@ -216,7 +217,14 @@ func TestSystemAdapter_CapabilitiesCarryTheBackendSuffix(t *testing.T) {
 func TestSystemAdapter_CapabilitiesMatchBackendBehavior(t *testing.T) {
 	// Every backend name that reaches the dispatch, including ones with no
 	// implementation, so both sides of the contract are exercised.
-	backends := []string{unimplementedBackend, "", x11Backend, wlrootsBackend, kdeBackend}
+	backends := []string{
+		unimplementedBackend,
+		"",
+		x11Backend,
+		wlrootsBackend,
+		kdeBackend,
+		cosmicBackend,
+	}
 
 	ctx := context.Background()
 
@@ -383,7 +391,7 @@ func TestSystemAdapter_FocusedWindowBoundsRefusesWithNoGeometrySource(t *testing
 // KWin script at construction so the first caller is not answered from a cold
 // cache; every other backend must leave $XDG_RUNTIME_DIR alone.
 func TestSystemAdapter_StartsNoCompositorBridgeOffKDE(t *testing.T) {
-	for _, backend := range []string{x11Backend, wlrootsBackend, unimplementedBackend} {
+	for _, backend := range []string{x11Backend, wlrootsBackend, cosmicBackend, unimplementedBackend} {
 		t.Run(backend, func(t *testing.T) {
 			runtimeDir := t.TempDir()
 			t.Setenv("XDG_RUNTIME_DIR", runtimeDir)

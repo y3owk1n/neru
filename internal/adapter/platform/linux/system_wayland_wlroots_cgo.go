@@ -812,3 +812,34 @@ const (
 	WlrBtnRight  = 0x111
 	WlrBtnMiddle = 0x112
 )
+
+// wlrootsFocusedWindowGeometry returns the activated toplevel's global bounds
+// from the compositor's own toplevel source. Only cosmic-comp's
+// zcosmic_toplevel_info_v1 carries geometry, so on every other compositor this
+// is CodeNotSupported and the caller asks the compositor CLI or the KWin bridge
+// instead. found=false with a nil error means the source is live but nothing
+// is activated, or the compositor has not placed the window yet.
+func wlrootsFocusedWindowGeometry() (image.Rectangle, bool, error) {
+	err := ensureWlrootsState()
+	if err != nil {
+		return image.Rectangle{}, false, err
+	}
+
+	globalWlrootsState.mu.RLock()
+	defer globalWlrootsState.mu.RUnlock()
+
+	client := globalWlrootsState.client
+	if client == nil || C.neru_wlr_has_toplevel_geometry(client) == 0 {
+		return image.Rectangle{}, false, derrors.New(
+			derrors.CodeNotSupported,
+			"this compositor reports no toplevel geometry (zcosmic_toplevel_info_v1 v2 is absent)",
+		)
+	}
+
+	var x, y, w, h C.int32_t
+	if C.neru_wlr_focused_toplevel_geometry(client, &x, &y, &w, &h) == 0 {
+		return image.Rectangle{}, false, nil
+	}
+
+	return image.Rect(int(x), int(y), int(x)+int(w), int(y)+int(h)), true, nil
+}

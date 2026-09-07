@@ -104,8 +104,9 @@ func WaylandKeyEvent(keycode uint32, pressed bool) error {
 
 // WaylandFocusedAppID returns the app_id of the focused toplevel, tracked via
 // the wlr-foreign-toplevel-management protocol. It works on wlroots
-// compositors (Sway, Hyprland, niri, COSMIC) and KWin/KDE, which all implement
-// that protocol; GNOME/Mutter does not, so the bool is false there. The bool
+// compositors (Sway, Hyprland, niri) and KWin/KDE, which all implement that
+// protocol, and via ext-foreign-toplevel-list plus zcosmic_toplevel_info_v1 on
+// cosmic-comp; GNOME/Mutter has neither, so the bool is false there. The bool
 // is also false when nothing is focused yet or CGO is disabled. app_id is the
 // identifier Neru uses for per-app configuration on Wayland; the protocol does
 // not expose a PID.
@@ -120,4 +121,13 @@ func WaylandFocusedAppID() (string, bool) {
 // when nothing is focused (GNOME/Mutter, or CGO disabled).
 func WaylandFocusedAppIdentity() (string, string, bool) {
 	return wlrootsFocusedAppIdentity()
+}
+
+// WaylandFocusedWindowGeometry returns the focused toplevel's global bounds
+// (top-left origin, logical pixels) where the compositor's toplevel protocol
+// carries them, which today is cosmic-comp's zcosmic_toplevel_info_v1. It is
+// CodeNotSupported everywhere else; found=false with a nil error means nothing
+// is focused or the window has no position yet.
+func WaylandFocusedWindowGeometry() (image.Rectangle, bool, error) {
+	return wlrootsFocusedWindowGeometry()
 }

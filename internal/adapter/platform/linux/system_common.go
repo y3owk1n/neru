@@ -26,6 +26,7 @@ const (
 	backendX11            = "x11"
 	backendWaylandWlroots = "wayland-wlroots"
 	backendWaylandKDE     = "wayland-kde"
+	backendWaylandCOSMIC  = "wayland-cosmic"
 	// backendUnknown mirrors platform.LinuxBackend.String() for BackendUnknown.
 	// This package cannot import platform (the factory there imports this one),
 	// so the label is duplicated rather than referenced.
@@ -132,7 +133,7 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 	// compositor's virtual pointer, and Chromium and Electron clients on
 	// Hyprland ignore that stream. The probe creates and destroys the same
 	// wheel device, so every ioctl the real path runs is exercised.
-	if s.backend == backendWaylandWlroots || s.backend == backendWaylandKDE {
+	if s.waylandUsesWlrClientStack() {
 		capabilities.Scroll = scrollCapability(capabilities.Scroll, uinputScrollDeviceError())
 	}
 
@@ -443,7 +444,7 @@ func (s *SystemAdapter) MoveCursorBy(
 			return true, nil
 		}
 
-		if s.backend == backendX11 || s.backend == backendWaylandKDE {
+		if s.backend == backendX11 || backendCapturesViaPortal(s.backend) {
 			bounds, err := s.ScreenBounds(ctx)
 			if err == nil {
 				s.cursorAnimator.animateRelativeBy(
@@ -598,7 +599,7 @@ func (s *SystemAdapter) ShowNotification(ctx context.Context, title, message str
 // has no capture: the refusal belongs to the capture, which names CGO, rather
 // than to a consent prompt that could not help.
 func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
-	if s.backend != backendWaylandKDE || !nativeBackendsCompiledIn {
+	if !backendCapturesViaPortal(s.backend) || !nativeBackendsCompiledIn {
 		return true
 	}
 
@@ -617,7 +618,7 @@ func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
 func (s *SystemAdapter) RequestScreenCapturePermission(
 	ctx context.Context,
 ) ports.ScreenCaptureConsent {
-	if s.backend != backendWaylandKDE || !nativeBackendsCompiledIn {
+	if !backendCapturesViaPortal(s.backend) || !nativeBackendsCompiledIn {
 		return ports.ScreenCaptureGranted
 	}
 
@@ -765,7 +766,7 @@ func (s *SystemAdapter) unavailableDetail(feature string, cause error) string {
 	}
 
 	return feature + " is not implemented on linux backend " + s.backend +
-		"; supported backends are x11, wayland-wlroots and wayland-kde"
+		"; supported backends are x11, wayland-wlroots, wayland-kde and wayland-cosmic"
 }
 
 // backendLabel names the backend for diagnostics, including the undetected case.
@@ -896,7 +897,16 @@ func (s *SystemAdapter) waylandUsesWlrClientStack() bool {
 // no adapter in hand — screen capture routes on the label alone. One spelling
 // so a future wlr-family backend is added in one place.
 func backendUsesWlrClientStack(backend string) bool {
-	return backend == backendWaylandWlroots || backend == backendWaylandKDE
+	return backend == backendWaylandWlroots || backend == backendWaylandKDE ||
+		backend == backendWaylandCOSMIC
+}
+
+// backendCapturesViaPortal names the wlr-client-stack backends whose compositor
+// advertises no screencopy protocol, so pixels come off the portal's ScreenCast
+// session behind a consent gate: KWin and cosmic-comp. Every consent check and
+// the smooth-cursor animator that cannot use a virtual pointer route on it.
+func backendCapturesViaPortal(backend string) bool {
+	return backend == backendWaylandKDE || backend == backendWaylandCOSMIC
 }
 
 // Ensure SystemAdapter implements ports.SystemPort.

@@ -113,6 +113,12 @@ func TestNewWindowOriginSourceFollowsTheBackend(t *testing.T) {
 			nil,
 			noOriginType,
 		},
+		{
+			"cosmic reads its toplevel protocol and ignores a wlroots socket",
+			platform.BackendWaylandCOSMIC,
+			map[string]string{niriSocketEnv: "/run/niri.sock"},
+			"*atspi.cosmicOriginSource",
+		},
 		{"gnome has no source", platform.BackendWaylandGNOME, nil, noOriginType},
 		{"other wayland has no source", platform.BackendWaylandOther, nil, noOriginType},
 		{"an unknown backend has no source", platform.BackendUnknown, nil, noOriginType},

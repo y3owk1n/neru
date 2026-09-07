@@ -862,7 +862,7 @@ func currentLinuxBackend() linuxBackend {
 	switch platform.DetectLinuxBackend() {
 	case platform.BackendX11:
 		return linuxBackendX11
-	case platform.BackendWaylandWlroots, platform.BackendWaylandKDE:
+	case platform.BackendWaylandWlroots, platform.BackendWaylandKDE, platform.BackendWaylandCOSMIC:
 		return linuxBackendWayland
 	case platform.BackendUnknown, platform.BackendWaylandGNOME,
 		platform.BackendWaylandOther:

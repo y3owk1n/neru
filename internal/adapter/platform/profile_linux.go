@@ -15,6 +15,10 @@ func linuxProfileForCurrentBackend() Profile {
 		return linuxKDEProfile()
 	}
 
+	if backend == BackendWaylandCOSMIC {
+		return linuxCOSMICProfile()
+	}
+
 	return linuxProfile(backend.displayServer())
 }
 
@@ -40,6 +44,34 @@ func linuxKDEProfile() Profile {
 		},
 		Overlay: BackendPlan{
 			Name: "wlr-layer-shell via KWin",
+		},
+		Notifications: BackendPlan{
+			Name: "freedesktop notifications (" + notificationDaemonCaveat + ")",
+		},
+	}
+}
+
+// linuxCOSMICProfile describes the COSMIC stack the way linuxKDEProfile does
+// KDE's: the same portal-driven pointer and layer-shell overlay, with window
+// geometry read off cosmic-comp's own toplevel protocol instead of a bridge.
+func linuxCOSMICProfile() Profile {
+	return Profile{
+		OS:              Linux,
+		PrimaryModifier: defaultPrimaryModifier,
+		DisplayServer:   DisplayServerWaylandCOSMIC,
+		Accessibility: BackendPlan{
+			Name: "AT-SPI over D-Bus (hints corrected via cosmic-comp toplevel geometry)",
+		},
+		Hotkeys: BackendPlan{
+			Name: "evdev from /dev/input (requires input group; bind triggers in COSMIC Settings)",
+		},
+		KeyboardCapture: BackendPlan{
+			Name: "evdev capture + key injection via uinput when /dev/uinput is writable, " +
+				"else zwp_virtual_keyboard_v1; pointer via libei through the RemoteDesktop " +
+				"portal (xdg-desktop-portal-cosmic 1.7 or later, one-time consent)",
+		},
+		Overlay: BackendPlan{
+			Name: "wlr-layer-shell via cosmic-comp",
 		},
 		Notifications: BackendPlan{
 			Name: "freedesktop notifications (" + notificationDaemonCaveat + ")",

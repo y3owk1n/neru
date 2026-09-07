@@ -37,9 +37,20 @@ typedef struct {
 // flag are committed atomically on the handle's `done` event; the `pending_*`
 // fields buffer values arriving between `done` events so a half-applied state
 // is never observed.
+// A node mirrors exactly one of two handle kinds. On wlroots and KWin it is a
+// zwlr_foreign_toplevel_handle_v1. On cosmic-comp, which implements no wlr
+// manager, it is an ext_foreign_toplevel_handle_v1 (app_id, title) paired with
+// the zcosmic_toplevel_handle_v1 that carries the activated state and the
+// window's global geometry. Geometry exists only on the cosmic pair.
 typedef struct {
 	struct wl_list link;  // links into NeruWlrootsClient.toplevels
 	struct zwlr_foreign_toplevel_handle_v1 *handle;
+	struct ext_foreign_toplevel_handle_v1 *ext_handle;
+	struct zcosmic_toplevel_handle_v1 *cosmic_handle;
+	int has_geometry;
+	int pending_has_geometry;
+	int32_t geometry[4];          // x, y, w, h in global logical pixels
+	int32_t pending_geometry[4];  // buffered until the next commit
 	char app_id[NERU_APP_ID_LEN];
 	char pending_app_id[NERU_APP_ID_LEN];
 	int has_pending_app_id;
@@ -77,9 +88,23 @@ typedef struct NeruWlrootsClient {
 	// the "activated" (focused) state so Neru can resolve the focused app_id
 	// on wlroots/KWin Wayland sessions (GNOME/Mutter does not implement it).
 	struct zwlr_foreign_toplevel_manager_v1 *toplevel_mgr;
+	// cosmic-comp's replacement for the wlr manager: the ext list names every
+	// toplevel, the cosmic info global says which is activated and where it is.
+	// Both are bound only when the wlr manager is absent; neither alone is
+	// enough to resolve focus, so the pair is used together or not at all.
+	struct ext_foreign_toplevel_list_v1 *ext_toplevel_list;
+	struct zcosmic_toplevel_info_v1 *cosmic_toplevel_info;
+	// The registry only records these two globals; they are bound later, with
+	// their listeners attached in the same breath, so the replay of existing
+	// windows a bind triggers cannot land on a listenerless proxy and leak.
+	uint32_t ext_toplevel_list_name;
+	uint32_t cosmic_toplevel_info_name;
+	uint32_t cosmic_toplevel_info_version;
 	struct wl_list toplevels;              // list of NeruToplevel, guarded by toplevel_mutex
 	char focused_app_id[NERU_APP_ID_LEN];  // guarded by toplevel_mutex
 	char focused_title[NERU_TITLE_LEN];    // guarded by toplevel_mutex
+	int focused_has_geometry;              // guarded by toplevel_mutex
+	int32_t focused_geometry[4];           // guarded by toplevel_mutex
 	pthread_mutex_t toplevel_mutex;
 	int toplevel_mutex_ready;
 
@@ -168,9 +193,21 @@ int neru_wlr_has_virtual_pointer(NeruWlrootsClient *c);
 int neru_wlr_has_virtual_keyboard(NeruWlrootsClient *c);
 int neru_wlr_key(NeruWlrootsClient *c, uint32_t keycode, int pressed);
 
-// neru_wlr_has_toplevel_manager reports whether the compositor advertised the
-// zwlr_foreign_toplevel_manager_v1 global (true on wlroots and KWin/KDE).
+// neru_wlr_has_toplevel_manager reports whether the compositor advertised a
+// toplevel source Neru resolves focus from: zwlr_foreign_toplevel_manager_v1
+// (wlroots, KWin/KDE) or the ext-foreign-toplevel-list plus
+// zcosmic_toplevel_info_v1 pair (cosmic-comp).
 int neru_wlr_has_toplevel_manager(NeruWlrootsClient *c);
+
+// neru_wlr_has_toplevel_geometry reports whether the toplevel source also
+// carries window geometry, which only the cosmic pair does.
+int neru_wlr_has_toplevel_geometry(NeruWlrootsClient *c);
+
+// neru_wlr_focused_toplevel_geometry copies the activated toplevel's global
+// geometry (top-left origin, logical pixels) into x, y, w, h. Returns 1 when a
+// toplevel is activated and the compositor has reported where it is, 0
+// otherwise (no geometry source, nothing focused, or no geometry event yet).
+int neru_wlr_focused_toplevel_geometry(NeruWlrootsClient *c, int32_t *x, int32_t *y, int32_t *w, int32_t *h);
 
 // neru_wlr_focused_app_id copies the app_id of the currently-activated
 // toplevel into out (NUL-terminated, capped at out_len). Returns 1 when a

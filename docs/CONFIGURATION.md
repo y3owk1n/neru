@@ -470,7 +470,7 @@ The `bundle_id` key selects which app an override applies to — for both `[[app
 | --- | --- | --- |
 | macOS | Bundle ID, reverse-DNS (e.g. `com.apple.Safari`) | `osascript -e 'id of app "Safari"'` |
 | Linux · X11 | Window `WM_CLASS` — the *class* field | `xprop WM_CLASS`, then click the window |
-| Linux · Wayland (wlroots: Sway/Hyprland/niri/COSMIC, and KWin/KDE) | Toplevel `app_id` | `swaymsg -t get_tree` (Sway), `hyprctl activewindow` (Hyprland), `niri msg windows` (niri), or your compositor's window inspector |
+| Linux · Wayland (wlroots: Sway/Hyprland/niri, KWin/KDE, and COSMIC) | Toplevel `app_id` | `swaymsg -t get_tree` (Sway), `hyprctl activewindow` (Hyprland), `niri msg windows` (niri), or your compositor's window inspector |
 | Windows | Full path of the focused window's executable (e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe`) | Task Manager, Details tab, right-click the process, **Open file location**, or `(Get-Process chrome).Path` in PowerShell |
 
 On Linux, put the `WM_CLASS` or `app_id` in the `bundle_id` field. Matching is case-insensitive but exact — no globbing or partial matches.

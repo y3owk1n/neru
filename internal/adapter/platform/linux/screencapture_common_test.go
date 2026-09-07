@@ -165,7 +165,7 @@ func TestCaptureScreenRegion_HeadlessSessionFailsLoudly(t *testing.T) {
 	// that has one as much as on the CI runner that does not.
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 
-	for _, backend := range []string{"x11", "wayland-wlroots", "wayland-kde"} {
+	for _, backend := range []string{"x11", "wayland-wlroots", "wayland-kde", "wayland-cosmic"} {
 		t.Run(backend, func(t *testing.T) {
 			img, err := CaptureScreenRegion(context.Background(), backend, image.Rect(0, 0, 10, 10))
 			if err == nil {

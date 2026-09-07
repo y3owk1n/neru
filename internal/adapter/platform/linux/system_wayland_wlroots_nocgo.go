@@ -205,3 +205,12 @@ const (
 	WlrBtnRight  = 0x111
 	WlrBtnMiddle = 0x112
 )
+
+// wlrootsFocusedWindowGeometry needs the wlroots client, which lives in the
+// CGO build.
+func wlrootsFocusedWindowGeometry() (image.Rectangle, bool, error) {
+	return image.Rectangle{}, false, derrors.New(
+		derrors.CodeNotSupported,
+		"toplevel geometry requires CGO-enabled Linux builds",
+	)
+}

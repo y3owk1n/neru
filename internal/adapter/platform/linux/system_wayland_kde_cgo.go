@@ -165,8 +165,9 @@ func libeiSessionError(cause error) error {
 		derrors.CodeActionFailed,
 		"could not establish a libei input session via the RemoteDesktop "+
 			"portal; approve the one-time \"Remote Control\" consent prompt "+
-			"(KDE Plasma routes input through xdg-desktop-portal because KWin "+
-			"does not implement zwlr_virtual_pointer_v1)",
+			"(KDE Plasma and COSMIC route input through xdg-desktop-portal because "+
+			"KWin and cosmic-comp do not implement zwlr_virtual_pointer_v1; COSMIC "+
+			"needs xdg-desktop-portal-cosmic 1.7 or later for its RemoteDesktop portal)",
 	)
 }
 

@@ -49,6 +49,23 @@ func TestNewSystemPort_KDEWaylandReturnsSystemPort(t *testing.T) {
 	}
 }
 
+func TestNewSystemPort_COSMICWaylandReturnsSystemPort(t *testing.T) {
+	resetLinuxBackendCache()
+
+	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
+	t.Setenv("DISPLAY", "")
+	t.Setenv("XDG_CURRENT_DESKTOP", "COSMIC")
+
+	systemPort, err := NewSystemPort()
+	if err != nil {
+		t.Fatalf("NewSystemPort() error = %v, want nil", err)
+	}
+
+	if got := systemPort.Capabilities().Platform; got != "linux/wayland-cosmic" {
+		t.Fatalf("Capabilities().Platform = %q, want %q", got, "linux/wayland-cosmic")
+	}
+}
+
 func TestNewSystemPort_NoDisplayServerReturnsHelpfulError(t *testing.T) {
 	resetLinuxBackendCache()
 

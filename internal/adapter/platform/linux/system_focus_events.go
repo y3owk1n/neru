@@ -16,7 +16,7 @@ func SubscribeFocusedApp(backend string) (int, bool) {
 	switch backend {
 	case backendX11:
 		return x11FocusEventFD()
-	case backendWaylandWlroots, backendWaylandKDE:
+	case backendWaylandWlroots, backendWaylandKDE, backendWaylandCOSMIC:
 		return wlrootsFocusEventFD()
 	default:
 		return -1, false

@@ -14,6 +14,8 @@
 // Include the sibling bridge headers and the wlroots protocol headers
 // relative to this package.
 #include "shm_file.h"
+#include "wlr_protocol/cosmic-toplevel-info.h"
+#include "wlr_protocol/ext-foreign-toplevel-list-v1.h"
 #include "wlr_protocol/foreign-toplevel.h"
 #include "wlr_protocol/layer-shell.h"
 #include "wlr_protocol/relative-pointer-unstable-v1.h"
@@ -520,6 +522,36 @@ static NeruToplevel *neru_wlr_find_toplevel(NeruWlrootsClient *c, struct zwlr_fo
 	return NULL;
 }
 
+static NeruToplevel *neru_wlr_find_ext_toplevel(NeruWlrootsClient *c, struct ext_foreign_toplevel_handle_v1 *handle) {
+	NeruToplevel *t;
+	wl_list_for_each(t, &c->toplevels, link) {
+		if (t->ext_handle == handle)
+			return t;
+	}
+	return NULL;
+}
+
+static NeruToplevel *neru_wlr_find_cosmic_toplevel(NeruWlrootsClient *c, struct zcosmic_toplevel_handle_v1 *handle) {
+	NeruToplevel *t;
+	wl_list_for_each(t, &c->toplevels, link) {
+		if (t->cosmic_handle == handle)
+			return t;
+	}
+	return NULL;
+}
+
+// neru_wlr_free_toplevel releases whichever handles a node holds and frees it.
+// The caller has already unlinked it and holds toplevel_mutex.
+static void neru_wlr_free_toplevel(NeruToplevel *t) {
+	if (t->handle)
+		zwlr_foreign_toplevel_handle_v1_destroy(t->handle);
+	if (t->cosmic_handle)
+		zcosmic_toplevel_handle_v1_destroy(t->cosmic_handle);
+	if (t->ext_handle)
+		ext_foreign_toplevel_handle_v1_destroy(t->ext_handle);
+	free(t);
+}
+
 // Recompute the cached focused app_id and title from the committed per-toplevel
 // state. The last activated toplevel carrying a non-empty app_id wins; if none
 // is activated the cache is cleared. Callers must hold toplevel_mutex.
@@ -530,23 +562,23 @@ static void neru_wlr_recompute_focused(NeruWlrootsClient *c) {
 	strncpy(prev, c->focused_app_id, NERU_APP_ID_LEN - 1);
 	prev[NERU_APP_ID_LEN - 1] = '\0';
 
-	const char *found = NULL;
-	const char *found_title = NULL;
+	NeruToplevel *found = NULL;
 	NeruToplevel *t;
 	wl_list_for_each(t, &c->toplevels, link) {
-		if (t->activated && t->app_id[0] != '\0') {
-			found = t->app_id;
-			found_title = t->title;
-		}
+		if (t->activated && t->app_id[0] != '\0')
+			found = t;
 	}
 	if (found) {
-		strncpy(c->focused_app_id, found, NERU_APP_ID_LEN - 1);
+		strncpy(c->focused_app_id, found->app_id, NERU_APP_ID_LEN - 1);
 		c->focused_app_id[NERU_APP_ID_LEN - 1] = '\0';
-		strncpy(c->focused_title, found_title ? found_title : "", NERU_TITLE_LEN - 1);
+		strncpy(c->focused_title, found->title, NERU_TITLE_LEN - 1);
 		c->focused_title[NERU_TITLE_LEN - 1] = '\0';
+		c->focused_has_geometry = found->has_geometry;
+		memcpy(c->focused_geometry, found->geometry, sizeof(c->focused_geometry));
 	} else {
 		c->focused_app_id[0] = '\0';
 		c->focused_title[0] = '\0';
+		c->focused_has_geometry = 0;
 	}
 
 	// Push a focus-change notification to Go. The write is non-blocking, so a
@@ -656,11 +688,12 @@ static void neru_wlr_toplevel_closed(void *data, struct zwlr_foreign_toplevel_ha
 	NeruToplevel *t = neru_wlr_find_toplevel(c, handle);
 	if (t) {
 		wl_list_remove(&t->link);
-		free(t);
+		neru_wlr_free_toplevel(t);
 		neru_wlr_recompute_focused(c);
+	} else {
+		zwlr_foreign_toplevel_handle_v1_destroy(handle);
 	}
 	neru_wlr_toplevel_unlock(c);
-	zwlr_foreign_toplevel_handle_v1_destroy(handle);
 }
 
 static void neru_wlr_toplevel_parent(
@@ -722,12 +755,11 @@ static void neru_wlr_manager_finished(void *data, struct zwlr_foreign_toplevel_m
 	NeruToplevel *tmp;
 	wl_list_for_each_safe(t, tmp, &c->toplevels, link) {
 		wl_list_remove(&t->link);
-		if (t->handle)
-			zwlr_foreign_toplevel_handle_v1_destroy(t->handle);
-		free(t);
+		neru_wlr_free_toplevel(t);
 	}
 	c->focused_app_id[0] = '\0';
 	c->focused_title[0] = '\0';
+	c->focused_has_geometry = 0;
 	neru_wlr_toplevel_unlock(c);
 
 	// Do not destroy the manager proxy here: the server destroys it right after
@@ -739,6 +771,345 @@ static void neru_wlr_manager_finished(void *data, struct zwlr_foreign_toplevel_m
 static const struct zwlr_foreign_toplevel_manager_v1_listener neru_wlr_manager_listener = {
     .toplevel = neru_wlr_manager_toplevel,
     .finished = neru_wlr_manager_finished,
+};
+
+// ---------- ext-foreign-toplevel-list + cosmic-toplevel-info (cosmic-comp) ----------
+//
+// cosmic-comp implements no zwlr_foreign_toplevel_manager_v1. It names its
+// windows through ext_foreign_toplevel_list_v1, whose handle carries app_id and
+// title but no state, and extends each of those handles with a
+// zcosmic_toplevel_handle_v1 (zcosmic_toplevel_info_v1.get_cosmic_toplevel,
+// v2+) that carries the activated state and the window's global geometry. The
+// same NeruToplevel nodes and the same recompute serve both sources, so
+// everything downstream of focused_app_id is unaware which one answered.
+//
+// Commits: the ext handle's `done` commits app_id and title together with any
+// pending state and geometry, because cosmic-comp sends it at the end of every
+// batch that changed either handle. The info global's own `done` (v2) commits
+// the same fields for every window, but cosmic-comp sends it only once the
+// batch has settled on a later refresh, so it is a backstop rather than the
+// commit point.
+
+// neru_wlr_cosmic_commit applies a node's pending cosmic state. Activation is
+// exclusive: a focus change sends `state` to both the window losing it and the
+// one gaining it, but `done` may reach only one of them before the info-level
+// commit, so every window's pending activation is committed together or two
+// would read as active. Caller holds toplevel_mutex.
+static void neru_wlr_cosmic_commit(NeruWlrootsClient *c, NeruToplevel *t) {
+	t->has_geometry = t->pending_has_geometry;
+	memcpy(t->geometry, t->pending_geometry, sizeof(t->geometry));
+	NeruToplevel *other;
+	wl_list_for_each(other, &c->toplevels, link) {
+		if (other->cosmic_handle)
+			other->activated = other->pending_activated;
+	}
+}
+
+static void neru_wlr_ext_toplevel_closed(void *data, struct ext_foreign_toplevel_handle_v1 *handle) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_ext_toplevel(c, handle);
+	if (t) {
+		wl_list_remove(&t->link);
+		neru_wlr_free_toplevel(t);
+		neru_wlr_recompute_focused(c);
+	} else {
+		ext_foreign_toplevel_handle_v1_destroy(handle);
+	}
+	neru_wlr_toplevel_unlock(c);
+}
+
+static void neru_wlr_ext_toplevel_done(void *data, struct ext_foreign_toplevel_handle_v1 *handle) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_ext_toplevel(c, handle);
+	if (t) {
+		if (t->has_pending_app_id) {
+			strncpy(t->app_id, t->pending_app_id, NERU_APP_ID_LEN - 1);
+			t->app_id[NERU_APP_ID_LEN - 1] = '\0';
+			t->has_pending_app_id = 0;
+		}
+		if (t->has_pending_title) {
+			strncpy(t->title, t->pending_title, NERU_TITLE_LEN - 1);
+			t->title[NERU_TITLE_LEN - 1] = '\0';
+			t->has_pending_title = 0;
+		}
+		if (t->cosmic_handle)
+			neru_wlr_cosmic_commit(c, t);
+		neru_wlr_recompute_focused(c);
+	}
+	neru_wlr_toplevel_unlock(c);
+}
+
+static void neru_wlr_ext_toplevel_title(void *data, struct ext_foreign_toplevel_handle_v1 *handle, const char *title) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c || !title)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_ext_toplevel(c, handle);
+	if (t) {
+		strncpy(t->pending_title, title, NERU_TITLE_LEN - 1);
+		t->pending_title[NERU_TITLE_LEN - 1] = '\0';
+		t->has_pending_title = 1;
+	}
+	neru_wlr_toplevel_unlock(c);
+}
+
+static void neru_wlr_ext_toplevel_app_id(
+    void *data, struct ext_foreign_toplevel_handle_v1 *handle, const char *app_id) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c || !app_id)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_ext_toplevel(c, handle);
+	if (t) {
+		strncpy(t->pending_app_id, app_id, NERU_APP_ID_LEN - 1);
+		t->pending_app_id[NERU_APP_ID_LEN - 1] = '\0';
+		t->has_pending_app_id = 1;
+	}
+	neru_wlr_toplevel_unlock(c);
+}
+
+static void neru_wlr_ext_toplevel_identifier(
+    void *data, struct ext_foreign_toplevel_handle_v1 *handle, const char *identifier) {
+	(void)data;
+	(void)handle;
+	(void)identifier;
+}
+
+static const struct ext_foreign_toplevel_handle_v1_listener neru_wlr_ext_toplevel_listener = {
+    .closed = neru_wlr_ext_toplevel_closed,
+    .done = neru_wlr_ext_toplevel_done,
+    .title = neru_wlr_ext_toplevel_title,
+    .app_id = neru_wlr_ext_toplevel_app_id,
+    .identifier = neru_wlr_ext_toplevel_identifier,
+};
+
+// The v1 handle events (closed, done, title, app_id) are deprecated since v2,
+// which is the minimum Neru binds, so they never arrive: the ext handle owns
+// identity and lifetime.
+static void neru_wlr_cosmic_toplevel_closed(void *data, struct zcosmic_toplevel_handle_v1 *handle) {
+	(void)data;
+	(void)handle;
+}
+
+static void neru_wlr_cosmic_toplevel_done(void *data, struct zcosmic_toplevel_handle_v1 *handle) {
+	(void)data;
+	(void)handle;
+}
+
+static void neru_wlr_cosmic_toplevel_title(void *data, struct zcosmic_toplevel_handle_v1 *handle, const char *title) {
+	(void)data;
+	(void)handle;
+	(void)title;
+}
+
+static void neru_wlr_cosmic_toplevel_app_id(void *data, struct zcosmic_toplevel_handle_v1 *handle, const char *app_id) {
+	(void)data;
+	(void)handle;
+	(void)app_id;
+}
+
+static void neru_wlr_cosmic_toplevel_output_enter(
+    void *data, struct zcosmic_toplevel_handle_v1 *handle, struct wl_output *output) {
+	(void)data;
+	(void)handle;
+	(void)output;
+}
+
+static void neru_wlr_cosmic_toplevel_output_leave(
+    void *data, struct zcosmic_toplevel_handle_v1 *handle, struct wl_output *output) {
+	(void)data;
+	(void)handle;
+	(void)output;
+}
+
+static void neru_wlr_cosmic_toplevel_workspace_enter(
+    void *data, struct zcosmic_toplevel_handle_v1 *handle, struct zcosmic_workspace_handle_v1 *workspace) {
+	(void)data;
+	(void)handle;
+	(void)workspace;
+}
+
+static void neru_wlr_cosmic_toplevel_workspace_leave(
+    void *data, struct zcosmic_toplevel_handle_v1 *handle, struct zcosmic_workspace_handle_v1 *workspace) {
+	(void)data;
+	(void)handle;
+	(void)workspace;
+}
+
+static void neru_wlr_cosmic_toplevel_state(
+    void *data, struct zcosmic_toplevel_handle_v1 *handle, struct wl_array *state) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c)
+		return;
+	int activated = 0;
+	uint32_t *entry;
+	wl_array_for_each(entry, state) {
+		if (*entry == ZCOSMIC_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED)
+			activated = 1;
+	}
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_cosmic_toplevel(c, handle);
+	if (t)
+		t->pending_activated = activated;
+	neru_wlr_toplevel_unlock(c);
+}
+
+// geometry arrives once per output the window overlaps, in that output's own
+// logical coordinates (cosmic-comp: `geo.to_local(output)`), so the output's
+// global origin is added back to land in Neru's global top-left space. Every
+// output's copy names the same rectangle, so the last one seen is the whole
+// answer. An output the screen list does not know cannot be placed, and an
+// output-local rectangle served as global would be worse than none. Runs on the
+// dispatch thread, which is also the only writer of the screen list, so the
+// lookup needs no lock.
+static void neru_wlr_cosmic_toplevel_geometry(
+    void *data, struct zcosmic_toplevel_handle_v1 *handle, struct wl_output *output, int32_t x, int32_t y,
+    int32_t width, int32_t height) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c)
+		return;
+	int placed = 0;
+	for (int i = 0; i < c->nr_screens; i++) {
+		if (c->screens[i].wl_output == output) {
+			x += c->screens[i].x;
+			y += c->screens[i].y;
+			placed = 1;
+			break;
+		}
+	}
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_cosmic_toplevel(c, handle);
+	if (t) {
+		t->pending_geometry[0] = x;
+		t->pending_geometry[1] = y;
+		t->pending_geometry[2] = width;
+		t->pending_geometry[3] = height;
+		t->pending_has_geometry = placed && width > 0 && height > 0;
+	}
+	neru_wlr_toplevel_unlock(c);
+}
+
+static void neru_wlr_cosmic_toplevel_ext_workspace_enter(
+    void *data, struct zcosmic_toplevel_handle_v1 *handle, struct ext_workspace_handle_v1 *workspace) {
+	(void)data;
+	(void)handle;
+	(void)workspace;
+}
+
+static void neru_wlr_cosmic_toplevel_ext_workspace_leave(
+    void *data, struct zcosmic_toplevel_handle_v1 *handle, struct ext_workspace_handle_v1 *workspace) {
+	(void)data;
+	(void)handle;
+	(void)workspace;
+}
+
+static const struct zcosmic_toplevel_handle_v1_listener neru_wlr_cosmic_toplevel_listener = {
+    .closed = neru_wlr_cosmic_toplevel_closed,
+    .done = neru_wlr_cosmic_toplevel_done,
+    .title = neru_wlr_cosmic_toplevel_title,
+    .app_id = neru_wlr_cosmic_toplevel_app_id,
+    .output_enter = neru_wlr_cosmic_toplevel_output_enter,
+    .output_leave = neru_wlr_cosmic_toplevel_output_leave,
+    .workspace_enter = neru_wlr_cosmic_toplevel_workspace_enter,
+    .workspace_leave = neru_wlr_cosmic_toplevel_workspace_leave,
+    .state = neru_wlr_cosmic_toplevel_state,
+    .geometry = neru_wlr_cosmic_toplevel_geometry,
+    .ext_workspace_enter = neru_wlr_cosmic_toplevel_ext_workspace_enter,
+    .ext_workspace_leave = neru_wlr_cosmic_toplevel_ext_workspace_leave,
+};
+
+static void neru_wlr_ext_list_toplevel(
+    void *data, struct ext_foreign_toplevel_list_v1 *list, struct ext_foreign_toplevel_handle_v1 *handle) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	(void)list;
+	if (!c || !handle)
+		return;
+
+	NeruToplevel *node = calloc(1, sizeof(*node));
+	if (!node) {
+		ext_foreign_toplevel_handle_v1_destroy(handle);
+		return;
+	}
+	node->ext_handle = handle;
+	if (c->cosmic_toplevel_info)
+		node->cosmic_handle = zcosmic_toplevel_info_v1_get_cosmic_toplevel(c->cosmic_toplevel_info, handle);
+
+	neru_wlr_toplevel_lock(c);
+	wl_list_insert(&c->toplevels, &node->link);
+	neru_wlr_toplevel_unlock(c);
+
+	ext_foreign_toplevel_handle_v1_add_listener(handle, &neru_wlr_ext_toplevel_listener, c);
+	if (node->cosmic_handle)
+		zcosmic_toplevel_handle_v1_add_listener(node->cosmic_handle, &neru_wlr_cosmic_toplevel_listener, c);
+}
+
+static void neru_wlr_ext_list_finished(void *data, struct ext_foreign_toplevel_list_v1 *list) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	(void)list;
+	if (!c)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t;
+	NeruToplevel *tmp;
+	wl_list_for_each_safe(t, tmp, &c->toplevels, link) {
+		wl_list_remove(&t->link);
+		neru_wlr_free_toplevel(t);
+	}
+	c->focused_app_id[0] = '\0';
+	c->focused_title[0] = '\0';
+	c->focused_has_geometry = 0;
+	neru_wlr_toplevel_unlock(c);
+	// As with the wlr manager: the server invalidates the global after
+	// `finished`, so the proxy is dropped rather than destroyed.
+	c->ext_toplevel_list = NULL;
+}
+
+static const struct ext_foreign_toplevel_list_v1_listener neru_wlr_ext_list_listener = {
+    .toplevel = neru_wlr_ext_list_toplevel,
+    .finished = neru_wlr_ext_list_finished,
+};
+
+// The v1 `toplevel` and `finished` events are deprecated since v2 and never
+// arrive at the version Neru binds.
+static void neru_wlr_cosmic_info_toplevel(
+    void *data, struct zcosmic_toplevel_info_v1 *info, struct zcosmic_toplevel_handle_v1 *handle) {
+	(void)data;
+	(void)info;
+	(void)handle;
+}
+
+static void neru_wlr_cosmic_info_finished(void *data, struct zcosmic_toplevel_info_v1 *info) {
+	(void)data;
+	(void)info;
+}
+
+// `done` closes a batch of cosmic handle events: commit every pending state and
+// geometry at once so a focus change and its geometry land together.
+static void neru_wlr_cosmic_info_done(void *data, struct zcosmic_toplevel_info_v1 *info) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	(void)info;
+	if (!c)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t;
+	wl_list_for_each(t, &c->toplevels, link) {
+		if (t->cosmic_handle)
+			neru_wlr_cosmic_commit(c, t);
+	}
+	neru_wlr_recompute_focused(c);
+	neru_wlr_toplevel_unlock(c);
+}
+
+static const struct zcosmic_toplevel_info_v1_listener neru_wlr_cosmic_info_listener = {
+    .toplevel = neru_wlr_cosmic_info_toplevel,
+    .finished = neru_wlr_cosmic_info_finished,
+    .done = neru_wlr_cosmic_info_done,
 };
 
 // ---------- Registry listener ----------
@@ -837,6 +1208,12 @@ static void neru_wlr_registry_global(
 	} else if (strcmp(interface, "zwlr_foreign_toplevel_manager_v1") == 0) {
 		c->toplevel_mgr =
 		    wl_registry_bind(registry, name, &zwlr_foreign_toplevel_manager_v1_interface, 3 < version ? 3 : version);
+	} else if (strcmp(interface, "ext_foreign_toplevel_list_v1") == 0) {
+		c->ext_toplevel_list_name = name;
+	} else if (strcmp(interface, "zcosmic_toplevel_info_v1") == 0 && version >= 2) {
+		// v2 is where get_cosmic_toplevel (the ext handle extension) appears.
+		c->cosmic_toplevel_info_name = name;
+		c->cosmic_toplevel_info_version = 3 < version ? 3 : version;
 	}
 }
 
@@ -1068,6 +1445,27 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 		wl_display_roundtrip(c->display);
 	}
 
+	// One toplevel source only. A compositor advertising the wlr manager beside
+	// the ext list (newer wlroots) would otherwise track every window twice,
+	// and the ext list without cosmic's extension never says what is
+	// activated, so the pair is bound only when the wlr manager is absent and
+	// both halves exist. It is bound after xdg_output has answered because the
+	// replay's geometry is output-local and needs each screen's global origin.
+	if (!c->toplevel_mgr && c->ext_toplevel_list_name && c->cosmic_toplevel_info_name) {
+		c->cosmic_toplevel_info = wl_registry_bind(
+		    c->registry, c->cosmic_toplevel_info_name, &zcosmic_toplevel_info_v1_interface,
+		    c->cosmic_toplevel_info_version);
+		zcosmic_toplevel_info_v1_add_listener(c->cosmic_toplevel_info, &neru_wlr_cosmic_info_listener, c);
+		c->ext_toplevel_list =
+		    wl_registry_bind(c->registry, c->ext_toplevel_list_name, &ext_foreign_toplevel_list_v1_interface, 1);
+		ext_foreign_toplevel_list_v1_add_listener(c->ext_toplevel_list, &neru_wlr_ext_list_listener, c);
+		// First roundtrip replays every toplevel and requests its cosmic
+		// extension; the second drains the state and geometry those requests
+		// produce, so focus is resolved before the daemon needs it.
+		wl_display_roundtrip(c->display);
+		wl_display_roundtrip(c->display);
+	}
+
 	// Initialize display mutex. Dispatch thread is started later
 	// via neru_wlr_start_dispatch() to avoid reader_count conflicts
 	// with neru_wlr_init_cursor() which also does roundtrips.
@@ -1137,14 +1535,20 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 		NeruToplevel *tmp;
 		wl_list_for_each_safe(t, tmp, &c->toplevels, link) {
 			wl_list_remove(&t->link);
-			if (t->handle)
-				zwlr_foreign_toplevel_handle_v1_destroy(t->handle);
-			free(t);
+			neru_wlr_free_toplevel(t);
 		}
 	}
 	if (c->toplevel_mgr) {
 		zwlr_foreign_toplevel_manager_v1_destroy(c->toplevel_mgr);
 		c->toplevel_mgr = NULL;
+	}
+	if (c->ext_toplevel_list) {
+		ext_foreign_toplevel_list_v1_destroy(c->ext_toplevel_list);
+		c->ext_toplevel_list = NULL;
+	}
+	if (c->cosmic_toplevel_info) {
+		zcosmic_toplevel_info_v1_destroy(c->cosmic_toplevel_info);
+		c->cosmic_toplevel_info = NULL;
 	}
 	if (c->toplevel_mutex_ready) {
 		pthread_mutex_destroy(&c->toplevel_mutex);
@@ -1617,7 +2021,29 @@ int neru_wlr_key(NeruWlrootsClient *c, uint32_t keycode, int pressed) {
 	return 1;
 }
 
-int neru_wlr_has_toplevel_manager(NeruWlrootsClient *c) { return c && c->toplevel_mgr != NULL; }
+int neru_wlr_has_toplevel_manager(NeruWlrootsClient *c) {
+	return c && (c->toplevel_mgr != NULL || (c->ext_toplevel_list != NULL && c->cosmic_toplevel_info != NULL));
+}
+
+int neru_wlr_has_toplevel_geometry(NeruWlrootsClient *c) {
+	return c && c->ext_toplevel_list != NULL && c->cosmic_toplevel_info != NULL;
+}
+
+int neru_wlr_focused_toplevel_geometry(NeruWlrootsClient *c, int32_t *x, int32_t *y, int32_t *w, int32_t *h) {
+	if (!c || !x || !y || !w || !h)
+		return 0;
+	int ok = 0;
+	neru_wlr_toplevel_lock(c);
+	if (c->focused_app_id[0] != '\0' && c->focused_has_geometry) {
+		*x = c->focused_geometry[0];
+		*y = c->focused_geometry[1];
+		*w = c->focused_geometry[2];
+		*h = c->focused_geometry[3];
+		ok = 1;
+	}
+	neru_wlr_toplevel_unlock(c);
+	return ok;
+}
 
 int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len) {
 	if (!c || !out || out_len <= 0)

@@ -35,9 +35,10 @@ The backend is detected once at startup from `XDG_CURRENT_DESKTOP`,
 | ------------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
 | Sway, Hyprland, niri, River, Wayfire | `wayland-wlroots` | Supported                                                                        |
 | KDE Plasma (Wayland)                 | `wayland-kde`     | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#kde-plasma-wayland)       |
+| COSMIC (Wayland)                     | `wayland-cosmic`  | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#cosmic-wayland)           |
 | X11 / XOrg, i3, GNOME on X11         | `x11`             | Supported                                                                        |
 | GNOME (Wayland)                      | `wayland-gnome`   | Not supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#gnome-not-supported)  |
-| Any other Wayland compositor (COSMIC) | `wayland-other`  | Not supported, the daemon refuses to start                                       |
+| Any other Wayland compositor         | `wayland-other`   | Not supported, the daemon refuses to start                                       |
 
 A Wayland session with `XDG_CURRENT_DESKTOP` unset is treated as wlroots.
 

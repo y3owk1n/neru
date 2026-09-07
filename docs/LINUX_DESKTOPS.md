@@ -17,6 +17,7 @@ each capability, which protocol or API implements it and why, is in the
 ## Table of Contents
 
 - [KDE Plasma (Wayland)](#kde-plasma-wayland)
+- [COSMIC (Wayland)](#cosmic-wayland)
 - [wlroots compositors](#wlroots-compositors)
 - [X11 sessions](#x11-sessions)
 - [GNOME (not supported)](#gnome-not-supported)
@@ -174,6 +175,64 @@ source device. Neru's injected events appear with an "Unknown" input device
 
 ---
 
+## COSMIC (Wayland)
+
+**Backend:** `wayland-cosmic`
+**Status:** Supported (cosmic-comp; pointer input needs xdg-desktop-portal-cosmic 1.7 or later)
+
+COSMIC sits between wlroots and KDE. cosmic-comp implements layer-shell and
+the virtual keyboard, so overlays, screen geometry and sticky modifiers take
+the shared wlroots client unchanged.
+
+Windows are a different story. cosmic-comp has no wlr toplevel manager. It
+names its windows through `ext_foreign_toplevel_list_v1`, and its own
+`zcosmic_toplevel_info_v1` extends each of those handles with the activated
+state and the window's geometry. The shared client tracks that pair in place
+of the wlr manager, and one source then answers the focused app, the app
+watcher, window-relative hint correction and `FocusedWindowBounds`. No
+compositor CLI or scripting bridge is involved, which is more than niri or
+Sway give us.
+
+Input and capture go the KDE way. cosmic-comp implements neither
+`zwlr_virtual_pointer_v1` nor a screencopy protocol, so pointer input goes
+through libei via `org.freedesktop.portal.RemoteDesktop` and screen capture
+through `org.freedesktop.portal.ScreenCast`, with the same one-time consent
+prompts described under [Screen-sharing consent](#screen-sharing-consent).
+Neither is a COSMIC branch in the code. `system_wayland_input.go` asks the
+compositor for the virtual pointer and falls back to libei when it is absent.
+
+The catch is the portal version. `xdg-desktop-portal-cosmic` only gained
+RemoteDesktop in its 1.7 release, and Fedora 44 ships 1.6. On the older
+portal the daemon starts, the overlay draws and keys are captured, but every
+pointer action fails and names the missing portal. Keyboard capture and
+global hotkeys are the evdev proxy, as on every Wayland session.
+
+### Protocol support (cosmic-comp 1.6.0, measured)
+
+| Protocol                              | Purpose                   | cosmic-comp |
+| ------------------------------------- | ------------------------- | ----------- |
+| `zwlr_layer_shell_v1`                 | Overlay surfaces          | yes (v5)    |
+| `zxdg_output_manager_v1`              | Screen geometry           | yes (v3)    |
+| `zwp_virtual_keyboard_manager_v1`     | Sticky-modifier injection | yes         |
+| `ext_foreign_toplevel_list_v1`        | Focused-app app_id, title | yes (v1)    |
+| `zcosmic_toplevel_info_v1`            | Activated state, geometry | yes (v3)    |
+| `zwlr_virtual_pointer_v1`             | Pointer move / click      | **no**      |
+| `zwlr_foreign_toplevel_manager_v1`    | (wlr toplevel manager)    | **no**      |
+| `zwlr_screencopy_manager_v1`          | Screen capture            | **no**      |
+
+Geometry arrives in each output's own coordinates. Neru adds the output's
+global origin back, so a window on a second monitor lands in the same global
+top-left space every other backend uses. cosmic-comp replays existing windows
+when the daemon connects. Later changes reach it on the compositor's next
+refresh.
+
+### Known issues
+
+- Fedora's COSMIC spin ships `xdg-desktop-portal-cosmic` 1.6, which has no
+  RemoteDesktop portal. Upgrade it to 1.7 or later for pointer input.
+
+---
+
 ## wlroots compositors
 
 **Backend:** `wayland-wlroots`
@@ -324,9 +383,11 @@ Neru's wlroots input path needs **both** `zwlr_layer_shell_v1` and
 `zwlr_virtual_pointer_v1`. If the pointer protocol is missing, the compositor
 needs a desktop-specific input path. KDE uses libei; GNOME has none yet.
 
-When evaluating a new desktop (COSMIC, for instance): if both protocols are
-present the shared wlroots path applies as-is, and the work is adding the
-compositor to backend detection plus a focused-window geometry source. The
+When evaluating a new desktop: if both protocols are present the shared
+wlroots path applies as-is, and the work is adding the compositor to backend
+detection plus a focused-window geometry source. A compositor with layer-shell
+but no virtual pointer can still take the libei path if its portal implements
+RemoteDesktop, as KDE and COSMIC do. The
 daemon refuses to start on a compositor it does not recognize, as
 `wayland-other`. Plan a mechanism-specific backend file rather than a whole
 per-DE stack, see

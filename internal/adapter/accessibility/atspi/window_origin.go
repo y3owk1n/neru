@@ -189,6 +189,8 @@ func newWindowOriginSource(backend platform.LinuxBackend, logger *zap.Logger) wi
 		return newKWinOriginSource(logger)
 	case platform.BackendWaylandWlroots:
 		return newWlrootsOriginSource(logger)
+	case platform.BackendWaylandCOSMIC:
+		return newCosmicOriginSource(logger)
 	case platform.BackendX11,
 		platform.BackendWaylandGNOME,
 		platform.BackendWaylandOther,

@@ -45,6 +45,7 @@ const (
 	focusedWindowSourceNiri
 	focusedWindowSourceSway
 	focusedWindowSourceHyprland
+	focusedWindowSourceCosmic
 )
 
 // waylandFocusedWindowSource picks the geometry source for a Wayland session.
@@ -56,6 +57,12 @@ const (
 func waylandFocusedWindowSource(backend string) focusedWindowSource {
 	if backend == backendWaylandKDE {
 		return focusedWindowSourceKWin
+	}
+
+	// cosmic-comp answers over its own toplevel protocol; a wlroots socket
+	// inherited from another session would not describe its windows.
+	if backend == backendWaylandCOSMIC {
+		return focusedWindowSourceCosmic
 	}
 
 	switch {
@@ -89,6 +96,8 @@ func waylandFocusedWindowBounds(backend string) (image.Rectangle, bool, error) {
 		return swayFocusedWindowBounds()
 	case focusedWindowSourceHyprland:
 		return hyprlandFocusedWindowBounds()
+	case focusedWindowSourceCosmic:
+		return wlrootsFocusedWindowGeometry()
 	case focusedWindowSourceNone:
 	}
 

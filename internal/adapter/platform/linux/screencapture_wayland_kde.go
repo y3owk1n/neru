@@ -78,13 +78,12 @@ func pipewireCaptureError(status captureStatus) error {
 	case captureStatusNoProtocol:
 		return derrors.New(
 			derrors.CodeActionFailed,
-			"PipeWire refused the video stream KDE Plasma's screen-sharing session "+
-				"named",
+			"PipeWire refused the video stream the portal's screen-sharing session named",
 		)
 	case captureStatusFormat:
 		return derrors.New(
 			derrors.CodeActionFailed,
-			"the PipeWire stream delivered a frame KDE Plasma's screen-sharing "+
+			"the PipeWire stream delivered a frame the portal's screen-sharing "+
 				"session described in a layout Neru cannot read",
 		)
 	case captureStatusOK,
@@ -93,9 +92,9 @@ func pipewireCaptureError(status captureStatus) error {
 		captureStatusAlloc,
 		captureStatusFailed,
 		captureStatusTimeout:
-		return captureError(status, captureLabelKDE)
+		return captureError(status, captureLabelPortal)
 	default:
-		return captureError(status, captureLabelKDE)
+		return captureError(status, captureLabelPortal)
 	}
 }
 
@@ -140,7 +139,7 @@ func kdeCaptureRegion(ctx context.Context, region image.Rectangle) (*image.RGBA,
 	if !nativeBackendsCompiledIn {
 		return nil, derrors.New(
 			derrors.CodeNotSupported,
-			"KDE screen capture requires CGO-enabled Linux builds: frames arrive "+
+			"portal screen capture requires CGO-enabled Linux builds: frames arrive "+
 				"over PipeWire, which is a native library",
 		)
 	}
@@ -306,9 +305,9 @@ func screenCastSessionError(cause error) error {
 		cause,
 		derrors.CodeActionFailed,
 		"could not establish a screen-sharing session via the ScreenCast portal; "+
-			"approve the one-time screen-sharing prompt (KDE Plasma reads the "+
-			"screen through xdg-desktop-portal because KWin implements no "+
-			"screencopy protocol)",
+			"approve the one-time screen-sharing prompt (KDE Plasma and COSMIC "+
+			"read the screen through xdg-desktop-portal because their compositors "+
+			"implement no screencopy protocol)",
 	)
 }
 

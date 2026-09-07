@@ -107,7 +107,7 @@ func (m *Manager) RegisterWithRelease(
 
 			return 0, err
 		}
-	case platform.BackendWaylandWlroots, platform.BackendWaylandKDE,
+	case platform.BackendWaylandWlroots, platform.BackendWaylandKDE, platform.BackendWaylandCOSMIC,
 		platform.BackendWaylandGNOME, platform.BackendWaylandOther:
 		m.rebuildWaylandBindings()
 		m.ensureWaylandStarted()

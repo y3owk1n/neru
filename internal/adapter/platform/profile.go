@@ -14,6 +14,8 @@ const (
 	DisplayServerWin32 DisplayServer = "win32"
 	// DisplayServerWaylandKDE is Wayland on KDE Plasma (doctor/runtime label).
 	DisplayServerWaylandKDE DisplayServer = "wayland (KDE Plasma)"
+	// DisplayServerWaylandCOSMIC is Wayland on COSMIC (doctor/runtime label).
+	DisplayServerWaylandCOSMIC DisplayServer = "wayland (COSMIC)"
 	// DisplayServerUnknown means the display server could not be identified yet.
 	DisplayServerUnknown DisplayServer = "unknown"
 )

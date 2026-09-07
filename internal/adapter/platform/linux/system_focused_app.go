@@ -12,7 +12,7 @@ func FocusedAppID(backend string) (string, bool) {
 	switch backend {
 	case backendX11:
 		return x11FocusedAppID()
-	case backendWaylandWlroots, backendWaylandKDE:
+	case backendWaylandWlroots, backendWaylandKDE, backendWaylandCOSMIC:
 		return WaylandFocusedAppID()
 	default:
 		return "", false

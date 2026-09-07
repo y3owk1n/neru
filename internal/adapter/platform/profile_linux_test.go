@@ -70,9 +70,17 @@ func TestProfileFor_LinuxReportsTheStackTheDaemonDrives(t *testing.T) {
 			wantDisplay:    DisplayServerWayland,
 		},
 		{
+			name:           "cosmic wayland session",
+			sessionType:    sessionTypeWayland,
+			currentDesktop: desktopCOSMIC,
+			waylandDisplay: waylandDisplay,
+			wantBackend:    BackendWaylandCOSMIC,
+			wantDisplay:    DisplayServerWaylandCOSMIC,
+		},
+		{
 			name:           "unsupported wayland compositor",
 			sessionType:    sessionTypeWayland,
-			currentDesktop: "COSMIC",
+			currentDesktop: "Enlightenment",
 			waylandDisplay: waylandDisplay,
 			wantBackend:    BackendWaylandOther,
 			wantDisplay:    DisplayServerWayland,

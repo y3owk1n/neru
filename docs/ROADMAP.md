@@ -53,11 +53,6 @@ promise, and a Discussion is where a new one starts
   `sub_key_preview` ([#1116](https://github.com/y3owk1n/neru/issues/1116)).
 - **Auto-refresh hints when the accessibility tree changes**
   ([#1002](https://github.com/y3owk1n/neru/issues/1002)).
-- **COSMIC** ([#898](https://github.com/y3owk1n/neru/issues/898)). COSMIC
-  advertises layer-shell and the virtual pointer, so most of the wlroots path
-  should apply as-is. A contributor's branch got it building; the remaining
-  work is focused-window geometry for the overlay and hint search. Until it
-  lands the daemon refuses to start there as `wayland-other`.
 - **GNOME Wayland** stays unsupported and is not scheduled. Reviving it needs
   libei plus a GNOME Shell extension for window geometry, see
   [LINUX_DESKTOPS.md](LINUX_DESKTOPS.md#gnome-not-supported).
@@ -69,7 +64,7 @@ In priority order:
 1. **Platform bugs on Linux and Windows.** Issues labelled
    `needs: linux contributor` or `needs: windows contributor` are the ones the
    maintainer cannot reproduce on their own hardware.
-2. **A new desktop** (COSMIC first). Add the backend by mechanism rather than
+2. **A new desktop**. Add the backend by mechanism rather than
    by desktop, per
    [organize by mechanism](CROSS_PLATFORM.md#organize-by-mechanism-not-by-desktop).
 3. **Config reload regression coverage** through the simulation harness in

@@ -11,6 +11,7 @@ const (
 	desktopSway     = "sway"
 	desktopHyprland = "Hyprland"
 	desktopKDE      = "KDE"
+	desktopCOSMIC   = "COSMIC"
 )
 
 // TestLinuxBackend_IsWayland pins the Wayland/X11 split every subsystem with two
@@ -52,6 +53,7 @@ func TestLinuxBackend_DisplayServer(t *testing.T) {
 		{backend: BackendWaylandGNOME, want: DisplayServerWayland},
 		{backend: BackendWaylandOther, want: DisplayServerWayland},
 		{backend: BackendWaylandKDE, want: DisplayServerWaylandKDE},
+		{backend: BackendWaylandCOSMIC, want: DisplayServerWaylandCOSMIC},
 		{backend: BackendUnknown, want: DisplayServerUnknown},
 	}
 
@@ -100,8 +102,14 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 			want:           BackendWaylandKDE,
 		},
 		{
+			name:           "wayland cosmic desktop",
+			currentDesktop: desktopCOSMIC,
+			waylandDisplay: waylandDisplay,
+			want:           BackendWaylandCOSMIC,
+		},
+		{
 			name:           "wayland unknown desktop",
-			currentDesktop: "COSMIC",
+			currentDesktop: "Enlightenment",
 			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandOther,
 		},

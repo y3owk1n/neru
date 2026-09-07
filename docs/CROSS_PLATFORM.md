@@ -107,7 +107,7 @@ bugs wearing a platform label, and it sees only what triage labelled.
 | **Build tag**        | `darwin`                    | `linux`                                  | `windows`                      |
 | **CGO**              | Required (Objective-C)      | Per-backend; most Linux backends need it | Not used (pure Go Win32 / COM) |
 | **Primary modifier** | `Cmd`                       | `Ctrl`                                   | `Ctrl`                         |
-| **Display stack**    | Cocoa / Quartz              | X11, or Wayland (wlroots / KWin)         | Win32 / DWM                    |
+| **Display stack**    | Cocoa / Quartz              | X11, or Wayland (wlroots / KWin / COSMIC) | Win32 / DWM                    |
 | **Accessibility**    | AXUIElement                 | AT-SPI over D-Bus                        | UI Automation over COM         |
 | **Native product**   | Yes (`Neru.app`, codesigned)| Binary + install script                  | Binary                         |
 
@@ -125,6 +125,7 @@ read from the environment a second time.
 | `x11`                  | `DISPLAY` set, no `WAYLAND_DISPLAY`                                    | Supported         |
 | `wayland-wlroots`      | Sway, Hyprland, niri, River, Wayfire, or unset `XDG_CURRENT_DESKTOP`   | Supported         |
 | `wayland-kde`          | `XDG_CURRENT_DESKTOP` contains `KDE`                                   | Supported         |
+| `wayland-cosmic`       | `XDG_CURRENT_DESKTOP` contains `COSMIC`                                | Supported         |
 | `wayland-gnome`        | `XDG_CURRENT_DESKTOP` contains `GNOME`                                 | **Not supported** |
 | `wayland-other`        | Any other Wayland compositor                                           | **Not supported** |
 | `unknown`              | Neither `WAYLAND_DISPLAY` nor `DISPLAY`                                | **Not supported** |
@@ -952,8 +953,8 @@ and [LINUX_SETUP.md](./LINUX_SETUP.md#install-time-environment-adjustments)
 carries it as install-time item 2.
 
 **Not Linux gaps**, and deliberately so: secure input detection and system
-cursor hide are [Platform Exclusives](#platform-exclusives); GNOME Wayland and
-COSMIC are supported-desktop decisions, not capabilities; X11 modifier
+cursor hide are [Platform Exclusives](#platform-exclusives); GNOME Wayland is
+a supported-desktop decision, not a capability; X11 modifier
 passthrough is impossible for the display server (`XGrabKeyboard` is
 all-or-nothing and `XSendEvent` is ignored by most applications); and
 `neru services` on a non-systemd init is a stated boundary.
@@ -1371,8 +1372,11 @@ around AT-SPI even where other subsystems split.
 Desktop environments share mechanisms, so the axis that varies is
 usually the mechanism:
 
-- **Input**: KDE and GNOME both use libei (RemoteDesktop portal); wlroots and
-  COSMIC use `zwlr_virtual_pointer`. One libei backend serves several DEs.
+- **Input**: KDE, COSMIC and GNOME all use libei (RemoteDesktop portal), and
+  wlroots uses `zwlr_virtual_pointer`. One libei backend serves several DEs.
+  The routing is a runtime probe of the compositor, not a backend switch.
+- **Screen capture**: KDE and COSMIC read the portal's ScreenCast stream, and
+  wlroots uses `zwlr_screencopy`.
 - **Overlay**: layer-shell works on KDE, wlroots, and COSMIC; only
   GNOME/Mutter lacks it.
 - **Genuinely DE-specific**: active-window geometry (KWin D-Bus vs Mutter
@@ -1391,7 +1395,7 @@ needs a path no other family shares, spelled without the OS token inside
 (virtual-pointer input) and `system_wayland_kde_*.go` (libei input), with
 `system_wayland_input.go` as the shared routing seam.
 
-**To add a compositor** (COSMIC, say): add a `LinuxBackend` value and detection
+**To add a compositor**: add a `LinuxBackend` value and detection
 in `backend_linux.go`, route it in the factory and the relevant dispatch seams,
 and add a new compositor sub-slot *only* if it cannot reuse an existing
 mechanism file.

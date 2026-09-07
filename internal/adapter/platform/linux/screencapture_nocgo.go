@@ -48,6 +48,6 @@ func pipewireCaptureNode(
 
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
-		"KDE screen capture requires CGO-enabled Linux builds",
+		"portal screen capture requires CGO-enabled Linux builds",
 	)
 }

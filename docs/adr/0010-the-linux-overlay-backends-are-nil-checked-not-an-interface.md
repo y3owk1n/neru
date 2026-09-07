@@ -99,9 +99,10 @@ surface. This ADR extends that seam rather than adding a second one beside it.
   (`manager.go:716-718`), and `platform.NewSystemPort` already refuses all three
   at the first step of daemon startup, so the daemon exits before an overlay
   exists (`docs/CROSS_PLATFORM.md:104-110`). It becomes reachable the moment a
-  compositor moves out of that bucket — COSMIC (#898) is `wayland-other` today
-  and `CROSS_PLATFORM.md:1023` already records that layer-shell works there.
-  Whoever lands COSMIC support fixes `Init` in the same change.
+  compositor moves out of that bucket. COSMIC (#898) moved out as
+  `wayland-cosmic` and took the wlroots layer-shell overlay backend, so the
+  nil path stayed unreachable. A compositor landing without layer-shell fixes
+  `Init` in the same change.
 - The shutdown race this decision was drafted beside is **fixed**, and not by
   this decision. Every call that cancelled an animation before taking `renderMu`
   used to read `m.x11`/`m.wlroots` beside the lock rather than under it, racing

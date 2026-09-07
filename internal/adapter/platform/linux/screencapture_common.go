@@ -106,7 +106,7 @@ func captureError(status captureStatus, what string) error {
 const (
 	captureLabelXServer    = "the X server"
 	captureLabelCompositor = "this Wayland compositor"
-	captureLabelKDE        = "KDE Plasma (KWin)"
+	captureLabelPortal     = "the screen-sharing portal"
 )
 
 // CaptureScreenRegion captures the pixels currently inside region and returns
@@ -171,11 +171,11 @@ func CaptureScreenRegion(
 		return x11CaptureRegion(resolved)
 	}
 
-	// KDE is checked before the wlroots family it shares a client stack with:
-	// KWin speaks the same wl_output protocols, which is why the active screen is
-	// resolved the same way, but it advertises no screencopy and reads its pixels
-	// through the portal instead.
-	if backend == backendWaylandKDE {
+	// KDE and COSMIC are checked before the wlroots family they share a client
+	// stack with: KWin and cosmic-comp speak the same wl_output protocols, which
+	// is why the active screen is resolved the same way, but they advertise no
+	// screencopy and read their pixels through the portal instead.
+	if backendCapturesViaPortal(backend) {
 		resolved, err := resolveCaptureRegion(region, wlrootsScreenBounds)
 		if err != nil {
 			return nil, err
@@ -232,7 +232,7 @@ func unsupportedCaptureBackend(backend string) string {
 	}
 
 	return "screen capture is not implemented on linux backend " + backend +
-		"; supported backends are x11, wayland-wlroots and wayland-kde"
+		"; supported backends are x11, wayland-wlroots, wayland-kde and wayland-cosmic"
 }
 
 // resolveCaptureRegion turns the caller's request into the rectangle handed to

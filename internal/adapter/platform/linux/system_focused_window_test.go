@@ -58,6 +58,12 @@ func TestWaylandFocusedWindowSource_FollowsTheBackend(t *testing.T) {
 			focusedWindowSourceHyprland,
 		},
 		{
+			"cosmic asks its toplevel protocol and ignores a stale wlroots socket",
+			backendWaylandCOSMIC,
+			map[string]string{niriSocketEnv: "/run/niri.sock"},
+			focusedWindowSourceCosmic,
+		},
+		{
 			"a wlroots compositor with no IPC has no source",
 			backendWaylandWlroots,
 			nil,
