@@ -174,53 +174,49 @@ release-ci-windows ARCH VERSION_OVERRIDE:
     CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/buildinfo.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/buildinfo.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
     @echo "✓ Release artifact for windows/{{ ARCH }} built successfully"
 
-# Bundle the application
-[doc('Build, then package and ad-hoc sign build/Neru.app.')]
-bundle: release
-    @echo "Bundling Neru..."
-    mkdir -p build/Neru.app/Contents/{MacOS,Resources}
+# Assemble the release layout: bin/neru, share/man/man1 and, on macOS, an
+# ad-hoc signed Neru.app. It is the exact tree a release zip unpacks to, so the
+# installer and CI's publish jobs both consume it. BIN defaults to `just build`
+# output; CI passes its cross-built binary plus the Info.plist versions. The
+# bodies live in scripts/dist.sh and scripts/dist.ps1 rather than a shebang
+# recipe, which needs cygpath on Windows; the Windows variant needs no Bash.
+# Usage: just dist [BIN] [OUT] [BUNDLE_VERSION] [SHORT_VERSION] [BUILD_ID]
+[unix]
+[doc('Assemble the release layout (bin, man, Neru.app on macOS) under build/dist.')]
+dist BIN="" OUT="build/dist" BUNDLE_VERSION="" SHORT_VERSION="" BUILD_ID="":
+    NERU_DIST_VERSION="{{ VERSION }}" bash scripts/dist.sh "{{ BIN }}" "{{ OUT }}" "{{ BUNDLE_VERSION }}" "{{ SHORT_VERSION }}" "{{ BUILD_ID }}"
 
-    cp -r bin/neru build/Neru.app/Contents/MacOS/neru
+[windows]
+[doc('Assemble the release layout (bin, man) under build/dist.')]
+dist BIN="" OUT="build/dist" BUNDLE_VERSION="" SHORT_VERSION="" BUILD_ID="":
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dist.ps1 -Bin "{{ BIN }}" -Out "{{ OUT }}"
 
-    cp resources/icon.icns build/Neru.app/Contents/Resources/icon.icns
-    cp resources/Neru.entitlements build/Neru.app/Contents/Resources/Neru.entitlements
+# Build, assemble the release layout, and install it with the same script a
+# `curl | bash` user runs (scripts/install.sh, or install.ps1 on Windows), so
+# a source install lands in the same places as a release. Pass -y to accept
+# every prompt (`just install -y`); other flags are the installer's own.
+[unix]
+[doc('Build and install from source via the release installer; -y auto-accepts.')]
+install *ARGS: build dist
+    bash scripts/install.sh --from build/dist {{ ARGS }}
 
-    sed "s/VERSION/{{ VERSION }}/g" resources/Info.plist.template > build/Neru.app/Contents/Info.plist
+[windows]
+[doc('Build and install from source via the release installer; -y auto-accepts.')]
+install *ARGS: build dist
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -From build/dist {{ ARGS }}
 
-    codesign --force --deep --sign - --entitlements resources/Neru.entitlements --options runtime build/Neru.app
-
-    @echo "✓ Bundle complete: build/Neru.app"
-
-# Install a built Neru. Dispatches to the per-platform script in scripts/. Build
-# first: `just bundle` (macOS), `just build` (Linux), `just build-windows`
-# (Windows). Pass -y to accept every prompt non-interactively (`just install -y`).
-# On Windows this runs under a bash such as Git Bash.
-[doc('Install a built Neru with the platform script in scripts/.')]
-install *ARGS:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    script="{{ justfile_directory() }}/scripts/install-{{ os() }}.sh"
-    if [ ! -f "$script" ]; then
-        echo "just install: unsupported platform '{{ os() }}'" >&2
-        exit 1
-    fi
-    exec bash "$script" {{ ARGS }}
-
-# Remove a Neru installed by `just install`, undoing each of its steps in
-# reverse. Dispatches to the per-platform script in scripts/. Pass -y to accept
-# every prompt non-interactively, and --purge to also remove your config and
-# logs (they are kept otherwise, so -y alone can never delete your config.toml).
-# On Windows this runs under a bash such as Git Bash.
+# Remove whatever `just install` or the curl installer put in place. Pass -y to
+# accept every prompt, and --purge to also remove your config and logs (they
+# are kept otherwise, so -y alone can never delete your config.toml).
+[unix]
 [doc('Undo `just install`; your config survives unless you pass --purge.')]
 uninstall *ARGS:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    script="{{ justfile_directory() }}/scripts/uninstall-{{ os() }}.sh"
-    if [ ! -f "$script" ]; then
-        echo "just uninstall: unsupported platform '{{ os() }}'" >&2
-        exit 1
-    fi
-    exec bash "$script" {{ ARGS }}
+    bash scripts/install.sh --uninstall {{ ARGS }}
+
+[windows]
+[doc('Undo `just install`; your config survives unless you pass -Purge.')]
+uninstall *ARGS:
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -Uninstall {{ ARGS }}
 
 # Run tests
 

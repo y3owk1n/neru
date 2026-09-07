@@ -50,12 +50,31 @@ https://github.com/user-attachments/assets/6b5673e1-7131-4bc0-ad57-41678e9423b9
 
 ## Install
 
-**macOS** — Homebrew (recommended):
+**One command, any platform.** It installs the binary, man pages, shell completions
+and login service. Run it again to update.
+
+```bash
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.sh | bash
+```
+
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.ps1 | iex
+```
+
+Add `--channel nightly` or `--version v1.52.0` after `bash -s --` to pick a
+channel or pin a release. The [Installation Guide](docs/INSTALLATION.md#method-1-install-script) has the rest.
+
+<details>
+<summary>macOS — Homebrew</summary>
 
 ```bash
 brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
 ```
+
+</details>
 
 <details>
 <summary>All platforms — prebuilt binaries</summary>
@@ -105,8 +124,7 @@ See [Installation Guide](docs/INSTALLATION.md) for nix-darwin, NixOS, and home-m
 
 ```bash
 git clone https://github.com/y3owk1n/neru.git && cd neru
-just build   # or just bundle on macOS
-just install
+just install   # builds, then runs the same installer as the one-liner above
 ```
 
 </details>

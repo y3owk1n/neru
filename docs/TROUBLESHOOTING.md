@@ -95,6 +95,11 @@ export PATH="/usr/local/bin:$PATH"
 brew update && brew reinstall --cask neru
 ```
 
+**Linux: "error while loading shared libraries: libtesseract.so.5"** (Fedora)
+
+Fedora names the library `libtesseract.so.5.5`. Add a compatibility symlink; see
+[LINUX_SETUP.md](LINUX_SETUP.md#error-while-loading-shared-libraries-libtesseractso5).
+
 ---
 
 ## Permissions
