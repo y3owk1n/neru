@@ -236,7 +236,16 @@ refresh.
 ## wlroots compositors
 
 **Backend:** `wayland-wlroots`
-**Status:** Supported: Sway, Hyprland, niri, River, Wayfire
+**Status:** Supported: Sway, Hyprland, niri, River, Wayfire, labwc
+
+Detection is by name for those six. Beyond them, any compositor that tags
+`XDG_CURRENT_DESKTOP` with `:wlroots` (the convention xdg-desktop-portal-wlr
+keys on, which labwc sets by default) or leaves the variable unset lands here
+too. That covers dwl, cage, SwayFX, scroll and most small wlroots
+compositors. Whether the session then works depends only on the protocols
+below being advertised, which
+[Checking compositor protocols](#checking-compositor-protocols) verifies in
+one line.
 
 This is the reference Wayland path: `zwlr_layer_shell_v1` overlays with an
 empty `input_region` for click-through, `zwlr_virtual_pointer_v1` for pointer
@@ -253,8 +262,8 @@ Two behaviors are specific enough to note here:
   `hyprctl` instead.
 - **Per-compositor window origins.** niri, Sway, and Hyprland each expose
   focused-window geometry differently (`niri msg`, `swaymsg -t get_tree`,
-  `hyprctl -j activewindow`). River and Wayfire expose none, so hints there stay
-  window-relative. On niri, **tiled** windows, including a maximized column,
+  `hyprctl -j activewindow`). River, Wayfire and labwc expose none, so hints
+  there stay window-relative. On niri, **tiled** windows, including a maximized column,
   expose no on-screen position
   ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are
   misaligned there. Details in
@@ -316,6 +325,11 @@ initialization phase rather than running in a degraded state.
 GNOME Shell uses private protocols instead of the wlr family: Mutter implements
 neither `wlr-layer-shell` (overlays) nor `wlr-foreign-toplevel-management`
 (focused app), and exposes no input-injection path Neru can use.
+
+The same applies to every desktop built on Mutter. Budgie identifies itself as
+GNOME and lands on this backend. Cinnamon (Muffin) and Pantheon (Gala) do not,
+so they resolve to `wayland-other` and are refused with the generic message,
+but the reason is identical.
 
 **Use a GNOME X11 session instead.** Everything works there through the `x11`
 backend.

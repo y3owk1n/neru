@@ -123,7 +123,7 @@ read from the environment a second time.
 | Backend                | Detected when                                                          | Status            |
 | ---------------------- | ---------------------------------------------------------------------- | ----------------- |
 | `x11`                  | `DISPLAY` set, no `WAYLAND_DISPLAY`                                    | Supported         |
-| `wayland-wlroots`      | Sway, Hyprland, niri, River, Wayfire, or unset `XDG_CURRENT_DESKTOP`   | Supported         |
+| `wayland-wlroots`      | Sway, Hyprland, niri, River, Wayfire, labwc, a `:wlroots` tag, or unset `XDG_CURRENT_DESKTOP` | Supported         |
 | `wayland-kde`          | `XDG_CURRENT_DESKTOP` contains `KDE`                                   | Supported         |
 | `wayland-cosmic`       | `XDG_CURRENT_DESKTOP` contains `COSMIC`                                | Supported         |
 | `wayland-gnome`        | `XDG_CURRENT_DESKTOP` contains `GNOME`                                 | **Not supported** |

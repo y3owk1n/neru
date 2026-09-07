@@ -193,7 +193,12 @@ func detectLinuxBackendFromEnv(
 			strings.Contains(desktop, "HYPRLAND"),
 			strings.Contains(desktop, "NIRI"),
 			strings.Contains(desktop, "RIVER"),
-			strings.Contains(desktop, "WAYFIRE"):
+			strings.Contains(desktop, "WAYFIRE"),
+			strings.Contains(desktop, "LABWC"),
+			// The "<name>:wlroots" tag is how a wlroots compositor tells
+			// xdg-desktop-portal-wlr to serve it (labwc sets "labwc:wlroots"),
+			// so it answers the same question for compositors not named here.
+			strings.Contains(desktop, "WLROOTS"):
 			return BackendWaylandWlroots
 		default:
 			return BackendWaylandOther

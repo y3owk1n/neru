@@ -31,16 +31,20 @@ Per-desktop-environment details and DE-specific known issues live in
 The backend is detected once at startup from `XDG_CURRENT_DESKTOP`,
 `WAYLAND_DISPLAY` and `DISPLAY`.
 
-| Compositor / session                 | Backend           | Status                                                                           |
-| ------------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
-| Sway, Hyprland, niri, River, Wayfire | `wayland-wlroots` | Supported                                                                        |
-| KDE Plasma (Wayland)                 | `wayland-kde`     | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#kde-plasma-wayland)       |
-| COSMIC (Wayland)                     | `wayland-cosmic`  | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#cosmic-wayland)           |
-| X11 / XOrg, i3, GNOME on X11         | `x11`             | Supported                                                                        |
-| GNOME (Wayland)                      | `wayland-gnome`   | Not supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#gnome-not-supported)  |
-| Any other Wayland compositor         | `wayland-other`   | Not supported, the daemon refuses to start                                       |
+| Compositor / session                                                  | Backend           | Status                                                                                  |
+| --------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------- |
+| Sway, Hyprland, niri, River, Wayfire, labwc                            | `wayland-wlroots` | Supported                                                                               |
+| Any compositor tagging `XDG_CURRENT_DESKTOP` with `:wlroots`, or leaving it unset (dwl, cage, SwayFX, scroll, ...) | `wayland-wlroots` | Supported when it implements the wlroots protocols, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#wlroots-compositors) |
+| KDE Plasma (Wayland)                                                  | `wayland-kde`     | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#kde-plasma-wayland)              |
+| COSMIC (Wayland)                                                      | `wayland-cosmic`  | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#cosmic-wayland)                  |
+| X11 / XOrg, i3, GNOME on X11                                          | `x11`             | Supported                                                                               |
+| GNOME (Wayland), and Mutter-based desktops such as Budgie             | `wayland-gnome`   | Not supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#gnome-not-supported)         |
+| Cinnamon and Pantheon on Wayland, Weston, Mir shells (miracle-wm), any other compositor | `wayland-other`   | Not supported, the daemon refuses to start                                              |
 
-A Wayland session with `XDG_CURRENT_DESKTOP` unset is treated as wlroots.
+Cinnamon and Pantheon are Mutter-based too and lack layer-shell, so they are
+out for the same reason GNOME is. Mir implements every protocol the wlroots
+path needs but leaves each one for the shell to enable, and no Mir shell has
+been measured yet, so it is refused rather than guessed at.
 
 ---
 

@@ -18,7 +18,7 @@ func unsupportedLinuxBackendError(backend LinuxBackend) error {
 	case BackendWaylandOther:
 		return derrors.Newf(
 			derrors.CodeNotSupported,
-			"neru does not recognize this Wayland compositor (XDG_CURRENT_DESKTOP=%q). Supported Wayland compositors are wlroots-based ones such as Sway, Hyprland, niri, and River, plus KDE Plasma and COSMIC. See docs/LINUX_SETUP.md.",
+			"neru does not recognize this Wayland compositor (XDG_CURRENT_DESKTOP=%q). Supported Wayland compositors are wlroots-based ones such as Sway, Hyprland, niri, River, Wayfire and labwc (or any that tags XDG_CURRENT_DESKTOP with :wlroots), plus KDE Plasma and COSMIC. See docs/LINUX_SETUP.md.",
 			os.Getenv("XDG_CURRENT_DESKTOP"),
 		)
 	case BackendUnknown:
