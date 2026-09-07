@@ -238,13 +238,13 @@ refresh.
 **Backend:** `wayland-wlroots`
 **Status:** Supported: Sway, Hyprland, niri, River, Wayfire, labwc
 
-Detection is by name for those six. Beyond them, any compositor that tags
-`XDG_CURRENT_DESKTOP` with `:wlroots` (the convention xdg-desktop-portal-wlr
-keys on, which labwc sets by default) or leaves the variable unset lands here
-too. That covers dwl, cage, SwayFX, scroll and most small wlroots
-compositors. Whether the session then works depends only on the protocols
-below being advertised, which
-[Checking compositor protocols](#checking-compositor-protocols) verifies in
+Detection is by name for those six. Two more routes land here. A compositor
+that tags `XDG_CURRENT_DESKTOP` with `:wlroots`, the convention
+xdg-desktop-portal-wlr keys on and labwc's default, and a compositor that
+leaves the variable unset. That covers dwl, cage, SwayFX, scroll and most
+small wlroots compositors. From there the only question is whether the
+compositor advertises the protocols below, and
+[Checking compositor protocols](#checking-compositor-protocols) answers it in
 one line.
 
 This is the reference Wayland path: `zwlr_layer_shell_v1` overlays with an

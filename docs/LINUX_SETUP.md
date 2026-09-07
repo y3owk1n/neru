@@ -42,9 +42,10 @@ The backend is detected once at startup from `XDG_CURRENT_DESKTOP`,
 | Cinnamon and Pantheon on Wayland, Weston, Mir shells (miracle-wm), any other compositor | `wayland-other`   | Not supported, the daemon refuses to start                                              |
 
 Cinnamon and Pantheon are Mutter-based too and lack layer-shell, so they are
-out for the same reason GNOME is. Mir implements every protocol the wlroots
-path needs but leaves each one for the shell to enable, and no Mir shell has
-been measured yet, so it is refused rather than guessed at.
+out for the same reason GNOME is. Mir is the interesting one. It implements
+every protocol the wlroots path needs but leaves each for the shell to
+enable, and nobody has measured a Mir shell yet, so Neru refuses rather than
+guesses.
 
 ---
 
