@@ -196,8 +196,23 @@ function Stop-InstalledNeru {
 
 # --------------------------------------------------------------- uninstall --
 
+$marker = '# neru shell completion (managed by install.ps1)'
+$profilePath = $PROFILE.CurrentUserAllHosts
+function Test-UserPathEntry {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+    try {
+        if ($key.GetValueNames() -notcontains 'Path') { return $false }
+        return @([string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames') -split ';') -contains $installDir
+    } finally { $key.Close() }
+}
+function Test-ProfileCompletion {
+    return (Test-Path $profilePath) -and (Select-String -Path $profilePath -SimpleMatch $marker -Quiet)
+}
+
 if ($Uninstall) {
-    if (-not (Test-Path $exe) -and -not (Test-Path $shortcutPath)) {
+    # An interrupted uninstall may have removed the executable and shortcut
+    # already, so the PATH entry and profile block count as leftovers too.
+    if (-not (Test-Path $exe) -and -not (Test-Path $shortcutPath) -and -not (Test-UserPathEntry) -and -not (Test-ProfileCompletion)) {
         Write-Host ''
         Write-Host '  Nothing to uninstall.'
         exit 0
@@ -236,9 +251,7 @@ if ($Uninstall) {
     }
 
     # The completion block in the profile, marker line plus the line after it.
-    $profilePath = $PROFILE.CurrentUserAllHosts
-    $marker = '# neru shell completion (managed by install.ps1)'
-    if ((Test-Path $profilePath) -and (Select-String -Path $profilePath -SimpleMatch $marker -Quiet)) {
+    if (Test-ProfileCompletion) {
         $kept = New-Object System.Collections.Generic.List[string]
         $skip = 0
         foreach ($line in (Get-Content $profilePath)) {
@@ -364,6 +377,7 @@ try {
     $stopped = Stop-InstalledNeru
     $serviceWasInstalled = $stopped.Service
     $daemonWasRunning = $stopped.Daemon
+    $serviceUnloaded = $serviceWasInstalled
     if ($serviceWasInstalled) { Write-Info 'Paused the login task for the update' }
     if ($daemonWasRunning) { Write-Info 'Stopped the running daemon' }
 
@@ -376,6 +390,15 @@ try {
         Copy-Item -Path $manSrc -Destination $manDst -Recurse
     }
     Write-Ok "neru.exe $([char]0x2192) $installDir"
+} catch {
+    # A failed update must not cost the user autostart: put the login task
+    # back on whichever neru.exe is at the install path now.
+    if ($serviceUnloaded -and (Test-Path $exe)) {
+        & $exe services install *> $null
+        if ($LASTEXITCODE -eq 0) { Write-Warn 'Re-registered the login task that was unloaded for the update.' }
+        else { Write-Warn 'The login task was unloaded for the update and could not be restored. Run: neru services install' }
+    }
+    throw
 } finally {
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
@@ -432,10 +455,7 @@ Write-Ok 'Start Menu shortcut (searchable from the taskbar)'
 
 $completionState = 'skipped'
 if (-not $NoCompletions) {
-    $marker = '# neru shell completion (managed by install.ps1)'
-    $profilePath = $PROFILE.CurrentUserAllHosts
-    $existing = if (Test-Path $profilePath) { Get-Content $profilePath -Raw } else { '' }
-    if ($existing -match [regex]::Escape($marker)) {
+    if (Test-ProfileCompletion) {
         $completionState = 'present'
         Write-Ok 'PowerShell completion already in your profile'
     } else {

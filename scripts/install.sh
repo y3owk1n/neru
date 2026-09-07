@@ -65,6 +65,7 @@ kv()    { printf '  %s%-10s%s %s\n' "$c_dim" "$1" "$c_reset" "$2" >&2; }
 
 die() {
     printf '\n  %s✗ %s%s\n' "$c_red" "$*" "$c_reset" >&2
+    restore_service
     exit 1
 }
 
@@ -178,9 +179,23 @@ fetch() {
 
 tmp=""
 cleanup() { [ -z "$tmp" ] || rm -rf "$tmp"; }
+# An update unloads a registered login service before swapping the binary.
+# If the run dies in between, put the service back on whichever binary is
+# at the install path now, so a failed update never costs the user autostart.
+service_unloaded=0
+restore_service() {
+    [ "$service_unloaded" = 1 ] || return 0
+    service_unloaded=0
+    if [ -x "${neru_bin:-}" ] && "$neru_bin" services install >/dev/null 2>&1; then
+        warn "Re-registered the login service that was unloaded for the update."
+    else
+        warn "The login service was unloaded for the update and could not be restored. Run: neru services install"
+    fi
+}
 on_interrupt() {
     say ""
     warn "Interrupted. Files are only ever swapped into place whole, so nothing is left half-installed."
+    restore_service
     exit 130
 }
 on_error() {
@@ -189,6 +204,7 @@ on_error() {
     say ""
     printf '  %s✗ Unexpected failure at line %s: %s%s\n' "$c_red" "$1" "$BASH_COMMAND" "$c_reset" >&2
     note "Please report this with the lines above at $gh_base/issues."
+    restore_service
     exit 1
 }
 trap cleanup EXIT
@@ -363,20 +379,37 @@ if [ "$uninstall" = 1 ]; then
         "$HOME/.zsh/completions/_neru"
         "${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/neru.fish"
     )
+    # The manifest is user-writable and some removals run under sudo, so its
+    # paths are hints, not authority: each must still look like the thing
+    # this script installs (its basename, and for the app the binary inside)
+    # before it is removed.
+    app_dst=""
+    link=""
     if [ -f "$manifest" ]; then
         while IFS='=' read -r k v; do
             case "$k" in
-                binary) neru_bin="$v" ;;
-                app) app_dst="$v" ;;
-                link) link="$v" ;;
-                man_dir) man_dirs+=("$v") ;;
-                completion) comps+=("$v") ;;
+                binary) [ "$(basename "$v")" = neru ] && [ -f "$v" ] && [ ! -L "$v" ] && neru_bin="$v" ;;
+                app) [ "$(basename "$v")" = Neru.app ] && [ -f "$v/Contents/MacOS/neru" ] && app_dst="$v" ;;
+                link) [ "$(basename "$v")" = neru ] && [ -L "$v" ] && link="$v" ;;
+                man_dir) [ "$(basename "$v")" = man1 ] && man_dirs+=("$v") ;;
+                completion) case "$(basename "$v")" in neru | _neru | neru.fish) comps+=("$v") ;; esac ;;
             esac
         done <"$manifest"
     fi
-    [ "$os" = darwin ] && { app_dst="${app_dst:-$app_dir/Neru.app}"; link="${link:-$bin_dir/neru}"; }
+    if [ "$os" = darwin ]; then
+        link="${link:-$bin_dir/neru}"
+        # The PATH symlink points into the app, so it locates a bundle
+        # installed with --app-dir even when the manifest is unusable.
+        if [ -z "$app_dst" ] && [ -L "$link" ]; then
+            case "$(readlink "$link")" in
+                */Neru.app/Contents/MacOS/neru) target="$(readlink "$link")"; app_dst="${target%/Contents/MacOS/neru}" ;;
+            esac
+        fi
+        app_dst="${app_dst:-$app_dir/Neru.app}"
+        neru_bin="$app_dst/Contents/MacOS/neru"
+    fi
 
-    if [ -z "$installed_channel" ] && [ ! -e "${app_dst:-}" ] && [ ! -e "${link:-}" ]; then
+    if [ ! -e "$neru_bin" ] && [ ! -e "$app_dst" ] && [ ! -e "$link" ]; then
         say ""
         say "  Nothing to uninstall."
         exit 0
@@ -547,6 +580,7 @@ if [ -x "$neru_bin" ]; then
         "Service loaded"* | "Service installed"*)
             service_was_installed=1
             "$neru_bin" services uninstall >/dev/null 2>&1 || true
+            service_unloaded=1
             info "Paused the login service for the update"
             ;;
     esac
@@ -637,6 +671,7 @@ fi
 service_state=none
 if [ "$want_service" = 1 ]; then
     if [ "$service_was_installed" = 1 ]; then
+        service_unloaded=0
         if "$neru_bin" services install >/dev/null 2>&1; then
             service_state=restarted
             ok "Login service resumed on the new version"
