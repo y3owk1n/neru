@@ -339,6 +339,59 @@ if existing_on_path="$(command -v neru 2>/dev/null)"; then
     esac
 fi
 
+# A nix-darwin or home-manager agent runs Neru straight from the store without
+# putting it on PATH, so look at the agents themselves. Every plist that
+# mentions neru is a candidate, whatever its filename; its program is the
+# Program key when present, else the first ProgramArguments entry. One that
+# runs anything but the binary this script installs belongs to another
+# installer, and registering ours beside it would start two daemons at login.
+if [ "$os" = darwin ] && [ "$uninstall" = 0 ]; then
+    for plist in "$HOME/Library/LaunchAgents/"*.plist "/Library/LaunchAgents/"*.plist "/Library/LaunchDaemons/"*.plist; do
+        [ -e "$plist" ] || continue
+        grep -qi neru "$plist" 2>/dev/null || continue
+        agent_prog="$(/usr/libexec/PlistBuddy -c 'Print :Program' "$plist" 2>/dev/null || true)"
+        agent_args="$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments' "$plist" 2>/dev/null || true)"
+        [ -n "$agent_prog" ] || agent_prog="$(printf '%s\n' "$agent_args" | sed -n '2s/^ *//p')"
+        [ -n "$agent_prog" ] && [ "$agent_prog" != "$neru_bin" ] || continue
+        # The agent must actually run a neru binary, directly or through a
+        # shell wrapper as nix-darwin does; the word in a label or log path
+        # of some unrelated agent is not a conflict.
+        case "$agent_prog $agent_args" in
+            *bin/neru | *bin/neru\ * | *bin/neru$'\n'* | *Neru.app/Contents/MacOS/neru*) ;;
+            *) continue ;;
+        esac
+        warn "A Neru login agent is already registered by another installer."
+        note "plist:    $plist"
+        note "launches: $agent_prog"
+        case "$(basename "$plist")" in
+            org.nixos.* | org.nix-community.*) note "Remove Neru from your nix-darwin or home-manager config and rebuild, then retry." ;;
+            *) note "Remove it with 'neru services uninstall' using the neru it launches, then retry." ;;
+        esac
+        exit 1
+    done
+fi
+
+# The installer before this one wrote a plain systemd user unit without the
+# marker `neru services` looks for, so `services uninstall` refuses to touch
+# it. legacy_unit prints that unit's path only when its contents are exactly
+# what that installer wrote for the binary this script manages; a unit the
+# user edited, even by one flag, is theirs and stays. It is removed here and,
+# on update, replaced by a unit `neru services install` owns.
+legacy_unit() {
+    local unit="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/neru.service"
+    [ "$os" = linux ] && [ -f "$unit" ] || return 1
+    printf '[Unit]\nDescription=Neru keyboard navigation daemon\nAfter=graphical-session.target\nPartOf=graphical-session.target\n\n[Service]\nExecStart=%s launch\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=graphical-session.target\n' "$neru_bin" |
+        cmp -s - "$unit" || return 1
+    printf '%s' "$unit"
+}
+remove_legacy_unit() {
+    local unit
+    unit="$(legacy_unit)" || return 1
+    systemctl --user disable --now neru.service >/dev/null 2>&1 || true
+    rm -f "$unit"
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+}
+
 installed_version=""
 installed_channel=""
 if [ -x "$neru_bin" ]; then
@@ -464,6 +517,7 @@ if [ "$uninstall" = 1 ]; then
         esac
         "$neru_bin" stop >/dev/null 2>&1 || true
     fi
+    if remove_legacy_unit; then ok "Removed the systemd unit the previous installer wrote"; fi
     if [ "$os" = darwin ]; then
         if [ -L "$link" ]; then
             $(sudo_for "$(dirname "$link")") rm -f "$link" && ok "Removed $link"
@@ -607,7 +661,11 @@ fi
 # mentioned at the end. `services status` always exits 0, so read its text.
 service_was_installed=0
 daemon_was_running=0
-if [ -x "$neru_bin" ]; then
+if remove_legacy_unit; then
+    service_was_installed=1
+    service_unloaded=1
+    info "Removed the systemd unit the previous installer wrote; a unit 'neru services' owns replaces it"
+elif [ -x "$neru_bin" ]; then
     case "$("$neru_bin" services status 2>/dev/null)" in
         "Service loaded"* | "Service installed"*)
             service_was_installed=1
