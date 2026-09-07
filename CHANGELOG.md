@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.53.0](https://github.com/y3owk1n/neru/compare/v1.52.0...v1.53.0) (2026-09-07)
+
+
+### Features
+
+* **hotkeys:** glide the cursor smoothly while a relative-move key is held ([#1626](https://github.com/y3owk1n/neru/issues/1626)) ([89b6f1c](https://github.com/y3owk1n/neru/commit/89b6f1c195c35f7f748d125a5ffe3d597040ee1e))
+* **hotkeys:** repeat a held global hotkey on Linux and Windows ([#1621](https://github.com/y3owk1n/neru/issues/1621)) ([19b40a3](https://github.com/y3owk1n/neru/commit/19b40a32d94a5899ee976fefc742cea27ae414c8))
+* **install:** install, update and remove Neru with one curl or irm command ([#1630](https://github.com/y3owk1n/neru/issues/1630)) ([30fc7f5](https://github.com/y3owk1n/neru/commit/30fc7f5c3d2212bec023f0f03e8fa86c3741a0e6))
+* **linux:** make Wayland mode activation instant with a lifetime keyboard proxy ([#1600](https://github.com/y3owk1n/neru/issues/1600)) ([52fa240](https://github.com/y3owk1n/neru/commit/52fa24021162d4d4fe99a3e712765d3c920013ed))
+* **modes:** add support for user declared custom mode ([#1629](https://github.com/y3owk1n/neru/issues/1629)) ([3a3ee0e](https://github.com/y3owk1n/neru/commit/3a3ee0e70d2140b64890a317c55ab65b630a23d0))
+
+
+### Bug Fixes
+
+* **cli:** open the docs on Windows, where the tray already knows how ([#1620](https://github.com/y3owk1n/neru/issues/1620)) ([16a3c90](https://github.com/y3owk1n/neru/commit/16a3c9085e1c497ea690c0843db9902fcb07a64e))
+* **hints:** ask for screen-capture consent before the contour strategy runs ([#1596](https://github.com/y3owk1n/neru/issues/1596)) ([71d1b34](https://github.com/y3owk1n/neru/commit/71d1b34fee6de79eb5290eccc8947a674557f634))
+* **hotkeys:** bind Delete to the backspace key on Linux, as on macOS and Windows ([#1624](https://github.com/y3owk1n/neru/issues/1624)) ([2cbe3ce](https://github.com/y3owk1n/neru/commit/2cbe3ce53380c6f893fc56bfc908177e5526aa1b))
+* **install:** keep the PowerShell window open and respect the execution policy ([#1631](https://github.com/y3owk1n/neru/issues/1631)) ([ed79130](https://github.com/y3owk1n/neru/commit/ed791308f40a6e284eccb2e5441ecdecad80fe57))
+* **install:** notice Nix launch agents and clean up the old installer's systemd unit ([#1632](https://github.com/y3owk1n/neru/issues/1632)) ([212a7d1](https://github.com/y3owk1n/neru/commit/212a7d171afd017b63cb63bbc6e8f1663e5d6784))
+* **linux:** capture Bluetooth keyboards that expose a volume axis ([#1633](https://github.com/y3owk1n/neru/issues/1633)) ([90f1447](https://github.com/y3owk1n/neru/commit/90f14471242f4b9037cddd7d73d6b66debd99929))
+* **linux:** keep the Wayland keyboard alive when a remapper grabs Neru's proxy or starts after it ([#1604](https://github.com/y3owk1n/neru/issues/1604)) ([1e8e7da](https://github.com/y3owk1n/neru/commit/1e8e7da995c17772634b08f9a123d3452be4e25a))
+* **linux:** keep Wayland hotkeys working with a key remapper across its restarts ([#1602](https://github.com/y3owk1n/neru/issues/1602)) ([cffb996](https://github.com/y3owk1n/neru/commit/cffb99652a10ddcaa27c3c20a123d6e80cf7487a))
+* **linux:** name keys by the character they type so Shift+Tab and PageUp bindings fire ([#1599](https://github.com/y3owk1n/neru/issues/1599)) ([1516fb7](https://github.com/y3owk1n/neru/commit/1516fb79754a68d3b4e7c8f5c410ac3386202be0))
+* **linux:** release forwarded keys on the proxy keyboard when it fails open ([#1619](https://github.com/y3owk1n/neru/issues/1619)) ([00715b3](https://github.com/y3owk1n/neru/commit/00715b38a6f71d5dcd6d9cb3e2f1ab4ec3d9973b))
+* **linux:** round a scroll to the nearest notch instead of truncating it ([#1618](https://github.com/y3owk1n/neru/issues/1618)) ([ad4dc5c](https://github.com/y3owk1n/neru/commit/ad4dc5cb67bda4df9d51a10373f28ebf08927436))
+* **linux:** stop a modifier sticking after a Wayland mode launched from a compositor binding ([#1603](https://github.com/y3owk1n/neru/issues/1603)) ([7831a5b](https://github.com/y3owk1n/neru/commit/7831a5bb1d6bc99f2635b834069fffba61904761))
+* **linux:** warn once when passthrough_unbounded_keys is set on the X11 backend ([#1625](https://github.com/y3owk1n/neru/issues/1625)) ([4e6659f](https://github.com/y3owk1n/neru/commit/4e6659f58f1126ef5f85b20eaa4cfef9dbb6b4e8))
+* **modes:** click where a held-key glide left the cursor, not on the grid selection ([#1627](https://github.com/y3owk1n/neru/issues/1627)) ([3655957](https://github.com/y3owk1n/neru/commit/3655957dd1cdf70ee74c392361fae1ea68f0567f))
+* **scroll:** apply a sticky modifier to scroll actions ([#1615](https://github.com/y3owk1n/neru/issues/1615)) ([2eb92ff](https://github.com/y3owk1n/neru/commit/2eb92ffa693e109f57a90dcb809fbedd6446e7e0))
+* **windows:** carry the action's modifiers on injected clicks and drags ([#1614](https://github.com/y3owk1n/neru/issues/1614)) ([c331fa2](https://github.com/y3owk1n/neru/commit/c331fa29cf96ed755c90e07084961d23f326f201))
+* **windows:** dispatch keys off the low-level hook thread, as the other taps do ([#1617](https://github.com/y3owk1n/neru/issues/1617)) ([f151a66](https://github.com/y3owk1n/neru/commit/f151a66d43adb84b15110ce2063027cc1bb93d64))
+* **windows:** keep a stopped keyboard hook's WM_QUIT off other message pumps ([#1598](https://github.com/y3owk1n/neru/issues/1598)) ([73730a9](https://github.com/y3owk1n/neru/commit/73730a967f2bf05e3f569aed9fff579664d418e6))
+* **windows:** stop the grid cells reappearing behind an open subgrid ([#1622](https://github.com/y3owk1n/neru/issues/1622)) ([4c8268c](https://github.com/y3owk1n/neru/commit/4c8268c5408d5157a7c81c4bfe0c698ee8065137))
+
 ## [1.52.0](https://github.com/y3owk1n/neru/compare/v1.51.0...v1.52.0) (2026-09-04)
 
 
