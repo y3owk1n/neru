@@ -277,7 +277,13 @@ prompt is paid once: the grant is persisted with a restore token in
 `$XDG_STATE_HOME/neru/screen-cast.token`, and only the mode handler's
 permission preflight can raise the dialog, never a capture. Sources are
 requested as monitors with the cursor left out; windows are not asked for,
-because a window stream carries no position.
+because a window stream carries no position. A monitor stream carries one only
+on a Plasma that speaks screencasting v6, which no release up to 6.5 does.
+Every shipped Plasma names a size alone, so each stream is placed at capture
+time on the `wl_output` it belongs to, by KWin's `mapping_id` where the portal
+sends one and otherwise by size, pairing identical monitors off in announcement
+order. A stream nothing can place is taken to start at the origin, which is
+right for a single display.
 
 Capture is a **region** operation on every backend, and what comes back covers
 exactly the region asked for. A rectangle that leaves the screen, is

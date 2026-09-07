@@ -25,6 +25,13 @@ func wlrootsScreenBoundsByName(name string) (image.Rectangle, bool, error) {
 	)
 }
 
+func wlrootsScreenOutputs() ([]screenCastOutput, error) {
+	return nil, derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
 func wlrootsScreenNames() ([]string, error) {
 	return nil, derrors.New(
 		derrors.CodeNotSupported,

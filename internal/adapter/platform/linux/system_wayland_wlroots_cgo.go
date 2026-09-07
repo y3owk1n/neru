@@ -398,6 +398,25 @@ func wlrootsScreenBoundsByName(name string) (image.Rectangle, bool, error) {
 	return image.Rectangle{}, false, nil
 }
 
+// wlrootsScreenOutputs returns every connected output, named and placed in
+// the shared coordinate space, in the order the compositor announced them.
+func wlrootsScreenOutputs() ([]screenCastOutput, error) {
+	err := ensureWlrootsState()
+	if err != nil {
+		return nil, err
+	}
+
+	globalWlrootsState.mu.RLock()
+	defer globalWlrootsState.mu.RUnlock()
+
+	outputs := make([]screenCastOutput, 0, len(globalWlrootsState.screens))
+	for _, screen := range globalWlrootsState.screens {
+		outputs = append(outputs, screenCastOutput{name: screen.Name, bounds: screen.Bounds})
+	}
+
+	return outputs, nil
+}
+
 func wlrootsScreenNames() ([]string, error) {
 	err := ensureWlrootsState()
 	if err != nil {

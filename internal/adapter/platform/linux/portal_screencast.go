@@ -5,6 +5,7 @@ package linux
 import (
 	"context"
 	"image"
+	"strings"
 
 	"github.com/godbus/dbus/v5"
 
@@ -61,9 +62,18 @@ type screenCastStream struct {
 	nodeID uint32
 	// bounds is the monitor's place in Neru's shared coordinate space: global
 	// origin, top-left, Y down, logical pixels. It is the zero rectangle when
-	// the portal named no position or size for the stream, which is the one
-	// case a region cannot be honored — see selectScreenCastStream.
+	// the portal named no size for the stream, which is the one case a region
+	// cannot be honored — see selectScreenCastStream.
 	bounds image.Rectangle
+	// positioned reports whether the portal itself said where the monitor
+	// sits. Every released Plasma (5.27 through 6.5) names only a size for a
+	// monitor stream. Position arrived with screencasting v6 on master. An
+	// unpositioned stream has bounds at the origin until placeScreenCastStreams
+	// finds the output it belongs to.
+	positioned bool
+	// mappingID is the output name a Plasma speaking screencasting v5 or later
+	// attaches to a monitor stream, and empty before that.
+	mappingID string
 }
 
 // screenCastGrant is one established ScreenCast grant: the monitors it streams,
@@ -273,27 +283,36 @@ func decodeScreenCastStreams(results map[string]dbus.Variant) []screenCastStream
 		}
 
 		properties, _ := entry[1].(map[string]dbus.Variant)
+		bounds, positioned := streamBounds(properties)
+		mappingID, _ := properties["mapping_id"].Value().(string)
 
 		streams = append(streams, screenCastStream{
-			nodeID: nodeID,
-			bounds: streamBounds(properties),
+			nodeID:     nodeID,
+			bounds:     bounds,
+			positioned: positioned,
+			mappingID:  mappingID,
 		})
 	}
 
 	return streams
 }
 
-// streamBounds turns a stream's position and size properties into a rectangle,
-// and reports the zero rectangle when either is absent or unreadable.
-func streamBounds(properties map[string]dbus.Variant) image.Rectangle {
-	originX, originY, hasPosition := portalIntPair(properties, "position")
+// streamBounds turns a stream's position and size properties into a rectangle
+// and reports whether the position was actually named. Without a size there is
+// no rectangle at all. Without a position the rectangle sits at the origin and
+// the caller decides where it really is.
+func streamBounds(properties map[string]dbus.Variant) (image.Rectangle, bool) {
 	width, height, hasSize := portalIntPair(properties, "size")
-
-	if !hasPosition || !hasSize || width <= 0 || height <= 0 {
-		return image.Rectangle{}
+	if !hasSize || width <= 0 || height <= 0 {
+		return image.Rectangle{}, false
 	}
 
-	return image.Rect(originX, originY, originX+width, originY+height)
+	originX, originY, hasPosition := portalIntPair(properties, "position")
+	if !hasPosition {
+		return image.Rect(0, 0, width, height), false
+	}
+
+	return image.Rect(originX, originY, originX+width, originY+height), true
 }
 
 // portalIntPair reads a D-Bus (ii) structure out of a property bag. godbus
@@ -320,6 +339,80 @@ func portalIntPair(properties map[string]dbus.Variant, key string) (int, int, bo
 	}
 
 	return int(first), int(second), true
+}
+
+// screenCastOutput is one output the compositor reports over wl_output: its
+// name (the connector, "DP-1" or "eDP-1") and its bounds in the shared space.
+type screenCastOutput struct {
+	name   string
+	bounds image.Rectangle
+}
+
+// placeScreenCastStreams gives every unpositioned stream a place on screen,
+// using the outputs the compositor itself reports over wl_output.
+//
+// Two things identify which monitor a stream is, tried in this order:
+//
+//   - mapping_id, which a Plasma speaking screencasting v5 or later sets to
+//     the output's name. It is exact, and it is absent on every Plasma
+//     released before that.
+//   - size. A monitor stream is a whole output, so its size is the output's
+//     size. Each output is used once, so two identical monitors that are both
+//     streamed pair off in the order the portal and the compositor list them,
+//     which is the same KWin order on both sides.
+//
+// A stream neither can place stays where it was decoded, at the origin, which
+// is right for the one monitor of a single-display session. Guessing there
+// beats refusing: the alternative is no hints at all on every Plasma release
+// that exists today.
+func placeScreenCastStreams(
+	streams []screenCastStream,
+	outputs []screenCastOutput,
+) []screenCastStream {
+	placed := make([]screenCastStream, len(streams))
+	copy(placed, streams)
+
+	used := make([]bool, len(outputs))
+
+	claim := func(stream *screenCastStream, match func(screenCastOutput) bool) {
+		for i, output := range outputs {
+			if used[i] || !match(output) {
+				continue
+			}
+
+			used[i] = true
+			stream.bounds = output.bounds
+			stream.positioned = true
+
+			return
+		}
+	}
+
+	// Named streams first, so an exact match is never pre-empted by a sized
+	// guess that happened to be listed earlier.
+	for i := range placed {
+		stream := &placed[i]
+		if stream.positioned || stream.bounds.Empty() || stream.mappingID == "" {
+			continue
+		}
+
+		claim(stream, func(output screenCastOutput) bool {
+			return strings.EqualFold(output.name, stream.mappingID)
+		})
+	}
+
+	for i := range placed {
+		stream := &placed[i]
+		if stream.positioned || stream.bounds.Empty() {
+			continue
+		}
+
+		claim(stream, func(output screenCastOutput) bool {
+			return output.bounds.Size() == stream.bounds.Size()
+		})
+	}
+
+	return placed
 }
 
 // selectScreenCastStream finds the streamed monitor that wholly contains region
@@ -362,7 +455,7 @@ func selectScreenCastStream(
 	if placed == 0 {
 		return screenCastStream{}, image.Rectangle{}, derrors.New(
 			derrors.CodeActionFailed,
-			"the ScreenCast portal named no geometry for the monitors it is "+
+			"the ScreenCast portal named no size for the monitors it is "+
 				"streaming, so a captured frame could not be placed on screen",
 		)
 	}

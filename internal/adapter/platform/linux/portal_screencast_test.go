@@ -13,13 +13,15 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Two monitors side by side, the second one to the right of the first. The
-// shapes are the ones a real dual-head KDE session reports: logical position
-// and logical size, in the same global top-left space Neru uses everywhere.
+// Two monitors side by side, the second one to the right of the first, already
+// placed: logical position and logical size in the same global top-left space
+// Neru uses everywhere. This is what a Plasma that speaks screencasting v6
+// reports directly, and what placeScreenCastStreams produces for every
+// released Plasma, which names only a size.
 func twoMonitorStreams() []screenCastStream {
 	return []screenCastStream{
-		{nodeID: 41, bounds: image.Rect(0, 0, 1920, 1080)},
-		{nodeID: 42, bounds: image.Rect(1920, 0, 3840, 1080)},
+		{nodeID: 41, bounds: image.Rect(0, 0, 1920, 1080), positioned: true},
+		{nodeID: 42, bounds: image.Rect(1920, 0, 3840, 1080), positioned: true},
 	}
 }
 
@@ -77,10 +79,9 @@ func TestSelectScreenCastStream_RefusesARegionNoMonitorContains(t *testing.T) {
 }
 
 // TestSelectScreenCastStream_RefusesAStreamWithNoGeometry pins what happens
-// when the portal hands over a node but names no position or size for it.
-// Without geometry there is no way to say which pixels of the frame the
-// caller's rectangle is, so the capture refuses instead of guessing that the
-// stream starts at the origin.
+// when the portal hands over a node but names no size for it. Without a size
+// there is no way to say which pixels of the frame the caller's rectangle is,
+// so the capture refuses instead of guessing.
 func TestSelectScreenCastStream_RefusesAStreamWithNoGeometry(t *testing.T) {
 	streams := []screenCastStream{{nodeID: 7}}
 
@@ -89,8 +90,8 @@ func TestSelectScreenCastStream_RefusesAStreamWithNoGeometry(t *testing.T) {
 		t.Fatal("selectScreenCastStream() error = nil, want a refusal")
 	}
 
-	if !strings.Contains(err.Error(), "geometry") {
-		t.Errorf("error = %q, want it to name the missing geometry", err.Error())
+	if !strings.Contains(err.Error(), "no size") {
+		t.Errorf("error = %q, want it to name the missing size", err.Error())
 	}
 }
 
@@ -175,6 +176,156 @@ func portalStreamEntry(nodeID uint32, x, y, width, height int32) []any {
 	}
 }
 
+// portalSizedStreamEntry is the monitor stream every released Plasma (5.27
+// through 6.5) reports: a size and a source type, no position.
+func portalSizedStreamEntry(nodeID uint32, width, height int32, mappingID string) []any {
+	properties := map[string]dbus.Variant{
+		"size":        dbus.MakeVariant([]any{width, height}),
+		"source_type": dbus.MakeVariant(screenCastSourceMonitor),
+	}
+	if mappingID != "" {
+		properties["mapping_id"] = dbus.MakeVariant(mappingID)
+	}
+
+	return []any{nodeID, properties}
+}
+
+// The connector names KWin reports for two outputs, as mapping ids and as
+// wl_output names.
+const (
+	leftOutputName  = "DP-1"
+	rightOutputName = "DP-2"
+)
+
+// TestDecodeScreenCastStreams_KeepsASizedStreamWithoutAPosition is the shape
+// every released Plasma sends, and the one the first release of this backend
+// refused as "named no geometry": the size is kept at the origin, the stream
+// is marked unpositioned so it can be placed later, and a mapping id is read
+// when a newer Plasma attaches one.
+func TestDecodeScreenCastStreams_KeepsASizedStreamWithoutAPosition(t *testing.T) {
+	streams := decodeScreenCastStreams(portalStreamReply(
+		portalSizedStreamEntry(7, 1280, 800, ""),
+		portalSizedStreamEntry(8, 1920, 1080, leftOutputName),
+	))
+
+	want := []screenCastStream{
+		{nodeID: 7, bounds: image.Rect(0, 0, 1280, 800)},
+		{nodeID: 8, bounds: image.Rect(0, 0, 1920, 1080), mappingID: leftOutputName},
+	}
+	if len(streams) != len(want) {
+		t.Fatalf("decoded %+v, want %+v", streams, want)
+	}
+
+	for i := range want {
+		if streams[i] != want[i] {
+			t.Errorf("stream %d = %+v, want %+v", i, streams[i], want[i])
+		}
+	}
+}
+
+// TestPlaceScreenCastStreams_PlacesUnpositionedStreams is the whole reason
+// hints work on a released Plasma. It pins the placement rule case by case: a
+// mapping id wins over size, a size finds the one output of that size, two
+// identical outputs pair off in order, and a stream nothing can place stays
+// at the origin. A stream the portal positioned itself is never touched.
+func TestPlaceScreenCastStreams_PlacesUnpositionedStreams(t *testing.T) {
+	sized := func(nodeID uint32, w, h int) screenCastStream {
+		return screenCastStream{nodeID: nodeID, bounds: image.Rect(0, 0, w, h)}
+	}
+	placedAt := func(stream screenCastStream, bounds image.Rectangle) screenCastStream {
+		stream.bounds = bounds
+		stream.positioned = true
+
+		return stream
+	}
+
+	left := image.Rect(0, 0, 1920, 1080)
+	right := image.Rect(1920, 0, 3840, 1080)
+	wide := image.Rect(1920, 0, 4480, 1440)
+
+	tests := []struct {
+		name    string
+		streams []screenCastStream
+		outputs []screenCastOutput
+		want    []screenCastStream
+	}{
+		{
+			name:    "single monitor with no outputs listed stays at the origin",
+			streams: []screenCastStream{sized(7, 1280, 800)},
+			want:    []screenCastStream{sized(7, 1280, 800)},
+		},
+		{
+			name:    "different sizes find their own output",
+			streams: []screenCastStream{sized(41, 1920, 1080), sized(42, 2560, 1440)},
+			outputs: []screenCastOutput{{leftOutputName, left}, {rightOutputName, wide}},
+			want: []screenCastStream{
+				placedAt(sized(41, 1920, 1080), left),
+				placedAt(sized(42, 2560, 1440), wide),
+			},
+		},
+		{
+			name:    "identical monitors pair off in order",
+			streams: []screenCastStream{sized(41, 1920, 1080), sized(42, 1920, 1080)},
+			outputs: []screenCastOutput{{leftOutputName, left}, {rightOutputName, right}},
+			want: []screenCastStream{
+				placedAt(sized(41, 1920, 1080), left),
+				placedAt(sized(42, 1920, 1080), right),
+			},
+		},
+		{
+			name: "mapping id beats size and order",
+			streams: []screenCastStream{
+				{nodeID: 41, bounds: image.Rect(0, 0, 1920, 1080), mappingID: rightOutputName},
+				sized(42, 1920, 1080),
+			},
+			outputs: []screenCastOutput{{leftOutputName, left}, {rightOutputName, right}},
+			want: []screenCastStream{
+				{nodeID: 41, bounds: right, positioned: true, mappingID: rightOutputName},
+				placedAt(sized(42, 1920, 1080), left),
+			},
+		},
+		{
+			name: "a positioned stream is kept and its output not reused",
+			streams: []screenCastStream{
+				{nodeID: 41, bounds: right, positioned: true},
+				sized(42, 1920, 1080),
+			},
+			outputs: []screenCastOutput{{leftOutputName, left}, {rightOutputName, right}},
+			want: []screenCastStream{
+				{nodeID: 41, bounds: right, positioned: true},
+				placedAt(sized(42, 1920, 1080), left),
+			},
+		},
+		{
+			name:    "no output of that size stays at the origin",
+			streams: []screenCastStream{sized(41, 1280, 800)},
+			outputs: []screenCastOutput{{leftOutputName, left}},
+			want:    []screenCastStream{sized(41, 1280, 800)},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			input := make([]screenCastStream, len(testCase.streams))
+			copy(input, testCase.streams)
+
+			placed := placeScreenCastStreams(input, testCase.outputs)
+
+			for i := range testCase.want {
+				if placed[i] != testCase.want[i] {
+					t.Errorf("placed[%d] = %+v, want %+v", i, placed[i], testCase.want[i])
+				}
+			}
+
+			for i := range input {
+				if input[i] != testCase.streams[i] {
+					t.Errorf("placeScreenCastStreams mutated its input at %d", i)
+				}
+			}
+		})
+	}
+}
+
 // TestDecodeScreenCastStreams_ReadsEachMonitorsPlaceOnScreen is what makes a
 // captured frame placeable: the portal's position and size are the only source
 // for where a streamed monitor sits, and without them a crop could not be
@@ -198,7 +349,7 @@ func TestDecodeScreenCastStreams_ReadsEachMonitorsPlaceOnScreen(t *testing.T) {
 }
 
 // TestDecodeScreenCastStreams_KeepsAStreamWhoseGeometryIsMissing pins the
-// choice between two ways of being wrong. A stream the portal named no position
+// choice between two ways of being wrong. A stream the portal named no size
 // for is useless for placing a region, but dropping it would leave the caller
 // with an empty list and the sentence "this session streams no monitor", which
 // is a different problem with a different remedy. It is kept with zero bounds

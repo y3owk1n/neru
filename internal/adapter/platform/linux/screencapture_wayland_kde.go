@@ -166,7 +166,15 @@ func kdeCaptureRegion(ctx context.Context, region image.Rectangle) (*image.RGBA,
 		return nil, err
 	}
 
-	stream, local, err := selectScreenCastStream(state.grant.streams, region)
+	// Placement happens per capture rather than once per grant: outputs move
+	// and change between captures, and the grant outlives all of that. A
+	// compositor that will not list its outputs costs nothing here. The
+	// unpositioned streams stay at the origin, which is where a single
+	// monitor is anyway.
+	outputs, _ := wlrootsScreenOutputs()
+
+	stream, local, err := selectScreenCastStream(
+		placeScreenCastStreams(state.grant.streams, outputs), region)
 	if err != nil {
 		return nil, err
 	}
