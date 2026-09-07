@@ -142,10 +142,14 @@ if ($From) {
 
 # ---------------------------------------------------------------- platform --
 
-$arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
-    'Arm64' { 'arm64' }
-    'X64' { 'amd64' }
-    default { Fail "Unsupported architecture '$_' (releases ship amd64 and arm64)." }
+# PROCESSOR_ARCHITEW6432 names the real machine when this PowerShell runs
+# emulated (x86 Windows PowerShell on an ARM64 machine, say); the .NET
+# RuntimeInformation call is not reliable there under Windows PowerShell 5.1.
+$machine = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+$arch = switch ($machine) {
+    'ARM64' { 'arm64' }
+    'AMD64' { 'amd64' }
+    default { Fail "Unsupported architecture '$machine' (releases ship amd64 and arm64)." }
 }
 $asset = "neru-windows-$arch.zip"
 
