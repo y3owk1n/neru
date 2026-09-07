@@ -57,6 +57,10 @@ const scriptFileName = "neru-kwin-geometry.js"
 // answers and only one of them should send a caller to the active screen.
 var errKWinAbsent = errors.New("org.kde.KWin is not on the session bus")
 
+// errBusClosed is the reason recorded when the bridge's connection went away
+// under it, until the reinstall it schedules says otherwise.
+var errBusClosed = errors.New("the session bus connection carrying the KWin bridge was closed")
+
 // errNoRuntimeDir and errRuntimeDirNotPrivate are the two ways a session can
 // fail to offer somewhere the geometry script may live. They are separate
 // because a user fixes them differently: the first is a session started outside
@@ -104,6 +108,14 @@ type Geometry struct {
 
 	// watching is the restart watch's one-shot claim (restart_watch.go).
 	watching claim
+
+	// conn is the bridge's own session-bus connection, dialed by connection.
+	// Not the process-wide dbus.SessionBus(): closing that closes every
+	// signal channel subscribed on it, and the tray closes it when its loop
+	// ends, which ended the restart watch silently and left the exported
+	// receiver on a dead connection with the last window still cached.
+	// Guarded by startMu.
+	conn *dbus.Conn
 
 	startMu   sync.Mutex
 	starting  bool
@@ -450,7 +462,7 @@ func (g *Geometry) recordAttempt(generation uint64, err error) {
 // ahead of that check on purpose — watchKWin says why it is not the same kind
 // of act.
 func (g *Geometry) install() error {
-	conn, err := dbus.SessionBus()
+	conn, err := g.connection()
 	if err != nil {
 		return fmt.Errorf("session bus: %w", err)
 	}
@@ -482,6 +494,29 @@ func (g *Geometry) install() error {
 	}
 
 	return g.installScript(conn)
+}
+
+// connection returns the bridge's own bus connection, dialing one when there
+// is none or the last one was closed under it. A fresh connection carries no
+// watch, export or name, so the restart watch's claim is released with it and
+// install re-arms everything on the new one.
+func (g *Geometry) connection() (*dbus.Conn, error) {
+	g.startMu.Lock()
+	defer g.startMu.Unlock()
+
+	if g.conn != nil && g.conn.Connected() {
+		return g.conn, nil
+	}
+
+	conn, err := dbus.ConnectSessionBus()
+	if err != nil {
+		return nil, err
+	}
+
+	g.conn = conn
+	g.watching.release()
+
+	return conn, nil
 }
 
 // installScript writes the KWin script to disk and loads + starts it.

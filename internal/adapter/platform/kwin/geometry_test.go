@@ -6,7 +6,9 @@ import (
 	"errors"
 	"image"
 	"testing"
+	"time"
 
+	"github.com/godbus/dbus/v5"
 	"go.uber.org/zap"
 )
 
@@ -400,5 +402,45 @@ func TestShared_ReturnsOneBridge(t *testing.T) {
 
 	if first != second {
 		t.Fatal("Shared() handed out two caches; KDE geometry must have one source")
+	}
+}
+
+// TestGeometry_AClosedSignalChannelReinstalls pins what the bridge does when
+// the connection carrying its watch is closed under it: the cache empties, the
+// reason is recorded, and an install is scheduled on the spot rather than
+// waiting for a caller to notice a permanently stale window.
+func TestGeometry_AClosedSignalChannelReinstalls(t *testing.T) {
+	geometry := newGeometry(nil)
+
+	installs := make(chan struct{}, 1)
+	geometry.installer = func() error {
+		installs <- struct{}{}
+
+		return errKWinAbsent
+	}
+
+	pushErr := geometry.UpdateActiveWindow("1,2,3,4,konsole,konsole,shell")
+	if pushErr != nil {
+		t.Fatal(pushErr)
+	}
+
+	signals := make(chan *dbus.Signal)
+	close(signals)
+
+	geometry.serveOwnerChanges(signals)
+
+	select {
+	case <-installs:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no install attempt followed the closed channel")
+	}
+
+	_, ok, err := geometry.Focused()
+	if ok || err == nil {
+		t.Fatalf(
+			"Focused() after the channel closed = (ok=%v, err=%v), want the cache emptied with a reason",
+			ok,
+			err,
+		)
 	}
 }

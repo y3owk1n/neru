@@ -107,8 +107,11 @@ func (g *Geometry) watchKWin(conn *dbus.Conn) {
 	go g.serveOwnerChanges(signals)
 }
 
-// serveOwnerChanges runs for the daemon's life, which is the same life the
-// compositor it watches has.
+// serveOwnerChanges runs as long as the connection does. The channel closing
+// means the connection went away, and with it the watch, the exported
+// receiver and the owned name: a cache with no script able to feed it is the
+// stale answer this bridge exists to end, so it is emptied, the reason is
+// recorded, and a reinstall on a fresh connection is scheduled.
 func (g *Geometry) serveOwnerChanges(signals <-chan *dbus.Signal) {
 	for signal := range signals {
 		owner, ok := kwinOwnerFrom(signal)
@@ -118,6 +121,13 @@ func (g *Geometry) serveOwnerChanges(signals <-chan *dbus.Signal) {
 
 		g.kwinOwnerChanged(owner)
 	}
+
+	g.log().Debug("KWin bridge connection closed; reinstalling on a new one")
+
+	g.invalidate()
+	g.recordAttempt(g.forgetInstall(), errBusClosed)
+	g.watching.release()
+	g.EnsureStarted()
 }
 
 // kwinOwnerFrom reads a NameOwnerChanged for org.kde.KWin and returns its new
