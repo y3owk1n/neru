@@ -139,10 +139,22 @@ probe_binary() {
         if [ -n "$missing" ]; then
             note "Missing shared libraries:"
             printf '%s\n' "$missing" | sed 's/^/      /' >&2
+            # Ask the package manager which package ships each library, so
+            # the fix is one command away instead of a docs lookup.
+            if command -v dnf >/dev/null 2>&1; then
+                note "Find the packages with:"
+                printf '%s\n' "$missing" | sed "s|.*|      dnf provides '*/&'|" >&2
+            elif command -v apt-get >/dev/null 2>&1; then
+                note "Find the packages with (apt-file: sudo apt-get install apt-file && sudo apt-file update):"
+                printf '%s\n' "$missing" | sed 's|.*|      apt-file search &|' >&2
+            elif command -v pacman >/dev/null 2>&1; then
+                note "Find the packages with:"
+                printf '%s\n' "$missing" | sed 's|.*|      pacman -F &|' >&2
+            fi
         fi
-        note "Install the packages for your distribution listed under"
+        note "The full list per distribution is under"
         note "https://github.com/$repo/blob/main/docs/LINUX_SETUP.md#build-dependencies"
-        note "(the -dev/-devel packages pull in the runtime libraries), then rerun this script."
+        note "Install them, then rerun this script."
     fi
     die "Nothing was installed."
 }

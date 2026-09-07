@@ -263,7 +263,6 @@ sudo dnf install -y \
   libXfixes-devel \
   libxkbcommon-devel \
   libei-devel \
-  liboeffis-devel \
   fontconfig-devel \
   tesseract-devel \
   tesseract-langpack-eng \
@@ -293,7 +292,15 @@ sudo pacman -S \
   ttf-dejavu
 ```
 
-On Arch, `liboeffis` is bundled in the `libei` package.
+On Fedora and Arch, `liboeffis` is bundled in the `libei` package. dnf rejects
+the whole transaction when one name is unknown, so a stray `liboeffis-devel`
+leaves every other package uninstalled too.
+
+Release binaries need only the runtime halves. On Fedora that is `tesseract-libs`
+(the `tesseract` package is the CLI alone), `tesseract-langpack-eng`, `libei`,
+`pipewire-libs`, `cairo`, `libxkbcommon` and the `libX11`, `libXtst`, `libXrandr`,
+`libXinerama` and `libXfixes` packages. The `-devel` packages above pull all of
+them in.
 
 `fontconfig` is required at build time. DejaVu fonts are the defaults when
 `font_family` is unset, and carry the sticky modifier symbols `❖⇧⌥⌃`.
