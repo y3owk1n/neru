@@ -783,26 +783,25 @@ static const struct zwlr_foreign_toplevel_manager_v1_listener neru_wlr_manager_l
 // same NeruToplevel nodes and the same recompute serve both sources, so
 // everything downstream of focused_app_id is unaware which one answered.
 //
-// Commits: the ext handle's `done` commits app_id and title together with any
-// pending state and geometry, because cosmic-comp sends it at the end of every
-// batch that changed either handle. The info global's own `done` (v2) commits
-// the same fields for every window, but cosmic-comp sends it only once the
-// batch has settled on a later refresh, so it is a backstop rather than the
-// commit point.
+// Commits: the ext handle's `done` commits that window's app_id, title,
+// geometry and activation. Activation is exclusive, and a focus change sends
+// `state` to the window losing it and the one gaining it in either order, so
+// committing an activation clears every other window's: whichever `done`
+// comes second, at most one window reads as active. The info global's own
+// `done` (v2), the protocol's atomicity point across windows, commits every
+// pending state again once the batch has settled.
 
-// neru_wlr_cosmic_commit applies a node's pending cosmic state. Activation is
-// exclusive: a focus change sends `state` to both the window losing it and the
-// one gaining it, but `done` may reach only one of them before the info-level
-// commit, so every window's pending activation is committed together or two
-// would read as active. Caller holds toplevel_mutex.
+// neru_wlr_cosmic_commit applies one node's pending cosmic state. An
+// activation clears every other window's, so the set never holds two. Caller
+// holds toplevel_mutex.
 static void neru_wlr_cosmic_commit(NeruWlrootsClient *c, NeruToplevel *t) {
 	t->has_geometry = t->pending_has_geometry;
 	memcpy(t->geometry, t->pending_geometry, sizeof(t->geometry));
-	NeruToplevel *other;
-	wl_list_for_each(other, &c->toplevels, link) {
-		if (other->cosmic_handle)
-			other->activated = other->pending_activated;
+	if (t->pending_activated) {
+		NeruToplevel *other;
+		wl_list_for_each(other, &c->toplevels, link) { other->activated = 0; }
 	}
+	t->activated = t->pending_activated;
 }
 
 static void neru_wlr_ext_toplevel_closed(void *data, struct ext_foreign_toplevel_handle_v1 *handle) {
@@ -1065,8 +1064,9 @@ static void neru_wlr_ext_list_finished(void *data, struct ext_foreign_toplevel_l
 	c->focused_title[0] = '\0';
 	c->focused_has_geometry = 0;
 	neru_wlr_toplevel_unlock(c);
-	// As with the wlr manager: the server invalidates the global after
-	// `finished`, so the proxy is dropped rather than destroyed.
+	// Unlike the wlr manager, the ext list's `finished` asks the client to
+	// destroy the object, so the proxy is released here rather than dropped.
+	ext_foreign_toplevel_list_v1_destroy(list);
 	c->ext_toplevel_list = NULL;
 }
 
@@ -1089,8 +1089,9 @@ static void neru_wlr_cosmic_info_finished(void *data, struct zcosmic_toplevel_in
 	(void)info;
 }
 
-// `done` closes a batch of cosmic handle events: commit every pending state and
-// geometry at once so a focus change and its geometry land together.
+// `done` closes a batch of cosmic handle events across every window: commit
+// whatever is still pending, including geometry that arrived without an ext
+// `done` beside it.
 static void neru_wlr_cosmic_info_done(void *data, struct zcosmic_toplevel_info_v1 *info) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
 	(void)info;
