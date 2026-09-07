@@ -35,7 +35,6 @@ Accept every prompt (NERU_YES=1).
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('', 'stable', 'nightly')]
     [string]$Channel = $env:NERU_CHANNEL,
     [string]$Version = $env:NERU_VERSION,
     [string]$From = $env:NERU_FROM,
@@ -97,6 +96,9 @@ function Ask([string]$Prompt) {
 
 # ------------------------------------------------------------------- flags --
 
+# Validated by hand rather than with ValidateSet: PowerShell re-checks that
+# attribute on every later assignment, and the local-build path sets 'source'.
+if ($Channel -notin '', 'stable', 'nightly') { Fail "-Channel must be stable or nightly, got '$Channel'." }
 if ($Purge -and -not $Uninstall) { Fail '-Purge only makes sense with -Uninstall.' }
 if ($Version) {
     if ($Version -match '^\d') { $Version = "v$Version" }
