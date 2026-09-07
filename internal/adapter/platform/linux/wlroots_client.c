@@ -1209,6 +1209,13 @@ static void neru_wlr_registry_global(
 	} else if (strcmp(interface, "zwlr_foreign_toplevel_manager_v1") == 0) {
 		c->toplevel_mgr =
 		    wl_registry_bind(registry, name, &zwlr_foreign_toplevel_manager_v1_interface, 3 < version ? 3 : version);
+		// The listener goes on before this handler returns. Binding makes the
+		// compositor replay a `toplevel` event for every existing window, and
+		// those arrive with the next roundtrip; a listener attached after it
+		// would miss every window already open, and the focus changes between
+		// them for the rest of the session (only windows opened later would be
+		// tracked at all).
+		zwlr_foreign_toplevel_manager_v1_add_listener(c->toplevel_mgr, &neru_wlr_manager_listener, c);
 	} else if (strcmp(interface, "ext_foreign_toplevel_list_v1") == 0) {
 		c->ext_toplevel_list_name = name;
 	} else if (strcmp(interface, "zcosmic_toplevel_info_v1") == 0 && version >= 2) {
@@ -1426,12 +1433,11 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 	// and this is the case where the manager arrived after the capability.
 	neru_wlr_bind_relative_pointer(c);
 
-	// Subscribe to foreign-toplevel events. Binding the manager makes the
+	// The manager's listener was attached at bind time. Binding makes the
 	// compositor replay a `toplevel` event for every existing window; a
 	// roundtrip drains that initial burst (plus each handle's app_id/state/
 	// done) so the focused app_id is populated before the daemon needs it.
 	if (c->toplevel_mgr) {
-		zwlr_foreign_toplevel_manager_v1_add_listener(c->toplevel_mgr, &neru_wlr_manager_listener, c);
 		wl_display_roundtrip(c->display);
 	}
 
