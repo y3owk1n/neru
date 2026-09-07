@@ -166,10 +166,12 @@ it, so a hint label typed while Super is still coming up is the label.
   dropped rather than advertised, since a joystick or gamepad button on the
   pointer proxy would have udev class it as a joystick (`isMouseButton`). The
   proxy keyboard itself stays a pure keyboard for the same reason.
-- A device that reports absolute axes (a keyboard with a built-in trackpad on
+- A device that reports position axes (a keyboard with a built-in trackpad on
   the same node) is never grabbed: re-emitting touches would need its axis
   ranges and slots, so it keeps its keys out of Neru's reach, as X11's grab
-  already leaves them.
+  already leaves them. Only ABS_X, ABS_Y and the multitouch position axes
+  count (`hasPointerAxes`); a Bluetooth keyboard's volume knob is an absolute
+  axis too, and turning such a keyboard away left it uncaptured.
 - Every keystroke on the system crosses the daemon while it runs. The run
   goroutine takes no lock the mode handler can hold, and a crashed daemon is
   recovered by the kernel, which drops every grab and the uinput device with the

@@ -129,8 +129,9 @@ Three consequences of holding the keyboards:
   through a second device of its own, `neru-pointer-proxy`, created the first
   time such a keyboard is grabbed. Quitting the remapper while Neru runs is
   fine: Neru takes the keyboards it released.
-- A keyboard that reports absolute axes (a built-in trackpad on the same node)
-  is never grabbed, so its keys are not captured.
+- A keyboard that reports touch or pen position axes (a built-in trackpad on
+  the same node) is never grabbed, so its keys are not captured. A volume knob
+  or another non-position axis, common on Bluetooth keyboards, does not count.
 - Compositor settings applied per input device (an `input` block in Sway or
   Hyprland, a per-device keyboard layout in KDE) apply to
   `neru-keyboard-proxy` while the daemon runs, since that is the keyboard the

@@ -330,11 +330,14 @@ static int neru_evdev_has_event_type(int fd, int type) {
 	return NERU_TEST_KEY(ev_bits, type);
 }
 
-/* A node that reports absolute axes is a touch surface or a tablet with keys
- * on it (a keyboard with a built-in trackpad). Grabbing it for its keys would
- * swallow its touches, and re-emitting those would need the device's own axis
- * ranges and slots, so it is left alone. */
-int neru_evdev_has_abs_axes(int fd) { return neru_evdev_has_event_type(fd, EV_ABS); }
+/* The absolute axes fd advertises, as the EVIOCGBIT(EV_ABS) bitmap. bits_size
+ * is in bytes and must cover ABS_CNT, one word. Which axes make a node a touch surface
+ * is decided by the caller (hasPointerAxes): a keyboard's volume knob is an
+ * absolute axis too, and a bare EV_ABS test would turn such a keyboard away. */
+int neru_evdev_get_abs_bits(int fd, unsigned long *bits, size_t bits_size) {
+	memset(bits, 0, bits_size);
+	return ioctl(fd, EVIOCGBIT(EV_ABS, bits_size), bits) < 0 ? -1 : 0;
+}
 
 /* A node that reports relative axes is a keyboard with a pointer on it: a
  * receiver that exposes its mouse and keyboard on one node, or a remapper's
