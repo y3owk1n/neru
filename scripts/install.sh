@@ -120,6 +120,33 @@ need() {
     command -v "$1" >/dev/null 2>&1 || die "'$1' is required but not installed."
 }
 
+# neru_version BIN -> the version string, or nothing when BIN cannot run.
+neru_version() {
+    { "$1" --version 2>/dev/null || true; } | sed -n 's/^Neru version //p' | head -n1
+}
+
+# probe_binary BIN -> dies before anything is installed when BIN cannot
+# start here. On Linux the release links libtesseract, libpipewire and the
+# X11/Wayland libraries dynamically, so a missing one fails every command.
+probe_binary() {
+    local out missing
+    if out="$("$1" --version 2>&1)"; then return 0; fi
+    say ""
+    warn "The Neru binary cannot start on this system:"
+    printf '%s\n' "$out" | sed 's/^/      /' >&2
+    if [ "$os" = linux ] && command -v ldd >/dev/null 2>&1; then
+        missing="$(ldd "$1" 2>/dev/null | awk '/not found/ { print $1 }')"
+        if [ -n "$missing" ]; then
+            note "Missing shared libraries:"
+            printf '%s\n' "$missing" | sed 's/^/      /' >&2
+        fi
+        note "Install the packages for your distribution listed under"
+        note "https://github.com/$repo/blob/main/docs/LINUX_SETUP.md#build-dependencies"
+        note "(the -dev/-devel packages pull in the runtime libraries), then rerun this script."
+    fi
+    die "Nothing was installed."
+}
+
 # sudo_for DIR -> prints "sudo" when DIR (or its nearest existing parent) is
 # not writable by this user, so callers prefix commands with it.
 sudo_for() {
@@ -145,6 +172,8 @@ on_interrupt() {
     exit 130
 }
 on_error() {
+    # A command substitution inherits this trap; let the parent shell report.
+    [ "${BASH_SUBSHELL:-0}" -eq 0 ] || exit 1
     say ""
     printf '  %s✗ Unexpected failure at line %s: %s%s\n' "$c_red" "$1" "$BASH_COMMAND" "$c_reset" >&2
     note "Please report this with the lines above at $gh_base/issues."
@@ -271,7 +300,7 @@ fi
 installed_version=""
 installed_channel=""
 if [ -x "$neru_bin" ]; then
-    installed_version="$("$neru_bin" --version 2>/dev/null | sed -n 's/^Neru version //p' | head -n1)"
+    installed_version="$(neru_version "$neru_bin")"
     # A release tag is exactly vX.Y.Z; a source build carries git describe's
     # -N-gSHA or -dirty suffix behind it.
     if [ -z "$installed_version" ]; then installed_channel=unknown
@@ -485,6 +514,8 @@ else
     [ -x "$src/bin/neru" ] || die "The release archive did not contain bin/neru."
 fi
 
+probe_binary "$src/bin/neru"
+
 # ----------------------------------------------------------------- install --
 
 if [ -n "$installed_channel" ]; then
@@ -634,7 +665,7 @@ fi
 
 # ---------------------------------------------------------------- manifest --
 
-new_version="$("$neru_bin" --version 2>/dev/null | sed -n 's/^Neru version //p' | head -n1)"
+new_version="$(neru_version "$neru_bin")"
 mkdir -p "$state_dir"
 {
     echo "channel=$channel"

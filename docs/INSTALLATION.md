@@ -106,8 +106,13 @@ completions for whichever of bash, zsh and fish you have. It asks for sudo only
 when one of those directories is not writable, and says so before the password
 prompt. Say yes to the last question and it registers the launchd login agent.
 
-On Linux it copies `neru` to `~/.local/bin`, man pages to
-`~/.local/share/man/man1`, and completions to the usual per-user paths. It offers
+On Linux the release binary links the X11, Wayland, tesseract and pipewire
+libraries dynamically, so the script runs the downloaded binary once before it
+installs anything. When a library is missing it lists the names, points at the
+package lists in [LINUX_SETUP.md](LINUX_SETUP.md#build-dependencies), and stops
+without touching your system. Once that passes it copies `neru` to
+`~/.local/bin`, man pages to `~/.local/share/man/man1`, and completions to the
+usual per-user paths. It offers
 the systemd user service and, when you are not already in it, the `input` group
 that Wayland keyboard capture needs.
 
