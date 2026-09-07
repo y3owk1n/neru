@@ -149,12 +149,32 @@ if ($onPath -and $onPath.Source -ne $exe) {
     Write-Warn "Another neru.exe is on PATH at $($onPath.Source). This installer manages $exe only."
 }
 
+# Invoke-Neru runs the installed binary and returns its stdout as one string,
+# leaving the exit code in $script:neruExit. Under Windows PowerShell 5.1 the
+# strict error preference turns any stderr line from a native command into a
+# terminating error, and neru writes "not running" and the like to stderr, so
+# the preference is relaxed for the call and stderr is dropped.
+$script:neruExit = 0
+function Invoke-Neru {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = & $exe @Arguments 2>$null | Out-String
+        $script:neruExit = $LASTEXITCODE
+        return $output
+    } catch {
+        $script:neruExit = 1
+        return ''
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
+
 function Get-InstalledVersion {
     if (-not (Test-Path $exe)) { return '' }
-    try {
-        $line = (& $exe --version 2>$null | Select-String -Pattern '^Neru version (.+)$' | Select-Object -First 1)
-        if ($line) { return $line.Matches[0].Groups[1].Value.Trim() }
-    } catch { }
+    $line = Invoke-Neru --version | Select-String -Pattern '^Neru version (.+)$' | Select-Object -First 1
+    if ($line) { return $line.Matches[0].Groups[1].Value.Trim() }
     return ''
 }
 
@@ -178,16 +198,14 @@ function Stop-InstalledNeru {
     # and whether a bare daemon was running.
     $result = @{ Service = $false; Daemon = $false }
     if (-not (Test-Path $exe)) { return $result }
-    $status = ''
-    try { $status = (& $exe services status 2>$null | Out-String) } catch { }
-    if ($status -match '^Service installed') {
+    if ((Invoke-Neru services status) -match '^Service installed') {
         $result.Service = $true
-        try { & $exe services uninstall 2>$null | Out-Null } catch { }
+        Invoke-Neru services uninstall | Out-Null
     }
-    & $exe status *> $null
-    if ($LASTEXITCODE -eq 0) {
+    Invoke-Neru status | Out-Null
+    if ($script:neruExit -eq 0) {
         $result.Daemon = $true
-        try { & $exe stop 2>$null | Out-Null } catch { }
+        Invoke-Neru stop | Out-Null
     }
     Get-Process -Name neru -ErrorAction SilentlyContinue |
         Where-Object { $_.Path -eq $exe } |
@@ -396,8 +414,8 @@ try {
     # A failed update must not cost the user autostart: put the login task
     # back on whichever neru.exe is at the install path now.
     if ($serviceUnloaded -and (Test-Path $exe)) {
-        & $exe services install *> $null
-        if ($LASTEXITCODE -eq 0) { Write-Warn 'Re-registered the login task that was unloaded for the update.' }
+        Invoke-Neru services install | Out-Null
+        if ($script:neruExit -eq 0) { Write-Warn 'Re-registered the login task that was unloaded for the update.' }
         else { Write-Warn 'The login task was unloaded for the update and could not be restored. Run: neru services install' }
     }
     throw
@@ -479,8 +497,8 @@ if (-not $NoCompletions) {
 $serviceState = 'none'
 if (-not $NoService) {
     if ($serviceWasInstalled) {
-        & $exe services install *> $null
-        if ($LASTEXITCODE -eq 0) {
+        Invoke-Neru services install | Out-Null
+        if ($script:neruExit -eq 0) {
             $serviceState = 'restarted'
             Write-Ok 'Login task resumed on the new version'
         } else {
@@ -491,8 +509,8 @@ if (-not $NoService) {
         Write-Step 'Login task'
         Write-Note 'Neru runs as a background daemon. Registering it starts it now and at every login.'
         if (Ask 'Start Neru now and at every login?') {
-            & $exe services install *> $null
-            if ($LASTEXITCODE -eq 0) {
+            Invoke-Neru services install | Out-Null
+            if ($script:neruExit -eq 0) {
                 $serviceState = 'installed'
                 # An older installer wrote a Run key for the same purpose; left
                 # in place it would launch a second daemon at every login.
