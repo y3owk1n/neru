@@ -81,49 +81,8 @@ jobs:
             - name: Build neru darwin arm64 artifact
               run: just release-ci-darwin arm64 ${{ inputs.version_override }}
 
-            - name: Generate man pages
-              run: go run ./cmd/genman build/man
-
-            - name: Bundle neru-darwin-arm64
-              run: |
-                  mkdir -p build/arm64/Neru.app/Contents/{MacOS,Resources}
-                  cp bin/neru-darwin-arm64 build/arm64/Neru.app/Contents/MacOS/neru
-                  chmod +x build/arm64/Neru.app/Contents/MacOS/neru
-                  cp resources/icon.icns build/arm64/Neru.app/Contents/Resources/icon.icns
-                  cp resources/Neru.entitlements build/arm64/Neru.app/Contents/Resources/Neru.entitlements
-                  mkdir -p build/arm64/share/man/man1
-                  cp build/man/*.1 build/arm64/share/man/man1/
-                  sed \
-                    -e "s/BUNDLE_VERSION/${{ inputs.macos_bundle_version }}/g" \
-                    -e "s/SHORT_VERSION/${{ inputs.macos_short_version }}/g" \
-                    -e "s/BUILD_ID/${{ inputs.version_override }}/g" \
-                    resources/Info.plist.template > build/arm64/Neru.app/Contents/Info.plist
-                  mkdir -p build/arm64/bin
-                  cp bin/neru-darwin-arm64 build/arm64/bin/neru
-                  chmod +x build/arm64/bin/neru
-
-            - name: Codesign neru-darwin-arm64 (ad-hoc)
-              run: |
-                  # TODO: Replace ad-hoc with Developer ID + notarization when cert is set up
-                  #       Remove this step and uncomment the "Developer ID sign & notarize" step below.
-                  codesign --force --deep --sign - \
-                    --entitlements resources/Neru.entitlements \
-                    --options runtime \
-                    build/arm64/Neru.app
-
-            # # TODO: Enable when Developer ID cert is set up (and disable the ad-hoc step above)
-            # - name: Developer ID sign & notarize
-            #   uses: ./.github/actions/developer-id-notarize
-            #   with:
-            #     app-path: build/arm64/Neru.app
-            #     developer-id-identity: 'Developer ID Application: Your Name (TEAM_ID)'
-            #     mac-developer-id-cert: ${{ secrets.mac_developer_id_cert }}
-            #     mac-developer-id-key: ${{ secrets.mac_developer_id_key }}
-            #     mac-dev-id-keychain-pwd: ${{ secrets.mac_dev_id_keychain_pwd }}
-            #     apple-notary-api-issuer: ${{ secrets.apple_notary_api_issuer }}
-            #     apple-notary-api-key-id: ${{ secrets.apple_notary_api_key_id }}
-            #     apple-notary-api-key: ${{ secrets.apple_notary_api_key }}
-            #     apple-team-id: ${{ secrets.apple_team_id }}
+            - name: Assemble neru-darwin-arm64
+              run: just dist bin/neru-darwin-arm64 build/arm64 "${{ inputs.macos_bundle_version }}" "${{ inputs.macos_short_version }}" "${{ inputs.version_override }}"
 
             - name: Package neru-darwin-arm64
               run: |
@@ -178,49 +137,8 @@ jobs:
             - name: Build neru darwin amd64 artifact
               run: just release-ci-darwin amd64 ${{ inputs.version_override }}
 
-            - name: Generate man pages
-              run: go run ./cmd/genman build/man
-
-            - name: Bundle neru-darwin-amd64
-              run: |
-                  mkdir -p build/amd64/Neru.app/Contents/{MacOS,Resources}
-                  cp bin/neru-darwin-amd64 build/amd64/Neru.app/Contents/MacOS/neru
-                  chmod +x build/amd64/Neru.app/Contents/MacOS/neru
-                  cp resources/icon.icns build/amd64/Neru.app/Contents/Resources/icon.icns
-                  cp resources/Neru.entitlements build/amd64/Neru.app/Contents/Resources/Neru.entitlements
-                  mkdir -p build/amd64/share/man/man1
-                  cp build/man/*.1 build/amd64/share/man/man1/
-                  sed \
-                    -e "s/BUNDLE_VERSION/${{ inputs.macos_bundle_version }}/g" \
-                    -e "s/SHORT_VERSION/${{ inputs.macos_short_version }}/g" \
-                    -e "s/BUILD_ID/${{ inputs.version_override }}/g" \
-                    resources/Info.plist.template > build/amd64/Neru.app/Contents/Info.plist
-                  mkdir -p build/amd64/bin
-                  cp bin/neru-darwin-amd64 build/amd64/bin/neru
-                  chmod +x build/amd64/bin/neru
-
-            - name: Codesign neru-darwin-amd64 (ad-hoc)
-              run: |
-                  # TODO: Replace ad-hoc with Developer ID + notarization when cert is set up
-                  #       Remove this step and uncomment the "Developer ID sign & notarize" step below.
-                  codesign --force --deep --sign - \
-                    --entitlements resources/Neru.entitlements \
-                    --options runtime \
-                    build/amd64/Neru.app
-
-            # # TODO: Enable when Developer ID cert is set up (and disable the ad-hoc step above)
-            # - name: Developer ID sign & notarize
-            #   uses: ./.github/actions/developer-id-notarize
-            #   with:
-            #     app-path: build/amd64/Neru.app
-            #     developer-id-identity: 'Developer ID Application: Your Name (TEAM_ID)'
-            #     mac-developer-id-cert: ${{ secrets.mac_developer_id_cert }}
-            #     mac-developer-id-key: ${{ secrets.mac_developer_id_key }}
-            #     mac-dev-id-keychain-pwd: ${{ secrets.mac_dev_id_keychain_pwd }}
-            #     apple-notary-api-issuer: ${{ secrets.apple_notary_api_issuer }}
-            #     apple-notary-api-key-id: ${{ secrets.apple_notary_api_key_id }}
-            #     apple-notary-api-key: ${{ secrets.apple_notary_api_key }}
-            #     apple-team-id: ${{ secrets.apple_team_id }}
+            - name: Assemble neru-darwin-amd64
+              run: just dist bin/neru-darwin-amd64 build/amd64 "${{ inputs.macos_bundle_version }}" "${{ inputs.macos_short_version }}" "${{ inputs.version_override }}"
 
             - name: Package neru-darwin-amd64
               run: |
@@ -283,17 +201,11 @@ jobs:
             - name: Build neru linux amd64 artifact
               run: just release-ci-linux amd64 ${{ inputs.version_override }}
 
-            - name: Generate man pages
-              run: go run ./cmd/genman build/man
+            - name: Assemble neru-linux-amd64
+              run: just dist bin/neru-linux-amd64 build/linux-amd64
 
-            - name: Bundle neru-linux-amd64
+            - name: Package neru-linux-amd64
               run: |
-                  mkdir -p build/linux-amd64/bin
-                  cp bin/neru-linux-amd64 build/linux-amd64/bin/neru
-                  chmod +x build/linux-amd64/bin/neru
-                  mkdir -p build/linux-amd64/share/man/man1
-                  cp build/man/*.1 build/linux-amd64/share/man/man1/
-
                   cd build/linux-amd64
                   zip -r ../../neru-linux-amd64.zip bin share
                   cd ../..
@@ -353,17 +265,11 @@ jobs:
             - name: Build neru linux arm64 artifact
               run: just release-ci-linux arm64 ${{ inputs.version_override }}
 
-            - name: Generate man pages
-              run: go run ./cmd/genman build/man
+            - name: Assemble neru-linux-arm64
+              run: just dist bin/neru-linux-arm64 build/linux-arm64
 
-            - name: Bundle neru-linux-arm64
+            - name: Package neru-linux-arm64
               run: |
-                  mkdir -p build/linux-arm64/bin
-                  cp bin/neru-linux-arm64 build/linux-arm64/bin/neru
-                  chmod +x build/linux-arm64/bin/neru
-                  mkdir -p build/linux-arm64/share/man/man1
-                  cp build/man/*.1 build/linux-arm64/share/man/man1/
-
                   cd build/linux-arm64
                   zip -r ../../neru-linux-arm64.zip bin share
                   cd ../..
@@ -405,17 +311,13 @@ jobs:
               run: just release-ci-windows amd64 ${{ inputs.version_override }}
               shell: bash
 
-            - name: Generate man pages
-              run: go run ./cmd/genman build/man
+            - name: Assemble neru-windows-amd64
+              run: just dist bin/neru-windows-amd64.exe build/windows-amd64
+              shell: bash
 
-            - name: Bundle neru-windows-amd64
+            - name: Package neru-windows-amd64
               shell: pwsh
-              run: |
-                  New-Item -ItemType Directory -Force -Path build/windows-amd64/bin
-                  Copy-Item bin/neru-windows-amd64.exe build/windows-amd64/bin/neru.exe
-                  New-Item -ItemType Directory -Force -Path build/windows-amd64/share/man/man1
-                  Copy-Item build/man/*.1 build/windows-amd64/share/man/man1/
-                  Compress-Archive -Path build/windows-amd64/* -DestinationPath neru-windows-amd64.zip
+              run: Compress-Archive -Path build/windows-amd64/* -DestinationPath neru-windows-amd64.zip
 
             # Set-Content would end the line with CRLF, and `sha256sum -c` folds
             # that CR into the filename and then reports the file as missing —
@@ -465,17 +367,13 @@ jobs:
               run: just release-ci-windows arm64 ${{ inputs.version_override }}
               shell: bash
 
-            - name: Generate man pages
-              run: go run ./cmd/genman build/man
+            - name: Assemble neru-windows-arm64
+              run: just dist bin/neru-windows-arm64.exe build/windows-arm64
+              shell: bash
 
-            - name: Bundle neru-windows-arm64
+            - name: Package neru-windows-arm64
               shell: pwsh
-              run: |
-                  New-Item -ItemType Directory -Force -Path build/windows-arm64/bin
-                  Copy-Item bin/neru-windows-arm64.exe build/windows-arm64/bin/neru.exe
-                  New-Item -ItemType Directory -Force -Path build/windows-arm64/share/man/man1
-                  Copy-Item build/man/*.1 build/windows-arm64/share/man/man1/
-                  Compress-Archive -Path build/windows-arm64/* -DestinationPath neru-windows-arm64.zip
+              run: Compress-Archive -Path build/windows-arm64/* -DestinationPath neru-windows-arm64.zip
 
             - name: Generate windows arm64 checksum
               shell: pwsh

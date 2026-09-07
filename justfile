@@ -191,36 +191,86 @@ bundle: release
 
     @echo "✓ Bundle complete: build/Neru.app"
 
-# Install a built Neru. Dispatches to the per-platform script in scripts/. Build
-# first: `just bundle` (macOS), `just build` (Linux), `just build-windows`
-# (Windows). Pass -y to accept every prompt non-interactively (`just install -y`).
-# On Windows this runs under a bash such as Git Bash.
-[doc('Install a built Neru with the platform script in scripts/.')]
-install *ARGS:
+# Assemble the release layout: bin/neru, share/man/man1 and, on macOS, an
+# ad-hoc signed Neru.app. It is the exact tree a release zip unpacks to, so the
+# installer and CI's publish jobs both consume it. BIN defaults to `just build`
+# output; CI passes its cross-built binary plus the Info.plist versions.
+# Usage: just dist [BIN] [OUT] [BUNDLE_VERSION] [SHORT_VERSION] [BUILD_ID]
+[doc('Assemble the release layout (bin, man, Neru.app on macOS) under build/dist.')]
+dist BIN="" OUT="build/dist" BUNDLE_VERSION="" SHORT_VERSION="" BUILD_ID="":
     #!/usr/bin/env bash
     set -euo pipefail
-    script="{{ justfile_directory() }}/scripts/install-{{ os() }}.sh"
-    if [ ! -f "$script" ]; then
-        echo "just install: unsupported platform '{{ os() }}'" >&2
+    cd "{{ justfile_directory() }}"
+    exe=""
+    [ "{{ os() }}" = windows ] && exe=.exe
+    bin="{{ BIN }}"
+    [ -n "$bin" ] || bin="bin/neru$exe"
+    if [ ! -f "$bin" ]; then
+        echo "just dist: $bin not found; run 'just build' first" >&2
         exit 1
     fi
-    exec bash "$script" {{ ARGS }}
+    out="{{ OUT }}"
+    rm -rf "$out"
+    mkdir -p "$out/bin" "$out/share/man/man1"
+    cp "$bin" "$out/bin/neru$exe"
+    chmod +x "$out/bin/neru$exe"
+    go run ./cmd/genman "$out/share/man/man1" >/dev/null
+    if [ "{{ os() }}" = macos ]; then
+        # Local builds derive the plist versions from the git describe
+        # string: v1.52.0-3-gabc-dirty becomes 1.52.0, anything else 0.0.0.
+        short="{{ SHORT_VERSION }}"
+        if [ -z "$short" ]; then
+            short="$(printf '%s' "{{ VERSION }}" | sed -e 's/^v//' -e 's/-.*//')"
+            case "$short" in
+                [0-9]*.[0-9]*.[0-9]*) ;;
+                *) short=0.0.0 ;;
+            esac
+        fi
+        bundle="{{ BUNDLE_VERSION }}"
+        [ -n "$bundle" ] || bundle="$short"
+        build_id="{{ BUILD_ID }}"
+        [ -n "$build_id" ] || build_id="{{ VERSION }}"
+        app="$out/Neru.app"
+        mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+        cp "$bin" "$app/Contents/MacOS/neru"
+        chmod +x "$app/Contents/MacOS/neru"
+        cp resources/icon.icns "$app/Contents/Resources/icon.icns"
+        cp resources/Neru.entitlements "$app/Contents/Resources/Neru.entitlements"
+        sed \
+            -e "s/BUNDLE_VERSION/$bundle/g" \
+            -e "s/SHORT_VERSION/$short/g" \
+            -e "s/BUILD_ID/$build_id/g" \
+            resources/Info.plist.template > "$app/Contents/Info.plist"
+        codesign --force --deep --sign - --entitlements resources/Neru.entitlements --options runtime "$app"
+    fi
+    echo "✓ Release layout assembled in $out"
 
-# Remove a Neru installed by `just install`, undoing each of its steps in
-# reverse. Dispatches to the per-platform script in scripts/. Pass -y to accept
-# every prompt non-interactively, and --purge to also remove your config and
-# logs (they are kept otherwise, so -y alone can never delete your config.toml).
-# On Windows this runs under a bash such as Git Bash.
+# Build, assemble the release layout, and install it with the same script a
+# `curl | bash` user runs (scripts/install.sh, or install.ps1 on Windows), so
+# a source install lands in the same places as a release. Pass -y to accept
+# every prompt (`just install -y`); other flags are the installer's own.
+[doc('Build and install from source via the release installer; -y auto-accepts.')]
+install *ARGS: build dist
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ justfile_directory() }}"
+    if [ "{{ os() }}" = windows ]; then
+        exec powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -From "$(cygpath -w build/dist)" {{ ARGS }}
+    fi
+    exec bash scripts/install.sh --from build/dist {{ ARGS }}
+
+# Remove whatever `just install` or the curl installer put in place. Pass -y to
+# accept every prompt, and --purge to also remove your config and logs (they
+# are kept otherwise, so -y alone can never delete your config.toml).
 [doc('Undo `just install`; your config survives unless you pass --purge.')]
 uninstall *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    script="{{ justfile_directory() }}/scripts/uninstall-{{ os() }}.sh"
-    if [ ! -f "$script" ]; then
-        echo "just uninstall: unsupported platform '{{ os() }}'" >&2
-        exit 1
+    cd "{{ justfile_directory() }}"
+    if [ "{{ os() }}" = windows ]; then
+        exec powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -Uninstall {{ ARGS }}
     fi
-    exec bash "$script" {{ ARGS }}
+    exec bash scripts/install.sh --uninstall {{ ARGS }}
 
 # Run tests
 
