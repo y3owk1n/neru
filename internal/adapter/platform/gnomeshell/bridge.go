@@ -92,6 +92,12 @@ type Bridge struct {
 	// one the caller had.
 	dataDir string
 
+	// conn is the bridge's own session-bus connection. Not the process-wide
+	// dbus.SessionBus(): closing that closes every channel subscribed on it,
+	// and the tray closes it when its loop ends, which would end the signal
+	// stream here with the last answer still cached and nothing to say so.
+	conn *dbus.Conn
+
 	mu       sync.RWMutex
 	window   Window
 	valid    bool
@@ -270,7 +276,7 @@ func (b *Bridge) warnOnce(err error) {
 // connect arms the bus watch, asks whether the extension is on the bus, and
 // reads the current state once. Everything after that arrives as signals.
 func (b *Bridge) connect() error {
-	conn, err := dbus.SessionBus()
+	conn, err := b.connection()
 	if err != nil {
 		return fmt.Errorf("session bus: %w", err)
 	}
@@ -324,6 +330,27 @@ func (b *Bridge) absent(hint string) error {
 	return fmt.Errorf("%w; %s", errExtensionAbsent, hint)
 }
 
+// connection returns the bridge's own bus connection, dialing one when there
+// is none or the last one was closed under it.
+func (b *Bridge) connection() (*dbus.Conn, error) {
+	b.startMu.Lock()
+	defer b.startMu.Unlock()
+
+	if b.conn != nil && b.conn.Connected() {
+		return b.conn, nil
+	}
+
+	conn, err := dbus.ConnectSessionBus()
+	if err != nil {
+		return nil, err
+	}
+
+	b.conn = conn
+	b.watching = false
+
+	return conn, nil
+}
+
 func nameHasOwner(conn *dbus.Conn, name string) (bool, error) {
 	var hasOwner bool
 
@@ -372,9 +399,10 @@ func (b *Bridge) watch(conn *dbus.Conn) {
 	go b.serve(signals)
 }
 
-// serve runs for the daemon's life. The channel is the process-wide session
-// bus's, so anything else subscribed on it arrives here too and every signal
-// is checked by shape rather than trusted to the match rules.
+// serve runs as long as the connection does. Every signal is checked by shape
+// rather than trusted to the match rules. The channel closing means the
+// connection went away, and a cache with no stream behind it is the stale
+// answer this bridge exists to end, so the bridge reconnects.
 func (b *Bridge) serve(signals <-chan *dbus.Signal) {
 	for signal := range signals {
 		switch signal.Name {
@@ -388,6 +416,20 @@ func (b *Bridge) serve(signals <-chan *dbus.Signal) {
 			}
 		}
 	}
+
+	b.log().Debug("GNOME Shell bridge connection closed; reconnecting")
+
+	b.mu.Lock()
+	b.window, b.valid = Window{}, false
+	b.startErr = errNotConnected
+	b.mu.Unlock()
+
+	b.startMu.Lock()
+	b.connected = false
+	b.watching = false
+	b.startMu.Unlock()
+
+	b.EnsureStarted()
 }
 
 func (b *Bridge) ownerChanged(owner string) {
