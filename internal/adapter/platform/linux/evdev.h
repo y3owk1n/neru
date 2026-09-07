@@ -26,7 +26,7 @@ int neru_uinput_key(int fd, int keycode, int pressed);
  * re-emitted through, so the compositor's libinput only ever sees one device
  * that Neru controls. A grabbed keyboard that also reports relative motion has
  * that motion, and its mouse buttons, re-emitted on the pointer proxy. */
-int neru_evdev_has_abs_axes(int fd);
+int neru_evdev_get_abs_bits(int fd, unsigned long *bits, size_t bits_size);
 int neru_evdev_has_rel_axes(int fd);
 int neru_evdev_get_key_state(int fd, unsigned long *bits, size_t bits_size);
 int neru_uinput_create_proxy_keyboard(int *out_fd);

@@ -236,11 +236,16 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, devi
 
 	// A Neru device is known by its vendor id as well as its name, so the proxy
 	// cannot grab its own output even on a node whose name did not read.
-	if C.neru_evdev_is_keyboard(descriptor) == 0 ||
-		C.neru_evdev_has_abs_axes(descriptor) != 0 ||
-		C.neru_evdev_is_neru_device(descriptor) != 0 ||
-		isNeruInjectionDevice(name) {
+	if reason := skipReason(descriptor, name); reason != "" {
 		_ = file.Close()
+
+		if capture.logger != nil {
+			capture.logger.Debug(
+				"Input device is not a keyboard to capture",
+				zap.String("device", path),
+				zap.String("reason", reason),
+			)
+		}
 
 		return nil, deviceSkipped
 	}
@@ -331,6 +336,34 @@ func (capture *waylandEvdevCapture) ensurePointerProxyLocked(path string) bool {
 	}
 
 	return true
+}
+
+// skipReason names why the node behind descriptor is not a keyboard this
+// capture reads, or is empty when it is one. The name is for the log, never
+// the device's title.
+func skipReason(descriptor C.int, name string) string {
+	switch {
+	case C.neru_evdev_is_keyboard(descriptor) == 0:
+		return "no keyboard keys"
+	case touchSurface(descriptor):
+		return "touch or tablet axes"
+	case C.neru_evdev_is_neru_device(descriptor) != 0 || isNeruInjectionDevice(name):
+		return "neru's own device"
+	}
+
+	return ""
+}
+
+// touchSurface reports whether the node behind fd carries position axes
+// (hasPointerAxes). A node whose axes cannot be read is not called one.
+func touchSurface(fd C.int) bool {
+	var bits C.ulong
+
+	if C.neru_evdev_get_abs_bits(fd, &bits, C.size_t(unsafe.Sizeof(bits))) != 0 {
+		return false
+	}
+
+	return hasPointerAxes(uint64(bits))
 }
 
 // keysHeld reports whether the kernel has any key down on fd. The error is a
