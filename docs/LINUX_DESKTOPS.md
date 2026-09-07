@@ -316,12 +316,12 @@ notches. Build dependencies and systemd deployment are in
 ## GNOME (Wayland)
 
 **Backend:** `wayland-gnome`
-**Status:** Supported with Xwayland (GNOME Shell 50 / Mutter, measured); no
-focused-window source, so per-app config does not apply and hints in native
-Wayland apps stay window-relative
+**Status:** Supported with Xwayland and the Neru GNOME Shell extension
+(GNOME Shell 50 / Mutter, measured)
 
 Mutter implements none of the wlr family beyond `zxdg_output_manager_v1`, so
-GNOME borrows more mechanisms from other desktops than any of them:
+GNOME borrows more mechanisms from other desktops than any of them, and
+carries one of its own:
 
 - **Screens** come off xdg-output through the shared wlroots client, as on
   every other Wayland desktop.
@@ -351,6 +351,36 @@ GNOME borrows more mechanisms from other desktops than any of them:
   pointer's entry with global coordinates, and Neru destroys the window
   again, all inside a frame. Mutter keeps the X root in the logical layout,
   so those coordinates are the ones every other subsystem uses.
+- **The focused window comes from a GNOME Shell extension.** Mutter tells a
+  client neither which window is focused nor where it is, and the shell's own
+  `org.gnome.Shell.Introspect` answers only the portals. Neru ships a small
+  extension, `neru@y3owk1n.github.io`, that owns `org.neru.Shell` on the
+  session bus and reports the focused window's app id (Mutter's `WM_CLASS`,
+  which is the Wayland `app_id` for native clients), title and frame, on
+  request and on every change. It is the same fact three readers share, as
+  the KWin script is on KDE: per-app config and the app watcher key on the
+  app id, hints in native Wayland apps are offset by the frame's origin, and
+  `FocusedWindowBounds` reports the frame. Code:
+  `internal/adapter/platform/gnomeshell`, `atspi/gnome_origin.go`.
+
+### The extension
+
+The daemon installs the extension itself. On a GNOME session where
+`org.neru.Shell` is not on the bus, it writes the two files into
+`$XDG_DATA_HOME/gnome-shell/extensions/neru@y3owk1n.github.io/`
+(`~/.local/share` by default), adds the UUID to the shell's
+`enabled-extensions` setting, and warns once with what it did. GNOME Shell
+loads a new extension only at login, so **log out and back in** after the
+first daemon start on a machine. Until then every mode works, but per-app
+config does not apply and hints in native Wayland apps stay window-relative;
+`neru doctor` reports `app_watcher` as a stub with the same instruction. The
+files are rewritten only when a new Neru ships a changed extension, and a
+reinstall never re-enables one you disabled.
+
+The extension does nothing but answer that one question. It reads
+`global.display.focus_window`, watches it for moves, resizes and title
+changes, and emits `FocusedWindowChanged`; it neither logs nor stores
+anything.
 
 ### Protocol support (Mutter 50.4, measured)
 
@@ -366,23 +396,17 @@ GNOME borrows more mechanisms from other desktops than any of them:
 
 ### Known issues
 
-- **No focused-window source.** Mutter tells a client neither which window
-  is focused nor where it is, and GNOME Shell's `org.gnome.Shell.Introspect`
-  interface is off by default and carries no geometry. So `[apps]` entries
-  never match, the app watcher has nothing to watch, and nothing can correct
-  AT-SPI's window-relative coordinates, so hints in native Wayland
-  applications land relative to the window's own origin. Applications running
-  under Xwayland report global coordinates and are unaffected. Grid, recursive
-  grid and scroll do not depend on any of this. A GNOME Shell extension is the
-  known way to close the gap ([ROADMAP.md](ROADMAP.md#open-direction)).
+- **A fresh install needs one re-login** before the extension serves, see
+  above. `neru doctor` says so until it does.
 - **HiDPI needs Mutter's default Xwayland scaling.** The overlay draws in the
   X root's coordinate space, which Mutter keeps equal to the logical layout
   by default, and Mutter then upscales the overlay with every other X client
-  on a scaled monitor. With the `xwayland-native-scaling` experimental feature on,
-  the root is in physical pixels and the overlay lands at the wrong place on
-  scaled monitors. The daemon warns at startup when Xft.dpi says so.
-- **Budgie** identifies itself as GNOME and takes this backend untested.
-  Cinnamon (Muffin) and Pantheon (Gala) are Mutter-based too but resolve to
+  on a scaled monitor. With the `xwayland-native-scaling` experimental feature
+  on, the root is in physical pixels and the overlay lands at the wrong place
+  on scaled monitors. The daemon warns at startup when Xft.dpi says so.
+- **Budgie** identifies itself as GNOME and takes this backend untested; its
+  shell is not GNOME Shell, so the extension has nowhere to load. Cinnamon
+  (Muffin) and Pantheon (Gala) are Mutter-based too but resolve to
   `wayland-other` and are refused. Someone has to run the protocol check
   below on each before it can be admitted.
 

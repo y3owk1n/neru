@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/gnomeshell"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -116,6 +117,14 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 
 			return err
 		})
+	// The watcher is built on the same focused-app source as Process, and on
+	// GNOME that source is the Neru GNOME Shell extension: a session it is
+	// not running in has a watcher that reports nothing, and doctor has to
+	// say so rather than promise per-app config.
+	if s.backend == backendWaylandGNOME {
+		capabilities.AppWatcher = gnomeAppWatcherCapability()
+	}
+
 	capabilities.Screen = s.probedCapability("screen enumeration", capabilities.Screen,
 		func() error {
 			_, err := s.ScreenBounds(context.Background())
@@ -219,15 +228,10 @@ func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) 
 		return x11FocusedApplicationPID()
 	}
 
-	// GNOME shares the wlr client, but Mutter offers it no toplevel protocol,
-	// so the query would report "nothing focused" for a desktop that can
-	// never say otherwise. That sentence promises an answer once a window
-	// takes focus, and here none is coming.
+	// GNOME shares the wlr client, but Mutter offers it no toplevel protocol;
+	// the Neru GNOME Shell extension is the source there.
 	if s.backend == backendWaylandGNOME {
-		return 0, derrors.New(
-			derrors.CodeNotSupported,
-			"FocusedApplicationPID: GNOME/Mutter exposes no focused-app source (no foreign-toplevel protocol)",
-		)
+		return gnomeFocusedApplicationPID()
 	}
 
 	if s.waylandUsesWlrClientStack() {
@@ -1146,3 +1150,24 @@ func darkModeCapability(value int, source darkModeSource, ok bool) ports.Feature
 
 // SystemAdapter posts single moves without waiting for the held-key glide.
 var _ ports.InstantCursorMover = (*SystemAdapter)(nil)
+
+// gnomeAppWatcherCapability reports the watcher as the extension's state: live
+// when the extension answers, a stub naming the fix when it does not.
+func gnomeAppWatcherCapability() ports.FeatureCapability {
+	bridge := gnomeshell.Shared(nil)
+	bridge.EnsureStarted()
+
+	_, _, err := bridge.Focused()
+	if err != nil {
+		return ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: "focused-app watcher needs the Neru GNOME Shell extension: " + err.Error() +
+				"; enable " + gnomeshell.UUID + " and log out and back in",
+		}
+	}
+
+	return ports.FeatureCapability{
+		Status: ports.FeatureStatusSupported,
+		Detail: "focused-app change detection keyed on the app_id the Neru GNOME Shell extension reports, event-driven",
+	}
+}

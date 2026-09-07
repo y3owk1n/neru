@@ -57,21 +57,29 @@ int neru_x11_discover_pointer(Display *display, int timeout_ms, int *x, int *y) 
 		return 0;
 	}
 
+	// The trap covers creation and map only, so the wait below never holds
+	// the process-wide trap lock; every resource here is our own, so the one
+	// error that can arrive is an allocation failure, and that has to become
+	// a failed sync rather than the exit the default handler performs.
 	XSetWindowAttributes attrs;
 	attrs.override_redirect = True;
 	attrs.event_mask = EnterWindowMask | PointerMotionMask;
-	attrs.colormap = XCreateColormap(display, root, visual_info.visual, AllocNone);
 	attrs.background_pixel = 0;
 	attrs.border_pixel = 0;
-	// No error trap: every resource here is our own and the visual matches
-	// the colormap, so none of these requests can legitimately fail.
+	neru_x11_error_trap_begin(display);
+	attrs.colormap = XCreateColormap(display, root, visual_info.visual, AllocNone);
 	Window probe = XCreateWindow(
 	    display, root, 0, 0, (unsigned int)DisplayWidth(display, screen), (unsigned int)DisplayHeight(display, screen),
 	    0, visual_info.depth, InputOutput, visual_info.visual,
 	    CWOverrideRedirect | CWEventMask | CWColormap | CWBackPixel | CWBorderPixel, &attrs);
-
 	XMapRaised(display, probe);
-	XFlush(display);
+	if (neru_x11_error_trap_end(display)) {
+		neru_x11_error_trap_begin(display);
+		XDestroyWindow(display, probe);
+		XFreeColormap(display, attrs.colormap);
+		neru_x11_error_trap_end(display);
+		return 0;
+	}
 
 	int found = 0;
 	int fd = ConnectionNumber(display);

@@ -6,6 +6,7 @@ import (
 	"github.com/godbus/dbus/v5"
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 )
 
@@ -213,12 +214,14 @@ func (c *Client) ensureA11yConn() (*dbus.Conn, error) {
 // the one captured when the frame was selected. It compares the app_id and, for
 // same-application window switches (which share an app_id), the window title. A
 // mismatch means focus changed before the walk, so the selected frame is stale
-// and must not be walked or offset. When no live app_id is available (X11/GNOME)
+// and must not be walked or offset. When no live app_id is available (X11)
 // there is nothing to compare, so it returns true. Identical or empty titles
 // cannot distinguish sibling windows, so a switch between them is not detected —
 // there is no distinguishing information to use.
 func (c *Client) focusStableSince(selectedAppID, selectedTitle string) bool {
-	currentAppID, currentTitle, ok := linux.WaylandFocusedAppIdentity()
+	currentAppID, currentTitle, ok := linux.FocusedAppIdentity(
+		platform.DetectLinuxBackend().String(),
+	)
 	if !ok {
 		return true
 	}

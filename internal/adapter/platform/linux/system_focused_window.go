@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform/compositorcli"
+	"github.com/y3owk1n/neru/internal/adapter/platform/gnomeshell"
 	"github.com/y3owk1n/neru/internal/adapter/platform/kwin"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -46,6 +47,7 @@ const (
 	focusedWindowSourceSway
 	focusedWindowSourceHyprland
 	focusedWindowSourceCosmic
+	focusedWindowSourceGNOME
 )
 
 // waylandFocusedWindowSource picks the geometry source for a Wayland session.
@@ -65,10 +67,11 @@ func waylandFocusedWindowSource(backend string) focusedWindowSource {
 		return focusedWindowSourceCosmic
 	}
 
-	// Mutter exposes no window geometry to a client at all; a wlroots socket
-	// inherited from another session would not describe its windows either.
+	// Mutter exposes no window geometry to a client; the Neru GNOME Shell
+	// extension answers instead. A wlroots socket inherited from another
+	// session would not describe its windows either.
 	if backend == backendWaylandGNOME {
-		return focusedWindowSourceNone
+		return focusedWindowSourceGNOME
 	}
 
 	switch {
@@ -104,6 +107,8 @@ func waylandFocusedWindowBounds(backend string) (image.Rectangle, bool, error) {
 		return hyprlandFocusedWindowBounds()
 	case focusedWindowSourceCosmic:
 		return wlrootsFocusedWindowGeometry()
+	case focusedWindowSourceGNOME:
+		return gnomeFocusedWindowBounds()
 	case focusedWindowSourceNone:
 	}
 
@@ -132,6 +137,12 @@ func waylandFocusedWindowBounds(backend string) (image.Rectangle, bool, error) {
 // the daemon — which is a subscription rather than a claim, and the KWin bridge
 // says why that is the one thing worth doing ahead of the probe.
 func warmFocusedWindowSource(backend string) {
+	if backend == backendWaylandGNOME {
+		gnomeshell.Shared(nil).EnsureStarted()
+
+		return
+	}
+
 	if backend != backendWaylandKDE {
 		return
 	}
@@ -306,4 +317,23 @@ func niriFocusedWindowBounds() (image.Rectangle, bool, error) {
 		originX+win.Layout.WindowSize[0],
 		originY+win.Layout.WindowSize[1],
 	), true, nil
+}
+
+// gnomeFocusedWindowBounds reads the extension's cache, the same rectangle the
+// AT-SPI origin source offsets by. EnsureStarted on every call for the reason
+// the KWin arm gives: the shell can reload the extension.
+func gnomeFocusedWindowBounds() (image.Rectangle, bool, error) {
+	bridge := gnomeshell.Shared(nil)
+	bridge.EnsureStarted()
+
+	bounds, found, err := bridge.Bounds()
+	if err != nil {
+		return image.Rectangle{}, false, derrors.Wrap(
+			err,
+			derrors.CodeNotSupported,
+			"no GNOME focused-window geometry source",
+		)
+	}
+
+	return bounds, found, nil
 }

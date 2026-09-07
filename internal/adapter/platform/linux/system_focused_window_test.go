@@ -65,10 +65,10 @@ func TestWaylandFocusedWindowSource_FollowsTheBackend(t *testing.T) {
 			focusedWindowSourceCosmic,
 		},
 		{
-			"gnome has no source and ignores a stale wlroots socket",
+			"gnome asks the shell extension and ignores a stale wlroots socket",
 			backendWaylandGNOME,
 			map[string]string{swaySocketEnv: staleSwaySocket},
-			focusedWindowSourceNone,
+			focusedWindowSourceGNOME,
 		},
 		{
 			"a wlroots compositor with no IPC has no source",

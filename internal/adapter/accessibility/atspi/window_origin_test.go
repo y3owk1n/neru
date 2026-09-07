@@ -119,7 +119,12 @@ func TestNewWindowOriginSourceFollowsTheBackend(t *testing.T) {
 			map[string]string{niriSocketEnv: "/run/niri.sock"},
 			"*atspi.cosmicOriginSource",
 		},
-		{"gnome has no source", platform.BackendWaylandGNOME, nil, noOriginType},
+		{
+			"gnome asks the shell extension",
+			platform.BackendWaylandGNOME,
+			nil,
+			"*atspi.gnomeOriginSource",
+		},
 		{"other wayland has no source", platform.BackendWaylandOther, nil, noOriginType},
 		{"an unknown backend has no source", platform.BackendUnknown, nil, noOriginType},
 	}

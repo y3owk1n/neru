@@ -2,6 +2,8 @@
 
 package linux
 
+import "github.com/y3owk1n/neru/internal/adapter/platform/gnomeshell"
+
 // SubscribeFocusedApp returns a file descriptor that becomes readable whenever
 // the focused application changes on the given backend (as produced by
 // platform.LinuxBackend.String()). The app watcher blocks on this fd and
@@ -18,6 +20,8 @@ func SubscribeFocusedApp(backend string) (int, bool) {
 		return x11FocusEventFD()
 	case backendWaylandWlroots, backendWaylandKDE, backendWaylandCOSMIC:
 		return wlrootsFocusEventFD()
+	case backendWaylandGNOME:
+		return gnomeshell.Shared(nil).FocusEventFD()
 	default:
 		return -1, false
 	}

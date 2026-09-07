@@ -1,0 +1,8 @@
+{
+  "uuid": "neru@y3owk1n.github.io",
+  "name": "Neru",
+  "description": "Reports the focused window's app id, title and frame to the Neru daemon over D-Bus.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/y3owk1n/neru",
+  "version": 1
+}

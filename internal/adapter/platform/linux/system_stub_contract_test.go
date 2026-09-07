@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // unimplementedBackend is a backend name no dispatch branch recognizes, so
@@ -460,14 +461,39 @@ func TestSystemAdapter_FocusedApplicationPIDOnGNOMENamesTheMissingSource(t *test
 		t.Fatalf("FocusedApplicationPID() error = %v, want CodeNotSupported", err)
 	}
 
-	if !strings.Contains(err.Error(), "Mutter") {
-		t.Fatalf("FocusedApplicationPID() error = %q, want it to name Mutter", err.Error())
+	if !strings.Contains(err.Error(), "GNOME Shell extension") {
+		t.Fatalf("FocusedApplicationPID() error = %q, want it to name the extension", err.Error())
 	}
 
 	if strings.Contains(err.Error(), "focused window") {
 		t.Fatalf(
 			"FocusedApplicationPID() error = %q, must not promise an answer once a window is focused",
 			err.Error(),
+		)
+	}
+}
+
+// TestSystemAdapter_AppWatcherIsAStubOnGNOMEWithoutTheExtension pins that the
+// capability matrix does not advertise a watcher that cannot fire: with the
+// shell extension not running, GNOME has no focused-app source, and doctor
+// must name the fix rather than promise per-app config.
+func TestSystemAdapter_AppWatcherIsAStubOnGNOMEWithoutTheExtension(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	capabilities := linux.NewSystemAdapter(gnomeBackend).Capabilities()
+
+	if capabilities.AppWatcher.Status != ports.FeatureStatusStub {
+		t.Fatalf(
+			"AppWatcher.Status = %q, want %q",
+			capabilities.AppWatcher.Status,
+			ports.FeatureStatusStub,
+		)
+	}
+
+	if !strings.Contains(capabilities.AppWatcher.Detail, "GNOME Shell extension") {
+		t.Fatalf(
+			"AppWatcher.Detail = %q, want it to name the extension",
+			capabilities.AppWatcher.Detail,
 		)
 	}
 }

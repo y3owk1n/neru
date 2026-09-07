@@ -93,7 +93,7 @@ func linuxGNOMEProfile() Profile {
 		PrimaryModifier: defaultPrimaryModifier,
 		DisplayServer:   DisplayServerWaylandGNOME,
 		Accessibility: BackendPlan{
-			Name: "AT-SPI over D-Bus (no window-geometry source; hints are window-relative in Wayland apps)",
+			Name: "AT-SPI over D-Bus (hints corrected via the Neru GNOME Shell extension)",
 		},
 		Hotkeys: BackendPlan{
 			Name: "evdev from /dev/input (requires input group; or bind triggers in GNOME Settings > Keyboard)",

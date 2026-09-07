@@ -214,7 +214,9 @@ func (c *Client) FrontmostWindow(ctx context.Context) (ax.Window, error) {
 	// and to record it on the window. Reading it again after selection could
 	// capture a newer window's identity against the old frame, letting the
 	// ClickableNodes stability check accept a stale frame.
-	focusedAppID, focusedTitle, _ := linux.WaylandFocusedAppIdentity()
+	focusedAppID, focusedTitle, _ := linux.FocusedAppIdentity(
+		platform.DetectLinuxBackend().String(),
+	)
 
 	frame, ok := c.findActiveFrame(ctx, conn, focusedAppID, focusedTitle)
 	if !ok {

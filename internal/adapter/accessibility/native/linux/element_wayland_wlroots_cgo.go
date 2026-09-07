@@ -6,6 +6,7 @@ import (
 	"image"
 	"os"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -25,13 +26,13 @@ func wlrootsFocusedApplicationIdentity() (string, int) {
 	// the focused toplevel's app_id but not its PID, so the PID is 0. app_id is
 	// the identifier used for per-app configuration lookups; when a caller needs
 	// a real PID it falls back to the XWayland path if DISPLAY is set.
-	appID, ok := linux.WaylandFocusedAppID()
+	appID, ok := linux.FocusedAppID(platform.DetectLinuxBackend().String())
 	if ok && appID != "" {
 		return appID, 0
 	}
 
-	// No focused app_id available (e.g. GNOME/Mutter has no such manager, or
-	// nothing is focused yet). Fall through to the XWayland fallback.
+	// No focused app_id available (nothing is focused yet, or the GNOME
+	// extension is not running). Fall through to the XWayland fallback.
 	return "", 0
 }
 

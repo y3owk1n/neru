@@ -268,7 +268,7 @@ On **Windows**, UI Automation reports the control view only,
 per-app config does not re-apply when you change windows,
 and the OCR fallback is `Windows.Media.Ocr`, text only, needing a language pack. **Linux runs on X11 or Wayland on
 wlroots/KWin/COSMIC/GNOME**; on GNOME Wayland the overlay is drawn through
-Xwayland and hints stay window-relative in native Wayland apps.
+Xwayland and the focused window comes from a shell extension Neru installs.
 
 → [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
 

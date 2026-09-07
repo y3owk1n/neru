@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/gnomeshell"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
@@ -22,6 +23,30 @@ import (
 // honest rather than inventing a number.
 func waylandFocusedApplicationPID() (int, error) {
 	appID, ok := WaylandFocusedAppID()
+
+	return focusedApplicationPIDFromAppID(appID, ok)
+}
+
+// gnomeFocusedApplicationPID is the GNOME arm: the same /proc match, keyed on
+// what the extension reports. An extension that is not running is its own
+// answer, not an unfocused desktop.
+func gnomeFocusedApplicationPID() (int, error) {
+	bridge := gnomeshell.Shared(nil)
+	bridge.EnsureStarted()
+
+	window, found, err := bridge.Focused()
+	if err != nil {
+		return 0, derrors.Wrap(
+			err,
+			derrors.CodeNotSupported,
+			"FocusedApplicationPID: no GNOME focused-app source",
+		)
+	}
+
+	return focusedApplicationPIDFromAppID(window.AppID, found)
+}
+
+func focusedApplicationPIDFromAppID(appID string, ok bool) (int, error) {
 	if !ok || appID == "" {
 		return 0, waylandNoFocusedAppError()
 	}

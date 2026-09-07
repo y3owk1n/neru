@@ -38,7 +38,7 @@ The backend is detected once at startup from `XDG_CURRENT_DESKTOP`,
 | KDE Plasma (Wayland)                                                  | `wayland-kde`     | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#kde-plasma-wayland)              |
 | COSMIC (Wayland)                                                      | `wayland-cosmic`  | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#cosmic-wayland)                  |
 | X11 / XOrg, i3, GNOME on X11                                          | `x11`             | Supported                                                                               |
-| GNOME (Wayland), and Mutter-based desktops such as Budgie             | `wayland-gnome`   | Supported with Xwayland, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#gnome-wayland)     |
+| GNOME (Wayland), and Mutter-based desktops such as Budgie             | `wayland-gnome`   | Supported with Xwayland and the Neru GNOME Shell extension, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#gnome-wayland) |
 | Cinnamon and Pantheon on Wayland, Weston, Mir shells (miracle-wm), any other compositor | `wayland-other`   | Not supported, the daemon refuses to start                                              |
 
 Cinnamon and Pantheon are Mutter-based too and would take the GNOME path,
