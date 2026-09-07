@@ -346,9 +346,27 @@ func (b *Bridge) connection() (*dbus.Conn, error) {
 	}
 
 	b.conn = conn
-	b.watching = false
 
 	return conn, nil
+}
+
+// connectionClosed is how a serve loop reports that its channel closed. It is
+// true, and the watch re-armed, only for the connection the bridge still
+// holds: a loop whose connection was replaced while it was busy must not reset
+// its successor's state.
+func (b *Bridge) connectionClosed(conn *dbus.Conn) bool {
+	b.startMu.Lock()
+	defer b.startMu.Unlock()
+
+	if b.conn != conn {
+		return false
+	}
+
+	b.conn = nil
+	b.connected = false
+	b.watching = false
+
+	return true
 }
 
 func nameHasOwner(conn *dbus.Conn, name string) (bool, error) {
@@ -396,14 +414,14 @@ func (b *Bridge) watch(conn *dbus.Conn) {
 	signals := make(chan *dbus.Signal, signalBuffer)
 	conn.Signal(signals)
 
-	go b.serve(signals)
+	go b.serve(conn, signals)
 }
 
 // serve runs as long as the connection does. Every signal is checked by shape
 // rather than trusted to the match rules. The channel closing means the
 // connection went away, and a cache with no stream behind it is the stale
 // answer this bridge exists to end, so the bridge reconnects.
-func (b *Bridge) serve(signals <-chan *dbus.Signal) {
+func (b *Bridge) serve(conn *dbus.Conn, signals <-chan *dbus.Signal) {
 	for signal := range signals {
 		switch signal.Name {
 		case changedSignal:
@@ -417,17 +435,16 @@ func (b *Bridge) serve(signals <-chan *dbus.Signal) {
 		}
 	}
 
+	if !b.connectionClosed(conn) {
+		return
+	}
+
 	b.log().Debug("GNOME Shell bridge connection closed; reconnecting")
 
 	b.mu.Lock()
 	b.window, b.valid = Window{}, false
 	b.startErr = errNotConnected
 	b.mu.Unlock()
-
-	b.startMu.Lock()
-	b.connected = false
-	b.watching = false
-	b.startMu.Unlock()
 
 	b.EnsureStarted()
 }

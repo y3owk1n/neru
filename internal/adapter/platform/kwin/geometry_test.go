@@ -405,11 +405,11 @@ func TestShared_ReturnsOneBridge(t *testing.T) {
 	}
 }
 
-// TestGeometry_AClosedSignalChannelReinstalls pins what the bridge does when
-// the connection carrying its watch is closed under it: the cache empties, the
-// reason is recorded, and an install is scheduled on the spot rather than
-// waiting for a caller to notice a permanently stale window.
-func TestGeometry_AClosedSignalChannelReinstalls(t *testing.T) {
+// TestGeometry_ServeOwnerChanges_ReinstallsWhenTheChannelCloses pins what the
+// bridge does when the connection carrying its watch is closed under it: the
+// cache empties, the reason is recorded, and an install is scheduled on the
+// spot rather than waiting for a caller to notice a permanently stale window.
+func TestGeometry_ServeOwnerChanges_ReinstallsWhenTheChannelCloses(t *testing.T) {
 	geometry := newGeometry(nil)
 
 	installs := make(chan struct{}, 1)
@@ -427,7 +427,7 @@ func TestGeometry_AClosedSignalChannelReinstalls(t *testing.T) {
 	signals := make(chan *dbus.Signal)
 	close(signals)
 
-	geometry.serveOwnerChanges(signals)
+	geometry.serveOwnerChanges(nil, signals)
 
 	select {
 	case <-installs:
@@ -439,6 +439,39 @@ func TestGeometry_AClosedSignalChannelReinstalls(t *testing.T) {
 	if ok || err == nil {
 		t.Fatalf(
 			"Focused() after the channel closed = (ok=%v, err=%v), want the cache emptied with a reason",
+			ok,
+			err,
+		)
+	}
+}
+
+// TestGeometry_ServeOwnerChanges_IgnoresAReplacedConnection pins the other
+// half: a watcher whose connection the bridge has already replaced leaves the
+// successor's claim, cache and install alone when its own channel closes.
+func TestGeometry_ServeOwnerChanges_IgnoresAReplacedConnection(t *testing.T) {
+	geometry := newGeometry(nil)
+	geometry.installer = func() error {
+		t.Error("a retired watcher scheduled an install")
+
+		return nil
+	}
+
+	pushErr := geometry.UpdateActiveWindow("1,2,3,4,konsole,konsole,shell")
+	if pushErr != nil {
+		t.Fatal(pushErr)
+	}
+
+	geometry.conn = &dbus.Conn{}
+
+	signals := make(chan *dbus.Signal)
+	close(signals)
+
+	geometry.serveOwnerChanges(nil, signals)
+
+	_, ok, err := geometry.Focused()
+	if !ok || err != nil {
+		t.Fatalf(
+			"Focused() after a retired watcher's channel closed = (ok=%v, err=%v), want the cache untouched",
 			ok,
 			err,
 		)

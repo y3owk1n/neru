@@ -497,9 +497,9 @@ func (g *Geometry) install() error {
 }
 
 // connection returns the bridge's own bus connection, dialing one when there
-// is none or the last one was closed under it. A fresh connection carries no
-// watch, export or name, so the restart watch's claim is released with it and
-// install re-arms everything on the new one.
+// is none or the last one was closed under it. The watcher that owned the old
+// one releases the restart watch's claim on its way out (connectionClosed),
+// and install re-arms the watch, the export and the name on the new one.
 func (g *Geometry) connection() (*dbus.Conn, error) {
 	g.startMu.Lock()
 	defer g.startMu.Unlock()
@@ -514,9 +514,27 @@ func (g *Geometry) connection() (*dbus.Conn, error) {
 	}
 
 	g.conn = conn
-	g.watching.release()
 
 	return conn, nil
+}
+
+// connectionClosed is how a watcher reports that its channel closed. It is
+// true, and the watcher's claim released, only for the connection the bridge
+// still holds: a watcher whose connection was replaced while it was busy
+// handing over an owner change must not release the claim its successor took,
+// empty the successor's cache, or schedule a third install.
+func (g *Geometry) connectionClosed(conn *dbus.Conn) bool {
+	g.startMu.Lock()
+	defer g.startMu.Unlock()
+
+	if g.conn != conn {
+		return false
+	}
+
+	g.conn = nil
+	g.watching.release()
+
+	return true
 }
 
 // installScript writes the KWin script to disk and loads + starts it.
