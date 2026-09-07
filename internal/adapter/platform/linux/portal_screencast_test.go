@@ -287,13 +287,13 @@ func TestPlaceScreenCastStreams_PlacesUnpositionedStreams(t *testing.T) {
 		{
 			name: "a positioned stream is kept and its output not reused",
 			streams: []screenCastStream{
-				{nodeID: 41, bounds: right, positioned: true},
+				{nodeID: 41, bounds: left, positioned: true},
 				sized(42, 1920, 1080),
 			},
 			outputs: []screenCastOutput{{leftOutputName, left}, {rightOutputName, right}},
 			want: []screenCastStream{
-				{nodeID: 41, bounds: right, positioned: true},
-				placedAt(sized(42, 1920, 1080), left),
+				{nodeID: 41, bounds: left, positioned: true},
+				placedAt(sized(42, 1920, 1080), right),
 			},
 		},
 		{

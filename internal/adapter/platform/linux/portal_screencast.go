@@ -374,6 +374,20 @@ func placeScreenCastStreams(
 
 	used := make([]bool, len(outputs))
 
+	// An output the portal already placed a stream on is spoken for, so a
+	// sized stream of the same shape cannot land on it too.
+	for _, stream := range placed {
+		if !stream.positioned {
+			continue
+		}
+
+		for i, output := range outputs {
+			if output.bounds == stream.bounds {
+				used[i] = true
+			}
+		}
+	}
+
 	claim := func(stream *screenCastStream, match func(screenCastOutput) bool) {
 		for i, output := range outputs {
 			if used[i] || !match(output) {
