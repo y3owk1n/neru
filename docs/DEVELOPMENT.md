@@ -142,7 +142,6 @@ Wayland protocol generation and icon recipes.
 | Build   | `just build-windows [ARCH]`  | Build a Windows binary                          |
 | Build   | `just build-version v1.0.0`  | Build with an explicit version string           |
 | Build   | `just release`               | Optimized, stripped release build               |
-| Bundle  | `just bundle`                | Release build + macOS `Neru.app` (ad-hoc signed) |
 | Dist    | `just dist`                  | Assemble the release layout (bin, man, `Neru.app`) in `build/dist` |
 | Install | `just install [-y]`          | Build, `dist`, then run `scripts/install.sh --from`; `-y` auto-accepts |
 | Test    | `just test`                  | Unit + integration (desktop-safe: never drives your cursor) |

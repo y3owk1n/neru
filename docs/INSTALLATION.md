@@ -656,8 +656,8 @@ just release
 mv ./bin/neru /usr/local/bin/neru
 
 # macOS app bundle
-just bundle
-mv ./build/Neru.app /Applications/Neru.app
+just build && just dist
+mv ./build/dist/Neru.app /Applications/Neru.app
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed build options.

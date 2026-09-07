@@ -397,11 +397,19 @@ if [ "$uninstall" = 1 ]; then
     # never chooses a privileged target. A manifest path is honoured only
     # when it lies inside $HOME (no sudo there) or is exactly the location
     # this run would use anyway; anything else needs --bin-dir/--app-dir.
+    # The path is canonicalised through its parent directory first, so
+    # neither `..` segments nor a symlinked parent can dress a path outside
+    # the home directory up as one inside it.
+    home_real="$(cd "$HOME" 2>/dev/null && pwd -P)"
     trusted() {
-        case "$1" in
-            "$HOME"/*) return 0 ;;
+        local parent real
+        [ "$1" = "$2" ] && return 0
+        parent="$(cd "$(dirname "$1")" 2>/dev/null && pwd -P)" || return 1
+        real="$parent/$(basename "$1")"
+        case "$real" in
+            "$home_real"/*) return 0 ;;
         esac
-        [ "$1" = "$2" ]
+        return 1
     }
     app_dst=""
     link=""

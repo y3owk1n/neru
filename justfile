@@ -174,23 +174,6 @@ release-ci-windows ARCH VERSION_OVERRIDE:
     CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/buildinfo.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/buildinfo.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
     @echo "✓ Release artifact for windows/{{ ARCH }} built successfully"
 
-# Bundle the application
-[doc('Build, then package and ad-hoc sign build/Neru.app.')]
-bundle: release
-    @echo "Bundling Neru..."
-    mkdir -p build/Neru.app/Contents/{MacOS,Resources}
-
-    cp -r bin/neru build/Neru.app/Contents/MacOS/neru
-
-    cp resources/icon.icns build/Neru.app/Contents/Resources/icon.icns
-    cp resources/Neru.entitlements build/Neru.app/Contents/Resources/Neru.entitlements
-
-    sed "s/VERSION/{{ VERSION }}/g" resources/Info.plist.template > build/Neru.app/Contents/Info.plist
-
-    codesign --force --deep --sign - --entitlements resources/Neru.entitlements --options runtime build/Neru.app
-
-    @echo "✓ Bundle complete: build/Neru.app"
-
 # Assemble the release layout: bin/neru, share/man/man1 and, on macOS, an
 # ad-hoc signed Neru.app. It is the exact tree a release zip unpacks to, so the
 # installer and CI's publish jobs both consume it. BIN defaults to `just build`
