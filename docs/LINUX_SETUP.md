@@ -494,6 +494,28 @@ there unloaded.
 
 ## Troubleshooting
 
+### "error while loading shared libraries: libtesseract.so.5"
+
+The release binaries are built on Ubuntu, where tesseract's library is named
+`libtesseract.so.5`. Fedora builds tesseract with CMake, which names the same
+library `libtesseract.so.5.5`, so the binary refuses to start even with
+`tesseract-libs` installed. The installer checks for this before it copies
+anything and points here.
+
+Until the release stops linking tesseract by soname, add a compatibility link
+next to the library Fedora ships:
+
+```bash
+sudo dnf install -y tesseract-libs tesseract-langpack-eng
+ls /usr/lib64/libtesseract.so.5.*          # note the exact name, e.g. libtesseract.so.5.5
+sudo ln -s libtesseract.so.5.5 /usr/lib64/libtesseract.so.5
+```
+
+Use the name `ls` printed if it differs. Distributions that package tesseract
+with autotools (Debian, Ubuntu, Arch) already provide `libtesseract.so.5` and
+do not need this. Building from source on Fedora links against the local
+soname and does not need it either.
+
 ### "WAYLAND_DISPLAY is not set"
 
 Running under X11 or a TTY. Neru uses the X11 backend when `DISPLAY` is set.

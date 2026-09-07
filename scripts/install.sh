@@ -153,9 +153,23 @@ probe_binary() {
                 printf '%s\n' "$missing" | sed 's|.*|      pacman -F &|' >&2
             fi
         fi
-        note "The full list per distribution is under"
-        note "https://github.com/$repo/blob/main/docs/LINUX_SETUP.md#build-dependencies"
-        note "Install them, then rerun this script."
+        # Fedora names tesseract's library libtesseract.so.5.5 (CMake soname)
+        # where the Ubuntu-built release wants libtesseract.so.5. Installing
+        # more packages cannot fix that; a compatibility symlink does.
+        local fedora_tess="" f
+        for f in /usr/lib64/libtesseract.so.5.[0-9]* /usr/lib/libtesseract.so.5.[0-9]*; do
+            [ -e "$f" ] && { fedora_tess="$f"; break; }
+        done
+        if printf '%s\n' "$missing" | grep -qx 'libtesseract.so.5' && [ -n "$fedora_tess" ]; then
+            note "Your distribution ships the library as $(basename "$fedora_tess"). Link it under the"
+            note "name the release build expects, then rerun this script:"
+            note "      sudo ln -s $(basename "$fedora_tess") $(dirname "$fedora_tess")/libtesseract.so.5"
+            note "Details: https://github.com/$repo/blob/main/docs/LINUX_SETUP.md#troubleshooting"
+        else
+            note "The full list per distribution is under"
+            note "https://github.com/$repo/blob/main/docs/LINUX_SETUP.md#build-dependencies"
+            note "Install them, then rerun this script."
+        fi
     fi
     die "Nothing was installed."
 }
