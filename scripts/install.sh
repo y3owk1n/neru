@@ -710,10 +710,12 @@ if [ "$want_service" = 1 ]; then
     fi
 fi
 
-if [ "$os" = linux ] && ! id -nG 2>/dev/null | tr ' ' '\n' | grep -qx input; then
+if [ "$os" = linux ]; then
     step "Wayland keyboard access"
     note "On Wayland, Neru reads the keyboard through evdev, which needs the 'input' group."
-    if ask "Add $USER to the 'input' group? (sudo; takes effect after you log in again)"; then
+    if id -nG 2>/dev/null | tr ' ' '\n' | grep -qx input; then
+        ok "$USER is already in the 'input' group"
+    elif ask "Add $USER to the 'input' group? (sudo; takes effect after you log in again)"; then
         if sudo usermod -aG input "$USER"; then
             ok "Added to 'input'. Log out and back in for it to take effect."
         else
