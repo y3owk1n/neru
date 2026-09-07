@@ -178,12 +178,18 @@ release-ci-windows ARCH VERSION_OVERRIDE:
 # ad-hoc signed Neru.app. It is the exact tree a release zip unpacks to, so the
 # installer and CI's publish jobs both consume it. BIN defaults to `just build`
 # output; CI passes its cross-built binary plus the Info.plist versions. The
-# body lives in scripts/dist.sh: a shebang recipe needs cygpath on Windows,
-# and plain PowerShell has none, while a one-line recipe runs anywhere just does.
+# bodies live in scripts/dist.sh and scripts/dist.ps1 rather than a shebang
+# recipe, which needs cygpath on Windows; the Windows variant needs no Bash.
 # Usage: just dist [BIN] [OUT] [BUNDLE_VERSION] [SHORT_VERSION] [BUILD_ID]
+[unix]
 [doc('Assemble the release layout (bin, man, Neru.app on macOS) under build/dist.')]
 dist BIN="" OUT="build/dist" BUNDLE_VERSION="" SHORT_VERSION="" BUILD_ID="":
     NERU_DIST_VERSION="{{ VERSION }}" bash scripts/dist.sh "{{ BIN }}" "{{ OUT }}" "{{ BUNDLE_VERSION }}" "{{ SHORT_VERSION }}" "{{ BUILD_ID }}"
+
+[windows]
+[doc('Assemble the release layout (bin, man) under build/dist.')]
+dist BIN="" OUT="build/dist" BUNDLE_VERSION="" SHORT_VERSION="" BUILD_ID="":
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dist.ps1 -Bin "{{ BIN }}" -Out "{{ OUT }}"
 
 # Build, assemble the release layout, and install it with the same script a
 # `curl | bash` user runs (scripts/install.sh, or install.ps1 on Windows), so

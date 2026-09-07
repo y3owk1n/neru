@@ -6,9 +6,9 @@
 #
 #   scripts/dist.sh [BIN] [OUT] [BUNDLE_VERSION] [SHORT_VERSION] [BUILD_ID]
 #
-# Invoked by `just dist`, which passes the git describe string in
-# NERU_DIST_VERSION. Kept out of the justfile so it runs on Windows too, where
-# a shebang recipe needs cygpath and plain PowerShell has none.
+# Invoked by `just dist` on macOS and Linux, which passes the git describe
+# string in NERU_DIST_VERSION. Windows uses scripts/dist.ps1. Kept out of
+# the justfile because a shebang recipe needs cygpath on Windows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
