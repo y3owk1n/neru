@@ -350,8 +350,16 @@ if [ "$os" = darwin ] && [ "$uninstall" = 0 ]; then
         [ -e "$plist" ] || continue
         grep -qi neru "$plist" 2>/dev/null || continue
         agent_prog="$(/usr/libexec/PlistBuddy -c 'Print :Program' "$plist" 2>/dev/null || true)"
-        [ -n "$agent_prog" ] || agent_prog="$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:0' "$plist" 2>/dev/null || true)"
+        agent_args="$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments' "$plist" 2>/dev/null || true)"
+        [ -n "$agent_prog" ] || agent_prog="$(printf '%s\n' "$agent_args" | sed -n '2s/^ *//p')"
         [ -n "$agent_prog" ] && [ "$agent_prog" != "$neru_bin" ] || continue
+        # The agent must actually run a neru binary, directly or through a
+        # shell wrapper as nix-darwin does; the word in a label or log path
+        # of some unrelated agent is not a conflict.
+        case "$agent_prog $agent_args" in
+            *bin/neru | *bin/neru\ * | *bin/neru$'\n'* | *Neru.app/Contents/MacOS/neru*) ;;
+            *) continue ;;
+        esac
         warn "A Neru login agent is already registered by another installer."
         note "plist:    $plist"
         note "launches: $agent_prog"
