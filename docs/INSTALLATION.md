@@ -13,9 +13,10 @@ This guide covers installation methods for Neru, with the most complete support 
 ## Table of Contents
 
 - [Requirements](#requirements)
-- [Method 1: Homebrew (Recommended)](#method-1-homebrew-recommended)
-- [Method 2: Nix Flake](#method-2-nix-flake)
-- [Method 3: From Source](#method-3-from-source)
+- [Method 1: Install Script](#method-1-install-script)
+- [Method 2: Homebrew](#method-2-homebrew)
+- [Method 3: Nix Flake](#method-3-nix-flake)
+- [Method 4: From Source](#method-4-from-source)
 - [Post-Installation](#post-installation)
 - [Shell Completions](#shell-completions)
 - [Troubleshooting](#troubleshooting)
@@ -33,7 +34,94 @@ This guide covers installation methods for Neru, with the most complete support 
 
 ---
 
-## Method 1: Homebrew (Recommended)
+## Method 1: Install Script
+
+One command installs everything a release ships. That is the binary, `Neru.app`
+on macOS, man pages, shell completions, and the login service if you want it.
+Run the same command again to update.
+
+```bash
+# macOS and Linux
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.sh | bash
+```
+
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.ps1 | iex
+```
+
+The script checks every download against the `.sha256` file published beside it
+before it unpacks anything.
+
+### Channels and versions
+
+The script installs the latest **stable** release by default. Pin a stable
+version, or follow **nightly** (rebuilt from every push to `main`):
+
+```bash
+# latest stable (default)
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.sh | bash
+
+# a specific stable release
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.sh | bash -s -- --version v1.52.0
+
+# nightly
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.sh | bash -s -- --channel nightly
+```
+
+```powershell
+# flags need a script block; the NERU_CHANNEL / NERU_VERSION / NERU_YES variables work with plain `irm | iex`
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.ps1))) -Channel nightly
+```
+
+Running the script again updates in place on whichever channel you already have.
+A stable install moves to the newest release, or the script tells you it is
+current. A nightly install always gets the latest nightly build. Asking for the
+other channel is a switch, and the script treats it as one. It reads the version
+of the installed build, says what it found, and asks before it replaces stable
+with nightly or nightly with stable.
+
+### Flags
+
+| bash                        | PowerShell        | Env            | Effect                                                              |
+| :-------------------------- | :---------------- | :------------- | :------------------------------------------------------------------ |
+| `--channel stable\|nightly` | `-Channel`        | `NERU_CHANNEL` | Release channel. Default: the installed one, else stable            |
+| `--version vX.Y.Z`          | `-Version`        | `NERU_VERSION` | Pin a stable release (implies stable)                               |
+| `--from DIR`                | `-From`           | `NERU_FROM`    | Install a local `just dist` tree instead of downloading; what `just install` uses |
+| `--bin-dir DIR`             |                   | `NERU_BIN_DIR` | Where `neru` goes. Default `/usr/local/bin` (macOS), `~/.local/bin` (Linux) |
+| `--app-dir DIR`             |                   | `NERU_APP_DIR` | macOS: where `Neru.app` goes. Default `/Applications`               |
+| `--no-service`              | `-NoService`      |                | Never register or start the login service                           |
+| `--no-completions`          | `-NoCompletions`  |                | Skip shell completions                                              |
+| `--no-man`                  |                   |                | Skip man pages                                                      |
+| `--force`                   | `-Force`          |                | Reinstall the same version                                          |
+| `--uninstall`               | `-Uninstall`      |                | Remove everything a previous run installed; config is kept          |
+| `--purge`                   | `-Purge`          |                | With uninstall, also delete config, data and logs (each confirmed)  |
+| `-y`, `--yes`               | `-Yes`            | `NERU_YES=1`   | Accept every prompt; required when no terminal is attached          |
+
+### What it does
+
+On macOS it copies `Neru.app` to `/Applications`, symlinks `neru` into
+`/usr/local/bin`, puts man pages in `/usr/local/share/man/man1`, and writes
+completions for whichever of bash, zsh and fish you have. It asks for sudo only
+when one of those directories is not writable, and says so before the password
+prompt. Say yes to the last question and it registers the launchd login agent.
+
+On Linux it copies `neru` to `~/.local/bin`, man pages to
+`~/.local/share/man/man1`, and completions to the usual per-user paths. It offers
+the systemd user service and, when you are not already in it, the `input` group
+that Wayland keyboard capture needs.
+
+On Windows it puts `neru.exe` under `%LOCALAPPDATA%\Programs\neru`, adds that
+directory to your user PATH, creates a Start Menu shortcut, and offers PowerShell
+completion in your profile and a Task Scheduler logon task.
+
+When a login service is already registered, the script unloads it before it
+replaces the binary and registers it again afterwards. It refuses to run over a
+Homebrew or Nix-managed install and prints the command to use instead.
+
+---
+
+## Method 2: Homebrew
 
 > [!NOTE]
 > The homebrew tap is maintained in another repo: [y3owk1n/homebrew-tap](https://github.com/y3owk1n/homebrew-tap)
@@ -67,7 +155,7 @@ brew uninstall --cask y3owk1n/tap/neru-nightly
 
 ---
 
-## Method 2: Nix Flake
+## Method 3: Nix Flake
 
 Neru is available as a Nix flake with built-in support for nix-darwin (macOS), NixOS (Linux), and home-manager (both platforms).
 
@@ -517,7 +605,7 @@ package = pkgs.neru-source.overrideAttrs (_: {
 
 ---
 
-## Method 3: From Source
+## Method 4: From Source
 
 ### Requirements
 
@@ -527,37 +615,26 @@ package = pkgs.neru-source.overrideAttrs (_: {
 
 ### Build and install
 
-The `just install` recipe builds nothing on its own, so build first, then run it.
-It walks you through the platform-appropriate steps, asking before each one.
+`just install` builds Neru, runs `just dist` to assemble the layout a release zip
+unpacks to under `build/dist/`, and hands that tree to the same installer a
+`curl | bash` user runs. A source install lands in the same places as a release,
+so the curl installer can update or remove it later.
 
 ```bash
 git clone https://github.com/y3owk1n/neru.git
 cd neru
 
-# macOS: build the app bundle, then install it
-just bundle
-just install   # copies Neru.app to /Applications, registers the login agent,
-               # links `neru` onto PATH, and offers completions and man pages
-
-# Linux: build the native binary, then install it
-just build
-just install   # copies neru to ~/.local/bin, offers a systemd user service,
-               # the input group for Wayland, completions, and man pages
-
-# Windows (from Git Bash): build the exe, then install it
-just build-windows
-just install   # copies neru.exe under %LOCALAPPDATA%, and offers a user PATH entry,
-               # a Start Menu shortcut, and a Task Scheduler logon task via
-               # `neru services install`
+just install      # interactive: asks before the login service and other optional steps
+just install -y   # accept every prompt
 ```
 
-`just install` refuses to run over a Homebrew or Nix-managed install and tells you
-to update it there instead. It is interactive; answer each prompt, or pass `-y` to
-accept them all and install everything without asking:
+On Windows `just install` runs `scripts/install.ps1` through PowerShell, so the
+installer's flags use their PowerShell spelling there (`-Yes`, `-NoService`).
 
-```bash
-just install -y
-```
+A source build reports its version as a git describe string, so the installer
+classifies it as a `source` install. Running the curl installer on top of it
+later says so and asks before replacing it with a release, and `just install`
+over a release install asks the same in reverse.
 
 To undo it later, see [`just uninstall`](#just-uninstall).
 
@@ -655,6 +732,22 @@ Intel Macs use `neru-darwin-amd64.zip` in place of the arm64 artifact.
 
 ## Uninstallation
 
+### Install script
+
+The same script removes what it installed. That covers the login service, the
+app or binary, the PATH link, man pages and completions, plus the Start Menu
+shortcut and PATH entry on Windows. Config, data and logs stay unless you add
+`--purge`, and even then it asks before deleting each directory.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.sh | bash -s -- --uninstall --purge
+```
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.ps1))) -Uninstall
+```
+
 ### Homebrew
 
 ```bash
@@ -667,9 +760,8 @@ Remove the module from your configuration and rebuild.
 
 ### `just uninstall`
 
-If you installed from source with `just install`, `just uninstall` undoes each of
-its steps in reverse, asking before each one. On Windows it runs under a bash such
-as Git Bash, same as the installer.
+This runs the installer's `--uninstall` from the checkout you are in. It is the
+same removal as above.
 
 ```bash
 just uninstall            # interactive
@@ -678,20 +770,12 @@ just uninstall -y --purge # ...and delete your config and logs too
 ```
 
 **Your config and logs are kept unless you pass `--purge`.** `-y` on its own can
-never delete a hand-tuned `config.toml`. With `--purge` it lists the fully
-resolved directories and asks before deleting any of them — worth reading, since
-`XDG_CONFIG_HOME` can put your config somewhere other than `~/.config`.
-
-It refuses to run over a Homebrew- or Nix-managed install and points you at the
-right removal command instead. Two things it deliberately leaves alone:
-
-- **A `/usr/local/bin/neru` that is not a symlink into the app bundle** — that is
-  a hand-installed binary, which the installer also refuses to touch.
-- **The Linux `input` group** — other evdev tools may rely on it, so it prints the
-  `gpasswd -d` line rather than dropping your membership.
+never delete a hand-tuned `config.toml`. With `--purge` it asks before deleting
+each directory.
 
 On macOS, the Accessibility and Input Monitoring entries stay in System Settings →
-Privacy & Security; remove them by hand if you are not reinstalling.
+Privacy & Security. Remove them by hand if you are not reinstalling. On Linux the
+script leaves your `input` group membership alone, since other evdev tools may rely on it.
 
 ### Manual
 
