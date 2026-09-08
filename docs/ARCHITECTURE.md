@@ -255,8 +255,7 @@ adapter/platform/{gnomeshell,kwin,compositorcli}     per-compositor helpers the 
 Smaller capabilities (`appwatcher`, `keyfeed`, `vision`) stay one package
 each, with one build-tagged file per OS beside a shared shell
 (`platform_darwin.go`, `platform_linux.go`, `platform_windows.go`, and an
-`_other.go` fallback). `textinput` is the one whose darwin bridge is the only
-real implementation, so it carries just the darwin file and the fallback.
+`_other.go` fallback); `textinput` carries a darwin file and the fallback.
 
 The parent package holds the port adapter and a small build-tagged factory —
 the only place that knows which implementation exists. So "what do I touch to
@@ -493,12 +492,12 @@ its own.
 
 ## Security Architecture
 
-1. **Secure input detection** — before activating any mode Neru asks the
-   system port whether secure input is engaged (e.g. a focused password
-   field); if so it refuses with `CodeSecureInputEnabled` and notifies the
-   user, so no mode ever captures keys into a password field. Which platforms
-   can answer that question is in the
-   [capability matrix](CROSS_PLATFORM.md#capability-matrix).
+1. **Secure input detection** — before activating hints, grid, recursive
+   grid or monitor select, the handler asks the system port whether secure
+   input is engaged (e.g. a focused password field); if so it refuses with
+   `CodeSecureInputEnabled` and notifies the user. Scroll and user-declared
+   modes do not run that check. Which platforms can answer the question is in
+   the [capability matrix](CROSS_PLATFORM.md#capability-matrix).
 2. **Permissions** — Accessibility permission is required on macOS; Neru requests
    only the minimum needed for UI interaction.
 3. **IPC security** — the endpoint is scoped to one user, and the daemon checks
