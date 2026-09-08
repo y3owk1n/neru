@@ -486,7 +486,9 @@ its own.
    Linux, Direct2D on a DirectComposition swapchain on Windows (GDI on a
    layered window where that cannot come up). The Windows draw queues
    commands and returns; a dedicated UI thread paints and presents them,
-   coalescing frames, so no keystroke waits on pixels.
+   coalescing frames, so no keystroke waits on pixels. Between draws that thread
+   waits on the Win32 message queue, and queued Go callbacks post a native
+   wakeup. Windows messages are therefore serviced even when the overlay is idle.
 
 ---
 

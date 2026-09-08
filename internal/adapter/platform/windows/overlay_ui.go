@@ -12,15 +12,19 @@ import (
 // Dedicated Win32 UI thread with a message pump for HWND creation and painting.
 // Does not implement overlay drawing; overlay.go marshals HWND work here.
 var (
-	overlayUIOnce sync.Once
-	overlayUIOps  chan func()
-	overlayUIGID  atomic.Uint64
+	overlayUIOnce                   sync.Once
+	overlayUIOps                    chan func()
+	overlayUIGID                    atomic.Uint64
+	overlayUIThreadID               uintptr
+	procMsgWaitForMultipleObjectsEx = user32.NewProc("MsgWaitForMultipleObjectsEx")
 )
 
 const (
 	overlayUIOpsBuffer = 256
 	goroutinePrefixLen = len("goroutine ")
 	decimalBase        = 10
+	qsAllInput         = 0x04FF
+	mwmoInputAvailable = 0x0004
 )
 
 type winMsg struct {
@@ -43,11 +47,26 @@ func startOverlayUIThread() {
 		go func() {
 			runtime.LockOSThread()
 			overlayUIGID.Store(curGoroutineID())
+
+			overlayUIThreadID, _, _ = procGetCurrentThreadID.Call()
+			// Create the native queue before producers can post its wakeup.
+			pumpOverlayMessages()
 			close(ready)
 
-			for fn := range overlayUIOps {
-				fn()
+			for {
 				pumpOverlayMessages()
+
+				select {
+				case callback := <-overlayUIOps:
+					callback()
+				default:
+					// A Go channel wait cannot service HWND messages. Wake for
+					// native input as well as the WM_NULL posted with callbacks.
+					// INPUTAVAILABLE also wakes for a bounded pump's leftovers.
+					discardCall(procMsgWaitForMultipleObjectsEx.Call(
+						0, 0, uintptr(^uint32(0)), qsAllInput, mwmoInputAvailable,
+					))
+				}
 			}
 		}()
 
@@ -66,10 +85,10 @@ func runOnOverlayUI(callback func()) {
 	}
 
 	done := make(chan struct{})
-	overlayUIOps <- func() {
+	queueOverlayUI(func() {
 		callback()
 		close(done)
-	}
+	})
 
 	<-done
 }
@@ -87,7 +106,14 @@ func postOnOverlayUI(callback func()) {
 		return
 	}
 
+	queueOverlayUI(callback)
+}
+
+func queueOverlayUI(callback func()) {
 	overlayUIOps <- callback
+	// Publish the callback first so a wakeup cannot run ahead of its work.
+	// WM_NULL needs no window and is harmless if another pump consumes it.
+	discardCall(procPostThreadMessageW.Call(overlayUIThreadID, 0, 0, 0))
 }
 
 func curGoroutineID() uint64 {
