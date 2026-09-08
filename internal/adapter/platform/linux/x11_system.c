@@ -378,6 +378,69 @@ char *neru_x11_get_window_class(Display *display, Window window) {
 	return class_name;
 }
 
+// Titles longer than this many 32-bit units (16 KiB) are truncated. The
+// AT-SPI frame name Neru compares against is far shorter than that.
+#define NERU_X11_TITLE_MAX_LONGS 4096
+
+char *neru_x11_get_window_title(Display *display, Window window) {
+	if (window == 0) {
+		return NULL;
+	}
+
+	Atom property = XInternAtom(display, "_NET_WM_NAME", False);
+	Atom utf8 = XInternAtom(display, "UTF8_STRING", False);
+	Atom actual_type;
+	int actual_format;
+	unsigned long item_count;
+	unsigned long bytes_after;
+	unsigned char *data = NULL;
+
+	neru_x11_error_trap_begin(display);
+	int status = XGetWindowProperty(
+	    display, window, property, 0, NERU_X11_TITLE_MAX_LONGS, False, utf8, &actual_type, &actual_format, &item_count,
+	    &bytes_after, &data);
+	int trapped = neru_x11_error_trap_end(display);
+
+	if (trapped) {
+		// BadWindow: the window closed between the active-window read and this
+		// one. A window that is gone has no title to fall back to.
+		if (data != NULL) {
+			XFree(data);
+		}
+		return NULL;
+	}
+
+	char *title = NULL;
+	if (status == Success && actual_type == utf8 && actual_format == 8 && item_count > 0 && data != NULL) {
+		// XGetWindowProperty NUL-terminates the returned data; item_count is
+		// the byte length for an 8-bit property.
+		title = strndup((const char *)data, item_count);
+	}
+	if (data != NULL) {
+		XFree(data);
+	}
+	if (title != NULL) {
+		return title;
+	}
+
+	// Older toolkits set only the ICCCM WM_NAME (Latin-1 or COMPOUND_TEXT).
+	// XFetchName hands back its raw bytes. AT-SPI reports the same bytes for
+	// those windows, so the comparison still lines up.
+	char *wm_name = NULL;
+	neru_x11_error_trap_begin(display);
+	int got = XFetchName(display, window, &wm_name);
+	trapped = neru_x11_error_trap_end(display);
+
+	if (got != 0 && !trapped && wm_name != NULL && wm_name[0] != '\0') {
+		title = strdup(wm_name);
+	}
+	if (wm_name != NULL) {
+		XFree(wm_name);
+	}
+
+	return title;
+}
+
 NeruX11Monitor *neru_x11_get_monitors(Display *display, int *count) {
 	Window root = neru_x11_root_window(display);
 	int monitor_count = 0;

@@ -690,13 +690,18 @@ toggle to force it. The result is a frame with a single empty child. Launch the
 app with `--force-renderer-accessibility`. Native GTK/Qt apps and Firefox need
 no flag. This is Chromium behavior, not a Neru limitation.
 
-**Picking the active frame on Wayland.** The AT-SPI `ACTIVE` state is
-unreliable on wlroots compositors (the focused window can report `ACTIVE=false`
-while background frames report `ACTIVE=true`), so Neru matches the AT-SPI frame
-against the compositor's focused **app_id** from
-`wlr-foreign-toplevel-management`, falling back to the `ACTIVE`/`SHOWING`
-heuristic on X11 or when no app_id is available (`findActiveFrame` in
-`atspi/scan.go`).
+**Picking the active frame.** The AT-SPI `ACTIVE` state cannot be trusted
+across applications. On wlroots compositors the focused window can report
+`ACTIVE=false` while background frames report `ACTIVE=true`. On X11,
+Chromium/Electron frames report `ACTIVE=true` whatever `_NET_ACTIVE_WINDOW`
+says. So Neru matches the AT-SPI frame against the focused window's identity
+instead. On Wayland that is the compositor's app_id and title from
+`wlr-foreign-toplevel-management`. On X11 it is the active window's WM_CLASS
+and `_NET_WM_NAME`. Both pairs are read as one snapshot
+(`linux.FocusedAppIdentity`). The `ACTIVE`/`SHOWING` heuristic is still the
+fallback when no identity is available (GNOME without the extension), and on
+X11 for an application whose AT-SPI name does not match its WM_CLASS
+(`findActiveFrame` in `atspi/scan.go`).
 
 **Window-origin offset on Wayland.** A Wayland client cannot know its own
 on-screen position, so AT-SPI reports element coordinates relative to the

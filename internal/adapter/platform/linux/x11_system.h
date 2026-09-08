@@ -61,6 +61,11 @@ int neru_x11_get_window_pid(Display *display, Window window, unsigned long *out)
 // WM_CLASS "class" field (res_class), or NULL when unavailable. The caller
 // owns the returned pointer and must free() it.
 char *neru_x11_get_window_class(Display *display, Window window);
+// neru_x11_get_window_title returns a heap-allocated copy of the window's
+// _NET_WM_NAME (UTF-8), falling back to the ICCCM WM_NAME when the EWMH
+// property is absent, or NULL when the window sets neither or has closed. The
+// caller owns the returned pointer and must free() it.
+char *neru_x11_get_window_title(Display *display, Window window);
 NeruX11Monitor *neru_x11_get_monitors(Display *display, int *count);
 void neru_x11_free_monitors(NeruX11Monitor *monitors, int count);
 

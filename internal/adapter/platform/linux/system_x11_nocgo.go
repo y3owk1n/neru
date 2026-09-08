@@ -35,6 +35,10 @@ func x11FocusedAppID() (string, bool) {
 	return "", false
 }
 
+func x11FocusedAppIdentity() (string, string, bool) {
+	return "", "", false
+}
+
 // x11FocusEventFD is unavailable without CGO — the focus monitor uses Xlib.
 // Callers fall back to polling.
 func x11FocusEventFD() (int, bool) {

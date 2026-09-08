@@ -65,13 +65,15 @@ func isNonTargetSurfaceApp(name string) bool {
 	}
 }
 
-// findActiveFrame locates the focused top-level window. On Wayland the
-// compositor's focused app_id is the signal to trust — AT-SPI's ACTIVE state
-// lies on wlroots compositors, marking background frames active — so an app_id
-// match beats the heuristic. Without one (X11, GNOME, no AT-SPI frame) the
-// order is ACTIVE+SHOWING, any ACTIVE, any SHOWING; and when an app_id matches
-// no application, that fallback runs only on KWin, where ACTIVE is reliable —
-// on wlroots it could pick a background surface, so hints just do not appear.
+// findActiveFrame locates the focused top-level window. The focused app_id is
+// the signal to trust: the compositor's toplevel on Wayland, the WM_CLASS of
+// _NET_ACTIVE_WINDOW on X11. AT-SPI's own ACTIVE state marks background frames
+// active on wlroots compositors and on Chromium/Electron frames under X11, so
+// an app_id match beats it. Without an app_id (GNOME without the extension, or
+// no AT-SPI frame) the order is ACTIVE+SHOWING, any ACTIVE, any SHOWING. When
+// an app_id matches no application, that fallback runs on KWin, where ACTIVE
+// is reliable, and on X11, where it is what X11 ran before it had an app_id.
+// On wlroots it could pick a background surface, so hints just do not appear.
 // focusedAppID/focusedTitle are one snapshot, so frame and stability check
 // agree.
 func (c *Client) findActiveFrame(
@@ -99,9 +101,18 @@ func (c *Client) findActiveFrame(
 	haveFocused := focusedAppID != ""
 	haveFocusedTitle := focusedTitle != ""
 
+	backend := platform.DetectLinuxBackend()
+
 	// The AT-SPI ACTIVE state reliably marks the compositor-focused window only
 	// on KWin/KDE; on wlroots it is set inconsistently across frames.
-	activeStateIdentifiesFocus := platform.DetectLinuxBackend() == platform.BackendWaylandKDE
+	activeStateIdentifiesFocus := backend == platform.BackendWaylandKDE
+
+	// On X11 the ACTIVE state can be trusted within one application but not
+	// across the bus, because Chromium/Electron frames advertise ACTIVE whatever
+	// _NET_ACTIVE_WINDOW says (#1644). So ACTIVE may pick among the focused
+	// app's own siblings, and the cross-application heuristic survives only for
+	// an app whose AT-SPI name does not match its WM_CLASS.
+	focusedActiveDisambiguates := backend == platform.BackendX11
 
 	apps := c.children(ctx, conn, root)
 
@@ -117,6 +128,12 @@ func (c *Client) findActiveFrame(
 	// below).
 	if haveFocused {
 		matches := c.findFocusedApps(ctx, conn, apps, focusedAppID)
+
+		c.logger.Debug("AT-SPI focused app probe",
+			zap.Int("apps", len(apps)),
+			zap.Int("matches", len(matches)),
+			zap.Bool("haveTitle", haveFocusedTitle))
+
 		if len(matches) > 0 {
 			metas := make([]appMeta, len(apps))
 			for index := range metas {
@@ -138,6 +155,11 @@ func (c *Client) findActiveFrame(
 			)
 			cand := mergeFrameScan(scans)
 
+			c.logger.Debug("AT-SPI focused app frames",
+				zap.Int("showing", cand.focusedShowingCount),
+				zap.Int("titleMatches", cand.focusedTitleCount),
+				zap.Int("active", cand.focusedActiveCount))
+
 			if cand.focusedTitleCount == 1 {
 				c.logFrameSelection(start, "focused-title", len(apps), scanned)
 
@@ -149,9 +171,28 @@ func (c *Client) findActiveFrame(
 
 				return cand.focusedShowingFrame, true
 			}
+
+			if focusedActiveDisambiguates {
+				cand.haveFocused = true
+				cand.focusedActiveDisambiguates = true
+
+				if frame, ok := selectFrame(cand); ok {
+					c.logFrameSelection(start, "focused-active", len(apps), scanned)
+
+					return frame, true
+				}
+			}
 		}
 
-		if !activeStateIdentifiesFocus {
+		switch {
+		case activeStateIdentifiesFocus:
+			// KWin/KDE: fall through to the cross-application ACTIVE fallback,
+			// which needs every app's frames.
+		case focusedActiveDisambiguates:
+			// X11: no AT-SPI application answered to the WM_CLASS, so the focus
+			// identity cannot narrow the scan. Drop it and run the old heuristic.
+			haveFocused = false
+		default:
 			// wlroots: the ACTIVE-state fallback is unreliable, so a focused app
 			// that cannot be uniquely resolved yields no frame — and there is no
 			// reason to scan the rest of the bus.
@@ -159,13 +200,11 @@ func (c *Client) findActiveFrame(
 
 			return accRef{}, false
 		}
-
-		// KWin/KDE: fall through to the cross-application ACTIVE fallback, which
-		// needs every app's frames.
 	}
 
-	// Full scan: no focused app_id (X11/GNOME), or KWin/KDE with a focused app
-	// that could not be uniquely resolved and needs the cross-app ACTIVE state.
+	// Full scan: no focused app_id (GNOME without the extension), an X11 focus
+	// no AT-SPI app answers to, or KWin/KDE with a focused app that could not be
+	// uniquely resolved and needs the cross-app ACTIVE state.
 	// This path names every app, so a wedged app can still cost one timeout — but
 	// it is reached only without a usable focused app_id, not on the wlroots hot
 	// path above.
@@ -488,6 +527,14 @@ func mergeFrameScan(scans []appFramesScan) frameCandidates {
 					cand.focusedShowingFrame = frame.ref
 				}
 
+				if frame.active {
+					cand.focusedActiveCount++
+
+					if cand.focusedActiveCount == 1 {
+						cand.focusedActiveFrame = frame.ref
+					}
+				}
+
 				if frame.titleMatches {
 					cand.focusedTitleCount++
 
@@ -537,6 +584,8 @@ type frameCandidates struct {
 	focusedTitleCount   int    // windows of the focused app matching that title
 	focusedShowingFrame accRef // first showing window of the focused app
 	focusedShowingCount int    // showing windows of the focused app
+	focusedActiveFrame  accRef // first ACTIVE showing window of the focused app
+	focusedActiveCount  int    // ACTIVE showing windows of the focused app
 
 	// Cross-application ACTIVE/SHOWING fallbacks (reliable only on KDE).
 	activeShowing     accRef
@@ -555,6 +604,11 @@ type frameCandidates struct {
 	// activeStateIdentifiesFocus is true only where the AT-SPI ACTIVE state
 	// reliably marks the focused window (KWin/KDE).
 	activeStateIdentifiesFocus bool
+	// focusedActiveDisambiguates is true where ACTIVE can be trusted among one
+	// application's own windows but not across applications (X11). Ambiguous
+	// siblings resolve to the focused app's ACTIVE window, else its first
+	// showing one, and never to another application's frame.
+	focusedActiveDisambiguates bool
 }
 
 // selectFrame chooses the focused frame from the ranked candidates. It is the
@@ -585,6 +639,16 @@ func selectFrame(cand frameCandidates) (accRef, bool) {
 
 		if cand.activeStateIdentifiesFocus && cand.haveActiveAny {
 			return cand.activeAny, true
+		}
+
+		if cand.focusedActiveDisambiguates {
+			if cand.focusedActiveCount > 0 {
+				return cand.focusedActiveFrame, true
+			}
+
+			if cand.focusedShowingCount > 0 {
+				return cand.focusedShowingFrame, true
+			}
 		}
 
 		return accRef{}, false

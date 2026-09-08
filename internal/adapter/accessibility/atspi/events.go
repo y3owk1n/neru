@@ -199,7 +199,7 @@ func (c *Client) recordActiveWindow(conn *dbus.Conn, frame accRef) {
 // the cache safe: a stale entry (focus moved without a window:activate) or a
 // missing one can never resolve to the wrong window.
 func (c *Client) activeWindowMatching(focusedAppID, focusedTitle string) (accRef, bool) {
-	// Without a compositor focus identity (X11/GNOME) there is nothing to
+	// Without a focus identity (GNOME without the extension) there is nothing to
 	// validate the cache against, so it cannot be trusted.
 	if focusedAppID == "" {
 		return accRef{}, false

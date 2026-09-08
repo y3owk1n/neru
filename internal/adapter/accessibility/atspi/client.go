@@ -296,9 +296,10 @@ func (c *Client) ClickableNodes(
 
 	// Early-out: if focus already changed since this window was selected, the
 	// frame is stale, so skip the (subprocess-spawning) geometry query below and
-	// return nothing. When no focused app_id is available (X11/GNOME) there is
-	// nothing to compare, so the walk proceeds. The stability is re-checked after
-	// the geometry query to close the race window described there.
+	// return nothing. When no focused app_id is available (GNOME without the
+	// extension) there is nothing to compare, so the walk proceeds. The
+	// stability is re-checked after the geometry query to close the race window
+	// described there.
 	if !c.focusStableSince(win.focusedAppID, win.focusedTitle) {
 		return nil, nil
 	}

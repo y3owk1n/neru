@@ -30,15 +30,20 @@ func FocusedAppID(backend string) (string, bool) {
 
 // FocusedAppIdentity returns the focused window's app_id and title together,
 // read as one snapshot so they describe the same window, for the given
-// backend. The title disambiguates multiple windows of one application. The
-// bool is false where the backend has no live source: X11, an unknown
-// backend, nothing focused, or the GNOME extension not running.
+// backend. The title disambiguates multiple windows of one application. On
+// X11 the pair is the active window's WM_CLASS and _NET_WM_NAME, read over one
+// connection; on Wayland it is the toplevel's app_id and title. The bool is
+// false where there is no live source: an unknown backend, nothing focused,
+// the GNOME extension not running, or a CGO-disabled build on X11.
 func FocusedAppIdentity(backend string) (string, string, bool) {
-	if backend == backendWaylandGNOME {
+	switch backend {
+	case backendX11:
+		return x11FocusedAppIdentity()
+	case backendWaylandGNOME:
 		return gnomeFocusedAppIdentity()
+	default:
+		return WaylandFocusedAppIdentity()
 	}
-
-	return WaylandFocusedAppIdentity()
 }
 
 // gnomeFocusedAppIdentity reads the extension's cache. EnsureStarted is asked

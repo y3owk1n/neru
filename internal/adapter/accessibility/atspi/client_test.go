@@ -96,6 +96,7 @@ func TestSelectFrame(t *testing.T) {
 	var (
 		fTitle  = accRef{Name: "focused-title"}
 		fShow   = accRef{Name: "focused-showing"}
+		fActive = accRef{Name: "focused-active"}
 		active  = accRef{Name: "active"}
 		activeA = accRef{Name: "active-any"}
 		showing = accRef{Name: "showing"}
@@ -178,7 +179,35 @@ func TestSelectFrame(t *testing.T) {
 			want: accRef{}, wantOK: false,
 		},
 		{
-			name: "no focused app_id (X11/GNOME) falls back to active+showing",
+			name: "X11 ambiguous siblings pick the focused app's own ACTIVE window",
+			cand: frameCandidates{
+				focusedShowingFrame: fShow, focusedShowingCount: 2,
+				focusedActiveFrame: fActive, focusedActiveCount: 1,
+				activeShowing: active, haveActiveShowing: true,
+				haveFocused: true, focusedActiveDisambiguates: true,
+			},
+			want: fActive, wantOK: true,
+		},
+		{
+			name: "X11 ambiguous siblings with no ACTIVE take the first showing sibling",
+			cand: frameCandidates{
+				focusedShowingFrame: fShow, focusedShowingCount: 2,
+				activeShowing: active, haveActiveShowing: true,
+				haveFocused: true, focusedActiveDisambiguates: true,
+			},
+			want: fShow, wantOK: true,
+		},
+		{
+			name: "X11 focused app with no frame never takes another app's ACTIVE frame",
+			cand: frameCandidates{
+				activeShowing: active, haveActiveShowing: true,
+				showingAny: showing, haveShowingAny: true,
+				haveFocused: true, focusedActiveDisambiguates: true,
+			},
+			want: accRef{}, wantOK: false,
+		},
+		{
+			name: "no focused app_id (GNOME without the extension) falls back to active+showing",
 			cand: frameCandidates{
 				activeShowing: active, haveActiveShowing: true,
 				activeAny: activeA, haveActiveAny: true,

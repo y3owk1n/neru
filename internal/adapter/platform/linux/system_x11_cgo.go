@@ -170,29 +170,50 @@ func x11WindowPIDQuery(display *C.Display, window C.Window, pid *C.ulong) x11Win
 // x11ActiveWindowQuery does that for both callers — this one just has one
 // honest answer for all of them.
 func x11FocusedAppID() (string, bool) {
+	appID, _, ok := x11FocusedAppIdentity()
+
+	return appID, ok
+}
+
+// x11FocusedAppIdentity reads the active window's WM_CLASS and title over one
+// display connection, so both describe the window _NET_ACTIVE_WINDOW named at
+// the moment of the read. Per-app configuration and the AT-SPI frame match are
+// keyed on the class. The title (_NET_WM_NAME, else WM_NAME) tells sibling
+// windows of one application apart, the job the xdg_toplevel title does on
+// Wayland. A window with a class but no title is still reported, with an empty
+// title, since a single showing window needs none.
+func x11FocusedAppIdentity() (string, string, bool) {
 	display, err := x11OpenDisplay()
 	if err != nil {
-		return "", false
+		return "", "", false
 	}
 	defer C.neru_x11_close_display(display)
 
 	window, result := x11ActiveWindowQuery(display)
 	if result != x11ActiveWindowFound {
-		return "", false
+		return "", "", false
 	}
 
 	className := C.neru_x11_get_window_class(display, window)
 	if className == nil {
-		return "", false
+		return "", "", false
 	}
 	defer C.free(unsafe.Pointer(className))
 
 	appID := C.GoString(className)
 	if appID == "" {
-		return "", false
+		return "", "", false
 	}
 
-	return appID, true
+	var title string
+
+	if cTitle := C.neru_x11_get_window_title(display, window); cTitle != nil {
+		title = C.GoString(cTitle)
+
+		C.free(unsafe.Pointer(cTitle))
+	}
+
+	return appID, title, true
 }
 
 var (
