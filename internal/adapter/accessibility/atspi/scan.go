@@ -109,9 +109,9 @@ func (c *Client) findActiveFrame(
 
 	// On X11 the ACTIVE state can be trusted within one application but not
 	// across the bus, because Chromium/Electron frames advertise ACTIVE whatever
-	// _NET_ACTIVE_WINDOW says (#1644). So ACTIVE may pick among the focused
-	// app's own siblings, and the cross-application heuristic survives only for
-	// an app whose AT-SPI name does not match its WM_CLASS.
+	// _NET_ACTIVE_WINDOW says (#1644). So a single ACTIVE frame may pick among
+	// the focused app's own siblings, and the cross-application heuristic
+	// survives only for an app whose AT-SPI name does not match its WM_CLASS.
 	focusedActiveDisambiguates := backend == platform.BackendX11
 
 	apps := c.children(ctx, conn, root)
@@ -606,8 +606,8 @@ type frameCandidates struct {
 	activeStateIdentifiesFocus bool
 	// focusedActiveDisambiguates is true where ACTIVE can be trusted among one
 	// application's own windows but not across applications (X11). Ambiguous
-	// siblings resolve to the focused app's ACTIVE window, else its first
-	// showing one, and never to another application's frame.
+	// siblings resolve to the focused app's single ACTIVE window, never to a
+	// guess among them or to another application's frame.
 	focusedActiveDisambiguates bool
 }
 
@@ -641,14 +641,11 @@ func selectFrame(cand frameCandidates) (accRef, bool) {
 			return cand.activeAny, true
 		}
 
-		if cand.focusedActiveDisambiguates {
-			if cand.focusedActiveCount > 0 {
-				return cand.focusedActiveFrame, true
-			}
-
-			if cand.focusedShowingCount > 0 {
-				return cand.focusedShowingFrame, true
-			}
+		// X11: exactly one ACTIVE sibling of the focused app is that app's own
+		// answer. Zero or several would leave enumeration order to choose, and
+		// hints in the wrong sibling are worse than none.
+		if cand.focusedActiveDisambiguates && cand.focusedActiveCount == 1 {
+			return cand.focusedActiveFrame, true
 		}
 
 		return accRef{}, false

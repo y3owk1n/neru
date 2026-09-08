@@ -189,13 +189,23 @@ func TestSelectFrame(t *testing.T) {
 			want: fActive, wantOK: true,
 		},
 		{
-			name: "X11 ambiguous siblings with no ACTIVE take the first showing sibling",
+			name: "X11 ambiguous siblings with no ACTIVE return nothing (no sibling guess)",
 			cand: frameCandidates{
 				focusedShowingFrame: fShow, focusedShowingCount: 2,
 				activeShowing: active, haveActiveShowing: true,
 				haveFocused: true, focusedActiveDisambiguates: true,
 			},
-			want: fShow, wantOK: true,
+			want: accRef{}, wantOK: false,
+		},
+		{
+			name: "X11 ambiguous siblings with several ACTIVE return nothing (no sibling guess)",
+			cand: frameCandidates{
+				focusedShowingFrame: fShow, focusedShowingCount: 2,
+				focusedActiveFrame: fActive, focusedActiveCount: 2,
+				activeShowing: active, haveActiveShowing: true,
+				haveFocused: true, focusedActiveDisambiguates: true,
+			},
+			want: accRef{}, wantOK: false,
 		},
 		{
 			name: "X11 focused app with no frame never takes another app's ACTIVE frame",
