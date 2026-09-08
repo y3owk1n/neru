@@ -77,7 +77,7 @@
 	},
 	"shell": {
 		"init_hook": [
-			"if [[ \"$(uname)\" == \"Linux\" ]]; then export PKG_CONFIG_PATH_FOR_TARGET=\"$(find /nix/store -maxdepth 5 -type d -name pkgconfig 2>/dev/null | tr '\\n' ':')\" && export CGO_CFLAGS=\"-I$(pkg-config --variable=includedir cairo) $(pkg-config --cflags xi) $CGO_CFLAGS\"; fi",
+			"if [[ \"$(uname)\" == \"Linux\" ]]; then export PKG_CONFIG_PATH_FOR_TARGET=\"$(find /nix/store -maxdepth 5 -type d -name pkgconfig 2>/dev/null | tr '\\n' ':')\" && export CGO_CFLAGS=\"-I$(pkg-config --variable=includedir cairo) $CGO_CFLAGS\"; fi",
 			"if [[ \"$(uname)\" == \"Linux\" && -z \"${TESSDATA_PREFIX:-}\" ]]; then export TESSDATA_PREFIX=\"$(pkg-config --variable=prefix tesseract 2>/dev/null)/share/tessdata\"; fi"
 		]
 	}
