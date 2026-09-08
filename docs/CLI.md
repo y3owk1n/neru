@@ -986,8 +986,8 @@ neru action show_cursor
 ```
 
 **Platforms:** `save_cursor_pos` and `restore_cursor_pos` work everywhere.
-`hide_cursor` and `show_cursor` are macOS only and are no-ops on Linux and
-Windows.
+`hide_cursor` and `show_cursor` are macOS only; on Linux and Windows the daemon
+refuses them with `ERR_NOT_SUPPORTED`.
 
 `save_cursor_pos` records the cursor position; `restore_cursor_pos` returns it
 there and consumes the record. `hide_cursor` and `show_cursor` control the

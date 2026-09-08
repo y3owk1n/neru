@@ -252,9 +252,11 @@ adapter/platform/{darwin,linux,windows}              the native cgo bridges
 adapter/platform/{gnomeshell,kwin,compositorcli}     per-compositor helpers the linux bridge routes to
 ```
 
-Smaller capabilities (`appwatcher`, `textinput`, `keyfeed`, `vision`) stay one
-package each, with a build-tagged `platform_darwin.go` / `platform_other.go`
-pair where the darwin bridge is the only real implementation.
+Smaller capabilities (`appwatcher`, `keyfeed`, `vision`) stay one package
+each, with one build-tagged file per OS beside a shared shell
+(`platform_darwin.go`, `platform_linux.go`, `platform_windows.go`, and an
+`_other.go` fallback). `textinput` is the one whose darwin bridge is the only
+real implementation, so it carries just the darwin file and the fallback.
 
 The parent package holds the port adapter and a small build-tagged factory —
 the only place that knows which implementation exists. So "what do I touch to
