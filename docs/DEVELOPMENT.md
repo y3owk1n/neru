@@ -248,22 +248,13 @@ floor as well as a report — the step fails if nothing executed, or if a test
 skipped because it could not see the display server the job exists to provide,
 because a leg that skips its way to green is worth less than no leg at all.
 
-**Both desktop legs block.** They started advisory, because they were the first
-jobs here to stand up infrastructure of their own — a compositor, a session bus
-and an accessibility bus — and a flake in any of the three would have redded a
-pull request for a reason that had nothing to do with it, on a tier whose
-stability nothing had measured yet. That last clause is what changed: across 40
-runs each on pull requests and `main`, neither leg had a failing step, so the
-flake rate stopped being an unknown and became a number. Job-level
-`continue-on-error` reports a failed job as successful, so that count was taken
-from step conclusions rather than job ones.
-
-It matters that they block. Neru is developed on macOS, where none of the
-behavior these legs exercise can run, so ADR 0013's promises are worth exactly
-as much as the jobs that check them — and an advisory job that nobody has to
-read is not a check. The two legs owe different bars, and that difference is
-about what the tests assert rather than about what a failure means: a suite that
-passes today and starts failing tomorrow is a regression at either bar.
+**Both desktop legs block.** They started advisory while the flake rate of
+the compositor, session bus and accessibility bus they stand up was unmeasured;
+after 40 clean runs each on pull requests and `main` (counted from step
+conclusions, since job-level `continue-on-error` reports a failed job as
+successful) they were made required. Neru is developed on macOS, where none of
+this behavior can run, so these jobs are the only check on ADR 0013's Linux
+promises.
 
 ### What the Xvfb X11 leg covers, and what it does not
 
@@ -305,10 +296,9 @@ What it does not cover:
 - **Anything needing device access**, for the same reasons as the sway leg: no
   `/dev/dri`, no `input` group.
 
-It does deliver a verdict: this leg blocks too, on the same measurement. A lower
-bar is a smaller set of claims, not a weaker consequence for breaking one.
+This leg blocks too, on the same measurement.
 
-**It found a defect on its first run, which is the point.** Because the session
+**It found a defect on its first run.** Because the session
 has a window manager and no client, `internal/adapter/platform`'s capability
 contract — `TestCapabilities_DeclaredStatusMatchesAdapterBehavior` and
 `TestCapabilities_StubsSurfaceNotSupportedNotNil` — runs against a live X11
@@ -398,22 +388,21 @@ test harness is documented in
 processing, mode transitions, config parsing/validation/defaults, and CLI
 argument handling. These run everywhere.
 
-**Integration** — almost all of these are **macOS**: real Accessibility and
-event tap APIs, global hotkey registration, overlay and window management, Unix
+**Integration** — most of these are **macOS**: real Accessibility and event
+tap APIs, global hotkey registration, overlay and window management, Unix
 socket IPC, config file loading and reloading, and service-to-adapter
-coordination. Linux has exactly one so far — the fontconfig font resolver
-(`internal/adapter/platform/linux/font_integration_linux_test.go`, which reads
-what is installed with `fc-list` and skips where fontconfig has nothing to
-report) — and Windows has none, so behavior on both is otherwise pinned by unit
-and contract tests alone. Adding real ones is one of the more valuable
-contributions available.
+coordination. Linux has a handful under `internal/adapter/platform/linux/`
+(fontconfig, X11, screen capture, OCR, notifications) plus the evdev probe,
+the smooth-scroll measurement and `neru services`; Windows has the services
+command, the overlay transition and the UIA tree walk. Everything else on both
+is pinned by unit and contract tests, so adding real ones is one of the more
+valuable contributions available.
 
-No `just` recipe runs the Linux ones: `just test-linux` runs the container
-without the `integration` tag, and `just test-integration` runs on the host.
-Until there is a recipe, run them the way the container recipe does and add the
-tag — `docker run --rm -v "$PWD":/src -w /src -e CGO_ENABLED=1 neru-linux-ci go
-test -tags=integration ./...` — on an image with fonts and `fc-list` installed
-(`fontconfig fonts-dejavu-core`). CI covers them on `ubuntu-latest`, where
+No `just` recipe runs the Linux ones from a macOS host: `just test-linux` runs
+the container without the `integration` tag, and `just test-integration` runs
+on the host. Run them the way the container recipe does and add the tag —
+`docker run --rm -v "$PWD":/src -w /src -e CGO_ENABLED=1 neru-linux-ci go test
+-tags=integration ./...`. CI covers them on `ubuntu-latest`, where
 `just test-ci` runs the integration suite natively, and again on the two desktop
 legs, which run `just test-desktop` inside a real wlroots session and a real X11
 one — see [What the headless-sway job covers](#what-the-headless-sway-job-covers-and-what-it-does-not)
@@ -453,8 +442,9 @@ log_level = "debug"
 Then follow the log:
 
 ```bash
-tail -f ~/Library/Logs/neru/app.log       # macOS
-tail -f ~/.local/state/neru/log/app.log   # Linux
+tail -f ~/Library/Logs/neru/app.log                # macOS
+tail -f ~/.local/state/neru/log/app.log            # Linux ($XDG_STATE_HOME honoured)
+Get-Content -Wait $env:LOCALAPPDATA\neru\log\app.log  # Windows
 ```
 
 For a step debugger:
@@ -533,13 +523,15 @@ that unwind in reverse on failure.
 
 `app.New` takes functional options ([options.go](../internal/app/options.go)),
 which is how tests substitute doubles for the ports they need — `WithSystemPort`,
-`WithEventTap`, `WithIPCServer`, `WithOverlayPort`, `WithHotkeyService`,
-`WithWatcher`, plus `WithConfig` / `WithConfigPath` / `WithLogger`. An option
-that is not supplied falls back to the real adapter built during initialization.
+`WithAccessibility`, `WithEventTap`, `WithIPCServer`, `WithOverlayPort`,
+`WithHotkeyService`, `WithWatcher`, `WithTextInput`, plus `WithConfig` /
+`WithConfigPath` / `WithLogger` and the config-load carriers `WithWrittenConfig`
+/ `WithConfigWarnings`. An option that is not supplied falls back to the real
+adapter built during initialization.
 
 ```go
 hintService := services.NewHintService(accAdapter, overlayAdapter, systemPort, hintGen, cfg.Hints, logger, visionPort)
-gridService := services.NewGridService(overlayAdapter, systemPort, logger)
+gridService := services.NewGridService(overlayAdapter)
 actionService := services.NewActionService(accAdapter, overlayAdapter, systemPort, logger)
 ```
 

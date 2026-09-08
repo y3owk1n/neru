@@ -46,6 +46,9 @@ events. When activated it offers several navigation modes:
 - **Grid** — divides the screen into a coordinate-based grid
 - **Recursive grid** — recursive cell navigation with center preview and backtracking
 - **Scroll** — Vim-style scrolling at the cursor position
+- **Monitor select** — labels each display so the cursor can jump between them
+- **Custom modes** — user-declared modes in `[modes.<name>]`, entered with
+  `neru mode <name>`
 
 The architecture targets low latency and cross-platform extensibility while
 integrating deeply with native APIs. macOS is the reference implementation;
@@ -246,7 +249,12 @@ adapter/systray/{darwin,linux,windows}               tray icon
 adapter/accessibility/{ax,atspi,native}              element discovery
 adapter/overlay/{manager,darwin,linux,windows}       overlay rendering
 adapter/platform/{darwin,linux,windows}              the native cgo bridges
+adapter/platform/{gnomeshell,kwin,compositorcli}     per-compositor helpers the linux bridge routes to
 ```
+
+Smaller capabilities (`appwatcher`, `textinput`, `keyfeed`, `vision`) stay one
+package each, with a build-tagged `platform_darwin.go` / `platform_other.go`
+pair where the darwin bridge is the only real implementation.
 
 The parent package holds the port adapter and a small build-tagged factory —
 the only place that knows which implementation exists. So "what do I touch to
@@ -305,16 +313,20 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant M as Mode (App)
-    participant S as Service (App)
     participant OA as Overlay Adapter (Infra)
     participant B as Bridge (CGo)
     participant C as Cocoa (macOS)
 
-    M->>S: Request Display
-    S->>OA: ShowOverlay(elements)
+    M->>OA: ShowFrame(frame)
+    OA->>OA: resolve Style, build render models
     OA->>B: DrawLabels(rects)
     B->>C: Render Native Windows
 ```
+
+A mode hands the overlay adapter a `ports.Frame` of domain values and nothing
+else; resolving styles and running the show/switch/draw sequence is the
+adapter's job (`internal/adapter/overlay/AGENTS.md`). Services never touch the
+overlay.
 
 On macOS each component owns its own NSPanel and calls the Objective-C bridge
 directly. On Linux and Windows the overlay **manager** does all drawing into one
@@ -426,15 +438,15 @@ before anything else, required by Cocoa. Non-macOS builds omit it. Never add
 The codebase says "bundle ID" generically for the platform application
 identifier:
 
-| Platform | Term                        | Example                          |
-| -------- | --------------------------- | -------------------------------- |
-| macOS    | Bundle ID                   | `com.apple.Safari`               |
-| Linux    | Desktop ID / executable     | `firefox.desktop` or `firefox`   |
-| Windows  | AppUserModelID / executable | `Microsoft.Edge` or `msedge.exe` |
+| Platform | Term                              | Example                                   |
+| -------- | --------------------------------- | ----------------------------------------- |
+| macOS    | Bundle ID                         | `com.apple.Safari`                        |
+| Linux    | `WM_CLASS` (X11) / `app_id` (Wayland) | `firefox`                             |
+| Windows  | Process image path                | `C:\Program Files\...\msedge.exe`        |
 
 `ports.AccessibilityPort.FocusedAppBundleID` returns whatever the platform uses,
-and `general.excluded_apps` in the config should use the same format for the
-target platform.
+and `general.excluded_apps` matches it by exact string, so the config must use
+the same format for the target platform.
 
 ---
 
@@ -479,9 +491,10 @@ its own.
 
 ## Security Architecture
 
-1. **Secure input detection** — Neru detects when Secure Input is enabled (e.g.
-   a focused password field) and suspends the event tap, preventing unintended
-   key logging.
+1. **Secure input detection** — on macOS Neru checks for Secure Input (e.g. a
+   focused password field) before activating any mode, refuses with
+   `CodeSecureInputEnabled` and notifies the user, so no mode ever captures
+   keys into a password field. Other platforms report it as never enabled.
 2. **Permissions** — Accessibility permission is required on macOS; Neru requests
    only the minimum needed for UI interaction.
 3. **IPC security** — the endpoint is scoped to one user, and the daemon checks

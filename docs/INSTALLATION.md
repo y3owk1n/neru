@@ -6,7 +6,7 @@ This guide covers installation methods for Neru, with the most complete support 
 [Linux setup](LINUX_SETUP.md) · [Troubleshooting](TROUBLESHOOTING.md)
 
 > [!NOTE]
-> macOS is the primary supported platform. Linux builds are available through the Nix flake (uses release artifacts when available, falls back to source build), and direct source builds. See the [Platform Support section in README.md](../README.md#platform-support) for details.
+> macOS is the primary supported platform; Linux and Windows are Beta. Every method below ships all three except Homebrew, which is macOS only. What works where is in the [Cross-Platform Guide](CROSS_PLATFORM.md#capability-matrix).
 
 ---
 
@@ -135,7 +135,7 @@ Homebrew or Nix-managed install and prints the command to use instead.
 > The homebrew tap is maintained in another repo: [y3owk1n/homebrew-tap](https://github.com/y3owk1n/homebrew-tap)
 > If there's a problem with the tap, please open an issue in that repo or even better, a PR.
 
-Note that you cannot have both `stable` and `nightly` installed at the same time. Uninstall the other one first or it will error out.
+You cannot have both `stable` and `nightly` installed at the same time. Uninstall the other one first or it will error out.
 
 ```bash
 brew tap y3owk1n/tap
@@ -150,8 +150,7 @@ brew install --cask y3owk1n/tap/neru-nightly
 brew upgrade --cask y3owk1n/tap/neru
 
 # Upgrade to latest nightly release
-# Note that you will need to do `--greedy` due to the nature of nightly releases
-# without `--greedy`, it won't upgrade the rolling releases
+# `--greedy` is required: without it brew skips rolling releases
 brew upgrade --cask --greedy y3owk1n/tap/neru-nightly
 
 # Uninstall stable
@@ -596,13 +595,13 @@ nix flake update neru
 ### Patch Go Version
 
 > [!NOTE]
-> This is only required if you're using `nix`, you're using the `neru-source` package and nixpkgs is not on golang `1.26.4` yet.
+> This is only required if you're using `nix`, you're using the `neru-source` package and nixpkgs is not on golang `1.26.5` yet.
 
 ```nix
 package = pkgs.neru-source.overrideAttrs (_: {
   postPatch = ''
      substituteInPlace go.mod \
-       --replace-fail "go 1.26.4" "go 1.25.5"
+       --replace-fail "go 1.26.5" "go 1.25.5"
 
      # Verify it worked
      echo "=== go.mod after patch ==="

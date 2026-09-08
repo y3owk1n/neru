@@ -245,7 +245,8 @@ sudo apt-get install -y \
   libx11-dev \
   libxtst-dev \
   libxrandr-dev \
-  libxinerama-dev \
+  libxrender-dev \
+  libxext-dev \
   libxfixes-dev \
   libxkbcommon-dev \
   libei-dev \
@@ -267,7 +268,8 @@ sudo dnf install -y \
   libX11-devel \
   libXtst-devel \
   libXrandr-devel \
-  libXinerama-devel \
+  libXrender-devel \
+  libXext-devel \
   libXfixes-devel \
   libxkbcommon-devel \
   libei-devel \
@@ -288,7 +290,8 @@ sudo pacman -S \
   libx11 \
   libxtst \
   libxrandr \
-  libxinerama \
+  libxrender \
+  libxext \
   libxfixes \
   libxkbcommon \
   libei \
@@ -307,7 +310,7 @@ leaves every other package uninstalled too.
 Release binaries need only the runtime halves. On Fedora that is `tesseract-libs`
 (the `tesseract` package is the CLI alone), `tesseract-langpack-eng`, `libei`,
 `pipewire-libs`, `cairo`, `libxkbcommon` and the `libX11`, `libXtst`, `libXrandr`,
-`libXinerama` and `libXfixes` packages. The `-devel` packages above pull all of
+`libXrender`, `libXext` and `libXfixes` packages. The `-devel` packages above pull all of
 them in.
 
 `fontconfig` is required at build time. DejaVu fonts are the defaults when
@@ -538,10 +541,10 @@ backend resolved to `wayland-other` and the daemon refused to start. Check the
 variable, and see [Checking compositor protocols](./LINUX_DESKTOPS.md#checking-compositor-protocols)
 before trying to add the compositor.
 
-### "KWin does not implement zwlr_virtual_pointer_v1"
+### "could not establish a libei input session via the RemoteDesktop portal"
 
-Expected on KDE, where input routes through libei and the message accompanies
-a failed portal session. Approve the "Remote Control" prompt, see
+KDE, COSMIC and GNOME route pointer input through the portal. Approve the
+"Remote Control" prompt, see
 [KDE troubleshooting](./LINUX_DESKTOPS.md#kde-plasma-wayland).
 
 ### Overlay or hints wrong size after display change

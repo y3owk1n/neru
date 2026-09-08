@@ -66,7 +66,7 @@ tail -20 ~/Library/Logs/neru/app.log
 
 **Common issues:**
 
-- ❌ **"Failed to connect to Neru daemon"** → Daemon not running, run `neru launch`
+- ❌ **CLI says it cannot reach the daemon** → Daemon not running, run `neru launch`
 - ❌ **"Permission denied"** → Grant accessibility permissions
 - ❌ **No hints appear** → Check app exclusions, try different app
 
@@ -105,8 +105,8 @@ Allow local scripts for your user account, then open a new window:
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 
-Newer installer versions check the policy first and offer this before writing
-the profile. To drop the completion instead, delete the two lines under
+The installer checks the policy first and offers this before writing the
+profile. To drop the completion instead, delete the two lines under
 `# neru shell completion (managed by install.ps1)` in the profile.
 
 **Linux: "error while loading shared libraries: libtesseract.so.5"** (Fedora)
@@ -173,15 +173,6 @@ Alternatively, you can change the shortcut that you use to activate `hints` to c
 
 A tiling window manager with focus-follows-mouse avoids this at the source.
 
-### Misaligned hints/grids
-
-**Rare issue.** Enable debug logging and check logs:
-
-```toml
-[logging]
-log_level = "debug"
-```
-
 ### Hints not showing in browsers (Chrome, Firefox, Safari, Brave, Edge, Electron apps)
 
 **Browser engine detection is fully automatic.** Neru identifies the rendering engine (Chromium, Firefox, WebKit, Electron) by inspecting the app bundle — no manual configuration needed.
@@ -237,17 +228,12 @@ clickable_roles = [
 ]
 ```
 
-### Menubar/Dock hints missing
-
-```toml
-[hints]
-include_menubar_hints = true
-include_dock_hints = true
-```
-
 ### Hints or grids appear but are misaligned
 
-Hints or grids should always be accurate. This is rare.\*\*
+Hints and grids should always be accurate, so this is a bug worth reporting.
+On Linux Wayland, hints in native apps depend on a window-origin source for
+your compositor; see the per-compositor table in
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md#accessibility-and-hints).
 
 **Solution:**
 
@@ -267,7 +253,7 @@ tail -f ~/Library/Logs/neru/app.log
 # - Screenshot
 ```
 
-### No hints in menubar/Dock
+### No hints in menubar/Dock (macOS)
 
 **Disabled in config or not enabled.**
 
@@ -346,8 +332,8 @@ osascript -e 'id of app "AppName"'
 
 ```toml
 [hotkeys]
-"Primary+Shift+Space" = ""  # Disable default
-"Ctrl+Alt+Space" = "hints"  # Use different combo
+"Primary+Shift+Space" = "__disabled__"  # Remove the default binding
+"Ctrl+Alt+Space" = "hints"              # Use a different combo
 ```
 
 **Option 2: Disable system shortcut**
@@ -377,7 +363,7 @@ Then disable Neru hotkeys:
 
 ### Hints appear slowly
 
-Possible causes:\*\*
+**Possible causes:**
 
 1. Too many depth levels in the accessibility tree of current activation
 2. Debug logging enabled
@@ -397,8 +383,6 @@ top -o cpu
 
 ### High CPU usage
 
-**Neru should not use too much CPU.**
-
 **Solution:**
 
 ```bash
@@ -416,7 +400,7 @@ pkill neru && neru launch
 
 ## Daemon Issues
 
-### "Failed to connect to Neru daemon"
+### CLI cannot reach the daemon
 
 **Daemon not running.**
 
@@ -508,8 +492,6 @@ tail -f ~/Library/Logs/neru/app.log
 ```
 
 ### Daemon won't quit
-
-**Force termination needed.**
 
 **Solution:**
 
@@ -604,12 +586,12 @@ If you're still experiencing issues:
         ```
 
 3. **Layout changes at runtime not picked up:**
-    - Neru now automatically re-registers global hotkeys when the keyboard layout changes (e.g., switching from US to Dvorak while Neru is running)
+    - Neru re-registers global hotkeys when the keyboard layout changes (e.g., switching from US to Dvorak while Neru is running)
     - If hotkeys don't work after a layout switch, try toggling Neru off and on, or restart the daemon with `pkill neru && neru launch`
 
 ### Input methods not working (CJK IME)
 
-Neru now supports CJK input methods (Pinyin, Wubi, etc.). When using an input method:
+Neru supports CJK input methods (Pinyin, Wubi, etc.). When using an input method:
 
 - Hints work correctly
 - Key presses are translated through your physical keyboard layout
@@ -626,41 +608,38 @@ If input methods still don't work:
 
 ### Config changes not taking effect
 
-**Daemon needs restart to reload config.**
+**The daemon does not watch the file.** Apply an edit with `neru config reload`.
+If the reload was refused, the whole file is rejected and the daemon keeps the
+previous configuration, so validate first.
 
 **Solution:**
 
 ```bash
-# Restart daemon
-pkill neru && neru launch
+neru config validate     # names the offending key
+neru config reload
 
-# Verify config location
-neru status
-# Check "Config:" line
+# Confirm which file the daemon is reading
+neru status --json | jq -r .config
 ```
+
+Values set with `neru config set` live in `config.override.toml` beside your
+config and win over it; `neru config reset <key>` removes one. See
+[Config Layering](CONFIGURATION.md#config-layering).
 
 ### "Failed to parse config"
 
-**TOML syntax error.**
+**TOML syntax error, or a value a validator refuses.**
 
 **Solution:**
 
 ```bash
-# Check logs
-cat ~/Library/Logs/neru/app.log | grep ERROR
-
-# Common issues:
-# - Missing quotes around keys/values
-# - Incorrect section headers
-# - Invalid TOML syntax
-
-# Validate TOML syntax online:
-# https://www.toml-lint.com/
-
-# Or use default config as reference:
-curl -o /tmp/default.toml \
-  https://raw.githubusercontent.com/y3owk1n/neru/main/configs/default-config.toml
+neru config validate     # prints the line or key and why it was refused
 ```
+
+Common causes: missing quotes around a key that contains `+`, a section header
+typo, a hotkey bound to an empty string (use `__disabled__` to remove a
+binding). Compare against
+[default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml).
 
 ### Colors not working
 

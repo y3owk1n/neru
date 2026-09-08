@@ -89,7 +89,7 @@ Accepted by every command.
 | [`grid`](#neru-grid)                                         | Coordinate grid navigation      | Yes | All |
 | [`recursive_grid`](#neru-recursive_grid)                     | Recursive cell navigation       | Yes | All |
 | [`scroll`](#neru-scroll)                                     | Vim-style scrolling             | Yes | All |
-| [`monitor_select`](#neru-monitor_select)                     | Jump the cursor to a display    | Yes | macOS · Linux |
+| [`monitor_select`](#neru-monitor_select)                     | Jump the cursor to a display    | Yes | All |
 | [`mode`](#neru-mode)                                         | Enter a mode declared in config | Yes | All |
 | [`action`](#actions)                                         | One-shot mouse/scroll/key input | Yes | All ² |
 | [`run`](#neru-run)                                           | Run several actions in order    | Yes | All |
@@ -99,7 +99,7 @@ Accepted by every command.
 | [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection) | Toggle cursor follow | Yes | All |
 | [`toggle-screen-share`](#neru-toggle-screen-share)           | Hide overlays while sharing     | Yes | macOS |
 | [`roles`](#neru-roles)                                       | List the role vocabulary        | No  | All |
-| [`services`](#neru-services)                                 | Manage the system service       | No  | macOS · Linux |
+| [`services`](#neru-services)                                 | Manage the system service       | No  | All |
 | [`docs`](#neru-docs)                                         | Open documentation in a browser | No  | All |
 
 ¹ Element discovery quality differs by platform: a full accessibility tree on
@@ -496,8 +496,7 @@ Move the cursor to another display.
 neru monitor_select [flags]
 ```
 
-**Platforms:** macOS · Linux. Not implemented on Windows, where it returns
-`ERR_NOT_SUPPORTED`.
+**Platforms:** all. Requires more than one display.
 
 Opens a labelled panel on each display. Typing a label moves the cursor to that
 display. The current display is excluded.
@@ -588,10 +587,14 @@ a hotkey binding string, or `neru action` directly.
 | Toggle   | `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`                                    |
 | Movement | `move_mouse`, `move_mouse_relative`, `move_monitor`                                                 |
 | Scroll   | `scroll`, `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`, `page_up`, `page_down`, `go_top`, `go_bottom` |
-| Mode     | `reset`, `backspace`, `move_cell`, `cycle_hint`, `wait_for_mode_exit`                               |
+| Mode     | `reset`, `backspace`, `move_cell`, `cycle_hint`, `search_hints` ³, `wait_for_mode_exit`             |
 | Cursor   | `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`                               |
 | Keys     | `feed`                                                                                              |
 | Timing   | `sleep` — [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
+
+³ `search_hints` opens the hint search field in hints mode. It has no
+`neru action` subcommand; bind it as `"action search_hints"` in a mode's
+`[hotkeys]` or run it through `neru run` / `neru macro`.
 
 **Mode `--action` accepts mouse-button names only** — the click, press, release,
 and toggle rows above, plus the deprecated `mouse_down` / `mouse_up`. Every
@@ -605,7 +608,7 @@ Every action not listed here behaves identically on macOS, Linux, and Windows.
 
 | Action                            | macOS | Linux | Windows | Note                                                     |
 | --------------------------------- | :---: | :---: | :-----: | -------------------------------------------------------- |
-| `hide_cursor`, `show_cursor`      | Yes   | No    | No      | Uses a Quartz API with no cross-platform equivalent; a no-op elsewhere. |
+| `hide_cursor`, `show_cursor`      | Yes   | No    | No      | Uses a Quartz API with no cross-platform equivalent; elsewhere the daemon returns `ERR_NOT_SUPPORTED`. |
 | `move_monitor`                    | Yes   | Yes   | Yes     | Requires more than one display.                           |
 
 The injection mechanism differs per platform even where behaviour matches:

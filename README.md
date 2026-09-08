@@ -245,38 +245,18 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 
 ## Platform support
 
-| Capability                | macOS | Linux | Windows |
-| :------------------------ | :---: | :---: | :-----: |
-| Recursive Grid            |  ✅   |  ✅   |   ✅    |
-| Grid                      |  ✅   |  ✅   |   ✅    |
-| Vim-Style Scroll          |  ✅   |  ✅   |   ✅    |
-| Hints (Accessibility API) |  ✅   |  🔵   |   🔵    |
-| Hints (Vision OCR)        |  ✅   |  🔵   |   🔲    |
-| Direct Mouse Injection    |  ✅   |  ✅   |   ✅    |
-| Global Hotkeys            |  ✅   |  ✅   |   ✅    |
-| Native Overlays           |  ✅   |  ✅   |   ✅    |
-| Monitor Select            |  ✅   |  ✅   |   🔲    |
+Every mode runs on macOS, Linux (X11 and Wayland) and Windows. The difference
+is hints: on macOS they read the full accessibility tree, while on Linux
+(AT-SPI) and Windows (UI Automation) coverage depends on what each app exposes,
+with a text-only OCR fallback where the tree is too thin. The capability
+matrix in the cross-platform guide is the single source of truth for what works
+where, with the mechanism behind each cell.
 
-✅ full · 🔵 works with limits · 🔲 not available
-
-**Hints caveats.** On **Linux**, hints work through AT-SPI, so coverage depends
-on the app exposing an accessibility tree (GTK/Qt do; Chromium and Electron apps
-need `--force-renderer-accessibility`). Where that tree is too thin, Vision OCR
-is the fallback — tesseract, text only, and on KDE behind a one-time
-screen-sharing prompt, because KWin's only pixel source is the desktop portal.
-On **Windows**, UI Automation reports the control view only,
-per-app config does not re-apply when you change windows,
-and the OCR fallback is `Windows.Media.Ocr`, text only, needing a language pack. **Linux runs on X11 or Wayland on
-wlroots/KWin/COSMIC/GNOME**; on GNOME Wayland the overlay is drawn through
-Xwayland and the focused window comes from a shell extension Neru installs.
-
-→ [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
+→ [Cross-platform details](docs/CROSS_PLATFORM.md#capability-matrix) · [Roadmap](docs/ROADMAP.md)
 
 ---
 
 ## Documentation
-
-Everything you need to go deep:
 
 **Using Neru**
 
@@ -316,8 +296,7 @@ are **executable**: the guardrail tests in
 [`internal/architecture/`](internal/architecture/) pin the layering, platform
 isolation, port/mock parity, and even doc-link integrity — each with a comment
 explaining the real bug it prevents. If you break a rule, the failure message
-tells you how to fix it. Adding a feature or platform adapter is straightforward,
-and pull requests are very welcome.
+tells you how to fix it. Pull requests are welcome.
 
 ```bash
 git checkout -b feature/your-feature

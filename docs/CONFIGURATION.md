@@ -1100,6 +1100,26 @@ The `label_direction` setting controls how multi-character hint labels are enume
 
 You can also mix directions per-app via `[hints.app_configs]` or per-activation via `neru hints --label-direction`. See the [per-app config table](#per-app-config) and [CLI reference](CLI.md#neru-hints).
 
+### Default Hotkeys
+
+```toml
+[hints.hotkeys]
+"Escape"    = "idle"
+"/"         = "action search_hints"
+"Backspace" = "action backspace"
+"Tab"       = "action cycle_hint"
+"Shift+Tab" = "action cycle_hint --backward"
+"Shift+L"   = "action left_click"
+"Shift+R"   = "action right_click"
+"Shift+M"   = "action middle_click"
+"Shift+I"   = "action left_click --state down"
+"Shift+U"   = "action left_click --state up"
+"Up"        = "action move_mouse_relative --dx=0 --dy=-10"
+"Down"      = "action move_mouse_relative --dx=0 --dy=10"
+"Left"      = "action move_mouse_relative --dx=-10 --dy=0"
+"Right"     = "action move_mouse_relative --dx=10 --dy=0"
+```
+
 ### Per-App Config
 
 | Field                        | Type   | Description                                                                                                                                                                               |
@@ -1161,7 +1181,7 @@ reported once.
 its distinct characters, `sublayer_keys` included, so the grid is built from `ab`
 whether you wrote `ab`, `aab` or `aAb`. That is why the repeat is worth a warning
 rather than a refusal: what it costs is a shorter alphabet, not a cell you can see
-and cannot click. Note that dropping repeats is also what can leave a set too
+and cannot click. Dropping repeats is also what can leave a set too
 short — `characters = "aa"` has one usable character, so it falls back to `a-z`,
 and both facts are reported.
 
@@ -1191,6 +1211,25 @@ one subgrid cell unlabelled, which is visible on screen in a way a warning is no
 [grid.ui]
 font_size = 10
 border_width = 1
+```
+
+### Default Hotkeys
+
+```toml
+[grid.hotkeys]
+"Escape"    = "idle"
+"`"         = "toggle-cursor-follow-selection"
+"Space"     = "action reset"
+"Backspace" = "action backspace"
+"Shift+L"   = "action left_click"
+"Shift+R"   = "action right_click"
+"Shift+M"   = "action middle_click"
+"Shift+I"   = "action left_click --state down"
+"Shift+U"   = "action left_click --state up"
+"Up"        = "action move_mouse_relative --dx=0 --dy=-10"
+"Down"      = "action move_mouse_relative --dx=0 --dy=10"
+"Left"      = "action move_mouse_relative --dx=-10 --dy=0"
+"Right"     = "action move_mouse_relative --dx=10 --dy=0"
 ```
 
 ### Per-App Config
@@ -1282,6 +1321,25 @@ label_background = false
 sub_key_preview = false
 ```
 
+### Default Hotkeys
+
+```toml
+[recursive_grid.hotkeys]
+"Escape"    = "idle"
+"`"         = "toggle-cursor-follow-selection"
+"Space"     = "action reset"
+"Backspace" = "action backspace"
+"Shift+L"   = "action left_click"
+"Shift+R"   = "action right_click"
+"Shift+M"   = "action middle_click"
+"Shift+I"   = "action left_click --state down"
+"Shift+U"   = "action left_click --state up"
+"Up"        = "action move_mouse_relative --dx=0 --dy=-10"
+"Down"      = "action move_mouse_relative --dx=0 --dy=10"
+"Left"      = "action move_mouse_relative --dx=-10 --dy=0"
+"Right"     = "action move_mouse_relative --dx=10 --dy=0"
+```
+
 ### Per-App Config
 
 ```toml
@@ -1322,6 +1380,15 @@ Keyboard-driven scrolling.
 "PageUp"  = "action page_up"
 "d"       = "action page_down"
 "PageDown"= "action page_down"
+"Shift+L" = "action left_click"
+"Shift+R" = "action right_click"
+"Shift+M" = "action middle_click"
+"Shift+I" = "action left_click --state down"
+"Shift+U" = "action left_click --state up"
+"Up"      = "action move_mouse_relative --dx=0 --dy=-10"
+"Down"    = "action move_mouse_relative --dx=0 --dy=10"
+"Left"    = "action move_mouse_relative --dx=-10 --dy=0"
+"Right"   = "action move_mouse_relative --dx=10 --dy=0"
 ```
 
 ### Per-App Config
@@ -1367,7 +1434,7 @@ Interactive display picking mode. Shows per-monitor overlay badges labelled with
 | `border_radius`        | `-1` (auto)   | Badge corner radius               |
 | `padding_x`            | `-1` (auto)   | Horizontal padding                |
 | `padding_y`            | `-1` (auto)   | Vertical padding                  |
-| `border_width`         | `0`           | Badge border width                |
+| `border_width`         | `1`           | Badge border width                |
 | `background_color`     | derived       | Badge fill color                  |
 | `text_color`           | derived       | Label text color                  |
 | `matched_text_color`   | derived       | Partially-typed label text color  |
@@ -1394,7 +1461,7 @@ subtitle_font_family = ""
 border_radius = -1
 padding_x = -1
 padding_y = -1
-border_width = 0
+border_width = 1
 backdrop_color = ""
 
 [monitor_select.hotkeys]
@@ -1734,7 +1801,7 @@ accelerates. An empty `accel_targets` while `accel_enabled = true` is rejected
 for the same reason.
 
 `accel_enabled = true` while `enabled = false` is not an error: acceleration
-shapes a glide, so with no glide to shape it simply does nothing, and refusing
+shapes a glide, so with no glide to shape it does nothing, and refusing
 the file would stop you turning held-key behaviour off without also unwinding
 the settings under it. `neru config validate` reports it as a warning instead.
 
