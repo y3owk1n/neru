@@ -180,9 +180,11 @@ jobs:
                     libx11-dev \
                     libxtst-dev \
                     libxrandr-dev \
-                    libxinerama-dev \
+                    libxrender-dev \
+                    libxext-dev \
                     libxfixes-dev \
                     libxkbcommon-dev \
+                    libfontconfig-dev \
                     wayland-protocols \
                     libei-dev \
                     liboeffis-dev \
@@ -244,9 +246,11 @@ jobs:
                     libx11-dev \
                     libxtst-dev \
                     libxrandr-dev \
-                    libxinerama-dev \
+                    libxrender-dev \
+                    libxext-dev \
                     libxfixes-dev \
                     libxkbcommon-dev \
+                    libfontconfig-dev \
                     wayland-protocols \
                     libei-dev \
                     liboeffis-dev \

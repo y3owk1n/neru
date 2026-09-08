@@ -20,7 +20,7 @@
   libxrandr,
   libxrender,
   libxtst,
-  libxi,
+  fontconfig,
   # tesseract backs the `vision` hint strategy on Linux. It is a required
   # dependency rather than an optional one: neru links libtesseract dynamically,
   # so a missing library stops the daemon before any neru code runs, whatever
@@ -109,7 +109,7 @@ if useZip then
       libxrandr
       libxrender
       libxtst
-      libxi
+      fontconfig
       tesseract
       pipewire
     ];
@@ -227,7 +227,7 @@ else
         libxrandr
         libxrender
         libxtst
-        libxi
+        fontconfig
         tesseract
         pipewire
       ]

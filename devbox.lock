@@ -137,6 +137,80 @@
         }
       }
     },
+    "fontconfig@2.18.2": {
+      "last_modified": "2026-08-27T23:47:58Z",
+      "resolved": "github:NixOS/nixpkgs/7d1a7c21a4c00ea653fc7ed5c083d261340f185f#fontconfig",
+      "source": "devbox-search",
+      "version": "2.18.2",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "bin",
+              "path": "/nix/store/nqysidl8dzq30nxnqfj5h4xjgxi333m3-fontconfig-2.18.2-bin",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/sdb502rn5gv1qf1bvwznmp5zp9jn2lvs-fontconfig-2.18.2-dev"
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/0myrip6l3dyj4vjhr38i590mns08xvzc-fontconfig-2.18.2-lib"
+            },
+            {
+              "name": "out",
+              "path": "/nix/store/k5d9w5hd7n7sn85sz2b0hzky3hxb1dc0-fontconfig-2.18.2"
+            }
+          ],
+          "store_path": "/nix/store/nqysidl8dzq30nxnqfj5h4xjgxi333m3-fontconfig-2.18.2-bin"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "bin",
+              "path": "/nix/store/vsz5rzfzvjlwzaiv48brly2n4jwp7gjw-fontconfig-2.18.2-bin",
+              "default": true
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/pfw3851d34mxqx7ysz7lv7lx17r78jf5-fontconfig-2.18.2-lib"
+            },
+            {
+              "name": "out",
+              "path": "/nix/store/69w8pn766sbaj956mmn5h4ggn9s50az4-fontconfig-2.18.2"
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/cp330nldfrj6z2vp6cyqqddghbwsb60j-fontconfig-2.18.2-dev"
+            }
+          ],
+          "store_path": "/nix/store/vsz5rzfzvjlwzaiv48brly2n4jwp7gjw-fontconfig-2.18.2-bin"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "bin",
+              "path": "/nix/store/122fcxcqy3ay3jkm3fa2bav0vb8mgdjy-fontconfig-2.18.2-bin",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/vwlb36mv7jbar7y76l7kilvln04xqf6n-fontconfig-2.18.2-dev"
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/iv0yvsywa1v35xzdkqz9wdzhg7vshpdd-fontconfig-2.18.2-lib"
+            },
+            {
+              "name": "out",
+              "path": "/nix/store/qdbcjg7j3rxr1bvh1qhldk5aqjz7vlx6-fontconfig-2.18.2"
+            }
+          ],
+          "store_path": "/nix/store/122fcxcqy3ay3jkm3fa2bav0vb8mgdjy-fontconfig-2.18.2-bin"
+        }
+      }
+    },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
       "last_modified": "2026-06-30T12:14:11Z",
       "resolved": "github:NixOS/nixpkgs/e52c192be9d7b2c4bd4aed326c8731b35f8bb75c?lastModified=1782821651"
@@ -1367,170 +1441,6 @@
             }
           ],
           "store_path": "/nix/store/7plm1w55qdjpj349vbxbjqq1ja4zzf3m-libXfixes-6.0.1"
-        }
-      }
-    },
-    "xorg.libXi@1.8.2": {
-      "last_modified": "2025-10-07T08:41:47Z",
-      "resolved": "github:NixOS/nixpkgs/bce5fe2bb998488d8e7e7856315f90496723793c#xorg.libXi",
-      "source": "devbox-search",
-      "version": "1.8.2",
-      "systems": {
-        "aarch64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/i9kf1vypnih3hsksjvlw608rym41drn4-libXi-1.8.2",
-              "default": true
-            },
-            {
-              "name": "man",
-              "path": "/nix/store/lgm5b4ib7ms20hc410cn56h8k31cv6r5-libXi-1.8.2-man",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/vz2145aibxnz34p1rn0k5anf7ymh147h-libXi-1.8.2-dev"
-            },
-            {
-              "name": "doc",
-              "path": "/nix/store/99qbk55q3h4dv5d9x3sm26jzv7b4vh4p-libXi-1.8.2-doc"
-            }
-          ],
-          "store_path": "/nix/store/i9kf1vypnih3hsksjvlw608rym41drn4-libXi-1.8.2"
-        },
-        "aarch64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/l5c4w2ayd9ffm6z3j5gb2vqkwsjlzl69-libXi-1.8.2",
-              "default": true
-            },
-            {
-              "name": "man",
-              "path": "/nix/store/0f5633zfq9irz04xh86msywb3dw6h510-libXi-1.8.2-man",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/g9qgx9w8wj3jhvr80cyzb3szcg8yc3l5-libXi-1.8.2-dev"
-            },
-            {
-              "name": "doc",
-              "path": "/nix/store/l13z2729z069a2ywn61lldkqm47r1pjb-libXi-1.8.2-doc"
-            }
-          ],
-          "store_path": "/nix/store/l5c4w2ayd9ffm6z3j5gb2vqkwsjlzl69-libXi-1.8.2"
-        },
-        "x86_64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/b6hak91sbwj0cngywrb236f179r38y3c-libXi-1.8.2",
-              "default": true
-            },
-            {
-              "name": "man",
-              "path": "/nix/store/wkjrj121g3s9g4rvcl411k195xy31w2m-libXi-1.8.2-man",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/8wzbhcgb1ghag4b883wpn4gzdjq0riii-libXi-1.8.2-dev"
-            },
-            {
-              "name": "doc",
-              "path": "/nix/store/ndwrw0pqnwsmw1q2sspddjx0i1scwnl2-libXi-1.8.2-doc"
-            }
-          ],
-          "store_path": "/nix/store/b6hak91sbwj0cngywrb236f179r38y3c-libXi-1.8.2"
-        },
-        "x86_64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/6nk1smsrxzsjcppwljylwa9swfiavfy1-libXi-1.8.2",
-              "default": true
-            },
-            {
-              "name": "man",
-              "path": "/nix/store/iagca52p1cddxn9n4akag980gp94fp2c-libXi-1.8.2-man",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/lnrprzw8rwznjkdc2jmgcys90rkgsbcn-libXi-1.8.2-dev"
-            },
-            {
-              "name": "doc",
-              "path": "/nix/store/qcb8dnccp2cna09b4ryzyfp0fs1g7hv3-libXi-1.8.2-doc"
-            }
-          ],
-          "store_path": "/nix/store/6nk1smsrxzsjcppwljylwa9swfiavfy1-libXi-1.8.2"
-        }
-      }
-    },
-    "xorg.libXinerama@1.1.5": {
-      "last_modified": "2025-10-07T08:41:47Z",
-      "resolved": "github:NixOS/nixpkgs/bce5fe2bb998488d8e7e7856315f90496723793c#xorg.libXinerama",
-      "source": "devbox-search",
-      "version": "1.1.5",
-      "systems": {
-        "aarch64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/b65x28ssza2lm7jydq9lrhkjhfbinxdn-libXinerama-1.1.5",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/w34ghyd0panbjv66ij5chgcb955la9bi-libXinerama-1.1.5-dev"
-            }
-          ],
-          "store_path": "/nix/store/b65x28ssza2lm7jydq9lrhkjhfbinxdn-libXinerama-1.1.5"
-        },
-        "aarch64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/wjbxxvxwnfrlhwc36xcxji20sigyandl-libXinerama-1.1.5",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/nnw9kl6nfsph60by0d69wjbghqrc6khm-libXinerama-1.1.5-dev"
-            }
-          ],
-          "store_path": "/nix/store/wjbxxvxwnfrlhwc36xcxji20sigyandl-libXinerama-1.1.5"
-        },
-        "x86_64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/27sb0gjyiva170k6px885mf5s6h3vyvb-libXinerama-1.1.5",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/9bp5m3bh5jfi7w4bv331g6dc401w3mqx-libXinerama-1.1.5-dev"
-            }
-          ],
-          "store_path": "/nix/store/27sb0gjyiva170k6px885mf5s6h3vyvb-libXinerama-1.1.5"
-        },
-        "x86_64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/myjpnmphdy2clfj960lnidw5cfsw05i6-libXinerama-1.1.5",
-              "default": true
-            },
-            {
-              "name": "dev",
-              "path": "/nix/store/sfzsyd3dk4gxqp5ppbrdhya10klgb0bd-libXinerama-1.1.5-dev"
-            }
-          ],
-          "store_path": "/nix/store/myjpnmphdy2clfj960lnidw5cfsw05i6-libXinerama-1.1.5"
         }
       }
     },

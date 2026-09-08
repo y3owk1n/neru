@@ -599,8 +599,8 @@ test-linux:
     FROM golang:1.26
     RUN apt-get update -qq && apt-get install -y -qq \
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
-        libxinerama-dev libxfixes-dev libxkbcommon-dev wayland-protocols \
-        libei-dev liboeffis-dev libxi-dev libxrender-dev libfontconfig1-dev \
+        libxrender-dev libxext-dev libxfixes-dev libxkbcommon-dev \
+        libei-dev liboeffis-dev libfontconfig-dev \
         libtesseract-dev tesseract-ocr-eng libpipewire-0.3-dev \
         pkg-config >/dev/null 2>&1
     DOCKERFILE
@@ -658,8 +658,8 @@ lint-cross:
     FROM golang:1.26
     RUN apt-get update -qq && apt-get install -y -qq \
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
-        libxinerama-dev libxfixes-dev libxkbcommon-dev wayland-protocols \
-        libei-dev liboeffis-dev libxi-dev libxrender-dev libfontconfig1-dev \
+        libxrender-dev libxext-dev libxfixes-dev libxkbcommon-dev \
+        libei-dev liboeffis-dev libfontconfig-dev \
         libtesseract-dev tesseract-ocr-eng libpipewire-0.3-dev \
         pkg-config >/dev/null 2>&1
     BASE
