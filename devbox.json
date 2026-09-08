@@ -19,38 +19,51 @@
 		},
 		"cairo": {
 			"version": "1.18.4",
+			"outputs": ["out", "dev"],
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
 		"wayland": {
 			"version": "1.22.0",
+			"outputs": ["out", "dev"],
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
 		"xorg.libX11": {
 			"version": "1.8.12",
+			"outputs": ["out", "dev"],
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
 		"xorg.libXrender": {
 			"version": "0.9.12",
+			"outputs": ["out", "dev"],
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
 		"xorg.libXext": {
 			"version": "1.3.6",
+			"outputs": ["out", "dev"],
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
 		"xorg.libXtst": {
 			"version": "1.2.5",
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
+		"xorg.libXi": {
+			"version": "1.8.2",
+			"outputs": ["out", "dev"],
+			"platforms": ["x86_64-linux", "aarch64-linux"]
+		},
 		"xorg.libXrandr": {
 			"version": "1.5.4",
+			"outputs": ["out", "dev"],
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
 		"xorg.libXfixes": {
 			"version": "6.0.1",
+			"outputs": ["out", "dev"],
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
 		"libxkbcommon": {
 			"version": "1.13.1",
+			"outputs": ["out", "dev"],
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
 		"wayland-protocols": {
@@ -59,6 +72,7 @@
 		},
 		"fontconfig": {
 			"version": "2.18.2",
+			"outputs": ["out", "dev"],
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		},
 		"libei": {
@@ -77,7 +91,7 @@
 	},
 	"shell": {
 		"init_hook": [
-			"if [[ \"$(uname)\" == \"Linux\" ]]; then export PKG_CONFIG_PATH_FOR_TARGET=\"$(find /nix/store -maxdepth 5 -type d -name pkgconfig 2>/dev/null | tr '\\n' ':')\" && export CGO_CFLAGS=\"-I$(pkg-config --variable=includedir cairo) $CGO_CFLAGS\"; fi",
+			"if [[ \"$(uname)\" == \"Linux\" ]]; then export PKG_CONFIG_PATH=\"$DEVBOX_PACKAGES_DIR/lib/pkgconfig:$DEVBOX_PACKAGES_DIR/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}\"; fi",
 			"if [[ \"$(uname)\" == \"Linux\" && -z \"${TESSDATA_PREFIX:-}\" ]]; then export TESSDATA_PREFIX=\"$(pkg-config --variable=prefix tesseract 2>/dev/null)/share/tessdata\"; fi"
 		]
 	}

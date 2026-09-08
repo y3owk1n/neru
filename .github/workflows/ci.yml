@@ -94,8 +94,10 @@ jobs:
             # wrong for fork PRs. On push events it checks out the pushed ref.
             - uses: actions/checkout@v7
 
-            # Install Linux system dependencies (Wayland, X11, Cairo, etc.)
-            # Devbox doesn't pull *-dev outputs (https://github.com/jetify-com/devbox/issues/2761)
+            # Install Linux system dependencies (Wayland, X11, Cairo, etc.) via apt
+            # so the runner exercises the distro packages users build against;
+            # devbox is only used on macOS here. libxtst-dev depends on libxi-dev,
+            # which XTest.h includes, so Xi is not listed explicitly.
             - name: Install Linux system dependencies
               if: runner.os == 'Linux'
               run: |
