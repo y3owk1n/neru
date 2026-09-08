@@ -493,10 +493,12 @@ its own.
 
 ## Security Architecture
 
-1. **Secure input detection** — on macOS Neru checks for Secure Input (e.g. a
-   focused password field) before activating any mode, refuses with
-   `CodeSecureInputEnabled` and notifies the user, so no mode ever captures
-   keys into a password field. Other platforms report it as never enabled.
+1. **Secure input detection** — before activating any mode Neru asks the
+   system port whether secure input is engaged (e.g. a focused password
+   field); if so it refuses with `CodeSecureInputEnabled` and notifies the
+   user, so no mode ever captures keys into a password field. Which platforms
+   can answer that question is in the
+   [capability matrix](CROSS_PLATFORM.md#capability-matrix).
 2. **Permissions** — Accessibility permission is required on macOS; Neru requests
    only the minimum needed for UI interaction.
 3. **IPC security** — the endpoint is scoped to one user, and the daemon checks
