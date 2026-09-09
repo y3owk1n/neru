@@ -151,6 +151,15 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 	h.startIndicatorPolling(domain.ModeRecursiveGrid)
 }
 
+// recursiveGridMinSize is the configured minimum cell size in the pixels the
+// active screen is measured in. The configured values are apparent sizes.
+func (h *handlerState) recursiveGridMinSize() (int, int) {
+	scale := h.screenScale(h.screenBounds)
+
+	return int(math.Round(float64(h.config.RecursiveGrid.MinSizeWidth) * scale)),
+		int(math.Round(float64(h.config.RecursiveGrid.MinSizeHeight) * scale))
+}
+
 // initializeRecursiveGridManager initializes the recursive-grid manager.
 func (h *handlerState) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 	if h.recursiveGrid == nil {
@@ -171,15 +180,13 @@ func (h *handlerState) initializeRecursiveGridManager(screenBounds image.Rectang
 		depthKeys[layer.Depth] = layer.Keys
 	}
 
-	// The minimum cell sizes are apparent sizes. The grid is laid out in the
-	// pixels the screen bounds are measured in.
-	scale := h.screenScale(h.screenBounds)
+	minWidth, minHeight := h.recursiveGridMinSize()
 
 	h.recursiveGrid.Manager = recursivegrid.NewManagerWithLayers(
 		screenBounds,
 		h.config.RecursiveGrid.Keys,
-		int(math.Round(float64(h.config.RecursiveGrid.MinSizeWidth)*scale)),
-		int(math.Round(float64(h.config.RecursiveGrid.MinSizeHeight)*scale)),
+		minWidth,
+		minHeight,
 		h.config.RecursiveGrid.MaxDepth,
 		domain.GridDimensions{
 			Rows: h.config.RecursiveGrid.GridRows,

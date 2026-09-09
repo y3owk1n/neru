@@ -321,7 +321,7 @@ func (h *handlerState) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(targetBounds)
 
 	gridInstance := domainGrid.NewGridWithOptions(
-		h.config.GridOptions(), normalizedBounds, h.logger,
+		h.gridOptionsFor(targetBounds), normalizedBounds, h.logger,
 	)
 	h.grid.Context.SetGridInstanceValue(gridInstance)
 
@@ -350,6 +350,7 @@ func (h *handlerState) refreshRecursiveGridForMonitorMove(targetBounds image.Rec
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(targetBounds)
 	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
 		h.recursiveGrid.Manager.CurrentGrid().RemapToNewBounds(normalizedBounds)
+		h.recursiveGrid.Manager.CurrentGrid().SetMinSize(h.recursiveGridMinSize())
 	} else {
 		h.initializeRecursiveGridManager(normalizedBounds)
 	}

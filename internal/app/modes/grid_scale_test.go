@@ -56,3 +56,25 @@ func TestCreateGridInstance_PlansTheGridInApparentUnits(t *testing.T) {
 		t.Fatalf("4K at 150%% planned %d cells, its 2560x1440 twin %d", got, want)
 	}
 }
+
+// TestRefreshGridForMonitorMove_PlansTheTargetScreenInApparentUnits pins the
+// same wiring on the monitor-move path, which rebuilds the grid from the target
+// screen's bounds without going through createGridInstance. A grid moved from
+// a 100% monitor to a 150% one has to be planned for the 150% one.
+func TestRefreshGridForMonitorMove_PlansTheTargetScreenInApparentUnits(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Grid.Enabled = true
+	cfg.ResolveGridLabels()
+
+	handler := newScaledGridHandler(cfg, image.Rect(0, 0, 1920, 1080), 1.5)
+	handler.initializeGridManager(handler.createGridInstance())
+
+	handler.refreshGridForMonitorMove(image.Rect(1920, 0, 5760, 2160))
+
+	moved := handler.grid.Manager.Grid()
+	logical := newScaledGridHandler(cfg, image.Rect(0, 0, 2560, 1440), 1).createGridInstance()
+
+	if got, want := len(moved.Cells()), len(logical.Cells()); got != want {
+		t.Fatalf("grid moved onto 4K at 150%% has %d cells, its 2560x1440 twin %d", got, want)
+	}
+}

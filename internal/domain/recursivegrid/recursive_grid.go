@@ -339,6 +339,14 @@ func (qg *RecursiveGrid) MaxDepth() int {
 	return qg.maxDepth
 }
 
+// SetMinSize replaces the minimum cell size, in the pixels the bounds are
+// measured in. A grid remapped onto a screen with another display scale
+// keeps its apparent minimum by resetting this.
+func (qg *RecursiveGrid) SetMinSize(width, height int) {
+	qg.minSizeWidth = width
+	qg.minSizeHeight = height
+}
+
 // MinSizeWidth returns the minimum cell width.
 func (qg *RecursiveGrid) MinSizeWidth() int {
 	return qg.minSizeWidth

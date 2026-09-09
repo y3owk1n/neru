@@ -135,7 +135,11 @@ func calculateOptimalCellSizes(width, height int, scale float64) (int, int) {
 		maxCellSize = int(float64(maxCellSize) * AspectRatioAdjustment)
 	}
 
-	return int(float64(minCellSize) * scale), int(float64(maxCellSize) * scale)
+	return int(
+			math.Round(float64(minCellSize) * scale),
+		), int(
+			math.Round(float64(maxCellSize) * scale),
+		)
 }
 
 // selectBestCandidate picks the candidate with the best (lowest) score.
