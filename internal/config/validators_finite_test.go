@@ -13,37 +13,43 @@ import (
 // carries well over twenty float options today.
 const minFloatFields = 20
 
+// mapFixtureKey is the key the sweep invents when a float sits under a map,
+// which is the user's own vocabulary there (a custom mode name, say).
+const mapFixtureKey = "sweep"
+
 // TestConfig_ValidateFinite_RejectsEveryNonFiniteFloat sets each float field
 // in the schema to NaN, +Inf and -Inf in turn and expects validation to name
-// the field. The walk is reflective so a float added tomorrow is covered on
-// the day it lands, which is the whole point of one check over per-field ones.
+// the field. The walk is over types rather than the default values, so a
+// float behind a nil pointer or inside a collection that ships empty is
+// reached by allocating one, and a float added tomorrow in any of those
+// shapes is covered on the day it lands.
 func TestConfig_ValidateFinite_RejectsEveryNonFiniteFloat(t *testing.T) {
-	paths := floatFieldPaths(t)
-	if len(paths) < minFloatFields {
+	routes := floatFieldRoutes(t)
+	if len(routes) < minFloatFields {
 		t.Fatalf(
 			"found %d float fields, expected at least %d; the walk is broken",
-			len(paths),
+			len(routes),
 			minFloatFields,
 		)
 	}
 
-	for _, path := range paths {
+	for _, route := range routes {
 		for name, value := range map[string]float64{
 			"nan":  math.NaN(),
 			"inf":  math.Inf(1),
 			"-inf": math.Inf(-1),
 		} {
-			t.Run(path+"="+name, func(t *testing.T) {
+			t.Run(route.String()+"="+name, func(t *testing.T) {
 				cfg := config.DefaultConfig()
-				setFloatByPath(t, reflect.ValueOf(cfg).Elem(), path, value)
+				route.set(t, reflect.ValueOf(cfg).Elem(), value)
 
 				err := cfg.Validate()
 				if err == nil {
-					t.Fatalf("%s = %s was accepted, want rejected", path, name)
+					t.Fatalf("%s = %s was accepted, want rejected", route, name)
 				}
 
-				if !strings.Contains(err.Error(), path) {
-					t.Errorf("%s = %s rejected without naming the field: %v", path, name, err)
+				if !strings.Contains(err.Error(), route.String()) {
+					t.Errorf("%s = %s rejected without naming the field: %v", route, name, err)
 				}
 			})
 		}
@@ -59,52 +65,52 @@ func TestConfig_ValidateFinite_AcceptsTheDefaults(t *testing.T) {
 	}
 }
 
-// floatFieldPaths lists the toml path of every float in the schema, through
-// structs and non-nil pointers; collections ship empty and carry no floats.
-func floatFieldPaths(t *testing.T) []string {
-	t.Helper()
+// floatRoute is the way from the root of the schema to one float: a field
+// name per struct hop, with the collection kinds that need an element made
+// on the way down.
+type floatRoute []routeHop
 
-	var paths []string
-
-	var walk func(val reflect.Value, path string)
-
-	walk = func(val reflect.Value, path string) {
-		switch val.Kind() { //nolint:exhaustive // only the kinds that can hold or contain a float matter
-		case reflect.Float32, reflect.Float64:
-			paths = append(paths, path)
-		case reflect.Pointer:
-			if !val.IsNil() {
-				walk(val.Elem(), path)
-			}
-		case reflect.Struct:
-			typ := val.Type()
-			for index := range typ.NumField() {
-				name, _, _ := strings.Cut(typ.Field(index).Tag.Get("toml"), ",")
-				if !typ.Field(index).IsExported() || name == "" || name == "-" {
-					continue
-				}
-
-				if path != "" {
-					name = path + "." + name
-				}
-
-				walk(val.Field(index), name)
-			}
-		default:
-		}
-	}
-
-	walk(reflect.ValueOf(config.DefaultConfig()).Elem(), "")
-
-	return paths
+type routeHop struct {
+	name string
+	kind reflect.Kind // the container met before the field: Pointer, Slice, Map or Invalid
 }
 
-func setFloatByPath(t *testing.T, val reflect.Value, path string, value float64) {
+// String is the path the validator reports: toml names joined by dots, with
+// the fixture key where a map sits in the way.
+func (r floatRoute) String() string {
+	parts := make([]string, 0, len(r))
+
+	for _, hop := range r {
+		if hop.kind == reflect.Map {
+			parts = append(parts, mapFixtureKey)
+		}
+
+		parts = append(parts, hop.name)
+	}
+
+	return strings.Join(parts, ".")
+}
+
+// set walks the route on a live config, allocating a pointer, a one-element
+// slice or a one-entry map wherever the route crosses one, then writes value.
+func (r floatRoute) set(t *testing.T, val reflect.Value, value float64) {
 	t.Helper()
 
-	for segment := range strings.SplitSeq(path, ".") {
-		for val.Kind() == reflect.Pointer {
-			val = val.Elem()
+	for hop := range r {
+		val = enterContainer(val)
+
+		if val.Kind() == reflect.Map {
+			// Map elements are not addressable, so the rest of the route
+			// runs on a fresh element that is stored once it is written.
+			if val.IsNil() {
+				val.Set(reflect.MakeMap(val.Type()))
+			}
+
+			elem := reflect.New(val.Type().Elem()).Elem()
+			r[hop:].set(t, elem, value)
+			val.SetMapIndex(reflect.ValueOf(mapFixtureKey), elem)
+
+			return
 		}
 
 		typ := val.Type()
@@ -112,7 +118,7 @@ func setFloatByPath(t *testing.T, val reflect.Value, path string, value float64)
 
 		for index := range typ.NumField() {
 			name, _, _ := strings.Cut(typ.Field(index).Tag.Get("toml"), ",")
-			if name == segment {
+			if name == r[hop].name {
 				val = val.Field(index)
 				found = true
 
@@ -121,9 +127,67 @@ func setFloatByPath(t *testing.T, val reflect.Value, path string, value float64)
 		}
 
 		if !found {
-			t.Fatalf("no field %q on %s while resolving %s", segment, typ.Name(), path)
+			t.Fatalf("no field %q on %s while resolving %s", r[hop].name, typ.Name(), r)
 		}
 	}
 
-	val.SetFloat(value)
+	enterContainer(val).SetFloat(value)
+}
+
+// enterContainer returns the settable value behind pointers and slices,
+// making the element it has to pass through. A map is returned as is.
+func enterContainer(val reflect.Value) reflect.Value {
+	for {
+		switch val.Kind() { //nolint:exhaustive // only the kinds the schema nests through
+		case reflect.Pointer:
+			if val.IsNil() {
+				val.Set(reflect.New(val.Type().Elem()))
+			}
+
+			val = val.Elem()
+		case reflect.Slice:
+			if val.Len() == 0 {
+				val.Set(reflect.Append(val, reflect.Zero(val.Type().Elem())))
+			}
+
+			val = val.Index(0)
+		default:
+			return val
+		}
+	}
+}
+
+// floatFieldRoutes lists every float in the schema by walking types, so a
+// nil pointer or an empty collection in the defaults hides nothing.
+func floatFieldRoutes(t *testing.T) []floatRoute {
+	t.Helper()
+
+	var routes []floatRoute
+
+	var walk func(typ reflect.Type, route floatRoute, via reflect.Kind)
+
+	walk = func(typ reflect.Type, route floatRoute, via reflect.Kind) {
+		switch typ.Kind() { //nolint:exhaustive // only the kinds that can hold or contain a float matter
+		case reflect.Float32, reflect.Float64:
+			routes = append(routes, route)
+		case reflect.Pointer, reflect.Slice, reflect.Map:
+			walk(typ.Elem(), route, typ.Kind())
+		case reflect.Struct:
+			for field := range typ.Fields() {
+				name, _, _ := strings.Cut(field.Tag.Get("toml"), ",")
+				if !field.IsExported() || name == "" || name == "-" {
+					continue
+				}
+
+				hop := routeHop{name: name, kind: via}
+				next := append(append(floatRoute{}, route...), hop)
+				walk(field.Type, next, reflect.Invalid)
+			}
+		default:
+		}
+	}
+
+	walk(reflect.TypeFor[config.Config](), nil, reflect.Invalid)
+
+	return routes
 }
