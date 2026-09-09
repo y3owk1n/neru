@@ -511,6 +511,26 @@ func (h *handlerState) setScreenBounds(bounds image.Rectangle) {
 	}
 }
 
+// screenScale is the display scale of bounds, 1 wherever the platform cannot
+// say. Sizes a user perceives, grid cells among them, are multiplied by it
+// before being laid out in the pixels bounds is measured in.
+func (h *handlerState) screenScale(bounds image.Rectangle) float64 {
+	if h.system == nil || bounds.Empty() {
+		return 1
+	}
+
+	scale, err := h.system.ScreenScale(h.ctx, bounds)
+	if err != nil {
+		if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to get screen scale", zap.Error(err))
+		}
+
+		return 1
+	}
+
+	return scale
+}
+
 // stopHeldRepeat cancels any running held-key repeat goroutine.
 func (h *handlerState) stopHeldRepeat() {
 	if h.heldRepeatingCancel != nil {

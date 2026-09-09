@@ -86,3 +86,10 @@ func xwaylandRefreshCursorPosition(_ context.Context) error {
 		"Xwayland cursor discovery requires CGO-enabled Linux builds",
 	)
 }
+
+func x11DisplayScale() (float64, error) {
+	return 0, derrors.New(
+		derrors.CodeNotSupported,
+		"X11 display scale requires CGO-enabled Linux builds",
+	)
+}

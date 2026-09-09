@@ -20,6 +20,7 @@ type CacheKey struct {
 	rowLabels      string
 	colLabels      string
 	maxLabelLength int
+	displayScale   float64
 	width          int
 	height         int
 }
@@ -45,12 +46,15 @@ var (
 	gridCacheEnabled = true
 )
 
-func newCacheKey(alpha gridAlphabet, maxLabelLength int, bounds image.Rectangle) CacheKey {
+func newCacheKey(
+	alpha gridAlphabet, maxLabelLength int, displayScale float64, bounds image.Rectangle,
+) CacheKey {
 	return CacheKey{
 		characters:     alpha.characters,
 		rowLabels:      string(alpha.rowChars),
 		colLabels:      string(alpha.colChars),
 		maxLabelLength: maxLabelLength,
+		displayScale:   displayScale,
 		width:          bounds.Dx(),
 		height:         bounds.Dy(),
 	}

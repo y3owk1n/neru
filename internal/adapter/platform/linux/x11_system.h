@@ -44,6 +44,11 @@ typedef enum {
 } NeruX11WindowPIDResult;
 
 Display *neru_x11_open_display(void);
+// neru_x11_display_scale returns the desktop-wide HiDPI UI scale, Xft.dpi / 96
+// clamped to [1.0, 4.0], and 1.0 when Xft.dpi is unset. X11 has a single
+// coordinate space in physical pixels and no authoritative per-monitor scale,
+// so this one factor is what an apparent size is multiplied by everywhere.
+double neru_x11_display_scale(Display *display);
 void neru_x11_close_display(Display *display);
 int neru_x11_query_pointer(Display *display, int *x, int *y);
 int neru_x11_discover_pointer(Display *display, int timeout_ms, int *x, int *y);

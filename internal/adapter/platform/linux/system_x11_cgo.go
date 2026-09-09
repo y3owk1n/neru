@@ -456,3 +456,14 @@ func xwaylandRefreshCursorPosition(ctx context.Context) error {
 
 	return wlrootsSetCursor(image.Pt(int(posX), int(posY)))
 }
+
+// x11DisplayScale is the desktop-wide Xft.dpi factor, 1 when unset.
+func x11DisplayScale() (float64, error) {
+	display, err := x11OpenDisplay()
+	if err != nil {
+		return 0, err
+	}
+	defer C.neru_x11_close_display(display)
+
+	return float64(C.neru_x11_display_scale(display)), nil
+}

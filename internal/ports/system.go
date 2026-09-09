@@ -57,6 +57,14 @@ type SystemPort interface {
 	// true if found, or a zero rectangle and false if no screen matches.
 	ScreenBoundsByName(ctx context.Context, name string) (image.Rectangle, bool, error)
 
+	// ScreenScale returns how many physical pixels of bounds, as ScreenBounds
+	// reports them, make one apparent unit on that screen: 1.5 on a Windows
+	// monitor at 150%, the Xft.dpi factor on X11, and 1 on macOS and Wayland,
+	// whose bounds are already logical. Callers size things a user perceives
+	// (grid cells) in apparent units and multiply by this. A platform that
+	// cannot read it returns CodeNotSupported, which callers treat as 1.
+	ScreenScale(ctx context.Context, bounds image.Rectangle) (float64, error)
+
 	// ScreenNames returns the localized display names of all connected screens.
 	// Returns nil or an empty slice when no screens are detected.
 	ScreenNames(ctx context.Context) ([]string, error)

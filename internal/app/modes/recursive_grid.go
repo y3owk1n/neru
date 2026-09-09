@@ -2,6 +2,7 @@ package modes
 
 import (
 	"image"
+	"math"
 
 	"go.uber.org/zap"
 
@@ -170,11 +171,15 @@ func (h *handlerState) initializeRecursiveGridManager(screenBounds image.Rectang
 		depthKeys[layer.Depth] = layer.Keys
 	}
 
+	// The minimum cell sizes are apparent sizes. The grid is laid out in the
+	// pixels the screen bounds are measured in.
+	scale := h.screenScale(h.screenBounds)
+
 	h.recursiveGrid.Manager = recursivegrid.NewManagerWithLayers(
 		screenBounds,
 		h.config.RecursiveGrid.Keys,
-		h.config.RecursiveGrid.MinSizeWidth,
-		h.config.RecursiveGrid.MinSizeHeight,
+		int(math.Round(float64(h.config.RecursiveGrid.MinSizeWidth)*scale)),
+		int(math.Round(float64(h.config.RecursiveGrid.MinSizeHeight)*scale)),
 		h.config.RecursiveGrid.MaxDepth,
 		domain.GridDimensions{
 			Rows: h.config.RecursiveGrid.GridRows,

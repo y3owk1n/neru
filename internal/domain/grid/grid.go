@@ -174,6 +174,11 @@ type Options struct {
 	RowLabels      string
 	ColLabels      string
 	MaxLabelLength int
+	// DisplayScale is how many physical pixels of bounds make one apparent
+	// unit: 1.5 on a Windows monitor at 150%, 1 wherever the bounds are
+	// already logical. The cell-size tiers describe apparent size, so the
+	// planner reads area and picks cell sizes in those units. Zero means 1.
+	DisplayScale float64
 }
 
 // NewGridWithOptions creates a grid from label options. MaxLabelLength limits
@@ -186,17 +191,19 @@ func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Log
 	}
 
 	maxLabelLength := normalizeMaxLabelLength(options.MaxLabelLength)
+	scale := normalizeDisplayScale(options.DisplayScale)
 
 	logger.Debug("Creating new grid",
 		zap.String("characters", options.Characters),
 		zap.String("rowLabels", options.RowLabels),
 		zap.String("colLabels", options.ColLabels),
 		zap.Int("max_label_length", maxLabelLength),
+		zap.Float64("display_scale", scale),
 		zap.Int("bounds_width", bounds.Dx()),
 		zap.Int("bounds_height", bounds.Dy()))
 
 	alpha := newGridAlphabet(options.Characters, options.RowLabels, options.ColLabels)
-	cacheKey := newCacheKey(alpha, maxLabelLength, bounds)
+	cacheKey := newCacheKey(alpha, maxLabelLength, scale, bounds)
 
 	width := bounds.Max.X - bounds.Min.X
 	height := bounds.Max.Y - bounds.Min.Y
@@ -238,6 +245,7 @@ func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Log
 	plan := planGridDimensions(
 		width,
 		height,
+		scale,
 		alpha,
 		maxLabelLength,
 	)
@@ -403,6 +411,7 @@ type gridPlan struct {
 // longer labels retain their existing region layouts.
 func planGridDimensions(
 	width, height int,
+	scale float64,
 	alpha gridAlphabet,
 	maxLabelLength int,
 ) gridPlan {
@@ -410,7 +419,7 @@ func planGridDimensions(
 	numRowChars := len(alpha.rowChars)
 	numColChars := len(alpha.colChars)
 
-	minCellSize, maxCellSize := calculateOptimalCellSizes(width, height)
+	minCellSize, maxCellSize := calculateOptimalCellSizes(width, height, scale)
 	candidates := findValidGridConfigurations(width, height, minCellSize, maxCellSize)
 	gridCols, gridRows := selectBestCandidate(candidates, width, height, minCellSize, maxCellSize)
 
@@ -501,6 +510,16 @@ func normalizeMaxLabelLength(maxLabelLength int) int {
 	}
 
 	return gridMin(gridMax(maxLabelLength, MinLabelLength), DefaultMaxLabelLength)
+}
+
+// normalizeDisplayScale settles an unset or nonsensical scale to 1. Below 1
+// would mean a screen smaller than its own pixels.
+func normalizeDisplayScale(scale float64) float64 {
+	if scale < 1 {
+		return 1
+	}
+
+	return scale
 }
 
 // Characters returns the characters used for coordinates.
