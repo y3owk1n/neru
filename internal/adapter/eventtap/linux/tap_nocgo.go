@@ -53,12 +53,13 @@ func IsWaylandEvdevKeyboardActive() bool {
 	return false
 }
 
-// LiftHeldModifiers reports nothing lifted: the evdev proxy needs cgo.
+// LiftHeldModifiers reports that the evdev proxy is compiled out. The caller
+// degrades to a click that keeps the held modifiers.
 func LiftHeldModifiers() (bool, error) {
-	return false, nil
+	return false, errUinputScrollNoCGO("evdev proxy modifier lift")
 }
 
-// RestoreLiftedModifiers has nothing to restore: the evdev proxy needs cgo.
+// RestoreLiftedModifiers reports that the evdev proxy is compiled out.
 func RestoreLiftedModifiers() error {
-	return nil
+	return errUinputScrollNoCGO("evdev proxy modifier restore")
 }
