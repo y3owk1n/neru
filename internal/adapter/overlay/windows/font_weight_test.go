@@ -67,12 +67,12 @@ func TestWindowsOverlayManager_DrawHintSearchInput_IsRegularWeight(t *testing.T)
 		t.Fatalf("DrawHintSearchInput() error = %v", err)
 	}
 
-	bold, found := window.boldOf("/ sav  3")
-	if !found {
-		t.Fatalf("painted %v, want the query badge", window.texts)
+	// The badge is the one string this draw paints, cursor included.
+	if len(window.texts) != 1 {
+		t.Fatalf("painted %v, want the query badge alone", window.texts)
 	}
 
-	if bold {
+	if window.bolds[0] {
 		t.Error("search input drawn bold, want regular as on macOS")
 	}
 }
