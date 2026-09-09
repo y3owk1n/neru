@@ -185,43 +185,52 @@ func wlrootsMouseUpAtPoint(
 ) error {
 	heldModifiers, hadMouseDown := globalWlrootsPointerState.DownModifiers(button)
 	if hadMouseDown {
-		modifiers = heldModifiers
-	} else {
-		// A release with no press behind it is its own pointer action, so
-		// it lifts and restores around itself the way a click does.
-		restore := liftPhysicalModifiers()
-		defer restore()
+		return wlrootsReleaseHeldButton(point, button, heldModifiers)
+	}
 
-		err := wlrootsPressModifiers(modifiers)
-		if err != nil {
-			return err
-		}
+	// A release with no press behind it is its own pointer action, so it
+	// lifts and restores around itself the way a click does.
+	restore := liftPhysicalModifiers()
+	defer restore()
+
+	err := wlrootsPressModifiers(modifiers)
+	if err != nil {
+		return err
 	}
 
 	defer func() {
 		_ = wlrootsReleaseModifiers(modifiers)
 	}()
 
+	return linux.WaylandButtonEvent(point, wlrootsButton(button), false)
+}
+
+// wlrootsReleaseHeldButton ends a press this process recorded, letting go of
+// the modifiers it pressed. A failed release keeps the button recorded for the
+// idle cleanup to retry, naming only the modifiers whose release also failed:
+// the rest are up already, and a second release of a modifier Neru no longer
+// holds lets go of the user's own.
+func wlrootsReleaseHeldButton(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
 	err := linux.WaylandButtonEvent(point, wlrootsButton(button), false)
 	if err != nil {
-		if hadMouseDown {
-			// The deferred release above lets go of the press's modifiers,
-			// so the record the idle cleanup retries from must not name
-			// them again: a second release of a modifier Neru no longer
-			// holds lets go of the user's own.
-			if position, ok := globalWlrootsPointerState.DownPosition(button); ok {
-				globalWlrootsPointerState.SetDown(button, position, 0)
-			}
+		remaining, _ := releaseWaylandModifiersRemaining(modifiers)
 
-			restoreUnlessOtherHeld(button)
+		if position, ok := globalWlrootsPointerState.DownPosition(button); ok {
+			globalWlrootsPointerState.SetDown(button, position, remaining)
 		}
+
+		restoreUnlessOtherHeld(button)
 
 		return err
 	}
 
-	if hadMouseDown {
-		restoreAfterRelease(button)
-	}
+	_ = wlrootsReleaseModifiers(modifiers)
+
+	restoreAfterRelease(button)
 
 	return nil
 }

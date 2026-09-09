@@ -802,7 +802,19 @@ func pressWaylandModifiers(modifiers action.Modifiers) (action.Modifiers, error)
 // reported, reporting the first failure and letting go of the rest regardless:
 // stopping at the first error would leave the modifiers after it held.
 func releaseWaylandModifiers(pressed action.Modifiers) error {
-	var firstErr error
+	_, err := releaseWaylandModifiersRemaining(pressed)
+
+	return err
+}
+
+// releaseWaylandModifiersRemaining is releaseWaylandModifiers reporting the
+// modifiers still held because their release failed, for a caller that keeps
+// a record to retry from.
+func releaseWaylandModifiersRemaining(pressed action.Modifiers) (action.Modifiers, error) {
+	var (
+		firstErr  error
+		remaining action.Modifiers
+	)
 
 	for _, key := range slices.Backward(waylandModifierKeys) {
 		if !pressed.Has(key.modifier) {
@@ -810,12 +822,16 @@ func releaseWaylandModifiers(pressed action.Modifiers) error {
 		}
 
 		err := waylandModifierEvent(key.name, false)
-		if err != nil && firstErr == nil {
-			firstErr = err
+		if err != nil {
+			remaining |= key.modifier
+
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
 
-	return firstErr
+	return remaining, firstErr
 }
 
 // CurrentCursorPosition returns the cursor position.
