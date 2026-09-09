@@ -32,7 +32,12 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
 	}
 
-	err := c.ValidateGeneral()
+	err := c.ValidateFinite()
+	if err != nil {
+		return err
+	}
+
+	err = c.ValidateGeneral()
 	if err != nil {
 		return err
 	}
