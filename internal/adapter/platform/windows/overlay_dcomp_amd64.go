@@ -63,6 +63,7 @@ const (
 	d2dDefaultDPI               = 96
 
 	dwriteFactoryTypeShared    = 0
+	dwriteFontWeightNormal     = 400
 	dwriteFontWeightBold       = 700
 	dwriteFontStretchNormal    = 5
 	dwriteTextAlignmentCenter  = 2
@@ -466,15 +467,20 @@ func (s *dcompShared) release() {
 
 // textFormat returns the DirectWrite format for a family and size, creating it
 // once. A format is device-independent, so every window shares it.
-func (s *dcompShared) textFormat(family string, fontSize float64) (comObject, error) {
+func (s *dcompShared) textFormat(family string, fontSize float64, bold bool) (comObject, error) {
 	pixelSize := int(fontSize)
 	if pixelSize == 0 {
 		pixelSize = defaultFontSize
 	}
 
-	key := fontKey{family: family, size: pixelSize}
+	key := fontKey{family: family, size: pixelSize, bold: bold}
 	if format, ok := s.formats[key]; ok {
 		return format, nil
+	}
+
+	weight := uintptr(dwriteFontWeightNormal)
+	if bold {
+		weight = dwriteFontWeightBold
 	}
 
 	familyPtr, err := windows.UTF16PtrFromString(family)
@@ -494,7 +500,7 @@ func (s *dcompShared) textFormat(family string, fontSize float64) (comObject, er
 		vtblDWriteFactoryCreateTextFormat,
 		ptrArg(unsafe.Pointer(familyPtr)),
 		0,
-		dwriteFontWeightBold,
+		weight,
 		0,
 		dwriteFontStretchNormal,
 		floatArg(float32(pixelSize)),
@@ -950,7 +956,7 @@ func (s *dcompSurface) paintTriangle(cmd drawCmd) {
 }
 
 func (s *dcompSurface) paintText(cmd drawCmd) {
-	format, err := s.shared.textFormat(cmd.font, cmd.fontSize)
+	format, err := s.shared.textFormat(cmd.font, cmd.fontSize, cmd.bold)
 	if err != nil {
 		return
 	}

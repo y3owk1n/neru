@@ -285,11 +285,12 @@ void neru_x11_overlay_hint_badge(
 
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
-    unsigned int color) {
+    unsigned int color, int bold) {
 	cairo_t *cr = overlay->cr;
 	cairo_text_extents_t extents;
 	cairo_save(cr);
-	cairo_select_font_face(cr, font_family, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+	cairo_select_font_face(
+	    cr, font_family, CAIRO_FONT_SLANT_NORMAL, bold ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_font_size(cr, font_size);
 	cairo_text_extents(cr, text, &extents);
 	neru_x11_overlay_color(cr, color);

@@ -36,7 +36,7 @@ void neru_x11_overlay_hint_badge(
     double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int stroke, double stroke_width);
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
-    unsigned int color);
+    unsigned int color, int bold);
 void neru_x11_overlay_flush(NeruX11Overlay *overlay);
 // neru_x11_overlay_scale returns the desktop-wide HiDPI UI scale from Xft.dpi
 // (clamped to [1.0, 4.0]); 1.0 when unset. See the implementation for why this

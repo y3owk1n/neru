@@ -205,6 +205,7 @@ func (o *x11Overlay) hintBadgePrim(
 func (o *x11Overlay) textPrim(
 	text, fontFamily string,
 	centerX, centerY, fontSize float64, color uint32,
+	bold bool,
 ) {
 	cText := C.CString(text)
 	cFontFamily := C.CString(fontFamily)
@@ -212,10 +213,15 @@ func (o *x11Overlay) textPrim(
 	defer C.free(unsafe.Pointer(cText))
 	defer C.free(unsafe.Pointer(cFontFamily))
 
+	cBold := C.int(0)
+	if bold {
+		cBold = 1
+	}
+
 	C.neru_x11_overlay_text(
 		o.raw, cText, cFontFamily,
 		C.double(centerX),
 		C.double(centerY),
-		C.double(fontSize), C.uint(color),
+		C.double(fontSize), C.uint(color), cBold,
 	)
 }

@@ -81,7 +81,7 @@ type overlaySurface interface {
 		badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
 		fill, border uint32, lineWidth float64,
 	)
-	textPrim(text, fontFamily string, centerX, centerY, fontSize float64, color uint32)
+	textPrim(text, fontFamily string, centerX, centerY, fontSize float64, color uint32, bold bool)
 }
 
 // sharedOverlay is the backend-independent half of a Linux overlay: all
@@ -629,7 +629,7 @@ func (o *sharedOverlay) drawBadge(
 	rect := badgeBounds(posX, posY, text, scaledStyle)
 
 	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
-	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text)
+	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text, true)
 }
 
 // drawMonitorSelect renders one centered, labeled panel per monitor for the
@@ -666,7 +666,14 @@ func (o *sharedOverlay) drawMonitorSelect(
 		)
 		o.drawRoundedRect(panel, radius, spec.background, spec.border, spec.borderWidth)
 
-		o.drawTextCentered(target.Label, labelRect, style.FontFamily, spec.labelFont, spec.text)
+		o.drawTextCentered(
+			target.Label,
+			labelRect,
+			style.FontFamily,
+			spec.labelFont,
+			spec.text,
+			true,
+		)
 
 		if target.Subtitle != "" {
 			// The subtitle family is never empty: an unset one is settled to
@@ -674,6 +681,7 @@ func (o *sharedOverlay) drawMonitorSelect(
 			o.drawTextCentered(
 				target.Subtitle, subtitleRect,
 				style.SubtitleFontFamily, spec.subtitleFont, spec.subtitleText,
+				false,
 			)
 		}
 	}
@@ -786,6 +794,7 @@ func (o *sharedOverlay) repaintHints(
 			style.FontFamily(),
 			fontSize,
 			badge.ParseHexARGB(textColor),
+			true,
 		)
 	}
 
@@ -840,6 +849,7 @@ func (o *sharedOverlay) drawHintSearchInput(
 		style.FontFamily(),
 		fontSize,
 		badge.ParseHexARGB(style.TextColor()),
+		false,
 	)
 
 	o.srf.surfaceFlush()
@@ -1226,6 +1236,7 @@ func (o *sharedOverlay) drawFrame(
 				o.drawTextCentered(
 					label, cell, style.FontFamily(),
 					style.LabelFontSize(), style.TextColorARGB(),
+					false,
 				)
 			}
 
@@ -1265,7 +1276,7 @@ func (o *sharedOverlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPoin
 		vp.Position.Y+halfSize,
 	)
 	o.drawTextCentered(vpChar, vpBounds, fontName, fontSize,
-		badge.ParseHexARGB(vp.FillColor))
+		badge.ParseHexARGB(vp.FillColor), false)
 }
 
 // redrawGrid paints the grid surface as it currently stands, which is either
@@ -1323,7 +1334,7 @@ func (o *sharedOverlay) redrawGrid() {
 		cellBounds := o.offset(cell.Bounds())
 		o.drawRect(cellBounds, fill, border, style.LineWidth())
 		o.drawTextCentered(label, cellBounds,
-			style.FontFamily(), style.LabelFontSize(), text)
+			style.FontFamily(), style.LabelFontSize(), text, false)
 	}
 
 	o.paintGridPointer()
@@ -1356,6 +1367,7 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 			style.FontFamily(),
 			style.LabelFontSize()*subgridFontScale,
 			style.TextColorARGB(),
+			false,
 		)
 	}
 }
@@ -1416,12 +1428,13 @@ func (o *sharedOverlay) drawHintBadge(
 func (o *sharedOverlay) drawTextCentered(
 	text string, bounds image.Rectangle,
 	fontFamily string, fontSize float64, color uint32,
+	bold bool,
 ) {
 	o.srf.textPrim(
 		text, fontFamily,
 		float64(bounds.Min.X+bounds.Dx()/2),
 		float64(bounds.Min.Y+bounds.Dy()/2),
-		fontSize*o.srf.surfaceScale(), color,
+		fontSize*o.srf.surfaceScale(), color, bold,
 	)
 }
 
@@ -1469,6 +1482,7 @@ func (o *sharedOverlay) drawSubKeyMiniGrid(
 			subCell.Label, subCell.Bounds,
 			style.FontFamily(), style.SubKeyPreviewFontSizeF(),
 			style.SubKeyPreviewTextColorARGB(),
+			false,
 		)
 	}
 }

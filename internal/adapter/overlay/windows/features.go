@@ -163,6 +163,7 @@ func (o *winOverlay) DrawHints(
 			style.FontFamily(),
 			fontSize,
 			badge.ParseHexARGB(textColor),
+			true,
 		)
 	}
 
@@ -344,6 +345,7 @@ func (o *winOverlay) paintRecursiveGrid(
 					style.FontFamily(),
 					style.LabelFontSize()*scale,
 					style.TextColorARGB(),
+					false,
 				)
 			}
 
@@ -449,6 +451,7 @@ func (o *winOverlay) drawSubKeyMiniGrid(
 			style.FontFamily(),
 			style.SubKeyPreviewFontSizeF()*o.scale(),
 			style.SubKeyPreviewTextColorARGB(),
+			false,
 		)
 	}
 }

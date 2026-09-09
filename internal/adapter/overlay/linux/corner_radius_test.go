@@ -114,6 +114,7 @@ func (s *recordingSurface) hintBadgePrim(
 
 func (s *recordingSurface) textPrim(
 	text, fontFamily string, centerX, centerY, fontSize float64, color uint32,
+	_ bool,
 ) {
 	s.texts = append(s.texts, recordedText{
 		text:       text,

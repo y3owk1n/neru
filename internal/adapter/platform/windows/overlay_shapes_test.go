@@ -64,7 +64,7 @@ func TestClear_DrainsEveryCommandQueue(t *testing.T) {
 	window.FillRoundedRect(image.Rect(1, 1, 9, 9), 2, 0xFF0000FF)
 	window.FillTriangle(image.Pt(1, 1), image.Pt(5, 9), image.Pt(9, 1), 0xFF0000FF)
 	window.StrokeRect(image.Rect(1, 1, 9, 9), 0xFF0000FF, 1)
-	window.DrawTextCentered("a", image.Rect(1, 1, 9, 9), "Segoe UI", 10, 0xFF0000FF)
+	window.DrawTextCentered("a", image.Rect(1, 1, 9, 9), "Segoe UI", 10, 0xFF0000FF, true)
 
 	window.Clear()
 

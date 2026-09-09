@@ -61,7 +61,7 @@ func TestRecognizeText_ReadsAWordOffTheScreen(t *testing.T) {
 	textBox := card.Inset(40)
 
 	overlay := paintedOverlay(t, card, 0xFFFFFFFF)
-	overlay.DrawTextCentered(word, textBox, "", 48, 0xFF000000)
+	overlay.DrawTextCentered(word, textBox, "", 48, 0xFF000000, true)
 
 	flushErr := overlay.Flush()
 	if flushErr != nil {

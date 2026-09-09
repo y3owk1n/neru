@@ -194,11 +194,12 @@ func (m *Manager) DrawMonitorSelect(
 			win.StrokeRoundedRect(panel, radius, border, borderWidth)
 		}
 
-		win.DrawTextCentered(target.Label, labelRect, style.FontFamily, labelFont, text)
+		win.DrawTextCentered(target.Label, labelRect, style.FontFamily, labelFont, text, true)
 
 		if target.Subtitle != "" {
 			win.DrawTextCentered(
 				target.Subtitle, subtitleRect, style.SubtitleFontFamily, subtitleFont, subtitleText,
+				false,
 			)
 		}
 

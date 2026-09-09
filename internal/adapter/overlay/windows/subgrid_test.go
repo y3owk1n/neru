@@ -90,6 +90,7 @@ func (w *recordingWindow) DrawTextCentered(
 	_ string,
 	_ float64,
 	_ uint32,
+	_ bool,
 ) {
 	w.texts = append(w.texts, text)
 }

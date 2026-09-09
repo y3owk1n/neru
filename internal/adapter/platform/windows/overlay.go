@@ -37,6 +37,7 @@ const (
 
 	defaultOverlayFont = "Segoe UI"
 	fwBold             = 700
+	fwNormal           = 400
 	dtCenter           = 0x00000001
 	dtVCenter          = 0x00000004
 	dtSingleLine       = 0x00000020
@@ -161,6 +162,7 @@ type drawCmd struct {
 	text     string
 	font     string
 	fontSize float64
+	bold     bool
 }
 
 // bounds is the rectangle a command can touch, before clipping to the surface.
@@ -673,13 +675,15 @@ func (o *OverlayWindow) FillTriangle(vertexA, vertexB, vertexC image.Point, colo
 	})
 }
 
-// DrawTextCentered renders centered text inside bounds.
+// DrawTextCentered renders centered text inside bounds. Hint labels, indicator
+// badges and the monitor-select label pass bold, matching the macOS adapter.
 func (o *OverlayWindow) DrawTextCentered(
 	text string,
 	bounds image.Rectangle,
 	fontFamily string,
 	fontSize float64,
 	color uint32,
+	bold bool,
 ) {
 	if o == nil || text == "" || bounds.Empty() {
 		return
@@ -696,6 +700,7 @@ func (o *OverlayWindow) DrawTextCentered(
 		text:     text,
 		font:     fontFamily,
 		fontSize: fontSize,
+		bold:     bold,
 	})
 }
 
@@ -729,6 +734,7 @@ func (o *OverlayWindow) DrawPointerGlyph(
 		fontFamily,
 		float64(size),
 		color,
+		false,
 	)
 }
 

@@ -414,6 +414,7 @@ func (m *Manager) DrawHintSearchInput(
 		style.FontFamily(),
 		fontSize,
 		badge.ParseHexARGB(style.TextColor()),
+		false,
 	)
 
 	m.win.flushOverlay("search-input")
@@ -547,6 +548,7 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 		ports.ResolveFont(cfg.UI.FontFamily),
 		fontSize,
 		badge.ParseHexARGB(textColor),
+		true,
 	)
 
 	// Flush composites fills/strokes/texts into the pixel buffer and sends
@@ -658,6 +660,7 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 		ports.ResolveFont(indicatorUI.FontFamily),
 		fontSize,
 		badge.ParseHexARGB(textColor),
+		true,
 	)
 
 	err := m.stickyWin.Flush()

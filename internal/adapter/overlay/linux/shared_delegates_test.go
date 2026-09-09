@@ -63,7 +63,7 @@ func (s *closedSurface) hintBadgePrim(
 	s.touched("hintBadgePrim")
 }
 
-func (s *closedSurface) textPrim(_, _ string, _, _, _ float64, _ uint32) {
+func (s *closedSurface) textPrim(_, _ string, _, _, _ float64, _ uint32, _ bool) {
 	s.touched("textPrim")
 }
 

@@ -55,6 +55,7 @@ type overlayWindow interface {
 		fontFamily string,
 		fontSize float64,
 		color uint32,
+		bold bool,
 	)
 	DrawPointerGlyph(center image.Point, size int, char string, fontFamily string, color uint32)
 	Flush() error
@@ -539,6 +540,7 @@ func (o *winOverlay) drawGridCells() {
 				style.FontFamily(),
 				style.LabelFontSize()*scale,
 				text,
+				false,
 			)
 		}
 	}
@@ -590,6 +592,7 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 			style.FontFamily(),
 			style.LabelFontSize()*winSubgridFontScale*scale,
 			style.TextColorARGB(),
+			false,
 		)
 	}
 }
@@ -645,10 +648,11 @@ func (o *winOverlay) drawTextCentered(
 	fontFamily string,
 	fontSize float64,
 	color uint32,
+	bold bool,
 ) {
 	if o == nil || o.window == nil {
 		return
 	}
 
-	o.window.DrawTextCentered(text, bounds, fontFamily, fontSize, color)
+	o.window.DrawTextCentered(text, bounds, fontFamily, fontSize, color, bold)
 }

@@ -51,7 +51,7 @@ func TestOverlayWindowLifecycleIntegration(t *testing.T) {
 
 	overlay.Clear()
 	overlay.FillRect(bounds, 0x8000FF00)
-	overlay.DrawTextCentered("FF", bounds, "Segoe UI", 48, 0xFFFFFFFF)
+	overlay.DrawTextCentered("FF", bounds, "Segoe UI", 48, 0xFFFFFFFF, true)
 	_ = overlay.Flush()
 	overlay.Show()
 	overlay.Hide()
