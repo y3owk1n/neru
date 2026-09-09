@@ -38,6 +38,7 @@ type overlayWindow interface {
 	Visible() bool
 	Bounds() image.Rectangle
 	Backend() string
+	Scale() float64
 	Show()
 	Hide()
 	Clear()
@@ -508,6 +509,7 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 func (o *winOverlay) drawGridCells() {
 	style := o.cachedStyle
 	prefix := o.currentPrefix
+	scale := o.scale()
 
 	for _, cell := range o.cachedGrid.AllCells() {
 		label := strings.ToUpper(cell.Coordinate())
@@ -528,14 +530,14 @@ func (o *winOverlay) drawGridCells() {
 		}
 
 		o.drawCellFill(cell.Bounds(), fill)
-		o.drawCellBorder(cell.Bounds(), border, style.LineWidth())
+		o.drawCellBorder(cell.Bounds(), border, style.LineWidth()*scale)
 
 		if style.ShowLabels() {
 			o.drawTextCentered(
 				label,
 				cell.Bounds(),
 				style.FontFamily(),
-				style.LabelFontSize(),
+				style.LabelFontSize()*scale,
 				text,
 			)
 		}
@@ -573,6 +575,7 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 	// The rectangles they are drawn on, which are the rectangles the mode layer
 	// moves the cursor into (internal/domain/grid/subgrid_cells.go).
 	cells := domainGrid.SubgridCells(bounds, domain.SubgridDimensions())
+	scale := o.scale()
 
 	// One cell per key, and fewer keys than cells is a configuration that
 	// leaves the last cells unlabelled: the key set is capped at the same count
@@ -580,15 +583,25 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 	for index, key := range keyRunes {
 		cell := cells[index]
 
-		o.drawCellBorder(cell, style.LineColorARGB(), style.LineWidth())
+		o.drawCellBorder(cell, style.LineColorARGB(), style.LineWidth()*scale)
 		o.drawTextCentered(
 			string(key),
 			cell,
 			style.FontFamily(),
-			style.LabelFontSize()*winSubgridFontScale,
+			style.LabelFontSize()*winSubgridFontScale*scale,
 			style.TextColorARGB(),
 		)
 	}
+}
+
+// scale is the DPI factor of the monitor the window sits on (scale.go), or 1
+// before there is a window.
+func (o *winOverlay) scale() float64 {
+	if o == nil || o.window == nil {
+		return 1
+	}
+
+	return o.window.Scale()
 }
 
 func (o *winOverlay) drawCellFill(bounds image.Rectangle, fill uint32) {

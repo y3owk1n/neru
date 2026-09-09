@@ -242,6 +242,10 @@ type OverlayWindow struct {
 	height  int
 	visible bool
 	dirty   bool
+	// scale is the DPI factor of the monitor bounds sits on, read whenever
+	// bounds is set (dpi.go). The overlay multiplies its fonts and geometry
+	// by it. The bounds themselves are physical pixels already.
+	scale float64
 
 	cmds         []drawCmd
 	clearPending bool
@@ -330,7 +334,7 @@ func NewOverlayWindowAt(posX, posY, width, height int) (*OverlayWindow, error) {
 }
 
 func newOverlayWindowWithBounds(bounds image.Rectangle) (*OverlayWindow, error) {
-	overlay := &OverlayWindow{bounds: bounds}
+	overlay := &OverlayWindow{bounds: bounds, scale: DPIScaleAt(rectCenter(bounds))}
 
 	var createErr error
 
@@ -378,6 +382,21 @@ func (o *OverlayWindow) Visible() bool {
 // Bounds returns the overlay rectangle in screen coordinates.
 func (o *OverlayWindow) Bounds() image.Rectangle {
 	return o.bounds
+}
+
+// Scale returns the DPI scale factor of the monitor the window sits on, 1 at
+// 100% and 1.5 at 150%. Callers multiply fonts, paddings, line widths and
+// radii by it. Positions and bounds are physical pixels and need nothing.
+func (o *OverlayWindow) Scale() float64 {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	return o.scale
+}
+
+// rectCenter is the point that looks up a rectangle's monitor.
+func rectCenter(rect image.Rectangle) image.Point {
+	return image.Pt(rect.Min.X+rect.Dx()/2, rect.Min.Y+rect.Dy()/2)
 }
 
 // Backend names the surface this window presents through: "direct2d" when
@@ -512,6 +531,7 @@ func (o *OverlayWindow) ResizeTo(posX, posY, width, height int) error {
 	o.mu.Lock()
 	sameSize := o.width == width && o.height == height
 	o.bounds = image.Rect(posX, posY, posX+width, posY+height)
+	o.scale = DPIScaleAt(rectCenter(o.bounds))
 	o.width = width
 	o.height = height
 	o.dirty = true

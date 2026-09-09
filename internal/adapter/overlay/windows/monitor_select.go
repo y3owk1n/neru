@@ -47,25 +47,33 @@ func monitorSelectFontOr(value, fallback int) float64 {
 
 // monitorSelectPanelLayout computes, in global pixels, the panel rect centered
 // on the monitor, the label and subtitle text rects, and the corner radius.
-// It is the Linux layout at scale 1: the layered windows here are placed in
-// the physical pixels EnumDisplayMonitors reports, so there is no factor to
-// apply. Padding and radius honor the same "auto" (-1) config sentinels.
+// It is the Linux layout. The layered windows here sit in the physical pixels
+// EnumDisplayMonitors reports, and scale is that monitor's DPI factor, which
+// multiplies the fonts, padding and radius. Padding and radius honor the same
+// "auto" (-1) config sentinels.
 func monitorSelectPanelLayout(
 	monitor image.Rectangle,
 	label, subtitle string,
 	style manager.MonitorSelectStyle,
+	scale float64,
 ) (image.Rectangle, image.Rectangle, image.Rectangle, float64) {
-	labelFont := monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont)
-	subFont := monitorSelectFontOr(style.SubtitleFontSize, monitorSelectDefaultSubFont)
+	labelFont := monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont) * scale
+	subFont := monitorSelectFontOr(style.SubtitleFontSize, monitorSelectDefaultSubFont) * scale
 
-	padX := style.PaddingX
+	padX := scaledInt(style.PaddingX, scale)
 	if style.PaddingX < 0 {
-		padX = max(monitorSelectAutoPadXMin, int(math.Round(labelFont*monitorSelectAutoPadXRatio)))
+		padX = max(
+			scaledInt(monitorSelectAutoPadXMin, scale),
+			int(math.Round(labelFont*monitorSelectAutoPadXRatio)),
+		)
 	}
 
-	padY := style.PaddingY
+	padY := scaledInt(style.PaddingY, scale)
 	if style.PaddingY < 0 {
-		padY = max(monitorSelectAutoPadYMin, int(math.Round(labelFont*monitorSelectAutoPadYRatio)))
+		padY = max(
+			scaledInt(monitorSelectAutoPadYMin, scale),
+			int(math.Round(labelFont*monitorSelectAutoPadYRatio)),
+		)
 	}
 
 	labelW := badge.EstimateTextWidth(label, labelFont)
@@ -75,7 +83,7 @@ func monitorSelectPanelLayout(
 	if subtitle != "" {
 		subW = badge.EstimateTextWidth(subtitle, subFont)
 		subH = badge.EstimateTextHeight(subFont)
-		gap = monitorSelectLabelGap
+		gap = scaledInt(monitorSelectLabelGap, scale)
 	}
 
 	panelW := max(labelW, subW) + padX*winPaddingMultiplier
@@ -94,9 +102,9 @@ func monitorSelectPanelLayout(
 	)
 	panel := badge.CenteredOn(center, panelW, panelH)
 
-	radius := float64(style.BorderRadius)
+	radius := float64(style.BorderRadius) * scale
 	if style.BorderRadius < 0 {
-		radius = math.Min(float64(panelH)/monitorSelectHalfDivisor, monitorSelectMaxRadius)
+		radius = math.Min(float64(panelH)/monitorSelectHalfDivisor, monitorSelectMaxRadius*scale)
 	}
 
 	totalTextH := labelH
@@ -136,10 +144,6 @@ func (m *Manager) DrawMonitorSelect(
 	border := badge.ParseHexARGB(style.BorderColor)
 	text := badge.ParseHexARGB(style.TextColor)
 	subtitleText := badge.ParseHexARGB(style.SubtitleTextColor)
-	borderWidth := float64(style.BorderWidth)
-	labelFont := monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont)
-	subtitleFont := monitorSelectFontOr(style.SubtitleFontSize, monitorSelectDefaultSubFont)
-
 	drawn := 0
 
 	for _, target := range targets {
@@ -168,8 +172,17 @@ func (m *Manager) DrawMonitorSelect(
 			win.FillRect(local, backdrop)
 		}
 
+		// Each panel is on its own monitor, at that monitor's scale.
+		scale := win.Scale()
+		borderWidth := float64(style.BorderWidth) * scale
+		labelFont := monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont) * scale
+		subtitleFont := monitorSelectFontOr(
+			style.SubtitleFontSize,
+			monitorSelectDefaultSubFont,
+		) * scale
+
 		panel, labelRect, subtitleRect, radius := monitorSelectPanelLayout(
-			target.Bounds, target.Label, target.Subtitle, style,
+			target.Bounds, target.Label, target.Subtitle, style, scale,
 		)
 		panel = panel.Sub(target.Bounds.Min)
 		labelRect = labelRect.Sub(target.Bounds.Min)

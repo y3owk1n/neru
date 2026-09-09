@@ -29,6 +29,8 @@ type recordingWindow struct {
 	texts []string
 	// rects is every rectangle filled or stroked, in order.
 	rects []image.Rectangle
+	// scale is what Scale answers. Zero means 1, a 100% display.
+	scale float64
 }
 
 func (w *recordingWindow) HWND() windows.HWND { return 0 }
@@ -40,6 +42,14 @@ func (w *recordingWindow) Visible() bool { return true }
 func (w *recordingWindow) Bounds() image.Rectangle { return image.Rect(0, 0, 800, 600) }
 
 func (w *recordingWindow) Backend() string { return "recording" }
+
+func (w *recordingWindow) Scale() float64 {
+	if w.scale <= 0 {
+		return 1
+	}
+
+	return w.scale
+}
 
 func (w *recordingWindow) Show() {}
 

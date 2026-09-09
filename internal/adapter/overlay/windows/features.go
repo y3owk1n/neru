@@ -66,6 +66,8 @@ func (o *winOverlay) DrawHints(
 	o.lastHintStyle = style
 	o.lastHintOffset = offset
 
+	scale := o.scale()
+
 	for _, hint := range hintsSlice {
 		if hint == nil {
 			continue
@@ -79,13 +81,15 @@ func (o *winOverlay) DrawHints(
 			element := badge.CenteredOn(hint.Position(), hint.Size().X, hint.Size().Y)
 
 			bdr := badge.BorderRadius(
-				style.BoundaryBorderRadius(), element, winAutoRadiusBoundaryCap,
+				scaledConfig(style.BoundaryBorderRadius(), scale),
+				element,
+				winAutoRadiusBoundaryCap*scale,
 			)
 			o.window.FillRoundedRect(
 				element, bdr, badge.ParseHexARGB(style.BoundaryBackgroundColor()),
 			)
 
-			if bw := float64(max(style.BoundaryBorderWidth(), 0)); bw > 0 {
+			if bw := float64(max(style.BoundaryBorderWidth(), 0)) * scale; bw > 0 {
 				o.window.StrokeRoundedRect(
 					element, bdr, badge.ParseHexARGB(style.BoundaryBorderColor()), bw,
 				)
@@ -95,9 +99,9 @@ func (o *winOverlay) DrawHints(
 		// Size the badge to the label text, not the element. hint.Size() is the
 		// element's bounding box (hint.Bounds().Size()), so using it makes the
 		// badge as large as the element (e.g. oversized boxes over big buttons).
-		fontSize := float64(max(style.FontSize(), 1))
-		paddingX := badge.AutoPadding(fontSize, style.PaddingX(), true)
-		paddingY := badge.AutoPadding(fontSize, style.PaddingY(), false)
+		fontSize := float64(max(style.FontSize(), 1)) * scale
+		paddingX := badge.AutoPadding(fontSize, scaledConfig(style.PaddingX(), scale), true)
+		paddingY := badge.AutoPadding(fontSize, scaledConfig(style.PaddingY(), scale), false)
 		badgeWidth := badge.EstimateTextWidth(
 			hint.Label(),
 			fontSize,
@@ -109,9 +113,9 @@ func (o *winOverlay) DrawHints(
 		// offset badge keeps a flat edge for the connector arrow to attach to.
 		radius := badge.HintRadius(
 			int(badge.BorderRadius(
-				style.BorderRadius(),
+				scaledConfig(style.BorderRadius(), scale),
 				image.Rect(0, 0, badgeWidth, badgeHeight),
-				winAutoRadiusBadgeCap,
+				winAutoRadiusBadgeCap*scale,
 			)),
 			badgeWidth,
 			offset,
@@ -132,7 +136,7 @@ func (o *winOverlay) DrawHints(
 		}
 
 		bdr := float64(radius)
-		borderWidth := float64(max(style.BorderWidth(), 0))
+		borderWidth := float64(max(style.BorderWidth(), 0)) * scale
 
 		o.window.FillRoundedRect(
 			bounds, bdr, badge.ParseHexARGB(style.BackgroundColor()),
@@ -312,6 +316,7 @@ func (o *winOverlay) paintRecursiveGrid(
 	o.Clear()
 
 	drawSubPreview := style.PreviewsNextDepth(len(nextKeyRunes), nextDims)
+	scale := o.scale()
 
 	for idx, cell := range cellRects {
 		if style.HighlightColorARGB() != 0 {
@@ -319,7 +324,7 @@ func (o *winOverlay) paintRecursiveGrid(
 		}
 
 		if style.LineWidthF() > 0 {
-			o.window.StrokeRect(cell, style.LineColorARGB(), style.LineWidthF())
+			o.window.StrokeRect(cell, style.LineColorARGB(), style.LineWidthF()*scale)
 		}
 
 		if idx < len(keyRunes) {
@@ -337,7 +342,7 @@ func (o *winOverlay) paintRecursiveGrid(
 					label,
 					cell,
 					style.FontFamily(),
-					style.LabelFontSize(),
+					style.LabelFontSize()*scale,
 					style.TextColorARGB(),
 				)
 			}
@@ -367,7 +372,7 @@ func (o *winOverlay) drawGridPointer(pointer recursivegridcomponent.VirtualPoint
 
 	o.window.DrawPointerGlyph(
 		pointer.Position,
-		pointer.Size,
+		scaledInt(pointer.Size, o.scale()),
 		pointer.Char,
 		pointer.FontName,
 		badge.ParseHexARGB(pointer.FillColor),
@@ -400,9 +405,18 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 	cell image.Rectangle,
 	style recursivegridcomponent.Style,
 ) {
-	fontSize := style.LabelFontSize()
-	paddingX := badge.AutoPadding(fontSize, style.LabelBackgroundPaddingX(), true)
-	paddingY := badge.AutoPadding(fontSize, style.LabelBackgroundPaddingY(), false)
+	scale := o.scale()
+	fontSize := style.LabelFontSize() * scale
+	paddingX := badge.AutoPadding(
+		fontSize,
+		scaledConfig(style.LabelBackgroundPaddingX(), scale),
+		true,
+	)
+	paddingY := badge.AutoPadding(
+		fontSize,
+		scaledConfig(style.LabelBackgroundPaddingY(), scale),
+		false,
+	)
 	width := badge.EstimateTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
 	height := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	rect := badge.CenteredIn(cell, width, height)
@@ -411,8 +425,8 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 		rect,
 		style.LabelBackgroundColorARGB(),
 		style.LineColorARGB(),
-		max(style.LabelBackgroundBorderWidthF(), 0),
-		badge.BorderRadius(style.LabelBackgroundBorderRadius(), rect, 0),
+		max(style.LabelBackgroundBorderWidthF(), 0)*scale,
+		badge.BorderRadius(scaledConfig(style.LabelBackgroundBorderRadius(), scale), rect, 0),
 	)
 }
 
@@ -433,7 +447,7 @@ func (o *winOverlay) drawSubKeyMiniGrid(
 			subCell.Label,
 			subCell.Bounds,
 			style.FontFamily(),
-			style.SubKeyPreviewFontSizeF(),
+			style.SubKeyPreviewFontSizeF()*o.scale(),
 			style.SubKeyPreviewTextColorARGB(),
 		)
 	}

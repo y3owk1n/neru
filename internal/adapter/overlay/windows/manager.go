@@ -380,9 +380,10 @@ func (m *Manager) DrawHintSearchInput(
 	pos := frame.Position()
 	width := frame.Width()
 
-	fontSize := float64(max(style.FontSize(), 1))
-	paddingX := badge.AutoPadding(fontSize, style.PaddingX(), true)
-	paddingY := badge.AutoPadding(fontSize, style.PaddingY(), false)
+	scale := m.win.scale()
+	fontSize := float64(max(style.FontSize(), 1)) * scale
+	paddingX := badge.AutoPadding(fontSize, scaledConfig(style.PaddingX(), scale), true)
+	paddingY := badge.AutoPadding(fontSize, scaledConfig(style.PaddingY(), scale), false)
 
 	// / query  count /  format
 	label := "/ " + query
@@ -400,8 +401,12 @@ func (m *Manager) DrawHintSearchInput(
 		bounds,
 		badge.ParseHexARGB(style.BackgroundColor()),
 		badge.ParseHexARGB(style.BorderColor()),
-		float64(max(style.BorderWidth(), 0)),
-		badge.BorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap),
+		float64(max(style.BorderWidth(), 0))*scale,
+		badge.BorderRadius(
+			scaledConfig(style.BorderRadius(), scale),
+			bounds,
+			winAutoRadiusBadgeCap*scale,
+		),
 	)
 	m.win.drawTextCentered(
 		label,
@@ -456,15 +461,18 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	// The badge follows the cursor, so it is sized for the monitor the
+	// cursor is on rather than the one the window was last on.
+	scale := winplatform.DPIScaleAt(image.Pt(cursorX, cursorY))
 	offsetX := cfg.UI.IndicatorXOffset
 	offsetY := cfg.UI.IndicatorYOffset
-	fontSize := float64(max(cfg.UI.FontSize, 1))
+	fontSize := float64(max(cfg.UI.FontSize, 1)) * scale
 
-	paddingX := badge.AutoPadding(fontSize, cfg.UI.PaddingX, true)
-	paddingY := badge.AutoPadding(fontSize, cfg.UI.PaddingY, false)
+	paddingX := badge.AutoPadding(fontSize, scaledConfig(cfg.UI.PaddingX, scale), true)
+	paddingY := badge.AutoPadding(fontSize, scaledConfig(cfg.UI.PaddingY, scale), false)
 	badgeWidth := badge.EstimateTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
 	badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
-	borderWidth := max(cfg.UI.BorderWidth, 0)
+	borderWidth := scaledInt(max(cfg.UI.BorderWidth, 0), scale)
 
 	posX := cursorX + offsetX - borderWidth
 	posY := cursorY + offsetY - borderWidth
@@ -523,7 +531,7 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 	)
 
 	indicatorRadius := badge.BorderRadius(
-		cfg.UI.BorderRadius, badgeBounds, winAutoRadiusBadgeCap,
+		scaledConfig(cfg.UI.BorderRadius, scale), badgeBounds, winAutoRadiusBadgeCap*scale,
 	)
 	m.indicatorWin.FillRoundedRect(badgeBounds, indicatorRadius, badge.ParseHexARGB(bgColor))
 
@@ -563,13 +571,14 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 	}
 
 	indicatorUI := m.StickyModifiersOverlay().UIConfig()
-	fontSize := float64(max(indicatorUI.FontSize, 1))
+	scale := winplatform.DPIScaleAt(image.Pt(cursorX, cursorY))
+	fontSize := float64(max(indicatorUI.FontSize, 1)) * scale
 
-	paddingX := badge.AutoPadding(fontSize, indicatorUI.PaddingX, true)
-	paddingY := badge.AutoPadding(fontSize, indicatorUI.PaddingY, false)
+	paddingX := badge.AutoPadding(fontSize, scaledConfig(indicatorUI.PaddingX, scale), true)
+	paddingY := badge.AutoPadding(fontSize, scaledConfig(indicatorUI.PaddingY, scale), false)
 	badgeWidth := badge.EstimateTextWidth(symbols, fontSize) + paddingX*winPaddingMultiplier
 	badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
-	borderWidth := max(indicatorUI.BorderWidth, 0)
+	borderWidth := scaledInt(max(indicatorUI.BorderWidth, 0), scale)
 
 	offsetX := indicatorUI.IndicatorXOffset
 	offsetY := indicatorUI.IndicatorYOffset
@@ -628,9 +637,9 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 	)
 
 	stickyRadius := badge.BorderRadius(
-		indicatorUI.BorderRadius,
+		scaledConfig(indicatorUI.BorderRadius, scale),
 		badgeBounds,
-		winAutoRadiusBadgeCap,
+		winAutoRadiusBadgeCap*scale,
 	)
 	m.stickyWin.FillRoundedRect(badgeBounds, stickyRadius, badge.ParseHexARGB(bgColor))
 
@@ -683,6 +692,11 @@ func (m *Manager) DrawMouseActionIndicator(
 		m.mouseActionCancel()
 		m.mouseActionCancel = nil
 	}
+
+	// Scaled once here. animateMouseAction reads the same copy.
+	scale := winplatform.DPIScaleAt(point)
+	style.Size = scaledInt(style.Size, scale)
+	style.BorderWidth = scaledInt(style.BorderWidth, scale)
 
 	maxScale := max(style.StartScale, style.EndScale)
 	if maxScale <= 0 {
