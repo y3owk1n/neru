@@ -840,7 +840,7 @@ Explicit component colors override theme derivation. Omitted colors inherit from
 Labels clickable UI elements with short overlay labels. By default uses the platform accessibility tree (`axtree` strategy). Two screen-capture strategies exist for apps whose accessibility tree is too thin to hint from; both scan the focused window by default (`capture_scope` widens that to the whole screen), and both add the system surfaces the `include_*` options ask for from the accessibility tree:
 
 - `vision`: on-screen recognition. The Vision framework on macOS (text plus rectangles), tesseract OCR on Linux and `Windows.Media.Ocr` on Windows (text only). Detected text becomes the element's title, so hint search (`--search`) and `--split-word` work. Costs an ML or OCR pass per activation; Linux needs tesseract installed and Windows an OCR language pack.
-- `contour`: edge and contour analysis of the window pixels, an algorithm ported from [wl-kbptr](https://github.com/moverest/wl-kbptr). Finds anything with a visible outline (buttons, icons, toolbar items, text runs) in a few milliseconds with no external dependency. Elements carry no text, so search and word splitting do not apply, and `hints.vision.*` is not read.
+- `contour`: edge and contour analysis of the window pixels, an algorithm ported from [wl-kbptr](https://github.com/moverest/wl-kbptr). Finds anything with a visible outline (buttons, icons, toolbar items, text runs) in a few milliseconds with no external dependency. Elements carry no text, so search and word splitting do not apply, and `hints.vision.*` is not read. The detector's own numbers are under [`[hints.contour]`](#contour-options).
 
 Pick `vision` when you want to type what you see, or the app is text-heavy. Pick `contour` when latency matters, the targets are icons rather than words, or OCR is not installed. Both are overridable per-app.
 
@@ -1077,6 +1077,48 @@ link_min_width = 50
 image_min_size = 48
 checkbox_max_size = 32
 generic_clickable_min_confidence = 0.5
+```
+
+### Contour options
+
+The `contour` strategy is one pure-Go pass over the captured pixels, so every
+option below is read on all three platforms. The defaults are
+[wl-kbptr](https://github.com/moverest/wl-kbptr)'s numbers. Sizes are logical
+pixels (points on a Retina display). The two edge thresholds are Sobel
+gradient magnitudes on a 0..255 grayscale frame. Lower the edge thresholds to
+pick up faint outlines on low-contrast themes, raise them to cut clutter. Widen
+the target bounds to hint notification cards and toasts, narrow them to drop
+them.
+
+| Option                | Type  | Default | Description                                                                                                  |
+| --------------------- | ----- | ------- | ------------------------------------------------------------------------------------------------------------ |
+| `request_timeout_ms`  | int   | `2000`  | Time budget for one contour pass. A pass that runs over the budget returns no targets.                       |
+| `edge_low_threshold`  | int   | `70`    | Canny hysteresis low. Gradient magnitude that extends an edge already found. Must be at most the high value. |
+| `edge_high_threshold` | int   | `220`   | Canny hysteresis high. Gradient magnitude that starts an edge. Lower finds fainter outlines.                 |
+| `min_target_width`    | float | `7.0`   | Blobs this wide or narrower are noise.                                                                       |
+| `min_target_height`   | float | `3.0`   | Blobs this tall or shorter are noise.                                                                        |
+| `max_target_width`    | float | `650.0` | Blobs this wide or wider are layout containers, not targets.                                                 |
+| `max_target_height`   | float | `160.0` | Blobs this tall or taller are layout containers, not targets.                                                |
+| `flat_line_height`    | float | `6.0`   | Strokes nested in another target and no taller than this are dropped (hamburger lines, underlines).          |
+| `container_height`    | float | `50.0`  | Height from which a blob counts as a card or dialog. One holding button-sized children is dropped for them.  |
+| `same_center_slack`   | float | `8.0`   | A nested blob whose centre is within this many pixels of its parent's is a duplicate of the parent.          |
+| `square_icon_size`    | float | `40.0`  | A roughly square parent smaller than this keeps its box, and its inner detail (the icon artwork) is dropped. |
+| `square_icon_slack`   | float | `5.0`   | How far from square, as width minus height, that parent may be.                                              |
+
+```toml
+[hints.contour]
+request_timeout_ms = 2000
+edge_low_threshold = 70
+edge_high_threshold = 220
+min_target_width = 7.0
+min_target_height = 3.0
+max_target_width = 650.0
+max_target_height = 160.0
+flat_line_height = 6.0
+container_height = 50.0
+same_center_slack = 8.0
+square_icon_size = 40.0
+square_icon_slack = 5.0
 ```
 
 ### Choosing a label direction

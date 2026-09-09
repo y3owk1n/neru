@@ -193,6 +193,20 @@ image_min_size = 48                          # Minimum width/height for image el
 checkbox_max_size = 32                       # Maximum width/height for checkbox elements (px)
 generic_clickable_min_confidence = 0.5       # Minimum confidence for generic clickable classification
 
+[hints.contour]
+request_timeout_ms = 2000                    # Timeout for one contour pass in milliseconds
+edge_low_threshold = 70                      # Canny hysteresis low, the gradient magnitude that extends an edge (0-255 luma)
+edge_high_threshold = 220                    # Canny hysteresis high, the gradient magnitude that starts an edge. Lower finds fainter outlines
+min_target_width = 7.0                       # Blobs this wide or narrower are noise (logical px)
+min_target_height = 3.0                      # Blobs this tall or shorter are noise (logical px)
+max_target_width = 650.0                     # Blobs this wide or wider are layout, not targets (logical px)
+max_target_height = 160.0                    # Blobs this tall or taller are layout, not targets (logical px)
+flat_line_height = 6.0                       # Nested strokes no taller than this are dropped (hamburger lines)
+container_height = 50.0                      # Height from which a blob counts as a card or dialog. Its button-sized children are the targets
+same_center_slack = 8.0                      # Nested blob within this many px of its parent's centre duplicates it
+square_icon_size = 40.0                      # Square parents smaller than this keep their box and drop their inner detail
+square_icon_slack = 5.0                      # How far from square (|w-h|) that parent may be
+
 # Grid mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid
 [grid]

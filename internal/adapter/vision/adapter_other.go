@@ -31,6 +31,7 @@ func (a *Adapter) DetectElements(
 func (a *Adapter) DetectContours(
 	_ context.Context,
 	_ image.Rectangle,
+	_ config.HintsContourConfig,
 ) ([]*element.Element, error) {
 	return nil, derrors.New(
 		derrors.CodeNotSupported,

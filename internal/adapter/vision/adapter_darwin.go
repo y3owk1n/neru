@@ -224,6 +224,7 @@ func (a *Adapter) Health(ctx context.Context) error {
 func (a *Adapter) DetectContours(
 	ctx context.Context,
 	screenBounds image.Rectangle,
+	cfg config.HintsContourConfig,
 ) ([]*element.Element, error) {
 	select {
 	case <-ctx.Done():
@@ -266,7 +267,7 @@ func (a *Adapter) DetectContours(
 
 	origin := image.Pt(int(displayBounds.origin.x), int(displayBounds.origin.y))
 
-	rects, err := contour.Detect(img, scale)
+	rects, err := contour.Detect(ctx, img, scale, contour.ParamsFromConfig(cfg))
 	if err != nil {
 		return nil, err
 	}

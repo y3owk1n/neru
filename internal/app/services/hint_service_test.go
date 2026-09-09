@@ -773,6 +773,7 @@ func (m *mockVisionPort) DetectElements(
 func (m *mockVisionPort) DetectContours(
 	context.Context,
 	image.Rectangle,
+	config.HintsContourConfig,
 ) ([]*element.Element, error) {
 	if m.detectErr != nil {
 		return nil, m.detectErr
@@ -878,7 +879,7 @@ func TestHintService_GenerateHintsContourCombinesSupplementaryAndWindowElements(
 		},
 		logger.Get(),
 		&mocks.MockVisionPort{
-			DetectContoursFunc: func(context.Context, image.Rectangle) ([]*element.Element, error) {
+			DetectContoursFunc: func(context.Context, image.Rectangle, config.HintsContourConfig) ([]*element.Element, error) {
 				return []*element.Element{windowElement}, nil
 			},
 		},
@@ -924,7 +925,7 @@ func TestHintService_GenerateHintsContour_ScansFocusedWindow(t *testing.T) {
 	var capturedRegion image.Rectangle
 
 	mockVision := &mocks.MockVisionPort{
-		DetectContoursFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+		DetectContoursFunc: func(_ context.Context, region image.Rectangle, _ config.HintsContourConfig) ([]*element.Element, error) {
 			capturedRegion = region
 
 			return []*element.Element{elem}, nil
@@ -986,7 +987,7 @@ func TestHintService_GenerateHintsContour_ScreenScopeSkipsTheWindow(t *testing.T
 	var capturedRegion image.Rectangle
 
 	mockVision := &mocks.MockVisionPort{
-		DetectContoursFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+		DetectContoursFunc: func(_ context.Context, region image.Rectangle, _ config.HintsContourConfig) ([]*element.Element, error) {
 			capturedRegion = region
 
 			return nil, nil
@@ -1062,7 +1063,7 @@ func TestHintService_GenerateHintsContour_AppConfigWidensCaptureScope(t *testing
 		cfg,
 		zap.NewNop(),
 		&mocks.MockVisionPort{
-			DetectContoursFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+			DetectContoursFunc: func(_ context.Context, region image.Rectangle, _ config.HintsContourConfig) ([]*element.Element, error) {
 				capturedRegion = region
 
 				return nil, nil

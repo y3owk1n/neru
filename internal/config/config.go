@@ -374,6 +374,24 @@ type HintsVisionConfig struct {
 	GenericClickableMinConfidence float64 `json:"genericClickableMinConfidence" toml:"generic_clickable_min_confidence"`
 }
 
+// HintsContourConfig defines tunable settings for the contour strategy. The
+// shipped values are wl-kbptr's; sizes are logical pixels and the edge
+// thresholds are Sobel gradient magnitudes on a 0..255 luma frame.
+type HintsContourConfig struct {
+	RequestTimeoutMS  int     `json:"requestTimeoutMs"  toml:"request_timeout_ms"`
+	EdgeLowThreshold  int     `json:"edgeLowThreshold"  toml:"edge_low_threshold"`
+	EdgeHighThreshold int     `json:"edgeHighThreshold" toml:"edge_high_threshold"`
+	MinTargetWidth    float64 `json:"minTargetWidth"    toml:"min_target_width"`
+	MinTargetHeight   float64 `json:"minTargetHeight"   toml:"min_target_height"`
+	MaxTargetWidth    float64 `json:"maxTargetWidth"    toml:"max_target_width"`
+	MaxTargetHeight   float64 `json:"maxTargetHeight"   toml:"max_target_height"`
+	FlatLineHeight    float64 `json:"flatLineHeight"    toml:"flat_line_height"`
+	ContainerHeight   float64 `json:"containerHeight"   toml:"container_height"`
+	SameCenterSlack   float64 `json:"sameCenterSlack"   toml:"same_center_slack"`
+	SquareIconSize    float64 `json:"squareIconSize"    toml:"square_icon_size"`
+	SquareIconSlack   float64 `json:"squareIconSlack"   toml:"square_icon_slack"`
+}
+
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
 	Enabled           bool                `json:"enabled"           toml:"enabled"`
@@ -386,6 +404,7 @@ type HintsConfig struct {
 	SearchInputUI     SearchInputUI       `json:"searchInputUi"     toml:"search_input_ui"`
 	BoundaryHighlight BoundaryHighlightUI `json:"boundaryHighlight" toml:"boundary_highlight"`
 	Vision            HintsVisionConfig   `json:"vision"            toml:"vision"`
+	Contour           HintsContourConfig  `json:"contour"           toml:"contour"`
 
 	IncludeMenubarHints           bool                `json:"includeMenubarHints"           toml:"include_menubar_hints"`
 	AdditionalMenubarHintsTargets []string            `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`

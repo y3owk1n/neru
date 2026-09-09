@@ -200,6 +200,21 @@ func PlatformSupport() parity.Declaration {
 			"hints.vision.image_min_size",
 			"hints.vision.checkbox_max_size",
 		),
+		// The contour detector is pure Go and every capture backend feeds it.
+		parity.Everywhere(parity.KindOption,
+			"hints.contour.request_timeout_ms",
+			"hints.contour.edge_low_threshold",
+			"hints.contour.edge_high_threshold",
+			"hints.contour.min_target_width",
+			"hints.contour.min_target_height",
+			"hints.contour.max_target_width",
+			"hints.contour.max_target_height",
+			"hints.contour.flat_line_height",
+			"hints.contour.container_height",
+			"hints.contour.same_center_slack",
+			"hints.contour.square_icon_size",
+			"hints.contour.square_icon_slack",
+		),
 		// Unbound modifier chords reach the focused application on macOS, on
 		// the Wayland evdev tap and on Windows. X11 cannot pass them through
 		// at all, which is a display-server limit rather than a column: the

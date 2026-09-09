@@ -158,6 +158,7 @@ func (a *Adapter) CaptureScreen(ctx context.Context) (*image.RGBA, error) {
 func (a *Adapter) DetectContours(
 	ctx context.Context,
 	screenBounds image.Rectangle,
+	cfg config.HintsContourConfig,
 ) ([]*element.Element, error) {
 	select {
 	case <-ctx.Done():
@@ -181,7 +182,7 @@ func (a *Adapter) DetectContours(
 
 	// The process is per-monitor-v2 DPI aware, so the frame is the region's own
 	// size in physical pixels and the scale is one.
-	rects, err := contour.Detect(img, 1)
+	rects, err := contour.Detect(ctx, img, 1, contour.ParamsFromConfig(cfg))
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package contour_test
 
 import (
+	"context"
 	"image"
 	"image/color"
 	"image/draw"
@@ -10,17 +11,34 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
 )
 
+// testParams are wl-kbptr's numbers, the ones config ships as defaults.
+func testParams() contour.Params {
+	return contour.Params{
+		EdgeLowThreshold:  70,
+		EdgeHighThreshold: 220,
+		MinTargetWidth:    7,
+		MinTargetHeight:   3,
+		MaxTargetWidth:    650,
+		MaxTargetHeight:   160,
+		FlatLineHeight:    6,
+		ContainerHeight:   50,
+		SameCenterSlack:   8,
+		SquareIconSize:    40,
+		SquareIconSlack:   5,
+	}
+}
+
 func TestDetect_NilOrEmpty(t *testing.T) {
 	t.Parallel()
 
-	res, err := contour.Detect(nil, 1.0)
+	res, err := contour.Detect(context.Background(), nil, 1.0, testParams())
 	if err == nil || res != nil {
 		t.Errorf("Detect(nil) = %v, %v; want nil and an error", res, err)
 	}
 
 	empty := image.NewRGBA(image.Rect(0, 0, 0, 0))
 
-	res, err = contour.Detect(empty, 1.0)
+	res, err = contour.Detect(context.Background(), empty, 1.0, testParams())
 	if err == nil || res != nil {
 		t.Errorf("Detect(empty) = %v, %v; want nil and an error", res, err)
 	}
@@ -49,7 +67,7 @@ func TestDetect_ButtonDetection(t *testing.T) {
 		img.Set(btnRect.Max.X-1, y, black)
 	}
 
-	targets, err := contour.Detect(img, 1.0)
+	targets, err := contour.Detect(context.Background(), img, 1.0, testParams())
 	if err != nil {
 		t.Fatalf("Detect() error = %v", err)
 	}
@@ -104,7 +122,7 @@ func TestDetect_FiltersNoiseAndOversized(t *testing.T) {
 		img.Set(349, y, black)
 	}
 
-	targets, err := contour.Detect(img, 1.0)
+	targets, err := contour.Detect(context.Background(), img, 1.0, testParams())
 	if err != nil {
 		t.Fatalf("Detect() error = %v", err)
 	}
@@ -144,7 +162,7 @@ func TestDetect_NotificationCardWithoutButtons(t *testing.T) {
 		img.Set(card.Max.X-1, y, black)
 	}
 
-	targets, err := contour.Detect(img, 1.0)
+	targets, err := contour.Detect(context.Background(), img, 1.0, testParams())
 	if err != nil {
 		t.Fatalf("Detect() error = %v", err)
 	}
@@ -202,7 +220,7 @@ func TestDetect_ButtonInsideEnclosingContainer(t *testing.T) {
 		img.Set(btn.Max.X-1, y, black)
 	}
 
-	targets, err := contour.Detect(img, 1.0)
+	targets, err := contour.Detect(context.Background(), img, 1.0, testParams())
 	if err != nil {
 		t.Fatalf("Detect() error = %v", err)
 	}
@@ -237,7 +255,7 @@ func BenchmarkDetect_FullScreenFrame(b *testing.B) {
 	img := syntheticFrame(rand.New(rand.NewPCG(3, 4)), 2560, 1440)
 
 	for b.Loop() {
-		_, _ = contour.Detect(img, 2)
+		_, _ = contour.Detect(context.Background(), img, 2, testParams())
 	}
 }
 

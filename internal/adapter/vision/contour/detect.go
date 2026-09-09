@@ -1,28 +1,44 @@
 package contour
 
 import (
+	"context"
 	"image"
 	"math"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Canny thresholds and the size heuristics below are wl-kbptr's numbers,
-// kept verbatim so the detector finds the same targets its origin does.
-const (
-	cannyLow  = 70
-	cannyHigh = 220
+// Params are the detector's tunable numbers. wl-kbptr's values are the
+// defaults the config package ships as hints.contour. The detector takes
+// whatever it is handed. Validation happens at config load.
+//
+// Thresholds are Sobel gradient magnitudes on a 0..255 luma frame. Sizes are
+// logical pixels, after dividing by the frame scale.
+type Params struct {
+	// EdgeLowThreshold and EdgeHighThreshold are the Canny hysteresis pair:
+	// pixels above high start an edge, pixels above low extend one.
+	EdgeLowThreshold  int
+	EdgeHighThreshold int
 
-	maxTargetHeight = 160.0
-	maxTargetWidth  = 650.0
-	minTargetHeight = 3.0
-	minTargetWidth  = 7.0
-	flatLineHeight  = 6.0
-	containerHeight = 50.0
-	sameCenterSlack = 8.0
-	squareIconSlack = 5.0
-	squareIconSize  = 40.0
-)
+	// Blobs outside these bounds are noise (below) or layout containers (above).
+	MinTargetWidth  float64
+	MinTargetHeight float64
+	MaxTargetWidth  float64
+	MaxTargetHeight float64
+
+	// FlatLineHeight drops nested strokes no taller than this (menu lines).
+	FlatLineHeight float64
+	// ContainerHeight is where a blob starts counting as a card or dialog
+	// whose children are the real targets.
+	ContainerHeight float64
+	// SameCenterSlack is how close to its parent's center a nested blob
+	// must be to count as a duplicate of it.
+	SameCenterSlack float64
+	// SquareIconSize and SquareIconSlack describe a roughly square parent
+	// small enough that its inner detail is the icon's own artwork.
+	SquareIconSize  float64
+	SquareIconSlack float64
+}
 
 // component is one 8-connected blob of dilated edge pixels with its place in
 // the enclosure hierarchy. Indices are into the components slice; -1 is none.
@@ -43,8 +59,14 @@ func (c component) area() int64 {
 // scale-dependent dilation, connected components and hierarchical filtering.
 // Rectangles are returned in logical coordinates (divided by scale). An empty
 // frame is refused; a frame with nothing in it returns no rectangles and no
-// error.
-func Detect(img *image.RGBA, scale float64) ([]image.Rectangle, error) {
+// error. The context is checked between stages, so a deadline set by the
+// caller ends a slow frame early instead of after the fact.
+func Detect(
+	ctx context.Context,
+	img *image.RGBA,
+	scale float64,
+	params Params,
+) ([]image.Rectangle, error) {
 	if img == nil || img.Rect.Dx() <= 0 || img.Rect.Dy() <= 0 {
 		return nil, derrors.New(
 			derrors.CodeInvalidInput,
@@ -60,12 +82,33 @@ func Detect(img *image.RGBA, scale float64) ([]image.Rectangle, error) {
 
 	gray := grayscale(img.Pix, width, height, img.Stride)
 	blurred := gaussianBlur(gray, width, height)
-	edges := cannyEdges(blurred, width, height)
+
+	err := checkDeadline(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	edges := cannyEdges(blurred, width, height, params)
 	dilated := dilate(edges, width, height, scale)
+
+	err = checkDeadline(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	comps := connectedComponents(dilated, width, height)
 	buildHierarchy(comps)
 
-	return filterTargets(comps, scale), nil
+	return filterTargets(comps, scale, params), nil
+}
+
+func checkDeadline(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "contour detection canceled")
+	default:
+		return nil
+	}
 }
 
 // grayscale converts RGBA to luma with ITU-R BT.601 integer arithmetic.
@@ -131,7 +174,9 @@ func gaussianBlur(gray []uint8, width, height int) []uint8 {
 // and hysteresis thresholding. The result is 255 on edge pixels, 0 elsewhere.
 //
 //nolint:varnamelen,mnd // pixel kernel: coordinates and kernel coefficients read as the algorithm writes them
-func cannyEdges(blurred []uint8, width, height int) []uint8 {
+func cannyEdges(blurred []uint8, width, height int, params Params) []uint8 {
+	cannyLow := int16(params.EdgeLowThreshold)
+	cannyHigh := int16(params.EdgeHighThreshold)
 	total := width * height
 	mag := make([]int16, total)
 	dir := make([]uint8, total)
@@ -381,7 +426,7 @@ func buildHierarchy(comps []component) {
 // component order.
 //
 //nolint:varnamelen,mnd // pixel kernel: coordinates and kernel coefficients read as the algorithm writes them
-func filterTargets(comps []component, scale float64) []image.Rectangle {
+func filterTargets(comps []component, scale float64, params Params) []image.Rectangle {
 	n := len(comps)
 	filtered := make([]bool, n)
 	rx := make([]float64, n)
@@ -397,9 +442,9 @@ func filterTargets(comps []component, scale float64) []image.Rectangle {
 
 		// Buttons and small inputs are typically under 50px high, but
 		// notification cards, toasts and floating dialogs can reach 160px high
-		// and 650px wide. Below the minimums is noise.
-		if rh[i] >= maxTargetHeight || rw[i] >= maxTargetWidth ||
-			rh[i] <= minTargetHeight || rw[i] <= minTargetWidth {
+		// and 650px wide with the shipped bounds. Below the minimums is noise.
+		if rh[i] >= params.MaxTargetHeight || rw[i] >= params.MaxTargetWidth ||
+			rh[i] <= params.MinTargetHeight || rw[i] <= params.MinTargetWidth {
 			filtered[i] = true
 		}
 	}
@@ -424,7 +469,7 @@ func filterTargets(comps []component, scale float64) []image.Rectangle {
 			case p >= 0 && filtered[p]:
 				// The parent is a layout container (dialog, card), not a
 				// button, so children inside it are kept as they are.
-			case rh[i] <= flatLineHeight:
+			case rh[i] <= params.FlatLineHeight:
 				// Flat inner lines, such as hamburger menu strokes.
 				filtered[i] = true
 			case p >= 0:
@@ -435,9 +480,9 @@ func filterTargets(comps []component, scale float64) []image.Rectangle {
 
 				// Inner targets sharing the parent's center, and inner detail
 				// of square icons, duplicate the parent.
-				if (math.Abs(cx-pcx) < sameCenterSlack && math.Abs(cy-pcy) < sameCenterSlack) ||
-					(math.Abs(rh[p]-rw[p]) < squareIconSlack &&
-						rh[p] < squareIconSize && rw[p] < squareIconSize) {
+				if (math.Abs(cx-pcx) < params.SameCenterSlack && math.Abs(cy-pcy) < params.SameCenterSlack) ||
+					(math.Abs(rh[p]-rw[p]) < params.SquareIconSlack &&
+						rh[p] < params.SquareIconSize && rw[p] < params.SquareIconSize) {
 					filtered[i] = true
 				}
 			}
@@ -448,16 +493,17 @@ func filterTargets(comps []component, scale float64) []image.Rectangle {
 		}
 	}
 
-	// A container (50 <= height < 160) holding button-sized children is a
-	// dialog whose buttons are the targets; one holding none is a toast and
-	// stays clickable itself.
+	// A container (at least ContainerHeight tall, under the max) holding
+	// button-sized children is a dialog whose buttons are the targets; one
+	// holding none is a toast and stays clickable itself.
 	for i := range comps {
-		if filtered[i] || rh[i] < containerHeight {
+		if filtered[i] || rh[i] < params.ContainerHeight {
 			continue
 		}
 
 		for child := comps[i].firstChild; child >= 0; child = comps[child].nextSibling {
-			if !filtered[child] && rh[child] < containerHeight && rh[child] > flatLineHeight {
+			if !filtered[child] && rh[child] < params.ContainerHeight &&
+				rh[child] > params.FlatLineHeight {
 				filtered[i] = true
 				break
 			}

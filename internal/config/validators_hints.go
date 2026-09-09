@@ -131,6 +131,7 @@ func (c *Config) ValidateHints(warnings *Warnings) error {
 		c.validateHintMissionControl,
 		c.validateHintVocabulary,
 		func() error { return validateHintsVisionConfig(c.Hints.Vision) },
+		func() error { return validateHintsContourConfig(c.Hints.Contour) },
 	}
 
 	for _, check := range checks {
@@ -571,6 +572,63 @@ func validateHintsVisionConfig(vision HintsVisionConfig) error {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"hints.vision.link_min_aspect must be greater than 0",
+		)
+	}
+
+	return nil
+}
+
+// validateHintsContourConfig checks the contour detector's numbers. Sizes
+// are positive, min/max pairs are ordered, and the Canny thresholds fit a
+// 0..255 luma gradient with low at or below high.
+func validateHintsContourConfig(contour HintsContourConfig) error {
+	if contour.RequestTimeoutMS <= 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.contour.request_timeout_ms must be greater than 0",
+		)
+	}
+
+	const maxGradient = 255 * 4 // Sobel |gx|+|gy| on a 0..255 frame
+
+	if contour.EdgeLowThreshold <= 0 || contour.EdgeHighThreshold > maxGradient ||
+		contour.EdgeLowThreshold > contour.EdgeHighThreshold {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"hints.contour edge thresholds must be > 0, at most %d, and low <= high",
+			maxGradient,
+		)
+	}
+
+	if contour.MinTargetWidth <= 0 || contour.MaxTargetWidth <= 0 ||
+		contour.MinTargetWidth >= contour.MaxTargetWidth {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.contour target width limits must be > 0 and min < max",
+		)
+	}
+
+	if contour.MinTargetHeight <= 0 || contour.MaxTargetHeight <= 0 ||
+		contour.MinTargetHeight >= contour.MaxTargetHeight {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.contour target height limits must be > 0 and min < max",
+		)
+	}
+
+	if contour.FlatLineHeight <= 0 || contour.ContainerHeight <= 0 ||
+		contour.SameCenterSlack <= 0 || contour.SquareIconSize <= 0 ||
+		contour.SquareIconSlack <= 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.contour size thresholds must be greater than 0",
+		)
+	}
+
+	if contour.FlatLineHeight >= contour.ContainerHeight {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.contour.flat_line_height must be less than container_height",
 		)
 	}
 

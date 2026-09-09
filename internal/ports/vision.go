@@ -34,10 +34,12 @@ type VisionPort interface {
 
 	// DetectContours captures screenBounds and returns the interactive targets
 	// the contour detector (ported from wl-kbptr) finds in it, as clickable
-	// vision-only buttons with no title.
+	// vision-only buttons with no title. cfg tunes the detector. The caller
+	// bounds the pass with ctx.
 	DetectContours(
 		ctx context.Context,
 		screenBounds image.Rectangle,
+		cfg config.HintsContourConfig,
 	) ([]*element.Element, error)
 
 	// CaptureScreen returns the current screen image. Which screen "current"

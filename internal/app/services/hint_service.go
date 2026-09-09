@@ -388,8 +388,14 @@ func (s *HintService) generateHintsContour(
 		return allElements
 	}
 
+	contourCtx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(s.config.Contour.RequestTimeoutMS)*time.Millisecond,
+	)
+	defer cancel()
+
 	contourStart := time.Now()
-	elements, err := s.vision.DetectContours(ctx, windowBounds)
+	elements, err := s.vision.DetectContours(contourCtx, windowBounds, s.config.Contour)
 	s.logger.Debug("TIMING: Window elements (contour)",
 		zap.Duration("elapsed", time.Since(contourStart)),
 		zap.Int("count", len(elements)),

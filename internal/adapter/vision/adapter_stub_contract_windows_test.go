@@ -102,7 +102,11 @@ func TestVisionAdapter_CaptureAnswersOnWindows(t *testing.T) {
 		)
 	}
 
-	elements, err := adapter.DetectContours(ctx, image.Rect(0, 0, 100, 100))
+	elements, err := adapter.DetectContours(
+		ctx,
+		image.Rect(0, 0, 100, 100),
+		config.DefaultConfig().Hints.Contour,
+	)
 	if err != nil && elements != nil {
 		t.Errorf("DetectContours returned %d elements alongside its error %v", len(elements), err)
 	}
@@ -123,7 +127,11 @@ func TestVisionAdapter_DetectionRefusesAnEmptyRegion(t *testing.T) {
 	adapter := vision.NewAdapter(nil)
 	ctx := context.Background()
 
-	contours, err := adapter.DetectContours(ctx, image.Rectangle{})
+	contours, err := adapter.DetectContours(
+		ctx,
+		image.Rectangle{},
+		config.DefaultConfig().Hints.Contour,
+	)
 	if err == nil {
 		t.Fatalf("DetectContours accepted an empty region and returned %d elements", len(contours))
 	}

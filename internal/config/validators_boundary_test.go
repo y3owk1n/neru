@@ -563,3 +563,81 @@ func TestConfig_MouseActionAnimationScalesRejectNegatives(t *testing.T) {
 		t.Errorf("animation scales of 0 were rejected: %v", err)
 	}
 }
+
+// TestConfig_ContourBoundaries covers the default, a valid custom set, and
+// the rejected side of every hints.contour rule: the timeout, the ordered
+// Canny pair inside the Sobel range, the ordered target bounds, positive
+// dedup sizes, and flat lines shorter than containers.
+func TestConfig_ContourBoundaries(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*config.HintsContourConfig)
+		wantErr bool
+	}{
+		{name: "default", mutate: func(*config.HintsContourConfig) {}},
+		{name: "custom faint-edge profile", mutate: func(c *config.HintsContourConfig) {
+			c.EdgeLowThreshold = 30
+			c.EdgeHighThreshold = 90
+			c.MaxTargetHeight = 300
+		}},
+		{name: "low equal to high", mutate: func(c *config.HintsContourConfig) {
+			c.EdgeLowThreshold = 100
+			c.EdgeHighThreshold = 100
+		}},
+		{
+			name:    "zero timeout",
+			mutate:  func(c *config.HintsContourConfig) { c.RequestTimeoutMS = 0 },
+			wantErr: true,
+		},
+		{
+			name:    "zero low threshold",
+			mutate:  func(c *config.HintsContourConfig) { c.EdgeLowThreshold = 0 },
+			wantErr: true,
+		},
+		{name: "low above high", mutate: func(c *config.HintsContourConfig) {
+			c.EdgeLowThreshold = 230
+		}, wantErr: true},
+		{name: "high above the sobel range", mutate: func(c *config.HintsContourConfig) {
+			c.EdgeHighThreshold = 1021
+		}, wantErr: true},
+		{name: "min width at max width", mutate: func(c *config.HintsContourConfig) {
+			c.MinTargetWidth = c.MaxTargetWidth
+		}, wantErr: true},
+		{
+			name:    "zero max height",
+			mutate:  func(c *config.HintsContourConfig) { c.MaxTargetHeight = 0 },
+			wantErr: true,
+		},
+		{
+			name:    "negative same center slack",
+			mutate:  func(c *config.HintsContourConfig) { c.SameCenterSlack = -1 },
+			wantErr: true,
+		},
+		{
+			name:    "zero square icon size",
+			mutate:  func(c *config.HintsContourConfig) { c.SquareIconSize = 0 },
+			wantErr: true,
+		},
+		{name: "flat line at container height", mutate: func(c *config.HintsContourConfig) {
+			c.FlatLineHeight = c.ContainerHeight
+		}, wantErr: true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := validBase(t)
+			testCase.mutate(&cfg.Hints.Contour)
+
+			err := cfg.ValidateHints(nil)
+			if testCase.wantErr {
+				assertRejected(t, err, "hints.contour", testCase.name)
+
+				return
+			}
+
+			if err != nil {
+				t.Errorf("hints.contour %s was rejected: %v", testCase.name, err)
+			}
+		})
+	}
+}

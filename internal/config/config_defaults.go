@@ -58,6 +58,35 @@ const (
 	// DefaultVisionGenericClickableMinConfidence is the default generic clickable confidence threshold.
 	DefaultVisionGenericClickableMinConfidence = 0.5
 
+	// The contour defaults are wl-kbptr's numbers, kept verbatim so the
+	// detector finds the same targets its origin does.
+
+	// DefaultContourRequestTimeoutMS bounds one contour pass. The detector takes
+	// a few milliseconds on a window and stays under this on a full display.
+	DefaultContourRequestTimeoutMS = 2000
+	// DefaultContourEdgeLowThreshold extends an edge (Canny hysteresis low).
+	DefaultContourEdgeLowThreshold = 70
+	// DefaultContourEdgeHighThreshold starts an edge (Canny hysteresis high).
+	DefaultContourEdgeHighThreshold = 220
+	// DefaultContourMinTargetWidth is the width at or below which a blob is noise.
+	DefaultContourMinTargetWidth = 7.0
+	// DefaultContourMinTargetHeight is the height at or below which a blob is noise.
+	DefaultContourMinTargetHeight = 3.0
+	// DefaultContourMaxTargetWidth is the width at or above which a blob is layout.
+	DefaultContourMaxTargetWidth = 650.0
+	// DefaultContourMaxTargetHeight is the height at or above which a blob is layout.
+	DefaultContourMaxTargetHeight = 160.0
+	// DefaultContourFlatLineHeight drops nested strokes no taller than this.
+	DefaultContourFlatLineHeight = 6.0
+	// DefaultContourContainerHeight is where a blob starts counting as a dialog or card.
+	DefaultContourContainerHeight = 50.0
+	// DefaultContourSameCenterSlack is the center distance under which a nested blob duplicates its parent.
+	DefaultContourSameCenterSlack = 8.0
+	// DefaultContourSquareIconSize is the size under which a square parent drops its inner detail.
+	DefaultContourSquareIconSize = 40.0
+	// DefaultContourSquareIconSlack is how far from square that parent may be.
+	DefaultContourSquareIconSlack = 5.0
+
 	// DefaultSearchInputYOffset is the default Y offset for search input.
 	DefaultSearchInputYOffset = 24
 	// DefaultSearchInputWidth is the default width for search input.
@@ -486,6 +515,20 @@ func defaultHints() HintsConfig {
 			ImageMinSize:                  DefaultVisionImageMinSize,
 			CheckboxMaxSize:               DefaultVisionCheckboxMaxSize,
 			GenericClickableMinConfidence: DefaultVisionGenericClickableMinConfidence,
+		},
+		Contour: HintsContourConfig{
+			RequestTimeoutMS:  DefaultContourRequestTimeoutMS,
+			EdgeLowThreshold:  DefaultContourEdgeLowThreshold,
+			EdgeHighThreshold: DefaultContourEdgeHighThreshold,
+			MinTargetWidth:    DefaultContourMinTargetWidth,
+			MinTargetHeight:   DefaultContourMinTargetHeight,
+			MaxTargetWidth:    DefaultContourMaxTargetWidth,
+			MaxTargetHeight:   DefaultContourMaxTargetHeight,
+			FlatLineHeight:    DefaultContourFlatLineHeight,
+			ContainerHeight:   DefaultContourContainerHeight,
+			SameCenterSlack:   DefaultContourSameCenterSlack,
+			SquareIconSize:    DefaultContourSquareIconSize,
+			SquareIconSlack:   DefaultContourSquareIconSlack,
 		},
 
 		IncludeMenubarHints:           false,
