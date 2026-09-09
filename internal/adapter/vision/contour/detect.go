@@ -110,7 +110,15 @@ func Detect(
 		return nil, err
 	}
 
-	return filterTargets(comps, scale, params), nil
+	rects := filterTargets(comps, scale, params)
+
+	// Nothing leaves after the deadline, however far the pass got.
+	err = checkDeadline(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return rects, nil
 }
 
 func checkDeadline(ctx context.Context) error {

@@ -300,3 +300,20 @@ func syntheticFrame(rng *rand.Rand, width, height int) *image.RGBA {
 
 	return img
 }
+
+// TestDetect_ExpiredDeadlineReturnsNothing pins the time budget: a frame
+// handed in with a dead context yields no rectangles, only the cancel error.
+func TestDetect_ExpiredDeadlineReturnsNothing(t *testing.T) {
+	t.Parallel()
+
+	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	rects, err := contour.Detect(ctx, img, 1.0, testParams())
+	if err == nil || rects != nil {
+		t.Fatalf("Detect(canceled) = %v, %v; want nil and an error", rects, err)
+	}
+}
