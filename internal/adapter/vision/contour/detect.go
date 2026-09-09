@@ -97,7 +97,18 @@ func Detect(
 	}
 
 	comps := connectedComponents(dilated, width, height)
+
+	err = checkDeadline(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	buildHierarchy(comps)
+
+	err = checkDeadline(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	return filterTargets(comps, scale, params), nil
 }

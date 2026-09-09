@@ -1085,7 +1085,7 @@ The `contour` strategy is one pure-Go pass over the captured pixels, so every
 option below is read on all three platforms. The defaults are
 [wl-kbptr](https://github.com/moverest/wl-kbptr)'s numbers. Sizes are logical
 pixels (points on a Retina display). The two edge thresholds are Sobel
-gradient magnitudes on a 0..255 grayscale frame. Lower the edge thresholds to
+gradient magnitudes on a 0..255 grayscale frame, at most 1530. Lower the edge thresholds to
 pick up faint outlines on low-contrast themes, raise them to cut clutter. Widen
 the target bounds to hint notification cards and toasts, narrow them to drop
 them.

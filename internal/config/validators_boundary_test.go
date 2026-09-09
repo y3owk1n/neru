@@ -598,7 +598,7 @@ func TestConfig_ContourBoundaries(t *testing.T) {
 			c.EdgeLowThreshold = 230
 		}, wantErr: true},
 		{name: "high above the sobel range", mutate: func(c *config.HintsContourConfig) {
-			c.EdgeHighThreshold = 1021
+			c.EdgeHighThreshold = 1531
 		}, wantErr: true},
 		{name: "min width at max width", mutate: func(c *config.HintsContourConfig) {
 			c.MinTargetWidth = c.MaxTargetWidth

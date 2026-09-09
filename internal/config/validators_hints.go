@@ -589,7 +589,9 @@ func validateHintsContourConfig(contour HintsContourConfig) error {
 		)
 	}
 
-	const maxGradient = 255 * 4 // Sobel |gx|+|gy| on a 0..255 frame
+	// Sobel |gx|+|gy| peaks at 6*255 on a 0..255 frame: the two kernels
+	// share three positive and three negative taps, each weighted twice.
+	const maxGradient = 255 * 6
 
 	if contour.EdgeLowThreshold <= 0 || contour.EdgeHighThreshold > maxGradient ||
 		contour.EdgeLowThreshold > contour.EdgeHighThreshold {

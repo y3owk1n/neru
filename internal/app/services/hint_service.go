@@ -143,7 +143,7 @@ func (s *HintService) GenerateHints(
 	case domain.StrategyVision:
 		elements = s.generateHintsVision(ctx, filter, captureScope, splitWord)
 	case domain.StrategyContour:
-		elements = s.generateHintsContour(ctx, filter, captureScope)
+		elements = s.generateHintsContour(ctx, filter, captureScope, cfg.Contour)
 	default:
 		elements, genErr = s.generateHintsAX(ctx, filter)
 	}
@@ -374,6 +374,7 @@ func (s *HintService) generateHintsContour(
 	ctx context.Context,
 	filter ports.ElementFilter,
 	captureScope string,
+	cfg config.HintsContourConfig,
 ) []*element.Element {
 	allElements := s.supplementaryElements(ctx, filter)
 
@@ -390,12 +391,12 @@ func (s *HintService) generateHintsContour(
 
 	contourCtx, cancel := context.WithTimeout(
 		ctx,
-		time.Duration(s.config.Contour.RequestTimeoutMS)*time.Millisecond,
+		time.Duration(cfg.RequestTimeoutMS)*time.Millisecond,
 	)
 	defer cancel()
 
 	contourStart := time.Now()
-	elements, err := s.vision.DetectContours(contourCtx, windowBounds, s.config.Contour)
+	elements, err := s.vision.DetectContours(contourCtx, windowBounds, cfg)
 	s.logger.Debug("TIMING: Window elements (contour)",
 		zap.Duration("elapsed", time.Since(contourStart)),
 		zap.Int("count", len(elements)),
