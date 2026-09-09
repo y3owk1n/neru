@@ -492,3 +492,80 @@ func TestMoveMouseToCenterOfWindow_ReportsARealFailureAsAccessibilityFailure(t *
 			derrors.GetCode(err), derrors.CodeAccessibilityFailed)
 	}
 }
+
+// syncingSystemPort is a MockSystemPort that also implements
+// ports.CursorSynchronizer, standing in for the Wayland adapter whose cursor
+// cache a hand-moved mouse invalidates.
+type syncingSystemPort struct {
+	portmocks.MockSystemPort
+
+	synced  bool
+	syncErr error
+	// position is what CursorPosition reports; SyncCursorPosition moves it
+	// to physical, the way the adapter re-learns the real pointer.
+	position image.Point
+	physical image.Point
+}
+
+func (s *syncingSystemPort) SyncCursorPosition(ctx context.Context) error {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		return derrors.New(derrors.CodeInternal, "sync ran without a deadline")
+	}
+
+	s.synced = true
+
+	if s.syncErr != nil {
+		return s.syncErr
+	}
+
+	s.position = s.physical
+
+	return nil
+}
+
+// TestActionService_CursorPositionForAction_SyncsStaleCursorCache pins the
+// idle-hotkey click on Wayland: with no mode active nothing has refreshed the
+// adapter's cursor cache since the user moved the mouse by hand, so the action
+// must resync before it resolves its target point.
+func TestActionService_CursorPositionForAction_SyncsStaleCursorCache(t *testing.T) {
+	tests := []struct {
+		name    string
+		syncErr error
+		want    image.Point
+	}{
+		{name: "sync succeeds, physical position wins", want: image.Point{X: 300, Y: 400}},
+		{
+			name:    "sync fails, cached position still returned",
+			syncErr: derrors.New(derrors.CodeTimeout, "hyprctl"),
+			want:    image.Point{X: 10, Y: 20},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			sys := &syncingSystemPort{
+				syncErr:  testCase.syncErr,
+				position: image.Point{X: 10, Y: 20},
+				physical: image.Point{X: 300, Y: 400},
+			}
+			sys.CursorPositionFunc = func(context.Context) (image.Point, error) {
+				return sys.position, nil
+			}
+
+			svc := newTestActionService(&portmocks.MockAccessibilityPort{}, sys)
+
+			got, err := svc.CursorPositionForAction(context.Background())
+			if err != nil {
+				t.Fatalf("CursorPositionForAction() error = %v", err)
+			}
+
+			if !sys.synced {
+				t.Fatal("CursorPositionForAction() did not sync the cursor cache")
+			}
+
+			if got != testCase.want {
+				t.Errorf("CursorPositionForAction() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}

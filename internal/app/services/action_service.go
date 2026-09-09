@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -263,16 +264,39 @@ func (s *ActionService) MoveMouseRelative(
 	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, shouldBypass)
 }
 
+// cursorSyncTimeout bounds the cursor-cache refresh before an action, the same
+// budget modes give it on activation (modes.cursorSyncTimeout). A slow
+// compositor query degrades to the cached position rather than stalling the
+// action.
+const cursorSyncTimeout = 150 * time.Millisecond
+
 // CursorPositionForAction returns the cursor position for resolving an
 // action's target point. Unlike CursorPosition it first settles any in-flight
 // cursor animation (ports.CursorSettler), so an action fired mid-animation
-// acts at the point the user aimed for instead of a mid-animation position.
-// Plain observers that must not cut animations short use CursorPosition.
+// acts at the point the user aimed for instead of a mid-animation position,
+// and then refreshes the platform's cursor cache (ports.CursorSynchronizer):
+// on Wayland a hand-moved mouse invalidates that cache, and an action fired
+// from idle, where no mode activation has resynced it, would otherwise land on
+// the stale point. Plain observers that must not cut animations short use
+// CursorPosition.
 func (s *ActionService) CursorPositionForAction(ctx context.Context) (image.Point, error) {
 	if settler, ok := s.system.(ports.CursorSettler); ok {
 		err := settler.SettleCursor(ctx)
 		if err != nil {
 			s.logger.Warn("Failed to settle cursor animation", zap.Error(err))
+		}
+	}
+
+	if syncer, ok := s.system.(ports.CursorSynchronizer); ok {
+		syncCtx, cancel := context.WithTimeout(ctx, cursorSyncTimeout)
+		defer cancel()
+
+		err := syncer.SyncCursorPosition(syncCtx)
+		if err != nil {
+			s.logger.Warn(
+				"Failed to sync cursor position; action target may be stale",
+				zap.Error(err),
+			)
 		}
 	}
 
