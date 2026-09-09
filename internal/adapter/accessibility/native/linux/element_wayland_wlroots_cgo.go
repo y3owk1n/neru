@@ -205,6 +205,14 @@ func wlrootsMouseUpAtPoint(
 	err := linux.WaylandButtonEvent(point, wlrootsButton(button), false)
 	if err != nil {
 		if hadMouseDown {
+			// The deferred release above lets go of the press's modifiers,
+			// so the record the idle cleanup retries from must not name
+			// them again: a second release of a modifier Neru no longer
+			// holds lets go of the user's own.
+			if position, ok := globalWlrootsPointerState.DownPosition(button); ok {
+				globalWlrootsPointerState.SetDown(button, position, 0)
+			}
+
 			restoreUnlessOtherHeld(button)
 		}
 
