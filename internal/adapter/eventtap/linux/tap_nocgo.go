@@ -52,3 +52,13 @@ func IsUinputScrollAvailable() bool {
 func IsWaylandEvdevKeyboardActive() bool {
 	return false
 }
+
+// LiftHeldModifiers reports nothing lifted: the evdev proxy needs cgo.
+func LiftHeldModifiers() (bool, error) {
+	return false, nil
+}
+
+// RestoreLiftedModifiers has nothing to restore: the evdev proxy needs cgo.
+func RestoreLiftedModifiers() error {
+	return nil
+}

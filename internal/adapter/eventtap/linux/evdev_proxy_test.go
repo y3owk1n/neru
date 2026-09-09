@@ -40,6 +40,7 @@ func newTestProxy() *evdevProxy {
 	empty := map[string]hotkeyBinding{}
 	proxy.bindings.Store(&empty)
 	proxy.heldHotkeys = make(map[uint16]func())
+	proxy.lifted = make(map[uint16]bool)
 	proxy.dispatch = NewHotkeyDispatcher()
 
 	return proxy
@@ -844,4 +845,128 @@ func TestGlobalHotkeyListener_StopDetachesTheBindings(t *testing.T) {
 	if listener.IsRunning() {
 		t.Error("the listener still reports itself running after Stop")
 	}
+}
+
+// A pointer action injected while the user holds a modifier would carry it,
+// so the proxy releases the held modifiers on its keyboard for the action and
+// presses them again after: the physical release in between is not re-emitted
+// (the compositor has the key up already), a modifier let go of during the
+// action is not pressed again, and the re-press is followed by the symbol-less
+// tap that keeps a modifier-alone shortcut from firing.
+func TestEvdevProxy_LiftsHeldModifiersAroundAPointerAction(t *testing.T) {
+	t.Parallel()
+
+	type emitted struct {
+		code  uint16
+		value int32
+	}
+
+	tests := []struct {
+		name          string
+		releaseDuring []uint16
+		wantRestore   []emitted
+		wantForwarded map[uint16]bool
+	}{
+		{
+			name: "both modifiers still held are pressed again",
+			wantRestore: []emitted{
+				{evdevKeyLeftAlt, evdevValuePress},
+				{evdevKeyLeftMeta, evdevValuePress},
+				{evdevKeyUnknown, evdevValuePress},
+				{evdevKeyUnknown, evdevValueRelease},
+			},
+			wantForwarded: map[uint16]bool{evdevKeyLeftAlt: true, evdevKeyLeftMeta: true},
+		},
+		{
+			name:          "a modifier let go of during the action stays up",
+			releaseDuring: []uint16{evdevKeyLeftMeta},
+			wantRestore: []emitted{
+				{evdevKeyLeftAlt, evdevValuePress},
+				{evdevKeyUnknown, evdevValuePress},
+				{evdevKeyUnknown, evdevValueRelease},
+			},
+			wantForwarded: map[uint16]bool{evdevKeyLeftAlt: true},
+		},
+		{
+			name:          "nothing held any more, nothing pressed again",
+			releaseDuring: []uint16{evdevKeyLeftAlt, evdevKeyLeftMeta},
+			wantRestore:   nil,
+			wantForwarded: map[uint16]bool{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			proxy := newTestProxy()
+
+			var got []emitted
+
+			proxy.emitted = func(code uint16, value int32) {
+				got = append(got, emitted{code, value})
+			}
+
+			proxy.handle(keyEvent(evdevKeyLeftAlt, evdevValuePress))
+			proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
+
+			if !proxy.liftHeldModifiers() {
+				t.Fatal("nothing lifted with two modifiers held")
+			}
+
+			wantLift := []emitted{
+				{evdevKeyLeftAlt, evdevValueRelease},
+				{evdevKeyLeftMeta, evdevValueRelease},
+			}
+			if !slices.Equal(got, wantLift) {
+				t.Fatalf("lift emitted %v, want %v", got, wantLift)
+			}
+
+			if proxy.liftHeldModifiers() {
+				t.Fatal("a second lift released modifiers already lifted")
+			}
+
+			for _, code := range test.releaseDuring {
+				proxy.handle(keyEvent(code, evdevValueRelease))
+			}
+
+			got = nil
+
+			proxy.restoreLiftedModifiers()
+
+			if !slices.Equal(got, test.wantRestore) {
+				t.Fatalf("restore emitted %v, want %v", got, test.wantRestore)
+			}
+
+			for _, code := range []uint16{evdevKeyLeftAlt, evdevKeyLeftMeta} {
+				if proxy.rule.isDown(code) != test.wantForwarded[code] {
+					t.Errorf("key %d forwarded-down = %v after restore, want %v",
+						code, proxy.rule.isDown(code), test.wantForwarded[code])
+				}
+			}
+
+			if len(proxy.lifted) != 0 {
+				t.Errorf("%d modifiers still counted as lifted after restore", len(proxy.lifted))
+			}
+		})
+	}
+}
+
+// With no modifier held there is nothing to lift, and the proxy says so, so
+// the caller skips the wait it would otherwise give the release to land.
+func TestEvdevProxy_LiftsNothingWithNoModifierHeld(t *testing.T) {
+	t.Parallel()
+
+	proxy := newTestProxy()
+	proxy.emitted = func(code uint16, _ int32) {
+		t.Errorf("emitted key %d with nothing to lift", code)
+	}
+
+	proxy.handle(keyEvent(evdevKeyA, evdevValuePress))
+
+	if proxy.liftHeldModifiers() {
+		t.Fatal("lifted with no modifier held")
+	}
+
+	proxy.restoreLiftedModifiers()
 }

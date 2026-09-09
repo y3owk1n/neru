@@ -54,6 +54,13 @@ type evdevProxy struct {
 	global  waylandEvdevKeyState
 	session *evdevSession
 
+	// lifted is the modifiers the proxy has released on its keyboard while
+	// the user still holds them (liftHeldModifiers), so a synthetic pointer
+	// action does not pick them up. Their physical release is swallowed, as
+	// the compositor already has them up, and restoreLiftedModifiers presses
+	// the rest again.
+	lifted map[uint16]bool
+
 	// pointerFrame is whether the frame being read has put anything on the
 	// pointer proxy, so its sync report is sent there too.
 	pointerFrame bool
@@ -87,11 +94,14 @@ type evdevProxy struct {
 	done    chan struct{}
 }
 
-// proxyCommand replaces the current session (nil ends it). The run goroutine
-// closes ack once the replacement is in force, so the caller knows no event
-// will reach the old session after it returns.
+// proxyCommand replaces the current session (nil ends it). With run set it
+// runs that on the run goroutine instead. The run goroutine closes ack once
+// the replacement is in force or run has returned, so the caller knows no
+// event will reach the old session after it returns, and that run saw the
+// keyboard between two events.
 type proxyCommand struct {
 	session *evdevSession
+	run     func()
 	ack     chan struct{}
 }
 
@@ -184,6 +194,7 @@ func newEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 		done:          make(chan struct{}),
 		heldByAnother: (*proxyNode).heldByAnother,
 		heldHotkeys:   make(map[uint16]func()),
+		lifted:        make(map[uint16]bool),
 		dispatch:      NewHotkeyDispatcher(),
 	}
 
@@ -295,6 +306,13 @@ func (p *evdevProxy) run() {
 	for {
 		select {
 		case cmd := <-p.control:
+			if cmd.run != nil {
+				cmd.run()
+				close(cmd.ack)
+
+				continue
+			}
+
 			p.session = cmd.session
 
 			if cmd.session != nil {
@@ -418,6 +436,9 @@ func (p *evdevProxy) handleKey(event waylandEvdevEvent) {
 
 		forwarded := p.rule.press(code, withhold)
 		if forwarded {
+			// A second keyboard pressing a lifted modifier puts it back
+			// down for the compositor, so it is lifted no longer.
+			delete(p.lifted, code)
 			p.emit(event)
 		} else if modifier == "" && !p.global.modifiers.allZero() {
 			p.cancelModifierShortcut()
@@ -428,7 +449,7 @@ func (p *evdevProxy) handleKey(event waylandEvdevEvent) {
 		}
 	case evdevValueRepeat:
 		forwarded := p.rule.repeat(code)
-		if forwarded {
+		if forwarded && !p.lifted[code] {
 			p.emit(event)
 		}
 
@@ -442,7 +463,12 @@ func (p *evdevProxy) handleKey(event waylandEvdevEvent) {
 
 		forwarded := p.rule.release(code)
 		if forwarded {
-			p.emit(event)
+			// The compositor already saw a lifted modifier go up.
+			if p.lifted[code] {
+				delete(p.lifted, code)
+			} else {
+				p.emit(event)
+			}
 		}
 
 		if p.session != nil {
@@ -700,6 +726,115 @@ func (p *evdevProxy) forwardWithheld(code uint16) {
 
 	p.rule.seed(code)
 	p.emitKey(code, evdevValuePress)
+}
+
+// liftHeldModifiers releases, on the proxy keyboard, every modifier the user
+// is physically holding that the compositor has down, and reports whether it
+// released any. A Wayland pointer event carries whatever modifiers the seat's
+// keyboards hold, not a set the sender chooses, so a hotkey chord still held
+// while a click is injected makes it a modified click. X11 and Windows fix
+// that from the live key state (footnote 7 of docs/CROSS_PLATFORM.md). On
+// Wayland only the proxy can, because its keyboard is the one the compositor
+// reads. Runs on the run goroutine.
+func (p *evdevProxy) liftHeldModifiers() bool {
+	held := make([]uint16, 0, len(p.global.pressed))
+
+	for pressed := range p.global.pressed {
+		if p.capture.modifierName(pressed) != "" && p.rule.isDown(pressed) && !p.lifted[pressed] {
+			held = append(held, pressed)
+		}
+	}
+
+	if len(held) == 0 {
+		return false
+	}
+
+	slices.Sort(held)
+
+	for _, code := range held {
+		p.lifted[code] = true
+		p.emitKey(code, evdevValueRelease)
+	}
+
+	return true
+}
+
+// restoreLiftedModifiers presses again the lifted modifiers the user is still
+// holding, so the keys they type next carry them as before. The re-press is
+// followed by the same symbol-less tap a withheld chord gets
+// (cancelModifierShortcut): a modifier pressed and then released alone is a
+// launcher shortcut on KWin, Mutter and a Hyprland release bind, and the click
+// between is not a key. Runs on the run goroutine.
+func (p *evdevProxy) restoreLiftedModifiers() {
+	if len(p.lifted) == 0 {
+		return
+	}
+
+	held := make([]uint16, 0, len(p.lifted))
+
+	for code := range p.lifted {
+		if p.rule.isDown(code) {
+			held = append(held, code)
+		}
+	}
+
+	clear(p.lifted)
+
+	if len(held) == 0 {
+		return
+	}
+
+	slices.Sort(held)
+
+	for _, code := range held {
+		p.emitKey(code, evdevValuePress)
+	}
+
+	p.cancelModifierShortcut()
+}
+
+// LiftHeldModifiers releases the modifiers the user is physically holding on
+// the proxy keyboard, so a pointer action injected next carries only the
+// modifiers it names, and reports whether any was released. Without a
+// forwarding proxy there is nothing to lift: the compositor reads the physical
+// keyboards itself. RestoreLiftedModifiers puts them back.
+func LiftHeldModifiers() (bool, error) {
+	proxy := currentEvdevProxy()
+	if proxy == nil || !proxy.forwarding.Load() {
+		return false, nil
+	}
+
+	var lifted bool
+
+	err := proxy.send(proxyCommand{
+		run: func() { lifted = proxy.liftHeldModifiers() },
+		ack: make(chan struct{}),
+	})
+
+	return lifted, err
+}
+
+// RestoreLiftedModifiers presses again the modifiers LiftHeldModifiers
+// released that the user still holds.
+func RestoreLiftedModifiers() error {
+	proxy := currentEvdevProxy()
+	if proxy == nil || !proxy.forwarding.Load() {
+		return nil
+	}
+
+	return proxy.send(proxyCommand{
+		run: proxy.restoreLiftedModifiers,
+		ack: make(chan struct{}),
+	})
+}
+
+// currentEvdevProxy returns the process-wide proxy if one has been built, and
+// never builds one: a pointer action is not a reason to grab the keyboards.
+func currentEvdevProxy() *evdevProxy {
+	sharedProxyMu.Lock()
+	defer sharedProxyMu.Unlock()
+
+	return sharedProxy
 }
 
 // ledLoop carries the compositor's LED changes, which land on the proxy

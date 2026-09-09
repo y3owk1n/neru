@@ -6,6 +6,7 @@ import (
 	"image"
 	"os"
 
+	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
@@ -93,11 +94,44 @@ func wlrootsButton(button action.MouseButton) int {
 	}
 }
 
+// liftPhysicalModifiers releases the modifiers the user's hand is on for the
+// length of a pointer action, so the action carries only the set it names.
+// This is the x11ClickButtonAtPoint rule applied to the one keyboard the
+// compositor reads here, the evdev proxy's (footnote 7 of
+// docs/CROSS_PLATFORM.md). The releases go out on uinput and the action on the
+// Wayland socket, and nothing orders the two, so a lift waits the fixed period
+// the uinput side always waits (waitForScrollDelivery). The returned restore
+// presses the lifted modifiers again once the compositor has processed the
+// action. WaylandSyncModifiers is the barrier for that.
+func liftPhysicalModifiers() func() {
+	lifted, err := eventtaplinux.LiftHeldModifiers()
+	if err != nil || !lifted {
+		return func() {}
+	}
+
+	waitForScrollDelivery()
+
+	return restorePhysicalModifiers
+}
+
+// restorePhysicalModifiers puts back the lifted modifiers once the compositor
+// has processed the action, or the release that ends a drag.
+func restorePhysicalModifiers() {
+	if !linux.WaylandSyncModifiers(modifierSyncTimeout) {
+		waitForScrollDelivery()
+	}
+
+	_ = eventtaplinux.RestoreLiftedModifiers()
+}
+
 func wlrootsMouseDownAtPoint(
 	point image.Point,
 	button action.MouseButton,
 	modifiers action.Modifiers,
 ) error {
+	// Lifted for the whole drag, as on X11: restored by the release.
+	_ = liftPhysicalModifiers()
+
 	err := wlrootsPressModifiers(modifiers)
 	if err != nil {
 		return err
@@ -132,6 +166,8 @@ func wlrootsMouseUpAtPoint(
 
 	defer func() {
 		_ = wlrootsReleaseModifiers(modifiers)
+
+		restorePhysicalModifiers()
 	}()
 
 	err := linux.WaylandButtonEvent(point, wlrootsButton(button), false)
@@ -151,6 +187,9 @@ func wlrootsClickButtonAtPoint(
 	button int,
 ) error {
 	original := wlrootsCurrentCursorPosition()
+
+	restore := liftPhysicalModifiers()
+	defer restore()
 
 	err := wlrootsPressModifiers(modifiers)
 	if err != nil {
@@ -202,6 +241,7 @@ func wlrootsMouseUp(button action.MouseButton) error {
 		_ = wlrootsReleaseModifiers(modifiers)
 	}
 
+	restorePhysicalModifiers()
 	globalWlrootsPointerState.Clear(button)
 
 	return nil

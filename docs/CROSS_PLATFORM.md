@@ -171,7 +171,7 @@ answer.
 | **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher |
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ `hyprctl` on Hyprland, else sync-surface cache | ✅ sync-surface cache | ✅ `GetCursorPos` |
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
-| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput` ⁷             |
+| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer` ⁷  | ✅ libei ⁷              | ✅ `SendInput` ⁷             |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput, virtual-pointer fallback) | ✅ both axes (uinput, libei fallback) | ✅ both axes ⁷               |
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard + virtual pointer (uinput on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold ⁷ |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in |
@@ -263,14 +263,22 @@ account's languages, reports no per-word confidence (so the three
 which Neru downsamples to and scales back from. Recognized text is screen
 content: never logged, never written to disk.
 
-⁷ **Modifiers on injected input (X11 and Windows).** An X11 pointer event and a
-`SendInput` mouse event both carry whatever modifiers the keyboard currently
-holds, so a hotkey chord still held while a hint was chosen used to make the
-click a ctrl+click. Neru reads the live key state (`XQueryKeymap`,
-`GetAsyncKeyState`), releases the modifiers the injection would falsify,
-presses the ones asked for, and undoes both when done, held across every chunk
-of an animated scroll and across a drag until its release. Restoring is the
-deliberate bias, since the opposite drops a modifier the user is still holding.
+⁷ **Modifiers on injected input (X11, Wayland and Windows).** An X11 pointer
+event, a Wayland pointer event and a `SendInput` mouse event all carry whatever
+modifiers the keyboard currently holds, so a hotkey chord still held while a
+hint was chosen used to make the click a ctrl+click, and a global `Alt+Space`
+bound to `action left_click` an alt+click. Neru reads the live key state
+(`XQueryKeymap`, `GetAsyncKeyState`), releases the modifiers the injection
+would falsify, presses the ones asked for, and undoes both when done, held
+across every chunk of an animated scroll and across a drag until its release.
+Restoring is the deliberate bias, since the opposite drops a modifier the user
+is still holding. On Wayland the keyboard the compositor reads is the evdev
+proxy's, so the proxy does the releasing and re-pressing
+(`LiftHeldModifiers` / `RestoreLiftedModifiers`), and only around a button
+event. A Wayland scroll still goes out beside the physically held modifiers.
+Without a forwarding proxy (no `/dev/uinput`, or the wl-keyboard fallback)
+there is nothing to lift, since the compositor reads the physical keyboards
+itself, and the click stays modified.
 
 ⁸ **Tray and notifications.** The tray icon carries the paused state on every
 platform: macOS swaps template glyphs, SNI hosts and the Win32 notification
