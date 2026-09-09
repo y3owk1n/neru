@@ -27,6 +27,8 @@ type recordingWindow struct {
 	// the glyph is a label like any other on this surface, and a screen is
 	// the list of them.
 	texts []string
+	// bolds is, per entry of texts, whether it was painted bold.
+	bolds []bool
 	// rects is every rectangle filled or stroked, in order.
 	rects []image.Rectangle
 	// scale is what Scale answers. Zero means 1, a 100% display.
@@ -90,13 +92,15 @@ func (w *recordingWindow) DrawTextCentered(
 	_ string,
 	_ float64,
 	_ uint32,
-	_ bool,
+	bold bool,
 ) {
 	w.texts = append(w.texts, text)
+	w.bolds = append(w.bolds, bold)
 }
 
 func (w *recordingWindow) DrawPointerGlyph(_ image.Point, _ int, char string, _ string, _ uint32) {
 	w.texts = append(w.texts, char)
+	w.bolds = append(w.bolds, false)
 }
 
 func (w *recordingWindow) Flush() error { return nil }
@@ -105,6 +109,7 @@ func (w *recordingWindow) Flush() error { return nil }
 // the call under test painted.
 func (w *recordingWindow) forget() {
 	w.texts = nil
+	w.bolds = nil
 	w.rects = nil
 }
 
