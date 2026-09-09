@@ -129,11 +129,15 @@ func wlrootsMouseDownAtPoint(
 	button action.MouseButton,
 	modifiers action.Modifiers,
 ) error {
-	// Lifted for the whole drag, as on X11: restored by the release.
-	_ = liftPhysicalModifiers()
+	// Lifted for the whole drag, as on X11: the release that ends the last
+	// held button restores. A press that fails restores here, since no
+	// release is coming for it.
+	restore := liftPhysicalModifiers()
 
 	err := wlrootsPressModifiers(modifiers)
 	if err != nil {
+		restore()
+
 		return err
 	}
 
@@ -141,12 +145,25 @@ func wlrootsMouseDownAtPoint(
 	if err != nil {
 		_ = wlrootsReleaseModifiers(modifiers)
 
+		restore()
+
 		return err
 	}
 
 	globalWlrootsPointerState.SetDown(button, point, modifiers)
 
 	return nil
+}
+
+// restoreAfterRelease puts the lifted modifiers back once the button just
+// released was the last one held, so a release of an unrelated button does
+// not re-modify a drag still in progress.
+func restoreAfterRelease(button action.MouseButton) {
+	globalWlrootsPointerState.Clear(button)
+
+	if !globalWlrootsPointerState.AnyDown() {
+		restorePhysicalModifiers()
+	}
 }
 
 func wlrootsMouseUpAtPoint(
@@ -158,6 +175,11 @@ func wlrootsMouseUpAtPoint(
 	if hadMouseDown {
 		modifiers = heldModifiers
 	} else {
+		// A release with no press behind it is its own pointer action, so
+		// it lifts and restores around itself the way a click does.
+		restore := liftPhysicalModifiers()
+		defer restore()
+
 		err := wlrootsPressModifiers(modifiers)
 		if err != nil {
 			return err
@@ -166,8 +188,6 @@ func wlrootsMouseUpAtPoint(
 
 	defer func() {
 		_ = wlrootsReleaseModifiers(modifiers)
-
-		restorePhysicalModifiers()
 	}()
 
 	err := linux.WaylandButtonEvent(point, wlrootsButton(button), false)
@@ -175,7 +195,9 @@ func wlrootsMouseUpAtPoint(
 		return err
 	}
 
-	globalWlrootsPointerState.Clear(button)
+	if hadMouseDown {
+		restoreAfterRelease(button)
+	}
 
 	return nil
 }
@@ -239,10 +261,9 @@ func wlrootsMouseUp(button action.MouseButton) error {
 
 	if hadMouseDown {
 		_ = wlrootsReleaseModifiers(modifiers)
-	}
 
-	restorePhysicalModifiers()
-	globalWlrootsPointerState.Clear(button)
+		restoreAfterRelease(button)
+	}
 
 	return nil
 }
