@@ -408,10 +408,11 @@ func TestEvdevProxy_MatchesTheChordEveryTime(t *testing.T) {
 	}
 }
 
-// A mode that starts under its activation chord neither waits for the chord to
-// come up nor reads it: the label typed while Super is still down is the label.
-// The chord's modifier release goes to the compositor and is not a sticky
-// toggle, and sticky detection arms once the chord has come up.
+// A mode that starts under its activation chord does not wait for the chord to
+// come up. A key pressed under it carries the chord's modifier, as on macOS and
+// X11. The chord's modifier release goes to the compositor and is not a sticky
+// toggle. Sticky detection arms once the chord has come up, and a key pressed
+// after that is the bare key.
 func TestEvdevProxy_SessionStartsUnderTheChordWithoutCountingIt(t *testing.T) {
 	t.Parallel()
 
@@ -429,16 +430,25 @@ func TestEvdevProxy_SessionStartsUnderTheChordWithoutCountingIt(t *testing.T) {
 
 	proxy.handle(keyEvent(evdevKeyA, evdevValuePress))
 
-	if got := nextKey(t, keys); got != "a" {
-		t.Fatalf("dispatched %q under the held activation modifier, want %q", got, "a")
+	if got := nextKey(t, keys); got != "Cmd+a" {
+		t.Fatalf("dispatched %q under the held activation modifier, want %q", got, "Cmd+a")
 	}
 
 	if proxy.rule.isDown(evdevKeyA) {
 		t.Error("a press during the session was forwarded to the compositor")
 	}
 
+	proxy.handle(keyEvent(evdevKeyA, evdevValueRelease))
+	nextKey(t, keys) // the key-up event
+
 	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValueRelease))
 	noKey(t, keys)
+
+	proxy.handle(keyEvent(evdevKeyA, evdevValuePress))
+
+	if got := nextKey(t, keys); got != "a" {
+		t.Fatalf("dispatched %q once the activation chord came up, want %q", got, "a")
+	}
 
 	if len(session.forwardedModifiers) != 0 {
 		t.Error("the chord's modifier is still counted after its release")
