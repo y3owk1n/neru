@@ -408,6 +408,51 @@ func TestEvdevProxy_MatchesTheChordEveryTime(t *testing.T) {
 	}
 }
 
+// The activation modifier held on two keyboards is one key down to the
+// compositor until the last of them lets go, and the session names chords with
+// it and holds sticky arming for exactly that long.
+func TestEvdevProxy_SessionKeepsTheChordModifierHeldOnAnotherKeyboard(t *testing.T) {
+	t.Parallel()
+
+	proxy := newTestProxy()
+	tap, keys := collectKeys(t)
+	tap.SetStickyModifierToggle(true)
+
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
+	session := beginSession(proxy, tap)
+
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValueRelease))
+
+	if !session.forwardedModifiers[evdevKeyLeftMeta] {
+		t.Fatal("the chord's modifier was dropped while another keyboard still holds it")
+	}
+
+	if tap.stickyDetectionArmed() {
+		t.Fatal("sticky detection armed while another keyboard still holds the chord's modifier")
+	}
+
+	proxy.handle(keyEvent(evdevKeyA, evdevValuePress))
+
+	if got := nextKey(t, keys); got != "Cmd+a" {
+		t.Fatalf("dispatched %q with the modifier still held elsewhere, want %q", got, "Cmd+a")
+	}
+
+	proxy.handle(keyEvent(evdevKeyA, evdevValueRelease))
+	nextKey(t, keys) // the key-up event
+
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValueRelease))
+	noKey(t, keys)
+
+	if len(session.forwardedModifiers) != 0 {
+		t.Error("the chord's modifier is still counted after its last release")
+	}
+
+	if !tap.stickyDetectionArmed() {
+		t.Error("sticky detection did not arm once the last keyboard let go")
+	}
+}
+
 // A mode that starts under its activation chord does not wait for the chord to
 // come up. A key pressed under it carries the chord's modifier, as on macOS and
 // X11. The chord's modifier release goes to the compositor and is not a sticky

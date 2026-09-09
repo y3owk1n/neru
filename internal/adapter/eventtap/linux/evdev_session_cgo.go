@@ -116,11 +116,15 @@ func (s *evdevSession) handleRepeat(code uint16, modifier string, forwarded bool
 	s.tap.dispatchKey(chord)
 }
 
-func (s *evdevSession) handleRelease(code uint16, modifier string, _ bool) {
+func (s *evdevSession) handleRelease(code uint16, modifier string, forwarded bool) {
 	if modifier != "" {
 		if s.forwardedModifiers[code] {
-			delete(s.forwardedModifiers, code)
-			s.armIfClear()
+			// The compositor sees the key up only when the last keyboard
+			// holding it lets go, which is the release the rule forwards.
+			if forwarded {
+				delete(s.forwardedModifiers, code)
+				s.armIfClear()
+			}
 
 			return
 		}
