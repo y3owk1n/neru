@@ -71,8 +71,10 @@ func TestConfig_ValidateFinite_AcceptsTheDefaults(t *testing.T) {
 type floatRoute []routeHop
 
 type routeHop struct {
+	// name is the toml name of the field; empty for the final hop when the
+	// float sits directly in a collection rather than in a struct.
 	name string
-	kind reflect.Kind // the container met before the field: Pointer, Slice, Map or Invalid
+	kind reflect.Kind // the container met before the field: Pointer, Slice, Array, Map or Invalid
 }
 
 // String is the path the validator reports: toml names joined by dots, with
@@ -85,7 +87,9 @@ func (r floatRoute) String() string {
 			parts = append(parts, mapFixtureKey)
 		}
 
-		parts = append(parts, hop.name)
+		if hop.name != "" {
+			parts = append(parts, hop.name)
+		}
 	}
 
 	return strings.Join(parts, ".")
@@ -107,10 +111,19 @@ func (r floatRoute) set(t *testing.T, val reflect.Value, value float64) {
 			}
 
 			elem := reflect.New(val.Type().Elem()).Elem()
-			r[hop:].set(t, elem, value)
+			if r[hop].name == "" {
+				enterContainer(elem).SetFloat(value)
+			} else {
+				r[hop:].set(t, elem, value)
+			}
+
 			val.SetMapIndex(reflect.ValueOf(mapFixtureKey), elem)
 
 			return
+		}
+
+		if r[hop].name == "" {
+			break
 		}
 
 		typ := val.Type()
@@ -134,8 +147,8 @@ func (r floatRoute) set(t *testing.T, val reflect.Value, value float64) {
 	enterContainer(val).SetFloat(value)
 }
 
-// enterContainer returns the settable value behind pointers and slices,
-// making the element it has to pass through. A map is returned as is.
+// enterContainer returns the settable value behind pointers, slices and
+// arrays, making the element it has to pass through. A map is returned as is.
 func enterContainer(val reflect.Value) reflect.Value {
 	for {
 		switch val.Kind() { //nolint:exhaustive // only the kinds the schema nests through
@@ -151,6 +164,8 @@ func enterContainer(val reflect.Value) reflect.Value {
 			}
 
 			val = val.Index(0)
+		case reflect.Array:
+			val = val.Index(0)
 		default:
 			return val
 		}
@@ -162,6 +177,63 @@ func enterContainer(val reflect.Value) reflect.Value {
 func floatFieldRoutes(t *testing.T) []floatRoute {
 	t.Helper()
 
+	return floatRoutesOf(reflect.TypeFor[config.Config]())
+}
+
+// TestFloatRoutes_ReachEveryShape pins the sweep's own machinery on a fixture
+// carrying every shape the walker supports, so a future option in one of them
+// is written rather than skipped or panicked on.
+func TestFloatRoutes_ReachEveryShape(t *testing.T) {
+	type leaf struct {
+		Ratio float64 `toml:"ratio"`
+	}
+
+	type fixture struct {
+		Direct float64            `toml:"direct"`
+		Ptr    *float64           `toml:"ptr"`
+		List   []leaf             `toml:"list"`
+		Table  map[string]leaf    `toml:"table"`
+		Rates  map[string]float64 `toml:"rates"`
+		Pair   [2]float64         `toml:"pair"`
+		Deep   *struct {
+			Items []*leaf `toml:"items"`
+		} `toml:"deep"`
+	}
+
+	want := []string{
+		"direct",
+		"ptr",
+		"list.ratio",
+		"table.sweep.ratio",
+		"rates.sweep",
+		"pair",
+		"deep.items.ratio",
+	}
+
+	routes := floatRoutesOf(reflect.TypeFor[fixture]())
+
+	got := make([]string, 0, len(routes))
+	for _, route := range routes {
+		got = append(got, route.String())
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("routes = %v, want %v", got, want)
+	}
+
+	for _, route := range routes {
+		var cfg fixture
+
+		route.set(t, reflect.ValueOf(&cfg).Elem(), math.NaN())
+
+		err := config.FiniteFloats(reflect.ValueOf(cfg))
+		if err == nil || !strings.Contains(err.Error(), route.String()) {
+			t.Errorf("%s: set wrote somewhere the validator did not name: %v", route, err)
+		}
+	}
+}
+
+func floatRoutesOf(root reflect.Type) []floatRoute {
 	var routes []floatRoute
 
 	var walk func(typ reflect.Type, route floatRoute, via reflect.Kind)
@@ -169,8 +241,14 @@ func floatFieldRoutes(t *testing.T) []floatRoute {
 	walk = func(typ reflect.Type, route floatRoute, via reflect.Kind) {
 		switch typ.Kind() { //nolint:exhaustive // only the kinds that can hold or contain a float matter
 		case reflect.Float32, reflect.Float64:
+			if via != reflect.Invalid {
+				// The float sits directly in a collection; the hop records
+				// the collection and no field name.
+				route = append(append(floatRoute{}, route...), routeHop{kind: via})
+			}
+
 			routes = append(routes, route)
-		case reflect.Pointer, reflect.Slice, reflect.Map:
+		case reflect.Pointer, reflect.Slice, reflect.Array, reflect.Map:
 			walk(typ.Elem(), route, typ.Kind())
 		case reflect.Struct:
 			for field := range typ.Fields() {
@@ -187,7 +265,7 @@ func floatFieldRoutes(t *testing.T) []floatRoute {
 		}
 	}
 
-	walk(reflect.TypeFor[config.Config](), nil, reflect.Invalid)
+	walk(root, nil, reflect.Invalid)
 
 	return routes
 }

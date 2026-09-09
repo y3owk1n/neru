@@ -17,13 +17,15 @@ func TestFiniteFloats_ReachesEveryShape(t *testing.T) {
 	}
 
 	type fixture struct {
-		Direct  float64          `toml:"direct"`
-		Ptr     *float64         `toml:"ptr"`
-		List    []leaf           `toml:"list"`
-		Table   map[string]leaf  `toml:"table"`
-		Skipped map[string]leaf  `toml:"-"`
-		hidden  float64          //nolint:unused // proves unexported fields are skipped
-		Nested  struct{ L leaf } `toml:"nested"`
+		Direct  float64            `toml:"direct"`
+		Ptr     *float64           `toml:"ptr"`
+		List    []leaf             `toml:"list"`
+		Table   map[string]leaf    `toml:"table"`
+		Rates   map[string]float64 `toml:"rates"`
+		Pair    [2]float64         `toml:"pair"`
+		Skipped map[string]leaf    `toml:"-"`
+		hidden  float64            //nolint:unused // proves unexported fields are skipped
+		Nested  struct{ L leaf }   `toml:"nested"`
 	}
 
 	nan := math.NaN()
