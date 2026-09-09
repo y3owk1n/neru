@@ -160,10 +160,22 @@ func wlrootsMouseDownAtPoint(
 // not re-modify a drag still in progress.
 func restoreAfterRelease(button action.MouseButton) {
 	globalWlrootsPointerState.Clear(button)
+	restoreUnlessOtherHeld(button)
+}
 
-	if !globalWlrootsPointerState.AnyDown() {
-		restorePhysicalModifiers()
+// restoreUnlessOtherHeld puts the lifted modifiers back unless a button other
+// than this one is still held. A release that failed goes through here with
+// its button still recorded, so the idle cleanup can retry it: the modifiers
+// come back regardless, which is the documented bias, since the opposite
+// drops a modifier the user is still holding.
+func restoreUnlessOtherHeld(button action.MouseButton) {
+	for _, held := range globalWlrootsPointerState.HeldButtons() {
+		if held != button {
+			return
+		}
 	}
+
+	restorePhysicalModifiers()
 }
 
 func wlrootsMouseUpAtPoint(
@@ -192,6 +204,10 @@ func wlrootsMouseUpAtPoint(
 
 	err := linux.WaylandButtonEvent(point, wlrootsButton(button), false)
 	if err != nil {
+		if hadMouseDown {
+			restoreUnlessOtherHeld(button)
+		}
+
 		return err
 	}
 
@@ -256,6 +272,10 @@ func wlrootsMouseUp(button action.MouseButton) error {
 
 	err := linux.WaylandButtonRelease(wlrootsButton(button))
 	if err != nil {
+		if hadMouseDown {
+			restoreUnlessOtherHeld(button)
+		}
+
 		return err
 	}
 
