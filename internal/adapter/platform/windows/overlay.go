@@ -511,6 +511,12 @@ func (o *OverlayWindow) ResizeToActiveScreen() error {
 	}
 
 	if bounds == o.bounds && o.width == bounds.Dx() && o.height == bounds.Dy() {
+		// A scaling change keeps the monitor's physical bounds, so the
+		// factor is refreshed even when there is nothing to move.
+		o.mu.Lock()
+		o.scale = DPIScaleAt(rectCenter(bounds))
+		o.mu.Unlock()
+
 		return nil
 	}
 
