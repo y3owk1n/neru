@@ -151,12 +151,22 @@ func (h *InfoHandler) handleHealth(ctx context.Context, _ ipc.Command) ipc.Respo
 	return response
 }
 
+// systemCapabilities is the platform preset with the overlay row replaced by
+// what the overlay reports about itself. The preset can only name what was
+// built; the manager knows what came up, which on Windows decides whether
+// hints draw through Direct2D or the GDI fallback.
 func (h *InfoHandler) systemCapabilities() ports.PlatformCapabilities {
-	if h.systemPort != nil {
-		return h.systemPort.Capabilities()
+	if h.systemPort == nil {
+		return ports.PlatformCapabilities{}
 	}
 
-	return ports.PlatformCapabilities{}
+	capabilities := h.systemPort.Capabilities()
+
+	if reporter, ok := h.overlay.(ports.OverlayCapabilityReporter); ok {
+		capabilities.Overlay = reporter.OverlayCapabilities()
+	}
+
+	return capabilities
 }
 
 func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
@@ -178,6 +188,12 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 	if detail := capabilities.DarkModeDetection.Detail; detail != "" &&
 		strings.HasPrefix(capabilities.Platform, "linux") {
 		out[string(ports.CapabilityDarkModeDetection)+detailSuffix] = detail
+	}
+
+	// The overlay detail is live wherever the overlay port reports it (see
+	// systemCapabilities), so it is surfaced whenever there is one.
+	if detail := capabilities.Overlay.Detail; detail != "" {
+		out[string(ports.CapabilityOverlay)+detailSuffix] = detail
 	}
 
 	// Notifications get the same treatment, gated on the status rather than on

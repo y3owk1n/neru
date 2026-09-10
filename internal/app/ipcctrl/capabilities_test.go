@@ -267,3 +267,74 @@ func TestIPCController_StatusOmitsTheFocusedAppReasonWhenSupported(t *testing.T)
 			"to explain a capability that did not answer", got)
 	}
 }
+
+// reportingOverlay is an overlay port that can say what backend it is on,
+// the way every real overlay manager does through the adapter.
+type reportingOverlay struct {
+	*portmocks.MockOverlayPort
+
+	capability ports.FeatureCapability
+}
+
+func (o *reportingOverlay) OverlayCapabilities() ports.FeatureCapability {
+	return o.capability
+}
+
+func TestIPCController_StatusReportsLiveOverlayBackend(t *testing.T) {
+	cfg := config.DefaultConfig()
+	appState := state.NewAppState()
+	logger := zap.NewNop()
+	configService := loader.NewService(cfg, "", logger, nil)
+	system := &portmocks.MockSystemPort{
+		CapabilitiesFunc: func() ports.PlatformCapabilities {
+			return ports.PlatformCapabilities{
+				Platform: testOS,
+				Overlay: ports.FeatureCapability{
+					Status: ports.FeatureStatusSupported,
+					Detail: "preset text that names what was built",
+				},
+			}
+		},
+	}
+	overlay := &reportingOverlay{
+		MockOverlayPort: &portmocks.MockOverlayPort{},
+		capability: ports.FeatureCapability{
+			Status: ports.FeatureStatusSupported,
+			Detail: "layered Win32 window + GDI",
+		},
+	}
+
+	controller := ipcctrl.New(ipcctrl.Deps{
+		ConfigService: configService,
+		AppState:      appState,
+		Config:        cfg,
+		System:        system,
+		Overlay:       overlay,
+		Logger:        logger,
+	})
+
+	resp := controller.HandleCommand(
+		context.Background(),
+		ipc.Command{Action: domain.CommandStatus},
+	)
+	if !resp.Success {
+		t.Fatalf("HandleCommand(status) success = false, want true")
+	}
+
+	statusData, statusDataOK := resp.Data.(map[string]any)
+	if !statusDataOK {
+		t.Fatalf("status data type = %T, want map[string]any", resp.Data)
+	}
+
+	capabilities, capabilitiesOK := statusData["capabilities"].(map[string]any)
+	if !capabilitiesOK {
+		t.Fatalf("capabilities type = %T, want map[string]any", statusData["capabilities"])
+	}
+
+	if capabilities["overlay_detail"] != "layered Win32 window + GDI" {
+		t.Fatalf(
+			"overlay_detail = %v, want the overlay's own report, not the preset",
+			capabilities["overlay_detail"],
+		)
+	}
+}

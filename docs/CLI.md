@@ -257,7 +257,10 @@ neru doctor
 Does not require a running daemon. Reports config validity, socket health,
 platform capabilities, and internal component state. Platform capabilities come
 from the capability matrix described in
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md#capability-matrix).
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md#capability-matrix). With the daemon
+running, the `Overlay backend` line names the renderer that is drawing right
+now rather than the matrix entry, which on Windows tells DirectComposition +
+Direct2D apart from the GDI fallback and says why the fallback was taken.
 
 The `platform_support` row answers a different question from those
 capabilities: it names the options, actions and mode flags **your**

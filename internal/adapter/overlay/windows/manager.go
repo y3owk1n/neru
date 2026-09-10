@@ -260,9 +260,14 @@ func (m *Manager) WaylandKeyboardChannel() <-chan string {
 // OverlayCapabilities reports Windows overlay support.
 func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 	if m.win != nil && m.win.Healthy() {
-		detail := "native Windows overlays available via DirectComposition + Direct2D"
+		detail := "DirectComposition + Direct2D"
 		if m.win.backendName() == "gdi" {
-			detail = "native Windows overlays available via layered Win32 window + GDI"
+			detail = "layered Win32 window + GDI"
+
+			reason := m.win.dcompError()
+			if reason != nil {
+				detail += " (DirectComposition unavailable: " + reason.Error() + ")"
+			}
 		}
 
 		return ports.FeatureCapability{

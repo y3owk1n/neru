@@ -38,6 +38,7 @@ type overlayWindow interface {
 	Visible() bool
 	Bounds() image.Rectangle
 	Backend() string
+	DCompError() error
 	Scale() float64
 	Show()
 	Hide()
@@ -447,6 +448,15 @@ func (o *winOverlay) backendName() string {
 	}
 
 	return o.window.Backend()
+}
+
+// dcompError is why the window is not on DirectComposition, or nil.
+func (o *winOverlay) dcompError() error {
+	if o == nil || o.window == nil {
+		return nil
+	}
+
+	return o.window.DCompError()
 }
 
 // redrawGrid paints the grid surface as it currently stands, which is either

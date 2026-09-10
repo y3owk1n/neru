@@ -200,6 +200,7 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 	}
 
 	printProfile(cmd, healthData["profile"])
+	printOverlayBackend(cmd, healthData["capabilities"])
 	printDarkMode(cmd, healthData["capabilities"])
 	printNotifications(cmd, healthData["capabilities"])
 	printFocusedApp(cmd, healthData["capabilities"])
@@ -314,6 +315,24 @@ func printDarkMode(cmd *cobra.Command, rawCapabilities any) {
 	}
 
 	cmd.Println("  Dark Mode: " + detail)
+}
+
+// printOverlayBackend renders an "Overlay backend:" line from overlay_detail,
+// which the daemon fills from the overlay itself. The profile's Overlay line
+// above it is the static plan; this one is what is drawing right now, which
+// on Windows is the difference between Direct2D and the GDI fallback.
+func printOverlayBackend(cmd *cobra.Command, rawCapabilities any) {
+	capabilities, ok := rawCapabilities.(map[string]any)
+	if !ok {
+		return
+	}
+
+	detail := stringValue(capabilities["overlay_detail"])
+	if detail == "" {
+		return
+	}
+
+	cmd.Println("  Overlay backend: " + detail)
 }
 
 // printNotifications renders a "Notifications:" metadata line when the daemon

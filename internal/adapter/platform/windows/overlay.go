@@ -844,7 +844,7 @@ func (o *OverlayWindow) renderPending() {
 	if err != nil {
 		// The surface is gone (a lost device, most likely). Come back on GDI
 		// and paint the frame there; the commands are just rectangles.
-		rebuildErr := o.rebuildOnGDI()
+		rebuildErr := o.rebuildOnGDI(err)
 		if rebuildErr != nil {
 			stats = FrameStats{Err: fmt.Errorf("%w; rebuilding on gdi: %w", err, rebuildErr)}
 		} else {
@@ -861,14 +861,16 @@ func (o *OverlayWindow) renderPending() {
 }
 
 // rebuildOnGDI tears the window down and recreates it on the GDI surface,
-// keeping it visible if it was. UI thread only.
-func (o *OverlayWindow) rebuildOnGDI() error {
+// keeping it visible if it was. reason is what took the surface down, kept
+// so DCompError can say why the window is on GDI. UI thread only.
+func (o *OverlayWindow) rebuildOnGDI(reason error) error {
 	o.mu.Lock()
 	visible := o.visible
 	o.mu.Unlock()
 
 	o.destroyHWNDLocked()
 	o.noDComp = true
+	o.dcompErr = reason
 
 	err := o.createHWNDLocked()
 	if err != nil {

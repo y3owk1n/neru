@@ -599,6 +599,25 @@ func (a *Adapter) SetKeyboardCaptureEnabled(enabled bool) {
 	controller.SetKeyboardCaptureEnabled(enabled)
 }
 
+// OverlayCapabilities reports the manager's live support state, so neru
+// doctor names the backend that is drawing rather than the platform preset.
+// A manager that cannot report is taken as supported with no detail, and a
+// destroyed overlay reports the same refusal Health does.
+func (a *Adapter) OverlayCapabilities() ports.FeatureCapability {
+	if a.released() {
+		return ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: "the overlay has been destroyed",
+		}
+	}
+
+	if reporter, ok := a.manager.(CapabilityReporter); ok {
+		return reporter.OverlayCapabilities()
+	}
+
+	return ports.FeatureCapability{Status: ports.FeatureStatusSupported}
+}
+
 // Health checks if the overlay manager is responsive.
 //
 // A destroyed overlay reports CodeNotSupported rather than answering healthy:

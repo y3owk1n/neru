@@ -43,7 +43,8 @@ func (w *recordingWindow) Visible() bool { return true }
 
 func (w *recordingWindow) Bounds() image.Rectangle { return image.Rect(0, 0, 800, 600) }
 
-func (w *recordingWindow) Backend() string { return "recording" }
+func (w *recordingWindow) Backend() string   { return "recording" }
+func (w *recordingWindow) DCompError() error { return nil }
 
 func (w *recordingWindow) Scale() float64 {
 	if w.scale <= 0 {
