@@ -29,6 +29,7 @@ type Controller struct {
 	// Infrastructure
 	Logger    *zap.Logger
 	System    ports.SystemPort
+	Overlay   ports.OverlayPort
 	EventTap  ports.EventTapPort
 	IPCServer ports.IPCPort
 	KeyFeed   ports.KeyFeedPort
@@ -83,7 +84,10 @@ type Deps struct {
 	Modes *modes.Handler
 
 	// Infrastructure ports
-	System    ports.SystemPort
+	System ports.SystemPort
+	// Overlay answers the live overlay capability for status and health. Nil
+	// leaves the system port's preset in place.
+	Overlay   ports.OverlayPort
 	EventTap  ports.EventTapPort
 	IPCServer ports.IPCPort
 	KeyFeed   ports.KeyFeedPort
@@ -116,6 +120,7 @@ func New(deps Deps) *Controller {
 		AppState:        deps.AppState,
 		Modes:           deps.Modes,
 		System:          deps.System,
+		Overlay:         deps.Overlay,
 		EventTap:        deps.EventTap,
 		IPCServer:       deps.IPCServer,
 		KeyFeed:         deps.KeyFeed,
@@ -214,6 +219,7 @@ func (c *Controller) registerHandlers(cfg *config.Config) {
 		ActionService: c.ActionService,
 		ScrollService: c.ScrollService,
 		System:        c.System,
+		Overlay:       c.Overlay,
 		EventTap:      c.EventTap,
 		IPCServer:     c.IPCServer,
 		ReloadConfig:  c.ReloadConfig,

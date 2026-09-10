@@ -206,3 +206,36 @@ func TestPrintToggles_SkipsAbsentState(t *testing.T) {
 		t.Fatalf("printToggles output missing the toggles that do carry state:\n%s", got)
 	}
 }
+
+func TestPrintOverlayBackend(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&output)
+
+	printOverlayBackend(cmd, map[string]any{
+		"overlay_detail": "layered Win32 window + GDI",
+	})
+
+	want := "  Overlay backend: layered Win32 window + GDI\n"
+	if got := output.String(); got != want {
+		t.Fatalf("printOverlayBackend output = %q, want %q", got, want)
+	}
+}
+
+func TestPrintOverlayBackend_SkipsAbsentDetail(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&output)
+
+	printOverlayBackend(cmd, map[string]any{"overlay_detail": ""})
+
+	if got := output.String(); got != "" {
+		t.Fatalf("printOverlayBackend output = %q, want nothing", got)
+	}
+}

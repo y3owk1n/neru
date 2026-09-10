@@ -182,7 +182,9 @@ func WindowsCapabilities() PlatformCapabilities {
 			"clickable-element discovery available via UI Automation (initial coverage)",
 		),
 		Overlay: supportedCapability(
-			"native overlays available via DirectComposition + Direct2D (GDI fallback)",
+			"native overlays via DirectComposition + Direct2D, or a layered GDI " +
+				"window when that fails; neru doctor with the daemon running " +
+				"names the one drawing",
 		),
 		Notifications: supportedCapability(
 			"notifications shown as balloon tips on the tray icon (Shell_NotifyIcon " +

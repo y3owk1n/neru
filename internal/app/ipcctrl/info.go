@@ -44,6 +44,7 @@ type InfoHandler struct {
 	actionService *services.ActionService
 	scrollService *services.ScrollService
 	systemPort    ports.SystemPort
+	overlay       ports.OverlayPort
 	eventTap      ports.EventTapPort
 	ipcServer     ports.IPCPort
 	reloadConfig  func(ctx context.Context, configPath string) error
@@ -77,6 +78,7 @@ type InfoHandlerDeps struct {
 	ScrollService *services.ScrollService
 
 	System    ports.SystemPort
+	Overlay   ports.OverlayPort
 	EventTap  ports.EventTapPort
 	IPCServer ports.IPCPort
 
@@ -103,6 +105,7 @@ func NewInfoHandler(deps InfoHandlerDeps) *InfoHandler {
 		actionService:  deps.ActionService,
 		scrollService:  deps.ScrollService,
 		systemPort:     deps.System,
+		overlay:        deps.Overlay,
 		eventTap:       deps.EventTap,
 		ipcServer:      deps.IPCServer,
 		reloadConfig:   deps.ReloadConfig,

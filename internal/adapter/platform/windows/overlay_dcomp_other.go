@@ -17,7 +17,7 @@ var errDCompUnavailable = errors.New(
 	"directcomposition overlay is only built for windows/amd64",
 )
 
-func dcompAvailable() bool { return false }
+func dcompUnavailable() error { return errDCompUnavailable }
 
 func newDCompSurface(windows.HWND, int, int) (overlaySurface, error) {
 	return nil, errDCompUnavailable

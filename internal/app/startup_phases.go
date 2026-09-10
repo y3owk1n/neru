@@ -371,6 +371,7 @@ func initializeIPCController(app *App) {
 		Config:        app.config,
 		Modes:         app.modes,
 		System:        app.systemPort,
+		Overlay:       app.overlayPort,
 		// EventTap and IPCServer stay zero here; phase 8 fills them in
 		// through SetInfrastructure.
 		KeyFeed:         app.keyFeed,

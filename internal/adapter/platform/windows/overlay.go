@@ -24,13 +24,16 @@ const (
 	wsExToolWindow          = 0x00000080
 	wsExNoActivate          = 0x08000000
 	wsExNoRedirectionBitmap = 0x00200000
-	swHide                  = 0
-	swShowNoActivate        = 4
-	hwndTopMost             = ^uintptr(0)
-	swpNoActivate           = 0x0010
-	swpShowWindow           = 0x0040
-	swpNoMove               = 0x0002
-	swpNoSize               = 0x0001
+	// lwaAlpha is LWA_ALPHA: SetLayeredWindowAttributes applies the alpha.
+	lwaAlpha         = 0x2
+	layeredOpaque    = 255
+	swHide           = 0
+	swShowNoActivate = 4
+	hwndTopMost      = ^uintptr(0)
+	swpNoActivate    = 0x0010
+	swpShowWindow    = 0x0040
+	swpNoMove        = 0x0002
+	swpNoSize        = 0x0001
 
 	wmNCHitTest   = 0x0084
 	htTransparent = ^uintptr(0) // HTTRANSPARENT, LRESULT -1
@@ -104,6 +107,7 @@ var (
 	procCreateWindowExW             = user32.NewProc("CreateWindowExW")
 	procDestroyWindow               = user32.NewProc("DestroyWindow")
 	procShowWindow                  = user32.NewProc("ShowWindow")
+	procSetLayeredWindowAttributes  = user32.NewProc("SetLayeredWindowAttributes")
 	procSetWindowPos                = user32.NewProc("SetWindowPos")
 	procDefWindowProcW              = user32.NewProc("DefWindowProcW")
 	procIsWindow                    = user32.NewProc("IsWindow")
@@ -257,8 +261,10 @@ type OverlayWindow struct {
 	// surface is touched only on the overlay UI thread.
 	surface overlaySurface
 	// noDComp is set once DirectComposition failed for this window, so a
-	// rebuild does not try it again.
-	noDComp bool
+	// rebuild does not try it again. dcompErr says why, for the log line
+	// that reports the GDI fallback.
+	noDComp  bool
+	dcompErr error
 
 	observer func(FrameStats)
 }
@@ -399,6 +405,22 @@ func (o *OverlayWindow) Scale() float64 {
 // rectCenter is the point that looks up a rectangle's monitor.
 func rectCenter(rect image.Rectangle) image.Point {
 	return image.Pt(rect.Min.X+rect.Dx()/2, rect.Min.Y+rect.Dy()/2)
+}
+
+// DCompError reports why the window draws through GDI rather than
+// DirectComposition, or nil while DirectComposition is in use.
+func (o *OverlayWindow) DCompError() error {
+	if o == nil {
+		return nil
+	}
+
+	var err error
+
+	runOnOverlayUI(func() {
+		err = o.dcompErr
+	})
+
+	return err
 }
 
 // Backend names the surface this window presents through: "direct2d" when
@@ -826,7 +848,7 @@ func (o *OverlayWindow) renderPending() {
 	if err != nil {
 		// The surface is gone (a lost device, most likely). Come back on GDI
 		// and paint the frame there; the commands are just rectangles.
-		rebuildErr := o.rebuildOnGDI()
+		rebuildErr := o.rebuildOnGDI(err)
 		if rebuildErr != nil {
 			stats = FrameStats{Err: fmt.Errorf("%w; rebuilding on gdi: %w", err, rebuildErr)}
 		} else {
@@ -843,14 +865,16 @@ func (o *OverlayWindow) renderPending() {
 }
 
 // rebuildOnGDI tears the window down and recreates it on the GDI surface,
-// keeping it visible if it was. UI thread only.
-func (o *OverlayWindow) rebuildOnGDI() error {
+// keeping it visible if it was. reason is what took the surface down, kept
+// so DCompError can say why the window is on GDI. UI thread only.
+func (o *OverlayWindow) rebuildOnGDI(reason error) error {
 	o.mu.Lock()
 	visible := o.visible
 	o.mu.Unlock()
 
 	o.destroyHWNDLocked()
 	o.noDComp = true
+	o.dcompErr = reason
 
 	err := o.createHWNDLocked()
 	if err != nil {
@@ -886,13 +910,26 @@ func (o *OverlayWindow) createHWNDLocked() error {
 		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, o.bounds)
 	}
 
-	if !o.noDComp && dcompAvailable() {
-		err := o.createWindowWithSurface(width, height, wsExNoRedirectionBitmap, newDCompSurface)
+	if !o.noDComp {
+		err := dcompUnavailable()
 		if err == nil {
-			return nil
+			// Layered as well: WS_EX_TRANSPARENT only lets input through to
+			// other processes on a layered window, and a click lands while
+			// the overlay is still up. Without the redirection bitmap the
+			// layered style changes nothing about how the frame is drawn.
+			err = o.createWindowWithSurface(
+				width,
+				height,
+				wsExNoRedirectionBitmap|wsExLayered,
+				newDCompSurface,
+			)
+			if err == nil {
+				return nil
+			}
 		}
 
 		o.noDComp = true
+		o.dcompErr = err
 	}
 
 	return o.createWindowWithSurface(width, height, wsExLayered, newGDISurface)
@@ -924,6 +961,14 @@ func (o *OverlayWindow) createWindowWithSurface(
 	)
 	if hwnd == 0 {
 		return fmt.Errorf("CreateWindowExW: %w", err)
+	}
+
+	// A layered window stays invisible until it has attributes. The GDI
+	// surface sets them with every UpdateLayeredWindow; the DirectComposition
+	// window never calls that, so it is made opaque once here and its own
+	// frames carry the alpha.
+	if exStyle&wsExNoRedirectionBitmap != 0 {
+		discardCall(procSetLayeredWindowAttributes.Call(hwnd, 0, layeredOpaque, lwaAlpha))
 	}
 
 	surface, err := newSurface(windows.HWND(hwnd), width, height)

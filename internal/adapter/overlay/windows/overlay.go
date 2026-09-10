@@ -38,6 +38,7 @@ type overlayWindow interface {
 	Visible() bool
 	Bounds() image.Rectangle
 	Backend() string
+	DCompError() error
 	Scale() float64
 	Show()
 	Hide()
@@ -133,13 +134,32 @@ func newWinOverlay(logger *zap.Logger, renderMu *sync.Mutex) *winOverlay {
 			zap.Int("height", bounds.Dy()),
 		)
 
+		reason := window.DCompError()
+		if reason != nil {
+			logger.Warn("Windows overlay fell back to GDI", zap.Error(reason))
+		}
+
 		// Per-frame cost, on the overlay UI thread after each present. Counts
 		// and durations only, which is what a report of "still laggy" needs.
+		// A backend that changes mid-session is a lost device rebuilt on
+		// GDI, and that is warned once with the reason, since the startup
+		// warning above has already passed.
+		lastBackend := window.Backend()
+
 		window.SetFrameObserver(func(stats winplatform.FrameStats) {
 			if stats.Err != nil {
 				logger.Warn("overlay frame not presented", zap.Error(stats.Err))
 
 				return
+			}
+
+			if stats.Backend != lastBackend {
+				lastBackend = stats.Backend
+
+				fallback := window.DCompError()
+				if fallback != nil {
+					logger.Warn("Windows overlay fell back to GDI", zap.Error(fallback))
+				}
 			}
 
 			logger.Debug(
@@ -442,6 +462,15 @@ func (o *winOverlay) backendName() string {
 	}
 
 	return o.window.Backend()
+}
+
+// dcompError is why the window is not on DirectComposition, or nil.
+func (o *winOverlay) dcompError() error {
+	if o == nil || o.window == nil {
+		return nil
+	}
+
+	return o.window.DCompError()
 }
 
 // redrawGrid paints the grid surface as it currently stands, which is either

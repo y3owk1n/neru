@@ -57,7 +57,7 @@ const (
 	d2dBitmapOptionsTarget      = 0x1
 	d2dBitmapOptionsCannotDraw  = 0x2
 	d2dTextAntialiasGrayscale   = 2
-	d2dCompositeModeSourceCopy  = 1
+	d2dCompositeModeSourceCopy  = 10
 	d2dFigureBeginFilled        = 0
 	d2dFigureEndClosed          = 1
 	d2dDefaultDPI               = 96
@@ -124,6 +124,7 @@ const (
 
 var (
 	errDCompUnavailable = errors.New("directcomposition overlay unavailable")
+	errDCompDeviceLost  = errors.New("directcomposition device lost")
 
 	d3d11  = windows.NewLazySystemDLL("d3d11.dll")
 	dcomp  = windows.NewLazySystemDLL("dcomp.dll")
@@ -148,7 +149,7 @@ var (
 	//nolint:mnd // interface ID, as the SDK header spells it
 	iidIDXGISurface = windows.GUID{
 		Data1: 0xcafcb56c, Data2: 0x6ac3, Data3: 0x4889,
-		Data4: [8]byte{0xbf, 0x47, 0x9e, 0x23, 0xbb, 0xd2, 0x60, 0xc2},
+		Data4: [8]byte{0xbf, 0x47, 0x9e, 0x23, 0xbb, 0xd2, 0x60, 0xec},
 	}
 	//nolint:mnd // interface ID, as the SDK header spells it
 	iidIDCompositionDevice = windows.GUID{
@@ -290,15 +291,23 @@ var (
 	dcompBroken bool
 )
 
-// dcompAvailable reports whether DirectComposition can be used for new
-// windows. UI thread only. The first call brings the devices up; a failure
-// is remembered, and so is a device lost later.
-func dcompAvailable() bool {
+// dcompUnavailable is why DirectComposition cannot be used for new windows,
+// or nil when it can. UI thread only. The first call brings the devices up.
+// A failed init sticks, and so does a device lost later.
+func dcompUnavailable() error {
 	dcompOnce.Do(func() {
 		dcompState, errDComp = newDCompShared()
 	})
 
-	return errDComp == nil && !dcompBroken
+	if errDComp != nil {
+		return errDComp
+	}
+
+	if dcompBroken {
+		return errDCompDeviceLost
+	}
+
+	return nil
 }
 
 func newDCompShared() (*dcompShared, error) {
@@ -539,17 +548,14 @@ type dcompSurface struct {
 }
 
 func newDCompSurface(hwnd windows.HWND, width, height int) (overlaySurface, error) {
-	if !dcompAvailable() {
-		if errDComp != nil {
-			return nil, errDComp
-		}
-
-		return nil, errDCompUnavailable
+	err := dcompUnavailable()
+	if err != nil {
+		return nil, err
 	}
 
 	surface := &dcompSurface{shared: dcompState, hwnd: hwnd}
 
-	err := surface.create(width, height)
+	err = surface.create(width, height)
 	if err != nil {
 		surface.destroy()
 
