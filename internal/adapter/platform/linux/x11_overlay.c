@@ -60,6 +60,13 @@ NeruX11Overlay *neru_x11_overlay_new(void) {
 	    InputOutput, overlay->visual, CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel | CWEventMask,
 	    &attrs);
 
+	// WM_CLASS and a name so compositors, picom rules and window-manager
+	// scripts can target the overlay. Every backend exposes the same
+	// "neru-overlay" identity (docs/CROSS_PLATFORM.md, Window identity).
+	XClassHint class_hint = {.res_name = "neru-overlay", .res_class = "neru-overlay"};
+	XSetClassHint(display, overlay->window, &class_hint);
+	XStoreName(display, overlay->window, "neru-overlay");
+
 	Atom dock = XInternAtom(display, "_NET_WM_WINDOW_TYPE_DOCK", False);
 	Atom window_type = XInternAtom(display, "_NET_WM_WINDOW_TYPE", False);
 	XChangeProperty(display, overlay->window, window_type, XA_ATOM, 32, PropModeReplace, (unsigned char *)&dock, 1);

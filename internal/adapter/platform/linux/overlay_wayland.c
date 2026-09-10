@@ -634,7 +634,7 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		}
 
 		scr->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
-		    overlay->layer_shell, scr->wl_surface, scr->wl_output, ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "neru");
+		    overlay->layer_shell, scr->wl_surface, scr->wl_output, ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "neru-overlay");
 
 		zwlr_layer_surface_v1_set_size(scr->layer_surface, scr->width, scr->height);
 		zwlr_layer_surface_v1_set_anchor(

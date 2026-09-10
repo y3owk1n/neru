@@ -115,6 +115,7 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 				                  defer:NO];
 				panel.hidesOnDeactivate = NO;
 				panel.releasedWhenClosed = NO;
+				panel.title = @"neru-overlay";
 				panel.animationBehavior = NSWindowAnimationBehaviorNone;
 				panel.animations = @{};
 				panel.alphaValue = 1.0;
