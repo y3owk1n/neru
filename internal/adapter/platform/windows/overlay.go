@@ -24,13 +24,16 @@ const (
 	wsExToolWindow          = 0x00000080
 	wsExNoActivate          = 0x08000000
 	wsExNoRedirectionBitmap = 0x00200000
-	swHide                  = 0
-	swShowNoActivate        = 4
-	hwndTopMost             = ^uintptr(0)
-	swpNoActivate           = 0x0010
-	swpShowWindow           = 0x0040
-	swpNoMove               = 0x0002
-	swpNoSize               = 0x0001
+	// lwaAlpha is LWA_ALPHA: SetLayeredWindowAttributes applies the alpha.
+	lwaAlpha         = 0x2
+	layeredOpaque    = 255
+	swHide           = 0
+	swShowNoActivate = 4
+	hwndTopMost      = ^uintptr(0)
+	swpNoActivate    = 0x0010
+	swpShowWindow    = 0x0040
+	swpNoMove        = 0x0002
+	swpNoSize        = 0x0001
 
 	wmNCHitTest   = 0x0084
 	htTransparent = ^uintptr(0) // HTTRANSPARENT, LRESULT -1
@@ -104,6 +107,7 @@ var (
 	procCreateWindowExW             = user32.NewProc("CreateWindowExW")
 	procDestroyWindow               = user32.NewProc("DestroyWindow")
 	procShowWindow                  = user32.NewProc("ShowWindow")
+	procSetLayeredWindowAttributes  = user32.NewProc("SetLayeredWindowAttributes")
 	procSetWindowPos                = user32.NewProc("SetWindowPos")
 	procDefWindowProcW              = user32.NewProc("DefWindowProcW")
 	procIsWindow                    = user32.NewProc("IsWindow")
@@ -909,7 +913,16 @@ func (o *OverlayWindow) createHWNDLocked() error {
 	if !o.noDComp {
 		err := dcompUnavailable()
 		if err == nil {
-			err = o.createWindowWithSurface(width, height, wsExNoRedirectionBitmap, newDCompSurface)
+			// Layered as well: WS_EX_TRANSPARENT only lets input through to
+			// other processes on a layered window, and a click lands while
+			// the overlay is still up. Without the redirection bitmap the
+			// layered style changes nothing about how the frame is drawn.
+			err = o.createWindowWithSurface(
+				width,
+				height,
+				wsExNoRedirectionBitmap|wsExLayered,
+				newDCompSurface,
+			)
 			if err == nil {
 				return nil
 			}
@@ -948,6 +961,14 @@ func (o *OverlayWindow) createWindowWithSurface(
 	)
 	if hwnd == 0 {
 		return fmt.Errorf("CreateWindowExW: %w", err)
+	}
+
+	// A layered window stays invisible until it has attributes. The GDI
+	// surface sets them with every UpdateLayeredWindow; the DirectComposition
+	// window never calls that, so it is made opaque once here and its own
+	// frames carry the alpha.
+	if exStyle&wsExNoRedirectionBitmap != 0 {
+		discardCall(procSetLayeredWindowAttributes.Call(hwnd, 0, layeredOpaque, lwaAlpha))
 	}
 
 	surface, err := newSurface(windows.HWND(hwnd), width, height)
