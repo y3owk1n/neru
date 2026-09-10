@@ -275,6 +275,25 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	)
 }
 
+// ScreenScale returns the factor between the pixels ScreenBounds reports and
+// the apparent size the user sees. X11 has one coordinate space in physical
+// pixels and one desktop-wide Xft.dpi factor. Wayland bounds are logical, so
+// the factor is 1.
+func (s *SystemAdapter) ScreenScale(ctx context.Context, bounds image.Rectangle) (float64, error) {
+	if s.backend == backendX11 {
+		return x11DisplayScale()
+	}
+
+	if s.waylandUsesWlrClientStack() || s.backend == backendWaylandGNOME {
+		return 1, nil
+	}
+
+	return 0, derrors.New(
+		derrors.CodeNotSupported,
+		"ScreenScale not yet implemented on linux backend "+s.backend,
+	)
+}
+
 // ScreenBoundsByName returns the bounds of the screen with the given name on Linux.
 // TODO(linux): implement using XRandR or Wayland output protocol.
 func (s *SystemAdapter) ScreenBoundsByName(

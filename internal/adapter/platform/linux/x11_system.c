@@ -4,6 +4,7 @@
 
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
+#include <X11/Xresource.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/XTest.h>
 #include <X11/extensions/Xrandr.h>
@@ -17,6 +18,38 @@
 #include <unistd.h>
 
 Display *neru_x11_open_display(void) { return XOpenDisplay(NULL); }
+
+double neru_x11_display_scale(Display *display) {
+	if (display == NULL) {
+		return 1.0;
+	}
+
+	double scale = 1.0;
+	char *resource_string = XResourceManagerString(display);
+	if (resource_string != NULL) {
+		XrmInitialize();
+		XrmDatabase db = XrmGetStringDatabase(resource_string);
+		if (db != NULL) {
+			char *type = NULL;
+			XrmValue value;
+			if (XrmGetResource(db, "Xft.dpi", "Xft.Dpi", &type, &value) && value.addr != NULL) {
+				double dpi = atof(value.addr);
+				if (dpi > 0.0) {
+					scale = dpi / 96.0;
+				}
+			}
+			XrmDestroyDatabase(db);
+		}
+	}
+
+	if (scale < 1.0) {
+		scale = 1.0;
+	}
+	if (scale > 4.0) {
+		scale = 4.0;
+	}
+	return scale;
+}
 
 void neru_x11_close_display(Display *display) {
 	if (display != NULL) {

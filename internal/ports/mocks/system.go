@@ -18,6 +18,7 @@ type MockSystemPort struct {
 	ScreenBoundsFunc                   func(ctx context.Context) (image.Rectangle, error)
 	ScreenBoundsByNameFunc             func(ctx context.Context, name string) (image.Rectangle, bool, error)
 	ScreenNamesFunc                    func(ctx context.Context) ([]string, error)
+	ScreenScaleFunc                    func(ctx context.Context, bounds image.Rectangle) (float64, error)
 	FocusedWindowBoundsFunc            func(ctx context.Context) (image.Rectangle, bool, error)
 	MoveCursorToPointFunc              func(ctx context.Context, point image.Point, bypassSmooth bool) error
 	WaitForCursorIdleFunc              func(ctx context.Context) error
@@ -108,6 +109,16 @@ func (m *MockSystemPort) ScreenBoundsByName(
 	}
 
 	return image.Rectangle{}, false, nil
+}
+
+// ScreenScale is a mock implementation. Unset, it answers 1, a display whose
+// pixels are its apparent units.
+func (m *MockSystemPort) ScreenScale(ctx context.Context, bounds image.Rectangle) (float64, error) {
+	if m.ScreenScaleFunc != nil {
+		return m.ScreenScaleFunc(ctx, bounds)
+	}
+
+	return 1, nil
 }
 
 // ScreenNames is a mock implementation.

@@ -202,6 +202,7 @@ func (h *handlerState) refreshRecursiveGridForScreenChange() {
 		// Proportionally remap all bounds (history + currentBounds) so the
 		// user's zoomed-in region maps to the equivalent area on the new screen.
 		h.recursiveGrid.Manager.CurrentGrid().RemapToNewBounds(normalizedBounds)
+		h.recursiveGrid.Manager.CurrentGrid().SetMinSize(h.recursiveGridMinSize())
 	} else {
 		// No existing manager — fall back to full initialization.
 		h.initializeRecursiveGridManager(normalizedBounds)

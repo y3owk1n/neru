@@ -581,6 +581,12 @@ important thing to know before touching overlay code:
 | **Coordinate origin** | bottom-left (Y-flipped in the adapter)   | top-left                               | top-left                                         | top-left                           |
 | **Thread model**      | main-thread dispatch                     | `renderMu` mutex                       | `renderMu` mutex (also guards `wl_display`)      | dedicated UI thread (`LockOSThread`); draws queue and return, the thread presents |
 
+Grid cell sizes are planned in apparent units on every platform. macOS and
+Wayland report logical screen bounds already. X11 and Windows report physical
+pixels, so the planner multiplies its cell-size range by the same factor the
+overlay scales fonts with (`SystemPort.ScreenScale`), and
+`recursive_grid.min_size_width` / `min_size_height` are read the same way.
+
 ### Animation
 
 | Animation                    | macOS                                | Linux X11 / Wayland                | Windows                            |

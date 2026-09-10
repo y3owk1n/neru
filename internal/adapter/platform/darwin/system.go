@@ -78,6 +78,12 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	return ActiveScreenBounds(), nil
 }
 
+// ScreenScale is 1 on macOS. Screen bounds are in points, which is the
+// apparent unit already.
+func (s *SystemAdapter) ScreenScale(ctx context.Context, bounds image.Rectangle) (float64, error) {
+	return 1, nil
+}
+
 // ScreenBoundsByName returns the bounds of the screen with the given localized
 // display name (case-insensitive) on macOS.
 func (s *SystemAdapter) ScreenBoundsByName(

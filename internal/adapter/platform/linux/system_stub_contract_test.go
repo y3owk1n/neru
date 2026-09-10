@@ -64,6 +64,14 @@ func stubCalls() []stubCall {
 			},
 		},
 		{
+			name: "ScreenScale",
+			call: func(ctx context.Context, a *linux.SystemAdapter) error {
+				_, err := a.ScreenScale(ctx, image.Rect(0, 0, 1, 1))
+
+				return err
+			},
+		},
+		{
 			name: "ScreenNames",
 			call: func(ctx context.Context, a *linux.SystemAdapter) error {
 				_, err := a.ScreenNames(ctx)

@@ -104,9 +104,12 @@ func betterTwoKeyCandidate(candidate, current twoKeyCandidate) bool {
 	}
 }
 
-// calculateOptimalCellSizes determines optimal cell size constraints based on screen characteristics.
-func calculateOptimalCellSizes(width, height int) (int, int) {
-	screenArea := width * height
+// calculateOptimalCellSizes determines the cell size range for a screen. The
+// tiers below are apparent sizes. A 4K monitor at 150% is a 2560x1440 desktop
+// to its user, so its area is read in those units and the range it picks is
+// scaled back up to the physical pixels the cells are laid out in.
+func calculateOptimalCellSizes(width, height int, scale float64) (int, int) {
+	screenArea := int(float64(width) / scale * float64(height) / scale)
 	screenAspect := float64(width) / float64(height)
 
 	var minCellSize, maxCellSize int
@@ -132,7 +135,11 @@ func calculateOptimalCellSizes(width, height int) (int, int) {
 		maxCellSize = int(float64(maxCellSize) * AspectRatioAdjustment)
 	}
 
-	return minCellSize, maxCellSize
+	return int(
+			math.Round(float64(minCellSize) * scale),
+		), int(
+			math.Round(float64(maxCellSize) * scale),
+		)
 }
 
 // selectBestCandidate picks the candidate with the best (lowest) score.

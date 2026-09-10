@@ -100,6 +100,15 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 	h.startIndicatorPolling(domain.ModeGrid)
 }
 
+// gridOptionsFor is the configured grid options with the display scale of
+// screenBounds, so every grid built for that screen plans in apparent units.
+func (h *handlerState) gridOptionsFor(screenBounds image.Rectangle) domainGrid.Options {
+	options := h.config.GridOptions()
+	options.DisplayScale = h.screenScale(screenBounds)
+
+	return options
+}
+
 // createGridInstance creates a new grid with proper bounds and characters.
 func (h *handlerState) createGridInstance() *domainGrid.Grid {
 	var screenBounds image.Rectangle
@@ -120,7 +129,7 @@ func (h *handlerState) createGridInstance() *domainGrid.Grid {
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(screenBounds)
 
 	gridInstance := domainGrid.NewGridWithOptions(
-		h.config.GridOptions(),
+		h.gridOptionsFor(screenBounds),
 		normalizedBounds,
 		h.logger,
 	)
@@ -150,7 +159,7 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
 		gridInstance = domainGrid.NewGridWithOptions(
-			h.config.GridOptions(),
+			h.gridOptionsFor(screenBounds),
 			bounds,
 			h.logger,
 		)

@@ -13,7 +13,7 @@ func TestPlanGridDimensions_DefaultLimitKeepsLegacyTwoKeyRegions(t *testing.T) {
 	const characters = "abcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()-_=+"
 
 	alpha := newGridAlphabet(characters, "", "")
-	plan := planGridDimensions(1920, 1080, alpha, DefaultMaxLabelLength)
+	plan := planGridDimensions(1920, 1080, 1, alpha, DefaultMaxLabelLength)
 
 	if plan.labelLength != LabelLength2 {
 		t.Fatalf("label length = %d, want the automatic two-key fixture", plan.labelLength)
@@ -99,5 +99,63 @@ func TestPlanTwoKeyGrid_KeepsCellsNearSquareAcrossScreenShapes(t *testing.T) {
 				t.Errorf("plan uses %d prefix regions, only %d keys available", regions, keys)
 			}
 		})
+	}
+}
+
+// TestPlanGridDimensions_ScaledScreenPlansLikeItsLogicalTwin pins the
+// planner's units. The cell-size tiers describe apparent size, so a 4K monitor
+// at 150% has to get the grid a 2560x1440 monitor at 100% gets, not a third
+// more cells each a third smaller. Windows and X11 hand the planner physical
+// pixels, which is where the scale comes from.
+func TestPlanGridDimensions_ScaledScreenPlansLikeItsLogicalTwin(t *testing.T) {
+	alpha := newGridAlphabet(DefaultCharacters, "", "")
+
+	testCases := []struct {
+		name          string
+		width, height int
+		scale         float64
+		logicalW      int
+		logicalH      int
+	}{
+		{name: "4K at 150%", width: 3840, height: 2160, scale: 1.5, logicalW: 2560, logicalH: 1440},
+		{name: "4K at 200%", width: 3840, height: 2160, scale: 2, logicalW: 1920, logicalH: 1080},
+		{
+			name:     "1080p at 100%",
+			width:    1920,
+			height:   1080,
+			scale:    1,
+			logicalW: 1920,
+			logicalH: 1080,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			scaled := planGridDimensions(
+				testCase.width, testCase.height, testCase.scale, alpha, DefaultMaxLabelLength,
+			)
+			logical := planGridDimensions(
+				testCase.logicalW, testCase.logicalH, 1, alpha, DefaultMaxLabelLength,
+			)
+
+			if scaled.dimensions != logical.dimensions {
+				t.Errorf("scaled screen planned %dx%d cells, its logical twin %dx%d",
+					scaled.dimensions.Cols, scaled.dimensions.Rows,
+					logical.dimensions.Cols, logical.dimensions.Rows)
+			}
+		})
+	}
+}
+
+// TestCalculateOptimalCellSizes_ScaleGrowsTheRangeWithThePixels pins the
+// other half. The range comes back in the pixels the cells are laid out in,
+// so a cell that is 50 apparent units wide is 75 physical pixels at 150%.
+func TestCalculateOptimalCellSizes_ScaleGrowsTheRangeWithThePixels(t *testing.T) {
+	minLogical, maxLogical := calculateOptimalCellSizes(2560, 1440, 1)
+	minScaled, maxScaled := calculateOptimalCellSizes(3840, 2160, 1.5)
+
+	if minScaled != minLogical*3/2 || maxScaled != maxLogical*3/2 {
+		t.Errorf("range at 150%% = %d..%d, want %d..%d (the logical %d..%d scaled up)",
+			minScaled, maxScaled, minLogical*3/2, maxLogical*3/2, minLogical, maxLogical)
 	}
 }

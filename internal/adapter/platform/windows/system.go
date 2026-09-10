@@ -162,6 +162,18 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	return activeScreenBounds()
 }
 
+// ScreenScale returns the DPI scale of the monitor bounds sits on. The
+// process is per-monitor DPI aware, so bounds are physical pixels and this is
+// what turns an apparent size into them.
+func (s *SystemAdapter) ScreenScale(ctx context.Context, bounds image.Rectangle) (float64, error) {
+	err := ctx.Err()
+	if err != nil {
+		return 0, err
+	}
+
+	return DPIScaleAt(rectCenter(bounds)), nil
+}
+
 // ScreenBoundsByName returns the bounds of the screen with the given name on Windows.
 func (s *SystemAdapter) ScreenBoundsByName(
 	ctx context.Context,

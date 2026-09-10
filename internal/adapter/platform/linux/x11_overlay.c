@@ -1,8 +1,9 @@
 #include "x11_overlay.h"
 
+#include "x11_system.h"
+
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
-#include <X11/Xresource.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/Xfixes.h>
 #include <X11/extensions/shape.h>
@@ -304,41 +305,14 @@ void neru_x11_overlay_flush(NeruX11Overlay *overlay) {
 	XFlush(overlay->display);
 }
 
-// neru_x11_overlay_scale returns the global UI scale for HiDPI displays, derived
-// from the "Xft.dpi" X resource (dpi / 96), clamped to [1.0, 4.0]. X11 has a
-// single coordinate space and no authoritative per-monitor scale, so this is a
-// desktop-wide factor: hint/label positions are already in device pixels and
-// stay put; callers multiply font sizes and stroke widths by this value so the
-// overlay renders at a legible size on HiDPI screens. Returns 1.0 when Xft.dpi
-// is unset (the common non-HiDPI case), so default setups are unaffected.
+// neru_x11_overlay_scale is neru_x11_display_scale for the overlay's display.
+// Hint and label positions are already in device pixels and stay put. Callers
+// multiply font sizes and stroke widths by this value so the overlay renders
+// at a legible size on HiDPI screens.
 double neru_x11_overlay_scale(NeruX11Overlay *overlay) {
-	if (overlay == NULL || overlay->display == NULL) {
+	if (overlay == NULL) {
 		return 1.0;
 	}
 
-	double scale = 1.0;
-	char *resource_string = XResourceManagerString(overlay->display);
-	if (resource_string != NULL) {
-		XrmInitialize();
-		XrmDatabase db = XrmGetStringDatabase(resource_string);
-		if (db != NULL) {
-			char *type = NULL;
-			XrmValue value;
-			if (XrmGetResource(db, "Xft.dpi", "Xft.Dpi", &type, &value) && value.addr != NULL) {
-				double dpi = atof(value.addr);
-				if (dpi > 0.0) {
-					scale = dpi / 96.0;
-				}
-			}
-			XrmDestroyDatabase(db);
-		}
-	}
-
-	if (scale < 1.0) {
-		scale = 1.0;
-	}
-	if (scale > 4.0) {
-		scale = 4.0;
-	}
-	return scale;
+	return neru_x11_display_scale(overlay->display);
 }
