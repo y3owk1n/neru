@@ -57,7 +57,7 @@ const (
 	d2dBitmapOptionsTarget      = 0x1
 	d2dBitmapOptionsCannotDraw  = 0x2
 	d2dTextAntialiasGrayscale   = 2
-	d2dCompositeModeSourceCopy  = 1
+	d2dCompositeModeSourceCopy  = 10
 	d2dFigureBeginFilled        = 0
 	d2dFigureEndClosed          = 1
 	d2dDefaultDPI               = 96
