@@ -133,6 +133,11 @@ func newWinOverlay(logger *zap.Logger, renderMu *sync.Mutex) *winOverlay {
 			zap.Int("height", bounds.Dy()),
 		)
 
+		reason := window.DCompError()
+		if reason != nil {
+			logger.Warn("Windows overlay fell back to GDI", zap.Error(reason))
+		}
+
 		// Per-frame cost, on the overlay UI thread after each present. Counts
 		// and durations only, which is what a report of "still laggy" needs.
 		window.SetFrameObserver(func(stats winplatform.FrameStats) {

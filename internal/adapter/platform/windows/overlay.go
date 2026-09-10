@@ -257,8 +257,10 @@ type OverlayWindow struct {
 	// surface is touched only on the overlay UI thread.
 	surface overlaySurface
 	// noDComp is set once DirectComposition failed for this window, so a
-	// rebuild does not try it again.
-	noDComp bool
+	// rebuild does not try it again. dcompErr says why, for the log line
+	// that reports the GDI fallback.
+	noDComp  bool
+	dcompErr error
 
 	observer func(FrameStats)
 }
@@ -399,6 +401,22 @@ func (o *OverlayWindow) Scale() float64 {
 // rectCenter is the point that looks up a rectangle's monitor.
 func rectCenter(rect image.Rectangle) image.Point {
 	return image.Pt(rect.Min.X+rect.Dx()/2, rect.Min.Y+rect.Dy()/2)
+}
+
+// DCompError reports why the window draws through GDI rather than
+// DirectComposition, or nil while DirectComposition is in use.
+func (o *OverlayWindow) DCompError() error {
+	if o == nil {
+		return nil
+	}
+
+	var err error
+
+	runOnOverlayUI(func() {
+		err = o.dcompErr
+	})
+
+	return err
 }
 
 // Backend names the surface this window presents through: "direct2d" when
@@ -886,13 +904,17 @@ func (o *OverlayWindow) createHWNDLocked() error {
 		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, o.bounds)
 	}
 
-	if !o.noDComp && dcompAvailable() {
-		err := o.createWindowWithSurface(width, height, wsExNoRedirectionBitmap, newDCompSurface)
+	if !o.noDComp {
+		err := dcompUnavailable()
 		if err == nil {
-			return nil
+			err = o.createWindowWithSurface(width, height, wsExNoRedirectionBitmap, newDCompSurface)
+			if err == nil {
+				return nil
+			}
 		}
 
 		o.noDComp = true
+		o.dcompErr = err
 	}
 
 	return o.createWindowWithSurface(width, height, wsExLayered, newGDISurface)
