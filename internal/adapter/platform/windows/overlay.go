@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	overlayClassName = "NeruOverlayWindow"
+	overlayClassName = "neru-overlay"
 
 	wsPopup                 = 0x80000000
 	wsExLayered             = 0x00080000

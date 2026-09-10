@@ -1936,6 +1936,7 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 	                                   defer:NO];
 	[panel setHidesOnDeactivate:NO];
 	[panel setReleasedWhenClosed:NO];
+	[panel setTitle:@"neru-overlay"];
 
 	self.window = panel;
 
@@ -3808,6 +3809,7 @@ void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle st
 			                                   defer:NO];
 			[panel setHidesOnDeactivate:NO];
 			[panel setReleasedWhenClosed:NO];
+			[panel setTitle:@"neru-overlay"];
 			[panel setLevel:kCGMaximumWindowLevel];
 			[panel setOpaque:NO];
 			[panel setBackgroundColor:[NSColor clearColor]];
