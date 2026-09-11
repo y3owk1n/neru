@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.54.0](https://github.com/y3owk1n/neru/compare/v1.53.0...v1.54.0) (2026-09-11)
+
+
+### Features
+
+* **hints:** make the contour detector's thresholds configurable ([#1651](https://github.com/y3owk1n/neru/issues/1651)) ([c166699](https://github.com/y3owk1n/neru/commit/c16669967a410902cdd8015bd70bc59637ef2eaf))
+
+
+### Bug Fixes
+
+* **config:** reject NaN and infinite floats in every option ([#1652](https://github.com/y3owk1n/neru/issues/1652)) ([94a6a13](https://github.com/y3owk1n/neru/commit/94a6a13cc859dae369199dada3f25ada461dd7a3))
+* **grid:** plan cell sizes in apparent units on scaled Windows and X11 displays ([#1658](https://github.com/y3owk1n/neru/issues/1658)) ([496313c](https://github.com/y3owk1n/neru/commit/496313cae69f4c26e699abb43d1e81f704034e48))
+* **linux:** make a bare modifier tap reach the compositor while a mode is open ([#1666](https://github.com/y3owk1n/neru/issues/1666)) ([69f3dad](https://github.com/y3owk1n/neru/commit/69f3dad930ba02ed91c9b0e810d7152eaca48acb))
+* **linux:** make a hotkey click on Wayland land where the cursor is, unmodified ([#1656](https://github.com/y3owk1n/neru/issues/1656)) ([2cb6a2a](https://github.com/y3owk1n/neru/commit/2cb6a2ad08f311093266d76f9df27912ff3f9d9e))
+* **linux:** name mode chords with the activation modifier still held ([#1653](https://github.com/y3owk1n/neru/issues/1653)) ([e9a57cb](https://github.com/y3owk1n/neru/commit/e9a57cb47d55dddbb35eb8e2e74fd767d5895873))
+* **overlay:** draw only hint labels and badges bold on Windows and Linux ([#1657](https://github.com/y3owk1n/neru/issues/1657)) ([c976d44](https://github.com/y3owk1n/neru/commit/c976d4415fc436efd0601c744817b9507e5a8bdf))
+* **overlay:** identify the overlay window as `neru-overlay` on every platform ([#1661](https://github.com/y3owk1n/neru/issues/1661)) ([995800b](https://github.com/y3owk1n/neru/commit/995800b394729fced0e1c5c83574606d8265b847))
+* **windows:** keep idle overlays responsive ([#1648](https://github.com/y3owk1n/neru/issues/1648)) ([33f4997](https://github.com/y3owk1n/neru/commit/33f49979730419f98918cc76344d7ce11ea1fbc1))
+* **windows:** post drag motion so a held click selects and drags across a warp ([#1664](https://github.com/y3owk1n/neru/issues/1664)) ([fb832ed](https://github.com/y3owk1n/neru/commit/fb832ede815bf116df73afeaec0b3a6b881c0948))
+* **windows:** scale overlay fonts and geometry to the monitor's DPI ([#1655](https://github.com/y3owk1n/neru/issues/1655)) ([6132dd8](https://github.com/y3owk1n/neru/commit/6132dd80545b2868ad15d0ff84e5db64a7c66e23))
+* **windows:** use Direct2D for the overlay instead of silently falling back to GDI ([#1660](https://github.com/y3owk1n/neru/issues/1660)) ([2695e17](https://github.com/y3owk1n/neru/commit/2695e17f69b310b42df811c13b63c870075bf917))
+
 ## [1.53.0](https://github.com/y3owk1n/neru/compare/v1.52.0...v1.53.0) (2026-09-08)
 
 
