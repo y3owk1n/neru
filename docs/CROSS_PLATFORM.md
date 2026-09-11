@@ -170,7 +170,7 @@ answer.
 | **App watcher (focus change)**| ✅ NSWorkspace observer  | ✅ event-driven        | ✅ event-driven              | ✅ event-driven         | ✅ `SetWinEventHook`         |
 | **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher |
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ `hyprctl` on Hyprland, else sync-surface cache | ✅ sync-surface cache | ✅ `GetCursorPos` |
-| **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
+| **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`, `SendInput` motion while a button is held |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer` ⁷  | ✅ libei ⁷              | ✅ `SendInput` ⁷             |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput, virtual-pointer fallback) | ✅ both axes (uinput, libei fallback) | ✅ both axes ⁷               |
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard + virtual pointer (uinput on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold ⁷ |
@@ -399,10 +399,13 @@ but Hyprland (footnote ⁹). A path with no backend to press through answers
 **Held mouse buttons.** Press and release are separate actions, so every
 backend keeps a [`mousestate.Tracker`](../internal/adapter/platform/mousestate/tracker.go)
 recording which buttons are down, where, and with which modifiers. Toggle
-actions resolve against it, `EnsureMouseUp` releases every held button when
-Neru returns to idle, and on macOS it selects the drag event type for cursor
-moves, which Quartz requires; the other platforms warp the pointer and let the
-compositor infer the drag.
+actions resolve against it, and `EnsureMouseUp` releases every held button when
+Neru returns to idle. On macOS it selects the drag event type for cursor moves,
+which Quartz requires. On Windows, `SetCursorPos` repositions the pointer
+without producing input, so an application that reads drags from raw input or
+`WM_POINTER` never sees one. A move while a button is held therefore posts an
+absolute `MOUSEEVENTF_MOVE` through `SendInput` first and warps afterwards. The
+Linux backends warp the pointer and let the compositor infer the drag.
 
 ---
 
