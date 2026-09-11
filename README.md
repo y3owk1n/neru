@@ -66,6 +66,8 @@ Pass `--channel nightly` or `--version vX.Y.Z` after `bash -s --` to pick a chan
 ```bash
 brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
+neru config init
+if [ -f ~/.zshrc ] && ! grep -q 'eval "$(neru completion zsh)"' ~/.zshrc; then; echo 'eval "$(neru completion zsh)"' >> ~/.zshrc; fi
 ```
 
 </details>
