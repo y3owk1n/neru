@@ -89,10 +89,8 @@
 			"platforms": ["x86_64-linux", "aarch64-linux"]
 		}
 	},
-	"shell": {
-		"init_hook": [
-			"if [[ \"$(uname)\" == \"Linux\" ]]; then export PKG_CONFIG_PATH=\"$DEVBOX_PACKAGES_DIR/lib/pkgconfig:$DEVBOX_PACKAGES_DIR/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}\"; fi",
-			"if [[ \"$(uname)\" == \"Linux\" && -z \"${TESSDATA_PREFIX:-}\" ]]; then export TESSDATA_PREFIX=\"$(pkg-config --variable=prefix tesseract 2>/dev/null)/share/tessdata\"; fi"
-		]
+	"env": {
+		"PKG_CONFIG_PATH": "$DEVBOX_PACKAGES_DIR/lib/pkgconfig:$DEVBOX_PACKAGES_DIR/share/pkgconfig:$PKG_CONFIG_PATH",
+		"TESSDATA_PREFIX": "$DEVBOX_PACKAGES_DIR/share/tessdata"
 	}
 }
