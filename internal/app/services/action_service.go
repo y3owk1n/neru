@@ -219,10 +219,20 @@ func (s *ActionService) MoveMouseTo(
 // ReleaseHeldButtons releases any mouse button Neru still holds down.
 //
 // Mode-exit paths call this so an interrupted drag does not leave the desktop
-// behaving as if a button were still pressed.
+// behaving as if a button were still pressed. The release lands wherever the
+// cursor is, so any in-flight cursor animation is settled first: a grid whose
+// final warp is still animating when the mode exits would otherwise release
+// the drag part-way to the cell the user chose.
 func (s *ActionService) ReleaseHeldButtons(ctx context.Context) error {
 	if s.accessibility == nil {
 		return nil
+	}
+
+	if settler, ok := s.system.(ports.CursorSettler); ok {
+		err := settler.SettleCursor(ctx)
+		if err != nil {
+			s.logger.Warn("Failed to settle cursor animation", zap.Error(err))
+		}
 	}
 
 	return s.accessibility.ReleaseHeldButtons(ctx)

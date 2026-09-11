@@ -569,3 +569,30 @@ func TestActionService_CursorPositionForAction_SyncsStaleCursorCache(t *testing.
 		})
 	}
 }
+
+// TestActionService_ReleaseHeldButtons_SettlesCursorBeforeRelease pins the
+// order a mode exit needs: a drag released while the final warp is still
+// animating would end part-way to the point the user chose.
+func TestActionService_ReleaseHeldButtons_SettlesCursorBeforeRelease(t *testing.T) {
+	system := &settlingSystemPort{}
+
+	settledAtReleaseTime := -1
+	mockAcc := &portmocks.MockAccessibilityPort{
+		ReleaseHeldButtonsFunc: func(context.Context) error {
+			settledAtReleaseTime = system.settleCalls
+
+			return nil
+		},
+	}
+
+	svc := newTestActionService(mockAcc, system)
+
+	err := svc.ReleaseHeldButtons(context.Background())
+	if err != nil {
+		t.Fatalf("ReleaseHeldButtons() error = %v", err)
+	}
+
+	if settledAtReleaseTime != 1 {
+		t.Fatalf("settle calls at release time = %d, want 1", settledAtReleaseTime)
+	}
+}
