@@ -58,6 +58,7 @@ var (
 
 	procGetCursorPos        = user32.NewProc("GetCursorPos")
 	procSetCursorPos        = user32.NewProc("SetCursorPos")
+	procGetSystemMetrics    = user32.NewProc("GetSystemMetrics")
 	procGetWindowRect       = user32.NewProc("GetWindowRect")
 	procEnumDisplayMonitors = user32.NewProc("EnumDisplayMonitors")
 	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
@@ -102,9 +103,9 @@ func cursorPosition() (image.Point, error) {
 }
 
 // moveCursorTo warps the cursor to point. While a button is held the warp is
-// followed by a motion event at the new position (dragMotionHere) so
-// applications see a drag. The motion is best-effort. A warp the pointer
-// still makes beats one that fails because SendInput was refused.
+// followed by a motion event at the same pixel (dragMotionTo) so applications
+// see a drag. The motion is best-effort. A warp the pointer still makes beats
+// one that fails because SendInput was refused.
 func moveCursorTo(point image.Point) error {
 	ret, _, err := procSetCursorPos.Call(uintptr(point.X), uintptr(point.Y))
 
@@ -114,7 +115,7 @@ func moveCursorTo(point image.Point) error {
 	}
 
 	if heldButtons.AnyDown() {
-		_ = dragMotionHere()
+		_ = dragMotionTo(point)
 	}
 
 	return nil

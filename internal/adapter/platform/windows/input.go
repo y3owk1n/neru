@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"time"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
@@ -23,16 +24,35 @@ const (
 	inputMouse    = 0
 	inputKeyboard = 1
 
-	mouseeventfMove       = 0x0001
-	mouseeventfLeftDown   = 0x0002
-	mouseeventfLeftUp     = 0x0004
-	mouseeventfRightDown  = 0x0008
-	mouseeventfRightUp    = 0x0010
-	mouseeventfMiddleDown = 0x0020
-	mouseeventfMiddleUp   = 0x0040
-	mouseeventfWheel      = 0x0800
-	mouseeventfHWheel     = 0x1000
-	mouseeventfAbsolute   = 0x8000
+	mouseeventfMove        = 0x0001
+	mouseeventfLeftDown    = 0x0002
+	mouseeventfLeftUp      = 0x0004
+	mouseeventfRightDown   = 0x0008
+	mouseeventfRightUp     = 0x0010
+	mouseeventfMiddleDown  = 0x0020
+	mouseeventfMiddleUp    = 0x0040
+	mouseeventfWheel       = 0x0800
+	mouseeventfHWheel      = 0x1000
+	mouseeventfAbsolute    = 0x8000
+	mouseeventfVirtualDesk = 0x4000
+
+	// absoluteCoordinateRange is the span an absolute mouse event's dx and dy
+	// address across the virtual desktop. Windows maps a value back to a
+	// pixel as value * width / 65536, floored.
+	absoluteCoordinateRange = 65536
+
+	smXVirtualScreen  = 76
+	smYVirtualScreen  = 77
+	smCxVirtualScreen = 78
+	smCyVirtualScreen = 79
+
+	// dragReleaseSettle is how long a release waits after its last motion
+	// event. An application that reads drags from the input stream needs to
+	// process the motion at the release point before the button-up arrives,
+	// or it ends the drag where its last processed motion was, which for a
+	// single warp can be the press point. Only a drag this process holds
+	// pays it, on a mode-exit path, so it never sits on a keystroke.
+	dragReleaseSettle = 20 * time.Millisecond
 
 	keyeventfExtendedKey = 0x0001
 	keyeventfKeyUp       = 0x0002
@@ -259,7 +279,13 @@ func MouseUp(point image.Point, button action.MouseButton, modifiers action.Modi
 
 	defer hold.release()
 
-	err = buttonEventAt(point, flagsForButton(button).up)
+	flags := flagsForButton(button).up
+	if heldButtons.IsDown(button) {
+		err = dragReleaseAt(point, flags)
+	} else {
+		err = buttonEventAt(point, flags)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -269,18 +295,70 @@ func MouseUp(point image.Point, button action.MouseButton, modifiers action.Modi
 	return nil
 }
 
-// dragMotionHere posts one MOUSEEVENTF_MOVE with no displacement, so the
-// input pipeline emits motion at the pointer's current position.
+// dragMotionTo posts one absolute MOUSEEVENTF_MOVE at point through SendInput.
 //
 // SetCursorPos repositions the pointer without producing input. The window
 // under it gets a WM_MOUSEMOVE, but nothing reaches raw input or the pointer
 // pipeline that WM_POINTER, DirectManipulation and Chromium read drags from,
-// so a press at A, a warp, and a release at B select nothing. A zero-delta
-// move after the warp is the cheapest real motion event. It needs no
-// mapping onto the absolute coordinate range, so it cannot round off the
-// warp, and pointer acceleration leaves a zero delta at zero.
-func dragMotionHere() error {
-	return sendMouseInput(mouseeventfMove, 0)
+// so a press at A, a warp, and a release at B select nothing. The absolute
+// coordinate is chosen so Windows floors it back to the exact pixel, and it
+// follows the warp so the input pipeline's last motion is the one the
+// pointer is standing on.
+func dragMotionTo(point image.Point) error {
+	desktop := virtualScreenMetrics()
+
+	var event input
+
+	event.inputType = inputMouse
+	event.mi.dwFlags = mouseeventfMove | mouseeventfAbsolute | mouseeventfVirtualDesk
+	event.mi.dx = absoluteCoordinate(point.X, desktop.Min.X, desktop.Dx())
+	event.mi.dy = absoluteCoordinate(point.Y, desktop.Min.Y, desktop.Dy())
+
+	return sendOneInput(unsafe.Pointer(&event), unsafe.Sizeof(event))
+}
+
+// virtualScreenMetrics reads the virtual desktop rectangle from the same
+// system metrics Windows maps absolute mouse coordinates against.
+func virtualScreenMetrics() image.Rectangle {
+	left, _, _ := procGetSystemMetrics.Call(smXVirtualScreen)
+	top, _, _ := procGetSystemMetrics.Call(smYVirtualScreen)
+	width, _, _ := procGetSystemMetrics.Call(smCxVirtualScreen)
+	height, _, _ := procGetSystemMetrics.Call(smCyVirtualScreen)
+
+	origin := image.Point{X: int(int32(left)), Y: int(int32(top))}
+
+	return image.Rectangle{
+		Min: origin,
+		Max: origin.Add(image.Point{X: int(int32(width)), Y: int(int32(height))}),
+	}
+}
+
+// absoluteCoordinate maps a pixel on one axis of the virtual desktop onto the
+// absolute range so that Windows' floor(value * size / 65536) lands on that
+// pixel again: the smallest value whose product reaches the pixel.
+func absoluteCoordinate(pixel, origin, size int) int32 {
+	if size <= 0 {
+		return 0
+	}
+
+	offset := min(max(pixel-origin, 0), size-1)
+	value := (offset*absoluteCoordinateRange + size - 1) / size
+
+	return int32(min(value, absoluteCoordinateRange-1))
+}
+
+// dragReleaseAt posts the release of a drag this process holds. It refreshes
+// the motion at point, gives the application dragReleaseSettle to process
+// it, and only then releases.
+func dragReleaseAt(point image.Point, flags uint32) error {
+	err := moveCursorTo(point)
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(dragReleaseSettle)
+
+	return sendMouseInput(flags, 0)
 }
 
 // wheelEvent is one MOUSEEVENTF_WHEEL or MOUSEEVENTF_HWHEEL record, before

@@ -114,3 +114,52 @@ func TestWheelEvents_NegatesHorizontalDelta(t *testing.T) {
 		})
 	}
 }
+
+// TestAbsoluteCoordinate_RoundTripsToThePixel pins the mapping against the
+// floor(value * size / 65536) Windows applies to an absolute mouse event: the
+// coordinate must land on the pixel it was made from, at the edges included.
+func TestAbsoluteCoordinate_RoundTripsToThePixel(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		origin int
+		size   int
+	}{
+		{name: "single 1080p monitor", origin: 0, size: 1920},
+		{name: "monitor left of the primary", origin: -2560, size: 5120},
+		{name: "4k pair", origin: 0, size: 7680},
+		{name: "odd width", origin: -7, size: 1361},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			for pixel := test.origin; pixel < test.origin+test.size; pixel++ {
+				value := absoluteCoordinate(pixel, test.origin, test.size)
+
+				back := test.origin + int(value)*test.size/absoluteCoordinateRange
+				if back != pixel {
+					t.Fatalf("pixel %d maps to %d and back to %d", pixel, value, back)
+				}
+			}
+		})
+	}
+}
+
+func TestAbsoluteCoordinate_ClampsOutsideTheDesktop(t *testing.T) {
+	t.Parallel()
+
+	if got := absoluteCoordinate(-50, 0, 1920); got != 0 {
+		t.Fatalf("below the desktop = %d, want 0", got)
+	}
+
+	if got := absoluteCoordinate(5000, 0, 1920); got != absoluteCoordinate(1919, 0, 1920) {
+		t.Fatalf("past the desktop = %d, want the last pixel's value", got)
+	}
+
+	if got := absoluteCoordinate(10, 0, 0); got != 0 {
+		t.Fatalf("empty desktop = %d, want 0", got)
+	}
+}
