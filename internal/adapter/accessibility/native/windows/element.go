@@ -8,15 +8,11 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
-
-// windowsHeldButtons records which mouse buttons Neru is currently holding down.
-var windowsHeldButtons mousestate.Tracker
 
 // Element is a UI element for Windows.
 //
@@ -236,13 +232,12 @@ func FrontmostWindow() *Element {
 
 // IsMouseButtonDown returns whether the given mouse button is held down.
 func IsMouseButtonDown(button action.MouseButton) bool {
-	return windowsHeldButtons.IsDown(button)
+	return winplatform.IsMouseButtonDown(button)
 }
 
 // EnsureMouseUp releases every mouse button Neru is currently holding down.
-// EnsureMouseUp releases any mouse button left held.
 func EnsureMouseUp() {
-	for _, button := range windowsHeldButtons.HeldButtons() {
+	for _, button := range winplatform.HeldMouseButtons() {
 		_ = MouseUp(button)
 	}
 }
@@ -285,14 +280,7 @@ func MouseDownAtPoint(
 	button action.MouseButton,
 	modifiers action.Modifiers,
 ) error {
-	err := winplatform.MouseDown(point, button, modifiers)
-	if err != nil {
-		return err
-	}
-
-	windowsHeldButtons.SetDown(button, point, modifiers)
-
-	return nil
+	return winplatform.MouseDown(point, button, modifiers)
 }
 
 // MouseUpAtPoint releases the given mouse button at the point.
@@ -301,14 +289,7 @@ func MouseUpAtPoint(
 	button action.MouseButton,
 	modifiers action.Modifiers,
 ) error {
-	err := winplatform.MouseUp(point, button, modifiers)
-	if err != nil {
-		return err
-	}
-
-	windowsHeldButtons.Clear(button)
-
-	return nil
+	return winplatform.MouseUp(point, button, modifiers)
 }
 
 // MouseUp releases the given mouse button at the cursor.
