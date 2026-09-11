@@ -90,7 +90,11 @@
 		}
 	},
 	"env": {
-		"PKG_CONFIG_PATH": "$DEVBOX_PACKAGES_DIR/lib/pkgconfig:$DEVBOX_PACKAGES_DIR/share/pkgconfig:$PKG_CONFIG_PATH",
-		"TESSDATA_PREFIX": "$DEVBOX_PACKAGES_DIR/share/tessdata"
+		"PKG_CONFIG_PATH": "$DEVBOX_PACKAGES_DIR/lib/pkgconfig:$DEVBOX_PACKAGES_DIR/share/pkgconfig:$PKG_CONFIG_PATH"
+	},
+	"shell": {
+		"init_hook": [
+			"test -n \"$TESSDATA_PREFIX\" || export TESSDATA_PREFIX=\"$DEVBOX_PACKAGES_DIR/share/tessdata\""
+		]
 	}
 }
