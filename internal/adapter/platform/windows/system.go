@@ -27,7 +27,7 @@ func NewSystemAdapter() *SystemAdapter {
 	adapter := &SystemAdapter{}
 	adapter.cursorAnimator = newSmoothCursorAnimator(
 		adapter.currentCursorPosition,
-		moveCursorTo,
+		warpCursor,
 	)
 
 	return adapter

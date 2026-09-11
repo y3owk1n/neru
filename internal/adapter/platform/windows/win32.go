@@ -58,7 +58,6 @@ var (
 
 	procGetCursorPos        = user32.NewProc("GetCursorPos")
 	procSetCursorPos        = user32.NewProc("SetCursorPos")
-	procGetSystemMetrics    = user32.NewProc("GetSystemMetrics")
 	procGetWindowRect       = user32.NewProc("GetWindowRect")
 	procEnumDisplayMonitors = user32.NewProc("EnumDisplayMonitors")
 	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
@@ -102,20 +101,25 @@ func cursorPosition() (image.Point, error) {
 	return image.Point{X: int(position.x), Y: int(position.y)}, nil
 }
 
-// moveCursorTo warps the cursor to point. While a button is held the warp is
-// followed by a motion event at the same pixel (dragMotionTo) so applications
-// see a drag. The motion is best-effort. A warp the pointer still makes beats
-// one that fails because SendInput was refused.
+// moveCursorTo brings the cursor to point: a warp, or while a button is held
+// a glide (dragGlideTo), since applications only read a drag out of
+// intermediate motion. The smooth-cursor animator steps through warpCursor
+// directly, as its steps already are that motion.
 func moveCursorTo(point image.Point) error {
+	if heldButtons.AnyDown() {
+		return dragGlideTo(point)
+	}
+
+	return warpCursor(point)
+}
+
+// warpCursor is one SetCursorPos.
+func warpCursor(point image.Point) error {
 	ret, _, err := procSetCursorPos.Call(uintptr(point.X), uintptr(point.Y))
 
 	callErr := win32Bool(ret, err)
 	if callErr != nil {
 		return fmt.Errorf("SetCursorPos: %w", callErr)
-	}
-
-	if heldButtons.AnyDown() {
-		_ = dragMotionTo(point)
 	}
 
 	return nil

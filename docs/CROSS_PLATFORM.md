@@ -170,7 +170,7 @@ answer.
 | **App watcher (focus change)**| ✅ NSWorkspace observer  | ✅ event-driven        | ✅ event-driven              | ✅ event-driven         | ✅ `SetWinEventHook`         |
 | **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher |
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ `hyprctl` on Hyprland, else sync-surface cache | ✅ sync-surface cache | ✅ `GetCursorPos` |
-| **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`, `SendInput` motion while a button is held |
+| **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`, glided while a button is held |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁷             | ✅ `zwlr_virtual_pointer` ⁷  | ✅ libei ⁷              | ✅ `SendInput` ⁷             |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes ⁷         | ✅ both axes (uinput, virtual-pointer fallback) | ✅ both axes (uinput, libei fallback) | ✅ both axes ⁷               |
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁷ | ✅ virtual keyboard + virtual pointer (uinput on Hyprland ⁹) | ✅ libei | ✅ `SendInput` key hold ⁷ |
@@ -401,13 +401,12 @@ backend keeps a [`mousestate.Tracker`](../internal/adapter/platform/mousestate/t
 recording which buttons are down, where, and with which modifiers. Toggle
 actions resolve against it, and `EnsureMouseUp` releases every held button when
 Neru returns to idle. On macOS it selects the drag event type for cursor moves,
-which Quartz requires. On Windows, `SetCursorPos` repositions the pointer
-without producing input, so an application that reads drags from raw input or
-`WM_POINTER` never sees one. A move while a button is held therefore follows
-the warp with an absolute `MOUSEEVENTF_MOVE` through `SendInput` at the same
-pixel, and the release of a held button waits a few milliseconds after its
-last motion so the application processes the move before the button-up. The
-Linux backends warp the pointer and let the compositor infer the drag.
+which Quartz requires. On Windows an application reads a drag only out of
+intermediate motion: a press, one jump and a release select nothing, whichever
+primitive makes the jump. A warp while a button is held is therefore spread
+over a short glide of `SetCursorPos` steps, and the release of a held button
+waits a few milliseconds after its last motion so the application processes
+the move before the button-up. The Linux backends warp the pointer and let the compositor infer the drag.
 
 ---
 
