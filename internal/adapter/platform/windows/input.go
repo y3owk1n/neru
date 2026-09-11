@@ -23,21 +23,16 @@ const (
 	inputMouse    = 0
 	inputKeyboard = 1
 
-	mouseeventfMove        = 0x0001
-	mouseeventfLeftDown    = 0x0002
-	mouseeventfLeftUp      = 0x0004
-	mouseeventfRightDown   = 0x0008
-	mouseeventfRightUp     = 0x0010
-	mouseeventfMiddleDown  = 0x0020
-	mouseeventfMiddleUp    = 0x0040
-	mouseeventfWheel       = 0x0800
-	mouseeventfHWheel      = 0x1000
-	mouseeventfAbsolute    = 0x8000
-	mouseeventfVirtualDesk = 0x4000
-
-	// absoluteCoordinateMax is the top of the range an absolute mouse event's
-	// dx and dy span across the virtual desktop.
-	absoluteCoordinateMax = 65535
+	mouseeventfMove       = 0x0001
+	mouseeventfLeftDown   = 0x0002
+	mouseeventfLeftUp     = 0x0004
+	mouseeventfRightDown  = 0x0008
+	mouseeventfRightUp    = 0x0010
+	mouseeventfMiddleDown = 0x0020
+	mouseeventfMiddleUp   = 0x0040
+	mouseeventfWheel      = 0x0800
+	mouseeventfHWheel     = 0x1000
+	mouseeventfAbsolute   = 0x8000
 
 	keyeventfExtendedKey = 0x0001
 	keyeventfKeyUp       = 0x0002
@@ -274,40 +269,18 @@ func MouseUp(point image.Point, button action.MouseButton, modifiers action.Modi
 	return nil
 }
 
-// dragMotionTo posts one absolute MOUSEEVENTF_MOVE at point through SendInput.
+// dragMotionHere posts one MOUSEEVENTF_MOVE with no displacement, so the
+// input pipeline emits motion at the pointer's current position.
 //
 // SetCursorPos repositions the pointer without producing input. The window
 // under it gets a WM_MOUSEMOVE, but nothing reaches raw input or the pointer
 // pipeline that WM_POINTER, DirectManipulation and Chromium read drags from,
-// so a press at A, a warp, and a release at B select nothing. Posting the
-// motion as input makes the move a drag.
-func dragMotionTo(point image.Point) error {
-	desktop, err := virtualScreenBounds()
-	if err != nil {
-		return err
-	}
-
-	var event input
-
-	event.inputType = inputMouse
-	event.mi.dwFlags = mouseeventfMove | mouseeventfAbsolute | mouseeventfVirtualDesk
-	event.mi.dx = absoluteCoordinate(point.X, desktop.Min.X, desktop.Dx())
-	event.mi.dy = absoluteCoordinate(point.Y, desktop.Min.Y, desktop.Dy())
-
-	return sendOneInput(unsafe.Pointer(&event), unsafe.Sizeof(event))
-}
-
-// absoluteCoordinate maps a pixel on one axis of the virtual desktop onto the
-// 0..65535 range an absolute mouse event addresses, so that the first pixel
-// maps to 0 and the last to 65535.
-func absoluteCoordinate(pixel, origin, size int) int32 {
-	if size <= 1 {
-		return 0
-	}
-
-	offset := min(max(pixel-origin, 0), size-1)
-
-	return int32(offset * absoluteCoordinateMax / (size - 1))
+// so a press at A, a warp, and a release at B select nothing. A zero-delta
+// move after the warp is the cheapest real motion event. It needs no
+// mapping onto the absolute coordinate range, so it cannot round off the
+// warp, and pointer acceleration leaves a zero delta at zero.
+func dragMotionHere() error {
+	return sendMouseInput(mouseeventfMove, 0)
 }
 
 // wheelEvent is one MOUSEEVENTF_WHEEL or MOUSEEVENTF_HWHEEL record, before

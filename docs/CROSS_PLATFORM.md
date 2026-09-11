@@ -403,9 +403,9 @@ actions resolve against it, and `EnsureMouseUp` releases every held button when
 Neru returns to idle. On macOS it selects the drag event type for cursor moves,
 which Quartz requires. On Windows, `SetCursorPos` repositions the pointer
 without producing input, so an application that reads drags from raw input or
-`WM_POINTER` never sees one. A move while a button is held therefore posts an
-absolute `MOUSEEVENTF_MOVE` through `SendInput` first and warps afterwards. The
-Linux backends warp the pointer and let the compositor infer the drag.
+`WM_POINTER` never sees one. A move while a button is held therefore follows
+the warp with a zero-delta `MOUSEEVENTF_MOVE` through `SendInput`, a real
+motion event at the exact position. The Linux backends warp the pointer and let the compositor infer the drag.
 
 ---
 

@@ -101,23 +101,20 @@ func cursorPosition() (image.Point, error) {
 	return image.Point{X: int(position.x), Y: int(position.y)}, nil
 }
 
-// moveCursorTo warps the cursor to point. While a button is held the motion is
-// first posted as input (dragMotionTo) so applications see a drag, and the
-// warp then lands the pointer on the exact pixel the absolute coordinate
-// rounded past.
+// moveCursorTo warps the cursor to point. While a button is held the warp is
+// followed by a motion event at the new position (dragMotionHere) so
+// applications see a drag. The motion is best-effort. A warp the pointer
+// still makes beats one that fails because SendInput was refused.
 func moveCursorTo(point image.Point) error {
-	if heldButtons.AnyDown() {
-		err := dragMotionTo(point)
-		if err != nil {
-			return err
-		}
-	}
-
 	ret, _, err := procSetCursorPos.Call(uintptr(point.X), uintptr(point.Y))
 
 	callErr := win32Bool(ret, err)
 	if callErr != nil {
 		return fmt.Errorf("SetCursorPos: %w", callErr)
+	}
+
+	if heldButtons.AnyDown() {
+		_ = dragMotionHere()
 	}
 
 	return nil
