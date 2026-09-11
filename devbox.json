@@ -94,7 +94,7 @@
 	},
 	"shell": {
 		"init_hook": [
-			"test -n \"$TESSDATA_PREFIX\" || export TESSDATA_PREFIX=\"$DEVBOX_PACKAGES_DIR/share/tessdata\""
+			"printenv TESSDATA_PREFIX | grep -q . || export TESSDATA_PREFIX=\"$DEVBOX_PACKAGES_DIR/share/tessdata\""
 		]
 	}
 }
