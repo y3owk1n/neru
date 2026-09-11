@@ -61,8 +61,13 @@ what every other platform's hotkey mechanism already does. Modifier passthrough
 becomes "re-emit this press after all": the held modifiers go out with it and
 stay the compositor's until they are physically released, with no re-tap per
 auto-repeat and nothing to unwind when the mode ends. And a mode never sees the
-activation chord's modifier, since the session counts only presses withheld for
-it, so a hint label typed while Super is still coming up is the label.
+activation chord's modifier, since the session counts only presses made after
+it began, so a hint label typed while Super is still coming up is the label.
+Modifiers themselves are never withheld, in a mode or out of one. The
+compositor's picture of them is always the physical one, and a compositor bind
+on a bare modifier keeps firing while a mode is open (#1665). That is what the
+other platforms do already. The macOS tap returns every flags-changed event and
+the Windows hook forwards every modifier.
 
 Withholding has one side effect the tap never had, because the tap left the
 chord's key with the compositor. A modifier pressed and released with nothing

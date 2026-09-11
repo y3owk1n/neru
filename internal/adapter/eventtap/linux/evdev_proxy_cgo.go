@@ -429,10 +429,11 @@ func (p *evdevProxy) handleKey(event waylandEvdevEvent) {
 		// A chord the idle matcher takes is withheld, so the focused app never
 		// sees the activation chord — what the macOS tap does by consuming
 		// the event. The match runs before the forward decision for that.
-		withhold := p.session != nil
-		if !withhold && modifier == "" && p.matchHotkey(code) {
-			withhold = true
-		}
+		//
+		// A modifier is never withheld, so a compositor bind on a bare
+		// modifier keeps firing while a mode is open (#1665), as on macOS
+		// and Windows. The session still reads it for its sticky toggle.
+		withhold := modifier == "" && (p.session != nil || p.matchHotkey(code))
 
 		forwarded := p.rule.press(code, withhold)
 		if forwarded {

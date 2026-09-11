@@ -15,8 +15,9 @@ const evdevBitsPerWord = 64
 //
 // The whole of it is one invariant, and the invariant is what makes an instant
 // grab safe: **a release is forwarded exactly when its press was.** A press is
-// forwarded whenever no mode is capturing, and withheld otherwise; its release
-// then follows the press wherever it went, and a repeat follows the press too.
+// forwarded whenever no mode is capturing, and withheld otherwise, except that
+// a modifier's press is always forwarded (handleKey). Its release then follows
+// the press wherever it went, and a repeat follows the press too.
 // So a mode that starts under a held activation chord costs nothing — the
 // chord's presses went to the compositor, so their releases do as well, and the
 // compositor's picture of the keyboard is never wrong in either direction. That

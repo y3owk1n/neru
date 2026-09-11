@@ -16,13 +16,15 @@ import (
 // evdevSession is the consumer of key events while a mode is open. Every
 // method runs on the proxy's run goroutine.
 //
-// It keeps its own picture of the modifiers, counting only presses the proxy
-// withheld for it. A modifier that was already down when the session began —
-// the activation chord's — was forwarded, so the compositor owns its release
-// and the mode never sees it as a sticky toggle. It still names chords while
-// it is down. The macOS tap reads it off every event's flags and the X11 tap
-// counts it from the keyboard state after the grab, so Alt held from the
-// activation chord and Space pressed again is Alt+Space on every platform.
+// It keeps its own picture of the modifiers, counting only presses made since
+// it began. Every modifier press is forwarded to the compositor, and the
+// session reads it on the way past, as the macOS tap reads the flags off an
+// event it returns. A modifier already down when the session began is the
+// activation chord's. The mode never sees that one as a sticky toggle, though
+// it still names chords while it is down. The macOS tap reads it off every
+// event's flags and the X11 tap counts it from the keyboard state after the
+// grab, so Alt held from the activation chord and Space pressed again is
+// Alt+Space on every platform.
 // Sticky detection arms once the chord has finished coming up, and the
 // session's own count starts at a clean slate.
 type evdevSession struct {
@@ -71,16 +73,22 @@ func (s *evdevSession) begin(proxy *evdevProxy) {
 }
 
 func (s *evdevSession) handlePress(code uint16, modifier string, forwarded bool) {
-	if forwarded {
-		// Held before the session, or a second keyboard repeating a key the
-		// compositor already has down: not the mode's.
-		return
-	}
-
 	if modifier != "" {
+		// Forwarded, like every modifier. The session reads it unless it
+		// is the activation chord's, on this keyboard or a second one.
+		if s.forwardedModifiers[code] {
+			return
+		}
+
 		s.state.trackModifier(code, modifier, true)
 		s.dispatchStickyToggle(modifier, true)
 
+		return
+	}
+
+	if forwarded {
+		// A second keyboard repeating a key the compositor already has down:
+		// not the mode's.
 		return
 	}
 

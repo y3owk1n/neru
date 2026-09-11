@@ -517,6 +517,40 @@ func TestEvdevProxy_SessionStartsUnderTheChordWithoutCountingIt(t *testing.T) {
 	}
 }
 
+// A modifier tapped while a mode is open reaches the compositor, press and
+// release, so a compositor bind on the bare modifier keeps firing. In #1665
+// Super alone toggled grid on Hyprland until the evdev capture engaged, then
+// every tap was swallowed as a sticky toggle. The mode still reads the tap as
+// one, as on macOS, where the tap returns every flags-changed event.
+func TestEvdevProxy_SessionForwardsAModifierTapToTheCompositor(t *testing.T) {
+	t.Parallel()
+
+	proxy := newTestProxy()
+	tap, keys := collectKeys(t)
+	tap.SetStickyModifierToggle(true)
+	beginSession(proxy, tap)
+
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
+
+	if !proxy.rule.isDown(evdevKeyLeftMeta) {
+		t.Fatal("a modifier pressed during the session was withheld from the compositor")
+	}
+
+	if got := nextKey(t, keys); got != "__modifier_cmd_down" {
+		t.Fatalf("dispatched %q for a forwarded Super press, want a sticky toggle", got)
+	}
+
+	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValueRelease))
+
+	if proxy.rule.isDown(evdevKeyLeftMeta) {
+		t.Fatal("the modifier's release did not follow its press to the compositor")
+	}
+
+	if got := nextKey(t, keys); got != "__modifier_cmd_up" {
+		t.Fatalf("dispatched %q for a forwarded Super release, want a sticky toggle", got)
+	}
+}
+
 // A press withheld for the mode is followed by its release: the mode sees both,
 // the compositor neither. A release for a press the mode never saw reaches it
 // no more than the press did.
@@ -587,8 +621,8 @@ func TestEvdevProxy_PassthroughForwardsTheChordAndItsHeldModifiers(t *testing.T)
 
 	proxy.handle(keyEvent(evdevKeyLeftCtrl, evdevValuePress))
 
-	if proxy.rule.isDown(evdevKeyLeftCtrl) {
-		t.Fatal("a modifier pressed during the session was forwarded before anything used it")
+	if !proxy.rule.isDown(evdevKeyLeftCtrl) {
+		t.Fatal("a modifier pressed during the session was withheld from the compositor")
 	}
 
 	proxy.handle(keyEvent(evdevKeyC, evdevValuePress))
