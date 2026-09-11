@@ -252,8 +252,6 @@ Themes, indicators, smooth cursor and scroll, virtual pointer, app exclusions an
 | [warpd](https://github.com/rvaiya/warpd)               | Grid + hints + normal pointer                   |  ✅   |  ✅   |   ✅    | Free     | ✅ (dormant)      |
 | [Vimac](https://github.com/nchudleigh/vimac)           | AX hints                                        |  ✅   |       |         | Free     | ✅ (superseded by Homerow) |
 
-Neru is the only free tool in the list that runs on all three platforms.
-
 ---
 
 ## Community
