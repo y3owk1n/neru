@@ -404,9 +404,11 @@ Neru returns to idle. On macOS it selects the drag event type for cursor moves,
 which Quartz requires. On Windows an application reads a drag only out of
 intermediate motion: a press, one jump and a release select nothing, whichever
 primitive makes the jump. A warp while a button is held is therefore spread
-over a short glide of `SetCursorPos` steps, and the release of a held button
-waits a few milliseconds after its last motion so the application processes
-the move before the button-up. The Linux backends warp the pointer and let the compositor infer the drag.
+over a short glide of `SetCursorPos` steps, each followed by an injected
+`MOUSEEVENTF_MOVE` at the same pixel because Windows moves the pointer for
+`SetCursorPos` during a held drag without redrawing it, and the release of a
+held button waits a few milliseconds after its last motion so the application
+processes the move before the button-up. The Linux backends warp the pointer and let the compositor infer the drag.
 
 ---
 

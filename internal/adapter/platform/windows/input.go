@@ -24,16 +24,27 @@ const (
 	inputMouse    = 0
 	inputKeyboard = 1
 
-	mouseeventfMove       = 0x0001
-	mouseeventfLeftDown   = 0x0002
-	mouseeventfLeftUp     = 0x0004
-	mouseeventfRightDown  = 0x0008
-	mouseeventfRightUp    = 0x0010
-	mouseeventfMiddleDown = 0x0020
-	mouseeventfMiddleUp   = 0x0040
-	mouseeventfWheel      = 0x0800
-	mouseeventfHWheel     = 0x1000
-	mouseeventfAbsolute   = 0x8000
+	mouseeventfMove        = 0x0001
+	mouseeventfLeftDown    = 0x0002
+	mouseeventfLeftUp      = 0x0004
+	mouseeventfRightDown   = 0x0008
+	mouseeventfRightUp     = 0x0010
+	mouseeventfMiddleDown  = 0x0020
+	mouseeventfMiddleUp    = 0x0040
+	mouseeventfWheel       = 0x0800
+	mouseeventfHWheel      = 0x1000
+	mouseeventfAbsolute    = 0x8000
+	mouseeventfVirtualDesk = 0x4000
+
+	// absoluteCoordinateRange is the span an absolute mouse event's dx and dy
+	// address across the virtual desktop. Windows maps a value back to a
+	// pixel as value * width / 65536, floored.
+	absoluteCoordinateRange = 65536
+
+	smXVirtualScreen  = 76
+	smYVirtualScreen  = 77
+	smCxVirtualScreen = 78
+	smCyVirtualScreen = 79
 
 	// dragGlideSteps and dragGlideInterval shape the motion a warp becomes
 	// while a button is held. Applications do not turn a single move into a
@@ -328,6 +339,57 @@ func dragGlidePoints(from, target image.Point, steps int) []image.Point {
 	}
 
 	return points
+}
+
+// dragMotionTo posts one absolute MOUSEEVENTF_MOVE at point through SendInput.
+//
+// While a button this process holds is down, Windows updates the pointer's
+// position for SetCursorPos but does not redraw the pointer image: the drag
+// lands and GetCursorPos reports the target, and the arrow on screen stays
+// where the press was. An injected move at the same pixel is what redraws
+// it. The absolute coordinate is chosen so Windows floors it back to the
+// exact pixel, and it follows the warp so the pointer is drawn where it is.
+func dragMotionTo(point image.Point) error {
+	desktop := virtualScreenMetrics()
+
+	var event input
+
+	event.inputType = inputMouse
+	event.mi.dwFlags = mouseeventfMove | mouseeventfAbsolute | mouseeventfVirtualDesk
+	event.mi.dx = absoluteCoordinate(point.X, desktop.Min.X, desktop.Dx())
+	event.mi.dy = absoluteCoordinate(point.Y, desktop.Min.Y, desktop.Dy())
+
+	return sendOneInput(unsafe.Pointer(&event), unsafe.Sizeof(event))
+}
+
+// virtualScreenMetrics reads the virtual desktop rectangle from the same
+// system metrics Windows maps absolute mouse coordinates against.
+func virtualScreenMetrics() image.Rectangle {
+	left, _, _ := procGetSystemMetrics.Call(smXVirtualScreen)
+	top, _, _ := procGetSystemMetrics.Call(smYVirtualScreen)
+	width, _, _ := procGetSystemMetrics.Call(smCxVirtualScreen)
+	height, _, _ := procGetSystemMetrics.Call(smCyVirtualScreen)
+
+	origin := image.Point{X: int(int32(left)), Y: int(int32(top))}
+
+	return image.Rectangle{
+		Min: origin,
+		Max: origin.Add(image.Point{X: int(int32(width)), Y: int(int32(height))}),
+	}
+}
+
+// absoluteCoordinate maps a pixel on one axis of the virtual desktop onto the
+// absolute range so that Windows' floor(value * size / 65536) lands on that
+// pixel again: the smallest value whose product reaches the pixel.
+func absoluteCoordinate(pixel, origin, size int) int32 {
+	if size <= 0 {
+		return 0
+	}
+
+	offset := min(max(pixel-origin, 0), size-1)
+	value := (offset*absoluteCoordinateRange + size - 1) / size
+
+	return int32(min(value, absoluteCoordinateRange-1))
 }
 
 // dragReleaseAt posts the release of a drag this process holds. It brings

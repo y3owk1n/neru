@@ -58,6 +58,7 @@ var (
 
 	procGetCursorPos        = user32.NewProc("GetCursorPos")
 	procSetCursorPos        = user32.NewProc("SetCursorPos")
+	procGetSystemMetrics    = user32.NewProc("GetSystemMetrics")
 	procGetWindowRect       = user32.NewProc("GetWindowRect")
 	procEnumDisplayMonitors = user32.NewProc("EnumDisplayMonitors")
 	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
@@ -113,13 +114,20 @@ func moveCursorTo(point image.Point) error {
 	return warpCursor(point)
 }
 
-// warpCursor is one SetCursorPos.
+// warpCursor is one SetCursorPos, followed while a button is held by the
+// injected move that gets the pointer redrawn there (dragMotionTo). The
+// redraw is best-effort: a warp the pointer still makes beats one that fails
+// because SendInput was refused.
 func warpCursor(point image.Point) error {
 	ret, _, err := procSetCursorPos.Call(uintptr(point.X), uintptr(point.Y))
 
 	callErr := win32Bool(ret, err)
 	if callErr != nil {
 		return fmt.Errorf("SetCursorPos: %w", callErr)
+	}
+
+	if heldButtons.AnyDown() {
+		_ = dragMotionTo(point)
 	}
 
 	return nil
