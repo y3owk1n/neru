@@ -160,6 +160,19 @@ func TestActivateMode_HandsTheWholeActivationToTheMode(t *testing.T) {
 				ZoomToDepth:           &depth,
 			},
 		},
+		{
+			name: "recursive grid, zoom around cursor",
+			want: modecmd.Activation{
+				Mode:                  domain.ModeRecursiveGrid,
+				Action:                &act,
+				Modifier:              &modifier,
+				OnExit:                []string{stepExecFoo},
+				Repeat:                &given,
+				Toggle:                &given,
+				CursorFollowSelection: &holdCursor,
+				ZoomAroundCursor:      &depth,
+			},
+		},
 	}
 
 	for _, testCase := range tests {

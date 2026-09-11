@@ -37,6 +37,10 @@ const (
 	// value is unusable.
 	msgZoomToDepth = "--zoom-to-depth requires a non-negative integer"
 
+	// msgZoomAroundCursor is the one message that flag gives, whichever way its
+	// value is unusable.
+	msgZoomAroundCursor = "--zoom-around-cursor requires a non-negative integer"
+
 	// The messages both this file and the diagnosis cases pin, so that the two
 	// readings of the same command are held to the same sentence.
 	msgRepeatNeedsAction = "--repeat requires --action"
@@ -167,6 +171,12 @@ func flagCases() map[modecmd.Flag]flagCase {
 			args:    []string{"--zoom-to-depth=3"},
 			applied: func(a modecmd.Activation) bool { return a.ZoomToDepth != nil },
 			build:   func(a *modecmd.Activation) { a.ZoomToDepth = new(3) },
+		},
+		modecmd.FlagZoomAroundCursor: {
+			mode:    domain.ModeRecursiveGrid,
+			args:    []string{"--zoom-around-cursor=2"},
+			applied: func(a modecmd.Activation) bool { return a.ZoomAroundCursor != nil },
+			build:   func(a *modecmd.Activation) { a.ZoomAroundCursor = new(2) },
 		},
 		modecmd.FlagCursorSelectionMode: {
 			mode:    domain.ModeGrid,
@@ -665,6 +675,26 @@ func TestParse_RefusalMessages(t *testing.T) {
 			domain.ModeRecursiveGrid,
 			[]string{"--zoom-to-depth=deep"},
 			msgZoomToDepth,
+		},
+		{
+			domain.ModeRecursiveGrid,
+			[]string{"--zoom-around-cursor"},
+			msgZoomAroundCursor,
+		},
+		{
+			domain.ModeRecursiveGrid,
+			[]string{"--zoom-around-cursor=-1"},
+			msgZoomAroundCursor,
+		},
+		{
+			domain.ModeRecursiveGrid,
+			[]string{"--zoom-around-cursor=deep"},
+			msgZoomAroundCursor,
+		},
+		{
+			domain.ModeRecursiveGrid,
+			[]string{"--zoom-to-depth=2", "--zoom-around-cursor=1"},
+			"--zoom-to-depth and --zoom-around-cursor cannot be used together",
 		},
 		{domain.ModeHints, []string{flagStrategy}, msgStrategyValue},
 		{

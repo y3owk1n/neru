@@ -2975,3 +2975,91 @@ func TestSimulation_GlobalHotkeyTogglesAModeItEnteredItself(t *testing.T) {
 		return sim.app.CurrentMode() == domain.ModeIdle
 	})
 }
+
+// TestSimulation_RecursiveGrid_ZoomAroundCursorCentersGridAroundCursor asserts that
+// activating recursive_grid with --zoom-around-cursor=1 centers the subgrid
+// around the cursor position at that depth.
+func TestSimulation_RecursiveGrid_ZoomAroundCursorCentersGridAroundCursor(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings["Ctrl+Alt+Z"] = []string{"recursive_grid --zoom-around-cursor=1"}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	// Move cursor away from center to a specific location (not near screen edges)
+	targetCursor := image.Point{X: 500, Y: 400}
+	sim.cursor.moveTo(targetCursor)
+
+	// Press hotkey that activates recursive_grid --zoom-around-cursor=1
+	sim.pressHotkey("Ctrl+Alt+Z")
+	sim.waitMode(domain.ModeRecursiveGrid)
+	sim.waitFor("recursive grid drawn", func() bool {
+		_, ok := sim.overlay.lastRecursiveGridBounds()
+		return ok
+	})
+
+	newBounds, _ := sim.overlay.lastRecursiveGridBounds()
+	center := image.Point{
+		X: newBounds.Min.X + newBounds.Dx()/2,
+		Y: newBounds.Min.Y + newBounds.Dy()/2,
+	}
+	if math.Abs(float64(center.X-targetCursor.X)) > 2 || math.Abs(float64(center.Y-targetCursor.Y)) > 2 {
+		t.Fatalf("new center = %v, want targetCursor %v", center, targetCursor)
+	}
+
+	// Backtracking should return to full grid
+	sim.press("Backspace")
+	sim.waitFor("full grid restored after backtrack", func() bool {
+		bounds, ok := sim.overlay.lastRecursiveGridBounds()
+		return ok && bounds == simScreen
+	})
+}
+
+// TestSimulation_RecursiveGrid_PostClickZoomAroundCursor asserts that a hotkey sequence
+// executing a click followed by recursive_grid --zoom-around-cursor=1 while already in
+// recursive_grid mode re-centers the subgrid at depth 1 around the click point.
+func TestSimulation_RecursiveGrid_PostClickZoomAroundCursor(t *testing.T) {
+	cfg := simConfig()
+	cfg.RecursiveGrid.Hotkeys = map[string]config.StringOrStringArray{
+		"Shift+L": {"action left_click", "recursive_grid --zoom-around-cursor=1"},
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+	sim.waitFor("recursive grid drawn", func() bool {
+		_, ok := sim.overlay.lastRecursiveGridBounds()
+		return ok
+	})
+
+	initialBounds, _ := sim.overlay.lastRecursiveGridBounds()
+	if initialBounds != simScreen {
+		t.Fatalf("initial bounds = %v, want full screen %v", initialBounds, simScreen)
+	}
+
+	clicksBefore := len(sim.ax.recordedClicks())
+	cursorPos := sim.cursor.position()
+
+	// Press in-grid click+zoom hotkey Shift+L
+	sim.press("Shift+L")
+
+	// Wait for click to be performed
+	sim.waitFor("click performed", func() bool {
+		return len(sim.ax.recordedClicks()) > clicksBefore
+	})
+
+	// Wait for recursive grid to be regenerated at depth 1 around cursorPos
+	sim.waitFor("recursive grid regenerated at depth 1", func() bool {
+		bounds, ok := sim.overlay.lastRecursiveGridBounds()
+		return ok && bounds != initialBounds
+	})
+
+	newBounds, _ := sim.overlay.lastRecursiveGridBounds()
+	center := image.Point{
+		X: newBounds.Min.X + newBounds.Dx()/2,
+		Y: newBounds.Min.Y + newBounds.Dy()/2,
+	}
+	if math.Abs(float64(center.X-cursorPos.X)) > 2 || math.Abs(float64(center.Y-cursorPos.Y)) > 2 {
+		t.Fatalf("new center = %v, want cursorPos %v", center, cursorPos)
+	}
+}

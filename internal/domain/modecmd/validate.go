@@ -18,6 +18,7 @@ const (
 	msgOnExitRequiresAction            = "--on-exit requires --action (it runs only when the action is fulfilled)"
 	msgModifierRequiresAction          = "--modifier requires --action"
 	msgHideOnEmptySearchRequiresSearch = "--hide-on-empty-search requires --search"
+	msgZoomConflict                    = "--zoom-to-depth and --zoom-around-cursor cannot be used together"
 	msgModifierEmpty                   = "modifier values cannot be empty"
 	msgNameRequired                    = "mode requires the name of a declared mode: mode <name>"
 	msgNameInvalid                     = "a mode name starts with a letter and continues with letters, digits, _ or -"
@@ -95,6 +96,12 @@ var dependencies = []dependency{
 	{
 		unmet:   func(a Activation) bool { return a.Modifier != nil && a.Action == nil },
 		message: msgModifierRequiresAction,
+	},
+	{
+		unmet: func(a Activation) bool {
+			return a.ZoomToDepth != nil && a.ZoomAroundCursor != nil
+		},
+		message: msgZoomConflict,
 	},
 }
 

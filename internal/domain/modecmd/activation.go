@@ -61,6 +61,9 @@ type Activation struct {
 	// ZoomToDepth auto-zooms recursive grid to a depth.
 	ZoomToDepth *int
 
+	// ZoomAroundCursor auto-drills recursive grid to a depth centered around the cursor.
+	ZoomAroundCursor *int
+
 	// FilterRoles keeps only the elements with these accessibility roles.
 	FilterRoles []string
 
