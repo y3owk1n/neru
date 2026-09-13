@@ -1,5 +1,5 @@
 ---
-name: add-cli-command
+name: neru-add-cli-command
 description: "Add a Neru CLI command or flag: cobra command in internal/cli, IPC handler in internal/app/ipcctrl, service/mode work behind it, man pages, and docs/CLI.md. Use when adding or changing user-facing commands, subcommands, or flags. Not for config.toml options."
 ---
 

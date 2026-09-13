@@ -1,5 +1,5 @@
 ---
-name: add-platform-feature
+name: neru-add-platform-feature
 description: "Implement or stub Neru functionality for a specific OS/backend: port contract, build-tagged file slots, factory wiring, CodeNotSupported stubs, capability matrix, contract tests, and the docs ownership table. Use for any change under internal/adapter/platform or any *_darwin/_linux/_windows file. Not for pure-Go domain logic."
 ---
 

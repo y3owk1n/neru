@@ -20,7 +20,7 @@ body:
     - type: input
       attributes:
           label: Neru version
-          description: Run `neru version` and paste the output.
+          description: Run `neru --version` and paste the output.
           placeholder: "1.26.0"
       validations:
           required: true

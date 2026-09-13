@@ -1,5 +1,5 @@
 ---
-name: add-config-option
+name: neru-add-config-option
 description: "Add or change a Neru config.toml option end to end: struct field, shared and platform defaults, validation, examples, docs, and hot-reload behavior. Use whenever a change adds, renames, or removes a key in the TOML config schema. Not for theme palette entries or CLI flags."
 ---
 

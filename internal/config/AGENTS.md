@@ -25,7 +25,7 @@ Link 5 exempts nothing, and collapses one shape: a `Color` is declared at the fi
 
 **What the guardrails do not reach.** Links 2 and 3 exempt three shapes, and an option with one of them can skip both with nothing failing: the `light`/`dark` leaves under a `Color` (`ResolveThemeDefaults()` fills those), a collection that ships empty, and every field of a repeated table nobody ships entries for (`app_configs`, `layers`). The exemptions are structural and recomputed from the live defaults each run, and the named allowlist beside each is empty — adding to it is a decision that wants a written reason (ADR 0006). If your option is one of those shapes, the reviewer is the only check.
 
-The `add-config-option` skill walks this end to end, plus tests. Fast check: `just test-foundation`.
+The `neru-add-config-option` skill walks this end to end, plus tests. Fast check: `just test-foundation`.
 
 **Refusing costs the whole file.** A failed `Validate()` replaces the entire configuration with the defaults, not the offending line, so a check that would refuse a setting the user is living with belongs in the warnings channel instead: `ValidateWithWarnings` collects them, they ride out on `LoadResult`, and `neru config validate` prints them. The line between the two, and why it sits where it does, is ADR 0002 (`docs/adr/0002-severity-tiered-config-validation.md`). Everything else still refuses loudly — never silently clamp.
 

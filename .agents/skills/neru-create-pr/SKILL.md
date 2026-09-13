@@ -1,5 +1,5 @@
 ---
-name: create-pr
+name: neru-create-pr
 description: "Commit working changes and open a Neru pull request the maintainer's way: conventional commit subjects, a PR title written for the changelog, the just ci gate, and the repo PR template filled honestly. Use when asked to commit, create a PR, open a pull request, or ship finished work in this repo."
 ---
 

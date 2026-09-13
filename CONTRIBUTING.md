@@ -229,8 +229,8 @@ instead of guessing:
   go in gitignored `AGENTS.local.md` / `CLAUDE.local.md`.
 - **`.agents/skills/`** holds step-by-step workflows for the changes that are
   easiest to half-finish — adding a config option, adding a CLI command,
-  platform work — plus contribution mechanics: `create-pr` encodes the commit
-  and PR-template conventions below, and `file-issue` encodes the issue forms.
+  platform work — plus contribution mechanics: `neru-create-pr` encodes the commit
+  and PR-template conventions below, and `neru-file-issue` encodes the issue forms.
   `.claude/skills` is a symlink to it, so Claude Code, Codex, and OpenCode all
   discover the same skills.
 - **`.claude/agents/`** holds focused review profiles
@@ -275,7 +275,7 @@ Longer-term direction is in [ROADMAP.md](docs/ROADMAP.md).
 Open a [GitHub Issue](https://github.com/y3owk1n/neru/issues/new) with:
 
 1. **Your platform** (macOS/Linux/Windows and version; on Linux, your desktop
-   and session type) and **Neru version** (`neru version`).
+   and session type) and **Neru version** (`neru --version`).
 2. **Steps to reproduce** — minimal and specific.
 3. **Expected vs actual behavior**.
 4. **Logs** — set `log_level = "debug"` and attach the relevant lines. Log paths

@@ -241,7 +241,7 @@ func TestRepoWalk_SkipsOtherCheckoutsOnly(t *testing.T) {
 	writeWalkFile(t, root, ".git/config")
 
 	writeWalkFile(t, root, keptGoFile)
-	writeWalkFile(t, root, ".claude/skills/create-pr/SKILL.md")
+	writeWalkFile(t, root, ".claude/skills/neru-create-pr/SKILL.md")
 
 	// A first-party directory that happens to be called worktrees.
 	writeWalkFile(t, root, "worktrees/keep.go")
@@ -273,7 +273,7 @@ func TestRepoWalk_SkipsOtherCheckoutsOnly(t *testing.T) {
 	writeWalkFile(t, root, ".golangci-cache/00/00deadbeef-a")
 
 	want := []string{
-		".claude/skills/create-pr/SKILL.md",
+		".claude/skills/neru-create-pr/SKILL.md",
 		keptGoFile,
 		"tmp/keep.go",
 		"worktrees/keep.go",

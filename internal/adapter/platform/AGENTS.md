@@ -9,4 +9,4 @@ The One Rule (root `AGENTS.md`) is enforced here hardest: non-darwin-tagged code
 - **Coordinates** — shared code is global top-left origin, Y down, unscaled pixels. Cocoa's bottom-left flip happens inside the darwin adapter, open-coded at each site that needs it rather than in one file; the whole of what the rule buys is that no flipped value reaches shared Go. `docs/ARCHITECTURE.md` ("Coordinate System") owns the detail, including which packages are *not* where a flip lives.
 - **`linux/wlr_protocol/` is generated** (`just generate-all-protocols`); never hand-edit.
 
-Cross-compile every platform you touch (`just build-linux`, `just build-windows`) — build tags hide breakage from a host-only build. The `add-platform-feature` skill walks the full checklist; run the `platform-boundary-reviewer` agent on the diff before opening a PR.
+Cross-compile every platform you touch (`just build-linux`, `just build-windows`) — build tags hide breakage from a host-only build. The `neru-add-platform-feature` skill walks the full checklist; run the `platform-boundary-reviewer` agent on the diff before opening a PR.

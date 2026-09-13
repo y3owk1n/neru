@@ -480,7 +480,7 @@ naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 **Configuration options** — the full chain (schema → defaults → platform
 overrides → validation → examples → docs) is documented in
 [internal/config/AGENTS.md](../internal/config/AGENTS.md); the
-`add-config-option` skill in `.agents/skills/` walks it step by step.
+`neru-add-config-option` skill in `.agents/skills/` walks it step by step.
 
 **Actions**
 
@@ -503,7 +503,7 @@ overrides → validation → examples → docs) is documented in
 
 **CLI commands** — cobra command in `internal/cli/` (registered in an
 `init()`), the matching IPC handler in `internal/app/ipcctrl/`, `just genman`,
-and [CLI.md](CLI.md); the `add-cli-command` skill walks it step by step.
+and [CLI.md](CLI.md); the `neru-add-cli-command` skill walks it step by step.
 
 **Mode flags** — one entry in the descriptor table in
 `internal/domain/modecmd`, then `just genflagref`. The entry is what registers

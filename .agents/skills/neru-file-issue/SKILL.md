@@ -1,5 +1,5 @@
 ---
-name: file-issue
+name: neru-file-issue
 description: "File a Neru bug report or feature request that matches the repo's issue forms: duplicate check first, every required field filled with real diagnostics, correct labels. Use when asked to open, file, or draft a GitHub issue for Neru. Not for pull requests."
 ---
 
@@ -25,7 +25,7 @@ validator.
 
 Mirror `bug_report.yml`'s fields as markdown sections, all of them:
 
-- **Neru version** — real output of `neru version`, never guessed.
+- **Neru version** — real output of `neru --version`, never guessed.
 - **Operating system** and **OS version** (`sw_vers` on macOS; distro +
   compositor on Linux, since behavior differs across X11/wlroots/KDE/GNOME).
 - **Navigation mode** — hints / grid / recursive grid / scroll / n.a.
