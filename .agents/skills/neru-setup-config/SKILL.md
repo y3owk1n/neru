@@ -18,9 +18,10 @@ The user rarely has a checkout. Every install method ships the binary and man
 pages only. Resolve the docs in this order:
 
 1. A checkout in the working directory: `docs/CONFIGURATION.md` exists.
-2. Man pages, installed by every method: `man neru-config-init`,
+2. Man pages on macOS and Linux: `man neru-config-init`,
    `man neru-config-set`, `man neru-config-validate`, `man neru-services`,
    and `man neru-hints` or another mode page for the flags a hotkey may pass.
+   On Windows, `neru <command> --help` carries the same text.
 3. The doc at the installed version, fetched from GitHub:
 
    ```bash
@@ -31,6 +32,18 @@ pages only. Resolve the docs in this order:
 
    A release build prints its tag. A dev build prints `v1.2.3-14-gabcdef`,
    which the `cut` maps to the release it was built from.
+
+   On Windows, where `man`, `sed`, and `cut` are usually absent, the same
+   fetch in PowerShell:
+
+   ```powershell
+   $tag = (((neru --version)[0] -replace '^Neru version ', '') -split '-')[0]
+   if ($tag -notmatch '^v\d+\.\d+\.\d+$') { $tag = 'main' }
+   Invoke-RestMethod "https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs/CONFIGURATION.md"
+   ```
+
+   `neru docs config` opens the same page in a browser on every platform,
+   which is enough when the user rather than the agent will read it.
 
 The file `neru config init` writes is fully commented and names every key,
 so after step 2 below, the user's own file is the quickest reference.

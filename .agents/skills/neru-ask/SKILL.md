@@ -20,9 +20,10 @@ source build all ship them.
 
 - `neru --help`, then `neru <command> --help`. The help lists the flags and
   accepted values of the installed version.
-- `man neru`, and one page per subcommand such as `man neru-hints`,
-  `man neru-config-set`, and `man neru-action-left_click`. `apropos neru`
-  lists them.
+- `man neru` on macOS and Linux, and one page per subcommand such as
+  `man neru-hints`, `man neru-config-set`, and `man neru-action-left_click`.
+  `apropos neru` lists them. Windows has no `man`, and `--help` carries the
+  same text.
 - `neru status` for whether the daemon runs and which mode is open.
 - `neru doctor` for config validity, socket health, permissions, and which
   capabilities this platform has. It runs without the daemon.
@@ -43,7 +44,14 @@ curl -fsSL "https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs/CLI.md"
 ```
 
 A release build prints its tag. A dev build prints `v1.2.3-14-gabcdef`,
-which the `cut` maps to the release it was built from.
+which the `cut` maps to the release it was built from. On Windows, where
+`sed` and `cut` are usually absent, the same fetch in PowerShell:
+
+```powershell
+$tag = (((neru --version)[0] -replace '^Neru version ', '') -split '-')[0]
+if ($tag -notmatch '^v\d+\.\d+\.\d+$') { $tag = 'main' }
+Invoke-RestMethod "https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs/CLI.md"
+```
 
 The docs are `CLI.md` for every command, flag, and the IPC protocol,
 `CONFIGURATION.md` for every key with its default and platform column,

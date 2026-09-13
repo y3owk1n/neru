@@ -104,7 +104,7 @@ we do not have yet.
 - **Only `default-config.toml` is embedded.** `configs/embed.go` reaches one
   file; the other three shipped examples are read from disk in tests. Any claim
   that the examples are "embedded and tested" has to say which, and
-  `add-config-option/SKILL.md` currently does not.
+  `neru-add-config-option/SKILL.md` currently does not.
 - **A cross-field rule now has one home.** ADR 0002 built the warnings tier so a
   setting that loads but will not do what it says reaches
   `neru config validate` instead of costing the user their file. The first
