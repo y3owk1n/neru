@@ -83,7 +83,7 @@ Formatting and lint mechanics are fully enforced by `just fmt` + `just lint` —
 
 ## Agent Resources
 
-- `.agents/skills/` is the canonical home for project skills; `.claude/skills` is a directory symlink to it — never add skill bodies there. Each skill may carry an `agents/openai.yaml` overlay for Codex.
+- `.agents/skills/` is the canonical home for project skills; `.claude/skills` is a directory symlink to it — never add skill bodies there. Each skill may carry an `agents/openai.yaml` overlay for Codex. `neru-add-config-option`, `neru-add-cli-command`, `neru-add-platform-feature`, `neru-create-pr` and `neru-file-issue` are for contributors. `neru-ask` and `neru-setup-config` are for users and must work without a checkout, since every install method ships the binary and man pages only.
 - `.claude/agents/` contains review profiles (`platform-boundary-reviewer`, `deadlock-reviewer`) that read the current contract from these guide files.
 - `.claude/settings.json` wires a non-blocking format-on-edit hook.
 - The layout is pinned by `internal/architecture/agent_contract_test.go`: every `AGENTS.md` (root and nested) keeps a sibling `CLAUDE.md` symlink, and `.claude/skills` stays a symlink to `.agents/skills`.

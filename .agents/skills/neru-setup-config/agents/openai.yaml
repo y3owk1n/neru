@@ -1,0 +1,4 @@
+interface:
+  display_name: "Setup Config"
+  short_description: "Create or change config.toml, validate it, and apply it correctly"
+  default_prompt: "Use $neru-setup-config to set up my Neru config for what I describe, validate it, and apply it."

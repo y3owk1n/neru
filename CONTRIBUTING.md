@@ -231,6 +231,9 @@ instead of guessing:
   easiest to half-finish — adding a config option, adding a CLI command,
   platform work — plus contribution mechanics: `neru-create-pr` encodes the commit
   and PR-template conventions below, and `neru-file-issue` encodes the issue forms.
+  `neru-ask` and `neru-setup-config` are for users rather than contributors and
+  read the installed version's help and docs, so they must keep working
+  without a checkout.
   `.claude/skills` is a symlink to it, so Claude Code, Codex, and OpenCode all
   discover the same skills.
 - **`.claude/agents/`** holds focused review profiles

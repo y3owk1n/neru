@@ -704,6 +704,18 @@ Neru loads config from `~/.config/neru/config.toml` (recommended). See [CONFIGUR
 
 See [CONFIGURATION.md](CONFIGURATION.md) for all options. Having issues? Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
+### 5. Agent skills (optional)
+
+The repo carries two skills for coding agents such as Claude Code, Codex, and Cursor: `neru-ask` answers what Neru can do and which command or skill to use, and `neru-setup-config` walks through the config file, validates it and applies it correctly. Both read the help, man pages and docs of the installed version, so no checkout is needed.
+
+Install them into the current project with the [skills](https://skills.sh) CLI:
+
+```bash
+npx skills add y3owk1n/neru --skill neru-ask --skill neru-setup-config
+```
+
+Add `-g` to install them for every project. The repo holds five more for working on Neru itself. A checkout has all seven under `.agents/skills/`.
+
 ---
 
 ## Shell Completions

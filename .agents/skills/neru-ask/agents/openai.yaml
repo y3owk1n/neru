@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ask Neru"
+  short_description: "Answer what Neru can do and which command or skill to use"
+  default_prompt: "Use $neru-ask to answer my question about Neru from the installed version's help and docs."

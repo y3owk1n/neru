@@ -132,6 +132,14 @@ Neru offers to write a starter config and asks for what it needs:
 
 On Linux there are no default global hotkeys, to avoid colliding with terminal and desktop shortcuts. Bind the modes in `[hotkeys]` or in your compositor. [Global hotkeys on Linux](docs/CONFIGURATION.md#hotkeys)
 
+### Set up with an agent
+
+The repo ships two skills for coding agents such as Claude Code, Codex, and Cursor. `neru-ask` answers what Neru can do and which command does it, and `neru-setup-config` writes, validates and applies the config file. They read the help, man pages and docs of the installed version, so no checkout is needed.
+
+```bash
+npx skills add y3owk1n/neru --skill neru-ask --skill neru-setup-config
+```
+
 ---
 
 ## Pick your mode
