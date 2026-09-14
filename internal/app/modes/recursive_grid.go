@@ -84,9 +84,18 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 	// was when the mode was entered, and re-applying it on a repeat
 	// re-activation or a screen change would drag the user back down a level
 	// they had already climbed out of.
-	if activation.ZoomToDepth != nil && *activation.ZoomToDepth > 0 &&
+	//
+	// Auto-zoom around cursor (--zoom-around-cursor) centers a subgrid of
+	// the given depth directly at the current cursor position. Unlike
+	// zoom-to-depth, it is allowed during a refresh so hotkeys invoked
+	// while already in recursive-grid mode can reset around the cursor.
+	isZoomToDepthRequested := activation.ZoomToDepth != nil && *activation.ZoomToDepth > 0 &&
 		h.recursiveGrid.Manager != nil &&
-		!isRefresh {
+		!isRefresh
+	isZoomAroundCursorRequested := activation.ZoomAroundCursor != nil && *activation.ZoomAroundCursor >= 0 &&
+		h.recursiveGrid.Manager != nil
+
+	if isZoomToDepthRequested {
 		cursorPos, posErr := h.actionService.CursorPosition(h.ctx)
 		if posErr == nil {
 			localCursorPos := geometry.ConvertToLocalCoordinates(cursorPos, h.screenBounds)
@@ -94,13 +103,21 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 		} else {
 			h.logger.Warn("Failed to get cursor position for zoom", zap.Error(posErr))
 		}
+	} else if isZoomAroundCursorRequested {
+		cursorPos, posErr := h.actionService.CursorPosition(h.ctx)
+		if posErr == nil {
+			localCursorPos := geometry.ConvertToLocalCoordinates(cursorPos, h.screenBounds)
+			h.recursiveGrid.Manager.ResetAroundPoint(localCursorPos, *activation.ZoomAroundCursor)
+		} else {
+			h.logger.Warn("Failed to get cursor position for zoom around cursor", zap.Error(posErr))
+		}
 	}
 
 	// Move cursor to center of initial grid.
-	// When zoom-to-depth is active, skip this — the zoom completion handler
-	// (or partial-zoom handler below) positions the cursor from the user's
-	// actual cursor position rather than the grid center.
-	isZoomRequested := activation.ZoomToDepth != nil && *activation.ZoomToDepth > 0 && !isRefresh
+	// When zoom is active, skip this — the zoom completion handler
+	// positions the cursor from the user's actual cursor position rather than
+	// the grid center.
+	isZoomRequested := isZoomToDepthRequested || isZoomAroundCursorRequested
 	if !isZoomRequested {
 		h.selectRecursiveGridCenter(cursorShouldFollow, "Failed to move cursor to initial center")
 	}
@@ -115,7 +132,7 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 		)
 	}
 
-	// When zoom-to-depth completed (or clamped), update the selection point
+	// When zoom completed (or clamped), update the selection point
 	// to the zoomed position and let the user refine in interactive mode.
 	// The pending action fires on the next manual cell selection rather than
 	// executing immediately, which is consistent with normal grid behavior.

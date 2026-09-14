@@ -60,6 +60,9 @@ const (
 	// FlagZoomToDepth auto-zooms recursive grid to a depth.
 	FlagZoomToDepth Flag = "zoom-to-depth"
 
+	// FlagZoomAroundCursor auto-drills recursive grid to a depth centered around the cursor.
+	FlagZoomAroundCursor Flag = "zoom-around-cursor"
+
 	// FlagCursorSelectionMode chooses how the real cursor behaves during
 	// selection.
 	FlagCursorSelectionMode Flag = "cursor-selection-mode"
@@ -82,6 +85,7 @@ const (
 	msgCaptureScopeValue        = "--capture-scope requires window or screen"
 	msgLabelDirectionValue      = "--label-direction requires normal or reverse"
 	msgZoomToDepthValue         = "--zoom-to-depth requires a non-negative integer"
+	msgZoomAroundCursorValue    = "--zoom-around-cursor requires a non-negative integer"
 	msgCursorSelectionModeValue = "--cursor-selection-mode requires follow or hold"
 
 	// msgTakesNoValue completes the message a presence-only flag gives when it
@@ -113,6 +117,7 @@ const (
 	usageLabelDirection      = "Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)"
 	usageSplitWord           = "Split detected text into word-level regions (requires vision strategy)"
 	usageZoomToDepth         = "Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position"
+	usageZoomAroundCursor    = "Auto-drill to the given depth (a non-negative integer) in recursive-grid with the subgrid centered around the current cursor position"
 )
 
 // usageAction names the actions a mode can perform, so the vocabulary a user
@@ -546,6 +551,25 @@ var descriptors = []Descriptor{
 			}
 
 			return []string{FlagZoomToDepth.Assign(strconv.Itoa(*activation.ZoomToDepth))}
+		},
+	),
+	valueFlag(FlagZoomAroundCursor, "", usageZoomAroundCursor, msgZoomAroundCursorValue, recursiveGridOnly,
+		func(activation *Activation, value string) error {
+			depth, err := strconv.Atoi(value)
+			if err != nil || depth < 0 {
+				return invalid(msgZoomAroundCursorValue)
+			}
+
+			activation.ZoomAroundCursor = &depth
+
+			return nil
+		},
+		func(activation Activation) []string {
+			if activation.ZoomAroundCursor == nil {
+				return nil
+			}
+
+			return []string{FlagZoomAroundCursor.Assign(strconv.Itoa(*activation.ZoomAroundCursor))}
 		},
 	),
 	valueFlag(FlagCursorSelectionMode, "", usageCursorSelectionMode, msgCursorSelectionModeValue,
