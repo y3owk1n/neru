@@ -358,19 +358,20 @@ func (s *ActionService) MoveMouseToCenterOfMonitor(
 	monitorName string,
 	offsetX, offsetY int,
 ) error {
-	bounds, found, err := s.system.ScreenBoundsByName(ctx, monitorName)
+	screens, err := s.system.Screens(ctx)
 	if err != nil {
-		s.logger.Error("Failed to get screen bounds by name", zap.Error(err))
+		s.logger.Error("Failed to enumerate screens", zap.Error(err))
 
-		return derrors.WrapAccessibilityFailed(err, "get screen bounds by name")
+		return derrors.WrapAccessibilityFailed(err, "enumerate screens")
 	}
 
+	screen, found := ports.ScreenByName(screens, monitorName)
 	if !found {
-		// Fetch available names to include in the error message for discoverability
+		// The error lists the names the user can pick from.
 		available := ""
 
-		names, namesErr := s.system.ScreenNames(ctx)
-		if namesErr == nil && len(names) > 0 {
+		names := ports.ScreenNames(screens)
+		if len(names) > 0 {
 			available = "; available monitors: " + strings.Join(names, ", ")
 		}
 
@@ -386,6 +387,7 @@ func (s *ActionService) MoveMouseToCenterOfMonitor(
 		)
 	}
 
+	bounds := screen.Bounds
 	centerX := bounds.Min.X + bounds.Dx()/2 //nolint:mnd
 	centerY := bounds.Min.Y + bounds.Dy()/2 //nolint:mnd
 	target := image.Point{X: centerX + offsetX, Y: centerY + offsetY}

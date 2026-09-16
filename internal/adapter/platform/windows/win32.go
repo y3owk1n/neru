@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Low-level Win32 helpers for screen, cursor, window, and process queries.
@@ -45,6 +46,7 @@ type displayDevice struct {
 
 type displayMonitor struct {
 	name   string
+	device string
 	bounds image.Rectangle
 }
 
@@ -269,6 +271,7 @@ func collectMonitor(hMonitor uintptr, _ uintptr, _ uintptr, _ uintptr) uintptr {
 	deviceName := windows.UTF16ToString(info.szDevice[:])
 	monitorEnumTarget.monitors = append(monitorEnumTarget.monitors, displayMonitor{
 		name:   monitorFriendlyName(deviceName),
+		device: deviceName,
 		bounds: rectToImage(info.rcMonitor),
 	})
 
@@ -352,33 +355,39 @@ func packMonitorPoint(point image.Point) uintptr {
 	return uintptr(uint64(uint32(point.X)) | uint64(uint32(point.Y))<<32)
 }
 
-func screenBoundsByName(name string) (image.Rectangle, bool, error) {
-	monitors, err := enumerateMonitors()
-	if err != nil {
-		return image.Rectangle{}, false, err
-	}
-
-	for _, monitor := range monitors {
-		if strings.EqualFold(monitor.name, name) {
-			return monitor.bounds, true, nil
-		}
-	}
-
-	return image.Rectangle{}, false, nil
-}
-
-func screenNames() ([]string, error) {
+// screens is the port's view of one enumeration pass. The friendly name is
+// the driver's model string, which is "Generic PnP Monitor" for most
+// displays. When a name repeats, each of its screens gets its device name
+// as a suffix, such as "(DISPLAY5)", so `move_monitor --name` can tell them
+// apart.
+func screens() ([]ports.Screen, error) {
 	monitors, err := enumerateMonitors()
 	if err != nil {
 		return nil, err
 	}
 
-	names := make([]string, 0, len(monitors))
+	return uniquelyNamedScreens(monitors), nil
+}
+
+// uniquelyNamedScreens applies the naming rule described on screens. It is a
+// separate function so a test can run it without a display.
+func uniquelyNamedScreens(monitors []displayMonitor) []ports.Screen {
+	seen := make(map[string]int, len(monitors))
 	for _, monitor := range monitors {
-		names = append(names, monitor.name)
+		seen[strings.ToLower(monitor.name)]++
 	}
 
-	return names, nil
+	result := make([]ports.Screen, 0, len(monitors))
+	for _, monitor := range monitors {
+		name := monitor.name
+		if seen[strings.ToLower(name)] > 1 {
+			name = name + " (" + strings.TrimPrefix(monitor.device, `\\.\`) + ")"
+		}
+
+		result = append(result, ports.Screen{Name: name, Bounds: monitor.bounds})
+	}
+
+	return result
 }
 
 func foregroundWindowHandle() (windows.HWND, error) {

@@ -15,12 +15,12 @@ import (
 	"fmt"
 	"image"
 	"os"
-	"strings"
 	"sync"
 	"time"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 type x11Monitor struct {
@@ -383,33 +383,18 @@ func x11ActiveScreenBounds() (image.Rectangle, error) {
 	return monitors[0].Bounds, nil
 }
 
-func x11ScreenBoundsByName(name string) (image.Rectangle, bool, error) {
-	monitors, err := x11Monitors()
-	if err != nil {
-		return image.Rectangle{}, false, err
-	}
-
-	for _, monitor := range monitors {
-		if strings.EqualFold(monitor.Name, name) {
-			return monitor.Bounds, true, nil
-		}
-	}
-
-	return image.Rectangle{}, false, nil
-}
-
-func x11ScreenNames() ([]string, error) {
+func x11Screens() ([]ports.Screen, error) {
 	monitors, err := x11Monitors()
 	if err != nil {
 		return nil, err
 	}
 
-	names := make([]string, 0, len(monitors))
+	screens := make([]ports.Screen, 0, len(monitors))
 	for _, monitor := range monitors {
-		names = append(names, monitor.Name)
+		screens = append(screens, ports.Screen{Name: monitor.Name, Bounds: monitor.Bounds})
 	}
 
-	return names, nil
+	return screens, nil
 }
 
 // xwaylandDiscoveryTimeout bounds the wait for the pointer's entry into the

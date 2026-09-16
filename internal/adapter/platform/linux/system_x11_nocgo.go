@@ -7,6 +7,7 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 func x11CursorPosition() (image.Point, error) {
@@ -65,15 +66,7 @@ func x11ActiveScreenBounds() (image.Rectangle, error) {
 	)
 }
 
-func x11ScreenBoundsByName(name string) (image.Rectangle, bool, error) {
-	return image.Rectangle{}, false, derrors.Newf(
-		derrors.CodeNotSupported,
-		"X11 screen lookup requires CGO-enabled Linux builds (name=%q)",
-		name,
-	)
-}
-
-func x11ScreenNames() ([]string, error) {
+func x11Screens() ([]ports.Screen, error) {
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
 		"X11 screen enumeration requires CGO-enabled Linux builds",

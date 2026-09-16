@@ -16,8 +16,7 @@ type MockSystemPort struct {
 	AppNameByPIDFunc                   func(ctx context.Context, pid int) (string, error)
 	AppBundleIDByPIDFunc               func(ctx context.Context, pid int) (string, error)
 	ScreenBoundsFunc                   func(ctx context.Context) (image.Rectangle, error)
-	ScreenBoundsByNameFunc             func(ctx context.Context, name string) (image.Rectangle, bool, error)
-	ScreenNamesFunc                    func(ctx context.Context) ([]string, error)
+	ScreensFunc                        func(ctx context.Context) ([]ports.Screen, error)
 	ScreenScaleFunc                    func(ctx context.Context, bounds image.Rectangle) (float64, error)
 	FocusedWindowBoundsFunc            func(ctx context.Context) (image.Rectangle, bool, error)
 	MoveCursorToPointFunc              func(ctx context.Context, point image.Point, bypassSmooth bool) error
@@ -99,18 +98,6 @@ func (m *MockSystemPort) ScreenBounds(ctx context.Context) (image.Rectangle, err
 	return image.Rectangle{}, nil
 }
 
-// ScreenBoundsByName is a mock implementation.
-func (m *MockSystemPort) ScreenBoundsByName(
-	ctx context.Context,
-	name string,
-) (image.Rectangle, bool, error) {
-	if m.ScreenBoundsByNameFunc != nil {
-		return m.ScreenBoundsByNameFunc(ctx, name)
-	}
-
-	return image.Rectangle{}, false, nil
-}
-
 // ScreenScale is a mock implementation. Unset, it answers 1, a display whose
 // pixels are its apparent units.
 func (m *MockSystemPort) ScreenScale(ctx context.Context, bounds image.Rectangle) (float64, error) {
@@ -121,10 +108,10 @@ func (m *MockSystemPort) ScreenScale(ctx context.Context, bounds image.Rectangle
 	return 1, nil
 }
 
-// ScreenNames is a mock implementation.
-func (m *MockSystemPort) ScreenNames(ctx context.Context) ([]string, error) {
-	if m.ScreenNamesFunc != nil {
-		return m.ScreenNamesFunc(ctx)
+// Screens is a mock implementation.
+func (m *MockSystemPort) Screens(ctx context.Context) ([]ports.Screen, error) {
+	if m.ScreensFunc != nil {
+		return m.ScreensFunc(ctx)
 	}
 
 	return nil, nil

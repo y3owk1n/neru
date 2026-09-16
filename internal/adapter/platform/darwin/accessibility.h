@@ -330,18 +330,23 @@ CGRect NeruGetMainScreenBounds(void);
 /// @return Active screen bounds rectangle
 CGRect NeruGetActiveScreenBounds(void);
 
-/// Get all connected screen names as a NUL-separated string
-/// @param outLen Output parameter for the total byte length of the returned buffer
-/// @return NUL-separated localized display names, or empty string if no screens
-/// @note Caller must free the returned string with free()
-/// @note NUL is used as the delimiter because display names may theoretically contain commas
-char *NeruGetScreenNames(int *outLen);
+/// One connected screen: its localized display name and its bounds in CG
+/// coordinates (top-left origin, Y down).
+typedef struct {
+	char *name;
+	CGRect bounds;
+} NeruScreenInfo;
 
-/// Get screen bounds by localized display name (case-insensitive)
-/// @param name Display name to match (e.g. "Built-in Retina Display", "DELL U2720Q")
-/// @param found Output parameter set to 1 if screen was found, 0 otherwise
-/// @return Screen bounds rectangle in CG coordinates, or CGRectZero if not found
-CGRect NeruGetScreenBoundsByName(const char *name, int *found);
+/// Get every connected screen, name and bounds together, in NSScreen order.
+/// @param outCount Output parameter for the number of screens returned
+/// @return Array of outCount screens, or NULL when there are none
+/// @note Caller must release the array with NeruFreeScreens()
+/// @note Names are not unique. Two identical monitors share one, so there is
+///       no lookup by name and callers keep the entry they picked.
+NeruScreenInfo *NeruGetScreens(int *outCount);
+
+/// Release an array returned by NeruGetScreens
+void NeruFreeScreens(NeruScreenInfo *screens, int count);
 
 /// Get current cursor position
 /// @return Current cursor position

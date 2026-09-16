@@ -12,6 +12,8 @@ import (
 	"image"
 	"math"
 	"unsafe"
+
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // ActiveScreenBounds returns the active screen bounds (the screen containing the cursor).
@@ -26,64 +28,34 @@ func ActiveScreenBounds() image.Rectangle {
 	)
 }
 
-// ScreenNames returns the localized display names of all connected screens.
-// The C side returns a NUL-separated buffer (each name terminated by '\0')
-// so that display names containing commas are handled correctly.
-func ScreenNames() []string {
-	var bufLen C.int
+// Screens returns every connected screen, localized name and bounds together,
+// in NSScreen order. Names repeat when two identical monitors are connected,
+// so callers keep the entry they picked rather than looking one up by name.
+func Screens() []ports.Screen {
+	var count C.int
 
-	cNames := C.NeruGetScreenNames(&bufLen)
-	if cNames == nil {
+	cScreens := C.NeruGetScreens(&count)
+	if cScreens == nil {
 		return nil
 	}
-	defer C.free(unsafe.Pointer(cNames))
+	defer C.NeruFreeScreens(cScreens, count)
 
-	totalLen := int(bufLen)
-	if totalLen == 0 {
-		return nil
+	screens := make([]ports.Screen, 0, int(count))
+	for _, entry := range unsafe.Slice(cScreens, int(count)) {
+		rect := entry.bounds
+
+		screens = append(screens, ports.Screen{
+			Name: C.GoString(entry.name),
+			Bounds: image.Rect(
+				int(rect.origin.x),
+				int(rect.origin.y),
+				int(rect.origin.x+rect.size.width),
+				int(rect.origin.y+rect.size.height),
+			),
+		})
 	}
 
-	// Walk the NUL-separated buffer using the known length as the bound.
-	var names []string
-
-	offset := 0
-	for offset < totalLen {
-		name := C.GoString((*C.char)(unsafe.Add(unsafe.Pointer(cNames), offset)))
-		if len(name) == 0 {
-			// Skip empty names (e.g. a hypothetical empty localizedName)
-			// and advance past the lone NUL terminator.
-			offset++
-
-			continue
-		}
-
-		names = append(names, name)
-		offset += len(name) + 1
-	}
-
-	return names
-}
-
-// ScreenBoundsByName returns the screen bounds for the display with the given
-// localized name (case-insensitive). The second return value is false when no
-// screen matches.
-func ScreenBoundsByName(name string) (image.Rectangle, bool) {
-	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName))
-
-	var found C.int
-
-	rect := C.NeruGetScreenBoundsByName(cName, &found)
-	if found == 0 {
-		return image.Rectangle{}, false
-	}
-
-	return image.Rect(
-		int(rect.origin.x),
-		int(rect.origin.y),
-		int(rect.origin.x+rect.size.width),
-		int(rect.origin.y+rect.size.height),
-	), true
+	return screens
 }
 
 // IsMissionControlActive returns true if Mission Control is active.

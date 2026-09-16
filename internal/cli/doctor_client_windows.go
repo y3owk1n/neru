@@ -80,12 +80,14 @@ func probeScreen(ctx context.Context, cmd *cobra.Command, adapter ports.SystemPo
 		bounds.Min.Y,
 	)
 
-	names, err := adapter.ScreenNames(ctx)
+	screens, err := adapter.Screens(ctx)
 	if err != nil {
 		cmd.Printf("  %-22s error: %v\n", "screen_names:", err)
 
 		return
 	}
+
+	names := ports.ScreenNames(screens)
 
 	cmd.Printf("  %-22s %d monitor(s): %s\n", "screen_names:", len(names), fmt.Sprint(names))
 }

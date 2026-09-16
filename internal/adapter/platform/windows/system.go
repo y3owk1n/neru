@@ -174,27 +174,15 @@ func (s *SystemAdapter) ScreenScale(ctx context.Context, bounds image.Rectangle)
 	return DPIScaleAt(rectCenter(bounds)), nil
 }
 
-// ScreenBoundsByName returns the bounds of the screen with the given name on Windows.
-func (s *SystemAdapter) ScreenBoundsByName(
-	ctx context.Context,
-	name string,
-) (image.Rectangle, bool, error) {
-	err := ctx.Err()
-	if err != nil {
-		return image.Rectangle{}, false, err
-	}
-
-	return screenBoundsByName(name)
-}
-
-// ScreenNames returns the display names of all connected screens on Windows.
-func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
+// Screens returns every connected screen on Windows, in EnumDisplayMonitors
+// order.
+func (s *SystemAdapter) Screens(ctx context.Context) ([]ports.Screen, error) {
 	err := ctx.Err()
 	if err != nil {
 		return nil, err
 	}
 
-	return screenNames()
+	return screens()
 }
 
 // FocusedWindowBounds returns the bounds of the currently focused window on Windows.

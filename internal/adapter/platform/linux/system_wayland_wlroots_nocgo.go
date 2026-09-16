@@ -7,19 +7,11 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 func wlrootsScreenBounds() (image.Rectangle, error) {
 	return image.Rectangle{}, derrors.New(
-		derrors.CodeNotSupported,
-		"wlroots backend requires CGO-enabled Linux builds",
-	)
-}
-
-func wlrootsScreenBoundsByName(name string) (image.Rectangle, bool, error) {
-	_ = name
-
-	return image.Rectangle{}, false, derrors.New(
 		derrors.CodeNotSupported,
 		"wlroots backend requires CGO-enabled Linux builds",
 	)
@@ -32,7 +24,7 @@ func wlrootsScreenOutputs() ([]screenCastOutput, error) {
 	)
 }
 
-func wlrootsScreenNames() ([]string, error) {
+func wlrootsScreens() ([]ports.Screen, error) {
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
 		"wlroots backend requires CGO-enabled Linux builds",

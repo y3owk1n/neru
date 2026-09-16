@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"image"
+	"strings"
 )
 
 // ScreenCaptureConsent is the user's answer to the screen-recording permission
@@ -52,11 +53,6 @@ type SystemPort interface {
 	// ScreenBounds returns the bounds of the active screen.
 	ScreenBounds(ctx context.Context) (image.Rectangle, error)
 
-	// ScreenBoundsByName returns the bounds of the screen with the given
-	// localized display name (case-insensitive). Returns the bounds and
-	// true if found, or a zero rectangle and false if no screen matches.
-	ScreenBoundsByName(ctx context.Context, name string) (image.Rectangle, bool, error)
-
 	// ScreenScale returns how many physical pixels of bounds, as ScreenBounds
 	// reports them, make one apparent unit on that screen: 1.5 on a Windows
 	// monitor at 150%, the Xft.dpi factor on X11, and 1 on macOS and Wayland,
@@ -65,9 +61,12 @@ type SystemPort interface {
 	// cannot read it returns CodeNotSupported, which callers treat as 1.
 	ScreenScale(ctx context.Context, bounds image.Rectangle) (float64, error)
 
-	// ScreenNames returns the localized display names of all connected screens.
-	// Returns nil or an empty slice when no screens are detected.
-	ScreenNames(ctx context.Context) ([]string, error)
+	// Screens returns every connected screen, name and bounds together, in
+	// the platform's enumeration order. Names are not unique (two identical
+	// monitors share one), so callers keep the Screen they picked rather than
+	// looking it up again by name. Returns nil or an empty slice when no
+	// screens are detected.
+	Screens(ctx context.Context) ([]Screen, error)
 
 	// FocusedWindowBounds returns the bounds of the currently focused window.
 	// Returns the bounds and true if a window was found, or a zero rectangle
@@ -224,4 +223,33 @@ type CursorSynchronizer interface {
 type InstantCursorMover interface {
 	// MoveCursorInstantly posts one cursor move without animating or waiting.
 	MoveCursorInstantly(ctx context.Context, point image.Point) error
+}
+
+// Screen is one connected display: the name the platform shows the user for
+// it and its bounds in global top-left coordinates.
+type Screen struct {
+	Name   string
+	Bounds image.Rectangle
+}
+
+// ScreenByName finds the screen whose name matches, case-insensitively. When
+// several share the name, the first in enumeration order wins.
+func ScreenByName(screens []Screen, name string) (Screen, bool) {
+	for _, screen := range screens {
+		if strings.EqualFold(screen.Name, name) {
+			return screen, true
+		}
+	}
+
+	return Screen{}, false
+}
+
+// ScreenNames lists the screens' names, in order, for error messages.
+func ScreenNames(screens []Screen) []string {
+	names := make([]string, len(screens))
+	for idx, screen := range screens {
+		names[idx] = screen.Name
+	}
+
+	return names
 }

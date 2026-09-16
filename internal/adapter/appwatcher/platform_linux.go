@@ -334,7 +334,7 @@ func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 			drainFD(dupFD)
 
 			// Refresh the platform screen cache before the callback re-queries
-			// ScreenBounds/ScreenNames for the new layout.
+			// ScreenBounds/Screens for the new layout.
 			if l.refreshScreens != nil {
 				l.refreshScreens(backend)
 			}

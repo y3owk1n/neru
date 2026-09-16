@@ -56,14 +56,6 @@ func stubCalls() []stubCall {
 			},
 		},
 		{
-			name: "ScreenBoundsByName",
-			call: func(ctx context.Context, a *linux.SystemAdapter) error {
-				_, _, err := a.ScreenBoundsByName(ctx, "DP-1")
-
-				return err
-			},
-		},
-		{
 			name: "ScreenScale",
 			call: func(ctx context.Context, a *linux.SystemAdapter) error {
 				_, err := a.ScreenScale(ctx, image.Rect(0, 0, 1, 1))
@@ -72,9 +64,9 @@ func stubCalls() []stubCall {
 			},
 		},
 		{
-			name: "ScreenNames",
+			name: "Screens",
 			call: func(ctx context.Context, a *linux.SystemAdapter) error {
-				_, err := a.ScreenNames(ctx)
+				_, err := a.Screens(ctx)
 
 				return err
 			},

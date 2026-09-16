@@ -1345,24 +1345,15 @@ func buildSimHarness(
 		ScreenBoundsFunc: func(_ context.Context) (image.Rectangle, error) {
 			return activeBounds(), nil
 		},
-		ScreenBoundsByNameFunc: func(_ context.Context, name string) (image.Rectangle, bool, error) {
-			for _, display := range desktop.all() {
-				if display.name == name {
-					return display.bounds, true, nil
-				}
-			}
-
-			return image.Rectangle{}, false, nil
-		},
-		ScreenNamesFunc: func(_ context.Context) ([]string, error) {
+		ScreensFunc: func(_ context.Context) ([]ports.Screen, error) {
 			current := desktop.all()
 
-			names := make([]string, len(current))
+			screens := make([]ports.Screen, len(current))
 			for idx, display := range current {
-				names[idx] = display.name
+				screens[idx] = ports.Screen{Name: display.name, Bounds: display.bounds}
 			}
 
-			return names, nil
+			return screens, nil
 		},
 		FocusedWindowBoundsFunc: func(_ context.Context) (image.Rectangle, bool, error) {
 			return activeBounds(), true, nil

@@ -81,30 +81,26 @@ func (h *Handler) MoveMonitorByName(
 		return derrors.New(derrors.CodeActionFailed, "action service not available")
 	}
 
-	names, err := h.system.ScreenNames(ctx)
+	screens, err := h.system.Screens(ctx)
 	if err != nil {
 		return err
 	}
 
-	if len(names) == 0 {
+	if len(screens) == 0 {
 		return derrors.New(derrors.CodeInvalidInput, "no monitors detected")
 	}
 
-	bounds, found, err := h.system.ScreenBoundsByName(ctx, monitorName)
-	if err != nil {
-		return err
-	}
-
+	screen, found := ports.ScreenByName(screens, monitorName)
 	if !found {
 		return derrors.Newf(
 			derrors.CodeInvalidInput,
 			"monitor not found: %s, available: %s",
 			monitorName,
-			strings.Join(names, ", "),
+			strings.Join(ports.ScreenNames(screens), ", "),
 		)
 	}
 
-	return h.moveCursorToMonitor(ctx, bounds, monitorName)
+	return h.moveCursorToMonitor(ctx, screen.Bounds, screen.Name)
 }
 
 // moveCursorToMonitor takes the active mode's overlay off the screen, warps the
@@ -155,19 +151,19 @@ func (h *Handler) resolveMonitorTarget(
 	ctx context.Context,
 	direction MonitorDirection,
 ) (image.Rectangle, string, error) {
-	names, err := h.system.ScreenNames(ctx)
+	screens, err := h.system.Screens(ctx)
 	if err != nil {
 		return image.Rectangle{}, "", err
 	}
 
-	if len(names) == 0 {
+	if len(screens) == 0 {
 		return image.Rectangle{}, "", derrors.New(
 			derrors.CodeInvalidInput,
 			"no monitors detected",
 		)
 	}
 
-	if len(names) == 1 {
+	if len(screens) == 1 {
 		return image.Rectangle{}, "", derrors.New(
 			derrors.CodeInvalidInput,
 			"only one monitor detected; move_monitor requires at least two",
@@ -184,47 +180,19 @@ func (h *Handler) resolveMonitorTarget(
 		step = int(MonitorDirectionNext)
 	}
 
-	currentIdx := indexOfScreen(ctx, h.system, names, active)
+	currentIdx := indexOfScreen(screens, active)
 
-	nextIdx := ((currentIdx+step)%len(names) + len(names)) % len(names)
-	nextName := names[nextIdx]
+	nextIdx := ((currentIdx+step)%len(screens) + len(screens)) % len(screens)
+	next := screens[nextIdx]
 
-	bounds, found, err := h.system.ScreenBoundsByName(ctx, nextName)
-	if err != nil {
-		return image.Rectangle{}, "", err
-	}
-
-	if !found {
-		return image.Rectangle{}, "", derrors.Newf(
-			derrors.CodeInvalidInput,
-			"monitor not found: %s",
-			nextName,
-		)
-	}
-
-	return bounds, nextName, nil
+	return next.Bounds, next.Name, nil
 }
 
 // indexOfScreen returns the index of the monitor whose bounds equal active, or
 // 0 when no match is found (so "next" advances past the first entry).
-func indexOfScreen(
-	ctx context.Context,
-	system interface {
-		ScreenBoundsByName(
-			ctx context.Context,
-			name string,
-		) (image.Rectangle, bool, error)
-	},
-	names []string,
-	active image.Rectangle,
-) int {
-	for idx, name := range names {
-		bounds, found, err := system.ScreenBoundsByName(ctx, name)
-		if err != nil || !found {
-			continue
-		}
-
-		if bounds == active {
+func indexOfScreen(screens []ports.Screen, active image.Rectangle) int {
+	for idx, screen := range screens {
+		if screen.Bounds == active {
 			return idx
 		}
 	}

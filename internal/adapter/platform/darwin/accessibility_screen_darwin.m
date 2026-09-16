@@ -433,83 +433,75 @@ CGRect NeruGetActiveScreenBounds(void) {
 	}
 }
 
-/// Get all connected screen names as a NUL-separated string
-/// @param outLen Output parameter for the total byte length of the returned buffer
-/// @return NUL-separated localized display names, or empty string if no screens
-/// @note Caller must free the returned string with free()
-/// @note NUL is used as the delimiter because display names may theoretically contain commas
-char *NeruGetScreenNames(int *outLen) {
+/// Get every connected screen, name and bounds together, in NSScreen order.
+/// @param outCount Output parameter for the number of screens returned
+/// @return Array of outCount screens, or NULL when there are none
+/// @note Caller must release the array with NeruFreeScreens()
+NeruScreenInfo *NeruGetScreens(int *outCount) {
 	@autoreleasepool {
-		*outLen = 0;
+		*outCount = 0;
 
 		NSArray *screens = [NSScreen screens];
 		if (!screens || screens.count == 0) {
-			return strdup("");
+			return NULL;
 		}
 
-		// Build a NUL-separated list: "name1\0name2\0"
-		NSMutableData *data = [NSMutableData data];
+		NeruScreenInfo *result = calloc(screens.count, sizeof(NeruScreenInfo));
+		if (!result) {
+			return NULL;
+		}
+
+		// Convert NSScreen frames (bottom-left origin, Y up) to the CG
+		// coordinates the accessibility APIs use (top-left origin, Y down).
+		NSScreen *primaryScreen = [screens firstObject];
+		CGFloat primaryScreenHeight = primaryScreen.frame.size.height;
+
+		int count = 0;
 		for (NSScreen *screen in screens) {
 			const char *utf8 = [screen.localizedName UTF8String];
-			// Append name including its terminating NUL
-			[data appendBytes:utf8 length:strlen(utf8) + 1];
+			if (!utf8 || utf8[0] == '\0') {
+				continue;
+			}
+
+			NSRect nsFrame = screen.frame;
+
+			CGRect cgFrame;
+			cgFrame.origin.x = nsFrame.origin.x;
+			cgFrame.origin.y = primaryScreenHeight - (nsFrame.origin.y + nsFrame.size.height);
+			cgFrame.size.width = nsFrame.size.width;
+			cgFrame.size.height = nsFrame.size.height;
+
+			char *name = strdup(utf8);
+			if (!name) {
+				continue;
+			}
+
+			result[count].name = name;
+			result[count].bounds = cgFrame;
+			count++;
 		}
 
-		char *result = (char *)malloc(data.length);
-		if (result) {
-			memcpy(result, data.bytes, data.length);
-			*outLen = (int)data.length;
+		if (count == 0) {
+			free(result);
+			return NULL;
 		}
 
+		*outCount = count;
 		return result;
 	}
 }
 
-/// Get screen bounds by localized display name (case-insensitive)
-/// @param name Display name to match (e.g. "Built-in Retina Display", "DELL U2720Q")
-/// @param found Output parameter set to 1 if screen was found, 0 otherwise
-/// @return Screen bounds rectangle in CG coordinates, or CGRectZero if not found
-CGRect NeruGetScreenBoundsByName(const char *name, int *found) {
-	@autoreleasepool {
-		*found = 0;
-
-		if (!name) {
-			return CGRectZero;
-		}
-
-		NSString *targetName = [NSString stringWithUTF8String:name];
-		if (!targetName || targetName.length == 0) {
-			return CGRectZero;
-		}
-
-		// Find the screen matching the given name
-		NSScreen *matchedScreen = nil;
-		for (NSScreen *screen in [NSScreen screens]) {
-			if ([screen.localizedName caseInsensitiveCompare:targetName] == NSOrderedSame) {
-				matchedScreen = screen;
-				break;
-			}
-		}
-
-		if (!matchedScreen) {
-			return CGRectZero;
-		}
-
-		*found = 1;
-
-		// Convert NSScreen frame (bottom-left origin, Y up) to CG coordinates (top-left origin, Y down)
-		NSRect nsFrame = matchedScreen.frame;
-		NSScreen *primaryScreen = [[NSScreen screens] firstObject];
-		CGFloat primaryScreenHeight = primaryScreen.frame.size.height;
-
-		CGRect cgFrame;
-		cgFrame.origin.x = nsFrame.origin.x;
-		cgFrame.origin.y = primaryScreenHeight - (nsFrame.origin.y + nsFrame.size.height);
-		cgFrame.size.width = nsFrame.size.width;
-		cgFrame.size.height = nsFrame.size.height;
-
-		return cgFrame;
+/// Release an array returned by NeruGetScreens
+void NeruFreeScreens(NeruScreenInfo *screens, int count) {
+	if (!screens) {
+		return;
 	}
+
+	for (int i = 0; i < count; i++) {
+		free(screens[i].name);
+	}
+
+	free(screens);
 }
 
 /// Report whether the macOS Accessibility Zoom feature is currently zoomed in
