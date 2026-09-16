@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/heldmotion"
 	"github.com/y3owk1n/neru/internal/domain/motion"
+	"github.com/y3owk1n/neru/internal/ports"
 	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -47,7 +48,7 @@ func newController(t *testing.T, rec *recorder) *heldmotion.Controller {
 	start := image.Point{X: 100, Y: 100}
 	system := &mocks.MockSystemPort{
 		CursorPositionFunc: func(context.Context) (image.Point, error) { return start, nil },
-		ScreenNamesFunc:    func(context.Context) ([]string, error) { return nil, nil },
+		ScreensFunc:        func(context.Context) ([]ports.Screen, error) { return nil, nil },
 		ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
 			return image.Rect(0, 0, 1000, 1000), nil
 		},

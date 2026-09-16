@@ -84,20 +84,9 @@ func (s *SystemAdapter) ScreenScale(ctx context.Context, bounds image.Rectangle)
 	return 1, nil
 }
 
-// ScreenBoundsByName returns the bounds of the screen with the given localized
-// display name (case-insensitive) on macOS.
-func (s *SystemAdapter) ScreenBoundsByName(
-	ctx context.Context,
-	name string,
-) (image.Rectangle, bool, error) {
-	bounds, found := ScreenBoundsByName(name)
-
-	return bounds, found, nil
-}
-
-// ScreenNames returns the localized display names of all connected screens on macOS.
-func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
-	return ScreenNames(), nil
+// Screens returns every connected screen on macOS, in NSScreen order.
+func (s *SystemAdapter) Screens(ctx context.Context) ([]ports.Screen, error) {
+	return Screens(), nil
 }
 
 // FocusedWindowBounds returns the bounds of the currently focused window on macOS.

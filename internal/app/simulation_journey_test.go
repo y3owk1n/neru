@@ -1213,6 +1213,88 @@ func TestSimulation_MonitorSelectJourney(t *testing.T) {
 	})
 }
 
+// TestSimulation_MonitorSelectJourney_DisplaysSharingAName uses the layout
+// that lost a monitor. The platform reports two displays under one name, as
+// Windows does with "Generic PnP Monitor", and the left one sits at a
+// negative X. Every display must get its own panel, and picking the left one
+// must move the cursor there. When targets were resolved by name, both took
+// the bounds of the first display, so only its label was drawn and the other
+// monitor could not be reached.
+func TestSimulation_MonitorSelectJourney_DisplaysSharingAName(t *testing.T) {
+	cfg := monitorSelectConfig()
+
+	const sharedName = "Generic PnP Monitor"
+
+	left := image.Rect(-1600, 0, 0, 2560)
+	sim := newSimHarnessWithDisplays(t, cfg, nil, []simDisplay{
+		{name: sharedName, bounds: simScreen},
+		{name: sharedName, bounds: left},
+	})
+
+	sim.pressHotkey(monitorSelectHotkey)
+	sim.waitMode(domain.ModeMonitorSelect)
+
+	sim.waitFor("one panel per display", func() bool {
+		return len(sim.overlay.lastMonitorTargets()) == 2
+	})
+
+	leftLabel := ""
+
+	for _, target := range sim.overlay.lastMonitorTargets() {
+		if target.Bounds == left {
+			leftLabel = target.Label
+		}
+	}
+
+	if leftLabel == "" {
+		t.Fatalf(
+			"no panel on the left display %v in %v",
+			left, sim.overlay.lastMonitorTargets(),
+		)
+	}
+
+	sim.typeLabel(leftLabel)
+	sim.waitMode(domain.ModeIdle)
+
+	leftCenter := image.Point{X: -800, Y: 1280}
+	sim.waitFor("cursor on the left display", func() bool {
+		return sim.cursor.position() == leftCenter
+	})
+}
+
+// TestSimulation_MonitorMoveNext_StepsThroughDisplaysSharingAName covers the
+// relative move on the same layout. A step from the first display must reach
+// the second even though both have one name, and a second step must return.
+func TestSimulation_MonitorMoveNext_StepsThroughDisplaysSharingAName(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{"action move_monitor"}
+
+	const sharedName = "Generic PnP Monitor"
+
+	left := image.Rect(-1600, 0, 0, 2560)
+	sim := newSimHarnessWithDisplays(t, cfg, nil, []simDisplay{
+		{name: sharedName, bounds: simScreen},
+		{name: sharedName, bounds: left},
+	})
+
+	sim.pressHotkey(moveMonitorHotkey)
+
+	leftCenter := image.Point{X: -800, Y: 1280}
+	sim.waitFor("cursor on the left display", func() bool {
+		return sim.cursor.position() == leftCenter
+	})
+
+	sim.pressHotkey(moveMonitorHotkey)
+
+	mainCenter := image.Point{
+		X: simScreen.Min.X + simScreen.Dx()/2,
+		Y: simScreen.Min.Y + simScreen.Dy()/2,
+	}
+	sim.waitFor("cursor back on the first display", func() bool {
+		return sim.cursor.position() == mainCenter
+	})
+}
+
 // TestSimulation_MonitorSelectNotSupported pins the platform-stub contract:
 // on a backend without the MonitorSelector extension, activation reports
 // CodeNotSupported, the mode never engages, and the app keeps working.

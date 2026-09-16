@@ -331,13 +331,10 @@ func (c *Controller) run(id uint64) {
 func (c *Controller) screenUnion(ctx context.Context) image.Rectangle {
 	var union image.Rectangle
 
-	names, err := c.system.ScreenNames(ctx)
+	screens, err := c.system.Screens(ctx)
 	if err == nil {
-		for _, name := range names {
-			bounds, ok, err := c.system.ScreenBoundsByName(ctx, name)
-			if err == nil && ok {
-				union = union.Union(bounds)
-			}
+		for _, screen := range screens {
+			union = union.Union(screen.Bounds)
 		}
 	}
 

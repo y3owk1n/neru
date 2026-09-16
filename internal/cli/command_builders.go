@@ -382,8 +382,11 @@ func BuildMoveMonitorCommand() *cobra.Command {
 By default, cycles to the next monitor. Use --previous to cycle backwards.
 Use --name to jump directly to a specific display by name.
 
-Monitor names are matched case-insensitively against the localized display names
-reported by macOS (e.g. "Built-in Retina Display", "DELL U2720Q").`,
+Names are the display names the platform reports (e.g. "Built-in Retina
+Display", "DELL U2720Q", "DP-1") and match case-insensitively. On Windows, when
+several displays share a driver name such as "Generic PnP Monitor", each gets
+its device name as a suffix, e.g. "Generic PnP Monitor (DISPLAY5)". A name that
+does not exist fails with the list of available names.`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
 		},

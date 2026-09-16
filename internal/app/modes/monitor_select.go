@@ -3,7 +3,6 @@ package modes
 import (
 	"context"
 	"image"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -221,35 +220,16 @@ func (h *handlerState) discoverMonitorsForSelection() ([]monitorSelectTarget, er
 		)
 	}
 
-	names, err := h.system.ScreenNames(h.ctx)
+	screens, err := h.system.Screens(h.ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	monitors := make([]monitorSelectTarget, 0, len(names))
-	for _, name := range names {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
-
-		bounds, _, boundsErr := h.system.ScreenBoundsByName(h.ctx, name)
-		if boundsErr != nil {
-			if derrors.IsNotSupported(boundsErr) {
-				return nil, boundsErr
-			}
-
-			h.logger.Debug("Skipping monitor with unreadable bounds",
-				zap.String("monitor", name),
-				zap.Error(boundsErr),
-			)
-
-			continue
-		}
-
+	monitors := make([]monitorSelectTarget, 0, len(screens))
+	for _, screen := range screens {
 		monitors = append(monitors, monitorSelectTarget{
-			Name:   name,
-			Bounds: bounds,
+			Name:   screen.Name,
+			Bounds: screen.Bounds,
 		})
 	}
 

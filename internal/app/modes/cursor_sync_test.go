@@ -76,16 +76,11 @@ func newSyncOrderSystem() *syncOrderSystem {
 
 		return screens["A"], nil
 	}
-	system.ScreenNamesFunc = func(context.Context) ([]string, error) {
-		return []string{"A", "B"}, nil
-	}
-	system.ScreenBoundsByNameFunc = func(
-		_ context.Context,
-		name string,
-	) (image.Rectangle, bool, error) {
-		bounds, found := screens[name]
-
-		return bounds, found, nil
+	system.ScreensFunc = func(context.Context) ([]ports.Screen, error) {
+		return []ports.Screen{
+			{Name: "A", Bounds: screens["A"]},
+			{Name: "B", Bounds: screens["B"]},
+		}, nil
 	}
 
 	return system

@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"image"
 	"os"
-	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -22,6 +21,7 @@ import (
 	// Blank-import to link the wayland-scanner generated protocol objects.
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux/wlr_protocol"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 const (
@@ -376,28 +376,6 @@ func wlrootsScreenBounds() (image.Rectangle, error) {
 	return globalWlrootsState.screens[0].Bounds, nil
 }
 
-func wlrootsScreenBoundsByName(name string) (image.Rectangle, bool, error) {
-	if name == "" {
-		return image.Rectangle{}, false, nil
-	}
-
-	err := ensureWlrootsState()
-	if err != nil {
-		return image.Rectangle{}, false, err
-	}
-
-	globalWlrootsState.mu.RLock()
-	defer globalWlrootsState.mu.RUnlock()
-
-	for _, screen := range globalWlrootsState.screens {
-		if strings.EqualFold(screen.Name, name) {
-			return screen.Bounds, true, nil
-		}
-	}
-
-	return image.Rectangle{}, false, nil
-}
-
 // wlrootsScreenOutputs returns every connected output, named and placed in
 // the shared coordinate space, in the order the compositor announced them.
 func wlrootsScreenOutputs() ([]screenCastOutput, error) {
@@ -417,7 +395,7 @@ func wlrootsScreenOutputs() ([]screenCastOutput, error) {
 	return outputs, nil
 }
 
-func wlrootsScreenNames() ([]string, error) {
+func wlrootsScreens() ([]ports.Screen, error) {
 	err := ensureWlrootsState()
 	if err != nil {
 		return nil, err
@@ -426,12 +404,12 @@ func wlrootsScreenNames() ([]string, error) {
 	globalWlrootsState.mu.RLock()
 	defer globalWlrootsState.mu.RUnlock()
 
-	names := make([]string, 0, len(globalWlrootsState.screens))
+	screens := make([]ports.Screen, 0, len(globalWlrootsState.screens))
 	for _, screen := range globalWlrootsState.screens {
-		names = append(names, screen.Name)
+		screens = append(screens, ports.Screen{Name: screen.Name, Bounds: screen.Bounds})
 	}
 
-	return names, nil
+	return screens, nil
 }
 
 func wlrootsCursorPosition() (image.Point, error) {

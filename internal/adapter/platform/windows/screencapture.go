@@ -148,7 +148,7 @@ func resolveCaptureRegion(region image.Rectangle) (image.Rectangle, error) {
 }
 
 // virtualScreenBounds is the rectangle every monitor fits inside, from the
-// same enumeration ScreenNames and ScreenBoundsByName answer with, so a region
+// same enumeration Screens answers with, so a region
 // accepted here is one those callers could have produced.
 func virtualScreenBounds() (image.Rectangle, error) {
 	monitors, err := enumerateMonitors()

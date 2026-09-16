@@ -43,26 +43,30 @@ func TestSystemAdapterScreenAndCursorIntegration(t *testing.T) {
 		t.Fatalf("ScreenBounds = %v, expected positive dimensions", bounds)
 	}
 
-	names, err := adapter.ScreenNames(ctx)
+	screens, err := adapter.Screens(ctx)
 	if err != nil {
-		t.Fatalf("ScreenNames: %v", err)
+		t.Fatalf("Screens: %v", err)
 	}
 
-	if len(names) == 0 {
-		t.Fatal("ScreenNames returned no monitors")
+	if len(screens) == 0 {
+		t.Fatal("Screens returned no monitors")
 	}
 
-	foundBounds, ok, err := adapter.ScreenBoundsByName(ctx, names[0])
-	if err != nil {
-		t.Fatalf("ScreenBoundsByName: %v", err)
-	}
+	seen := make(map[string]bool, len(screens))
+	for _, screen := range screens {
+		if screen.Name == "" {
+			t.Fatalf("Screens returned an unnamed screen: %v", screen)
+		}
 
-	if !ok {
-		t.Fatalf("ScreenBoundsByName did not find %q", names[0])
-	}
+		if seen[screen.Name] {
+			t.Fatalf("Screens returned %q twice; names must be unique", screen.Name)
+		}
 
-	if foundBounds.Dx() <= 0 || foundBounds.Dy() <= 0 {
-		t.Fatalf("ScreenBoundsByName = %v, expected positive dimensions", foundBounds)
+		seen[screen.Name] = true
+
+		if screen.Bounds.Dx() <= 0 || screen.Bounds.Dy() <= 0 {
+			t.Fatalf("Screens = %v, expected positive dimensions", screen.Bounds)
+		}
 	}
 
 	cursor, err := adapter.CursorPosition(ctx)

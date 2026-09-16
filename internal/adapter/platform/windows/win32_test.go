@@ -42,3 +42,40 @@ func TestPackMonitorPoint(t *testing.T) {
 		})
 	}
 }
+
+// TestUniquelyNamedScreens_SuffixesOnlyRepeatedNames pins the naming rule
+// behind Screens. Two displays that both report "Generic PnP Monitor" get
+// their device names as suffixes, and a display with its own name keeps it.
+func TestUniquelyNamedScreens_SuffixesOnlyRepeatedNames(t *testing.T) {
+	t.Parallel()
+
+	screens := uniquelyNamedScreens([]displayMonitor{
+		{name: "Generic PnP Monitor", device: `\\.\DISPLAY5`, bounds: image.Rect(0, 0, 3840, 2160)},
+		{
+			name:   "Generic PnP Monitor",
+			device: `\\.\DISPLAY6`,
+			bounds: image.Rect(-1600, 0, 0, 2560),
+		},
+		{name: "DELL U2720Q", device: `\\.\DISPLAY7`, bounds: image.Rect(3840, 0, 7680, 2160)},
+	})
+
+	want := []string{
+		"Generic PnP Monitor (DISPLAY5)",
+		"Generic PnP Monitor (DISPLAY6)",
+		"DELL U2720Q",
+	}
+
+	if len(screens) != len(want) {
+		t.Fatalf("got %d screens, want %d", len(screens), len(want))
+	}
+
+	for idx, screen := range screens {
+		if screen.Name != want[idx] {
+			t.Errorf("screen %d name = %q, want %q", idx, screen.Name, want[idx])
+		}
+	}
+
+	if screens[1].Bounds != image.Rect(-1600, 0, 0, 2560) {
+		t.Errorf("screen 1 bounds = %v, lost with its name", screens[1].Bounds)
+	}
+}

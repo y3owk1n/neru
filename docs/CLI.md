@@ -758,9 +758,14 @@ neru action move_monitor [--name <name>] [--previous]
 Cycles to the next display by default. An active mode overlay follows the
 cursor to the new display.
 
+Names match case-insensitively. On Windows, when several displays share a
+driver name such as `Generic PnP Monitor`, each gets its device name as a
+suffix, for example `Generic PnP Monitor (DISPLAY5)`. A name that does not
+exist fails with the list of available names.
+
 | Flag         | Type   | Default | Description                                                            |
 | ------------ | ------ | ------- | ------------------------------------------------------------------------ |
-| `--name`     | string |         | Target a display by name, e.g. `"Built-in Retina Display"`.              |
+| `--name`     | string |         | Target a display by name, e.g. `"Built-in Retina Display"` or `"DP-1"`. |
 | `--previous` | bool   | `false` | Cycle to the previous display instead of the next.                       |
 
 **Examples**
