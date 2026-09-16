@@ -134,15 +134,34 @@ func TestBisectFrame_LabelsTheQuadrantsWithTheBoundKeys(t *testing.T) {
 }
 
 func TestBisectQuadrantKeys_LeavesAnUnboundQuadrantBlank(t *testing.T) {
-	hotkeys := map[string]config.StringOrStringArray{
+	cfg := config.DefaultConfig()
+	cfg.Bisect.Hotkeys = map[string]config.StringOrStringArray{
 		"q":    {config.CmdBisectUpLeft},
 		"Left": {config.CmdBisectDownRight}, // a named key has no place in a cell
 		"z":    {config.CmdBisectDownRight},
 		"a":    {config.CmdBisectDownRight}, // ties go to the alphabetically first
 	}
 
-	if got := bisectQuadrantKeys(hotkeys); got != "q  a" {
+	bindings := cfg.ResolveKeymap(config.ModeNameBisect, "").Bindings()
+
+	if got := bisectQuadrantKeys(bindings); got != "q  a" {
 		t.Fatalf("quadrant keys = %q, want %q", got, "q  a")
+	}
+}
+
+func TestBisectFrame_LabelsFollowThePerAppOverride(t *testing.T) {
+	fixture := newBisectFixture(t)
+	fixture.handler.config.Bisect.AppConfigs = []config.AppConfig{{
+		BundleID: "com.example.Remapped",
+		Hotkeys: map[string]config.StringOrStringArray{
+			"y": {config.CmdBisectDownRight},
+			"n": {config.CmdBisectUpLeft},
+		},
+	}}
+	fixture.handler.focusedApp.publish("com.example.Remapped")
+
+	if got := fixture.handler.bisectFrame().Keys; got != "nuby" {
+		t.Fatalf("quadrant keys with the override = %q, want %q", got, "nuby")
 	}
 }
 

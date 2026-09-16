@@ -596,6 +596,15 @@ func (m *simOverlayPort) lastRecursiveGridBounds() (image.Rectangle, bool) {
 	return m.recursiveGridDraws[len(m.recursiveGridDraws)-1], true
 }
 
+// bisectDrawCount reports how many times the bisect region was drawn, shows
+// and redraws together.
+func (m *simOverlayPort) bisectDrawCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return len(m.bisectDraws)
+}
+
 func (m *simOverlayPort) lastBisectFrame() (ports.BisectFrame, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

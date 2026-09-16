@@ -59,6 +59,24 @@ func TestConfigValidateHotkeys_AppOverridePrefixConflict(t *testing.T) {
 	}
 }
 
+func TestConfigValidateHotkeys_BisectAppOverridePrefixConflict(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Bisect.AppConfigs = []config.AppConfig{
+		{
+			BundleID: TestBundleIDSafari,
+			Hotkeys: map[string]config.StringOrStringArray{
+				// Shadowed by the inherited single-key "y" binding.
+				"yu": {config.CmdLeftClick},
+			},
+		},
+	}
+
+	err := cfg.ValidateHotkeys()
+	if err == nil {
+		t.Fatal("ValidateHotkeys() expected merged bisect app override prefix conflict, got nil")
+	}
+}
+
 func TestConfigValidateHotkeys_InvalidAction(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Hotkeys["x"] = config.StringOrStringArray{"action nope"}

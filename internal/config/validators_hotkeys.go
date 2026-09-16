@@ -188,6 +188,20 @@ func (c *Config) checkHotkeysConflicts() error {
 		}
 	}
 
+	for idx, appConfig := range c.Bisect.AppConfigs {
+		err := checkHotkeyConflicts(
+			fmt.Sprintf(
+				"bisect.hotkeys merged with bisect.app_configs[%d] (%s)",
+				idx,
+				appConfig.BundleID,
+			),
+			c.HotkeysForModeAndApp(ModeNameBisect, appConfig.BundleID),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Check merged global hotkeys for each [[app_configs]] entry
 	for idx, appConfig := range c.AppConfigs {
 		merged := c.GlobalHotkeysForApp(appConfig.BundleID)

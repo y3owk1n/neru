@@ -1005,6 +1005,11 @@ func TestSimulation_BisectJourney(t *testing.T) {
 		return sim.cursor.position() == image.Pt(960, 540)
 	})
 
+	// Activation is one draw: the transition, not a redraw followed by it.
+	if got := sim.overlay.bisectDrawCount(); got != 1 {
+		t.Fatalf("activation drew the region %d times, want 1", got)
+	}
+
 	sim.press("l")
 	sim.waitFor("cut right kept the right half", func() bool {
 		frame, ok := sim.overlay.lastBisectFrame()

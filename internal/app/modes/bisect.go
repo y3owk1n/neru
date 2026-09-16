@@ -72,13 +72,18 @@ func (h *handlerState) startBisect(activation modecmd.Activation) {
 	// screen's own space.
 	h.initializeBisectRegion(h.bisectStart(screen, scope).Sub(screen.Min))
 	h.bisect.Context.SetCursorFollowSelection(cursorShouldFollow)
-	h.settleBisect("Failed to move cursor to the bisect region center")
 
-	h.showFrame(h.bisectFrame(), "show bisect overlay")
-
+	// The mode is entered before the first frame is built, so the quadrant
+	// labels come from the keymap settled for bisect and the focused app.
 	if !isRefresh {
 		h.enterMode(domain.ModeBisect)
 	}
+
+	// One draw at activation: the frame comes up as the transition, and the
+	// cursor is placed without the redraw a cut pays.
+	center := h.markBisectSelection()
+	h.showFrame(h.bisectFrame(), "show bisect overlay")
+	h.placeBisectCursor(center, "Failed to move cursor to the bisect region center")
 
 	h.logger.Info("Bisect mode activated", zap.String("scope", scope))
 
@@ -206,14 +211,26 @@ func (h *handlerState) settleBisect(moveFailureMessage string) {
 		return
 	}
 
+	center := h.markBisectSelection()
+	h.updateBisectOverlay()
+	h.placeBisectCursor(center, moveFailureMessage)
+}
+
+// markBisectSelection records the region's center as the selection and
+// answers it in global coordinates.
+func (h *handlerState) markBisectSelection() image.Point {
 	center := geometry.ConvertToAbsoluteCoordinates(h.bisect.Region.Center(), h.screenBounds)
 
 	if h.bisect.Context != nil {
 		h.bisect.Context.SetSelectionPoint(center)
 	}
 
-	h.updateBisectOverlay()
+	return center
+}
 
+// placeBisectCursor moves the real cursor onto center when it follows the
+// selection; when held back, the pointer stand-in on the frame marks it.
+func (h *handlerState) placeBisectCursor(center image.Point, moveFailureMessage string) {
 	if h.bisect.Context != nil && !h.bisect.Context.CursorFollowSelection() {
 		return
 	}
@@ -243,17 +260,17 @@ func (h *handlerState) bisectFrame() ports.BisectFrame {
 	return ports.BisectFrame{
 		Bounds:  h.bisect.Region.Bounds(),
 		Depth:   h.bisect.Region.Depth(),
-		Keys:    bisectQuadrantKeys(h.config.Bisect.Hotkeys),
+		Keys:    bisectQuadrantKeys(h.settledKeymap().Bindings()),
 		Pointer: h.bisectPointer(),
 	}
 }
 
-// bisectQuadrantKeys reads the mode's hotkey table for the key bound to each
+// bisectQuadrantKeys reads the bindings in force for the key bound to each
 // quadrant cut, in reading order, so the cells are labeled with whatever
-// the user actually presses. An unbound quadrant is a space, drawn as an
-// unlabelled cell. When several keys reach one quadrant the shortest wins,
-// then the alphabetically first, so the answer is stable across reloads.
-func bisectQuadrantKeys(hotkeys map[string]configpkg.StringOrStringArray) string {
+// the user actually presses, per-app overrides included. An unbound quadrant
+// is a space, drawn as an unlabelled cell. When several keys reach one
+// quadrant the alphabetically first wins, so the answer is stable.
+func bisectQuadrantKeys(bindings []configpkg.Binding) string {
 	quadrants := [4]bisect.Cut{
 		bisect.CutUpLeft,
 		bisect.CutUpRight,
@@ -262,13 +279,15 @@ func bisectQuadrantKeys(hotkeys map[string]configpkg.StringOrStringArray) string
 	}
 	labels := [4]string{" ", " ", " ", " "}
 
-	for key, actions := range hotkeys {
+	for _, binding := range bindings {
 		// A quadrant cell shows one character, so a named key has no place in it.
-		if len(actions) != 1 || utf8.RuneCountInString(key) != 1 {
+		if len(binding.Steps) != 1 || utf8.RuneCountInString(binding.Key) != 1 {
 			continue
 		}
 
-		cut, ok := bisectCutOfBinding(actions[0])
+		key := binding.Key
+
+		cut, ok := bisectCutOfBinding(binding.Steps[0])
 		if !ok {
 			continue
 		}

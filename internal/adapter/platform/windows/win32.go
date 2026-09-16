@@ -55,8 +55,15 @@ type winPoint struct {
 	y int32
 }
 
+// dwmExtendedFrameBounds is DWMWA_EXTENDED_FRAME_BOUNDS: the frame a user
+// sees, without the invisible resize borders GetWindowRect counts.
+const dwmExtendedFrameBounds = 9
+
 var (
 	user32 = windows.NewLazySystemDLL("user32.dll")
+	dwmapi = windows.NewLazySystemDLL("dwmapi.dll")
+
+	procDwmGetWindowAttribute = dwmapi.NewProc("DwmGetWindowAttribute")
 
 	procGetCursorPos        = user32.NewProc("GetCursorPos")
 	procSetCursorPos        = user32.NewProc("SetCursorPos")
@@ -427,7 +434,34 @@ func focusedWindowBounds() (image.Rectangle, bool, error) {
 		return image.Rectangle{}, false, nil
 	}
 
+	rect, err := visibleWindowRect(hwnd)
+	if err != nil {
+		return image.Rectangle{}, false, err
+	}
+
+	return clipToScreen(rect)
+}
+
+// visibleWindowRect is the frame a user sees for hwnd, in physical pixels.
+//
+// GetWindowRect counts the invisible resize borders DWM draws around a
+// window, seven or eight pixels on the left, right and bottom on a themed
+// desktop, so a region placed from it overhangs the visible window on those
+// sides. DwmGetWindowAttribute's extended frame bounds are the visible frame,
+// so that is asked first; GetWindowRect is the answer where DWM cannot say,
+// on a desktop with composition off or a window it does not manage.
+func visibleWindowRect(hwnd windows.HWND) (image.Rectangle, error) {
 	var rect windows.Rect
+
+	hr, _, _ := procDwmGetWindowAttribute.Call(
+		uintptr(hwnd),
+		dwmExtendedFrameBounds,
+		uintptr(unsafe.Pointer(&rect)),
+		unsafe.Sizeof(rect),
+	)
+	if hr == 0 && rect.Right > rect.Left && rect.Bottom > rect.Top {
+		return rectToImage(rect), nil
+	}
 
 	ret, _, err := procGetWindowRect.Call(
 		uintptr(hwnd),
@@ -436,18 +470,18 @@ func focusedWindowBounds() (image.Rectangle, bool, error) {
 
 	callErr := win32Bool(ret, err)
 	if callErr != nil {
-		return image.Rectangle{}, false, fmt.Errorf("GetWindowRect: %w", callErr)
+		return image.Rectangle{}, fmt.Errorf("GetWindowRect: %w", callErr)
 	}
 
-	return clipToScreen(rectToImage(rect))
+	return rectToImage(rect), nil
 }
 
 // clipToScreen intersects a window rectangle with the virtual screen, the
 // rectangle every monitor fits inside.
 //
-// GetWindowRect reports the frame Windows tracks rather than the frame a user
-// sees: a maximized window overhangs its monitor by the invisible resize border
-// on every side. That overhang holds nothing hintable, and a screen-capture
+// The visible frame of a maximized window still meets its monitor's edge, and
+// the GetWindowRect fallback overhangs it by the invisible resize border on
+// every side. That overhang holds nothing hintable, and a screen-capture
 // strategy that asked for it would be refused, because a frame that leaves the
 // screen cannot be placed. The clip is to the whole desktop rather than to one
 // monitor so a window dragged across a seam keeps both halves; BitBlt reads

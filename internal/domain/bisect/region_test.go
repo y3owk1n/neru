@@ -107,6 +107,30 @@ func TestRegion_RemapToNewBounds_ScalesRegionAndHistory(t *testing.T) {
 	}
 }
 
+func TestRegion_RemapToNewBounds_KeepsANarrowRegionDrawable(t *testing.T) {
+	// The rightmost two pixels of an 8K-wide display land on the last pixel
+	// of a 1920-wide one and would round to nothing.
+	region := bisect.NewRegion(image.Rect(0, 0, 7680, 1080))
+	for range 12 {
+		region.Apply(bisect.CutRight)
+	}
+
+	if got := region.Bounds(); got.Dx() != bisect.MinSide {
+		t.Fatalf("twelve right cuts left width %d, want MinSide", got.Dx())
+	}
+
+	region.RemapToNewBounds(image.Rect(0, 0, 1920, 1080))
+
+	got := region.Bounds()
+	if got.Empty() || got.Dx() < bisect.MinSide || got.Max.X > 1920 {
+		t.Fatalf("remapped region = %v, want at least MinSide wide inside the display", got)
+	}
+
+	if !region.Center().In(image.Rect(0, 0, 1920, 1080)) {
+		t.Fatalf("center %v is off the display", region.Center())
+	}
+}
+
 func TestParseCut_AcceptsEverySpellingAndRefusesTheRest(t *testing.T) {
 	for index, name := range bisect.CutNames {
 		cut, err := bisect.ParseCut(name)

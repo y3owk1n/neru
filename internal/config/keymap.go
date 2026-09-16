@@ -3,6 +3,7 @@ package config
 import (
 	"maps"
 	"slices"
+	"strings"
 )
 
 // Keymap is the bindings in force: the ones a mode answers to, with the
@@ -191,6 +192,26 @@ func (k Keymap) IsSequenceStart(normalizedKey string) bool {
 	_, ok := k.sequenceStarts[normalizedKey]
 
 	return ok
+}
+
+// Bindings returns every binding the keymap holds, ordered by the spelling of
+// its key. It is for a mode that shows its keys on screen: what is drawn has
+// to be what dispatch answers to, per-app overrides included.
+func (k Keymap) Bindings() []Binding {
+	if len(k.byKey) == 0 {
+		return nil
+	}
+
+	bindings := make([]Binding, 0, len(k.byKey))
+	for _, binding := range k.byKey {
+		bindings = append(bindings, binding)
+	}
+
+	slices.SortFunc(bindings, func(a, b Binding) int {
+		return strings.Compare(a.Key, b.Key)
+	})
+
+	return bindings
 }
 
 // Keys returns every key the keymap binds, in the spelling it was written in

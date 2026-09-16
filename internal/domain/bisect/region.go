@@ -226,7 +226,32 @@ func remapRect(rect, oldRef, newRef image.Rectangle) image.Rectangle {
 	maxX := newRef.Min.X + divRound((rect.Max.X-oldRef.Min.X)*newRef.Dx(), oldW)
 	maxY := newRef.Min.Y + divRound((rect.Max.Y-oldRef.Min.Y)*newRef.Dy(), oldH)
 
-	return image.Rect(minX, minY, maxX, maxY)
+	// Onto a smaller display both edges of a narrow region can round to the
+	// same pixel. A region that is empty draws nothing and has no center, so
+	// it keeps MinSide on each axis, moved inward at the far edge.
+	return atLeastMinSide(image.Rect(minX, minY, maxX, maxY), newRef)
+}
+
+// atLeastMinSide widens rect to MinSide on any axis it has fallen below, kept
+// inside bounds.
+func atLeastMinSide(rect, bounds image.Rectangle) image.Rectangle {
+	if rect.Dx() < MinSide {
+		rect.Max.X = rect.Min.X + MinSide
+		if rect.Max.X > bounds.Max.X {
+			rect.Max.X = bounds.Max.X
+			rect.Min.X = max(rect.Max.X-MinSide, bounds.Min.X)
+		}
+	}
+
+	if rect.Dy() < MinSide {
+		rect.Max.Y = rect.Min.Y + MinSide
+		if rect.Max.Y > bounds.Max.Y {
+			rect.Max.Y = bounds.Max.Y
+			rect.Min.Y = max(rect.Max.Y-MinSide, bounds.Min.Y)
+		}
+	}
+
+	return rect
 }
 
 // divRound divides rounding to nearest rather than toward zero.
