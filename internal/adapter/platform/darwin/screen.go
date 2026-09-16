@@ -35,7 +35,7 @@ func Screens() []ports.Screen {
 	var count C.int
 
 	cScreens := C.NeruGetScreens(&count)
-	if cScreens == nil || count == 0 {
+	if cScreens == nil {
 		return nil
 	}
 	defer C.NeruFreeScreens(cScreens, count)

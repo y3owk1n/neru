@@ -471,9 +471,19 @@ NeruScreenInfo *NeruGetScreens(int *outCount) {
 			cgFrame.size.width = nsFrame.size.width;
 			cgFrame.size.height = nsFrame.size.height;
 
-			result[count].name = strdup(utf8);
+			char *name = strdup(utf8);
+			if (!name) {
+				continue;
+			}
+
+			result[count].name = name;
 			result[count].bounds = cgFrame;
 			count++;
+		}
+
+		if (count == 0) {
+			free(result);
+			return NULL;
 		}
 
 		*outCount = count;
