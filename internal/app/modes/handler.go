@@ -129,6 +129,7 @@ type handlerState struct {
 	grid          *components.GridComponent
 	scroll        *components.ScrollComponent
 	recursiveGrid *components.RecursiveGridComponent
+	bisect        *components.BisectComponent
 	monitorSelect *monitorSelectSession
 
 	// Mode implementations
@@ -252,6 +253,7 @@ type HandlerDeps struct {
 	GridComponent          *components.GridComponent
 	ScrollComponent        *components.ScrollComponent
 	RecursiveGridComponent *components.RecursiveGridComponent
+	BisectComponent        *components.BisectComponent
 
 	// RefreshHotkeys re-registers hotkeys for the focused app.
 	RefreshHotkeys func()
@@ -315,6 +317,7 @@ func NewHandler(deps HandlerDeps) *Handler {
 		grid:                   deps.GridComponent,
 		scroll:                 deps.ScrollComponent,
 		recursiveGrid:          deps.RecursiveGridComponent,
+		bisect:                 deps.BisectComponent,
 		screenBounds:           screenBounds,
 		refreshHotkeys:         deps.RefreshHotkeys,
 		executeActionSequence:  deps.ExecuteActionSequence,
@@ -346,6 +349,7 @@ func newModes(state *handlerState) map[domain.Mode]Mode {
 		domain.ModeGrid:          NewGridMode(state),
 		domain.ModeScroll:        NewScrollMode(state),
 		domain.ModeRecursiveGrid: NewRecursiveGridMode(state),
+		domain.ModeBisect:        NewBisectMode(state),
 		domain.ModeMonitorSelect: NewMonitorSelectMode(state),
 		domain.ModeCustom:        NewCustomMode(state),
 	}

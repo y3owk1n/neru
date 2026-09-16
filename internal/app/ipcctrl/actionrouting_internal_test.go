@@ -227,7 +227,7 @@ func routeCases() []routeCase {
 			args:    []string{"move_monitor", "--direction=left"},
 			success: false,
 			code:    ipc.CodeInvalidInput,
-			message: "--direction is only supported with move_cell",
+			message: "--direction is only supported with bisect, move_cell",
 		},
 		{
 			args:    []string{cycleHint},

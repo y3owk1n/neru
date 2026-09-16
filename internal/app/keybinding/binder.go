@@ -23,6 +23,7 @@ func ActionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
 	gridStr := domain.ModeString(domain.ModeGrid)
 
 	recursiveGridStr := domain.ModeString(domain.ModeRecursiveGrid)
+	bisectStr := domain.ModeString(domain.ModeBisect)
 
 	return anyBindingStep(actions, cfg, func(step string) bool {
 		switch mode := commandOf(step); {
@@ -31,6 +32,8 @@ func ActionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
 		case mode == gridStr && !cfg.Grid.Enabled:
 			return true
 		case mode == recursiveGridStr && !cfg.RecursiveGrid.Enabled:
+			return true
+		case mode == bisectStr && !cfg.Bisect.Enabled:
 			return true
 		default:
 			return false

@@ -3,11 +3,13 @@ package components
 import (
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/app/components/bisect"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
+	domainBisect "github.com/y3owk1n/neru/internal/domain/bisect"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	domainRecursiveGrid "github.com/y3owk1n/neru/internal/domain/recursivegrid"
 )
@@ -103,4 +105,11 @@ func (s *ScrollComponent) UpdateConfig(_ *config.Config, _ *zap.Logger) {
 type RecursiveGridComponent struct {
 	Manager *domainRecursiveGrid.Manager
 	Context *recursivegrid.Context
+}
+
+// BisectComponent holds one bisect session: the region and the session
+// context. Region is nil between sessions.
+type BisectComponent struct {
+	Region  *domainBisect.Region
+	Context *bisect.Context
 }

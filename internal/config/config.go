@@ -23,6 +23,7 @@ const (
 	ModeNameHints         = "hints"
 	ModeNameGrid          = "grid"
 	ModeNameRecursiveGrid = "recursive_grid"
+	ModeNameBisect        = "bisect"
 	ModeNameScroll        = "scroll"
 	ModeNameMonitorSelect = "monitor_select"
 )
@@ -63,17 +64,28 @@ const (
 
 // Common action strings.
 const (
-	CmdIdle           = "idle"
-	CmdLeftClick      = "action left_click"
-	CmdRightClick     = "action right_click"
-	CmdMiddleClick    = "action middle_click"
-	CmdLeftMouseDown  = "action left_click --state down"
-	CmdLeftMouseUp    = "action left_click --state up"
-	CmdGoTop          = "action go_top"
-	CmdBackspace      = "action backspace"
-	CmdMoveMouseDown  = "action move_mouse_relative --dx=0 --dy=10"
-	CmdMoveMouseLeft  = "action move_mouse_relative --dx=-10 --dy=0"
-	CmdMoveMouseRight = "action move_mouse_relative --dx=10 --dy=0"
+	CmdIdle          = "idle"
+	CmdLeftClick     = "action left_click"
+	CmdRightClick    = "action right_click"
+	CmdMiddleClick   = "action middle_click"
+	CmdLeftMouseDown = "action left_click --state down"
+	CmdLeftMouseUp   = "action left_click --state up"
+	CmdGoTop         = "action go_top"
+	CmdBackspace     = "action backspace"
+	CmdReset         = "action reset"
+	// CmdBisectLeft and the seven beside it are the bisect cuts, spelled as
+	// the bindings a user reads.
+	CmdBisectLeft      = "action bisect --direction=left"
+	CmdBisectRight     = "action bisect --direction=right"
+	CmdBisectUp        = "action bisect --direction=up"
+	CmdBisectDown      = "action bisect --direction=down"
+	CmdBisectUpLeft    = "action bisect --direction=up_left"
+	CmdBisectUpRight   = "action bisect --direction=up_right"
+	CmdBisectDownLeft  = "action bisect --direction=down_left"
+	CmdBisectDownRight = "action bisect --direction=down_right"
+	CmdMoveMouseDown   = "action move_mouse_relative --dx=0 --dy=10"
+	CmdMoveMouseLeft   = "action move_mouse_relative --dx=-10 --dy=0"
+	CmdMoveMouseRight  = "action move_mouse_relative --dx=10 --dy=0"
 )
 
 // DisabledSentinel is a special action value that removes a default hotkey binding.
@@ -115,6 +127,7 @@ type Config struct {
 	Hints           HintsConfig                    `json:"hints"           toml:"hints"`
 	Grid            GridConfig                     `json:"grid"            toml:"grid"`
 	RecursiveGrid   RecursiveGridConfig            `json:"recursiveGrid"   toml:"recursive_grid"`
+	Bisect          BisectConfig                   `json:"bisect"          toml:"bisect"`
 	MonitorSelect   MonitorSelectConfig            `json:"monitorSelect"   toml:"monitor_select"`
 	VirtualPointer  VirtualPointerConfig           `json:"virtualPointer"  toml:"virtual_pointer"`
 	MouseAction     MouseActionConfig              `json:"mouseAction"     toml:"mouse_action_indicator"`
@@ -194,6 +207,7 @@ type ModeIndicatorConfig struct {
 	Hints         ModeIndicatorModeConfig `json:"hints"         toml:"hints"`
 	Grid          ModeIndicatorModeConfig `json:"grid"          toml:"grid"`
 	RecursiveGrid ModeIndicatorModeConfig `json:"recursiveGrid" toml:"recursive_grid"`
+	Bisect        ModeIndicatorModeConfig `json:"bisect"        toml:"bisect"`
 	MonitorSelect ModeIndicatorModeConfig `json:"monitorSelect" toml:"monitor_select"`
 	UI            ModeIndicatorUI         `json:"ui"            toml:"ui"`
 }
@@ -262,6 +276,39 @@ type ScrollConfig struct {
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
+}
+
+// BisectConfig defines bisect mode: a region that starts as the screen, and
+// keys that keep half of it or a quadrant. It is drawn on the recursive-grid
+// surface, so its appearance and its transition are [recursive_grid.ui] and
+// [recursive_grid.animation].
+type BisectConfig struct {
+	Enabled bool `json:"enabled" toml:"enabled"`
+	// CaptureScope is the region the session starts from: the whole active
+	// screen, or the focused window.
+	CaptureScope string `json:"captureScope" toml:"capture_scope"`
+	// Animation configures the native transition between cuts on supported
+	// platforms. It is the recursive grid's shape because the two modes draw
+	// the same picture; the values are bisect's own.
+	Animation RecursiveGridAnimationConfig `json:"animation" toml:"animation"`
+	// UI is the region's appearance, the recursive grid's shape for the same
+	// reason. The sub-key preview options are accepted and inert: a bisect
+	// level has no next level to preview.
+	UI RecursiveGridUI `json:"ui" toml:"ui"`
+
+	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
+
+	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
+}
+
+// RenderConfig is the bisect section in the shape the region-grid render
+// component is built from: the recursive grid's, since it draws both modes.
+func (c *BisectConfig) RenderConfig() RecursiveGridConfig {
+	return RecursiveGridConfig{
+		Enabled:   c.Enabled,
+		Animation: c.Animation,
+		UI:        c.UI,
+	}
 }
 
 // CustomModeConfig is one mode the user declared under [modes.<name>]: a mode
@@ -682,6 +729,8 @@ func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringAr
 		return c.Grid.Hotkeys
 	case ModeNameRecursiveGrid:
 		return c.RecursiveGrid.Hotkeys
+	case ModeNameBisect:
+		return c.Bisect.Hotkeys
 	case ModeNameScroll:
 		return c.Scroll.Hotkeys
 	case ModeNameMonitorSelect:

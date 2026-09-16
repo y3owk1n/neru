@@ -545,7 +545,8 @@ warns when a compositor could not be run or answered garbage and stays quiet
 when it answered with no position (nothing focused, a tiled niri window).
 
 **The same sources answer `FocusedWindowBounds`,** which scopes vision and
-contour detection and `neru action move_mouse --window` to the focused window
+contour detection, `neru action move_mouse --window` and a bisect session
+started with `capture_scope = "window"` to the focused window
 ([system_focused_window.go](../internal/adapter/platform/linux/system_focused_window.go)).
 A Wayland compositor with no source (River, Wayfire) reports `CodeNotSupported`
 there rather than "no focused window", so a caller widening to the active
@@ -626,6 +627,8 @@ discovery rather than the mode itself.
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Sub-key preview                | ✅ mini-grid of next keys  | ✅ mini-grid of next keys  | ✅ mini-grid of next keys   |
+| **Bisect**        | Transition animation           | ✅                         | ✅                         | ✅                          |
+| **Bisect**        | Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Scroll**        | Smooth scroll animation        | ✅                         | ✅ (X11: whole notches)    | ✅ (120ths of a notch)     |
 | **Monitor select**| Whole mode                     | ✅ native panels           | ✅ Cairo panels            | ✅ one layered window per display |
 
@@ -704,6 +707,8 @@ works; this says whether a word a person wrote does anything.
 | `grid.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
 | `recursive_grid.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
 | `recursive_grid.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `bisect.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `bisect.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
 | `scroll.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
 | `scroll.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
 | `app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |

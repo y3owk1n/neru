@@ -51,6 +51,7 @@ var activationMessages = map[domain.Mode]string{
 	domain.ModeHints:         "hints mode activated",
 	domain.ModeGrid:          "grid mode activated",
 	domain.ModeRecursiveGrid: "recursive-grid mode activated",
+	domain.ModeBisect:        "bisect mode activated",
 	domain.ModeScroll:        "scroll mode activated",
 	domain.ModeMonitorSelect: "monitor_select mode activated",
 	domain.ModeIdle:          "idle mode activated",
@@ -141,7 +142,7 @@ func (h *ModesHandler) handleToggleCursorFollowSelection(
 	if !ok {
 		return ipc.Response{
 			Success: false,
-			Message: "toggle-cursor-follow-selection is only available in hints, grid, and recursive_grid modes",
+			Message: "toggle-cursor-follow-selection is only available in hints, grid, recursive_grid, and bisect modes",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}

@@ -85,6 +85,7 @@ func isBuiltInGlobalModeAction(actions []string) (string, bool) {
 	case config.ModeNameHints,
 		config.ModeNameGrid,
 		config.ModeNameRecursiveGrid,
+		config.ModeNameBisect,
 		config.ModeNameScroll:
 		return parts[0], true
 	default:
@@ -109,6 +110,7 @@ func removeLauncherBindingsForDisabledModes(cfg *config.Config) {
 		config.ModeNameHints:         cfg.Hints.Enabled,
 		config.ModeNameGrid:          cfg.Grid.Enabled,
 		config.ModeNameRecursiveGrid: cfg.RecursiveGrid.Enabled,
+		config.ModeNameBisect:        cfg.Bisect.Enabled,
 	}
 
 	for key, actions := range cfg.Hotkeys.Bindings {

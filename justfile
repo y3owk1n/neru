@@ -282,6 +282,7 @@ test-foundation:
         ./internal/domain/modecmd ./internal/domain/motion \
         ./internal/domain/parity \
         ./internal/domain/recursivegrid \
+        ./internal/domain/bisect \
         ./internal/domain/state ./internal/derrors \
         ./internal/flagref ./internal/supportref \
         ./internal/adapter/logger \

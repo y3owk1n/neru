@@ -197,6 +197,9 @@ func (h *ActionsHandler) dispatchByName(
 	case action.IsMoveCellAction(actionName):
 		return h.handleMoveCellAction(parsed), true
 
+	case action.IsBisectAction(actionName):
+		return h.handleBisectAction(parsed), true
+
 	case action.IsWaitForModeExitAction(actionName):
 		return h.handleWaitForModeExitAction(ctx, parsed), true
 

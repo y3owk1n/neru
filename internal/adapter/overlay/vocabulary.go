@@ -43,5 +43,6 @@ const (
 	ModeGrid          = manager.ModeGrid
 	ModeScroll        = manager.ModeScroll
 	ModeRecursiveGrid = manager.ModeRecursiveGrid
+	ModeBisect        = manager.ModeBisect
 	ModeMonitorSelect = manager.ModeMonitorSelect
 )

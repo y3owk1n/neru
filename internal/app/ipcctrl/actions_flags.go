@@ -61,6 +61,7 @@ var actionFlagSupport = map[string][]string{
 	string(action.NameMoveMouseRelative): {flagDX, flagDY},
 	string(action.NameMoveMonitor):       {flagPrevious, flagName},
 	string(action.NameMoveCell):          {flagDirection, flagCount},
+	string(action.NameBisect):            {flagDirection},
 
 	// The bare scroll name is only reachable from a hotkey string or raw IPC
 	// and takes no flags; the directional sub-actions below are the usable form.

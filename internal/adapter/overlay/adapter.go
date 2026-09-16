@@ -140,7 +140,7 @@ func drawsOnSharedWindow(frame ports.Frame) bool {
 	switch frame.Mode() {
 	case domain.ModeMonitorSelect:
 		return false
-	case domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid,
+	case domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid, domain.ModeBisect,
 		domain.ModeScroll, domain.ModeCustom, domain.ModeIdle:
 		return true
 	}
@@ -683,6 +683,8 @@ func (a *Adapter) draw(frame ports.Frame, kind drawKind) error {
 		return a.drawGrid(drawn, kind)
 	case ports.RecursiveGridFrame:
 		return a.drawRecursiveGrid(drawn, kind)
+	case ports.BisectFrame:
+		return a.drawBisect(drawn, kind)
 	case ports.MonitorSelectFrame:
 		return a.drawMonitorSelect(drawn)
 	case ports.ScrollFrame:
@@ -785,6 +787,36 @@ func (a *Adapter) drawRecursiveGrid(frame ports.RecursiveGridFrame, kind drawKin
 		}
 
 		return derrors.Wrap(drawErr, derrors.CodeOverlayFailed, "failed to draw recursive grid")
+	}
+
+	return nil
+}
+
+// drawBisect draws the region a bisect frame carries, divided in four with the
+// pointer that rides the same surface. It is the recursive grid's picture on a
+// component of its own, so the clear-on-transition rule is the same: the
+// backend animates from the bounds it last drew, and a fresh activation must
+// not zoom out of the region the previous one left behind.
+func (a *Adapter) drawBisect(frame ports.BisectFrame, kind drawKind) error {
+	if kind == transitionDraw {
+		a.manager.Clear()
+	}
+
+	style := ResolvedStyle(a.styles)
+
+	drawErr := a.manager.DrawBisect(
+		frame.Bounds,
+		frame.Depth,
+		frame.Keys,
+		style.Bisect,
+		gridSurfacePointer(frame.Pointer, style.VirtualPointer),
+	)
+	if drawErr != nil {
+		if derrors.IsNotSupported(drawErr) {
+			return drawErr
+		}
+
+		return derrors.Wrap(drawErr, derrors.CodeOverlayFailed, "failed to draw bisect")
 	}
 
 	return nil

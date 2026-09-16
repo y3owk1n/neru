@@ -42,6 +42,14 @@ var allExtensions = []extensionAxis{
 		},
 	},
 	{
+		name: extensionBisecting,
+		carried: func(mode Mode) bool {
+			_, ok := mode.(bisector)
+
+			return ok
+		},
+	},
+	{
 		name: extensionCursorFollow,
 		carried: func(mode Mode) bool {
 			_, ok := mode.(cursorFollowSelector)
@@ -121,6 +129,15 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionCellNavigation,
 		extensionCursorFollow,
 		extensionExitSteps,
+		extensionInputEditing,
+		extensionHotkeyOverrides,
+		extensionThemeRefresh,
+		extensionScreenRefresh,
+	},
+	domain.ModeBisect: {
+		extensionBisecting,
+		extensionSelectionTracking,
+		extensionCursorFollow,
 		extensionInputEditing,
 		extensionHotkeyOverrides,
 		extensionThemeRefresh,

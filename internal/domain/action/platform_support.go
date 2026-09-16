@@ -47,6 +47,7 @@ func PlatformSupport() parity.Declaration {
 			string(NameReset),
 			string(NameBackspace),
 			string(NameMoveCell),
+			string(NameBisect),
 			string(NameWaitForModeExit),
 			string(NameSaveCursorPos),
 			string(NameRestoreCursorPos),

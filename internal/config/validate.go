@@ -99,6 +99,11 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return err
 	}
 
+	err = c.ValidateBisect()
+	if err != nil {
+		return err
+	}
+
 	err = c.ValidateVirtualPointer()
 	if err != nil {
 		return err
@@ -338,6 +343,7 @@ func (c *Config) ValidateModeIndicator() error {
 		{c.ModeIndicator.Hints, ModeNameHints},
 		{c.ModeIndicator.Grid, ModeNameGrid},
 		{c.ModeIndicator.RecursiveGrid, ModeNameRecursiveGrid},
+		{c.ModeIndicator.Bisect, ModeNameBisect},
 	}
 
 	for _, mode := range modes {
@@ -356,10 +362,10 @@ func (c *Config) ValidateModeIndicator() error {
 
 // ValidateModes validates that at least one mode is enabled.
 func (c *Config) ValidateModes() error {
-	if !c.Hints.Enabled && !c.Grid.Enabled && !c.RecursiveGrid.Enabled {
+	if !c.Hints.Enabled && !c.Grid.Enabled && !c.RecursiveGrid.Enabled && !c.Bisect.Enabled {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"at least one mode must be enabled: hints.enabled, grid.enabled, or recursive_grid.enabled",
+			"at least one mode must be enabled: hints.enabled, grid.enabled, recursive_grid.enabled, or bisect.enabled",
 		)
 	}
 

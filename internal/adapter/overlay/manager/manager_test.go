@@ -35,6 +35,7 @@ func TestModes_MatchTheDomainNames(t *testing.T) {
 		{manager.ModeGrid, domain.ModeNameGrid},
 		{manager.ModeScroll, domain.ModeNameScroll},
 		{manager.ModeRecursiveGrid, domain.ModeNameRecursiveGrid},
+		{manager.ModeBisect, domain.ModeNameBisect},
 		{manager.ModeMonitorSelect, domain.ModeNameMonitorSelect},
 	}
 

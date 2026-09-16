@@ -7,6 +7,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/bisect"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -57,6 +58,20 @@ func (h *Handler) MoveCellCurrentMode(dir domain.Direction, count int) {
 	}
 
 	navigator.MoveCell(dir, count)
+}
+
+// BisectCurrentMode keeps the half or quadrant of the active mode's region
+// that cut names. A mode that does not bisect says so in the debug log.
+func (h *Handler) BisectCurrentMode(cut bisect.Cut) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	cutter, ok := activeModeEffect[bisector](&h.handlerState, extensionBisecting)
+	if !ok {
+		return
+	}
+
+	cutter.Bisect(cut)
 }
 
 // StartHintSearch activates text filtering for hints mode.

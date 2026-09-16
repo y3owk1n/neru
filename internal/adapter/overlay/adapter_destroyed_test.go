@@ -124,6 +124,18 @@ func (m *countingManager) DrawRecursiveGrid(
 	return nil
 }
 
+func (m *countingManager) DrawBisect(
+	_ image.Rectangle,
+	_ int,
+	_ string,
+	_ renderrecursivegrid.Style,
+	_ renderrecursivegrid.VirtualPointerState,
+) error {
+	m.hit()
+
+	return nil
+}
+
 func (m *countingManager) ShowSubgrid(
 	_ *domainGrid.Cell,
 	_ rendergrid.Style,

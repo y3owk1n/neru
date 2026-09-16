@@ -83,6 +83,8 @@ func (h *handlerState) enterMode(appMode domain.Mode) {
 }
 
 // activateModeBase performs common activation steps for all modes.
+//
+//nolint:unparam // every mode enters with the move-mouse action and no app scope today; the parameters are the seam a mode that differs would use
 func (h *handlerState) activateModeBase(
 	modeName string,
 	enabled bool,

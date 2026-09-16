@@ -54,6 +54,7 @@ func fixedHotkeyDefaults() *config.Config {
 		"Primary+Shift+Space": {config.ModeNameHints},
 		"Primary+Shift+G":     {config.ModeNameGrid},
 		"Primary+Shift+C":     {config.ModeNameRecursiveGrid},
+		"Primary+Shift+B":     {config.ModeNameBisect},
 		"Primary+Shift+S":     {config.ModeNameScroll},
 	}
 

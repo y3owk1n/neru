@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/bisect"
 )
 
 func (h *ActionsHandler) handleFeedAction(
@@ -140,6 +141,43 @@ func (h *ActionsHandler) handleBackspaceAction() ipc.Response {
 	h.modesHandler.BackspaceCurrentMode()
 
 	return ipc.Response{Success: true, Message: "mode backspace", Code: ipc.CodeOK}
+}
+
+// handleBisectAction keeps the half or quadrant of the bisect region the
+// action names.
+func (h *ActionsHandler) handleBisectAction(parsed parsedActionArgs) ipc.Response {
+	if !parsed.hasDirection {
+		return ipc.Response{
+			Success: false,
+			Message: "bisect requires --direction (" + strings.Join(bisect.CutNames, ", ") + ")",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	cut, cutErr := bisect.ParseCut(parsed.directionStr)
+	if cutErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: cutErr.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgModesHandlerNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	h.modesHandler.BisectCurrentMode(cut)
+
+	return ipc.Response{
+		Success: true,
+		Message: "bisect " + cut.String(),
+		Code:    ipc.CodeOK,
+	}
 }
 
 // handleMoveCellAction slides the active mode's selection to a neighboring

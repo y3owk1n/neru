@@ -290,6 +290,7 @@ If you keep the default per-mode launcher keys, disable the ones this cycle repl
 "Primary+Shift+Space" = "__disabled__"   # default hints launcher
 "Primary+Shift+G" = "__disabled__"       # default grid launcher
 "Primary+Shift+C" = "__disabled__"       # default recursive_grid launcher
+"Primary+Shift+B" = "__disabled__"       # default bisect launcher
 "Primary+Shift+S" = "__disabled__"       # default scroll launcher
 ```
 

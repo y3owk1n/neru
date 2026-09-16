@@ -182,6 +182,25 @@ func (h *handlerState) recursiveGridPointer() ports.GridPointer {
 	)
 }
 
+// refreshBisectVirtualPointer does the same for bisect mode.
+func (h *handlerState) refreshBisectVirtualPointer() {
+	h.updateGridPointer(domain.ModeBisect, h.bisectPointer())
+}
+
+// bisectPointer is the pointer bisect mode should be showing. Like the
+// recursive grid's it rides the frame every cut hands over.
+func (h *handlerState) bisectPointer() ports.GridPointer {
+	if h.bisect == nil || h.bisect.Context == nil {
+		return ports.GridPointer{}
+	}
+
+	return selectionPointer(
+		h.bisect.Context.SelectionPoint,
+		h.bisect.Context.CursorFollowSelection(),
+		h.screenBounds,
+	)
+}
+
 // selectionPointer turns a mode's selection into the pointer the overlay
 // should draw: visible only when there is a selection and the real cursor is
 // not already sitting on it, in the overlay's own screen-local space.

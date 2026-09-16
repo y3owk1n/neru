@@ -155,6 +155,17 @@ func (n *headlessManager) DrawRecursiveGrid(
 	return nil
 }
 
+// DrawBisect is a no-op implementation.
+func (n *headlessManager) DrawBisect(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	style renderrecursivegrid.Style,
+	virtualPointer renderrecursivegrid.VirtualPointerState,
+) error {
+	return nil
+}
+
 // UpdateGridMatches is a no-op implementation.
 func (n *headlessManager) UpdateGridMatches(prefix string) {}
 

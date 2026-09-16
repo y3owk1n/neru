@@ -20,6 +20,9 @@ const (
 	ModeScroll
 	// ModeRecursiveGrid is the recursive-grid navigation mode.
 	ModeRecursiveGrid
+	// ModeBisect is the bisect navigation mode: every press keeps half of the
+	// region, or a quadrant of it.
+	ModeBisect
 	// ModeMonitorSelect is the interactive monitor selection mode.
 	ModeMonitorSelect
 	// ModeCustom is a mode the user declared in [modes.<name>]. It has no

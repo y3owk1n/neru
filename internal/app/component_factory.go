@@ -4,6 +4,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/components/bisect"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
@@ -103,6 +104,12 @@ func (f *ComponentFactory) CreateScrollComponent() *components.ScrollComponent {
 	return &components.ScrollComponent{
 		Context: &scroll.Context{},
 	}
+}
+
+// CreateBisectComponent creates the bisect component. The session's region is
+// built on activation, from the screen the cursor is on.
+func (f *ComponentFactory) CreateBisectComponent() *components.BisectComponent {
+	return &components.BisectComponent{Context: &bisect.Context{}}
 }
 
 // CreateRecursiveGridComponent creates the recursive-grid component.

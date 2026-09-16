@@ -612,7 +612,11 @@ func TestSimulation_ExcludedApp(t *testing.T) {
 	}
 }
 
-const recursiveGridHotkey = "Primary+Shift+C"
+const (
+	recursiveGridHotkey = "Primary+Shift+C"
+	bisectHotkey        = "Primary+Shift+X"
+	bisectWindowHotkey  = "Primary+Shift+V"
+)
 
 // manyButtons builds a count-sized grid of well-separated clickable buttons,
 // enough to force multi-character hint labels.
@@ -974,6 +978,166 @@ func TestSimulation_RecursiveGridJourney(t *testing.T) {
 		bounds, ok := sim.overlay.lastRecursiveGridBounds()
 
 		return ok && bounds.In(topLeftThird)
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}
+
+// TestSimulation_BisectJourney covers bisect mode end to end: activation
+// draws the whole screen divided in four with the quadrant keys, each cut
+// redraws the half or quadrant kept and moves the cursor to its center,
+// Backspace takes a cut back, and Escape lands in idle with the cursor where
+// the last cut put it.
+func TestSimulation_BisectJourney(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(bisectHotkey)
+	sim.waitMode(domain.ModeBisect)
+
+	sim.waitFor("bisect drawn over the whole screen", func() bool {
+		frame, ok := sim.overlay.lastBisectFrame()
+
+		return ok && frame.Bounds.Eq(simScreen) && frame.Keys == "yubn"
+	})
+
+	sim.waitFor("cursor at the screen center", func() bool {
+		return sim.cursor.position() == image.Pt(960, 540)
+	})
+
+	sim.press("l")
+	sim.waitFor("cut right kept the right half", func() bool {
+		frame, ok := sim.overlay.lastBisectFrame()
+
+		return ok && frame.Bounds.Eq(image.Rect(960, 0, 1920, 1080)) &&
+			sim.cursor.position() == image.Pt(1440, 540)
+	})
+
+	sim.press("y")
+	sim.waitFor("cut up-left kept that quadrant of the half", func() bool {
+		frame, ok := sim.overlay.lastBisectFrame()
+
+		return ok && frame.Bounds.Eq(image.Rect(960, 0, 1440, 540))
+	})
+
+	sim.press("Backspace")
+	sim.waitFor("backspace restored the right half", func() bool {
+		frame, ok := sim.overlay.lastBisectFrame()
+
+		return ok && frame.Bounds.Eq(image.Rect(960, 0, 1920, 1080)) &&
+			sim.cursor.position() == image.Pt(1440, 540)
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	if got := sim.cursor.position(); got != image.Pt(1440, 540) {
+		t.Fatalf("leaving bisect moved the cursor to %v", got)
+	}
+}
+
+// TestSimulation_BisectStartsFromTheFocusedWindow covers the window scope:
+// with --capture-scope window the region starts as the focused window's
+// bounds, placed where the window is rather than in the screen's corner, and
+// the cursor goes to that window's center. The default scope, screen, ignores
+// the window.
+func TestSimulation_BisectStartsFromTheFocusedWindow(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[bisectWindowHotkey] = []string{"bisect --capture-scope window"}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	window := image.Rect(400, 200, 1200, 900)
+	sim.desktop.focusWindow(window)
+
+	sim.pressHotkey(bisectWindowHotkey)
+	sim.waitMode(domain.ModeBisect)
+
+	sim.waitFor("bisect drawn over the focused window where it is", func() bool {
+		frame, ok := sim.overlay.lastBisectFrame()
+
+		return ok && frame.Bounds.Eq(window) && sim.cursor.position() == image.Pt(800, 550)
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	sim.pressHotkey(bisectHotkey)
+	sim.waitMode(domain.ModeBisect)
+
+	sim.waitFor("the default scope starts from the screen", func() bool {
+		frame, ok := sim.overlay.lastBisectFrame()
+
+		return ok && frame.Bounds.Eq(simScreen)
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}
+
+// TestSimulation_BisectHoldMode covers --cursor-selection-mode hold: cuts
+// narrow the region and draw the pointer stand-in at its center while the
+// real cursor stays where it was, and the backtick toggle brings the cursor
+// onto the selection.
+func TestSimulation_BisectHoldMode(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[bisectWindowHotkey] = []string{"bisect --cursor-selection-mode hold"}
+
+	sim := newSimHarness(t, cfg, nil)
+	start := sim.cursor.position()
+
+	sim.pressHotkey(bisectWindowHotkey)
+	sim.waitMode(domain.ModeBisect)
+
+	sim.press("l")
+	sim.waitFor("cut drawn with the pointer stand-in, cursor held", func() bool {
+		frame, ok := sim.overlay.lastBisectFrame()
+
+		return ok && frame.Bounds.Eq(image.Rect(960, 0, 1920, 1080)) &&
+			frame.Pointer.Visible && frame.Pointer.Position == image.Pt(1440, 540) &&
+			sim.cursor.position() == start
+	})
+
+	sim.press("`")
+	sim.waitFor("toggle brought the cursor onto the selection", func() bool {
+		frame, ok := sim.overlay.lastBisectFrame()
+
+		return ok && !frame.Pointer.Visible && sim.cursor.position() == image.Pt(1440, 540)
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}
+
+// TestSimulation_BisectWindowScopeOnASecondDisplay covers the placement on a
+// display that does not start at the origin: the window's region lands where
+// the window is on that display, not offset by the display's position.
+func TestSimulation_BisectWindowScopeOnASecondDisplay(t *testing.T) {
+	cfg := simConfig()
+	cfg.Bisect.CaptureScope = domain.CaptureScopeWindow
+
+	sim := newSimHarness(t, cfg, nil)
+
+	second := image.Rect(1920, 0, 3840, 1080)
+	sim.desktop.set([]simDisplay{
+		{name: "main", bounds: simScreen},
+		{name: "second", bounds: second},
+	})
+	sim.cursor.moveTo(image.Pt(2500, 500))
+
+	window := image.Rect(2200, 100, 3000, 700)
+	sim.desktop.focusWindow(window)
+
+	sim.pressHotkey(bisectHotkey)
+	sim.waitMode(domain.ModeBisect)
+
+	// The frame is drawn in that display's own space, and the cursor lands
+	// at the window's center in global space.
+	sim.waitFor("region placed relative to the second display", func() bool {
+		frame, ok := sim.overlay.lastBisectFrame()
+
+		return ok && frame.Bounds.Eq(window.Sub(second.Min)) &&
+			sim.cursor.position() == image.Pt(2600, 400)
 	})
 
 	sim.press("Escape")

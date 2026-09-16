@@ -131,6 +131,8 @@ func (o *Overlay) resolveModeConfigLocked(mode string) *config.ModeIndicatorMode
 		return &o.indicatorConfig.Scroll
 	case "recursive_grid":
 		return &o.indicatorConfig.RecursiveGrid
+	case "bisect":
+		return &o.indicatorConfig.Bisect
 	default:
 		return customModeConfig(o.customLabels, mode)
 	}

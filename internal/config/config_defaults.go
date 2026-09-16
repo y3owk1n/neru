@@ -387,6 +387,7 @@ func newDefaultConfig() *Config {
 		Hints:           defaultHints(),
 		Grid:            defaultGrid(),
 		RecursiveGrid:   defaultRecursiveGrid(),
+		Bisect:          defaultBisect(),
 		VirtualPointer:  defaultVirtualPointer(),
 		MouseAction:     defaultMouseAction(),
 		ModeIndicator:   defaultModeIndicator(),
@@ -430,6 +431,7 @@ func defaultHotkeys() HotkeysConfig {
 			"Primary+Shift+Space": {ModeNameHints},
 			"Primary+Shift+G":     {ModeNameGrid},
 			"Primary+Shift+C":     {ModeNameRecursiveGrid},
+			"Primary+Shift+B":     {ModeNameBisect},
 			"Primary+Shift+S":     {ModeNameScroll},
 		},
 	}
@@ -576,7 +578,7 @@ func defaultGrid() GridConfig {
 		Hotkeys: map[string]StringOrStringArray{
 			KeyDisplayEscape:    {CmdIdle},
 			"`":                 {CmdToggleCursorFollowSelection},
-			KeyDisplaySpace:     {"action reset"},
+			KeyDisplaySpace:     {CmdReset},
 			KeyDisplayBackspace: {CmdBackspace},
 			KeyComboShiftL:      {CmdLeftClick},
 			KeyComboShiftR:      {CmdRightClick},
@@ -608,6 +610,33 @@ func defaultGrid() GridConfig {
 	}
 }
 
+// defaultRegionGridUI is the appearance the recursive grid and bisect share by
+// default: one drawing, so one starting point, with each mode's section free
+// to depart from it.
+func defaultRegionGridUI() RecursiveGridUI {
+	return RecursiveGridUI{
+		LineColor:                       Color{},
+		LineWidth:                       DefaultRecursiveGridLineWidth,
+		HighlightColor:                  Color{},
+		TextColor:                       Color{},
+		FontSize:                        DefaultRecursiveGridFontSize,
+		FontFamily:                      "",
+		LabelBackgroundColor:            Color{},
+		LabelBackgroundPaddingX:         DefaultRecursiveGridLabelBackgroundPaddingX,
+		LabelBackgroundPaddingY:         DefaultRecursiveGridLabelBackgroundPaddingY,
+		LabelBackgroundBorderRadius:     DefaultRecursiveGridLabelBackgroundBorderRadius,
+		LabelBackgroundBorderWidth:      DefaultRecursiveGridLabelBackgroundBorderWidth,
+		LabelBackground:                 false,
+		LabelChar:                       DefaultRecursiveGridLabelChar,
+		LabelAutohideMultiplier:         DefaultRecursiveGridLabelAutohideMultiplier,
+		SubKeyPreview:                   DefaultRecursiveGridSubKeyPreview,
+		SubKeyPreviewFontSize:           DefaultRecursiveGridSubKeyPreviewFontSize,
+		SubKeyPreviewAutohideMultiplier: DefaultRecursiveGridSubKeyPreviewAutohideMultiplier,
+		SubKeyPreviewTextColor:          Color{},
+		SubKeyPreviewLabelChar:          DefaultRecursiveGridSubKeyPreviewLabelChar,
+	}
+}
+
 func defaultRecursiveGrid() RecursiveGridConfig {
 	return RecursiveGridConfig{
 		Enabled: true,
@@ -622,7 +651,7 @@ func defaultRecursiveGrid() RecursiveGridConfig {
 		Hotkeys: map[string]StringOrStringArray{
 			KeyDisplayEscape:    {CmdIdle},
 			"`":                 {CmdToggleCursorFollowSelection},
-			KeyDisplaySpace:     {"action reset"},
+			KeyDisplaySpace:     {CmdReset},
 			KeyDisplayBackspace: {CmdBackspace},
 			KeyComboShiftL:      {CmdLeftClick},
 			KeyComboShiftR:      {CmdRightClick},
@@ -635,31 +664,48 @@ func defaultRecursiveGrid() RecursiveGridConfig {
 			KeyDisplayRight:     {CmdMoveMouseRight},
 		},
 
-		UI: RecursiveGridUI{
-			LineColor:                       Color{},
-			LineWidth:                       DefaultRecursiveGridLineWidth,
-			HighlightColor:                  Color{},
-			TextColor:                       Color{},
-			FontSize:                        DefaultRecursiveGridFontSize,
-			FontFamily:                      "",
-			LabelBackgroundColor:            Color{},
-			LabelBackgroundPaddingX:         DefaultRecursiveGridLabelBackgroundPaddingX,
-			LabelBackgroundPaddingY:         DefaultRecursiveGridLabelBackgroundPaddingY,
-			LabelBackgroundBorderRadius:     DefaultRecursiveGridLabelBackgroundBorderRadius,
-			LabelBackgroundBorderWidth:      DefaultRecursiveGridLabelBackgroundBorderWidth,
-			LabelBackground:                 false,
-			LabelChar:                       DefaultRecursiveGridLabelChar,
-			LabelAutohideMultiplier:         DefaultRecursiveGridLabelAutohideMultiplier,
-			SubKeyPreview:                   DefaultRecursiveGridSubKeyPreview,
-			SubKeyPreviewFontSize:           DefaultRecursiveGridSubKeyPreviewFontSize,
-			SubKeyPreviewAutohideMultiplier: DefaultRecursiveGridSubKeyPreviewAutohideMultiplier,
-			SubKeyPreviewTextColor:          Color{},
-			SubKeyPreviewLabelChar:          DefaultRecursiveGridSubKeyPreviewLabelChar,
-		},
+		UI: defaultRegionGridUI(),
 
 		MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 		MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
 		MaxDepth:      DefaultRecursiveGridMaxDepth,
+	}
+}
+
+func defaultBisect() BisectConfig {
+	return BisectConfig{
+		Enabled:      true,
+		CaptureScope: domain.CaptureScopeScreen,
+		Animation: RecursiveGridAnimationConfig{
+			Enabled:    true,
+			DurationMS: DefaultRecursiveGridAnimationDurationMS,
+		},
+		UI: defaultRegionGridUI(),
+		// AppConfigs ships empty: per-app overrides are the user's.
+		AppConfigs: []AppConfig{},
+		Hotkeys: map[string]StringOrStringArray{
+			KeyDisplayEscape:    {CmdIdle},
+			"`":                 {CmdToggleCursorFollowSelection},
+			"h":                 {CmdBisectLeft},
+			"j":                 {CmdBisectDown},
+			"k":                 {CmdBisectUp},
+			"l":                 {CmdBisectRight},
+			"y":                 {CmdBisectUpLeft},
+			"u":                 {CmdBisectUpRight},
+			"b":                 {CmdBisectDownLeft},
+			"n":                 {CmdBisectDownRight},
+			KeyDisplayLeft:      {CmdBisectLeft},
+			KeyDisplayDown:      {CmdBisectDown},
+			"Up":                {CmdBisectUp},
+			KeyDisplayRight:     {CmdBisectRight},
+			KeyDisplaySpace:     {CmdReset},
+			KeyDisplayBackspace: {CmdBackspace},
+			KeyComboShiftL:      {CmdLeftClick},
+			KeyComboShiftR:      {CmdRightClick},
+			KeyComboShiftM:      {CmdMiddleClick},
+			KeyComboShiftI:      {CmdLeftMouseDown},
+			KeyComboShiftU:      {CmdLeftMouseUp},
+		},
 	}
 }
 
@@ -741,6 +787,7 @@ func defaultModeIndicator() ModeIndicatorConfig {
 		Hints:         defaultModeIndicatorMode(indicatorHidden, "Hints"),
 		Grid:          defaultModeIndicatorMode(indicatorHidden, "Grid"),
 		RecursiveGrid: defaultModeIndicatorMode(indicatorHidden, "Recursive Grid"),
+		Bisect:        defaultModeIndicatorMode(indicatorHidden, "Bisect"),
 		MonitorSelect: defaultModeIndicatorMode(indicatorHidden, "Monitor Select"),
 		UI: ModeIndicatorUI{
 			FontSize:         DefaultScrollFontSize,

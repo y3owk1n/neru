@@ -9,6 +9,7 @@ const (
 	ModeNameGrid          = "grid"
 	ModeNameScroll        = "scroll"
 	ModeNameRecursiveGrid = "recursive_grid"
+	ModeNameBisect        = "bisect"
 	ModeNameMonitorSelect = "monitor_select"
 	// ModeNameCustom is the command word that enters a user-declared mode:
 	// "mode <name>". It is the word wherever a built-in mode is called by its
@@ -30,6 +31,8 @@ func ModeString(mode Mode) string {
 		return ModeNameScroll
 	case ModeRecursiveGrid:
 		return ModeNameRecursiveGrid
+	case ModeBisect:
+		return ModeNameBisect
 	case ModeMonitorSelect:
 		return ModeNameMonitorSelect
 	case ModeCustom:

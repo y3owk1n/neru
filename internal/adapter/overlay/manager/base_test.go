@@ -102,6 +102,7 @@ func TestBase_GridPointerCallsAreSilentWithoutARenderComponent(t *testing.T) {
 	for _, mode := range []manager.Mode{
 		manager.ModeGrid,
 		manager.ModeRecursiveGrid,
+		manager.ModeBisect,
 		manager.ModeHints,
 		manager.ModeScroll,
 		manager.ModeMonitorSelect,

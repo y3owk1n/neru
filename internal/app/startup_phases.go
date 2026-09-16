@@ -225,6 +225,7 @@ func initializeUIComponents(app *App) error {
 	app.gridComponent = factory.CreateGridComponent()
 	app.scrollComponent = factory.CreateScrollComponent()
 	app.recursiveGridComponent = factory.CreateRecursiveGridComponent()
+	app.bisectComponent = factory.CreateBisectComponent()
 
 	return nil
 }
@@ -277,6 +278,7 @@ func initializeModeHandler(app *App) {
 			grid          *components.GridComponent
 			scroll        *components.ScrollComponent
 			recursivegrid *components.RecursiveGridComponent
+			bisect        *components.BisectComponent
 		}
 		callbacks struct {
 			refreshHotkeys        func()
@@ -306,11 +308,13 @@ func initializeModeHandler(app *App) {
 			grid          *components.GridComponent
 			scroll        *components.ScrollComponent
 			recursivegrid *components.RecursiveGridComponent
+			bisect        *components.BisectComponent
 		}{
 			hints:         app.hintsComponent,
 			grid:          app.gridComponent,
 			scroll:        app.scrollComponent,
 			recursivegrid: app.recursiveGridComponent,
+			bisect:        app.bisectComponent,
 		},
 		callbacks: struct {
 			refreshHotkeys        func()
@@ -346,6 +350,7 @@ func initializeModeHandler(app *App) {
 		GridComponent:          deps.components.grid,
 		ScrollComponent:        deps.components.scroll,
 		RecursiveGridComponent: deps.components.recursivegrid,
+		BisectComponent:        deps.components.bisect,
 		RefreshHotkeys:         deps.callbacks.refreshHotkeys,
 		ExecuteActionSequence:  deps.callbacks.executeActionSequence,
 		Shutdown:               app.Quit,
@@ -561,6 +566,7 @@ func cleanupUIComponents(app *App) {
 	app.gridComponent = nil
 	app.scrollComponent = nil
 	app.recursiveGridComponent = nil
+	app.bisectComponent = nil
 }
 
 // cleanupEventTapAndIPC cleans up resources allocated during event tap and IPC initialization.

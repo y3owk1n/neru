@@ -21,6 +21,7 @@ type Style struct {
 	HintSearchLayout SearchInputLayout
 	Grid             grid.Style
 	RecursiveGrid    recursivegrid.Style
+	Bisect           recursivegrid.Style
 	MonitorSelect    MonitorSelectStyle
 	VirtualPointer   VirtualPointerStyle
 }
@@ -204,6 +205,7 @@ func (r *StyleResolver) resolve(cfg *config.Config) Style {
 		HintSearchLayout: buildSearchInputLayout(cfg.Hints.SearchInputUI),
 		Grid:             grid.BuildStyle(cfg.Grid, r.theme),
 		RecursiveGrid:    recursivegrid.BuildStyle(cfg.RecursiveGrid, r.theme),
+		Bisect:           recursivegrid.BuildStyle(cfg.Bisect.RenderConfig(), r.theme),
 		MonitorSelect:    buildMonitorSelectStyle(cfg, r.theme),
 		VirtualPointer:   buildVirtualPointerStyle(cfg.VirtualPointer, r.theme),
 	}

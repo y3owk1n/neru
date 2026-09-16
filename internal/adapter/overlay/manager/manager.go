@@ -26,6 +26,8 @@ const (
 	ModeScroll Mode = Mode(domain.ModeNameScroll)
 	// ModeRecursiveGrid is the recursive-grid mode.
 	ModeRecursiveGrid Mode = Mode(domain.ModeNameRecursiveGrid)
+	// ModeBisect is the bisect mode, drawn on the recursive-grid surface.
+	ModeBisect Mode = Mode(domain.ModeNameBisect)
 	// ModeMonitorSelect is the monitor_select mode.
 	ModeMonitorSelect Mode = Mode(domain.ModeNameMonitorSelect)
 )
@@ -217,6 +219,16 @@ type Interface interface {
 		dims domain.GridDimensions,
 		nextKeys string,
 		nextDims domain.GridDimensions,
+		style recursivegrid.Style,
+		virtualPointer recursivegrid.VirtualPointerState,
+	) error
+	// DrawBisect draws the bisect region divided in four, on a region-grid
+	// component of its own so its transition state and configuration are
+	// separate from the recursive grid's.
+	DrawBisect(
+		bounds image.Rectangle,
+		depth int,
+		keys string,
 		style recursivegrid.Style,
 		virtualPointer recursivegrid.VirtualPointerState,
 	) error

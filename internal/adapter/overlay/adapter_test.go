@@ -239,6 +239,27 @@ func (m *screenManager) DrawRecursiveGrid(
 	return nil
 }
 
+// DrawBisect records the region the way DrawRecursiveGrid does, under the
+// shape the adapter draws bisect in.
+func (m *screenManager) DrawBisect(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	_ renderrecursivegrid.Style,
+	virtualPointer renderrecursivegrid.VirtualPointerState,
+) error {
+	m.recursiveGrid = recursiveGridDraw{
+		bounds:  bounds,
+		depth:   depth,
+		keys:    keys,
+		dims:    domain.GridDimensions{Rows: 2, Cols: 2},
+		pointer: virtualPointer,
+	}
+	m.recursiveGridDraws++
+
+	return nil
+}
+
 func (m *screenManager) DrawGridPointer(
 	mode overlay.Mode,
 	point image.Point,

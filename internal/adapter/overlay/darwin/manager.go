@@ -177,6 +177,10 @@ func (m *Manager) Hide() {
 	if m.RecursiveGridOverlay() != nil {
 		m.RecursiveGridOverlay().Hide()
 	}
+
+	if m.BisectOverlay() != nil {
+		m.BisectOverlay().Hide()
+	}
 }
 
 // Clear clears the overlay window.
@@ -199,6 +203,10 @@ func (m *Manager) Clear() {
 
 	if m.RecursiveGridOverlay() != nil {
 		m.RecursiveGridOverlay().Clear()
+	}
+
+	if m.BisectOverlay() != nil {
+		m.BisectOverlay().Clear()
 	}
 }
 
@@ -260,6 +268,10 @@ func (m *Manager) Destroy() {
 	if m.RecursiveGridOverlay() != nil {
 		m.RecursiveGridOverlay().Cleanup()
 		m.UseRecursiveGridOverlay(nil)
+	}
+	if m.BisectOverlay() != nil {
+		m.BisectOverlay().Cleanup()
+		m.UseBisectOverlay(nil)
 	}
 
 	// Mode indicator owns its own window, so use full Destroy().
@@ -476,6 +488,43 @@ func (m *Manager) DrawRecursiveGrid(
 	return nil
 }
 
+// DrawBisect renders the bisect region on its own region-grid component, so
+// its transition runs from the bounds that component last drew and reads the
+// [bisect.animation] it was configured with.
+func (m *Manager) DrawBisect(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	style recursivegrid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
+) error {
+	if m.BisectOverlay() == nil {
+		return nil
+	}
+
+	drawErr := m.BisectOverlay().DrawRecursiveGrid(
+		bounds,
+		depth,
+		keys,
+		bisectDimensions(),
+		"",
+		domain.GridDimensions{},
+		style,
+		virtualPointer,
+	)
+	if drawErr != nil {
+		return derrors.Wrap(drawErr, derrors.CodeOverlayFailed, "failed to draw bisect")
+	}
+
+	return nil
+}
+
+// bisectDimensions is the one shape a bisect region is drawn in: four
+// quadrants.
+func bisectDimensions() domain.GridDimensions {
+	return domain.GridDimensions{Rows: 2, Cols: 2} //nolint:mnd // four quadrants
+}
+
 // UpdateGridMatches updates the grid matches with the specified prefix.
 func (m *Manager) UpdateGridMatches(prefix string) {
 	if m.GridOverlay() == nil {
@@ -542,6 +591,9 @@ func (m *Manager) SetSharingType(hide bool) {
 	}
 	if m.RecursiveGridOverlay() != nil {
 		m.RecursiveGridOverlay().SetSharingType(hide)
+	}
+	if m.BisectOverlay() != nil {
+		m.BisectOverlay().SetSharingType(hide)
 	}
 	if m.ModeIndicatorOverlay() != nil {
 		m.ModeIndicatorOverlay().SetSharingType(hide)

@@ -37,6 +37,7 @@ keeps its default. "The daemon" below means the process started by
 | [`[hints]`](#hints)                           | Hints mode and element discovery              |
 | [`[grid]`](#grid)                             | Grid mode                                     |
 | [`[recursive_grid]`](#recursive_grid)         | Recursive grid mode                           |
+| [`[bisect]`](#bisect)                         | Bisect mode                                   |
 | [`[scroll]`](#scroll)                         | Scroll mode and step sizes                    |
 | [`[monitor_select]`](#monitor_select)         | Display picker                                |
 | [`[virtual_pointer]`](#virtual_pointer)       | On-screen pointer indicator                   |
@@ -323,10 +324,10 @@ Omitted colors inherit Neru's theme-derived defaults and update in real time whe
 
 **Syntax:** `"Mod1+Mod2+Key" = "action"`
 
-**Defaults by platform.** macOS and Windows ship four launcher bindings:
+**Defaults by platform.** macOS and Windows ship five launcher bindings:
 `Primary+Shift+Space` (hints), `Primary+Shift+G` (grid), `Primary+Shift+C`
-(recursive grid), and `Primary+Shift+S` (scroll). `monitor_select` has no
-default binding on any platform.
+(recursive grid), `Primary+Shift+B` (bisect), and `Primary+Shift+S` (scroll).
+`monitor_select` has no default binding on any platform.
 
 **Linux ships no default global hotkeys at all.** They are cleared during
 startup because the defaults collide with common terminal and desktop shortcuts
@@ -576,7 +577,7 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Keyboard    | `feed`                                                                                 |
 | Hints       | `search_hints`, `cycle_hint`, `cycle_hint --backward`                                  |
 | Delay       | `sleep <duration>` — plain numbers are seconds (`0.5`), explicit units: `500ms`, `1s`  |
-| Mode        | `reset`, `backspace`, `move_cell --direction <dir>`                                    |
+| Mode        | `reset`, `backspace`, `move_cell --direction <dir>`, `bisect --direction <cut>`        |
 | Composition | `wait_for_mode_exit` (with optional `--bail`), `save_cursor_pos`, `restore_cursor_pos` |
 | Cursor      | `hide_cursor`, `show_cursor`                                                           |
 
@@ -587,7 +588,8 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 - Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#neru-action-left_click-right_click-middle_click))
 - `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#neru-action-scroll_up-scroll_down-scroll_left-scroll_right))
 - `move_cell` slides the grid or recursive-grid selection to a neighbouring cell on the same layer, e.g. `"action move_cell --direction=right"`. It takes an optional `--count`, and repeats while the key is held when [`[held_repeat]`](#held_repeat) is enabled (see [CLI.md](CLI.md#neru-action-move_cell))
-- `reset`, `backspace`, `move_cell`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, and `show_cursor` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
+- `bisect` keeps half, or a quadrant, of the region in [bisect mode](#bisect), e.g. `"action bisect --direction=right"`; the eight cuts are `left`, `right`, `up`, `down`, `up_left`, `up_right`, `down_left` and `down_right` (see [CLI.md](CLI.md#neru-action-bisect))
+- `reset`, `backspace`, `move_cell`, `bisect`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, and `show_cursor` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
 - `sleep` is the exception among those: it works only in hotkey bindings (`"action sleep 0.5"`), **not** as a terminal command, and it cannot appear in a comma-separated chain. See [CLI.md](CLI.md#action-sleep-hotkey-bindings-only)
 
 #### Feed Keys
@@ -1394,6 +1396,109 @@ See [per-app hotkey overrides](#per-app-hotkey-overrides).
 
 ---
 
+## [bisect]
+
+Narrows a region by halves until the cursor is on the target. The region
+starts as the whole screen, or the focused window, and is drawn divided in
+four with the quadrant keys in the cells. Each press keeps one half of it
+(`h`, `j`, `k`, `l`) or one quadrant (`y`, `u`, `b`, `n`), and the cursor
+moves to the centre of what is left. Each press needs one judgement, which
+side of the centre the target is on, and there are no labels to read. Ten
+quadrant cuts take a 1920 by 1080 screen down to two pixels. Backspace takes
+the last cut back, and Space starts over.
+
+Every cut, Backspace and Space animates the region the way a recursive-grid
+level does, under [`[bisect.animation]`](#animation-1), and the region's
+appearance is [`[bisect.ui]`](#ui-3). Both have the recursive grid's shape
+because the two modes draw the same picture. The values are bisect's own.
+
+Cursor behavior: `neru bisect --cursor-selection-mode follow|hold` (see
+[CLI.md](CLI.md#neru-bisect)). In `hold` the real cursor stays where it was
+while the region narrows and a pointer stand-in marks the centre, which keeps
+hover menus open; the default hotkeys include `` ` `` for
+`toggle-cursor-follow-selection`, and a click moves to the centre first.
+The default launcher is `Primary+Shift+B` under [`[hotkeys]`](#hotkeys).
+Bind another key to `bisect --capture-scope window` for a launcher that
+starts from the focused window.
+
+### Options
+
+| Option          | Type   | Default    | Description                                                                 |
+| --------------- | ------ | ---------- | --------------------------------------------------------------------------- |
+| `enabled`       | bool   | `true`     | Enable/disable mode                                                         |
+| `capture_scope` | string | `"screen"` | Region the session starts from: `screen` (the whole active screen) or `window` (the focused window, falling back to the screen when nothing is focused). `--capture-scope` on the command overrides it per activation |
+
+### Default Hotkeys
+
+```toml
+[bisect.hotkeys]
+"Escape"    = "idle"
+"`"         = "toggle-cursor-follow-selection"
+"h"         = "action bisect --direction=left"
+"j"         = "action bisect --direction=down"
+"k"         = "action bisect --direction=up"
+"l"         = "action bisect --direction=right"
+"y"         = "action bisect --direction=up_left"
+"u"         = "action bisect --direction=up_right"
+"b"         = "action bisect --direction=down_left"
+"n"         = "action bisect --direction=down_right"
+"Left"      = "action bisect --direction=left"
+"Down"      = "action bisect --direction=down"
+"Up"        = "action bisect --direction=up"
+"Right"     = "action bisect --direction=right"
+"Space"     = "action reset"
+"Backspace" = "action backspace"
+"Shift+L"   = "action left_click"
+"Shift+R"   = "action right_click"
+"Shift+M"   = "action middle_click"
+"Shift+I"   = "action left_click --state down"
+"Shift+U"   = "action left_click --state up"
+```
+
+The four quadrant cells are labelled with whichever single-character keys
+are bound to the quadrant cuts, so rebinding them relabels the cells.
+
+### Animation
+
+| Option        | Type | Default | Description                                     |
+| ------------- | ---- | ------- | ----------------------------------------------- |
+| `enabled`     | bool | `true`  | Native transition between cuts on supported platforms |
+| `duration_ms` | int  | `50`    | Transition duration in milliseconds             |
+
+### UI
+
+The same options as [`[recursive_grid.ui]`](#ui-2), with the same defaults,
+read from `[bisect.ui]`. `label_char` overrides the four quadrant labels and
+`label_autohide_multiplier` hides them once a quadrant is too small for its
+key. The `sub_key_preview*` options are accepted for the shared shape and do
+nothing: a bisect level has no next level to preview.
+
+```toml
+[bisect.ui]
+line_width = 1
+font_size = 10
+label_background = false
+```
+
+### Per-App Config
+
+| Field           | Type   | Description                                                  |
+| --------------- | ------ | ------------------------------------------------------------ |
+| `bundle_id`     | string | App bundle ID                                                |
+| `capture_scope` | string | Optional per-app `screen` or `window` start region            |
+| `hotkeys`       | map    | [per-app hotkey overrides](#per-app-hotkey-overrides)        |
+
+```toml
+[[bisect.app_configs]]
+bundle_id = "com.brave.Browser"
+capture_scope = "window"
+hotkeys = { "Return" = "action left_click" }
+```
+
+See [per-app hotkey overrides](#per-app-hotkey-overrides).
+
+---
+
 ## [scroll]
 
 Keyboard-driven scrolling.
@@ -1629,6 +1734,10 @@ text = "Grid"
 [mode_indicator.recursive_grid]
 enabled = false
 text = "Recursive Grid"
+
+[mode_indicator.bisect]
+enabled = false
+text = "Bisect"
 
 [mode_indicator.monitor_select]
 enabled = false

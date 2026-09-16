@@ -273,6 +273,7 @@ func (c *Config) modeBindingTables() []modeBindingTable {
 		{field: ModeNameHints + ".hotkeys", table: c.Hints.Hotkeys},
 		{field: ModeNameGrid + ".hotkeys", table: c.Grid.Hotkeys},
 		{field: ModeNameRecursiveGrid + ".hotkeys", table: c.RecursiveGrid.Hotkeys},
+		{field: ModeNameBisect + ".hotkeys", table: c.Bisect.Hotkeys},
 		{field: ModeNameScroll + ".hotkeys", table: c.Scroll.Hotkeys},
 		{field: ModeNameMonitorSelect + ".hotkeys", table: c.MonitorSelect.Hotkeys},
 	}
@@ -286,6 +287,7 @@ func (c *Config) modeBindingTables() []modeBindingTable {
 		{configs: c.Hints.AppConfigs, modeName: ModeNameHints},
 		{configs: c.Grid.AppConfigs, modeName: ModeNameGrid},
 		{configs: c.RecursiveGrid.AppConfigs, modeName: ModeNameRecursiveGrid},
+		{configs: c.Bisect.AppConfigs, modeName: ModeNameBisect},
 		{configs: c.Scroll.AppConfigs, modeName: ModeNameScroll},
 	}, len(c.Modes))
 

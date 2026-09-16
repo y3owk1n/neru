@@ -24,6 +24,7 @@ func defaultHotkeys() map[string][]string {
 		"Primary+Shift+Space": {hintsCommand},
 		"Primary+Shift+G":     {config.ModeNameGrid},
 		"Primary+Shift+C":     {config.ModeNameRecursiveGrid},
+		"Primary+Shift+B":     {config.ModeNameBisect},
 		"Primary+Shift+S":     {config.ModeNameScroll},
 	}
 }

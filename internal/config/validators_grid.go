@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
@@ -325,6 +326,123 @@ func (c *Config) ValidateMonitorSelect() error {
 	return nil
 }
 
+// ValidateBisect validates bisect configuration.
+func (c *Config) ValidateBisect() error {
+	if !c.Bisect.Enabled {
+		return nil
+	}
+
+	switch c.Bisect.CaptureScope {
+	case domain.CaptureScopeWindow, domain.CaptureScopeScreen, "":
+	default:
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"bisect.capture_scope must be %q or %q",
+			domain.CaptureScopeWindow, domain.CaptureScopeScreen,
+		)
+	}
+
+	err := validateRegionGridAnimation(ModeNameBisect, c.Bisect.Animation)
+	if err != nil {
+		return err
+	}
+
+	err = validateRegionGridUI(ModeNameBisect, c.Bisect.UI)
+	if err != nil {
+		return err
+	}
+
+	return validateAppConfigsWithCallback(
+		ModeNameBisect,
+		c.Bisect.AppConfigs,
+		func(idx int, appConfig *AppConfig) error {
+			switch appConfig.CaptureScope {
+			case domain.CaptureScopeWindow, domain.CaptureScopeScreen, "":
+			default:
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"bisect.app_configs[%d].capture_scope must be %q or %q",
+					idx, domain.CaptureScopeWindow, domain.CaptureScopeScreen,
+				)
+			}
+
+			return rejectModeSpecificFields(ModeNameBisect)(idx, appConfig)
+		},
+	)
+}
+
+// validateRegionGridAnimation checks the transition settings a region grid
+// section carries, named by the section for the message.
+func validateRegionGridAnimation(section string, anim RecursiveGridAnimationConfig) error {
+	if anim.DurationMS < 0 {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s.animation.duration_ms must be non-negative",
+			section,
+		)
+	}
+
+	return nil
+}
+
+// validateRegionGridUI checks the appearance a region grid section carries,
+// named by the section for the message. The recursive grid and bisect share
+// the shape and so share the rules.
+func validateRegionGridUI(section string, appearance RecursiveGridUI) error {
+	err := validateColors([]colorField{
+		{appearance.LineColor, section + ".appearance.line_color"},
+		{appearance.HighlightColor, section + ".appearance.highlight_color"},
+		{appearance.TextColor, section + ".appearance.text_color"},
+		{appearance.LabelBackgroundColor, section + ".appearance.label_background_color"},
+		{appearance.SubKeyPreviewTextColor, section + ".appearance.sub_key_preview_text_color"},
+	})
+	if err != nil {
+		return err
+	}
+
+	if appearance.LineWidth < 0 {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s.appearance.line_width must be non-negative",
+			section,
+		)
+	}
+
+	if appearance.FontSize < 1 || appearance.FontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s.appearance.font_size must be between 1 and %d",
+			section, maxFontSize,
+		)
+	}
+
+	if appearance.SubKeyPreviewFontSize < 1 || appearance.SubKeyPreviewFontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s.appearance.sub_key_preview_font_size must be between 1 and %d",
+			section, maxFontSize,
+		)
+	}
+
+	if utf8.RuneCountInString(appearance.LabelChar) > 1 {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s.appearance.label_char must be empty or a single character",
+			section,
+		)
+	}
+
+	if utf8.RuneCountInString(appearance.SubKeyPreviewLabelChar) > 1 {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s.appearance.sub_key_preview_label_char must be empty or a single character",
+			section,
+		)
+	}
+
+	return nil
+}
+
 // ValidateRecursiveGrid validates recursive grid configuration.
 func (c *Config) ValidateRecursiveGrid() error {
 	if !c.RecursiveGrid.Enabled {
@@ -358,11 +476,9 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.max_depth must be >= 1")
 	}
 
-	if c.RecursiveGrid.Animation.DurationMS < 0 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.animation.duration_ms must be non-negative",
-		)
+	err := validateRegionGridAnimation("recursive_grid", c.RecursiveGrid.Animation)
+	if err != nil {
+		return err
 	}
 
 	expectedKeys := c.RecursiveGrid.GridCols * c.RecursiveGrid.GridRows
@@ -407,53 +523,9 @@ func (c *Config) ValidateRecursiveGrid() error {
 		}
 	}
 
-	err := validateColors([]colorField{
-		{c.RecursiveGrid.UI.LineColor, "recursive_grid.ui.line_color"},
-		{c.RecursiveGrid.UI.HighlightColor, "recursive_grid.ui.highlight_color"},
-		{c.RecursiveGrid.UI.TextColor, "recursive_grid.ui.text_color"},
-		{c.RecursiveGrid.UI.LabelBackgroundColor, "recursive_grid.ui.label_background_color"},
-		{c.RecursiveGrid.UI.SubKeyPreviewTextColor, "recursive_grid.ui.sub_key_preview_text_color"},
-	})
+	err = validateRegionGridUI("recursive_grid", c.RecursiveGrid.UI)
 	if err != nil {
 		return err
-	}
-
-	if c.RecursiveGrid.UI.LineWidth < 0 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.ui.line_width must be non-negative",
-		)
-	}
-
-	if c.RecursiveGrid.UI.FontSize < 1 || c.RecursiveGrid.UI.FontSize > maxFontSize {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.ui.font_size must be between 1 and %d",
-			maxFontSize,
-		)
-	}
-
-	if c.RecursiveGrid.UI.SubKeyPreviewFontSize < 1 ||
-		c.RecursiveGrid.UI.SubKeyPreviewFontSize > maxFontSize {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.ui.sub_key_preview_font_size must be between 1 and %d",
-			maxFontSize,
-		)
-	}
-
-	if utf8.RuneCountInString(c.RecursiveGrid.UI.LabelChar) > 1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.ui.label_char must be empty or a single character",
-		)
-	}
-
-	if utf8.RuneCountInString(c.RecursiveGrid.UI.SubKeyPreviewLabelChar) > 1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.ui.sub_key_preview_label_char must be empty or a single character",
-		)
 	}
 
 	err = validateAppConfigsWithCallback(

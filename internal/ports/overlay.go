@@ -122,6 +122,31 @@ func (RecursiveGridFrame) Mode() domain.Mode { return domain.ModeRecursiveGrid }
 
 func (RecursiveGridFrame) frame() {}
 
+// BisectFrame is the bisect surface: the region the user has cut down to,
+// drawn as a rectangle divided in four with the quadrant keys in the cells.
+// It is the recursive grid's picture, so the overlay draws it on that
+// surface with that mode's style.
+type BisectFrame struct {
+	// Bounds is the region as it stands, in the overlay's screen-local space.
+	Bounds image.Rectangle
+
+	// Depth is how many cuts deep the user has gone, counted from zero.
+	Depth int
+
+	// Keys label the four quadrants, in reading order, with the keys that
+	// keep them. Empty cells are drawn unlabelled.
+	Keys string
+
+	// Pointer is the stand-in for the cursor at the region's center, drawn
+	// while the real cursor is held back from following it.
+	Pointer GridPointer
+}
+
+// Mode names the mode a bisect frame draws.
+func (BisectFrame) Mode() domain.Mode { return domain.ModeBisect }
+
+func (BisectFrame) frame() {}
+
 // MonitorSelectFrame is the monitor picker surface: one labeled panel per
 // display the user can send the cursor to.
 //

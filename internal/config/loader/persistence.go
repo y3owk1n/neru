@@ -197,6 +197,11 @@ func Save(cfg *config.Config, path string) error {
 			defaults.RecursiveGrid.Hotkeys,
 		},
 		{
+			"bisect.hotkeys",
+			cfg.Bisect.Hotkeys,
+			defaults.Bisect.Hotkeys,
+		},
+		{
 			"monitor_select.hotkeys",
 			cfg.MonitorSelect.Hotkeys,
 			defaults.MonitorSelect.Hotkeys,

@@ -29,6 +29,8 @@ func (c *Config) HotkeysForModeAndApp(
 		appConfig = c.Grid.AppConfigForBundleID(bundleID)
 	case ModeNameRecursiveGrid:
 		appConfig = c.RecursiveGrid.AppConfigForBundleID(bundleID)
+	case ModeNameBisect:
+		appConfig = c.Bisect.AppConfigForBundleID(bundleID)
 	case ModeNameScroll:
 		appConfig = c.Scroll.AppConfigForBundleID(bundleID)
 	case ModeNameMonitorSelect:
@@ -247,6 +249,57 @@ func (c *HintsConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 // AppConfigForBundleID returns the matching grid app config for the given bundle ID.
 // Bundle ID matching is case-insensitive (after trimming whitespace).
 func (c *GridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
+
+	for idx := range c.AppConfigs {
+		if strings.ToLower(strings.TrimSpace(c.AppConfigs[idx].BundleID)) == lowerBundleID {
+			return &c.AppConfigs[idx]
+		}
+	}
+
+	return nil
+}
+
+// HasAppHotkeyOverrides reports whether any [[bisect.app_configs]] entry has a
+// non-empty Hotkeys map.
+func (c *BisectConfig) HasAppHotkeyOverrides() bool {
+	for idx := range c.AppConfigs {
+		if len(c.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// HasAppCaptureScopeOverrides reports whether any [[bisect.app_configs]]
+// entry sets a capture scope, so an activation knows whether asking which
+// application is focused can change anything.
+func (c *BisectConfig) HasAppCaptureScopeOverrides() bool {
+	for idx := range c.AppConfigs {
+		if c.AppConfigs[idx].CaptureScope != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+// CaptureScopeForApp returns the region a bisect session starts from for the
+// given bundle ID: the app config's capture_scope when one is set, else the
+// section's.
+func (c *BisectConfig) CaptureScopeForApp(bundleID string) string {
+	appConfig := c.AppConfigForBundleID(bundleID)
+	if appConfig != nil && appConfig.CaptureScope != "" {
+		return appConfig.CaptureScope
+	}
+
+	return c.CaptureScope
+}
+
+// AppConfigForBundleID returns the matching bisect app config for the given
+// bundle ID. Bundle ID matching is case-insensitive (after trimming whitespace).
+func (c *BisectConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
 
 	for idx := range c.AppConfigs {

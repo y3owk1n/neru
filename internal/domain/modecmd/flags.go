@@ -109,7 +109,7 @@ const (
 	usageRole                = "Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more"
 	usageText                = "Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more"
 	usageStrategy            = "Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr)"
-	usageCaptureScope        = "Region the vision and contour strategies scan: window (the focused window) or screen (the whole active screen)"
+	usageCaptureScope        = "Region the vision and contour strategies scan, or the region bisect starts from: window (the focused window) or screen (the whole active screen)"
 	usageLabelDirection      = "Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)"
 	usageSplitWord           = "Split detected text into word-level regions (requires vision strategy)"
 	usageZoomToDepth         = "Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position"
@@ -342,6 +342,7 @@ var (
 		domain.ModeHints,
 		domain.ModeGrid,
 		domain.ModeRecursiveGrid,
+		domain.ModeBisect,
 		domain.ModeScroll,
 		domain.ModeMonitorSelect,
 		domain.ModeCustom,
@@ -350,6 +351,20 @@ var (
 	// hintsOnly are the flags that describe element detection, which only
 	// hints does.
 	hintsOnly = []domain.Mode{domain.ModeHints}
+
+	// cursorModes are the modes with a selection the real cursor can follow
+	// or hold back from: the selection modes, and bisect, whose selection is
+	// the center of its region.
+	cursorModes = []domain.Mode{
+		domain.ModeHints,
+		domain.ModeGrid,
+		domain.ModeRecursiveGrid,
+		domain.ModeBisect,
+	}
+
+	// scopedModes are the modes that read a capture scope: hints, whose
+	// capture strategies scan it, and bisect, whose region starts as it.
+	scopedModes = []domain.Mode{domain.ModeHints, domain.ModeBisect}
 
 	// recursiveGridOnly is the one flag about zooming.
 	recursiveGridOnly = []domain.Mode{domain.ModeRecursiveGrid}
@@ -494,7 +509,7 @@ var descriptors = []Descriptor{
 			return renderValue(FlagStrategy, activation.Strategy)
 		},
 	),
-	valueFlag(FlagCaptureScope, "", usageCaptureScope, msgCaptureScopeValue, hintsOnly,
+	valueFlag(FlagCaptureScope, "", usageCaptureScope, msgCaptureScopeValue, scopedModes,
 		func(activation *Activation, value string) error {
 			scope, err := ParseCaptureScope(value)
 			if err != nil {
@@ -549,7 +564,7 @@ var descriptors = []Descriptor{
 		},
 	),
 	valueFlag(FlagCursorSelectionMode, "", usageCursorSelectionMode, msgCursorSelectionModeValue,
-		selectionModes,
+		cursorModes,
 		func(activation *Activation, value string) error {
 			switch value {
 			case domain.CursorSelectionModeFollow:

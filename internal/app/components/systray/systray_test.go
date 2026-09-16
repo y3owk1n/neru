@@ -29,6 +29,7 @@ type mockApp struct {
 func (m *mockApp) HintsEnabled() bool         { return m.hintsEnabled }
 func (m *mockApp) GridEnabled() bool          { return m.gridEnabled }
 func (m *mockApp) RecursiveGridEnabled() bool { return m.recursiveGridEnabled }
+func (m *mockApp) BisectEnabled() bool        { return true }
 func (m *mockApp) IsEnabled() bool            { return m.isEnabled }
 func (m *mockApp) SetEnabled(enabled bool) {
 	m.isEnabled = enabled

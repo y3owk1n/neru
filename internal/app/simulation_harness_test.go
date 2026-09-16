@@ -205,6 +205,7 @@ type simOverlayPort struct {
 	hintFrames         []ports.HintsFrame
 	gridDraws          []simGridDraw
 	recursiveGridDraws []image.Rectangle
+	bisectDraws        []ports.BisectFrame
 	monitorDraws       [][]ports.MonitorSelectTarget
 
 	matchPrefixes []string
@@ -492,6 +493,8 @@ func (m *simOverlayPort) recordLocked(frame ports.Frame) {
 		m.gridDraws = append(m.gridDraws, simGridDraw{grid: drawn.Grid, input: drawn.Input})
 	case ports.RecursiveGridFrame:
 		m.recursiveGridDraws = append(m.recursiveGridDraws, drawn.Bounds)
+	case ports.BisectFrame:
+		m.bisectDraws = append(m.bisectDraws, drawn)
 	case ports.MonitorSelectFrame:
 		m.monitorDraws = append(m.monitorDraws, slices.Clone(drawn.Targets))
 	case ports.ScrollFrame:
@@ -591,6 +594,17 @@ func (m *simOverlayPort) lastRecursiveGridBounds() (image.Rectangle, bool) {
 	}
 
 	return m.recursiveGridDraws[len(m.recursiveGridDraws)-1], true
+}
+
+func (m *simOverlayPort) lastBisectFrame() (ports.BisectFrame, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.bisectDraws) == 0 {
+		return ports.BisectFrame{}, false
+	}
+
+	return m.bisectDraws[len(m.bisectDraws)-1], true
 }
 
 // showCount reports how many times a frame was put on screen with the window
@@ -1143,6 +1157,7 @@ func simConfig() *config.Config {
 		hintsHotkey:         {"hints"},
 		gridHotkey:          {"grid"},
 		recursiveGridHotkey: {"recursive_grid"},
+		bisectHotkey:        {"bisect"},
 		scrollHotkey:        {"scroll"},
 	}
 
@@ -1194,6 +1209,27 @@ type simDisplay struct {
 type simDesktop struct {
 	mu       sync.Mutex
 	displays []simDisplay
+	// window is the focused window the system port reports when hasWindow
+	// is set; otherwise the active screen stands in for it.
+	window    image.Rectangle
+	hasWindow bool
+}
+
+// focusWindow gives the fixture desktop a focused window at bounds, which the
+// system port then reports instead of the active screen.
+func (d *simDesktop) focusWindow(bounds image.Rectangle) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.window = bounds
+	d.hasWindow = true
+}
+
+func (d *simDesktop) focusedWindow() (image.Rectangle, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.window, d.hasWindow
 }
 
 func (d *simDesktop) set(displays []simDisplay) {
@@ -1356,6 +1392,10 @@ func buildSimHarness(
 			return screens, nil
 		},
 		FocusedWindowBoundsFunc: func(_ context.Context) (image.Rectangle, bool, error) {
+			if window, ok := desktop.focusedWindow(); ok {
+				return window, true, nil
+			}
+
 			return activeBounds(), true, nil
 		},
 		MoveCursorToPointFunc: func(_ context.Context, point image.Point, _ bool) error {

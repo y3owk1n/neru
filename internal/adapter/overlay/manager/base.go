@@ -44,6 +44,7 @@ type Base struct {
 	gridOverlay            *grid.Overlay
 	modeIndicatorOverlay   *modeindicator.Overlay
 	recursiveGridOverlay   *recursivegrid.Overlay
+	bisectOverlay          *recursivegrid.Overlay
 	stickyModifiersOverlay *stickyindicator.Overlay
 	virtualPointerOverlay  *virtualpointer.Overlay
 }
@@ -132,6 +133,10 @@ func (b *Base) UseStickyModifiersOverlay(
 // UseRecursiveGridOverlay sets the recursive-grid overlay renderer.
 func (b *Base) UseRecursiveGridOverlay(o *recursivegrid.Overlay) { b.recursiveGridOverlay = o }
 
+// UseBisectOverlay sets the bisect overlay renderer, a region-grid component of
+// its own.
+func (b *Base) UseBisectOverlay(o *recursivegrid.Overlay) { b.bisectOverlay = o }
+
 // UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay renderer.
 func (b *Base) UseVirtualPointerOverlay(o *virtualpointer.Overlay) { b.virtualPointerOverlay = o }
 
@@ -149,6 +154,9 @@ func (b *Base) StickyModifiersOverlay() *stickyindicator.Overlay { return b.stic
 
 // RecursiveGridOverlay returns the recursive-grid overlay renderer.
 func (b *Base) RecursiveGridOverlay() *recursivegrid.Overlay { return b.recursiveGridOverlay }
+
+// BisectOverlay returns the bisect overlay renderer.
+func (b *Base) BisectOverlay() *recursivegrid.Overlay { return b.bisectOverlay }
 
 // VirtualPointerOverlay returns the cursor-following virtual pointer overlay renderer.
 func (b *Base) VirtualPointerOverlay() *virtualpointer.Overlay { return b.virtualPointerOverlay }
@@ -249,6 +257,12 @@ func (b *Base) gridPointerSurfaceFor(mode Mode) gridPointerSurface {
 		}
 
 		return b.recursiveGridOverlay
+	case ModeBisect:
+		if b.bisectOverlay == nil {
+			return nil
+		}
+
+		return b.bisectOverlay
 	case ModeIdle, ModeHints, ModeScroll, ModeMonitorSelect:
 		// No other mode draws a pointer of its own.
 		return nil

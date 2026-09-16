@@ -47,6 +47,7 @@ text = "#E8EEFF"
 "Primary+Shift+Space" = "hints"
 "Primary+Shift+G" = "grid"
 "Primary+Shift+C" = "recursive_grid"
+"Primary+Shift+B" = "bisect"
 "Primary+Shift+S" = "scroll"
 
 # Macros — named action sequences, reused from any binding.
@@ -287,6 +288,56 @@ sub_key_preview_font_size = 8
 sub_key_preview_autohide_multiplier = 1.5   # Hide the preview when a sub-cell < fontSize × multiplier (0 = disable)
 sub_key_preview_label_char = ""             # Override sub-key preview labels with a single character (e.g. "·"); empty = use key
 
+# Bisect mode: every press keeps half of the region, or a quadrant of it
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#bisect
+# Launched with Primary+Shift+B by default (see [hotkeys]).
+[bisect]
+enabled = true
+capture_scope = "screen"                    # Region the session starts from: "screen" or "window" (the focused window)
+
+[bisect.animation]
+enabled = true                              # Opt out from the native transition between cuts on supported platforms
+duration_ms = 50                            # Bisect animation duration in milliseconds
+
+[bisect.hotkeys]
+"Escape" = "idle"
+"`" = "toggle-cursor-follow-selection"
+"h" = "action bisect --direction=left"
+"j" = "action bisect --direction=down"
+"k" = "action bisect --direction=up"
+"l" = "action bisect --direction=right"
+"y" = "action bisect --direction=up_left"
+"u" = "action bisect --direction=up_right"
+"b" = "action bisect --direction=down_left"
+"n" = "action bisect --direction=down_right"
+"Left" = "action bisect --direction=left"
+"Down" = "action bisect --direction=down"
+"Up" = "action bisect --direction=up"
+"Right" = "action bisect --direction=right"
+"Space" = "action reset"
+"Backspace" = "action backspace"
+"Shift+L" = "action left_click"
+"Shift+R" = "action right_click"
+"Shift+M" = "action middle_click"
+"Shift+I" = "action left_click --state down"
+"Shift+U" = "action left_click --state up"
+
+[bisect.ui]
+line_width = 1
+font_size = 10
+font_family = ""
+label_background = false                    # Add rounded backgrounds behind the quadrant labels
+label_background_padding_x = -1
+label_background_padding_y = -1
+label_background_border_radius = -1
+label_background_border_width = 1
+label_char = ""                             # Override the quadrant labels with a single character (e.g. "·"); empty = use key
+label_autohide_multiplier = 1.5             # Hide labels when a quadrant < fontSize × multiplier (0 = disable)
+sub_key_preview = false                     # Accepted for the shared shape; a bisect level has no next level to preview
+sub_key_preview_font_size = 8
+sub_key_preview_autohide_multiplier = 1.5
+sub_key_preview_label_char = ""
+
 # Virtual pointer
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#virtual_pointer
 [virtual_pointer.ui]
@@ -395,6 +446,10 @@ text = "Grid"
 [mode_indicator.recursive_grid]
 enabled = false
 text = "Recursive Grid"
+
+[mode_indicator.bisect]
+enabled = false
+text = "Bisect"
 
 [mode_indicator.monitor_select]
 enabled = false

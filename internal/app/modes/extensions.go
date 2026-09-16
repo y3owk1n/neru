@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/bisect"
 )
 
 // This file holds the optional extensions to Mode: the behavior only some
@@ -27,6 +28,7 @@ type extensionName string
 const (
 	extensionSelectionTracking extensionName = "selection tracking"
 	extensionCellNavigation    extensionName = "cell navigation"
+	extensionBisecting         extensionName = "bisecting"
 	extensionCursorFollow      extensionName = "cursor follow selection"
 	extensionExitSteps         extensionName = "exit step reporting"
 	extensionInputEditing      extensionName = "input editing"
@@ -70,6 +72,17 @@ type cellNavigator interface {
 	// MoveCell slides the selection count cells in dir. A move that would
 	// leave the screen is the mode's own business to refuse.
 	MoveCell(dir domain.Direction, count int)
+}
+
+// bisector is an optional Mode extension: a mode whose region is cut in half,
+// or down to a quadrant, by a press. Only bisect mode carries it.
+//
+// It is an effect rather than a getter, so a mode that does not carry it says
+// so in the debug log (activeModeEffect): "l did nothing in this mode" has to
+// be answerable from a log.
+type bisector interface {
+	// Bisect keeps the half or quadrant cut names.
+	Bisect(cut bisect.Cut)
 }
 
 // cursorFollowSelector is an optional Mode extension: a mode whose session

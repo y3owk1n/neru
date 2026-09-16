@@ -57,6 +57,13 @@ func (a *App) RecursiveGridEnabled() bool {
 	return cfg != nil && cfg.RecursiveGrid.Enabled
 }
 
+// BisectEnabled returns true if bisect is enabled.
+func (a *App) BisectEnabled() bool {
+	cfg := a.configSnapshot()
+
+	return cfg != nil && cfg.Bisect.Enabled
+}
+
 // Config returns the application configuration.
 func (a *App) Config() *config.Config {
 	return a.configSnapshot()

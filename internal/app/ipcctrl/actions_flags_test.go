@@ -81,7 +81,7 @@ func TestActionFlagSupport_CoversEveryDispatchableAction(t *testing.T) {
 		action.NameMiddleMouseToggle,
 		action.NameMouseDown, action.NameMouseUp, //nolint:staticcheck // still accepted
 		action.NameMoveMouse, action.NameMoveMouseRelative, action.NameMoveMonitor,
-		action.NameMoveCell,
+		action.NameMoveCell, action.NameBisect,
 		action.NameScroll,
 		action.NameScrollUp, action.NameScrollDown,
 		action.NameScrollLeft, action.NameScrollRight,

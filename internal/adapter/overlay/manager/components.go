@@ -26,6 +26,7 @@ type Components struct {
 	Hints           *hints.Overlay
 	Grid            *grid.Overlay
 	RecursiveGrid   *recursivegrid.Overlay
+	Bisect          *recursivegrid.Overlay
 	ModeIndicator   *modeindicator.Overlay
 	StickyModifiers *stickyindicator.Overlay
 	VirtualPointer  *virtualpointer.Overlay
@@ -87,6 +88,9 @@ func (b *Base) BuildComponents(spec ComponentSpec) (Components, error) {
 		// restart to get an overlay.
 		Grid:          grid.NewOverlayWithWindow(cfg.Grid, logger, spec.Window),
 		RecursiveGrid: recursivegrid.NewOverlayWithWindow(cfg.RecursiveGrid, logger, spec.Window),
+		// Bisect is the same drawing with its own configuration and its own
+		// transition state, so it is a second instance rather than a share.
+		Bisect: recursivegrid.NewOverlayWithWindow(cfg.Bisect.RenderConfig(), logger, spec.Window),
 	}
 
 	// Hints are the one mode whose overlay follows the enabled flag, because
@@ -151,6 +155,7 @@ func (b *Base) useComponents(built Components) {
 	b.UseHintOverlay(built.Hints)
 	b.UseGridOverlay(built.Grid)
 	b.UseRecursiveGridOverlay(built.RecursiveGrid)
+	b.UseBisectOverlay(built.Bisect)
 	b.UseModeIndicatorOverlay(built.ModeIndicator)
 	b.UseStickyModifiersOverlay(built.StickyModifiers)
 	b.UseVirtualPointerOverlay(built.VirtualPointer)
@@ -194,6 +199,11 @@ func (b *Base) ConfigureComponents(cfg *config.Config, pointer PointerAppearance
 
 	if overlay := b.recursiveGridOverlay; overlay != nil && cfg.RecursiveGrid.Enabled {
 		overlay.SetConfig(cfg.RecursiveGrid)
+		overlay.SetVirtualPointerConfig(pointerCfg.UI, pointer.FillColor)
+	}
+
+	if overlay := b.bisectOverlay; overlay != nil && cfg.Bisect.Enabled {
+		overlay.SetConfig(cfg.Bisect.RenderConfig())
 		overlay.SetVirtualPointerConfig(pointerCfg.UI, pointer.FillColor)
 	}
 

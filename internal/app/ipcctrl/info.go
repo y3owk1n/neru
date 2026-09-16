@@ -182,6 +182,7 @@ func (h *InfoHandler) handleStatus(_ context.Context, _ ipc.Command) ipc.Respons
 		"hints_enabled":          cfg.Hints.Enabled,
 		"grid_enabled":           cfg.Grid.Enabled,
 		"recursive_grid_enabled": cfg.RecursiveGrid.Enabled,
+		"bisect_enabled":         cfg.Bisect.Enabled,
 		"capabilities":           capabilitiesMap(h.systemCapabilities()),
 		"profile":                profileMap(platform.CurrentProfile()),
 

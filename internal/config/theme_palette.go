@@ -309,6 +309,22 @@ func (c *Config) ResolveThemeDefaults() {
 		c.Theme.Light.Accent, c.Theme.Dark.Accent,
 	))
 
+	mergeColorWithDefault(&c.Bisect.UI.LineColor, solidThemedColor(
+		c.Theme.Light.Accent, c.Theme.Dark.Accent,
+	))
+	mergeColorWithDefault(&c.Bisect.UI.HighlightColor, themedColor(
+		c.Theme.Light.AccentAlt, c.Theme.Dark.AccentAlt, "4D",
+	))
+	mergeColorWithDefault(&c.Bisect.UI.TextColor, solidThemedColor(
+		c.Theme.Light.Accent, c.Theme.Dark.Accent,
+	))
+	mergeColorWithDefault(&c.Bisect.UI.LabelBackgroundColor, solidThemedColor(
+		c.Theme.Light.Surface, c.Theme.Dark.Surface,
+	))
+	mergeColorWithDefault(&c.Bisect.UI.SubKeyPreviewTextColor, solidThemedColor(
+		c.Theme.Light.Accent, c.Theme.Dark.Accent,
+	))
+
 	mergeColorWithDefault(&c.VirtualPointer.UI.TextColor, solidThemedColor(
 		c.Theme.Light.AccentAlt, c.Theme.Dark.AccentAlt,
 	))

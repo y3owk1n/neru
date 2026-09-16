@@ -308,6 +308,8 @@ func (h *handlerState) modeIndicatorEnabled(mode domain.Mode) bool {
 		return h.config.ModeIndicator.Grid.Enabled
 	case domain.ModeRecursiveGrid:
 		return h.config.ModeIndicator.RecursiveGrid.Enabled
+	case domain.ModeBisect:
+		return h.config.ModeIndicator.Bisect.Enabled
 	case domain.ModeMonitorSelect:
 		return h.config.ModeIndicator.MonitorSelect.Enabled
 	case domain.ModeCustom:

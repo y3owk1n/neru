@@ -133,6 +133,7 @@ func TestCommandInitialization(t *testing.T) {
 		"toggle-cursor-follow-selection": false,
 		"toggle-scroll-invert":           false,
 		"recursive_grid":                 false,
+		"bisect":                         false,
 		"monitor_select":                 false,
 		"mode <name>":                    false,
 	}
@@ -188,6 +189,7 @@ func TestCommandInitialization(t *testing.T) {
 		"page_down":           false,
 		"move_monitor":        false,
 		"move_cell":           false,
+		"bisect":              false,
 		"cycle_hint":          false,
 		"hide_cursor":         false,
 		"show_cursor":         false,

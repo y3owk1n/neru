@@ -62,6 +62,17 @@ func TestLinuxOverlayManager_DrawCallsReportNotSupportedWithNoBackend(t *testing
 			},
 		},
 		{
+			name: "DrawBisect",
+			call: func(m *Manager) error {
+				return m.DrawBisect(
+					image.Rect(0, 0, 100, 100),
+					0, "yubn",
+					recursivegrid.Style{},
+					recursivegrid.VirtualPointerState{},
+				)
+			},
+		},
+		{
 			name: "DrawMonitorSelect",
 			call: func(m *Manager) error {
 				return m.DrawMonitorSelect(nil, manager.MonitorSelectStyle{})

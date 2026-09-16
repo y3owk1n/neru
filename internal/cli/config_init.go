@@ -19,6 +19,7 @@ This copies the fully-commented default configuration to get you started.
 If a config file already exists, use --force to overwrite it.
 After running this command, start Neru with 'neru launch' and try:
   Primary+Shift+C      Recursive Grid mode (recommended)
+  Primary+Shift+B       Bisect mode
   Primary+Shift+Space   Hints mode
   Primary+Shift+S       Scroll mode
   Escape            Exit any mode`,
@@ -58,9 +59,10 @@ func runConfigInit(cmd *cobra.Command, force bool) error {
 	cmd.Println("Quick start:")
 	cmd.Println("  1. Start Neru:          neru launch")
 	cmd.Println("  2. Try Recursive Grid:  Primary+Shift+C")
-	cmd.Println("  3. Try Hints mode:      Primary+Shift+Space")
-	cmd.Println("  4. Try Scroll mode:     Primary+Shift+S")
-	cmd.Println("  5. Exit any mode:       Escape")
+	cmd.Println("  3. Try Bisect mode:     Primary+Shift+B")
+	cmd.Println("  4. Try Hints mode:      Primary+Shift+Space")
+	cmd.Println("  5. Try Scroll mode:     Primary+Shift+S")
+	cmd.Println("  6. Exit any mode:       Escape")
 	cmd.Println("")
 	cmd.Println("Edit the config file to customize hotkeys, colors, and behavior.")
 	cmd.Println("Full reference: " + buildinfo.DocsURL("docs/CONFIGURATION.md", buildinfo.Version))

@@ -329,6 +329,8 @@ func (o *Overlay) resolveModeConfig(mode string) *config.ModeIndicatorModeConfig
 		return &o.indicatorConfig.Scroll
 	case domain.ModeNameRecursiveGrid:
 		return &o.indicatorConfig.RecursiveGrid
+	case domain.ModeNameBisect:
+		return &o.indicatorConfig.Bisect
 	default:
 		return customModeConfig(o.customLabels, mode)
 	}

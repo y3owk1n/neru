@@ -52,6 +52,7 @@ func (c *Config) ValidateHotkeys() error {
 		{ModeNameHints, c.Hints.Hotkeys},
 		{ModeNameGrid, c.Grid.Hotkeys},
 		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		{ModeNameBisect, c.Bisect.Hotkeys},
 		{ModeNameScroll, c.Scroll.Hotkeys},
 		// monitor_select binds keys like the other modes and dispatches them
 		// through the same executor, so its table is checked like theirs.
@@ -126,6 +127,7 @@ func (c *Config) checkHotkeysConflicts() error {
 		{ModeNameHints, c.Hints.Hotkeys},
 		{ModeNameGrid, c.Grid.Hotkeys},
 		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		{ModeNameBisect, c.Bisect.Hotkeys},
 		{ModeNameScroll, c.Scroll.Hotkeys},
 	}, len(c.Modes))
 

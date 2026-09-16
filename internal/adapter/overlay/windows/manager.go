@@ -808,6 +808,50 @@ func (m *Manager) DrawRecursiveGrid(
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
+	return m.drawRegionGrid(
+		m.RecursiveGridOverlay(),
+		"recursive grid",
+		bounds, depth, keys, dims, nextKeys, nextDims, style, virtualPointer,
+	)
+}
+
+// DrawBisect draws the bisect region divided in four, with the transition
+// bisect.animation configures on the component built for it.
+func (m *Manager) DrawBisect(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	style recursivegrid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
+) error {
+	return m.drawRegionGrid(
+		m.BisectOverlay(),
+		"bisect",
+		bounds, depth, keys, bisectDimensions(), "", domain.GridDimensions{}, style, virtualPointer,
+	)
+}
+
+// bisectDimensions is the one shape a bisect region is drawn in: four
+// quadrants.
+func bisectDimensions() domain.GridDimensions {
+	return domain.GridDimensions{Rows: 2, Cols: 2} //nolint:mnd // four quadrants
+}
+
+// drawRegionGrid paints one region divided into cells on the overlay window,
+// reading the transition settings from the render component that owns the
+// mode being drawn. what names the mode for the refusal.
+func (m *Manager) drawRegionGrid(
+	component *recursivegrid.Overlay,
+	what string,
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	dims domain.GridDimensions,
+	nextKeys string,
+	nextDims domain.GridDimensions,
+	style recursivegrid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
+) error {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
@@ -816,7 +860,7 @@ func (m *Manager) DrawRecursiveGrid(
 	if m.win == nil {
 		return derrors.New(
 			derrors.CodeNotSupported,
-			"recursive grid overlay not implemented on windows backend",
+			what+" overlay not implemented on windows backend",
 		)
 	}
 
@@ -825,8 +869,8 @@ func (m *Manager) DrawRecursiveGrid(
 		animDuration time.Duration
 	)
 
-	if m.RecursiveGridOverlay() != nil {
-		animCfg := m.RecursiveGridOverlay().Config().Animation
+	if component != nil {
+		animCfg := component.Config().Animation
 		animEnabled = animCfg.Enabled
 		animDuration = time.Duration(animCfg.DurationMS) * time.Millisecond
 	}

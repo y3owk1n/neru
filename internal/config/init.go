@@ -16,6 +16,7 @@ const linuxHotkeysBlock = `[hotkeys]
 "Primary+Shift+Space" = "hints"
 "Primary+Shift+G" = "grid"
 "Primary+Shift+C" = "recursive_grid"
+"Primary+Shift+B" = "bisect"
 "Primary+Shift+S" = "scroll"`
 
 const linuxHotkeysBlockComment = `# Global hotkeys are disabled by default on Linux to avoid conflicts with
@@ -25,6 +26,7 @@ const linuxHotkeysBlockComment = `# Global hotkeys are disabled by default on Li
 # "Primary+Shift+Space" = "hints"
 # "Primary+Shift+G" = "grid"
 # "Primary+Shift+C" = "recursive_grid"
+# "Primary+Shift+B" = "bisect"
 # "Primary+Shift+S" = "scroll"`
 
 // WriteDefaultConfig writes the default configuration to the specified path.

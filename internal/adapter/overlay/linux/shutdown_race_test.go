@@ -92,6 +92,17 @@ func cancelingCalls() []cancelingCall {
 			},
 		},
 		{
+			name: "DrawBisect",
+			call: func(mgr *Manager) {
+				_ = mgr.DrawBisect(
+					image.Rect(0, 0, raceScreenWidth, raceScreenHeight),
+					0, "yubn",
+					recursivegrid.Style{},
+					recursivegrid.VirtualPointerState{},
+				)
+			},
+		},
+		{
 			name: "DrawMonitorSelect",
 			call: func(mgr *Manager) {
 				_ = mgr.DrawMonitorSelect(nil, manager.MonitorSelectStyle{})

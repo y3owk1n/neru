@@ -33,15 +33,19 @@ const (
 		"draw on demand"
 )
 
-// captureScopeOptions are the same six paths for capture_scope, which shadows
-// the hints section per app the way strategy does. They are declared
-// everywhere: the option only shapes the capture strategies, and every
-// platform has a capture backend now.
+// captureScopeOptions are the paths for capture_scope, which shadows the hints
+// section per app the way strategy does, and the bisect section, whose region
+// starts as the scope names. They are declared everywhere: the option shapes
+// the capture strategies and where a bisect starts, every platform has a
+// capture backend now, and a platform with no focused-window source warns
+// and starts from the screen.
 var captureScopeOptions = []string{
 	"hints.capture_scope",
 	"hints.app_configs.capture_scope",
 	"grid.app_configs.capture_scope",
 	"recursive_grid.app_configs.capture_scope",
+	"bisect.app_configs.capture_scope",
+	"bisect.capture_scope",
 	"scroll.app_configs.capture_scope",
 	"app_configs.capture_scope",
 }
@@ -116,6 +120,8 @@ func PlatformSupport() parity.Declaration {
 			"grid.app_configs.visible_check_enabled",
 			"recursive_grid.app_configs.ignore_clickable_check",
 			"recursive_grid.app_configs.visible_check_enabled",
+			"bisect.app_configs.ignore_clickable_check",
+			"bisect.app_configs.visible_check_enabled",
 			"scroll.app_configs.ignore_clickable_check",
 			"scroll.app_configs.visible_check_enabled",
 			"app_configs.ignore_clickable_check",
@@ -333,6 +339,33 @@ func PlatformSupport() parity.Declaration {
 			"recursive_grid.app_configs.scroll_step_full",
 			"recursive_grid.app_configs.hotkeys",
 
+			"bisect.enabled",
+			"bisect.animation.enabled",
+			"bisect.animation.duration_ms",
+			"bisect.ui.line_width",
+			"bisect.ui.font_size",
+			"bisect.ui.font_family",
+			"bisect.ui.label_background",
+			"bisect.ui.label_background_padding_x",
+			"bisect.ui.label_background_padding_y",
+			"bisect.ui.label_background_border_radius",
+			"bisect.ui.label_background_border_width",
+			"bisect.ui.label_char",
+			"bisect.ui.label_autohide_multiplier",
+			"bisect.ui.sub_key_preview",
+			"bisect.ui.sub_key_preview_font_size",
+			"bisect.ui.sub_key_preview_autohide_multiplier",
+			"bisect.ui.sub_key_preview_label_char",
+			"bisect.app_configs",
+			"bisect.app_configs.bundle_id",
+			"bisect.app_configs.strategy",
+			"bisect.app_configs.label_direction",
+			"bisect.app_configs.additional_clickable_roles",
+			"bisect.app_configs.scroll_step",
+			"bisect.app_configs.scroll_step_half",
+			"bisect.app_configs.scroll_step_full",
+			"bisect.app_configs.hotkeys",
+
 			"virtual_pointer.ui.char",
 			"virtual_pointer.ui.font_size",
 			"virtual_pointer.ui.font_family",
@@ -371,6 +404,8 @@ func PlatformSupport() parity.Declaration {
 			"mode_indicator.grid.text",
 			"mode_indicator.recursive_grid.enabled",
 			"mode_indicator.recursive_grid.text",
+			"mode_indicator.bisect.enabled",
+			"mode_indicator.bisect.text",
 			"mode_indicator.ui.font_size",
 			"mode_indicator.ui.font_family",
 			"mode_indicator.ui.border_width",
@@ -441,6 +476,12 @@ func PlatformSupport() parity.Declaration {
 			"recursive_grid.ui.label_background_color",
 			"recursive_grid.ui.sub_key_preview_text_color",
 
+			"bisect.ui.line_color",
+			"bisect.ui.highlight_color",
+			"bisect.ui.text_color",
+			"bisect.ui.label_background_color",
+			"bisect.ui.sub_key_preview_text_color",
+
 			"virtual_pointer.ui.text_color",
 
 			"mouse_action_indicator.ui.background_color",
@@ -458,6 +499,9 @@ func PlatformSupport() parity.Declaration {
 			"mode_indicator.recursive_grid.background_color",
 			"mode_indicator.recursive_grid.text_color",
 			"mode_indicator.recursive_grid.border_color",
+			"mode_indicator.bisect.background_color",
+			"mode_indicator.bisect.text_color",
+			"mode_indicator.bisect.border_color",
 			"mode_indicator.ui.background_color",
 			"mode_indicator.ui.text_color",
 			"mode_indicator.ui.border_color",

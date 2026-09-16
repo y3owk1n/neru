@@ -67,7 +67,7 @@ permissions and per-compositor notes.
 | Ask | Answer with |
 | --- | --- |
 | Click something on screen by keyboard | `neru hints --action left_click`, or `right_click`, `middle_click` |
-| Click where hints find nothing | `neru grid` or `neru recursive_grid`, or `neru hints --strategy vision` |
+| Click where hints find nothing | `neru grid`, `neru recursive_grid` or `neru bisect`, or `neru hints --strategy vision` |
 | Filter hints by typing | `neru hints --search`, or `/` inside hints |
 | Scroll without a mouse | `neru scroll`, or `neru action scroll_down --steps N` |
 | Move the cursor to a spot, display, or grid cell | `neru action move_mouse`, `move_monitor`, `move_cell` |

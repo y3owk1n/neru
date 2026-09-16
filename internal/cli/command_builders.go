@@ -7,11 +7,13 @@ package cli
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/bisect"
 )
 
 // BuildSimpleCommand creates a simple cobra command with the given parameters.
@@ -514,6 +516,47 @@ Examples:
 
 	cmd.Flags().StringVar(&direction, "direction", "", "Direction to move (left, right, up, down)")
 	cmd.Flags().IntVar(&count, "count", 1, "Number of cells to move")
+	_ = cmd.MarkFlagRequired("direction")
+
+	return cmd
+}
+
+// BuildBisectCommand creates a bisect cobra command that keeps half, or a
+// quadrant, of the bisect region.
+func BuildBisectCommand() *cobra.Command {
+	var direction string
+
+	cmd := &cobra.Command{
+		Use:   "bisect",
+		Short: "Keep half, or a quadrant, of the bisect region",
+		Long: `Cut the bisect region down to the half or the quadrant named, in bisect mode.
+
+left, right, up and down keep that half of the region; up_left, up_right,
+down_left and down_right keep that quadrant. The cursor moves to the center
+of what is left. Outside bisect mode the action does nothing.
+
+Examples:
+  neru action bisect --direction right
+  neru action bisect --direction up_left`,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			_, cutErr := bisect.ParseCut(direction)
+			if cutErr != nil {
+				return cutErr
+			}
+
+			return sendCommand(cmd, "action", []string{"bisect", "--direction=" + direction})
+		},
+	}
+
+	cmd.Flags().StringVar(
+		&direction,
+		"direction",
+		"",
+		"Half or quadrant to keep ("+strings.Join(bisect.CutNames, ", ")+")",
+	)
 	_ = cmd.MarkFlagRequired("direction")
 
 	return cmd

@@ -19,7 +19,7 @@ The same content is available as manpages (`man neru`) after installation.
 - [Global flags](#global-flags)
 - [Command index](#command-index)
 - [Daemon lifecycle](#daemon-lifecycle) — `launch` · `start` · `stop` · `idle` · `status` · `doctor`
-- [Navigation modes](#navigation-modes) — `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select` · `mode`
+- [Navigation modes](#navigation-modes) — `hints` · `grid` · `recursive_grid` · `bisect` · `scroll` · `monitor_select` · `mode`
 - [Actions](#actions) — `action` and its subcommands
 - [Sequences](#sequences) — `run` · `macro`
 - [Configuration commands](#configuration-commands) — `config`
@@ -88,6 +88,7 @@ Accepted by every command.
 | [`hints`](#neru-hints)                                       | Label and click UI elements     | Yes | All ¹ |
 | [`grid`](#neru-grid)                                         | Coordinate grid navigation      | Yes | All |
 | [`recursive_grid`](#neru-recursive_grid)                     | Recursive cell navigation       | Yes | All |
+| [`bisect`](#neru-bisect)                                     | Halve the region onto the target | Yes | All |
 | [`scroll`](#neru-scroll)                                     | Vim-style scrolling             | Yes | All |
 | [`monitor_select`](#neru-monitor_select)                     | Jump the cursor to a display    | Yes | All |
 | [`mode`](#neru-mode)                                         | Enter a mode declared in config | Yes | All |
@@ -211,7 +212,7 @@ The examples here and in [Tips & Tricks](TIPS_TRICKS.md) use
 | `enabled`                                               | bool   | `false` after `neru stop`, `true` after `neru start`.     |
 | `mode`                                                  | string | The active mode, same values as `Mode` above.             |
 | `config`                                                | string | Path of the configuration file in use.                    |
-| `hints_enabled`, `grid_enabled`, `recursive_grid_enabled` | bool | Whether each mode is enabled in the configuration.        |
+| `hints_enabled`, `grid_enabled`, `recursive_grid_enabled`, `bisect_enabled` | bool | Whether each mode is enabled in the configuration. |
 | `scroll_inverted`                                       | bool   | Set by [`toggle-scroll-invert`](#neru-toggle-scroll-invert). |
 | `hidden_for_screen_share`                               | bool   | Set by [`toggle-screen-share`](#neru-toggle-screen-share). `true` means hidden. |
 | `cursor_follow_selection`                               | bool or null | Set by [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection). `null` when no mode is running. |
@@ -299,17 +300,17 @@ nothing.
 | `--modifier` |  | value | `hints` · `grid` · `recursive_grid` | Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action) |
 | `--on-exit` |  | value, repeatable | `hints` · `grid` · `recursive_grid` | Step to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Repeat the flag to run several steps in order. Requires --action; not run on manual escape/idle |
 | `--repeat` | `-r` | none | `hints` · `grid` · `recursive_grid` | Re-activate mode after performing the action (requires --action) |
-| `--toggle` | `-t` | none | `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select` · `mode` | Toggle mode on/off (exit to idle if already active) |
+| `--toggle` | `-t` | none | `hints` · `grid` · `recursive_grid` · `bisect` · `scroll` · `monitor_select` · `mode` | Toggle mode on/off (exit to idle if already active) |
 | `--search` | `-s` | none | `hints` | Show search input when the mode is activated |
 | `--hide-on-empty-search` |  | none | `hints` | Hide all hints when search query is empty (requires --search) |
 | `--role` |  | value, repeatable | `hints` | Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more |
 | `--text` |  | value, repeatable | `hints` | Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more |
 | `--strategy` |  | value | `hints` | Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr) |
-| `--capture-scope` |  | value | `hints` | Region the vision and contour strategies scan: window (the focused window) or screen (the whole active screen) |
+| `--capture-scope` |  | value | `hints` · `bisect` | Region the vision and contour strategies scan, or the region bisect starts from: window (the focused window) or screen (the whole active screen) |
 | `--label-direction` |  | value | `hints` | Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet) |
 | `--split-word` |  | none | `hints` | Split detected text into word-level regions (requires vision strategy) |
 | `--zoom-to-depth` |  | value | `recursive_grid` | Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position |
-| `--cursor-selection-mode` |  | value | `hints` · `grid` · `recursive_grid` | How the real cursor should behave during selection: follow or hold |
+| `--cursor-selection-mode` |  | value | `hints` · `grid` · `recursive_grid` · `bisect` | How the real cursor should behave during selection: follow or hold |
 
 <!-- END GENERATED MODE FLAGS -->
 
@@ -447,6 +448,37 @@ neru recursive_grid
 neru recursive_grid --action middle_click
 neru recursive_grid --zoom-to-depth 2
 neru recursive_grid --zoom-to-depth 3 --action left_click
+```
+
+---
+
+## neru bisect
+
+Narrow a region by halves until the cursor is on the target.
+
+```
+neru bisect [flags]
+```
+
+The region starts as the whole screen, or the focused window with
+`--capture-scope window`, and is drawn divided in four with the quadrant keys
+in the cells. Each press keeps one half of it or one quadrant, and the cursor
+moves to the centre of what is left, or with `--cursor-selection-mode hold`
+stays put while a pointer stand-in marks the centre. Backspace takes the last
+cut back and Space starts over. The keys and the default scope are configured
+under [`[bisect]`](CONFIGURATION.md#bisect), and the region's appearance and
+transition under `[bisect.ui]` and `[bisect.animation]`.
+
+**Flags**: every flag listed for `bisect` in the
+[mode flag reference](#mode-flag-reference).
+
+**Examples**
+
+```bash
+neru bisect
+neru bisect --capture-scope window
+neru bisect --cursor-selection-mode hold
+neru bisect --toggle
 ```
 
 ---
@@ -590,7 +622,7 @@ a hotkey binding string, or `neru action` directly.
 | Toggle   | `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`                                    |
 | Movement | `move_mouse`, `move_mouse_relative`, `move_monitor`                                                 |
 | Scroll   | `scroll`, `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`, `page_up`, `page_down`, `go_top`, `go_bottom` |
-| Mode     | `reset`, `backspace`, `move_cell`, `cycle_hint`, `search_hints` ³, `wait_for_mode_exit`             |
+| Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `search_hints` ³, `wait_for_mode_exit`   |
 | Cursor   | `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`                               |
 | Keys     | `feed`                                                                                              |
 | Timing   | `sleep` — [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
@@ -933,6 +965,32 @@ neru action feed Cmd+Shift+P
 neru action feed h e l l o return
 neru action feed --mode o
 neru action feed --mode Escape
+```
+
+---
+
+## neru action bisect
+
+Keep half, or a quadrant, of the region in [bisect mode](#neru-bisect).
+
+```
+neru action bisect --direction left|right|up|down|up_left|up_right|down_left|down_right
+```
+
+`left`, `right`, `up` and `down` keep that half of the region. The four
+compound cuts keep that quadrant. The cursor moves to the centre of what is
+left. A cut on an axis already two pixels wide is refused. Outside bisect mode
+the action does nothing.
+
+| Flag          | Type   | Default | Description                                     |
+| ------------- | ------ | ------- | ----------------------------------------------- |
+| `--direction` | string |         | Required. One of the eight cuts above. A hyphen is accepted in place of the underscore. |
+
+**Examples**
+
+```bash
+neru action bisect --direction right
+neru action bisect --direction up_left
 ```
 
 ---

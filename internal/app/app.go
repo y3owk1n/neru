@@ -115,6 +115,7 @@ type App struct {
 	gridComponent          *components.GridComponent
 	scrollComponent        *components.ScrollComponent
 	recursiveGridComponent *components.RecursiveGridComponent
+	bisectComponent        *components.BisectComponent
 	systrayComponent       SystrayComponent
 
 	// Lifecycle management

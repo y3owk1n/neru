@@ -383,6 +383,8 @@ const (
 	NameBackspace Name = "backspace"
 	// NameMoveCell slides the active mode's selection to a neighboring cell.
 	NameMoveCell Name = "move_cell"
+	// NameBisect keeps half, or a quadrant, of the bisect region.
+	NameBisect Name = "bisect"
 	// NameWaitForModeExit blocks until the current mode exits.
 	NameWaitForModeExit Name = "wait_for_mode_exit"
 	// NameSaveCursorPos saves the current cursor position for later restoration.
@@ -505,6 +507,11 @@ func IsMoveCellAction(name string) bool {
 	return Name(name) == NameMoveCell
 }
 
+// IsBisectAction reports whether the given action is bisect.
+func IsBisectAction(name string) bool {
+	return Name(name) == NameBisect
+}
+
 // IsWaitForModeExitAction reports whether the given action is wait_for_mode_exit.
 func IsWaitForModeExitAction(name string) bool {
 	return Name(name) == NameWaitForModeExit
@@ -579,7 +586,7 @@ func IsKnownName(name Name) bool {
 		NameMoveMouse,
 		NameMoveMouseRelative,
 		NameScroll,
-		NameReset, NameBackspace, NameMoveCell,
+		NameReset, NameBackspace, NameMoveCell, NameBisect,
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
@@ -610,7 +617,7 @@ func IsScrollSubAction(name string) bool {
 		NameMiddleMouseDown, NameMiddleMouseUp,
 		NameLeftMouseToggle, NameRightMouseToggle, NameMiddleMouseToggle,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
-		NameReset, NameBackspace, NameMoveCell,
+		NameReset, NameBackspace, NameMoveCell, NameBisect,
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
 		NameHideCursor, NameShowCursor:
@@ -714,6 +721,7 @@ func (n Name) ToType() (Type, error) {
 	case NameReset,
 		NameBackspace,
 		NameMoveCell,
+		NameBisect,
 		NameWaitForModeExit,
 		NameSaveCursorPos,
 		NameRestoreCursorPos,

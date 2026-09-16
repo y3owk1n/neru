@@ -388,6 +388,7 @@ func modeHotkeyTargets(cfg *config.Config) []modeHotkeyTarget {
 		{config.ModeNameHints, &cfg.Hints.Hotkeys},
 		{config.ModeNameGrid, &cfg.Grid.Hotkeys},
 		{config.ModeNameRecursiveGrid, &cfg.RecursiveGrid.Hotkeys},
+		{config.ModeNameBisect, &cfg.Bisect.Hotkeys},
 		{config.ModeNameMonitorSelect, &cfg.MonitorSelect.Hotkeys},
 	}
 }
@@ -527,6 +528,7 @@ func (s *Service) validateNestedHotkeys(raw map[string]any) *config.LoadResult {
 		config.ModeNameHints,
 		config.ModeNameGrid,
 		config.ModeNameRecursiveGrid,
+		config.ModeNameBisect,
 		config.ModeNameScroll,
 	} {
 		modeRaw, isTable := raw[modeKey].(map[string]any)

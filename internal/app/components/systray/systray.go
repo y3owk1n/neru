@@ -18,6 +18,7 @@ type AppInterface interface {
 	HintsEnabled() bool
 	GridEnabled() bool
 	RecursiveGridEnabled() bool
+	BisectEnabled() bool
 	IsEnabled() bool
 	SetEnabled(enabled bool)
 	ToggleEnabled()
@@ -66,6 +67,7 @@ type Component struct {
 	mHints              ports.SystrayMenuItem
 	mGrid               ports.SystrayMenuItem
 	mRecursiveGrid      ports.SystrayMenuItem
+	mBisect             ports.SystrayMenuItem
 	mConfig             ports.SystrayMenuItem
 	mReloadConfig       ports.SystrayMenuItem
 	mOpenConfig         ports.SystrayMenuItem
@@ -197,6 +199,12 @@ func (c *Component) OnReady() {
 		c.mRecursiveGrid.Disable()
 	}
 
+	c.mBisect = c.mModes.AddSubMenuItem("Bisect")
+	if !c.app.BisectEnabled() {
+		c.mBisect.SetTitle("Bisect: Disabled")
+		c.mBisect.Disable()
+	}
+
 	c.tray.AddSeparator()
 
 	c.mConfig = c.tray.AddMenuItem("Config")
@@ -285,6 +293,8 @@ func (c *Component) handleEvents() {
 			c.app.ActivateMode(domain.ModeGrid)
 		case <-c.mRecursiveGrid.Clicked():
 			c.app.ActivateMode(domain.ModeRecursiveGrid)
+		case <-c.mBisect.Clicked():
+			c.app.ActivateMode(domain.ModeBisect)
 		case <-c.mReloadConfig.Clicked():
 			c.handleReloadConfig()
 		case <-c.mOpenConfig.Clicked():
