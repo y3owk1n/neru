@@ -453,13 +453,13 @@ func focusedWindowBounds() (image.Rectangle, bool, error) {
 func visibleWindowRect(hwnd windows.HWND) (image.Rectangle, error) {
 	var rect windows.Rect
 
-	hr, _, _ := procDwmGetWindowAttribute.Call(
+	result, _, _ := procDwmGetWindowAttribute.Call(
 		uintptr(hwnd),
 		dwmExtendedFrameBounds,
 		uintptr(unsafe.Pointer(&rect)),
 		unsafe.Sizeof(rect),
 	)
-	if hr == 0 && rect.Right > rect.Left && rect.Bottom > rect.Top {
+	if result == 0 && rect.Right > rect.Left && rect.Bottom > rect.Top {
 		return rectToImage(rect), nil
 	}
 
