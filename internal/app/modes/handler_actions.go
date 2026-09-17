@@ -61,8 +61,9 @@ func (h *Handler) MoveCellCurrentMode(dir domain.Direction, count int) {
 }
 
 // BisectCurrentMode keeps the half or quadrant of the active mode's region
-// that cut names. A mode that does not bisect says so in the debug log.
-func (h *Handler) BisectCurrentMode(cut bisect.Cut) {
+// that cut names, count times over as one press. A mode that does not bisect
+// says so in the debug log.
+func (h *Handler) BisectCurrentMode(cut bisect.Cut, count int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -71,7 +72,7 @@ func (h *Handler) BisectCurrentMode(cut bisect.Cut) {
 		return
 	}
 
-	cutter.Bisect(cut)
+	cutter.Bisect(cut, count)
 }
 
 // StartHintSearch activates text filtering for hints mode.

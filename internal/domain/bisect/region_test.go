@@ -68,6 +68,44 @@ func TestRegion_Apply_RefusesACutThatChangesNothing(t *testing.T) {
 	}
 }
 
+func TestRegion_ApplyTimes_RepeatsTheCutAsOneHistoryEntry(t *testing.T) {
+	region := bisect.NewRegion(screen)
+
+	if !region.ApplyTimes(bisect.CutLeft, 2) {
+		t.Fatal("two left cuts on a whole screen must change the region")
+	}
+
+	if got := region.Bounds(); !got.Eq(image.Rect(0, 0, 250, 800)) {
+		t.Fatalf("bounds = %v, want the left quarter", got)
+	}
+
+	if region.Depth() != 1 || !region.Backtrack() || !region.Bounds().Eq(screen) {
+		t.Fatalf(
+			"a counted press must undo as one: depth %d, bounds %v",
+			region.Depth(),
+			region.Bounds(),
+		)
+	}
+}
+
+func TestRegion_ApplyTimes_KeepsTheCutsThatFit(t *testing.T) {
+	// Width 8 fits two halvings to MinSide. The third changes nothing and
+	// stops the run without undoing the two before it.
+	region := bisect.NewRegion(image.Rect(0, 0, 8, 800))
+
+	if !region.ApplyTimes(bisect.CutRight, 3) {
+		t.Fatal("a run with cuts that fit must change the region")
+	}
+
+	if got := region.Bounds(); !got.Eq(image.Rect(6, 0, 8, 800)) || region.Depth() != 1 {
+		t.Fatalf("bounds = %v at depth %d, want (6,0)-(8,800) at depth 1", got, region.Depth())
+	}
+
+	if region.ApplyTimes(bisect.CutRight, 3) || region.ApplyTimes(bisect.CutLeft, 0) {
+		t.Fatal("a run in which no cut fits, or a count below one, must be refused")
+	}
+}
+
 func TestRegion_BacktrackAndReset(t *testing.T) {
 	region := bisect.NewRegion(screen)
 

@@ -79,10 +79,10 @@ func (m *BisectMode) Exit() {
 	m.handler.cleanupBisectMode()
 }
 
-// Bisect keeps the half or quadrant cut names, and moves the cursor to the
-// center of what is left.
-func (m *BisectMode) Bisect(cut bisect.Cut) {
-	m.handler.bisectCut(cut)
+// Bisect keeps the half or quadrant cut names, count times over as one
+// press, and moves the cursor to the center of what is left.
+func (m *BisectMode) Bisect(cut bisect.Cut, count int) {
+	m.handler.bisectCut(cut, count)
 }
 
 // ResetInput puts the region back over the whole capture area.

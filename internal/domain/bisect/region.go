@@ -127,29 +127,26 @@ func (r *Region) Depth() int {
 	return len(r.history)
 }
 
-// Apply keeps the half or quadrant cut names and reports whether the region
-// changed. An axis already at MinSide is left alone; a cut that changes
-// nothing on any axis is refused whole, so it costs no history.
+// Apply keeps the half or quadrant cut names once and reports whether the
+// region changed.
 func (r *Region) Apply(cut Cut) bool {
-	signX, signY := cut.Signs()
+	return r.ApplyTimes(cut, 1)
+}
+
+// ApplyTimes applies cut count times as one press. The first cut that
+// changes nothing stops the run. The run is one history entry, so Backtrack
+// undoes the press rather than one cut of it. A count below one, or a run in
+// which no cut fits, changes nothing and costs no history.
+func (r *Region) ApplyTimes(cut Cut, count int) bool {
 	next := r.region
 
-	if signX != 0 && next.Dx() > MinSide {
-		mid := next.Min.X + next.Dx()/2 //nolint:mnd // halving is the cut
-		if signX < 0 {
-			next.Max.X = mid
-		} else {
-			next.Min.X = mid
+	for range count {
+		after := cutOnce(next, cut)
+		if after.Eq(next) {
+			break
 		}
-	}
 
-	if signY != 0 && next.Dy() > MinSide {
-		mid := next.Min.Y + next.Dy()/2 //nolint:mnd // halving is the cut
-		if signY < 0 {
-			next.Max.Y = mid
-		} else {
-			next.Min.Y = mid
-		}
+		next = after
 	}
 
 	if next.Eq(r.region) {
@@ -160,6 +157,32 @@ func (r *Region) Apply(cut Cut) bool {
 	r.region = next
 
 	return true
+}
+
+// cutOnce keeps the half or quadrant of rect that cut names, leaving an axis
+// already at MinSide alone.
+func cutOnce(rect image.Rectangle, cut Cut) image.Rectangle {
+	signX, signY := cut.Signs()
+
+	if signX != 0 && rect.Dx() > MinSide {
+		mid := rect.Min.X + rect.Dx()/2 //nolint:mnd // halving is the cut
+		if signX < 0 {
+			rect.Max.X = mid
+		} else {
+			rect.Min.X = mid
+		}
+	}
+
+	if signY != 0 && rect.Dy() > MinSide {
+		mid := rect.Min.Y + rect.Dy()/2 //nolint:mnd // halving is the cut
+		if signY < 0 {
+			rect.Max.Y = mid
+		} else {
+			rect.Min.Y = mid
+		}
+	}
+
+	return rect
 }
 
 // Backtrack restores the region before the last cut and reports whether

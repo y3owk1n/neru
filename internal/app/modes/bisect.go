@@ -180,23 +180,26 @@ func (h *handlerState) initializeBisectRegion(start image.Rectangle) {
 	h.bisect.Region = bisect.NewRegion(start)
 }
 
-// bisectCut keeps the half or quadrant cut names and settles the cursor on
-// the center of what is left.
-func (h *handlerState) bisectCut(cut bisect.Cut) {
+// bisectCut keeps the half or quadrant cut names, count times over as one
+// press, and settles the cursor on the center of what is left.
+func (h *handlerState) bisectCut(cut bisect.Cut, count int) {
 	if h.bisect == nil || h.bisect.Region == nil {
 		h.logger.Warn("Bisect region is nil - ignoring press")
 
 		return
 	}
 
-	if !h.bisect.Region.Apply(cut) {
-		h.logger.Debug("Bisect cut changed nothing", zap.String("cut", cut.String()))
+	if !h.bisect.Region.ApplyTimes(cut, count) {
+		h.logger.Debug("Bisect cut changed nothing",
+			zap.String("cut", cut.String()),
+			zap.Int("count", count))
 
 		return
 	}
 
 	h.logger.Debug("Bisect cut",
 		zap.String("cut", cut.String()),
+		zap.Int("count", count),
 		zap.Int("depth", h.bisect.Region.Depth()))
 
 	h.settleBisect("Failed to move cursor after bisect cut")

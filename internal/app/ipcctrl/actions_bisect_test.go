@@ -9,10 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 )
 
-const (
-	bisectAction = "bisect"
-	countTwo     = "--count=2"
-)
+const bisectAction = "bisect"
 
 func TestHandleAction_BisectRequiresDirection(t *testing.T) {
 	controller := &ActionsHandler{logger: zap.NewNop()}
@@ -37,7 +34,7 @@ func TestHandleAction_BisectRejectsUnknownDirectionAndForeignFlags(t *testing.T)
 		args []string
 	}{
 		{name: "unknown cut", args: []string{bisectAction, "--direction=sideways"}},
-		{name: "count", args: []string{bisectAction, directionLeft, countTwo}},
+		{name: "zero count", args: []string{bisectAction, directionLeft, "--count=0"}},
 		{name: "modifier", args: []string{bisectAction, directionLeft, "--modifier=shift"}},
 		{name: "steps", args: []string{bisectAction, directionLeft, stepsThree}},
 	}

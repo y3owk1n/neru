@@ -524,7 +524,10 @@ Examples:
 // BuildBisectCommand creates a bisect cobra command that keeps half, or a
 // quadrant, of the bisect region.
 func BuildBisectCommand() *cobra.Command {
-	var direction string
+	var (
+		direction string
+		count     int
+	)
 
 	cmd := &cobra.Command{
 		Use:   "bisect",
@@ -532,12 +535,15 @@ func BuildBisectCommand() *cobra.Command {
 		Long: `Cut the bisect region down to the half or the quadrant named, in bisect mode.
 
 left, right, up and down keep that half of the region; up_left, up_right,
-down_left and down_right keep that quadrant. The cursor moves to the center
-of what is left. Outside bisect mode the action does nothing.
+down_left and down_right keep that quadrant. --count repeats the cut that
+many times as one press: left with --count 2 keeps the left quarter, and one
+backspace takes the whole press back. The cursor moves to the center of what
+is left. Outside bisect mode the action does nothing.
 
 Examples:
   neru action bisect --direction right
-  neru action bisect --direction up_left`,
+  neru action bisect --direction up_left
+  neru action bisect --direction left --count 2`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
 		},
@@ -547,7 +553,18 @@ Examples:
 				return cutErr
 			}
 
-			return sendCommand(cmd, "action", []string{"bisect", "--direction=" + direction})
+			if count < 1 {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--count must be at least 1",
+				)
+			}
+
+			return sendCommand(cmd, "action", []string{
+				"bisect",
+				"--direction=" + direction,
+				fmt.Sprintf("--count=%d", count),
+			})
 		},
 	}
 
@@ -557,6 +574,7 @@ Examples:
 		"",
 		"Half or quadrant to keep ("+strings.Join(bisect.CutNames, ", ")+")",
 	)
+	cmd.Flags().IntVar(&count, "count", 1, "Times to repeat the cut as one press")
 	_ = cmd.MarkFlagRequired("direction")
 
 	return cmd

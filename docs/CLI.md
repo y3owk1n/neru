@@ -974,7 +974,7 @@ neru action feed --mode Escape
 Keep half, or a quadrant, of the region in [bisect mode](#neru-bisect).
 
 ```
-neru action bisect --direction left|right|up|down|up_left|up_right|down_left|down_right
+neru action bisect --direction left|right|up|down|up_left|up_right|down_left|down_right [--count <n>]
 ```
 
 `left`, `right`, `up` and `down` keep that half of the region. The four
@@ -982,15 +982,24 @@ compound cuts keep that quadrant. The cursor moves to the centre of what is
 left. A cut on an axis already two pixels wide is refused. Outside bisect mode
 the action does nothing.
 
+`--count` repeats the cut that many times as one press. `left --count 2`
+keeps the left quarter, and `up_left --count 2` keeps the top-left sixteenth.
+One backspace takes the whole press back. When a count would cut an axis
+below two pixels, only the cuts that fit apply. A repeated cut reaches the
+outer slices only. The inner quarter between 25% and 50% is still `left` then
+`right`.
+
 | Flag          | Type   | Default | Description                                     |
 | ------------- | ------ | ------- | ----------------------------------------------- |
 | `--direction` | string |         | Required. One of the eight cuts above. A hyphen is accepted in place of the underscore. |
+| `--count`     | int    | `1`     | Times to repeat the cut as one press. Must be at least 1. |
 
 **Examples**
 
 ```bash
 neru action bisect --direction right
 neru action bisect --direction up_left
+neru action bisect --direction left --count 2
 ```
 
 ---

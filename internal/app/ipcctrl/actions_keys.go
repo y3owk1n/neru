@@ -144,7 +144,7 @@ func (h *ActionsHandler) handleBackspaceAction() ipc.Response {
 }
 
 // handleBisectAction keeps the half or quadrant of the bisect region the
-// action names.
+// action names, --count times over as one press.
 func (h *ActionsHandler) handleBisectAction(parsed parsedActionArgs) ipc.Response {
 	if !parsed.hasDirection {
 		return ipc.Response{
@@ -171,7 +171,12 @@ func (h *ActionsHandler) handleBisectAction(parsed parsedActionArgs) ipc.Respons
 		}
 	}
 
-	h.modesHandler.BisectCurrentMode(cut)
+	count := 1
+	if parsed.hasCount {
+		count = parsed.countVal
+	}
+
+	h.modesHandler.BisectCurrentMode(cut, count)
 
 	return ipc.Response{
 		Success: true,

@@ -81,8 +81,9 @@ type cellNavigator interface {
 // so in the debug log (activeModeEffect): "l did nothing in this mode" has to
 // be answerable from a log.
 type bisector interface {
-	// Bisect keeps the half or quadrant cut names.
-	Bisect(cut bisect.Cut)
+	// Bisect keeps the half or quadrant cut names, count times over as one
+	// press.
+	Bisect(cut bisect.Cut, count int)
 }
 
 // cursorFollowSelector is an optional Mode extension: a mode whose session
