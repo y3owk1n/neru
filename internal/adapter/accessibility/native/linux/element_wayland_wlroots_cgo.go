@@ -102,7 +102,10 @@ func wlrootsButton(button action.MouseButton) int {
 // Wayland socket, and nothing orders the two, so a lift waits the fixed period
 // the uinput side always waits (waitForScrollDelivery). The returned restore
 // presses the lifted modifiers again once the compositor has processed the
-// action. WaylandSyncModifiers is the barrier for that.
+// action. WaylandSyncModifiers is the barrier for that, and it waits while a
+// button is held, because a drag that began under this lift found nothing
+// left to lift and is relying on this restore not to re-modify it midway.
+// The drag's release restores instead, as it does for its own lift.
 func liftPhysicalModifiers() func() {
 	lifted, err := eventtaplinux.LiftHeldModifiers()
 	if err != nil || !lifted {
@@ -111,7 +114,13 @@ func liftPhysicalModifiers() func() {
 
 	waitForScrollDelivery()
 
-	return restorePhysicalModifiers
+	return func() {
+		if len(globalWlrootsPointerState.HeldButtons()) > 0 {
+			return
+		}
+
+		restorePhysicalModifiers()
+	}
 }
 
 // restorePhysicalModifiers puts back the lifted modifiers once the compositor

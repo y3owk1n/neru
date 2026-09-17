@@ -87,6 +87,37 @@ func TestHyprlandScrollSession_HoldsTheModifierAcrossEveryChunk(t *testing.T) {
 	}
 }
 
+// TestHyprlandScrollSession_Close_RestoresHeldModifiersAfterRelease pins the
+// order that keeps a scroll unmodified end to end: the session's own press
+// comes off before the user's held chord goes back on, and the restore runs
+// even when the session pressed nothing.
+func TestHyprlandScrollSession_Close_RestoresHeldModifiersAfterRelease(t *testing.T) {
+	tests := []struct {
+		name    string
+		pressed action.Modifiers
+		want    []string
+	}{
+		{name: "pressed ctrl", pressed: action.ModCtrl, want: []string{ctrlUp, "restore"}},
+		{name: "pressed nothing", pressed: 0, want: []string{"restore"}},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			modifiers := &modifierRecorder{}
+			withModifierRecorder(t, modifiers)
+
+			session := &hyprlandScrollSession{
+				pressed: testCase.pressed,
+				restore: func() { modifiers.events = append(modifiers.events, "restore") },
+			}
+
+			session.close()
+
+			assertEvents(t, modifiers.events, testCase.want)
+		})
+	}
+}
+
 // TestHyprlandScrollSession_Inject pins the chunk-to-notch conversion, which is
 // what granularity promises the animator: it only ever hands whole notches, and
 // each one goes out as a single event of the right sign on the right axis.
