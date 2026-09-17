@@ -1766,8 +1766,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, assign) BOOL windowServerReattachScheduled;
 @property(nonatomic, assign) CFTimeInterval lastOnscreenVerifyTime;
 @property(nonatomic, assign) int onscreenProbeFailureStreak;
+@property(nonatomic, assign) uint64_t freshOrderGeneration;
 - (void)applyOverlayCollectionBehavior;
 - (void)reattachToAllSpacesIfVisible;
+- (void)verifyOnscreenAfterFreshOrder;
 @end
 
 // Coalesces bursts of invalidation notifications into one reattach cycle.
@@ -1780,6 +1782,11 @@ static const CFTimeInterval kNeruOnscreenVerifyInterval = 1.0;
 // A probe still failing after this many repairs is lying (e.g. a list API
 // quirk) — stop probing rather than blink the overlay forever.
 static const int kNeruOnscreenProbeFailureLimit = 3;
+
+// Delay before the one-shot probe that follows a fresh order-front. The
+// WindowServer needs a few frames to commit the order, and the repair of a
+// pinned window still lands before the user notices it missing.
+static const int64_t kNeruFreshOrderVerifyDelayNs = 80 * NSEC_PER_MSEC;
 
 static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 
@@ -1843,8 +1850,10 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 			[self.window orderFrontRegardless];
 			[self.window display];
 			[self.overlayView setNeedsDisplay:YES];
-			// Just reordered — hold off probing for one interval.
+			// Just reordered — hold off probing for one interval. One
+			// detach/reattach does not always un-pin, so confirm it took.
 			self.lastOnscreenVerifyTime = CACurrentMediaTime();
+			[self verifyOnscreenAfterFreshOrder];
 		});
 	});
 }
@@ -1878,6 +1887,34 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 	// full detach/reattach cycle un-pins a window stuck on one Space.
 	self.needsWindowServerReattach = YES;
 	[self reattachToAllSpacesIfVisible];
+}
+
+// A window hidden across a fullscreen transition comes back pinned to the
+// Space it last showed on. The Space handler skips hidden windows and the
+// order-time probe skips fresh orders, so neither sees it. A Hide before the
+// tick cancels the check.
+- (void)verifyOnscreenAfterFreshOrder {
+	if (self.onscreenProbeFailureStreak >= kNeruOnscreenProbeFailureLimit)
+		return;
+
+	uint64_t generation = ++self.freshOrderGeneration;
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kNeruFreshOrderVerifyDelayNs), dispatch_get_main_queue(), ^{
+		if (generation != self.freshOrderGeneration || !self.shouldBeVisible || ![self hasDrawableFrame] ||
+		    self.windowServerReattachScheduled || !self.window.isVisible)
+			return;
+
+		// AppKit's cache can claim the active Space while the server disagrees,
+		// so the server confirms a healthy answer. That is one enumeration per Show.
+		self.lastOnscreenVerifyTime = CACurrentMediaTime();
+		BOOL pinned = !self.window.isOnActiveSpace || !NeruWindowIsOnscreenPerWindowServer(self.window.windowNumber);
+		if (!pinned) {
+			self.onscreenProbeFailureStreak = 0;
+			return;
+		}
+		self.onscreenProbeFailureStreak++;
+		self.needsWindowServerReattach = YES;
+		[self reattachToAllSpacesIfVisible];
+	});
 }
 
 - (void)handleActiveSpaceDidChange:(NSNotification *)notification {
@@ -2048,6 +2085,7 @@ static void NeruOrderOverlayWindowIfDrawable(OverlayWindowController *controller
 	CFTimeInterval now = CACurrentMediaTime();
 	if (freshlyOrdered) {
 		controller.lastOnscreenVerifyTime = now;
+		[controller verifyOnscreenAfterFreshOrder];
 	} else if (
 	    now - controller.lastOnscreenVerifyTime >= kNeruOnscreenVerifyInterval &&
 	    controller.onscreenProbeFailureStreak < kNeruOnscreenProbeFailureLimit) {
@@ -2092,6 +2130,7 @@ void NeruDestroyOverlayWindow(OverlayWindow window) {
 	void (^destroyBlock)(void) = ^{
 		@autoreleasepool {
 			OverlayWindowController *controller = CFBridgingRelease(window);
+			controller.shouldBeVisible = NO;
 			[controller.window close];
 		}
 	};
@@ -2136,6 +2175,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 	// reconfiguration) do.
 	if ([NSThread isMainThread]) {
 		controller.shouldBeVisible = NO;
+		controller.freshOrderGeneration++;
 		[controller.window orderOut:nil];
 		// Shrink to 1x1 to release the large backing store (saves ~47MB per
 		// Retina-resolution full-screen window). The next resize/show call
@@ -2146,6 +2186,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
 				controller.shouldBeVisible = NO;
+				controller.freshOrderGeneration++;
 				[controller.window orderOut:nil];
 				[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
 				[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
@@ -2193,25 +2234,8 @@ void NeruResizeOverlayToMainScreen(OverlayWindow window) {
 			[controller.overlayView setFrame:viewFrame];
 			[controller.overlayView setNeedsDisplay:YES];
 
-			// Force reset window state to handle "stuck" windows after full-screen transitions
-			[controller.window orderOut:nil];
 			[controller.window setLevel:kCGMaximumWindowLevel];
-			[controller.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
-
-			// Use a separate dispatch to ensure the window server processes the orderOut and state reset
-			// before we bring the window back. This helps break the association with the previous space.
-			dispatch_async(dispatch_get_main_queue(), ^{
-				@autoreleasepool {
-					[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
-					                                         NSWindowCollectionBehaviorStationary |
-					                                         NSWindowCollectionBehaviorIgnoresCycle |
-					                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-					if (controller.shouldBeVisible) {
-						[controller.window setIsVisible:YES];
-						[controller.window orderFrontRegardless];
-					}
-				}
-			});
+			NeruOrderOverlayWindowIfDrawable(controller, NO);
 		}
 	});
 }
@@ -2247,23 +2271,8 @@ void NeruResizeOverlayToActiveScreen(OverlayWindow window) {
 			[controller.overlayView setFrame:viewFrame];
 			[controller.overlayView setNeedsDisplay:YES];
 
-			// Force reset window state to handle "stuck" windows after full-screen transitions
-			[controller.window orderOut:nil];
 			[controller.window setLevel:kCGMaximumWindowLevel];
-			[controller.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
-
-			dispatch_async(dispatch_get_main_queue(), ^{
-				@autoreleasepool {
-					[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
-					                                         NSWindowCollectionBehaviorStationary |
-					                                         NSWindowCollectionBehaviorIgnoresCycle |
-					                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-					if (controller.shouldBeVisible) {
-						[controller.window setIsVisible:YES];
-						[controller.window orderFrontRegardless];
-					}
-				}
-			});
+			NeruOrderOverlayWindowIfDrawable(controller, NO);
 		}
 	});
 }
@@ -2308,26 +2317,11 @@ void NeruResizeOverlayToActiveScreenWithCallback(
 			[controller.overlayView setFrame:viewFrame];
 			[controller.overlayView setNeedsDisplay:YES];
 
-			// Force reset window state to handle "stuck" windows after full-screen transitions
-			[controller.window orderOut:nil];
 			[controller.window setLevel:kCGMaximumWindowLevel];
-			[controller.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
+			NeruOrderOverlayWindowIfDrawable(controller, NO);
 
-			dispatch_async(dispatch_get_main_queue(), ^{
-				@autoreleasepool {
-					[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
-					                                         NSWindowCollectionBehaviorStationary |
-					                                         NSWindowCollectionBehaviorIgnoresCycle |
-					                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-					if (controller.shouldBeVisible) {
-						[controller.window setIsVisible:YES];
-						[controller.window orderFrontRegardless];
-					}
-
-					if (callback)
-						callback(context);
-				}
-			});
+			if (callback)
+				callback(context);
 		}
 	});
 }
@@ -2792,6 +2786,7 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 		[newController.window setSharingType:sharingType];
 
 		if (oldController) {
+			oldController.shouldBeVisible = NO;
 			[oldController.window close];
 			CFRelease(*pwindow);  // Balance the CFBridgingRetain from NeruCreateOverlayWindow
 		}
