@@ -106,6 +106,22 @@ func TestRegion_ApplyTimes_KeepsTheCutsThatFit(t *testing.T) {
 	}
 }
 
+func TestRegion_Apply_RefusesACutThatWouldFallBelowMinSide(t *testing.T) {
+	// Width 3 is above MinSide, but its low half is one pixel.
+	region := bisect.NewRegion(image.Rect(0, 0, 3, 800))
+
+	if region.Apply(bisect.CutLeft) || region.Apply(bisect.CutRight) {
+		t.Fatalf("a cut on a three pixel axis must be refused, got %v", region.Bounds())
+	}
+
+	region = bisect.NewRegion(image.Rect(0, 0, 1920, 800))
+	region.ApplyTimes(bisect.CutLeft, 20)
+
+	if got := region.Bounds().Dx(); got < bisect.MinSide {
+		t.Fatalf("repeated left cuts left width %d, below MinSide", got)
+	}
+}
+
 func TestRegion_BacktrackAndReset(t *testing.T) {
 	region := bisect.NewRegion(screen)
 

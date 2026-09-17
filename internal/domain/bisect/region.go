@@ -8,7 +8,8 @@ import (
 )
 
 // MinSide is the smallest a region's side is cut down to, in the pixels the
-// screen is measured in. A press that would cut below it keeps the region.
+// screen is measured in. A cut whose smaller half would fall below it leaves
+// that axis alone.
 const MinSide = 2
 
 // Cut is one of the eight ways a region is narrowed: a half on one axis, or a
@@ -160,11 +161,11 @@ func (r *Region) ApplyTimes(cut Cut, count int) bool {
 }
 
 // cutOnce keeps the half or quadrant of rect that cut names, leaving an axis
-// already at MinSide alone.
+// alone when the smaller half would fall below MinSide.
 func cutOnce(rect image.Rectangle, cut Cut) image.Rectangle {
 	signX, signY := cut.Signs()
 
-	if signX != 0 && rect.Dx() > MinSide {
+	if signX != 0 && rect.Dx()/2 >= MinSide {
 		mid := rect.Min.X + rect.Dx()/2 //nolint:mnd // halving is the cut
 		if signX < 0 {
 			rect.Max.X = mid
@@ -173,7 +174,7 @@ func cutOnce(rect image.Rectangle, cut Cut) image.Rectangle {
 		}
 	}
 
-	if signY != 0 && rect.Dy() > MinSide {
+	if signY != 0 && rect.Dy()/2 >= MinSide {
 		mid := rect.Min.Y + rect.Dy()/2 //nolint:mnd // halving is the cut
 		if signY < 0 {
 			rect.Max.Y = mid
