@@ -53,14 +53,21 @@ func TestPhysicalLift_Release_WaitsForTheDragThatEndedUnderAScroll(t *testing.T)
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Cleanup(func() { globalWlrootsPointerState.Clear(action.ButtonLeft) })
 
-			// No proxy runs under the test, so the lift is marked by hand:
-			// what is under test is who restores, not the proxy.
-			lift := &physicalLift{lifted: true}
+			// The proxy is stood in for: what is under test is who restores.
+			restores := 0
+			lift := &physicalLift{
+				liftHeld:    func() (bool, error) { return true, nil },
+				restoreHeld: func() { restores++ },
+			}
 
 			testCase.run(lift)
 
-			if lift.lifted {
-				t.Fatal("the last action out left the chord lifted")
+			if lift.lifted || restores != 1 {
+				t.Fatalf(
+					"restores = %d, lifted = %t after every action ended, want 1 and false",
+					restores,
+					lift.lifted,
+				)
 			}
 
 			if lift.holds != 0 {

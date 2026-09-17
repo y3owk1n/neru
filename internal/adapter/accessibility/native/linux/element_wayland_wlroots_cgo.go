@@ -109,14 +109,32 @@ type physicalLift struct {
 	// lifted is whether the proxy has the chord up on Neru's account, so a
 	// restore with nothing to put back skips the compositor barrier.
 	lifted bool
+
+	// liftHeld and restoreHeld are the proxy calls, fields so a test of who
+	// restores can run without one.
+	liftHeld    func() (bool, error)
+	restoreHeld func()
 }
 
-var globalPhysicalLift physicalLift
+var globalPhysicalLift = physicalLift{
+	liftHeld:    eventtaplinux.LiftHeldModifiers,
+	restoreHeld: restoreLiftedModifiersAfterSync,
+}
+
+// restoreLiftedModifiersAfterSync presses the lifted modifiers again once the
+// compositor has processed the action. WaylandSyncModifiers is the barrier.
+func restoreLiftedModifiersAfterSync() {
+	if !linux.WaylandSyncModifiers(modifierSyncTimeout) {
+		waitForScrollDelivery()
+	}
+
+	_ = eventtaplinux.RestoreLiftedModifiers()
+}
 
 // lift releases the chord on the proxy. A fresh lift waits the fixed period
 // the uinput side owes; one that found the chord already up owes nothing.
 func (l *physicalLift) lift() {
-	lifted, err := eventtaplinux.LiftHeldModifiers()
+	lifted, err := l.liftHeld()
 	if err != nil || !lifted {
 		return
 	}
@@ -176,9 +194,8 @@ func (l *physicalLift) restoreUnlessHeld(button action.MouseButton) {
 	l.restoreLocked()
 }
 
-// restoreLocked puts back the lifted modifiers once the compositor has
-// processed the action, or the release that ends a drag. WaylandSyncModifiers
-// is the barrier for that. Nothing lifted means nothing to wait for.
+// restoreLocked puts back the lifted modifiers after the action, or the
+// release that ends a drag. Nothing lifted means nothing to wait for.
 func (l *physicalLift) restoreLocked() {
 	if !l.lifted {
 		return
@@ -186,11 +203,7 @@ func (l *physicalLift) restoreLocked() {
 
 	l.lifted = false
 
-	if !linux.WaylandSyncModifiers(modifierSyncTimeout) {
-		waitForScrollDelivery()
-	}
-
-	_ = eventtaplinux.RestoreLiftedModifiers()
+	l.restoreHeld()
 }
 
 // liftPhysicalModifiers releases the modifiers the user's hand is on for the
