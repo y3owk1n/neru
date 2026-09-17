@@ -1894,9 +1894,6 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 // order-time probe skips fresh orders, so neither sees it. A Hide before the
 // tick cancels the check.
 - (void)verifyOnscreenAfterFreshOrder {
-	if (self.onscreenProbeFailureStreak >= kNeruOnscreenProbeFailureLimit)
-		return;
-
 	uint64_t generation = ++self.freshOrderGeneration;
 	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kNeruFreshOrderVerifyDelayNs), dispatch_get_main_queue(), ^{
 		if (generation != self.freshOrderGeneration || !self.shouldBeVisible || ![self hasDrawableFrame] ||
@@ -1911,6 +1908,10 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 			self.onscreenProbeFailureStreak = 0;
 			return;
 		}
+		// The streak gates the repair, not the check, so a repair that took
+		// on the last allowed attempt still clears the streak above.
+		if (self.onscreenProbeFailureStreak >= kNeruOnscreenProbeFailureLimit)
+			return;
 		self.onscreenProbeFailureStreak++;
 		self.needsWindowServerReattach = YES;
 		[self reattachToAllSpacesIfVisible];
