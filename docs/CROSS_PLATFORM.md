@@ -545,8 +545,9 @@ warns when a compositor could not be run or answered garbage and stays quiet
 when it answered with no position (nothing focused, a tiled niri window).
 
 **The same sources answer `FocusedWindowBounds`,** which scopes vision and
-contour detection, `neru action move_mouse --window` and a bisect session
-started with `capture_scope = "window"` to the focused window
+contour detection, `neru action move_mouse --window` and a grid, recursive
+grid or bisect session started with `capture_scope = "window"` to the focused
+window
 ([system_focused_window.go](../internal/adapter/platform/linux/system_focused_window.go)).
 A Wayland compositor with no source (River, Wayfire) reports `CodeNotSupported`
 there rather than "no focused window", so a caller widening to the active

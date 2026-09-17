@@ -1194,12 +1194,15 @@ visible_check_enabled = true
 Divides the screen into a labelled coordinate grid.
 
 Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#neru-grid)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
+Bind a key to `grid --capture-scope window` for a launcher whose grid covers
+the focused window instead of the whole screen.
 
 ### Options
 
 | Option              | Type   | Default                       | Description                 |
 | ------------------- | ------ | ----------------------------- | --------------------------- |
 | `enabled`           | bool   | `true`                        | Enable/disable grid mode    |
+| `capture_scope`     | string | `"screen"`                    | Region the grid covers: `screen` (the whole active screen) or `window` (the focused window, falling back to the screen when nothing is focused). `--capture-scope` on the command overrides it per activation |
 | `characters`        | string | `"abcdefghijklmnpqrstuvwxyz"` | Primary grid labels         |
 | `sublayer_keys`     | string | `"abcdefghijklmnpqrstuvwxyz"` | Subgrid labels; empty is resolved at load time to the characters the grid is labelled with, the same ones `row_labels` is inferred from. Only the first 9 are used — the subgrid is 3×3 |
 | `max_label_length`  | int    | `4`                           | Maximum coarse-grid label length (2–4). The default preserves the legacy automatic 2–4-key layout. When a limit of 2 shortens an automatically longer label, the coarse grid is enlarged and spatially rebalanced while still covering the screen; the following subgrid refinement remains one keypress |
@@ -1278,9 +1281,16 @@ border_width = 1
 
 ### Per-App Config
 
+| Field           | Type   | Description                                                  |
+| --------------- | ------ | ------------------------------------------------------------ |
+| `bundle_id`     | string | App bundle ID                                                |
+| `capture_scope` | string | Optional per-app `screen` or `window` region                 |
+| `hotkeys`       | map    | [per-app hotkey overrides](#per-app-hotkey-overrides)        |
+
 ```toml
 [[grid.app_configs]]
 bundle_id = "com.brave.Browser"
+capture_scope = "window"
 hotkeys = { "Return" = "action left_click" }
 ```
 
@@ -1293,12 +1303,15 @@ See [per-app hotkey overrides](#per-app-hotkey-overrides).
 Narrows the active area with each keypress for precise cursor placement.
 
 Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#neru-recursive_grid)). Auto-zoom to a specific depth on activation with `--zoom-to-depth <n>` (e.g. `neru recursive_grid --zoom-to-depth 3`). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
+Bind a key to `recursive_grid --capture-scope window` for a launcher whose
+first level is the focused window instead of the whole screen.
 
 ### Options
 
 | Option            | Type   | Default       | Description                                                      |
 | ----------------- | ------ | ------------- | ---------------------------------------------------------------- |
 | `enabled`         | bool   | `true`        | Enable/disable mode                                              |
+| `capture_scope`   | string | `"screen"`    | Region the first level covers: `screen` (the whole active screen) or `window` (the focused window, falling back to the screen when nothing is focused). `--capture-scope` on the command overrides it per activation |
 | `grid_cols`       | int    | `3`           | Columns (≥ 1; total cells ≥ 2)                                   |
 | `grid_rows`       | int    | `3`           | Rows (≥ 1; total cells ≥ 2)                                      |
 | `keys`            | string | `"rtyfghvbn"` | Cell selection keys (must be `grid_cols × grid_rows` characters) |
@@ -1386,9 +1399,16 @@ sub_key_preview = false
 
 ### Per-App Config
 
+| Field           | Type   | Description                                                  |
+| --------------- | ------ | ------------------------------------------------------------ |
+| `bundle_id`     | string | App bundle ID                                                |
+| `capture_scope` | string | Optional per-app `screen` or `window` region                 |
+| `hotkeys`       | map    | [per-app hotkey overrides](#per-app-hotkey-overrides)        |
+
 ```toml
 [[recursive_grid.app_configs]]
 bundle_id = "com.brave.Browser"
+capture_scope = "window"
 hotkeys = { "u" = "action left_click" }
 ```
 

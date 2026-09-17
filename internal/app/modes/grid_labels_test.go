@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
@@ -78,7 +79,7 @@ func TestCreateGridInstance_UsesTheResolvedLabels(t *testing.T) {
 
 			handler := newGridLabelHandler(cfg)
 
-			gridInstance := handler.createGridInstance()
+			gridInstance := handler.createGridInstance(domain.CaptureScopeScreen)
 
 			if got := gridInstance.RowLabels(); got != cfg.Grid.RowLabels {
 				t.Errorf("grid RowLabels() = %q, want config's %q", got, cfg.Grid.RowLabels)
@@ -104,7 +105,7 @@ func TestCreateGridInstance_UsesMaxLabelLength(t *testing.T) {
 	cfg.Grid.MaxLabelLength = 2
 	cfg.ResolveGridLabels()
 
-	gridInstance := newGridLabelHandler(cfg).createGridInstance()
+	gridInstance := newGridLabelHandler(cfg).createGridInstance(domain.CaptureScopeScreen)
 	if got := gridInstance.MaxLabelLength(); got != 2 {
 		t.Fatalf("grid MaxLabelLength() = %d, want 2", got)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
@@ -49,8 +50,16 @@ func TestCreateGridInstance_PlansTheGridInApparentUnits(t *testing.T) {
 	cfg.Grid.Enabled = true
 	cfg.ResolveGridLabels()
 
-	scaled := newScaledGridHandler(cfg, image.Rect(0, 0, 3840, 2160), 1.5).createGridInstance()
-	logical := newScaledGridHandler(cfg, image.Rect(0, 0, 2560, 1440), 1).createGridInstance()
+	scaled := newScaledGridHandler(
+		cfg,
+		image.Rect(0, 0, 3840, 2160),
+		1.5,
+	).createGridInstance(domain.CaptureScopeScreen)
+	logical := newScaledGridHandler(
+		cfg,
+		image.Rect(0, 0, 2560, 1440),
+		1,
+	).createGridInstance(domain.CaptureScopeScreen)
 
 	if got, want := len(scaled.Cells()), len(logical.Cells()); got != want {
 		t.Fatalf("4K at 150%% planned %d cells, its 2560x1440 twin %d", got, want)
@@ -67,12 +76,16 @@ func TestRefreshGridForMonitorMove_PlansTheTargetScreenInApparentUnits(t *testin
 	cfg.ResolveGridLabels()
 
 	handler := newScaledGridHandler(cfg, image.Rect(0, 0, 1920, 1080), 1.5)
-	handler.initializeGridManager(handler.createGridInstance())
+	handler.initializeGridManager(handler.createGridInstance(domain.CaptureScopeScreen))
 
 	handler.refreshGridForMonitorMove(image.Rect(1920, 0, 5760, 2160))
 
 	moved := handler.grid.Manager.Grid()
-	logical := newScaledGridHandler(cfg, image.Rect(0, 0, 2560, 1440), 1).createGridInstance()
+	logical := newScaledGridHandler(
+		cfg,
+		image.Rect(0, 0, 2560, 1440),
+		1,
+	).createGridInstance(domain.CaptureScopeScreen)
 
 	if got, want := len(moved.Cells()), len(logical.Cells()); got != want {
 		t.Fatalf("grid moved onto 4K at 150%% has %d cells, its 2560x1440 twin %d", got, want)

@@ -66,9 +66,19 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 	}
 
 	h.setScreenBounds(screenBounds)
-	normalizedBounds := geometry.NormalizeToLocalCoordinates(screenBounds)
 
-	h.initializeRecursiveGridManager(normalizedBounds)
+	scope := h.resolveCaptureScope(
+		domain.ModeNameRecursiveGrid,
+		activation,
+		&h.config.RecursiveGrid,
+	)
+
+	// The region is global like the screen; the overlay draws in the
+	// screen's own space.
+	region := h.captureStart(domain.ModeNameRecursiveGrid, screenBounds, scope).
+		Sub(screenBounds.Min)
+
+	h.initializeRecursiveGridManager(region)
 
 	var cursorShouldFollow bool
 	if isRefresh && activation.CursorFollowSelection == nil && h.recursiveGrid.Context != nil {
@@ -113,6 +123,7 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 			isRefresh,
 			cursorShouldFollow,
 		)
+		h.recursiveGrid.Context.SetCaptureScope(scope)
 	}
 
 	// When zoom-to-depth completed (or clamped), update the selection point
@@ -146,7 +157,9 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 		h.enterMode(domain.ModeRecursiveGrid)
 	}
 
-	h.logger.Info("Recursive-grid mode activated", zap.String("action", actionString))
+	h.logger.Info("Recursive-grid mode activated",
+		zap.String("action", actionString),
+		zap.String("scope", scope))
 
 	h.startIndicatorPolling(domain.ModeRecursiveGrid)
 }
@@ -236,6 +249,7 @@ func (h *handlerState) handleRecursiveGridKey(key string) {
 		pendingAction := h.recursiveGrid.Context.PendingAction()
 		pendingModifier := h.recursiveGrid.Context.PendingModifier()
 		cursorFollowSelection := h.recursiveGrid.Context.CursorFollowSelection()
+		captureScope := h.recursiveGrid.Context.CaptureScope()
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
 			h.refreshRecursiveGridVirtualPointer()
@@ -255,6 +269,7 @@ func (h *handlerState) handleRecursiveGridKey(key string) {
 					Modifier:              pendingModifier,
 					Repeat:                &repeat,
 					CursorFollowSelection: &cursorFollowSelection,
+					CaptureScope:          &captureScope,
 					// Zoom is not re-applied on repeat; OnExit stays nil to
 					// preserve the stored steps.
 				})

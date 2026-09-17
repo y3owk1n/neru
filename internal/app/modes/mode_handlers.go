@@ -499,6 +499,7 @@ func (h *handlerState) handleGridModeKey(key string) {
 		pendingAction := h.grid.Context.PendingAction()
 		pendingModifier := h.grid.Context.PendingModifier()
 		cursorFollowSelection := h.grid.Context.CursorFollowSelection()
+		captureScope := h.grid.Context.CaptureScope()
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
 			h.refreshGridVirtualPointer()
@@ -518,6 +519,7 @@ func (h *handlerState) handleGridModeKey(key string) {
 					Modifier:              pendingModifier,
 					Repeat:                &repeat,
 					CursorFollowSelection: &cursorFollowSelection,
+					CaptureScope:          &captureScope,
 					// OnExit stays nil to preserve the stored steps.
 				})
 			},

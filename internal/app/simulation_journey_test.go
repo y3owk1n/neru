@@ -616,6 +616,7 @@ const (
 	recursiveGridHotkey = "Primary+Shift+C"
 	bisectHotkey        = "Primary+Shift+X"
 	bisectWindowHotkey  = "Primary+Shift+V"
+	windowScopeHotkey   = "Primary+Shift+W"
 )
 
 // manyButtons builds a count-sized grid of well-separated clickable buttons,
@@ -1074,6 +1075,109 @@ func TestSimulation_BisectStartsFromTheFocusedWindow(t *testing.T) {
 		frame, ok := sim.overlay.lastBisectFrame()
 
 		return ok && frame.Bounds.Eq(simScreen)
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}
+
+// TestSimulation_GridCoversTheFocusedWindow covers the window scope for grid:
+// with --capture-scope window the grid covers the focused window's bounds,
+// placed where the window is, and a selected cell lands inside it.
+// The default scope, screen, ignores the window.
+func TestSimulation_GridCoversTheFocusedWindow(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[windowScopeHotkey] = []string{"grid --capture-scope window"}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	window := image.Rect(400, 200, 1200, 900)
+	sim.desktop.focusWindow(window)
+
+	sim.pressHotkey(windowScopeHotkey)
+	sim.waitMode(domain.ModeGrid)
+
+	sim.waitFor("grid drawn over the focused window where it is", func() bool {
+		grid := sim.overlay.lastGrid()
+
+		return grid != nil && grid.Bounds().Eq(window)
+	})
+
+	cells := sim.overlay.lastGrid().Cells()
+	cell := cells[len(cells)/2]
+
+	movesBefore := sim.cursor.moveCount()
+	sim.typeLabel(cell.Coordinate())
+
+	sim.waitFor("cursor moved into the selected cell", func() bool {
+		return sim.cursor.moveCount() > movesBefore
+	})
+
+	if pos := sim.cursor.position(); !pos.In(window) {
+		t.Fatalf("cursor at %v landed outside the focused window %v", pos, window)
+	}
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+
+	sim.waitFor("the default scope covers the screen", func() bool {
+		grid := sim.overlay.lastGrid()
+
+		return grid != nil && grid.Bounds().Eq(simScreen)
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}
+
+// TestSimulation_RecursiveGridStartsFromTheFocusedWindow covers the window
+// scope for recursive grid: with --capture-scope window the first level is
+// the focused window's bounds, placed where the window is, and a cell chosen
+// at that level is a third of the window rather than of the screen.
+func TestSimulation_RecursiveGridStartsFromTheFocusedWindow(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[windowScopeHotkey] = []string{"recursive_grid --capture-scope window"}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	window := image.Rect(300, 300, 1200, 900)
+	sim.desktop.focusWindow(window)
+
+	sim.pressHotkey(windowScopeHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+
+	sim.waitFor("recursive grid drawn over the focused window where it is", func() bool {
+		bounds, ok := sim.overlay.lastRecursiveGridBounds()
+
+		return ok && bounds.Eq(window)
+	})
+
+	// "r" is the top-left cell of the default 3x3 key layout.
+	sim.press("r")
+
+	topLeftThird := image.Rect(
+		window.Min.X, window.Min.Y,
+		window.Min.X+window.Dx()/3+1, window.Min.Y+window.Dy()/3+1,
+	)
+	sim.waitFor("grid zoomed into the window's top-left cell", func() bool {
+		bounds, ok := sim.overlay.lastRecursiveGridBounds()
+
+		return ok && bounds.In(topLeftThird) && bounds.Min.Eq(window.Min)
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+
+	sim.waitFor("the default scope starts from the screen", func() bool {
+		bounds, ok := sim.overlay.lastRecursiveGridBounds()
+
+		return ok && bounds.Eq(simScreen)
 	})
 
 	sim.press("Escape")

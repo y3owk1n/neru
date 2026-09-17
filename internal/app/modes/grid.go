@@ -49,7 +49,8 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 		defer h.exitModeForTransition()()
 	}
 
-	gridInstance := h.createGridInstance()
+	scope := h.resolveCaptureScope(domain.ModeNameGrid, activation, &h.config.Grid)
+	gridInstance := h.createGridInstance(scope)
 
 	// Reset the grid manager state when setting up the grid.
 	// Note: Manager is reused across activations (holds grid state) but reset to clear input.
@@ -78,6 +79,7 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 	}
 
 	applyGridFlags(h.grid.Context, activation, isRefresh)
+	h.grid.Context.SetCaptureScope(scope)
 
 	h.grid.Context.ClearSelectionPoint()
 	h.refreshGridVirtualPointer()
@@ -95,7 +97,9 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 		h.enterMode(domain.ModeGrid)
 	}
 
-	h.logger.Info("Grid mode activated", zap.String("action", actionString))
+	h.logger.Info("Grid mode activated",
+		zap.String("action", actionString),
+		zap.String("scope", scope))
 
 	h.startIndicatorPolling(domain.ModeGrid)
 }
@@ -109,8 +113,9 @@ func (h *handlerState) gridOptionsFor(screenBounds image.Rectangle) domainGrid.O
 	return options
 }
 
-// createGridInstance creates a new grid with proper bounds and characters.
-func (h *handlerState) createGridInstance() *domainGrid.Grid {
+// createGridInstance creates a new grid over the region scope names, in the
+// active screen's own space, with the configured characters.
+func (h *handlerState) createGridInstance(scope string) *domainGrid.Grid {
 	var screenBounds image.Rectangle
 
 	if h.system != nil {
@@ -125,12 +130,13 @@ func (h *handlerState) createGridInstance() *domainGrid.Grid {
 	// Store screen bounds for coordinate conversion
 	h.setScreenBounds(screenBounds)
 
-	// Normalize normalizedBounds to window-local coordinates using helper function
-	normalizedBounds := geometry.NormalizeToLocalCoordinates(screenBounds)
+	// The region is global like the screen; the overlay draws in the
+	// screen's own space.
+	region := h.captureStart(domain.ModeNameGrid, screenBounds, scope).Sub(screenBounds.Min)
 
 	gridInstance := domainGrid.NewGridWithOptions(
 		h.gridOptionsFor(screenBounds),
-		normalizedBounds,
+		region,
 		h.logger,
 	)
 	h.grid.Context.SetGridInstanceValue(gridInstance)

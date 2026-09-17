@@ -1,10 +1,8 @@
 package modes
 
 import (
-	"context"
 	"image"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"go.uber.org/zap"
@@ -20,11 +18,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/ports"
 )
-
-// bisectBundleTimeout bounds the one focused-app lookup an activation makes
-// for the per-app scope, so a slow accessibility answer cannot hold the
-// activation.
-const bisectBundleTimeout = time.Second
 
 // startBisect activates bisect mode. The region starts as the capture area
 // the configuration names, or the one the activation's --capture-scope
@@ -58,7 +51,7 @@ func (h *handlerState) startBisect(activation modecmd.Activation) {
 	screen := h.bisectScreen()
 	h.setScreenBounds(screen)
 
-	scope := h.bisectScope(activation)
+	scope := h.resolveCaptureScope(domain.ModeNameBisect, activation, &h.config.Bisect)
 
 	var cursorShouldFollow bool
 	if isRefresh && activation.CursorFollowSelection == nil && h.bisect != nil &&
@@ -70,7 +63,7 @@ func (h *handlerState) startBisect(activation modecmd.Activation) {
 
 	// The start region is global like the screen; the overlay draws in the
 	// screen's own space.
-	h.initializeBisectRegion(h.bisectStart(screen, scope).Sub(screen.Min))
+	h.initializeBisectRegion(h.captureStart(domain.ModeNameBisect, screen, scope).Sub(screen.Min))
 	h.bisect.Context.SetCursorFollowSelection(cursorShouldFollow)
 
 	// The mode is entered before the first frame is built, so the quadrant
@@ -90,34 +83,6 @@ func (h *handlerState) startBisect(activation modecmd.Activation) {
 	h.startIndicatorPolling(domain.ModeBisect)
 }
 
-// bisectScope is the region the session starts from: the configuration's,
-// shadowed by the focused application's [[bisect.app_configs]] entry, and
-// then by the activation's --capture-scope. The application is asked once,
-// under a short bound, the way hints asks at its activation; a lookup that
-// fails leaves the configured scope in force.
-func (h *handlerState) bisectScope(activation modecmd.Activation) string {
-	if activation.CaptureScope != nil {
-		return *activation.CaptureScope
-	}
-
-	if !h.config.Bisect.HasAppCaptureScopeOverrides() {
-		return h.config.Bisect.CaptureScope
-	}
-
-	bundleCtx, bundleCancel := context.WithTimeout(h.ctx, bisectBundleTimeout)
-	bundleID, bundleIDErr := h.actionService.FocusedAppBundleID(bundleCtx)
-
-	bundleCancel()
-
-	if bundleIDErr != nil {
-		h.logger.Debug("Failed to get the focused app for the bisect scope", zap.Error(bundleIDErr))
-
-		return h.config.Bisect.CaptureScope
-	}
-
-	return h.config.Bisect.CaptureScopeForApp(bundleID)
-}
-
 // bisectScreen is the display the session is drawn on: the active screen,
 // or the bounds the handler already holds when the platform cannot say.
 func (h *handlerState) bisectScreen() image.Rectangle {
@@ -135,39 +100,6 @@ func (h *handlerState) bisectScreen() image.Rectangle {
 	}
 
 	return bounds
-}
-
-// bisectStart is the region the session begins with, in global coordinates:
-// the focused window when the scope asks for it and one is focused, and the
-// screen otherwise. A window that runs off the screen is cut to it, since
-// the frame is drawn in that screen's space.
-func (h *handlerState) bisectStart(screen image.Rectangle, scope string) image.Rectangle {
-	if scope != domain.CaptureScopeWindow || h.system == nil {
-		return screen
-	}
-
-	window, focused, err := h.system.FocusedWindowBounds(h.ctx)
-	if err != nil {
-		// Warned at every code, CodeNotSupported included: the user asked for
-		// a window and is getting the screen.
-		h.logger.Warn("Failed to get the focused window for bisect; using the screen",
-			zap.Error(err))
-
-		return screen
-	}
-
-	if !focused || window.Empty() {
-		h.logger.Debug("No focused window for bisect; using the screen")
-
-		return screen
-	}
-
-	clipped := window.Intersect(screen)
-	if clipped.Empty() {
-		return screen
-	}
-
-	return clipped
 }
 
 // initializeBisectRegion builds a fresh session over start, in screen-local

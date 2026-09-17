@@ -489,7 +489,10 @@ type GridUI struct {
 
 // GridConfig defines the visual and behavioral settings for grid mode.
 type GridConfig struct {
-	Enabled        bool   `json:"enabled"        toml:"enabled"`
+	Enabled bool `json:"enabled" toml:"enabled"`
+	// CaptureScope is the region the grid covers: the whole active screen,
+	// or the focused window.
+	CaptureScope   string `json:"captureScope"   toml:"capture_scope"`
 	Characters     string `json:"characters"     toml:"characters"`
 	SublayerKeys   string `json:"sublayerKeys"   toml:"sublayer_keys"`
 	MaxLabelLength int    `json:"maxLabelLength" toml:"max_label_length"`
@@ -549,6 +552,9 @@ type RecursiveGridAnimationConfig struct {
 // RecursiveGridConfig defines the visual and behavioral settings for recursive-grid mode.
 type RecursiveGridConfig struct {
 	Enabled bool `json:"enabled" toml:"enabled"`
+	// CaptureScope is the region the first level covers: the whole active
+	// screen, or the focused window.
+	CaptureScope string `json:"captureScope" toml:"capture_scope"`
 	// Animation configures native depth transition animations for recursive-grid on supported platforms.
 	Animation RecursiveGridAnimationConfig `json:"animation" toml:"animation"`
 	// Grid dimensions: columns and rows (default: 3x3)

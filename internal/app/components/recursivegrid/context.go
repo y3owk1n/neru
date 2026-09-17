@@ -13,6 +13,7 @@ type baseContext struct {
 	cursorFollowSelection bool
 	selectedPoint         image.Point
 	hasSelection          bool
+	captureScope          string
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -97,7 +98,19 @@ func (c *baseContext) Reset() {
 	c.onExit = nil
 	c.repeat = false
 	c.cursorFollowSelection = false
+	c.captureScope = ""
 	c.ClearSelectionPoint()
+}
+
+// SetCaptureScope records which region the session covers, screen or window,
+// so a repeat and a screen change start from the same kind of region.
+func (c *baseContext) SetCaptureScope(scope string) {
+	c.captureScope = scope
+}
+
+// CaptureScope returns which region the session covers.
+func (c *baseContext) CaptureScope() string {
+	return c.captureScope
 }
 
 // Context holds the state and context for recursive_grid mode operations.

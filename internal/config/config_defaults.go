@@ -559,6 +559,8 @@ func defaultHints() HintsConfig {
 func defaultGrid() GridConfig {
 	return GridConfig{
 		Enabled: true,
+		// Screen is what the grid has always covered. Window is opt-in.
+		CaptureScope: domain.CaptureScopeScreen,
 
 		// Assigned from the domain constant rather than written out, because
 		// the grid falls back to that same set when the configured characters
@@ -640,6 +642,8 @@ func defaultRegionGridUI() RecursiveGridUI {
 func defaultRecursiveGrid() RecursiveGridConfig {
 	return RecursiveGridConfig{
 		Enabled: true,
+		// Screen is what the first level has always covered. Window is opt-in.
+		CaptureScope: domain.CaptureScopeScreen,
 		Animation: RecursiveGridAnimationConfig{
 			Enabled:    true,
 			DurationMS: DefaultRecursiveGridAnimationDurationMS,

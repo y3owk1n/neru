@@ -34,15 +34,17 @@ const (
 )
 
 // captureScopeOptions are the paths for capture_scope, which shadows the hints
-// section per app the way strategy does, and the bisect section, whose region
-// starts as the scope names. They are declared everywhere: the option shapes
-// the capture strategies and where a bisect starts, every platform has a
-// capture backend now, and a platform with no focused-window source warns
-// and starts from the screen.
+// section per app the way strategy does, and the grid, recursive_grid and
+// bisect sections, whose region starts as the scope names. They are declared
+// everywhere: the option shapes the capture strategies and where a region
+// mode starts, every platform has a capture backend now, and a platform with
+// no focused-window source warns and starts from the screen.
 var captureScopeOptions = []string{
 	"hints.capture_scope",
 	"hints.app_configs.capture_scope",
+	"grid.capture_scope",
 	"grid.app_configs.capture_scope",
+	"recursive_grid.capture_scope",
 	"recursive_grid.app_configs.capture_scope",
 	"bisect.app_configs.capture_scope",
 	"bisect.capture_scope",

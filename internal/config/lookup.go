@@ -276,8 +276,46 @@ func (c *BisectConfig) HasAppHotkeyOverrides() bool {
 // entry sets a capture scope, so an activation knows whether asking which
 // application is focused can change anything.
 func (c *BisectConfig) HasAppCaptureScopeOverrides() bool {
-	for idx := range c.AppConfigs {
-		if c.AppConfigs[idx].CaptureScope != "" {
+	return hasAppCaptureScopeOverrides(c.AppConfigs)
+}
+
+// CaptureScopeForApp returns the region a bisect session starts from for the
+// given bundle ID: the app config's capture_scope when one is set, else the
+// section's.
+func (c *BisectConfig) CaptureScopeForApp(bundleID string) string {
+	return captureScopeForApp(c.AppConfigForBundleID(bundleID), c.CaptureScope)
+}
+
+// HasAppCaptureScopeOverrides reports whether any [[grid.app_configs]] entry
+// sets a capture scope.
+func (c *GridConfig) HasAppCaptureScopeOverrides() bool {
+	return hasAppCaptureScopeOverrides(c.AppConfigs)
+}
+
+// CaptureScopeForApp returns the region the grid covers for the given
+// bundle ID: the app config's capture_scope when one is set, else the
+// section's.
+func (c *GridConfig) CaptureScopeForApp(bundleID string) string {
+	return captureScopeForApp(c.AppConfigForBundleID(bundleID), c.CaptureScope)
+}
+
+// HasAppCaptureScopeOverrides reports whether any
+// [[recursive_grid.app_configs]] entry sets a capture scope.
+func (c *RecursiveGridConfig) HasAppCaptureScopeOverrides() bool {
+	return hasAppCaptureScopeOverrides(c.AppConfigs)
+}
+
+// CaptureScopeForApp returns the region the first recursive-grid level covers
+// for the given bundle ID: the app config's capture_scope when one is set,
+// else the section's.
+func (c *RecursiveGridConfig) CaptureScopeForApp(bundleID string) string {
+	return captureScopeForApp(c.AppConfigForBundleID(bundleID), c.CaptureScope)
+}
+
+// hasAppCaptureScopeOverrides reports whether any entry sets a capture scope.
+func hasAppCaptureScopeOverrides(appConfigs []AppConfig) bool {
+	for idx := range appConfigs {
+		if appConfigs[idx].CaptureScope != "" {
 			return true
 		}
 	}
@@ -285,16 +323,14 @@ func (c *BisectConfig) HasAppCaptureScopeOverrides() bool {
 	return false
 }
 
-// CaptureScopeForApp returns the region a bisect session starts from for the
-// given bundle ID: the app config's capture_scope when one is set, else the
-// section's.
-func (c *BisectConfig) CaptureScopeForApp(bundleID string) string {
-	appConfig := c.AppConfigForBundleID(bundleID)
+// captureScopeForApp is the app config's capture scope when the entry exists
+// and sets one, else the section's.
+func captureScopeForApp(appConfig *AppConfig, sectionScope string) string {
 	if appConfig != nil && appConfig.CaptureScope != "" {
 		return appConfig.CaptureScope
 	}
 
-	return c.CaptureScope
+	return sectionScope
 }
 
 // AppConfigForBundleID returns the matching bisect app config for the given

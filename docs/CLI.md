@@ -306,7 +306,7 @@ nothing.
 | `--role` |  | value, repeatable | `hints` | Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more |
 | `--text` |  | value, repeatable | `hints` | Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more |
 | `--strategy` |  | value | `hints` | Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr) |
-| `--capture-scope` |  | value | `hints` · `bisect` | Region the vision and contour strategies scan, or the region bisect starts from: window (the focused window) or screen (the whole active screen) |
+| `--capture-scope` |  | value | `hints` · `grid` · `recursive_grid` · `bisect` | Region the vision and contour strategies scan, or the region grid, recursive_grid and bisect start from: window (the focused window) or screen (the whole active screen) |
 | `--label-direction` |  | value | `hints` | Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet) |
 | `--split-word` |  | none | `hints` | Split detected text into word-level regions (requires vision strategy) |
 | `--zoom-to-depth` |  | value | `recursive_grid` | Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position |
@@ -400,7 +400,8 @@ Overlays a grid of labelled cells. Typing a cell label moves the cursor there.
 [mode flag reference](#mode-flag-reference).
 
 Grid size, labels, and appearance are configured under
-[`[grid]`](CONFIGURATION.md#grid).
+[`[grid]`](CONFIGURATION.md#grid). The grid covers the whole screen, or the
+focused window with `--capture-scope window`.
 
 Typing a full label opens a 3x3 subgrid inside that cell. To correct an
 off-by-one label without retyping it, bind
@@ -412,6 +413,7 @@ neighbouring cell.
 ```bash
 neru grid
 neru grid --action left_click --repeat
+neru grid --capture-scope window
 neru grid --cursor-selection-mode hold
 neru grid --action left_click --on-exit 'exec notify-send clicked'
 ```
@@ -439,13 +441,15 @@ neighbouring cell without leaving the current depth.
 
 `--zoom-to-depth` drills at the current cursor position as the mode activates.
 It stops early if the grid cannot subdivide further, at the minimum cell size
-or the maximum depth.
+or the maximum depth. The first level covers the whole screen, or the focused
+window with `--capture-scope window`.
 
 **Examples**
 
 ```bash
 neru recursive_grid
 neru recursive_grid --action middle_click
+neru recursive_grid --capture-scope window
 neru recursive_grid --zoom-to-depth 2
 neru recursive_grid --zoom-to-depth 3 --action left_click
 ```

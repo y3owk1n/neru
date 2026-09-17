@@ -100,7 +100,7 @@ func openSubgridForKeys(t *testing.T, cfg *config.Config) *domainGrid.Manager {
 
 	handler := newGridLabelHandler(cfg)
 
-	gridInstance := handler.createGridInstance()
+	gridInstance := handler.createGridInstance(domain.CaptureScopeScreen)
 	handler.initializeGridManager(gridInstance)
 
 	manager := handler.grid.Manager

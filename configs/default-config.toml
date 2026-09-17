@@ -212,6 +212,7 @@ square_icon_slack = 5.0                      # How far from square (|w-h|) that 
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid
 [grid]
 enabled = true
+capture_scope = "screen"                    # Region the grid covers: "screen" or "window" (the focused window)
 characters = "abcdefghijklmnpqrstuvwxyz"    # Primary grid labels
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz" # Subgrid labels, first 9 used (empty = infer from characters)
 max_label_length = 4                        # Maximum coarse label length (2–4); 4 keeps the legacy automatic layout
@@ -246,6 +247,7 @@ border_width = 1
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#recursive_grid
 [recursive_grid]
 enabled = true
+capture_scope = "screen"                    # Region the first level covers: "screen" or "window" (the focused window)
 grid_cols = 3                               # Number of columns (>= 1)
 grid_rows = 3                               # Number of rows (>= 1)
 keys = "rtyfghvbn"                          # Cell selection keys (must be grid_cols * grid_rows chars)

@@ -109,7 +109,7 @@ const (
 	usageRole                = "Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more"
 	usageText                = "Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more"
 	usageStrategy            = "Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr)"
-	usageCaptureScope        = "Region the vision and contour strategies scan, or the region bisect starts from: window (the focused window) or screen (the whole active screen)"
+	usageCaptureScope        = "Region the vision and contour strategies scan, or the region grid, recursive_grid and bisect start from: window (the focused window) or screen (the whole active screen)"
 	usageLabelDirection      = "Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)"
 	usageSplitWord           = "Split detected text into word-level regions (requires vision strategy)"
 	usageZoomToDepth         = "Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position"
@@ -363,8 +363,14 @@ var (
 	}
 
 	// scopedModes are the modes that read a capture scope: hints, whose
-	// capture strategies scan it, and bisect, whose region starts as it.
-	scopedModes = []domain.Mode{domain.ModeHints, domain.ModeBisect}
+	// capture strategies scan it, and the region modes, whose region starts
+	// as it.
+	scopedModes = []domain.Mode{
+		domain.ModeHints,
+		domain.ModeGrid,
+		domain.ModeRecursiveGrid,
+		domain.ModeBisect,
+	}
 
 	// recursiveGridOnly is the one flag about zooming.
 	recursiveGridOnly = []domain.Mode{domain.ModeRecursiveGrid}

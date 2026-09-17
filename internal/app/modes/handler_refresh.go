@@ -7,7 +7,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/geometry"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -142,7 +141,7 @@ func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 func (h *handlerState) refreshGridForScreenChange() bool {
 	// Regenerate the grid with updated screen bounds.
 	// createGridInstance also updates h.screenBounds and sets the grid on the context.
-	gridInstance := h.createGridInstance()
+	gridInstance := h.createGridInstance(h.grid.Context.CaptureScope())
 
 	currentInput := ""
 
@@ -196,16 +195,24 @@ func (h *handlerState) refreshRecursiveGridForScreenChange() {
 		}
 	}
 
-	normalizedBounds := geometry.NormalizeToLocalCoordinates(h.screenBounds)
+	// The session's kind of region, screen or window, read from the display
+	// as it now is.
+	scope := ""
+	if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
+		scope = h.recursiveGrid.Context.CaptureScope()
+	}
+
+	region := h.captureStart(domain.ModeNameRecursiveGrid, h.screenBounds, scope).
+		Sub(h.screenBounds.Min)
 
 	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
 		// Proportionally remap all bounds (history + currentBounds) so the
 		// user's zoomed-in region maps to the equivalent area on the new screen.
-		h.recursiveGrid.Manager.CurrentGrid().RemapToNewBounds(normalizedBounds)
+		h.recursiveGrid.Manager.CurrentGrid().RemapToNewBounds(region)
 		h.recursiveGrid.Manager.CurrentGrid().SetMinSize(h.recursiveGridMinSize())
 	} else {
 		// No existing manager — fall back to full initialization.
-		h.initializeRecursiveGridManager(normalizedBounds)
+		h.initializeRecursiveGridManager(region)
 	}
 
 	// Clear stale selection — old coordinates are invalid on the new screen.

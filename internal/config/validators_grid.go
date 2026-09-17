@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -45,6 +46,11 @@ func (c *Config) ValidateGrid(warnings *Warnings, written WrittenConfig) error {
 		}
 	}
 
+	err := validateCaptureScope("grid.capture_scope", c.Grid.CaptureScope)
+	if err != nil {
+		return err
+	}
+
 	if c.Grid.MaxLabelLength < domainGrid.MinLabelLength ||
 		c.Grid.MaxLabelLength > domainGrid.DefaultMaxLabelLength {
 		return derrors.Newf(
@@ -55,7 +61,7 @@ func (c *Config) ValidateGrid(warnings *Warnings, written WrittenConfig) error {
 		)
 	}
 
-	err := validateColors([]colorField{
+	err = validateColors([]colorField{
 		{c.Grid.UI.BackgroundColor, "grid.ui.background_color"},
 		{c.Grid.UI.TextColor, "grid.ui.text_color"},
 		{c.Grid.UI.MatchedTextColor, "grid.ui.matched_text_color"},
@@ -82,7 +88,7 @@ func (c *Config) ValidateGrid(warnings *Warnings, written WrittenConfig) error {
 	err = validateAppConfigsWithCallback(
 		"grid",
 		c.Grid.AppConfigs,
-		rejectModeSpecificFields("grid"),
+		scopedAppConfigValidator("grid"),
 	)
 	if err != nil {
 		return err
@@ -332,17 +338,12 @@ func (c *Config) ValidateBisect() error {
 		return nil
 	}
 
-	switch c.Bisect.CaptureScope {
-	case domain.CaptureScopeWindow, domain.CaptureScopeScreen, "":
-	default:
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"bisect.capture_scope must be %q or %q",
-			domain.CaptureScopeWindow, domain.CaptureScopeScreen,
-		)
+	err := validateCaptureScope("bisect.capture_scope", c.Bisect.CaptureScope)
+	if err != nil {
+		return err
 	}
 
-	err := validateRegionGridAnimation(ModeNameBisect, c.Bisect.Animation)
+	err = validateRegionGridAnimation(ModeNameBisect, c.Bisect.Animation)
 	if err != nil {
 		return err
 	}
@@ -355,20 +356,39 @@ func (c *Config) ValidateBisect() error {
 	return validateAppConfigsWithCallback(
 		ModeNameBisect,
 		c.Bisect.AppConfigs,
-		func(idx int, appConfig *AppConfig) error {
-			switch appConfig.CaptureScope {
-			case domain.CaptureScopeWindow, domain.CaptureScopeScreen, "":
-			default:
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"bisect.app_configs[%d].capture_scope must be %q or %q",
-					idx, domain.CaptureScopeWindow, domain.CaptureScopeScreen,
-				)
-			}
-
-			return rejectModeSpecificFields(ModeNameBisect)(idx, appConfig)
-		},
+		scopedAppConfigValidator(ModeNameBisect),
 	)
+}
+
+// validateCaptureScope checks one capture_scope field, named in full for
+// the message. Empty is accepted and read as the default.
+func validateCaptureScope(field, scope string) error {
+	switch scope {
+	case domain.CaptureScopeWindow, domain.CaptureScopeScreen, "":
+		return nil
+	default:
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s must be %q or %q",
+			field, domain.CaptureScopeWindow, domain.CaptureScopeScreen,
+		)
+	}
+}
+
+// scopedAppConfigValidator is the per-app validator of a region mode: an
+// entry may set a capture scope, and nothing that belongs to hints or scroll.
+func scopedAppConfigValidator(section string) AppConfigFieldValidator {
+	return func(idx int, appConfig *AppConfig) error {
+		err := validateCaptureScope(
+			fmt.Sprintf("%s.app_configs[%d].capture_scope", section, idx),
+			appConfig.CaptureScope,
+		)
+		if err != nil {
+			return err
+		}
+
+		return rejectModeSpecificFields(section)(idx, appConfig)
+	}
 }
 
 // validateRegionGridAnimation checks the transition settings a region grid
@@ -476,7 +496,12 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.max_depth must be >= 1")
 	}
 
-	err := validateRegionGridAnimation("recursive_grid", c.RecursiveGrid.Animation)
+	err := validateCaptureScope("recursive_grid.capture_scope", c.RecursiveGrid.CaptureScope)
+	if err != nil {
+		return err
+	}
+
+	err = validateRegionGridAnimation("recursive_grid", c.RecursiveGrid.Animation)
 	if err != nil {
 		return err
 	}
@@ -531,7 +556,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 	err = validateAppConfigsWithCallback(
 		"recursive_grid",
 		c.RecursiveGrid.AppConfigs,
-		rejectModeSpecificFields("recursive_grid"),
+		scopedAppConfigValidator("recursive_grid"),
 	)
 	if err != nil {
 		return err
