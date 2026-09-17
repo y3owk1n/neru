@@ -515,6 +515,10 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 			return nil
 		}
 
+		// Release the held chord first, or a ctrl+j scroll goes out as ctrl+scroll.
+		restore := liftPhysicalModifiers()
+		defer restore()
+
 		if modifiers != 0 {
 			if !hyprlandKeepsUinputScroll() {
 				// Uncapped, unlike the X11 path's 50-click ceiling, because this

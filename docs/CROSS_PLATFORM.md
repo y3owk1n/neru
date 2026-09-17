@@ -274,8 +274,8 @@ across every chunk of an animated scroll and across a drag until its release.
 Restoring is the deliberate bias, since the opposite drops a modifier the user
 is still holding. On Wayland the keyboard the compositor reads is the evdev
 proxy's, so the proxy does the releasing and re-pressing
-(`LiftHeldModifiers` / `RestoreLiftedModifiers`), and only around a button
-event. A Wayland scroll still goes out beside the physically held modifiers.
+(`LiftHeldModifiers` / `RestoreLiftedModifiers`), around a button event and
+around a scroll, animated or not.
 Without a forwarding proxy (no `/dev/uinput`, or the wl-keyboard fallback)
 there is nothing to lift, since the compositor reads the physical keyboards
 itself, and the click stays modified.

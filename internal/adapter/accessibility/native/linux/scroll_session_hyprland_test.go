@@ -58,7 +58,7 @@ func TestHyprlandScrollSession_HoldsTheModifierAcrossEveryChunk(t *testing.T) {
 	scrolls := &uinputScrollRecorder{}
 	withUinputScrollRecorder(t, scrolls)
 
-	session := &hyprlandScrollSession{}
+	session := &hyprlandScrollSession{restore: func() {}}
 
 	pressed, err := pressWaylandModifiers(action.ModCtrl)
 	if err != nil {
@@ -133,7 +133,7 @@ func TestHyprlandScrollSession_Inject(t *testing.T) {
 			recorder := &uinputScrollRecorder{}
 			withUinputScrollRecorder(t, recorder)
 
-			session := &hyprlandScrollSession{}
+			session := &hyprlandScrollSession{restore: func() {}}
 
 			err := session.inject(testCase.deltaX, testCase.deltaY)
 			if err != nil {
@@ -151,7 +151,7 @@ func TestHyprlandScrollSession_Inject(t *testing.T) {
 func TestHyprlandScrollSession_InjectReportsAFailedBatch(t *testing.T) {
 	withUinputScrollRecorder(t, &uinputScrollRecorder{err: errScrollDeviceGone})
 
-	session := &hyprlandScrollSession{}
+	session := &hyprlandScrollSession{restore: func() {}}
 
 	err := session.inject(0, scrollPixelsPerNotch)
 	if !errors.Is(err, errScrollDeviceGone) {
@@ -163,7 +163,7 @@ func TestHyprlandScrollSession_InjectReportsAFailedBatch(t *testing.T) {
 // curve to. uinput scrolling is whole REL_WHEEL clicks, so a session claiming
 // to be continuous would have every sub-notch chunk silently dropped.
 func TestHyprlandScrollSession_Granularity(t *testing.T) {
-	session := &hyprlandScrollSession{}
+	session := &hyprlandScrollSession{restore: func() {}}
 
 	if got := session.granularity(); got != scrollPixelsPerNotch {
 		t.Fatalf("granularity() = %v, want %v", got, float64(scrollPixelsPerNotch))

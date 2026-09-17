@@ -366,6 +366,7 @@ func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error
 // pass the fraction through; linux.WaylandScrollContinuous picks between them.
 type waylandScrollSession struct {
 	modifiers action.Modifiers
+	restore   func()
 }
 
 // waylandScrollBackendAvailable answers whether an animated scroll could inject
@@ -387,14 +388,18 @@ func newWaylandScrollSession(modifiers action.Modifiers) (scrollSession, error) 
 		return nil, err
 	}
 
+	restore := liftPhysicalModifiers()
+
 	if modifiers != 0 {
 		pressErr := wlrootsPressModifiers(modifiers)
 		if pressErr != nil {
+			restore()
+
 			return nil, pressErr
 		}
 	}
 
-	return &waylandScrollSession{modifiers: modifiers}, nil
+	return &waylandScrollSession{modifiers: modifiers, restore: restore}, nil
 }
 
 // granularity is zero: a Wayland axis value is a distance, not a step count, so
@@ -425,6 +430,8 @@ func (s *waylandScrollSession) close() {
 	if s.modifiers != 0 {
 		_ = wlrootsReleaseModifiers(s.modifiers)
 	}
+
+	s.restore()
 }
 
 // wlrootsScrollAxis sends Wayland axis events for one axis.

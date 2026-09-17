@@ -26,6 +26,7 @@ import (
 // notches over the same eased curve every other backend uses.
 type hyprlandScrollSession struct {
 	pressed action.Modifiers
+	restore func()
 }
 
 // newHyprlandScrollSession presses the modifiers and holds them for the whole
@@ -36,14 +37,18 @@ func newHyprlandScrollSession(modifiers action.Modifiers) (scrollSession, error)
 		return nil, err
 	}
 
+	restore := liftPhysicalModifiers()
+
 	pressed, err := pressWaylandModifiers(modifiers)
 	if err != nil {
+		restore()
+
 		return nil, err
 	}
 
 	waitForWaylandModifierPress()
 
-	return &hyprlandScrollSession{pressed: pressed}, nil
+	return &hyprlandScrollSession{pressed: pressed, restore: restore}, nil
 }
 
 func (s *hyprlandScrollSession) granularity() float64 { return scrollPixelsPerNotch }
@@ -82,6 +87,8 @@ func (s *hyprlandScrollSession) notchAxis(axis int, delta float64) error {
 // close lets go of only what this session pressed, so a modifier the user is
 // physically holding survives the animation.
 func (s *hyprlandScrollSession) close() {
+	defer s.restore()
+
 	if s.pressed == 0 {
 		return
 	}

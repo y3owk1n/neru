@@ -117,3 +117,9 @@ func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error
 		"wlroots backend requires CGO-enabled Linux builds",
 	)
 }
+
+// liftPhysicalModifiers has nothing to lift. The evdev proxy needs cgo, so
+// the compositor reads the physical keyboards itself.
+func liftPhysicalModifiers() func() {
+	return func() {}
+}
