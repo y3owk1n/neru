@@ -5,6 +5,7 @@ package linux
 import (
 	"image"
 	"os"
+	"sync"
 
 	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
@@ -94,6 +95,104 @@ func wlrootsButton(button action.MouseButton) int {
 	}
 }
 
+// physicalLift is the shared lifetime of one lift of the user's held chord.
+// Every pointer action that can overlap another takes a hold: a scroll from
+// its first event to its last, a drag from press to release. The chord goes
+// back on only when the last hold is gone, whichever action that turns out
+// to be. The proxy itself is not nestable, since a second lift finds nothing
+// left to lift and any restore puts everything back, so the counting lives
+// here.
+type physicalLift struct {
+	mu    sync.Mutex
+	holds int
+
+	// lifted is whether the proxy has the chord up on Neru's account, so a
+	// restore with nothing to put back skips the compositor barrier.
+	lifted bool
+}
+
+var globalPhysicalLift physicalLift
+
+// lift releases the chord on the proxy. A fresh lift waits the fixed period
+// the uinput side owes; one that found the chord already up owes nothing.
+func (l *physicalLift) lift() {
+	lifted, err := eventtaplinux.LiftHeldModifiers()
+	if err != nil || !lifted {
+		return
+	}
+
+	l.mu.Lock()
+	l.lifted = true
+	l.mu.Unlock()
+
+	waitForScrollDelivery()
+}
+
+// acquire lifts the chord and counts a hold for the caller.
+func (l *physicalLift) acquire() {
+	l.mu.Lock()
+	l.holds++
+	l.mu.Unlock()
+
+	l.lift()
+}
+
+// release drops one hold and puts the chord back when no hold and no held
+// button remains. A button counts on its own rather than as a hold because a
+// release that fails keeps the button recorded for the idle cleanup to retry,
+// and a retry must not drop a hold twice.
+func (l *physicalLift) release() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.holds > 0 {
+		l.holds--
+	}
+
+	if l.holds > 0 || len(globalWlrootsPointerState.HeldButtons()) > 0 {
+		return
+	}
+
+	l.restoreLocked()
+}
+
+// restoreUnlessHeld puts the chord back after a drag ends, unless a button
+// other than the one just released is still down or a scroll still holds the
+// lift. The drag's press took no hold, so none is dropped.
+func (l *physicalLift) restoreUnlessHeld(button action.MouseButton) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.holds > 0 {
+		return
+	}
+
+	for _, held := range globalWlrootsPointerState.HeldButtons() {
+		if held != button {
+			return
+		}
+	}
+
+	l.restoreLocked()
+}
+
+// restoreLocked puts back the lifted modifiers once the compositor has
+// processed the action, or the release that ends a drag. WaylandSyncModifiers
+// is the barrier for that. Nothing lifted means nothing to wait for.
+func (l *physicalLift) restoreLocked() {
+	if !l.lifted {
+		return
+	}
+
+	l.lifted = false
+
+	if !linux.WaylandSyncModifiers(modifierSyncTimeout) {
+		waitForScrollDelivery()
+	}
+
+	_ = eventtaplinux.RestoreLiftedModifiers()
+}
+
 // liftPhysicalModifiers releases the modifiers the user's hand is on for the
 // length of a pointer action, so the action carries only the set it names.
 // This is the x11ClickButtonAtPoint rule applied to the one keyboard the
@@ -101,36 +200,11 @@ func wlrootsButton(button action.MouseButton) int {
 // docs/CROSS_PLATFORM.md). The releases go out on uinput and the action on the
 // Wayland socket, and nothing orders the two, so a lift waits the fixed period
 // the uinput side always waits (waitForScrollDelivery). The returned restore
-// presses the lifted modifiers again once the compositor has processed the
-// action. WaylandSyncModifiers is the barrier for that, and it waits while a
-// button is held, because a drag that began under this lift found nothing
-// left to lift and is relying on this restore not to re-modify it midway.
-// The drag's release restores instead, as it does for its own lift.
+// presses the lifted modifiers again once every overlapping action is done.
 func liftPhysicalModifiers() func() {
-	lifted, err := eventtaplinux.LiftHeldModifiers()
-	if err != nil || !lifted {
-		return func() {}
-	}
+	globalPhysicalLift.acquire()
 
-	waitForScrollDelivery()
-
-	return func() {
-		if len(globalWlrootsPointerState.HeldButtons()) > 0 {
-			return
-		}
-
-		restorePhysicalModifiers()
-	}
-}
-
-// restorePhysicalModifiers puts back the lifted modifiers once the compositor
-// has processed the action, or the release that ends a drag.
-func restorePhysicalModifiers() {
-	if !linux.WaylandSyncModifiers(modifierSyncTimeout) {
-		waitForScrollDelivery()
-	}
-
-	_ = eventtaplinux.RestoreLiftedModifiers()
+	return globalPhysicalLift.release
 }
 
 func wlrootsMouseDownAtPoint(
@@ -139,13 +213,13 @@ func wlrootsMouseDownAtPoint(
 	modifiers action.Modifiers,
 ) error {
 	// Lifted for the whole drag, as on X11: the release that ends the last
-	// held button restores. A press that fails restores here, since no
-	// release is coming for it.
-	restore := liftPhysicalModifiers()
+	// held button restores, so the press takes no hold of its own. A press
+	// that fails restores here, since no release is coming for it.
+	globalPhysicalLift.lift()
 
 	err := wlrootsPressModifiers(modifiers)
 	if err != nil {
-		restore()
+		restoreUnlessOtherHeld(button)
 
 		return err
 	}
@@ -154,7 +228,7 @@ func wlrootsMouseDownAtPoint(
 	if err != nil {
 		_ = wlrootsReleaseModifiers(modifiers)
 
-		restore()
+		restoreUnlessOtherHeld(button)
 
 		return err
 	}
@@ -178,13 +252,7 @@ func restoreAfterRelease(button action.MouseButton) {
 // come back regardless, which is the documented bias, since the opposite
 // drops a modifier the user is still holding.
 func restoreUnlessOtherHeld(button action.MouseButton) {
-	for _, held := range globalWlrootsPointerState.HeldButtons() {
-		if held != button {
-			return
-		}
-	}
-
-	restorePhysicalModifiers()
+	globalPhysicalLift.restoreUnlessHeld(button)
 }
 
 func wlrootsMouseUpAtPoint(
