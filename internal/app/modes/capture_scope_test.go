@@ -15,13 +15,21 @@ import (
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
-func newCaptureScopeHandler(bundleID string, bundleErr error) *handlerState {
+// newCaptureScopeHandler is a handler whose platform answers the focused-app
+// query with bundleID or bundleErr, counting how often it is asked.
+// windowedBundle is the app whose entry asks for the window.
+const windowedBundle = "com.example.Windowed"
+
+func newCaptureScopeHandler(bundleID string, bundleErr error, asked *int) *handlerState {
 	return &handlerState{
-		ctx:    context.Background(),
-		logger: zap.NewNop(),
+		ctx:        context.Background(),
+		logger:     zap.NewNop(),
+		focusedApp: &focusedAppCell{},
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{
 				FocusedAppBundleIDFunc: func(context.Context) (string, error) {
+					*asked++
+
 					return bundleID, bundleErr
 				},
 			},
@@ -37,7 +45,7 @@ func TestResolveCaptureScope_FlagThenAppThenSection(t *testing.T) {
 	withOverride := config.GridConfig{
 		CaptureScope: domain.CaptureScopeScreen,
 		AppConfigs: []config.AppConfig{
-			{BundleID: "com.example.Windowed", CaptureScope: domain.CaptureScopeWindow},
+			{BundleID: windowedBundle, CaptureScope: domain.CaptureScopeWindow},
 		},
 	}
 
@@ -47,7 +55,9 @@ func TestResolveCaptureScope_FlagThenAppThenSection(t *testing.T) {
 		activation modecmd.Activation
 		bundleID   string
 		bundleErr  error
+		published  string
 		want       string
+		wantAsked  int
 	}{
 		{
 			name:    "the section alone",
@@ -55,22 +65,32 @@ func TestResolveCaptureScope_FlagThenAppThenSection(t *testing.T) {
 			want:    domain.CaptureScopeScreen,
 		},
 		{
-			name:     "the focused app's entry shadows the section",
-			section:  withOverride,
-			bundleID: "com.example.Windowed",
-			want:     domain.CaptureScopeWindow,
+			name:      "the focused app's entry shadows the section",
+			section:   withOverride,
+			bundleID:  windowedBundle,
+			want:      domain.CaptureScopeWindow,
+			wantAsked: 1,
 		},
 		{
-			name:     "an app without an entry gets the section's",
-			section:  withOverride,
-			bundleID: "com.example.Other",
-			want:     domain.CaptureScopeScreen,
+			name:      "an app without an entry gets the section's",
+			section:   withOverride,
+			bundleID:  "com.example.Other",
+			want:      domain.CaptureScopeScreen,
+			wantAsked: 1,
 		},
 		{
 			name:      "a failed app lookup leaves the section's in force",
 			section:   withOverride,
 			bundleErr: derrors.New(derrors.CodeNotSupported, "no focused app"),
 			want:      domain.CaptureScopeScreen,
+			wantAsked: 1,
+		},
+		{
+			name:      "a published app is read and the platform is not asked",
+			section:   withOverride,
+			bundleID:  "com.example.Other",
+			published: windowedBundle,
+			want:      domain.CaptureScopeWindow,
 		},
 		{
 			name:       "the flag shadows everything",
@@ -82,11 +102,20 @@ func TestResolveCaptureScope_FlagThenAppThenSection(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			handler := newCaptureScopeHandler(test.bundleID, test.bundleErr)
+			asked := 0
+			handler := newCaptureScopeHandler(test.bundleID, test.bundleErr, &asked)
+
+			if test.published != "" {
+				handler.focusedApp.publish(test.published)
+			}
 
 			got := handler.resolveCaptureScope(domain.ModeNameGrid, test.activation, &test.section)
 			if got != test.want {
 				t.Fatalf("scope = %q, want %q", got, test.want)
+			}
+
+			if asked != test.wantAsked {
+				t.Fatalf("the platform was asked %d times, want %d", asked, test.wantAsked)
 			}
 		})
 	}

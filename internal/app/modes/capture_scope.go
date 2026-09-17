@@ -24,9 +24,11 @@ type captureScoped interface {
 
 // resolveCaptureScope is the region a session starts from: the section's,
 // shadowed by the focused application's app_configs entry, and then by the
-// activation's --capture-scope. The application is asked once, under a short
-// bound, the way hints asks at its activation. A lookup that fails leaves the
-// configured scope in force. mode names the caller in the log.
+// activation's --capture-scope. The application is the one the watcher
+// published, and the platform is asked only when nothing has been published,
+// once and under a short bound, the way hints asks at its activation (ADR
+// 0005). A lookup that fails leaves the configured scope in force. mode names
+// the caller in the log.
 func (h *handlerState) resolveCaptureScope(
 	mode string,
 	activation modecmd.Activation,
@@ -38,6 +40,12 @@ func (h *handlerState) resolveCaptureScope(
 
 	if !section.HasAppCaptureScopeOverrides() {
 		return section.CaptureScopeForApp("")
+	}
+
+	if h.focusedApp != nil {
+		if bundleID, ok := h.focusedApp.published(); ok {
+			return section.CaptureScopeForApp(bundleID)
+		}
 	}
 
 	bundleCtx, bundleCancel := context.WithTimeout(h.ctx, captureScopeBundleTimeout)
