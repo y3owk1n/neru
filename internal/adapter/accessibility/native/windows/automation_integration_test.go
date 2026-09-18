@@ -22,7 +22,7 @@ func TestEnumerateClickableElementsIntegration(t *testing.T) {
 
 	// A nil role set falls back to the shipped defaults, which is what the
 	// hints path uses when no roles are configured.
-	elements := enumerateClickableElements(hwnd, nil)
+	elements := enumerateClickableElements(hwnd, enumerateOptions{})
 	if len(elements) == 0 {
 		t.Skip("skipping: foreground window exposed no clickable elements")
 	}

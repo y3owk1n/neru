@@ -700,20 +700,20 @@ works; this says whether a word a person wrote does anything.
 | `hints.on_mission_control_activated` | option | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
 | `hints.on_mission_control_deactivated` | option | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
 | `hints.max_depth` | option | ✅ | ❌ | ❌ | only the AX walk takes a depth limit; the AT-SPI walk uses a fixed one and the UIA walk records the option without reading it |
-| `hints.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `hints.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `hints.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `hints.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `grid.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `grid.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `recursive_grid.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `recursive_grid.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `bisect.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `bisect.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `scroll.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `scroll.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
-| `app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `hints.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable check is AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult it |
+| `hints.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable check is AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult it |
+| `grid.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable check is AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult it |
+| `recursive_grid.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable check is AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult it |
+| `bisect.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable check is AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult it |
+| `scroll.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable check is AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult it |
+| `app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable check is AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult it |
+| `hints.visible_check_enabled` | option | ✅ | ❌ | ✅ | the visibility hit-test is an AX and UIA question; the AT-SPI walk never consults it |
+| `hints.app_configs.visible_check_enabled` | option | ✅ | ❌ | ✅ | the visibility hit-test is an AX and UIA question; the AT-SPI walk never consults it |
+| `grid.app_configs.visible_check_enabled` | option | ✅ | ❌ | ✅ | the visibility hit-test is an AX and UIA question; the AT-SPI walk never consults it |
+| `recursive_grid.app_configs.visible_check_enabled` | option | ✅ | ❌ | ✅ | the visibility hit-test is an AX and UIA question; the AT-SPI walk never consults it |
+| `bisect.app_configs.visible_check_enabled` | option | ✅ | ❌ | ✅ | the visibility hit-test is an AX and UIA question; the AT-SPI walk never consults it |
+| `scroll.app_configs.visible_check_enabled` | option | ✅ | ❌ | ✅ | the visibility hit-test is an AX and UIA question; the AT-SPI walk never consults it |
+| `app_configs.visible_check_enabled` | option | ✅ | ❌ | ✅ | the visibility hit-test is an AX and UIA question; the AT-SPI walk never consults it |
 | `grid.prewarm_enabled` | option | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
 | `hints.vision.minimum_confidence` | option | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; the Vision framework and tesseract score each word |
 | `hints.vision.button_min_confidence` | option | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; the Vision framework and tesseract score each word |

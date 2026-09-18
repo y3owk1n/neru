@@ -27,8 +27,10 @@ const (
 		"and the hooks never run"
 	noteTreeDepth = "only the AX walk takes a depth limit; the AT-SPI walk uses a fixed one " +
 		"and the UIA walk records the option without reading it"
-	noteClickableChecks = "the clickable and visibility checks are AX-specific; the AT-SPI and " +
-		"UIA walks decide what is clickable their own way and never consult these"
+	noteClickableCheck = "the clickable check is AX-specific; the AT-SPI and UIA walks " +
+		"decide what is clickable their own way and never consult it"
+	noteVisibleCheck = "the visibility hit-test is an AX and UIA question; the AT-SPI walk " +
+		"never consults it"
 	noteGridPrewarm = "only the darwin grid overlay prewarms its layers; the other backends " +
 		"draw on demand"
 )
@@ -52,14 +54,14 @@ var captureScopeOptions = []string{
 	"app_configs.capture_scope",
 }
 
-// darwinOnly and darwinAndLinux are the narrow columns this schema uses today,
-// named so a reader compares two options by the same words. A darwin+windows
-// column existed for the hints search badge until Linux drew it too, and a
-// linux-only one for contour until macOS fed it a frame; add one back the
-// moment an option needs it rather than reaching for the nearest fit.
+// darwinOnly, darwinAndLinux and darwinAndWindows are the narrow columns this
+// schema uses today, named so a reader compares two options by the same words.
+// A linux-only column existed for contour until macOS fed it a frame; add one
+// back the moment an option needs it rather than reaching for the nearest fit.
 var (
-	darwinOnly     = parity.Platforms{parity.Darwin}
-	darwinAndLinux = parity.Platforms{parity.Darwin, parity.Linux}
+	darwinOnly       = parity.Platforms{parity.Darwin}
+	darwinAndLinux   = parity.Platforms{parity.Darwin, parity.Linux}
+	darwinAndWindows = parity.Platforms{parity.Darwin, parity.Windows}
 )
 
 // PlatformSupport declares, for every option in the schema, the platforms on
@@ -113,20 +115,22 @@ func PlatformSupport() parity.Declaration {
 		parity.On(parity.KindOption, darwinOnly, noteTreeDepth,
 			"hints.max_depth",
 		),
-		parity.On(parity.KindOption, darwinOnly, noteClickableChecks,
+		parity.On(parity.KindOption, darwinOnly, noteClickableCheck,
 			"hints.ignore_clickable_check",
-			"hints.visible_check_enabled",
 			"hints.app_configs.ignore_clickable_check",
-			"hints.app_configs.visible_check_enabled",
 			"grid.app_configs.ignore_clickable_check",
-			"grid.app_configs.visible_check_enabled",
 			"recursive_grid.app_configs.ignore_clickable_check",
-			"recursive_grid.app_configs.visible_check_enabled",
 			"bisect.app_configs.ignore_clickable_check",
-			"bisect.app_configs.visible_check_enabled",
 			"scroll.app_configs.ignore_clickable_check",
-			"scroll.app_configs.visible_check_enabled",
 			"app_configs.ignore_clickable_check",
+		),
+		parity.On(parity.KindOption, darwinAndWindows, noteVisibleCheck,
+			"hints.visible_check_enabled",
+			"hints.app_configs.visible_check_enabled",
+			"grid.app_configs.visible_check_enabled",
+			"recursive_grid.app_configs.visible_check_enabled",
+			"bisect.app_configs.visible_check_enabled",
+			"scroll.app_configs.visible_check_enabled",
 			"app_configs.visible_check_enabled",
 		),
 

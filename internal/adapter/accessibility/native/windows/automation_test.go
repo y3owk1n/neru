@@ -115,9 +115,10 @@ func TestControlTypeNamesCoverTheVocabulary(t *testing.T) {
 	}
 }
 
-// TestWithinFrame_DropsControlsLaidOutPastTheWindowEdge checks the clip that
-// stops a scrolled Edge vertical tab strip from placing hints below the window.
-func TestWithinFrame_DropsControlsLaidOutPastTheWindowEdge(t *testing.T) {
+// TestClipToFrame_DropsControlsLaidOutPastTheWindowEdge checks the clip that
+// stops a scrolled Edge vertical tab strip from placing hints below the window,
+// and that a control straddling the edge keeps only its visible part.
+func TestClipToFrame_DropsControlsLaidOutPastTheWindowEdge(t *testing.T) {
 	t.Parallel()
 
 	frame := image.Rect(0, 0, 1400, 660)
@@ -126,21 +127,67 @@ func TestWithinFrame_DropsControlsLaidOutPastTheWindowEdge(t *testing.T) {
 		name   string
 		bounds image.Rectangle
 		frame  image.Rectangle
-		want   bool
+		want   image.Rectangle
 	}{
-		{name: "inside", bounds: image.Rect(10, 10, 50, 40), frame: frame, want: true},
-		{name: "straddling the bottom edge", bounds: image.Rect(10, 640, 50, 700), frame: frame, want: true},
-		{name: "below the window", bounds: image.Rect(10, 700, 50, 740), frame: frame, want: false},
-		{name: "unknown frame keeps everything", bounds: image.Rect(10, 700, 50, 740), want: true},
+		{name: "inside", bounds: image.Rect(10, 10, 50, 40), frame: frame, want: image.Rect(10, 10, 50, 40)},
+		{name: "straddling the bottom edge", bounds: image.Rect(10, 640, 50, 700), frame: frame, want: image.Rect(10, 640, 50, 660)},
+		{name: "below the window", bounds: image.Rect(10, 700, 50, 740), frame: frame, want: image.Rectangle{}},
+		{name: "unknown frame keeps everything", bounds: image.Rect(10, 700, 50, 740), want: image.Rect(10, 700, 50, 740)},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := withinFrame(tt.bounds, tt.frame); got != tt.want {
-				t.Errorf("withinFrame(%v, %v) = %v, want %v", tt.bounds, tt.frame, got, tt.want)
+			if got := clipToFrame(tt.bounds, tt.frame); got != tt.want {
+				t.Errorf("clipToFrame(%v, %v) = %v, want %v", tt.bounds, tt.frame, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestHitCovers_RejectsControlsUnderAnotherElement checks the visibility
+// gate behind hints.visible_check_enabled: the element under a control's
+// centre must be the control or one of its descendants.
+func TestHitCovers_RejectsControlsUnderAnotherElement(t *testing.T) {
+	t.Parallel()
+
+	bounds := image.Rect(100, 100, 200, 140)
+
+	tests := []struct {
+		name string
+		hit  image.Rectangle
+		want bool
+	}{
+		{name: "the control itself", hit: bounds, want: true},
+		{name: "a descendant", hit: image.Rect(120, 110, 160, 130), want: true},
+		{name: "a covering panel", hit: image.Rect(0, 0, 400, 400), want: false},
+		{name: "an overlapping sibling", hit: image.Rect(150, 90, 300, 150), want: false},
+		{name: "no hit", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := hitCovers(tt.hit, bounds); got != tt.want {
+				t.Errorf("hitCovers(%v, %v) = %v, want %v", tt.hit, bounds, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestPackPoint_LaysOutAWin32POINT pins the register layout ElementFromPoint
+// reads: x in the low 32 bits, y in the high 32 bits, negative coordinates
+// (a monitor left of the primary) kept as two's complement.
+func TestPackPoint_LaysOutAWin32POINT(t *testing.T) {
+	t.Parallel()
+
+	if got, want := packPoint(image.Pt(3, 5)), uintptr(3)|uintptr(5)<<32; got != want {
+		t.Errorf("packPoint(3, 5) = %#x, want %#x", got, want)
+	}
+
+	if got, want := packPoint(image.Pt(-1, 2)), uintptr(0xFFFFFFFF)|uintptr(2)<<32; got != want {
+		t.Errorf("packPoint(-1, 2) = %#x, want %#x", got, want)
 	}
 }

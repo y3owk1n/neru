@@ -75,9 +75,10 @@ const (
 	vtRelease = 2
 
 	// IUIAutomation.
-	vtElementFromHandle       = 6
-	vtGetControlViewCondition = 18
-	vtCreateCacheRequest      = 20
+	vtElementFromHandle          = 6
+	vtElementFromPointBuildCache = 11
+	vtGetControlViewCondition    = 18
+	vtCreateCacheRequest         = 20
 
 	// IUIAutomationElement. Only the cached getters are called: every property
 	// the walk reads is fetched by the cache request, so a Current* getter
@@ -189,6 +190,19 @@ type winElement struct {
 	clickable bool
 }
 
+// enumerateOptions steers one enumeration.
+type enumerateOptions struct {
+	// frame is the window's visible frame. Controls outside it are dropped
+	// and the rest are clipped to it. An empty frame disables both.
+	frame image.Rectangle
+	// roles is the set of UIA control-type names to keep. An empty set falls
+	// back to the shipped defaults.
+	roles map[string]struct{}
+	// visibleCheck hit-tests each control's centre and drops the ones another
+	// element covers. It is hints.visible_check_enabled on Windows.
+	visibleCheck bool
+}
+
 // comCall invokes the method at vtable slot index on the COM object this.
 // It returns the HRESULT (or boolean/handle) in the low bits of the result.
 // comCall invokes the method at index in this object's COM vtable.
@@ -218,14 +232,10 @@ func failed(hresult uintptr) bool {
 }
 
 // enumerateClickableElements returns the on-screen, clickable controls of the
-// given top-level window handle. Controls whose bounds do not overlap frame
-// are dropped, and an empty frame disables that clip. It returns nil on any
+// given top-level window handle, filtered as opts says. It returns nil on any
 // failure; callers treat an empty result as "no hints", never as a crash.
-func enumerateClickableElements(
-	hwnd uintptr,
-	frame image.Rectangle,
-	keptRoles map[string]struct{},
-) []winElement {
+func enumerateClickableElements(hwnd uintptr, opts enumerateOptions) []winElement {
+	keptRoles := opts.roles
 	if len(keptRoles) == 0 {
 		keptRoles = defaultClickableRoles
 	}
@@ -298,7 +308,74 @@ func enumerateClickableElements(
 	}
 	defer comCall(array, vtRelease)
 
-	return collectArray(array, frame, keptRoles)
+	controls := collectArray(array, opts.frame, keptRoles)
+
+	if opts.visibleCheck {
+		controls = visibleControls(automation, cache, controls)
+	}
+
+	return controls
+}
+
+// visibleControls keeps the controls whose centre hit-tests to themselves or
+// to a descendant, the same gate the AX walk applies behind
+// hints.visible_check_enabled. A control another element covers, in this
+// window or another, hit-tests to that element and is dropped. A hit-test
+// that fails keeps the control, so a provider that cannot answer does not
+// blank the hints.
+func visibleControls(automation, cache unsafe.Pointer, controls []winElement) []winElement {
+	kept := controls[:0]
+
+	for _, control := range controls {
+		hitRect, ok := elementRectAt(automation, cache, centerOf(control.bounds))
+		if !ok || hitCovers(hitRect, control.bounds) {
+			kept = append(kept, control)
+		}
+	}
+
+	return kept
+}
+
+// elementRectAt returns the bounds of the element under point. ok is false
+// when UIA has no answer.
+func elementRectAt(automation, cache unsafe.Pointer, point image.Point) (image.Rectangle, bool) {
+	var hit unsafe.Pointer
+
+	hresult := comCall(
+		automation,
+		vtElementFromPointBuildCache,
+		packPoint(point),
+		uintptr(cache),
+		uintptr(unsafe.Pointer(&hit)),
+	)
+	if failed(hresult) || hit == nil {
+		return image.Rectangle{}, false
+	}
+	defer comCall(hit, vtRelease)
+
+	var rect winRect
+	if failed(comCall(hit, vtGetCachedBoundingRectangle, uintptr(unsafe.Pointer(&rect)))) {
+		return image.Rectangle{}, false
+	}
+
+	return image.Rect(int(rect.left), int(rect.top), int(rect.right), int(rect.bottom)), true
+}
+
+// packPoint lays a Win32 POINT out as the single register ElementFromPoint
+// takes it in: x in the low 32 bits, y in the high 32 bits.
+func packPoint(point image.Point) uintptr {
+	return uintptr(uint32(int32(point.X))) | uintptr(uint32(int32(point.Y)))<<32
+}
+
+// hitCovers reports whether the element found under a control's centre is
+// that control or one of its descendants, judged by bounds: a descendant
+// fits inside the control, and a covering element does not.
+func hitCovers(hitRect, bounds image.Rectangle) bool {
+	return !hitRect.Empty() && hitRect.In(bounds)
+}
+
+func centerOf(rect image.Rectangle) image.Point {
+	return image.Pt(rect.Min.X+rect.Dx()/2, rect.Min.Y+rect.Dy()/2)
 }
 
 // createCacheRequest builds the cache request FindAllBuildCache fills: the
@@ -382,7 +459,8 @@ func collectArray(array unsafe.Pointer, frame image.Rectangle, keptRoles map[str
 
 // extractWinElement copies the relevant properties from a single UIA element.
 // It returns ok=false for offscreen or zero-size controls, for controls whose
-// role is not in keptRoles, and for controls outside frame.
+// role is not in keptRoles, and for controls outside frame. Bounds are clipped
+// to frame so a control straddling the window edge targets its visible part.
 //
 // Role selection happens here rather than downstream because the cache request
 // returns the whole control-view subtree: rejecting an element by role before
@@ -420,8 +498,11 @@ func extractWinElement(
 		return winElement{}, false
 	}
 
-	bounds := image.Rect(int(rect.left), int(rect.top), int(rect.right), int(rect.bottom))
-	if bounds.Empty() || !withinFrame(bounds, frame) {
+	bounds := clipToFrame(
+		image.Rect(int(rect.left), int(rect.top), int(rect.right), int(rect.bottom)),
+		frame,
+	)
+	if bounds.Empty() {
 		return winElement{}, false
 	}
 
@@ -433,14 +514,19 @@ func extractWinElement(
 	}, true
 }
 
-// withinFrame reports whether bounds overlaps the window frame. An empty frame
-// means the frame is unknown and nothing is clipped.
+// clipToFrame returns the part of bounds inside the window frame, which is
+// empty for a control laid out past the window edge. An empty frame means the
+// frame is unknown and bounds come back unchanged.
 //
 // The provider sets IsOffscreen, and Chromium leaves it false for controls it
 // has laid out past the window edge, such as the hidden part of a long
 // vertical tab strip in Edge. Clipping to the window frame catches those.
-func withinFrame(bounds, frame image.Rectangle) bool {
-	return frame.Empty() || bounds.Overlaps(frame)
+func clipToFrame(bounds, frame image.Rectangle) image.Rectangle {
+	if frame.Empty() {
+		return bounds
+	}
+
+	return bounds.Intersect(frame)
 }
 
 // cachedName reads the element's cached name (BSTR) and frees it.

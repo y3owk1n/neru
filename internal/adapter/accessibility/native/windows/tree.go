@@ -101,6 +101,8 @@ type TreeOptions struct {
 	MaxDepth int
 	Bounds   image.Rectangle
 	logger   *zap.Logger
+	// configProvider answers the per-app visible check; nil means off.
+	configProvider config.Provider
 	// Roles is the set of UIA control-type names to enumerate. An empty set
 	// falls back to the shipped defaults. It is applied during enumeration so
 	// unwanted controls are rejected before their properties are read.
@@ -128,14 +130,29 @@ func (o *TreeOptions) SetMaxDepth(depth int) { o.MaxDepth = depth }
 // SetBundleID is a no-op on Windows.
 func (o *TreeOptions) SetBundleID(_ string) {}
 
-// SetConfigProvider is a no-op on Windows.
-func (o *TreeOptions) SetConfigProvider(_ config.Provider) {}
+// SetConfigProvider records the config source the visible check reads.
+func (o *TreeOptions) SetConfigProvider(provider config.Provider) { o.configProvider = provider }
 
 // SetFilterFunc is a no-op on Windows.
 func (o *TreeOptions) SetFilterFunc(_ func(*ElementInfo) bool) {}
 
 // SetRoles records the UIA control-type names to enumerate.
 func (o *TreeOptions) SetRoles(roles map[string]struct{}) { o.Roles = roles }
+
+// visibleCheckFor resolves hints.visible_check_enabled for the window's
+// application, per-app override first.
+func (o *TreeOptions) visibleCheckFor(bundleID string) bool {
+	if o.configProvider == nil {
+		return false
+	}
+
+	cfg := o.configProvider.Get()
+	if cfg == nil {
+		return false
+	}
+
+	return cfg.ShouldEnableVisibleCheckForApp(bundleID)
+}
 
 // BuildTree enumerates the clickable controls under the given window element
 // via UI Automation and returns a root node with one child per control. For
@@ -167,7 +184,11 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 
 	started := time.Now()
 
-	controls := enumerateClickableElements(root.hwnd, winplatform.WindowFrame(root.hwnd), opts.Roles)
+	controls := enumerateClickableElements(root.hwnd, enumerateOptions{
+		frame:        winplatform.WindowFrame(root.hwnd),
+		roles:        opts.Roles,
+		visibleCheck: opts.visibleCheckFor(root.bundleIdentifier),
+	})
 
 	if ctx.Err() != nil {
 		return nil, derrors.WrapContextCanceled(ctx, "UIA tree build")
