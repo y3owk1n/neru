@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -166,7 +167,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 
 	started := time.Now()
 
-	controls := enumerateClickableElements(root.hwnd, opts.Roles)
+	controls := enumerateClickableElements(root.hwnd, winplatform.WindowFrame(root.hwnd), opts.Roles)
 
 	if ctx.Err() != nil {
 		return nil, derrors.WrapContextCanceled(ctx, "UIA tree build")

@@ -514,6 +514,19 @@ func ForegroundWindowHandle() (uintptr, bool) {
 	return uintptr(hwnd), true
 }
 
+// WindowFrame returns the visible frame of hwnd clipped to the desktop, in
+// physical pixels, or the empty rectangle when the window has none on screen.
+func WindowFrame(hwnd uintptr) image.Rectangle {
+	rect, err := visibleWindowRect(windows.HWND(hwnd))
+	if err != nil {
+		return image.Rectangle{}
+	}
+
+	clipped, _, _ := clipToScreen(rect)
+
+	return clipped
+}
+
 func focusedApplicationPID() (int, error) {
 	hwnd, err := foregroundWindowHandle()
 	if err != nil {

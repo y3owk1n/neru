@@ -3,6 +3,7 @@
 package windows
 
 import (
+	"image"
 	"maps"
 	"slices"
 	"testing"
@@ -111,5 +112,35 @@ func TestControlTypeNamesCoverTheVocabulary(t *testing.T) {
 				)
 			}
 		}
+	}
+}
+
+// TestWithinFrame_DropsControlsLaidOutPastTheWindowEdge checks the clip that
+// stops a scrolled Edge vertical tab strip from placing hints below the window.
+func TestWithinFrame_DropsControlsLaidOutPastTheWindowEdge(t *testing.T) {
+	t.Parallel()
+
+	frame := image.Rect(0, 0, 1400, 660)
+
+	tests := []struct {
+		name   string
+		bounds image.Rectangle
+		frame  image.Rectangle
+		want   bool
+	}{
+		{name: "inside", bounds: image.Rect(10, 10, 50, 40), frame: frame, want: true},
+		{name: "straddling the bottom edge", bounds: image.Rect(10, 640, 50, 700), frame: frame, want: true},
+		{name: "below the window", bounds: image.Rect(10, 700, 50, 740), frame: frame, want: false},
+		{name: "unknown frame keeps everything", bounds: image.Rect(10, 700, 50, 740), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := withinFrame(tt.bounds, tt.frame); got != tt.want {
+				t.Errorf("withinFrame(%v, %v) = %v, want %v", tt.bounds, tt.frame, got, tt.want)
+			}
+		})
 	}
 }

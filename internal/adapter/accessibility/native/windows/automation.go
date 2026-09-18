@@ -218,9 +218,14 @@ func failed(hresult uintptr) bool {
 }
 
 // enumerateClickableElements returns the on-screen, clickable controls of the
-// given top-level window handle. It returns nil on any failure; callers treat
-// an empty result as "no hints", never as a crash.
-func enumerateClickableElements(hwnd uintptr, keptRoles map[string]struct{}) []winElement {
+// given top-level window handle. Controls whose bounds do not overlap frame
+// are dropped, and an empty frame disables that clip. It returns nil on any
+// failure; callers treat an empty result as "no hints", never as a crash.
+func enumerateClickableElements(
+	hwnd uintptr,
+	frame image.Rectangle,
+	keptRoles map[string]struct{},
+) []winElement {
 	if len(keptRoles) == 0 {
 		keptRoles = defaultClickableRoles
 	}
@@ -293,7 +298,7 @@ func enumerateClickableElements(hwnd uintptr, keptRoles map[string]struct{}) []w
 	}
 	defer comCall(array, vtRelease)
 
-	return collectArray(array, keptRoles)
+	return collectArray(array, frame, keptRoles)
 }
 
 // createCacheRequest builds the cache request FindAllBuildCache fills: the
@@ -345,7 +350,7 @@ func createAutomation() unsafe.Pointer {
 
 // collectArray walks an IUIAutomationElementArray and extracts the clickable
 // controls. Each element is released as soon as its data is copied out.
-func collectArray(array unsafe.Pointer, keptRoles map[string]struct{}) []winElement {
+func collectArray(array unsafe.Pointer, frame image.Rectangle, keptRoles map[string]struct{}) []winElement {
 	var length int32
 
 	hresult := comCall(array, vtArrayGetLength, uintptr(unsafe.Pointer(&length)))
@@ -363,7 +368,7 @@ func collectArray(array unsafe.Pointer, keptRoles map[string]struct{}) []winElem
 			continue
 		}
 
-		extracted, ok := extractWinElement(element, keptRoles)
+		extracted, ok := extractWinElement(element, frame, keptRoles)
 
 		comCall(element, vtRelease)
 
@@ -376,14 +381,18 @@ func collectArray(array unsafe.Pointer, keptRoles map[string]struct{}) []winElem
 }
 
 // extractWinElement copies the relevant properties from a single UIA element.
-// It returns ok=false for offscreen or zero-size controls, and for controls
-// whose role is not in keptRoles.
+// It returns ok=false for offscreen or zero-size controls, for controls whose
+// role is not in keptRoles, and for controls outside frame.
 //
 // Role selection happens here rather than downstream because the cache request
 // returns the whole control-view subtree: rejecting an element by role before
 // its bounds and name are decoded keeps the per-element work to one cached
 // read.
-func extractWinElement(element unsafe.Pointer, keptRoles map[string]struct{}) (winElement, bool) {
+func extractWinElement(
+	element unsafe.Pointer,
+	frame image.Rectangle,
+	keptRoles map[string]struct{},
+) (winElement, bool) {
 	var controlType int32
 	if failed(comCall(element, vtGetCachedControlType, uintptr(unsafe.Pointer(&controlType)))) {
 		return winElement{}, false
@@ -412,7 +421,7 @@ func extractWinElement(element unsafe.Pointer, keptRoles map[string]struct{}) (w
 	}
 
 	bounds := image.Rect(int(rect.left), int(rect.top), int(rect.right), int(rect.bottom))
-	if bounds.Empty() {
+	if bounds.Empty() || !withinFrame(bounds, frame) {
 		return winElement{}, false
 	}
 
@@ -422,6 +431,16 @@ func extractWinElement(element unsafe.Pointer, keptRoles map[string]struct{}) (w
 		name:      cachedName(element),
 		clickable: true,
 	}, true
+}
+
+// withinFrame reports whether bounds overlaps the window frame. An empty frame
+// means the frame is unknown and nothing is clipped.
+//
+// The provider sets IsOffscreen, and Chromium leaves it false for controls it
+// has laid out past the window edge, such as the hidden part of a long
+// vertical tab strip in Edge. Clipping to the window frame catches those.
+func withinFrame(bounds, frame image.Rectangle) bool {
+	return frame.Empty() || bounds.Overlaps(frame)
 }
 
 // cachedName reads the element's cached name (BSTR) and frees it.
