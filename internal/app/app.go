@@ -100,6 +100,11 @@ type App struct {
 	// concurrent writers (theme change observer, IPC config reload, systray reload).
 	configMu sync.RWMutex
 
+	// enabledMu orders a pause or resume with its effects on the mode handler
+	// and the hotkey binder, so a stop racing a start cannot exit a mode the
+	// start allowed. It is taken before modes.Handler's lock and never under it.
+	enabledMu sync.Mutex
+
 	// New Architecture Services
 	hintService   *services.HintService
 	gridService   *services.GridService

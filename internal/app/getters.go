@@ -25,6 +25,9 @@ func (a *App) configSnapshot() *config.Config {
 // and unregisters the global hotkeys now, not at the next application switch.
 // Resuming registers them again now.
 func (a *App) SetEnabled(v bool) {
+	a.enabledMu.Lock()
+	defer a.enabledMu.Unlock()
+
 	a.appState.SetEnabled(v)
 	a.applyEnabled(v)
 }
@@ -36,6 +39,9 @@ func (a *App) IsEnabled() bool {
 
 // ToggleEnabled atomically toggles the enabled state, as SetEnabled does.
 func (a *App) ToggleEnabled() {
+	a.enabledMu.Lock()
+	defer a.enabledMu.Unlock()
+
 	a.appState.ToggleEnabled()
 	a.applyEnabled(a.appState.IsEnabled())
 }

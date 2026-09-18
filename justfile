@@ -271,6 +271,7 @@ test-foundation:
         ./internal/app/heldmotion ./internal/app/heldrepeat \
         ./internal/app/ipcctrl \
         ./internal/app/keybinding \
+        ./internal/app/sequence \
         ./internal/app/services ./internal/app/services/indicator \
         ./internal/app/services/modeindicator \
         ./internal/app/services/stickyindicator \

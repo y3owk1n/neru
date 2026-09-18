@@ -24,6 +24,7 @@ func (a *App) newSequenceExecutor() *sequence.Executor {
 		Commands:    commands,
 		Config:      a.configSnapshot,
 		BaseContext: func() context.Context { return a.ctx },
+		Enabled:     a.appState.IsEnabled,
 		// A step that opens a mode has to clear the modifiers still physically
 		// held from the hotkey that triggered it, or the new mode reads them as
 		// deliberate. Only the App knows the key a source names.

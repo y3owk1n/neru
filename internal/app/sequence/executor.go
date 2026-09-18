@@ -49,6 +49,12 @@ type ExecutorDeps struct {
 	// It is a function so the executor can be built before the context exists.
 	BaseContext func() context.Context
 
+	// Enabled reports whether Neru is running rather than paused by `neru
+	// stop`. Every other step is refused by the command handler while paused,
+	// but an exec step never reaches it, so a sequence already under way when
+	// stop arrives asks here before running one. Nil means always enabled.
+	Enabled func() bool
+
 	Logger *zap.Logger
 }
 
@@ -62,6 +68,7 @@ type Executor struct {
 	config            func() *config.Config
 	suppressModifiers func(source string)
 	baseContext       func() context.Context
+	enabled           func() bool
 	logger            *zap.Logger
 }
 
@@ -78,6 +85,7 @@ func NewExecutor(deps ExecutorDeps) *Executor {
 		config:            deps.Config,
 		suppressModifiers: deps.SuppressModifiers,
 		baseContext:       deps.BaseContext,
+		enabled:           deps.Enabled,
 		logger:            logger.Named("app.sequence"),
 	}
 }
@@ -273,6 +281,10 @@ func (e *Executor) action(ctx context.Context, source, actionStr string) error {
 	actionStr = strings.TrimSpace(actionStr)
 
 	if actionStr == action.PrefixExec || strings.HasPrefix(actionStr, action.PrefixExec+" ") {
+		if e.enabled != nil && !e.enabled() {
+			return derrors.New(derrors.CodeExecFailed, "neru is stopped; exec step not run")
+		}
+
 		return e.shell(ctx, source, actionStr)
 	}
 
