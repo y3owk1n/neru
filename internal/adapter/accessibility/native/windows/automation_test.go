@@ -129,10 +129,29 @@ func TestClipToFrame_DropsControlsLaidOutPastTheWindowEdge(t *testing.T) {
 		frame  image.Rectangle
 		want   image.Rectangle
 	}{
-		{name: "inside", bounds: image.Rect(10, 10, 50, 40), frame: frame, want: image.Rect(10, 10, 50, 40)},
-		{name: "straddling the bottom edge", bounds: image.Rect(10, 640, 50, 700), frame: frame, want: image.Rect(10, 640, 50, 660)},
-		{name: "below the window", bounds: image.Rect(10, 700, 50, 740), frame: frame, want: image.Rectangle{}},
-		{name: "unknown frame keeps everything", bounds: image.Rect(10, 700, 50, 740), want: image.Rect(10, 700, 50, 740)},
+		{
+			name:   "inside",
+			bounds: image.Rect(10, 10, 50, 40),
+			frame:  frame,
+			want:   image.Rect(10, 10, 50, 40),
+		},
+		{
+			name:   "straddling the bottom edge",
+			bounds: image.Rect(10, 640, 50, 700),
+			frame:  frame,
+			want:   image.Rect(10, 640, 50, 660),
+		},
+		{
+			name:   "below the window",
+			bounds: image.Rect(10, 700, 50, 740),
+			frame:  frame,
+			want:   image.Rectangle{},
+		},
+		{
+			name:   "unknown frame keeps everything",
+			bounds: image.Rect(10, 700, 50, 740),
+			want:   image.Rect(10, 700, 50, 740),
+		},
 	}
 
 	for _, tt := range tests {
@@ -146,32 +165,57 @@ func TestClipToFrame_DropsControlsLaidOutPastTheWindowEdge(t *testing.T) {
 	}
 }
 
-// TestHitCovers_RejectsControlsUnderAnotherElement checks the visibility
-// gate behind hints.visible_check_enabled: the element under a control's
-// centre must be the control or one of its descendants.
-func TestHitCovers_RejectsControlsUnderAnotherElement(t *testing.T) {
+// TestSameControl_MatchesOnTypeNameAndBounds checks the identity the visible
+// check uses when walking up from a hit element: a covering panel, an
+// overlapping sibling and a same-shaped neighbor with another name are all
+// rejected, so an occluded control is not mistaken for visible.
+func TestSameControl_MatchesOnTypeNameAndBounds(t *testing.T) {
 	t.Parallel()
 
-	bounds := image.Rect(100, 100, 200, 140)
+	control := winElement{
+		bounds: image.Rect(100, 100, 200, 140),
+		role:   uiaControlButton,
+		name:   "Save",
+	}
 
 	tests := []struct {
-		name string
-		hit  image.Rectangle
-		want bool
+		name      string
+		candidate winElement
+		want      bool
 	}{
-		{name: "the control itself", hit: bounds, want: true},
-		{name: "a descendant", hit: image.Rect(120, 110, 160, 130), want: true},
-		{name: "a covering panel", hit: image.Rect(0, 0, 400, 400), want: false},
-		{name: "an overlapping sibling", hit: image.Rect(150, 90, 300, 150), want: false},
-		{name: "no hit", want: false},
+		{name: "the control itself", candidate: control, want: true},
+		{
+			name:      "a covering panel",
+			candidate: winElement{bounds: image.Rect(0, 0, 400, 400), role: uiaControlPane},
+			want:      false,
+		},
+		{
+			name: "an overlapping sibling",
+			candidate: winElement{
+				bounds: image.Rect(150, 90, 300, 150),
+				role:   uiaControlButton,
+				name:   "Cancel",
+			},
+			want: false,
+		},
+		{
+			name:      "a same-shaped overlay",
+			candidate: winElement{bounds: control.bounds, role: uiaControlCustom, name: "Save"},
+			want:      false,
+		},
+		{
+			name:      "a same-shaped neighbor with another name",
+			candidate: winElement{bounds: control.bounds, role: uiaControlButton, name: "Delete"},
+			want:      false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := hitCovers(tt.hit, bounds); got != tt.want {
-				t.Errorf("hitCovers(%v, %v) = %v, want %v", tt.hit, bounds, got, tt.want)
+			if got := sameControl(tt.candidate, control); got != tt.want {
+				t.Errorf("sameControl(%+v, control) = %v, want %v", tt.candidate, got, tt.want)
 			}
 		})
 	}
