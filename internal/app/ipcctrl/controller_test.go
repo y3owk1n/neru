@@ -561,3 +561,94 @@ func TestIPCController_HandleConfigSet_KeepsWrittenSublayerKeys(t *testing.T) {
 		t.Errorf("Expected grid.sublayer_keys=%q, got %q", "uiop", cfg.Grid.SublayerKeys)
 	}
 }
+
+// TestIPCController_HandleCommand_RefusesWhilePaused pins the promise `neru
+// stop` makes: every navigation mode and action is off until `neru start`.
+// The hotkey and macro executors send each step through this same entry, so
+// one refusal here covers a bound hotkey as well as the CLI.
+func TestIPCController_HandleCommand_RefusesWhilePaused(t *testing.T) {
+	controller := newTestController()
+	controller.AppState.SetEnabled(false)
+
+	ctx := context.Background()
+
+	for _, action := range []string{
+		domain.ModeString(domain.ModeHints),
+		domain.ModeString(domain.ModeScroll),
+		domain.ModeString(domain.ModeCustom),
+		domain.CommandHintsProbe,
+		ipcctrl.ActionCommand,
+		domain.CommandRun,
+		domain.CommandMacro,
+	} {
+		resp := controller.HandleCommand(
+			ctx,
+			ipc.Command{Action: action, Args: []string{"left_click"}},
+		)
+
+		if resp.Success || resp.Code != ipc.CodeNotRunning {
+			t.Errorf("%s while paused = %+v, want a %s refusal", action, resp, ipc.CodeNotRunning)
+		}
+	}
+}
+
+// TestIPCController_HandleCommand_AnswersStateWhilePaused pins that a paused
+// daemon still answers status commands and can be resumed.
+func TestIPCController_HandleCommand_AnswersStateWhilePaused(t *testing.T) {
+	controller := newTestController()
+	controller.AppState.SetEnabled(false)
+
+	ctx := context.Background()
+
+	for _, action := range []string{
+		domain.CommandPing,
+		domain.CommandStatus,
+		domain.CommandToggleScrollInvert,
+		domain.CommandStart,
+	} {
+		resp := controller.HandleCommand(ctx, ipc.Command{Action: action})
+
+		if !resp.Success {
+			t.Errorf("%s while paused = %+v, want success", action, resp)
+		}
+	}
+}
+
+// TestIPCController_HandleStop_PausesThroughTheApplication pins that stop and
+// start call the application's SetEnabled rather than flipping the flag, since
+// only the application can unregister and restore the hotkeys.
+func TestIPCController_HandleStop_PausesThroughTheApplication(t *testing.T) {
+	appState := state.NewAppState()
+
+	var applied []bool
+
+	controller := ipcctrl.New(ipcctrl.Deps{
+		AppState: appState,
+		Config:   config.DefaultConfig(),
+		SetEnabled: func(enabled bool) {
+			appState.SetEnabled(enabled)
+			applied = append(applied, enabled)
+		},
+		Logger: zap.NewNop(),
+	})
+
+	ctx := context.Background()
+
+	if resp := controller.HandleCommand(
+		ctx,
+		ipc.Command{Action: domain.CommandStop},
+	); !resp.Success {
+		t.Fatalf("stop = %+v, want success", resp)
+	}
+
+	if resp := controller.HandleCommand(
+		ctx,
+		ipc.Command{Action: domain.CommandStart},
+	); !resp.Success {
+		t.Fatalf("start = %+v, want success", resp)
+	}
+
+	if len(applied) != 2 || applied[0] || !applied[1] {
+		t.Fatalf("SetEnabled calls = %v, want [false true]", applied)
+	}
+}

@@ -21,9 +21,12 @@ func (a *App) configSnapshot() *config.Config {
 	return cfg
 }
 
-// SetEnabled sets the enabled state of the application.
+// SetEnabled pauses or resumes the application. Pausing exits the open mode
+// and unregisters the global hotkeys now, not at the next application switch.
+// Resuming registers them again now.
 func (a *App) SetEnabled(v bool) {
 	a.appState.SetEnabled(v)
+	a.applyEnabled(v)
 }
 
 // IsEnabled returns the enabled state of the application.
@@ -31,9 +34,23 @@ func (a *App) IsEnabled() bool {
 	return a.appState.IsEnabled()
 }
 
-// ToggleEnabled atomically toggles the enabled state.
+// ToggleEnabled atomically toggles the enabled state, as SetEnabled does.
 func (a *App) ToggleEnabled() {
 	a.appState.ToggleEnabled()
+	a.applyEnabled(a.appState.IsEnabled())
+}
+
+// applyEnabled tells the mode handler and the hotkey binder about an
+// enabled-state change. Call it from unlocked context, because ExitMode takes
+// the handler's lock.
+func (a *App) applyEnabled(enabled bool) {
+	if !enabled && a.modes != nil {
+		a.modes.ExitMode()
+	}
+
+	if a.hotkeys != nil {
+		a.hotkeys.RefreshFor("")
+	}
 }
 
 // HintsEnabled returns true if hints are enabled.

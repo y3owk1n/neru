@@ -411,6 +411,16 @@ func (h *Handler) ActivateMode(activation modecmd.Activation) {
 
 	mode := activation.Mode
 
+	// `neru stop` switches every mode off. The IPC controller refuses while
+	// paused, but the systray reaches this method directly. Leaving is always
+	// allowed, since it is what stop itself does.
+	if mode != domain.ModeIdle && !h.appState.IsEnabled() {
+		h.logger.Warn("Neru is stopped, ignoring mode activation",
+			zap.String("mode", domain.ModeString(mode)))
+
+		return
+	}
+
 	// Toggle: if the mode is already active and --toggle was specified,
 	// exit to idle instead of re-activating. Every declared mode shares one
 	// enum value, so there "already active" also means the same name: toggling

@@ -383,6 +383,7 @@ func initializeIPCController(app *App) {
 		ReloadConfig:    app.ReloadConfig,
 		ExecuteSequence: app.executeActionSequenceWithPolicy,
 		ExecuteMacro:    app.executeMacro,
+		SetEnabled:      app.SetEnabled,
 		Logger:          app.logger,
 	})
 

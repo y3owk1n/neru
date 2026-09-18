@@ -22,19 +22,25 @@ func parseCSV(input string) []string {
 
 // LifecycleHandler handles lifecycle-related IPC commands.
 type LifecycleHandler struct {
-	appState *state.AppState
-	modes    *modes.Handler
-	logger   *zap.Logger
+	appState   *state.AppState
+	modes      *modes.Handler
+	setEnabled func(enabled bool)
+	logger     *zap.Logger
 }
 
 // NewLifecycleHandler creates a new lifecycle command handler.
 func NewLifecycleHandler(
 	appState *state.AppState,
 	modes *modes.Handler,
+	setEnabled func(enabled bool),
 	logger *zap.Logger,
 ) *LifecycleHandler {
 	if appState == nil {
 		panic("appState cannot be nil")
+	}
+
+	if setEnabled == nil {
+		panic("setEnabled cannot be nil")
 	}
 
 	if logger == nil {
@@ -42,9 +48,10 @@ func NewLifecycleHandler(
 	}
 
 	return &LifecycleHandler{
-		appState: appState,
-		modes:    modes,
-		logger:   logger,
+		appState:   appState,
+		modes:      modes,
+		setEnabled: setEnabled,
+		logger:     logger,
 	}
 }
 
@@ -76,7 +83,7 @@ func (h *LifecycleHandler) handleStart(_ context.Context, _ ipc.Command) ipc.Res
 		}
 	}
 
-	h.appState.SetEnabled(true)
+	h.setEnabled(true)
 	h.logger.Info("Neru started successfully", zap.Bool("enabled", true))
 
 	return ipc.Response{Success: true, Message: "neru started", Code: ipc.CodeOK}
@@ -95,11 +102,7 @@ func (h *LifecycleHandler) handleStop(_ context.Context, _ ipc.Command) ipc.Resp
 		}
 	}
 
-	h.appState.SetEnabled(false)
-
-	if h.modes != nil {
-		h.modes.ExitMode()
-	}
+	h.setEnabled(false)
 
 	h.logger.Info("Neru stopped successfully")
 

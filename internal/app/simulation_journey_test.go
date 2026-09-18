@@ -3330,3 +3330,38 @@ func TestSimulation_GlobalHotkeyTogglesAModeItEnteredItself(t *testing.T) {
 		return sim.app.CurrentMode() == domain.ModeIdle
 	})
 }
+
+// TestSimulation_StopPausesEverything pins what `neru stop` promises: the open
+// mode closes, no route enters a mode until `neru start`, and the global
+// hotkeys are unregistered and restored at once rather than at the next
+// application switch.
+//
+// The journey drives stop and start through App.SetEnabled, which the IPC
+// handler and the systray toggle both call. The systray's mode items call
+// ActivateMode directly, so the journey tries that route as well.
+func TestSimulation_StopPausesEverything(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+
+	sim.app.SetEnabled(false)
+
+	sim.waitMode(domain.ModeIdle)
+	sim.waitFor("hotkeys unregistered", func() bool {
+		return sim.hotkeys.callbackFor(config.CanonicalHotkeyForPlatform(scrollHotkey)) == nil
+	})
+
+	sim.app.ActivateMode(domain.ModeScroll)
+	sim.neverMode(domain.ModeScroll, 250*time.Millisecond)
+
+	sim.app.SetEnabled(true)
+
+	// pressHotkey waits for the chord to be registered again. No focus change
+	// happens in between, so the registration has to come from start itself.
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}

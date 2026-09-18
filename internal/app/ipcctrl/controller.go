@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -48,6 +49,9 @@ type Controller struct {
 	// ExecuteSequence runs an action sequence. If nil, the "run" command
 	// reports that sequencing is unavailable.
 	ExecuteSequence sequenceRunner
+
+	// SetEnabled pauses or resumes the application. See Deps.SetEnabled.
+	SetEnabled func(enabled bool)
 
 	// ExecuteMacro runs a named macro. If nil, the "macro" command reports
 	// that macros are unavailable.
@@ -101,6 +105,11 @@ type Deps struct {
 	// ExecuteMacro runs a named macro on behalf of the "macro" command.
 	ExecuteMacro macroRunner
 
+	// SetEnabled pauses or resumes the application for "stop" and "start".
+	// It flips the flag, exits the active mode and unregisters or restores the
+	// global hotkeys. When nil, the hotkeys wait for the binder's next refresh.
+	SetEnabled func(enabled bool)
+
 	Logger *zap.Logger
 }
 
@@ -127,6 +136,7 @@ func New(deps Deps) *Controller {
 		ReloadConfig:    deps.ReloadConfig,
 		ExecuteSequence: deps.ExecuteSequence,
 		ExecuteMacro:    deps.ExecuteMacro,
+		SetEnabled:      deps.SetEnabled,
 		Logger:          logger.Named("ipc.controller"),
 		Handlers:        make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
@@ -144,15 +154,45 @@ func (c *Controller) HandleCommand(ctx context.Context, command ipc.Command) ipc
 		zap.String("action", command.Action),
 	)
 
-	if handler, ok := c.Handlers[command.Action]; ok {
-		return handler(ctx, command)
+	handler, ok := c.Handlers[command.Action]
+	if !ok {
+		return ipc.Response{
+			Success: false,
+			Message: "unknown command: " + command.Action,
+			Code:    ipc.CodeUnknownCommand,
+		}
 	}
 
-	return ipc.Response{
-		Success: false,
-		Message: "unknown command: " + command.Action,
-		Code:    ipc.CodeUnknownCommand,
+	// `neru stop` promises that every mode and action is off until `neru
+	// start`. The CLI and every step a hotkey, macro or --on-exit runs all
+	// arrive here, so this one check enforces that.
+	if !c.AppState.IsEnabled() && !answeredWhilePaused[command.Action] {
+		return ipc.Response{
+			Success: false,
+			Message: "neru is stopped; run `neru start` first",
+			Code:    ipc.CodeNotRunning,
+		}
 	}
+
+	return handler(ctx, command)
+}
+
+// answeredWhilePaused lists what `neru stop` does not switch off: lifecycle,
+// status and configuration, and the preference toggles. Anything else is
+// refused while paused.
+var answeredWhilePaused = map[string]bool{
+	domain.CommandPing:                        true,
+	domain.CommandStart:                       true,
+	domain.CommandStop:                        true,
+	domain.CommandStatus:                      true,
+	domain.CommandConfig:                      true,
+	domain.CommandReloadConfig:                true,
+	domain.CommandHealth:                      true,
+	domain.CommandConfigSet:                   true,
+	domain.CommandToggleScreenShare:           true,
+	domain.CommandToggleScrollInvert:          true,
+	domain.CommandToggleCursorFollowSelection: true,
+	domain.ModeString(domain.ModeIdle):        true,
 }
 
 // UpdateConfig updates the stored config.
@@ -188,10 +228,26 @@ func (c *Controller) SetInfrastructure(eventTap ports.EventTapPort, ipcServer po
 	}
 }
 
+// setEnabled calls Deps.SetEnabled. When none was wired it flips the flag and
+// exits the mode itself.
+func (c *Controller) setEnabled(enabled bool) {
+	if c.SetEnabled != nil {
+		c.SetEnabled(enabled)
+
+		return
+	}
+
+	c.AppState.SetEnabled(enabled)
+
+	if !enabled && c.Modes != nil {
+		c.Modes.ExitMode()
+	}
+}
+
 // registerHandlers registers all command handlers by delegating to sub-controllers.
 func (c *Controller) registerHandlers(cfg *config.Config) {
 	// Initialize handler components
-	lifecycleHandler := NewLifecycleHandler(c.AppState, c.Modes, c.Logger)
+	lifecycleHandler := NewLifecycleHandler(c.AppState, c.Modes, c.setEnabled, c.Logger)
 	modesHandler := NewModesHandler(c.Modes, c.Logger)
 	// The slots are IPC-session state with no dependencies, so the controller
 	// owns them: the actions handler writes them and the info handler reports
