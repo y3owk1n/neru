@@ -252,6 +252,20 @@ func (m *Manager) BuildComponents(
 	})
 }
 
+// ConfigureComponents hands the configuration to the render components, as
+// Base does, and then measures the characters this backend sizes its badges
+// around (manager.WarmBadgeTextWidths). This is where a configuration arrives,
+// at startup and on every reload, so the measuring is done here and a draw,
+// which runs with a key waiting on it, measures nothing.
+func (m *Manager) ConfigureComponents(cfg *config.Config, pointer manager.PointerAppearance) {
+	if m == nil {
+		return
+	}
+
+	m.Base.ConfigureComponents(cfg, pointer)
+	manager.WarmBadgeTextWidths(cfg)
+}
+
 // WaylandKeyboardChannel returns nil on Windows.
 func (m *Manager) WaylandKeyboardChannel() <-chan string {
 	return nil

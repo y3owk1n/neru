@@ -215,9 +215,11 @@ both renderers. The non-CGO Linux build has no Cairo and reports
 
 The Linux and Windows backends size every box drawn around text from it: hint
 badges, the hint search badge, the mode and sticky-modifier indicators,
-recursive-grid label plates and the monitor picker's badge (`badge.TextWidth`,
-summed per character from a table per font, so a draw asks the text layer once
-per distinct character). They used to give every character 0.7 of the font
+recursive-grid label plates and the monitor picker's badge (`badge.TextWidth`).
+Widths are kept per character and per unit of font size, in a table per family
+and weight, so one table serves every size and display scale. Both backends
+fill the tables when a configuration is applied (`manager.WarmBadgeTextWidths`),
+so a draw measures nothing. They used to give every character 0.7 of the font
 size, which a W outgrows and an I never fills, so a box clipped wide labels on
 the GDI renderer, which clips text to its rectangle, and sat loose around narrow
 ones. macOS has always measured.

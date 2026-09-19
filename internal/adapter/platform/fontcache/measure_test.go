@@ -116,3 +116,34 @@ func TestMeasurer_ConcurrentMeasureIsSafe(t *testing.T) {
 
 	group.Wait()
 }
+
+func TestMeasurer_WhatItRemembersIsBounded(t *testing.T) {
+	calls := 0
+	measurer := fontcache.NewMeasurer(
+		func(_, _ string, size float64, _ bool) (ports.TextMetrics, error) {
+			calls++
+
+			return ports.TextMetrics{Width: size, Height: size}, nil
+		},
+	)
+
+	// Far more distinct measurements than it holds: somebody trying one font
+	// size after another for the daemon's lifetime.
+	for size := 1; size <= 10000; size++ {
+		_, err := measurer.Measure("A", menlo, float64(size), false)
+		if err != nil {
+			t.Fatalf("Measure() error = %v", err)
+		}
+	}
+
+	before := calls
+
+	_, err := measurer.Measure("A", menlo, 1, false)
+	if err != nil {
+		t.Fatalf("Measure() error = %v", err)
+	}
+
+	if calls == before {
+		t.Fatal("a measurement from 10000 measurements ago was still held")
+	}
+}

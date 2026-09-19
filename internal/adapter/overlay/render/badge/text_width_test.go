@@ -1,6 +1,7 @@
 package badge_test
 
 import (
+	"strconv"
 	"sync"
 	"testing"
 
@@ -76,17 +77,72 @@ func TestTextWidth(t *testing.T) {
 		}
 	})
 
-	t.Run("a font is a family, a size and a weight", func(t *testing.T) {
+	t.Run("a face is a family and a weight, whatever the size", func(t *testing.T) {
 		measurer := &countingMeasurer{}
 		installMeasurer(t, measurer)
 
-		badge.TextWidth("A", "Width Test C", 10, false)
-		badge.TextWidth("A", "Width Test C", 11, false)
+		// One table serves every size and every display scale, which is what
+		// lets it be filled before the scale is known.
+		if at10, at20 := badge.TextWidth("A", "Width Test C", 10, false),
+			badge.TextWidth("A", "Width Test C", 20, false); at10 != 5 || at20 != 10 {
+			t.Fatalf("TextWidth() = %d at 10 and %d at 20, want 5 and 10", at10, at20)
+		}
+
 		badge.TextWidth("A", "Width Test C", 10, true)
 		badge.TextWidth("A", "Width Test D", 10, false)
 
-		if asked := measurer.asked(); asked != 4 {
-			t.Fatalf("measured %d times for 4 fonts, want 4", asked)
+		if asked := measurer.asked(); asked != 3 {
+			t.Fatalf("measured %d times for 3 faces, want 3", asked)
+		}
+	})
+
+	t.Run("a warmed face measures nothing when it is drawn", func(t *testing.T) {
+		measurer := &countingMeasurer{}
+		installMeasurer(t, measurer)
+
+		badge.WarmTextWidths("Width Test W", true, "●")
+
+		warmed := measurer.asked()
+		if warmed == 0 {
+			t.Fatal("WarmTextWidths measured nothing")
+		}
+
+		for _, label := range []string{"AS", "/ sav  3", "Scroll", "WW", "~ !"} {
+			badge.TextWidth(label, "Width Test W", 12, true)
+		}
+
+		if asked := measurer.asked(); asked != warmed {
+			t.Fatalf("a draw measured %d more times after warming, want none", asked-warmed)
+		}
+	})
+
+	t.Run("warming a face the platform cannot measure does nothing", func(t *testing.T) {
+		installMeasurer(t, nil)
+
+		badge.WarmTextWidths("Width Test X", false, "")
+
+		if got, want := badge.TextWidth("AB", "Width Test X", 10, false),
+			badge.EstimateTextWidth("AB", 10); got != want {
+			t.Fatalf("TextWidth() = %d, want the estimate %d", got, want)
+		}
+	})
+
+	t.Run("the tables kept are bounded", func(t *testing.T) {
+		measurer := &countingMeasurer{}
+		installMeasurer(t, measurer)
+
+		for index := range 100 {
+			badge.TextWidth("A", "Width Test Bound "+strconv.Itoa(index), 10, false)
+		}
+
+		// Far past the bound, the first face is measured again, not remembered
+		// for ever.
+		before := measurer.asked()
+
+		badge.TextWidth("A", "Width Test Bound 0", 10, false)
+
+		if measurer.asked() == before {
+			t.Fatal("a face from 100 faces ago was still held")
 		}
 	})
 
