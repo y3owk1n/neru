@@ -19,6 +19,11 @@ func NewFontResolver() ports.FontResolver {
 	return windows.NewFontResolver()
 }
 
+// NewTextMeasurer returns a GDI-backed TextMeasurer.
+func NewTextMeasurer() ports.TextMeasurer {
+	return windows.NewTextMeasurer()
+}
+
 // ShowConfigOnboardingAlert displays a native Windows dialog for new users without a config file.
 func ShowConfigOnboardingAlert(configPath string) int {
 	return windows.ShowConfigOnboardingAlert(configPath)

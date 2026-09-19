@@ -17,6 +17,11 @@ func NewFontResolver() ports.FontResolver {
 	return darwin.NewFontResolver()
 }
 
+// NewTextMeasurer returns a CoreText-backed TextMeasurer.
+func NewTextMeasurer() ports.TextMeasurer {
+	return darwin.NewTextMeasurer()
+}
+
 // ShowConfigOnboardingAlert displays a native macOS alert for new users without a config file.
 func ShowConfigOnboardingAlert(configPath string) int {
 	return int(darwin.ShowConfigOnboardingAlert(configPath))

@@ -38,6 +38,12 @@ func NewFontResolver() ports.FontResolver {
 	return linux.NewFontResolver()
 }
 
+// NewTextMeasurer returns a cairo-backed TextMeasurer (CGO builds) or one that
+// reports CodeNotSupported, which leaves callers on their estimate.
+func NewTextMeasurer() ports.TextMeasurer {
+	return linux.NewTextMeasurer()
+}
+
 // ShowConfigOnboardingAlert tells a first-time user that Neru started on
 // built-in defaults, and how to get a config file, then answers with that
 // choice.

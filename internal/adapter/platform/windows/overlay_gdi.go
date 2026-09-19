@@ -364,6 +364,20 @@ func (r *gdiTextRenderer) font(family string, fontSize float64, bold bool) (uint
 		return hFont, nil
 	}
 
+	hFont, err := createGDIFont(family, pixelSize, bold)
+	if err != nil {
+		return 0, err
+	}
+
+	r.fonts[key] = hFont
+
+	return hFont, nil
+}
+
+// createGDIFont realizes an HFONT for a family at a pixel size. The caller
+// owns it. Drawing and measuring (text_measure.go) both come here, so the font
+// measured is the font drawn.
+func createGDIFont(family string, pixelSize int, bold bool) (uintptr, error) {
 	weight := uintptr(fwNormal)
 	if bold {
 		weight = fwBold
@@ -383,8 +397,6 @@ func (r *gdiTextRenderer) font(family string, fontSize float64, bold bool) (uint
 	if hFont == 0 {
 		return 0, fmt.Errorf("%w: CreateFontW failed", errGDITextUnavailable)
 	}
-
-	r.fonts[key] = hFont
 
 	return hFont, nil
 }

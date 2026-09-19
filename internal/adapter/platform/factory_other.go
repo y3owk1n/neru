@@ -19,6 +19,12 @@ func NewFontResolver() ports.FontResolver {
 	return nil
 }
 
+// NewTextMeasurer returns nil on unsupported platforms, which leaves the
+// default in place. It reports CodeNotSupported and callers estimate.
+func NewTextMeasurer() ports.TextMeasurer {
+	return nil
+}
+
 // ShowConfigOnboardingAlert is a stub on non-darwin platforms.
 func ShowConfigOnboardingAlert(_ string) int {
 	return ConfigOnboardingDefaults

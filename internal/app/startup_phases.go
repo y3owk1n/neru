@@ -82,6 +82,12 @@ func initializeInfrastructure(app *App) error {
 		ports.SetFontResolver(resolver)
 	}
 
+	// Install the platform text measurer beside it, for the same reason. A
+	// style fits its labels where it is built.
+	if measurer := platform.NewTextMeasurer(); measurer != nil {
+		ports.SetTextMeasurer(measurer)
+	}
+
 	return nil
 }
 
