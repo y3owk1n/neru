@@ -974,9 +974,10 @@ func monitorSelectPanelLayout(
 	return panel, labelRect, subtitleRect, radius
 }
 
-// monitorSelectDrawSpec holds the once-parsed colors and base (unscaled) font
-// sizes shared by both backends' DrawMonitorSelect. Base font sizes are passed
-// to drawTextCentered, which applies the backend scale (X11) or none (Wayland).
+// monitorSelectDrawSpec holds the once-parsed colors shared by both backends'
+// DrawMonitorSelect. The font sizes are not here: each target fits its own
+// (manager.MonitorSelectStyle.FittedTo), and the base size is passed to
+// drawTextCentered, which applies the backend scale (X11) or none (Wayland).
 // Like darwin, every panel's label uses the single text color (matched/selected
 // state is not visually distinguished).
 type monitorSelectDrawSpec struct {
@@ -986,8 +987,6 @@ type monitorSelectDrawSpec struct {
 	text         uint32
 	subtitleText uint32
 	borderWidth  float64
-	labelFont    float64
-	subtitleFont float64
 	hasBackdrop  bool
 }
 
@@ -999,8 +998,6 @@ func newMonitorSelectDrawSpec(style manager.MonitorSelectStyle) monitorSelectDra
 		text:         badge.ParseHexARGB(style.TextColor),
 		subtitleText: badge.ParseHexARGB(style.SubtitleTextColor),
 		borderWidth:  float64(max(style.BorderWidth, 1)),
-		labelFont:    monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont),
-		subtitleFont: monitorSelectFontOr(style.SubtitleFontSize, monitorSelectDefaultSubFont),
 		hasBackdrop:  strings.TrimSpace(style.BackdropColor) != "",
 	}
 }

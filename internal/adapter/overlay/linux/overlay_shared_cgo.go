@@ -661,8 +661,13 @@ func (o *sharedOverlay) drawMonitorSelect(
 			o.drawRect(target.Bounds, spec.backdrop, 0, 0)
 		}
 
+		// Each monitor fits its own text: they differ in size, and so do their
+		// names. The panel is laid out from the fitted style, so it hugs the
+		// text that is actually drawn.
+		fitted := style.FittedTo(target, o.srf.surfaceScale())
+
 		panel, labelRect, subtitleRect, radius := monitorSelectPanelLayout(
-			target.Bounds, target.Label, target.Subtitle, style, o.srf.surfaceScale(),
+			target.Bounds, target.Label, target.Subtitle, fitted, o.srf.surfaceScale(),
 		)
 		o.drawRoundedRect(panel, radius, spec.background, spec.border, spec.borderWidth)
 
@@ -670,7 +675,7 @@ func (o *sharedOverlay) drawMonitorSelect(
 			target.Label,
 			labelRect,
 			style.FontFamily,
-			spec.labelFont,
+			float64(fitted.FontSize),
 			spec.text,
 			true,
 		)
@@ -680,7 +685,7 @@ func (o *sharedOverlay) drawMonitorSelect(
 			// the label's family with the rest of the Style.
 			o.drawTextCentered(
 				target.Subtitle, subtitleRect,
-				style.SubtitleFontFamily, spec.subtitleFont, spec.subtitleText,
+				style.SubtitleFontFamily, float64(fitted.SubtitleFontSize), spec.subtitleText,
 				false,
 			)
 		}

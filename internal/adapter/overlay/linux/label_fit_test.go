@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
@@ -16,7 +17,7 @@ import (
 )
 
 // TestSharedOverlay_DrawRecursiveGrid_FitsTheLabelToItsCell is #1691 on this
-// backend: a label shrinks with its cell rather than vanishing, every label of
+// backend. A label shrinks with its cell rather than vanishing, every label of
 // a draw shares the size, and a dense display is fitted in font units, which
 // the rule this replaced got wrong by comparing a logical size with a
 // device-pixel cell. textPrim is handed the device size, the fitted size times
@@ -157,6 +158,71 @@ func TestLinuxOverlayManager_DrawGrid_FitsAnOversizedLabelToItsCell(t *testing.T
 			if shrunk := first.fontSize < float64(test.fontSize); shrunk != test.shrinks {
 				t.Fatalf("labels drawn at %v for font_size %d, shrunk = %v, want %v",
 					first.fontSize, test.fontSize, shrunk, test.shrinks)
+			}
+		})
+	}
+}
+
+// TestSharedOverlay_DrawMonitorSelect_FitsTheTextToItsPanel pins that the text
+// of a picker panel is fitted like the panel is. The panel was capped at a
+// fraction of the monitor and the text was not, so the default 96 point label
+// ran out past it on a small monitor.
+func TestSharedOverlay_DrawMonitorSelect_FitsTheTextToItsPanel(t *testing.T) {
+	t.Parallel()
+
+	style := manager.MonitorSelectStyle{
+		FontSize: 96, SubtitleFontSize: 18, PaddingX: -1, PaddingY: -1, BorderRadius: -1,
+	}
+
+	tests := []struct {
+		name    string
+		monitor image.Rectangle
+		shrinks bool
+	}{
+		{name: "a roomy monitor draws the configured size", monitor: image.Rect(0, 0, 1920, 1080)},
+		{
+			name:    "a small monitor draws a smaller label",
+			monitor: image.Rect(0, 0, 1280, 160),
+			shrinks: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			surface := &recordingSurface{scale: 1}
+			overlay := &sharedOverlay{srf: surface}
+
+			overlay.drawMonitorSelect(
+				[]manager.MonitorSelectTarget{{Bounds: test.monitor, Label: "1", Subtitle: "Side"}},
+				style,
+			)
+
+			label, found := surface.findText("1")
+			if !found {
+				t.Fatalf("painted %v, want the picker key", surface.paintedStrings())
+			}
+
+			if shrunk := label.fontSize < 96; shrunk != test.shrinks {
+				t.Fatalf(
+					"label drawn at %v, shrunk = %v, want %v",
+					label.fontSize,
+					shrunk,
+					test.shrinks,
+				)
+			}
+
+			// The panel is the first rounded rectangle, and the label's line
+			// has to sit inside it.
+			for _, rect := range surface.rects {
+				if rect.rounded && float64(rect.bounds.Dy()) < label.fontSize {
+					t.Fatalf(
+						"a %v point label in a panel %d tall",
+						label.fontSize,
+						rect.bounds.Dy(),
+					)
+				}
 			}
 		})
 	}

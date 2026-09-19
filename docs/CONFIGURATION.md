@@ -1381,7 +1381,7 @@ layers = [
 cells narrow with depth, the label shrinks so that it fits the cell and the cell
 stays at least `label_autohide_multiplier` times the font size, and it hides
 only once that would take it under `min_font_size`. Every label in one draw
-shares one size. Set `min_font_size` to your `font_size` to never shrink: the
+shares one size. Set `min_font_size` to your `font_size` to never shrink. The
 label is then drawn at the configured size or not at all. The sub-key preview
 follows the same rule with `sub_key_preview_font_size` and
 `sub_key_preview_autohide_multiplier`, and shares the floor.
@@ -1610,9 +1610,9 @@ Interactive display picking mode. Shows per-monitor overlay badges labelled with
 
 | Key                    | Default       | Description                       |
 | ---------------------- | ------------- | --------------------------------- |
-| `font_size`            | `96`          | Badge label font size             |
+| `font_size`            | `96`          | Largest badge label font size. It shrinks to keep the label inside the badge, which is capped at 80% of the monitor |
 | `font_family`          | `""` (sans)   | Badge label font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
-| `subtitle_font_size`   | `18`          | Monitor name subtitle font size   |
+| `subtitle_font_size`   | `18`          | Largest monitor name subtitle font size. It shrinks so a long name stays inside the badge |
 | `subtitle_font_family` | `""` (label's) | Subtitle font family, defaulting to the label's; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `border_radius`        | `-1` (auto)   | Badge corner radius               |
 | `padding_x`            | `-1` (auto)   | Horizontal padding                |

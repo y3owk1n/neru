@@ -672,7 +672,10 @@ backtracking, and every scroll granularity.
 > tests pinning it go. The fit takes the display scale, so a dense X11 or
 > Windows display no longer keeps a label its drawn font has outgrown.
 > Grid mode fits its labels the same way (`grid.Style.LabelFontSizeFor`), at
-> the alphabet's average character width and never hiding one.
+> the alphabet's average character width and never hiding one. The monitor
+> picker fits its key and the monitor's name to the badge, per monitor
+> (`manager.MonitorSelectStyle.FittedTo`): all three backends capped the badge
+> at 80% of the monitor and none of them fitted the text drawn in it.
 
 ---
 

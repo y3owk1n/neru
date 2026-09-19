@@ -175,14 +175,16 @@ func (m *Manager) DrawMonitorSelect(
 		// Each panel is on its own monitor, at that monitor's scale.
 		scale := win.Scale()
 		borderWidth := float64(style.BorderWidth) * scale
-		labelFont := monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont) * scale
-		subtitleFont := monitorSelectFontOr(
-			style.SubtitleFontSize,
-			monitorSelectDefaultSubFont,
-		) * scale
+
+		// Each monitor fits its own text: they differ in size, in scale and in
+		// name. The panel is laid out from the fitted style, so it hugs the
+		// text that is actually drawn.
+		fitted := style.FittedTo(target, scale)
+		labelFont := float64(fitted.FontSize) * scale
+		subtitleFont := float64(fitted.SubtitleFontSize) * scale
 
 		panel, labelRect, subtitleRect, radius := monitorSelectPanelLayout(
-			target.Bounds, target.Label, target.Subtitle, style, scale,
+			target.Bounds, target.Label, target.Subtitle, fitted, scale,
 		)
 		panel = panel.Sub(target.Bounds.Min)
 		labelRect = labelRect.Sub(target.Bounds.Min)

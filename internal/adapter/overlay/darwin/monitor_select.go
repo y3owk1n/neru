@@ -39,7 +39,15 @@ func (m *Manager) DrawMonitorSelect(
 
 	cTargets := make([]C.MonitorSelectTargetData, len(targets))
 	for idx, target := range targets {
+		// Each monitor fits its own text, because they differ in size and in name.
+		// Points and pixels are one unit here, so the scale is 1. The
+		// measurement behind this is a direct CoreText call and never reaches
+		// the main queue, which matters because the handler's lock is held.
+		fitted := style.FittedTo(target, 1)
+
 		cTargets[idx] = C.MonitorSelectTargetData{
+			fontSize:         C.int(fitted.FontSize),
+			subtitleFontSize: C.int(fitted.SubtitleFontSize),
 			x:                C.int(target.Bounds.Min.X),
 			y:                C.int(target.Bounds.Min.Y),
 			width:            C.int(target.Bounds.Dx()),

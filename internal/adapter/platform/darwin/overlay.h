@@ -327,6 +327,8 @@ typedef struct {
 	char *subtitle;        ///< Monitor name subtitle
 	int isSelected;        ///< This target is currently selected (1 = yes, 0 = no)
 	int matchedPrefixLen;  ///< Number of matched characters at start of label
+	int fontSize;          ///< Label font size fitted to this monitor's panel (0 = the style's)
+	int subtitleFontSize;  ///< Subtitle font size fitted to this monitor's panel (0 = the style's)
 } MonitorSelectTargetData;
 
 /// Monitor select visual style configuration.

@@ -155,14 +155,19 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 				NSColor *textColor = monitorSelectColorFromHex(textHex, [NSColor blackColor]);
 				NSColor *borderColor = monitorSelectColorFromHex(borderHex, [NSColor colorWithWhite:0.5 alpha:0.5]);
 
-				// Fonts
-				CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 96;
+				// Fonts. Each target carries the sizes that fit its own monitor's
+				// panel (manager.MonitorSelectStyle.FittedTo). The panel below is
+				// clamped to a fraction of the screen, and the text drawn in it is
+				// not, so a size that was never fitted runs out past its edge.
+				CGFloat fontSize = target.fontSize > 0 ? target.fontSize : (style.fontSize > 0 ? style.fontSize : 96);
 				NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : @"";
 				NSFont *labelFont = fontFamily.length > 0 ? monitorSelectResolveFont(fontFamily, fontSize, YES) : nil;
 				if (!labelFont)
 					labelFont = [NSFont boldSystemFontOfSize:fontSize];
 
-				CGFloat subFontSize = style.subtitleFontSize > 0 ? style.subtitleFontSize : 18;
+				CGFloat subFontSize = target.subtitleFontSize > 0
+				                          ? target.subtitleFontSize
+				                          : (style.subtitleFontSize > 0 ? style.subtitleFontSize : 18);
 				NSString *subFamily = style.subtitleFontFamily ? @(style.subtitleFontFamily) : @"";
 				NSFont *subtitleFont =
 				    subFamily.length > 0 ? monitorSelectResolveFont(subFamily, subFontSize, NO) : nil;
