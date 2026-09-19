@@ -305,8 +305,8 @@ nothing.
 | `--hide-on-empty-search` |  | none | `hints` | Hide all hints when search query is empty (requires --search) |
 | `--role` |  | value, repeatable | `hints` | Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more |
 | `--text` |  | value, repeatable | `hints` | Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more |
-| `--strategy` |  | value | `hints` | Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr) |
-| `--capture-scope` |  | value | `hints` · `grid` · `recursive_grid` · `bisect` | Region the vision and contour strategies scan, or the region grid, recursive_grid and bisect start from: window (the focused window) or screen (the whole active screen) |
+| `--strategy` |  | value | `hints` | Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr). A comma-separated list is a cycle. Entering the mode uses the first value, and running the command again while the mode is open uses the value after the one in use (--strategy=axtree,vision) |
+| `--capture-scope` |  | value | `hints` · `grid` · `recursive_grid` · `bisect` | Region the vision and contour strategies scan, or the region grid, recursive_grid and bisect start from: window (the focused window) or screen (the whole active screen). A comma-separated list is a cycle. Entering the mode uses the first value, and running the command again while the mode is open uses the value after the one in use (--capture-scope=window,screen) |
 | `--label-direction` |  | value | `hints` | Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet) |
 | `--split-word` |  | none | `hints` | Split detected text into word-level regions (requires vision strategy) |
 | `--zoom-to-depth` |  | value | `recursive_grid` | Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position |
@@ -329,6 +329,14 @@ nothing.
 - `--strategy vision` and `--split-word` work everywhere. On Linux and Windows
   the strategy is text-only, and Windows needs an OCR language pack. See
   [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
+- `--strategy` and `--capture-scope` accept a comma-separated list, which one
+  binding can cycle through. `hints --strategy axtree,vision` enters with
+  `axtree`. The same command while hints is open rescans with the entry after
+  the strategy in use, and wraps at the end. The strategy in use includes one
+  the configuration chose, so a session opened on `vision` moves to `axtree`.
+  If the list does not name the value in use, the first entry is taken. A list
+  may name each value once. It is refused alongside `--toggle`, because both
+  give the second press a meaning.
 
 **Where the defaults come from**
 

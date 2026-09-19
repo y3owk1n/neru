@@ -97,6 +97,22 @@ var allExtensions = []extensionAxis{
 			return ok
 		},
 	},
+	{
+		name: extensionStrategyReport,
+		carried: func(mode Mode) bool {
+			_, ok := mode.(strategyReporter)
+
+			return ok
+		},
+	},
+	{
+		name: extensionScopeReport,
+		carried: func(mode Mode) bool {
+			_, ok := mode.(captureScopeReporter)
+
+			return ok
+		},
+	},
 }
 
 // modeExtensionMatrix states, per mode, every optional extension that mode
@@ -113,6 +129,8 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionHotkeyOverrides,
 		extensionThemeRefresh,
 		extensionScreenRefresh,
+		extensionStrategyReport,
+		extensionScopeReport,
 	},
 	domain.ModeGrid: {
 		extensionSelectionTracking,
@@ -123,6 +141,7 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionHotkeyOverrides,
 		extensionThemeRefresh,
 		extensionScreenRefresh,
+		extensionScopeReport,
 	},
 	domain.ModeRecursiveGrid: {
 		extensionSelectionTracking,
@@ -133,6 +152,7 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionHotkeyOverrides,
 		extensionThemeRefresh,
 		extensionScreenRefresh,
+		extensionScopeReport,
 	},
 	domain.ModeBisect: {
 		extensionBisecting,
@@ -142,6 +162,7 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionHotkeyOverrides,
 		extensionThemeRefresh,
 		extensionScreenRefresh,
+		extensionScopeReport,
 	},
 	domain.ModeScroll: {
 		extensionHotkeyOverrides,

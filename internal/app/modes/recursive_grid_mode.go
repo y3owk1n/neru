@@ -23,6 +23,7 @@ var (
 	_ hotkeyOverrideReporter = (*RecursiveGridMode)(nil)
 	_ themeRefresher         = (*RecursiveGridMode)(nil)
 	_ screenRefresher        = (*RecursiveGridMode)(nil)
+	_ captureScopeReporter   = (*RecursiveGridMode)(nil)
 )
 
 // RecursiveGridMode implements the Mode interface for recursive-grid navigation.
@@ -243,6 +244,15 @@ func (m *RecursiveGridMode) HasAppHotkeyOverrides() bool {
 	}
 
 	return m.handler.config.RecursiveGrid.HasAppHotkeyOverrides()
+}
+
+// ActiveCaptureScope reports the scope the open recursive grid session started from.
+func (m *RecursiveGridMode) ActiveCaptureScope() string {
+	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Context == nil {
+		return ""
+	}
+
+	return m.handler.recursiveGrid.Context.CaptureScope()
 }
 
 // cursorFollowContext is the recursive-grid session's preference carrier, or

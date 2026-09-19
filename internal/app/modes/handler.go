@@ -459,7 +459,32 @@ func (h *Handler) ActivateMode(activation modecmd.Activation) {
 		activation.OnExit = []string{}
 	}
 
+	h.advanceCycles(&activation, modeImpl)
+
 	modeImpl.Activate(activation)
+}
+
+// advanceCycles picks which entry of a --strategy or --capture-scope cycle
+// list this activation uses. Parsing already chose the first entry, and that
+// is kept when the mode is being entered. When the mode is already open, the
+// entry after the value in use replaces it.
+//
+// It runs here rather than in the modes because only a user-driven activation
+// advances a cycle. The internal refreshes bypass ActivateMode and carry no list.
+func (h *handlerState) advanceCycles(activation *modecmd.Activation, target Mode) {
+	if h.appState.CurrentMode() != activation.Mode {
+		return
+	}
+
+	if reporter, ok := target.(strategyReporter); ok && len(activation.StrategyCycle) > 0 {
+		next := modecmd.NextInCycle(activation.StrategyCycle, reporter.ActiveStrategy())
+		activation.Strategy = &next
+	}
+
+	if reporter, ok := target.(captureScopeReporter); ok && len(activation.CaptureScopeCycle) > 0 {
+		next := modecmd.NextInCycle(activation.CaptureScopeCycle, reporter.ActiveCaptureScope())
+		activation.CaptureScope = &next
+	}
 }
 
 // UpdateConfig updates the handler with new configuration. Overlay appearance

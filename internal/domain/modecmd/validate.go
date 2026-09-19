@@ -18,6 +18,7 @@ const (
 	msgOnExitRequiresAction            = "--on-exit requires --action (it runs only when the action is fulfilled)"
 	msgModifierRequiresAction          = "--modifier requires --action"
 	msgHideOnEmptySearchRequiresSearch = "--hide-on-empty-search requires --search"
+	msgToggleWithCycle                 = "--toggle cannot be combined with a cycle list, because --toggle exits an open mode and a cycle list advances it"
 	msgModifierEmpty                   = "modifier values cannot be empty"
 	msgNameRequired                    = "mode requires the name of a declared mode: mode <name>"
 	msgNameInvalid                     = "a mode name starts with a letter and continues with letters, digits, _ or -"
@@ -95,6 +96,14 @@ var dependencies = []dependency{
 	{
 		unmet:   func(a Activation) bool { return a.Modifier != nil && a.Action == nil },
 		message: msgModifierRequiresAction,
+	},
+	// A conflict rather than a dependency, checked the same way. While the
+	// mode is open, --toggle exits it and a cycle list advances it.
+	{
+		unmet: func(a Activation) bool {
+			return isTrue(a.Toggle) && (len(a.StrategyCycle) > 0 || len(a.CaptureScopeCycle) > 0)
+		},
+		message: msgToggleWithCycle,
 	},
 }
 

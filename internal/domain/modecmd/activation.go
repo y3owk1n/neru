@@ -71,8 +71,17 @@ type Activation struct {
 	// Strategy chooses how elements are detected.
 	Strategy *string
 
+	// StrategyCycle is the list --strategy was given when it named more than
+	// one value, in the order written. Strategy holds the entry this activation
+	// uses. Parsing sets it to the first entry, and the mode handler replaces
+	// it with the next one when the mode is already open.
+	StrategyCycle []string
+
 	// CaptureScope chooses the region the capture strategies scan.
 	CaptureScope *string
+
+	// CaptureScopeCycle is the same list for --capture-scope.
+	CaptureScopeCycle []string
 
 	// LabelDirection chooses how hint labels are enumerated.
 	LabelDirection *string

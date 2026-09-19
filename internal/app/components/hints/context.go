@@ -17,6 +17,8 @@ type baseContext struct {
 	startWithSearch        bool
 	strategyOverride       string
 	captureScopeOverride   string
+	activeStrategy         string
+	activeCaptureScope     string
 	labelDirectionOverride string
 	splitWord              bool
 }
@@ -91,6 +93,8 @@ func (c *baseContext) Reset() {
 	c.startWithSearch = false
 	c.strategyOverride = ""
 	c.captureScopeOverride = ""
+	c.activeStrategy = ""
+	c.activeCaptureScope = ""
 	c.labelDirectionOverride = ""
 	c.splitWord = false
 }
@@ -133,6 +137,25 @@ func (c *baseContext) SetStrategyOverride(strategy string) {
 // StrategyOverride returns the session hint collection strategy override.
 func (c *baseContext) StrategyOverride() string {
 	return c.strategyOverride
+}
+
+// SetActiveScan records the strategy and capture scope the session's scan
+// used, after configuration, the focused app and the overrides were resolved.
+// An override is empty when the configuration chose the value, so a cycle list
+// reads these instead to find the value in use.
+func (c *baseContext) SetActiveScan(strategy, captureScope string) {
+	c.activeStrategy = strategy
+	c.activeCaptureScope = captureScope
+}
+
+// ActiveStrategy returns the strategy the session's scan ran with.
+func (c *baseContext) ActiveStrategy() string {
+	return c.activeStrategy
+}
+
+// ActiveCaptureScope returns the capture scope the session's scan ran with.
+func (c *baseContext) ActiveCaptureScope() string {
+	return c.activeCaptureScope
 }
 
 // SetCaptureScopeOverride stores the session capture scope override.

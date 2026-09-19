@@ -192,6 +192,15 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		return
 	}
 
+	if h.hints != nil && h.hints.Context != nil {
+		captureScope := h.config.Hints.CaptureScopeForApp(bundleID)
+		if overrides.captureScope != "" {
+			captureScope = overrides.captureScope
+		}
+
+		h.hints.Context.SetActiveScan(strategy, captureScope)
+	}
+
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
 		ctx,
 		activation.FilterRoles,

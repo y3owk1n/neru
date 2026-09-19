@@ -84,6 +84,10 @@ const (
 	msgZoomToDepthValue         = "--zoom-to-depth requires a non-negative integer"
 	msgCursorSelectionModeValue = "--cursor-selection-mode requires follow or hold"
 
+	// msgCycleRepeats completes the message a cycle list gives when it names a
+	// value twice. A repeated value would make the next entry ambiguous.
+	msgCycleRepeats = " lists a value twice, and a cycle names each value once"
+
 	// msgTakesNoValue completes the message a presence-only flag gives when it
 	// is written with one. Absent and false say the same thing about such a
 	// flag, so there is no value for it to carry.
@@ -108,12 +112,15 @@ const (
 	usageHideOnEmptySearch   = "Hide all hints when search query is empty (requires --search)"
 	usageRole                = "Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more"
 	usageText                = "Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more"
-	usageStrategy            = "Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr)"
-	usageCaptureScope        = "Region the vision and contour strategies scan, or the region grid, recursive_grid and bisect start from: window (the focused window) or screen (the whole active screen)"
+	usageStrategy            = "Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr). " + usageCycle + " (--strategy=axtree,vision)"
+	usageCaptureScope        = "Region the vision and contour strategies scan, or the region grid, recursive_grid and bisect start from: window (the focused window) or screen (the whole active screen). " + usageCycle + " (--capture-scope=window,screen)"
 	usageLabelDirection      = "Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)"
 	usageSplitWord           = "Split detected text into word-level regions (requires vision strategy)"
 	usageZoomToDepth         = "Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position"
 )
+
+// usageCycle is what a comma-separated list means on the flags that cycle.
+const usageCycle = "A comma-separated list is a cycle. Entering the mode uses the first value, and running the command again while the mode is open uses the value after the one in use"
 
 // usageAction names the actions a mode can perform, so the vocabulary a user
 // is offered is the one the rules accept rather than a list kept alongside it.
@@ -502,32 +509,38 @@ var descriptors = []Descriptor{
 	),
 	valueFlag(FlagStrategy, "", usageStrategy, msgStrategyValue, hintsOnly,
 		func(activation *Activation, value string) error {
-			strategy, err := ParseStrategy(value)
+			strategy, cycle, err := parseCycle(FlagStrategy, value, ParseStrategy)
 			if err != nil {
 				return err
 			}
 
 			activation.Strategy = &strategy
+			activation.StrategyCycle = cycle
 
 			return nil
 		},
 		func(activation Activation) []string {
-			return renderValue(FlagStrategy, activation.Strategy)
+			return renderCycle(FlagStrategy, activation.Strategy, activation.StrategyCycle)
 		},
 	),
 	valueFlag(FlagCaptureScope, "", usageCaptureScope, msgCaptureScopeValue, scopedModes,
 		func(activation *Activation, value string) error {
-			scope, err := ParseCaptureScope(value)
+			scope, cycle, err := parseCycle(FlagCaptureScope, value, ParseCaptureScope)
 			if err != nil {
 				return err
 			}
 
 			activation.CaptureScope = &scope
+			activation.CaptureScopeCycle = cycle
 
 			return nil
 		},
 		func(activation Activation) []string {
-			return renderValue(FlagCaptureScope, activation.CaptureScope)
+			return renderCycle(
+				FlagCaptureScope,
+				activation.CaptureScope,
+				activation.CaptureScopeCycle,
+			)
 		},
 	),
 	valueFlag(FlagLabelDirection, "", usageLabelDirection, msgLabelDirectionValue, hintsOnly,
@@ -639,6 +652,59 @@ func ParseCaptureScope(value string) (string, error) {
 	}
 
 	return value, nil
+}
+
+// parseCycle reads a value that may be a cycle list. It returns the first
+// entry, which is the value the activation starts with, and the whole list
+// when it has more than one entry.
+//
+// Each entry must pass the single value's parser, so a list cannot hold a word
+// the flag refuses alone. A single entry returns a nil cycle, so a later
+// occurrence of the flag clears a list an earlier one set.
+func parseCycle(
+	name Flag,
+	value string,
+	parse func(string) (string, error),
+) (string, []string, error) {
+	entries := strings.Split(value, ",")
+
+	for index, entry := range entries {
+		parsed, err := parse(entry)
+		if err != nil {
+			return "", nil, err
+		}
+
+		if slices.Contains(entries[:index], parsed) {
+			return "", nil, invalid(name.Long() + msgCycleRepeats)
+		}
+	}
+
+	if len(entries) == 1 {
+		return entries[0], nil, nil
+	}
+
+	return entries[0], entries, nil
+}
+
+// renderCycle writes the list when the flag carries one, and the single value
+// otherwise.
+func renderCycle(name Flag, value *string, cycle []string) []string {
+	if len(cycle) > 0 {
+		return renderList(name, cycle)
+	}
+
+	return renderValue(name, value)
+}
+
+// NextInCycle returns the entry after current, wrapping at the end, and the
+// first entry when current is not in the cycle at all.
+//
+// It is exported for the mode handler, the only reader that knows which value
+// is in use.
+func NextInCycle(cycle []string, current string) string {
+	index := slices.Index(cycle, current)
+
+	return cycle[(index+1)%len(cycle)]
 }
 
 // setOnExit appends one step to the sequence that runs once the action is

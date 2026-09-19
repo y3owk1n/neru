@@ -21,6 +21,7 @@ var (
 	_ hotkeyOverrideReporter = (*GridMode)(nil)
 	_ themeRefresher         = (*GridMode)(nil)
 	_ screenRefresher        = (*GridMode)(nil)
+	_ captureScopeReporter   = (*GridMode)(nil)
 )
 
 // GridMode implements the Mode interface for grid-based navigation.
@@ -244,6 +245,15 @@ func (m *GridMode) HasAppHotkeyOverrides() bool {
 	}
 
 	return m.handler.config.Grid.HasAppHotkeyOverrides()
+}
+
+// ActiveCaptureScope reports the scope the open grid session started from.
+func (m *GridMode) ActiveCaptureScope() string {
+	if m.handler.grid == nil || m.handler.grid.Context == nil {
+		return ""
+	}
+
+	return m.handler.grid.Context.CaptureScope()
 }
 
 // cursorFollowContext is the grid session's preference carrier, or false when

@@ -20,6 +20,7 @@ var (
 	_ hotkeyOverrideReporter = (*BisectMode)(nil)
 	_ themeRefresher         = (*BisectMode)(nil)
 	_ screenRefresher        = (*BisectMode)(nil)
+	_ captureScopeReporter   = (*BisectMode)(nil)
 )
 
 // BisectMode implements the Mode interface for bisection navigation.
@@ -173,4 +174,13 @@ func (m *BisectMode) HasAppHotkeyOverrides() bool {
 	}
 
 	return m.handler.config.Bisect.HasAppHotkeyOverrides()
+}
+
+// ActiveCaptureScope reports the scope the open bisect session started from.
+func (m *BisectMode) ActiveCaptureScope() string {
+	if m.handler.bisect == nil || m.handler.bisect.Context == nil {
+		return ""
+	}
+
+	return m.handler.bisect.Context.CaptureScope()
 }

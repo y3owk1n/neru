@@ -65,6 +65,7 @@ func (h *handlerState) startBisect(activation modecmd.Activation) {
 	// screen's own space.
 	h.initializeBisectRegion(h.captureStart(domain.ModeNameBisect, screen, scope).Sub(screen.Min))
 	h.bisect.Context.SetCursorFollowSelection(cursorShouldFollow)
+	h.bisect.Context.SetCaptureScope(scope)
 
 	// The mode is entered before the first frame is built, so the quadrant
 	// labels come from the keymap settled for bisect and the focused app.

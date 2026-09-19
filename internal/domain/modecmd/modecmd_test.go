@@ -894,3 +894,118 @@ func message(err error) string {
 
 	return after
 }
+
+// TestParse_CycleLists pins how a comma-separated --strategy or
+// --capture-scope parses. The first entry becomes the value, the activation
+// keeps the whole list, and the list renders back as written.
+func TestParse_CycleLists(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		mode      domain.Mode
+		args      []string
+		wantValue string
+		wantCycle []string
+		wantErr   string
+	}{
+		{
+			name: "strategy list takes its first entry",
+			mode: domain.ModeHints,
+			args: []string{
+				"--strategy=" + domain.StrategyVision + "," + domain.StrategyAXTree,
+			},
+			wantValue: domain.StrategyVision,
+			wantCycle: []string{domain.StrategyVision, domain.StrategyAXTree},
+		},
+		{
+			name:      "capture scope list on a region mode",
+			mode:      domain.ModeGrid,
+			args:      []string{"--capture-scope", "window,screen"},
+			wantValue: "window",
+			wantCycle: []string{"window", "screen"},
+		},
+		{
+			name: "a later single value replaces the list",
+			mode: domain.ModeHints,
+			args: []string{
+				"--strategy=" + domain.StrategyVision + "," + domain.StrategyAXTree,
+				"--strategy=" + domain.StrategyContour,
+			},
+			wantValue: domain.StrategyContour,
+		},
+		{
+			name:    "an unknown entry is refused like a lone one",
+			mode:    domain.ModeHints,
+			args:    []string{"--strategy=" + domain.StrategyVision + ",nope"},
+			wantErr: msgStrategyValue,
+		},
+		{
+			name: "a value listed twice",
+			mode: domain.ModeHints,
+			args: []string{
+				"--strategy=" + domain.StrategyVision + "," + domain.StrategyAXTree + "," + domain.StrategyVision,
+			},
+			wantErr: "--strategy lists a value twice",
+		},
+		{
+			name:    "toggle alongside a list",
+			mode:    domain.ModeGrid,
+			args:    []string{argToggle, "--capture-scope=window,screen"},
+			wantErr: "--toggle cannot be combined with a cycle list",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			activation, err := modecmd.Parse(testCase.mode, testCase.args)
+			if testCase.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), testCase.wantErr) {
+					t.Fatalf("Parse(%v) error = %v, want %q", testCase.args, err, testCase.wantErr)
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Parse(%v) error = %v", testCase.args, err)
+			}
+
+			value, cycle := activation.Strategy, activation.StrategyCycle
+			if testCase.mode != domain.ModeHints {
+				value, cycle = activation.CaptureScope, activation.CaptureScopeCycle
+			}
+
+			if value == nil || *value != testCase.wantValue ||
+				!slices.Equal(cycle, testCase.wantCycle) {
+				t.Fatalf("Parse(%v) = %v with cycle %v, want %q with cycle %v",
+					testCase.args, value, cycle, testCase.wantValue, testCase.wantCycle)
+			}
+
+			again, err := modecmd.Parse(testCase.mode, modecmd.Render(activation))
+			if err != nil || !slices.Equal(modecmd.Render(again), modecmd.Render(activation)) {
+				t.Fatalf("%v did not survive a render: %v, error %v",
+					testCase.args, modecmd.Render(again), err)
+			}
+		})
+	}
+}
+
+// TestNextInCycle pins which entry follows the value in use.
+func TestNextInCycle(t *testing.T) {
+	t.Parallel()
+
+	cycle := []string{domain.StrategyAXTree, domain.StrategyVision, domain.StrategyContour}
+
+	for current, want := range map[string]string{
+		domain.StrategyAXTree:  domain.StrategyVision,
+		domain.StrategyContour: domain.StrategyAXTree,
+		"":                     domain.StrategyAXTree,
+	} {
+		if got := modecmd.NextInCycle(cycle, current); got != want {
+			t.Errorf("NextInCycle(%v, %q) = %q, want %q", cycle, current, got, want)
+		}
+	}
+}

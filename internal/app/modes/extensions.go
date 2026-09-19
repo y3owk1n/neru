@@ -35,6 +35,8 @@ const (
 	extensionHotkeyOverrides   extensionName = "hotkey override reporting"
 	extensionThemeRefresh      extensionName = "theme change refresh"
 	extensionScreenRefresh     extensionName = "screen change refresh"
+	extensionStrategyReport    extensionName = "strategy reporting"
+	extensionScopeReport       extensionName = "capture scope reporting"
 )
 
 // selectionTracker is an optional Mode extension: a mode that remembers where
@@ -204,6 +206,30 @@ type screenRefresher interface {
 	// is still the active one here and an implementation must not re-check
 	// (ADR 0004).
 	RefreshForScreenChange(ctx context.Context) bool
+}
+
+// strategyReporter is an optional Mode extension: a mode whose session runs an
+// element-detection strategy. Only hints detects elements.
+//
+// The --strategy cycle list reads it to pick the entry after the strategy in
+// use (advanceCycles, handler.go). A mode that does not carry it takes the
+// list's first entry every time, which is what parsing already chose.
+type strategyReporter interface {
+	// ActiveStrategy reports the strategy the open session scanned with, and
+	// an empty string when there is no session to answer for.
+	ActiveStrategy() string
+}
+
+// captureScopeReporter is an optional Mode extension: a mode whose session
+// covers a capture scope, the screen or the focused window. Hints scans one
+// and grid, recursive grid and bisect start from one.
+//
+// The --capture-scope cycle list reads it the way the --strategy one reads
+// strategyReporter.
+type captureScopeReporter interface {
+	// ActiveCaptureScope reports the scope the open session covers, and an
+	// empty string when there is no session to answer for.
+	ActiveCaptureScope() string
 }
 
 // activeModeExtension resolves the active mode to the optional extension T,

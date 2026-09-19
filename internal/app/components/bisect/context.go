@@ -11,6 +11,7 @@ type baseContext struct {
 	onExit                []string
 	repeat                bool
 	cursorFollowSelection bool
+	captureScope          string
 	selectedPoint         image.Point
 	hasSelection          bool
 }
@@ -90,6 +91,17 @@ func (c *baseContext) SelectionPoint() (image.Point, bool) {
 	return c.selectedPoint, c.hasSelection
 }
 
+// SetCaptureScope records which region the session started from, screen or
+// window. A --capture-scope cycle list reads it to pick the next entry.
+func (c *baseContext) SetCaptureScope(scope string) {
+	c.captureScope = scope
+}
+
+// CaptureScope returns which region the session started from.
+func (c *baseContext) CaptureScope() string {
+	return c.captureScope
+}
+
 // Reset resets the base context to its initial state.
 func (c *baseContext) Reset() {
 	c.pendingAction = nil
@@ -97,6 +109,7 @@ func (c *baseContext) Reset() {
 	c.onExit = nil
 	c.repeat = false
 	c.cursorFollowSelection = false
+	c.captureScope = ""
 	c.ClearSelectionPoint()
 }
 

@@ -21,6 +21,8 @@ var (
 	_ hotkeyOverrideReporter = (*HintsMode)(nil)
 	_ themeRefresher         = (*HintsMode)(nil)
 	_ screenRefresher        = (*HintsMode)(nil)
+	_ strategyReporter       = (*HintsMode)(nil)
+	_ captureScopeReporter   = (*HintsMode)(nil)
 )
 
 // HintsMode implements the Mode interface for hints-based navigation.
@@ -182,6 +184,24 @@ func (m *HintsMode) HasAppHotkeyOverrides() bool {
 	}
 
 	return m.handler.config.Hints.HasAppHotkeyOverrides()
+}
+
+// ActiveStrategy reports the strategy the open hint session scanned with.
+func (m *HintsMode) ActiveStrategy() string {
+	if m.handler.hints == nil || m.handler.hints.Context == nil {
+		return ""
+	}
+
+	return m.handler.hints.Context.ActiveStrategy()
+}
+
+// ActiveCaptureScope reports the scope the open hint session scanned.
+func (m *HintsMode) ActiveCaptureScope() string {
+	if m.handler.hints == nil || m.handler.hints.Context == nil {
+		return ""
+	}
+
+	return m.handler.hints.Context.ActiveCaptureScope()
 }
 
 // cursorFollowContext is the hint session's preference carrier, or false when
