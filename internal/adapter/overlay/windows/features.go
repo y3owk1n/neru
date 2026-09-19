@@ -273,13 +273,20 @@ func (o *winOverlay) DrawRecursiveGrid(
 	shouldAnimate := animEnabled && animDuration > 0 && o.hasLast &&
 		depth != o.lastDepth && !o.lastBounds.Empty()
 
+	// Fitted once per draw, so every label matches and no cell or frame fits a
+	// font of its own.
+	settled := style.FitDraw(o.scale(), cellRects, nextDims)
+
 	if shouldAnimate {
 		continuing := len(o.animRects) > 0 && !o.animSettled
+		fromRects := motion.TransitionOrigins(
+			cellRects, bounds, o.animRects, o.lastRects, o.lastBounds,
+		)
 		o.startTransition(transitionPlan{
-			fromRects: motion.TransitionOrigins(
-				cellRects, bounds, o.animRects, o.lastRects, o.lastBounds,
-			),
+			fromRects:    fromRects,
 			toRects:      cellRects,
+			held:         style.FitTransition(o.scale(), fromRects, cellRects, nextDims),
+			settled:      settled,
 			keyRunes:     keyRunes,
 			nextKeyRunes: nextKeyRunes,
 			nextDims:     nextDims,
@@ -294,7 +301,9 @@ func (o *winOverlay) DrawRecursiveGrid(
 		})
 	} else {
 		o.animRects = nil
-		o.paintRecursiveGrid(cellRects, keyRunes, nextKeyRunes, nextDims, style, virtualPointer)
+		o.paintRecursiveGrid(
+			cellRects, keyRunes, nextKeyRunes, nextDims, style, settled, virtualPointer,
+		)
 	}
 
 	o.hasLast = true
@@ -312,11 +321,13 @@ func (o *winOverlay) paintRecursiveGrid(
 	keyRunes, nextKeyRunes []rune,
 	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
+	sizes recursivegridcomponent.FittedSizes,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 ) {
 	o.Clear()
 
-	drawSubPreview := style.PreviewsNextDepth(len(nextKeyRunes), nextDims)
+	drawSubPreview := sizes.ShowPreview &&
+		style.PreviewsNextDepth(len(nextKeyRunes), nextDims)
 	scale := o.scale()
 
 	for idx, cell := range cellRects {
@@ -334,23 +345,23 @@ func (o *winOverlay) paintRecursiveGrid(
 				label = string(keyRunes[idx])
 			}
 
-			if style.ShowLabelIn(cell) {
+			if sizes.ShowLabel {
 				if style.LabelBackground() {
-					o.drawRecursiveLabelBackground(label, cell, style)
+					o.drawRecursiveLabelBackground(label, cell, style, sizes.LabelSize)
 				}
 
 				o.drawTextCentered(
 					label,
 					cell,
 					style.FontFamily(),
-					style.LabelFontSize()*scale,
+					sizes.LabelSize*scale,
 					style.TextColorARGB(),
 					false,
 				)
 			}
 
-			if drawSubPreview && style.ShowSubKeyPreviewIn(cell, nextDims) {
-				o.drawSubKeyMiniGrid(cell, nextKeyRunes, nextDims, style)
+			if drawSubPreview {
+				o.drawSubKeyMiniGrid(cell, nextKeyRunes, nextDims, style, sizes.PreviewSize)
 			}
 		}
 	}
@@ -406,9 +417,10 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 	label string,
 	cell image.Rectangle,
 	style recursivegridcomponent.Style,
+	labelSize float64,
 ) {
 	scale := o.scale()
-	fontSize := style.LabelFontSize() * scale
+	fontSize := labelSize * scale
 	paddingX := badge.AutoPadding(
 		fontSize,
 		scaledConfig(style.LabelBackgroundPaddingX(), scale),
@@ -443,13 +455,14 @@ func (o *winOverlay) drawSubKeyMiniGrid(
 	nextKeyRunes []rune,
 	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
+	previewSize float64,
 ) {
 	for _, subCell := range style.SubKeyPreviewCells(cell, nextKeyRunes, nextDims) {
 		o.drawTextCentered(
 			subCell.Label,
 			subCell.Bounds,
 			style.FontFamily(),
-			style.SubKeyPreviewFontSizeF()*o.scale(),
+			previewSize*o.scale(),
 			style.SubKeyPreviewTextColorARGB(),
 			false,
 		)

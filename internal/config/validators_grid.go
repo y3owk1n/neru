@@ -436,6 +436,17 @@ func validateRegionGridUI(section string, appearance RecursiveGridUI) error {
 		)
 	}
 
+	// No upper bound against font_size. A floor above it reads as "never
+	// shrink", and refusing it would refuse every file that sets a font size
+	// under the default floor.
+	if appearance.MinFontSize < 1 || appearance.MinFontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s.appearance.min_font_size must be between 1 and %d",
+			section, maxFontSize,
+		)
+	}
+
 	if appearance.SubKeyPreviewFontSize < 1 || appearance.SubKeyPreviewFontSize > maxFontSize {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,

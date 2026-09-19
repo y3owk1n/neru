@@ -78,7 +78,7 @@ typedef struct {
 
 /// Grid cell style configuration
 typedef struct {
-	int fontSize;                     ///< Font size
+	int fontSize;                     ///< Label font size, already fitted to the cells (Style.LabelFontSizeIn)
 	char *fontFamily;                 ///< Font family
 	char *backgroundColor;            ///< Background color
 	char *labelBackgroundColor;       ///< Label background color
@@ -93,13 +93,16 @@ typedef struct {
 	int labelBackgroundPaddingY;      ///< Label badge vertical padding (-1 = auto)
 	int labelBackgroundBorderRadius;  ///< Label badge border radius (-1 = auto)
 	int labelBackgroundBorderWidth;   ///< Label badge border width
-	float labelAutohideMultiplier;    ///< Minimum cell size multiplier for main label autohide (0 = disable)
-	int subKeyGridCols;               ///< Sub-key preview grid columns (next depth's cols)
-	int subKeyGridRows;               ///< Sub-key preview grid rows (next depth's rows)
-	int drawSubKeyPreview;            ///< Draw miniature key grid inside each cell (1 = yes, 0 = no)
-	int subKeyFontSize;               ///< Font size for sub-key preview labels
+	int hideLabel;            ///< Cells are too small for a label (1 = hide, 0 = draw); zero keeps grid mode's labels
+	int transitionFontSize;   ///< Label font size held while a transition runs (0 = fontSize)
+	int transitionHideLabel;  ///< Hide labels while a transition runs (1 = hide, 0 = draw)
+	int subKeyGridCols;       ///< Sub-key preview grid columns (next depth's cols)
+	int subKeyGridRows;       ///< Sub-key preview grid rows (next depth's rows)
+	int drawSubKeyPreview;    ///< Draw miniature key grid inside each cell (1 = yes, 0 = no)
+	int subKeyFontSize;       ///< Sub-key preview font size, already fitted to the sub-cells
+	int transitionSubKeyFontSize;     ///< Preview font size held while a transition runs (0 = subKeyFontSize)
+	int transitionHideSubKeyPreview;  ///< Hide the preview while a transition runs (1 = hide, 0 = draw)
 	char *subKeyFontFamily;           ///< Font family for sub-key preview labels
-	float subKeyAutohideMultiplier;   ///< Minimum cell size multiplier for sub-key preview autohide (0 = disable)
 	char *subKeyTextColor;            ///< Text color for sub-key preview labels
 	char *subKeyKeys;                 ///< Key string for sub-key preview (next depth's keys, uppercased)
 } GridCellStyle;

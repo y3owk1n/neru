@@ -660,9 +660,17 @@ backtracking, and every scroll granularity.
 > **`recursive_grid.ui.sub_key_preview` is one drawing on all three platforms**
 > ([#1297](https://github.com/y3owk1n/neru/issues/1297)), and
 > `sub_key_preview_autohide_multiplier` measures a **sub-cell** from one
-> implementation (`recursivegrid.Style.ShowSubKeyPreviewIn`, with the macOS
-> copy held to it by
-> `internal/architecture/sub_key_preview_autohide_rule_test.go`).
+> implementation (`recursivegrid.Style.SubKeyPreviewFontSizeIn`).
+
+> **Region-grid labels are fitted to their cells by one implementation on all
+> three platforms** ([#1691](https://github.com/y3owk1n/neru/issues/1691)):
+> `recursivegrid.Style.FitDraw` answers once per draw, from text measured when
+> the Style was built (`ports.TextMeasurer`), and `FitTransition` answers what
+> a depth transition holds from its first frame to its last. macOS is handed
+> both answers before its animation starts, because its frames never return to
+> Go, which is what let its Objective-C copy of the autohide rule and the two
+> tests pinning it go. The fit takes the display scale, so a dense X11 or
+> Windows display no longer keeps a label its drawn font has outgrown.
 
 ---
 

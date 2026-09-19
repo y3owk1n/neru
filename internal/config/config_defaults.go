@@ -301,6 +301,10 @@ const (
 	DefaultRecursiveGridLineWidth = 1
 	// DefaultRecursiveGridFontSize is the default font size for cell labels.
 	DefaultRecursiveGridFontSize = 10
+	// DefaultRecursiveGridMinFontSize is the smallest size a cell label or a
+	// sub-key preview shrinks to before it hides. Labels shrink to fit their
+	// cell. Equal to the font size it means "never shrink".
+	DefaultRecursiveGridMinFontSize = 6
 	// DefaultVirtualPointerChar is the default character displayed by the virtual pointer.
 	DefaultVirtualPointerChar = "\u25CF" // "●"
 	// DefaultVirtualPointerFontSize is the default font size for the virtual pointer char.
@@ -623,6 +627,7 @@ func defaultRegionGridUI() RecursiveGridUI {
 		TextColor:                       Color{},
 		FontSize:                        DefaultRecursiveGridFontSize,
 		FontFamily:                      "",
+		MinFontSize:                     DefaultRecursiveGridMinFontSize,
 		LabelBackgroundColor:            Color{},
 		LabelBackgroundPaddingX:         DefaultRecursiveGridLabelBackgroundPaddingX,
 		LabelBackgroundPaddingY:         DefaultRecursiveGridLabelBackgroundPaddingY,

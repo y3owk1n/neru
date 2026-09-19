@@ -92,16 +92,17 @@ func TestStyle_PreviewsNextDepth(t *testing.T) {
 	}
 }
 
-// TestStyle_ShowSubKeyPreviewIn pins the sub-key-preview autohide threshold every
-// backend draws by: sub_key_preview_autohide_multiplier x the preview font size,
-// compared against a *sub-cell* on both axes, with a non-positive multiplier
-// meaning "always show".
+// TestStyle_SubKeyPreviewFontSizeIn_NeverShrinkAnswersAsTheOldAutohideRule pins
+// what min_font_size at the preview's size promises. The preview hides exactly
+// where the old autohide rule hid it. That rule compared
+// sub_key_preview_autohide_multiplier x the preview font size against a
+// *sub-cell* on both axes, and a non-positive multiplier meant "always show".
+// The cases are that rule's own.
 //
-// The sub-cell is the point. A cell that clears the threshold whole while the
-// sub-cells it divides into do not is exactly the shape the GDI backend used to
-// keep drawing in, and the case below named for it is what holds all three
-// backends to one answer now (#1297).
-func TestStyle_ShowSubKeyPreviewIn(t *testing.T) {
+// Several cases turn on the sub-cell. A cell can clear the threshold while the
+// sub-cells it divides into do not, and the GDI backend kept drawing in that
+// shape until #1297.
+func TestStyle_SubKeyPreviewFontSizeIn_NeverShrinkAnswersAsTheOldAutohideRule(t *testing.T) {
 	tests := []struct {
 		name       string
 		enabled    bool
@@ -217,13 +218,14 @@ func TestStyle_ShowSubKeyPreviewIn(t *testing.T) {
 			style := NewStyle(StyleOptions{
 				SubKeyPreview:                   testCase.enabled,
 				SubKeyPreviewFontSize:           testCase.fontSize,
+				MinFontSize:                     testCase.fontSize,
 				SubKeyPreviewAutohideMultiplier: testCase.multiplier,
 			})
 
-			got := style.ShowSubKeyPreviewIn(testCase.cell, testCase.nextDims)
+			_, got := style.SubKeyPreviewFontSizeIn(1, testCase.nextDims, testCase.cell)
 			if got != testCase.want {
 				t.Errorf(
-					"ShowSubKeyPreviewIn(%v, %+v) = %v, want %v",
+					"SubKeyPreviewFontSizeIn(%v, %+v) show = %v, want %v",
 					testCase.cell, testCase.nextDims, got, testCase.want,
 				)
 			}

@@ -2,6 +2,7 @@ package recursivegrid
 
 import (
 	"image"
+	"strings"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/config"
@@ -20,6 +21,7 @@ type Style struct {
 	textColor                       string
 	fontSize                        int
 	fontFamily                      string
+	minFontSize                     int
 	labelBackground                 bool
 	labelBackgroundColor            string
 	labelBackgroundPaddingX         int
@@ -43,6 +45,12 @@ type Style struct {
 	textColorARGB              uint32
 	labelBackgroundColorARGB   uint32
 	subKeyPreviewTextColorARGB uint32
+
+	// What a label and a preview key take per unit of font size, measured once
+	// when the style is built so that fitting one to a cell is arithmetic on
+	// the keypress path.
+	labelMetrics         badge.LabelMetrics
+	subKeyPreviewMetrics badge.LabelMetrics
 }
 
 // StyleOptions constructs a Style without a configuration.
@@ -58,6 +66,7 @@ type StyleOptions struct {
 	TextColor                       string
 	FontSize                        int
 	FontFamily                      string
+	MinFontSize                     int
 	LabelBackground                 bool
 	LabelBackgroundColor            string
 	LabelBackgroundPaddingX         int
@@ -82,6 +91,7 @@ func NewStyle(opts StyleOptions) Style {
 		textColor:                       opts.TextColor,
 		fontSize:                        opts.FontSize,
 		fontFamily:                      opts.FontFamily,
+		minFontSize:                     opts.MinFontSize,
 		labelBackground:                 opts.LabelBackground,
 		labelBackgroundColor:            opts.LabelBackgroundColor,
 		labelBackgroundPaddingX:         opts.LabelBackgroundPaddingX,
@@ -173,44 +183,25 @@ func (s Style) SubKeyPreview() bool {
 	return s.subKeyPreview
 }
 
-// SubKeyPreviewFontSize returns the preview font size in points.
-func (s Style) SubKeyPreviewFontSize() int {
-	return s.subKeyPreviewFontSize
-}
-
-// SubKeyPreviewAutohideMultiplier returns the cell-size multiple below which
-// the preview hides itself.
-func (s Style) SubKeyPreviewAutohideMultiplier() float64 {
-	return s.subKeyPreviewAutohideMultiplier
-}
-
-// LabelAutohideMultiplier returns the cell-size multiple below which the label
-// hides itself.
-func (s Style) LabelAutohideMultiplier() float64 {
-	return s.labelAutohideMultiplier
-}
-
-// ShowLabelIn reports whether a cell is large enough for its key label to be
-// worth drawing: both cell dimensions must reach
-// label_autohide_multiplier x the label font size. A non-positive multiplier
-// disables autohide, so the label always shows.
+// LabelFontSizeIn returns the size to draw every cell label of one draw at,
+// and whether to draw them at all. font_size is the ceiling. The label shrinks
+// so that it fits the cell and the cell stays label_autohide_multiplier x the
+// font size, and hides once that would take it under min_font_size
+// (badge.FontFit is the rule). cells are in device pixels and scale is device
+// pixels per font unit, 1 where the two are the same.
 //
-// The Cairo and GDI backends both call this, and they have to answer the same
-// way — a cell one labels and the other leaves blank is the same configuration
-// producing two different screens. The macOS backend asks the same question in
-// Objective-C (drawGridLabel: in
-// internal/adapter/platform/darwin/overlay_darwin.m), so Go cannot be its one
-// implementation; ADR 0007 asks for a test holding that copy to this one
-// instead, and internal/architecture/label_autohide_rule_test.go is it — change
-// the rule here and that test fails until the Objective-C copy follows.
-func (s Style) ShowLabelIn(cell image.Rectangle) bool {
-	if s.labelAutohideMultiplier <= 0 {
-		return true
-	}
-
-	threshold := s.LabelFontSize() * s.labelAutohideMultiplier
-
-	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
+// It takes every rectangle the labels will be drawn in and answers with the
+// size that fits the smallest. The cells of a draw differ by a pixel, and a
+// transition passes its first frame's cells with its last, so a label neither
+// overflows on the way nor changes font on every frame.
+//
+// All three backends call this one. The macOS overlay used to decide a second
+// time in Objective-C, on every animation frame, because its frames never
+// return to Go. It is now handed the two answers a transition needs before the
+// transition starts, so that copy and the test pinning it were deleted
+// (ADR 0007).
+func (s Style) LabelFontSizeIn(scale float64, cells ...image.Rectangle) (float64, bool) {
+	return s.labelFit().SizeAcross(scale, cells...)
 }
 
 // SubKeyPreviewTextColor returns the preview label color as a hex string.
@@ -261,7 +252,8 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridSubKeyPreviewTextColorDark,
 		),
 		subKeyPreviewLabelChar: cfg.UI.SubKeyPreviewLabelChar,
-	}.packColors()
+		minFontSize:            cfg.UI.MinFontSize,
+	}.packColors().measureLabels(cfg.AllKeysIncludingLayers())
 }
 
 // LineWidthF returns the cell border width as a float, clamped so a hairline
@@ -298,9 +290,6 @@ func (s Style) LabelBackgroundColorARGB() uint32 { return s.labelBackgroundColor
 // SubKeyPreviewTextColorARGB returns the preview label color as packed ARGB.
 func (s Style) SubKeyPreviewTextColorARGB() uint32 { return s.subKeyPreviewTextColorARGB }
 
-// ShowLabels reports whether cell labels are drawn.
-func (s Style) ShowLabels() bool { return true }
-
 // packColors fills the ARGB fields from the hex ones. Both constructors call it
 // as their last step, so no caller can produce a Style whose packed values
 // disagree with its hex ones.
@@ -310,6 +299,66 @@ func (s Style) packColors() Style {
 	s.textColorARGB = badge.ParseHexARGB(s.textColor)
 	s.labelBackgroundColorARGB = badge.ParseHexARGB(s.labelBackgroundColor)
 	s.subKeyPreviewTextColorARGB = badge.ParseHexARGB(s.subKeyPreviewTextColor)
+
+	return s
+}
+
+// labelFit is the fit rule with this style's label settings.
+func (s Style) labelFit() badge.FontFit {
+	fit := badge.FontFit{
+		Requested:  s.LabelFontSize(),
+		Floor:      float64(s.minFontSize),
+		Multiplier: s.labelAutohideMultiplier,
+		Metrics:    s.labelMetrics,
+	}
+
+	if s.labelBackground {
+		// The plate is what has to fit, and its padding is resolved against
+		// the configured size. A smaller font only ever needs less.
+		border := s.LabelBackgroundBorderWidthF()
+		fit.PadX = float64(
+			badge.AutoPadding(fit.Requested, s.labelBackgroundPaddingX, true),
+		) + border
+		fit.PadY = float64(
+			badge.AutoPadding(fit.Requested, s.labelBackgroundPaddingY, false),
+		) + border
+	}
+
+	return fit
+}
+
+// widestCommonLabel stands in for the keys a style cannot see. Bisect's render
+// configuration carries none, and a region too small for the configured shape
+// falls back to keys of its own. Nothing a keyboard types is wider.
+const widestCommonLabel = "W"
+
+// measureLabels fills the label metrics by asking the platform's text layer,
+// which is why it runs where a style is built and never in a draw. Labels are
+// drawn upper-cased, one key to a cell, unless label_char replaces them all.
+func (s Style) measureLabels(keys string) Style {
+	upperKeys := []rune(strings.ToUpper(keys))
+
+	alphabet := make([]string, 0, len(upperKeys)+1)
+	alphabet = append(alphabet, widestCommonLabel)
+
+	for _, key := range upperKeys {
+		alphabet = append(alphabet, string(key))
+	}
+
+	labels := alphabet
+	if s.labelChar != "" {
+		labels = []string{s.labelChar}
+	}
+
+	previews := alphabet
+	if s.subKeyPreviewLabelChar != "" {
+		previews = []string{s.subKeyPreviewLabelChar}
+	}
+
+	s.labelMetrics = badge.MeasureLabels(labels, s.fontFamily, s.LabelFontSize(), false)
+	s.subKeyPreviewMetrics = badge.MeasureLabels(
+		previews, s.fontFamily, s.SubKeyPreviewFontSizeF(), false,
+	)
 
 	return s
 }

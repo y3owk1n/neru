@@ -29,6 +29,9 @@ type recordingWindow struct {
 	texts []string
 	// bolds is, per entry of texts, whether it was painted bold.
 	bolds []bool
+	// sizes is, per entry of texts, the font size it was painted at, in
+	// device pixels.
+	sizes []float64
 	// rects is every rectangle filled or stroked, in order.
 	rects []image.Rectangle
 	// scale is what Scale answers. Zero means 1, a 100% display.
@@ -91,12 +94,13 @@ func (w *recordingWindow) DrawTextCentered(
 	text string,
 	_ image.Rectangle,
 	_ string,
-	_ float64,
+	fontSize float64,
 	_ uint32,
 	bold bool,
 ) {
 	w.texts = append(w.texts, text)
 	w.bolds = append(w.bolds, bold)
+	w.sizes = append(w.sizes, fontSize)
 }
 
 func (w *recordingWindow) DrawPointerGlyph(_ image.Point, _ int, char string, _ string, _ uint32) {

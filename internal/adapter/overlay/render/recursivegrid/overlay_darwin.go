@@ -51,6 +51,7 @@ type Overlay struct {
 	config     config.RecursiveGridConfig
 	logger     *zap.Logger
 	lastBounds image.Rectangle
+	lastDims   domain.GridDimensions
 	lastDepth  int
 	hasLast    bool
 
@@ -156,6 +157,7 @@ func (o *Overlay) Hide() {
 func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
 	o.lastBounds = image.Rectangle{}
+	o.lastDims = domain.GridDimensions{}
 	o.lastDepth = 0
 	o.hasLast = false
 }
@@ -355,8 +357,23 @@ func (o *Overlay) DrawRecursiveGrid(
 		cached.SubKeyFontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
 	})
 
+	shouldAnimate := o.Config().Animation.Enabled && o.hasLast && depth != o.lastDepth &&
+		!o.lastBounds.Empty()
+
+	// Points and pixels are one unit here, so the scale is 1. The animation's
+	// frames never return to Go, so what a transition holds is settled now.
+	fitted := style.FitDraw(1, cellRects, nextDims)
+	held := fitted
+
+	if shouldAnimate {
+		held = style.FitTransition(1, o.transitionOrigins(dims), cellRects, nextDims)
+	}
+
 	finalStyle := C.GridCellStyle{
-		fontSize:                    C.int(style.FontSize()),
+		fontSize:                    C.int(fitted.LabelSize),
+		hideLabel:                   C.int(boolToInt(!fitted.ShowLabel)),
+		transitionFontSize:          C.int(held.LabelSize),
+		transitionHideLabel:         C.int(boolToInt(!held.ShowLabel)),
 		fontFamily:                  (*C.char)(cachedStyle.FontFamily),
 		backgroundColor:             (*C.char)(cachedStyle.BgColor),
 		labelBackgroundColor:        (*C.char)(cachedStyle.LabelBgColor),
@@ -374,18 +391,16 @@ func (o *Overlay) DrawRecursiveGrid(
 		subKeyGridCols:              C.int(nextDims.Cols),
 		subKeyGridRows:              C.int(nextDims.Rows),
 		drawSubKeyPreview: C.int(boolToInt(
-			style.PreviewsNextDepth(len(nextKeys), nextDims),
+			style.PreviewsNextDepth(len(nextKeys), nextDims) && fitted.ShowPreview,
 		)),
-		labelAutohideMultiplier:  C.float(style.LabelAutohideMultiplier()),
-		subKeyFontSize:           C.int(style.SubKeyPreviewFontSize()),
-		subKeyFontFamily:         (*C.char)(cachedStyle.SubKeyFontFamily),
-		subKeyAutohideMultiplier: C.float(style.SubKeyPreviewAutohideMultiplier()),
-		subKeyTextColor:          (*C.char)(cachedStyle.SubKeyTextColor),
-		subKeyKeys:               o.getOrCacheLabel(subKeyLabel),
+		subKeyFontSize:              C.int(fitted.PreviewSize),
+		transitionSubKeyFontSize:    C.int(held.PreviewSize),
+		transitionHideSubKeyPreview: C.int(boolToInt(!held.ShowPreview)),
+		subKeyFontFamily:            (*C.char)(cachedStyle.SubKeyFontFamily),
+		subKeyTextColor:             (*C.char)(cachedStyle.SubKeyTextColor),
+		subKeyKeys:                  o.getOrCacheLabel(subKeyLabel),
 	}
 
-	shouldAnimate := o.Config().Animation.Enabled && o.hasLast && depth != o.lastDepth &&
-		!o.lastBounds.Empty()
 	transitionDurationSeconds := float64(o.Config().Animation.DurationMS) / millisecondsPerSecond
 	if shouldAnimate {
 		C.NeruAnimateRecursiveGridTransition(
@@ -411,6 +426,7 @@ func (o *Overlay) DrawRecursiveGrid(
 
 	o.drawMu.RUnlock()
 	o.lastBounds = bounds
+	o.lastDims = dims
 	o.lastDepth = depth
 	o.hasLast = true
 
@@ -495,4 +511,20 @@ func boolToInt(v bool) int {
 	}
 
 	return 0
+}
+
+// transitionOrigins answers the cells a transition's first frame can be drawn
+// in, so a label can be fitted to them before the animation starts. The native
+// view builds that frame itself in startGridTransitionToCells. It starts from
+// the cells it last drew when the count is unchanged, and otherwise from the
+// new shape laid over the bounds they covered. Both are cuts of the last
+// bounds, so both are answered here and the smaller decides.
+func (o *Overlay) transitionOrigins(dims domain.GridDimensions) []image.Rectangle {
+	origins := recursivegrid.ComputeGridCells(o.lastBounds, dims)
+
+	if lastDims, ok := recursivegrid.UsableDimensions(o.lastDims); ok && lastDims != dims {
+		origins = append(origins, recursivegrid.ComputeGridCells(o.lastBounds, lastDims)...)
+	}
+
+	return origins
 }

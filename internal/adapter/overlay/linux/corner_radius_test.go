@@ -292,6 +292,7 @@ func TestSharedOverlay_DrawFrame_LabelBackgroundHonoursItsBorderRadius(t *testin
 				nil,
 				domain.GridDimensions{},
 				style,
+				style.FitDraw(1, []image.Rectangle{cell}, domain.GridDimensions{}),
 				recursivegridcomponent.VirtualPointerState{},
 			)
 

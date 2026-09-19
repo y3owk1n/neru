@@ -80,6 +80,13 @@ func fontSizeBounds() []intBound {
 			enable: func(c *config.Config) { c.RecursiveGrid.Enabled = true },
 		},
 		{
+			name:     "recursive_grid.ui.min_font_size",
+			set:      func(c *config.Config, v int) { c.RecursiveGrid.UI.MinFontSize = v },
+			validate: (*config.Config).ValidateRecursiveGrid,
+			minValid: 1, maxValid: math.MaxInt32,
+			enable: func(c *config.Config) { c.RecursiveGrid.Enabled = true },
+		},
+		{
 			name:     "recursive_grid.ui.sub_key_preview_font_size",
 			set:      func(c *config.Config, v int) { c.RecursiveGrid.UI.SubKeyPreviewFontSize = v },
 			validate: (*config.Config).ValidateRecursiveGrid,

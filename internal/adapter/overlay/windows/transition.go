@@ -31,8 +31,11 @@ type transitionPlan struct {
 	nextKeyRunes       []rune
 	nextDims           domain.GridDimensions
 	style              recursivegridcomponent.Style
-	pointer            recursivegridcomponent.VirtualPointerState
-	fromPointer        image.Point
+	// held is what the labels are drawn at until the transition settles, the
+	// size that fits both its ends, and settled is the last frame's alone.
+	held, settled recursivegridcomponent.FittedSizes
+	pointer       recursivegridcomponent.VirtualPointerState
+	fromPointer   image.Point
 	// continuing says the transition picks up one still running, which
 	// keeps the curve linear (motion.Eased).
 	continuing bool
@@ -84,12 +87,20 @@ func (o *winOverlay) runTransition(ctx context.Context, plan transitionPlan, don
 			o.animRects = motion.LerpRects(plan.fromRects, plan.toRects, progress)
 			o.animPointer = pointer.Position
 			o.animSettled = rawProgress >= 1
+			// The frame a transition settles on is drawn at the size that fits
+			// it; every frame before it holds the one that fits both ends.
+			sizes := plan.held
+			if o.animSettled {
+				sizes = plan.settled
+			}
+
 			o.paintRecursiveGrid(
 				o.animRects,
 				plan.keyRunes,
 				plan.nextKeyRunes,
 				plan.nextDims,
 				plan.style,
+				sizes,
 				pointer,
 			)
 		}

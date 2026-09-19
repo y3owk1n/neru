@@ -89,13 +89,16 @@ func TestBuildStyle_CarriesTheToggles(t *testing.T) {
 	}
 }
 
-// TestStyle_ShowLabelIn pins the label autohide threshold every backend draws
-// by: label_autohide_multiplier x the label font size, compared against both
-// cell dimensions, with a non-positive multiplier meaning "always show".
+// TestStyle_LabelFontSizeIn_NeverShrinkAnswersAsTheOldAutohideRule pins what
+// min_font_size = font_size promises. The label is drawn at the configured
+// size or not at all, and it hides exactly where the old autohide rule hid it.
+// That rule compared label_autohide_multiplier x the label font size against
+// both cell dimensions, and a non-positive multiplier meant "always show". The
+// cases are that rule's own, unchanged.
 //
-// The Cairo and GDI backends both call this, so the cases run in every job
-// rather than only where a particular backend is built.
-func TestStyle_ShowLabelIn(t *testing.T) {
+// Every backend calls this, so the cases run in every job rather than only
+// where a particular backend is built.
+func TestStyle_LabelFontSizeIn_NeverShrinkAnswersAsTheOldAutohideRule(t *testing.T) {
 	tests := []struct {
 		name       string
 		cell       image.Rectangle
@@ -165,11 +168,27 @@ func TestStyle_ShowLabelIn(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			style := NewStyle(StyleOptions{
 				FontSize:                testCase.fontSize,
+				MinFontSize:             testCase.fontSize,
 				LabelAutohideMultiplier: testCase.multiplier,
 			})
 
-			if got := style.ShowLabelIn(testCase.cell); got != testCase.want {
-				t.Errorf("ShowLabelIn(%v) = %v, want %v", testCase.cell, got, testCase.want)
+			size, got := style.LabelFontSizeIn(1, testCase.cell)
+			if got != testCase.want {
+				t.Errorf(
+					"LabelFontSizeIn(%v) show = %v, want %v",
+					testCase.cell,
+					got,
+					testCase.want,
+				)
+			}
+
+			if got && size != float64(testCase.fontSize) {
+				t.Errorf(
+					"LabelFontSizeIn(%v) = %v, want the configured %d",
+					testCase.cell,
+					size,
+					testCase.fontSize,
+				)
 			}
 		})
 	}

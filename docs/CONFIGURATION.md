@@ -1363,12 +1363,22 @@ layers = [
 | `label_background_border_radius`      | int    | `-1`    | Label corner radius (-1 = auto)                                              |
 | `label_background_border_width`       | int    | `1`     | Label border width                                                           |
 | `label_char`                          | string | `""`    | Override all cell labels with a single character (e.g. `·`); empty = use key |
-| `label_autohide_multiplier`           | float  | `1.5`   | Hide labels when cell < fontSize × multiplier (0 = disable)                  |
+| `min_font_size`                       | int    | `6`     | Smallest size a label or the sub-key preview shrinks to before it hides      |
+| `label_autohide_multiplier`           | float  | `1.5`   | Keep cell >= fontSize × multiplier by shrinking the label (0 = disable)      |
 | `sub_key_preview`                     | bool   | `false` | Show a mini-grid of the next level's keys inside each cell                    |
 | `sub_key_preview_font_size`           | int    | `8`     | Sub-key preview font size                                                    |
-| `sub_key_preview_autohide_multiplier` | float  | `1.5`   | Autohide threshold multiplier, measured against one sub-cell of that mini-grid |
+| `sub_key_preview_autohide_multiplier` | float  | `1.5`   | The same requirement for the preview, measured against one sub-cell of that mini-grid |
 | `sub_key_preview_text_color`          | color  | derived | Sub-key preview text color                                                   |
 | `sub_key_preview_label_char`          | string | `""`    | Override sub-key labels with a single character (e.g. `·`); empty = use key  |
+
+**Labels fit their cell.** `font_size` is the largest a label is drawn. As the
+cells narrow with depth, the label shrinks so that it fits the cell and the cell
+stays at least `label_autohide_multiplier` times the font size, and it hides
+only once that would take it under `min_font_size`. Every label in one draw
+shares one size. Set `min_font_size` to your `font_size` to never shrink: the
+label is then drawn at the configured size or not at all. The sub-key preview
+follows the same rule with `sub_key_preview_font_size` and
+`sub_key_preview_autohide_multiplier`, and shares the floor.
 
 ```toml
 [recursive_grid.ui]
@@ -1489,8 +1499,8 @@ are bound to the quadrant cuts, so rebinding them relabels the cells.
 
 The same options as [`[recursive_grid.ui]`](#ui-2), with the same defaults,
 read from `[bisect.ui]`. `label_char` overrides the four quadrant labels and
-`label_autohide_multiplier` hides them once a quadrant is too small for its
-key. The `sub_key_preview*` options are accepted for the shared shape and do
+`label_autohide_multiplier` and `min_font_size` shrink and then hide them as a
+quadrant gets too small for its key. The `sub_key_preview*` options are accepted for the shared shape and do
 nothing: a bisect level has no next level to preview.
 
 ```toml

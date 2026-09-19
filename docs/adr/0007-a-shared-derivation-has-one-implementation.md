@@ -80,27 +80,27 @@ are the precedent, not the exception.
   and the `HintPlacement` enum to the same numbering. It pins *which placement
   each value means*, not where the badge is then drawn — `hintRectForPlacement:`
   remains a single Objective-C implementation with no Go counterpart to
-  disagree with. The second such pin landed with the recursive-grid
-  label-autohide rule (#1298), where the copy is a rule rather than a constant:
-  `internal/architecture/label_autohide_rule_test.go` reads the Objective-C
-  guard in `drawGridLabel:` into something it can run, and holds its answer to
-  `recursivegrid.Style.ShowLabelIn` over the cases that separate them — the
-  multiplier that disables autohide, the threshold itself, and each cell
-  dimension one pixel under it. The third is the sub-key-preview autohide rule
-  (#1323), which is the same shape one level down — every sub-cell of the
-  mini-grid previewing the next depth must reach the multiplier times the
-  preview font size — and which this list had not named until it was pinned.
-  `internal/architecture/sub_key_preview_autohide_rule_test.go` read *both*
-  copies out of their sources and ran them against each other, rather than
-  running one and reading the other: the Go copy was behind
-  `//go:build linux && cgo`, so a test on the macOS host could not link it.
-  #1297 gave it an untagged home — `recursivegrid.Style.ShowSubKeyPreviewIn`,
-  beside `ShowLabelIn` — and what unblocked that was converging the Windows
-  drawing. Its predicate measured the whole cell rather than a sub-cell, which
-  was a real difference and not drift, because the two backends drew different
-  things: one mini-grid means one question, and one question means one
-  predicate. The pin now runs the shared Go rule and reads only the Objective-C
-  one, exactly as the label-autohide pin beside it does.
+  disagree with. Two more pins followed, where the copy was a rule rather than
+  a constant. They covered the recursive-grid label-autohide rule (#1298) and
+  the sub-key-preview autohide rule one level down (#1323). Each pin read the
+  Objective-C guard into something it could run, and compared its answer with
+  the Go rule over the cases that separate them. Those cases were the
+  multiplier that disables autohide, the threshold itself, and each dimension
+  one pixel under it. The second pin first had to read *both* copies out of
+  their sources, because the Go one was behind `//go:build linux && cgo` and a
+  test on the macOS host could not link it. #1297 gave the Go rule an untagged
+  home. That needed the Windows drawing to converge first, because its
+  predicate measured the whole cell rather than a sub-cell, and it did so
+  because it drew a different thing.
+  Both pins are gone again, for the reason this ADR prefers (#1691). The rule
+  stopped needing a native copy. The copy existed because macOS draws its depth
+  transition in Objective-C frames that never return to Go, so "does the label
+  fit this interpolated cell" had to be answered there. Fitting the font to the
+  cell turned that into a question a draw can answer before it starts. The
+  answers are the size and visibility a transition holds and the ones it
+  settles on (`recursivegrid.Style.FitTransition` and `FitDraw`), and both now
+  cross the bridge as plain values in `GridCellStyle`. The two pins and the
+  comparison vocabulary they shared were deleted with the copies.
 - **The exception is the half of this rule deletion cannot enforce, so what is
   pinned is inventoried here.** Seven language-boundary copies are pinned as of
   #1407: the three named above, plus the synthetic key-up and modifier-toggle

@@ -96,11 +96,10 @@ func objcEnumIntConstants(t *testing.T, repoRelPath, enumName string) map[string
 // cHeaderIntConstants and objcEnumIntConstants below cover the two shapes that
 // exist today, a numeric macro and an NS_ENUM member, and a copy that is a
 // rule rather than a constant brings its own pattern rather than a second
-// reader. label_autohide_rule_test.go and
-// sub_key_preview_autohide_rule_test.go are that third shape: they read their
-// copies through here and then run them, because a rule has no constant to
-// compare. What those two have in common — the comparisons, and how a
-// condition is split into them — lives in native_rule_test.go.
+// reader. Two pins of that third shape existed, for the recursive-grid label
+// autohide rule and its sub-key-preview twin, until #1691 gave both rules one
+// implementation and the copies went. How a pin finds the native definition it
+// reads lives in native_rule_test.go.
 func readNativeSource(t *testing.T, repoRelPath string) string {
 	t.Helper()
 

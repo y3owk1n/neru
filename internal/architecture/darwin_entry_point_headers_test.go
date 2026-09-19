@@ -445,12 +445,10 @@ var nativeStaticSpecifier = regexp.MustCompile(`\bstatic\b`)
 //
 // This is not nativeRuleMethodBody (native_rule_test.go) wearing a different
 // name. That one is handed the spelling of one definition and returns its body,
-// so that a pin can run the rule written inside it; a rename there has to fail
+// so that a pin can read the copy written inside it. A rename there has to fail
 // rather than pass over nothing, which is why it is addressed by name. This
 // asks the opposite question — what does this file state, whose names nobody
-// knows in advance — and has no body to read. Neither borrows the other's
-// vocabulary: the comparison operators that file centralizes are what a rule is
-// made of, and a signature has none.
+// knows in advance — and has no body to read.
 //
 // Reading text rather than preprocessed C, this cannot tell a declaration the
 // compiler sees from one behind an inactive #if — but it can refuse to be

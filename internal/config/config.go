@@ -519,6 +519,7 @@ type RecursiveGridUI struct {
 	TextColor                       Color   `json:"textColor"                       toml:"text_color"`
 	FontSize                        int     `json:"fontSize"                        toml:"font_size"`
 	FontFamily                      string  `json:"fontFamily"                      toml:"font_family"`
+	MinFontSize                     int     `json:"minFontSize"                     toml:"min_font_size"`
 	LabelBackground                 bool    `json:"labelBackground"                 toml:"label_background"`
 	LabelBackgroundColor            Color   `json:"labelBackgroundColor"            toml:"label_background_color"`
 	LabelBackgroundPaddingX         int     `json:"labelBackgroundPaddingX"         toml:"label_background_padding_x"`

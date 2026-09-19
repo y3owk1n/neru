@@ -178,7 +178,13 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, assign) CGFloat gridLabelBackgroundBorderRadius;  ///< Grid label badge border radius
 @property(nonatomic, assign) CGFloat gridLabelBackgroundBorderWidth;   ///< Grid label badge border width
 @property(nonatomic, assign) BOOL hideUnmatched;                       ///< Hide unmatched cells
-@property(nonatomic, assign) CGFloat gridLabelAutohideMultiplier;      ///< Main label autohide multiplier (0 = disable)
+@property(nonatomic, assign) BOOL gridHideLabel;                ///< Cells are too small for a label at any allowed size
+@property(nonatomic, strong) NSFont *gridTransitionFont;        ///< Label font held while a transition runs
+@property(nonatomic, assign) BOOL gridTransitionHideLabel;      ///< Hide labels while a transition runs
+@property(nonatomic, strong) NSFont *gridTransitionSubKeyFont;  ///< Preview font held while a transition runs
+@property(nonatomic, assign) BOOL gridTransitionHideSubKeyPreview;  ///< Hide the preview while a transition runs
+@property(nonatomic, strong)
+    NSMutableDictionary<NSString *, NSFont *> *gridTransitionFontCache;  ///< Transition fonts by family and size
 
 // Sub-key preview: draws a miniature key grid inside each cell
 @property(nonatomic, assign) BOOL gridDrawSubKeyPreview;          ///< Draw sub-key preview mini-grid
@@ -188,8 +194,6 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, strong) NSColor *gridSubKeyTextColor;        ///< Sub-key preview text color
 @property(nonatomic, assign) CGFloat cachedGridSubKeyFontSize;    ///< Cached sub-key font size
 @property(nonatomic, copy) NSString *cachedGridSubKeyFontFamily;  ///< Cached sub-key font family
-@property(nonatomic, assign)
-    CGFloat gridSubKeyAutohideMultiplier;  ///< Sub-key preview autohide multiplier (0 = disable)
 @property(nonatomic, strong)
     NSMutableAttributedString *cachedGridSubKeyAttributedString;     ///< Cached attributed string for sub-key drawing
 @property(nonatomic, strong) NSArray<NSString *> *gridSubKeyLabels;  ///< Labels for sub-key preview (next depth's keys)
@@ -270,6 +274,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 /// Tries [NSFont fontWithName:] first, then NSFontManager family lookup.
 /// Returns nil if the name cannot be resolved.
 - (NSFont *)resolveFont:(NSString *)name size:(CGFloat)size bold:(BOOL)bold;
+- (NSFont *)transitionFontForFamily:(NSString *)family size:(CGFloat)size;
 
 /// Resolve horizontal hint padding (-1 = auto based on font size).
 - (CGFloat)resolvedHintPaddingX;
@@ -344,8 +349,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		_gridLabelBackgroundPaddingY = -1.0;
 		_gridLabelBackgroundBorderRadius = -1.0;
 		_gridLabelBackgroundBorderWidth = 1.0;
-		_gridSubKeyAutohideMultiplier = 1.5;
-		_gridLabelAutohideMultiplier = 0.0;
+		_gridHideLabel = NO;
+		_gridTransitionHideLabel = NO;
+		_gridTransitionHideSubKeyPreview = NO;
+		_gridTransitionFontCache = [NSMutableDictionary dictionary];
 		_hideUnmatched = NO;
 		_cursorIndicatorVisible = NO;
 		_cursorIndicatorRadius = 3.0;
@@ -465,28 +472,31 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		CGFloat duration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
 		CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
 		CGFloat rawProgress = (CGFloat)(elapsed / duration);
-		CGFloat progress = [self currentGridTransitionProgress];
-
-		CGContextClearRect(ctx, self.bounds);
-		[self drawAnimatedGridCellsInRect:NSZeroRect progress:progress];
-		[self drawHints];
-		[self drawSearchInputInRect:NSZeroRect];
-		[self drawCursorIndicatorInRect:NSZeroRect];
 
 		if (rawProgress >= 1.0) {
+			// The frame a transition ends on is the settled draw itself, not one
+			// more interpolated frame followed by a request for a clean one. A
+			// setNeedsDisplay: made from inside this method does not come back.
+			// A settled frame has only the target grid's cells, and draws its
+			// labels at the size that fits them rather than the one the
+			// transition held.
 			[self cancelGridTransition];
 			[self cancelCursorIndicatorTransition];
-			// The final animated frame may still include interpolated cells that
-			// only existed in the previous layout (for example when shrinking from
-			// a dense grid to fewer cells). Force one clean redraw in the settled
-			// state so the overlay reflects only the target grid.
-			[self setNeedsDisplay:YES];
+			self.fullRedraw = YES;
+		} else {
+			CGFloat progress = [self currentGridTransitionProgress];
+
+			CGContextClearRect(ctx, self.bounds);
+			[self drawAnimatedGridCellsInRect:NSZeroRect progress:progress];
+			[self drawHints];
+			[self drawSearchInputInRect:NSZeroRect];
+			[self drawCursorIndicatorInRect:NSZeroRect];
+
+			self.fullRedraw = YES;
+			[NSGraphicsContext restoreGraphicsState];
+
+			return;
 		}
-
-		self.fullRedraw = YES;
-		[NSGraphicsContext restoreGraphicsState];
-
-		return;
 	}
 
 	if (self.fullRedraw) {
@@ -845,6 +855,24 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	NSColor *result = [NSColor colorWithRed:red green:green blue:blue alpha:alpha];
 	[self.colorCache setObject:result forKey:cacheKey];
 	return result;
+}
+
+/// The font a recursive-grid transition holds, by family and size. A depth's
+/// held size recurs every time that depth is reached, so the lookup behind
+/// resolveFont:size:bold: is paid once per size rather than once per keypress.
+/// Sizes are whole numbers no larger than the configured one, which bounds it.
+- (NSFont *)transitionFontForFamily:(NSString *)family size:(CGFloat)size {
+	NSString *key = [NSString stringWithFormat:@"%@|%.0f", family ?: @"", size];
+	NSFont *font = self.gridTransitionFontCache[key];
+	if (font)
+		return font;
+
+	if (family.length > 0)
+		font = [self resolveFont:family size:size bold:NO];
+	if (!font)
+		font = [NSFont systemFontOfSize:size];
+	self.gridTransitionFontCache[key] = font;
+	return font;
 }
 
 /// Resolve a font by name, accepting both PostScript names (e.g. "SFMono-Bold")
@@ -1572,24 +1600,21 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		return;
 	}
 
-	// Skip main label when cells are too small to render legibly.
-	// Each cell must be at least (multiplier × font size) in both dimensions.
-	// A multiplier of 0 disables autohide.
-	// This is the same rule as recursivegrid.Style.ShowLabelIn, which the Linux
-	// and Windows recursive-grid overlays call; the pin is
-	// internal/architecture/label_autohide_rule_test.go, and it reads this
-	// guard by its shape, so a rewrite fails it even when the behaviour holds.
-	if (self.gridLabelAutohideMultiplier > 0) {
-		CGFloat minCell = self.gridFont.pointSize * self.gridLabelAutohideMultiplier;
-		if (cellRect.size.width < minCell || cellRect.size.height < minCell)
-			return;
-	}
+	// Whether a label fits its cell, and at what size, is decided once per draw
+	// by recursivegrid.Style.LabelFontSizeIn and handed over already settled:
+	// the final answer, and the one a transition holds from its first frame to
+	// its last, since these frames never return to Go. Nothing is measured
+	// against the interpolated rect here.
+	BOOL inTransition = self.gridTransitionActive;
+	if (inTransition ? self.gridTransitionHideLabel : self.gridHideLabel)
+		return;
+	NSFont *labelFont = (inTransition && self.gridTransitionFont) ? self.gridTransitionFont : self.gridFont;
 
 	// Set up attributed string
 	NSMutableAttributedString *attrString = self.cachedGridCellAttributedString;
 	[[attrString mutableString] setString:label];
 	NSRange fullRange = NSMakeRange(0, [label length]);
-	[attrString setAttributes:@{NSFontAttributeName : self.gridFont} range:fullRange];
+	[attrString setAttributes:@{NSFontAttributeName : labelFont} range:fullRange];
 	[attrString addAttribute:NSForegroundColorAttributeName
 	                   value:[self color:self.cachedGridTextColor withMultipliedAlpha:alpha]
 	                   range:fullRange];
@@ -1610,11 +1635,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	}
 
 	// Compute badge dimensions
-	CGFloat horizontalPadding = self.gridLabelBackgroundPaddingX >= 0.0
-	                                ? self.gridLabelBackgroundPaddingX
-	                                : MAX(4.0, round(self.gridFont.pointSize * 0.4));
+	CGFloat horizontalPadding = self.gridLabelBackgroundPaddingX >= 0.0 ? self.gridLabelBackgroundPaddingX
+	                                                                    : MAX(4.0, round(labelFont.pointSize * 0.4));
 	CGFloat verticalPadding = self.gridLabelBackgroundPaddingY >= 0.0 ? self.gridLabelBackgroundPaddingY
-	                                                                  : MAX(2.0, round(self.gridFont.pointSize * 0.2));
+	                                                                  : MAX(2.0, round(labelFont.pointSize * 0.2));
 	CGFloat badgeWidth = MAX(textSize.width + (horizontalPadding * 2.0), textSize.height + (verticalPadding * 2.0));
 	CGFloat badgeHeight = textSize.height + (verticalPadding * 2.0);
 
@@ -1695,25 +1719,19 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	if (count != (NSUInteger)(cols * rows))
 		return;
 
-	NSFont *subFont = self.gridSubKeyFont;
+	// Settled once per draw by recursivegrid.Style.SubKeyPreviewFontSizeIn, the
+	// way drawGridLabel's font is.
+	BOOL inTransition = self.gridTransitionActive;
+	if (inTransition && self.gridTransitionHideSubKeyPreview)
+		return;
+	NSFont *subFont =
+	    (inTransition && self.gridTransitionSubKeyFont) ? self.gridTransitionSubKeyFont : self.gridSubKeyFont;
 	NSColor *subColor = self.gridSubKeyTextColor;
 	if (!subFont || !subColor)
 		return;
 
-	// Skip sub-key preview when sub-cells are too small to render legibly.
-	// Each sub-cell must be at least (multiplier × font size) in both dimensions.
-	// A multiplier of 0 disables autohide.
-	// This is the same rule as recursivegrid.Style.ShowSubKeyPreviewIn in
-	// internal/adapter/overlay/render/recursivegrid/subkeypreview.go, which the
-	// Cairo and GDI overlays both call; the pin is
-	// internal/architecture/sub_key_preview_autohide_rule_test.go, and it runs
-	// that shared rule against this one read out of this file by its shape, so
-	// a rewrite here fails it even when the behaviour holds.
 	CGFloat subCellWidth = cellRect.size.width / cols;
 	CGFloat subCellHeight = cellRect.size.height / rows;
-	CGFloat minSubCell = subFont.pointSize * self.gridSubKeyAutohideMultiplier;
-	if (self.gridSubKeyAutohideMultiplier > 0 && (subCellWidth < minSubCell || subCellHeight < minSubCell))
-		return;
 
 	// Determine center index to skip (only for odd cols × odd rows layouts)
 	NSUInteger centerIdx = NSNotFound;
@@ -2837,7 +2855,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
 	CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
 	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
-	CGFloat labelAutohideMultiplier = style.labelAutohideMultiplier;
+	BOOL hideLabel = style.hideLabel != 0;
 	BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
 	int subKeyGridCols = style.subKeyGridCols;
 	int subKeyGridRows = style.subKeyGridRows;
@@ -2848,7 +2866,6 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 		if (subKeyFontFamily.length == 0)
 			subKeyFontFamily = nil;
 	}
-	CGFloat subKeyAutohideMultiplier = style.subKeyAutohideMultiplier;
 	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
 
 	// Build sub-key labels array from the next-depth key string.
@@ -2909,7 +2926,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 			controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
 			controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
 			controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
-			controller.overlayView.gridLabelAutohideMultiplier = labelAutohideMultiplier;
+			controller.overlayView.gridHideLabel = hideLabel;
 
 			// Apply sub-key preview settings
 			controller.overlayView.gridDrawSubKeyPreview = drawSubKeyPreview;
@@ -2931,7 +2948,6 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 					controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
 					controller.overlayView.cachedGridSubKeyFontFamily = subKeyFontFamily;
 				}
-				controller.overlayView.gridSubKeyAutohideMultiplier = subKeyAutohideMultiplier;
 				controller.overlayView.gridSubKeyTextColor = [controller.overlayView colorFromHex:subKeyTextHex
 				                                                                     defaultColor:[NSColor grayColor]];
 			}
@@ -2986,18 +3002,22 @@ void NeruAnimateRecursiveGridTransition(
 	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
 	CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
 	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
-	CGFloat labelAutohideMultiplier = style.labelAutohideMultiplier;
+	BOOL hideLabel = style.hideLabel != 0;
+	CGFloat transitionFontSize = style.transitionFontSize > 0 ? style.transitionFontSize : fontSize;
+	BOOL transitionHideLabel = style.transitionHideLabel != 0;
+	BOOL transitionHideSubKeyPreview = style.transitionHideSubKeyPreview != 0;
 	BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
 	int subKeyGridCols = style.subKeyGridCols;
 	int subKeyGridRows = style.subKeyGridRows;
 	CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
+	CGFloat transitionSubKeyFontSize =
+	    style.transitionSubKeyFontSize > 0 ? style.transitionSubKeyFontSize : subKeyFontSize;
 	NSString *subKeyFontFamily = nil;
 	if (style.subKeyFontFamily) {
 		subKeyFontFamily = @(style.subKeyFontFamily);
 		if (subKeyFontFamily.length == 0)
 			subKeyFontFamily = nil;
 	}
-	CGFloat subKeyAutohideMultiplier = style.subKeyAutohideMultiplier;
 	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
 
 	NSString *subKeyKeysStr = style.subKeyKeys ? @(style.subKeyKeys) : nil;
@@ -3053,7 +3073,7 @@ void NeruAnimateRecursiveGridTransition(
 			controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
 			controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
 			controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
-			controller.overlayView.gridLabelAutohideMultiplier = labelAutohideMultiplier;
+			controller.overlayView.gridHideLabel = hideLabel;
 			controller.overlayView.gridDrawSubKeyPreview = drawSubKeyPreview;
 			controller.overlayView.gridSubKeyCols = subKeyGridCols;
 			controller.overlayView.gridSubKeyRows = subKeyGridRows;
@@ -3073,10 +3093,22 @@ void NeruAnimateRecursiveGridTransition(
 					controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
 					controller.overlayView.cachedGridSubKeyFontFamily = subKeyFontFamily;
 				}
-				controller.overlayView.gridSubKeyAutohideMultiplier = subKeyAutohideMultiplier;
 				controller.overlayView.gridSubKeyTextColor = [controller.overlayView colorFromHex:subKeyTextHex
 				                                                                     defaultColor:[NSColor grayColor]];
 			}
+
+			// What the transition holds from its first frame to its last. The fonts
+			// come from a cache by size. A depth's held size recurs on every visit.
+			controller.overlayView.gridTransitionHideLabel = transitionHideLabel;
+			controller.overlayView.gridTransitionFont =
+			    transitionHideLabel
+			        ? nil
+			        : [controller.overlayView transitionFontForFamily:fontFamily size:transitionFontSize];
+			controller.overlayView.gridTransitionHideSubKeyPreview = transitionHideSubKeyPreview;
+			controller.overlayView.gridTransitionSubKeyFont =
+			    (drawSubKeyPreview && !transitionHideSubKeyPreview)
+			        ? [controller.overlayView transitionFontForFamily:subKeyFontFamily size:transitionSubKeyFontSize]
+			        : nil;
 
 			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
 			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;

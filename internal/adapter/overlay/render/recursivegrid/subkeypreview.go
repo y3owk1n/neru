@@ -3,6 +3,7 @@ package recursivegrid
 import (
 	"image"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 )
@@ -45,42 +46,57 @@ func (s Style) PreviewsNextDepth(nextKeyCount int, nextDims domain.GridDimension
 		nextDims.Cols > 0 && nextDims.Rows > 0
 }
 
-// ShowSubKeyPreviewIn reports whether a cell is divided finely enough for the
-// mini-grid previewing the next depth to be worth drawing in it: every sub-cell
-// must reach sub_key_preview_autohide_multiplier x the preview font size in
-// both width and height. A non-positive multiplier disables autohide, so the
-// preview always shows.
+// SubKeyPreviewFontSizeIn returns the size to draw the mini-grid previewing the
+// next depth at, and whether to draw it at all. It is LabelFontSizeIn's rule
+// with the preview's own settings. Here sub_key_preview_font_size is the ceiling,
+// sub_key_preview_autohide_multiplier the room it keeps, and min_font_size the
+// floor the two share.
 //
-// The measured rectangle is a sub-cell rather than the whole cell, because a
-// sub-cell is what a preview key is drawn in — the multiplier answers "is there
-// room for this text", and the text sits in the sub-cell. The Cairo and GDI
-// backends both call this, and macOS asks the same question in Objective-C
-// (drawSubKeyPreviewInCellRect: in
-// internal/adapter/platform/darwin/overlay_darwin.m), so Go cannot be its one
-// implementation; ADR 0007 asks for a test holding that copy to this one
-// instead, and internal/architecture/sub_key_preview_autohide_rule_test.go is
-// it — change the rule here and that test fails until the Objective-C copy
-// follows.
+// The rectangle fitted is a sub-cell rather than the whole cell, because a
+// sub-cell is what a preview key is drawn in. It is sized by dividing each cell
+// the way SubKeyPreviewCells will, less the pixel the remainder can give one
+// sub-cell over another, so no layout is built just to be measured. Windows
+// measured the whole cell until #1297, because it drew a single label along the
+// bottom of the cell rather than a mini-grid.
 //
-// Windows measured the whole cell until #1297, because it drew a single label
-// along the bottom of the cell rather than a mini-grid. That drawing is gone and
-// so is the rectangle it justified: the same configured number now hides the
-// preview at the same size on all three platforms, and on Windows it hides it in
-// cells it used to keep drawing in.
-func (s Style) ShowSubKeyPreviewIn(cell image.Rectangle, nextDims domain.GridDimensions) bool {
-	if !s.subKeyPreview {
-		return false
+// Like LabelFontSizeIn it takes every cell the preview will be drawn in, a
+// transition's first frame with its last, and answers for the smallest.
+func (s Style) SubKeyPreviewFontSizeIn(
+	scale float64,
+	nextDims domain.GridDimensions,
+	cells ...image.Rectangle,
+) (float64, bool) {
+	if !s.subKeyPreview || nextDims.Cols <= 0 || nextDims.Rows <= 0 {
+		return 0, false
 	}
 
-	if s.subKeyPreviewAutohideMultiplier <= 0 {
-		return true
+	fit := badge.FontFit{
+		Requested:  s.SubKeyPreviewFontSizeF(),
+		Floor:      float64(s.minFontSize),
+		Multiplier: s.subKeyPreviewAutohideMultiplier,
+		Metrics:    s.subKeyPreviewMetrics,
 	}
 
-	threshold := s.SubKeyPreviewFontSizeF() * s.subKeyPreviewAutohideMultiplier
-	subCellW := float64(cell.Dx()) / float64(nextDims.Cols)
-	subCellH := float64(cell.Dy()) / float64(nextDims.Rows)
+	// The smallest sub-cell decides, as in FontFit.SizeAcross. This runs on
+	// every keypress, so it keeps the running answer and builds no slice.
+	size, show := 0.0, false
 
-	return subCellW >= threshold && subCellH >= threshold
+	for _, cell := range cells {
+		subCell := image.Rect(0, 0, cell.Dx()/nextDims.Cols, cell.Dy()/nextDims.Rows)
+
+		fitted, fits := fit.SizeIn(subCell, scale)
+		if !fits {
+			return 0, false
+		}
+
+		if !show || fitted < size {
+			size = fitted
+		}
+
+		show = true
+	}
+
+	return size, show
 }
 
 // SubKeyPreviewCells lays the mini-grid out inside one cell: the next depth's
