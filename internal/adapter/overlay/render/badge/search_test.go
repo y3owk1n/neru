@@ -112,7 +112,7 @@ func TestSearchBounds(t *testing.T) {
 
 			got := badge.SearchBounds(
 				testCase.position, testCase.minWidth, label,
-				testCase.fontSize, testCase.paddingX, testCase.paddingY,
+				badge.TextFont{Size: testCase.fontSize}, testCase.paddingX, testCase.paddingY,
 			)
 			if got != testCase.want {
 				t.Errorf("SearchBounds() = %v, want %v", got, testCase.want)

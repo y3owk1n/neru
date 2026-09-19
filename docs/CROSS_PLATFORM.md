@@ -210,8 +210,17 @@ family name (`internal/adapter/platform/fontcache`).
 **Text measurement** (`ports.TextMeasurer`) is the same text layer asked how
 much room a string takes, off the draw path and cached per string and font in
 the same package. It never hops to a UI thread. On Windows GDI measures for
-both renderers; the non-CGO Linux build has no Cairo and reports
+both renderers. The non-CGO Linux build has no Cairo and reports
 `CodeNotSupported`, which leaves callers on their estimate.
+
+The Linux and Windows backends size every box drawn around text from it: hint
+badges, the hint search badge, the mode and sticky-modifier indicators,
+recursive-grid label plates and the monitor picker's badge (`badge.TextWidth`,
+summed per character from a table per font, so a draw asks the text layer once
+per distinct character). They used to give every character 0.7 of the font
+size, which a W outgrows and an I never fills, so a box clipped wide labels on
+the GDI renderer, which clips text to its rectangle, and sat loose around narrow
+ones. macOS has always measured.
 
 ² **Service management** is the one row whose limit is not the display server:
 it needs **systemd**, on every Linux backend. runit, OpenRC and s6 get
@@ -668,13 +677,13 @@ backtracking, and every scroll granularity.
 > the Style was built (`ports.TextMeasurer`), and `FitTransition` answers what
 > a depth transition holds from its first frame to its last. macOS is handed
 > both answers before its animation starts, because its frames never return to
-> Go, which is what let its Objective-C copy of the autohide rule and the two
-> tests pinning it go. The fit takes the display scale, so a dense X11 or
-> Windows display no longer keeps a label its drawn font has outgrown.
+> Go. Its Objective-C copy of the autohide rule and the two tests pinning that
+> copy were deleted. The fit takes the display scale, so a dense X11 or Windows
+> display no longer keeps a label that its drawn font has outgrown.
 > Grid mode fits its labels the same way (`grid.Style.LabelFontSizeFor`), at
 > the alphabet's average character width and never hiding one. The monitor
 > picker fits its key and the monitor's name to the badge, per monitor
-> (`manager.MonitorSelectStyle.FittedTo`): all three backends capped the badge
+> (`manager.MonitorSelectStyle.FittedTo`). All three backends capped the badge
 > at 80% of the monitor and none of them fitted the text drawn in it.
 
 ---

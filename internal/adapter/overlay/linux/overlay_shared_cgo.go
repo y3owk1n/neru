@@ -661,9 +661,9 @@ func (o *sharedOverlay) drawMonitorSelect(
 			o.drawRect(target.Bounds, spec.backdrop, 0, 0)
 		}
 
-		// Each monitor fits its own text: they differ in size, and so do their
-		// names. The panel is laid out from the fitted style, so it hugs the
-		// text that is actually drawn.
+		// Each monitor fits its own text, because they differ in size, and so do their
+		// names. The panel is laid out from the fitted style, so it is sized
+		// to the text that is drawn.
 		fitted := style.FittedTo(target, o.srf.surfaceScale())
 
 		panel, labelRect, subtitleRect, radius := monitorSelectPanelLayout(
@@ -766,7 +766,8 @@ func (o *sharedOverlay) repaintHints(
 		sfont := fontSize * o.srf.surfaceScale()
 		paddingX := badge.AutoPadding(sfont, style.PaddingX(), true)
 		paddingY := badge.AutoPadding(sfont, style.PaddingY(), false)
-		badgeWidth := badge.EstimateTextWidth(label, sfont) + paddingX*paddingMultiplier
+		badgeWidth := badge.TextWidth(label, style.FontFamily(), sfont, true) +
+			paddingX*paddingMultiplier
 		badgeHeight := badge.EstimateTextHeight(sfont) + paddingY*paddingMultiplier
 
 		radius := style.BorderRadius()
@@ -837,7 +838,7 @@ func (o *sharedOverlay) drawHintSearchInput(
 		frame.Position(),
 		frame.Width(),
 		label,
-		fontSize*o.srf.surfaceScale(),
+		badge.TextFont{Family: style.FontFamily(), Size: fontSize * o.srf.surfaceScale()},
 		style.PaddingX(),
 		style.PaddingY(),
 	))
@@ -1084,8 +1085,9 @@ func (o *sharedOverlay) startGridAnimation(
 	startTime := time.Now()
 	o.animSettled = false
 
-	// Settled before the first frame, so no frame fits a font of its own: what
-	// the transition holds, and what the frame it settles on is drawn at.
+	// Both are fitted before the first frame, so no frame fits a font of its
+	// own. held is what the transition draws at, and settled is what the frame
+	// it ends on draws at.
 	scale := o.srf.surfaceScale()
 	held := style.FitTransition(scale, fromRects, toRects, nextDims)
 	settled := style.FitDraw(scale, toRects, nextDims)
@@ -1335,7 +1337,7 @@ func (o *sharedOverlay) redrawGrid() {
 	prefix := o.currentPrefix
 
 	// One size for the whole grid, fitted once per draw rather than per cell.
-	// The cells are device pixels; drawTextCentered applies the surface scale.
+	// The cells are device pixels, and drawTextCentered applies the surface scale.
 	labelSize := style.LabelFontSizeFor(o.srf.surfaceScale(), o.cachedGrid)
 
 	for _, cell := range o.cachedGrid.AllCells() {
@@ -1475,7 +1477,7 @@ func (o *sharedOverlay) drawLabelBackground(
 		style.LabelBackgroundPaddingX(), true)
 	paddingY := badge.AutoPadding(fontSize,
 		style.LabelBackgroundPaddingY(), false)
-	width := badge.EstimateTextWidth(label, fontSize) +
+	width := badge.TextWidth(label, style.FontFamily(), fontSize, false) +
 		paddingX*paddingMultiplier
 	height := badge.EstimateTextHeight(fontSize) +
 		paddingY*paddingMultiplier

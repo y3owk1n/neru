@@ -167,7 +167,7 @@ func TestEstimateTextHeight_LineHeightHeuristic(t *testing.T) {
 func TestBounds_AnchorsAndFallbackFontSize(t *testing.T) {
 	t.Parallel()
 
-	got := badge.Bounds(100, 200, 10, 20, "ab", 10, 0, 0)
+	got := badge.Bounds(100, 200, 10, 20, "ab", badge.TextFont{Size: 10}, 0, 0)
 
 	wantW := badge.EstimateTextWidth("ab", 10)
 	wantH := badge.EstimateTextHeight(10)
@@ -178,7 +178,7 @@ func TestBounds_AnchorsAndFallbackFontSize(t *testing.T) {
 	}
 
 	// Non-positive font size must not produce a zero-size badge.
-	fallback := badge.Bounds(0, 0, 0, 0, "ab", 0, -1, -1)
+	fallback := badge.Bounds(0, 0, 0, 0, "ab", badge.TextFont{}, -1, -1)
 	if fallback.Dx() == 0 || fallback.Dy() == 0 {
 		t.Errorf("Bounds with zero font size = %v, want non-empty", fallback)
 	}

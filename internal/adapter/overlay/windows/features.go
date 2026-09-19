@@ -102,9 +102,8 @@ func (o *winOverlay) DrawHints(
 		fontSize := float64(max(style.FontSize(), 1)) * scale
 		paddingX := badge.AutoPadding(fontSize, scaledConfig(style.PaddingX(), scale), true)
 		paddingY := badge.AutoPadding(fontSize, scaledConfig(style.PaddingY(), scale), false)
-		badgeWidth := badge.EstimateTextWidth(
-			hint.Label(),
-			fontSize,
+		badgeWidth := badge.TextWidth(
+			hint.Label(), style.FontFamily(), fontSize, true,
 		) + paddingX*winPaddingMultiplier
 		badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 
@@ -431,7 +430,8 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 		scaledConfig(style.LabelBackgroundPaddingY(), scale),
 		false,
 	)
-	width := badge.EstimateTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
+	width := badge.TextWidth(label, style.FontFamily(), fontSize, false) +
+		paddingX*winPaddingMultiplier
 	height := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	rect := badge.CenteredIn(cell, width, height)
 

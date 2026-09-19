@@ -30,8 +30,8 @@ func SearchLabel(query string, resultCount int) string {
 }
 
 // SearchBounds returns the rectangle a hint-search badge occupies: the label
-// sized by the shared font estimates, padded on both axes, anchored at position
-// and never narrower than minWidth.
+// sized in the font it is drawn in (Size), padded on both axes, anchored at
+// position and never narrower than minWidth.
 //
 // minWidth is `hints.search_input_ui.width`, and it is a floor rather than the
 // width because the label is the point of the badge: a query that outgrew the
@@ -41,10 +41,10 @@ func SearchBounds(
 	position image.Point,
 	minWidth int,
 	label string,
-	fontSize float64,
+	font TextFont,
 	paddingX, paddingY int,
 ) image.Rectangle {
-	bounds := Bounds(position.X, position.Y, 0, 0, label, fontSize, paddingX, paddingY)
+	bounds := Bounds(position.X, position.Y, 0, 0, label, font, paddingX, paddingY)
 
 	if bounds.Dx() < minWidth {
 		bounds.Max.X = bounds.Min.X + minWidth

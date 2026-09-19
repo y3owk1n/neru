@@ -916,12 +916,12 @@ func monitorSelectPanelLayout(
 		)
 	}
 
-	labelW := badge.EstimateTextWidth(label, labelFont)
+	labelW := badge.TextWidth(label, style.FontFamily, labelFont, true)
 	labelH := badge.EstimateTextHeight(labelFont)
 
 	subW, subH, gap := 0, 0, 0
 	if subtitle != "" {
-		subW = badge.EstimateTextWidth(subtitle, subFont)
+		subW = badge.TextWidth(subtitle, style.SubtitleFontFamily, subFont, false)
 		subH = badge.EstimateTextHeight(subFont)
 		gap = int(math.Round(float64(monitorSelectLabelGap) * scale))
 	}
@@ -975,7 +975,7 @@ func monitorSelectPanelLayout(
 }
 
 // monitorSelectDrawSpec holds the once-parsed colors shared by both backends'
-// DrawMonitorSelect. The font sizes are not here: each target fits its own
+// DrawMonitorSelect. The font sizes are not here, because each target fits its own
 // (manager.MonitorSelectStyle.FittedTo), and the base size is passed to
 // drawTextCentered, which applies the backend scale (X11) or none (Wayland).
 // Like darwin, every panel's label uses the single text color (matched/selected
@@ -1445,7 +1445,8 @@ func badgeBounds(posX, posY int, text string, style overlayBadgeStyle) image.Rec
 		posX, posY,
 		style.offsetX, style.offsetY,
 		text,
-		style.fontSize,
+		// An indicator badge is drawn bold (drawBadge).
+		badge.TextFont{Family: style.fontFamily, Size: style.fontSize, Bold: true},
 		style.paddingX, style.paddingY,
 	)
 }

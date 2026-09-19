@@ -78,14 +78,24 @@ func EstimateTextHeight(fontSize float64) int {
 	return int(math.Ceil(fontSize * textHeightMultiplier))
 }
 
-// Size returns the outer badge width and height for text at the given font
-// size, applying auto padding on both axes.
-func Size(text string, fontSize float64, paddingX, paddingY int) (int, int) {
-	resolvedX := AutoPadding(fontSize, paddingX, true)
-	resolvedY := AutoPadding(fontSize, paddingY, false)
+// TextFont is the font a badge's text is drawn in, which is what its width
+// depends on.
+type TextFont struct {
+	Family string
+	Size   float64
+	Bold   bool
+}
 
-	width := EstimateTextWidth(text, fontSize) + resolvedX*paddingSideCount
-	height := EstimateTextHeight(fontSize) + resolvedY*paddingSideCount
+// Size returns the outer badge width and height for text drawn in font,
+// applying auto padding on both axes. The width is the text's measured width
+// (TextWidth). The height stays the line-height estimate, which is a choice
+// about how much padding a badge has rather than a guess at its text.
+func Size(text string, font TextFont, paddingX, paddingY int) (int, int) {
+	resolvedX := AutoPadding(font.Size, paddingX, true)
+	resolvedY := AutoPadding(font.Size, paddingY, false)
+
+	width := TextWidth(text, font.Family, font.Size, font.Bold) + resolvedX*paddingSideCount
+	height := EstimateTextHeight(font.Size) + resolvedY*paddingSideCount
 
 	return width, height
 }
@@ -96,14 +106,14 @@ func Size(text string, fontSize float64, paddingX, paddingY int) (int, int) {
 func Bounds(
 	posX, posY, offsetX, offsetY int,
 	text string,
-	fontSize float64,
+	font TextFont,
 	paddingX, paddingY int,
 ) image.Rectangle {
-	if fontSize <= 0 {
-		fontSize = fallbackFontSize
+	if font.Size <= 0 {
+		font.Size = fallbackFontSize
 	}
 
-	width, height := Size(text, fontSize, paddingX, paddingY)
+	width, height := Size(text, font, paddingX, paddingY)
 
 	return image.Rect(
 		posX+offsetX,

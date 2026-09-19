@@ -398,7 +398,8 @@ func (m *Manager) DrawHintSearchInput(
 		label += " /"
 	}
 
-	badgeWidth := badge.EstimateTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
+	badgeWidth := badge.TextWidth(label, style.FontFamily(), fontSize, false) +
+		paddingX*winPaddingMultiplier
 	badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	bounds := image.Rect(pos.X, pos.Y, pos.X+max(badgeWidth, width), pos.Y+badgeHeight)
 
@@ -476,7 +477,9 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 
 	paddingX := badge.AutoPadding(fontSize, scaledConfig(cfg.UI.PaddingX, scale), true)
 	paddingY := badge.AutoPadding(fontSize, scaledConfig(cfg.UI.PaddingY, scale), false)
-	badgeWidth := badge.EstimateTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
+	badgeWidth := badge.TextWidth(
+		label, ports.ResolveFont(cfg.UI.FontFamily), fontSize, true,
+	) + paddingX*winPaddingMultiplier
 	badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	borderWidth := scaledInt(max(cfg.UI.BorderWidth, 0), scale)
 
@@ -583,7 +586,9 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 
 	paddingX := badge.AutoPadding(fontSize, scaledConfig(indicatorUI.PaddingX, scale), true)
 	paddingY := badge.AutoPadding(fontSize, scaledConfig(indicatorUI.PaddingY, scale), false)
-	badgeWidth := badge.EstimateTextWidth(symbols, fontSize) + paddingX*winPaddingMultiplier
+	badgeWidth := badge.TextWidth(
+		symbols, ports.ResolveFont(indicatorUI.FontFamily), fontSize, true,
+	) + paddingX*winPaddingMultiplier
 	badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	borderWidth := scaledInt(max(indicatorUI.BorderWidth, 0), scale)
 
