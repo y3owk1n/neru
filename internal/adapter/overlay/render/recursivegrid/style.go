@@ -336,14 +336,8 @@ const widestCommonLabel = "W"
 // which is why it runs where a style is built and never in a draw. Labels are
 // drawn upper-cased, one key to a cell, unless label_char replaces them all.
 func (s Style) measureLabels(keys string) Style {
-	upperKeys := []rune(strings.ToUpper(keys))
-
-	alphabet := make([]string, 0, len(upperKeys)+1)
-	alphabet = append(alphabet, widestCommonLabel)
-
-	for _, key := range upperKeys {
-		alphabet = append(alphabet, string(key))
-	}
+	// One string per character: splitting on "" cuts at every UTF-8 sequence.
+	alphabet := strings.Split(widestCommonLabel+strings.ToUpper(keys), "")
 
 	labels := alphabet
 	if s.labelChar != "" {

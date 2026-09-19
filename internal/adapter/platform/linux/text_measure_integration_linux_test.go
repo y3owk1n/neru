@@ -94,11 +94,7 @@ func TestTextMeasurer_Measure_IsSafeOffTheMainThread(t *testing.T) {
 	var group sync.WaitGroup
 
 	for range 8 {
-		group.Add(1)
-
-		go func() {
-			defer group.Done()
-
+		group.Go(func() {
 			for size := 8; size < 40; size++ {
 				_, err := NewTextMeasurer().Measure("AB", "sans-serif", float64(size), false)
 				if err != nil {
@@ -107,7 +103,7 @@ func TestTextMeasurer_Measure_IsSafeOffTheMainThread(t *testing.T) {
 					return
 				}
 			}
-		}()
+		})
 	}
 
 	group.Wait()

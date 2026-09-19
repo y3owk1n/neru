@@ -80,13 +80,13 @@ func measureText(text, family string, size float64, bold bool) (ports.TextMetric
 	var extent gdiSize
 
 	// The length excludes the terminator UTF16FromString appends.
-	ok, _, _ := procGetTextExtentPoint32W.Call(
+	measured, _, _ := procGetTextExtentPoint32W.Call(
 		hdc,
 		uintptr(unsafe.Pointer(&utf16Text[0])),
 		uintptr(len(utf16Text)-1),
 		uintptr(unsafe.Pointer(&extent)),
 	)
-	if ok == 0 {
+	if measured == 0 {
 		return ports.TextMetrics{}, derrors.New(
 			derrors.CodeInternal,
 			"GetTextExtentPoint32W failed",

@@ -118,7 +118,7 @@ func TestWinOverlay_DrawRecursiveGrid_FitsTheLabelToItsCell(t *testing.T) {
 			}
 
 			if _, found := window.sizeOf("G"); !found {
-				t.Errorf("painted %v, want the centre key among them", window.texts)
+				t.Errorf("painted %v, want the middle key among them", window.texts)
 			}
 		})
 	}
