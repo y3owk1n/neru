@@ -954,6 +954,24 @@ func TestParse_CycleLists(t *testing.T) {
 			args:    []string{argToggle, "--capture-scope=window,screen"},
 			wantErr: "--toggle cannot be combined with a cycle list",
 		},
+		{
+			name: "two lists in one command",
+			mode: domain.ModeHints,
+			args: []string{
+				"--strategy=" + domain.StrategyVision + "," + domain.StrategyContour,
+				"--capture-scope=window,screen",
+			},
+			wantErr: "only one flag per command can take a cycle list",
+		},
+		{
+			name: "split-word alongside a strategy list",
+			mode: domain.ModeHints,
+			args: []string{
+				"--strategy=" + domain.StrategyVision + "," + domain.StrategyAXTree,
+				modecmd.FlagSplitWord.Long(),
+			},
+			wantErr: "--split-word cannot be combined with a --strategy cycle list",
+		},
 	}
 
 	for _, testCase := range tests {

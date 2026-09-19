@@ -19,6 +19,8 @@ const (
 	msgModifierRequiresAction          = "--modifier requires --action"
 	msgHideOnEmptySearchRequiresSearch = "--hide-on-empty-search requires --search"
 	msgToggleWithCycle                 = "--toggle cannot be combined with a cycle list, because --toggle exits an open mode and a cycle list advances it"
+	msgTwoCycles                       = "only one flag per command can take a cycle list, because two lists advance together and never mix, so give --strategy or --capture-scope a single value"
+	msgSplitWordWithCycle              = "--split-word cannot be combined with a --strategy cycle list, because word splitting needs the vision strategy on every step"
 	msgModifierEmpty                   = "modifier values cannot be empty"
 	msgNameRequired                    = "mode requires the name of a declared mode: mode <name>"
 	msgNameInvalid                     = "a mode name starts with a letter and continues with letters, digits, _ or -"
@@ -104,6 +106,21 @@ var dependencies = []dependency{
 			return isTrue(a.Toggle) && (len(a.StrategyCycle) > 0 || len(a.CaptureScopeCycle) > 0)
 		},
 		message: msgToggleWithCycle,
+	},
+	// Two lists advance on the same press, so the entries stay paired and
+	// half the combinations are never reached. It reads as one list not
+	// cycling, which is why it is refused.
+	{
+		unmet: func(a Activation) bool {
+			return len(a.StrategyCycle) > 0 && len(a.CaptureScopeCycle) > 0
+		},
+		message: msgTwoCycles,
+	},
+	// A cycle names each value once, so a --strategy list always holds an
+	// entry other than vision, and hint generation refuses --split-word there.
+	{
+		unmet:   func(a Activation) bool { return isTrue(a.SplitWord) && len(a.StrategyCycle) > 0 },
+		message: msgSplitWordWithCycle,
 	},
 }
 

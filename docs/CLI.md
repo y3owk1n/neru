@@ -336,7 +336,11 @@ nothing.
   the configuration chose, so a session opened on `vision` moves to `axtree`.
   If the list does not name the value in use, the first entry is taken. A list
   may name each value once. It is refused alongside `--toggle`, because both
-  give the second press a meaning.
+  give the second press a meaning. Only one flag per command can take a list,
+  since two lists would advance together and never mix. To cycle both, bind
+  one key to each, and the flag a command leaves out keeps the value the open
+  session has. `--split-word` is refused with a `--strategy` list, because it
+  needs `vision` on every step.
 
 **Where the defaults come from**
 
