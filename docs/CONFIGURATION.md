@@ -1244,7 +1244,7 @@ one subgrid cell unlabelled, which is visible on screen in a way a warning is no
 
 | Option                     | Type   | Default | Description                          |
 | -------------------------- | ------ | ------- | ------------------------------------ |
-| `font_size`                | int    | `10`    | Font size in points                  |
+| `font_size`                | int    | `10`    | Largest label size in points; see below |
 | `font_family`              | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `border_width`             | int    | `1`     | Border width in pixels               |
 | `background_color`         | color  | derived | Cell background                      |
@@ -1253,6 +1253,12 @@ one subgrid cell unlabelled, which is visible on screen in a way a warning is no
 | `matched_background_color` | color  | derived | Matched cell background              |
 | `matched_border_color`     | color  | derived | Matched cell border                  |
 | `border_color`             | color  | derived | Default cell border                  |
+
+**Labels fit their cell.** `font_size` is the largest a label is drawn. A size
+too large for the grid's cells is drawn smaller, at one size for the whole grid,
+so that a label of ordinary characters fits its cell. Subgrid labels follow the
+same rule. A grid label is never hidden, since typing it is the mode, and the
+default size fits the smallest cells the grid makes, so it draws as configured.
 
 ```toml
 [grid.ui]

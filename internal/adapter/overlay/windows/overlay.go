@@ -541,6 +541,9 @@ func (o *winOverlay) drawGridCells() {
 	prefix := o.currentPrefix
 	scale := o.scale()
 
+	// One size for the whole grid, fitted once per draw rather than per cell.
+	labelSize := style.LabelFontSizeFor(scale, o.cachedGrid)
+
 	for _, cell := range o.cachedGrid.AllCells() {
 		label := strings.ToUpper(cell.Coordinate())
 
@@ -567,7 +570,7 @@ func (o *winOverlay) drawGridCells() {
 				label,
 				cell.Bounds(),
 				style.FontFamily(),
-				style.LabelFontSize()*scale,
+				labelSize*scale,
 				text,
 				false,
 			)
@@ -607,6 +610,7 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 	// moves the cursor into (internal/domain/grid/subgrid_cells.go).
 	cells := domainGrid.SubgridCells(bounds, domain.SubgridDimensions())
 	scale := o.scale()
+	labelSize := style.SubgridLabelFontSizeIn(scale, winSubgridFontScale, cells)
 
 	// One cell per key, and fewer keys than cells is a configuration that
 	// leaves the last cells unlabelled: the key set is capped at the same count
@@ -619,7 +623,7 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 			string(key),
 			cell,
 			style.FontFamily(),
-			style.LabelFontSize()*winSubgridFontScale*scale,
+			labelSize*scale,
 			style.TextColorARGB(),
 			false,
 		)

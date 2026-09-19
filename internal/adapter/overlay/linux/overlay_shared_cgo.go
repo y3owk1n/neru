@@ -1329,6 +1329,10 @@ func (o *sharedOverlay) redrawGrid() {
 	style := o.cachedStyle
 	prefix := o.currentPrefix
 
+	// One size for the whole grid, fitted once per draw rather than per cell.
+	// The cells are device pixels; drawTextCentered applies the surface scale.
+	labelSize := style.LabelFontSizeFor(o.srf.surfaceScale(), o.cachedGrid)
+
 	for _, cell := range o.cachedGrid.AllCells() {
 		label := strings.ToUpper(cell.Coordinate())
 
@@ -1350,7 +1354,7 @@ func (o *sharedOverlay) redrawGrid() {
 		cellBounds := o.offset(cell.Bounds())
 		o.drawRect(cellBounds, fill, border, style.LineWidth())
 		o.drawTextCentered(label, cellBounds,
-			style.FontFamily(), style.LabelFontSize(), text, false)
+			style.FontFamily(), labelSize, text, false)
 	}
 
 	o.paintGridPointer()
@@ -1369,6 +1373,7 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 	// The rectangles they are drawn on, which are the rectangles the mode layer
 	// moves the cursor into (internal/domain/grid/subgrid_cells.go).
 	cells := domainGrid.SubgridCells(bounds, domain.SubgridDimensions())
+	labelSize := style.SubgridLabelFontSizeIn(o.srf.surfaceScale(), subgridFontScale, cells)
 
 	// One cell per key, and fewer keys than cells is a configuration that
 	// leaves the last cells unlabelled: the key set is capped at the same count
@@ -1381,7 +1386,7 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 		o.drawTextCentered(
 			string(key), cell,
 			style.FontFamily(),
-			style.LabelFontSize()*subgridFontScale,
+			labelSize,
 			style.TextColorARGB(),
 			false,
 		)

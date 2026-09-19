@@ -671,6 +671,8 @@ backtracking, and every scroll granularity.
 > Go, which is what let its Objective-C copy of the autohide rule and the two
 > tests pinning it go. The fit takes the display scale, so a dense X11 or
 > Windows display no longer keeps a label its drawn font has outgrown.
+> Grid mode fits its labels the same way (`grid.Style.LabelFontSizeFor`), at
+> the alphabet's average character width and never hiding one.
 
 ---
 

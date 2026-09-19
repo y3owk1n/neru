@@ -405,7 +405,7 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 	// Full redraw
 	o.Clear()
 	visibleCells := o.filterCellsByViewport(cells)
-	o.drawGridCells(visibleCells, currentInput, style)
+	o.drawGridCells(visibleCells, currentInput, style, style.LabelFontSizeFor(1, grid))
 
 	// Update cached state
 	o.gridStateMu.Lock()
@@ -510,7 +510,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	})
 
 	finalStyle := C.GridCellStyle{
-		fontSize:               C.int(style.FontSize()),
+		fontSize:               C.int(style.SubgridLabelFontSizeIn(1, 1, subCells)),
 		fontFamily:             (*C.char)(cachedStyle.FontFamily),
 		backgroundColor:        (*C.char)(cachedStyle.BgColor),
 		textColor:              (*C.char)(cachedStyle.TextColor),
@@ -744,7 +744,7 @@ func (o *Overlay) drawGridIncrementalStructural(
 	})
 
 	finalStyle := C.GridCellStyle{
-		fontSize:               C.int(currentStyle.FontSize()),
+		fontSize:               C.int(currentStyle.LabelFontSizeFor(1, currentGrid)),
 		fontFamily:             (*C.char)(cachedStyle.FontFamily),
 		backgroundColor:        (*C.char)(cachedStyle.BgColor),
 		textColor:              (*C.char)(cachedStyle.TextColor),
@@ -895,7 +895,12 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 }
 
 // drawGridCells draws all grid cells with their labels.
-func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string, style Style) {
+func (o *Overlay) drawGridCells(
+	cellsGo []*domainGrid.Cell,
+	currentInput string,
+	style Style,
+	labelSize float64,
+) {
 	// Hold drawMu.RLock for the entire span from label lookup through the C
 	// draw call so that freeLabelCache cannot free labels mid-draw.
 	o.drawMu.RLock()
@@ -972,7 +977,7 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 	})
 
 	finalStyle := C.GridCellStyle{
-		fontSize:               C.int(style.FontSize()),
+		fontSize:               C.int(labelSize),
 		fontFamily:             (*C.char)(cachedStyle.FontFamily),
 		backgroundColor:        (*C.char)(cachedStyle.BgColor),
 		textColor:              (*C.char)(cachedStyle.TextColor),

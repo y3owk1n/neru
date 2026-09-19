@@ -6,8 +6,13 @@ import (
 	"image"
 	"testing"
 
+	"go.uber.org/zap"
+
+	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
 // TestSharedOverlay_DrawRecursiveGrid_FitsTheLabelToItsCell is #1691 on this
@@ -99,6 +104,59 @@ func TestSharedOverlay_DrawRecursiveGrid_FitsTheLabelToItsCell(t *testing.T) {
 						test.wantSize,
 					)
 				}
+			}
+		})
+	}
+}
+
+// TestLinuxOverlayManager_DrawGrid_FitsAnOversizedLabelToItsCell pins that a
+// font_size too large for the grid's cells is drawn smaller, at one size for
+// the whole grid, while the default size is drawn as configured.
+func TestLinuxOverlayManager_DrawGrid_FitsAnOversizedLabelToItsCell(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		fontSize int
+		shrinks  bool
+	}{
+		{name: "the default size is drawn as configured", fontSize: config.DefaultGridFontSize},
+		{name: "a size larger than the cells shrinks", fontSize: 400, shrinks: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := config.DefaultConfig().Grid
+			cfg.UI.FontSize = test.fontSize
+
+			overlayManager, surface := recordingManager()
+
+			err := overlayManager.DrawGrid(
+				domainGrid.NewGrid("ab", image.Rect(0, 0, 800, 600), zap.NewNop()),
+				"",
+				gridcomponent.BuildStyle(cfg, fixedTheme(false)),
+			)
+			if err != nil {
+				t.Fatalf("DrawGrid() error = %v", err)
+			}
+
+			if len(surface.texts) == 0 {
+				t.Fatal("DrawGrid painted no labels")
+			}
+
+			first := surface.texts[0]
+			for _, painted := range surface.texts {
+				if painted.fontSize != first.fontSize {
+					t.Fatalf("label %q drawn at %v and %q at %v, want one size for the grid",
+						painted.text, painted.fontSize, first.text, first.fontSize)
+				}
+			}
+
+			if shrunk := first.fontSize < float64(test.fontSize); shrunk != test.shrinks {
+				t.Fatalf("labels drawn at %v for font_size %d, shrunk = %v, want %v",
+					first.fontSize, test.fontSize, shrunk, test.shrinks)
 			}
 		})
 	}

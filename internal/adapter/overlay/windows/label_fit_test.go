@@ -9,7 +9,10 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
@@ -25,7 +28,7 @@ func (w *recordingWindow) sizeOf(text string) (float64, bool) {
 }
 
 // TestWinOverlay_DrawRecursiveGrid_FitsTheLabelToItsCell is #1691 on this
-// backend: a label shrinks with its cell rather than vanishing, every label of
+// backend. A label shrinks with its cell rather than vanishing, every label of
 // a draw shares the size, and a dense display is fitted in font units, which
 // the rule this replaced got wrong by comparing a logical size with a
 // device-pixel cell.
@@ -116,6 +119,61 @@ func TestWinOverlay_DrawRecursiveGrid_FitsTheLabelToItsCell(t *testing.T) {
 
 			if _, found := window.sizeOf("G"); !found {
 				t.Errorf("painted %v, want the centre key among them", window.texts)
+			}
+		})
+	}
+}
+
+// TestWindowsOverlayManager_DrawGrid_FitsAnOversizedLabelToItsCell pins that a
+// font_size too large for the grid's cells is drawn smaller, at one size for
+// the whole grid, while the default size is drawn as configured.
+func TestWindowsOverlayManager_DrawGrid_FitsAnOversizedLabelToItsCell(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		fontSize int
+		shrinks  bool
+	}{
+		{name: "the default size is drawn as configured", fontSize: config.DefaultGridFontSize},
+		{name: "a size larger than the cells shrinks", fontSize: 400, shrinks: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := config.DefaultConfig().Grid
+			cfg.UI.FontSize = test.fontSize
+
+			window := &recordingWindow{}
+			overlayManager := &Manager{Base: manager.NewBase(zap.NewNop())}
+			overlayManager.win = &winOverlay{window: window, renderMu: &overlayManager.renderMu}
+
+			err := overlayManager.DrawGrid(
+				testGrid(),
+				"",
+				gridcomponent.BuildStyle(cfg, fixedTheme(false)),
+			)
+			if err != nil {
+				t.Fatalf("DrawGrid() error = %v", err)
+			}
+
+			if len(window.sizes) == 0 {
+				t.Fatal("DrawGrid painted no labels")
+			}
+
+			first := window.sizes[0]
+			for index, size := range window.sizes {
+				if size != first {
+					t.Fatalf("label %q drawn at %v and %q at %v, want one size for the grid",
+						window.texts[index], size, window.texts[0], first)
+				}
+			}
+
+			if shrunk := first < float64(test.fontSize); shrunk != test.shrinks {
+				t.Fatalf("labels drawn at %v for font_size %d, shrunk = %v, want %v",
+					first, test.fontSize, shrunk, test.shrinks)
 			}
 		})
 	}
