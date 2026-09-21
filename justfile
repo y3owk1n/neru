@@ -8,6 +8,11 @@ BUILD_DATE := `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 # macOS deployment target (used in CGO CFLAGS and as an env var for clang/ld).
 MACOSX_DEPLOYMENT_TARGET := "14.0"
 
+# pipewire's libspa-0.2.pc carries -fno-strict-overflow on newer distros
+# (Ubuntu 26.04), and cgo refuses a pkg-config flag it does not know, so every
+# Linux build fails there without this. The flag does nothing on other systems.
+export CGO_CFLAGS_ALLOW := "-fno-strict-overflow"
+
 # Ldflags for version injection. Windows deliberately builds for the console
 # subsystem (no -H windowsgui) so a single neru.exe serves as both the CLI and
 # the daemon: subcommands can write to the terminal they were typed into, and
