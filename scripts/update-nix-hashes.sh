@@ -32,6 +32,7 @@ perl -pi -e "s|vendorHash = \".*\";|vendorHash = \"$fake\";|" "$pkg"
 out="$(nix build .#source.goModules --no-link 2>&1 || true)"
 new="$(printf '%s\n' "$out" | sed -n 's/.*got: *\(sha256-[A-Za-z0-9+\/=]*\).*/\1/p' | head -1)"
 if [ -z "$new" ]; then
+	perl -pi -e "s|vendorHash = \".*\";|vendorHash = \"$old\";|" "$pkg"
 	printf '%s\n' "$out" >&2
 	echo "nix build printed no vendor hash, see its output above" >&2
 	exit 1

@@ -10,6 +10,10 @@ on:
     workflow_dispatch:
 permissions:
     contents: read
+# Every run force-pushes the same branch, so runs go one at a time. A queued
+# run still checks out main as it is when it starts.
+concurrency:
+    group: nix-hashes
 jobs:
     update:
         if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
