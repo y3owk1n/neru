@@ -1,0 +1,35 @@
+[package]
+name = "clang-format"
+description = "Formats C, C++ and Objective-C sources"
+homepage = "https://clang.llvm.org/docs/ClangFormat.html"
+license = "Apache-2.0 WITH LLVM-exception"
+
+# The PyPI wheel holds a static clang-format and is a zip. The official LLVM
+# archive is 1.5 GB. A wheel's URL holds a hash of the file, so each version
+# needs new urls and sha256 values from https://pypi.org/pypi/clang-format/json.
+[version]
+value = "21.1.8"
+
+[[artifact]]
+match = { os = "darwin", arch = "arm64" }
+url = "https://files.pythonhosted.org/packages/84/38/a61466227a8a6bf22c583f7bd810e75c9a356cfc63c6a712a201103a4ad3/clang_format-21.1.8-py2.py3-none-macosx_11_0_arm64.whl"
+sha256 = "9a78fabba6b382866819b42a7b220d235a3baf6128a40fb7bd590c037f69879b"
+bin = ["clang_format/data/bin/clang-format"]
+
+[[artifact]]
+match = { os = "darwin", arch = "amd64" }
+url = "https://files.pythonhosted.org/packages/17/1d/4b1d85acb99a2ee3bad0b20cc3e82c58fbfb39bf4dd5856ac1f2c4f36e65/clang_format-21.1.8-py2.py3-none-macosx_10_9_x86_64.whl"
+sha256 = "f447091c346027a09728a0a96128fe058419fe06cf200ccc3dc98bcd4399e351"
+bin = ["clang_format/data/bin/clang-format"]
+
+[[artifact]]
+match = { os = "linux", arch = "arm64" }
+url = "https://files.pythonhosted.org/packages/ab/5d/6720c895c5cfc01831fac55ecf849f10d03d6222700909af14f6047c933b/clang_format-21.1.8-py2.py3-none-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl"
+sha256 = "c2a044953efab5f7d0261f3a76aabc01358592faac1b73af38d8c83db6e91a69"
+bin = ["clang_format/data/bin/clang-format"]
+
+[[artifact]]
+match = { os = "linux", arch = "amd64" }
+url = "https://files.pythonhosted.org/packages/a8/c2/403e7371b1ab0f6175d708ecc93cf18085ea9f903e8fe7d17c43df698f06/clang_format-21.1.8-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+sha256 = "d12b864b596b80810cdd7f97556c485dc09cfe2952503958535f01359e025fbb"
+bin = ["clang_format/data/bin/clang-format"]

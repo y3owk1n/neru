@@ -95,9 +95,9 @@ jobs:
             - uses: actions/checkout@v7
 
             # Install Linux system dependencies (Wayland, X11, Cairo, etc.) via apt
-            # so the runner exercises the distro packages users build against;
-            # devbox is only used on macOS here. libxtst-dev depends on libxi-dev,
-            # which XTest.h includes, so Xi is not listed explicitly.
+            # so the runner exercises the distro packages users build against.
+            # libxtst-dev depends on libxi-dev, which XTest.h includes, so Xi is
+            # not listed explicitly.
             - name: Install Linux system dependencies
               if: runner.os == 'Linux'
               run: |
@@ -120,73 +120,65 @@ jobs:
                     tesseract-ocr-eng \
                     libpipewire-0.3-dev
 
-            # Install Devbox on macOS only
-            # Pinned by commit: a tag is a movable pointer, so `@v0.15.0` is a
-            # request rather than a statement about which code runs. Dependabot
-            # updates SHA pins that carry a version comment.
-            - name: Install Devbox
-              if: runner.os == 'macOS'
-              uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
-              with:
-                  enable-cache: true
-
-            # Install Go directly on Windows & Linux
             - name: Setup Go
-              if: runner.os == 'Windows' || runner.os == 'Linux'
               uses: actions/setup-go@v7
               with:
                   go-version-file: "go.mod"
                   cache: true
 
-            # Install Golangci directly on Windows & Linux (install only, lint step runs it)
+            # Install only, the lint step runs it
             - name: Setup Golangci
-              if: matrix.check == 'lint' && (runner.os == 'Windows' || runner.os == 'Linux')
+              if: matrix.check == 'lint'
               uses: golangci/golangci-lint-action@v9
               with:
                   version: v2.12.2
                   install-only: true
 
-            # Install just directly on Windows & Linux
             - name: Install just
-              if: runner.os == 'Windows' || runner.os == 'Linux'
               uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
               with:
                   just-version: "1.58.0"
 
-            # Run checks with Devbox on macOS
+            # clang-format and clang-tidy for the Objective-C sources, at the
+            # versions oku.toml pins. The PyPI wheels hold static binaries.
+            - name: Install clang tools
+              if: runner.os == 'macOS' && (matrix.check == 'lint' || matrix.check == 'formatting')
+              run: pipx install clang-format==21.1.8 && pipx install clang-tidy==21.1.6
+
+            # Run checks on macOS
             - name: Run just lint
               if: matrix.check == 'lint' && runner.os == 'macOS'
-              run: devbox run -- just lint
+              run: just lint
 
             - name: Run just fmt-check
               if: matrix.check == 'formatting' && runner.os == 'macOS'
-              run: devbox run -- just fmt-check
+              run: just fmt-check
 
             - name: Run just vet
               if: matrix.check == 'vet' && runner.os == 'macOS'
-              run: devbox run -- just vet
+              run: just vet
 
             - name: Run just build
               if: matrix.check == 'build' && runner.os == 'macOS'
-              run: devbox run -- just build
+              run: just build
 
             - name: Run just test-ci
               if: matrix.check == 'test' && runner.os == 'macOS'
-              run: devbox run -- just test-ci
+              run: just test-ci
 
             - name: Run just vuln
               if: matrix.check == 'vuln' && runner.os == 'macOS'
-              run: devbox run -- just vuln
+              run: just vuln
 
             - name: Run just coverage
               if: matrix.check == 'coverage'
               run: |
-                  devbox run -- just coverage
+                  just coverage
                   {
                     echo "### Coverage"
                     echo ""
                     echo '```'
-                    devbox run -- go tool cover -func=coverage.txt | tail -1
+                    go tool cover -func=coverage.txt | tail -1
                     echo '```'
                   } >> "$GITHUB_STEP_SUMMARY"
 

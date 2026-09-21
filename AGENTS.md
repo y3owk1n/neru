@@ -25,7 +25,7 @@ When a feature doesn't clearly fit, park it in a GitHub Discussion instead of im
 
 ## Commands
 
-Everything goes through `just` (`just --list` for the full set); `devbox shell` provides the toolchain.
+Everything goes through `just` (`just --list` for the full set); `oku sync && oku allow` provides the toolchain.
 
 ```bash
 just build              # dev build -> bin/neru; no `just run` — build then ./bin/neru launch

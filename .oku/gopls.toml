@@ -1,0 +1,25 @@
+[package]
+name = "gopls"
+description = "The Go language server"
+homepage = "https://go.dev/gopls"
+license = "BSD-3-Clause"
+
+[version]
+from = "git-tags"
+repo = "https://github.com/golang/tools"
+strip_prefix = "gopls/v"
+
+[build]
+needs = ["git"]
+deps = [{ ref = "./go.toml", version = "1.26.6" }]
+source = { git = "https://github.com/golang/tools", tag = "{{tag}}" }
+
+# gopls is a module in a subdirectory, which a vendor step cannot reach.
+[[build.step]]
+run = "cd gopls && go build -o ../gopls.bin ."
+shell = "sh"
+network = true
+env = { GOTOOLCHAIN = "local", GOFLAGS = "-buildvcs=false" }
+
+[[build.step]]
+copy = { from = "gopls.bin", to = "bin/gopls" }

@@ -1,0 +1,35 @@
+[package]
+name = "clang-tidy"
+description = "Linter and static analyzer for C, C++ and Objective-C"
+homepage = "https://clang.llvm.org/extra/clang-tidy/"
+license = "Apache-2.0 WITH LLVM-exception"
+
+# The PyPI wheel, as in clang-format.toml. It ships lib/clang next to the
+# binary, which clang-tidy needs for its builtin headers. 21.1.6 is the newest
+# 21.1 wheel. New urls and sha256 values: https://pypi.org/pypi/clang-tidy/json.
+[version]
+value = "21.1.6"
+
+[[artifact]]
+match = { os = "darwin", arch = "arm64" }
+url = "https://files.pythonhosted.org/packages/ca/ad/cd1f262bd51376920af406cc3721416f7c303d7eec0ae39218d1a6aa9b45/clang_tidy-21.1.6-py2.py3-none-macosx_11_0_arm64.whl"
+sha256 = "12634548feceb2bce89b65d94550f1b92359ebc19c35cf72b93855cd18845ef9"
+bin = ["clang_tidy/data/bin/clang-tidy"]
+
+[[artifact]]
+match = { os = "darwin", arch = "amd64" }
+url = "https://files.pythonhosted.org/packages/73/59/cef36a88d30ed6dfc7237b3a9fa7de062726b4f30aeacf3e0e0316eee41e/clang_tidy-21.1.6-py2.py3-none-macosx_10_9_x86_64.whl"
+sha256 = "372f20267e67f41b758b0c2009e4607f1b53fbee40092e76da3121491d439985"
+bin = ["clang_tidy/data/bin/clang-tidy"]
+
+[[artifact]]
+match = { os = "linux", arch = "arm64" }
+url = "https://files.pythonhosted.org/packages/e0/88/494022a892bd121f01c55d32e754867a8d6bbe7640975389be5792a55636/clang_tidy-21.1.6-py2.py3-none-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl"
+sha256 = "d954cc13d87aa6ba847eac4d26bec019024c54c2968389444eed6d4201ec45e6"
+bin = ["clang_tidy/data/bin/clang-tidy"]
+
+[[artifact]]
+match = { os = "linux", arch = "amd64" }
+url = "https://files.pythonhosted.org/packages/cf/fc/f0a2ba49f142e019117e9d9d6c1b49bde410ec0139cc9392ccae1be4ff3e/clang_tidy-21.1.6-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+sha256 = "685e549e80461afb0f0c420ecfd0427e8bf38b927e989bdfee49dab4a9794cd1"
+bin = ["clang_tidy/data/bin/clang-tidy"]

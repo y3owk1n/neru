@@ -32,7 +32,7 @@ layout in [CROSS_PLATFORM.md](CROSS_PLATFORM.md), and conventions in the root
 git clone https://github.com/y3owk1n/neru.git
 cd neru
 
-devbox shell            # or: brew install go just golangci-lint llvm
+oku sync && oku allow  # or: brew install go just golangci-lint llvm
 just build
 ./bin/neru launch       # runs in the foreground
 ```
@@ -70,34 +70,34 @@ For end-user installation (Homebrew, Nix, prebuilt binaries) see
 - **Build dependencies** (Linux) — the system `-dev`/`-devel` packages a CGO
   build links against, listed for apt, dnf and pacman in
   [LINUX_SETUP.md](LINUX_SETUP.md#build-dependencies). Install them before your
-  first build, including under Devbox.
+  first build, including under oku.
 - **Just** — command runner — [install](https://github.com/casey/just)
 - **golangci-lint** — linter — [install](https://golangci-lint.run/usage/install/)
 
-### Option A: Devbox (recommended)
+### Option A: oku (recommended)
 
-[Devbox](https://www.jetify.com/devbox) provides an isolated environment with
-the toolchain below pre-configured:
+[oku](https://github.com/y3owk1n/oku) installs the toolchain that `oku.toml`
+lists, at the versions `oku.lock` pins, into a profile that belongs to this
+repo:
 
 ```bash
-curl -fsSL https://get.jetify.com/devbox | bash
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/oku/main/install.sh | sh
 
-devbox shell            # enter the shell manually
+oku sync               # install the toolchain
+oku allow              # let the shell hook put it on PATH inside this repo
 ```
 
-Or let [direnv](https://direnv.net/) activate it automatically — install direnv,
-add `eval "$(direnv hook bash)"` (or zsh/fish) to your shell, and the `.envrc`
-in the repo root takes over whenever you `cd` in.
+The shell hook that oku's installer prints does the rest whenever you `cd` in.
+With [direnv](https://direnv.net/), `eval "$(oku env --shell bash)"` in an
+`.envrc` does the same.
 
-Devbox manages Go 1.26+, gopls, gotools, gofumpt, golines, golangci-lint, just,
-and clang-tools (for CGo).
+oku manages Go, gopls, goimports, gofumpt, golines, golangci-lint, just, and
+clang-format and clang-tidy (for the Objective-C sources).
 
-On Linux it is not enough on its own: Devbox does not pull the `-dev` outputs a
-CGO build links against
-([jetify-com/devbox#2761](https://github.com/jetify-com/devbox/issues/2761)),
-so install the system packages listed in
-[LINUX_SETUP.md](LINUX_SETUP.md#build-dependencies) first — `just build` fails
-in the compiler without them.
+On Linux it is not enough on its own: oku does not provide the libraries a CGO
+build links against. `just linux-deps` installs them with apt, dnf or pacman,
+and [LINUX_SETUP.md](LINUX_SETUP.md#build-dependencies) lists them. `just build`
+fails in the compiler without them.
 
 ### Option B: Manual installation
 
@@ -105,7 +105,7 @@ in the compiler without them.
 brew install go just golangci-lint llvm
 ```
 
-`llvm` supplies `clang-format` for Objective-C formatting. Devbox's extra tools
+`llvm` supplies `clang-format` for Objective-C formatting. oku's extra tools
 are optional and installable on their own:
 
 ```bash

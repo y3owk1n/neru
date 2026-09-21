@@ -1,0 +1,14 @@
+# The development toolchain. `oku sync` installs it, `oku allow` lets the shell
+# hook put it on PATH inside this repo.
+[packages]
+go = { ref = "./.oku/go.toml", version = "1.26.6" }
+just = { ref = "github:casey/just", version = "1.58.0" }
+gopls = { ref = "./.oku/gopls.toml", version = "0.23.0" }
+goimports = { ref = "./.oku/goimports.toml", version = "0.44.0" }
+gofumpt = { ref = "github:mvdan/gofumpt", version = "0.11.0" }
+golines = { ref = "github:golangci/golines", version = "0.15.0" }
+golangci-lint = { ref = "github:golangci/golangci-lint", version = "2.12.2" }
+golangci-lint-langserver = { ref = "github:nametake/golangci-lint-langserver", version = "0.0.12" }
+just-lsp = { ref = "github:terror/just-lsp", version = "0.6.2" }
+clang-format = { ref = "./.oku/clang-format.toml", version = "21.1.8" }
+clang-tidy = { ref = "./.oku/clang-tidy.toml", version = "21.1.6" }

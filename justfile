@@ -521,7 +521,7 @@ lint-go:
     @echo "✓ Go lint complete"
 
 # Lint Objective-C with the clang static analyzer (via clang-tidy, which
-# devbox's clang-tools provides). macOS only — the .m files need the macOS SDK.
+# oku.toml provides). macOS only — the .m files need the macOS SDK.
 #
 # Excluded checks, each for a reason:
 #  - optin.osx.cocoa.localizability: Neru is not localized; user-facing
@@ -540,7 +540,7 @@ lint-objc:
         exit 0
     fi
     if ! command -v clang-tidy >/dev/null 2>&1; then
-        echo "clang-tidy not found — run inside 'devbox shell' (clang-tools provides it)" >&2
+        echo "clang-tidy not found — run 'oku sync' (oku.toml provides it)" >&2
         exit 1
     fi
     echo "Linting Objective-C files (clang-tidy)..."
@@ -580,6 +580,43 @@ vet-cross:
     @echo "Vetting for windows/amd64 (CGO off)..."
     GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go vet ./...
     @echo "✓ Cross-platform vet complete"
+
+# The libraries a CGO build links against come from the distro, not from oku:
+# oku.toml provides the toolchain only. The package lists are the ones in
+# docs/LINUX_SETUP.md#build-dependencies, which says what each is for.
+[linux]
+[doc('Install the system libraries a Linux build links against; needs sudo.')]
+linux-deps:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update
+        sudo apt-get install -y \
+            build-essential pkg-config \
+            libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
+            libxrender-dev libxext-dev libxfixes-dev libxkbcommon-dev \
+            libei-dev liboeffis-dev libfontconfig-dev \
+            libtesseract-dev tesseract-ocr-eng libpipewire-0.3-dev \
+            wayland-protocols fonts-dejavu-core
+    elif command -v dnf >/dev/null 2>&1; then
+        sudo dnf install -y \
+            gcc pkgconf-pkg-config \
+            cairo-devel wayland-devel libX11-devel libXtst-devel libXrandr-devel \
+            libXrender-devel libXext-devel libXfixes-devel libxkbcommon-devel \
+            libei-devel fontconfig-devel \
+            tesseract-devel tesseract-langpack-eng pipewire-devel \
+            wayland-protocols-devel \
+            dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts
+    elif command -v pacman >/dev/null 2>&1; then
+        sudo pacman -S --needed \
+            base-devel pkgconf \
+            cairo wayland libx11 libxtst libxrandr libxrender libxext libxfixes \
+            libxkbcommon libei fontconfig \
+            tesseract tesseract-data-eng libpipewire wayland-protocols ttf-dejavu
+    else
+        echo "no apt-get, dnf or pacman here, see docs/LINUX_SETUP.md#build-dependencies" >&2
+        exit 1
+    fi
 
 # Actually run the Linux test suite locally, in a container.
 #

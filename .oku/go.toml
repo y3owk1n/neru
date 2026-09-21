@@ -1,0 +1,16 @@
+[package]
+name = "go"
+description = "The Go toolchain"
+homepage = "https://go.dev"
+license = "BSD-3-Clause"
+
+[version]
+from = "git-tags"
+repo = "https://github.com/golang/go"
+strip_prefix = "go"
+
+[[artifact]]
+url = "https://dl.google.com/go/go{{version}}.{{os}}-{{arch}}.tar.gz"
+sha256_url = "https://dl.google.com/go/go{{version}}.{{os}}-{{arch}}.tar.gz.sha256"
+strip = 1
+bin = ["bin/go", "bin/gofmt"]

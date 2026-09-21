@@ -46,9 +46,9 @@ issues, so reports stay confidential.
 3. **Small, focused PRs** are preferred over large, sweeping ones.
 
 Set up your environment by following
-[DEVELOPMENT.md](docs/DEVELOPMENT.md#development-setup) — Devbox is the
+[DEVELOPMENT.md](docs/DEVELOPMENT.md#development-setup) — oku is the
 recommended path and provides the toolchain pre-configured. On Linux, read the
-prerequisites there first: Devbox does not cover the system packages a CGO
+prerequisites there first: oku does not cover the system packages a CGO
 build links against.
 
 ---
