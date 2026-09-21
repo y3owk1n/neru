@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.55.0](https://github.com/y3owk1n/neru/compare/v1.54.0...v1.55.0) (2026-09-21)
+
+
+### Features
+
+* **cli:** add ability to cycle `--strategy` and `--capture-scope` ([#1690](https://github.com/y3owk1n/neru/issues/1690)) ([8181c1d](https://github.com/y3owk1n/neru/commit/8181c1d1768d17cb33eb1c5fb6f27e9cfe83ddfa))
+* **modes:** add bisect mode ([#1678](https://github.com/y3owk1n/neru/issues/1678)) ([e67045c](https://github.com/y3owk1n/neru/commit/e67045c75ac683d98b6d0d4bd757851441f7b494))
+* **modes:** repeat a bisect cut with --count in one press ([#1682](https://github.com/y3owk1n/neru/issues/1682)) ([5dbfcee](https://github.com/y3owk1n/neru/commit/5dbfcee5977c37eecc42c988371791e779874c43))
+* **modes:** support `--capture-screen` for grid and recursive grid ([#1686](https://github.com/y3owk1n/neru/issues/1686)) ([6576c70](https://github.com/y3owk1n/neru/commit/6576c70bd77837ebe3d9ec437e61a060a0730b92))
+* **overlay:** scale label fonts down to fit their cells and badges ([#1692](https://github.com/y3owk1n/neru/issues/1692)) ([1f70879](https://github.com/y3owk1n/neru/commit/1f70879fb095143a5c450d707d7f9985f84c914c))
+
+
+### Bug Fixes
+
+* **config:** use arrow key for mouse move in bisect for consistency ([#1681](https://github.com/y3owk1n/neru/issues/1681)) ([7484b67](https://github.com/y3owk1n/neru/commit/7484b67dfeef774519c00503c04d327f9ae7daae))
+* **darwin:** repair overlays pinned to one space after a fullscreen exit ([#1687](https://github.com/y3owk1n/neru/issues/1687)) ([c32e3dc](https://github.com/y3owk1n/neru/commit/c32e3dc4d6a6d52339eff3ee63ae83a5882d2c9b))
+* **lifecycle:** make `neru stop` pause every mode, action and hotkey ([#1689](https://github.com/y3owk1n/neru/issues/1689)) ([570042a](https://github.com/y3owk1n/neru/commit/570042a21ff472c21e768abedc271ac766f8cb2a))
+* **linux:** build on distros whose pipewire emits -fno-strict-overflow ([#1697](https://github.com/y3owk1n/neru/issues/1697)) ([22c3edc](https://github.com/y3owk1n/neru/commit/22c3edca4d2c72bce0a925e620354f348e40578d))
+* **modes:** keep every monitor reachable when displays share a name ([#1676](https://github.com/y3owk1n/neru/issues/1676)) ([f7ccc96](https://github.com/y3owk1n/neru/commit/f7ccc96279eb6c62bf8e6dd570a6efe1c60c041a))
+* **scroll:** release held modifiers around a Wayland scroll ([#1683](https://github.com/y3owk1n/neru/issues/1683)) ([437f35e](https://github.com/y3owk1n/neru/commit/437f35e8025cc83410d585702fbccf6697466a4c))
+* **windows:** keep hints inside the focused window frame ([#1688](https://github.com/y3owk1n/neru/issues/1688)) ([1187d94](https://github.com/y3owk1n/neru/commit/1187d942169cd142f515d5bffd24a29093f13b61))
+
 ## [1.54.0](https://github.com/y3owk1n/neru/compare/v1.53.0...v1.54.0) (2026-09-13)
 
 
