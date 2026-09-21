@@ -53,22 +53,18 @@ if useZip then
       {
         "aarch64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-arm64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.54.0/neru-darwin-arm64.zip)`
           sha256 = "sha256-F3fvD6m0GKbqr6nOUfsQy7BgljpNBNtp9fk+R/YlDjE=";
         };
         "x86_64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-amd64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.54.0/neru-darwin-amd64.zip)`
           sha256 = "sha256-+FAavz0N4/pB2ZVCVYVLDH5ii4vL1n7WnCOMTWz9FHk=";
         };
         "aarch64-linux" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-arm64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.54.0/neru-linux-arm64.zip)`
           sha256 = "sha256-t+MGYQeqfYYQJtw8HqaWNZ4DC33OJVHPL0B1iMoEkj4=";
         };
         "x86_64-linux" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-amd64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.54.0/neru-linux-amd64.zip)`
           sha256 = "sha256-xgE9eUd8gM/h8Kw3gZ4eyfA1r8P/2TU7KxW5U54v5Gw=";
         };
       }
@@ -190,10 +186,8 @@ else
 
     src = lib.cleanSource ../.;
 
-    # run the following command to get the sha256 hash
-    # `nix-shell -p go --run 'go mod vendor'`
-    # `nix hash path vendor`
-    # `rm -rf vendor`
+    # scripts/update-nix-hashes.sh writes this, and the four zip hashes above.
+    # The nix-hashes workflow runs it after every push to main.
     vendorHash = "sha256-PMFbAkmnrkcnR/oxeE/WLixblVX/i6jWRu6ceZu5yvc=";
 
     ldflags = [

@@ -1,0 +1,42 @@
+name: nix-hashes
+# Keeps the Nix package's hashes current, so nobody needs Nix on their own
+# machine: latestVersion and the release zip hashes after a release, vendorHash
+# after a go.mod or go.sum change. It runs after release-please, which runs on
+# every push to main and finishes only once a release's zips are uploaded.
+on:
+    workflow_run:
+        workflows: ["release-please"]
+        types: [completed]
+    workflow_dispatch:
+permissions:
+    contents: read
+jobs:
+    update:
+        if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+        runs-on: ubuntu-latest
+        steps:
+            # The PAT, not GITHUB_TOKEN: a pull request opened with
+            # GITHUB_TOKEN does not start CI.
+            - uses: actions/checkout@v7
+              with:
+                  ref: main
+                  token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+            - uses: "DeterminateSystems/determinate-nix-action@021c8a1bd3570eb21f5c20a054812b0c4d9ca614" # v3.22.3
+            - name: Update hashes
+              env:
+                  GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+              run: ./scripts/update-nix-hashes.sh
+            - name: Open a pull request
+              env:
+                  GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+              run: |
+                  git diff --quiet && exit 0
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git checkout -B chore/nix-hashes
+                  git commit -am "chore(nix): update hashes"
+                  git push --force origin chore/nix-hashes
+                  gh pr view chore/nix-hashes --json state --jq .state | grep -q OPEN ||
+                    gh pr create --base main --head chore/nix-hashes \
+                      --title "chore(nix): update hashes" \
+                      --body "Written by scripts/update-nix-hashes.sh."
