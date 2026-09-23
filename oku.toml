@@ -2,7 +2,7 @@
 # hook put it on PATH inside this repo. CI installs the same tools from
 # oku.lock with the oku action.
 [lock]
-platforms = ["darwin-arm64", "linux-amd64-glibc", "linux-arm64-glibc", "windows-amd64"]
+platforms = ["darwin-arm64", "linux-amd64-glibc", "linux-arm64-glibc", "windows-amd64", "windows-arm64"]
 
 # go: packages build with this go, on the same go line as the go package below.
 [runtimes]
@@ -18,7 +18,7 @@ golangci-lint = { ref = "github:golangci/golangci-lint", version = "^2" }
 just = { ref = "github:casey/just", version = "^1" }
 clang-format = "./.oku/clang-format.toml"
 clang-tidy = "./.oku/clang-tidy.toml"
-gofumpt = "github:mvdan/gofumpt"
+gofumpt = "go:mvdan.cc/gofumpt"
 golines = "github:golangci/golines"
 gopls = "go:golang.org/x/tools/gopls"
 goimports = "go:golang.org/x/tools/cmd/goimports"

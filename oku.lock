@@ -5,7 +5,7 @@ include = []
 [[package]]
 name = 'clang-format'
 ref = './.oku/clang-format.toml'
-manifest_sha256 = 'c87569bdedd45845b38180e3218e41977c5886d39b47e6c958826a20eb8779b2'
+manifest_sha256 = '9e6fd94c0f77225ab1eb4fc58e33e53439a531e659d2c50f8b3c34f1e9bd75c9'
 version = '21.1.8'
 
 [package.platform]
@@ -29,10 +29,15 @@ strategy = 'artifact'
 url = 'https://files.pythonhosted.org/packages/69/7a/c49c8af9135c6a6dfb9cd103328ba7b6551643dce71b57e58ea940884015/clang_format-21.1.8-py2.py3-none-win_amd64.whl'
 sha256 = 'a7606da55e31ebf5b63dd75800392e6cca7c595a74100c2cebcda2d742130732'
 
+[package.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://files.pythonhosted.org/packages/ad/d3/8790b539afb6cb0d4474705d3750e78a1f0847ab6d3ef1b00dd1ae52f364/clang_format-21.1.8-py2.py3-none-win_arm64.whl'
+sha256 = '1aa10b3f647268361d08bf4f17ce70964b8d9c04d5539e7d8acbebd14dc4a49c'
+
 [[package]]
 name = 'clang-tidy'
 ref = './.oku/clang-tidy.toml'
-manifest_sha256 = '4733f0d98244f165a4bc9b43b12136e3492ca55eebcfe641c3f5cdd6d58e020b'
+manifest_sha256 = '4d4c37d53af9b56916fd03b65dfde03745866baa8db0877917ec809d2ad7768b'
 version = '21.1.6'
 
 [package.platform]
@@ -52,6 +57,11 @@ url = 'https://files.pythonhosted.org/packages/e0/88/494022a892bd121f01c55d32e75
 sha256 = 'd954cc13d87aa6ba847eac4d26bec019024c54c2968389444eed6d4201ec45e6'
 
 [package.platform.windows-amd64]
+strategy = 'artifact'
+url = 'https://files.pythonhosted.org/packages/4b/ed/26fbf1a0847ccd424f5a270d851b3b726e17d7eaebefbf58fff8191bdf81/clang_tidy-21.1.6-py2.py3-none-win_amd64.whl'
+sha256 = '8f29fbc3e8aa0552810dd0e3e69f3158f8dbf0edb425e0437798e9db9d0a28a6'
+
+[package.platform.windows-arm64]
 strategy = 'artifact'
 url = 'https://files.pythonhosted.org/packages/4b/ed/26fbf1a0847ccd424f5a270d851b3b726e17d7eaebefbf58fff8191bdf81/clang_tidy-21.1.6-py2.py3-none-win_amd64.whl'
 sha256 = '8f29fbc3e8aa0552810dd0e3e69f3158f8dbf0edb425e0437798e9db9d0a28a6'
@@ -84,36 +94,72 @@ strategy = 'artifact'
 url = 'https://dl.google.com/go/go1.26.8.windows-amd64.zip'
 sha256 = 'b92c3b2adae85a11ba71fe7216daf0d84e82af4c8ab6c5625807f28622043a59'
 
+[package.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.8.windows-arm64.zip'
+sha256 = '4bc560ed3ccb64eec0be6180b8c29185c07f5215276820adb4303d7bf3365435'
+
 [[package]]
 name = 'gofumpt'
-ref = 'github:mvdan/gofumpt'
-commit = '27de560bdc4c57a89f1c0f72c5e5fdd88d144438'
-manifest_sha256 = 'd59a925191cd2b5c4b62e0ad97d0eaec628a2f9c1f19edeb79225c47d8037ac2'
+ref = 'go:mvdan.cc/gofumpt'
+manifest_sha256 = 'dbc4bea9cb3b679214f5ebd6c2ccdf0f5b1be349b861547e9119d64e1b666044'
 version = '0.12.0'
-tag = 'v0.12.0'
 inferred = true
-manifest = "[package]\nname = \"gofumpt\"\nhomepage = \"https://github.com/mvdan/gofumpt\"\n\n[version]\nfrom = \"github-releases\"\nrepo = \"mvdan/gofumpt\"\nstrip_prefix = \"v\"\n\n[[artifact]]\nmatch = { os = \"linux\", arch = \"amd64\" }\nurl = \"https://github.com/mvdan/gofumpt/releases/download/{{tag}}/gofumpt_{{tag}}_linux_amd64\"\nbin = [\"gofumpt\"]\n\n[[artifact]]\nmatch = { os = \"darwin\", arch = \"amd64\" }\nurl = \"https://github.com/mvdan/gofumpt/releases/download/{{tag}}/gofumpt_{{tag}}_darwin_amd64\"\nbin = [\"gofumpt\"]\n\n[[artifact]]\nmatch = { os = \"windows\", arch = \"amd64\" }\nurl = \"https://github.com/mvdan/gofumpt/releases/download/{{tag}}/gofumpt_{{tag}}_windows_amd64.exe\"\nbin = [\"gofumpt.exe\"]\n\n[[artifact]]\nmatch = { os = \"linux\", arch = \"arm64\" }\nurl = \"https://github.com/mvdan/gofumpt/releases/download/{{tag}}/gofumpt_{{tag}}_linux_arm64\"\nbin = [\"gofumpt\"]\n\n[[artifact]]\nmatch = { os = \"darwin\", arch = \"arm64\" }\nurl = \"https://github.com/mvdan/gofumpt/releases/download/{{tag}}/gofumpt_{{tag}}_darwin_arm64\"\nbin = [\"gofumpt\"]\n\n[[artifact]]\nmatch = { os = \"linux\", arch = \"386\" }\nurl = \"https://github.com/mvdan/gofumpt/releases/download/{{tag}}/gofumpt_{{tag}}_linux_386\"\nbin = [\"gofumpt\"]\n\n[[artifact]]\nmatch = { os = \"windows\", arch = \"386\" }\nurl = \"https://github.com/mvdan/gofumpt/releases/download/{{tag}}/gofumpt_{{tag}}_windows_386.exe\"\nbin = [\"gofumpt.exe\"]\n\n[[artifact]]\nmatch = { os = \"linux\", arch = \"arm\" }\nurl = \"https://github.com/mvdan/gofumpt/releases/download/{{tag}}/gofumpt_{{tag}}_linux_arm\"\nbin = [\"gofumpt\"]\n"
+manifest = "[package]\nname = \"gofumpt\"\nhomepage = \"https://pkg.go.dev/mvdan.cc/gofumpt\"\n\n[version]\nfrom = \"go\"\nrepo = \"mvdan.cc/gofumpt\"\n\n[build]\ndeps = [{ ref = \"./.oku/go.toml\", version = \"1.26\" }]\n\n[[build.step]]\nvendor = \"go\"\npackage = \"mvdan.cc/gofumpt\"\n"
 
 [package.platform]
 [package.platform.darwin-arm64]
-strategy = 'artifact'
-url = 'https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_darwin_arm64'
-sha256 = '1a3e325b956ed12c21031d9e13382bd51a4fabb57de8d40428819b9583c3cfb9'
+strategy = 'build'
+vendor_sha256 = '89101b3c908a6d21f0f62fec73d4fec2a0c351bb0e4d46d7065073ec942d038f'
 
 [package.platform.linux-amd64-glibc]
-strategy = 'artifact'
-url = 'https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_linux_amd64'
-sha256 = '3bc4fcad497439918f5f56d4987de4709a99da0a355e6bec13a7278532b01d38'
+strategy = 'build'
+vendor_sha256 = '89101b3c908a6d21f0f62fec73d4fec2a0c351bb0e4d46d7065073ec942d038f'
 
 [package.platform.linux-arm64-glibc]
-strategy = 'artifact'
-url = 'https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_linux_arm64'
-sha256 = '4322f081241ab0618356aa5921a8c110e4c7acfc17175cc15dc57b2f4a4b652d'
+strategy = 'build'
+vendor_sha256 = '89101b3c908a6d21f0f62fec73d4fec2a0c351bb0e4d46d7065073ec942d038f'
 
 [package.platform.windows-amd64]
+strategy = 'build'
+vendor_sha256 = '89101b3c908a6d21f0f62fec73d4fec2a0c351bb0e4d46d7065073ec942d038f'
+
+[package.platform.windows-arm64]
+strategy = 'build'
+vendor_sha256 = '89101b3c908a6d21f0f62fec73d4fec2a0c351bb0e4d46d7065073ec942d038f'
+
+[[package.dep]]
+name = 'go'
+ref = './.oku/go.toml'
+manifest_sha256 = '2022b9ea9d9e33afb9ca6a565a6ec9b4655f57311f5c8db4f0a5d6fe81b191ae'
+version = '1.26.8'
+tag = 'go1.26.8'
+
+[package.dep.platform]
+[package.dep.platform.darwin-arm64]
 strategy = 'artifact'
-url = 'https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_windows_amd64.exe'
-sha256 = '66bd679908b64864fc85417e7ea01148774b477364b9a02ab1c194333a55c997'
+url = 'https://dl.google.com/go/go1.26.8.darwin-arm64.tar.gz'
+sha256 = 'a012b25b571bd0138a03dcd25375ceba866fe5ca822f426d2c66a4de56fd3f4b'
+
+[package.dep.platform.linux-amd64-glibc]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.8.linux-amd64.tar.gz'
+sha256 = 'd0f743b33e8d8945e6b1f432edd15785c70507121d6e2a723b21285eddf8b57b'
+
+[package.dep.platform.linux-arm64-glibc]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.8.linux-arm64.tar.gz'
+sha256 = '211ffced9dcb9633a55eac6364816ec0ddd951389a740e88fa8b3337971bdda0'
+
+[package.dep.platform.windows-amd64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.8.windows-amd64.zip'
+sha256 = 'b92c3b2adae85a11ba71fe7216daf0d84e82af4c8ab6c5625807f28622043a59'
+
+[package.dep.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.8.windows-arm64.zip'
+sha256 = '4bc560ed3ccb64eec0be6180b8c29185c07f5215276820adb4303d7bf3365435'
 
 [[package]]
 name = 'goimports'
@@ -137,6 +183,10 @@ strategy = 'build'
 vendor_sha256 = 'df5e2a52ab1ae051bdec4cc0368cc9f0fab83b9043b424719e8b5d368462f111'
 
 [package.platform.windows-amd64]
+strategy = 'build'
+vendor_sha256 = 'df5e2a52ab1ae051bdec4cc0368cc9f0fab83b9043b424719e8b5d368462f111'
+
+[package.platform.windows-arm64]
 strategy = 'build'
 vendor_sha256 = 'df5e2a52ab1ae051bdec4cc0368cc9f0fab83b9043b424719e8b5d368462f111'
 
@@ -167,6 +217,11 @@ sha256 = '211ffced9dcb9633a55eac6364816ec0ddd951389a740e88fa8b3337971bdda0'
 strategy = 'artifact'
 url = 'https://dl.google.com/go/go1.26.8.windows-amd64.zip'
 sha256 = 'b92c3b2adae85a11ba71fe7216daf0d84e82af4c8ab6c5625807f28622043a59'
+
+[package.dep.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.8.windows-arm64.zip'
+sha256 = '4bc560ed3ccb64eec0be6180b8c29185c07f5215276820adb4303d7bf3365435'
 
 [[package]]
 name = 'golangci-lint'
@@ -199,6 +254,11 @@ strategy = 'artifact'
 url = 'https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-windows-amd64.zip'
 sha256 = '4735fdc8e84a0cfb7a15a1c364a650942f88215e0d36c674ebc4024f7b554524'
 
+[package.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-windows-arm64.zip'
+sha256 = '2dbffbd1225d41ac5740f0b478a43b6517f3e3f702fe0ab3aec470bd6ec8e263'
+
 [[package]]
 name = 'golangci-lint-langserver'
 ref = 'github:nametake/golangci-lint-langserver'
@@ -229,6 +289,11 @@ sha256 = '4b1b582213978803bb215a36c88c2fbbd14e26bf15e0377c74f04dbe424c1063'
 strategy = 'artifact'
 url = 'https://github.com/nametake/golangci-lint-langserver/releases/download/v0.0.12/golangci-lint-langserver_Windows_x86_64.zip'
 sha256 = '39b900b6b18bdc0328a9a58539af2bfc0bdaad9c2f217c1afa7921717d11e4d6'
+
+[package.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://github.com/nametake/golangci-lint-langserver/releases/download/v0.0.12/golangci-lint-langserver_Windows_arm64.zip'
+sha256 = 'e88b352400b9e6afec86cfa11e2cfdadeb79522a6a833f0aeda98886594af801'
 
 [[package]]
 name = 'golines'
@@ -261,6 +326,11 @@ strategy = 'artifact'
 url = 'https://github.com/golangci/golines/releases/download/v0.15.0/golines-0.15.0-windows-amd64.zip'
 sha256 = '9885510d26a7f75dcae204e12d28f3162dd80a3084fa2a47e818b43a7adc1018'
 
+[package.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://github.com/golangci/golines/releases/download/v0.15.0/golines-0.15.0-windows-arm64.zip'
+sha256 = 'ae54a7aacaccd9016f6114f8aff5acfd01705d08e5dab477e6f456375f890795'
+
 [[package]]
 name = 'gopls'
 ref = 'go:golang.org/x/tools/gopls'
@@ -283,6 +353,10 @@ strategy = 'build'
 vendor_sha256 = 'cec9e3e78c4b11b621f763aac7daa96a995552ff6158b0be5b360a3efd63bcee'
 
 [package.platform.windows-amd64]
+strategy = 'build'
+vendor_sha256 = 'cec9e3e78c4b11b621f763aac7daa96a995552ff6158b0be5b360a3efd63bcee'
+
+[package.platform.windows-arm64]
 strategy = 'build'
 vendor_sha256 = 'cec9e3e78c4b11b621f763aac7daa96a995552ff6158b0be5b360a3efd63bcee'
 
@@ -314,6 +388,11 @@ strategy = 'artifact'
 url = 'https://dl.google.com/go/go1.26.8.windows-amd64.zip'
 sha256 = 'b92c3b2adae85a11ba71fe7216daf0d84e82af4c8ab6c5625807f28622043a59'
 
+[package.dep.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://dl.google.com/go/go1.26.8.windows-arm64.zip'
+sha256 = '4bc560ed3ccb64eec0be6180b8c29185c07f5215276820adb4303d7bf3365435'
+
 [[package]]
 name = 'just'
 ref = 'github:casey/just'
@@ -344,6 +423,11 @@ strategy = 'artifact'
 url = 'https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-x86_64-pc-windows-msvc.zip'
 sha256 = '759f16fb7aa17c5c8b9594b6d4a8c1a6630dfd042cf2b3ff84841454d3d188dc'
 
+[package.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-aarch64-pc-windows-msvc.zip'
+sha256 = '3a39ed629eb67678976c811a4da46f7985a2c22f4dbabe017b8b2eb5ceb5d01c'
+
 [[package]]
 name = 'just-lsp'
 ref = 'github:terror/just-lsp'
@@ -373,3 +457,8 @@ sha256 = 'd55934e447042a32c43d234768515552b1360b0b200bd430f9c6c1c6d8197ad6'
 strategy = 'artifact'
 url = 'https://github.com/terror/just-lsp/releases/download/0.9.0/just-lsp-0.9.0-x86_64-pc-windows-msvc.zip'
 sha256 = '8cbe8eae0bba3a378671ec13ea62c6aa01f4d4632856e0b66f9696234d290562'
+
+[package.platform.windows-arm64]
+strategy = 'artifact'
+url = 'https://github.com/terror/just-lsp/releases/download/0.9.0/just-lsp-0.9.0-aarch64-pc-windows-msvc.zip'
+sha256 = 'b2722182558689819e4953ebd4aec0a4fbf113f4fb58912aa0fbf5a2491a8892'

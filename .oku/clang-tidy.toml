@@ -39,3 +39,11 @@ match = { os = "windows", arch = "amd64" }
 url = "https://files.pythonhosted.org/packages/4b/ed/26fbf1a0847ccd424f5a270d851b3b726e17d7eaebefbf58fff8191bdf81/clang_tidy-21.1.6-py2.py3-none-win_amd64.whl"
 sha256 = "8f29fbc3e8aa0552810dd0e3e69f3158f8dbf0edb425e0437798e9db9d0a28a6"
 bin = ["clang_tidy/data/bin/clang-tidy.exe"]
+
+# clang-tidy has no win_arm64 wheel, so Windows on Arm runs the win_amd64
+# wheel under its x64 emulation.
+[[artifact]]
+match = { os = "windows", arch = "arm64" }
+url = "https://files.pythonhosted.org/packages/4b/ed/26fbf1a0847ccd424f5a270d851b3b726e17d7eaebefbf58fff8191bdf81/clang_tidy-21.1.6-py2.py3-none-win_amd64.whl"
+sha256 = "8f29fbc3e8aa0552810dd0e3e69f3158f8dbf0edb425e0437798e9db9d0a28a6"
+bin = ["clang_tidy/data/bin/clang-tidy.exe"]
