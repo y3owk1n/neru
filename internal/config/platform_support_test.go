@@ -41,6 +41,11 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 			parity.Platforms{parity.Darwin},
 		},
 		{
+			"reference layouts can be selected on macOS and Wayland evdev",
+			"general.kb_layout_to_use", "",
+			parity.Platforms{parity.Darwin, parity.Linux},
+		},
+		{
 			"rectangle detection has no OCR answer",
 			"hints.vision.detect_rectangles", "",
 			parity.Platforms{parity.Darwin},
@@ -89,10 +94,45 @@ func TestPlatformSupport_DeclaresTheOptionBehindAValue(t *testing.T) {
 	}
 }
 
-// TestX11InertWords_ReportsWrittenPassthroughOnlyWhenItIsOn pins the one limit
-// finer than a platform column (#1613): the X11 backend cannot honor
-// passthrough, so the option and whichever dependents were written are
-// reported, and only while passthrough is actually on.
+// Explicit reference layouts must be reported as inert on X11; selecting its
+// current layout or leaving automatic selection alone needs no warning.
+func TestX11InertWords_ReportsWrittenReferenceLayouts(t *testing.T) {
+	t.Parallel()
+
+	const name = "general.kb_layout_to_use"
+	for _, test := range []struct {
+		layout string
+		wrote  bool
+		want   bool
+	}{
+		{layout: "first", wrote: true, want: true},
+		{layout: "first", wrote: false},
+		{layout: "current", wrote: true},
+		{layout: "", wrote: true},
+		{layout: "com.apple.keylayout.US", wrote: true, want: true},
+	} {
+		cfg := config.DefaultConfig()
+		cfg.General.KBLayoutToUse = test.layout
+
+		written := config.Written{Options: make(map[string]string)}
+		if test.wrote {
+			written.Options[name] = test.layout
+		}
+
+		got := config.X11InertWords(cfg, written)
+		if slices.Contains(got.Names(), name) != test.want {
+			t.Errorf(
+				"layout=%q, written=%v: got %v, want warning=%v",
+				test.layout,
+				test.wrote,
+				got,
+				test.want,
+			)
+		}
+	}
+}
+
+// Passthrough and its written dependents are reported only while it is on.
 func TestX11InertWords_ReportsWrittenPassthroughOnlyWhenItIsOn(t *testing.T) {
 	t.Parallel()
 

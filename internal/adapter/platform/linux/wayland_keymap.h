@@ -28,6 +28,10 @@ void neru_xkb_state_key(neru_xkb_state *state, uint16_t evdev_code, int is_press
 // Returns 0 on success, -1 on failure.
 int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size);
 
+// Resolve a command using layout group 0 and the live modifier state, without
+// changing the active layout. Same result and buffer contract as above.
+int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size);
+
 // Name a state-resolved keysym: its character when it types one, else the
 // keysym name folded onto the spelling Neru binds. This is the rule
 // neru_xkb_state_key_get_name applies, exposed so it can be pinned without a

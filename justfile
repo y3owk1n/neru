@@ -251,9 +251,22 @@ test: test-unit test-integration
 # test-ci is a composition of other recipes and never invokes `go test`
 # itself, so there is no seam between the two audiences to hang a switch on.
 [doc('Run the unit tests.')]
-test-unit:
+test-unit: test-xkb-layout
     @echo "Running unit tests..."
     go test ./...
+
+[doc('Test native Wayland layout translation without a compositor or input devices.')]
+test-xkb-layout:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ "$(go env GOOS)" != linux || "$(go env CGO_ENABLED)" != 1 ]]; then
+        exit 0
+    fi
+    test_binary=$(mktemp)
+    trap 'rm -f "$test_binary"' EXIT
+    $(go env CC) scripts/test-first-xkb-layout.c \
+        $(pkg-config --cflags --libs wayland-client xkbcommon) -o "$test_binary"
+    "$test_binary"
 
 # Run the cross-platform-safe test slice: every package that contains no
 # platform-tagged source at all, so its behavior is identical on macOS, Linux

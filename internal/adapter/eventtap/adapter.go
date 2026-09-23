@@ -177,8 +177,8 @@ func (a *Adapter) SetStickyModifierToggle(enabled bool) {
 //
 // Like PostModifierEvent it takes no lock and carries no destroyed guard,
 // because no backend routes it through the tap handle: macOS resolves a
-// process-wide input source, and Linux and Windows answer true without
-// touching anything. So it is neither a caller of the tap being torn down nor
+// process-wide input source, Linux publishes a process-wide evdev policy, and
+// Windows does nothing. So it is neither a caller of the tap being torn down nor
 // something a shutdown has to keep out.
 func (a *Adapter) SetKeyboardLayout(layoutID string) bool {
 	return a.tap.SetKeyboardLayout(layoutID)

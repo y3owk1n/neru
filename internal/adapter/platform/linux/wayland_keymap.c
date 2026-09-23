@@ -10,6 +10,7 @@
 
 struct keymap_ready {
 	struct xkb_state *state;
+	struct xkb_state *command_state;
 	int ready;
 	// Set when a keymap arrived after the first one, so the reader that
 	// dispatches this display knows the state it resolves names against has
@@ -38,16 +39,22 @@ static void neru_keyboard_keymap(
 				    xkb_keymap_new_from_string(ctx, map_str, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
 				if (keymap) {
 					struct xkb_state *fresh = xkb_state_new(keymap);
+					struct xkb_state *commands = xkb_state_new(keymap);
 					xkb_keymap_unref(keymap);
-					if (fresh) {
+					if (fresh && commands) {
 						// A later keymap replaces the first: the compositor
 						// changed its layout or options, and every name
 						// resolved from here on has to follow it.
 						if (kr->state) {
 							xkb_state_unref(kr->state);
+							xkb_state_unref(kr->command_state);
 							kr->changed = 1;
 						}
 						kr->state = fresh;
+						kr->command_state = commands;
+					} else {
+						xkb_state_unref(fresh);
+						xkb_state_unref(commands);
 					}
 				}
 				xkb_context_unref(ctx);
@@ -213,8 +220,8 @@ void neru_xkb_state_destroy(neru_xkb_state *state) {
 	if (!state)
 		return;
 
-	if (state->state)
-		xkb_state_unref(state->state);
+	xkb_state_unref(state->kr.command_state);
+	xkb_state_unref(state->kr.state);
 	if (state->wl_keyboard)
 		wl_keyboard_destroy(state->wl_keyboard);
 	if (state->display)
@@ -327,6 +334,22 @@ int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char
 		return -1;
 
 	xkb_keysym_t keysym = xkb_state_key_get_one_sym(state->state, (xkb_keycode_t)evdev_code + 8);
+
+	return neru_xkb_keysym_name(keysym, buf, buf_size);
+}
+
+// Resolve commands in the compositor's first layout with the live modifiers.
+// A separate state preserves held-key bookkeeping and the active layout used
+// to identify physical modifiers. Passthrough still emits raw evdev codes.
+int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size) {
+	if (!state || !state->state || !state->kr.command_state || !buf || buf_size == 0)
+		return -1;
+
+	xkb_state_update_mask(
+	    state->kr.command_state, xkb_state_serialize_mods(state->state, XKB_STATE_MODS_DEPRESSED),
+	    xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LATCHED),
+	    xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LOCKED), 0, 0, 0);
+	xkb_keysym_t keysym = xkb_state_key_get_one_sym(state->kr.command_state, (xkb_keycode_t)evdev_code + 8);
 
 	return neru_xkb_keysym_name(keysym, buf, buf_size);
 }

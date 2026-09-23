@@ -20,8 +20,9 @@ const (
 		"score each word"
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
 		"even where the vision strategy lands; that half is text-only"
-	noteKeyboardLayout = "the keyboard layout is detected rather than chosen outside macOS"
-	noteMacOSSurfaces  = "the menu bar, the Dock, Notification Center, Stage Manager, " +
+	noteKeyboardLayout = "reference layouts are selectable on macOS and Linux Wayland evdev; " +
+		"X11 and Windows use the current layout"
+	noteMacOSSurfaces = "the menu bar, the Dock, Notification Center, Stage Manager, " +
 		"picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart"
 	noteMissionControl = "Mission Control is a macOS concept, so the detection never fires " +
 		"and the hooks never run"
@@ -93,7 +94,7 @@ func PlatformSupport() parity.Declaration {
 		parity.On(parity.KindOption, darwinOnly, noteScreenShareHide,
 			"general.hide_overlay_in_screen_share",
 		),
-		parity.On(parity.KindOption, darwinOnly, noteKeyboardLayout,
+		parity.On(parity.KindOption, darwinAndLinux, noteKeyboardLayout,
 			"general.kb_layout_to_use",
 		),
 
@@ -557,12 +558,11 @@ const noteX11Passthrough = "the X11 backend cannot pass an unbound chord " +
 	"applications, so passthrough needs the Wayland evdev backend " +
 	"(Known Gaps, docs/CROSS_PLATFORM.md)"
 
-// X11InertWords reports the passthrough options a configuration writes that
-// the X11 backend cannot honor.
+// X11InertWords reports options a configuration writes that the X11 backend
+// cannot honor: modifier passthrough and reference layout selection.
 //
 // The platform column is per OS and cannot say "Linux, except X11", and
-// teaching the declaration a backend axis is far too much machinery for one
-// row. So the one limit finer than a column is declared beside the column: the
+// these backend limits are declared beside the column using the
 // same Word shape, the same Note, and the loader appends the findings to the
 // ones InertWords made, which is what gets them the same warning voice and the
 // same doctor row (#1613).
@@ -574,11 +574,23 @@ const noteX11Passthrough = "the X11 backend cannot pass an unbound chord " +
 // were written: they are inert everywhere without passthrough, which is a
 // cross-field question and not this one.
 func X11InertWords(cfg *Config, written Written) parity.Declaration {
-	if !cfg.General.PassthroughUnboundedKeys {
-		return nil
+	var inert parity.Declaration
+
+	const layoutOption = "general.kb_layout_to_use"
+
+	layout := strings.TrimSpace(cfg.General.KBLayoutToUse)
+	if _, wrote := written.Options[layoutOption]; wrote && layout != "" && layout != "current" {
+		inert = append(inert, parity.Word{
+			Kind:      parity.KindOption,
+			Name:      layoutOption,
+			Platforms: parity.AllPlatforms,
+			Note:      "X11 uses the current keyboard layout; reference layout selection needs Wayland evdev",
+		})
 	}
 
-	var inert parity.Declaration
+	if !cfg.General.PassthroughUnboundedKeys {
+		return inert
+	}
 
 	for _, name := range passthroughOptions {
 		if _, wrote := written.Options[name]; !wrote {
