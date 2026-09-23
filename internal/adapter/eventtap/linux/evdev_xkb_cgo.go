@@ -1,5 +1,5 @@
-// XKB translation for evdev key codes: mapping captured codes to key and
-// modifier names under the active keyboard layout.
+// XKB translation for evdev key codes: mapping captured codes to command
+// names under the configured reference layout (the first layout by default).
 //
 // These are methods on the capture rather than on a reader, because the answer
 // belongs to the devices and their keymap and not to whoever is reading them.
@@ -19,26 +19,70 @@ package linux
 #include "../../platform/linux/wayland_keymap.h"
 */
 import "C"
-import "unsafe"
 
-// keyName resolves a scan code to the key name it means under the active
-// keyboard layout, falling back to the built-in scan-code table when there is no
+import (
+	"sync/atomic"
+	"unsafe"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform"
+)
+
+// The process-wide proxy is shared by the tap and global-hotkey listener.
+// Keep their reference layout shared too, including before the proxy starts.
+// Atomic publication lets config reload change it without touching XKB state
+// from outside the proxy's reader goroutine.
+var evdevKeyboardLayout referenceKeyboardLayout
+
+const keyboardLayoutCurrent = "current"
+
+type referenceKeyboardLayout struct {
+	current atomic.Bool
+}
+
+func (layout *referenceKeyboardLayout) set(id string) bool {
+	layout.current.Store(id == keyboardLayoutCurrent)
+
+	return id == "" || id == "first" || id == keyboardLayoutCurrent
+}
+
+// SetKeyboardLayout selects the first (default) or current XKB layout for
+// Wayland evdev commands. X11 keeps using the current layout. An unsupported
+// value reports failure and restores the backend's automatic fallback.
+func (et *EventTap) SetKeyboardLayout(layoutID string) bool {
+	if !platform.DetectLinuxBackend().IsWayland() {
+		return layoutID == "" || layoutID == keyboardLayoutCurrent
+	}
+
+	return evdevKeyboardLayout.set(layoutID)
+}
+
+// keyName resolves a scan code under the configured reference keyboard
+// layout, falling back to the built-in scan-code table when there is no
 // keymap to ask.
 //
 // The fallback is a real answer rather than a failure: it is the name the code
 // carries on a us layout, which is what the table holds.
 func (capture *waylandEvdevCapture) keyName(code uint16) string {
+	return capture.xkbKeyName(code, !evdevKeyboardLayout.current.Load())
+}
+
+func (capture *waylandEvdevCapture) xkbKeyName(code uint16, command bool) string {
 	if capture == nil || capture.xkbState == nil {
 		return evdevKeyName(code)
 	}
 
 	var buf [64]C.char
-	if C.neru_xkb_state_key_get_name(
-		(*C.neru_xkb_state)(capture.xkbState),
-		C.uint16_t(code),
-		&buf[0],
-		64,
-	) == 0 {
+	var result C.int
+	if command {
+		result = C.neru_xkb_state_key_get_command_name(
+			(*C.neru_xkb_state)(capture.xkbState), C.uint16_t(code), &buf[0], C.size_t(len(buf)),
+		)
+	} else {
+		result = C.neru_xkb_state_key_get_name(
+			(*C.neru_xkb_state)(capture.xkbState), C.uint16_t(code), &buf[0], C.size_t(len(buf)),
+		)
+	}
+	if result == 0 {
 		return C.GoString(&buf[0])
 	}
 
@@ -67,7 +111,8 @@ func (capture *waylandEvdevCapture) modifierName(code uint16) string {
 		return evdevModifierName(code)
 	}
 
-	key := capture.keyName(code)
+	// Physical modifiers follow the live layout, including XKB remaps.
+	key := capture.xkbKeyName(code, false)
 	if key == "" {
 		return evdevModifierName(code)
 	}

@@ -381,9 +381,6 @@ func syntheticModifierName(modifier action.Modifiers) string {
 	return name
 }
 
-// SetKeyboardLayout sets the keyboard layout.
-func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
-
 // IsEnabled returns whether interception is active.
 func (et *EventTap) IsEnabled() bool {
 	et.mu.RLock()

@@ -785,13 +785,22 @@ layout, shortcut passthrough, and the shell used by `exec` hotkeys.
 | Option                                 | Type   | Default       | Description                                                                                       |
 | -------------------------------------- | ------ | ------------- | ------------------------------------------------------------------------------------------------- |
 | `excluded_apps`                        | array  | `[]`          | Bundle IDs where Neru won't activate                                                              |
-| `kb_layout_to_use`                     | string | `""`          | Force keyboard layout InputSourceID bundle ID (auto if empty). E.g. `com.apple.keylayout.Colemak` |
+| `kb_layout_to_use`                     | string | `""`          | macOS: InputSourceID bundle ID (auto if empty), e.g. `com.apple.keylayout.Colemak`. Linux Wayland evdev: `first` (also when empty) or `current`. X11 and Windows retain the current layout. |
 | `hide_overlay_in_screen_share`         | bool   | `false`       | Hide overlay in screen sharing apps                                                               |
 | `passthrough_unbounded_keys`           | bool   | `false`       | Let unbound Cmd/Ctrl/Alt shortcuts pass through                                                   |
 | `should_exit_after_passthrough`        | bool   | `false`       | Exit mode after a passthrough shortcut                                                            |
 | `passthrough_unbounded_keys_blacklist` | array  | `[]`          | Shortcuts to keep consumed when passthrough is on                                                 |
 | `exec_shell`                           | string | `"/bin/bash"` | Shell binary used for `exec` hotkey commands                                                      |
 | `exec_shell_args`                      | array  | `["-lc"]`     | Shell arguments; command string is appended last                                                  |
+
+On Linux Wayland with evdev capture, commands and hotkeys use the first
+configured XKB layout by default, even when another language is active.
+Set `general.kb_layout_to_use = "current"` to restore active-layout command
+translation, or `"first"` to select the first layout explicitly. This setting
+can be reloaded at runtime. It does not switch the desktop layout: ordinary
+typing and passthrough still use the current language. Shift and lock modifiers
+continue to select levels within the reference layout. Without evdev capture,
+the overlay's keyboard input retains its existing behavior.
 
 Find available `kb_layout_to_use` IDs on macOS:
 

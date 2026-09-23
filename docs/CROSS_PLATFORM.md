@@ -478,7 +478,16 @@ the X11 tap names the key from the state-resolved **keysym** rather than the
 string `XLookupString` returns, so all backends call `Shift+;` the same thing
 and XKB options like `ctrl:swapcaps` reach Neru's own bindings. **On a
 non-QWERTY layout this decides which physical key a `[hotkeys]` chord answers**:
-the one bearing that character on the active layout. A keysym is named by the
+the one bearing that character on the first configured XKB layout on Wayland
+(evdev) by default, regardless of the active language. This also applies to mode commands,
+hints and grid labels. Shift, CapsLock, NumLock and AltGr still select levels
+within that first layout. Physical modifier identification uses the live layout,
+and ordinary input and passthrough retain the active language because the proxy
+forwards the original scan codes. X11 continues to use the active layout.
+The reference layout is configurable through `general.kb_layout_to_use` (see
+[General configuration](CONFIGURATION.md#general)); `current` restores the
+previous behavior. No layout names are hardcoded; existing configuration character restrictions
+still apply. A keysym is named by the
 character it types when it types one, and by keysym name otherwise
 ([wayland_keymap.c](../internal/adapter/platform/linux/wayland_keymap.c)); the
 one key XKB renames under Shift, `ISO_Left_Tab`, folds back to `Tab`, which is
@@ -719,7 +728,7 @@ works; this says whether a word a person wrote does anything.
 | Word | Kind | macOS | Linux | Windows | Why |
 | ---- | ---- | --- | --- | --- | --- |
 | `general.hide_overlay_in_screen_share` | option | ✅ | ❌ | ❌ | hiding the overlay from a screen share is an NSWindow sharing level, a Quartz concept with no X11, Wayland or Win32 counterpart |
-| `general.kb_layout_to_use` | option | ✅ | ❌ | ❌ | the keyboard layout is detected rather than chosen outside macOS |
+| `general.kb_layout_to_use` | option | ✅ | ✅ | ❌ | reference layouts are selectable on macOS and Linux Wayland evdev; X11 and Windows use the current layout |
 | `hints.include_menubar_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.additional_menubar_hints_targets` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.include_dock_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
