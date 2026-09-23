@@ -37,7 +37,7 @@ sha256 = '1aa10b3f647268361d08bf4f17ce70964b8d9c04d5539e7d8acbebd14dc4a49c'
 [[package]]
 name = 'clang-tidy'
 ref = './.oku/clang-tidy.toml'
-manifest_sha256 = '4d4c37d53af9b56916fd03b65dfde03745866baa8db0877917ec809d2ad7768b'
+manifest_sha256 = '380dde4135c01b47a28a0b908abb6b7341a5ea61331c51cf7467cd160fd943d4'
 version = '21.1.6'
 
 [package.platform]
