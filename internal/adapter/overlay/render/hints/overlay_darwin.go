@@ -143,7 +143,7 @@ func NewOverlay(config config.HintsConfig, logger *zap.Logger) (*Overlay, error)
 	initPools()
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
+		window:          C.OverlayWindow(base.Window),
 		config:          config,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
@@ -163,7 +163,7 @@ func NewOverlayWithWindow(
 	base.CallbackManager.SetComponent("hints")
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
+		window:          C.OverlayWindow(base.Window),
 		config:          config,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
@@ -219,7 +219,7 @@ func (o *Overlay) ResizeToActiveScreen() {
 
 		C.NeruResizeOverlayToActiveScreenWithCallback(
 			o.window,
-			(C.ResizeCompletionCallback)(C.resizeHintCompletionCallback),
+			C.ResizeCompletionCallback(C.resizeHintCompletionCallback),
 			contextPtr,
 		)
 	})

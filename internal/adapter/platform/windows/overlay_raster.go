@@ -207,8 +207,8 @@ func triangleCoverage(vertices [triangleVertices]image.Point, col, row int) floa
 				from := vertices[edge]
 				to := vertices[(edge+1)%triangleVertices]
 
-				cross := (float64(to.X-from.X))*(pointY-float64(from.Y)) -
-					(float64(to.Y-from.Y))*(pointX-float64(from.X))
+				cross := float64(to.X-from.X)*(pointY-float64(from.Y)) -
+					float64(to.Y-from.Y)*(pointX-float64(from.X))
 
 				if cross < 0 {
 					negative = true

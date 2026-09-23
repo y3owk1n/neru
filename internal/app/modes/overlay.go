@@ -86,4 +86,4 @@ type overlaySurface interface {
 // A ports.OverlayPort satisfies this surface by construction. The assertion is
 // what fails, at the declaration rather than at the composition root, if a
 // method above drifts from the port's signature.
-var _ overlaySurface = (ports.OverlayPort)(nil)
+var _ overlaySurface = ports.OverlayPort(nil)

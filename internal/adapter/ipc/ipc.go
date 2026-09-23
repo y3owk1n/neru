@@ -62,6 +62,7 @@ const (
 // Both the client and server use this to detect CLI/daemon version mismatches.
 // Access is guarded by atomic.Value so concurrent reads from IPC goroutines are safe.
 var buildVersion atomic.Value //nolint:gochecknoglobals
+
 func init() {
 	buildVersion.Store(defaultBuildVersion)
 }

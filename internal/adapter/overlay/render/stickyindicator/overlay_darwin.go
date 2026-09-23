@@ -60,7 +60,7 @@ func NewOverlay(
 	}
 
 	return &Overlay{
-		window:       (C.OverlayWindow)(base.Window),
+		window:       C.OverlayWindow(base.Window),
 		uiConfig:     uiConfig,
 		theme:        theme,
 		logger:       logger,
@@ -79,7 +79,7 @@ func NewOverlayWithWindow(
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
 
 	return &Overlay{
-		window:       (C.OverlayWindow)(base.Window),
+		window:       C.OverlayWindow(base.Window),
 		uiConfig:     uiConfig,
 		theme:        theme,
 		logger:       logger,
