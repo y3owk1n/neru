@@ -15,13 +15,17 @@ shift
 
 id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
 
+# The names are compared in bash and passed to gh as a field, which gh encodes
+# into the query string, so no name is spliced into a jq program or a URL.
 for file in "$@"; do
     name="$(basename "$file")"
     gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$id/assets" \
-        --jq ".[] | select(.name == \"$name\") | .id" |
-        while read -r asset; do
-            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset"
+        --jq '.[] | "\(.id) \(.name)"' |
+        while read -r asset asset_name; do
+            if [ "$asset_name" = "$name" ]; then
+                gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset"
+            fi
         done
-    gh api -X POST "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$id/assets?name=$name" \
-        -H "Content-Type: application/octet-stream" --input "$file" --silent
+    gh api -X POST "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$id/assets" \
+        -f name="$name" -H "Content-Type: application/octet-stream" --input "$file" --silent
 done
