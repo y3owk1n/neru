@@ -51,7 +51,7 @@ name: publish-artifacts
 #    signing here stops silently.
 #
 #  - setup-just is pinned by commit, not by tag: a tag is a movable pointer, and
-#    these jobs later hand the release token to `gh release upload`.
+#    these jobs later hand the release token to the upload script.
 #    Dependabot's github-actions ecosystem updates a SHA pin that carries a
 #    version comment, so the trailing `# vX.Y.Z` is load-bearing. actions/*,
 #    googleapis/* and golangci/* are deliberately left tag-pinned across this
@@ -64,7 +64,7 @@ jobs:
     build-darwin-arm64-artifacts:
         runs-on: macos-15
         permissions:
-            contents: write # gh release upload
+            contents: write # upload the release files
             id-token: write # attest-build-provenance: sign the provenance
             attestations: write # attest-build-provenance: store it on the repo
         steps:
@@ -114,13 +114,14 @@ jobs:
             - name: Upload darwin arm64 release artifacts
               env:
                   GH_TOKEN: ${{ secrets.upload_token || github.token }}
+              shell: bash
               run: |
-                  gh release upload "${{ inputs.release_tag }}" neru-darwin-arm64.zip neru-darwin-arm64.zip.sha256 --clobber
+                  .github/scripts/upload-release-assets.sh "${{ inputs.release_tag }}" neru-darwin-arm64.zip neru-darwin-arm64.zip.sha256
 
     build-darwin-amd64-artifacts:
         runs-on: macos-15-intel
         permissions:
-            contents: write # gh release upload
+            contents: write # upload the release files
             id-token: write # attest-build-provenance: sign the provenance
             attestations: write # attest-build-provenance: store it on the repo
         steps:
@@ -159,13 +160,14 @@ jobs:
             - name: Upload darwin amd64 release artifacts
               env:
                   GH_TOKEN: ${{ secrets.upload_token || github.token }}
+              shell: bash
               run: |
-                  gh release upload "${{ inputs.release_tag }}" neru-darwin-amd64.zip neru-darwin-amd64.zip.sha256 --clobber
+                  .github/scripts/upload-release-assets.sh "${{ inputs.release_tag }}" neru-darwin-amd64.zip neru-darwin-amd64.zip.sha256
 
     build-linux-amd64-artifacts:
         runs-on: ubuntu-latest
         permissions:
-            contents: write # gh release upload
+            contents: write # upload the release files
             id-token: write # attest-build-provenance: sign the provenance
             attestations: write # attest-build-provenance: store it on the repo
         steps:
@@ -225,13 +227,14 @@ jobs:
             - name: Upload linux amd64 release artifacts
               env:
                   GH_TOKEN: ${{ secrets.upload_token || github.token }}
+              shell: bash
               run: |
-                  gh release upload "${{ inputs.release_tag }}" neru-linux-amd64.zip neru-linux-amd64.zip.sha256 --clobber
+                  .github/scripts/upload-release-assets.sh "${{ inputs.release_tag }}" neru-linux-amd64.zip neru-linux-amd64.zip.sha256
 
     build-linux-arm64-artifacts:
         runs-on: ubuntu-24.04-arm
         permissions:
-            contents: write # gh release upload
+            contents: write # upload the release files
             id-token: write # attest-build-provenance: sign the provenance
             attestations: write # attest-build-provenance: store it on the repo
         steps:
@@ -291,13 +294,14 @@ jobs:
             - name: Upload linux arm64 release artifacts
               env:
                   GH_TOKEN: ${{ secrets.upload_token || github.token }}
+              shell: bash
               run: |
-                  gh release upload "${{ inputs.release_tag }}" neru-linux-arm64.zip neru-linux-arm64.zip.sha256 --clobber
+                  .github/scripts/upload-release-assets.sh "${{ inputs.release_tag }}" neru-linux-arm64.zip neru-linux-arm64.zip.sha256
 
     build-windows-amd64-artifacts:
         runs-on: windows-latest
         permissions:
-            contents: write # gh release upload
+            contents: write # upload the release files
             id-token: write # attest-build-provenance: sign the provenance
             attestations: write # attest-build-provenance: store it on the repo
         steps:
@@ -347,13 +351,14 @@ jobs:
             - name: Upload windows amd64 release artifacts
               env:
                   GH_TOKEN: ${{ secrets.upload_token || github.token }}
+              shell: bash
               run: |
-                  gh release upload "${{ inputs.release_tag }}" neru-windows-amd64.zip neru-windows-amd64.zip.sha256 --clobber
+                  .github/scripts/upload-release-assets.sh "${{ inputs.release_tag }}" neru-windows-amd64.zip neru-windows-amd64.zip.sha256
 
     build-windows-arm64-artifacts:
         runs-on: windows-latest
         permissions:
-            contents: write # gh release upload
+            contents: write # upload the release files
             id-token: write # attest-build-provenance: sign the provenance
             attestations: write # attest-build-provenance: store it on the repo
         steps:
@@ -399,5 +404,6 @@ jobs:
             - name: Upload windows arm64 release artifacts
               env:
                   GH_TOKEN: ${{ secrets.upload_token || github.token }}
+              shell: bash
               run: |
-                  gh release upload "${{ inputs.release_tag }}" neru-windows-arm64.zip neru-windows-arm64.zip.sha256 --clobber
+                  .github/scripts/upload-release-assets.sh "${{ inputs.release_tag }}" neru-windows-arm64.zip neru-windows-arm64.zip.sha256
