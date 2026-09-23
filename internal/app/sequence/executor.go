@@ -389,8 +389,7 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 // signal). It exists so the failure log can be specific about *how* the step
 // failed without quoting anything the command said.
 func exitCodeOf(commandErr error) int {
-	var exitErr *exec.ExitError
-	if errors.As(commandErr, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](commandErr); ok {
 		return exitErr.ExitCode()
 	}
 

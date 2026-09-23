@@ -99,7 +99,9 @@ func TestCapabilityPresets_PopulateAllCapabilityStatuses(t *testing.T) {
 					continue
 				}
 
-				capability, ok := capabilitiesValue.Field(index).Interface().(ports.FeatureCapability)
+				capability, ok := reflect.TypeAssert[ports.FeatureCapability](
+					capabilitiesValue.Field(index),
+				)
 				if !ok {
 					t.Fatalf(
 						"%s is not a FeatureCapability in %s preset",

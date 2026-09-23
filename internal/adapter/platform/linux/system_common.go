@@ -739,8 +739,7 @@ func (s *SystemAdapter) notificationCapability(
 // user, leaving the "[CODE] …" prefix out of a capability detail that `neru
 // doctor` prints verbatim.
 func userFacingReason(err error) string {
-	var domainErr *derrors.Error
-	if errors.As(err, &domainErr) {
+	if domainErr, ok := errors.AsType[*derrors.Error](err); ok {
 		return domainErr.Message()
 	}
 
