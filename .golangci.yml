@@ -24,6 +24,7 @@ linters:
         - cyclop # duplicate of gocyclo
         - dupl # Too strict
         - exhaustruct # Not relevant
+        - exhaustruct_v5 # Added by golangci-lint 2.13, not relevant as exhaustruct
         - gochecknoglobals
         - gochecknoinits
         - gocognit # Too strict

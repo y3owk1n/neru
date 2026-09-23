@@ -9,6 +9,14 @@ from = "git-tags"
 repo = "https://github.com/golang/go"
 strip_prefix = "go"
 
+# Windows gets a zip, and its programs end in .exe.
+[[artifact]]
+match = { os = "windows" }
+url = "https://dl.google.com/go/go{{version}}.{{os}}-{{arch}}.zip"
+sha256_url = "https://dl.google.com/go/go{{version}}.{{os}}-{{arch}}.zip.sha256"
+strip = 1
+bin = ["bin/go.exe", "bin/gofmt.exe"]
+
 [[artifact]]
 url = "https://dl.google.com/go/go{{version}}.{{os}}-{{arch}}.tar.gz"
 sha256_url = "https://dl.google.com/go/go{{version}}.{{os}}-{{arch}}.tar.gz.sha256"

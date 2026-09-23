@@ -120,30 +120,13 @@ jobs:
                     tesseract-ocr-eng \
                     libpipewire-0.3-dev
 
-            - name: Setup Go
-              uses: actions/setup-go@v7
-              with:
-                  go-version-file: "go.mod"
-                  cache: true
-
-            # Install only, the lint step runs it
-            - name: Setup Golangci
-              if: matrix.check == 'lint'
-              uses: golangci/golangci-lint-action@v9
-              with:
-                  version: v2.12.2
-                  install-only: true
-
-            - name: Install just
-              uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-              with:
-                  just-version: "1.58.0"
-
-            # clang-format and clang-tidy for the Objective-C sources, at the
-            # versions oku.toml pins. The PyPI wheels hold static binaries.
-            - name: Install clang tools
-              if: runner.os == 'macOS' && (matrix.check == 'lint' || matrix.check == 'formatting')
-              run: pipx install clang-format==21.1.8 && pipx install clang-tidy==21.1.6
+            # oku installs go, golangci-lint, just, clang-format and clang-tidy
+            # at the versions oku.lock pins, on every OS. The action installs
+            # the oku release of its own tag.
+            - name: Setup the toolchain
+              uses: y3owk1n/oku@v0.6.1
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
 
             # Run checks on macOS
             - name: Run just lint

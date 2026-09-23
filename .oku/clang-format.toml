@@ -33,3 +33,9 @@ match = { os = "linux", arch = "amd64" }
 url = "https://files.pythonhosted.org/packages/a8/c2/403e7371b1ab0f6175d708ecc93cf18085ea9f903e8fe7d17c43df698f06/clang_format-21.1.8-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
 sha256 = "d12b864b596b80810cdd7f97556c485dc09cfe2952503958535f01359e025fbb"
 bin = ["clang_format/data/bin/clang-format"]
+
+[[artifact]]
+match = { os = "windows", arch = "amd64" }
+url = "https://files.pythonhosted.org/packages/69/7a/c49c8af9135c6a6dfb9cd103328ba7b6551643dce71b57e58ea940884015/clang_format-21.1.8-py2.py3-none-win_amd64.whl"
+sha256 = "a7606da55e31ebf5b63dd75800392e6cca7c595a74100c2cebcda2d742130732"
+bin = ["clang_format/data/bin/clang-format.exe"]

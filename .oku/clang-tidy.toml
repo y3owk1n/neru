@@ -33,3 +33,9 @@ match = { os = "linux", arch = "amd64" }
 url = "https://files.pythonhosted.org/packages/cf/fc/f0a2ba49f142e019117e9d9d6c1b49bde410ec0139cc9392ccae1be4ff3e/clang_tidy-21.1.6-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
 sha256 = "685e549e80461afb0f0c420ecfd0427e8bf38b927e989bdfee49dab4a9794cd1"
 bin = ["clang_tidy/data/bin/clang-tidy"]
+
+[[artifact]]
+match = { os = "windows", arch = "amd64" }
+url = "https://files.pythonhosted.org/packages/4b/ed/26fbf1a0847ccd424f5a270d851b3b726e17d7eaebefbf58fff8191bdf81/clang_tidy-21.1.6-py2.py3-none-win_amd64.whl"
+sha256 = "8f29fbc3e8aa0552810dd0e3e69f3158f8dbf0edb425e0437798e9db9d0a28a6"
+bin = ["clang_tidy/data/bin/clang-tidy.exe"]

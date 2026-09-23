@@ -92,7 +92,10 @@ With [direnv](https://direnv.net/), `eval "$(oku env --shell bash)"` in an
 `.envrc` does the same.
 
 oku manages Go, gopls, goimports, gofumpt, golines, golangci-lint, just, and
-clang-format and clang-tidy (for the Objective-C sources).
+clang-format and clang-tidy (for the Objective-C sources). CI installs the same
+versions from `oku.lock` with the oku action, on macOS, Linux and Windows.
+`oku update` moves each tool to the newest version that `oku.toml` allows, and
+`oku outdated` shows what is behind.
 
 On Linux it is not enough on its own: oku does not provide the libraries a CGO
 build links against. `just linux-deps` installs them with apt, dnf or pacman,
