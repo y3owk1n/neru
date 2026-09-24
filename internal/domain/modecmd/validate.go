@@ -21,6 +21,7 @@ const (
 	msgToggleWithCycle                 = "--toggle cannot be combined with a cycle list, because --toggle exits an open mode and a cycle list advances it"
 	msgTwoCycles                       = "only one flag per command can take a cycle list, because two lists advance together and never mix, so give --strategy or --capture-scope a single value"
 	msgSplitWordWithCycle              = "--split-word cannot be combined with a --strategy cycle list, because word splitting needs the vision strategy on every step"
+	msgZoomConflict                    = "--zoom-to-depth and --zoom-around-cursor cannot be used together"
 	msgModifierEmpty                   = "modifier values cannot be empty"
 	msgNameRequired                    = "mode requires the name of a declared mode: mode <name>"
 	msgNameInvalid                     = "a mode name starts with a letter and continues with letters, digits, _ or -"
@@ -121,6 +122,12 @@ var dependencies = []dependency{
 	{
 		unmet:   func(a Activation) bool { return isTrue(a.SplitWord) && len(a.StrategyCycle) > 0 },
 		message: msgSplitWordWithCycle,
+	},
+	{
+		unmet: func(a Activation) bool {
+			return a.ZoomToDepth != nil && a.ZoomAroundCursor != nil
+		},
+		message: msgZoomConflict,
 	},
 }
 
