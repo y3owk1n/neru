@@ -290,7 +290,8 @@ func HeldMouseButtons() []action.MouseButton {
 
 // MouseUp releases the given button at the given point, undoing the hold its
 // press kept, or presenting modifiers for the length of the release event
-// when no press of this process is behind it.
+// when no press of this process is behind it. Releasing a drag does not depend
+// on the move to the release point succeeding (dragReleaseAt).
 func MouseUp(point image.Point, button action.MouseButton, modifiers action.Modifiers) error {
 	hold, err := resumeModifierHold(button, modifiers)
 	if err != nil {
@@ -299,20 +300,24 @@ func MouseUp(point image.Point, button action.MouseButton, modifiers action.Modi
 
 	defer hold.release()
 
+	var released bool
+
 	flags := flagsForButton(button).up
 	if heldButtons.IsDown(button) {
-		err = dragReleaseAt(point, flags)
+		released, err = dragReleaseAt(point, flags)
 	} else {
 		err = buttonEventAt(point, flags)
+		released = err == nil
 	}
 
-	if err != nil {
-		return err
+	// The tracker follows the button-up, not the error: a release that went out
+	// after a failed move still left the button up, and leaving it recorded as
+	// held would make every later click a drag.
+	if released {
+		heldButtons.Clear(button)
 	}
 
-	heldButtons.Clear(button)
-
-	return nil
+	return err
 }
 
 // dragGlideTo moves the pointer from where it is to target along the glide
@@ -530,18 +535,27 @@ func absoluteCoordinate(pixel, origin, size int) int32 {
 	return int32(min(value, absoluteCoordinateRange-1))
 }
 
-// dragReleaseAt posts the release of a drag this process holds. It brings
-// the pointer to point, gives the application dragReleaseSettle to process
-// the motion, and only then releases.
-func dragReleaseAt(point image.Point, flags uint32) error {
-	err := moveCursorTo(point)
-	if err != nil {
-		return err
-	}
+// dragReleaseAt posts the release of a drag this process holds. It brings the
+// pointer to point, gives the application dragReleaseSettle to process the
+// motion, and only then releases. It reports whether the button-up went out,
+// and the first error behind it.
+//
+// A failed move does not hold the release back. Losing the drag's last stretch
+// selects the wrong range, which is recoverable; skipping the button-up leaves
+// a button held that every later click inherits, and EnsureMouseUp cannot get
+// it back, because its own MouseUp comes through here and fails the same way.
+// The release's own error outranks the move's.
+func dragReleaseAt(point image.Point, flags uint32) (bool, error) {
+	moveErr := moveCursorTo(point)
 
 	time.Sleep(dragReleaseSettle)
 
-	return sendMouseInput(flags, 0)
+	err := sendMouseInput(flags, 0)
+	if err != nil {
+		return false, err
+	}
+
+	return true, moveErr
 }
 
 // wheelEvent is one MOUSEEVENTF_WHEEL or MOUSEEVENTF_HWHEEL record, before
