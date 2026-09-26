@@ -117,10 +117,9 @@ func TestWheelEvents_NegatesHorizontalDelta(t *testing.T) {
 	}
 }
 
-// TestDragGlidePath_LandsOnTheTargetFromWithinTheApproach pins the shape of a
-// held warp's path: even steps, target last, and a final step no longer than
-// dragLandingApproach, the step the application reads as the end of the drag.
-func TestDragGlidePath_LandsOnTheTargetFromWithinTheApproach(t *testing.T) {
+// TestDragGlidePath_StepsEvenlyOntoTheTarget pins the shape of a held warp's
+// path: even steps, target last, and no step repeating the pixel before it.
+func TestDragGlidePath_StepsEvenlyOntoTheTarget(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -131,35 +130,40 @@ func TestDragGlidePath_LandsOnTheTargetFromWithinTheApproach(t *testing.T) {
 		want   []image.Point
 	}{
 		{
-			name:   "horizontal drag keeps the even steps and lands short",
+			name:   "an even split reaches the target on the last step",
 			from:   image.Point{X: 100, Y: 50},
-			target: image.Point{X: 500, Y: 50},
+			target: image.Point{X: 500, Y: 250},
 			steps:  4,
 			want: []image.Point{
-				{X: 200, Y: 50},
-				{X: 300, Y: 50},
-				{X: 400, Y: 50},
-				{X: 496, Y: 50},
-				{X: 500, Y: 50},
+				{X: 200, Y: 100},
+				{X: 300, Y: 150},
+				{X: 400, Y: 200},
+				{X: 500, Y: 250},
 			},
 		},
 		{
-			name:   "a glide shorter than the approach is one step",
+			name:   "steps rounding onto one pixel collapse to it",
 			from:   image.Point{X: 100, Y: 50},
-			target: image.Point{X: 103, Y: 50},
-			steps:  4,
-			want:   []image.Point{{X: 103, Y: 50}},
-		},
-		{
-			name:   "the landing point replaces a step past it",
-			from:   image.Point{X: 100, Y: 50},
-			target: image.Point{X: 108, Y: 50},
+			target: image.Point{X: 102, Y: 50},
 			steps:  4,
 			want: []image.Point{
+				{X: 101, Y: 50},
 				{X: 102, Y: 50},
-				{X: 104, Y: 50},
-				{X: 108, Y: 50},
 			},
+		},
+		{
+			name:   "a one pixel glide is the target alone",
+			from:   image.Point{X: 100, Y: 50},
+			target: image.Point{X: 101, Y: 50},
+			steps:  4,
+			want:   []image.Point{{X: 101, Y: 50}},
+		},
+		{
+			name:   "one step is the target alone",
+			from:   image.Point{X: 100, Y: 50},
+			target: image.Point{X: 500, Y: 250},
+			steps:  1,
+			want:   []image.Point{{X: 500, Y: 250}},
 		},
 	}
 
@@ -179,10 +183,9 @@ func TestDragGlidePath_LandsOnTheTargetFromWithinTheApproach(t *testing.T) {
 	}
 }
 
-// TestDragGlidePath_NeverStepsBackwards guards the property the landing point
-// could break: every step of a diagonal glide moves further along the line
-// than the one before it, so a drag never shrinks a selection partway
-// through.
+// TestDragGlidePath_NeverStepsBackwards guards a property a drag depends on:
+// every step of a diagonal glide moves further along the line than the one
+// before it, so a drag never shrinks a selection partway through.
 func TestDragGlidePath_NeverStepsBackwards(t *testing.T) {
 	t.Parallel()
 
@@ -211,6 +214,61 @@ func TestDragGlidePath_NeverStepsBackwards(t *testing.T) {
 			}
 
 			previous = traveled
+		}
+	}
+}
+
+// TestDragApproachPoint_LeavesAShortMoveOntoTheTarget pins the split every drag
+// step lands through: neither axis of the move from the approach point to the
+// target travels more than dragLandingApproach, which is the comparison Windows
+// makes against its mouse thresholds before doubling a move, and that move is
+// the one the application reads as the end of the drag.
+func TestDragApproachPoint_LeavesAShortMoveOntoTheTarget(t *testing.T) {
+	t.Parallel()
+
+	from := image.Point{X: 500, Y: 400}
+
+	for _, target := range []image.Point{
+		{X: 4000, Y: 400},
+		{X: 500, Y: 12},
+		{X: 740, Y: 400},
+		{X: 3000, Y: 1800},
+		{X: 20, Y: 30},
+	} {
+		approach, split := dragApproachPoint(from, target)
+		if !split {
+			t.Fatalf("dragApproachPoint(%v, %v) reported no split", from, target)
+		}
+
+		landingX := max(target.X-approach.X, approach.X-target.X)
+		landingY := max(target.Y-approach.Y, approach.Y-target.Y)
+
+		if landingX > dragLandingApproach || landingY > dragLandingApproach {
+			t.Fatalf(
+				"landing move to %v is (%d, %d) pixels, want at most %d on each axis",
+				target, landingX, landingY, dragLandingApproach,
+			)
+		}
+	}
+}
+
+// TestDragApproachPoint_DoesNotSplitAShortStep pins the other half: a step
+// already within dragLandingApproach is one move, not two, so a slow drag does
+// not post a zero-length move per step.
+func TestDragApproachPoint_DoesNotSplitAShortStep(t *testing.T) {
+	t.Parallel()
+
+	from := image.Point{X: 500, Y: 400}
+
+	for _, target := range []image.Point{
+		{X: 500, Y: 400},
+		{X: 501, Y: 400},
+		{X: 503, Y: 402},
+		{X: 504, Y: 400},
+	} {
+		_, split := dragApproachPoint(from, target)
+		if split {
+			t.Fatalf("dragApproachPoint(%v, %v) split a short step", from, target)
 		}
 	}
 }

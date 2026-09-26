@@ -57,14 +57,16 @@ const (
 	dragGlideSteps    = 20
 	dragGlideInterval = 6 * time.Millisecond
 
-	// dragLandingApproach is how far back along the drag the glide's last
-	// full step stops, leaving this much for the small relative step that
-	// lands on the target (dragGlidePath). The pointer speed and threshold
-	// settings scale relative motion, and Windows doubles a step longer than
-	// the first threshold, 6 pixels by default. The warp that follows each
-	// step corrects its drift (dragStepTo), but the last step is the one the
-	// application reads as the end of the drag, so it stays short enough for
-	// those thresholds to deliver it as sent.
+	// dragLandingApproach is how much of a drag step is left to the short
+	// relative move that ends it (dragApproachPoint). The pointer speed and
+	// threshold settings scale relative motion, and Windows doubles a move
+	// whose distance along either axis is greater than the first threshold, 6
+	// pixels by default. The warp that follows each move corrects its drift,
+	// but the last move of a drag is the one the application reads as the end
+	// of it, and no warp can take that back, so every step ends with a move
+	// both axes of which stay under those thresholds. Rounding the approach
+	// point to a pixel can stretch the move past this figure diagonally, never
+	// past it on an axis.
 	dragLandingApproach = 4
 
 	// dragReleaseSettle is how long a release waits after its last motion
@@ -336,7 +338,7 @@ func dragGlideTo(target image.Point) error {
 	return nil
 }
 
-// dragStepTo moves the pointer one glide step onto point. With nothing held
+// dragStepTo moves the pointer one drag step onto point. With nothing held
 // there is no drag for an application to read, so it warps instead.
 //
 // A WinUI text control, and Windows Terminal's is one, extends a selection
@@ -344,53 +346,93 @@ func dragGlideTo(target image.Point) error {
 // absolute injected move, however finely Neru interpolates either one, though
 // it does register the press, so a drag made of absolute motion selects the
 // single character under it. A Win32 control takes the selection from the two
-// endpoints instead, so absolute motion is enough for it. The warp after the
-// relative move lands the step on its pixel exactly, which stops the threshold
-// scaling dragLandingApproach describes from accumulating across the glide.
+// endpoints instead, so absolute motion is enough for it.
+//
+// The step goes out as two relative moves, the second no longer than
+// dragLandingApproach, because the move that ends a step may also be the move
+// that ends the whole drag. Every caller lands on a pixel through here, the
+// smooth-cursor animator included, and an animator's own step is as long as
+// its interpolation makes it.
 func dragStepTo(point image.Point) error {
 	if !heldButtons.AnyDown() {
 		return warpCursor(point)
 	}
 
 	from, err := cursorPosition()
-	if err == nil && from != point {
-		// The motion is best-effort, like the redraw in warpCursor: a step
-		// that reaches the pixel beats one that fails because SendInput was
-		// refused.
-		_ = dragMotionBy(point.Sub(from))
+	if err != nil {
+		return warpCursor(point)
 	}
 
-	return warpCursor(point)
+	approach, split := dragApproachPoint(from, point)
+	if split {
+		err = dragMotionOnto(from, approach)
+		if err != nil {
+			return err
+		}
+
+		from = approach
+	}
+
+	return dragMotionOnto(from, point)
+}
+
+// dragMotionOnto posts the relative motion from one pixel to another, then
+// warps to correct whatever the pointer thresholds made of the delta, so the
+// error cannot accumulate over the moves that follow.
+//
+// The relative move's failure reaches the caller, unlike the redraw warpCursor
+// posts. The redraw is cosmetic; this is the motion the drag is made of, and a
+// caller that releases the button believing the drag happened would select the
+// single character under the press instead.
+func dragMotionOnto(from, onto image.Point) error {
+	if from != onto {
+		err := dragMotionBy(onto.Sub(from))
+		if err != nil {
+			return err
+		}
+	}
+
+	return warpCursor(onto)
+}
+
+// dragApproachPoint returns the pixel a drag step passes through before landing
+// on target, leaving dragLandingApproach of travel for the move that lands. A
+// step that short already, or one whose approach rounds onto an endpoint, lands
+// in a single move and reports false.
+func dragApproachPoint(from, target image.Point) (image.Point, bool) {
+	total := math.Hypot(float64(target.X-from.X), float64(target.Y-from.Y))
+	if total <= dragLandingApproach {
+		return image.Point{}, false
+	}
+
+	approach := pointAlong(from, target, (total-dragLandingApproach)/total)
+	if approach == from || approach == target {
+		return image.Point{}, false
+	}
+
+	return approach, true
 }
 
 // dragGlidePath returns the points a glide from one point to another passes
-// through, target last, in the given number of even steps. The last stretch,
-// within dragLandingApproach of the target, is one short step instead. A glide
-// of no distance has no path.
+// through, target last, in the given number of even steps. A glide of no
+// distance has no path. Each point is landed on by dragStepTo, which is what
+// keeps the motion onto it short.
 func dragGlidePath(from, target image.Point, steps int) []image.Point {
-	if from == target {
+	if from == target || steps < 1 {
 		return nil
 	}
 
-	total := math.Hypot(float64(target.X-from.X), float64(target.Y-from.Y))
-	landing := max(total-dragLandingApproach, 0)
-
-	points := make([]image.Point, 0, steps+1)
+	points := make([]image.Point, 0, steps)
 
 	for i := 1; i < steps; i++ {
-		traveled := total * float64(i) / float64(steps)
-		if traveled >= landing {
-			break
-		}
-
-		points = appendGlideStep(points, from, pointAlong(from, target, traveled/total))
+		points = appendGlideStep(
+			points,
+			from,
+			pointAlong(from, target, float64(i)/float64(steps)),
+		)
 	}
 
-	if landing > 0 {
-		points = appendGlideStep(points, from, pointAlong(from, target, landing/total))
-	}
-
-	return append(points, target)
+	return appendGlideStep(points, from, target)
 }
 
 // appendGlideStep adds one glide step to the path, unless it is the pixel the
