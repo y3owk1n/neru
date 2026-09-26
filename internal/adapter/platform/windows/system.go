@@ -27,7 +27,9 @@ func NewSystemAdapter() *SystemAdapter {
 	adapter := &SystemAdapter{}
 	adapter.cursorAnimator = newSmoothCursorAnimator(
 		adapter.currentCursorPosition,
-		warpCursor,
+		// dragStepTo, not warpCursor. An animated move with a button held is
+		// a drag, and its steps have to carry the motion that makes one.
+		dragStepTo,
 	)
 
 	return adapter

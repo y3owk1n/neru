@@ -420,13 +420,24 @@ recording which buttons are down, where, and with which modifiers. Toggle
 actions resolve against it, and `EnsureMouseUp` releases every held button when
 Neru returns to idle. On macOS it selects the drag event type for cursor moves,
 which Quartz requires. On Windows an application reads a drag only out of
-intermediate motion: a press, one jump and a release select nothing, whichever
-primitive makes the jump. A warp while a button is held is therefore spread
-over a short glide of `SetCursorPos` steps, each followed by an injected
-`MOUSEEVENTF_MOVE` at the same pixel because Windows moves the pointer for
-`SetCursorPos` during a held drag without redrawing it, and the release of a
-held button waits a few milliseconds after its last motion so the application
-processes the move before the button-up. The Linux backends warp the pointer and let the compositor infer the drag.
+intermediate motion, and a WinUI text control (Windows Terminal's is one) only
+out of *relative* motion. A press, one jump and a release select nothing, and
+absolute motion, however finely interpolated, selects the single character
+under the press. Neru therefore spreads a warp made while a button is held
+over a short glide of relative `MOUSEEVENTF_MOVE` deltas. Each step goes out as
+two of them, and the second travels at most 4 pixels on either axis, because
+Windows doubles a relative move that passes its first mouse threshold and the
+move that ends a step may also be the move that ends the drag. Two events then
+follow each delta. A `SetCursorPos` puts the pointer on the pixel the move
+aimed at, since the pointer speed and threshold settings scale relative motion
+and the error would otherwise accumulate across the glide. An absolute
+`MOUSEEVENTF_MOVE` at that same pixel redraws the pointer, because Windows
+moves it for `SetCursorPos` during a held drag without redrawing it. The
+smooth-cursor animator lands its own steps the same way, so enabling
+`smooth_cursor.move_mouse_enabled` does not change what an application reads.
+The release of a held button waits a few milliseconds after its last motion so
+the application processes the move before the button-up. The Linux backends warp
+the pointer and let the compositor infer the drag.
 
 ---
 
