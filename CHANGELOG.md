@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.55.1](https://github.com/y3owk1n/neru/compare/v1.55.0...v1.55.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **windows:** post drag motion as relative deltas so WinUI text selects ([#1706](https://github.com/y3owk1n/neru/issues/1706)) ([5556bcf](https://github.com/y3owk1n/neru/commit/5556bcfb681eb8ff1607972ced631cc296c1c8cd))
+
 ## [1.55.0](https://github.com/y3owk1n/neru/compare/v1.54.0...v1.55.0) (2026-09-21)
 
 
