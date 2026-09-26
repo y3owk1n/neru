@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"math"
 	"time"
 	"unsafe"
 
@@ -51,10 +52,20 @@ const (
 	// drag: a press, one jump, and a release select nothing in Notepad and
 	// only sometimes in Edge, whether the jump is SetCursorPos or an
 	// injected absolute move. Interpolated motion between the two points
-	// selects the whole range every time in both, with either primitive, so
-	// a held warp is spread over this many SetCursorPos steps.
+	// selects the whole range every time in both, so a held warp is spread
+	// over this many steps (dragGlidePath).
 	dragGlideSteps    = 20
 	dragGlideInterval = 6 * time.Millisecond
+
+	// dragLandingApproach is how far back along the drag the glide's last
+	// full step stops, leaving this much for the small relative step that
+	// lands on the target (dragGlidePath). The pointer speed and threshold
+	// settings scale relative motion, and Windows doubles a step longer than
+	// the first threshold, 6 pixels by default. The warp that follows each
+	// step corrects its drift (dragStepTo), but the last step is the one the
+	// application reads as the end of the drag, so it stays short enough for
+	// those thresholds to deliver it as sent.
+	dragLandingApproach = 4
 
 	// dragReleaseSettle is how long a release waits after its last motion
 	// so the application processes the move at the release point before
@@ -302,43 +313,117 @@ func MouseUp(point image.Point, button action.MouseButton, modifiers action.Modi
 	return nil
 }
 
-// dragGlideTo moves the pointer from where it is to target in dragGlideSteps
-// warps, dragGlideInterval apart, ending on target exactly.
+// dragGlideTo moves the pointer from where it is to target along the glide
+// path, one step every dragGlideInterval, ending on target exactly.
 func dragGlideTo(target image.Point) error {
 	from, err := cursorPosition()
 	if err != nil {
 		return warpCursor(target)
 	}
 
-	for _, step := range dragGlidePoints(from, target, dragGlideSteps) {
-		err = warpCursor(step)
+	path := dragGlidePath(from, target, dragGlideSteps)
+	for index, step := range path {
+		err = dragStepTo(step)
 		if err != nil {
 			return err
 		}
 
-		time.Sleep(dragGlideInterval)
+		if index < len(path)-1 {
+			time.Sleep(dragGlideInterval)
+		}
 	}
 
-	return warpCursor(target)
+	return nil
 }
 
-// dragGlidePoints returns the intermediate points of a glide from one point
-// to another in the given number of steps: the endpoints themselves are left
-// out, and a glide of no distance has no intermediate points.
-func dragGlidePoints(from, target image.Point, steps int) []image.Point {
-	if from == target || steps < 2 {
+// dragStepTo moves the pointer one glide step onto point. With nothing held
+// there is no drag for an application to read, so it warps instead.
+//
+// A WinUI text control, and Windows Terminal's is one, extends a selection
+// only on relative pointer motion. It reads nothing out of SetCursorPos or an
+// absolute injected move, however finely Neru interpolates either one, though
+// it does register the press, so a drag made of absolute motion selects the
+// single character under it. A Win32 control takes the selection from the two
+// endpoints instead, so absolute motion is enough for it. The warp after the
+// relative move lands the step on its pixel exactly, which stops the threshold
+// scaling dragLandingApproach describes from accumulating across the glide.
+func dragStepTo(point image.Point) error {
+	if !heldButtons.AnyDown() {
+		return warpCursor(point)
+	}
+
+	from, err := cursorPosition()
+	if err == nil && from != point {
+		// The motion is best-effort, like the redraw in warpCursor: a step
+		// that reaches the pixel beats one that fails because SendInput was
+		// refused.
+		_ = dragMotionBy(point.Sub(from))
+	}
+
+	return warpCursor(point)
+}
+
+// dragGlidePath returns the points a glide from one point to another passes
+// through, target last, in the given number of even steps. The last stretch,
+// within dragLandingApproach of the target, is one short step instead. A glide
+// of no distance has no path.
+func dragGlidePath(from, target image.Point, steps int) []image.Point {
+	if from == target {
 		return nil
 	}
 
-	points := make([]image.Point, 0, steps-1)
+	total := math.Hypot(float64(target.X-from.X), float64(target.Y-from.Y))
+	landing := max(total-dragLandingApproach, 0)
+
+	points := make([]image.Point, 0, steps+1)
+
 	for i := 1; i < steps; i++ {
-		points = append(points, image.Point{
-			X: from.X + (target.X-from.X)*i/steps,
-			Y: from.Y + (target.Y-from.Y)*i/steps,
-		})
+		traveled := total * float64(i) / float64(steps)
+		if traveled >= landing {
+			break
+		}
+
+		points = appendGlideStep(points, from, pointAlong(from, target, traveled/total))
 	}
 
-	return points
+	if landing > 0 {
+		points = appendGlideStep(points, from, pointAlong(from, target, landing/total))
+	}
+
+	return append(points, target)
+}
+
+// appendGlideStep adds one glide step to the path, unless it is the pixel the
+// path is already on. A glide shorter than its step count rounds several steps
+// onto the same pixel, and posting them would sleep dragGlideInterval for each
+// one while no application sees any motion.
+func appendGlideStep(points []image.Point, from, step image.Point) []image.Point {
+	current := from
+	if len(points) > 0 {
+		current = points[len(points)-1]
+	}
+
+	if step == current {
+		return points
+	}
+
+	return append(points, step)
+}
+
+// pointAlong returns the point the given fraction of the way from one point to
+// another, rounded to the nearest pixel.
+func pointAlong(from, target image.Point, fraction float64) image.Point {
+	return image.Point{
+		X: from.X + int(math.Round(float64(target.X-from.X)*fraction)),
+		Y: from.Y + int(math.Round(float64(target.Y-from.Y)*fraction)),
+	}
+}
+
+// dragMotionBy posts one relative MOUSEEVENTF_MOVE of delta through SendInput.
+// This is the motion an application reads a drag out of. dragStepTo says why a
+// drag needs it, and why Windows does not deliver the delta verbatim.
+func dragMotionBy(delta image.Point) error {
+	return sendMouseMove(mouseeventfMove, int32(delta.X), int32(delta.Y))
 }
 
 // dragMotionTo posts one absolute MOUSEEVENTF_MOVE at point through SendInput.
@@ -352,12 +437,23 @@ func dragGlidePoints(from, target image.Point, steps int) []image.Point {
 func dragMotionTo(point image.Point) error {
 	desktop := virtualScreenMetrics()
 
+	return sendMouseMove(
+		mouseeventfMove|mouseeventfAbsolute|mouseeventfVirtualDesk,
+		absoluteCoordinate(point.X, desktop.Min.X, desktop.Dx()),
+		absoluteCoordinate(point.Y, desktop.Min.Y, desktop.Dy()),
+	)
+}
+
+// sendMouseMove posts one MOUSEEVENTF_MOVE with the given deltas. The flags
+// decide what they mean: absolute virtual-desktop coordinates, or a relative
+// delta.
+func sendMouseMove(flags uint32, deltaX, deltaY int32) error {
 	var event input
 
 	event.inputType = inputMouse
-	event.mi.dwFlags = mouseeventfMove | mouseeventfAbsolute | mouseeventfVirtualDesk
-	event.mi.dx = absoluteCoordinate(point.X, desktop.Min.X, desktop.Dx())
-	event.mi.dy = absoluteCoordinate(point.Y, desktop.Min.Y, desktop.Dy())
+	event.mi.dwFlags = flags
+	event.mi.dx = deltaX
+	event.mi.dy = deltaY
 
 	return sendOneInput(unsafe.Pointer(&event), unsafe.Sizeof(event))
 }

@@ -113,8 +113,8 @@ func cursorPosition() (image.Point, error) {
 
 // moveCursorTo brings the cursor to point: a warp, or while a button is held
 // a glide (dragGlideTo), since applications only read a drag out of
-// intermediate motion. The smooth-cursor animator steps through warpCursor
-// directly, as its steps already are that motion.
+// intermediate relative motion. The smooth-cursor animator steps through
+// dragStepTo directly, as its steps already are that motion.
 func moveCursorTo(point image.Point) error {
 	if heldButtons.AnyDown() {
 		return dragGlideTo(point)

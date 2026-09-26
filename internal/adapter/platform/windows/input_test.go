@@ -4,6 +4,7 @@ package windows
 
 import (
 	"image"
+	"math"
 	"slices"
 	"testing"
 	"unsafe"
@@ -116,27 +117,101 @@ func TestWheelEvents_NegatesHorizontalDelta(t *testing.T) {
 	}
 }
 
-// TestDragGlidePoints_EndsShortOfTheTarget pins the shape of a held warp's
-// motion: intermediate points only, in order, and none for no distance.
-func TestDragGlidePoints_EndsShortOfTheTarget(t *testing.T) {
+// TestDragGlidePath_LandsOnTheTargetFromWithinTheApproach pins the shape of a
+// held warp's path: even steps, target last, and a final step no longer than
+// dragLandingApproach, the step the application reads as the end of the drag.
+func TestDragGlidePath_LandsOnTheTargetFromWithinTheApproach(t *testing.T) {
 	t.Parallel()
 
-	from := image.Point{X: 100, Y: 50}
-	target := image.Point{X: 500, Y: 250}
-
-	points := dragGlidePoints(from, target, 4)
-
-	want := []image.Point{{X: 200, Y: 100}, {X: 300, Y: 150}, {X: 400, Y: 200}}
-	if !slices.Equal(points, want) {
-		t.Fatalf("dragGlidePoints() = %v, want %v", points, want)
+	tests := []struct {
+		name   string
+		from   image.Point
+		target image.Point
+		steps  int
+		want   []image.Point
+	}{
+		{
+			name:   "horizontal drag keeps the even steps and lands short",
+			from:   image.Point{X: 100, Y: 50},
+			target: image.Point{X: 500, Y: 50},
+			steps:  4,
+			want: []image.Point{
+				{X: 200, Y: 50},
+				{X: 300, Y: 50},
+				{X: 400, Y: 50},
+				{X: 496, Y: 50},
+				{X: 500, Y: 50},
+			},
+		},
+		{
+			name:   "a glide shorter than the approach is one step",
+			from:   image.Point{X: 100, Y: 50},
+			target: image.Point{X: 103, Y: 50},
+			steps:  4,
+			want:   []image.Point{{X: 103, Y: 50}},
+		},
+		{
+			name:   "the landing point replaces a step past it",
+			from:   image.Point{X: 100, Y: 50},
+			target: image.Point{X: 108, Y: 50},
+			steps:  4,
+			want: []image.Point{
+				{X: 102, Y: 50},
+				{X: 104, Y: 50},
+				{X: 108, Y: 50},
+			},
+		},
 	}
 
-	if got := dragGlidePoints(from, from, 4); got != nil {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := dragGlidePath(testCase.from, testCase.target, testCase.steps)
+			if !slices.Equal(got, testCase.want) {
+				t.Fatalf("dragGlidePath() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+
+	if got := dragGlidePath(image.Point{X: 1, Y: 2}, image.Point{X: 1, Y: 2}, 4); got != nil {
 		t.Fatalf("no distance gives %v, want nil", got)
 	}
+}
 
-	if got := dragGlidePoints(from, target, 1); got != nil {
-		t.Fatalf("one step gives %v, want nil", got)
+// TestDragGlidePath_NeverStepsBackwards guards the property the landing point
+// could break: every step of a diagonal glide moves further along the line
+// than the one before it, so a drag never shrinks a selection partway
+// through.
+func TestDragGlidePath_NeverStepsBackwards(t *testing.T) {
+	t.Parallel()
+
+	from := image.Point{X: 40, Y: 900}
+
+	for _, target := range []image.Point{
+		{X: 41, Y: 901},
+		{X: 45, Y: 905},
+		{X: 52, Y: 888},
+		{X: 3000, Y: 20},
+		{X: 40, Y: 60},
+	} {
+		previous := 0.0
+
+		for index, step := range dragGlidePath(from, target, dragGlideSteps) {
+			traveled := math.Hypot(
+				float64(step.X-from.X),
+				float64(step.Y-from.Y),
+			)
+
+			if traveled < previous {
+				t.Fatalf(
+					"glide to %v steps backwards at index %d: %v is %g pixels along, after %g",
+					target, index, step, traveled, previous,
+				)
+			}
+
+			previous = traveled
+		}
 	}
 }
 
