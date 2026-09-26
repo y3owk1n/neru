@@ -4,6 +4,8 @@ package linux
 
 import (
 	"image"
+	"math"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -1234,7 +1236,7 @@ func (o *sharedOverlay) drawFrame(
 	drawSubPreview := sizes.ShowPreview &&
 		style.PreviewsNextDepth(len(nextKeyRunes), nextDims)
 
-	for idx, cell := range cellRects {
+	for _, cell := range cellRects {
 		if cell.Empty() {
 			continue
 		}
@@ -1244,29 +1246,41 @@ func (o *sharedOverlay) drawFrame(
 			fill = subgridCellBackground
 		}
 
-		o.drawRect(cell, fill, style.LineColorARGB(), style.LineWidthF())
+		if !style.HasSecondaryLine() {
+			o.drawRect(cell, fill, style.LineColorARGB(), style.LineWidthF())
+		} else if fill != 0 {
+			o.drawRect(cell, fill, 0, 0)
+		}
+	}
 
-		if idx < len(keyRunes) {
-			label := style.LabelChar()
-			if label == "" {
-				label = string(keyRunes[idx])
+	if style.HasSecondaryLine() {
+		o.drawRadialDualGridLines(cellRects, style)
+	}
+
+	for idx, cell := range cellRects {
+		if cell.Empty() || idx >= len(keyRunes) {
+			continue
+		}
+
+		label := style.LabelChar()
+		if label == "" {
+			label = string(keyRunes[idx])
+		}
+
+		if sizes.ShowLabel {
+			if style.LabelBackground() {
+				o.drawLabelBackground(label, cell, style, sizes.LabelSize)
 			}
 
-			if sizes.ShowLabel {
-				if style.LabelBackground() {
-					o.drawLabelBackground(label, cell, style, sizes.LabelSize)
-				}
+			o.drawTextCentered(
+				label, cell, style.FontFamily(),
+				sizes.LabelSize, style.TextColorARGB(),
+				false,
+			)
+		}
 
-				o.drawTextCentered(
-					label, cell, style.FontFamily(),
-					sizes.LabelSize, style.TextColorARGB(),
-					false,
-				)
-			}
-
-			if drawSubPreview {
-				o.drawSubKeyMiniGrid(cell, nextKeyRunes, nextDims, style, sizes.PreviewSize)
-			}
+		if drawSubPreview {
+			o.drawSubKeyMiniGrid(cell, nextKeyRunes, nextDims, style, sizes.PreviewSize)
 		}
 	}
 
@@ -1275,6 +1289,114 @@ func (o *sharedOverlay) drawFrame(
 	}
 
 	o.srf.surfaceFlush()
+}
+
+func (o *sharedOverlay) drawRadialDualGridLines(
+	cellRects []image.Rectangle,
+	style recursivegridcomponent.Style,
+) {
+	validCells := make([]image.Rectangle, 0, len(cellRects))
+	for _, c := range cellRects {
+		if !c.Empty() {
+			validCells = append(validCells, c)
+		}
+	}
+	if len(validCells) == 0 {
+		return
+	}
+
+	minX, minY := validCells[0].Min.X, validCells[0].Min.Y
+	maxX, maxY := validCells[0].Max.X, validCells[0].Max.Y
+	for _, cell := range validCells[1:] {
+		if cell.Min.X < minX {
+			minX = cell.Min.X
+		}
+		if cell.Min.Y < minY {
+			minY = cell.Min.Y
+		}
+		if cell.Max.X > maxX {
+			maxX = cell.Max.X
+		}
+		if cell.Max.Y > maxY {
+			maxY = cell.Max.Y
+		}
+	}
+
+	cx := (minX + maxX) / 2
+	cy := (minY + maxY) / 2
+
+	xsMap := make(map[int]struct{})
+	ysMap := make(map[int]struct{})
+	for _, cell := range validCells {
+		xsMap[cell.Min.X] = struct{}{}
+		xsMap[cell.Max.X] = struct{}{}
+		ysMap[cell.Min.Y] = struct{}{}
+		ysMap[cell.Max.Y] = struct{}{}
+	}
+
+	xs := make([]int, 0, len(xsMap))
+	for x := range xsMap {
+		xs = append(xs, x)
+	}
+	slices.Sort(xs)
+
+	ys := make([]int, 0, len(ysMap))
+	for y := range ysMap {
+		ys = append(ys, y)
+	}
+	slices.Sort(ys)
+
+	scale := o.srf.surfaceScale()
+	if scale <= 0 {
+		scale = 1
+	}
+	wPrim := max(1, int(math.Round(style.LineWidthF()*scale)))
+	wSec := max(1, int(math.Round(style.SecondaryLineWidthF()*scale)))
+
+	primColor := style.LineColorARGB()
+	secColor := style.SecondaryLineColorARGB()
+
+	// Vertical grid lines: side towards center is secondary, side towards outside is primary
+	for _, x := range xs {
+		if x == minX {
+			// Left boundary: primary on outer edge [minX, minX + wPrim], secondary on inner edge [minX + wPrim, minX + wPrim + wSec]
+			o.drawRect(image.Rect(minX, minY, minX+wPrim, maxY), primColor, 0, 0)
+			o.drawRect(image.Rect(minX+wPrim, minY, minX+wPrim+wSec, maxY), secColor, 0, 0)
+		} else if x == maxX {
+			// Right boundary: primary on outer edge [maxX - wPrim, maxX], secondary on inner edge [maxX - wPrim - wSec, maxX - wPrim]
+			o.drawRect(image.Rect(maxX-wPrim, minY, maxX, maxY), primColor, 0, 0)
+			o.drawRect(image.Rect(maxX-wPrim-wSec, minY, maxX-wPrim, maxY), secColor, 0, 0)
+		} else if x <= cx {
+			// Left of center: outside is left (primary), inside/center is right (secondary)
+			o.drawRect(image.Rect(x-wPrim, minY, x, maxY), primColor, 0, 0)
+			o.drawRect(image.Rect(x, minY, x+wSec, maxY), secColor, 0, 0)
+		} else {
+			// Right of center: inside/center is left (secondary), outside is right (primary)
+			o.drawRect(image.Rect(x-wSec, minY, x, maxY), secColor, 0, 0)
+			o.drawRect(image.Rect(x, minY, x+wPrim, maxY), primColor, 0, 0)
+		}
+	}
+
+	// Horizontal grid lines: side towards center is secondary, side towards outside is primary
+	for _, y := range ys {
+		if y == minY {
+			// Top boundary: primary on outer edge [minY, minY + wPrim], secondary on inner edge [minY + wPrim, minY + wPrim + wSec]
+			o.drawRect(image.Rect(minX, minY, maxX, minY+wPrim), primColor, 0, 0)
+			o.drawRect(image.Rect(minX, minY+wPrim, maxX, minY+wPrim+wSec), secColor, 0, 0)
+		} else if y == maxY {
+			// Bottom boundary: primary on outer edge [maxY - wPrim, maxY], secondary on inner edge [maxY - wPrim - wSec, maxY - wPrim]
+			o.drawRect(image.Rect(minX, maxY-wPrim, maxX, maxY), primColor, 0, 0)
+			o.drawRect(image.Rect(minX, maxY-wPrim-wSec, maxX, maxY-wPrim), secColor, 0, 0)
+		} else if y <= cy {
+			// Above center: outside is top (primary), inside/center is bottom (secondary)
+			o.drawRect(image.Rect(minX, y-wPrim, maxX, y), primColor, 0, 0)
+			o.drawRect(image.Rect(minX, y, maxX, y+wSec), secColor, 0, 0)
+		} else {
+			// Below center: inside/center is top (secondary), outside is bottom (primary)
+			o.drawRect(image.Rect(minX, y-wSec, maxX, y), secColor, 0, 0)
+			o.drawRect(image.Rect(minX, y, maxX, y+wPrim), primColor, 0, 0)
+		}
+	}
 }
 
 //nolint:mnd,varnamelen

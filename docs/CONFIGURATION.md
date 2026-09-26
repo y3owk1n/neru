@@ -1360,6 +1360,8 @@ layers = [
 | `font_family`                         | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `line_width`                          | int    | `1`     | Grid line width                                                              |
 | `line_color`                          | color  | derived | Grid line color                                                              |
+| `secondary_line_color`                | color  | `""`    | Optional secondary line color for high-contrast dual borders (empty = disabled) |
+| `secondary_line_width`                | int    | `0`     | Secondary line width; 0 = inherit `line_width`                               |
 | `highlight_color`                     | color  | derived | Selected cell highlight                                                      |
 | `text_color`                          | color  | derived | Label text                                                                   |
 | `label_background`                    | bool   | `false` | Background behind labels                                                     |
