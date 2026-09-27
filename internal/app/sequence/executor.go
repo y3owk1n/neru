@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/adapter/platform/procattr"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -354,6 +355,7 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 	args = append(args, cmdString)
 
 	command := exec.CommandContext(execCtx, shell, args...) //nolint:gosec
+	procattr.HideConsole(command)
 
 	commandOutput, commandErr := command.CombinedOutput()
 	if commandErr != nil {

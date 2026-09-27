@@ -10,6 +10,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform/procattr"
 )
 
 // Native Windows alert dialogs using MessageBoxW.
@@ -72,6 +74,8 @@ func copyToClipboard(text string) {
 	ctx := context.Background()
 	cmd := exec.CommandContext(ctx, "clip")
 	cmd.Stdin = strings.NewReader(text)
+	procattr.HideConsole(cmd)
+
 	_ = cmd.Run()
 }
 

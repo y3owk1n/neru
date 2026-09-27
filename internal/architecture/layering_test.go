@@ -109,7 +109,9 @@ func isInnerLayer(relPath string) bool {
 //
 //   - adapter/ipc       the CLI/daemon wire protocol; the CLI is its client.
 //   - adapter/logger    logger construction and log-path resolution.
-//   - adapter/platform  the SystemPort factory and the doctor Profile.
+//   - adapter/platform  the SystemPort factory, the doctor Profile, and
+//     procattr's creation flag that keeps Windows from giving a spawned
+//     child a console window.
 var sharedInfraPackages = []string{
 	"internal/adapter/ipc",
 	"internal/adapter/logger",
