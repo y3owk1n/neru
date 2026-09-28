@@ -284,6 +284,12 @@ func capabilityStatusSupported(status string) bool {
 // that is not among them, which is a typo neru doctor should catch.
 func keyboardLayoutsStatus(names []string, reference, requested string) (string, bool) {
 	if len(names) == 0 {
+		// Doctor cannot check a forced layout here, so it does not call it ok.
+		// It does not fail on it either, because the keymap may still arrive.
+		if requested != "" {
+			return "unverified: " + requested + " (no keyboard layouts read yet)", true
+		}
+
 		return "ok (no keyboard layouts read yet)", true
 	}
 

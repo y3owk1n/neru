@@ -19,6 +19,7 @@ import (
 const (
 	layoutUS      = "English (US)"
 	layoutRussian = "Russian"
+	layoutDvorak  = "English (Dvorak)"
 )
 
 // layoutReportingTap is an event tap that lists keyboard layouts, as every
@@ -67,9 +68,15 @@ func TestIPCController_HealthListsKeyboardLayouts(t *testing.T) {
 			healthy: true,
 		},
 		{
+			name:      "a forced layout with no keymap read yet",
+			requested: layoutDvorak,
+			want:      "unverified: English (Dvorak) (no keyboard layouts read yet)",
+			healthy:   true,
+		},
+		{
 			name:      "a forced layout matched regardless of case",
-			layouts:   []string{layoutUS, "English (Dvorak)"},
-			reference: "English (Dvorak)",
+			layouts:   []string{layoutUS, layoutDvorak},
+			reference: layoutDvorak,
 			requested: "english (dvorak)",
 			want:      "ok (English (US), English (Dvorak); keys use English (Dvorak))",
 			healthy:   true,
