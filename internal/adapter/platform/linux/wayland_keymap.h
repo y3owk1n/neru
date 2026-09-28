@@ -30,8 +30,9 @@ int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char
 
 // Resolve the name a key has for Neru's own bindings. The live modifiers apply
 // in the reference layout, which is the first ASCII-capable layout of the
-// keymap, whatever layout is active. The result and buffer contract match
-// neru_xkb_state_key_get_name, which resolves in the live layout.
+// keymap, whatever layout is active. A keymap with no ASCII-capable layout
+// resolves in the live layout. The result and buffer contract match
+// neru_xkb_state_key_get_name, which always resolves in the live layout.
 int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size);
 
 // Build a state from keymap text in the format wl_keyboard.keymap delivers.

@@ -59,10 +59,10 @@ static int layout_is_ascii(struct xkb_state *commands, xkb_layout_index_t layout
 }
 
 // reference_layout picks the layout commands resolve in, which is the first
-// ASCII-capable layout, or layout 0 when none is. The active layout is not a
-// candidate. mutter, KWin, wlroots and Hyprland send wl_keyboard.modifiers,
-// which carries the active group, only to the focused client, and Neru never
-// holds keyboard focus.
+// ASCII-capable layout, or XKB_LAYOUT_INVALID when none is. It ignores which
+// layout is active, because mutter, KWin, wlroots and Hyprland send
+// wl_keyboard.modifiers, which carries the active group, only to the focused
+// client, and Neru never holds keyboard focus.
 static xkb_layout_index_t reference_layout(struct xkb_state *commands) {
 	xkb_layout_index_t layouts = xkb_keymap_num_layouts(xkb_state_get_keymap(commands));
 	for (xkb_layout_index_t layout = 0; layout < layouts; layout++) {
@@ -70,7 +70,7 @@ static xkb_layout_index_t reference_layout(struct xkb_state *commands) {
 			return layout;
 	}
 
-	return 0;
+	return XKB_LAYOUT_INVALID;
 }
 
 // keymap_ready_load compiles a keymap and replaces both states with fresh ones
@@ -403,6 +403,9 @@ int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char
 int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size) {
 	if (!state || !state->state || !buf || buf_size == 0)
 		return -1;
+
+	if (state->kr.reference_layout == XKB_LAYOUT_INVALID)
+		return neru_xkb_state_key_get_name(state, evdev_code, buf, buf_size);
 
 	struct xkb_state *commands = state->kr.command_state;
 	xkb_state_update_mask(

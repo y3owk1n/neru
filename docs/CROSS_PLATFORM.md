@@ -491,7 +491,7 @@ and XKB options like `ctrl:swapcaps` reach Neru's own bindings. **On a
 non-QWERTY layout this decides which physical key a `[hotkeys]` chord answers**:
 on X11 the one bearing that character on the active layout, and on Wayland the
 one bearing it on the **reference layout**, the first layout in the compositor's
-keymap whose letter row types ASCII, or the first layout when none does. So a
+keymap whose letter row types ASCII, or the active layout when none does. So a
 `us,ru` or `ru,us` keymap keeps every binding, hint label and grid key on its
 physical key while Russian is active. Shift, Caps Lock, NumLock and AltGr still
 choose the level, and Neru identifies modifiers in the active layout, which is

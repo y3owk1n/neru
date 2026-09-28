@@ -77,9 +77,15 @@ func TestWaylandEvdevCapture_KeyName_ResolvesInTheReferenceLayout(t *testing.T) 
 			code: evdevKeyQ, command: "q", live: "й",
 		},
 		{
-			name:   "a keymap with no Latin layout keeps its first",
-			layout: "ru", variant: "",
+			name:   "a keymap with no Latin layout names keys in the active one",
+			layout: "ru,gr", variant: testXkbDefaultVariants,
 			code: evdevKeyQ, command: "й", live: "й",
+		},
+		{
+			name:   "a keymap with no Latin layout follows a switch to its second",
+			layout: "ru,gr", variant: testXkbDefaultVariants,
+			tap:  []uint16{evdevKeyRightCtrl},
+			code: evdevKeyQ, command: ";", live: ";",
 		},
 		{
 			name:   "Dvorak is a Latin layout although its letter row starts with punctuation",
