@@ -72,7 +72,7 @@ jobs:
                     - os: ubuntu-latest
                       check: desktop-x11
                       session: Xvfb with openbox (X11)
-                      session_packages: xvfb x11-utils openbox
+                      session_packages: xvfb x11-utils x11-xkb-utils openbox
         runs-on: ${{ matrix.os }}
         # Both desktop legs block. They are the only jobs that observe Linux
         # behavior at all — Neru is developed on macOS, where none of it can

@@ -59,7 +59,7 @@ func TestEventTap_X11_GrabsTheKeyboardOnceTheActivatingHotkeyIsReleased(t *testi
 	release()
 	time.Sleep(x11GrabSettle)
 
-	err = pressX11Keys("AD01")
+	err = pressX11Keys(x11KeyQ)
 	if err != nil {
 		t.Fatalf("typing into the mode: %v", err)
 	}

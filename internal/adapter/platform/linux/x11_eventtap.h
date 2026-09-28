@@ -14,4 +14,8 @@ int neru_eventtap_pending(Display *display);
 int neru_eventtap_next(Display *display, XEvent *event);
 int neru_eventtap_post_modifier(const char *modifier, int is_down);
 
+// The ASCII-capable layouts of the server's keymap, as a mask with bit g set
+// for layout g. x11ReferenceGroup in the tap decides what to do with it.
+unsigned neru_eventtap_ascii_groups(Display *display);
+
 #endif /* X11_EVENTTAP_H */

@@ -10,6 +10,7 @@ package linux
 import "C"
 
 import (
+	"math/bits"
 	"os"
 	"sync"
 	"time"
@@ -26,13 +27,18 @@ const (
 	x11PollingInterval = 10 * time.Millisecond
 
 	// x11GrabWarnAfter is how long a mode start waits for the keyboard before
-	// the tap logs a warning. A hotkey that starts a mode is still held when the tap asks
-	// for the grab, and until it comes up the server answers AlreadyGrabbed.
-	// The passive grab on that key belongs to Neru's own hotkey connection or
-	// to the window manager.
+	// the tap logs a warning. A hotkey that starts a mode is still held when
+	// the tap asks for the grab, and until it comes up the server answers
+	// AlreadyGrabbed. The passive grab on that key belongs to Neru's own
+	// hotkey connection or to the window manager.
 	x11GrabWarnAfter = time.Second
 	x11KeyBufferSize = 64
 	x11BitsPerByte   = 8
+
+	// A key event's state carries the XKB group in bits 13 and 14. Xlib's
+	// XkbGroupForCoreState reads it from there.
+	x11GroupShift = 13
+	x11GroupMask  = 0x3 << x11GroupShift
 )
 
 // x11AutorepeatWarned says the refusal once: runX11 opens a connection per
@@ -160,6 +166,11 @@ func (et *EventTap) runX11() {
 	// been released — arming detection while others are still held.
 	modState := x11QueryModifierState(display)
 
+	// The tap reads the keymap once per activation, because each activation
+	// opens its own connection. A layout change takes effect at the next mode
+	// start.
+	asciiGroups := uint(C.neru_eventtap_ascii_groups(display))
+
 	// Keycodes down since the grab. With detectable autorepeat (set by
 	// neru_eventtap_open) a held key is repeated KeyPress events, and a
 	// modifier's repeats must not be counted as further presses: modState is
@@ -232,6 +243,13 @@ func (et *EventTap) runX11() {
 			continue
 		}
 
+		if group, ok := x11ReferenceGroup(
+			asciiGroups,
+			uint(xkey.state&x11GroupMask)>>x11GroupShift,
+		); ok {
+			length, keysym = x11LookupInGroup(xkey, group, buffer)
+		}
+
 		key := x11ChordFromLookup(&modState, length, buffer, keysym)
 		if key == "" {
 			continue
@@ -250,6 +268,33 @@ func (et *EventTap) runX11() {
 
 		et.dispatchKey(key)
 	}
+}
+
+// x11ReferenceGroup picks the layout a key is named in, given the mask of
+// ASCII-capable layouts and the active one. The active layout wins when it is
+// ASCII-capable, as the ASCII-capable input source does on macOS, so a Dvorak
+// user who switches to Dvorak gets Dvorak. Otherwise the first ASCII-capable
+// layout wins, so a Russian speaker keeps every binding on its key. It reports
+// false when no layout is ASCII-capable or the active one already is.
+func x11ReferenceGroup(asciiGroups, active uint) (uint, bool) {
+	if asciiGroups == 0 || asciiGroups&(1<<active) != 0 {
+		return 0, false
+	}
+
+	return uint(bits.TrailingZeros(asciiGroups)), true
+}
+
+// x11LookupInGroup resolves a key event as if group were the active layout, so
+// a binding stays on its physical key while another language is active. The
+// live lookup before it still decides whether the key is a modifier, because an
+// XKB remap such as ctrl:swapcaps belongs to the layout that carries it.
+func x11LookupInGroup(xkey *C.XKeyEvent, group uint, buffer []C.char) (C.int, C.KeySym) {
+	xkey.state = xkey.state&^x11GroupMask | C.uint(group)<<x11GroupShift
+
+	var keysym C.KeySym
+	length := C.XLookupString(xkey, &buffer[0], C.int(len(buffer)), &keysym, nil)
+
+	return length, keysym
 }
 
 // x11ChordFromLookup names a key press the way the evdev backend does: the

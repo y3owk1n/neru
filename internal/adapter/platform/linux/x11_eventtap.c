@@ -48,6 +48,53 @@ int neru_eventtap_next(Display *display, XEvent *event) {
 	return event->type;
 }
 
+// The top letter row, AD01 to AD10. Its symbols tell a Latin layout from any
+// other without naming a layout.
+static const char *const letter_row[] = {"AD01", "AD02", "AD03", "AD04", "AD05",
+                                         "AD06", "AD07", "AD08", "AD09", "AD10"};
+
+static KeyCode key_by_name(XkbDescPtr xkb, const char *name) {
+	for (int key = xkb->min_key_code; key <= xkb->max_key_code; key++) {
+		if (strncmp(xkb->names->keys[key].name, name, XkbKeyNameLength) == 0)
+			return (KeyCode)key;
+	}
+
+	return 0;
+}
+
+// layout_is_ascii reports whether every letter-row key types a printable ASCII
+// character at the base level of group.
+static int layout_is_ascii(XkbDescPtr xkb, int group) {
+	for (size_t i = 0; i < sizeof(letter_row) / sizeof(letter_row[0]); i++) {
+		KeyCode key = key_by_name(xkb, letter_row[i]);
+		if (key == 0 || group >= XkbKeyNumGroups(xkb, key))
+			return 0;
+
+		KeySym keysym = XkbKeySymEntry(xkb, key, 0, group);
+		if (keysym <= 0x20 || keysym >= 0x7f)
+			return 0;
+	}
+
+	return 1;
+}
+
+unsigned neru_eventtap_ascii_groups(Display *display) {
+	XkbDescPtr xkb = XkbGetMap(display, XkbKeySymsMask, XkbUseCoreKbd);
+	if (!xkb)
+		return 0;
+
+	unsigned groups = 0;
+	if (XkbGetNames(display, XkbKeyNamesMask, xkb) == Success) {
+		for (int group = 0; group < XkbNumKbdGroups; group++) {
+			if (layout_is_ascii(xkb, group))
+				groups |= 1u << group;
+		}
+	}
+
+	XkbFreeKeyboard(xkb, 0, True);
+	return groups;
+}
+
 static KeySym neru_eventtap_modifier_keysym(const char *modifier) {
 	if (strcmp(modifier, "shift") == 0)
 		return XK_Shift_L;

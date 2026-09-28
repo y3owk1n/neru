@@ -489,16 +489,20 @@ the X11 tap names the key from the state-resolved **keysym** rather than the
 string `XLookupString` returns, so all backends call `Shift+;` the same thing
 and XKB options like `ctrl:swapcaps` reach Neru's own bindings. **On a
 non-QWERTY layout this decides which physical key a `[hotkeys]` chord answers**:
-on X11 the one bearing that character on the active layout, and on Wayland the
-one bearing it on the **reference layout**, the first layout in the compositor's
-keymap whose letter row types ASCII, or the active layout when none does. So a
-`us,ru` or `ru,us` keymap keeps every binding, hint label and grid key on its
-physical key while Russian is active. Shift, Caps Lock, NumLock and AltGr still
-choose the level, and Neru identifies modifiers in the active layout, which is
-where remaps like `ctrl:swapcaps` are defined. The active layout is never the
-reference on Wayland because the compositor tells only the focused client which
-one it is, and Neru never holds keyboard focus. With two Latin layouts, such as
-`us` and Dvorak, Wayland bindings therefore stay on the first. A keysym is named by the
+the one bearing that character on the **reference layout**. A layout is
+ASCII-capable when its letter row types ASCII. On X11 the reference is the
+active layout when it is ASCII-capable, else the first ASCII-capable layout of
+the keymap, else the active layout. The X11 tap reads the keymap when a mode
+starts, so a layout added mid-mode applies from the next one. On Wayland the
+reference is the first ASCII-capable layout of the compositor's keymap, else
+the active layout. Wayland cannot prefer the active layout because the
+compositor tells only the focused client which one it is, and Neru never holds
+keyboard focus. With two Latin layouts, such as `us` and Dvorak, Wayland
+bindings therefore stay on the first. Either way a `us,ru` or `ru,us` keymap
+keeps every binding, hint label and grid key on its physical key while Russian
+is active. Shift, Caps Lock, NumLock and AltGr still choose the level, and Neru
+identifies modifiers in the active layout, which is where remaps like
+`ctrl:swapcaps` are defined. A keysym is named by the
 character it types when it types one, and by keysym name otherwise
 ([wayland_keymap.c](../internal/adapter/platform/linux/wayland_keymap.c)); the
 one key XKB renames under Shift, `ISO_Left_Tab`, folds back to `Tab`, which is
