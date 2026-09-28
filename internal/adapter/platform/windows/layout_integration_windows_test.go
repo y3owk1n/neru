@@ -133,9 +133,15 @@ func TestSetReferenceKeyboardLayout_ForcesAnInstalledLayoutByIdentifier(t *testi
 			t.Fatalf("forcing %s: reference layout %#x, want %#x", test.klid, got, test.layout)
 		}
 
-		names, reference := KeyboardLayouts()
-		if !slices.Contains(names, test.klid) || reference != test.klid {
-			t.Fatalf("forcing %s: KeyboardLayouts() = %v, %q", test.klid, names, reference)
+		names, reference, unmatched := KeyboardLayouts()
+		if !slices.Contains(names, test.klid) || reference != test.klid || unmatched {
+			t.Fatalf(
+				"forcing %s: KeyboardLayouts() = %v, %q, unmatched %v",
+				test.klid,
+				names,
+				reference,
+				unmatched,
+			)
 		}
 	}
 
@@ -145,6 +151,10 @@ func TestSetReferenceKeyboardLayout_ForcesAnInstalledLayoutByIdentifier(t *testi
 
 	if forcedLayout.Load() != 0 {
 		t.Fatal("a refused identifier left a layout forced")
+	}
+
+	if _, _, unmatched := KeyboardLayouts(); !unmatched {
+		t.Fatal("KeyboardLayouts does not report the refused identifier as unmatched")
 	}
 }
 

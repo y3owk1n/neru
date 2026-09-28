@@ -2,8 +2,13 @@
 
 package eventtap
 
-import winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
+import (
+	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
+	"github.com/y3owk1n/neru/internal/ports"
+)
 
-func keyboardLayouts() ([]string, string) {
-	return winplatform.KeyboardLayouts()
+func keyboardLayouts() ports.KeyboardLayouts {
+	names, reference, unmatched := winplatform.KeyboardLayouts()
+
+	return ports.KeyboardLayouts{Names: names, Reference: reference, Unmatched: unmatched}
 }

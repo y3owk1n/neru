@@ -136,7 +136,7 @@ func TestKeymap_KeyCodeToCharacter_NumpadEmitsNoControlCharacters(t *testing.T) 
 // general.kb_layout_to_use takes them, with the one keys are named in among
 // them.
 func TestKeyboardLayouts_ListsTheEnabledLayoutsAndTheReference(t *testing.T) {
-	names, reference := darwin.KeyboardLayouts()
+	names, reference, _ := darwin.KeyboardLayouts()
 	if len(names) == 0 {
 		t.Fatal("KeyboardLayouts listed no enabled keyboard layout")
 	}

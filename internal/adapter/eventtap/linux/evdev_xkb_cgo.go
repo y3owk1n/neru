@@ -96,7 +96,7 @@ func (capture *waylandEvdevCapture) applyRequestedLayout() {
 // reference one.
 func (capture *waylandEvdevCapture) keyboardLayouts() *KeyboardLayouts {
 	state := (*C.neru_xkb_state)(capture.xkbState)
-	layouts := &KeyboardLayouts{}
+	layouts := &KeyboardLayouts{Unmatched: C.neru_xkb_state_reference_found(state) == 0}
 
 	for layout := range int(C.neru_xkb_state_layout_count(state)) {
 		name := C.neru_xkb_state_layout_name(state, C.int(layout))
@@ -240,6 +240,10 @@ func (capture *waylandEvdevCapture) refreshXkbState() {
 	xkb := C.neru_xkb_state_create()
 	capture.xkbState = unsafe.Pointer(xkb)
 	capture.appliedLayout = nil
+
+	// A failed rebuild leaves no layouts, so neru doctor must not keep showing
+	// the last keymap's.
+	waylandKeyboardLayouts.Store(nil)
 
 	if xkb == nil {
 		if capture.logger != nil {

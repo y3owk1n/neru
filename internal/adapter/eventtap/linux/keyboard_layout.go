@@ -27,4 +27,7 @@ type KeyboardLayouts struct {
 	// Reference is the layout keys are named in, or "" when that is whichever
 	// layout is active.
 	Reference string
+	// Unmatched is true when general.kb_layout_to_use names a layout the
+	// keymap does not have.
+	Unmatched bool
 }

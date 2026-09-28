@@ -201,6 +201,10 @@ char *NeruCopyKeyboardLayoutIDs(void);
 /// named in, or NULL. The caller frees it.
 char *NeruCopyReferenceKeyboardLayoutID(void);
 
+/// NeruReferenceKeyboardLayoutResolved returns 0 when kb_layout_to_use names a
+/// layout the resolver could not find, and 1 otherwise.
+int NeruReferenceKeyboardLayoutResolved(void);
+
 /// Callback type invoked after keyboard layout maps are rebuilt.
 typedef void (*KeymapLayoutChangeCallback)(void);
 

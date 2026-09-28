@@ -86,8 +86,10 @@ func SetReferenceKeyboardLayout(inputSourceID string) bool {
 }
 
 // KeyboardLayouts lists the enabled keyboard layouts by input source ID, as
-// general.kb_layout_to_use takes them, and the one keys are named in.
-func KeyboardLayouts() ([]string, string) {
+// general.kb_layout_to_use takes them, and the one keys are named in. The last
+// result is true when kb_layout_to_use names a layout the resolver could not
+// find, which it decides itself because it also accepts localized names.
+func KeyboardLayouts() ([]string, string, bool) {
 	var names []string
 
 	if cIDs := C.NeruCopyKeyboardLayoutIDs(); cIDs != nil {
@@ -105,5 +107,5 @@ func KeyboardLayouts() ([]string, string) {
 		C.free(unsafe.Pointer(cReference))
 	}
 
-	return names, reference
+	return names, reference, C.NeruReferenceKeyboardLayoutResolved() == 0
 }

@@ -5,7 +5,6 @@ package ipcctrl
 
 import (
 	"context"
-	"slices"
 	"strings"
 
 	"go.uber.org/zap"
@@ -66,9 +65,7 @@ func (h *InfoHandler) handleHealth(ctx context.Context, _ ipc.Command) ipc.Respo
 			requested = strings.TrimSpace(cfg.General.KBLayoutToUse)
 		}
 
-		names, reference := reporter.KeyboardLayouts()
-
-		status, found := keyboardLayoutsStatus(names, reference, requested)
+		status, found := keyboardLayoutsStatus(reporter.KeyboardLayouts(), requested)
 		components["keyboard_layouts"] = status
 		hasErrors = hasErrors || !found
 	}
@@ -280,10 +277,10 @@ func capabilityStatusSupported(status string) bool {
 
 // keyboardLayoutsStatus renders the keyboard_layouts row: the layouts keys are
 // named against, spelled as general.kb_layout_to_use takes them, and the one
-// they are named in. It reports false when kb_layout_to_use names a layout
-// that is not among them, which is a typo neru doctor should catch.
-func keyboardLayoutsStatus(names []string, reference, requested string) (string, bool) {
-	if len(names) == 0 {
+// they are named in. It reports false when the platform could not find the
+// layout kb_layout_to_use names, which is a typo neru doctor should catch.
+func keyboardLayoutsStatus(layouts ports.KeyboardLayouts, requested string) (string, bool) {
+	if len(layouts.Names) == 0 {
 		// Doctor cannot check a forced layout here, so it does not call it ok.
 		// It does not fail on it either, because the keymap may still arrive.
 		if requested != "" {
@@ -293,14 +290,13 @@ func keyboardLayoutsStatus(names []string, reference, requested string) (string,
 		return "ok (no keyboard layouts read yet)", true
 	}
 
-	list := strings.Join(names, ", ")
+	list := strings.Join(layouts.Names, ", ")
 
-	if requested != "" && !slices.ContainsFunc(names, func(name string) bool {
-		return strings.EqualFold(name, requested)
-	}) {
+	if requested != "" && layouts.Unmatched {
 		return "not found: " + requested + " (layouts: " + list + ")", false
 	}
 
+	reference := layouts.Reference
 	if reference == "" {
 		reference = "the active layout"
 	}

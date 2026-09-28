@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -27,12 +28,11 @@ const (
 type layoutReportingTap struct {
 	portmocks.MockEventTapPort
 
-	names     []string
-	reference string
+	layouts ports.KeyboardLayouts
 }
 
-func (tap *layoutReportingTap) KeyboardLayouts() ([]string, string) {
-	return tap.names, tap.reference
+func (tap *layoutReportingTap) KeyboardLayouts() ports.KeyboardLayouts {
+	return tap.layouts
 }
 
 // TestIPCController_HealthListsKeyboardLayouts pins the keyboard_layouts row of
@@ -46,6 +46,7 @@ func TestIPCController_HealthListsKeyboardLayouts(t *testing.T) {
 		layouts   []string
 		reference string
 		requested string
+		unmatched bool
 		want      string
 		healthy   bool
 	}{
@@ -82,10 +83,19 @@ func TestIPCController_HealthListsKeyboardLayouts(t *testing.T) {
 			healthy:   true,
 		},
 		{
+			name:      "a forced layout the platform accepts by another name",
+			layouts:   []string{"com.apple.keylayout.ABC", "com.apple.keylayout.Dvorak"},
+			reference: "com.apple.keylayout.Dvorak",
+			requested: "Dvorak",
+			want:      "ok (com.apple.keylayout.ABC, com.apple.keylayout.Dvorak; keys use com.apple.keylayout.Dvorak)",
+			healthy:   true,
+		},
+		{
 			name:      "a forced layout that is not there",
 			layouts:   []string{layoutUS, layoutRussian},
 			reference: layoutUS,
 			requested: "Klingon",
+			unmatched: true,
 			want:      "not found: Klingon (layouts: English (US), Russian)",
 		},
 	} {
@@ -104,7 +114,11 @@ func TestIPCController_HealthListsKeyboardLayouts(t *testing.T) {
 				Logger:        logger,
 			})
 			controller.SetInfrastructure(
-				&layoutReportingTap{names: test.layouts, reference: test.reference},
+				&layoutReportingTap{layouts: ports.KeyboardLayouts{
+					Names:     test.layouts,
+					Reference: test.reference,
+					Unmatched: test.unmatched,
+				}},
 				&portmocks.MockIPCPort{},
 			)
 

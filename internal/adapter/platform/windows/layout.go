@@ -76,8 +76,12 @@ var asciiLayouts sync.Map
 var fallbackLayout atomic.Pointer[[2]uintptr]
 
 // forcedLayout is the layout handle general.kb_layout_to_use forces, or 0 for
-// the automatic choice.
-var forcedLayout atomic.Uintptr
+// the automatic choice. forcedUnmatched is whether the last value it named
+// matched no installed layout.
+var (
+	forcedLayout    atomic.Uintptr
+	forcedUnmatched atomic.Bool
+)
 
 // SetReferenceKeyboardLayout forces the layout punctuation is named and parsed
 // in, by its keyboard layout identifier as Windows writes it, such as
@@ -85,9 +89,10 @@ var forcedLayout atomic.Uintptr
 // false when no installed layout has that identifier, and the automatic choice
 // applies.
 func SetReferenceKeyboardLayout(layoutID string) bool {
-	if layoutID == "" {
-		forcedLayout.Store(0)
+	forcedLayout.Store(0)
+	forcedUnmatched.Store(false)
 
+	if layoutID == "" {
 		return true
 	}
 
@@ -99,7 +104,7 @@ func SetReferenceKeyboardLayout(layoutID string) bool {
 		}
 	}
 
-	forcedLayout.Store(0)
+	forcedUnmatched.Store(true)
 
 	return false
 }
@@ -299,12 +304,13 @@ func layoutRegistryID(name string) uint32 {
 
 // KeyboardLayouts lists the installed layouts by keyboard layout identifier,
 // as general.kb_layout_to_use takes them, and the one punctuation is named in.
-func KeyboardLayouts() ([]string, string) {
+// The last result is true when kb_layout_to_use names no installed layout.
+func KeyboardLayouts() ([]string, string, bool) {
 	ids := installedLayoutIDs()
 
 	names := slices.Sorted(maps.Values(ids))
 
-	return names, ids[referenceLayout()]
+	return names, ids[referenceLayout()], forcedUnmatched.Load()
 }
 
 // layoutWatch runs the reference layout watcher SetReferenceLayoutChangeHandler
@@ -334,14 +340,15 @@ func SetReferenceLayoutChangeHandler(handler func()) {
 	}
 
 	layoutWatch.stop = make(chan struct{})
-	go watchReferenceLayout(handler, layoutWatch.stop)
+
+	// The starting layout is read here rather than in the goroutine, so a
+	// switch right after this returns is seen as a change.
+	go watchReferenceLayout(handler, referenceLayout(), layoutWatch.stop)
 }
 
-func watchReferenceLayout(handler func(), stop <-chan struct{}) {
+func watchReferenceLayout(handler func(), last uintptr, stop <-chan struct{}) {
 	ticker := time.NewTicker(referenceLayoutPollInterval)
 	defer ticker.Stop()
-
-	last := referenceLayout()
 
 	for {
 		select {

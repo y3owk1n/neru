@@ -24,6 +24,10 @@ import (
 
 const x11HotkeyPollInterval = 10 * time.Millisecond
 
+// x11CoreModifierMask keeps the eight core modifier bits of a key event's
+// state: Shift, Lock, Control and Mod1 through Mod5.
+const x11CoreModifierMask = 0xFF
+
 type x11HotkeyBinding struct {
 	keycode   C.int
 	modifiers C.uint
@@ -298,7 +302,12 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 
 		switch C.neru_xevent_type(&event) {
 		case C.KeyPress:
-			modifiers := C.neru_xkey_state(&event) &^ (C.Mod2Mask | C.LockMask)
+			// Only the core modifiers name a binding. The state also carries
+			// the XKB layout in bits 13 and 14 while a layout switch key is
+			// held, and a grab fires on any layout.
+			modifiers := C.neru_xkey_state(
+				&event,
+			) & x11CoreModifierMask &^ (C.Mod2Mask | C.LockMask)
 
 			// Hold m.mu while reading state.ids — Register/Unregister write
 			// to this map under the same lock, so an unguarded read here is a

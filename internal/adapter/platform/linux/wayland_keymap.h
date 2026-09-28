@@ -42,6 +42,9 @@ int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_co
 // and the automatic choice applies until a keymap that has it arrives.
 int neru_xkb_state_set_reference_layout(neru_xkb_state *state, const char *name);
 
+// Whether the current keymap has the forced layout; 1 when none is forced.
+int neru_xkb_state_reference_found(neru_xkb_state *state);
+
 // The keymap's layouts, for listing: how many there are, and the XKB name of
 // one, or NULL when it has none. The name lives until the keymap is replaced.
 int neru_xkb_state_layout_count(neru_xkb_state *state);

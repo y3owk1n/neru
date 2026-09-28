@@ -246,7 +246,7 @@ func (a *Adapter) AllowsOverlayKeyboardPassthrough() bool {
 
 // KeyboardLayouts lists the keyboard layouts keys are named against and the
 // one they are named in, for neru doctor.
-func (a *Adapter) KeyboardLayouts() ([]string, string) {
+func (a *Adapter) KeyboardLayouts() ports.KeyboardLayouts {
 	return keyboardLayouts()
 }
 

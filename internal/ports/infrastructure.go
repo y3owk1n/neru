@@ -83,7 +83,17 @@ type IPCPort interface {
 // takes them, and the one it names keys in. neru doctor lists them so a user
 // can copy the one to force.
 type KeyboardLayoutReporter interface {
-	// KeyboardLayouts returns the layouts and the reference one, which is ""
-	// when keys are named in whichever layout is active.
-	KeyboardLayouts() (names []string, reference string)
+	KeyboardLayouts() KeyboardLayouts
+}
+
+// KeyboardLayouts is what a KeyboardLayoutReporter reports.
+type KeyboardLayouts struct {
+	Names []string
+	// Reference is the layout keys are named in, or "" when that is whichever
+	// layout is active.
+	Reference string
+	// Unmatched is true when general.kb_layout_to_use names a layout the
+	// platform could not find. The platform decides, because it accepts more
+	// than the names it lists. macOS also takes a layout's localized name.
+	Unmatched bool
 }

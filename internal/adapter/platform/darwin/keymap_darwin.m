@@ -1223,6 +1223,16 @@ char *NeruCopyKeyboardLayoutIDs(void) {
 	return strdup([[ids componentsJoinedByString:@"\n"] UTF8String]);
 }
 
+int NeruReferenceKeyboardLayoutResolved(void) {
+	BOOL resolved = YES;
+	TISInputSourceRef source = copyResolvedReferenceInputSource(&resolved, NULL);
+	if (source) {
+		CFRelease(source);
+	}
+
+	return resolved ? 1 : 0;
+}
+
 char *NeruCopyReferenceKeyboardLayoutID(void) {
 	TISInputSourceRef source = copyResolvedReferenceInputSource(NULL, NULL);
 	if (!source) {

@@ -205,6 +205,7 @@ func TestEventTap_SetKeyboardLayout_ForcesTheWaylandReferenceLayout(t *testing.T
 		requested string
 		want      string
 		reference string
+		unmatched bool
 	}{
 		{
 			name:      "the automatic choice takes the first Latin layout",
@@ -229,6 +230,7 @@ func TestEventTap_SetKeyboardLayout_ForcesTheWaylandReferenceLayout(t *testing.T
 			requested: "Klingon",
 			want:      "q",
 			reference: "English (US)",
+			unmatched: true,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -249,6 +251,15 @@ func TestEventTap_SetKeyboardLayout_ForcesTheWaylandReferenceLayout(t *testing.T
 			}
 
 			layouts := capture.keyboardLayouts()
+			if layouts.Unmatched != test.unmatched {
+				t.Errorf(
+					"forcing %q: unmatched = %v, want %v",
+					test.requested,
+					layouts.Unmatched,
+					test.unmatched,
+				)
+			}
+
 			if layouts.Reference != test.reference {
 				t.Errorf("forcing %q: reference = %q, want %q (layouts %q)",
 					test.requested, layouts.Reference, test.reference, layouts.Names)

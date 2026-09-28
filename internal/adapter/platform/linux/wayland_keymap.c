@@ -463,6 +463,8 @@ int neru_xkb_state_set_reference_layout(neru_xkb_state *state, const char *name)
 	return state->kr.requested_found;
 }
 
+int neru_xkb_state_reference_found(neru_xkb_state *state) { return state && state->kr.requested_found; }
+
 int neru_xkb_state_layout_count(neru_xkb_state *state) {
 	if (!state || !state->kr.command_state)
 		return 0;

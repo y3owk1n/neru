@@ -358,6 +358,7 @@ func x11KeyboardLayouts() KeyboardLayouts {
 	forced := -1
 	if requested := RequestedKeyboardLayout(); requested != "" {
 		forced = layoutIndex(layouts.Names, requested)
+		layouts.Unmatched = forced < 0
 	}
 
 	active := int(C.neru_eventtap_active_group(display))
