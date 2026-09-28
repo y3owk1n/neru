@@ -23,10 +23,22 @@ void neru_xkb_state_destroy(neru_xkb_state *state);
 // Feed a key press (is_press=1) or release (is_press=0) to the xkb_state.
 void neru_xkb_state_key(neru_xkb_state *state, uint16_t evdev_code, int is_press);
 
-// Resolve the xkb key name for the given evdev scan code.
+// Resolve the xkb key name for the given evdev scan code in the live layout.
 // Writes the key name into buf (up to buf_size bytes).
 // Returns 0 on success, -1 on failure.
 int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size);
+
+// Resolve the name a key has for Neru's own bindings. The live modifiers apply
+// in the reference layout, which is the first ASCII-capable layout of the
+// keymap, whatever layout is active. The result and buffer contract match
+// neru_xkb_state_key_get_name, which resolves in the live layout.
+int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size);
+
+// Build a state from keymap text in the format wl_keyboard.keymap delivers.
+// The state has no display, so it never dispatches or receives a new keymap.
+// Tests use it to pin naming against real layouts. Destroy it with
+// neru_xkb_state_destroy. Returns NULL when the text does not compile.
+neru_xkb_state *neru_xkb_state_create_from_keymap(const char *keymap);
 
 // Name a state-resolved keysym: its character when it types one, else the
 // keysym name folded onto the spelling Neru binds. This is the rule

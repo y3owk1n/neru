@@ -1,5 +1,5 @@
-// XKB translation for evdev key codes: mapping captured codes to key and
-// modifier names under the active keyboard layout.
+// XKB translation for evdev key codes: mapping captured codes to key names in
+// the reference layout, and to modifier names in the active one.
 //
 // These are methods on the capture rather than on a reader, because the answer
 // belongs to the devices and their keymap and not to whoever is reading them.
@@ -21,9 +21,11 @@ package linux
 import "C"
 import "unsafe"
 
-// keyName resolves a scan code to the key name it means under the active
-// keyboard layout, falling back to the built-in scan-code table when there is no
-// keymap to ask.
+// keyName resolves a scan code to the name Neru's bindings match against. It
+// applies the live modifiers in the reference layout, which is the first
+// ASCII-capable layout of the compositor's keymap. On a us,ru keymap with
+// Russian active, the key left of W still matches a binding written q. It falls
+// back to the built-in scan-code table when there is no keymap to ask.
 //
 // The fallback is a real answer rather than a failure: it is the name the code
 // carries on a us layout, which is what the table holds.
@@ -33,16 +35,33 @@ func (capture *waylandEvdevCapture) keyName(code uint16) string {
 	}
 
 	var buf [64]C.char
-	if C.neru_xkb_state_key_get_name(
+	if C.neru_xkb_state_key_get_command_name(
 		(*C.neru_xkb_state)(capture.xkbState),
 		C.uint16_t(code),
 		&buf[0],
-		64,
+		C.size_t(len(buf)),
 	) == 0 {
 		return C.GoString(&buf[0])
 	}
 
 	return evdevKeyName(code)
+}
+
+// liveKeyName resolves a scan code in the layout the keyboard state is in.
+// modifierName uses it because an XKB remap such as ctrl:swapcaps belongs to
+// the layout that carries it.
+func (capture *waylandEvdevCapture) liveKeyName(code uint16) string {
+	var buf [64]C.char
+	if C.neru_xkb_state_key_get_name(
+		(*C.neru_xkb_state)(capture.xkbState),
+		C.uint16_t(code),
+		&buf[0],
+		C.size_t(len(buf)),
+	) != 0 {
+		return ""
+	}
+
+	return C.GoString(&buf[0])
 }
 
 // xkbKeysymName names a state-resolved keysym by the rule keyName applies to a
@@ -67,7 +86,7 @@ func (capture *waylandEvdevCapture) modifierName(code uint16) string {
 		return evdevModifierName(code)
 	}
 
-	key := capture.keyName(code)
+	key := capture.liveKeyName(code)
 	if key == "" {
 		return evdevModifierName(code)
 	}

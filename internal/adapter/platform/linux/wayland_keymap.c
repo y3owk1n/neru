@@ -10,6 +10,12 @@
 
 struct keymap_ready {
 	struct xkb_state *state;
+	// command_state names keys for Neru's own bindings. It shares the keymap
+	// with state but is never fed a key. Every lookup copies the live
+	// modifiers in and locks the layout to reference_layout, so a language
+	// switch cannot move a binding to another physical key.
+	struct xkb_state *command_state;
+	xkb_layout_index_t reference_layout;
 	int ready;
 	// Set when a keymap arrived after the first one, so the reader that
 	// dispatches this display knows the state it resolves names against has
@@ -24,6 +30,86 @@ struct neru_xkb_state {
 	struct keymap_ready kr;  // listener data, alive for lifetime of this struct
 };
 
+// ── Reference layout ────────────────────────────────────────────────────
+
+// The top letter row, AD01 to AD10. Its symbols tell a Latin layout from any
+// other without naming a layout.
+static const char *const letter_row[] = {"AD01", "AD02", "AD03", "AD04", "AD05",
+                                         "AD06", "AD07", "AD08", "AD09", "AD10"};
+
+// layout_is_ascii reports whether every letter-row key types a printable ASCII
+// character at the base level of layout. Dvorak passes, since its row starts
+// with ' , . and continues in Latin letters. Russian and Greek fail. It locks
+// the layout of commands to the one under test, so commands is scratch here.
+static int layout_is_ascii(struct xkb_state *commands, xkb_layout_index_t layout) {
+	struct xkb_keymap *keymap = xkb_state_get_keymap(commands);
+	xkb_state_update_mask(commands, 0, 0, 0, 0, 0, layout);
+
+	for (size_t i = 0; i < sizeof(letter_row) / sizeof(letter_row[0]); i++) {
+		xkb_keycode_t key = xkb_keymap_key_by_name(keymap, letter_row[i]);
+		if (key == XKB_KEYCODE_INVALID)
+			return 0;
+
+		xkb_keysym_t keysym = xkb_state_key_get_one_sym(commands, key);
+		if (keysym <= 0x20 || keysym >= 0x7f)
+			return 0;
+	}
+
+	return 1;
+}
+
+// reference_layout picks the layout commands resolve in, which is the first
+// ASCII-capable layout, or layout 0 when none is. The active layout is not a
+// candidate. mutter, KWin, wlroots and Hyprland send wl_keyboard.modifiers,
+// which carries the active group, only to the focused client, and Neru never
+// holds keyboard focus.
+static xkb_layout_index_t reference_layout(struct xkb_state *commands) {
+	xkb_layout_index_t layouts = xkb_keymap_num_layouts(xkb_state_get_keymap(commands));
+	for (xkb_layout_index_t layout = 0; layout < layouts; layout++) {
+		if (layout_is_ascii(commands, layout))
+			return layout;
+	}
+
+	return 0;
+}
+
+// keymap_ready_load compiles a keymap and replaces both states with fresh ones
+// built from it. A later keymap means the compositor changed its layouts or
+// options, and every name from then on follows the new keymap. GNOME renumbers
+// the layouts when a switch crosses one of its groups of four, so this picks
+// the reference layout again for every keymap.
+static void keymap_ready_load(struct keymap_ready *kr, const char *map_str) {
+	struct xkb_context *ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+	if (!ctx)
+		return;
+
+	struct xkb_keymap *keymap =
+	    xkb_keymap_new_from_string(ctx, map_str, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
+	xkb_context_unref(ctx);
+	if (!keymap)
+		return;
+
+	struct xkb_state *fresh = xkb_state_new(keymap);
+	struct xkb_state *commands = xkb_state_new(keymap);
+	xkb_keymap_unref(keymap);
+	if (!fresh || !commands) {
+		if (fresh)
+			xkb_state_unref(fresh);
+		if (commands)
+			xkb_state_unref(commands);
+		return;
+	}
+
+	if (kr->state) {
+		xkb_state_unref(kr->state);
+		xkb_state_unref(kr->command_state);
+		kr->changed = 1;
+	}
+	kr->state = fresh;
+	kr->command_state = commands;
+	kr->reference_layout = reference_layout(commands);
+}
+
 // ── wl_keyboard listener (only .keymap is used) ─────────────────────────
 
 static void neru_keyboard_keymap(
@@ -32,26 +118,7 @@ static void neru_keyboard_keymap(
 	if (format == WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
 		char *map_str = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
 		if (map_str != MAP_FAILED) {
-			struct xkb_context *ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-			if (ctx) {
-				struct xkb_keymap *keymap =
-				    xkb_keymap_new_from_string(ctx, map_str, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
-				if (keymap) {
-					struct xkb_state *fresh = xkb_state_new(keymap);
-					xkb_keymap_unref(keymap);
-					if (fresh) {
-						// A later keymap replaces the first: the compositor
-						// changed its layout or options, and every name
-						// resolved from here on has to follow it.
-						if (kr->state) {
-							xkb_state_unref(kr->state);
-							kr->changed = 1;
-						}
-						kr->state = fresh;
-					}
-				}
-				xkb_context_unref(ctx);
-			}
+			keymap_ready_load(kr, map_str);
 			munmap(map_str, size);
 		}
 	}
@@ -215,6 +282,8 @@ void neru_xkb_state_destroy(neru_xkb_state *state) {
 
 	if (state->state)
 		xkb_state_unref(state->state);
+	if (state->kr.command_state)
+		xkb_state_unref(state->kr.command_state);
 	if (state->wl_keyboard)
 		wl_keyboard_destroy(state->wl_keyboard);
 	if (state->display)
@@ -329,6 +398,35 @@ int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char
 	xkb_keysym_t keysym = xkb_state_key_get_one_sym(state->state, (xkb_keycode_t)evdev_code + 8);
 
 	return neru_xkb_keysym_name(keysym, buf, buf_size);
+}
+
+int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size) {
+	if (!state || !state->state || !buf || buf_size == 0)
+		return -1;
+
+	struct xkb_state *commands = state->kr.command_state;
+	xkb_state_update_mask(
+	    commands, xkb_state_serialize_mods(state->state, XKB_STATE_MODS_DEPRESSED),
+	    xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LATCHED),
+	    xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LOCKED), 0, 0, state->kr.reference_layout);
+	xkb_keysym_t keysym = xkb_state_key_get_one_sym(commands, (xkb_keycode_t)evdev_code + 8);
+
+	return neru_xkb_keysym_name(keysym, buf, buf_size);
+}
+
+neru_xkb_state *neru_xkb_state_create_from_keymap(const char *keymap) {
+	neru_xkb_state *state = calloc(1, sizeof(neru_xkb_state));
+	if (!state)
+		return NULL;
+
+	keymap_ready_load(&state->kr, keymap);
+	if (!state->kr.state) {
+		free(state);
+		return NULL;
+	}
+
+	state->state = state->kr.state;
+	return state;
 }
 
 void neru_xkb_state_sync_leds(neru_xkb_state *state, int num_lock_on, int caps_lock_on) {

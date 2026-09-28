@@ -342,7 +342,7 @@ file bin/neru
 ```
 
 Run the [pre-commit checks](../CONTRIBUTING.md#making-changes) before opening a
-PR. CI lints with `golangci-lint v2.12.2`, the version `oku.toml` pins, so
+PR. CI lints with `golangci-lint v2.13.2`, the version `oku.lock` resolves, so
 match it when validating locally.
 
 ---

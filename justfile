@@ -709,7 +709,7 @@ lint-cross:
     BASE
     docker build -q -t neru-linux-lint - >/dev/null <<'LINT'
     FROM neru-linux-ci
-    RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+    RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
     LINT
     echo "Linting for linux/amd64 (CGO on)..."
     docker run --rm -v "$PWD":/src -w /src \
