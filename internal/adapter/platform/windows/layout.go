@@ -4,6 +4,7 @@ package windows
 
 import (
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -48,6 +49,11 @@ var (
 // change while it is loaded, so the answer is computed once.
 var asciiLayouts sync.Map
 
+// fallbackLayout remembers the reference chosen for the last non-ASCII active
+// layout, so GetKeyboardLayoutList stays off the hook path until the user
+// switches layout. A layout installed meanwhile counts from the next switch.
+var fallbackLayout atomic.Pointer[[2]uintptr]
+
 // referenceLayout returns the layout handle punctuation is named and parsed in.
 func referenceLayout() uintptr {
 	active := activeLayout()
@@ -55,6 +61,19 @@ func referenceLayout() uintptr {
 		return active
 	}
 
+	if last := fallbackLayout.Load(); last != nil && last[0] == active {
+		return last[1]
+	}
+
+	reference := firstASCIILayout(active)
+	fallbackLayout.Store(&[2]uintptr{active, reference})
+
+	return reference
+}
+
+// firstASCIILayout returns the first installed layout whose letter row types
+// ASCII, or active when none does.
+func firstASCIILayout(active uintptr) uintptr {
 	var layouts [maxKeyboardLayouts]uintptr
 
 	count, _, _ := procGetKeyboardLayoutList.Call(
