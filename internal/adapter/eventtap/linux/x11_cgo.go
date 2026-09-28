@@ -25,12 +25,12 @@ import (
 const (
 	x11PollingInterval = 10 * time.Millisecond
 
-	// x11GrabTimeout bounds how long a mode start waits for the keyboard. A
-	// hotkey that starts a mode is still held when the tap asks for the grab,
-	// and until it comes up the server answers AlreadyGrabbed. The passive
-	// grab on that key belongs to Neru's own hotkey connection or to the
-	// window manager.
-	x11GrabTimeout   = time.Second
+	// x11GrabWarnAfter is how long a mode start waits for the keyboard before
+	// the tap logs a warning. A hotkey that starts a mode is still held when the tap asks
+	// for the grab, and until it comes up the server answers AlreadyGrabbed.
+	// The passive grab on that key belongs to Neru's own hotkey connection or
+	// to the window manager.
+	x11GrabWarnAfter = time.Second
 	x11KeyBufferSize = 64
 	x11BitsPerByte   = 8
 )
@@ -83,12 +83,14 @@ func x11QueryModifierState(display *C.Display) linuxModifierState {
 	return state
 }
 
-// grabX11Keyboard takes the keyboard and retries until the key that started the
-// mode is released. Without the grab the tap sees no keys, and every key the
-// user types while the mode is drawn goes to the focused window. So a grab that
-// never succeeds is logged.
+// grabX11Keyboard takes the keyboard, retrying until the key that started the
+// mode is released or the mode ends. It has no deadline, because a user may
+// hold the hotkey as long as they like and the mode needs its keys once they
+// let go. Until the grab succeeds every key the user types goes to the focused
+// window, so the tap logs once when the wait passes x11GrabWarnAfter.
 func (et *EventTap) grabX11Keyboard(display *C.Display) bool {
-	deadline := time.Now().Add(x11GrabTimeout)
+	warnAt := time.Now().Add(x11GrabWarnAfter)
+	warned := false
 
 	for {
 		status := C.neru_eventtap_grab_keyboard(display)
@@ -96,16 +98,14 @@ func (et *EventTap) grabX11Keyboard(display *C.Display) bool {
 			return true
 		}
 
-		if time.Now().After(deadline) {
-			if et.logger != nil {
-				et.logger.Warn(
-					"Could not grab the X11 keyboard; mode keys will reach the focused window",
-					zap.Int("grab_status", int(status)),
-					zap.Duration("waited", x11GrabTimeout),
-				)
-			}
+		if !warned && time.Now().After(warnAt) && et.logger != nil {
+			et.logger.Warn(
+				"Still waiting for the X11 keyboard; mode keys reach the focused window until it is free",
+				zap.Int("grab_status", int(status)),
+				zap.Duration("waited", x11GrabWarnAfter),
+			)
 
-			return false
+			warned = true
 		}
 
 		select {

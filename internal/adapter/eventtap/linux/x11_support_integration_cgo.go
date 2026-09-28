@@ -33,14 +33,18 @@ static KeyCode neru_test_x11_key(Display *display, const char *name) {
 
 // neru_test_x11_press presses the named keys in order and releases them in
 // reverse, so every key before the last is held while the last is typed.
-// Returns 0 when a key name is not in the keymap or the display is missing.
+// Returns 0 when there are more than eight names, a name is not in the keymap,
+// or the display is missing.
 static int neru_test_x11_press(const char **names, int count) {
+	KeyCode keys[8] = {0};
+	if (count > 8)
+		return 0;
+
 	Display *display = XOpenDisplay(NULL);
 	if (!display)
 		return 0;
 
-	KeyCode keys[8] = {0};
-	for (int i = 0; i < count && i < 8; i++) {
+	for (int i = 0; i < count; i++) {
 		keys[i] = neru_test_x11_key(display, names[i]);
 		if (keys[i] == 0) {
 			XCloseDisplay(display);
@@ -61,7 +65,9 @@ static int neru_test_x11_press(const char **names, int count) {
 // neru_test_x11_hold_grabbed grabs the named key on the root window from a
 // connection of its own, the way a hotkey client does, and presses it, which
 // activates that grab. The key stays down until neru_test_x11_release_grabbed.
-static Display *neru_test_x11_hold_grabbed(const char *name, KeyCode *key) {
+// blocked reports whether a keyboard grab from a third connection is refused
+// while the key is down. The tap gets the same refusal.
+static Display *neru_test_x11_hold_grabbed(const char *name, KeyCode *key, int *blocked) {
 	Display *display = XOpenDisplay(NULL);
 	if (!display)
 		return NULL;
@@ -72,9 +78,22 @@ static Display *neru_test_x11_hold_grabbed(const char *name, KeyCode *key) {
 		return NULL;
 	}
 
-	XGrabKey(display, *key, AnyModifier, DefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
+	int pointer_mode = GrabModeAsync, keyboard_mode = GrabModeAsync;
+	XGrabKey(display, *key, AnyModifier, DefaultRootWindow(display), True, pointer_mode, keyboard_mode);
 	XTestFakeKeyEvent(display, *key, True, CurrentTime);
 	XSync(display, False);
+
+	*blocked = 0;
+	Display *probe = XOpenDisplay(NULL);
+	if (probe) {
+		int status =
+		    XGrabKeyboard(probe, DefaultRootWindow(probe), True, pointer_mode, keyboard_mode, CurrentTime);
+		*blocked = status == AlreadyGrabbed;
+		if (status == GrabSuccess)
+			XUngrabKeyboard(probe, CurrentTime);
+		XCloseDisplay(probe);
+	}
+
 	return display;
 }
 
@@ -112,17 +131,21 @@ func pressX11Keys(names ...string) error {
 
 // holdX11GrabbedKey presses the named key under a passive grab another
 // connection holds, as a hotkey that starts a mode is. The returned function
-// releases the key and drops the grab.
-func holdX11GrabbedKey(name string) (func(), error) {
+// releases the key and drops the grab. The bool reports whether a keyboard grab
+// is refused while the key is down.
+func holdX11GrabbedKey(name string) (func(), bool, error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 
-	var key C.KeyCode
+	var (
+		key      C.KeyCode
+		cBlocked C.int
+	)
 
-	display := C.neru_test_x11_hold_grabbed(cName, &key)
+	display := C.neru_test_x11_hold_grabbed(cName, &key, &cBlocked)
 	if display == nil {
-		return nil, errX11PressRefused
+		return nil, false, errX11PressRefused
 	}
 
-	return func() { C.neru_test_x11_release_grabbed(display, key) }, nil
+	return func() { C.neru_test_x11_release_grabbed(display, key) }, cBlocked != 0, nil
 }
