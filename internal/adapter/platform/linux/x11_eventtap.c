@@ -95,6 +95,37 @@ unsigned neru_eventtap_ascii_groups(Display *display) {
 	return groups;
 }
 
+int neru_eventtap_layout_names(Display *display, char **names, int max) {
+	XkbDescPtr xkb = XkbAllocKeyboard();
+	if (!xkb)
+		return 0;
+
+	int count = 0;
+	if (XkbGetNames(display, XkbGroupNamesMask, xkb) == Success && xkb->names) {
+		for (int group = 0; group < XkbNumKbdGroups && count < max; group++) {
+			Atom atom = xkb->names->groups[group];
+			if (atom == None)
+				break;
+
+			char *name = XGetAtomName(display, atom);
+			names[count++] = strdup(name ? name : "");
+			if (name)
+				XFree(name);
+		}
+	}
+
+	XkbFreeKeyboard(xkb, 0, True);
+	return count;
+}
+
+int neru_eventtap_active_group(Display *display) {
+	XkbStateRec state;
+	if (XkbGetState(display, XkbUseCoreKbd, &state) != Success)
+		return -1;
+
+	return state.group;
+}
+
 static KeySym neru_eventtap_modifier_keysym(const char *modifier) {
 	if (strcmp(modifier, "shift") == 0)
 		return XK_Shift_L;

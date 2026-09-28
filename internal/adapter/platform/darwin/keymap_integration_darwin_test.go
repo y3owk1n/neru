@@ -5,6 +5,7 @@ package darwin_test
 import (
 	"os"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform/darwin"
@@ -127,5 +128,20 @@ func TestKeymap_KeyCodeToCharacter_NumpadEmitsNoControlCharacters(t *testing.T) 
 				)
 			}
 		}
+	}
+}
+
+// TestKeyboardLayouts_ListsTheEnabledLayoutsAndTheReference pins what neru
+// doctor lists on macOS: the enabled keyboard layouts by input source ID, as
+// general.kb_layout_to_use takes them, with the one keys are named in among
+// them.
+func TestKeyboardLayouts_ListsTheEnabledLayoutsAndTheReference(t *testing.T) {
+	names, reference := darwin.KeyboardLayouts()
+	if len(names) == 0 {
+		t.Fatal("KeyboardLayouts listed no enabled keyboard layout")
+	}
+
+	if !slices.Contains(names, reference) {
+		t.Fatalf("reference layout %q is not among the enabled layouts %v", reference, names)
 	}
 }

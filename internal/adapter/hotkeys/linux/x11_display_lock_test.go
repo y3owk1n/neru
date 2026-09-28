@@ -36,16 +36,18 @@ import (
 // flushes the request buffer and reads the socket rather than merely peeking at
 // a counter.
 var x11DisplayCalls = map[string]struct{}{
-	"XCloseDisplay":            {},
-	"XFlush":                   {},
-	"XGrabKey":                 {},
-	"XKeysymToKeycode":         {},
-	"XNextEvent":               {},
-	"XOpenDisplay":             {},
-	"XSelectInput":             {},
-	"XUngrabKey":               {},
-	"neru_hotkeys_pending":     {},
-	"neru_hotkeys_root_window": {},
+	"XCloseDisplay":        {},
+	"XFlush":               {},
+	"XGrabKey":             {},
+	"XKeysymToKeycode":     {},
+	"XNextEvent":           {},
+	"XOpenDisplay":         {},
+	"XSelectInput":         {},
+	"XUngrabKey":           {},
+	"neru_hotkeys_pending": {},
+	// XkbGetMap and XkbGetNames: requests on the connection.
+	"neru_hotkeys_keycode_in_layout": {},
+	"neru_hotkeys_root_window":       {},
 	// XkbSetDetectableAutoRepeat: a request on the connection.
 	"neru_hotkeys_set_detectable_autorepeat": {},
 }

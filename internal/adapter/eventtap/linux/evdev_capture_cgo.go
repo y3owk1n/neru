@@ -46,6 +46,10 @@ type waylandEvdevCapture struct {
 	// Used to resolve evdev scan codes to key names that respect XKB options.
 	xkbState unsafe.Pointer // *C.neru_xkb_state
 
+	// appliedLayout is the requestedKeyboardLayout value last handed to
+	// xkbState, so a change is noticed by pointer.
+	appliedLayout *string
+
 	// devices is what the capture knows about each tracked file beyond its
 	// path; guarded by deviceMu like files.
 	devices map[*os.File]trackedDevice

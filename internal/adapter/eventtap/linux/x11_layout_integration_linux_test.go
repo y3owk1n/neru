@@ -52,6 +52,7 @@ func TestEventTap_X11_NamesKeysInTheReferenceLayout(t *testing.T) {
 		layout  string
 		variant string
 		options string
+		forced  string
 		keys    []string
 		want    string
 	}{
@@ -75,8 +76,8 @@ func TestEventTap_X11_NamesKeysInTheReferenceLayout(t *testing.T) {
 		},
 		{
 			name:    "an active Latin layout names keys itself",
-			layout:  "us,us",
-			variant: ",dvorak",
+			layout:  testXkbTwoLatinLayouts,
+			variant: testXkbDvorakSecond,
 			keys:    []string{x11KeyRightCtrl, x11KeyQ},
 			want:    "'",
 		},
@@ -101,6 +102,22 @@ func TestEventTap_X11_NamesKeysInTheReferenceLayout(t *testing.T) {
 			want:    "Ctrl+q",
 		},
 		{
+			name:    "a forced layout names keys while another is active",
+			layout:  testXkbTwoLatinLayouts,
+			variant: testXkbDvorakSecond,
+			forced:  testXkbDvorakLayoutName,
+			keys:    []string{x11KeyQ},
+			want:    "'",
+		},
+		{
+			name:    "a forced layout the keymap lacks leaves the automatic choice",
+			layout:  testXkbTwoLatinLayouts,
+			variant: testXkbDvorakSecond,
+			forced:  "Klingon",
+			keys:    []string{x11KeyQ},
+			want:    "q",
+		},
+		{
 			name:   "a keymap with no Latin layout follows a switch to its second",
 			layout: testXkbNoLatinLayout,
 			keys:   []string{x11KeyRightCtrl, x11KeyQ},
@@ -117,6 +134,8 @@ func TestEventTap_X11_NamesKeysInTheReferenceLayout(t *testing.T) {
 
 			keys := make(chan string, 64)
 			eventTap := NewEventTap(func(key string) { keys <- key }, nil)
+			eventTap.SetKeyboardLayout(test.forced)
+			t.Cleanup(func() { eventTap.SetKeyboardLayout("") })
 
 			eventTap.Enable()
 			defer eventTap.Destroy()

@@ -244,6 +244,12 @@ func (a *Adapter) AllowsOverlayKeyboardPassthrough() bool {
 	return overlayKeyboardPassthroughAllowed()
 }
 
+// KeyboardLayouts lists the keyboard layouts keys are named against and the
+// one they are named in, for neru doctor.
+func (a *Adapter) KeyboardLayouts() ([]string, string) {
+	return keyboardLayouts()
+}
+
 // claimTeardown settles who is tearing the tap down and marks the adapter
 // destroyed and disabled in the same hold.
 //

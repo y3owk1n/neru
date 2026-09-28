@@ -12,7 +12,10 @@ import "C"
 import (
 	"math/bits"
 	"os"
+	"slices"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -38,12 +41,19 @@ const (
 	// A key event's state carries the XKB group in bits 13 and 14. Xlib's
 	// XkbGroupForCoreState reads it from there.
 	x11GroupShift = 13
+
+	// x11MaxLayouts is how many layouts a core XKB keymap can hold.
+	x11MaxLayouts = 4
 	x11GroupMask  = 0x3 << x11GroupShift
 )
 
 // x11AutorepeatWarned says the refusal once: runX11 opens a connection per
 // mode activation, and the server's answer does not change between them.
 var x11AutorepeatWarned sync.Once
+
+// x11WarnedLayout is the requested layout the tap last warned the keymap
+// lacks, so each mode start does not say it again.
+var x11WarnedLayout atomic.Pointer[string]
 
 // x11QueryModifierState queries the X11 server for the current keyboard
 // state and returns a linuxModifierState counting any held modifier keys.
@@ -170,6 +180,7 @@ func (et *EventTap) runX11() {
 	// opens its own connection. A layout change takes effect at the next mode
 	// start.
 	asciiGroups := uint(C.neru_eventtap_ascii_groups(display))
+	forcedGroup := et.x11ForcedGroup(display)
 
 	// Keycodes down since the grab. With detectable autorepeat (set by
 	// neru_eventtap_open) a held key is repeated KeyPress events, and a
@@ -245,6 +256,7 @@ func (et *EventTap) runX11() {
 
 		if group, ok := x11ReferenceGroup(
 			asciiGroups,
+			forcedGroup,
 			uint(xkey.state&x11GroupMask)>>x11GroupShift,
 		); ok {
 			length, keysym = x11LookupInGroup(xkey, group, buffer)
@@ -271,17 +283,100 @@ func (et *EventTap) runX11() {
 }
 
 // x11ReferenceGroup picks the layout a key is named in, given the mask of
-// ASCII-capable layouts and the active one. The active layout wins when it is
-// ASCII-capable, as the ASCII-capable input source does on macOS, so a Dvorak
-// user who switches to Dvorak gets Dvorak. Otherwise the first ASCII-capable
-// layout wins, so a Russian speaker keeps every binding on its key. It reports
-// false when no layout is ASCII-capable or the active one already is.
-func x11ReferenceGroup(asciiGroups, active uint) (uint, bool) {
+// ASCII-capable layouts, the layout general.kb_layout_to_use forces (-1 when
+// none is) and the active one. A forced layout always wins. Otherwise the
+// active layout wins when it is ASCII-capable, as the ASCII-capable input
+// source does on macOS, so a Dvorak user who switches to Dvorak gets Dvorak,
+// and else the first ASCII-capable layout wins, so a Russian speaker keeps
+// every binding on its key. It reports false when the key is already named in
+// the right layout.
+func x11ReferenceGroup(asciiGroups uint, forced int, active uint) (uint, bool) {
+	if forced >= 0 {
+		return uint(forced), uint(forced) != active
+	}
+
 	if asciiGroups == 0 || asciiGroups&(1<<active) != 0 {
 		return 0, false
 	}
 
 	return uint(bits.TrailingZeros(asciiGroups)), true
+}
+
+// x11LayoutNames lists the XKB names of the server keymap's layouts, in order.
+func x11LayoutNames(display *C.Display) []string {
+	cNames := make([]*C.char, x11MaxLayouts)
+
+	count := int(
+		C.neru_eventtap_layout_names(display, unsafe.SliceData(cNames), C.int(len(cNames))),
+	)
+	names := make([]string, count)
+
+	for i := range count {
+		names[i] = C.GoString(cNames[i])
+		C.free(unsafe.Pointer(cNames[i]))
+	}
+
+	return names
+}
+
+// x11ForcedGroup returns the index of the layout general.kb_layout_to_use
+// names, or -1 when it names none or the keymap lacks it. The tap asks once per
+// mode start, so a name the keymap lacks is logged once per configured value.
+func (et *EventTap) x11ForcedGroup(display *C.Display) int {
+	requested := requestedKeyboardLayout.Load()
+	if requested == nil || *requested == "" {
+		return -1
+	}
+
+	names := x11LayoutNames(display)
+	if index := layoutIndex(names, *requested); index >= 0 {
+		return index
+	}
+
+	if x11WarnedLayout.Swap(requested) != requested && et.logger != nil {
+		et.logger.Warn(
+			"Configured keyboard layout is not in the X server's keymap; using automatic selection",
+			zap.String("layout_id", *requested),
+			zap.Int("layouts", len(names)),
+		)
+	}
+
+	return -1
+}
+
+// x11KeyboardLayouts lists the server keymap's layouts and names the one keys
+// resolve in, for neru doctor. It opens a connection of its own.
+func x11KeyboardLayouts() KeyboardLayouts {
+	display := C.neru_eventtap_open()
+	if display == nil {
+		return KeyboardLayouts{}
+	}
+	defer C.neru_eventtap_close(display)
+
+	layouts := KeyboardLayouts{Names: x11LayoutNames(display)}
+
+	forced := -1
+	if requested := RequestedKeyboardLayout(); requested != "" {
+		forced = layoutIndex(layouts.Names, requested)
+	}
+
+	active := int(C.neru_eventtap_active_group(display))
+	asciiGroups := uint(C.neru_eventtap_ascii_groups(display))
+
+	if active < 0 || (forced < 0 && asciiGroups == 0) {
+		return layouts
+	}
+
+	group, renamed := x11ReferenceGroup(asciiGroups, forced, uint(active))
+	if !renamed {
+		group = uint(active)
+	}
+
+	if int(group) < len(layouts.Names) {
+		layouts.Reference = layouts.Names[group]
+	}
+
+	return layouts
 }
 
 // x11LookupInGroup resolves a key event as if group were the active layout, so
@@ -538,4 +633,11 @@ func postLinuxModifierEvent(modifier string, isDown bool) bool {
 	}
 
 	return C.neru_eventtap_post_modifier(cModifier, cDown) != 0
+}
+
+// layoutIndex returns the position of name among names, ignoring case, or -1.
+func layoutIndex(names []string, name string) int {
+	return slices.IndexFunc(names, func(candidate string) bool {
+		return strings.EqualFold(candidate, name)
+	})
 }

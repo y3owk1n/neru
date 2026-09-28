@@ -77,3 +77,13 @@ type IPCPort interface {
 	// IsRunning returns true if the IPC server is running.
 	IsRunning() bool
 }
+
+// KeyboardLayoutReporter is an optional EventTapPort extension: the keyboard
+// layouts the tap names keys against, spelled as general.kb_layout_to_use
+// takes them, and the one it names keys in. neru doctor lists them so a user
+// can copy the one to force.
+type KeyboardLayoutReporter interface {
+	// KeyboardLayouts returns the layouts and the reference one, which is ""
+	// when keys are named in whichever layout is active.
+	KeyboardLayouts() (names []string, reference string)
+}

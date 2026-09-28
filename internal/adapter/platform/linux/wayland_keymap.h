@@ -35,6 +35,21 @@ int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char
 // neru_xkb_state_key_get_name, which always resolves in the live layout.
 int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size);
 
+// Force the reference layout to the one whose XKB name matches name, ignoring
+// case. NULL or "" returns to the automatic choice. The state keeps the name
+// and matches it again against every later keymap. Returns 1 when the current
+// keymap has the layout or the choice is automatic. Returns 0 when it does not,
+// and the automatic choice applies until a keymap that has it arrives.
+int neru_xkb_state_set_reference_layout(neru_xkb_state *state, const char *name);
+
+// The keymap's layouts, for listing: how many there are, and the XKB name of
+// one, or NULL when it has none. The name lives until the keymap is replaced.
+int neru_xkb_state_layout_count(neru_xkb_state *state);
+const char *neru_xkb_state_layout_name(neru_xkb_state *state, int layout);
+
+// The index of the reference layout, or -1 when keys resolve in the live one.
+int neru_xkb_state_reference_index(neru_xkb_state *state);
+
 // Build a state from keymap text in the format wl_keyboard.keymap delivers.
 // The state has no display, so it never dispatches or receives a new keymap.
 // Tests use it to pin naming against real layouts. Destroy it with

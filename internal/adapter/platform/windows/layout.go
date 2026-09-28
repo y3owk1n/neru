@@ -3,11 +3,18 @@
 package windows
 
 import (
+	"fmt"
+	"maps"
+	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 // This file picks the keyboard layout that punctuation is named in. Letters
@@ -34,6 +41,20 @@ const (
 
 	// maxKeyboardLayouts bounds GetKeyboardLayoutList.
 	maxKeyboardLayouts = 64
+
+	// A layout handle's high word says what kind of layout it is.
+	layoutHighWordShift = 16
+	layoutKindMask      = 0xF000
+	layoutKindVariant   = 0xF000
+	layoutKindIME       = 0xE000
+
+	// keyboardLayoutsKey is where Windows lists the keyboard layouts it has,
+	// one subkey per keyboard layout identifier.
+	keyboardLayoutsKey = `SYSTEM\CurrentControlSet\Control\Keyboard Layouts`
+
+	// referenceLayoutPollInterval is how often the watcher checks for a layout
+	// switch. A punctuation hotkey lags a switch by at most this long.
+	referenceLayoutPollInterval = time.Second
 )
 
 var (
@@ -54,8 +75,41 @@ var asciiLayouts sync.Map
 // switches layout. A layout installed meanwhile counts from the next switch.
 var fallbackLayout atomic.Pointer[[2]uintptr]
 
+// forcedLayout is the layout handle general.kb_layout_to_use forces, or 0 for
+// the automatic choice.
+var forcedLayout atomic.Uintptr
+
+// SetReferenceKeyboardLayout forces the layout punctuation is named and parsed
+// in, by its keyboard layout identifier as Windows writes it, such as
+// 00010409 for US Dvorak, or returns to the automatic choice for "". It reports
+// false when no installed layout has that identifier, and the automatic choice
+// applies.
+func SetReferenceKeyboardLayout(layoutID string) bool {
+	if layoutID == "" {
+		forcedLayout.Store(0)
+
+		return true
+	}
+
+	for layout, id := range installedLayoutIDs() {
+		if strings.EqualFold(id, layoutID) {
+			forcedLayout.Store(layout)
+
+			return true
+		}
+	}
+
+	forcedLayout.Store(0)
+
+	return false
+}
+
 // referenceLayout returns the layout handle punctuation is named and parsed in.
 func referenceLayout() uintptr {
+	if forced := forcedLayout.Load(); forced != 0 {
+		return forced
+	}
+
 	active := activeLayout()
 	if layoutIsASCII(active) {
 		return active
@@ -151,4 +205,154 @@ func layoutIsASCII(layout uintptr) bool {
 	asciiLayouts.Store(layout, ascii)
 
 	return ascii
+}
+
+// installedLayoutIDs maps each installed layout handle to its keyboard layout
+// identifier. Windows has no call for this, so it decodes the handle. For a
+// primary layout the handle's high word is the identifier itself, so 0x0409 is
+// 00000409. For a variant such as Dvorak it is an index into the registry's
+// Layout Id values, so 0xF002 is the layout whose Layout Id is 0002. For an
+// input method editor the identifier is the whole handle.
+func installedLayoutIDs() map[uintptr]string {
+	var layouts [maxKeyboardLayouts]uintptr
+
+	count, _, _ := procGetKeyboardLayoutList.Call(
+		uintptr(len(layouts)),
+		uintptr(unsafe.Pointer(&layouts[0])),
+	)
+
+	ids := make(map[uintptr]string, count)
+	for _, layout := range layouts[:count] {
+		if id := layoutID(layout); id != "" {
+			ids[layout] = id
+		}
+	}
+
+	return ids
+}
+
+func layoutID(layout uintptr) string {
+	high := uint32(layout>>layoutHighWordShift) & loWordMask
+
+	switch high & layoutKindMask {
+	case layoutKindVariant:
+		return variantLayoutID(high &^ layoutKindMask)
+	case layoutKindIME:
+		return fmt.Sprintf("%08X", uint32(layout))
+	default:
+		return fmt.Sprintf("%08X", high)
+	}
+}
+
+// variantLayoutID finds the keyboard layout identifier whose registry Layout Id
+// is registryID.
+func variantLayoutID(registryID uint32) string {
+	layouts, err := registry.OpenKey(
+		registry.LOCAL_MACHINE,
+		keyboardLayoutsKey,
+		registry.ENUMERATE_SUB_KEYS,
+	)
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = layouts.Close() }()
+
+	names, err := layouts.ReadSubKeyNames(-1)
+	if err != nil {
+		return ""
+	}
+
+	for _, name := range names {
+		if layoutRegistryID(name) == registryID {
+			return strings.ToUpper(name)
+		}
+	}
+
+	return ""
+}
+
+// layoutRegistryID reads the Layout Id value of one keyboard layout, or 0 when
+// it has none.
+func layoutRegistryID(name string) uint32 {
+	layout, err := registry.OpenKey(
+		registry.LOCAL_MACHINE,
+		keyboardLayoutsKey+`\`+name,
+		registry.QUERY_VALUE,
+	)
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = layout.Close() }()
+
+	value, _, err := layout.GetStringValue("Layout Id")
+	if err != nil {
+		return 0
+	}
+
+	id, err := strconv.ParseUint(value, 16, 32)
+	if err != nil {
+		return 0
+	}
+
+	return uint32(id)
+}
+
+// KeyboardLayouts lists the installed layouts by keyboard layout identifier,
+// as general.kb_layout_to_use takes them, and the one punctuation is named in.
+func KeyboardLayouts() ([]string, string) {
+	ids := installedLayoutIDs()
+
+	names := slices.Sorted(maps.Values(ids))
+
+	return names, ids[referenceLayout()]
+}
+
+// layoutWatch runs the reference layout watcher SetReferenceLayoutChangeHandler
+// starts, and stops it.
+var layoutWatch struct {
+	mu   sync.Mutex
+	stop chan struct{}
+}
+
+// SetReferenceLayoutChangeHandler calls handler whenever the reference layout
+// changes, or stops calling the previous one for nil. RegisterHotKey keeps the
+// virtual key a hotkey resolved to, so a punctuation hotkey has to be
+// registered again when the user switches to a layout that puts the character
+// on another key. Windows tells a background process neither about that switch
+// nor about a switch inside the focused window, so the watcher polls.
+func SetReferenceLayoutChangeHandler(handler func()) {
+	layoutWatch.mu.Lock()
+	defer layoutWatch.mu.Unlock()
+
+	if layoutWatch.stop != nil {
+		close(layoutWatch.stop)
+		layoutWatch.stop = nil
+	}
+
+	if handler == nil {
+		return
+	}
+
+	layoutWatch.stop = make(chan struct{})
+	go watchReferenceLayout(handler, layoutWatch.stop)
+}
+
+func watchReferenceLayout(handler func(), stop <-chan struct{}) {
+	ticker := time.NewTicker(referenceLayoutPollInterval)
+	defer ticker.Stop()
+
+	last := referenceLayout()
+
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			if current := referenceLayout(); current != last {
+				last = current
+
+				handler()
+			}
+		}
+	}
 }

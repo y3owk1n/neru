@@ -25,6 +25,12 @@ const (
 
 	// testXkbNoLatinLayout has no ASCII-capable layout at all.
 	testXkbNoLatinLayout = "ru,gr"
+
+	// A keymap of two Latin layouts, us and us(dvorak), and the XKB name of
+	// the second, as general.kb_layout_to_use writes it.
+	testXkbTwoLatinLayouts  = "us,us"
+	testXkbDvorakSecond     = ",dvorak"
+	testXkbDvorakLayoutName = "English (Dvorak)"
 )
 
 // TestWaylandEvdevCapture_KeyName_ResolvesInTheReferenceLayout pins which
@@ -182,5 +188,71 @@ func TestWaylandEvdevCapture_ModifierName_FollowsTheLiveLayout(t *testing.T) {
 		if got := capture.modifierName(evdevKeyQ); got != "" {
 			t.Errorf("switched=%v: modifierName(Q) = %q, want no modifier", switched, got)
 		}
+	}
+}
+
+// TestEventTap_SetKeyboardLayout_ForcesTheWaylandReferenceLayout pins that
+// general.kb_layout_to_use names the layout keys resolve in by its XKB name,
+// ignoring case, and that a name the keymap lacks leaves the automatic choice.
+// It sets the process-wide request, so it does not run in parallel.
+func TestEventTap_SetKeyboardLayout_ForcesTheWaylandReferenceLayout(t *testing.T) {
+	var eventTap EventTap
+
+	t.Cleanup(func() { eventTap.SetKeyboardLayout("") })
+
+	for _, test := range []struct {
+		name      string
+		requested string
+		want      string
+		reference string
+	}{
+		{
+			name:      "the automatic choice takes the first Latin layout",
+			requested: "",
+			want:      "q",
+			reference: "English (US)",
+		},
+		{
+			name:      "a forced layout names keys whichever layout is active",
+			requested: testXkbDvorakLayoutName,
+			want:      "'",
+			reference: testXkbDvorakLayoutName,
+		},
+		{
+			name:      "the forced name ignores case",
+			requested: "english (dvorak)",
+			want:      "'",
+			reference: testXkbDvorakLayoutName,
+		},
+		{
+			name:      "a name the keymap lacks leaves the automatic choice",
+			requested: "Klingon",
+			want:      "q",
+			reference: "English (US)",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			capture, err := newTestXkbCapture(
+				testXkbTwoLatinLayouts,
+				testXkbDvorakSecond,
+				testXkbOptions,
+			)
+			if err != nil {
+				t.Skipf("no XKB data to compile us and Dvorak from: %v", err)
+			}
+			defer capture.destroyTestXkb()
+
+			eventTap.SetKeyboardLayout(test.requested)
+
+			if got := capture.keyName(evdevKeyQ); got != test.want {
+				t.Errorf("forcing %q: keyName(Q) = %q, want %q", test.requested, got, test.want)
+			}
+
+			layouts := capture.keyboardLayouts()
+			if layouts.Reference != test.reference {
+				t.Errorf("forcing %q: reference = %q, want %q (layouts %q)",
+					test.requested, layouts.Reference, test.reference, layouts.Names)
+			}
+		})
 	}
 }

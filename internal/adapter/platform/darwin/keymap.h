@@ -193,6 +193,14 @@ void NeruRefreshKeyboardLayoutMaps(void);
 /// and 0 when an explicit ID was provided but could not be resolved.
 int NeruSetReferenceKeyboardLayout(const char *inputSourceID);
 
+/// NeruCopyKeyboardLayoutIDs returns the input source IDs of the enabled
+/// keyboard layouts, one per line, or NULL. The caller frees it.
+char *NeruCopyKeyboardLayoutIDs(void);
+
+/// NeruCopyReferenceKeyboardLayoutID returns the input source ID keys are
+/// named in, or NULL. The caller frees it.
+char *NeruCopyReferenceKeyboardLayoutID(void);
+
 /// Callback type invoked after keyboard layout maps are rebuilt.
 typedef void (*KeymapLayoutChangeCallback)(void);
 

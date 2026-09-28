@@ -1201,6 +1201,41 @@ void NeruRefreshKeyboardLayoutMaps(void) {
 	}
 }
 
+char *NeruCopyKeyboardLayoutIDs(void) {
+	NSDictionary *filter =
+	    @{(__bridge NSString *)kTISPropertyInputSourceType : (__bridge NSString *)kTISTypeKeyboardLayout};
+	CFArrayRef inputSourceList = TISCreateInputSourceList((__bridge CFDictionaryRef)filter, false);
+	if (!inputSourceList) {
+		return NULL;
+	}
+
+	NSMutableArray<NSString *> *ids = [NSMutableArray array];
+	CFIndex sourceCount = CFArrayGetCount(inputSourceList);
+	for (CFIndex i = 0; i < sourceCount; i++) {
+		TISInputSourceRef source = (TISInputSourceRef)CFArrayGetValueAtIndex(inputSourceList, i);
+		NSString *sourceID = (__bridge NSString *)TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
+		if (sourceID && inputSourceHasUnicodeLayoutData(source)) {
+			[ids addObject:sourceID];
+		}
+	}
+	CFRelease(inputSourceList);
+
+	return strdup([[ids componentsJoinedByString:@"\n"] UTF8String]);
+}
+
+char *NeruCopyReferenceKeyboardLayoutID(void) {
+	TISInputSourceRef source = copyResolvedReferenceInputSource(NULL, NULL);
+	if (!source) {
+		return NULL;
+	}
+
+	NSString *sourceID = (__bridge NSString *)TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
+	char *copied = sourceID ? strdup([sourceID UTF8String]) : NULL;
+	CFRelease(source);
+
+	return copied;
+}
+
 int NeruSetReferenceKeyboardLayout(const char *inputSourceID) {
 	// Normalise input — treat empty string as nil (auto-detect)
 	NSString *trimmedInputSourceID = nil;

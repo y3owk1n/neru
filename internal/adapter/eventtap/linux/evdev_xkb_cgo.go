@@ -15,11 +15,22 @@
 package linux
 
 /*
+#include <stdlib.h>
 #include "../../platform/linux/evdev.h"
 #include "../../platform/linux/wayland_keymap.h"
 */
 import "C"
-import "unsafe"
+
+import (
+	"sync/atomic"
+	"unsafe"
+
+	"go.uber.org/zap"
+)
+
+// waylandKeyboardLayouts is the last layout list a Wayland capture published,
+// for neru doctor, which asks from a goroutine the capture does not run on.
+var waylandKeyboardLayouts atomic.Pointer[KeyboardLayouts]
 
 // keyName resolves a scan code to the name Neru's bindings match against. It
 // applies the live modifiers in the reference layout, which is the first
@@ -34,6 +45,8 @@ func (capture *waylandEvdevCapture) keyName(code uint16) string {
 		return evdevKeyName(code)
 	}
 
+	capture.applyRequestedLayout()
+
 	var buf [64]C.char
 	if C.neru_xkb_state_key_get_command_name(
 		(*C.neru_xkb_state)(capture.xkbState),
@@ -45,6 +58,59 @@ func (capture *waylandEvdevCapture) keyName(code uint16) string {
 	}
 
 	return evdevKeyName(code)
+}
+
+// applyRequestedLayout hands the layout general.kb_layout_to_use forces to the
+// xkb state when it changed since the last call. It runs on the capture's own
+// goroutine, before every key it names, and costs one atomic load when nothing
+// changed.
+func (capture *waylandEvdevCapture) applyRequestedLayout() {
+	requested := requestedKeyboardLayout.Load()
+	if requested == capture.appliedLayout {
+		return
+	}
+
+	capture.appliedLayout = requested
+
+	var name string
+	if requested != nil {
+		name = *requested
+	}
+
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+
+	state := (*C.neru_xkb_state)(capture.xkbState)
+	if C.neru_xkb_state_set_reference_layout(state, cName) == 0 && capture.logger != nil {
+		capture.logger.Warn(
+			"Configured keyboard layout is not in the compositor's keymap; using automatic selection",
+			zap.String("layout_id", name),
+			zap.Int("layouts", int(C.neru_xkb_state_layout_count(state))),
+		)
+	}
+
+	waylandKeyboardLayouts.Store(capture.keyboardLayouts())
+}
+
+// keyboardLayouts lists the keymap's layouts by XKB name and names the
+// reference one.
+func (capture *waylandEvdevCapture) keyboardLayouts() *KeyboardLayouts {
+	state := (*C.neru_xkb_state)(capture.xkbState)
+	layouts := &KeyboardLayouts{}
+
+	for layout := range int(C.neru_xkb_state_layout_count(state)) {
+		name := C.neru_xkb_state_layout_name(state, C.int(layout))
+		if name == nil {
+			continue
+		}
+
+		layouts.Names = append(layouts.Names, C.GoString(name))
+		if int(C.neru_xkb_state_reference_index(state)) == layout {
+			layouts.Reference = C.GoString(name)
+		}
+	}
+
+	return layouts
 }
 
 // liveKeyName resolves a scan code in the layout the keyboard state is in.
@@ -137,10 +203,18 @@ func (capture *waylandEvdevCapture) pollKeymap() bool {
 		return false
 	}
 
+	// A layout forced by a config reload reaches the state here even when no
+	// key is pressed, so neru doctor shows it.
+	capture.applyRequestedLayout()
+
 	switch C.neru_xkb_state_dispatch((*C.neru_xkb_state)(capture.xkbState)) {
 	case 0:
 		return false
 	case 1:
+		// The new keymap may lack the forced layout, or number it differently.
+		capture.appliedLayout = nil
+		capture.applyRequestedLayout()
+
 		// The state under the keymap is fresh, so its lock modifiers are not:
 		// read them off the devices again.
 		capture.syncLeds()
@@ -165,6 +239,7 @@ func (capture *waylandEvdevCapture) refreshXkbState() {
 
 	xkb := C.neru_xkb_state_create()
 	capture.xkbState = unsafe.Pointer(xkb)
+	capture.appliedLayout = nil
 
 	if xkb == nil {
 		if capture.logger != nil {
@@ -177,6 +252,7 @@ func (capture *waylandEvdevCapture) refreshXkbState() {
 		return
 	}
 
+	capture.applyRequestedLayout()
 	capture.syncLeds()
 }
 

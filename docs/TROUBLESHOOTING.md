@@ -571,22 +571,15 @@ If you're still experiencing issues:
 
 2. **Layout not detected correctly:**
     - Some custom layouts (e.g., Colemak, Dvorak) may not be resolved automatically
-    - Force the layout by setting `kb_layout_to_use` in your config to the full bundle ID:
-
-        ```bash
-        # First, switch to your desired layout in the menu bar, then:
-        defaults read com.apple.HIToolbox AppleCurrentKeyboardLayoutInputSourceID
-        ```
-
-        Then use the returned value (e.g., `com.apple.keylayout.Colemak`):
+    - Run `neru doctor` and copy the layout you want from the `keyboard_layouts` row, then force it:
 
         ```toml
         [general]
-        kb_layout_to_use = "com.apple.keylayout.Colemak"
+        kb_layout_to_use = "com.apple.keylayout.Colemak"  # macOS; "English (Colemak)" on Linux, "00010409" for Dvorak on Windows
         ```
 
 3. **Layout changes at runtime not picked up:**
-    - Neru re-registers global hotkeys when the keyboard layout changes (e.g., switching from US to Dvorak while Neru is running)
+    - Neru re-registers global hotkeys when the keyboard layout changes (e.g., switching from US to Dvorak while Neru is running). On Windows it checks once a second, so a punctuation hotkey can take up to a second to follow a switch
     - If hotkeys don't work after a layout switch, try toggling Neru off and on, or restart the daemon with `pkill neru && neru launch`
 
 ### Input methods not working (CJK IME)

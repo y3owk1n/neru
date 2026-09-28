@@ -20,8 +20,7 @@ const (
 		"score each word"
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
 		"even where the vision strategy lands; that half is text-only"
-	noteKeyboardLayout = "the keyboard layout is detected rather than chosen outside macOS"
-	noteMacOSSurfaces  = "the menu bar, the Dock, Notification Center, Stage Manager, " +
+	noteMacOSSurfaces = "the menu bar, the Dock, Notification Center, Stage Manager, " +
 		"picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart"
 	noteMissionControl = "Mission Control is a macOS concept, so the detection never fires " +
 		"and the hooks never run"
@@ -92,9 +91,6 @@ func PlatformSupport() parity.Declaration {
 	return parity.Join(
 		parity.On(parity.KindOption, darwinOnly, noteScreenShareHide,
 			"general.hide_overlay_in_screen_share",
-		),
-		parity.On(parity.KindOption, darwinOnly, noteKeyboardLayout,
-			"general.kb_layout_to_use",
 		),
 
 		parity.On(parity.KindOption, darwinOnly, noteMacOSSurfaces,
@@ -235,6 +231,7 @@ func PlatformSupport() parity.Declaration {
 		parity.Everywhere(parity.KindOption, passthroughOptions...),
 		parity.Everywhere(parity.KindOption,
 			"general.excluded_apps",
+			"general.kb_layout_to_use",
 			"general.exec_shell",
 			"general.exec_shell_args",
 

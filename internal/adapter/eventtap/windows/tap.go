@@ -243,8 +243,12 @@ func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 	et.notePostedModifier(modifier, isDown)
 }
 
-// SetKeyboardLayout sets the keyboard layout.
-func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
+// SetKeyboardLayout forces the layout punctuation is named and parsed in, by
+// its keyboard layout identifier, or returns to the automatic choice for "".
+// It reports false when no installed layout has that identifier.
+func (et *EventTap) SetKeyboardLayout(layoutID string) bool {
+	return winplatform.SetReferenceKeyboardLayout(layoutID)
+}
 
 // IsEnabled returns whether the event tap is enabled.
 func (et *EventTap) IsEnabled() bool {

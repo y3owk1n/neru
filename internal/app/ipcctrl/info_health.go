@@ -5,6 +5,7 @@ package ipcctrl
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"go.uber.org/zap"
@@ -57,6 +58,19 @@ func (h *InfoHandler) handleHealth(ctx context.Context, _ ipc.Command) ipc.Respo
 	} else {
 		components["config"] = "not loaded"
 		hasErrors = true
+	}
+
+	if reporter, ok := h.eventTap.(ports.KeyboardLayoutReporter); ok {
+		var requested string
+		if cfg != nil {
+			requested = strings.TrimSpace(cfg.General.KBLayoutToUse)
+		}
+
+		names, reference := reporter.KeyboardLayouts()
+
+		status, found := keyboardLayoutsStatus(names, reference, requested)
+		components["keyboard_layouts"] = status
+		hasErrors = hasErrors || !found
 	}
 
 	for key, value := range capabilities {
@@ -262,4 +276,28 @@ func capabilityStatusSupported(status string) bool {
 	capability := ports.FeatureCapability{Status: ports.FeatureStatus(status)}
 
 	return capability.Supported()
+}
+
+// keyboardLayoutsStatus renders the keyboard_layouts row: the layouts keys are
+// named against, spelled as general.kb_layout_to_use takes them, and the one
+// they are named in. It reports false when kb_layout_to_use names a layout
+// that is not among them, which is a typo neru doctor should catch.
+func keyboardLayoutsStatus(names []string, reference, requested string) (string, bool) {
+	if len(names) == 0 {
+		return "ok (no keyboard layouts read yet)", true
+	}
+
+	list := strings.Join(names, ", ")
+
+	if requested != "" && !slices.ContainsFunc(names, func(name string) bool {
+		return strings.EqualFold(name, requested)
+	}) {
+		return "not found: " + requested + " (layouts: " + list + ")", false
+	}
+
+	if reference == "" {
+		reference = "the active layout"
+	}
+
+	return "ok (" + list + "; keys use " + reference + ")", true
 }

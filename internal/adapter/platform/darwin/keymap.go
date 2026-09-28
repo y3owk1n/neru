@@ -84,3 +84,26 @@ func SetReferenceKeyboardLayout(inputSourceID string) bool {
 
 	return result
 }
+
+// KeyboardLayouts lists the enabled keyboard layouts by input source ID, as
+// general.kb_layout_to_use takes them, and the one keys are named in.
+func KeyboardLayouts() ([]string, string) {
+	var names []string
+
+	if cIDs := C.NeruCopyKeyboardLayoutIDs(); cIDs != nil {
+		if ids := C.GoString(cIDs); ids != "" {
+			names = strings.Split(ids, "\n")
+		}
+
+		C.free(unsafe.Pointer(cIDs))
+	}
+
+	var reference string
+
+	if cReference := C.NeruCopyReferenceKeyboardLayoutID(); cReference != nil {
+		reference = C.GoString(cReference)
+		C.free(unsafe.Pointer(cReference))
+	}
+
+	return names, reference
+}

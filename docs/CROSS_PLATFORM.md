@@ -502,7 +502,9 @@ bindings therefore stay on the first. Either way a `us,ru` or `ru,us` keymap
 keeps every binding, hint label and grid key on its physical key while Russian
 is active. Shift, Caps Lock, NumLock and AltGr still choose the level, and Neru
 identifies modifiers in the active layout, which is where remaps like
-`ctrl:swapcaps` are defined. A keysym is named by the
+`ctrl:swapcaps` are defined. `general.kb_layout_to_use` forces the reference by
+the layout's XKB name on both backends, and the X11 `[hotkeys]` grab follows
+it too. A keysym is named by the
 character it types when it types one, and by keysym name otherwise
 ([wayland_keymap.c](../internal/adapter/platform/linux/wayland_keymap.c)); the
 one key XKB renames under Shift, `ISO_Left_Tab`, folds back to `Tab`, which is
@@ -516,7 +518,10 @@ a key and parsing a `[hotkeys]` chord use the reference layout chosen by the
 X11 rule. The active layout is the foreground window's, and the fallback list
 is the user's installed layouts
 ([layout.go](../internal/adapter/platform/windows/layout.go)). So `` ` `` and
-`;` keep answering while Russian is active.
+`;` keep answering while Russian is active. `general.kb_layout_to_use` forces
+the reference by keyboard layout identifier. `RegisterHotKey` keeps the key a
+hotkey resolved to, so Neru checks the reference layout once a second and
+registers the hotkeys again when it changes.
 
 **Modifier passthrough (Wayland evdev, and Windows).** While a mode is active
 Neru captures the keyboard exclusively, so shortcuts it does not bind are
@@ -753,7 +758,6 @@ works; this says whether a word a person wrote does anything.
 | Word | Kind | macOS | Linux | Windows | Why |
 | ---- | ---- | --- | --- | --- | --- |
 | `general.hide_overlay_in_screen_share` | option | ✅ | ❌ | ❌ | hiding the overlay from a screen share is an NSWindow sharing level, a Quartz concept with no X11, Wayland or Win32 counterpart |
-| `general.kb_layout_to_use` | option | ✅ | ❌ | ❌ | the keyboard layout is detected rather than chosen outside macOS |
 | `hints.include_menubar_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.additional_menubar_hints_targets` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.include_dock_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |

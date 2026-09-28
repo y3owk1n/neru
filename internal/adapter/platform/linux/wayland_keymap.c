@@ -3,6 +3,7 @@
 #include <poll.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <wayland-client.h>
@@ -16,6 +17,10 @@ struct keymap_ready {
 	// switch cannot move a binding to another physical key.
 	struct xkb_state *command_state;
 	xkb_layout_index_t reference_layout;
+	// requested_layout is the layout name the user forced, or NULL for the
+	// automatic choice. requested_found says whether this keymap has it.
+	char *requested_layout;
+	int requested_found;
 	int ready;
 	// Set when a keymap arrived after the first one, so the reader that
 	// dispatches this display knows the state it resolves names against has
@@ -73,6 +78,36 @@ static xkb_layout_index_t reference_layout(struct xkb_state *commands) {
 	return XKB_LAYOUT_INVALID;
 }
 
+// layout_by_name returns the index of the layout whose XKB name matches name,
+// ignoring case, or XKB_LAYOUT_INVALID when the keymap has none.
+static xkb_layout_index_t layout_by_name(struct xkb_keymap *keymap, const char *name) {
+	xkb_layout_index_t layouts = xkb_keymap_num_layouts(keymap);
+	for (xkb_layout_index_t layout = 0; layout < layouts; layout++) {
+		const char *candidate = xkb_keymap_layout_get_name(keymap, layout);
+		if (candidate && strcasecmp(candidate, name) == 0)
+			return layout;
+	}
+
+	return XKB_LAYOUT_INVALID;
+}
+
+// choose_reference sets the reference layout for the current keymap: the one
+// the user forced by name when the keymap has it, else the automatic choice.
+static void choose_reference(struct keymap_ready *kr) {
+	kr->reference_layout = reference_layout(kr->command_state);
+	kr->requested_found = 1;
+	if (!kr->requested_layout)
+		return;
+
+	xkb_layout_index_t forced = layout_by_name(xkb_state_get_keymap(kr->command_state), kr->requested_layout);
+	if (forced == XKB_LAYOUT_INVALID) {
+		kr->requested_found = 0;
+		return;
+	}
+
+	kr->reference_layout = forced;
+}
+
 // keymap_ready_load compiles a keymap and replaces both states with fresh ones
 // built from it. A later keymap means the compositor changed its layouts or
 // options, and every name from then on follows the new keymap. GNOME renumbers
@@ -107,7 +142,7 @@ static void keymap_ready_load(struct keymap_ready *kr, const char *map_str) {
 	}
 	kr->state = fresh;
 	kr->command_state = commands;
-	kr->reference_layout = reference_layout(commands);
+	choose_reference(kr);
 }
 
 // ── wl_keyboard listener (only .keymap is used) ─────────────────────────
@@ -284,6 +319,7 @@ void neru_xkb_state_destroy(neru_xkb_state *state) {
 		xkb_state_unref(state->state);
 	if (state->kr.command_state)
 		xkb_state_unref(state->kr.command_state);
+	free(state->kr.requested_layout);
 	if (state->wl_keyboard)
 		wl_keyboard_destroy(state->wl_keyboard);
 	if (state->display)
@@ -415,6 +451,37 @@ int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_co
 	xkb_keysym_t keysym = xkb_state_key_get_one_sym(commands, (xkb_keycode_t)evdev_code + 8);
 
 	return neru_xkb_keysym_name(keysym, buf, buf_size);
+}
+
+int neru_xkb_state_set_reference_layout(neru_xkb_state *state, const char *name) {
+	if (!state || !state->kr.command_state)
+		return 0;
+
+	free(state->kr.requested_layout);
+	state->kr.requested_layout = name && *name ? strdup(name) : NULL;
+	choose_reference(&state->kr);
+	return state->kr.requested_found;
+}
+
+int neru_xkb_state_layout_count(neru_xkb_state *state) {
+	if (!state || !state->kr.command_state)
+		return 0;
+
+	return (int)xkb_keymap_num_layouts(xkb_state_get_keymap(state->kr.command_state));
+}
+
+const char *neru_xkb_state_layout_name(neru_xkb_state *state, int layout) {
+	if (layout < 0 || layout >= neru_xkb_state_layout_count(state))
+		return NULL;
+
+	return xkb_keymap_layout_get_name(xkb_state_get_keymap(state->kr.command_state), (xkb_layout_index_t)layout);
+}
+
+int neru_xkb_state_reference_index(neru_xkb_state *state) {
+	if (!state || state->kr.reference_layout == XKB_LAYOUT_INVALID)
+		return -1;
+
+	return (int)state->kr.reference_layout;
 }
 
 neru_xkb_state *neru_xkb_state_create_from_keymap(const char *keymap) {

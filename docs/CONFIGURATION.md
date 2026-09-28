@@ -785,7 +785,7 @@ layout, shortcut passthrough, and the shell used by `exec` hotkeys.
 | Option                                 | Type   | Default       | Description                                                                                       |
 | -------------------------------------- | ------ | ------------- | ------------------------------------------------------------------------------------------------- |
 | `excluded_apps`                        | array  | `[]`          | Bundle IDs where Neru won't activate                                                              |
-| `kb_layout_to_use`                     | string | `""`          | Force keyboard layout InputSourceID bundle ID (auto if empty). E.g. `com.apple.keylayout.Colemak` |
+| `kb_layout_to_use`                     | string | `""`          | Keyboard layout keys are named in, as the platform names it (auto if empty). See below            |
 | `hide_overlay_in_screen_share`         | bool   | `false`       | Hide overlay in screen sharing apps                                                               |
 | `passthrough_unbounded_keys`           | bool   | `false`       | Let unbound Cmd/Ctrl/Alt shortcuts pass through                                                   |
 | `should_exit_after_passthrough`        | bool   | `false`       | Exit mode after a passthrough shortcut                                                            |
@@ -793,15 +793,21 @@ layout, shortcut passthrough, and the shell used by `exec` hotkeys.
 | `exec_shell`                           | string | `"/bin/bash"` | Shell binary used for `exec` hotkey commands                                                      |
 | `exec_shell_args`                      | array  | `["-lc"]`     | Shell arguments; command string is appended last                                                  |
 
-Find available `kb_layout_to_use` IDs on macOS:
+`kb_layout_to_use` decides which physical key a binding answers. Left empty,
+Neru picks a layout whose letters are Latin, so bindings stay on their keys
+while you type in another language. Set it to force one, written the way your
+platform names it:
 
-```bash
-# get all enabled input sources
-defaults read com.apple.HIToolbox AppleEnabledInputSources
+| Platform | Value                                        | Example                      |
+| -------- | -------------------------------------------- | ---------------------------- |
+| macOS    | Input source ID                              | `com.apple.keylayout.Dvorak` |
+| Linux    | XKB layout name, matched regardless of case  | `English (Dvorak)`           |
+| Windows  | Keyboard layout identifier                   | `00010409`                   |
 
-# get the current keyboard layout that is active (e.g. if you use dvorak, it should be `com.apple.keylayout.Dvorak`)
-defaults read com.apple.HIToolbox AppleCurrentKeyboardLayoutInputSourceID
-```
+`neru doctor` lists the layouts Neru can see on the `keyboard_layouts` row, in
+the form this option takes, along with the one keys use now. For a value that
+matches none of them, Neru says so on that row and in the log, and keeps its
+automatic choice.
 
 ---
 
