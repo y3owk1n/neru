@@ -217,6 +217,10 @@ func functionKeyVirtualKey(name string) (uint32, bool) {
 // Letters are lowercased for consistency with the explicit letter path.
 func charNameFromVirtualKey(vk uint32) string {
 	ret, _, _ := procMapVirtualKeyExW.Call(uintptr(vk), mapvkVkToChar, referenceLayout())
+	if ret == 0 && forgetFallbackLayout() {
+		ret, _, _ = procMapVirtualKeyExW.Call(uintptr(vk), mapvkVkToChar, referenceLayout())
+	}
+
 	if ret == 0 || ret&0x80000000 != 0 {
 		return ""
 	}
@@ -238,6 +242,9 @@ func charNameFromVirtualKey(vk uint32) string {
 // character is not reachable there.
 func virtualKeyFromChar(r rune) (uint32, bool) {
 	ret, _, _ := procVkKeyScanExW.Call(uintptr(r), referenceLayout())
+	if int16(ret) == -1 && forgetFallbackLayout() {
+		ret, _, _ = procVkKeyScanExW.Call(uintptr(r), referenceLayout())
+	}
 
 	scan := int16(ret)
 	if scan == -1 {

@@ -71,6 +71,13 @@ func referenceLayout() uintptr {
 	return reference
 }
 
+// forgetFallbackLayout drops the cached fallback and reports whether there was
+// one. A lookup that failed in the reference layout calls it and tries again,
+// because the cached layout may have been unloaded while the active one stayed.
+func forgetFallbackLayout() bool {
+	return fallbackLayout.Swap(nil) != nil
+}
+
 // firstASCIILayout returns the first installed layout whose letter row types
 // ASCII, or active when none does.
 func firstASCIILayout(active uintptr) uintptr {
