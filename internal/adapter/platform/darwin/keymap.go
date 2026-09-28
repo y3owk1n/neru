@@ -11,6 +11,7 @@ extern void keymapLayoutChangeBridge(void);
 import "C"
 
 import (
+	"slices"
 	"strings"
 	"unsafe"
 )
@@ -88,7 +89,9 @@ func SetReferenceKeyboardLayout(inputSourceID string) bool {
 // KeyboardLayouts lists the enabled keyboard layouts by input source ID, as
 // general.kb_layout_to_use takes them, and the one keys are named in. The last
 // result is true when kb_layout_to_use names a layout the resolver could not
-// find, which it decides itself because it also accepts localized names.
+// find, which it decides itself because it also accepts localized names. It is
+// also true when the layout it found is no longer enabled, because the
+// resolver keeps its match after the user removes that layout.
 func KeyboardLayouts() ([]string, string, bool) {
 	var names []string
 
@@ -107,5 +110,7 @@ func KeyboardLayouts() ([]string, string, bool) {
 		C.free(unsafe.Pointer(cReference))
 	}
 
-	return names, reference, C.NeruReferenceKeyboardLayoutResolved() == 0
+	unmatched := C.NeruReferenceKeyboardLayoutResolved() == 0 || !slices.Contains(names, reference)
+
+	return names, reference, unmatched
 }
