@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.56.0](https://github.com/y3owk1n/neru/compare/v1.55.0...v1.56.0) (2026-09-28)
+
+
+### Features
+
+* force the keyboard layout on Linux and Windows, and list layouts in neru doctor ([#1715](https://github.com/y3owk1n/neru/issues/1715)) ([779ef0c](https://github.com/y3owk1n/neru/commit/779ef0c597792c8745dd80422a876e133ea79423))
+
+
+### Bug Fixes
+
+* **linux:** keep Wayland bindings on a Latin layout while another language is active ([#1709](https://github.com/y3owk1n/neru/issues/1709)) ([08c53d9](https://github.com/y3owk1n/neru/commit/08c53d9280ec313d769c87c2682a9a6f5eb5a1fd))
+* **linux:** keep X11 bindings on a Latin layout while another language is active ([#1711](https://github.com/y3owk1n/neru/issues/1711)) ([7ddd0cc](https://github.com/y3owk1n/neru/commit/7ddd0cc049ae0bf60c80cf14fde367fd410e7d03))
+* **linux:** take the keyboard on X11 when a hotkey starts a mode ([#1710](https://github.com/y3owk1n/neru/issues/1710)) ([25cd4c0](https://github.com/y3owk1n/neru/commit/25cd4c0ab71de99f62a83956da0c65154f73d5f4))
+* **windows:** keep punctuation hotkeys working while a non-Latin layout is active ([#1712](https://github.com/y3owk1n/neru/issues/1712)) ([dda2b2a](https://github.com/y3owk1n/neru/commit/dda2b2aba20e3e78f9ae14a5e2d78d1361ae895a))
+* **windows:** post drag motion as relative deltas so WinUI text selects ([#1706](https://github.com/y3owk1n/neru/issues/1706)) ([5556bcf](https://github.com/y3owk1n/neru/commit/5556bcfb681eb8ff1607972ced631cc296c1c8cd))
+* **windows:** run exec commands without a console window ([#1708](https://github.com/y3owk1n/neru/issues/1708)) ([324c051](https://github.com/y3owk1n/neru/commit/324c051bca3c9d637f2ac18dfac0f2f9681d93bc))
+
 ## [1.55.0](https://github.com/y3owk1n/neru/compare/v1.54.0...v1.55.0) (2026-09-21)
 
 
