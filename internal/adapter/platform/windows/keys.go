@@ -42,8 +42,17 @@ const (
 	vkLWin     = 0x5B
 	vkRWin     = 0x5C
 	vkControl  = 0x11
-	vkMenu     = 0x12
-	vkShift    = 0x10
+
+	// The VK_OEM_* punctuation codes. On a US layout VK_OEM_1 through
+	// VK_OEM_3 type ; = , - . / and `, and VK_OEM_4 through VK_OEM_8 type
+	// [ \ ] and '. VK_OEM_102 is the ISO key beside the left Shift.
+	vkOEM1   = 0xBA
+	vkOEM3   = 0xC0
+	vkOEM4   = 0xDB
+	vkOEM8   = 0xDF
+	vkOEM102 = 0xE2
+	vkMenu   = 0x12
+	vkShift  = 0x10
 
 	// Function keys occupy a contiguous VK range: VK_F1 (0x70) through
 	// VK_F24 (0x87). They are handled arithmetically rather than as 24
@@ -217,7 +226,7 @@ func functionKeyVirtualKey(name string) (uint32, bool) {
 // Letters are lowercased for consistency with the explicit letter path.
 func charNameFromVirtualKey(vk uint32) string {
 	ret, _, _ := procMapVirtualKeyExW.Call(uintptr(vk), mapvkVkToChar, referenceLayout())
-	if ret == 0 && forgetFallbackLayout() {
+	if ret == 0 && isOEMVirtualKey(vk) && forgetFallbackLayout() {
 		ret, _, _ = procMapVirtualKeyExW.Call(uintptr(vk), mapvkVkToChar, referenceLayout())
 	}
 
@@ -235,6 +244,14 @@ func charNameFromVirtualKey(vk uint32) string {
 	}
 
 	return string(keyChar)
+}
+
+// isOEMVirtualKey reports whether vk is one of the VK_OEM_* punctuation codes,
+// which every Latin layout gives a character. A zero answer for one of them in
+// the reference layout means the layout is gone. For Caps Lock or a media key,
+// zero only means the key types nothing.
+func isOEMVirtualKey(vk uint32) bool {
+	return (vk >= vkOEM1 && vk <= vkOEM3) || (vk >= vkOEM4 && vk <= vkOEM8) || vk == vkOEM102
 }
 
 // virtualKeyFromChar resolves a single character to its virtual-key code in the
