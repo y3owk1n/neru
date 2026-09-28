@@ -51,18 +51,19 @@ func TestEventTap_X11_NamesKeysInTheReferenceLayout(t *testing.T) {
 		name    string
 		layout  string
 		variant string
+		options string
 		keys    []string
 		want    string
 	}{
 		{
 			name:   "a Latin first layout names keys while it is active",
-			layout: "us,ru",
+			layout: testXkbLatinThenCyrillic,
 			keys:   []string{x11KeyQ},
 			want:   "q",
 		},
 		{
 			name:   "switching to a non-Latin layout leaves the binding on its key",
-			layout: "us,ru",
+			layout: testXkbLatinThenCyrillic,
 			keys:   []string{x11KeyRightCtrl, x11KeyQ},
 			want:   "q",
 		},
@@ -80,6 +81,26 @@ func TestEventTap_X11_NamesKeysInTheReferenceLayout(t *testing.T) {
 			want:    "'",
 		},
 		{
+			name:   "Shift chooses the level inside the reference layout",
+			layout: testXkbLatinThenCyrillic,
+			keys:   []string{x11KeyRightCtrl, "LFSH", x11KeyQ},
+			want:   "Shift+q",
+		},
+		{
+			name:    "AltGr reaches the third level of the reference layout",
+			layout:  "de,ru",
+			options: "lv3:ralt_switch",
+			keys:    []string{x11KeyRightCtrl, "RALT", x11KeyQ},
+			want:    "@",
+		},
+		{
+			name:    "a remapped modifier is identified in the active layout",
+			layout:  testXkbLatinThenCyrillic,
+			options: "ctrl:swapcaps",
+			keys:    []string{x11KeyRightCtrl, "CAPS", x11KeyQ},
+			want:    "Ctrl+q",
+		},
+		{
 			name:   "a keymap with no Latin layout follows a switch to its second",
 			layout: testXkbNoLatinLayout,
 			keys:   []string{x11KeyRightCtrl, x11KeyQ},
@@ -87,7 +108,12 @@ func TestEventTap_X11_NamesKeysInTheReferenceLayout(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			setX11Keymap(t, test.layout, test.variant, "grp:rctrl_switch")
+			options := "grp:rctrl_switch"
+			if test.options != "" {
+				options += "," + test.options
+			}
+
+			setX11Keymap(t, test.layout, test.variant, options)
 
 			keys := make(chan string, 64)
 			eventTap := NewEventTap(func(key string) { keys <- key }, nil)
