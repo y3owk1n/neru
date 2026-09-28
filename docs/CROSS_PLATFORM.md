@@ -508,6 +508,16 @@ character it types when it types one, and by keysym name otherwise
 one key XKB renames under Shift, `ISO_Left_Tab`, folds back to `Tab`, which is
 what lets the default `Shift+Tab` hint binding fire.
 
+**Windows names punctuation in the reference layout too.** Neru names letters
+and digits by virtual-key code, and every layout keeps `VK_A` to `VK_Z` and
+`VK_0` to `VK_9` on the keys of those names, Russian included. Punctuation sits
+on the `VK_OEM_*` codes, whose characters come from the layout, so both naming
+a key and parsing a `[hotkeys]` chord use the reference layout chosen by the
+X11 rule. The active layout is the foreground window's, and the fallback list
+is the user's installed layouts
+([layout.go](../internal/adapter/platform/windows/layout.go)). So `` ` `` and
+`;` keep answering while Russian is active.
+
 **Modifier passthrough (Wayland evdev, and Windows).** While a mode is active
 Neru captures the keyboard exclusively, so shortcuts it does not bind are
 swallowed. With `general.passthrough_unbounded_keys`, unbound Ctrl/Alt/Cmd
