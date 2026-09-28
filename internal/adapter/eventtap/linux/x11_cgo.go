@@ -15,6 +15,8 @@ import (
 	"time"
 	"unsafe"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
@@ -22,8 +24,15 @@ import (
 
 const (
 	x11PollingInterval = 10 * time.Millisecond
-	x11KeyBufferSize   = 64
-	x11BitsPerByte     = 8
+
+	// x11GrabTimeout bounds how long a mode start waits for the keyboard. A
+	// hotkey that starts a mode is still held when the tap asks for the grab,
+	// and until it comes up the server answers AlreadyGrabbed. The passive
+	// grab on that key belongs to Neru's own hotkey connection or to the
+	// window manager.
+	x11GrabTimeout   = time.Second
+	x11KeyBufferSize = 64
+	x11BitsPerByte   = 8
 )
 
 // x11AutorepeatWarned says the refusal once: runX11 opens a connection per
@@ -74,6 +83,39 @@ func x11QueryModifierState(display *C.Display) linuxModifierState {
 	return state
 }
 
+// grabX11Keyboard takes the keyboard and retries until the key that started the
+// mode is released. Without the grab the tap sees no keys, and every key the
+// user types while the mode is drawn goes to the focused window. So a grab that
+// never succeeds is logged.
+func (et *EventTap) grabX11Keyboard(display *C.Display) bool {
+	deadline := time.Now().Add(x11GrabTimeout)
+
+	for {
+		status := C.neru_eventtap_grab_keyboard(display)
+		if status == C.GrabSuccess {
+			return true
+		}
+
+		if time.Now().After(deadline) {
+			if et.logger != nil {
+				et.logger.Warn(
+					"Could not grab the X11 keyboard; mode keys will reach the focused window",
+					zap.Int("grab_status", int(status)),
+					zap.Duration("waited", x11GrabTimeout),
+				)
+			}
+
+			return false
+		}
+
+		select {
+		case <-et.stopCh:
+			return false
+		case <-time.After(x11PollingInterval):
+		}
+	}
+}
+
 func (et *EventTap) runX11() {
 	defer close(et.doneCh)
 
@@ -106,7 +148,7 @@ func (et *EventTap) runX11() {
 		})
 	}
 
-	if C.neru_eventtap_grab_keyboard(display) != C.GrabSuccess {
+	if !et.grabX11Keyboard(display) {
 		return
 	}
 	defer C.neru_eventtap_ungrab_keyboard(display)
