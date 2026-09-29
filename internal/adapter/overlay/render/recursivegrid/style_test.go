@@ -218,3 +218,62 @@ func TestStyle_ARGBAccessorsMatchTheHexValues(t *testing.T) {
 		}
 	}
 }
+
+func TestStyle_SecondaryLine(t *testing.T) {
+	t.Run("disabled by default", func(t *testing.T) {
+		style := BuildStyle(config.DefaultConfig().RecursiveGrid, &mockThemeProvider{})
+		if style.HasSecondaryLine() {
+			t.Error("HasSecondaryLine() = true, want false by default")
+		}
+		if got := style.SecondaryLineColor(); got != "" {
+			t.Errorf("SecondaryLineColor() = %q, want empty", got)
+		}
+	})
+
+	t.Run("configured with explicit width and theme colors", func(t *testing.T) {
+		cfg := config.DefaultConfig().RecursiveGrid
+		cfg.UI.LineWidth = 2
+		cfg.UI.SecondaryLineColor = config.Color{Light: "#000000", Dark: "#ffffff"}
+		cfg.UI.SecondaryLineWidth = 3
+
+		lightStyle := BuildStyle(cfg, &mockThemeProvider{darkMode: false})
+		if !lightStyle.HasSecondaryLine() {
+			t.Error("HasSecondaryLine() = false, want true")
+		}
+		if got := lightStyle.SecondaryLineColor(); got != "#000000" {
+			t.Errorf("SecondaryLineColor() = %q, want #000000", got)
+		}
+		if got := lightStyle.SecondaryLineWidth(); got != 3 {
+			t.Errorf("SecondaryLineWidth() = %d, want 3", got)
+		}
+		if got := lightStyle.SecondaryLineWidthF(); got != 3.0 {
+			t.Errorf("SecondaryLineWidthF() = %v, want 3.0", got)
+		}
+		if got, want := lightStyle.SecondaryLineColorARGB(), badge.ParseHexARGB("#000000"); got != want {
+			t.Errorf("SecondaryLineColorARGB() = %#08x, want %#08x", got, want)
+		}
+
+		darkStyle := BuildStyle(cfg, &mockThemeProvider{darkMode: true})
+		if got := darkStyle.SecondaryLineColor(); got != "#ffffff" {
+			t.Errorf("SecondaryLineColor() = %q, want #ffffff", got)
+		}
+	})
+
+	t.Run("inherits line_width when secondary_line_width is 0", func(t *testing.T) {
+		cfg := config.DefaultConfig().RecursiveGrid
+		cfg.UI.LineWidth = 4
+		cfg.UI.SecondaryLineColor = config.Color{Light: "#112233", Dark: "#112233"}
+		cfg.UI.SecondaryLineWidth = 0
+
+		style := BuildStyle(cfg, &mockThemeProvider{})
+		if !style.HasSecondaryLine() {
+			t.Error("HasSecondaryLine() = false, want true")
+		}
+		if got := style.SecondaryLineWidth(); got != 4 {
+			t.Errorf("SecondaryLineWidth() = %d, want 4 (inherited from line_width)", got)
+		}
+		if got := style.SecondaryLineWidthF(); got != 4.0 {
+			t.Errorf("SecondaryLineWidthF() = %v, want 4.0", got)
+		}
+	})
+}

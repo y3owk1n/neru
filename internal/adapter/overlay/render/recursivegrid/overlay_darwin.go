@@ -353,6 +353,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.HighlightColor()))
 		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.LineColor()))
 		cached.BorderColor = unsafe.Pointer(C.CString(style.LineColor()))
+		cached.SecondaryBorderColor = unsafe.Pointer(C.CString(style.SecondaryLineColor()))
 		cached.SubKeyTextColor = unsafe.Pointer(C.CString(style.SubKeyPreviewTextColor()))
 		cached.SubKeyFontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
 	})
@@ -383,6 +384,8 @@ func (o *Overlay) DrawRecursiveGrid(
 		matchedBorderColor:          (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:                 (*C.char)(cachedStyle.BorderColor),
 		borderWidth:                 C.int(style.LineWidth()),
+		secondaryBorderColor:        (*C.char)(cachedStyle.SecondaryBorderColor),
+		secondaryBorderWidth:        C.int(style.SecondaryLineWidth()),
 		drawLabelBackground:         C.int(boolToInt(style.LabelBackground())),
 		labelBackgroundPaddingX:     C.int(style.LabelBackgroundPaddingX()),
 		labelBackgroundPaddingY:     C.int(style.LabelBackgroundPaddingY()),

@@ -515,6 +515,8 @@ type GridConfig struct {
 type RecursiveGridUI struct {
 	LineColor                       Color   `json:"lineColor"                       toml:"line_color"`
 	LineWidth                       int     `json:"lineWidth"                       toml:"line_width"`
+	SecondaryLineColor              Color   `json:"secondaryLineColor"              toml:"secondary_line_color"`
+	SecondaryLineWidth              int     `json:"secondaryLineWidth"              toml:"secondary_line_width"`
 	HighlightColor                  Color   `json:"highlightColor"                  toml:"highlight_color"`
 	TextColor                       Color   `json:"textColor"                       toml:"text_color"`
 	FontSize                        int     `json:"fontSize"                        toml:"font_size"`

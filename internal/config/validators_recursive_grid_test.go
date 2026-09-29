@@ -109,3 +109,36 @@ func TestConfigValidateRecursiveGrid_InvalidAnimationDuration(t *testing.T) {
 		t.Fatal("ValidateRecursiveGrid() expected error for negative animation duration")
 	}
 }
+
+func TestConfigValidateRecursiveGrid_SecondaryLine(t *testing.T) {
+	t.Run("valid custom secondary line", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.RecursiveGrid.Enabled = true
+		cfg.RecursiveGrid.UI.SecondaryLineColor = config.Color{Light: "#000000", Dark: "#ffffff"}
+		cfg.RecursiveGrid.UI.SecondaryLineWidth = 2
+
+		if err := cfg.ValidateRecursiveGrid(); err != nil {
+			t.Fatalf("ValidateRecursiveGrid() unexpected error: %v", err)
+		}
+	})
+
+	t.Run("negative secondary line width rejected", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.RecursiveGrid.Enabled = true
+		cfg.RecursiveGrid.UI.SecondaryLineWidth = -1
+
+		if err := cfg.ValidateRecursiveGrid(); err == nil {
+			t.Fatal("ValidateRecursiveGrid() expected error for negative secondary line width")
+		}
+	})
+
+	t.Run("invalid secondary line color format rejected", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.RecursiveGrid.Enabled = true
+		cfg.RecursiveGrid.UI.SecondaryLineColor = config.Color{Light: "invalid-color"}
+
+		if err := cfg.ValidateRecursiveGrid(); err == nil {
+			t.Fatal("ValidateRecursiveGrid() expected error for invalid secondary line color")
+		}
+	})
+}

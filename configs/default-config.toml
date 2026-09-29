@@ -276,6 +276,8 @@ duration_ms = 50                            # Recursive-grid animation duration 
 
 [recursive_grid.ui]
 line_width = 1
+# secondary_line_color = ""                     # Optional secondary line color for high-contrast dual borders (e.g. "#000000")
+secondary_line_width = 0                      # Secondary line width; 0 = use line_width
 font_size = 10
 font_family = ""
 label_background = false                    # Add rounded backgrounds behind cell labels
@@ -327,6 +329,8 @@ duration_ms = 50                            # Bisect animation duration in milli
 
 [bisect.ui]
 line_width = 1
+# secondary_line_color = ""                     # Optional secondary line color for high-contrast dual borders (e.g. "#000000")
+secondary_line_width = 0                      # Secondary line width; 0 = use line_width
 font_size = 10
 font_family = ""
 label_background = false                    # Add rounded backgrounds behind the quadrant labels
