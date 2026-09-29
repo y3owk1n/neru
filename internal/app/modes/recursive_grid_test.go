@@ -338,3 +338,256 @@ func TestApplyRecursiveGridFlags_TellsAbsentOnExitFromEmptyOne(t *testing.T) {
 		})
 	}
 }
+
+func TestActivateRecursiveGridMode_ZoomAroundCursor(t *testing.T) {
+	t.Parallel()
+
+	cursorPos := image.Point{X: 400, Y: 300}
+	var movedCursorTo image.Point
+
+	mockSys := &portmocks.MockSystemPort{
+		ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
+			return image.Rect(0, 0, 1000, 1000), nil
+		},
+		CursorPositionFunc: func(context.Context) (image.Point, error) {
+			return cursorPos, nil
+		},
+		MoveCursorToPointFunc: func(_ context.Context, pt image.Point, _ bool) error {
+			movedCursorTo = pt
+
+			return nil
+		},
+	}
+
+	appState := state.NewAppState()
+	cfg := &config.Config{
+		RecursiveGrid: config.RecursiveGridConfig{
+			Enabled:       true,
+			GridCols:      2,
+			GridRows:      2,
+			Keys:          "uijk",
+			MinSizeWidth:  10,
+			MinSizeHeight: 10,
+			MaxDepth:      5,
+		},
+	}
+
+	handler := newHandlerWithState(handlerState{
+		ctx:          context.Background(),
+		appState:     appState,
+		config:       cfg,
+		logger:       zap.NewNop(),
+		system:       mockSys,
+		screenBounds: image.Rect(0, 0, 1000, 1000),
+		overlayPort:  &portmocks.MockOverlayPort{},
+		cursorState:  state.NewCursorState(),
+	})
+	handler.actionService = services.NewActionService(
+		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockOverlayPort{},
+		mockSys,
+		zap.NewNop(),
+	)
+	handler.modes = map[domain.Mode]Mode{
+		domain.ModeRecursiveGrid: NewRecursiveGridMode(&handler.handlerState),
+	}
+
+	zoomDepth := 1
+	cursorFollow := true
+	handler.ActivateMode(modecmd.Activation{
+		Mode:                  domain.ModeRecursiveGrid,
+		ZoomAroundCursor:      &zoomDepth,
+		CursorFollowSelection: &cursorFollow,
+	})
+
+	if appState.CurrentMode() != domain.ModeRecursiveGrid {
+		t.Fatalf("current mode = %v, want ModeRecursiveGrid", appState.CurrentMode())
+	}
+
+	if depth := handler.recursiveGrid.Manager.CurrentDepth(); depth != 1 {
+		t.Fatalf("current depth = %d, want 1", depth)
+	}
+
+	// For 1000x1000 bounds and 2x2 grid, depth 1 subgrid size is 500x500.
+	// Centered at (400, 300) -> min = (150, 50), max = (650, 550).
+	wantBounds := image.Rect(150, 50, 650, 550)
+	if bounds := handler.recursiveGrid.Manager.CurrentBounds(); bounds != wantBounds {
+		t.Fatalf("current bounds = %v, want %v", bounds, wantBounds)
+	}
+
+	// Cursor should follow to center of subgrid (400, 300)
+	if movedCursorTo != (image.Point{X: 400, Y: 300}) {
+		t.Fatalf("moved cursor to %v, want (400, 300)", movedCursorTo)
+	}
+
+	// Backtrack should return to full grid
+	handler.BackspaceCurrentMode()
+	if depth := handler.recursiveGrid.Manager.CurrentDepth(); depth != 0 {
+		t.Fatalf("depth after backtrack = %d, want 0", depth)
+	}
+	if bounds := handler.recursiveGrid.Manager.CurrentBounds(); bounds != image.Rect(0, 0, 1000, 1000) {
+		t.Fatalf("bounds after backtrack = %v, want full screen", bounds)
+	}
+}
+
+func TestActivateRecursiveGridMode_ZoomAroundCursor_Depth0(t *testing.T) {
+	t.Parallel()
+
+	cursorPos := image.Point{X: 400, Y: 300}
+	var movedCursorTo image.Point
+
+	mockSys := &portmocks.MockSystemPort{
+		ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
+			return image.Rect(0, 0, 1000, 1000), nil
+		},
+		CursorPositionFunc: func(context.Context) (image.Point, error) {
+			return cursorPos, nil
+		},
+		MoveCursorToPointFunc: func(_ context.Context, pt image.Point, _ bool) error {
+			movedCursorTo = pt
+
+			return nil
+		},
+	}
+
+	appState := state.NewAppState()
+	cfg := &config.Config{
+		RecursiveGrid: config.RecursiveGridConfig{
+			Enabled:       true,
+			GridCols:      2,
+			GridRows:      2,
+			Keys:          "uijk",
+			MinSizeWidth:  10,
+			MinSizeHeight: 10,
+			MaxDepth:      5,
+		},
+	}
+
+	handler := newHandlerWithState(handlerState{
+		ctx:          context.Background(),
+		appState:     appState,
+		config:       cfg,
+		logger:       zap.NewNop(),
+		system:       mockSys,
+		screenBounds: image.Rect(0, 0, 1000, 1000),
+		overlayPort:  &portmocks.MockOverlayPort{},
+		cursorState:  state.NewCursorState(),
+	})
+	handler.actionService = services.NewActionService(
+		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockOverlayPort{},
+		mockSys,
+		zap.NewNop(),
+	)
+	handler.modes = map[domain.Mode]Mode{
+		domain.ModeRecursiveGrid: NewRecursiveGridMode(&handler.handlerState),
+	}
+
+	zoomDepth := 0
+	cursorFollow := true
+	handler.ActivateMode(modecmd.Activation{
+		Mode:                  domain.ModeRecursiveGrid,
+		ZoomAroundCursor:      &zoomDepth,
+		CursorFollowSelection: &cursorFollow,
+	})
+
+	if depth := handler.recursiveGrid.Manager.CurrentDepth(); depth != 0 {
+		t.Fatalf("current depth = %d, want 0", depth)
+	}
+
+	if bounds := handler.recursiveGrid.Manager.CurrentBounds(); bounds != image.Rect(0, 0, 1000, 1000) {
+		t.Fatalf("current bounds = %v, want full screen", bounds)
+	}
+
+	// Cursor moves to screen center (500, 500)
+	if movedCursorTo != (image.Point{X: 500, Y: 500}) {
+		t.Fatalf("moved cursor to %v, want (500, 500)", movedCursorTo)
+	}
+}
+
+func TestActivateRecursiveGridMode_ZoomAroundCursor_Refresh(t *testing.T) {
+	t.Parallel()
+
+	cursorPos := image.Point{X: 100, Y: 100}
+	var movedCursorTo image.Point
+
+	mockSys := &portmocks.MockSystemPort{
+		ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
+			return image.Rect(0, 0, 1000, 1000), nil
+		},
+		CursorPositionFunc: func(context.Context) (image.Point, error) {
+			return cursorPos, nil
+		},
+		MoveCursorToPointFunc: func(_ context.Context, pt image.Point, _ bool) error {
+			movedCursorTo = pt
+
+			return nil
+		},
+	}
+
+	appState := state.NewAppState()
+	cfg := &config.Config{
+		RecursiveGrid: config.RecursiveGridConfig{
+			Enabled:       true,
+			GridCols:      2,
+			GridRows:      2,
+			Keys:          "uijk",
+			MinSizeWidth:  10,
+			MinSizeHeight: 10,
+			MaxDepth:      5,
+		},
+	}
+
+	handler := newHandlerWithState(handlerState{
+		ctx:          context.Background(),
+		appState:     appState,
+		config:       cfg,
+		logger:       zap.NewNop(),
+		system:       mockSys,
+		screenBounds: image.Rect(0, 0, 1000, 1000),
+		overlayPort:  &portmocks.MockOverlayPort{},
+		cursorState:  state.NewCursorState(),
+	})
+	handler.actionService = services.NewActionService(
+		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockOverlayPort{},
+		mockSys,
+		zap.NewNop(),
+	)
+	handler.modes = map[domain.Mode]Mode{
+		domain.ModeRecursiveGrid: NewRecursiveGridMode(&handler.handlerState),
+	}
+
+	// Initially activate at depth 0
+	depth0 := 0
+	handler.ActivateMode(modecmd.Activation{
+		Mode:             domain.ModeRecursiveGrid,
+		ZoomAroundCursor: &depth0,
+	})
+
+	// Now in recursive grid mode. Cursor moves to (600, 700)
+	cursorPos = image.Point{X: 600, Y: 700}
+
+	// Re-activate / refresh with ZoomAroundCursor = 1
+	depth1 := 1
+	cursorFollow := true
+	handler.ActivateMode(modecmd.Activation{
+		Mode:                  domain.ModeRecursiveGrid,
+		ZoomAroundCursor:      &depth1,
+		CursorFollowSelection: &cursorFollow,
+	})
+
+	if depth := handler.recursiveGrid.Manager.CurrentDepth(); depth != 1 {
+		t.Fatalf("current depth = %d, want 1", depth)
+	}
+
+	// Subgrid size 500x500 centered at (600, 700) -> min = (350, 450), max = (850, 950)
+	wantBounds := image.Rect(350, 450, 850, 950)
+	if bounds := handler.recursiveGrid.Manager.CurrentBounds(); bounds != wantBounds {
+		t.Fatalf("current bounds = %v, want %v", bounds, wantBounds)
+	}
+
+	if movedCursorTo != (image.Point{X: 600, Y: 700}) {
+		t.Fatalf("moved cursor to %v, want (600, 700)", movedCursorTo)
+	}
+}

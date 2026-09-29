@@ -83,7 +83,7 @@ func (h *handlerState) prepareForModeActivation() {
 
 // resetScrollContext resets scroll-related state to ensure clean mode transitions.
 func (h *handlerState) resetScrollContext() {
-	if h.scroll.Context.IsActive() {
+	if h.scroll != nil && h.scroll.Context != nil && h.scroll.Context.IsActive() {
 		// Atomically reset scroll context to ensure clean transition
 		h.scroll.Context.Reset()
 		// Also reset the skip restore flag since we're transitioning from scroll mode

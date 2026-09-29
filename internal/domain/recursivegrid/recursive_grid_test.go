@@ -1039,3 +1039,58 @@ func TestIsComplete(t *testing.T) {
 
 	assert.True(t, grid.IsComplete(), "Should be complete when CanDivide returns false")
 }
+
+func TestResetAroundPoint(t *testing.T) {
+	bounds := image.Rect(0, 0, 1920, 1080)
+	grid := recursivegrid.NewRecursiveGridWithLayers(
+		bounds,
+		1,
+		1,
+		10,
+		domain.GridDimensions{Rows: 3, Cols: 3},
+		nil,
+	)
+
+	// Depth 0: restores initial bounds and depth 0
+	center0 := grid.ResetAroundPoint(image.Point{X: 500, Y: 400}, 0)
+	assert.Equal(t, bounds, grid.CurrentBounds())
+	assert.Equal(t, 0, grid.CurrentDepth())
+	assert.Equal(t, image.Point{X: 960, Y: 540}, center0)
+	assert.False(t, grid.HasHistory())
+
+	// Depth 1: 1 recursion around (500, 400)
+	// Subgrid size should be 1920/3 = 640, 1080/3 = 360
+	center1 := grid.ResetAroundPoint(image.Point{X: 500, Y: 400}, 1)
+	expectedRect1 := image.Rect(500-320, 400-180, 500+320, 400+180) // 180, 220, 820, 580
+	assert.Equal(t, expectedRect1, grid.CurrentBounds())
+	assert.Equal(t, 1, grid.CurrentDepth())
+	assert.Equal(t, image.Point{X: 500, Y: 400}, center1)
+	assert.True(t, grid.HasHistory())
+
+	// Backtracking from depth 1 should return to initialBounds
+	assert.True(t, grid.Backtrack())
+	assert.Equal(t, bounds, grid.CurrentBounds())
+	assert.Equal(t, 0, grid.CurrentDepth())
+
+	// Depth 2: 2 recursions around (500, 400)
+	// Subgrid size should be 640/3 = 213, 360/3 = 120
+	center2 := grid.ResetAroundPoint(image.Point{X: 500, Y: 400}, 2)
+	assert.Equal(t, 2, grid.CurrentDepth())
+	assert.Equal(t, image.Point{X: 500, Y: 400}, center2)
+	// Backtracking once goes to depth 1, twice goes to depth 0
+	assert.True(t, grid.Backtrack())
+	assert.Equal(t, 1, grid.CurrentDepth())
+	assert.True(t, grid.Backtrack())
+	assert.Equal(t, 0, grid.CurrentDepth())
+	assert.Equal(t, bounds, grid.CurrentBounds())
+
+	// Near top-left edge: point at (10, 10) centers the subgrid directly at (10, 10)
+	// allowing it to extend off-screen so the center does not drift away from the cursor.
+	centerEdge := grid.ResetAroundPoint(image.Point{X: 10, Y: 10}, 1)
+	assert.Equal(t, image.Point{X: 10, Y: 10}, centerEdge)
+	edgeBounds := grid.CurrentBounds()
+	assert.Equal(t, 10-320, edgeBounds.Min.X)
+	assert.Equal(t, 10-180, edgeBounds.Min.Y)
+	assert.Equal(t, 640, edgeBounds.Dx())
+	assert.Equal(t, 360, edgeBounds.Dy())
+}

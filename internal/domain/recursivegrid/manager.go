@@ -338,6 +338,19 @@ func (m *Manager) ZoomToPoint(point image.Point, targetDepth int) (image.Point, 
 	return center, false
 }
 
+// ResetAroundPoint resets the grid to a subgrid of the given depth centered around point.
+func (m *Manager) ResetAroundPoint(point image.Point, targetDepth int) image.Point {
+	center := m.grid.ResetAroundPoint(point, targetDepth)
+
+	m.SetCurrentInput("")
+
+	if m.callbacks.OnUpdate != nil {
+		m.callbacks.OnUpdate(center)
+	}
+
+	return center
+}
+
 // keyToCell maps an input key to a cell index using the current depth's key mapping.
 // Returns -1 if the key is not mapped.
 func (m *Manager) keyToCell(key string) Cell {
