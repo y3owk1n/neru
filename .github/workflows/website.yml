@@ -1,0 +1,76 @@
+on:
+    pull_request:
+        paths:
+            - "docs/**"
+            - "website/**"
+            - ".github/workflows/website.yml"
+    # Nightly follows main. A release moves the latest channel to the new tag.
+    push:
+        branches: ["main"]
+        paths:
+            - "docs/**"
+            - "website/**"
+            - ".github/workflows/website.yml"
+    release:
+        types: [published]
+    workflow_dispatch:
+name: Website
+permissions:
+    contents: read
+# One deploy at a time, and a newer push replaces a queued one.
+concurrency:
+    group: website-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        env:
+            ASTRO_TELEMETRY_DISABLED: "1"
+            NERU_SITE: https://y3owk1n.github.io
+            NERU_BASE: /neru/
+        steps:
+            # The latest channel builds the newest v* tag's docs/, so the
+            # checkout needs every tag. Nightly is the checkout, which a
+            # release event would otherwise set to the tag instead of main.
+            - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+                  ref: ${{ github.event_name == 'release' && 'main' || '' }}
+
+            # Node comes from website/oku.toml, apart from the Go toolchain.
+            - name: Setup Node
+              uses: y3owk1n/oku@v0.9.0
+              with:
+                  path: website
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+
+            - name: Install dependencies
+              run: website/scripts/with-node.sh npm ci
+
+            - name: Type-check
+              run: website/scripts/with-node.sh npx astro check
+
+            - name: Build latest and nightly
+              run: website/scripts/with-node.sh ./scripts/build.sh
+
+            - name: Upload the site
+              if: github.event_name != 'pull_request'
+              uses: actions/upload-pages-artifact@v5
+              with:
+                  path: website/dist/site
+
+    deploy:
+        if: github.event_name != 'pull_request'
+        needs: build
+        runs-on: ubuntu-latest
+        permissions:
+            pages: write
+            id-token: write
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v5

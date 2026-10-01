@@ -936,3 +936,25 @@ generate-protocols:
 generate-all-protocols: fetch-protocols generate-protocols
     @echo "✓ All Wayland protocols downloaded and generated"
 
+# The docs site in website/ renders docs/ and never copies it. Nightly is the
+# checkout's docs/, latest is the newest v* tag's (website/scripts/build.sh).
+# Node comes from website/oku.toml, so the Go toolchain stays without it.
+[doc('Install the docs site dependencies from website/package-lock.json.')]
+website-install:
+    website/scripts/with-node.sh npm ci
+
+[doc('Serve the docs site with live reload, rendering this checkout as nightly.')]
+website-dev:
+    ASTRO_TELEMETRY_DISABLED=1 website/scripts/with-node.sh npx astro dev
+
+[doc('Build the docs site, latest tag at the root and this checkout under nightly/.')]
+website-build:
+    website/scripts/with-node.sh ./scripts/build.sh
+
+[doc('Serve the built docs site the way GitHub Pages does, 404 page included.')]
+website-preview:
+    website/scripts/with-node.sh node scripts/serve.mjs
+
+[doc('Type-check the docs site.')]
+website-check:
+    ASTRO_TELEMETRY_DISABLED=1 website/scripts/with-node.sh npx astro check

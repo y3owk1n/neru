@@ -1,0 +1,58 @@
+[package]
+name = "node"
+description = "JavaScript runtime"
+homepage = "https://nodejs.org"
+license = "MIT"
+
+# Every release line is here, so a list picks its line with a constraint such
+# as "^22", and `oku update` follows that line's patch releases.
+[version]
+from = "github-releases"
+repo = "nodejs/node"
+strip_prefix = "v"
+
+# On unix a build runs bin/npm, so the package lists it beside bin/node.
+[[artifact]]
+match = { os = "darwin", arch = "arm64" }
+url = "https://nodejs.org/dist/v{{version}}/node-v{{version}}-darwin-arm64.tar.gz"
+sha256_url = "https://nodejs.org/dist/v{{version}}/SHASUMS256.txt"
+strip = 1
+bin = ["bin/node", "bin/npm", "bin/npx"]
+
+[[artifact]]
+match = { os = "darwin", arch = "amd64" }
+url = "https://nodejs.org/dist/v{{version}}/node-v{{version}}-darwin-x64.tar.gz"
+sha256_url = "https://nodejs.org/dist/v{{version}}/SHASUMS256.txt"
+strip = 1
+bin = ["bin/node", "bin/npm", "bin/npx"]
+
+# The builds from nodejs.org need glibc.
+[[artifact]]
+match = { os = "linux", arch = "arm64", libc = "glibc" }
+url = "https://nodejs.org/dist/v{{version}}/node-v{{version}}-linux-arm64.tar.gz"
+sha256_url = "https://nodejs.org/dist/v{{version}}/SHASUMS256.txt"
+strip = 1
+bin = ["bin/node", "bin/npm", "bin/npx"]
+
+[[artifact]]
+match = { os = "linux", arch = "amd64", libc = "glibc" }
+url = "https://nodejs.org/dist/v{{version}}/node-v{{version}}-linux-x64.tar.gz"
+sha256_url = "https://nodejs.org/dist/v{{version}}/SHASUMS256.txt"
+strip = 1
+bin = ["bin/node", "bin/npm", "bin/npx"]
+
+# On Windows a build runs npm's own npm-cli.js with node.exe, so node.exe is
+# the only program the package needs.
+[[artifact]]
+match = { os = "windows", arch = "amd64" }
+url = "https://nodejs.org/dist/v{{version}}/node-v{{version}}-win-x64.zip"
+sha256_url = "https://nodejs.org/dist/v{{version}}/SHASUMS256.txt"
+strip = 1
+bin = ["node.exe"]
+
+[[artifact]]
+match = { os = "windows", arch = "arm64" }
+url = "https://nodejs.org/dist/v{{version}}/node-v{{version}}-win-arm64.zip"
+sha256_url = "https://nodejs.org/dist/v{{version}}/SHASUMS256.txt"
+strip = 1
+bin = ["node.exe"]

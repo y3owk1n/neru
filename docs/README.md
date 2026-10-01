@@ -30,6 +30,7 @@ and the contributing docs to change Neru.
 
 - [Roadmap](project/roadmap.md): what comes next.
 - [Community configurations](project/showcases.md): setups shared by users.
+- [Changelog](../CHANGELOG.md): what changed in each release.
 
 ## Contributing
 

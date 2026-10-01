@@ -1,6 +1,6 @@
 # CLI reference
 
-`neru launch` starts the daemon. Most other commands send one request to it
+Every `neru` command and flag. `neru launch` starts the daemon. Most other commands send one request to it
 over a per-user Unix socket, or a named pipe on Windows, and print the reply.
 The same content ships as man pages (`man neru`). Scripting patterns and the
 wire protocol are in [Scripting](scripting.md).

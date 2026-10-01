@@ -1,0 +1,22 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getEntry, render } from 'astro:content';
+import { siteTitle } from '../site.mjs';
+
+// The root CHANGELOG.md, which Release Please writes on every release.
+const entry = (await getEntry('changelog', 'changelog'))!;
+const { Content, headings } = await render(entry);
+const title = 'Changelog';
+---
+
+<StarlightPage
+  frontmatter={{
+    title,
+    description: 'What changed in each Neru release.',
+    head: [{ tag: 'meta', attrs: { property: 'og:title', content: `${title} | ${siteTitle}` } }],
+    tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 },
+  }}
+  headings={headings}
+>
+  <Content />
+</StarlightPage>

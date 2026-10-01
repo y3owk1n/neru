@@ -312,6 +312,30 @@ activation is a [modecmd](../../internal/domain/modecmd) descriptor plus an
 `Activation` field, not a new method. The shape of a new mode and its locking
 contract are in [modes/AGENTS.md](../../internal/app/modes/AGENTS.md).
 
+## Docs site
+
+The site in [website/](../../website/) renders the user docs in `docs/guide/`,
+`docs/reference/` and `docs/project/` with Astro Starlight and copies nothing.
+Contributor docs stay on GitHub, and site links to them go there. Each page's
+first heading is its title, and the sidebar follows
+the sections and links in [docs/README.md](../README.md), so a new page needs a
+link there. It publishes two channels: the newest release tag's docs at the
+root, and `main` under `nightly/`.
+
+Node comes from [website/oku.toml](../../website/oku.toml). Run
+`oku sync && oku allow` in `website/` once, then:
+
+| Recipe                 | What it does                                          |
+| ---------------------- | ----------------------------------------------------- |
+| `just website-install` | Install the site's npm dependencies                   |
+| `just website-dev`     | Serve this checkout's docs as nightly, with reloading |
+| `just website-check`   | Type-check the site                                   |
+| `just website-build`   | Build both channels into `website/dist/site`, then check every internal link |
+| `just website-preview` | Serve the build as GitHub Pages does, 404 page included |
+
+The website workflow builds the site on pull requests that touch `docs/` or
+`website/`, and deploys it to GitHub Pages on pushes to `main` and on releases.
+
 ## Release process
 
 Merging the [Release Please](https://github.com/googleapis/release-please) PR

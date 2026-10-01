@@ -1,0 +1,53 @@
+---
+import Default from '@astrojs/starlight/components/Banner.astro';
+import { channel, channelBases, latestVersion, renamedPages, splitPages } from '../site.mjs';
+---
+
+{
+  channel === 'nightly' ? (
+    <div class="sl-banner" data-pagefind-ignore>
+      Nightly docs track <code>main</code> and may describe features that are not released yet.
+      Docs for the current release ({latestVersion}) are <a
+        href={channelBases.latest}
+        data-to-latest
+        data-bases={JSON.stringify(channelBases)}
+        data-renamed={JSON.stringify(renamedPages)}
+        data-split={JSON.stringify(splitPages)}>here</a>.
+    </div>
+  ) : (
+    <Default />
+  )
+}
+
+<script>
+  import { pageIn } from '../scripts/switch-channel';
+
+  // Open this page in the latest docs, not the latest home.
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-to-latest]')) {
+    link.addEventListener('click', async (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+      event.preventDefault();
+      location.href = await pageIn('latest', link);
+    });
+  }
+</script>
+
+<style>
+  .sl-banner {
+    padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x);
+    background-color: var(--sl-color-bg-accent);
+    color: var(--sl-color-text-invert);
+    line-height: var(--sl-line-height-headings);
+    font-size: var(--sl-text-sm);
+    text-align: center;
+    text-wrap: balance;
+  }
+  .sl-banner a:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+  .sl-banner a,
+  .sl-banner code {
+    color: inherit;
+  }
+</style>

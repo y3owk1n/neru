@@ -1,0 +1,68 @@
+/* The docs in Neru's own theme palette (internal/config/theme_palette.go), so
+   the landing page and the docs read as one site. Dark mode reuses the
+   landing page's field and surface. Starlight keeps its rules in CSS layers,
+   so these plain declarations win without specificity tricks. */
+:root {
+  --sl-font:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI',
+    system-ui, sans-serif;
+
+  --sl-color-white: #f5f7ff;
+  --sl-color-gray-1: #e8eeff;
+  --sl-color-gray-2: #c6d0f0;
+  --sl-color-gray-3: #92a0cc;
+  --sl-color-gray-4: #4a5890;
+  --sl-color-gray-5: #1f2b5c;
+  --sl-color-gray-6: #0a1338;
+  --sl-color-black: #060b1f;
+
+  --sl-color-accent-low: #1b2a66;
+  --sl-color-accent: #6e82d6;
+  --sl-color-accent-high: #b8c5f8;
+
+  --sl-color-text-invert: #081022;
+  --sl-color-bg-accent: #8fa2f0;
+  --sl-color-backdrop-overlay: rgb(6 11 31 / 0.72);
+
+  /* Note asides sit on the accent hue instead of Starlight's pure blue. */
+  --sl-hue-blue: 228;
+}
+
+:root[data-theme='light'] {
+  --sl-color-white: #0b1a45;
+  --sl-color-gray-1: #17327a;
+  --sl-color-gray-2: #2c417e;
+  --sl-color-gray-3: #55659a;
+  --sl-color-gray-4: #8d9bc8;
+  --sl-color-gray-5: #c3cdea;
+  --sl-color-gray-6: #e3e9fb;
+  --sl-color-gray-7: #eef2ff;
+  --sl-color-black: #f8faff;
+
+  --sl-color-accent-low: #d8e0fb;
+  --sl-color-accent: #465fbc;
+  --sl-color-accent-high: #0b2377;
+
+  --sl-color-text-invert: #f8faff;
+  --sl-color-bg-accent: #465fbc;
+  --sl-color-backdrop-overlay: rgb(23 50 122 / 0.5);
+}
+
+/* The current page in the sidebar looks like a hint label in the product,
+   with a surface fill and an accent border. */
+a[aria-current='page'],
+a[aria-current='page']:hover,
+a[aria-current='page']:focus {
+  background-color: var(--sl-color-accent-low);
+  color: var(--sl-color-white);
+  box-shadow: inset 0 0 0 1px var(--sl-color-accent);
+}
+
+.site-title img {
+  border-radius: 7px;
+}
+
+.site-title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}

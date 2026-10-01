@@ -1,6 +1,8 @@
 # Getting started
 
-Install Neru first, see [Installation](installation.md).
+Your first hour with Neru: start it, grant its permissions, write a config
+and bind your first hotkeys. Install Neru first, see
+[Installation](installation.md).
 
 ## Quick start
 

@@ -1,6 +1,7 @@
 # Recipes
 
-Options are in the [configuration reference](../reference/configuration.md),
+Configuration and commands for common workflows, ready to copy. Options are
+in the [configuration reference](../reference/configuration.md),
 commands and flags in the [CLI reference](../reference/cli.md), and external
 hotkey daemons in [Scripting](../reference/scripting.md). The launcher keys
 below are examples. Linux binds no global hotkeys by default, see

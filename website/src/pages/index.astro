@@ -1,0 +1,100 @@
+---
+import '../styles/landing.css';
+import { channel, channelBases, docHref, latestVersion, ogImage, repo, site, siteTitle } from '../site.mjs';
+import icon from '../assets/neru-appicon.png';
+
+const base = import.meta.env.BASE_URL;
+const start = docHref('guide/getting-started.md', 'INSTALLATION.md');
+const description = 'Hints, grids and vim keys for your whole desktop. Free and open source.';
+const pageUrl = new URL(base, site).href;
+const title = `${siteTitle} | The mouse is now optional`;
+
+const current = channel === 'latest' ? latestVersion : 'Nightly';
+const otherBase = channelBases[channel === 'latest' ? 'nightly' : 'latest'];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={pageUrl} />
+    {channel === 'nightly' && <meta name="robots" content="noindex" />}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteTitle} />
+    <meta property="og:url" content={pageUrl} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:alt" content="The Neru icon and tagline beside a window showing its modes: recursive grid, bisect, hints, grid and scroll" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#060b1f" />
+    <link rel="icon" href={`${base}favicon.png`} />
+    <link rel="apple-touch-icon" href={`${base}apple-touch-icon.png`} />
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href={base}>
+        <img src={icon.src} alt="" width="28" height="28" decoding="async" />
+        <span>Neru</span>
+      </a>
+      <span class="channel" title="The docs and site you are reading">{current}</span>
+      <nav aria-label="Main">
+        <a href={otherBase}>
+          {channel === 'latest' ? 'Nightly' : <>Latest<span class="version">{latestVersion}</span></>}
+        </a>
+        <a class="docs" href={start}>Docs</a>
+        <a href={repo}>GitHub</a>
+      </nav>
+    </header>
+
+    <main class="hero">
+      <div class="copy">
+        <h1>The mouse is now optional.</h1>
+        <p class="lede">Hints, grids and vim keys for your whole desktop.</p>
+        <div class="actions">
+          <a class="button primary" href={start}>Get started</a>
+        </div>
+      </div>
+
+      <figure class="demo">
+        <div class="frame" style={`background-image: url(${base}media/neru-demo-poster.jpg)`}>
+          <video
+            src={`${base}media/neru-demo.mp4`}
+            poster={`${base}media/neru-demo-poster.jpg`}
+            muted
+            loop
+            playsinline
+            controls
+            preload="metadata"
+            aria-label="A one-minute tour of Neru's modes"></video>
+        </div>
+        <figcaption>For macOS, Linux and Windows. Free and open source, with no telemetry.</figcaption>
+      </figure>
+    </main>
+
+    <footer class="foot">
+      <span>MIT licensed</span>
+      <nav aria-label="Project links">
+        <a href={repo}>Source</a>
+        <a href="https://discord.gg/KZwnwr9dz6">Discord</a>
+        <a href="https://github.com/sponsors/y3owk1n">Sponsor</a>
+      </nav>
+    </footer>
+
+    <script>
+      // The demo loops muted with its controls showing. It stays on the poster
+      // for a reader who asked for reduced motion or to save data.
+      const video = document.querySelector<HTMLVideoElement>('.demo video')!;
+      const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !saveData) {
+        video.play().catch(() => {});
+      }
+    </script>
+  </body>
+</html>

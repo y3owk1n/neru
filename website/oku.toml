@@ -1,0 +1,8 @@
+# The docs site's toolchain, kept apart from the repo's so the Go CI jobs do
+# not install Node. `oku sync` here installs it, and the website workflow
+# syncs this directory with the oku action.
+[lock]
+platforms = ["darwin-arm64", "linux-amd64-glibc", "linux-arm64-glibc"]
+
+[packages]
+node = { ref = "./.oku/node.toml", version = "^24" }

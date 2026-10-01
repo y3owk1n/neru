@@ -1,6 +1,6 @@
 # Roadmap
 
-Intent and priority only. What works today is in the
+What Neru intends to work on next, and in what order. What works today is in the
 [Capability Matrix](../reference/platform-support.md#capability-matrix), and
 what is missing under [Known Gaps](../reference/platform-support.md#known-gaps).
 

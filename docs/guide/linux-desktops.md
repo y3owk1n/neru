@@ -1,5 +1,6 @@
 # Linux desktop environments
 
+What each Linux desktop needs for Neru to work, and the issues specific to it.
 Host setup for every desktop, such as libraries, the `input` group, the
 `/dev/uinput` rule and the systemd service, is in [Linux setup](./linux.md).
 Which protocol implements each capability is in the

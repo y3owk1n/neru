@@ -1,6 +1,7 @@
 # Installation
 
-After installing, continue with [Getting started](getting-started.md).
+Every way to install, update and remove Neru. After installing, continue with
+[Getting started](getting-started.md).
 
 ## Requirements
 

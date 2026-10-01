@@ -1,0 +1,286 @@
+/* One screen in the promo video's look: Neru's dark theme palette on an
+   indigo field, system type. */
+:root {
+  --field: #060b1f;
+  --surface: #0a1338;
+  --accent-alt: #8fa2f0;
+  --on-accent: #081022;
+  --text: #e8eeff;
+  --muted: #9aa5c9;
+  --line: rgb(110 130 214 / 0.4);
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI',
+    system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--field);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--text);
+  background:
+    radial-gradient(60rem 36rem at 12% -10%, rgb(42 56 132 / 0.9), transparent 70%),
+    radial-gradient(50rem 32rem at 100% 100%, rgb(32 30 96 / 0.6), transparent 70%),
+    var(--field);
+  -webkit-font-smoothing: antialiased;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--accent-alt);
+  outline-offset: 3px;
+}
+
+.nav,
+.hero,
+.foot {
+  width: min(72rem, 100% - 2rem);
+  margin-inline: auto;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  padding-block: 0.5rem;
+}
+
+/* Every nav target is at least 44px tall for a thumb. */
+.brand,
+.nav nav a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.brand {
+  gap: 0.6rem;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1.15rem;
+  text-decoration: none;
+}
+
+.brand img {
+  border-radius: 7px;
+}
+
+.nav nav {
+  display: flex;
+  gap: 2rem;
+  margin-left: auto;
+}
+
+/* The release number after "Latest" in the channel link. */
+.nav .version {
+  margin-inline-start: 0.3em;
+}
+
+/* Which docs channel this page belongs to. */
+.channel {
+  margin-left: 0.75rem;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.nav nav a {
+  white-space: nowrap;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.nav nav a:hover {
+  color: var(--text);
+}
+
+.hero {
+  flex: 1;
+  display: grid;
+  gap: 2rem;
+  align-content: start;
+  justify-items: center;
+  text-align: center;
+  padding-block: 1.5rem 3rem;
+}
+
+.copy {
+  max-width: 44rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 7vw, 4.25rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+  color: var(--accent-alt);
+  text-wrap: balance;
+}
+
+.lede {
+  margin: 1.1rem auto 0;
+  font-size: clamp(1.125rem, 2vw, 1.375rem);
+  color: var(--text);
+  max-width: 40ch;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.9rem;
+  margin-top: 1.75rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.7rem 1.3rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button:hover {
+  border-color: var(--accent-alt);
+}
+
+.button.primary {
+  background: var(--accent-alt);
+  border-color: var(--accent-alt);
+  color: var(--on-accent);
+}
+
+.button.primary:hover {
+  background: #a9b8f6;
+}
+
+.button.primary:focus-visible {
+  outline-color: var(--text);
+}
+
+.demo {
+  --demo-width: min(100%, 60rem);
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  width: 100%;
+  margin: 0;
+}
+
+.frame {
+  width: var(--demo-width);
+  overflow: hidden;
+  border: 1px solid #2b3354;
+  border-radius: 14px;
+  /* The poster also backs the frame, so playback never starts from black. */
+  background: var(--surface) center / cover no-repeat;
+  box-shadow:
+    0 3rem 6rem -2rem rgb(0 0 0 / 0.8),
+    0 0 9rem -2rem rgb(70 95 188 / 0.45);
+}
+
+.demo video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.demo figcaption {
+  width: var(--demo-width);
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* The footer sits at the bottom of a tall screen and follows the content on
+   a short one, since the hero takes the spare height. */
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding-block: 0.75rem 1rem;
+  border-top: 1px solid rgb(110 130 214 / 0.18);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.foot nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.foot a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.foot a:hover {
+  color: var(--text);
+}
+
+/* On a wide screen the demo shares the first screen with the headline. */
+@media (min-width: 60rem) {
+  .demo {
+    --demo-width: min(100%, 60rem, calc((100vh - 30rem) * 16 / 9));
+  }
+}
+
+@media (max-width: 30rem) {
+  .nav nav {
+    gap: 1.25rem;
+  }
+
+  /* The hero centers in the spare height, so no gap opens above the footer. */
+  .hero {
+    gap: 1.5rem;
+    align-content: center;
+    padding-block: 0.75rem 1.5rem;
+  }
+
+  .lede {
+    margin-top: 0.75rem;
+  }
+
+  .actions {
+    margin-top: 1.25rem;
+  }
+
+  h1 {
+    letter-spacing: -0.03em;
+  }
+
+  .frame {
+    border-radius: 10px;
+  }
+
+  /* No room for both Docs and Get started, which go to the same page. */
+  .nav .docs,
+  .nav .version {
+    display: none;
+  }
+}

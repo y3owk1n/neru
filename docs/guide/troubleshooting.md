@@ -1,6 +1,7 @@
 # Troubleshooting
 
-Linux host problems are in [Linux setup](./linux.md#troubleshooting), and
+Symptoms, causes and fixes for common Neru problems. Linux host problems are
+in [Linux setup](./linux.md#troubleshooting), and
 desktop-specific ones in [Linux desktops](./linux-desktops.md).
 
 ## Quick diagnosis
