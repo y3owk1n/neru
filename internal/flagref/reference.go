@@ -26,41 +26,42 @@ var markers = docsregion.Markers{
 	What:  "mode-flag",
 }
 
-// The words the value column uses for each shape a flag is written in.
+// The sentences that say how each shape of flag is written.
 const (
-	valueNone       = "none"
-	valueOne        = "value"
-	valueRepeatable = "value, repeatable"
-	valueUnknown    = "unknown"
+	valueNone       = "Takes no value."
+	valueOne        = "Takes a value."
+	valueRepeatable = "Takes a value, and can be repeated."
+	valueUnknown    = "Takes an unknown shape of value."
 )
 
-// separator joins the modes that accept a flag. A middle dot rather than a
-// comma, because several of the descriptions contain commas of their own.
+// separator joins the modes that accept a flag.
 const separator = " · "
 
-// Table renders every mode flag as one markdown row, in the order the
-// vocabulary declares them.
+// Table renders every mode flag as one entry, in the order the vocabulary
+// declares them.
 //
-// The columns are what the declaration knows: how the flag is written, whether
-// it carries a value, which modes accept it, and the one sentence that says
-// what it does — the same sentence a command line's help prints, so the
-// document and the binary cannot describe a flag differently.
+// Each entry is a heading a page can link to, one line of facts (shorthand,
+// value, modes), and the sentence that says what the flag does, which is the
+// same sentence a command line's help prints, so the document and the binary
+// cannot describe a flag differently. Entries rather than a table, because the
+// descriptions are long enough to make a table unreadable on a narrow screen.
 func Table() string {
 	var out strings.Builder
 
-	out.WriteString("| Flag | Shorthand | Value | Modes | Description |\n")
-	out.WriteString("| ---- | --------- | ----- | ----- | ----------- |\n")
+	for index, descriptor := range modecmd.All() {
+		if index > 0 {
+			out.WriteString("\n")
+		}
 
-	for _, descriptor := range modecmd.All() {
+		fmt.Fprintf(&out, "#### `%s`\n\n", descriptor.Name().Long())
 		fmt.Fprintf(
 			&out,
-			"| `%s` | %s | %s | %s | %s |\n",
-			descriptor.Name().Long(),
+			"%s%s Modes: %s.\n\n",
 			shorthand(descriptor),
 			value(descriptor),
 			modes(descriptor),
-			cell(descriptor.Usage()),
 		)
+		fmt.Fprintf(&out, "%s\n", sentence(descriptor.Usage()))
 	}
 
 	return out.String()
@@ -84,18 +85,18 @@ func Region(document string) (string, error) {
 	return markers.Region(document)
 }
 
-// shorthand renders the single-letter alias, or nothing when the flag has none.
+// shorthand names the single-letter alias, or nothing when the flag has none.
 func shorthand(descriptor modecmd.Descriptor) string {
 	if descriptor.Short() == "" {
 		return ""
 	}
 
-	return "`-" + descriptor.Short() + "`"
+	return "Shorthand `-" + descriptor.Short() + "`. "
 }
 
 // value says whether the flag is written with a value, and whether writing it
 // twice adds or replaces. The two are one question to a reader deciding how to
-// write the flag, so they share a column.
+// write the flag, so they share a sentence.
 func value(descriptor modecmd.Descriptor) string {
 	switch descriptor.Kind() {
 	case modecmd.KindPresence:
@@ -124,9 +125,8 @@ func modes(descriptor modecmd.Descriptor) string {
 	return strings.Join(names, separator)
 }
 
-// cell escapes what a markdown table cell cannot hold literally. A pipe in a
-// flag's description would otherwise end the cell early and shift every column
-// after it.
-func cell(text string) string {
-	return strings.ReplaceAll(text, "|", `\|`)
+// sentence ends a description with a full stop, since help text is written
+// without one.
+func sentence(text string) string {
+	return strings.TrimSuffix(text, ".") + "."
 }

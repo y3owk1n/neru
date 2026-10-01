@@ -106,32 +106,31 @@ const (
 // that is not one — the daemon's answer, a generated reference — can say it
 // too.
 const (
-	usageToggle              = "Toggle mode on/off (exit to idle if already active)"
-	usageRepeat              = "Re-activate mode after performing the action (requires --action)"
-	usageModifier            = "Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action)"
-	usageOnExit              = "Step to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Repeat the flag to run several steps in order. Requires --action; not run on manual escape/idle"
-	usageCursorSelectionMode = "How the real cursor should behave during selection: follow or hold"
-	usageSearch              = "Show search input when the mode is activated"
-	usageHideOnEmptySearch   = "Hide all hints when search query is empty (requires --search)"
-	usageExitOnUnmatched     = "Exit the mode when a key matches no hint"
-	usageRole                = "Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more"
-	usageText                = "Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more"
-	usageStrategy            = "Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr). " + usageCycle + " (--strategy=axtree,vision)"
-	usageCaptureScope        = "Region the vision and contour strategies scan, or the region grid, recursive_grid and bisect start from: window (the focused window) or screen (the whole active screen). " + usageCycle + " (--capture-scope=window,screen)"
-	usageLabelDirection      = "Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)"
-	usageSplitWord           = "Split detected text into word-level regions (requires vision strategy)"
-	usageZoomToDepth         = "Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position"
+	usageToggle              = "Open the mode, or leave it if it is already open"
+	usageRepeat              = "Reopen the mode after the action runs. Needs --action"
+	usageModifier            = "Modifiers to hold during the action, comma-separated: cmd, super, meta, shift, alt, option, ctrl. Needs --action"
+	usageOnExit              = "Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action, and does not run if the mode is canceled"
+	usageCursorSelectionMode = "Whether the real cursor follows the selection (follow) or stays put (hold)"
+	usageSearch              = "Open with the hint search field showing"
+	usageHideOnEmptySearch   = "Hide every hint until the search has text. Needs --search"
+	usageExitOnUnmatched     = "Exit when a key matches no hint"
+	usageRole                = "Only hint these roles, comma-separated, such as button,link (see 'neru roles'). Repeat to add more"
+	usageText                = "Only hint elements whose text contains one of these, comma-separated and case-insensitive. Repeat to add more"
+	usageStrategy            = "How hints find elements: axtree (accessibility tree), vision (OCR) or contour (shape detection). " + usageCycle + ", as in --strategy=axtree,vision"
+	usageCaptureScope        = "Region to work in: window (the focused window) or screen (the whole screen). " + usageCycle + ", as in --capture-scope=window,screen"
+	usageLabelDirection      = "Label order: normal (shorter labels first) or reverse (spread across the alphabet)"
+	usageSplitWord           = "Hint each word of detected text separately. Needs the vision strategy"
+	usageZoomToDepth         = "Open recursive grid already zoomed to this depth at the cursor"
 )
 
 // usageCycle is what a comma-separated list means on the flags that cycle.
-const usageCycle = "A comma-separated list is a cycle. Entering the mode uses the first value, and running the command again while the mode is open uses the value after the one in use"
+const usageCycle = "A comma-separated list cycles, moving to the next value each time the command runs while the mode is open"
 
 // usageAction names the actions a mode can perform, so the vocabulary a user
 // is offered is the one the rules accept rather than a list kept alongside it.
-var usageAction = "Mouse button action to perform on the selection (" +
+var usageAction = "Mouse button action to run on the selection: " +
 	action.ModeActionNamesString() +
-	"). Commas chain multiple actions (e.g. left_click,left_click for double-click). " +
-	"Other actions, such as scroll or move_mouse, are actions in their own right and need no mode"
+	". Chain with commas, as in left_click,left_click"
 
 // String returns the bare name.
 func (f Flag) String() string { return string(f) }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/flagref"
 )
 
@@ -115,5 +116,23 @@ func TestRewrite_RefusesAPageWithNoRegion(t *testing.T) {
 				t.Errorf("Rewrite() error = %v, want invalid input", err)
 			}
 		})
+	}
+}
+
+// TestTable_GivesEveryFlagAHeading pins that each flag is an entry a page can
+// link to, so a guide can send a reader to one flag rather than to the list.
+func TestTable_GivesEveryFlagAHeading(t *testing.T) {
+	t.Parallel()
+
+	table := flagref.Table()
+
+	for _, descriptor := range modecmd.All() {
+		heading := "#### `" + descriptor.Name().Long() + "`\n"
+		if strings.Count(table, heading) != 1 {
+			t.Errorf(
+				"%s does not have exactly one heading in the reference",
+				descriptor.Name().Long(),
+			)
+		}
 	}
 }

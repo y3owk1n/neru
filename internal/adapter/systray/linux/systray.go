@@ -124,8 +124,8 @@ func (m *MenuItem) SetTitle(title string) {
 // protocol, not by omission: com.canonical.dbusmenu defines no per-item
 // tooltip property, so there is nothing to send and nothing for a tray host to
 // render. Nothing in Neru calls it; the tray icon's own hover text is the
-// package-level SetTooltip below, which works. docs/reference/platform-support.md owns the
-// full statement, as footnote 8 of the Capability Matrix.
+// package-level SetTooltip below, which works. docs/contributing/platform-internals.md owns the
+// full statement, as footnote 8 of the implementation matrix.
 func (m *MenuItem) SetTooltip(tooltip string) {}
 
 // SetIcon sets the menu item icon (Linux).

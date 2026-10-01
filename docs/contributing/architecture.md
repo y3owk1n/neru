@@ -13,15 +13,14 @@ dial a Unix domain socket or a Windows named pipe. The transport is in
 `internal/adapter/ipc` and the command handlers in `internal/app/ipcctrl`.
 
 The endpoint is scoped to one user, in where it lives and in what the daemon
-checks before serving a connection:
+checks before serving a connection. Its paths are in
+[IPC protocol](../reference/ipc.md#endpoint).
 
-- **Unix socket**: `$XDG_RUNTIME_DIR/neru/neru.sock` if the session provides a
-  runtime directory, otherwise `$TMPDIR/neru-<uid>/neru.sock`. The socket is
-  mode 0600 inside a 0700 directory the daemon creates and owns. The daemon
-  reads the connecting process's uid from the kernel and serves only its own.
-- **Named pipe**: `\\.\pipe\neru-<SID>`, created with a protected DACL naming
-  that SID alone, so the kernel checks ownership before it accepts the
-  connection.
+- **Unix socket**: mode 0600 inside a 0700 directory the daemon creates and
+  owns. The daemon reads the connecting process's uid from the kernel and
+  serves only its own.
+- **Named pipe**: created with a protected DACL naming the user's SID alone, so
+  the kernel checks ownership before it accepts the connection.
 
 On every platform the client also confirms that the process serving the
 endpoint runs as the same user before sending anything. `neru doctor` prints

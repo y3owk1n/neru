@@ -62,9 +62,14 @@ old name from the same `docs/` URL:
 | Doc | Before the move | What it covers |
 | :-- | :-- | :-- |
 | `reference/cli.md` | `CLI.md` | every command and flag |
-| `reference/scripting.md` | `CLI.md` | scripting and the IPC protocol |
+| `guide/scripting.md` | `CLI.md` | driving Neru from scripts and other hotkey tools |
+| `reference/ipc.md` | `CLI.md` | the IPC protocol |
 | `reference/configuration.md` | `CONFIGURATION.md` | every key with its default and platform column |
-| `guide/getting-started.md` | `CONFIGURATION.md` | config file location, first config, reloading |
+| `concepts/bindings.md` | `CONFIGURATION.md` | what a binding can run, and which binding answers a key |
+| `concepts/glossary.md` | not in older releases, skip it | the words the docs use |
+| `guide/getting-started.md` | `CONFIGURATION.md` | first launch, permissions, first hotkey |
+| `guide/using-neru.md` | `CONFIGURATION.md` | how each mode is used, clicks, drag, sticky modifiers |
+| `guide/configuring.md` | `CONFIGURATION.md` | config file location, layering, reloading, `config set` |
 | `guide/recipes.md` | `TIPS_TRICKS.md` | worked recipes such as Vimium-style click on select, drag with any button, cycling modes on one key, and driving Neru from skhd |
 | `guide/troubleshooting.md` | `TROUBLESHOOTING.md` | when something does not work |
 | `guide/installation.md` | `INSTALLATION.md` | install methods and login services |

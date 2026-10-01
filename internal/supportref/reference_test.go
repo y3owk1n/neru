@@ -1,6 +1,7 @@
 package supportref_test
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -9,7 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/supportref"
 )
 
-func TestTable_RendersOneRowPerNarrowWord(t *testing.T) {
+func TestTable_NamesEveryNarrowWord(t *testing.T) {
 	t.Parallel()
 
 	table := supportref.Table()
@@ -20,16 +21,49 @@ func TestTable_RendersOneRowPerNarrowWord(t *testing.T) {
 	}
 
 	for _, word := range limited {
+		// Named in full, so a word copied from a load-time warning finds its row.
 		if !strings.Contains(table, "`"+word.Written()+"`") {
-			t.Errorf("the table has no row for %q", word.Written())
+			t.Errorf("the table does not name %q", word.Written())
 		}
 	}
+}
 
-	// One row per word, plus the header and the separator.
+// TestTable_RendersOneRowPerReason is what keeps the table short: words that
+// share a platform column and a reason share a row, so the reason is read once.
+func TestTable_RendersOneRowPerReason(t *testing.T) {
+	t.Parallel()
+
+	table := supportref.Table()
+	groups := supportref.Groups()
+
+	// One row per group, plus the header and the separator.
 	rows := strings.Count(strings.TrimSpace(table), "\n") + 1
-	if rows != len(limited)+2 {
-		t.Errorf("the table has %d lines for %d narrow words, want %d",
-			rows, len(limited), len(limited)+2)
+	if rows != len(groups)+2 {
+		t.Errorf("the table has %d lines for %d reasons, want %d", rows, len(groups), len(groups)+2)
+	}
+
+	seen := map[string]bool{}
+
+	for _, group := range groups {
+		key := fmt.Sprint(group[0].Platforms) + "|" + group[0].Note
+		if seen[key] {
+			t.Errorf(
+				"two rows share the column %v and the reason %q",
+				group[0].Platforms,
+				group[0].Note,
+			)
+		}
+
+		seen[key] = true
+
+		for _, word := range group {
+			if word.Note != group[0].Note || !slices.Equal(word.Platforms, group[0].Platforms) {
+				t.Errorf(
+					"%q is grouped under a reason or column that is not its own",
+					word.Written(),
+				)
+			}
+		}
 	}
 }
 

@@ -734,7 +734,7 @@ func (p *evdevProxy) forwardWithheld(code uint16) {
 // released any. A Wayland pointer event carries whatever modifiers the seat's
 // keyboards hold, not a set the sender chooses, so a hotkey chord still held
 // while a click is injected makes it a modified click. X11 and Windows fix
-// that from the live key state (footnote 7 of docs/reference/platform-support.md). On
+// that from the live key state (footnote 7 of docs/contributing/platform-internals.md). On
 // Wayland only the proxy can, because its keyboard is the one the compositor
 // reads. Runs on the run goroutine.
 func (p *evdevProxy) liftHeldModifiers() bool {

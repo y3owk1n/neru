@@ -52,7 +52,7 @@ func TestWinFontResolver_InstalledFamilyResolvesToItself(t *testing.T) {
 
 func TestWinFontResolver_MissingFamilyFallsBackToSans(t *testing.T) {
 	// A family GDI does not have lands on the sans baseline whatever face the
-	// name suggests, the rule footnote 1 of docs/reference/platform-support.md states.
+	// name suggests, the rule docs/reference/configuration.md (Fonts) states.
 	cases := []string{
 		"Neru Test Font That Does Not Exist",
 		"Neru Missing Serif",

@@ -53,22 +53,22 @@ func Declaration() parity.Declaration {
 }
 
 // Table renders every word whose platform column is narrower than every
-// platform, one markdown row each.
+// platform, one markdown row per reason.
 //
-// The columns are what the declaration knows: how the word is written, which
-// vocabulary it belongs to, a mark per platform, and the sentence that says why
-// — the same sentence the load-time warning and `neru doctor` print, so the
-// page and the binary cannot explain a gap differently.
+// Words that share a platform column and the sentence that says why share a
+// row, so a reason is read once rather than once per word. The sentence is the
+// one the load-time warning and `neru doctor` print, so the page and the binary
+// cannot explain a gap differently.
 func Table() string {
 	var out strings.Builder
 
-	out.WriteString("| Word | Kind |")
+	out.WriteString("| Words |")
 
 	for _, platform := range parity.AllPlatforms {
 		fmt.Fprintf(&out, " %s |", heading(platform))
 	}
 
-	out.WriteString(" Why |\n| ---- | ---- |")
+	out.WriteString(" Why |\n| ---- |")
 
 	for range parity.AllPlatforms {
 		out.WriteString(" --- |")
@@ -76,17 +76,60 @@ func Table() string {
 
 	out.WriteString(" --- |\n")
 
-	for _, word := range Declaration().Limited() {
-		fmt.Fprintf(&out, "| `%s` | %s |", word.Written(), word.Kind)
+	for _, group := range Groups() {
+		fmt.Fprintf(&out, "| %s |", cell(strings.Join(writtenNames(group), ", ")))
 
 		for _, platform := range parity.AllPlatforms {
-			fmt.Fprintf(&out, " %s |", mark(word.Platforms.Supports(platform)))
+			fmt.Fprintf(&out, " %s |", mark(group[0].Platforms.Supports(platform)))
 		}
 
-		fmt.Fprintf(&out, " %s |\n", cell(word.Note))
+		fmt.Fprintf(&out, " %s |\n", cell(group[0].Note))
 	}
 
 	return out.String()
+}
+
+// Groups partitions the narrow words by platform column and note, in the order
+// each pair first appears in the declaration.
+func Groups() []parity.Declaration {
+	var groups []parity.Declaration
+
+	index := map[string]int{}
+
+	for _, word := range Declaration().Limited() {
+		key := fmt.Sprint(word.Platforms) + "\x00" + word.Note
+
+		position, seen := index[key]
+		if !seen {
+			position = len(groups)
+			index[key] = position
+
+			groups = append(groups, nil)
+		}
+
+		groups[position] = append(groups[position], word)
+	}
+
+	return groups
+}
+
+// writtenNames renders a group's words the way a person writes them, which is
+// also how the load-time warning names them, so searching the page for a word
+// from a warning finds its row. A word that is not an option says which kind
+// it is.
+func writtenNames(group parity.Declaration) []string {
+	names := make([]string, 0, len(group))
+
+	for _, word := range group {
+		name := "`" + word.Written() + "`"
+		if word.Kind != parity.KindOption {
+			name += " (" + string(word.Kind) + ")"
+		}
+
+		names = append(names, name)
+	}
+
+	return names
 }
 
 // heading names a platform the way the rest of the page does.

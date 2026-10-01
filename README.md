@@ -46,14 +46,13 @@ curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.s
 irm https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.ps1 | iex
 ```
 
-The script installs the binary, man pages and shell completions, offers a login service, and updates in place when you run it again. Homebrew, Nix, prebuilt binaries, source builds and uninstalling are in [Installation](docs/guide/installation.md). Two agent skills for Claude Code, Codex and Cursor can answer questions and write your config, see [Set up with an agent](docs/guide/installation.md#set-up-with-an-agent).
+Run it again to update. Homebrew, Nix, prebuilt binaries, building from source, [agent skills](docs/guide/installation.md#set-up-with-an-agent) and uninstalling are in [Installation](docs/guide/installation.md).
 
 ## Quick start
 
-1. Run `neru launch`, or skip it if the login service is running.
-2. Grant the permissions `neru doctor` reports as missing. See [Permissions](docs/guide/getting-started.md#permissions).
-3. Run `neru config init` to write a commented starter config.
-4. Press `Primary+Shift+Space` for hints. On Linux, [bind a key first](docs/guide/getting-started.md#binding-your-first-hotkeys).
+Run `neru launch`, grant the permissions `neru doctor` asks for, then press
+`Primary+Shift+Space` for hints. The full first run, including Linux, is in
+[Getting started](docs/guide/getting-started.md).
 
 ## Modes
 
@@ -132,9 +131,8 @@ Themes, indicators, smooth cursor and scroll, virtual pointer, app exclusions an
 
 ## Documentation
 
-- Using Neru: [Installation](docs/guide/installation.md), [Getting started](docs/guide/getting-started.md), [Recipes](docs/guide/recipes.md), [Troubleshooting](docs/guide/troubleshooting.md), [Linux setup](docs/guide/linux.md), [Linux desktops](docs/guide/linux-desktops.md)
-- Reference: [Configuration](docs/reference/configuration.md), [CLI](docs/reference/cli.md), [Scripting and IPC](docs/reference/scripting.md), [Platform support](docs/reference/platform-support.md)
-- Working on Neru: [Contributing](CONTRIBUTING.md), [Development](docs/contributing/development.md), [Architecture](docs/contributing/architecture.md), [Roadmap](docs/project/roadmap.md)
+Read the docs at **[y3owk1n.github.io/neru](https://y3owk1n.github.io/neru/)**,
+or browse [docs/](docs/README.md) here on GitHub.
 
 ## Community
 

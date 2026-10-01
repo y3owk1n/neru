@@ -331,7 +331,7 @@ type evdevModifierState struct {
 // backends spell a chord with it: the evdev tap and hotkey listener through their
 // modifier refcounts, and the X11 tap through the counts it keeps from KeyPress
 // and KeyRelease. One spelling is what lets a binding written once match on
-// either (docs/reference/platform-support.md, "One key, one name").
+// either (docs/contributing/platform-internals.md, "One key, one name").
 func (s *linuxModifierState) prefix() string {
 	if s == nil {
 		return ""

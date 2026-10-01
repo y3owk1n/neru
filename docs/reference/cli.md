@@ -1,29 +1,24 @@
 # CLI reference
 
-Every `neru` command and flag. `neru launch` starts the daemon. Most other commands send one request to it
-over a per-user Unix socket, or a named pipe on Windows, and print the reply.
-The same content ships as man pages (`man neru`). Scripting patterns and the
-wire protocol are in [Scripting](scripting.md).
+Every `neru` command and flag. The same content ships as man pages
+(`man neru`). To drive Neru from scripts, see [Scripting](../guide/scripting.md).
 
-## How to read this reference
+`neru launch` starts the daemon. Every other command sends one request to it
+and prints the reply, except `doctor`, `roles`, `services`, `docs`,
+`config init` and `config validate`, which run without a daemon.
 
-Synopses use `<value>` for a required placeholder, `[--flag]` for an optional
-flag, `a|b` for a choice, and `[<key>...]` for a repeatable argument.
-
-- Only `launch`, `doctor`, `roles`, `services`, `docs`, `config init` and
-  `config validate` run without a daemon.
-- A command that is unavailable on a platform returns `ERR_NOT_SUPPORTED`.
-  Mode flags and actions that do nothing per platform are listed in
-  [Platform support per word](platform-support.md#platform-support-per-word).
-- On Linux, "supported" means X11, or Wayland on wlroots, KWin, COSMIC or
-  GNOME with Xwayland. See [Platform status](platform-support.md#platform-status).
-- Every command accepts `-h`, `--help`, omitted from the tables below.
+Synopses use `<value>` for a required value, `[--flag]` for an optional flag,
+`a|b` for a choice, and `[<key>...]` for a repeatable argument. Every command
+also takes `-h`/`--help`. A command that does nothing on your platform says so
+and exits non-zero, and
+[Platform support per word](platform-support.md#platform-support-per-word)
+lists the flags and actions this applies to.
 
 ## Global flags
 
 | Flag        | Shorthand | Type   | Default | Description                                                                        |
 | ----------- | --------- | ------ | ------- | ---------------------------------------------------------------------------------- |
-| `--config`  | `-c`      | string | `""`    | Config file path. Overrides the default search paths. See [Config file location](../guide/getting-started.md#config-file-location). |
+| `--config`  | `-c`      | string | `""`    | Config file path. Overrides the default search paths. See [Config file location](../guide/configuring.md#where-neru-looks-for-the-file). |
 | `--timeout` |           | int    | `10`    | IPC timeout in seconds.                                                             |
 
 ## Daemon lifecycle
@@ -121,32 +116,9 @@ state.
 
 Flags work the same typed after `neru`, in a
 [hotkey binding](configuration.md#hotkeys), or over the
-[IPC socket](scripting.md#ipc-protocol). A mode refuses a flag not
-listed for it. A repeated flag replaces its earlier value unless the table
-says repeatable. `--action` may be positional: `hints left_click`.
-
-<!-- BEGIN GENERATED MODE FLAGS: edit internal/domain/modecmd, then run `just genflagref` -->
-
-| Flag | Shorthand | Value | Modes | Description |
-| ---- | --------- | ----- | ----- | ----------- |
-| `--action` | `-a` | value | `hints` · `grid` · `recursive_grid` | Mouse button action to perform on the selection (left_click, right_click, middle_click, left_mouse_down, left_mouse_up, right_mouse_down, right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, right_mouse_toggle, middle_mouse_toggle). Commas chain multiple actions (e.g. left_click,left_click for double-click). Other actions, such as scroll or move_mouse, are actions in their own right and need no mode |
-| `--modifier` |  | value | `hints` · `grid` · `recursive_grid` | Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action) |
-| `--on-exit` |  | value, repeatable | `hints` · `grid` · `recursive_grid` | Step to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Repeat the flag to run several steps in order. Requires --action; not run on manual escape/idle |
-| `--repeat` | `-r` | none | `hints` · `grid` · `recursive_grid` | Re-activate mode after performing the action (requires --action) |
-| `--toggle` | `-t` | none | `hints` · `grid` · `recursive_grid` · `bisect` · `scroll` · `monitor_select` · `mode` | Toggle mode on/off (exit to idle if already active) |
-| `--search` | `-s` | none | `hints` | Show search input when the mode is activated |
-| `--hide-on-empty-search` |  | none | `hints` | Hide all hints when search query is empty (requires --search) |
-| `--exit-on-unmatched` |  | none | `hints` | Exit the mode when a key matches no hint |
-| `--role` |  | value, repeatable | `hints` | Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more |
-| `--text` |  | value, repeatable | `hints` | Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more |
-| `--strategy` |  | value | `hints` | Element detection strategy: axtree (the platform accessibility tree), vision (screen recognition: the Vision framework on macOS, tesseract OCR on Linux, Windows.Media.Ocr on Windows), or contour (edge and contour analysis of the window pixels, ported from wl-kbptr). A comma-separated list is a cycle. Entering the mode uses the first value, and running the command again while the mode is open uses the value after the one in use (--strategy=axtree,vision) |
-| `--capture-scope` |  | value | `hints` · `grid` · `recursive_grid` · `bisect` | Region the vision and contour strategies scan, or the region grid, recursive_grid and bisect start from: window (the focused window) or screen (the whole active screen). A comma-separated list is a cycle. Entering the mode uses the first value, and running the command again while the mode is open uses the value after the one in use (--capture-scope=window,screen) |
-| `--label-direction` |  | value | `hints` | Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet) |
-| `--split-word` |  | none | `hints` | Split detected text into word-level regions (requires vision strategy) |
-| `--zoom-to-depth` |  | value | `recursive_grid` | Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position |
-| `--cursor-selection-mode` |  | value | `hints` · `grid` · `recursive_grid` · `bisect` | How the real cursor should behave during selection: follow or hold |
-
-<!-- END GENERATED MODE FLAGS -->
+[IPC socket](ipc.md). A mode refuses a flag not listed for it. A repeated flag
+replaces its earlier value unless its entry says it can be repeated.
+`--action` may be positional: `hints left_click`.
 
 - `--action` takes the mouse-button [action names](#action-names), and
   `--on-exit` steps form one [action sequence](#neru-run).
@@ -161,6 +133,106 @@ use may come from the config. The list wraps, and falls back to its first
 entry if it does not name the value in use. Each value may appear once, and one
 flag per command may take a list. `--toggle` refuses a list, and
 `--split-word` refuses a `--strategy` list.
+
+<!-- BEGIN GENERATED MODE FLAGS: edit internal/domain/modecmd, then run `just genflagref` -->
+
+#### `--action`
+
+Shorthand `-a`. Takes a value. Modes: `hints` · `grid` · `recursive_grid`.
+
+Mouse button action to run on the selection: left_click, right_click, middle_click, left_mouse_down, left_mouse_up, right_mouse_down, right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, right_mouse_toggle, middle_mouse_toggle. Chain with commas, as in left_click,left_click.
+
+#### `--modifier`
+
+Takes a value. Modes: `hints` · `grid` · `recursive_grid`.
+
+Modifiers to hold during the action, comma-separated: cmd, super, meta, shift, alt, option, ctrl. Needs --action.
+
+#### `--on-exit`
+
+Takes a value, and can be repeated. Modes: `hints` · `grid` · `recursive_grid`.
+
+Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action, and does not run if the mode is canceled.
+
+#### `--repeat`
+
+Shorthand `-r`. Takes no value. Modes: `hints` · `grid` · `recursive_grid`.
+
+Reopen the mode after the action runs. Needs --action.
+
+#### `--toggle`
+
+Shorthand `-t`. Takes no value. Modes: `hints` · `grid` · `recursive_grid` · `bisect` · `scroll` · `monitor_select` · `mode`.
+
+Open the mode, or leave it if it is already open.
+
+#### `--search`
+
+Shorthand `-s`. Takes no value. Modes: `hints`.
+
+Open with the hint search field showing.
+
+#### `--hide-on-empty-search`
+
+Takes no value. Modes: `hints`.
+
+Hide every hint until the search has text. Needs --search.
+
+#### `--exit-on-unmatched`
+
+Takes no value. Modes: `hints`.
+
+Exit when a key matches no hint.
+
+#### `--role`
+
+Takes a value, and can be repeated. Modes: `hints`.
+
+Only hint these roles, comma-separated, such as button,link (see 'neru roles'). Repeat to add more.
+
+#### `--text`
+
+Takes a value, and can be repeated. Modes: `hints`.
+
+Only hint elements whose text contains one of these, comma-separated and case-insensitive. Repeat to add more.
+
+#### `--strategy`
+
+Takes a value. Modes: `hints`.
+
+How hints find elements: axtree (accessibility tree), vision (OCR) or contour (shape detection). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --strategy=axtree,vision.
+
+#### `--capture-scope`
+
+Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect`.
+
+Region to work in: window (the focused window) or screen (the whole screen). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --capture-scope=window,screen.
+
+#### `--label-direction`
+
+Takes a value. Modes: `hints`.
+
+Label order: normal (shorter labels first) or reverse (spread across the alphabet).
+
+#### `--split-word`
+
+Takes no value. Modes: `hints`.
+
+Hint each word of detected text separately. Needs the vision strategy.
+
+#### `--zoom-to-depth`
+
+Takes a value. Modes: `recursive_grid`.
+
+Open recursive grid already zoomed to this depth at the cursor.
+
+#### `--cursor-selection-mode`
+
+Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect`.
+
+Whether the real cursor follows the selection (follow) or stays put (hold).
+
+<!-- END GENERATED MODE FLAGS -->
 
 ### neru hints
 
@@ -177,7 +249,7 @@ on Linux whose coverage depends on the application, and a cached UI Automation
 walk on Windows. The `vision` strategy is the fallback where the tree is thin.
 It works on every platform, is text-only on Linux and Windows, and needs an
 OCR language pack on Windows. See
-[Accessibility and hints](platform-support.md#accessibility-and-hints).
+[Accessibility and hints](platform-support.md#notes).
 
 | Flag      | Shorthand | Type | Default | Description                                                                 |
 | --------- | --------- | ---- | ------- | --------------------------------------------------------------------------- |
@@ -196,7 +268,7 @@ neru hints --action left_click --role button --text submit
 neru grid [flags]
 ```
 
-Overlay a grid of labelled cells over the screen, or the focused window with
+Overlay a grid of labeled cells over the screen, or the focused window with
 `--capture-scope window`. Typing a label opens a 3x3 subgrid in that cell.
 [`move_cell`](#neru-action-move_cell) moves the open subgrid to a neighbouring
 cell. Takes the `grid` flags in the [mode flag reference](#mode-flag-reference).
@@ -234,7 +306,7 @@ neru bisect [flags]
 Narrow a region by halves or quadrants until the cursor is on the target.
 The region starts as the screen, or the focused window with
 `--capture-scope window`, and shows the quadrant keys in its four cells. Each
-press keeps one half or quadrant and moves the cursor to its centre, or a
+press keeps one half or quadrant and moves the cursor to its center, or a
 pointer stand-in with `--cursor-selection-mode hold`. Backspace undoes the
 last cut, and Space starts over.
 
@@ -249,22 +321,11 @@ neru scroll [flags]
 ```
 
 Scroll at the cursor with vim-style keys. Takes the `scroll` flags in the
-[mode flag reference](#mode-flag-reference). Keys are configurable under
-[`[scroll.hotkeys]`](configuration.md#scroll), and step sizes come from
-`scroll.scroll_step`, `scroll_step_half` and `scroll_step_full`.
+[mode flag reference](#mode-flag-reference). Step sizes are under
+[`[scroll]`](configuration.md#scroll).
 
-| Key                    | Action                     |
-| ---------------------- | -------------------------- |
-| `j` / `k`              | Scroll down / up           |
-| `h` / `l`              | Scroll left / right        |
-| `d` / `PageDown`       | Page down                  |
-| `u` / `PageUp`         | Page up                    |
-| `gg`                   | Jump to top                |
-| `Shift+G`              | Jump to bottom             |
-| `Up` / `Down` / `Left` / `Right` | Move the cursor by 10 px |
-| `Shift+L` / `Shift+R` / `Shift+M` | Left / right / middle click |
-| `Shift+I` / `Shift+U`  | Press / release the left button |
-| `Escape`               | Exit to idle               |
+The keys are the [`[scroll.hotkeys]` defaults](configuration.md#scroll) plus
+the [keys every mode shares](configuration.md#per-mode-hotkeys).
 
 ### neru monitor_select
 
@@ -272,7 +333,7 @@ Scroll at the cursor with vim-style keys. Takes the `scroll` flags in the
 neru monitor_select [flags]
 ```
 
-Show a labelled panel on every other display, and move the cursor to the one
+Show a labeled panel on every other display, and move the cursor to the one
 whose label you type. Requires more than one display. Labels come from
 `monitor_select.characters`, default `123456789`, and `Escape` cancels. Takes
 the `monitor_select` flags in the [mode flag reference](#mode-flag-reference).
@@ -497,7 +558,7 @@ neru action bisect --direction left|right|up|down|up_left|up_right|down_left|dow
 ```
 
 Keep a half or a quadrant of the region in [bisect mode](#neru-bisect), and
-move the cursor to its centre. Outside bisect mode the action does nothing.
+move the cursor to its center. Outside bisect mode the action does nothing.
 
 | Flag          | Type   | Default | Description                                     |
 | ------------- | ------ | ------- | ----------------------------------------------- |
@@ -609,7 +670,7 @@ action, a mode, `exec <command>`, or `macro <name> [arg...]` from
 | `--stop-on-error` | bool | `false` | End at the first failing step, as if every step carried `--bail-on-error`. |
 
 - Blank steps are refused.
-- `action wait_for_mode_exit --bail` after a cancelled mode ends the sequence
+- `action wait_for_mode_exit --bail` after a canceled mode ends the sequence
   with `ERR_CHAIN_BAIL`.
 - A failing step is reported and the rest still run. The command exits with
   `ERR_ACTION_FAILED` naming the first failure.
@@ -705,9 +766,8 @@ neru config set [--no-reload] <key> <value>
 ```
 
 Change a value on the running daemon. The change applies at once and is saved
-to an override file beside the config, so `config.toml` gets
-`config.override.toml`. `<key>` is a dotted TOML path, and
-`neru config dump` lists them all.
+to the [override file](../guide/configuring.md#how-the-layers-combine).
+`<key>` is a dotted TOML path, and `neru config dump` lists them all.
 
 | Flag          | Type | Default | Description                                                         |
 | ------------- | ---- | ------- | ------------------------------------------------------------------- |
@@ -717,11 +777,8 @@ Values: a string `"asdfghjkl"`, integer `14`, boolean `true`, float `0.5`,
 color `"#FF0000AA"` or `{"light":"#000","dark":"#FFF"}`, or array
 `"button,link"` or `'["button","link"]'`.
 
-```bash
-neru config set --no-reload recursive_grid.grid_cols 3
-neru config set --no-reload recursive_grid.keys "abcdefghijkl"
-neru config reload
-```
+Setting several dependent values with `--no-reload` is shown in
+[Configuring Neru](../guide/configuring.md#change-one-value-without-editing-the-file).
 
 ### neru config reset
 
@@ -731,8 +788,8 @@ neru config reset [--no-reload] <key>
 
 Remove a key from the override file. It reverts to the base config or the
 built-in default on the next reload. `--no-reload` (default `false`) defers
-the reload. To remove every override, delete the override file and run
-`neru config reload`.
+the reload. To remove every override at once, see
+[How the layers combine](../guide/configuring.md#how-the-layers-combine).
 
 ### neru config dump
 
@@ -787,7 +844,7 @@ Hide overlays from screen sharing while keeping them visible locally. macOS
 only. `--state on` hides, matching `hidden_for_screen_share`. Neru uses the
 deprecated `NSWindow.sharingType` API:
 
-| macOS version  | Behaviour                              |
+| macOS version  | Behavior                              |
 | -------------- | -------------------------------------- |
 | 14 and older   | Reliable                               |
 | 15.0 to 15.3   | Partially effective                    |

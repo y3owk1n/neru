@@ -31,7 +31,7 @@ function withSlashes(p) {
 
 // Page slugs that changed when the docs moved into guide/ and reference/, as
 // old: new. The version switcher uses them to land on the same page in a
-// release from before the move. Getting started is new and has no old page.
+// release from before the move.
 export const renamedPages = {
   installation: 'guide/installation',
   'tips-tricks': 'guide/recipes',
@@ -43,13 +43,19 @@ export const renamedPages = {
   'cross-platform': 'reference/platform-support',
   roadmap: 'project/roadmap',
   'config-showcases': 'project/showcases',
+  'reference/scripting': 'guide/scripting',
 };
 
 // Pages split out of an older page, as new: old, so switching to a release
-// from before the split lands on the page that held the content.
+// from before the split lands on the page that held the content. A page with
+// no older counterpart, such as the glossary, is left out and lands on the
+// channel's root.
 export const splitPages = {
   'guide/getting-started': 'configuration',
-  'reference/scripting': 'cli',
+  'guide/configuring': 'guide/getting-started',
+  'guide/scripting': 'cli',
+  'concepts/bindings': 'reference/configuration',
+  'reference/ipc': 'reference/scripting',
 };
 
 // Turns a docs path into a page slug. CROSS_PLATFORM.md becomes

@@ -315,7 +315,7 @@ contract are in [modes/AGENTS.md](../../internal/app/modes/AGENTS.md).
 ## Docs site
 
 The site in [website/](../../website/) renders the user docs in `docs/guide/`,
-`docs/reference/` and `docs/project/` with Astro Starlight and copies nothing.
+`docs/concepts/`, `docs/reference/` and `docs/project/` with Astro Starlight and copies nothing.
 Contributor docs stay on GitHub, and site links to them go there. Each page's
 first heading is its title, and the sidebar follows
 the sections and links in [docs/README.md](../README.md), so a new page needs a
@@ -328,10 +328,10 @@ Node comes from [website/oku.toml](../../website/oku.toml). Run
 | Recipe                 | What it does                                          |
 | ---------------------- | ----------------------------------------------------- |
 | `just website-install` | Install the site's npm dependencies                   |
-| `just website-dev`     | Serve this checkout's docs as nightly, with reloading |
+| `just website-dev`     | Serve this checkout's docs as nightly, with reloading. The latest channel is not built, so the version switcher is disabled |
 | `just website-check`   | Type-check the site                                   |
 | `just website-build`   | Build both channels into `website/dist/site`, then check every internal link |
-| `just website-preview` | Serve the build as GitHub Pages does, 404 page included |
+| `just website-preview` | Serve the build as GitHub Pages does, 404 page included. Use this to try the version switcher and 404 redirects |
 
 The website workflow builds the site on pull requests that touch `docs/` or
 `website/`, and deploys it to GitHub Pages on pushes to `main` and on releases.

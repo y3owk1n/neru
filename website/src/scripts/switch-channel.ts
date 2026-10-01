@@ -1,13 +1,45 @@
-// Finds the page a reader is on in the other docs channel. A page renamed
-// between channels is found under its other name. A page the other channel
-// lacks lands on the page it was split from, else its first guide page, else
-// its home. The channel bases, renamed and split pages arrive as data
-// attributes on `el`, because site.mjs reads the build environment and cannot
-// run in the browser.
+// Finds the page a reader is on in the other docs channel, and the page a
+// missing URL most likely meant. The channel bases, renamed and split pages
+// arrive as data attributes on `el`, because site.mjs reads the build
+// environment and cannot run in the browser.
 
 const exists = (url: string) => fetch(url, { method: 'HEAD' }).then((r) => r.ok, () => false);
 
-export async function pageIn(channel: string, el: HTMLElement): Promise<string> {
+type Candidate = { slug: string; renamedOnly: boolean };
+
+// Every page `slug` may be called in another release, nearest first. A rename
+// is followed both ways, since either channel may be the older one. A split is
+// followed only from the new page to the one it came from, since the old page
+// was split several ways. `renamedOnly` says whether the page was reached by
+// renames alone, which is when its headings, and so the URL's anchor, carry
+// over.
+export function candidates(
+  slug: string,
+  renamed: Record<string, string>,
+  split: Record<string, string>,
+): Candidate[] {
+  const seen = new Set([slug]);
+  const found: Candidate[] = [{ slug, renamedOnly: true }];
+  for (let i = 0; i < found.length; i++) {
+    const { slug: at, renamedOnly } = found[i];
+    const next: Candidate[] = [
+      ...Object.entries(renamed)
+        .filter(([old, now]) => old === at || now === at)
+        .map(([old, now]) => ({ slug: old === at ? now : old, renamedOnly })),
+      ...(split[at] ? [{ slug: split[at], renamedOnly: false }] : []),
+    ];
+    for (const candidate of next) {
+      if (seen.has(candidate.slug)) continue;
+      seen.add(candidate.slug);
+      found.push(candidate);
+    }
+  }
+  return found;
+}
+
+// Undefined when the channel is not served at all, as under `astro dev`, which
+// builds nightly only, so the caller stays put rather than opening a 404.
+export async function pageIn(channel: string, el: HTMLElement): Promise<string | undefined> {
   const bases: Record<string, string> = JSON.parse(el.dataset.bases!);
   const renamed: Record<string, string> = JSON.parse(el.dataset.renamed!);
   const split: Record<string, string> = JSON.parse(el.dataset.split!);
@@ -16,12 +48,44 @@ export async function pageIn(channel: string, el: HTMLElement): Promise<string> 
     .find((b) => location.pathname.startsWith(b))!;
   const to = bases[channel];
   const slug = location.pathname.slice(from.length).replace(/\/$/, '');
-  const other = renamed[slug] ?? Object.keys(renamed).find((old) => renamed[old] === slug);
-  const candidates = [slug, other, split[slug], 'guide/getting-started', 'installation']
-    .filter((s): s is string => Boolean(s))
-    .map((s) => `${to}${s}/`);
-  for (const url of candidates) {
-    if (await exists(url)) return url === candidates[0] ? url + location.hash : url;
+  if (slug) {
+    for (const { slug: candidate, renamedOnly } of candidates(slug, renamed, split)) {
+      const url = `${to}${candidate}/`;
+      if (await exists(url)) return renamedOnly ? url + location.hash : url;
+    }
   }
-  return to;
+  return (await exists(to)) ? to : undefined;
+}
+
+// The page a missing URL most likely meant, for the 404 page. GitHub Pages
+// answers every missing path with one 404 page, so it may be either channel's
+// path. The missing slug is tidied the way old links were written (a file name
+// such as CONFIGURATION.md), then matched in its own channel first and the
+// other channel second. With no match it lands on its own channel's root. Only
+// a URL that answers, and is not this one, is ever a target, so it cannot loop.
+export async function redirectFor(el: HTMLElement): Promise<string | undefined> {
+  const bases: Record<string, string> = JSON.parse(el.dataset.bases!);
+  const renamed: Record<string, string> = JSON.parse(el.dataset.renamed!);
+  const split: Record<string, string> = JSON.parse(el.dataset.split!);
+  const path = location.pathname;
+  const ordered = Object.entries(bases).sort(([, a], [, b]) => b.length - a.length);
+  const match = ordered.find(([, base]) => path.startsWith(base));
+  if (!match || /\/404(\.html)?$/.test(path)) return undefined;
+  const [here, base] = match;
+  const slug = path
+    .slice(base.length)
+    .replace(/^docs\//, '')
+    .replace(/\/(index(\.html)?)?$/, '')
+    .replace(/\.(md|html)$/i, '')
+    .toLowerCase()
+    .replaceAll('_', '-');
+  const channels = [here, ...Object.keys(bases).filter((c) => c !== here)];
+  for (const channel of channels) {
+    for (const { slug: candidate, renamedOnly } of candidates(slug, renamed, split)) {
+      const url = `${bases[channel]}${candidate}/`;
+      if (url === path) continue;
+      if (await exists(url)) return renamedOnly ? url + location.hash : url;
+    }
+  }
+  return base !== path && (await exists(base)) ? base : undefined;
 }

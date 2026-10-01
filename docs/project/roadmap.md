@@ -23,9 +23,8 @@ so the roadmap has no platform feature list.
 2. **Reliability over features.** Startup, config reload and mode transitions
    fail loudly and recover cleanly. Regressions here are fixed before anything
    else ships.
-3. **More guardrails.** A contract that fails silently gets a test in
-   `internal/architecture` (ADR 0011). Reload behavior and port contracts have
-   the fewest guardrails so far.
+3. **More automated checks.** Anything that could break without an error gets
+   a test. Config reload and the platform contracts have the fewest so far.
 
 ## Open direction
 
@@ -40,19 +39,7 @@ promise, and a Discussion is where a new one starts
 - **Auto-refresh hints when the accessibility tree changes**
   ([#1002](https://github.com/y3owk1n/neru/issues/1002)).
 
-## Contributor priorities
+## Helping out
 
-1. **Platform bugs on Linux and Windows.** Issues labelled
-   `needs: linux contributor` or `needs: windows contributor` are the ones the
-   maintainer cannot reproduce on their own hardware.
-2. **A new desktop**, added by mechanism rather than by desktop
-   ([organize by mechanism](../contributing/porting.md#organize-by-mechanism-not-by-desktop)).
-3. **Config reload regression coverage** through the simulation harness in
-   `internal/app/simulation_harness_test.go`.
-4. **Retiring remaining globals** behind explicit interfaces, where the native
-   bridge callbacks allow it.
-
-Starter tasks are in
-[Good first contributions](../../CONTRIBUTING.md#good-first-contributions), and
-platform changes that need an issue first in
-[Contributing safely](../contributing/porting.md#contributing-safely).
+Where contributions help most is in
+[CONTRIBUTING.md](../../CONTRIBUTING.md#where-help-is-most-useful).

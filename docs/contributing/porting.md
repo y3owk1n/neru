@@ -285,17 +285,29 @@ intended Linux slot, and shared logic stays platform-neutral.
 
 ## Documentation checklist
 
-Land docs in the same PR. Each fact has one home. Update it and link to it:
+Land docs in the same PR. Each fact has one home. Update it there, and link to
+it from everywhere else rather than restating it. A list, path, default, value
+or procedure is never copied. Two things may be restated in passing: a term's
+short gloss where it is first used (such as "`Primary` is `Cmd` on macOS"), and
+the README's pitch, install command and showcase examples, since it is the
+landing page. The homes:
 
 | What changed | Owner |
 | --- | --- |
-| A capability's status, label or mechanism, a platform exclusive | [platform support](../reference/platform-support.md) |
+| A capability's status, label or user-visible limit, a platform exclusive | [platform support](../reference/platform-support.md) |
+| The API, protocol or mechanism behind a capability | [platform internals](platform-internals.md) |
 | A gap closed or discovered | [Known Gaps](../reference/platform-support.md#known-gaps) |
 | Which platforms an option, mode flag or action does anything on | the `PlatformSupport()` declaration beside that vocabulary, then `just gensupportref` |
 | A config option, its default or its platform column | [configuration reference](../reference/configuration.md) |
 | A command or flag | [CLI reference](../reference/cli.md), with mode flags through `just genflagref` |
 | Install methods, prebuilt binaries, from source, uninstall | [installation](../guide/installation.md) |
-| First run, per-OS permissions, config location and reload | [getting started](../guide/getting-started.md) |
+| First run, per-OS permissions, first hotkey | [getting started](../guide/getting-started.md) |
+| How each mode is used, from the user's side | [using Neru](../guide/using-neru.md) |
+| Config location, layering, reload, `config set` | [configuring Neru](../guide/configuring.md) |
+| What a binding step can be, which binding wins, sequence failure | [how bindings work](../concepts/bindings.md) |
+| A user-facing term's definition | [glossary](../concepts/glossary.md), worded to match `CONTEXT.md` |
+| A workflow recipe | [recipes](../guide/recipes.md) |
+| Scripting examples / the IPC wire format | [scripting](../guide/scripting.md) / [IPC protocol](../reference/ipc.md) |
 | Linux runtime libraries, input group, uinput, portals, systemd | [Linux guide](../guide/linux.md), kept desktop-agnostic |
 | Desktop-specific setup, protocol support, or a desktop workaround | [Linux desktops](../guide/linux-desktops.md) |
 | A symptom and its fix, log locations | [troubleshooting](../guide/troubleshooting.md) |

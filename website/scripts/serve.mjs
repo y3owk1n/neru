@@ -1,6 +1,7 @@
 // Serves website/dist/site the way GitHub Pages does: files under NERU_BASE,
-// directories through their index.html, and the root 404.html with status
-// 404 for anything else. Run after build.sh.
+// directories through their index.html, a directory named without its
+// trailing slash redirected to it, and the root 404.html with status 404 for
+// anything else. Run after build.sh.
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -26,7 +27,12 @@ function resolve(urlPath) {
 
 http
   .createServer((req, res) => {
-    const urlPath = new URL(req.url ?? '/', 'http://localhost').pathname;
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    const urlPath = url.pathname;
+    if (!urlPath.endsWith('/') && resolve(`${urlPath}/`)?.endsWith('index.html')) {
+      res.writeHead(301, { location: `${urlPath}/${url.search}` });
+      return res.end();
+    }
     const file = resolve(urlPath);
     const body = file ?? path.join(root, '404.html');
     const headers = {

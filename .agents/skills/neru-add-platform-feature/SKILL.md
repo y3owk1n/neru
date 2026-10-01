@@ -39,7 +39,9 @@ unimplemented, and reports itself honestly in the capability matrix.
 
 `docs/contributing/porting.md` has the ownership table ("Documentation Checklist") —
 each fact has exactly one home. Capability status goes in
-`docs/reference/platform-support.md`, never in `docs/contributing/architecture.md` (shape, not status).
+`docs/reference/platform-support.md`, the API or protocol behind it in
+`docs/contributing/platform-internals.md`, and never either in
+`docs/contributing/architecture.md` (shape only).
 Linux setup specifics go in `docs/guide/linux.md` / `docs/guide/linux-desktops.md`.
 
 ## Verify

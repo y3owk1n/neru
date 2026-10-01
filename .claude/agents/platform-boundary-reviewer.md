@@ -40,7 +40,8 @@ You read code and tests. You never edit files.
    For each newly implemented capability, confirm the old contract test was
    updated rather than deleted.
 7. Check docs landed in their owned home per `docs/contributing/porting.md`'s
-   ownership table — capability status in `docs/reference/platform-support.md`, shape in
+   ownership table — capability status in `docs/reference/platform-support.md`, mechanism in
+   `docs/contributing/platform-internals.md`, shape in
    `docs/contributing/architecture.md`, never both.
 
 ## Severity

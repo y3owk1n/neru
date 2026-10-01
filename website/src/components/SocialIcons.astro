@@ -1,11 +1,19 @@
 ---
 import Default from '@astrojs/starlight/components/SocialIcons.astro';
 import { channel, channelBases, latestVersion, renamedPages, splitPages } from '../site.mjs';
+
+// `astro dev` builds the nightly channel only, so there is nothing to switch to.
+const dev = import.meta.env.DEV;
 ---
 
 <label class="version">
   <span class="sr-only">Docs version</span>
-  <select data-bases={JSON.stringify(channelBases)} data-renamed={JSON.stringify(renamedPages)} data-split={JSON.stringify(splitPages)}>
+  <select
+    disabled={dev}
+    title={dev ? 'Only nightly is served in dev. Run just website-build, then just website-preview, to switch versions.' : undefined}
+    data-bases={JSON.stringify(channelBases)}
+    data-renamed={JSON.stringify(renamedPages)}
+    data-split={JSON.stringify(splitPages)}>
     <option value="latest" selected={channel === 'latest'}>{latestVersion}</option>
     <option value="nightly" selected={channel === 'nightly'}>nightly</option>
   </select>
@@ -16,8 +24,11 @@ import { channel, channelBases, latestVersion, renamedPages, splitPages } from '
   import { pageIn } from '../scripts/switch-channel';
 
   for (const select of document.querySelectorAll<HTMLSelectElement>('.version select')) {
+    const current = select.value;
     select.addEventListener('change', async () => {
-      location.href = await pageIn(select.value, select);
+      const target = await pageIn(select.value, select);
+      if (target) location.href = target;
+      else select.value = current;
     });
   }
 </script>

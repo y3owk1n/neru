@@ -1,27 +1,12 @@
 # Installation
 
-Every way to install, update and remove Neru. After installing, continue with
-[Getting started](getting-started.md).
-
-## Requirements
-
-- **macOS** 14 or later.
-- **Linux** (beta): X11, or a Wayland compositor listed in
-  [Linux setup](linux.md). The release binary links the X11, Wayland,
-  tesseract and pipewire libraries dynamically, so install those first.
-- **Windows** (beta): Windows 10 or later.
-
-What works where is in
-[Platform support](../reference/platform-support.md#capability-matrix). Fixes
-for quarantine, PATH, Homebrew and missing libraries are in
-[Troubleshooting](troubleshooting.md#installation--setup).
+Every way to install, update and remove Neru. Supported systems are in
+[Platform support](../reference/platform-support.md#platform-status). After
+installing, continue with [Getting started](getting-started.md).
 
 ## Install script
 
-The recommended method on every platform. It installs the binary, `Neru.app`
-on macOS, man pages, shell completions and, if you accept, the login service.
-It checks every download against its published `.sha256` file. Run it again to
-update.
+The recommended method on every platform. Run it again to update.
 
 ```bash
 # macOS and Linux
@@ -32,6 +17,17 @@ curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.s
 # Windows
 irm https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.ps1 | iex
 ```
+
+It installs the binary, `Neru.app` on macOS, man pages, shell completions and,
+if you accept, the login service. It checks every download against its
+published `.sha256` file.
+
+> [!NOTE]
+> On Linux, install the [runtime libraries](linux.md#runtime-libraries)
+> first. The script checks for them and stops with a list if any are missing.
+
+Every flag, and where each file goes, is in
+[Install script reference](#install-script-reference).
 
 ### Channels and versions
 
@@ -48,45 +44,6 @@ curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.s
 # flags need a script block. NERU_CHANNEL, NERU_VERSION and NERU_YES work with plain `irm | iex`
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.ps1))) -Channel nightly
 ```
-
-### Flags
-
-| bash                        | PowerShell        | Env            | Effect                                                              |
-| :-------------------------- | :---------------- | :------------- | :------------------------------------------------------------------ |
-| `--channel stable\|nightly` | `-Channel`        | `NERU_CHANNEL` | Release channel. Default: the installed one, else stable            |
-| `--version vX.Y.Z`          | `-Version`        | `NERU_VERSION` | Pin a stable release (implies stable)                               |
-| `--from DIR`                | `-From`           | `NERU_FROM`    | Install a local `just dist` tree instead of downloading. `just install` uses this |
-| `--bin-dir DIR`             |                   | `NERU_BIN_DIR` | Where `neru` goes. Default `/usr/local/bin` (macOS), `~/.local/bin` (Linux) |
-| `--app-dir DIR`             |                   | `NERU_APP_DIR` | macOS: where `Neru.app` goes. Default `/Applications`               |
-| `--no-service`              | `-NoService`      |                | Never register or start the login service                           |
-| `--no-completions`          | `-NoCompletions`  |                | Skip shell completions                                              |
-| `--no-man`                  |                   |                | Skip man pages                                                      |
-| `--force`                   | `-Force`          |                | Reinstall the same version                                          |
-| `--uninstall`               | `-Uninstall`      |                | Remove everything a previous run installed. Config is kept          |
-| `--purge`                   | `-Purge`          |                | With uninstall, also delete config, data and logs (each confirmed)  |
-| `-y`, `--yes`               | `-Yes`            | `NERU_YES=1`   | Accept every prompt. Required when no terminal is attached          |
-
-### What it installs
-
-| Platform | Binary and app | Man pages | Completions | Login service |
-| :------- | :------------- | :-------- | :---------- | :------------ |
-| macOS    | `Neru.app` in `/Applications`, `neru` symlinked into `/usr/local/bin` | `/usr/local/share/man/man1` | bash, zsh and fish, whichever you have | launchd agent |
-| Linux    | `~/.local/bin/neru` | `~/.local/share/man/man1` | per-user bash, zsh and fish paths | systemd user service |
-| Windows  | `%LOCALAPPDATA%\Programs\neru\neru.exe`, added to your user PATH, plus a Start Menu shortcut | none | PowerShell profile | Task Scheduler logon task |
-
-- **macOS:** it asks for sudo only when a target directory is not writable.
-- **Linux:** it runs the downloaded binary once first. If a library is
-  missing, it lists the names, points at [Linux setup](linux.md), and stops
-  without changing anything. It offers the `input` group that Wayland
-  keyboard capture needs.
-- **Windows:** it offers to set the `RemoteSigned` execution policy for your
-  user, since PowerShell loads no profile under `Restricted`. Decline and it
-  skips completion.
-- **zsh:** it writes `~/.zsh/completions/_neru` and prints the `fpath` line
-  for `~/.zshrc` if that directory is not on your `fpath`.
-- **Any:** it stops a registered login service while it replaces the binary.
-  It refuses to run over a Homebrew or Nix install and prints the command to
-  use instead.
 
 ## Homebrew
 
@@ -279,6 +236,47 @@ npx skills add y3owk1n/neru --skill neru-ask --skill neru-setup-config
 ```
 
 Add `-g` to install them for every project.
+
+## Install script reference
+
+### Flags
+
+| bash                        | PowerShell        | Env            | Effect                                                              |
+| :-------------------------- | :---------------- | :------------- | :------------------------------------------------------------------ |
+| `--channel stable\|nightly` | `-Channel`        | `NERU_CHANNEL` | Release channel. Default: the installed one, else stable            |
+| `--version vX.Y.Z`          | `-Version`        | `NERU_VERSION` | Pin a stable release (implies stable)                               |
+| `--from DIR`                | `-From`           | `NERU_FROM`    | Install a local `just dist` tree instead of downloading. `just install` uses this |
+| `--bin-dir DIR`             |                   | `NERU_BIN_DIR` | Where `neru` goes. Default `/usr/local/bin` (macOS), `~/.local/bin` (Linux) |
+| `--app-dir DIR`             |                   | `NERU_APP_DIR` | macOS: where `Neru.app` goes. Default `/Applications`               |
+| `--no-service`              | `-NoService`      |                | Never register or start the login service                           |
+| `--no-completions`          | `-NoCompletions`  |                | Skip shell completions                                              |
+| `--no-man`                  |                   |                | Skip man pages                                                      |
+| `--force`                   | `-Force`          |                | Reinstall the same version                                          |
+| `--uninstall`               | `-Uninstall`      |                | Remove everything a previous run installed. Config is kept          |
+| `--purge`                   | `-Purge`          |                | With uninstall, also delete config, data and logs (each confirmed)  |
+| `-y`, `--yes`               | `-Yes`            | `NERU_YES=1`   | Accept every prompt. Required when no terminal is attached          |
+
+### What it installs
+
+| Platform | Binary and app | Man pages | Completions | Login service |
+| :------- | :------------- | :-------- | :---------- | :------------ |
+| macOS    | `Neru.app` in `/Applications`, `neru` symlinked into `/usr/local/bin` | `/usr/local/share/man/man1` | bash, zsh and fish, whichever you have | launchd agent |
+| Linux    | `~/.local/bin/neru` | `~/.local/share/man/man1` | per-user bash, zsh and fish paths | systemd user service |
+| Windows  | `%LOCALAPPDATA%\Programs\neru\neru.exe`, added to your user PATH, plus a Start Menu shortcut | none | PowerShell profile | Task Scheduler logon task |
+
+- **macOS:** it asks for sudo only when a target directory is not writable.
+- **Linux:** it runs the downloaded binary once first. If a library is
+  missing, it lists the names, points at [Linux setup](linux.md), and stops
+  without changing anything. It offers the `input` group that Wayland
+  keyboard capture needs.
+- **Windows:** it offers to set the `RemoteSigned` execution policy for your
+  user, since PowerShell loads no profile under `Restricted`. Decline and it
+  skips completion.
+- **zsh:** it writes `~/.zsh/completions/_neru` and prints the `fpath` line
+  for `~/.zshrc` if that directory is not on your `fpath`.
+- **Any:** it stops a registered login service while it replaces the binary.
+  It refuses to run over a Homebrew or Nix install and prints the command to
+  use instead.
 
 ## Uninstallation
 

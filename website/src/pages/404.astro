@@ -1,7 +1,7 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { LinkCard, CardGrid } from '@astrojs/starlight/components';
-import { channel, channelBases, docHref, latestVersion, siteTitle } from '../site.mjs';
+import { channel, channelBases, docHref, latestVersion, renamedPages, siteTitle, splitPages } from '../site.mjs';
 
 const title = 'Page not found';
 const other = channel === 'latest' ? 'nightly' : 'latest';
@@ -18,7 +18,11 @@ const otherLabel = channel === 'latest' ? 'Nightly docs' : `Docs for ${latestVer
     pagefind: false,
   }}
 >
-  <p>
+  <p
+    data-redirect
+    data-bases={JSON.stringify(channelBases)}
+    data-renamed={JSON.stringify(renamedPages)}
+    data-split={JSON.stringify(splitPages)}>
     This page does not exist in these docs. It may live in the other version, or under a new name.
     Pages that were files such as <code>CONFIGURATION.md</code> now sit under Guide and Reference.
     Search finds any page by its title.
@@ -31,12 +35,10 @@ const otherLabel = channel === 'latest' ? 'Nightly docs' : `Docs for ${latestVer
   </CardGrid>
 </StarlightPage>
 
-{
-  channel === 'latest' && (
-    <script is:inline define:vars={{ nightly: channelBases.nightly }}>
-      // GitHub Pages answers every missing URL with the root 404 page, which
-      // links into the latest docs. A missing nightly page gets the nightly one.
-      if (location.pathname.startsWith(nightly)) location.replace(`${nightly}404.html`);
-    </script>
-  )
-}
+<script>
+  import { redirectFor } from '../scripts/switch-channel';
+
+  // Send a missing URL to the page it most likely meant, or the docs root.
+  const target = await redirectFor(document.querySelector<HTMLElement>('[data-redirect]')!);
+  if (target) location.replace(target);
+</script>

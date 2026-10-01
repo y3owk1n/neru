@@ -97,6 +97,18 @@ directly. Claude Code asks once for workspace trust before running the
 format-on-edit hook. You own the result: run the checks, read the diff, and do
 not submit changes you cannot explain.
 
+## Where help is most useful
+
+1. **Platform bugs on Linux and Windows.** Issues labelled
+   `needs: linux contributor` or `needs: windows contributor` are the ones the
+   maintainer cannot reproduce on their own hardware.
+2. **A new desktop**, added by mechanism rather than by desktop
+   ([organize by mechanism](docs/contributing/porting.md#organize-by-mechanism-not-by-desktop)).
+3. **Config reload regression coverage** through the simulation harness in
+   `internal/app/simulation_harness_test.go`.
+4. **Retiring remaining globals** behind explicit interfaces, where the native
+   bridge callbacks allow it.
+
 ## Good first contributions
 
 - Bug fixes from the [open issues](https://github.com/y3owk1n/neru/issues)

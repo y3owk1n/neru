@@ -27,7 +27,8 @@ import { channel, channelBases, latestVersion, renamedPages, splitPages } from '
     link.addEventListener('click', async (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
       event.preventDefault();
-      location.href = await pageIn('latest', link);
+      const target = await pageIn('latest', link);
+      if (target) location.href = target;
     });
   }
 </script>
