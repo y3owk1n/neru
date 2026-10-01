@@ -1,150 +1,95 @@
 # Development guide
 
-How to set up a development environment, build, test and debug Neru, and where
-to put new code. The contribution process lives in
-[CONTRIBUTING.md](../../CONTRIBUTING.md), the system shape in
-[architecture](architecture.md), platform work in the
-[porting guide](porting.md), and code conventions in the root
-[AGENTS.md](../../AGENTS.md).
+Set up, build, test and debug Neru, and decide where new code goes. The
+contribution process is in [CONTRIBUTING.md](../../CONTRIBUTING.md) and code
+conventions are in the root [AGENTS.md](../../AGENTS.md).
 
 ## Quick start
 
 ```bash
 git clone https://github.com/y3owk1n/neru.git
 cd neru
-
-oku sync && oku allow  # or: brew install go just golangci-lint llvm
+oku sync && oku allow   # or: brew install go just golangci-lint llvm
 just build
 ./bin/neru launch       # runs in the foreground
-```
-
-Then from a second terminal:
-
-```bash
-./bin/neru hints        # should show hint overlays
+./bin/neru hints        # from a second terminal, should show hint overlays
 ```
 
 > [!IMPORTANT]
-> On macOS this needs Accessibility permission granted to whichever app starts
-> the daemon, which is your terminal when you run `./bin/neru launch` by hand.
-> Without it the smoke test reports an accessibility error instead of drawing
-> overlays.
+> On macOS the app that starts the daemon needs Accessibility permission. When
+> you run `./bin/neru launch` by hand, that app is your terminal. Without it the
+> smoke test reports an accessibility error instead of drawing overlays.
 
-There is no `just run` recipe. Build first, then launch the daemon directly.
-The CLI talks to the running daemon over a socket, so both halves come from the
-same `./bin/neru` binary.
-
-On Linux, install the [build dependencies](#build-dependencies) before your
-first build. To install Neru rather than develop it, see
-[installation](../guide/installation.md).
+There is no `just run` recipe. The daemon and the CLI are the same
+`./bin/neru` binary. On Linux, install the
+[build dependencies](#build-dependencies) before your first build. To install
+Neru rather than develop it, see [installation](../guide/installation.md).
 
 ## Development setup
 
 ### Prerequisites
 
-- **Go 1.26+**: [install Go](https://golang.org/dl/)
+- **Go 1.26+**, **Just** and **golangci-lint**, from oku or by hand (below)
 - **Xcode Command Line Tools** (macOS): `xcode-select --install`
-- **Build dependencies** (Linux): the system `-dev`/`-devel` packages a CGO
-  build links against, listed under [Building on Linux](#building-on-linux).
-  Install them before your first build, including under oku.
-- **Just**, the command runner: [install](https://github.com/casey/just)
-- **golangci-lint**: [install](https://golangci-lint.run/usage/install/)
+- **Build dependencies** (Linux): see [Build dependencies](#build-dependencies)
+- An EditorConfig plugin, for the `.editorconfig` rules CI enforces
 
 ### Option A: oku (recommended)
 
-[oku](https://github.com/y3owk1n/oku) installs the toolchain that `oku.toml`
-lists, at the versions `oku.lock` pins, into a profile that belongs to this
-repo:
+[oku](https://github.com/y3owk1n/oku) installs the tools `oku.toml` lists, at
+the versions `oku.lock` pins, into a profile for this repo:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/y3owk1n/oku/main/install.sh | sh
-
 oku sync               # install the toolchain
 oku allow              # let the shell hook put it on PATH inside this repo
 ```
 
-The shell hook that oku's installer prints does the rest whenever you `cd` in.
-With [direnv](https://direnv.net/), `eval "$(oku env --shell bash)"` in an
-`.envrc` does the same.
-
-oku manages Go, gopls, goimports, gofumpt, golines, golangci-lint, just, and
-clang-format and clang-tidy (for the Objective-C sources). CI installs the same
-versions from `oku.lock` with the oku action, on macOS, Linux and Windows.
-`oku update` moves each tool to the newest version that `oku.toml` allows, and
-`oku outdated` shows what is behind.
-
-oku does not provide the libraries a Linux CGO build links against. See
-[Building on Linux](#building-on-linux).
+The installer's shell hook activates the profile when you `cd` in, or put
+`eval "$(oku env --shell bash)"` in a [direnv](https://direnv.net/) `.envrc`.
+CI installs the same versions from `oku.lock`. `oku update` moves each tool to
+the newest version `oku.toml` allows, and `oku outdated` shows what is behind.
 
 ### Option B: manual installation
 
 ```bash
-brew install go just golangci-lint llvm
+brew install go just golangci-lint llvm   # llvm supplies clang-format
 ```
 
-`llvm` supplies `clang-format` for Objective-C formatting. oku's extra tools
-are optional and installable on their own:
-
-```bash
-go install golang.org/x/tools/gopls@latest
-go install mvdan.cc/gofumpt@latest
-go install github.com/segmentio/golines@latest
-```
-
-Match the golangci-lint version that `oku.lock` pins, which is the one CI uses.
-
-### Verify
-
-```bash
-go version              # 1.26+
-just --version
-golangci-lint --version
-just --list             # all available recipes
-```
-
-An EditorConfig plugin is worth installing. `.editorconfig` carries the tab and
-line-ending rules that CI enforces.
+Match the golangci-lint version that `oku.lock` pins, which CI uses. gopls,
+gofumpt and golines are optional, through `go install`.
 
 ## Common tasks
 
-Every build, test and lint entry point goes through `just`. `just --list` shows
-the full set, including the Wayland protocol generation and icon recipes.
+`just --list` shows every recipe, including the Wayland protocol and icon ones.
 
-| Task    | Command                      | Description                                     |
-| ------- | ---------------------------- | ----------------------------------------------- |
-| Build   | `just build`                 | Compile for the current platform                |
-| Build   | `just build-darwin`          | Build a macOS binary (on macOS)                 |
-| Build   | `just build-linux [ARCH]`    | Build a Linux binary (defaults to amd64)        |
-| Build   | `just build-windows [ARCH]`  | Build a Windows binary                          |
-| Build   | `just build-version v1.0.0`  | Build with an explicit version string           |
-| Build   | `just release`               | Optimized, stripped release build               |
-| Dist    | `just dist`                  | Assemble the release layout (bin, man, `Neru.app`) in `build/dist` |
-| Install | `just install [-y]`          | Build, `dist`, then run the release installer, `-y` auto-accepts |
-| Test    | `just test`                  | Unit + integration, desktop-safe                |
-| Test    | `just test-unit`             | Unit tests only                                 |
-| Test    | `just test-integration`      | Integration tests only, desktop-safe            |
-| Test    | `just test-desktop`          | Integration including the tests that drive the real cursor, keyboard and overlays |
-| Test    | `just test-foundation`       | Fast cross-platform-safe slice, CI runs it too  |
-| Test    | `just test-race`             | Unit + integration with `-race`                 |
-| Test    | `just test-race-unit`        | Unit tests with `-race`                         |
-| Test    | `just test-race-integration` | Integration tests with `-race`                  |
-| Test    | `just test-all`              | `test` and `test-race`, desktop tests included: the deepest sweep |
-| Test    | `just test-ci`               | What CI gates on: foundation, unit, race-unit, short integration |
-| Test    | `just coverage`              | Unit tests with coverage, prints the total      |
-| Test    | `just coverage-html`         | Coverage as a browsable `coverage.html`         |
-| Lint    | `just lint`                  | golangci-lint, plus clang-tidy on `.m` files (macOS) |
-| Lint    | `just vet`                   | `go vet`                                        |
-| Lint    | `just vuln`                  | `govulncheck`: reachable CVEs in dependencies   |
-| Lint    | `just check-cross`           | CGO-off type-check of the Linux and Windows builds |
-| Lint    | `just lint-cross`            | Lint the Linux build with CGO on, in Docker     |
-| Test    | `just test-linux`            | Run the Linux test suite in a CI-equivalent container (Docker) |
-| Gate    | `just ci`                    | The pre-push gate: the checks CI gates on, on this host |
-| Format  | `just fmt`                   | Format Go and Objective-C                       |
-| Format  | `just fmt-check`             | Check Objective-C formatting                    |
-| Docs    | `just genman`                | Generate man pages                              |
-| Docs    | `just genflagref`            | Rewrite the mode-flag reference in `docs/reference/cli.md` |
-| Docs    | `just gensupportref`         | Rewrite the platform-support table in `docs/reference/platform-support.md` |
-| Clean   | `just clean`                 | Remove build artifacts                          |
+| Command | Description |
+| ------- | ----------- |
+| `just build` | Compile for the current platform |
+| `just build-darwin`, `build-linux [ARCH]`, `build-windows [ARCH]` | Build for one OS. `ARCH` defaults to amd64 |
+| `just build-version v1.0.0` | Build with an explicit version string |
+| `just release` | Optimized, stripped release build |
+| `just dist` | Assemble the release layout (bin, man, `Neru.app`) in `build/dist` |
+| `just install [-y]` | Build, `dist`, then run the release installer, `-y` auto-accepts |
+| `just test` | Unit + integration, desktop-safe |
+| `just test-unit`, `test-integration` | One tier only, desktop-safe |
+| `just test-desktop` | Integration including the tests that drive the real cursor, keyboard and overlays |
+| `just test-foundation` | Fast cross-platform-safe slice, CI runs it too |
+| `just test-race`, `test-race-unit`, `test-race-integration` | The same tiers with `-race` |
+| `just test-all` | `test` and `test-race`, desktop tests included: the deepest sweep |
+| `just test-ci` | What CI gates on: foundation, unit, race-unit, short integration |
+| `just test-linux` | Run the Linux test suite in a CI-equivalent container (Docker) |
+| `just coverage`, `coverage-html` | Unit coverage as a total, or as a browsable `coverage.html` |
+| `just lint` | golangci-lint, plus clang-tidy on `.m` files (macOS) |
+| `just vet`, `vuln` | `go vet`, and `govulncheck` for reachable CVEs in dependencies |
+| `just check-cross` | CGO-off type-check of the Linux and Windows builds |
+| `just lint-cross` | Lint the Linux build with CGO on, in Docker |
+| `just ci` | The pre-push gate: the checks CI gates on, on this host |
+| `just fmt`, `fmt-check` | Format Go and Objective-C, or check Objective-C formatting |
+| `just genman` | Generate man pages |
+| `just genflagref` | Rewrite the mode-flag reference in `docs/reference/cli.md` |
+| `just gensupportref` | Rewrite the platform-support table in `docs/reference/platform-support.md` |
+| `just clean` | Remove build artifacts |
 
 Targeting a single package or test:
 
@@ -154,85 +99,46 @@ go test -run TestScrollMode_HandleKey_DoesNothing ./internal/app/modes/
 go test -tags=integration ./internal/adapter/accessibility/
 ```
 
-Watch mode, if you have [entr](https://eradman.com/entrproject/):
-
-```bash
-find . -name "*.go" | entr -r just test
-```
-
 ### What `just ci` covers, and what it does not
 
 `just ci` runs `fmt-check lint vet build check-cross test-ci vuln`, in that
 order, on this host. CI runs the same recipes on macOS, Linux and Windows, so a
-green run here is one leg of three. For the deepest local check on a real
-desktop session, run `just test-all` as well.
+green local run covers one leg of three. For the deepest local check on a real
+desktop session, also run `just test-all`.
 
-`just check-cross` is the only member that looks at the other two targets. It
-type-checks the Linux and Windows builds with CGO off, which catches a build
-break in a plain `//go:build linux` or `//go:build windows` file. `just lint`
-and `just vet` cannot see those, since both compile for the host. It does not
-catch a break in a cgo-tagged file, which CGO-off skips entirely. It costs
-seconds and needs no Docker.
-
-The cgo-only Linux paths need a real Linux toolchain. `just lint-cross` and
-`just test-linux` provide one in a container, and CI checks them on every push.
-Neither is part of `just ci`, on purpose. A documented pre-push gate that fails
-because no Docker daemon is running is worse than a gate that documents what it
-does not check ([ADR 0012](../adr/0012-the-first-hour-must-not-lie.md)).
+| Check | Covers | Misses |
+| ----- | ------ | ------ |
+| `just lint`, `just vet` | the host build | every other GOOS |
+| `just check-cross` (in `just ci`, no Docker) | plain `//go:build linux` and `//go:build windows` files, CGO off | cgo-tagged files |
+| `just lint-cross`, `just test-linux` (Docker) | the cgo Linux paths | left out of `just ci` so it runs without Docker ([ADR 0012](../adr/0012-the-first-hour-must-not-lie.md)). CI runs both on every push |
 
 ### What the Linux desktop legs cover, and what they do not
 
-CI has two jobs `just ci` has no counterpart for. Both run `just test-desktop`,
-the tier that drives the real cursor, keyboard and overlays, inside a
-disposable Linux session with a session D-Bus and AT-SPI on it. A disposable
-runner is the one place that tier is safe, since locally it takes over the
-machine. The two legs share every step but the display server.
+Two required CI jobs run `just test-desktop`, which takes over a local
+machine, in a disposable Linux session with D-Bus and AT-SPI. Both need
+`CGO_ENABLED=1` and an answering accessibility bus, and check their session
+before any test runs.
 
-| Job                          | Session                                  | Bar under [ADR 0013](../adr/0013-parity-is-measured-in-words-not-subsystems.md) |
-| ---------------------------- | ---------------------------------------- | ------------------------------- |
-| `desktop (ubuntu-latest)`     | sway on the wlroots headless backend     | behavioral parity (the blessed stack) |
-| `desktop-x11 (ubuntu-latest)` | Xvfb with openbox                        | capability parity               |
+| Job | Session | Required | Bar under [ADR 0013](../adr/0013-parity-is-measured-in-words-not-subsystems.md) |
+| --- | ------- | -------- | --- |
+| `desktop (ubuntu-latest)` | sway on the wlroots headless backend, Xwayland off | `zwlr_layer_shell_v1`, `zwlr_virtual_pointer_manager_v1` | behavioral parity (the blessed stack) |
+| `desktop-x11 (ubuntu-latest)` | Xvfb with openbox, for `_NET_ACTIVE_WINDOW` | XTEST, XFIXES, RANDR, an EWMH window manager | capability parity |
 
-Each leg asserts its session before running anything, so a broken environment
-fails as a broken environment rather than as test failures that look like
-Neru's. The sway leg requires `zwlr_layer_shell_v1` and
-`zwlr_virtual_pointer_manager_v1`. The X11 leg requires the XTEST, XFIXES and
-RANDR extensions and an EWMH window manager owning the root window. A bare Xvfb
-has no `_NET_ACTIVE_WINDOW`, which is why openbox runs. Both require
-`CGO_ENABLED=1` and an answering accessibility bus.
+The X11 leg exercises XTest, `XGrabKey`, `XGrabKeyboard`, XRandR,
+`XGetImage`, the XFixes overlay shape, `_NET_ACTIVE_WINDOW` and `WM_CLASS`
+identity, and `Xft.dpi` scaling. Both legs run with nothing focused, the only
+place CI covers that state for the capability contract tests in
+`internal/adapter/platform`. A leg fails if nothing executed or a test skipped
+because it could not see the display server.
 
-The X11 leg exercises the X11 half of every subsystem with two
-implementations: XTest injection, `XGrabKey` hotkeys, `XGrabKeyboard` capture,
-XRandR screens, `XGetImage` capture, the XFixes overlay shape,
-`_NET_ACTIVE_WINDOW` and `WM_CLASS` identity, and `Xft.dpi` scaling. Both legs
-run with nothing focused, which is the only place CI reaches that state for the
-capability contract tests in `internal/adapter/platform`.
+Neither leg covers:
 
-What neither leg covers:
-
-- **Most desktop-driving behavior on Linux.** Most tests that read
-  `NERU_DESKTOP_TESTS` are macOS tests. The Linux ones are the smooth-scroll
-  measurement, which maps a real xdg-shell window and measures what the
-  compositor delivers to it, the X11 keyboard-grab and layout tests, and the
-  `neru services` tests, which also need a reachable systemd user manager.
-- **KDE.** Nothing in CI runs KWin. Xwayland is disabled in the sway session,
-  so X11 is covered only by its own leg.
-- **Device access.** The runners have no `/dev/dri` and no `input` group, and
-  the headless compositor reads no input devices, so the evdev and uinput paths
-  cannot run.
-- **A focused window.** Neither session runs a client, so which application is
-  focused is never exercised.
-- **Behavioral parity on X11.** The X11 leg is not evidence of it.
-
-Each leg writes a job summary counting executed tests, failures, packages
-reporting `FAIL`, and every skip with its reason. The step also enforces the
-counts. It fails if nothing executed, or if a test skipped because it could not
-see the display server. A leg that passes by skipping its tests reports green
-without testing anything, which is worse than having no leg.
-
-**Both legs block merges.** They were made required after 40 clean runs each on
-pull requests and `main`. Those runs were counted from step conclusions,
-because job-level `continue-on-error` reports a failed job as successful.
+- **Most desktop-driving tests**, which are macOS tests. The Linux ones are
+  the smooth-scroll measurement, the X11 keyboard-grab and layout tests, and
+  `neru services`, which also needs a systemd user manager.
+- **KDE**, **a focused window**, and **behavioral parity on X11**.
+- **Device access.** No `/dev/dri` and no `input` group, so the evdev and
+  uinput paths cannot run.
 
 ## Building
 
@@ -240,45 +146,29 @@ because job-level `continue-on-error` reports a failed job as successful.
 
 ```bash
 VERSION=$(git describe --tags --always --dirty)
-
-go build \
-  -ldflags="-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version=$VERSION" \
-  -trimpath \
-  -o bin/neru \
-  ./cmd/neru
+go build -trimpath -o bin/neru \
+  -ldflags="-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version=$VERSION" ./cmd/neru
 ```
-
-- `-ldflags="-s -w"` strips debug info and the symbol table
-- `-trimpath` removes filesystem paths from the binary
-- `-X pkg.Var=value` injects the version at build time
 
 ### Cross-platform checks
 
-Starting Linux or Windows work? The minimum smoke test is:
-
-```bash
-just build
-just test-foundation
-```
-
+Before or during Linux or Windows work, run `just build && just test-foundation`.
 `just test-foundation` runs every package whose behavior is identical on all
-three platforms, so a failure there is a real cross-platform regression rather
-than a host-specific one. Only the target OS can run `just test` meaningfully,
-since integration tests are tagged per OS.
+three platforms, so a failure there is a real cross-platform regression. Only
+the target OS can run `just test` meaningfully, because integration tests are
+tagged per OS.
 
 - `just build-windows` cross-compiles from any host, with CGO off.
-- `just build-linux` does not. Linux needs CGO, and a macOS C compiler builds
-  the cgo runtime against the wrong SDK, so the recipe refuses when the
-  compiler does not target Linux. From macOS, use `just check-cross` for a fast
-  CGO-off type-check, or `just lint-cross` for the CGO-on Linux build in
-  Docker. Tagged Linux release binaries are built by CI on a native runner.
-- `just lint` only sees your own platform, because golangci-lint honours build
-  tags. Reproduce Linux findings with
-  `CGO_ENABLED=0 GOOS=linux golangci-lint run ./internal/...`, ignoring the
-  `unused` and `unparam` reports that come only from the excluded `*_cgo.go`
-  files. The cgo paths need `just lint-cross` or CI.
+- `just build-linux` refuses unless the C compiler targets Linux, because Linux
+  needs CGO. From macOS, use `just check-cross` or `just lint-cross`. CI builds
+  tagged Linux release binaries on a native runner.
+- `just build-linux arm64` on another architecture needs an arm64 C compiler
+  as `CC`. Check the result with `file bin/neru`.
+- `just lint` sees only the host platform. Reproduce Linux findings with
+  `CGO_ENABLED=0 GOOS=linux golangci-lint run ./internal/...` and ignore the
+  `unused` and `unparam` reports caused by the excluded `*_cgo.go` files.
 
-Backend, CGO and modifier expectations are not per-OS constants. Start from
+CGO and modifier expectations are per backend, not per OS. Start from
 [profile.go](../../internal/adapter/platform/profile.go) and
 [CGO guidance](porting.md#cgo-guidance).
 
@@ -287,208 +177,67 @@ Backend, CGO and modifier expectations are not per-OS constants. Start from
 ### Build dependencies
 
 A Linux build uses CGO and links against distribution libraries that oku does
-not provide. `just linux-deps` installs them with apt, dnf or pacman, together
-with a C compiler and pkg-config. The libraries are listed below per
-distribution. What each library is for at run time is in the
-[Linux setup guide](../guide/linux.md).
+not provide. `just linux-deps` installs them, with a C compiler and pkg-config,
+through apt, dnf or pacman.
 
-`libei` and `liboeffis` are linked at build time for the KDE input path, so
-install them even if you only test on wlroots compositors. `fontconfig` is
-required at build time. DejaVu fonts are the defaults when `font_family` is
-unset.
+- On Fedora 42 and later, also install `liboeffis-devel`, which ships
+  separately there and which the recipe does not list.
+- On another distribution, install the equivalents of: cairo, wayland and
+  wayland-protocols, libX11, libXtst, libXrandr, libXrender, libXext,
+  libXfixes, libxkbcommon, libei and liboeffis, fontconfig, tesseract with
+  English data, pipewire, and the DejaVu fonts.
 
-#### Debian / Ubuntu
-
-```bash
-sudo apt-get install -y \
-  libcairo2-dev \
-  libwayland-dev \
-  libx11-dev \
-  libxtst-dev \
-  libxrandr-dev \
-  libxrender-dev \
-  libxext-dev \
-  libxfixes-dev \
-  libxkbcommon-dev \
-  libei-dev \
-  liboeffis-dev \
-  libfontconfig-dev \
-  libtesseract-dev \
-  tesseract-ocr-eng \
-  libpipewire-0.3-dev \
-  wayland-protocols \
-  fonts-dejavu-core
-```
-
-#### Fedora
-
-```bash
-sudo dnf install -y \
-  cairo-devel \
-  wayland-devel \
-  libX11-devel \
-  libXtst-devel \
-  libXrandr-devel \
-  libXrender-devel \
-  libXext-devel \
-  libXfixes-devel \
-  libxkbcommon-devel \
-  libei-devel \
-  liboeffis-devel \
-  fontconfig-devel \
-  tesseract-devel \
-  tesseract-langpack-eng \
-  pipewire-devel \
-  wayland-protocols-devel \
-  dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts
-```
-
-Fedora ships `liboeffis-devel` on its own from Fedora 42 on.
-
-#### Arch Linux
-
-```bash
-sudo pacman -S \
-  cairo \
-  wayland \
-  libx11 \
-  libxtst \
-  libxrandr \
-  libxrender \
-  libxext \
-  libxfixes \
-  libxkbcommon \
-  libei \
-  fontconfig \
-  tesseract \
-  tesseract-data-eng \
-  libpipewire \
-  wayland-protocols \
-  ttf-dejavu
-```
-
-On Arch, `liboeffis` is part of the `libei` package.
-
-### Native and cross builds
-
-```bash
-# Native build on the host (recommended for local dev and testing)
-just build
-
-# Build for a named Linux GOARCH (recipe defaults to amd64)
-just build-linux          # amd64
-just build-linux arm64    # arm64
-```
-
-Building for an arch other than the host's needs a C compiler that targets it,
-passed as `CC`. Cross-compiling from macOS to Linux is not supported. See
-[Cross-platform checks](#cross-platform-checks). Verify the binary matches your
-target:
-
-```bash
-go env GOARCH
-file bin/neru
-```
+The build links libei and liboeffis even if you only test on wlroots. DejaVu
+is the default font when `font_family` is unset. Runtime roles of each library
+are in the [Linux setup guide](../guide/linux.md).
 
 ## Testing
 
-Neru has four testing layers:
+| Layer | What it checks | File pattern, tag | Command |
+| ----- | -------------- | ----------------- | ------- |
+| Unit | shared Go logic, using mocks from `internal/ports/mocks` | `*_test.go`, none | `just test-unit` |
+| Contract | ports and adapters agree on error semantics such as `CodeNotSupported` | `*_test.go`, an OS tag where needed | `just test-unit` |
+| Integration | real OS behavior | `*_integration_<os>_test.go`, `integration && <os>` | `just test-integration` |
+| Architecture | package boundaries and platform isolation in `internal/architecture/` | `*_test.go`, none | `just test-unit` |
 
-1. **Unit tests**: shared Go logic with no native OS dependency, using mocks
-   from `internal/ports/mocks`.
-2. **Contract tests**: ports and adapters agreeing on error semantics such as
-   `CodeNotSupported`.
-3. **Integration tests**: real OS behavior behind the `integration` build tag.
-4. **Architecture tests**: guardrails protecting package boundaries and
-   platform isolation (`internal/architecture/`).
-
-Contract tests check that stubs are not silent no-ops, per subsystem rather
-than per stub. When you
-add a stubbed platform feature, update the subsystem's existing contract test if
-it has one, and write a new one when a caller could read the stub's `nil` as
-success. `internal/adapter/platform/AGENTS.md` states the rule and names the
-tests that exist.
-
-### Organization
-
-| Type            | File pattern                 | Build tag             | Command                 |
-| --------------- | ---------------------------- | --------------------- | ----------------------- |
-| **Unit**        | `*_test.go`                  | none                  | `just test-unit`        |
-| **Integration** | `*_integration_<os>_test.go` | `integration && <os>` | `just test-integration` |
-
-Naming, mocks and build-tag conventions are in the root
-[AGENTS.md](../../AGENTS.md). The macOS main-run-loop test harness is
-documented in
+When you stub a platform feature, update the subsystem's contract test, or
+write one if a caller could read the stub's `nil` as success
+([platform/AGENTS.md](../../internal/adapter/platform/AGENTS.md) names them).
+Test naming and mocks are in the root [AGENTS.md](../../AGENTS.md), and the
+macOS main-run-loop harness in
 [darwin/AGENTS.md](../../internal/adapter/platform/darwin/AGENTS.md).
 
-### What each layer covers
-
-**Unit**: hint generation, grid calculations, element filtering, action
-processing, mode transitions, config parsing, validation and defaults, and CLI
-argument handling. These run everywhere.
-
-**Integration**: most of these are macOS, covering real Accessibility and event
-tap APIs, global hotkey registration, overlay and window management, Unix
-socket IPC, config loading and reloading, and service-to-adapter coordination.
-Linux has a handful under `internal/adapter/platform/linux/` (fontconfig, X11,
-screen capture, OCR, notifications) plus the evdev probe, the smooth-scroll
-measurement and `neru services`. Windows has the services command, the overlay
-transition and the UIA tree walk. Everything else on both is pinned by unit and
-contract tests, so adding real integration tests there is one of the more
-valuable contributions available.
-
-No `just` recipe runs the Linux integration tests from a macOS host.
-`just test-linux` runs the container without the `integration` tag, and
-`just test-integration` runs on the host. Run them the way the container recipe
-does and add the tag:
+Integration tests are mostly macOS. Linux has a few in
+`internal/adapter/platform/linux/` plus the evdev probe, smooth-scroll and
+`neru services` tests. Windows has services, the overlay transition and the
+UIA tree walk. From a macOS host, run the Linux ones in the container:
 
 ```bash
 docker run --rm -v "$PWD":/src -w /src -e CGO_ENABLED=1 neru-linux-ci \
   go test -tags=integration ./...
 ```
 
-CI covers them on `ubuntu-latest`, where `just test-ci` runs the integration
-suite natively, and again on the
+CI runs them on `ubuntu-latest` through `just test-ci`, and on the
 [Linux desktop legs](#what-the-linux-desktop-legs-cover-and-what-they-do-not).
 
 ### Running integration tests
 
-The integration suite comes in two tiers:
-
 - **`just test` and `just test-integration` are desktop-safe.** Tests that
-  would drive the real cursor, keyboard or overlays skip themselves, so you can
-  keep working while they run.
-- **`just test-desktop` includes those tests.** It sets `NERU_DESKTOP_TESTS=1`,
-  and the cursor moves, real clicks and scrolls land, overlays flash, and an
-  event tap briefly intercepts the keyboard. Hand the machine over while it
-  runs. On macOS your terminal needs Accessibility permission (System Settings,
-  Privacy & Security, Accessibility). `just test-all` includes them too.
-
-For either tier:
-
+  would drive the real cursor, keyboard or overlays skip themselves.
+- **`just test-desktop` and `just test-all` include them.** They set
+  `NERU_DESKTOP_TESTS=1` and take over the cursor and keyboard while they run.
+  On macOS your terminal needs Accessibility permission.
 - **Quit any running `neru` daemon first.** A live daemon holds the IPC socket,
-  which makes the IPC integration tests skip, so a green run did not test
-  IPC.
-- The integration recipes run with `-p 1`, one package at a time, because the
-  tests share one input device, daemon sockets and log files. They also run
-  with `-count=1`, because Go's test cache cannot see whether Accessibility was
-  granted or a daemon held the socket, so a cached pass may come from a run
-  under different conditions.
+  which makes the IPC integration tests skip.
+- The recipes run with `-p 1` because the tests share one input device, daemon
+  sockets and log files, and with `-count=1` because Go's test cache cannot see
+  whether Accessibility was granted or a daemon held the socket.
 
 ## Debugging
 
-Debug logging and where the log file is written are described in
-[Log file locations](../guide/troubleshooting.md#log-file-locations). File
-logging is off by default, so turn it on before looking for a log.
-
-For a step debugger:
-
-```bash
-dlv debug ./cmd/neru
-```
-
-What belongs at which log level, and what must never be logged, is in the root
-[AGENTS.md](../../AGENTS.md) under Conventions.
+File logging is off by default. To turn it on, see
+[Log file locations](../guide/troubleshooting.md#log-file-locations). For a step
+debugger, run `dlv debug ./cmd/neru`.
 
 ## Adding code
 
@@ -505,98 +254,67 @@ What belongs at which log level, and what must never be logged, is in the root
 | `internal/cli/`            | Cobra CLI commands, IPC dispatch                   |
 | `internal/config/`         | TOML parsing, validation, defaults                 |
 
-Layer responsibilities and the boundaries between them are in
-[Component architecture](architecture.md#component-architecture). Platform
-file-slot naming is in [File Layout Rules](porting.md#file-layout-rules).
+Layer boundaries are in
+[Component architecture](architecture.md#component-architecture), and platform
+file names in [File Layout Rules](porting.md#file-layout-rules).
 
-**Configuration options**: the full chain (schema, defaults, platform
-overrides, validation, examples, docs) is documented in
-[internal/config/AGENTS.md](../../internal/config/AGENTS.md). The
-`neru-add-config-option` skill in `.agents/skills/` walks it step by step.
+**Configuration options**: follow [config/AGENTS.md](../../internal/config/AGENTS.md)
+or the `neru-add-config-option` skill.
 
-**Actions**
+**Actions**:
 
 1. Define the action in `internal/domain/action/action.go`
-2. Implement logic in `internal/app/services/action_service.go`
+2. Implement it in `internal/app/services/action_service.go`
 3. Wire pending-action dispatch in `internal/app/modes/mode_handlers.go` (the
    per-mode files set it via `Context.SetPendingAction`)
 4. Update config and documentation
 
-**UI components**
+**UI components**:
 
 1. Create the component in `internal/app/components/`
 2. Implement drawing in `internal/adapter/overlay/render/`
-3. macOS Objective-C goes in `internal/adapter/platform/darwin/` behind
+3. Put macOS Objective-C in `internal/adapter/platform/darwin/` behind
    `//go:build darwin`, with a no-op stub elsewhere
-4. Build the render overlay in
-   `internal/adapter/overlay/manager/components.go`, since the overlay
-   constructs what it draws, and assemble the app-side component in
-   `internal/app/component_factory.go`
+4. Build the render overlay in `internal/adapter/overlay/manager/components.go`
+   and the app-side component in `internal/app/component_factory.go`
 
 **CLI commands**: a cobra command in `internal/cli/` (registered in an
-`init()`), the matching IPC handler in `internal/app/ipcctrl/`, `just genman`,
-and the [CLI reference](../reference/cli.md). The `neru-add-cli-command` skill
-walks it step by step.
+`init()`), the IPC handler in `internal/app/ipcctrl/`, `just genman`, and the
+[CLI reference](../reference/cli.md). The `neru-add-cli-command` skill walks it.
 
-**Mode flags**: one entry in the descriptor table in
-`internal/domain/modecmd`, then `just genflagref`. The entry registers the flag
-on every command that accepts it and writes its row in the
-[CLI reference](../reference/cli.md). An architecture test fails while either
-is missing. A flag also declares which platforms writing it does anything on,
-in `platform_support.go` beside that table, and so do the config options and
-the action names in their own packages. Then run `just gensupportref`. An
-architecture test fails while a word has no column, and the daemon warns once
-at load about the inert ones a configuration writes.
+**Mode flags**: add one entry to the descriptor table in
+`internal/domain/modecmd`, then run `just genflagref`. The entry registers the
+flag on every command that accepts it and writes its
+[CLI reference](../reference/cli.md) row. Declare its platforms in
+`platform_support.go` beside the table, as config options and actions do in
+their own packages, then run `just gensupportref`. Architecture tests fail
+while either is missing, and the daemon warns once at load about inert words a
+configuration writes.
 
 ### Dependency injection
 
-Wiring is manual and explicit. Constructors take their dependencies, and
-`internal/app/new.go` assembles everything in numbered phases that unwind in
-reverse on failure.
-
-`app.New` takes functional options ([options.go](../../internal/app/options.go)),
-which is how tests substitute doubles for the ports they need: `WithSystemPort`,
-`WithAccessibility`, `WithEventTap`, `WithIPCServer`, `WithOverlayPort`,
-`WithHotkeyService`, `WithWatcher`, `WithTextInput`, plus `WithConfig`,
-`WithConfigPath`, `WithLogger` and the config-load carriers `WithWrittenConfig`
-and `WithConfigWarnings`. An option that is not supplied falls back to the real
-adapter built during initialization.
-
-```go
-hintService := services.NewHintService(accAdapter, overlayAdapter, systemPort, hintGen, cfg.Hints, logger, visionPort)
-gridService := services.NewGridService(overlayAdapter)
-actionService := services.NewActionService(accAdapter, overlayAdapter, systemPort, logger)
-```
+Constructors take their dependencies, and `internal/app/new.go` assembles them
+in numbered phases that unwind in reverse on failure. `app.New` takes
+functional options ([options.go](../../internal/app/options.go)), which tests
+use to substitute doubles: `WithSystemPort`, `WithAccessibility`,
+`WithEventTap`, `WithIPCServer`, `WithOverlayPort`, `WithHotkeyService`,
+`WithWatcher`, `WithTextInput`, `WithConfig`, `WithConfigPath`, `WithLogger`,
+`WithWrittenConfig` and `WithConfigWarnings`. An option left out falls back to
+the real adapter.
 
 ### Mode interface contract
 
 Every navigation mode implements `Mode` (`Activate(modecmd.Activation)`,
 `HandleKey(string)`, `Exit()`, `ModeType()`,
-`RefreshForMonitorMove(context.Context, image.Rectangle)`), defined in
-[handler.go](../../internal/app/modes/handler.go). Each mode is its own type
-with its own bodies for the four behavioural methods. The shape a new mode has
-to follow is stated in
-[internal/app/modes/AGENTS.md](../../internal/app/modes/AGENTS.md). A new CLI
-flag that varies a mode's activation means a new flag descriptor in
-[internal/domain/modecmd](../../internal/domain/modecmd) and the `Activation`
-field it writes, not a new interface method.
-
-All four run with the handler lock already held. The full locking contract
-lives in [internal/app/modes/AGENTS.md](../../internal/app/modes/AGENTS.md).
-Read it before touching anything that calls back into the handler.
+`RefreshForMonitorMove(context.Context, image.Rectangle)`) from
+[handler.go](../../internal/app/modes/handler.go). A flag that varies
+activation is a [modecmd](../../internal/domain/modecmd) descriptor plus an
+`Activation` field, not a new method. The shape of a new mode and its locking
+contract are in [modes/AGENTS.md](../../internal/app/modes/AGENTS.md).
 
 ## Release process
 
-Releases are automated by
-[Release Please](https://github.com/googleapis/release-please). Merging the
-release PR builds and publishes the binaries on GitHub.
-
-Versioning is semantic, `vMAJOR.MINOR.PATCH`, for breaking changes,
-backward-compatible features and bug fixes. Release Please derives the
-changelog from the commit subjects on `main`, and because pull requests
-squash-merge, each of those is a PR title. So the
-[conventional commit format](../../CONTRIBUTING.md#commit-messages) applied to
-the title is what ships to users.
-
-> [!NOTE]
-> The Homebrew version bump happens separately, in its own repo.
+Merging the [Release Please](https://github.com/googleapis/release-please) PR
+publishes a semantic version and its binaries on GitHub, with a changelog built
+from the [PR titles](../../CONTRIBUTING.md#commit-messages) on `main`. The
+Homebrew bump happens in its own repo.

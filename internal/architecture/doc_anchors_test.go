@@ -10,18 +10,17 @@ import (
 	"unicode"
 )
 
-// docURLSources are files outside the docs that link to a doc by URL. `neru
-// config init` copies the default config into users' config files, and the
+// docURLSources are files outside the docs that link to a doc by URL. The
 // install scripts print their links in the user's terminal.
 var docURLSources = []string{
-	"configs/default-config.toml",
 	"scripts/install.sh",
 	"scripts/install.ps1",
 }
 
-// docURLSourceDirs are checked file by file too. They hold the issue forms
-// and the agent skills.
-var docURLSourceDirs = []string{".github/", ".agents/skills/"}
+// docURLSourceDirs are checked file by file too. They hold the example
+// configs, which `neru config init` copies into users' config files, the
+// issue forms and the agent skills.
+var docURLSourceDirs = []string{"configs/", ".github/", ".agents/skills/"}
 
 // mainDocURLPattern matches a URL to a file on main. A URL pinned to a tag
 // points at a tree other than this checkout, and is not judged here.
@@ -107,6 +106,41 @@ func TestDocURLs_ShippedOutsideTheDocsResolve(t *testing.T) {
 			}
 		}
 	}
+}
+
+// codeDocPathPattern matches a doc path written as a Go string literal, the
+// form buildinfo.DocsURL takes.
+var codeDocPathPattern = regexp.MustCompile(`"(docs/[A-Za-z0-9_./-]+\.md)(#[A-Za-z0-9_-]+)?"`)
+
+// The binary opens doc URLs from the systray menu, `neru docs`, `neru config
+// init` and the Linux service messages. A path that no longer exists sends the
+// user to a 404 from inside the product.
+func TestDocPaths_InCodeResolve(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+	anchors := newAnchorIndex(repoRoot)
+	found := 0
+
+	walkRepoFiles(t, repoRoot, func(file repoFile) {
+		if !strings.HasSuffix(file.name, ".go") || strings.HasSuffix(file.name, "_test.go") {
+			return
+		}
+
+		content, readErr := os.ReadFile(file.abs)
+		if readErr != nil {
+			t.Fatalf("ReadFile(%s) error = %v", file.rel, readErr)
+		}
+
+		for _, match := range codeDocPathPattern.FindAllStringSubmatch(string(content), -1) {
+			found++
+			fragment := strings.TrimPrefix(match[2], "#")
+
+			if problem := anchors.check(match[1], fragment); problem != "" {
+				t.Errorf("%s names %q: %s", file.rel, match[0], problem)
+			}
+		}
+	})
+
+	assertWalkedAtLeast(t, "doc paths in code", found, 3)
 }
 
 func TestGithubHeadingSlug(t *testing.T) {

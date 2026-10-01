@@ -1,32 +1,25 @@
 # Roadmap
 
-What we intend to work on next, and where help is most valuable.
-
-This document holds **intent and priority only**. It does not restate what
-works today. That lives in one place, the
-[Capability Matrix](../reference/platform-support.md#capability-matrix), with anything still
-missing enumerated under [Known Gaps](../reference/platform-support.md#known-gaps).
+Intent and priority only. What works today is in the
+[Capability Matrix](../reference/platform-support.md#capability-matrix), and
+what is missing under [Known Gaps](../reference/platform-support.md#known-gaps).
 
 ## Where things stand
 
 Each platform's label is in
 [Platform status](../reference/platform-support.md#platform-status). Linux and
-Windows have nothing left to build for theirs. What moves a platform to Stable
-is the rule under
+Windows have nothing left to build for theirs. A platform reaches Stable
+through use, not features, per
 [What the labels mean](../reference/platform-support.md#what-the-labels-mean),
-which is earned by use rather than by a feature.
-
-So the roadmap has no platform feature list. The work now is proving both
-platforms under real workloads and keeping the core reliable.
+so the roadmap has no platform feature list.
 
 ## Near term
 
 1. **Prove Linux and Windows in use.** A bug filed against either platform
-   outranks any new capability. The Windows push landed seventeen features in
-   one release and has been exercised only by CI, so expect bugs and report
-   them. The open one today is
-   [#1483](https://github.com/y3owk1n/neru/issues/1483), an injected scroll on
-   Windows carrying modifiers the user is physically holding.
+   outranks any new capability. Windows has had little real-world use, so
+   expect bugs and report them, such as
+   [#1483](https://github.com/y3owk1n/neru/issues/1483): an injected scroll on
+   Windows carries modifiers the user is physically holding.
 2. **Reliability over features.** Startup, config reload and mode transitions
    fail loudly and recover cleanly. Regressions here are fixed before anything
    else ships.
@@ -49,22 +42,17 @@ promise, and a Discussion is where a new one starts
 
 ## Contributor priorities
 
-In priority order:
-
 1. **Platform bugs on Linux and Windows.** Issues labelled
    `needs: linux contributor` or `needs: windows contributor` are the ones the
    maintainer cannot reproduce on their own hardware.
-2. **A new desktop**. Add the backend by mechanism rather than
-   by desktop, per
-   [organize by mechanism](../contributing/porting.md#organize-by-mechanism-not-by-desktop).
+2. **A new desktop**, added by mechanism rather than by desktop
+   ([organize by mechanism](../contributing/porting.md#organize-by-mechanism-not-by-desktop)).
 3. **Config reload regression coverage** through the simulation harness in
    `internal/app/simulation_harness_test.go`.
 4. **Retiring remaining globals** behind explicit interfaces, where the native
    bridge callbacks allow it.
 
-New to the codebase?
-[Good First Contributions](../../CONTRIBUTING.md#good-first-contributions) lists
-starter tasks, and
-[Contributing safely](../contributing/porting.md#contributing-safely) lists the
-platform changes worth opening an issue for first and the bar a platform change
-has to clear.
+Starter tasks are in
+[Good first contributions](../../CONTRIBUTING.md#good-first-contributions), and
+platform changes that need an issue first in
+[Contributing safely](../contributing/porting.md#contributing-safely).

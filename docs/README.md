@@ -1,12 +1,9 @@
 # Neru documentation
 
-Start with the guide if you use Neru, and with the contributing docs if you
-want to change it. The reference pages are for looking up one exact option or
-command.
+Read the guide to use Neru, the reference to look up one option or command,
+and the contributing docs to change Neru.
 
 ## Guide
-
-For people installing and using Neru.
 
 - [Installation](guide/installation.md): every install method, including
   the one-line installer and Nix, and how to uninstall.
@@ -21,8 +18,6 @@ For people installing and using Neru.
 
 ## Reference
 
-For looking things up.
-
 - [Configuration](reference/configuration.md): every option in `config.toml`,
   with its default and the platforms it works on.
 - [CLI](reference/cli.md): every `neru` command and flag.
@@ -34,15 +29,14 @@ For looking things up.
 ## Project
 
 - [Roadmap](project/roadmap.md): what comes next.
-- [Showcases](project/showcases.md): configurations shared by the community.
+- [Community configurations](project/showcases.md): setups shared by users.
 
 ## Contributing
 
-For people changing Neru. Start with [CONTRIBUTING.md](../CONTRIBUTING.md).
+Start with [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 - [Development](contributing/development.md): set up, build, test and debug.
-- [Architecture](contributing/architecture.md): how Neru is put together and
-  why.
+- [Architecture](contributing/architecture.md): how Neru is put together.
 - [Platform porting](contributing/porting.md): where platform code goes, and
   which doc owns which fact.
 - [Objective-C style](contributing/objective-c.md): conventions for the macOS

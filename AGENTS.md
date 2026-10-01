@@ -6,7 +6,7 @@ Neru is a keyboard-driven, mouse-free navigation tool (hints / grid / recursive 
 
 ## Product Direction
 
-Neru is a free, open-source mouse replacement: every pointer action reachable from the keyboard, instantly. Judge features and fixes against these properties (origin story: `HOW-I-USE-NERU.md`; current intent: `docs/project/roadmap.md`):
+Neru is a free, open-source mouse replacement: every pointer action reachable from the keyboard, instantly. Judge features and fixes against these properties (current intent: `docs/project/roadmap.md`):
 
 - **Latency is the product.** The event tap sits on every keystroke; a correct feature that makes activation or key handling feel slower is a regression.
 - **Good defaults over per-app hacks.** No hardcoded per-application workarounds — the answer to "app X doesn't work" is better defaults plus user-configurable roles/filters.

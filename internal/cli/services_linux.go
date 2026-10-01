@@ -34,7 +34,7 @@ const (
 
 	// linuxServicesDocs is the page a user is sent to when service management
 	// cannot help them.
-	linuxServicesDocs = "docs/guide/linux.md"
+	linuxServicesDocs = "docs/guide/linux.md#systemd-user-service"
 
 	unitDirPerm  = 0o755
 	unitFilePerm = 0o644

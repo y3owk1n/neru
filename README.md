@@ -17,32 +17,22 @@ Hints, grids and vim keys for your whole desktop. Free, open source, one binary,
 
 <sub>Beta means every option, flag and action already works. Stable comes after six clean releases. [What the labels mean](docs/reference/platform-support.md#what-the-labels-mean)</sub>
 
-[Install](#install) · [Modes](#pick-your-mode) · [Make it yours](#make-it-yours) · [Docs](#documentation)
-
 </div>
 
 ---
 
 https://github.com/user-attachments/assets/f4c86753-0109-47c9-a94e-775af2546a17
 
-Neru does what Vimium does in the browser, for every app, window, menu bar and dock item on your screen.
-
-```
-Cmd+Shift+Space   labels appear on every clickable element
-type the label    cursor jumps there
-Shift+L           left click
-```
+Neru does what Vimium does in the browser, for every app, window, menu bar and dock item on your screen. Press a hotkey, type the label on the element you want, and the cursor jumps there and clicks.
 
 ## Why Neru
 
-- **Works where accessibility trees don't.** Grid and recursive grid split pixels, not widgets, so they work in canvases, games, remote desktops and Electron apps with thin trees. Hints have three engines: the accessibility tree, on-device OCR, and a pure-Go contour pass that needs no OCR at all.
-- **Latency is the product.** The event tap sits on every keystroke. Anything that makes activation or key handling slower counts as a bug.
-- **No per-app hacks.** Good defaults, then per-app overrides you write yourself: hotkeys, hint engine, scroll step, all re-resolved the instant focus changes.
-- **CLI-first, scriptable everywhere.** One executor backs hotkeys, the `neru` CLI and the IPC socket. A sequence that works in a binding works from skhd, Hammerspoon, Raycast or a shell script unchanged.
-- **Nothing leaves your machine.** OCR and element detection run on-device. No telemetry, no accounts, and typed text never reaches the log.
-- **Fails loudly, recovers cleanly.** A typo'd flag in a binding fails config validation instead of doing nothing when you press the key.
-
----
+- **Works where accessibility trees don't.** Grid modes split pixels, not widgets, so they work in canvases, games and remote desktops. Hints use the accessibility tree, on-device OCR, or a pure-Go contour scan.
+- **Fast.** The event tap sits on every keystroke, and Neru treats any added latency as a bug.
+- **No per-app hacks.** Good defaults, plus per-app overrides you write yourself, applied when focus changes.
+- **Scriptable.** Hotkeys, the `neru` CLI and the IPC socket run the same commands, so a binding works unchanged from skhd, Hammerspoon, Raycast or a shell script.
+- **Private.** OCR and element detection run on-device. No telemetry, no accounts, and typed text never reaches the log.
+- **Fails loudly.** A mistyped flag in a binding fails config validation instead of doing nothing when you press the key.
 
 ## Install
 
@@ -56,15 +46,16 @@ curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.s
 irm https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.ps1 | iex
 ```
 
-The script installs the binary, man pages and shell completions, offers a login service, and updates in place when you run it again. Homebrew, Nix, prebuilt binaries, building from source and uninstalling are in the [Installation guide](docs/guide/installation.md).
+The script installs the binary, man pages and shell completions, offers a login service, and updates in place when you run it again. Homebrew, Nix, prebuilt binaries, source builds and uninstalling are in [Installation](docs/guide/installation.md). Two agent skills for Claude Code, Codex and Cursor can answer questions and write your config, see [Set up with an agent](docs/guide/installation.md#set-up-with-an-agent).
 
-Then run `neru launch` and follow [Getting started](docs/guide/getting-started.md) for permissions, your config file and your first hotkeys.
+## Quick start
 
-Prefer an agent? Two skills for Claude Code, Codex and Cursor answer questions and write your config. See [Set up with an agent](docs/guide/installation.md#set-up-with-an-agent).
+1. Run `neru launch`, or skip it if the login service is running.
+2. Grant the permissions `neru doctor` reports as missing. See [Permissions](docs/guide/getting-started.md#permissions).
+3. Run `neru config init` to write a commented starter config.
+4. Press `Primary+Shift+Space` for hints. On Linux, [bind a key first](docs/guide/getting-started.md#binding-your-first-hotkeys).
 
----
-
-## Pick your mode
+## Modes
 
 <table>
 <tr>
@@ -99,79 +90,51 @@ Prefer an agent? Two skills for Claude Code, Codex and Cursor answer questions a
 | **Monitor Select**    | unbound               | Labels each display, type one to jump                           | Multi-monitor setups                        |
 | **Your own**          | unbound               | A name, an indicator and a key table you declare in config      | Window management layers, app-specific keys |
 
-`Primary` is `Cmd` on macOS and `Ctrl` on Linux and Windows. Linux ships without these global defaults, so they never collide with terminal shortcuts ([bind your own](docs/guide/getting-started.md#binding-your-first-hotkeys)). Every binding is remappable, including for Colemak and Dvorak layouts.
+`Primary` is `Cmd` on macOS and `Ctrl` on Linux and Windows. Linux ships without these defaults so they never collide with terminal shortcuts. Every binding is remappable.
 
-Inside any mode you get the full pointer: left, right and middle click, double and triple click, drag with any button, held-key glide with acceleration, and sticky modifiers you tap instead of hold.
+Every mode gives you left, right and middle click, double and triple click, drag with any button, held-key glide with acceleration, and sticky modifiers.
 
----
+## Configuration
 
-## Make it yours
-
-Everything is one TOML file, reloaded with `neru config reload` and changeable one value at a time with `neru config set`. [Getting started](docs/guide/getting-started.md) covers where it lives and how it layers.
-
-**Click on select, Vimium style.**
+Everything is one TOML file. Apply edits with `neru config reload`, or change one value with `neru config set`.
 
 ```toml
 [hotkeys]
-"Primary+Shift+Space" = "hints --action left_click"
-```
+"Primary+Shift+Space" = "hints --action left_click"   # click on select, Vimium style
+"Primary+Shift+W" = "mode window"
 
-**Per-app overrides**, re-resolved the moment focus changes.
-
-```toml
-[[hints.app_configs]]
-bundle_id = "com.brave.Browser"                          # macOS: bundle ID
-hotkeys = { "Return" = "action left_click" }
-
-[[hints.app_configs]]
-bundle_id = "firefox"                                    # Linux: WM_CLASS or Wayland app_id
-hotkeys = { "Return" = "action left_click" }
-
-[[hints.app_configs]]
-bundle_id = 'C:\Program Files\Google\Chrome\Application\chrome.exe'  # Windows: exe path
-hotkeys = { "Return" = "action left_click" }
-```
-
-**Macros**, written once and callable from any key or from the shell.
-
-```toml
 [macros]
 click_and_exit = ["action left_click --bail-on-error", "idle"]
 
-[hints.hotkeys]
-"Enter" = "macro click_and_exit"
-```
+[[hints.app_configs]]
+bundle_id = "com.brave.Browser"   # bundle ID on macOS, WM_CLASS or app_id on Linux, exe path on Windows
+hotkeys = { "Return" = "macro click_and_exit" }
 
-**A mode of your own**, as a layer of bare-letter bindings.
-
-```toml
 [modes.window]
 indicator = "Window"
 
 [modes.window.hotkeys]
 "h" = "exec yabai -m window --focus west"
 "l" = "exec yabai -m window --focus east"
-
-[hotkeys]
-"Primary+Shift+W" = "mode window"
 ```
 
-**Drive it from anywhere.** Everything above is also a command.
+Every hotkey command is also a shell command:
 
 ```bash
 neru hints --role button --text save   # only buttons whose text matches
 neru run "action save_cursor_pos" "hints --action left_click" \
          "action wait_for_mode_exit" "action restore_cursor_pos"
-neru macro click_and_exit
 neru config set hints.strategy contour
 neru doctor                            # diagnose permissions and backends
 ```
 
-Themes, indicators, smooth cursor and scroll, virtual pointer, app exclusions and screen-share hiding are all options too.
+Themes, indicators, smooth cursor and scroll, virtual pointer, app exclusions and screen-share hiding are options too.
 
-[Configuration reference](docs/reference/configuration.md) · [CLI reference](docs/reference/cli.md) · [Recipes](docs/guide/recipes.md) · [Community configs](docs/project/showcases.md)
+## Documentation
 
----
+- Using Neru: [Installation](docs/guide/installation.md), [Getting started](docs/guide/getting-started.md), [Recipes](docs/guide/recipes.md), [Troubleshooting](docs/guide/troubleshooting.md), [Linux setup](docs/guide/linux.md), [Linux desktops](docs/guide/linux-desktops.md)
+- Reference: [Configuration](docs/reference/configuration.md), [CLI](docs/reference/cli.md), [Scripting and IPC](docs/reference/scripting.md), [Platform support](docs/reference/platform-support.md)
+- Working on Neru: [Contributing](CONTRIBUTING.md), [Development](docs/contributing/development.md), [Architecture](docs/contributing/architecture.md), [Roadmap](docs/project/roadmap.md)
 
 ## Community
 
@@ -179,47 +142,17 @@ Themes, indicators, smooth cursor and scroll, virtual pointer, app exclusions an
 
 [![Community YouTube Review](https://img.youtube.com/vi/OFnpYTDA2gY/maxresdefault.jpg)](https://www.youtube.com/watch?v=OFnpYTDA2gY)
 
-- **[Neru Dojo](https://bernatgene.github.io/neru-dojo/)**, a browser game the community built to train recursive grid and hints. No install.
-- **[HOW-I-USE-NERU.md](HOW-I-USE-NERU.md)**, the author's daily workflow and why grid won over hints.
-- **[Discord](https://discord.gg/KZwnwr9dz6)** for questions and sharing setups.
-
-https://github.com/user-attachments/assets/d99328a6-b5f9-402a-a01b-297da2ffb454
-
----
-
-## Documentation
-
-**Using Neru**
-
-- [Installation](docs/guide/installation.md) and [Getting started](docs/guide/getting-started.md)
-- [Recipes](docs/guide/recipes.md) and [Troubleshooting](docs/guide/troubleshooting.md)
-- [Linux setup](docs/guide/linux.md) and [Linux desktops](docs/guide/linux-desktops.md)
-
-**Reference**
-
-- [Configuration](docs/reference/configuration.md), every option with its default
-- [CLI](docs/reference/cli.md), every command and flag
-- [Scripting and IPC](docs/reference/scripting.md)
-- [Platform support](docs/reference/platform-support.md), what works where
-
-**Working on Neru**
-
-- [Contributing](CONTRIBUTING.md), [Development](docs/contributing/development.md), [Architecture](docs/contributing/architecture.md)
-- [Roadmap](docs/project/roadmap.md)
-
----
+- [Neru Dojo](https://bernatgene.github.io/neru-dojo/): a browser game to train recursive grid and hints.
+- [Community configs](docs/project/showcases.md): setups shared by users.
+- [Discord](https://discord.gg/KZwnwr9dz6): questions and setups.
 
 ## Contributing
 
-Bug reports, especially on Linux and Windows, and pull requests are welcome. Start with the [Contributing guide](CONTRIBUTING.md).
-
----
+Bug reports, especially on Linux and Windows, and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Support the project
 
-Neru is built by one person in spare time. If it has earned a place in your workflow, [sponsor it](https://github.com/sponsors/y3owk1n).
-
-Only need window management? [mimi](https://github.com/y3owk1n/mimi) is the window and space pieces of Neru as a standalone tool.
+If Neru has earned a place in your workflow, [sponsor it](https://github.com/sponsors/y3owk1n). Need only window management? [mimi](https://github.com/y3owk1n/mimi) is Neru's window and space features as a standalone tool.
 
 ## License
 
@@ -227,8 +160,6 @@ MIT. See [LICENSE](LICENSE).
 
 <div align="center">
 <br/>
-
-**The mouse is now optional.**
 
 Made with ❤️ by <a href="https://github.com/y3owk1n">y3owk1n</a>
 

@@ -4,23 +4,19 @@
 # Full config reference: https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md
 # Full CLI reference: https://github.com/y3owk1n/neru/blob/main/docs/reference/cli.md
 
-# Every font_family option below takes a generic alias as well as an installed
-# family name; the accepted aliases are listed here:
+# font_family takes an installed family name or a generic alias:
 # https://github.com/y3owk1n/neru/blob/main/docs/reference/platform-support.md#capability-matrix
 
 # General settings
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#general
 [general]
-excluded_apps = []                           # Bundle IDs to ignore (e.g. "com.apple.Terminal")
-kb_layout_to_use = ""                        # Force a keyboard layout; `neru doctor` lists the names (empty = auto)
-passthrough_unbounded_keys = false           # Let unbound Cmd/Ctrl/Alt shortcuts reach macOS
-should_exit_after_passthrough = false        # Exit the current mode after a shortcut is passed through
-passthrough_unbounded_keys_blacklist = []    # Shortcuts to still consume when passthrough is on
-hide_overlay_in_screen_share = false         # Hide overlay from screen sharing apps
-# Shell used for exec commands. Left unset so the platform default applies:
-# /bin/bash -lc on macOS and Linux, %SystemRoot%\System32\cmd.exe /c on Windows.
-# Setting an absolute path here overrides that on every platform, so a value
-# valid on one will fail validation on another.
+excluded_apps = []                          # Bundle IDs, e.g. "com.apple.Terminal"
+kb_layout_to_use = ""                       # Empty = auto
+passthrough_unbounded_keys = false
+should_exit_after_passthrough = false
+passthrough_unbounded_keys_blacklist = []
+hide_overlay_in_screen_share = false
+# exec_shell is left unset so the platform default applies.
 # exec_shell = "/bin/bash"                   # e.g. "/bin/dash", "/bin/zsh"
 # exec_shell_args = ["-lc"]                  # last argument receives the command string
 
@@ -50,8 +46,7 @@ text = "#E8EEFF"
 "Primary+Shift+B" = "bisect"
 "Primary+Shift+S" = "scroll"
 
-# Macros — named action sequences, reused from any binding.
-# Written by hand, not recorded. $1, $2 ... are the call's arguments.
+# Macros
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#macros
 #
 # [macros]
@@ -61,9 +56,7 @@ text = "#E8EEFF"
 # [hints.hotkeys]
 # "Enter" = "macro click_and_exit"
 
-# Declared modes — a keymap with a name and an indicator, no logic of its own.
-# Enter one with "mode <name>" from a hotkey, a sequence step, or `neru mode
-# <name>`. Escape returns to idle unless the mode rebinds it.
+# Declared modes
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#modes
 #
 # [modes.window]
@@ -81,11 +74,11 @@ text = "#E8EEFF"
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hints
 [hints]
 enabled = true
-strategy = "axtree"                         # Element detection: "axtree" (AX API), "vision" (screen recognition) or "contour" (edge detection)
-capture_scope = "window"                    # Region the vision and contour strategies scan: "window" (focused window) or "screen"
-hint_characters = "asdfghjkl"               # Characters used for hint labels
-label_direction = "normal"                  # Hint label algorithm: "normal" (default) or "reverse"
-max_depth = 50                              # Max accessibility tree depth (0 = unlimited)
+strategy = "axtree"                         # axtree, vision, contour
+capture_scope = "window"                    # window, screen
+hint_characters = "asdfghjkl"
+label_direction = "normal"                  # normal, reverse
+max_depth = 50                              # 0 = unlimited
 include_menubar_hints = false
 additional_menubar_hints_targets = [
     "com.apple.TextInputMenuAgent",
@@ -99,14 +92,11 @@ include_stage_manager_hints = false
 include_pip_hints = false
 include_screen_capture_hints = false
 detect_mission_control = false
-# Actions to run when Mission Control opens and closes. Left commented out
-# because they have no default: an empty value here would claim one.
+# No default, so these stay commented out.
 # on_mission_control_activated = "idle"     # A single action, or an array of them
 # on_mission_control_deactivated = ["hints"]
 clickable_roles = [
-    ## Semantic role names. They resolve to each platform's native
-    ## accessibility vocabulary, so this list works on macOS, Linux and Windows.
-    ## Run `neru roles` for the full vocabulary and how it resolves here.
+    ## Semantic roles, valid on every platform. `neru roles` lists them.
     "button",
     "menu_button",
     "popup_button",
@@ -123,9 +113,7 @@ clickable_roles = [
     "menu_item",
     "cell",
     "row",
-    ## Native roles are addressed through their vocabulary prefix
-    ## (`ax:` macOS, `atspi:` Linux, `uia:` Windows). Entries for other
-    ## platforms are ignored rather than rejected.
+    ## Native roles (ax:, atspi:, uia:), ignored on other platforms.
     "ax:AXGenericElement",
 ]
 ignore_clickable_check = false
@@ -149,79 +137,79 @@ visible_check_enabled = false
 
 [hints.ui]
 font_size = 10
-font_family = ""                            # Empty = the platform's sans, per the aliases above
+font_family = ""                            # Empty = platform sans
 border_radius = -1                          # -1 = auto pill
-padding_x = -1                              # -1 = auto based on font size
-padding_y = -1                              # -1 = auto based on font size
+padding_x = -1                              # -1 = auto
+padding_y = -1                              # -1 = auto
 border_width = 1
 placement = "bottom"                        # top, center, bottom
 
 [hints.search_input_ui]
 font_size = 10
-font_family = ""                            # Empty = the platform's sans, per the aliases above
+font_family = ""                            # Empty = platform sans
 border_radius = -1                          # -1 = auto pill
-padding_x = -1                              # -1 = auto based on font size
-padding_y = -1                              # -1 = auto based on font size
+padding_x = -1                              # -1 = auto
+padding_y = -1                              # -1 = auto
 border_width = 1
-position = "bottom_center"                     # top_left, top_center, top_right, center, bottom_left, bottom_center, bottom_right
-x_offset = 0                                # Offset from the selected position on the active screen
-y_offset = 24                               # Offset from the selected position on the active screen
-width = 320                                 # Search input width in pixels
+position = "bottom_center"                  # top_left, top_center, top_right, center, bottom_left, bottom_center, bottom_right
+x_offset = 0
+y_offset = 24
+width = 320                                 # px
 
 [hints.boundary_highlight]
-enabled = false                             # Draw a subtle outline around each target element
+enabled = false
 border_width = 1
 border_radius = -1                          # -1 = auto pill
 
 [hints.vision]
-detect_text = true                           # Enable text detection via Vision framework
-detect_rectangles = true                     # Enable rectangle detection via Vision framework
-request_timeout_ms = 5000                    # Timeout for Vision requests in milliseconds
-minimum_confidence = 0.0                     # Minimum confidence threshold for keeping vision observations
-merge_iou_threshold = 0.5                    # Overlap threshold (Intersection over Union) for merging redundant boxes
-rectangle_max_candidates = 100               # Maximum number of rectangle candidate observations to track
-rectangle_min_size = 0.01                    # Minimum size of detected rectangles (0.01 = 1% of screen/window width/height)
-rectangle_min_aspect = 0.3                   # Minimum aspect ratio (width/height) for rectangles
-rectangle_max_aspect = 10.0                  # Maximum aspect ratio (width/height) for rectangles
-button_min_confidence = 0.3                  # Minimum confidence for button classification
-button_min_aspect = 0.8                      # Minimum aspect ratio for button elements
-button_max_aspect = 8.0                      # Maximum aspect ratio for button elements
-button_icon_max_size = 48                    # Maximum width/height for square button/icon elements (px)
-link_min_aspect = 5.0                        # Minimum aspect ratio for text link elements
-link_max_height = 40                         # Maximum height for link elements (px)
-link_min_width = 50                          # Minimum width for link elements (px)
-image_min_size = 48                          # Minimum width/height for image elements (px)
-checkbox_max_size = 32                       # Maximum width/height for checkbox elements (px)
-generic_clickable_min_confidence = 0.5       # Minimum confidence for generic clickable classification
+detect_text = true
+detect_rectangles = true
+request_timeout_ms = 5000
+minimum_confidence = 0.0                    # 0.0 to 1.0
+merge_iou_threshold = 0.5
+rectangle_max_candidates = 100
+rectangle_min_size = 0.01                   # Fraction of width/height (0.01 = 1%)
+rectangle_min_aspect = 0.3                  # width/height
+rectangle_max_aspect = 10.0                 # width/height
+button_min_confidence = 0.3
+button_min_aspect = 0.8                     # width/height
+button_max_aspect = 8.0                     # width/height
+button_icon_max_size = 48                   # px
+link_min_aspect = 5.0                       # width/height
+link_max_height = 40                        # px
+link_min_width = 50                         # px
+image_min_size = 48                         # px
+checkbox_max_size = 32                      # px
+generic_clickable_min_confidence = 0.5
 
 [hints.contour]
-request_timeout_ms = 2000                    # Timeout for one contour pass in milliseconds
-edge_low_threshold = 70                      # Canny hysteresis low, the gradient magnitude that extends an edge (0-255 luma)
-edge_high_threshold = 220                    # Canny hysteresis high, the gradient magnitude that starts an edge. Lower finds fainter outlines
-min_target_width = 7.0                       # Blobs this wide or narrower are noise (logical px)
-min_target_height = 3.0                      # Blobs this tall or shorter are noise (logical px)
-max_target_width = 650.0                     # Blobs this wide or wider are layout, not targets (logical px)
-max_target_height = 160.0                    # Blobs this tall or taller are layout, not targets (logical px)
-flat_line_height = 6.0                       # Nested strokes no taller than this are dropped (hamburger lines)
-container_height = 50.0                      # Height from which a blob counts as a card or dialog. Its button-sized children are the targets
-same_center_slack = 8.0                      # Nested blob within this many px of its parent's centre duplicates it
-square_icon_size = 40.0                      # Square parents smaller than this keep their box and drop their inner detail
-square_icon_slack = 5.0                      # How far from square (|w-h|) that parent may be
+request_timeout_ms = 2000
+edge_low_threshold = 70                     # 0-255 luma
+edge_high_threshold = 220                   # 0-255 luma
+min_target_width = 7.0                      # logical px
+min_target_height = 3.0                     # logical px
+max_target_width = 650.0                    # logical px
+max_target_height = 160.0                   # logical px
+flat_line_height = 6.0
+container_height = 50.0
+same_center_slack = 8.0                     # px
+square_icon_size = 40.0
+square_icon_slack = 5.0
 
 # Grid mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#grid
 [grid]
 enabled = true
-capture_scope = "screen"                    # Region the grid covers: "screen" or "window" (the focused window)
-characters = "abcdefghijklmnpqrstuvwxyz"    # Primary grid labels
-sublayer_keys = "abcdefghijklmnpqrstuvwxyz" # Subgrid labels, first 9 used (empty = infer from characters)
-max_label_length = 4                        # Maximum coarse label length (2–4); 4 keeps the legacy automatic layout
-row_labels = ""                             # Custom row labels (empty = infer from characters)
-col_labels = ""                             # Custom column labels (empty = infer from characters)
-live_match_update = true                    # Highlight cells as you type
-hide_unmatched = true                       # Hide non-matching cells
-prewarm_enabled = true                      # Pre-compute grid on startup (~1.5MB RAM)
-enable_gc = false                           # Periodic memory cleanup (adds CPU overhead)
+capture_scope = "screen"                    # screen, window
+characters = "abcdefghijklmnpqrstuvwxyz"
+sublayer_keys = "abcdefghijklmnpqrstuvwxyz" # First 9 used (empty = infer from characters)
+max_label_length = 4                        # 2-4
+row_labels = ""                             # Empty = infer from characters
+col_labels = ""                             # Empty = infer from characters
+live_match_update = true
+hide_unmatched = true
+prewarm_enabled = true
+enable_gc = false
 
 [grid.hotkeys]
 "Escape" = "idle"
@@ -243,21 +231,21 @@ font_size = 10
 font_family = ""
 border_width = 1
 
-# Recursive grid mode (recommended)
+# Recursive grid mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#recursive_grid
 [recursive_grid]
 enabled = true
-capture_scope = "screen"                    # Region the first level covers: "screen" or "window" (the focused window)
-grid_cols = 3                               # Number of columns (>= 1)
-grid_rows = 3                               # Number of rows (>= 1)
-keys = "rtyfghvbn"                          # Cell selection keys (must be grid_cols * grid_rows chars)
-min_size_width = 1                          # Stop subdividing below this width (px)
-min_size_height = 1                         # Stop subdividing below this height (px)
-max_depth = 10                              # Maximum recursion levels (1–20)
+capture_scope = "screen"                    # screen, window
+grid_cols = 3                               # >= 1
+grid_rows = 3                               # >= 1
+keys = "rtyfghvbn"                          # grid_cols * grid_rows chars
+min_size_width = 1                          # px
+min_size_height = 1                         # px
+max_depth = 10                              # 1-20
 
 [recursive_grid.animation]
-enabled = true                              # Opt out from native depth transition animation on supported platforms
-duration_ms = 50                            # Recursive-grid animation duration in milliseconds
+enabled = true
+duration_ms = 50
 
 [recursive_grid.hotkeys]
 "Escape" = "idle"
@@ -278,29 +266,28 @@ duration_ms = 50                            # Recursive-grid animation duration 
 line_width = 1
 font_size = 10
 font_family = ""
-label_background = false                    # Add rounded backgrounds behind cell labels
+label_background = false
 label_background_padding_x = -1
 label_background_padding_y = -1
 label_background_border_radius = -1
 label_background_border_width = 1
-label_char = ""                             # Override cell labels with a single character (e.g. "·"); empty = use key
-min_font_size = 6                           # Labels shrink to fit their cell, down to this size, then hide (set to font_size to never shrink)
-label_autohide_multiplier = 1.5             # Keep cell >= fontSize × multiplier by shrinking the label (0 = disable)
-sub_key_preview = false                     # Draw miniature key grid inside each cell
+label_char = ""                             # Empty = use key
+min_font_size = 6
+label_autohide_multiplier = 1.5             # 0 = disable
+sub_key_preview = false
 sub_key_preview_font_size = 8
-sub_key_preview_autohide_multiplier = 1.5   # Keep sub-cell >= fontSize × multiplier by shrinking the preview (0 = disable)
-sub_key_preview_label_char = ""             # Override sub-key preview labels with a single character (e.g. "·"); empty = use key
+sub_key_preview_autohide_multiplier = 1.5   # 0 = disable
+sub_key_preview_label_char = ""             # Empty = use key
 
-# Bisect mode: every press keeps half of the region, or a quadrant of it
+# Bisect mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#bisect
-# Launched with Primary+Shift+B by default (see [hotkeys]).
 [bisect]
 enabled = true
-capture_scope = "screen"                    # Region the session starts from: "screen" or "window" (the focused window)
+capture_scope = "screen"                    # screen, window
 
 [bisect.animation]
-enabled = true                              # Opt out from the native transition between cuts on supported platforms
-duration_ms = 50                            # Bisect animation duration in milliseconds
+enabled = true
+duration_ms = 50
 
 [bisect.hotkeys]
 "Escape" = "idle"
@@ -329,15 +316,15 @@ duration_ms = 50                            # Bisect animation duration in milli
 line_width = 1
 font_size = 10
 font_family = ""
-label_background = false                    # Add rounded backgrounds behind the quadrant labels
+label_background = false
 label_background_padding_x = -1
 label_background_padding_y = -1
 label_background_border_radius = -1
 label_background_border_width = 1
-label_char = ""                             # Override the quadrant labels with a single character (e.g. "·"); empty = use key
-min_font_size = 6                           # Labels shrink to fit their quadrant, down to this size, then hide
-label_autohide_multiplier = 1.5             # Keep quadrant >= fontSize × multiplier by shrinking the label (0 = disable)
-sub_key_preview = false                     # Accepted for the shared shape; a bisect level has no next level to preview
+label_char = ""                             # Empty = use key
+min_font_size = 6
+label_autohide_multiplier = 1.5             # 0 = disable
+sub_key_preview = false                     # No effect in bisect
 sub_key_preview_font_size = 8
 sub_key_preview_autohide_multiplier = 1.5
 sub_key_preview_label_char = ""
@@ -345,14 +332,14 @@ sub_key_preview_label_char = ""
 # Virtual pointer
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#virtual_pointer
 [virtual_pointer.ui]
-char = "●"             # Character to display (e.g. "•", "●", "◉", "⬤") or anything you like
+char = "●"
 font_size = 8
 font_family = ""
 
 # Mouse action indicator (macOS)
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#mouse_action_indicator
 [mouse_action_indicator]
-enabled = false                             # Disabled by default
+enabled = false
 actions = [
   "left_click",
   "right_click",
@@ -371,7 +358,7 @@ actions = [
 [mouse_action_indicator.ui]
 size = 36
 border_width = 2
-shape = "circle"                            # circle or square
+shape = "circle"                            # circle, square
 
 [mouse_action_indicator.animation]
 duration_ms = 260
@@ -384,19 +371,19 @@ easing = "ease_out"                         # linear, ease_in, ease_out, ease_in
 # Monitor select mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#monitor_select
 [monitor_select]
-enabled = false                                # Enable interactive monitor picking mode
-characters = "123456789"                       # Characters used for monitor labels
+enabled = false
+characters = "123456789"
 
 [monitor_select.ui]
-font_size = 96                                 # Badge label font size
-font_family = ""                               # Badge label font family
-subtitle_font_size = 18                        # Monitor name subtitle font size
-subtitle_font_family = ""                      # Subtitle font family (empty = the badge label's)
-border_radius = -1                             # Badge corner radius (-1 = auto)
-padding_x = -1                                 # Badge horizontal padding (-1 = auto)
-padding_y = -1                                 # Badge vertical padding (-1 = auto)
-border_width = 0                               # Badge border width
-backdrop_color = ""                            # Per-monitor tint backdrop
+font_size = 96
+font_family = ""
+subtitle_font_size = 18
+subtitle_font_family = ""                   # Empty = font_family
+border_radius = -1                          # -1 = auto
+padding_x = -1                              # -1 = auto
+padding_y = -1                              # -1 = auto
+border_width = 0
+backdrop_color = ""
 
 [monitor_select.hotkeys]
 "Escape" = "idle"
@@ -404,10 +391,10 @@ backdrop_color = ""                            # Per-monitor tint backdrop
 # Scroll mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#scroll
 [scroll]
-scroll_step = 50                            # Pixels per j/k press
-scroll_step_half = 500                      # Pixels for d/u (half page)
-scroll_step_full = 1000000                  # Pixels for gg/G (top/bottom)
-invert_scroll = false                       # Invert scroll direction (for tools like Mos)
+scroll_step = 50                            # px
+scroll_step_half = 500                      # px
+scroll_step_full = 1000000                  # px
+invert_scroll = false
 
 [scroll.hotkeys]
 "Escape" = "idle"
@@ -473,7 +460,7 @@ indicator_y_offset = 20
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#sticky_modifiers
 [sticky_modifiers]
 enabled = true
-tap_max_duration = 300
+tap_max_duration = 300                      # ms, 0 = always toggle
 
 [sticky_modifiers.ui]
 font_size = 10
@@ -485,45 +472,45 @@ border_radius = -1
 indicator_x_offset = -40
 indicator_y_offset = 20
 
-# Smooth cursor (animates cursor movement between positions)
+# Smooth cursor
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#smooth_cursor
 [smooth_cursor]
-move_mouse_enabled = false                  # Enable smooth mouse movement
-steps = 10                                  # Number of intermediate positions
-max_duration = 200                          # Maximum animation duration in ms
-duration_per_pixel = 0.1                    # Ms per pixel for adaptive duration
-relative_movement_duration = 50             # Fixed duration per relative (hjkl) move in ms (macOS/Linux)
+move_mouse_enabled = false
+steps = 10
+max_duration = 200                          # ms
+duration_per_pixel = 0.1                    # ms per px
+relative_movement_duration = 50             # ms
 
-# Smooth scroll (animates scroll actions with eased chunking)
+# Smooth scroll
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#smooth_scroll
 [smooth_scroll]
-enabled = false                             # Enable smooth scrolling
-steps = 20                                  # Number of animation steps
-max_duration = 180                          # Maximum animation duration in ms
-duration_per_pixel = 1.00                   # Ms per pixel for adaptive duration
+enabled = false
+steps = 20
+max_duration = 180                          # ms
+duration_per_pixel = 1.00                   # ms per px
 
-# Held-key repeat (fires scroll/page/mouse-move actions repeatedly while held)
+# Held-key repeat
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#held_repeat
 [held_repeat]
-enabled = false                         # Master toggle for held-key repeat (a held move_mouse_relative glides)
-initial_delay_ms = 50                   # Delay before first repeat fires (ms)
-interval_ms = 50                        # Interval between subsequent repeats (ms)
-accel_enabled = false                   # Ramp the glide's speed up the longer the key stays held
-accel_ramp_ms = 500                     # Hold time to reach accel_max_multiplier (ms)
-accel_max_multiplier = 4.0              # Speed multiplier at full ramp
-accel_targets = ["move_mouse_relative"] # Action names eligible for acceleration
+enabled = false
+initial_delay_ms = 50
+interval_ms = 50
+accel_enabled = false
+accel_ramp_ms = 500
+accel_max_multiplier = 4.0
+accel_targets = ["move_mouse_relative"]
 
 # Systray
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#systray
 [systray]
-enabled = true                              # Show menu bar icon (false = headless mode)
+enabled = true                              # false = headless mode
 
 # Logging
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#logging
 [logging]
 log_level = "info"                          # debug, info, warn, error
-log_file = ""                               # Custom log path (empty = default location)
-disable_file_logging = true                 # Console only (no file); file logs use JSON
-max_file_size = 10                          # MB before rotation
-max_backups = 5                             # Old log files to keep
-max_age = 30                                # Days to retain old logs
+log_file = ""                               # Empty = default location
+disable_file_logging = true
+max_file_size = 10                          # MB
+max_backups = 5
+max_age = 30                                # days
