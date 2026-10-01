@@ -1,29 +1,13 @@
-# Linux Desktop Environments
+# Linux desktop environments
 
 Per-desktop notes for Neru on Linux: what each desktop needs from you, the
 consent prompts it shows, the protocols it was measured to offer, and the
 issues specific to it.
 
-This is the **per-desktop** layer. Which protocol or API implements each
-capability, and why, is in the
-[Capability Matrix](../reference/platform-support.md#capability-matrix). Host preparation
-(dependencies, permissions, build, deploy) is in
-[LINUX_SETUP.md](./linux.md).
-
-**Related:** [Linux setup](./linux.md) ·
-[Cross-Platform Guide](../reference/platform-support.md) · [Troubleshooting](./troubleshooting.md)
-
----
-
-## Table of Contents
-
-- [KDE Plasma (Wayland)](#kde-plasma-wayland)
-- [COSMIC (Wayland)](#cosmic-wayland)
-- [wlroots compositors](#wlroots-compositors)
-- [X11 sessions](#x11-sessions)
-- [GNOME (Wayland)](#gnome-wayland)
-- [Global hotkeys on Wayland](#global-hotkeys-on-wayland)
-- [Checking compositor protocols](#checking-compositor-protocols)
+Host preparation that applies to every desktop, such as runtime libraries, the
+`input` group, the `/dev/uinput` rule and the systemd service, is in
+[Linux setup](./linux.md). Which protocol or API implements each capability is
+in the [capability matrix](../reference/platform-support.md#capability-matrix).
 
 ---
 
@@ -34,10 +18,10 @@ capability, and why, is in the
 
 KWin implements layer-shell but not `zwlr_virtual_pointer_v1`, so overlays and
 screen geometry take the shared Wayland client while pointer and keyboard
-injection go through **libei** via `org.freedesktop.portal.RemoteDesktop`.
+injection go through libei and `org.freedesktop.portal.RemoteDesktop`.
 Screen capture goes through `org.freedesktop.portal.ScreenCast`. A KWin script
 reports focused-window geometry over D-Bus so AT-SPI's window-relative hint
-coordinates can be placed on screen; Neru reinstalls it when KWin restarts.
+coordinates can be placed on screen. Neru reinstalls it when KWin restarts.
 
 ### Protocol support (KWin 6.6.4, measured)
 
@@ -54,19 +38,16 @@ coordinates can be placed on screen; Neru reinstalls it when KWin restarts.
 Re-measure with the one-liner under
 [Checking compositor protocols](#checking-compositor-protocols).
 
-### Setup notes (beyond LINUX_SETUP.md)
+### Setup notes
 
 1. **RemoteDesktop consent.** The first daemon start shows a "Remote Control"
    portal prompt. **Check "Enable keyboard"** before allowing, or modified
    clicks degrade and `neru action feed` is refused. Neru persists the grant
-   with a restore token in `$XDG_STATE_HOME/neru/remote-desktop.token`
-   (`~/.local/state/neru/` by default). Deleting that file, or revoking the
+   with a restore token in `$XDG_STATE_HOME/neru/remote-desktop.token`,
+   under `~/.local/state/neru/` by default. Deleting that file, or revoking the
    permission in System Settings, brings the prompt back on the next start.
-2. **Hotkeys.** Neru's own `[hotkeys]` work when the daemon can read
-   `/dev/input`, see [Global hotkeys on Wayland](#global-hotkeys-on-wayland).
-   Otherwise bind the modes in **System Settings > Shortcuts > Custom
-   Shortcuts** with the absolute path, for example
-   `/home/<you>/.local/bin/neru hints`.
+2. **Hotkeys.** See [Global hotkeys on Wayland](#global-hotkeys-on-wayland)
+   for both ways to bind modes, including KDE's System Settings.
 3. **Portal services.** Input and screen capture both need
    `xdg-desktop-portal` and `xdg-desktop-portal-kde` running in the session.
 
@@ -76,7 +57,7 @@ Re-measure with the one-liner under
 portal's ScreenCast session. This is a second grant, separate from "Remote
 Control", and it appears the first time a capture-strategy hint activation
 needs a frame, as a source picker. Pick every screen you are willing to have
-read: a region on a screen you did not share fails rather than coming back
+read. A region on a screen you did not share fails rather than coming back
 cropped. Neru asks for monitors only, with the pointer left out.
 
 The restore token is kept in `$XDG_STATE_HOME/neru/screen-cast.token`, so later
@@ -97,8 +78,8 @@ so KWin is not streaming your screen between frames.
 
 Approve the consent dialog before the connect times out. If denied, revoke and
 re-grant in System Settings, and confirm the portal services are running. A
-grant revoked while Neru still held its token needs no cleanup: the token is
-dropped on the first refusal and the prompt shown again on that start.
+grant revoked while Neru still held its token needs no cleanup. Neru drops the
+token on the first refusal and shows the prompt again on that start.
 
 **"key feeding unavailable: the RemoteDesktop portal session did not grant a keyboard device"**
 
@@ -111,25 +92,25 @@ The grant was made without the keyboard. Clear it and start over:
 
 Then restart the daemon and **check "Enable keyboard"** in the prompt.
 
-**Verifying injected input** with the KWin Debug Console
-(`qdbus org.kde.KWin /KWin org.kde.KWin.showDebugConsole`): the Input Events tab
-shows Neru's events with an "Unknown" device (libei), real hardware with a
-device path.
+**Verifying injected input.** Open the KWin Debug Console with
+`qdbus org.kde.KWin /KWin org.kde.KWin.showDebugConsole`. Its Input Events tab
+shows Neru's events with an "Unknown" device, which is libei, and real
+hardware with a device path.
 
 ---
 
 ## COSMIC (Wayland)
 
 **Backend:** `wayland-cosmic`
-**Status:** Supported (cosmic-comp; pointer input needs xdg-desktop-portal-cosmic 1.7 or later)
+**Status:** Supported (cosmic-comp). Pointer input needs xdg-desktop-portal-cosmic 1.7 or later.
 
 COSMIC sits between wlroots and KDE. cosmic-comp implements layer-shell and the
 virtual keyboard, so overlays, screen geometry and sticky modifiers take the
-shared client unchanged. It has no wlr toplevel manager; its
+shared client unchanged. It has no wlr toplevel manager. Its
 `ext_foreign_toplevel_list_v1` plus `zcosmic_toplevel_info_v1` answer the
 focused app, the app watcher, hint offsets and `FocusedWindowBounds` from one
 source, with no compositor CLI involved. Pointer input and screen capture go
-the KDE way through the two portals, with the same one-time consent prompts
+through the two portals, as on KDE, with the same one-time consent prompts
 described under [Screen-sharing consent](#screen-sharing-consent).
 
 ### Protocol support (cosmic-comp 1.6.0, measured)
@@ -176,21 +157,18 @@ Two behaviors are specific enough to note here:
   layer-shell surface plus a virtual-pointer wiggle. On Hyprland it reads
   `hyprctl` instead.
 - **Window origins.** niri, Sway and Hyprland expose focused-window geometry
-  through their CLIs; River, Wayfire and labwc expose none, so hints there stay
-  window-relative. On niri, **tiled** windows expose no on-screen position
+  through their CLIs. River, Wayfire and labwc expose none, so hints there stay
+  window-relative. On niri, tiled windows expose no on-screen position
   ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are
-  misaligned there. Details in
-  [CROSS_PLATFORM.md](../reference/platform-support.md#accessibility-and-hints).
+  misaligned there. Details are in
+  [Platform support](../reference/platform-support.md#accessibility-and-hints).
 
 ### Known issues
 
-- **Device permissions.** Without read access to `/dev/input` there is no
-  keyboard proxy: Neru falls back to overlay-focused keyboard capture, modified
-  clicks may degrade, and `[hotkeys]` do not fire. Without write access to
-  `/dev/uinput` the proxy reads passively and scrolling falls back to the
-  virtual pointer, which Chromium and Electron apps on Hyprland ignore. Both
-  are install-time steps in
-  [LINUX_SETUP.md](./linux.md#install-time-environment-adjustments).
+- **Device permissions.** Without `/dev/input` and `/dev/uinput` access,
+  `[hotkeys]` do not fire and scrolling falls back to the virtual pointer,
+  which Chromium and Electron apps on Hyprland ignore. See
+  [Install-time environment adjustments](./linux.md#install-time-environment-adjustments).
 - **Modified scroll on Hyprland** goes out on the uinput wheel in whole
   notches, because a virtual-pointer scroll under a virtual-keyboard modifier
   produces no event there ([#1474](https://github.com/y3owk1n/neru/pull/1474)).
@@ -202,12 +180,11 @@ Two behaviors are specific enough to note here:
 **Backend:** `x11`
 **Status:** Supported: XOrg, i3, GNOME on X11, and other X11 window managers
 
-The simplest configuration: global hotkeys come from Neru's own config via
-`XGrabKey`, input uses XTest, and no compositor keybinding setup is required.
-Two limits are the display server's: modifier passthrough is not available
-(`XGrabKeyboard` is all-or-nothing), and smooth scroll animates in whole
-notches. Build dependencies and systemd deployment are in
-[LINUX_SETUP.md](./linux.md).
+The simplest configuration. Global hotkeys you write in `[hotkeys]` are
+registered with `XGrabKey`, input uses XTest, and no compositor keybinding or
+device permission is needed. Two limits come from the display server. Modifier
+passthrough is not available, because `XGrabKeyboard` is all-or-nothing. Smooth
+scroll animates in whole notches.
 
 ---
 
@@ -218,13 +195,14 @@ notches. Build dependencies and systemd deployment are in
 (GNOME Shell 50 / Mutter, measured)
 
 Mutter implements none of the wlr family beyond `zxdg_output_manager_v1`, so
-GNOME borrows: pointer input and screen capture take the portal path with the
-same "Remote Control" and [screen-sharing](#screen-sharing-consent) consents
-as KDE (GNOME's portal grants the keyboard with the pointer, so `feed` works
-from the first grant); keyboard capture and global hotkeys are the evdev proxy
-with no compositor fallback; and **the overlay is drawn on Xwayland**, because
-Mutter stacks an override-redirect X window above every toplevel without
-animating or focusing it, where a fullscreen `xdg_toplevel` gets both. The
+the GNOME backend reuses mechanisms from the other backends. Pointer input and
+screen capture take the portal path, with the same "Remote Control" and
+[screen-sharing](#screen-sharing-consent) consents as KDE. GNOME's portal grants
+the keyboard with the pointer, so `feed` works from the first grant. Keyboard
+capture and global hotkeys use the evdev proxy, with no compositor fallback.
+**The overlay is drawn on Xwayland**, because Mutter stacks an
+override-redirect X window above every toplevel without animating or focusing
+it, while a fullscreen `xdg_toplevel` gets both. The
 daemon refuses to start on a GNOME session with no `DISPLAY`, naming Xwayland.
 
 **The focused window comes from a GNOME Shell extension.** Mutter tells a
@@ -232,17 +210,17 @@ client neither which window is focused nor where it is, so Neru ships
 `neru@y3owk1n.github.io`, which owns `org.neru.Shell` on the session bus and
 reports the focused window's app id, title and frame on request and on every
 change. Per-app config, hints in native Wayland apps and `FocusedWindowBounds`
-all read it. It reads `global.display.focus_window` and nothing else, and
-neither logs nor stores anything.
+all read it. The extension reads `global.display.focus_window` and nothing
+else, and neither logs nor stores anything.
 
 ### The extension
 
-The daemon installs it on first start: it writes the two files into
+The daemon installs it on first start. It writes the two files into
 `$XDG_DATA_HOME/gnome-shell/extensions/neru@y3owk1n.github.io/`, adds the UUID
 to `enabled-extensions`, and warns once with what it did. GNOME Shell loads a
 new extension only at login, so **log out and back in** after the first daemon
 start. Until then every mode works, but per-app config does not apply and
-hints in native Wayland apps stay window-relative; `neru doctor` reports
+hints in native Wayland apps stay window-relative. `neru doctor` reports
 `app_watcher` as a stub with the same instruction. The files are rewritten
 only when a new Neru ships a changed extension, and a reinstall never
 re-enables one you disabled.
@@ -267,7 +245,7 @@ re-enables one you disabled.
   `xwayland-native-scaling` experimental feature on, the X root is in physical
   pixels and the overlay lands at the wrong place on scaled monitors. The
   daemon warns at startup when `Xft.dpi` says so.
-- **Budgie** identifies itself as GNOME and takes this backend untested; its
+- **Budgie** identifies itself as GNOME and takes this backend untested. Its
   shell is not GNOME Shell, so the extension has nowhere to load. Cinnamon and
   Pantheon are Mutter-based too but resolve to `wayland-other` and are refused
   until someone runs the protocol check below on them.
@@ -276,7 +254,9 @@ re-enables one you disabled.
 
 ## Global hotkeys on Wayland
 
-Applies to every Wayland desktop. X11 is unaffected, it uses `XGrabKey`.
+Applies to every Wayland desktop. X11 is unaffected, because it uses `XGrabKey`.
+Neru ships no default global hotkeys on Linux. See
+[Binding your first hotkeys](./getting-started.md#binding-your-first-hotkeys).
 
 No Wayland protocol lets an ordinary client register a global hotkey, so Neru
 offers two paths and prefers the first:
@@ -284,43 +264,77 @@ offers two paths and prefers the first:
 1. **Neru's own `[hotkeys]` config**, through the evdev keyboard proxy. Neru
    holds the keyboards and re-emits every key through a uinput keyboard of its
    own, so a matched chord is consumed before the focused application sees it.
-   Without a writable `/dev/uinput` the proxy reads passively: the chord still
+   Without a writable `/dev/uinput` the proxy reads passively. The chord still
    matches, but the application receives it too.
-2. **Compositor keybindings.** Bind `neru hints`, `neru grid`, and friends in
-   your compositor config or System Settings. Always available, needs no
-   permissions, and the right choice if you would rather not grant `/dev/input`
-   access.
+2. **Compositor keybindings.** Bind `neru hints`, `neru grid` and the other modes
+   in your compositor config or System Settings. This path is always available
+   and needs no permissions. Use it if you would rather not grant `/dev/input`
+   access. Examples are under [Compositor bindings](#compositor-bindings).
 
-Path 1 needs **read access to `/dev/input`** (the `input` group, then re-login,
-see [LINUX_SETUP.md](./linux.md#wayland-keyboard-capture-permissions))
-and **a CGO build**, which the official Linux builds are. On startup the daemon
-logs `Wayland global hotkeys enabled via evdev; config keybindings are active`
+Path 1 needs the `input` group. See
+[Wayland keyboard capture permissions](./linux.md#wayland-keyboard-capture-permissions).
+A chord on `Super` does not also fire the desktop's Super-alone shortcut, such as
+the KDE and GNOME launchers or a Hyprland `bindr`. Neru taps a symbol-less key in
+place of the chord's key so the compositor sees Super was not pressed alone.
+On startup the daemon logs `Wayland global hotkeys enabled via evdev; config keybindings are active`
 on success, or a warning naming both the `input` group and the compositor
 fallback.
 
 Bindings keep working from inside a mode, because the proxy hands every press
 to the mode session and the mode handler resolves the global table itself. A
 chord bound in the *compositor* cannot fire while a mode is open, since the
-compositor is not reading the keyboard then. Why the proxy holds the keyboards
-at all: [ADR 0014](../adr/0014-the-wayland-keyboard-is-a-proxy.md); how it shares
-one reader with the in-mode tap:
-[CROSS_PLATFORM.md](../reference/platform-support.md#keyboard-capture-and-hotkeys).
+compositor is not reading the keyboard then. [ADR 0014](../adr/0014-the-wayland-keyboard-is-a-proxy.md)
+explains why the proxy holds the keyboards.
+[Platform support](../reference/platform-support.md#keyboard-capture-and-hotkeys)
+explains how it shares one reader with the in-mode tap.
+
+### Compositor bindings
+
+Sway (`~/.config/sway/config`):
+
+```sway
+bindsym $mod+Shift+h exec neru hints
+bindsym $mod+Shift+g exec neru grid
+bindsym $mod+Shift+s exec neru scroll
+```
+
+Hyprland (`~/.config/hypr/hyprland.conf`):
+
+```hyprlang
+bind = $mod SHIFT, H, exec, neru hints
+bind = $mod SHIFT, G, exec, neru grid
+bind = $mod SHIFT, S, exec, neru scroll
+```
+
+niri (`~/.config/niri/config.kdl`):
+
+```kdl
+binds {
+    Mod+Shift+H { spawn-sh "neru hints"; }
+    Mod+Shift+G { spawn-sh "neru grid"; }
+    Mod+Shift+S { spawn-sh "neru scroll"; }
+    Mod+Shift+R { spawn-sh "neru recursive_grid"; }
+}
+```
+
+KDE Plasma: **System Settings > Shortcuts > Custom Shortcuts**, with the
+absolute path to the binary, for example `/home/<you>/.local/bin/neru hints`.
 
 ---
 
 ## Checking compositor protocols
 
-Run inside the graphical session (`WAYLAND_DISPLAY` set):
+Run inside the graphical session, where `WAYLAND_DISPLAY` is set:
 
 ```bash
 wayland-info | grep -E 'zwlr_layer_shell|zwlr_virtual_pointer|zwp_virtual_keyboard|zwlr_screencopy|fake_input|xdg_output'
 ```
 
-Neru's wlroots path needs **both** `zwlr_layer_shell_v1` and
+Neru's wlroots path needs both `zwlr_layer_shell_v1` and
 `zwlr_virtual_pointer_v1`. A compositor with layer-shell but no virtual pointer
 can still take the libei path if its portal implements RemoteDesktop, as KDE
-and COSMIC do; one with neither needs its overlay drawn on Xwayland, as GNOME
+and COSMIC do. One with neither needs its overlay drawn on Xwayland, as GNOME
 does. The daemon refuses to start on a compositor it does not recognize, as
-`wayland-other`. Adding one is a backend-detection entry, a focused-window
-geometry source, and at most a mechanism-specific file, never a per-DE stack:
-[organize by mechanism, not by desktop](../contributing/porting.md#organize-by-mechanism-not-by-desktop).
+`wayland-other`. Adding one takes a backend-detection entry, a focused-window
+geometry source, and at most a mechanism-specific file, never a per-DE stack.
+See [organize by mechanism, not by desktop](../contributing/porting.md#organize-by-mechanism-not-by-desktop).

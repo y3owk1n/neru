@@ -222,10 +222,10 @@ in
           <= 1;
 
         message = ''
-          programs.neru: only one of the following options may be set:
-            - programs.neru.settings
-            - programs.neru.config
-            - programs.neru.configFile
+          services.neru: only one of the following options may be set:
+            - services.neru.settings
+            - services.neru.config
+            - services.neru.configFile
 
           Please choose a single configuration source.
         '';

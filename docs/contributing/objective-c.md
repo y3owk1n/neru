@@ -1,19 +1,24 @@
-# Objective-C Guidelines
+# Objective-C guidelines
 
-## File Organization
+Style and memory rules for the native bridge code under
+`internal/adapter/platform/darwin/` and the C under `internal/adapter/platform/linux/`.
+Read it before adding or changing a `.m`, `.h` or `.c` file. `just fmt` applies
+the formatting and `just lint` runs clang-tidy on the `.m` files.
 
-### CGO and Go Files
+## File organization
 
-Native bridge **implementations** belong in platform bridge files, not in Go CGO comment blocks:
+### CGO and Go files
+
+Native bridge implementations belong in platform bridge files, not in Go CGO comment blocks:
 
 - **macOS**: `.m` / `.h` under `internal/adapter/platform/darwin/`
 - **Linux**: `.c` / `.h` under `internal/adapter/platform/linux/` (Wayland protocol stubs stay in `wlr_protocol/`)
 
-Go files may use a minimal CGO preamble (`#include` headers, `#cgo` flags, `#include <stdlib.h>` when using `C.CString`/`C.free`, and `extern` declarations for `//export` callbacks only). Packages that call bridge symbols from another directory should blank-import `internal/adapter/platform/linux` or `darwin` so the linker pulls in the compiled native objects once (same pattern as `wlr_protocol`).
+Go files may use a minimal CGO preamble. It holds only `#include` headers, `#cgo` flags, `#include <stdlib.h>` when using `C.CString`/`C.free`, and `extern` declarations for `//export` callbacks. Packages that call bridge symbols from another directory should blank-import `internal/adapter/platform/linux` or `darwin`, so the linker pulls in the compiled native objects once. `wlr_protocol` follows the same pattern.
 
-Bridge `.c` / `.m` files must `#include` their matching header and must **not** re-declare structs or typedefs already defined in that header (duplicate definitions cause `conflicting types` errors when CGO includes the same header).
+Bridge `.c` / `.m` files must `#include` their matching header and must **not** re-declare structs or typedefs already defined in that header. Duplicate definitions cause `conflicting types` errors when CGO includes the same header.
 
-### Header Files (.h)
+### Header files (.h)
 
 - Minimal public interface
 - Use `@class` forward declarations when possible
@@ -33,7 +38,7 @@ void NeruShowOverlayWindow(OverlayWindow window);
 void NeruHideOverlayWindow(OverlayWindow window);
 ```
 
-### Implementation Files (.m)
+### Implementation files (.m)
 
 Standard structure:
 
@@ -75,11 +80,11 @@ OverlayWindow NeruCreateOverlayWindow(void) {
 }
 ```
 
-## Naming Conventions
+## Naming conventions
 
 ### C bridge exports (Go-callable)
 
-Every function declared in a `.h` file and called from Go via CGO must use a **`Neru` prefix** (PascalCase after the prefix) to avoid symbol collisions with system libraries and to mark the public bridge surface. Do not add unprefixed CGO exports.
+Every function declared in a `.h` file and called from Go via CGO must use a **`Neru` prefix** (PascalCase after the prefix) to avoid symbol collisions with system libraries and to mark the public bridge functions. Do not add unprefixed CGO exports.
 
 ```objc
 OverlayWindow NeruCreateOverlayWindow(void);
@@ -104,7 +109,7 @@ Objective-C methods, private `static` helpers, and symbols not exported through 
 - (NSColor *)colorFromHex:(NSString *)hexString;
 ```
 
-## Property Attributes
+## Property attributes
 
 - `strong` for object ownership
 - `weak` for delegates and to avoid retain cycles
@@ -118,18 +123,20 @@ Objective-C methods, private `static` helpers, and symbols not exported through 
 @property(nonatomic, copy) NSString *title;
 ```
 
-## Memory Management
+## Memory management
 
 All Objective-C in this repo compiles with **ARC** (`-fobjc-arc`, set in
 `internal/adapter/platform/darwin/cgo_flags.go`). Never write `retain`,
-`release`, or `autorelease` — under ARC they are compile errors. What you do
-manage by hand is the two boundaries ARC cannot see across: the CGO boundary
-(Go holds a `void *`) and Core Foundation objects (`AX*`, `CG*`, `CF*`).
+`release`, or `autorelease`, because under ARC they are compile errors. You
+manage two boundaries by hand, because ARC cannot see across them:
+
+- the CGO boundary, where Go holds a `void *`
+- Core Foundation objects (`AX*`, `CG*`, `CF*`)
 
 ### Handing an ObjC object to Go and back
 
-Go keeps native objects alive via an opaque `void *`. ARC doesn't know Go is
-holding a reference, so transfer ownership explicitly at the boundary:
+Go keeps native objects alive through an opaque `void *`. ARC does not know Go
+holds a reference, so transfer ownership explicitly at the boundary:
 
 ```objc
 // Create: transfer ownership OUT of ARC — the Go side now owns +1.
@@ -166,9 +173,9 @@ once.
 **The ownership rule at the CGO boundary:** every `AXUIElementRef` (or other CF
 ref) returned to Go through a `Neru*` function is **+1 retained, and the Go
 caller owns it**. On the Go side that means calling `Element.Release()` (or
-`ReleaseAll`) when done — including on every element a tree traversal enqueues
-but abandons. Leaked AX elements have been a recurring bug class here; when you
-write a traversal, account for every ref you were handed.
+`ReleaseAll`) when done, including on every element a tree traversal enqueues
+but abandons. Leaked AX elements have been a recurring bug in this repo. When
+you write a traversal, release every ref you receive.
 
 ### Mach ports
 
@@ -185,8 +192,8 @@ See `eventtap_darwin.m` for both call sites and the rationale.
 ### Autorelease pools
 
 Long-running or Go-called code paths that allocate ObjC objects should wrap
-their work in `@autoreleasepool { ... }` — there is no ambient pool on threads
-Go creates. Drawing paths and traversal loops in `overlay_darwin.m` and the
+their work in `@autoreleasepool { ... }`, because threads Go creates have no
+ambient pool. Drawing paths and traversal loops in `overlay_darwin.m` and the
 `accessibility_*` files show the pattern.
 
 ## Comments
@@ -211,7 +218,7 @@ NSRectFill(dirtyRect);
 _hints = [NSMutableArray arrayWithCapacity:100];
 ```
 
-## Code Organization
+## Code organization
 
 Use `#pragma mark` to organize code:
 
@@ -258,6 +265,6 @@ if ([NSThread isMainThread]) {
 - Use `dispatch_sync` when you need the result immediately
 - Use `dispatch_async` for UI updates and non-blocking operations
 
-## See Also
+## See also
 
-- [darwin/AGENTS.md](../../internal/adapter/platform/darwin/AGENTS.md) — the compressed contract this guide backs
+- [darwin/AGENTS.md](../../internal/adapter/platform/darwin/AGENTS.md), the short form of the contract this guide explains in full

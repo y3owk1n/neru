@@ -47,7 +47,7 @@ func announceBuildBoundary(logger *zap.Logger, targetOS platform.OS, cgoEnabled 
 		zap.Strings("unavailable", noCGOLinuxUnavailable),
 		zap.String(
 			"remedy",
-			"install the Linux build dependencies (docs/guide/linux.md) and rebuild with CGO_ENABLED=1",
+			"install the Linux build dependencies (docs/contributing/development.md) and rebuild with CGO_ENABLED=1",
 		),
 	)
 }

@@ -62,7 +62,7 @@ All communication is strictly local — the CLI and daemon talk over a **Unix do
 
 ### IPC
 
-The CLI communicates with the running daemon over that endpoint using a JSON-based message protocol. It is never exposed over the network, and it is scoped to the user running the daemon: the socket is mode `0600` inside a `0700` directory that user owns, the named pipe carries that user's SID in its name and a security descriptor naming that SID alone, and on macOS and Linux the daemon additionally reads the connecting process's uid from the kernel and serves only its own. See [ARCHITECTURE.md](docs/contributing/architecture.md#runtime-shape) for the exact locations.
+The CLI communicates with the running daemon over that endpoint using a JSON-based message protocol. It is never exposed over the network, and it is scoped to the user running the daemon: the socket is mode `0600` inside a `0700` directory that user owns, the named pipe carries that user's SID in its name and a security descriptor naming that SID alone, and on macOS and Linux the daemon additionally reads the connecting process's uid from the kernel and serves only its own. See [Architecture](docs/contributing/architecture.md#runtime-shape) for the exact locations.
 
 ### CGo / Objective-C Bridge
 

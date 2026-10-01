@@ -588,7 +588,7 @@ vet-cross:
 
 # The libraries a CGO build links against come from the distro, not from oku:
 # oku.toml provides the toolchain only. The package lists are the ones in
-# docs/guide/linux.md#build-dependencies, which says what each is for.
+# docs/contributing/development.md#build-dependencies, which says what each is for.
 [linux]
 [doc('Install the system libraries a Linux build links against; needs sudo.')]
 linux-deps:
@@ -619,7 +619,7 @@ linux-deps:
             libxkbcommon libei fontconfig \
             tesseract tesseract-data-eng libpipewire wayland-protocols ttf-dejavu
     else
-        echo "no apt-get, dnf or pacman here, see docs/guide/linux.md#build-dependencies" >&2
+        echo "no apt-get, dnf or pacman here, see docs/contributing/development.md#build-dependencies" >&2
         exit 1
     fi
 

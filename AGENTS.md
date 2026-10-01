@@ -90,6 +90,6 @@ Formatting and lint mechanics are fully enforced by `just fmt` + `just lint` —
 
 ## Documentation
 
-Start here, then navigate: `docs/contributing/architecture.md` (shape) · `docs/contributing/development.md` · `docs/reference/cli.md` · `docs/reference/configuration.md` · `docs/reference/platform-support.md` (status). Docs drift in places; when they disagree with code, read the code.
+`docs/README.md` indexes everything. User docs live in `docs/guide/` (how-to) and `docs/reference/` (lookup), contributor docs in `docs/contributing/`, and the table saying which doc owns which fact is in `docs/contributing/porting.md` (Documentation Checklist). For contributors start with `docs/contributing/architecture.md` (shape) and `docs/contributing/development.md` (workflow), and `docs/reference/platform-support.md` for capability status. Docs drift in places. When they disagree with code, read the code.
 
 Keep this file lean — it loads into every agent session. Add only contracts an agent cannot infer from the code; area-specific depth goes in the nested guides, workflow depth in a skill.

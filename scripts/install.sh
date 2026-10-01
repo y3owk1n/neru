@@ -167,7 +167,7 @@ probe_binary() {
             note "Details: https://github.com/$repo/blob/main/docs/guide/linux.md#troubleshooting"
         else
             note "The full list per distribution is under"
-            note "https://github.com/$repo/blob/main/docs/guide/linux.md#build-dependencies"
+            note "https://github.com/$repo/blob/main/docs/guide/linux.md#runtime-libraries"
             note "Install them, then rerun this script."
         fi
     fi
@@ -848,7 +848,7 @@ if [ "$zsh_hint" = 1 ]; then
     next "zsh: add ${c_bold}fpath=(~/.zsh/completions \$fpath)${c_reset} to ~/.zshrc before compinit for completions."
 fi
 if [ "$os" = linux ]; then
-    next "On Wayland, bind compositor hotkeys to 'neru hints' and friends. See docs/guide/linux.md."
+    next "On Wayland, bind compositor hotkeys to 'neru hints' and friends. See docs/guide/linux-desktops.md#global-hotkeys-on-wayland."
 fi
 next "Configure: ${c_bold}neru config init${c_reset} writes a starter ~/.config/neru/config.toml."
 say ""

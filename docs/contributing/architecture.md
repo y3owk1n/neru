@@ -1,80 +1,45 @@
 # Architecture
 
 How Neru is structured internally: layers, boundaries, data flow, and the rules
-that keep platform code isolated.
+that keep platform code isolated. This page covers shape and rationale. What
+works on each platform is in [platform support](../reference/platform-support.md),
+where platform code goes is in the [porting guide](porting.md), and how to
+build and test is in the [development guide](development.md).
 
-Neru is a keyboard-driven navigation tool written in Go with an Objective-C
-bridge on macOS. It runs as a daemon with a thin CLI client.
+## System overview
 
-This document owns **system shape and rationale**. What actually works on each
-platform lives in [CROSS_PLATFORM.md](../reference/platform-support.md); how to build and test
-lives in [DEVELOPMENT.md](development.md).
+Neru is a keyboard-driven navigation tool written in Go, with an Objective-C
+bridge on macOS. It runs as a background daemon that listens for global
+hotkeys and keyboard events. When activated it offers several navigation modes:
 
-**Related:** [Cross-Platform Guide](../reference/platform-support.md) ·
-[Development Guide](development.md) · [Agent Guide](../../AGENTS.md)
-
----
-
-## Table of Contents
-
-- [System Overview](#system-overview)
-- [Runtime Shape](#runtime-shape)
-- [Design Principles](#design-principles)
-- [The "One Rule"](#the-one-rule)
-- [Component Architecture](#component-architecture)
-- [Codebase Navigation Guide](#codebase-navigation-guide)
-- [Data Flow](#data-flow)
-- [Mode Handler Locking](#mode-handler-locking)
-- [Coordinate Systems and Units](#coordinate-systems-and-units)
-- [Error Handling and Graceful Degradation](#error-handling-and-graceful-degradation)
-- [Runtime Capability Reporting](#runtime-capability-reporting)
-- [Platform Boundaries in the CLI Layer](#platform-boundaries-in-the-cli-layer)
-- [Application Identifier Terminology](#application-identifier-terminology)
-- [Technology Stack](#technology-stack)
-- [Performance Considerations](#performance-considerations)
-- [Security Architecture](#security-architecture)
-- [References](#references)
-
----
-
-## System Overview
-
-Neru runs as a background daemon that listens for global hotkeys and keyboard
-events. When activated it offers several navigation modes:
-
-- **Hints** — overlays unique character labels on clickable UI elements
-- **Grid** — divides the screen into a coordinate-based grid
-- **Recursive grid** — recursive cell navigation with center preview and backtracking
-- **Scroll** — Vim-style scrolling at the cursor position
-- **Monitor select** — labels each display so the cursor can jump between them
-- **Custom modes** — user-declared modes in `[modes.<name>]`, entered with
+- **Hints** put unique character labels on clickable UI elements
+- **Grid** divides the screen into a coordinate-based grid
+- **Recursive grid** narrows into cells, with center preview and backtracking
+- **Scroll** scrolls Vim-style at the cursor position
+- **Monitor select** labels each display so the cursor can jump between them
+- **Custom modes** are user-declared in `[modes.<name>]` and entered with
   `neru mode <name>`
 
-The architecture targets low latency and cross-platform extensibility while
-integrating deeply with native APIs. macOS is the reference implementation;
-current per-platform support is tracked in
-[CROSS_PLATFORM.md](../reference/platform-support.md#platform-status).
+The design aims for low latency, room for more platforms, and direct use of
+native APIs. macOS is the reference implementation.
 
----
+## Runtime shape
 
-## Runtime Shape
+Neru is a **daemon plus a thin CLI**. `neru launch` starts the daemon.
+`neru hints`, `neru action left_click`, `neru config reload` and the other
+commands dial a Unix domain socket or a Windows named pipe. The transport is in
+`internal/adapter/ipc` and the command handlers in `internal/app/ipcctrl`.
 
-Neru is a **daemon plus a thin CLI**. `neru launch` starts the daemon;
-`neru hints`, `neru action left_click`, `neru config reload` and friends dial a
-Unix domain socket or a Windows named pipe — see `internal/adapter/ipc` for the
-transport and
-`internal/app/ipcctrl` for the command handlers.
+The endpoint is scoped to one user, both in where it lives and in what the
+daemon checks before serving a connection:
 
-The endpoint is scoped to one user, in where it lives and in what the daemon
-checks before serving a connection:
-
-- **Unix socket** — `$XDG_RUNTIME_DIR/neru/neru.sock` where the session
+- **Unix socket**: `$XDG_RUNTIME_DIR/neru/neru.sock` where the session
   provides a runtime directory, otherwise `$TMPDIR/neru-<uid>/neru.sock`, mode
   0600 inside a directory the daemon creates 0700 and owns. The daemon then
   reads the connecting process's uid from the kernel and serves only its own.
-- **Named pipe** — `\\.\pipe\neru-<SID>`, created with a protected DACL naming
-  that SID alone. There the kernel checks the descriptor before the connection
-  is ever accepted, which is the same question asked earlier.
+- **Named pipe**: `\\.\pipe\neru-<SID>`, created with a protected DACL naming
+  that SID alone. There the kernel checks the descriptor before it accepts the
+  connection, so the same ownership check happens earlier.
 
 `neru doctor` prints the endpoint in use. On every platform the client also
 confirms, before sending anything, that the process serving the endpoint runs
@@ -82,14 +47,13 @@ as this user.
 
 New user-facing behavior therefore usually needs three pieces: a CLI command
 (`internal/cli/`, registered in an `init()`), an IPC handler, and the
-service/mode work behind it.
+service or mode work behind it.
 
 Startup is a numbered, individually-unwound phase sequence in
-[new.go](../../internal/app/new.go), with the
-individual steps in
+[new.go](../../internal/app/new.go), with the individual steps in
 [startup_phases.go](../../internal/app/startup_phases.go):
 
-```
+```text
 1. infrastructure    4. UI components      7. IPC controller
 2. services          4.5 systray           8. event tap + IPC server
 3. application state 5. render components  9. shutdown channel
@@ -97,39 +61,31 @@ individual steps in
 ```
 
 Dependency injection is manual and explicit. Each phase that allocates
-something appends a cleanup closure; on failure the app records `failurePhase`
+something appends a cleanup closure. On failure the app records `failurePhase`
 and runs those closures in reverse (`slices.Backward`), so a half-built daemon
-never lingers.
+never keeps running.
 
----
-
-## Design Principles
+## Design principles
 
 Neru follows a layered **Hexagonal Architecture (Ports and Adapters)**:
 
-1. **Shared business logic** — hint generation, grid calculations, mode
+1. **Shared business logic**: hint generation, grid calculations and mode
    transitions are pure Go in `internal/domain` and `internal/app/services`.
-2. **Platform isolation** — OS-specific code is strictly quarantined.
-3. **Ports and adapters** — every system capability (Accessibility, Hotkeys,
+2. **Platform isolation**: OS-specific code stays out of shared code.
+3. **Ports and adapters**: every system capability (Accessibility, Hotkeys,
    Overlays) is an interface in `internal/ports`, implemented by an adapter
    in `internal/adapter`.
-4. **Build tag separation** — OS-specific files carry build tags (`//go:build
+4. **Build tag separation**: OS-specific files carry build tags (`//go:build
    darwin`) so they compile only for their target.
-5. **Platform roles over brand names** — shared code says "primary modifier",
+5. **Platform roles over brand names**: shared code says "primary modifier",
    "display server", "accessibility backend", never `Cmd` or a single display
    stack.
-6. **Build strategy follows backend choice** — CGO is a per-backend-family
-   decision, not a per-OS one. macOS requires it; Linux and Windows mix pure-Go
-   and CGO-backed implementations by subsystem.
+6. **Build strategy follows backend choice**: CGO is a per-backend-family
+   decision, not a per-OS one. See [CGO guidance](porting.md#cgo-guidance).
 
-Where platform code physically goes, which file slot to use, and how the Linux
-backend family is organized are contributor concerns owned by
-[CROSS_PLATFORM.md](porting.md). The architectural
-source of truth for per-subsystem backend family, primary-modifier
-expectations, and build mode is
+The source of truth for per-subsystem backend family, primary-modifier
+expectations and build mode is
 [profile.go](../../internal/adapter/platform/profile.go).
-
----
 
 ## The "One Rule"
 
@@ -140,9 +96,9 @@ Enforced twice: `depguard` in `.golangci.yml`, and
 [dependency_boundary_test.go](../../internal/architecture/dependency_boundary_test.go).
 The duplication is deliberate. `depguard` matches directories, so its exemption
 for a darwin-only package is sound only while every file in such a directory
-carries the build tag that makes it darwin-only — and what checks that is
+carries the build tag that makes it darwin-only. What checks that is
 `TestPlatformPackagesTagEveryFile`, a Go test with no lint equivalent. The test
-is the primary enforcement; the lint rule is the fast feedback.
+is the primary enforcement and the lint rule is the fast feedback.
 
 Both exempt the same three shapes, and they are shapes rather than a list of
 packages: any file under a directory named `darwin`, any `*_darwin.go`, and any
@@ -152,9 +108,7 @@ either.
 Cross the boundary through `ports.SystemPort` or a build-tagged dispatch pair
 (`platform_darwin.go` / `platform_other.go`).
 
----
-
-## Component Architecture
+## Component architecture
 
 ```mermaid
 graph TD
@@ -189,106 +143,82 @@ graph TD
 
 ### Layer responsibilities
 
-- **Domain** (`internal/domain`) — pure business logic and entities
+- **Domain** (`internal/domain`): pure business logic and entities
   ([hint.go](../../internal/domain/hint/hint.go),
   [grid.go](../../internal/domain/grid/grid.go)). No external dependencies.
-- **Ports** (`internal/ports`) — interface contracts defining system
+- **Ports** (`internal/ports`): interface contracts defining system
   capabilities ([accessibility.go](../../internal/ports/accessibility.go),
   [overlay.go](../../internal/ports/overlay.go),
   [font.go](../../internal/ports/font.go)).
-- **Application** (`internal/app`) — orchestrates domain entities and services;
-  owns lifecycle and navigation modes.
-- **Adapters** (`internal/adapter`) — concrete port implementations on
+- **Application** (`internal/app`): orchestrates domain entities and services,
+  and owns lifecycle and navigation modes.
+- **Adapters** (`internal/adapter`): concrete port implementations on
   platform APIs.
-- **Overlay** (`internal/adapter/overlay`) — the adapter behind
-  `ports.OverlayPort`: it resolves styles, builds its own render components and
-  owns the sequence a mode transition needs. A mode hands it a Frame; pure
+- **Overlay** (`internal/adapter/overlay`): the adapter behind
+  `ports.OverlayPort`. It resolves styles, builds its own render components and
+  owns the sequence a mode transition needs. A mode hands it a Frame. Pure
   coordinate math lives in `internal/domain/geometry`.
-- **CLI** (`internal/cli`) — user commands, config loading, IPC to the daemon.
+- **CLI** (`internal/cli`): user commands, config loading, IPC to the daemon.
 
 A directory-by-directory map for placing new code is in
-[DEVELOPMENT.md](development.md#where-things-go).
+[Where things go](development.md#where-things-go).
 
----
-
-## Codebase Navigation Guide
+## Codebase navigation guide
 
 The fastest way to understand Neru is to follow one event from the OS to the
 user-visible action.
 
 **1. Entry points**
 
-- [main_darwin.go](../../cmd/neru/main_darwin.go) — bootstraps the app, locking the
-  main thread for Cocoa
-- [root.go](../../internal/cli/root.go) — the Cobra root command
+- [main_darwin.go](../../cmd/neru/main_darwin.go) bootstraps the app, locking
+  the main thread for Cocoa
+- [root.go](../../internal/cli/root.go) is the Cobra root command
 
 **2. Application wiring**
 
-- [new.go](../../internal/app/new.go) — startup phases
-- [startup_phases.go](../../internal/app/startup_phases.go) —
-  the individual infrastructure, service, and UI steps
+- [new.go](../../internal/app/new.go): startup phases
+- [startup_phases.go](../../internal/app/startup_phases.go): the individual
+  infrastructure, service and UI steps
 
 **3. The platform factory**
 
 [factory.go](../../internal/adapter/platform/factory.go) and its build-tagged
 siblings are the only place that picks a `ports.SystemPort` implementation. On
-Linux there is a second, *runtime* axis on top of build tags:
+Linux there is a second, runtime axis on top of build tags.
 [backend_linux.go](../../internal/adapter/platform/backend_linux.go) detects the
-live compositor (wlroots / KDE / GNOME / other) and the factory routes to it.
+live compositor (wlroots, KDE, GNOME, other) and the factory routes to it.
 
 **4. Where a platform's code lives**
 
-Each OS capability is a package under `internal/adapter/`. Where a backend is a
-real implementation rather than a few dispatch functions, it gets its own
-directory and the directory names the platform:
-
-```
-adapter/eventtap/{tap,darwin,linux,windows}          keyboard capture
-adapter/hotkeys/{darwin,linux,windows}               global hotkeys
-adapter/systray/{darwin,linux,windows}               tray icon
-adapter/accessibility/{ax,atspi,native}              element discovery
-adapter/overlay/{manager,darwin,linux,windows}       overlay rendering
-adapter/platform/{darwin,linux,windows}              the native cgo bridges
-adapter/platform/{gnomeshell,kwin,compositorcli}     per-compositor helpers the linux bridge routes to
-```
-
-Smaller capabilities (`appwatcher`, `keyfeed`, `vision`) stay one package
-each, with one build-tagged file per OS beside a shared shell
-(`platform_darwin.go`, `platform_linux.go`, `platform_windows.go`, and an
-`_other.go` fallback); `textinput` carries a darwin file and the fallback.
-
-The parent package holds the port adapter and a small build-tagged factory —
-the only place that knows which implementation exists. So "what do I touch to
-add a compositor?" is answered by `ls`, not by reading build tags. When a
-backend earns its own package and when build-tagged files in one package are
-clearer is covered in
-[CROSS_PLATFORM.md](porting.md#backend-packages).
+Each OS capability is a package under `internal/adapter/`, with one directory
+per platform where the backend is a real implementation. The layout, and when a
+backend gets its own package, are in
+[Backend packages](porting.md#backend-packages).
 
 **5. Input processing**
 
-1. **OS** — [eventtap_darwin.m](../../internal/adapter/platform/darwin/eventtap_darwin.m)
-   captures low-level keyboard events (Linux/Windows have equivalents)
-2. **Adapters** — [adapter.go](../../internal/adapter/eventtap/adapter.go)
+1. **OS**: [eventtap_darwin.m](../../internal/adapter/platform/darwin/eventtap_darwin.m)
+   captures low-level keyboard events (Linux and Windows have equivalents)
+2. **Adapters**: [adapter.go](../../internal/adapter/eventtap/adapter.go)
    receives and dispatches them
-3. **Application** — [handler.go](../../internal/app/modes/handler.go) routes the
+3. **Application**: [handler.go](../../internal/app/modes/handler.go) routes the
    key to the active [Mode](../../internal/app/modes/base.go). A held direction
-   key in the held-key glide is the one exception: the handler and the global
-   hotkey binder both press it into
+   key in the held-key glide is the one exception. The handler and the global
+   hotkey binder both pass it to
    [heldmotion](../../internal/app/heldmotion/controller.go), whose fixed-rate
    loop integrates the held set into cursor moves and posts them straight to
    the system port, never through a mode
-4. **Service** — the mode calls into
-   [hint_service.go](../../internal/app/services/hint_service.go) and friends
-5. **Keyboard layout changes** — on macOS the mode-level CGEventTap rebuilds its
+4. **Service**: the mode calls into
+   [hint_service.go](../../internal/app/services/hint_service.go) and its
+   siblings
+5. **Keyboard layout changes**: on macOS the mode-level CGEventTap rebuilds its
    key-name lookup tables at runtime (`NeruSetKeymapLayoutChangeCallback` in
    [keymap_darwin.m](../../internal/adapter/platform/darwin/keymap_darwin.m)) so
-   navigation keys survive layout switches. Per-hotkey CGEventTaps re-register
+   navigation keys keep working after a layout switch. Per-hotkey CGEventTaps re-register
    too (`NeruSetKeymapLayoutChangeCallback2`), because `NeruKeyNameToCode` maps
    key names to layout-aware keycodes.
 
----
-
-## Data Flow
+## Data flow
 
 ### Input event propagation
 
@@ -325,192 +255,163 @@ sequenceDiagram
 ```
 
 A mode hands the overlay adapter a `ports.Frame` of domain values and nothing
-else; resolving styles and running the show/switch/draw sequence is the
+else. Resolving styles and running the show, switch and draw sequence is the
 adapter's job (`internal/adapter/overlay/AGENTS.md`). Services never touch the
 overlay.
 
 On macOS each component owns its own NSPanel and calls the Objective-C bridge
-directly. On Linux and Windows the overlay **manager** does all drawing into one
-shared surface, and the per-component files are style-only stubs — see
-[CROSS_PLATFORM.md](../reference/platform-support.md#overlay-rendering).
+directly. On Linux and Windows the overlay manager does all drawing into one
+shared surface, and the per-component files are style-only stubs.
 
 ### The CGo bridge (macOS)
 
 Native macOS classes are wrapped in CGo so Go can call Cocoa while keeping type
-safety. Location: `internal/adapter/platform/darwin/`; key files `bridge.go`,
-`overlay_darwin.m`, `accessibility_element_darwin.m`.
+safety. They live in `internal/adapter/platform/darwin/`, with `bridge.go`,
+`overlay_darwin.m` and `accessibility_element_darwin.m` as the key files. Style
+rules for that code are in [Objective-C guidelines](objective-c.md).
 
----
-
-## Mode Handler Locking
+## Mode handler locking
 
 `modes.Handler` is split so the compiler enforces its locking discipline, and
-`Mode.Activate` / `HandleKey` / `Exit` all run with the lock already held. The
-full contract — the `Handler` / `handlerState` split, the `outer` escape hatch
-for deferred callbacks, and the `moveMonitorMu` → `h.mu` lock order — lives in
-[internal/app/modes/AGENTS.md](../../internal/app/modes/AGENTS.md). Read it before
-touching modes or anything that calls back into the handler.
+`Mode.Activate`, `HandleKey` and `Exit` all run with the lock already held. The
+full contract (the `Handler` / `handlerState` split, the `outer` escape hatch
+for deferred callbacks, and the `moveMonitorMu` then `h.mu` lock order) lives in
+[internal/app/modes/AGENTS.md](../../internal/app/modes/AGENTS.md). Read it
+before touching modes or anything that calls back into the handler.
 
----
-
-## Coordinate Systems and Units
+## Coordinate systems and units
 
 All shared code uses a **global top-left (0,0)** coordinate system.
 
-- **Origin** — (0,0) is the top-left corner of the primary display
-- **Y-axis** — increases downwards
-- **Units** — screen pixels, unscaled
+- **Origin**: (0,0) is the top-left corner of the primary display
+- **Y-axis**: increases downwards
+- **Units**: screen pixels, unscaled
 
 macOS Cocoa uses a bottom-left origin with Y increasing upwards. The inversion
 happens inside the darwin adapter, open-coded at each site that needs it
 ([accessibility_screen_darwin.m](../../internal/adapter/platform/darwin/accessibility_screen_darwin.m)
-is one of several) — flipped coordinates must never leak into shared Go, which
-is the property the rule buys and the code has. `internal/domain/geometry` is
-not where a flip lives: it translates origins, rescales and clamps, every
-function is sign-preserving in Y, and Linux imports it too.
+is one of several). Flipped coordinates must never leak into shared Go.
+`internal/domain/geometry` is not where a flip lives. It translates origins,
+rescales and clamps, every function is sign-preserving in Y, and Linux imports
+it too.
 
----
+## Error handling and graceful degradation
 
-## Error Handling and Graceful Degradation
-
-Neru uses the custom [derrors](../../internal/derrors/errors.go) package:
+Neru uses the [derrors](../../internal/derrors/errors.go) package:
 `derrors.New(code, msg)` and `derrors.Wrap(err, code, msg)`.
 
 ### The `CodeNotSupported` policy
 
 Unimplemented platform behavior must return `CodeNotSupported` explicitly rather
-than silently no-oping:
+than silently doing nothing:
 
 ```go
-return derrors.New(derrors.CodeNotSupported, "feature X not yet implemented on linux")
+return derrors.New(derrors.CodeNotSupported, "ScreenBounds not yet implemented on linux")
 ```
 
-Callers in the service layer degrade gracefully via `derrors.IsNotSupported(err)`
-— typically logging a warning instead of surfacing an error. Prefer
-`CodeNotSupported` over a silent no-op unless the operation is explicitly
-documented as best-effort.
+Name the missing operation and the platform in the message. Callers in the
+service layer degrade gracefully via `derrors.IsNotSupported(err)`, typically
+logging a warning instead of surfacing an error. A silent no-op is acceptable
+only when the operation is explicitly documented as best-effort.
 
----
-
-## Runtime Capability Reporting
+## Runtime capability reporting
 
 Adapters report a capability matrix stricter than "it compiles": `supported`
-vs `stub`, surfaced to users by `neru doctor`. The registry
+or `stub`, surfaced to users by `neru doctor`. The registry
 ([capabilities.go](../../internal/ports/capabilities.go),
-[capability_presets.go](../../internal/ports/capability_presets.go)) must stay in
-sync with reality; the policy and per-platform status live in
-[CROSS_PLATFORM.md](../reference/platform-support.md#capability-matrix).
+[capability_presets.go](../../internal/ports/capability_presets.go)) must match
+what the code does. A stub must report `stub`, and a shipped feature must stop
+reporting it. How to register a new capability is in
+[Adding a capability to neru doctor](porting.md#adding-a-capability-to-neru-doctor).
+What each platform reports today is in the
+[capability matrix](../reference/platform-support.md#capability-matrix).
 
----
+## Platform boundaries in the CLI layer
 
-## Platform Boundaries in the CLI Layer
-
-**`neru services`** — the command itself is shared:
+**`neru services`**: the command itself is shared.
 [services.go](../../internal/cli/services.go) registers `ServicesCmd`
 unconditionally and delegates to unexported helpers (`installService`,
-`startService`, …). The helpers are a Tier-2 dispatch set:
-[services_darwin.go](../../internal/cli/services_darwin.go) (`//go:build darwin`)
-drives `launchctl` and `.plist` files,
-[services_linux.go](../../internal/cli/services_linux.go) (`//go:build linux`)
-drives `systemctl --user` and a unit file,
-[services_windows.go](../../internal/cli/services_windows.go)
-(`//go:build windows`) drives the Task Scheduler COM API with an XML task
-definition, and [services_other.go](../../internal/cli/services_other.go)
-(`//go:build !darwin && !linux && !windows`) returns `CodeNotSupported`.
-Registration is shared, so a platform joining the set adds one file and no
-`init()`.
+`startService` and others). The helpers are a Tier-2 dispatch set:
+[services_darwin.go](../../internal/cli/services_darwin.go) drives `launchctl`
+and `.plist` files,
+[services_linux.go](../../internal/cli/services_linux.go) drives
+`systemctl --user` and a unit file,
+[services_windows.go](../../internal/cli/services_windows.go) drives the Task
+Scheduler COM API with an XML task definition, and
+[services_other.go](../../internal/cli/services_other.go) returns
+`CodeNotSupported`. Registration is shared, so a platform joining the set adds
+one file and no `init()`.
 
-**`IsRunningFromAppBundle`** — [root.go](../../internal/cli/root.go) delegates to
-a build-tagged implementation: [root_darwin.go](../../internal/cli/root_darwin.go)
+**`IsRunningFromAppBundle`**: [root.go](../../internal/cli/root.go) delegates to
+a build-tagged implementation. [root_darwin.go](../../internal/cli/root_darwin.go)
 detects `.app/Contents/MacOS` paths so the daemon auto-starts when
 double-clicked in Finder, [root_windows.go](../../internal/cli/root_windows.go)
-detects launches from Explorer / the Start Menu, and
+detects launches from Explorer or the Start Menu, and
 [root_other.go](../../internal/cli/root_other.go) returns false.
 
-**Main-thread locking** — on macOS
+**Main-thread locking**: on macOS
 [main_darwin.go](../../cmd/neru/main_darwin.go) calls `runtime.LockOSThread()`
-before anything else, required by Cocoa. Non-macOS builds omit it. Never add
+before anything else, as Cocoa requires. Non-macOS builds omit it. Never add
 `LockOSThread` to shared code.
 
----
-
-## Application Identifier Terminology
+## Application identifier terminology
 
 The codebase says "bundle ID" generically for the platform application
 identifier:
 
-| Platform | Term                              | Example                                   |
-| -------- | --------------------------------- | ----------------------------------------- |
-| macOS    | Bundle ID                         | `com.apple.Safari`                        |
-| Linux    | `WM_CLASS` (X11) / `app_id` (Wayland) | `firefox`                             |
-| Windows  | Process image path                | `C:\Program Files\...\msedge.exe`        |
+| Platform | Term                                  | Example                           |
+| -------- | ------------------------------------- | --------------------------------- |
+| macOS    | Bundle ID                             | `com.apple.Safari`                |
+| Linux    | `WM_CLASS` (X11) / `app_id` (Wayland) | `firefox`                         |
+| Windows  | Process image path                    | `C:\Program Files\...\msedge.exe` |
 
 `ports.AccessibilityPort.FocusedAppBundleID` returns whatever the platform uses,
 and `general.excluded_apps` matches it by exact string, so the config must use
 the same format for the target platform.
 
----
+## Technology stack
 
-## Technology Stack
+- **Core language**: [Go](https://golang.org/)
+- **Native integration**: [CGo](https://pkg.go.dev/cmd/cgo), Objective-C on
+  macOS, C on Linux, pure Go Win32 bindings on Windows
+- **CLI framework**: [Cobra](https://github.com/spf13/cobra)
+- **Configuration**: [TOML](https://toml.io/)
+- **IPC**: Unix domain sockets, Windows named pipes
+- **Build system**: [Just](https://github.com/casey/just)
+- **CI/CD**: GitHub Actions and
+  [Release Please](https://github.com/googleapis/release-please)
 
-- **Core language** — [Go](https://golang.org/) 1.26+
-- **Native integration** — [CGo](https://pkg.go.dev/cmd/cgo) + Objective-C (macOS)
-- **CLI framework** — [Cobra](https://github.com/spf13/cobra)
-- **Configuration** — [TOML](https://toml.io/)
-- **IPC** — Unix domain sockets (Windows named pipes)
-- **Build system** — [Just](https://github.com/casey/just)
-- **CI/CD** — GitHub Actions + [Release Please](https://github.com/googleapis/release-please)
+## Performance considerations
 
-GitHub Actions runs lint, unit, and integration tests on every PR. Windows
-binaries cross-compile with `CGO_ENABLED=0`; Linux builds need `CGO_ENABLED=1`
-(X11/Wayland native backends) and must run on a Linux host, as macOS does for
-its own.
-
----
-
-## Performance Considerations
-
-1. **Event tap latency** — the event tap callback stays extremely lean to avoid
-   system-wide keyboard lag; heavy processing is deferred to goroutines.
-2. **Bounded accessibility walks** — querying accessibility APIs is expensive, so
-   traversal is bounded rather than exhaustive: `maxDepth` on the macOS walk
-   ([ax.go](../../internal/adapter/accessibility/ax/ax.go)), and
-   `atspiMaxDepth` / `atspiMaxNodes` on the Linux AT-SPI walk
+1. **Event tap latency**: the event tap callback does as little as possible, to
+   avoid system-wide keyboard lag. Heavy processing runs in goroutines.
+2. **Bounded accessibility walks**: querying accessibility APIs is expensive, so
+   traversal is bounded rather than exhaustive. The macOS walk has `maxDepth`
+   ([ax.go](../../internal/adapter/accessibility/ax/ax.go)), and the Linux
+   AT-SPI walk has `atspiMaxDepth` and `atspiMaxNodes`
    ([atspi/client.go](../../internal/adapter/accessibility/atspi/client.go)).
-3. **Caching** — a TTL/LRU cache for computed grid layouts
+3. **Caching**: a TTL/LRU cache for computed grid layouts
    ([grid/cache.go](../../internal/domain/grid/cache.go)) and a cache of C
    string pointers for overlay styles
    ([style_cache.go](../../internal/adapter/overlay/render/overlayutil/style_cache.go))
-   keep repeated activations off the hot path.
-4. **Native rendering** — GPU-accelerated CoreAnimation on macOS, Cairo on
-   Linux, Direct2D on a DirectComposition swapchain on Windows (GDI on a
-   layered window where that cannot come up). The Windows draw queues
-   commands and returns; a dedicated UI thread paints and presents them,
-   coalescing frames, so no keystroke waits on pixels. Between draws that thread
-   waits on the Win32 message queue, and queued Go callbacks post a native
-   wakeup. Windows messages are therefore serviced even when the overlay is idle.
+   save recomputing them on repeated activations.
+4. **Native rendering**: GPU-accelerated CoreAnimation on macOS, Cairo on
+   Linux, and Direct2D on a DirectComposition swapchain on Windows (GDI on a
+   layered window where that cannot start). The Windows draw queues commands
+   and returns. A dedicated UI thread paints and presents them, coalescing
+   frames, so no keystroke waits for a paint. Between draws that thread waits on
+   the Win32 message queue, and queued Go callbacks post a native wakeup, so
+   Windows messages are serviced even when the overlay is idle.
 
----
+## Security architecture
 
-## Security Architecture
-
-1. **Secure input detection** — before activating hints, grid, recursive
-   grid or monitor select, the handler asks the system port whether secure
-   input is engaged (e.g. a focused password field); if so it refuses with
+1. **Secure input detection**: before activating hints, grid, recursive grid
+   or monitor select, the handler asks the system port whether secure input is
+   engaged (for example a focused password field). If so it refuses with
    `CodeSecureInputEnabled` and notifies the user. Scroll and user-declared
-   modes do not run that check. Which platforms can answer the question is in
-   the [capability matrix](../reference/platform-support.md#capability-matrix).
-2. **Permissions** — Accessibility permission is required on macOS; Neru requests
-   only the minimum needed for UI interaction.
-3. **IPC security** — the endpoint is scoped to one user, and the daemon checks
-   that for itself rather than trusting the scoping; see Runtime Shape above,
-   which owns the detail.
-
----
-
-## References
-
-- [CROSS_PLATFORM.md](../reference/platform-support.md) — per-platform support and contributor guide
-- [DEVELOPMENT.md](development.md) — build, test, debug, add code
-- [CONFIGURATION.md](../reference/configuration.md) — configuration reference
-- [macOS Accessibility API](https://developer.apple.com/documentation/applicationservices/ax_ui_element_ref)
+   modes do not run that check.
+2. **Permissions**: Neru requests only the OS permissions it needs for UI
+   interaction.
+3. **IPC security**: the endpoint is scoped to one user, and the daemon checks
+   that for itself rather than trusting the scoping. [Runtime shape](#runtime-shape)
+   has the detail.

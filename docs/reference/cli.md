@@ -1,34 +1,12 @@
-# CLI Reference
+# CLI reference
 
-Complete reference for every `neru` command, flag, and argument.
+Every `neru` command, flag, and argument.
 
 Neru runs as a background daemon. Most commands are thin clients that send a
 request to that daemon over a Unix socket (a named pipe on Windows) and print
-the reply. "The daemon" below means the process started by `neru launch`.
-
-The same content is available as manpages (`man neru`) after installation.
-
-**Related:** [Configuration Reference](configuration.md) ·
-[Installation](../guide/installation.md) · [Troubleshooting](../guide/troubleshooting.md)
-
----
-
-## Table of Contents
-
-- [How to read this reference](#how-to-read-this-reference)
-- [Global flags](#global-flags)
-- [Command index](#command-index)
-- [Daemon lifecycle](#daemon-lifecycle) — `launch` · `start` · `stop` · `idle` · `status` · `doctor`
-- [Navigation modes](#navigation-modes) — `hints` · `grid` · `recursive_grid` · `bisect` · `scroll` · `monitor_select` · `mode`
-- [Actions](#actions) — `action` and its subcommands
-- [Sequences](#sequences) — `run` · `macro`
-- [Configuration commands](#configuration-commands) — `config`
-- [Runtime toggles](#runtime-toggles)
-- [Utilities](#utilities) — `roles` · `services` · `docs`
-- [Scripting](scripting.md)
-- [IPC protocol](scripting.md#ipc-protocol)
-
----
+the reply. "The daemon" below means the process started by `neru launch`. The
+same content ships as man pages (`man neru`). Driving Neru from scripts, and the
+wire protocol behind these commands, are in [Scripting](scripting.md).
 
 ## How to read this reference
 
@@ -47,17 +25,18 @@ the source that registers those flags.
 | `[<key>...]`  | Repeatable argument                      |
 
 **Daemon requirement** is stated per command. Commands that do not need the
-daemon are `launch`, `doctor`, `roles`, `config init`, and `config validate`;
-every other command requires a running daemon.
+daemon are `launch`, `doctor`, `roles`, `services`, `docs`, `config init`, and
+`config validate`. Every other command requires a running daemon.
 
-**Platform support** is listed for every command and flag whose behaviour is not
-identical on all three platforms, as a `Platforms:` line or a `Platforms`
-column. Anything without such a note works the same on macOS, Linux, and
-Windows. Commands that are unavailable return `ERR_NOT_SUPPORTED`.
+**Platform support** is noted per command, as a `Platforms:` line or the
+`Platforms` column of the [command index](#command-index). Which mode flags and
+actions do nothing on a platform is listed in
+[Platform support per word](platform-support.md#platform-support-per-word).
+A command that is unavailable returns `ERR_NOT_SUPPORTED`.
 
 On Linux, "supported" means an X11 session or a Wayland session on wlroots,
 KWin, COSMIC or GNOME (with Xwayland). See
-[CROSS_PLATFORM.md](platform-support.md#platform-status).
+[Platform status](platform-support.md#platform-status).
 
 `-h`, `--help` is accepted by every command and is omitted from the flag tables
 below.
@@ -109,13 +88,13 @@ cached UI Automation walk of the control view on Windows. The `vision` strategy 
 fallback where that tree is thin. See [Accessibility and hints](platform-support.md#accessibility-and-hints).
 
 ² `hide_cursor` and `show_cursor` are macOS only. See
-[Action platform support](#action-platform-support).
+[Platform support per word](platform-support.md#platform-support-per-word).
 
 ---
 
-# Daemon lifecycle
+## Daemon lifecycle
 
-## neru launch
+### neru launch
 
 Start the Neru daemon.
 
@@ -124,12 +103,12 @@ neru launch [-c <path>] [--timeout <seconds>]
 ```
 
 Runs the background process that owns the event tap, overlays, and IPC server.
-Does not require a running daemon; this is what starts one. Takes only the
+Does not require a running daemon, because it is the command that starts one. Takes only the
 [global flags](#global-flags).
 
 ---
 
-## neru start
+### neru start
 
 Resume Neru after `neru stop`.
 
@@ -141,7 +120,7 @@ Requires a running daemon. Re-enables mode switching and overlay rendering.
 
 ---
 
-## neru stop
+### neru stop
 
 Pause Neru without exiting the daemon.
 
@@ -155,7 +134,7 @@ but mode switching and overlay rendering are disabled. Resume with
 
 ---
 
-## neru idle
+### neru idle
 
 Exit the active navigation mode.
 
@@ -165,12 +144,12 @@ neru idle
 
 Requires a running daemon. Returns to idle. No-op when no mode is active.
 
-Takes no flags and no arguments — idle leaves a mode rather than entering one,
+Takes no flags and no arguments. Idle leaves a mode rather than entering one,
 so there is nothing to describe. Anything written after it is refused.
 
 ---
 
-## neru status
+### neru status
 
 Print the daemon state and current mode.
 
@@ -191,12 +170,12 @@ Requires a running daemon.
 | Field    | Values                                                  |
 | -------- | ------------------------------------------------------- |
 | `Status` | `running`, `disabled`                                   |
-| `Mode`   | `idle`, `hints`, `grid`, `recursive_grid`, `scroll`, `monitor_select`, or the name of the open [declared mode](configuration.md#modes) |
+| `Mode`   | `idle`, `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`, `monitor_select`, or the name of the open [declared mode](configuration.md#modes) |
 
 **JSON output**
 
 `--json` prints the same state as an object, so a script does not have to parse
-the human form. The object goes to stdout on its own; errors go to stderr and
+the human form. The object goes to stdout on its own. Errors go to stderr and
 set a non-zero exit status, so a pipeline never has to distinguish them:
 
 ```bash
@@ -204,8 +183,8 @@ $ neru status --json | jq -r .mode
 idle
 ```
 
-The examples here and in [Tips & Tricks](../guide/recipes.md) use
-[`jq`](https://jqlang.github.io/jq/) to read the object; any JSON tool does.
+The examples here and in [Recipes](../guide/recipes.md) use
+[`jq`](https://jqlang.github.io/jq/) to read the object. Any JSON tool works.
 
 | Key                                                     | Type   | Description                                              |
 | ------------------------------------------------------- | ------ | -------------------------------------------------------- |
@@ -225,7 +204,7 @@ output. Those two follow the platform support matrix and gain entries as
 subsystems are added, so read the keys you need rather than assuming the whole
 set.
 
-### Reading the toggles
+#### Reading the toggles
 
 The three `toggle-*` commands change state that would otherwise be invisible.
 Each reports under the key above, so a script can set a state with `--state` and
@@ -237,9 +216,9 @@ neru status --json | jq -r .scroll_inverted   # true
 ```
 
 `cursor_follow_selection` is `null` rather than `false` when no mode is running,
-because the two are different answers: `false` is a running mode that is not
-following the selection, `null` is that there is nothing to follow it with.
-Test for it before treating the value as a boolean:
+because the two values mean different things. `false` means a mode is running
+and is not following the selection. `null` means no mode is running to follow
+it. Test for `null` before treating the value as a boolean:
 
 ```bash
 neru status --json | jq -r 'if .cursor_follow_selection == null then "no mode" else .cursor_follow_selection end'
@@ -247,7 +226,7 @@ neru status --json | jq -r 'if .cursor_follow_selection == null then "no mode" e
 
 ---
 
-## neru doctor
+### neru doctor
 
 Run system diagnostics.
 
@@ -257,39 +236,39 @@ neru doctor
 
 Does not require a running daemon. Reports config validity, socket health,
 platform capabilities, and internal component state. Platform capabilities come
-from the capability matrix described in
-[CROSS_PLATFORM.md](platform-support.md#capability-matrix). With the daemon
+from the
+[capability matrix](platform-support.md#capability-matrix). With the daemon
 running, the `Overlay backend` line names the renderer that is drawing right
-now rather than the matrix entry, which on Windows tells DirectComposition +
+now rather than the matrix entry. On Windows this line tells DirectComposition +
 Direct2D apart from the GDI fallback and says why the fallback was taken.
 
 The `platform_support` row answers a different question from those
-capabilities: it names the options, actions and mode flags **your**
+capabilities. It names the options, actions and mode flags **your**
 configuration writes that do nothing on this platform, with the reason for
-each. They are not errors — the file loads and the daemon runs, which is what
-lets one configuration be carried between platforms — so the row never fails
-the check. The full set is
-[Platform Support Per Word](platform-support.md#platform-support-per-word).
+each. They are not errors. The file loads and the daemon runs, which lets one
+configuration be carried between platforms, so the row never fails the check.
+The full set is
+[Platform support per word](platform-support.md#platform-support-per-word).
 
 ---
 
-# Navigation modes
+## Navigation modes
 
 Modes take over the keyboard until you select a target or exit. Every mode
 command requires a running daemon.
 
-## Mode flag reference
+### Mode flag reference
 
-Every flag a mode command accepts, and which modes accept it. The same command
-is understood identically wherever it is written — typed after `neru`, as a
-step in a [hotkey binding](configuration.md#hotkeys), or sent over the
-[IPC socket](scripting.md#ipc-protocol) — so a flag listed here works in all three, and a
-flag a mode is not listed for is refused rather than ignored.
+Every flag a mode command accepts, and which modes accept it. Neru reads a mode
+command the same way wherever it is written: typed after `neru`, as a step in a
+[hotkey binding](configuration.md#hotkeys), or sent over the
+[IPC socket](scripting.md#ipc-protocol). A flag listed here works in all three,
+and a flag a mode is not listed for is refused rather than ignored.
 
 A flag written more than once replaces its earlier value, unless the value
 column says it is repeatable, in which case each occurrence adds to the last.
 `--action` may also be given positionally: `hints left_click`. `neru idle`
-appears in no row — it leaves a mode rather than entering one, so it accepts
+appears in no row. It leaves a mode rather than entering one, so it accepts
 nothing.
 
 <!-- BEGIN GENERATED MODE FLAGS: edit internal/domain/modecmd, then run `just genflagref` -->
@@ -352,7 +331,7 @@ defaults to `follow`, and a presence-only flag left out asks for nothing.
 
 ---
 
-## neru hints
+### neru hints
 
 Label clickable elements and act on the one you type.
 
@@ -363,26 +342,27 @@ neru hints [flags]
 Scans the focused window for interactive elements and overlays a short letter
 label on each. Typing a label selects that element.
 
-Element discovery uses the `axtree` strategy by default. The `vision` strategy
-is macOS-only and detects on-screen text and rectangles via the Vision
-framework. Coverage per platform is documented in
-[CROSS_PLATFORM.md](platform-support.md#accessibility-and-hints).
+Element discovery uses the `axtree` strategy by default, the platform
+accessibility tree. `vision` reads on-screen text, and on macOS also
+rectangles. `contour` finds element outlines in the captured pixels. Coverage
+per platform is in
+[Accessibility and hints](platform-support.md#accessibility-and-hints).
 
-**Flags** — every flag listed for `hints` in the
+**Flags**: every flag listed for `hints` in the
 [mode flag reference](#mode-flag-reference), plus the probe below.
 
 | Flag      | Shorthand | Type | Default | Description                                                                                     |
 | --------- | --------- | ---- | ------- | ------------------------------------------------------------------------------------------------- |
 | `--debug` | `-d`      | bool | `false` | Print the elements that would be hinted, with a count and a sample, without showing the overlay.  |
 
-`--debug` runs a probe rather than activating hints, so it is not a mode flag:
-it is absent from the reference above, unknown inside a hotkey binding, and
-cannot be combined with a flag that only describes an activation — `--action`,
+`--debug` runs a probe rather than activating hints, so it is not a mode flag.
+It is absent from the reference above and unknown inside a hotkey binding. It
+cannot be combined with a flag that only describes an activation: `--action`,
 `--modifier`, `--on-exit`, `--repeat`, `--toggle`, `--search`,
 `--hide-on-empty-search`, `--exit-on-unmatched`, `--label-direction` or `--cursor-selection-mode`. It
 does accept the flags that decide which elements are collected: `--role`,
 `--text`, `--strategy` and `--split-word`. On the wire a probe is its own
-command; see [IPC protocol](scripting.md#ipc-protocol).
+command. See [IPC protocol](scripting.md#ipc-protocol).
 
 **Examples**
 
@@ -399,7 +379,7 @@ neru hints --debug
 
 ---
 
-## neru grid
+### neru grid
 
 Divide the screen into a labelled coordinate grid.
 
@@ -409,7 +389,7 @@ neru grid [flags]
 
 Overlays a grid of labelled cells. Typing a cell label moves the cursor there.
 
-**Flags** — every flag listed for `grid` in the
+**Flags**: every flag listed for `grid` in the
 [mode flag reference](#mode-flag-reference).
 
 Grid size, labels, and appearance are configured under
@@ -418,7 +398,7 @@ focused window with `--capture-scope window`.
 
 Typing a full label opens a 3x3 subgrid inside that cell. To correct an
 off-by-one label without retyping it, bind
-[`move_cell`](#neru-action-move_cell) — it moves the open subgrid to a
+[`move_cell`](#neru-action-move_cell). It moves the open subgrid to a
 neighbouring cell.
 
 **Examples**
@@ -433,7 +413,7 @@ neru grid --action left_click --on-exit 'exec notify-send clicked'
 
 ---
 
-## neru recursive_grid
+### neru recursive_grid
 
 Narrow the screen recursively, one keypress per level.
 
@@ -446,10 +426,10 @@ point. Depth limits and per-depth layout are configured under
 [`[recursive_grid]`](configuration.md#recursive_grid).
 
 Backspace backtracks one level. To correct sideways instead of upwards, bind
-[`move_cell`](#neru-action-move_cell) — it slides the selection to a
+[`move_cell`](#neru-action-move_cell). It slides the selection to a
 neighbouring cell without leaving the current depth.
 
-**Flags** — every flag listed for `recursive_grid` in the
+**Flags**: every flag listed for `recursive_grid` in the
 [mode flag reference](#mode-flag-reference).
 
 `--zoom-to-depth` drills at the current cursor position as the mode activates.
@@ -469,7 +449,7 @@ neru recursive_grid --zoom-to-depth 3 --action left_click
 
 ---
 
-## neru bisect
+### neru bisect
 
 Narrow a region by halves until the cursor is on the target.
 
@@ -479,9 +459,9 @@ neru bisect [flags]
 
 The region starts as the whole screen, or the focused window with
 `--capture-scope window`, and is drawn divided in four with the quadrant keys
-in the cells. Each press keeps one half of it or one quadrant, and the cursor
-moves to the centre of what is left, or with `--cursor-selection-mode hold`
-stays put while a pointer stand-in marks the centre. Backspace takes the last
+in the cells. Each press keeps one half of it or one quadrant. The cursor
+moves to the centre of what is left. With `--cursor-selection-mode hold` it
+stays put and a pointer stand-in marks the centre. Backspace takes the last
 cut back and Space starts over. The keys and the default scope are configured
 under [`[bisect]`](configuration.md#bisect), and the region's appearance and
 transition under `[bisect.ui]` and `[bisect.animation]`.
@@ -500,7 +480,7 @@ neru bisect --toggle
 
 ---
 
-## neru scroll
+### neru scroll
 
 Scroll at the cursor with vim-style keys.
 
@@ -508,7 +488,7 @@ Scroll at the cursor with vim-style keys.
 neru scroll [flags]
 ```
 
-**Flags** — every flag listed for `scroll` in the
+**Flags**: every flag listed for `scroll` in the
 [mode flag reference](#mode-flag-reference).
 
 **Default key bindings**
@@ -540,7 +520,7 @@ neru scroll --toggle
 
 ---
 
-## neru monitor_select
+### neru monitor_select
 
 Move the cursor to another display.
 
@@ -553,14 +533,14 @@ neru monitor_select [flags]
 Opens a labelled panel on each display. Typing a label moves the cursor to that
 display. The current display is excluded.
 
-**Flags** — every flag listed for `monitor_select` in the
+**Flags**: every flag listed for `monitor_select` in the
 [mode flag reference](#mode-flag-reference).
 
 **Default key bindings**
 
 | Key     | Action                          |
 | ------- | ------------------------------- |
-| `1`–`9` | Select the display with that label |
+| `1` to `9` | Select the display with that label |
 | `Escape`| Cancel and return to idle       |
 
 Labels come from `monitor_select.characters` (default `123456789`).
@@ -574,7 +554,7 @@ neru monitor_select --toggle
 
 ---
 
-## neru mode
+### neru mode
 
 Enter a mode you declared under [`[modes.<name>]`](configuration.md#modes).
 
@@ -582,14 +562,14 @@ Enter a mode you declared under [`[modes.<name>]`](configuration.md#modes).
 neru mode <name> [flags]
 ```
 
-A declared mode has no logic of its own: it captures the keyboard, shows its
+A declared mode has no logic of its own. It captures the keyboard, shows its
 indicator, and answers every key from its own `[modes.<name>.hotkeys]` table.
 `Escape` returns to idle unless the table rebinds it. The same command is a
 binding step, `"mode <name>"`, from any hotkey table or macro.
 
-**Flags** — every flag listed for `mode` in the
-[mode flag reference](#mode-flag-reference): `--toggle` and nothing else, since
-a declared mode makes no selection.
+**Flags**: every flag listed for `mode` in the
+[mode flag reference](#mode-flag-reference). That is `--toggle` and nothing
+else, since a declared mode makes no selection.
 
 A name nothing declares is refused with `ERR_INVALID_INPUT`, the same way a
 binding into one is refused at load.
@@ -603,7 +583,7 @@ neru mode window --toggle
 
 ---
 
-# Actions
+## Actions
 
 One-shot input that runs without entering a mode. All action subcommands
 require a running daemon.
@@ -614,9 +594,9 @@ neru action <subcommand> [flags]
 
 Each subcommand accepts only the flags documented in its own section. Passing
 any other flag fails with `ERR_INVALID_INPUT` and a message naming the actions
-that do accept it — flags are never accepted and then ignored.
+that do accept it. Neru never accepts a flag and then ignores it.
 
-## Targeting
+### Targeting
 
 Point-targeted actions resolve their target in this order: the active mode
 selection when one exists, otherwise the current cursor position.
@@ -626,7 +606,7 @@ selection when one exists, otherwise the current cursor position.
 | `--selection` | bool | Target the active mode selection.                                   |
 | `--bare`      | bool | Target the cursor position even when a mode selection exists.        |
 
-## Action names
+### Action names
 
 Every action has a name usable anywhere a name is expected: a mode `--action`,
 a hotkey binding string, or `neru action` directly.
@@ -642,35 +622,21 @@ a hotkey binding string, or `neru action` directly.
 | Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `search_hints` ³, `wait_for_mode_exit`   |
 | Cursor   | `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`                               |
 | Keys     | `feed`                                                                                              |
-| Timing   | `sleep` — [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
+| Timing   | `sleep`, in [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
 
 ³ `search_hints` opens the hint search field in hints mode. It has no
 `neru action` subcommand; bind it as `"action search_hints"` in a mode's
 `[hotkeys]` or run it through `neru run` / `neru macro`.
 
-**Mode `--action` accepts mouse-button names only** — the click, press, release,
-and toggle rows above, plus the deprecated `mouse_down` / `mouse_up`. Every
+**Mode `--action` accepts mouse-button names only.** These are the click, press,
+release, and toggle rows above, plus the deprecated `mouse_down` / `mouse_up`. Every
 other name, including `move_mouse`, `move_mouse_relative`, and `scroll`, is
 rejected with `ERR_INVALID_INPUT` and must be run as `neru action <name>` or
 bound as a hotkey action instead.
 
-## Action platform support
-
-Every action not listed here behaves identically on macOS, Linux, and Windows.
-
-| Action                            | macOS | Linux | Windows | Note                                                     |
-| --------------------------------- | :---: | :---: | :-----: | -------------------------------------------------------- |
-| `hide_cursor`, `show_cursor`      | Yes   | No    | No      | Uses a Quartz API with no cross-platform equivalent; elsewhere the daemon returns `ERR_NOT_SUPPORTED`. |
-| `move_monitor`                    | Yes   | Yes   | Yes     | Requires more than one display.                           |
-
-The injection mechanism differs per platform even where behaviour matches:
-`CGEventPost` on macOS, XTest on X11, `zwlr_virtual_pointer` on wlroots, libei
-on KDE, and `SendInput` on Windows. This affects nothing user-visible except the
-scroll limitation above.
-
 ---
 
-## neru action left_click, right_click, middle_click
+### neru action left_click, right_click, middle_click
 
 Press and release a mouse button, or perform one half of that.
 
@@ -688,7 +654,7 @@ neru action left_click|right_click|middle_click
 | `--bare`     | bool   | See [Targeting](#targeting).                                                                          |
 
 `--state` and `--toggle` cannot be combined, and are accepted only by these
-three click subcommands. Held buttons are released automatically when Neru
+three click subcommands. Neru releases held buttons when it
 returns to idle.
 
 **Flag forms and their action names**
@@ -734,19 +700,17 @@ neru action right_mouse_down
 neru hints --action right_mouse_down
 ```
 
-### mouse_down, mouse_up (deprecated)
+#### mouse_down, mouse_up (deprecated)
 
-`mouse_down` and `mouse_up` are the original left-button spellings, from before
-the right and middle buttons could be pressed and released separately. They
-still work everywhere `left_mouse_down` and `left_mouse_up` do, including in
-existing configs, and the CLI prints a deprecation warning on stderr naming the
-replacement.
+`mouse_down` and `mouse_up` are older spellings of `left_mouse_down` and
+`left_mouse_up`. They still work everywhere those do, and the CLI prints a
+deprecation warning on stderr naming the replacement.
 
 Use `neru action left_click --state down` and `neru action left_click --state up`.
 
 ---
 
-## neru action move_mouse
+### neru action move_mouse
 
 Move the cursor to an absolute position.
 
@@ -775,7 +739,7 @@ neru action move_mouse --window --x -50
 
 ---
 
-## neru action move_mouse_relative
+### neru action move_mouse_relative
 
 Move the cursor by a delta.
 
@@ -796,7 +760,7 @@ neru action move_mouse_relative --dx 10 --dy -5
 
 ---
 
-## neru action move_monitor
+### neru action move_monitor
 
 Move the cursor to another display.
 
@@ -805,7 +769,8 @@ neru action move_monitor [--name <name>] [--previous]
 ```
 
 Cycles to the next display by default. An active mode overlay follows the
-cursor to the new display.
+cursor to the new display. With only one display connected the action fails
+with `ERR_INVALID_INPUT`.
 
 Names match case-insensitively. On Windows, when several displays share a
 driver name such as `Generic PnP Monitor`, each gets its device name as a
@@ -827,7 +792,7 @@ neru action move_monitor --name "DELL U2720Q"
 
 ---
 
-## neru action move_cell
+### neru action move_cell
 
 Slide the active mode's selection to a neighbouring cell on the same layer.
 
@@ -836,8 +801,8 @@ neru action move_cell --direction left|right|up|down [--count <n>]
 ```
 
 In **recursive-grid mode** the highlighted region moves at the current depth.
-Movement is spatial rather than confined to the region you drilled into: when
-the selection reaches the edge of its parent it crosses into the neighbouring
+Movement is spatial rather than confined to the region you drilled into. When
+the selection reaches the edge of its parent, it crosses into the neighbouring
 one, and the depth you can backtrack through follows it. Once the grid has
 bottomed out (`max_depth` or `min_size_*`), the final cell moves instead.
 
@@ -845,17 +810,17 @@ In **grid mode** an open subgrid moves to the neighbouring cell. Before a
 subgrid is open no cell is selected, so the action does nothing.
 
 Movement stops at the screen edge rather than wrapping. A `--count` that runs
-past the edge applies as many steps as fit. Modes with no cell selection —
-hints, scroll, idle — ignore the action.
+past the edge applies as many steps as fit. Hints, scroll and idle have no cell
+selection, so they ignore the action.
 
 | Flag          | Type   | Default | Description                                    |
 | ------------- | ------ | ------- | ---------------------------------------------- |
 | `--direction` | string |         | Required. One of `left`, `right`, `up`, `down`. |
 | `--count`     | int    | `1`     | Number of cells to move. Must be at least 1.    |
 
-This action is held-key repeatable: with
-[`[held_repeat]`](configuration.md#held_repeat) enabled (it is off by default),
-a hotkey bound to it slides continuously while the key is held.
+This action is held-key repeatable. With
+[`[held_repeat]`](configuration.md#held_repeat) enabled, a hotkey bound to it
+slides continuously while the key is held. `[held_repeat]` is off by default.
 
 **Examples**
 
@@ -877,7 +842,7 @@ selection:
 
 ---
 
-## neru action scroll_up, scroll_down, scroll_left, scroll_right
+### neru action scroll_up, scroll_down, scroll_left, scroll_right
 
 Scroll one step in a direction.
 
@@ -895,8 +860,8 @@ neru action scroll_up|scroll_down|scroll_left|scroll_right
 
 A modified scroll is what most applications read as zoom, so
 `--modifier ctrl` on `scroll_up` zooms in where a plain `scroll_up` pans. The
-modifier is not implied by the binding: `"Ctrl+K" = "action scroll_up"` scrolls
-unmodified, and it is `--modifier ctrl` that makes it zoom.
+binding does not imply the modifier. `"Ctrl+K" = "action scroll_up"` scrolls
+unmodified, and `--modifier ctrl` is what makes it zoom.
 
 **Platforms:** scrolling works on both axes everywhere. For what each backend
 does with `--modifier`, see the
@@ -914,7 +879,7 @@ neru action scroll_down --modifier ctrl      # Zoom out
 
 ---
 
-## neru action page_up, page_down, go_top, go_bottom
+### neru action page_up, page_down, go_top, go_bottom
 
 Scroll by a page, or to the top or bottom.
 
@@ -930,7 +895,7 @@ neru action page_up|page_down|go_top|go_bottom [--modifier <mods>] [--selection]
 
 Page actions use `scroll.scroll_step_half` and `scroll.scroll_step_full`. These
 subcommands take no `--steps` flag. `go_top` and `go_bottom` scroll
-`scroll.scroll_step_full` pixels — a million by default — so combining one with
+`scroll.scroll_step_full` pixels, a million by default, so combining one with
 `--modifier ctrl` sends a million pixels of zoom.
 
 **Examples**
@@ -944,7 +909,7 @@ neru action go_bottom
 
 ---
 
-## neru action feed
+### neru action feed
 
 Send keystrokes to the focused application or to Neru's mode system.
 
@@ -961,16 +926,16 @@ literal space key.
 
 **Arguments**
 
-`<key>` — one or more keys or chords. Accepted names:
+`<key>`: one or more keys or chords. Accepted names:
 
 | Group        | Names                                                             |
 | ------------ | ------------------------------------------------------------------- |
-| Letters      | `a`–`z`                                                             |
-| Numbers      | `0`–`9`                                                             |
+| Letters      | `a` to `z`                                                             |
+| Numbers      | `0` to `9`                                                             |
 | Symbols      | `=`, `-`, `[`, `]`, and similar                                     |
 | Named keys   | `space`, `return`, `escape`, `tab`, `delete`                        |
 | Navigation   | `left`, `right`, `up`, `down`, `pageup`, `home`, `end`              |
-| Function     | `f1`–`f24` (`f21`–`f24` on Linux and Windows only)                  |
+| Function     | `f1` to `f24` (`f21` to `f24` on Linux and Windows only)                  |
 | Modifiers    | `cmd`, `shift`, `alt`, `ctrl`, `LeftCmd`, `RightShift`              |
 
 **Examples**
@@ -986,7 +951,7 @@ neru action feed --mode Escape
 
 ---
 
-## neru action bisect
+### neru action bisect
 
 Keep half, or a quadrant, of the region in [bisect mode](#neru-bisect).
 
@@ -1021,7 +986,7 @@ neru action bisect --direction left --count 2
 
 ---
 
-## neru action cycle_hint
+### neru action cycle_hint
 
 Move the hint selection without acting on it.
 
@@ -1037,7 +1002,7 @@ Valid in hints mode only.
 
 ---
 
-## neru action wait_for_mode_exit
+### neru action wait_for_mode_exit
 
 Block an action chain until the current mode exits.
 
@@ -1051,7 +1016,7 @@ neru action wait_for_mode_exit [--bail]
 
 ---
 
-## neru action reset, backspace
+### neru action reset, backspace
 
 Mode state control.
 
@@ -1066,7 +1031,7 @@ recursive-grid backtracking.
 
 ---
 
-## neru action save_cursor_pos, restore_cursor_pos, hide_cursor, show_cursor
+### neru action save_cursor_pos, restore_cursor_pos, hide_cursor, show_cursor
 
 Cursor position and visibility.
 
@@ -1078,10 +1043,10 @@ neru action show_cursor
 ```
 
 **Platforms:** `save_cursor_pos` and `restore_cursor_pos` work everywhere.
-`hide_cursor` and `show_cursor` are macOS only; on Linux and Windows the daemon
+`hide_cursor` and `show_cursor` are macOS only. On Linux and Windows the daemon
 refuses them with `ERR_NOT_SUPPORTED`.
 
-`save_cursor_pos` records the cursor position; `restore_cursor_pos` returns it
+`save_cursor_pos` records the cursor position. `restore_cursor_pos` returns the cursor
 there and consumes the record. `hide_cursor` and `show_cursor` control the
 visibility of the system cursor.
 
@@ -1091,17 +1056,17 @@ visibility of the system cursor.
 | -------- | ------ | ----------- | --------------------------------------------- |
 | `--slot` | string | `default`   | Named slot to save into or restore from.      |
 
-### Cursor slots
+#### Cursor slots
 
 A saved position goes into a named slot. Without `--slot` that slot is
-`default`, and `--slot default` means the same thing — the default has no
+`default`, and `--slot default` means the same thing. The default slot has no
 privileges the others lack.
 
 Slots exist because one shared position is not enough once a sequence can
 invoke another one. A macro that saves the cursor, called from a sequence that
-also saved, would overwrite the caller's position; the caller's restore would
-then move the cursor somewhere it never asked for, with nothing to signal the
-collision. Give each one its own slot and they cannot interfere:
+also saved, would overwrite the caller's position. The caller's restore would
+then move the cursor somewhere it never asked for, and nothing would signal the
+collision. Give each sequence its own slot and they cannot interfere:
 
 ```toml
 [macros]
@@ -1118,10 +1083,10 @@ Slot names follow the same rule as macro names: start with a letter, then
 letters, digits, underscores, and dashes.
 
 **Restoring consumes the slot.** A second restore of the same slot finds
-nothing, succeeds, and moves nothing — so a sequence that restores twice is not
+nothing, succeeds, and moves nothing. A sequence that restores twice is not
 an error a caller has to special-case. Save again to reuse the slot.
 
-The occupied slots are reported by `neru status --json`:
+`neru status --json` reports the occupied slots:
 
 ```bash
 neru status --json | jq '.saved_cursor_slots'
@@ -1132,7 +1097,7 @@ neru status --json | jq '.saved_cursor_slots'
 
 ---
 
-## action sleep (hotkey bindings only)
+### action sleep (hotkey bindings only)
 
 Pause between steps of a hotkey action array.
 
@@ -1146,10 +1111,10 @@ daemon executes it directly.
 
 **Arguments**
 
-`<duration>` — plain numbers are seconds (`0.2`, `1`). Explicit units are `ms`
+`<duration>`: plain numbers are seconds (`0.2`, `1`). Explicit units are `ms`
 and `s`.
 
-`sleep` cannot appear in a comma-separated chain; `action left_click,sleep` is
+`sleep` cannot appear in a comma-separated chain. `action left_click,sleep` is
 rejected at config validation. It must be its own entry in an action array.
 
 **Examples**
@@ -1164,9 +1129,9 @@ To pause inside a shell script, use the shell's own `sleep`.
 
 ---
 
-# Sequences
+## Sequences
 
-## neru run
+### neru run
 
 Run several actions in order, in a single call.
 
@@ -1182,15 +1147,15 @@ daemon executes the steps in order.
 
 This is the same executor that runs a multi-action hotkey binding, so a
 sequence behaves identically whether it is written in `[hotkeys]`, passed to
-`--on-exit`, or run here. Reach for it from an external driver (skhd,
+`--on-exit`, or run here. Use it from an external driver (skhd,
 Hammerspoon, a shell script) that would otherwise spawn one `neru` process per
 step and lose the sequencing rules between them.
 
 **Sequencing rules**
 
-- Steps run in order; blank steps are rejected.
+- Steps run in order. Blank steps are rejected.
 - A step that asks the sequence to stop ends it. Today that is
-  `action wait_for_mode_exit --bail` after a mode was cancelled — the command
+  `action wait_for_mode_exit --bail` after a mode was cancelled. The command
   then exits with `ERR_CHAIN_BAIL`.
 - A failing step is reported, and by default the remaining steps still run. The
   command exits with `ERR_ACTION_FAILED` naming the first failure.
@@ -1206,10 +1171,10 @@ step and lose the sequencing rules between them.
 | ----------------- | ---- | ------- | ------------------------------------------------------------------------ |
 | `--stop-on-error` | bool | `false` | End the sequence at the first failing step, as if every step carried `--bail-on-error`. |
 
-### Failure policy
+#### Failure policy
 
 By default a failing step is reported and the sequence carries on. That is
-rarely what a workflow wants: in `["action left_click", "idle"]` the mode exits
+rarely what a workflow wants. In `["action left_click", "idle"]` the mode exits
 even when the click failed.
 
 `--bail-on-error` marks one step as fatal. It is a sequencing directive rather
@@ -1227,29 +1192,28 @@ it. It must be the last thing in the step:
 neru run --stop-on-error "action left_click" "action restore_cursor_pos"
 ```
 
-It works in any sequence — a hotkey binding, a mode's `--on-exit`, or `neru run`.
-Text that merely looks like the directive is left alone, so
+It works in any sequence: a hotkey binding, a mode's `--on-exit`, or `neru run`.
+Text that only looks like the directive is left alone, so
 `exec sh -c "echo --bail-on-error"` still passes it through to the shell.
 
 The policy applies to the steps of one sequence. A step that runs a nested
-sequence — another `run`, or a [`macro`](configuration.md#macros) — keeps its
-own policy inside; its overall failure is then reported to the caller as that
-one step failing, which an outer `--stop-on-error` or `--bail-on-error` acts on.
+sequence, such as another `run` or a [`macro`](configuration.md#macros), keeps
+its own policy inside. Its overall failure reaches the caller as that one step
+failing, and an outer `--stop-on-error` or `--bail-on-error` acts on it.
 
 A stopped sequence reports which step ended it and that the later steps did not
-run; a tolerated failure says the opposite, so the two are distinguishable by a
-script.
+run. A tolerated failure says the opposite, so a script can tell the two apart.
 
 **Timeouts**
 
 The sequence runs while the caller waits, so a sequence containing sleeps or
 `wait_for_mode_exit` can outlast the default 10-second IPC timeout. Raise it
-with the global `--timeout` flag; the daemon holds the reply until the sequence
+with the global `--timeout` flag. The daemon holds the reply until the sequence
 finishes, however long that takes.
 
-A sequence that is not worth waiting on at all — one that ends with an
-interactive mode, say — is better bound to a hotkey, which is dispatched in the
-background with no caller attached.
+A sequence that is not worth waiting on at all, such as one that ends with an
+interactive mode, is better bound to a hotkey. The daemon dispatches a hotkey
+in the background with no caller attached.
 
 **Examples**
 
@@ -1268,7 +1232,7 @@ neru run "hints --action left_click" "action wait_for_mode_exit --bail" \
 
 ---
 
-## neru macro
+### neru macro
 
 Run a named sequence from the [`[macros]`](configuration.md#macros) table.
 
@@ -1291,7 +1255,7 @@ neru macro say_it "hello there"
 
 This is why the command exists alongside `neru run "macro say_it 'hello there'"`,
 which would work for that example but requires quoting the whole call into one
-step — something no argument containing both kinds of quote survives.
+step. An argument containing both kinds of quote does not survive that quoting.
 
 **Exit status**
 
@@ -1314,11 +1278,11 @@ neru --timeout 30 macro click_and_settle
 
 ---
 
-# Configuration commands
+## Configuration commands
 
-Full option reference: [CONFIGURATION.md](configuration.md).
+Full option reference: [Configuration](configuration.md).
 
-## neru config init
+### neru config init
 
 Create a default configuration file.
 
@@ -1343,7 +1307,7 @@ neru config init -c /path/to/config.toml
 
 ---
 
-## neru config validate
+### neru config validate
 
 Check a config file for syntax errors and invalid values.
 
@@ -1356,8 +1320,8 @@ found, because Neru runs on built-in defaults in that case.
 
 It reads the flags of the mode commands in your bindings, so a mistyped flag is
 found here rather than when the key is pressed. A binding that will load and
-not do everything it says — `grid --search`, where grid has no search — is
-printed as a warning and still exits successfully:
+not do everything it says, such as `grid --search` where grid has no search, is
+printed as a warning, and the command still exits successfully:
 
 ```
 Configuration is valid, with warnings:
@@ -1368,15 +1332,15 @@ These parts of the configuration load and will not take effect.
 ```
 
 A clickable role that this platform's accessibility vocabulary has no name for
-— the shape a configuration written on another machine has — is reported the
-same way; see [Clickable roles](configuration.md#clickable-roles).
+is reported the same way. A configuration written on another platform usually
+hits this. See [Clickable roles](configuration.md#clickable-roles).
 
-See [Global Hotkeys](configuration.md#global-hotkeys) for which mistakes warn
+See [Global hotkeys](configuration.md#global-hotkeys) for which mistakes warn
 and which refuse the file.
 
 ---
 
-## neru config set
+### neru config set
 
 Change a configuration value on the running daemon.
 
@@ -1429,7 +1393,7 @@ neru config reload
 
 ---
 
-## neru config reset
+### neru config reset
 
 Remove a field from the override file.
 
@@ -1460,7 +1424,7 @@ neru config reload
 
 ---
 
-## neru config dump
+### neru config dump
 
 Print the active configuration as JSON.
 
@@ -1480,7 +1444,7 @@ neru config dump | jq '.hints'
 
 ---
 
-## neru config reload
+### neru config reload
 
 Reload the configuration from disk.
 
@@ -1493,12 +1457,12 @@ effect only after a full daemon restart.
 
 ---
 
-# Runtime toggles
+## Runtime toggles
 
-Each toggle changes daemon state for the current session only; the configured
-value is restored on restart.
+Each toggle changes daemon state for the current session only. The configured
+value returns on restart.
 
-## The `--state` flag
+### The `--state` flag
 
 All three `toggle-*` commands accept `--state`, which names the state to end up
 in instead of flipping whatever is there:
@@ -1510,11 +1474,11 @@ in instead of flipping whatever is there:
 | `toggle` (default) | Flip it. Same as passing no flag.            |
 
 Flipping is the right default for a key binding, where you see the result and
-press again if it went the wrong way. A script has no such feedback loop: it
+press again if it went the wrong way. A script has no such feedback loop. It
 cannot tell a state it set from one a stray keypress set, and a binding pressed
 twice leaves the daemon somewhere the script does not expect. `--state` makes
 these commands idempotent, and `neru status --json` reports every state they
-change — see [Reading the toggles](#reading-the-toggles).
+change. See [Reading the toggles](#reading-the-toggles).
 
 `--state toggle` exists so a value can be passed straight through without the
 caller special-casing the flip:
@@ -1526,7 +1490,7 @@ scroll_invert = ["toggle-scroll-invert --state $1"]
 
 ---
 
-## neru toggle-scroll-invert
+### neru toggle-scroll-invert
 
 Invert the scroll direction.
 
@@ -1540,7 +1504,7 @@ available from the systray menu. Reported as `scroll_inverted` by
 
 ---
 
-## neru toggle-cursor-follow-selection
+### neru toggle-cursor-follow-selection
 
 Toggle whether the real cursor follows the selection.
 
@@ -1552,14 +1516,14 @@ Requires a running daemon. Applies to the active hints, grid, or
 recursive_grid session.
 
 The preference belongs to that session rather than to the daemon, so unlike the
-other two toggles this one fails when no mode is running — including when
+other two toggles this one fails when no mode is running. It fails even when
 `--state` names the state it wants, since there is nothing yet to hold it.
 Reported as `cursor_follow_selection` by `neru status --json`, and `null` while
 no mode is running.
 
 ---
 
-## neru toggle-screen-share
+### neru toggle-screen-share
 
 Hide or show overlays on shared screens.
 
@@ -1572,23 +1536,23 @@ neru toggle-screen-share [--state on|off|toggle]
 Requires a running daemon. Hidden overlays remain visible locally.
 
 `--state on` hides the overlay and `--state off` shows it, matching the
-`hidden_for_screen_share` field of `neru status --json`: the flag names the
+`hidden_for_screen_share` field of `neru status --json`. The flag names the
 state that is reported, not the visibility.
 
-Implemented with the deprecated `NSWindow.sharingType` API, so effectiveness
-depends on the macOS version and the screen-sharing application:
+Neru implements this with the deprecated `NSWindow.sharingType` API, so how
+well it works depends on the macOS version and the screen-sharing application:
 
 | macOS version | Behaviour                             |
 | ------------- | ------------------------------------- |
 | 14 and older  | Reliable                              |
-| 15.0 – 15.3   | Partially effective                   |
+| 15.0 to 15.3  | Partially effective                   |
 | 15.4 and newer| Limited to ScreenCaptureKit-based apps |
 
 ---
 
-# Utilities
+## Utilities
 
-## neru roles
+### neru roles
 
 List the accessibility role vocabulary.
 
@@ -1626,7 +1590,7 @@ neru roles --explain
 
 ---
 
-## neru services
+### neru services
 
 Manage Neru as a system service that starts on login.
 
@@ -1637,7 +1601,7 @@ neru services install|uninstall|start|stop|restart|status
 **Platforms:** macOS, using a launchd user agent; Linux, using a systemd user
 unit; Windows, using a Task Scheduler task with a logon trigger. When Neru was
 installed through Nix, Homebrew, home-manager, or another package manager that
-manages the service itself, use that tool instead — on Linux and Windows,
+manages the service itself, use that tool instead. On Linux and Windows,
 `install` and `uninstall` both refuse rather than touching a unit or task Neru
 did not write.
 
@@ -1652,9 +1616,9 @@ did not write.
 
 The definition is a launchd plist in `~/Library/LaunchAgents` on macOS, a
 systemd user unit on Linux, and a task named `\Neru` in the Task Scheduler root
-folder on Windows; where the Linux unit is written, what it contains, and what
+folder on Windows. Where the Linux unit is written, what it contains, and what
 happens on a machine booted by another init system are in
-[LINUX_SETUP.md](../guide/linux.md#systemd-user-service).
+[Linux setup](../guide/linux.md#systemd-user-service).
 
 The Windows task runs `neru launch` as the installing user with an interactive
 token, restarts it on failure, and carries no execution time limit, so the
@@ -1662,23 +1626,21 @@ scheduler never stops the daemon on its own. `status` reads the scheduler's own
 task state (running, ready, queued, disabled), and `stop` ends the running
 instance the way `schtasks /End` would. No administrator rights are needed.
 
-The macOS agent leaves the daemon's standard output alone — the rotated log file
-already holds every log line — and sends its standard error to
-`~/Library/Logs/neru/daemon.err.log`, beside that log file, where a crash or a
-failure raised before the log file is open ends up. Both stay inside the user's
-own log directory; neither goes to a shared path.
+The macOS agent leaves the daemon's standard output alone, because the rotated
+log file already holds every log line. It sends the daemon's standard error to
+`~/Library/Logs/neru/daemon.err.log`, beside that log file. A crash, or a
+failure raised before the log file is open, ends up there. Both stay inside the
+user's own log directory, and neither goes to a shared path.
 
-An agent installed by an earlier version wrote those two streams to `/tmp`
-instead, and installing over it is refused rather than silently rewritten. To
-move an existing one, run `neru services uninstall && neru services install`,
-then delete the files it left behind at `/tmp/neru.log` and `/tmp/neru.err.log`.
+On macOS, `install` refuses when a plist already exists rather than rewriting
+it. Run `neru services uninstall` first to replace one.
 
 `status` reports a machine where the service was never installed as exactly
 that, rather than failing.
 
 ---
 
-## neru docs
+### neru docs
 
 Open documentation in a browser.
 

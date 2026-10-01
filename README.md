@@ -17,7 +17,7 @@ Hints, grids and vim keys for your whole desktop. Free, open source, one binary,
 
 <sub>Beta means every option, flag and action already works. Stable comes after six clean releases. [What the labels mean](docs/reference/platform-support.md#what-the-labels-mean)</sub>
 
-[Install](#install) · [Modes](#pick-your-mode) · [Make it yours](#make-it-yours) · [Compare](#how-neru-compares) · [Docs](#documentation)
+[Install](#install) · [Modes](#pick-your-mode) · [Make it yours](#make-it-yours) · [Docs](#documentation)
 
 </div>
 
@@ -25,7 +25,7 @@ Hints, grids and vim keys for your whole desktop. Free, open source, one binary,
 
 https://github.com/user-attachments/assets/f4c86753-0109-47c9-a94e-775af2546a17
 
-If you use Vimium in the browser, you already know the feeling. Neru brings it to every app, window, menu bar and dock item on your screen.
+Neru does what Vimium does in the browser, for every app, window, menu bar and dock item on your screen.
 
 ```
 Cmd+Shift+Space   labels appear on every clickable element
@@ -36,7 +36,7 @@ Shift+L           left click
 ## Why Neru
 
 - **Works where accessibility trees don't.** Grid and recursive grid split pixels, not widgets, so they work in canvases, games, remote desktops and Electron apps with thin trees. Hints have three engines: the accessibility tree, on-device OCR, and a pure-Go contour pass that needs no OCR at all.
-- **Latency is the product.** The event tap sits on every keystroke. Anything that makes activation or key handling feel slower counts as a bug.
+- **Latency is the product.** The event tap sits on every keystroke. Anything that makes activation or key handling slower counts as a bug.
 - **No per-app hacks.** Good defaults, then per-app overrides you write yourself: hotkeys, hint engine, scroll step, all re-resolved the instant focus changes.
 - **CLI-first, scriptable everywhere.** One executor backs hotkeys, the `neru` CLI and the IPC socket. A sequence that works in a binding works from skhd, Hammerspoon, Raycast or a shell script unchanged.
 - **Nothing leaves your machine.** OCR and element detection run on-device. No telemetry, no accounts, and typed text never reaches the log.
@@ -45,8 +45,6 @@ Shift+L           left click
 ---
 
 ## Install
-
-One command on any platform. It installs the binary, man pages, shell completions and a login service, and re-running it updates.
 
 ```bash
 # macOS / Linux
@@ -58,87 +56,11 @@ curl -fsSL https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.s
 irm https://raw.githubusercontent.com/y3owk1n/neru/main/scripts/install.ps1 | iex
 ```
 
-Pass `--channel nightly` or `--version vX.Y.Z` after `bash -s --` to pick a channel or pin a release. `--uninstall` removes it again.
+The script installs the binary, man pages and shell completions, offers a login service, and updates in place when you run it again. Homebrew, Nix, prebuilt binaries, building from source and uninstalling are in the [Installation guide](docs/guide/installation.md).
 
-<details>
-<summary>Homebrew (macOS)</summary>
+Then run `neru launch` and follow [Getting started](docs/guide/getting-started.md) for permissions, your config file and your first hotkeys.
 
-```bash
-brew tap y3owk1n/tap
-brew install --cask y3owk1n/tap/neru
-```
-
-</details>
-
-<details>
-<summary>Nix (NixOS, nix-darwin, home-manager)</summary>
-
-Add the flake as an input, then:
-
-```nix
-services.neru.enable = true;
-services.neru.settings = { /* your config.toml, as Nix */ };
-```
-
-Examples for each module are in the [Installation Guide](docs/guide/installation.md).
-
-</details>
-
-<details>
-<summary>Prebuilt binaries</summary>
-
-Download from [GitHub Releases](https://github.com/y3owk1n/neru/releases/latest):
-
-| Platform | Architecture | File                     |
-| :------- | :----------- | :----------------------- |
-| macOS    | Apple Silicon| `neru-darwin-arm64.zip`  |
-| macOS    | Intel        | `neru-darwin-amd64.zip`  |
-| Linux    | x86_64       | `neru-linux-amd64.zip`   |
-| Linux    | ARM64        | `neru-linux-arm64.zip`   |
-| Windows  | x86_64       | `neru-windows-amd64.zip` |
-| Windows  | ARM64        | `neru-windows-arm64.zip` |
-
-Every archive ships a `.sha256` file, and releases since August 2026 carry a signed build provenance attestation:
-
-```bash
-gh attestation verify neru-darwin-arm64.zip --repo y3owk1n/neru
-```
-
-</details>
-
-<details>
-<summary>From source</summary>
-
-```bash
-git clone https://github.com/y3owk1n/neru.git && cd neru
-just install   # builds, then runs the same installer as the one-liner
-```
-
-</details>
-
-### First run
-
-```bash
-neru launch    # or open Neru.app on macOS, or the Start Menu entry on Windows
-```
-
-Neru offers to write a starter config and asks for what it needs:
-
-| Platform | Needs                                                                 |
-| :------- | :-------------------------------------------------------------------- |
-| macOS    | Accessibility permission. Screen Recording only for OCR or contour hints. |
-| Linux    | Your user in the `input` group and a `/dev/uinput` udev rule. [Linux Setup](docs/guide/linux.md) |
-| Windows  | Nothing beyond the install.                                           |
-
-On Linux there are no default global hotkeys, to avoid colliding with terminal and desktop shortcuts. Bind the modes in `[hotkeys]` or in your compositor. [Global hotkeys on Linux](docs/reference/configuration.md#hotkeys)
-
-### Set up with an agent
-
-The repo ships two skills for coding agents such as Claude Code, Codex, and Cursor. `neru-ask` answers what Neru can do and which command does it, and `neru-setup-config` writes, validates and applies the config file. They read the help, man pages and docs of the installed version, so no checkout is needed.
-
-```bash
-npx skills add y3owk1n/neru --skill neru-ask --skill neru-setup-config
-```
+Prefer an agent? Two skills for Claude Code, Codex and Cursor answer questions and write your config. See [Set up with an agent](docs/guide/installation.md#set-up-with-an-agent).
 
 ---
 
@@ -177,7 +99,7 @@ npx skills add y3owk1n/neru --skill neru-ask --skill neru-setup-config
 | **Monitor Select**    | unbound               | Labels each display, type one to jump                           | Multi-monitor setups                        |
 | **Your own**          | unbound               | A name, an indicator and a key table you declare in config      | Window management layers, app-specific keys |
 
-`Primary` is `Cmd` on macOS and `Ctrl` on Linux and Windows. Every binding is remappable, so Colemak and Dvorak users are covered.
+`Primary` is `Cmd` on macOS and `Ctrl` on Linux and Windows. Linux ships without these global defaults, so they never collide with terminal shortcuts ([bind your own](docs/guide/getting-started.md#binding-your-first-hotkeys)). Every binding is remappable, including for Colemak and Dvorak layouts.
 
 Inside any mode you get the full pointer: left, right and middle click, double and triple click, drag with any button, held-key glide with acceleration, and sticky modifiers you tap instead of hold.
 
@@ -185,7 +107,7 @@ Inside any mode you get the full pointer: left, right and middle click, double a
 
 ## Make it yours
 
-Config is one TOML file at `~/.config/neru/config.toml` (`%APPDATA%\neru\config.toml` on Windows). `neru config reload` applies edits without restarting the daemon, and `neru config set` changes one value at runtime and persists it to an override file.
+Everything is one TOML file, reloaded with `neru config reload` and changeable one value at a time with `neru config set`. [Getting started](docs/guide/getting-started.md) covers where it lives and how it layers.
 
 **Click on select, Vimium style.**
 
@@ -247,25 +169,7 @@ neru doctor                            # diagnose permissions and backends
 
 Themes, indicators, smooth cursor and scroll, virtual pointer, app exclusions and screen-share hiding are all options too.
 
-[Configuration Reference](docs/reference/configuration.md) · [CLI Reference](docs/reference/cli.md) · [Tips & Tricks](docs/guide/recipes.md) · [Community configs](docs/project/showcases.md)
-
----
-
-## How Neru compares
-
-| Tool                                                   | Approach                                        | macOS | Linux | Windows |   Price  | Open source       |
-| :----------------------------------------------------- | :---------------------------------------------- | :---: | :---: | :-----: | :------: | :---------------: |
-| **Neru**                                               | Hints (AX, OCR, contour) + grid + recursive grid + custom modes | ✅ | ✅ | ✅ | **Free** | ✅ |
-| [Homerow](https://www.homerow.app/)                    | AX hints + element search                       |  ✅   |       |         | One-time | ❌                |
-| [Wooshy](https://wooshy.app)                           | Search-to-click                                 |  ✅   |       |         | Subscription | ❌ |
-| [Mouseless](https://mouseless.click/)                  | Grid + mouse keys                               |  ✅   |  ✅   |   ✅    | Subscription or lifetime | ❌ |
-| [Shortcat](https://shortcat.app/)                      | Command palette over UI elements                |  ✅   |       |         | Free     | ❌                |
-| [Mousemaster](https://github.com/petoncle/mousemaster) | Grid + hints + continuous pointer + remapping   |  ✅   |       |   ✅    | Free     | ✅                |
-| [Scoot](https://github.com/mjrusso/scoot)              | AX hints + grid                                 |  ✅   |       |         | Free     | ✅                |
-| [Stochos](https://github.com/museslabs/stochos)        | Grid + hints                                    |  ✅   |  ✅   |         | Free     | ✅                |
-| [wl-kbptr](https://github.com/moverest/wl-kbptr)       | Grid + contour hints (Wayland)                  |       |  ✅   |         | Free     | ✅                |
-| [warpd](https://github.com/rvaiya/warpd)               | Grid + hints + normal pointer                   |  ✅   |  ✅   |   ✅    | Free     | ✅ (dormant)      |
-| [Vimac](https://github.com/nchudleigh/vimac)           | AX hints                                        |  ✅   |       |         | Free     | ✅ (superseded by Homerow) |
+[Configuration reference](docs/reference/configuration.md) · [CLI reference](docs/reference/cli.md) · [Recipes](docs/guide/recipes.md) · [Community configs](docs/project/showcases.md)
 
 ---
 
@@ -285,38 +189,29 @@ https://github.com/user-attachments/assets/d99328a6-b5f9-402a-a01b-297da2ffb454
 
 ## Documentation
 
-| Using Neru                                       |                                                          |
-| :----------------------------------------------- | :------------------------------------------------------- |
-| [Installation](docs/guide/installation.md)             | Every install method, permissions, login services        |
-| [CLI Reference](docs/reference/cli.md)                     | Every command, flag and the IPC protocol                 |
-| [Configuration Reference](docs/reference/configuration.md) | Every option with defaults and platform support          |
-| [Tips & Tricks](docs/guide/recipes.md)             | Worked recipes                                           |
-| [Troubleshooting](docs/guide/troubleshooting.md)       | Common issues and fixes                                  |
+**Using Neru**
 
-| Platforms                                      |                                                          |
-| :--------------------------------------------- | :------------------------------------------------------- |
-| [Cross-Platform Guide](docs/reference/platform-support.md) | The capability matrix, the single source of truth        |
-| [Linux Setup](docs/guide/linux.md)             | Dependencies, permissions, building                      |
-| [Linux Desktops](docs/guide/linux-desktops.md)       | Per-compositor setup and known issues                    |
+- [Installation](docs/guide/installation.md) and [Getting started](docs/guide/getting-started.md)
+- [Recipes](docs/guide/recipes.md) and [Troubleshooting](docs/guide/troubleshooting.md)
+- [Linux setup](docs/guide/linux.md) and [Linux desktops](docs/guide/linux-desktops.md)
 
-| Working on Neru                                |                                                          |
-| :--------------------------------------------- | :------------------------------------------------------- |
-| [Contributing](CONTRIBUTING.md)                | How to propose, commit and land a change                 |
-| [Development Guide](docs/contributing/development.md)       | Setup, building, testing, debugging                      |
-| [Architecture](docs/contributing/architecture.md)           | Layers, boundaries, platform isolation                   |
-| [Roadmap](docs/project/roadmap.md)                     | What is next and where help matters most                 |
+**Reference**
+
+- [Configuration](docs/reference/configuration.md), every option with its default
+- [CLI](docs/reference/cli.md), every command and flag
+- [Scripting and IPC](docs/reference/scripting.md)
+- [Platform support](docs/reference/platform-support.md), what works where
+
+**Working on Neru**
+
+- [Contributing](CONTRIBUTING.md), [Development](docs/contributing/development.md), [Architecture](docs/contributing/architecture.md)
+- [Roadmap](docs/project/roadmap.md)
 
 ---
 
 ## Contributing
 
-Neru is Go and Objective-C in a hexagonal layout, and the architecture rules are tests. The guardrails in [`internal/architecture/`](internal/architecture/) pin layering, platform isolation and even doc-link integrity, and each failure message says how to fix it.
-
-```bash
-just ci   # the same recipes CI gates on
-```
-
-Linux and Windows bug reports currently outrank any new feature. [Contributing Guide](CONTRIBUTING.md)
+Bug reports, especially on Linux and Windows, and pull requests are welcome. Start with the [Contributing guide](CONTRIBUTING.md).
 
 ---
 

@@ -1,59 +1,38 @@
 # Contributing to Neru
 
-Thanks for your interest in contributing! Neru is a small project with an
-approachable codebase, and we welcome contributions of all kinds — code, docs,
-bug reports, config examples, or ideas.
+Thanks for your interest in contributing. Neru is a small project, and
+contributions of all kinds are welcome: code, docs, bug reports, config
+examples and ideas.
 
-This document owns the **contribution process**: how to propose a change, how to
-commit it, and how to get it merged. The technical guides own the rest —
-[DEVELOPMENT.md](docs/contributing/development.md) for environment setup, building, and
-testing; [ARCHITECTURE.md](docs/contributing/architecture.md) for how the codebase is
-structured; [CROSS_PLATFORM.md](docs/reference/platform-support.md) for platform work; and
-[AGENTS.md](AGENTS.md) for conventions and contracts.
+This document covers the contribution process: how to propose a change, how to
+commit it, and how to get it merged. Building and testing live in the
+[development guide](docs/contributing/development.md), the system shape in
+[architecture](docs/contributing/architecture.md), platform work in the
+[porting guide](docs/contributing/porting.md), and code conventions in
+[AGENTS.md](AGENTS.md).
 
----
-
-## Table of Contents
-
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Making Changes](#making-changes)
-- [Commit Messages](#commit-messages)
-- [Pull Requests](#pull-requests)
-- [Platform Work](#platform-work)
-- [AI-Assisted Contributions](#ai-assisted-contributions)
-- [Good First Contributions](#good-first-contributions)
-- [Reporting Bugs](#reporting-bugs)
-- [Feature Requests](#feature-requests)
-
----
-
-## Code of Conduct
+## Code of conduct
 
 This project follows our [Code of Conduct](CODE_OF_CONDUCT.md). By participating
-you agree to uphold it. Please report unacceptable behavior privately by
-contacting [@y3owk1n](https://github.com/y3owk1n) directly — not via public
-issues, so reports stay confidential.
+you agree to uphold it. Report unacceptable behavior privately to
+[@y3owk1n](https://github.com/y3owk1n), not in a public issue, so reports stay
+confidential.
 
----
+## Getting started
 
-## Getting Started
+1. **Search existing issues** to see whether someone is already working on the
+   same thing, or whether there is a related discussion.
+2. **Open an issue first** for non-trivial changes, so we can agree on the
+   approach before you write code.
+3. **Prefer small, focused PRs** over large, sweeping ones.
 
-1. **Search existing issues** — check whether someone is already working on the
-   same thing, or whether there's a related discussion.
-2. **Open an issue first** for non-trivial changes. This avoids wasted effort and
-   lets us align on approach before you write code.
-3. **Small, focused PRs** are preferred over large, sweeping ones.
+Set up your environment with the
+[development guide](docs/contributing/development.md#development-setup). On
+Linux, install the [build dependencies](docs/contributing/development.md#build-dependencies)
+first. oku provides the toolchain, not the system libraries a CGO build links
+against.
 
-Set up your environment by following
-[DEVELOPMENT.md](docs/contributing/development.md#development-setup) — oku is the
-recommended path and provides the toolchain pre-configured. On Linux, read the
-prerequisites there first: oku does not cover the system packages a CGO
-build links against.
-
----
-
-## Making Changes
+## Making changes
 
 1. **Fork** the repository and clone your fork.
 2. **Create a branch** from `main`:
@@ -62,84 +41,66 @@ build links against.
     git checkout -b feat/my-feature
     ```
 
-3. **Make your changes**, following the conventions in
-   [AGENTS.md](AGENTS.md). Where new code belongs is
-   mapped out in [DEVELOPMENT.md](docs/contributing/development.md#adding-code).
-4. **Add or update tests.** All new code needs coverage — see
-   [DEVELOPMENT.md](docs/contributing/development.md#testing) for the test tiers and
-   [AGENTS.md](AGENTS.md) (Conventions) for naming, mocks, and build tags.
+3. **Make your changes**, following the conventions in [AGENTS.md](AGENTS.md).
+   [Where things go](docs/contributing/development.md#where-things-go) maps new
+   code to a directory. Platform code follows the
+   [porting guide](docs/contributing/porting.md), starting with
+   [the One Rule](docs/contributing/architecture.md#the-one-rule).
+4. **Add or update tests.** New code needs coverage. The test tiers are in
+   [Testing](docs/contributing/development.md#testing).
 5. **Run the pre-commit checks:**
 
     ```bash
     just fmt      # format Go and Objective-C
-    just lint     # golangci-lint
-    just test     # unit + integration — see the warning below
+    just lint     # golangci-lint, plus clang-tidy on macOS
+    just test     # unit + integration, desktop-safe
     just build    # verify the build
     ```
 
-    > [!IMPORTANT]
-    > On macOS, `just test` includes integration tests that **drive your real
-    > cursor, keyboard, and overlays**, and they need Accessibility permission
-    > granted to your terminal (System Settings → Privacy & Security →
-    > Accessibility). Run `just test-unit` if you only want the safe subset,
-    > and quit any running `neru` daemon first — a live daemon holding the
-    > socket makes the IPC integration tests silently skip. Details in
-    > [DEVELOPMENT.md](docs/contributing/development.md#testing).
+    `just test` leaves your desktop alone. Quit any running `neru` daemon
+    first, because a live daemon holding the socket makes the IPC integration
+    tests skip. The tests that drive the real cursor, keyboard and overlays
+    run only under `just test-desktop`, described in
+    [Running integration tests](docs/contributing/development.md#running-integration-tests).
 
-    Before pushing, run **`just ci`** — the same recipes CI gates your PR on,
-    run on your host only, where CI runs them on macOS, Linux and Windows. It
-    is a superset of the checks above (adds `go vet`, the
-    cross-platform foundation slice, a CGO-off type-check of the Linux and
-    Windows builds, a `-race` pass over the unit suite, the CI profile of the
-    integration suite, and a vulnerability scan). For the deepest verification
-    on a real desktop session, `just test-all` runs full integration under
-    `-race` too. Doing Linux or Windows work? Start with
-    `just test-foundation` and `just build-linux` / `just build-windows`.
+    Before pushing, run **`just ci`**. It is the pre-push gate: the same
+    recipes CI gates your PR on, run on your host only. What it runs, and what
+    it cannot check from one host, is in
+    [What just ci covers](docs/contributing/development.md#what-just-ci-covers-and-what-it-does-not).
 
-    That type-check is `just check-cross`, and it is the only part of the run
-    that looks at the other two legs — worth knowing about, because everything
-    else compiles for your host. What it covers, and the cgo-only Linux paths
-    it cannot, are in
-    [DEVELOPMENT.md](docs/contributing/development.md#what-just-ci-covers-and-what-it-does-not).
-
-6. **Update the docs** in the same PR. Each fact has one home — the
+6. **Update the docs** in the same PR. Each fact has one home, and the
    [documentation checklist](docs/contributing/porting.md#documentation-checklist)
-   says which file owns what, so please update the owner rather than restating
-   it in a second place.
+   says which file owns what. Update the owner rather than restating the fact
+   somewhere else.
 
     **On linters:** the linter set is strict on purpose, and `//nolint` is the
-    escape hatch, not the default. Use one only when the finding is a genuine
-    false positive or the compliant form would be clearly worse — always
-    with the specific linter named and a trailing `// reason`. If you find
-    yourself suppressing the same linter repeatedly, that linter may be wrong
-    for this codebase: propose disabling it in `.golangci.yml` (with the
-    reason recorded there) instead of scattering suppressions.
+    exception, not the default. Use one only when the finding is a false
+    positive or the compliant form would be worse. Always name the specific
+    linter and add a trailing `// reason`. If you suppress the same linter
+    repeatedly, propose disabling it in `.golangci.yml`, with the reason
+    recorded there, instead of scattering suppressions.
+
 7. **Commit** using [conventional commits](#commit-messages), then push and open
    a pull request.
 
----
+## Commit messages
 
-## Commit Messages
-
-We use [Conventional Commits](https://www.conventionalcommits.org/) to power
-automated releases via
+We use [Conventional Commits](https://www.conventionalcommits.org/) to drive
+automated releases through
 [Release Please](https://github.com/googleapis/release-please).
 
-**The artifact that reaches the changelog is the squash title, not your commit
-subjects.** Pull requests here squash-merge — it is the only merge method the
-repository enables — so the whole branch lands as one commit whose subject is
-the PR title, and that title is what Release Please reads. Write *it* for
-users.
+**The changelog entry is the squash title, not your commit subjects.** Pull
+requests here squash-merge, the only merge method the repository enables, so
+the whole branch lands as one commit whose subject is the PR title. That title
+is what Release Please reads. Write it for users.
 
-Branch commits stay conventional all the same, for two reasons that do not
-depend on the changelog: a reviewer reads the branch commit by commit, and a
-subject that says what changed is the cheapest way to make that possible; and
-the title you type is almost always one of them, so a branch of well-written
-subjects hands you the right title for free.
+Branch commits stay conventional all the same. A reviewer reads the branch
+commit by commit, and the title you type is usually one of those subjects. Write
+the branch subjects well and one of them is the right title.
 
 **Format:**
 
-```
+```text
 <type>(<optional scope>): <subject>
 
 <optional body>
@@ -162,15 +123,15 @@ subjects hands you the right title for free.
 
 **Examples:**
 
-```
+```text
 feat(grid): add recursive subdivision mode
 fix(hints): correct overlay positioning on multi-monitor setups
 docs: update configuration reference for scroll mode
 ```
 
-A fuller message earns its body by explaining *why*:
+A longer message uses its body to explain why:
 
-```
+```text
 feat: add grid-based navigation mode
 
 Implement grid-based navigation as an alternative to hints. Grid mode divides
@@ -180,128 +141,80 @@ the accessibility tree.
 Closes #123
 ```
 
----
+## Pull requests
 
-## Pull Requests
-
-- **Title** follows the same conventional commit format (e.g.
+- **Title** follows the conventional commit format (for example
   `feat(hints): add multi-monitor support`).
-- **Description** explains _what_ changed and _why_. Include screenshots or
+- **Description** explains what changed and why. Include screenshots or
   recordings for UI changes.
-- **Keep PRs focused** — one logical change per PR.
-- **Link related issues** (e.g. `Closes #123`).
-- All CI checks (lint, test, build) must pass before merge.
+- **Keep PRs focused** on one logical change.
+- **Link related issues** (for example `Closes #123`).
+- All CI checks must pass before merge.
 - A maintainer will review. Be open to feedback and iterate.
 
----
+## AI-assisted contributions
 
-## Platform Work
+AI-assisted PRs are welcome, and the same review bar applies. The repo ships
+shared context, skills and review profiles so your agent starts from the
+project's actual rules. [AGENTS.md](AGENTS.md) is the entry point, and its
+Agent Resources section lists the rest.
 
-Neru puts a strong emphasis on architectural separation, and platform changes
-are where that matters most. Before writing Linux or Windows code:
+`CLAUDE.md` and `.claude/skills` are git symlinks. On Windows, clone with
+symlink support enabled (`git config core.symlinks true`, which requires
+Developer Mode), or read `AGENTS.md` directly. Claude Code asks for one-time
+workspace trust before it runs the project's format-on-edit hook. That prompt
+is expected.
 
-- Read [The "One Rule"](docs/contributing/architecture.md#the-one-rule) — non-darwin code must
-  never import the darwin platform package. It is enforced by both `depguard` and
-  an architecture test.
-- Check the current
-  [platform status](docs/reference/platform-support.md#platform-status) and
-  [capability matrix](docs/reference/platform-support.md#capability-matrix).
-- Work through the
-  [Cross-Platform Contributor Guide](docs/contributing/porting.md) —
-  it covers file slots, the Linux backend model, CGO guidance, and the bar a
-  platform PR has to clear.
+Whatever tool you use, you own the result. Run the pre-commit checks, read the
+diff yourself, and do not submit changes you cannot explain.
 
-Implement in the existing platform slot rather than inventing new file layout,
-and keep macOS-specific assumptions out of shared code.
-
----
-
-## AI-Assisted Contributions
-
-AI-assisted PRs are welcome — the same review bar applies either way. The repo
-ships shared context so your agent starts from the project's actual rules
-instead of guessing:
-
-- **[AGENTS.md](AGENTS.md)** is the cross-agent contract (architecture,
-  commands, conventions). `CLAUDE.md` is a symlink to it, and
-  `.cursor/rules/` + `.github/copilot-instructions.md` point at it, so Claude
-  Code, Codex, Cursor, and Copilot all read the same guide. Personal overrides
-  go in gitignored `AGENTS.local.md` / `CLAUDE.local.md`.
-- **`.agents/skills/`** holds step-by-step workflows for the changes that are
-  easiest to half-finish — adding a config option, adding a CLI command,
-  platform work — plus contribution mechanics: `neru-create-pr` encodes the commit
-  and PR-template conventions below, and `neru-file-issue` encodes the issue forms.
-  `neru-ask` and `neru-setup-config` are for users rather than contributors and
-  read the installed version's help and docs, so they must keep working
-  without a checkout.
-  `.claude/skills` is a symlink to it, so Claude Code, Codex, and OpenCode all
-  discover the same skills.
-- **`.claude/agents/`** holds focused review profiles
-  (`platform-boundary-reviewer`, `deadlock-reviewer`) you can run on your diff
-  before opening a PR.
-- **`.claude/settings.json`** wires a format-on-edit hook so agent edits land
-  already formatted. Claude Code asks for one-time workspace trust before
-  running project hooks — that prompt is expected.
-
-Two mechanical notes: `CLAUDE.md` and `.claude/skills` are git symlinks (the
-same layout Apache Airflow and T3 Code use), so on Windows clone with symlink
-support enabled (`git config core.symlinks true`, requires Developer Mode) or
-just read `AGENTS.md` directly. The layout is pinned by
-`internal/architecture/agent_contract_test.go`.
-
-Whatever tool you use, you own the result: run the pre-commit gate
-(`just fmt && just lint && just test && just build`), read the diff yourself,
-and don't submit changes you can't explain.
-
----
-
-## Good First Contributions
+## Good first contributions
 
 Not sure where to start? Any of these are welcome:
 
-- 🐛 Bug fixes — check the [open issues](https://github.com/y3owk1n/neru/issues)
-- 📝 Documentation improvements or typo fixes
-- 📦 Config examples for common setups
-- 🎥 Demo videos or GIFs
-- ⚡ Performance improvements
-- 🧪 Additional test coverage
+- Bug fixes from the [open issues](https://github.com/y3owk1n/neru/issues)
+- Documentation improvements or typo fixes
+- Config examples for common setups, added to the
+  [showcases](docs/project/showcases.md)
+- Demo videos or GIFs
+- Performance improvements
+- Additional test coverage
 
-For platform work specifically,
+Well-scoped platform tasks:
+
+- Improve capability detail text for an existing platform slice
+- Add a contract test for a currently stubbed feature
+- Reproduce and fix a bug labelled `platform: linux` or `platform: windows`
+- Document missing backend assumptions in the package you are touching
+
+Some platform changes are worth an issue before any code.
 [Contributing safely](docs/contributing/porting.md#contributing-safely) lists
-well-scoped starter tasks — and the changes worth opening an issue about first.
-Longer-term direction is in [ROADMAP.md](docs/project/roadmap.md).
+them, with the bar a platform PR has to clear. Longer-term direction is in the
+[roadmap](docs/project/roadmap.md).
 
----
+## Reporting bugs
 
-## Reporting Bugs
+Use the [issue forms](https://github.com/y3owk1n/neru/issues/new/choose) and
+include:
 
-Open a [GitHub Issue](https://github.com/y3owk1n/neru/issues/new) with:
-
-1. **Your platform** (macOS/Linux/Windows and version; on Linux, your desktop
-   and session type) and **Neru version** (`neru --version`).
-2. **Steps to reproduce** — minimal and specific.
-3. **Expected vs actual behavior**.
-4. **Logs** — set `log_level = "debug"` and attach the relevant lines. Log paths
-   are listed in
-   [TROUBLESHOOTING.md](docs/guide/troubleshooting.md#log-file-locations).
+1. **Your platform and Neru version**: macOS, Linux or Windows and its
+   version, and the output of `neru --version`. On Linux, also give your
+   desktop and session type.
+2. **Steps to reproduce**, minimal and specific.
+3. **Expected and actual behavior**.
+4. **Logs**. File logging is off by default.
+   [Log file locations](docs/guide/troubleshooting.md#log-file-locations) says
+   how to turn it on, raise the level, and where the file is written.
 5. **Screenshots or recordings** if the issue is visual.
 
-`neru doctor` output is useful too — it reports which capabilities your platform
-actually supports.
+`neru doctor` output helps too. It reports which capabilities your platform
+supports.
 
-See also: [Troubleshooting Guide](docs/guide/troubleshooting.md).
+## Feature requests
 
----
+Open a [GitHub Issue](https://github.com/y3owk1n/neru/issues/new/choose) or start
+a [Discussion](https://github.com/y3owk1n/neru/discussions) describing:
 
-## Feature Requests
-
-Open a [GitHub Issue](https://github.com/y3owk1n/neru/issues/new) or start a
-[Discussion](https://github.com/y3owk1n/neru/discussions) describing:
-
-- **What** you'd like to see.
+- **What** you would like to see.
 - **Why** it would be useful (your use case).
-- **How** you envision it working (optional but helpful).
-
----
-
-Thank you for helping make Neru better! 🙏
+- **How** you picture it working (optional but helpful).

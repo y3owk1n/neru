@@ -1,23 +1,64 @@
 # Troubleshooting
 
-Symptoms, causes, and fixes for common Neru problems.
+Symptoms, causes, and fixes for common Neru problems. Steps that only apply to
+one platform are labelled. Linux setup problems, such as libraries, the `input` group,
+`/dev/uinput` and the systemd service, are in
+[Linux setup](./linux.md#troubleshooting), and problems specific to one Linux
+desktop are in [Linux desktops](./linux-desktops.md).
 
-**Related:** [CLI Reference](../reference/cli.md) · [Configuration Reference](../reference/configuration.md) ·
-[Linux setup](linux.md#troubleshooting)
+## Quick diagnosis
 
-> **Platform note:** the examples below use macOS paths and, in a few places,
-> macOS-only features (Mission Control, Accessibility Zoom, Activity Monitor).
-> The diagnosis steps themselves apply everywhere — substitute your platform's
-> [log path](#log-file-locations). For Linux-specific setup problems (evdev
-> permissions, portal consent, compositor support) see
-> [LINUX_SETUP.md](./linux.md#troubleshooting) and
-> [LINUX_DESKTOPS.md](./linux-desktops.md).
+Check these first:
+
+```bash
+neru status   # is the daemon running?
+neru doctor   # per-component health, works even if the daemon is down
+neru hints    # does a mode open from the CLI?
+```
+
+| Symptom                              | First step                                                     |
+| ------------------------------------ | -------------------------------------------------------------- |
+| The CLI cannot reach the daemon      | Start it with `neru launch`                                    |
+| `neru doctor` reports `accessibility` denied (macOS) | Grant [Accessibility permission](#permissions) |
+| No hints appear                      | See [No hints or grids appear](#no-hints-or-grids-appear)      |
+| A hotkey does nothing                | See [Hotkeys not working](#hotkeys-not-working)                |
+
+When you need more detail, [turn on file logging](#log-file-locations) and
+[debug logging](#enable-debug-logging).
 
 ---
 
-## Log File Locations
+## Restart the daemon
 
-`[logging].log_file` overrides this; when unset the default is:
+Many fixes below end with a restart. `neru stop` only pauses Neru. The process
+keeps running, so restart it one of these ways:
+
+```bash
+neru services restart            # if you installed the login service
+
+pkill neru && neru launch        # macOS, Linux
+```
+
+```powershell
+taskkill /IM neru.exe; neru launch   # Windows
+```
+
+---
+
+## Log file locations
+
+File logging is **off by default**. The daemon logs to the terminal it was
+started from, so running `neru launch` in a terminal shows its output there. To
+write a log file, turn it on in `config.toml` and
+[restart the daemon](#restart-the-daemon). The daemon reads logging settings
+at startup, not on `neru config reload`.
+
+```toml
+[logging]
+disable_file_logging = false
+```
+
+The file goes to `[logging].log_file` when set, otherwise to:
 
 | Platform | Path                                     |
 | -------- | ---------------------------------------- |
@@ -25,77 +66,70 @@ Symptoms, causes, and fixes for common Neru problems.
 | Linux    | `~/.local/state/neru/log/app.log`        |
 | Windows  | `%LOCALAPPDATA%\neru\log\app.log`        |
 
----
-
-## Table of Contents
-
-- [Log File Locations](#log-file-locations)
-- [Quick Diagnosis](#quick-diagnosis)
-- [Installation & Setup](#installation--setup)
-- [Permissions](#permissions)
-- [Hints & Grids](#hints--grids)
-- [Hotkeys Not Working](#hotkeys-not-working)
-- [Performance Issues](#performance-issues)
-- [Daemon Issues](#daemon-issues)
-- [App-Specific Issues](#app-specific-issues)
-- [Keyboard Layout Issues](#keyboard-layout-issues)
-- [Configuration Issues](#configuration-issues)
-- [Logging and Debugging](#logging-and-debugging)
-- [Getting Help](#getting-help)
-- [Emergency Reset](#emergency-reset)
-
----
-
-## Quick Diagnosis
-
-**Not working at all?** Check these first:
+File logs are JSON lines. Rotation and the other options are in the
+[logging reference](../reference/configuration.md#logging). Reading the log,
+using the macOS path as the example:
 
 ```bash
-# 1. Is daemon running?
-neru status
-
-# 2. Run diagnostics (works even if daemon is down)
-neru doctor
-
-# 3. Test basic functionality
-neru hints  # Should show hints
-
-# 4. Check logs (macOS path; see Log File Locations for Linux/Windows)
-tail -20 ~/Library/Logs/neru/app.log
+tail -f ~/Library/Logs/neru/app.log           # follow
+grep ERROR ~/Library/Logs/neru/app.log        # errors only
 ```
 
-**Common issues:**
-
-- ❌ **CLI says it cannot reach the daemon** → Daemon not running, run `neru launch`
-- ❌ **"Permission denied"** → Grant accessibility permissions
-- ❌ **No hints appear** → Check app exclusions, try different app
+To start a fresh log, delete the file and restart the daemon.
 
 ---
 
-## Installation & Setup
+## Enable debug logging
 
-**"Cannot open Neru because the developer cannot be verified"**
+The default `info` level logs lifecycle, configuration and mode activation.
+Key routing, overlay redraws and hint filtering are logged only at `debug`. To
+investigate one of those, set:
+
+```toml
+[logging]
+log_level = "debug"
+```
+
+and [restart the daemon](#restart-the-daemon). Set it back to `"info"`
+afterwards, since debug logging slows hint activation.
+
+### Common log messages
+
+| Message                                      | Meaning                                                                       |
+| -------------------------------------------- | ----------------------------------------------------------------------------- |
+| `Found usable accessibility tree`            | Accessibility tree detected, AX support activated (macOS)                     |
+| `Hints mode activated`                       | The hint overlay is active, with the hint count when available               |
+| `Clickable element collection was slow`      | Accessibility scanning finished but took longer than expected                 |
+| `Failed to get clickable elements`           | The accessibility query failed. Check permissions and `excluded_apps`         |
+| `Secure input is enabled, blocking mode activation` | macOS secure input is on, often because a password field is focused   |
+
+---
+
+## Installation & setup
+
+**"Cannot open Neru because the developer cannot be verified"** (macOS)
 
 ```bash
 xattr -cr /Applications/Neru.app  # Remove quarantine
 open -a Neru
 ```
 
-**"Command not found: neru"**
+**"Command not found: neru"** (macOS, Linux)
+
+The directory holding `neru` is not on your `PATH`. The install script prints
+which directory it used. Add it in your shell's rc file, for example:
 
 ```bash
-# Add to PATH
-export PATH="/usr/local/bin:$PATH"
-# Add to ~/.zshrc or ~/.bashrc
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-**Homebrew fails**
+**Homebrew fails** (macOS)
 
 ```bash
 brew update && brew reinstall --cask neru
 ```
 
-**Windows: "profile.ps1 cannot be loaded because running scripts is disabled"**
+**"profile.ps1 cannot be loaded because running scripts is disabled"** (Windows)
 
 The installer added tab completion to your PowerShell profile, and the default
 `Restricted` execution policy blocks profiles along with every other script.
@@ -109,117 +143,99 @@ The installer checks the policy first and offers this before writing the
 profile. To drop the completion instead, delete the two lines under
 `# neru shell completion (managed by install.ps1)` in the profile.
 
-**Linux: "error while loading shared libraries: libtesseract.so.5"** (Fedora)
+**"error while loading shared libraries"** (Linux)
 
-Fedora names the library `libtesseract.so.5.5`. Add a compatibility symlink; see
-[LINUX_SETUP.md](linux.md#error-while-loading-shared-libraries-libtesseractso5).
+A runtime library is missing, or on Fedora tesseract has a different name. See
+[Linux setup](./linux.md#error-while-loading-shared-libraries-libtesseractso5).
 
 ---
 
 ## Permissions
 
-### Accessibility Permissions
+What each platform needs is listed in [Getting started](./getting-started.md#permissions).
+Linux permission problems are in [Linux setup](./linux.md#troubleshooting).
 
-**Required for Neru to function.**
+### macOS Accessibility permission
 
-**Grant permissions:**
+Neru does nothing without it. Grant it in **System Settings > Privacy &
+Security > Accessibility** by adding Neru and enabling its checkbox.
 
-1. System Settings → Privacy & Security → Accessibility
-2. Add Neru and ensure checkbox is enabled
+If it is granted but Neru still cannot use it, which often happens after an
+upgrade:
 
-**Reset if not working:**
+1. Remove Neru from the list.
+2. Add it again.
+3. [Restart the daemon](#restart-the-daemon).
 
-1. Remove Neru from list
-2. Re-add Neru
-3. Restart: `pkill neru && neru launch`
-
-**Check health:** `neru doctor` — look for `accessibility: ok` in the component list. If accessibility is denied, the doctor output will show the specific error.
+`neru doctor` shows `accessibility: ok` when the permission works, and the
+specific error when it does not.
 
 ---
 
-## Hints & Grids
+## Hints & grids
 
-### No hints/grids appear
+### No hints or grids appear
 
-**Check:**
+Run the [quick diagnosis](#quick-diagnosis), then:
 
-```bash
-neru doctor              # Full diagnostics (works even if daemon is down)
-neru status              # Daemon running?
-neru hints               # CLI works?
-```
-
-**Common fixes:**
-
-- Start daemon: `neru launch`
-- Grant permissions (see Permissions section)
-- Remove app from `excluded_apps` in config
-- Test in different app
+- Start the daemon with `neru launch` if it is not running.
+- Check [permissions](#permissions).
+- Remove the app from `excluded_apps` in your config.
+- Try a different app, to tell an app problem from a Neru problem.
 
 ### No hints visible when using multiple monitors
 
-**Focused window and cursor are on different displays.** Neru only draws hints on the display where the cursor is. If the focused window is on another display, no hints will show for that window.
+Neru draws hints only on the display the cursor is on. If the focused window is
+on another display, no hints show for it.
 
-**Solution:**
-
-If you're using a window manager, you can probably set it up so that your cursor always follows the focused window.
-
-Alternatively, you can change the shortcut that you use to activate `hints` to chain `action move_mouse --window` before activation, so the cursor moves to the focused window first:
+Make the hints hotkey move the cursor to the focused window first:
 
 ```toml
 [hotkeys]
 "Primary+Shift+Space" = ["action move_mouse --window", "hints"]
 ```
 
-A tiling window manager with focus-follows-mouse avoids this at the source.
+A window manager that makes the cursor follow focus avoids this.
 
-### Hints not showing in browsers (Chrome, Firefox, Safari, Brave, Edge, Electron apps)
+### Hints not showing in browsers and Electron apps (macOS)
 
-**Browser engine detection is fully automatic.** Neru identifies the rendering engine (Chromium, Firefox, WebKit, Electron) by inspecting the app bundle — no manual configuration needed.
-
-If hints aren't showing in a browser or Electron app, the automatic detection likely missed it. Check the logs for the detection result:
+Neru detects the rendering engine from the app bundle, with no configuration
+needed. It recognizes Chromium, Firefox, WebKit and Electron. Installed web apps are detected
+too, Chrome PWAs as `chromium` and Safari PWAs as `webkit`. If a browser shows
+no hints, check what was detected with
+[file logging](#log-file-locations) on:
 
 ```bash
 grep "Detected non empty bundle type" ~/Library/Logs/neru/app.log
 ```
 
-If your browser doesn't appear in the logs at all, the detection returned empty — open an issue at [github.com/y3owk1n/neru](https://github.com/y3owk1n/neru) with the bundle ID.
+If your browser is not in the log, detection returned nothing. Open an issue at
+[github.com/y3owk1n/neru](https://github.com/y3owk1n/neru) with the bundle ID:
 
-Find the bundle ID:
 ```bash
 osascript -e 'id of app "Your Browser"'
 ```
 
-> [!NOTE]
-> PWAs (installed web apps) are also detected automatically — Chrome PWAs as `chromium`, Safari PWAs as `webkit`.
+On Linux, Chromium and Electron apps need `--force-renderer-accessibility`.
+See [Known limitations](./linux.md#known-limitations).
 
 ### Some elements that should have hints don't have hints
 
-This can happen when the element you're trying to select is small. If you encounter this, open an issue.
+Small elements are sometimes missed. If you hit one, open an issue.
 
-Alternatively, make sure all relevant roles are enabled. Run `neru roles --explain` to see
-exactly which roles your config selects on this platform, and `neru roles` for the full
-vocabulary. If you've customized `hints.clickable_roles`, you can remove that customization
-or restore it to the original value from
-[default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml).
-
-Run `neru config reload` and then test.
-
-```toml
-[hints]
-clickable_roles = [
-    # ...
-]
-```
+Also make sure the relevant roles are enabled. `neru roles --explain` shows
+which roles your config selects on this platform, and `neru roles`
+lists the full vocabulary. If you customized `hints.clickable_roles`, remove the
+customization or restore it from
+[default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml),
+then run `neru config reload`.
 
 ### Certain hints don't visually match any on-screen UI
 
-Neru may be generating hints for elements that are not directly visible to you, such as `row`
-and `cell`. Copy the complete `clickable_roles` list from
+Neru may be labelling elements you cannot see directly, such as `row` and
+`cell`. Copy the complete `clickable_roles` list from
 [default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml),
-then remove only those roles so the remaining defaults stay enabled.
-
-Run `neru config reload` and then test.
+remove only those roles, and run `neru config reload`.
 
 ```toml
 [hints]
@@ -230,34 +246,18 @@ clickable_roles = [
 
 ### Hints or grids appear but are misaligned
 
-Hints and grids should always be accurate, so this is a bug worth reporting.
+Misaligned hints or grids are a bug, so report them.
+Turn on [file logging](#log-file-locations) and
+[debug logging](#enable-debug-logging), reproduce it, and attach the log, a
+screenshot, your OS version, and the app name and version to the issue.
+
 On Linux Wayland, hints in native apps depend on a window-origin source for
-your compositor; see the per-compositor table in
-[CROSS_PLATFORM.md](../reference/platform-support.md#accessibility-and-hints).
+your compositor. See the per-compositor table in
+[Platform support](../reference/platform-support.md#accessibility-and-hints).
 
-**Solution:**
+### No hints in menubar or Dock (macOS)
 
-```bash
-# Enable debug logging
-# Edit ~/.config/neru/config.toml:
-[logging]
-log_level = "debug"
-
-# Restart and check logs
-pkill neru && neru launch
-tail -f ~/Library/Logs/neru/app.log
-
-# Report issue with:
-# - macOS version
-# - App name and version
-# - Screenshot
-```
-
-### No hints in menubar/Dock (macOS)
-
-**Disabled in config or not enabled.**
-
-**Solution:**
+Both are off unless enabled:
 
 ```toml
 [hints]
@@ -273,43 +273,27 @@ additional_menubar_hints_targets = [
 
 ---
 
-## Hotkeys Not Working
+## Hotkeys not working
 
 ### Hotkey does nothing
 
-**Possible causes:**
+1. Run the mode from the CLI, for example `neru hints`. If that works, the problem is the
+   hotkey, not the mode.
+2. Check the daemon is running with `neru status`.
+3. Check the app is not in `excluded_apps`.
+4. Check the binding syntax against the
+   [hotkeys reference](../reference/configuration.md#global-hotkeys), then run
+   `neru config validate`.
+5. Try a different key combination, in case another app owns this one.
 
-1. Hotkey conflict with another app
-2. Daemon not running
-3. App is excluded
-4. Incorrect hotkey syntax
-
-**Solutions:**
-
-```bash
-# 1. Test with CLI to bypass hotkey system
-neru hints
-
-# If CLI works, it's a hotkey issue
-
-# 2. Check daemon status
-neru status
-
-# 3. Try different hotkey combo
-# Edit ~/.config/neru/config.toml:
-[hotkeys]
-"Ctrl+F" = "hints"  # Try this instead
-
-# 4. Verify syntax is correct
-# Modifiers: Cmd, Ctrl, Alt/Option, Shift, Primary, Super, Meta
-# Format: "Mod1+Mod2+Key" = "action"
-```
+On Linux, Neru ships no default global hotkeys, so nothing fires until you bind
+some. See [Binding your first hotkeys](./getting-started.md#binding-your-first-hotkeys). On Wayland, `[hotkeys]` also
+needs the `input` group. See
+[Global hotkeys on Wayland](./linux-desktops.md#global-hotkeys-on-wayland).
 
 ### Hotkey works in some apps but not others
 
-**App is in excluded list.**
-
-**Solution:**
+The app is in `excluded_apps`. Remove it from the list:
 
 ```toml
 [general]
@@ -318,17 +302,13 @@ excluded_apps = [
 ]
 ```
 
-Find bundle ID:
-
-```bash
-osascript -e 'id of app "AppName"'
-```
+Find a macOS bundle ID with `osascript -e 'id of app "AppName"'`. On Linux the
+app is named by `WM_CLASS` or `app_id`. See the
+[configuration reference](../reference/configuration.md#app-identity-across-platforms-bundle_id).
 
 ### Hotkey conflicts with system shortcuts
 
-**Solution:**
-
-**Option 1: Change Neru hotkey**
+Move Neru's binding to another combination:
 
 ```toml
 [hotkeys]
@@ -336,88 +316,46 @@ osascript -e 'id of app "AppName"'
 "Ctrl+Alt+Space" = "hints"              # Use a different combo
 ```
 
-**Option 2: Disable system shortcut**
-
-1. Open **System Settings → Keyboard → Keyboard Shortcuts**
-2. Find conflicting shortcut
-3. Disable or change it
-
-**Option 3: Use external hotkey manager**
-
-```bash
-# Use skhd or similar instead of Neru hotkeys
-# ~/.config/skhd/skhdrc
-ctrl - f : neru hints
-```
-
-Then disable Neru hotkeys:
-
-```toml
-[hotkeys]
-# Leave empty or comment out all hotkeys
-```
+Or change the system shortcut instead. On macOS it is under
+**System Settings > Keyboard > Keyboard Shortcuts**. To drive Neru entirely
+from an external hotkey manager such as skhd, see
+[Disabling all built-in hotkeys](./recipes.md#disabling-all-built-in-hotkeys).
 
 ---
 
-## Performance Issues
+## Performance issues
 
 ### Hints appear slowly
 
-**Possible causes:**
+Likely causes, in order:
 
-1. Too many depth levels in the accessibility tree of current activation
-2. Debug logging enabled
-3. System resource constraints
-
-**Solution:**
-
-```bash
-# 1. Remove unnecessary clickable roles from your config
-# 2. Disable debug logging
-[logging]
-log_level = "info"  # Not "debug"
-
-# 3. Check system resources
-top -o cpu
-```
+1. Too many clickable roles. Remove the ones you do not need from
+   `hints.clickable_roles`.
+2. Debug logging is on. Set `log_level` back to `"info"`. See
+   [Enable debug logging](#enable-debug-logging).
+3. The system itself is under load.
 
 ### High CPU usage
 
-**Solution:**
-
-```bash
-# Check Neru CPU usage
-top -pid $(pgrep neru)
-
-# Check logs for errors
-tail -f ~/Library/Logs/neru/app.log | grep ERROR
-
-# Restart daemon
-pkill neru && neru launch
-```
+Check Neru's CPU use with `top -pid $(pgrep neru)` on macOS,
+`top -p $(pgrep neru)` on Linux, or Task Manager on Windows. Look for errors in the
+[log](#log-file-locations), then [restart the daemon](#restart-the-daemon). If
+it comes back, open an issue with the log.
 
 ---
 
-## Daemon Issues
+## Daemon issues
 
 ### CLI cannot reach the daemon
 
-**Daemon not running.**
+Run `neru doctor`, which works without the daemon, then `neru launch`, then
+`neru status`.
 
-**Solution:**
+If it still fails on macOS or Linux, a stale socket may be in the way. The
+daemon prints its endpoint at startup. Both of these are places it can be, and
+only one will exist:
 
 ```bash
-# Run diagnostics first (works without daemon)
-neru doctor
-
-# Start daemon
-neru launch
-
-# Check status
-neru status
-
-# If still failing, clear a stale socket. The daemon prints its endpoint at
-# startup; both of these are places it can be, and only one will exist.
 rm -f "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/neru/neru.sock
 rm -f "${TMPDIR:-/tmp}"/neru-"$(id -u)"/neru.sock
 neru launch
@@ -425,95 +363,41 @@ neru launch
 
 ### Daemon crashes on startup
 
-**Configuration error or system issue.**
+Usually a configuration error. Run `neru config validate`, which names the
+offending key. To rule the config out, move `config.toml` aside and run
+`neru launch`. With no config file the daemon runs on built-in defaults. Run
+`neru launch` in a terminal to see why it exits.
 
-**Solution:**
+### Version mismatch after an upgrade
+
+The daemon still running is the one the old binary started, and the new CLI
+reports a version mismatch. [Restart the daemon](#restart-the-daemon).
+
+### Daemon stops responding or won't quit
+
+Force it to quit, then start it again:
 
 ```bash
-# Check logs
-cat ~/Library/Logs/neru/app.log
-
-# Try with default config
-neru launch  # Uses defaults if no config file
-
-# Try with minimal config
-mkdir -p ~/.config/neru
-cat > ~/.config/neru/config.toml << EOF
-[hotkeys]
-"Primary+Shift+Space" = "hints"
-
-[logging]
-log_level = "debug"
-EOF
-
+pkill -9 neru          # macOS, Linux
 neru launch
 ```
 
-### "Is it running?" right after an upgrade
-
-**The daemon still running is the one the old binary started.**
-
-The IPC endpoint moved to a per-user location (see
-[ARCHITECTURE.md](../contributing/architecture.md#runtime-shape)), so a daemon that has been up
-since before the upgrade is listening in the old one.
-
-On macOS and Linux the new CLI still finds it and answers with a version
-mismatch asking you to restart the daemon — do that and it moves to the new
-endpoint. On Windows it cannot: stop the old daemon before starting the new
-one, or you end up running two.
-
-**Solution:**
-
-```bash
-pkill neru      # taskkill /IM neru.exe on Windows
+```powershell
+taskkill /IM neru.exe /F   # Windows
 neru launch
 ```
 
-### Daemon stops responding
-
-**IPC socket issue or daemon hung.**
-
-**Solution:**
-
-```bash
-# Force quit
-pkill -9 neru
-
-# Clean up the socket. The daemon prints its endpoint at startup; both of these
-# are places it can be, and only one will exist.
-rm -f "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/neru/neru.sock
-rm -f "${TMPDIR:-/tmp}"/neru-"$(id -u)"/neru.sock
-
-# Restart
-neru launch
-
-# Monitor logs
-tail -f ~/Library/Logs/neru/app.log
-```
-
-### Daemon won't quit
-
-**Solution:**
-
-```bash
-# Force quit
-pkill -9 neru
-
-# Or use Activity Monitor:
-# 1. Open Activity Monitor
-# 2. Search "Neru"
-# 3. Select and click "Force Quit"
-```
+On macOS or Linux, clear a stale socket as in
+[CLI cannot reach the daemon](#cli-cannot-reach-the-daemon) if `neru launch`
+still fails.
 
 ---
 
-## App-Specific Issues
+## App-specific issues
 
-### Adobe apps: Hints misaligned or missing
+### Adobe apps: hints misaligned or missing (macOS)
 
-**Adobe apps may need custom roles.**
-
-**Solution:**
+Adobe apps may need custom roles:
 
 ```toml
 [[hints.app_configs]]
@@ -522,17 +406,11 @@ additional_clickable_roles = ["static_text", "image"]
 ignore_clickable_check = true
 ```
 
-Find bundle ID:
+Find the bundle ID with `osascript -e 'id of app "Adobe Illustrator"'`.
 
-```bash
-osascript -e 'id of app "Adobe Illustrator"'
-```
+### Mission Control: no hints (macOS)
 
-### Mission Control: No hints
-
-**Ensure Dock hints are enabled (Mission Control uses Dock).**
-
-**Solution:**
+Mission Control is drawn by the Dock, so Dock hints must be on:
 
 ```toml
 [hints]
@@ -540,72 +418,56 @@ include_dock_hints = true
 detect_mission_control = true
 ```
 
-> [!NOTE]
-> Mission Control detection uses `CGWindowListCopyWindowInfo` to check for Dock overlay windows. It works on macOS 14+ (Sonoma) and 15+ (Sequoia/Tahoe). On macOS 13 and earlier, it looks for a "Mission Control" app window instead.
+### Accessibility Zoom: cursor lands in the wrong place (macOS)
 
-### Accessibility Zoom: cursor lands in the wrong place
-
-**Symptom:** with macOS Accessibility Zoom (System Settings → Accessibility → Zoom) zoomed in, hints, grid movement, `move_mouse`, dragging and scrolling all send the cursor somewhere other than the target, while overlays still draw correctly. Or the cursor lands correctly but the magnified view does not follow it, so it disappears off screen.
-
-**Solution:** update to a build that posts synthetic mouse events at the session event tap and pans the zoom viewport itself. If you still see it, file an issue with your macOS version and zoom factor.
-
-> [!NOTE]
-> While zoomed in, the window server rewrites the location of pointer-motion events that enter at the HID event tap, reading the posted point as a coordinate in zoomed-viewport space (`landed = zoomOrigin + (posted - displayCenter) / zoomFactor`). Neru posts mouse events at the session tap instead, which sits above that transform, so positioning is exact whether or not zoom is engaged. Reading the cursor position was never affected.
-
-> [!NOTE]
-> Only real pointer-device movement pans the zoom viewport — no synthetic event does, at any event tap. `UAZoomChangeFocus` does not help either: it drives the keyboard-focus and text-insertion-point paths, so it is a no-op when zoom is set to follow the mouse pointer. Neru therefore pans the viewport itself before each cursor move, by the smallest amount that brings the target on screen, which reproduces the edge-panning behavior of a real mouse. It uses SkyLight's zoom SPI resolved at runtime; if a future macOS removes it, cursor positioning stays correct and only the follow behavior is lost.
+Accessibility Zoom is under **System Settings > Accessibility > Zoom**. When it
+is zoomed in, Neru positions the cursor exactly and pans the zoomed view to
+keep the target on screen. If the cursor lands somewhere other than the target, or the zoomed
+view does not follow it, open an issue with your macOS version and zoom
+factor.
 
 ---
 
-## Keyboard Layout Issues
+## Keyboard layout issues
 
 ### Wrong characters produced when typing
 
-Neru supports most keyboard layouts including QWERTY, AZERTY, QWERTZ, Dvorak, and Colemak. Neru automatically detects your physical keyboard layout via macOS and translates keycodes accordingly.
+Neru detects your keyboard layout, such as QWERTY, AZERTY, QWERTZ, Dvorak or
+Colemak, and translates keycodes to match it. If keys still come out wrong:
 
-If you're still experiencing issues:
+1. **Check the layout is selected in your OS.** On macOS it is under
+   System Settings > Keyboard > Input Sources.
+2. **Force the layout.** Some custom layouts are not resolved automatically.
+   Run `neru doctor`, copy the layout you want from the `keyboard_layouts` row,
+   and set it:
 
-1. **Check your keyboard layout is properly configured in macOS:**
-    - System Settings → Keyboard → Input Source
-    - Ensure your desired layout is added and selected
+   ```toml
+   [general]
+   kb_layout_to_use = "com.apple.keylayout.Colemak"  # macOS; "English (Colemak)" on Linux, "00010409" for Dvorak on Windows
+   ```
 
-2. **Layout not detected correctly:**
-    - Some custom layouts (e.g., Colemak, Dvorak) may not be resolved automatically
-    - Run `neru doctor` and copy the layout you want from the `keyboard_layouts` row, then force it:
-
-        ```toml
-        [general]
-        kb_layout_to_use = "com.apple.keylayout.Colemak"  # macOS; "English (Colemak)" on Linux, "00010409" for Dvorak on Windows
-        ```
-
-3. **Layout changes at runtime not picked up:**
-    - Neru re-registers global hotkeys when the keyboard layout changes (e.g., switching from US to Dvorak while Neru is running). On Windows it checks once a second, so a punctuation hotkey can take up to a second to follow a switch
-    - If hotkeys don't work after a layout switch, try toggling Neru off and on, or restart the daemon with `pkill neru && neru launch`
+3. **A layout switch was not picked up.** Neru re-registers global hotkeys when
+   the layout changes. On Windows it checks once a second, so a punctuation
+   hotkey can take up to a second to follow a switch. If hotkeys still fail
+   after a switch, [restart the daemon](#restart-the-daemon).
 
 ### Input methods not working (CJK IME)
 
-Neru supports CJK input methods (Pinyin, Wubi, etc.). When using an input method:
-
-- Hints work correctly
-- Key presses are translated through your physical keyboard layout
-- The input method receives keys as expected
-
-If input methods still don't work:
-
-- Ensure the input method is properly installed and active in macOS
-- Check that Accessibility permissions are granted to Neru
+Neru works with CJK input methods such as Pinyin and Wubi. Hints work, key
+presses are translated through your physical layout, and the input method
+receives keys as usual. If an input method still misbehaves, check it is
+installed and active in your OS, and on macOS that Neru has
+[Accessibility permission](#permissions).
 
 ---
 
-## Configuration Issues
+## Configuration issues
 
 ### Config changes not taking effect
 
-**The daemon does not watch the file.** Apply an edit with `neru config reload`.
-If the reload was refused, the whole file is rejected and the daemon keeps the
-previous configuration, so validate first.
-
-**Solution:**
+The daemon does not watch the file. Apply an edit with `neru config reload`. If
+the reload is refused, the whole file is rejected and the daemon keeps the
+previous configuration, so validate first:
 
 ```bash
 neru config validate     # names the offending key
@@ -616,138 +478,39 @@ neru status --json | jq -r .config
 ```
 
 Values set with `neru config set` live in `config.override.toml` beside your
-config and win over it; `neru config reset <key>` removes one. See
-[Config Layering](getting-started.md#config-layering).
+config and win over it. `neru config reset <key>` removes one. See
+[Config layering](./getting-started.md#config-layering).
 
 ### "Failed to parse config"
 
-**TOML syntax error, or a value a validator refuses.**
+A TOML syntax error, or a value a validator refuses. `neru config validate`
+prints the line or key and why it was refused.
 
-**Solution:**
-
-```bash
-neru config validate     # prints the line or key and why it was refused
-```
-
-Common causes: missing quotes around a key that contains `+`, a section header
-typo, a hotkey bound to an empty string (use `__disabled__` to remove a
-binding). Compare against
+Common causes are missing quotes around a key that contains `+`, a section
+header typo, a color without its leading `#`, and a hotkey bound to an empty
+string. Use `__disabled__` to remove a binding. Compare against
 [default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml).
 
-### Colors not working
+---
 
-**Check hex color format.**
+## Getting help
 
-**Solution:**
+If none of these work:
 
-```toml
-# Correct:
-background_color = "#FFD700"
-
-# Incorrect:
-background_color = "FFD700"   # Missing #
-background_color = "#FFFGG"   # Invalid hex
-```
-
-### Hotkeys in wrong format
-
-**Check modifier syntax.**
-
-**Solution:**
-
-```toml
-# Correct:
-"Primary+Shift+Space" = "hints"
-
-# Incorrect:
-"Primary-Shift-Space" = "hints"  # Use +, not -
-"PRIMARY+SHIFT+SPACE" = "hints"  # Use proper case
-```
+1. **Gather information.** Run `neru doctor`, and note your OS version,
+   `neru --version`, the app where the issue occurs, the relevant config
+   sections (anonymized), and the [log](#log-file-locations).
+2. **Search existing issues** at <https://github.com/y3owk1n/neru/issues>.
+3. **Open an issue** with the bug-report form, which asks for exactly the
+   information above. Pull requests are welcome too. See
+   [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ---
 
-## Logging and Debugging
+## Emergency reset
 
-### Enable debug logging
-
-```toml
-[logging]
-log_level = "debug"
-```
-
-Restart:
-
-```bash
-pkill neru && neru launch
-```
-
-### View logs
-
-```bash
-# Real-time monitoring
-tail -f ~/Library/Logs/neru/app.log
-
-# Last 100 lines
-tail -100 ~/Library/Logs/neru/app.log
-
-# Search for errors
-grep ERROR ~/Library/Logs/neru/app.log
-
-# Search for specific app
-grep "com.apple.Safari" ~/Library/Logs/neru/app.log
-```
-
-### Common log messages
-
-**"Found usable accessibility tree"** - Accessibility tree detected, AX support activated
-
-**"Hints mode activated"** - Hint overlay is active; includes hint count when available
-
-**"Clickable element collection was slow"** - Accessibility scanning completed but took longer than expected
-
-**"Failed to get clickable elements"** - Accessibility query failed; check macOS Accessibility permission and app-specific exclusions
-
-**"Secure input is enabled, blocking mode activation"** - macOS secure input is active, often because a password field is focused
-
-Most key routing, overlay redraw, and hint filtering details are logged only at `debug` to keep production logs quiet.
-
-### Clear logs
-
-```bash
-# Remove old logs
-rm ~/Library/Logs/neru/app.log
-
-# Restart daemon (creates fresh log)
-pkill neru && neru launch
-```
-
----
-
-## Getting Help
-
-If none of these solutions work:
-
-1. **Gather information:** run `neru doctor` and note your macOS version
-   (`sw_vers`), `neru --version`, the app where the issue occurs, the relevant
-   config sections (anonymized), and logs.
-2. **Search existing issues:** <https://github.com/y3owk1n/neru/issues>
-3. **Open an issue** using the bug-report form — it asks for exactly the
-   information above. If you would rather fix it yourself, pull requests are
-   very welcome: see [CONTRIBUTING.md](../../CONTRIBUTING.md).
-
----
-
-
-## Emergency Reset
-
-If Neru is completely broken:
-
-```bash
-pkill -9 neru
-```
-
-Then remove Neru and its state entirely — the full steps, including purging
-config and logs, are in
-[INSTALLATION.md](installation.md#uninstallation) — reinstall, run
-`neru launch`, and re-grant Accessibility permission (System Settings →
-Privacy & Security → Accessibility).
+If Neru is completely broken, force it to quit as in
+[Daemon stops responding](#daemon-stops-responding-or-wont-quit), then remove
+Neru and its state with the steps in
+[Uninstallation](./installation.md#uninstallation), reinstall, run
+`neru launch`, and on macOS grant Accessibility permission again.

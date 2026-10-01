@@ -65,12 +65,9 @@ func runConfigInit(cmd *cobra.Command, force bool) error {
 	cmd.Println("  6. Exit any mode:       Escape")
 	cmd.Println("")
 	cmd.Println("Edit the config file to customize hotkeys, colors, and behavior.")
-	cmd.Println(
-		"Full reference: " + buildinfo.DocsURL(
-			"docs/reference/configuration.md",
-			buildinfo.Version,
-		),
-	)
+
+	referenceURL := buildinfo.DocsURL("docs/reference/configuration.md", buildinfo.Version)
+	cmd.Println("Full reference: " + referenceURL)
 
 	return nil
 }

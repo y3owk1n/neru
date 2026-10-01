@@ -1,93 +1,50 @@
-# Tips & Tricks
+# Recipes
 
-Worked configuration recipes for common workflows. Each entry states the goal,
-then the configuration that achieves it.
+Worked configurations for common goals. Each recipe states the goal, then the
+configuration that reaches it. What every option does is in the
+[configuration reference](../reference/configuration.md), and every command and
+flag is in the [CLI reference](../reference/cli.md). Driving Neru from scripts
+and external hotkey daemons is covered in [Scripting](../reference/scripting.md).
 
-For the full option reference see [CONFIGURATION.md](../reference/configuration.md); for
-command flags see [CLI.md](../reference/cli.md).
+The launcher keys below are examples. On Linux no global hotkeys are bound by
+default, so bind whichever keys you like. See [Getting started](getting-started.md).
 
-**Related:** [Configuration Reference](../reference/configuration.md) · [CLI Reference](../reference/cli.md)
+## Clicking
 
----
+### Vimium-style click-on-select
 
-## Table of Contents
-
-- [Vimium-Style Click-on-Select](#vimium-style-click-on-select)
-- [Homerow Action Clicks](#homerow-action-clicks)
-- [Hints Search (Homerow.app Style, sort of...)](#hints-search-homerowapp-style-sort-of)
-- [Auto-Exit After Click](#auto-exit-after-click)
-- [Restore Cursor Position After Mode Exit](#restore-cursor-position-after-mode-exit)
-- [Custom Mouse Movement Step Size](#custom-mouse-movement-step-size)
-- [Click, sleep, move](#click-sleep-move)
-- [Drag with Any Mouse Button](#drag-with-any-mouse-button)
-- [Target Menus Without Moving the Real Cursor](#target-menus-without-moving-the-real-cursor)
-- [Mode Toggle (On/Off)](#mode-toggle-onoff)
-- [Cycle Through Modes with One Hotkey](#cycle-through-modes-with-one-hotkey)
-- [Bind a Shortcut to a Specific UI Element](#bind-a-shortcut-to-a-specific-ui-element)
-- [Disabling All Built-In Hotkeys](#disabling-all-built-in-hotkeys)
-- [Give Browser Content Time To Load Before Refreshing Hints](#give-browser-content-time-to-load-before-refreshing-hints)
-- [Checking the Accessibility Tree on macOS](#checking-the-accessibility-tree-on-macos)
-- [Running a Custom Configuration via App Bundle](#running-a-custom-configuration-via-app-bundle)
-- [Edit Config File Directly](#edit-config-file-directly)
-- [Triggering Neru Actions from External Tools](#triggering-neru-actions-from-external-tools)
-- [Combining Hints with Other Actions](#combining-hints-with-other-actions)
-- [Run a Whole Workflow From One Command](#run-a-whole-workflow-from-one-command)
-- [Further Reading](#further-reading)
-
----
-
-## Vimium-Style Click-on-Select
-
-Hints mode that clicks automatically when you finish typing a label — similar to Vimium in a browser.
-
-> [!NOTE]
-> The default hotkey for Hints mode is `Primary+Shift+Space`. The snippet below rebinds that same key to auto-click on select, so you are _replacing_ the default hints behaviour, not adding a new one. Bind it to a separate key if you want both.
+Hints mode that clicks as soon as you finish typing a label, like Vimium in a
+browser. Give each button its own launcher:
 
 ```toml
 [hotkeys]
 "Primary+Shift+Space" = "hints --action left_click"
+"Primary+Shift+R"     = "hints --action right_click"   # context menu
 ```
 
-## Homerow Action Clicks
+On macOS and Windows `Primary+Shift+Space` is the default hints launcher, so the
+first line replaces the default behaviour rather than adding to it. Bind another
+key if you want both.
 
-Homerow-style `Return` click actions via mode `hotkeys`:
+### Homerow action clicks
+
+Click the selected hint with `Return`, homerow.app style:
 
 ```toml
 [hints.hotkeys]
-"Enter" = "action left_click" # press twice quickly for double-click, three times for triple-click
-"Shift+Enter" = "action right_click"
+"Enter"         = "action left_click"
+"Shift+Enter"   = "action right_click"
 "Primary+Enter" = "action middle_click"
+"Ctrl+Enter"    = "action left_click,left_click"   # double-click
 ```
 
-## Hints Search (Homerow.app Style, sort of...)
+A comma chain clicks several times at one point, so
+`"action left_click,left_click,left_click"` triple-clicks. See
+[`neru action left_click`](../reference/cli.md#neru-action-left_click-right_click-middle_click).
 
-Neru supports text search in hints mode, similar to homerow.app. Press `/` to enter search mode, type to filter hints, and press `Enter` to auto-select when 1 or more hints remain.
+### Auto-exit after click
 
-```toml
-[hints.hotkeys]
-"/" = "action search_hints"
-```
-
-If you want to have the search input shown automatically when activating hints mode, use the `--search` flag in your binding:
-
-```toml
-[hotkeys]
-"Primary+Shift+Space" = "hints --search"
-```
-
-**Features:**
-
-- Type to filter hints by element title, description, or value
-- `Space` is supported for multi-word searches (e.g., "search for issue")
-- `Backspace` removes characters
-- `Escape` cancels and restores all hints
-- `Enter` with 1 result: executes the pending action (if any) and exits
-- `Enter` with multiple results: closes search only, letting you type the exact hint label to select
-- `Tab` / `cycle_hint`: navigates between filtered results without executing the action
-
-## Auto-Exit After Click
-
-The old `auto_exit_actions` config field was removed. Use a `hotkeys` array to click and exit in one key:
+Click and leave the mode with one key. A binding can hold a list of steps:
 
 ```toml
 [hints.hotkeys]
@@ -95,78 +52,35 @@ The old `auto_exit_actions` config field was removed. Use a `hotkeys` array to c
 "Shift+R" = ["action right_click", "idle"]
 ```
 
-This works in any mode — hints, grid, recursive_grid, or scroll.
-
-By default the mode exits whether or not the click landed. Add `--bail-on-error` to the click so the sequence stops instead, leaving you in the mode to try again:
+This works in any mode. By default the mode exits whether or not the click
+landed. End the click step with `--bail-on-error` to stop the sequence there
+instead, which leaves you in the mode to try again:
 
 ```toml
 [hints.hotkeys]
 "Shift+L" = ["action left_click --bail-on-error", "idle"]
 ```
 
-## Restore Cursor Position After Mode Exit
+The directive is described under
+[Failure policy](../reference/cli.md#failure-policy).
 
-The old `restore_cursor_position` config field was removed. Compose the same behavior with action primitives:
+### Click, sleep, move
 
-```toml
-[hotkeys]
-"Primary+Shift+Space" = ["action save_cursor_pos", "hints"] # add the save cursor pos action before launch hints
-
-[hints.hotkeys]
-"Enter" = ["action left_click", "idle", "action restore_cursor_pos"]
-```
-
-This saves the cursor position, clicks, exits hints, waits for the mode to fully exit, then moves the cursor back.
-
-If the click comes from the mode's own `--action` rather than a key inside hints, put the tail in `--on-exit` instead. The flag is repeatable, so the whole sequence lives on the one binding that starts the mode:
-
-```toml
-[hotkeys]
-"Primary+Shift+Space" = [
-    "action save_cursor_pos",
-    "hints --action left_click --on-exit 'action restore_cursor_pos'",
-]
-```
-
-`--on-exit` steps run only after the action is fulfilled, so escaping out of hints leaves the cursor where you moved it rather than snapping it back.
-
-## Custom Mouse Movement Step Size
-
-The old `action.move_mouse_step` config field was removed. Control step size directly via `--dx`/`--dy` flags in `hotkeys`:
-
-```toml
-[hints.hotkeys]
-# Default 10px step
-"Up"    = "action move_mouse_relative --dx=0 --dy=-10"
-"Down"  = "action move_mouse_relative --dx=0 --dy=10"
-"Left"  = "action move_mouse_relative --dx=-10 --dy=0"
-"Right" = "action move_mouse_relative --dx=10 --dy=0"
-```
-
-To use a larger step (e.g. 20px), just change the values:
-
-```toml
-[hints.hotkeys]
-"Up"    = "action move_mouse_relative --dx=0 --dy=-20"
-"Down"  = "action move_mouse_relative --dx=0 --dy=20"
-```
-
-## Click, sleep, move
-
-On some apps (e.g. Discord), it requires you to wait for a bit after clicking before moving to consider as a success click. Try this snippet:
+Some apps, such as Discord, register a click only if the pointer stays put for
+a moment afterwards. Sleep between the click and the next move:
 
 ```toml
 [recursive_grid.hotkeys]
-# Click, sleep for a bit, and then only reset (that moves the cursor to center in recursive grid mode)
+# Click, wait, then reset (which moves the cursor back to the centre of the grid)
 "Ctrl+J" = ["action left_click", "action sleep 0.05", "action reset"]
 ```
 
-## Drag with Any Mouse Button
+### Drag with any mouse button
 
-Click actions take `--state down` and `--state up`, so a drag is just "press
-here, move there, release". This works for the left, right, and middle button —
-right-drag creates shortcuts on Windows, and middle-drag pans the canvas in
-apps like TouchDesigner, Blender, and Photoshop.
+Click actions take `--state down` and `--state up`, so a drag is "press here,
+move there, release". This works for the left, right and middle button.
+Right-drag creates shortcuts on Windows, and middle-drag pans the canvas in apps
+like TouchDesigner, Blender and Photoshop.
 
 ```toml
 [recursive_grid.hotkeys]
@@ -181,8 +95,8 @@ apps like TouchDesigner, Blender, and Photoshop.
 "Shift+J" = "action middle_click --state up"
 ```
 
-`Shift+I` / `Shift+U` are the shipped defaults for the left button; the right and
-middle bindings above are additions.
+`Shift+I` and `Shift+U` are the shipped defaults for the left button. The right
+and middle bindings are additions.
 
 If two keys per button is too many, `--toggle` presses the button when it is
 free and releases it when it is held, so one key covers the whole drag:
@@ -194,121 +108,43 @@ free and releases it when it is held, so one key covers the whole drag:
 "Shift+K" = "action middle_click --toggle"
 ```
 
-Moving the cursor while a button is held emits drag events for that button, so
-the usual grid and hint navigation keys steer the drag. Any button Neru is
-holding is released when it returns to idle, so pressing `Esc` mid-drag never
-leaves a button stuck down.
+Moving the cursor while a button is held drags with that button, so the usual
+grid and hint navigation keys steer the drag. Neru releases any button it is
+holding when it returns to idle, so pressing `Escape` mid-drag never leaves a
+button stuck down.
 
 To start a drag from a hinted element instead of a grid selection, use the
-action name form — mode `--action` takes names, not flags:
+action name form, since a mode's `--action` takes names, not flags:
 
 ```toml
 [hotkeys]
 "Primary+Shift+D" = "hints --action left_mouse_down"
 ```
 
-## Target Menus Without Moving the Real Cursor
+### Bind a shortcut to a specific UI element
 
-Some menus disappear as soon as the pointer leaves them. For grid and recursive-grid workflows, start the mode in `hold` mode so you can refine the selection first and only move on commit:
+Some apps never expose a keyboard shortcut for a UI element you use often, and
+some remove one you relied on. Claude for macOS, for example, dropped `Cmd+1`,
+`Cmd+2` and `Cmd+3` for switching between its Home, Code and Cowork views. In
+some cases you can rebuild one by driving Neru to click a fixed spot or a
+specific element in the focused window.
 
-```toml
-[hotkeys]
-"Primary+Shift+G" = "grid --cursor-selection-mode hold"
-"Primary+Shift+C" = "recursive_grid --cursor-selection-mode hold"
-```
+Bind the key inside a root-level `[[app_configs]]` block scoped to the app by its
+`bundle_id`. That block overrides `[hotkeys]` only while the app is focused, so
+the key drives Neru there and passes straight through everywhere else. See
+[Per-App Global Hotkey Overrides](../reference/configuration.md#per-app-global-hotkey-overrides).
 
-Grid and recursive-grid now include this toggle in the default config, bound to backtick:
+Pointing at an element reliably is the hard part, and the three approaches below
+break under different conditions:
 
-```toml
-[grid.hotkeys]
-"`" = "toggle-cursor-follow-selection"
+| Approach                    | Survives window move | Survives resize | Breaks when                      |
+| --------------------------- | -------------------- | --------------- | -------------------------------- |
+| Absolute coordinates        | No                   | No              | the window ever moves            |
+| Window-relative coordinates | Yes                  | No              | the layout is responsive         |
+| Filtered hints + feed       | Yes                  | Yes             | the role and text are not unique |
 
-[recursive_grid.hotkeys]
-"`" = "toggle-cursor-follow-selection"
-"Shift+D" = "action move_mouse"
-"Return" = "action left_click"
-```
-
-This keeps the real pointer still while you navigate. Point-targeted actions now prefer the current selection by default, so `"Return" = "action left_click"` and scroll actions will commit against the selection unless you opt out with `--bare`.
-
-## Mode Toggle (On/Off)
-
-Use `--toggle` to turn a single hotkey into a mode toggle — pressing it once activates the mode, pressing it again returns to idle:
-
-```toml
-[hotkeys]
-"Ctrl+F" = "grid --toggle"
-"Ctrl+G" = "recursive_grid --toggle"
-"Ctrl+H" = "hints --toggle"
-```
-
-This is especially useful when you want a single key to both enter and exit a mode, avoiding the need for a separate `Escape` press or a dedicated exit keybinding.
-
-## Auto-Zoom to Depth on Activation
-
-Use `--zoom-to-depth` to automatically drill down to a target depth at the current cursor position when recursive grid opens. This skips intermediate cell selections and places you directly at the desired depth:
-
-```toml
-[hotkeys]
-"Primary+Shift+2" = "recursive_grid --zoom-to-depth 2"
-"Primary+Shift+3" = "recursive_grid --zoom-to-depth 3 --action left_click"
-```
-
-If the depth exceeds the available grid depth, zooming clamps silently at the deepest level possible.
-
-## Cycle Through Modes with One Hotkey
-
-Instead of a separate launcher key for every mode, one key can walk through all of them. Press it from idle to open the first mode, then press the same key again to advance through hints, recursive grid, grid, and scroll, wrapping back to hints at the end.
-
-This works because a per-mode hotkey overrides a global hotkey bound to the same key (requires Neru 1.47.0 and later). Once you are inside a mode, that mode's own `[<mode>.hotkeys]` binding for the same key wins, and it points at the next mode in the cycle. A global binding the active mode does *not* rebind keeps working from inside that mode — which is what lets one chord toggle a mode off however you entered it — so the cycle needs the per-mode entry for every key it walks.
-
-```toml
-# From idle, this opens hints.
-[hotkeys]
-"Primary+Ctrl+F" = "hints"
-
-# Inside each mode, the same key advances to the next mode.
-[hints.hotkeys]
-"Primary+Ctrl+F" = "recursive_grid"
-
-[recursive_grid.hotkeys]
-"Primary+Ctrl+F" = "grid"
-
-[grid.hotkeys]
-"Primary+Ctrl+F" = "scroll"
-
-[scroll.hotkeys]
-"Primary+Ctrl+F" = "hints"   # wrap back to the start
-```
-
-`Enter` and `Escape` still return you to idle from any point in the cycle. To change the order, drop a mode, or shorten the loop, edit which mode each block points to.
-
-If you keep the default per-mode launcher keys, disable the ones this cycle replaces so a leftover default doesn't compete with the shared key:
-
-```toml
-[hotkeys]
-"Primary+Shift+Space" = "__disabled__"   # default hints launcher
-"Primary+Shift+G" = "__disabled__"       # default grid launcher
-"Primary+Shift+C" = "__disabled__"       # default recursive_grid launcher
-"Primary+Shift+B" = "__disabled__"       # default bisect launcher
-"Primary+Shift+S" = "__disabled__"       # default scroll launcher
-```
-
-## Bind a Shortcut to a Specific UI Element
-
-Some apps never expose a keyboard shortcut for a UI element you use often, and some remove one you relied on. Claude for macOS, for example, dropped `Cmd+1` / `Cmd+2` / `Cmd+3` for switching between its Home, Code, and Cowork views, leaving no shortcut for those buttons at all. In some limited cases you can rebuild one by driving Neru to click a fixed spot or a specific element in the focused window.
-
-Bind the key inside a root-level `[[app_configs]]` block scoped to the target app by its `bundle_id` (requires Neru 1.47.0 and later). That block overrides `[hotkeys]` only while that app is focused, so the key drives Neru there and passes straight through to every other app. See [Per-App Global Hotkey Overrides](../reference/configuration.md#per-app-global-hotkey-overrides) for the full syntax.
-
-Inside the block, each hotkey value is an action sequence that clicks the element. Pointing at a UI element reliably is the hard part, and the three approaches below break under different conditions:
-
-| Approach                     | Survives window move | Survives resize | Breaks when                          |
-| ---------------------------- | -------------------- | --------------- | ------------------------------------ |
-| Absolute coordinates         | No                   | No              | the window ever moves                |
-| Window-relative coordinates  | Yes                  | No              | the layout is responsive             |
-| Filtered hints + feed        | Yes                  | Yes             | the role and text are not unique     |
-
-**1. Absolute coordinates.** The most direct option, but it only holds if the window never moves or resizes:
+**1. Absolute coordinates.** This is the most direct option. It holds only if
+the window never moves or resizes:
 
 ```toml
 [[app_configs]]
@@ -316,7 +152,9 @@ bundle_id = "com.anthropic.claudefordesktop"
 hotkeys = { "Cmd+1" = ["action move_mouse --x 113 --y 123", "action left_click"] }
 ```
 
-**2. Window-relative coordinates.** Recomputes the target from the focused window each time, so it survives moving the window and breaks only on resize. Move to the window center, offset to a corner, then nudge to the target:
+**2. Window-relative coordinates.** Recomputes the target from the focused
+window each time, so it survives moving the window and breaks only on resize.
+Move to the window centre, offset to a corner, then nudge to the target:
 
 ```toml
 [[app_configs]]
@@ -324,9 +162,12 @@ bundle_id = "com.anthropic.claudefordesktop"
 hotkeys = { "Cmd+1" = ["action move_mouse --window --x -1000 --y -1000", "action sleep 0.1", "action move_mouse_relative --dx 100 --dy 70", "action sleep 0.1", "action left_click"] }
 ```
 
-`--window` measures the offset from the window center. A large negative offset like `--x -1000 --y -1000` is clamped to the window's top-left corner, giving you a stable origin to measure from, and `move_mouse_relative` then walks to the element.
+`--window` measures the offset from the window centre. A large negative offset
+like `--x -1000 --y -1000` is clamped to the window's top-left corner, which
+gives a stable origin, and `move_mouse_relative` then walks to the element.
 
-**3. Filtered hints + feed.** Targets an element by its accessibility role and text, then feeds the first hint label to click it:
+**3. Filtered hints + feed.** Targets an element by its accessibility role and
+text, then feeds the first hint label to click it:
 
 ```toml
 [[app_configs]]
@@ -334,11 +175,17 @@ bundle_id = "com.anthropic.claudefordesktop"
 hotkeys = { "Cmd+1" = ["hints --role button --text Home --action left_click", "action feed --mode a"] }
 ```
 
-`action feed --mode a` presses the first hint label. Which element gets `a` depends on your hint configuration (menu-bar hints, label direction, and so on), so confirm it lands on the element you mean. This method is precise when the element is unique, and fragile when the text is common. A button labelled "Code" is easy to confuse with every "Copy code" button in the same window. When a view's hint filter is too ambiguous to trust, fall back to the window-relative form for that key.
+`action feed --mode a` types the first hint label into Neru. Which element gets
+`a` depends on your hint configuration, such as menu-bar hints and label
+direction, so confirm it lands on the element you mean. This method is precise when
+the element is unique and fragile when the text is common. A button labelled
+"Code" is easy to confuse with every "Copy code" button in the same window. When
+a filter is too ambiguous to trust, fall back to the window-relative form for
+that key.
 
-Putting it together, a Claude view switcher scopes three keys to the app. `Cmd+1`, `Cmd+2`, and `Cmd+3` click the Home, Code, and Cowork buttons, each nudged to a different offset from the window's top-left corner:
-
-Only the offsets differ between the three, so name the sequence once in [`[macros]`](../reference/configuration.md#macros) and pass them in:
+Putting it together, a Claude view switcher scopes three keys to the app. Only
+the offsets differ between them, so name the sequence once in
+[`[macros]`](../reference/configuration.md#macros) and pass the offsets in:
 
 ```toml
 [macros]
@@ -359,30 +206,42 @@ hotkeys = {
 }
 ```
 
-Capture your own offsets once, since they depend on the window's layout. Move the pointer over each button, read its screen coordinates, and subtract the window's top-left corner to get the `--dx` / `--dy` values.
+Capture your own offsets once, since they depend on the window's layout. Move the
+pointer over each button, read its screen coordinates, and subtract the window's
+top-left corner to get the `--dx` and `--dy` values.
 
-## Disabling All Built-In Hotkeys
+## Hints
 
-To disable all built-in hotkeys (e.g. when using an external hotkey daemon like skhd), provide an empty `[hotkeys]` section:
+### Hints search (Homerow.app style, sort of...)
+
+Filter hints by typing what the element says, similar to homerow.app. Press `/`
+in hints mode and type. `/` is the default binding for `action search_hints`. To open
+hints with the search box already showing, bind a launcher with `--search`:
 
 ```toml
 [hotkeys]
-# No bindings — all defaults are cleared.
-# Trigger modes via CLI: neru hints, neru grid, etc.
+"Primary+Shift+Space" = "hints --search"
 ```
 
-### Using skhd or other external hotkey managers
+While searching:
 
-```bash
-# ~/.config/skhd/skhdrc
-ctrl - f : neru hints
-ctrl - g : neru grid
-ctrl - r : neru hints --action right_click
-```
+- Typing filters hints by element title, description, or value. `Space` is
+  allowed, for multi-word queries.
+- `Backspace` removes a character, and `Escape` cancels the search and restores
+  every hint.
+- `Return` closes the search and selects the first match, running the binding's
+  `--action` if it has one. When the binding has an `--action` and more than one
+  hint matches, `Return` only closes the search, so you can type the exact label.
+- `Tab` (`action cycle_hint`) moves between the filtered results without running
+  the action.
 
-## Give Browser Content Time To Load Before Refreshing Hints
+Search needs element text, so it works with the `axtree` and `vision`
+strategies but not `contour`. See [`[hints]`](../reference/configuration.md#hints).
 
-Some browser-like apps need a short delay after a click so the page content can finish updating before Neru refreshes hints. Override just that app's hint hotkeys:
+### Give browser content time to load before refreshing hints
+
+Some browser-like apps need a short delay after a click so the page can finish
+updating before Neru draws hints again. Override only that app's hint hotkeys:
 
 ```toml
 [[hints.app_configs]]
@@ -393,121 +252,213 @@ hotkeys = {
 }
 ```
 
-This merges on top of `[hints.hotkeys]`, so only the keys listed here change for Brave Browser. Everything else keeps using your normal hint bindings.
+This merges over `[hints.hotkeys]`, so only the keys listed here change for Brave,
+and every other key keeps your normal hint bindings. The same pattern works in
+`[[grid.app_configs]]`, `[[recursive_grid.app_configs]]` and the other modes'
+`app_configs`.
 
-You can use the same pattern for grid and recursive_grid modes:
+### Checking the accessibility tree on macOS
+
+To see which role and text an element exposes, for `clickable_roles` or a
+`--role` filter, inspect it with one of these:
+
+- **UIElementInspector**, a small sample app from Apple that needs no Xcode:
+  [UIElementInspector.zip](https://developer.apple.com/library/mac/samplecode/UIElementInspector/UIElementInspector.zip)
+- **Accessibility Inspector**, which ships with Xcode: **Xcode > Open Developer
+  Tool > Accessibility Inspector**
+
+`neru roles` shows how Neru's role names map to the platform's names.
+
+## Cursor
+
+### Restore cursor position after mode exit
+
+Put the cursor back where it was after hints clicks something. Save it before
+the mode opens and restore it after the click:
 
 ```toml
-[[grid.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = { "Return" = "action left_click" }
+[hotkeys]
+"Primary+Shift+Space" = ["action save_cursor_pos", "hints"]
 
-[[recursive_grid.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = { "u" = "action left_click" }
+[hints.hotkeys]
+"Enter" = ["action left_click", "idle", "action restore_cursor_pos"]
 ```
 
-## Checking the Accessibility Tree on macOS
+If the click comes from the mode's own `--action` rather than a key inside hints,
+put the restore in `--on-exit`. The flag is repeatable, so the whole sequence
+lives on the binding that starts the mode:
 
-Neru doesn't ship its own accessibility inspector. You have two options:
+```toml
+[hotkeys]
+"Primary+Shift+Space" = [
+    "action save_cursor_pos",
+    "hints --action left_click --on-exit 'action restore_cursor_pos'",
+]
+```
 
-**Option 1 — UIElementInspector (lightweight, no Xcode needed)**
+`--on-exit` steps run only after the action is fulfilled, so escaping out of
+hints leaves the cursor where you moved it rather than snapping it back. To keep
+two saved positions apart, give each its own `--slot`. See
+[Cursor slots](../reference/cli.md#cursor-slots).
 
-Download the sample app directly from Apple:
-[UIElementInspector.zip](https://developer.apple.com/library/mac/samplecode/UIElementInspector/UIElementInspector.zip)
+### Target menus without moving the real cursor
 
-**Option 2 — Accessibility Inspector (ships with Xcode)**
+Some menus close as soon as the pointer leaves them. Start grid or recursive
+grid with `--cursor-selection-mode hold` so the real pointer stays still while
+you refine the selection:
 
-1. Open Xcode
-2. Go to **Xcode → Open Developer Tool → Accessibility Inspector**
+```toml
+[hotkeys]
+"Primary+Shift+G" = "grid --cursor-selection-mode hold"
+"Primary+Shift+C" = "recursive_grid --cursor-selection-mode hold"
 
-Both tools let you inspect element roles, labels, and positions. UIElementInspector is quicker to grab if you don't already have Xcode installed.
+[recursive_grid.hotkeys]
+"Return" = "action left_click"
+```
 
-## Running a Custom Configuration via App Bundle
+Click and scroll actions act on the current selection, so `Return` clicks the
+cell you picked and moves the pointer only then. Add `--bare` to an action to
+act at the real cursor instead. Inside either mode, the default `` ` `` binding,
+`toggle-cursor-follow-selection`, switches between `hold` and `follow`.
+
+### Auto-zoom to depth on activation
+
+Open recursive grid already drilled down at the cursor, skipping the first
+levels:
+
+```toml
+[hotkeys]
+"Primary+Shift+2" = "recursive_grid --zoom-to-depth 2"
+"Primary+Shift+3" = "recursive_grid --zoom-to-depth 3 --action left_click"
+```
+
+A depth beyond the deepest level the grid can reach stops at that level.
+
+## Modes and hotkeys
+
+### Mode toggle (on/off)
+
+Use one key to both enter and leave a mode. With `--toggle`, the first press
+opens the mode and the second returns to idle:
+
+```toml
+[hotkeys]
+"Ctrl+F" = "grid --toggle"
+"Ctrl+G" = "recursive_grid --toggle"
+"Ctrl+H" = "hints --toggle"
+```
+
+### Cycle through modes with one hotkey
+
+Walk through several modes with one key. Press it from idle to open the first
+mode, then press it again to advance through hints, recursive grid, grid and
+scroll, wrapping back to hints at the end.
+
+This works because inside a mode, that mode's own `[<mode>.hotkeys]` binding
+wins over a global binding for the same key. See
+[Resolution order](../reference/configuration.md#resolution-order). A global
+binding the active mode does not rebind keeps working inside it, so the cycle
+needs a per-mode entry for every mode it walks.
+
+```toml
+# From idle, this opens hints.
+[hotkeys]
+"Primary+Ctrl+F" = "hints"
+
+# Inside each mode, the same key advances to the next mode.
+[hints.hotkeys]
+"Primary+Ctrl+F" = "recursive_grid"
+
+[recursive_grid.hotkeys]
+"Primary+Ctrl+F" = "grid"
+
+[grid.hotkeys]
+"Primary+Ctrl+F" = "scroll"
+
+[scroll.hotkeys]
+"Primary+Ctrl+F" = "hints"   # wrap back to the start
+```
+
+`Escape` still returns to idle from any point in the cycle. To change the order
+or shorten the loop, edit which mode each block points to.
+
+On macOS and Windows you may want to drop the default launchers this cycle
+replaces:
+
+```toml
+[hotkeys]
+"Primary+Shift+Space" = "__disabled__"   # default hints launcher
+"Primary+Shift+G"     = "__disabled__"   # default grid launcher
+"Primary+Shift+C"     = "__disabled__"   # default recursive_grid launcher
+"Primary+Shift+S"     = "__disabled__"   # default scroll launcher
+```
+
+### Switch a grid layout from one key
+
+Swap recursive grid between two layouts without editing the file. `config set`
+and `config reset` work as binding steps, and `--no-reload` holds the reload
+until the last step so the fields change together:
+
+```toml
+[hotkeys]
+"Cmd+8" = [
+    "config set recursive_grid.grid_cols 3 --no-reload",
+    "config set recursive_grid.grid_rows 3 --no-reload",
+    "config set recursive_grid.keys gcrhtnmwv",
+]
+"Cmd+9" = [
+    "config reset recursive_grid.grid_cols --no-reload",
+    "config reset recursive_grid.grid_rows --no-reload",
+    "config reset recursive_grid.keys",
+]
+```
+
+`config set` changes persist across restarts in the override file. See
+[Runtime config changes](getting-started.md#runtime-config-changes).
+
+### Disabling all built-in hotkeys
+
+Leave every global binding to an external hotkey daemon such as skhd. An empty
+`[hotkeys]` table clears all default global hotkeys:
+
+```toml
+[hotkeys]
+# No bindings, so every default is cleared.
+```
+
+Each mode keeps its own `[<mode>.hotkeys]`. Trigger the modes from the daemon
+with `neru hints`, `neru grid` and so on, as shown in
+[Scripting](../reference/scripting.md).
+
+## Config files
+
+### Running a custom configuration via app bundle
+
+On macOS, start the app bundle with a specific config file:
 
 ```bash
 open -a neru --args launch -c /absolute/path/to/your/config
 ```
 
 > [!NOTE]
-> `~` expansion does not work here — use the full absolute path.
+> `~` is not expanded here, so use the full absolute path.
 
-This is useful for testing a config before committing it to your dotfiles, or for keeping separate profiles (e.g. a lighter config when presenting or screen-sharing).
+This is useful for testing a config before committing it to your dotfiles, or for
+keeping separate profiles, such as a lighter one for screen sharing.
 
-## Edit Config File Directly
+### Edit config file directly
 
-Quickly open your config in an editor without hunting for the file path:
+Open the config file the daemon is using, without looking up its path:
 
 ```bash
 neru status --json | jq -r .config | xargs nvim
 ```
 
-Or if you would like to open a new window and edit the config:
+To open it in a new terminal window, run the same pipeline through your
+terminal's command-line launcher. For Ghostty on macOS:
 
 ```bash
-# both works the same except one uses ghostty cli and another uses macos open command
-ghostty -e bash -c "neru status --json | jq -r .config | xargs nvim" # check if your terminal has equivalent cli support
-open -na Ghostty --args -e bash -c "neru status --json | jq -r .config | xargs nvim" # this should generally work
+open -na Ghostty --args -e bash -c "neru status --json | jq -r .config | xargs nvim"
 ```
 
-You can wrap this in a shell alias or bind it to a key in your window manager / hotkey daemon.
-
-## Triggering Neru Actions from External Tools
-
-Because Neru exposes an IPC-based CLI, you can drive it from anything — Hammerspoon, Raycast scripts, shell aliases, or other hotkey daemons — without going through Neru's own hotkey system.
-
-```bash
-# Move mouse to an absolute position
-neru action move_mouse --x 500 --y 300
-
-# Trigger a left click at the current cursor position
-neru action left_click
-
-# Enter hints mode programmatically
-neru hints
-```
-
-This is handy when a Neru hotkey conflicts with an app's own shortcut and you'd rather let an external tool handle the trigger.
-
-For a whole workflow rather than a single action, see [Run a Whole Workflow From One Command](#run-a-whole-workflow-from-one-command).
-
-## Combining Hints with Other Actions
-
-The `--action` flag on hints mode is not limited to `left_click`. You can pass other actions to change what happens when a hint label is completed:
-
-```toml
-[hotkeys]
-"Primary+Shift+Space" = "hints --action left_click"   # click
-"Primary+Shift+R"     = "hints --action right_click"  # context menu
-```
-
-Useful for apps where you frequently need a right-click menu (e.g. Finder, VS Code file tree) without moving your hands to the mouse.
-
-## Run a Whole Workflow From One Command
-
-A multi-action hotkey binding is an *action sequence*. `neru run` takes the same sequence from outside Neru, so a script or an external hotkey daemon can drive a workflow without spawning one `neru` process per step. Each argument is one step, written exactly as it would be written in a binding:
-
-```bash
-# Save the cursor, pick a target, click it, then put the cursor back
-neru run "action save_cursor_pos" "hints --action left_click" \
-         "action wait_for_mode_exit --bail" "action restore_cursor_pos"
-```
-
-`--bail` stops the sequence when you escape out of hints instead of selecting, so the trailing steps do not run and the command exits non-zero. Any other failing step is reported while the rest still run.
-
-Sequences that block — sleeps, `wait_for_mode_exit` — can outlast the default 10-second IPC timeout, so raise it for those:
-
-```bash
-neru --timeout 60 run "action left_click" "action sleep 0.8" hints
-```
-
-There is no upper bound beyond the one you pass: the daemon holds the reply until the sequence finishes. A sequence you do not want to wait on at all belongs in a hotkey binding instead, since bindings are dispatched in the background with no caller attached.
-
----
-
-## Further Reading
-
-- [CONFIGURATION.md](../reference/configuration.md) — every TOML option explained
-- [CLI.md](../reference/cli.md) — all commands and flags
-- [TROUBLESHOOTING.md](troubleshooting.md) — common issues and fixes
-- [CONFIG_SHOWCASES.md](../project/showcases.md) — see how others configure Neru
+Wrap it in a shell alias, or bind it in your window manager or hotkey daemon.

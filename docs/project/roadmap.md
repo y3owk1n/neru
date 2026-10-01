@@ -7,21 +7,14 @@ works today. That lives in one place, the
 [Capability Matrix](../reference/platform-support.md#capability-matrix), with anything still
 missing enumerated under [Known Gaps](../reference/platform-support.md#known-gaps).
 
-**Related:** [Cross-Platform Guide](../reference/platform-support.md) ·
-[Contributing](../../CONTRIBUTING.md) · [Architecture](../contributing/architecture.md)
-
----
-
 ## Where things stand
 
-- **macOS** is Stable and the reference implementation.
-- **Linux** and **Windows** are both Beta with parity complete: every option,
-  mode flag, action and command means what it means on macOS, and
-  [Known Gaps](../reference/platform-support.md#known-gaps) carries no entry for either.
-  Nothing is left to build for the label. What moves a platform to Stable is
-  the six-clean-releases rule under
-  [What the labels mean](../reference/platform-support.md#what-the-labels-mean), which is
-  earned by use rather than by a feature.
+Each platform's label is in
+[Platform status](../reference/platform-support.md#platform-status). Linux and
+Windows have nothing left to build for theirs. What moves a platform to Stable
+is the rule under
+[What the labels mean](../reference/platform-support.md#what-the-labels-mean),
+which is earned by use rather than by a feature.
 
 So the roadmap has no platform feature list. The work now is proving both
 platforms under real workloads and keeping the core reliable.
@@ -30,16 +23,16 @@ platforms under real workloads and keeping the core reliable.
 
 1. **Prove Linux and Windows in use.** A bug filed against either platform
    outranks any new capability. The Windows push landed seventeen features in
-   one release and has been exercised only by CI, so expect and report rough
-   edges. The open one today is
+   one release and has been exercised only by CI, so expect bugs and report
+   them. The open one today is
    [#1483](https://github.com/y3owk1n/neru/issues/1483), an injected scroll on
    Windows carrying modifiers the user is physically holding.
 2. **Reliability over features.** Startup, config reload and mode transitions
    fail loudly and recover cleanly. Regressions here are fixed before anything
    else ships.
-3. **Guardrails keep growing.** Contracts that fail silently earn a test in
-   `internal/architecture` (ADR 0011). Reload behavior and port contracts are
-   the areas still thinnest.
+3. **More guardrails.** A contract that fails silently gets a test in
+   `internal/architecture` (ADR 0011). Reload behavior and port contracts have
+   the fewest guardrails so far.
 
 ## Open direction
 
@@ -70,6 +63,8 @@ In priority order:
    bridge callbacks allow it.
 
 New to the codebase?
-[Contributing safely](../contributing/porting.md#contributing-safely) lists starter
-tasks, the changes worth opening an issue for first, and the five-point bar a
-platform change has to clear before it lands.
+[Good First Contributions](../../CONTRIBUTING.md#good-first-contributions) lists
+starter tasks, and
+[Contributing safely](../contributing/porting.md#contributing-safely) lists the
+platform changes worth opening an issue for first and the bar a platform change
+has to clear.

@@ -125,7 +125,7 @@ func (m *MenuItem) SetTitle(title string) {
 // tooltip property, so there is nothing to send and nothing for a tray host to
 // render. Nothing in Neru calls it; the tray icon's own hover text is the
 // package-level SetTooltip below, which works. docs/reference/platform-support.md owns the
-// full statement, as footnote 9 of the Capability Matrix.
+// full statement, as footnote 8 of the Capability Matrix.
 func (m *MenuItem) SetTooltip(tooltip string) {}
 
 // SetIcon sets the menu item icon (Linux).

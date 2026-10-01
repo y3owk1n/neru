@@ -1,97 +1,170 @@
 # Getting started
 
-## Quick Start
+From a fresh install to your own config and hotkeys. If Neru is not installed
+yet, start with [Installation](installation.md).
+
+## Quick start
+
+```bash
+neru launch          # or open Neru.app on macOS, or the Start Menu entry on Windows
+neru config init     # write a commented starter config
+neru doctor          # check permissions and backends
+```
+
+Then press `Primary+Shift+Space` for hints. `Primary` is `Cmd` on macOS and
+`Ctrl` on Linux and Windows. On Linux, bind a key first. See
+[Binding your first hotkeys](#binding-your-first-hotkeys).
+
+If you installed the login service, the daemon is already running and
+`neru launch` is not needed.
+
+## First launch
+
+With no config file, Neru runs on built-in defaults. What it tells you about
+that differs by platform:
+
+- **macOS and Windows** show a welcome dialog that offers to write the starter
+  config, to run on defaults without one, or to quit.
+- **Linux** starts on defaults. It sends a notification or prints to the
+  terminal, telling you to run `neru config init`.
+
+`neru status` reports whether the daemon is running. `neru doctor` works with
+or without a daemon and lists each permission and backend with its state.
+
+## Permissions
+
+### macOS
+
+- **Accessibility** is required. Neru asks for it at launch when it is missing.
+  Grant it in System Settings, under Privacy & Security, then Accessibility.
+- **Screen Recording** is needed only for the `vision` (OCR) and `contour` hint
+  strategies. Neru asks the first time one runs, and macOS applies the grant
+  only after Neru restarts.
+
+If a grant does not seem to take, see
+[Troubleshooting](troubleshooting.md#installation--setup).
+
+### Linux
+
+- **X11** needs nothing beyond the runtime libraries.
+- **Wayland** needs your user in the `input` group, to read `/dev/input`, and
+  a udev rule that makes `/dev/uinput` writable. The install script offers the
+  group. Log out and back in after joining it.
+
+Details, the udev rule and what degrades without each one are in
+[Linux setup](linux.md#install-time-environment-adjustments). Some desktops
+need more. See [Linux desktops](linux-desktops.md).
+
+### Windows
+
+No permissions to grant. Windows does not let a normal process drive a window
+running as administrator, so Neru cannot reach elevated apps unless it runs
+elevated too.
+
+## Config file location
+
+`neru config init` writes `~/.config/neru/config.toml`, or
+`%APPDATA%\neru\config.toml` on Windows. Set `XDG_CONFIG_HOME` to move it, on
+any platform.
+
+At launch Neru uses the first file it finds:
+
+1. `$XDG_CONFIG_HOME/neru/config.toml` when `XDG_CONFIG_HOME` is set,
+   otherwise `%APPDATA%\neru\config.toml` on Windows or
+   `~/.config/neru/config.toml` elsewhere
+2. `~/.config/neru/config.toml`, so a config from a cross-platform dotfiles
+   repo works on Windows as-is
+3. `~/.neru.toml`
+4. `neru.toml` in the current directory
+5. `config.toml` in the current directory
+
+`neru launch -c /path/to/config.toml` skips the search.
+
+The starter file is the full default config with every option commented. On
+Linux its `[hotkeys]` table is commented out, matching the built-in defaults.
+
+```bash
+neru config init                          # write the starter file
+neru config init --force                  # overwrite an existing one
+neru config init -c /path/to/config.toml  # write somewhere else
+```
+
+## Config layering
+
+Each layer overrides the one before it:
+
+```
+built-in defaults -> config.toml -> config.override.toml
+```
+
+- **Built-in defaults** for your platform. Anything your file leaves out keeps
+  its default.
+- **config.toml** is the file you edit.
+- **The override file** holds changes made with `neru config set`. It sits
+  next to your config and is named after it: `config.toml` gets
+  `config.override.toml`, `my-neru.toml` gets `my-neru.override.toml`.
+
+So `neru config set` changes survive restarts without touching your
+`config.toml`. To drop them all, delete the override file and run
+`neru config reload`.
+
+## Managing your config
+
+Neru does not watch the file. After editing it, apply the change:
+
+```bash
+neru config validate   # check the file, no daemon needed
+neru config reload     # apply it to the running daemon
+neru config dump       # print the config the daemon is using, as JSON
+```
+
+A reload re-reads the config and override file and rebuilds hotkeys, overlays
+and services. Options read only at startup, such as `[logging]` and
+`[systray] enabled`, need a restart. Restart with `neru services restart` if
+the login service runs Neru, or quit it from the tray menu and run
+`neru launch` again.
+
+Every `neru config` subcommand and flag is in the
+[CLI reference](../reference/cli.md#configuration-commands).
+
+## Binding your first hotkeys
+
+Global hotkeys live in `[hotkeys]`. Each key maps to a command, the same one
+you would type after `neru` in a shell:
 
 ```toml
-[hints.hotkeys]
-"Shift+L" = ["action left_click", "idle"]
-
-[scroll]
-scroll_step = 50
+[hotkeys]
+"Primary+Shift+Space" = "hints --action left_click"   # click on select
+"Primary+Shift+C" = "recursive_grid"
+"Primary+Shift+S" = "scroll"
 ```
 
-Generate a fully-commented starter file:
+macOS and Windows ship with default bindings for hints, grid, recursive grid,
+bisect and scroll. Writing a `[hotkeys]` table adds to them or replaces the
+same keys. An empty `[hotkeys]` table turns them all off.
 
-```bash
-neru config init                          # Creates ~/.config/neru/config.toml
-neru config init --force                  # Overwrite existing
-neru config init -c /path/to/config.toml  # Custom path
-```
+**Linux has no default global hotkeys**, because `Ctrl+Shift+C` and similar
+shortcuts belong to your terminal. Either write a `[hotkeys]` table, or bind
+`neru hints`, `neru grid` and the rest in your compositor. On Wayland, a
+`[hotkeys]` table needs the `input` group from [Permissions](#linux).
+Compositor examples are in [Global hotkeys on Wayland](linux-desktops.md#global-hotkeys-on-wayland).
 
----
+Keys inside a mode, per-app overrides and the full binding syntax are in the
+[configuration reference](../reference/configuration.md#hotkeys).
 
-## Config File Location
+## Runtime config changes
 
-> **Recommended:** `~/.config/neru/config.toml`
-
-Loaded in priority order (highest first):
-
-1. `$XDG_CONFIG_HOME/neru/config.toml`
-2. `%APPDATA%\neru\config.toml` (Windows only)
-3. `~/.config/neru/config.toml`
-4. `~/.neru.toml` (legacy)
-5. `neru.toml` (current directory)
-6. `config.toml` (current directory)
-
-Override at launch: `neru launch -c /path/to/config.toml`
-
-On Windows, `neru config init` writes to `%APPDATA%\neru\config.toml` — the
-platform convention — but `~/.config/neru/config.toml` is still read, so a config
-kept in a cross-platform dotfiles repo works as-is. Set `XDG_CONFIG_HOME` if you
-want `neru config init` and `neru config set` to write there too.
-
-### Config Layering
-
-Neru loads configuration in layers. Each layer overrides the previous one:
-
-```
-Defaults → config.toml → config.override.toml → Runtime (in-memory)
-```
-
-- **Defaults**: Built-in sensible defaults for your platform.
-- **config.toml**: Your hand-crafted configuration file.
-- **Override file**: Runtime changes from `neru config set` (persistent). Named after your config file (e.g. `config.override.toml` for `config.toml`).
-- **Runtime**: In-memory changes that are lost on restart.
-
-This means `neru config set` changes survive restarts without modifying your `config.toml`. To revert, edit or remove the override file.
-
----
-
-## Managing Your Config
-
-```bash
-neru config validate    # Check syntax (no daemon needed)
-neru config reload      # Apply changes to running daemon
-neru config dump        # Print loaded config as JSON (daemon required)
-neru config init        # Create default config file
-neru config set <key> <value>   # Change a single value at runtime (see below)
-neru config reset <key>         # Remove a single override (reverts to base config)
-```
-
-See [CLI.md](../reference/cli.md#configuration-commands) for full flag documentation.
-
----
-
-## Runtime Config Changes
-
-Neru supports changing individual configuration values at runtime without restarting the daemon or re-reading the config file from disk.
+`neru config set` changes one value on the running daemon and saves it to the
+override file. `neru config reset` removes it again.
 
 ```bash
 neru config set hints.hint_characters "qwerty"
 neru config set scroll.scroll_step 25
-neru config set general.passthrough_unbounded_keys true
+neru config reset scroll.scroll_step
 ```
 
-### How it works
-
-1. The CLI validates the path and value locally before sending to the daemon.
-2. The daemon deep-copies the current in-memory config, applies the change, and validates the result.
-3. Services, overlays, and hotkeys are reconfigured automatically — the same internal path used by `neru config reload`.
-4. The change is automatically persisted to `config.override.toml` alongside your config file. This file is loaded on every start, so changes survive restarts.
-
-### Batch changes with `--no-reload`
-
-Use `--no-reload` when setting or resetting multiple interdependent fields (e.g. `recursive_grid.grid_cols` + `recursive_grid.keys`). Each change persists to the override file without disrupting active hotkeys or exiting the current mode. Run `neru config reload` once after all changes to apply them.
+Use `--no-reload` when changing fields that only make sense together, then
+reload once:
 
 ```bash
 neru config set --no-reload recursive_grid.grid_cols 3
@@ -100,47 +173,24 @@ neru config set --no-reload recursive_grid.keys "gcrhtnmwv"
 neru config reload
 ```
 
-### Resetting overrides with `config reset`
+`neru config dump | jq` shows the dotted path of every setting.
 
-To revert a single field to its base config value, use `neru config reset <key>`. Like `config set`, it supports `--no-reload` for batch operations.
+Limits:
 
-```bash
-neru config reset recursive_grid.grid_cols
-neru config reset --no-reload recursive_grid.grid_rows
-neru config reload
-```
+- Only single values can be set: strings, numbers, booleans, colors and string
+  lists. Hotkey tables and `app_configs` are edited in `config.toml`.
+- A list is replaced, not appended to.
+- Values Neru computes from other settings, such as theme colors and grid
+  labels, are recomputed after each change.
 
-### Config override file
+`config set` and `config reset` also work as hotkey commands, which is how a
+key can toggle a setting.
 
-Runtime changes via `neru config set` and `neru config reset` are written to an override file alongside your main config file. The override filename is derived from your config file's name: `config.toml` produces `config.override.toml`, `my-neru.toml` produces `my-neru.override.toml`, etc.
+## Next steps
 
-The file uses the same TOML format and follows the same layering:
-
-```
-Defaults → config.toml → config.override.toml → Runtime (in-memory)
-```
-
-To revert all overrides at once, delete the override file and run `neru config reload`.
-
-### Supported field types
-
-| Type    | Example                                   |
-| ------- | ----------------------------------------- |
-| string  | `neru config set hints.hint_characters qwerty` |
-| integer | `neru config set hints.ui.font_size 14`        |
-| boolean | `neru config set scroll.invert_scroll true`    |
-| float   | `neru config set hints.vision.minimum_confidence 0.3` |
-| color   | `neru config set hints.ui.background_color "#FF0000AA"` |
-| array   | `neru config set hints.clickable_roles "button,link"` |
-
-> **Tip:** Use `neru config dump | jq` to explore the full config structure and find the dotted path for any setting.
-
-### Limitations
-
-- **Hotkeys**: Cannot be set via `neru config set` (edit `config.toml` directly instead). However, `config set` and `config reset` can be used *as hotkey actions* to change other config fields at runtime.
-- **Struct fields**: Sections like `[theme]` must be set via their leaf sub-paths, not as an object.
-- **`app_configs`**: Per-app overrides can't be set via `config set` (edit `config.toml` directly).
-- **Override file hotkeys**: If you manually edit the override file to add a `[hotkeys]` section, those bindings won't be loaded. The override file is intended for typed field overrides from `config set` — hotkey changes belong in `config.toml`.
-- **Array replacement**: Array fields are replaced wholesale, not appended.
-- **Derived values**: Settings computed from other settings — the theme colors filled in from `[theme]`, and `grid.row_labels` / `grid.col_labels` / `grid.sublayer_keys` inferred from `grid.characters` — are recomputed by `config set`, including when you set the setting they are computed *from*. `neru config set grid.characters "qwerty"` relabels the grid immediately, and `neru config set theme.light.surface "#1E1E2E"` recolors immediately. Setting a derived value directly still wins: labels and keys you wrote are kept, and only the ones you left empty are inferred. Note `sublayer_keys` ships with a value, so it is only inferred once you blank it — `neru config set grid.sublayer_keys ""` makes the subgrid follow `grid.characters` from then on.
-- **`config reload`**: Re-reading from disk re-applies the override file, but any in-memory-only changes (e.g. before this feature existed) are lost.
+- [Recipes](recipes.md): worked configs for click on select, restoring the
+  cursor, drag, external hotkey daemons and more.
+- [Configuration reference](../reference/configuration.md): every option, its
+  default and the platforms it affects.
+- [CLI reference](../reference/cli.md): every command and flag.
+- [Troubleshooting](troubleshooting.md): symptoms and fixes.
