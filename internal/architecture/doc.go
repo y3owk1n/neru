@@ -33,6 +33,9 @@
 //     the darwin bridge defines is declared in its own subsystem's header.
 //   - dependency_boundary_test.go — the darwin One Rule: only darwin-tagged
 //     code reaches internal/adapter/platform/darwin.
+//   - doc_anchors_test.go: every link between docs, and every doc URL to main
+//     in the default config, install scripts, issue forms and skills, reaches a
+//     file and a heading that exist.
 //   - doc_inventory_test.go — this list, against the directory.
 //   - doc_links_test.go — no contributor doc names a path that does not exist.
 //   - foundation_slice_test.go — the test-foundation recipe holds every
