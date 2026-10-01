@@ -17,9 +17,11 @@ on:
 name: Website
 permissions:
     contents: read
-# One deploy at a time, and a newer push replaces a queued one.
+# Each deploy replaces the whole site, so pushes to main and releases wait in
+# one queue and the newest run deploys last. Each pull request builds in its
+# own group, where a newer push cancels the older build.
 concurrency:
-    group: website-${{ github.ref }}
+    group: ${{ github.event_name == 'pull_request' && format('website-pr-{0}', github.ref) || 'website-deploy' }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
     build:
@@ -45,14 +47,18 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ github.token }}
 
+            - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+              with:
+                  just-version: "1.54.0"
+
             - name: Install dependencies
-              run: website/scripts/with-node.sh npm ci
+              run: just website-install
 
             - name: Type-check
-              run: website/scripts/with-node.sh npx astro check
+              run: just website-check
 
             - name: Build latest and nightly
-              run: website/scripts/with-node.sh ./scripts/build.sh
+              run: just website-build
 
             - name: Upload the site
               if: github.event_name != 'pull_request'
