@@ -104,7 +104,7 @@ list the keys for paging, jumping to the top and scrolling sideways.
 
 ## More than a left click
 
-These work in every mode.
+These work in every mode except monitor select, which only picks a display.
 
 **Double and triple click.** Bind a chain, such as
 `"Ctrl+Enter" = "action left_click,left_click"`. See

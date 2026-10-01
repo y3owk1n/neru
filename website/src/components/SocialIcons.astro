@@ -1,6 +1,6 @@
 ---
 import Default from '@astrojs/starlight/components/SocialIcons.astro';
-import { channel, channelBases, latestVersion, renamedPages, splitPages } from '../site.mjs';
+import { channel, channelBases, latestVersion, movedSections, renamedPages, splitPages } from '../site.mjs';
 
 // `astro dev` builds the nightly channel only, so there is nothing to switch to.
 const dev = import.meta.env.DEV;
@@ -13,7 +13,8 @@ const dev = import.meta.env.DEV;
     title={dev ? 'Only nightly is served in dev. Run just website-build, then just website-preview, to switch versions.' : undefined}
     data-bases={JSON.stringify(channelBases)}
     data-renamed={JSON.stringify(renamedPages)}
-    data-split={JSON.stringify(splitPages)}>
+    data-split={JSON.stringify(splitPages)}
+    data-sections={JSON.stringify(movedSections)}>
     <option value="latest" selected={channel === 'latest'}>{latestVersion}</option>
     <option value="nightly" selected={channel === 'nightly'}>nightly</option>
   </select>

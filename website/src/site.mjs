@@ -58,6 +58,14 @@ export const splitPages = {
   'reference/ipc': 'reference/scripting',
 };
 
+// Sections that moved to a page of their own, as anchor: page. A link to
+// one of these anchors, on whatever page held the section, goes to that page.
+// Releases before the docs moved kept scripting and IPC inside CLI.md.
+export const movedSections = {
+  scripting: 'guide/scripting',
+  'ipc-protocol': 'reference/ipc',
+};
+
 // Turns a docs path into a page slug. CROSS_PLATFORM.md becomes
 // cross-platform, and adr/0001-x.md becomes adr/0001-x.
 export function docId(relPath) {

@@ -1,6 +1,6 @@
 ---
 import Default from '@astrojs/starlight/components/Banner.astro';
-import { channel, channelBases, latestVersion, renamedPages, splitPages } from '../site.mjs';
+import { channel, channelBases, latestVersion, movedSections, renamedPages, splitPages } from '../site.mjs';
 ---
 
 {
@@ -12,7 +12,8 @@ import { channel, channelBases, latestVersion, renamedPages, splitPages } from '
         data-to-latest
         data-bases={JSON.stringify(channelBases)}
         data-renamed={JSON.stringify(renamedPages)}
-        data-split={JSON.stringify(splitPages)}>here</a>.
+        data-split={JSON.stringify(splitPages)}
+    data-sections={JSON.stringify(movedSections)}>here</a>.
     </div>
   ) : (
     <Default />

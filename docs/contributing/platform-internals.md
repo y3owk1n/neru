@@ -10,27 +10,22 @@ goes is in the [porting guide](porting.md).
 Neru picks one backend at startup from `XDG_CURRENT_DESKTOP`,
 `WAYLAND_DISPLAY` and `DISPLAY`. `neru doctor` reports it as `display_server`.
 
-| Backend                | Detected when                                                          | Status            |
-| ---------------------- | ---------------------------------------------------------------------- | ----------------- |
-| `x11`                  | `DISPLAY` set, no `WAYLAND_DISPLAY`                                    | Supported         |
-| `wayland-wlroots`      | Sway, Hyprland, niri, River, Wayfire, labwc, a `:wlroots` tag, or unset `XDG_CURRENT_DESKTOP` | Supported         |
-| `wayland-kde`          | `XDG_CURRENT_DESKTOP` contains `KDE`                                   | Supported         |
-| `wayland-cosmic`       | `XDG_CURRENT_DESKTOP` contains `COSMIC`                                | Supported         |
-| `wayland-gnome`        | `XDG_CURRENT_DESKTOP` contains `GNOME`                                 | Supported with Xwayland |
-| `wayland-other`        | Any other Wayland compositor                                           | **Not supported** |
-| `unknown`              | Neither `WAYLAND_DISPLAY` nor `DISPLAY`                                | **Not supported** |
+| Backend           | Detected when                                                                                  |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `x11`             | `DISPLAY` set, no `WAYLAND_DISPLAY`                                                            |
+| `wayland-wlroots` | Sway, Hyprland, niri, River, Wayfire, labwc, a `:wlroots` tag, or unset `XDG_CURRENT_DESKTOP` |
+| `wayland-kde`     | `XDG_CURRENT_DESKTOP` contains `KDE`                                                           |
+| `wayland-cosmic`  | `XDG_CURRENT_DESKTOP` contains `COSMIC`                                                        |
+| `wayland-gnome`   | `XDG_CURRENT_DESKTOP` contains `GNOME`                                                         |
+| `wayland-other`   | Any other Wayland compositor                                                                   |
+| `unknown`         | Neither `WAYLAND_DISPLAY` nor `DISPLAY`                                                        |
 
-> [!NOTE]
-> **The daemon refuses to start on `wayland-other` and `unknown`.** It also
-> refuses `wayland-gnome` when `DISPLAY` is unset, because the GNOME overlay
-> is a window on Xwayland.
->
-> **GNOME matches the KDE column below except in four places.** The overlay is
-> X11 + Cairo on Xwayland, the cursor position comes from an Xwayland window,
-> and keyboard capture is the evdev proxy alone. Focused-app identity, the app
-> watcher and the window origin come from the Neru GNOME Shell extension,
-> which the daemon installs and which works after one re-login. See
-> [Linux desktops](../guide/linux-desktops.md#gnome-wayland).
+Which backends are supported is in
+[Linux setup](../guide/linux.md#supported-desktops). On GNOME the overlay is
+X11 and Cairo on Xwayland, the cursor position comes from an Xwayland window,
+keyboard capture is the evdev proxy alone, and the focused app and window
+origin come from the Neru GNOME Shell extension. Otherwise GNOME matches the
+KDE column below.
 
 ## Implementation matrix
 

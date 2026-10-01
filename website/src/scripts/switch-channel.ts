@@ -1,7 +1,7 @@
 // Finds the page a reader is on in the other docs channel, and the page a
-// missing URL most likely meant. The channel bases, renamed and split pages
-// arrive as data attributes on `el`, because site.mjs reads the build
-// environment and cannot run in the browser.
+// missing URL most likely meant. The channel bases, renamed and split pages and
+// moved sections arrive as data attributes on `el`, because site.mjs reads the
+// build environment and cannot run in the browser.
 
 const exists = (url: string) => fetch(url, { method: 'HEAD' }).then((r) => r.ok, () => false);
 
@@ -37,19 +37,28 @@ export function candidates(
   return found;
 }
 
+// The candidates for a URL. An anchor naming a section that became its own
+// page puts that page, without the anchor, ahead of the page itself.
+function candidatesFor(slug: string, hash: string, el: HTMLElement): Candidate[] {
+  const renamed: Record<string, string> = JSON.parse(el.dataset.renamed!);
+  const split: Record<string, string> = JSON.parse(el.dataset.split!);
+  const sections: Record<string, string> = JSON.parse(el.dataset.sections!);
+  const section = sections[hash.slice(1)];
+  const moved = section && section !== slug ? candidates(section, renamed, split).map((c) => ({ ...c, renamedOnly: false })) : [];
+  return [...moved, ...candidates(slug, renamed, split)];
+}
+
 // Undefined when the channel is not served at all, as under `astro dev`, which
 // builds nightly only, so the caller stays put rather than opening a 404.
 export async function pageIn(channel: string, el: HTMLElement): Promise<string | undefined> {
   const bases: Record<string, string> = JSON.parse(el.dataset.bases!);
-  const renamed: Record<string, string> = JSON.parse(el.dataset.renamed!);
-  const split: Record<string, string> = JSON.parse(el.dataset.split!);
   const from = Object.values(bases)
     .sort((a, b) => b.length - a.length)
     .find((b) => location.pathname.startsWith(b))!;
   const to = bases[channel];
   const slug = location.pathname.slice(from.length).replace(/\/$/, '');
   if (slug) {
-    for (const { slug: candidate, renamedOnly } of candidates(slug, renamed, split)) {
+    for (const { slug: candidate, renamedOnly } of candidatesFor(slug, location.hash, el)) {
       const url = `${to}${candidate}/`;
       if (await exists(url)) return renamedOnly ? url + location.hash : url;
     }
@@ -65,8 +74,6 @@ export async function pageIn(channel: string, el: HTMLElement): Promise<string |
 // a URL that answers, and is not this one, is ever a target, so it cannot loop.
 export async function redirectFor(el: HTMLElement): Promise<string | undefined> {
   const bases: Record<string, string> = JSON.parse(el.dataset.bases!);
-  const renamed: Record<string, string> = JSON.parse(el.dataset.renamed!);
-  const split: Record<string, string> = JSON.parse(el.dataset.split!);
   const path = location.pathname;
   const ordered = Object.entries(bases).sort(([, a], [, b]) => b.length - a.length);
   const match = ordered.find(([, base]) => path.startsWith(base));
@@ -81,7 +88,7 @@ export async function redirectFor(el: HTMLElement): Promise<string | undefined> 
     .replaceAll('_', '-');
   const channels = [here, ...Object.keys(bases).filter((c) => c !== here)];
   for (const channel of channels) {
-    for (const { slug: candidate, renamedOnly } of candidates(slug, renamed, split)) {
+    for (const { slug: candidate, renamedOnly } of candidatesFor(slug, location.hash, el)) {
       const url = `${bases[channel]}${candidate}/`;
       if (url === path) continue;
       if (await exists(url)) return renamedOnly ? url + location.hash : url;

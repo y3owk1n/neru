@@ -1,7 +1,7 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { LinkCard, CardGrid } from '@astrojs/starlight/components';
-import { channel, channelBases, docHref, latestVersion, renamedPages, siteTitle, splitPages } from '../site.mjs';
+import { channel, channelBases, docHref, latestVersion, movedSections, renamedPages, siteTitle, splitPages } from '../site.mjs';
 
 const title = 'Page not found';
 const other = channel === 'latest' ? 'nightly' : 'latest';
@@ -22,7 +22,8 @@ const otherLabel = channel === 'latest' ? 'Nightly docs' : `Docs for ${latestVer
     data-redirect
     data-bases={JSON.stringify(channelBases)}
     data-renamed={JSON.stringify(renamedPages)}
-    data-split={JSON.stringify(splitPages)}>
+    data-split={JSON.stringify(splitPages)}
+    data-sections={JSON.stringify(movedSections)}>
     This page does not exist in these docs. It may live in the other version, or under a new name.
     Pages that were files such as <code>CONFIGURATION.md</code> now sit under Guide and Reference.
     Search finds any page by its title.
