@@ -174,7 +174,7 @@ func IsHyprlandSession() bool {
 // XwaylandAvailable reports whether a Wayland session also exposes an X server,
 // which on Wayland is Xwayland. It is what the GNOME backend draws on: Mutter
 // has no layer shell, and an override-redirect X window is the one surface it
-// stacks above every toplevel without animating it (docs/LINUX_DESKTOPS.md).
+// stacks above every toplevel without animating it (docs/guide/linux-desktops.md).
 //
 // It lives here, and not beside its one caller, because DISPLAY is one of the
 // variables that decide the backend, and reading it a second time elsewhere is

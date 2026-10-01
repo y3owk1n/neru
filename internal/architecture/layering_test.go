@@ -17,7 +17,7 @@ const modulePrefix = "github.com/y3owk1n/neru/"
 // A domain package that imports infra cannot be tested without an OS.
 //
 // These tests enforce the dependency direction documented in
-// docs/CROSS_PLATFORM.md ("The Three Tiers") and docs/ARCHITECTURE.md.
+// docs/contributing/porting.md ("The Three Tiers") and docs/contributing/architecture.md.
 //
 // The tier model is only worth anything if it holds. Prose did not hold it:
 // every violation these tests now catch was present in the tree before they
@@ -172,7 +172,7 @@ func TestAppReachesInfraOnlyThroughPorts(t *testing.T) {
 			t.Errorf(
 				"%s imports %s; application code must depend on internal/ports "+
 					"and let the composition root inject the adapter "+
-					"(docs/CROSS_PLATFORM.md, The Three Tiers)",
+					"(docs/contributing/porting.md, The Three Tiers)",
 				file.relPath,
 				imported,
 			)

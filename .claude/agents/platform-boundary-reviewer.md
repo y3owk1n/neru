@@ -39,9 +39,9 @@ You read code and tests. You never edit files.
    new one was written where a caller could read the stub's `nil` as success.
    For each newly implemented capability, confirm the old contract test was
    updated rather than deleted.
-7. Check docs landed in their owned home per `docs/CROSS_PLATFORM.md`'s
-   ownership table — capability status in CROSS_PLATFORM.md, shape in
-   ARCHITECTURE.md, never both.
+7. Check docs landed in their owned home per `docs/contributing/porting.md`'s
+   ownership table — capability status in `docs/reference/platform-support.md`, shape in
+   `docs/contributing/architecture.md`, never both.
 
 ## Severity
 

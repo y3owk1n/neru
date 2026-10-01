@@ -40,7 +40,8 @@ For anything the help does not cover, fetch the doc at the installed version:
 ```bash
 tag=$(neru --version | sed -n '1s/^Neru version //p' | cut -d- -f1)
 case $tag in v*.*.*) ;; *) tag=main ;; esac
-curl -fsSL "https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs/CLI.md"
+base="https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs"
+curl -fsSL "$base/reference/cli.md" || curl -fsSL "$base/CLI.md"
 ```
 
 A release build prints its tag. A dev build prints `v1.2.3-14-gabcdef`,
@@ -50,17 +51,25 @@ which the `cut` maps to the release it was built from. On Windows, where
 ```powershell
 $tag = (((neru --version)[0] -replace '^Neru version ', '') -split '-')[0]
 if ($tag -notmatch '^v\d+\.\d+\.\d+$') { $tag = 'main' }
-Invoke-RestMethod "https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs/CLI.md"
+$base = "https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs"
+try { Invoke-RestMethod "$base/reference/cli.md" } catch { Invoke-RestMethod "$base/CLI.md" }
 ```
 
-The docs are `CLI.md` for every command, flag, and the IPC protocol,
-`CONFIGURATION.md` for every key with its default and platform column,
-`TIPS_TRICKS.md` for worked recipes such as Vimium-style click on select,
-drag with any button, cycling modes on one key, and driving Neru from skhd,
-`TROUBLESHOOTING.md` when something does not work, `INSTALLATION.md` for
-install methods and login services, `CROSS_PLATFORM.md` for what each
-platform supports, and `LINUX_SETUP.md` plus `LINUX_DESKTOPS.md` for Linux
-permissions and per-compositor notes.
+Each doc, with the name it had in releases before the docs moved. When the
+new path returns 404, the installed release predates the move, so fetch the
+old name from the same `docs/` URL:
+
+| Doc | Before the move | What it covers |
+| :-- | :-- | :-- |
+| `reference/cli.md` | `CLI.md` | every command and flag |
+| `reference/scripting.md` | `CLI.md` | scripting and the IPC protocol |
+| `reference/configuration.md` | `CONFIGURATION.md` | every key with its default and platform column |
+| `guide/getting-started.md` | `CONFIGURATION.md` | config file location, first config, reloading |
+| `guide/recipes.md` | `TIPS_TRICKS.md` | worked recipes such as Vimium-style click on select, drag with any button, cycling modes on one key, and driving Neru from skhd |
+| `guide/troubleshooting.md` | `TROUBLESHOOTING.md` | when something does not work |
+| `guide/installation.md` | `INSTALLATION.md` | install methods and login services |
+| `reference/platform-support.md` | `CROSS_PLATFORM.md` | what each platform supports |
+| `guide/linux.md`, `guide/linux-desktops.md` | `LINUX_SETUP.md`, `LINUX_DESKTOPS.md` | Linux permissions and per-compositor notes |
 
 ## What Neru does
 

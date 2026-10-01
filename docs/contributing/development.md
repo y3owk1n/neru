@@ -5,10 +5,10 @@ to put new code.
 
 This guide owns the **local workflow**. Neighbouring documents own the rest:
 contribution process and commit conventions in
-[CONTRIBUTING.md](../CONTRIBUTING.md), the architectural reference in
-[ARCHITECTURE.md](ARCHITECTURE.md), per-platform support and platform file
-layout in [CROSS_PLATFORM.md](CROSS_PLATFORM.md), and conventions in the root
-[AGENTS.md](../AGENTS.md). None of those are repeated here.
+[CONTRIBUTING.md](../../CONTRIBUTING.md), the architectural reference in
+[ARCHITECTURE.md](architecture.md), per-platform support and platform file
+layout in [CROSS_PLATFORM.md](../reference/platform-support.md), and conventions in the root
+[AGENTS.md](../../AGENTS.md). None of those are repeated here.
 
 ---
 
@@ -55,9 +55,9 @@ The CLI talks to the running daemon over a socket, so both halves come from the
 same `./bin/neru` binary.
 
 For end-user installation (Homebrew, Nix, prebuilt binaries) see
-[INSTALLATION.md](INSTALLATION.md); on Linux,
-[LINUX_SETUP.md](LINUX_SETUP.md) covers both preparing the host and the
-[build dependencies](LINUX_SETUP.md#build-dependencies) a source build needs.
+[INSTALLATION.md](../guide/installation.md); on Linux,
+[LINUX_SETUP.md](../guide/linux.md) covers both preparing the host and the
+[build dependencies](../guide/linux.md#build-dependencies) a source build needs.
 
 ---
 
@@ -69,7 +69,7 @@ For end-user installation (Homebrew, Nix, prebuilt binaries) see
 - **Xcode Command Line Tools** (macOS) — `xcode-select --install`
 - **Build dependencies** (Linux) — the system `-dev`/`-devel` packages a CGO
   build links against, listed for apt, dnf and pacman in
-  [LINUX_SETUP.md](LINUX_SETUP.md#build-dependencies). Install them before your
+  [LINUX_SETUP.md](../guide/linux.md#build-dependencies). Install them before your
   first build, including under oku.
 - **Just** — command runner — [install](https://github.com/casey/just)
 - **golangci-lint** — linter — [install](https://golangci-lint.run/usage/install/)
@@ -99,7 +99,7 @@ versions from `oku.lock` with the oku action, on macOS, Linux and Windows.
 
 On Linux it is not enough on its own: oku does not provide the libraries a CGO
 build links against. `just linux-deps` installs them with apt, dnf or pacman,
-and [LINUX_SETUP.md](LINUX_SETUP.md#build-dependencies) lists them. `just build`
+and [LINUX_SETUP.md](../guide/linux.md#build-dependencies) lists them. `just build`
 fails in the compiler without them.
 
 ### Option B: Manual installation
@@ -167,8 +167,8 @@ Wayland protocol generation and icon recipes.
 | Format  | `just fmt`                   | Format Go and Objective-C                       |
 | Format  | `just fmt-check`             | Check Objective-C formatting                    |
 | Docs    | `just genman`                | Generate man pages                              |
-| Docs    | `just genflagref`            | Rewrite the mode-flag reference in `docs/CLI.md` |
-| Docs    | `just gensupportref`         | Rewrite the platform-support table in `docs/CROSS_PLATFORM.md` |
+| Docs    | `just genflagref`            | Rewrite the mode-flag reference in `docs/reference/cli.md` |
+| Docs    | `just gensupportref`         | Rewrite the platform-support table in `docs/reference/platform-support.md` |
 | Clean   | `just clean`                 | Remove build artifacts                          |
 
 ### What `just ci` covers, and what it does not
@@ -188,7 +188,7 @@ The cgo-only Linux paths need a real Linux toolchain. `just lint-cross` and
 `just test-linux` provide one in a container, and CI checks them on every push.
 Neither is part of `just ci`, deliberately: a documented pre-push gate that
 fails for want of a running Docker daemon is worse than one that admits its
-limits ([ADR 0012](adr/0012-the-first-hour-must-not-lie.md)).
+limits ([ADR 0012](../adr/0012-the-first-hour-must-not-lie.md)).
 
 Targeting a single package or test:
 
@@ -222,7 +222,7 @@ bus, AT-SPI, the CGO and accessibility assertions, the tier itself, the
 reporting and the log artifact are one copy each.
 
 What it covers is the **blessed stack** of
-[ADR 0013](adr/0013-parity-is-measured-in-words-not-subsystems.md): wlroots
+[ADR 0013](../adr/0013-parity-is-measured-in-words-not-subsystems.md): wlroots
 Wayland with a CGO build. It asserts the session really is that stack before it
 runs anything — the compositor must advertise `zwlr_layer_shell_v1` and
 `zwlr_virtual_pointer_manager_v1`, `CGO_ENABLED` must be 1, and the
@@ -311,7 +311,7 @@ filed as [#1495](https://github.com/y3owk1n/neru/issues/1495), the X11 sibling
 of [#1493](https://github.com/y3owk1n/neru/issues/1493). That fix landed first
 and the leg is green on it. What the `process` capability is classified as, and
 what each way of having no focused window now answers, is stated once in the
-[capability matrix](CROSS_PLATFORM.md#capability-matrix) and its notes — this
+[capability matrix](../reference/platform-support.md#capability-matrix) and its notes — this
 leg runs the contract that pins it rather than restating its verdict.
 
 ---
@@ -349,8 +349,8 @@ run `just test` meaningfully — integration tests are tagged per-OS, and
 cross-compiling to Linux from macOS is not supported (CGO plus Linux headers).
 
 Backend, CGO, and modifier expectations are **not** per-OS constants; start from
-[profile.go](../internal/adapter/platform/profile.go) and
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md#cgo-guidance).
+[profile.go](../../internal/adapter/platform/profile.go) and
+[CROSS_PLATFORM.md](porting.md#cgo-guidance).
 
 ---
 
@@ -381,9 +381,9 @@ tests that exist.
 | **Integration** | `*_integration_<os>_test.go` | `integration && <os>` | `just test-integration` |
 
 Naming, mocks, and build-tag conventions are in the root
-[AGENTS.md](../AGENTS.md), which is their single home; the macOS main-run-loop
+[AGENTS.md](../../AGENTS.md), which is their single home; the macOS main-run-loop
 test harness is documented in
-[darwin/AGENTS.md](../internal/adapter/platform/darwin/AGENTS.md).
+[darwin/AGENTS.md](../../internal/adapter/platform/darwin/AGENTS.md).
 
 ### What each layer covers
 
@@ -457,7 +457,7 @@ dlv debug ./cmd/neru
 ```
 
 What belongs at which log level — and what must never be logged — is in the
-root [AGENTS.md](../AGENTS.md) under Conventions.
+root [AGENTS.md](../../AGENTS.md) under Conventions.
 
 ---
 
@@ -477,12 +477,12 @@ root [AGENTS.md](../AGENTS.md) under Conventions.
 | `internal/config/`         | TOML parsing, validation, defaults                 |
 
 Layer responsibilities and the boundaries between them are in
-[ARCHITECTURE.md](ARCHITECTURE.md#component-architecture); platform file-slot
-naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
+[ARCHITECTURE.md](architecture.md#component-architecture); platform file-slot
+naming is in [CROSS_PLATFORM.md](porting.md#file-layout-rules).
 
 **Configuration options** — the full chain (schema → defaults → platform
 overrides → validation → examples → docs) is documented in
-[internal/config/AGENTS.md](../internal/config/AGENTS.md); the
+[internal/config/AGENTS.md](../../internal/config/AGENTS.md); the
 `neru-add-config-option` skill in `.agents/skills/` walks it step by step.
 
 **Actions**
@@ -506,12 +506,12 @@ overrides → validation → examples → docs) is documented in
 
 **CLI commands** — cobra command in `internal/cli/` (registered in an
 `init()`), the matching IPC handler in `internal/app/ipcctrl/`, `just genman`,
-and [CLI.md](CLI.md); the `neru-add-cli-command` skill walks it step by step.
+and [CLI.md](../reference/cli.md); the `neru-add-cli-command` skill walks it step by step.
 
 **Mode flags** — one entry in the descriptor table in
 `internal/domain/modecmd`, then `just genflagref`. The entry is what registers
 the flag on every command that accepts it and what writes its row in
-[CLI.md](CLI.md); an architecture test fails while either is missing. A flag
+[CLI.md](../reference/cli.md); an architecture test fails while either is missing. A flag
 also declares which platforms writing it does anything on, in
 `platform_support.go` beside that table, and so do the config options and the
 action names in their own packages — then `just gensupportref`. An architecture
@@ -524,7 +524,7 @@ Wiring is manual and explicit — constructors take their dependencies, and
 `internal/app/new.go` assembles everything in numbered phases
 that unwind in reverse on failure.
 
-`app.New` takes functional options ([options.go](../internal/app/options.go)),
+`app.New` takes functional options ([options.go](../../internal/app/options.go)),
 which is how tests substitute doubles for the ports they need — `WithSystemPort`,
 `WithAccessibility`, `WithEventTap`, `WithIPCServer`, `WithOverlayPort`,
 `WithHotkeyService`, `WithWatcher`, `WithTextInput`, plus `WithConfig` /
@@ -543,16 +543,16 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 Every navigation mode implements `Mode` (`Activate(modecmd.Activation)` /
 `HandleKey(string)` / `Exit()` / `ModeType()` /
 `RefreshForMonitorMove(context.Context, image.Rectangle)`), defined in
-[handler.go](../internal/app/modes/handler.go). Each mode is its own type with
+[handler.go](../../internal/app/modes/handler.go). Each mode is its own type with
 its own bodies for the four behavioural methods — the shape a new mode has to
 follow is stated in
-[internal/app/modes/AGENTS.md](../internal/app/modes/AGENTS.md).
+[internal/app/modes/AGENTS.md](../../internal/app/modes/AGENTS.md).
 A new CLI flag that varies a mode's activation means a new flag descriptor in
-[internal/domain/modecmd](../internal/domain/modecmd) and the `Activation`
+[internal/domain/modecmd](../../internal/domain/modecmd) and the `Activation`
 field it writes, not a new interface method.
 
 All four run with the handler lock already held — the full locking contract
-lives in [internal/app/modes/AGENTS.md](../internal/app/modes/AGENTS.md); read
+lives in [internal/app/modes/AGENTS.md](../../internal/app/modes/AGENTS.md); read
 it before touching anything that calls back into the handler.
 
 ## Release Process
@@ -565,7 +565,7 @@ Versioning is semantic — `vMAJOR.MINOR.PATCH`: breaking changes, backward-
 compatible features, bug fixes. Release Please derives the changelog from the
 commit subjects on `main`, and because pull requests squash-merge, each of
 those is a PR title. So the [conventional commit
-format](../CONTRIBUTING.md#commit-messages) applied to the *title* is what
+format](../../CONTRIBUTING.md#commit-messages) applied to the *title* is what
 ships to users; the subjects on the branch are squashed away before Release
 Please ever sees them.
 

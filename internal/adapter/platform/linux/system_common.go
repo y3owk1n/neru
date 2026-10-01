@@ -164,7 +164,7 @@ func scrollCapability(declared ports.FeatureCapability, uinputErr error) ports.F
 			"which Chromium and Electron apps on Hyprland ignore: " + uinputErr.Error() +
 			". Grant write access to " + uinputDevicePath + " (udev rule " +
 			`KERNEL=="uinput", GROUP="input", MODE="0660"` +
-			", then reload udev or reboot); see docs/LINUX_SETUP.md",
+			", then reload udev or reboot); see docs/guide/linux.md",
 	}
 }
 

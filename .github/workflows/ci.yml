@@ -64,7 +64,7 @@ jobs:
                     # asserts it; `session_packages` is that difference in apt
                     # form, and `session` is the name the job summary prints.
                     # What each leg covers and what it does not is stated in
-                    # docs/DEVELOPMENT.md, with the rest of the test tiers.
+                    # docs/contributing/development.md, with the rest of the test tiers.
                     - os: ubuntu-latest
                       check: desktop
                       session: headless sway (wlroots Wayland)
@@ -86,7 +86,7 @@ jobs:
         # They earned it on a measurement rather than a feeling: 40 runs each
         # across pull requests and main with no failing step. Job-level
         # `continue-on-error` reports a failed job as successful, so that was
-        # counted from step conclusions. docs/DEVELOPMENT.md carries the detail.
+        # counted from step conclusions. docs/contributing/development.md carries the detail.
         steps:
             # Default checkout: on pull_request events this tests the merge
             # commit (PR + main combined), which is what will actually land —
@@ -205,7 +205,7 @@ jobs:
             # differ between the wlroots and X11 legs; the bus, AT-SPI, the
             # CGO and a11y assertions, the tier itself, the reporting and the
             # log artifact are one copy each. What the legs cover and what they
-            # do not is in docs/DEVELOPMENT.md.
+            # do not is in docs/contributing/development.md.
             # ---------------------------------------------------------------
 
             - name: Install the desktop session
@@ -481,7 +481,7 @@ jobs:
             # is a state no other job here reaches: the X11 leg found a real
             # defect in it on its first run (#1495, the X11 sibling of #1493),
             # fixed before this leg landed. Capability status is
-            # docs/CROSS_PLATFORM.md's to state; docs/DEVELOPMENT.md says what
+            # docs/reference/platform-support.md's to state; docs/contributing/development.md says what
             # these legs cover and what they do not.
             - name: Run just test-desktop
               if: startsWith(matrix.check, 'desktop')
@@ -538,7 +538,7 @@ jobs:
                     echo "### Linux desktop tier — ${SESSION}"
                     echo ""
                     echo "Blocking: a failure here reds the pull request."
-                    echo "See docs/DEVELOPMENT.md for what it covers."
+                    echo "See docs/contributing/development.md for what it covers."
                     echo ""
                     echo "| | Count |"
                     echo "| --- | --- |"

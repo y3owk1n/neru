@@ -18,7 +18,7 @@ import (
 // every Windows 10 and 11 desktop ships. It answers the *text* half of the
 // vision strategy the way tesseract does on Linux: macOS runs three Vision
 // requests and an OCR engine answers the first, so the rectangle request stays
-// macOS-only (docs/CROSS_PLATFORM.md, the Vision footnote).
+// macOS-only (docs/reference/platform-support.md, the Vision footnote).
 //
 // The engine is created from the user's profile languages and needs the OCR
 // language pack for at least one of them, which Windows installs with a

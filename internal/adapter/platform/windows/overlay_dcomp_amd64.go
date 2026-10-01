@@ -31,7 +31,7 @@ import (
 // integer arguments into XMM0-XMM3 and the rest travel on the stack as their
 // bit patterns, so a float32's bits in a uintptr reach the callee intact.
 // windows/arm64 has no such mirror, which is why this file is amd64-only and
-// overlay_dcomp_other.go answers there (docs/CROSS_PLATFORM.md owns that
+// overlay_dcomp_other.go answers there (docs/reference/platform-support.md owns that
 // status).
 //
 // The frame is painted into a persistent canvas bitmap first and the canvas

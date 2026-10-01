@@ -24,7 +24,7 @@ import (
 // Nothing caught it. The justfile parses, every recipe runs, `just lint` is
 // silent and every test passes with the list wrong, which is how it stayed
 // wrong for months and is exactly the breach ADR 0011 says earns a guardrail.
-// docs/DEVELOPMENT.md names `just --list` as how a newcomer sees what the
+// docs/contributing/development.md names `just --list` as how a newcomer sees what the
 // project can do, so the orient step of the first hour was reading as noise.
 //
 // The fix is a declaration rather than a layout: every recipe `just --list`

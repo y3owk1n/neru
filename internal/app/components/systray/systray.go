@@ -310,7 +310,7 @@ func (c *Component) handleEvents() {
 			go func() {
 				err := platform.OpenExternal(
 					c.ctx,
-					buildinfo.DocsURL("docs/CONFIGURATION.md", buildinfo.Version),
+					buildinfo.DocsURL("docs/reference/configuration.md", buildinfo.Version),
 				)
 				if err != nil {
 					c.logger.Error("Failed to open configuration docs", zap.Error(err))
@@ -320,7 +320,7 @@ func (c *Component) handleEvents() {
 			go func() {
 				err := platform.OpenExternal(
 					c.ctx,
-					buildinfo.DocsURL("docs/CLI.md", buildinfo.Version),
+					buildinfo.DocsURL("docs/reference/cli.md", buildinfo.Version),
 				)
 				if err != nil {
 					c.logger.Error("Failed to open CLI docs", zap.Error(err))

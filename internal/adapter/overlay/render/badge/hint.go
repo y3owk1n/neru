@@ -7,7 +7,7 @@ import "image"
 // on the same pixel on every backend that reads them — which is the Linux and
 // Windows ones. macOS draws the same shapes from its own constants on the
 // Objective-C side, and those are a little smaller: an offset badge sits a few
-// pixels closer to its element there (docs/CROSS_PLATFORM.md records that; the
+// pixels closer to its element there (docs/reference/platform-support.md records that; the
 // copy is ADR 0007's deliberate exception).
 const (
 	// HintGap is the gap between an offset hint badge's connector arrow and

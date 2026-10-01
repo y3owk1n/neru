@@ -30,7 +30,7 @@ const (
 	nameEsc       = "esc"
 )
 
-// documentedNamedKeys is the vocabulary as docs/CONFIGURATION.md lists it,
+// documentedNamedKeys is the vocabulary as docs/reference/configuration.md lists it,
 // written out rather than derived from the table under test.
 func documentedNamedKeys() []string {
 	keys := []string{
@@ -46,7 +46,7 @@ func documentedNamedKeys() []string {
 }
 
 // TestNamedKeys_IsExactlyTheDocumentedSet is the pin: the declared vocabulary
-// and the one docs/CONFIGURATION.md promises are the same set, so adding a key
+// and the one docs/reference/configuration.md promises are the same set, so adding a key
 // in one place without the other fails here rather than in a config file.
 func TestNamedKeys_IsExactlyTheDocumentedSet(t *testing.T) {
 	t.Parallel()

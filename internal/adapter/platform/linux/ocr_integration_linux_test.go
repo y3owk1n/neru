@@ -18,7 +18,7 @@ import (
 //
 // They need no display server, unlike the capture tests beside them: the
 // pixels come from a buffer this file draws. What they need is the language
-// data, which docs/LINUX_SETUP.md makes a required install.
+// data, which docs/guide/linux.md makes a required install.
 //
 // Run with: go test -tags=integration ./internal/adapter/platform/linux/
 

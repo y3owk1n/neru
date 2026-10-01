@@ -9,7 +9,7 @@ other. The obvious reading is that the chain is too long and should be
 generated: declare the option once, emit the default, the example line and the
 documentation row. This repo has already done exactly that once, for mode
 flags: `domain/modecmd` holds the descriptor table, `internal/flagref` renders
-it, `just genflagref` writes it into a marked region of `docs/CLI.md`, and a
+it, `just genflagref` writes it into a marked region of `docs/reference/cli.md`, and a
 guardrail test fails when the page is stale.
 
 We decided **not** to do it for config options, and to spend the same effort
@@ -67,7 +67,7 @@ we do not have yet.
   ladder does rely on is that its two whole-configuration walks close it, and
   `TestTheBindingWalksCloseTheLadder` now declares that, so the ordered table
   has nothing left over the AST pass.
-- **Generate `docs/CONFIGURATION.md` rows too**, the third projection. Rejected
+- **Generate `docs/reference/configuration.md` rows too**, the third projection. Rejected
   on measurement again: the reference documents all four of the options missing
   from the example TOML, so its drift is currently zero, and matching a Go
   field path to a prose table row is the fuzziest of the three matches. If
@@ -119,7 +119,7 @@ we do not have yet.
   same principle — a column nobody wrote cannot be told from a forgotten one.
   The fifth link is also the first projection this ADR's reasoning does not
   cover: its documentation rows *are* generated, into
-  `docs/CROSS_PLATFORM.md`, because they were never a hand-written reference
+  `docs/reference/platform-support.md`, because they were never a hand-written reference
   row per option but one table of the words that are not supported everywhere,
   where the match this ADR called fuzzy is exact
   (`docs/adr/0013-parity-is-measured-in-words-not-subsystems.md`). Nothing else

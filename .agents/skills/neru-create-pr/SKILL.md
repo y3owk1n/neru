@@ -107,7 +107,7 @@ Short: two or three short paragraphs at most.
 If the PR changes anything a user writes or types — config options (added,
 renamed, removed, new default or accepted values), commands, subcommands,
 flags, environment variables — spell the surface out in the body under its
-own heading, even though `docs/CONFIGURATION.md` / `docs/CLI.md` are updated
+own heading, even though `docs/reference/configuration.md` / `docs/reference/cli.md` are updated
 in the same PR. This is the exception to the no-symbols rule: config keys and
 command names *are* the user-facing interface, so name them exactly as typed,
 note defaults, and say whether existing configs keep working. A short TOML

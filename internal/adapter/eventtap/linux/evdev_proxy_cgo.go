@@ -656,7 +656,7 @@ func (p *evdevProxy) failOpen(err error) {
 			"Another process grabbed a neru proxy device, which a key remapper's device " +
 				"auto-detect does; released the keyboards to the compositor so your keys and " +
 				"remaps work, mode keyboard capture is off until the daemon restarts. Exclude " +
-				"the neru- devices in the remapper's config (docs/LINUX_SETUP.md)",
+				"the neru- devices in the remapper's config (docs/guide/linux.md)",
 		)
 
 		return
@@ -734,7 +734,7 @@ func (p *evdevProxy) forwardWithheld(code uint16) {
 // released any. A Wayland pointer event carries whatever modifiers the seat's
 // keyboards hold, not a set the sender chooses, so a hotkey chord still held
 // while a click is injected makes it a modified click. X11 and Windows fix
-// that from the live key state (footnote 7 of docs/CROSS_PLATFORM.md). On
+// that from the live key state (footnote 7 of docs/reference/platform-support.md). On
 // Wayland only the proxy can, because its keyboard is the one the compositor
 // reads. Runs on the run goroutine.
 func (p *evdevProxy) liftHeldModifiers() bool {

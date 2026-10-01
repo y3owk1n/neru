@@ -2,16 +2,16 @@
 
 Symptoms, causes, and fixes for common Neru problems.
 
-**Related:** [CLI Reference](CLI.md) · [Configuration Reference](CONFIGURATION.md) ·
-[Linux setup](LINUX_SETUP.md#troubleshooting)
+**Related:** [CLI Reference](../reference/cli.md) · [Configuration Reference](../reference/configuration.md) ·
+[Linux setup](linux.md#troubleshooting)
 
 > **Platform note:** the examples below use macOS paths and, in a few places,
 > macOS-only features (Mission Control, Accessibility Zoom, Activity Monitor).
 > The diagnosis steps themselves apply everywhere — substitute your platform's
 > [log path](#log-file-locations). For Linux-specific setup problems (evdev
 > permissions, portal consent, compositor support) see
-> [LINUX_SETUP.md](./LINUX_SETUP.md#troubleshooting) and
-> [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
+> [LINUX_SETUP.md](./linux.md#troubleshooting) and
+> [LINUX_DESKTOPS.md](./linux-desktops.md).
 
 ---
 
@@ -112,7 +112,7 @@ profile. To drop the completion instead, delete the two lines under
 **Linux: "error while loading shared libraries: libtesseract.so.5"** (Fedora)
 
 Fedora names the library `libtesseract.so.5.5`. Add a compatibility symlink; see
-[LINUX_SETUP.md](LINUX_SETUP.md#error-while-loading-shared-libraries-libtesseractso5).
+[LINUX_SETUP.md](linux.md#error-while-loading-shared-libraries-libtesseractso5).
 
 ---
 
@@ -233,7 +233,7 @@ clickable_roles = [
 Hints and grids should always be accurate, so this is a bug worth reporting.
 On Linux Wayland, hints in native apps depend on a window-origin source for
 your compositor; see the per-compositor table in
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md#accessibility-and-hints).
+[CROSS_PLATFORM.md](../reference/platform-support.md#accessibility-and-hints).
 
 **Solution:**
 
@@ -454,7 +454,7 @@ neru launch
 **The daemon still running is the one the old binary started.**
 
 The IPC endpoint moved to a per-user location (see
-[ARCHITECTURE.md](ARCHITECTURE.md#runtime-shape)), so a daemon that has been up
+[ARCHITECTURE.md](../contributing/architecture.md#runtime-shape)), so a daemon that has been up
 since before the upgrade is listening in the old one.
 
 On macOS and Linux the new CLI still finds it and answers with a version
@@ -617,7 +617,7 @@ neru status --json | jq -r .config
 
 Values set with `neru config set` live in `config.override.toml` beside your
 config and win over it; `neru config reset <key>` removes one. See
-[Config Layering](CONFIGURATION.md#config-layering).
+[Config Layering](getting-started.md#config-layering).
 
 ### "Failed to parse config"
 
@@ -733,7 +733,7 @@ If none of these solutions work:
 2. **Search existing issues:** <https://github.com/y3owk1n/neru/issues>
 3. **Open an issue** using the bug-report form — it asks for exactly the
    information above. If you would rather fix it yourself, pull requests are
-   very welcome: see [CONTRIBUTING.md](../CONTRIBUTING.md).
+   very welcome: see [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ---
 
@@ -748,6 +748,6 @@ pkill -9 neru
 
 Then remove Neru and its state entirely — the full steps, including purging
 config and logs, are in
-[INSTALLATION.md](INSTALLATION.md#uninstallation) — reinstall, run
+[INSTALLATION.md](installation.md#uninstallation) — reinstall, run
 `neru launch`, and re-grant Accessibility permission (System Settings →
 Privacy & Security → Accessibility).

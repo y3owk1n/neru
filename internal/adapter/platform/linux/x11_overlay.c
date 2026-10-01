@@ -62,7 +62,7 @@ NeruX11Overlay *neru_x11_overlay_new(void) {
 
 	// WM_CLASS and a name so compositors, picom rules and window-manager
 	// scripts can target the overlay. Every backend exposes the same
-	// "neru-overlay" identity (docs/CROSS_PLATFORM.md, Window identity).
+	// "neru-overlay" identity (docs/reference/platform-support.md, Window identity).
 	XClassHint class_hint = {.res_name = "neru-overlay", .res_class = "neru-overlay"};
 	XSetClassHint(display, overlay->window, &class_hint);
 	XStoreName(display, overlay->window, "neru-overlay");

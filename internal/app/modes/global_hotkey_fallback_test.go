@@ -104,7 +104,7 @@ func TestHandleKeyPress_GlobalChordRunsWhenTheModeDoesNotBindIt(t *testing.T) {
 
 // The mode's own table is the more specific one and keeps winning the chord,
 // which is what the documented mode-cycling trick rests on
-// (docs/TIPS_TRICKS.md).
+// (docs/guide/recipes.md).
 func TestHandleKeyPress_ModeBindingWinsOverTheGlobalChord(t *testing.T) {
 	t.Parallel()
 

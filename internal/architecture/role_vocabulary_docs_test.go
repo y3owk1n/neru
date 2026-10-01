@@ -20,7 +20,7 @@ import (
 // in step with the code. The table is the only place a user can see the whole
 // vocabulary offline, and a role missing from it is effectively undiscoverable.
 func TestConfigurationDocsCoverTheRoleVocabulary(t *testing.T) {
-	docPath := filepath.Join(findRepoRoot(t), "docs", "CONFIGURATION.md")
+	docPath := filepath.Join(findRepoRoot(t), "docs", "reference", "configuration.md")
 
 	contents, err := os.ReadFile(docPath)
 	if err != nil {
@@ -34,7 +34,7 @@ func TestConfigurationDocsCoverTheRoleVocabulary(t *testing.T) {
 		// specific enough not to match prose mentioning the same word.
 		if !strings.Contains(doc, "`"+string(mapping.Semantic)+"`") {
 			t.Errorf(
-				"semantic role %q is missing from docs/CONFIGURATION.md; "+
+				"semantic role %q is missing from docs/reference/configuration.md; "+
 					"add it to the Clickable roles table",
 				mapping.Semantic,
 			)
@@ -47,7 +47,7 @@ func TestConfigurationDocsCoverTheRoleVocabulary(t *testing.T) {
 // them in its subrole while its role stays generic, and the table is where a
 // user would otherwise learn the wrong shape.
 func TestConfigurationDocsMarkTheAXSubroleNames(t *testing.T) {
-	docPath := filepath.Join(findRepoRoot(t), "docs", "CONFIGURATION.md")
+	docPath := filepath.Join(findRepoRoot(t), "docs", "reference", "configuration.md")
 
 	contents, err := os.ReadFile(docPath)
 	if err != nil {
@@ -59,7 +59,7 @@ func TestConfigurationDocsMarkTheAXSubroleNames(t *testing.T) {
 	for name := range element.AXSubroleNames {
 		if !strings.Contains(doc, "`"+name+"` †") {
 			t.Errorf(
-				"docs/CONFIGURATION.md does not mark `%s` with the subrole footnote †",
+				"docs/reference/configuration.md does not mark `%s` with the subrole footnote †",
 				name,
 			)
 		}
@@ -78,7 +78,7 @@ var axNativeName = regexp.MustCompile(`\bAX[A-Z][A-Za-z]*`)
 //
 // allowBacktickedMentions exempts names wrapped in backticks, markdown's way
 // of mentioning a native name without telling the user to write it — the role
-// table in docs/CONFIGURATION.md documents every AX expansion that way. Help
+// table in docs/reference/configuration.md documents every AX expansion that way. Help
 // strings get no such exemption: they carry no mention-table, so every bare
 // AX name in one is advice.
 func bareAXNames(text string, allowBacktickedMentions bool) []string {
@@ -124,10 +124,10 @@ func TestConfigurationDocsUseTheCurrentRoleVocabulary(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 
 	docs := []string{
-		filepath.Join(repoRoot, "docs", "CONFIGURATION.md"),
-		filepath.Join(repoRoot, "docs", "CLI.md"),
-		filepath.Join(repoRoot, "docs", "TROUBLESHOOTING.md"),
-		filepath.Join(repoRoot, "docs", "TIPS_TRICKS.md"),
+		filepath.Join(repoRoot, "docs", "reference", "configuration.md"),
+		filepath.Join(repoRoot, "docs", "reference", "cli.md"),
+		filepath.Join(repoRoot, "docs", "guide", "troubleshooting.md"),
+		filepath.Join(repoRoot, "docs", "guide", "recipes.md"),
 	}
 
 	for _, path := range docs {

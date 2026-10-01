@@ -72,7 +72,7 @@ build-linux ARCH="amd64":
         echo "  just check-cross   fast type-check of the Linux and Windows builds, CGO off, no Docker" >&2
         echo "  CGO_ENABLED=0 GOOS=linux GOARCH={{ ARCH }} go build ./cmd/neru" >&2
         echo "                     pure-Go Linux binary; the CGO-only backends compile out, so it is" >&2
-        echo "                     not the shipped product (docs/CROSS_PLATFORM.md#cgo-guidance)" >&2
+        echo "                     not the shipped product (docs/contributing/porting.md#cgo-guidance)" >&2
         echo "" >&2
         echo "Have a Linux cross toolchain? Re-run with CC=<linux-targeting-compiler>." >&2
         exit 1
@@ -416,7 +416,7 @@ test-ci: test-foundation test-unit test-race-unit test-integration-ci
 # or windows-tagged file is invisible to every other recipe here and first
 # appears as a red CI job on a leg this host never ran. It sits after build so
 # a plain compile error surfaces before the test suites do. What the check
-# reaches, and what it cannot, is stated in docs/DEVELOPMENT.md.
+# reaches, and what it cannot, is stated in docs/contributing/development.md.
 #
 # lint-cross and test-linux stay out on purpose: both need a running Docker
 # daemon, and a documented pre-push gate that fails on absent infrastructure is
@@ -463,18 +463,18 @@ genman OUTPUT_DIR="build/man":
 # Rewrite the mode-flag reference from the grammar's descriptor table.
 # Run after adding, removing or re-wording a mode flag; the architecture
 # guardrail fails while the page is out of date.
-[doc('Rewrite the mode-flag reference in docs/CLI.md from the grammar.')]
+[doc('Rewrite the mode-flag reference in docs/reference/cli.md from the grammar.')]
 genflagref:
     @echo "Generating the mode-flag reference..."
-    go run ./cmd/genflagref docs/CLI.md
+    go run ./cmd/genflagref docs/reference/cli.md
 
 # Rewrite the platform-support table from the per-vocabulary declarations.
 # Run after changing a platform column in any platform_support.go; the
 # architecture guardrail fails while the page is out of date.
-[doc('Rewrite the platform-support table in docs/CROSS_PLATFORM.md.')]
+[doc('Rewrite the platform-support table in docs/reference/platform-support.md.')]
 gensupportref:
     @echo "Generating the platform-support table..."
-    go run ./cmd/gensupportref docs/CROSS_PLATFORM.md
+    go run ./cmd/gensupportref docs/reference/platform-support.md
 
 # Clean build artifacts
 [doc('Delete the build outputs, the app bundles and the lint cache.')]
@@ -588,7 +588,7 @@ vet-cross:
 
 # The libraries a CGO build links against come from the distro, not from oku:
 # oku.toml provides the toolchain only. The package lists are the ones in
-# docs/LINUX_SETUP.md#build-dependencies, which says what each is for.
+# docs/guide/linux.md#build-dependencies, which says what each is for.
 [linux]
 [doc('Install the system libraries a Linux build links against; needs sudo.')]
 linux-deps:
@@ -619,7 +619,7 @@ linux-deps:
             libxkbcommon libei fontconfig \
             tesseract tesseract-data-eng libpipewire wayland-protocols ttf-dejavu
     else
-        echo "no apt-get, dnf or pacman here, see docs/LINUX_SETUP.md#build-dependencies" >&2
+        echo "no apt-get, dnf or pacman here, see docs/guide/linux.md#build-dependencies" >&2
         exit 1
     fi
 
@@ -935,3 +935,4 @@ generate-protocols:
 [doc('Download the Wayland protocol XMLs and generate their code.')]
 generate-all-protocols: fetch-protocols generate-protocols
     @echo "✓ All Wayland protocols downloaded and generated"
+

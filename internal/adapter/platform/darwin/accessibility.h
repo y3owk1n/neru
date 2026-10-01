@@ -23,7 +23,7 @@
 //
 // ARC does not manage AX*/CF* refs, so a traversal that enqueues elements and
 // abandons them leaks kernel-backed objects — account for every ref you were
-// handed (see docs/go/OBJECTIVE_C.md, "Memory Management").
+// handed (see docs/contributing/objective-c.md, "Memory Management").
 
 #pragma mark - Element Information
 

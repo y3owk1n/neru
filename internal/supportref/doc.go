@@ -1,7 +1,7 @@
 // Package supportref renders the published platform-support table from the
 // declarations that own the words.
 //
-// The table is the list in docs/CROSS_PLATFORM.md of every option, mode flag
+// The table is the list in docs/reference/platform-support.md of every option, mode flag
 // and action that does not do the same thing on all three platforms. Kept by
 // hand it would be the fourth copy of a fact that already has three homes, and
 // the one nobody reruns — which is how `smooth_scroll` came to be documented as

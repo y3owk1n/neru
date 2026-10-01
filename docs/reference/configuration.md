@@ -7,8 +7,8 @@ defaults. Define only the options you want to change — every option left out
 keeps its default. "The daemon" below means the process started by
 `neru launch`.
 
-**Related:** [CLI Reference](CLI.md) · [Tips & Tricks](TIPS_TRICKS.md) ·
-[Troubleshooting](TROUBLESHOOTING.md)
+**Related:** [CLI Reference](cli.md) · [Tips & Tricks](../guide/recipes.md) ·
+[Troubleshooting](../guide/troubleshooting.md)
 
 ---
 
@@ -16,10 +16,10 @@ keeps its default. "The daemon" below means the process started by
 
 **Getting started**
 
-- [Quick Start](#quick-start)
-- [Config File Location](#config-file-location)
-- [Managing Your Config](#managing-your-config)
-- [Runtime Config Changes](#runtime-config-changes)
+- [Quick Start](../guide/getting-started.md#quick-start)
+- [Config File Location](../guide/getting-started.md#config-file-location)
+- [Managing Your Config](../guide/getting-started.md#managing-your-config)
+- [Runtime Config Changes](../guide/getting-started.md#runtime-config-changes)
 
 **Shared concepts**
 
@@ -70,7 +70,7 @@ inside an `app_configs` entry for that section.
 
 **Platform support.** Some sections below carry a `Platforms:` line, but the
 complete answer is the one the daemon itself reads —
-[Platform Support Per Word](CROSS_PLATFORM.md#platform-support-per-word), which
+[Platform Support Per Word](platform-support.md#platform-support-per-word), which
 is generated from that declaration rather than kept by hand. An option missing
 from it behaves the same on macOS, Linux, and Windows. Unsupported options are
 still accepted and validated rather than rejected, so one config file can be
@@ -88,12 +88,12 @@ KWin, COSMIC or GNOME (with Xwayland).
 Every option not listed below behaves the same on all three platforms.
 
 The list itself lives in
-[Platform Support Per Word](CROSS_PLATFORM.md#platform-support-per-word), which
+[Platform Support Per Word](platform-support.md#platform-support-per-word), which
 is generated from the declaration the daemon reads: writing one of those options
 on a platform that ignores it produces one warning at load and a row in
 `neru doctor`, and never a refusal — the file loads, so one configuration can be
 carried between machines
-([ADR 0013](adr/0013-parity-is-measured-in-words-not-subsystems.md)). It was kept
+([ADR 0013](../adr/0013-parity-is-measured-in-words-not-subsystems.md)). It was kept
 by hand here until that declaration existed, which is exactly how a
 cross-platform `[smooth_scroll]` block came to be documented while only macOS
 read it.
@@ -107,168 +107,19 @@ than absent:
   not on Windows.
 - `[virtual_pointer]` styles two things. The standalone overlay is macOS-only
   (it pairs with system cursor hiding, a
-  [platform exclusive](CROSS_PLATFORM.md#platform-exclusives)), while these same
+  [platform exclusive](platform-support.md#platform-exclusives)), while these same
   options style the recursive-grid in-frame pointer on every platform.
 - `hints.strategy = "vision"` works everywhere. On Linux and Windows it is
   **text-only** — tesseract OCR on Linux and `Windows.Media.Ocr` on Windows
   answer the text half of the strategy, so `detect_rectangles` and the four
   `rectangle_*` options below are macOS-only. Linux needs the tesseract English
-  language data installed ([Linux setup](LINUX_SETUP.md#build-dependencies));
+  language data installed ([Linux setup](../guide/linux.md#build-dependencies));
   Windows needs an OCR language pack for one of the account's languages, which
   a language's *Basic typing* feature installs. `Windows.Media.Ocr` reports no
   per-word confidence, so the three `*_confidence` floors are inert there.
 
 Accessibility coverage for hints also differs in kind rather than by option; see
-[Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
-
----
-
-# Getting started
-
-## Quick Start
-
-```toml
-[hints.hotkeys]
-"Shift+L" = ["action left_click", "idle"]
-
-[scroll]
-scroll_step = 50
-```
-
-Generate a fully-commented starter file:
-
-```bash
-neru config init                          # Creates ~/.config/neru/config.toml
-neru config init --force                  # Overwrite existing
-neru config init -c /path/to/config.toml  # Custom path
-```
-
----
-
-## Config File Location
-
-> **Recommended:** `~/.config/neru/config.toml`
-
-Loaded in priority order (highest first):
-
-1. `$XDG_CONFIG_HOME/neru/config.toml`
-2. `%APPDATA%\neru\config.toml` (Windows only)
-3. `~/.config/neru/config.toml`
-4. `~/.neru.toml` (legacy)
-5. `neru.toml` (current directory)
-6. `config.toml` (current directory)
-
-Override at launch: `neru launch -c /path/to/config.toml`
-
-On Windows, `neru config init` writes to `%APPDATA%\neru\config.toml` — the
-platform convention — but `~/.config/neru/config.toml` is still read, so a config
-kept in a cross-platform dotfiles repo works as-is. Set `XDG_CONFIG_HOME` if you
-want `neru config init` and `neru config set` to write there too.
-
-### Config Layering
-
-Neru loads configuration in layers. Each layer overrides the previous one:
-
-```
-Defaults → config.toml → config.override.toml → Runtime (in-memory)
-```
-
-- **Defaults**: Built-in sensible defaults for your platform.
-- **config.toml**: Your hand-crafted configuration file.
-- **Override file**: Runtime changes from `neru config set` (persistent). Named after your config file (e.g. `config.override.toml` for `config.toml`).
-- **Runtime**: In-memory changes that are lost on restart.
-
-This means `neru config set` changes survive restarts without modifying your `config.toml`. To revert, edit or remove the override file.
-
----
-
-## Managing Your Config
-
-```bash
-neru config validate    # Check syntax (no daemon needed)
-neru config reload      # Apply changes to running daemon
-neru config dump        # Print loaded config as JSON (daemon required)
-neru config init        # Create default config file
-neru config set <key> <value>   # Change a single value at runtime (see below)
-neru config reset <key>         # Remove a single override (reverts to base config)
-```
-
-See [CLI.md](CLI.md#configuration-commands) for full flag documentation.
-
----
-
-## Runtime Config Changes
-
-Neru supports changing individual configuration values at runtime without restarting the daemon or re-reading the config file from disk.
-
-```bash
-neru config set hints.hint_characters "qwerty"
-neru config set scroll.scroll_step 25
-neru config set general.passthrough_unbounded_keys true
-```
-
-### How it works
-
-1. The CLI validates the path and value locally before sending to the daemon.
-2. The daemon deep-copies the current in-memory config, applies the change, and validates the result.
-3. Services, overlays, and hotkeys are reconfigured automatically — the same internal path used by `neru config reload`.
-4. The change is automatically persisted to `config.override.toml` alongside your config file. This file is loaded on every start, so changes survive restarts.
-
-### Batch changes with `--no-reload`
-
-Use `--no-reload` when setting or resetting multiple interdependent fields (e.g. `recursive_grid.grid_cols` + `recursive_grid.keys`). Each change persists to the override file without disrupting active hotkeys or exiting the current mode. Run `neru config reload` once after all changes to apply them.
-
-```bash
-neru config set --no-reload recursive_grid.grid_cols 3
-neru config set --no-reload recursive_grid.grid_rows 3
-neru config set --no-reload recursive_grid.keys "gcrhtnmwv"
-neru config reload
-```
-
-### Resetting overrides with `config reset`
-
-To revert a single field to its base config value, use `neru config reset <key>`. Like `config set`, it supports `--no-reload` for batch operations.
-
-```bash
-neru config reset recursive_grid.grid_cols
-neru config reset --no-reload recursive_grid.grid_rows
-neru config reload
-```
-
-### Config override file
-
-Runtime changes via `neru config set` and `neru config reset` are written to an override file alongside your main config file. The override filename is derived from your config file's name: `config.toml` produces `config.override.toml`, `my-neru.toml` produces `my-neru.override.toml`, etc.
-
-The file uses the same TOML format and follows the same layering:
-
-```
-Defaults → config.toml → config.override.toml → Runtime (in-memory)
-```
-
-To revert all overrides at once, delete the override file and run `neru config reload`.
-
-### Supported field types
-
-| Type    | Example                                   |
-| ------- | ----------------------------------------- |
-| string  | `neru config set hints.hint_characters qwerty` |
-| integer | `neru config set hints.ui.font_size 14`        |
-| boolean | `neru config set scroll.invert_scroll true`    |
-| float   | `neru config set hints.vision.minimum_confidence 0.3` |
-| color   | `neru config set hints.ui.background_color "#FF0000AA"` |
-| array   | `neru config set hints.clickable_roles "button,link"` |
-
-> **Tip:** Use `neru config dump | jq` to explore the full config structure and find the dotted path for any setting.
-
-### Limitations
-
-- **Hotkeys**: Cannot be set via `neru config set` (edit `config.toml` directly instead). However, `config set` and `config reset` can be used *as hotkey actions* to change other config fields at runtime.
-- **Struct fields**: Sections like `[theme]` must be set via their leaf sub-paths, not as an object.
-- **`app_configs`**: Per-app overrides can't be set via `config set` (edit `config.toml` directly).
-- **Override file hotkeys**: If you manually edit the override file to add a `[hotkeys]` section, those bindings won't be loaded. The override file is intended for typed field overrides from `config set` — hotkey changes belong in `config.toml`.
-- **Array replacement**: Array fields are replaced wholesale, not appended.
-- **Derived values**: Settings computed from other settings — the theme colors filled in from `[theme]`, and `grid.row_labels` / `grid.col_labels` / `grid.sublayer_keys` inferred from `grid.characters` — are recomputed by `config set`, including when you set the setting they are computed *from*. `neru config set grid.characters "qwerty"` relabels the grid immediately, and `neru config set theme.light.surface "#1E1E2E"` recolors immediately. Setting a derived value directly still wins: labels and keys you wrote are kept, and only the ones you left empty are inferred. Note `sublayer_keys` ships with a value, so it is only inferred once you blank it — `neru config set grid.sublayer_keys ""` makes the subgrid follow `grid.characters` from then on.
-- **`config reload`**: Re-reading from disk re-applies the override file, but any in-memory-only changes (e.g. before this feature existed) are lost.
+[Accessibility and hints](platform-support.md#accessibility-and-hints).
 
 ---
 
@@ -333,7 +184,7 @@ Omitted colors inherit Neru's theme-derived defaults and update in real time whe
 startup because the defaults collide with common terminal and desktop shortcuts
 such as `Ctrl+Shift+C` (copy) and `Ctrl+Shift+V` (paste). Define the bindings
 you want in `[hotkeys]`, or bind `neru <mode>` in your compositor — see
-[Global hotkeys on Wayland](LINUX_DESKTOPS.md#global-hotkeys-on-wayland) for
+[Global hotkeys on Wayland](../guide/linux-desktops.md#global-hotkeys-on-wayland) for
 which of the two applies to your session.
 
 | Modifier  | Aliases                                 |
@@ -364,7 +215,7 @@ right either way.
 `Delete` and `Backspace` both name the backspace key, the one that erases to the
 left, on every platform. The forward-delete key has no hotkey name.
 
-See [CLI.md](CLI.md#neru-action-feed) for a full key reference with key codes and platform behavior.
+See [CLI.md](cli.md#neru-action-feed) for a full key reference with key codes and platform behavior.
 
 Multi-key sequences (e.g. `gg`, `ab`) are supported for per-mode hotkeys with a 500ms timeout.
 
@@ -480,7 +331,7 @@ On Windows, put the executable path in the `bundle_id` field, and use a TOML lit
 
 > **Heads up:** Linux identity strings vary by toolkit and distribution. GTK, Qt, Electron, and XWayland apps often report a `WM_CLASS`/`app_id` you would not guess (e.g. `Google-chrome`, `code`, `org.kde.konsole`). Always confirm with the commands above rather than assuming a reverse-DNS name.
 
-**GNOME/Mutter on Wayland identifies the focused window through the Neru GNOME Shell extension.** Mutter implements no focused-app protocol (no `wlr-foreign-toplevel-management`), so the daemon installs a small extension that reports it; until the first re-login loads it, `[apps]` entries never match and the global keymap applies everywhere. GNOME on **X11** identifies the focused window normally, as do all wlroots compositors, KWin/KDE and COSMIC on Wayland. See [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#gnome-wayland).
+**GNOME/Mutter on Wayland identifies the focused window through the Neru GNOME Shell extension.** Mutter implements no focused-app protocol (no `wlr-foreign-toplevel-management`), so the daemon installs a small extension that reports it; until the first re-login loads it, `[apps]` entries never match and the global keymap applies everywhere. GNOME on **X11** identifies the focused window normally, as do all wlroots compositors, KWin/KDE and COSMIC on Wayland. See [LINUX_DESKTOPS.md](../guide/linux-desktops.md#gnome-wayland).
 
 Where the compositor or X11 exposes a focus-change signal, Neru applies per-app overrides the instant you switch windows; otherwise it re-checks the focused app a few times per second.
 
@@ -496,7 +347,7 @@ meaning in that mode; `__disabled__` does not silence it there, it removes the
 *mode's* binding and hands the key back to the global one. Bare keys and
 `Shift`-only combos are never taken this way — inside a mode those are its input.
 How each platform delivers a chord to an open mode, and what that costs on X11,
-is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#keyboard-capture-and-hotkeys).
+is in [CROSS_PLATFORM.md](platform-support.md#keyboard-capture-and-hotkeys).
 
 ```toml
 [hints.hotkeys]
@@ -556,15 +407,15 @@ The merged result is resolved once — when the mode opens, when the focused app
 changes, or when the configuration is replaced — and every keystroke consults
 it. The focused app is learned by being told, so switching apps mid-mode puts
 the new app's overrides in force on your next key. See
-[Keymap learns the focused app](CROSS_PLATFORM.md#capability-matrix).
+[Keymap learns the focused app](platform-support.md#capability-matrix).
 
 With `general.passthrough_unbounded_keys` on, which chords Neru consumes rather
 than passes to the focused app follows the same change — see
-[Keyboard capture and hotkeys](CROSS_PLATFORM.md#keyboard-capture-and-hotkeys).
+[Keyboard capture and hotkeys](platform-support.md#keyboard-capture-and-hotkeys).
 
 ### Action Reference
 
-All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](CLI.md#actions) for full flag documentation.
+All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](cli.md#actions) for full flag documentation.
 
 | Category    | Actions                                                                                |
 | ----------- | -------------------------------------------------------------------------------------- |
@@ -582,15 +433,15 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Cursor      | `hide_cursor`, `show_cursor`                                                           |
 
 - Click actions accept `--state down` / `--state up` to press and release the button as separate hotkeys, and `--toggle` to do whichever comes next from a single hotkey. `"action right_click --state down"` and `"action right_mouse_down"` are the same action written two ways; the flag form is the documented spelling, and the name form is what a mode `--action` takes (`hints --action right_mouse_down`)
-- Click actions can be chained with commas to produce multi-click sequences at one target point: `"action left_click,left_click"` double-clicks, `"action left_click,left_click,left_click"` triple-clicks. Only mouse button actions are allowed in a chain, and the names must not be separated by spaces (see [CLI.md](CLI.md#neru-action-left_click-right_click-middle_click))
+- Click actions can be chained with commas to produce multi-click sequences at one target point: `"action left_click,left_click"` double-clicks, `"action left_click,left_click,left_click"` triple-clicks. Only mouse button actions are allowed in a chain, and the names must not be separated by spaces (see [CLI.md](cli.md#neru-action-left_click-right_click-middle_click))
 - Any button Neru is holding is released automatically when it returns to idle
 - `mouse_down` and `mouse_up` are the original spellings of `left_mouse_down` and `left_mouse_up`. They still work in configs, but new configs should use the explicit names
-- Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#neru-action-left_click-right_click-middle_click))
-- `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#neru-action-scroll_up-scroll_down-scroll_left-scroll_right))
-- `move_cell` slides the grid or recursive-grid selection to a neighbouring cell on the same layer, e.g. `"action move_cell --direction=right"`. It takes an optional `--count`, and repeats while the key is held when [`[held_repeat]`](#held_repeat) is enabled (see [CLI.md](CLI.md#neru-action-move_cell))
-- `bisect` keeps half, or a quadrant, of the region in [bisect mode](#bisect), e.g. `"action bisect --direction=right"`; the eight cuts are `left`, `right`, `up`, `down`, `up_left`, `up_right`, `down_left` and `down_right`, and `--count=2` keeps a quarter in one press (see [CLI.md](CLI.md#neru-action-bisect))
+- Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](cli.md#neru-action-left_click-right_click-middle_click))
+- `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](cli.md#neru-action-scroll_up-scroll_down-scroll_left-scroll_right))
+- `move_cell` slides the grid or recursive-grid selection to a neighbouring cell on the same layer, e.g. `"action move_cell --direction=right"`. It takes an optional `--count`, and repeats while the key is held when [`[held_repeat]`](#held_repeat) is enabled (see [CLI.md](cli.md#neru-action-move_cell))
+- `bisect` keeps half, or a quadrant, of the region in [bisect mode](#bisect), e.g. `"action bisect --direction=right"`; the eight cuts are `left`, `right`, `up`, `down`, `up_left`, `up_right`, `down_left` and `down_right`, and `--count=2` keeps a quarter in one press (see [CLI.md](cli.md#neru-action-bisect))
 - `reset`, `backspace`, `move_cell`, `bisect`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, and `show_cursor` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
-- `sleep` is the exception among those: it works only in hotkey bindings (`"action sleep 0.5"`), **not** as a terminal command, and it cannot appear in a comma-separated chain. See [CLI.md](CLI.md#action-sleep-hotkey-bindings-only)
+- `sleep` is the exception among those: it works only in hotkey bindings (`"action sleep 0.5"`), **not** as a terminal command, and it cannot appear in a comma-separated chain. See [CLI.md](cli.md#action-sleep-hotkey-bindings-only)
 
 #### Feed Keys
 
@@ -609,7 +460,7 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 ]
 ```
 
-Use `--mode` to route keys through Neru's active mode/action pipeline instead of the OS. See [CLI.md](CLI.md#neru-action-feed) for syntax, supported key names, and platform behavior.
+Use `--mode` to route keys through Neru's active mode/action pipeline instead of the OS. See [CLI.md](cli.md#neru-action-feed) for syntax, supported key names, and platform behavior.
 
 #### Composition Example
 
@@ -632,9 +483,9 @@ A step that fails for any other reason is logged and the chain continues. End th
 "Shift+L" = ["action left_click --bail-on-error", "idle"]
 ```
 
-`--bail-on-error` is a sequencing directive rather than a flag of the action, so it must come last in the step. See [CLI.md](CLI.md#failure-policy).
+`--bail-on-error` is a sequencing directive rather than a flag of the action, so it must come last in the step. See [CLI.md](cli.md#failure-policy).
 
-An array like the ones above is an *action sequence*. The same sequence, with the same rules, can also be written as a mode's `--on-exit` (repeat the flag once per step) or run from a script with [`neru run`](CLI.md#neru-run) — one executor backs all three, so a sequence that works in one place works in the others.
+An array like the ones above is an *action sequence*. The same sequence, with the same rules, can also be written as a mode's `--on-exit` (repeat the flag once per step) or run from a script with [`neru run`](cli.md#neru-run) — one executor backs all three, so a sequence that works in one place works in the others.
 
 ---
 
@@ -693,7 +544,7 @@ like `"$1 --action left_click"` is rejected at load, because a step whose
 command is only known at call time could not be validated at all.
 
 **A macro body is a sequence** like any other, so it can use
-[`--bail-on-error`](CLI.md#failure-policy), and it can call another macro. A
+[`--bail-on-error`](cli.md#failure-policy), and it can call another macro. A
 macro that reaches itself is stopped by the same nesting limit that bounds
 `run` — five levels — rather than recursing.
 
@@ -705,7 +556,7 @@ Macros are not accepted as a mode's `--action`, which takes a mouse button
 name; use `--on-exit` for a sequence that follows the action.
 
 **A macro is also reachable from outside**, with
-[`neru macro <name> [args...]`](CLI.md#neru-macro). The daemon runs it exactly
+[`neru macro <name> [args...]`](cli.md#neru-macro). The daemon runs it exactly
 as a binding does, so an external driver (skhd, Hammerspoon, a shell script)
 shares the same definition rather than keeping its own copy:
 
@@ -738,7 +589,7 @@ indicator = "Window"            # mode-indicator text; "" hides it
 ```
 
 **Entering one.** The step is `mode <name>`, from a global hotkey, a macro, a
-`run`, or the command line as [`neru mode <name>`](CLI.md#neru-mode). It
+`run`, or the command line as [`neru mode <name>`](cli.md#neru-mode). It
 accepts `--toggle` and nothing else: a declared mode makes no selection, so
 none of the selection flags apply. A step naming a mode that is not declared
 is refused at load, like a typo'd flag.
@@ -854,7 +705,7 @@ Pick `vision` when you want to type what you see, or the app is text-heavy. Pick
 
 Press `/` to text-search elements. `Space` for multi-word queries. `Return` confirms filtered hints (first is auto-selected). `Escape` cancels search.
 
-Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#neru-hints))
+Start with search visible: `neru hints --search` (see [CLI.md](cli.md#neru-hints))
 
 ### Options
 
@@ -968,12 +819,12 @@ hints.clickable_roles: unknown role "AXButton": use "button"
 | Option               | Type   | Default    | Description                                |
 | -------------------- | ------ | ---------- | ------------------------------------------ |
 | `font_size`          | int    | `10`       | Font size in points                        |
-| `font_family`        | string | `""`       | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
+| `font_family`        | string | `""`       | Font family; [generic aliases](platform-support.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `border_radius`      | int    | `-1`       | Corner radius (-1 = auto)                  |
 | `padding_x`          | int    | `-1`       | Horizontal padding (-1 = auto)             |
 | `padding_y`          | int    | `-1`       | Vertical padding (-1 = auto)               |
 | `border_width`       | int    | `1`        | Border width in pixels                     |
-| `placement`          | string | `"bottom"` | Label placement relative to the element: `top`, `center`, `bottom`; `top` and `bottom` also draw a [connector arrow](CROSS_PLATFORM.md#mode-coverage) |
+| `placement`          | string | `"bottom"` | Label placement relative to the element: `top`, `center`, `bottom`; `top` and `bottom` also draw a [connector arrow](platform-support.md#mode-coverage) |
 | `background_color`   | color  | derived    | Background color                           |
 | `text_color`         | color  | derived    | Text color                                 |
 | `matched_text_color` | color  | derived    | Text color for matched characters          |
@@ -1148,7 +999,7 @@ The `label_direction` setting controls how multi-character hint labels are enume
 - Many hints clustered in one region of the screen. `reverse` spreads the _first_ character of each label evenly across the alphabet, so labels rarely share a prefix and the hint key (the visible character) is less likely to be occluded by another element.
 - Workflows that consistently need more than `len(hint_characters)` hints.
 
-You can also mix directions per-app via `[hints.app_configs]` or per-activation via `neru hints --label-direction`. See the [per-app config table](#per-app-config) and [CLI reference](CLI.md#neru-hints).
+You can also mix directions per-app via `[hints.app_configs]` or per-activation via `neru hints --label-direction`. See the [per-app config table](#per-app-config) and [CLI reference](cli.md#neru-hints).
 
 ### Default Hotkeys
 
@@ -1199,7 +1050,7 @@ visible_check_enabled = true
 
 Divides the screen into a labelled coordinate grid.
 
-Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#neru-grid)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
+Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode follow|hold` (see [CLI.md](cli.md#neru-grid)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
 Bind a key to `grid --capture-scope window` for a launcher whose grid covers
 the focused window instead of the whole screen.
 
@@ -1251,7 +1102,7 @@ one subgrid cell unlabelled, which is visible on screen in a way a warning is no
 | Option                     | Type   | Default | Description                          |
 | -------------------------- | ------ | ------- | ------------------------------------ |
 | `font_size`                | int    | `10`    | Largest label size in points; see below |
-| `font_family`              | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
+| `font_family`              | string | `""`    | Font family; [generic aliases](platform-support.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `border_width`             | int    | `1`     | Border width in pixels               |
 | `background_color`         | color  | derived | Cell background                      |
 | `text_color`               | color  | derived | Label text                           |
@@ -1314,7 +1165,7 @@ See [per-app hotkey overrides](#per-app-hotkey-overrides).
 
 Narrows the active area with each keypress for precise cursor placement.
 
-Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#neru-recursive_grid)). Auto-zoom to a specific depth on activation with `--zoom-to-depth <n>` (e.g. `neru recursive_grid --zoom-to-depth 3`). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
+Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](cli.md#neru-recursive_grid)). Auto-zoom to a specific depth on activation with `--zoom-to-depth <n>` (e.g. `neru recursive_grid --zoom-to-depth 3`). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
 Bind a key to `recursive_grid --capture-scope window` for a launcher whose
 first level is the focused window instead of the whole screen.
 
@@ -1363,7 +1214,7 @@ layers = [
 | Option                                | Type   | Default | Description                                                                  |
 | ------------------------------------- | ------ | ------- | ---------------------------------------------------------------------------- |
 | `font_size`                           | int    | `10`    | Font size                                                                    |
-| `font_family`                         | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
+| `font_family`                         | string | `""`    | Font family; [generic aliases](platform-support.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `line_width`                          | int    | `1`     | Grid line width                                                              |
 | `line_color`                          | color  | derived | Grid line color                                                              |
 | `highlight_color`                     | color  | derived | Selected cell highlight                                                      |
@@ -1455,7 +1306,7 @@ appearance is [`[bisect.ui]`](#ui-3). Both have the recursive grid's shape
 because the two modes draw the same picture. The values are bisect's own.
 
 Cursor behavior: `neru bisect --cursor-selection-mode follow|hold` (see
-[CLI.md](CLI.md#neru-bisect)). In `hold` the real cursor stays where it was
+[CLI.md](cli.md#neru-bisect)). In `hold` the real cursor stays where it was
 while the region narrows and a pointer stand-in marks the centre, which keeps
 hover menus open; the default hotkeys include `` ` `` for
 `toggle-cursor-follow-selection`, and a click moves to the centre first.
@@ -1617,9 +1468,9 @@ Interactive display picking mode. Shows per-monitor overlay badges labelled with
 | Key                    | Default       | Description                       |
 | ---------------------- | ------------- | --------------------------------- |
 | `font_size`            | `96`          | Largest badge label font size. It shrinks to keep the label inside the badge, which is capped at 80% of the monitor |
-| `font_family`          | `""` (sans)   | Badge label font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
+| `font_family`          | `""` (sans)   | Badge label font family; [generic aliases](platform-support.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `subtitle_font_size`   | `18`          | Largest monitor name subtitle font size. It shrinks so a long name stays inside the badge |
-| `subtitle_font_family` | `""` (label's) | Subtitle font family, defaulting to the label's; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
+| `subtitle_font_family` | `""` (label's) | Subtitle font family, defaulting to the label's; [generic aliases](platform-support.md#capability-matrix) accepted |
 | `border_radius`        | `-1` (auto)   | Badge corner radius               |
 | `padding_x`            | `-1` (auto)   | Horizontal padding                |
 | `padding_y`            | `-1` (auto)   | Vertical padding                  |
@@ -1671,7 +1522,7 @@ recursive-grid overlay works on all platforms, and it takes its character, size,
 family and color from these same `[virtual_pointer.ui]` options — there is no
 pointer option under `[recursive_grid]`. Grid mode draws its in-frame indicator
 from them too; which platforms draw which is in the
-[mode coverage matrix](CROSS_PLATFORM.md#mode-coverage).
+[mode coverage matrix](platform-support.md#mode-coverage).
 
 ### UI
 
@@ -1679,7 +1530,7 @@ from them too; which platforms draw which is in the
 | ------------- | ------ | ------- | ---------------------------- |
 | `char`        | string | `"●"`   | Character to display         |
 | `font_size`   | int    | `8`     | Font size in points          |
-| `font_family` | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
+| `font_family` | string | `""`    | Font family; [generic aliases](platform-support.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `text_color`  | color  | derived | Character color              |
 
 ```toml
@@ -1791,7 +1642,7 @@ text = "Monitor Select"
 | Option               | Type   | Default | Description                             |
 | -------------------- | ------ | ------- | --------------------------------------- |
 | `font_size`          | int    | `10`    | Font size                               |
-| `font_family`        | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
+| `font_family`        | string | `""`    | Font family; [generic aliases](platform-support.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `background_color`   | color  | derived | Background with alpha                   |
 | `text_color`         | color  | derived | Text color                              |
 | `border_color`       | color  | derived | Border color                            |
@@ -1829,7 +1680,7 @@ Tap modifiers inside a mode to make them sticky for subsequent actions.
 | Option               | Type   | Default | Description                            |
 | -------------------- | ------ | ------- | -------------------------------------- |
 | `font_size`          | int    | `10`    | Font size                              |
-| `font_family`        | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
+| `font_family`        | string | `""`    | Font family; [generic aliases](platform-support.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `background_color`   | color  | derived | Background with alpha                  |
 | `text_color`         | color  | derived | Text color                             |
 | `border_color`       | color  | derived | Border color                           |
@@ -1904,7 +1755,7 @@ Splits scroll deltas into chunked ease-out events for visual feedback.
 **Platforms:** macOS and Linux. Windows falls back to instant scrolling, and on
 Linux X11 a step can be no finer than a wheel notch — what that means for a
 given scroll is in the
-[capability matrix](CROSS_PLATFORM.md#capability-matrix).
+[capability matrix](platform-support.md#capability-matrix).
 
 Neru sends the same distance whether the animation is on or off. On Wayland it
 sends it in a different *currency*: a continuous delta rather than a count of
@@ -2016,7 +1867,7 @@ restart; `neru config reload` does not create or remove the icon.
 ## [logging]
 
 Log level, destination, and rotation. File paths per platform are listed in
-[TROUBLESHOOTING.md](TROUBLESHOOTING.md#log-file-locations).
+[TROUBLESHOOTING.md](../guide/troubleshooting.md#log-file-locations).
 
 | Option                 | Type   | Default  | Description                                       |
 | ---------------------- | ------ | -------- | ------------------------------------------------- |

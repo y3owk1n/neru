@@ -598,7 +598,7 @@ if ($serviceState -notin 'installed', 'restarted') {
 if ($pathState -eq 'added') { Write-Next "Open a new terminal so 'neru' resolves by name." }
 Write-Next 'Configure: neru config init writes a starter config.toml.'
 Write-Host ''
-Write-Note 'Windows support is beta; see docs/CROSS_PLATFORM.md for what works today.'
+Write-Note 'Windows support is beta; see docs/reference/platform-support.md for what works today.'
 Write-Note "Manage the task with 'neru services status|stop|restart'. Rerun this script to update,"
 Write-Note 'add -Channel stable|nightly to switch, or -Uninstall to remove.'
 Write-Host ''

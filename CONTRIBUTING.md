@@ -6,9 +6,9 @@ bug reports, config examples, or ideas.
 
 This document owns the **contribution process**: how to propose a change, how to
 commit it, and how to get it merged. The technical guides own the rest —
-[DEVELOPMENT.md](docs/DEVELOPMENT.md) for environment setup, building, and
-testing; [ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the codebase is
-structured; [CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md) for platform work; and
+[DEVELOPMENT.md](docs/contributing/development.md) for environment setup, building, and
+testing; [ARCHITECTURE.md](docs/contributing/architecture.md) for how the codebase is
+structured; [CROSS_PLATFORM.md](docs/reference/platform-support.md) for platform work; and
 [AGENTS.md](AGENTS.md) for conventions and contracts.
 
 ---
@@ -46,7 +46,7 @@ issues, so reports stay confidential.
 3. **Small, focused PRs** are preferred over large, sweeping ones.
 
 Set up your environment by following
-[DEVELOPMENT.md](docs/DEVELOPMENT.md#development-setup) — oku is the
+[DEVELOPMENT.md](docs/contributing/development.md#development-setup) — oku is the
 recommended path and provides the toolchain pre-configured. On Linux, read the
 prerequisites there first: oku does not cover the system packages a CGO
 build links against.
@@ -64,9 +64,9 @@ build links against.
 
 3. **Make your changes**, following the conventions in
    [AGENTS.md](AGENTS.md). Where new code belongs is
-   mapped out in [DEVELOPMENT.md](docs/DEVELOPMENT.md#adding-code).
+   mapped out in [DEVELOPMENT.md](docs/contributing/development.md#adding-code).
 4. **Add or update tests.** All new code needs coverage — see
-   [DEVELOPMENT.md](docs/DEVELOPMENT.md#testing) for the test tiers and
+   [DEVELOPMENT.md](docs/contributing/development.md#testing) for the test tiers and
    [AGENTS.md](AGENTS.md) (Conventions) for naming, mocks, and build tags.
 5. **Run the pre-commit checks:**
 
@@ -84,7 +84,7 @@ build links against.
     > Accessibility). Run `just test-unit` if you only want the safe subset,
     > and quit any running `neru` daemon first — a live daemon holding the
     > socket makes the IPC integration tests silently skip. Details in
-    > [DEVELOPMENT.md](docs/DEVELOPMENT.md#testing).
+    > [DEVELOPMENT.md](docs/contributing/development.md#testing).
 
     Before pushing, run **`just ci`** — the same recipes CI gates your PR on,
     run on your host only, where CI runs them on macOS, Linux and Windows. It
@@ -100,10 +100,10 @@ build links against.
     that looks at the other two legs — worth knowing about, because everything
     else compiles for your host. What it covers, and the cgo-only Linux paths
     it cannot, are in
-    [DEVELOPMENT.md](docs/DEVELOPMENT.md#what-just-ci-covers-and-what-it-does-not).
+    [DEVELOPMENT.md](docs/contributing/development.md#what-just-ci-covers-and-what-it-does-not).
 
 6. **Update the docs** in the same PR. Each fact has one home — the
-   [documentation checklist](docs/CROSS_PLATFORM.md#documentation-checklist)
+   [documentation checklist](docs/contributing/porting.md#documentation-checklist)
    says which file owns what, so please update the owner rather than restating
    it in a second place.
 
@@ -200,14 +200,14 @@ Closes #123
 Neru puts a strong emphasis on architectural separation, and platform changes
 are where that matters most. Before writing Linux or Windows code:
 
-- Read [The "One Rule"](docs/ARCHITECTURE.md#the-one-rule) — non-darwin code must
+- Read [The "One Rule"](docs/contributing/architecture.md#the-one-rule) — non-darwin code must
   never import the darwin platform package. It is enforced by both `depguard` and
   an architecture test.
 - Check the current
-  [platform status](docs/CROSS_PLATFORM.md#platform-status) and
-  [capability matrix](docs/CROSS_PLATFORM.md#capability-matrix).
+  [platform status](docs/reference/platform-support.md#platform-status) and
+  [capability matrix](docs/reference/platform-support.md#capability-matrix).
 - Work through the
-  [Cross-Platform Contributor Guide](docs/CROSS_PLATFORM.md#contributor-guide) —
+  [Cross-Platform Contributor Guide](docs/contributing/porting.md) —
   it covers file slots, the Linux backend model, CGO guidance, and the bar a
   platform PR has to clear.
 
@@ -267,9 +267,9 @@ Not sure where to start? Any of these are welcome:
 - 🧪 Additional test coverage
 
 For platform work specifically,
-[Contributing safely](docs/CROSS_PLATFORM.md#contributing-safely) lists
+[Contributing safely](docs/contributing/porting.md#contributing-safely) lists
 well-scoped starter tasks — and the changes worth opening an issue about first.
-Longer-term direction is in [ROADMAP.md](docs/ROADMAP.md).
+Longer-term direction is in [ROADMAP.md](docs/project/roadmap.md).
 
 ---
 
@@ -283,13 +283,13 @@ Open a [GitHub Issue](https://github.com/y3owk1n/neru/issues/new) with:
 3. **Expected vs actual behavior**.
 4. **Logs** — set `log_level = "debug"` and attach the relevant lines. Log paths
    are listed in
-   [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#log-file-locations).
+   [TROUBLESHOOTING.md](docs/guide/troubleshooting.md#log-file-locations).
 5. **Screenshots or recordings** if the issue is visual.
 
 `neru doctor` output is useful too — it reports which capabilities your platform
 actually supports.
 
-See also: [Troubleshooting Guide](docs/TROUBLESHOOTING.md).
+See also: [Troubleshooting Guide](docs/guide/troubleshooting.md).
 
 ---
 

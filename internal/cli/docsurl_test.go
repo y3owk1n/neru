@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	docsCLIPath       = "docs/CLI.md"
-	mainDocsCLISuffix = "/main/docs/CLI.md"
+	docsCLIPath       = "docs/reference/cli.md"
+	mainDocsCLISuffix = "/main/docs/reference/cli.md"
 )
 
 func TestDocsURLUsesVersionTagOrMain(t *testing.T) {
@@ -35,19 +35,19 @@ func TestDocsURLUsesVersionTagOrMain(t *testing.T) {
 			name:       "valid release tag",
 			version:    "v1.19.0",
 			path:       docsCLIPath,
-			wantSuffix: "/v1.19.0/docs/CLI.md",
+			wantSuffix: "/v1.19.0/docs/reference/cli.md",
 		},
 		{
 			name:       "git describe with commits",
 			version:    "v1.19.0-3-gabcdef0",
-			path:       "docs/CONFIGURATION.md",
-			wantSuffix: "/v1.19.0/docs/CONFIGURATION.md",
+			path:       "docs/reference/configuration.md",
+			wantSuffix: "/v1.19.0/docs/reference/configuration.md",
 		},
 		{
 			name:       "git describe dirty state",
 			version:    "v1.19.0-dirty",
 			path:       docsCLIPath,
-			wantSuffix: "/v1.19.0/docs/CLI.md",
+			wantSuffix: "/v1.19.0/docs/reference/cli.md",
 		},
 		{
 			name:       "invalid semver segments",

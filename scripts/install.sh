@@ -164,10 +164,10 @@ probe_binary() {
             note "Your distribution ships the library as $(basename "$fedora_tess"). Link it under the"
             note "name the release build expects, then rerun this script:"
             note "      sudo ln -s $(basename "$fedora_tess") $(dirname "$fedora_tess")/libtesseract.so.5"
-            note "Details: https://github.com/$repo/blob/main/docs/LINUX_SETUP.md#troubleshooting"
+            note "Details: https://github.com/$repo/blob/main/docs/guide/linux.md#troubleshooting"
         else
             note "The full list per distribution is under"
-            note "https://github.com/$repo/blob/main/docs/LINUX_SETUP.md#build-dependencies"
+            note "https://github.com/$repo/blob/main/docs/guide/linux.md#build-dependencies"
             note "Install them, then rerun this script."
         fi
     fi
@@ -848,7 +848,7 @@ if [ "$zsh_hint" = 1 ]; then
     next "zsh: add ${c_bold}fpath=(~/.zsh/completions \$fpath)${c_reset} to ~/.zshrc before compinit for completions."
 fi
 if [ "$os" = linux ]; then
-    next "On Wayland, bind compositor hotkeys to 'neru hints' and friends. See docs/LINUX_SETUP.md."
+    next "On Wayland, bind compositor hotkeys to 'neru hints' and friends. See docs/guide/linux.md."
 fi
 next "Configure: ${c_bold}neru config init${c_reset} writes a starter ~/.config/neru/config.toml."
 say ""

@@ -74,7 +74,7 @@ exit included, since it takes the same lock.
   process. The hazard this ADR removes is specific to cross-process
   accessibility, which is also specific to the two platforms that can be told
   about focus instead of asking. One `resolveFocusedApp` covers both: read the
-  cell when it is fed, ask when it is not. `docs/CROSS_PLATFORM.md` gains the
+  cell when it is fed, ask when it is not. `docs/reference/platform-support.md` gains the
   row.
 - **Publishing only works while something is listening, so the order the daemon
   starts in became load-bearing.** Polling was self-healing: whoever asked got

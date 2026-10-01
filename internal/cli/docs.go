@@ -35,7 +35,7 @@ var DocsCLICmd = &cobra.Command{
 	Short: "Open CLI documentation",
 	Long:  "Open the Neru CLI documentation in the default browser.",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return openDocsPage("docs/CLI.md")
+		return openDocsPage("docs/reference/cli.md")
 	},
 }
 
@@ -46,7 +46,7 @@ var DocsConfigCmd = &cobra.Command{
 	Short:   "Open configuration documentation",
 	Long:    "Open the Neru configuration documentation in the default browser.",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return openDocsPage("docs/CONFIGURATION.md")
+		return openDocsPage("docs/reference/configuration.md")
 	},
 }
 

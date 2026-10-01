@@ -60,7 +60,7 @@
 //   - mode_extension_switch_test.go — behavior only some modes have is an
 //     optional extension, never an arm of a switch over domain.Mode.
 //   - mode_flag_contract_test.go — mode commands register exactly what the
-//     grammar declares, and docs/CLI.md is generated from the descriptor table.
+//     grammar declares, and docs/reference/cli.md is generated from the descriptor table.
 //   - mode_lock_registry_test.go — every mutex the mode handler declares has a
 //     stated position in the lock order that package's guide gives.
 //   - mode_lock_release_test.go — the mode handler releases every lock via
@@ -79,7 +79,7 @@
 //   - platform_slots_test.go — platform files use the documented file slots,
 //     tagged packages tag every file, package comments reach every target.
 //   - platform_support_test.go — every option, mode flag and action declares
-//     the platforms it does something on, and docs/CROSS_PLATFORM.md publishes
+//     the platforms it does something on, and docs/reference/platform-support.md publishes
 //     that declaration rather than a copy of it.
 //   - ports_test.go — every port has a mock, and every mock asserts that it
 //     satisfies the interface.

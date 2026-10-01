@@ -35,7 +35,7 @@ const (
 const HintPlacementDefault = HintPlacementBottom
 
 // HintPlacements returns every accepted `hints.ui.placement` value, in the
-// order docs/CONFIGURATION.md lists them. Callers get a fresh slice, so a
+// order docs/reference/configuration.md lists them. Callers get a fresh slice, so a
 // consumer that sorts or filters cannot reach the vocabulary itself.
 func HintPlacements() []string {
 	return []string{HintPlacementTop, HintPlacementCenter, HintPlacementBottom}

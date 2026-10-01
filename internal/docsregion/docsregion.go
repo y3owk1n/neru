@@ -1,8 +1,8 @@
 // Package docsregion is the one implementation of a generated region inside a
 // hand-written documentation page.
 //
-// Two references are published this way — the mode-flag table in docs/CLI.md
-// and the platform-support table in docs/CROSS_PLATFORM.md — and both need the
+// Two references are published this way — the mode-flag table in docs/reference/cli.md
+// and the platform-support table in docs/reference/platform-support.md — and both need the
 // same three things: locate the region, replace what is between the markers,
 // and hand back what a page currently holds so a guardrail can report it. A
 // shared derivation has one implementation

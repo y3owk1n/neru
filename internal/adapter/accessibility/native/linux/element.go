@@ -686,7 +686,7 @@ func warnUinputScrollFallback(cause error) {
 		currentLogger().Warn(
 			"Scrolling through the wlroots virtual pointer instead of uinput; "+
 				"some clients ignore that path (grant write access to /dev/uinput, "+
-				"see docs/LINUX_SETUP.md)",
+				"see docs/guide/linux.md)",
 			zap.Error(cause),
 		)
 	})

@@ -15,7 +15,7 @@ Hints, grids and vim keys for your whole desktop. Free, open source, one binary,
 | :---------------: | :----------------------: | :-----------------: |
 |     Stable ✅     |      Beta, daily 🔵      |    Beta, daily 🔵   |
 
-<sub>Beta means every option, flag and action already works. Stable comes after six clean releases. [What the labels mean](docs/CROSS_PLATFORM.md#what-the-labels-mean)</sub>
+<sub>Beta means every option, flag and action already works. Stable comes after six clean releases. [What the labels mean](docs/reference/platform-support.md#what-the-labels-mean)</sub>
 
 [Install](#install) · [Modes](#pick-your-mode) · [Make it yours](#make-it-yours) · [Compare](#how-neru-compares) · [Docs](#documentation)
 
@@ -80,7 +80,7 @@ services.neru.enable = true;
 services.neru.settings = { /* your config.toml, as Nix */ };
 ```
 
-Examples for each module are in the [Installation Guide](docs/INSTALLATION.md).
+Examples for each module are in the [Installation Guide](docs/guide/installation.md).
 
 </details>
 
@@ -127,10 +127,10 @@ Neru offers to write a starter config and asks for what it needs:
 | Platform | Needs                                                                 |
 | :------- | :-------------------------------------------------------------------- |
 | macOS    | Accessibility permission. Screen Recording only for OCR or contour hints. |
-| Linux    | Your user in the `input` group and a `/dev/uinput` udev rule. [Linux Setup](docs/LINUX_SETUP.md) |
+| Linux    | Your user in the `input` group and a `/dev/uinput` udev rule. [Linux Setup](docs/guide/linux.md) |
 | Windows  | Nothing beyond the install.                                           |
 
-On Linux there are no default global hotkeys, to avoid colliding with terminal and desktop shortcuts. Bind the modes in `[hotkeys]` or in your compositor. [Global hotkeys on Linux](docs/CONFIGURATION.md#hotkeys)
+On Linux there are no default global hotkeys, to avoid colliding with terminal and desktop shortcuts. Bind the modes in `[hotkeys]` or in your compositor. [Global hotkeys on Linux](docs/reference/configuration.md#hotkeys)
 
 ### Set up with an agent
 
@@ -247,7 +247,7 @@ neru doctor                            # diagnose permissions and backends
 
 Themes, indicators, smooth cursor and scroll, virtual pointer, app exclusions and screen-share hiding are all options too.
 
-[Configuration Reference](docs/CONFIGURATION.md) · [CLI Reference](docs/CLI.md) · [Tips & Tricks](docs/TIPS_TRICKS.md) · [Community configs](docs/CONFIG_SHOWCASES.md)
+[Configuration Reference](docs/reference/configuration.md) · [CLI Reference](docs/reference/cli.md) · [Tips & Tricks](docs/guide/recipes.md) · [Community configs](docs/project/showcases.md)
 
 ---
 
@@ -287,24 +287,24 @@ https://github.com/user-attachments/assets/d99328a6-b5f9-402a-a01b-297da2ffb454
 
 | Using Neru                                       |                                                          |
 | :----------------------------------------------- | :------------------------------------------------------- |
-| [Installation](docs/INSTALLATION.md)             | Every install method, permissions, login services        |
-| [CLI Reference](docs/CLI.md)                     | Every command, flag and the IPC protocol                 |
-| [Configuration Reference](docs/CONFIGURATION.md) | Every option with defaults and platform support          |
-| [Tips & Tricks](docs/TIPS_TRICKS.md)             | Worked recipes                                           |
-| [Troubleshooting](docs/TROUBLESHOOTING.md)       | Common issues and fixes                                  |
+| [Installation](docs/guide/installation.md)             | Every install method, permissions, login services        |
+| [CLI Reference](docs/reference/cli.md)                     | Every command, flag and the IPC protocol                 |
+| [Configuration Reference](docs/reference/configuration.md) | Every option with defaults and platform support          |
+| [Tips & Tricks](docs/guide/recipes.md)             | Worked recipes                                           |
+| [Troubleshooting](docs/guide/troubleshooting.md)       | Common issues and fixes                                  |
 
 | Platforms                                      |                                                          |
 | :--------------------------------------------- | :------------------------------------------------------- |
-| [Cross-Platform Guide](docs/CROSS_PLATFORM.md) | The capability matrix, the single source of truth        |
-| [Linux Setup](docs/LINUX_SETUP.md)             | Dependencies, permissions, building                      |
-| [Linux Desktops](docs/LINUX_DESKTOPS.md)       | Per-compositor setup and known issues                    |
+| [Cross-Platform Guide](docs/reference/platform-support.md) | The capability matrix, the single source of truth        |
+| [Linux Setup](docs/guide/linux.md)             | Dependencies, permissions, building                      |
+| [Linux Desktops](docs/guide/linux-desktops.md)       | Per-compositor setup and known issues                    |
 
 | Working on Neru                                |                                                          |
 | :--------------------------------------------- | :------------------------------------------------------- |
 | [Contributing](CONTRIBUTING.md)                | How to propose, commit and land a change                 |
-| [Development Guide](docs/DEVELOPMENT.md)       | Setup, building, testing, debugging                      |
-| [Architecture](docs/ARCHITECTURE.md)           | Layers, boundaries, platform isolation                   |
-| [Roadmap](docs/ROADMAP.md)                     | What is next and where help matters most                 |
+| [Development Guide](docs/contributing/development.md)       | Setup, building, testing, debugging                      |
+| [Architecture](docs/contributing/architecture.md)           | Layers, boundaries, platform isolation                   |
+| [Roadmap](docs/project/roadmap.md)                     | What is next and where help matters most                 |
 
 ---
 

@@ -210,7 +210,7 @@ func (l *physicalLift) restoreLocked() {
 // length of a pointer action, so the action carries only the set it names.
 // This is the x11ClickButtonAtPoint rule applied to the one keyboard the
 // compositor reads here, the evdev proxy's (footnote 7 of
-// docs/CROSS_PLATFORM.md). The releases go out on uinput and the action on the
+// docs/reference/platform-support.md). The releases go out on uinput and the action on the
 // Wayland socket, and nothing orders the two, so a lift waits the fixed period
 // the uinput side always waits (waitForScrollDelivery). The returned restore
 // presses the lifted modifiers again once every overlapping action is done.

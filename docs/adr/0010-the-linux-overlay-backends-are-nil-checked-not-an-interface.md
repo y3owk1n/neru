@@ -98,7 +98,7 @@ surface. This ADR extends that seam rather than adding a second one beside it.
   the unknown backend covers GNOME, wayland-other and no-display
   (`manager.go:716-718`), and `platform.NewSystemPort` already refuses all three
   at the first step of daemon startup, so the daemon exits before an overlay
-  exists (`docs/CROSS_PLATFORM.md:104-110`). It becomes reachable the moment a
+  exists (`docs/reference/platform-support.md:104-110`). It becomes reachable the moment a
   compositor moves out of that bucket. COSMIC (#898) moved out as
   `wayland-cosmic` and took the wlroots layer-shell overlay backend, so the
   nil path stayed unreachable. GNOME landed without layer-shell and took the

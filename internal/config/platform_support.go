@@ -83,7 +83,7 @@ var (
 // as readily as a table of two.
 //
 // The narrow columns below are the ones the tree can point at today — an
-// entry in the Platform Exclusives table of docs/CROSS_PLATFORM.md, or a Known
+// entry in the Platform Exclusives table of docs/reference/platform-support.md, or a Known
 // Gaps entry naming the whole option rather than part of its behavior. A
 // capability that is partly there is not a column this type can state, and
 // stays a Known Gaps entry.
@@ -226,7 +226,7 @@ func PlatformSupport() parity.Declaration {
 		// Unbound modifier chords reach the focused application on macOS, on
 		// the Wayland evdev tap and on Windows. X11 cannot pass them through
 		// at all, which is a display-server limit rather than a column: the
-		// blessed Linux stack is Wayland (Known Gaps, docs/CROSS_PLATFORM.md).
+		// blessed Linux stack is Wayland (Known Gaps, docs/reference/platform-support.md).
 		// X11InertWords is where that limit is said.
 		parity.Everywhere(parity.KindOption, passthroughOptions...),
 		parity.Everywhere(parity.KindOption,
@@ -527,7 +527,7 @@ func PlatformSupport() parity.Declaration {
 // somebody wrote can be reported to them: the shipped scroll bindings name
 // scroll_left, which injects nothing on Windows, and telling every Windows user
 // about a line they never typed is noise about somebody else's bug
-// (docs/CROSS_PLATFORM.md, Known Gaps).
+// (docs/reference/platform-support.md, Known Gaps).
 type Written struct {
 	// Options maps a TOML path to the value written at it. A non-scalar value
 	// is present with an empty string: the path is what says the option was
@@ -552,7 +552,7 @@ var passthroughOptions = []string{
 const noteX11Passthrough = "the X11 backend cannot pass an unbound chord " +
 	"through: XGrabKeyboard is all-or-nothing and XSendEvent is ignored by most " +
 	"applications, so passthrough needs the Wayland evdev backend " +
-	"(Known Gaps, docs/CROSS_PLATFORM.md)"
+	"(Known Gaps, docs/reference/platform-support.md)"
 
 // X11InertWords reports the passthrough options a configuration writes that
 // the X11 backend cannot honor.

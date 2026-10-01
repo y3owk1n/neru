@@ -410,7 +410,7 @@ const xwaylandDiscoveryTimeout = 120 * time.Millisecond
 // that accepts input, the same shape the overlay takes on GNOME, is what makes
 // the compositor say where the pointer is now. The position is in the X root's
 // space, which Mutter keeps equal to the logical layout the wlroots client's
-// screens live in (docs/LINUX_DESKTOPS.md, GNOME).
+// screens live in (docs/guide/linux-desktops.md, GNOME).
 //
 // A discovery that finds nothing is an error, not a silent keep: the caller is
 // re-syncing because it distrusts the cache, and a cache it cannot confirm is

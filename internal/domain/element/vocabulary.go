@@ -133,7 +133,7 @@ func (m RoleMapping) Native(vocab NativeVocabulary) []string {
 
 // RoleVocabulary is the full semantic role table, in documentation order. It is
 // the single source of truth for `neru roles`, config resolution, and the role
-// table in docs/CONFIGURATION.md.
+// table in docs/reference/configuration.md.
 //
 // Overlapping expansions are intentional: Linux and Windows do not distinguish
 // a text area or a search field from a plain text field, so those semantic

@@ -3,10 +3,10 @@
 Worked configuration recipes for common workflows. Each entry states the goal,
 then the configuration that achieves it.
 
-For the full option reference see [CONFIGURATION.md](CONFIGURATION.md); for
-command flags see [CLI.md](CLI.md).
+For the full option reference see [CONFIGURATION.md](../reference/configuration.md); for
+command flags see [CLI.md](../reference/cli.md).
 
-**Related:** [Configuration Reference](CONFIGURATION.md) · [CLI Reference](CLI.md)
+**Related:** [Configuration Reference](../reference/configuration.md) · [CLI Reference](../reference/cli.md)
 
 ---
 
@@ -298,7 +298,7 @@ If you keep the default per-mode launcher keys, disable the ones this cycle repl
 
 Some apps never expose a keyboard shortcut for a UI element you use often, and some remove one you relied on. Claude for macOS, for example, dropped `Cmd+1` / `Cmd+2` / `Cmd+3` for switching between its Home, Code, and Cowork views, leaving no shortcut for those buttons at all. In some limited cases you can rebuild one by driving Neru to click a fixed spot or a specific element in the focused window.
 
-Bind the key inside a root-level `[[app_configs]]` block scoped to the target app by its `bundle_id` (requires Neru 1.47.0 and later). That block overrides `[hotkeys]` only while that app is focused, so the key drives Neru there and passes straight through to every other app. See [Per-App Global Hotkey Overrides](CONFIGURATION.md#per-app-global-hotkey-overrides) for the full syntax.
+Bind the key inside a root-level `[[app_configs]]` block scoped to the target app by its `bundle_id` (requires Neru 1.47.0 and later). That block overrides `[hotkeys]` only while that app is focused, so the key drives Neru there and passes straight through to every other app. See [Per-App Global Hotkey Overrides](../reference/configuration.md#per-app-global-hotkey-overrides) for the full syntax.
 
 Inside the block, each hotkey value is an action sequence that clicks the element. Pointing at a UI element reliably is the hard part, and the three approaches below break under different conditions:
 
@@ -338,7 +338,7 @@ hotkeys = { "Cmd+1" = ["hints --role button --text Home --action left_click", "a
 
 Putting it together, a Claude view switcher scopes three keys to the app. `Cmd+1`, `Cmd+2`, and `Cmd+3` click the Home, Code, and Cowork buttons, each nudged to a different offset from the window's top-left corner:
 
-Only the offsets differ between the three, so name the sequence once in [`[macros]`](CONFIGURATION.md#macros) and pass them in:
+Only the offsets differ between the three, so name the sequence once in [`[macros]`](../reference/configuration.md#macros) and pass them in:
 
 ```toml
 [macros]
@@ -507,7 +507,7 @@ There is no upper bound beyond the one you pass: the daemon holds the reply unti
 
 ## Further Reading
 
-- [CONFIGURATION.md](CONFIGURATION.md) — every TOML option explained
-- [CLI.md](CLI.md) — all commands and flags
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common issues and fixes
-- [CONFIG_SHOWCASES.md](CONFIG_SHOWCASES.md) — see how others configure Neru
+- [CONFIGURATION.md](../reference/configuration.md) — every TOML option explained
+- [CLI.md](../reference/cli.md) — all commands and flags
+- [TROUBLESHOOTING.md](troubleshooting.md) — common issues and fixes
+- [CONFIG_SHOWCASES.md](../project/showcases.md) — see how others configure Neru

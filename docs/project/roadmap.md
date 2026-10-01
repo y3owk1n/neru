@@ -4,11 +4,11 @@ What we intend to work on next, and where help is most valuable.
 
 This document holds **intent and priority only**. It does not restate what
 works today. That lives in one place, the
-[Capability Matrix](CROSS_PLATFORM.md#capability-matrix), with anything still
-missing enumerated under [Known Gaps](CROSS_PLATFORM.md#known-gaps).
+[Capability Matrix](../reference/platform-support.md#capability-matrix), with anything still
+missing enumerated under [Known Gaps](../reference/platform-support.md#known-gaps).
 
-**Related:** [Cross-Platform Guide](CROSS_PLATFORM.md) ·
-[Contributing](../CONTRIBUTING.md) · [Architecture](ARCHITECTURE.md)
+**Related:** [Cross-Platform Guide](../reference/platform-support.md) ·
+[Contributing](../../CONTRIBUTING.md) · [Architecture](../contributing/architecture.md)
 
 ---
 
@@ -17,10 +17,10 @@ missing enumerated under [Known Gaps](CROSS_PLATFORM.md#known-gaps).
 - **macOS** is Stable and the reference implementation.
 - **Linux** and **Windows** are both Beta with parity complete: every option,
   mode flag, action and command means what it means on macOS, and
-  [Known Gaps](CROSS_PLATFORM.md#known-gaps) carries no entry for either.
+  [Known Gaps](../reference/platform-support.md#known-gaps) carries no entry for either.
   Nothing is left to build for the label. What moves a platform to Stable is
   the six-clean-releases rule under
-  [What the labels mean](CROSS_PLATFORM.md#what-the-labels-mean), which is
+  [What the labels mean](../reference/platform-support.md#what-the-labels-mean), which is
   earned by use rather than by a feature.
 
 So the roadmap has no platform feature list. The work now is proving both
@@ -45,7 +45,7 @@ platforms under real workloads and keeping the core reliable.
 
 Ideas with maintainer interest and no schedule. Each is an issue rather than a
 promise, and a Discussion is where a new one starts
-([Contributing](../CONTRIBUTING.md#feature-requests)).
+([Contributing](../../CONTRIBUTING.md#feature-requests)).
 
 - **React to a real mouse click inside a mode**
   ([#1417](https://github.com/y3owk1n/neru/issues/1417)).
@@ -63,13 +63,13 @@ In priority order:
    maintainer cannot reproduce on their own hardware.
 2. **A new desktop**. Add the backend by mechanism rather than
    by desktop, per
-   [organize by mechanism](CROSS_PLATFORM.md#organize-by-mechanism-not-by-desktop).
+   [organize by mechanism](../contributing/porting.md#organize-by-mechanism-not-by-desktop).
 3. **Config reload regression coverage** through the simulation harness in
    `internal/app/simulation_harness_test.go`.
 4. **Retiring remaining globals** behind explicit interfaces, where the native
    bridge callbacks allow it.
 
 New to the codebase?
-[Contributing safely](CROSS_PLATFORM.md#contributing-safely) lists starter
+[Contributing safely](../contributing/porting.md#contributing-safely) lists starter
 tasks, the changes worth opening an issue for first, and the five-point bar a
 platform change has to clear before it lands.

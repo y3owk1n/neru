@@ -67,7 +67,7 @@ func TestDocLinks_DoNotPointAtMissingPaths(t *testing.T) {
 
 			t.Errorf(
 				"%s references %q, which does not exist; update the link or the "+
-					"path (each fact has one home — docs/CROSS_PLATFORM.md, "+
+					"path (each fact has one home — docs/contributing/porting.md, "+
 					"Documentation Checklist)",
 				doc.relPath,
 				reference,

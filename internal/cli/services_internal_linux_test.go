@@ -55,7 +55,7 @@ func TestErrNotSystemd_NamesSystemdAndTheDocs(t *testing.T) {
 	}
 
 	message := err.Error()
-	for _, want := range []string{"install", "systemd", "runit", "docs/LINUX_SETUP.md"} {
+	for _, want := range []string{"install", "systemd", "runit", "docs/guide/linux.md"} {
 		if !strings.Contains(message, want) {
 			t.Errorf("errNotSystemd() message = %q, want it to mention %q", message, want)
 		}

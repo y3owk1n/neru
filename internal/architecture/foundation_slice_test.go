@@ -12,7 +12,7 @@ import (
 )
 
 // These tests pin the cross-platform foundation slice: the package list that
-// `just test-foundation` runs, documented in docs/DEVELOPMENT.md as the fast
+// `just test-foundation` runs, documented in docs/contributing/development.md as the fast
 // check to run before or during Linux/Windows work.
 //
 // The slice only earns that description if it holds every package whose

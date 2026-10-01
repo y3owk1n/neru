@@ -35,7 +35,7 @@ a one-line option into a ten-file one, and that no guide used to name.
    in `configs/` is a working file rather than a project artifact. Only
    `default-config.toml` is embedded; the rest are read from disk by the tests
    that check them.
-4. **Docs.** Add the row to `docs/CONFIGURATION.md`. That file is the single
+4. **Docs.** Add the row to `docs/reference/configuration.md`. That file is the single
    home for config reference facts; do not also describe the option in
    ARCHITECTURE or README. **No test catches a missing row** — this is the one
    universal link a reviewer has to check by eye.

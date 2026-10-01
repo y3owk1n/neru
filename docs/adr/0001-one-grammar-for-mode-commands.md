@@ -20,7 +20,7 @@ the command their own way.
 ## Considered options
 
 **A typed payload on the wire instead of an argument list.** This would delete
-the CLI's render-then-reparse round trip outright. Rejected: `docs/CLI.md`
+the CLI's render-then-reparse round trip outright. Rejected: `docs/reference/cli.md`
 documents `{"action":"hints","args":[]}` and invites scripts to use it, so the
 argument-list shape is public API. The hotkey path also has to parse text
 regardless — a binding is a string in `configs/default-config.toml` — so the

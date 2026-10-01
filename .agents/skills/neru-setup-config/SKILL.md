@@ -9,7 +9,7 @@ Neru reads one TOML file, and every key in it has a documented default and a
 platform column saying where it does anything. The work is choosing what to
 change, then applying it correctly. Most keys reload on demand, a few need a
 daemon restart, and a one-value change is faster through `neru config set`
-than through the file. The reference is `docs/CONFIGURATION.md` in the repo,
+than through the file. The reference is `docs/reference/configuration.md` in the repo,
 `man neru-config` on any install, and `neru docs config` in a browser.
 
 ## Where the reference lives
@@ -17,7 +17,7 @@ than through the file. The reference is `docs/CONFIGURATION.md` in the repo,
 The user rarely has a checkout. Every install method ships the binary and man
 pages only. Resolve the docs in this order:
 
-1. A checkout in the working directory: `docs/CONFIGURATION.md` exists.
+1. A checkout in the working directory: `docs/reference/configuration.md` exists.
 2. Man pages on macOS and Linux: `man neru-config-init`,
    `man neru-config-set`, `man neru-config-validate`, `man neru-services`,
    and `man neru-hints` or another mode page for the flags a hotkey may pass.
@@ -27,11 +27,14 @@ pages only. Resolve the docs in this order:
    ```bash
    tag=$(neru --version | sed -n '1s/^Neru version //p' | cut -d- -f1)
    case $tag in v*.*.*) ;; *) tag=main ;; esac
-   curl -fsSL "https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs/CONFIGURATION.md"
+   base="https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs"
+   curl -fsSL "$base/reference/configuration.md" || curl -fsSL "$base/CONFIGURATION.md"
    ```
 
    A release build prints its tag. A dev build prints `v1.2.3-14-gabcdef`,
-   which the `cut` maps to the release it was built from.
+   which the `cut` maps to the release it was built from. Releases before
+   the docs moved name the file `docs/CONFIGURATION.md`, so the second
+   fetch covers them.
 
    On Windows, where `man`, `sed`, and `cut` are usually absent, the same
    fetch in PowerShell:
@@ -39,7 +42,8 @@ pages only. Resolve the docs in this order:
    ```powershell
    $tag = (((neru --version)[0] -replace '^Neru version ', '') -split '-')[0]
    if ($tag -notmatch '^v\d+\.\d+\.\d+$') { $tag = 'main' }
-   Invoke-RestMethod "https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs/CONFIGURATION.md"
+   $base = "https://raw.githubusercontent.com/y3owk1n/neru/$tag/docs"
+   try { Invoke-RestMethod "$base/reference/configuration.md" } catch { Invoke-RestMethod "$base/CONFIGURATION.md" }
    ```
 
    `neru docs config` opens the same page in a browser on every platform,
@@ -47,7 +51,7 @@ pages only. Resolve the docs in this order:
 
 The file `neru config init` writes is fully commented and names every key,
 so after step 2 below, the user's own file is the quickest reference.
-`docs/TIPS_TRICKS.md` at the same URL has recipes to copy for the common
+`docs/guide/recipes.md` (`docs/TIPS_TRICKS.md` before the move) at the same URL has recipes to copy for the common
 asks: Vimium-style click on select, auto-exit after click, restoring the
 cursor after a mode, drag with any button, one key that cycles modes, and
 handing all hotkeys to skhd or another daemon.
@@ -60,7 +64,7 @@ handing all hotkeys to skhd or another daemon.
    and actions need Accessibility, and the `vision` and `contour` strategies
    need Screen Recording, both under System Settings, Privacy & Security.
    On Linux the user needs the `input` group and a `/dev/uinput` udev rule,
-   covered in `LINUX_SETUP.md`. Windows needs nothing beyond the install.
+   covered in `docs/guide/linux.md`. Windows needs nothing beyond the install.
 
 2. **Find or create the file.** The first existing path wins:
    `--config`, `$XDG_CONFIG_HOME/neru/config.toml`,

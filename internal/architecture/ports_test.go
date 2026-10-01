@@ -21,7 +21,7 @@ const docGoFile = "doc.go"
 var portsWithoutOwnMock = map[string]string{}
 
 // TestEveryPortHasAMock enforces the third requirement of Tier 1 in
-// docs/CROSS_PLATFORM.md: a port is not done until it has a mock.
+// docs/contributing/porting.md: a port is not done until it has a mock.
 //
 // Without one, consumers grow hand-rolled fakes in _test.go files that go stale
 // the moment the contract changes — which is exactly how two hotkey fakes ended
@@ -43,7 +43,7 @@ func TestEveryPortHasAMock(t *testing.T) {
 		if _, ok := mockNames["Mock"+name]; !ok {
 			t.Errorf(
 				"ports.%s has no Mock%s in internal/ports/mocks; every port "+
-					"needs a mock (docs/CROSS_PLATFORM.md, Tier 1)",
+					"needs a mock (docs/contributing/porting.md, Tier 1)",
 				name,
 				name,
 			)

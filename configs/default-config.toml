@@ -1,15 +1,15 @@
 # Neru default configuration
 # Copy to ~/.config/neru/config.toml to customize.
 
-# Full config reference: https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md
-# Full CLI reference: https://github.com/y3owk1n/neru/blob/main/docs/CLI.md
+# Full config reference: https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md
+# Full CLI reference: https://github.com/y3owk1n/neru/blob/main/docs/reference/cli.md
 
 # Every font_family option below takes a generic alias as well as an installed
 # family name; the accepted aliases are listed here:
-# https://github.com/y3owk1n/neru/blob/main/docs/CROSS_PLATFORM.md#capability-matrix
+# https://github.com/y3owk1n/neru/blob/main/docs/reference/platform-support.md#capability-matrix
 
 # General settings
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#general
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#general
 [general]
 excluded_apps = []                           # Bundle IDs to ignore (e.g. "com.apple.Terminal")
 kb_layout_to_use = ""                        # Force a keyboard layout; `neru doctor` lists the names (empty = auto)
@@ -25,7 +25,7 @@ hide_overlay_in_screen_share = false         # Hide overlay from screen sharing 
 # exec_shell_args = ["-lc"]                  # last argument receives the command string
 
 # Theme palette
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#theme
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#theme
 [theme.light]
 surface = "#EEF2FF"
 accent = "#465FBC"
@@ -41,8 +41,8 @@ on_accent_alt = "#081022"
 text = "#E8EEFF"
 
 # Hotkeys
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hotkeys
-# See https://github.com/y3owk1n/neru/blob/main/docs/CLI.md
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hotkeys
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/cli.md
 [hotkeys]
 "Primary+Shift+Space" = "hints"
 "Primary+Shift+G" = "grid"
@@ -52,7 +52,7 @@ text = "#E8EEFF"
 
 # Macros — named action sequences, reused from any binding.
 # Written by hand, not recorded. $1, $2 ... are the call's arguments.
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#macros
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#macros
 #
 # [macros]
 # click_and_exit = ["action left_click --bail-on-error", "idle"]
@@ -64,7 +64,7 @@ text = "#E8EEFF"
 # Declared modes — a keymap with a name and an indicator, no logic of its own.
 # Enter one with "mode <name>" from a hotkey, a sequence step, or `neru mode
 # <name>`. Escape returns to idle unless the mode rebinds it.
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#modes
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#modes
 #
 # [modes.window]
 # indicator = "Window"
@@ -78,7 +78,7 @@ text = "#E8EEFF"
 # "Primary+Shift+W" = "mode window"
 
 # Hint mode
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hints
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hints
 [hints]
 enabled = true
 strategy = "axtree"                         # Element detection: "axtree" (AX API), "vision" (screen recognition) or "contour" (edge detection)
@@ -209,7 +209,7 @@ square_icon_size = 40.0                      # Square parents smaller than this 
 square_icon_slack = 5.0                      # How far from square (|w-h|) that parent may be
 
 # Grid mode
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#grid
 [grid]
 enabled = true
 capture_scope = "screen"                    # Region the grid covers: "screen" or "window" (the focused window)
@@ -244,7 +244,7 @@ font_family = ""
 border_width = 1
 
 # Recursive grid mode (recommended)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#recursive_grid
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#recursive_grid
 [recursive_grid]
 enabled = true
 capture_scope = "screen"                    # Region the first level covers: "screen" or "window" (the focused window)
@@ -292,7 +292,7 @@ sub_key_preview_autohide_multiplier = 1.5   # Keep sub-cell >= fontSize × multi
 sub_key_preview_label_char = ""             # Override sub-key preview labels with a single character (e.g. "·"); empty = use key
 
 # Bisect mode: every press keeps half of the region, or a quadrant of it
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#bisect
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#bisect
 # Launched with Primary+Shift+B by default (see [hotkeys]).
 [bisect]
 enabled = true
@@ -343,14 +343,14 @@ sub_key_preview_autohide_multiplier = 1.5
 sub_key_preview_label_char = ""
 
 # Virtual pointer
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#virtual_pointer
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#virtual_pointer
 [virtual_pointer.ui]
 char = "●"             # Character to display (e.g. "•", "●", "◉", "⬤") or anything you like
 font_size = 8
 font_family = ""
 
 # Mouse action indicator (macOS)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse_action_indicator
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#mouse_action_indicator
 [mouse_action_indicator]
 enabled = false                             # Disabled by default
 actions = [
@@ -382,7 +382,7 @@ end_opacity = 0.0
 easing = "ease_out"                         # linear, ease_in, ease_out, ease_in_out
 
 # Monitor select mode
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#monitor_select
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#monitor_select
 [monitor_select]
 enabled = false                                # Enable interactive monitor picking mode
 characters = "123456789"                       # Characters used for monitor labels
@@ -402,7 +402,7 @@ backdrop_color = ""                            # Per-monitor tint backdrop
 "Escape" = "idle"
 
 # Scroll mode
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#scroll
 [scroll]
 scroll_step = 50                            # Pixels per j/k press
 scroll_step_half = 500                      # Pixels for d/u (half page)
@@ -432,7 +432,7 @@ invert_scroll = false                       # Invert scroll direction (for tools
 "Right" = "action move_mouse_relative --dx=10 --dy=0"
 
 # Mode indicator
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mode_indicator
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#mode_indicator
 [mode_indicator]
 
 [mode_indicator.scroll]
@@ -470,7 +470,7 @@ indicator_x_offset = 20
 indicator_y_offset = 20
 
 # Sticky modifiers
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#sticky_modifiers
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#sticky_modifiers
 [sticky_modifiers]
 enabled = true
 tap_max_duration = 300
@@ -486,7 +486,7 @@ indicator_x_offset = -40
 indicator_y_offset = 20
 
 # Smooth cursor (animates cursor movement between positions)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth_cursor
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#smooth_cursor
 [smooth_cursor]
 move_mouse_enabled = false                  # Enable smooth mouse movement
 steps = 10                                  # Number of intermediate positions
@@ -495,7 +495,7 @@ duration_per_pixel = 0.1                    # Ms per pixel for adaptive duration
 relative_movement_duration = 50             # Fixed duration per relative (hjkl) move in ms (macOS/Linux)
 
 # Smooth scroll (animates scroll actions with eased chunking)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth_scroll
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#smooth_scroll
 [smooth_scroll]
 enabled = false                             # Enable smooth scrolling
 steps = 20                                  # Number of animation steps
@@ -503,7 +503,7 @@ max_duration = 180                          # Maximum animation duration in ms
 duration_per_pixel = 1.00                   # Ms per pixel for adaptive duration
 
 # Held-key repeat (fires scroll/page/mouse-move actions repeatedly while held)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#held_repeat
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#held_repeat
 [held_repeat]
 enabled = false                         # Master toggle for held-key repeat (a held move_mouse_relative glides)
 initial_delay_ms = 50                   # Delay before first repeat fires (ms)
@@ -514,12 +514,12 @@ accel_max_multiplier = 4.0              # Speed multiplier at full ramp
 accel_targets = ["move_mouse_relative"] # Action names eligible for acceleration
 
 # Systray
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#systray
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#systray
 [systray]
 enabled = true                              # Show menu bar icon (false = headless mode)
 
 # Logging
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#logging
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#logging
 [logging]
 log_level = "info"                          # debug, info, warn, error
 log_file = ""                               # Custom log path (empty = default location)

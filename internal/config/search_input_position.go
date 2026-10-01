@@ -45,7 +45,7 @@ const (
 const SearchInputPositionDefault = SearchInputPositionBottomCenter
 
 // SearchInputPositions returns every accepted `hints.search_input_ui.position`
-// value, in the order docs/CONFIGURATION.md lists them. Callers get a fresh
+// value, in the order docs/reference/configuration.md lists them. Callers get a fresh
 // slice, so a consumer that sorts or filters cannot reach the vocabulary
 // itself.
 func SearchInputPositions() []string {

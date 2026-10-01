@@ -8,8 +8,8 @@ the reply. "The daemon" below means the process started by `neru launch`.
 
 The same content is available as manpages (`man neru`) after installation.
 
-**Related:** [Configuration Reference](CONFIGURATION.md) ·
-[Installation](INSTALLATION.md) · [Troubleshooting](TROUBLESHOOTING.md)
+**Related:** [Configuration Reference](configuration.md) ·
+[Installation](../guide/installation.md) · [Troubleshooting](../guide/troubleshooting.md)
 
 ---
 
@@ -25,8 +25,8 @@ The same content is available as manpages (`man neru`) after installation.
 - [Configuration commands](#configuration-commands) — `config`
 - [Runtime toggles](#runtime-toggles)
 - [Utilities](#utilities) — `roles` · `services` · `docs`
-- [Scripting](#scripting)
-- [IPC protocol](#ipc-protocol)
+- [Scripting](scripting.md)
+- [IPC protocol](scripting.md#ipc-protocol)
 
 ---
 
@@ -57,7 +57,7 @@ Windows. Commands that are unavailable return `ERR_NOT_SUPPORTED`.
 
 On Linux, "supported" means an X11 session or a Wayland session on wlroots,
 KWin, COSMIC or GNOME (with Xwayland). See
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md#platform-status).
+[CROSS_PLATFORM.md](platform-support.md#platform-status).
 
 `-h`, `--help` is accepted by every command and is omitted from the flag tables
 below.
@@ -70,7 +70,7 @@ Accepted by every command.
 
 | Flag        | Shorthand | Type   | Default | Description                                                                        |
 | ----------- | --------- | ------ | ------- | ---------------------------------------------------------------------------------- |
-| `--config`  | `-c`      | string | `""`    | Path to the config file. Overrides the default search paths. See [Config file location](CONFIGURATION.md#config-file-location). |
+| `--config`  | `-c`      | string | `""`    | Path to the config file. Overrides the default search paths. See [Config file location](../guide/getting-started.md#config-file-location). |
 | `--timeout` |           | int    | `10`    | IPC timeout in seconds.                                                             |
 
 ---
@@ -106,7 +106,7 @@ Accepted by every command.
 ¹ Element discovery quality differs by platform: a full accessibility tree on
 macOS, an AT-SPI walk on Linux whose coverage depends on the application, and a
 cached UI Automation walk of the control view on Windows. The `vision` strategy is the
-fallback where that tree is thin. See [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
+fallback where that tree is thin. See [Accessibility and hints](platform-support.md#accessibility-and-hints).
 
 ² `hide_cursor` and `show_cursor` are macOS only. See
 [Action platform support](#action-platform-support).
@@ -191,7 +191,7 @@ Requires a running daemon.
 | Field    | Values                                                  |
 | -------- | ------------------------------------------------------- |
 | `Status` | `running`, `disabled`                                   |
-| `Mode`   | `idle`, `hints`, `grid`, `recursive_grid`, `scroll`, `monitor_select`, or the name of the open [declared mode](CONFIGURATION.md#modes) |
+| `Mode`   | `idle`, `hints`, `grid`, `recursive_grid`, `scroll`, `monitor_select`, or the name of the open [declared mode](configuration.md#modes) |
 
 **JSON output**
 
@@ -204,7 +204,7 @@ $ neru status --json | jq -r .mode
 idle
 ```
 
-The examples here and in [Tips & Tricks](TIPS_TRICKS.md) use
+The examples here and in [Tips & Tricks](../guide/recipes.md) use
 [`jq`](https://jqlang.github.io/jq/) to read the object; any JSON tool does.
 
 | Key                                                     | Type   | Description                                              |
@@ -258,7 +258,7 @@ neru doctor
 Does not require a running daemon. Reports config validity, socket health,
 platform capabilities, and internal component state. Platform capabilities come
 from the capability matrix described in
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md#capability-matrix). With the daemon
+[CROSS_PLATFORM.md](platform-support.md#capability-matrix). With the daemon
 running, the `Overlay backend` line names the renderer that is drawing right
 now rather than the matrix entry, which on Windows tells DirectComposition +
 Direct2D apart from the GDI fallback and says why the fallback was taken.
@@ -269,7 +269,7 @@ configuration writes that do nothing on this platform, with the reason for
 each. They are not errors — the file loads and the daemon runs, which is what
 lets one configuration be carried between platforms — so the row never fails
 the check. The full set is
-[Platform Support Per Word](CROSS_PLATFORM.md#platform-support-per-word).
+[Platform Support Per Word](platform-support.md#platform-support-per-word).
 
 ---
 
@@ -282,8 +282,8 @@ command requires a running daemon.
 
 Every flag a mode command accepts, and which modes accept it. The same command
 is understood identically wherever it is written — typed after `neru`, as a
-step in a [hotkey binding](CONFIGURATION.md#hotkeys), or sent over the
-[IPC socket](#ipc-protocol) — so a flag listed here works in all three, and a
+step in a [hotkey binding](configuration.md#hotkeys), or sent over the
+[IPC socket](scripting.md#ipc-protocol) — so a flag listed here works in all three, and a
 flag a mode is not listed for is refused rather than ignored.
 
 A flag written more than once replaces its earlier value, unless the value
@@ -326,10 +326,10 @@ nothing.
 - `--text` matches case-insensitively on a substring, and several values match
   any of them.
 - `--label-direction` is explained under
-  [Choosing a label direction](CONFIGURATION.md#choosing-a-label-direction).
+  [Choosing a label direction](configuration.md#choosing-a-label-direction).
 - `--strategy vision` and `--split-word` work everywhere. On Linux and Windows
   the strategy is text-only, and Windows needs an OCR language pack. See
-  [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
+  [Accessibility and hints](platform-support.md#accessibility-and-hints).
 - `--strategy` and `--capture-scope` accept a comma-separated list, which one
   binding can cycle through. `hints --strategy axtree,vision` enters with
   `axtree`. The same command while hints is open rescans with the entry after
@@ -346,7 +346,7 @@ nothing.
 **Where the defaults come from**
 
 A flag left out inherits the configuration rather than a zero value:
-`--strategy` from [`hints.strategy`](CONFIGURATION.md#hints) and
+`--strategy` from [`hints.strategy`](configuration.md#hints) and
 `--label-direction` from `hints.label_direction`. `--cursor-selection-mode`
 defaults to `follow`, and a presence-only flag left out asks for nothing.
 
@@ -366,7 +366,7 @@ label on each. Typing a label selects that element.
 Element discovery uses the `axtree` strategy by default. The `vision` strategy
 is macOS-only and detects on-screen text and rectangles via the Vision
 framework. Coverage per platform is documented in
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md#accessibility-and-hints).
+[CROSS_PLATFORM.md](platform-support.md#accessibility-and-hints).
 
 **Flags** — every flag listed for `hints` in the
 [mode flag reference](#mode-flag-reference), plus the probe below.
@@ -382,7 +382,7 @@ cannot be combined with a flag that only describes an activation — `--action`,
 `--hide-on-empty-search`, `--exit-on-unmatched`, `--label-direction` or `--cursor-selection-mode`. It
 does accept the flags that decide which elements are collected: `--role`,
 `--text`, `--strategy` and `--split-word`. On the wire a probe is its own
-command; see [IPC protocol](#ipc-protocol).
+command; see [IPC protocol](scripting.md#ipc-protocol).
 
 **Examples**
 
@@ -413,7 +413,7 @@ Overlays a grid of labelled cells. Typing a cell label moves the cursor there.
 [mode flag reference](#mode-flag-reference).
 
 Grid size, labels, and appearance are configured under
-[`[grid]`](CONFIGURATION.md#grid). The grid covers the whole screen, or the
+[`[grid]`](configuration.md#grid). The grid covers the whole screen, or the
 focused window with `--capture-scope window`.
 
 Typing a full label opens a 3x3 subgrid inside that cell. To correct an
@@ -443,7 +443,7 @@ neru recursive_grid [flags]
 
 Each keypress subdivides the selected cell, so successive presses converge on a
 point. Depth limits and per-depth layout are configured under
-[`[recursive_grid]`](CONFIGURATION.md#recursive_grid).
+[`[recursive_grid]`](configuration.md#recursive_grid).
 
 Backspace backtracks one level. To correct sideways instead of upwards, bind
 [`move_cell`](#neru-action-move_cell) — it slides the selection to a
@@ -483,7 +483,7 @@ in the cells. Each press keeps one half of it or one quadrant, and the cursor
 moves to the centre of what is left, or with `--cursor-selection-mode hold`
 stays put while a pointer stand-in marks the centre. Backspace takes the last
 cut back and Space starts over. The keys and the default scope are configured
-under [`[bisect]`](CONFIGURATION.md#bisect), and the region's appearance and
+under [`[bisect]`](configuration.md#bisect), and the region's appearance and
 transition under `[bisect.ui]` and `[bisect.animation]`.
 
 **Flags**: every flag listed for `bisect` in the
@@ -513,7 +513,7 @@ neru scroll [flags]
 
 **Default key bindings**
 
-Every binding below is configurable under [`[scroll.hotkeys]`](CONFIGURATION.md#scroll).
+Every binding below is configurable under [`[scroll.hotkeys]`](configuration.md#scroll).
 
 | Key                    | Action                     |
 | ---------------------- | -------------------------- |
@@ -576,7 +576,7 @@ neru monitor_select --toggle
 
 ## neru mode
 
-Enter a mode you declared under [`[modes.<name>]`](CONFIGURATION.md#modes).
+Enter a mode you declared under [`[modes.<name>]`](configuration.md#modes).
 
 ```
 neru mode <name> [flags]
@@ -854,7 +854,7 @@ hints, scroll, idle — ignore the action.
 | `--count`     | int    | `1`     | Number of cells to move. Must be at least 1.    |
 
 This action is held-key repeatable: with
-[`[held_repeat]`](CONFIGURATION.md#held_repeat) enabled (it is off by default),
+[`[held_repeat]`](configuration.md#held_repeat) enabled (it is off by default),
 a hotkey bound to it slides continuously while the key is held.
 
 **Examples**
@@ -900,7 +900,7 @@ unmodified, and it is `--modifier ctrl` that makes it zoom.
 
 **Platforms:** scrolling works on both axes everywhere. For what each backend
 does with `--modifier`, see the
-[capability matrix](CROSS_PLATFORM.md#capability-matrix).
+[capability matrix](platform-support.md#capability-matrix).
 
 **Examples**
 
@@ -1177,7 +1177,7 @@ neru run <step> [step...]
 Each argument is one step, written exactly as it would be written in a hotkey
 binding: an action (`action left_click`), a mode (`hints --action left_click`),
 a shell command (`exec open -a Safari`), or a named sequence from the
-[`[macros]`](CONFIGURATION.md#macros) table (`macro window_click 100 70`). The
+[`[macros]`](configuration.md#macros) table (`macro window_click 100 70`). The
 daemon executes the steps in order.
 
 This is the same executor that runs a multi-action hotkey binding, so a
@@ -1232,7 +1232,7 @@ Text that merely looks like the directive is left alone, so
 `exec sh -c "echo --bail-on-error"` still passes it through to the shell.
 
 The policy applies to the steps of one sequence. A step that runs a nested
-sequence — another `run`, or a [`macro`](CONFIGURATION.md#macros) — keeps its
+sequence — another `run`, or a [`macro`](configuration.md#macros) — keeps its
 own policy inside; its overall failure is then reported to the caller as that
 one step failing, which an outer `--stop-on-error` or `--bail-on-error` acts on.
 
@@ -1270,7 +1270,7 @@ neru run "hints --action left_click" "action wait_for_mode_exit --bail" \
 
 ## neru macro
 
-Run a named sequence from the [`[macros]`](CONFIGURATION.md#macros) table.
+Run a named sequence from the [`[macros]`](configuration.md#macros) table.
 
 ```
 neru macro <name> [arg...]
@@ -1316,7 +1316,7 @@ neru --timeout 30 macro click_and_settle
 
 # Configuration commands
 
-Full option reference: [CONFIGURATION.md](CONFIGURATION.md).
+Full option reference: [CONFIGURATION.md](configuration.md).
 
 ## neru config init
 
@@ -1369,9 +1369,9 @@ These parts of the configuration load and will not take effect.
 
 A clickable role that this platform's accessibility vocabulary has no name for
 — the shape a configuration written on another machine has — is reported the
-same way; see [Clickable roles](CONFIGURATION.md#clickable-roles).
+same way; see [Clickable roles](configuration.md#clickable-roles).
 
-See [Global Hotkeys](CONFIGURATION.md#global-hotkeys) for which mistakes warn
+See [Global Hotkeys](configuration.md#global-hotkeys) for which mistakes warn
 and which refuse the file.
 
 ---
@@ -1654,7 +1654,7 @@ The definition is a launchd plist in `~/Library/LaunchAgents` on macOS, a
 systemd user unit on Linux, and a task named `\Neru` in the Task Scheduler root
 folder on Windows; where the Linux unit is written, what it contains, and what
 happens on a machine booted by another init system are in
-[LINUX_SETUP.md](LINUX_SETUP.md#systemd-user-service).
+[LINUX_SETUP.md](../guide/linux.md#systemd-user-service).
 
 The Windows task runs `neru launch` as the installing user with an interactive
 token, restarts it on failure, and carries no execution time limit, so the
@@ -1696,112 +1696,3 @@ fall back to `main`.
 | ---------- | --------------------------- |
 | `config`   | The configuration reference |
 | `cli`      | This CLI reference          |
-
----
-
-# Scripting
-
-Neru commands are ordinary processes with conventional exit statuses, so they
-compose with shell scripts and external hotkey daemons.
-
-**Toggle the daemon**
-
-```bash
-if [ "$(neru status --json | jq -r .enabled)" = "true" ]; then
-    neru stop
-else
-    neru start
-fi
-```
-
-**Check whether the daemon is reachable**
-
-```bash
-neru status &>/dev/null && echo "Running" || echo "Not running"
-```
-
-**Drive Neru from an external hotkey manager**
-
-```
-# ~/.config/skhd/skhdrc
-ctrl - f : neru hints
-ctrl - g : neru grid
-ctrl - r : neru hints --action right_click
-ctrl - t : neru hints --action left_click --repeat
-```
-
-**Run several steps as one unit**
-
-Chaining `neru` invocations with `&&` spawns a process and opens a connection
-per step. [`neru run`](#neru-run) sends the whole sequence once and the daemon
-executes it in order, under the same rules a hotkey binding gets:
-
-```bash
-neru run "action save_cursor_pos" "hints --action left_click" \
-         "action wait_for_mode_exit --bail" "action restore_cursor_pos"
-```
-
----
-
-# IPC protocol
-
-The CLI and the daemon exchange JSON over a Unix domain socket, or a named pipe
-on Windows. The daemon queues incoming commands, so concurrent calls from
-scripts are safe.
-
-**Request**
-
-```json
-{ "action": "hints", "params": {}, "args": [] }
-```
-
-`action` names either a mode command — `hints`, `grid`, `recursive_grid`,
-`scroll`, `monitor_select`, `idle`, or `mode` with the declared name as the
-first entry of `args` — or one of the standalone commands. `args` carries the
-same flags a user would type.
-
-A mode command's flags are read exactly as the CLI reads them, and answered
-with the same message: an unknown flag, a flag the named mode does not accept,
-an unusable value, and an unmet dependency such as `--on-exit` without
-`--action` are all refused with `ERR_INVALID_INPUT` rather than accepted and
-dropped. Repeating the mode's own name as the first entry of `args` is accepted
-and ignored, so anything modelled on the CLI's earlier traffic keeps working.
-The CLI no longer sends it: the action already names the mode.
-
-**Probing without activating**
-
-`hints-probe` reports what hints mode would target for the focused window and
-answers with a count and a sample in `message`. It draws nothing and enters no
-mode, so it takes only the flags that decide which elements are collected:
-`--role`, `--text`, `--strategy`, `--split-word`. Anything else is refused with
-`ERR_INVALID_INPUT`. This is what `neru hints --debug` sends.
-
-```json
-{ "action": "hints-probe", "args": ["--role=button", "--strategy=vision"] }
-```
-
-**Response**
-
-```json
-{ "success": true, "message": "OK", "code": "OK" }
-```
-
-**Response codes**
-
-| Code                    | Meaning                                                  |
-| ----------------------- | -------------------------------------------------------- |
-| `OK`                    | Command succeeded                                        |
-| `ERR_UNKNOWN_COMMAND`   | No such command                                          |
-| `ERR_INVALID_INPUT`     | Malformed arguments or flag values                       |
-| `ERR_NOT_RUNNING`       | Neru is paused via `neru stop`                            |
-| `ERR_ALREADY_RUNNING`   | Target is already in the requested state                 |
-| `ERR_MODE_DISABLED`     | The requested mode is disabled in the configuration      |
-| `ERR_ACTION_FAILED`     | The action was dispatched but did not complete           |
-| `ERR_CHAIN_BAIL`        | An action chain aborted, for example `--bail`             |
-| `ERR_NOT_SUPPORTED`     | Not implemented on this platform                         |
-| `ERR_VERSION_MISMATCH`  | Client and daemon builds differ; restart the daemon       |
-
-A connection error rather than a response code means no daemon is running.
-
-**Log file locations** are listed in
-[TROUBLESHOOTING.md](TROUBLESHOOTING.md#log-file-locations).

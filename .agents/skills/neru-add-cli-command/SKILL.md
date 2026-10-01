@@ -1,6 +1,6 @@
 ---
 name: neru-add-cli-command
-description: "Add a Neru CLI command or flag: cobra command in internal/cli, IPC handler in internal/app/ipcctrl, service/mode work behind it, man pages, and docs/CLI.md. Use when adding or changing user-facing commands, subcommands, or flags. Not for config.toml options."
+description: "Add a Neru CLI command or flag: cobra command in internal/cli, IPC handler in internal/app/ipcctrl, service/mode work behind it, man pages, and docs/reference/cli.md. Use when adding or changing user-facing commands, subcommands, or flags. Not for config.toml options."
 ---
 
 # Adding a CLI command to Neru
@@ -30,7 +30,7 @@ wrong even when it compiles.
 5. **Man pages**: regenerate with `just genman` (backed by `./cmd/genman`).
    Cobra metadata is the source — if the man page reads wrong, fix the
    command's `Short`/`Long`, not the output.
-6. **Docs**: update `docs/CLI.md`. It is the single home for CLI reference
+6. **Docs**: update `docs/reference/cli.md`. It is the single home for CLI reference
    facts.
 
 ## Mode flags are different
@@ -42,7 +42,7 @@ entry is what offers the flag on the command line, what the daemon and the
 config validator read it with, and what writes its row in the reference.
 
 After adding, removing or re-wording one, run `just genflagref` to rewrite the
-generated region of `docs/CLI.md`. An architecture test
+generated region of `docs/reference/cli.md`. An architecture test
 (`internal/architecture/mode_flag_contract_test.go`) fails while a descriptor
 is unregistered or missing from that region, and while a mode command offers a
 flag the table never declared.

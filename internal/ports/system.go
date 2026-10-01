@@ -165,7 +165,7 @@ type SystemPort interface {
 // a delta natively, without a read-then-warp round trip. Optional extensions
 // are declared here beside the port, opted into by implementing them, and
 // reached by type assertion; the caller always needs a fallback. See
-// docs/CROSS_PLATFORM.md ("The three tiers").
+// docs/contributing/porting.md ("The three tiers").
 //
 // Implemented by the Linux adapter, whose Wayland backends have no
 // authoritative cursor query — warping to position+delta would compound the

@@ -1,7 +1,7 @@
 // Package flagref renders the published mode-flag reference from the grammar's
 // descriptor table.
 //
-// The reference is the table in docs/CLI.md that says which flags a mode
+// The reference is the table in docs/reference/cli.md that says which flags a mode
 // command accepts. It was kept by hand, which made it a promise rather than a
 // fact: a flag added to internal/domain/modecmd appeared in the binary and not
 // in the document, and a reader had no way to tell which of the two was wrong.

@@ -10,5 +10,5 @@ contact_links:
       url: https://github.com/y3owk1n/neru/discussions
       about: Ask questions, share your config, or discuss ideas before opening an issue.
     - name: 🔧 Troubleshooting Guide
-      url: https://github.com/y3owk1n/neru/blob/main/docs/TROUBLESHOOTING.md
+      url: https://github.com/y3owk1n/neru/blob/main/docs/guide/troubleshooting.md
       about: Check the troubleshooting guide for common issues and app-specific fixes.

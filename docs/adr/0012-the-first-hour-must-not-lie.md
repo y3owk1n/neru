@@ -36,7 +36,7 @@ say `ok`.
 
 The criterion also disqualified five of the review's own twenty claims, which
 is the other half of its value. `lint-cross` and `test-linux` were said to
-appear in zero markdown files; they appear in three, and `docs/CROSS_PLATFORM.md`
+appear in zero markdown files; they appear in three, and `docs/contributing/porting.md`
 now presents the hand-rolled `CGO_ENABLED=0 GOOS=linux golangci-lint run` with a
 caveat paragraph and names `just lint-cross` as the real check. The Linux build
 dependencies were said to live only in `ci.yml`; they have a `## Build

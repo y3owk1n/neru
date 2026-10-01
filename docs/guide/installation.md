@@ -2,11 +2,11 @@
 
 This guide covers installation methods for Neru, with the most complete support on macOS.
 
-**Related:** [CLI Reference](CLI.md) · [Configuration Reference](CONFIGURATION.md) ·
-[Linux setup](LINUX_SETUP.md) · [Troubleshooting](TROUBLESHOOTING.md)
+**Related:** [CLI Reference](../reference/cli.md) · [Configuration Reference](../reference/configuration.md) ·
+[Linux setup](linux.md) · [Troubleshooting](troubleshooting.md)
 
 > [!NOTE]
-> macOS is the primary supported platform; Linux and Windows are Beta. Every method below ships all three except Homebrew, which is macOS only. What works where is in the [Cross-Platform Guide](CROSS_PLATFORM.md#capability-matrix).
+> macOS is the primary supported platform; Linux and Windows are Beta. Every method below ships all three except Homebrew, which is macOS only. What works where is in the [Cross-Platform Guide](../reference/platform-support.md#capability-matrix).
 
 ---
 
@@ -28,9 +28,9 @@ This guide covers installation methods for Neru, with the most complete support 
 
 - **macOS**: 14.0 or later, plus Accessibility permission (granted during setup)
 - **Linux** (beta): X11 or a supported Wayland compositor — see
-  [LINUX_SETUP.md](LINUX_SETUP.md) for host requirements per backend
+  [LINUX_SETUP.md](linux.md) for host requirements per backend
 - **Windows** (beta): Windows 10 or later — see the
-  [capability matrix](CROSS_PLATFORM.md#capability-matrix)
+  [capability matrix](../reference/platform-support.md#capability-matrix)
 
 ---
 
@@ -109,7 +109,7 @@ prompt. Say yes to the last question and it registers the launchd login agent.
 On Linux the release binary links the X11, Wayland, tesseract and pipewire
 libraries dynamically, so the script runs the downloaded binary once before it
 installs anything. When a library is missing it lists the names, points at the
-package lists in [LINUX_SETUP.md](LINUX_SETUP.md#build-dependencies), and stops
+package lists in [LINUX_SETUP.md](linux.md#build-dependencies), and stops
 without touching your system. Once that passes it copies `neru` to
 `~/.local/bin`, man pages to `~/.local/share/man/man1`, and completions to the
 usual per-user paths. It offers
@@ -662,7 +662,7 @@ just build && just dist
 mv ./build/dist/Neru.app /Applications/Neru.app
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed build options.
+See [DEVELOPMENT.md](../contributing/development.md) for detailed build options.
 
 ---
 
@@ -698,11 +698,11 @@ neru status  # Should show "running"
 
 ### 4. Configure
 
-Neru loads config from `~/.config/neru/config.toml` (recommended). See [CONFIGURATION.md](CONFIGURATION.md) for the full search order.
+Neru loads config from `~/.config/neru/config.toml` (recommended). See [CONFIGURATION.md](../reference/configuration.md) for the full search order.
 
 **Get started:** Copy `configs/default-config.toml` to `~/.config/neru/config.toml`
 
-See [CONFIGURATION.md](CONFIGURATION.md) for all options. Having issues? Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+See [CONFIGURATION.md](../reference/configuration.md) for all options. Having issues? Check [TROUBLESHOOTING.md](troubleshooting.md).
 
 ### 5. Agent skills (optional)
 
@@ -745,8 +745,8 @@ neru completion fish > ~/.config/fish/completions/neru.fish
 ## Troubleshooting
 
 Install-time fixes (quarantine, PATH, permissions, Homebrew, Nix) live with all
-the other fixes in [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — start at
-[Installation & Setup](TROUBLESHOOTING.md#installation--setup). One
+the other fixes in [TROUBLESHOOTING.md](troubleshooting.md) — start at
+[Installation & Setup](troubleshooting.md#installation--setup). One
 Nix-specific note: the flake's release-artifact URL is arch-specific, so on
 Intel Macs use `neru-darwin-amd64.zip` in place of the arm64 artifact.
 

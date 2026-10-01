@@ -6,12 +6,12 @@ issues specific to it.
 
 This is the **per-desktop** layer. Which protocol or API implements each
 capability, and why, is in the
-[Capability Matrix](CROSS_PLATFORM.md#capability-matrix). Host preparation
+[Capability Matrix](../reference/platform-support.md#capability-matrix). Host preparation
 (dependencies, permissions, build, deploy) is in
-[LINUX_SETUP.md](./LINUX_SETUP.md).
+[LINUX_SETUP.md](./linux.md).
 
-**Related:** [Linux setup](./LINUX_SETUP.md) ·
-[Cross-Platform Guide](./CROSS_PLATFORM.md) · [Troubleshooting](./TROUBLESHOOTING.md)
+**Related:** [Linux setup](./linux.md) ·
+[Cross-Platform Guide](../reference/platform-support.md) · [Troubleshooting](./troubleshooting.md)
 
 ---
 
@@ -180,7 +180,7 @@ Two behaviors are specific enough to note here:
   window-relative. On niri, **tiled** windows expose no on-screen position
   ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are
   misaligned there. Details in
-  [CROSS_PLATFORM.md](CROSS_PLATFORM.md#accessibility-and-hints).
+  [CROSS_PLATFORM.md](../reference/platform-support.md#accessibility-and-hints).
 
 ### Known issues
 
@@ -190,7 +190,7 @@ Two behaviors are specific enough to note here:
   `/dev/uinput` the proxy reads passively and scrolling falls back to the
   virtual pointer, which Chromium and Electron apps on Hyprland ignore. Both
   are install-time steps in
-  [LINUX_SETUP.md](./LINUX_SETUP.md#install-time-environment-adjustments).
+  [LINUX_SETUP.md](./linux.md#install-time-environment-adjustments).
 - **Modified scroll on Hyprland** goes out on the uinput wheel in whole
   notches, because a virtual-pointer scroll under a virtual-keyboard modifier
   produces no event there ([#1474](https://github.com/y3owk1n/neru/pull/1474)).
@@ -207,7 +207,7 @@ The simplest configuration: global hotkeys come from Neru's own config via
 Two limits are the display server's: modifier passthrough is not available
 (`XGrabKeyboard` is all-or-nothing), and smooth scroll animates in whole
 notches. Build dependencies and systemd deployment are in
-[LINUX_SETUP.md](./LINUX_SETUP.md).
+[LINUX_SETUP.md](./linux.md).
 
 ---
 
@@ -292,7 +292,7 @@ offers two paths and prefers the first:
    access.
 
 Path 1 needs **read access to `/dev/input`** (the `input` group, then re-login,
-see [LINUX_SETUP.md](./LINUX_SETUP.md#wayland-keyboard-capture-permissions))
+see [LINUX_SETUP.md](./linux.md#wayland-keyboard-capture-permissions))
 and **a CGO build**, which the official Linux builds are. On startup the daemon
 logs `Wayland global hotkeys enabled via evdev; config keybindings are active`
 on success, or a warning naming both the `input` group and the compositor
@@ -302,9 +302,9 @@ Bindings keep working from inside a mode, because the proxy hands every press
 to the mode session and the mode handler resolves the global table itself. A
 chord bound in the *compositor* cannot fire while a mode is open, since the
 compositor is not reading the keyboard then. Why the proxy holds the keyboards
-at all: [ADR 0014](adr/0014-the-wayland-keyboard-is-a-proxy.md); how it shares
+at all: [ADR 0014](../adr/0014-the-wayland-keyboard-is-a-proxy.md); how it shares
 one reader with the in-mode tap:
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md#keyboard-capture-and-hotkeys).
+[CROSS_PLATFORM.md](../reference/platform-support.md#keyboard-capture-and-hotkeys).
 
 ---
 
@@ -323,4 +323,4 @@ and COSMIC do; one with neither needs its overlay drawn on Xwayland, as GNOME
 does. The daemon refuses to start on a compositor it does not recognize, as
 `wayland-other`. Adding one is a backend-detection entry, a focused-window
 geometry source, and at most a mechanism-specific file, never a per-DE stack:
-[organize by mechanism, not by desktop](CROSS_PLATFORM.md#organize-by-mechanism-not-by-desktop).
+[organize by mechanism, not by desktop](../contributing/porting.md#organize-by-mechanism-not-by-desktop).

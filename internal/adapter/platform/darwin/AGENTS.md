@@ -1,6 +1,6 @@
 # Darwin bridge — native-boundary contracts
 
-Read `../AGENTS.md` first (slots, stubs, coordinates). This file covers the ObjC/cgo boundary; the authoritative memory & threading guide is `docs/go/OBJECTIVE_C.md`.
+Read `../AGENTS.md` first (slots, stubs, coordinates). This file covers the ObjC/cgo boundary; the authoritative memory & threading guide is `docs/contributing/objective-c.md`.
 
 - **ARC is on** (`-fobjc-arc`): `retain`/`release` are compile errors. Transfer idiom: `__bridge_retained` to hand ownership out, `CFBridgingRelease` to take it back, plain `__bridge` to borrow.
 - **AX ownership**: every `AXUIElementRef` handed to Go is +1 retained and Go-owned, balanced exactly once by `Element.Release()`; borrow-only functions must not touch the refcount (rule in `accessibility.h`). The leak gate lives in *another package*: `TestTreeWalk_ReleasesEveryElement` (`internal/adapter/accessibility`, tagged `integration && darwin`) — run it after touching `accessibility*.m`.

@@ -4,7 +4,7 @@
 
 Linux is labelled beta — "good for daily driving", with what is missing sitting
 "around the edges rather than in your way." The list of those edges is
-[Known Gaps](../CROSS_PLATFORM.md#known-gaps), and the roadmap sends every
+[Known Gaps](../reference/platform-support.md#known-gaps), and the roadmap sends every
 contributor to it rather than keeping a second copy, "so the status you read is
 the status the code reports." A sweep of the tree against that list found it was
 neither correct nor complete. Two of its seven entries are not gaps: secure
@@ -72,7 +72,7 @@ that promise broken, and the matrix is structurally unable to see it.
   compositor IPC.
 - **Keeping the matrix as the definition and adding a second list for words.**
   Two lists, one of which is a superset of the other, and no rule saying which
-  wins. `docs/CROSS_PLATFORM.md` already owns capability status; the fix is to
+  wins. `docs/reference/platform-support.md` already owns capability status; the fix is to
   make its gap list answer the vocabulary question, not to grow a rival.
 
 ## Consequences

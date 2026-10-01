@@ -18,7 +18,7 @@ validator.
 2. **Route non-issues away.** Questions and config help belong in
    Discussions; Linux porting talk belongs in discussion #559; "is this
    supported yet" is answered by the Platform Support matrix in the README
-   and `docs/CROSS_PLATFORM.md`. Filing an issue for these is wrong even if
+   and `docs/reference/platform-support.md`. Filing an issue for these is wrong even if
    the user asked for an issue — say so and offer the right venue.
 
 ## Bug report (`--label bug`)

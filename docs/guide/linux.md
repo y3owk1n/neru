@@ -4,10 +4,10 @@ Prepare a Linux host to **build, test, and deploy** Neru. This guide covers
 dependencies, permissions, building, validation, and generic troubleshooting.
 
 Per-desktop-environment details and DE-specific known issues live in
-[LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
+[LINUX_DESKTOPS.md](./linux-desktops.md).
 
-**Related:** [Linux desktops](./LINUX_DESKTOPS.md) ·
-[Cross-Platform Guide](./CROSS_PLATFORM.md) · [Installation](./INSTALLATION.md)
+**Related:** [Linux desktops](./linux-desktops.md) ·
+[Cross-Platform Guide](../reference/platform-support.md) · [Installation](./installation.md)
 
 ---
 
@@ -34,11 +34,11 @@ The backend is detected once at startup from `XDG_CURRENT_DESKTOP`,
 | Compositor / session                                                  | Backend           | Status                                                                                  |
 | --------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------- |
 | Sway, Hyprland, niri, River, Wayfire, labwc                            | `wayland-wlroots` | Supported                                                                               |
-| Any compositor tagging `XDG_CURRENT_DESKTOP` with `:wlroots`, or leaving it unset (dwl, cage, SwayFX, scroll, ...) | `wayland-wlroots` | Supported when it implements the wlroots protocols, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#wlroots-compositors) |
-| KDE Plasma (Wayland)                                                  | `wayland-kde`     | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#kde-plasma-wayland)              |
-| COSMIC (Wayland)                                                      | `wayland-cosmic`  | Supported, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#cosmic-wayland)                  |
+| Any compositor tagging `XDG_CURRENT_DESKTOP` with `:wlroots`, or leaving it unset (dwl, cage, SwayFX, scroll, ...) | `wayland-wlroots` | Supported when it implements the wlroots protocols, see [LINUX_DESKTOPS.md](./linux-desktops.md#wlroots-compositors) |
+| KDE Plasma (Wayland)                                                  | `wayland-kde`     | Supported, see [LINUX_DESKTOPS.md](./linux-desktops.md#kde-plasma-wayland)              |
+| COSMIC (Wayland)                                                      | `wayland-cosmic`  | Supported, see [LINUX_DESKTOPS.md](./linux-desktops.md#cosmic-wayland)                  |
 | X11 / XOrg, i3, GNOME on X11                                          | `x11`             | Supported                                                                               |
-| GNOME (Wayland), and Mutter-based desktops such as Budgie             | `wayland-gnome`   | Supported with Xwayland and the Neru GNOME Shell extension, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#gnome-wayland) |
+| GNOME (Wayland), and Mutter-based desktops such as Budgie             | `wayland-gnome`   | Supported with Xwayland and the Neru GNOME Shell extension, see [LINUX_DESKTOPS.md](./linux-desktops.md#gnome-wayland) |
 | Cinnamon and Pantheon on Wayland, Weston, Mir shells (miracle-wm), any other compositor | `wayland-other`   | Not supported, the daemon refuses to start                                              |
 
 Cinnamon and Pantheon are Mutter-based too and would take the GNOME path,
@@ -75,7 +75,7 @@ Notes:
 - Item 4 is a **fallback, not a requirement**. With item 2 in place Neru's own
   `[hotkeys]` config works on Wayland. Bind in the compositor only if you would
   rather not grant `/dev/input` access. See
-  [Global hotkeys on Wayland](./LINUX_DESKTOPS.md#global-hotkeys-on-wayland).
+  [Global hotkeys on Wayland](./linux-desktops.md#global-hotkeys-on-wayland).
 
 ---
 
@@ -332,7 +332,7 @@ just build-linux arm64    # arm64
 Cross-compiling from macOS to Linux is not supported (CGO needs Linux headers).
 From a macOS host use `just check-cross` for a type-check or `just lint-cross`
 for a full CGO build and lint in Docker, see
-[CROSS_PLATFORM.md](./CROSS_PLATFORM.md#build-and-test-commands).
+[CROSS_PLATFORM.md](../contributing/porting.md#build-and-test-commands).
 
 Verify the binary matches your target:
 
@@ -341,7 +341,7 @@ go env GOARCH
 file bin/neru
 ```
 
-Run the [pre-commit checks](../CONTRIBUTING.md#making-changes) before opening a
+Run the [pre-commit checks](../../CONTRIBUTING.md#making-changes) before opening a
 PR. CI lints with `golangci-lint v2.13.2`, the version `oku.lock` resolves, so
 match it when validating locally.
 
@@ -388,7 +388,7 @@ binds {
 }
 ```
 
-KDE Plasma and other desktops: see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
+KDE Plasma and other desktops: see [LINUX_DESKTOPS.md](./linux-desktops.md).
 
 ### Application exclusions
 
@@ -424,7 +424,7 @@ resolves from). `ExecStart` is the resolved path of the `neru` binary you ran
 `install` with, so run `neru services uninstall && neru services install` after
 moving the binary. The unit is anchored on `graphical-session.target`, see
 "Service management on Linux" under the
-[Capability Matrix](./CROSS_PLATFORM.md#capability-matrix).
+[Capability Matrix](../reference/platform-support.md#capability-matrix).
 
 **Your session has to export itself first.** A systemd *user* manager starts
 before your compositor and inherits nothing from it. Unless the session imports
@@ -462,7 +462,7 @@ If the target is inactive and you would rather not wire the session up, run
 booted by runit, OpenRC or s6 every `neru services` subcommand reports
 `ERR_NOT_SUPPORTED`. Run `neru launch` from your session's own supervisor or
 autostart. This is a stated boundary, see
-[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md).
+[ADR 0013](../adr/0013-parity-is-measured-in-words-not-subsystems.md).
 
 **Installed through a package manager, or wrote the unit yourself?** If Nix,
 home-manager or your distribution already ships a `neru.service`, or you wrote
@@ -486,7 +486,7 @@ there unloaded.
 
 1. **Wayland global hotkeys** need `input`-group access and a CGO build.
    Otherwise bind the modes in your compositor. See
-   [Global hotkeys on Wayland](./LINUX_DESKTOPS.md#global-hotkeys-on-wayland).
+   [Global hotkeys on Wayland](./linux-desktops.md#global-hotkeys-on-wayland).
 2. **Hints need AT-SPI.** Grid and scroll work without it. Hints coverage
    varies by app, and Chromium and Electron apps need
    `--force-renderer-accessibility`. Where the tree is too thin, the `vision`
@@ -502,7 +502,7 @@ there unloaded.
    A relaunch is only needed after a resolution or scale change to an existing
    monitor on Wayland.
 6. **DE-specific limits** (portal consent, protocol gaps):
-   [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
+   [LINUX_DESKTOPS.md](./linux-desktops.md).
 
 ---
 
@@ -538,14 +538,14 @@ Running under X11 or a TTY. Neru uses the X11 backend when `DISPLAY` is set.
 
 `XDG_CURRENT_DESKTOP` names a compositor outside the supported set, so the
 backend resolved to `wayland-other` and the daemon refused to start. Check the
-variable, and see [Checking compositor protocols](./LINUX_DESKTOPS.md#checking-compositor-protocols)
+variable, and see [Checking compositor protocols](./linux-desktops.md#checking-compositor-protocols)
 before trying to add the compositor.
 
 ### "could not establish a libei input session via the RemoteDesktop portal"
 
 KDE, COSMIC and GNOME route pointer input through the portal. Approve the
 "Remote Control" prompt, see
-[KDE troubleshooting](./LINUX_DESKTOPS.md#kde-plasma-wayland).
+[KDE troubleshooting](./linux-desktops.md#kde-plasma-wayland).
 
 ### Overlay or hints wrong size after display change
 
@@ -584,7 +584,7 @@ font_family = "Your installed symbol-capable font"
 
 The family has to be one `fc-list` reports. A family fontconfig does not have
 falls back to DejaVu Sans rather than to fontconfig's substitute for the name
-(footnote 1 of the [Capability Matrix](CROSS_PLATFORM.md#capability-matrix)):
+(footnote 1 of the [Capability Matrix](../reference/platform-support.md#capability-matrix)):
 
 ```bash
 fc-list : family | grep -i "your font"
@@ -593,4 +593,4 @@ fc-list : family | grep -i "your font"
 Paste `❖⇧⌥⌃` into a text editor to confirm the font renders before relying on
 it in Neru.
 
-DE-specific troubleshooting: [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
+DE-specific troubleshooting: [LINUX_DESKTOPS.md](./linux-desktops.md).

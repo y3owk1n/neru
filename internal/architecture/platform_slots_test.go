@@ -11,7 +11,7 @@ import (
 )
 
 // These tests enforce the file-layout rules documented in
-// docs/CROSS_PLATFORM.md ("File Layout Rules"). The rules exist so a
+// docs/contributing/porting.md ("File Layout Rules"). The rules exist so a
 // contributor can tell what a file is for from its name alone; without a
 // guardrail they drift back into ad hoc naming one PR at a time.
 //
@@ -136,7 +136,7 @@ func checkBannedFallbackName(t *testing.T, file goFile) {
 		if strings.HasSuffix(file.base, banned) {
 			t.Errorf(
 				"%s: platform files must not use the %q suffix; the fallback "+
-					"slot is %q (docs/CROSS_PLATFORM.md, File Layout Rules)",
+					"slot is %q (docs/contributing/porting.md, File Layout Rules)",
 				file.relPath,
 				banned,
 				"_other.go",
