@@ -38,10 +38,16 @@ func TestDocsURLUsesVersionTagOrMain(t *testing.T) {
 			wantSuffix: "/v1.19.0/docs/reference/cli.md",
 		},
 		{
-			name:       "git describe with commits",
+			name:       "git describe with commits falls back to main",
 			version:    "v1.19.0-3-gabcdef0",
 			path:       "docs/reference/configuration.md",
-			wantSuffix: "/v1.19.0/docs/reference/configuration.md",
+			wantSuffix: "/main/docs/reference/configuration.md",
+		},
+		{
+			name:       "git describe with commits and dirty falls back to main",
+			version:    "v1.19.0-3-gabcdef0-dirty",
+			path:       docsCLIPath,
+			wantSuffix: mainDocsCLISuffix,
 		},
 		{
 			name:       "git describe dirty state",

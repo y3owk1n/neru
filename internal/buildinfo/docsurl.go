@@ -23,8 +23,11 @@ func extractDocsTag(version string) string {
 		return ""
 	}
 
-	if idx := strings.Index(version, "-"); idx != -1 {
-		version = version[:idx]
+	// A build with commits past its tag, such as v1.2.3-4-gabcdef, links to
+	// main. The tag may lack docs this build links to.
+	version = strings.TrimSuffix(version, "-dirty")
+	if strings.Contains(version, "-") {
+		return ""
 	}
 
 	parts := strings.Split(version[1:], ".")
