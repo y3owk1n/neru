@@ -8,6 +8,7 @@
 #import "overlay.h"
 
 #import <Cocoa/Cocoa.h>
+#import <CoreText/CoreText.h>
 #import <QuartzCore/QuartzCore.h>
 #import <stdatomic.h>
 
@@ -126,8 +127,115 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	HintPlacementBottom = 3,
 };
 
+#pragma mark - Layer Tree Classes
+
+@class OverlayView;
+
+/// What an item layer draws. OverlayView draws every kind in view
+/// coordinates, and the layer only sets which pixels it covers.
+typedef NS_ENUM(NSInteger, NeruItemKind) {
+	NeruItemKindHint,
+	NeruItemKindText,
+	NeruItemKindSearchInput,
+};
+
+/// A layer sized to one drawn item. Its backing store covers that item alone,
+/// so overlay memory grows with what is on screen, not with the screen's size.
+@interface NeruItemLayer : CALayer
+@property(nonatomic, assign) NeruItemKind kind;
+@property(nonatomic, strong) id item;                     ///< HintItem or SearchInputItem drawn
+@property(nonatomic, copy) NSString *text;                ///< Plain text drawn
+@property(nonatomic, strong) NSFont *font;                ///< Font of text
+@property(nonatomic, strong) NSColor *color;              ///< Color of plain text
+@property(nonatomic, assign) NSSize textSize;             ///< text measured in font
+@property(nonatomic, assign) int matchedPrefixLength;     ///< Characters drawn as matched
+@property(nonatomic, assign) NSUInteger styleGeneration;  ///< Style the contents were drawn with
+@property(nonatomic, assign) CGRect itemRect;             ///< What is drawn (view coordinates)
+@property(nonatomic, assign) CGPoint drawOrigin;          ///< View point at the layer's origin
+@property(nonatomic, assign) CGRect drawnRect;            ///< itemRect relative to the layer when last drawn
+@property(nonatomic, strong) CALayer *boundary;           ///< Hint target highlight, below the badge
+@end
+
+@implementation NeruItemLayer
+@end
+
+/// One character in one font and color at one scale, drawn once and shared
+/// by every label that shows it.
+@interface NeruGlyph : NSObject
+@property(nonatomic, strong) id image;     ///< CGImageRef
+@property(nonatomic, assign) CGSize size;  ///< Image size in points, padding included
+@end
+
+@implementation NeruGlyph
+@end
+
+/// How a text lays out in one font: its characters and where each starts.
+@interface NeruTextLayout : NSObject
+@property(nonatomic, assign) NSSize size;
+@property(nonatomic, strong) NSArray<NSString *> *characters;  ///< The text's composed characters
+@property(nonatomic, strong) NSArray<NSNumber *> *locations;   ///< Each character's index in the text
+@property(nonatomic, strong) NSArray<NSNumber *> *offsets;     ///< Each character's x from the line start
+@end
+
+@implementation NeruTextLayout
+@end
+
+/// The glyph images of one font and color at one scale, and the layouts of
+/// texts in that font. Building a label from a text seen before costs only
+/// lookups here.
+@interface NeruGlyphSet : NSObject
+@property(nonatomic, strong) NSFont *font;
+@property(nonatomic, strong) NSColor *color;
+@property(nonatomic, assign) CGFloat scale;
+@property(nonatomic, strong) NSMutableDictionary<NSString *, NeruGlyph *> *glyphs;
+@property(nonatomic, strong) NSCache<NSString *, NeruTextLayout *> *layouts;
+@end
+
+@implementation NeruGlyphSet
+@end
+
+/// A line of text built from shared glyph images, one sublayer per character.
+/// A dense grid shows thousands of labels. A bitmap for each would cost as much
+/// as one the size of the screen.
+@interface NeruLabelLayer : CALayer
+@property(nonatomic, strong) NeruTextLayout *layout;
+@property(nonatomic, strong) NeruGlyphSet *glyphSet;
+@property(nonatomic, strong) NeruGlyphSet *matchedGlyphSet;
+@property(nonatomic, assign) int matchedPrefixLength;
+@property(nonatomic, strong) NSMutableArray<CALayer *> *glyphLayers;
+@property(nonatomic, strong) CALayer *badge;  ///< Rounded background behind the text, when configured
+@end
+
+@implementation NeruLabelLayer
+@end
+
+/// One grid cell. The layer's own background and border are the cell's and
+/// its labels are sublayers, so cells stack in the order they always drew in.
+@interface NeruCellLayer : CALayer
+@property(nonatomic, strong) NeruLabelLayer *label;
+@property(nonatomic, strong) NeruLabelLayer *fadeLabel;  ///< Outgoing label while a transition cross-fades
+@property(nonatomic, strong) NSMutableArray<NeruLabelLayer *> *subKeys;
+// What the cell was last placed with. Rendering skips a cell when none of it changed.
+@property(nonatomic, assign) NSUInteger placedGeneration;
+@property(nonatomic, assign) CGRect placedRect;
+@property(nonatomic, assign) BOOL placedMatched;
+@property(nonatomic, assign) int placedMatchedPrefixLength;
+@property(nonatomic, copy) NSString *placedLabel;
+@end
+
+@implementation NeruCellLayer
+@end
+
+/// Draws item layers and keeps every overlay layer from animating implicitly.
+@interface NeruLayerDrawer : NSObject <CALayerDelegate>
+@property(nonatomic, weak) OverlayView *view;
+@end
+
 #pragma mark - Overlay View Interface
 
+/// The overlay is a tree of small layers, one per drawn item, rather than one
+/// screen-sized bitmap. A screen-sized bitmap costs 32MB at 4K for as long as
+/// it lives, and the system keeps it after the overlay hides.
 @interface OverlayView : NSView
 @property(nonatomic, strong) NSMutableArray<HintItem *> *hints;     ///< Hints array
 @property(nonatomic, strong) NSFont *hintFont;                      ///< Hint font
@@ -187,19 +295,16 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
     NSMutableDictionary<NSString *, NSFont *> *gridTransitionFontCache;  ///< Transition fonts by family and size
 
 // Sub-key preview: draws a miniature key grid inside each cell
-@property(nonatomic, assign) BOOL gridDrawSubKeyPreview;          ///< Draw sub-key preview mini-grid
-@property(nonatomic, assign) int gridSubKeyCols;                  ///< Sub-key preview grid columns
-@property(nonatomic, assign) int gridSubKeyRows;                  ///< Sub-key preview grid rows
-@property(nonatomic, strong) NSFont *gridSubKeyFont;              ///< Sub-key preview font
-@property(nonatomic, strong) NSColor *gridSubKeyTextColor;        ///< Sub-key preview text color
-@property(nonatomic, assign) CGFloat cachedGridSubKeyFontSize;    ///< Cached sub-key font size
-@property(nonatomic, copy) NSString *cachedGridSubKeyFontFamily;  ///< Cached sub-key font family
-@property(nonatomic, strong)
-    NSMutableAttributedString *cachedGridSubKeyAttributedString;     ///< Cached attributed string for sub-key drawing
+@property(nonatomic, assign) BOOL gridDrawSubKeyPreview;             ///< Draw sub-key preview mini-grid
+@property(nonatomic, assign) int gridSubKeyCols;                     ///< Sub-key preview grid columns
+@property(nonatomic, assign) int gridSubKeyRows;                     ///< Sub-key preview grid rows
+@property(nonatomic, strong) NSFont *gridSubKeyFont;                 ///< Sub-key preview font
+@property(nonatomic, strong) NSColor *gridSubKeyTextColor;           ///< Sub-key preview text color
+@property(nonatomic, assign) CGFloat cachedGridSubKeyFontSize;       ///< Cached sub-key font size
+@property(nonatomic, copy) NSString *cachedGridSubKeyFontFamily;     ///< Cached sub-key font family
 @property(nonatomic, strong) NSArray<NSString *> *gridSubKeyLabels;  ///< Labels for sub-key preview (next depth's keys)
 @property(nonatomic, assign) BOOL cursorIndicatorVisible;            ///< Draw virtual cursor indicator
 @property(nonatomic, assign) NSPoint cursorIndicatorPosition;        ///< Virtual cursor indicator center
-@property(nonatomic, assign) CGFloat cursorIndicatorRadius;          ///< Virtual cursor indicator radius
 @property(nonatomic, strong) NSColor *cursorIndicatorFillColor;      ///< Virtual cursor indicator fill
 @property(nonatomic, copy) NSString *cursorIndicatorLabel;           ///< Virtual cursor indicator label (char)
 @property(nonatomic, strong) NSFont *cursorIndicatorFont;            ///< Virtual cursor indicator font
@@ -215,14 +320,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 
 // Cached string buffers to reduce allocations during drawing.
 // Each buffer is exclusively used by its corresponding method to avoid shared mutable state.
-@property(nonatomic, strong)
-    NSMutableAttributedString *cachedHintAttributedString;  ///< Cached attributed string buffer for drawHintsInRect:
-@property(nonatomic, strong)
-    NSMutableAttributedString *cachedHintMeasureString;  ///< Cached attributed string buffer for boundingRectForHint:
+@property(nonatomic, strong) NSMutableAttributedString *cachedHintAttributedString;  ///< Buffer for drawHint:
+@property(nonatomic, strong) NSMutableAttributedString *cachedHintMeasureString;     ///< Buffer for badgeRectForHint:
 @property(nonatomic, strong)
     NSMutableAttributedString *cachedSearchInputAttributedString;  ///< Cached string buffer for search input drawing
-@property(nonatomic, strong) NSMutableAttributedString
-    *cachedGridCellAttributedString;  ///< Cached attributed string buffer for drawGridCellsInRect:
 
 // Cached font keys: only re-create NSFont when family or size actually changes.
 @property(nonatomic, copy) NSString *cachedHintFontFamily;  ///< Last resolved hint font family
@@ -233,41 +334,38 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 /// Cached parsed colors keyed by normalized hex string
 @property(nonatomic, strong) NSCache *colorCache;
 
-- (void)clearContent;
+// Layer tree, back to front: grid, hints, then the search input and cursor.
+@property(nonatomic, strong) NeruLayerDrawer *layerDrawer;
+@property(nonatomic, strong) CALayer *gridRoot;
+@property(nonatomic, strong) CALayer *hintRoot;
+@property(nonatomic, strong) CALayer *topRoot;
+@property(nonatomic, strong) NSMutableArray<NeruCellLayer *> *cellLayers;
+@property(nonatomic, strong) NSMutableArray<NeruItemLayer *> *hintLayers;
+@property(nonatomic, strong) NeruItemLayer *searchInputLayer;
+@property(nonatomic, strong) NeruItemLayer *cursorIndicatorLayer;
+@property(nonatomic, strong) NSMutableDictionary<NSString *, NeruGlyphSet *> *glyphSets;  ///< By font, color and scale
 
-/// When YES, drawLayer:inContext: clears the full bounds and redraws everything.
-/// When NO, only the dirty region (clip box) is cleared and items intersecting it are redrawn.
-/// Defaults to YES; set to NO by match-prefix-only updates that use setNeedsDisplayInRect:.
-@property(nonatomic, assign) BOOL fullRedraw;
+// Each signature records the style item contents were drawn with. A change
+// bumps the generation, and every item drawn with the old style redraws.
+@property(nonatomic, copy) NSArray *hintStyleSignature;
+@property(nonatomic, assign) NSUInteger hintStyleGeneration;
+@property(nonatomic, copy) NSArray *gridStyleSignature;
+@property(nonatomic, assign) NSUInteger gridStyleGeneration;
+@property(nonatomic, copy) NSArray *searchInputStyleSignature;
+@property(nonatomic, assign) NSUInteger searchInputStyleGeneration;
+
+- (void)clearContent;
 
 - (void)applyStyle:(HintStyle)style;                                                   ///< Apply hint style
 - (NSColor *)colorFromHex:(NSString *)hexString defaultColor:(NSColor *)defaultColor;  ///< Color from hex string
 - (CGFloat)currentBackingScaleFactor;                                                  ///< Current backing scale factor
-- (NSRect)boundingRectForHint:(HintItem *)hint;            ///< Compute bounding rect for hint
-- (NSRect)boundingRectForSearchInput;                      ///< Compute search input rect
-- (NSRect)screenRectForGridCell:(GridCellItem *)cellItem;  ///< Compute screen-space rect for grid cell
-- (void)drawGridLabel:(NSString *)label
-             inCellRect:(NSRect)cellRect
-              isMatched:(BOOL)isMatched
-    matchedPrefixLength:(int)matchedPrefixLength;  ///< Draw grid label text or badge
-- (void)drawGridLabel:(NSString *)label
-             inCellRect:(NSRect)cellRect
-              isMatched:(BOOL)isMatched
-    matchedPrefixLength:(int)matchedPrefixLength
-                  alpha:(CGFloat)alpha;                ///< Draw grid label with alpha
-- (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect;  ///< Draw miniature sub-key grid inside a cell
-- (void)drawAnimatedGridCellsInRect:(NSRect)dirtyRect
-                           progress:(CGFloat)progress;  ///< Draw interpolated recursive-grid cells
-- (NSRect)cursorIndicatorRect;                          ///< Virtual cursor indicator rect in view coordinates
-- (void)drawCursorIndicatorInRect:(NSRect)dirtyRect;    ///< Draw virtual cursor indicator
-- (void)drawSearchInputInRect:(NSRect)dirtyRect;        ///< Draw active search input
-- (void)cancelGridTransition;                           ///< Stop recursive-grid animation
-- (void)cancelCursorIndicatorTransition;                ///< Stop virtual pointer animation
+- (void)drawItemLayer:(NeruItemLayer *)layer inContext:(CGContextRef)ctx;              ///< Draw one item layer
+- (void)cancelGridTransition;             ///< Stop recursive-grid animation
+- (void)cancelCursorIndicatorTransition;  ///< Stop virtual pointer animation
 - (void)startGridTransitionToCells:(NSArray<GridCellItem *> *)cells
                           duration:(CFTimeInterval)duration;  ///< Animate recursive-grid between states
 - (NSArray<GridCellItem *> *)interpolatedGridCellsForProgress:(CGFloat)progress;  ///< Snapshot animated cells
-- (NSColor *)color:(NSColor *)color withMultipliedAlpha:(CGFloat)alpha;  ///< Preserve configured alpha during fades
-- (CGFloat)currentGridTransitionProgress;                                ///< Shared progress for grid/pointer animation
+- (CGFloat)currentGridTransitionProgress;   ///< Shared progress for grid/pointer animation
 - (NSPoint)currentCursorIndicatorPosition;  ///< Current virtual pointer position for drawing
 
 /// Resolve a font by name (accepts both PostScript names and family names).
@@ -281,10 +379,20 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 
 /// Resolve vertical hint padding (-1 = auto based on font size).
 - (CGFloat)resolvedHintPaddingY;
+@end
 
-/// Draw a grid cell border with edge-clipping at the view boundary.
-/// cellRect must be in view (flipped) coordinates.
-- (void)drawGridCellBorder:(NSRect)cellRect isMatched:(BOOL)isMatched screenWidth:(CGFloat)screenWidth;
+@implementation NeruLayerDrawer
+
+- (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
+	return (id<CAAction>)[NSNull null];
+}
+
+- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
+	if (![layer isKindOfClass:[NeruItemLayer class]])
+		return;
+	[self.view drawItemLayer:(NeruItemLayer *)layer inContext:ctx];
+}
+
 @end
 
 #pragma mark - Overlay View Implementation
@@ -297,11 +405,19 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 - (instancetype)initWithFrame:(NSRect)frame {
 	self = [super initWithFrame:frame];
 	if (self) {
-		// Enable layer-backed rendering for GPU acceleration
+		// The view's own layer draws nothing. The items are its sublayers.
 		[self setWantsLayer:YES];
 		self.layer.opaque = NO;
 		self.layer.backgroundColor = [[NSColor clearColor] CGColor];
-		self.layer.contentsScale = [self currentBackingScaleFactor];
+
+		_layerDrawer = [[NeruLayerDrawer alloc] init];
+		_layerDrawer.view = self;
+		_gridRoot = [self makeContainerLayer];
+		_hintRoot = [self makeContainerLayer];
+		_topRoot = [self makeContainerLayer];
+		_cellLayers = [NSMutableArray array];
+		_hintLayers = [NSMutableArray array];
+		_glyphSets = [NSMutableDictionary dictionary];
 
 		_colorCache = [[NSCache alloc] init];
 		_colorCache.countLimit = 64;
@@ -355,7 +471,6 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		_gridTransitionFontCache = [NSMutableDictionary dictionary];
 		_hideUnmatched = NO;
 		_cursorIndicatorVisible = NO;
-		_cursorIndicatorRadius = 3.0;
 		_cursorIndicatorFillColor = [NSColor colorWithWhite:1.0 alpha:1.0];
 		_cursorIndicatorLabel = nil;
 		_cursorIndicatorFont = nil;
@@ -372,8 +487,6 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		_cachedHintAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedHintMeasureString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedSearchInputAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
-		_cachedGridCellAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
-		_cachedGridSubKeyAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 
 		// Initialize cached font keys (match defaults above)
 		_cachedHintFontFamily = nil;
@@ -381,8 +494,6 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		_cachedGridFontFamily = nil;
 		_cachedGridFontSize = kDefaultGridFontSize;
 
-		// Initialize fullRedraw to YES for structural changes
-		_fullRedraw = YES;
 		_gridTransitionDuration = 0.18;
 		_gridTransitionStartTime = 0;
 		_gridTransitionActive = NO;
@@ -395,7 +506,17 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	self.gridTransitionTimer = nil;
 }
 
+/// A sublayer of the view's layer that only groups items. It has no contents.
+- (CALayer *)makeContainerLayer {
+	CALayer *container = [CALayer layer];
+	container.delegate = self.layerDrawer;
+	[self.layer addSublayer:container];
+	return container;
+}
+
 - (void)clearContent {
+	BOOL hadContent =
+	    [self.hints count] > 0 || [self.gridCells count] > 0 || self.searchInput || self.cursorIndicatorVisible;
 	[self cancelGridTransition];
 	[self cancelCursorIndicatorTransition];
 	[self.hints removeAllObjects];
@@ -409,9 +530,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	[[self.cachedHintAttributedString mutableString] setString:@""];
 	[[self.cachedHintMeasureString mutableString] setString:@""];
 	[[self.cachedSearchInputAttributedString mutableString] setString:@""];
-	[[self.cachedGridCellAttributedString mutableString] setString:@""];
-	[[self.cachedGridSubKeyAttributedString mutableString] setString:@""];
-	[self setNeedsDisplay:YES];
+	// Render now. AppKit does not display a hidden window, so its item layers
+	// would keep their bitmaps until the next show.
+	if (hadContent)
+		[self renderLayers];
 }
 
 /// Return the backing scale factor for the current screen, with fallbacks.
@@ -426,114 +548,21 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	return scale > 0 ? scale : 1.0;
 }
 
-/// Set view frame and update contents scale for high-DPI displays
-/// @param frame New frame
-- (void)setFrame:(NSRect)frame {
-	[super setFrame:frame];
-	if (self.layer) {
-		self.layer.contentsScale = [self currentBackingScaleFactor];
-	}
-}
-
-/// Update contents scale when the view moves between screens with different
-/// backing properties (e.g., Retina to non-Retina or vice versa).
-/// This is the Apple-recommended callback for responding to scale factor changes.
+/// Redraw item layers at the new scale when the view moves between screens
+/// with different backing properties (e.g. Retina to non-Retina).
 - (void)viewDidChangeBackingProperties {
 	[super viewDidChangeBackingProperties];
-	if (self.layer) {
-		self.layer.contentsScale = [self currentBackingScaleFactor];
-		// Force a redraw so the layer's cached content is re-rendered at the
-		// new scale. Without this, the view can briefly show stale content at
-		// the previous scale factor when the window moves between displays
-		// with different backing properties (e.g. Retina to non-Retina).
-		[self setNeedsDisplay:YES];
-	}
+	[self setNeedsDisplay:YES];
 }
 
-/// Required: AppKit uses the presence of drawRect: to determine that this
-/// view has custom drawing content. Without it, setNeedsDisplay:YES may not
-/// trigger layer redisplay. Actual rendering is handled by drawLayer:inContext:.
-/// @param dirtyRect Dirty rectangle (unused)
-- (void)drawRect:(NSRect)dirtyRect {
+/// AppKit answers setNeedsDisplay: with updateLayer instead of drawRect:, so
+/// the view's own layer never gets a backing store.
+- (BOOL)wantsUpdateLayer {
+	return YES;
 }
 
-/// Draw layer (GPU-accelerated rendering for layer-backed views).
-/// When fullRedraw is YES (structural changes), clears entire bounds and redraws all items.
-/// When fullRedraw is NO (match-prefix-only changes), uses the CGContext clip box to
-/// clear and redraw only the dirty regions, skipping items outside the dirty area.
-/// @param layer Layer
-/// @param ctx Graphics context
-- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-	[NSGraphicsContext saveGraphicsState];
-	NSGraphicsContext *nsContext = [NSGraphicsContext graphicsContextWithCGContext:ctx flipped:NO];
-	[NSGraphicsContext setCurrentContext:nsContext];
-
-	if (self.gridTransitionActive) {
-		CGFloat duration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
-		CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
-		CGFloat rawProgress = (CGFloat)(elapsed / duration);
-
-		if (rawProgress >= 1.0) {
-			// The frame a transition ends on is the settled draw itself, not one
-			// more interpolated frame followed by a request for a clean one. A
-			// setNeedsDisplay: made from inside this method does not come back.
-			// A settled frame has only the target grid's cells, and draws its
-			// labels at the size that fits them rather than the one the
-			// transition held.
-			[self cancelGridTransition];
-			[self cancelCursorIndicatorTransition];
-			self.fullRedraw = YES;
-		} else {
-			CGFloat progress = [self currentGridTransitionProgress];
-
-			CGContextClearRect(ctx, self.bounds);
-			[self drawAnimatedGridCellsInRect:NSZeroRect progress:progress];
-			[self drawHints];
-			[self drawSearchInputInRect:NSZeroRect];
-			[self drawCursorIndicatorInRect:NSZeroRect];
-
-			self.fullRedraw = YES;
-			[NSGraphicsContext restoreGraphicsState];
-
-			return;
-		}
-	}
-
-	if (self.fullRedraw) {
-		// Full redraw: clear everything and draw all items
-		CGContextClearRect(ctx, self.bounds);
-		[self drawGridCells];
-		[self drawHints];
-		[self drawSearchInputInRect:NSZeroRect];
-		[self drawCursorIndicatorInRect:NSZeroRect];
-	} else {
-		// Partial redraw: only clear and redraw items intersecting the dirty region.
-		// Core Animation sets the clip to the union of invalidated rects.
-		CGRect clipBox = CGContextGetClipBoundingBox(ctx);
-		NSRect dirtyRect = NSRectFromCGRect(clipBox);
-
-		if (NSContainsRect(dirtyRect, self.bounds)) {
-			// If the clip box covers the full bounds, fall back to full redraw
-			CGContextClearRect(ctx, self.bounds);
-			[self drawGridCells];
-			[self drawHints];
-			[self drawSearchInputInRect:NSZeroRect];
-			[self drawCursorIndicatorInRect:NSZeroRect];
-		} else {
-			// Clear only the dirty region
-			CGContextClearRect(ctx, clipBox);
-			[self drawGridCellsInRect:dirtyRect];
-			[self drawHintsInRect:dirtyRect];
-			[self drawSearchInputInRect:dirtyRect];
-			[self drawCursorIndicatorInRect:dirtyRect];
-		}
-	}
-
-	// Reset to full redraw for next cycle; partial-redraw callers
-	// set this to NO before calling setNeedsDisplayInRect:
-	self.fullRedraw = YES;
-
-	[NSGraphicsContext restoreGraphicsState];
+- (void)updateLayer {
+	[self renderLayers];
 }
 
 - (void)cancelGridTransition {
@@ -549,19 +578,6 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	self.cursorIndicatorTransitionActive = NO;
 	self.cursorIndicatorFromPosition = NSZeroPoint;
 	self.cursorIndicatorToPosition = NSZeroPoint;
-}
-
-- (NSColor *)color:(NSColor *)color withMultipliedAlpha:(CGFloat)alpha {
-	if (!color) {
-		return nil;
-	}
-
-	NSColor *resolvedColor = [color colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]];
-	if (!resolvedColor) {
-		resolvedColor = color;
-	}
-
-	return [resolvedColor colorWithAlphaComponent:(resolvedColor.alphaComponent * alpha)];
 }
 
 - (CGFloat)currentGridTransitionProgress {
@@ -730,7 +746,6 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	self.gridTransitionStartTime = CACurrentMediaTime();
 	self.gridTransitionActive = YES;
 	self.gridTransitionUseLinearEasing = continuingFromActive;
-	self.fullRedraw = YES;
 
 	__weak typeof(self) weakSelf = self;
 	self.gridTransitionTimer = [NSTimer timerWithTimeInterval:(1.0 / 120.0)
@@ -739,7 +754,6 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		                                                    OverlayView *strongSelf = weakSelf;
 		                                                    if (!strongSelf)
 			                                                    return;
-		                                                    strongSelf.fullRedraw = YES;
 		                                                    [strongSelf setNeedsDisplay:YES];
 	                                                    }];
 	[[NSRunLoop mainRunLoop] addTimer:self.gridTransitionTimer forMode:NSRunLoopCommonModes];
@@ -1077,163 +1091,352 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	return path;
 }
 
-/// Draw all hint labels above target elements.
-/// Delegates to drawHintsInRect: with NSZeroRect to signal "draw all, skip intersection checks".
-- (void)drawHints {
-	[self drawHintsInRect:NSZeroRect];
+#pragma mark - Layer Tree Rendering
+
+/// rect grown outward to whole device pixels, so a layer placed there is not
+/// resampled and its contents land on the pixels they were drawn for.
+static CGRect NeruPixelAlignedRect(CGRect rect, CGFloat scale) {
+	CGFloat minX = floor(CGRectGetMinX(rect) * scale) / scale;
+	CGFloat minY = floor(CGRectGetMinY(rect) * scale) / scale;
+	CGFloat maxX = ceil(CGRectGetMaxX(rect) * scale) / scale;
+	CGFloat maxY = ceil(CGRectGetMaxY(rect) * scale) / scale;
+	return CGRectMake(minX, minY, maxX - minX, maxY - minY);
 }
 
-/// Draw all grid cells with labels and borders.
-/// Delegates to drawGridCellsInRect: with NSZeroRect to signal "draw all, skip intersection checks".
-- (void)drawGridCells {
-	[self drawGridCellsInRect:NSZeroRect];
-}
-
-/// Compute the screen-space bounding rect for the virtual cursor indicator.
-/// @return Bounding rectangle for the dot plus a small antialiasing margin
-- (NSRect)cursorIndicatorRect {
-	if (!self.cursorIndicatorVisible)
-		return NSZeroRect;
-
-	NSPoint position = [self currentCursorIndicatorPosition];
-	CGFloat diameter = self.cursorIndicatorRadius * 2.0;
-	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat flippedY = screenHeight - position.y - self.cursorIndicatorRadius;
-	CGFloat expand = 1.0;
-	return NSMakeRect(
-	    position.x - self.cursorIndicatorRadius - expand, flippedY - expand, diameter + expand * 2.0,
-	    diameter + expand * 2.0);
-}
-
-/// Draw the virtual cursor indicator when it intersects the dirty region.
-/// Draws the configured character using the configured font and text color.
-/// @param dirtyRect Dirty region to redraw. Pass NSZeroRect to draw unconditionally.
-- (void)drawCursorIndicatorInRect:(NSRect)dirtyRect {
-	if (!self.cursorIndicatorVisible)
+/// Stroke rect's edge with a layer border. Core Animation draws a border inside
+/// the layer's bounds, so growing the layer by half the width centers the
+/// border on the edge, where a path stroke sits.
+static void NeruPlaceStrokeLayer(CALayer *stroke, CGRect rect, CGFloat width, CGFloat radius, NSColor *color) {
+	if (width <= 0.0 || !color) {
+		stroke.hidden = YES;
 		return;
-
-	NSRect indicatorRect = [self cursorIndicatorRect];
-	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
-	if (filterByRect && !NSIntersectsRect(indicatorRect, dirtyRect))
-		return;
-
-	NSPoint position = [self currentCursorIndicatorPosition];
-	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat centerY = screenHeight - position.y;
-	NSPoint center = NSMakePoint(position.x, centerY);
-
-	NSFont *font = self.cursorIndicatorFont;
-	if (!font)
-		font = [NSFont systemFontOfSize:8.0];
-
-	NSColor *textColor = self.cursorIndicatorTextColor ?: [NSColor whiteColor];
-
-	NSDictionary *attrs = @{NSFontAttributeName : font, NSForegroundColorAttributeName : textColor};
-	NSSize textSize = [self.cursorIndicatorLabel sizeWithAttributes:attrs];
-	NSPoint textOrigin = NSMakePoint(center.x - textSize.width / 2.0, center.y - textSize.height / 2.0);
-	[self.cursorIndicatorLabel drawAtPoint:textOrigin withAttributes:attrs];
+	}
+	stroke.hidden = NO;
+	stroke.frame = CGRectInset(rect, -width / 2.0, -width / 2.0);
+	stroke.borderWidth = width;
+	stroke.borderColor = color.CGColor;
+	stroke.cornerRadius = radius > 0.0 ? radius + width / 2.0 : 0.0;
 }
 
-/// Compute the screen-space bounding rect for a hint item (view coordinates, bottom-left origin).
-/// Mirrors the geometry logic in drawHintsInRect: so callers can determine dirty rects without drawing.
-/// Uses cachedHintMeasureString (a dedicated buffer separate from cachedHintAttributedString)
-/// to avoid allocations while not mutating the buffer used by drawHintsInRect:.
-/// @param hint Hint item
-/// @return Bounding rectangle including border and arrow
-- (NSRect)boundingRectForHint:(HintItem *)hint {
-	NSString *label = hint.label;
-	if (!label || [label length] == 0)
-		return NSZeroRect;
+/// Bump a style generation when a style's signature changes, so every item
+/// drawn with the old style redraws.
+static NSUInteger NeruStyleGeneration(NSArray *signature, NSArray *__strong *last, NSUInteger generation) {
+	if ([signature isEqualToArray:*last])
+		return generation;
+	*last = [signature copy];
+	return generation + 1;
+}
 
-	// Reuse cachedHintMeasureString for text measurement.
-	// This is a separate buffer from cachedHintAttributedString (used by drawHintsInRect:)
-	// so the two methods can safely call each other without corrupting shared state.
-	NSMutableAttributedString *measureString = self.cachedHintMeasureString;
-	[[measureString mutableString] setString:label];
+static id NeruOrNull(id object) { return object ?: [NSNull null]; }
+
+- (NeruItemLayer *)makeItemLayer:(NeruItemKind)kind scale:(CGFloat)scale {
+	NeruItemLayer *layer = [NeruItemLayer layer];
+	layer.kind = kind;
+	layer.delegate = self.layerDrawer;
+	layer.contentsScale = scale;
+	layer.anchorPoint = CGPointZero;
+	return layer;
+}
+
+- (CALayer *)makePlainLayer {
+	CALayer *layer = [CALayer layer];
+	layer.delegate = self.layerDrawer;
+	layer.anchorPoint = CGPointZero;
+	return layer;
+}
+
+/// Place an item layer over rect (view coordinates) inside a parent at
+/// parentOrigin, and redraw it when its contents or its pixels changed.
+/// Leave snap off for items in motion. Resampling a moving layer is invisible,
+/// and redrawing it every frame costs time.
+- (void)placeItemLayer:(NeruItemLayer *)layer
+                  rect:(CGRect)rect
+          parentOrigin:(CGPoint)parentOrigin
+                 scale:(CGFloat)scale
+                  snap:(BOOL)snap
+               changed:(BOOL)changed {
+	CGRect frame = snap ? NeruPixelAlignedRect(rect, scale) : rect;
+	CGRect drawnRect = CGRectOffset(rect, -frame.origin.x, -frame.origin.y);
+	if (layer.contentsScale != scale) {
+		layer.contentsScale = scale;
+		changed = YES;
+	}
+	if (changed || !CGRectEqualToRect(drawnRect, layer.drawnRect) ||
+	    !CGSizeEqualToSize(frame.size, layer.bounds.size)) {
+		layer.drawnRect = drawnRect;
+		[layer setNeedsDisplay];
+	}
+	layer.drawOrigin = frame.origin;
+	layer.frame = CGRectOffset(frame, -parentOrigin.x, -parentOrigin.y);
+	layer.hidden = NO;
+}
+
+/// Bring the layer tree in line with the view's state. AppKit calls this after
+/// setNeedsDisplay:, at most once per frame.
+- (void)renderLayers {
+	[CATransaction begin];
+	[CATransaction setDisableActions:YES];
+
+	if (self.gridTransitionActive) {
+		CGFloat duration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
+		CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
+		if (elapsed / duration >= 1.0) {
+			// The last frame of a transition is the settled one. It shows only the
+			// target grid's cells, with labels at the size that fits them.
+			[self cancelGridTransition];
+			[self cancelCursorIndicatorTransition];
+		}
+	}
+
+	CGFloat scale = [self currentBackingScaleFactor];
+	[self renderGridAtScale:scale];
+	[self renderHintsAtScale:scale];
+	[self renderSearchInputAtScale:scale];
+	[self renderCursorIndicatorAtScale:scale];
+
+	[CATransaction commit];
+}
+
+- (void)drawItemLayer:(NeruItemLayer *)layer inContext:(CGContextRef)ctx {
+	[NSGraphicsContext saveGraphicsState];
+	NSGraphicsContext *nsContext = [NSGraphicsContext graphicsContextWithCGContext:ctx flipped:NO];
+	[NSGraphicsContext setCurrentContext:nsContext];
+	CGContextTranslateCTM(ctx, -layer.drawOrigin.x, -layer.drawOrigin.y);
+
+	switch (layer.kind) {
+	case NeruItemKindHint:
+		[self drawHint:layer.item matchedPrefixLength:layer.matchedPrefixLength];
+		break;
+	case NeruItemKindText:
+		[layer.text drawAtPoint:layer.itemRect.origin
+		         withAttributes:@{NSFontAttributeName : layer.font, NSForegroundColorAttributeName : layer.color}];
+		break;
+	case NeruItemKindSearchInput:
+		[self drawSearchInput:layer.item];
+		break;
+	}
+
+	[NSGraphicsContext restoreGraphicsState];
+}
+
+#pragma mark - Hints
+
+/// Place hint layers, one badge and one target highlight per hint. A typed
+/// prefix redraws only the badges whose match changed.
+- (void)renderHintsAtScale:(CGFloat)scale {
+	NSArray *signature = @[
+		NeruOrNull(self.hintFont), NeruOrNull(self.hintTextColor), NeruOrNull(self.hintMatchedTextColor),
+		NeruOrNull(self.hintBackgroundColor), NeruOrNull(self.hintBorderColor), @(self.hintBorderRadius),
+		@(self.hintBorderWidth), @(self.hintPaddingX), @(self.hintPaddingY), @(self.bounds.size.height)
+	];
+	NSArray *last = self.hintStyleSignature;
+	self.hintStyleGeneration = NeruStyleGeneration(signature, &last, self.hintStyleGeneration);
+	self.hintStyleSignature = last;
+	NSUInteger generation = self.hintStyleGeneration;
+
+	NSUInteger count = [self.hints count];
+	while ([self.hintLayers count] > count) {
+		NeruItemLayer *layer = [self.hintLayers lastObject];
+		[layer.boundary removeFromSuperlayer];
+		[layer removeFromSuperlayer];
+		[self.hintLayers removeLastObject];
+	}
+
+	for (NSUInteger i = 0; i < count; i++) {
+		HintItem *hint = self.hints[i];
+		NeruItemLayer *layer = i < [self.hintLayers count] ? self.hintLayers[i] : [self addHintLayerAtScale:scale];
+		if ([hint.label length] == 0) {
+			layer.hidden = YES;
+			layer.boundary.hidden = YES;
+			continue;
+		}
+
+		BOOL changed = layer.item != hint || layer.matchedPrefixLength != hint.matchedPrefixLength ||
+		               layer.styleGeneration != generation;
+		if (changed) {
+			layer.item = hint;
+			layer.matchedPrefixLength = hint.matchedPrefixLength;
+			layer.styleGeneration = generation;
+			layer.itemRect = [self badgeRectForHint:hint];
+		}
+		[self placeItemLayer:layer rect:layer.itemRect parentOrigin:CGPointZero scale:scale snap:YES changed:changed];
+		[self placeBoundaryLayer:layer.boundary forHint:hint];
+	}
+}
+
+- (NeruItemLayer *)addHintLayerAtScale:(CGFloat)scale {
+	CALayer *boundary = [self makePlainLayer];
+	[boundary addSublayer:[self makePlainLayer]];
+	[self.hintRoot addSublayer:boundary];
+
+	NeruItemLayer *layer = [self makeItemLayer:NeruItemKindHint scale:scale];
+	layer.boundary = boundary;
+	[self.hintRoot addSublayer:layer];
+	[self.hintLayers addObject:layer];
+	return layer;
+}
+
+/// The target highlight is a filled, stroked rounded rect, which layer
+/// properties draw without a bitmap however large the target is.
+- (void)placeBoundaryLayer:(CALayer *)boundary forHint:(HintItem *)hint {
+	if (!self.hintBoundaryHighlightEnabled || hint.size.width <= 0.0 || hint.size.height <= 0.0) {
+		boundary.hidden = YES;
+		return;
+	}
+
+	CGRect rect = CGRectMake(
+	    hint.position.x - hint.size.width / 2.0, self.bounds.size.height - hint.position.y - hint.size.height / 2.0,
+	    hint.size.width, hint.size.height);
+	CGFloat radius = MIN(self.hintBoundaryBorderRadius, MIN(rect.size.width, rect.size.height) / 2.0);
+	boundary.hidden = NO;
+	boundary.frame = rect;
+	boundary.cornerRadius = radius;
+	boundary.backgroundColor = self.hintBoundaryBackgroundColor.CGColor;
+	NeruPlaceStrokeLayer(
+	    boundary.sublayers.firstObject, boundary.bounds, self.hintBoundaryBorderWidth, radius,
+	    self.hintBoundaryBorderColor);
+}
+
+/// The hint's label set in the hint font, colored for its matched prefix.
+- (NSMutableAttributedString *)hintStringForLabel:(NSString *)label
+                              matchedPrefixLength:(int)matchedPrefixLength
+                                           buffer:(NSMutableAttributedString *)buffer {
+	[[buffer mutableString] setString:label];
 	NSRange fullRange = NSMakeRange(0, [label length]);
-	[measureString
-	    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
-	            range:fullRange];
+	[buffer setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
+	                range:fullRange];
+	if (matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
+		[buffer addAttribute:NSForegroundColorAttributeName
+		               value:self.hintMatchedTextColor
+		               range:NSMakeRange(0, matchedPrefixLength)];
+	}
+	return buffer;
+}
 
-	// Compute geometry
-	NSSize textSize = [measureString size];
+/// Box and arrow geometry for a hint whose text measures textSize.
+- (NSRect)hintRectForHint:(HintItem *)hint
+                 textSize:(NSSize)textSize
+              arrowHeight:(CGFloat *)outArrowHeight
+                 boxWidth:(CGFloat *)outBoxWidth {
+	HintPlacement placement = (HintPlacement)hint.placement;
 	CGFloat paddingX = [self resolvedHintPaddingX];
 	CGFloat paddingY = [self resolvedHintPaddingY];
-	HintPlacement placement = (HintPlacement)hint.placement;
 	CGFloat arrowHeight =
 	    [self shouldDrawArrowForPlacement:placement showArrow:hint.showArrow] ? kHintArrowHeight : 0.0;
 	CGFloat contentWidth = textSize.width + (paddingX * 2);
 	CGFloat contentHeight = textSize.height + (paddingY * 2);
 	CGFloat boxWidth = MAX(contentWidth, contentHeight);
 	CGFloat boxHeight = contentHeight + arrowHeight;
-	NSPoint position = hint.position;
-	CGFloat screenHeight = self.bounds.size.height;
-	NSRect rawHintRect = [self hintRectForPlacement:placement
-	                                       position:position
-	                                       boxWidth:boxWidth
-	                                      boxHeight:boxHeight
-	                                    arrowHeight:arrowHeight
-	                                   screenHeight:screenHeight];
+	if (outArrowHeight)
+		*outArrowHeight = arrowHeight;
+	if (outBoxWidth)
+		*outBoxWidth = boxWidth;
+	return [self hintRectForPlacement:placement
+	                         position:hint.position
+	                         boxWidth:boxWidth
+	                        boxHeight:boxHeight
+	                      arrowHeight:arrowHeight
+	                     screenHeight:self.bounds.size.height];
+}
+
+/// The badge's extent in view coordinates, stroke and arrow tip included.
+- (NSRect)badgeRectForHint:(HintItem *)hint {
+	NSMutableAttributedString *measureString = [self hintStringForLabel:hint.label
+	                                                matchedPrefixLength:0
+	                                                             buffer:self.cachedHintMeasureString];
+	CGFloat arrowHeight = 0.0;
+	NSRect hintRect = [self hintRectForHint:hint textSize:[measureString size] arrowHeight:&arrowHeight boxWidth:NULL];
 
 	// Expand by border width + 1pt to cover anti-aliased stroke edges
 	CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
-	NSRect hintRect = NSMakeRect(
-	    rawHintRect.origin.x - expand, rawHintRect.origin.y - expand, boxWidth + expand * 2, boxHeight + expand * 2);
-
-	CGFloat targetY = screenHeight - position.y;
-	if (arrowHeight > 0.0)
-		hintRect = NSUnionRect(hintRect, NSMakeRect(position.x - 1.0, targetY - 1.0, 2.0, 2.0));
-
-	if (self.hintBoundaryHighlightEnabled && hint.size.width > 0.0 && hint.size.height > 0.0) {
-		CGFloat boundaryX = position.x - hint.size.width / 2.0;
-		CGFloat boundaryY = screenHeight - position.y - hint.size.height / 2.0;
-		CGFloat boundaryExpand = ceil(self.hintBoundaryBorderWidth / 2.0) + 1.0;
-		NSRect boundaryRect = NSMakeRect(
-		    boundaryX - boundaryExpand, boundaryY - boundaryExpand, hint.size.width + boundaryExpand * 2.0,
-		    hint.size.height + boundaryExpand * 2.0);
-		hintRect = NSUnionRect(hintRect, boundaryRect);
+	NSRect badgeRect = NSInsetRect(hintRect, -expand, -expand);
+	if (arrowHeight > 0.0) {
+		CGFloat targetY = self.bounds.size.height - hint.position.y;
+		badgeRect = NSUnionRect(badgeRect, NSMakeRect(hint.position.x - 1.0, targetY - 1.0, 2.0, 2.0));
 	}
-
-	return hintRect;
+	return badgeRect;
 }
 
-- (NSRect)boundingRectForSearchInput {
-	if (!self.searchInput)
-		return NSZeroRect;
+/// Draw one hint's badge and label in view coordinates.
+- (void)drawHint:(HintItem *)hint matchedPrefixLength:(int)matchedPrefixLength {
+	NSMutableAttributedString *attrString = [self hintStringForLabel:hint.label
+	                                             matchedPrefixLength:matchedPrefixLength
+	                                                          buffer:self.cachedHintAttributedString];
+	NSSize textSize = [attrString size];
+	CGFloat arrowHeight = 0.0;
+	CGFloat boxWidth = 0.0;
+	NSRect hintRect = [self hintRectForHint:hint textSize:textSize arrowHeight:&arrowHeight boxWidth:&boxWidth];
+	HintPlacement placement = (HintPlacement)hint.placement;
 
+	// Draw background and border
+	CGFloat resolvedBorderRadius =
+	    self.hintBorderRadius >= 0.0 ? self.hintBorderRadius : MIN(hintRect.size.height / 2.0, 6.0);
+	NSBezierPath *path;
+	if (arrowHeight > 0.0) {
+		path = [self createTooltipPath:hintRect
+		                     arrowSize:arrowHeight
+		                elementCenterX:hint.position.x
+		                elementCenterY:self.bounds.size.height - hint.position.y
+		                     placement:placement];
+	} else {
+		path = [NSBezierPath bezierPathWithRoundedRect:hintRect
+		                                       xRadius:resolvedBorderRadius
+		                                       yRadius:resolvedBorderRadius];
+	}
+	[self.hintBackgroundColor setFill];
+	[path fill];
+	if (self.hintBorderWidth > 0) {
+		[self.hintBorderColor setStroke];
+		[path setLineWidth:self.hintBorderWidth];
+		[path stroke];
+	}
+
+	// Draw text
+	CGFloat textX = hintRect.origin.x + (boxWidth - textSize.width) / 2.0;
+	CGFloat textY = hintRect.origin.y + [self resolvedHintPaddingY];
+	if (arrowHeight > 0.0 && [self isTopHintPlacement:placement])
+		textY += arrowHeight;
+	[attrString drawAtPoint:NSMakePoint(textX, textY)];
+}
+
+#pragma mark - Search Input
+
+- (NSMutableAttributedString *)searchInputString:(SearchInputItem *)input {
 	NSMutableAttributedString *attrString = self.cachedSearchInputAttributedString;
-	NSString *query = self.searchInput.query ?: @"";
+	NSString *query = input.query ?: @"";
 	NSString *display = [query length] > 0 ? [NSString stringWithFormat:@"/ %@", query] : @"/ Search hints";
 	if ([query length] > 0) {
-		display = [display stringByAppendingFormat:@"  %ld", (long)self.searchInput.resultCount];
+		display = [display stringByAppendingFormat:@"  %ld", (long)input.resultCount];
 	}
 	[[attrString mutableString] setString:display];
-	NSRange fullRange = NSMakeRange(0, [display length]);
 	[attrString setAttributes:@{
 		NSFontAttributeName : self.searchInputFont,
 		NSForegroundColorAttributeName : self.searchInputTextColor
 	}
-	                    range:fullRange];
-
-	NSSize textSize = [attrString size];
-	CGFloat paddingX =
-	    self.searchInputPaddingX >= 0.0 ? self.searchInputPaddingX : MAX(8.0, self.searchInputFont.pointSize * 0.9);
-	CGFloat paddingY =
-	    self.searchInputPaddingY >= 0.0 ? self.searchInputPaddingY : MAX(5.0, self.searchInputFont.pointSize * 0.5);
-
-	return [self drawSearchInputWithAttrString:attrString textSize:textSize paddingX:paddingX paddingY:paddingY];
+	                    range:NSMakeRange(0, [display length])];
+	return attrString;
 }
 
-- (NSRect)drawSearchInputWithAttrString:(NSMutableAttributedString *)attrString
-                               textSize:(NSSize)textSize
-                               paddingX:(CGFloat)paddingX
-                               paddingY:(CGFloat)paddingY {
-	CGFloat width = MAX(self.searchInput.width, textSize.width + paddingX * 2.0);
-	CGFloat height = textSize.height + paddingY * 2.0;
-	CGFloat screenHeight = self.bounds.size.height;
-	NSRect boxRect =
-	    NSMakeRect(self.searchInput.position.x, screenHeight - self.searchInput.position.y - height, width, height);
-	CGFloat radius = self.searchInputBorderRadius >= 0.0 ? self.searchInputBorderRadius : MIN(height / 2.0, 8.0);
+- (CGFloat)searchInputPaddingXResolved {
+	return self.searchInputPaddingX >= 0.0 ? self.searchInputPaddingX : MAX(8.0, self.searchInputFont.pointSize * 0.9);
+}
+
+- (CGFloat)searchInputPaddingYResolved {
+	return self.searchInputPaddingY >= 0.0 ? self.searchInputPaddingY : MAX(5.0, self.searchInputFont.pointSize * 0.5);
+}
+
+/// The search box for a text of textSize, in view coordinates.
+- (NSRect)searchInputBoxRect:(SearchInputItem *)input textSize:(NSSize)textSize {
+	CGFloat width = MAX(input.width, textSize.width + [self searchInputPaddingXResolved] * 2.0);
+	CGFloat height = textSize.height + [self searchInputPaddingYResolved] * 2.0;
+	return NSMakeRect(input.position.x, self.bounds.size.height - input.position.y - height, width, height);
+}
+
+- (void)drawSearchInput:(SearchInputItem *)input {
+	NSMutableAttributedString *attrString = [self searchInputString:input];
+	NSRect boxRect = [self searchInputBoxRect:input textSize:[attrString size]];
+	CGFloat radius =
+	    self.searchInputBorderRadius >= 0.0 ? self.searchInputBorderRadius : MIN(boxRect.size.height / 2.0, 8.0);
 	NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:boxRect xRadius:radius yRadius:radius];
 
 	[self.searchInputBackgroundColor setFill];
@@ -1245,320 +1448,299 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		[path stroke];
 	}
 
-	[attrString drawAtPoint:NSMakePoint(boxRect.origin.x + paddingX, boxRect.origin.y + paddingY)];
-
-	CGFloat flippedY = screenHeight - self.searchInput.position.y - height;
-	CGFloat expand = ceil(self.searchInputBorderWidth / 2.0) + 1.0;
-	return NSMakeRect(
-	    self.searchInput.position.x - expand, flippedY - expand, width + expand * 2.0, height + expand * 2.0);
+	[attrString drawAtPoint:NSMakePoint(
+	                            boxRect.origin.x + [self searchInputPaddingXResolved],
+	                            boxRect.origin.y + [self searchInputPaddingYResolved])];
 }
 
-- (void)drawSearchInputInRect:(NSRect)dirtyRect {
-	if (!self.searchInput)
-		return;
-
-	NSRect inputRect = [self boundingRectForSearchInput];
-	if (NSIsEmptyRect(inputRect))
-		return;
-
-	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
-	if (filterByRect && !NSIntersectsRect(inputRect, dirtyRect))
-		return;
-
-	NSMutableAttributedString *attrString = self.cachedSearchInputAttributedString;
-	NSString *query = self.searchInput.query ?: @"";
-	NSString *display = [query length] > 0 ? [NSString stringWithFormat:@"/ %@", query] : @"/ Search hints";
-	if ([query length] > 0) {
-		display = [display stringByAppendingFormat:@"  %ld", (long)self.searchInput.resultCount];
-	}
-	[[attrString mutableString] setString:display];
-	NSRange fullRange = NSMakeRange(0, [display length]);
-	[attrString setAttributes:@{
-		NSFontAttributeName : self.searchInputFont,
-		NSForegroundColorAttributeName : self.searchInputTextColor
-	}
-	                    range:fullRange];
-
-	NSSize textSize = [attrString size];
-	CGFloat paddingX =
-	    self.searchInputPaddingX >= 0.0 ? self.searchInputPaddingX : MAX(8.0, self.searchInputFont.pointSize * 0.9);
-	CGFloat paddingY =
-	    self.searchInputPaddingY >= 0.0 ? self.searchInputPaddingY : MAX(5.0, self.searchInputFont.pointSize * 0.5);
-
-	[self drawSearchInputWithAttrString:attrString textSize:textSize paddingX:paddingX paddingY:paddingY];
-}
-
-/// Compute the screen-space bounding rect for a grid cell item (view coordinates).
-/// @param cellItem Grid cell item
-/// @return Bounding rectangle including border stroke
-- (NSRect)screenRectForGridCell:(GridCellItem *)cellItem {
-	CGRect bounds = cellItem.bounds;
-	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
-
-	CGFloat maxBorder = self.gridBorderWidth;
-	if (self.gridDrawLabelBackground && self.gridLabelBackgroundBorderWidth > maxBorder) {
-		maxBorder = self.gridLabelBackgroundBorderWidth;
-	}
-
-	CGFloat expand = ceil(maxBorder / 2.0) + 1.0;
-	return NSMakeRect(
-	    bounds.origin.x - expand, flippedY - expand, bounds.size.width + expand * 2, bounds.size.height + expand * 2);
-}
-
-/// Draw hint labels whose bounding rects intersect the given dirty rect.
-/// This is the single implementation of hint drawing; drawHints delegates here.
-/// When filtering is active, the intersection test is performed inline using the
-/// same geometry computed for drawing, so text is measured only once per hint.
-/// @param dirtyRect The dirty region to redraw. Pass NSZeroRect to draw all items (skips intersection checks).
-- (void)drawHintsInRect:(NSRect)dirtyRect {
-	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
-	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat paddingX = [self resolvedHintPaddingX];
-	CGFloat paddingY = [self resolvedHintPaddingY];
-
-	for (HintItem *hint in self.hints) {
-		NSString *label = hint.label;
-		if (!label || [label length] == 0)
-			continue;
-
-		NSPoint position = hint.position;
-		int matchedPrefixLength = hint.matchedPrefixLength;
-		BOOL showArrow = hint.showArrow;
-		HintPlacement placement = (HintPlacement)hint.placement;
-
-		// Set up attributed string with base font and colors
-		NSMutableAttributedString *attrString = self.cachedHintAttributedString;
-		[[attrString mutableString] setString:label];
-		NSRange fullRange = NSMakeRange(0, [label length]);
-		[attrString
-		    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
-		            range:fullRange];
-		if (matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
-			[attrString addAttribute:NSForegroundColorAttributeName
-			                   value:self.hintMatchedTextColor
-			                   range:NSMakeRange(0, matchedPrefixLength)];
-		}
-
-		// Compute geometry once — used for both intersection test and drawing,
-		// avoiding the double text measurement that would occur if we called
-		// boundingRectForHint: separately for the intersection check.
-		NSSize textSize = [attrString size];
-		CGFloat arrowHeight = [self shouldDrawArrowForPlacement:placement showArrow:showArrow] ? kHintArrowHeight : 0.0;
-		CGFloat contentWidth = textSize.width + (paddingX * 2);
-		CGFloat contentHeight = textSize.height + (paddingY * 2);
-		CGFloat boxWidth = MAX(contentWidth, contentHeight);
-		CGFloat boxHeight = contentHeight + arrowHeight;
-		CGFloat elementCenterX = position.x;
-		CGFloat flippedElementCenterY = screenHeight - position.y;
-		NSRect hintRect = [self hintRectForPlacement:placement
-		                                    position:position
-		                                    boxWidth:boxWidth
-		                                   boxHeight:boxHeight
-		                                 arrowHeight:arrowHeight
-		                                screenHeight:screenHeight];
-		NSRect boundaryRect = NSZeroRect;
-		if (self.hintBoundaryHighlightEnabled && hint.size.width > 0.0 && hint.size.height > 0.0) {
-			boundaryRect = NSMakeRect(
-			    position.x - hint.size.width / 2.0, screenHeight - position.y - hint.size.height / 2.0, hint.size.width,
-			    hint.size.height);
-		}
-
-		// Skip hints outside the dirty region
-		if (filterByRect) {
-			CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
-			NSRect testRect = NSMakeRect(
-			    hintRect.origin.x - expand, hintRect.origin.y - expand, boxWidth + expand * 2, boxHeight + expand * 2);
-			if (arrowHeight > 0.0)
-				testRect =
-				    NSUnionRect(testRect, NSMakeRect(elementCenterX - 1.0, flippedElementCenterY - 1.0, 2.0, 2.0));
-			if (!NSIsEmptyRect(boundaryRect)) {
-				CGFloat boundaryExpand = ceil(self.hintBoundaryBorderWidth / 2.0) + 1.0;
-				NSRect boundaryTestRect = NSMakeRect(
-				    boundaryRect.origin.x - boundaryExpand, boundaryRect.origin.y - boundaryExpand,
-				    boundaryRect.size.width + boundaryExpand * 2.0, boundaryRect.size.height + boundaryExpand * 2.0);
-				testRect = NSUnionRect(testRect, boundaryTestRect);
-			}
-			if (!NSIntersectsRect(testRect, dirtyRect))
-				continue;
-		}
-
-		if (!NSIsEmptyRect(boundaryRect)) {
-			CGFloat boundaryRadius =
-			    MIN(self.hintBoundaryBorderRadius, MIN(boundaryRect.size.width, boundaryRect.size.height) / 2.0);
-			NSBezierPath *boundaryPath = [NSBezierPath bezierPathWithRoundedRect:boundaryRect
-			                                                             xRadius:boundaryRadius
-			                                                             yRadius:boundaryRadius];
-			[self.hintBoundaryBackgroundColor setFill];
-			[boundaryPath fill];
-			if (self.hintBoundaryBorderWidth > 0.0) {
-				[self.hintBoundaryBorderColor setStroke];
-				[boundaryPath setLineWidth:self.hintBoundaryBorderWidth];
-				[boundaryPath stroke];
-			}
-		}
-
-		// Draw background and border
-		CGFloat resolvedBorderRadius =
-		    self.hintBorderRadius >= 0.0 ? self.hintBorderRadius : MIN(hintRect.size.height / 2.0, 6.0);
-		NSBezierPath *path;
-		if (arrowHeight > 0.0) {
-			path = [self createTooltipPath:hintRect
-			                     arrowSize:arrowHeight
-			                elementCenterX:elementCenterX
-			                elementCenterY:flippedElementCenterY
-			                     placement:placement];
-		} else {
-			path = [NSBezierPath bezierPathWithRoundedRect:hintRect
-			                                       xRadius:resolvedBorderRadius
-			                                       yRadius:resolvedBorderRadius];
-		}
-		[self.hintBackgroundColor setFill];
-		[path fill];
-		if (self.hintBorderWidth > 0) {
-			[self.hintBorderColor setStroke];
-			[path setLineWidth:self.hintBorderWidth];
-			[path stroke];
-		}
-
-		// Draw text
-		CGFloat textX = hintRect.origin.x + (boxWidth - textSize.width) / 2.0;
-		CGFloat textY = hintRect.origin.y + paddingY;
-		if (arrowHeight > 0.0 && [self isTopHintPlacement:placement])
-			textY += arrowHeight;
-		[attrString drawAtPoint:NSMakePoint(textX, textY)];
-	}
-}
-
-/// Draw grid cells whose bounding rects intersect the given dirty rect.
-/// This is the single implementation of grid cell drawing; drawGridCells delegates here.
-/// @param dirtyRect The dirty region to redraw. Pass NSZeroRect to draw all items (skips intersection checks).
-- (void)drawGridCellsInRect:(NSRect)dirtyRect {
-	if ([self.gridCells count] == 0)
-		return;
-
-	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
-	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat screenWidth = self.bounds.size.width;
-
-	for (GridCellItem *cellItem in self.gridCells) {
-		NSString *label = cellItem.label;
-		CGRect bounds = cellItem.bounds;
-		BOOL isMatched = cellItem.isMatched;
-		BOOL isSubgrid = cellItem.isSubgrid;
-
-		if (self.hideUnmatched && !isMatched && !isSubgrid)
-			continue;
-
-		// Flip coordinates and skip if outside dirty region
-		CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
-		NSRect cellRect = NSMakeRect(bounds.origin.x, flippedY, bounds.size.width, bounds.size.height);
-		if (filterByRect && !NSIntersectsRect(cellRect, dirtyRect))
-			continue;
-
-		// Draw background
-		NSColor *bgBase =
-		    isMatched && self.gridMatchedBackgroundColor ? self.gridMatchedBackgroundColor : self.gridBackgroundColor;
-		[bgBase setFill];
-		NSRectFill(cellRect);
-
-		// Draw border
-		[self drawGridCellBorder:cellRect isMatched:isMatched screenWidth:screenWidth];
-
-		// Draw label
-		if (label && [label length] > 0) {
-			if (self.gridDrawSubKeyPreview)
-				[self drawSubKeyPreviewInCellRect:cellRect];
-			[self drawGridLabel:label
-			             inCellRect:cellRect
-			              isMatched:isMatched
-			    matchedPrefixLength:cellItem.matchedPrefixLength
-			                  alpha:1.0];
-		}
-	}
-}
-
-- (void)drawAnimatedGridCellsInRect:(NSRect)dirtyRect progress:(CGFloat)progress {
-	NSArray<GridCellItem *> *fromCells = self.transitionFromGridCells ?: @[];
-	NSArray<GridCellItem *> *toCells = self.transitionToGridCells ?: @[];
-	NSUInteger count = MAX([fromCells count], [toCells count]);
-	if (count == 0) {
+- (void)renderSearchInputAtScale:(CGFloat)scale {
+	SearchInputItem *input = self.searchInput;
+	if (!input) {
+		[self.searchInputLayer removeFromSuperlayer];
+		self.searchInputLayer = nil;
 		return;
 	}
 
-	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
-	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat screenWidth = self.bounds.size.width;
-	CGRect fromBounds = CGRectNull;
-	CGRect toBounds = CGRectNull;
+	NSArray *signature = @[
+		NeruOrNull(self.searchInputFont), NeruOrNull(self.searchInputTextColor),
+		NeruOrNull(self.searchInputBackgroundColor), NeruOrNull(self.searchInputBorderColor),
+		@(self.searchInputBorderRadius), @(self.searchInputBorderWidth), @(self.searchInputPaddingX),
+		@(self.searchInputPaddingY), @(self.bounds.size.height)
+	];
+	NSArray *last = self.searchInputStyleSignature;
+	self.searchInputStyleGeneration = NeruStyleGeneration(signature, &last, self.searchInputStyleGeneration);
+	self.searchInputStyleSignature = last;
 
-	for (GridCellItem *cell in fromCells) {
-		fromBounds = CGRectIsNull(fromBounds) ? cell.bounds : CGRectUnion(fromBounds, cell.bounds);
+	if (!self.searchInputLayer) {
+		self.searchInputLayer = [self makeItemLayer:NeruItemKindSearchInput scale:scale];
+		[self.topRoot insertSublayer:self.searchInputLayer atIndex:0];
 	}
-	for (GridCellItem *cell in toCells) {
-		toBounds = CGRectIsNull(toBounds) ? cell.bounds : CGRectUnion(toBounds, cell.bounds);
+	NeruItemLayer *layer = self.searchInputLayer;
+	BOOL changed = layer.item != input || layer.styleGeneration != self.searchInputStyleGeneration;
+	if (changed) {
+		layer.item = input;
+		layer.styleGeneration = self.searchInputStyleGeneration;
+		NSRect boxRect = [self searchInputBoxRect:input textSize:[[self searchInputString:input] size]];
+		CGFloat expand = ceil(self.searchInputBorderWidth / 2.0) + 1.0;
+		layer.itemRect = NSInsetRect(boxRect, -expand, -expand);
 	}
-	if (CGRectIsNull(fromBounds)) {
-		fromBounds = CGRectIsNull(toBounds) ? CGRectZero : toBounds;
+	[self placeItemLayer:layer rect:layer.itemRect parentOrigin:CGPointZero scale:scale snap:YES changed:changed];
+}
+
+#pragma mark - Cursor Indicator
+
+/// Place the virtual cursor indicator. It is the configured character in the
+/// configured font and color, centered on the pointer position.
+- (void)renderCursorIndicatorAtScale:(CGFloat)scale {
+	if (!self.cursorIndicatorVisible || [self.cursorIndicatorLabel length] == 0) {
+		[self.cursorIndicatorLayer removeFromSuperlayer];
+		self.cursorIndicatorLayer = nil;
+		return;
 	}
-	if (CGRectIsNull(toBounds)) {
-		toBounds = fromBounds;
+
+	if (!self.cursorIndicatorLayer) {
+		self.cursorIndicatorLayer = [self makeItemLayer:NeruItemKindText scale:scale];
+		[self.topRoot addSublayer:self.cursorIndicatorLayer];
+	}
+	NeruItemLayer *layer = self.cursorIndicatorLayer;
+	NSFont *font = self.cursorIndicatorFont ?: [NSFont systemFontOfSize:8.0];
+	NSColor *color = self.cursorIndicatorTextColor ?: [NSColor whiteColor];
+	BOOL changed = ![layer.text isEqualToString:self.cursorIndicatorLabel] || ![layer.font isEqual:font] ||
+	               ![layer.color isEqual:color];
+	if (changed) {
+		layer.text = self.cursorIndicatorLabel;
+		layer.font = font;
+		layer.color = color;
+		layer.textSize = [layer.text sizeWithAttributes:@{NSFontAttributeName : font}];
 	}
 
-	for (NSUInteger idx = 0; idx < count; idx++) {
-		GridCellItem *fromCell = idx < [fromCells count] ? fromCells[idx] : nil;
-		GridCellItem *toCell = idx < [toCells count] ? toCells[idx] : nil;
-		CGRect startRect = fromCell ? fromCell.bounds : fromBounds;
-		CGRect endRect = toCell ? toCell.bounds : toBounds;
-		CGRect rect = CGRectMake(
-		    startRect.origin.x + (endRect.origin.x - startRect.origin.x) * progress,
-		    startRect.origin.y + (endRect.origin.y - startRect.origin.y) * progress,
-		    startRect.size.width + (endRect.size.width - startRect.size.width) * progress,
-		    startRect.size.height + (endRect.size.height - startRect.size.height) * progress);
+	NSPoint position = [self currentCursorIndicatorPosition];
+	CGFloat centerY = self.bounds.size.height - position.y;
+	NSSize textSize = layer.textSize;
+	layer.itemRect =
+	    CGRectMake(position.x - textSize.width / 2.0, centerY - textSize.height / 2.0, textSize.width, textSize.height);
+	[self placeItemLayer:layer
+	                rect:layer.itemRect
+	        parentOrigin:CGPointZero
+	               scale:scale
+	                snap:!self.cursorIndicatorTransitionActive
+	             changed:changed];
+}
 
-		CGFloat flippedY = screenHeight - rect.origin.y - rect.size.height;
-		NSRect cellRect = NSMakeRect(rect.origin.x, flippedY, rect.size.width, rect.size.height);
-		if (filterByRect && !NSIntersectsRect(cellRect, dirtyRect)) {
-			continue;
-		}
+#pragma mark - Glyph Labels
 
-		NSColor *bgBase = self.gridBackgroundColor;
-		[bgBase setFill];
-		NSRectFill(cellRect);
+/// Room around a glyph image for strokes and antialiasing that reach past the
+/// character's line box.
+static const CGFloat kNeruGlyphPadding = 2.0;
 
-		[self drawGridCellBorder:cellRect isMatched:NO screenWidth:screenWidth];
+/// How many text layouts each glyph set keeps. A dense grid has about 2,300 labels.
+static const NSUInteger kNeruTextLayoutCacheLimit = 4096;
 
-		NSString *fromLabel = fromCell.label ?: @"";
-		NSString *toLabel = toCell.label ?: fromLabel;
-		BOOL labelsMatch = [fromLabel isEqualToString:toLabel];
-		if (self.gridDrawSubKeyPreview) {
-			[self drawSubKeyPreviewInCellRect:cellRect];
-		}
-		if (labelsMatch) {
-			[self drawGridLabel:toLabel inCellRect:cellRect isMatched:NO matchedPrefixLength:0 alpha:1.0];
-			continue;
-		}
+/// How many glyph sets to keep. A render uses at most three.
+static const NSUInteger kNeruGlyphSetLimit = 16;
 
-		if (fromLabel.length > 0 && progress < 1.0) {
-			[self drawGridLabel:fromLabel
-			             inCellRect:cellRect
-			              isMatched:NO
-			    matchedPrefixLength:0
-			                  alpha:(1.0 - progress)];
-		}
-		if (toLabel.length > 0 && progress > 0.0) {
-			[self drawGridLabel:toLabel inCellRect:cellRect isMatched:NO matchedPrefixLength:0 alpha:progress];
-		}
+/// A cache key for color. Equal colors get the same key even as different objects.
+static NSString *NeruColorKey(NSColor *color) {
+	NSColor *rgb = [color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+	if (!rgb)
+		return [color description];
+	return [NSString stringWithFormat:@"%.4f,%.4f,%.4f,%.4f", rgb.redComponent, rgb.greenComponent, rgb.blueComponent,
+	                                  rgb.alphaComponent];
+}
+
+/// The glyph set for font and color at scale, shared by every label drawn in
+/// them. A render looks it up once per style, not once per character.
+- (NeruGlyphSet *)glyphSetForFont:(NSFont *)font color:(NSColor *)color scale:(CGFloat)scale {
+	if (!font || !color)
+		return nil;
+	NSString *key =
+	    [NSString stringWithFormat:@"%@|%.3f|%@|%.2f", font.fontName, font.pointSize, NeruColorKey(color), scale];
+	NeruGlyphSet *set = self.glyphSets[key];
+	if (!set) {
+		// Fonts, colors and scales change with config reloads and displays;
+		// dropping every set past the limit keeps the old ones from piling up.
+		if ([self.glyphSets count] >= kNeruGlyphSetLimit)
+			[self.glyphSets removeAllObjects];
+		set = [[NeruGlyphSet alloc] init];
+		set.font = font;
+		set.color = color;
+		set.scale = scale;
+		set.glyphs = [NSMutableDictionary dictionary];
+		set.layouts = [[NSCache alloc] init];
+		set.layouts.countLimit = kNeruTextLayoutCacheLimit;
+		self.glyphSets[key] = set;
+	}
+	return set;
+}
+
+/// The image of one character from set, drawn the first time any label needs it.
+- (NeruGlyph *)glyph:(NSString *)character inSet:(NeruGlyphSet *)set {
+	NeruGlyph *glyph = set.glyphs[character];
+	if (glyph)
+		return glyph;
+
+	CGFloat scale = set.scale;
+	NSDictionary *attrs = @{NSFontAttributeName : set.font, NSForegroundColorAttributeName : set.color};
+	NSSize textSize = [character sizeWithAttributes:attrs];
+	size_t width = (size_t)ceil((textSize.width + kNeruGlyphPadding * 2.0) * scale);
+	size_t height = (size_t)ceil((textSize.height + kNeruGlyphPadding * 2.0) * scale);
+	CGColorSpaceRef space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+	CGContextRef ctx = CGBitmapContextCreate(
+	    NULL, width, height, 8, 0, space, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+	CGColorSpaceRelease(space);
+	if (!ctx)
+		return nil;
+
+	// Text drawn straight into a layer was font-smoothed, so these glyphs are too.
+	CGContextSetAllowsFontSmoothing(ctx, true);
+	CGContextSetShouldSmoothFonts(ctx, true);
+	CGContextScaleCTM(ctx, scale, scale);
+	[NSGraphicsContext saveGraphicsState];
+	[NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithCGContext:ctx flipped:NO]];
+	[character drawAtPoint:NSMakePoint(kNeruGlyphPadding, kNeruGlyphPadding) withAttributes:attrs];
+	[NSGraphicsContext restoreGraphicsState];
+	CGImageRef image = CGBitmapContextCreateImage(ctx);
+	CGContextRelease(ctx);
+	if (!image)
+		return nil;
+
+	glyph = [[NeruGlyph alloc] init];
+	glyph.image = (__bridge_transfer id)image;
+	glyph.size = CGSizeMake(width / scale, height / scale);
+	set.glyphs[character] = glyph;
+	return glyph;
+}
+
+/// How text lays out in set's font, measured the first time it is seen.
+- (NeruTextLayout *)layoutOfText:(NSString *)text inSet:(NeruGlyphSet *)set {
+	NeruTextLayout *layout = [set.layouts objectForKey:text];
+	if (layout)
+		return layout;
+
+	NSAttributedString *line = [[NSAttributedString alloc] initWithString:text
+	                                                           attributes:@{NSFontAttributeName : set.font}];
+	CTLineRef ctLine = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)line);
+	NSMutableArray<NSString *> *characters = [NSMutableArray arrayWithCapacity:[text length]];
+	NSMutableArray<NSNumber *> *locations = [NSMutableArray arrayWithCapacity:[text length]];
+	NSMutableArray<NSNumber *> *offsets = [NSMutableArray arrayWithCapacity:[text length]];
+	[text enumerateSubstringsInRange:NSMakeRange(0, [text length])
+	                         options:NSStringEnumerationByComposedCharacterSequences
+	                      usingBlock:^(NSString *substring, NSRange range, NSRange enclosingRange, BOOL *stop) {
+		                      [characters addObject:substring];
+		                      [locations addObject:@(range.location)];
+		                      [offsets addObject:@(CTLineGetOffsetForStringIndex(ctLine, range.location, NULL))];
+	                      }];
+	CFRelease(ctLine);
+
+	layout = [[NeruTextLayout alloc] init];
+	layout.size = [line size];
+	layout.characters = characters;
+	layout.locations = locations;
+	layout.offsets = offsets;
+	[set.layouts setObject:layout forKey:text];
+	return layout;
+}
+
+- (NeruLabelLayer *)makeLabelLayer {
+	NeruLabelLayer *label = [NeruLabelLayer layer];
+	label.delegate = self.layerDrawer;
+	label.anchorPoint = CGPointZero;
+	label.glyphLayers = [NSMutableArray array];
+	return label;
+}
+
+/// Give a label its text, its first matchedPrefixLength characters from
+/// matchedGlyphs and the rest from glyphs. It swaps glyphs only when something
+/// they show changes.
+- (void)setLabel:(NeruLabelLayer *)label
+                   text:(NSString *)text
+                 glyphs:(NeruGlyphSet *)glyphs
+          matchedGlyphs:(NeruGlyphSet *)matchedGlyphs
+    matchedPrefixLength:(int)matchedPrefixLength {
+	NeruTextLayout *layout = [self layoutOfText:text inSet:glyphs];
+	if (label.layout == layout && label.glyphSet == glyphs && label.matchedGlyphSet == matchedGlyphs &&
+	    label.matchedPrefixLength == matchedPrefixLength)
+		return;
+	label.layout = layout;
+	label.glyphSet = glyphs;
+	label.matchedGlyphSet = matchedGlyphs;
+	label.matchedPrefixLength = matchedPrefixLength;
+
+	NSUInteger count = [layout.characters count];
+	while ([label.glyphLayers count] > count) {
+		[[label.glyphLayers lastObject] removeFromSuperlayer];
+		[label.glyphLayers removeLastObject];
+	}
+	while ([label.glyphLayers count] < count) {
+		CALayer *glyphLayer = [self makePlainLayer];
+		[label addSublayer:glyphLayer];
+		[label.glyphLayers addObject:glyphLayer];
+	}
+
+	BOOL prefixInRange = matchedGlyphs && matchedPrefixLength > 0 && matchedPrefixLength <= [text length];
+	for (NSUInteger k = 0; k < count; k++) {
+		BOOL matched = prefixInRange && [layout.locations[k] intValue] < matchedPrefixLength;
+		NeruGlyphSet *set = matched ? matchedGlyphs : glyphs;
+		NeruGlyph *glyph = [self glyph:layout.characters[k] inSet:set];
+		CALayer *glyphLayer = label.glyphLayers[k];
+		glyphLayer.contents = glyph.image;
+		glyphLayer.contentsScale = set.scale;
+		glyphLayer.bounds = CGRectMake(0, 0, glyph.size.width, glyph.size.height);
 	}
 }
 
-/// Draw a grid cell border with edge-clipping at the view boundary.
-/// cellRect must be in view (flipped) coordinates.
-- (void)drawGridCellBorder:(NSRect)cellRect isMatched:(BOOL)isMatched screenWidth:(CGFloat)screenWidth {
-	NSColor *borderColor =
-	    isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor;
-	[borderColor setStroke];
+/// Place a label so its text's line box starts at textOrigin (view
+/// coordinates), over a rounded badge at badgeRect when it has one.
+- (void)placeLabel:(NeruLabelLayer *)label
+          textOrigin:(CGPoint)textOrigin
+           badgeRect:(NSRect)badgeRect
+           badgeFill:(NSColor *)badgeFill
+         badgeBorder:(NSColor *)badgeBorder
+    badgeBorderWidth:(CGFloat)badgeBorderWidth
+         badgeRadius:(CGFloat)badgeRadius
+        parentOrigin:(CGPoint)parentOrigin
+               scale:(CGFloat)scale
+                snap:(BOOL)snap {
+	NSSize textSize = label.layout.size;
+	NSRect textRect = NSMakeRect(textOrigin.x, textOrigin.y, textSize.width, textSize.height);
+	NSRect rect = NSIsEmptyRect(badgeRect) ? textRect : NSUnionRect(textRect, badgeRect);
+	CGRect frame = snap ? NeruPixelAlignedRect(rect, scale) : rect;
+	label.frame = CGRectOffset(frame, -parentOrigin.x, -parentOrigin.y);
+	label.hidden = NO;
 
+	if (NSIsEmptyRect(badgeRect)) {
+		label.badge.hidden = YES;
+	} else {
+		if (!label.badge) {
+			label.badge = [self makePlainLayer];
+			[label insertSublayer:label.badge atIndex:0];
+		}
+		// The badge stroke sits inside the badge, as a layer border does.
+		label.badge.hidden = NO;
+		label.badge.frame = CGRectOffset(badgeRect, -frame.origin.x, -frame.origin.y);
+		label.badge.backgroundColor = badgeFill.CGColor;
+		label.badge.cornerRadius = badgeRadius;
+		label.badge.borderWidth = badgeBorder ? MAX(badgeBorderWidth, 0.0) : 0.0;
+		label.badge.borderColor = badgeBorder.CGColor;
+	}
+
+	NSUInteger count = [label.glyphLayers count];
+	for (NSUInteger k = 0; k < count; k++) {
+		CGPoint origin = CGPointMake(
+		    textOrigin.x + [label.layout.offsets[k] doubleValue] - kNeruGlyphPadding, textOrigin.y - kNeruGlyphPadding);
+		if (snap)
+			origin = CGPointMake(round(origin.x * scale) / scale, round(origin.y * scale) / scale);
+		CALayer *glyphLayer = label.glyphLayers[k];
+		glyphLayer.position = CGPointMake(origin.x - frame.origin.x, origin.y - frame.origin.y);
+	}
+}
+
+#pragma mark - Grid
+
+/// The rect a cell border strokes, in view coordinates. Odd widths shift half
+/// a point so the stroke covers whole pixels, and the edges at the right and
+/// bottom of the screen pull in so their stroke is not cut off.
+- (NSRect)gridBorderRectForCellRect:(NSRect)cellRect screenWidth:(CGFloat)screenWidth {
 	NSRect borderRect = cellRect;
 	if ((int)self.gridBorderWidth % 2 == 1) {
 		borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
@@ -1570,203 +1752,344 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		borderRect.origin.y += ceil(self.gridBorderWidth / 2.0);
 		borderRect.size.height -= ceil(self.gridBorderWidth / 2.0);
 	}
-	NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
-	[borderPath setLineWidth:self.gridBorderWidth];
-	[borderPath stroke];
+	return borderRect;
 }
 
-/// Draw a grid label centered in the cell, optionally with a rounded badge.
-/// @param label Grid label
-/// @param cellRect Cell rectangle in view coordinates
-/// @param isMatched Whether the cell currently matches the typed prefix
-/// @param matchedPrefixLength Number of leading characters to draw with matched styling
-- (void)drawGridLabel:(NSString *)label
-             inCellRect:(NSRect)cellRect
-              isMatched:(BOOL)isMatched
-    matchedPrefixLength:(int)matchedPrefixLength {
-	[self drawGridLabel:label
-	             inCellRect:cellRect
-	              isMatched:isMatched
-	    matchedPrefixLength:matchedPrefixLength
-	                  alpha:1.0];
-}
+/// The badge rect a label draws in cellRect, or NSZeroRect when it draws as
+/// plain text: no badge configured, or a cell too small to hold one.
+- (NSRect)gridBadgeRectInCellRect:(NSRect)cellRect textSize:(NSSize)textSize font:(NSFont *)font {
+	if (!self.gridDrawLabelBackground)
+		return NSZeroRect;
 
-- (void)drawGridLabel:(NSString *)label
-             inCellRect:(NSRect)cellRect
-              isMatched:(BOOL)isMatched
-    matchedPrefixLength:(int)matchedPrefixLength
-                  alpha:(CGFloat)alpha {
-	if (alpha <= 0.0) {
-		return;
-	}
-
-	// Whether a label fits its cell, and at what size, is decided once per draw
-	// by recursivegrid.Style.LabelFontSizeIn and handed over already settled:
-	// the final answer, and the one a transition holds from its first frame to
-	// its last, since these frames never return to Go. Nothing is measured
-	// against the interpolated rect here.
-	BOOL inTransition = self.gridTransitionActive;
-	if (inTransition ? self.gridTransitionHideLabel : self.gridHideLabel)
-		return;
-	NSFont *labelFont = (inTransition && self.gridTransitionFont) ? self.gridTransitionFont : self.gridFont;
-
-	// Set up attributed string
-	NSMutableAttributedString *attrString = self.cachedGridCellAttributedString;
-	[[attrString mutableString] setString:label];
-	NSRange fullRange = NSMakeRange(0, [label length]);
-	[attrString setAttributes:@{NSFontAttributeName : labelFont} range:fullRange];
-	[attrString addAttribute:NSForegroundColorAttributeName
-	                   value:[self color:self.cachedGridTextColor withMultipliedAlpha:alpha]
-	                   range:fullRange];
-	if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
-		[attrString addAttribute:NSForegroundColorAttributeName
-		                   value:[self color:self.cachedGridMatchedTextColor withMultipliedAlpha:alpha]
-		                   range:NSMakeRange(0, matchedPrefixLength)];
-	}
-
-	NSSize textSize = [attrString size];
-
-	// Fast path: no badge background
-	if (!self.gridDrawLabelBackground) {
-		CGFloat textX = cellRect.origin.x + (cellRect.size.width - textSize.width) / 2.0;
-		CGFloat textY = cellRect.origin.y + (cellRect.size.height - textSize.height) / 2.0;
-		[attrString drawAtPoint:NSMakePoint(textX, textY)];
-		return;
-	}
-
-	// Compute badge dimensions
-	CGFloat horizontalPadding = self.gridLabelBackgroundPaddingX >= 0.0 ? self.gridLabelBackgroundPaddingX
-	                                                                    : MAX(4.0, round(labelFont.pointSize * 0.4));
-	CGFloat verticalPadding = self.gridLabelBackgroundPaddingY >= 0.0 ? self.gridLabelBackgroundPaddingY
-	                                                                  : MAX(2.0, round(labelFont.pointSize * 0.2));
-	CGFloat badgeWidth = MAX(textSize.width + (horizontalPadding * 2.0), textSize.height + (verticalPadding * 2.0));
-	CGFloat badgeHeight = textSize.height + (verticalPadding * 2.0);
-
-	// Clamp badge to cell bounds — fall back to plain text if cell is too small
+	// Clamp the badge to the cell. A cell too small for one gets plain text.
 	CGFloat maxBadgeWidth = MAX(0.0, cellRect.size.width - 4.0);
 	CGFloat maxBadgeHeight = MAX(0.0, cellRect.size.height - 4.0);
-	if (maxBadgeWidth <= 0.0 || maxBadgeHeight <= 0.0) {
-		CGFloat textX = cellRect.origin.x + (cellRect.size.width - textSize.width) / 2.0;
-		CGFloat textY = cellRect.origin.y + (cellRect.size.height - textSize.height) / 2.0;
-		[attrString drawAtPoint:NSMakePoint(textX, textY)];
-		return;
-	}
+	if (maxBadgeWidth <= 0.0 || maxBadgeHeight <= 0.0)
+		return NSZeroRect;
+
+	CGFloat horizontalPadding = self.gridLabelBackgroundPaddingX >= 0.0 ? self.gridLabelBackgroundPaddingX
+	                                                                    : MAX(4.0, round(font.pointSize * 0.4));
+	CGFloat verticalPadding = self.gridLabelBackgroundPaddingY >= 0.0 ? self.gridLabelBackgroundPaddingY
+	                                                                  : MAX(2.0, round(font.pointSize * 0.2));
+	CGFloat badgeWidth = MAX(textSize.width + (horizontalPadding * 2.0), textSize.height + (verticalPadding * 2.0));
+	CGFloat badgeHeight = textSize.height + (verticalPadding * 2.0);
 	badgeWidth = MIN(badgeWidth, maxBadgeWidth);
 	badgeHeight = MIN(badgeHeight, maxBadgeHeight);
-
-	// Resolve badge colors
-	NSColor *badgeFill = (self.gridLabelBackgroundColor ? self.gridLabelBackgroundColor : self.gridBackgroundColor);
-	badgeFill = [self color:badgeFill withMultipliedAlpha:alpha];
-	NSColor *badgeBorder =
-	    isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor;
-	badgeBorder = [self color:badgeBorder withMultipliedAlpha:alpha];
-
-	// Draw badge fill
-	NSRect badgeRect = NSMakeRect(
+	return NSMakeRect(
 	    cellRect.origin.x + (cellRect.size.width - badgeWidth) / 2.0,
 	    cellRect.origin.y + (cellRect.size.height - badgeHeight) / 2.0, badgeWidth, badgeHeight);
+}
+
+- (NeruCellLayer *)addCellLayer {
+	NeruCellLayer *cell = [NeruCellLayer layer];
+	cell.delegate = self.layerDrawer;
+	cell.anchorPoint = CGPointZero;
+	cell.subKeys = [NSMutableArray array];
+	[self.gridRoot addSublayer:cell];
+	[self.cellLayers addObject:cell];
+	return cell;
+}
+
+/// Place a grid label centered in cellRect (view coordinates), on a badge
+/// when configured, or hide it when there is nothing to draw.
+- (NeruLabelLayer *)placeGridLabel:(NeruLabelLayer *)label
+                              text:(NSString *)text
+                            inCell:(NeruCellLayer *)cell
+                          cellRect:(NSRect)cellRect
+                      parentOrigin:(CGPoint)parentOrigin
+                            glyphs:(NeruGlyphSet *)glyphs
+                     matchedGlyphs:(NeruGlyphSet *)matchedGlyphs
+                         isMatched:(BOOL)isMatched
+               matchedPrefixLength:(int)matchedPrefixLength
+                           opacity:(CGFloat)opacity
+                             scale:(CGFloat)scale
+                              snap:(BOOL)snap {
+	if ([text length] == 0 || !glyphs || opacity <= 0.0) {
+		label.hidden = YES;
+		return label;
+	}
+	if (!label) {
+		label = [self makeLabelLayer];
+		label.zPosition = 2;
+		[cell addSublayer:label];
+	}
+
+	[self setLabel:label
+	                   text:text
+	                 glyphs:glyphs
+	          matchedGlyphs:matchedGlyphs
+	    matchedPrefixLength:(isMatched ? matchedPrefixLength : 0)];
+
+	NSSize textSize = label.layout.size;
+	NSRect badgeRect = [self gridBadgeRectInCellRect:cellRect textSize:textSize font:glyphs.font];
+	NSRect centerIn = NSIsEmptyRect(badgeRect) ? cellRect : badgeRect;
+	CGPoint textOrigin = CGPointMake(
+	    centerIn.origin.x + (centerIn.size.width - textSize.width) / 2.0,
+	    centerIn.origin.y + (centerIn.size.height - textSize.height) / 2.0);
 	CGFloat maxRadius = MIN(badgeRect.size.width, badgeRect.size.height) / 2.0;
 	CGFloat radius = self.gridLabelBackgroundBorderRadius >= 0.0 ? MIN(self.gridLabelBackgroundBorderRadius, maxRadius)
 	                                                             : MIN(badgeRect.size.height / 2.0, 6.0);
-	NSBezierPath *badgePath = [NSBezierPath bezierPathWithRoundedRect:badgeRect xRadius:radius yRadius:radius];
-	[badgeFill setFill];
-	[badgePath fill];
-
-	// Draw badge border
-	// Inset the stroke path by half the border width so the stroke stays entirely
-	// within the badge rect and does not bleed into adjacent cells.
-	if (badgeBorder && self.gridLabelBackgroundBorderWidth > 0.0) {
-		CGFloat inset = self.gridLabelBackgroundBorderWidth / 2.0;
-		NSRect strokeRect = NSInsetRect(badgeRect, inset, inset);
-		if (strokeRect.size.width > 0.0 && strokeRect.size.height > 0.0) {
-			CGFloat strokeMaxRadius = MIN(strokeRect.size.width, strokeRect.size.height) / 2.0;
-			CGFloat strokeRadius = MIN(MAX(radius - inset, 0.0), strokeMaxRadius);
-			NSBezierPath *strokePath = [NSBezierPath bezierPathWithRoundedRect:strokeRect
-			                                                           xRadius:strokeRadius
-			                                                           yRadius:strokeRadius];
-			[badgeBorder setStroke];
-			[strokePath setLineWidth:self.gridLabelBackgroundBorderWidth];
-			[strokePath stroke];
-		}
-	}
-
-	// Draw text centered in badge
-	CGFloat textX = badgeRect.origin.x + (badgeRect.size.width - textSize.width) / 2.0;
-	CGFloat textY = badgeRect.origin.y + (badgeRect.size.height - textSize.height) / 2.0;
-	[attrString drawAtPoint:NSMakePoint(textX, textY)];
+	[self placeLabel:label
+	          textOrigin:textOrigin
+	           badgeRect:badgeRect
+	           badgeFill:(self.gridLabelBackgroundColor ?: self.gridBackgroundColor)badgeBorder
+	                    :(isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor)
+	    badgeBorderWidth:self.gridLabelBackgroundBorderWidth
+	         badgeRadius:radius
+	        parentOrigin:parentOrigin
+	               scale:scale
+	                snap:snap];
+	label.opacity = opacity;
+	return label;
 }
 
-/// Draw a miniature version of the key grid inside a cell.
-/// Each sub-cell shows the corresponding key label at reduced size and opacity.
-/// Uses gridSubKeyLabels (the *next* depth's keys) so each cell previews what
-/// pressing that key will produce, rather than echoing the current depth's layout.
-/// When the preview layout has a true center cell (odd cols and odd rows),
-/// that center label is omitted so it does not sit directly beneath the
-/// prominently drawn main cell label.
-/// @param cellRect The cell rectangle in view coordinates (Y-up, already flipped)
-- (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect {
+/// Place the miniature next-depth key grid inside a cell. When the preview
+/// layout has a true center cell (odd cols and odd rows), that center label is
+/// omitted so it does not sit directly beneath the cell's own label.
+- (void)placeSubKeyPreviewInCell:(NeruCellLayer *)cell
+                        cellRect:(NSRect)cellRect
+                    parentOrigin:(CGPoint)parentOrigin
+                          glyphs:(NeruGlyphSet *)glyphs
+                           scale:(CGFloat)scale
+                            snap:(BOOL)snap {
 	int cols = self.gridSubKeyCols;
 	int rows = self.gridSubKeyRows;
 	NSArray<NSString *> *labels = self.gridSubKeyLabels;
-	NSUInteger count = labels ? [labels count] : 0;
+	NSUInteger used = 0;
 
-	if (cols <= 0 || rows <= 0 || count == 0)
-		return;
+	// Labels must hold exactly cols*rows keys for row * cols + col to index them.
+	if (glyphs && cols > 0 && rows > 0 && [labels count] == (NSUInteger)(cols * rows)) {
+		CGFloat subCellWidth = cellRect.size.width / cols;
+		CGFloat subCellHeight = cellRect.size.height / rows;
+		NSUInteger centerIdx =
+		    (cols % 2 == 1 && rows % 2 == 1) ? (NSUInteger)((rows / 2) * cols + (cols / 2)) : NSNotFound;
 
-	// Guard: labels must contain exactly cols*rows items so that
-	// the positional index (row * cols + col) maps to the correct label.
-	// If they are out of sync the preview would silently misalign.
-	if (count != (NSUInteger)(cols * rows))
-		return;
+		for (int row = 0; row < rows; row++) {
+			for (int col = 0; col < cols; col++) {
+				NSUInteger idx = (NSUInteger)(row * cols + col);
+				NSString *subLabel = labels[idx];
+				if (idx == centerIdx || [subLabel length] == 0)
+					continue;
 
-	// Settled once per draw by recursivegrid.Style.SubKeyPreviewFontSizeIn, the
-	// way drawGridLabel's font is.
-	BOOL inTransition = self.gridTransitionActive;
-	if (inTransition && self.gridTransitionHideSubKeyPreview)
-		return;
-	NSFont *subFont =
-	    (inTransition && self.gridTransitionSubKeyFont) ? self.gridTransitionSubKeyFont : self.gridSubKeyFont;
-	NSColor *subColor = self.gridSubKeyTextColor;
-	if (!subFont || !subColor)
-		return;
+				NeruLabelLayer *label = used < [cell.subKeys count] ? cell.subKeys[used] : nil;
+				if (!label) {
+					label = [self makeLabelLayer];
+					label.zPosition = 1;
+					[cell addSublayer:label];
+					[cell.subKeys addObject:label];
+				}
+				used++;
 
-	CGFloat subCellWidth = cellRect.size.width / cols;
-	CGFloat subCellHeight = cellRect.size.height / rows;
+				[self setLabel:label text:subLabel glyphs:glyphs matchedGlyphs:nil matchedPrefixLength:0];
 
-	// Determine center index to skip (only for odd cols × odd rows layouts)
-	NSUInteger centerIdx = NSNotFound;
-	if (cols % 2 == 1 && rows % 2 == 1) {
-		centerIdx = (NSUInteger)((rows / 2) * cols + (cols / 2));
+				// Sub-cells: row 0 is the top of the cell, which is the larger Y here.
+				CGFloat subOriginX = cellRect.origin.x + col * subCellWidth;
+				CGFloat subOriginY = cellRect.origin.y + (rows - 1 - row) * subCellHeight;
+				NSSize textSize = label.layout.size;
+				[self placeLabel:label
+				          textOrigin:CGPointMake(
+				                         subOriginX + (subCellWidth - textSize.width) / 2.0,
+				                         subOriginY + (subCellHeight - textSize.height) / 2.0)
+				           badgeRect:NSZeroRect
+				           badgeFill:nil
+				         badgeBorder:nil
+				    badgeBorderWidth:0.0
+				         badgeRadius:0.0
+				        parentOrigin:parentOrigin
+				               scale:scale
+				                snap:snap];
+			}
+		}
 	}
 
-	NSMutableAttributedString *str = self.cachedGridSubKeyAttributedString;
-	for (int row = 0; row < rows; row++) {
-		for (int col = 0; col < cols; col++) {
-			NSUInteger idx = (NSUInteger)(row * cols + col);
-			if (idx >= count)
-				break;
-			if (idx == centerIdx)
+	while ([cell.subKeys count] > used) {
+		[[cell.subKeys lastObject] removeFromSuperlayer];
+		[cell.subKeys removeLastObject];
+	}
+}
+
+/// Place one cell layer per grid cell. Mid-transition the cells are the
+/// interpolated ones, unmatched, cross-fading from their old labels to their
+/// new. Otherwise a cell nothing changed for is left alone.
+- (void)renderGridAtScale:(CGFloat)scale {
+	// Whether a label fits its cell, and at what size, is decided by
+	// recursivegrid.Style.LabelFontSizeIn and handed over settled, including
+	// the size a transition holds from its first frame to its last. Nothing is
+	// measured against the interpolated rect here.
+	BOOL inTransition = self.gridTransitionActive;
+	BOOL hideLabel = inTransition ? self.gridTransitionHideLabel : self.gridHideLabel;
+	NSFont *labelFont = (inTransition && self.gridTransitionFont) ? self.gridTransitionFont : self.gridFont;
+	BOOL drawSubKeys = self.gridDrawSubKeyPreview && !(inTransition && self.gridTransitionHideSubKeyPreview);
+	NSFont *subKeyFont =
+	    (inTransition && self.gridTransitionSubKeyFont) ? self.gridTransitionSubKeyFont : self.gridSubKeyFont;
+
+	NSArray *signature = @[
+		NeruOrNull(self.cachedGridTextColor),
+		NeruOrNull(self.cachedGridMatchedTextColor),
+		NeruOrNull(self.gridLabelBackgroundColor),
+		NeruOrNull(self.gridBackgroundColor),
+		NeruOrNull(self.gridMatchedBackgroundColor),
+		NeruOrNull(self.gridMatchedBorderColor),
+		NeruOrNull(self.gridBorderColor),
+		@(self.gridBorderWidth),
+		@(self.gridDrawLabelBackground),
+		@(self.gridLabelBackgroundPaddingX),
+		@(self.gridLabelBackgroundPaddingY),
+		@(self.gridLabelBackgroundBorderRadius),
+		@(self.gridLabelBackgroundBorderWidth),
+		NeruOrNull(labelFont),
+		@(hideLabel),
+		@(drawSubKeys),
+		NeruOrNull(subKeyFont),
+		NeruOrNull(self.gridSubKeyTextColor),
+		NeruOrNull(self.gridSubKeyLabels),
+		@(self.gridSubKeyCols),
+		@(self.gridSubKeyRows),
+		@(scale),
+		@(self.bounds.size.width),
+		@(self.bounds.size.height)
+	];
+	NSArray *last = self.gridStyleSignature;
+	self.gridStyleGeneration = NeruStyleGeneration(signature, &last, self.gridStyleGeneration);
+	self.gridStyleSignature = last;
+	NSUInteger generation = self.gridStyleGeneration;
+	NeruGlyphSet *glyphs = [self glyphSetForFont:labelFont color:self.cachedGridTextColor scale:scale];
+	NeruGlyphSet *matchedGlyphs = [self glyphSetForFont:labelFont color:self.cachedGridMatchedTextColor scale:scale];
+	NeruGlyphSet *subKeyGlyphs =
+	    drawSubKeys ? [self glyphSetForFont:subKeyFont color:self.gridSubKeyTextColor scale:scale] : nil;
+
+	NSArray<GridCellItem *> *fromCells = inTransition ? (self.transitionFromGridCells ?: @[]) : nil;
+	NSArray<GridCellItem *> *toCells = inTransition ? (self.transitionToGridCells ?: @[]) : self.gridCells;
+	NSUInteger count = inTransition ? MAX([fromCells count], [toCells count]) : [toCells count];
+	CGFloat progress = inTransition ? [self currentGridTransitionProgress] : 1.0;
+	CGRect fromBounds = CGRectNull;
+	CGRect toBounds = CGRectNull;
+	if (inTransition) {
+		for (GridCellItem *cell in fromCells)
+			fromBounds = CGRectIsNull(fromBounds) ? cell.bounds : CGRectUnion(fromBounds, cell.bounds);
+		for (GridCellItem *cell in toCells)
+			toBounds = CGRectIsNull(toBounds) ? cell.bounds : CGRectUnion(toBounds, cell.bounds);
+		if (CGRectIsNull(fromBounds))
+			fromBounds = CGRectIsNull(toBounds) ? CGRectZero : toBounds;
+		if (CGRectIsNull(toBounds))
+			toBounds = fromBounds;
+	}
+
+	// An empty grid hides its cells rather than dropping them. They hold no
+	// bitmaps, and the next activation usually shows the same cells again, so
+	// it costs a lookup per cell instead of a rebuilt tree.
+	self.gridRoot.hidden = count == 0;
+	if (count == 0)
+		return;
+	while ([self.cellLayers count] > count) {
+		[[self.cellLayers lastObject] removeFromSuperlayer];
+		[self.cellLayers removeLastObject];
+	}
+
+	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat screenWidth = self.bounds.size.width;
+	for (NSUInteger idx = 0; idx < count; idx++) {
+		NeruCellLayer *cell = idx < [self.cellLayers count] ? self.cellLayers[idx] : [self addCellLayer];
+		CGRect rect;
+		BOOL isMatched = NO;
+		int matchedPrefixLength = 0;
+		NSString *label = nil;
+		NSString *fadeLabel = nil;
+		CGFloat labelOpacity = 1.0;
+
+		if (inTransition) {
+			GridCellItem *fromCell = idx < [fromCells count] ? fromCells[idx] : nil;
+			GridCellItem *toCell = idx < [toCells count] ? toCells[idx] : nil;
+			CGRect startRect = fromCell ? fromCell.bounds : fromBounds;
+			CGRect endRect = toCell ? toCell.bounds : toBounds;
+			rect = CGRectMake(
+			    startRect.origin.x + (endRect.origin.x - startRect.origin.x) * progress,
+			    startRect.origin.y + (endRect.origin.y - startRect.origin.y) * progress,
+			    startRect.size.width + (endRect.size.width - startRect.size.width) * progress,
+			    startRect.size.height + (endRect.size.height - startRect.size.height) * progress);
+			NSString *fromLabel = fromCell.label ?: @"";
+			label = toCell.label ?: fromLabel;
+			if (![fromLabel isEqualToString:label]) {
+				fadeLabel = fromLabel;
+				labelOpacity = progress;
+			}
+			cell.placedGeneration = 0;
+		} else {
+			GridCellItem *item = toCells[idx];
+			if (self.hideUnmatched && !item.isMatched && !item.isSubgrid) {
+				if (!cell.hidden)
+					cell.hidden = YES;
 				continue;
+			}
+			rect = item.bounds;
+			isMatched = item.isMatched;
+			matchedPrefixLength = item.matchedPrefixLength;
+			label = item.label ?: @"";
 
-			NSString *subLabel = labels[idx];
-			if (!subLabel || subLabel.length == 0)
+			BOOL unchanged = cell.placedGeneration == generation && CGRectEqualToRect(cell.placedRect, rect) &&
+			                 cell.placedMatched == isMatched && cell.placedMatchedPrefixLength == matchedPrefixLength &&
+			                 [cell.placedLabel isEqualToString:label];
+			if (cell.hidden)
+				cell.hidden = NO;
+			if (unchanged)
 				continue;
-
-			// Sub-cells: row 0 is top of the cell.
-			// In NSView coordinates (Y increases upward), top = larger Y.
-			CGFloat subOriginX = cellRect.origin.x + col * subCellWidth;
-			CGFloat subOriginY = cellRect.origin.y + (rows - 1 - row) * subCellHeight;
-			NSRect subRect = NSMakeRect(subOriginX, subOriginY, subCellWidth, subCellHeight);
-
-			[[str mutableString] setString:subLabel];
-			NSRange range = NSMakeRange(0, subLabel.length);
-			[str setAttributes:@{NSFontAttributeName : subFont, NSForegroundColorAttributeName : subColor} range:range];
-
-			NSSize textSize = [str size];
-			CGFloat x = subRect.origin.x + (subCellWidth - textSize.width) / 2.0;
-			CGFloat y = subRect.origin.y + (subCellHeight - textSize.height) / 2.0;
-			[str drawAtPoint:NSMakePoint(x, y)];
+			cell.placedGeneration = generation;
+			cell.placedRect = rect;
+			cell.placedMatched = isMatched;
+			cell.placedMatchedPrefixLength = matchedPrefixLength;
+			cell.placedLabel = label;
 		}
+
+		NSRect cellRect = NSMakeRect(
+		    rect.origin.x, screenHeight - rect.origin.y - rect.size.height, rect.size.width, rect.size.height);
+
+		// The layer covers the border's stroke, half inside and half outside the
+		// border rect, and fills it with the cell background. Cells stack in
+		// order, so each one's background covers the outer half of the stroke
+		// before it, just as filling each cell after the last one's border did.
+		CGFloat borderWidth = self.gridBorderWidth;
+		NSRect borderRect = [self gridBorderRectForCellRect:cellRect screenWidth:screenWidth];
+		NSRect layerRect = NSInsetRect(borderRect, -borderWidth / 2.0, -borderWidth / 2.0);
+		cell.hidden = NO;
+		cell.frame = layerRect;
+		cell.backgroundColor =
+		    (isMatched && self.gridMatchedBackgroundColor ? self.gridMatchedBackgroundColor : self.gridBackgroundColor)
+		        .CGColor;
+		cell.borderWidth = borderWidth;
+		cell.borderColor =
+		    (isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor).CGColor;
+
+		// A cell with no label draws no preview, except mid-transition.
+		BOOL snap = !inTransition;
+		BOOL previewFits = drawSubKeys && ([label length] > 0 || inTransition);
+		[self placeSubKeyPreviewInCell:cell
+		                      cellRect:cellRect
+		                  parentOrigin:layerRect.origin
+		                        glyphs:(previewFits ? subKeyGlyphs : nil)scale:scale
+		                          snap:snap];
+
+		cell.label = [self placeGridLabel:cell.label
+		                             text:(hideLabel ? nil : label)inCell:cell
+		                         cellRect:cellRect
+		                     parentOrigin:layerRect.origin
+		                           glyphs:glyphs
+		                    matchedGlyphs:matchedGlyphs
+		                        isMatched:isMatched
+		              matchedPrefixLength:matchedPrefixLength
+		                          opacity:labelOpacity
+		                            scale:scale
+		                             snap:snap];
+		cell.fadeLabel = [self placeGridLabel:cell.fadeLabel
+		                                 text:(hideLabel ? nil : fadeLabel)inCell:cell
+		                             cellRect:cellRect
+		                         parentOrigin:layerRect.origin
+		                               glyphs:glyphs
+		                        matchedGlyphs:nil
+		                            isMatched:NO
+		                  matchedPrefixLength:0
+		                              opacity:1.0 - progress
+		                                scale:scale
+		                                 snap:snap];
 	}
 }
 
@@ -2540,18 +2863,9 @@ void NeruDrawHintSearchInput(OverlayWindow window, SearchInputData input, Search
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
-			NSRect oldRect = [controller.overlayView boundingRectForSearchInput];
 			controller.overlayView.searchInput = item;
 			applySearchInputStyle(controller.overlayView, styleCopy);
-			NSRect newRect = [controller.overlayView boundingRectForSearchInput];
-
-			controller.overlayView.fullRedraw = NO;
-			if (!NSIsEmptyRect(oldRect)) {
-				[controller.overlayView setNeedsDisplayInRect:oldRect];
-			}
-			if (!NSIsEmptyRect(newRect)) {
-				[controller.overlayView setNeedsDisplayInRect:newRect];
-			}
+			[controller.overlayView setNeedsDisplay:YES];
 			free_search_input_style_strings(&styleCopy);
 		}
 	});
@@ -2564,19 +2878,14 @@ void NeruHideHintSearchInput(OverlayWindow window) {
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
-			NSRect oldRect = [controller.overlayView boundingRectForSearchInput];
 			controller.overlayView.searchInput = nil;
-			if (!NSIsEmptyRect(oldRect)) {
-				controller.overlayView.fullRedraw = NO;
-				[controller.overlayView setNeedsDisplayInRect:oldRect];
-			}
+			[controller.overlayView setNeedsDisplay:YES];
 		}
 	});
 }
 
 /// Update hint match prefix (incremental update for typing).
-/// Only invalidates the bounding rects of hints whose matchedPrefixLength actually changed,
-/// enabling partial redraw in drawLayer:inContext:.
+/// Only the hints whose matchedPrefixLength changed redraw.
 /// @param window Overlay window handle
 /// @param prefix Match prefix
 void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
@@ -2588,7 +2897,7 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
-			BOOL anyInvalidated = NO;
+			BOOL anyChanged = NO;
 			NSUInteger prefixLen = [prefixStr length];
 
 			for (HintItem *hintItem in controller.overlayView.hints) {
@@ -2598,20 +2907,14 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 					newMatchedPrefixLength = (int)prefixLen;
 				}
 
-				// Only invalidate if the match state actually changed
 				if (hintItem.matchedPrefixLength != newMatchedPrefixLength) {
 					hintItem.matchedPrefixLength = newMatchedPrefixLength;
-					NSRect dirtyRect = [controller.overlayView boundingRectForHint:hintItem];
-					if (!NSIsEmptyRect(dirtyRect)) {
-						[controller.overlayView setNeedsDisplayInRect:dirtyRect];
-						anyInvalidated = YES;
-					}
+					anyChanged = YES;
 				}
 			}
 
-			if (anyInvalidated) {
-				// Signal partial redraw mode so drawLayer:inContext: uses the clip box
-				controller.overlayView.fullRedraw = NO;
+			if (anyChanged) {
+				[controller.overlayView setNeedsDisplay:YES];
 			}
 		}
 	});
@@ -3137,73 +3440,20 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 				return;
 
 			NSUInteger prefixLen = [prefixStr length];
-			BOOL anyMatchStateChanged = NO;
-
-			// First pass: update all cells and track which ones changed.
-			// Use a stack-allocated array for small counts, heap for large.
-			// Zero the stack path so both paths start provably initialized.
-			BOOL stackFlags[256];
-			memset(stackFlags, 0, sizeof(stackFlags));
-			BOOL *changedFlags = cellCount <= 256 ? stackFlags : (BOOL *)calloc(cellCount, sizeof(BOOL));
-			NSUInteger changedCount = 0;
-			NSUInteger idx = 0;
-
+			BOOL anyChanged = NO;
 			for (GridCellItem *cellItem in view.gridCells) {
 				NSString *label = cellItem.label ?: @"";
 				BOOL newIsMatched = (prefixLen > 0 && [label hasPrefix:prefixStr]);
 				int newMatchedPrefixLength = newIsMatched ? (int)prefixLen : 0;
-				BOOL changed =
-				    (cellItem.isMatched != newIsMatched || cellItem.matchedPrefixLength != newMatchedPrefixLength);
-
-				if (cellItem.isMatched != newIsMatched) {
-					anyMatchStateChanged = YES;
-				}
-				if (changed) {
+				if (cellItem.isMatched != newIsMatched || cellItem.matchedPrefixLength != newMatchedPrefixLength) {
 					cellItem.isMatched = newIsMatched;
 					cellItem.matchedPrefixLength = newMatchedPrefixLength;
-					changedFlags[idx] = YES;
-					changedCount++;
-				} else {
-					changedFlags[idx] = NO;
+					anyChanged = YES;
 				}
-				idx++;
 			}
 
-			if (changedCount == 0) {
-				if (changedFlags != stackFlags)
-					free(changedFlags);
-				return;
-			}
-
-			// If hideUnmatched is active and cells toggled visibility, a full redraw is needed
-			if (view.hideUnmatched && anyMatchStateChanged) {
-				if (changedFlags != stackFlags)
-					free(changedFlags);
-				view.fullRedraw = YES;
+			if (anyChanged) {
 				[view setNeedsDisplay:YES];
-				return;
-			}
-
-			// Second pass: partial redraw — only invalidate changed cells
-			BOOL anyInvalidated = NO;
-			idx = 0;
-			for (GridCellItem *cellItem in view.gridCells) {
-				if (changedFlags[idx]) {
-					NSRect dirtyRect = [view screenRectForGridCell:cellItem];
-					if (!NSIsEmptyRect(dirtyRect)) {
-						[view setNeedsDisplayInRect:dirtyRect];
-						anyInvalidated = YES;
-					}
-				}
-				idx++;
-			}
-
-			if (changedFlags != stackFlags)
-				free(changedFlags);
-
-			if (anyInvalidated) {
-				// Signal partial redraw mode so drawLayer:inContext: uses the clip box
-				view.fullRedraw = NO;
 			}
 		}
 	});
@@ -3460,7 +3710,6 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 
 	CGFloat fontSize = style.fontSize > 0 ? (CGFloat)style.fontSize : 8.0;
-	CGFloat radius = fontSize / 2.0;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
@@ -3476,7 +3725,6 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 
 			controller.overlayView.cursorIndicatorVisible = YES;
 			controller.overlayView.cursorIndicatorPosition = nextPosition;
-			controller.overlayView.cursorIndicatorRadius = radius;
 			controller.overlayView.cursorIndicatorLabel = labelChar;
 
 			NSFont *font = nil;
@@ -3532,7 +3780,6 @@ void NeruPositionAndDrawVirtualPointer(
 	NSSize labelSize = [labelChar sizeWithAttributes:@{NSFontAttributeName : measureFont}];
 	CGFloat textDimension = MAX(labelSize.width, labelSize.height);
 	CGFloat windowSize = textDimension + margin * 2.0;
-	CGFloat radius = textDimension / 2.0;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
@@ -3565,7 +3812,6 @@ void NeruPositionAndDrawVirtualPointer(
 			[controller.overlayView cancelCursorIndicatorTransition];
 			controller.overlayView.cursorIndicatorVisible = YES;
 			controller.overlayView.cursorIndicatorPosition = NSMakePoint(windowSize / 2.0, windowSize / 2.0);
-			controller.overlayView.cursorIndicatorRadius = radius;
 			controller.overlayView.cursorIndicatorLabel = labelChar;
 
 			NSFont *font = nil;
@@ -3597,16 +3843,9 @@ void NeruHideCursorIndicator(OverlayWindow window) {
 			if (!controller.overlayView.cursorIndicatorVisible)
 				return;
 
-			NSRect dirtyRect = [controller.overlayView cursorIndicatorRect];
 			[controller.overlayView cancelCursorIndicatorTransition];
 			controller.overlayView.cursorIndicatorVisible = NO;
-			if (NSIsEmptyRect(dirtyRect)) {
-				[controller.overlayView setNeedsDisplay:YES];
-				return;
-			}
-
-			controller.overlayView.fullRedraw = NO;
-			[controller.overlayView setNeedsDisplayInRect:dirtyRect];
+			[controller.overlayView setNeedsDisplay:YES];
 		}
 	});
 }
