@@ -1688,10 +1688,10 @@ static NeruTextLayout *NeruLayoutFromGlyphStarts(NSString *text, const CGFloat *
 	return layout;
 }
 
-/// Lay out every uncached text in one line rather than a line each. A grid
-/// shown for the first time has thousands of labels, and a line apiece was
-/// most of its first render. Texts outside ASCII keep a line of their own,
-/// where a fallback font could change the line height.
+/// Lay out every uncached text in one line rather than a line each. A grid has
+/// thousands of labels, and laying out one line per label took most of its
+/// first render. A text outside ASCII keeps a line of its own, because a
+/// fallback font could change its line height.
 - (void)prepareLayoutsOfTexts:(NSArray<NSString *> *)texts inSet:(NeruGlyphSet *)set {
 	NSMutableArray<NSString *> *pending = [NSMutableArray arrayWithCapacity:[texts count]];
 	NSMutableSet<NSString *> *seen = [NSMutableSet setWithCapacity:[texts count]];
@@ -1715,8 +1715,11 @@ static NeruTextLayout *NeruLayoutFromGlyphStarts(NSString *text, const CGFloat *
 	CGFloat *xs = malloc(sizeof(CGFloat) * (length + 1));
 	NeruGlyphStartsInLine(ctLine, xs, length);
 	xs[length] = CTLineGetTypographicBounds(ctLine, NULL, NULL, NULL);
-	CGFloat height =
-	    [[[NSAttributedString alloc] initWithString:@"A" attributes:@{NSFontAttributeName : set.font}] size].height;
+	// Every ASCII text in one font has the same line height, so measuring one of
+	// them the way layoutOfText:inSet: does gives every text's height.
+	CGFloat height = [[[NSAttributedString alloc] initWithString:[pending firstObject]
+	                                                  attributes:@{NSFontAttributeName : set.font}] size]
+	                     .height;
 
 	NSUInteger start = 0;
 	for (NSString *text in pending) {
@@ -2050,8 +2053,9 @@ static NeruTextLayout *NeruLayoutFromGlyphStarts(NSString *text, const CGFloat *
 	NeruGlyphSet *subKeyGlyphs =
 	    drawSubKeys ? [self glyphSetForFont:subKeyFont color:self.gridSubKeyTextColor scale:scale] : nil;
 
-	// The first label with no cached layout lays out every label after it at
-	// once. A transition's few labels lay out one by one.
+	// At the first label with no cached layout, the render lays out that label
+	// and every one after it in one line. A transition has few labels, so it
+	// lays them out one at a time.
 	BOOL layoutsPrepared = inTransition || !glyphs;
 	NSArray<GridCellItem *> *fromCells = inTransition ? (self.transitionFromGridCells ?: @[]) : nil;
 	NSArray<GridCellItem *> *toCells = inTransition ? (self.transitionToGridCells ?: @[]) : self.gridCells;
