@@ -38,8 +38,12 @@ static os_unfair_lock mouseMoveLock = OS_UNFAIR_LOCK_INIT;
 static void postPositionedEventLocked(CGEventRef event, CGPoint position) {
 	os_unfair_lock_lock(&mouseMoveLock);
 
-	NeruEnsureZoomViewportContainsPoint(position);
-	CGEventPost(kNeruMouseEventTapLocation, event);
+	// Go threads have no autorelease pool, and posting autoreleases a CFData per
+	// event. Without this pool the daemon keeps every one until it exits.
+	@autoreleasepool {
+		NeruEnsureZoomViewportContainsPoint(position);
+		CGEventPost(kNeruMouseEventTapLocation, event);
+	}
 
 	os_unfair_lock_unlock(&mouseMoveLock);
 }

@@ -1141,7 +1141,10 @@ void NeruPostEventTapModifierEvent(const char *modifier, int isDown) {
 		// Stamp the event with a distinct value so our event tap can ignore it
 		CGEventSetIntegerValueField(event, kCGEventSourceUserData, 0x1337);
 
-		CGEventPost(kCGHIDEventTap, event);
+		// Go threads have no autorelease pool, and posting autoreleases a CFData.
+		@autoreleasepool {
+			CGEventPost(kCGHIDEventTap, event);
+		}
 		CFRelease(event);
 	}
 	CFRelease(source);

@@ -54,7 +54,10 @@ static int postKeyboardEvent(CGEventSourceRef source, CGKeyCode keyCode, bool is
 
 	CGEventSetFlags(event, flags);
 	CGEventSetIntegerValueField(event, kCGEventSourceUserData, neruSyntheticEventMarker);
-	CGEventPost(kCGHIDEventTap, event);
+	// Go threads have no autorelease pool, and posting autoreleases a CFData.
+	@autoreleasepool {
+		CGEventPost(kCGHIDEventTap, event);
+	}
 	CFRelease(event);
 
 	return 1;
@@ -74,7 +77,9 @@ static int postModifierEvent(CGEventSourceRef source, int modifier, bool isDown,
 	CGEventSetType(event, kCGEventFlagsChanged);
 	CGEventSetFlags(event, flags);
 	CGEventSetIntegerValueField(event, kCGEventSourceUserData, neruSyntheticEventMarker);
-	CGEventPost(kCGHIDEventTap, event);
+	@autoreleasepool {
+		CGEventPost(kCGHIDEventTap, event);
+	}
 	CFRelease(event);
 
 	return 1;
