@@ -490,7 +490,7 @@ func (o *OverlayWindow) Show() {
 			}
 		}
 
-		o.renderPending(true)
+		o.renderPending()
 
 		discardCall(procShowWindow.Call(uintptr(o.hwnd), swShowNoActivate))
 		discardCall(procSetWindowPos.Call(
@@ -817,7 +817,7 @@ func (o *OverlayWindow) Flush() error {
 	o.mu.Unlock()
 
 	if enqueue {
-		postOnOverlayUI(func() { o.renderPending(false) })
+		postOnOverlayUI(o.renderPending)
 	}
 
 	return nil
@@ -869,12 +869,10 @@ func (o *OverlayWindow) releaseSurface() {
 	o.released = true
 }
 
-// restoreSurface grows a released surface back to the window's size. With
-// replay set it repaints what the window showed, so the next frame paints over
-// the same pixels it would have before the release. A caller whose next frame
-// clears passes replay false, since that frame repaints everything. UI thread
-// only.
-func (o *OverlayWindow) restoreSurface(replay bool) error {
+// restoreSurface grows a released surface back to the window's size and
+// repaints what it showed, so the next frame paints over the same pixels it
+// would have before the release. UI thread only.
+func (o *OverlayWindow) restoreSurface() error {
 	if !o.released {
 		return nil
 	}
@@ -890,7 +888,7 @@ func (o *OverlayWindow) restoreSurface(replay bool) error {
 
 	o.released = false
 
-	if !replay || len(o.drawn) == 0 {
+	if len(o.drawn) == 0 {
 		return nil
 	}
 
@@ -899,60 +897,42 @@ func (o *OverlayWindow) restoreSurface(replay bool) error {
 	return err
 }
 
-// record keeps what a frame leaves on the surface, for restoreSurface, and
-// reports whether it could. UI thread only.
-func (o *OverlayWindow) record(painted *frame) bool {
+// record keeps what a painted frame left on the surface, for restoreSurface.
+// UI thread only.
+func (o *OverlayWindow) record(painted *frame) {
 	if painted.clear {
 		o.drawn = o.drawn[:0]
 		o.drawnOverflow = false
 	}
 
 	if o.drawnOverflow {
-		return false
+		return
 	}
 
 	if len(o.drawn)+len(painted.cmds) > maxRecordedCmds {
 		o.drawn = nil
 		o.drawnOverflow = true
 
-		return false
+		return
 	}
 
 	o.drawn = append(o.drawn, painted.cmds...)
-
-	return true
 }
 
-// renderPending paints and presents the waiting frame, if any. While the
-// window is hidden, a released surface stays released, and renderPending
-// records the frame instead of painting it. Show passes showing to paint it as
-// the window comes up. UI thread only.
-func (o *OverlayWindow) renderPending(showing bool) {
+// renderPending paints and presents the waiting frame, if any. UI thread only.
+func (o *OverlayWindow) renderPending() {
 	o.mu.Lock()
 	pending := o.pending
 	o.pending = nil
 	o.renderQueued = false
 	observer := o.observer
-	visible := o.visible
-	clearPending := o.clearPending
 	o.mu.Unlock()
 
 	if o.surface == nil {
 		return
 	}
 
-	if o.released && !visible && !showing {
-		// A frame too large to record cannot wait, so renderPending paints it now.
-		if pending == nil || o.record(pending) {
-			return
-		}
-	}
-
-	// A frame that clears, or a Clear not yet flushed, makes what the window
-	// showed obsolete, so there is nothing to repaint first.
-	replay := !clearPending && (pending == nil || !pending.clear)
-
-	restoreErr := o.restoreSurface(replay)
+	restoreErr := o.restoreSurface()
 	if restoreErr != nil {
 		// Growing the surface back failed the way a lost device does. Rebuild
 		// the window on GDI and repaint what it showed.
@@ -960,7 +940,7 @@ func (o *OverlayWindow) renderPending(showing bool) {
 			return
 		}
 
-		if replay && len(o.drawn) > 0 {
+		if len(o.drawn) > 0 {
 			_, _ = o.surface.render(&frame{clear: true, cmds: o.drawn})
 		}
 	}
