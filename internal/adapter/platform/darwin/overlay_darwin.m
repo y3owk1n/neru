@@ -2224,13 +2224,17 @@ static const int64_t kNeruWindowServerReattachDebounceNs = 300 * NSEC_PER_MSEC;
 // per-keypress paths and caps a failing probe at one reattach per interval.
 static const CFTimeInterval kNeruOnscreenVerifyInterval = 1.0;
 
-// A probe still failing after this many repairs is lying (e.g. a list API
-// quirk) — stop probing rather than blink the overlay forever.
+// After this many failed repairs the probe is likely wrong (e.g. a list API
+// quirk), so repairs stop rather than blink the overlay forever. Hiding resets
+// the count, so a pinned window gets new repairs on its next Show.
 static const int kNeruOnscreenProbeFailureLimit = 3;
 
 // Delay before the one-shot probe that follows a fresh order-front. The
 // WindowServer needs a few frames to commit the order, and the repair of a
-// pinned window still lands before the user notices it missing.
+// pinned window still lands before the user notices it missing. Each failed
+// repair makes the next wait four times longer. Right after a Space switch the
+// WindowServer can ignore repairs that run back to back, and one a second
+// later takes effect.
 static const int64_t kNeruFreshOrderVerifyDelayNs = 80 * NSEC_PER_MSEC;
 
 static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
@@ -2340,7 +2344,8 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 // tick cancels the check.
 - (void)verifyOnscreenAfterFreshOrder {
 	uint64_t generation = ++self.freshOrderGeneration;
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kNeruFreshOrderVerifyDelayNs), dispatch_get_main_queue(), ^{
+	int64_t delayNs = kNeruFreshOrderVerifyDelayNs << (2 * MIN(self.onscreenProbeFailureStreak, 2));
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, delayNs), dispatch_get_main_queue(), ^{
 		if (generation != self.freshOrderGeneration || !self.shouldBeVisible || ![self hasDrawableFrame] ||
 		    self.windowServerReattachScheduled || !self.window.isVisible)
 			return;
@@ -2622,6 +2627,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 	if ([NSThread isMainThread]) {
 		controller.shouldBeVisible = NO;
 		controller.freshOrderGeneration++;
+		controller.onscreenProbeFailureStreak = 0;
 		[controller.window orderOut:nil];
 		// Shrink to 1x1 to release the large backing store (saves ~47MB per
 		// Retina-resolution full-screen window). The next resize/show call
@@ -2633,6 +2639,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 			@autoreleasepool {
 				controller.shouldBeVisible = NO;
 				controller.freshOrderGeneration++;
+				controller.onscreenProbeFailureStreak = 0;
 				[controller.window orderOut:nil];
 				[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
 				[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
