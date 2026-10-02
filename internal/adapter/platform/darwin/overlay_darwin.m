@@ -172,9 +172,9 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 /// How a text lays out in one font: its characters and where each starts.
 @interface NeruTextLayout : NSObject
 @property(nonatomic, assign) NSSize size;
-@property(nonatomic, strong) NSArray<NSString *> *characters;  ///< The text's composed characters
-@property(nonatomic, strong) NSArray<NSNumber *> *locations;   ///< Each character's index in the text
-@property(nonatomic, strong) NSArray<NSNumber *> *offsets;     ///< Each character's x from the line start
+@property(nonatomic, strong) NSArray<NSString *> *characters;  ///< The text in pieces the font draws apart
+@property(nonatomic, strong) NSArray<NSNumber *> *locations;   ///< Each piece's index in the text
+@property(nonatomic, strong) NSArray<NSNumber *> *offsets;     ///< Each piece's x from the line start
 @end
 
 @implementation NeruTextLayout
@@ -209,9 +209,10 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 @implementation NeruLabelLayer
 @end
 
-/// One grid cell. The layer's own background and border are the cell's and
-/// its labels are sublayers, so cells stack in the order they always drew in.
+/// One grid cell. The layer's own background is the cell's, and its border and
+/// labels are sublayers, so cells stack in the order they always drew in.
 @interface NeruCellLayer : CALayer
+@property(nonatomic, strong) CALayer *border;
 @property(nonatomic, strong) NeruLabelLayer *label;
 @property(nonatomic, strong) NeruLabelLayer *fadeLabel;  ///< Outgoing label while a transition cross-fades
 @property(nonatomic, strong) NSMutableArray<NeruLabelLayer *> *subKeys;
@@ -1620,12 +1621,31 @@ static NSString *NeruColorKey(NSColor *color) {
 	NSAttributedString *line = [[NSAttributedString alloc] initWithString:text
 	                                                           attributes:@{NSFontAttributeName : set.font}];
 	CTLineRef ctLine = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)line);
+
+	// A piece starts where a glyph starts on a character boundary. A ligature
+	// covers several characters with one glyph, so its characters stay one
+	// piece and draw as the font shapes them.
+	NSMutableIndexSet *glyphStarts = [NSMutableIndexSet indexSet];
+	for (id run in (__bridge NSArray *)CTLineGetGlyphRuns(ctLine)) {
+		CTRunRef ctRun = (__bridge CTRunRef)run;
+		CFIndex glyphCount = CTRunGetGlyphCount(ctRun);
+		CFIndex indices[glyphCount > 0 ? glyphCount : 1];
+		CTRunGetStringIndices(ctRun, CFRangeMake(0, 0), indices);
+		for (CFIndex g = 0; g < glyphCount; g++)
+			[glyphStarts addIndex:(NSUInteger)indices[g]];
+	}
+
 	NSMutableArray<NSString *> *characters = [NSMutableArray arrayWithCapacity:[text length]];
 	NSMutableArray<NSNumber *> *locations = [NSMutableArray arrayWithCapacity:[text length]];
 	NSMutableArray<NSNumber *> *offsets = [NSMutableArray arrayWithCapacity:[text length]];
 	[text enumerateSubstringsInRange:NSMakeRange(0, [text length])
 	                         options:NSStringEnumerationByComposedCharacterSequences
 	                      usingBlock:^(NSString *substring, NSRange range, NSRange enclosingRange, BOOL *stop) {
+		                      if ([characters count] > 0 && ![glyphStarts containsIndex:range.location]) {
+			                      NSUInteger last = [characters count] - 1;
+			                      characters[last] = [characters[last] stringByAppendingString:substring];
+			                      return;
+		                      }
 		                      [characters addObject:substring];
 		                      [locations addObject:@(range.location)];
 		                      [offsets addObject:@(CTLineGetOffsetForStringIndex(ctLine, range.location, NULL))];
@@ -1784,6 +1804,8 @@ static NSString *NeruColorKey(NSColor *color) {
 	NeruCellLayer *cell = [NeruCellLayer layer];
 	cell.delegate = self.layerDrawer;
 	cell.anchorPoint = CGPointZero;
+	cell.border = [self makePlainLayer];
+	[cell addSublayer:cell.border];
 	cell.subKeys = [NSMutableArray array];
 	[self.gridRoot addSublayer:cell];
 	[self.cellLayers addObject:cell];
@@ -2043,35 +2065,32 @@ static NSString *NeruColorKey(NSColor *color) {
 		NSRect cellRect = NSMakeRect(
 		    rect.origin.x, screenHeight - rect.origin.y - rect.size.height, rect.size.width, rect.size.height);
 
-		// The layer covers the border's stroke, half inside and half outside the
-		// border rect, and fills it with the cell background. Cells stack in
-		// order, so each one's background covers the outer half of the stroke
-		// before it, just as filling each cell after the last one's border did.
-		CGFloat borderWidth = self.gridBorderWidth;
+		// The fill covers the cell exactly and the border straddles its edge.
+		// Cells stack in order, so each one's fill covers the outer half of the
+		// border before it, as filling each cell after the last one's border did.
 		NSRect borderRect = [self gridBorderRectForCellRect:cellRect screenWidth:screenWidth];
-		NSRect layerRect = NSInsetRect(borderRect, -borderWidth / 2.0, -borderWidth / 2.0);
 		cell.hidden = NO;
-		cell.frame = layerRect;
+		cell.frame = cellRect;
 		cell.backgroundColor =
 		    (isMatched && self.gridMatchedBackgroundColor ? self.gridMatchedBackgroundColor : self.gridBackgroundColor)
 		        .CGColor;
-		cell.borderWidth = borderWidth;
-		cell.borderColor =
-		    (isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor).CGColor;
+		NeruPlaceStrokeLayer(
+		    cell.border, NSOffsetRect(borderRect, -cellRect.origin.x, -cellRect.origin.y), self.gridBorderWidth, 0.0,
+		    (isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor));
 
 		// A cell with no label draws no preview, except mid-transition.
 		BOOL snap = !inTransition;
 		BOOL previewFits = drawSubKeys && ([label length] > 0 || inTransition);
 		[self placeSubKeyPreviewInCell:cell
 		                      cellRect:cellRect
-		                  parentOrigin:layerRect.origin
+		                  parentOrigin:cellRect.origin
 		                        glyphs:(previewFits ? subKeyGlyphs : nil)scale:scale
 		                          snap:snap];
 
 		cell.label = [self placeGridLabel:cell.label
 		                             text:(hideLabel ? nil : label)inCell:cell
 		                         cellRect:cellRect
-		                     parentOrigin:layerRect.origin
+		                     parentOrigin:cellRect.origin
 		                           glyphs:glyphs
 		                    matchedGlyphs:matchedGlyphs
 		                        isMatched:isMatched
@@ -2082,7 +2101,7 @@ static NSString *NeruColorKey(NSColor *color) {
 		cell.fadeLabel = [self placeGridLabel:cell.fadeLabel
 		                                 text:(hideLabel ? nil : fadeLabel)inCell:cell
 		                             cellRect:cellRect
-		                         parentOrigin:layerRect.origin
+		                         parentOrigin:cellRect.origin
 		                               glyphs:glyphs
 		                        matchedGlyphs:nil
 		                            isMatched:NO
