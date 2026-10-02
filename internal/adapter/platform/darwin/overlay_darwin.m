@@ -1612,6 +1612,61 @@ static NSString *NeruColorKey(NSColor *color) {
 	return glyph;
 }
 
+/// Fill xs with the x of the glyph starting at each UTF-16 index of line, or
+/// NAN where no glyph starts.
+static void NeruGlyphStartsInLine(CTLineRef line, CGFloat *xs, NSUInteger length) {
+	for (NSUInteger i = 0; i < length; i++)
+		xs[i] = NAN;
+	for (id run in (__bridge NSArray *)CTLineGetGlyphRuns(line)) {
+		CTRunRef ctRun = (__bridge CTRunRef)run;
+		CFIndex count = CTRunGetGlyphCount(ctRun);
+		if (count <= 0)
+			continue;
+		CFIndex *indices = malloc(sizeof(CFIndex) * (size_t)count);
+		CGPoint *positions = malloc(sizeof(CGPoint) * (size_t)count);
+		CTRunGetStringIndices(ctRun, CFRangeMake(0, 0), indices);
+		CTRunGetPositions(ctRun, CFRangeMake(0, 0), positions);
+		for (CFIndex g = 0; g < count; g++) {
+			NSUInteger i = (NSUInteger)indices[g];
+			if (i < length && isnan(xs[i]))
+				xs[i] = positions[g].x;
+		}
+		free(indices);
+		free(positions);
+	}
+}
+
+/// The layout of text whose glyph starts are xs, indexed from text's first
+/// character. A piece starts where a glyph starts on a character boundary. A
+/// ligature covers several characters with one glyph, so they stay one piece
+/// and draw as the font shapes them.
+static NeruTextLayout *NeruLayoutFromGlyphStarts(NSString *text, const CGFloat *xs, NSSize size) {
+	CGFloat base = isnan(xs[0]) ? 0.0 : xs[0];
+	NSMutableArray<NSString *> *characters = [NSMutableArray arrayWithCapacity:[text length]];
+	NSMutableArray<NSNumber *> *locations = [NSMutableArray arrayWithCapacity:[text length]];
+	NSMutableArray<NSNumber *> *offsets = [NSMutableArray arrayWithCapacity:[text length]];
+	[text enumerateSubstringsInRange:NSMakeRange(0, [text length])
+	                         options:NSStringEnumerationByComposedCharacterSequences
+	                      usingBlock:^(NSString *substring, NSRange range, NSRange enclosingRange, BOOL *stop) {
+		                      CGFloat x = xs[range.location];
+		                      if ([characters count] > 0 && isnan(x)) {
+			                      NSUInteger last = [characters count] - 1;
+			                      characters[last] = [characters[last] stringByAppendingString:substring];
+			                      return;
+		                      }
+		                      [characters addObject:substring];
+		                      [locations addObject:@(range.location)];
+		                      [offsets addObject:@(isnan(x) ? 0.0 : x - base)];
+	                      }];
+
+	NeruTextLayout *layout = [[NeruTextLayout alloc] init];
+	layout.size = size;
+	layout.characters = characters;
+	layout.locations = locations;
+	layout.offsets = offsets;
+	return layout;
+}
+
 /// How text lays out in set's font, measured the first time it is seen.
 - (NeruTextLayout *)layoutOfText:(NSString *)text inSet:(NeruGlyphSet *)set {
 	NeruTextLayout *layout = [set.layouts objectForKey:text];
@@ -1621,44 +1676,59 @@ static NSString *NeruColorKey(NSColor *color) {
 	NSAttributedString *line = [[NSAttributedString alloc] initWithString:text
 	                                                           attributes:@{NSFontAttributeName : set.font}];
 	CTLineRef ctLine = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)line);
-
-	// A piece starts where a glyph starts on a character boundary. A ligature
-	// covers several characters with one glyph, so its characters stay one
-	// piece and draw as the font shapes them.
-	NSMutableIndexSet *glyphStarts = [NSMutableIndexSet indexSet];
-	for (id run in (__bridge NSArray *)CTLineGetGlyphRuns(ctLine)) {
-		CTRunRef ctRun = (__bridge CTRunRef)run;
-		CFIndex glyphCount = CTRunGetGlyphCount(ctRun);
-		CFIndex indices[glyphCount > 0 ? glyphCount : 1];
-		CTRunGetStringIndices(ctRun, CFRangeMake(0, 0), indices);
-		for (CFIndex g = 0; g < glyphCount; g++)
-			[glyphStarts addIndex:(NSUInteger)indices[g]];
-	}
-
-	NSMutableArray<NSString *> *characters = [NSMutableArray arrayWithCapacity:[text length]];
-	NSMutableArray<NSNumber *> *locations = [NSMutableArray arrayWithCapacity:[text length]];
-	NSMutableArray<NSNumber *> *offsets = [NSMutableArray arrayWithCapacity:[text length]];
-	[text enumerateSubstringsInRange:NSMakeRange(0, [text length])
-	                         options:NSStringEnumerationByComposedCharacterSequences
-	                      usingBlock:^(NSString *substring, NSRange range, NSRange enclosingRange, BOOL *stop) {
-		                      if ([characters count] > 0 && ![glyphStarts containsIndex:range.location]) {
-			                      NSUInteger last = [characters count] - 1;
-			                      characters[last] = [characters[last] stringByAppendingString:substring];
-			                      return;
-		                      }
-		                      [characters addObject:substring];
-		                      [locations addObject:@(range.location)];
-		                      [offsets addObject:@(CTLineGetOffsetForStringIndex(ctLine, range.location, NULL))];
-	                      }];
+	NSUInteger length = [text length];
+	NSUInteger slots = MAX(length, (NSUInteger)1);
+	CGFloat *xs = malloc(sizeof(CGFloat) * slots);
+	NeruGlyphStartsInLine(ctLine, xs, slots);
+	layout = NeruLayoutFromGlyphStarts(text, xs, [line size]);
+	free(xs);
 	CFRelease(ctLine);
 
-	layout = [[NeruTextLayout alloc] init];
-	layout.size = [line size];
-	layout.characters = characters;
-	layout.locations = locations;
-	layout.offsets = offsets;
 	[set.layouts setObject:layout forKey:text];
 	return layout;
+}
+
+/// Lay out every uncached text in one line rather than a line each. A grid
+/// shown for the first time has thousands of labels, and a line apiece was
+/// most of its first render. Texts outside ASCII keep a line of their own,
+/// where a fallback font could change the line height.
+- (void)prepareLayoutsOfTexts:(NSArray<NSString *> *)texts inSet:(NeruGlyphSet *)set {
+	NSMutableArray<NSString *> *pending = [NSMutableArray arrayWithCapacity:[texts count]];
+	NSMutableSet<NSString *> *seen = [NSMutableSet setWithCapacity:[texts count]];
+	for (NSString *text in texts) {
+		if ([text length] == 0 || [seen containsObject:text] || [set.layouts objectForKey:text] ||
+		    ![text canBeConvertedToEncoding:NSASCIIStringEncoding])
+			continue;
+		[seen addObject:text];
+		[pending addObject:text];
+	}
+	if ([pending count] < 2)
+		return;
+
+	// A zero-width space between texts joins no kerning pair or ligature, so
+	// each text lays out exactly as it would on a line of its own.
+	NSString *joined = [pending componentsJoinedByString:@"\u200B"];
+	NSAttributedString *line = [[NSAttributedString alloc] initWithString:joined
+	                                                           attributes:@{NSFontAttributeName : set.font}];
+	CTLineRef ctLine = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)line);
+	NSUInteger length = [joined length];
+	CGFloat *xs = malloc(sizeof(CGFloat) * (length + 1));
+	NeruGlyphStartsInLine(ctLine, xs, length);
+	xs[length] = CTLineGetTypographicBounds(ctLine, NULL, NULL, NULL);
+	CGFloat height =
+	    [[[NSAttributedString alloc] initWithString:@"A" attributes:@{NSFontAttributeName : set.font}] size].height;
+
+	NSUInteger start = 0;
+	for (NSString *text in pending) {
+		NSUInteger end = start + [text length];
+		if (!isnan(xs[start]) && !isnan(xs[end])) {
+			NSSize size = NSMakeSize(xs[end] - xs[start], height);
+			[set.layouts setObject:NeruLayoutFromGlyphStarts(text, xs + start, size) forKey:text];
+		}
+		start = end + 1;
+	}
+	free(xs);
+	CFRelease(ctLine);
 }
 
 - (NeruLabelLayer *)makeLabelLayer {
@@ -1980,6 +2050,9 @@ static NSString *NeruColorKey(NSColor *color) {
 	NeruGlyphSet *subKeyGlyphs =
 	    drawSubKeys ? [self glyphSetForFont:subKeyFont color:self.gridSubKeyTextColor scale:scale] : nil;
 
+	// The first label with no cached layout lays out every label after it at
+	// once. A transition's few labels lay out one by one.
+	BOOL layoutsPrepared = inTransition || !glyphs;
 	NSArray<GridCellItem *> *fromCells = inTransition ? (self.transitionFromGridCells ?: @[]) : nil;
 	NSArray<GridCellItem *> *toCells = inTransition ? (self.transitionToGridCells ?: @[]) : self.gridCells;
 	NSUInteger count = inTransition ? MAX([fromCells count], [toCells count]) : [toCells count];
@@ -2086,6 +2159,14 @@ static NSString *NeruColorKey(NSColor *color) {
 		                  parentOrigin:cellRect.origin
 		                        glyphs:(previewFits ? subKeyGlyphs : nil)scale:scale
 		                          snap:snap];
+
+		if (!layoutsPrepared && !hideLabel && [label length] > 0 && ![glyphs.layouts objectForKey:label]) {
+			layoutsPrepared = YES;
+			NSMutableArray<NSString *> *texts = [NSMutableArray arrayWithCapacity:count - idx];
+			for (NSUInteger next = idx; next < count; next++)
+				[texts addObject:toCells[next].label ?: @""];
+			[self prepareLayoutsOfTexts:texts inSet:glyphs];
+		}
 
 		cell.label = [self placeGridLabel:cell.label
 		                             text:(hideLabel ? nil : label)inCell:cell
