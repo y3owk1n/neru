@@ -2225,8 +2225,9 @@ static const int64_t kNeruWindowServerReattachDebounceNs = 300 * NSEC_PER_MSEC;
 static const CFTimeInterval kNeruOnscreenVerifyInterval = 1.0;
 
 // After this many failed repairs the probe is likely wrong (e.g. a list API
-// quirk), so repairs stop rather than blink the overlay forever. Hiding resets
-// the count, so a pinned window gets new repairs on its next Show.
+// quirk), so repairs stop rather than blink the overlay forever. If AppKit also
+// reports the window off the active Space when it hides, the count resets, so
+// a pinned window gets new repairs on its next Show.
 static const int kNeruOnscreenProbeFailureLimit = 3;
 
 // Delay before the one-shot probe that follows a fresh order-front. The
@@ -2627,7 +2628,8 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 	if ([NSThread isMainThread]) {
 		controller.shouldBeVisible = NO;
 		controller.freshOrderGeneration++;
-		controller.onscreenProbeFailureStreak = 0;
+		if (controller.window.isVisible && !controller.window.isOnActiveSpace)
+			controller.onscreenProbeFailureStreak = 0;
 		[controller.window orderOut:nil];
 		// Shrink to 1x1 to release the large backing store (saves ~47MB per
 		// Retina-resolution full-screen window). The next resize/show call
@@ -2639,7 +2641,8 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 			@autoreleasepool {
 				controller.shouldBeVisible = NO;
 				controller.freshOrderGeneration++;
-				controller.onscreenProbeFailureStreak = 0;
+				if (controller.window.isVisible && !controller.window.isOnActiveSpace)
+					controller.onscreenProbeFailureStreak = 0;
 				[controller.window orderOut:nil];
 				[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
 				[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
