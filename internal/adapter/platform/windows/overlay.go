@@ -234,6 +234,15 @@ type overlaySurface interface {
 	destroy()
 }
 
+// releaseMinArea is the window area, in pixels, above which hiding gives the
+// surface's pixel store back. Full-screen overlays are above it. The small
+// indicator badges hide and show constantly, stay below it, and keep theirs.
+const releaseMinArea = 512 * 512
+
+// maxRecordedCmds bounds what a window remembers to repaint after a release.
+// A window that draws more without clearing keeps its pixels instead.
+const maxRecordedCmds = 50000
+
 // OverlayWindow is a fullscreen click-through HWND with per-pixel alpha.
 //
 // Drawing is a queue of commands. Flush hands the queue to the overlay UI
@@ -260,6 +269,13 @@ type OverlayWindow struct {
 
 	// surface is touched only on the overlay UI thread.
 	surface overlaySurface
+	// drawn holds every command painted since the last clear. drawnOverflow
+	// says it outgrew maxRecordedCmds. released says the hidden surface gave
+	// its pixel store back, and the next paint grows it and repaints drawn
+	// first. All three are UI thread only, like surface.
+	drawn         []drawCmd
+	drawnOverflow bool
+	released      bool
 	// noDComp is set once DirectComposition failed for this window, so a
 	// rebuild does not try it again. dcompErr says why, for the log line
 	// that reports the GDI fallback.
@@ -505,6 +521,8 @@ func (o *OverlayWindow) Hide() {
 		o.mu.Lock()
 		o.visible = false
 		o.mu.Unlock()
+
+		o.releaseSurface()
 	})
 }
 
@@ -590,8 +608,9 @@ func (o *OverlayWindow) ResizeTo(posX, posY, width, height int) error {
 		))
 
 		// The indicator badges are moved to the cursor every tick at the size
-		// they already have; that is a move, and the pixel store stays.
-		if o.surface != nil && !sameSize {
+		// they already have; that is a move, and the pixel store stays. A
+		// released surface grows to the new size when it next paints.
+		if o.surface != nil && !sameSize && !o.released {
 			resizeErr = o.surface.resize(width, height)
 		}
 	})
@@ -831,6 +850,75 @@ func (o *OverlayWindow) queue(cmd drawCmd) {
 	o.mu.Unlock()
 }
 
+// releaseSurface shrinks a hidden full-screen surface to one pixel. Its pixel
+// store is about 32MB per buffer at 4K, held for as long as the window lives,
+// and a hidden overlay shows none of it. UI thread only.
+func (o *OverlayWindow) releaseSurface() {
+	o.mu.Lock()
+	area := o.width * o.height
+	o.mu.Unlock()
+
+	if o.surface == nil || o.released || o.drawnOverflow || area < releaseMinArea {
+		return
+	}
+
+	if o.surface.resize(1, 1) != nil {
+		return
+	}
+
+	o.released = true
+}
+
+// restoreSurface grows a released surface back to the window's size and
+// repaints what it showed, so the next frame paints over the same pixels it
+// would have before the release. UI thread only.
+func (o *OverlayWindow) restoreSurface() error {
+	if !o.released {
+		return nil
+	}
+
+	o.mu.Lock()
+	width, height := o.width, o.height
+	o.mu.Unlock()
+
+	err := o.surface.resize(width, height)
+	if err != nil {
+		return err
+	}
+
+	o.released = false
+
+	if len(o.drawn) == 0 {
+		return nil
+	}
+
+	_, err = o.surface.render(&frame{clear: true, cmds: o.drawn})
+
+	return err
+}
+
+// record keeps what a painted frame left on the surface, for restoreSurface.
+// UI thread only.
+func (o *OverlayWindow) record(painted *frame) {
+	if painted.clear {
+		o.drawn = o.drawn[:0]
+		o.drawnOverflow = false
+	}
+
+	if o.drawnOverflow {
+		return
+	}
+
+	if len(o.drawn)+len(painted.cmds) > maxRecordedCmds {
+		o.drawn = nil
+		o.drawnOverflow = true
+
+		return
+	}
+
+	o.drawn = append(o.drawn, painted.cmds...)
+}
+
 // renderPending paints and presents the waiting frame, if any. UI thread only.
 func (o *OverlayWindow) renderPending() {
 	o.mu.Lock()
@@ -840,7 +928,24 @@ func (o *OverlayWindow) renderPending() {
 	observer := o.observer
 	o.mu.Unlock()
 
-	if pending == nil || o.surface == nil {
+	if o.surface == nil {
+		return
+	}
+
+	restoreErr := o.restoreSurface()
+	if restoreErr != nil {
+		// Growing the surface back failed the way a lost device does. Rebuild
+		// the window on GDI and repaint what it showed.
+		if o.rebuildOnGDI(restoreErr) != nil {
+			return
+		}
+
+		if len(o.drawn) > 0 {
+			_, _ = o.surface.render(&frame{clear: true, cmds: o.drawn})
+		}
+	}
+
+	if pending == nil {
 		return
 	}
 
@@ -857,6 +962,10 @@ func (o *OverlayWindow) renderPending() {
 				stats = FrameStats{Backend: o.surface.name(), Err: err}
 			}
 		}
+	}
+
+	if stats.Err == nil {
+		o.record(pending)
 	}
 
 	if observer != nil {
@@ -982,6 +1091,7 @@ func (o *OverlayWindow) createWindowWithSurface(
 	o.width = width
 	o.height = height
 	o.surface = surface
+	o.released = false
 	overlayRegistry.Store(windows.HWND(hwnd), o)
 
 	discardCall(procSetWindowPos.Call(
