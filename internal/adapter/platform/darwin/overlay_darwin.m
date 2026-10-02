@@ -2225,17 +2225,13 @@ static const int64_t kNeruWindowServerReattachDebounceNs = 300 * NSEC_PER_MSEC;
 static const CFTimeInterval kNeruOnscreenVerifyInterval = 1.0;
 
 // After this many failed repairs the probe is likely wrong (e.g. a list API
-// quirk), so repairs stop rather than blink the overlay forever. If AppKit also
-// reports the window off the active Space when it hides, the count resets, so
-// a pinned window gets new repairs on its next Show.
+// quirk), so repairs stop rather than blink the overlay forever. Hiding resets
+// the count, so a pinned window gets new repairs on its next Show.
 static const int kNeruOnscreenProbeFailureLimit = 3;
 
 // Delay before the one-shot probe that follows a fresh order-front. The
 // WindowServer needs a few frames to commit the order, and the repair of a
-// pinned window still lands before the user notices it missing. Each failed
-// repair makes the next wait four times longer. Right after a Space switch the
-// WindowServer can ignore repairs that run back to back, and one a second
-// later takes effect.
+// pinned window still lands before the user notices it missing.
 static const int64_t kNeruFreshOrderVerifyDelayNs = 80 * NSEC_PER_MSEC;
 
 static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
@@ -2287,8 +2283,7 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 			return;
 		}
 
-		[self.window orderOut:nil];
-		[self.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
+		[self replaceWindow];
 		dispatch_async(dispatch_get_main_queue(), ^{
 			self.windowServerReattachScheduled = NO;
 			if (!self.shouldBeVisible || ![self hasDrawableFrame])
@@ -2300,8 +2295,8 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 			[self.window orderFrontRegardless];
 			[self.window display];
 			[self.overlayView setNeedsDisplay:YES];
-			// Just reordered — hold off probing for one interval. One
-			// detach/reattach does not always un-pin, so confirm it took.
+			// Just reordered, so hold off probing for one interval. Then
+			// confirm the new window took.
 			self.lastOnscreenVerifyTime = CACurrentMediaTime();
 			[self verifyOnscreenAfterFreshOrder];
 		});
@@ -2310,6 +2305,20 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 
 - (void)reattachToAllSpacesIfVisible {
 	[self reattachToAllSpacesIfVisibleAfterDelay:0];
+}
+
+// A pinned window ignores reordering and collection behavior changes until the
+// WindowServer settles, which took up to three seconds after a fullscreen
+// exit. A new window has no Space attachment yet, so it shows on the active
+// Space at once. The overlay view and its layers move across unchanged.
+- (void)replaceWindow {
+	NSPanel *old = self.window;
+	self.window = [self makePanelWithFrame:old.frame];
+	[self.window setLevel:old.level];
+	[self.window setSharingType:self.sharingType];
+	[old orderOut:nil];
+	[self.window setContentView:self.overlayView];
+	[old close];
 }
 
 // A healthy CanJoinAllSpaces window is already on the new Space; repair only
@@ -2333,8 +2342,8 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 		self.onscreenProbeFailureStreak++;
 	}
 
-	// Re-applying cached-identical state never reaches the server; only the
-	// full detach/reattach cycle un-pins a window stuck on one Space.
+	// Re-applying cached-identical state never reaches the server; only a new
+	// window un-pins a window stuck on one Space.
 	self.needsWindowServerReattach = YES;
 	[self reattachToAllSpacesIfVisible];
 }
@@ -2345,8 +2354,7 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 // tick cancels the check.
 - (void)verifyOnscreenAfterFreshOrder {
 	uint64_t generation = ++self.freshOrderGeneration;
-	int64_t delayNs = kNeruFreshOrderVerifyDelayNs << (2 * MIN(self.onscreenProbeFailureStreak, 2));
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, delayNs), dispatch_get_main_queue(), ^{
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kNeruFreshOrderVerifyDelayNs), dispatch_get_main_queue(), ^{
 		if (generation != self.freshOrderGeneration || !self.shouldBeVisible || ![self hasDrawableFrame] ||
 		    self.windowServerReattachScheduled || !self.window.isVisible)
 			return;
@@ -2407,19 +2415,12 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 	});
 }
 
-/// Create window
-- (void)createWindow {
-	// Start at 1x1 so the backing store is minimal until a resize is applied.
-	// Full-screen overlays call NeruResizeOverlayToActiveScreen before Show, and
-	// small indicator overlays (mode indicator, sticky modifiers) use
-	// NeruPositionOverlayRelative to set a small frame centered on the cursor.
-	// This saves some memory of backing store per hidden Retina overlay.
-	NSRect initialRect = NSMakeRect(0, 0, 1, 1);
-
+/// Borderless, non-activating, click-through panel at the overlay level.
+- (NSPanel *)makePanelWithFrame:(NSRect)frame {
 	// Use NSPanel for better floating overlay behavior.
 	// Non-activating panel won't steal focus from other apps.
 	NSPanel *panel =
-	    [[NSPanel alloc] initWithContentRect:initialRect
+	    [[NSPanel alloc] initWithContentRect:frame
 	                               styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
 	                                 backing:NSBackingStoreBuffered
 	                                   defer:NO];
@@ -2427,22 +2428,31 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 	[panel setReleasedWhenClosed:NO];
 	[panel setTitle:@"neru-overlay"];
 
-	self.window = panel;
-
 	// Disable animations
-	if ([self.window respondsToSelector:@selector(setAnimationBehavior:)]) {
-		[self.window setAnimationBehavior:NSWindowAnimationBehaviorNone];
+	if ([panel respondsToSelector:@selector(setAnimationBehavior:)]) {
+		[panel setAnimationBehavior:NSWindowAnimationBehaviorNone];
 	}
-	[self.window setAnimations:@{}];
-	[self.window setAlphaValue:1.0];
+	[panel setAnimations:@{}];
+	[panel setAlphaValue:1.0];
 
 	// Window appearance and behavior
-	[self.window setLevel:NSScreenSaverWindowLevel];
-	[self.window setOpaque:NO];
-	[self.window setBackgroundColor:[NSColor clearColor]];
-	[self.window setIgnoresMouseEvents:YES];
-	[self.window setAcceptsMouseMovedEvents:NO];
-	[self.window setHasShadow:NO];
+	[panel setLevel:NSScreenSaverWindowLevel];
+	[panel setOpaque:NO];
+	[panel setBackgroundColor:[NSColor clearColor]];
+	[panel setIgnoresMouseEvents:YES];
+	[panel setAcceptsMouseMovedEvents:NO];
+	[panel setHasShadow:NO];
+	return panel;
+}
+
+/// Create window
+- (void)createWindow {
+	// Start at 1x1 so the backing store is minimal until a resize is applied.
+	// Full-screen overlays call NeruResizeOverlayToActiveScreen before Show, and
+	// small indicator overlays (mode indicator, sticky modifiers) use
+	// NeruPositionOverlayRelative to set a small frame centered on the cursor.
+	// This saves some memory of backing store per hidden Retina overlay.
+	self.window = [self makePanelWithFrame:NSMakeRect(0, 0, 1, 1)];
 	[self applyOverlayCollectionBehavior];
 
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self
@@ -2562,8 +2572,13 @@ static void NeruOrderOverlayWindowIfDrawable(OverlayWindowController *controller
 /// @return Overlay window handle
 OverlayWindow NeruCreateOverlayWindow(void) {
 	__block OverlayWindowController *controller = nil;
+	// Startup calls this on the main thread before the run loop sets up an
+	// autorelease pool. Without this pool, a repair that replaces the startup
+	// window never frees it.
 	if ([NSThread isMainThread]) {
-		controller = [[OverlayWindowController alloc] init];
+		@autoreleasepool {
+			controller = [[OverlayWindowController alloc] init];
+		}
 	} else {
 		dispatch_sync(dispatch_get_main_queue(), ^{
 			controller = [[OverlayWindowController alloc] init];
@@ -2628,8 +2643,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 	if ([NSThread isMainThread]) {
 		controller.shouldBeVisible = NO;
 		controller.freshOrderGeneration++;
-		if (controller.window.isVisible && !controller.window.isOnActiveSpace)
-			controller.onscreenProbeFailureStreak = 0;
+		controller.onscreenProbeFailureStreak = 0;
 		[controller.window orderOut:nil];
 		// Shrink to 1x1 to release the large backing store (saves ~47MB per
 		// Retina-resolution full-screen window). The next resize/show call
@@ -2641,8 +2655,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 			@autoreleasepool {
 				controller.shouldBeVisible = NO;
 				controller.freshOrderGeneration++;
-				if (controller.window.isVisible && !controller.window.isOnActiveSpace)
-					controller.onscreenProbeFailureStreak = 0;
+				controller.onscreenProbeFailureStreak = 0;
 				[controller.window orderOut:nil];
 				[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
 				[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
