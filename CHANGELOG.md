@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.57.0](https://github.com/y3owk1n/neru/compare/v1.56.0...v1.57.0) (2026-10-03)
+
+
+### Features
+
+* **hints:** add exit-on-unmatched flag to dismiss overlay on unmatched key ([#1718](https://github.com/y3owk1n/neru/issues/1718)) ([1c47ad5](https://github.com/y3owk1n/neru/commit/1c47ad529dca1fc64f3ace01f19bb50b2b3c0d3a))
+
+
+### Bug Fixes
+
+* **accessibility:** skip tccutil reset when access is already granted ([#1721](https://github.com/y3owk1n/neru/issues/1721)) ([547ece3](https://github.com/y3owk1n/neru/commit/547ece320171b172a5c726c8e8b0c4c62441e7ba))
+* **darwin,overlay:** place grid label characters where the font puts them ([#1727](https://github.com/y3owk1n/neru/issues/1727)) ([519a693](https://github.com/y3owk1n/neru/commit/519a69338d092618544cb63f7907c9f1e095f13e))
+* **darwin:** ensure autorelease on posted mouse and key event ([#1730](https://github.com/y3owk1n/neru/issues/1730)) ([a845c1a](https://github.com/y3owk1n/neru/commit/a845c1af4237086f5ab806b23cdbc1713b1732b0))
+* **darwin:** restore overlays on every Space after a fullscreen video ([#1729](https://github.com/y3owk1n/neru/issues/1729)) ([99df1e0](https://github.com/y3owk1n/neru/commit/99df1e0e668504316a973054239415686c92ffd2))
+
+
+### Performance Improvements
+
+* **darwin,overlay:** improve overlay memory and faster activation ([#1726](https://github.com/y3owk1n/neru/issues/1726)) ([cca76da](https://github.com/y3owk1n/neru/commit/cca76da0794fb61656e3b7396f9169b5bd887a39))
+* **windows,overlay:** release hidden overlay surfaces ([#1728](https://github.com/y3owk1n/neru/issues/1728)) ([0388561](https://github.com/y3owk1n/neru/commit/03885619f95f115fdef474dd76eedc053283fef1))
+
+
+### Improvements
+
+* **log:** make daemon logs quieter and consistent ([#1732](https://github.com/y3owk1n/neru/issues/1732)) ([2483fc1](https://github.com/y3owk1n/neru/commit/2483fc11c9ae1c9c3f8bafa453841b6c6afbccce))
+* **log:** readable one-line console logs ([#1731](https://github.com/y3owk1n/neru/issues/1731)) ([8dac12e](https://github.com/y3owk1n/neru/commit/8dac12ebad0f2ee7380ec2791cbafbd9ec06d174))
+
 ## [1.56.0](https://github.com/y3owk1n/neru/compare/v1.55.0...v1.56.0) (2026-09-28)
 
 
