@@ -17,11 +17,9 @@ import (
 // hotkeys and re-registers them with the updated keycodes.
 func (a *App) registerLayoutChangeHandler() {
 	darwin.SetKeymapLayoutChangeHandler(func() {
-		a.logger.Info("Keyboard layout changed; re-registering global hotkeys")
-
 		a.hotkeys.Reregister()
 
-		a.logger.Info("Global hotkeys re-registered for new keyboard layout")
+		a.logger.Debug("Global hotkeys re-registered after keyboard layout change")
 	})
 
 	a.logger.Debug("Registered keyboard layout change handler for hotkey re-registration",

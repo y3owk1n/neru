@@ -170,7 +170,7 @@ func registerOppositeLabelDirectionGenerator(
 		oppositeDirection,
 	)
 	if oppositeGenErr != nil {
-		app.logger.Error(
+		app.logger.Warn(
 			"Failed to build opposite-direction hint generator",
 			zap.String("direction", oppositeDirection.String()),
 			zap.Error(oppositeGenErr),
@@ -180,12 +180,6 @@ func registerOppositeLabelDirectionGenerator(
 	}
 
 	hintService.UpdateGenerator(app.ctx, oppositeGen)
-
-	app.logger.Debug(
-		"Registered opposite-direction hint generator",
-		zap.String("primary_direction", primaryDirection.String()),
-		zap.String("opposite_direction", oppositeDirection.String()),
-	)
 }
 
 // initializeApplicationState sets up the core application state objects.
@@ -486,7 +480,7 @@ func initializeEventTapAndIPC(app *App) error {
 	}
 
 	if app.eventTap == nil {
-		logger.Warn("Event tap creation failed - key capture won't work")
+		logger.Warn("Event tap creation failed, key capture is unavailable")
 	}
 
 	if app.eventTap != nil {

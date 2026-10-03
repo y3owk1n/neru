@@ -99,7 +99,8 @@ func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 		h.config.MonitorSelect.Enabled,
 	)
 	if err != nil {
-		h.logger.Debug("monitor_select activation rejected", zap.Error(err))
+		h.logger.Debug("Mode activation refused",
+			zap.String("mode", domain.ModeNameMonitorSelect), zap.Error(err))
 
 		return
 	}
@@ -126,7 +127,7 @@ func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 			h.exitMode()
 			h.confirmMonitorSelect(&monitors[0])
 		} else {
-			h.logger.Debug("Skipping monitor_select activation; no selectable monitors")
+			h.logger.Warn("Monitor select activation skipped, no selectable monitors")
 		}
 
 		return
@@ -237,7 +238,7 @@ func (h *handlerState) discoverMonitorsForSelection() ([]monitorSelectTarget, er
 }
 
 func (h *handlerState) reportMonitorSelectNotSupported() {
-	h.logger.Info("monitor_select is not supported on this platform")
+	h.logger.Warn("Monitor select is not supported on this platform")
 
 	if h.system == nil {
 		return

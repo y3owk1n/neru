@@ -258,7 +258,7 @@ func (s *Server) Stop() error {
 	case <-done:
 		// All connections closed successfully
 	case <-timer.C:
-		s.logger.Warn("IPC server: timeout waiting for connections to close")
+		s.logger.Warn("Timed out waiting for IPC connections to close")
 	}
 
 	cleanupErr := cleanupEndpoint(s.socketPath)
@@ -312,7 +312,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 	defer func() {
 		connectionCloseErr := connection.Close()
 		if connectionCloseErr != nil {
-			logger.Error("Failed to close connection", zap.Error(connectionCloseErr))
+			logger.Warn("Failed to close connection", zap.Error(connectionCloseErr))
 		}
 
 		s.wg.Done()
@@ -363,7 +363,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 	decodeCommandErr := decoder.Decode(&cmd)
 	if decodeCommandErr != nil {
 		if errors.Is(decodeCommandErr, errCommandTooLarge) {
-			logger.Error("Refused an oversized command", zap.Int("limit_bytes", maxCommandBytes))
+			logger.Debug("Refused an oversized command", zap.Int("limit_bytes", maxCommandBytes))
 
 			reply(Response{
 				Success: false,
@@ -374,7 +374,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 			return
 		}
 
-		logger.Error("Failed to decode command", zap.Error(decodeCommandErr))
+		logger.Debug("Failed to decode command", zap.Error(decodeCommandErr))
 
 		reply(Response{
 			Success: false,
@@ -394,7 +394,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 	// Validate build version if provided
 	serverVersion := BuildVersion()
 	if cmd.Version != "" && cmd.Version != serverVersion {
-		logger.Warn("Build version mismatch",
+		logger.Debug("Build version mismatch",
 			zap.String("client_version", cmd.Version),
 			zap.String("server_version", serverVersion))
 

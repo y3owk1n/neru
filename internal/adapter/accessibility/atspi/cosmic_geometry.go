@@ -52,9 +52,9 @@ func cosmicOrigin(
 ) (image.Point, bool, error) {
 	if absInt(bounds.Dx()-frame.Width) > windowOriginSizeTolerance ||
 		absInt(bounds.Dy()-frame.Height) > windowOriginSizeTolerance {
-		logger.Debug("cosmic origin rejected: window size does not match AT-SPI frame",
-			zap.Int("windowW", bounds.Dx()), zap.Int("windowH", bounds.Dy()),
-			zap.Int("frameW", frame.Width), zap.Int("frameH", frame.Height))
+		logger.Debug("COSMIC origin rejected: window size does not match AT-SPI frame",
+			zap.Int("window_w", bounds.Dx()), zap.Int("window_h", bounds.Dy()),
+			zap.Int("frame_w", frame.Width), zap.Int("frame_h", frame.Height))
 
 		return image.Point{}, false, nil
 	}

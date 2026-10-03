@@ -193,33 +193,16 @@ func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Log
 	maxLabelLength := normalizeMaxLabelLength(options.MaxLabelLength)
 	scale := normalizeDisplayScale(options.DisplayScale)
 
-	logger.Debug("Creating new grid",
-		zap.String("characters", options.Characters),
-		zap.String("rowLabels", options.RowLabels),
-		zap.String("colLabels", options.ColLabels),
-		zap.Int("max_label_length", maxLabelLength),
-		zap.Float64("display_scale", scale),
-		zap.Int("bounds_width", bounds.Dx()),
-		zap.Int("bounds_height", bounds.Dy()))
-
 	alpha := newGridAlphabet(options.Characters, options.RowLabels, options.ColLabels)
 	cacheKey := newCacheKey(alpha, maxLabelLength, scale, bounds)
 
 	width := bounds.Max.X - bounds.Min.X
 	height := bounds.Max.Y - bounds.Min.Y
 
-	logger.Debug("Grid dimensions calculated",
-		zap.Int("width", width),
-		zap.Int("height", height))
-
 	if gridCacheEnabled {
 		if cells, ok := gridCache.get(cacheKey); ok {
-			logger.Debug("Grid cache hit", zap.Int("cell_count", len(cells)))
-
 			return newGridFromCells(alpha, maxLabelLength, bounds, cells)
 		}
-
-		logger.Debug("Grid cache miss")
 	}
 
 	if width <= 0 || height <= 0 {
@@ -265,18 +248,10 @@ func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Log
 		baseCellHeight,
 		remainderWidth,
 		remainderHeight,
-		logger,
 	)
-
-	logger.Debug("Grid created successfully",
-		zap.Int("cell_count", len(cells)),
-		zap.Int("grid_cols", plan.dimensions.Cols),
-		zap.Int("grid_rows", plan.dimensions.Rows),
-		zap.Int("label_length", plan.labelLength))
 
 	if gridCacheEnabled {
 		gridCache.put(cacheKey, cells)
-		logger.Debug("Grid cache store", zap.Int("cell_count", len(cells)))
 	}
 
 	return newGridFromCells(alpha, maxLabelLength, bounds, cells)

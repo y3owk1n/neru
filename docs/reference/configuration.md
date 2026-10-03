@@ -1124,6 +1124,8 @@ disable_file_logging = false
 | `max_backups`          | int    | `5`      | Rotated log files to keep                                                   |
 | `max_age`              | int    | `30`     | Days to keep rotated log files                                              |
 
-`info` covers lifecycle, config, mode activation and operational events. Use
-`debug` temporarily for key routing, hint generation, overlays or IPC. No
+`info` covers daemon start and stop, config loads and reloads, and mode
+activation and exit. `warn` marks something Neru worked around, and `error` a
+failure it could not recover from. Use `debug` temporarily for key routing,
+hint generation, overlays or IPC. No
 level logs typed text, fed keys, exec output or config values.

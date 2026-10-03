@@ -43,7 +43,7 @@ func LaunchDaemon(configPath string) {
 	// source, falling back to CurrentOS() when the port is unavailable.
 	if !platform.IsDarwin() {
 		if sysPortErr != nil {
-			fmt.Fprintf(os.Stderr, "⚠️  %s\n\n", sysPortErr.Error())
+			fmt.Fprintf(os.Stderr, "%s\n\n", sysPortErr.Error())
 		} else {
 			printPlatformStartupNotice(systemPort.PlatformLabel())
 		}
@@ -113,7 +113,7 @@ func printPlatformStartupNotice(platformLabel string) {
 func handleConfigValidationError(result *config.LoadResult) {
 	errMsg := result.ValidationError.Error()
 	cfgPath := result.ConfigPath
-	fmt.Fprintf(os.Stderr, "⚠️  Configuration validation failed: %v\n", result.ValidationError)
+	fmt.Fprintf(os.Stderr, "Configuration validation failed: %v\n", result.ValidationError)
 	fmt.Fprintf(os.Stderr, "Config file: %s\n", cfgPath)
 	fmt.Fprintf(os.Stderr, "Please fix the configuration and relaunch Neru.\n")
 

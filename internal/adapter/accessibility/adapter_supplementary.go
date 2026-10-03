@@ -29,8 +29,6 @@ func (a *Adapter) addMenubarElements(
 	elements []*element.Element,
 	filter ports.ElementFilter,
 ) []*element.Element {
-	a.logger.Debug("Adding menubar elements")
-
 	// Create local allowed roles including AXMenuBarItem for additional targets
 	originalRoles := a.client.ClickableRoles()
 	menubarRoles := make([]string, len(originalRoles)+2) //nolint:mnd
@@ -43,13 +41,15 @@ func (a *Adapter) addMenubarElements(
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
+		failed := 0
+
 		for _, node := range menubarNodes {
 			element, elementErr := a.convertToDomainElement(node)
 
 			node.Release()
 
 			if elementErr != nil {
-				a.logger.Warn("Failed to convert menubar element", zap.Error(elementErr))
+				failed++
 
 				continue
 			}
@@ -59,7 +59,8 @@ func (a *Adapter) addMenubarElements(
 			}
 		}
 
-		a.logger.Debug("Included menubar elements", zap.Int("count", len(menubarNodes)))
+		a.logger.Debug("Included menubar elements", zap.Int("count", len(menubarNodes)),
+			zap.Int("failed", failed))
 	}
 
 	// Get additional menubar targets in parallel
@@ -87,16 +88,15 @@ func (a *Adapter) addMenubarElements(
 
 			var localElements []*element.Element
 
+			failed := 0
+
 			for _, node := range additionalNodes {
 				elem, elemErr := a.convertToDomainElement(node)
 
 				node.Release()
 
 				if elemErr != nil {
-					a.logger.Debug(
-						"Failed to convert additional menubar element",
-						zap.Error(elemErr),
-					)
+					failed++
 
 					continue
 				}
@@ -113,7 +113,8 @@ func (a *Adapter) addMenubarElements(
 
 			a.logger.Debug("Included additional menubar elements",
 				zap.String("bundle_id", bundleID),
-				zap.Int("count", len(localElements)))
+				zap.Int("count", len(localElements)),
+				zap.Int("failed", failed))
 		}
 
 		for _, bundleID := range filter.AdditionalMenubarTargets {
@@ -146,7 +147,7 @@ func (a *Adapter) addDockElements(
 	// Get dock application by bundle ID
 	dockApp, dockAppErr := a.client.ApplicationByBundleID(ctx, dockBundleID)
 	if dockAppErr != nil || dockApp == nil {
-		a.logger.Warn("Dock application not found")
+		a.logger.Warn("Dock application not found", zap.Error(dockAppErr))
 
 		return elements
 	}
@@ -162,8 +163,7 @@ func (a *Adapter) addDockElements(
 
 	if appInfo.Role != string(element.RoleApplication) {
 		a.logger.Warn("Got incorrect element for dock, expected AXApplication",
-			zap.String("actual_role", appInfo.Role),
-			zap.String("title", appInfo.Title))
+			zap.String("actual_role", appInfo.Role))
 
 		return elements
 	}
@@ -176,13 +176,15 @@ func (a *Adapter) addDockElements(
 		return elements
 	}
 
+	failed := 0
+
 	for _, node := range dockNodes {
 		element, elementErr := a.convertToDomainElement(node)
 
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert dock element", zap.Error(elementErr))
+			failed++
 
 			continue
 		}
@@ -190,7 +192,8 @@ func (a *Adapter) addDockElements(
 		elements = append(elements, element)
 	}
 
-	a.logger.Debug("Included dock elements", zap.Int("count", len(dockNodes)))
+	a.logger.Debug("Included dock elements", zap.Int("count", len(dockNodes)),
+		zap.Int("failed", failed))
 
 	return elements
 }
@@ -201,8 +204,6 @@ func (a *Adapter) addNotificationCenterElements(
 	elements []*element.Element,
 ) []*element.Element {
 	const ncBundleID = "com.apple.notificationcenterui"
-
-	a.logger.Debug("Adding notification center elements")
 
 	// Lots of notification roles are AXGroup, so we need to enable it here
 	originalRoles := a.client.ClickableRoles()
@@ -222,13 +223,15 @@ func (a *Adapter) addNotificationCenterElements(
 		return elements
 	}
 
+	failed := 0
+
 	for _, node := range ncNodes {
 		element, elementErr := a.convertToDomainElement(node)
 
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert notification center element", zap.Error(elementErr))
+			failed++
 
 			continue
 		}
@@ -236,7 +239,8 @@ func (a *Adapter) addNotificationCenterElements(
 		elements = append(elements, element)
 	}
 
-	a.logger.Debug("Included notification center elements", zap.Int("count", len(ncNodes)))
+	a.logger.Debug("Included notification center elements", zap.Int("count", len(ncNodes)),
+		zap.Int("failed", failed))
 
 	return elements
 }
@@ -251,7 +255,7 @@ func (a *Adapter) addStageManagerElements(
 	// Get window manager application by bundle ID
 	wmApp, wmAppErr := a.client.ApplicationByBundleID(ctx, wmBundleID)
 	if wmAppErr != nil || wmApp == nil {
-		a.logger.Warn("Window manager application not found")
+		a.logger.Warn("Window manager application not found", zap.Error(wmAppErr))
 
 		return elements
 	}
@@ -267,8 +271,7 @@ func (a *Adapter) addStageManagerElements(
 
 	if appInfo.Role != string(element.RoleApplication) {
 		a.logger.Warn("Got incorrect element for window manager, expected AXApplication",
-			zap.String("actual_role", appInfo.Role),
-			zap.String("title", appInfo.Title))
+			zap.String("actual_role", appInfo.Role))
 
 		return elements
 	}
@@ -281,13 +284,15 @@ func (a *Adapter) addStageManagerElements(
 		return elements
 	}
 
+	failed := 0
+
 	for _, node := range wmNodes {
 		element, elementErr := a.convertToDomainElement(node)
 
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert window manager element", zap.Error(elementErr))
+			failed++
 
 			continue
 		}
@@ -295,7 +300,8 @@ func (a *Adapter) addStageManagerElements(
 		elements = append(elements, element)
 	}
 
-	a.logger.Debug("Included window manager elements", zap.Int("count", len(wmNodes)))
+	a.logger.Debug("Included window manager elements", zap.Int("count", len(wmNodes)),
+		zap.Int("failed", failed))
 
 	return elements
 }
@@ -319,13 +325,15 @@ func (a *Adapter) addPIPElements(
 		return elements
 	}
 
+	failed := 0
+
 	for _, node := range pipNodes {
 		element, elementErr := a.convertToDomainElement(node)
 
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert Picture in Picture element", zap.Error(elementErr))
+			failed++
 
 			continue
 		}
@@ -333,7 +341,8 @@ func (a *Adapter) addPIPElements(
 		elements = append(elements, element)
 	}
 
-	a.logger.Debug("Included Picture in Picture elements", zap.Int("count", len(pipNodes)))
+	a.logger.Debug("Included Picture in Picture elements", zap.Int("count", len(pipNodes)),
+		zap.Int("failed", failed))
 
 	return elements
 }
@@ -357,13 +366,15 @@ func (a *Adapter) addScreenCaptureElements(
 		return elements
 	}
 
+	failed := 0
+
 	for _, node := range screenCaptureNodes {
 		element, elementErr := a.convertToDomainElement(node)
 
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert Screen Capture element", zap.Error(elementErr))
+			failed++
 
 			continue
 		}
@@ -371,7 +382,8 @@ func (a *Adapter) addScreenCaptureElements(
 		elements = append(elements, element)
 	}
 
-	a.logger.Debug("Included Screen Capture elements", zap.Int("count", len(screenCaptureNodes)))
+	a.logger.Debug("Included Screen Capture elements", zap.Int("count", len(screenCaptureNodes)),
+		zap.Int("failed", failed))
 
 	return elements
 }

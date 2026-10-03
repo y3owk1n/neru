@@ -375,7 +375,7 @@ func (c *Component) handleEvents() {
 func (c *Component) handleVersionCopy() {
 	writeToClipboardErr := clipboard.WriteAll(buildinfo.Version)
 	if writeToClipboardErr != nil {
-		c.logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
+		c.logger.Error("Failed to copy version to clipboard", zap.Error(writeToClipboardErr))
 	} else {
 		c.notify("Version copied to clipboard")
 	}
@@ -431,9 +431,7 @@ func (c *Component) handleReloadConfig() {
 
 	reloadConfigErr := c.app.ReloadConfig(c.ctx, configPath)
 	if reloadConfigErr != nil {
-		c.logger.Error("Failed to reload config from systray", zap.Error(reloadConfigErr))
-	} else {
-		c.logger.Info("Configuration reloaded successfully from systray")
+		c.logger.Warn("Failed to reload config from systray", zap.Error(reloadConfigErr))
 	}
 }
 

@@ -124,7 +124,7 @@ func hasUsableAccessibilityTree(root *Element, logger *zap.Logger) bool {
 		}
 
 		if _, ready := readyRoles[role]; ready {
-			logger.Info("Found usable accessibility tree", zap.String("role", role))
+			logger.Debug("Found usable accessibility tree", zap.String("role", role))
 			releaseVisited(cur.el)
 			drainQueue()
 

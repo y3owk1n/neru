@@ -6,6 +6,7 @@
 //
 
 #import "keymap.h"
+#import "nativelog.h"
 
 #include <stdatomic.h>
 #include <string.h>
@@ -918,9 +919,9 @@ static void waitForLayoutMapsInitialized(NSTimeInterval timeoutSeconds) {
 	// run loop never ran it. Callers then see an empty keymap and every key
 	// name fails to resolve, which is worth saying out loud.
 	if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
-		NSLog(
-		    @"Neru: timed out after %.1fs waiting for keyboard layout maps (main run loop not running?)",
-		    timeoutSeconds);
+		NeruLog(
+		    NeruLogLevelError, @"Timed out waiting for keyboard layout maps, is the main run loop running?",
+		    [NSString stringWithFormat:@"%.1fs", timeoutSeconds]);
 	}
 }
 

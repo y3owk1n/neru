@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sys/windows"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/logonce"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
@@ -65,6 +66,10 @@ type overlayWindow interface {
 type winOverlay struct {
 	window overlayWindow
 	logger *zap.Logger
+	// recreateFailure and flushFailure limit a failure that repeats on every
+	// draw to one warning until the operation succeeds again.
+	recreateFailure logonce.Latch
+	flushFailure    logonce.Latch
 	// renderMu is the manager's lock, which every draw here runs under; the
 	// transition goroutine takes it per frame (transition.go).
 	renderMu       *sync.Mutex
@@ -113,15 +118,19 @@ type winOverlay struct {
 	transitionDone   chan struct{}
 }
 
+// createFailure limits a failing create of the main overlay window to one
+// warning, because the manager retries the create on every draw.
+var createFailure logonce.Latch
+
 func newWinOverlay(logger *zap.Logger, renderMu *sync.Mutex) *winOverlay {
 	window, err := winplatform.NewOverlayWindow()
 	if err != nil {
-		if logger != nil {
-			logger.Error("failed to create Windows overlay window", zap.Error(err))
-		}
+		createFailure.Warn(logger, "", "Failed to create Windows overlay window", zap.Error(err))
 
 		return nil
 	}
+
+	createFailure.Reset()
 
 	if logger != nil {
 		bounds := window.Bounds()
@@ -146,12 +155,16 @@ func newWinOverlay(logger *zap.Logger, renderMu *sync.Mutex) *winOverlay {
 		// warning above has already passed.
 		lastBackend := window.Backend()
 
+		var presentFailure logonce.Latch
+
 		window.SetFrameObserver(func(stats winplatform.FrameStats) {
 			if stats.Err != nil {
-				logger.Warn("overlay frame not presented", zap.Error(stats.Err))
+				presentFailure.Warn(logger, "", "Overlay frame not presented", zap.Error(stats.Err))
 
 				return
 			}
+
+			presentFailure.Reset()
 
 			if stats.Backend != lastBackend {
 				lastBackend = stats.Backend
@@ -163,7 +176,7 @@ func newWinOverlay(logger *zap.Logger, renderMu *sync.Mutex) *winOverlay {
 			}
 
 			logger.Debug(
-				"overlay frame presented",
+				"Overlay frame presented",
 				zap.String("backend", stats.Backend),
 				zap.Int("commands", stats.Commands),
 				zap.Int("dirty_width", stats.Dirty.Dx()),
@@ -198,7 +211,7 @@ func (o *winOverlay) Show() {
 
 	if o.window == nil {
 		if o.logger != nil {
-			o.logger.Error("Show aborted, overlay window is nil")
+			o.logger.Debug("Show skipped, overlay window is nil")
 		}
 
 		return
@@ -208,7 +221,7 @@ func (o *winOverlay) Show() {
 
 	if o.logger != nil {
 		bounds := o.window.Bounds()
-		o.logger.Debug("Show overlay window",
+		o.logger.Debug("Showing overlay window",
 			zap.Uintptr("hwnd", uintptr(o.window.HWND())),
 			zap.Int("x", bounds.Min.X),
 			zap.Int("y", bounds.Min.Y),
@@ -224,10 +237,6 @@ func (o *winOverlay) Show() {
 
 	o.window.Show()
 	o.flushOverlay("show")
-
-	if o.logger != nil {
-		o.logger.Debug("Show overlay window done")
-	}
 }
 
 func (o *winOverlay) Hide() {
@@ -280,7 +289,7 @@ func (o *winOverlay) Resize() {
 
 	err := o.window.ResizeToActiveScreen()
 	if err != nil && o.logger != nil {
-		o.logger.Warn("failed to resize Windows overlay", zap.Error(err))
+		o.logger.Warn("Failed to resize Windows overlay", zap.Error(err))
 	}
 
 	// Every recursive-grid draw resizes first, so only a window that moved
@@ -370,7 +379,7 @@ func (o *winOverlay) DrawGrid(gridValue *domainGrid.Grid, input string, style gr
 
 	if o.window == nil {
 		if o.logger != nil {
-			o.logger.Error("DrawGrid aborted, overlay window is nil")
+			o.logger.Debug("Grid draw skipped, overlay window is nil")
 		}
 
 		return
@@ -378,7 +387,7 @@ func (o *winOverlay) DrawGrid(gridValue *domainGrid.Grid, input string, style gr
 
 	if gridValue == nil {
 		if o.logger != nil {
-			o.logger.Error("DrawGrid aborted, grid is nil")
+			o.logger.Error("Grid draw aborted, grid is nil")
 		}
 
 		return
@@ -410,19 +419,18 @@ func (o *winOverlay) recreateWindow() {
 
 	window, err := winplatform.NewOverlayWindow()
 	if err != nil {
-		if o.logger != nil {
-			o.logger.Error("failed to recreate overlay window", zap.Error(err))
-		}
+		o.recreateFailure.Warn(o.logger, "", "Failed to recreate overlay window", zap.Error(err))
 
 		return
 	}
 
+	o.recreateFailure.Reset()
 	o.window = window
 
 	if o.logger != nil {
 		bounds := window.Bounds()
 		o.logger.Debug(
-			"recreated overlay window",
+			"Recreated overlay window",
 			zap.Uintptr("hwnd", uintptr(window.HWND())),
 			zap.Int("width", bounds.Dx()),
 			zap.Int("height", bounds.Dy()),
@@ -500,7 +508,7 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 
 	if o.window == nil {
 		if o.logger != nil {
-			o.logger.Error("redrawGrid aborted, overlay window is nil")
+			o.logger.Debug("Grid redraw skipped, overlay window is nil")
 		}
 
 		return
@@ -508,7 +516,7 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 
 	if o.cachedGrid == nil {
 		if o.logger != nil {
-			o.logger.Error("redrawGrid aborted, cached grid is nil")
+			o.logger.Debug("Grid redraw skipped, no cached grid")
 		}
 
 		return
@@ -526,7 +534,7 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 
 	if o.logger != nil {
 		o.logger.Debug(
-			"redraw complete",
+			"Grid redraw complete",
 			zap.Int("cells", len(o.cachedGrid.AllCells())),
 			zap.Bool("subgrid", o.currentSubgrid != nil),
 			zap.Bool("healthy", o.window.Healthy()),
@@ -585,16 +593,15 @@ func (o *winOverlay) flushOverlay(context string) {
 
 	err := o.window.Flush()
 	if err != nil {
-		if o.logger != nil {
-			o.logger.Error(
-				"overlay paint failed",
-				zap.String("context", context),
-				zap.Error(err),
-			)
-		}
+		o.flushFailure.Warn(o.logger, "", "Overlay paint failed",
+			zap.String("context", context),
+			zap.Error(err),
+		)
 
 		return
 	}
+
+	o.flushFailure.Reset()
 }
 
 // drawSubgrid paints the finer grid inside one cell. The keys it draws with

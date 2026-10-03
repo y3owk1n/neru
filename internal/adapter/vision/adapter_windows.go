@@ -89,16 +89,23 @@ func (a *Adapter) DetectElements(
 		TimeoutMS: cfg.RequestTimeoutMS,
 	})
 	if err != nil {
-		// Dimensions and durations describe the work, never its content.
-		a.logger.Error("Vision detection failed",
-			zap.Duration("recognition", stats.Recognition),
-			zap.Int("budget_ms", cfg.RequestTimeoutMS),
-			zap.Int("frame_width", img.Rect.Dx()),
-			zap.Int("frame_height", img.Rect.Dy()),
-			zap.Error(err),
-		)
+		// A refusal already names what to install, and that text reaches the
+		// user as written, so it passes through unchanged.
+		if derrors.IsNotSupported(err) {
+			return nil, err
+		}
 
-		return nil, err
+		// The cost and budget tell an early give-up from a timeout. The error
+		// never carries the recognized text.
+		return nil, derrors.Wrapf(
+			err,
+			derrors.GetCode(err),
+			"text recognition failed after %s (budget %d ms, frame %dx%d)",
+			stats.Recognition,
+			cfg.RequestTimeoutMS,
+			img.Rect.Dx(),
+			img.Rect.Dy(),
+		)
 	}
 
 	regions := regionsFromWords(

@@ -113,7 +113,7 @@ func (a *Adapter) SetHotkeys(hotkeys []string) {
 	}
 
 	if len(hotkeys) == 0 {
-		a.logger.Debug("SetHotkeys called with empty slice — no hotkeys will be monitored")
+		a.logger.Debug("Event tap hotkeys cleared")
 	}
 
 	a.tap.SetHotkeys(hotkeys)

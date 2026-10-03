@@ -385,7 +385,7 @@ func (h *handlerState) refreshHintsForMonitorMove(
 		splitWordOverride,
 	)
 	if err != nil {
-		h.logger.Error(
+		h.logger.Warn(
 			"Failed to refresh hints after monitor move",
 			zap.Error(err),
 		)
@@ -423,7 +423,7 @@ func (h *handlerState) refreshHintsForMonitorMove(
 
 	setHintsErr := h.hints.Context.SetHints(hintCollection)
 	if setHintsErr != nil {
-		h.logger.Error("Failed to set hints after monitor move", zap.Error(setHintsErr))
+		h.logger.Warn("Failed to set hints after monitor move", zap.Error(setHintsErr))
 		h.exitMode()
 
 		return

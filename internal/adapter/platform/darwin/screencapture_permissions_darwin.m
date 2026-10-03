@@ -5,6 +5,7 @@
 //  Copyright © 2026 Neru. All rights reserved.
 //
 
+#import "nativelog.h"
 #import "screencapture.h"
 
 #import <Cocoa/Cocoa.h>
@@ -12,7 +13,7 @@
 
 #pragma mark - Permission Functions
 
-static BOOL resetScreenCapturePermissionDecision(void) {
+static void resetScreenCapturePermissionDecision(void) {
 	NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier];
 	if (bundleID == nil || [bundleID length] == 0) {
 		bundleID = @"com.y3owk1n.neru";
@@ -28,17 +29,13 @@ static BOOL resetScreenCapturePermissionDecision(void) {
 
 		int status = [task terminationStatus];
 		if (status != 0) {
-			NSLog(
-			    @"Neru: tccutil reset ScreenCapture %@ exited with status %d; system permission dialog may not appear",
-			    bundleID, status);
-			return NO;
+			NeruLog(
+			    NeruLogLevelWarn, @"tccutil reset of ScreenCapture failed, the permission dialog may not appear",
+			    [NSString stringWithFormat:@"exit status %d", status]);
 		}
 	} @catch (NSException *exception) {
-		NSLog(@"Neru: failed to reset ScreenCapture permission decision: %@", exception);
-		return NO;
+		NeruLog(NeruLogLevelWarn, @"Failed to reset the ScreenCapture permission decision", exception.reason);
 	}
-
-	return YES;
 }
 
 /// Check if screen capture permissions are granted
@@ -56,9 +53,7 @@ int NeruCheckScreenCapturePermissions(void) {
 /// @return 1 if permissions are granted after the request, 0 otherwise
 int NeruRequestScreenCapturePermissions(void) {
 	@autoreleasepool {
-		if (!resetScreenCapturePermissionDecision()) {
-			NSLog(@"Neru: continuing with ScreenCapture permission request after reset failure");
-		}
+		resetScreenCapturePermissionDecision();
 
 		if (@available(macOS 10.15, *)) {
 			return CGRequestScreenCaptureAccess() ? 1 : 0;

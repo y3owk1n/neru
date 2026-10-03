@@ -150,7 +150,7 @@ func (l *linuxAppWatcher) loop(ctx context.Context, backend string) {
 
 	if l.subscribe != nil {
 		if fd, ok := l.subscribe(backend); ok && fd >= 0 {
-			l.watcher.logger.Debug("App watcher: using event-driven focus updates",
+			l.watcher.logger.Debug("Using event-driven focus updates",
 				zap.String("backend", backend))
 			l.loopEvent(ctx, backend, fd)
 
@@ -158,7 +158,7 @@ func (l *linuxAppWatcher) loop(ctx context.Context, backend string) {
 		}
 	}
 
-	l.watcher.logger.Debug("App watcher: polling focus updates",
+	l.watcher.logger.Debug("Polling focus updates",
 		zap.String("backend", backend),
 		zap.Duration("interval", l.interval))
 	l.loopPoll(ctx, backend)
@@ -194,7 +194,7 @@ func (l *linuxAppWatcher) loopPoll(ctx context.Context, backend string) {
 func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD int) {
 	dupFD, err := unix.Dup(focusFD)
 	if err != nil {
-		l.watcher.logger.Warn("App watcher: dup focus fd failed, falling back to polling",
+		l.watcher.logger.Warn("Dup focus fd failed, falling back to polling",
 			zap.String("backend", backend),
 			zap.Error(err))
 		l.loopPoll(ctx, backend)
@@ -222,7 +222,7 @@ func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD
 				continue
 			}
 			// Unexpected poll failure — degrade to polling rather than spin.
-			l.watcher.logger.Warn("App watcher: focus fd poll failed, falling back to polling",
+			l.watcher.logger.Warn("Focus fd poll failed, falling back to polling",
 				zap.String("backend", backend),
 				zap.Error(err))
 			l.loopPoll(ctx, backend)
@@ -233,7 +233,7 @@ func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD
 		revents := pollFDs[0].Revents
 
 		if revents&(unix.POLLHUP|unix.POLLERR|unix.POLLNVAL) != 0 {
-			l.watcher.logger.Warn("App watcher: focus fd hung up, falling back to polling",
+			l.watcher.logger.Warn("Focus fd hung up, falling back to polling",
 				zap.String("backend", backend))
 			l.loopPoll(ctx, backend)
 
@@ -275,7 +275,7 @@ func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 
 	screenFD, ok := l.subscribeScreen(backend)
 	if !ok || screenFD < 0 {
-		l.watcher.logger.Debug("App watcher: no screen-change fd; display hotplug events disabled",
+		l.watcher.logger.Debug("No screen-change fd; display hotplug events disabled",
 			zap.String("backend", backend))
 
 		return
@@ -283,7 +283,7 @@ func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 
 	dupFD, err := unix.Dup(screenFD)
 	if err != nil {
-		l.watcher.logger.Warn("App watcher: dup screen fd failed; display hotplug events disabled",
+		l.watcher.logger.Warn("Dup screen fd failed; display hotplug events disabled",
 			zap.String("backend", backend),
 			zap.Error(err))
 
@@ -294,7 +294,7 @@ func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 
 	defer func() { _ = unix.Close(dupFD) }()
 
-	l.watcher.logger.Debug("App watcher: using event-driven screen-change updates",
+	l.watcher.logger.Debug("Using event-driven screen-change updates",
 		zap.String("backend", backend))
 
 	pollFDs := []unix.PollFd{{Fd: int32(dupFD), Events: unix.POLLIN}}
@@ -313,7 +313,7 @@ func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 			}
 
 			l.watcher.logger.Warn(
-				"App watcher: screen fd poll failed; display hotplug events disabled",
+				"Screen fd poll failed; display hotplug events disabled",
 				zap.String("backend", backend),
 				zap.Error(err),
 			)
@@ -324,7 +324,7 @@ func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 		revents := pollFDs[0].Revents
 
 		if revents&(unix.POLLHUP|unix.POLLERR|unix.POLLNVAL) != 0 {
-			l.watcher.logger.Warn("App watcher: screen fd hung up; display hotplug events disabled",
+			l.watcher.logger.Warn("Screen fd hung up; display hotplug events disabled",
 				zap.String("backend", backend))
 
 			return
@@ -339,8 +339,6 @@ func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 				l.refreshScreens(backend)
 			}
 
-			l.watcher.logger.Debug("App watcher: display configuration changed",
-				zap.String("backend", backend))
 			l.watcher.HandleScreenParametersChanged()
 		}
 	}
@@ -386,10 +384,6 @@ func (l *linuxAppWatcher) tick(backend string) {
 	}
 
 	if appID != "" {
-		l.watcher.logger.Debug("App watcher: focused app changed",
-			zap.String("app_id", appID),
-			zap.String("previous", prev),
-			zap.String("backend", backend))
 		l.watcher.HandleActivate(appID, appID)
 	}
 }

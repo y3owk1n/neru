@@ -55,7 +55,7 @@ func (h *ActionsHandler) handleSleepAction(
 		}
 	}
 
-	h.logger.Debug("sleep action sleeping", zap.Duration("duration", duration))
+	h.logger.Debug("Sleep action waiting", zap.Duration("duration", duration))
 
 	// Wait on a timer rather than time.Sleep so that a long pause inside an
 	// action sequence is released when the daemon shuts down instead of
@@ -298,7 +298,7 @@ func (h *ActionsHandler) moveToSelectionTarget(
 
 	moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
 	if moveErr != nil {
-		h.logger.Error("Failed to move cursor to mode selection", zap.Error(moveErr))
+		h.logger.Debug("Failed to move cursor to mode selection", zap.Error(moveErr))
 
 		resp := failAction("failed to perform action: " + moveErr.Error())
 
@@ -329,12 +329,6 @@ func (h *ActionsHandler) performActionChain(
 			time.Sleep(interActionDelay)
 		}
 
-		h.logger.Debug("Executing action in chain",
-			zap.String("action", trimmed),
-			zap.Int("x", targetPoint.X),
-			zap.Int("y", targetPoint.Y),
-		)
-
 		performErr := h.actionService.PerformActionAtPoint(
 			ctx,
 			trimmed,
@@ -342,7 +336,7 @@ func (h *ActionsHandler) performActionChain(
 			modifiers,
 		)
 		if performErr != nil {
-			h.logger.Error("Failed to perform action in chain",
+			h.logger.Debug("Failed to perform action in chain",
 				zap.Error(performErr),
 				zap.String("action", trimmed))
 

@@ -78,7 +78,7 @@ func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 		splitWordOverride,
 	)
 	if showHintsErr != nil {
-		h.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
+		h.logger.Warn("Failed to refresh hints after screen change", zap.Error(showHintsErr))
 		h.exitMode()
 
 		return false
@@ -118,7 +118,7 @@ func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 		// new display nor showing a collection that belongs to it. Leaving the
 		// mode running would leave the old screen's labels on screen at the old
 		// size; exiting is what the three failure paths above already do.
-		h.logger.Error("Failed to refresh hints for screen change", zap.Error(setHintsErr))
+		h.logger.Warn("Failed to refresh hints for screen change", zap.Error(setHintsErr))
 		h.exitMode()
 
 		return false

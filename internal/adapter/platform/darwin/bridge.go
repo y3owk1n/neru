@@ -53,12 +53,6 @@ func SetHotkeyHandler(handler HotkeyHandler) {
 // CreateHotkeyTap creates a per-hotkey CGEventTap.
 // Returns an opaque handle (must be destroyed via DestroyHotkeyTap) or nil on failure.
 func CreateHotkeyTap(hotkeyID, keyCode, modifiers int) unsafe.Pointer {
-	log := getLogger()
-	log.Debug("Darwin: Creating hotkey tap",
-		zap.Int("hotkey_id", hotkeyID),
-		zap.Int("key_code", keyCode),
-		zap.Int("modifiers", modifiers))
-
 	tap := C.NeruCreateHotkeyTap(
 		C.int(hotkeyID),
 		C.int(keyCode),
@@ -68,12 +62,8 @@ func CreateHotkeyTap(hotkeyID, keyCode, modifiers int) unsafe.Pointer {
 	)
 
 	if tap == nil {
-		log.Warn("Darwin: Failed to create hotkey tap — check Accessibility permissions")
-
 		return nil
 	}
-
-	log.Debug("Darwin: Hotkey tap created", zap.Int("hotkey_id", hotkeyID))
 
 	return unsafe.Pointer(tap)
 }
@@ -88,20 +78,12 @@ func DestroyHotkeyTap(tap unsafe.Pointer) {
 
 // ParseKeyString parses a key string into a key code and modifiers on macOS.
 func ParseKeyString(keyString string) (int, int, bool) {
-	log := getLogger()
-	log.Debug("Darwin: Parsing key string", zap.String("key_string", keyString))
-
 	cKeyString := C.CString(keyString)
 	defer C.free(unsafe.Pointer(cKeyString))
 
 	var keyCode C.int
 	var modifiers C.int
 	result := C.NeruParseKeyString(cKeyString, &keyCode, &modifiers)
-
-	log.Debug("Darwin: Parse key string result",
-		zap.Int("key_code", int(keyCode)),
-		zap.Int("modifiers", int(modifiers)),
-		zap.Bool("success", result == 1))
 
 	success := result == 1
 
@@ -120,7 +102,7 @@ func hotkeyCallbackBridge(hotkeyID C.int, eventKind C.int, _ unsafe.Pointer) {
 // SetAppWatcher configures the application watcher implementation.
 func SetAppWatcher(watcher AppWatcherInterface) {
 	log := getLogger()
-	log.Debug("Darwin: Setting app watcher")
+	log.Debug("Setting app watcher")
 
 	appWatcherSlot.Set(watcher)
 }
@@ -136,14 +118,14 @@ func SetDetectMissionControlEnabled(enabled bool) {
 // StartAppWatcher begins monitoring application lifecycle events.
 func StartAppWatcher() {
 	log := getLogger()
-	log.Debug("Darwin: Starting app watcher")
+	log.Debug("Starting app watcher")
 	C.NeruStartAppWatcher()
 }
 
 // StopAppWatcher ceases monitoring application lifecycle events.
 func StopAppWatcher() {
 	log := getLogger()
-	log.Debug("Darwin: Stopping app watcher")
+	log.Debug("Stopping app watcher")
 	C.NeruStopAppWatcher()
 }
 
@@ -153,12 +135,12 @@ func dispatchAppWatcherAppEvent(
 	forward func(AppWatcherInterface, string, string),
 ) {
 	log := getLogger()
-	log.Debug("Darwin: " + handlerName + " called")
 
 	appWatcherSlot.withValid(func(watcher AppWatcherInterface) {
 		name := C.GoString(appName)
 		bundleIDValue := C.GoString(bundleID)
-		log.Debug("Darwin: "+forwardMsg,
+		log.Debug(forwardMsg,
+			zap.String("handler", handlerName),
 			zap.String("app_name", name),
 			zap.String("bundle_id", bundleIDValue))
 		forward(watcher, name, bundleIDValue)
@@ -171,10 +153,9 @@ func dispatchAppWatcherVoidEvent(
 	forward func(AppWatcherInterface),
 ) {
 	log := getLogger()
-	log.Debug("Darwin: " + handlerName + " called")
 
 	dispatch := func(watcher AppWatcherInterface) {
-		log.Debug("Darwin: " + forwardMsg)
+		log.Debug(forwardMsg, zap.String("handler", handlerName))
 		forward(watcher)
 	}
 

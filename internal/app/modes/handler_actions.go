@@ -145,9 +145,11 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 
 	moveErr := h.actionService.MoveCursorToPoint(ctx, center)
 	if moveErr != nil {
-		h.logger.Error("Failed to move cursor during cycle_hint", zap.Error(moveErr))
-
-		return derrors.New(derrors.CodeActionFailed, "failed to move cursor: "+moveErr.Error())
+		return derrors.Wrap(
+			moveErr,
+			derrors.CodeActionFailed,
+			"failed to move cursor during cycle_hint",
+		)
 	}
 
 	pendingAction := h.hints.Context.PendingAction()
@@ -331,7 +333,10 @@ func (h *handlerState) stopHintSearchTextInput(keepEventTapDisabled bool) {
 	if h.hintSearchTextInputActive && h.textInput != nil {
 		// Use Background context since this may be called during cleanup,
 		// after h.ctx has already been canceled.
-		_ = h.textInput.StopHintSearchSession(context.Background())
+		err := h.textInput.StopHintSearchSession(context.Background())
+		if err != nil {
+			h.logger.Warn("Failed to stop hint search text input", zap.Error(err))
+		}
 	}
 
 	h.hintSearchTextInputActive = false

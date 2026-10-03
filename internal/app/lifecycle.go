@@ -67,12 +67,14 @@ func (a *App) Run() error {
 
 	err := a.ipcServer.Start(a.ctx)
 	if err != nil {
+		// Logged as well as returned, because main prints the returned error
+		// only to stderr, and stderr never reaches the log file.
 		a.logger.Error("Failed to start IPC server", zap.Error(err))
 
-		return err
+		return derrors.Wrap(err, derrors.CodeIPCFailed, "failed to start IPC server")
 	}
 
-	a.logger.Info("IPC server started")
+	a.logger.Debug("IPC server started")
 
 	// These three are ordered, not merely sequential, and the order is starting
 	// the watcher last: an activation it delivers reaches both of the things
@@ -92,10 +94,10 @@ func (a *App) Run() error {
 	a.registerAppWatcherCallbacks()
 
 	a.hotkeys.RefreshFor("")
-	a.logger.Info("Hotkeys initialized")
+	a.logger.Debug("Hotkeys initialized")
 
 	a.appWatcher.Start()
-	a.logger.Info("App watcher started")
+	a.logger.Debug("App watcher started")
 
 	// Watch for theme changes (Dark Mode / Light Mode) so theme-aware label
 	// colors follow without a restart.
@@ -211,7 +213,7 @@ func (a *App) adaptiveGC() bool {
 
 		return true
 	} else {
-		a.logger.Debug("Skipping GC - memory usage normal",
+		a.logger.Debug("Skipping GC, memory usage normal",
 			zap.Uint64("heap_alloc_mb", heapAllocMB),
 			zap.Bool("aggressive_mode", false))
 
@@ -236,7 +238,7 @@ func (a *App) registerAppWatcherCallbacks() {
 	a.appWatcher.OnMissionControlActivated(func() {
 		cfg := a.configSnapshot()
 		if len(cfg.Hints.OnMissionControlActivated) > 0 && cfg.Hints.DetectMissionControl {
-			a.logger.Info("Mission Control activated: executing actions",
+			a.logger.Debug("Running Mission Control activated actions",
 				zap.Int("action_count", len(cfg.Hints.OnMissionControlActivated)))
 			a.hotkeys.RunActions(
 				"mission_control_activated",
@@ -249,7 +251,7 @@ func (a *App) registerAppWatcherCallbacks() {
 	a.appWatcher.OnMissionControlDeactivated(func() {
 		cfg := a.configSnapshot()
 		if len(cfg.Hints.OnMissionControlDeactivated) > 0 && cfg.Hints.DetectMissionControl {
-			a.logger.Info("Mission Control deactivated: executing actions",
+			a.logger.Debug("Running Mission Control deactivated actions",
 				zap.Int("action_count", len(cfg.Hints.OnMissionControlDeactivated)))
 			a.hotkeys.RunActions(
 				"mission_control_deactivated",
@@ -275,7 +277,7 @@ func (a *App) HandleScreenParametersChange() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			a.logger.Error("panic during screen change processing", zap.Any("recovered", r))
+			a.logger.Error("Panic during screen change processing", zap.Any("recovered", r))
 			// Force-clear both flags so future screen-change events are not
 			// permanently blocked.
 			a.appState.ResetScreenChangeProcessing()
@@ -375,7 +377,7 @@ func (a *App) handleAdditionalAccessibility(bundleID string) {
 
 // printStartupInfo displays startup information including registered hotkeys.
 func (a *App) printStartupInfo() {
-	a.logger.Info("✓ Neru is running")
+	a.logger.Info("Neru is running")
 
 	cfg := a.configSnapshot()
 
@@ -413,7 +415,7 @@ func (a *App) waitForShutdown() error {
 		programmatic = true
 	}
 
-	a.logger.Info("Received shutdown signal, starting graceful shutdown...")
+	a.logger.Info("Received shutdown signal, starting graceful shutdown")
 
 	if programmatic {
 		signal.Stop(sigChan)
@@ -422,7 +424,7 @@ func (a *App) waitForShutdown() error {
 		return nil
 	}
 
-	a.logger.Info("⚠️  Shutting down gracefully... (press Ctrl+C again to force quit)")
+	a.logger.Info("Shutting down gracefully, press Ctrl+C again to force quit")
 
 	done := make(chan struct{})
 
@@ -446,11 +448,9 @@ func (a *App) waitForShutdown() error {
 		return nil
 	case <-sigChan:
 		a.logger.Warn("Received second signal, forcing shutdown")
-		a.logger.Info("⚠️  Force quitting...")
 		os.Exit(1)
 	case <-timer.C:
 		a.logger.Error("Shutdown timeout exceeded, forcing shutdown")
-		a.logger.Info("⚠️  Shutdown timeout, force quitting...")
 		os.Exit(1)
 	}
 
@@ -476,7 +476,6 @@ func (a *App) Quit() {
 // first invocation performs the actual teardown.
 func (a *App) Cleanup() {
 	a.cleanupOnce.Do(func() {
-		a.logger.Debug("Cleaning up")
 		// Cancel root context to signal shutdown to all operations
 		if a.cancel != nil {
 			a.cancel()

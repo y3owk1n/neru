@@ -649,8 +649,8 @@ func (o *Overlay) updateMatchesIncremental(grid *domainGrid.Grid, newInput, oldI
 	o.UpdateMatches(newInput)
 
 	o.logger.Debug("Incremental match update",
-		zap.String("old_input", oldInput),
-		zap.String("new_input", newInput))
+		zap.Int("old_input_length", len(oldInput)),
+		zap.Int("new_input_length", len(newInput)))
 }
 
 // drawGridIncrementalStructural handles structural changes using the incremental C API.

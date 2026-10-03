@@ -8,4 +8,5 @@ Read `../AGENTS.md` first (slots, stubs, coordinates). This file covers the ObjC
 - **Invalidate Mach ports before releasing them** — `CFRelease` alone leaks the kernel port (#1150, `eventtap_darwin.m`).
 - **Go-created threads have no autorelease pool** — wrap traversal/drawing loops in `@autoreleasepool`.
 - **Tests in this package need the main-loop harness**: `TestMain` calls `RunMainLoopForTesting(m.Run)` with a `runtime.LockOSThread()` `init`, or dispatched work deadlocks/times out (`runloop.go`).
+- Native code logs through `NeruLog` (`nativelog.h`), never `NSLog`. `NeruLog` reaches the daemon's logger, its levels and its log file, while `NSLog` writes to a system log Neru does not control. The Go privacy rules apply, and values go in the `detail` argument, not the message.
 - Naming: C entry points are `Neru*` PascalCase; one header + `_darwin.m` pair per subsystem. The untagged `doc.go` exists so `go vet` resolves the package off-macOS — leave it untagged.

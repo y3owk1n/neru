@@ -88,7 +88,7 @@ var (
 )
 
 // SetClickableRoles configures which accessibility roles are treated as clickable.
-func SetClickableRoles(roles []string, logger *zap.Logger) {
+func SetClickableRoles(roles []string, _ *zap.Logger) {
 	clickableRolesMu.Lock()
 	defer clickableRolesMu.Unlock()
 
@@ -100,10 +100,6 @@ func SetClickableRoles(roles []string, logger *zap.Logger) {
 		}
 		clickableRoles[trimmed] = struct{}{}
 	}
-
-	logger.Debug("Updated clickable roles",
-		zap.Int("count", len(clickableRoles)),
-		zap.Strings("roles", roles))
 }
 
 // ClickableRoles returns the configured clickable roles.

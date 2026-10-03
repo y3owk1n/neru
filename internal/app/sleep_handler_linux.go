@@ -196,8 +196,6 @@ func (a *App) reinitializeHotkeysAfterSleep() {
 }
 
 func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Duration) {
-	a.logger.Info("Reinitializing hotkey listener (evdev only)")
-
 	a.ExitMode()
 
 	needReregister := a.appState.HotkeysRegistered()
@@ -239,7 +237,7 @@ func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Dura
 		}
 	}
 
-	a.logger.Info("Hotkey listener reinitialized")
+	a.logger.Debug("Hotkey listener reinitialized")
 }
 
 // handleWakeFromSleep reinitializes all input subsystems after the system
@@ -252,8 +250,6 @@ func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Dura
 // checks — use reinitializeHotkeys instead to avoid triggering a fresh
 // RemoteDesktop consent prompt on every recovery.
 func (a *App) handleWakeFromSleep() {
-	a.logger.Info("Reinitializing input listeners after sleep/wake")
-
 	a.reinitializeHotkeysAfterSleep()
 
 	a.logger.Info("Input listeners reinitialized after sleep/wake")

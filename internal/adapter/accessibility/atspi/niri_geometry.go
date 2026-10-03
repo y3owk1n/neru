@@ -91,7 +91,7 @@ func niriOriginTile(
 ) (float64, float64, bool) {
 	tile := win.Layout.TilePosInWorkspaceView
 	if len(tile) < coordPairLen {
-		logger.Debug("niri origin unavailable: tiled window (niri#2381)")
+		logger.Debug("Niri origin unavailable: tiled window (niri#2381)")
 
 		return 0, 0, false
 	}
@@ -99,9 +99,9 @@ func niriOriginTile(
 	if len(win.Layout.WindowSize) < coordPairLen ||
 		absInt(win.Layout.WindowSize[0]-frameW) > windowOriginSizeTolerance ||
 		absInt(win.Layout.WindowSize[1]-frameH) > windowOriginSizeTolerance {
-		logger.Debug("niri origin rejected: window size does not match AT-SPI frame",
-			zap.Ints("windowSize", win.Layout.WindowSize),
-			zap.Int("frameW", frameW), zap.Int("frameH", frameH))
+		logger.Debug("Niri origin rejected: window size does not match AT-SPI frame",
+			zap.Ints("window_size", win.Layout.WindowSize),
+			zap.Int("frame_w", frameW), zap.Int("frame_h", frameH))
 
 		return 0, 0, false
 	}

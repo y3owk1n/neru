@@ -103,7 +103,7 @@ func (h *SequenceHandler) handleMacro(ctx context.Context, cmd ipc.Command) ipc.
 	// blank ones would shift every later argument onto the wrong placeholder.
 	name, macroArgs := strings.TrimSpace(cmd.Args[0]), cmd.Args[1:]
 
-	h.logger.Debug("Running macro", zap.Int("args", len(macroArgs)))
+	h.logger.Debug("Running macro", zap.Int("arg_count", len(macroArgs)))
 
 	macroErr := h.runMacro(ctx, name, macroArgs)
 	if macroErr == nil {
@@ -158,7 +158,7 @@ func (h *SequenceHandler) handleRun(ctx context.Context, cmd ipc.Command) ipc.Re
 		}
 	}
 
-	h.logger.Debug("Running action sequence", zap.Int("steps", len(steps)))
+	h.logger.Debug("Running action sequence", zap.Int("step_count", len(steps)))
 
 	outcome := h.run(ctx, domain.CommandRun, steps, policy)
 

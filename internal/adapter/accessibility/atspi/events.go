@@ -189,8 +189,7 @@ func (c *Client) recordActiveWindow(conn *dbus.Conn, frame accRef) {
 
 	c.logger.Debug("AT-SPI recorded active window",
 		zap.String("bus", frame.Name),
-		zap.String("app", active.appName),
-		zap.String("title", active.title))
+		zap.String("app", active.appName))
 }
 
 // activeWindowMatching returns the event-tracked active window when it still

@@ -65,7 +65,7 @@ func NewManagerWithLayers(
 	// it rejected, which it cannot report once it has replaced them.
 	usableDims, asGiven := UsableDimensions(dims)
 	if !asGiven {
-		logger.Warn("Invalid grid dimensions, using default",
+		logger.Debug("Invalid grid dimensions, using default",
 			zap.Int("provided_cols", dims.Cols),
 			zap.Int("provided_rows", dims.Rows))
 	}
@@ -80,8 +80,7 @@ func NewManagerWithLayers(
 	// Ensure we have the correct number of keys based on grid dimensions
 	expectedKeyCount := dims.CellCount()
 	if utf8.RuneCountInString(keys) != expectedKeyCount {
-		logger.Warn("Invalid key mapping length, using default",
-			zap.String("provided", keys),
+		logger.Debug("Invalid key mapping length, using default",
 			zap.Int("length", utf8.RuneCountInString(keys)),
 			zap.Int("expected", expectedKeyCount))
 		keys = DefaultKeys
@@ -103,8 +102,8 @@ func NewManagerWithLayers(
 	for depth := range depthLayouts {
 		depthKey, hasKeys := depthKeys[depth]
 		if !hasKeys {
-			logger.Warn(
-				"depthLayouts has depth with no matching depthKeys entry; dropping override",
+			logger.Debug(
+				"Layer layout has no matching keys, dropping override",
 				zap.Int("depth", depth),
 			)
 			delete(depthLayouts, depth)
@@ -114,8 +113,8 @@ func NewManagerWithLayers(
 
 		expected := depthLayouts[depth].GridCols * depthLayouts[depth].GridRows
 		if utf8.RuneCountInString(depthKey) != expected {
-			logger.Warn(
-				"depthKeys length does not match depthLayouts dimensions; dropping override",
+			logger.Debug(
+				"Layer keys length does not match layout dimensions, dropping override",
 				zap.Int("depth", depth),
 				zap.Int("expected_keys", expected),
 				zap.Int("actual_keys", utf8.RuneCountInString(depthKey)),
@@ -127,8 +126,8 @@ func NewManagerWithLayers(
 
 	for depth := range depthKeys {
 		if _, hasLayout := depthLayouts[depth]; !hasLayout {
-			logger.Warn(
-				"depthKeys has depth with no matching depthLayouts entry; dropping override",
+			logger.Debug(
+				"Layer keys have no matching layout, dropping override",
 				zap.Int("depth", depth),
 			)
 			delete(depthKeys, depth)
@@ -170,8 +169,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	cell := m.keyToCell(key)
 	if cell < 0 {
 		// Key not mapped to any cell
-		m.Logger.Debug("Unmapped key pressed in recursive-grid mode",
-			zap.String("key", key))
+		m.Logger.Debug("Unmapped key pressed in recursive-grid mode")
 
 		return image.Point{}, false
 	}
@@ -179,7 +177,6 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	center, isComplete := m.grid.SelectCell(cell)
 
 	m.Logger.Debug("Cell selected",
-		zap.String("key", key),
 		zap.Int("cell", int(cell)),
 		zap.Int("depth", m.grid.CurrentDepth()),
 		zap.Bool("complete", isComplete),

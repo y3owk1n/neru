@@ -29,9 +29,6 @@ func (h *handlerState) validateModeActivation(
 	// that blocks keyboard events when password fields are focused.
 	// On non-macOS platforms IsSecureInputEnabled always returns false.
 	if h.system != nil && h.system.IsSecureInputEnabled() {
-		h.logger.Warn("Secure input is enabled, blocking mode activation",
-			zap.String("mode", modeName))
-
 		// Show notification to inform the user
 		h.system.ShowSecureInputNotification()
 
@@ -42,16 +39,10 @@ func (h *handlerState) validateModeActivation(
 	}
 
 	if !h.appState.IsEnabled() {
-		h.logger.Warn("Neru is disabled, ignoring mode activation",
-			zap.String("mode", modeName))
-
 		return derrors.New(derrors.CodeInvalidInput, "neru is disabled")
 	}
 
 	if !modeEnabled {
-		h.logger.Warn("Mode disabled by config, ignoring activation",
-			zap.String("mode", modeName))
-
 		return derrors.Newf(derrors.CodeInvalidInput, "mode %s is disabled", modeName)
 	}
 

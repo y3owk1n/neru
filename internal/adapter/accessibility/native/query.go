@@ -18,8 +18,6 @@ func MenuBarClickableElements(
 	configProvider config.Provider,
 	maxDepth int,
 ) ([]*TreeNode, error) {
-	logger.Debug("Getting clickable elements for menu bar")
-
 	app := FocusedApplication()
 	if app == nil {
 		logger.Debug("No focused application found")
@@ -50,8 +48,6 @@ func MenuBarClickableElements(
 
 	tree, err := BuildTree(ctx, menubar, opts)
 	if err != nil {
-		logger.Error("Failed to build tree for menu bar", zap.Error(err))
-
 		return nil, err
 	}
 
@@ -89,8 +85,6 @@ func MenuBarClickableElements(
 	// leaking CFRetain'd AXUIElementRefs from NeruGetChildren/NeruGetVisibleRows.
 	ReleaseTreeExcept(tree, elements)
 
-	logger.Debug("Found menu bar clickable elements", zap.Int("count", len(elements)))
-
 	return elements, nil
 }
 
@@ -104,10 +98,6 @@ func ClickableElementsFromBundleID(
 	configProvider config.Provider,
 	maxDepth int,
 ) ([]*TreeNode, error) {
-	logger.Debug("Getting clickable elements for bundle ID",
-		zap.String("bundle_id", bundleID),
-		zap.Int("role_count", len(roles)))
-
 	app := ApplicationByBundleID(bundleID)
 	if app == nil {
 		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
@@ -134,10 +124,6 @@ func ClickableElementsFromBundleID(
 
 	tree, err := BuildTree(ctx, app, opts)
 	if err != nil {
-		logger.Error("Failed to build tree for application",
-			zap.String("bundle_id", bundleID),
-			zap.Error(err))
-
 		return nil, err
 	}
 
@@ -169,10 +155,6 @@ func ClickableElementsFromBundleID(
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from NeruGetChildren/NeruGetVisibleRows.
 	ReleaseTreeExcept(tree, elements)
-
-	logger.Debug("Found clickable elements for application",
-		zap.String("bundle_id", bundleID),
-		zap.Int("count", len(elements)))
 
 	return elements, nil
 }

@@ -33,7 +33,8 @@ func (h *Handler) DebugProbeHints(
 ) (string, error) {
 	bundleID, bundleErr := h.actionService.FocusedAppBundleID(ctx)
 	if bundleErr != nil {
-		h.logger.Debug("hints debug probe: failed to get focused app id", zap.Error(bundleErr))
+		h.logger.Debug("Failed to get the focused app for the hints debug probe",
+			zap.Error(bundleErr))
 	}
 
 	screenBounds, boundsErr := h.actionService.ScreenBounds(ctx)

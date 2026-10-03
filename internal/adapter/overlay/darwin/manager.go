@@ -608,7 +608,7 @@ func (m *Manager) SetSharingType(hide bool) {
 	}
 
 	if m.logger != nil {
-		m.logger.Info("Overlay screen share visibility toggled",
+		m.logger.Debug("Overlay screen share visibility toggled",
 			zap.Bool("hidden", hide))
 	}
 }

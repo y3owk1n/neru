@@ -159,8 +159,6 @@ func (a *App) pollThemeChanges(stopChan <-chan struct{}, lastIsDark bool) {
 
 			currentIsDark := a.systemPort.IsDarkMode()
 			if currentIsDark != lastIsDark {
-				a.logger.Info("System theme detected change",
-					zap.Bool("is_dark", currentIsDark))
 				lastIsDark = currentIsDark
 				a.HandleThemeChange(currentIsDark)
 			}

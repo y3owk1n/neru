@@ -47,13 +47,16 @@ const (
 
 // Overlay manages the rendering of recursive_grid overlays using native platform APIs.
 type Overlay struct {
-	window     C.OverlayWindow
-	config     config.RecursiveGridConfig
-	logger     *zap.Logger
-	lastBounds image.Rectangle
-	lastDims   domain.GridDimensions
-	lastDepth  int
-	hasLast    bool
+	window C.OverlayWindow
+	config config.RecursiveGridConfig
+	logger *zap.Logger
+	// keysMismatch warns once per key mapping that does not fit the grid,
+	// rather than on every keystroke's redraw.
+	keysMismatch overlayutil.WarnLatch
+	lastBounds   image.Rectangle
+	lastDims     domain.GridDimensions
+	lastDepth    int
+	hasLast      bool
 
 	// configMu protects config from concurrent read/write.
 	configMu sync.RWMutex
@@ -306,8 +309,8 @@ func (o *Overlay) DrawRecursiveGrid(
 
 	keyRunes := []rune(keys)
 	if len(keyRunes) != keyCount {
-		o.logger.Warn(
-			"Keys length mismatch in DrawRecursiveGrid, some cells will have empty labels",
+		o.keysMismatch.Warn(o.logger, keys,
+			"Recursive-grid keys do not match the cell count; some cells will have empty labels",
 			zap.Int("key_count", len(keyRunes)),
 			zap.Int("expected", keyCount),
 		)

@@ -81,7 +81,9 @@ func (c *elementCollector) start(
 
 		c.add(elements)
 
-		c.logger.Debug("Collected elements from "+name, zap.Int("count", len(elements)))
+		c.logger.Debug("Collected elements",
+			zap.String("source", name),
+			zap.Int("count", len(elements)))
 	})
 }
 

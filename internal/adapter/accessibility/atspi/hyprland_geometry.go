@@ -60,9 +60,9 @@ func hyprlandComputeOrigin(
 
 	if absInt(win.Size[0]-frameW) > windowOriginSizeTolerance ||
 		absInt(win.Size[1]-frameH) > windowOriginSizeTolerance {
-		logger.Debug("hyprland origin rejected: window size does not match AT-SPI frame",
-			zap.Ints("windowSize", win.Size),
-			zap.Int("frameW", frameW), zap.Int("frameH", frameH))
+		logger.Debug("Hyprland origin rejected: window size does not match AT-SPI frame",
+			zap.Ints("window_size", win.Size),
+			zap.Int("frame_w", frameW), zap.Int("frame_h", frameH))
 
 		return image.Point{}, false
 	}

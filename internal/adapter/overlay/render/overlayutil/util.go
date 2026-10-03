@@ -8,8 +8,14 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/logonce"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil/native"
 )
+
+// WarnLatch is logonce.Latch, reached through the package the darwin render
+// components already import. goimports and gci disagree on their import block
+// when another overlay package sits above its commented darwin import.
+type WarnLatch = logonce.Latch
 
 const (
 	// DefaultCallbackMapSize is the default size for callback maps.
@@ -187,9 +193,7 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)
 		freeCallbackIDsMu.Unlock()
 
 		if c.logger != nil {
-			c.logger.Warn(
-				"No available callback IDs, skipping resize operation (pool temporarily exhausted by deferred releases)",
-			)
+			c.logger.Warn("Overlay resize callback pool exhausted; resizing without a callback")
 		}
 
 		return false
@@ -289,7 +293,7 @@ func (c *CallbackManager) Cleanup() {
 		callbackManagerRegistryMu.Unlock()
 
 		if c.logger != nil {
-			c.logger.Debug("CallbackManager cleanup completed",
+			c.logger.Debug("Overlay callback manager cleaned up",
 				zap.String("component", c.component))
 		}
 	})
@@ -301,14 +305,6 @@ func (c *CallbackManager) handleResizeCallback(
 	generation uint64,
 	done chan struct{},
 ) {
-	if c.logger != nil {
-		c.logger.Debug(
-			"Overlay resize background cleanup started",
-			zap.Uint64("callback_id", callbackID),
-			zap.Uint64("generation", generation),
-		)
-	}
-
 	// Use timer instead of time.After to prevent memory leaks
 	timer := time.NewTimer(DefaultCallbackTimeout)
 	defer timer.Stop()
@@ -316,12 +312,6 @@ func (c *CallbackManager) handleResizeCallback(
 	select {
 	case <-done:
 		// Callback received, normal cleanup already handled in callback
-		if c.logger != nil {
-			c.logger.Debug(
-				"Overlay resize callback received",
-				zap.Uint64("callback_id", callbackID),
-			)
-		}
 	case <-timer.C:
 		// Long timeout for cleanup only - callback likely failed
 		c.callbackMu.Lock()
@@ -335,7 +325,7 @@ func (c *CallbackManager) handleResizeCallback(
 
 		if c.logger != nil {
 			c.logger.Debug(
-				"Overlay resize cleanup timeout - removed callback from map, deferred ID release scheduled",
+				"Overlay resize callback timed out; deferring its ID release",
 				zap.Uint64("callback_id", callbackID),
 				zap.Uint64("generation", generation),
 			)
@@ -351,7 +341,7 @@ func (c *CallbackManager) handleResizeCallback(
 
 		if c.logger != nil {
 			c.logger.Debug(
-				"Overlay resize callback canceled during cleanup, deferred ID release scheduled",
+				"Overlay resize callback canceled during cleanup; deferring its ID release",
 				zap.Uint64("callback_id", callbackID),
 				zap.Uint64("generation", generation),
 			)

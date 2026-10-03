@@ -84,12 +84,6 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 	h.grid.Context.ClearSelectionPoint()
 	h.refreshGridVirtualPointer()
 
-	if activation.Action != nil {
-		h.logger.Debug("Grid mode activated with pending action",
-			zap.String("action", *activation.Action),
-			zap.Bool("repeat", activation.Repeat != nil && *activation.Repeat))
-	}
-
 	// Only set mode and enable event tap on initial activation;
 	// during refresh these are already in the correct state. The overlay was
 	// switched to grid mode when the Frame was realized.
@@ -97,9 +91,7 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 		h.enterMode(domain.ModeGrid)
 	}
 
-	h.logger.Info("Grid mode activated",
-		zap.String("action", actionString),
-		zap.String("scope", scope))
+	h.logger.Info("Grid mode activated", activationLogFields(actionString, scope, activation)...)
 
 	h.startIndicatorPolling(domain.ModeGrid)
 }
@@ -212,7 +204,7 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 		func(cell *domainGrid.Cell) {
 			// Defensive check for cell
 			if cell == nil {
-				h.logger.Warn("Attempted to show subgrid for nil cell")
+				h.logger.Debug("Subgrid cell is nil, ignoring")
 
 				return
 			}

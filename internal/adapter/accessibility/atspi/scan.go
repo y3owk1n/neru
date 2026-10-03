@@ -132,7 +132,7 @@ func (c *Client) findActiveFrame(
 		c.logger.Debug("AT-SPI focused app probe",
 			zap.Int("apps", len(apps)),
 			zap.Int("matches", len(matches)),
-			zap.Bool("haveTitle", haveFocusedTitle))
+			zap.Bool("have_title", haveFocusedTitle))
 
 		if len(matches) > 0 {
 			metas := make([]appMeta, len(apps))
@@ -157,7 +157,7 @@ func (c *Client) findActiveFrame(
 
 			c.logger.Debug("AT-SPI focused app frames",
 				zap.Int("showing", cand.focusedShowingCount),
-				zap.Int("titleMatches", cand.focusedTitleCount),
+				zap.Int("title_matches", cand.focusedTitleCount),
 				zap.Int("active", cand.focusedActiveCount))
 
 			if cand.focusedTitleCount == 1 {
@@ -570,7 +570,7 @@ func (c *Client) logFrameSelection(start time.Time, path string, apps, framesSca
 	c.logger.Debug("AT-SPI frame selection complete",
 		zap.String("path", path),
 		zap.Int("apps", apps),
-		zap.Int("framesScanned", framesScanned),
+		zap.Int("frames_scanned", framesScanned),
 		zap.Duration("elapsed", time.Since(start)))
 }
 

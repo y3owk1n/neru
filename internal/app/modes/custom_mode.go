@@ -107,9 +107,6 @@ func (h *handlerState) startCustomMode(name string) {
 
 	if h.appState.CurrentMode() != domain.ModeIdle {
 		h.cleanupForKeymapModeTransition()
-
-		h.logger.Debug("Transitioned to custom mode",
-			zap.String("from", h.CurrModeString()))
 	}
 
 	h.appState.SetCustomModeName(name)

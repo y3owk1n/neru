@@ -233,7 +233,7 @@ func (et *EventTap) runWaylandEvdev() bool {
 	})
 
 	if et.logger != nil {
-		et.logger.Info(
+		et.logger.Debug(
 			"Using Wayland evdev keyboard capture",
 			zap.Int("devices", proxy.deviceCount()),
 		)

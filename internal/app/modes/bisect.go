@@ -117,7 +117,7 @@ func (h *handlerState) initializeBisectRegion(start image.Rectangle) {
 // press, and settles the cursor on the center of what is left.
 func (h *handlerState) bisectCut(cut bisect.Cut, count int) {
 	if h.bisect == nil || h.bisect.Region == nil {
-		h.logger.Warn("Bisect region is nil - ignoring press")
+		h.logger.Debug("Bisect region is nil, ignoring key press")
 
 		return
 	}

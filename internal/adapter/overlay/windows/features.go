@@ -48,7 +48,7 @@ func (o *winOverlay) DrawHints(
 
 	if o.window == nil {
 		if o.logger != nil {
-			o.logger.Error("DrawHints aborted, overlay window is nil")
+			o.logger.Debug("Hints draw skipped, overlay window is nil")
 		}
 
 		return
@@ -251,7 +251,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 
 	if o.window == nil {
 		if o.logger != nil {
-			o.logger.Error("DrawRecursiveGrid aborted, overlay window is nil")
+			o.logger.Debug("Recursive-grid draw skipped, overlay window is nil")
 		}
 
 		return

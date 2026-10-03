@@ -207,7 +207,7 @@ func (m *Manager) DrawMonitorSelect(
 
 		flushErr := win.Flush()
 		if flushErr != nil && m.logger != nil {
-			m.logger.Error("monitor_select panel flush failed", zap.Error(flushErr))
+			m.logger.Warn("Monitor select panel flush failed", zap.Error(flushErr))
 		}
 
 		win.Show()

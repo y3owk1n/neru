@@ -56,10 +56,9 @@ func (h *ActionsHandler) handleFeedAction(
 				code = ipc.CodeInvalidInput
 			}
 
-			h.logger.Error("Failed to feed key",
-				zap.Error(err),
-				zap.String("key", key),
-				zap.Int("index", index))
+			// Fed keys are a keystream, so the log carries neither the key nor
+			// the error, which can quote it. The response carries both.
+			h.logger.Debug("Failed to feed key", zap.Int("index", index))
 
 			return ipc.Response{
 				Success: false,
@@ -246,7 +245,7 @@ func (h *ActionsHandler) handleCycleHintAction(
 
 	err := h.modesHandler.CycleHint(ctx, parsed.useBackward, false)
 	if err != nil {
-		h.logger.Error("Failed to cycle hints", zap.Error(err))
+		h.logger.Debug("Failed to cycle hints", zap.Error(err))
 
 		return ipc.Response{
 			Success: false,
@@ -274,7 +273,7 @@ func (h *ActionsHandler) handleSearchHintsAction() ipc.Response {
 
 	err := h.modesHandler.StartHintSearch()
 	if err != nil {
-		h.logger.Error("Failed to start hint search", zap.Error(err))
+		h.logger.Debug("Failed to start hint search", zap.Error(err))
 
 		return ipc.Response{
 			Success: false,

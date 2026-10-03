@@ -118,7 +118,7 @@ func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 
 	eventTap.handle = C.NeruCreateEventTap(C.EventTapCallback(C.eventTapCallbackBridge), nil)
 	if eventTap.handle == nil {
-		logger.Error("Failed to create event tap - check Accessibility permissions")
+		logger.Warn("Failed to create event tap, check Accessibility permissions")
 
 		return nil
 	}
@@ -135,7 +135,6 @@ func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 
 // Enable activates the event tap to start capturing keyboard events.
 func (et *EventTap) Enable() {
-	et.logger.Debug("Enabling event tap")
 	if et.handle != nil {
 		C.NeruEnableEventTap(et.handle)
 		et.logger.Debug("Event tap enabled")
@@ -147,8 +146,6 @@ func (et *EventTap) Enable() {
 // SetHotkeys configures which hotkey combinations should be intercepted by the event tap.
 // Hotkeys that are not configured will pass through to the system normally.
 func (et *EventTap) SetHotkeys(hotkeys []string) {
-	et.logger.Debug("Setting event tap hotkeys", zap.Int("count", len(hotkeys)))
-
 	if et.handle == nil {
 		et.logger.Warn("Cannot set hotkeys on nil event tap")
 
@@ -174,18 +171,12 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 	}
 
 	C.NeruSetEventTapHotkeys(et.handle, cHotkeysPtr, C.int(len(cHotkeys)))
-	et.logger.Debug("Event tap hotkeys set")
+	et.logger.Debug("Event tap hotkeys set", zap.Int("count", len(hotkeys)))
 }
 
 // SetModifierPassthrough configures whether unbound modifier shortcuts should
 // pass through to macOS and which shortcuts remain blacklisted.
 func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {
-	et.logger.Debug(
-		"Setting event tap modifier passthrough",
-		zap.Bool("enabled", enabled),
-		zap.Int("blacklist_count", len(blacklist)),
-	)
-
 	if et.handle == nil {
 		et.logger.Warn("Cannot set modifier passthrough on nil event tap")
 
@@ -219,14 +210,16 @@ func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {
 		cKeysPtr,
 		C.int(len(cKeys)),
 	)
-	et.logger.Debug("Event tap modifier passthrough set")
+	et.logger.Debug(
+		"Event tap modifier passthrough set",
+		zap.Bool("enabled", enabled),
+		zap.Int("blacklist_count", len(blacklist)),
+	)
 }
 
 // SetInterceptedModifierKeys configures modifier shortcuts that the active mode
 // still wants Neru to consume.
 func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
-	et.logger.Debug("Setting intercepted modifier keys", zap.Int("count", len(keys)))
-
 	if et.handle == nil {
 		et.logger.Warn("Cannot set intercepted modifier keys on nil event tap")
 
@@ -250,7 +243,7 @@ func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
 	}
 
 	C.NeruSetEventTapInterceptedModifierKeys(et.handle, cKeysPtr, C.int(len(cKeys)))
-	et.logger.Debug("Intercepted modifier keys set")
+	et.logger.Debug("Intercepted modifier keys set", zap.Int("count", len(keys)))
 }
 
 // SetPassthroughCallback registers a function to call when a modifier shortcut
@@ -317,7 +310,6 @@ func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 
 // Disable deactivates the event tap, stopping keyboard event capture.
 func (et *EventTap) Disable() {
-	et.logger.Debug("Disabling event tap")
 	if et.handle != nil {
 		C.NeruDisableEventTap(et.handle)
 		et.logger.Debug("Event tap disabled")
@@ -329,8 +321,6 @@ func (et *EventTap) Disable() {
 // Destroy cleans up the event tap resources and releases system hooks.
 // This method ensures proper cleanup by disabling the tap first and clearing references.
 func (et *EventTap) Destroy() {
-	et.logger.Debug("Destroying event tap")
-
 	// Clear global reference first so no new C callbacks enqueue keys while
 	// teardown is in progress.
 	globalEventTapMu.Lock()

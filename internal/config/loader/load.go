@@ -1,7 +1,6 @@
 package loader
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -34,17 +33,21 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		return result
 	}
 
+	// Created before the first phase, because the hotkey merges below can find
+	// a line that loads and does nothing long before validation runs.
+	warnings := &config.Warnings{}
+
 	raw, decodeErr := s.decodeConfigFile(result.Config, result.ConfigPath)
 	if decodeErr != nil {
 		return refuse(result, decodeErr)
 	}
 
-	globalErr := s.applyGlobalHotkeys(result.Config, raw)
+	globalErr := s.applyGlobalHotkeys(result.Config, raw, warnings)
 	if globalErr != nil {
 		return refuse(result, globalErr)
 	}
 
-	modeErr := s.applyModeHotkeys(result.Config, raw)
+	modeErr := s.applyModeHotkeys(result.Config, raw, warnings)
 	if modeErr != nil {
 		return refuse(result, modeErr)
 	}
@@ -55,7 +58,7 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 
 	overridePath := overrideFileToLayer(result.ConfigPath)
 	if overridePath != "" {
-		overrideErr := s.applyOverrideFile(result.Config, overridePath)
+		overrideErr := s.applyOverrideFile(result.Config, overridePath, warnings)
 		if overrideErr != nil {
 			return refuse(result, overrideErr)
 		}
@@ -82,8 +85,6 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 	// derivation settled has to name a line in a file: past the derivation the
 	// two are the same string, and only the snapshot above still tells them
 	// apart (config.WrittenConfig).
-	warnings := &config.Warnings{}
-
 	// Judged against the files rather than the configuration they produced: a
 	// word that is inert here is only worth reporting when somebody wrote it,
 	// and past the merge a default nobody chose reads the same as a line
@@ -106,8 +107,6 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 	if validateErr != nil {
 		wrapped := derrors.WrapConfigFailed(validateErr, "validate configuration")
 
-		s.logger.Warn("Configuration validation failed", zap.Error(wrapped))
-
 		return refuse(result, wrapped)
 	}
 
@@ -120,7 +119,7 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		s.logger.Warn("Configuration warning", zap.String("warning", warning))
 	}
 
-	s.logger.Info("Configuration loaded successfully")
+	s.logger.Debug("Configuration loaded", zap.String("path", result.ConfigPath))
 
 	return result
 }
@@ -184,8 +183,6 @@ func (s *Service) locateConfigFile(result *config.LoadResult, path string) bool 
 		return true
 	}
 
-	s.logger.Info("Loading config from", zap.String("path", result.ConfigPath))
-
 	_, statErr := os.Stat(result.ConfigPath)
 	if !os.IsNotExist(statErr) {
 		return false
@@ -236,7 +233,11 @@ func (s *Service) decodeConfigFile(cfg *config.Config, path string) (map[string]
 // The disable sentinel removes the default an entry matches. An empty [hotkeys]
 // section removes every binding, which is how skhd and friends take over the
 // shortcuts; the modes stay reachable from the CLI.
-func (s *Service) applyGlobalHotkeys(cfg *config.Config, raw map[string]any) error {
+func (s *Service) applyGlobalHotkeys(
+	cfg *config.Config,
+	raw map[string]any,
+	warnings *config.Warnings,
+) error {
 	hot, present := raw["hotkeys"]
 	if !present {
 		return nil
@@ -250,10 +251,6 @@ func (s *Service) applyGlobalHotkeys(cfg *config.Config, raw map[string]any) err
 			hot,
 		)
 
-		s.logger.Warn("Invalid hotkeys section type",
-			zap.String("value_type", fmt.Sprintf("%T", hot)),
-			zap.Error(err))
-
 		return err
 	}
 
@@ -265,8 +262,6 @@ func (s *Service) applyGlobalHotkeys(cfg *config.Config, raw map[string]any) err
 
 	duplicateErr := validateRawHotkeyTable("hotkeys", hotMap)
 	if duplicateErr != nil {
-		s.logger.Warn("Duplicate normalized hotkey in config", zap.Error(duplicateErr))
-
 		return duplicateErr
 	}
 
@@ -274,7 +269,7 @@ func (s *Service) applyGlobalHotkeys(cfg *config.Config, raw map[string]any) err
 
 	replaceReboundLaunchers(cfg.Hotkeys.Bindings, parsed)
 
-	return s.mergeGlobalHotkeys(cfg.Hotkeys.Bindings, hotMap, parsed)
+	return s.mergeGlobalHotkeys(cfg.Hotkeys.Bindings, hotMap, parsed, warnings)
 }
 
 // parseGlobalHotkeyTable reads each entry's actions. An entry that does not
@@ -324,6 +319,7 @@ func (s *Service) mergeGlobalHotkeys(
 	bindings map[string][]string,
 	hotMap map[string]any,
 	parsed map[string][]string,
+	warnings *config.Warnings,
 ) error {
 	for key, value := range hotMap {
 		if key == appConfigsKey {
@@ -336,17 +332,21 @@ func (s *Service) mergeGlobalHotkeys(
 
 		actions, parsedOk := parsed[key]
 		if !parsedOk {
-			return s.rejectHotkey(key, value, "must be a string or array of strings")
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hotkeys.%s must be a string or array of strings, got %T",
+				key,
+				value,
+			)
 		}
 
 		if len(actions) == 0 {
-			return s.rejectHotkey(key, value, "must not be empty")
+			return derrors.Newf(derrors.CodeInvalidConfig, "hotkeys.%s must not be empty", key)
 		}
 
 		if len(actions) == 1 && actions[0] == config.DisabledSentinel {
 			if _, exists := bindings[canonicalKey]; !exists {
-				s.logger.Warn("__disabled__ used for key that is not a default binding",
-					zap.String("key", key))
+				warnings.Addf("hotkeys.%s: __disabled__ has no default binding to disable", key)
 			}
 
 			delete(bindings, canonicalKey)
@@ -361,18 +361,6 @@ func (s *Service) mergeGlobalHotkeys(
 	}
 
 	return nil
-}
-
-// rejectHotkey refuses a malformed [hotkeys] entry, logging the type found.
-func (s *Service) rejectHotkey(key string, value any, reason string) error {
-	err := derrors.New(derrors.CodeInvalidConfig, "hotkeys."+key+" "+reason)
-
-	s.logger.Warn("Invalid hotkey configuration",
-		zap.String("key", key),
-		zap.String("value_type", fmt.Sprintf("%T", value)),
-		zap.Error(err))
-
-	return err
 }
 
 // modeHotkeyTarget pairs a mode's config name with the bindings it merges into.
@@ -398,20 +386,24 @@ func modeHotkeyTargets(cfg *config.Config) []modeHotkeyTarget {
 //
 // These fields are tagged toml:"-" so the encoder does not turn a single-action
 // entry into an array, which means they must be read from the raw map here.
-func (s *Service) applyModeHotkeys(cfg *config.Config, raw map[string]any) error {
+func (s *Service) applyModeHotkeys(
+	cfg *config.Config,
+	raw map[string]any,
+	warnings *config.Warnings,
+) error {
 	for _, target := range modeHotkeyTargets(cfg) {
 		modeRaw, isTable := raw[target.modeKey].(map[string]any)
 		if !isTable {
 			continue
 		}
 
-		applyErr := s.applyModeHotkeyTable(target, modeRaw)
+		applyErr := s.applyModeHotkeyTable(target, modeRaw, warnings)
 		if applyErr != nil {
 			return applyErr
 		}
 	}
 
-	return s.applyCustomModeHotkeys(cfg, raw)
+	return s.applyCustomModeHotkeys(cfg, raw, warnings)
 }
 
 // applyCustomModeHotkeys gives every declared mode its table: the default
@@ -424,7 +416,11 @@ func (s *Service) applyModeHotkeys(cfg *config.Config, raw map[string]any) error
 // declare a mode — the configuration and then the override `neru config set`
 // writes — so a mode already given a table keeps it and the later file merges
 // over it, and a mode the later file is the first to declare is seeded there.
-func (s *Service) applyCustomModeHotkeys(cfg *config.Config, raw map[string]any) error {
+func (s *Service) applyCustomModeHotkeys(
+	cfg *config.Config,
+	raw map[string]any,
+	warnings *config.Warnings,
+) error {
 	modesRaw, _ := raw[modesKey].(map[string]any)
 
 	for name, mode := range cfg.Modes {
@@ -436,7 +432,7 @@ func (s *Service) applyCustomModeHotkeys(cfg *config.Config, raw map[string]any)
 		target := modeHotkeyTarget{modeKey: modesKey + "." + name, dest: &hotkeys}
 
 		if modeRaw, isTable := modesRaw[name].(map[string]any); isTable {
-			applyErr := s.applyModeHotkeyTable(target, modeRaw)
+			applyErr := s.applyModeHotkeyTable(target, modeRaw, warnings)
 			if applyErr != nil {
 				return applyErr
 			}
@@ -452,7 +448,11 @@ func (s *Service) applyCustomModeHotkeys(cfg *config.Config, raw map[string]any)
 // applyModeHotkeyTable merges one mode's raw "hotkeys" table over its
 // defaults. A missing table leaves the defaults alone, and an empty one
 // clears them, which is how a mode's bindings are switched off wholesale.
-func (s *Service) applyModeHotkeyTable(target modeHotkeyTarget, modeRaw map[string]any) error {
+func (s *Service) applyModeHotkeyTable(
+	target modeHotkeyTarget,
+	modeRaw map[string]any,
+	warnings *config.Warnings,
+) error {
 	table, isTable := modeRaw["hotkeys"].(map[string]any)
 	if !isTable {
 		return nil
@@ -466,18 +466,18 @@ func (s *Service) applyModeHotkeyTable(target modeHotkeyTarget, modeRaw map[stri
 
 	duplicateErr := validateRawHotkeyTable(target.modeKey+".hotkeys", table)
 	if duplicateErr != nil {
-		s.logger.Warn("Duplicate normalized custom hotkey in config",
-			zap.String("mode", target.modeKey),
-			zap.Error(duplicateErr))
-
 		return duplicateErr
 	}
 
-	return s.mergeModeHotkeys(target, table)
+	return s.mergeModeHotkeys(target, table, warnings)
 }
 
 // mergeModeHotkeys lays one mode's entries over its defaults.
-func (s *Service) mergeModeHotkeys(target modeHotkeyTarget, table map[string]any) error {
+func (s *Service) mergeModeHotkeys(
+	target modeHotkeyTarget,
+	table map[string]any,
+	warnings *config.Warnings,
+) error {
 	for key, value := range table {
 		var actions config.StringOrStringArray
 
@@ -497,9 +497,11 @@ func (s *Service) mergeModeHotkeys(target modeHotkeyTarget, table map[string]any
 
 		if len(actions) == 1 && actions[0] == config.DisabledSentinel {
 			if _, exists := (*target.dest)[canonicalKey]; !exists {
-				s.logger.Warn("__disabled__ used for key that is not a default binding",
-					zap.String("mode", target.modeKey),
-					zap.String("key", key))
+				warnings.Addf(
+					"%s.hotkeys.%s: __disabled__ has no default binding to disable",
+					target.modeKey,
+					key,
+				)
 			}
 
 			delete(*target.dest, canonicalKey)
@@ -520,7 +522,7 @@ func (s *Service) mergeModeHotkeys(target modeHotkeyTarget, table map[string]any
 // per-mode. The typed decode already loaded them; what is left to catch is two
 // entries normalizing to the same chord, where only one would ever fire.
 func (s *Service) validateNestedHotkeys(raw map[string]any) *config.LoadResult {
-	if result := validateAppConfigsHotkeys(s.logger, appConfigsKey, raw); result != nil {
+	if result := validateAppConfigsHotkeys(appConfigsKey, raw); result != nil {
 		return result
 	}
 
@@ -536,7 +538,7 @@ func (s *Service) validateNestedHotkeys(raw map[string]any) *config.LoadResult {
 			continue
 		}
 
-		if result := validateAppConfigsHotkeys(s.logger, modeKey, modeRaw); result != nil {
+		if result := validateAppConfigsHotkeys(modeKey, modeRaw); result != nil {
 			return result
 		}
 	}
@@ -549,7 +551,6 @@ func (s *Service) validateNestedHotkeys(raw map[string]any) *config.LoadResult {
 		}
 
 		if result := validateAppConfigsHotkeys(
-			s.logger,
 			modesKey+"."+name,
 			modeRaw,
 		); result != nil {
@@ -582,8 +583,12 @@ func overrideFileToLayer(configPath string) string {
 // so a runtime change outlives a restart. It is the last layer, which is why it
 // only decodes: deriving or validating here would be doing it to a
 // configuration that is finally complete, and the caller does both once, there.
-func (s *Service) applyOverrideFile(cfg *config.Config, overridePath string) error {
-	s.logger.Info("Loading config overrides from", zap.String("path", overridePath))
+func (s *Service) applyOverrideFile(
+	cfg *config.Config,
+	overridePath string,
+	warnings *config.Warnings,
+) error {
+	s.logger.Debug("Loading config overrides", zap.String("path", overridePath))
 
 	// The typed decode below replaces the entry of every declared mode the
 	// override names, and the hotkey table on it is tagged toml:"-", so the
@@ -596,13 +601,7 @@ func (s *Service) applyOverrideFile(cfg *config.Config, overridePath string) err
 
 	_, decodeErr := toml.DecodeFile(overridePath, cfg)
 	if decodeErr != nil {
-		wrapped := derrors.WrapConfigFailed(decodeErr, "parse config override file")
-
-		s.logger.Warn("Config override file parse failed",
-			zap.String("path", overridePath),
-			zap.Error(wrapped))
-
-		return wrapped
+		return derrors.WrapConfigFailed(decodeErr, "parse of override file "+overridePath)
 	}
 
 	// A declared mode's hotkey table is tagged toml:"-" like every mode's, so
@@ -623,5 +622,5 @@ func (s *Service) applyOverrideFile(cfg *config.Config, overridePath string) err
 		return derrors.WrapConfigFailed(rawErr, "parse config override file")
 	}
 
-	return s.applyCustomModeHotkeys(cfg, raw)
+	return s.applyCustomModeHotkeys(cfg, raw, warnings)
 }

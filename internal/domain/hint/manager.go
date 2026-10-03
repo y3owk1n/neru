@@ -197,12 +197,6 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, bool, error) {
 		return nil, false, false, nil
 	}
 
-	if m.Logger != nil {
-		m.Logger.Debug("Hint manager: Processing input",
-			zap.String("key", key),
-			zap.String("current_input", m.CurrentInput()))
-	}
-
 	if len(key) != 1 {
 		return nil, false, false, nil
 	}
@@ -213,7 +207,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, bool, error) {
 
 	filtered := m.hints.FilterByPrefix(m.CurrentInput())
 	if m.Logger != nil {
-		m.Logger.Debug("Hint manager: Filtered hints", zap.Int("filtered_count", len(filtered)))
+		m.Logger.Debug("Hints filtered by input", zap.Int("filtered_count", len(filtered)))
 	}
 
 	if len(filtered) == 0 {
@@ -257,8 +251,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, bool, error) {
 
 	if len(m.cachedFilteredHints) == 1 && m.cachedFilteredHints[0].Label() == m.CurrentInput() {
 		if m.Logger != nil {
-			m.Logger.Debug("Hint manager: Exact match found",
-				zap.String("label", m.cachedFilteredHints[0].Label()))
+			m.Logger.Debug("Hint exact match found")
 		}
 
 		if m.debounceTimer != nil {

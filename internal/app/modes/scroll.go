@@ -19,9 +19,6 @@ func (h *handlerState) startInteractiveScroll() {
 
 	if h.appState.CurrentMode() != domain.ModeIdle {
 		h.cleanupForKeymapModeTransition()
-
-		h.logger.Debug("Transitioned to scroll mode",
-			zap.String("from", h.CurrModeString()))
 	}
 
 	h.scroll.Context.SetIsActive(true)
@@ -33,7 +30,7 @@ func (h *handlerState) startInteractiveScroll() {
 	// tells the overlay which mode the indicators are naming.
 	h.showFrame(ports.ScrollFrame{}, "show scroll overlay")
 
-	h.logger.Info("Interactive scroll activated")
+	h.logger.Info("Scroll mode activated")
 }
 
 // cleanupForKeymapModeTransition cleans up the current mode on the way into a
@@ -53,6 +50,8 @@ func (h *handlerState) startInteractiveScroll() {
 //
 // Caller must hold h.mu.
 func (h *handlerState) cleanupForKeymapModeTransition() {
+	h.logger.Info("Mode exited", zap.String("mode", h.CurrModeString()))
+
 	h.performModeSpecificCleanup()
 	h.stopHeldRepeat()
 

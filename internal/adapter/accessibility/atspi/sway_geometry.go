@@ -105,9 +105,9 @@ func swayComputeOrigin(
 
 	if absInt(contentW-frameW) > windowOriginSizeTolerance ||
 		absInt(contentH-frameH) > windowOriginSizeTolerance {
-		logger.Debug("sway origin rejected: window size does not match AT-SPI frame",
-			zap.Int("contentW", contentW), zap.Int("contentH", contentH),
-			zap.Int("frameW", frameW), zap.Int("frameH", frameH))
+		logger.Debug("Sway origin rejected: window size does not match AT-SPI frame",
+			zap.Int("content_w", contentW), zap.Int("content_h", contentH),
+			zap.Int("frame_w", frameW), zap.Int("frame_h", frameH))
 
 		return image.Point{}, false
 	}

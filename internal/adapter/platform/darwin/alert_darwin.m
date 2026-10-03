@@ -7,6 +7,7 @@
 
 #import "accessibility.h"
 #import "alert.h"
+#import "nativelog.h"
 
 #import <Cocoa/Cocoa.h>
 #import <CommonCrypto/CommonDigest.h>
@@ -259,11 +260,13 @@ static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
 			                                         UNAuthorizationOptionBadge)
 			                      completionHandler:^(BOOL granted, NSError *_Nullable error) {
 				                      if (error) {
-					                      NSLog(@"Neru: Notification authorization error: %@", error);
+					                      NeruLog(
+					                          NeruLogLevelWarn, @"Notification authorization failed",
+					                          error.localizedDescription);
 				                      }
 
 				                      if (!granted) {
-					                      NSLog(@"Neru: Notification authorization denied");
+					                      NeruLog(NeruLogLevelWarn, @"Notification authorization denied", nil);
 				                      }
 
 				                      // Safe to dispatch_sync here: this completion handler runs on a
@@ -309,7 +312,10 @@ void NeruShowNotification(const char *title, const char *message) {
 		if (bundleId != nil) {
 			showNotificationWithUNUserNotificationCenter(nsTitle, nsMessage);
 		} else {
-			NSLog(@"Neru: [%@] %@", nsTitle, nsMessage);
+			// Without a bundle there is no notification center, so the
+			// notification goes to the terminal Neru was launched from.
+			NSString *line = [NSString stringWithFormat:@"Neru: [%@] %@\n", nsTitle, nsMessage];
+			[[NSFileHandle fileHandleWithStandardError] writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
 		}
 	}
 }
@@ -350,7 +356,7 @@ static void showNotificationWithUNUserNotificationCenter(NSString *title, NSStri
 		    addNotificationRequest:request
 		     withCompletionHandler:^(NSError *_Nullable addError) {
 			     if (addError) {
-				     NSLog(@"Neru: Failed to add notification request: %@", addError);
+				     NeruLog(NeruLogLevelWarn, @"Failed to add notification request", addError.localizedDescription);
 			     }
 		     }];
 	});

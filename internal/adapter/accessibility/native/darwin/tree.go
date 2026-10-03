@@ -20,7 +20,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -271,8 +270,6 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 
 	info, infoErr := root.Info()
 	if infoErr != nil {
-		opts.Logger().Warn("Failed to get root element info", zap.Error(infoErr))
-
 		return nil, infoErr
 	}
 
@@ -300,14 +297,6 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	}
 	opts.bundleType = DetectBundleType(opts.bundleID)
 
-	if opts.bundleType != "" {
-		logger.Info(
-			"Detected non empty bundle type",
-			zap.String("bundle_id", opts.bundleID),
-			zap.String("bundle_type", opts.bundleType),
-		)
-	}
-
 	node := getTreeNode(root, info, nil, config.DefaultChildrenCapacity)
 
 	opts.stats = stats
@@ -328,23 +317,13 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	accumulateSearchText(node)
 
 	buildElapsed := time.Since(buildStart)
-	if ce := opts.Logger().Check(zap.DebugLevel, "TIMING: BuildTree"); ce != nil {
+	if ce := opts.Logger().Check(zap.DebugLevel, "Built accessibility tree"); ce != nil {
 		ce.Write(
 			zap.Duration("elapsed", buildElapsed),
-			zap.Int64("nodes_visited", stats.nodesVisited.Load()),
-			zap.Int64("max_depth_seen", stats.maxDepthSeen.Load()),
-			zap.Int64("skipped_non_interactive", stats.skippedNonInteractive.Load()),
 			zap.String("root_role", info.Role()),
 			zap.Int("pid", info.PID()),
+			zap.String("bundle_id", opts.bundleID),
 			zap.String("bundle_type", opts.bundleType),
-		)
-	}
-
-	if ce := opts.Logger().Check(zap.DebugLevel, "Tree build completed"); ce != nil {
-		ce.Write(
-			zap.String("root_role", info.Role()),
-			zap.String("root_title", info.Title()),
-			zap.Int("pid", info.PID()),
 			zap.Int64("nodes_visited", stats.nodesVisited.Load()),
 			zap.Int64("skipped_non_interactive", stats.skippedNonInteractive.Load()),
 			zap.Int64("stopped_at_leaf", stats.stoppedAtLeaf.Load()),
@@ -476,17 +455,6 @@ func buildTreeRecursive(
 		(opts.bundleType == "chromium" || opts.bundleType == "electron" || opts.bundleType == "webkit") {
 		if opts.stats != nil {
 			opts.stats.outOfBoundsSkipped.Add(1)
-		}
-
-		if ce := opts.logger.Check(
-			zap.DebugLevel,
-			"Out-of-bounds element, skipping subtree",
-		); ce != nil {
-			ce.Write(
-				zap.Int("depth", depth),
-				zap.String("parent_role", parent.info.Role()),
-				zap.String("parent_title", parent.info.Title()),
-			)
 		}
 
 		return
@@ -631,16 +599,6 @@ func buildChildrenSequential(
 			childRect := rectFromInfo(data.info)
 			if childRect.Dx() > 0 && childRect.Dy() > 0 {
 				newClipBounds = childRect.Intersect(clipBounds)
-				if ce := opts.Logger().
-					Check(zap.DebugLevel, "Scroll area detected, tightening clip bounds"); ce != nil {
-					ce.Write(
-						zap.String("role", data.info.Role()),
-						zap.Int("clip_x", newClipBounds.Min.X),
-						zap.Int("clip_y", newClipBounds.Min.Y),
-						zap.Int("clip_w", newClipBounds.Dx()),
-						zap.Int("clip_h", newClipBounds.Dy()),
-					)
-				}
 			}
 		}
 
@@ -675,21 +633,6 @@ func shouldIncludeElement(
 	// fall back to the active screen bounds when the root rect is empty.
 	if elementRect.Dx() > 0 && elementRect.Dy() > 0 {
 		if !elementRect.Overlaps(clipBounds) {
-			if ce := opts.Logger().
-				Check(zap.DebugLevel, "Element filtered by clip bounds"); ce != nil {
-				ce.Write(
-					zap.String("role", info.Role()),
-					zap.Int("elem_x", elementRect.Min.X),
-					zap.Int("elem_y", elementRect.Min.Y),
-					zap.Int("elem_w", elementRect.Dx()),
-					zap.Int("elem_h", elementRect.Dy()),
-					zap.Int("clip_x", clipBounds.Min.X),
-					zap.Int("clip_y", clipBounds.Min.Y),
-					zap.Int("clip_w", clipBounds.Dx()),
-					zap.Int("clip_h", clipBounds.Dy()),
-				)
-			}
-
 			return false
 		}
 	}

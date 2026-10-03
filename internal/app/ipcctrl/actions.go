@@ -262,12 +262,6 @@ func (h *ActionsHandler) performTargetedAction(
 		return moveResp
 	}
 
-	h.logger.Debug("Performing action via IPC",
-		zap.String("action", actionName),
-		zap.Int("x", parsed.xVal),
-		zap.Int("y", parsed.yVal),
-	)
-
 	var (
 		err     error
 		errResp *ipc.Response
@@ -284,7 +278,7 @@ func (h *ActionsHandler) performTargetedAction(
 	}
 
 	if err != nil {
-		h.logger.Error("Failed to perform action", zap.Error(err), zap.String("action", actionName))
+		h.logger.Debug("Failed to perform action", zap.Error(err), zap.String("action", actionName))
 
 		return failAction("failed to perform action: " + err.Error())
 	}
@@ -326,7 +320,7 @@ func (h *ActionsHandler) dispatchMouseMove(
 		return h.runMouseMove(actionName, parsed, mouseMove{
 			debugMessage: "Moving mouse to center via IPC",
 			failMessage:  "Failed to move mouse to center",
-			fields:       []zap.Field{zap.Int("offsetX", offsetX), zap.Int("offsetY", offsetY)},
+			fields:       []zap.Field{zap.Int("offset_x", offsetX), zap.Int("offset_y", offsetY)},
 			run: func() error {
 				return h.actionService.MoveMouseToCenter(ctx, offsetX, offsetY)
 			},
@@ -336,7 +330,7 @@ func (h *ActionsHandler) dispatchMouseMove(
 		return h.runMouseMove(actionName, parsed, mouseMove{
 			debugMessage: "Moving mouse to window center via IPC",
 			failMessage:  "Failed to move mouse to window center",
-			fields:       []zap.Field{zap.Int("offsetX", offsetX), zap.Int("offsetY", offsetY)},
+			fields:       []zap.Field{zap.Int("offset_x", offsetX), zap.Int("offset_y", offsetY)},
 			run: func() error {
 				return h.actionService.MoveMouseToCenterOfWindow(ctx, offsetX, offsetY)
 			},
@@ -389,7 +383,7 @@ func (h *ActionsHandler) runMouseMove(
 
 	err := move.run()
 	if err != nil {
-		h.logger.Error(move.failMessage, zap.Error(err))
+		h.logger.Debug(move.failMessage, zap.Error(err))
 
 		return failAction("failed to perform action: " + err.Error())
 	}

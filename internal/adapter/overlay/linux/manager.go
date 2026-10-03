@@ -11,6 +11,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/logonce"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
@@ -66,6 +67,10 @@ type Manager struct {
 	manager.Base
 
 	logger *zap.Logger
+
+	// placementRefusal warns once per hint placement this overlay refuses,
+	// rather than on every hints draw.
+	placementRefusal logonce.Latch
 
 	// renderMu serializes all rendering dispatch to the backend overlays.
 	// On macOS the Objective-C bridge serializes via dispatch_async to the
@@ -438,12 +443,10 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		// CodeNotSupported — so say it here too, or a placement this overlay
 		// cannot draw costs the user every hint with only a debug line to
 		// explain it. The placement is a fixed configuration keyword.
-		if m.logger != nil {
-			m.logger.Warn(
-				"hint placement not drawn by the linux overlay",
-				zap.String("placement", style.Placement()),
-			)
-		}
+		m.placementRefusal.Warn(m.logger, style.Placement(),
+			"Hint placement not drawn by the linux overlay",
+			zap.String("placement", style.Placement()),
+		)
 
 		return offsetErr
 	}

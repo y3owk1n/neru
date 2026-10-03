@@ -96,6 +96,9 @@ type Overlay struct {
 	window C.OverlayWindow
 	config config.HintsConfig
 	logger *zap.Logger
+	// placementRefusal warns once per placement this overlay refuses, rather
+	// than on every hints draw.
+	placementRefusal overlayutil.WarnLatch
 
 	// configMu protects config from concurrent read/write.
 	configMu sync.RWMutex
@@ -390,7 +393,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		// CodeNotSupported — so say it here too, or a placement this overlay
 		// cannot draw costs the user every hint with only a debug line to
 		// explain it. The placement is a fixed configuration keyword.
-		o.logger.Warn(
+		o.placementRefusal.Warn(o.logger, style.Placement(),
 			"Hint placement not drawn by the macos overlay",
 			zap.String("placement", style.Placement()),
 		)
@@ -656,7 +659,7 @@ func (o *Overlay) updateMatchesIncremental(newInput string) {
 	C.NeruUpdateHintMatchPrefix(o.window, cPrefix)
 
 	if ce := o.logger.Check(zap.DebugLevel, "Incremental match update"); ce != nil {
-		ce.Write(zap.String("new_input", newInput))
+		ce.Write(zap.Int("input_length", len(newInput)))
 	}
 }
 

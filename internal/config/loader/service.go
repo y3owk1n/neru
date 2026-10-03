@@ -21,7 +21,6 @@ import (
 
 // validateAppConfigsHotkeys validates hotkeys in app_configs sections from raw config.
 func validateAppConfigsHotkeys(
-	logger *zap.Logger,
 	modeName string,
 	raw map[string]any,
 ) *config.LoadResult {
@@ -53,17 +52,11 @@ func validateAppConfigsHotkeys(
 			hotkeysRaw,
 		)
 		if err != nil {
-			result := &config.LoadResult{
+			return &config.LoadResult{
 				ValidationError: err,
 				Config:          config.DefaultConfig(),
 				Written:         config.DefaultConfigForDecoding(),
 			}
-			logger.Warn("Duplicate normalized app hotkey in config",
-				zap.String("mode", modeName),
-				zap.Int("app_config_index", idx),
-				zap.Error(err))
-
-			return result
 		}
 	}
 
@@ -602,7 +595,7 @@ func (s *Service) SaveOverrideField(key, value string) error {
 
 	// The key names a schema field, which is not the user's content; the value
 	// is, and a value can be an exec command line, so only its length is logged.
-	s.logger.Info("Config override persisted",
+	s.logger.Debug("Config override persisted",
 		zap.String("key", key),
 		zap.Int("value_length", len(value)),
 		zap.String("override_path", overridePath))

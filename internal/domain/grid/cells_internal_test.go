@@ -4,8 +4,6 @@ import (
 	"image"
 	"testing"
 
-	"go.uber.org/zap"
-
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
@@ -49,7 +47,6 @@ func TestGenerateCellsWithRegions_SurvivesDegenerateDimensions(t *testing.T) {
 				},
 				bounds,
 				10, 10, 0, 0,
-				zap.NewNop(),
 			)
 
 			// Returning at all is most of the point: each of these inputs

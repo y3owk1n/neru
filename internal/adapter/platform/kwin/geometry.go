@@ -487,7 +487,7 @@ func (g *Geometry) install() error {
 
 	reply, nameErr := conn.RequestName(bridgeName, dbus.NameFlagReplaceExisting)
 	if nameErr != nil || reply != dbus.RequestNameReplyPrimaryOwner {
-		g.log().Warn("KWin bridge: could not own name",
+		g.log().Warn("KWin bridge could not own its bus name",
 			zap.Error(nameErr), zap.Int("reply", int(reply)))
 		// Continue anyway: the export may still receive calls if another
 		// instance relinquishes the name.

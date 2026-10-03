@@ -1,7 +1,6 @@
 package modes
 
 import (
-	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -119,7 +118,7 @@ func (h *handlerState) handleModifierToggle(key string) bool {
 		h.usedInChordModifiers &^= mod
 		h.stopPendingModifierTimer(mod)
 		h.pendingModifierKeys[mod] = time.Now()
-		h.logger.Debug("Modifier key down", zap.String("key", strings.ToLower(key)))
+		h.logger.Debug("Modifier key down", zap.String("modifier", mod.String()))
 
 		return true
 	}
@@ -132,7 +131,6 @@ func (h *handlerState) handleModifierToggle(key string) bool {
 		h.usedInChordModifiers &^= mod
 		h.suppressedModifiers &^= mod
 		h.logger.Debug("Modifier key up ignored (suppressed activation modifier)",
-			zap.String("key", key),
 			zap.String("modifier", mod.String()))
 
 		return true
@@ -156,15 +154,14 @@ func (h *handlerState) handleModifierToggle(key string) bool {
 			h.pendingModifierKeys[mod] = now
 			h.scheduleModifierToggle(mod, now)
 			h.logger.Debug("Modifier key up (fresh press while suppressed, treating as tap)",
-				zap.String("key", key),
 				zap.String("modifier", mod.String()))
 
 			return true
 		}
 
 		h.logger.Debug("Modifier key up ignored (no matching pending down)",
-			zap.String("key", key),
-			zap.Any("pending", h.pendingModifierKeys))
+			zap.String("modifier", mod.String()),
+			zap.Int("pending_count", len(h.pendingModifierKeys)))
 		h.usedInChordModifiers &^= mod
 
 		return true
@@ -175,7 +172,6 @@ func (h *handlerState) handleModifierToggle(key string) bool {
 		h.stopPendingModifierTimer(mod)
 		h.usedInChordModifiers &^= mod
 		h.logger.Debug("Modifier key up ignored (modifier was used in chord)",
-			zap.String("key", key),
 			zap.String("modifier", mod.String()))
 
 		return true
@@ -190,7 +186,7 @@ func (h *handlerState) handleModifierToggle(key string) bool {
 			h.logger.Debug("Modifier tap rejected (held too long)",
 				zap.String("modifier", mod.String()),
 				zap.Duration("held", elapsed),
-				zap.Int("maxMs", maxDur))
+				zap.Int("tap_max_duration_ms", maxDur))
 
 			return true
 		}

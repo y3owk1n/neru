@@ -5,6 +5,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // CurrModeString returns the current mode as a string.
@@ -93,16 +94,13 @@ func (h *handlerState) activateModeBase(
 ) (action.Type, bool) {
 	err := h.validateModeActivation(bundleID, modeName, enabled)
 	if err != nil {
-		h.logger.Warn(modeName+" mode activation failed", zap.Error(err))
+		h.logger.Debug("Mode activation refused", zap.String("mode", modeName), zap.Error(err))
 
 		return action.TypeMoveMouse, false
 	}
 
 	// Prepare for mode activation (reset transient mode state)
 	h.prepareForModeActivation()
-
-	actionString := domain.ActionString(actionEnum)
-	h.logger.Debug("Activating "+modeName+" mode", zap.String("action", actionString))
 
 	// The overlay is not sized here. Every mode that reaches this hands over a
 	// Frame, and sizing to the active screen is the first step of realizing
@@ -154,4 +152,21 @@ func (h *Handler) SetModeScroll() {
 	defer h.mu.Unlock()
 
 	h.enterMode(domain.ModeScroll)
+}
+
+// activationLogFields returns the fields of a grid mode's activation line. They
+// are the mode's action and scope, plus --action and --repeat when given.
+func activationLogFields(actionString, scope string, activation modecmd.Activation) []zap.Field {
+	fields := []zap.Field{
+		zap.String("action", actionString),
+		zap.String("scope", scope),
+	}
+
+	if activation.Action != nil {
+		fields = append(fields,
+			zap.String("pending_action", *activation.Action),
+			zap.Bool("repeat", activation.Repeat != nil && *activation.Repeat))
+	}
+
+	return fields
 }

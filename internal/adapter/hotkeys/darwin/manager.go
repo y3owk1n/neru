@@ -79,8 +79,6 @@ func (m *Manager) RegisterWithRelease(
 
 	keyCode, modifiers, ok := darwin.ParseKeyString(keyString)
 	if !ok {
-		m.logger.Error("Failed to parse key string", zap.String("key", keyString))
-
 		return 0, derrors.Newf(
 			derrors.CodeInvalidInput,
 			"failed to parse key string: %s",
@@ -95,11 +93,9 @@ func (m *Manager) RegisterWithRelease(
 	// Create per-hotkey CGEventTap
 	tap := darwin.CreateHotkeyTap(int(hotkeyID), keyCode, modifiers)
 	if tap == nil {
-		m.logger.Error("Failed to create hotkey tap", zap.String("key", keyString))
-
 		return 0, derrors.Newf(
 			derrors.CodeHotkeyRegisterFailed,
-			"failed to register hotkey: %s",
+			"failed to register hotkey %s, check Accessibility permissions",
 			keyString,
 		)
 	}
@@ -111,20 +107,12 @@ func (m *Manager) RegisterWithRelease(
 		tap:     tap,
 	}
 
-	m.logger.Debug("Registered hotkey",
-		zap.String("key", keyString),
-		zap.Int("key_code", keyCode),
-		zap.Int("modifiers", modifiers),
-		zap.Int("id", int(hotkeyID)))
-
 	return hotkeyID, nil
 }
 
 // Unregister removes a previously registered hotkey by its ID.
 // After unregistering, the hotkey will no longer trigger its associated callback.
 func (m *Manager) Unregister(hotkeyID ports.HotkeyID) {
-	m.logger.Debug("Unregistering hotkey", zap.Int("id", int(hotkeyID)))
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -140,8 +128,6 @@ func (m *Manager) Unregister(hotkeyID ports.HotkeyID) {
 // UnregisterAll removes all currently registered hotkeys.
 // This is typically called during application shutdown to clean up resources.
 func (m *Manager) UnregisterAll() {
-	m.logger.Debug("Unregistering all hotkeys")
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -149,16 +135,14 @@ func (m *Manager) UnregisterAll() {
 		darwin.DestroyHotkeyTap(pair.tap)
 	}
 
-	m.callbacks = make(map[ports.HotkeyID]callbackPair)
+	m.logger.Debug("Unregistered all hotkeys", zap.Int("count", len(m.callbacks)))
 
-	m.logger.Debug("Unregistered all hotkeys")
+	m.callbacks = make(map[ports.HotkeyID]callbackPair)
 }
 
 // handleCallback processes hotkey events received from the C callback.
 // It looks up the appropriate callback function and executes it in a goroutine.
 func (m *Manager) handleCallback(hotkeyID ports.HotkeyID, eventKind darwin.HotkeyEventKind) {
-	m.logger.Debug("Handling hotkey callback", zap.Int("id", int(hotkeyID)))
-
 	m.mu.RLock()
 	callbacks, ok := m.callbacks[hotkeyID]
 	m.mu.RUnlock()
@@ -202,10 +186,6 @@ func SetGlobalManager(manager *Manager) {
 	if manager != nil {
 		darwin.SetHotkeyHandler(func(hotkeyID int, eventKind darwin.HotkeyEventKind) {
 			if globalManager != nil {
-				globalManager.logger.Debug("Hotkey callback bridge called",
-					zap.Int("id", hotkeyID),
-					zap.Int("event_kind", int(eventKind)))
-
 				go globalManager.handleCallback(ports.HotkeyID(hotkeyID), eventKind)
 			}
 		})

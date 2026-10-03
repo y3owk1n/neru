@@ -255,13 +255,13 @@ func (c *Controller) run(id uint64) {
 	if settler, ok := c.system.(ports.CursorSettler); ok {
 		err := settler.SettleCursor(ctx)
 		if err != nil {
-			c.logger.Debug("failed to settle cursor before motion", zap.Error(err))
+			c.logger.Debug("Failed to settle cursor before motion", zap.Error(err))
 		}
 	}
 
 	start, err := c.system.CursorPosition(ctx)
 	if err != nil {
-		c.logger.Warn("held-key glide cannot read the cursor position", zap.Error(err))
+		c.logger.Warn("Held-key glide cannot read the cursor position", zap.Error(err))
 
 		return
 	}
@@ -307,7 +307,7 @@ func (c *Controller) run(id uint64) {
 		err := c.post(ctx, pos)
 		if err != nil {
 			if !postFailed {
-				c.logger.Warn("held-key glide failed to move the cursor", zap.Error(err))
+				c.logger.Warn("Held-key glide failed to move the cursor", zap.Error(err))
 			}
 
 			// A platform that cannot move the cursor at all will not start to

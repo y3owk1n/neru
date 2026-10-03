@@ -34,7 +34,7 @@ func (linuxDaemonHost) Run(application *app.App) error {
 		go func() {
 			err := eventtaplinux.WarmEvdevProxy(logger)
 			if err != nil && !derrors.IsNotSupported(err) {
-				logger.Info(
+				logger.Warn(
 					"Wayland keyboard proxy unavailable at launch; modes will use the overlay's keyboard focus",
 					zap.Error(err),
 				)

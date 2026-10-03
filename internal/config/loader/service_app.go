@@ -53,7 +53,7 @@ func (s *Service) alertInvalidReload(
 			s.alertShowing.Store(false)
 
 			if recovered := recover(); recovered != nil {
-				logger.Error("panic while showing the config alert",
+				logger.Error("Panic while showing the config alert",
 					zap.Any("recover", recovered))
 			}
 		}()
@@ -78,10 +78,6 @@ func (s *Service) ReloadWithAppContext(
 	loadResult := s.LoadWithValidation(path)
 
 	if loadResult.ValidationError != nil {
-		logger.Warn("Config validation failed during reload",
-			zap.Error(loadResult.ValidationError),
-			zap.String("config_path", loadResult.ConfigPath))
-
 		s.alertInvalidReload(ctx, loadResult, logger)
 
 		return loadResult, derrors.WrapConfigFailed(loadResult.ValidationError, "validate config")
@@ -107,7 +103,7 @@ func (s *Service) ReloadWithAppContext(
 		}
 	}
 
-	logger.Info("Configuration reloaded successfully")
+	logger.Info("Configuration reloaded successfully", zap.String("path", loadResult.ConfigPath))
 
 	return loadResult, nil
 }

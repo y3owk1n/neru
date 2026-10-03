@@ -165,8 +165,6 @@ func (s *HintService) GenerateHints(
 
 // RefreshHints updates the hint display (e.g., after screen changes).
 func (s *HintService) RefreshHints(ctx context.Context) error {
-	s.logger.Debug("Refreshing hints")
-
 	if !s.overlay.IsVisible() {
 		s.logger.Debug("Overlay not visible, skipping refresh")
 
@@ -175,12 +173,8 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 
 	refreshOverlayErr := s.overlay.Refresh(ctx)
 	if refreshOverlayErr != nil {
-		s.logger.Error("Failed to refresh overlay", zap.Error(refreshOverlayErr))
-
 		return derrors.WrapOverlayFailed(refreshOverlayErr, "refresh hints")
 	}
-
-	s.logger.Debug("Hints refreshed successfully")
 
 	return nil
 }
@@ -255,17 +249,15 @@ func (s *HintService) generateHintsAX(
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	axStart := time.Now()
+
 	elements, err := s.accessibility.ClickableElements(ctx, filter)
-	s.logger.Debug("TIMING: ClickableElements (axtree)",
-		zap.Duration("elapsed", time.Since(axStart)),
-		zap.Int("element_count", len(elements)),
-		zap.Error(err))
-
 	if err != nil {
-		s.logger.Error("Failed to get clickable elements via AX", zap.Error(err))
-
 		return nil, derrors.WrapAccessibilityFailed(err, "get clickable elements")
 	}
+
+	s.logger.Debug("Accessibility tree scanned",
+		zap.Duration("duration", time.Since(axStart)),
+		zap.Int("element_count", len(elements)))
 
 	return elements, nil
 }
@@ -295,19 +287,15 @@ func (s *HintService) generateHintsVision(
 
 	// Detect window elements via vision
 	visionStart := time.Now()
+
 	windowElements, visionErr := s.vision.DetectElements(
 		ctx,
 		windowBounds,
 		s.config.Vision,
 		splitWord,
 	)
-	s.logger.Debug("TIMING: Window elements (vision)",
-		zap.Duration("elapsed", time.Since(visionStart)),
-		zap.Int("count", len(windowElements)),
-		zap.Error(visionErr))
-
 	if visionErr != nil {
-		s.logger.Error("Failed to detect elements via vision", zap.Error(visionErr))
+		s.logger.Warn("Failed to detect elements via vision", zap.Error(visionErr))
 
 		// CodeNotSupported here means the machine cannot run this strategy at
 		// all, and the error names what to install or which display server has
@@ -321,6 +309,10 @@ func (s *HintService) generateHintsVision(
 
 		return allElements
 	}
+
+	s.logger.Debug("Vision detection finished",
+		zap.Duration("duration", time.Since(visionStart)),
+		zap.Int("count", len(windowElements)))
 
 	// Filter vision-detected elements by configured roles
 	for _, element := range windowElements {
@@ -359,8 +351,8 @@ func (s *HintService) supplementaryElements(
 		return nil
 	}
 
-	s.logger.Debug("TIMING: Supplementary elements (AX)",
-		zap.Duration("elapsed", time.Since(supplementStart)),
+	s.logger.Debug("Supplementary elements collected",
+		zap.Duration("duration", time.Since(supplementStart)),
 		zap.Int("count", len(supplementElements)))
 
 	return supplementElements
@@ -396,15 +388,10 @@ func (s *HintService) generateHintsContour(
 	defer cancel()
 
 	contourStart := time.Now()
-	elements, err := s.vision.DetectContours(contourCtx, windowBounds, cfg)
-	s.logger.Debug("TIMING: Window elements (contour)",
-		zap.Duration("elapsed", time.Since(contourStart)),
-		zap.Int("count", len(elements)),
-		zap.Error(err),
-	)
 
+	elements, err := s.vision.DetectContours(contourCtx, windowBounds, cfg)
 	if err != nil {
-		s.logger.Error("Failed to detect elements via contour", zap.Error(err))
+		s.logger.Warn("Failed to detect elements via contour", zap.Error(err))
 
 		if derrors.IsNotSupported(err) {
 			s.notifyVisionUnavailable(ctx, err.Error())
@@ -412,6 +399,10 @@ func (s *HintService) generateHintsContour(
 
 		return allElements
 	}
+
+	s.logger.Debug("Contour detection finished",
+		zap.Duration("duration", time.Since(contourStart)),
+		zap.Int("count", len(elements)))
 
 	return append(allElements, elements...)
 }
@@ -446,7 +437,7 @@ func (s *HintService) resolveDetectionBounds(
 
 	screenBounds, screenErr := s.system.ScreenBounds(ctx)
 	if screenErr != nil {
-		s.logger.Error("Failed to get screen bounds for detection", zap.Error(screenErr))
+		s.logger.Warn("Failed to get screen bounds for detection", zap.Error(screenErr))
 
 		return image.Rectangle{}, false
 	}
@@ -623,21 +614,17 @@ func (s *HintService) labelElements(
 	}
 
 	genStart := time.Now()
+
 	hints, elementsErr := gen.Generate(ctx, elements)
-	s.logger.Debug("TIMING: HintGenerator.Generate",
-		zap.Duration("elapsed", time.Since(genStart)),
-		zap.Int("element_count", len(elements)),
-		zap.Int("hint_count", len(hints)),
-		zap.String("label_direction", gen.LabelDirection().String()),
-		zap.Error(elementsErr))
-
 	if elementsErr != nil {
-		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
-
 		return nil, derrors.WrapInternalFailed(elementsErr, "generate hints")
 	}
 
-	s.logger.Debug("Generated hints", zap.Int("count", len(hints)))
+	s.logger.Debug("Hints generated",
+		zap.Duration("duration", time.Since(genStart)),
+		zap.Int("element_count", len(elements)),
+		zap.Int("hint_count", len(hints)),
+		zap.String("label_direction", gen.LabelDirection().String()))
 
 	return hints, nil
 }

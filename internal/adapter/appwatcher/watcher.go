@@ -50,14 +50,14 @@ func NewWatcher(logger *zap.Logger) *Watcher {
 // Start begins monitoring application lifecycle events.
 // Events will be dispatched to registered callbacks once monitoring starts.
 func (w *Watcher) Start() {
-	w.logger.Debug("App watcher: Starting")
+	w.logger.Debug("App watcher starting")
 	platformStartWatcher()
 }
 
 // Stop halts application lifecycle event monitoring.
 // No further events will be dispatched after stopping.
 func (w *Watcher) Stop() {
-	w.logger.Debug("App watcher: Stopping")
+	w.logger.Debug("App watcher stopping")
 	platformStopWatcher()
 }
 
@@ -135,47 +135,47 @@ func (w *Watcher) OnMissionControlDeactivated(callback func()) {
 // HandleLaunch processes application launch events from the platform layer.
 // It dispatches the event to all registered launch callbacks.
 func (w *Watcher) HandleLaunch(appName, bundleID string) {
-	w.dispatchAppEvent("App watcher: Application launched", appName, bundleID,
+	w.dispatchAppEvent("Application launched", appName, bundleID,
 		func(w *Watcher) []AppCallback { return w.launchCallbacks })
 }
 
 // HandleTerminate processes application termination events from the platform layer.
 // It dispatches the event to all registered termination callbacks.
 func (w *Watcher) HandleTerminate(appName, bundleID string) {
-	w.dispatchAppEvent("App watcher: Application terminated", appName, bundleID,
+	w.dispatchAppEvent("Application terminated", appName, bundleID,
 		func(w *Watcher) []AppCallback { return w.terminateCallbacks })
 }
 
 // HandleActivate processes application activation events from the platform layer.
 // It dispatches the event to all registered activation callbacks.
 func (w *Watcher) HandleActivate(appName, bundleID string) {
-	w.dispatchAppEvent("App watcher: Application activated", appName, bundleID,
+	w.dispatchAppEvent("Application activated", appName, bundleID,
 		func(w *Watcher) []AppCallback { return w.activateCallbacks })
 }
 
 // HandleDeactivate processes application deactivation events from the platform layer.
 // It dispatches the event to all registered deactivation callbacks.
 func (w *Watcher) HandleDeactivate(appName, bundleID string) {
-	w.dispatchAppEvent("App watcher: Application deactivated", appName, bundleID,
+	w.dispatchAppEvent("Application deactivated", appName, bundleID,
 		func(w *Watcher) []AppCallback { return w.deactivateCallbacks })
 }
 
 // HandleScreenParametersChanged processes screen parameter change events from the platform layer.
 // It dispatches the event to all registered screen change callbacks.
 func (w *Watcher) HandleScreenParametersChanged() {
-	w.dispatchVoidEvent("App watcher: Screen parameters changed",
+	w.dispatchVoidEvent("Screen parameters changed",
 		func(w *Watcher) []func() { return w.screenChangeCallbacks })
 }
 
 // HandleMissionControlActivated processes Mission Control activation events from the platform layer.
 func (w *Watcher) HandleMissionControlActivated() {
-	w.dispatchMCEvent("App watcher: Mission Control activated",
+	w.dispatchMCEvent("Mission Control activated",
 		func(w *Watcher) []func() { return w.mcActivatedCallbacks })
 }
 
 // HandleMissionControlDeactivated processes Mission Control deactivation events from the platform layer.
 func (w *Watcher) HandleMissionControlDeactivated() {
-	w.dispatchMCEvent("App watcher: Mission Control deactivated",
+	w.dispatchMCEvent("Mission Control deactivated",
 		func(w *Watcher) []func() { return w.mcDeactivatedCallbacks })
 }
 
@@ -183,9 +183,7 @@ func (w *Watcher) dispatchAppEvent(
 	logMsg, appName, bundleID string,
 	callbacks func(*Watcher) []AppCallback,
 ) {
-	w.logger.Debug(logMsg,
-		zap.String("app_name", appName),
-		zap.String("bundle_id", bundleID))
+	w.logger.Debug(logMsg, zap.String("bundle_id", bundleID))
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()

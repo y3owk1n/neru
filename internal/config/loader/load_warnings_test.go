@@ -247,3 +247,29 @@ func countLogged(logs *observer.ObservedLogs, text string) int {
 
 	return count
 }
+
+// TestLoadWithValidation_ReportsADisabledKeyWithNoDefault pins that a
+// __disabled__ entry with nothing to disable is reported on the result, where
+// `neru config validate` prints it, for the global table and a mode's alike.
+func TestLoadWithValidation_ReportsADisabledKeyWithNoDefault(t *testing.T) {
+	result, _ := loadWithObservedLogger(t, `
+[hotkeys]
+"Primary+Shift+F12" = "__disabled__"
+
+[hints.hotkeys]
+"F12" = "__disabled__"
+`, "")
+
+	if result.ValidationError != nil {
+		t.Fatalf("a __disabled__ entry was refused: %v", result.ValidationError)
+	}
+
+	for _, want := range []string{
+		"hotkeys.Primary+Shift+F12: __disabled__ has no default binding to disable",
+		"hints.hotkeys.F12: __disabled__ has no default binding to disable",
+	} {
+		if !slices.Contains(result.Warnings, want) {
+			t.Errorf("result.Warnings = %q, want it to contain %q", result.Warnings, want)
+		}
+	}
+}

@@ -37,7 +37,7 @@ func newThemeProvider(systemPort ports.SystemPort) *bridgeThemeProvider {
 // choose. A mode with nothing themed on screen answers by not carrying the axis
 // at all.
 func (a *App) HandleThemeChange(isDark bool) {
-	a.logger.Info("System theme changed",
+	a.logger.Debug("System theme changed",
 		zap.Bool("is_dark", isDark))
 
 	if a.overlayPort != nil {

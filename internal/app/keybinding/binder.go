@@ -76,12 +76,6 @@ func (b *Binder) registerHotkeys(bundleID string) {
 			continue
 		}
 
-		b.logger.Debug(
-			"Registering hotkey binding",
-			zap.String("key", trimmedKey),
-			zap.Int("action_count", len(actions)),
-		)
-
 		bindKey := config.CanonicalHotkeyForPlatform(trimmedKey)
 		bindActions := actions
 
@@ -114,10 +108,10 @@ func (b *Binder) registerHotkeys(bundleID string) {
 		}
 
 		if registerHotkeyErr != nil {
-			b.logger.Error(
+			b.logger.Warn(
 				"Failed to register hotkey binding",
 				zap.String("key", trimmedKey),
-				zap.Strings("actions", actions),
+				zap.Int("action_count", len(actions)),
 				zap.Error(registerHotkeyErr),
 			)
 
@@ -126,6 +120,10 @@ func (b *Binder) registerHotkeys(bundleID string) {
 
 		registered = append(registered, bindKey)
 	}
+
+	b.logger.Debug("Hotkeys registered",
+		zap.Int("count", len(registered)),
+		zap.String("bundle_id", bundleID))
 }
 
 // dispatchModeAwareHotkeyAsync dispatches a global hotkey once, letting a
@@ -236,7 +234,7 @@ func (b *Binder) dispatchHotkeyActionsAsync(key string, actions []string) {
 		defer func() {
 			if r := recover(); r != nil {
 				b.logger.Error(
-					"panic in hotkey handler",
+					"Panic in hotkey handler",
 					zap.Any("recover", r),
 					zap.String("key", key),
 				)
@@ -277,7 +275,7 @@ func (b *Binder) startHotkeyRepeat(key string, actions []string) {
 		defer func() {
 			if r := recover(); r != nil {
 				b.logger.Error(
-					"panic in repeating hotkey handler",
+					"Panic in repeating hotkey handler",
 					zap.Any("recover", r),
 					zap.String("key", key),
 				)
@@ -534,16 +532,12 @@ func (b *Binder) refreshHotkeysForAppOrCurrent(bundleID string) {
 	if !b.appState.HotkeysRegistered() {
 		b.registerHotkeys(bundleID)
 		b.appState.SetHotkeysRegistered(true)
-		b.logger.Debug("Hotkeys registered",
-			zap.String("bundle_id", bundleID))
 	} else if bundleID != b.currentHotkeyBundleID && cfg.HasGlobalAppHotkeyOverrides() {
 		// Focus changed to a different app with possibly different hotkey
 		// bindings. Re-register with the new app's bindings.
 		b.stopAllHotkeyRepeats()
 		b.hotkeyManager.UnregisterAll()
 		b.registerHotkeys(bundleID)
-		b.logger.Debug("Hotkeys re-registered for app",
-			zap.String("bundle_id", bundleID))
 	}
 
 	// Track which bundle ID's bindings are currently registered.

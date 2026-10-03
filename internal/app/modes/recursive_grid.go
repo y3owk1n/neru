@@ -142,14 +142,6 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 	// activation over a draw, and a refactor is not the place to start.
 	h.showFrame(h.recursiveGridFrame(), "show recursive-grid overlay")
 
-	if activation.Action != nil {
-		h.logger.Debug(
-			"Recursive-grid mode activated with pending action",
-			zap.String("action", *activation.Action),
-			zap.Bool("repeat", activation.Repeat != nil && *activation.Repeat),
-		)
-	}
-
 	// Only set mode and enable event tap on initial activation;
 	// during refresh these are already in the correct state. The overlay was
 	// switched to recursive-grid mode when the Frame was realized.
@@ -158,8 +150,7 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 	}
 
 	h.logger.Info("Recursive-grid mode activated",
-		zap.String("action", actionString),
-		zap.String("scope", scope))
+		activationLogFields(actionString, scope, activation)...)
 
 	h.startIndicatorPolling(domain.ModeRecursiveGrid)
 }
@@ -231,7 +222,7 @@ func (h *handlerState) handleRecursiveGridKey(key string) {
 	ctx := h.ctx
 
 	if h.recursiveGrid == nil || h.recursiveGrid.Manager == nil {
-		h.logger.Warn("Recursive-grid manager is nil - ignoring key press")
+		h.logger.Debug("Recursive-grid manager is nil, ignoring key press")
 
 		return
 	}

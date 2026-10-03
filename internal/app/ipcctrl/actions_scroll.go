@@ -57,13 +57,6 @@ func (h *ActionsHandler) handleScrollAction(
 		}
 	}
 
-	h.logger.Debug("Performing scroll action via IPC",
-		zap.String("action", actionName),
-		zap.Int("direction", int(direction)),
-		zap.Int("amount", int(amount)),
-		zap.String("modifiers", modifiers.String()),
-	)
-
 	targetsSelection := parsed.useSelection
 
 	targetPoint := image.Point{}
@@ -92,7 +85,7 @@ func (h *ActionsHandler) handleScrollAction(
 
 		moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
 		if moveErr != nil {
-			h.logger.Error("Failed to move cursor to scroll target", zap.Error(moveErr))
+			h.logger.Debug("Failed to move cursor to scroll target", zap.Error(moveErr))
 
 			return ipc.Response{
 				Success: false,
@@ -104,7 +97,7 @@ func (h *ActionsHandler) handleScrollAction(
 
 	scrollErr := h.scrollService.Scroll(ctx, direction, amount, parsed.stepsOverride, modifiers)
 	if scrollErr != nil {
-		h.logger.Error("Scroll action failed", zap.Error(scrollErr),
+		h.logger.Debug("Scroll action failed", zap.Error(scrollErr),
 			zap.String("action", actionName))
 
 		// "this platform cannot hold that modifier" is a different answer from

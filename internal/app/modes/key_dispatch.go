@@ -356,8 +356,7 @@ func (h *handlerState) dispatchHotkeyActions(
 
 	h.logger.Debug("Hotkey matched",
 		zap.String("mode", modeName),
-		zap.String("bindKey", bindKey),
-		zap.String("key", rawKey),
+		zap.String("bind_key", bindKey),
 		zap.Int("action_count", len(actions)))
 
 	// Note: we do NOT suppress modifiers here because this function is called
@@ -382,9 +381,9 @@ func (h *handlerState) dispatchHotkeyActions(
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				h.logger.Error("panic in hotkey handler",
+				h.logger.Error("Panic in hotkey handler",
 					zap.Any("recover", r),
-					zap.String("key", capturedKey))
+					zap.String("bind_key", capturedKey))
 			}
 		}()
 
@@ -426,9 +425,9 @@ func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				h.logger.Error("panic in held repeat handler",
+				h.logger.Error("Panic in held repeat handler",
 					zap.Any("recover", r),
-					zap.String("key", bindKey))
+					zap.String("bind_key", bindKey))
 			}
 		}()
 

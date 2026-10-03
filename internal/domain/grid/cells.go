@@ -3,8 +3,6 @@ package grid
 import (
 	"image"
 	"strings"
-
-	"go.uber.org/zap"
 )
 
 // generateCellsWithRegions lays cells out region by region, left to right and
@@ -14,17 +12,10 @@ func generateCellsWithRegions(
 	plan gridPlan,
 	bounds image.Rectangle,
 	baseCellWidth, baseCellHeight, remainderWidth, remainderHeight int,
-	logger *zap.Logger,
 ) []*Cell {
 	numChars := len(chars)
 	gridCols := plan.dimensions.Cols
 	gridRows := plan.dimensions.Rows
-
-	logger.Debug("Generating cells with regions",
-		zap.Int("num_chars", numChars),
-		zap.Int("grid_cols", gridCols),
-		zap.Int("grid_rows", gridRows),
-		zap.Int("label_length", plan.labelLength))
 
 	// Clamp both dimensions into [1, Max]. Dimensions arrive as parameters, so
 	// a zero or negative count would otherwise reach the arithmetic below, and

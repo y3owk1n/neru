@@ -29,7 +29,7 @@ func (h *handlerState) executeActionAtPoint(
 	reActivateFunc func(),
 ) {
 	if actionStr == nil {
-		h.logger.Warn("executeActionAtPoint called with nil action")
+		h.logger.Warn("Pending action is nil, ignoring")
 
 		return
 	}
@@ -172,7 +172,7 @@ func (h *handlerState) runOnExit(onExit []string) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				h.logger.Error("panic in on-exit handler",
+				h.logger.Error("Panic in on-exit handler",
 					zap.Any("recover", r),
 					zap.Int("steps", len(steps)))
 			}
@@ -216,7 +216,7 @@ func (h *handlerState) moveCursorAndHandleAction(
 func (h *handlerState) handleHintsModeKey(key string) {
 	// Route hint-specific keys via domain hints router
 	if h.hints.Context.Router() == nil {
-		h.logger.Warn("Hints router is nil - ignoring key press until hints initialized")
+		h.logger.Debug("Hints router is nil, ignoring key press")
 
 		return
 	}
@@ -229,7 +229,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 	}
 
 	if hintKeyResult.Unmatched() {
-		h.logger.Debug("Hints mode: Unmatched key press, exiting mode")
+		h.logger.Debug("Unmatched hint key, exiting hints mode")
 		h.exitMode()
 
 		return
@@ -240,7 +240,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 		hint := hintKeyResult.ExactHint()
 		center := hint.Element().Center()
 
-		h.logger.Debug("Found element", zap.String("label", hint.Label()))
+		h.logger.Debug("Hint matched")
 
 		pendingAction := h.hints.Context.PendingAction()
 		pendingModifier := h.hints.Context.PendingModifier()
@@ -398,7 +398,10 @@ func (h *handlerState) confirmHintSearch() {
 		}
 
 		go func() {
-			_ = h.outer.CycleHint(h.ctx, false, true)
+			err := h.outer.CycleHint(h.ctx, false, true)
+			if err != nil {
+				h.logger.Warn("Failed to select the hint search match", zap.Error(err))
+			}
 		}()
 	} else {
 		h.cancelHintSearch()
@@ -485,7 +488,7 @@ func (h *handlerState) hintSearchBounds() image.Rectangle {
 // handleGridModeKey handles key processing for grid mode.
 func (h *handlerState) handleGridModeKey(key string) {
 	if h.grid.Router == nil {
-		h.logger.Warn("Grid router is nil - ignoring key press until grid router initialized")
+		h.logger.Debug("Grid router is nil, ignoring key press")
 
 		return
 	}

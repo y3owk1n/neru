@@ -163,7 +163,7 @@ func (h *InfoHandler) handleConfigSetInMemory(
 		// not a place config content goes. The response carries it to whoever
 		// asked, which is where it belongs.
 		if derrors.IsCode(err, derrors.CodeSerializationFailed) {
-			h.logger.Error("Failed to copy config for a field change",
+			h.logger.Debug("Failed to copy config for a field change",
 				zap.String("key", key),
 				zap.Error(err))
 		}
@@ -173,7 +173,7 @@ func (h *InfoHandler) handleConfigSetInMemory(
 
 	updateErr := h.configService.Update(newCfg, newWritten)
 	if updateErr != nil {
-		h.logger.Error("Failed to update config service", zap.Error(updateErr))
+		h.logger.Debug("Failed to update config service", zap.Error(updateErr))
 
 		return ipc.Response{
 			Success: false,

@@ -47,6 +47,10 @@ func InitializeLogger(logger *zap.Logger) {
 	logMu.Lock()
 	defer logMu.Unlock()
 
+	if logger != nil {
+		logger = logger.Named("darwin")
+	}
+
 	bridgeLogger = logger
 	log = &loggingBridge{logger: logger}
 }

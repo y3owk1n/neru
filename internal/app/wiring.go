@@ -54,7 +54,7 @@ type OverlayManager = overlay.ManagerInterface
 
 // initializeOverlayManager creates and initializes the overlay manager.
 func initializeOverlayManager(logger *zap.Logger) OverlayManager {
-	return overlay.Init(logger)
+	return overlay.Init(logger.Named("overlay"))
 }
 
 // initializeAccessibility checks and configures accessibility permissions and settings.
@@ -226,7 +226,7 @@ func processHotkeyBindings(cfg *config.Config, logger *zap.Logger) []string {
 	for key, actions := range cfg.Hotkeys.Bindings {
 		// Skip empty keys or empty action arrays
 		if strings.TrimSpace(key) == "" || len(actions) == 0 {
-			logger.Warn(
+			logger.Debug(
 				"Skipping empty hotkey binding",
 				zap.String("key", key),
 				zap.Int("action_count", len(actions)),
@@ -253,19 +253,14 @@ func (a *App) configureEventTapHotkeys(cfg *config.Config, logger *zap.Logger) {
 
 	layoutResolved := a.eventTap.SetKeyboardLayout(layoutID)
 	if layoutID != "" && !layoutResolved {
-		logger.Warn("Configured keyboard layout was not found; using automatic fallback",
+		logger.Warn("Configured keyboard layout was not found, using automatic fallback",
 			zap.String("layout_id", layoutID))
 	}
 
 	keys := processHotkeyBindings(cfg, logger)
 
-	// Log hotkey registration status
 	if len(keys) == 0 {
-		logger.Info(
-			"No hotkeys configured — use CLI commands (neru hints, neru grid, etc.) to trigger modes",
-		)
-	} else {
-		logger.Info("Registered hotkeys", zap.Int("count", len(keys)))
+		logger.Info("No hotkeys configured, modes can be triggered through CLI commands")
 	}
 
 	a.eventTap.SetHotkeys(keys)

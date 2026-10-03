@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -90,16 +91,21 @@ func (s *ScrollService) Scroll(
 	if settler, ok := s.system.(ports.CursorSettler); ok {
 		err := settler.SettleCursor(ctx)
 		if err != nil {
-			s.logger.Warn("Failed to settle cursor animation", zap.Error(err))
+			// Debug because this runs once per scroll keypress.
+			s.logger.Debug("Failed to settle cursor animation", zap.Error(err))
 		}
 	}
 
-	s.logger.Debug("Scrolling",
-		zap.Int("dir", int(direction)),
-		zap.Int("amount", int(amount)),
-		zap.Int("deltaX", deltaX),
-		zap.Int("deltaY", deltaY),
-		zap.String("modifiers", modifiers.String()))
+	// This runs per keypress in scroll mode and modifiers.String() allocates,
+	// so the fields are built only when debug is on.
+	if ce := s.logger.Check(zapcore.DebugLevel, "Scrolling"); ce != nil {
+		ce.Write(
+			zap.Int("direction", int(direction)),
+			zap.Int("amount", int(amount)),
+			zap.Int("delta_x", deltaX),
+			zap.Int("delta_y", deltaY),
+			zap.String("modifiers", modifiers.String()))
+	}
 
 	scrollErr := s.accessibility.Scroll(ctx, deltaX, deltaY, modifiers)
 	if scrollErr != nil {

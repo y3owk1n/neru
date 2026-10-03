@@ -223,7 +223,7 @@ func (r *HotkeyRegistry) messageLoop() {
 	defer close(r.threadDone)
 
 	close(r.threadReady)
-	r.logger.Info("hotkey message thread started")
+	r.logger.Debug("Hotkey message thread started")
 
 	var message msg
 	for {
@@ -295,16 +295,9 @@ func (r *HotkeyRegistry) handleRegister(req hotkeyRegisterRequest) {
 		uintptr(req.virtualKey),
 	)
 	if ret == 0 {
-		r.logger.Error(
-			"RegisterHotKey failed",
-			zap.String("key", req.keyString),
-			zap.Uint32("modifiers", req.modifiers),
-			zap.Uint32("virtual_key", req.virtualKey),
-			zap.Error(regErr),
-		)
-
 		req.resp <- hotkeyRegisterResponse{
-			err: fmt.Errorf("RegisterHotKey: %w", regErr),
+			err: fmt.Errorf("RegisterHotKey %q (modifiers %#x, virtual key %#x): %w",
+				req.keyString, req.modifiers, req.virtualKey, regErr),
 		}
 
 		return
@@ -318,8 +311,8 @@ func (r *HotkeyRegistry) handleRegister(req hotkeyRegisterRequest) {
 		virtualKey: req.virtualKey,
 	}
 
-	r.logger.Info(
-		"RegisterHotKey ok",
+	r.logger.Debug(
+		"Hotkey registered with the system",
 		zap.String("key", req.keyString),
 		zap.Int("id", hotkeyID),
 		zap.Uint32("modifiers", req.modifiers),

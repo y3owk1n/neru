@@ -111,8 +111,8 @@ func (s *kwinOriginSource) originFor(frame windowFrame) (image.Point, bool, erro
 	if absInt(rect.Dx()-frame.Width) > windowOriginSizeTolerance ||
 		absInt(rect.Dy()-frame.Height) > windowOriginSizeTolerance {
 		s.logger.Debug("KWin origin rejected: cached size does not match AT-SPI frame",
-			zap.Int("cachedW", rect.Dx()), zap.Int("cachedH", rect.Dy()),
-			zap.Int("frameW", frame.Width), zap.Int("frameH", frame.Height))
+			zap.Int("cached_w", rect.Dx()), zap.Int("cached_h", rect.Dy()),
+			zap.Int("frame_w", frame.Width), zap.Int("frame_h", frame.Height))
 
 		return image.Point{}, false, nil
 	}

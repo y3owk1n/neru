@@ -78,6 +78,9 @@ type EventTap struct {
 	// epoch, so a key the hook read while the mode was exiting is not
 	// delivered to whatever mode comes next.
 	dispatchEpoch atomic.Uint64
+
+	// dropWarned limits a full dispatch queue to one warning.
+	dropWarned atomic.Bool
 }
 
 // NewEventTap creates a new event tap.
@@ -113,7 +116,7 @@ func (et *EventTap) Enable() {
 
 	hook, err := winplatform.StartKeyboardHook(et.handleKey)
 	if err != nil {
-		et.logger.Error("failed to start keyboard hook", zap.Error(err))
+		et.logger.Error("Failed to start keyboard hook", zap.Error(err))
 		et.mu.Lock()
 		et.enabled = false
 		et.mu.Unlock()
@@ -509,7 +512,9 @@ func (et *EventTap) enqueue(event dispatchEvent) {
 	case <-et.stopDispatch:
 	case et.dispatchCh <- event:
 	default:
-		et.logger.Warn("Dispatch queue full, dropping event")
+		if et.dropWarned.CompareAndSwap(false, true) {
+			et.logger.Warn("Dispatch queue full, dropping events")
+		}
 	}
 }
 

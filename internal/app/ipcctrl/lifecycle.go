@@ -65,16 +65,12 @@ func (h *LifecycleHandler) RegisterHandlers(
 }
 
 func (h *LifecycleHandler) handlePing(_ context.Context, _ ipc.Command) ipc.Response {
-	h.logger.Debug("Received ping command")
-
 	return ipc.Response{Success: true, Message: "pong", Code: ipc.CodeOK}
 }
 
 func (h *LifecycleHandler) handleStart(_ context.Context, _ ipc.Command) ipc.Response {
-	h.logger.Info("Received start command")
-
 	if h.appState.IsEnabled() {
-		h.logger.Warn("Attempted to start neru when already running")
+		h.logger.Debug("Attempted to start neru when already running")
 
 		return ipc.Response{
 			Success: false,
@@ -84,16 +80,14 @@ func (h *LifecycleHandler) handleStart(_ context.Context, _ ipc.Command) ipc.Res
 	}
 
 	h.setEnabled(true)
-	h.logger.Info("Neru started successfully", zap.Bool("enabled", true))
+	h.logger.Info("Neru started")
 
 	return ipc.Response{Success: true, Message: "neru started", Code: ipc.CodeOK}
 }
 
 func (h *LifecycleHandler) handleStop(_ context.Context, _ ipc.Command) ipc.Response {
-	h.logger.Info("Received stop command")
-
 	if !h.appState.IsEnabled() {
-		h.logger.Warn("Attempted to stop neru when already stopped")
+		h.logger.Debug("Attempted to stop neru when already stopped")
 
 		return ipc.Response{
 			Success: false,
@@ -104,7 +98,7 @@ func (h *LifecycleHandler) handleStop(_ context.Context, _ ipc.Command) ipc.Resp
 
 	h.setEnabled(false)
 
-	h.logger.Info("Neru stopped successfully")
+	h.logger.Info("Neru stopped")
 
 	return ipc.Response{Success: true, Message: "neru stopped", Code: ipc.CodeOK}
 }

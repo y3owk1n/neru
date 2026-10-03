@@ -415,7 +415,7 @@ func (h *Handler) ActivateMode(activation modecmd.Activation) {
 	// paused, but the systray reaches this method directly. Leaving is always
 	// allowed, since it is what stop itself does.
 	if mode != domain.ModeIdle && !h.appState.IsEnabled() {
-		h.logger.Warn("Neru is stopped, ignoring mode activation",
+		h.logger.Debug("Neru is stopped, ignoring mode activation",
 			zap.String("mode", domain.ModeString(mode)))
 
 		return

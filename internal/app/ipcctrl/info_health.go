@@ -122,7 +122,7 @@ func (h *InfoHandler) handleHealth(ctx context.Context, _ ipc.Command) ipc.Respo
 				components[key] = err.Error()
 				hasErrors = true
 
-				h.logger.Warn("Health check failed",
+				h.logger.Debug("Health check failed",
 					zap.String("service", service),
 					zap.String("check", check),
 					zap.Error(err))

@@ -170,7 +170,7 @@ func (h *InfoHandler) handleStatus(_ context.Context, _ ipc.Command) ipc.Respons
 	cfg := h.configSnapshot()
 
 	if cfg == nil {
-		h.logger.Error("Config is nil in handleStatus")
+		h.logger.Debug("Config is nil in handleStatus")
 
 		return h.configNotAvailableResponse()
 	}
@@ -273,7 +273,7 @@ func (h *InfoHandler) handleConfig(ctx context.Context, cmd ipc.Command) ipc.Res
 	// Default: dump the full config.
 	cfg := h.configSnapshot()
 	if cfg == nil {
-		h.logger.Error("Config is nil in handleConfig")
+		h.logger.Debug("Config is nil in handleConfig")
 
 		return h.configNotAvailableResponse()
 	}
@@ -287,7 +287,7 @@ func (h *InfoHandler) handleConfig(ctx context.Context, cmd ipc.Command) ipc.Res
 
 func (h *InfoHandler) handleReloadConfig(ctx context.Context, _ ipc.Command) ipc.Response {
 	if h.reloadConfig == nil {
-		h.logger.Error("Reload config callback is not set")
+		h.logger.Debug("Reload config callback is not set")
 
 		return ipc.Response{
 			Success: false,
@@ -300,7 +300,9 @@ func (h *InfoHandler) handleReloadConfig(ctx context.Context, _ ipc.Command) ipc
 
 	err := h.reloadConfig(ctx, configPath)
 	if err != nil {
-		h.logger.Error("Failed to reload config", zap.Error(err))
+		// The error can quote config values, so its text goes only to the
+		// client. The daemon keeps running on the previous configuration.
+		h.logger.Warn("Failed to reload config, keeping the previous one")
 
 		return ipc.Response{
 			Success: false,

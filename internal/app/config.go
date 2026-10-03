@@ -185,7 +185,8 @@ func (a *App) updateServiceConfigs(cfg *config.Config) {
 			domainHint.LabelDirectionFromString(cfg.Hints.LabelDirectionForApp("")),
 		)
 		if genErr != nil {
-			a.logger.Error("Failed to create hint generator during reload", zap.Error(genErr))
+			a.logger.Warn("Failed to create hint generator during reload, keeping the previous one",
+				zap.Error(genErr))
 		} else {
 			a.hintService.UpdateGenerator(a.ctx, newGen)
 		}

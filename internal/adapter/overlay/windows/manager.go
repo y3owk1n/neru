@@ -12,6 +12,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/logonce"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
@@ -51,6 +52,15 @@ type Manager struct {
 
 	// mouseWin is a small dedicated layered window for mouse action indicators.
 	mouseWin *winplatform.OverlayWindow
+
+	// indicatorFailure, stickyFailure and mouseFailure limit a badge window
+	// that fails on every poll to one warning until it draws again.
+	indicatorFailure logonce.Latch
+	stickyFailure    logonce.Latch
+	mouseFailure     logonce.Latch
+	// placementRefusal warns once per hint placement this overlay refuses,
+	// rather than on every hints draw.
+	placementRefusal logonce.Latch
 
 	// monitorWins are the monitor_select panels, one layered window per
 	// display, in target order (monitor_select.go).
@@ -98,7 +108,7 @@ func (m *Manager) Show() {
 
 	if m.win == nil {
 		if m.logger != nil {
-			m.logger.Error("manager Show aborted, overlay backend is nil")
+			m.logger.Debug("Show skipped, overlay backend is nil")
 		}
 
 		return
@@ -322,12 +332,10 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		// CodeNotSupported — so say it here too, or a placement this overlay
 		// cannot draw costs the user every hint with only a debug line to
 		// explain it. The placement is a fixed configuration keyword.
-		if m.logger != nil {
-			m.logger.Warn(
-				"hint placement not drawn by the windows overlay",
-				zap.String("placement", style.Placement()),
-			)
-		}
+		m.placementRefusal.Warn(m.logger, style.Placement(),
+			"Hint placement not drawn by the windows overlay",
+			zap.String("placement", style.Placement()),
+		)
 
 		return offsetErr
 	}
@@ -510,9 +518,12 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 
 		win, err := winplatform.NewOverlayWindowAt(posX, posY, sizeX, sizeY)
 		if err != nil {
-			if m.logger != nil {
-				m.logger.Error("failed to create indicator overlay window", zap.Error(err))
-			}
+			m.indicatorFailure.Warn(
+				m.logger,
+				"",
+				"Failed to create indicator overlay window",
+				zap.Error(err),
+			)
 
 			return
 		}
@@ -578,9 +589,9 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 	// Show() so the window appears with the badge already rendered.
 	err := m.indicatorWin.Flush()
 	if err != nil {
-		if m.logger != nil {
-			m.logger.Error("indicator flush failed", zap.Error(err))
-		}
+		m.indicatorFailure.Warn(m.logger, "", "Indicator flush failed", zap.Error(err))
+	} else {
+		m.indicatorFailure.Reset()
 	}
 
 	m.indicatorWin.Show()
@@ -625,9 +636,12 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 
 		win, err := winplatform.NewOverlayWindowAt(posX, posY, sizeX, sizeY)
 		if err != nil {
-			if m.logger != nil {
-				m.logger.Error("failed to create sticky overlay window", zap.Error(err))
-			}
+			m.stickyFailure.Warn(
+				m.logger,
+				"",
+				"Failed to create sticky overlay window",
+				zap.Error(err),
+			)
 
 			return
 		}
@@ -689,9 +703,9 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 
 	err := m.stickyWin.Flush()
 	if err != nil {
-		if m.logger != nil {
-			m.logger.Error("sticky flush failed", zap.Error(err))
-		}
+		m.stickyFailure.Warn(m.logger, "", "Sticky flush failed", zap.Error(err))
+	} else {
+		m.stickyFailure.Reset()
 	}
 
 	m.stickyWin.Show()
@@ -753,14 +767,18 @@ func (m *Manager) DrawMouseActionIndicator(
 
 		win, err := winplatform.NewOverlayWindowAt(posX, posY, winSize, winSize)
 		if err != nil {
-			if m.logger != nil {
-				m.logger.Error("failed to create mouse action overlay window", zap.Error(err))
-			}
+			m.mouseFailure.Warn(
+				m.logger,
+				"",
+				"Failed to create mouse action overlay window",
+				zap.Error(err),
+			)
 
 			return
 		}
 
 		m.mouseWin = win
+		m.mouseFailure.Reset()
 	} else {
 		_ = m.mouseWin.ResizeTo(posX, posY, winSize, winSize)
 	}
@@ -781,10 +799,6 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 	m.ensureWinOverlayLocked()
 
 	if m.win == nil {
-		if m.logger != nil {
-			m.logger.Error("manager DrawGrid aborted, overlay backend is nil")
-		}
-
 		return derrors.New(
 			derrors.CodeNotSupported,
 			"overlay grid not implemented on windows backend",
@@ -800,7 +814,7 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 			cellCount = len(gridValue.AllCells())
 		}
 
-		m.logger.Debug("manager DrawGrid", zap.Int("cells", cellCount))
+		m.logger.Debug("Drawing grid", zap.Int("cell_count", cellCount))
 	}
 
 	m.syncSublayerKeysLocked()
@@ -1175,9 +1189,6 @@ func (m *Manager) ensureWinOverlayLocked() {
 	}
 
 	m.win = newWinOverlay(m.logger, &m.renderMu)
-	if m.win == nil && m.logger != nil {
-		m.logger.Error("Windows overlay window is unavailable; grid overlay cannot render")
-	}
 }
 
 // syncSublayerKeysLocked hands the surface the keys the subgrid is drawn with.

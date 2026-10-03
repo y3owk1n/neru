@@ -228,17 +228,20 @@ func (c *Client) FrontmostWindow(ctx context.Context) (ax.Window, error) {
 			return nil, scanFailureError(ferr)
 		}
 
-		c.logger.Debug("AT-SPI: no active frame found")
+		c.logger.Debug("AT-SPI found no active frame")
 
 		// No active frame: hand back an empty window so the adapter simply
 		// finds no clickable elements rather than erroring out.
 		return &atspiWindow{}, nil
 	}
 
-	c.logger.Debug("AT-SPI: selected active frame",
-		zap.String("bus", frame.Name),
-		zap.String("app", c.name(ctx, conn, accRef{Name: frame.Name, Path: atspiRootPath})),
-		zap.String("frameTitle", c.name(ctx, conn, frame)))
+	// The app name is a D-Bus round trip, so it is read only when debug is on.
+	if ce := c.logger.Check(zap.DebugLevel, "AT-SPI selected active frame"); ce != nil {
+		ce.Write(
+			zap.String("bus", frame.Name),
+			zap.String("app", c.name(ctx, conn, accRef{Name: frame.Name, Path: atspiRootPath})),
+		)
+	}
 
 	return &atspiWindow{
 		ref:          frame,
@@ -369,9 +372,9 @@ func (c *Client) ClickableNodes(
 		c.logger.Debug("AT-SPI clickable scan complete",
 			zap.String("path", "collection"),
 			zap.Int("count", len(nodes)),
-			zap.Int("offsetX", offX),
-			zap.Int("offsetY", offY),
-			zap.Bool("haveOrigin", haveOrigin),
+			zap.Int("offset_x", offX),
+			zap.Int("offset_y", offY),
+			zap.Bool("have_origin", haveOrigin),
 			zap.Duration("elapsed", time.Since(start)))
 
 		return nodes, nil
@@ -385,9 +388,9 @@ func (c *Client) ClickableNodes(
 		zap.String("path", "walk"),
 		zap.Int("count", len(out)),
 		zap.Int("visited", visited),
-		zap.Int("offsetX", offX),
-		zap.Int("offsetY", offY),
-		zap.Bool("haveOrigin", haveOrigin),
+		zap.Int("offset_x", offX),
+		zap.Int("offset_y", offY),
+		zap.Bool("have_origin", haveOrigin),
 		zap.Duration("elapsed", time.Since(start)))
 
 	// An empty scan is normal for a window with nothing clickable, but if we got

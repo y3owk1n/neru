@@ -8,11 +8,6 @@ import "go.uber.org/zap"
 // asynchronous tree it would wait for is a Chromium/Gecko behavior behind
 // macOS's AXManualAccessibility; AT-SPI and UI Automation expose their trees
 // eagerly, so there is nothing to prime.
-func PrimeApplication(bundleID string, logger *zap.Logger) bool {
-	logger.Debug(
-		"Accessibility tree priming not required on this platform",
-		zap.String("bundle_id", bundleID),
-	)
-
+func PrimeApplication(_ string, _ *zap.Logger) bool {
 	return true
 }

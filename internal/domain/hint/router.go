@@ -45,11 +45,6 @@ func (r *Router) RouteKey(key string) (RouteResult, error) {
 	}
 
 	if exactMatch {
-		if r.Logger != nil {
-			r.Logger.Debug("Hints router: Exact hint match found",
-				zap.String("label", hint.Label()))
-		}
-
 		return RouteResult{
 			exactHint: hint,
 		}, nil

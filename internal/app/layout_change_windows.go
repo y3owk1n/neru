@@ -11,9 +11,9 @@ import "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 // them would leave the hotkey on the old key.
 func (a *App) registerLayoutChangeHandler() {
 	windows.SetReferenceLayoutChangeHandler(func() {
-		a.logger.Info("Keyboard layout changed; re-registering global hotkeys")
-
 		a.hotkeys.Reregister()
+
+		a.logger.Debug("Global hotkeys re-registered after keyboard layout change")
 	})
 }
 

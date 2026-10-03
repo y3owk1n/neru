@@ -5,8 +5,6 @@ package app
 import (
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/y3owk1n/neru/internal/adapter/platform/windows"
 )
 
@@ -34,8 +32,6 @@ func (a *App) setupThemeObserver() {
 			currentDark := windows.AppsUseDarkTheme()
 			if currentDark != wasDark {
 				wasDark = currentDark
-				a.logger.Debug("Windows theme change detected via registry poll",
-					zap.Bool("is_dark", currentDark))
 				a.HandleThemeChange(currentDark)
 			}
 		}

@@ -87,11 +87,13 @@ func (h *handlerState) exitCurrentMode(keepEventTap bool) {
 		return
 	}
 
-	h.logger.Debug("Exiting current mode", zap.String("mode", h.CurrModeString()))
+	exited := h.CurrModeString()
 
 	h.performModeSpecificCleanup()
 	h.performCommonCleanup(keepEventTap)
 	h.handleCursorRestoration()
+
+	h.logger.Info("Mode exited", zap.String("mode", exited))
 }
 
 // releaseKeyboardIfNoModeEntered puts down the capture exitModeForTransition
@@ -244,8 +246,6 @@ func (h *handlerState) performCommonCleanup(keepEventTap bool) {
 	// The overlay is already idle: clearOverlayFrame above returned it there,
 	// because taking the frame off screen and leaving the mode behind are one
 	// step and not two a caller has to remember.
-	h.logger.Debug("Mode transition complete",
-		zap.String("to", "idle"))
 
 	// If a hotkey refresh was deferred while in an active mode, perform it now
 	if h.appState.HotkeyRefreshPending() {

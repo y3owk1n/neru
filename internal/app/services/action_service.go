@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -65,15 +66,8 @@ func (s *ActionService) ExecuteAction(
 
 	performActionErr := s.accessibility.PerformAction(ctx, element, actionType)
 	if performActionErr != nil {
-		s.logger.Error("Failed to perform action",
-			zap.Error(performActionErr),
-			zap.String("action", actionType.String()))
-
 		return derrors.WrapActionFailed(performActionErr, actionType.String())
 	}
-
-	s.logger.Debug("Action executed successfully",
-		zap.String("action", actionType.String()))
 
 	return nil
 }
@@ -100,10 +94,6 @@ func (s *ActionService) PerformActionAtPoint(
 
 	performActionErr := s.accessibility.PerformActionAtPoint(ctx, actionType, point, modifiers)
 	if performActionErr != nil {
-		s.logger.Error("Failed to perform action at point",
-			zap.Error(performActionErr),
-			zap.String("action", actionType.String()))
-
 		return derrors.WrapActionFailed(performActionErr, actionType.String()+" at point")
 	}
 
@@ -201,8 +191,6 @@ func (s *ActionService) MoveMouseTo(
 ) error {
 	screenBounds, err := s.system.ScreenBounds(ctx)
 	if err != nil {
-		s.logger.Error("Failed to get screen bounds", zap.Error(err))
-
 		return derrors.WrapAccessibilityFailed(err, "get screen bounds")
 	}
 
@@ -256,18 +244,12 @@ func (s *ActionService) MoveMouseRelative(
 	if mover, ok := s.system.(ports.RelativeCursorMover); ok {
 		handled, err := mover.MoveCursorBy(ctx, image.Point{X: deltaX, Y: deltaY})
 		if handled {
-			if err != nil {
-				s.logger.Error("Failed to move cursor relatively", zap.Error(err))
-			}
-
 			return err
 		}
 	}
 
 	cursorPos, err := s.system.CursorPosition(ctx)
 	if err != nil {
-		s.logger.Error("Failed to get cursor position", zap.Error(err))
-
 		return derrors.WrapAccessibilityFailed(err, "get cursor position")
 	}
 
@@ -329,8 +311,6 @@ func (s *ActionService) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY int) error {
 	screenBounds, err := s.system.ScreenBounds(ctx)
 	if err != nil {
-		s.logger.Error("Failed to get screen bounds", zap.Error(err))
-
 		return derrors.WrapAccessibilityFailed(err, "get screen bounds")
 	}
 
@@ -344,8 +324,8 @@ func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY 
 		screenBounds,
 		false,
 
-		zap.Int("offsetX", offsetX),
-		zap.Int("offsetY", offsetY),
+		zap.Int("offset_x", offsetX),
+		zap.Int("offset_y", offsetY),
 	)
 }
 
@@ -360,8 +340,6 @@ func (s *ActionService) MoveMouseToCenterOfMonitor(
 ) error {
 	screens, err := s.system.Screens(ctx)
 	if err != nil {
-		s.logger.Error("Failed to enumerate screens", zap.Error(err))
-
 		return derrors.WrapAccessibilityFailed(err, "enumerate screens")
 	}
 
@@ -374,10 +352,6 @@ func (s *ActionService) MoveMouseToCenterOfMonitor(
 		if len(names) > 0 {
 			available = "; available monitors: " + strings.Join(names, ", ")
 		}
-
-		s.logger.Error("Monitor not found",
-			zap.String("monitor", monitorName),
-			zap.Strings("available", names))
 
 		return derrors.Newf(
 			derrors.CodeInvalidInput,
@@ -398,8 +372,8 @@ func (s *ActionService) MoveMouseToCenterOfMonitor(
 		bounds,
 		false,
 		zap.String("monitor", monitorName),
-		zap.Int("offsetX", offsetX),
-		zap.Int("offsetY", offsetY),
+		zap.Int("offset_x", offsetX),
+		zap.Int("offset_y", offsetY),
 	)
 }
 
@@ -411,8 +385,6 @@ func (s *ActionService) MoveMouseToCenterOfWindow(
 ) error {
 	bounds, found, err := s.system.FocusedWindowBounds(ctx)
 	if err != nil {
-		s.logger.Error("Failed to get focused window bounds", zap.Error(err))
-
 		// A platform that has no way to answer already says so, and names what
 		// is missing. Wrapping that as an accessibility failure would send the
 		// user to check a permission instead of reading the sentence.
@@ -439,8 +411,8 @@ func (s *ActionService) MoveMouseToCenterOfWindow(
 		target,
 		bounds,
 		false,
-		zap.Int("offsetX", offsetX),
-		zap.Int("offsetY", offsetY),
+		zap.Int("offset_x", offsetX),
+		zap.Int("offset_y", offsetY),
 	)
 }
 
@@ -493,16 +465,17 @@ func (s *ActionService) moveMouseWithBounds(
 	fields ...zap.Field,
 ) error {
 	clamped := clampToScreenBounds(target, screenBounds)
-	baseCount := 4
-	logFields := make([]zap.Field, 0, baseCount+len(fields))
-	logFields = append(logFields,
-		zap.Int("x", clamped.X),
-		zap.Int("y", clamped.Y),
-		zap.Bool("clamped", clamped != target),
-		zap.Bool("bypassSmooth", bypassSmooth),
-	)
-	logFields = append(logFields, fields...)
-	s.logger.Debug("Moving mouse cursor", logFields...)
+
+	// Reached per keypress through MoveMouseRelative, so the field slice is
+	// only built when debug is on.
+	if ce := s.logger.Check(zapcore.DebugLevel, "Moving mouse cursor"); ce != nil {
+		ce.Write(append([]zap.Field{
+			zap.Int("x", clamped.X),
+			zap.Int("y", clamped.Y),
+			zap.Bool("clamped", clamped != target),
+			zap.Bool("bypass_smooth", bypassSmooth),
+		}, fields...)...)
+	}
 
 	err := s.system.MoveCursorToPoint(ctx, clamped, bypassSmooth)
 	if err != nil {

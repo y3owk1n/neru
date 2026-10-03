@@ -83,8 +83,8 @@ func (c *Client) setA11yStatus(srEnabled, isEnabled bool) error {
 	}
 
 	c.logger.Debug("AT-SPI status set",
-		zap.Bool(a11yPropIsEnabled, isEnabled),
-		zap.Bool(a11yPropScreenReader, srEnabled))
+		zap.Bool("is_enabled", isEnabled),
+		zap.Bool("screen_reader_enabled", srEnabled))
 
 	return nil
 }

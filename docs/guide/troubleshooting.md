@@ -311,7 +311,8 @@ log file, set `disable_file_logging = false` under `[logging]` and
 | Windows  | `%LOCALAPPDATA%\neru\log\app.log`     |
 
 `[logging].log_file` overrides the path. Each line is JSON, so
-`grep ERROR ~/Library/Logs/neru/app.log` finds errors. Rotation is in the
+`grep ERROR ~/Library/Logs/neru/app.log` finds failures Neru could not recover
+from, and `grep WARN` finds ones it worked around. Rotation is in the
 [logging reference](../reference/configuration.md#logging). To start a fresh
 log, delete the file and restart the daemon.
 
@@ -322,13 +323,13 @@ Set `log_level = "debug"` under `[logging]` and
 [restart the daemon](#restart-the-daemon). Set it back to `"info"` afterwards,
 because debug logging slows hint activation.
 
-| Log message                                         | Meaning                                                               |
-| --------------------------------------------------- | --------------------------------------------------------------------- |
-| `Found usable accessibility tree`                   | The app's accessibility tree was found (macOS)                        |
-| `Hints mode activated`                              | The hint overlay is up, with the hint count when available            |
-| `Clickable element collection was slow`             | Reading the accessibility tree took longer than expected              |
-| `Failed to get clickable elements`                  | The accessibility query failed. Check permissions and `excluded_apps` |
-| `Secure input is enabled, blocking mode activation` | macOS secure input is on, often because a password field is focused  |
+| Log message                             | Meaning                                                                                                                  |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `Found usable accessibility tree`       | The app's accessibility tree was found (macOS)                                                                           |
+| `Hints mode activated`                  | The hint overlay is up, with the hint count when available                                                               |
+| `Clickable element collection was slow` | Reading the accessibility tree took longer than expected                                                                 |
+| `Failed to show hints`                  | Collecting elements or drawing hints failed. Check permissions and `excluded_apps`                                       |
+| `Mode activation refused`               | A mode did not start. The `error` field says why: secure input, an excluded app, the mode disabled, or Neru stopped |
 
 ## Getting help
 

@@ -342,7 +342,7 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	selected := cells[keyIndex]
 	xCoordinate := selected.Min.X + gridRound(selected.Dx())
 	yCoordinate := selected.Min.Y + gridRound(selected.Dy())
-	m.Logger.Debug("Grid manager: Subgrid selection complete",
+	m.Logger.Debug("Grid subgrid selection complete",
 		zap.Int("row", keyIndex/m.subDims.Cols), zap.Int("col", keyIndex%m.subDims.Cols),
 		zap.Int("x", xCoordinate), zap.Int("y", yCoordinate))
 	// m.Reset()

@@ -6,12 +6,13 @@
 //
 
 #import "accessibility.h"
+#import "nativelog.h"
 
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - Permission Functions
 
-static BOOL resetAccessibilityPermissionDecision(void) {
+static void resetAccessibilityPermissionDecision(void) {
 	NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier];
 	if (bundleID == nil || [bundleID length] == 0) {
 		bundleID = @"com.y3owk1n.neru";
@@ -27,17 +28,13 @@ static BOOL resetAccessibilityPermissionDecision(void) {
 
 		int status = [task terminationStatus];
 		if (status != 0) {
-			NSLog(
-			    @"Neru: tccutil reset Accessibility %@ exited with status %d; system permission dialog may not appear",
-			    bundleID, status);
-			return NO;
+			NeruLog(
+			    NeruLogLevelWarn, @"tccutil reset of Accessibility failed, the permission dialog may not appear",
+			    [NSString stringWithFormat:@"exit status %d", status]);
 		}
 	} @catch (NSException *exception) {
-		NSLog(@"Neru: failed to reset Accessibility permission decision: %@", exception);
-		return NO;
+		NeruLog(NeruLogLevelWarn, @"Failed to reset the Accessibility permission decision", exception.reason);
 	}
-
-	return YES;
 }
 
 /// Check if accessibility permissions are granted
@@ -57,13 +54,11 @@ int NeruRequestAccessibilityPermissions(void) {
 		// momentary (seen at login). Ask again now, so a grant that is working is
 		// never reset.
 		if (AXIsProcessTrusted()) {
-			NSLog(@"Neru: Accessibility is granted; skipping tccutil reset");
+			NeruLog(NeruLogLevelDebug, @"Accessibility already granted, skipping the permission reset", nil);
 			return 1;
 		}
 
-		if (!resetAccessibilityPermissionDecision()) {
-			NSLog(@"Neru: continuing with Accessibility permission request after reset failure");
-		}
+		resetAccessibilityPermissionDecision();
 
 		NSDictionary *options = @{(__bridge id)kAXTrustedCheckOptionPrompt : @YES};
 		Boolean trusted = AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);

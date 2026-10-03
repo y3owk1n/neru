@@ -182,7 +182,7 @@ func (h *ActionsHandler) handlePointTargetedAction(
 	if targetsSelection {
 		moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
 		if moveErr != nil {
-			h.logger.Error("Failed to move cursor to mode selection", zap.Error(moveErr))
+			h.logger.Debug("Failed to move cursor to mode selection", zap.Error(moveErr))
 
 			return &ipc.Response{
 				Success: false,
@@ -240,11 +240,11 @@ func (h *ActionsHandler) resolveCurrentCursorPoint(
 ) (image.Point, *ipc.Response) {
 	cursorPos, posErr := h.actionService.CursorPositionForAction(ctx)
 	if posErr != nil {
-		h.logger.Error("Failed to get cursor position", zap.Error(posErr))
+		h.logger.Debug("Failed to get cursor position", zap.Error(posErr))
 
 		return image.Point{}, &ipc.Response{
 			Success: false,
-			Message: "failed to get cursor position",
+			Message: "failed to get cursor position: " + posErr.Error(),
 			Code:    ipc.CodeActionFailed,
 		}
 	}
@@ -455,7 +455,7 @@ func (h *ActionsHandler) handleMoveMonitorAction(
 
 		err := h.modesHandler.MoveMonitorByName(ctx, parsed.monitorName)
 		if err != nil {
-			h.logger.Error("Failed to move to monitor by name", zap.Error(err))
+			h.logger.Debug("Failed to move to monitor by name", zap.Error(err))
 
 			return ipc.Response{
 				Success: false,
@@ -482,7 +482,7 @@ func (h *ActionsHandler) handleMoveMonitorAction(
 
 	err := h.modesHandler.MoveMonitor(ctx, direction)
 	if err != nil {
-		h.logger.Error("Failed to cycle monitor", zap.Error(err))
+		h.logger.Debug("Failed to cycle monitor", zap.Error(err))
 
 		return ipc.Response{
 			Success: false,

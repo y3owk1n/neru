@@ -232,8 +232,8 @@ func (a *Adapter) Scroll(
 	modifiers action.Modifiers,
 ) error {
 	a.logger.Debug("Performing scroll",
-		zap.Int("deltaX", deltaX),
-		zap.Int("deltaY", deltaY),
+		zap.Int("delta_x", deltaX),
+		zap.Int("delta_y", deltaY),
 		zap.String("modifiers", modifiers.String()))
 
 	scrollErr := a.client.Scroll(deltaX, deltaY, modifiers)
@@ -245,8 +245,6 @@ func (a *Adapter) Scroll(
 
 		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}
-
-	a.logger.Debug("Scroll completed")
 
 	return nil
 }
@@ -365,15 +363,28 @@ func (a *Adapter) processClickableNodes(
 	}()
 
 	processStart := time.Now()
+	failed := 0
+
 	defer func() {
-		a.logger.Debug("TIMING: processClickableNodes",
+		a.logger.Debug("Processed clickable nodes",
 			zap.Duration("elapsed", time.Since(processStart)),
 			zap.Int("node_count", len(clickableNodes)),
+			zap.Int("failed", failed),
 		)
 	}()
 
 	if len(clickableNodes) > ConcurrentProcessingThreshold {
-		return a.processClickableNodesConcurrent(ctx, clickableNodes, filter)
+		var concurrentElements []*element.Element
+
+		var err error
+
+		concurrentElements, failed, err = a.processClickableNodesConcurrent(
+			ctx,
+			clickableNodes,
+			filter,
+		)
+
+		return concurrentElements, err
 	}
 
 	for index, node := range clickableNodes {
@@ -397,7 +408,7 @@ func (a *Adapter) processClickableNodes(
 		node.Release()
 
 		if err != nil {
-			a.logger.Warn("Failed to convert element", zap.Error(err))
+			failed++
 
 			continue
 		}
@@ -413,12 +424,13 @@ func (a *Adapter) processClickableNodes(
 	return result, nil
 }
 
-// processClickableNodesConcurrent processes nodes in parallel using a worker pool.
+// processClickableNodesConcurrent processes nodes in parallel using a worker
+// pool. It also returns how many nodes failed to convert.
 func (a *Adapter) processClickableNodesConcurrent(
 	ctx context.Context,
 	nodes []ax.Node,
 	filter ports.ElementFilter,
-) ([]*element.Element, error) {
+) ([]*element.Element, int, error) {
 	numWorkers := min(
 		runtime.GOMAXPROCS(0),
 		maxConcurrentWorkers)
@@ -427,6 +439,7 @@ func (a *Adapter) processClickableNodesConcurrent(
 
 	type result struct {
 		elements []*element.Element
+		failed   int
 	}
 
 	results := make(chan result, numWorkers)
@@ -451,6 +464,7 @@ func (a *Adapter) processClickableNodesConcurrent(
 			defer waitGroup.Done()
 
 			localElements := make([]*element.Element, 0, len(chunk))
+			failed := 0
 
 			for idx, node := range chunk {
 				if idx%contextCheckInterval == 0 && ctx.Err() != nil {
@@ -469,6 +483,8 @@ func (a *Adapter) processClickableNodesConcurrent(
 				node.Release()
 
 				if err != nil {
+					failed++
+
 					continue
 				}
 
@@ -477,7 +493,7 @@ func (a *Adapter) processClickableNodesConcurrent(
 				}
 			}
 
-			results <- result{elements: localElements}
+			results <- result{elements: localElements, failed: failed}
 		}(nodes[start:end])
 	}
 
@@ -487,16 +503,18 @@ func (a *Adapter) processClickableNodesConcurrent(
 	}()
 
 	allElements := make([]*element.Element, 0, len(nodes)/EstimatedFilteringRatio)
+	failed := 0
 
 	for res := range results {
 		allElements = append(allElements, res.elements...)
+		failed += res.failed
 	}
 
 	if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return nil, failed, ctx.Err()
 	}
 
-	return allElements, nil
+	return allElements, failed, nil
 }
 
 // Ensure Adapter implements ports.AccessibilityPort.
@@ -529,9 +547,7 @@ func (a *Adapter) finishCollection(
 		// Not a failure: the frontmost window is deliberately skipped while
 		// Mission Control is up, so with no supplementary source enabled there
 		// is nothing left to collect.
-		a.logger.Debug(
-			"No elements collected - Mission Control is active and no supplementary filters enabled",
-		)
+		a.logger.Debug("No elements collected while Mission Control is active")
 	}
 
 	elapsed := time.Since(start)

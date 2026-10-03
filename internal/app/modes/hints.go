@@ -223,14 +223,10 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		return
 	}
 
-	debugElapsed(h.logger, activationStart, "GenerateHints completed",
+	debugElapsed(h.logger, activationStart, "Hints generated",
 		zap.Int("total_hints", len(domainHints)))
 
 	filteredHints := filterHintsForScreen(domainHints, activeScreenBounds)
-
-	debugElapsed(h.logger, activationStart, "FilterHintsForScreen completed",
-		zap.Int("after_filter", len(filteredHints)),
-		zap.Int("before_filter", len(domainHints)))
 
 	h.logger.Debug("Filtered hints by screen",
 		zap.Int("total_hints", len(domainHints)),
@@ -274,8 +270,6 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	}
 
 	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
-
-	debugElapsed(h.logger, activationStart, "Manager.SetHints completed")
 
 	// Every activation puts the hints Frame on screen again, fresh or
 	// in-place: the refresh path runs after a passthrough or a space change,
@@ -379,7 +373,7 @@ func (h *Handler) resumeHintActivationAfterPermission(
 		// xdg-desktop-portal on KDE, say — because the consent vocabulary has no
 		// third word for it. Leaving the mode without a line would make the two
 		// indistinguishable from a hint activation that silently did nothing.
-		h.logger.Info("Screen capture was not permitted; leaving hints mode")
+		h.logger.Warn("Screen capture was not permitted, leaving hints mode")
 		h.exitMode()
 	case ports.ScreenCaptureGranted:
 		// A Granted consent implies the check now passes (the SystemPort

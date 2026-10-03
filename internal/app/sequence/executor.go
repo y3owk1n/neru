@@ -126,7 +126,7 @@ func (e *Executor) RunWithPolicy(
 			MaxDepth,
 		)
 
-		e.logger.Error("Action sequence nested too deeply",
+		e.logger.Warn("Action sequence nested too deeply",
 			zap.String("source", source),
 			zap.Int("depth", depth))
 
@@ -171,18 +171,18 @@ func (e *Executor) RunWithPolicy(
 					zap.String("source", source),
 					zap.Int("step", outcome.Executed))
 			} else {
-				e.logger.Error("Action sequence stopped at a failed step",
+				e.logger.Warn("Action sequence stopped at a failed step",
 					zap.String("source", source),
-					zap.String("action", trimmedStep),
+					zap.String("action", stepName(trimmedStep)),
 					zap.Error(stepErr))
 			}
 
 			return outcome
 		}
 
-		e.logger.Error("Action sequence step failed",
+		e.logger.Warn("Action sequence step failed",
 			zap.String("source", source),
-			zap.String("action", trimmedStep),
+			zap.String("action", stepName(trimmedStep)),
 			zap.Error(stepErr))
 
 		if outcome.Err == nil {
@@ -193,6 +193,17 @@ func (e *Executor) RunWithPolicy(
 	}
 
 	return outcome
+}
+
+// stepName returns the first word of a step, the only part a log may carry. The
+// rest is config content, and for an exec step it is a shell command line.
+func stepName(step string) string {
+	fields := strings.Fields(step)
+	if len(fields) == 0 {
+		return ""
+	}
+
+	return fields[0]
 }
 
 // RunAndForget executes a sequence and discards the outcome. It is the entry
@@ -311,7 +322,7 @@ func (e *Executor) action(ctx context.Context, source, actionStr string) error {
 	}
 
 	e.logger.Debug(
-		"action step executed",
+		"Action step executed",
 		zap.String("source", source),
 		zap.String("action", actionStr),
 	)
@@ -332,16 +343,8 @@ func entersAMode(word string) bool {
 func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 	cmdString := strings.TrimSpace(strings.TrimPrefix(actionStr, action.PrefixExec))
 	if cmdString == "" {
-		e.logger.Error("exec step has empty command", zap.String("source", source))
-
 		return derrors.New(derrors.CodeInvalidInput, "empty command")
 	}
-
-	e.logger.Debug(
-		"Executing shell command from a sequence step",
-		zap.String("source", source),
-		zap.String("cmd", cmdString),
-	)
 
 	execCtx, cancel := context.WithTimeout(ctx, domain.ShellCommandTimeout)
 	defer cancel()
@@ -359,25 +362,19 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 
 	commandOutput, commandErr := command.CombinedOutput()
 	if commandErr != nil {
-		// The command string and its output are the two things this must not
-		// write down: the command is config content, and the output is whatever
-		// the user's own shell printed. Their sizes and the exit code say as
-		// much about the failure as the log is entitled to know — matching the
-		// success path below, and the caller still receives the wrapped error.
-		e.logger.Error(
-			"exec step failed",
-			zap.String("source", source),
-			zap.Int("cmd_length", len(cmdString)),
-			zap.Int("output_bytes", len(commandOutput)),
-			zap.Int("exit_code", exitCodeOf(commandErr)),
-			zap.Error(commandErr),
+		// Never the command or its output, which are config content and the
+		// user's shell output. The sequence that ran the step logs this once.
+		return derrors.Wrapf(
+			commandErr,
+			derrors.CodeInternal,
+			"exec step failed (exit code %d, %d output bytes)",
+			exitCodeOf(commandErr),
+			len(commandOutput),
 		)
-
-		return derrors.Wrap(commandErr, derrors.CodeInternal, "exec step failed")
 	}
 
 	e.logger.Debug(
-		"exec step completed",
+		"Exec step completed",
 		zap.String("source", source),
 		zap.Int("cmd_length", len(cmdString)),
 		zap.Int("output_bytes", len(commandOutput)),
@@ -388,7 +385,7 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 
 // exitCodeOf reports the exit status behind a failed command, or -1 when the
 // command never ran far enough to have one (a missing shell, a timeout, a
-// signal). It exists so the failure log can be specific about *how* the step
+// signal). It exists so the failure error can be specific about *how* the step
 // failed without quoting anything the command said.
 func exitCodeOf(commandErr error) int {
 	if exitErr, ok := errors.AsType[*exec.ExitError](commandErr); ok {

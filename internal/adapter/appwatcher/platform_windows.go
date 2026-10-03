@@ -112,7 +112,7 @@ func (l *windowsAppWatcher) start() {
 	unhook, err := l.subscribe(func(hwnd uintptr) { offer(events, hwnd) })
 	if err != nil {
 		l.watcher.logger.Warn(
-			"App watcher: foreground hook install failed; per-app config settles when a mode opens",
+			"Foreground hook install failed; per-app config settles when a mode opens",
 			zap.Error(err),
 		)
 
@@ -135,7 +135,7 @@ func (l *windowsAppWatcher) start() {
 	unhookDisplay, err := l.subscribeDisplay(func() { offerToken(displayEvents) })
 	if err != nil {
 		l.watcher.logger.Warn(
-			"App watcher: display-change window install failed; overlays follow display changes on the next activation only",
+			"Display-change window install failed; overlays follow display changes on the next activation only",
 			zap.Error(err),
 		)
 	}
