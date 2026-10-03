@@ -451,6 +451,8 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		return offsetErr
 	}
 
+	m.placementRefusal.Reset()
+
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 

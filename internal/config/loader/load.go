@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"maps"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -267,9 +268,13 @@ func (s *Service) applyGlobalHotkeys(
 
 	parsed := parseGlobalHotkeyTable(hotMap)
 
+	// Taken before a rebound launcher's default is dropped, so disabling that
+	// default's chord as well still counts as disabling a default.
+	defaults := maps.Clone(cfg.Hotkeys.Bindings)
+
 	replaceReboundLaunchers(cfg.Hotkeys.Bindings, parsed)
 
-	return s.mergeGlobalHotkeys(cfg.Hotkeys.Bindings, hotMap, parsed, warnings)
+	return s.mergeGlobalHotkeys(cfg.Hotkeys.Bindings, defaults, hotMap, parsed, warnings)
 }
 
 // parseGlobalHotkeyTable reads each entry's actions. An entry that does not
@@ -317,6 +322,7 @@ func replaceReboundLaunchers(bindings map[string][]string, parsed map[string][]s
 // mergeGlobalHotkeys lays the user's entries over the defaults.
 func (s *Service) mergeGlobalHotkeys(
 	bindings map[string][]string,
+	defaults map[string][]string,
 	hotMap map[string]any,
 	parsed map[string][]string,
 	warnings *config.Warnings,
@@ -345,7 +351,7 @@ func (s *Service) mergeGlobalHotkeys(
 		}
 
 		if len(actions) == 1 && actions[0] == config.DisabledSentinel {
-			if _, exists := bindings[canonicalKey]; !exists {
+			if _, exists := defaults[config.FindNormalizedMapKey(defaults, key)]; !exists {
 				warnings.Addf("hotkeys.%s: __disabled__ has no default binding to disable", key)
 			}
 

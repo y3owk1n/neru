@@ -366,6 +366,13 @@ func (a *Adapter) processClickableNodes(
 	failed := 0
 
 	defer func() {
+		// Every node failing reads like a window with nothing to click, so it
+		// gets a warning of its own. Partial failures stay at debug.
+		if failed > 0 && failed == len(clickableNodes) {
+			a.logger.Warn("Every clickable element failed to convert",
+				zap.Int("node_count", len(clickableNodes)))
+		}
+
 		a.logger.Debug("Processed clickable nodes",
 			zap.Duration("elapsed", time.Since(processStart)),
 			zap.Int("node_count", len(clickableNodes)),

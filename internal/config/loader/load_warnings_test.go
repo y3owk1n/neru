@@ -273,3 +273,36 @@ func TestLoadWithValidation_ReportsADisabledKeyWithNoDefault(t *testing.T) {
 		}
 	}
 }
+
+// TestLoadWithValidation_AcceptsDisablingARelocatedLauncher pins that moving a
+// mode launcher to a new chord and disabling its old one does not warn: the
+// old chord was a default, even though the move already dropped it.
+func TestLoadWithValidation_AcceptsDisablingARelocatedLauncher(t *testing.T) {
+	var defaultChord string
+
+	for chord, actions := range config.DefaultConfig().Hotkeys.Bindings {
+		if len(actions) == 1 && actions[0] == config.ModeNameHints {
+			defaultChord = chord
+		}
+	}
+
+	if defaultChord == "" {
+		t.Skip("this platform ships no default hints launcher")
+	}
+
+	result, _ := loadWithObservedLogger(t, `
+[hotkeys]
+"Primary+Shift+F11" = "hints"
+"`+defaultChord+`" = "__disabled__"
+`, "")
+
+	if result.ValidationError != nil {
+		t.Fatalf("the config was refused: %v", result.ValidationError)
+	}
+
+	for _, warning := range result.Warnings {
+		if strings.Contains(warning, defaultChord) {
+			t.Errorf("result.Warnings contains %q, want no warning about the old chord", warning)
+		}
+	}
+}

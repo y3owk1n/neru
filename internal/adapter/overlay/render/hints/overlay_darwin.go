@@ -401,6 +401,8 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		return placementErr
 	}
 
+	o.placementRefusal.Reset()
+
 	start := time.Now()
 
 	// Extract current input from hints (find first hint with matched prefix)

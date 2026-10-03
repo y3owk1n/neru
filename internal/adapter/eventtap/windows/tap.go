@@ -79,7 +79,7 @@ type EventTap struct {
 	// delivered to whatever mode comes next.
 	dispatchEpoch atomic.Uint64
 
-	// dropWarned limits a full dispatch queue to one warning.
+	// dropWarned limits a full dispatch queue to one warning until it drains.
 	dropWarned atomic.Bool
 }
 
@@ -527,6 +527,11 @@ func (et *EventTap) dispatchLoop() {
 			return
 		case event := <-et.dispatchCh:
 			et.deliver(event)
+
+			// A drained queue re-arms the warning for the next overflow.
+			if len(et.dispatchCh) == 0 && et.dropWarned.Load() {
+				et.dropWarned.Store(false)
+			}
 		}
 	}
 }

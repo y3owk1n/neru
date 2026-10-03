@@ -111,7 +111,7 @@ type EventTap struct {
 	// stop asking for keyboard focus once the evdev proxy owns the keys.
 	overlayPassiveOnce sync.Once
 
-	// dropWarned limits a full dispatch channel to one warning.
+	// dropWarned limits a full dispatch channel to one warning until it drains.
 	dropWarned atomic.Bool
 }
 
@@ -512,6 +512,11 @@ func (et *EventTap) dispatchLoop() {
 
 		if cb != nil && et.dispatchEpoch.Load() == epoch {
 			cb(key)
+		}
+
+		// A drained channel re-arms the warning for the next overflow.
+		if len(et.dispatchCh) == 0 && et.dropWarned.Load() {
+			et.dropWarned.Store(false)
 		}
 	}
 }

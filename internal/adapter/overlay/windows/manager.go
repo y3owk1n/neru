@@ -340,6 +340,8 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		return offsetErr
 	}
 
+	m.placementRefusal.Reset()
+
 	// Shared activation may draw before the resize; enforce monitor bounds here.
 	m.win.Resize()
 	m.win.DrawHints(hintsSlice, style, offset)
