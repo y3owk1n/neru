@@ -21,12 +21,12 @@ const (
 	ansiYellow = "\x1b[33m"
 	ansiBlue   = "\x1b[34m"
 
-	consoleTimeLayout = "2006-01-02 15:04:05.000"
+	consoleTimeLayout = "2006-01-02 15:04:05.000Z07:00"
 )
 
 // consoleCore writes one tracing-style line per entry:
 //
-//	2026-10-03 14:02:11.482  INFO app.eventtap: mode activated mode=hints elapsed=3.1ms
+//	2026-10-03 14:02:11.482+08:00  INFO app.eventtap: mode activated mode=hints elapsed=3.1ms
 //
 // It is a Core rather than an Encoder so it can hold context fields as a slice
 // in the order they were added, instead of implementing every ObjectEncoder
@@ -77,7 +77,7 @@ func (c *consoleCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		line.WriteByte(' ')
 	}
 
-	line.WriteString(ent.Message)
+	line.WriteString(strings.ReplaceAll(ent.Message, "\n", `\n`))
 	c.writeFields(&line, c.fields)
 	c.writeFields(&line, fields)
 	line.WriteByte('\n')

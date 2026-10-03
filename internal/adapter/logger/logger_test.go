@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"syscall"
@@ -74,6 +75,61 @@ func TestInit(t *testing.T) {
 
 	if !strings.Contains(output, "key=value") {
 		t.Errorf("Log output does not contain structured field. Got: %s", output)
+	}
+}
+
+func TestInit_ConsoleWritesOneLinePerEntry(t *testing.T) {
+	const timestamp = `^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2}) `
+
+	tests := []struct {
+		name string
+		log  func()
+		want string
+	}{
+		{
+			name: "named logger with context and entry fields in order",
+			log: func() {
+				logger.Get().Named("eventtap").With(zap.String("backend", "cgevent")).
+					Info("key handled", zap.Int("count", 3), zap.Bool("consumed", true))
+			},
+			want: ` INFO eventtap: key handled backend=cgevent count=3 consumed=true$`,
+		},
+		{
+			name: "package helper targets the calling file and quotes spaced values",
+			log:  func() { logger.Warn("option inert", zap.String("option", "a b")) },
+			want: ` WARN logger/logger_test\.go:\d+: option inert option="a b"$`,
+		},
+		{
+			name: "newline in message stays on one line",
+			log:  func() { logger.Get().Named("app").Info("first\nsecond") },
+			want: ` INFO app: first\\nsecond$`,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			logger.Reset()
+			t.Cleanup(logger.Reset)
+
+			var buf bytes.Buffer
+
+			initErr := logger.Init("debug", "", true, 10, 5, 30, &buf)
+			if initErr != nil {
+				t.Fatalf("Init() error = %v", initErr)
+			}
+
+			testCase.log()
+
+			output := strings.TrimSuffix(buf.String(), "\n")
+			if strings.Contains(output, "\n") {
+				t.Fatalf("console output spans more than one line: %q", output)
+			}
+
+			pattern := regexp.MustCompile(timestamp + testCase.want)
+			if !pattern.MatchString(output) {
+				t.Errorf("console line = %q, want it to match %q", output, pattern)
+			}
+		})
 	}
 }
 

@@ -422,7 +422,7 @@ func (a *App) waitForShutdown() error {
 		return nil
 	}
 
-	a.logger.Info("\n⚠️  Shutting down gracefully... (press Ctrl+C again to force quit)")
+	a.logger.Info("⚠️  Shutting down gracefully... (press Ctrl+C again to force quit)")
 
 	done := make(chan struct{})
 

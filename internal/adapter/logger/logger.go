@@ -239,34 +239,41 @@ func appendLoggingFailure(failures, err error, message string) error {
 	return multierr.Append(failures, derrors.Wrap(err, derrors.CodeLoggingFailed, message))
 }
 
+// helper is the global logger with the package's own helper frame skipped, so
+// an entry logged through Debug, Info, Warn, Error or Fatal reports its
+// caller's file and line rather than this file's.
+func helper() *zap.Logger {
+	return Get().WithOptions(zap.AddCallerSkip(1))
+}
+
 // Debug logs a debug-level message with optional structured fields.
 // Debug messages are typically used for detailed diagnostic information.
 func Debug(msg string, fields ...zap.Field) {
-	Get().Debug(msg, fields...)
+	helper().Debug(msg, fields...)
 }
 
 // Info logs an info-level message with optional structured fields.
 // Info messages are used for general operational information.
 func Info(msg string, fields ...zap.Field) {
-	Get().Info(msg, fields...)
+	helper().Info(msg, fields...)
 }
 
 // Warn logs a warning-level message with optional structured fields.
 // Warning messages indicate potentially harmful situations.
 func Warn(msg string, fields ...zap.Field) {
-	Get().Warn(msg, fields...)
+	helper().Warn(msg, fields...)
 }
 
 // Error logs an error-level message with optional structured fields.
 // Error messages indicate serious problems that need attention.
 func Error(msg string, fields ...zap.Field) {
-	Get().Error(msg, fields...)
+	helper().Error(msg, fields...)
 }
 
 // Fatal logs a fatal-level message and immediately exits the application.
 // Fatal messages indicate unrecoverable errors that require immediate termination.
 func Fatal(msg string, fields ...zap.Field) {
-	Get().Fatal(msg, fields...)
+	helper().Fatal(msg, fields...)
 }
 
 // With creates a new child logger instance with the specified fields added to all log entries.
