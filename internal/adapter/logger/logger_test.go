@@ -72,7 +72,7 @@ func TestInit(t *testing.T) {
 		t.Errorf("Log output does not contain expected message. Got: %s", output)
 	}
 
-	if !strings.Contains(output, `"key": "value"`) {
+	if !strings.Contains(output, "key=value") {
 		t.Errorf("Log output does not contain structured field. Got: %s", output)
 	}
 }

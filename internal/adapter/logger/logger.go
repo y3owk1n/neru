@@ -32,7 +32,8 @@ var (
 
 // Init configures and initializes the global logger with the specified settings.
 // It supports both console and file output with configurable log levels and file rotation.
-// Console output uses human-readable format; file output uses JSON for machine parsing.
+// Console output is one tracing-style line per entry, colored on a terminal.
+// File output is JSON for machine parsing.
 func Init(
 	logLevel, logFilePath string,
 	disableFileLogging bool,
@@ -82,28 +83,13 @@ func Init(
 		isTerminal = term.IsTerminal(int(f.Fd()))
 	}
 
-	// Configure encoder
-	consoleEncoderConfig := zap.NewDevelopmentEncoderConfig()
-
-	consoleEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-
-	if isTerminal {
-		consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	} else {
-		consoleEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	}
-
 	fileEncoderConfig := zap.NewProductionEncoderConfig()
 
 	fileEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	fileEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
-	// Create console encoder (human-readable)
-	consoleEncoder := zapcore.NewConsoleEncoder(consoleEncoderConfig)
-
-	// Create cores slice
 	cores := []zapcore.Core{
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(consoleWriter), level),
+		newConsoleCore(zapcore.AddSync(consoleWriter), level, isTerminal),
 	}
 
 	// Add file logging if not disabled
