@@ -2,6 +2,7 @@ package config
 
 import (
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -173,14 +174,30 @@ func normalizeKeyAliases(key string) string {
 	return key
 }
 
+// normalizeModifierAliasesInCombo resolves each modifier to its platform token
+// and sorts the modifiers. Each tap spells modifiers in its own order, so the
+// sort makes "Primary+Shift+C" from config match "Shift+Ctrl+c" from the Linux
+// tap. A combo with a segment that is not a modifier ("ctrl++") keeps its order.
 func normalizeModifierAliasesInCombo(key, goos string) string {
 	parts := strings.Split(key, "+")
 	if len(parts) < minimumModifierParts {
 		return key
 	}
 
+	allModifiers := true
+
 	for idx := range len(parts) - 1 {
 		parts[idx] = normalizeModifierTokenForOS(parts[idx], goos)
+
+		switch parts[idx] {
+		case modifierNameCmd, modifierNameCtrl, modifierNameAlt, modifierNameShift:
+		default:
+			allModifiers = false
+		}
+	}
+
+	if allModifiers {
+		slices.Sort(parts[:len(parts)-1])
 	}
 
 	return strings.Join(parts, "+")

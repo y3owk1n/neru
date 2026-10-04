@@ -29,6 +29,7 @@ const (
 	testKeyEscape       = "escape"
 	testKeySpace        = "space"
 	testKeyShiftReturn  = "shift+return"
+	testKeyCtrlShiftC   = "ctrl+shift+c"
 	testKeyCmdSpace     = KeyCmdSpace
 	testKeySuperSpace   = KeySuperSpace
 )
@@ -801,6 +802,22 @@ func TestNormalizeKeyForComparison_ModifierComboAliases(t *testing.T) {
 			name:     "Primary+Space normalizes to platform primary modifier",
 			input:    "Primary+Space",
 			expected: map[bool]string{true: "cmd+space", false: "ctrl+space"}[isDarwinRuntime],
+		},
+		// Modifier order: a tap spells modifiers in its own order (#1733)
+		{
+			name:     "Shift+Ctrl+c matches Ctrl+Shift+C",
+			input:    "Shift+Ctrl+c",
+			expected: testKeyCtrlShiftC,
+		},
+		{
+			name:     "Shift+Primary+C sorts after resolving primary",
+			input:    "Shift+Primary+C",
+			expected: map[bool]string{true: "cmd+shift+c", false: testKeyCtrlShiftC}[isDarwinRuntime],
+		},
+		{
+			name:     "plus as base key keeps its segments",
+			input:    "Shift+Ctrl++",
+			expected: "shift+ctrl++",
 		},
 	}
 	for _, testCase := range tests {

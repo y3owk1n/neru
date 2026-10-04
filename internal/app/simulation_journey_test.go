@@ -3342,9 +3342,7 @@ func TestSimulation_ConfigSetRelabelsTheGridWithoutAReload(t *testing.T) {
 }
 
 // The two halves of the reported --toggle case: a global chord bound to the
-// toggle, and the scroll-mode key that hands over to recursive grid. The chord
-// is written in the tap's own modifier order, which is what a keymap lookup
-// compares against.
+// toggle, and the scroll-mode key that hands over to recursive grid.
 const (
 	globalToggleChord    = "Ctrl+Alt+;"
 	scrollToRecursiveKey = "Space"
@@ -3401,6 +3399,24 @@ func TestSimulation_GlobalHotkeyTogglesAModeItEnteredItself(t *testing.T) {
 	sim.waitFor("the global chord toggling the mode it opened back to idle", func() bool {
 		return sim.app.CurrentMode() == domain.ModeIdle
 	})
+}
+
+// TestSimulation_ModeHotkeyMatchesWhateverModifierOrderTheTapSpells pins #1733.
+// A per-mode binding written "Ctrl+Shift+X" never fired on Linux, because the
+// evdev capture spells the same chord "Shift+Ctrl+x". The binding must match
+// whatever modifier order the tap uses.
+func TestSimulation_ModeHotkeyMatchesWhateverModifierOrderTheTapSpells(t *testing.T) {
+	cfg := simConfig()
+	cfg.RecursiveGrid.Hotkeys["Ctrl+Shift+X"] = config.StringOrStringArray{config.ModeNameScroll}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	sim.press("Shift+Ctrl+x")
+	sim.waitMode(domain.ModeScroll)
 }
 
 // TestSimulation_StopPausesEverything pins what `neru stop` promises: the open
