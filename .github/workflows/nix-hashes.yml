@@ -25,7 +25,7 @@ jobs:
               with:
                   ref: main
                   token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-            - uses: "DeterminateSystems/determinate-nix-action@8d87e8d5e5b8a8309d4281094560f127d9a265f1" # v3.22.5
+            - uses: "DeterminateSystems/determinate-nix-action@4d65ea9cab522b6d9f29a170aed23ededc1b27af" # v3.23.0
             - name: Update hashes
               env:
                   GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
