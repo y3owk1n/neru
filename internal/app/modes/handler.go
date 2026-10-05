@@ -398,14 +398,38 @@ func logIndicatorSubstitution(logger *zap.Logger, indicator ports.Indicator) {
 // ActivateMode enters the mode an activation names, with every flag it was
 // given.
 //
-// It is the handler's only activation entry point, and it takes the same
-// Activation the grammar parses, the CLI builds and the configuration
-// validator reads. Nothing is copied on the way in, so a flag a mode accepts
-// cannot be lost between being read and being applied.
+// It and ActivateEnabledMode are the handler's only activation entry points.
+// Both take the same Activation the grammar parses, the CLI builds and the
+// configuration validator reads. Nothing is copied on the way in, so a flag a
+// mode accepts cannot be lost between being read and being applied.
 func (h *Handler) ActivateMode(activation modecmd.Activation) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.activateMode(activation)
+}
+
+// ActivateEnabledMode is ActivateMode for a caller that has to report a
+// refusal. It returns false, and does nothing, when the configuration disables
+// the mode. The check and the activation share one hold of the lock, so a
+// reload cannot disable the mode between them.
+func (h *Handler) ActivateEnabledMode(activation modecmd.Activation) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.config != nil && !h.config.ModeEnabled(domain.ModeString(activation.Mode)) {
+		return false
+	}
+
+	h.activateMode(activation)
+
+	return true
+}
+
+// activateMode is the body of both activation entry points.
+//
+// Caller must hold h.mu.
+func (h *handlerState) activateMode(activation modecmd.Activation) {
 	mode := activation.Mode
 
 	// `neru stop` switches every mode off. The IPC controller refuses while
@@ -442,11 +466,11 @@ func (h *Handler) ActivateMode(activation modecmd.Activation) {
 		return
 	}
 
-	// Normalize --on-exit for external (re-)activations. This method is the sole
-	// entry point for user-driven activations (IPC, hotkeys, systray); internal
-	// refreshes (repeat re-activation, space/screen change, cycle) bypass it and
-	// call the activate* helpers directly with a nil onExit to preserve the
-	// stored steps. An omitted --on-exit on a fresh external command must
+	// Normalize --on-exit for external (re-)activations. The two entry points
+	// above are the only ones for user-driven activations (IPC, hotkeys,
+	// systray). Internal refreshes (repeat re-activation, space/screen change,
+	// cycle) bypass them and call the activate* helpers directly with a nil
+	// onExit to preserve the stored steps. An omitted --on-exit on a fresh external command must
 	// clear any steps left over from a prior activation of the same mode
 	// rather than inheriting them, so a later completed action does not run a
 	// stale command. A nil slice reaching those helpers means "preserve"; the

@@ -7,7 +7,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/derrors"
-	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -64,16 +63,6 @@ func (h *handlerState) validateModeActivation(
 	}
 
 	return nil
-}
-
-// ModeEnabled reports whether the configuration lets mode be entered. The IPC
-// handler asks before activating, because an activation cannot report back
-// that it refused.
-func (h *Handler) ModeEnabled(mode domain.Mode) bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	return h.config == nil || h.config.ModeEnabled(domain.ModeString(mode))
 }
 
 // prepareForModeActivation performs common preparation steps before activating a mode.
