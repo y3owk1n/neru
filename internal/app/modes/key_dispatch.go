@@ -408,16 +408,24 @@ func (h *handlerState) maybeStartHeldRepeat(key, bindKey string, actions []strin
 		return
 	}
 
-	// A mouse button is reported as a press with no release: the tap observes
-	// the button rather than consuming it, and emits no "__keyup_" for it. A
-	// repeat started here is stopped by that key-up, so it would instead run
-	// until the mode exits. Refusing to start one keeps a button a discrete
-	// press, which is the only thing it can honestly be.
-	if keyvocab.IsMouseButton(config.NormalizeKeyForComparison(key)) {
+	if reportsNoRelease(key) {
 		return
 	}
 
 	h.startHeldRepeat(key, bindKey, actions)
+}
+
+// reportsNoRelease reports whether key is one the event tap reports pressing
+// but never releasing, so anything started on its press has nothing to stop it.
+//
+// A mouse button is the case: the tap observes the button rather than consuming
+// it and emits no "__keyup_" for one, so a held repeat or a glide started on it
+// would run until the mode exited rather than until the button came up.
+// Refusing to start either keeps a button a discrete press, which is the only
+// thing it can honestly be. A fed key has the same shape and is guarded where
+// it is pressed, by the flag that already says so.
+func reportsNoRelease(key string) bool {
+	return keyvocab.IsMouseButton(config.NormalizeKeyForComparison(key))
 }
 
 // startHeldRepeat launches a goroutine that dispatches the held-key
@@ -480,7 +488,7 @@ func (h *handlerState) motionApplies(actions []string) bool {
 // qualifies, reporting whether it did. Caller must hold h.mu. The controller's
 // lock sits below it and never calls back.
 func (h *handlerState) startMotion(key string, actions []string) bool {
-	if h.motion == nil || h.fedPress {
+	if h.motion == nil || h.fedPress || reportsNoRelease(key) {
 		return false
 	}
 
