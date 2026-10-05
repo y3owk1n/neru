@@ -20,6 +20,7 @@ func TestManager_HealthCheck(t *testing.T) {
 		name      string
 		backend   platform.LinuxBackend
 		callbacks int
+		started   bool
 		want      bool
 	}{
 		{
@@ -41,6 +42,14 @@ func TestManager_HealthCheck(t *testing.T) {
 			callbacks: 1,
 			want:      false,
 		},
+		{
+			// The listener came up once and has since stopped running.
+			name:      "wayland with hotkeys registered and the listener stopped",
+			backend:   platform.BackendWaylandWlroots,
+			callbacks: 1,
+			started:   true,
+			want:      false,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -48,6 +57,7 @@ func TestManager_HealthCheck(t *testing.T) {
 			mgr := NewManager(zap.NewNop())
 			mgr.backend = testCase.backend
 			mgr.waylandHotkeys = eventtaplinux.NewGlobalHotkeyListener(nil)
+			mgr.waylandStarted = testCase.started
 
 			for i := range testCase.callbacks {
 				mgr.callbacks[ports.HotkeyID(i+1)] = hotkeyCallbacks{}
