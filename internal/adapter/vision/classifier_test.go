@@ -150,25 +150,3 @@ func TestMergeRegions_PartialOverlap(t *testing.T) {
 		t.Errorf("expected 2 regions for partial overlap, got %d", len(merged))
 	}
 }
-
-func TestTestClassifier(t *testing.T) {
-	testClassifier := NewTestClassifier()
-
-	region := DetectedRegion{
-		Bounds: image.Rect(100, 100, 200, 130),
-		Score:  0.7,
-		IsText: true,
-		Label:  "OK",
-	}
-
-	role, clickable := testClassifier.Classify(region)
-	if role == "" {
-		t.Errorf("expected non-empty role")
-	}
-
-	// Should classify as button (aspect ratio ~3.3, score 0.7, text) in
-	// whatever vocabulary the running platform speaks.
-	if want := currentClassifierRoles().Button; role != want || !clickable {
-		t.Errorf("expected %s/clickable, got %s/%v", want, role, clickable)
-	}
-}

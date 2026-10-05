@@ -2,7 +2,6 @@ package config
 
 import (
 	"slices"
-	"time"
 
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -184,104 +183,19 @@ const (
 	// MaxHeldRepeatAccelMultiplier bounds accel_max_multiplier.
 	MaxHeldRepeatAccelMultiplier = 100
 
-	// DefaultIPCTimeout is the default IPC timeout.
-	DefaultIPCTimeout = 5
-	// DefaultAppWatcherTimeout is the default app watcher timeout.
-	DefaultAppWatcherTimeout = 10
-	// DefaultModeTimeout is the default mode timeout.
-	DefaultModeTimeout = 5
-	// DefaultValidationTimeout is the default validation timeout.
-	DefaultValidationTimeout = 2
-
-	// DefaultCacheSize is the default cache size.
-	DefaultCacheSize = 100
-	// DefaultCallbackMapSize is the default callback map size.
-	DefaultCallbackMapSize = 8
-	// DefaultSubscriberMapSize is the default subscriber map size.
-	DefaultSubscriberMapSize = 4
-
 	// DefaultMaxDepth is the default max depth for accessibility tree traversal.
 	DefaultMaxDepth = 50
 
 	// DefaultChildrenCapacity is the default children capacity.
 	DefaultChildrenCapacity = 8
 
-	// DefaultGridLinesCount is the default grid lines count.
-	DefaultGridLinesCount = 4
-
-	// DefaultTimerDuration is the default timer duration.
-	DefaultTimerDuration = 2 * time.Second
-
-	// DefaultIPCReadTimeout is the default IPC read timeout.
-	DefaultIPCReadTimeout = 30 * time.Second
-
-	// DefaultPingTimeout is the default ping timeout.
-	DefaultPingTimeout = 500 * time.Millisecond
-
-	// DefaultConfigCacheTTL is the default cache TTL for config.
-	DefaultConfigCacheTTL = 5 * time.Second
-
 	// DefaultDirPerms is the default directory permissions.
 	DefaultDirPerms = 0o750
 	// DefaultFilePerms is the default file permissions.
 	DefaultFilePerms = 0o644
-	// DefaultSocketPerms is the default socket permissions.
-	DefaultSocketPerms = 0o600
 
 	// MinCharactersLength is the minimum characters length.
 	MinCharactersLength = 2
-
-	// LabelLength2 is the grid label length 2.
-	LabelLength2 = 2
-	// LabelLength3 is the grid label length 3.
-	LabelLength3 = 3
-	// LabelLength4 is the grid label length 4.
-	LabelLength4 = 4
-
-	// MinGridCols is the minimum grid columns.
-	MinGridCols = 2
-	// MinGridRows is the minimum grid rows.
-	MinGridRows = 2
-
-	// CenterDivisor is the center calculation divisor.
-	CenterDivisor = 2
-
-	// ScoreWeight is the score weight.
-	ScoreWeight = 0.1
-
-	// AspectRatioAdjustment is the aspect ratio adjustment.
-	AspectRatioAdjustment = 1.2
-
-	// StringBuilderGrow2 is the string builder growth factor 2.
-	StringBuilderGrow2 = 2
-	// StringBuilderGrow3 is the string builder growth factor 3.
-	StringBuilderGrow3 = 3
-	// StringBuilderGrow4 is the string builder growth factor 4.
-	StringBuilderGrow4 = 4
-
-	// CountsCapacity is the counts capacity.
-	CountsCapacity = 5
-
-	// LabelLengthCheck is the label length check.
-	LabelLengthCheck = 2
-
-	// PrefixLengthCheck is the prefix length check.
-	PrefixLengthCheck = 2
-
-	// CacheCleanupDivisor is the cache cleanup interval divisor.
-	CacheCleanupDivisor = 2
-
-	// CacheDeletionEstimate is the cache deletion estimate.
-	CacheDeletionEstimate = 4
-
-	// OverlayTimerDuration is the timer duration for overlays.
-	OverlayTimerDuration = 2 * time.Second
-
-	// GridMaxChars is the grid max chars.
-	GridMaxChars = 9
-
-	// IPCTimeoutSeconds is the IPC timeout seconds.
-	IPCTimeoutSeconds = 5
 
 	// DefaultRecursiveGridMinSizeWidth is the default minimum cell width in pixels.
 	DefaultRecursiveGridMinSizeWidth = 1

@@ -39,7 +39,7 @@ func TestTreeWalk_ReleasesEveryElement(t *testing.T) {
 
 	log := logger.Get()
 	client := native.New(log, nil)
-	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
+	adapter := accessibility.NewAdapter(log, nil, client, false)
 
 	// Each walk gets its own context matching the per-call budget: a shared
 	// deadline would expire cumulatively across six healthy scans and fail a

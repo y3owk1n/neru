@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -18,6 +19,8 @@ const (
 	testResponseMessage = "test response"
 	testCommandAction   = "test"
 	testMapKey          = "key"
+	testMapValue        = "value"
+	testWireVersion     = "1.2.3"
 )
 
 func TestSocketPath(t *testing.T) {
@@ -306,74 +309,68 @@ func TestClientSendWithTimeout(t *testing.T) {
 	}
 }
 
+// TestCommandJSON pins the wire keys a Command marshals to. A newer CLI talks
+// to an older daemon over this format, so a renamed json tag must fail here
+// rather than round-trip cleanly through the same struct.
 func TestCommandJSON(t *testing.T) {
 	cmd := ipc.Command{
-		Action: testCommandAction,
+		Version: testWireVersion,
+		Action:  testCommandAction,
 		Params: map[string]any{
-			testMapKey: "value",
+			testMapKey: testMapValue,
 		},
 		Args: []string{"arg1", "arg2"},
 	}
 
-	// Marshal
-	data, dataErr := json.Marshal(cmd)
-	if dataErr != nil {
-		t.Fatalf("json.Marshal() failed: %v", dataErr)
-	}
-
-	// Unmarshal
-	var decoded ipc.Command
-
-	dataErr = json.Unmarshal(data, &decoded)
-	if dataErr != nil {
-		t.Fatalf("json.Unmarshal() failed: %v", dataErr)
-	}
-
-	// Verify
-	if decoded.Action != cmd.Action {
-		t.Errorf("Action mismatch: got %s, want %s", decoded.Action, cmd.Action)
-	}
-
-	if len(decoded.Args) != len(cmd.Args) {
-		t.Errorf("Args length mismatch: got %d, want %d", len(decoded.Args), len(cmd.Args))
-	}
+	assertWireKeys(t, cmd, map[string]any{
+		"version": testWireVersion,
+		"action":  testCommandAction,
+		"params":  map[string]any{testMapKey: testMapValue},
+		"args":    []any{"arg1", "arg2"},
+	})
 }
 
+// TestResponseJSON pins the wire keys a Response marshals to, for the same
+// cross-version reason as TestCommandJSON.
 func TestResponseJSON(t *testing.T) {
 	response := ipc.Response{
+		Version: testWireVersion,
 		Success: true,
 		Message: "test message",
-		Code:    "success",
+		Code:    ipc.CodeOK,
 		Data: map[string]string{
-			testMapKey: "value",
+			testMapKey: testMapValue,
 		},
 	}
 
-	// Marshal
-	data, dataErr := json.Marshal(response)
-	if dataErr != nil {
-		t.Fatalf("json.Marshal() failed: %v", dataErr)
+	assertWireKeys(t, response, map[string]any{
+		"version": testWireVersion,
+		"success": true,
+		"message": "test message",
+		"code":    ipc.CodeOK,
+		"data":    map[string]any{testMapKey: testMapValue},
+	})
+}
+
+// assertWireKeys marshals value and checks the decoded JSON object holds
+// exactly the want keys with the want values.
+func assertWireKeys(t *testing.T, value any, want map[string]any) {
+	t.Helper()
+
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("json.Marshal() failed: %v", err)
 	}
 
-	// Unmarshal
-	var decoded ipc.Response
+	var got map[string]any
 
-	dataErr = json.Unmarshal(data, &decoded)
-	if dataErr != nil {
-		t.Fatalf("json.Unmarshal() failed: %v", dataErr)
+	err = json.Unmarshal(data, &got)
+	if err != nil {
+		t.Fatalf("json.Unmarshal() failed: %v", err)
 	}
 
-	// Verify
-	if decoded.Success != response.Success {
-		t.Errorf("Success mismatch: got %v, want %v", decoded.Success, response.Success)
-	}
-
-	if decoded.Message != response.Message {
-		t.Errorf("Message mismatch: got %s, want %s", decoded.Message, response.Message)
-	}
-
-	if decoded.Code != response.Code {
-		t.Errorf("Code mismatch: got %s, want %s", decoded.Code, response.Code)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("wire JSON = %s, want keys and values %v", data, want)
 	}
 }
 
@@ -396,54 +393,6 @@ func TestClientSendWithTimeout_ServerNotRunning(t *testing.T) {
 	_, err := client.SendWithTimeout(cmd, time.Second)
 	if err == nil {
 		t.Error("Expected error when server is not running")
-	}
-}
-
-func TestCommand_EmptyAction(t *testing.T) {
-	cmd := ipc.Command{Action: ""}
-
-	data, err := json.Marshal(cmd)
-	if err != nil {
-		t.Fatalf("json.Marshal() failed: %v", err)
-	}
-
-	var decoded ipc.Command
-
-	err = json.Unmarshal(data, &decoded)
-	if err != nil {
-		t.Fatalf("json.Unmarshal() failed: %v", err)
-	}
-
-	if decoded.Action != "" {
-		t.Errorf("Action mismatch: got %q, want empty string", decoded.Action)
-	}
-}
-
-func TestResponse_EmptyFields(t *testing.T) {
-	response := ipc.Response{}
-
-	data, err := json.Marshal(response)
-	if err != nil {
-		t.Fatalf("json.Marshal() failed: %v", err)
-	}
-
-	var decoded ipc.Response
-
-	err = json.Unmarshal(data, &decoded)
-	if err != nil {
-		t.Fatalf("json.Unmarshal() failed: %v", err)
-	}
-
-	if decoded.Success != false {
-		t.Errorf("Success mismatch: got %v, want false", decoded.Success)
-	}
-
-	if decoded.Message != "" {
-		t.Errorf("Message mismatch: got %q, want empty string", decoded.Message)
-	}
-
-	if decoded.Code != "" {
-		t.Errorf("Code mismatch: got %q, want empty string", decoded.Code)
 	}
 }
 

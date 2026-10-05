@@ -46,14 +46,6 @@ func (t *Tracker) Clear(button action.MouseButton) {
 	delete(t.buttons, button)
 }
 
-// ClearAll forgets the recorded state for every button.
-func (t *Tracker) ClearAll() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	clear(t.buttons)
-}
-
 // IsDown reports whether button is currently held.
 func (t *Tracker) IsDown(button action.MouseButton) bool {
 	t.mu.RLock()

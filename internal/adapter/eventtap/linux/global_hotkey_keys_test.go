@@ -14,6 +14,9 @@ func TestCanonicalChordSignature(t *testing.T) {
 		in   string
 		want string
 	}{
+		// The config registers "Ctrl+Shift+G" and the evdev decoder emits
+		// "Shift+Ctrl+g". Both must resolve to the same signature or the
+		// hotkey never fires.
 		{"config grid", "Ctrl+Shift+G", wantGridChord},
 		{"live grid (evdev order)", "Shift+Ctrl+g", wantGridChord},
 		{"config hints space", "Ctrl+Shift+Space", "ctrl+shift+space"},
@@ -31,15 +34,6 @@ func TestCanonicalChordSignature(t *testing.T) {
 				t.Fatalf("canonicalChordSignature(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
-	}
-}
-
-func TestCanonicalChordSignatureMatchesAcrossSides(t *testing.T) {
-	// The config registers "Ctrl+Shift+G"; the evdev decoder emits
-	// "Shift+Ctrl+g". Both must resolve to the same signature or the hotkey
-	// never fires.
-	if canonicalChordSignature("Ctrl+Shift+G") != canonicalChordSignature("Shift+Ctrl+g") {
-		t.Fatal("config and live spellings of Ctrl+Shift+G do not match")
 	}
 }
 

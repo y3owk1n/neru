@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 
 func TestProcessClickableNodesConcurrent_CancelledBeforeStart(t *testing.T) {
 	logger := zap.NewNop()
-	adapter := NewAdapter(logger, nil, nil, &MockAXClient{}, false)
+	adapter := NewAdapter(logger, nil, &MockAXClient{}, false)
 
 	nodeCount := ConcurrentProcessingThreshold + 50
 
@@ -72,7 +72,7 @@ func (n *holdNode) Bounds() image.Rectangle {
 
 func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 	logger := zap.NewNop()
-	adapter := NewAdapter(logger, nil, nil, &MockAXClient{}, false)
+	adapter := NewAdapter(logger, nil, &MockAXClient{}, false)
 
 	nodeCount := ConcurrentProcessingThreshold * 4
 	started := make(chan struct{})
@@ -144,7 +144,7 @@ func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 
 func TestProcessClickableNodesConcurrent_HappyPath(t *testing.T) {
 	logger := zap.NewNop()
-	adapter := NewAdapter(logger, nil, nil, &MockAXClient{}, false)
+	adapter := NewAdapter(logger, nil, &MockAXClient{}, false)
 
 	nodeCount := ConcurrentProcessingThreshold + 50
 
@@ -171,7 +171,7 @@ func TestProcessClickableNodesConcurrent_HappyPath(t *testing.T) {
 
 func TestProcessClickableNodesConcurrent_BelowThreshold(t *testing.T) {
 	logger := zap.NewNop()
-	adapter := NewAdapter(logger, nil, nil, &MockAXClient{}, false)
+	adapter := NewAdapter(logger, nil, &MockAXClient{}, false)
 
 	// Below the concurrent processing threshold — tests the sequential path
 	nodeCount := ConcurrentProcessingThreshold - 10

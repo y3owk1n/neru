@@ -4,7 +4,6 @@ import (
 	"context"
 	"image"
 
-	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/bisect"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
@@ -31,7 +30,7 @@ type BisectMode struct {
 // NewBisectMode creates a new bisect mode implementation.
 func NewBisectMode(handler *handlerState) *BisectMode {
 	return &BisectMode{
-		baseMode: newBaseMode(handler, domain.ModeBisect, "BisectMode"),
+		baseMode: newBaseMode(handler, "BisectMode"),
 	}
 }
 

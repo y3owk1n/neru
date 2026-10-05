@@ -2,48 +2,7 @@ package geometry
 
 import (
 	"image"
-	"math"
 )
-
-// ComputeRestoredPosition calculates the restored cursor position when switching screens.
-// It maintains the relative position of the cursor within the screen bounds.
-func ComputeRestoredPosition(initPos image.Point, fromPoint, toPoint image.Rectangle) image.Point {
-	// If screens are the same, no adjustment needed
-	if fromPoint == toPoint {
-		return initPos
-	}
-
-	// Validate screen bounds
-	if fromPoint.Dx() == 0 || fromPoint.Dy() == 0 || toPoint.Dx() == 0 || toPoint.Dy() == 0 {
-		return initPos
-	}
-
-	// Calculate relative position (0.0 to 1.0) within the original screen
-	relativeX := float64(initPos.X-fromPoint.Min.X) / float64(fromPoint.Dx())
-	relativeY := float64(initPos.Y-fromPoint.Min.Y) / float64(fromPoint.Dy())
-
-	// Clamp relative positions to valid range
-	relativeX = ClampFloat(relativeX, 0, 1)
-	relativeY = ClampFloat(relativeY, 0, 1)
-
-	// Calculate new position in target screen
-	newX := toPoint.Min.X + int(math.Round(relativeX*float64(toPoint.Dx())))
-	newY := toPoint.Min.Y + int(math.Round(relativeY*float64(toPoint.Dy())))
-
-	// Clamp to target screen bounds
-	newX = ClampInt(newX, toPoint.Min.X, toPoint.Max.X)
-	newY = ClampInt(newY, toPoint.Min.Y, toPoint.Max.Y)
-
-	return image.Point{X: newX, Y: newY}
-}
-
-// ComputeCenteredPosition calculates the center position of the given screen bounds.
-func ComputeCenteredPosition(bounds image.Rectangle) image.Point {
-	return image.Point{
-		X: bounds.Min.X + bounds.Dx()/2,
-		Y: bounds.Min.Y + bounds.Dy()/2,
-	}
-}
 
 // NormalizeToLocalCoordinates converts screen-absolute coordinates to window-local coordinates.
 // The overlay window is positioned at the screen origin, but the view uses local coordinates.
@@ -71,19 +30,6 @@ func ConvertToLocalCoordinates(
 		X: screenPoint.X - screenBounds.Min.X,
 		Y: screenPoint.Y - screenBounds.Min.Y,
 	}
-}
-
-// ClampFloat clamps a float64 value between minVal and maxVal.
-func ClampFloat(value, minVal, maxVal float64) float64 {
-	if value < minVal {
-		return minVal
-	}
-
-	if value > maxVal {
-		return maxVal
-	}
-
-	return value
 }
 
 // ClampInt clamps an int value between minVal and maxVal.

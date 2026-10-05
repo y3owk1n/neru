@@ -84,28 +84,6 @@ func TestTracker_HeldButtonsOrdering(t *testing.T) {
 	}
 }
 
-func TestTracker_ClearAll(t *testing.T) {
-	var tracker mousestate.Tracker
-
-	for _, button := range action.MouseButtons() {
-		tracker.SetDown(button, image.Point{}, 0)
-	}
-
-	if !tracker.AnyDown() {
-		t.Fatal("AnyDown() = false with every button held, want true")
-	}
-
-	tracker.ClearAll()
-
-	if tracker.AnyDown() {
-		t.Error("AnyDown() = true after ClearAll, want false")
-	}
-
-	if held := tracker.HeldButtons(); len(held) != 0 {
-		t.Errorf("HeldButtons() = %v after ClearAll, want empty", held)
-	}
-}
-
 func TestTracker_SetDownOverwritesPreviousPress(t *testing.T) {
 	var tracker mousestate.Tracker
 

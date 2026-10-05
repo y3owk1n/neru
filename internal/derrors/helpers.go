@@ -34,18 +34,6 @@ func WrapOverlayFailed(err error, operation string) error {
 		fmt.Sprintf("overlay %s failed", operation))
 }
 
-// WrapIPCFailed wraps an IPC-related error with a standardized message.
-func WrapIPCFailed(err error, operation string) error {
-	return Wrap(err, CodeIPCFailed,
-		fmt.Sprintf("IPC %s failed", operation))
-}
-
-// WrapSerializationFailed wraps a serialization-related error with a standardized message.
-func WrapSerializationFailed(err error, operation string) error {
-	return Wrap(err, CodeSerializationFailed,
-		fmt.Sprintf("serialization %s failed", operation))
-}
-
 // WrapAccessibilityFailed wraps an accessibility-related error with a standardized message.
 func WrapAccessibilityFailed(err error, operation string) error {
 	return Wrap(err, CodeAccessibilityFailed,
@@ -56,12 +44,6 @@ func WrapAccessibilityFailed(err error, operation string) error {
 func WrapConfigFailed(err error, operation string) error {
 	return Wrap(err, CodeInvalidConfig,
 		fmt.Sprintf("configuration %s failed", operation))
-}
-
-// WrapIOFailed wraps an I/O-related error with a standardized message.
-func WrapIOFailed(err error, operation string) error {
-	return Wrap(err, CodeConfigIOFailed,
-		fmt.Sprintf("I/O %s failed", operation))
 }
 
 // WrapInternalFailed wraps an internal error with a standardized message.

@@ -28,14 +28,3 @@ func TestCurrentOS(t *testing.T) {
 		}
 	}
 }
-
-func TestIsDarwin(t *testing.T) {
-	isDarwin := platform.IsDarwin()
-	if runtime.GOOS == string(platform.Darwin) && !isDarwin {
-		t.Error("expected IsDarwin to be true on darwin")
-	}
-
-	if runtime.GOOS != string(platform.Darwin) && isDarwin {
-		t.Error("expected IsDarwin to be false on non-darwin")
-	}
-}

@@ -236,11 +236,16 @@ func TestRejectUnsupportedFlags_IgnoresUnknownActions(t *testing.T) {
 
 // TestHandleAction_RejectsFlagsThatUsedToBeIgnored pins the drift this
 // restructure fixes: these flags were silently accepted before, because each
-// handler kept its own hand-written reject list.
+// handler kept its own hand-written reject list. A row with a wantMessage also
+// checks the exact message the user sees, spelled out here instead of looked
+// up in the table.
 func TestHandleAction_RejectsFlagsThatUsedToBeIgnored(t *testing.T) {
+	const previousOnlyOnMoveMonitor = "--previous is only supported with move_monitor"
+
 	tests := []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		wantMessage string
 	}{
 		{name: "backspace with steps", args: []string{backspaceAction, stepsThree}},
 		{name: "backspace with toggle", args: []string{backspaceAction, flagToggle}},
@@ -252,6 +257,40 @@ func TestHandleAction_RejectsFlagsThatUsedToBeIgnored(t *testing.T) {
 		{name: "save_cursor_pos with toggle", args: []string{"save_cursor_pos", flagToggle}},
 		{name: "page_up with steps", args: []string{"page_up", stepsThree}},
 		{name: "move_mouse with dx", args: []string{moveMouse, "--dx=10", "--dy=10"}},
+		{name: "move_mouse with count", args: []string{moveMouse, "--x=1", "--y=1", "--count=2"}},
+		{name: "left_click with bail", args: []string{leftClick, flagBail}},
+		{name: "left_click with direction", args: []string{leftClick, directionLeft}},
+		{
+			name:        "move_monitor with x",
+			args:        []string{moveMonitor, "--x=100"},
+			wantMessage: "--x is only supported with move_mouse",
+		},
+		{
+			name:        "move_monitor with selection",
+			args:        []string{moveMonitor, "--selection"},
+			wantMessage: "--selection is only supported with move_mouse, scroll, and mouse button actions",
+		},
+		{
+			name:        "left_click with previous",
+			args:        []string{leftClick, flagPrevious},
+			wantMessage: previousOnlyOnMoveMonitor,
+		},
+		{
+			name:        "scroll_down with previous",
+			args:        []string{"scroll_down", flagPrevious},
+			wantMessage: previousOnlyOnMoveMonitor,
+		},
+		{
+			name:        "reset with name",
+			args:        []string{resetAction, flagName + "=DELL"},
+			wantMessage: "--name is only supported with move_monitor",
+		},
+		{
+			name: "scroll_up with state",
+			args: []string{scrollUp, flagStateDown},
+			wantMessage: "--state and --toggle are only supported with " +
+				"left_click, right_click, and middle_click",
+		},
 	}
 
 	for _, testCase := range tests {
@@ -269,6 +308,10 @@ func TestHandleAction_RejectsFlagsThatUsedToBeIgnored(t *testing.T) {
 
 			if resp.Code != ipc.CodeInvalidInput {
 				t.Fatalf("code = %q, want %q", resp.Code, ipc.CodeInvalidInput)
+			}
+
+			if testCase.wantMessage != "" && resp.Message != testCase.wantMessage {
+				t.Fatalf("message = %q, want %q", resp.Message, testCase.wantMessage)
 			}
 		})
 	}

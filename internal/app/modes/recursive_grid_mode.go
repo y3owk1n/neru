@@ -34,7 +34,7 @@ type RecursiveGridMode struct {
 // NewRecursiveGridMode creates a new recursive-grid mode instance.
 func NewRecursiveGridMode(handler *handlerState) *RecursiveGridMode {
 	return &RecursiveGridMode{
-		baseMode: newBaseMode(handler, domain.ModeRecursiveGrid, "RecursiveGridMode"),
+		baseMode: newBaseMode(handler, "RecursiveGridMode"),
 	}
 }
 

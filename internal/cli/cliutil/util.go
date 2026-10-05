@@ -28,11 +28,6 @@ func NewIPCCommunicator(timeoutSec int) *IPCCommunicator {
 	}
 }
 
-// SetTimeout updates the timeout for IPC operations.
-func (c *IPCCommunicator) SetTimeout(timeoutSec int) {
-	c.timeoutSec = timeoutSec
-}
-
 // SendCommand sends a command to the running Neru daemon.
 func (c *IPCCommunicator) SendCommand(action string, args []string) (ipc.Response, error) {
 	ipcClient := ipc.NewClient()
@@ -479,22 +474,4 @@ func profileLabel(name string) string {
 	default:
 		return strings.ToUpper(name[:1]) + strings.ReplaceAll(name[1:], "_", " ")
 	}
-}
-
-// ErrorHandler provides consistent error handling for CLI commands.
-type ErrorHandler struct{}
-
-// NewErrorHandler creates a new error handler.
-func NewErrorHandler() *ErrorHandler {
-	return &ErrorHandler{}
-}
-
-// HandleIPCError wraps IPC errors with consistent formatting.
-func (e *ErrorHandler) HandleIPCError(err error, context string) error {
-	return derrors.Wrap(err, derrors.CodeIPCFailed, context)
-}
-
-// HandleSerializationError wraps serialization errors.
-func (e *ErrorHandler) HandleSerializationError(err error, context string) error {
-	return derrors.Wrap(err, derrors.CodeSerializationFailed, context)
 }

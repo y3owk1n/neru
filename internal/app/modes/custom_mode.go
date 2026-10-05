@@ -33,7 +33,7 @@ type CustomMode struct {
 // NewCustomMode creates the mode implementation every declared mode runs on.
 func NewCustomMode(handler *handlerState) *CustomMode {
 	return &CustomMode{
-		baseMode: newBaseMode(handler, domain.ModeCustom, "CustomMode"),
+		baseMode: newBaseMode(handler, "CustomMode"),
 	}
 }
 

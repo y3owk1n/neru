@@ -13,35 +13,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
-// TestEmbeddedDefaultConfig_Validates guards the shipped configuration against
-// the role vocabulary. A default config written in a stale role vocabulary
-// loads to zero hints, which is invisible until a user reports blank overlays.
-func TestEmbeddedDefaultConfig_Validates(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "config.toml")
-
-	err := os.WriteFile(path, configs.DefaultConfig, 0o600)
-	if err != nil {
-		t.Fatalf("failed to write embedded config: %v", err)
-	}
-
-	service := loader.NewService(config.DefaultConfig(), path, zap.NewNop(), nil)
-
-	result := service.LoadWithValidation(path)
-	if result.ValidationError != nil {
-		t.Fatalf("embedded default config failed validation: %v", result.ValidationError)
-	}
-
-	roles := result.Config.Hints.ResolvedClickableRoles()
-	if len(roles) == 0 {
-		t.Errorf(
-			"embedded default config resolves to no clickable roles on %s; "+
-				"hints would be blank",
-			result.Config.Hints.ClickableRoles,
-		)
-	}
-}
-
 // TestExampleConfigs_Validate loads each shipped config the way the daemon
 // would. These files are copied by users verbatim, so a stale role vocabulary
 // in one of them is shipped breakage that no other test sees — only

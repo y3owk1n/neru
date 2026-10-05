@@ -46,13 +46,3 @@ func ModeString(mode Mode) string {
 func ActionString(actionType action.Type) string {
 	return actionType.String()
 }
-
-// ActionFromString converts a string to its action.Type representation.
-func ActionFromString(actionStr string) (action.Type, bool) {
-	typ, err := action.ParseType(actionStr)
-	if err != nil {
-		return action.TypeMoveMouse, false
-	}
-
-	return typ, true
-}

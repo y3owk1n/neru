@@ -12,7 +12,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/derrors"
-	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // The steps these tests round-trip through the handler.
@@ -406,20 +405,6 @@ func TestHandleMacro_MapsFailureOntoTheCodeThatDescribesIt(t *testing.T) {
 				t.Fatalf("message %q does not carry the underlying error", resp.Message)
 			}
 		})
-	}
-}
-
-func TestRegisterHandlers_RegistersRunAndMacro(t *testing.T) {
-	t.Parallel()
-
-	handlers := make(map[string]func(context.Context, ipc.Command) ipc.Response)
-
-	NewSequenceHandler(nil, nil, zap.NewNop()).RegisterHandlers(handlers)
-
-	for _, command := range []string{domain.CommandRun, domain.CommandMacro} {
-		if handlers[command] == nil {
-			t.Fatalf("no handler registered for %q", command)
-		}
 	}
 }
 

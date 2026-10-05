@@ -16,11 +16,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-const (
-	// PrefixLengthCheck is the check for prefix length.
-	PrefixLengthCheck = 2
-)
-
 // Interface is a labeled UI element for keyboard-driven navigation.
 // Hints are immutable after creation.
 type Interface struct {

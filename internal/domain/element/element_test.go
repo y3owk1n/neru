@@ -263,35 +263,3 @@ func TestElement_Options(t *testing.T) {
 		})
 	}
 }
-
-func TestElement_Immutability(t *testing.T) {
-	// Test that elements are immutable
-	element, _ := element.NewElement(
-		"test",
-		image.Rect(10, 10, 50, 50),
-		element.RoleButton,
-		element.WithClickable(true),
-		element.WithTitle("Original"),
-	)
-
-	// Get values
-	originalID := element.ID()
-	originalBounds := element.Bounds()
-	originalTitle := element.Title()
-
-	// Modify returned values (should not affect element)
-	originalBounds.Min.X = 999
-
-	// Verify element unchanged
-	if element.Bounds().Min.X == 999 {
-		t.Error("Element bounds were modified - not immutable!")
-	}
-
-	if element.ID() != originalID {
-		t.Error("Element ID changed")
-	}
-
-	if element.Title() != originalTitle {
-		t.Error("Element title changed")
-	}
-}

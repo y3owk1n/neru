@@ -95,8 +95,8 @@ func TestInit_ConsoleWritesOneLinePerEntry(t *testing.T) {
 			want: ` INFO eventtap: key handled backend=cgevent count=3 consumed=true$`,
 		},
 		{
-			name: "package helper targets the calling file and quotes spaced values",
-			log:  func() { logger.Warn("option inert", zap.String("option", "a b")) },
+			name: "unnamed logger targets the calling file and quotes spaced values",
+			log:  func() { logger.Get().Warn("option inert", zap.String("option", "a b")) },
 			want: ` WARN logger/logger_test\.go:\d+: option inert option="a b"$`,
 		},
 		{
@@ -168,21 +168,6 @@ func TestClose(t *testing.T) {
 	log := logger.Get()
 	if log == nil {
 		t.Error("Get() returned nil after Close")
-	}
-}
-
-func TestWith(t *testing.T) {
-	logger.Reset()
-
-	err := logger.Init("info", "", true, 10, 5, 30, &bytes.Buffer{})
-	if err != nil {
-		t.Fatalf("Init() error = %v", err)
-	}
-
-	// With should return a logger
-	childLogger := logger.With(zap.String("component", "test"))
-	if childLogger == nil {
-		t.Error("With() returned nil")
 	}
 }
 
@@ -331,7 +316,7 @@ func TestRaceCondition(t *testing.T) {
 	for range 5 {
 		waitGroup.Go(func() {
 			for range 100 {
-				logger.Info("background logging")
+				logger.Get().Info("background logging")
 			}
 		})
 	}

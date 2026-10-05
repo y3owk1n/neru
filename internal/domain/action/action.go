@@ -303,33 +303,6 @@ func (t Type) IsMoveMouse() bool {
 	return t == TypeMoveMouse || t == TypeMoveMouseRelative
 }
 
-// allTypes is the cached slice of all valid action types to avoid heap allocation.
-var allTypes = []Type{
-	TypeLeftClick,
-	TypeRightClick,
-	TypeMiddleClick,
-	TypeLeftMouseDown,
-	TypeLeftMouseUp,
-	TypeRightMouseDown,
-	TypeRightMouseUp,
-	TypeMiddleMouseDown,
-	TypeMiddleMouseUp,
-	TypeLeftMouseToggle,
-	TypeRightMouseToggle,
-	TypeMiddleMouseToggle,
-	TypeMoveMouse,
-	TypeMoveMouseRelative,
-	TypeScroll,
-}
-
-// AllTypes returns all valid action types.
-func AllTypes() []Type {
-	result := make([]Type, len(allTypes))
-	copy(result, allTypes)
-
-	return result
-}
-
 // Name is a named action that can be performed by the application.
 // This is used for configuration and user input, while Type is used for execution.
 type Name string

@@ -96,7 +96,6 @@ func initializeAdapters(
 	accAdapter := app.accessibility
 	if accAdapter == nil {
 		excludedBundles := cfg.General.ExcludedApps
-		clickableRoles := cfg.Hints.ClickableRoles
 
 		// Create infrastructure client.
 		axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService)
@@ -108,7 +107,6 @@ func initializeAdapters(
 		accAdapter = accessibilityAdapter.NewAdapter(
 			logger,
 			excludedBundles,
-			clickableRoles,
 			axClient,
 			cfg.Hints.DetectMissionControl,
 		)

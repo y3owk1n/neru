@@ -50,24 +50,6 @@ func (a *Adapter) Feed(ctx context.Context, key string) error {
 // Ensure Adapter implements ports.KeyFeedPort.
 var _ ports.KeyFeedPort = (*Adapter)(nil)
 
-// Feed posts a key or key chord directly to the OS.
-//
-// Key strings follow the canonical form used by config.CanonicalHotkeyForPlatform:
-//   - single character: "a", "B", "1"
-//   - named key: "Return", "F1", "Space"
-//   - modifier+key: "Ctrl+c", "Shift+F1", "Ctrl+Shift+Space"
-//
-// Prefer the Adapter; this function remains for callers that have no port
-// handy, and returns CodeNotSupported on platforms without an injection path.
-func Feed(key string) error {
-	normalized, err := NormalizeKeyForFeed(key)
-	if err != nil {
-		return err
-	}
-
-	return postKey(normalized)
-}
-
 // NormalizeKeyForFeed normalizes a key string for feeding to the OS.
 //
 // A single uppercase letter (A-Z) with no explicit modifier gets Shift injected

@@ -108,20 +108,6 @@ func TestInitIntegration(t *testing.T) {
 	}
 }
 
-func TestGetIntegration(t *testing.T) {
-	// Reset global logger
-	logger.Reset()
-
-	// Get should return a loggerInstance even if not initialized
-	loggerInstance := logger.Get()
-	if loggerInstance == nil {
-		t.Error("Get() returned nil")
-	}
-
-	// Clean up
-	_ = logger.Close()
-}
-
 func TestLoggingFunctions(t *testing.T) {
 	// Initialize logger
 	tempDir := t.TempDir()
@@ -150,7 +136,7 @@ func TestLoggingFunctions(t *testing.T) {
 		{
 			name: "Debug",
 			fn: func() {
-				logger.Debug("test debug message", zap.String("key", "value"))
+				logger.Get().Debug("test debug message", zap.String("key", "value"))
 			},
 			wantLevel:  "DEBUG",
 			wantFields: map[string]any{"key": "value"},
@@ -158,7 +144,7 @@ func TestLoggingFunctions(t *testing.T) {
 		{
 			name: "Info",
 			fn: func() {
-				logger.Info("test info message", zap.Int("count", 42))
+				logger.Get().Info("test info message", zap.Int("count", 42))
 			},
 			wantLevel:  "INFO",
 			wantFields: map[string]any{"count": float64(42)},
@@ -166,7 +152,7 @@ func TestLoggingFunctions(t *testing.T) {
 		{
 			name: "Warn",
 			fn: func() {
-				logger.Warn("test warn message", zap.Bool("flag", true))
+				logger.Get().Warn("test warn message", zap.Bool("flag", true))
 			},
 			wantLevel:  "WARN",
 			wantFields: map[string]any{"flag": true},
@@ -174,7 +160,7 @@ func TestLoggingFunctions(t *testing.T) {
 		{
 			name: "Error",
 			fn: func() {
-				logger.Error("test error message", zap.Error(os.ErrNotExist))
+				logger.Get().Error("test error message", zap.Error(os.ErrNotExist))
 			},
 			wantLevel:  "ERROR",
 			wantFields: map[string]any{"error": os.ErrNotExist.Error()},
@@ -263,67 +249,6 @@ func findLogEntry(t *testing.T, path, message string) map[string]any {
 	return matches[0]
 }
 
-func TestWithIntegration(t *testing.T) {
-	// Initialize logger
-	err := logger.Init(logLevelInfo, "", true, 10, 3, 7, nil)
-	if err != nil {
-		t.Fatalf("Init() failed: %v", err)
-	}
-
-	defer func() {
-		_ = logger.Close()
-	}()
-
-	// Create child logger
-	childLogger := logger.With(zap.String("component", "test"))
-	if childLogger == nil {
-		t.Error("With() returned nil")
-	}
-
-	// Should not panic
-	childLogger.Info("test message")
-}
-
-func TestSyncIntegration(t *testing.T) {
-	// Initialize logger
-	tempDir := t.TempDir()
-	logPath := filepath.Join(tempDir, "test.log")
-
-	initErr := logger.Init(logLevelInfo, logPath, false, 10, 3, 7, nil)
-	if initErr != nil {
-		t.Fatalf("Init() failed: %v", initErr)
-	}
-
-	defer logger.Close() //nolint:errcheck
-
-	// Write some logs
-	logger.Info("test message 1")
-	logger.Info("test message 2")
-
-	// Sync may error on stdout/stderr, which is expected
-	_ = logger.Sync()
-}
-
-func TestCloseIntegration(t *testing.T) {
-	// Initialize logger
-	tempDir := t.TempDir()
-	logPath := filepath.Join(tempDir, "test.log")
-
-	initErr := logger.Init(logLevelInfo, logPath, false, 10, 3, 7, nil)
-	if initErr != nil {
-		t.Fatalf("Init() failed: %v", initErr)
-	}
-
-	// Write some logs
-	logger.Info("test message")
-
-	// Close may error on stdout/stderr sync, which is expected
-	_ = logger.Close()
-
-	// Note: globalLogger may not be nil if sync failed
-	// This is acceptable behavior
-}
-
 func TestLogLevels(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -376,7 +301,7 @@ func TestFileRotation(t *testing.T) {
 
 	// Write enough logs to trigger rotation
 	for range 1000 {
-		logger.Info("test message with some content to fill up the log file")
+		logger.Get().Info("test message with some content to fill up the log file")
 	}
 
 	// Sync to ensure all logs are written

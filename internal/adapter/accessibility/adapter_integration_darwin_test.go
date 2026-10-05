@@ -28,7 +28,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	log := logger.Get()
 	client := native.New(log, nil)
 
-	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
+	adapter := accessibility.NewAdapter(log, nil, client, false)
 	system := darwinplatform.NewSystemAdapter()
 
 	// Bounded rather than context.Background(), but note what this does and

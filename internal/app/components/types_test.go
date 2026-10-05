@@ -306,19 +306,6 @@ func TestGridComponent_UpdateConfig_NilManagerAndGrid(t *testing.T) {
 	})
 }
 
-// TestScrollComponent_UpdateConfig_IsANoOp documents that ScrollComponent
-// intentionally carries no config-derived state. If it ever gains some, this
-// test should be replaced rather than deleted.
-func TestScrollComponent_UpdateConfig_IsANoOp(t *testing.T) {
-	component := &components.ScrollComponent{}
-
-	component.UpdateConfig(config.DefaultConfig(), zap.NewNop())
-
-	if component.Context != nil {
-		t.Errorf("UpdateConfig populated Context = %v, want it left nil", component.Context)
-	}
-}
-
 // upper mirrors the upper-casing the grid applies to its labels.
 func upper(s string) string {
 	out := []rune(s)

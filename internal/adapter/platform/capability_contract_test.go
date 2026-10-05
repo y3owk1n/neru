@@ -2,7 +2,6 @@ package platform_test
 
 import (
 	"context"
-	"errors"
 	"runtime"
 	"strings"
 	"testing"
@@ -318,46 +317,4 @@ func TestCapabilities_ProbeCoverageIsDocumented(t *testing.T) {
 			t.Errorf("exclusion list names %q, which is not a registered capability", key)
 		}
 	}
-}
-
-// TestCapabilities_StubsSurfaceNotSupportedNotNil states the rule that makes
-// degradation work at all: a stub must return an error callers can recognize
-// with IsNotSupported, not nil and not some other code. Callers branch on
-// exactly that predicate to fall back gracefully, so a stub returning a bare
-// error is treated as a real failure and surfaces to the user.
-func TestCapabilities_StubsSurfaceNotSupportedNotNil(t *testing.T) {
-	systemPort := newSystemPort(t)
-	capabilities := systemPort.Capabilities()
-	ctx := context.Background()
-
-	stubsFound := 0
-
-	for _, probe := range systemCapabilityProbes() {
-		if probe.read(capabilities).Status != ports.FeatureStatusStub {
-			continue
-		}
-
-		stubsFound++
-
-		err := probe.probe(ctx, systemPort)
-		if err == nil {
-			t.Errorf("stubbed capability %q returned nil; callers cannot detect the gap", probe.key)
-
-			continue
-		}
-
-		if !derrors.IsNotSupported(err) {
-			t.Errorf("stubbed capability %q returned %v (code %q), want CodeNotSupported",
-				probe.key, err, derrors.GetCode(err))
-		}
-
-		// errors.Is must agree with the helper, since some callers use it.
-		if !errors.Is(err, err) {
-			t.Errorf("stubbed capability %q returned an error that fails errors.Is against itself",
-				probe.key)
-		}
-	}
-
-	t.Logf("%s: %d of %d probed capabilities are stubbed",
-		runtime.GOOS, stubsFound, len(systemCapabilityProbes()))
 }

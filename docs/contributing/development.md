@@ -305,7 +305,7 @@ the real adapter.
 ### Mode interface contract
 
 Every navigation mode implements `Mode` (`Activate(modecmd.Activation)`,
-`HandleKey(string)`, `Exit()`, `ModeType()`,
+`HandleKey(string)`, `Exit()`,
 `RefreshForMonitorMove(context.Context, image.Rectangle)`) from
 [handler.go](../../internal/app/modes/handler.go). A flag that varies
 activation is a [modecmd](../../internal/domain/modecmd) descriptor plus an

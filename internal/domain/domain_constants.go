@@ -125,11 +125,6 @@ const (
 	ShellCommandTimeout = 30 * time.Second
 )
 
-// Default values.
-const (
-	DefaultExitKey = "Escape"
-)
-
 // BaseManager provides common functionality for domain managers.
 // It contains shared fields and methods used across different domain managers.
 type BaseManager struct {

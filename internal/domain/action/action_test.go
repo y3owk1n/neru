@@ -164,49 +164,28 @@ func TestType_IsMoveMouse(t *testing.T) {
 	}
 }
 
-func TestAllTypes(t *testing.T) {
-	types := action.AllTypes()
-
-	if len(types) != 15 {
-		t.Errorf("AllTypes() returned %d types, want 15", len(types))
-	}
-
-	seen := make(map[action.Type]bool)
-	for _, typ := range types {
-		if seen[typ] {
-			t.Errorf("AllTypes() contains duplicate: %v", typ)
-		}
-
-		seen[typ] = true
-	}
-
-	expected := []action.Type{
-		action.TypeLeftClick,
-		action.TypeRightClick,
-		action.TypeMiddleClick,
-		action.TypeLeftMouseDown,
-		action.TypeLeftMouseUp,
-		action.TypeRightMouseDown,
-		action.TypeRightMouseUp,
-		action.TypeMiddleMouseDown,
-		action.TypeMiddleMouseUp,
-		action.TypeLeftMouseToggle,
-		action.TypeRightMouseToggle,
-		action.TypeMiddleMouseToggle,
-		action.TypeMoveMouse,
-		action.TypeMoveMouseRelative,
-		action.TypeScroll,
-	}
-
-	for _, exp := range expected {
-		if !seen[exp] {
-			t.Errorf("AllTypes() missing type: %v", exp)
-		}
-	}
+// everyType lists each action type the round-trip tests walk. Add a new type
+// here so the tests check its String/ParseType and ToName/ToType pairs.
+var everyType = []action.Type{
+	action.TypeLeftClick,
+	action.TypeRightClick,
+	action.TypeMiddleClick,
+	action.TypeLeftMouseDown,
+	action.TypeLeftMouseUp,
+	action.TypeRightMouseDown,
+	action.TypeRightMouseUp,
+	action.TypeMiddleMouseDown,
+	action.TypeMiddleMouseUp,
+	action.TypeLeftMouseToggle,
+	action.TypeRightMouseToggle,
+	action.TypeMiddleMouseToggle,
+	action.TypeMoveMouse,
+	action.TypeMoveMouseRelative,
+	action.TypeScroll,
 }
 
 func TestParseType_RoundTrip(t *testing.T) {
-	for _, typ := range action.AllTypes() {
+	for _, typ := range everyType {
 		str := typ.String()
 
 		parsedType, parsedTypeErr := action.ParseType(str)
@@ -501,7 +480,7 @@ func TestName_ToType(t *testing.T) {
 
 func TestType_Name_RoundTrip(t *testing.T) {
 	// Test that ToName() and ToType() are inverses for all valid types
-	for _, typ := range action.AllTypes() {
+	for _, typ := range everyType {
 		name := typ.ToName()
 
 		parsedType, err := name.ToType()

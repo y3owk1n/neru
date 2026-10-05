@@ -6,7 +6,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -33,7 +32,7 @@ type HintsMode struct {
 // NewHintsMode creates a new hints mode implementation.
 func NewHintsMode(handler *handlerState) *HintsMode {
 	return &HintsMode{
-		baseMode: newBaseMode(handler, domain.ModeHints, "HintsMode"),
+		baseMode: newBaseMode(handler, "HintsMode"),
 	}
 }
 

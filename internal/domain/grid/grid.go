@@ -98,12 +98,6 @@ const (
 	// DefaultMaxLabelLength preserves the grid's existing automatic 2–4 key
 	// coordinate selection and layout when no lower limit is supplied.
 	DefaultMaxLabelLength = LabelLength4
-
-	// CountsCapacity is the capacity for counts.
-	CountsCapacity = 5
-
-	// PrefixLengthCheck is the check for prefix length.
-	PrefixLengthCheck = 2
 )
 
 // Grid is a coordinate grid system for spatial navigation with optimized cell sizing.

@@ -14,17 +14,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
-// isMouseButtonActionName reports whether the action name presses, releases,
-// toggles, or clicks a mouse button.
-func isMouseButtonActionName(actionName string) bool {
-	actionType, typeErr := action.ParseType(actionName)
-	if typeErr != nil {
-		return false
-	}
-
-	return actionType.IsMouseButton()
-}
-
 // resolveMouseButtonPhase maps a click action carrying --state or --toggle onto
 // the action that performs that phase of the click (for example left_click with
 // --state down becomes mouse_down). Actions carrying neither flag are returned

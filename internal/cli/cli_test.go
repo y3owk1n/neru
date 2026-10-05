@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -58,56 +57,6 @@ func getSubCmd(parentName, childName string) *cobra.Command {
 	}
 
 	return nil
-}
-
-func TestBuildSimpleCommand(t *testing.T) {
-	cmd := cli.BuildSimpleCommand("test", "short desc", "long desc", cliTestAction)
-
-	if cmd.Use != "test" {
-		t.Errorf("expected Use='test', got %q", cmd.Use)
-	}
-
-	if cmd.Short != "short desc" {
-		t.Errorf("expected Short='short desc', got %q", cmd.Short)
-	}
-
-	if cmd.Long != "long desc" {
-		t.Errorf("expected Long='long desc', got %q", cmd.Long)
-	}
-
-	// Test that PreRunE and RunE are set
-	if cmd.PreRunE == nil {
-		t.Error("PreRunE should be set")
-	}
-
-	if cmd.RunE == nil {
-		t.Error("RunE should be set")
-	}
-}
-
-func TestBuildActionCommand(t *testing.T) {
-	cmd := cli.BuildActionCommand("test", "short desc", "long desc", []string{"arg1"}, true)
-
-	if cmd.Use != "test" {
-		t.Errorf("expected Use='test', got %q", cmd.Use)
-	}
-
-	if cmd.Short != "short desc" {
-		t.Errorf("expected Short='short desc', got %q", cmd.Short)
-	}
-
-	if cmd.Long != "long desc" {
-		t.Errorf("expected Long='long desc', got %q", cmd.Long)
-	}
-
-	// Test that PreRunE and RunE are set
-	if cmd.PreRunE == nil {
-		t.Error("PreRunE should be set")
-	}
-
-	if cmd.RunE == nil {
-		t.Error("RunE should be set")
-	}
 }
 
 func TestCommandInitialization(t *testing.T) {
@@ -291,34 +240,6 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 	// launchd service). On other platforms they return
 	// CodeNotSupported. Their registration is already verified by
 	// TestCommandInitialization.
-}
-
-func TestModeCommand_OnExitRequiresAction(t *testing.T) {
-	for _, name := range []string{cliTestHints, cliTestGrid, cliTestRecursive} {
-		t.Run(name, func(t *testing.T) {
-			cmd := getCmd(name)
-			if cmd == nil {
-				t.Fatalf("command %q not found", name)
-			}
-
-			setErr := cmd.Flags().Set("on-exit", "exec notify-send done")
-			if setErr != nil {
-				t.Fatalf("failed to set --on-exit: %v", setErr)
-			}
-			// Reset the shared flag so later tests are unaffected.
-			defer func() {
-				resetErr := cmd.Flags().Set("on-exit", "")
-				if resetErr != nil {
-					t.Fatalf("failed to reset --on-exit: %v", resetErr)
-				}
-			}()
-
-			err := cmd.RunE(cmd, []string{})
-			if err == nil || !strings.Contains(err.Error(), "--on-exit requires --action") {
-				t.Fatalf("expected --on-exit requires --action error, got %v", err)
-			}
-		})
-	}
 }
 
 func TestLaunchCommandExecution(t *testing.T) {

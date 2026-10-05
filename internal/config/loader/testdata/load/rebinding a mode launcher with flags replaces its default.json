@@ -1,0 +1,7 @@
+{
+  "delta": [
+    "+ .hotkeys.bindings.Primary+Alt+X[0] = \"recursive_grid --cursor-selection-mode hold\"",
+    "- .hotkeys.bindings.Primary+Shift+C[0] = \"recursive_grid\""
+  ],
+  "validationError": ""
+}

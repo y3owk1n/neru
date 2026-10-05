@@ -23,7 +23,7 @@ type ScrollMode struct {
 // NewScrollMode creates a new scroll mode implementation.
 func NewScrollMode(handler *handlerState) *ScrollMode {
 	return &ScrollMode{
-		baseMode: newBaseMode(handler, domain.ModeScroll, "ScrollMode"),
+		baseMode: newBaseMode(handler, "ScrollMode"),
 	}
 }
 

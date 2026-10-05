@@ -2,12 +2,12 @@ package accessibility_test
 
 import (
 	"context"
+	"runtime"
 	"testing"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility"
-	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // newTestAdapter builds an adapter over the mock AX client with no exclusions.
@@ -17,7 +17,6 @@ func newTestAdapter(t *testing.T) *accessibility.Adapter {
 	return accessibility.NewAdapter(
 		zap.NewNop(),
 		nil,
-		[]string{"AXButton"},
 		&accessibility.MockAXClient{},
 		false,
 	)
@@ -26,9 +25,10 @@ func newTestAdapter(t *testing.T) *accessibility.Adapter {
 // TestAdapter_PrimeApplication covers the port method that replaced the
 // free-function electron.EnsureAccessibility.
 //
-// Backends whose trees are eagerly available report ready immediately, and the
-// contract explicitly forbids CodeNotSupported here — "nothing to do" is
-// success, not an unsupported operation.
+// The contract forbids an error here, CodeNotSupported included, because
+// "nothing to do" counts as success. Eager backends report ready at once. On
+// darwin the call polls the real AX tree, so ready depends on the host and the
+// test does not check it there.
 func TestAdapter_PrimeApplication(t *testing.T) {
 	t.Parallel()
 
@@ -39,11 +39,9 @@ func TestAdapter_PrimeApplication(t *testing.T) {
 		t.Fatalf("PrimeApplication() error = %v, want nil", err)
 	}
 
-	if derrors.IsNotSupported(err) {
-		t.Error("PrimeApplication() reported CodeNotSupported; eager backends must report ready")
+	if runtime.GOOS != "darwin" && !ready {
+		t.Error("PrimeApplication() ready = false, want true on an eager backend")
 	}
-
-	_ = ready // platform-dependent: darwin polls the tree, others report true.
 }
 
 // TestAdapter_PrimeApplicationHonorsCanceledContext pins that the retry loop in

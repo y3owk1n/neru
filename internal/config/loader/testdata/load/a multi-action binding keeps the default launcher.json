@@ -1,0 +1,7 @@
+{
+  "delta": [
+    "+ .hotkeys.bindings.Primary+Alt+T[0] = \"action save_cursor_pos\"",
+    "+ .hotkeys.bindings.Primary+Alt+T[1] = \"hints\""
+  ],
+  "validationError": ""
+}

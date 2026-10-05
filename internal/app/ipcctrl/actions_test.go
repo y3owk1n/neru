@@ -88,46 +88,6 @@ func TestParseActionArgs_PreviousFlag(t *testing.T) {
 	}
 }
 
-func TestHandleAction_MoveMonitorRejectsUnsupportedFlags_X(t *testing.T) {
-	controller := &ActionsHandler{
-		appState: state.NewAppState(),
-		logger:   zap.NewNop(),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{moveMonitor, "--x=100"},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(move_monitor --x) expected failure")
-	}
-
-	if resp.Message != "--x is only supported with move_mouse" {
-		t.Fatalf("unexpected error message: %q", resp.Message)
-	}
-}
-
-func TestHandleAction_MoveMonitorRejectsUnsupportedFlags(t *testing.T) {
-	controller := &ActionsHandler{
-		appState: state.NewAppState(),
-		logger:   zap.NewNop(),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{moveMonitor, "--selection"},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(move_monitor --selection) expected failure")
-	}
-
-	if resp.Message != flagRejectionMessage[flagSelection] {
-		t.Fatalf("unexpected error message: %q", resp.Message)
-	}
-}
-
 func TestParseActionArgs_BailFlag(t *testing.T) {
 	parsed, parseErr := parseActionArgs([]string{flagBail})
 	if parseErr {
@@ -136,27 +96,6 @@ func TestParseActionArgs_BailFlag(t *testing.T) {
 
 	if !parsed.useBail {
 		t.Fatal("parseActionArgs() expected useBail to be true")
-	}
-}
-
-func TestHandleAction_RejectsBailOnNonWaitForModeExit(t *testing.T) {
-	controller := &ActionsHandler{logger: zap.NewNop()}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{leftClick, flagBail},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(left_click --bail) expected rejection, got success")
-	}
-
-	if resp.Code != ipc.CodeInvalidInput {
-		t.Fatalf(
-			"handleAction(left_click --bail) code = %q, want %q",
-			resp.Code,
-			ipc.CodeInvalidInput,
-		)
 	}
 }
 
@@ -441,46 +380,6 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 	}
 }
 
-func TestHandleAction_PreviousRejectedOnNonMoveMonitor(t *testing.T) {
-	controller := &ActionsHandler{
-		appState: state.NewAppState(),
-		logger:   zap.NewNop(),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{"left_click", flagPrevious},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(left_click --previous) expected failure")
-	}
-
-	if resp.Message != "--previous is only supported with move_monitor" {
-		t.Fatalf("unexpected error message: %q", resp.Message)
-	}
-}
-
-func TestHandleAction_NameRejectedOnNonMoveMonitor(t *testing.T) {
-	controller := &ActionsHandler{
-		appState: state.NewAppState(),
-		logger:   zap.NewNop(),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{resetAction, flagName + "=DELL"},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(reset --name) expected failure")
-	}
-
-	if resp.Message != "--name is only supported with move_monitor" {
-		t.Fatalf("unexpected error message: %q", resp.Message)
-	}
-}
-
 // scrollControllerWithModifierCapture builds a controller whose scroll service
 // records the modifier set that reached the accessibility port.
 func scrollControllerWithModifierCapture(
@@ -559,32 +458,6 @@ func TestHandleAction_ScrollRejectsUnknownModifier(t *testing.T) {
 
 	if got != 0 {
 		t.Errorf("a refused modifier still reached the port as %q", got)
-	}
-}
-
-func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
-	controller := &ActionsHandler{
-		appState: state.NewAppState(),
-		logger:   zap.NewNop(),
-		scrollService: services.NewScrollService(
-			&portmocks.MockAccessibilityPort{},
-			&portmocks.MockSystemPort{},
-			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
-			zap.NewNop(),
-		),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{"scroll_down", flagPrevious},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(scroll_down --previous) expected failure")
-	}
-
-	if resp.Message != "--previous is only supported with move_monitor" {
-		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
 

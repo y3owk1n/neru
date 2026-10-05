@@ -206,19 +206,19 @@ func TestCheckModeExtensions_RejectsAModeThatStatesNothing(t *testing.T) {
 	}{
 		{
 			name:       "a registered mode with no row at all",
-			registered: map[domain.Mode]Mode{newMode: &stubMode{modeType: newMode}},
+			registered: map[domain.Mode]Mode{newMode: &stubMode{}},
 			matrix:     map[domain.Mode][]extensionName{},
 		},
 		{
 			name: "a mode carrying an extension its row does not state",
 			registered: map[domain.Mode]Mode{
-				newMode: &stubSelectionTrackingMode{stubMode{modeType: newMode}},
+				newMode: &stubSelectionTrackingMode{stubMode{}},
 			},
 			matrix: map[domain.Mode][]extensionName{newMode: {}},
 		},
 		{
 			name:       "a mode whose row claims an extension it does not carry",
-			registered: map[domain.Mode]Mode{newMode: &stubMode{modeType: newMode}},
+			registered: map[domain.Mode]Mode{newMode: &stubMode{}},
 			matrix:     map[domain.Mode][]extensionName{newMode: {extensionCellNavigation}},
 		},
 		{
@@ -246,7 +246,7 @@ func TestCheckModeExtensions_AcceptsAFullyStatedMode(t *testing.T) {
 
 	problems := checkModeExtensions(
 		map[domain.Mode]Mode{
-			newMode: &stubSelectionTrackingMode{stubMode{modeType: newMode}},
+			newMode: &stubSelectionTrackingMode{stubMode{}},
 		},
 		map[domain.Mode][]extensionName{newMode: {extensionSelectionTracking}},
 	)
@@ -380,14 +380,11 @@ func checkModeExtensions(
 }
 
 // stubMode is a mode carrying no optional extension at all.
-type stubMode struct {
-	modeType domain.Mode
-}
+type stubMode struct{}
 
 func (m *stubMode) Activate(modecmd.Activation)                            {}
 func (m *stubMode) HandleKey(string)                                       {}
 func (m *stubMode) Exit()                                                  {}
-func (m *stubMode) ModeType() domain.Mode                                  { return m.modeType }
 func (m *stubMode) RefreshForMonitorMove(context.Context, image.Rectangle) {}
 
 // stubSelectionTrackingMode is a mode carrying exactly one of them.

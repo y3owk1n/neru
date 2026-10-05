@@ -10,8 +10,9 @@ const testColorFieldName = "test_color"
 
 const testThemeFieldName = "theme.light.surface"
 
-// TestValidateColor tests the validateColor function.
-func TestValidateColor(t *testing.T) {
+// TestColor_Validate pins the hex grammar a theme-aware color accepts, on both
+// of its sides.
+func TestColor_Validate(t *testing.T) {
 	tests := []struct {
 		name      string
 		color     string
@@ -86,11 +87,16 @@ func TestValidateColor(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := config.ValidateColor(tt.color, tt.fieldName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateColor() error = %v, wantErr %v", err, tt.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			for side, color := range map[string]config.Color{
+				"light": {Light: testCase.color},
+				"dark":  {Dark: testCase.color},
+			} {
+				err := color.Validate(testCase.fieldName)
+				if (err != nil) != testCase.wantErr {
+					t.Errorf("Validate() on %s error = %v, wantErr %v", side, err, testCase.wantErr)
+				}
 			}
 		})
 	}

@@ -1,0 +1,7 @@
+{
+  "delta": [
+    "- .hotkeys.bindings.Primary+Shift+Space[0] = \"hints\"",
+    "~ .hints.enabled: true -\u003e false"
+  ],
+  "validationError": ""
+}

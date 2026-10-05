@@ -1,0 +1,7 @@
+{
+  "delta": [
+    "+ .hotkeys.bindings.Primary+Alt+G[0] = \"grid\"",
+    "- .hotkeys.bindings.Primary+Shift+G[0] = \"grid\""
+  ],
+  "validationError": ""
+}

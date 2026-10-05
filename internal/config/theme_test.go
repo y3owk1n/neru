@@ -241,24 +241,6 @@ func TestForTheme_ThemeAwareDefaults(t *testing.T) {
 	}
 }
 
-func TestDefaultConfig_ResolvesThemeDefaults(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	if cfg.Hints.UI.BackgroundColor.Light != config.HintsBackgroundColorLight {
-		t.Fatalf("expected default hints light background %q, got %q",
-			config.HintsBackgroundColorLight,
-			cfg.Hints.UI.BackgroundColor.Light,
-		)
-	}
-
-	if cfg.Grid.UI.MatchedBackgroundColor.Dark != config.GridMatchedBackgroundColorDark {
-		t.Fatalf("expected default grid dark matched background %q, got %q",
-			config.GridMatchedBackgroundColorDark,
-			cfg.Grid.UI.MatchedBackgroundColor.Dark,
-		)
-	}
-}
-
 func TestLoadWithValidation_ThemePaletteDrivesDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.toml")

@@ -25,8 +25,6 @@ const (
 	SystrayQuitTimeout = 10 * time.Second
 	// StopTimeout is the timeout for IPC server stop during cleanup.
 	StopTimeout = 5 * time.Second
-	// GCTickerInterval is the interval for garbage collection.
-	GCTickerInterval = 5 * time.Minute
 
 	// HighMemoryThreshold is the heap allocation threshold for triggering GC (100MB).
 	HighMemoryThreshold = 100 * 1024 * 1024 // 100MB

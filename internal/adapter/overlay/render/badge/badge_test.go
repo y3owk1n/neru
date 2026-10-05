@@ -326,55 +326,6 @@ func TestCenteredOn_CentersAndKeepsSize(t *testing.T) {
 	}
 }
 
-func TestCenteredOn_MatchesCenteredIn(t *testing.T) {
-	t.Parallel()
-
-	container := image.Rect(0, 0, 100, 100)
-	center := image.Pt(50, 50)
-
-	tests := []struct {
-		name          string
-		width, height int
-		wantOn        image.Rectangle
-		wantIn        image.Rectangle
-	}{
-		{
-			name:   "even dimensions agree",
-			width:  40,
-			height: 20,
-			wantOn: image.Rect(30, 40, 70, 60),
-			wantIn: image.Rect(30, 40, 70, 60),
-		},
-		{
-			name:   "odd dimensions agree",
-			width:  41,
-			height: 21,
-			wantOn: image.Rect(30, 40, 71, 61),
-			wantIn: image.Rect(30, 40, 71, 61),
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			gotOn := badge.CenteredOn(center, testCase.width, testCase.height)
-			if gotOn != testCase.wantOn {
-				t.Errorf("CenteredOn = %v, want %v", gotOn, testCase.wantOn)
-			}
-
-			gotIn := badge.CenteredIn(container, testCase.width, testCase.height)
-			if gotIn != testCase.wantIn {
-				t.Errorf("CenteredIn = %v, want %v", gotIn, testCase.wantIn)
-			}
-
-			if gotOn != gotIn {
-				t.Errorf("CenteredOn = %v, CenteredIn = %v", gotOn, gotIn)
-			}
-		})
-	}
-}
-
 func TestBorderRadius_Modes(t *testing.T) {
 	t.Parallel()
 

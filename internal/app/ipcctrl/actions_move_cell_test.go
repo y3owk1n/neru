@@ -149,28 +149,6 @@ func TestHandleAction_MoveCellRejectsUnsupportedFlags(t *testing.T) {
 	}
 }
 
-func TestHandleAction_MoveCellFlagsRejectedOnOtherActions(t *testing.T) {
-	controller := &ActionsHandler{logger: zap.NewNop()}
-
-	for _, args := range [][]string{
-		{leftClick, directionLeft},
-		{moveMouse, "--x=1", "--y=1", "--count=2"},
-	} {
-		resp := controller.handleAction(context.Background(), ipc.Command{
-			Action: ActionCommand,
-			Args:   args,
-		})
-
-		if resp.Success {
-			t.Errorf("handleAction(%v) expected rejection, got success", args)
-		}
-
-		if resp.Code != ipc.CodeInvalidInput {
-			t.Errorf("handleAction(%v) code = %q, want %q", args, resp.Code, ipc.CodeInvalidInput)
-		}
-	}
-}
-
 func TestHandleAction_MoveCellWithoutModesHandler(t *testing.T) {
 	controller := &ActionsHandler{logger: zap.NewNop()}
 

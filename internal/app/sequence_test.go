@@ -99,7 +99,7 @@ func TestExecuteActionSequence_RunsEveryStepInOrder(t *testing.T) {
 
 	steps := []string{stepOne, stepTwo, stepThree}
 
-	outcome := application.executeActionSequence(context.Background(), "test", steps)
+	outcome := application.sequences().Run(context.Background(), "test", steps)
 
 	if outcome.Err != nil {
 		t.Fatalf("outcome.Err = %v, want nil", outcome.Err)
@@ -118,7 +118,7 @@ func TestExecuteActionSequence_SkipsBlankSteps(t *testing.T) {
 	recorder := &stepRecorder{}
 	application := newSequenceTestApp(t, recorder)
 
-	outcome := application.executeActionSequence(
+	outcome := application.sequences().Run(
 		context.Background(),
 		"test",
 		[]string{"", stepOne, "   ", stepTwo},
@@ -150,7 +150,7 @@ func TestExecuteActionSequence_StopsOnBail(t *testing.T) {
 	}
 	application := newSequenceTestApp(t, recorder)
 
-	outcome := application.executeActionSequence(
+	outcome := application.sequences().Run(
 		context.Background(),
 		"test",
 		[]string{stepOne, stepTwo, stepThree},
@@ -189,7 +189,7 @@ func TestExecuteActionSequence_ContinuesAfterStepFailure(t *testing.T) {
 
 	steps := []string{stepOne, stepTwo, stepThree}
 
-	outcome := application.executeActionSequence(context.Background(), "test", steps)
+	outcome := application.sequences().Run(context.Background(), "test", steps)
 
 	if outcome.Bailed {
 		t.Fatal("outcome.Bailed = true, want false for a regular failure")
@@ -226,7 +226,7 @@ func TestExecuteActionSequence_StopsRunawayNesting(t *testing.T) {
 			depth++
 			depthMu.Unlock()
 
-			application.executeActionSequence(ctx, "nested", []string{"step deeper"})
+			application.sequences().Run(ctx, "nested", []string{"step deeper"})
 
 			return ipc.Response{Success: true, Code: ipc.CodeOK}
 		},
@@ -234,7 +234,7 @@ func TestExecuteActionSequence_StopsRunawayNesting(t *testing.T) {
 
 	application = newSequenceTestApp(t, recorder)
 
-	application.executeActionSequence(context.Background(), "test", []string{stepOne})
+	application.sequences().Run(context.Background(), "test", []string{stepOne})
 
 	depthMu.Lock()
 	defer depthMu.Unlock()
@@ -262,7 +262,7 @@ func TestExecuteActionSequence_StopsAtAFatalStep(t *testing.T) {
 	}
 	application := newSequenceTestApp(t, recorder)
 
-	outcome := application.executeActionSequence(
+	outcome := application.sequences().Run(
 		context.Background(),
 		"test",
 		[]string{stepOne, stepTwo + " " + sequence.BailOnErrorFlag, stepThree},
@@ -389,7 +389,7 @@ func TestExecuteActionSequence_RejectsMisplacedDirective(t *testing.T) {
 	recorder := &stepRecorder{}
 	application := newSequenceTestApp(t, recorder)
 
-	outcome := application.executeActionSequence(
+	outcome := application.sequences().Run(
 		context.Background(),
 		"test",
 		[]string{stepOne + " " + sequence.BailOnErrorFlag + " --bare", stepTwo},
@@ -426,7 +426,7 @@ func TestExecuteActionSequence_ExpandsAMacro(t *testing.T) {
 		"two": {stepOne, stepTwo},
 	})
 
-	outcome := application.executeActionSequence(
+	outcome := application.sequences().Run(
 		context.Background(),
 		"test",
 		[]string{"macro two", stepThree},
@@ -453,7 +453,7 @@ func TestExecuteActionSequence_SubstitutesMacroArguments(t *testing.T) {
 		"say": {"step $2 $1"},
 	})
 
-	application.executeActionSequence(
+	application.sequences().Run(
 		context.Background(),
 		"test",
 		[]string{"macro say alpha beta"},
@@ -483,7 +483,7 @@ func TestExecuteActionSequence_RejectsBadMacroCalls(t *testing.T) {
 				"needs_two": {"step $1 $2"},
 			})
 
-			outcome := application.executeActionSequence(
+			outcome := application.sequences().Run(
 				context.Background(),
 				"test",
 				[]string{testCase.step},
@@ -508,7 +508,7 @@ func TestExecuteActionSequence_StopsASelfInvokingMacro(t *testing.T) {
 		"loop": {stepOne, "macro loop"},
 	})
 
-	outcome := application.executeActionSequence(
+	outcome := application.sequences().Run(
 		context.Background(),
 		"test",
 		[]string{"macro loop"},
@@ -543,7 +543,7 @@ func TestExecuteActionSequence_PropagatesABailOutOfAMacro(t *testing.T) {
 		"bails": {stepOne},
 	})
 
-	outcome := application.executeActionSequence(
+	outcome := application.sequences().Run(
 		context.Background(),
 		"test",
 		[]string{"macro bails", stepTwo},
@@ -570,7 +570,7 @@ func TestExecuteActionSequence_BailDirectiveIsNotAMacroArgument(t *testing.T) {
 		"needs_two": {"step $1 $2"},
 	})
 
-	outcome := application.executeActionSequence(
+	outcome := application.sequences().Run(
 		context.Background(),
 		"test",
 		[]string{"macro needs_two alpha beta " + sequence.BailOnErrorFlag, stepThree},

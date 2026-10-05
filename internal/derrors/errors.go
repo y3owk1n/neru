@@ -28,9 +28,6 @@ const (
 	// CodeIPCFailed indicates IPC communication failed.
 	CodeIPCFailed Code = "IPC_FAILED"
 
-	// CodeIPCAlreadyRunning indicates the IPC server is already running.
-	CodeIPCAlreadyRunning Code = "IPC_ALREADY_RUNNING"
-
 	// CodeIPCServerNotRunning indicates the IPC server is not running.
 	CodeIPCServerNotRunning Code = "IPC_SERVER_NOT_RUNNING"
 
@@ -236,21 +233,6 @@ func GetCode(err error) Code {
 // Is is a helper function that checks if an error is of a specific type.
 func Is(err error, target error) bool {
 	return errors.Is(err, target)
-}
-
-// IsAccessibilityError checks if an error is accessibility-related.
-func IsAccessibilityError(err error) bool {
-	return IsCode(err, CodeAccessibilityDenied) || IsCode(err, CodeAccessibilityFailed)
-}
-
-// IsUserError checks if an error is due to user input/configuration.
-func IsUserError(err error) bool {
-	return IsCode(err, CodeInvalidConfig) || IsCode(err, CodeInvalidInput)
-}
-
-// IsTransient checks if an error is potentially transient (retryable).
-func IsTransient(err error) bool {
-	return IsCode(err, CodeTimeout) || IsCode(err, CodeIPCFailed)
 }
 
 // IsNotSupported checks if an error indicates an unimplemented platform feature.

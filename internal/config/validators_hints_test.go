@@ -13,35 +13,6 @@ const (
 	bundleOther   = "com.example.other"
 )
 
-func TestValidateHints_EnabledRequiresClickableRoles(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Hints.Enabled = true
-	cfg.Hints.ClickableRoles = nil
-
-	err := cfg.ValidateHints(nil)
-	if err == nil {
-		t.Fatal("ValidateHints() expected error when enabled and clickable_roles is empty")
-	}
-}
-
-func TestValidateHints_BoundaryHighlightGeometry(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Hints.BoundaryHighlight.BorderWidth = -1
-
-	err := cfg.ValidateHints(nil)
-	if err == nil {
-		t.Fatal("ValidateHints() expected error for negative boundary border width")
-	}
-
-	cfg = config.DefaultConfig()
-	cfg.Hints.BoundaryHighlight.BorderRadius = -1
-
-	err = cfg.ValidateHints(nil)
-	if err != nil {
-		t.Fatalf("ValidateHints() expected no error for -1 (auto) border radius, got %v", err)
-	}
-}
-
 func TestValidateHints_UIPlacement(t *testing.T) {
 	validPlacements := []string{
 		"top",

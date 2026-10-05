@@ -105,6 +105,84 @@ func loadCases() []loadCase {
 `,
 		},
 		{
+			// A built-in mode launched from a new chord drops its default
+			// launcher, so the mode is not reachable from two places.
+			name: "rebinding a mode launcher replaces its default",
+			config: `
+[hotkeys]
+"Primary+Alt+G" = "grid"
+`,
+		},
+		{
+			name: "rebinding a mode launcher with flags replaces its default",
+			config: `
+[hotkeys]
+"Primary+Alt+X" = "recursive_grid --cursor-selection-mode hold"
+`,
+		},
+		{
+			// A sequence is not a launcher, so the default stays.
+			name: "a multi-action binding keeps the default launcher",
+			config: `
+[hotkeys]
+"Primary+Alt+T" = ["action save_cursor_pos", "hints"]
+`,
+		},
+		{
+			name: "disabling a mode removes its default launcher",
+			config: `
+[hints]
+enabled = false
+`,
+		},
+		{
+			name: "disabling several modes removes each default launcher",
+			config: `
+[hints]
+enabled = false
+
+[grid]
+enabled = false
+`,
+		},
+		{
+			// The chord of a disabled mode's launcher stays free for the user
+			// to bind to something else.
+			name: "a disabled modes launcher chord can be rebound",
+			config: `
+[hints]
+enabled = false
+
+[hotkeys]
+"Primary+Shift+Space" = "grid"
+`,
+		},
+		{
+			name: "a mode app config decodes string and array hotkeys",
+			config: `
+[[hints.app_configs]]
+bundle_id = "com.apple.Safari"
+
+[hints.app_configs.hotkeys]
+"Return" = ["action left_click", "hints"]
+"Shift+L" = "__disabled__"
+`,
+		},
+		{
+			name: "a scroll app config overrides its steps",
+			config: `
+[[scroll.app_configs]]
+bundle_id = "com.apple.Safari"
+scroll_step = 25
+scroll_step_half = 200
+scroll_step_full = 1000
+
+[scroll.app_configs.hotkeys]
+"Return" = ["action scroll_down"]
+"k" = "__disabled__"
+`,
+		},
+		{
 			name: "a hotkeys section may carry an app_configs table",
 			config: `
 [hotkeys]

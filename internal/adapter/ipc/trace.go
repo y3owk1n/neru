@@ -25,17 +25,6 @@ func WithTraceID(ctx context.Context, id TraceID) context.Context {
 	return context.WithValue(ctx, traceIDKey, id)
 }
 
-// TraceIDFromContext retrieves the trace ID from the context.
-// If no trace ID is present, it returns an empty string.
-func TraceIDFromContext(ctx context.Context) TraceID {
-	id, ok := ctx.Value(traceIDKey).(TraceID)
-	if !ok {
-		return ""
-	}
-
-	return id
-}
-
 // String returns the string representation of the trace ID.
 func (id TraceID) String() string {
 	return string(id)

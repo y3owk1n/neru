@@ -252,18 +252,6 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 	return candidates
 }
 
-// CalculateOptimalGrid calculates optimal character count for coverage.
-func CalculateOptimalGrid(characters string) (int, int) {
-	// For flat 3-char grid, we don't use rows/cols
-	// Just return sensible defaults (will be ignored)
-	numChars := len(characters)
-	if numChars < MinCharactersLength {
-		numChars = 9
-	}
-
-	return numChars, numChars
-}
-
 func gridMax(a, b int) int {
 	if a > b {
 		return a

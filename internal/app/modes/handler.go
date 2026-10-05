@@ -38,9 +38,6 @@ type Mode interface {
 	// Exit performs mode-specific cleanup and deactivation.
 	Exit()
 
-	// ModeType returns the domain mode type this implementation represents.
-	ModeType() domain.Mode
-
 	// RefreshForMonitorMove puts the mode's Frame back on screen against
 	// targetBounds after the cursor has been warped to another display. The
 	// frame was taken off screen before the warp, so this is a transition onto

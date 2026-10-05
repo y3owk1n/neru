@@ -1,0 +1,17 @@
+{
+  "delta": [
+    "+ .scroll.appConfigs[0].additionalClickable = null",
+    "+ .scroll.appConfigs[0].bundleId = \"com.apple.Safari\"",
+    "+ .scroll.appConfigs[0].captureScope = \"\"",
+    "+ .scroll.appConfigs[0].hotkeys.Return[0] = \"action scroll_down\"",
+    "+ .scroll.appConfigs[0].hotkeys.k[0] = \"__disabled__\"",
+    "+ .scroll.appConfigs[0].ignoreClickableCheck = null",
+    "+ .scroll.appConfigs[0].labelDirection = \"\"",
+    "+ .scroll.appConfigs[0].scrollStep = 25",
+    "+ .scroll.appConfigs[0].scrollStepFull = 1000",
+    "+ .scroll.appConfigs[0].scrollStepHalf = 200",
+    "+ .scroll.appConfigs[0].strategy = \"\"",
+    "+ .scroll.appConfigs[0].visibleCheckEnabled = null"
+  ],
+  "validationError": ""
+}

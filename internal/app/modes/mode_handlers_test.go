@@ -80,8 +80,7 @@ const stepExecFoo = "exec foo"
 // activationRecordingMode is a minimal Mode used to capture the activation an
 // external command hands to a mode through ActivateMode.
 type activationRecordingMode struct {
-	modeType domain.Mode
-	last     modecmd.Activation
+	last modecmd.Activation
 }
 
 func (m *activationRecordingMode) Activate(
@@ -92,13 +91,12 @@ func (m *activationRecordingMode) Activate(
 func (m *activationRecordingMode) HandleKey(string) {}
 func (m *activationRecordingMode) Exit()            {}
 
-func (m *activationRecordingMode) ModeType() domain.Mode                                  { return m.modeType }
 func (m *activationRecordingMode) RefreshForMonitorMove(context.Context, image.Rectangle) {}
 
 // newHandlerWithRecordingMode builds a handler whose only mode records what it
 // was activated with.
 func newHandlerWithRecordingMode(mode domain.Mode) (*Handler, *activationRecordingMode) {
-	recorder := &activationRecordingMode{modeType: mode}
+	recorder := &activationRecordingMode{}
 	handler := newHandlerWithState(handlerState{
 		logger:   zap.NewNop(),
 		appState: state.NewAppState(),

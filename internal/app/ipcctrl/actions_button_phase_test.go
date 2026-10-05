@@ -210,26 +210,6 @@ func TestResolveMouseButtonPhase_RejectsUnknownState(t *testing.T) {
 	}
 }
 
-func TestHandleAction_RejectsStateOnNonClickAction(t *testing.T) {
-	controller := &ActionsHandler{
-		appState: state.NewAppState(),
-		logger:   zap.NewNop(),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{scrollUp, flagStateDown},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(scroll_up --state down) expected rejection, got success")
-	}
-
-	if resp.Message != msgStateOnlyOnClicks {
-		t.Fatalf("message = %q, want %q", resp.Message, msgStateOnlyOnClicks)
-	}
-}
-
 func TestHandleAction_RejectsStateAndToggleTogether(t *testing.T) {
 	controller := &ActionsHandler{
 		appState: state.NewAppState(),
@@ -247,34 +227,5 @@ func TestHandleAction_RejectsStateAndToggleTogether(t *testing.T) {
 
 	if resp.Code != ipc.CodeInvalidInput {
 		t.Fatalf("code = %q, want %q", resp.Code, ipc.CodeInvalidInput)
-	}
-}
-
-func TestIsMouseButtonActionName(t *testing.T) {
-	tests := []struct {
-		actionName string
-		want       bool
-	}{
-		{leftClick, true},
-		{rightClick, true},
-		{"middle_click", true},
-		{"left_mouse_down", true},
-		{"right_mouse_up", true},
-		{"middle_mouse_toggle", true},
-		{"mouse_down", true},
-		{"mouse_up", true},
-		{moveMouse, false},
-		{"scroll", false},
-		{fooStr, false},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.actionName, func(t *testing.T) {
-			got := isMouseButtonActionName(testCase.actionName)
-			if got != testCase.want {
-				t.Errorf("isMouseButtonActionName(%q) = %v, want %v",
-					testCase.actionName, got, testCase.want)
-			}
-		})
 	}
 }

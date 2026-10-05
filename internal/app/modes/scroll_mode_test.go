@@ -9,31 +9,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
-func TestScrollMode_ModeType(t *testing.T) {
-	handler := &handlerState{}
-	mode := NewScrollMode(handler)
-
-	if mode.ModeType() != domain.ModeScroll {
-		t.Errorf("Expected ModeScroll, got %v", mode.ModeType())
-	}
-}
-
-func TestScrollMode_InterfaceCompliance(t *testing.T) {
-	handler := &handlerState{}
-	mode := NewScrollMode(handler)
-
-	if mode == nil {
-		t.Fatal("Expected NewScrollMode to return a non-nil mode")
-	}
-
-	// Keep a runtime assertion in addition to the compile-time check in
-	// scroll_mode.go.
-	var interfaceMode Mode = mode
-	if interfaceMode.ModeType() != domain.ModeScroll {
-		t.Errorf("Expected ModeScroll, got %v", interfaceMode.ModeType())
-	}
-}
-
 // TestScrollMode_HandleKey_DoesNothing covers the one dispatch path in the
 // package with no journey behind it. Scroll is driven entirely by hotkeys,
 // which the dispatcher answers before any mode is reached, so an unbound key

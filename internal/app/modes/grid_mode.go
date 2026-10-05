@@ -32,7 +32,7 @@ type GridMode struct {
 // NewGridMode creates a new grid mode implementation.
 func NewGridMode(handler *handlerState) *GridMode {
 	return &GridMode{
-		baseMode: newBaseMode(handler, domain.ModeGrid, "GridMode"),
+		baseMode: newBaseMode(handler, "GridMode"),
 	}
 }
 

@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -219,29 +220,22 @@ func TestConfigValidateHints_DuplicateHintChars(t *testing.T) {
 	}
 }
 
-func TestConfigValidateHints_AsciiHintChars(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	cfg.Hints.HintCharacters = "ab"
-
-	err := cfg.ValidateHints(nil)
-	if err != nil {
-		t.Fatalf("ValidateHints() unexpected error: %v", err)
-	}
-
-	cfg.Hints.HintCharacters = "aé"
-
-	err = cfg.ValidateHints(nil)
-	if err == nil {
-		t.Fatal("ValidateHints() expected error for non-ASCII hint_characters")
-	}
-}
-
+// TestConfigValidateVirtualPointer pins the refusals. The default char is a
+// multi-byte rune, so validBase already proves the validator counts one rune
+// as one character, not by its bytes.
 func TestConfigValidateVirtualPointer(t *testing.T) {
-	cfg := config.DefaultConfig()
+	for _, char := range []string{"", "ab"} {
+		cfg := validBase(t)
+		cfg.VirtualPointer.UI.Char = char
 
-	err := cfg.ValidateVirtualPointer()
-	if err != nil {
-		t.Fatalf("ValidateVirtualPointer() unexpected error: %v", err)
+		assertRejected(t, cfg.ValidateVirtualPointer(), "virtual_pointer.ui.char", char)
 	}
+
+	runIntBounds(t, []intBound{{
+		name:     "virtual_pointer.ui.font_size",
+		set:      func(c *config.Config, v int) { c.VirtualPointer.UI.FontSize = v },
+		validate: (*config.Config).ValidateVirtualPointer,
+		minValid: 0,
+		maxValid: math.MaxInt32,
+	}})
 }

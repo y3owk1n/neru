@@ -7,8 +7,6 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-const testOtherError = "other error"
-
 func TestNew(t *testing.T) {
 	err := derrors.New(derrors.CodeInvalidInput, "test error")
 	if err == nil {
@@ -240,93 +238,6 @@ func TestGetCode(t *testing.T) {
 				t.Errorf("GetCode(%v) = %v, want %v", testCase.err, got, testCase.want)
 			}
 		})
-	}
-}
-
-func TestIsAccessibilityError(t *testing.T) {
-	tests := []struct {
-		name string
-		code derrors.Code
-		want bool
-	}{
-		{"accessibility denied", derrors.CodeAccessibilityDenied, true},
-		{"accessibility failed", derrors.CodeAccessibilityFailed, true},
-		{testOtherError, derrors.CodeInvalidInput, false},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			err := derrors.New(testCase.code, "test error")
-
-			got := derrors.IsAccessibilityError(err)
-			if got != testCase.want {
-				t.Errorf("IsAccessibilityError(%v) = %v, want %v", err, got, testCase.want)
-			}
-		})
-	}
-
-	// Test with non-domain error
-	stdErr := derrors.New(derrors.CodeInternal, "standard error")
-	if derrors.IsAccessibilityError(stdErr) {
-		t.Error("IsAccessibilityError should return false for non-domain errors")
-	}
-}
-
-func TestIsUserError(t *testing.T) {
-	tests := []struct {
-		name string
-		code derrors.Code
-		want bool
-	}{
-		{"invalid config", derrors.CodeInvalidConfig, true},
-		{"invalid input", derrors.CodeInvalidInput, true},
-		{testOtherError, derrors.CodeIPCFailed, false},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			err := derrors.New(testCase.code, "test error")
-
-			got := derrors.IsUserError(err)
-			if got != testCase.want {
-				t.Errorf("IsUserError(%v) = %v, want %v", err, got, testCase.want)
-			}
-		})
-	}
-
-	// Test with non-domain error
-	stdErr := derrors.New(derrors.CodeInternal, "standard error")
-	if derrors.IsUserError(stdErr) {
-		t.Error("IsUserError should return false for non-domain errors")
-	}
-}
-
-func TestIsTransient(t *testing.T) {
-	tests := []struct {
-		name string
-		code derrors.Code
-		want bool
-	}{
-		{"timeout", derrors.CodeTimeout, true},
-		{"ipc failed", derrors.CodeIPCFailed, true},
-		{testOtherError, derrors.CodeInvalidInput, false},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			err := derrors.New(testCase.code, "test error")
-
-			got := derrors.IsTransient(err)
-			if got != testCase.want {
-				t.Errorf("IsTransient(%v) = %v, want %v", err, got, testCase.want)
-			}
-		})
-	}
-
-	// Test with non-domain error
-	stdErr := derrors.New(derrors.CodeInternal, "standard error")
-	if derrors.IsTransient(stdErr) {
-		t.Error("IsTransient should return false for non-domain errors")
 	}
 }
 

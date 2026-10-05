@@ -83,25 +83,6 @@ func validatePositiveUnitFloat(name string, value float64) error {
 	return nil
 }
 
-// ValidateColor validates a single hex color value (#RGB/#RRGGBB/#AARRGGBB).
-// It uses the pre-compiled colorRegex from Color.
-func ValidateColor(color, fieldName string) error {
-	if color == "" {
-		return nil
-	}
-
-	if !colorRegex.MatchString(color) {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"%s has invalid color format: %s",
-			fieldName,
-			color,
-		)
-	}
-
-	return nil
-}
-
 func validOpacity(value float64) bool {
 	return value >= 0 && value <= 1
 }

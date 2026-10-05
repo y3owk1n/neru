@@ -1,0 +1,18 @@
+{
+  "delta": [
+    "+ .hints.appConfigs[0].additionalClickable = null",
+    "+ .hints.appConfigs[0].bundleId = \"com.apple.Safari\"",
+    "+ .hints.appConfigs[0].captureScope = \"\"",
+    "+ .hints.appConfigs[0].hotkeys.Return[0] = \"action left_click\"",
+    "+ .hints.appConfigs[0].hotkeys.Return[1] = \"hints\"",
+    "+ .hints.appConfigs[0].hotkeys.Shift+L[0] = \"__disabled__\"",
+    "+ .hints.appConfigs[0].ignoreClickableCheck = null",
+    "+ .hints.appConfigs[0].labelDirection = \"\"",
+    "+ .hints.appConfigs[0].scrollStep = null",
+    "+ .hints.appConfigs[0].scrollStepFull = null",
+    "+ .hints.appConfigs[0].scrollStepHalf = null",
+    "+ .hints.appConfigs[0].strategy = \"\"",
+    "+ .hints.appConfigs[0].visibleCheckEnabled = null"
+  ],
+  "validationError": ""
+}

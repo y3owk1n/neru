@@ -1,7 +1,6 @@
 package ipc_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
@@ -22,27 +21,6 @@ func TestTraceID(t *testing.T) {
 
 		if id1 == id2 {
 			t.Error("NewTraceID generated duplicate IDs")
-		}
-	})
-
-	t.Run("Context propagation", func(t *testing.T) {
-		ctx := context.Background()
-		ctxID := ipc.NewTraceID()
-
-		ctx = ipc.WithTraceID(ctx, ctxID)
-		got := ipc.TraceIDFromContext(ctx)
-
-		if got != ctxID {
-			t.Errorf("Fromctx() = %v, want %v", got, ctxID)
-		}
-	})
-
-	t.Run("Fromctx returns empty for missing ID", func(t *testing.T) {
-		ctx := context.Background()
-		got := ipc.TraceIDFromContext(ctx)
-
-		if got != "" {
-			t.Errorf("Fromctx() = %v, want empty string", got)
 		}
 	})
 

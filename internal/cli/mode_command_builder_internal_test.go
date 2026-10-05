@@ -223,6 +223,12 @@ func TestReadModeCommand_RefusesWhatTheGrammarRefuses(t *testing.T) {
 			want:   "--repeat requires --action",
 		},
 		{
+			name:   "on-exit without action",
+			config: ModeConfig{Mode: domain.ModeGrid},
+			argv:   []string{"--on-exit=exec notify-send done"},
+			want:   "--on-exit requires --action (it runs only when the action is fulfilled)",
+		},
+		{
 			name:   "an action no mode can perform",
 			config: ModeConfig{Mode: domain.ModeGrid},
 			argv:   []string{"--action=scroll_up"},

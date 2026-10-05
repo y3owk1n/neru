@@ -49,17 +49,9 @@ func (a *App) sequences() *sequence.Executor {
 	return a.newSequenceExecutor()
 }
 
-// executeActionSequence runs steps in order and reports what happened.
-func (a *App) executeActionSequence(
-	ctx context.Context,
-	source string,
-	steps []string,
-) sequence.Outcome {
-	return a.sequences().Run(ctx, source, steps)
-}
-
-// executeActionSequenceWithPolicy is executeActionSequence with an explicit
-// failure policy, for callers that set one for the whole sequence.
+// executeActionSequenceWithPolicy runs steps in order and reports what
+// happened. It takes an explicit failure policy, for callers that set one for
+// the whole sequence.
 func (a *App) executeActionSequenceWithPolicy(
 	ctx context.Context,
 	source string,

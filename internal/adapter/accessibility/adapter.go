@@ -57,7 +57,6 @@ type Adapter struct {
 	logger               *zap.Logger
 	client               ax.Client
 	excludedBundles      map[string]bool
-	clickableRoles       []string
 	detectMissionControl bool
 }
 
@@ -65,7 +64,6 @@ type Adapter struct {
 func NewAdapter(
 	logger *zap.Logger,
 	excludedBundles []string,
-	clickableRoles []string,
 	client ax.Client,
 	detectMissionControl bool,
 ) *Adapter {
@@ -78,19 +76,8 @@ func NewAdapter(
 		logger:               logger,
 		client:               client,
 		excludedBundles:      excludedMap,
-		clickableRoles:       clickableRoles,
 		detectMissionControl: detectMissionControl,
 	}
-}
-
-// Logger returns the logger for the adapter.
-func (a *Adapter) Logger() *zap.Logger {
-	return a.logger
-}
-
-// ClickableRoles returns the list of clickable roles.
-func (a *Adapter) ClickableRoles() []string {
-	return a.clickableRoles
 }
 
 // ClickableElements retrieves all clickable UI elements matching the filter.
@@ -317,7 +304,6 @@ func (a *Adapter) Health(ctx context.Context) error {
 // UpdateClickableRoles updates the list of clickable roles.
 func (a *Adapter) UpdateClickableRoles(roles []string) {
 	a.logger.Debug("Updating clickable roles", zap.Int("count", len(roles)))
-	a.clickableRoles = roles
 	a.client.SetClickableRoles(roles)
 }
 

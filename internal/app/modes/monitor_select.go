@@ -28,7 +28,7 @@ type MonitorSelectMode struct {
 // NewMonitorSelectMode creates a new monitor_select mode implementation.
 func NewMonitorSelectMode(handler *handlerState) *MonitorSelectMode {
 	return &MonitorSelectMode{
-		baseMode: newBaseMode(handler, domain.ModeMonitorSelect, "MonitorSelectMode"),
+		baseMode: newBaseMode(handler, "MonitorSelectMode"),
 	}
 }
 

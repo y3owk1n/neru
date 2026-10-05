@@ -102,9 +102,12 @@ func TestGrid_CellsTileTheBoundsExactly(t *testing.T) {
 	for _, bounds := range gridSizes() {
 		for _, characters := range gridAlphabets() {
 			t.Run(gridCaseName(bounds, characters), func(t *testing.T) {
-				cells := newTestGrid(bounds, characters).Cells()
+				testGrid := newTestGrid(bounds, characters)
+				if got := testGrid.Bounds(); got != bounds {
+					t.Fatalf("Bounds() = %v, want %v", got, bounds)
+				}
 
-				coveredArea := assertCellsAbut(t, cells)
+				coveredArea := assertCellsAbut(t, testGrid.Cells())
 
 				// Non-overlapping cells that abut in both directions and cover
 				// the full area can only be an exact tiling.

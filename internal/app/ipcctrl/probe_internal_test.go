@@ -1,7 +1,6 @@
 package ipcctrl
 
 import (
-	"context"
 	"slices"
 	"testing"
 
@@ -96,18 +95,5 @@ func TestExtractProbeOptions_RefusesAnInvalidStrategy(t *testing.T) {
 
 	if resp.Code != ipc.CodeInvalidInput {
 		t.Errorf("code = %s, want %s", resp.Code, ipc.CodeInvalidInput)
-	}
-}
-
-// The probe is registered under its own action, so a caller reaches it without
-// spelling a mode command at all.
-func TestRegisterHandlers_ExposesTheProbeAsItsOwnCommand(t *testing.T) {
-	handler := &ModesHandler{}
-	handlers := map[string]func(context.Context, ipc.Command) ipc.Response{}
-
-	handler.RegisterHandlers(handlers)
-
-	if _, registered := handlers[domain.CommandHintsProbe]; !registered {
-		t.Errorf("%q is not registered as a command", domain.CommandHintsProbe)
 	}
 }

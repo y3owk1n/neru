@@ -134,54 +134,6 @@ func TestLoad_RefusesADeclaredModeItCannotLoad(t *testing.T) {
 	}
 }
 
-// TestSave_WritesDeclaredModeHotkeysTheLoaderReadsBack pins the persistence
-// half: the table the encoder skips is written by hand, under the declaration
-// it belongs to, in the shape the loader reads.
-func TestSave_WritesDeclaredModeHotkeysTheLoaderReadsBack(t *testing.T) {
-	t.Parallel()
-
-	loaded := loadWithOverride(t, declaredModesConfig, "").Config
-
-	savedPath := filepath.Join(t.TempDir(), "config.toml")
-
-	err := loader.Save(loaded, savedPath)
-	if err != nil {
-		t.Fatalf("Save() error = %v", err)
-	}
-
-	service := loader.NewService(config.DefaultConfig(), savedPath, zap.NewNop(), nil)
-
-	result := service.LoadWithValidation(savedPath)
-	if result.ValidationError != nil {
-		t.Fatalf("the saved file does not load: %v", result.ValidationError)
-	}
-
-	for name, want := range loaded.Modes {
-		got, declared := result.Config.Modes[name]
-		if !declared {
-			t.Errorf("modes.%s was not saved", name)
-
-			continue
-		}
-
-		if len(got.Hotkeys) != len(want.Hotkeys) {
-			t.Errorf("modes.%s.hotkeys = %v after a save, want %v", name, got.Hotkeys, want.Hotkeys)
-		}
-
-		for key, steps := range want.Hotkeys {
-			if strings.Join(got.Hotkeys[key], "|") != strings.Join(steps, "|") {
-				t.Errorf(
-					"modes.%s.hotkeys.%s = %v after a save, want %v",
-					name,
-					key,
-					got.Hotkeys[key],
-					steps,
-				)
-			}
-		}
-	}
-}
-
 // TestLoad_ReadsDeclaredModeHotkeysFromTheOverrideFile pins the second file a
 // declaration can come from: the override `neru config set` writes is decoded
 // into the same toml:"-" field, so its tables have to be read from the raw

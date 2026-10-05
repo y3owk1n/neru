@@ -153,7 +153,7 @@ func (c *Color) Validate(fieldName string) error {
 }
 
 // ValidateSolidColor checks if the color value is a valid solid hex color.
-// Unlike ValidateColor, this rejects alpha-bearing #AARRGGBB inputs.
+// Unlike Color.Validate, this rejects alpha-bearing #AARRGGBB inputs.
 func ValidateSolidColor(color, fieldName string) error {
 	if color == "" {
 		return nil

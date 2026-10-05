@@ -10,44 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/grid"
 )
 
-const (
-	testCharacters = "ABC"
-	// allLetters is a 26-character input, not the set a grid falls back to —
-	// that one is grid.DefaultCharacters, which leaves `o` out.
-	allLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-)
-
-func TestGrid_Initialization(t *testing.T) {
-	log := logger.Get()
-	tests := []struct {
-		name      string
-		chars     string
-		bounds    image.Rectangle
-		wantCells int
-	}{
-		{
-			name:      "standard 1080p",
-			chars:     allLetters,
-			bounds:    image.Rect(0, 0, 1920, 1080),
-			wantCells: 26 * 26, // 2 chars depth
-		},
-		{
-			name:      "small screen",
-			chars:     "ABC",
-			bounds:    image.Rect(0, 0, 100, 100),
-			wantCells: 3 * 3, // 2 chars depth
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			grid := grid.NewGrid(testCase.chars, testCase.bounds, log)
-			if len(grid.AllCells()) == 0 {
-				t.Error("Expected cells to be generated")
-			}
-		})
-	}
-}
+const testCharacters = "ABC"
 
 func TestGrid_CellByCoordinate(t *testing.T) {
 	logger := logger.Get()
@@ -81,91 +44,6 @@ func TestGrid_CellByCoordinate(t *testing.T) {
 					cell != nil,
 					testCase.want,
 				)
-			}
-		})
-	}
-}
-
-func TestCell_Methods(t *testing.T) {
-	logger := logger.Get()
-	grid := grid.NewGrid("ABC", image.Rect(0, 0, 300, 300), logger)
-
-	cells := grid.AllCells()
-	if len(cells) == 0 {
-		t.Fatal("Expected cells to be generated")
-	}
-
-	cell := cells[0]
-
-	// Test that methods return non-zero values
-	if cell.Coordinate() == "" {
-		t.Error("Coordinate() returned empty string")
-	}
-
-	bounds := cell.Bounds()
-	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
-		t.Errorf("Bounds() returned invalid bounds: %v", bounds)
-	}
-
-	center := cell.Center()
-	if center.X < 0 || center.Y < 0 {
-		t.Errorf("Center() returned invalid center: %v", center)
-	}
-
-	// Test that center is within bounds
-	if !center.In(bounds) {
-		t.Errorf("Center %v is not within bounds %v", center, bounds)
-	}
-}
-
-func TestGrid_Getters(t *testing.T) {
-	logger := logger.Get()
-	bounds := image.Rect(0, 0, 1920, 1080)
-	gridInstance := grid.NewGrid(testCharacters, bounds, logger)
-
-	if gridInstance.Characters() != testCharacters {
-		t.Errorf("Characters() = %q, want %q", gridInstance.Characters(), testCharacters)
-	}
-
-	if gridInstance.Bounds() != bounds {
-		t.Errorf("Bounds() = %v, want %v", gridInstance.Bounds(), bounds)
-	}
-
-	cells := gridInstance.Cells()
-	if len(cells) == 0 {
-		t.Error("Cells() returned empty slice")
-	}
-
-	index := gridInstance.Index()
-	if len(index) != len(cells) {
-		t.Errorf("Index() length = %d, want %d", len(index), len(cells))
-	}
-
-	allCells := gridInstance.AllCells()
-	if len(allCells) != len(cells) {
-		t.Errorf("AllCells() length = %d, want %d", len(allCells), len(cells))
-	}
-}
-
-func TestCalculateOptimalGrid(t *testing.T) {
-	tests := []struct {
-		name       string
-		characters string
-		wantRows   int
-		wantCols   int
-	}{
-		{"normal characters", testCharacters, 3, 3},
-		{"empty string", "", 9, 9},
-		{"single character", "A", 9, 9},
-		{"long string", allLetters, 26, 26},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			rows, cols := grid.CalculateOptimalGrid(testCase.characters)
-			if rows != testCase.wantRows || cols != testCase.wantCols {
-				t.Errorf("CalculateOptimalGrid(%q) = (%d, %d), want (%d, %d)",
-					testCase.characters, rows, cols, testCase.wantRows, testCase.wantCols)
 			}
 		})
 	}

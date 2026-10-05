@@ -72,7 +72,7 @@ func newFilterAdapter(t *testing.T) *accessibility.Adapter {
 		MockClickableNodes:  filterTestNodes(),
 	}
 
-	return accessibility.NewAdapter(zap.NewNop(), nil, nil, client, false)
+	return accessibility.NewAdapter(zap.NewNop(), nil, client, false)
 }
 
 // idsOf returns element IDs in the order the adapter produced them.
@@ -230,7 +230,7 @@ func TestAdapter_ClickableElements_PropagatesClientError(t *testing.T) {
 		MockClickableNodesErr: errTestAccessibility,
 	}
 
-	adapter := accessibility.NewAdapter(zap.NewNop(), nil, nil, client, false)
+	adapter := accessibility.NewAdapter(zap.NewNop(), nil, client, false)
 
 	got, err := adapter.ClickableElements(context.Background(), ports.ElementFilter{})
 	if err == nil {
