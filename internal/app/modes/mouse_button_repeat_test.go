@@ -7,9 +7,11 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/app/heldmotion"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 // repeatableAction is a held-repeatable binding, so the only thing keeping a
@@ -46,8 +48,72 @@ func newMouseButtonRepeatTestHandler() *Handler {
 			domain.ModeRecursiveGrid: &recordingMode{keys: make(chan string, 1)},
 		},
 		screenBounds:          image.Rect(0, 0, 100, 100),
-		executeActionSequence: func(_ string, _ []string) {},
+		executeActionSequence: func(_ string, _ []string, _ []string) {},
 	})
+}
+
+// glideAction is a lone move_mouse_relative with a non-zero delta, the one
+// binding shape HeldMotion glides on.
+const glideAction = "action move_mouse_relative --dx=10 --dy=0"
+
+// newMouseButtonGlideTestHandler is the repeat handler with a glide binding and
+// a live motion controller, so the only thing keeping the button out of the
+// glide's held set is the guard.
+func newMouseButtonGlideTestHandler() *Handler {
+	handler := newMouseButtonRepeatTestHandler()
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	handler.config.RecursiveGrid.Hotkeys = map[string]configpkg.StringOrStringArray{
+		"MouseLeft": {glideAction},
+		"j":         {glideAction},
+	}
+	handler.motion = heldmotion.New(
+		context.Background(),
+		&portmocks.MockSystemPort{},
+		handler.config.HeldRepeat.Ramp,
+		zap.NewNop(),
+	).Group("test")
+
+	return handler
+}
+
+// TestHandleKeyPress_MouseButtonStartsNoGlide is the held-key glide's half of
+// the same rule. The glide is released by the same "__keyup_" a repeat is, so a
+// button pressed into its held set would steer the cursor until the mode
+// exited. The glide arrived after this binding did, which is why it is pinned
+// rather than assumed.
+func TestHandleKeyPress_MouseButtonStartsNoGlide(t *testing.T) {
+	t.Parallel()
+
+	handler := newMouseButtonGlideTestHandler()
+
+	handler.HandleKeyPress("MouseLeft")
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	if handler.motion.IsHeld(motionKeyOf("MouseLeft")) {
+		t.Error("mouse button entered the glide's held set, which no key-up will clear")
+	}
+}
+
+// TestHandleKeyPress_KeyboardKeyStillGlides is the control for the guard above:
+// a keyboard key on the same binding still reaches the glide.
+func TestHandleKeyPress_KeyboardKeyStillGlides(t *testing.T) {
+	t.Parallel()
+
+	handler := newMouseButtonGlideTestHandler()
+
+	handler.HandleKeyPress("j")
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	if !handler.motion.IsHeld(motionKeyOf("j")) {
+		t.Error("keyboard key did not reach the glide's held set")
+	}
 }
 
 // TestHandleKeyPress_MouseButtonStartsNoHeldRepeat pins the guard. A mouse
