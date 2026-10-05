@@ -53,19 +53,19 @@ if useZip then
       {
         "aarch64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-arm64.zip";
-          sha256 = "sha256-LkcPHG86D6wlNRtFV2bCCd+AdEDQ3sIxOLZzG/zJA8A=";
+          sha256 = "sha256-vdg/KTOSKMcZdK19+mLwkx3n9ba3lMGuVIz9pKKxt7U=";
         };
         "x86_64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-amd64.zip";
-          sha256 = "sha256-OMDAOCTyfVs6zYk5hKylYQ0SZLYF/8l7u5BBHxQqeGw=";
+          sha256 = "sha256-DDxIuaOToj62/1ogC0uFMptcmqJEjtFHqJBDxMPyrPw=";
         };
         "aarch64-linux" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-arm64.zip";
-          sha256 = "sha256-OMmlHQVHZg+aaO8GDJLTPEGULNelwiFqBxIfg6uMu9M=";
+          sha256 = "sha256-ff8kY8O09AkuYRIc/7lHfcRh0s367tY9K5co+azQvac=";
         };
         "x86_64-linux" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-amd64.zip";
-          sha256 = "sha256-u0LO67YL/dPEPrS9RUYNQ/evVl7aq5w1dcUQSbIgeNY=";
+          sha256 = "sha256-7fRxwu0VXj6MP7v0wP3IsOUe8NtSfjS01QqWlhq6LpU=";
         };
       }
       .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
