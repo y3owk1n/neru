@@ -74,7 +74,8 @@ Use `__disabled__` to remove one default:
 "Ctrl+Space"      = "hints"          # adds binding, other defaults unchanged
 ```
 
-Disabling a mode (`enabled = false`) also removes its default launcher hotkey.
+Disabling a mode (`enabled = false`) also removes its default launcher hotkey,
+and `neru <mode>` then fails with [`ERR_MODE_DISABLED`](ipc.md#response-codes).
 
 ### Per-mode hotkeys
 

@@ -24,8 +24,7 @@ import (
 
 // newModeTestController builds a controller over the real registration path, so
 // these cases exercise the wiring rather than a handler called directly.
-func newModeTestController() *ipcctrl.Controller {
-	cfg := config.DefaultConfig()
+func newModeTestController(cfg *config.Config) *ipcctrl.Controller {
 	logger := zap.NewNop()
 	appState := state.NewAppState()
 	actionService := services.NewActionService(
@@ -49,7 +48,7 @@ func newModeTestController() *ipcctrl.Controller {
 // exception. Each of the eight answers a command it cannot read with a refusal
 // of its own rather than with "unknown command" or a silent success.
 func TestHandleCommand_EveryModeCommandReadsTheGrammar(t *testing.T) {
-	controller := newModeTestController()
+	controller := newModeTestController(config.DefaultConfig())
 
 	for _, mode := range []domain.Mode{
 		domain.ModeHints,
@@ -91,7 +90,7 @@ func TestHandleCommand_EveryModeCommandReadsTheGrammar(t *testing.T) {
 // --on-exit without an action is the one a user notices: it was refused when
 // typed and accepted over the wire, where the steps were stored and never run.
 func TestHandleCommand_RefusalsCarryTheGrammarsWording(t *testing.T) {
-	controller := newModeTestController()
+	controller := newModeTestController(config.DefaultConfig())
 
 	tests := []struct {
 		name string
@@ -150,7 +149,7 @@ func TestHandleCommand_RefusalsCarryTheGrammarsWording(t *testing.T) {
 // That a flag reaches the mode it was written for is pinned end to end by the
 // journeys in internal/app, which drive a real activation.
 func TestHandleCommand_ModeCommandEntersItsMode(t *testing.T) {
-	controller := newModeTestController()
+	controller := newModeTestController(config.DefaultConfig())
 
 	tests := []struct {
 		name string
@@ -186,6 +185,49 @@ func TestHandleCommand_ModeCommandEntersItsMode(t *testing.T) {
 
 			if resp.Message != testCase.want {
 				t.Errorf("message = %q, want %q", resp.Message, testCase.want)
+			}
+		})
+	}
+}
+
+// TestHandleCommand_RefusesADisabledMode pins the answer a script gets for a
+// mode switched off in the configuration. The daemon used to answer
+// "activated" with code OK while the activation did nothing, so a script read
+// a no-op as success.
+func TestHandleCommand_RefusesADisabledMode(t *testing.T) {
+	tests := []struct {
+		mode    domain.Mode
+		disable func(*config.Config)
+	}{
+		{domain.ModeHints, func(c *config.Config) { c.Hints.Enabled = false }},
+		{domain.ModeGrid, func(c *config.Config) { c.Grid.Enabled = false }},
+		{domain.ModeRecursiveGrid, func(c *config.Config) { c.RecursiveGrid.Enabled = false }},
+		{domain.ModeBisect, func(c *config.Config) { c.Bisect.Enabled = false }},
+		{domain.ModeMonitorSelect, func(c *config.Config) { c.MonitorSelect.Enabled = false }},
+	}
+
+	for _, testCase := range tests {
+		name := domain.ModeString(testCase.mode)
+
+		t.Run(name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			testCase.disable(cfg)
+
+			resp := newModeTestController(cfg).HandleCommand(
+				context.Background(),
+				ipc.Command{Action: name},
+			)
+
+			if resp.Success {
+				t.Fatalf("%s was accepted while disabled: %s", name, resp.Message)
+			}
+
+			if resp.Code != ipc.CodeModeDisabled {
+				t.Errorf("code = %q, want %q", resp.Code, ipc.CodeModeDisabled)
+			}
+
+			if want := name + " mode is disabled in the configuration"; resp.Message != want {
+				t.Errorf("message = %q, want %q", resp.Message, want)
 			}
 		})
 	}

@@ -728,6 +728,26 @@ type LoadResult struct {
 	Inert parity.Declaration
 }
 
+// ModeEnabled reports whether the configuration lets the named mode be
+// entered. Scroll, idle and declared modes have no enabled switch, so they are
+// always enabled.
+func (c *Config) ModeEnabled(modeName string) bool {
+	switch modeName {
+	case ModeNameHints:
+		return c.Hints.Enabled
+	case ModeNameGrid:
+		return c.Grid.Enabled
+	case ModeNameRecursiveGrid:
+		return c.RecursiveGrid.Enabled
+	case ModeNameBisect:
+		return c.Bisect.Enabled
+	case ModeNameMonitorSelect:
+		return c.MonitorSelect.Enabled
+	default:
+		return true
+	}
+}
+
 func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringArray {
 	switch modeName {
 	case ModeNameHints:
