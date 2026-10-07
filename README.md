@@ -131,7 +131,7 @@ Themes, indicators, smooth cursor and scroll, virtual pointer, app exclusions an
 
 ## Documentation
 
-Read the docs at **[y3owk1n.github.io/neru](https://y3owk1n.github.io/neru/)**,
+Read the docs at **[neru.kylewong.my](https://neru.kylewong.my/)**,
 or browse [docs/](docs/README.md) here on GitHub.
 
 ## Community

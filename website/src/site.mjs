@@ -14,7 +14,7 @@ export const docsDir = path.resolve(websiteDir, env.NERU_DOCS_DIR ?? '../docs');
 // The git ref docs/ was read from, for links to files the site does not publish.
 export const ref = env.NERU_DOCS_REF ?? 'main';
 export const latestVersion = env.NERU_LATEST_VERSION ?? 'latest';
-export const site = env.NERU_SITE ?? 'https://y3owk1n.github.io';
+export const site = env.NERU_SITE ?? 'https://neru.kylewong.my';
 // The root every channel lives under, e.g. "/neru/" on a GitHub Pages project site.
 const rootBase = withSlashes(env.NERU_BASE ?? '/');
 export const base = channel === 'latest' ? rootBase : `${rootBase}nightly/`;

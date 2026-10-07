@@ -28,8 +28,7 @@ jobs:
         runs-on: ubuntu-latest
         env:
             ASTRO_TELEMETRY_DISABLED: "1"
-            NERU_SITE: https://y3owk1n.github.io
-            NERU_BASE: /neru/
+            NERU_SITE: https://neru.kylewong.my
         steps:
             # The latest channel builds the newest v* tag's docs/, so the
             # checkout needs every tag. Nightly is the checkout, which a
