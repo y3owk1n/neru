@@ -336,13 +336,15 @@ func (a *App) processScreenChange() {
 func (a *App) handleAppActivation(bundleID string) {
 	cfg := a.configSnapshot()
 
-	a.events.Publish(event.Event{Name: event.AppFocus, BundleID: bundleID})
-
 	// Tell the mode handler which application is focused now, so the keymap can
 	// be settled against it. PublishFocusedApp is a lock-free write and must
 	// stay one: the watcher calls this inline and, on macOS, on the main queue
 	// (ADR 0005).
 	a.modes.PublishFocusedApp(bundleID)
+
+	// After the publication above, so an on_app_focus hook that opens a mode
+	// settles that mode's keymap for the application it reports.
+	a.events.Publish(event.Event{Name: event.AppFocus, BundleID: bundleID})
 
 	// The keymap settles from that publication on the next read, but the event
 	// tap has to be told before the next key arrives rather than because one
