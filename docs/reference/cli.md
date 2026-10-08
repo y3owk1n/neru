@@ -397,8 +397,9 @@ These names work as a mode `--action`, in a hotkey binding, or after
 A mode `--action` accepts only the click, press, release and toggle names,
 `move_mouse`, and the deprecated `mouse_down` and `mouse_up`. `move_mouse`
 leaves the cursor on the selection and presses nothing, so a mode refuses
-`--modifier` alongside it. A mode refuses every other name with
-`ERR_INVALID_INPUT`.
+`--modifier` when every action in the chain is `move_mouse`. A chain with a
+button keeps it, as in `move_mouse,left_click --modifier cmd`. A mode refuses
+every other name with `ERR_INVALID_INPUT`.
 
 ### neru action left_click, right_click, middle_click
 
