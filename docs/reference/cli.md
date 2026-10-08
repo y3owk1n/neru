@@ -778,6 +778,10 @@ Values: a string `"asdfghjkl"`, integer `14`, boolean `true`, float `0.5`,
 color `"#FF0000AA"` or `{"light":"#000","dark":"#FFF"}`, or array
 `"button,link"` or `'["button","link"]'`.
 
+A list of steps, such as a hook, is never split at commas, because a step can
+contain one. Give one step as is, `'exec echo a,b'`, or several as a TOML
+array, `'["exec echo a,b", "idle"]'`.
+
 Setting several dependent values with `--no-reload` is shown in
 [Configuring Neru](../guide/configuring.md#change-one-value-without-editing-the-file).
 

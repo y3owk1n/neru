@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/BurntSushi/toml"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -137,7 +139,15 @@ func setLeafValue(field reflect.Value, value string) error {
 		field.SetBool(b)
 
 	case reflect.Slice:
-		if field.Type().Elem().Kind() == reflect.String {
+		switch {
+		case field.Type() == reflect.TypeFor[config.StringOrStringArray]():
+			steps, err := parseSteps(value)
+			if err != nil {
+				return err
+			}
+
+			field.Set(reflect.ValueOf(steps))
+		case field.Type().Elem().Kind() == reflect.String:
 			items := parseStringSlice(value)
 
 			sl := reflect.MakeSlice(field.Type(), len(items), len(items))
@@ -146,7 +156,7 @@ func setLeafValue(field reflect.Value, value string) error {
 			}
 
 			field.Set(sl)
-		} else {
+		default:
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"unsupported slice element type for %s",
@@ -176,6 +186,36 @@ func setLeafValue(field reflect.Value, value string) error {
 	}
 
 	return nil
+}
+
+// parseSteps reads a list of binding steps the way the config file does: one
+// step, or a TOML array of them. Unlike other string lists it never splits on a
+// comma, because a step is a command line that can contain one. A step starts
+// with its command word, so only an array starts with "[".
+func parseSteps(value string) (config.StringOrStringArray, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+
+	if !strings.HasPrefix(value, "[") {
+		return config.StringOrStringArray{value}, nil
+	}
+
+	var holder struct {
+		Steps config.StringOrStringArray `toml:"steps"`
+	}
+
+	_, err := toml.Decode("steps = "+value, &holder)
+	if err != nil {
+		return nil, derrors.Wrap(
+			err,
+			derrors.CodeInvalidConfig,
+			"cannot parse steps as a TOML array",
+		)
+	}
+
+	return holder.Steps, nil
 }
 
 func parseStringSlice(value string) []string {

@@ -1,6 +1,7 @@
 package loader_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -81,6 +82,68 @@ func TestSetField_StringSlice(t *testing.T) {
 		if cfg.Hints.ClickableRoles[i] != role {
 			t.Fatalf("Expected role[%d]=%q, got %q", i, role, cfg.Hints.ClickableRoles[i])
 		}
+	}
+}
+
+// stepWithComma is a step whose command line holds a comma.
+const stepWithComma = "exec echo a,b"
+
+// TestSetField_StepsKeepTheirCommas pins that a list of binding steps is read
+// as the config file reads it, one step or a TOML array, and never split on a
+// comma inside a step.
+func TestSetField_StepsKeepTheirCommas(t *testing.T) {
+	tests := []struct {
+		name  string
+		path  string
+		value string
+		got   func(*config.Config) config.StringOrStringArray
+		want  config.StringOrStringArray
+	}{
+		{
+			name:  "one step with a comma",
+			path:  "hooks.on_mode_enter",
+			value: stepWithComma,
+			got:   func(cfg *config.Config) config.StringOrStringArray { return cfg.Hooks.OnModeEnter },
+			want:  config.StringOrStringArray{stepWithComma},
+		},
+		{
+			name:  "an array of steps",
+			path:  "hooks.on_mode_exit",
+			value: `["exec echo a,b", "idle"]`,
+			got:   func(cfg *config.Config) config.StringOrStringArray { return cfg.Hooks.OnModeExit },
+			want:  config.StringOrStringArray{stepWithComma, "idle"},
+		},
+		{
+			name:  "a deprecated hint hook",
+			path:  "hints.on_mission_control_activated",
+			value: stepWithComma,
+			got: func(cfg *config.Config) config.StringOrStringArray {
+				return cfg.Hints.OnMissionControlActivated
+			},
+			want: config.StringOrStringArray{stepWithComma},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+
+			err := loader.SetField(cfg, testCase.path, testCase.value)
+			if err != nil {
+				t.Fatalf("SetField(%s) error = %v", testCase.path, err)
+			}
+
+			if got := testCase.got(cfg); !slices.Equal(got, testCase.want) {
+				t.Errorf("%s = %q, want %q", testCase.path, got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestSetField_StepsRejectAMalformedArray(t *testing.T) {
+	err := loader.SetField(config.DefaultConfig(), "hooks.on_mode_enter", `["exec echo a`)
+	if err == nil {
+		t.Fatal("SetField() accepted an unterminated array")
 	}
 }
 
