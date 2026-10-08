@@ -132,6 +132,12 @@ that needs one is matched best-effort from the app_id.
 **App watcher.** On Linux and Windows it reports activation and deactivation
 only. Launch, terminate and Mission Control events are macOS-only. See
 [App identity across platforms](../reference/configuration.md#app-identity-across-platforms-bundle_id).
+On macOS, Neru detects Mission Control from the Dock's accessibility tree. It
+checks once a second and on every Space change while
+`hints.detect_mission_control` is on. Mission Control is up while the Dock has
+a child group with the identifier `mc`, which App Expose, Show Desktop and the
+Apps launcher never add. The window list cannot tell, because the Dock keeps a
+full-display window on screen whenever the Dock itself is visible.
 
 **Global hotkeys on Wayland** use an evdev keyboard proxy
 ([ADR 0014](../adr/0014-the-wayland-keyboard-is-a-proxy.md)) that needs the

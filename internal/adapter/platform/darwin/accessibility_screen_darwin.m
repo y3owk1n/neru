@@ -175,70 +175,59 @@ int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY, CGEventFlags flags) {
 
 #pragma mark - Mission Control Detection Functions
 
-/// Internal function to detect Mission Control state using window enumeration
-/// Detects MC across multiple macOS versions by checking for:
-///   1. "Mission Control" app windows (macOS 13 and earlier)
-///   2. Dock overlay windows at elevated layers (macOS 14 Sonoma, layers ~18-20)
-///   3. Dock overlay windows at broader ranges (macOS 15 Sequoia/Tahoe)
+/// How long one Dock query may take before detection gives up on it.
+static const float kNeruDockQueryTimeout = 0.25f;
+
+/// Whether Mission Control is up. While it is, the Dock's accessibility tree
+/// has a child group whose identifier is "mc", and at no other time: App
+/// Expose, Show Desktop and the Apps launcher leave it out.
+///
+/// The window list cannot answer this. The Dock keeps one full-display window
+/// at its own layer, and that window is on screen whenever the Dock is visible,
+/// with or without Mission Control.
 /// @return true if Mission Control is active, false otherwise
 static bool detectMissionControlActive(void) {
 	@autoreleasepool {
-		CFArrayRef windowList = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID);
-		if (!windowList) {
+		NSRunningApplication *dock =
+		    [[NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.dock"] firstObject];
+		if (!dock) {
 			return false;
 		}
 
-		CFIndex count = CFArrayGetCount(windowList);
-		int dockHighLayerWindows = 0;
-		int dockOverlayWindows = 0;
-
-		for (CFIndex i = 0; i < count; i++) {
-			CFDictionaryRef windowInfo = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
-			if (!windowInfo)
-				continue;
-
-			CFStringRef ownerName = (CFStringRef)CFDictionaryGetValue(windowInfo, kCGWindowOwnerName);
-			if (!ownerName)
-				continue;
-
-			// Check if Mission Control app is visible (macOS 13 and earlier)
-			if (CFStringCompare(ownerName, CFSTR("Mission Control"), 0) == kCFCompareEqualTo) {
-				CFRelease(windowList);
-				return YES;
-			}
-
-			if (CFStringCompare(ownerName, CFSTR("Dock"), 0) != kCFCompareEqualTo)
-				continue;
-
-			CFNumberRef windowLayer = (CFNumberRef)CFDictionaryGetValue(windowInfo, kCGWindowLayer);
-			if (!windowLayer)
-				continue;
-
-			int layer = 0;
-			CFNumberGetValue(windowLayer, kCFNumberIntType, &layer);
-
-			// Layers 18-20: Dock MC overlays on macOS 14 Sonoma
-			if (layer >= 18 && layer <= 20) {
-				dockHighLayerWindows++;
-				if (dockHighLayerWindows >= 2) {
-					CFRelease(windowList);
-					return YES;
-				}
-			}
-
-			// Layers 14-25: broader range covering macOS 15 Sequoia/Tahoe
-			// where the window manager may use different layers
-			if (layer >= 14 && layer <= 25) {
-				dockOverlayWindows++;
-				if (dockOverlayWindows >= 3) {
-					CFRelease(windowList);
-					return YES;
-				}
-			}
+		AXUIElementRef dockElement = AXUIElementCreateApplication(dock.processIdentifier);
+		if (!dockElement) {
+			return false;
 		}
 
-		CFRelease(windowList);
-		return NO;
+		AXUIElementSetMessagingTimeout(dockElement, kNeruDockQueryTimeout);
+
+		CFArrayRef children = NULL;
+		AXError childrenErr = AXUIElementCopyAttributeValue(dockElement, kAXChildrenAttribute, (CFTypeRef *)&children);
+		CFRelease(dockElement);
+
+		if (childrenErr != kAXErrorSuccess || !children) {
+			return false;
+		}
+
+		bool active = false;
+		CFIndex count = CFArrayGetCount(children);
+
+		for (CFIndex i = 0; i < count && !active; i++) {
+			AXUIElementRef child = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
+
+			CFTypeRef identifier = NULL;
+			if (AXUIElementCopyAttributeValue(child, kAXIdentifierAttribute, &identifier) != kAXErrorSuccess ||
+			    !identifier) {
+				continue;
+			}
+
+			active = CFGetTypeID(identifier) == CFStringGetTypeID() &&
+			         CFStringCompare((CFStringRef)identifier, CFSTR("mc"), 0) == kCFCompareEqualTo;
+			CFRelease(identifier);
+		}
+
+		CFRelease(children);
+		return active;
 	}
 }
 
