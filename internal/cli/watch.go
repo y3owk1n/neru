@@ -22,8 +22,8 @@ front, a pause or resume, a config reload, Mission Control opening or closing (m
 
 The first line is the status as neru status --json prints it, under "status",
 with the event "snapshot". Every line carries a "seq" that rises by one per
-event, and a line carries "dropped" when events were missed because the
-reader fell behind.
+event. A reader that falls behind gets a fresh snapshot in place of the
+events it missed, carrying their count in "dropped".
 
 The stream runs until the daemon exits, and then neru watch exits 0. It also
 runs while Neru is stopped. --timeout applies to connecting only.

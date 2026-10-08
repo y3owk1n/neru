@@ -34,12 +34,13 @@ func watchController(bus *event.Bus) *ipcctrl.Controller {
 
 // watchLines runs a watch until ctx ends, handing each line to the returned
 // channel as the JSON object a client would read. gate, when not nil, holds
-// the first line until it closes.
+// the first line: the watch sends on it once that line is ready, then waits to
+// receive from it.
 func watchLines(
 	ctx context.Context,
 	t *testing.T,
 	controller *ipcctrl.Controller,
-	gate <-chan struct{},
+	gate chan struct{},
 ) (<-chan map[string]any, <-chan error) {
 	t.Helper()
 
@@ -50,6 +51,8 @@ func watchLines(
 		first := true
 		done <- controller.HandleWatch(ctx, ipc.Command{Action: domain.CommandWatch}, func(value any) error {
 			if first && gate != nil {
+				gate <- struct{}{}
+
 				<-gate
 			}
 
@@ -134,14 +137,14 @@ func TestController_HandleWatch_OpensWithTheStatusThenStreamsEvents(t *testing.T
 	}
 }
 
-func TestController_HandleWatch_CountsWhatASlowReaderMissed(t *testing.T) {
+func TestController_HandleWatch_ResyncsAReaderThatFellBehind(t *testing.T) {
 	bus := event.NewBus(nil)
 	gate := make(chan struct{})
 	lines, _ := watchLines(t.Context(), t, watchController(bus), gate)
 
-	// The handler subscribes before its first line, so these queue behind
-	// the held snapshot and overflow its buffer.
-	time.Sleep(100 * time.Millisecond)
+	// Held at its first line, the watch has subscribed, so these queue
+	// behind the snapshot and overflow its buffer.
+	<-gate
 
 	const published = 80
 
@@ -149,34 +152,29 @@ func TestController_HandleWatch_CountsWhatASlowReaderMissed(t *testing.T) {
 		bus.Publish(event.Event{Name: event.Enable})
 	}
 
-	close(gate)
+	gate <- struct{}{}
 
 	nextLine(t, lines)
 
+	// Nothing is published after the overflow, so the watch has to notice
+	// the loss on its own once it drains what it queued.
 	delivered := 0
 
-	for quiet := false; !quiet; {
-		select {
-		case <-lines:
+	for {
+		line := nextLine(t, lines)
+		if line["event"] != "snapshot" {
 			delivered++
-		case <-time.After(200 * time.Millisecond):
-			quiet = true
+
+			continue
 		}
-	}
 
-	// The next event to arrive says how many the reader missed.
-	bus.Publish(event.Event{Name: event.Disable})
+		dropped, _ := line["dropped"].(float64)
+		if line["seq"] != float64(published) || delivered+int(dropped) != published {
+			t.Errorf("delivered %d, then snapshot %v, want one at seq %d accounting for the rest",
+				delivered, line, published)
+		}
 
-	last := nextLine(t, lines)
-
-	dropped, carried := last["dropped"].(float64)
-	if !carried || delivered+int(dropped) != published {
-		t.Errorf(
-			"delivered %d and the next line says %v dropped, want the %d published accounted for",
-			delivered,
-			last["dropped"],
-			published,
-		)
+		return
 	}
 }
 

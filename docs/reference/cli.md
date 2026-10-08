@@ -111,21 +111,22 @@ runs on, under the same names.
 
 The `snapshot` line comes first, with `status` holding the object
 [`neru status --json`](#neru-status) prints (shortened above). Every line after
-it is an event.
+it is an event, except when the reader falls behind. Then the events it missed
+are replaced by a fresh `snapshot` with a `dropped` count, so take each
+snapshot as the whole state and each event as a change to it.
 
 | Key         | Present on                     | Value                                                                 |
 | ----------- | ------------------------------ | --------------------------------------------------------------------- |
-| `seq`       | every line                     | Rises by one with each event. On the snapshot, the `seq` of the last event before it. |
+| `seq`       | every line                     | Rises by one with each event. On a snapshot, the `seq` of the last event it includes. |
 | `event`     | every line                     | `snapshot`, or the event, such as `mode_enter`                        |
 | `status`    | `snapshot`                     | The `neru status --json` object                                       |
 | `mode`      | `mode_enter`, `mode_exit`      | The mode, named as `neru status` names it                             |
 | `reason`    | `mode_exit`                    | `completed`, `switched` or `canceled`, as `NERU_REASON` has them      |
 | `bundle_id` | `app_focus`                    | The application, as [`bundle_id`](configuration.md#app-identity-across-platforms-bundle_id) names it |
 | `ok`        | `config_reload`                | `true` or `false`                                                     |
-| `dropped`   | any event, when events were missed | How many events the reader missed just before this one, because it fell behind |
+| `dropped`   | a snapshot after missed events | How many events since the previous line this snapshot replaces |
 
-A line with `dropped` means anything built from earlier lines may be stale, so
-run `neru status --json` again. The daemon disconnects a reader once a line has
+The daemon disconnects a reader once a line has
 waited 5 seconds to send. At most 16 watches can be open at once, and the next
 one fails with `ERR_BUSY`.
 

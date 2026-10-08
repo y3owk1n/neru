@@ -33,6 +33,10 @@ type watchLine struct {
 // HandleWatch serves `neru watch`: the status, then every event the daemon
 // publishes, until the client goes away or the daemon stops. It answers while
 // Neru is stopped too, or nobody would see the enable event.
+//
+// A watcher that falls behind gets a fresh snapshot in place of the events it
+// missed, so a client that keeps state from the lines is never left on a
+// stale one.
 func (c *Controller) HandleWatch(
 	ctx context.Context,
 	_ ipc.Command,
@@ -47,17 +51,21 @@ func (c *Controller) HandleWatch(
 	events, stop := c.Events.Subscribe(watchBuffer)
 	defer stop()
 
-	seq := c.Events.Seq()
-
-	status, ok := c.infoHandler.statusData()
-	if !ok {
-		return derrors.New(derrors.CodeActionFailed, "config not available")
-	}
-
-	err := emit(watchLine{Seq: seq, Event: watchSnapshot, Status: status})
+	line, err := c.snapshotLine()
 	if err != nil {
 		return err
 	}
+
+	err = emit(line)
+	if err != nil {
+		return err
+	}
+
+	// last is the seq of the newest event the client has, in a line or a
+	// snapshot. The bus numbers every event for every subscriber, so a gap
+	// after it is events this watcher missed.
+	last := line.Seq
+	behind := false
 
 	for {
 		select {
@@ -68,16 +76,68 @@ func (c *Controller) HandleWatch(
 				return nil
 			}
 
-			if evt.Seq <= seq {
+			if evt.Seq <= last {
 				continue
 			}
 
-			err = emit(watchLineFor(evt))
+			// The bus drops only while the buffer is full, and only this
+			// loop drains it, so a buffer full up to this receive is the one
+			// sign that events may have been dropped after the ones queued.
+			behind = behind || len(events) == cap(events)-1
+
+			if evt.Seq == last+1 {
+				err = emit(watchLineFor(evt))
+				last = evt.Seq
+			} else {
+				last, err = c.resync(emit, last)
+			}
+
 			if err != nil {
 				return err
 			}
+
+			// Caught up with no event left to carry the news of a drop, so
+			// check the bus for one. Seq is read before the length, so an
+			// event still to come is queued rather than counted as missed.
+			if behind {
+				if newest := c.Events.Seq(); len(events) == 0 {
+					behind = false
+
+					if newest > last {
+						last, err = c.resync(emit, last)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
 	}
+}
+
+// snapshotLine is the status as of the newest event published.
+func (c *Controller) snapshotLine() (watchLine, error) {
+	seq := c.Events.Seq()
+
+	status, ok := c.infoHandler.statusData()
+	if !ok {
+		return watchLine{}, derrors.New(derrors.CodeActionFailed, "config not available")
+	}
+
+	return watchLine{Seq: seq, Event: watchSnapshot, Status: status}, nil
+}
+
+// resync sends a snapshot in place of the events since last, counting them in
+// dropped, and returns the seq it is at.
+func (c *Controller) resync(emit func(value any) error, last uint64) (uint64, error) {
+	line, err := c.snapshotLine()
+	if err != nil {
+		return last, err
+	}
+
+	line.Dropped = line.Seq - last
+
+	return line.Seq, emit(line)
 }
 
 // watchLineFor puts an event on the wire. ok is sent only for a config reload,
@@ -89,7 +149,6 @@ func watchLineFor(evt event.Event) watchLine {
 		Mode:     evt.Mode,
 		Reason:   string(evt.Reason),
 		BundleID: evt.BundleID,
-		Dropped:  evt.Dropped,
 	}
 
 	if evt.Name == event.ConfigReload {
