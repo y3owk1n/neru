@@ -165,20 +165,34 @@ func (h *InfoHandler) configSnapshot() *config.Config {
 }
 
 func (h *InfoHandler) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
-	configPath := h.ResolveConfigPath()
-
-	cfg := h.configSnapshot()
-
-	if cfg == nil {
+	status, ok := h.statusData()
+	if !ok {
 		h.logger.Debug("Config is nil in handleStatus")
 
 		return h.configNotAvailableResponse()
 	}
 
-	status := map[string]any{
+	return ipc.Response{
+		Success: true,
+		Message: "status retrieved successfully",
+		Data:    status,
+		Code:    ipc.CodeOK,
+	}
+}
+
+// statusData is the object `neru status --json` prints, and false while no
+// configuration is loaded. The watch stream opens with it too, so the two read
+// the same fields.
+func (h *InfoHandler) statusData() (map[string]any, bool) {
+	cfg := h.configSnapshot()
+	if cfg == nil {
+		return nil, false
+	}
+
+	return map[string]any{
 		"enabled":                h.appState.IsEnabled(),
 		"mode":                   h.appState.ModeName(),
-		"config":                 configPath,
+		"config":                 h.ResolveConfigPath(),
 		"hints_enabled":          cfg.Hints.Enabled,
 		"grid_enabled":           cfg.Grid.Enabled,
 		"recursive_grid_enabled": cfg.RecursiveGrid.Enabled,
@@ -193,14 +207,7 @@ func (h *InfoHandler) handleStatus(_ context.Context, _ ipc.Command) ipc.Respons
 		"hidden_for_screen_share": h.appState.IsHiddenForScreenShare(),
 		"cursor_follow_selection": h.cursorFollowSelection(),
 		"saved_cursor_slots":      h.savedCursorSlots(),
-	}
-
-	return ipc.Response{
-		Success: true,
-		Message: "status retrieved successfully",
-		Data:    status,
-		Code:    ipc.CodeOK,
-	}
+	}, true
 }
 
 // cursorFollowSelection reports the active mode's cursor-follow-selection

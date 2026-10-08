@@ -408,3 +408,85 @@ func TestClient_SocketPath(t *testing.T) {
 		t.Errorf("Client.SocketPath() returned relative path: %s", path)
 	}
 }
+
+// TestClient_Stream_EndsCleanlyWhenTheDaemonStops runs a stream over the real
+// transport, the Unix socket or the Windows named pipe, from the client's side.
+func TestClient_Stream_EndsCleanlyWhenTheDaemonStops(t *testing.T) {
+	if ipc.IsServerRunning() {
+		t.Skip("a neru daemon already owns the IPC socket")
+	}
+
+	const lines = 3
+
+	server, serverErr := ipc.NewServer(func(_ context.Context, _ ipc.Command) ipc.Response {
+		return ipc.Response{Success: false, Code: ipc.CodeUnknownCommand}
+	}, zap.NewNop())
+	if serverErr != nil {
+		t.Fatalf("NewServer() failed: %v", serverErr)
+	}
+
+	server.HandleStream(
+		testCommandAction,
+		func(ctx context.Context, _ ipc.Command, emit func(any) error) error {
+			for seq := 1; seq <= lines; seq++ {
+				emitErr := emit(map[string]int{"seq": seq})
+				if emitErr != nil {
+					return emitErr
+				}
+			}
+
+			<-ctx.Done()
+
+			return nil
+		},
+	)
+	server.Start()
+
+	received := make(chan json.RawMessage, lines)
+
+	type result struct {
+		response ipc.Response
+		err      error
+	}
+
+	done := make(chan result, 1)
+
+	go func() {
+		response, err := ipc.NewClient().Stream(
+			ipc.Command{Action: testCommandAction},
+			5*time.Second,
+			func(line json.RawMessage) error {
+				received <- line
+
+				return nil
+			},
+		)
+		done <- result{response, err}
+	}()
+
+	for range lines {
+		select {
+		case <-received:
+		case <-time.After(5 * time.Second):
+			t.Fatal("a streamed line never arrived")
+		}
+	}
+
+	stopErr := server.Stop()
+	if stopErr != nil {
+		t.Fatalf("Stop() error = %v", stopErr)
+	}
+
+	select {
+	case got := <-done:
+		if got.err != nil || !got.response.Success {
+			t.Errorf(
+				"Stream() = %+v, %v after the daemon stopped, want the accepting reply and no error",
+				got.response,
+				got.err,
+			)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stream() kept running after the daemon stopped")
+	}
+}

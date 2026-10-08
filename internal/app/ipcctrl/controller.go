@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -56,6 +57,9 @@ type Controller struct {
 	// ExecuteMacro runs a named macro. If nil, the "macro" command reports
 	// that macros are unavailable.
 	ExecuteMacro macroRunner
+
+	// Events is what `neru watch` streams. Nil refuses the stream.
+	Events *event.Bus
 
 	// Info handler for config updates
 	infoHandler *InfoHandler
@@ -110,6 +114,9 @@ type Deps struct {
 	// global hotkeys. When nil, the hotkeys wait for the binder's next refresh.
 	SetEnabled func(enabled bool)
 
+	// Events is the bus `neru watch` streams.
+	Events *event.Bus
+
 	Logger *zap.Logger
 }
 
@@ -137,6 +144,7 @@ func New(deps Deps) *Controller {
 		ExecuteSequence: deps.ExecuteSequence,
 		ExecuteMacro:    deps.ExecuteMacro,
 		SetEnabled:      deps.SetEnabled,
+		Events:          deps.Events,
 		Logger:          logger.Named("ipc.controller"),
 		Handlers:        make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}

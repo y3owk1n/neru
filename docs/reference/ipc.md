@@ -4,7 +4,8 @@ The wire format between the `neru` CLI and the daemon. Use it to drive Neru
 without spawning the `neru` binary. For most scripts, calling `neru` is
 simpler, see [Scripting](../guide/scripting.md).
 
-Each call sends one JSON request and reads one JSON response.
+Each call sends one JSON request and reads one JSON response, except a
+[stream](#streaming), which keeps sending lines after it.
 
 ## Endpoint
 
@@ -55,6 +56,20 @@ object) and `version` (the daemon's build version):
 { "success": true, "message": "OK", "code": "OK" }
 ```
 
+## Streaming
+
+`watch` keeps the connection open. The daemon sends one response, then one
+JSON object per line until it exits or you close the connection. The lines
+are the ones [`neru watch`](cli.md#neru-watch) prints.
+
+```json
+{ "action": "watch" }
+```
+
+Send nothing after the request. To end a watch, close your end. The daemon
+disconnects a reader once a line has waited 5 seconds to send, and a 17th open
+watch gets `ERR_BUSY`.
+
 ## Response codes
 
 | Code                    | Meaning                                                  |
@@ -69,5 +84,6 @@ object) and `version` (the daemon's build version):
 | `ERR_CHAIN_BAIL`        | An action chain aborted, for example `--bail`            |
 | `ERR_NOT_SUPPORTED`     | Not implemented on this platform                         |
 | `ERR_VERSION_MISMATCH`  | Client and daemon builds differ. Restart the daemon.     |
+| `ERR_BUSY`              | Too many watches are open                                |
 
 A connection error rather than a response code means no daemon is running.

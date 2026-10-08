@@ -50,6 +50,29 @@ on_mode_enter = "exec sketchybar --trigger neru_mode MODE=\"$NERU_MODE\""
 on_mode_exit  = "exec sketchybar --trigger neru_mode MODE=idle"
 ```
 
+## Keep a status bar in sync
+
+A hook starts a process per event. A bar that runs its own long-lived command,
+such as Waybar's `exec` or an Eww `deflisten`, can read
+[`neru watch`](../reference/cli.md#neru-watch) instead. The script below prints
+the current mode, then a new line each time the mode changes.
+
+```bash
+neru watch | jq --unbuffered -r '
+  if .event == "snapshot" then .status.mode
+  elif .event == "mode_enter" then .mode
+  elif .event == "mode_exit" and .reason != "switched" then "idle"
+  else empty end'
+```
+
+Save it as an executable script, for example `~/.local/bin/neru-mode`, and
+point the bar at it:
+
+```text
+; eww.yuck
+(deflisten neru_mode "neru-mode")
+```
+
 ## Talking to the daemon directly
 
 To skip the `neru` binary, send JSON over the socket. The format is in

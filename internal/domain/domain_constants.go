@@ -54,6 +54,9 @@ const (
 	CommandToggleScrollInvert          = "toggle-scroll-invert"
 	CommandConfigSet                   = "config-set"
 
+	// CommandWatch streams the status, then each event, while the client stays.
+	CommandWatch = "watch"
+
 	// CommandHintsProbe reports what hints mode would target for the focused
 	// window. It is a read-only query rather than a mode command: it draws
 	// nothing, activates nothing, and answers with a summary. `neru hints

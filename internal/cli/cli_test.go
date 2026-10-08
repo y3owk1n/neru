@@ -72,6 +72,7 @@ func TestCommandInitialization(t *testing.T) {
 		"run <step> [step...]":           false,
 		"macro <name> [arg...]":          false,
 		cliTestStatus:                    false,
+		"watch":                          false,
 		"doctor":                         false,
 		cliTestRoles:                     false,
 		"launch":                         false,

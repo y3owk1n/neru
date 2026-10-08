@@ -104,6 +104,8 @@ const (
 
 	// CodeNotSupported indicates the operation is not supported on this platform.
 	CodeNotSupported = "ERR_NOT_SUPPORTED"
+	// CodeBusy means the daemon already has as many streams open as it allows.
+	CodeBusy = "ERR_BUSY"
 )
 
 // Command is a command sent through the IPC interface.
@@ -132,11 +134,18 @@ type StatusData struct {
 
 // Server handles incoming IPC connections and routes commands to handlers.
 type Server struct {
-	listener   net.Listener
-	logger     *zap.Logger
-	handler    CommandHandler
-	socketPath string
-	wg         sync.WaitGroup
+	listener       net.Listener
+	logger         *zap.Logger
+	handler        CommandHandler
+	streamHandlers map[string]StreamHandler
+	socketPath     string
+	wg             sync.WaitGroup
+
+	// streamsMu guards streams, the connections serving a stream now, and
+	// streamsClosed, set once Stop has closed them (stream.go).
+	streamsMu     sync.Mutex
+	streams       map[net.Conn]struct{}
+	streamsClosed bool
 }
 
 // CommandHandler is the interface for processing IPC commands.
@@ -243,6 +252,10 @@ func (s *Server) Stop() error {
 		return derrors.Wrap(closeListenerErr, derrors.CodeIPCFailed, "failed to close listener")
 	}
 
+	// A stream otherwise lasts as long as its client, so the wait below would
+	// run out its timer on every shutdown with one open.
+	s.closeStreams()
+
 	done := make(chan struct{})
 
 	go func() {
@@ -310,8 +323,10 @@ func (s *Server) handleConnection(connection net.Conn) {
 	ctx := WithTraceID(context.Background(), traceID)
 
 	defer func() {
+		// Stop closes a stream's connection to end it, so already closed is
+		// the expected state of one, not a fault.
 		connectionCloseErr := connection.Close()
-		if connectionCloseErr != nil {
+		if connectionCloseErr != nil && !errors.Is(connectionCloseErr, net.ErrClosed) {
 			logger.Warn("Failed to close connection", zap.Error(connectionCloseErr))
 		}
 
@@ -408,6 +423,12 @@ func (s *Server) handleConnection(connection net.Conn) {
 			),
 			Code: CodeVersionMismatch,
 		})
+
+		return
+	}
+
+	if stream, isStream := s.streamHandlers[cmd.Action]; isStream {
+		s.serveStream(ctx, connection, encoder, cmd, stream, reply, logger)
 
 		return
 	}

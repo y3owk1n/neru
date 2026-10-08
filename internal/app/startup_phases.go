@@ -20,6 +20,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/event"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/domain/motion"
@@ -387,6 +388,7 @@ func initializeIPCController(app *App) {
 		ExecuteSequence: app.executeActionSequenceWithPolicy,
 		ExecuteMacro:    app.executeMacro,
 		SetEnabled:      app.SetEnabled,
+		Events:          app.events,
 		Logger:          app.logger,
 	})
 
@@ -504,6 +506,8 @@ func initializeEventTapAndIPC(app *App) error {
 				"failed to create IPC server",
 			)
 		}
+
+		server.HandleStream(domain.CommandWatch, app.ipcController.HandleWatch)
 
 		app.ipcServer = ipcadapter.NewAdapter(server, logger)
 	}
