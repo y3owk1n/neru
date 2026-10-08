@@ -511,3 +511,59 @@ func TestAdapter_RolePassing(t *testing.T) {
 		}
 	})
 }
+
+// TestAdapter_ClickableElements_MissionControlIsPartOfDockHints pins when
+// Mission Control's own elements are collected: while it is up and Dock hints
+// are asked for, which is what include_dock_hints promises, and at no other
+// time.
+func TestAdapter_ClickableElements_MissionControlIsPartOfDockHints(t *testing.T) {
+	tests := []struct {
+		name           string
+		missionControl bool
+		includeDock    bool
+		wantCollected  bool
+	}{
+		{
+			name:           "mission control with dock hints",
+			missionControl: true,
+			includeDock:    true,
+			wantCollected:  true,
+		},
+		{name: "mission control without dock hints", missionControl: true, includeDock: false},
+		{name: "dock hints outside mission control", missionControl: false, includeDock: true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockWindow := &accessibility.MockWindow{}
+			mockClient := &accessibility.MockAXClient{
+				MockPermissions:          true,
+				MockFrontmostWindow:      mockWindow,
+				MockAllWindows:           []ax.Window{mockWindow},
+				MockMissionControlActive: testCase.missionControl,
+				MockFocusedApp: &mockAXApp{
+					bundleID: bundleIDAppleDock,
+					MockInfo: &ax.AppInfo{Role: "AXApplication"},
+				},
+			}
+
+			adapter := accessibility.NewAdapter(zap.NewNop(), []string{}, mockClient, true)
+
+			_, err := adapter.ClickableElements(
+				context.Background(),
+				ports.ElementFilter{IncludeDock: testCase.includeDock},
+			)
+			if err != nil {
+				t.Fatalf("ClickableElements() error = %v", err)
+			}
+
+			if collected := mockClient.MissionControlCalls > 0; collected != testCase.wantCollected {
+				t.Errorf(
+					"Mission Control collected = %v, want %v",
+					collected,
+					testCase.wantCollected,
+				)
+			}
+		})
+	}
+}

@@ -43,6 +43,7 @@ type MockAXClient struct {
 
 	MockMissionControlActive bool
 
+	MissionControlCalls        int
 	LastCalledBundleID         string
 	LastCalledMaxDepth         int
 	LastClickableNodesRoles    []string
@@ -110,6 +111,15 @@ func (m *MockAXClient) MenuBarClickableElements(
 	m.mu.Unlock()
 
 	return m.MockMenuBarNodes, m.MockMenuBarNodesErr
+}
+
+// MissionControlClickableNodes counts the call and returns no nodes.
+func (m *MockAXClient) MissionControlClickableNodes(_ context.Context, _ int) ([]ax.Node, error) {
+	m.mu.Lock()
+	m.MissionControlCalls++
+	m.mu.Unlock()
+
+	return nil, nil
 }
 
 // ClickableElementsFromBundleID returns the configured nodes for bundle ID or error.

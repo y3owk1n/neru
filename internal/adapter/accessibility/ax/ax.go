@@ -33,6 +33,10 @@ type Client interface {
 		maxDepth int,
 	) ([]Node, error)
 	MenuBarClickableElements(ctx context.Context, maxDepth int) ([]Node, error)
+	// MissionControlClickableNodes returns what Mission Control draws that a
+	// hint can land on while it is up: the current desktop's windows, and the
+	// Spaces bar while it is expanded. CodeNotSupported off macOS.
+	MissionControlClickableNodes(ctx context.Context, maxDepth int) ([]Node, error)
 	ClickableElementsFromBundleID(
 		ctx context.Context,
 		bundleID string,

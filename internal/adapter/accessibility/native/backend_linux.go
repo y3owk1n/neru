@@ -57,3 +57,6 @@ var (
 	ensureMouseUp     = linux.EnsureMouseUp
 	ReleaseTreeExcept = linux.ReleaseTreeExcept
 )
+
+// MissionControlClickableElements is the platform's Mission Control collector.
+var MissionControlClickableElements = linux.MissionControlClickableElements

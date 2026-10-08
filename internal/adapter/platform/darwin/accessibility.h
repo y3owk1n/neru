@@ -318,6 +318,12 @@ bool NeruIsMissionControlActive(void);
 /// Update the cached Mission Control state and trigger transition callbacks
 void NeruUpdateMissionControlState(void);
 
+/// Check whether the window a Mission Control thumbnail stands for is on screen
+/// @param element Element reference, borrowed
+/// @param hasWindow Set to whether the element names a window at all
+/// @return true if the element names a window and that window is on screen
+bool NeruIsElementWindowOnScreen(void *element, bool *hasWindow);
+
 /// Enable or disable Mission Control detection.
 /// When disabled, no timer, window scans, or callbacks are active.
 void NeruSetDetectMissionControlEnabled(bool enabled);

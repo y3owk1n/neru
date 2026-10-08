@@ -15,6 +15,10 @@ const (
 	dockTreeDepth = 5
 	// stageManagerTreeDepth limits tree depth for the WindowManager app.
 	stageManagerTreeDepth = 4
+	// missionControlTreeDepth reaches the Spaces bar's desktop buttons, one level
+	// below Stage Manager's deepest item, in the WindowManager tree Mission
+	// Control draws into.
+	missionControlTreeDepth = 5
 	// flatAppTreeDepth limits tree depth for simple single-window apps like PIP and screen capture.
 	flatAppTreeDepth = 3
 	// menubarTreeDepth limits tree depth for the menu bar (AXMenuBar → AXMenuBarItem → AXMenuItem).
@@ -383,6 +387,39 @@ func (a *Adapter) addScreenCaptureElements(
 	}
 
 	a.logger.Debug("Included Screen Capture elements", zap.Int("count", len(screenCaptureNodes)),
+		zap.Int("failed", failed))
+
+	return elements
+}
+
+// addMissionControlElements adds what Mission Control draws while it is up:
+// the current desktop's windows, and the Spaces bar while it is expanded.
+func (a *Adapter) addMissionControlElements(ctx context.Context) []*element.Element {
+	nodes, nodesErr := a.client.MissionControlClickableNodes(ctx, missionControlTreeDepth)
+	if nodesErr != nil {
+		a.logger.Warn("Failed to get Mission Control elements", zap.Error(nodesErr))
+
+		return nil
+	}
+
+	elements := make([]*element.Element, 0, len(nodes))
+	failed := 0
+
+	for _, node := range nodes {
+		converted, convertErr := a.convertToDomainElement(node)
+
+		node.Release()
+
+		if convertErr != nil {
+			failed++
+
+			continue
+		}
+
+		elements = append(elements, converted)
+	}
+
+	a.logger.Debug("Included Mission Control elements", zap.Int("count", len(nodes)),
 		zap.Int("failed", failed))
 
 	return elements

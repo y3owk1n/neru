@@ -56,3 +56,6 @@ var (
 	ensureMouseUp     = windows.EnsureMouseUp
 	ReleaseTreeExcept = windows.ReleaseTreeExcept
 )
+
+// MissionControlClickableElements is the platform's Mission Control collector.
+var MissionControlClickableElements = windows.MissionControlClickableElements

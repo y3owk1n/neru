@@ -138,6 +138,13 @@ checks once a second and on every Space change while
 a child group with the identifier `mc`, which App Expose, Show Desktop and the
 Apps launcher never add. The window list cannot tell, because the Dock keeps a
 full-display window on screen whenever the Dock itself is visible.
+WindowManager draws Mission Control's windows and Spaces bar, so hints read its
+tree while Mission Control is up. WindowManager lists the windows of every
+desktop, so a thumbnail counts only while its window, named by an undocumented
+`wid` attribute, is on screen. A Spaces bar button reports its center as its
+position, so Neru moves its frame back by half its size. While the bar is
+collapsed those centers lie above the screen, so its desktops get hints only
+once it expands.
 
 **Global hotkeys on Wayland** use an evdev keyboard proxy
 ([ADR 0014](../adr/0014-the-wayland-keyboard-is-a-proxy.md)) that needs the

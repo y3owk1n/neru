@@ -120,7 +120,7 @@ func (a *Adapter) ClickableElements(
 	}
 
 	if a.client.SupportsSupplementaryElements() {
-		for _, source := range a.supplementarySources(ctx, filter) {
+		for _, source := range a.supplementarySources(ctx, filter, missionControlActive) {
 			if !source.enabled {
 				continue
 			}

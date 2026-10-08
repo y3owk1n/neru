@@ -173,6 +173,37 @@ func (c *Client) MenuBarClickableElements(
 	return nodesResult, nil
 }
 
+// MissionControlClickableNodes returns the clickable elements Mission Control
+// draws while it is up. Only macOS has one.
+func (c *Client) MissionControlClickableNodes(
+	ctx context.Context,
+	maxDepth int,
+) ([]ax.Node, error) {
+	nodes, nodesErr := MissionControlClickableElements(ctx, c.logger, c.configProvider, maxDepth)
+	if nodesErr != nil {
+		if derrors.IsNotSupported(nodesErr) {
+			return nil, nodesErr
+		}
+
+		return nil, derrors.Wrap(
+			nodesErr,
+			derrors.CodeAccessibilityFailed,
+			"failed to get Mission Control elements",
+		)
+	}
+
+	nodesResult := make([]ax.Node, len(nodes))
+	for index, node := range nodes {
+		nodesResult[index] = &InfraNode{
+			node:           node,
+			clickable:      true,
+			configProvider: c.configProvider,
+		}
+	}
+
+	return nodesResult, nil
+}
+
 // ClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
 // If maxDepth is > 0, it overrides the configured tree depth for flat supplementary sources.
 func (c *Client) ClickableElementsFromBundleID(

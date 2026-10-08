@@ -273,8 +273,10 @@ ignore_clickable_check = true
 
 ### No hints in Mission Control (macOS)
 
-The Dock draws Mission Control, so set `include_dock_hints = true` and
-`detect_mission_control = true` under `[hints]`.
+Dock hints include Mission Control. Set `include_dock_hints = true` and
+`detect_mission_control = true` under `[hints]` to get hints on the current
+desktop's windows. The desktops in the Spaces bar get hints once the bar is
+expanded, so move the pointer to the top edge before showing hints.
 
 ### The cursor lands in the wrong place under Accessibility Zoom (macOS)
 

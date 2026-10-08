@@ -59,3 +59,6 @@ var (
 	supportsSupplementaryElements = darwin.SupportsSupplementaryElements
 	ReleaseTreeExcept             = darwin.ReleaseTreeExcept
 )
+
+// MissionControlClickableElements is the platform's Mission Control collector.
+var MissionControlClickableElements = darwin.MissionControlClickableElements

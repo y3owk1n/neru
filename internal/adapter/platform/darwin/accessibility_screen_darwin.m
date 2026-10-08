@@ -231,6 +231,51 @@ static bool detectMissionControlActive(void) {
 	}
 }
 
+/// Whether the window a Mission Control thumbnail stands for is on screen.
+/// WindowManager names it in an undocumented "wid" attribute. It lists the
+/// windows of every desktop, and only the current desktop's are on screen.
+bool NeruIsElementWindowOnScreen(void *element, bool *hasWindow) {
+	if (hasWindow)
+		*hasWindow = false;
+	if (!element)
+		return false;
+
+	CFTypeRef value = NULL;
+	if (AXUIElementCopyAttributeValue((AXUIElementRef)element, CFSTR("wid"), &value) != kAXErrorSuccess || !value) {
+		return false;
+	}
+
+	CGWindowID windowID = 0;
+	bool isNumber = CFGetTypeID(value) == CFNumberGetTypeID() &&
+	                CFNumberGetValue((CFNumberRef)value, kCFNumberSInt32Type, &windowID);
+	CFRelease(value);
+
+	if (!isNumber || windowID == 0)
+		return false;
+
+	if (hasWindow)
+		*hasWindow = true;
+
+	CFArrayRef windowIDs = CFArrayCreate(NULL, (const void **)(uintptr_t[]){windowID}, 1, NULL);
+	if (!windowIDs)
+		return false;
+
+	CFArrayRef descriptions = CGWindowListCreateDescriptionFromArray(windowIDs);
+	CFRelease(windowIDs);
+	if (!descriptions)
+		return false;
+
+	bool onScreen = false;
+	if (CFArrayGetCount(descriptions) > 0) {
+		CFDictionaryRef description = (CFDictionaryRef)CFArrayGetValueAtIndex(descriptions, 0);
+		CFBooleanRef isOnScreen = (CFBooleanRef)CFDictionaryGetValue(description, kCGWindowIsOnscreen);
+		onScreen = isOnScreen && CFBooleanGetValue(isOnScreen);
+	}
+
+	CFRelease(descriptions);
+	return onScreen;
+}
+
 /// Enable or disable Mission Control detection.
 /// When disabled, the timer and window scans are completely inactive.
 /// When enabled, kicks off lazy initialization of the detection system if

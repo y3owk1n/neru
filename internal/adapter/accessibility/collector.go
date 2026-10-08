@@ -264,7 +264,8 @@ type supplementarySource struct {
 	enabled bool
 
 	// duringMissionControl marks a surface still reachable while Mission
-	// Control is up. Only the Dock is; the rest are covered by it.
+	// Control is up: the Dock, and Mission Control itself. The rest are covered
+	// by it.
 	duringMissionControl bool
 
 	collect func() []*element.Element
@@ -273,9 +274,14 @@ type supplementarySource struct {
 // supplementarySources lists the surfaces outside the frontmost window. They
 // are macOS-only and resolved by bundle ID, which is why the caller asks the
 // client whether to consider them rather than probing for absent apps.
+//
+// Mission Control's windows count as Dock hints, which is what
+// include_dock_hints promises. On current macOS they are drawn by
+// WindowManager rather than the Dock.
 func (a *Adapter) supplementarySources(
 	ctx context.Context,
 	filter ports.ElementFilter,
+	missionControlActive bool,
 ) []supplementarySource {
 	return []supplementarySource{
 		{
@@ -288,6 +294,12 @@ func (a *Adapter) supplementarySources(
 			enabled:              filter.IncludeDock,
 			duringMissionControl: true,
 			collect:              func() []*element.Element { return a.addDockElements(ctx, nil) },
+		},
+		{
+			name:                 "mission_control",
+			enabled:              filter.IncludeDock && missionControlActive,
+			duringMissionControl: true,
+			collect:              func() []*element.Element { return a.addMissionControlElements(ctx) },
 		},
 		{
 			name:    "notification_center",
