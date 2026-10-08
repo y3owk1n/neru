@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 const (
@@ -45,9 +46,10 @@ func (e *Element) WindowOnScreen() (bool, bool) {
 // WindowManager lists the windows of every desktop, so a thumbnail is kept
 // only while its window is on screen, which during Mission Control is the
 // current desktop's alone. A Spaces bar button reports its center as its
-// position, so this moves its frame back by half its size. While the bar is
-// collapsed those centers lie above the screen, so none of its buttons is
-// kept until it expands.
+// position, so this moves its frame back by half its size before the
+// clickability check reads it, since that check hit-tests a frame's center.
+// While the bar is collapsed those centers lie above the screen, so none of
+// its buttons is kept until it expands.
 func MissionControlClickableElements(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -76,6 +78,24 @@ func MissionControlClickableElements(
 		return []*TreeNode{}, nil
 	}
 
+	screenTop := PlatformActiveScreenBounds().Min.Y
+	barCollapsed := false
+
+	tree.walkTree(func(node *TreeNode) bool {
+		info := node.Info()
+		if info.Role() != string(element.RoleButton) || !inSpacesBar(node) {
+			return true
+		}
+
+		if info.position.Y < screenTop {
+			barCollapsed = true
+		}
+
+		info.position = info.position.Sub(info.size.Div(2)) //nolint:mnd // half the button
+
+		return true
+	})
+
 	allowedRoles := make(map[string]struct{})
 	for _, role := range ClickableRoles() {
 		allowedRoles[role] = struct{}{}
@@ -83,24 +103,11 @@ func MissionControlClickableElements(
 
 	candidates := tree.FindClickableElements(allowedRoles, configProvider, false)
 
-	screenTop := PlatformActiveScreenBounds().Min.Y
-	barCollapsed := false
-
-	for _, node := range candidates {
-		if inSpacesBar(node) && node.Info().Position().Y < screenTop {
-			barCollapsed = true
-
-			break
-		}
-	}
-
 	kept := make([]*TreeNode, 0, len(candidates))
 
 	for _, node := range candidates {
 		if inSpacesBar(node) {
 			if !barCollapsed {
-				info := node.Info()
-				info.position = info.position.Sub(info.size.Div(2)) //nolint:mnd // half the button
 				kept = append(kept, node)
 			}
 
