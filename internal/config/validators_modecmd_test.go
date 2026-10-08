@@ -106,8 +106,8 @@ func TestValidateModeCommands_RefusesAnUnreadableCommand(t *testing.T) {
 		},
 		{
 			name: "action no mode can perform",
-			step: "hints --action=move_mouse",
-			want: `hotkeys.k: "move_mouse" cannot be used as a mode action`,
+			step: "hints --action=move_mouse_relative",
+			want: `hotkeys.k: "move_mouse_relative" cannot be used as a mode action`,
 		},
 	}
 

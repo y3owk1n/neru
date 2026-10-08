@@ -24,6 +24,8 @@ const (
 	flagHideOnEmpty     = "--hide-on-empty-search"
 	flagExitOnUnmatched = "--exit-on-unmatched"
 	argAction           = "--action=left_click"
+	argActionMoveMouse  = "--action=move_mouse"
+	argOnExitScroll     = "--on-exit=scroll"
 	argSearch           = "--search"
 	argToggle           = "--toggle"
 	argOnExitStep       = "--on-exit=action left_click"
@@ -764,6 +766,12 @@ func TestValidate_EnforcesFlagDependencies(t *testing.T) {
 			want: "--modifier requires --action",
 		},
 		{
+			name: "modifier with only move_mouse",
+			mode: domain.ModeHints,
+			args: []string{argActionMoveMouse, argModifierCmd},
+			want: "--modifier needs a mouse button action, because move_mouse presses nothing for it to hold",
+		},
+		{
 			name: "hide-on-empty-search without search",
 			mode: domain.ModeHints,
 			args: []string{flagHideOnEmpty},
@@ -794,8 +802,8 @@ func TestValidate_EnforcesFlagDependencies(t *testing.T) {
 }
 
 // TestValidate_PinsTheActionVocabulary pins which actions a mode may be given.
-// A mode action is fulfilled by a selection, so only the mouse buttons make
-// sense; everything else has its own command.
+// A mode action is fulfilled by a selection, so only the mouse buttons and
+// move_mouse make sense. Everything else has its own command.
 func TestValidate_PinsTheActionVocabulary(t *testing.T) {
 	t.Parallel()
 
@@ -817,12 +825,12 @@ func TestValidate_PinsTheActionVocabulary(t *testing.T) {
 		{
 			name: "scroll sub-action",
 			args: []string{"--action=scroll_up"},
-			want: `scroll sub-action "scroll_up" cannot be used as a mode action; only mouse button actions can`,
+			want: `scroll sub-action "scroll_up" cannot be used as a mode action; only mouse button actions and move_mouse can`,
 		},
 		{
-			name: "action that is not a mouse button",
-			args: []string{"--action=move_mouse"},
-			want: `"move_mouse" cannot be used as a mode action; only mouse button actions can`,
+			name: "relative move",
+			args: []string{"--action=move_mouse_relative"},
+			want: `"move_mouse_relative" cannot be used as a mode action; only mouse button actions and move_mouse can`,
 		},
 	}
 
@@ -850,6 +858,51 @@ func TestValidate_AcceptsAChainedAction(t *testing.T) {
 	_, err := modecmd.Parse(domain.ModeHints, []string{"--action=left_click,left_click"})
 	if err != nil {
 		t.Errorf("chained action refused: %v", err)
+	}
+}
+
+// TestValidate_AcceptsMoveMouse pins that a mode can stop at its selection
+// without pressing anything, so --on-exit steps run from there in every
+// selection mode.
+func TestValidate_AcceptsMoveMouse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		mode domain.Mode
+		args []string
+	}{
+		{
+			name: "hints",
+			mode: domain.ModeHints,
+			args: []string{argActionMoveMouse, argOnExitScroll},
+		},
+		{
+			name: "grid",
+			mode: domain.ModeGrid,
+			args: []string{argActionMoveMouse, argOnExitScroll},
+		},
+		{
+			name: "recursive grid",
+			mode: domain.ModeRecursiveGrid,
+			args: []string{argActionMoveMouse, argOnExitScroll},
+		},
+		{
+			name: "modifier held for a click later in the chain",
+			mode: domain.ModeHints,
+			args: []string{"--action=move_mouse,left_click", argModifierCmd},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := modecmd.Parse(testCase.mode, testCase.args)
+			if err != nil {
+				t.Errorf("Parse(%v) refused: %v", testCase.args, err)
+			}
+		})
 	}
 }
 

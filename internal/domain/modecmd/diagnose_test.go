@@ -252,7 +252,7 @@ func TestDiagnose_SaysWhatParseSays(t *testing.T) {
 		{
 			name: "unusable action",
 			mode: domain.ModeHints,
-			args: []string{"--action=move_mouse"},
+			args: []string{"--action=move_mouse_relative"},
 		},
 	}
 

@@ -128,9 +128,9 @@ const usageCycle = "A comma-separated list cycles, moving to the next value each
 
 // usageAction names the actions a mode can perform, so the vocabulary a user
 // is offered is the one the rules accept rather than a list kept alongside it.
-var usageAction = "Mouse button action to run on the selection: " +
+var usageAction = "Action to run on the selection: " +
 	action.ModeActionNamesString() +
-	". Chain with commas, as in left_click,left_click"
+	". move_mouse only leaves the cursor there. Chain with commas, as in left_click,left_click"
 
 // String returns the bare name.
 func (f Flag) String() string { return string(f) }

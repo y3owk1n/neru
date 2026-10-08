@@ -17,6 +17,7 @@ const (
 	msgRepeatRequiresAction            = "--repeat requires --action"
 	msgOnExitRequiresAction            = "--on-exit requires --action (it runs only when the action is fulfilled)"
 	msgModifierRequiresAction          = "--modifier requires --action"
+	msgModifierWithMoveMouse           = "--modifier needs a mouse button action, because move_mouse presses nothing for it to hold"
 	msgHideOnEmptySearchRequiresSearch = "--hide-on-empty-search requires --search"
 	msgToggleWithCycle                 = "--toggle cannot be combined with a cycle list, because --toggle exits an open mode and a cycle list advances it"
 	msgTwoCycles                       = "only one flag per command can take a cycle list, because two lists advance together and never mix, so give --strategy or --capture-scope a single value"
@@ -90,6 +91,10 @@ var dependencies = []dependency{
 	{
 		unmet:   func(a Activation) bool { return a.OnExit != nil && a.Action == nil },
 		message: msgOnExitRequiresAction,
+	},
+	{
+		unmet:   func(a Activation) bool { return a.Modifier != nil && movesOnly(a.Action) },
+		message: msgModifierWithMoveMouse,
 	},
 	{
 		unmet:   func(a Activation) bool { return isTrue(a.HideOnEmptySearch) && !isTrue(a.Search) },
@@ -201,10 +206,10 @@ func validateModifier(activation Activation) error {
 // validateAction refuses an action a mode cannot fulfill.
 //
 // Commas chain several actions, which is how a double-click is written, so
-// each entry is judged on its own. A mode action is performed on a selection,
-// so it has to be a mouse button: everything else — scrolling, moving the
-// cursor, pressing a key — is an action in its own right and reaches the same
-// place without a mode.
+// each entry is judged on its own. A mode performs its action on a selection,
+// so the action has to be a mouse button, or move_mouse to stop there.
+// Anything else, such as scrolling, a relative move or a key press, is an
+// action in its own right and reaches the same place without a mode.
 func validateAction(activation Activation) error {
 	if activation.Action == nil {
 		return nil
@@ -232,16 +237,16 @@ func validateAction(activation Activation) error {
 		if action.IsScrollSubAction(name) {
 			return derrors.Newf(
 				derrors.CodeInvalidInput,
-				"scroll sub-action %q cannot be used as a mode action; only mouse button actions can",
+				"scroll sub-action %q cannot be used as a mode action; only mouse button actions and move_mouse can",
 				name,
 			)
 		}
 
 		actionType, err := action.Name(name).ToType()
-		if err != nil || !actionType.IsMouseButton() {
+		if err != nil || !actionType.IsModeAction() {
 			return derrors.Newf(
 				derrors.CodeInvalidInput,
-				"%q cannot be used as a mode action; only mouse button actions can",
+				"%q cannot be used as a mode action; only mouse button actions and move_mouse can",
 				name,
 			)
 		}
@@ -266,4 +271,20 @@ func NotDeclared(name string) error {
 // isTrue reads a presence-only flag: absent and false are the same answer.
 func isTrue(value *bool) bool {
 	return value != nil && *value
+}
+
+// movesOnly reports whether every entry of an action chain is move_mouse, so
+// the chain presses no button a modifier could be held for.
+func movesOnly(chain *string) bool {
+	if chain == nil {
+		return false
+	}
+
+	for entry := range strings.SplitSeq(*chain, ",") {
+		if action.Name(strings.TrimSpace(entry)) != action.NameMoveMouse {
+			return false
+		}
+	}
+
+	return true
 }

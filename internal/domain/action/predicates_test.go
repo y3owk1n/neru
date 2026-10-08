@@ -144,11 +144,11 @@ func TestIsScrollSubAction_CoversEveryScrollNameAndNothingElse(t *testing.T) {
 	}
 }
 
-// TestModeActionNamesString_ListsExactlyTheMouseButtonActions checks the help
+// TestModeActionNamesString_ListsExactlyTheModeActions checks the help
 // text stays derived from the same predicate the CLI validates against. If the
 // two drift, `neru mode --help` advertises actions that are then rejected, or
 // omits ones that work.
-func TestModeActionNamesString_ListsExactlyTheMouseButtonActions(t *testing.T) {
+func TestModeActionNamesString_ListsExactlyTheModeActions(t *testing.T) {
 	listed := strings.Split(action.ModeActionNamesString(), ", ")
 
 	inList := make(map[string]bool, len(listed))
@@ -171,10 +171,10 @@ func TestModeActionNamesString_ListsExactlyTheMouseButtonActions(t *testing.T) {
 
 	for _, name := range action.KnownNames() {
 		actionType, err := name.ToType()
-		wantListed := err == nil && actionType.IsMouseButton()
+		wantListed := err == nil && actionType.IsModeAction()
 
 		if gotListed := inList[string(name)]; gotListed != wantListed {
-			t.Errorf("action %q listed = %t, want %t (IsMouseButton = %t)",
+			t.Errorf("action %q listed = %t, want %t (IsModeAction = %t)",
 				name, gotListed, wantListed, wantListed)
 		}
 	}

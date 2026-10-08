@@ -948,6 +948,35 @@ func TestSimulation_HintsFlaggedBindingJourney(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
+// TestSimulation_HintsMoveMouseThenScroll covers picking a place without
+// pressing anything there. Selecting the hint leaves the cursor on the
+// element, and the exit step opens scroll mode at that point.
+func TestSimulation_HintsMoveMouseThenScroll(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{"hints --action=move_mouse --on-exit=scroll"}
+
+	pane := simElement(t, "pane", image.Rect(100, 100, 220, 140), "Pane")
+	sim := newSimHarness(t, cfg, []*element.Element{pane})
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	sim.typeLabel(sim.overlay.lastHintLabels()[0])
+
+	sim.waitMode(domain.ModeScroll)
+
+	if got := sim.cursor.position(); got != pane.Center() {
+		t.Errorf("cursor at %v in scroll mode, expected element center %v", got, pane.Center())
+	}
+
+	for _, performed := range sim.ax.recordedClicks() {
+		if performed.action.IsMouseButton() {
+			t.Errorf("move_mouse pressed %v at %v", performed.action, performed.point)
+		}
+	}
+}
+
 // TestSimulation_RefusedBindingActivatesNothing covers the other half: a
 // binding the grammar refuses enters no mode and draws nothing.
 //

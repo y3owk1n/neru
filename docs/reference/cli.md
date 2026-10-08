@@ -120,8 +120,10 @@ Flags work the same typed after `neru`, in a
 replaces its earlier value unless its entry says it can be repeated.
 `--action` may be positional: `hints left_click`.
 
-- `--action` takes the mouse-button [action names](#action-names), and
-  `--on-exit` steps form one [action sequence](#neru-run).
+- `--action` takes the mouse-button [action names](#action-names) or
+  `move_mouse`, and `--on-exit` steps form one [action sequence](#neru-run).
+  `hints --action move_mouse --on-exit scroll` opens scroll mode on the hint
+  you pick.
 - `--role` takes the [`neru roles`](#neru-roles) vocabulary. `--label-direction`
   is explained in [Choosing a label direction](configuration.md#choosing-a-label-direction).
 - A flag left out takes its config value: `--strategy` from
@@ -140,7 +142,7 @@ flag per command may take a list. `--toggle` refuses a list, and
 
 Shorthand `-a`. Takes a value. Modes: `hints` · `grid` · `recursive_grid`.
 
-Mouse button action to run on the selection: left_click, right_click, middle_click, left_mouse_down, left_mouse_up, right_mouse_down, right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, right_mouse_toggle, middle_mouse_toggle. Chain with commas, as in left_click,left_click.
+Action to run on the selection: left_click, right_click, middle_click, left_mouse_down, left_mouse_up, right_mouse_down, right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, right_mouse_toggle, middle_mouse_toggle, move_mouse. move_mouse only leaves the cursor there. Chain with commas, as in left_click,left_click.
 
 #### `--modifier`
 
@@ -393,8 +395,10 @@ These names work as a mode `--action`, in a hotkey binding, or after
 `[hotkeys]`, or run it through `neru run` or `neru macro`.
 
 A mode `--action` accepts only the click, press, release and toggle names,
-plus the deprecated `mouse_down` and `mouse_up`. It refuses every other name
-with `ERR_INVALID_INPUT`.
+`move_mouse`, and the deprecated `mouse_down` and `mouse_up`. `move_mouse`
+leaves the cursor on the selection and presses nothing, so a mode refuses
+`--modifier` alongside it. A mode refuses every other name with
+`ERR_INVALID_INPUT`.
 
 ### neru action left_click, right_click, middle_click
 

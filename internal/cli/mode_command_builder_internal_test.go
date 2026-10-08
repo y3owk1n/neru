@@ -232,7 +232,7 @@ func TestReadModeCommand_RefusesWhatTheGrammarRefuses(t *testing.T) {
 			name:   "an action no mode can perform",
 			config: ModeConfig{Mode: domain.ModeGrid},
 			argv:   []string{"--action=scroll_up"},
-			want:   `scroll sub-action "scroll_up" cannot be used as a mode action; only mouse button actions can`,
+			want:   `scroll sub-action "scroll_up" cannot be used as a mode action; only mouse button actions and move_mouse can`,
 		},
 		{
 			name:   "an unusable value",
