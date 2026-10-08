@@ -96,25 +96,48 @@ func TestSimulation_HooksWaitWhileNeruIsStopped(t *testing.T) {
 	)
 }
 
-// recordEnvStep is an exec step that writes one environment variable to path,
-// in the default shell of the platform the journey runs on. The Windows path
-// is left unquoted, for the reason writeEnvStep in internal/app/sequence gives.
-func recordEnvStep(name, path string) string {
+// recordEnvStep is an exec step that writes the variable name to the file the
+// variable outVar names, for the reason writeEnvStep in internal/app/sequence
+// gives. On Windows it needs the shell useRecordShell sets.
+func recordEnvStep(name, outVar string) string {
 	if runtime.GOOS == "windows" {
-		return fmt.Sprintf("exec echo %%%s%%> %s", name, path)
+		return fmt.Sprintf(
+			"exec Set-Content -NoNewline -LiteralPath $env:%s -Value $env:%s",
+			outVar,
+			name,
+		)
 	}
 
-	return fmt.Sprintf("exec printf '%%s' \"$%s\" > %q", name, path)
+	return fmt.Sprintf("exec printf '%%s' \"$%s\" > \"$%s\"", name, outVar)
+}
+
+// useRecordShell sets the shell recordEnvStep's steps are written for.
+func useRecordShell(cfg *config.Config) {
+	if runtime.GOOS == "windows" {
+		cfg.General.ExecShell = filepath.Join(
+			os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
+		)
+		cfg.General.ExecShellArgs = []string{"-NoProfile", "-NonInteractive", "-Command"}
+	}
 }
 
 // TestSimulation_PauseReportsTheModeItClosed pins that `neru stop` with a mode
 // open runs that mode's exit hook, so a status bar fed by it does not keep
 // showing a mode that has closed.
 func TestSimulation_PauseReportsTheModeItClosed(t *testing.T) {
-	recorded := filepath.Join(t.TempDir(), "mode")
+	dir := filepath.Join(t.TempDir(), "with space")
+
+	mkdirErr := os.Mkdir(dir, 0o700)
+	if mkdirErr != nil {
+		t.Fatalf("creating %s: %v", dir, mkdirErr)
+	}
+
+	recorded := filepath.Join(dir, "mode")
+	t.Setenv("NERU_TEST_OUT", recorded)
 
 	cfg := simConfig()
-	cfg.Hooks.OnModeExit = config.StringOrStringArray{recordEnvStep("NERU_MODE", recorded)}
+	useRecordShell(cfg)
+	cfg.Hooks.OnModeExit = config.StringOrStringArray{recordEnvStep("NERU_MODE", "NERU_TEST_OUT")}
 
 	sim := newSimHarness(t, cfg, nil)
 

@@ -39,16 +39,31 @@ func TestExecutor_Run_SkipsExecStepWhileStopped(t *testing.T) {
 	}
 }
 
-// writeEnvStep is an exec step that writes one environment variable to path,
-// in the default shell of the platform the test runs on. The Windows path is
-// left unquoted: cmd.exe does not read the escaped quotes Go puts around an
-// argument, and a temp directory path has no spaces to protect.
-func writeEnvStep(name, path string) string {
+// writeEnvStep is an exec step that writes the variable name to the file the
+// variable outVar names. The step reads the path from the environment rather
+// than the command, so a space in it needs no quoting. Windows runs the step in
+// PowerShell, which useEnvShell sets, because cmd.exe cannot read the quotes Go
+// escapes around an argument.
+func writeEnvStep(name, outVar string) string {
 	if runtime.GOOS == "windows" {
-		return fmt.Sprintf("exec echo %%%s%%> %s", name, path)
+		return fmt.Sprintf(
+			"exec Set-Content -NoNewline -LiteralPath $env:%s -Value $env:%s",
+			outVar,
+			name,
+		)
 	}
 
-	return fmt.Sprintf("exec printf '%%s' \"$%s\" > %q", name, path)
+	return fmt.Sprintf("exec printf '%%s' \"$%s\" > \"$%s\"", name, outVar)
+}
+
+// useEnvShell sets the shell writeEnvStep's steps are written for.
+func useEnvShell(cfg *config.Config) {
+	if runtime.GOOS == "windows" {
+		cfg.General.ExecShell = filepath.Join(
+			os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
+		)
+		cfg.General.ExecShellArgs = []string{"-NoProfile", "-NonInteractive", "-Command"}
+	}
 }
 
 // TestExecutor_Run_HookEnvReachesExecSteps pins that a hook's payload reaches
@@ -57,13 +72,21 @@ func writeEnvStep(name, path string) string {
 func TestExecutor_Run_HookEnvReachesExecSteps(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
+	// A space in the path is the case a shell is most likely to get wrong.
+	dir := filepath.Join(t.TempDir(), "with space")
+
+	mkdirErr := os.Mkdir(dir, 0o700)
+	if mkdirErr != nil {
+		t.Fatalf("creating %s: %v", dir, mkdirErr)
+	}
+
 	direct := filepath.Join(dir, "direct")
 	nested := filepath.Join(dir, "nested")
 
 	cfg := config.DefaultConfig()
+	useEnvShell(cfg)
 	cfg.Macros = map[string]config.StringOrStringArray{
-		"record": {writeEnvStep("NERU_MODE", nested)},
+		"record": {writeEnvStep("NERU_MODE", "NERU_TEST_NESTED")},
 	}
 
 	executor := sequence.NewExecutor(sequence.ExecutorDeps{
@@ -72,10 +95,14 @@ func TestExecutor_Run_HookEnvReachesExecSteps(t *testing.T) {
 		Enabled:     func() bool { return false },
 	})
 
-	ctx := sequence.WithHook(context.Background(), []string{"NERU_MODE=hints"})
+	ctx := sequence.WithHook(context.Background(), []string{
+		"NERU_MODE=hints",
+		"NERU_TEST_DIRECT=" + direct,
+		"NERU_TEST_NESTED=" + nested,
+	})
 
 	outcome := executor.Run(ctx, "hooks.on_mode_enter", []string{
-		writeEnvStep("NERU_MODE", direct),
+		writeEnvStep("NERU_MODE", "NERU_TEST_DIRECT"),
 		"macro record",
 	})
 	if outcome.Err != nil {
