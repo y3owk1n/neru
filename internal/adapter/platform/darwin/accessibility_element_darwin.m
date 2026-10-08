@@ -245,6 +245,33 @@ static bool shouldPrefetchActions(const char *role) {
 	       strcmp(role, "AXGenericElement") == 0 || strcmp(role, "AXCell") == 0 || strcmp(role, "AXMenuBarItem") == 0;
 }
 
+/// Copy each attribute's value with its own call, in the shape
+/// AXUIElementCopyMultipleAttributeValues returns: one slot per attribute,
+/// kCFNull where a value could not be read.
+/// @param element Element reference, borrowed
+/// @param attributes Attribute names
+/// @return The values, owned by the caller, or NULL if the array could not be made
+static CFArrayRef copyAttributeValuesOneByOne(AXUIElementRef element, CFArrayRef attributes) {
+	CFIndex count = CFArrayGetCount(attributes);
+	CFMutableArrayRef values = CFArrayCreateMutable(NULL, count, &kCFTypeArrayCallBacks);
+	if (!values)
+		return NULL;
+
+	for (CFIndex i = 0; i < count; i++) {
+		CFTypeRef value = NULL;
+		CFStringRef attribute = (CFStringRef)CFArrayGetValueAtIndex(attributes, i);
+
+		if (AXUIElementCopyAttributeValue(element, attribute, &value) == kAXErrorSuccess && value) {
+			CFArrayAppendValue(values, value);
+			CFRelease(value);
+		} else {
+			CFArrayAppendValue(values, kCFNull);
+		}
+	}
+
+	return values;
+}
+
 /// Get element information using batched attribute queries
 /// @param element Element reference
 /// @return Element information structure
@@ -288,6 +315,19 @@ ElementInfo *NeruGetElementInfo(void *element) {
 
 		CFArrayRef values = NULL;
 		AXError error = AXUIElementCopyMultipleAttributeValues(axElement, attributes, 0, &values);
+
+		// An element that rejects one attribute outright, rather than reporting
+		// it unsupported, fails the whole batch. Stage Manager's strip buttons
+		// answer AXIdentifier with kAXErrorIllegalArgument. Read the attributes
+		// one at a time then, so the rest of the element is still known. Other
+		// failures, such as a dead element or a timeout, skip this, since one
+		// call per attribute would only repeat them.
+		if (error == kAXErrorIllegalArgument) {
+			if (values)
+				CFRelease(values);
+			values = copyAttributeValuesOneByOne(axElement, attributes);
+			error = values ? kAXErrorSuccess : error;
+		}
 		CFRelease(attributes);
 
 		if (error != kAXErrorSuccess || !values) {
