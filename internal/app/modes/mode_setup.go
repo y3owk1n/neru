@@ -5,7 +5,9 @@ import (
 
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
+	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 // CurrModeString returns the current mode as a string.
@@ -14,8 +16,12 @@ func (h *handlerState) CurrModeString() string {
 }
 
 func (h *handlerState) setAppMode(mode domain.Mode) {
+	// Read before SetMode, which clears the reason on the way into a mode.
+	reason := h.appState.PendingModeExitReason()
+
 	h.modeSession++
 	h.appState.SetMode(mode)
+	h.publishModeChange(reason)
 
 	// Reset sticky modifier state before enabling detection for the new session.
 	// Activation-hotkey modifiers are suppressed explicitly by the hotkey path.
@@ -34,6 +40,50 @@ func (h *handlerState) setAppMode(mode domain.Mode) {
 
 	h.syncModifierPassthrough(mode)
 	h.syncStickyModifierToggle(mode)
+}
+
+// publishModeChange publishes the exit of the mode last reported open and the
+// entry of the one open now, when they differ. It compares names rather than
+// modes, so moving between two declared modes is a change, and so is every
+// path into a mode, including scroll and declared modes, which are entered
+// without passing through idle.
+func (h *handlerState) publishModeChange(reason state.ModeExitReason) {
+	idle := domain.ModeString(domain.ModeIdle)
+
+	current := h.appState.ModeName()
+	if current == h.publishedMode {
+		return
+	}
+
+	if h.publishedMode != idle {
+		h.events.Publish(event.Event{
+			Name:   event.ModeExit,
+			Mode:   h.publishedMode,
+			Reason: exitReason(reason),
+		})
+	}
+
+	if current != idle {
+		h.events.Publish(event.Event{Name: event.ModeEnter, Mode: current})
+	}
+
+	h.publishedMode = current
+}
+
+// exitReason names a recorded exit reason for an event. A mode that closed
+// with nothing recorded, such as on Escape, was canceled, which is how
+// wait_for_mode_exit --bail reads it too.
+func exitReason(reason state.ModeExitReason) event.ExitReason {
+	switch reason {
+	case state.ModeExitReasonCompleted:
+		return event.ExitCompleted
+	case state.ModeExitReasonSwitched:
+		return event.ExitSwitched
+	case state.ModeExitReasonNone, state.ModeExitReasonCancelled:
+		return event.ExitCancelled
+	}
+
+	return event.ExitCancelled
 }
 
 func (h *handlerState) syncStickyModifierToggle(mode domain.Mode) {

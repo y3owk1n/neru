@@ -403,7 +403,7 @@ func (c *Config) validateHintMissionControl() error {
 		)
 	}
 
-	activatedErr := validateMissionControlSteps(
+	activatedErr := validateHookSteps(
 		"hints.on_mission_control_activated",
 		c.Hints.OnMissionControlActivated,
 	)
@@ -411,14 +411,14 @@ func (c *Config) validateHintMissionControl() error {
 		return activatedErr
 	}
 
-	return validateMissionControlSteps(
+	return validateHookSteps(
 		"hints.on_mission_control_deactivated",
 		c.Hints.OnMissionControlDeactivated,
 	)
 }
 
-// validateMissionControlSteps checks one list of Mission Control steps.
-func validateMissionControlSteps(field string, steps []string) error {
+// validateHookSteps checks one list of steps run when an event fires.
+func validateHookSteps(field string, steps []string) error {
 	for idx, actionStr := range steps {
 		trimmed := strings.TrimSpace(actionStr)
 		if trimmed == "" {

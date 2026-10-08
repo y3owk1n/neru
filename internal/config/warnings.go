@@ -9,6 +9,8 @@ import (
 //
 // A warning is for a setting that is written well enough to load and will not
 // do what it reads as — a binding naming a flag its mode has no use for, say.
+// It is also for a setting that works today and is deprecated, and names what
+// replaces it.
 // Refusing the load over one would be worse than the bug: a refused
 // configuration is replaced by the defaults, so the user loses every binding,
 // theme and setting they wrote over one line that mostly works (ADR 0002).

@@ -18,6 +18,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -134,6 +135,12 @@ type handlerState struct {
 
 	// Screen bounds for coordinate conversion (grid and hints)
 	screenBounds image.Rectangle
+
+	// events is where mode changes are published, and publishedMode is the
+	// mode name the last of them left open: the idle name when none is. Both
+	// belong to setAppMode (mode_setup.go).
+	events        *event.Bus
+	publishedMode string
 
 	// focusedApp is the cell the application watcher publishes the focused app
 	// into, and the keymap fields below are what the handler settles from it.
@@ -267,6 +274,9 @@ type HandlerDeps struct {
 
 	// Motion is the handler's namespace in the held-key glide controller.
 	Motion *heldmotion.Group
+
+	// Events receives every mode entered and exited. Nil publishes nothing.
+	Events *event.Bus
 }
 
 // NewHandler creates a mode handler from deps.
@@ -322,6 +332,8 @@ func NewHandler(deps HandlerDeps) *Handler {
 		textInput:              deps.TextInput,
 		motion:                 deps.Motion,
 		system:                 deps.System,
+		events:                 deps.Events,
+		publishedMode:          domain.ModeString(domain.ModeIdle),
 		focusedApp:             &focusedAppCell{},
 		cycleHintIndex:         -1,
 	}

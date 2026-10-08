@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -52,6 +53,7 @@ func (h *handlerState) startInteractiveScroll() {
 func (h *handlerState) cleanupForKeymapModeTransition() {
 	h.logger.Info("Mode exited", zap.String("mode", h.CurrModeString()))
 
+	h.appState.SetModeExitReason(state.ModeExitReasonSwitched)
 	h.performModeSpecificCleanup()
 	h.stopHeldRepeat()
 

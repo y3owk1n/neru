@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
 // ValidateMacros checks the [macros] table and every macro call in the
@@ -245,6 +246,13 @@ func (c *Config) eachBindingAction(visit func(field, actionStr string) error) er
 
 	for _, hook := range hooks {
 		err := visitActions(hook.field, hook.steps, visit)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, name := range event.All() {
+		err := visitActions(HookField(name), c.Hooks.Steps(name), visit)
 		if err != nil {
 			return err
 		}

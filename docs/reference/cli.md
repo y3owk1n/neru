@@ -746,9 +746,10 @@ neru config validate [-c <path>]
 Check a config file for syntax errors and invalid values, including the mode
 flags in your bindings. Exits successfully when no config file exists.
 
-A setting that loads but will not take effect is a warning, and the command
-still succeeds. Examples are `grid --search`, or a clickable role this
-platform has no name for. [Global hotkeys](configuration.md#global-hotkeys)
+A setting that loads but will not take effect is a warning. So is a
+deprecated setting, which works until it is removed. The command still
+succeeds. Examples are `grid --search`, a clickable role this platform has no
+name for, or `hints.on_mission_control_activated`. [Global hotkeys](configuration.md#global-hotkeys)
 lists which mistakes warn and which refuse the file.
 
 ```
@@ -756,7 +757,7 @@ Configuration is valid, with warnings:
 
   hotkeys.Primary+Shift+G: grid does not accept --search
 
-These parts of the configuration load and will not take effect.
+These parts of the configuration load. Each one will not take effect or is deprecated, so change it as its line says.
 ```
 
 ### neru config set

@@ -139,6 +139,14 @@ Follow one event from the OS to the user-visible action:
 Input follows the path in [Codebase navigation guide](#codebase-navigation-guide):
 event tap, handler, active mode, service, adapter, native API.
 
+The daemon publishes what happens on the event bus (`internal/domain/event`).
+The mode handler publishes mode changes, and the app publishes focus, pause,
+reload and Mission Control events. Publishing never blocks, so it is safe
+under the handler's lock and on the macOS main queue. Each subscriber reads a
+channel of its own. The hook runner (`internal/app/hooks.go`) is one, and runs
+the `[hooks]` steps through the sequence executor on its own goroutines, apart
+from key handling.
+
 ### Overlay rendering
 
 A mode hands the overlay adapter a `ports.Frame` of domain values and nothing

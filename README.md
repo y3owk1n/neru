@@ -30,7 +30,7 @@ Neru does what Vimium does in the browser, for every app, window, menu bar and d
 - **Works where accessibility trees don't.** Grid modes split pixels, not widgets, so they work in canvases, games and remote desktops. Hints use the accessibility tree, on-device OCR, or a pure-Go contour scan.
 - **Fast.** The event tap sits on every keystroke, and Neru treats any added latency as a bug.
 - **No per-app hacks.** Good defaults, plus per-app overrides you write yourself, applied when focus changes.
-- **Scriptable.** Hotkeys, the `neru` CLI and the IPC socket run the same commands, so a binding works unchanged from skhd, Hammerspoon, Raycast or a shell script.
+- **Scriptable.** Hotkeys, the `neru` CLI and the IPC socket run the same commands, so a binding works unchanged from skhd, Hammerspoon, Raycast or a shell script. Hooks run your own steps when a mode opens or closes, the focused app changes, or Neru pauses.
 - **Private.** OCR and element detection run on-device. No telemetry, no accounts, and typed text never reaches the log.
 - **Fails loudly.** A mistyped flag in a binding fails config validation instead of doing nothing when you press the key.
 

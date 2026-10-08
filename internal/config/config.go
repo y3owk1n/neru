@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/parity"
@@ -124,6 +125,7 @@ type Config struct {
 	Hotkeys         HotkeysConfig                  `json:"hotkeys"         toml:"-"`
 	Macros          map[string]StringOrStringArray `json:"macros"          toml:"macros"`
 	Modes           map[string]CustomModeConfig    `json:"modes"           toml:"modes"`
+	Hooks           HooksConfig                    `json:"hooks"           toml:"hooks"`
 	Hints           HintsConfig                    `json:"hints"           toml:"hints"`
 	Grid            GridConfig                     `json:"grid"            toml:"grid"`
 	RecursiveGrid   RecursiveGridConfig            `json:"recursiveGrid"   toml:"recursive_grid"`
@@ -328,6 +330,44 @@ type CustomModeConfig struct {
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
+}
+
+// HooksConfig is the steps run when a lifecycle event fires, one field per
+// event. Each key is the event's name with "on_" in front, so the spelling is
+// derived from the vocabulary rather than written twice (ADR 0008).
+type HooksConfig struct {
+	OnModeEnter                 StringOrStringArray `json:"onModeEnter"                 toml:"on_mode_enter"`
+	OnModeExit                  StringOrStringArray `json:"onModeExit"                  toml:"on_mode_exit"`
+	OnAppFocus                  StringOrStringArray `json:"onAppFocus"                  toml:"on_app_focus"`
+	OnEnable                    StringOrStringArray `json:"onEnable"                    toml:"on_enable"`
+	OnDisable                   StringOrStringArray `json:"onDisable"                   toml:"on_disable"`
+	OnConfigReload              StringOrStringArray `json:"onConfigReload"              toml:"on_config_reload"`
+	OnMissionControlActivated   StringOrStringArray `json:"onMissionControlActivated"   toml:"on_mission_control_activated"`
+	OnMissionControlDeactivated StringOrStringArray `json:"onMissionControlDeactivated" toml:"on_mission_control_deactivated"`
+}
+
+// Steps returns the steps the hook for name runs, and nil when none are set.
+func (h HooksConfig) Steps(name event.Name) StringOrStringArray {
+	switch name {
+	case event.ModeEnter:
+		return h.OnModeEnter
+	case event.ModeExit:
+		return h.OnModeExit
+	case event.AppFocus:
+		return h.OnAppFocus
+	case event.Enable:
+		return h.OnEnable
+	case event.Disable:
+		return h.OnDisable
+	case event.ConfigReload:
+		return h.OnConfigReload
+	case event.MissionControlActivated:
+		return h.OnMissionControlActivated
+	case event.MissionControlDeactivated:
+		return h.OnMissionControlDeactivated
+	}
+
+	return nil
 }
 
 // MonitorSelectUI defines the visual/appearance settings for monitor_select mode.

@@ -20,6 +20,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/domain/motion"
 	"github.com/y3owk1n/neru/internal/domain/state"
@@ -186,6 +187,7 @@ func registerOppositeLabelDirectionGenerator(
 func initializeApplicationState(app *App) {
 	app.appState = state.NewAppState()
 	app.cursorState = state.NewCursorState()
+	app.events = event.NewBus(app.logger)
 }
 
 // initializeUIComponents asks the overlay to build the components it draws
@@ -357,6 +359,7 @@ func initializeModeHandler(app *App) {
 		TextInput:              app.textInput,
 		System:                 app.systemPort,
 		Motion:                 app.motion.Group("modes"),
+		Events:                 app.events,
 	})
 }
 

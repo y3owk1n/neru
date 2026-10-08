@@ -50,7 +50,8 @@ shell, with the same flags, so you can try a binding from a terminal first.
 ## Sequences
 
 An array of steps is a sequence. A hotkey binding, a
-[macro](../reference/configuration.md#macros), a mode's `--on-exit` steps and
+[macro](../reference/configuration.md#macros), a mode's `--on-exit` steps, a
+[hook](../reference/configuration.md#hooks) and
 [`neru run`](../reference/cli.md#neru-run) all run sequences the same way.
 
 - Neru logs a failed step and runs the next one.

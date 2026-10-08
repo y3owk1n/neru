@@ -18,6 +18,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
 const (
@@ -89,6 +90,10 @@ func (a *App) Run() error {
 	// The observers below reach a session bus on Linux, and putting a bus round
 	// trip in front of the watcher and the hotkeys would delay the daemon
 	// accepting its first chord to hurry up something nothing is waiting on.
+	//
+	// The hook runner is a listener like the registrations: it subscribes
+	// here, ahead of the watcher, so the first focus change reaches its hook.
+	a.startHooks()
 	a.registerAppWatcherCallbacks()
 
 	a.hotkeys.RefreshFor("")
@@ -234,6 +239,8 @@ func (a *App) registerAppWatcherCallbacks() {
 
 	// Watch for Mission Control activated events
 	a.appWatcher.OnMissionControlActivated(func() {
+		a.events.Publish(event.Event{Name: event.MissionControlActivated})
+
 		cfg := a.configSnapshot()
 		if len(cfg.Hints.OnMissionControlActivated) > 0 && cfg.Hints.DetectMissionControl {
 			a.logger.Debug("Running Mission Control activated actions",
@@ -247,6 +254,8 @@ func (a *App) registerAppWatcherCallbacks() {
 
 	// Watch for Mission Control deactivated events
 	a.appWatcher.OnMissionControlDeactivated(func() {
+		a.events.Publish(event.Event{Name: event.MissionControlDeactivated})
+
 		cfg := a.configSnapshot()
 		if len(cfg.Hints.OnMissionControlDeactivated) > 0 && cfg.Hints.DetectMissionControl {
 			a.logger.Debug("Running Mission Control deactivated actions",
@@ -327,9 +336,12 @@ func (a *App) processScreenChange() {
 func (a *App) handleAppActivation(bundleID string) {
 	cfg := a.configSnapshot()
 
+	a.events.Publish(event.Event{Name: event.AppFocus, BundleID: bundleID})
+
 	// Tell the mode handler which application is focused now, so the keymap can
-	// be settled against it. This is a lock-free write and must stay one: the
-	// watcher calls this inline and, on macOS, on the main queue (ADR 0005).
+	// be settled against it. PublishFocusedApp is a lock-free write and must
+	// stay one: the watcher calls this inline and, on macOS, on the main queue
+	// (ADR 0005).
 	a.modes.PublishFocusedApp(bundleID)
 
 	// The keymap settles from that publication on the next read, but the event
@@ -482,6 +494,11 @@ func (a *App) Cleanup() {
 		if a.gcCancel != nil {
 			a.gcCancel()
 		}
+
+		// No hook starts during teardown: the mode exit below would start one
+		// against components about to be released. A hook already running is
+		// given hookStopTimeout to end on the canceled context.
+		a.stopHooks()
 
 		a.ExitMode()
 

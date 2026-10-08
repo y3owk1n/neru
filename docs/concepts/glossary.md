@@ -27,8 +27,15 @@ fail with a connection error when it is not running.
 **Focused app.** The app your keystrokes go to. Neru applies its
 `app_configs` entry, if one matches its app identity.
 
+**Event.** Something that happens inside Neru, such as a mode opening or Neru
+pausing. A hook runs steps when one fires. See
+[`[hooks]`](../reference/configuration.md#hooks).
+
 **Hint.** A short label Neru draws on a clickable element in hints mode. Type
 it to move the cursor there.
+
+**Hook.** The steps you write under `[hooks]` for an event, run each time it
+fires. See [`[hooks]`](../reference/configuration.md#hooks).
 
 **Hotkey.** A key combination Neru registers, such as `Primary+Shift+Space`.
 Global hotkeys work from anywhere, and a mode's hotkeys work while that mode is
@@ -71,7 +78,8 @@ cell. Clicks and other actions aimed at a point run at the selection while a
 mode has one, and at the cursor otherwise. See [Targeting](../reference/cli.md#targeting).
 
 **Sequence.** Several steps run in order as one unit. A binding with an array
-value, a macro, a mode's `--on-exit` steps and `neru run` are all sequences.
+value, a macro, a mode's `--on-exit` steps, a hook and `neru run` are all
+sequences.
 See [Sequences](bindings.md#sequences).
 
 **Step.** One unit of work in a binding: a mode command, an action, a macro, a

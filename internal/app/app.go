@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -60,6 +61,10 @@ type App struct {
 
 	appState    *state.AppState
 	cursorState *state.CursorState
+	// events carries every lifecycle event the daemon raises (Events).
+	events *event.Bus
+	// hookRunner runs the [hooks] steps for those events (hooks.go).
+	hookRunner *hookRunner
 
 	// Core services
 	//

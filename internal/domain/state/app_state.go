@@ -16,6 +16,8 @@ const (
 	ModeExitReasonCompleted
 	// ModeExitReasonCancelled means the user dismissed the mode without selecting.
 	ModeExitReasonCancelled
+	// ModeExitReasonSwitched means the mode closed because another one opened.
+	ModeExitReasonSwitched
 )
 
 // AppState manages the core application state including enabled status,
@@ -404,6 +406,20 @@ func (s *AppState) SetModeExitReason(reason ModeExitReason) {
 
 	s.modeExitReason = reason
 	s.modeExitReasonValid = true
+}
+
+// PendingModeExitReason reads the exit reason without consuming it, for an
+// observer that must not take the value from wait_for_mode_exit. Returns
+// ModeExitReasonNone if no valid reason was recorded.
+func (s *AppState) PendingModeExitReason() ModeExitReason {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if !s.modeExitReasonValid {
+		return ModeExitReasonNone
+	}
+
+	return s.modeExitReason
 }
 
 // ConsumeModeExitReason atomically reads and resets the exit reason.

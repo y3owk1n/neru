@@ -167,6 +167,18 @@ func (m *MockAppWatcherPort) EmitScreenParametersChanged() {
 	}
 }
 
+// EmitMissionControlActivated fires every registered Mission Control
+// activated callback.
+func (m *MockAppWatcherPort) EmitMissionControlActivated() {
+	m.mu.Lock()
+	callbacks := append([]func(){}, m.mcActivated...)
+	m.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback()
+	}
+}
+
 func (m *MockAppWatcherPort) snapshotAppCallbacks(
 	pick func(*MockAppWatcherPort) []ports.AppEventCallback,
 ) []ports.AppEventCallback {

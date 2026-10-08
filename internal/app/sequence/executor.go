@@ -3,6 +3,7 @@ package sequence
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -133,7 +134,7 @@ func (e *Executor) RunWithPolicy(
 		return outcome
 	}
 
-	stepCtx := e.stepContext(depth)
+	stepCtx := e.stepContext(ctx, depth)
 
 	for _, step := range steps {
 		trimmedStep := strings.TrimSpace(step)
@@ -293,7 +294,8 @@ func (e *Executor) action(ctx context.Context, source, actionStr string) error {
 	actionStr = strings.TrimSpace(actionStr)
 
 	if actionStr == action.PrefixExec || strings.HasPrefix(actionStr, action.PrefixExec+" ") {
-		if e.enabled != nil && !e.enabled() {
+		_, isHook := hookEnv(ctx)
+		if !isHook && e.enabled != nil && !e.enabled() {
 			return derrors.New(derrors.CodeExecFailed, "neru is stopped; exec step not run")
 		}
 
@@ -360,6 +362,10 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 	command := exec.CommandContext(execCtx, shell, args...) //nolint:gosec
 	procattr.HideConsole(command)
 
+	if env, _ := hookEnv(ctx); len(env) > 0 {
+		command.Env = append(os.Environ(), env...)
+	}
+
 	commandOutput, commandErr := command.CombinedOutput()
 	if commandErr != nil {
 		// Never the command or its output, which are config content and the
@@ -396,9 +402,16 @@ func exitCodeOf(commandErr error) int {
 }
 
 // stepContext builds the context each step of a sequence runs under: the base
-// context, so shutdown releases a step that blocks, carrying the next depth.
-func (e *Executor) stepContext(depth int) context.Context {
-	return WithDepth(e.base(), depth+1)
+// context, so shutdown releases a step that blocks, carrying the next depth and
+// the hook ctx belongs to, if any.
+func (e *Executor) stepContext(ctx context.Context, depth int) context.Context {
+	stepCtx := WithDepth(e.base(), depth+1)
+
+	if env, isHook := hookEnv(ctx); isHook {
+		stepCtx = WithHook(stepCtx, env)
+	}
+
+	return stepCtx
 }
 
 // base returns the daemon context, or a background one before it exists.

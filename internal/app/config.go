@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 )
 
@@ -104,6 +105,7 @@ func (a *App) ReloadConfig(ctx context.Context, configPath string) error {
 	)
 	if err != nil {
 		a.restoreHotkeysAfterFailedReload()
+		a.events.Publish(event.Event{Name: event.ConfigReload, OK: false})
 
 		return err
 	}
@@ -113,6 +115,8 @@ func (a *App) ReloadConfig(ctx context.Context, configPath string) error {
 
 	// On Linux, verify the hotkey listener started correctly after reload.
 	a.schedulePostReloadVerification()
+
+	a.events.Publish(event.Event{Name: event.ConfigReload, OK: true})
 
 	return nil
 }

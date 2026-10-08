@@ -302,6 +302,7 @@ func newDefaultConfig() *Config {
 		General:         defaultGeneral(),
 		Theme:           defaultThemeConfig(),
 		Hotkeys:         defaultHotkeys(),
+		Hooks:           defaultHooks(),
 		Hints:           defaultHints(),
 		Grid:            defaultGrid(),
 		RecursiveGrid:   defaultRecursiveGrid(),
@@ -317,6 +318,20 @@ func newDefaultConfig() *Config {
 		SmoothScroll:    defaultSmoothScroll(),
 		HeldRepeat:      defaultHeldRepeat(),
 		Systray:         defaultSystray(),
+	}
+}
+
+// defaultHooks sets no hook: nil steps run nothing.
+func defaultHooks() HooksConfig {
+	return HooksConfig{
+		OnModeEnter:                 nil,
+		OnModeExit:                  nil,
+		OnAppFocus:                  nil,
+		OnEnable:                    nil,
+		OnDisable:                   nil,
+		OnConfigReload:              nil,
+		OnMissionControlActivated:   nil,
+		OnMissionControlDeactivated: nil,
 	}
 }
 

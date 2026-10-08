@@ -35,6 +35,16 @@ func TestRunConfigValidate_ReportsWhatLoadedAndWhatWillNotRun(t *testing.T) {
 			},
 		},
 		{
+			name: "a deprecated key is named with its replacement and the configuration still loads",
+			config: "[hints]\ndetect_mission_control = true\ninclude_dock_hints = true\n" +
+				"on_mission_control_activated = \"idle\"\n",
+			wantLines: []string{
+				"Configuration is valid, with warnings:",
+				"hints.on_mission_control_activated is deprecated and is removed in v2. " +
+					"Move it to hooks.on_mission_control_activated",
+			},
+		},
+		{
 			name:      "an unknown flag is refused",
 			config:    "[hotkeys]\n\"Primary+Shift+K\" = \"hints --serach\"\n",
 			wantErr:   true,

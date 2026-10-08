@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 const (
@@ -88,6 +89,13 @@ func (h *handlerState) exitCurrentMode(keepEventTap bool) {
 	}
 
 	exited := h.CurrModeString()
+
+	// A --repeat re-activation comes through here too, so its click reports a
+	// switch into the same mode rather than a completion: the mode really is
+	// torn down and opened again.
+	if keepEventTap {
+		h.appState.SetModeExitReason(state.ModeExitReasonSwitched)
+	}
 
 	h.performModeSpecificCleanup()
 	h.performCommonCleanup(keepEventTap)

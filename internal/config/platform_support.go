@@ -106,6 +106,8 @@ func PlatformSupport() parity.Declaration {
 			"hints.detect_mission_control",
 			"hints.on_mission_control_activated",
 			"hints.on_mission_control_deactivated",
+			"hooks.on_mission_control_activated",
+			"hooks.on_mission_control_deactivated",
 		),
 
 		parity.On(parity.KindOption, darwinOnly, noteTreeDepth,
@@ -248,6 +250,12 @@ func PlatformSupport() parity.Declaration {
 
 			"macros",
 			"modes",
+			"hooks.on_mode_enter",
+			"hooks.on_mode_exit",
+			"hooks.on_app_focus",
+			"hooks.on_enable",
+			"hooks.on_disable",
+			"hooks.on_config_reload",
 
 			"hints.enabled",
 			"hints.strategy",

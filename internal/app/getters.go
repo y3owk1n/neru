@@ -7,6 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -24,12 +25,11 @@ func (a *App) configSnapshot() *config.Config {
 // SetEnabled pauses or resumes the application. Pausing exits the open mode
 // and unregisters the global hotkeys now, not at the next application switch.
 // Resuming registers them again now.
-func (a *App) SetEnabled(v bool) {
+func (a *App) SetEnabled(enabled bool) {
 	a.enabledMu.Lock()
 	defer a.enabledMu.Unlock()
 
-	a.appState.SetEnabled(v)
-	a.applyEnabled(v)
+	a.setEnabledLocked(enabled)
 }
 
 // IsEnabled returns the enabled state of the application.
@@ -37,13 +37,39 @@ func (a *App) IsEnabled() bool {
 	return a.appState.IsEnabled()
 }
 
-// ToggleEnabled atomically toggles the enabled state, as SetEnabled does.
+// ToggleEnabled atomically toggles the enabled state, as SetEnabled does. The
+// read and the write are one step because every writer holds enabledMu.
 func (a *App) ToggleEnabled() {
 	a.enabledMu.Lock()
 	defer a.enabledMu.Unlock()
 
-	a.appState.ToggleEnabled()
-	a.applyEnabled(a.appState.IsEnabled())
+	a.setEnabledLocked(!a.appState.IsEnabled())
+}
+
+// setEnabledLocked applies a pause or resume and publishes it when it changes
+// anything. Caller holds enabledMu.
+//
+// A resume is published before it takes effect and a pause after, so every
+// mode event falls between the two: nothing can enter a mode until the state
+// flips, and a pause closes the open mode before it reports itself.
+func (a *App) setEnabledLocked(enabled bool) {
+	changed := a.appState.IsEnabled() != enabled
+
+	if changed && enabled {
+		a.events.Publish(event.Event{Name: event.Enable})
+	}
+
+	a.appState.SetEnabled(enabled)
+	a.applyEnabled(enabled)
+
+	if changed && !enabled {
+		a.events.Publish(event.Event{Name: event.Disable})
+	}
+}
+
+// Events is the bus every lifecycle event is published on.
+func (a *App) Events() *event.Bus {
+	return a.events
 }
 
 // applyEnabled tells the mode handler and the hotkey binder about an

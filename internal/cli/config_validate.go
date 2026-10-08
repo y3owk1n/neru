@@ -65,7 +65,8 @@ func runConfigValidate(cmd *cobra.Command) error {
 	return nil
 }
 
-// printValidationWarnings says what loaded and will not do what it says.
+// printValidationWarnings says what loaded and will not do what it says, or
+// is deprecated.
 //
 // This is the whole reason a warning is worth telling apart from a refusal: it
 // does not stop the configuration loading, so without a line here it would
@@ -86,5 +87,6 @@ func printValidationWarnings(cmd *cobra.Command, warnings []string) {
 	}
 
 	cmd.Println("")
-	cmd.Println("These parts of the configuration load and will not take effect.")
+	cmd.Println("These parts of the configuration load. Each one will not take effect or is " +
+		"deprecated, so change it as its line says.")
 }

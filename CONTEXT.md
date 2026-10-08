@@ -26,13 +26,26 @@ command, or a nested sequence.
 _Avoid_: action string, command, entry
 
 **Sequence**:
-An ordered list of steps run as one unit. A binding, a macro body, and a
-mode's `--on-exit` are all sequences, and all behave identically.
+An ordered list of steps run as one unit. A binding, a macro body, a mode's
+`--on-exit` and a hook are all sequences, and all behave identically.
 _Avoid_: chain, pipeline, script
 
 **Macro**:
 A named, parameterised sequence that steps can invoke by name.
 _Avoid_: alias, function, snippet
+
+**Event**:
+Something that happened inside the daemon, such as a mode opening or closing,
+the focused app changing, or a pause. Each is one name from
+`internal/domain/event`, published on the bus with the IDs and enums it
+carries, never UI text.
+_Avoid_: notification, signal, callback
+
+**Hook**:
+The sequence a person writes under `[hooks]` for one event, run each time that
+event fires. A hook never starts itself again with an event its own steps
+raised.
+_Avoid_: listener, handler, trigger
 
 **Focused app**:
 The application the operating system currently routes keystrokes to. Neru

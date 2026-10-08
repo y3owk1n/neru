@@ -70,6 +70,21 @@ text = "#E8EEFF"
 # [hotkeys]
 # "Primary+Shift+W" = "mode window"
 
+# Hooks: steps run when something happens, written like any binding.
+# exec steps see the event in NERU_EVENT, NERU_MODE, NERU_REASON,
+# NERU_BUNDLE_ID and NERU_OK.
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hooks
+#
+# [hooks]
+# on_mode_enter = "exec sketchybar --trigger neru_mode MODE=\"$NERU_MODE\""
+# on_mode_exit = "exec sketchybar --trigger neru_mode MODE=idle"
+# on_app_focus = []
+# on_enable = []
+# on_disable = []
+# on_config_reload = []
+# on_mission_control_activated = []     # macOS, needs hints.detect_mission_control
+# on_mission_control_deactivated = []
+
 # Hint mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hints
 [hints]
@@ -93,8 +108,8 @@ include_pip_hints = false
 include_screen_capture_hints = false
 detect_mission_control = false
 # No default, so these stay commented out.
-# on_mission_control_activated = "idle"     # A single action, or an array of them
-# on_mission_control_deactivated = ["hints"]
+# on_mission_control_activated = "idle"     # Deprecated, removed in v2. Use [hooks]
+# on_mission_control_deactivated = ["hints"]  # Deprecated, removed in v2. Use [hooks]
 clickable_roles = [
     ## Semantic roles, valid on every platform. `neru roles` lists them.
     "button",

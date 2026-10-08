@@ -167,7 +167,7 @@ A worked example with arguments is in
   dollar sign. Substitution is textual and happens before the step is split, so
   quote a placeholder that may hold spaces, e.g. `exec say "$1"`.
 - **Arity is checked at load** wherever an action can be written, including
-  [Mission Control hooks](#hints) and nested `run` or `--on-exit` steps. An
+  [hooks](#hooks) and nested `run` or `--on-exit` steps. An
   unknown name or wrong argument count fails `neru config validate`.
 - A placeholder cannot be the command word. `"$1 --action left_click"` is
   rejected at load.
@@ -222,6 +222,75 @@ from [`[mode_indicator.ui]`](#mode_indicator).
 
 `[[modes.<name>.app_configs]]` takes `bundle_id` and
 [`hotkeys`](#per-app-hotkey-overrides).
+
+## [hooks]
+
+Steps Neru runs when something happens, written like any
+[binding](../concepts/bindings.md#what-a-step-can-be) and checked at load the
+same way.
+
+```toml
+[hooks]
+on_mode_enter    = "exec sketchybar --trigger neru_mode MODE=\"$NERU_MODE\""
+on_mode_exit     = "exec sketchybar --trigger neru_mode MODE=idle"
+on_config_reload = "exec [ \"$NERU_OK\" = true ] || say 'Neru config did not load'"
+```
+
+| Option                           | Type         | Default | Runs when                                                                 |
+| -------------------------------- | ------------ | ------- | ------------------------------------------------------------------------- |
+| `on_mode_enter`                  | string/array | none    | A mode opens                                                              |
+| `on_mode_exit`                   | string/array | none    | A mode closes, including on the way into another one                      |
+| `on_app_focus`                   | string/array | none    | Another application comes to the front                                    |
+| `on_enable`                      | string/array | none    | Neru resumes, such as on `neru start`                                     |
+| `on_disable`                     | string/array | none    | Neru pauses, such as on `neru stop`                                       |
+| `on_config_reload`               | string/array | none    | A config reload finishes, whether or not the new file loaded              |
+| `on_mission_control_activated`   | string/array | none    | Mission Control opens. macOS only, needs `hints.detect_mission_control`   |
+| `on_mission_control_deactivated` | string/array | none    | Mission Control closes. macOS only, needs `hints.detect_mission_control`  |
+
+A reload takes effect from the next event.
+
+`hints.on_mission_control_activated` and `hints.on_mission_control_deactivated`
+are deprecated and are removed in v2. Move their steps to the two keys here,
+which take the same values. Until then the `[hints]` keys still run, alongside
+these, and `neru config validate` warns about each one set.
+
+### What a hook's steps see
+
+`exec` steps get the event as environment variables. Each is set only for the
+events that carry it.
+
+| Variable         | Set for                         | Value                                                            |
+| ---------------- | ------------------------------- | ---------------------------------------------------------------- |
+| `NERU_EVENT`     | every hook                      | The event, such as `mode_enter`                                  |
+| `NERU_MODE`      | `on_mode_enter`, `on_mode_exit` | The mode, named as `neru status` names it                        |
+| `NERU_REASON`    | `on_mode_exit`                  | `completed` after a selection, `switched` on the way into another mode, else `canceled` |
+| `NERU_BUNDLE_ID` | `on_app_focus`                  | The application, as [`bundle_id`](#app-identity-across-platforms-bundle_id) names it |
+| `NERU_OK`        | `on_config_reload`              | `true` or `false`                                                |
+
+Use them in the command as shell variables, in double quotes, such as
+`"$NERU_MODE"`. Neru passes them to the shell as environment variables and
+never writes their values into the command text. That matters for
+`NERU_BUNDLE_ID`, which the application chooses for itself. On X11 any program
+can set it, and a crafted value such as `x; rm -rf ~` stays plain text instead
+of running as a command.
+
+### When a hook runs
+
+- After the change it reports, on a goroutine apart from key handling, so a
+  slow hook never delays a mode.
+- One hook runs once at a time. Hooks for different events can run together.
+- An event raised while its own hook is still running does not start that hook
+  again. This rule stops `on_mode_enter = "grid"` from looping, so it enters
+  grid once. The same rule skips a second event of the same kind that arrives
+  while the hook is busy. Use a hook to act on an event. It cannot keep another
+  program in step with every change.
+- Two hooks that keep triggering each other, such as
+  `on_mode_exit = "hints"` with `on_mode_enter = "idle"`, are not caught and
+  loop until the config changes.
+- While Neru is stopped, the only hooks that run are `on_enable`, `on_disable`,
+  and `on_mode_exit` for the mode the pause closed. Their `exec` steps run even
+  though Neru is stopped. Neru refuses their other steps, such as opening a
+  mode, until it starts.
 
 ## [general]
 
@@ -348,8 +417,8 @@ font_size = 12
 | `include_pip_hints`                | bool         | `false`                  | Show hints on Picture in Picture controls                                                                                                                  |
 | `include_screen_capture_hints`     | bool         | `false`                  | Show hints on Screen Capture controls                                                                                                                      |
 | `detect_mission_control`           | bool         | `false`                  | Detect Mission Control, so hints target its windows and desktops instead of the frontmost window                                                          |
-| `on_mission_control_activated`     | string/array | none                     | Action(s) to execute when Mission Control opens                                                                                                            |
-| `on_mission_control_deactivated`   | string/array | none                     | Action(s) to execute when Mission Control closes                                                                                                           |
+| `on_mission_control_activated`     | string/array | none                     | Deprecated, removed in v2. Use [`hooks.on_mission_control_activated`](#hooks)                                                                              |
+| `on_mission_control_deactivated`   | string/array | none                     | Deprecated, removed in v2. Use [`hooks.on_mission_control_deactivated`](#hooks)                                                                            |
 | `additional_menubar_hints_targets` | array        | macOS-specific defaults  | Extra menubar bundle IDs                                                                                                                                   |
 | `clickable_roles`                  | array        | shared semantic defaults | Roles that generate hints. See [Clickable roles](#clickable-roles)                                                                                         |
 | `ignore_clickable_check`           | bool         | `false`                  | Skip clickability heuristic                                                                                                                                |

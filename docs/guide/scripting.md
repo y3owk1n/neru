@@ -37,6 +37,19 @@ binding rules.
 To leave every global hotkey to the other daemon, see
 [Recipes](recipes.md#leave-global-hotkeys-to-another-tool).
 
+## React to what Neru does
+
+Steps under [`[hooks]`](../reference/configuration.md#hooks) run when
+something happens, such as a mode opening or the focused app changing. Their
+`exec` steps see the event as environment variables.
+
+```toml
+# ~/.config/neru/config.toml
+[hooks]
+on_mode_enter = "exec sketchybar --trigger neru_mode MODE=\"$NERU_MODE\""
+on_mode_exit  = "exec sketchybar --trigger neru_mode MODE=idle"
+```
+
 ## Talking to the daemon directly
 
 To skip the `neru` binary, send JSON over the socket. The format is in
