@@ -40,10 +40,12 @@ func TestExecutor_Run_SkipsExecStepWhileStopped(t *testing.T) {
 }
 
 // writeEnvStep is an exec step that writes one environment variable to path,
-// in the default shell of the platform the test runs on.
+// in the default shell of the platform the test runs on. The Windows path is
+// left unquoted: cmd.exe does not read the escaped quotes Go puts around an
+// argument, and a temp directory path has no spaces to protect.
 func writeEnvStep(name, path string) string {
 	if runtime.GOOS == "windows" {
-		return fmt.Sprintf("exec echo %%%s%%> %q", name, path)
+		return fmt.Sprintf("exec echo %%%s%%> %s", name, path)
 	}
 
 	return fmt.Sprintf("exec printf '%%s' \"$%s\" > %q", name, path)

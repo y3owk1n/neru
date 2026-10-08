@@ -97,10 +97,11 @@ func TestSimulation_HooksWaitWhileNeruIsStopped(t *testing.T) {
 }
 
 // recordEnvStep is an exec step that writes one environment variable to path,
-// in the default shell of the platform the journey runs on.
+// in the default shell of the platform the journey runs on. The Windows path
+// is left unquoted, for the reason writeEnvStep in internal/app/sequence gives.
 func recordEnvStep(name, path string) string {
 	if runtime.GOOS == "windows" {
-		return fmt.Sprintf("exec echo %%%s%%> %q", name, path)
+		return fmt.Sprintf("exec echo %%%s%%> %s", name, path)
 	}
 
 	return fmt.Sprintf("exec printf '%%s' \"$%s\" > %q", name, path)
