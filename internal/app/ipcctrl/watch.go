@@ -76,19 +76,19 @@ func (c *Controller) HandleWatch(
 				return nil
 			}
 
-			if evt.Seq <= last {
-				continue
-			}
-
 			// The bus drops only while the buffer is full, and only this
 			// loop drains it, so a buffer full up to this receive is the one
 			// sign that events may have been dropped after the ones queued.
+			// That holds for an event a snapshot already covered too, since
+			// a queue full of those is what drops the newer ones.
 			behind = behind || len(events) == cap(events)-1
 
-			if evt.Seq == last+1 {
+			switch {
+			case evt.Seq <= last:
+			case evt.Seq == last+1:
 				err = emit(watchLineFor(evt))
 				last = evt.Seq
-			} else {
+			default:
 				last, err = c.resync(emit, last)
 			}
 
@@ -99,15 +99,17 @@ func (c *Controller) HandleWatch(
 			// Caught up with no event left to carry the news of a drop, so
 			// check the bus for one. Seq is read before the length, so an
 			// event still to come is queued rather than counted as missed.
-			if behind {
-				if newest := c.Events.Seq(); len(events) == 0 {
-					behind = false
+			if !behind {
+				continue
+			}
 
-					if newest > last {
-						last, err = c.resync(emit, last)
-						if err != nil {
-							return err
-						}
+			if newest := c.Events.Seq(); len(events) == 0 {
+				behind = false
+
+				if newest > last {
+					last, err = c.resync(emit, last)
+					if err != nil {
+						return err
 					}
 				}
 			}
