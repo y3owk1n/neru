@@ -185,18 +185,21 @@ static const float kNeruDockQueryTimeout = 0.25f;
 /// The window list cannot answer this. The Dock keeps one full-display window
 /// at its own layer, and that window is on screen whenever the Dock is visible,
 /// with or without Mission Control.
+///
+/// A read that does not complete, such as a Dock too busy to answer within the
+/// timeout, returns the last known state, so it reports no transition.
 /// @return true if Mission Control is active, false otherwise
 static bool detectMissionControlActive(void) {
 	@autoreleasepool {
 		NSRunningApplication *dock =
 		    [[NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.dock"] firstObject];
 		if (!dock) {
-			return false;
+			return getCachedMissionControlState();
 		}
 
 		AXUIElementRef dockElement = AXUIElementCreateApplication(dock.processIdentifier);
 		if (!dockElement) {
-			return false;
+			return getCachedMissionControlState();
 		}
 
 		AXUIElementSetMessagingTimeout(dockElement, kNeruDockQueryTimeout);
@@ -206,7 +209,7 @@ static bool detectMissionControlActive(void) {
 		CFRelease(dockElement);
 
 		if (childrenErr != kAXErrorSuccess || !children) {
-			return false;
+			return getCachedMissionControlState();
 		}
 
 		bool active = false;
@@ -214,10 +217,20 @@ static bool detectMissionControlActive(void) {
 
 		for (CFIndex i = 0; i < count && !active; i++) {
 			AXUIElementRef child = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
+			AXUIElementSetMessagingTimeout(child, kNeruDockQueryTimeout);
 
 			CFTypeRef identifier = NULL;
-			if (AXUIElementCopyAttributeValue(child, kAXIdentifierAttribute, &identifier) != kAXErrorSuccess ||
-			    !identifier) {
+			AXError identifierErr = AXUIElementCopyAttributeValue(child, kAXIdentifierAttribute, &identifier);
+
+			// A child without an identifier is not "mc", which still answers the
+			// question. A read that timed out answers nothing, so the last known
+			// state stands.
+			if (identifierErr == kAXErrorCannotComplete) {
+				CFRelease(children);
+				return getCachedMissionControlState();
+			}
+
+			if (identifierErr != kAXErrorSuccess || !identifier) {
 				continue;
 			}
 
