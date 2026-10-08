@@ -247,7 +247,9 @@ static bool shouldPrefetchActions(const char *role) {
 
 /// Copy each attribute's value with its own call, in the shape
 /// AXUIElementCopyMultipleAttributeValues returns: one slot per attribute,
-/// kCFNull where a value could not be read.
+/// kCFNull where a value could not be read. An element that dies or stops
+/// answering partway leaves the rest of the slots kCFNull, since every later
+/// call would fail the same way.
 /// @param element Element reference, borrowed
 /// @param attributes Attribute names
 /// @return The values, owned by the caller, or NULL if the array could not be made
@@ -257,11 +259,18 @@ static CFArrayRef copyAttributeValuesOneByOne(AXUIElementRef element, CFArrayRef
 	if (!values)
 		return NULL;
 
+	bool unreachable = false;
+
 	for (CFIndex i = 0; i < count; i++) {
 		CFTypeRef value = NULL;
-		CFStringRef attribute = (CFStringRef)CFArrayGetValueAtIndex(attributes, i);
 
-		if (AXUIElementCopyAttributeValue(element, attribute, &value) == kAXErrorSuccess && value) {
+		if (!unreachable) {
+			CFStringRef attribute = (CFStringRef)CFArrayGetValueAtIndex(attributes, i);
+			AXError error = AXUIElementCopyAttributeValue(element, attribute, &value);
+			unreachable = error == kAXErrorInvalidUIElement || error == kAXErrorCannotComplete;
+		}
+
+		if (value) {
 			CFArrayAppendValue(values, value);
 			CFRelease(value);
 		} else {
@@ -341,8 +350,8 @@ ElementInfo *NeruGetElementInfo(void *element) {
 		}
 
 		// With option=0, values always has exactly 13 entries (one per requested attribute).
-		// Slots for unsupported/errored attributes hold an AX error placeholder (CFNumber),
-		// which the CFGetTypeID checks below will correctly reject.
+		// Slots for unsupported/errored attributes hold an AX error placeholder, or
+		// kCFNull when read one at a time, which the CFGetTypeID checks below reject.
 		CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
 		if (positionValue && CFGetTypeID(positionValue) == AXValueGetTypeID()) {
 			CGPoint point;
