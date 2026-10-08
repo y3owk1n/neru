@@ -51,15 +51,20 @@ func (a *App) ToggleEnabled() {
 //
 // A resume is published before it takes effect and a pause after, so every
 // mode event falls between the two: nothing can enter a mode until the state
-// flips, and a pause closes the open mode before it reports itself.
+// flips, and a pause closes the open mode before it reports itself. The resume
+// is published under the state's lock, so a reader that sees it, such as a
+// `neru watch` snapshot, also sees Neru enabled.
 func (a *App) setEnabledLocked(enabled bool) {
 	changed := a.appState.IsEnabled() != enabled
 
 	if changed && enabled {
-		a.events.Publish(event.Event{Name: event.Enable})
+		a.appState.SetEnabledAnnounced(enabled, func() {
+			a.events.Publish(event.Event{Name: event.Enable})
+		})
+	} else {
+		a.appState.SetEnabled(enabled)
 	}
 
-	a.appState.SetEnabled(enabled)
 	a.applyEnabled(enabled)
 
 	if changed && !enabled {

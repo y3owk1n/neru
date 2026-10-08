@@ -1056,3 +1056,24 @@ func TestAppState_CallbackValueCorrectness(t *testing.T) {
 		t.Errorf("Expected 1 callback with false, got %d", receivedValues[false])
 	}
 }
+
+func TestAppState_SetEnabledAnnounced_ReaderNeverSeesTheAnnouncementBeforeTheState(t *testing.T) {
+	_state := state.NewAppState()
+	_state.SetEnabled(false)
+
+	seen := make(chan bool, 1)
+
+	_state.SetEnabledAnnounced(true, func() {
+		// A reader that learns of the announcement now, as a watch snapshot
+		// does from the event bus, reads the state next.
+		go func() { seen <- _state.IsEnabled() }()
+
+		// Give it the time to read, which it would before the change if
+		// the announcement went out unlocked.
+		time.Sleep(20 * time.Millisecond)
+	})
+
+	if !<-seen {
+		t.Error("a reader saw the announcement while the state was still disabled")
+	}
+}

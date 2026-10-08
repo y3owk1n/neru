@@ -74,7 +74,20 @@ func (s *AppState) IsEnabled() bool {
 
 // SetEnabled sets the enabled state of the application.
 func (s *AppState) SetEnabled(enabled bool) {
+	s.SetEnabledAnnounced(enabled, nil)
+}
+
+// SetEnabledAnnounced sets the enabled state as SetEnabled does, calling
+// announce under the same lock just before the change, so no reader sees what
+// announce published without the state it announced. announce must not call
+// back into s. A nil announce is skipped.
+func (s *AppState) SetEnabledAnnounced(enabled bool, announce func()) {
 	s.mu.Lock()
+
+	if announce != nil {
+		announce()
+	}
+
 	oldEnabled := s.enabled
 	s.enabled = enabled
 	// Copy callbacks to slice for iteration outside lock
