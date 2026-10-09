@@ -58,6 +58,50 @@ brew install --cask y3owk1n/tap/neru-nightly    # nightly, upgrade with brew upg
 
 Nightly upgrades need `--greedy`, or brew skips rolling releases.
 
+## oku
+
+[oku](https://github.com/y3owk1n/oku) installs Neru from the repo's
+`oku.pkg.toml` on macOS, Linux and Windows. It takes the release zip for your
+machine, checks it against the release's build attestation and `.sha256`
+file, and adds man pages and shell completions. It installs stable releases
+only.
+
+> [!NOTE]
+> On Linux, install the [runtime libraries](linux.md#runtime-libraries)
+> first. oku runs `neru` once to write the completions, and the install fails
+> if a library is missing.
+
+```bash
+oku add -g github:y3owk1n/neru --service   # macOS and Windows, with the login service
+oku add -g github:y3owk1n/neru             # Linux, then run `neru services install`
+```
+
+`-g` adds it to your global list. Inside a project directory oku installs
+only the program and skips `Neru.app` and the service. To keep it in your
+`oku.toml` instead:
+
+```toml
+[packages]
+neru = { ref = "github:y3owk1n/neru", service = true }
+```
+
+- **macOS:** oku copies `Neru.app` to `~/Applications`, and `neru` on your
+  `PATH` runs that copy, so the CLI and the daemon share its Accessibility and
+  Screen Recording permissions. macOS may ask for them again after an update.
+- **Login service:** `--service` registers the daemon with launchd on macOS
+  and Task Scheduler on Windows, and `oku service` controls it. On Linux oku
+  has no service, because the daemon needs the graphical session, so use
+  [`neru services install`](#login-service). The unit it writes points at the
+  build in oku's store, so after `oku update neru` run `neru services uninstall` and
+  `neru services install` again. Use one of the two, not both, since
+  `neru services install` does not see oku's service.
+- **From source:** `oku add -g github:y3owk1n/neru --from-source` builds the
+  release tag with Go, which oku installs, and writes `from_source = true` to
+  your list so every update builds too. A Linux machine with musl libc has no
+  release zip and always builds. The build needs what
+  [From source](#from-source) lists, and oku names any missing part.
+- **Updating:** `oku update neru`.
+
 ## Prebuilt binaries
 
 Download `neru-<os>-<arch>.zip` from
@@ -301,10 +345,12 @@ Settings, under Privacy & Security. Remove them by hand if you are not
 reinstalling. On Linux, the script leaves your `input` group membership,
 since other evdev tools may need it.
 
-### Homebrew and Nix
+### Homebrew, Nix and oku
 
 Homebrew: `brew uninstall --cask y3owk1n/tap/neru`, or `neru-nightly`. Nix:
-remove the module or package from your configuration and rebuild.
+remove the module or package from your configuration and rebuild. oku:
+`oku remove -g neru`, which also stops the service and deletes `Neru.app`
+from `~/Applications`.
 
 ### Manual
 
