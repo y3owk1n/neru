@@ -99,7 +99,7 @@ wayland-protocols = { apt = "wayland-protocols", dnf = "wayland-protocols-devel"
 fonts-dejavu = { apt = "fonts-dejavu-core", dnf = "dejavu-sans-fonts", pacman = "ttf-dejavu", when = { os = "linux" } }
 
 # The same build as the justfile's: cgo on for macOS and Linux, off for
-# Windows, and the tag as buildinfo.Version. go comes from the repo's own
+# Windows, and the tag, commit and date in buildinfo. go comes from the repo's own
 # manifest, read at the same commit.
 [build]
 needs = ["git"]
@@ -114,7 +114,8 @@ vendor = "go"
 [[build.step]]
 run = """
 set -eu
-go build -mod=vendor -trimpath -ldflags="-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version={{tag}}" -o neru ./cmd/neru
+bi=github.com/y3owk1n/neru/internal/buildinfo
+go build -mod=vendor -trimpath -ldflags="-s -w -X $bi.Version={{tag}} -X $bi.GitCommit=$(git rev-parse --short HEAD) -X $bi.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o neru ./cmd/neru
 mkdir -p man
 go run -mod=vendor ./cmd/genman man
 """
@@ -132,7 +133,10 @@ function Check { if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
 Push-Location cmd/neru
 go run -mod=vendor github.com/tc-hib/go-winres simply --icon ../../assets/neru-appicon.png --manifest gui --arch {{arch}} --file-description "Neru keyboard-driven navigation tool" --product-name Neru --original-filename neru.exe; Check
 Pop-Location
-go build -mod=vendor -trimpath "-ldflags=-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version={{tag}}" -o neru.exe ./cmd/neru; Check
+$bi = 'github.com/y3owk1n/neru/internal/buildinfo'
+$commit = git rev-parse --short HEAD; Check
+$date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+go build -mod=vendor -trimpath "-ldflags=-s -w -X $bi.Version={{tag}} -X $bi.GitCommit=$commit -X $bi.BuildDate=$date" -o neru.exe ./cmd/neru; Check
 New-Item -ItemType Directory -Force man | Out-Null
 go run -mod=vendor ./cmd/genman man; Check
 """
