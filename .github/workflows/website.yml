@@ -40,7 +40,7 @@ jobs:
 
             # Node comes from website/oku.toml, apart from the Go toolchain.
             - name: Setup Node
-              uses: y3owk1n/oku@v0.13.0
+              uses: y3owk1n/oku@v0.15.0
               with:
                   path: website
               env:
