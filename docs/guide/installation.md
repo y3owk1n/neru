@@ -104,7 +104,8 @@ neru = { ref = "github:y3owk1n/neru", service = true }
   newest commit of `main` instead of a release, and needs the same tools. Its
   version is the date and commit, such as `2026.10.09-a73243f`, and
   `oku update neru` takes the newest commit. It installs the same `neru`, so
-  remove the release package first.
+  remove the release package first. On macOS and Windows, add `--service` to
+  keep Neru starting at login.
 - **Updating:** `oku update neru`.
 
 ## Prebuilt binaries
