@@ -100,6 +100,11 @@ neru = { ref = "github:y3owk1n/neru", service = true }
   your list so every update builds too. A Linux machine with musl libc has no
   release zip and always builds. The build needs what
   [From source](#from-source) lists, and oku names any missing part.
+- **Latest main:** `oku add -g github:y3owk1n/neru#neru-main` builds the
+  newest commit of `main` instead of a release, and needs the same tools. Its
+  version is the date and commit, such as `2026.10.09-a73243f`, and
+  `oku update neru` takes the newest commit. It installs the same `neru`, so
+  remove the release package first.
 - **Updating:** `oku update neru`.
 
 ## Prebuilt binaries

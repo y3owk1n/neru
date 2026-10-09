@@ -1,82 +1,22 @@
-# The manifest `oku add github:y3owk1n/neru` reads, see
-# docs/guide/installation.md. Check a change with `oku manifest lint` and
-# `oku manifest test`.
+# The manifest `oku add github:y3owk1n/neru#neru-main` reads, which builds the
+# newest commit of main. It installs the same program as oku.pkg.toml, so a
+# user installs one of the two.
 [package]
 name = "neru"
-description = "Keyboard-driven navigation for the mouse: hints, grids and scrolling"
+description = "Keyboard-driven navigation for the mouse, built from the main branch"
 homepage = "https://github.com/y3owk1n/neru"
 license = "MIT"
-# publish-artifacts.yml attests every release zip from v1.51.0 on.
-signer_workflow = "y3owk1n/neru/.github/workflows/publish-artifacts.yml"
-attestations = true
 
+# The version is <date>-<commit>, such as 2026.10.09-a73243f, and {{tag}} is
+# the branch.
 [version]
-from = "github-releases"
-repo = "y3owk1n/neru"
-strip_prefix = "v"
+from = "git-branch"
+repo = "https://github.com/y3owk1n/neru"
+branch = "main"
 
-# On macOS the command is the bundle's program, which oku runs from the copy of
-# Neru.app in ~/Applications, so the CLI and the daemon share the app's
-# Accessibility and Screen Recording permissions. The manifest leaves out the
-# zip's bin/neru, since it would be a second program with the same name.
-[[artifact]]
-match = { os = "darwin", arch = "arm64" }
-url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-darwin-arm64.zip"
-sha256_url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-darwin-arm64.zip.sha256"
-bin = ["Neru.app/Contents/MacOS/neru"]
-app = ["Neru.app"]
-man = ["share/man/man1/*.1"]
-completions = { generate = "neru completion {{shell}}" }
-
-[[artifact]]
-match = { os = "darwin", arch = "amd64" }
-url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-darwin-amd64.zip"
-sha256_url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-darwin-amd64.zip.sha256"
-bin = ["Neru.app/Contents/MacOS/neru"]
-app = ["Neru.app"]
-man = ["share/man/man1/*.1"]
-completions = { generate = "neru completion {{shell}}" }
-
-# The Linux binary links glibc and the system's display libraries, so a musl
-# machine falls through to the build. Generating completions runs the binary,
-# so the user installs the runtime libraries of docs/guide/linux.md first.
-[[artifact]]
-match = { os = "linux", arch = "arm64", libc = "glibc" }
-url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-linux-arm64.zip"
-sha256_url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-linux-arm64.zip.sha256"
-bin = ["bin/neru"]
-man = ["share/man/man1/*.1"]
-completions = { generate = "neru completion {{shell}}" }
-
-[[artifact]]
-match = { os = "linux", arch = "amd64", libc = "glibc" }
-url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-linux-amd64.zip"
-sha256_url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-linux-amd64.zip.sha256"
-bin = ["bin/neru"]
-man = ["share/man/man1/*.1"]
-completions = { generate = "neru completion {{shell}}" }
-
-[[artifact]]
-match = { os = "windows", arch = "arm64" }
-url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-windows-arm64.zip"
-sha256_url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-windows-arm64.zip.sha256"
-bin = ["bin/neru.exe"]
-man = ["share/man/man1/*.1"]
-completions = { generate = "neru completion {{shell}}" }
-
-[[artifact]]
-match = { os = "windows", arch = "amd64" }
-url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-windows-amd64.zip"
-sha256_url = "https://github.com/y3owk1n/neru/releases/download/{{tag}}/neru-windows-amd64.zip.sha256"
-bin = ["bin/neru.exe"]
-man = ["share/man/man1/*.1"]
-completions = { generate = "neru completion {{shell}}" }
-
-# oku reports a missing entry on every add and sync, whether it installed the
-# zip or a build. On Linux these are the build's -dev packages, which pull in
-# the runtime libraries a zip needs too. macOS always gets a zip, so this list
-# leaves out the Xcode tools.
+# A branch always builds, so macOS needs the Xcode command line tools.
 [host]
+xcode-clt = { path = "/Library/Developer/CommandLineTools/usr/bin/clang", install = "xcode-select --install", when = { os = "darwin" } }
 cc = { command = "cc", apt = "build-essential", dnf = "gcc-c++", pacman = "base-devel", when = { os = "linux" } }
 git = { command = "git", apt = "git", dnf = "git", pacman = "git", when = { os = "linux" } }
 pkg-config = { command = "pkg-config", apt = "pkg-config", dnf = "pkgconf-pkg-config", pacman = "pkgconf", when = { os = "linux" } }
@@ -98,10 +38,9 @@ pipewire = { apt = "libpipewire-0.3-dev", dnf = "pipewire-devel", pacman = "libp
 wayland-protocols = { apt = "wayland-protocols", dnf = "wayland-protocols-devel", pacman = "wayland-protocols", when = { os = "linux" } }
 fonts-dejavu = { apt = "fonts-dejavu-core", dnf = "dejavu-sans-fonts", pacman = "ttf-dejavu", when = { os = "linux" } }
 
-# The same build as the justfile's: cgo on for macOS and Linux, off for
-# Windows, and the tag, commit and date in buildinfo. go comes from the repo's own
-# manifest, read at the same commit. neru-main.toml repeats this build, so
-# change both.
+# This is the build of oku.pkg.toml, except that it stamps the date-commit
+# version, since on a branch {{tag}} is only the branch's name. Change both
+# together.
 [build]
 needs = ["git"]
 deps = [{ ref = "./.oku/go.toml", version = "~1.26" }]
@@ -116,7 +55,7 @@ vendor = "go"
 run = """
 set -eu
 bi=github.com/y3owk1n/neru/internal/buildinfo
-go build -mod=vendor -trimpath -ldflags="-s -w -X $bi.Version={{tag}} -X $bi.GitCommit=$(git rev-parse --short HEAD) -X $bi.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o neru ./cmd/neru
+go build -mod=vendor -trimpath -ldflags="-s -w -X $bi.Version={{version}} -X $bi.GitCommit=$(git rev-parse --short HEAD) -X $bi.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o neru ./cmd/neru
 mkdir -p man
 go run -mod=vendor ./cmd/genman man
 """
@@ -137,7 +76,7 @@ Pop-Location
 $bi = 'github.com/y3owk1n/neru/internal/buildinfo'
 $commit = git rev-parse --short HEAD; Check
 $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-go build -mod=vendor -trimpath "-ldflags=-s -w -X $bi.Version={{tag}} -X $bi.GitCommit=$commit -X $bi.BuildDate=$date" -o neru.exe ./cmd/neru; Check
+go build -mod=vendor -trimpath "-ldflags=-s -w -X $bi.Version={{version}} -X $bi.GitCommit=$commit -X $bi.BuildDate=$date" -o neru.exe ./cmd/neru; Check
 New-Item -ItemType Directory -Force man | Out-Null
 go run -mod=vendor ./cmd/genman man; Check
 """
@@ -145,15 +84,18 @@ shell = "pwsh"
 env = { CGO_ENABLED = "0", GOFLAGS = "-buildvcs=false" }
 when = { os = "windows" }
 
-# Assembles the bundle as scripts/dist.sh does and signs it ad hoc.
+# This step assembles the bundle as scripts/dist.sh does and signs it ad hoc.
+# The plist versions take numbers and dots only, so they drop the -<commit>
+# suffix.
 [[build.step]]
 run = """
 set -eu
+v={{version}}
 app=Neru.app
 mkdir -p $app/Contents/MacOS $app/Contents/Resources
 cp neru $app/Contents/MacOS/neru
 cp resources/icon.icns resources/Neru.entitlements $app/Contents/Resources/
-sed -e 's/BUNDLE_VERSION/{{version}}/g' -e 's/SHORT_VERSION/{{version}}/g' -e 's/BUILD_ID/{{tag}}/g' resources/Info.plist.template > $app/Contents/Info.plist
+sed -e "s/BUNDLE_VERSION/${v%%-*}/g" -e "s/SHORT_VERSION/${v%%-*}/g" -e "s/BUILD_ID/$v/g" resources/Info.plist.template > $app/Contents/Info.plist
 codesign --force --deep --sign - --entitlements resources/Neru.entitlements --options runtime $app
 """
 shell = "sh"
@@ -181,9 +123,9 @@ when = { os = "linux" }
 install = { bin = ["neru.exe"] }
 when = { os = "windows" }
 
-# Replaces `neru services install`, so use one of them. Linux has none,
-# because the daemon needs the graphical session, and the unit
-# `neru services install` writes waits for graphical-session.target.
+# The service replaces `neru services install`, so a user runs one of them.
+# Linux has none, because the daemon needs the graphical session, and the
+# unit `neru services install` writes waits for graphical-session.target.
 [[service]]
 name = "neru"
 command = "bin/neru"
