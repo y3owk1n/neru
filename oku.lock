@@ -70,34 +70,39 @@ sha256 = '8f29fbc3e8aa0552810dd0e3e69f3158f8dbf0edb425e0437798e9db9d0a28a6'
 name = 'go'
 ref = './.oku/go.toml'
 manifest_sha256 = '2022b9ea9d9e33afb9ca6a565a6ec9b4655f57311f5c8db4f0a5d6fe81b191ae'
-version = '1.26.8'
-tag = 'go1.26.8'
+version = '1.26.9'
+tag = 'go1.26.9'
 
 [package.platform]
 [package.platform.darwin-arm64]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.8.darwin-arm64.tar.gz'
-sha256 = 'a012b25b571bd0138a03dcd25375ceba866fe5ca822f426d2c66a4de56fd3f4b'
+url = 'https://dl.google.com/go/go1.26.9.darwin-arm64.tar.gz'
+sha256 = 'f9bb7c0a02506c5d9bf0d1eb1f7ee6c7684f844ae49558308a0427b830e022cc'
+verified = 'checksum-file'
 
 [package.platform.linux-amd64-glibc]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.8.linux-amd64.tar.gz'
-sha256 = 'd0f743b33e8d8945e6b1f432edd15785c70507121d6e2a723b21285eddf8b57b'
+url = 'https://dl.google.com/go/go1.26.9.linux-amd64.tar.gz'
+sha256 = '42d158b4d8f7b61ac0a830567c940a86098fb7aac52e467a5ebec03ef5cc2f8d'
+verified = 'checksum-file'
 
 [package.platform.linux-arm64-glibc]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.8.linux-arm64.tar.gz'
-sha256 = '211ffced9dcb9633a55eac6364816ec0ddd951389a740e88fa8b3337971bdda0'
+url = 'https://dl.google.com/go/go1.26.9.linux-arm64.tar.gz'
+sha256 = '4a97373d49fcacdcf3694fea368a500b00ee3e963974f3e7514132717632f052'
+verified = 'checksum-file'
 
 [package.platform.windows-amd64]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.8.windows-amd64.zip'
-sha256 = 'b92c3b2adae85a11ba71fe7216daf0d84e82af4c8ab6c5625807f28622043a59'
+url = 'https://dl.google.com/go/go1.26.9.windows-amd64.zip'
+sha256 = 'd722201a9c0c086d1610e111c48203009af690892ed708072bd5ae20160e7a59'
+verified = 'checksum-file'
 
 [package.platform.windows-arm64]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.8.windows-arm64.zip'
-sha256 = '4bc560ed3ccb64eec0be6180b8c29185c07f5215276820adb4303d7bf3365435'
+url = 'https://dl.google.com/go/go1.26.9.windows-arm64.zip'
+sha256 = '05215f9e71ea27c9e843409314b1e6bf12dc6a5516318126b2357d497fed42c5'
+verified = 'checksum-file'
 
 [[package]]
 name = 'gofumpt'
