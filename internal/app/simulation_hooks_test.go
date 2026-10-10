@@ -2,15 +2,18 @@ package app_test
 
 import (
 	"fmt"
+	"image"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
@@ -307,4 +310,49 @@ func TestSimulation_StickyModifiersHookSeesTheSetHeld(t *testing.T) {
 
 		return readErr == nil && string(got) == "shift"
 	})
+}
+
+// TestSimulation_SelectHookSeesWhereTheSelectionActed pins the variable a
+// select hook reads to act at the point the selection clicked.
+func TestSimulation_SelectHookSeesWhereTheSelectionActed(t *testing.T) {
+	recorded := filepath.Join(t.TempDir(), "x")
+	t.Setenv("NERU_SELECT_OUT", recorded)
+
+	cfg := simConfig()
+	useRecordShell(cfg)
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{"hints --action left_click"}
+	cfg.Hooks.OnSelect = config.StringOrStringArray{recordEnvStep("NERU_X", "NERU_SELECT_OUT")}
+
+	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	sim := newSimHarness(t, cfg, []*element.Element{save})
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+	sim.typeLabel(sim.overlay.lastHintLabels()[0])
+
+	want := strconv.Itoa(save.Center().X)
+
+	sim.waitFor("hook recorded the selection's x", func() bool {
+		got, readErr := os.ReadFile(recorded)
+
+		return readErr == nil && string(got) == want
+	})
+}
+
+// TestSimulation_SelectHookCanOpenAMode pins that a select hook whose step
+// opens a mode does so once the selecting mode has re-armed, rather than
+// waiting on the hold that published the selection.
+func TestSimulation_SelectHookCanOpenAMode(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{stepHintsRepeatClicks}
+	cfg.Hooks.OnSelect = config.StringOrStringArray{stepScroll}
+
+	sim := newSimHarness(t, cfg, threeButtons(t))
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+	sim.typeLabel(sim.overlay.lastHintLabels()[0])
+
+	sim.waitFor("click recorded", func() bool { return len(sim.ax.recordedClicks()) == 1 })
+	sim.waitMode(domain.ModeScroll)
 }

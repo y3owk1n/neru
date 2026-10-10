@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
@@ -110,6 +111,17 @@ func (h *handlerState) executeActionAtPoint(
 	// can insert a settling delay before moving the cursor.
 	if actionPerformed {
 		h.cursorState.MarkActionPerformed()
+	}
+
+	// Published before the mode re-arms or exits, so a selection always
+	// reaches subscribers ahead of the mode_exit it ends with.
+	if !chainFailed {
+		h.events.Publish(event.Event{
+			Name:   event.Select,
+			Mode:   h.CurrModeString(),
+			Action: strings.Join(performed, ","),
+			Point:  point,
+		})
 	}
 
 	if repeat && reActivateFunc != nil && !chainFailed {

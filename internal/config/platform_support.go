@@ -252,6 +252,7 @@ func PlatformSupport() parity.Declaration {
 			"modes",
 			"hooks.on_mode_enter",
 			"hooks.on_mode_exit",
+			"hooks.on_select",
 			"hooks.on_app_focus",
 			"hooks.on_enable",
 			"hooks.on_disable",

@@ -50,9 +50,9 @@ on_mode_enter = "exec sketchybar --trigger neru_mode MODE=\"$NERU_MODE\""
 on_mode_exit  = "exec sketchybar --trigger neru_mode MODE=idle"
 ```
 
-Hooks also fire on sticky modifiers, cursor slots, display changes, and the
-daemon starting and quitting. The reference lists every event and what each
-one passes.
+Hooks also fire on each selection a mode makes, sticky modifiers, cursor
+slots, display changes, and the daemon starting and quitting. The reference
+lists every event and what each one passes.
 
 ## Keep a status bar in sync
 

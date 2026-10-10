@@ -121,14 +121,14 @@ snapshot as the whole state and each event as a change to it.
 | `seq`       | every line                     | Rises by one with each event. On a snapshot, the `seq` of the last event it includes. |
 | `event`     | every line                     | `snapshot`, or the event, such as `mode_enter`                        |
 | `status`    | `snapshot`                     | The `neru status --json` object                                       |
-| `mode`      | `mode_enter`, `mode_exit`      | The mode, named as `neru status` names it                             |
+| `mode`      | `mode_enter`, `mode_exit`, `select` | The mode, named as `neru status` names it                        |
 | `reason`    | `mode_exit`                    | `completed`, `switched` or `canceled`, as `NERU_REASON` has them      |
-| `action`    | `mode_exit` when `completed`   | The action the selection ran, such as `left_click`. Absent when it ran none |
+| `action`    | `select`, and `mode_exit` when `completed` | The action the selection ran, such as `left_click`. Absent on `mode_exit` when it ran none |
 | `bundle_id` | `app_focus`                    | The application, as [`bundle_id`](configuration.md#app-identity-across-platforms-bundle_id) names it |
 | `ok`        | `config_reload`                | `true` or `false`                                                     |
 | `on`        | `scroll_invert`, `screen_share_hide` | The state switched to, as `scroll_inverted` and `hidden_for_screen_share` report it |
 | `slot`      | `cursor_save`, `cursor_restore` | The [cursor slot](#cursor-slots)                                     |
-| `x`, `y`    | `cursor_save`                  | The position saved                                                    |
+| `x`, `y`    | `cursor_save`, `select`        | The position saved, or the point the selection acted at              |
 | `modifiers` | `sticky_modifiers`             | The set held now, as `sticky_modifiers` reports it                    |
 | `monitor`   | `monitor_move`                 | The display moved to, as `move_monitor --name` takes it               |
 | `dropped`   | a snapshot after missed events | How many events since the previous line this snapshot replaces |

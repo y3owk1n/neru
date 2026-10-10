@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
@@ -76,9 +77,13 @@ func modeExit(mode string, reason event.ExitReason) event.Event {
 	return event.Event{Name: event.ModeExit, Mode: mode, Reason: reason}
 }
 
+func selection(mode, action string, point image.Point) event.Event {
+	return event.Event{Name: event.Select, Mode: mode, Action: action, Point: point}
+}
+
 // TestSimulation_EventsReportASelectionAsCompleted pins that typing a hint
-// label closes hints with the reason a script would act on, and the action
-// the selection ran.
+// label reports the selection, where it acted and what ran, and then closes
+// hints with the reason a script would act on.
 func TestSimulation_EventsReportASelectionAsCompleted(t *testing.T) {
 	cfg := simConfig()
 	cfg.Hotkeys.Bindings[hintsHotkey] = []string{"hints --action left_click"}
@@ -95,7 +100,48 @@ func TestSimulation_EventsReportASelectionAsCompleted(t *testing.T) {
 	completed := modeExit("hints", event.ExitCompleted)
 	completed.Action = "left_click"
 
-	events.expect(modeEnter("hints"), completed)
+	clicked := sim.ax.recordedClicks()[0].point
+
+	events.expect(modeEnter("hints"), selection("hints", "left_click", clicked), completed)
+}
+
+// TestSimulation_EventsReportEverySelectionARepeatingModeMakes pins that a
+// --repeat mode reports each selection, although it stays open between them
+// and so publishes no mode change until it closes.
+func TestSimulation_EventsReportEverySelectionARepeatingModeMakes(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{stepHintsRepeatClicks}
+
+	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	sim := newSimHarness(t, cfg, []*element.Element{save})
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	for selections := 1; selections <= 2; selections++ {
+		drawsBefore := sim.overlay.hintDrawCount()
+
+		sim.typeLabel(sim.overlay.lastHintLabels()[0])
+		sim.waitFor(
+			"click recorded",
+			func() bool { return len(sim.ax.recordedClicks()) == selections },
+		)
+		sim.waitFor(
+			"hints re-armed",
+			func() bool { return sim.overlay.hintDrawCount() > drawsBefore },
+		)
+	}
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	events.expect(
+		modeEnter("hints"),
+		selection("hints", "left_click", save.Center()),
+		selection("hints", "left_click", save.Center()),
+		modeExit("hints", event.ExitCancelled),
+	)
 }
 
 // TestSimulation_EventsFollowEveryModeTransition walks the three ways a mode
