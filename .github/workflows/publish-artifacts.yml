@@ -82,7 +82,7 @@ jobs:
               run: just release-ci-darwin arm64 ${{ inputs.version_override }}
 
             - name: Assemble neru-darwin-arm64
-              run: just dist bin/neru-darwin-arm64 build/arm64 "${{ inputs.macos_bundle_version }}" "${{ inputs.macos_short_version }}" "${{ inputs.version_override }}"
+              run: just VERSION="${{ inputs.version_override }}" dist bin/neru-darwin-arm64 build/arm64 "${{ inputs.macos_bundle_version }}" "${{ inputs.macos_short_version }}" "${{ inputs.version_override }}"
 
             - name: Package neru-darwin-arm64
               run: |
@@ -139,7 +139,7 @@ jobs:
               run: just release-ci-darwin amd64 ${{ inputs.version_override }}
 
             - name: Assemble neru-darwin-amd64
-              run: just dist bin/neru-darwin-amd64 build/amd64 "${{ inputs.macos_bundle_version }}" "${{ inputs.macos_short_version }}" "${{ inputs.version_override }}"
+              run: just VERSION="${{ inputs.version_override }}" dist bin/neru-darwin-amd64 build/amd64 "${{ inputs.macos_bundle_version }}" "${{ inputs.macos_short_version }}" "${{ inputs.version_override }}"
 
             - name: Package neru-darwin-amd64
               run: |
@@ -206,7 +206,7 @@ jobs:
               run: just release-ci-linux amd64 ${{ inputs.version_override }}
 
             - name: Assemble neru-linux-amd64
-              run: just dist bin/neru-linux-amd64 build/linux-amd64
+              run: just VERSION="${{ inputs.version_override }}" dist bin/neru-linux-amd64 build/linux-amd64
 
             - name: Package neru-linux-amd64
               run: |
@@ -273,7 +273,7 @@ jobs:
               run: just release-ci-linux arm64 ${{ inputs.version_override }}
 
             - name: Assemble neru-linux-arm64
-              run: just dist bin/neru-linux-arm64 build/linux-arm64
+              run: just VERSION="${{ inputs.version_override }}" dist bin/neru-linux-arm64 build/linux-arm64
 
             - name: Package neru-linux-arm64
               run: |
@@ -320,7 +320,7 @@ jobs:
               shell: bash
 
             - name: Assemble neru-windows-amd64
-              run: just dist bin/neru-windows-amd64.exe build/windows-amd64
+              run: just VERSION="${{ inputs.version_override }}" dist bin/neru-windows-amd64.exe build/windows-amd64
               shell: bash
 
             - name: Package neru-windows-amd64
@@ -377,7 +377,7 @@ jobs:
               shell: bash
 
             - name: Assemble neru-windows-arm64
-              run: just dist bin/neru-windows-arm64.exe build/windows-arm64
+              run: just VERSION="${{ inputs.version_override }}" dist bin/neru-windows-arm64.exe build/windows-arm64
               shell: bash
 
             - name: Package neru-windows-arm64

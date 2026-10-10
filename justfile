@@ -194,7 +194,7 @@ dist BIN="" OUT="build/dist" BUNDLE_VERSION="" SHORT_VERSION="" BUILD_ID="":
 [windows]
 [doc('Assemble the release layout (bin, man) under build/dist.')]
 dist BIN="" OUT="build/dist" BUNDLE_VERSION="" SHORT_VERSION="" BUILD_ID="":
-    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dist.ps1 -Bin "{{ BIN }}" -Out "{{ OUT }}"
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dist.ps1 -Bin "{{ BIN }}" -Out "{{ OUT }}" -Version "{{ VERSION }}"
 
 # Build, assemble the release layout, and install it with the same script a
 # `curl | bash` user runs (scripts/install.sh, or install.ps1 on Windows), so
@@ -458,7 +458,7 @@ fmt-check:
 [doc('Generate the man pages into OUTPUT_DIR.')]
 genman OUTPUT_DIR="build/man":
     @echo "Generating man pages..."
-    go run ./cmd/genman {{ OUTPUT_DIR }}
+    go run -ldflags="-X github.com/y3owk1n/neru/internal/buildinfo.Version={{ VERSION }}" ./cmd/genman {{ OUTPUT_DIR }}
     @echo "✓ Man pages generated in {{ OUTPUT_DIR }}/"
 
 # Rewrite the mode-flag reference from the grammar's descriptor table.
