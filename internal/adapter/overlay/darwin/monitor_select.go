@@ -20,10 +20,12 @@ var _ manager.MonitorSelector = (*Manager)(nil)
 
 // DrawMonitorSelect renders one labeled panel per monitor.
 //
-// Unlike the other overlay draws (dispatch_async), the C sinks here use
-// dispatch_sync onto the main queue, because the dispatched block borrows the
-// C target array this function frees on return. The mode handler calls this
-// with its lock held, so the lock blocks on the main queue draining — safe
+// Unlike the other overlay draws (dispatch_async), the C sinks here wait on
+// the main queue, because the dispatched block borrows the C target array
+// this function frees on return. On the main thread they run inline, because
+// shutdown removes the panels there after the Cocoa loop stops.
+// The mode handler calls this with its lock held, so the lock blocks on the
+// main queue draining — safe
 // only while nothing that runs on the main queue acquires the handler lock
 // (true today: event tap, hotkey, theme and systray callbacks all hop to
 // goroutines before reaching the handler).
