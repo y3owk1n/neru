@@ -77,8 +77,8 @@ func modeExit(mode string, reason event.ExitReason) event.Event {
 	return event.Event{Name: event.ModeExit, Mode: mode, Reason: reason}
 }
 
-func selection(mode, action string, point image.Point) event.Event {
-	return event.Event{Name: event.Select, Mode: mode, Action: action, Point: point}
+func hintsSelection(action string, point image.Point) event.Event {
+	return event.Event{Name: event.Select, Mode: domain.ModeNameHints, Action: action, Point: point}
 }
 
 // TestSimulation_EventsReportASelectionAsCompleted pins that typing a hint
@@ -102,7 +102,36 @@ func TestSimulation_EventsReportASelectionAsCompleted(t *testing.T) {
 
 	clicked := sim.ax.recordedClicks()[0].point
 
-	events.expect(modeEnter("hints"), selection("hints", "left_click", clicked), completed)
+	events.expect(modeEnter("hints"), hintsSelection("left_click", clicked), completed)
+}
+
+// TestSimulation_EventsReportASelectionThatRanNoAction covers the default
+// binding, a bare hints: a label moves the cursor to the element and hints
+// stays open for the next step, so no mode change is published. The selection
+// is still published, with no action, and it is the only event a script sees.
+func TestSimulation_EventsReportASelectionThatRanNoAction(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{domain.ModeNameHints}
+
+	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	sim := newSimHarness(t, cfg, []*element.Element{save})
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	sim.typeLabel(sim.overlay.lastHintLabels()[0])
+	sim.waitFor(
+		"cursor on the element",
+		func() bool { return sim.cursor.position() == save.Center() },
+	)
+
+	events.expect(modeEnter("hints"), hintsSelection("", save.Center()))
+	events.expectNone(100 * time.Millisecond)
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
+		t.Errorf("a selection with no action clicked %d times", len(clicks))
+	}
 }
 
 // TestSimulation_EventsReportEverySelectionARepeatingModeMakes pins that a
@@ -138,8 +167,8 @@ func TestSimulation_EventsReportEverySelectionARepeatingModeMakes(t *testing.T) 
 
 	events.expect(
 		modeEnter("hints"),
-		selection("hints", "left_click", save.Center()),
-		selection("hints", "left_click", save.Center()),
+		hintsSelection("left_click", save.Center()),
+		hintsSelection("left_click", save.Center()),
 		modeExit("hints", event.ExitCancelled),
 	)
 }

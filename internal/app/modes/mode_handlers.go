@@ -116,12 +116,7 @@ func (h *handlerState) executeActionAtPoint(
 	// Published before the mode re-arms or exits, so a selection always
 	// reaches subscribers ahead of the mode_exit it ends with.
 	if !chainFailed {
-		h.events.Publish(event.Event{
-			Name:   event.Select,
-			Mode:   h.CurrModeString(),
-			Action: strings.Join(performed, ","),
-			Point:  point,
-		})
+		h.publishSelect(point, strings.Join(performed, ","))
 	}
 
 	if repeat && reActivateFunc != nil && !chainFailed {
@@ -221,11 +216,24 @@ func (h *handlerState) moveCursorAndHandleAction(
 		return
 	}
 
+	h.publishSelect(point, "")
+
 	// No pending action - re-activate mode if requested
 	if shouldReActivate && reActivateFunc != nil {
 		h.logger.Debug("Re-activating mode after cursor movement")
 		reActivateFunc()
 	}
+}
+
+// publishSelect reports a selection the mode completed at point, and the
+// action it ran there, empty when it ran none. Caller must hold h.mu.
+func (h *handlerState) publishSelect(point image.Point, action string) {
+	h.events.Publish(event.Event{
+		Name:   event.Select,
+		Mode:   h.CurrModeString(),
+		Action: action,
+		Point:  point,
+	})
 }
 
 // handleHintsModeKey handles key processing for hints mode.
@@ -532,6 +540,7 @@ func (h *handlerState) handleGridModeKey(key string) {
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
 			h.refreshGridVirtualPointer()
+			h.publishSelect(absolutePoint, "")
 
 			return
 		}

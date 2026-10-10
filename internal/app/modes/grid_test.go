@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
+	"github.com/y3owk1n/neru/internal/domain/state"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -66,6 +67,8 @@ func TestHandleGridModeKey_CompleteSelectionDoesNotMoveWhenCursorFollowSelection
 			Context: &gridcomponent.Context{},
 		},
 		screenBounds: image.Rect(0, 0, 100, 100),
+		// A completed selection reports itself under the mode's name.
+		appState: state.NewAppState(),
 	})
 
 	handler.grid.Context.SetCursorFollowSelection(false)

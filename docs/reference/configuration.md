@@ -242,7 +242,7 @@ on_config_reload = "exec [ \"$NERU_OK\" = true ] || say 'Neru config did not loa
 | -------------------------------- | ------------ | ------- | ------------------------------------------------------------------------- |
 | `on_mode_enter`                  | string/array | none    | A mode opens                                                              |
 | `on_mode_exit`                   | string/array | none    | A mode closes, including on the way into another one                      |
-| `on_select`                      | string/array | none    | A mode runs its action on a selection, once per selection, including each one a `--repeat` mode makes |
+| `on_select`                      | string/array | none    | A mode completes a selection, such as a typed hint label, including each one a `--repeat` mode makes |
 | `on_app_focus`                   | string/array | none    | Another application comes to the front                                    |
 | `on_enable`                      | string/array | none    | Neru resumes, such as on `neru start`                                     |
 | `on_disable`                     | string/array | none    | Neru pauses, such as on `neru stop`                                       |
@@ -282,12 +282,12 @@ events that carry it.
 | `NERU_EVENT`     | every hook                      | The event, such as `mode_enter`                                  |
 | `NERU_MODE`      | `on_mode_enter`, `on_mode_exit`, `on_select` | The mode, named as `neru status` names it           |
 | `NERU_REASON`    | `on_mode_exit`                  | `completed` after a selection, `switched` on the way into another mode, else `canceled` |
-| `NERU_ACTION`    | `on_select`, and `on_mode_exit` when `completed` | The action the selection ran, such as `left_click`, or `left_click,left_click` for a chain. Unset on `on_mode_exit` when it ran none |
+| `NERU_ACTION`    | `on_select`, and `on_mode_exit` when `completed` | The action the selection ran, such as `left_click`, or `left_click,left_click` for a chain. Unset when it ran none, such as for a binding with no `--action` |
 | `NERU_BUNDLE_ID` | `on_app_focus`                  | The application, as [`bundle_id`](#app-identity-across-platforms-bundle_id) names it |
 | `NERU_OK`        | `on_config_reload`              | `true` or `false`                                                |
 | `NERU_ON`        | `on_scroll_invert`, `on_screen_share_hide` | `true` when switched on, else `false`                 |
 | `NERU_SLOT`      | `on_cursor_save`, `on_cursor_restore` | The cursor slot, `default` when none was named             |
-| `NERU_X`, `NERU_Y` | `on_cursor_save`, `on_select` | The position saved, or the point the selection acted at          |
+| `NERU_X`, `NERU_Y` | `on_cursor_save`, `on_select` | The position saved, or the point selected                         |
 | `NERU_MODIFIERS` | `on_sticky_modifiers`           | The set held now, such as `cmd,shift`, in the spelling `--modifier` takes. Empty when none is |
 | `NERU_MONITOR`   | `on_monitor_move`               | The display, as `move_monitor --name` takes it                   |
 
