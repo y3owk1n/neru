@@ -279,18 +279,18 @@ func (s *ActionService) CursorPositionForAction(ctx context.Context) (image.Poin
 		}
 	}
 
-	if syncer, ok := s.system.(ports.CursorSynchronizer); ok {
-		syncCtx, cancel := context.WithTimeout(ctx, cursorSyncTimeout)
-		defer cancel()
+	s.syncCursorCache(ctx)
 
-		err := syncer.SyncCursorPosition(syncCtx)
-		if err != nil {
-			s.logger.Warn(
-				"Failed to sync cursor position; action target may be stale",
-				zap.Error(err),
-			)
-		}
-	}
+	return s.system.CursorPosition(ctx)
+}
+
+// ObservedCursorPosition returns the cursor position for a caller that reports
+// it rather than acts on it. It refreshes the platform's cursor cache as
+// CursorPositionForAction does, so a mouse moved by hand on Wayland is reported
+// where it is now. It never settles an animation, so asking does not cut a
+// glide short.
+func (s *ActionService) ObservedCursorPosition(ctx context.Context) (image.Point, error) {
+	s.syncCursorCache(ctx)
 
 	return s.system.CursorPosition(ctx)
 }
@@ -298,6 +298,41 @@ func (s *ActionService) CursorPositionForAction(ctx context.Context) (image.Poin
 // CursorPosition returns the current cursor position.
 func (s *ActionService) CursorPosition(ctx context.Context) (image.Point, error) {
 	return s.system.CursorPosition(ctx)
+}
+
+// Display is one connected display as the query commands report it.
+type Display struct {
+	Name   string
+	Bounds image.Rectangle
+	// Scale is how many physical pixels of Bounds make one apparent unit, as
+	// ports.SystemPort.ScreenScale defines it.
+	Scale float64
+}
+
+// Displays lists every connected display with its scale, in the platform's
+// enumeration order. A platform that cannot read a scale reports 1 for it, as
+// the port specifies.
+func (s *ActionService) Displays(ctx context.Context) ([]Display, error) {
+	screens, err := s.system.Screens(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	displays := make([]Display, len(screens))
+	for idx, screen := range screens {
+		scale, scaleErr := s.system.ScreenScale(ctx, screen.Bounds)
+		if scaleErr != nil {
+			if !derrors.IsNotSupported(scaleErr) {
+				return nil, scaleErr
+			}
+
+			scale = 1
+		}
+
+		displays[idx] = Display{Name: screen.Name, Bounds: screen.Bounds, Scale: scale}
+	}
+
+	return displays, nil
 }
 
 // ScreenBounds returns the bounds of the active screen.
@@ -414,6 +449,24 @@ func (s *ActionService) MoveMouseToCenterOfWindow(
 		zap.Int("offset_x", offsetX),
 		zap.Int("offset_y", offsetY),
 	)
+}
+
+// syncCursorCache refreshes the platform's cursor cache where it keeps one
+// (ports.CursorSynchronizer), bounded by cursorSyncTimeout. A failed refresh
+// degrades to the cached position.
+func (s *ActionService) syncCursorCache(ctx context.Context) {
+	syncer, ok := s.system.(ports.CursorSynchronizer)
+	if !ok {
+		return
+	}
+
+	syncCtx, cancel := context.WithTimeout(ctx, cursorSyncTimeout)
+	defer cancel()
+
+	err := syncer.SyncCursorPosition(syncCtx)
+	if err != nil {
+		s.logger.Warn("Failed to sync cursor position; it may be stale", zap.Error(err))
+	}
 }
 
 func (s *ActionService) drawMouseActionIndicator(point image.Point, actionType action.Type) {

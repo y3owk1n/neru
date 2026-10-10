@@ -73,6 +73,7 @@ func TestCommandInitialization(t *testing.T) {
 		"macro <name> [arg...]":          false,
 		cliTestStatus:                    false,
 		"watch":                          false,
+		"query":                          false,
 		"doctor":                         false,
 		cliTestRoles:                     false,
 		"launch":                         false,

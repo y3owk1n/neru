@@ -593,9 +593,10 @@ func TestIPCController_HandleCommand_RefusesWhilePaused(t *testing.T) {
 }
 
 // TestIPCController_HandleCommand_AnswersStateWhilePaused pins that a paused
-// daemon still answers status commands and can be resumed.
+// daemon still answers status commands and queries, and can be resumed.
 func TestIPCController_HandleCommand_AnswersStateWhilePaused(t *testing.T) {
-	controller := newTestController()
+	// The queries need an action service, which this controller wires.
+	controller := newToggleTestController(state.NewAppState(), nil)
 	controller.AppState.SetEnabled(false)
 
 	ctx := context.Background()
@@ -603,6 +604,8 @@ func TestIPCController_HandleCommand_AnswersStateWhilePaused(t *testing.T) {
 	for _, action := range []string{
 		domain.CommandPing,
 		domain.CommandStatus,
+		domain.CommandQueryDisplays,
+		domain.CommandQueryCursor,
 		domain.CommandToggleScrollInvert,
 		domain.CommandStart,
 	} {

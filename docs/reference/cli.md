@@ -140,6 +140,47 @@ one fails with `ERR_BUSY`.
 The command runs while Neru is stopped too, and exits 0 when the daemon exits.
 `--timeout` bounds connecting only, never the stream.
 
+### neru query
+
+```
+neru query displays [--json]
+neru query cursor [--json]
+```
+
+Print what the daemon sees right now. Positions and sizes use the coordinates
+[`move_mouse`](#neru-action-move_mouse) takes, with a global top-left origin
+and Y growing down. With `--json`, the object goes to stdout alone, and errors go
+to stderr with a non-zero exit status. A platform that cannot answer a query
+fails it with `ERR_NOT_SUPPORTED`. Queries answer while Neru is stopped, as
+`neru status` does.
+
+`neru query displays` lists every connected display, in the order the
+platform enumerates them.
+
+```json
+{"displays":[{"name":"Built-in Retina Display","x":0,"y":0,"width":1512,"height":982,"scale":1}]}
+```
+
+| Key                         | Type   | Description                                                      |
+| --------------------------- | ------ | ---------------------------------------------------------------- |
+| `name`                      | string | The name [`move_monitor --name`](#neru-action-move_monitor) takes. Two identical monitors can share one. |
+| `x`, `y`, `width`, `height` | int    | The display's bounds.                                            |
+| `scale`                     | number | Physical pixels per apparent unit. The display's DPI scale on Windows and X11, and `1` on macOS and Wayland, whose bounds are already logical. |
+
+`neru query cursor` prints the cursor position and the display holding it.
+
+```json
+{"x":812,"y":440,"display":"Built-in Retina Display","display_index":0}
+```
+
+| Key             | Type        | Description                                                       |
+| --------------- | ----------- | ----------------------------------------------------------------- |
+| `x`, `y`        | int         | The cursor position.                                              |
+| `display`       | string or null | The display's name, as `query displays` lists it. `null` when no display holds the cursor. |
+| `display_index` | int or null | The display's position in the `query displays` list, which tells apart two displays that share a name. |
+
+Every key is stable.
+
 ### neru doctor
 
 ```

@@ -47,6 +47,15 @@ anything else with `ERR_INVALID_INPUT`. `neru hints --debug` sends it.
 { "action": "hints-probe", "args": ["--role=button", "--strategy=vision"] }
 ```
 
+## Querying
+
+`query-displays` and `query-cursor` take no `args` and return in `data` the
+objects [`neru query`](cli.md#neru-query) prints with `--json`.
+
+```json
+{ "action": "query-cursor" }
+```
+
 ## Response
 
 The reply has optional `data` (the command's payload, such as the status

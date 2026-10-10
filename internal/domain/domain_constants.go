@@ -62,6 +62,13 @@ const (
 	// nothing, activates nothing, and answers with a summary. `neru hints
 	// --debug` is its CLI spelling.
 	CommandHintsProbe = "hints-probe"
+
+	// CommandQueryDisplays reports every connected display. `neru query
+	// displays` is its CLI spelling.
+	CommandQueryDisplays = "query-displays"
+	// CommandQueryCursor reports where the cursor is and which display holds
+	// it. `neru query cursor` is its CLI spelling.
+	CommandQueryCursor = "query-cursor"
 )
 
 // Mode-related constants.

@@ -77,6 +77,16 @@ point the bar at it:
 (deflisten neru_mode "neru-mode")
 ```
 
+## Ask what Neru sees
+
+[`neru query`](../reference/cli.md#neru-query) reports the displays and the
+cursor in the coordinates `neru action move_mouse` takes, so a script can pass
+them straight back. This prints the name of the display under the cursor:
+
+```bash
+neru query cursor --json | jq -r .display
+```
+
 ## Talking to the daemon directly
 
 To skip the `neru` binary, send JSON over the socket. The format is in
