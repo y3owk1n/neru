@@ -760,6 +760,12 @@ func TestValidate_EnforcesFlagDependencies(t *testing.T) {
 			want: "--on-exit requires --action (it runs only when the action is fulfilled)",
 		},
 		{
+			name: "on-exit with repeat",
+			mode: domain.ModeHints,
+			args: []string{argAction, flagRepeat, "--on-exit=" + stepLeftClick},
+			want: "--on-exit cannot be combined with --repeat, because a repeating mode closes only when canceled, and a cancel skips the steps",
+		},
+		{
 			name: "modifier without action",
 			mode: domain.ModeHints,
 			args: []string{argModifierCmd},
