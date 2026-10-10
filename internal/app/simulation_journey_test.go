@@ -32,6 +32,12 @@ const (
 	scrollHotkey = "Primary+Shift+S"
 )
 
+// Steps more than one journey binds.
+const (
+	stepScroll            = "scroll"
+	stepHintsRepeatClicks = "hints left_click --repeat"
+)
+
 // The two fixture applications a journey switches between. The desktop starts
 // focused on the first; the second is what it can switch away to.
 const (
@@ -825,7 +831,7 @@ func TestSimulation_HintsRightClickAction(t *testing.T) {
 // consecutively without re-pressing the hotkey.
 func TestSimulation_HintsRepeatJourney(t *testing.T) {
 	cfg := simConfig()
-	cfg.Hotkeys.Bindings[hintsHotkey] = []string{"hints left_click --repeat"}
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{stepHintsRepeatClicks}
 
 	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
 	sim := newSimHarness(t, cfg, []*element.Element{save})

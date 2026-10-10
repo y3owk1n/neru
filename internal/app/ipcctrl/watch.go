@@ -172,7 +172,7 @@ func watchLineFor(evt event.Event) watchLine {
 		line.On = &evt.On
 	}
 
-	if evt.Name == event.CursorSave {
+	if evt.Name == event.CursorSave || evt.Name == event.Select {
 		line.X, line.Y = &evt.Point.X, &evt.Point.Y
 	}
 

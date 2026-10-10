@@ -224,6 +224,9 @@ type handlerState struct {
 	// fedPress is set for the duration of a key fed over IPC, which has no
 	// release event and so must take the discrete path, never the glide.
 	fedPress bool
+	// selectPublished is set when a select event is published, so
+	// trackSelection does not report the same step twice.
+	selectPublished bool
 }
 
 // HandlerDeps collects everything NewHandler needs.

@@ -326,6 +326,7 @@ func defaultHooks() HooksConfig {
 	return HooksConfig{
 		OnModeEnter:                 nil,
 		OnModeExit:                  nil,
+		OnSelect:                    nil,
 		OnAppFocus:                  nil,
 		OnEnable:                    nil,
 		OnDisable:                   nil,

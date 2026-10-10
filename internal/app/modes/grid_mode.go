@@ -112,6 +112,15 @@ func (m *GridMode) Exit() {
 	m.handler.cleanupGridMode()
 }
 
+// SelectionWrites reports how many times this session has set its selection.
+func (m *GridMode) SelectionWrites() uint64 {
+	if m.handler.grid == nil || m.handler.grid.Context == nil {
+		return 0
+	}
+
+	return m.handler.grid.Context.SelectionWrites()
+}
+
 // SelectionPoint reports the cell grid mode currently has selected.
 func (m *GridMode) SelectionPoint() (image.Point, bool) {
 	if m.handler.grid == nil || m.handler.grid.Context == nil {

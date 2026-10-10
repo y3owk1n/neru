@@ -105,6 +105,15 @@ func (m *RecursiveGridMode) Exit() {
 	m.handler.cleanupRecursiveGridMode()
 }
 
+// SelectionWrites reports how many times this session has set its selection.
+func (m *RecursiveGridMode) SelectionWrites() uint64 {
+	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Context == nil {
+		return 0
+	}
+
+	return m.handler.recursiveGrid.Context.SelectionWrites()
+}
+
 // SelectionPoint reports the region center recursive-grid mode has selected.
 func (m *RecursiveGridMode) SelectionPoint() (image.Point, bool) {
 	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Context == nil {

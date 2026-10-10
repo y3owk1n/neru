@@ -3,6 +3,7 @@ package ipcctrl_test
 import (
 	"context"
 	"encoding/json"
+	"image"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
@@ -193,6 +195,12 @@ func TestController_HandleWatch_RefusesWithoutABus(t *testing.T) {
 	}
 }
 
+// The watch keys more than one event carries.
+const (
+	keyMode   = "mode"
+	keyAction = "action"
+)
+
 // TestController_HandleWatch_SendsTheFieldsEachEventCarries pins the line for
 // every event that carries a field, including the ones whose zero value is
 // the answer: inversion off, a cursor saved at the origin, and no sticky
@@ -210,10 +218,28 @@ func TestController_HandleWatch_SendsTheFieldsEachEventCarries(t *testing.T) {
 				Reason: event.ExitCompleted, Action: "move_mouse",
 			},
 			want: map[string]any{
-				"mode":   actionHints,
-				"reason": "completed",
-				"action": "move_mouse",
+				keyMode:   actionHints,
+				"reason":  "completed",
+				keyAction: "move_mouse",
 			},
+		},
+		{
+			name: "selection names the action it ran and where",
+			evt: event.Event{
+				Name: event.Select, Mode: actionHints, Action: string(action.NameLeftClick),
+				Point: image.Pt(812, 440),
+			},
+			want: map[string]any{
+				keyMode:   actionHints,
+				keyAction: string(action.NameLeftClick),
+				"x":       float64(812),
+				"y":       float64(440),
+			},
+		},
+		{
+			name: "selection with no action at the origin",
+			evt:  event.Event{Name: event.Select, Mode: actionGrid},
+			want: map[string]any{keyMode: actionGrid, "x": float64(0), "y": float64(0)},
 		},
 		{
 			name: "toggle switched off",

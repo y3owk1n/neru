@@ -148,7 +148,7 @@ func (a *App) hookMayRun(name event.Name) bool {
 	switch name {
 	case event.Enable, event.Disable, event.ModeExit, event.Ready, event.Quit:
 		return true
-	case event.ModeEnter, event.AppFocus, event.ConfigReload,
+	case event.ModeEnter, event.Select, event.AppFocus, event.ConfigReload,
 		event.MissionControlActivated, event.MissionControlDeactivated,
 		event.ScrollInvert, event.ScreenShareHide, event.CursorSave,
 		event.CursorRestore, event.StickyModifiers, event.MonitorMove,
@@ -296,7 +296,7 @@ func hookEnv(evt event.Event) []string {
 		env = append(env, "NERU_ON="+strconv.FormatBool(evt.On))
 	}
 
-	if evt.Name == event.CursorSave {
+	if evt.Name == event.CursorSave || evt.Name == event.Select {
 		env = append(env,
 			"NERU_X="+strconv.Itoa(evt.Point.X),
 			"NERU_Y="+strconv.Itoa(evt.Point.Y))

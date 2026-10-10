@@ -13,7 +13,10 @@ type baseContext struct {
 	cursorFollowSelection bool
 	selectedPoint         image.Point
 	hasSelection          bool
-	captureScope          string
+	// selectionWrites counts every SetSelectionPoint, so a caller can tell
+	// that a step set the selection even when it set the same point.
+	selectionWrites uint64
+	captureScope    string
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -78,6 +81,12 @@ func (c *baseContext) ToggleCursorFollowSelection() bool {
 func (c *baseContext) SetSelectionPoint(point image.Point) {
 	c.selectedPoint = point
 	c.hasSelection = true
+	c.selectionWrites++
+}
+
+// SelectionWrites reports how many times the selection point has been set.
+func (c *baseContext) SelectionWrites() uint64 {
+	return c.selectionWrites
 }
 
 // ClearSelectionPoint removes the active selection point for the mode.

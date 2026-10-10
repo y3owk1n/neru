@@ -396,6 +396,8 @@ func (m *stubSelectionTrackingMode) SelectionPoint() (image.Point, bool) {
 	return image.Point{}, false
 }
 
+func (m *stubSelectionTrackingMode) SelectionWrites() uint64 { return 0 }
+
 func (m *stubSelectionTrackingMode) ClearSelectionPoint() bool { return false }
 
 func (m *stubSelectionTrackingMode) SelectionAnchor() (image.Point, bool) {

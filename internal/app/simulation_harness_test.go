@@ -1168,7 +1168,7 @@ func simConfig() *config.Config {
 		gridHotkey:          {"grid"},
 		recursiveGridHotkey: {"recursive_grid"},
 		bisectHotkey:        {"bisect"},
-		scrollHotkey:        {"scroll"},
+		scrollHotkey:        {stepScroll},
 	}
 
 	return cfg

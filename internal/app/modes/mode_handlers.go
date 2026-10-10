@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
@@ -112,6 +113,12 @@ func (h *handlerState) executeActionAtPoint(
 		h.cursorState.MarkActionPerformed()
 	}
 
+	// Published before the mode re-arms or exits, so a selection always
+	// reaches subscribers ahead of the mode_exit it ends with.
+	if !chainFailed {
+		h.publishSelect(point, strings.Join(performed, ","))
+	}
+
 	if repeat && reActivateFunc != nil && !chainFailed {
 		// Wait for the target app to finish processing the click before
 		// re-activating (which may move the cursor for grid/recursive-grid).
@@ -209,10 +216,56 @@ func (h *handlerState) moveCursorAndHandleAction(
 		return
 	}
 
+	h.publishSelect(point, "")
+
 	// No pending action - re-activate mode if requested
 	if shouldReActivate && reActivateFunc != nil {
 		h.logger.Debug("Re-activating mode after cursor movement")
 		reActivateFunc()
+	}
+}
+
+// publishSelect reports that the mode's target moved to point, and the action
+// it ran there, empty when it ran none. Caller must hold h.mu.
+func (h *handlerState) publishSelect(point image.Point, action string) {
+	h.selectPublished = true
+
+	h.events.Publish(event.Event{
+		Name:   event.Select,
+		Mode:   h.CurrModeString(),
+		Action: action,
+		Point:  point,
+	})
+}
+
+// trackSelection runs input, a step the user took, and reports the mode's
+// selection when the step set it and nothing during the step reported it
+// already. A step that lands on the point already held still counts, such as
+// zooming into the center cell. Only the entry points that carry user input
+// call it, so opening, refreshing or moving a mode to another display never
+// reports a selection. Caller must hold h.mu.
+func (h *handlerState) trackSelection(input func()) {
+	tracker, tracks := activeModeExtension[selectionTracker](h)
+	if !tracks {
+		input()
+
+		return
+	}
+
+	mode := h.CurrModeString()
+	before := tracker.SelectionWrites()
+
+	h.selectPublished = false
+
+	input()
+
+	if h.selectPublished || h.CurrModeString() != mode || tracker.SelectionWrites() == before {
+		return
+	}
+
+	point, selected := tracker.SelectionPoint()
+	if selected {
+		h.publishSelect(point, "")
 	}
 }
 

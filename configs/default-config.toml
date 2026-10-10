@@ -78,6 +78,7 @@ text = "#E8EEFF"
 # [hooks]
 # on_mode_enter = "exec sketchybar --trigger neru_mode MODE=\"$NERU_MODE\""
 # on_mode_exit = "exec sketchybar --trigger neru_mode MODE=idle"
+# on_select = []                        # NERU_MODE, NERU_ACTION, NERU_X, NERU_Y
 # on_app_focus = []
 # on_enable = []
 # on_disable = []

@@ -52,6 +52,10 @@ type selectionTracker interface {
 	// selected in it.
 	SelectionPoint() (image.Point, bool)
 
+	// SelectionWrites reports how many times the selection has been set,
+	// which moves on even when a step sets the point it already held.
+	SelectionWrites() uint64
+
 	// ClearSelectionPoint forgets the selection and brings the mode's virtual
 	// pointer back in step with it. It reports false when there is no session
 	// to clear.

@@ -56,6 +56,8 @@ func TestHandleRecursiveGridKey_CompleteSelectionDoesNotMoveWhenCursorFollowSele
 			Context: &componentrecursivegrid.Context{},
 		},
 		screenBounds: image.Rect(0, 0, 100, 100),
+		// A completed selection reports itself under the mode's name.
+		appState: state.NewAppState(),
 	})
 
 	handler.initializeRecursiveGridManager(image.Rect(0, 0, 100, 100))

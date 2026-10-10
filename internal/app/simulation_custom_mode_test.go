@@ -78,7 +78,7 @@ func TestSimulation_CustomModeSwitchesToABuiltInMode(t *testing.T) {
 	cfg := simConfigDeclaringAMode()
 
 	mode := cfg.Modes[customModeName]
-	mode.Hotkeys["s"] = config.StringOrStringArray{"scroll"}
+	mode.Hotkeys["s"] = config.StringOrStringArray{stepScroll}
 	cfg.Modes[customModeName] = mode
 
 	sim := newSimHarness(t, cfg, nil)

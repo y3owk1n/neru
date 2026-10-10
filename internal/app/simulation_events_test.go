@@ -5,10 +5,12 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
@@ -76,9 +78,13 @@ func modeExit(mode string, reason event.ExitReason) event.Event {
 	return event.Event{Name: event.ModeExit, Mode: mode, Reason: reason}
 }
 
+func hintsSelection(action string, point image.Point) event.Event {
+	return event.Event{Name: event.Select, Mode: domain.ModeNameHints, Action: action, Point: point}
+}
+
 // TestSimulation_EventsReportASelectionAsCompleted pins that typing a hint
-// label closes hints with the reason a script would act on, and the action
-// the selection ran.
+// label reports the selection, where it acted and what ran, and then closes
+// hints with the reason a script would act on.
 func TestSimulation_EventsReportASelectionAsCompleted(t *testing.T) {
 	cfg := simConfig()
 	cfg.Hotkeys.Bindings[hintsHotkey] = []string{"hints --action left_click"}
@@ -95,7 +101,77 @@ func TestSimulation_EventsReportASelectionAsCompleted(t *testing.T) {
 	completed := modeExit("hints", event.ExitCompleted)
 	completed.Action = "left_click"
 
-	events.expect(modeEnter("hints"), completed)
+	clicked := sim.ax.recordedClicks()[0].point
+
+	events.expect(modeEnter("hints"), hintsSelection("left_click", clicked), completed)
+}
+
+// TestSimulation_EventsReportASelectionThatRanNoAction covers the default
+// binding, a bare hints: a label moves the cursor to the element and hints
+// stays open for the next step, so no mode change is published. The selection
+// is still published, with no action, and it is the only event a script sees.
+func TestSimulation_EventsReportASelectionThatRanNoAction(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{domain.ModeNameHints}
+
+	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	sim := newSimHarness(t, cfg, []*element.Element{save})
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	sim.typeLabel(sim.overlay.lastHintLabels()[0])
+	sim.waitFor(
+		"cursor on the element",
+		func() bool { return sim.cursor.position() == save.Center() },
+	)
+
+	events.expect(modeEnter("hints"), hintsSelection("", save.Center()))
+	events.expectNone(100 * time.Millisecond)
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
+		t.Errorf("a selection with no action clicked %d times", len(clicks))
+	}
+}
+
+// TestSimulation_EventsReportEverySelectionARepeatingModeMakes pins that a
+// --repeat mode reports each selection, although it stays open between them
+// and so publishes no mode change until it closes.
+func TestSimulation_EventsReportEverySelectionARepeatingModeMakes(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{stepHintsRepeatClicks}
+
+	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	sim := newSimHarness(t, cfg, []*element.Element{save})
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	for selections := 1; selections <= 2; selections++ {
+		drawsBefore := sim.overlay.hintDrawCount()
+
+		sim.typeLabel(sim.overlay.lastHintLabels()[0])
+		sim.waitFor(
+			"click recorded",
+			func() bool { return len(sim.ax.recordedClicks()) == selections },
+		)
+		sim.waitFor(
+			"hints re-armed",
+			func() bool { return sim.overlay.hintDrawCount() > drawsBefore },
+		)
+	}
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	events.expect(
+		modeEnter("hints"),
+		hintsSelection("left_click", save.Center()),
+		hintsSelection("left_click", save.Center()),
+		modeExit("hints", event.ExitCancelled),
+	)
 }
 
 // TestSimulation_EventsFollowEveryModeTransition walks the three ways a mode
@@ -361,4 +437,146 @@ func TestSimulation_EventsReportAScreenChange(t *testing.T) {
 	sim.changeScreen(simDisplayResized())
 
 	events.expect(event.Event{Name: event.ScreenChange})
+}
+
+// nextSelect waits for the next event and fails unless it is a selection in
+// mode, returning where it was made.
+func (s *simEvents) nextSelect(mode string) image.Point {
+	s.t.Helper()
+
+	select {
+	case got := <-s.events:
+		s.seq = got.Seq
+
+		if got.Name != event.Select || got.Mode != mode || got.Action != "" {
+			s.t.Fatalf("event = %+v, want a %s selection with no action", got, mode)
+		}
+
+		return got.Point
+	case <-time.After(simWaitHeadroom):
+		s.t.Fatalf("no %s selection within %v", mode, simWaitHeadroom)
+	}
+
+	return image.Point{}
+}
+
+// TestSimulation_EventsReportEachBisectStep pins that every cut, and the
+// backspace that takes one back, reports where the selection moved, and that
+// opening the mode reports none.
+func TestSimulation_EventsReportEachBisectStep(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(bisectHotkey)
+	sim.waitMode(domain.ModeBisect)
+	events.expect(modeEnter(domain.ModeNameBisect))
+	events.expectNone(100 * time.Millisecond)
+
+	for _, step := range []struct {
+		key  string
+		want image.Point
+	}{
+		{key: "l", want: image.Pt(1440, 540)},
+		{key: "y", want: image.Pt(1200, 270)},
+		{key: "Backspace", want: image.Pt(1440, 540)},
+	} {
+		sim.press(step.key)
+
+		if got := events.nextSelect(domain.ModeNameBisect); got != step.want {
+			t.Errorf("%s selected %v, want %v", step.key, got, step.want)
+		}
+	}
+}
+
+// TestSimulation_EventsReportEachRecursiveGridLevel pins that every level a
+// recursive grid zooms into reports its center, whether the cursor follows
+// the selection or stays where it is.
+func TestSimulation_EventsReportEachRecursiveGridLevel(t *testing.T) {
+	topLeftThird := image.Rect(0, 0, simScreen.Dx()/3+1, simScreen.Dy()/3+1)
+
+	for _, binding := range []string{
+		domain.ModeNameRecursiveGrid,
+		domain.ModeNameRecursiveGrid + " --cursor-selection-mode hold",
+	} {
+		t.Run(binding, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hotkeys.Bindings[recursiveGridHotkey] = []string{binding}
+
+			sim := newSimHarness(t, cfg, nil)
+			events := subscribeEvents(t, sim)
+
+			sim.pressHotkey(recursiveGridHotkey)
+			sim.waitMode(domain.ModeRecursiveGrid)
+			events.expect(modeEnter(domain.ModeNameRecursiveGrid))
+			events.expectNone(100 * time.Millisecond)
+
+			// "r" is the top-left cell of the default 3x3 key layout.
+			sim.press("r")
+
+			first := events.nextSelect(domain.ModeNameRecursiveGrid)
+			if !first.In(topLeftThird) {
+				t.Fatalf("first level selected %v, want inside %v", first, topLeftThird)
+			}
+
+			sim.press("r")
+
+			second := events.nextSelect(domain.ModeNameRecursiveGrid)
+			if second == first || !second.In(topLeftThird) {
+				t.Errorf(
+					"second level selected %v, want a new point inside %v",
+					second,
+					topLeftThird,
+				)
+			}
+		})
+	}
+}
+
+// TestSimulation_EventsReportBothGridLayers pins that choosing a cell reports a
+// selection, and so does the subgrid key that refines it inside that cell.
+func TestSimulation_EventsReportBothGridLayers(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+	events.expect(modeEnter(domain.ModeNameGrid))
+	events.expectNone(100 * time.Millisecond)
+
+	cell := sim.overlay.lastGrid().Cells()[0]
+	sim.typeLabel(cell.Coordinate())
+
+	layer := events.nextSelect(domain.ModeNameGrid)
+	if !layer.In(cell.Bounds()) {
+		t.Fatalf("the cell selected %v, want inside %v", layer, cell.Bounds())
+	}
+
+	sublayer := strings.ToLower(string([]rune(sim.app.Config().Grid.SublayerKeys)[0]))
+	sim.press(sublayer)
+
+	refined := events.nextSelect(domain.ModeNameGrid)
+	if refined == layer || !refined.In(cell.Bounds()) {
+		t.Errorf("the subgrid key selected %v, want a new point inside %v", refined, cell.Bounds())
+	}
+}
+
+// TestSimulation_EventsReportAStepOntoTheSamePoint pins that a step reports a
+// selection even when it lands where the selection already was. The center
+// cell of a recursive grid has the same center as the screen.
+func TestSimulation_EventsReportAStepOntoTheSamePoint(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+	events.expect(modeEnter(domain.ModeNameRecursiveGrid))
+
+	// "g" is the center cell of the default 3x3 key layout.
+	sim.press("g")
+
+	center := image.Pt(simScreen.Dx()/2, simScreen.Dy()/2)
+	if got := events.nextSelect(domain.ModeNameRecursiveGrid); got != center {
+		t.Errorf("the center cell selected %v, want %v", got, center)
+	}
 }

@@ -106,6 +106,15 @@ func (m *BisectMode) Backspace() {
 	m.handler.settleBisect("Failed to move cursor after bisect backspace")
 }
 
+// SelectionWrites reports how many times this session has set its selection.
+func (m *BisectMode) SelectionWrites() uint64 {
+	if m.handler.bisect == nil || m.handler.bisect.Context == nil {
+		return 0
+	}
+
+	return m.handler.bisect.Context.SelectionWrites()
+}
+
 // SelectionPoint reports the region center bisect mode has selected.
 func (m *BisectMode) SelectionPoint() (image.Point, bool) {
 	if m.handler.bisect == nil || m.handler.bisect.Context == nil {

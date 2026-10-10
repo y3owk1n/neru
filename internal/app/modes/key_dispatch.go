@@ -51,15 +51,17 @@ func (h *Handler) HandleFedKeyPress(key string) {
 
 	// A fed key has no release to come, so it must never enter the glide:
 	// it takes the discrete path and the synthesized release below.
-	h.fedPress = true
-	h.handleKeyPress(key)
-	h.fedPress = false
+	h.trackSelection(func() {
+		h.fedPress = true
+		h.handleKeyPress(key)
+		h.fedPress = false
 
-	// Only release a repeat this fed press just started; leave any pre-existing
-	// (physically held) repeat untouched.
-	if repeatBefore == "" && h.heldRepeatingKey != "" {
-		h.handleKeyPress(keyUpPrefix + base)
-	}
+		// Only release a repeat this fed press just started; leave any
+		// pre-existing (physically held) repeat untouched.
+		if repeatBefore == "" && h.heldRepeatingKey != "" {
+			h.handleKeyPress(keyUpPrefix + base)
+		}
+	})
 }
 
 // HandleKeyPress dispatches key events by current mode.
@@ -67,7 +69,7 @@ func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.handleKeyPress(key)
+	h.trackSelection(func() { h.handleKeyPress(key) })
 }
 
 // handleKeyPress contains the key-dispatch logic. The caller must hold

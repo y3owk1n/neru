@@ -23,7 +23,7 @@ func (h *Handler) ResetCurrentMode() {
 		return
 	}
 
-	editor.ResetInput()
+	h.trackSelection(editor.ResetInput)
 }
 
 // BackspaceCurrentMode takes back the active mode's most recent unit of input
@@ -38,7 +38,7 @@ func (h *Handler) BackspaceCurrentMode() {
 		return
 	}
 
-	editor.Backspace()
+	h.trackSelection(editor.Backspace)
 }
 
 // MoveCellCurrentMode slides the active mode's selection count cells in dir
@@ -57,7 +57,7 @@ func (h *Handler) MoveCellCurrentMode(dir domain.Direction, count int) {
 		return
 	}
 
-	navigator.MoveCell(dir, count)
+	h.trackSelection(func() { navigator.MoveCell(dir, count) })
 }
 
 // BisectCurrentMode keeps the half or quadrant of the active mode's region
@@ -72,7 +72,7 @@ func (h *Handler) BisectCurrentMode(cut bisect.Cut, count int) {
 		return
 	}
 
-	cutter.Bisect(cut, count)
+	h.trackSelection(func() { cutter.Bisect(cut, count) })
 }
 
 // StartHintSearch activates text filtering for hints mode.
@@ -200,7 +200,11 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 				h.hints.Context.SetSplitWord(splitWord)
 			}
 		})
+
+		return nil
 	}
+
+	h.publishSelect(center, "")
 
 	return nil
 }

@@ -338,6 +338,7 @@ type CustomModeConfig struct {
 type HooksConfig struct {
 	OnModeEnter                 StringOrStringArray `json:"onModeEnter"                 toml:"on_mode_enter"`
 	OnModeExit                  StringOrStringArray `json:"onModeExit"                  toml:"on_mode_exit"`
+	OnSelect                    StringOrStringArray `json:"onSelect"                    toml:"on_select"`
 	OnAppFocus                  StringOrStringArray `json:"onAppFocus"                  toml:"on_app_focus"`
 	OnEnable                    StringOrStringArray `json:"onEnable"                    toml:"on_enable"`
 	OnDisable                   StringOrStringArray `json:"onDisable"                   toml:"on_disable"`
@@ -362,6 +363,8 @@ func (h HooksConfig) Steps(name event.Name) StringOrStringArray {
 		return h.OnModeEnter
 	case event.ModeExit:
 		return h.OnModeExit
+	case event.Select:
+		return h.OnSelect
 	case event.AppFocus:
 		return h.OnAppFocus
 	case event.Enable:
