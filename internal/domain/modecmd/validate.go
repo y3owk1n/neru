@@ -16,6 +16,7 @@ import (
 const (
 	msgRepeatRequiresAction            = "--repeat requires --action"
 	msgOnExitRequiresAction            = "--on-exit requires --action (it runs only when the action is fulfilled)"
+	msgOnExitWithRepeat                = "--on-exit cannot be combined with --repeat, because a repeating mode closes only when canceled, and a cancel skips the steps"
 	msgModifierRequiresAction          = "--modifier requires --action"
 	msgModifierWithMoveMouse           = "--modifier needs a mouse button action, because move_mouse presses nothing for it to hold"
 	msgHideOnEmptySearchRequiresSearch = "--hide-on-empty-search requires --search"
@@ -91,6 +92,12 @@ var dependencies = []dependency{
 	{
 		unmet:   func(a Activation) bool { return a.OnExit != nil && a.Action == nil },
 		message: msgOnExitRequiresAction,
+	},
+	// A conflict rather than a dependency. --repeat reopens the mode after
+	// every action, so the only way out is a cancel, which skips the steps.
+	{
+		unmet:   func(a Activation) bool { return a.OnExit != nil && isTrue(a.Repeat) },
+		message: msgOnExitWithRepeat,
 	},
 	{
 		unmet:   func(a Activation) bool { return a.Modifier != nil && movesOnly(a.Action) },

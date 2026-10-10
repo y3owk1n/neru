@@ -59,7 +59,8 @@ func TestRoundTrip_CarriesAnActivationBuiltByHand(t *testing.T) {
 
 // TestRoundTrip_CarriesAWholeCommand pins that the flags survive together, not
 // only one at a time: a renderer that overwrites another flag's argument would
-// pass every case above.
+// pass every case above. This case leaves out --repeat because --on-exit
+// refuses it.
 func TestRoundTrip_CarriesAWholeCommand(t *testing.T) {
 	t.Parallel()
 
@@ -68,7 +69,6 @@ func TestRoundTrip_CarriesAWholeCommand(t *testing.T) {
 		"--modifier=cmd,shift",
 		"--on-exit=action left_click",
 		"--on-exit=idle",
-		flagRepeat,
 		argToggle,
 		argSearch,
 		flagHideOnEmpty,

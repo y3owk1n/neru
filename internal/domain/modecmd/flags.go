@@ -109,7 +109,7 @@ const (
 	usageToggle              = "Open the mode, or leave it if it is already open"
 	usageRepeat              = "Reopen the mode after the action runs. Needs --action"
 	usageModifier            = "Modifiers to hold during the action, comma-separated: cmd, super, meta, shift, alt, option, ctrl. Needs --action"
-	usageOnExit              = "Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action, and does not run if the mode is canceled"
+	usageOnExit              = "Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action and refuses --repeat. Does not run if the mode is canceled"
 	usageCursorSelectionMode = "Whether the real cursor follows the selection (follow) or stays put (hold)"
 	usageSearch              = "Open with the hint search field showing"
 	usageHideOnEmptySearch   = "Hide every hint until the search has text. Needs --search"

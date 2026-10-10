@@ -202,7 +202,7 @@ Modifiers to hold during the action, comma-separated: cmd, super, meta, shift, a
 
 Takes a value, and can be repeated. Modes: `hints` · `grid` · `recursive_grid`.
 
-Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action, and does not run if the mode is canceled.
+Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action and refuses --repeat. Does not run if the mode is canceled.
 
 #### `--repeat`
 
