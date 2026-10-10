@@ -67,36 +67,6 @@ func TestModeCommands_RefuseStrayArguments(t *testing.T) {
 	}
 }
 
-// TestModeCommands_OfferTheProbeOnHintsOnly covers the one flag the vocabulary
-// does not hold: --debug asks for a probe rather than an activation, so it is
-// the CLI's own spelling, and only hints has anything to probe.
-func TestModeCommands_OfferTheProbeOnHintsOnly(t *testing.T) {
-	t.Parallel()
-
-	for mode, cmd := range modeCommands() {
-		t.Run(domain.ModeString(mode), func(t *testing.T) {
-			t.Parallel()
-
-			flag := cmd.Flags().Lookup(flagDebug.String())
-			if mode != domain.ModeHints {
-				if flag != nil {
-					t.Errorf("%s offers --debug, which probes hints", domain.ModeString(mode))
-				}
-
-				return
-			}
-
-			if flag == nil {
-				t.Fatal("hints does not offer --debug")
-			}
-
-			if flag.Shorthand != flagDebugShort {
-				t.Errorf("--debug shorthand = %q, want %q", flag.Shorthand, flagDebugShort)
-			}
-		})
-	}
-}
-
 // TestReadModeCommand_SendsWhatWasTyped pins the trip a typed flag makes: read
 // off the command, into an activation, and back out as the arguments the daemon
 // reads.
@@ -176,15 +146,6 @@ func TestReadModeCommand_SendsWhatWasTyped(t *testing.T) {
 			wantAction: domain.ModeNameRecursiveGrid,
 			wantArgs:   []string{"--zoom-to-depth=2"},
 		},
-		{
-			// A probe is its own request, and takes only the flags that decide
-			// which elements are collected.
-			name:       "debug asks for a probe",
-			config:     ModeConfig{Mode: domain.ModeHints, SupportDebug: true},
-			argv:       []string{"-d", argRoleButton, "--strategy=vision"},
-			wantAction: domain.CommandHintsProbe,
-			wantArgs:   []string{argRoleButton, "--strategy=vision"},
-		},
 	}
 
 	for _, testCase := range tests {
@@ -239,13 +200,6 @@ func TestReadModeCommand_RefusesWhatTheGrammarRefuses(t *testing.T) {
 			config: ModeConfig{Mode: domain.ModeRecursiveGrid},
 			argv:   []string{"--zoom-to-depth=-1"},
 			want:   "--zoom-to-depth requires a non-negative integer",
-		},
-		{
-			name:   "a probe alongside an activation flag",
-			config: ModeConfig{Mode: domain.ModeHints, SupportDebug: true},
-			argv:   []string{"-d", argActionLeftClick},
-			want: "--debug cannot be combined with --action: " +
-				"a probe reports what would be targeted without entering the mode",
 		},
 	}
 

@@ -27,9 +27,11 @@ source build all ship them.
 - `neru status` for whether the daemon runs and which mode is open.
 - `neru doctor` for config validity, socket health, permissions, and which
   capabilities this platform has. It runs without the daemon.
-- `neru hints --debug` for the elements hints would label in the focused
-  window, as a count and a sample, without drawing anything. Run it
-  first for any "hints show nothing in app X" report.
+- `neru query hints` for every element hints would label in the focused
+  window, with its role and text, without drawing anything. Run it first
+  for any "hints show nothing in app X" report. From a terminal it reports
+  the terminal, so run it from a hotkey or as `sleep 3; neru query hints`.
+  Versions before it have `neru hints --debug`, which prints a sample.
 - `neru config dump` for the config in force, defaults filled in.
 - `neru roles --explain` for the clickable roles and how each resolves here.
 - `neru docs cli` and `neru docs config` open the two references in a
@@ -109,7 +111,7 @@ Things a user often does not know:
   app, grid and recursive grid still work, because they divide the screen
   rather than read elements.
 - **Hints only label roles in `hints.clickable_roles`.** A missing hint is
-  usually a role outside that list. `neru hints --debug` shows what was
+  usually a role outside that list. `neru query hints` shows what was
   collected, `neru roles --explain` shows what the platform can name, and
   `neru hints --role` overrides the list for one call.
 - **Inside a mode the keys are bindable too.** Each mode has its own
@@ -139,7 +141,7 @@ Things a user often does not know:
 - A question with a one-command answer gets the command and the help page
   that documents it.
 - When something does not work, in this order: `neru status`, `neru doctor`,
-  then `neru hints --debug` for a hints report or `neru config validate` for
+  then `neru query hints` for a hints report or `neru config validate` for
   a hotkey report, then the Troubleshooting doc as above, before guessing at
   a cause. Its Permissions and Hotkeys Not Working sections cover most
   reports. On macOS, a hotkey that never fires after an update is usually a

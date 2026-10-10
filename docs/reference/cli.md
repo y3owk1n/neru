@@ -147,6 +147,7 @@ neru query displays [--json]
 neru query cursor [--json]
 neru query window [--json]
 neru query app [--json]
+neru query hints [--role ...] [--text ...] [--strategy ...] [--capture-scope ...] [--split-word] [--json]
 ```
 
 Print what the daemon sees right now. Positions and sizes use the coordinates
@@ -154,7 +155,7 @@ Print what the daemon sees right now. Positions and sizes use the coordinates
 and Y growing down. With `--json`, the object goes to stdout alone, and errors go
 to stderr with a non-zero exit status. A platform that cannot answer a query
 fails it with `ERR_NOT_SUPPORTED`. Queries answer while Neru is stopped, as
-`neru status` does.
+`neru status` does, except `query hints`.
 
 `neru query displays` lists every connected display, in the order the
 platform enumerates them.
@@ -204,6 +205,24 @@ sleep 3; neru query app
 ```json
 {"bundle_id":"com.apple.Safari"}
 ```
+
+`neru query hints` lists the elements hints mode would label in the focused
+window, without drawing the overlay or entering the mode. It takes the
+`hints` flags that decide which elements it collects: `--role`, `--text`,
+`--strategy`, `--capture-scope` and `--split-word`. Like `query app`, it
+reports the terminal when run from one. Unlike the other queries, it does not
+answer while Neru is stopped, because the `vision` and `contour` strategies
+capture the screen.
+
+```json
+{"hints":[{"role":"ax:AXButton","title":"","description":"Back","value":"","x":100,"y":38,"width":44,"height":52}]}
+```
+
+| Key                         | Type   | Description                                                     |
+| --------------------------- | ------ | --------------------------------------------------------------- |
+| `role`                      | string | The native role, spelled as `--role` takes it, such as `ax:AXButton`. |
+| `title`, `description`, `value` | string | The element's text. `--text` matches any of the three. Empty when the element has none. |
+| `x`, `y`, `width`, `height` | int    | The element's bounds.                                           |
 
 Every key is stable.
 
@@ -359,7 +378,8 @@ neru hints [flags]
 
 Label the interactive elements of the focused window, and select one by
 typing its label. Takes the `hints` flags in the
-[mode flag reference](#mode-flag-reference), plus `--debug`.
+[mode flag reference](#mode-flag-reference). To list what it would label
+without the overlay, use [`neru query hints`](#neru-query).
 
 Element discovery uses the full accessibility tree on macOS, an AT-SPI walk
 on Linux whose coverage depends on the application, and a cached UI Automation
@@ -367,13 +387,6 @@ walk on Windows. The `vision` strategy is the fallback where the tree is thin.
 It works on every platform, is text-only on Linux and Windows, and needs an
 OCR language pack on Windows. See
 [Accessibility and hints](platform-support.md#notes).
-
-| Flag      | Shorthand | Type | Default | Description                                                                 |
-| --------- | --------- | ---- | ------- | --------------------------------------------------------------------------- |
-| `--debug` | `-d`      | bool | `false` | Print a count and a sample of the elements that would be hinted, without the overlay. |
-
-`--debug` is not a mode flag, so bindings refuse it. It combines only with
-`--role`, `--text`, `--strategy` and `--split-word`.
 
 ```bash
 neru hints --action left_click --role button --text submit

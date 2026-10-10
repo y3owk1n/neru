@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 var queryCmd = &cobra.Command{
@@ -25,6 +26,7 @@ Subcommands:
   cursor     Where the cursor is, and which display holds it
   window     The focused window's position and size
   app        The focused application, as per-app config names it
+  hints      What hints mode would label in the focused window
 
 Each takes --json to print a JSON object instead.`,
 }
@@ -47,7 +49,7 @@ Examples:
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return runQuery(cmd, domain.CommandQueryDisplays, printDisplays)
+		return runQuery(cmd, domain.CommandQueryDisplays, nil, printDisplays)
 	},
 }
 
@@ -68,7 +70,7 @@ Examples:
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return runQuery(cmd, domain.CommandQueryCursor, printCursor)
+		return runQuery(cmd, domain.CommandQueryCursor, nil, printCursor)
 	},
 }
 
@@ -88,7 +90,7 @@ Examples:
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return runQuery(cmd, domain.CommandQueryWindow, printWindow)
+		return runQuery(cmd, domain.CommandQueryWindow, nil, printWindow)
 	},
 }
 
@@ -107,15 +109,67 @@ Examples:
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return runQuery(cmd, domain.CommandQueryApp, printApp)
+		return runQuery(cmd, domain.CommandQueryApp, nil, printApp)
 	},
 }
 
-// runQuery sends one query and prints its payload, as JSON with --json and
-// through render otherwise.
+// hintsQueryFlags are the hints flags that decide which elements are
+// collected. The rest of the hints vocabulary describes an activation, which a
+// query is not.
+var hintsQueryFlags = []modecmd.Flag{
+	modecmd.FlagRole,
+	modecmd.FlagText,
+	modecmd.FlagStrategy,
+	modecmd.FlagCaptureScope,
+	modecmd.FlagSplitWord,
+}
+
+var queryHintsCmd = &cobra.Command{
+	Use:   "hints",
+	Short: "List what hints mode would label",
+	Long: `List the elements hints mode would label in the focused window, without
+drawing the overlay or entering the mode.
+
+Each element lists its role, position and size, and its title, description
+and value. --text matches against those three strings. The role is spelled
+the way --role takes it, so a script can find an element and narrow 'neru
+hints' to it.
+
+Run from a terminal, it reports the terminal. Bind it to a hotkey, or run
+'sleep 3; neru query hints' and switch to the app.
+
+It takes the hints flags that decide which elements it collects: --role,
+--text, --strategy, --capture-scope and --split-word.
+
+Examples:
+  neru query hints
+  neru query hints --role button --json
+  neru query hints --strategy vision`,
+	Args: cobra.NoArgs,
+	PreRunE: func(_ *cobra.Command, _ []string) error {
+		return requiresRunningInstance()
+	},
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		activation, err := readActivation(cmd, domain.ModeHints)
+		if err != nil {
+			return err
+		}
+
+		err = modecmd.Validate(activation)
+		if err != nil {
+			return err
+		}
+
+		return runQuery(cmd, domain.CommandQueryHints, modecmd.Render(activation), printHints)
+	},
+}
+
+// runQuery sends one query with args and prints its payload, as JSON with
+// --json and through render otherwise.
 func runQuery[T any](
 	cmd *cobra.Command,
 	action string,
+	args []string,
 	render func(*cobra.Command, T),
 ) error {
 	asJSON, flagErr := cmd.Flags().GetBool("json")
@@ -125,7 +179,7 @@ func runQuery[T any](
 
 	communicator := cliutil.NewIPCCommunicator(timeoutSec)
 
-	ipcResponse, err := communicator.SendCommand(action, []string{})
+	ipcResponse, err := communicator.SendCommand(action, args)
 	if err != nil {
 		return err
 	}
@@ -203,12 +257,38 @@ func printApp(cmd *cobra.Command, data ipc.AppData) {
 	cmd.Println("bundle_id: " + data.BundleID)
 }
 
+func printHints(cmd *cobra.Command, data ipc.HintsData) {
+	cmd.Printf("%d hints\n", len(data.Hints))
+
+	for _, hint := range data.Hints {
+		cmd.Printf("%s %d,%d %dx%d", hint.Role, hint.X, hint.Y, hint.Width, hint.Height)
+
+		for _, text := range []struct{ key, value string }{
+			{"title", hint.Title},
+			{"description", hint.Description},
+			{"value", hint.Value},
+		} {
+			if text.value != "" {
+				cmd.Printf(" %s=%q", text.key, text.value)
+			}
+		}
+
+		cmd.Println()
+	}
+}
+
 func init() {
+	for _, flag := range hintsQueryFlags {
+		descriptor, _ := modecmd.Lookup(flag)
+		registerFlag(queryHintsCmd, descriptor)
+	}
+
 	for _, sub := range []*cobra.Command{
 		queryDisplaysCmd,
 		queryCursorCmd,
 		queryWindowCmd,
 		queryAppCmd,
+		queryHintsCmd,
 	} {
 		sub.Flags().Bool("json", false, "Print the answer as a JSON object")
 		queryCmd.AddCommand(sub)

@@ -576,7 +576,7 @@ func TestIPCController_HandleCommand_RefusesWhilePaused(t *testing.T) {
 		domain.ModeString(domain.ModeHints),
 		domain.ModeString(domain.ModeScroll),
 		domain.ModeString(domain.ModeCustom),
-		domain.CommandHintsProbe,
+		domain.CommandQueryHints,
 		ipcctrl.ActionCommand,
 		domain.CommandRun,
 		domain.CommandMacro,

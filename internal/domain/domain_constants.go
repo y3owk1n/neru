@@ -57,12 +57,6 @@ const (
 	// CommandWatch streams the status, then each event, while the client stays.
 	CommandWatch = "watch"
 
-	// CommandHintsProbe reports what hints mode would target for the focused
-	// window. It is a read-only query rather than a mode command: it draws
-	// nothing, activates nothing, and answers with a summary. `neru hints
-	// --debug` is its CLI spelling.
-	CommandHintsProbe = "hints-probe"
-
 	// CommandQueryDisplays reports every connected display. `neru query
 	// displays` is its CLI spelling.
 	CommandQueryDisplays = "query-displays"
@@ -75,6 +69,10 @@ const (
 	// CommandQueryApp reports the focused application as per-app config
 	// matches it. `neru query app` is its CLI spelling.
 	CommandQueryApp = "query-app"
+	// CommandQueryHints reports what hints mode would label in the focused
+	// window. It draws nothing and enters no mode. `neru query hints` is its
+	// CLI spelling.
+	CommandQueryHints = "query-hints"
 )
 
 // Mode-related constants.

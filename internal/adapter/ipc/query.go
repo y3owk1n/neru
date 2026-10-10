@@ -42,3 +42,24 @@ type AppData struct {
 	// BundleID is the string `bundle_id` matches in per-app config.
 	BundleID string `json:"bundle_id"` //nolint:tagliatelle // snake_case like the status keys.
 }
+
+// HintData is one element hints mode would label, as `neru query hints`
+// reports it. Title, Description and Value are the strings --text matches
+// against, and Role is the native role spelled as --role takes it, such as
+// ax:AXButton.
+type HintData struct {
+	Role        string `json:"role"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Value       string `json:"value"`
+	X           int    `json:"x"`
+	Y           int    `json:"y"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+}
+
+// HintsData is the payload of `neru query hints`: the elements hints mode
+// would label on the active screen.
+type HintsData struct {
+	Hints []HintData `json:"hints"`
+}

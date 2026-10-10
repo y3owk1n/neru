@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
@@ -93,6 +94,18 @@ func readProbeFlag(args *probeArgs, opts *probeOptions) *ipc.Response {
 	}
 }
 
+// roleEntry spells a native role the way --role takes it, with this
+// platform's vocabulary prefix, so a role read from the query can be written
+// back as a filter.
+func roleEntry(role element.Role) string {
+	vocab, ok := element.CurrentVocabulary()
+	if !ok || role == "" {
+		return string(role)
+	}
+
+	return string(vocab) + ":" + string(role)
+}
+
 // readProbeList appends a comma-separated filter. The flag is repeatable, so
 // entries accumulate across occurrences.
 func readProbeList(args *probeArgs, flag modecmd.Flag, field *[]string) *ipc.Response {
@@ -124,9 +137,9 @@ func valueMessage(flag modecmd.Flag) string {
 	return descriptor.ValueMessage()
 }
 
-// handleHintsProbe answers what hints mode would target for the focused
-// window, without drawing an overlay or entering a mode.
-func (h *ModesHandler) handleHintsProbe(ctx context.Context, cmd ipc.Command) ipc.Response {
+// handleQueryHints answers `neru query hints`: what hints mode would label in
+// the focused window, without drawing an overlay or entering a mode.
+func (h *ModesHandler) handleQueryHints(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -136,7 +149,7 @@ func (h *ModesHandler) handleHintsProbe(ctx context.Context, cmd ipc.Command) ip
 		return *errResp
 	}
 
-	summary, probeErr := h.modes.DebugProbeHints(
+	elements, probeErr := h.modes.ProbeHints(
 		ctx,
 		opts.FilterRoles,
 		opts.FilterTextContains,
@@ -145,12 +158,23 @@ func (h *ModesHandler) handleHintsProbe(ctx context.Context, cmd ipc.Command) ip
 		opts.SplitWord,
 	)
 	if probeErr != nil {
-		return ipc.Response{
-			Success: false,
-			Message: "hints probe failed: " + probeErr.Error(),
-			Code:    ipc.CodeActionFailed,
+		return queryFailedResponse("hints", probeErr)
+	}
+
+	data := ipc.HintsData{Hints: make([]ipc.HintData, len(elements))}
+	for idx, elem := range elements {
+		bounds := elem.Bounds()
+		data.Hints[idx] = ipc.HintData{
+			Role:        roleEntry(elem.Role()),
+			Title:       elem.Title(),
+			Description: elem.Description(),
+			Value:       elem.Value(),
+			X:           bounds.Min.X,
+			Y:           bounds.Min.Y,
+			Width:       bounds.Dx(),
+			Height:      bounds.Dy(),
 		}
 	}
 
-	return ipc.Response{Success: true, Message: summary, Code: ipc.CodeOK}
+	return ipc.Response{Success: true, Message: "hints retrieved", Data: data, Code: ipc.CodeOK}
 }
