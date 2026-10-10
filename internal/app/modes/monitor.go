@@ -124,6 +124,8 @@ func (h *Handler) moveCursorToMonitor(
 		Y: bounds.Min.Y + bounds.Dy()/2,
 	}
 
+	from, fromErr := h.system.ScreenBounds(ctx)
+
 	sourceBounds, hasActiveOverlay := h.clearFrameForMonitorMove()
 
 	err := h.actionService.MoveCursorToPointAndWait(ctx, center, true)
@@ -141,11 +143,28 @@ func (h *Handler) moveCursorToMonitor(
 		zap.Int("y", center.Y),
 	)
 
-	h.events.Publish(event.Event{Name: event.MonitorMove, Monitor: monitorName})
+	h.publishMonitorMove(from, fromErr, bounds, monitorName)
 
 	h.refreshActiveModeForMonitorMove(ctx, bounds)
 
 	return nil
+}
+
+// publishMonitorMove reports a move to the display at bounds, unless the
+// cursor started on it. A display that could not be read counts as another
+// one. Caller holds moveMonitorMu, which orders the reports as the moves
+// applied.
+func (h *handlerState) publishMonitorMove(
+	from image.Rectangle,
+	fromErr error,
+	bounds image.Rectangle,
+	monitorName string,
+) {
+	if fromErr == nil && from == bounds {
+		return
+	}
+
+	h.events.Publish(event.Event{Name: event.MonitorMove, Monitor: monitorName})
 }
 
 // resolveMonitorTarget returns the bounds and display name of the next monitor

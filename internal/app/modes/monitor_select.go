@@ -8,7 +8,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
@@ -193,9 +192,16 @@ func (h *handlerState) confirmMonitorSelect(target *monitorSelectTarget) {
 	h.exitMode()
 
 	go func() {
-		if h.actionService == nil {
+		if h.actionService == nil || h.system == nil {
 			return
 		}
+
+		// Serialized with move_monitor, so their monitor_move events arrive
+		// in the order the moves applied.
+		h.outer.moveMonitorMu.Lock()
+		defer h.outer.moveMonitorMu.Unlock()
+
+		from, fromErr := h.system.ScreenBounds(h.ctx)
 
 		err := h.actionService.MoveCursorToPointAndWait(h.ctx, center, true)
 		if err != nil {
@@ -206,7 +212,7 @@ func (h *handlerState) confirmMonitorSelect(target *monitorSelectTarget) {
 			return
 		}
 
-		h.events.Publish(event.Event{Name: event.MonitorMove, Monitor: target.Name})
+		h.publishMonitorMove(from, fromErr, bounds, target.Name)
 	}()
 }
 

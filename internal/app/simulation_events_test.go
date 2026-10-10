@@ -307,10 +307,14 @@ func TestSimulation_EventsReportStickyModifiers(t *testing.T) {
 }
 
 // TestSimulation_EventsReportAMonitorMove pins that both ways of moving to
-// another display, move_monitor and monitor_select, name the display reached.
+// another display, move_monitor and monitor_select, name the display reached,
+// and that neither reports a move to the display the cursor is already on.
 func TestSimulation_EventsReportAMonitorMove(t *testing.T) {
+	const stayHotkey = "Primary+Shift+5"
+
 	cfg := monitorSelectConfig()
 	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{"action move_monitor"}
+	cfg.Hotkeys.Bindings[stayHotkey] = []string{"action move_monitor --name " + mainDisplayName}
 
 	sim := newSimHarnessWithDisplays(t, cfg, nil, []simDisplay{
 		{name: mainDisplayName, bounds: simScreen},
@@ -321,23 +325,31 @@ func TestSimulation_EventsReportAMonitorMove(t *testing.T) {
 	sim.pressHotkey(moveMonitorHotkey)
 	events.expect(event.Event{Name: event.MonitorMove, Monitor: secondDisplayName})
 
-	sim.pressHotkey(monitorSelectHotkey)
-	sim.waitMode(domain.ModeMonitorSelect)
-	sim.waitFor("monitor panels drawn", func() bool {
-		return len(sim.overlay.lastMonitorTargets()) == 2
-	})
+	pickMain := func() {
+		sim.pressHotkey(monitorSelectHotkey)
+		sim.waitMode(domain.ModeMonitorSelect)
+		sim.waitFor("monitor panels drawn", func() bool {
+			return len(sim.overlay.lastMonitorTargets()) == 2
+		})
 
-	for _, target := range sim.overlay.lastMonitorTargets() {
-		if target.Name == mainDisplayName {
-			sim.typeLabel(target.Label)
+		for _, target := range sim.overlay.lastMonitorTargets() {
+			if target.Name == mainDisplayName {
+				sim.typeLabel(target.Label)
+			}
 		}
+
+		events.expect(
+			modeEnter("monitor_select"),
+			modeExit("monitor_select", event.ExitCompleted),
+		)
 	}
 
-	events.expect(
-		modeEnter("monitor_select"),
-		modeExit("monitor_select", event.ExitCompleted),
-		event.Event{Name: event.MonitorMove, Monitor: mainDisplayName},
-	)
+	pickMain()
+	events.expect(event.Event{Name: event.MonitorMove, Monitor: mainDisplayName})
+
+	pickMain()
+	sim.pressHotkey(stayHotkey)
+	events.expectNone(250 * time.Millisecond)
 }
 
 // TestSimulation_EventsReportAScreenChange pins that the displays changing is
