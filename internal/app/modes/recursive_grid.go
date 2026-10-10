@@ -244,7 +244,6 @@ func (h *handlerState) handleRecursiveGridKey(key string) {
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
 			h.refreshRecursiveGridVirtualPointer()
-			h.publishSelect(absoluteCenter, "")
 
 			return
 		}

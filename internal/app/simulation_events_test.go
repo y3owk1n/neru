@@ -5,6 +5,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -436,4 +437,146 @@ func TestSimulation_EventsReportAScreenChange(t *testing.T) {
 	sim.changeScreen(simDisplayResized())
 
 	events.expect(event.Event{Name: event.ScreenChange})
+}
+
+// nextSelect waits for the next event and fails unless it is a selection in
+// mode, returning where it was made.
+func (s *simEvents) nextSelect(mode string) image.Point {
+	s.t.Helper()
+
+	select {
+	case got := <-s.events:
+		s.seq = got.Seq
+
+		if got.Name != event.Select || got.Mode != mode || got.Action != "" {
+			s.t.Fatalf("event = %+v, want a %s selection with no action", got, mode)
+		}
+
+		return got.Point
+	case <-time.After(simWaitHeadroom):
+		s.t.Fatalf("no %s selection within %v", mode, simWaitHeadroom)
+	}
+
+	return image.Point{}
+}
+
+// TestSimulation_EventsReportEachBisectStep pins that every cut, and the
+// backspace that takes one back, reports where the selection moved, and that
+// opening the mode reports none.
+func TestSimulation_EventsReportEachBisectStep(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(bisectHotkey)
+	sim.waitMode(domain.ModeBisect)
+	events.expect(modeEnter(domain.ModeNameBisect))
+	events.expectNone(100 * time.Millisecond)
+
+	for _, step := range []struct {
+		key  string
+		want image.Point
+	}{
+		{key: "l", want: image.Pt(1440, 540)},
+		{key: "y", want: image.Pt(1200, 270)},
+		{key: "Backspace", want: image.Pt(1440, 540)},
+	} {
+		sim.press(step.key)
+
+		if got := events.nextSelect(domain.ModeNameBisect); got != step.want {
+			t.Errorf("%s selected %v, want %v", step.key, got, step.want)
+		}
+	}
+}
+
+// TestSimulation_EventsReportEachRecursiveGridLevel pins that every level a
+// recursive grid zooms into reports its center, whether the cursor follows
+// the selection or stays where it is.
+func TestSimulation_EventsReportEachRecursiveGridLevel(t *testing.T) {
+	topLeftThird := image.Rect(0, 0, simScreen.Dx()/3+1, simScreen.Dy()/3+1)
+
+	for _, binding := range []string{
+		domain.ModeNameRecursiveGrid,
+		domain.ModeNameRecursiveGrid + " --cursor-selection-mode hold",
+	} {
+		t.Run(binding, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hotkeys.Bindings[recursiveGridHotkey] = []string{binding}
+
+			sim := newSimHarness(t, cfg, nil)
+			events := subscribeEvents(t, sim)
+
+			sim.pressHotkey(recursiveGridHotkey)
+			sim.waitMode(domain.ModeRecursiveGrid)
+			events.expect(modeEnter(domain.ModeNameRecursiveGrid))
+			events.expectNone(100 * time.Millisecond)
+
+			// "r" is the top-left cell of the default 3x3 key layout.
+			sim.press("r")
+
+			first := events.nextSelect(domain.ModeNameRecursiveGrid)
+			if !first.In(topLeftThird) {
+				t.Fatalf("first level selected %v, want inside %v", first, topLeftThird)
+			}
+
+			sim.press("r")
+
+			second := events.nextSelect(domain.ModeNameRecursiveGrid)
+			if second == first || !second.In(topLeftThird) {
+				t.Errorf(
+					"second level selected %v, want a new point inside %v",
+					second,
+					topLeftThird,
+				)
+			}
+		})
+	}
+}
+
+// TestSimulation_EventsReportBothGridLayers pins that choosing a cell reports a
+// selection, and so does the subgrid key that refines it inside that cell.
+func TestSimulation_EventsReportBothGridLayers(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+	events.expect(modeEnter(domain.ModeNameGrid))
+	events.expectNone(100 * time.Millisecond)
+
+	cell := sim.overlay.lastGrid().Cells()[0]
+	sim.typeLabel(cell.Coordinate())
+
+	layer := events.nextSelect(domain.ModeNameGrid)
+	if !layer.In(cell.Bounds()) {
+		t.Fatalf("the cell selected %v, want inside %v", layer, cell.Bounds())
+	}
+
+	sublayer := strings.ToLower(string([]rune(sim.app.Config().Grid.SublayerKeys)[0]))
+	sim.press(sublayer)
+
+	refined := events.nextSelect(domain.ModeNameGrid)
+	if refined == layer || !refined.In(cell.Bounds()) {
+		t.Errorf("the subgrid key selected %v, want a new point inside %v", refined, cell.Bounds())
+	}
+}
+
+// TestSimulation_EventsReportAStepOntoTheSamePoint pins that a step reports a
+// selection even when it lands where the selection already was. The center
+// cell of a recursive grid has the same center as the screen.
+func TestSimulation_EventsReportAStepOntoTheSamePoint(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+	events.expect(modeEnter(domain.ModeNameRecursiveGrid))
+
+	// "g" is the center cell of the default 3x3 key layout.
+	sim.press("g")
+
+	center := image.Pt(simScreen.Dx()/2, simScreen.Dy()/2)
+	if got := events.nextSelect(domain.ModeNameRecursiveGrid); got != center {
+		t.Errorf("the center cell selected %v, want %v", got, center)
+	}
 }

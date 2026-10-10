@@ -11,10 +11,11 @@ const (
 	// ModeExit is the active mode closing. Mode and Reason say which and why,
 	// and Action names the action a completed mode ran, when it ran one.
 	ModeExit Name = "mode_exit"
-	// Select is a mode completing a selection, once per selection, including
-	// each one a --repeat mode makes before it closes. Mode and Point say which
-	// mode and where. Action names what the mode's --action ran there, and is
-	// empty when it ran none and left the next step to the user.
+	// Select is a step the user took moving a mode's target: a hint label, a
+	// grid cell or subgrid key, a recursive grid level, a bisect cut. Opening,
+	// refreshing or moving a mode publishes none. Mode and Point say which mode
+	// and where the target is now. Action names what the mode's --action ran
+	// there, and is empty when it ran none.
 	Select Name = "select"
 	// AppFocus is another application coming to the front. BundleID names it.
 	AppFocus Name = "app_focus"

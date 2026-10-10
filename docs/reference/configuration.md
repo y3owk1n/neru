@@ -242,7 +242,7 @@ on_config_reload = "exec [ \"$NERU_OK\" = true ] || say 'Neru config did not loa
 | -------------------------------- | ------------ | ------- | ------------------------------------------------------------------------- |
 | `on_mode_enter`                  | string/array | none    | A mode opens                                                              |
 | `on_mode_exit`                   | string/array | none    | A mode closes, including on the way into another one                      |
-| `on_select`                      | string/array | none    | A mode completes a selection, such as a typed hint label, including each one a `--repeat` mode makes |
+| `on_select`                      | string/array | none    | A step you take moves a mode's target, such as a hint label, a grid cell or a recursive grid level |
 | `on_app_focus`                   | string/array | none    | Another application comes to the front                                    |
 | `on_enable`                      | string/array | none    | Neru resumes, such as on `neru start`                                     |
 | `on_disable`                     | string/array | none    | Neru pauses, such as on `neru stop`                                       |
@@ -260,6 +260,11 @@ on_config_reload = "exec [ \"$NERU_OK\" = true ] || say 'Neru config did not loa
 | `on_quit`                        | string/array | none    | The daemon starts to shut down. Runs `exec` steps only                    |
 
 A reload takes effect from the next event.
+
+`on_select` runs once per step, so zooming a recursive grid three levels runs
+it three times, and a `--repeat` mode runs it for each selection. A click
+from a mode key such as `Shift+L` is an action, not a step that moves the
+target, so it does not run `on_select`.
 
 A hook runs for every binding. To run steps after one binding's selection
 only, give that binding [`--on-exit`](cli.md#mode-flag-reference). It runs

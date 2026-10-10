@@ -225,15 +225,48 @@ func (h *handlerState) moveCursorAndHandleAction(
 	}
 }
 
-// publishSelect reports a selection the mode completed at point, and the
-// action it ran there, empty when it ran none. Caller must hold h.mu.
+// publishSelect reports that the mode's target moved to point, and the action
+// it ran there, empty when it ran none. Caller must hold h.mu.
 func (h *handlerState) publishSelect(point image.Point, action string) {
+	h.selectPublished = true
+
 	h.events.Publish(event.Event{
 		Name:   event.Select,
 		Mode:   h.CurrModeString(),
 		Action: action,
 		Point:  point,
 	})
+}
+
+// trackSelection runs input, a step the user took, and reports the mode's
+// selection when the step set it and nothing during the step reported it
+// already. A step that lands on the point already held still counts, such as
+// zooming into the center cell. Only the entry points that carry user input
+// call it, so opening, refreshing or moving a mode to another display never
+// reports a selection. Caller must hold h.mu.
+func (h *handlerState) trackSelection(input func()) {
+	tracker, tracks := activeModeExtension[selectionTracker](h)
+	if !tracks {
+		input()
+
+		return
+	}
+
+	mode := h.CurrModeString()
+	before := tracker.SelectionWrites()
+
+	h.selectPublished = false
+
+	input()
+
+	if h.selectPublished || h.CurrModeString() != mode || tracker.SelectionWrites() == before {
+		return
+	}
+
+	point, selected := tracker.SelectionPoint()
+	if selected {
+		h.publishSelect(point, "")
+	}
 }
 
 // handleHintsModeKey handles key processing for hints mode.
@@ -540,7 +573,6 @@ func (h *handlerState) handleGridModeKey(key string) {
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
 			h.refreshGridVirtualPointer()
-			h.publishSelect(absolutePoint, "")
 
 			return
 		}
