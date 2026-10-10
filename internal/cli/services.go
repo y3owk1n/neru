@@ -69,7 +69,7 @@ var ServicesUninstallCmd = &cobra.Command{
 var ServicesStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the system service",
-	Long:  `Start the installed Neru service. The daemon will begin running in the background.`,
+	Long:  `Start the installed Neru service, including one that 'neru services stop' stopped. It turns the service back on at login too, and the daemon begins running in the background.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := startService()
 		if err != nil {
@@ -86,7 +86,7 @@ var ServicesStartCmd = &cobra.Command{
 var ServicesStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the system service",
-	Long:  `Stop the installed Neru service. The daemon process will be terminated; the service stays installed and starts again on your next login.`,
+	Long:  `Stop the Neru service and keep it stopped, across logins too, until 'neru services start'. Neru exits and the service stays installed.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := stopService()
 		if err != nil {
@@ -103,7 +103,7 @@ var ServicesStopCmd = &cobra.Command{
 var ServicesRestartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restart the system service",
-	Long:  `Stop then immediately start the Neru service. Useful after configuration changes or to recover from an unresponsive state.`,
+	Long:  `Stop then immediately start the running Neru service. Useful after configuration changes or to recover from an unresponsive state. Restart refuses a service that 'neru services stop' stopped. Run 'neru services start' instead.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := restartService()
 		if err != nil {

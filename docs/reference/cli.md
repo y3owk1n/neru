@@ -941,17 +941,20 @@ Manage Neru as a login service. If a package manager such as Nix, Homebrew or
 home-manager manages the service, use that tool instead.
 
 `install` writes the service definition and enables it for login, and
-`uninstall` disables and removes it. `start`, `stop` and `restart` act on the
-service, and `status` reports whether it is installed and running.
+`uninstall` disables and removes it. `stop` stops the service and disables it,
+so it stays stopped across logins until `start`, which enables it again and
+starts it. The definition stays installed. `restart` restarts a running service
+and refuses a stopped one, saying to run `start`. `status` reports whether it is
+installed and running.
 
 | Platform | Definition | Notes |
 | -------- | ---------- | ----- |
-| macOS    | launchd plist in `~/Library/LaunchAgents` | `install` refuses if a plist exists, so run `uninstall` first. Stderr goes to `~/Library/Logs/neru/daemon.err.log`. |
+| macOS    | launchd plist in `~/Library/LaunchAgents` | `install` refuses if a plist exists, so run `uninstall` first. `stop` runs `launchctl disable` and `bootout`, and `restart` runs `launchctl kickstart -k`. `status` reports a stopped service as stopped. Stderr goes to `~/Library/Logs/neru/daemon.err.log`. |
 | Linux    | systemd user unit | See [Linux setup](../guide/linux.md#systemd-user-service). |
-| Windows  | Task Scheduler task `\Neru`, logon trigger | Runs `neru launch` as you with an interactive token, restarts on failure, no time limit, no admin rights. `status` reads the task state (running, ready, queued, disabled). `stop` works like `schtasks /End`. |
+| Windows  | Task Scheduler task `\Neru`, logon trigger | Runs `neru launch` as you with an interactive token, restarts on failure, no time limit, no admin rights. `status` reads the task state (running, ready, queued, disabled). `stop` works like `schtasks /Change /DISABLE` followed by `schtasks /End`. |
 
-On Linux and Windows, `install` and `uninstall` refuse to touch a unit or task
-Neru did not write. `status` on a machine without the service reports that
+On Linux and Windows, every subcommand but `status` refuses to touch a unit or
+task Neru did not write. `status` on a machine without the service reports that
 rather than failing.
 
 ### neru docs

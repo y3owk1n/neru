@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // requireSystemdMachine skips unless systemd booted this machine, which is the
@@ -272,8 +274,8 @@ func TestInstallService_RoundTripsThroughSystemd(t *testing.T) {
 	}
 
 	enabled := systemctlWord("is-enabled")
-	if enabled != "enabled" {
-		t.Errorf("is-enabled = %q, want %q", enabled, "enabled")
+	if enabled != unitEnabled {
+		t.Errorf("is-enabled = %q, want %q", enabled, unitEnabled)
 	}
 
 	status := statusService()
@@ -286,21 +288,35 @@ func TestInstallService_RoundTripsThroughSystemd(t *testing.T) {
 		t.Error("installService() on top of an existing unit succeeded, want a refusal")
 	}
 
-	// The three verbs that only forward to systemctl. They are checked against
-	// the installed unit rather than for a resulting run state: the unit points
-	// at the test binary, which exits as soon as it is started, so what is being
-	// claimed here is that systemd accepts each job.
-	for _, verb := range []struct {
-		name string
-		call func() error
-	}{
-		{name: "stop", call: stopService},
-		{name: "start", call: startService},
-		{name: "restart", call: restartService},
-	} {
-		verbErr := verb.call()
-		if verbErr != nil {
-			t.Errorf("%sService() error = %v", verb.name, verbErr)
-		}
+	// The unit runs the test binary, which exits at once. So this checks that
+	// systemd accepts each job and whether the unit is enabled at login after
+	// each verb. It does not check a run state.
+	err = stopService()
+	if err != nil {
+		t.Fatalf("stopService() error = %v", err)
+	}
+
+	if enabled := systemctlWord("is-enabled"); enabled != unitDisabled {
+		t.Errorf("is-enabled after stop = %q, want %q", enabled, unitDisabled)
+	}
+
+	err = restartService()
+	if !derrors.IsCode(err, derrors.CodeInvalidInput) {
+		t.Errorf("restartService() on a stopped unit error = %v, want %v",
+			err, derrors.CodeInvalidInput)
+	}
+
+	err = startService()
+	if err != nil {
+		t.Fatalf("startService() error = %v", err)
+	}
+
+	if enabled := systemctlWord("is-enabled"); enabled != unitEnabled {
+		t.Errorf("is-enabled after start = %q, want %q", enabled, unitEnabled)
+	}
+
+	err = restartService()
+	if err != nil {
+		t.Errorf("restartService() error = %v", err)
 	}
 }

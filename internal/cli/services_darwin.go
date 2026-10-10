@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/adapter/logger"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 const (
@@ -68,8 +69,63 @@ var (
 	errServiceAlreadyLoaded = errors.New(
 		"service is already loaded; check for existing installations (e.g., nix-darwin, home-manager) and uninstall them first",
 	)
-	errPlistAlreadyExists = errors.New("plist file already exists")
+	errPlistAlreadyExists  = errors.New("plist file already exists")
+	errServiceNotInstalled = derrors.New(
+		derrors.CodeInvalidInput,
+		"no service is installed; run `neru services install` first",
+	)
+	errServiceStopped = derrors.New(
+		derrors.CodeInvalidInput,
+		"the service is stopped; run `neru services start` to start it",
+	)
 )
+
+// serviceDomain is the per-user launchd domain the agent loads into.
+// serviceTarget names the agent inside it, in the form enable, disable,
+// bootout and kickstart take.
+func serviceDomain() string {
+	return "gui/" + strconv.Itoa(os.Getuid())
+}
+
+func serviceTarget() string {
+	return serviceDomain() + "/" + serviceLabel
+}
+
+// launchctl runs a launchctl subcommand, folding launchctl's own explanation
+// into the error rather than leaving only an exit status.
+func launchctl(args ...string) error {
+	output, err := exec.CommandContext(context.Background(), "launchctl", args...).
+		CombinedOutput()
+	if err != nil {
+		return derrors.Wrapf(
+			err,
+			derrors.CodeExecFailed,
+			"launchctl %s: %s",
+			args[0],
+			strings.TrimSpace(string(output)),
+		)
+	}
+
+	return nil
+}
+
+// plistPath is where the agent's plist lives, expanded.
+func plistPath() (string, error) {
+	path, err := expandPath(plistFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to expand plist path: %w", err)
+	}
+
+	return path, nil
+}
+
+// plistInstalled reports whether anything is at the plist path. It tells a
+// stopped service, installed but not loaded, apart from one never installed.
+func plistInstalled(path string) bool {
+	_, err := os.Lstat(path)
+
+	return err == nil
+}
 
 // daemonStderrPath returns the absolute file the login agent's stderr is
 // redirected to. The plist is read by launchd, which expands nothing, so this
@@ -171,21 +227,13 @@ func installService() error {
 		return fmt.Errorf("failed to write plist: %w", err)
 	}
 
-	currentUser, err := user.Current()
+	// launchd refuses to load an agent that `neru services stop` disabled.
+	err = launchctl("enable", serviceTarget())
 	if err != nil {
-		return fmt.Errorf("failed to get current user: %w", err)
+		return fmt.Errorf("failed to enable service: %w", err)
 	}
 
-	// Load service
-	cmd := exec.CommandContext(
-		context.Background(),
-		"launchctl",
-		"bootstrap",
-		"gui/"+currentUser.Uid,
-		expandedPlist,
-	)
-
-	err = cmd.Run()
+	err = launchctl("bootstrap", serviceDomain(), expandedPlist)
 	if err != nil {
 		return fmt.Errorf("failed to load service: %w", err)
 	}
@@ -194,24 +242,16 @@ func installService() error {
 }
 
 func uninstallService() error {
-	expandedPlist, err := expandPath(plistFile)
+	expandedPlist, err := plistPath()
 	if err != nil {
-		return fmt.Errorf("failed to expand plist path: %w", err)
+		return err
 	}
 
-	currentUser, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("failed to get current user: %w", err)
-	}
+	_ = launchctl("bootout", serviceTarget()) // Ignore error if not loaded
 
-	// Unload service if loaded
-	cmd := exec.CommandContext(
-		context.Background(),
-		"launchctl",
-		"bootout",
-		"gui/"+currentUser.Uid+"/"+serviceLabel,
-	)
-	_ = cmd.Run() // Ignore error if not loaded
+	// Clear the disable that a stop leaves behind, or a later plist under this
+	// label fails to load.
+	_ = launchctl("enable", serviceTarget())
 
 	err = os.Remove(expandedPlist)
 	if err != nil && !os.IsNotExist(err) {
@@ -221,44 +261,109 @@ func uninstallService() error {
 	return nil
 }
 
+// startService undoes stopService. It enables the agent again, so launchd
+// loads it at login too, and starts neru now. A stopped agent is not loaded,
+// so startService loads the plist and RunAtLoad starts neru. A loaded agent
+// gets a kickstart instead.
 func startService() error {
-	cmd := exec.CommandContext(context.Background(), "launchctl", "start", serviceLabel)
-
-	err := cmd.Run()
+	path, err := plistPath()
 	if err != nil {
-		return fmt.Errorf("failed to start service: %w", err)
+		return err
+	}
+
+	loaded := isServiceLoaded()
+	if !loaded && !plistInstalled(path) {
+		return errServiceNotInstalled
+	}
+
+	err = launchctl("enable", serviceTarget())
+	if err != nil {
+		return fmt.Errorf("failed to enable service: %w", err)
+	}
+
+	if loaded {
+		err = launchctl("kickstart", serviceTarget())
+		if err != nil {
+			return fmt.Errorf("failed to start service: %w", err)
+		}
+
+		return nil
+	}
+
+	err = launchctl("bootstrap", serviceDomain(), path)
+	if err != nil {
+		return fmt.Errorf("failed to load service: %w", err)
 	}
 
 	return nil
 }
 
+// stopService stops the agent until startService, across logins too.
+//
+// The plist sets KeepAlive, so after a plain launchctl stop launchd starts
+// neru again within seconds. Disabling the agent keeps launchd from loading it
+// at the next login, and unloading it stops neru now. The plist stays, so
+// startService can load it again.
 func stopService() error {
-	cmd := exec.CommandContext(context.Background(), "launchctl", "stop", serviceLabel)
-
-	err := cmd.Run()
+	path, err := plistPath()
 	if err != nil {
-		return fmt.Errorf("failed to stop service: %w", err)
+		return err
+	}
+
+	loaded := isServiceLoaded()
+	if !loaded && !plistInstalled(path) {
+		return errServiceNotInstalled
+	}
+
+	err = launchctl("disable", serviceTarget())
+	if err != nil {
+		return fmt.Errorf("failed to disable service: %w", err)
+	}
+
+	if !loaded {
+		return nil
+	}
+
+	err = launchctl("bootout", serviceTarget())
+	if err != nil {
+		return fmt.Errorf("failed to unload service: %w", err)
 	}
 
 	return nil
 }
 
+// restartService restarts the loaded agent with one kickstart -k, which kills
+// whatever runs under it and spawns it again. A stop followed by a start races
+// launchd's own KeepAlive relaunch instead.
 func restartService() error {
-	_ = stopService()
+	if !isServiceLoaded() {
+		path, err := plistPath()
+		if err == nil && plistInstalled(path) {
+			return errServiceStopped
+		}
 
-	// Always attempt to start
-	return startService()
+		return errServiceNotInstalled
+	}
+
+	err := launchctl("kickstart", "-k", serviceTarget())
+	if err != nil {
+		return fmt.Errorf("failed to restart service: %w", err)
+	}
+
+	return nil
 }
 
 func statusService() string {
-	cmd := exec.CommandContext(context.Background(), "launchctl", "list", serviceLabel)
-
-	_, err := cmd.Output()
-	if err != nil {
-		return "Service not loaded"
+	if isServiceLoaded() {
+		return "Service loaded"
 	}
 
-	return "Service loaded"
+	path, err := plistPath()
+	if err == nil && plistInstalled(path) {
+		return "Service stopped (run `neru services start` to start it)"
+	}
+
+	return "Service not loaded"
 }
 
 func expandPath(path string) (string, error) {
