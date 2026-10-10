@@ -261,6 +261,7 @@ func (c *Controller) registerHandlers(cfg *config.Config) {
 	// owns them: the actions handler writes them and the info handler reports
 	// them, and nothing outside this controller needs to reach them.
 	cursorSlots := state.NewCursorSlots()
+	cursorSlots.PublishTo(c.Events)
 
 	actionsHandler := NewActionsHandler(
 		c.ActionService,

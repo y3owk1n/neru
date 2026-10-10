@@ -140,8 +140,12 @@ Input follows the path in [Codebase navigation guide](#codebase-navigation-guide
 event tap, handler, active mode, service, adapter, native API.
 
 The daemon publishes what happens on the event bus (`internal/domain/event`).
-The mode handler publishes mode changes, and the app publishes focus, pause,
-reload and Mission Control events. Publishing never blocks, so it is safe
+The mode handler publishes mode changes, sticky modifiers and monitor moves.
+The app state publishes the scroll-invert and screen-share switches, and the
+cursor slots publish their saves and restores. The app publishes focus, pause,
+reload, screen change, Mission Control, ready and quit events. The hook runner
+skips the quit event. Shutdown runs the quit hook itself, with a one-second
+bound, before it cancels the root context. Publishing never blocks, so it is safe
 under the handler's lock and on the macOS main queue. Each subscriber reads a
 channel of its own. The hook runner (`internal/app/hooks.go`) is one, and runs
 the `[hooks]` steps through the sequence executor on its own goroutines, apart

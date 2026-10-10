@@ -130,6 +130,60 @@ func TestValidateHooks_WarnsWhenMissionControlHooksCannotFire(t *testing.T) {
 	}
 }
 
+// TestValidateHooks_WarnsWhenTheStickyModifiersHookCannotFire pins that a
+// sticky modifier hook with sticky modifiers off loads, and says it will never
+// run.
+func TestValidateHooks_WarnsWhenTheStickyModifiersHookCannotFire(t *testing.T) {
+	t.Parallel()
+
+	for _, enabled := range []bool{false, true} {
+		cfg := config.DefaultConfig()
+		cfg.StickyModifiers.Enabled = enabled
+		cfg.Hooks.OnStickyModifiers = config.StringOrStringArray{"exec true"}
+
+		warnings := &config.Warnings{}
+
+		err := cfg.ValidateWithWarnings(warnings, config.WrittenConfig{})
+		if err != nil {
+			t.Fatalf("enabled=%v: ValidateWithWarnings() refused the hook: %v", enabled, err)
+		}
+
+		warned := strings.Contains(
+			strings.Join(warnings.Messages(), "\n"),
+			"hooks.on_sticky_modifiers",
+		)
+		if warned == enabled {
+			t.Errorf(
+				"enabled=%v: warned=%v, want a warning only while sticky modifiers are off",
+				enabled,
+				warned,
+			)
+		}
+	}
+}
+
+// TestValidateHooks_WarnsAboutAQuitStepThatIsNotExec pins that a quit hook
+// loads whatever it holds, and names each step that will not run.
+func TestValidateHooks_WarnsAboutAQuitStepThatIsNotExec(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultConfig()
+	cfg.Hooks.OnQuit = config.StringOrStringArray{"exec true", "grid"}
+
+	warnings := &config.Warnings{}
+
+	err := cfg.ValidateWithWarnings(warnings, config.WrittenConfig{})
+	if err != nil {
+		t.Fatalf("ValidateWithWarnings() refused the hook: %v", err)
+	}
+
+	messages := strings.Join(warnings.Messages(), "\n")
+	if !strings.Contains(messages, "hooks.on_quit step 2") ||
+		strings.Contains(messages, "hooks.on_quit step 1") {
+		t.Errorf("warnings %q, want one naming step 2 only", messages)
+	}
+}
+
 // TestValidateHooks_WarnsThatTheHintsMissionControlKeysAreDeprecated pins the
 // deprecation: the [hints] keys still load, and say where they moved.
 func TestValidateHooks_WarnsThatTheHintsMissionControlKeysAreDeprecated(t *testing.T) {

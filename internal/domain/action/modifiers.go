@@ -95,6 +95,23 @@ func cmdDisplayName() string {
 	return "Super"
 }
 
+// Canonical returns the set as ParseModifiers reads it, the same on every
+// platform (e.g. "cmd,shift"), and "" for none.
+func (m Modifiers) Canonical() string {
+	var parts []string
+
+	for _, mod := range []struct {
+		bit  Modifiers
+		name string
+	}{{ModCmd, "cmd"}, {ModShift, "shift"}, {ModAlt, "alt"}, {ModCtrl, "ctrl"}} {
+		if m.Has(mod.bit) {
+			parts = append(parts, mod.name)
+		}
+	}
+
+	return strings.Join(parts, ",")
+}
+
 // String returns a human-readable representation (e.g. "Cmd+Shift").
 func (m Modifiers) String() string {
 	if m == 0 {

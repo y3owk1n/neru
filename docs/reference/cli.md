@@ -86,6 +86,7 @@ status.
 | `hidden_for_screen_share`                               | bool   | Set by [`toggle-screen-share`](#neru-toggle-screen-share). `true` means hidden. |
 | `cursor_follow_selection`                               | bool or null | Set by [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection). `null` when no mode is running, so test for `null` before reading it as a boolean. |
 | `saved_cursor_slots`                                    | object | The occupied [cursor slots](#cursor-slots), each `{"x": …, "y": …}`. Empty when none are saved. |
+| `sticky_modifiers`                                      | string | The sticky modifiers held, such as `cmd,shift`. Empty when none is. |
 | `capabilities`                                          | object | Per-subsystem support on this platform, as `neru doctor` reports it. |
 | `profile`                                               | object | Which adapter serves each subsystem, and whether it needs CGO. |
 
@@ -122,8 +123,14 @@ snapshot as the whole state and each event as a change to it.
 | `status`    | `snapshot`                     | The `neru status --json` object                                       |
 | `mode`      | `mode_enter`, `mode_exit`      | The mode, named as `neru status` names it                             |
 | `reason`    | `mode_exit`                    | `completed`, `switched` or `canceled`, as `NERU_REASON` has them      |
+| `action`    | `mode_exit` when `completed`   | The action the selection ran, such as `left_click`. Absent when it ran none |
 | `bundle_id` | `app_focus`                    | The application, as [`bundle_id`](configuration.md#app-identity-across-platforms-bundle_id) names it |
 | `ok`        | `config_reload`                | `true` or `false`                                                     |
+| `on`        | `scroll_invert`, `screen_share_hide` | The state switched to, as `scroll_inverted` and `hidden_for_screen_share` report it |
+| `slot`      | `cursor_save`, `cursor_restore` | The [cursor slot](#cursor-slots)                                     |
+| `x`, `y`    | `cursor_save`                  | The position saved                                                    |
+| `modifiers` | `sticky_modifiers`             | The set held now, as `sticky_modifiers` reports it                    |
+| `monitor`   | `monitor_move`                 | The display moved to, as `move_monitor --name` takes it               |
 | `dropped`   | a snapshot after missed events | How many events since the previous line this snapshot replaces |
 
 The daemon disconnects a reader once a line has

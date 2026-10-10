@@ -192,16 +192,28 @@ func (h *handlerState) confirmMonitorSelect(target *monitorSelectTarget) {
 	h.exitMode()
 
 	go func() {
-		if h.actionService == nil {
+		if h.actionService == nil || h.system == nil {
 			return
 		}
+
+		// Serialized with move_monitor, so their monitor_move events arrive
+		// in the order the moves applied.
+		h.outer.moveMonitorMu.Lock()
+		defer h.outer.moveMonitorMu.Unlock()
+
+		h.syncCursorPosition(h.ctx)
+		from, fromErr := h.system.ScreenBounds(h.ctx)
 
 		err := h.actionService.MoveCursorToPointAndWait(h.ctx, center, true)
 		if err != nil {
 			h.logger.Error("Failed to move cursor to selected monitor",
 				zap.Error(err),
 			)
+
+			return
 		}
+
+		h.publishMonitorMove(from, fromErr, bounds, target.Name)
 	}()
 }
 

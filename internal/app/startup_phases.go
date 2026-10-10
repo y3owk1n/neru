@@ -189,6 +189,7 @@ func initializeApplicationState(app *App) {
 	app.appState = state.NewAppState()
 	app.cursorState = state.NewCursorState()
 	app.events = event.NewBus(app.logger)
+	app.appState.PublishTo(app.events)
 }
 
 // initializeUIComponents asks the overlay to build the components it draws

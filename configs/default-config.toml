@@ -71,8 +71,8 @@ text = "#E8EEFF"
 # "Primary+Shift+W" = "mode window"
 
 # Hooks: steps run when something happens, written like any binding.
-# exec steps see the event in NERU_EVENT, NERU_MODE, NERU_REASON,
-# NERU_BUNDLE_ID and NERU_OK.
+# exec steps see the event in NERU_EVENT and the NERU_* variables the
+# reference lists for it, such as NERU_MODE or NERU_BUNDLE_ID.
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hooks
 #
 # [hooks]
@@ -84,6 +84,15 @@ text = "#E8EEFF"
 # on_config_reload = []
 # on_mission_control_activated = []     # macOS, needs hints.detect_mission_control
 # on_mission_control_deactivated = []
+# on_scroll_invert = []                 # NERU_ON
+# on_screen_share_hide = []             # NERU_ON
+# on_cursor_save = []                   # NERU_SLOT, NERU_X, NERU_Y
+# on_cursor_restore = []                # NERU_SLOT
+# on_sticky_modifiers = []              # needs sticky_modifiers.enabled, NERU_MODIFIERS
+# on_monitor_move = []                  # NERU_MONITOR
+# on_screen_change = []
+# on_ready = []
+# on_quit = []                          # exec steps only, waited on for one second
 
 # Hint mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hints

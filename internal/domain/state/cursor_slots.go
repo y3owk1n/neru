@@ -4,6 +4,8 @@ import (
 	"image"
 	"maps"
 	"sync"
+
+	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
 // DefaultCursorSlot is the slot a save or restore uses when none is named.
@@ -25,11 +27,24 @@ const DefaultCursorSlot = "default"
 type CursorSlots struct {
 	mu    sync.RWMutex
 	slots map[string]image.Point
+
+	// events announces each save and restore. Each is published under mu, so
+	// racing ones reach subscribers in the order they applied.
+	events *event.Bus
 }
 
 // NewCursorSlots creates an empty slot store.
 func NewCursorSlots() *CursorSlots {
 	return &CursorSlots{slots: make(map[string]image.Point)}
+}
+
+// PublishTo sets the bus saves and restores are published on. Call it before
+// the first save.
+func (c *CursorSlots) PublishTo(bus *event.Bus) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.events = bus
 }
 
 // Save stores pos under name, replacing whatever that slot held.
@@ -42,6 +57,7 @@ func (c *CursorSlots) Save(name string, pos image.Point) {
 	}
 
 	c.slots[name] = pos
+	c.events.Publish(event.Event{Name: event.CursorSave, Slot: name, Point: pos})
 }
 
 // Take removes the named slot and reports what it held.
@@ -59,6 +75,7 @@ func (c *CursorSlots) Take(name string) (image.Point, bool) {
 	}
 
 	delete(c.slots, name)
+	c.events.Publish(event.Event{Name: event.CursorRestore, Slot: name})
 
 	return pos, true
 }

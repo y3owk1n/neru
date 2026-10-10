@@ -20,14 +20,21 @@ const (
 
 // watchLine is one line of a watch stream, on the wire.
 type watchLine struct {
-	Seq      uint64         `json:"seq"`
-	Event    string         `json:"event"`
-	Mode     string         `json:"mode,omitempty"`
-	Reason   string         `json:"reason,omitempty"`
-	BundleID string         `json:"bundle_id,omitempty"` //nolint:tagliatelle // snake_case like the status keys.
-	OK       *bool          `json:"ok,omitempty"`
-	Dropped  uint64         `json:"dropped,omitempty"`
-	Status   map[string]any `json:"status,omitempty"`
+	Seq       uint64         `json:"seq"`
+	Event     string         `json:"event"`
+	Mode      string         `json:"mode,omitempty"`
+	Reason    string         `json:"reason,omitempty"`
+	Action    string         `json:"action,omitempty"`
+	BundleID  string         `json:"bundle_id,omitempty"` //nolint:tagliatelle // snake_case like the status keys.
+	OK        *bool          `json:"ok,omitempty"`
+	On        *bool          `json:"on,omitempty"`
+	Slot      string         `json:"slot,omitempty"`
+	X         *int           `json:"x,omitempty"`
+	Y         *int           `json:"y,omitempty"`
+	Modifiers *string        `json:"modifiers,omitempty"`
+	Monitor   string         `json:"monitor,omitempty"`
+	Dropped   uint64         `json:"dropped,omitempty"`
+	Status    map[string]any `json:"status,omitempty"`
 }
 
 // HandleWatch serves `neru watch`: the status, then every event the daemon
@@ -142,19 +149,35 @@ func (c *Controller) resync(emit func(value any) error, last uint64) (uint64, er
 	return line.Seq, emit(line)
 }
 
-// watchLineFor puts an event on the wire. ok is sent only for a config reload,
-// where false is the answer that matters.
+// watchLineFor puts an event on the wire. A field whose zero value is an
+// answer, such as ok false or no sticky modifiers, is sent only for the events
+// that carry it.
 func watchLineFor(evt event.Event) watchLine {
 	line := watchLine{
 		Seq:      evt.Seq,
 		Event:    string(evt.Name),
 		Mode:     evt.Mode,
 		Reason:   string(evt.Reason),
+		Action:   evt.Action,
 		BundleID: evt.BundleID,
+		Slot:     evt.Slot,
+		Monitor:  evt.Monitor,
 	}
 
 	if evt.Name == event.ConfigReload {
 		line.OK = &evt.OK
+	}
+
+	if evt.Name == event.ScrollInvert || evt.Name == event.ScreenShareHide {
+		line.On = &evt.On
+	}
+
+	if evt.Name == event.CursorSave {
+		line.X, line.Y = &evt.Point.X, &evt.Point.Y
+	}
+
+	if evt.Name == event.StickyModifiers {
+		line.Modifiers = &evt.Modifiers
 	}
 
 	return line

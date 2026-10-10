@@ -18,6 +18,9 @@ import (
 // records the scroll.
 const hookScrollStep = "action scroll_down"
 
+// goosWindows is runtime.GOOS on Windows, whose shell the record steps change.
+const goosWindows = "windows"
+
 // TestSimulation_HookRunsWhenItsEventFires is the hook journey at its
 // simplest: entering a mode runs the steps written for it.
 func TestSimulation_HookRunsWhenItsEventFires(t *testing.T) {
@@ -100,7 +103,7 @@ func TestSimulation_HooksWaitWhileNeruIsStopped(t *testing.T) {
 // variable outVar names, for the reason writeEnvStep in internal/app/sequence
 // gives. On Windows it needs the shell useRecordShell sets.
 func recordEnvStep(name, outVar string) string {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == goosWindows {
 		return fmt.Sprintf(
 			"exec Set-Content -NoNewline -LiteralPath $env:%s -Value $env:%s",
 			outVar,
@@ -113,7 +116,7 @@ func recordEnvStep(name, outVar string) string {
 
 // useRecordShell sets the shell recordEnvStep's steps are written for.
 func useRecordShell(cfg *config.Config) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == goosWindows {
 		cfg.General.ExecShell = filepath.Join(
 			os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
 		)
@@ -207,4 +210,101 @@ func TestSimulation_MissionControlRunsBothHookTables(t *testing.T) {
 	if scrolls[0].Y*scrolls[1].Y >= 0 {
 		t.Errorf("scrolls = %v, want one down from [hooks] and one up from [hints]", scrolls)
 	}
+}
+
+// TestSimulation_ReadyHookRunsOnceTheDaemonIsUp pins that on_ready runs at
+// start with nothing else to set it off.
+func TestSimulation_ReadyHookRunsOnceTheDaemonIsUp(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hooks.OnReady = config.StringOrStringArray{hookScrollStep}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.waitFor("ready hook scrolled", func() bool { return len(sim.ax.recordedScrolls()) > 0 })
+}
+
+// TestSimulation_QuitHookFinishesBeforeShutdown pins that on_quit runs to the
+// end while the daemon shuts down, rather than being cut off by the shutdown
+// it reports.
+//
+// The check is registered before the harness, so it runs after the harness
+// has shut the app down.
+func TestSimulation_QuitHookFinishesBeforeShutdown(t *testing.T) {
+	recorded := filepath.Join(t.TempDir(), "event")
+	t.Setenv("NERU_TEST_OUT", recorded)
+
+	t.Cleanup(func() {
+		got, readErr := os.ReadFile(recorded)
+		if readErr != nil || string(got) != string(event.Quit) {
+			t.Errorf("quit hook recorded %q (%v), want %q", got, readErr, event.Quit)
+		}
+	})
+
+	cfg := simConfig()
+	useRecordShell(cfg)
+	cfg.Hooks.OnQuit = config.StringOrStringArray{
+		hookScrollStep,
+		recordEnvStep("NERU_EVENT", "NERU_TEST_OUT"),
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	// Registered after the harness, so it runs first, before the app is shut
+	// down: the scroll step was skipped, because only exec steps run on quit.
+	t.Cleanup(func() {
+		sim.app.Cleanup()
+
+		if scrolls := sim.ax.recordedScrolls(); len(scrolls) > 0 {
+			t.Errorf("quit hook ran a step that is not exec: %v", scrolls)
+		}
+	})
+}
+
+// TestSimulation_QuitHookCannotHoldShutdownUp pins the bound on the quit
+// hook: a step whose shell leaves a child holding its output runs until the
+// child exits, and shutdown goes on without it after one second.
+func TestSimulation_QuitHookCannotHoldShutdownUp(t *testing.T) {
+	if runtime.GOOS == goosWindows {
+		t.Skip("backgrounds a child with POSIX shell syntax")
+	}
+
+	cfg := simConfig()
+	cfg.Hooks.OnQuit = config.StringOrStringArray{"exec sleep 10 &"}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	t.Cleanup(func() {
+		started := time.Now()
+
+		sim.app.Cleanup()
+
+		if elapsed := time.Since(started); elapsed > 3*time.Second {
+			t.Errorf("shutdown took %v behind the quit hook, want about one second", elapsed)
+		}
+	})
+}
+
+// TestSimulation_StickyModifiersHookSeesTheSetHeld pins the variable a sticky
+// modifier hook reads, in the spelling a --modifier flag takes.
+func TestSimulation_StickyModifiersHookSeesTheSetHeld(t *testing.T) {
+	recorded := filepath.Join(t.TempDir(), "modifiers")
+	t.Setenv("NERU_TEST_OUT", recorded)
+
+	cfg := simConfig()
+	useRecordShell(cfg)
+	cfg.Hooks.OnStickyModifiers = config.StringOrStringArray{
+		recordEnvStep("NERU_MODIFIERS", "NERU_TEST_OUT"),
+	}
+
+	sim := newSimHarness(t, cfg, threeButtons(t))
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.press("__modifier_shift_down", "__modifier_shift_up")
+
+	sim.waitFor("hook recorded the sticky set", func() bool {
+		got, readErr := os.ReadFile(recorded)
+
+		return readErr == nil && string(got) == "shift"
+	})
 }

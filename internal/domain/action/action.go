@@ -408,6 +408,13 @@ const (
 	PrefixAction = "action"
 )
 
+// IsExecStep reports whether step is a shell command step.
+func IsExecStep(step string) bool {
+	step = strings.TrimSpace(step)
+
+	return step == PrefixExec || strings.HasPrefix(step, PrefixExec+" ")
+}
+
 // knownNames lists the action names that can be used as pending mode actions
 // (e.g. --action flag on hints/grid commands). Scroll sub-actions (scroll_up,
 // page_down, etc.) are intentionally excluded — they are IPC/CLI-only and are

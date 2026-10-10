@@ -163,6 +163,12 @@ func TestHandleCommand_StatusReportsTheToggles(t *testing.T) {
 		}
 	}
 
+	// No sticky modifier is held, which is an empty set rather than a missing
+	// key, so a watch client resyncing from a snapshot reads it as released.
+	if mods, present := status["sticky_modifiers"]; !present || mods != "" {
+		t.Fatalf("status[sticky_modifiers] = %v (present %t), want \"\"", mods, present)
+	}
+
 	// No mode is running, so the session-scoped toggle has no state to report.
 	// Null and false are different answers and the payload must not conflate
 	// them.

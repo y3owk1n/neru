@@ -96,7 +96,8 @@ func (h *handlerState) syncCursorPositionForModeActivation() {
 // that has to be answerable from a default log.
 //
 // Called from two lock contexts: under h.mu (activation, via
-// prepareForModeActivation) and under only moveMonitorMu (MoveMonitor). That
+// prepareForModeActivation) and under only moveMonitorMu (MoveMonitor,
+// MoveMonitorByName and the monitor_select move). That
 // is safe because it touches nothing a reload or activation mutates — h.system
 // and h.logger are construction-time-only — and it must stay that way: reading
 // h.config or any mode component here is a data race with the unlocked caller.

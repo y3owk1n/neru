@@ -221,6 +221,22 @@ func TestMoveMonitor_SyncsCursorBeforeResolvingCurrentMonitor(t *testing.T) {
 	assertSyncBeforeScreenBounds(t, system.recorded())
 }
 
+// TestMoveMonitorByName_SyncsCursorBeforeReadingTheDisplayItLeaves pins the
+// order for the named move: whether it reports a monitor_move depends on the
+// display under the cursor, and the stale cache names the display Neru last
+// warped to rather than the one the user's mouse is on.
+func TestMoveMonitorByName_SyncsCursorBeforeReadingTheDisplayItLeaves(t *testing.T) {
+	system := newSyncOrderSystem()
+	handler := newSyncOrderHandler(system)
+
+	err := handler.MoveMonitorByName(context.Background(), "B")
+	if err != nil {
+		t.Fatalf("MoveMonitorByName() error = %v", err)
+	}
+
+	assertSyncBeforeScreenBounds(t, system.recorded())
+}
+
 // TestMoveMonitor_SyncRacesActivationAndReload is the -race guard on
 // syncCursorPosition's dual lock context: MoveMonitor calls it under only
 // moveMonitorMu, so it may run concurrently with an activation and a config

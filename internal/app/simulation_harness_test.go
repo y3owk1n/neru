@@ -33,6 +33,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 	"github.com/y3owk1n/neru/internal/ports/mocks"
@@ -1449,6 +1450,9 @@ func buildSimHarness(
 		runDone:    make(chan error, 1),
 	}
 
+	// Subscribed before Run, so the ready event cannot be missed.
+	startup, stopStartup := application.Events().Subscribe(64)
+
 	go func() {
 		sim.runDone <- application.Run()
 	}()
@@ -1477,7 +1481,31 @@ func buildSimHarness(
 	// from here on is one the app hears — and no more than that.
 	sim.waitFor("the app watcher running", watcher.Started)
 
+	// And for the rest of startup, which ends by publishing ready: a journey
+	// that subscribes to the bus would otherwise see ready land among the
+	// events it causes.
+	awaitReady(tb, startup)
+	stopStartup()
+
 	return sim
+}
+
+// awaitReady waits for the ready event on events.
+func awaitReady(tb testing.TB, events <-chan event.Event) {
+	tb.Helper()
+
+	deadline := time.After(simWaitHeadroom)
+
+	for {
+		select {
+		case evt := <-events:
+			if evt.Name == event.Ready {
+				return
+			}
+		case <-deadline:
+			tb.Fatalf("app did not publish ready within %v", simWaitHeadroom)
+		}
+	}
 }
 
 // press feeds key strings to the app exactly as the native event tap would.

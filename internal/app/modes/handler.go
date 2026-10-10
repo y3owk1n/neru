@@ -141,6 +141,9 @@ type handlerState struct {
 	// belong to setAppMode (mode_setup.go).
 	events        *event.Bus
 	publishedMode string
+	// exitAction is the action a mode closing as completed ran, for the exit
+	// event. The next mode change reports and clears it.
+	exitAction string
 
 	// focusedApp is the cell the application watcher publishes the focused app
 	// into, and the keymap fields below are what the handler settles from it.

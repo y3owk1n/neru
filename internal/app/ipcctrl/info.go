@@ -207,7 +207,18 @@ func (h *InfoHandler) statusData() (map[string]any, bool) {
 		"hidden_for_screen_share": h.appState.IsHiddenForScreenShare(),
 		"cursor_follow_selection": h.cursorFollowSelection(),
 		"saved_cursor_slots":      h.savedCursorSlots(),
+		"sticky_modifiers":        h.stickyModifiers(),
 	}, true
+}
+
+// stickyModifiers reports the sticky modifiers held, as the sticky_modifiers
+// event names them.
+func (h *InfoHandler) stickyModifiers() string {
+	if h.modes == nil {
+		return ""
+	}
+
+	return h.modes.StickyModifiers().Canonical()
 }
 
 // cursorFollowSelection reports the active mode's cursor-follow-selection

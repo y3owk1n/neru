@@ -153,6 +153,8 @@ func (a *App) Run() error {
 
 	a.printStartupInfo()
 
+	a.events.Publish(event.Event{Name: event.Ready})
+
 	return a.waitForShutdown()
 }
 
@@ -293,6 +295,9 @@ func (a *App) HandleScreenParametersChange() {
 
 	for {
 		a.processScreenChange()
+		// After the mode is back on screen, so a hook sees the new layout.
+		a.events.Publish(event.Event{Name: event.ScreenChange})
+
 		// If another screen-change event arrived while we were processing,
 		// loop to handle it so no display configuration update is lost.
 		// FinishScreenChangeProcessing keeps the processing flag set when
@@ -488,6 +493,9 @@ func (a *App) Quit() {
 // first invocation performs the actual teardown.
 func (a *App) Cleanup() {
 	a.cleanupOnce.Do(func() {
+		// First, before the cancel below ends the context its steps run on.
+		a.runQuitHook()
+
 		// Cancel root context to signal shutdown to all operations
 		if a.cancel != nil {
 			a.cancel()

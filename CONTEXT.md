@@ -36,9 +36,9 @@ _Avoid_: alias, function, snippet
 
 **Event**:
 Something that happened inside the daemon, such as a mode opening or closing,
-the focused app changing, or a pause. Each is one name from
-`internal/domain/event`, published on the bus with the IDs and enums it
-carries, never UI text.
+the focused app changing, a pause, or a sticky modifier armed. Each is one name
+from `internal/domain/event`, published on the bus with the names, IDs,
+coordinates and enums it carries, never UI text.
 _Avoid_: notification, signal, callback
 
 **Hook**:

@@ -54,8 +54,15 @@ func (b *Bus) Publish(evt Event) {
 			zap.String("event", string(evt.Name)),
 			zap.String("mode", evt.Mode),
 			zap.String("reason", string(evt.Reason)),
+			zap.String("action", evt.Action),
 			zap.String("bundle_id", evt.BundleID),
-			zap.Bool("ok", evt.OK))
+			zap.Bool("ok", evt.OK),
+			zap.Bool("on", evt.On),
+			zap.String("slot", evt.Slot),
+			zap.Int("x", evt.Point.X),
+			zap.Int("y", evt.Point.Y),
+			zap.String("modifiers", evt.Modifiers),
+			zap.String("monitor", evt.Monitor))
 	}
 }
 

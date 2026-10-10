@@ -50,17 +50,25 @@ func (h *handlerState) setAppMode(mode domain.Mode) {
 func (h *handlerState) publishModeChange(reason state.ModeExitReason) {
 	idle := domain.ModeString(domain.ModeIdle)
 
+	exitAction := h.exitAction
+	h.exitAction = ""
+
 	current := h.appState.ModeName()
 	if current == h.publishedMode {
 		return
 	}
 
 	if h.publishedMode != idle {
-		h.events.Publish(event.Event{
+		exit := event.Event{
 			Name:   event.ModeExit,
 			Mode:   h.publishedMode,
 			Reason: exitReason(reason),
-		})
+		}
+		if exit.Reason == event.ExitCompleted {
+			exit.Action = exitAction
+		}
+
+		h.events.Publish(exit)
 	}
 
 	if current != idle {
