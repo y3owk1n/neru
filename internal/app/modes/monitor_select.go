@@ -201,6 +201,7 @@ func (h *handlerState) confirmMonitorSelect(target *monitorSelectTarget) {
 		h.outer.moveMonitorMu.Lock()
 		defer h.outer.moveMonitorMu.Unlock()
 
+		h.syncCursorPosition(h.ctx)
 		from, fromErr := h.system.ScreenBounds(h.ctx)
 
 		err := h.actionService.MoveCursorToPointAndWait(h.ctx, center, true)

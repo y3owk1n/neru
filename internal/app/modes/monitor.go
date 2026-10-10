@@ -82,6 +82,10 @@ func (h *Handler) MoveMonitorByName(
 		return derrors.New(derrors.CodeActionFailed, "action service not available")
 	}
 
+	// The move is reported only when it leaves the display under the cursor,
+	// so that display is read from a fresh position, as MoveMonitor does.
+	h.syncCursorPosition(ctx)
+
 	screens, err := h.system.Screens(ctx)
 	if err != nil {
 		return err
