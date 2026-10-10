@@ -129,6 +129,60 @@ exit 0
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
+// TestStopService_RefusesAUnitTheManagerLoadsFromElsewhere pins that stop
+// leaves a unit alone when this shell finds Neru's own unit file but the user
+// manager loads neru.service from another one, such as a home-manager link.
+// Disabling that unit would remove the link.
+func TestStopService_RefusesAUnitTheManagerLoadsFromElsewhere(t *testing.T) {
+	requireSystemdMachine(t)
+
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	unitPath, err := serviceUnitPath()
+	if err != nil {
+		t.Fatalf("serviceUnitPath() error = %v", err)
+	}
+
+	err = os.MkdirAll(filepath.Dir(unitPath), unitDirPerm)
+	if err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+
+	err = os.WriteFile(unitPath, []byte(renderServiceUnit("/usr/local/bin/neru")), unitFilePerm)
+	if err != nil {
+		t.Fatalf("WriteFile(%s) error = %v", unitPath, err)
+	}
+
+	dir := t.TempDir()
+	callLog := filepath.Join(dir, "calls")
+
+	const script = `#!/bin/sh
+echo "$@" >> "$NERU_FAKE_SYSTEMCTL_LOG"
+case " $* " in
+*" show "*) echo /home/tester/.local/share/home-manager/neru.service ;;
+esac
+exit 0
+`
+
+	err = os.WriteFile(filepath.Join(dir, "systemctl"), []byte(script), 0o755)
+	if err != nil {
+		t.Fatalf("WriteFile(systemctl) error = %v", err)
+	}
+
+	t.Setenv("NERU_FAKE_SYSTEMCTL_LOG", callLog)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	err = stopService()
+	if !derrors.IsCode(err, derrors.CodeInvalidInput) {
+		t.Fatalf("stopService() error = %v, want %v", err, derrors.CodeInvalidInput)
+	}
+
+	calls, _ := os.ReadFile(callLog)
+	if strings.Contains(string(calls), "disable") {
+		t.Errorf("stopService() ran disable on a unit it refused:\n%s", calls)
+	}
+}
+
 // TestUninstallService_ReportsSystemdFailures pins that an uninstall which did
 // not finish says so.
 //

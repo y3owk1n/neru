@@ -165,10 +165,11 @@ func getBinaryPath() (string, error) {
 	return filepath.EvalSymlinks(execPath)
 }
 
+// isServiceLoaded asks the gui domain every other call targets. A plain
+// launchctl list answers for the caller's own session, which over SSH is not
+// the one the agent runs in.
 func isServiceLoaded() bool {
-	cmd := exec.CommandContext(context.Background(), "launchctl", "list", serviceLabel)
-
-	return cmd.Run() == nil
+	return launchctl("print", serviceTarget()) == nil
 }
 
 func installService() error {

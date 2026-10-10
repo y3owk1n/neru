@@ -506,7 +506,36 @@ func requireOwnServiceUnit(action string) error {
 		return err
 	}
 
-	return requireOwnUnit(unitPath, serviceUnitExists(unitPath))
+	err = requireOwnUnit(unitPath, serviceUnitExists(unitPath))
+	if err != nil {
+		return err
+	}
+
+	return requireManagerResolves(unitPath)
+}
+
+// requireManagerResolves refuses when the user manager resolves neru.service to
+// a file other than the one whose ownership was just checked. The manager
+// fixed its search path when the session began, so a $XDG_CONFIG_HOME exported
+// later can point this shell at an old unit of Neru's while the manager runs
+// one nix or home-manager linked in. A manager that cannot be asked, or that
+// knows no neru.service, answers nothing, and the systemctl call that follows
+// reports it.
+func requireManagerResolves(unitPath string) error {
+	fragment, err := systemctl("show", "--property=FragmentPath", "--value", serviceUnitName)
+	if err != nil || fragment == "" || filepath.Clean(fragment) == filepath.Clean(unitPath) {
+		return nil //nolint:nilerr // the systemctl call that follows reports it
+	}
+
+	return derrors.Newf(
+		derrors.CodeInvalidInput,
+		"systemd's user manager loads %s from %s, not from %s where Neru checked it; "+
+			"manage that unit with the tool that installed it, or unset $XDG_CONFIG_HOME "+
+			"in this shell if it differs from your session's",
+		serviceUnitName,
+		fragment,
+		unitPath,
+	)
 }
 
 // startService undoes stopService. It enables the unit again, so it starts at
