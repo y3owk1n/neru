@@ -36,15 +36,16 @@ flag, a flag the mode does not accept, an unusable value, or an unmet
 dependency such as `--on-exit` without `--action` with `ERR_INVALID_INPUT`. A
 leading repeat of the mode's own name in `args` is ignored.
 
-## Probing without activating
+## Querying
 
-`hints-probe` returns, in `message`, a count and a sample of what hints mode
-would target in the focused window, without drawing or entering a mode. It
-accepts only `--role`, `--text`, `--strategy` and `--split-word`, and refuses
-anything else with `ERR_INVALID_INPUT`. `neru hints --debug` sends it.
+`query-displays`, `query-cursor`, `query-window`, `query-app` and
+`query-hints` return in `data` the objects [`neru query`](cli.md#neru-query)
+prints with `--json`. Only `query-hints` takes `args`: `--role`, `--text`,
+`--strategy`, `--capture-scope` and `--split-word`, written as a user types
+them. It refuses anything else with `ERR_INVALID_INPUT`.
 
 ```json
-{ "action": "hints-probe", "args": ["--role=button", "--strategy=vision"] }
+{ "action": "query-hints", "args": ["--role=button", "--strategy=vision"] }
 ```
 
 ## Response

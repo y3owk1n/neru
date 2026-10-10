@@ -122,8 +122,10 @@ hotkeys = { "Cmd+Space" = "hints", "Cmd+Shift+Space" = "__disabled__" }
 #### App identity across platforms (`bundle_id`)
 
 `bundle_id` selects the app for `[[app_configs]]`, every
-`[[<mode>.app_configs]]` and `excluded_apps`. What it matches depends on the
-platform:
+`[[<mode>.app_configs]]` and `excluded_apps`. To find it on any platform, run
+`sleep 3; neru query app` and switch to the app before the three seconds are
+up. It prints the exact string Neru matches. What that string is depends on
+the platform:
 
 | Platform | Identity Neru matches | How to find it |
 | --- | --- | --- |

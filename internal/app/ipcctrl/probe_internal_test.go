@@ -12,7 +12,7 @@ import (
 // names the probe, and the arguments carry only the flags that decide which
 // elements are collected.
 func probeCommand(args ...string) ipc.Command {
-	return ipc.Command{Action: domain.CommandHintsProbe, Args: args}
+	return ipc.Command{Action: domain.CommandQueryHints, Args: args}
 }
 
 func TestExtractProbeOptions_ReadsEveryCollectionFlag(t *testing.T) {

@@ -92,8 +92,8 @@ handing all hotkeys to skhd or another daemon.
    - **A key inside a mode.** `[hints.hotkeys]`, `[grid.hotkeys]`, and the
      rest hold the keys that work while the mode is open, such as Shift+L
      for a click or Tab to cycle. Same merging rules.
-   - **Hints that miss elements.** Run `neru hints --debug` in the app
-     first. A role missing from the sample goes into
+   - **Hints that miss elements.** Run `sleep 3; neru query hints` and
+     switch to the app first. A role missing from the list goes into
      `hints.clickable_roles`, checked against `neru roles --explain`. An
      app whose tree is empty gets `strategy = "vision"` or `"contour"`,
      globally or under `[[hints.app_configs]]` with its `bundle_id`. The

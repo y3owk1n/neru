@@ -124,6 +124,10 @@ func (h *InfoHandler) RegisterHandlers(
 	handlers[domain.CommandReloadConfig] = h.handleReloadConfig
 	handlers[domain.CommandHealth] = h.handleHealth
 	handlers[domain.CommandConfigSet] = h.handleConfigSet
+	handlers[domain.CommandQueryDisplays] = h.handleQueryDisplays
+	handlers[domain.CommandQueryCursor] = h.handleQueryCursor
+	handlers[domain.CommandQueryWindow] = h.handleQueryWindow
+	handlers[domain.CommandQueryApp] = h.handleQueryApp
 }
 
 // ResolveConfigPath determines the configuration file path for status reporting.

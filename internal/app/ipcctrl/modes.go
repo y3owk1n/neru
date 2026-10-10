@@ -40,7 +40,7 @@ func (h *ModesHandler) RegisterHandlers(
 		handlers[domain.ModeString(mode)] = h.activationHandler(mode, activated)
 	}
 
-	handlers[domain.CommandHintsProbe] = h.handleHintsProbe
+	handlers[domain.CommandQueryHints] = h.handleQueryHints
 	handlers[domain.CommandToggleCursorFollowSelection] = h.handleToggleCursorFollowSelection
 }
 

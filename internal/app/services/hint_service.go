@@ -77,6 +77,9 @@ func NewHintService(
 // drawing them, so mode handlers can filter and position hints before the
 // first render. A non-empty bundleID skips the AX lookup; non-empty overrides
 // win over the config-derived strategy and label direction.
+//
+// When a capture strategy's detection fails, it keeps what else it collected
+// and says so in the log, so the mode still opens on the system surfaces.
 func (s *HintService) GenerateHints(
 	ctx context.Context,
 	filterRoles []string,
@@ -87,80 +90,24 @@ func (s *HintService) GenerateHints(
 	labelDirectionOverride string,
 	splitWord bool,
 ) ([]*hint.Interface, error) {
-	// This read must not be widened to span the strategy switch below: the
-	// vision branch takes s.mu for writing (notifyVisionUnavailable), and a
-	// sync.RWMutex is neither reentrant nor upgradable, so a read lock still
-	// held there would deadlock this goroutine against itself.
-	s.mu.RLock()
-	cfg := s.config
-	s.mu.RUnlock()
+	return s.generate(ctx, filterRoles, filterTextContains, bundleID,
+		strategyOverride, captureScopeOverride, labelDirectionOverride, splitWord, false)
+}
 
-	if bundleID == "" {
-		var bundleIDErr error
-
-		bundleID, bundleIDErr = s.accessibility.FocusedAppBundleID(ctx)
-		if bundleIDErr != nil {
-			s.logger.Debug(
-				"Failed to get focused app bundle ID for hints roles",
-				zap.Error(bundleIDErr),
-			)
-		}
-	}
-
-	filter, usable := s.hintFilter(cfg, bundleID, filterRoles, filterTextContains)
-	if !usable {
-		return nil, nil
-	}
-
-	strategy := cfg.StrategyForApp(bundleID)
-	if strategyOverride != "" {
-		strategy = strategyOverride
-	}
-
-	captureScope := cfg.CaptureScopeForApp(bundleID)
-	if captureScopeOverride != "" {
-		captureScope = captureScopeOverride
-	}
-
-	labelDirection := cfg.LabelDirectionForApp(bundleID)
-	if labelDirectionOverride != "" {
-		labelDirection = labelDirectionOverride
-	}
-
-	if splitWord && strategy != domain.StrategyVision {
-		return nil, derrors.New(
-			derrors.CodeInvalidInput,
-			"--split-word is only supported when resolved strategy is 'vision'",
-		)
-	}
-
-	var (
-		elements []*element.Element
-		genErr   error
-	)
-
-	switch strategy {
-	case domain.StrategyVision:
-		elements = s.generateHintsVision(ctx, filter, captureScope, splitWord)
-	case domain.StrategyContour:
-		elements = s.generateHintsContour(ctx, filter, captureScope, cfg.Contour)
-	default:
-		elements, genErr = s.generateHintsAX(ctx, filter)
-	}
-
-	if genErr != nil {
-		return nil, genErr
-	}
-
-	if len(elements) == 0 {
-		s.logger.Debug("No clickable elements found")
-
-		return nil, nil
-	}
-
-	s.logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
-
-	return s.labelElements(ctx, elements, labelDirection)
+// ProbeHints is GenerateHints for a caller that reports the hints rather than
+// draws them. It returns a capture strategy's failed detection instead of
+// degrading, so a scan that failed cannot read as one that found nothing.
+func (s *HintService) ProbeHints(
+	ctx context.Context,
+	filterRoles []string,
+	filterTextContains []string,
+	bundleID string,
+	strategyOverride string,
+	captureScopeOverride string,
+	splitWord bool,
+) ([]*hint.Interface, error) {
+	return s.generate(ctx, filterRoles, filterTextContains, bundleID,
+		strategyOverride, captureScopeOverride, "", splitWord, true)
 }
 
 // RefreshHints updates the hint display (e.g., after screen changes).
@@ -243,6 +190,105 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 	s.logger.Debug("Hint generator updated", zap.String("direction", direction))
 }
 
+// generate is GenerateHints, with strict choosing whether a capture strategy's
+// detection failure is returned or degraded.
+func (s *HintService) generate(
+	ctx context.Context,
+	filterRoles []string,
+	filterTextContains []string,
+	bundleID string,
+	strategyOverride string,
+	captureScopeOverride string,
+	labelDirectionOverride string,
+	splitWord bool,
+	strict bool,
+) ([]*hint.Interface, error) {
+	// This read must not be widened to span the strategy switch below: a
+	// failed capture takes s.mu for writing (degradeCapture, through
+	// notifyVisionUnavailable), and a sync.RWMutex is neither reentrant nor
+	// upgradable, so a read lock still held there would deadlock this goroutine
+	// against itself.
+	s.mu.RLock()
+	cfg := s.config
+	s.mu.RUnlock()
+
+	if bundleID == "" {
+		var bundleIDErr error
+
+		bundleID, bundleIDErr = s.accessibility.FocusedAppBundleID(ctx)
+		if bundleIDErr != nil {
+			s.logger.Debug(
+				"Failed to get focused app bundle ID for hints roles",
+				zap.Error(bundleIDErr),
+			)
+		}
+	}
+
+	filter, usable := s.hintFilter(cfg, bundleID, filterRoles, filterTextContains)
+	if !usable {
+		return nil, nil
+	}
+
+	strategy := cfg.StrategyForApp(bundleID)
+	if strategyOverride != "" {
+		strategy = strategyOverride
+	}
+
+	captureScope := cfg.CaptureScopeForApp(bundleID)
+	if captureScopeOverride != "" {
+		captureScope = captureScopeOverride
+	}
+
+	labelDirection := cfg.LabelDirectionForApp(bundleID)
+	if labelDirectionOverride != "" {
+		labelDirection = labelDirectionOverride
+	}
+
+	if splitWord && strategy != domain.StrategyVision {
+		return nil, derrors.New(
+			derrors.CodeInvalidInput,
+			"--split-word is only supported when resolved strategy is 'vision'",
+		)
+	}
+
+	var (
+		elements   []*element.Element
+		genErr     error
+		captureErr error
+	)
+
+	switch strategy {
+	case domain.StrategyVision:
+		elements, captureErr = s.generateHintsVision(ctx, filter, captureScope, splitWord)
+	case domain.StrategyContour:
+		elements, captureErr = s.generateHintsContour(ctx, filter, captureScope, cfg.Contour)
+	default:
+		elements, genErr = s.generateHintsAX(ctx, filter)
+	}
+
+	if genErr != nil {
+		return nil, genErr
+	}
+
+	if captureErr != nil {
+		if strict {
+			return nil, captureErr
+		}
+
+		s.degradeCapture(ctx, strategy, captureErr)
+	}
+
+	if len(elements) == 0 {
+		s.logger.Debug("No clickable elements found")
+
+		return nil, nil
+	}
+
+	s.logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
+
+	return s.labelElements(ctx, elements, labelDirection)
+}
+
 // generateHintsAX collects elements using the AX tree (default strategy).
 func (s *HintService) generateHintsAX(
 	ctx context.Context,
@@ -271,18 +317,18 @@ func (s *HintService) generateHintsVision(
 	filter ports.ElementFilter,
 	captureScope string,
 	splitWord bool,
-) []*element.Element {
+) ([]*element.Element, error) {
 	allElements := s.supplementaryElements(ctx, filter)
 
 	if s.vision == nil {
 		s.logger.Warn("Vision strategy selected but vision port is unavailable")
 
-		return allElements
+		return allElements, nil
 	}
 
 	windowBounds, ok := s.resolveDetectionBounds(ctx, captureScope)
 	if !ok {
-		return allElements
+		return allElements, nil
 	}
 
 	// Detect window elements via vision
@@ -295,19 +341,7 @@ func (s *HintService) generateHintsVision(
 		splitWord,
 	)
 	if visionErr != nil {
-		s.logger.Warn("Failed to detect elements via vision", zap.Error(visionErr))
-
-		// CodeNotSupported here means the machine cannot run this strategy at
-		// all, and the error names what to install or which display server has
-		// no path. That has to reach a person: what a user otherwise sees is an
-		// overlay with nothing on it, because the supplementary elements kept
-		// above are macOS surfaces with no counterpart elsewhere, and a log
-		// line reaches nobody (ADR 0002). Transient failures stay in the log.
-		if derrors.IsNotSupported(visionErr) {
-			s.notifyVisionUnavailable(ctx, visionErr.Error())
-		}
-
-		return allElements
+		return allElements, visionErr
 	}
 
 	s.logger.Debug("Vision detection finished",
@@ -327,7 +361,7 @@ func (s *HintService) generateHintsVision(
 		}
 	}
 
-	return allElements
+	return allElements, nil
 }
 
 // supplementaryElements collects the system surfaces the include_* options
@@ -367,18 +401,18 @@ func (s *HintService) generateHintsContour(
 	filter ports.ElementFilter,
 	captureScope string,
 	cfg config.HintsContourConfig,
-) []*element.Element {
+) ([]*element.Element, error) {
 	allElements := s.supplementaryElements(ctx, filter)
 
 	if s.vision == nil {
 		s.logger.Warn("Contour strategy selected but vision port is unavailable")
 
-		return allElements
+		return allElements, nil
 	}
 
 	windowBounds, ok := s.resolveDetectionBounds(ctx, captureScope)
 	if !ok {
-		return allElements
+		return allElements, nil
 	}
 
 	contourCtx, cancel := context.WithTimeout(
@@ -391,20 +425,31 @@ func (s *HintService) generateHintsContour(
 
 	elements, err := s.vision.DetectContours(contourCtx, windowBounds, cfg)
 	if err != nil {
-		s.logger.Warn("Failed to detect elements via contour", zap.Error(err))
-
-		if derrors.IsNotSupported(err) {
-			s.notifyVisionUnavailable(ctx, err.Error())
-		}
-
-		return allElements
+		return allElements, err
 	}
 
 	s.logger.Debug("Contour detection finished",
 		zap.Duration("duration", time.Since(contourStart)),
 		zap.Int("count", len(elements)))
 
-	return append(allElements, elements...)
+	return append(allElements, elements...), nil
+}
+
+// degradeCapture lets hints mode open after a capture strategy's detection
+// fails. The caller keeps what else it collected, and this logs the failure.
+//
+// CodeNotSupported means the machine cannot run this strategy at all, and the
+// error names what to install or which display server has no path. That has
+// to reach a person: what a user otherwise sees is an overlay with nothing on
+// it, because the supplementary elements kept are macOS surfaces with no
+// counterpart elsewhere, and a log line reaches nobody (ADR 0002). Transient
+// failures stay in the log.
+func (s *HintService) degradeCapture(ctx context.Context, strategy string, err error) {
+	s.logger.Warn("Failed to detect elements", zap.String("strategy", strategy), zap.Error(err))
+
+	if derrors.IsNotSupported(err) {
+		s.notifyVisionUnavailable(ctx, err.Error())
+	}
 }
 
 // resolveDetectionBounds is the region a screen-capture strategy scans: the

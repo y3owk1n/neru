@@ -36,7 +36,7 @@ import (
 // What it holds is for settling the keymap, and is stale by however long the
 // watcher took to notice. A caller that needs the truth about the focused app
 // asks the accessibility service with its own context, as hint collection and
-// the hints debug probe do.
+// the hints probe do.
 type focusedAppCell struct {
 	// identifier is nil until something publishes. A platform with no focus
 	// watcher never does; macOS publishes when the user first switches

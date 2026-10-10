@@ -46,9 +46,8 @@ var HintsCmd = BuildModeCommand(ModeConfig{
   Use --split-word to split detected text into word-level regions (requires
   vision strategy).
 
-  Use --debug to probe the focused window and print the clickable elements
-  that would be hinted (count plus a sample) without showing the overlay.
-  This is handy for verifying the platform accessibility pipeline.
+  To list what hints would label without showing the overlay, run
+  'neru query hints'.
 
   Use --label-direction to override the configured hint label enumeration
   for this activation. "normal" (default) uses the prefix-avoidance
@@ -67,10 +66,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     neru hints --strategy contour           Detect buttons and icons via contour analysis
     neru hints --strategy contour --capture-scope screen  Hint the whole screen, not just the window
     neru hints --strategy vision --split-word  Use vision strategy with word-level splitting
-    neru hints --debug                       Print detected elements, no overlay (used on windows),
     neru hints --label-direction reverse     Use spread labels for this run`,
-
-	SupportDebug: true,
 })
 
 func init() {
