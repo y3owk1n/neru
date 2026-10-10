@@ -46,12 +46,13 @@ type cachingSystem struct {
 
 	synced  int
 	settled int
+	syncErr error
 }
 
 func (s *cachingSystem) SyncCursorPosition(context.Context) error {
 	s.synced++
 
-	return nil
+	return s.syncErr
 }
 
 func (s *cachingSystem) SettleCursor(context.Context) error {
@@ -293,6 +294,29 @@ func TestInfoHandler_QueryApp_ReportsWhatPerAppConfigMatches(t *testing.T) {
 	want := ipc.AppData{BundleID: "com.apple.Safari"}
 	if !reflect.DeepEqual(resp.Data, want) {
 		t.Errorf("data = %+v, want %+v", resp.Data, want)
+	}
+}
+
+// TestInfoHandler_QueryCursor_FailsWhenTheRefreshFails pins that a query never
+// answers with a cached position it could not refresh, since a script reading
+// it to tell whether the user moved the mouse would be told they did not.
+func TestInfoHandler_QueryCursor_FailsWhenTheRefreshFails(t *testing.T) {
+	t.Parallel()
+
+	system := &cachingSystem{
+		MockSystemPort: &portmocks.MockSystemPort{
+			ScreensFunc: func(context.Context) ([]ports.Screen, error) { return twoDisplays(), nil },
+		},
+		syncErr: errCompositorSilent,
+	}
+
+	resp := query(t, system, domain.CommandQueryCursor)
+	if resp.Success {
+		t.Fatalf("query cursor succeeded with a refresh that failed: %+v", resp.Data)
+	}
+
+	if resp.Code != ipc.CodeActionFailed {
+		t.Errorf("code = %s, want %s", resp.Code, ipc.CodeActionFailed)
 	}
 }
 

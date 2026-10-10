@@ -33,14 +33,13 @@ func (h *Handler) ProbeHints(
 		return nil, boundsErr
 	}
 
-	generated, genErr := h.hintService.GenerateHints(
+	generated, genErr := h.hintService.ProbeHints(
 		ctx,
 		filterRoles,
 		filterTextContains,
 		bundleID,
 		strategy,
 		captureScope,
-		"", // labelDirectionOverride: probe uses the configured default
 		splitWord,
 	)
 	if genErr != nil {

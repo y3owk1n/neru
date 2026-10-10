@@ -279,7 +279,13 @@ func (s *ActionService) CursorPositionForAction(ctx context.Context) (image.Poin
 		}
 	}
 
-	s.syncCursorCache(ctx)
+	err := s.syncCursorCache(ctx)
+	if err != nil {
+		s.logger.Warn(
+			"Failed to sync cursor position; action target may be stale",
+			zap.Error(err),
+		)
+	}
 
 	return s.system.CursorPosition(ctx)
 }
@@ -287,10 +293,13 @@ func (s *ActionService) CursorPositionForAction(ctx context.Context) (image.Poin
 // ObservedCursorPosition returns the cursor position for a caller that reports
 // it rather than acts on it. It refreshes the platform's cursor cache as
 // CursorPositionForAction does, so a mouse moved by hand on Wayland is reported
-// where it is now. It never settles an animation, so asking does not cut a
-// glide short.
+// where it is now. It returns a failed refresh rather than the cached position.
+// It never settles an animation, so asking does not cut a glide short.
 func (s *ActionService) ObservedCursorPosition(ctx context.Context) (image.Point, error) {
-	s.syncCursorCache(ctx)
+	err := s.syncCursorCache(ctx)
+	if err != nil {
+		return image.Point{}, err
+	}
 
 	return s.system.CursorPosition(ctx)
 }
@@ -458,21 +467,17 @@ func (s *ActionService) MoveMouseToCenterOfWindow(
 }
 
 // syncCursorCache refreshes the platform's cursor cache where it keeps one
-// (ports.CursorSynchronizer), bounded by cursorSyncTimeout. A failed refresh
-// degrades to the cached position.
-func (s *ActionService) syncCursorCache(ctx context.Context) {
+// (ports.CursorSynchronizer), bounded by cursorSyncTimeout.
+func (s *ActionService) syncCursorCache(ctx context.Context) error {
 	syncer, ok := s.system.(ports.CursorSynchronizer)
 	if !ok {
-		return
+		return nil
 	}
 
 	syncCtx, cancel := context.WithTimeout(ctx, cursorSyncTimeout)
 	defer cancel()
 
-	err := syncer.SyncCursorPosition(syncCtx)
-	if err != nil {
-		s.logger.Warn("Failed to sync cursor position; it may be stale", zap.Error(err))
-	}
+	return syncer.SyncCursorPosition(syncCtx)
 }
 
 func (s *ActionService) drawMouseActionIndicator(point image.Point, actionType action.Type) {

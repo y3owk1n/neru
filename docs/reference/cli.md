@@ -171,6 +171,9 @@ platform enumerates them.
 | `scale`                     | number | Physical pixels per apparent unit. The display's DPI scale on Windows and X11, and `1` on macOS and Wayland, whose bounds are already logical. |
 
 `neru query cursor` prints the cursor position and the display holding it.
+Where Neru caches the position, as on Wayland, it refreshes it first, and
+fails with `ERR_ACTION_FAILED` rather than report a position it could not
+refresh.
 
 ```json
 {"x":812,"y":440,"display":"Built-in Retina Display","display_index":0}
@@ -212,7 +215,8 @@ window, without drawing the overlay or entering the mode. It takes the
 `--strategy`, `--capture-scope` and `--split-word`. Like `query app`, it
 reports the terminal when run from one. Unlike the other queries, it does not
 answer while Neru is stopped, because the `vision` and `contour` strategies
-capture the screen.
+capture the screen. When one of those scans fails, the query fails with its
+error, where hints mode would open on what else it found.
 
 ```json
 {"hints":[{"role":"ax:AXButton","title":"","description":"Back","value":"","x":100,"y":38,"width":44,"height":52}]}

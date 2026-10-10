@@ -291,6 +291,55 @@ func TestHintService_GenerateHintsVisionNotifiesWhenTheStrategyIsUnavailable(t *
 	}
 }
 
+// TestHintService_ProbeHints_ReturnsAFailedCaptureDetection pins the other
+// half. A caller that reports the hints learns the scan failed, in the code it
+// failed with, instead of getting what else was collected as if the scan had
+// found nothing. A report has no overlay for the user to wonder about, so it
+// notifies nobody.
+func TestHintService_ProbeHints_ReturnsAFailedCaptureDetection(t *testing.T) {
+	for _, strategy := range []string{domain.StrategyVision, domain.StrategyContour} {
+		t.Run(strategy, func(t *testing.T) {
+			notified := make(chan string, 1)
+
+			mockSystem := &mocks.MockSystemPort{}
+			mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rect(0, 0, 200, 200), true, nil
+			}
+			mockSystem.ShowNotificationFunc = func(_ context.Context, _, message string) error {
+				notified <- message
+
+				return nil
+			}
+
+			generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+			service := services.NewHintService(
+				&mocks.MockAccessibilityPort{},
+				&mocks.MockOverlayPort{},
+				mockSystem,
+				generator,
+				config.HintsConfig{},
+				logger.Get(),
+				&mockVisionPort{
+					detectErr: derrors.New(derrors.CodeNotSupported, "no language data"),
+				},
+			)
+
+			_, err := service.ProbeHints(
+				context.Background(), nil, nil, "com.example.app", strategy, "", false,
+			)
+			if !derrors.IsNotSupported(err) {
+				t.Fatalf("ProbeHints() error = %v, want the detection's CodeNotSupported", err)
+			}
+
+			select {
+			case message := <-notified:
+				t.Errorf("a probe notified the user: %q", message)
+			case <-time.After(200 * time.Millisecond):
+			}
+		})
+	}
+}
+
 // TestHintService_GenerateHintsVisionNoticeSurvivesTheActivationContext is the
 // regression test for the way this notification is easiest to lose.
 //
