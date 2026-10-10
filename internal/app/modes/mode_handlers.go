@@ -65,6 +65,7 @@ func (h *handlerState) executeActionAtPoint(
 	// This enables multi-click sequences like --action left_click,left_click
 	// which produce a double-click via the native click-counting layer.
 	actions := strings.Split(*actionStr, ",")
+	performed := make([]string, 0, len(actions))
 	actionPerformed := false
 	chainFailed := false
 
@@ -94,6 +95,8 @@ func (h *handlerState) executeActionAtPoint(
 
 			break
 		}
+
+		performed = append(performed, trimmed)
 
 		// Track whether any action was a click (not a move-mouse action)
 		// so handleCursorRestoration can insert a settling delay.
@@ -128,6 +131,7 @@ func (h *handlerState) executeActionAtPoint(
 		h.appState.SetModeExitReason(state.ModeExitReasonCancelled)
 	} else {
 		h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
+		h.exitAction = strings.Join(performed, ",")
 	}
 
 	// Capture the mode's --on-exit action before exitMode clears the

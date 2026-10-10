@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
@@ -265,6 +266,7 @@ func (h *handlerState) scheduleModifierToggle(mod action.Modifiers, downTime tim
 		delete(h.pendingModifierTimers, mod)
 		newModifiers := h.modifierState.Toggle(mod)
 		isDownNow := newModifiers.Has(mod)
+		h.publishStickyModifiers(newModifiers)
 
 		modName := ""
 		switch mod {
@@ -334,6 +336,16 @@ func (h *handlerState) clearStickyModifiers() {
 
 	h.modifierState.Reset()
 	h.heldModifiers = 0
+
+	if mods != 0 {
+		h.publishStickyModifiers(0)
+	}
+}
+
+// publishStickyModifiers reports the sticky modifiers now held. Caller holds
+// h.mu, which orders the reports as the changes applied.
+func (h *handlerState) publishStickyModifiers(mods action.Modifiers) {
+	h.events.Publish(event.Event{Name: event.StickyModifiers, Modifiers: mods.Canonical()})
 }
 
 func (h *handlerState) cancelPendingModifierToggle() {

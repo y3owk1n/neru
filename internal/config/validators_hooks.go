@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
@@ -10,8 +11,9 @@ func HookField(name event.Name) string {
 }
 
 // ValidateHooks checks every hook's steps, and warns when a Mission Control
-// hook is set but the detection that fires it is off, or is written under
-// [hints], where it is deprecated.
+// or sticky modifier hook is set but the feature that fires it is off, when a
+// quit hook holds a step that is not exec, or a Mission Control hook is
+// written under [hints], where it is deprecated.
 func (c *Config) ValidateHooks(warnings *Warnings) error {
 	for _, name := range event.All() {
 		err := validateHookSteps(HookField(name), c.Hooks.Steps(name))
@@ -26,6 +28,18 @@ func (c *Config) ValidateHooks(warnings *Warnings) error {
 		warnings.Addf(
 			"hooks.on_mission_control_activated/deactivated never run while " +
 				"hints.detect_mission_control is false",
+		)
+	}
+
+	for index, step := range c.Hooks.OnQuit {
+		if !action.IsExecStep(step) {
+			warnings.Addf("hooks.on_quit step %d never runs: only exec steps run on quit", index+1)
+		}
+	}
+
+	if len(c.Hooks.OnStickyModifiers) > 0 && !c.StickyModifiers.Enabled {
+		warnings.Addf(
+			"hooks.on_sticky_modifiers never runs while sticky_modifiers.enabled is false",
 		)
 	}
 

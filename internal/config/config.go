@@ -344,6 +344,15 @@ type HooksConfig struct {
 	OnConfigReload              StringOrStringArray `json:"onConfigReload"              toml:"on_config_reload"`
 	OnMissionControlActivated   StringOrStringArray `json:"onMissionControlActivated"   toml:"on_mission_control_activated"`
 	OnMissionControlDeactivated StringOrStringArray `json:"onMissionControlDeactivated" toml:"on_mission_control_deactivated"`
+	OnScrollInvert              StringOrStringArray `json:"onScrollInvert"              toml:"on_scroll_invert"`
+	OnScreenShareHide           StringOrStringArray `json:"onScreenShareHide"           toml:"on_screen_share_hide"`
+	OnCursorSave                StringOrStringArray `json:"onCursorSave"                toml:"on_cursor_save"`
+	OnCursorRestore             StringOrStringArray `json:"onCursorRestore"             toml:"on_cursor_restore"`
+	OnStickyModifiers           StringOrStringArray `json:"onStickyModifiers"           toml:"on_sticky_modifiers"`
+	OnMonitorMove               StringOrStringArray `json:"onMonitorMove"               toml:"on_monitor_move"`
+	OnScreenChange              StringOrStringArray `json:"onScreenChange"              toml:"on_screen_change"`
+	OnReady                     StringOrStringArray `json:"onReady"                     toml:"on_ready"`
+	OnQuit                      StringOrStringArray `json:"onQuit"                      toml:"on_quit"`
 }
 
 // Steps returns the steps the hook for name runs, and nil when none are set.
@@ -365,6 +374,24 @@ func (h HooksConfig) Steps(name event.Name) StringOrStringArray {
 		return h.OnMissionControlActivated
 	case event.MissionControlDeactivated:
 		return h.OnMissionControlDeactivated
+	case event.ScrollInvert:
+		return h.OnScrollInvert
+	case event.ScreenShareHide:
+		return h.OnScreenShareHide
+	case event.CursorSave:
+		return h.OnCursorSave
+	case event.CursorRestore:
+		return h.OnCursorRestore
+	case event.StickyModifiers:
+		return h.OnStickyModifiers
+	case event.MonitorMove:
+		return h.OnMonitorMove
+	case event.ScreenChange:
+		return h.OnScreenChange
+	case event.Ready:
+		return h.OnReady
+	case event.Quit:
+		return h.OnQuit
 	}
 
 	return nil

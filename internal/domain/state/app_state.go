@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
 // ModeExitReason indicates how the most recent mode was exited.
@@ -42,6 +43,11 @@ type AppState struct {
 	screenShareStateCallbacks  map[uint64]func(bool)
 	scrollInvertStateCallbacks map[uint64]func(bool)
 	nextCallbackID             uint64
+
+	// events announces the screen-share and scroll-invert switches. Each is
+	// published under mu, so two racing switches reach subscribers in the
+	// order they applied.
+	events *event.Bus
 
 	// Operational flags
 	hotkeysRegistered        bool
@@ -185,11 +191,24 @@ func (s *AppState) IsHiddenForScreenShare() bool {
 	return s.hiddenForScreenShare
 }
 
+// PublishTo sets the bus the screen-share and scroll-invert switches are
+// published on. Call it before anything switches either.
+func (s *AppState) PublishTo(bus *event.Bus) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.events = bus
+}
+
 // SetHiddenForScreenShare sets whether the overlay should be hidden from screen sharing.
 func (s *AppState) SetHiddenForScreenShare(hidden bool) {
 	s.mu.Lock()
 	oldHidden := s.hiddenForScreenShare
 	s.hiddenForScreenShare = hidden
+
+	if oldHidden != hidden {
+		s.events.Publish(event.Event{Name: event.ScreenShareHide, On: hidden})
+	}
 	// Copy callbacks to slice for iteration outside lock
 	callbacks := make([]func(bool), 0, len(s.screenShareStateCallbacks))
 	for _, cb := range s.screenShareStateCallbacks {
@@ -216,6 +235,7 @@ func (s *AppState) ToggleHiddenForScreenShare() bool {
 	oldHidden := s.hiddenForScreenShare
 	s.hiddenForScreenShare = !oldHidden
 	newHidden := s.hiddenForScreenShare
+	s.events.Publish(event.Event{Name: event.ScreenShareHide, On: newHidden})
 
 	// Copy callbacks to slice for iteration outside lock
 	callbacks := make([]func(bool), 0, len(s.screenShareStateCallbacks))
@@ -278,6 +298,10 @@ func (s *AppState) SetScrollInverted(inverted bool) {
 	oldInverted := s.scrollInverted
 	s.scrollInverted = inverted
 
+	if oldInverted != inverted {
+		s.events.Publish(event.Event{Name: event.ScrollInvert, On: inverted})
+	}
+
 	callbacks := make([]func(bool), 0, len(s.scrollInvertStateCallbacks))
 	for _, cb := range s.scrollInvertStateCallbacks {
 		callbacks = append(callbacks, cb)
@@ -301,6 +325,7 @@ func (s *AppState) ToggleScrollInverted() bool {
 	oldInverted := s.scrollInverted
 	s.scrollInverted = !oldInverted
 	newInverted := s.scrollInverted
+	s.events.Publish(event.Event{Name: event.ScrollInvert, On: newInverted})
 
 	// Copy callbacks to slice for iteration outside lock
 	callbacks := make([]func(bool), 0, len(s.scrollInvertStateCallbacks))

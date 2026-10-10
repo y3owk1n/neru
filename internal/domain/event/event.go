@@ -1,12 +1,15 @@
 package event
 
+import "image"
+
 // Name names one kind of event.
 type Name string
 
 const (
 	// ModeEnter is a mode becoming the active one. Mode names it.
 	ModeEnter Name = "mode_enter"
-	// ModeExit is the active mode closing. Mode and Reason say which and why.
+	// ModeExit is the active mode closing. Mode and Reason say which and why,
+	// and Action names the action a completed mode ran, when it ran one.
 	ModeExit Name = "mode_exit"
 	// AppFocus is another application coming to the front. BundleID names it.
 	AppFocus Name = "app_focus"
@@ -21,6 +24,29 @@ const (
 	MissionControlActivated Name = "mission_control_activated"
 	// MissionControlDeactivated is Mission Control closing. macOS only.
 	MissionControlDeactivated Name = "mission_control_deactivated"
+	// ScrollInvert is scroll inversion switching. On says which way.
+	ScrollInvert Name = "scroll_invert"
+	// ScreenShareHide is hiding the overlay from screen shares switching. On
+	// says which way.
+	ScreenShareHide Name = "screen_share_hide"
+	// CursorSave is a cursor position saved. Slot and Point say where.
+	CursorSave Name = "cursor_save"
+	// CursorRestore is a saved cursor position taken for a restore, which
+	// empties its slot. Slot names it.
+	CursorRestore Name = "cursor_restore"
+	// StickyModifiers is the set of sticky modifiers changing. Modifiers is the
+	// set now, empty when none is held.
+	StickyModifiers Name = "sticky_modifiers"
+	// MonitorMove is the cursor moving to another display through
+	// move_monitor or monitor_select. Monitor names the display.
+	MonitorMove Name = "monitor_move"
+	// ScreenChange is the displays changing, such as on a dock, an undock or a
+	// wake.
+	ScreenChange Name = "screen_change"
+	// Ready is the daemon having started and taking hotkeys.
+	Ready Name = "ready"
+	// Quit is the daemon starting to shut down.
+	Quit Name = "quit"
 )
 
 // All returns every event name, in the order the hooks table lists them.
@@ -34,6 +60,15 @@ func All() []Name {
 		ConfigReload,
 		MissionControlActivated,
 		MissionControlDeactivated,
+		ScrollInvert,
+		ScreenShareHide,
+		CursorSave,
+		CursorRestore,
+		StickyModifiers,
+		MonitorMove,
+		ScreenChange,
+		Ready,
+		Quit,
 	}
 }
 
@@ -59,9 +94,15 @@ type Event struct {
 	// has seen may be stale.
 	Dropped uint64
 
-	Name     Name
-	Mode     string
-	Reason   ExitReason
-	BundleID string
-	OK       bool
+	Name      Name
+	Mode      string
+	Reason    ExitReason
+	Action    string
+	BundleID  string
+	OK        bool
+	On        bool
+	Slot      string
+	Point     image.Point
+	Modifiers string
+	Monitor   string
 }

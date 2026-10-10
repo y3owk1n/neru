@@ -192,3 +192,87 @@ func TestController_HandleWatch_RefusesWithoutABus(t *testing.T) {
 		t.Errorf("HandleWatch() = %v, want not supported", err)
 	}
 }
+
+// TestController_HandleWatch_SendsTheFieldsEachEventCarries pins the line for
+// every event that carries a field, including the ones whose zero value is
+// the answer: inversion off, a cursor saved at the origin, and no sticky
+// modifiers held.
+func TestController_HandleWatch_SendsTheFieldsEachEventCarries(t *testing.T) {
+	tests := []struct {
+		name string
+		evt  event.Event
+		want map[string]any
+	}{
+		{
+			name: "completed exit names its action",
+			evt: event.Event{
+				Name: event.ModeExit, Mode: actionHints,
+				Reason: event.ExitCompleted, Action: "move_mouse",
+			},
+			want: map[string]any{
+				"mode":   actionHints,
+				"reason": "completed",
+				"action": "move_mouse",
+			},
+		},
+		{
+			name: "toggle switched off",
+			evt:  event.Event{Name: event.ScrollInvert, On: false},
+			want: map[string]any{"on": false},
+		},
+		{
+			name: "cursor saved at the origin",
+			evt:  event.Event{Name: event.CursorSave, Slot: "default"},
+			want: map[string]any{"slot": "default", "x": float64(0), "y": float64(0)},
+		},
+		{
+			name: "cursor restored",
+			evt:  event.Event{Name: event.CursorRestore, Slot: "back"},
+			want: map[string]any{"slot": "back"},
+		},
+		{
+			name: "sticky modifiers released",
+			evt:  event.Event{Name: event.StickyModifiers},
+			want: map[string]any{"modifiers": ""},
+		},
+		{
+			name: "monitor moved",
+			evt:  event.Event{Name: event.MonitorMove, Monitor: "DELL U2720Q"},
+			want: map[string]any{"monitor": "DELL U2720Q"},
+		},
+		{
+			name: "screen changed",
+			evt:  event.Event{Name: event.ScreenChange},
+			want: map[string]any{},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			bus := event.NewBus(nil)
+			lines, _ := watchLines(t.Context(), t, watchController(bus), nil)
+			nextLine(t, lines)
+
+			bus.Publish(testCase.evt)
+
+			line := nextLine(t, lines)
+			delete(line, "seq")
+
+			if line["event"] != string(testCase.evt.Name) {
+				t.Fatalf("line = %v, want event %s", line, testCase.evt.Name)
+			}
+
+			delete(line, "event")
+
+			if len(line) != len(testCase.want) {
+				t.Fatalf("line fields = %v, want exactly %v", line, testCase.want)
+			}
+
+			for key, value := range testCase.want {
+				if line[key] != value {
+					t.Errorf("line[%q] = %v, want %v", key, line[key], value)
+				}
+			}
+		})
+	}
+}

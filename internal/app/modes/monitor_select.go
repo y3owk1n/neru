@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
@@ -201,7 +202,11 @@ func (h *handlerState) confirmMonitorSelect(target *monitorSelectTarget) {
 			h.logger.Error("Failed to move cursor to selected monitor",
 				zap.Error(err),
 			)
+
+			return
 		}
+
+		h.events.Publish(event.Event{Name: event.MonitorMove, Monitor: target.Name})
 	}()
 }
 

@@ -332,6 +332,15 @@ func defaultHooks() HooksConfig {
 		OnConfigReload:              nil,
 		OnMissionControlActivated:   nil,
 		OnMissionControlDeactivated: nil,
+		OnScrollInvert:              nil,
+		OnScreenShareHide:           nil,
+		OnCursorSave:                nil,
+		OnCursorRestore:             nil,
+		OnStickyModifiers:           nil,
+		OnMonitorMove:               nil,
+		OnScreenChange:              nil,
+		OnReady:                     nil,
+		OnQuit:                      nil,
 	}
 }
 

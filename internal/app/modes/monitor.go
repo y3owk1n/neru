@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
@@ -139,6 +140,8 @@ func (h *Handler) moveCursorToMonitor(
 		zap.Int("x", center.X),
 		zap.Int("y", center.Y),
 	)
+
+	h.events.Publish(event.Event{Name: event.MonitorMove, Monitor: monitorName})
 
 	h.refreshActiveModeForMonitorMove(ctx, bounds)
 

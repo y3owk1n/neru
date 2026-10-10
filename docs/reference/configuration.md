@@ -246,6 +246,15 @@ on_config_reload = "exec [ \"$NERU_OK\" = true ] || say 'Neru config did not loa
 | `on_config_reload`               | string/array | none    | A config reload finishes, whether or not the new file loaded              |
 | `on_mission_control_activated`   | string/array | none    | Mission Control opens. macOS only, needs `hints.detect_mission_control`   |
 | `on_mission_control_deactivated` | string/array | none    | Mission Control closes. macOS only, needs `hints.detect_mission_control`  |
+| `on_scroll_invert`               | string/array | none    | Scroll inversion switches on or off                                       |
+| `on_screen_share_hide`           | string/array | none    | `toggle-screen-share` switches on or off. Only macOS hides the overlay    |
+| `on_cursor_save`                 | string/array | none    | `save_cursor_pos` saves a position                                        |
+| `on_cursor_restore`              | string/array | none    | `restore_cursor_pos` takes a saved position, which empties its slot       |
+| `on_sticky_modifiers`            | string/array | none    | A sticky modifier is armed or released. Needs `sticky_modifiers.enabled`  |
+| `on_monitor_move`                | string/array | none    | `move_monitor` or `monitor_select` moves the cursor to another display    |
+| `on_screen_change`               | string/array | none    | The displays change, such as on a dock, an undock or a wake               |
+| `on_ready`                       | string/array | none    | The daemon has started and takes hotkeys                                  |
+| `on_quit`                        | string/array | none    | The daemon starts to shut down. Runs `exec` steps only                    |
 
 A reload takes effect from the next event.
 
@@ -264,8 +273,14 @@ events that carry it.
 | `NERU_EVENT`     | every hook                      | The event, such as `mode_enter`                                  |
 | `NERU_MODE`      | `on_mode_enter`, `on_mode_exit` | The mode, named as `neru status` names it                        |
 | `NERU_REASON`    | `on_mode_exit`                  | `completed` after a selection, `switched` on the way into another mode, else `canceled` |
+| `NERU_ACTION`    | `on_mode_exit` when `completed` | The action the selection ran, such as `left_click`, or `left_click,left_click` for a chain. Unset when it ran none |
 | `NERU_BUNDLE_ID` | `on_app_focus`                  | The application, as [`bundle_id`](#app-identity-across-platforms-bundle_id) names it |
 | `NERU_OK`        | `on_config_reload`              | `true` or `false`                                                |
+| `NERU_ON`        | `on_scroll_invert`, `on_screen_share_hide` | `true` when switched on, else `false`                 |
+| `NERU_SLOT`      | `on_cursor_save`, `on_cursor_restore` | The cursor slot, `default` when none was named             |
+| `NERU_X`, `NERU_Y` | `on_cursor_save`              | The position saved                                               |
+| `NERU_MODIFIERS` | `on_sticky_modifiers`           | The set held now, such as `cmd,shift`, in the spelling `--modifier` takes. Empty when none is |
+| `NERU_MONITOR`   | `on_monitor_move`               | The display, as `move_monitor --name` takes it                   |
 
 Use them in the command as shell variables, in double quotes, such as
 `"$NERU_MODE"`. Neru passes them to the shell as environment variables and
@@ -288,9 +303,13 @@ of running as a command.
   `on_mode_exit = "hints"` with `on_mode_enter = "idle"`, are not caught and
   loop until the config changes.
 - While Neru is stopped, the only hooks that run are `on_enable`, `on_disable`,
-  and `on_mode_exit` for the mode the pause closed. Their `exec` steps run even
-  though Neru is stopped. Neru refuses their other steps, such as opening a
-  mode, until it starts.
+  `on_ready`, `on_quit`, and `on_mode_exit` for the mode the pause closed.
+  Their `exec` steps run even though Neru is stopped. Neru refuses their other
+  steps, such as opening a mode, until it starts.
+- `on_quit` runs before anything shuts down. Neru runs only its `exec` steps
+  and skips the rest, such as a step that opens a mode. `neru config validate`
+  warns about each step it will skip. Shutdown waits at most one second for
+  the hook, then continues without it.
 
 ## [general]
 
