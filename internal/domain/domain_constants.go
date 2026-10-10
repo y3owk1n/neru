@@ -69,6 +69,12 @@ const (
 	// CommandQueryCursor reports where the cursor is and which display holds
 	// it. `neru query cursor` is its CLI spelling.
 	CommandQueryCursor = "query-cursor"
+	// CommandQueryWindow reports the focused window's bounds. `neru query
+	// window` is its CLI spelling.
+	CommandQueryWindow = "query-window"
+	// CommandQueryApp reports the focused application as per-app config
+	// matches it. `neru query app` is its CLI spelling.
+	CommandQueryApp = "query-app"
 )
 
 // Mode-related constants.

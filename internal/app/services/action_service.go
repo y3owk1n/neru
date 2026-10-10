@@ -335,6 +335,12 @@ func (s *ActionService) Displays(ctx context.Context) ([]Display, error) {
 	return displays, nil
 }
 
+// FocusedWindowBounds returns the focused window's bounds, and false when no
+// window has focus. See ports.SystemPort.FocusedWindowBounds for its errors.
+func (s *ActionService) FocusedWindowBounds(ctx context.Context) (image.Rectangle, bool, error) {
+	return s.system.FocusedWindowBounds(ctx)
+}
+
 // ScreenBounds returns the bounds of the active screen.
 func (s *ActionService) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
 	return s.system.ScreenBounds(ctx)

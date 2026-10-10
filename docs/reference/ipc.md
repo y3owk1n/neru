@@ -49,8 +49,9 @@ anything else with `ERR_INVALID_INPUT`. `neru hints --debug` sends it.
 
 ## Querying
 
-`query-displays` and `query-cursor` take no `args` and return in `data` the
-objects [`neru query`](cli.md#neru-query) prints with `--json`.
+`query-displays`, `query-cursor`, `query-window` and `query-app` take no
+`args` and return in `data` the objects [`neru query`](cli.md#neru-query)
+prints with `--json`.
 
 ```json
 { "action": "query-cursor" }

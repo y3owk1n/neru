@@ -62,6 +62,7 @@ func (s *cachingSystem) SettleCursor(context.Context) error {
 
 func queryHandlers(
 	system ports.SystemPort,
+	accessibility ports.AccessibilityPort,
 ) map[string]func(context.Context, ipc.Command) ipc.Response {
 	cfg := config.DefaultConfig()
 	logger := zap.NewNop()
@@ -71,7 +72,7 @@ func queryHandlers(
 		AppState:      state.NewAppState(),
 		Config:        cfg,
 		ActionService: services.NewActionService(
-			&portmocks.MockAccessibilityPort{},
+			accessibility,
 			&portmocks.MockOverlayPort{},
 			system,
 			logger,
@@ -89,7 +90,18 @@ func queryHandlers(
 func query(t *testing.T, system ports.SystemPort, action string) ipc.Response {
 	t.Helper()
 
-	handle := queryHandlers(system)[action]
+	return queryWith(t, system, &portmocks.MockAccessibilityPort{}, action)
+}
+
+func queryWith(
+	t *testing.T,
+	system ports.SystemPort,
+	accessibility ports.AccessibilityPort,
+	action string,
+) ipc.Response {
+	t.Helper()
+
+	handle := queryHandlers(system, accessibility)[action]
 	if handle == nil {
 		t.Fatalf("no handler registered for %q", action)
 	}
@@ -219,6 +231,71 @@ func TestInfoHandler_QueryCursor_RefreshesTheCacheWithoutSettling(t *testing.T) 
 	}
 }
 
+func TestInfoHandler_QueryWindow_ReportsTheFocusedWindowOrNull(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		found bool
+		want  any
+	}{
+		{
+			name:  "a window has focus",
+			found: true,
+			want:  ipc.WindowData{X: 100, Y: 50, Width: 800, Height: 600},
+		},
+		// The desktop has focus. Asking worked, and the answer is no window.
+		{name: "no window has focus", found: false, want: nil},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			system := &portmocks.MockSystemPort{
+				FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+					if !testCase.found {
+						return image.Rectangle{}, false, nil
+					}
+
+					return image.Rect(100, 50, 900, 650), true, nil
+				},
+			}
+
+			resp := query(t, system, domain.CommandQueryWindow)
+			if !resp.Success {
+				t.Fatalf("query window failed: %s (%s)", resp.Message, resp.Code)
+			}
+
+			if !reflect.DeepEqual(resp.Data, testCase.want) {
+				t.Errorf("data = %+v, want %+v", resp.Data, testCase.want)
+			}
+		})
+	}
+}
+
+// TestInfoHandler_QueryApp_ReportsWhatPerAppConfigMatches pins that the query
+// reads the same identity per-app config is matched against.
+func TestInfoHandler_QueryApp_ReportsWhatPerAppConfigMatches(t *testing.T) {
+	t.Parallel()
+
+	accessibility := &portmocks.MockAccessibilityPort{
+		FocusedAppBundleIDFunc: func(context.Context) (string, error) {
+			return "com.apple.Safari", nil
+		},
+	}
+
+	resp := queryWith(t, &portmocks.MockSystemPort{}, accessibility, domain.CommandQueryApp)
+	if !resp.Success {
+		t.Fatalf("query app failed: %s (%s)", resp.Message, resp.Code)
+	}
+
+	want := ipc.AppData{BundleID: "com.apple.Safari"}
+	if !reflect.DeepEqual(resp.Data, want) {
+		t.Errorf("data = %+v, want %+v", resp.Data, want)
+	}
+}
+
 // TestInfoHandler_Query_TellsUnsupportedFromFailed pins the code a script
 // branches on: a platform with no way to answer says ERR_NOT_SUPPORTED, and a
 // query that failed this time says ERR_ACTION_FAILED.
@@ -268,6 +345,26 @@ func TestInfoHandler_Query_TellsUnsupportedFromFailed(t *testing.T) {
 			system: &portmocks.MockSystemPort{
 				CursorPositionFunc: func(context.Context) (image.Point, error) {
 					return image.Point{}, errCompositorSilent
+				},
+			},
+			want: ipc.CodeActionFailed,
+		},
+		{
+			name:   "window unsupported",
+			action: domain.CommandQueryWindow,
+			system: &portmocks.MockSystemPort{
+				FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+					return image.Rectangle{}, false, unsupported
+				},
+			},
+			want: ipc.CodeNotSupported,
+		},
+		{
+			name:   "window failed",
+			action: domain.CommandQueryWindow,
+			system: &portmocks.MockSystemPort{
+				FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+					return image.Rectangle{}, false, errCompositorSilent
 				},
 			},
 			want: ipc.CodeActionFailed,

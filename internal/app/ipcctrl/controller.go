@@ -195,6 +195,8 @@ var answeredWhilePaused = map[string]bool{
 	domain.CommandStatus:                      true,
 	domain.CommandQueryDisplays:               true,
 	domain.CommandQueryCursor:                 true,
+	domain.CommandQueryWindow:                 true,
+	domain.CommandQueryApp:                    true,
 	domain.CommandConfig:                      true,
 	domain.CommandReloadConfig:                true,
 	domain.CommandHealth:                      true,

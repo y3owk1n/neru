@@ -9,14 +9,18 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
+// actionServiceMissing answers a query asked of a daemon wired without the
+// action service.
+var actionServiceMissing = ipc.Response{
+	Success: false,
+	Message: msgActionServiceNotAvailable,
+	Code:    ipc.CodeActionFailed,
+}
+
 // handleQueryDisplays answers `neru query displays`.
 func (h *InfoHandler) handleQueryDisplays(ctx context.Context, _ ipc.Command) ipc.Response {
 	if h.actionService == nil {
-		return ipc.Response{
-			Success: false,
-			Message: msgActionServiceNotAvailable,
-			Code:    ipc.CodeActionFailed,
-		}
+		return actionServiceMissing
 	}
 
 	displays, err := h.actionService.Displays(ctx)
@@ -43,11 +47,7 @@ func (h *InfoHandler) handleQueryDisplays(ctx context.Context, _ ipc.Command) ip
 // displays cannot be listed, since every backend today answers both or neither.
 func (h *InfoHandler) handleQueryCursor(ctx context.Context, _ ipc.Command) ipc.Response {
 	if h.actionService == nil {
-		return ipc.Response{
-			Success: false,
-			Message: msgActionServiceNotAvailable,
-			Code:    ipc.CodeActionFailed,
-		}
+		return actionServiceMissing
 	}
 
 	point, err := h.actionService.ObservedCursorPosition(ctx)
@@ -69,6 +69,51 @@ func (h *InfoHandler) handleQueryCursor(ctx context.Context, _ ipc.Command) ipc.
 	}
 
 	return ipc.Response{Success: true, Message: "cursor retrieved", Data: data, Code: ipc.CodeOK}
+}
+
+// handleQueryWindow answers `neru query window`. The payload is null when no
+// window has focus, such as when the desktop does.
+func (h *InfoHandler) handleQueryWindow(ctx context.Context, _ ipc.Command) ipc.Response {
+	if h.actionService == nil {
+		return actionServiceMissing
+	}
+
+	bounds, found, err := h.actionService.FocusedWindowBounds(ctx)
+	if err != nil {
+		return queryFailedResponse("window", err)
+	}
+
+	resp := ipc.Response{Success: true, Message: "window retrieved", Code: ipc.CodeOK}
+	if found {
+		resp.Data = ipc.WindowData{
+			X:      bounds.Min.X,
+			Y:      bounds.Min.Y,
+			Width:  bounds.Dx(),
+			Height: bounds.Dy(),
+		}
+	}
+
+	return resp
+}
+
+// handleQueryApp answers `neru query app` with the identity per-app config
+// matches, read from the same source.
+func (h *InfoHandler) handleQueryApp(ctx context.Context, _ ipc.Command) ipc.Response {
+	if h.actionService == nil {
+		return actionServiceMissing
+	}
+
+	bundleID, err := h.actionService.FocusedAppBundleID(ctx)
+	if err != nil {
+		return queryFailedResponse("app", err)
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "app retrieved",
+		Data:    ipc.AppData{BundleID: bundleID},
+		Code:    ipc.CodeOK,
+	}
 }
 
 // displayAt returns the index of the first display, in enumeration order,

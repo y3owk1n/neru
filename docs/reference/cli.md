@@ -145,6 +145,8 @@ The command runs while Neru is stopped too, and exits 0 when the daemon exits.
 ```
 neru query displays [--json]
 neru query cursor [--json]
+neru query window [--json]
+neru query app [--json]
 ```
 
 Print what the daemon sees right now. Positions and sizes use the coordinates
@@ -178,6 +180,30 @@ platform enumerates them.
 | `x`, `y`        | int         | The cursor position.                                              |
 | `display`       | string or null | The display's name, as `query displays` lists it. `null` when no display holds the cursor. |
 | `display_index` | int or null | The display's position in the `query displays` list, which tells apart two displays that share a name. |
+
+`neru query window` prints the focused window's bounds as `x`, `y`, `width`
+and `height`. With `--json` it prints `null` when no window has focus, such as
+when the desktop does. A Wayland compositor that exposes no window geometry
+fails it with `ERR_NOT_SUPPORTED`. GNOME needs the
+[Neru GNOME Shell extension](../guide/linux-desktops.md#gnome-wayland).
+
+```json
+{"x":0,"y":25,"width":1440,"height":875}
+```
+
+`neru query app` prints the focused application as one key, `bundle_id`. Neru
+reads it from the same source per-app config matches against, so it is the
+exact string to write in [`[[app_configs]]`](configuration.md#app-identity-across-platforms-bundle_id).
+GNOME needs the Neru GNOME Shell extension here too. Run from a terminal, it
+reports the terminal, so give yourself time to switch:
+
+```bash
+sleep 3; neru query app
+```
+
+```json
+{"bundle_id":"com.apple.Safari"}
+```
 
 Every key is stable.
 

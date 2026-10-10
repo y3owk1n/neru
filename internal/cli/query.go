@@ -23,6 +23,8 @@ so a script can pass them straight back.
 Subcommands:
   displays   Every connected display, with its position, size and scale
   cursor     Where the cursor is, and which display holds it
+  window     The focused window's position and size
+  app        The focused application, as per-app config names it
 
 Each takes --json to print a JSON object instead.`,
 }
@@ -67,6 +69,45 @@ Examples:
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		return runQuery(cmd, domain.CommandQueryCursor, printCursor)
+	},
+}
+
+var queryWindowCmd = &cobra.Command{
+	Use:   "window",
+	Short: "Print the focused window's bounds",
+	Long: `Print the focused window's position and size.
+
+When no window has focus, such as when the desktop does, it says so, and
+--json prints null.
+
+Examples:
+  neru query window
+  neru query window --json`,
+	Args: cobra.NoArgs,
+	PreRunE: func(_ *cobra.Command, _ []string) error {
+		return requiresRunningInstance()
+	},
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		return runQuery(cmd, domain.CommandQueryWindow, printWindow)
+	},
+}
+
+var queryAppCmd = &cobra.Command{
+	Use:   "app",
+	Short: "Print the focused application's bundle_id",
+	Long: `Print the focused application as per-app config names it. This is the
+exact string to write as bundle_id in [[app_configs]], excluded_apps and every
+per-mode app_configs table.
+
+Examples:
+  neru query app
+  neru query app --json`,
+	Args: cobra.NoArgs,
+	PreRunE: func(_ *cobra.Command, _ []string) error {
+		return requiresRunningInstance()
+	},
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		return runQuery(cmd, domain.CommandQueryApp, printApp)
 	},
 }
 
@@ -147,8 +188,28 @@ func printCursor(cmd *cobra.Command, data ipc.CursorData) {
 	cmd.Printf("Display: %d: %s\n", *data.DisplayIndex, *data.Display)
 }
 
+func printWindow(cmd *cobra.Command, data *ipc.WindowData) {
+	if data == nil {
+		cmd.Println("No window has focus")
+
+		return
+	}
+
+	cmd.Printf("Position: %d,%d\n", data.X, data.Y)
+	cmd.Printf("Size: %dx%d\n", data.Width, data.Height)
+}
+
+func printApp(cmd *cobra.Command, data ipc.AppData) {
+	cmd.Println("bundle_id: " + data.BundleID)
+}
+
 func init() {
-	for _, sub := range []*cobra.Command{queryDisplaysCmd, queryCursorCmd} {
+	for _, sub := range []*cobra.Command{
+		queryDisplaysCmd,
+		queryCursorCmd,
+		queryWindowCmd,
+		queryAppCmd,
+	} {
 		sub.Flags().Bool("json", false, "Print the answer as a JSON object")
 		queryCmd.AddCommand(sub)
 	}

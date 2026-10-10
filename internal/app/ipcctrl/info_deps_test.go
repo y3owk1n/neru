@@ -51,6 +51,8 @@ func TestIPCControllerInfoDeps_ZeroValuesAreUsable(t *testing.T) {
 		domain.CommandConfigSet,
 		domain.CommandQueryDisplays,
 		domain.CommandQueryCursor,
+		domain.CommandQueryWindow,
+		domain.CommandQueryApp,
 	} {
 		if handlers[action] == nil {
 			t.Errorf("RegisterHandlers() registered no handler for %q", action)

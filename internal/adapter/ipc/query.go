@@ -27,3 +27,18 @@ type CursorData struct {
 	Display      *string `json:"display"`
 	DisplayIndex *int    `json:"display_index"` //nolint:tagliatelle // snake_case like the status keys.
 }
+
+// WindowData is the payload of `neru query window`, in the coordinates `neru
+// action move_mouse` takes. The payload is null when no window has focus.
+type WindowData struct {
+	X      int `json:"x"`
+	Y      int `json:"y"`
+	Width  int `json:"width"`
+	Height int `json:"height"`
+}
+
+// AppData is the payload of `neru query app`.
+type AppData struct {
+	// BundleID is the string `bundle_id` matches in per-app config.
+	BundleID string `json:"bundle_id"` //nolint:tagliatelle // snake_case like the status keys.
+}
