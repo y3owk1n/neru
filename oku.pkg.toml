@@ -118,7 +118,7 @@ set -eu
 bi=github.com/y3owk1n/neru/internal/buildinfo
 go build -mod=vendor -trimpath -ldflags="-s -w -X $bi.Version={{tag}} -X $bi.GitCommit=$(git rev-parse --short HEAD) -X $bi.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o neru ./cmd/neru
 mkdir -p man
-go run -mod=vendor ./cmd/genman man
+go run -mod=vendor -ldflags="-X $bi.Version={{tag}}" ./cmd/genman man
 """
 shell = "sh"
 env = { CGO_ENABLED = "1", GOFLAGS = "-buildvcs=false", CGO_CFLAGS_ALLOW = "-fno-strict-overflow" }
@@ -139,7 +139,7 @@ $commit = git rev-parse --short HEAD; Check
 $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 go build -mod=vendor -trimpath "-ldflags=-s -w -X $bi.Version={{tag}} -X $bi.GitCommit=$commit -X $bi.BuildDate=$date" -o neru.exe ./cmd/neru; Check
 New-Item -ItemType Directory -Force man | Out-Null
-go run -mod=vendor ./cmd/genman man; Check
+go run -mod=vendor "-ldflags=-X $bi.Version={{tag}}" ./cmd/genman man; Check
 """
 shell = "pwsh"
 env = { CGO_ENABLED = "0", GOFLAGS = "-buildvcs=false" }

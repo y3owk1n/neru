@@ -37,7 +37,7 @@ rm -rf "$out"
 mkdir -p "$out/bin" "$out/share/man/man1"
 cp "$bin" "$out/bin/neru$exe"
 chmod +x "$out/bin/neru$exe"
-go run ./cmd/genman "$out/share/man/man1" >/dev/null
+go run -ldflags="-X github.com/y3owk1n/neru/internal/buildinfo.Version=$version" ./cmd/genman "$out/share/man/man1" >/dev/null
 
 if [ "$host" = macos ]; then
     # Local builds derive the plist versions from the git describe string:
