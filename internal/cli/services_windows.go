@@ -194,6 +194,7 @@ const (
 
 	vtTaskGetState   = 9
 	vtTaskGetEnabled = 10
+	vtTaskPutEnabled = 11
 	vtTaskRun        = 12
 	vtTaskGetXML     = 20
 	vtTaskStop       = 23
@@ -513,6 +514,26 @@ func taskEnabled(task unsafe.Pointer) (bool, error) {
 	return enabled != 0, nil
 }
 
+// variantTrue is VARIANT_TRUE, a VARIANT_BOOL of -1, in the low 16 bits of
+// the argument register.
+const variantTrue = 0xFFFF
+
+// setTaskEnabled is IRegisteredTask::put_Enabled. The scheduler stores the
+// flag, so a disabled task stays off at every login until something enables it.
+func setTaskEnabled(task unsafe.Pointer, enabled bool) error {
+	var value uintptr
+	if enabled {
+		value = variantTrue
+	}
+
+	hresult := comCall(task, vtTaskPutEnabled, value)
+	if failed(hresult) {
+		return hresultError("set whether the task is enabled", hresult)
+	}
+
+	return nil
+}
+
 // taskXML reads IRegisteredTask::get_Xml, the definition as registered.
 func taskXML(task unsafe.Pointer) (string, error) {
 	var xml *uint16
@@ -689,8 +710,8 @@ func errNotInstalled(action, path string) error {
 	)
 }
 
-// driveServiceTask runs verb against the installed task, or refuses when there
-// is none.
+// driveServiceTask runs verb against the installed task. It refuses when there
+// is none, and, like uninstall, when Neru did not register the task.
 func driveServiceTask(action, path string, verb func(unsafe.Pointer) error) error {
 	return withTaskFolder(func(folder taskFolder) error {
 		task, found, err := folder.getTask(path)
@@ -704,12 +725,54 @@ func driveServiceTask(action, path string, verb func(unsafe.Pointer) error) erro
 
 		defer release(task)
 
+		err = requireOwnTask(task, path)
+		if err != nil {
+			return err
+		}
+
 		return verb(task)
 	})
 }
 
+// enableAndRunTask undoes disableAndStopTask. It enables the task again, so it
+// runs at login too, and runs it now.
+func enableAndRunTask(task unsafe.Pointer) error {
+	err := setTaskEnabled(task, true)
+	if err != nil {
+		return err
+	}
+
+	return runTask(task)
+}
+
+// disableAndStopTask disables the task and ends it, so it stays stopped across
+// logins until enableAndRunTask. Ending it alone would last only until the
+// next login.
+func disableAndStopTask(task unsafe.Pointer) error {
+	err := setTaskEnabled(task, false)
+	if err != nil {
+		return err
+	}
+
+	return stopTask(task)
+}
+
+// restartTask refuses a task that disableAndStopTask disabled, since restarting
+// it would run the daemon while it stays off at login.
 func restartTask(task unsafe.Pointer) error {
-	err := stopTask(task)
+	enabled, err := taskEnabled(task)
+	if err != nil {
+		return err
+	}
+
+	if !enabled {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"the service is stopped; run `neru services start` to start it",
+		)
+	}
+
+	err = stopTask(task)
 	if err != nil {
 		return err
 	}
@@ -726,11 +789,11 @@ func uninstallService() error {
 }
 
 func startService() error {
-	return driveServiceTask("start", serviceTaskPath, runTask)
+	return driveServiceTask("start", serviceTaskPath, enableAndRunTask)
 }
 
 func stopService() error {
-	return driveServiceTask("stop", serviceTaskPath, stopTask)
+	return driveServiceTask("stop", serviceTaskPath, disableAndStopTask)
 }
 
 func restartService() error {

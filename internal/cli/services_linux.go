@@ -45,6 +45,13 @@ const (
 // coming up; the budget is for `daemon-reload` on a busy machine.
 const systemctlTimeout = 15 * time.Second
 
+// unitEnabled and unitDisabled are the is-enabled answers start and stop leave
+// behind.
+const (
+	unitEnabled  = "enabled"
+	unitDisabled = "disabled"
+)
+
 // serviceUnitMarker is the line Neru writes into every unit it installs, and
 // the only positive evidence that a neru.service is Neru's to disable and
 // delete. The path cannot supply that evidence: the hand-written unit this
@@ -485,28 +492,91 @@ func uninstallService() error {
 	)
 }
 
-// driveService is start, stop and restart, which are the three subcommands
-// whose name is also the systemctl verb — so the word is written once rather
-// than three times per subcommand.
-func driveService(verb string) error {
-	err := requireSystemd(verb)
+// requireOwnServiceUnit is the first line of start, stop and restart. Like
+// uninstall, they leave a neru.service alone that Neru did not write, since
+// disabling a unit nix or home-manager links in removes the link itself.
+func requireOwnServiceUnit(action string) error {
+	err := requireSystemd(action)
 	if err != nil {
 		return err
 	}
 
-	return runSystemctl(verb+" the service", verb, serviceUnitName)
+	unitPath, err := serviceUnitPath()
+	if err != nil {
+		return err
+	}
+
+	err = requireOwnUnit(unitPath, serviceUnitExists(unitPath))
+	if err != nil {
+		return err
+	}
+
+	return requireManagerResolves(unitPath)
 }
 
+// requireManagerResolves refuses when the user manager resolves neru.service to
+// a file other than the one whose ownership was just checked. The manager
+// fixed its search path when the session began, so a $XDG_CONFIG_HOME exported
+// later can point this shell at an old unit of Neru's while the manager runs
+// one nix or home-manager linked in. A manager that cannot be asked, or that
+// knows no neru.service, answers nothing, and the systemctl call that follows
+// reports it.
+func requireManagerResolves(unitPath string) error {
+	fragment, err := systemctl("show", "--property=FragmentPath", "--value", serviceUnitName)
+	if err != nil || fragment == "" || filepath.Clean(fragment) == filepath.Clean(unitPath) {
+		return nil //nolint:nilerr // the systemctl call that follows reports it
+	}
+
+	return derrors.Newf(
+		derrors.CodeInvalidInput,
+		"systemd's user manager loads %s from %s, not from %s where Neru checked it; "+
+			"manage that unit with the tool that installed it, or unset $XDG_CONFIG_HOME "+
+			"in this shell if it differs from your session's",
+		serviceUnitName,
+		fragment,
+		unitPath,
+	)
+}
+
+// startService undoes stopService. It enables the unit again, so it starts at
+// login too, and starts it now.
 func startService() error {
-	return driveService("start")
+	err := requireOwnServiceUnit("start")
+	if err != nil {
+		return err
+	}
+
+	return runSystemctl("enable and start the service", "enable", "--now", serviceUnitName)
 }
 
+// stopService stops the unit and disables it, so it stays stopped across
+// logins until startService. A plain `systemctl stop` would last only until
+// the next login. The unit file stays, so startService can enable it again.
 func stopService() error {
-	return driveService("stop")
+	err := requireOwnServiceUnit("stop")
+	if err != nil {
+		return err
+	}
+
+	return runSystemctl("stop and disable the service", "disable", "--now", serviceUnitName)
 }
 
+// restartService refuses a unit that stopService disabled, since restarting
+// it would run the daemon while it stays off at login.
 func restartService() error {
-	return driveService("restart")
+	err := requireOwnServiceUnit("restart")
+	if err != nil {
+		return err
+	}
+
+	if systemctlWord("is-enabled") == unitDisabled {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"the service is stopped; run `neru services start` to start it",
+		)
+	}
+
+	return runSystemctl("restart the service", "restart", serviceUnitName)
 }
 
 // serviceUnitState is everything `neru services status` reports, gathered
