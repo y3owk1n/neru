@@ -67,6 +67,6 @@ func (h *ScrollHandler) handleToggleScrollInvert(
 		Success: true,
 		Message: "scroll invert: " + status,
 		Code:    ipc.CodeOK,
-		Data:    map[string]bool{"inverted": newState},
+		Data:    ipc.ScrollInvertData{Inverted: newState},
 	}
 }

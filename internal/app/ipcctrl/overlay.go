@@ -59,6 +59,6 @@ func (h *OverlayHandler) handleToggleScreenShare(
 		Success: true,
 		Message: "screen share visibility: " + status,
 		Code:    ipc.CodeOK,
-		Data:    map[string]bool{"hidden": newState},
+		Data:    ipc.ScreenShareData{Hidden: newState},
 	}
 }

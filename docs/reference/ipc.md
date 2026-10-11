@@ -79,6 +79,31 @@ Writing a client:
   as unknown, and its replies carry none. Send `{"action":"ping"}` first to
   find out which you have.
 
+## Schemas
+
+Neru publishes the shapes on this page as a JSON Schema, generated from the
+types the daemon encodes:
+
+```text
+https://raw.githubusercontent.com/y3owk1n/neru/main/schemas/ipc.schema.json
+```
+
+Replace `main` with a release tag to read that release's copy. Releases from
+before the schema have no copy of it. Each shape is a definition to `$ref`,
+such as `#/definitions/status`:
+
+| Definition | Shape |
+| ---------- | ----- |
+| `request`, `response` | A request and a reply |
+| `status` | The `data` of `status`, and the `status` of a watch snapshot |
+| `query_displays`, `query_cursor`, `query_window`, `query_app`, `query_hints` | The `data` of each query |
+| `toggle_scroll_invert`, `toggle_screen_share`, `toggle_cursor_follow_selection` | The `data` of each toggle |
+| `watch_line` | One line of a watch after its reply |
+
+A key the schema marks required is always present, and may be `null` where
+the schema allows it. A reply may carry keys the schema does not list, as
+[Compatibility](#compatibility) allows, and a request may not.
+
 ## Commands
 
 `args` are the words a user types after the command, one string each, with

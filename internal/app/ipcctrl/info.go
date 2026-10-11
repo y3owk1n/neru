@@ -187,31 +187,31 @@ func (h *InfoHandler) handleStatus(_ context.Context, _ ipc.Command) ipc.Respons
 // statusData is the object `neru status --json` prints, and false while no
 // configuration is loaded. The watch stream opens with it too, so the two read
 // the same fields.
-func (h *InfoHandler) statusData() (map[string]any, bool) {
+func (h *InfoHandler) statusData() (ipc.StatusData, bool) {
 	cfg := h.configSnapshot()
 	if cfg == nil {
-		return nil, false
+		return ipc.StatusData{}, false
 	}
 
-	return map[string]any{
-		"enabled":                h.appState.IsEnabled(),
-		"mode":                   h.appState.ModeName(),
-		"config":                 h.ResolveConfigPath(),
-		"hints_enabled":          cfg.Hints.Enabled,
-		"grid_enabled":           cfg.Grid.Enabled,
-		"recursive_grid_enabled": cfg.RecursiveGrid.Enabled,
-		"bisect_enabled":         cfg.Bisect.Enabled,
-		"capabilities":           capabilitiesMap(h.systemCapabilities()),
-		"profile":                profileMap(platform.CurrentProfile()),
+	return ipc.StatusData{
+		Enabled:              h.appState.IsEnabled(),
+		Mode:                 h.appState.ModeName(),
+		Config:               h.ResolveConfigPath(),
+		HintsEnabled:         cfg.Hints.Enabled,
+		GridEnabled:          cfg.Grid.Enabled,
+		RecursiveGridEnabled: cfg.RecursiveGrid.Enabled,
+		BisectEnabled:        cfg.Bisect.Enabled,
+		Capabilities:         capabilitiesMap(h.systemCapabilities()),
+		Profile:              profileMap(platform.CurrentProfile()),
 
 		// The runtime toggles. They are reported under the names the
 		// corresponding toggle-* command reports, so a caller can set one with
 		// --state and read back the field it just named.
-		"scroll_inverted":         h.appState.IsScrollInverted(),
-		"hidden_for_screen_share": h.appState.IsHiddenForScreenShare(),
-		"cursor_follow_selection": h.cursorFollowSelection(),
-		"saved_cursor_slots":      h.savedCursorSlots(),
-		"sticky_modifiers":        h.stickyModifiers(),
+		ScrollInverted:        h.appState.IsScrollInverted(),
+		HiddenForScreenShare:  h.appState.IsHiddenForScreenShare(),
+		CursorFollowSelection: h.cursorFollowSelection(),
+		SavedCursorSlots:      h.savedCursorSlots(),
+		StickyModifiers:       h.stickyModifiers(),
 	}, true
 }
 
@@ -253,15 +253,15 @@ func (h *InfoHandler) cursorFollowSelection() *bool {
 // from image.Point, whose fields marshal as X and Y — the rest of this payload
 // is snake_case, and the shape a script reads should not depend on how the
 // position happens to be stored.
-func (h *InfoHandler) savedCursorSlots() map[string]map[string]int {
-	slots := map[string]map[string]int{}
+func (h *InfoHandler) savedCursorSlots() map[string]ipc.CursorSlotData {
+	slots := map[string]ipc.CursorSlotData{}
 
 	if h.cursorSlots == nil {
 		return slots
 	}
 
 	for name, pos := range h.cursorSlots.Snapshot() {
-		slots[name] = map[string]int{"x": pos.X, "y": pos.Y}
+		slots[name] = ipc.CursorSlotData{X: pos.X, Y: pos.Y}
 	}
 
 	return slots

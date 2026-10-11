@@ -1,0 +1,497 @@
+{
+  "$id": "https://raw.githubusercontent.com/y3owk1n/neru/main/schemas/ipc.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "query_app": {
+      "description": "The data of query-app.",
+      "properties": {
+        "bundle_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "bundle_id"
+      ],
+      "type": "object"
+    },
+    "query_cursor": {
+      "description": "The data of query-cursor.",
+      "properties": {
+        "display": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "display_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "x": {
+          "type": "integer"
+        },
+        "y": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "display",
+        "display_index"
+      ],
+      "type": "object"
+    },
+    "query_displays": {
+      "description": "The data of query-displays.",
+      "properties": {
+        "displays": {
+          "items": {
+            "properties": {
+              "height": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "scale": {
+                "type": "number"
+              },
+              "width": {
+                "type": "integer"
+              },
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "name",
+              "x",
+              "y",
+              "width",
+              "height",
+              "scale"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "displays"
+      ],
+      "type": "object"
+    },
+    "query_hints": {
+      "description": "The data of query-hints.",
+      "properties": {
+        "hints": {
+          "items": {
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "height": {
+                "type": "integer"
+              },
+              "role": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "width": {
+                "type": "integer"
+              },
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "role",
+              "title",
+              "description",
+              "value",
+              "x",
+              "y",
+              "width",
+              "height"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "hints"
+      ],
+      "type": "object"
+    },
+    "query_window": {
+      "anyOf": [
+        {
+          "properties": {
+            "height": {
+              "type": "integer"
+            },
+            "width": {
+              "type": "integer"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The data of query-window, null when no window has focus."
+    },
+    "request": {
+      "additionalProperties": false,
+      "description": "One request, as a client sends it.",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "protocol": {
+          "type": "integer"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    "response": {
+      "description": "One reply. Its data is one of the payloads below, by command.",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "data": {},
+        "message": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "integer"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protocol",
+        "success"
+      ],
+      "type": "object"
+    },
+    "status": {
+      "description": "The data of status, and the status a watch snapshot carries.",
+      "properties": {
+        "bisect_enabled": {
+          "type": "boolean"
+        },
+        "capabilities": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "config": {
+          "type": "string"
+        },
+        "cursor_follow_selection": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "grid_enabled": {
+          "type": "boolean"
+        },
+        "hidden_for_screen_share": {
+          "type": "boolean"
+        },
+        "hints_enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "profile": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "recursive_grid_enabled": {
+          "type": "boolean"
+        },
+        "saved_cursor_slots": {
+          "additionalProperties": {
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "type": "object"
+          },
+          "type": "object"
+        },
+        "scroll_inverted": {
+          "type": "boolean"
+        },
+        "sticky_modifiers": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "bisect_enabled",
+        "capabilities",
+        "config",
+        "cursor_follow_selection",
+        "enabled",
+        "grid_enabled",
+        "hidden_for_screen_share",
+        "hints_enabled",
+        "mode",
+        "profile",
+        "recursive_grid_enabled",
+        "saved_cursor_slots",
+        "scroll_inverted",
+        "sticky_modifiers"
+      ],
+      "type": "object"
+    },
+    "toggle_cursor_follow_selection": {
+      "description": "The data of toggle-cursor-follow-selection.",
+      "properties": {
+        "following": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "following"
+      ],
+      "type": "object"
+    },
+    "toggle_screen_share": {
+      "description": "The data of toggle-screen-share.",
+      "properties": {
+        "hidden": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "hidden"
+      ],
+      "type": "object"
+    },
+    "toggle_scroll_invert": {
+      "description": "The data of toggle-scroll-invert.",
+      "properties": {
+        "inverted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "inverted"
+      ],
+      "type": "object"
+    },
+    "watch_line": {
+      "description": "One line of a watch stream after its reply: a snapshot or an event.",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "bundle_id": {
+          "type": "string"
+        },
+        "dropped": {
+          "type": "integer"
+        },
+        "event": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "modifiers": {
+          "type": "string"
+        },
+        "monitor": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "on": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "seq": {
+          "type": "integer"
+        },
+        "slot": {
+          "type": "string"
+        },
+        "status": {
+          "properties": {
+            "bisect_enabled": {
+              "type": "boolean"
+            },
+            "capabilities": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "config": {
+              "type": "string"
+            },
+            "cursor_follow_selection": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "grid_enabled": {
+              "type": "boolean"
+            },
+            "hidden_for_screen_share": {
+              "type": "boolean"
+            },
+            "hints_enabled": {
+              "type": "boolean"
+            },
+            "mode": {
+              "type": "string"
+            },
+            "profile": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "recursive_grid_enabled": {
+              "type": "boolean"
+            },
+            "saved_cursor_slots": {
+              "additionalProperties": {
+                "properties": {
+                  "x": {
+                    "type": "integer"
+                  },
+                  "y": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "scroll_inverted": {
+              "type": "boolean"
+            },
+            "sticky_modifiers": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "bisect_enabled",
+            "capabilities",
+            "config",
+            "cursor_follow_selection",
+            "enabled",
+            "grid_enabled",
+            "hidden_for_screen_share",
+            "hints_enabled",
+            "mode",
+            "profile",
+            "recursive_grid_enabled",
+            "saved_cursor_slots",
+            "scroll_inverted",
+            "sticky_modifiers"
+          ],
+          "type": "object"
+        },
+        "x": {
+          "type": "integer"
+        },
+        "y": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "seq",
+        "event"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "The shapes docs/reference/ipc.md describes. Each is a definition to $ref.",
+  "title": "Neru IPC"
+}

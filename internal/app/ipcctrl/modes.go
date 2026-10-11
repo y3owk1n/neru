@@ -163,6 +163,6 @@ func (h *ModesHandler) handleToggleCursorFollowSelection(
 		Success: true,
 		Message: "cursor_follow_selection " + state,
 		Code:    ipc.CodeOK,
-		Data:    map[string]bool{"following": enabled},
+		Data:    ipc.FollowSelectionData{Following: enabled},
 	}
 }

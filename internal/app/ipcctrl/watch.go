@@ -18,25 +18,6 @@ const (
 	watchSnapshot = "snapshot"
 )
 
-// watchLine is one line of a watch stream, on the wire.
-type watchLine struct {
-	Seq       uint64         `json:"seq"`
-	Event     string         `json:"event"`
-	Mode      string         `json:"mode,omitempty"`
-	Reason    string         `json:"reason,omitempty"`
-	Action    string         `json:"action,omitempty"`
-	BundleID  string         `json:"bundle_id,omitempty"` //nolint:tagliatelle // snake_case like the status keys.
-	OK        *bool          `json:"ok,omitempty"`
-	On        *bool          `json:"on,omitempty"`
-	Slot      string         `json:"slot,omitempty"`
-	X         *int           `json:"x,omitempty"`
-	Y         *int           `json:"y,omitempty"`
-	Modifiers *string        `json:"modifiers,omitempty"`
-	Monitor   string         `json:"monitor,omitempty"`
-	Dropped   uint64         `json:"dropped,omitempty"`
-	Status    map[string]any `json:"status,omitempty"`
-}
-
 // HandleWatch serves `neru watch`: the status, then every event the daemon
 // publishes, until the client goes away or the daemon stops. It answers while
 // Neru is stopped too, or nobody would see the enable event.
@@ -125,15 +106,15 @@ func (c *Controller) HandleWatch(
 }
 
 // snapshotLine is the status as of the newest event published.
-func (c *Controller) snapshotLine() (watchLine, error) {
+func (c *Controller) snapshotLine() (ipc.WatchLine, error) {
 	seq := c.Events.Seq()
 
 	status, ok := c.infoHandler.statusData()
 	if !ok {
-		return watchLine{}, derrors.New(derrors.CodeActionFailed, "config not available")
+		return ipc.WatchLine{}, derrors.New(derrors.CodeActionFailed, "config not available")
 	}
 
-	return watchLine{Seq: seq, Event: watchSnapshot, Status: status}, nil
+	return ipc.WatchLine{Seq: seq, Event: watchSnapshot, Status: &status}, nil
 }
 
 // resync sends a snapshot in place of the events since last, counting them in
@@ -152,8 +133,8 @@ func (c *Controller) resync(emit func(value any) error, last uint64) (uint64, er
 // watchLineFor puts an event on the wire. A field whose zero value is an
 // answer, such as ok false or no sticky modifiers, is sent only for the events
 // that carry it.
-func watchLineFor(evt event.Event) watchLine {
-	line := watchLine{
+func watchLineFor(evt event.Event) ipc.WatchLine {
+	line := ipc.WatchLine{
 		Seq:      evt.Seq,
 		Event:    string(evt.Name),
 		Mode:     evt.Mode,

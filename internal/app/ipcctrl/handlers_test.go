@@ -144,10 +144,7 @@ func TestHandleCommand_StatusReportsTheToggles(t *testing.T) {
 		t.Fatalf("HandleCommand(status) = %+v, want success", resp)
 	}
 
-	status, ok := resp.Data.(map[string]any)
-	if !ok {
-		t.Fatalf("status data = %T, want map[string]any", resp.Data)
-	}
+	status := wireObject(t, resp.Data)
 
 	for key, want := range map[string]bool{
 		"scroll_inverted":         true,
@@ -177,7 +174,7 @@ func TestHandleCommand_StatusReportsTheToggles(t *testing.T) {
 		t.Fatal("status is missing cursor_follow_selection")
 	}
 
-	if follow, isPointer := value.(*bool); !isPointer || follow != nil {
+	if value != nil {
 		t.Fatalf("status[cursor_follow_selection] = %v, want nil while no mode runs", value)
 	}
 
@@ -204,7 +201,7 @@ func TestHandleCommand_StatusReportsSavedCursorSlots(t *testing.T) {
 	// Empty is an empty object, not a null: a script indexing into it should
 	// not have to guard the container as well as the key.
 	before := statusField(t, controller, "saved_cursor_slots")
-	if slots, ok := before.(map[string]map[string]int); !ok || len(slots) != 0 {
+	if slots, ok := before.(map[string]any); !ok || len(slots) != 0 {
 		t.Fatalf("saved_cursor_slots = %v (%T), want an empty object", before, before)
 	}
 
@@ -218,12 +215,12 @@ func TestHandleCommand_StatusReportsSavedCursorSlots(t *testing.T) {
 
 	after := statusField(t, controller, "saved_cursor_slots")
 
-	slots, ok := after.(map[string]map[string]int)
+	slots, ok := after.(map[string]any)
 	if !ok {
-		t.Fatalf("saved_cursor_slots = %T, want map[string]map[string]int", after)
+		t.Fatalf("saved_cursor_slots = %T, want an object", after)
 	}
 
-	home, present := slots["home"]
+	home, present := slots["home"].(map[string]any)
 	if !present {
 		t.Fatalf("saved_cursor_slots = %v, want an entry for home", slots)
 	}
@@ -238,6 +235,26 @@ func TestHandleCommand_StatusReportsSavedCursorSlots(t *testing.T) {
 	}
 }
 
+// wireObject returns a reply's data as a client decodes it from the wire, so
+// a test reads the keys a client reads rather than the Go type behind them.
+func wireObject(t *testing.T, data any) map[string]any {
+	t.Helper()
+
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		t.Fatalf("json.Marshal(%T) error = %v", data, err)
+	}
+
+	var object map[string]any
+
+	err = json.Unmarshal(encoded, &object)
+	if err != nil {
+		t.Fatalf("reply data %s is not a JSON object: %v", encoded, err)
+	}
+
+	return object
+}
+
 // statusField reads one key out of the status payload.
 func statusField(t *testing.T, controller *ipcctrl.Controller, key string) any {
 	t.Helper()
@@ -247,10 +264,7 @@ func statusField(t *testing.T, controller *ipcctrl.Controller, key string) any {
 		t.Fatalf("HandleCommand(status) = %+v, want success", resp)
 	}
 
-	status, ok := resp.Data.(map[string]any)
-	if !ok {
-		t.Fatalf("status data = %T, want map[string]any", resp.Data)
-	}
+	status := wireObject(t, resp.Data)
 
 	value, present := status[key]
 	if !present {

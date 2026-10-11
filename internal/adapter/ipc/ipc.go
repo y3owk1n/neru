@@ -131,13 +131,6 @@ type Response struct {
 	Data     any    `json:"data,omitempty"`
 }
 
-// StatusData is the payload structure for status query responses.
-type StatusData struct {
-	Enabled bool   `json:"enabled"`
-	Mode    string `json:"mode"`
-	Config  string `json:"config"`
-}
-
 // Server handles incoming IPC connections and routes commands to handlers.
 type Server struct {
 	listener       net.Listener

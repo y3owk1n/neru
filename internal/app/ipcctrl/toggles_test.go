@@ -2,6 +2,7 @@ package ipcctrl
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -226,12 +227,20 @@ func TestHandleToggleScreenShare_ConvergesOnRequestedState(t *testing.T) {
 func assertToggleData(t *testing.T, resp ipc.Response, key string, want bool) {
 	t.Helper()
 
-	data, ok := resp.Data.(map[string]bool)
-	if !ok {
-		t.Fatalf("response data = %T, want map[string]bool", resp.Data)
+	// Read as a client reads it, off the wire.
+	encoded, err := json.Marshal(resp.Data)
+	if err != nil {
+		t.Fatalf("json.Marshal(%T) error = %v", resp.Data, err)
 	}
 
-	if got := data[key]; got != want {
-		t.Fatalf("response data[%q] = %t, want %t", key, got, want)
+	var data map[string]any
+
+	err = json.Unmarshal(encoded, &data)
+	if err != nil {
+		t.Fatalf("response data %s is not a JSON object: %v", encoded, err)
+	}
+
+	if got, isBool := data[key].(bool); !isBool || got != want {
+		t.Fatalf("response data[%q] = %v, want %t", key, data[key], want)
 	}
 }

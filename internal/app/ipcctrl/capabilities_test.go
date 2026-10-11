@@ -51,10 +51,7 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 		t.Fatalf("HandleCommand(status) success = false, want true")
 	}
 
-	statusData, statusDataOK := resp.Data.(map[string]any)
-	if !statusDataOK {
-		t.Fatalf("status data type = %T, want map[string]any", resp.Data)
-	}
+	statusData := wireObject(t, resp.Data)
 
 	capabilities, capabilitiesOK := statusData["capabilities"].(map[string]any)
 	if !capabilitiesOK {
@@ -207,10 +204,7 @@ func TestIPCController_StatusCarriesTheFocusedAppReason(t *testing.T) {
 		ipc.Command{Action: domain.CommandStatus},
 	)
 
-	statusData, statusDataOK := resp.Data.(map[string]any)
-	if !statusDataOK {
-		t.Fatalf("status data type = %T, want map[string]any", resp.Data)
-	}
+	statusData := wireObject(t, resp.Data)
 
 	capabilities, capabilitiesOK := statusData["capabilities"].(map[string]any)
 	if !capabilitiesOK {
@@ -255,7 +249,7 @@ func TestIPCController_StatusOmitsTheFocusedAppReasonWhenSupported(t *testing.T)
 		ipc.Command{Action: domain.CommandStatus},
 	)
 
-	statusData, _ := resp.Data.(map[string]any)
+	statusData := wireObject(t, resp.Data)
 
 	capabilities, capabilitiesOK := statusData["capabilities"].(map[string]any)
 	if !capabilitiesOK {
@@ -321,10 +315,7 @@ func TestIPCController_StatusReportsLiveOverlayBackend(t *testing.T) {
 		t.Fatalf("HandleCommand(status) success = false, want true")
 	}
 
-	statusData, statusDataOK := resp.Data.(map[string]any)
-	if !statusDataOK {
-		t.Fatalf("status data type = %T, want map[string]any", resp.Data)
-	}
+	statusData := wireObject(t, resp.Data)
 
 	capabilities, capabilitiesOK := statusData["capabilities"].(map[string]any)
 	if !capabilitiesOK {

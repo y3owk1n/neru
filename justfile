@@ -469,13 +469,14 @@ genflagref:
     @echo "Generating the mode-flag reference..."
     go run ./cmd/genflagref docs/reference/cli.md
 
-# Rewrite the config schema editors read from the config structs. Run after
-# changing a config struct; the architecture guardrail fails while the
-# committed schema is out of date.
-[doc('Rewrite schemas/config.schema.json from the config structs.')]
+# Rewrite the published schemas: the one editors read for config.toml, from
+# the config structs, and the IPC one, from the wire types. Run after changing
+# either; the architecture guardrails fail while a committed schema is out of
+# date.
+[doc('Rewrite the schemas in schemas/ from the config structs and the IPC wire types.')]
 genschema:
-    @echo "Generating the config schema..."
-    go run ./cmd/genschema schemas/config.schema.json
+    @echo "Generating the schemas..."
+    go run ./cmd/genschema .
 
 # Rewrite the platform-support table from the per-vocabulary declarations.
 # Run after changing a platform column in any platform_support.go; the
