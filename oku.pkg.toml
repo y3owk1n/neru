@@ -189,6 +189,7 @@ name = "neru"
 command = "bin/neru"
 args = ["launch"]
 restart = "always"
+interactive = true
 when = { os = "darwin" }
 
 [[service]]
@@ -196,4 +197,5 @@ name = "neru"
 command = "bin/neru.exe"
 args = ["launch"]
 restart = "always"
+interactive = true
 when = { os = "windows" }
