@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.58.0](https://github.com/y3owk1n/neru/compare/v1.57.0...v1.58.0) (2026-10-11)
+
+
+### Features
+
+* add [hooks] for mode, focus, pause and reload events ([#1746](https://github.com/y3owk1n/neru/issues/1746)) ([c8d576e](https://github.com/y3owk1n/neru/commit/c8d576e712c4fe92a45ecbf52e1a3eae1a12ca02))
+* add hooks and watch events for toggles, cursor slots, displays and lifecycle ([#1753](https://github.com/y3owk1n/neru/issues/1753)) ([1f449f6](https://github.com/y3owk1n/neru/commit/1f449f62fa401ba52868add695e2f0e59c5ff214))
+* **cli:** add `neru watch` to stream status and events ([#1750](https://github.com/y3owk1n/neru/issues/1750)) ([3f3a6f5](https://github.com/y3owk1n/neru/commit/3f3a6f556198a853271ecf25a447936cf86eb2b8))
+* **cli:** add neru query for displays, cursor, window, app and hints ([#1759](https://github.com/y3owk1n/neru/issues/1759)) ([de39c65](https://github.com/y3owk1n/neru/commit/de39c6582184592155abbe8eebb05d71f0def947))
+* **hooks:** add the select event and on_select hook ([#1760](https://github.com/y3owk1n/neru/issues/1760)) ([5f52713](https://github.com/y3owk1n/neru/commit/5f5271302e623c5eca9b4130efbbd8f175cbb557))
+* **modes:** accept `move_mouse` as mode `--action` ([#1748](https://github.com/y3owk1n/neru/issues/1748)) ([e2d67d9](https://github.com/y3owk1n/neru/commit/e2d67d97161b5e4ac02784ac68c15b55c5ebea8b))
+
+
+### Bug Fixes
+
+* **build:** stamp the man pages with the release version ([#1757](https://github.com/y3owk1n/neru/issues/1757)) ([94ffda3](https://github.com/y3owk1n/neru/commit/94ffda3f743202ad9d9c3aea7f5c672a891f9614))
+* **cli:** make `neru services stop` keep the service stopped ([#1755](https://github.com/y3owk1n/neru/issues/1755)) ([592240e](https://github.com/y3owk1n/neru/commit/592240e9f44dbf32a217c1f495dc9ef5933b2253))
+* **darwin:** detect mission control and it's hints properly ([#1745](https://github.com/y3owk1n/neru/issues/1745)) ([6adbb9d](https://github.com/y3owk1n/neru/commit/6adbb9d70f21bad1e275dd8babf5fbf2dc7d1d95))
+* **darwin:** hint Stage Manager's strip ([#1747](https://github.com/y3owk1n/neru/issues/1747)) ([b93858d](https://github.com/y3owk1n/neru/commit/b93858dd8e8282aad86da1c31f88170235642168))
+* **darwin:** stop the daemon crashing on quit with monitor_select open ([#1754](https://github.com/y3owk1n/neru/issues/1754)) ([baa0ab8](https://github.com/y3owk1n/neru/commit/baa0ab85880ebc805ee6c0096eecdb9538c0040e))
+* **ipc:** refuse a disabled mode ([#1737](https://github.com/y3owk1n/neru/issues/1737)) ([8db242b](https://github.com/y3owk1n/neru/commit/8db242bf86b50701dc94be80ab6d2fe34d3dd26c))
+* **modes:** refuse --on-exit with --repeat ([#1758](https://github.com/y3owk1n/neru/issues/1758)) ([53d7f68](https://github.com/y3owk1n/neru/commit/53d7f68e6a6e59c15f8b56b4d2341e068c814ebe))
+
 ## [1.57.0](https://github.com/y3owk1n/neru/compare/v1.56.0...v1.57.0) (2026-10-04)
 
 
