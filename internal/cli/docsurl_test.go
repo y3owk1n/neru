@@ -77,3 +77,27 @@ func TestDocsURLUsesVersionTagOrMain(t *testing.T) {
 		})
 	}
 }
+
+// TestRawURLUsesTheSameTreeAsDocsURL pins that a config's #:schema line names
+// the schema from the tree its build's docs link to.
+func TestRawURLUsesTheSameTreeAsDocsURL(t *testing.T) {
+	testCases := []struct {
+		version string
+		want    string
+	}{
+		{
+			"v1.19.0",
+			"https://raw.githubusercontent.com/y3owk1n/neru/v1.19.0/schemas/config.schema.json",
+		},
+		{
+			"v1.19.0-3-gabcdef0",
+			"https://raw.githubusercontent.com/y3owk1n/neru/main/schemas/config.schema.json",
+		},
+	}
+	for _, testCase := range testCases {
+		got := buildinfo.RawURL("schemas/config.schema.json", testCase.version)
+		if got != testCase.want {
+			t.Errorf("RawURL(%q) = %q, want %q", testCase.version, got, testCase.want)
+		}
+	}
+}

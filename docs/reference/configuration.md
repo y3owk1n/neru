@@ -12,6 +12,22 @@ This page lists facts. To create the file and apply changes, see
 > A few options do nothing on some platforms, see
 > [Platform support per word](platform-support.md#platform-support-per-word).
 
+## Editor support
+
+Neru publishes a JSON Schema for `config.toml`. An editor that reads it
+completes keys and flags mistakes while you type. The daemon ignores a
+misspelled key, and refuses a wrong type or a malformed color only when it
+loads the file. Taplo, and the Even Better TOML extension built on it, find
+the schema through a comment on the first line of the file:
+
+```toml
+#:schema https://raw.githubusercontent.com/y3owk1n/neru/main/schemas/config.schema.json
+```
+
+[`neru config init`](cli.md#neru-config-init) writes that line for you,
+naming the schema of the version you run. Replace `main` with your version's
+tag, such as `v1.58.0`, to pin an existing file to it.
+
 ## Hotkeys
 
 The syntax and defaults of every hotkey table. When each table applies, and

@@ -7,8 +7,12 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
+// ColorPattern is the regular expression a color value matches: #RGB,
+// #RRGGBB or #RRGGBBAA. The published config schema repeats it.
+const ColorPattern = `^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$`
+
 var (
-	colorRegex      = regexp.MustCompile(`^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$`)
+	colorRegex      = regexp.MustCompile(ColorPattern)
 	solidColorRegex = regexp.MustCompile(`^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$`)
 )
 

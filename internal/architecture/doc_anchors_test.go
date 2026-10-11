@@ -19,8 +19,9 @@ var docURLSources = []string{
 
 // docURLSourceDirs are checked file by file too. They hold the example
 // configs, which `neru config init` copies into users' config files, the
-// issue forms and the agent skills.
-var docURLSourceDirs = []string{"configs/", ".github/", ".agents/skills/"}
+// published schemas, whose descriptions editors show, the issue forms and the
+// agent skills.
+var docURLSourceDirs = []string{"configs/", "schemas/", ".github/", ".agents/skills/"}
 
 // mainDocURLPattern matches a URL to a file on main. A URL pinned to a tag
 // points at a tree other than this checkout, and is not judged here.

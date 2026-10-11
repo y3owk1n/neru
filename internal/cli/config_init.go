@@ -5,6 +5,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/buildinfo"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/configschema"
 )
 
 // configInitCmd is the CLI config init command for creating a default configuration file.
@@ -49,7 +50,7 @@ func runConfigInit(cmd *cobra.Command, force bool) error {
 		cfgPath = path
 	}
 
-	err := config.WriteDefaultConfig(cfgPath, force)
+	err := config.WriteDefaultConfig(cfgPath, force, configschema.URL(buildinfo.Version))
 	if err != nil {
 		return err
 	}

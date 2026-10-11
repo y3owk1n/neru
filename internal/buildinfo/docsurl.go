@@ -6,12 +6,23 @@ const docsVersionSegments = 3
 
 // DocsURL returns the documentation URL for a given path and version.
 func DocsURL(path, version string) string {
+	return "https://github.com/y3owk1n/neru/blob/" + tree(version) + "/" + path
+}
+
+// RawURL returns the URL of a repository file's contents for a given path and
+// version, from the same tree DocsURL links to.
+func RawURL(path, version string) string {
+	return "https://raw.githubusercontent.com/y3owk1n/neru/" + tree(version) + "/" + path
+}
+
+// tree is the git ref a version's links point into: its release tag, or main.
+func tree(version string) string {
 	tag := extractDocsTag(version)
 	if tag == "" {
-		tag = "main"
+		return "main"
 	}
 
-	return "https://github.com/y3owk1n/neru/blob/" + tag + "/" + path
+	return tag
 }
 
 func extractDocsTag(version string) string {

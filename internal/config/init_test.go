@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,7 @@ func TestWriteDefaultConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "config.toml")
 
-	err := config.WriteDefaultConfig(cfgPath, false)
+	err := config.WriteDefaultConfig(cfgPath, false, "")
 	require.NoError(t, err)
 
 	info, statErr := os.Stat(cfgPath)
@@ -39,7 +40,7 @@ func TestWriteDefaultConfig_ExistingFile(t *testing.T) {
 	err := os.WriteFile(cfgPath, []byte("existing"), 0o644)
 	require.NoError(t, err)
 
-	err = config.WriteDefaultConfig(cfgPath, false)
+	err = config.WriteDefaultConfig(cfgPath, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")
 }
@@ -51,7 +52,7 @@ func TestWriteDefaultConfig_ForceOverwrite(t *testing.T) {
 	err := os.WriteFile(cfgPath, []byte("existing"), 0o644)
 	require.NoError(t, err)
 
-	err = config.WriteDefaultConfig(cfgPath, true)
+	err = config.WriteDefaultConfig(cfgPath, true, "")
 	require.NoError(t, err)
 
 	content, readErr := os.ReadFile(cfgPath)
@@ -63,7 +64,7 @@ func TestWriteDefaultConfig_CreatesParentDirs(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "subdir", "config.toml")
 
-	err := config.WriteDefaultConfig(cfgPath, false)
+	err := config.WriteDefaultConfig(cfgPath, false, "")
 	require.NoError(t, err)
 
 	info, statErr := os.Stat(filepath.Dir(cfgPath))
@@ -103,4 +104,35 @@ func TestDefaultConfigPath_NoXDG(t *testing.T) {
 	}
 
 	assert.Equal(t, expected, path)
+}
+
+// TestWriteDefaultConfig_NamesTheSchemaFirst pins the line editors read to
+// find the schema. Taplo and Even Better TOML take #:schema from the top of the
+// file, and a file written without a URL carries none.
+func TestWriteDefaultConfig_NamesTheSchemaFirst(t *testing.T) {
+	const schemaURL = "https://example.com/config.schema.json"
+
+	tests := []struct {
+		name      string
+		schemaURL string
+		wantFirst string
+	}{
+		{"with a URL", schemaURL, "#:schema " + schemaURL},
+		{"without one", "", "# Neru default configuration"},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfgPath := filepath.Join(t.TempDir(), "config.toml")
+
+			err := config.WriteDefaultConfig(cfgPath, false, testCase.schemaURL)
+			require.NoError(t, err)
+
+			content, readErr := os.ReadFile(cfgPath)
+			require.NoError(t, readErr)
+
+			first, _, _ := strings.Cut(string(content), "\n")
+			assert.Equal(t, testCase.wantFirst, first)
+		})
+	}
 }

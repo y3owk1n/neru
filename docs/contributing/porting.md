@@ -299,6 +299,7 @@ landing page. The homes:
 | A gap closed or discovered | [Known Gaps](../reference/platform-support.md#known-gaps) |
 | Which platforms an option, mode flag or action does anything on | the `PlatformSupport()` declaration beside that vocabulary, then `just gensupportref` |
 | A config option, its default or its platform column | [configuration reference](../reference/configuration.md) |
+| The schema editors read for `config.toml` | the config structs, then `just genschema` |
 | A command or flag | [CLI reference](../reference/cli.md), with mode flags through `just genflagref` |
 | Install methods, prebuilt binaries, from source, uninstall | [installation](../guide/installation.md) |
 | First run, per-OS permissions, first hotkey | [getting started](../guide/getting-started.md) |

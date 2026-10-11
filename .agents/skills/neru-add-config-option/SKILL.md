@@ -18,6 +18,9 @@ a one-line option into a ten-file one, and that no guide used to name.
 1. **Schema.** Add the struct field in `internal/config/config.go` with a
    `toml:"snake_case_name"` tag matching the surrounding section. Follow the
    existing nesting — options live in their feature's sub-struct, not at root.
+   Then run `just genschema`, which renders the field into
+   `schemas/config.schema.json` for editors.
+   `TestConfigSchema_IsGeneratedFromTheConfigStructs` fails until you do.
 2. **Shared default.** Set it in `newDefaultConfig()` in
    `internal/config/config_defaults.go`. Assign the field by name even when the
    value you assign is the zero value, and say in a comment what the zero

@@ -23,6 +23,8 @@
 //     compositor the session runs.
 //   - config_chain_test.go — the links no projection can show: every config
 //     validator reaching the ladder, every schema field reaching a default.
+//   - config_schema_test.go — schemas/config.schema.json is what the config
+//     structs render today.
 //   - config_derivation_test.go — every derived config value is derived in the
 //     chain rather than recomputed at its reader.
 //   - config_example_test.go — the pairing between the config schema and the

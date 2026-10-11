@@ -11,8 +11,10 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/app"
+	"github.com/y3owk1n/neru/internal/buildinfo"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
+	"github.com/y3owk1n/neru/internal/configschema"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -138,7 +140,7 @@ func handleConfigOnboarding(
 		return configResult
 	}
 
-	err = config.WriteDefaultConfig(defaultPath, false)
+	err = config.WriteDefaultConfig(defaultPath, false, configschema.URL(buildinfo.Version))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create config file: %v\n", err)
 

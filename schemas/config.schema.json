@@ -1,0 +1,1673 @@
+{
+  "$id": "https://raw.githubusercontent.com/y3owk1n/neru/main/schemas/config.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "color": {
+      "oneOf": [
+        {
+          "pattern": "^$|^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "dark": {
+              "pattern": "^$|^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$",
+              "type": "string"
+            },
+            "light": {
+              "pattern": "^$|^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "steps": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "app_configs": {
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#per-app-global-hotkey-overrides",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "additional_clickable_roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bundle_id": {
+            "type": "string"
+          },
+          "capture_scope": {
+            "type": "string"
+          },
+          "hotkeys": {
+            "additionalProperties": {
+              "$ref": "#/definitions/steps"
+            },
+            "type": "object"
+          },
+          "ignore_clickable_check": {
+            "type": "boolean"
+          },
+          "label_direction": {
+            "type": "string"
+          },
+          "scroll_step": {
+            "type": "integer"
+          },
+          "scroll_step_full": {
+            "type": "integer"
+          },
+          "scroll_step_half": {
+            "type": "integer"
+          },
+          "strategy": {
+            "type": "string"
+          },
+          "visible_check_enabled": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "bisect": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#bisect",
+      "properties": {
+        "animation": {
+          "additionalProperties": false,
+          "properties": {
+            "duration_ms": {
+              "type": "integer"
+            },
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "app_configs": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "additional_clickable_roles": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "bundle_id": {
+                "type": "string"
+              },
+              "capture_scope": {
+                "type": "string"
+              },
+              "hotkeys": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
+              },
+              "ignore_clickable_check": {
+                "type": "boolean"
+              },
+              "label_direction": {
+                "type": "string"
+              },
+              "scroll_step": {
+                "type": "integer"
+              },
+              "scroll_step_full": {
+                "type": "integer"
+              },
+              "scroll_step_half": {
+                "type": "integer"
+              },
+              "strategy": {
+                "type": "string"
+              },
+              "visible_check_enabled": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "capture_scope": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "hotkeys": {
+          "additionalProperties": {
+            "$ref": "#/definitions/steps"
+          },
+          "type": "object"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "highlight_color": {
+              "$ref": "#/definitions/color"
+            },
+            "label_autohide_multiplier": {
+              "type": "number"
+            },
+            "label_background": {
+              "type": "boolean"
+            },
+            "label_background_border_radius": {
+              "type": "integer"
+            },
+            "label_background_border_width": {
+              "type": "integer"
+            },
+            "label_background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "label_background_padding_x": {
+              "type": "integer"
+            },
+            "label_background_padding_y": {
+              "type": "integer"
+            },
+            "label_char": {
+              "type": "string"
+            },
+            "line_color": {
+              "$ref": "#/definitions/color"
+            },
+            "line_width": {
+              "type": "integer"
+            },
+            "min_font_size": {
+              "type": "integer"
+            },
+            "sub_key_preview": {
+              "type": "boolean"
+            },
+            "sub_key_preview_autohide_multiplier": {
+              "type": "number"
+            },
+            "sub_key_preview_font_size": {
+              "type": "integer"
+            },
+            "sub_key_preview_label_char": {
+              "type": "string"
+            },
+            "sub_key_preview_text_color": {
+              "$ref": "#/definitions/color"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "general": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#general",
+      "properties": {
+        "excluded_apps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "exec_shell": {
+          "type": "string"
+        },
+        "exec_shell_args": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "hide_overlay_in_screen_share": {
+          "type": "boolean"
+        },
+        "kb_layout_to_use": {
+          "type": "string"
+        },
+        "passthrough_unbounded_keys": {
+          "type": "boolean"
+        },
+        "passthrough_unbounded_keys_blacklist": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "should_exit_after_passthrough": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "grid": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#grid",
+      "properties": {
+        "app_configs": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "additional_clickable_roles": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "bundle_id": {
+                "type": "string"
+              },
+              "capture_scope": {
+                "type": "string"
+              },
+              "hotkeys": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
+              },
+              "ignore_clickable_check": {
+                "type": "boolean"
+              },
+              "label_direction": {
+                "type": "string"
+              },
+              "scroll_step": {
+                "type": "integer"
+              },
+              "scroll_step_full": {
+                "type": "integer"
+              },
+              "scroll_step_half": {
+                "type": "integer"
+              },
+              "strategy": {
+                "type": "string"
+              },
+              "visible_check_enabled": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "capture_scope": {
+          "type": "string"
+        },
+        "characters": {
+          "type": "string"
+        },
+        "col_labels": {
+          "type": "string"
+        },
+        "enable_gc": {
+          "type": "boolean"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "hide_unmatched": {
+          "type": "boolean"
+        },
+        "hotkeys": {
+          "additionalProperties": {
+            "$ref": "#/definitions/steps"
+          },
+          "type": "object"
+        },
+        "live_match_update": {
+          "type": "boolean"
+        },
+        "max_label_length": {
+          "type": "integer"
+        },
+        "prewarm_enabled": {
+          "type": "boolean"
+        },
+        "row_labels": {
+          "type": "string"
+        },
+        "sublayer_keys": {
+          "type": "string"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_width": {
+              "type": "integer"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "matched_background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "matched_border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "matched_text_color": {
+              "$ref": "#/definitions/color"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "held_repeat": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#held_repeat",
+      "properties": {
+        "accel_enabled": {
+          "type": "boolean"
+        },
+        "accel_max_multiplier": {
+          "type": "number"
+        },
+        "accel_ramp_ms": {
+          "type": "integer"
+        },
+        "accel_targets": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "initial_delay_ms": {
+          "type": "integer"
+        },
+        "interval_ms": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "hints": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hints",
+      "properties": {
+        "additional_menubar_hints_targets": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "app_configs": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "additional_clickable_roles": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "bundle_id": {
+                "type": "string"
+              },
+              "capture_scope": {
+                "type": "string"
+              },
+              "hotkeys": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
+              },
+              "ignore_clickable_check": {
+                "type": "boolean"
+              },
+              "label_direction": {
+                "type": "string"
+              },
+              "scroll_step": {
+                "type": "integer"
+              },
+              "scroll_step_full": {
+                "type": "integer"
+              },
+              "scroll_step_half": {
+                "type": "integer"
+              },
+              "strategy": {
+                "type": "string"
+              },
+              "visible_check_enabled": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "boundary_highlight": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_radius": {
+              "type": "integer"
+            },
+            "border_width": {
+              "type": "integer"
+            },
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "capture_scope": {
+          "type": "string"
+        },
+        "clickable_roles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "contour": {
+          "additionalProperties": false,
+          "properties": {
+            "container_height": {
+              "type": "number"
+            },
+            "edge_high_threshold": {
+              "type": "integer"
+            },
+            "edge_low_threshold": {
+              "type": "integer"
+            },
+            "flat_line_height": {
+              "type": "number"
+            },
+            "max_target_height": {
+              "type": "number"
+            },
+            "max_target_width": {
+              "type": "number"
+            },
+            "min_target_height": {
+              "type": "number"
+            },
+            "min_target_width": {
+              "type": "number"
+            },
+            "request_timeout_ms": {
+              "type": "integer"
+            },
+            "same_center_slack": {
+              "type": "number"
+            },
+            "square_icon_size": {
+              "type": "number"
+            },
+            "square_icon_slack": {
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "detect_mission_control": {
+          "type": "boolean"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "hint_characters": {
+          "type": "string"
+        },
+        "hotkeys": {
+          "additionalProperties": {
+            "$ref": "#/definitions/steps"
+          },
+          "type": "object"
+        },
+        "ignore_clickable_check": {
+          "type": "boolean"
+        },
+        "include_dock_hints": {
+          "type": "boolean"
+        },
+        "include_menubar_hints": {
+          "type": "boolean"
+        },
+        "include_nc_hints": {
+          "type": "boolean"
+        },
+        "include_pip_hints": {
+          "type": "boolean"
+        },
+        "include_screen_capture_hints": {
+          "type": "boolean"
+        },
+        "include_stage_manager_hints": {
+          "type": "boolean"
+        },
+        "label_direction": {
+          "type": "string"
+        },
+        "max_depth": {
+          "type": "integer"
+        },
+        "on_mission_control_activated": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_mission_control_deactivated": {
+          "$ref": "#/definitions/steps"
+        },
+        "search_input_ui": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_radius": {
+              "type": "integer"
+            },
+            "border_width": {
+              "type": "integer"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "padding_x": {
+              "type": "integer"
+            },
+            "padding_y": {
+              "type": "integer"
+            },
+            "position": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            },
+            "width": {
+              "type": "integer"
+            },
+            "x_offset": {
+              "type": "integer"
+            },
+            "y_offset": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "strategy": {
+          "type": "string"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_radius": {
+              "type": "integer"
+            },
+            "border_width": {
+              "type": "integer"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "matched_text_color": {
+              "$ref": "#/definitions/color"
+            },
+            "padding_x": {
+              "type": "integer"
+            },
+            "padding_y": {
+              "type": "integer"
+            },
+            "placement": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        },
+        "visible_check_enabled": {
+          "type": "boolean"
+        },
+        "vision": {
+          "additionalProperties": false,
+          "properties": {
+            "button_icon_max_size": {
+              "type": "integer"
+            },
+            "button_max_aspect": {
+              "type": "number"
+            },
+            "button_min_aspect": {
+              "type": "number"
+            },
+            "button_min_confidence": {
+              "type": "number"
+            },
+            "checkbox_max_size": {
+              "type": "integer"
+            },
+            "detect_rectangles": {
+              "type": "boolean"
+            },
+            "detect_text": {
+              "type": "boolean"
+            },
+            "generic_clickable_min_confidence": {
+              "type": "number"
+            },
+            "image_min_size": {
+              "type": "integer"
+            },
+            "link_max_height": {
+              "type": "integer"
+            },
+            "link_min_aspect": {
+              "type": "number"
+            },
+            "link_min_width": {
+              "type": "integer"
+            },
+            "merge_iou_threshold": {
+              "type": "number"
+            },
+            "minimum_confidence": {
+              "type": "number"
+            },
+            "rectangle_max_aspect": {
+              "type": "number"
+            },
+            "rectangle_max_candidates": {
+              "type": "integer"
+            },
+            "rectangle_min_aspect": {
+              "type": "number"
+            },
+            "rectangle_min_size": {
+              "type": "number"
+            },
+            "request_timeout_ms": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "hooks": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hooks",
+      "properties": {
+        "on_app_focus": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_config_reload": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_cursor_restore": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_cursor_save": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_disable": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_enable": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_mission_control_activated": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_mission_control_deactivated": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_mode_enter": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_mode_exit": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_monitor_move": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_quit": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_ready": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_screen_change": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_screen_share_hide": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_scroll_invert": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_select": {
+          "$ref": "#/definitions/steps"
+        },
+        "on_sticky_modifiers": {
+          "$ref": "#/definitions/steps"
+        }
+      },
+      "type": "object"
+    },
+    "hotkeys": {
+      "additionalProperties": {
+        "$ref": "#/definitions/steps"
+      },
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hotkeys",
+      "type": "object"
+    },
+    "logging": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#logging",
+      "properties": {
+        "disable_file_logging": {
+          "type": "boolean"
+        },
+        "log_file": {
+          "type": "string"
+        },
+        "log_level": {
+          "type": "string"
+        },
+        "max_age": {
+          "type": "integer"
+        },
+        "max_backups": {
+          "type": "integer"
+        },
+        "max_file_size": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "macros": {
+      "additionalProperties": {
+        "$ref": "#/definitions/steps"
+      },
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#macros",
+      "type": "object"
+    },
+    "mode_indicator": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#mode_indicator",
+      "properties": {
+        "bisect": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "text": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        },
+        "grid": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "text": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        },
+        "hints": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "text": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        },
+        "monitor_select": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "text": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        },
+        "recursive_grid": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "text": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        },
+        "scroll": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "text": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_radius": {
+              "type": "integer"
+            },
+            "border_width": {
+              "type": "integer"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "indicator_x_offset": {
+              "type": "integer"
+            },
+            "indicator_y_offset": {
+              "type": "integer"
+            },
+            "padding_x": {
+              "type": "integer"
+            },
+            "padding_y": {
+              "type": "integer"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "modes": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "app_configs": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "additional_clickable_roles": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "bundle_id": {
+                  "type": "string"
+                },
+                "capture_scope": {
+                  "type": "string"
+                },
+                "hotkeys": {
+                  "additionalProperties": {
+                    "$ref": "#/definitions/steps"
+                  },
+                  "type": "object"
+                },
+                "ignore_clickable_check": {
+                  "type": "boolean"
+                },
+                "label_direction": {
+                  "type": "string"
+                },
+                "scroll_step": {
+                  "type": "integer"
+                },
+                "scroll_step_full": {
+                  "type": "integer"
+                },
+                "scroll_step_half": {
+                  "type": "integer"
+                },
+                "strategy": {
+                  "type": "string"
+                },
+                "visible_check_enabled": {
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "hotkeys": {
+            "additionalProperties": {
+              "$ref": "#/definitions/steps"
+            },
+            "type": "object"
+          },
+          "indicator": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#modes",
+      "type": "object"
+    },
+    "monitor_select": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#monitor_select",
+      "properties": {
+        "characters": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "hotkeys": {
+          "additionalProperties": {
+            "$ref": "#/definitions/steps"
+          },
+          "type": "object"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "backdrop_color": {
+              "$ref": "#/definitions/color"
+            },
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_radius": {
+              "type": "integer"
+            },
+            "border_width": {
+              "type": "integer"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "matched_text_color": {
+              "$ref": "#/definitions/color"
+            },
+            "padding_x": {
+              "type": "integer"
+            },
+            "padding_y": {
+              "type": "integer"
+            },
+            "subtitle_font_family": {
+              "type": "string"
+            },
+            "subtitle_font_size": {
+              "type": "integer"
+            },
+            "subtitle_text_color": {
+              "$ref": "#/definitions/color"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "mouse_action_indicator": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#mouse_action_indicator",
+      "properties": {
+        "actions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "animation": {
+          "additionalProperties": false,
+          "properties": {
+            "duration_ms": {
+              "type": "integer"
+            },
+            "easing": {
+              "type": "string"
+            },
+            "end_opacity": {
+              "type": "number"
+            },
+            "end_scale": {
+              "type": "number"
+            },
+            "start_opacity": {
+              "type": "number"
+            },
+            "start_scale": {
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_width": {
+              "type": "integer"
+            },
+            "shape": {
+              "type": "string"
+            },
+            "size": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "recursive_grid": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#recursive_grid",
+      "properties": {
+        "animation": {
+          "additionalProperties": false,
+          "properties": {
+            "duration_ms": {
+              "type": "integer"
+            },
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "app_configs": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "additional_clickable_roles": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "bundle_id": {
+                "type": "string"
+              },
+              "capture_scope": {
+                "type": "string"
+              },
+              "hotkeys": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
+              },
+              "ignore_clickable_check": {
+                "type": "boolean"
+              },
+              "label_direction": {
+                "type": "string"
+              },
+              "scroll_step": {
+                "type": "integer"
+              },
+              "scroll_step_full": {
+                "type": "integer"
+              },
+              "scroll_step_half": {
+                "type": "integer"
+              },
+              "strategy": {
+                "type": "string"
+              },
+              "visible_check_enabled": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "capture_scope": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "grid_cols": {
+          "type": "integer"
+        },
+        "grid_rows": {
+          "type": "integer"
+        },
+        "hotkeys": {
+          "additionalProperties": {
+            "$ref": "#/definitions/steps"
+          },
+          "type": "object"
+        },
+        "keys": {
+          "type": "string"
+        },
+        "layers": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "depth": {
+                "type": "integer"
+              },
+              "grid_cols": {
+                "type": "integer"
+              },
+              "grid_rows": {
+                "type": "integer"
+              },
+              "keys": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "max_depth": {
+          "type": "integer"
+        },
+        "min_size_height": {
+          "type": "integer"
+        },
+        "min_size_width": {
+          "type": "integer"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "highlight_color": {
+              "$ref": "#/definitions/color"
+            },
+            "label_autohide_multiplier": {
+              "type": "number"
+            },
+            "label_background": {
+              "type": "boolean"
+            },
+            "label_background_border_radius": {
+              "type": "integer"
+            },
+            "label_background_border_width": {
+              "type": "integer"
+            },
+            "label_background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "label_background_padding_x": {
+              "type": "integer"
+            },
+            "label_background_padding_y": {
+              "type": "integer"
+            },
+            "label_char": {
+              "type": "string"
+            },
+            "line_color": {
+              "$ref": "#/definitions/color"
+            },
+            "line_width": {
+              "type": "integer"
+            },
+            "min_font_size": {
+              "type": "integer"
+            },
+            "sub_key_preview": {
+              "type": "boolean"
+            },
+            "sub_key_preview_autohide_multiplier": {
+              "type": "number"
+            },
+            "sub_key_preview_font_size": {
+              "type": "integer"
+            },
+            "sub_key_preview_label_char": {
+              "type": "string"
+            },
+            "sub_key_preview_text_color": {
+              "$ref": "#/definitions/color"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "scroll": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#scroll",
+      "properties": {
+        "app_configs": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "additional_clickable_roles": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "bundle_id": {
+                "type": "string"
+              },
+              "capture_scope": {
+                "type": "string"
+              },
+              "hotkeys": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
+              },
+              "ignore_clickable_check": {
+                "type": "boolean"
+              },
+              "label_direction": {
+                "type": "string"
+              },
+              "scroll_step": {
+                "type": "integer"
+              },
+              "scroll_step_full": {
+                "type": "integer"
+              },
+              "scroll_step_half": {
+                "type": "integer"
+              },
+              "strategy": {
+                "type": "string"
+              },
+              "visible_check_enabled": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "hotkeys": {
+          "additionalProperties": {
+            "$ref": "#/definitions/steps"
+          },
+          "type": "object"
+        },
+        "invert_scroll": {
+          "type": "boolean"
+        },
+        "scroll_step": {
+          "type": "integer"
+        },
+        "scroll_step_full": {
+          "type": "integer"
+        },
+        "scroll_step_half": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "smooth_cursor": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#smooth_cursor",
+      "properties": {
+        "duration_per_pixel": {
+          "type": "number"
+        },
+        "max_duration": {
+          "type": "integer"
+        },
+        "move_mouse_enabled": {
+          "type": "boolean"
+        },
+        "relative_movement_duration": {
+          "type": "integer"
+        },
+        "steps": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "smooth_scroll": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#smooth_scroll",
+      "properties": {
+        "duration_per_pixel": {
+          "type": "number"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "max_duration": {
+          "type": "integer"
+        },
+        "steps": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "sticky_modifiers": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#sticky_modifiers",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "tap_max_duration": {
+          "type": "integer"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_radius": {
+              "type": "integer"
+            },
+            "border_width": {
+              "type": "integer"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "indicator_x_offset": {
+              "type": "integer"
+            },
+            "indicator_y_offset": {
+              "type": "integer"
+            },
+            "padding_x": {
+              "type": "integer"
+            },
+            "padding_y": {
+              "type": "integer"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "systray": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#systray",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "theme": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#theme",
+      "properties": {
+        "dark": {
+          "additionalProperties": false,
+          "properties": {
+            "accent": {
+              "type": "string"
+            },
+            "accent_alt": {
+              "type": "string"
+            },
+            "on_accent_alt": {
+              "type": "string"
+            },
+            "surface": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "light": {
+          "additionalProperties": false,
+          "properties": {
+            "accent": {
+              "type": "string"
+            },
+            "accent_alt": {
+              "type": "string"
+            },
+            "on_accent_alt": {
+              "type": "string"
+            },
+            "surface": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "virtual_pointer": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#virtual_pointer",
+      "properties": {
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "char": {
+              "type": "string"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "title": "Neru configuration",
+  "type": "object"
+}

@@ -291,7 +291,7 @@ test-foundation:
         ./internal/domain/recursivegrid \
         ./internal/domain/bisect \
         ./internal/domain/state ./internal/derrors \
-        ./internal/flagref ./internal/supportref \
+        ./internal/flagref ./internal/supportref ./internal/configschema \
         ./internal/adapter/logger \
         ./internal/adapter/overlay/render/badge \
         ./internal/adapter/overlay/render/motion \
@@ -468,6 +468,14 @@ genman OUTPUT_DIR="build/man":
 genflagref:
     @echo "Generating the mode-flag reference..."
     go run ./cmd/genflagref docs/reference/cli.md
+
+# Rewrite the config schema editors read from the config structs. Run after
+# changing a config struct; the architecture guardrail fails while the
+# committed schema is out of date.
+[doc('Rewrite schemas/config.schema.json from the config structs.')]
+genschema:
+    @echo "Generating the config schema..."
+    go run ./cmd/genschema schemas/config.schema.json
 
 # Rewrite the platform-support table from the per-vocabulary declarations.
 # Run after changing a platform column in any platform_support.go; the

@@ -6,7 +6,7 @@ Adding or changing an option touches **five links every time, and up to four mor
 
 ## Universal — every option
 
-1. **Struct field** in `config.go` (`toml:"snake_case"`, nested in its feature's sub-struct). The source of truth the rest of the chain is checked against.
+1. **Struct field** in `config.go` (`toml:"snake_case"`, nested in its feature's sub-struct). The source of truth the rest of the chain is checked against. It also renders into `schemas/config.schema.json`, the schema editors read, so run `just genschema` or `TestConfigSchema_IsGeneratedFromTheConfigStructs` fails.
 2. **Shared default** in `newDefaultConfig()` (`config_defaults.go`). Every field is assigned by name, even when the value assigned is the zero value — a zero nobody wrote cannot be told from a forgotten one. Miss it and `TestEverySchemaFieldHasAnExplicitDefault` fails.
 3. **Example line** in `configs/default-config.toml`, commented out when the option has no default. Miss it and `TestConfigOptionsAppearInTheDefaultExample` fails. Misspell a key in any of the four shipped examples and `TestShippedExamplesWriteOnlySchemaKeys` fails — the decoder drops an unknown key in silence, so a typo there is a dead line that looks like it works.
 4. **Reference row** in `docs/reference/configuration.md`, the single home for config reference facts. **No test enforces this one** — the default, the example and the platform column are checked, this one is not: matching a Go field to a prose row is the fuzziest match of the five, and ADR 0006 declined it. It is on you and the reviewer.
