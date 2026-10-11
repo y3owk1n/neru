@@ -428,9 +428,11 @@ func TestIPCController_HandleConfigSet_GridLabelsStayResolved(t *testing.T) {
 	}
 }
 
-// dumpedConfig reads the config a `config` reply dumps back as a config file
-// would be read, which is what the dump is for. It encodes the reply's data
-// as it is, since JSON would turn every integer into a float on the way.
+// dumpedConfig decodes the config a `config` reply dumps into a Config, for the
+// fields a test checks. It encodes the reply's data as it is, since JSON would
+// turn every integer into a float on the way. The typed decode skips the hotkey
+// tables, so TestLoadWithValidation_ReadsBackADumpedConfig in the loader is
+// what shows those survive a dump.
 func dumpedConfig(t *testing.T, resp ipc.Response) *config.Config {
 	t.Helper()
 
