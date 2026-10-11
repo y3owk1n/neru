@@ -56,7 +56,7 @@ func TestHandleKeyPressUsesStickyStrippedKeyForBindings(t *testing.T) {
 			domain.ModeRecursiveGrid: mode,
 		},
 		screenBounds: image.Rect(0, 0, 100, 100),
-		executeActionSequence: func(_ string, steps []string) {
+		executeActionSequence: func(_ string, steps []string, _ []string) {
 			hotkeyActions <- strings.Join(steps, ",")
 		},
 	})
@@ -112,7 +112,7 @@ func TestHandleKeyPress_ReplacingTheConfigSettlesANewKeymap(t *testing.T) {
 		modes: map[domain.Mode]Mode{
 			domain.ModeRecursiveGrid: &recordingMode{keys: make(chan string, 1)},
 		},
-		executeActionSequence: func(_ string, steps []string) {
+		executeActionSequence: func(_ string, steps []string, _ []string) {
 			ran <- strings.Join(steps, ",")
 		},
 	})
@@ -162,7 +162,7 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 			Context: &hintscomponent.Context{},
 		},
 		modes: map[domain.Mode]Mode{},
-		executeActionSequence: func(_ string, steps []string) {
+		executeActionSequence: func(_ string, steps []string, _ []string) {
 			t.Fatalf("hotkey action should be skipped during hint search, got %v", steps)
 		},
 	})
@@ -307,7 +307,7 @@ func newHeldRepeatTestHandler() *Handler {
 			domain.ModeRecursiveGrid: &recordingMode{keys: make(chan string, 1)},
 		},
 		screenBounds:          image.Rect(0, 0, 100, 100),
-		executeActionSequence: func(_ string, _ []string) {},
+		executeActionSequence: func(_ string, _ []string, _ []string) {},
 	})
 }
 
@@ -391,7 +391,7 @@ func TestDispatchHotkeyActions_ForwardsWholeSequence(t *testing.T) {
 	handler := newHandlerWithState(handlerState{
 		logger:   zap.NewNop(),
 		appState: state.NewAppState(),
-		executeActionSequence: func(source string, steps []string) {
+		executeActionSequence: func(source string, steps []string, _ []string) {
 			if source != "test-bind" {
 				t.Errorf("sequence source = %q, want %q", source, "test-bind")
 			}

@@ -268,7 +268,8 @@ target, so it does not run `on_select`.
 
 A hook runs for every binding. To run steps after one binding's selection
 only, give that binding [`--on-exit`](cli.md#mode-flag-reference). It runs
-once, after the action, and never on a cancel. `on_mode_exit` runs on every
+once, after the action, and never on a cancel. Its `exec` steps see the
+variables `on_select` sets, listed below. `on_mode_exit` runs on every
 close. `--on-exit` and `on_select` both start after the selection, in no set
 order, so do not give both a step that opens a mode.
 
@@ -295,6 +296,10 @@ events that carry it.
 | `NERU_X`, `NERU_Y` | `on_cursor_save`, `on_select` | The position saved, or the point selected                         |
 | `NERU_MODIFIERS` | `on_sticky_modifiers`           | The set held now, such as `cmd,shift`, in the spelling `--modifier` takes. Empty when none is |
 | `NERU_MONITOR`   | `on_monitor_move`               | The display, as `move_monitor --name` takes it                   |
+
+A binding's `--on-exit` steps get the same variables as the `on_select` hook
+for that selection, so `NERU_EVENT` is `select`. They are not a hook, so they
+do not run while Neru is stopped.
 
 Use them in the command as shell variables, in double quotes, such as
 `"$NERU_MODE"`. Neru passes them to the shell as environment variables and

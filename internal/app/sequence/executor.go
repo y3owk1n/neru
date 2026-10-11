@@ -208,10 +208,16 @@ func stepName(step string) string {
 }
 
 // RunAndForget executes a sequence and discards the outcome. It is the entry
-// point for callers that have nobody to report to — hotkeys, held-key repeat,
-// and a mode's --on-exit — all of which rely on the logging Run already does.
+// point for callers that have nobody to report to, hotkeys and held-key
+// repeat, both of which rely on the logging Run already does.
 func (e *Executor) RunAndForget(source string, steps []string) {
-	e.Run(e.base(), source, steps)
+	e.RunAndForgetWithEnv(source, steps, nil)
+}
+
+// RunAndForgetWithEnv is RunAndForget with env added to the environment of
+// every exec step, as WithEnv adds it. A mode's --on-exit runs through it.
+func (e *Executor) RunAndForgetWithEnv(source string, steps []string, env []string) {
+	e.Run(WithEnv(e.base(), env), source, steps)
 }
 
 // RunMacro runs the named macro's steps as a nested sequence.
@@ -294,8 +300,7 @@ func (e *Executor) action(ctx context.Context, source, actionStr string) error {
 	actionStr = strings.TrimSpace(actionStr)
 
 	if actionStr == action.PrefixExec || strings.HasPrefix(actionStr, action.PrefixExec+" ") {
-		_, isHook := hookEnv(ctx)
-		if !isHook && e.enabled != nil && !e.enabled() {
+		if !isHook(ctx) && e.enabled != nil && !e.enabled() {
 			return derrors.New(derrors.CodeExecFailed, "neru is stopped; exec step not run")
 		}
 
@@ -362,7 +367,7 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 	command := exec.CommandContext(execCtx, shell, args...) //nolint:gosec
 	procattr.HideConsole(command)
 
-	if env, _ := hookEnv(ctx); len(env) > 0 {
+	if env := execEnv(ctx); len(env) > 0 {
 		command.Env = append(os.Environ(), env...)
 	}
 
@@ -402,13 +407,17 @@ func exitCodeOf(commandErr error) int {
 }
 
 // stepContext builds the context each step of a sequence runs under: the base
-// context, so shutdown releases a step that blocks, carrying the next depth and
-// the hook ctx belongs to, if any.
+// context, so shutdown releases a step that blocks, carrying the next depth,
+// the hook ctx belongs to, if any, and the environment ctx adds.
 func (e *Executor) stepContext(ctx context.Context, depth int) context.Context {
 	stepCtx := WithDepth(e.base(), depth+1)
 
-	if env, isHook := hookEnv(ctx); isHook {
-		stepCtx = WithHook(stepCtx, env)
+	if isHook(ctx) {
+		stepCtx = context.WithValue(stepCtx, hookKey{}, true)
+	}
+
+	if env := execEnv(ctx); env != nil {
+		stepCtx = WithEnv(stepCtx, env)
 	}
 
 	return stepCtx

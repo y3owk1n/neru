@@ -54,6 +54,19 @@ Hooks also fire on each selection a mode makes, sticky modifiers, cursor
 slots, display changes, and the daemon starting and quitting. The reference
 lists every event and what each one passes.
 
+## Hand the picked point to a script
+
+A binding's [`--on-exit`](../reference/cli.md#mode-flag-reference) steps see
+the selection in `NERU_X` and `NERU_Y`, so a script can use the point you pick
+without a hook running for every binding. This copies it to the clipboard on
+macOS:
+
+```toml
+# ~/.config/neru/config.toml
+[hotkeys]
+"Primary+Shift+P" = "hints --action move_mouse --on-exit 'exec printf \"%s,%s\" \"$NERU_X\" \"$NERU_Y\" | pbcopy'"
+```
+
 ## Keep a status bar in sync
 
 A hook starts a process per event. A bar that runs its own long-lived command,

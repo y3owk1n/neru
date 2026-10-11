@@ -292,7 +292,7 @@ Modifiers to hold during the action, comma-separated: cmd, super, meta, shift, a
 
 Takes a value, and can be repeated. Modes: `hints` · `grid` · `recursive_grid`.
 
-Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action and refuses --repeat. Does not run if the mode is canceled.
+Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action and refuses --repeat. Does not run if the mode is canceled. Exec steps see the selection as NERU_X, NERU_Y, NERU_MODE and NERU_ACTION.
 
 #### `--repeat`
 

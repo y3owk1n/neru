@@ -44,7 +44,7 @@ func newTestModesHandler(
 		ScrollComponent:       &components.ScrollComponent{Context: &scroll.Context{}},
 		ActionService:         actionService,
 		RefreshHotkeys:        func() {},
-		ExecuteActionSequence: func(string, []string) {},
+		ExecuteActionSequence: func(string, []string, []string) {},
 		Shutdown:              func() {},
 	})
 }

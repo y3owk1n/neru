@@ -2,7 +2,6 @@ package app
 
 import (
 	"slices"
-	"strconv"
 	"sync"
 	"time"
 
@@ -127,7 +126,7 @@ func (a *App) runHooks(runner *hookRunner, events <-chan event.Event) {
 				a.awaitResume()
 			}
 
-			ctx := sequence.WithHook(a.ctx, hookEnv(evt))
+			ctx := sequence.WithHook(a.ctx, evt.Env())
 			a.executeActionSequenceWithPolicy(
 				ctx,
 				config.HookField(evt.Name),
@@ -195,7 +194,7 @@ func (a *App) runQuitHook() {
 		defer close(done)
 
 		a.executeActionSequenceWithPolicy(
-			sequence.WithHook(a.ctx, hookEnv(evt)),
+			sequence.WithHook(a.ctx, evt.Env()),
 			config.HookField(event.Quit),
 			steps,
 			sequence.Policy{},
@@ -257,55 +256,4 @@ func (r *hookRunner) finish(name event.Name, lastSeq uint64) {
 	state := r.hooks[name]
 	state.busy = false
 	state.to = lastSeq
-}
-
-// hookEnv is the environment a hook's exec steps see: the event's name, and
-// each field the event carries.
-func hookEnv(evt event.Event) []string {
-	env := []string{"NERU_EVENT=" + string(evt.Name)}
-
-	if evt.Mode != "" {
-		env = append(env, "NERU_MODE="+evt.Mode)
-	}
-
-	if evt.Reason != "" {
-		env = append(env, "NERU_REASON="+string(evt.Reason))
-	}
-
-	if evt.Action != "" {
-		env = append(env, "NERU_ACTION="+evt.Action)
-	}
-
-	if evt.BundleID != "" {
-		env = append(env, "NERU_BUNDLE_ID="+evt.BundleID)
-	}
-
-	if evt.Slot != "" {
-		env = append(env, "NERU_SLOT="+evt.Slot)
-	}
-
-	if evt.Monitor != "" {
-		env = append(env, "NERU_MONITOR="+evt.Monitor)
-	}
-
-	if evt.Name == event.ConfigReload {
-		env = append(env, "NERU_OK="+strconv.FormatBool(evt.OK))
-	}
-
-	if evt.Name == event.ScrollInvert || evt.Name == event.ScreenShareHide {
-		env = append(env, "NERU_ON="+strconv.FormatBool(evt.On))
-	}
-
-	if evt.Name == event.CursorSave || evt.Name == event.Select {
-		env = append(env,
-			"NERU_X="+strconv.Itoa(evt.Point.X),
-			"NERU_Y="+strconv.Itoa(evt.Point.Y))
-	}
-
-	// Set even when empty, so a hook reads a release as no modifiers.
-	if evt.Name == event.StickyModifiers {
-		env = append(env, "NERU_MODIFIERS="+evt.Modifiers)
-	}
-
-	return env
 }

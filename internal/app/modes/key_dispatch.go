@@ -389,7 +389,7 @@ func (h *handlerState) dispatchHotkeyActions(
 			}
 		}()
 
-		h.executeActionSequence(capturedKey, capturedActions)
+		h.executeActionSequence(capturedKey, capturedActions, nil)
 	}()
 }
 
@@ -434,7 +434,7 @@ func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
 		}()
 
 		heldrepeat.Run(ctx, cfg, capturedActions, func(tickActions []string) {
-			h.executeActionSequence(bindKey, tickActions)
+			h.executeActionSequence(bindKey, tickActions, nil)
 		})
 	}()
 }

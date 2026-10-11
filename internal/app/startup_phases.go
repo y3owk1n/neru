@@ -285,7 +285,7 @@ func initializeModeHandler(app *App) {
 		}
 		callbacks struct {
 			refreshHotkeys        func()
-			executeActionSequence func(source string, steps []string)
+			executeActionSequence func(source string, steps []string, env []string)
 		}
 	}{
 		config:      cfg,
@@ -321,10 +321,10 @@ func initializeModeHandler(app *App) {
 		},
 		callbacks: struct {
 			refreshHotkeys        func()
-			executeActionSequence func(source string, steps []string)
+			executeActionSequence func(source string, steps []string, env []string)
 		}{
 			refreshHotkeys:        func() { app.hotkeys.RefreshFor("") },
-			executeActionSequence: app.runActionSequence,
+			executeActionSequence: app.runActionSequenceWithEnv,
 		},
 	}
 

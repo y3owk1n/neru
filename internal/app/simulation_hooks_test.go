@@ -339,6 +339,38 @@ func TestSimulation_SelectHookSeesWhereTheSelectionActed(t *testing.T) {
 	})
 }
 
+// TestSimulation_OnExitSeesWhereTheSelectionActed pins that a binding's
+// --on-exit steps get the selection on_select gets, through a macro too, so a
+// script can act on one binding's pick without a hook firing for every binding.
+func TestSimulation_OnExitSeesWhereTheSelectionActed(t *testing.T) {
+	recorded := filepath.Join(t.TempDir(), "x")
+	t.Setenv("NERU_ON_EXIT_OUT", recorded)
+
+	cfg := simConfig()
+	useRecordShell(cfg)
+	cfg.Macros = map[string]config.StringOrStringArray{
+		"record": {recordEnvStep("NERU_X", "NERU_ON_EXIT_OUT")},
+	}
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{
+		"hints --action left_click --on-exit='macro record'",
+	}
+
+	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	sim := newSimHarness(t, cfg, []*element.Element{save})
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+	sim.typeLabel(sim.overlay.lastHintLabels()[0])
+
+	want := strconv.Itoa(save.Center().X)
+
+	sim.waitFor("--on-exit recorded the selection's x", func() bool {
+		got, readErr := os.ReadFile(recorded)
+
+		return readErr == nil && string(got) == want
+	})
+}
+
 // TestSimulation_SelectHookCanOpenAMode pins that a select hook whose step
 // opens a mode does so once the selecting mode has re-armed, rather than
 // waiting on the hold that published the selection.

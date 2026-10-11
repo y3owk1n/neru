@@ -56,7 +56,7 @@ func fallbackHandler(
 			domain.ModeRecursiveGrid: mode,
 		},
 		screenBounds: image.Rect(0, 0, 100, 100),
-		executeActionSequence: func(_ string, steps []string) {
+		executeActionSequence: func(_ string, steps []string, _ []string) {
 			dispatched <- strings.Join(steps, ",")
 		},
 	})

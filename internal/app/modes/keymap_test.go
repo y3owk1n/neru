@@ -63,7 +63,7 @@ func TestPublishFocusedApp_IsSafeWhileKeysAreHandled(t *testing.T) {
 		logger:                zap.NewNop(),
 		appState:              appState,
 		modifierState:         state.NewModifierState(),
-		executeActionSequence: func(string, []string) {},
+		executeActionSequence: func(string, []string, []string) {},
 	})
 
 	var publishing sync.WaitGroup

@@ -115,8 +115,9 @@ func (h *handlerState) executeActionAtPoint(
 
 	// Published before the mode re-arms or exits, so a selection always
 	// reaches subscribers ahead of the mode_exit it ends with.
+	var selection event.Event
 	if !chainFailed {
-		h.publishSelect(point, strings.Join(performed, ","))
+		selection = h.publishSelect(point, strings.Join(performed, ","))
 	}
 
 	if repeat && reActivateFunc != nil && !chainFailed {
@@ -149,7 +150,7 @@ func (h *handlerState) executeActionAtPoint(
 	h.exitMode()
 
 	if !chainFailed {
-		h.runOnExit(onExit)
+		h.runOnExit(onExit, selection.Env())
 	}
 }
 
@@ -172,8 +173,9 @@ func (h *handlerState) currentModeOnExit() []string {
 // fulfilled. They reuse the hotkey action grammar ("action ...", "exec ...",
 // mode names) and run asynchronously: a step may route back through IPC into
 // ActivateMode, which acquires h.mu — held by the
-// executeActionAtPoint caller.
-func (h *handlerState) runOnExit(onExit []string) {
+// executeActionAtPoint caller. Their exec steps get env, the selection's
+// variables.
+func (h *handlerState) runOnExit(onExit []string, env []string) {
 	if len(onExit) == 0 || h.executeActionSequence == nil {
 		return
 	}
@@ -189,7 +191,7 @@ func (h *handlerState) runOnExit(onExit []string) {
 			}
 		}()
 
-		h.executeActionSequence("on-exit", steps)
+		h.executeActionSequence("on-exit", steps, env)
 	}()
 }
 
@@ -226,16 +228,20 @@ func (h *handlerState) moveCursorAndHandleAction(
 }
 
 // publishSelect reports that the mode's target moved to point, and the action
-// it ran there, empty when it ran none. Caller must hold h.mu.
-func (h *handlerState) publishSelect(point image.Point, action string) {
+// it ran there, empty when it ran none, and returns the event it published.
+// Caller must hold h.mu.
+func (h *handlerState) publishSelect(point image.Point, action string) event.Event {
 	h.selectPublished = true
 
-	h.events.Publish(event.Event{
+	selection := event.Event{
 		Name:   event.Select,
 		Mode:   h.CurrModeString(),
 		Action: action,
 		Point:  point,
-	})
+	}
+	h.events.Publish(selection)
+
+	return selection
 }
 
 // trackSelection runs input, a step the user took, and reports the mode's

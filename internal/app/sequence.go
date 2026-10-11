@@ -67,8 +67,14 @@ func (a *App) executeMacro(ctx context.Context, name string, args []string) erro
 }
 
 // runActionSequence executes a sequence and discards the outcome. It is the
-// entry point for callers that have nobody to report to — hotkeys, held-key
-// repeat, and a mode's --on-exit.
+// entry point for callers that have nobody to report to, hotkeys and held-key
+// repeat.
 func (a *App) runActionSequence(source string, steps []string) {
 	a.sequences().RunAndForget(source, steps)
+}
+
+// runActionSequenceWithEnv is runActionSequence with env added to every exec
+// step's environment, which is how a mode's --on-exit sees its selection.
+func (a *App) runActionSequenceWithEnv(source string, steps []string, env []string) {
+	a.sequences().RunAndForgetWithEnv(source, steps, env)
 }

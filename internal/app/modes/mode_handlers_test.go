@@ -32,22 +32,29 @@ func TestExecuteActionAtPoint_NilActionNoop(t *testing.T) {
 	}
 }
 
-func TestRunOnExit_DispatchesEveryStepInOrder(t *testing.T) {
-	got := make(chan []string, 1)
+func TestRunOnExit_DispatchesEveryStepInOrderWithTheSelection(t *testing.T) {
+	type dispatch struct{ steps, env []string }
+
+	got := make(chan dispatch, 1)
 	handler := newHandlerWithState(handlerState{
 		logger: zap.NewNop(),
-		executeActionSequence: func(_ string, steps []string) {
-			got <- steps
+		executeActionSequence: func(_ string, steps []string, env []string) {
+			got <- dispatch{steps, env}
 		},
 	})
 
 	onExit := []string{"action sleep 0.2", "exec notify-send done"}
-	handler.runOnExit(onExit)
+	selection := []string{"NERU_X=10", "NERU_Y=20"}
+	handler.runOnExit(onExit, selection)
 
 	select {
-	case steps := <-got:
-		if !slices.Equal(steps, onExit) {
-			t.Fatalf("on-exit dispatched %v, want %v", steps, onExit)
+	case dispatched := <-got:
+		if !slices.Equal(dispatched.steps, onExit) {
+			t.Fatalf("on-exit dispatched %v, want %v", dispatched.steps, onExit)
+		}
+
+		if !slices.Equal(dispatched.env, selection) {
+			t.Fatalf("on-exit env = %v, want %v", dispatched.env, selection)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("on-exit sequence was not dispatched")
@@ -58,13 +65,13 @@ func TestRunOnExit_NilAndEmptyNoop(t *testing.T) {
 	called := make(chan struct{}, 1)
 	handler := newHandlerWithState(handlerState{
 		logger: zap.NewNop(),
-		executeActionSequence: func(_ string, _ []string) {
+		executeActionSequence: func(_ string, _ []string, _ []string) {
 			called <- struct{}{}
 		},
 	})
 
-	handler.runOnExit(nil)
-	handler.runOnExit([]string{})
+	handler.runOnExit(nil, nil)
+	handler.runOnExit([]string{}, nil)
 
 	select {
 	case <-called:

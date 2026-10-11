@@ -120,3 +120,76 @@ func TestExecutor_Run_HookEnvReachesExecSteps(t *testing.T) {
 		}
 	}
 }
+
+// TestExecutor_Run_EnvReachesExecStepsButNotWhileStopped pins what a mode's
+// --on-exit gets: the selection reaches its exec steps, directly and through a
+// macro, but the environment is not a hook's, so Neru stopped still stops them.
+func TestExecutor_Run_EnvReachesExecStepsButNotWhileStopped(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		enabled   bool
+		wantValue string
+	}{
+		{"running", true, "120"},
+		{"stopped", false, ""},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			direct := filepath.Join(dir, "direct")
+			nested := filepath.Join(dir, "nested")
+
+			cfg := config.DefaultConfig()
+			useEnvShell(cfg)
+			cfg.Macros = map[string]config.StringOrStringArray{
+				"record": {writeEnvStep("NERU_X", "NERU_TEST_NESTED")},
+			}
+
+			executor := sequence.NewExecutor(sequence.ExecutorDeps{
+				Config:      func() *config.Config { return cfg },
+				BaseContext: context.Background,
+				Enabled:     func() bool { return testCase.enabled },
+			})
+
+			ctx := sequence.WithEnv(context.Background(), []string{
+				"NERU_X=120",
+				"NERU_TEST_DIRECT=" + direct,
+				"NERU_TEST_NESTED=" + nested,
+			})
+
+			executor.Run(ctx, "on-exit", []string{
+				writeEnvStep("NERU_X", "NERU_TEST_DIRECT"),
+				"macro record",
+			})
+
+			for _, path := range []string{direct, nested} {
+				got, readErr := os.ReadFile(path)
+				if testCase.wantValue == "" {
+					if readErr == nil {
+						t.Errorf("%s ran while Neru was stopped", filepath.Base(path))
+					}
+
+					continue
+				}
+
+				if readErr != nil {
+					t.Fatalf("exec step never wrote %s: %v", filepath.Base(path), readErr)
+				}
+
+				if strings.TrimSpace(string(got)) != testCase.wantValue {
+					t.Errorf(
+						"%s saw NERU_X=%q, want %s",
+						filepath.Base(path),
+						got,
+						testCase.wantValue,
+					)
+				}
+			}
+		})
+	}
+}

@@ -168,7 +168,7 @@ type handlerState struct {
 	// goes through the nil-guarded helpers in eventtap.go.
 	eventTap              ports.EventTapPort
 	refreshHotkeys        func()
-	executeActionSequence func(source string, steps []string)
+	executeActionSequence func(source string, steps []string, env []string)
 	shutdown              func()
 	refreshHintsTimer     *time.Timer
 	modeSession           uint64
@@ -270,8 +270,9 @@ type HandlerDeps struct {
 	// ExecuteActionSequence runs an ordered list of action steps. The daemon
 	// owns the sequencing rules (bail handling, error reporting), so a binding
 	// behaves the same whether it is dispatched from here or from anywhere
-	// else. source names the caller (a bind key, "on-exit") for logging.
-	ExecuteActionSequence func(source string, steps []string)
+	// else. source names the caller (a bind key, "on-exit") for logging, and
+	// env is added to every exec step's environment, nil for nothing.
+	ExecuteActionSequence func(source string, steps []string, env []string)
 	// Shutdown quits the daemon.
 	Shutdown func()
 

@@ -53,7 +53,7 @@ func newCustomModeHandler(cfg *configpkg.Config) (*Handler, chan string) {
 		cursorState:   state.NewCursorState(),
 		modifierState: state.NewModifierState(),
 		scroll:        &components.ScrollComponent{Context: &scroll.Context{}},
-		executeActionSequence: func(_ string, steps []string) {
+		executeActionSequence: func(_ string, steps []string, _ []string) {
 			for _, step := range steps {
 				ran <- step
 			}

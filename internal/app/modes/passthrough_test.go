@@ -231,7 +231,7 @@ func newPassthroughHandler(
 		logger:                zap.NewNop(),
 		appState:              state.NewAppState(),
 		modifierState:         state.NewModifierState(),
-		executeActionSequence: func(string, []string) {},
+		executeActionSequence: func(string, []string, []string) {},
 	})
 
 	tap := &portmocks.MockEventTapPort{}
