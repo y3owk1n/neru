@@ -3,7 +3,6 @@ package configschema
 import (
 	"encoding/json"
 	"reflect"
-	"strings"
 
 	"github.com/y3owk1n/neru/internal/buildinfo"
 	"github.com/y3owk1n/neru/internal/config"
@@ -16,9 +15,6 @@ const (
 	Path = "schemas/config.schema.json"
 	// referenceURL is the page each top-level table's description links to.
 	referenceURL = "https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md"
-	// hotkeysField is the json name of every hotkey table. The loader reads
-	// those tables from the raw TOML map, so they carry toml:"-".
-	hotkeysField = "hotkeys"
 	// The definitions name the shapes many fields share.
 	colorDefinition      = "color"
 	solidColorDefinition = "solid_color"
@@ -142,7 +138,7 @@ func object(goType reflect.Type) (map[string]any, error) {
 	properties := map[string]any{}
 
 	for field := range goType.Fields() {
-		name, _, _ := strings.Cut(field.Tag.Get("toml"), ",")
+		name, hotkeyTable, isKey := config.TOMLKey(field)
 
 		var (
 			property map[string]any
@@ -150,19 +146,13 @@ func object(goType reflect.Type) (map[string]any, error) {
 		)
 
 		switch {
-		case name == "-":
-			jsonName, _, _ := strings.Cut(field.Tag.Get("json"), ",")
-			if jsonName != hotkeysField {
-				continue
-			}
-
-			name = hotkeysField
+		case !isKey:
+			continue
+		case hotkeyTable:
 			property = map[string]any{
 				keyType:  typeObject,
 				keyExtra: ref(stepsDefinition),
 			}
-		case name == "":
-			continue
 		case goType == paletteType:
 			property = ref(solidColorDefinition)
 		default:

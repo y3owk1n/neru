@@ -2,6 +2,10 @@
   "$id": "https://raw.githubusercontent.com/y3owk1n/neru/main/schemas/ipc.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
+    "config": {
+      "$ref": "config.schema.json",
+      "description": "The data of config with no args: the running configuration, as config.toml writes it."
+    },
     "query_app": {
       "description": "The data of query-app.",
       "properties": {

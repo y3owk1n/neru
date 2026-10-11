@@ -292,7 +292,7 @@ func (h *InfoHandler) handleConfig(ctx context.Context, cmd ipc.Command) ipc.Res
 		}
 	}
 
-	// Default: dump the full config.
+	// Default: dump the full config, as config.toml writes it.
 	cfg := h.configSnapshot()
 	if cfg == nil {
 		h.logger.Debug("Config is nil in handleConfig")
@@ -302,7 +302,7 @@ func (h *InfoHandler) handleConfig(ctx context.Context, cmd ipc.Command) ipc.Res
 
 	return ipc.Response{
 		Success: true,
-		Data:    cfg,
+		Data:    config.Document(cfg),
 		Code:    ipc.CodeOK,
 	}
 }

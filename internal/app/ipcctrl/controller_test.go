@@ -1,10 +1,12 @@
 package ipcctrl_test
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
 
+	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
@@ -135,11 +137,16 @@ func TestIPCController_HandleConfig(t *testing.T) {
 		t.Error("Expected non-nil data with config struct")
 	}
 
-	// Verify it's a valid config struct
-	if cfg, ok := commandResponse.Data.(*config.Config); !ok {
-		t.Errorf("Expected data to be *config.Config, got %T", commandResponse.Data)
-	} else if cfg == nil {
-		t.Error("Expected valid config struct, got nil")
+	// The dump uses the names config.toml does, not the Go field names.
+	document := wireObject(t, commandResponse.Data)
+	for _, key := range []string{"general", "recursive_grid", "mouse_action_indicator", "hotkeys"} {
+		if _, present := document[key]; !present {
+			t.Errorf("the config dump has no %q key", key)
+		}
+	}
+
+	if _, present := document["recursiveGrid"]; present {
+		t.Error("the config dump uses the Go field name recursiveGrid")
 	}
 }
 
@@ -195,12 +202,10 @@ func TestIPCController_HandleConfigSet_String(t *testing.T) {
 
 	// Verify the change took effect by dumping the config
 	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
-	if cfg, ok := cfgResp.Data.(*config.Config); ok && cfg != nil {
-		if cfg.Hints.HintCharacters != "qwerty" {
-			t.Errorf("Expected hint_characters='qwerty', got %q", cfg.Hints.HintCharacters)
-		}
-	} else {
-		t.Error("Failed to read config after set")
+	cfg := dumpedConfig(t, cfgResp)
+
+	if cfg.Hints.HintCharacters != "qwerty" {
+		t.Errorf("Expected hint_characters='qwerty', got %q", cfg.Hints.HintCharacters)
 	}
 }
 
@@ -224,12 +229,10 @@ func TestIPCController_HandleConfigSet_Integer(t *testing.T) {
 
 	// Verify the change
 	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
-	if cfg, ok := cfgResp.Data.(*config.Config); ok && cfg != nil {
-		if cfg.Hints.UI.FontSize != 14 {
-			t.Errorf("Expected font_size=14, got %d", cfg.Hints.UI.FontSize)
-		}
-	} else {
-		t.Error("Failed to read config after set")
+	cfg := dumpedConfig(t, cfgResp)
+
+	if cfg.Hints.UI.FontSize != 14 {
+		t.Errorf("Expected font_size=14, got %d", cfg.Hints.UI.FontSize)
 	}
 }
 
@@ -253,12 +256,10 @@ func TestIPCController_HandleConfigSet_Bool(t *testing.T) {
 
 	// Verify the change
 	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
-	if cfg, ok := cfgResp.Data.(*config.Config); ok && cfg != nil {
-		if !cfg.General.PassthroughUnboundedKeys {
-			t.Error("Expected passthrough_unbounded_keys=true")
-		}
-	} else {
-		t.Error("Failed to read config after set")
+	cfg := dumpedConfig(t, cfgResp)
+
+	if !cfg.General.PassthroughUnboundedKeys {
+		t.Error("Expected passthrough_unbounded_keys=true")
 	}
 }
 
@@ -353,10 +354,7 @@ func TestIPCController_HandleConfigSet_NoReload(t *testing.T) {
 	// Step 4: verify final state.
 	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
 
-	cfg, ok := cfgResp.Data.(*config.Config)
-	if !ok || cfg == nil {
-		t.Fatal("failed to read config after no-reload sequence")
-	}
+	cfg := dumpedConfig(t, cfgResp)
 
 	if cfg.RecursiveGrid.GridCols != 4 {
 		t.Errorf("expected grid_cols=4, got %d", cfg.RecursiveGrid.GridCols)
@@ -380,10 +378,7 @@ func TestIPCController_UpdateConfig(t *testing.T) {
 		t.Fatalf("Expected success=true, got %v", commandResponse.Success)
 	}
 
-	initialCfg, initialCfgOk := commandResponse.Data.(*config.Config)
-	if !initialCfgOk || initialCfg == nil {
-		t.Fatal("Expected valid initial config")
-	}
+	initialCfg := dumpedConfig(t, commandResponse)
 	// Create a new config with different values
 	newCfg := config.DefaultConfig()
 	newCfg.Hints.Enabled = !initialCfg.Hints.Enabled
@@ -395,10 +390,7 @@ func TestIPCController_UpdateConfig(t *testing.T) {
 		t.Fatalf("Expected success=true after update, got %v", commandResponse.Success)
 	}
 
-	updatedCfg, initialCfgOk := commandResponse.Data.(*config.Config)
-	if !initialCfgOk || updatedCfg == nil {
-		t.Fatal("Expected valid updated config")
-	}
+	updatedCfg := dumpedConfig(t, commandResponse)
 
 	if updatedCfg.Hints.Enabled != newCfg.Hints.Enabled {
 		t.Errorf("Expected Hints.Enabled=%v after UpdateConfig, got %v",
@@ -429,14 +421,39 @@ func TestIPCController_HandleConfigSet_GridLabelsStayResolved(t *testing.T) {
 
 	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
 
-	cfg, ok := cfgResp.Data.(*config.Config)
-	if !ok || cfg == nil {
-		t.Fatal("Failed to read config after set")
-	}
+	cfg := dumpedConfig(t, cfgResp)
 
 	if cfg.Grid.RowLabels != "XY" {
 		t.Errorf("Expected grid.row_labels=%q, got %q", "XY", cfg.Grid.RowLabels)
 	}
+}
+
+// dumpedConfig reads the config a `config` reply dumps back as a config file
+// would be read, which is what the dump is for. It encodes the reply's data
+// as it is, since JSON would turn every integer into a float on the way.
+func dumpedConfig(t *testing.T, resp ipc.Response) *config.Config {
+	t.Helper()
+
+	document, isTable := resp.Data.(map[string]any)
+	if !isTable {
+		t.Fatalf("config data = %T, want a table", resp.Data)
+	}
+
+	var file bytes.Buffer
+
+	err := toml.NewEncoder(&file).Encode(document)
+	if err != nil {
+		t.Fatalf("the config dump does not encode as TOML: %v", err)
+	}
+
+	var cfg config.Config
+
+	_, err = toml.Decode(file.String(), &cfg)
+	if err != nil {
+		t.Fatalf("the config dump does not decode as a config file: %v\n%s", err, file.String())
+	}
+
+	return &cfg
 }
 
 // setConfigField runs one `neru config set` through the controller and hands
@@ -456,10 +473,7 @@ func setConfigField(t *testing.T, controller *ipcctrl.Controller, args ...string
 
 	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
 
-	cfg, ok := cfgResp.Data.(*config.Config)
-	if !ok || cfg == nil {
-		t.Fatal("Failed to read config after set")
-	}
+	cfg := dumpedConfig(t, cfgResp)
 
 	return cfg
 }

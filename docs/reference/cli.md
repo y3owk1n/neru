@@ -939,7 +939,9 @@ the reload. To remove every override at once, see
 neru config dump
 ```
 
-Print the merged base config, overrides and defaults as JSON.
+Print the configuration the daemon runs on as JSON, under the key names
+`config.toml` uses. It is your file, its overrides and the defaults, merged.
+The output matches the [config schema](configuration.md#editor-support).
 
 ### neru config reload
 

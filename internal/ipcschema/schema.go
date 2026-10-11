@@ -124,6 +124,13 @@ func Render() ([]byte, error) {
 		shapes[shape.name] = node
 	}
 
+	// The config dump is the shape config.toml has, which its own schema
+	// describes, so the definition points there rather than copying it.
+	shapes["config"] = map[string]any{
+		"$ref":        "config.schema.json",
+		"description": "The data of config with no args: the running configuration, as config.toml writes it.",
+	}
+
 	root := map[string]any{
 		"$schema":     draft,
 		"$id":         URL(""),

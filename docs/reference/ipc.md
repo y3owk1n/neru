@@ -61,7 +61,6 @@ command names, and the `data` keys documented here and in the
 - The `message` text.
 - The `version` string.
 - The contents of `capabilities`, `profile` and `components`.
-- The `config` dump.
 - Anything this page and the CLI reference do not document.
 
 A protocol can gain commands, flags, `data` keys, events and response codes,
@@ -99,6 +98,7 @@ such as `#/definitions/status`:
 | `query_displays`, `query_cursor`, `query_window`, `query_app`, `query_hints` | The `data` of each query |
 | `toggle_scroll_invert`, `toggle_screen_share`, `toggle_cursor_follow_selection` | The `data` of each toggle |
 | `watch_line` | One line of a watch after its reply |
+| `config` | The `data` of `config` with no `args`, a reference to `config.schema.json` |
 
 A key the schema marks required is always present, and may be `null` where
 the schema allows it. A reply may carry keys the schema does not list, as
@@ -125,7 +125,7 @@ ignores a leading repeat of the mode's own name in `args`.
 | `start`, `stop` | none | none |
 | `status` | none | The object [`neru status --json`](cli.md#neru-status) prints. |
 | `health` | none | The checks [`neru doctor`](cli.md#neru-doctor) reports, as `version`, `config`, `mode`, `capabilities`, `profile` and `components`. A failed check makes the reply `ERR_ACTION_FAILED`, and the reply still carries `data`. |
-| `config` | None, or `set <key> <value>`, `reset <key>` or `reload`. `set` and `reset` take `--no-reload` last. | With no `args`, the active configuration, as [`neru config dump`](cli.md#neru-config-dump) prints it. |
+| `config` | None, or `set <key> <value>`, `reset <key>` or `reload`. `set` and `reset` take `--no-reload` last. | With no `args`, the running configuration under the key names `config.toml` uses, which [`neru config dump`](cli.md#neru-config-dump) prints. |
 | `config-set` | `<key> <value>`, then optionally `--no-reload`. | none |
 | `reload` | none | none |
 | `toggle-scroll-invert` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"inverted": bool}` |
