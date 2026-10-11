@@ -334,6 +334,11 @@ func TestLoadWithValidation_ReportsKeysNoOptionReads(t *testing.T) {
 			[]string{"app_configs.bundle_idz"},
 		},
 		{"table, reported once", "[foo]\na = 1\n[foo.bar]\nb = 2", []string{"foo"}},
+		{
+			"hotkeys table nothing reads",
+			"[general.hotkeys]\n\"Primary+Shift+P\" = \"hints\"",
+			[]string{"general.hotkeys"},
+		},
 	}
 
 	for _, testCase := range tests {

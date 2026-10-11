@@ -21,8 +21,8 @@ const appConfigsKey = "app_configs"
 // which carries a hotkey table read the way the built-in modes' are.
 const modesKey = "modes"
 
-// hotkeysKey names every hotkey table. The typed decode skips them, since the
-// loader reads them from the raw map, so they are not unknown keys.
+// hotkeysKey names every hotkey table. The typed decode skips the ones the
+// loader reads from the raw map, so those are not unknown keys.
 const hotkeysKey = "hotkeys"
 
 // LoadWithValidation turns a config file into the Config the daemon runs on.
@@ -48,7 +48,7 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		return refuse(result, decodeErr)
 	}
 
-	warnUnknownKeys(warnings, undecoded)
+	warnUnknownKeys(warnings, undecoded, result.Config)
 
 	globalErr := s.applyGlobalHotkeys(result.Config, raw, warnings)
 	if globalErr != nil {
@@ -245,11 +245,11 @@ func (s *Service) decodeConfigFile(
 // refuses, because the loader replaces a refused file whole with the defaults
 // (ADR 0002). It reports an unknown table once, not once per key inside it,
 // which relies on the decoder listing a table before its keys.
-func warnUnknownKeys(warnings *config.Warnings, undecoded []toml.Key) {
+func warnUnknownKeys(warnings *config.Warnings, undecoded []toml.Key, cfg *config.Config) {
 	var reported []toml.Key
 
 	for _, key := range undecoded {
-		if slices.Contains(key, hotkeysKey) {
+		if readsHotkeyTable(key, cfg) {
 			continue
 		}
 
@@ -261,6 +261,25 @@ func warnUnknownKeys(warnings *config.Warnings, undecoded []toml.Key) {
 
 		reported = append(reported, key)
 		warnings.Addf("%s: not a Neru option, so it does nothing", key)
+	}
+}
+
+// readsHotkeyTable reports whether key is in a hotkey table the loader reads
+// from the raw map: [hotkeys], a built-in mode's [<mode>.hotkeys], or a
+// declared mode's [modes.<name>.hotkeys]. Nothing reads a hotkeys table
+// anywhere else, such as [general.hotkeys], so it is an unknown key.
+func readsHotkeyTable(key toml.Key, cfg *config.Config) bool {
+	switch {
+	case key[0] == hotkeysKey:
+		return true
+	case len(key) >= 3 && key[0] == modesKey && key[2] == hotkeysKey:
+		return true
+	case len(key) >= 2 && key[1] == hotkeysKey:
+		return slices.ContainsFunc(modeHotkeyTargets(cfg), func(target modeHotkeyTarget) bool {
+			return target.modeKey == key[0]
+		})
+	default:
+		return false
 	}
 }
 
