@@ -103,9 +103,9 @@ ignores a leading repeat of the mode's own name in `args`.
 | `config` | None, or `set <key> <value>`, `reset <key>` or `reload`. `set` and `reset` take `--no-reload` last. | With no `args`, the active configuration, as [`neru config dump`](cli.md#neru-config-dump) prints it. |
 | `config-set` | `<key> <value>`, then optionally `--no-reload`. | none |
 | `reload` | none | none |
-| `toggle-scroll-invert` | none | `{"inverted": bool}` |
-| `toggle-screen-share` | none | `{"hidden": bool}` |
-| `toggle-cursor-follow-selection` | none | `{"following": bool}` |
+| `toggle-scroll-invert` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"inverted": bool}` |
+| `toggle-screen-share` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"hidden": bool}` |
+| `toggle-cursor-follow-selection` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"following": bool}` |
 | `query-displays`, `query-cursor`, `query-window`, `query-app`, `query-hints` | See [Querying](#querying). | See [Querying](#querying). |
 | `watch` | none | A [stream](#streaming). |
 

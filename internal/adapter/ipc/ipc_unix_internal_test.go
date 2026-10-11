@@ -118,8 +118,9 @@ func TestServer_HandleConnection_AcceptsACommandInsideTheLimit(t *testing.T) {
 	server.wg.Wait()
 }
 
-// Every reply names the protocol the daemon speaks, and a command asking for a
-// newer one, or carrying a field outside the contract, is refused before it runs.
+// Every reply names the protocol the daemon speaks. The daemon refuses a command
+// that asks for a newer one or carries a field outside the contract, and never
+// runs it.
 func TestServer_HandleConnection_ChecksTheProtocol(t *testing.T) {
 	t.Parallel()
 
@@ -127,12 +128,13 @@ func TestServer_HandleConnection_ChecksTheProtocol(t *testing.T) {
 		name     string
 		request  string
 		wantCode string
+		wantRun  bool
 	}{
-		{"no protocol runs", `{"action":"status"}`, CodeOK},
-		{"current protocol runs", `{"action":"status","protocol":1}`, CodeOK},
-		{"newer protocol is refused", `{"action":"status","protocol":2}`, CodeVersionMismatch},
-		{"negative protocol is refused", `{"action":"status","protocol":-1}`, CodeInvalidInput},
-		{"unknown field is refused", `{"action":"status","params":{}}`, CodeInvalidInput},
+		{"no protocol runs", `{"action":"ping"}`, CodeOK, true},
+		{"current protocol runs", `{"action":"ping","protocol":1}`, CodeOK, true},
+		{"protocol 2 is refused", `{"action":"ping","protocol":2}`, CodeVersionMismatch, false},
+		{"protocol -1 is refused", `{"action":"ping","protocol":-1}`, CodeInvalidInput, false},
+		{"unknown field is refused", `{"action":"ping","params":{}}`, CodeInvalidInput, false},
 	}
 
 	for _, testCase := range tests {
@@ -141,9 +143,12 @@ func TestServer_HandleConnection_ChecksTheProtocol(t *testing.T) {
 
 			accepted, dialed := connectedUnixPair(t)
 
+			ran := false
 			server := &Server{
 				logger: zap.NewNop(),
 				handler: func(_ context.Context, _ Command) Response {
+					ran = true
+
 					return Response{Success: true, Code: CodeOK}
 				},
 			}
@@ -183,6 +188,10 @@ func TestServer_HandleConnection_ChecksTheProtocol(t *testing.T) {
 			}
 
 			server.wg.Wait()
+
+			if ran != testCase.wantRun {
+				t.Errorf("handler ran = %v, want %v", ran, testCase.wantRun)
+			}
 		})
 	}
 }

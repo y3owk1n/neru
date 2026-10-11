@@ -44,9 +44,10 @@ func (h *ModesHandler) RegisterHandlers(
 	handlers[domain.CommandToggleCursorFollowSelection] = h.handleToggleCursorFollowSelection
 }
 
-// activationMessages is what each mode answers with once it is entered. The
-// wording is what a script reads back, so it is spelled out per mode rather
-// than built from the mode's name.
+// activationMessages is what each mode answers with once it is entered, and
+// what `neru <mode>` prints. It is spelled out per mode so the printed wording
+// stays the same for shell scripts reading the CLI's output. IPC clients branch on
+// the response code instead, per docs/reference/ipc.md (Compatibility).
 var activationMessages = map[domain.Mode]string{
 	domain.ModeHints:         "hints mode activated",
 	domain.ModeGrid:          "grid mode activated",
