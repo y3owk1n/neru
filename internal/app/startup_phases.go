@@ -20,7 +20,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
-	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/event"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/domain/motion"
@@ -508,7 +507,9 @@ func initializeEventTapAndIPC(app *App) error {
 			)
 		}
 
-		server.HandleStream(domain.CommandWatch, app.ipcController.HandleWatch)
+		for action, stream := range app.ipcController.Streams {
+			server.HandleStream(action, stream)
+		}
 
 		app.ipcServer = ipcadapter.NewAdapter(server, logger)
 	}

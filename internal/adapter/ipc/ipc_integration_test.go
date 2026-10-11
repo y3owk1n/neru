@@ -314,19 +314,17 @@ func TestClientSendWithTimeout(t *testing.T) {
 // rather than round-trip cleanly through the same struct.
 func TestCommandJSON(t *testing.T) {
 	cmd := ipc.Command{
-		Version: testWireVersion,
-		Action:  testCommandAction,
-		Params: map[string]any{
-			testMapKey: testMapValue,
-		},
-		Args: []string{"arg1", "arg2"},
+		Version:  testWireVersion,
+		Protocol: ipc.ProtocolVersion,
+		Action:   testCommandAction,
+		Args:     []string{"arg1", "arg2"},
 	}
 
 	assertWireKeys(t, cmd, map[string]any{
-		"version": testWireVersion,
-		"action":  testCommandAction,
-		"params":  map[string]any{testMapKey: testMapValue},
-		"args":    []any{"arg1", "arg2"},
+		"version":  testWireVersion,
+		"protocol": float64(ipc.ProtocolVersion),
+		"action":   testCommandAction,
+		"args":     []any{"arg1", "arg2"},
 	})
 }
 
@@ -334,21 +332,23 @@ func TestCommandJSON(t *testing.T) {
 // cross-version reason as TestCommandJSON.
 func TestResponseJSON(t *testing.T) {
 	response := ipc.Response{
-		Version: testWireVersion,
-		Success: true,
-		Message: "test message",
-		Code:    ipc.CodeOK,
+		Version:  testWireVersion,
+		Protocol: ipc.ProtocolVersion,
+		Success:  true,
+		Message:  "test message",
+		Code:     ipc.CodeOK,
 		Data: map[string]string{
 			testMapKey: testMapValue,
 		},
 	}
 
 	assertWireKeys(t, response, map[string]any{
-		"version": testWireVersion,
-		"success": true,
-		"message": "test message",
-		"code":    ipc.CodeOK,
-		"data":    map[string]any{testMapKey: testMapValue},
+		"version":  testWireVersion,
+		"protocol": float64(ipc.ProtocolVersion),
+		"success":  true,
+		"message":  "test message",
+		"code":     ipc.CodeOK,
+		"data":     map[string]any{testMapKey: testMapValue},
 	})
 }
 

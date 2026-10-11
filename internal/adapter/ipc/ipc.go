@@ -56,6 +56,11 @@ const (
 
 	// defaultBuildVersion is the fallback version when SetBuildVersion is not called.
 	defaultBuildVersion = "dev"
+
+	// ProtocolVersion is the wire contract in docs/reference/ipc.md. It rises
+	// only when a change breaks a client written against it, never when one
+	// adds a command, flag, data key or event.
+	ProtocolVersion = 1
 )
 
 // buildVersion holds the application build version, set at startup via SetBuildVersion.
@@ -110,19 +115,20 @@ const (
 
 // Command is a command sent through the IPC interface.
 type Command struct {
-	Version string         `json:"version,omitempty"`
-	Action  string         `json:"action"`
-	Params  map[string]any `json:"params,omitempty"`
-	Args    []string       `json:"args,omitempty"`
+	Version  string   `json:"version,omitempty"`
+	Protocol int      `json:"protocol,omitempty"`
+	Action   string   `json:"action"`
+	Args     []string `json:"args,omitempty"`
 }
 
 // Response is a response returned through the IPC interface.
 type Response struct {
-	Version string `json:"version,omitempty"`
-	Success bool   `json:"success"`
-	Message string `json:"message,omitempty"`
-	Code    string `json:"code,omitempty"`
-	Data    any    `json:"data,omitempty"`
+	Version  string `json:"version,omitempty"`
+	Protocol int    `json:"protocol"`
+	Success  bool   `json:"success"`
+	Message  string `json:"message,omitempty"`
+	Code     string `json:"code,omitempty"`
+	Data     any    `json:"data,omitempty"`
 }
 
 // StatusData is the payload structure for status query responses.
@@ -406,6 +412,12 @@ func (s *Server) handleConnection(connection net.Conn) {
 		zap.String("version", cmd.Version),
 	)
 
+	if refusal := protocolRefusal(cmd.Protocol); refusal != nil {
+		reply(*refusal)
+
+		return
+	}
+
 	// Validate build version if provided
 	serverVersion := BuildVersion()
 	if cmd.Version != "" && cmd.Version != serverVersion {
@@ -440,6 +452,33 @@ func (s *Server) handleConnection(connection net.Conn) {
 	reply(response)
 }
 
+// protocolRefusal returns the reply that refuses a command asking for a
+// protocol this daemon does not speak, or nil when it may run. Zero means the
+// client asked for none.
+func protocolRefusal(protocol int) *Response {
+	switch {
+	case protocol < 0:
+		return &Response{
+			Success: false,
+			Message: fmt.Sprintf("protocol must not be negative, got %d", protocol),
+			Code:    CodeInvalidInput,
+		}
+	case protocol > ProtocolVersion:
+		return &Response{
+			Version: BuildVersion(),
+			Success: false,
+			Message: fmt.Sprintf(
+				"client needs protocol %d, daemon speaks %d",
+				protocol,
+				ProtocolVersion,
+			),
+			Code: CodeVersionMismatch,
+		}
+	default:
+		return nil
+	}
+}
+
 // writeResponse sends one response to the client.
 //
 // The deadline set when the connection was accepted budgets the whole exchange,
@@ -449,6 +488,8 @@ func (s *Server) handleConnection(connection net.Conn) {
 // perfectly successful command would have its reply refused before it was even
 // attempted, and the caller would see a timeout for work that did happen.
 func writeResponse(connection net.Conn, encoder *json.Encoder, response Response) error {
+	response.Protocol = ProtocolVersion
+
 	deadlineErr := connection.SetWriteDeadline(time.Now().Add(ConnectionWriteTimeout))
 	if deadlineErr != nil {
 		return deadlineErr

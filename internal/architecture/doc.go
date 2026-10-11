@@ -47,6 +47,9 @@
 //   - hotkey_delete_key_test.go — every platform's [hotkeys] table resolves
 //     "Delete" and "Backspace" to one physical key, the backspace key, so a
 //     config file binds the same key on all three.
+//   - ipc_reference_test.go — docs/reference/ipc.md states the protocol
+//     version the daemon speaks, and its Commands table names every command
+//     the daemon answers, and nothing else.
 //   - justfile_doc_test.go — every recipe just --list shows declares its own
 //     one-line summary, rather than inheriting whichever line of the comment
 //     block above it just happens to read.

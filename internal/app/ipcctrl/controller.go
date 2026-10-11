@@ -65,6 +65,10 @@ type Controller struct {
 	infoHandler *InfoHandler
 
 	Handlers map[string]func(context.Context, ipc.Command) ipc.Response
+
+	// Streams are the commands whose reply is a stream, registered on the
+	// server apart from Handlers.
+	Streams map[string]ipc.StreamHandler
 }
 
 // Deps collects everything New needs.
@@ -147,6 +151,10 @@ func New(deps Deps) *Controller {
 		Events:          deps.Events,
 		Logger:          logger.Named("ipc.controller"),
 		Handlers:        make(map[string]func(context.Context, ipc.Command) ipc.Response),
+	}
+
+	ipcController.Streams = map[string]ipc.StreamHandler{
+		domain.CommandWatch: ipcController.HandleWatch,
 	}
 
 	// Register command handlers
