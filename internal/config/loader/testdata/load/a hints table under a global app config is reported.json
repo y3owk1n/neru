@@ -13,5 +13,8 @@
     "+ .appConfigs[0].visibleCheckEnabled = null",
     "- .appConfigs = null"
   ],
-  "validationError": ""
+  "validationError": "",
+  "warnings": [
+    "app_configs.hints.ui: not a Neru option, so it does nothing"
+  ]
 }

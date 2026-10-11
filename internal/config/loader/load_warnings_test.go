@@ -306,3 +306,81 @@ func TestLoadWithValidation_AcceptsDisablingARelocatedLauncher(t *testing.T) {
 		}
 	}
 }
+
+// unknownKeyWarning is what a file is told about a key no option reads.
+func unknownKeyWarning(key string) string {
+	return key + ": not a Neru option, so it does nothing"
+}
+
+// TestLoadWithValidation_ReportsKeysNoOptionReads pins that a misspelled key
+// is reported instead of decoded past, and that the file still loads with it,
+// since a refused file would cost the user every other line (ADR 0002).
+func TestLoadWithValidation_ReportsKeysNoOptionReads(t *testing.T) {
+	tests := []struct {
+		name string
+		toml string
+		want []string
+	}{
+		{"top-level key", "bogus_key = 1", []string{"bogus_key"}},
+		{"key in a section", "[hints]\nenabeld = true", []string{"hints.enabeld"}},
+		{
+			"key in a declared mode",
+			"[modes.win]\nindicator = \"W\"\ntypo = 1",
+			[]string{"modes.win.typo"},
+		},
+		{
+			"key in an app_configs entry",
+			"[[app_configs]]\nbundle_id = \"x\"\nbundle_idz = \"y\"",
+			[]string{"app_configs.bundle_idz"},
+		},
+		{"table, reported once", "[foo]\na = 1\n[foo.bar]\nb = 2", []string{"foo"}},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			result, _ := loadWithObservedLogger(t, testCase.toml, "")
+
+			if result.ValidationError != nil {
+				t.Fatalf("an unknown key was refused: %v", result.ValidationError)
+			}
+
+			want := make([]string, 0, len(testCase.want))
+			for _, key := range testCase.want {
+				want = append(want, unknownKeyWarning(key))
+			}
+
+			if !slices.Equal(result.Warnings, want) {
+				t.Errorf("result.Warnings = %q, want %q", result.Warnings, want)
+			}
+		})
+	}
+}
+
+// TestLoadWithValidation_ReadsHotkeyTablesAsKnown pins that the hotkey tables,
+// which the typed decode skips because the loader reads them from the raw map,
+// are not reported as unknown.
+func TestLoadWithValidation_ReadsHotkeyTablesAsKnown(t *testing.T) {
+	result, _ := loadWithObservedLogger(t, `
+[hotkeys]
+"Primary+Shift+P" = "hints"
+
+[hints.hotkeys]
+"Shift+Q" = "idle"
+
+[modes.win]
+indicator = "W"
+
+[modes.win.hotkeys]
+"h" = "idle"
+`, "")
+
+	if result.ValidationError != nil {
+		t.Fatalf("the hotkey tables were refused: %v", result.ValidationError)
+	}
+
+	for _, warning := range result.Warnings {
+		if strings.Contains(warning, "not a Neru option") {
+			t.Errorf("a hotkey table was reported as unknown: %q", warning)
+		}
+	}
+}

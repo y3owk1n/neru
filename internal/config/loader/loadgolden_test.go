@@ -221,7 +221,10 @@ font_size = 42
 `,
 		},
 		{
-			name: "an app config carries its own hints settings",
+			// Per-app hints settings live under [[hints.app_configs]]. A hints
+			// table under the global [[app_configs]] is not an option, so
+			// nothing reads it, and the warning says so.
+			name: "a hints table under a global app config is reported",
 			config: `
 [[app_configs]]
 bundle_id = "com.apple.Safari"

@@ -243,6 +243,9 @@ Neru rejects the whole reload and keeps the previous config. To check which
 file the daemon read, see
 [Where Neru looks for the file](configuring.md#where-neru-looks-for-the-file).
 
+A misspelled key is not an error. Neru skips it, and `neru config validate`
+names it in a warning, so check its output for `not a Neru option`.
+
 A value set with `neru config set` wins over your file, see
 [How the layers combine](configuring.md#how-the-layers-combine).
 `neru config reset <key>` removes it.
@@ -253,7 +256,6 @@ A TOML syntax error or a refused value. `neru config validate` prints the line
 or key and the reason. Common causes:
 
 - a key containing `+` without quotes
-- a typo in a section header
 - a color without its leading `#`
 - a hotkey bound to an empty string, where `__disabled__` was meant
 

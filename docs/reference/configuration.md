@@ -15,9 +15,9 @@ This page lists facts. To create the file and apply changes, see
 ## Editor support
 
 Neru publishes a JSON Schema for `config.toml`. An editor that reads it
-completes keys and flags mistakes while you type. The daemon ignores a
-misspelled key, and refuses a wrong type or a malformed color only when it
-loads the file. Taplo, and the Even Better TOML extension built on it, find
+completes keys and flags mistakes while you type. Without an editor,
+`neru config validate` reports a misspelled key as a warning, and Neru refuses
+a wrong type or a malformed color when it loads the file. Taplo, and the Even Better TOML extension built on it, find
 the schema through a comment on the first line of the file:
 
 ```toml
@@ -25,8 +25,10 @@ the schema through a comment on the first line of the file:
 ```
 
 [`neru config init`](cli.md#neru-config-init) writes that line for you,
-naming the schema of the version you run. Replace `main` with your version's
-tag, such as `v1.58.0`, to pin an existing file to it.
+naming the schema of the version you run. To pin an existing file to your
+version, replace `main` with its release tag. Releases from before the schema
+have no copy of it, so an editor reports their URL as a schema it cannot
+load.
 
 ## Hotkeys
 
