@@ -366,6 +366,12 @@ Takes a value. Modes: `recursive_grid`.
 
 Open recursive grid already zoomed to this depth at the cursor.
 
+#### `--zoom-around-cursor`
+
+Takes a value. Modes: `recursive_grid`.
+
+Auto-drill to the given depth (a non-negative integer) in recursive-grid with the subgrid centered around the current cursor position.
+
 #### `--cursor-selection-mode`
 
 Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect`.

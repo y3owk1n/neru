@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/cli"
 )
 
@@ -245,6 +246,10 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 }
 
 func TestLaunchCommandExecution(t *testing.T) {
+	if ipc.IsServerRunning() {
+		t.Skip("skipping launch test because a Neru daemon is currently running on the system")
+	}
+
 	// Note: This test modifies global LaunchFunc and is not parallel-safe
 	// Save original LaunchFunc
 	originalLaunchFunc := cli.LaunchFunc
