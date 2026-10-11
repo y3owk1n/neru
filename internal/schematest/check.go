@@ -14,12 +14,33 @@ import (
 	"strings"
 )
 
-// ErrViolation is what Check returns when a value breaks the schema.
-var ErrViolation = errors.New("schema violation")
+var (
+	// ErrViolation is what Check returns when a value breaks the schema.
+	ErrViolation = errors.New("schema violation")
+	// ErrUnknownKeyword is what Check returns for a schema it cannot apply in
+	// full, rather than passing a value against the part it understands.
+	ErrUnknownKeyword = errors.New("unknown schema keyword")
+)
+
+// knownKeywords are the keywords the schema renderers emit. The annotations
+// constrain nothing, and Check applies every other one.
+var knownKeywords = map[string]bool{
+	"$schema": true, "$id": true, "title": true, "description": true, "definitions": true,
+	"$ref": true, "oneOf": true, "anyOf": true, "type": true,
+	"properties": true, "required": true, "additionalProperties": true,
+	"items": true, "pattern": true,
+}
 
 // Check validates value against node. root resolves $ref, and path names the
 // value in an error. A value decoded from TOML or from JSON both work.
 func Check(root, node map[string]any, value any, path string) error {
+	for keyword := range node {
+		if !knownKeywords[keyword] {
+			return fmt.Errorf("%w: %s: the schema uses %q, which this check does not apply",
+				ErrUnknownKeyword, path, keyword)
+		}
+	}
+
 	if target, isRef := node["$ref"].(string); isRef {
 		definitions, _ := root["definitions"].(map[string]any)
 		resolved, _ := definitions[strings.TrimPrefix(target, "#/definitions/")].(map[string]any)

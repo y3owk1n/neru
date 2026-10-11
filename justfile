@@ -292,6 +292,7 @@ test-foundation:
         ./internal/domain/bisect \
         ./internal/domain/state ./internal/derrors \
         ./internal/flagref ./internal/supportref ./internal/configschema \
+        ./internal/schematest \
         ./internal/adapter/logger \
         ./internal/adapter/overlay/render/badge \
         ./internal/adapter/overlay/render/motion \
