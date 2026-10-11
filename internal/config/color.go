@@ -8,12 +8,16 @@ import (
 )
 
 // ColorPattern is the regular expression a color value matches: #RGB,
-// #RRGGBB or #RRGGBBAA. The published config schema repeats it.
-const ColorPattern = `^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$`
+// #RRGGBB or #RRGGBBAA. SolidColorPattern is the same without the alpha form,
+// for the theme palette. The published config schema repeats both.
+const (
+	ColorPattern      = `^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$`
+	SolidColorPattern = `^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$`
+)
 
 var (
 	colorRegex      = regexp.MustCompile(ColorPattern)
-	solidColorRegex = regexp.MustCompile(`^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$`)
+	solidColorRegex = regexp.MustCompile(SolidColorPattern)
 )
 
 // Color is a color that can be specified as either a single value

@@ -31,6 +31,36 @@ func TestRender_AcceptsEveryShippedExample(t *testing.T) {
 	}
 }
 
+// TestRender_AcceptsEveryShapeTheDecoderTakes pins the shapes no shipped
+// example writes, so the schema cannot start refusing one unnoticed.
+func TestRender_AcceptsEveryShapeTheDecoderTakes(t *testing.T) {
+	schema := renderedSchema(t)
+
+	tests := []struct {
+		name     string
+		document string
+	}{
+		{"binding of several steps", "[hotkeys]\n\"Primary+P\" = [\"hints\", \"idle\"]"},
+		{
+			"color per theme",
+			"[mode_indicator.ui]\ntext_color = { light = \"#fff\", dark = \"#000000aa\" }",
+		},
+		{"unset color", "[mode_indicator.hints]\ntext_color = \"\""},
+		{"solid palette color", "[theme.dark]\nsurface = \"#112233\""},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			document := decodeTOML(t, testCase.document)
+
+			err := check(schema, schema, document, "")
+			if err != nil {
+				t.Errorf("the schema refused %q: %v", testCase.document, err)
+			}
+		})
+	}
+}
+
 // TestRender_FlagsWhatTheDecoderWouldDrop pins the mistakes the schema exists
 // to catch in an editor. The daemon ignores an unknown key, and refuses the
 // others only when it loads the file.
@@ -47,16 +77,14 @@ func TestRender_FlagsWhatTheDecoderWouldDrop(t *testing.T) {
 		{"not a color", "[mode_indicator.ui]\ntext_color = \"red\""},
 		{"unknown color theme", "[mode_indicator.ui]\ntext_color = { dim = \"#fff\" }"},
 		{"step that is not a string", "[hotkeys]\n\"Primary+P\" = 1"},
+		{"list holding a non-string step", "[hotkeys]\n\"Primary+P\" = [\"hints\", 1]"},
+		{"named palette color", "[theme.light]\nsurface = \"red\""},
+		{"palette color with alpha", "[theme.light]\nsurface = \"#FF0000AA\""},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			var document map[string]any
-
-			_, err := toml.Decode(testCase.document, &document)
-			if err != nil {
-				t.Fatalf("Decode() error = %v", err)
-			}
+			document := decodeTOML(t, testCase.document)
 
 			if check(schema, schema, document, "") == nil {
 				t.Errorf("the schema accepted %q", testCase.document)
@@ -81,6 +109,19 @@ func renderedSchema(t *testing.T) map[string]any {
 	}
 
 	return schema
+}
+
+func decodeTOML(t *testing.T, text string) map[string]any {
+	t.Helper()
+
+	var document map[string]any
+
+	_, err := toml.Decode(text, &document)
+	if err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+
+	return document
 }
 
 func decodeTOMLFile(t *testing.T, path string) map[string]any {

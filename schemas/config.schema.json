@@ -25,6 +25,10 @@
         }
       ]
     },
+    "solid_color": {
+      "pattern": "^$|^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$",
+      "type": "string"
+    },
     "steps": {
       "anyOf": [
         {
@@ -1601,19 +1605,19 @@
           "additionalProperties": false,
           "properties": {
             "accent": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             },
             "accent_alt": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             },
             "on_accent_alt": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             },
             "surface": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             },
             "text": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             }
           },
           "type": "object"
@@ -1622,19 +1626,19 @@
           "additionalProperties": false,
           "properties": {
             "accent": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             },
             "accent_alt": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             },
             "on_accent_alt": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             },
             "surface": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             },
             "text": {
-              "type": "string"
+              "$ref": "#/definitions/solid_color"
             }
           },
           "type": "object"

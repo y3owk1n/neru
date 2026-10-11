@@ -19,9 +19,10 @@ const (
 	// hotkeysField is the json name of every hotkey table. The loader reads
 	// those tables from the raw TOML map, so they carry toml:"-".
 	hotkeysField = "hotkeys"
-	// colorDefinition and stepsDefinition name the shapes many fields share.
-	colorDefinition = "color"
-	stepsDefinition = "steps"
+	// The definitions name the shapes many fields share.
+	colorDefinition      = "color"
+	solidColorDefinition = "solid_color"
+	stepsDefinition      = "steps"
 )
 
 // The JSON Schema words the rendering repeats.
@@ -42,6 +43,8 @@ var sectionAnchors = map[string]string{
 var (
 	colorType = reflect.TypeFor[config.Color]()
 	stepsType = reflect.TypeFor[config.StringOrStringArray]()
+	// paletteType holds plain strings that ValidateTheme reads as solid colors.
+	paletteType = reflect.TypeFor[config.ThemePalette]()
 )
 
 // URL is where the schema for a build of the given version is published: its
@@ -73,8 +76,9 @@ func Render() ([]byte, error) {
 	root["$id"] = URL("")
 	root["title"] = "Neru configuration"
 	root["definitions"] = map[string]any{
-		colorDefinition: colorSchema(),
-		stepsDefinition: stepsSchema(),
+		colorDefinition:      colorSchema(),
+		solidColorDefinition: solidColorSchema(),
+		stepsDefinition:      stepsSchema(),
 	}
 
 	out, err := json.MarshalIndent(root, "", "  ")
@@ -145,8 +149,8 @@ func object(goType reflect.Type) (map[string]any, error) {
 			err      error
 		)
 
-		switch name {
-		case "-":
+		switch {
+		case name == "-":
 			jsonName, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 			if jsonName != hotkeysField {
 				continue
@@ -157,8 +161,10 @@ func object(goType reflect.Type) (map[string]any, error) {
 				keyType:  typeObject,
 				keyExtra: ref(stepsDefinition),
 			}
-		case "":
+		case name == "":
 			continue
+		case goType == paletteType:
+			property = ref(solidColorDefinition)
 		default:
 			property, err = schema(field.Type)
 			if err != nil {
@@ -202,6 +208,12 @@ func colorSchema() map[string]any {
 			},
 		},
 	}
+}
+
+// solidColorSchema accepts what ValidateTheme takes for a palette color: a
+// color without alpha, or empty for unset.
+func solidColorSchema() map[string]any {
+	return map[string]any{keyType: typeString, "pattern": "^$|" + config.SolidColorPattern}
 }
 
 // stepsSchema accepts what config.StringOrStringArray decodes: one step, or a
