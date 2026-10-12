@@ -166,6 +166,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 		splitWord := h.hints.Context.SplitWord()
+		targets := h.hints.Context.Targets()
 
 		h.executeActionAtPoint(pendingAction, pendingModifier, center, repeat, func() {
 			h.activateHintModeInternal(modecmd.Activation{
@@ -178,6 +179,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 				CaptureScope:       &captureScopeOverride,
 				LabelDirection:     &labelDirectionOverride,
 				SplitWord:          &splitWord,
+				Targets:            targets,
 				// OnExit is left nil to preserve the stored steps across
 				// re-activation.
 			})

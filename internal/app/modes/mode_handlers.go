@@ -317,6 +317,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 		splitWord := h.hints.Context.SplitWord()
+		targets := h.hints.Context.Targets()
 
 		h.moveCursorAndHandleAction(
 			center,
@@ -336,6 +337,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 					CaptureScope:          &captureScopeOverride,
 					LabelDirection:        &labelDirectionOverride,
 					SplitWord:             &splitWord,
+					Targets:               targets,
 					// OnExit is left nil to preserve the stored steps across
 					// re-activation.
 				})

@@ -2,6 +2,7 @@ package hints
 
 import (
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // baseContext provides common functionality for mode component contexts.
@@ -21,7 +22,7 @@ type baseContext struct {
 	activeCaptureScope     string
 	labelDirectionOverride string
 	splitWord              bool
-	targetsSupplied        bool
+	targets                []modecmd.Target
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -98,7 +99,7 @@ func (c *baseContext) Reset() {
 	c.activeCaptureScope = ""
 	c.labelDirectionOverride = ""
 	c.splitWord = false
-	c.targetsSupplied = false
+	c.targets = nil
 }
 
 // SetFilterRoles sets the filter roles for hint mode.
@@ -191,16 +192,23 @@ func (c *baseContext) SplitWord() bool {
 	return c.splitWord
 }
 
-// SetTargetsSupplied records whether the session labels targets a caller
-// supplied rather than what a scan found.
-func (c *baseContext) SetTargetsSupplied(supplied bool) {
-	c.targetsSupplied = supplied
+// SetTargets stores the targets a caller supplied for the session to label in
+// place of a scan. Nil means the session scans.
+func (c *baseContext) SetTargets(targets []modecmd.Target) {
+	c.targets = targets
+}
+
+// Targets returns the targets the session labels, nil when it scans. A
+// re-activation inside the session carries them, so it labels them again
+// rather than scanning.
+func (c *baseContext) Targets() []modecmd.Target {
+	return c.targets
 }
 
 // TargetsSupplied reports whether the session labels supplied targets, which
 // nothing can scan again.
 func (c *baseContext) TargetsSupplied() bool {
-	return c.targetsSupplied
+	return c.targets != nil
 }
 
 // Context holds the state and context for hint mode operations.

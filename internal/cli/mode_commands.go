@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
@@ -162,6 +163,26 @@ func readActivation(cmd *cobra.Command, mode domain.Mode) (modecmd.Activation, e
 	return activation, nil
 }
 
+// readTargetsFromStdin reads --targets from stdin, refusing more than the
+// daemon accepts in one request rather than reading a producer that never
+// stops.
+func readTargetsFromStdin(cmd *cobra.Command) (string, error) {
+	stdin, err := io.ReadAll(io.LimitReader(cmd.InOrStdin(), ipc.MaxCommandBytes+1))
+	if err != nil {
+		return "", derrors.Wrap(err, derrors.CodeInvalidInput, "read --targets from stdin")
+	}
+
+	if len(stdin) > ipc.MaxCommandBytes {
+		return "", derrors.Newf(
+			derrors.CodeInvalidInput,
+			"--targets on stdin exceeds the %d byte limit of one request",
+			ipc.MaxCommandBytes,
+		)
+	}
+
+	return string(stdin), nil
+}
+
 // applyFlag reads one flag's typed value and hands it to the flag's own rule,
 // which is what decides what the value means.
 func applyFlag(
@@ -204,12 +225,12 @@ func applyFlag(
 		// A binding or an IPC caller has no stdin, so reading it is the one
 		// thing the command line adds to --targets.
 		if descriptor.Name() == modecmd.FlagTargets && value == "-" {
-			stdin, readErr := io.ReadAll(cmd.InOrStdin())
+			stdin, readErr := readTargetsFromStdin(cmd)
 			if readErr != nil {
-				return derrors.Wrap(readErr, derrors.CodeInvalidInput, "read --targets from stdin")
+				return readErr
 			}
 
-			value = string(stdin)
+			value = stdin
 		}
 
 		return descriptor.Apply(activation, value)

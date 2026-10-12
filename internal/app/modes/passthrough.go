@@ -256,6 +256,7 @@ func (h *handlerState) passthroughTick(mode domain.Mode, session uint64) {
 		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 		splitWord := h.hints.Context.SplitWord()
+		targets := h.hints.Context.Targets()
 		h.activateHintModeInternal(modecmd.Activation{
 			Mode:               domain.ModeHints,
 			FilterRoles:        filterRoles,
@@ -265,6 +266,7 @@ func (h *handlerState) passthroughTick(mode domain.Mode, session uint64) {
 			CaptureScope:       &captureScopeOverride,
 			LabelDirection:     &labelDirectionOverride,
 			SplitWord:          &splitWord,
+			Targets:            targets,
 			// OnExit is left nil to preserve the stored steps across refresh.
 		})
 	})

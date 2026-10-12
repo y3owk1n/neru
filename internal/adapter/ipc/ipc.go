@@ -41,13 +41,13 @@ const (
 	// close. See closeListener for why the close can fail to return at all.
 	listenerCloseTimeout = 2 * time.Second
 
-	// maxCommandBytes bounds one command. A command is a verb, a small
+	// MaxCommandBytes bounds one command. A command is a verb, a small
 	// parameter map and its arguments; the largest realistic one — a config
 	// value or a sequence definition traveling in Args — is orders of
 	// magnitude below this. The cap exists so a peer cannot make the daemon
 	// buffer without limit, not to police command shape, which
 	// DisallowUnknownFields already does.
-	maxCommandBytes = 64 << 10
+	MaxCommandBytes = 64 << 10
 
 	// defaultBuildVersion is the fallback version when SetBuildVersion is not called.
 	defaultBuildVersion = "dev"
@@ -348,7 +348,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 		return
 	}
 
-	decoder := json.NewDecoder(&boundedReader{reader: connection, remaining: maxCommandBytes})
+	decoder := json.NewDecoder(&boundedReader{reader: connection, remaining: MaxCommandBytes})
 	decoder.DisallowUnknownFields()
 
 	encoder := json.NewEncoder(connection)
@@ -372,11 +372,11 @@ func (s *Server) handleConnection(connection net.Conn) {
 	decodeCommandErr := decoder.Decode(&cmd)
 	if decodeCommandErr != nil {
 		if errors.Is(decodeCommandErr, errCommandTooLarge) {
-			logger.Debug("Refused an oversized command", zap.Int("limit_bytes", maxCommandBytes))
+			logger.Debug("Refused an oversized command", zap.Int("limit_bytes", MaxCommandBytes))
 
 			reply(Response{
 				Success: false,
-				Message: fmt.Sprintf("command exceeds the %d byte limit", maxCommandBytes),
+				Message: fmt.Sprintf("command exceeds the %d byte limit", MaxCommandBytes),
 				Code:    CodeInvalidInput,
 			})
 

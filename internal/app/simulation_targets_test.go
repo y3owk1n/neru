@@ -59,6 +59,39 @@ func TestSimulation_HintsTargets_LabelsAndClicksTheSuppliedTargets(t *testing.T)
 	sim.waitMode(domain.ModeIdle)
 }
 
+// TestSimulation_HintsTargets_SelectionWithoutAnActionKeepsTheTargets pins
+// the re-activation a selection with no --action makes: hints mode comes back
+// on the supplied targets, not on what a scan finds.
+func TestSimulation_HintsTargets_SelectionWithoutAnActionKeepsTheTargets(t *testing.T) {
+	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	sim := newSimHarness(t, simConfig(), []*element.Element{save})
+
+	resp := sim.app.HandleCommand(context.Background(), ipc.Command{
+		Action: domain.ModeNameHints,
+		Args:   []string{"--targets=" + suppliedTargets},
+	})
+	if !resp.Success {
+		t.Fatalf("hints --targets failed: %s (%s)", resp.Message, resp.Code)
+	}
+
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	before := sim.overlay.hintDrawCount()
+	labels := sim.overlay.lastHintLabels()
+
+	sim.typeLabel(labels[0])
+	sim.waitFor("hints drawn again", func() bool { return sim.overlay.hintDrawCount() > before })
+
+	if got := sim.cursor.position(); got != image.Pt(430, 315) {
+		t.Errorf("cursor at %v, want the first target's center", got)
+	}
+
+	if relabelled := sim.overlay.lastHintLabels(); len(relabelled) != 2 {
+		t.Errorf("hints mode came back with %v, want the two supplied targets again", relabelled)
+	}
+}
+
 // TestSimulation_HintsTargets_ExitOnAScreenChange pins that a screen change
 // ends a session on supplied targets rather than scanning in their place.
 func TestSimulation_HintsTargets_ExitOnAScreenChange(t *testing.T) {

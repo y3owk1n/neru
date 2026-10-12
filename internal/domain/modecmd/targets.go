@@ -19,30 +19,59 @@ type Target struct {
 	Value       string `json:"value,omitempty"`
 }
 
-// targetsDocument is the JSON --targets carries. Keys it does not know, such
-// as the label a query reports, are ignored, so a query's answer reads back
-// even after the query gains a key.
+// targetsDocument is the JSON a rendering writes --targets back out as.
 type targetsDocument struct {
 	Hints []Target `json:"hints"`
 }
 
-// parseTargets reads --targets: at least one target, each with a width and a
-// height.
+// writtenTarget is a target as written, where a bound left out is nil rather
+// than a zero that would read as a real coordinate.
+type writtenTarget struct {
+	X           *int   `json:"x"`
+	Y           *int   `json:"y"`
+	Width       *int   `json:"width"`
+	Height      *int   `json:"height"`
+	Role        string `json:"role"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Value       string `json:"value"`
+}
+
+// parseTargets reads --targets: at least one target, each with all four
+// bounds and a positive width and height. Keys it does not know, such as the
+// label a query reports, are ignored, so a query's answer reads back even
+// after the query gains a key.
 func parseTargets(value string) ([]Target, error) {
-	var document targetsDocument
+	var document struct {
+		Hints []writtenTarget `json:"hints"`
+	}
 
 	err := json.Unmarshal([]byte(value), &document)
 	if err != nil || len(document.Hints) == 0 {
 		return nil, invalid(msgTargetsValue)
 	}
 
-	for _, target := range document.Hints {
-		if target.Width <= 0 || target.Height <= 0 {
+	targets := make([]Target, 0, len(document.Hints))
+
+	for _, written := range document.Hints {
+		if written.X == nil || written.Y == nil || written.Width == nil || written.Height == nil ||
+			*written.Width <= 0 || *written.Height <= 0 {
 			return nil, invalid(msgTargetsValue)
 		}
+
+		targets = append(targets, Target{
+			X:           *written.X,
+			Y:           *written.Y,
+			Width:       *written.Width,
+			Height:      *written.Height,
+			Role:        written.Role,
+			Title:       written.Title,
+			Description: written.Description,
+			Value:       written.Value,
+		})
 	}
 
-	return document.Hints, nil
+	return targets, nil
 }
 
 // renderTargets writes the targets back out as the JSON they were read from.

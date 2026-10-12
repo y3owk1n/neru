@@ -719,6 +719,16 @@ func TestParse_RefusalMessages(t *testing.T) {
 			msgTargets,
 		},
 		{
+			domain.ModeHints,
+			[]string{`--targets={"hints":[{"width":60,"height":30}]}`},
+			msgTargets,
+		},
+		{
+			domain.ModeHints,
+			[]string{`--targets={"hints":[{"x":null,"y":20,"width":60,"height":30}]}`},
+			msgTargets,
+		},
+		{
 			domain.ModeGrid,
 			[]string{"--cursor-selection-mode"},
 			"--cursor-selection-mode requires follow or hold",

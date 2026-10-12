@@ -34,7 +34,7 @@ func TestServer_HandleConnection_RefusesAnOversizedCommand(t *testing.T) {
 
 	oversized, marshalErr := json.Marshal(Command{
 		Action: "run",
-		Args:   []string{strings.Repeat("x", maxCommandBytes)},
+		Args:   []string{strings.Repeat("x", MaxCommandBytes)},
 	})
 	if marshalErr != nil {
 		t.Fatalf("Marshal() error = %v", marshalErr)
