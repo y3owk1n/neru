@@ -208,6 +208,23 @@ func TestSimulation_EventsFollowEveryModeTransition(t *testing.T) {
 	)
 }
 
+// TestSimulation_EventsReportAnAbandonedSwitchAsCanceled pins that a switch
+// whose next mode never opens reports the old mode's exit as canceled, with no
+// entry after it, so a watcher knows Neru is idle. Hints is asked for on a
+// screen with nothing clickable, so its activation gives up.
+func TestSimulation_EventsReportAnAbandonedSwitchAsCanceled(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	events := subscribeEvents(t, sim)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeIdle)
+
+	events.expect(modeEnter("grid"), modeExit("grid", event.ExitCancelled))
+	events.expectNone(250 * time.Millisecond)
+}
+
 // TestSimulation_EventsNameADeclaredMode pins that a declared mode is reported
 // by the name the user gave it, not as a custom mode.
 func TestSimulation_EventsNameADeclaredMode(t *testing.T) {

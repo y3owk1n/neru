@@ -162,9 +162,8 @@ Do not guess at a field.
   one line per event. A reader that falls behind gets a fresh snapshot in
   place of the events it missed, so rebuild the tool's state from every
   snapshot, not only the first. Read the `reason` on `mode_exit` in the
-  `neru watch` table before showing a mode. It says when a `mode_enter`
-  follows and when none does. A display that ignores it either flashes idle
-  on every switch or keeps showing a mode that failed to open.
+  `neru watch` table before showing a mode, or the display flashes idle on
+  every switch between modes.
   The stream ends when the daemon exits. Ask the user whether the tool
   should then exit or reconnect.
 - **Output.** A tool another program reads line by line, such as a status

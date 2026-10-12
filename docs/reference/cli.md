@@ -144,7 +144,7 @@ snapshot as the whole state and each event as a change to it.
 | `event`     | every line                     | `snapshot`, or the event, such as `mode_enter`                        |
 | `status`    | `snapshot`                     | The `neru status --json` object                                       |
 | `mode`      | `mode_enter`, `mode_exit`, `select` | The mode, named as `neru status` names it                        |
-| `reason`    | `mode_exit`                    | `completed`, `switched` or `canceled`, as `NERU_REASON` has them. A `mode_exit` with `switched` is followed by a `mode_enter` once the next mode opens, or the same one again for `--repeat`. When that mode fails to open, such as hints finding nothing to label, no event follows and Neru is idle |
+| `reason`    | `mode_exit`                    | `completed`, `switched` or `canceled`, as `NERU_REASON` has them. A `mode_exit` with `switched` is always followed by the next mode's `mode_enter`. A switch whose next mode fails to open, such as hints finding nothing to label, reports `canceled` |
 | `action`    | `select`, and `mode_exit` when `completed` | The action the selection ran, such as `left_click`. Absent when it ran none, such as for a binding with no `--action` |
 | `bundle_id` | `app_focus`                    | The application, as [`bundle_id`](configuration.md#app-identity-across-platforms-bundle_id) names it |
 | `ok`        | `config_reload`                | `true` or `false`                                                     |

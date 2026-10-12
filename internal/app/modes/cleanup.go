@@ -76,6 +76,7 @@ func (h *handlerState) exitMode() {
 // `internal/architecture/mode_transition_release_test.go` fails on any other
 // form, because getting it wrong is silent to everything else (ADR 0011).
 func (h *handlerState) exitModeForTransition() func() {
+	h.switchPending = h.appState.CurrentMode() != domain.ModeIdle
 	h.exitCurrentMode(true)
 
 	return h.releaseKeyboardIfNoModeEntered
@@ -108,6 +109,9 @@ func (h *handlerState) exitCurrentMode(keepEventTap bool) {
 // kept, when the activation that kept it never entered a mode. It is what that
 // method returns, and it runs deferred. Caller must hold h.mu.
 //
+// It also reports the exit the transition held back, as canceled, since the
+// switch never happened. A watcher that saw no entry then knows Neru is idle.
+//
 // It is deferred rather than written into each abandon path because there are
 // several per mode — a refused draw, an empty hint scan, a permission dialog
 // that suspends the activation — and one that forgot would leave the daemon
@@ -132,6 +136,10 @@ func (h *handlerState) exitCurrentMode(keepEventTap bool) {
 // re-injecting through the virtual keyboard, which is a lot of machinery aimed
 // at the case where the user has already been told nothing happened.
 func (h *handlerState) releaseKeyboardIfNoModeEntered() {
+	if h.switchPending {
+		h.publishSwitch(state.ModeExitReasonCancelled)
+	}
+
 	if !h.eventTapEnabled() || h.appState.CurrentMode() != domain.ModeIdle {
 		return
 	}

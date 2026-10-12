@@ -366,7 +366,7 @@ events that carry it.
 | ---------------- | ------------------------------- | ---------------------------------------------------------------- |
 | `NERU_EVENT`     | every hook                      | The event, such as `mode_enter`                                  |
 | `NERU_MODE`      | `on_mode_enter`, `on_mode_exit`, `on_select` | The mode, named as `neru status` names it           |
-| `NERU_REASON`    | `on_mode_exit`                  | `completed` after a selection, `switched` on the way into another mode, else `canceled` |
+| `NERU_REASON`    | `on_mode_exit`                  | `completed` after a selection, `switched` when another mode opens in its place, else `canceled` |
 | `NERU_ACTION`    | `on_select`, and `on_mode_exit` when `completed` | The action the selection ran, such as `left_click`, or `left_click,left_click` for a chain. Unset when it ran none, such as for a binding with no `--action` |
 | `NERU_BUNDLE_ID` | `on_app_focus`                  | The application, as [`bundle_id`](#app-identity-across-platforms-bundle_id) names it |
 | `NERU_OK`        | `on_config_reload`              | `true` or `false`                                                |

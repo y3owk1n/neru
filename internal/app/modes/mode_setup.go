@@ -21,7 +21,15 @@ func (h *handlerState) setAppMode(mode domain.Mode) {
 
 	h.modeSession++
 	h.appState.SetMode(mode)
-	h.publishModeChange(reason)
+
+	// The idle between two modes of a transition publishes nothing. The old
+	// mode's exit goes out here when the next mode opens, or from the
+	// transition's release if none does.
+	if !h.switchPending {
+		h.publishModeChange(reason)
+	} else if mode != domain.ModeIdle {
+		h.publishSwitch(state.ModeExitReasonSwitched)
+	}
 
 	// Reset sticky modifier state before enabling detection for the new session.
 	// Activation-hotkey modifiers are suppressed explicitly by the hotkey path.
@@ -71,6 +79,33 @@ func (h *handlerState) publishModeChange(reason state.ModeExitReason) {
 		h.events.Publish(exit)
 	}
 
+	if current != idle {
+		h.events.Publish(event.Event{Name: event.ModeEnter, Mode: current})
+	}
+
+	h.publishedMode = current
+}
+
+// publishSwitch settles a transition's held-back exit: the old mode's exit
+// with reason, then the entry of the mode open now, if any. Unlike
+// publishModeChange it publishes both even when the names match, because
+// re-opening a mode from inside itself, such as the monitor picker, really
+// does close it and open it again.
+func (h *handlerState) publishSwitch(reason state.ModeExitReason) {
+	idle := domain.ModeString(domain.ModeIdle)
+
+	h.switchPending = false
+	h.exitAction = ""
+
+	if h.publishedMode != idle {
+		h.events.Publish(event.Event{
+			Name:   event.ModeExit,
+			Mode:   h.publishedMode,
+			Reason: exitReason(reason),
+		})
+	}
+
+	current := h.appState.ModeName()
 	if current != idle {
 		h.events.Publish(event.Event{Name: event.ModeEnter, Mode: current})
 	}

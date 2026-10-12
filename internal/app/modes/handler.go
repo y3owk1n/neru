@@ -141,6 +141,12 @@ type handlerState struct {
 	// belong to setAppMode (mode_setup.go).
 	events        *event.Bus
 	publishedMode string
+	// switchPending is set while a mode-to-mode transition has closed the old
+	// mode and not yet opened the next. The idle in between publishes nothing.
+	// setAppMode reports the old mode's exit as switched when the next mode
+	// opens, and the transition's release reports it as canceled when the
+	// activation gives up.
+	switchPending bool
 	// exitAction is the action a mode closing as completed ran, for the exit
 	// event. The next mode change reports and clears it.
 	exitAction string
