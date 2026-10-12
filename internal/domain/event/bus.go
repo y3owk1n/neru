@@ -145,11 +145,13 @@ func (s *Subscription) Stop() {
 }
 
 // TakeMissed returns how many events the subscription has lost since the
-// last one it was handed, and clears the count, so the next event it is handed
-// does not report them again in Dropped.
-func (s *Subscription) TakeMissed() uint64 {
+// last one it was handed, with the number of the newest event published. It
+// reads both under the bus's lock, so every loss it counts is numbered at or
+// below that event. It clears the count, so the next event the subscription
+// is handed does not report the same loss again in Dropped.
+func (s *Subscription) TakeMissed() (uint64, uint64) {
 	if s.bus == nil {
-		return 0
+		return 0, 0
 	}
 
 	s.bus.mu.Lock()
@@ -158,7 +160,7 @@ func (s *Subscription) TakeMissed() uint64 {
 	missed := s.sub.dropped
 	s.sub.dropped = 0
 
-	return missed
+	return missed, s.bus.seq
 }
 
 // offer numbers evt and makes one non-blocking send of it to each subscriber.

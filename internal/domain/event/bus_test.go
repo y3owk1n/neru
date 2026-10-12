@@ -77,7 +77,8 @@ func TestBus_SubscribeTo_OffersOnlyTheEventsNamed(t *testing.T) {
 
 // TestSubscription_TakeMissed_ReportsALossOnce pins the count a reader asks
 // for when no event is left to carry it: it reports what the full buffer
-// lost, and the next event delivered does not report the same loss again.
+// lost with the number of the newest event, which covers every loss counted,
+// and the next event delivered does not report the same loss again.
 func TestSubscription_TakeMissed_ReportsALossOnce(t *testing.T) {
 	bus := event.NewBus(nil)
 
@@ -90,8 +91,12 @@ func TestSubscription_TakeMissed_ReportsALossOnce(t *testing.T) {
 
 	<-sub.Events()
 
-	if missed := sub.TakeMissed(); missed != 2 {
-		t.Fatalf("TakeMissed() = %d, want the 2 the full buffer lost", missed)
+	if missed, seq := sub.TakeMissed(); missed != 2 || seq != 3 {
+		t.Fatalf(
+			"TakeMissed() = %d, %d, want the 2 the full buffer lost, through seq 3",
+			missed,
+			seq,
+		)
 	}
 
 	bus.Publish(event.Event{Name: event.Disable})

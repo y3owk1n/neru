@@ -69,54 +69,43 @@ func (c *Controller) HandleWatch(
 	// snapshot. An event at or below it is already covered.
 	last := line.Seq
 
-	// held is an event a resync took off the channel that its snapshot does
-	// not cover, handled before the next receive.
-	var held *event.Event
-
 	for {
-		var evt event.Event
-
-		if held != nil {
-			evt, held = *held, nil
-		} else {
-			select {
-			case <-ctx.Done():
+		select {
+		case <-ctx.Done():
+			return nil
+		case evt, open := <-sub.Events():
+			if !open {
 				return nil
-			case received, open := <-sub.Events():
-				if !open {
-					return nil
-				}
-
-				evt = received
 			}
-		}
 
-		switch {
-		case evt.Seq <= last:
-		case evt.Dropped > 0:
-			// The bus lost events just before this one, so a snapshot
-			// replaces them and this one too.
-			last, held, err = c.resync(emit, sub, evt.Dropped+1)
-		default:
-			err = emit(watchLineFor(evt))
-			last = evt.Seq
-		}
+			switch {
+			case evt.Seq <= last:
+			case evt.Dropped > 0:
+				// The bus lost events just before this one, so a snapshot
+				// replaces them and this one too.
+				last, err = c.resync(emit, sub, evt.Dropped+1)
+			default:
+				err = emit(watchLineFor(evt))
+				last = evt.Seq
+			}
 
-		if err != nil {
-			return err
-		}
-
-		// Caught up, with no event left to report a loss in its Dropped, so
-		// ask the bus. It loses events only while the buffer is full, so a
-		// loss it still holds happened before the buffer emptied.
-		if held != nil || len(sub.Events()) > 0 {
-			continue
-		}
-
-		if missed := sub.TakeMissed(); missed > 0 {
-			last, held, err = c.resync(emit, sub, missed)
 			if err != nil {
 				return err
+			}
+
+			// Caught up, with no event left to report a loss in its
+			// Dropped, so ask the bus. It loses events only while the buffer
+			// is full, so a loss it still holds happened before the buffer
+			// emptied.
+			if len(sub.Events()) > 0 {
+				continue
+			}
+
+			if missed, _ := sub.TakeMissed(); missed > 0 {
+				last, err = c.resync(emit, sub, missed)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -188,8 +177,12 @@ func checkWatchEvent(name string) error {
 
 // snapshotLine is the status as of the newest event published.
 func (c *Controller) snapshotLine() (ipc.WatchLine, error) {
-	seq := c.Events.Seq()
+	return c.snapshotAt(c.Events.Seq())
+}
 
+// snapshotAt is the status, read now, as a snapshot covering the events up to
+// seq. One published since seq may show in it as well as after it.
+func (c *Controller) snapshotAt(seq uint64) (ipc.WatchLine, error) {
 	status, ok := c.infoHandler.statusData()
 	if !ok {
 		return ipc.WatchLine{}, derrors.New(derrors.CodeActionFailed, "config not available")
@@ -198,53 +191,48 @@ func (c *Controller) snapshotLine() (ipc.WatchLine, error) {
 	return ipc.WatchLine{Seq: seq, Event: watchSnapshot, Status: &status}, nil
 }
 
-// resync sends a snapshot in place of the events since the last line. It
-// returns the snapshot's seq and the first queued event the snapshot does not
-// cover, for the caller to handle next. replaced starts as the count of events
-// already known to be replaced. Every event queued up to the snapshot's seq
-// is replaced too, along with the events each one reports lost before it.
+// resync sends a snapshot in place of the events since the last line, and
+// returns its seq. replaced starts as the count of events already known to be
+// replaced. The snapshot also replaces every event still queued, along with
+// the events each one reports lost before it, and every loss the bus holds.
+//
+// It reads the snapshot's seq and the bus's losses together, so every loss
+// it counts is one the snapshot covers. The bus keeps any later loss for the
+// next event or the next empty buffer to report.
 func (c *Controller) resync(
 	emit func(value any) error,
 	sub *event.Subscription,
 	replaced uint64,
-) (uint64, *event.Event, error) {
-	line, err := c.snapshotLine()
-	if err != nil {
-		return 0, nil, err
-	}
-
-	var held *event.Event
-
-drain:
-	for {
-		select {
-		case evt, open := <-sub.Events():
-			if !open {
-				break drain
-			}
-
-			if evt.Seq > line.Seq {
-				held = &evt
-
-				break drain
-			}
-
-			replaced += 1 + evt.Dropped
-		default:
-			break drain
+) (uint64, error) {
+	for range cap(sub.Events()) {
+		evt, more := nextQueued(sub)
+		if !more {
+			break
 		}
+
+		replaced += 1 + evt.Dropped
 	}
 
-	// With nothing past the snapshot queued, a loss the bus still holds came
-	// before it. With something past it, the loss may be newer, and is left
-	// for that event or the next empty buffer to report.
-	if held == nil {
-		replaced += sub.TakeMissed()
+	missed, seq := sub.TakeMissed()
+
+	line, err := c.snapshotAt(seq)
+	if err != nil {
+		return 0, err
 	}
 
-	line.Dropped = replaced
+	line.Dropped = replaced + missed
 
-	return line.Seq, held, emit(line)
+	return line.Seq, emit(line)
+}
+
+// nextQueued takes the next event already queued, without waiting for one.
+func nextQueued(sub *event.Subscription) (event.Event, bool) {
+	select {
+	case evt, open := <-sub.Events():
+		return evt, open
+	default:
+		return event.Event{}, false
+	}
 }
 
 // watchLineFor puts an event on the wire. A field whose zero value is an
