@@ -14,16 +14,14 @@ writing code.
 
 ## Pick the interface
 
-| The user wants | Use | Read |
-| :-- | :-- | :-- |
-| A command to run when Neru does something, from their config | `[hooks]` | hand off to `neru-setup-config` |
-| To run Neru commands from a script or another hotkey tool | the `neru` CLI | `reference/cli.md`, `guide/scripting.md` |
-| Neru's state as JSON | `--json` on `status`, `query`, `doctor`, `roles`, `services status` | `reference/cli.md` |
-| To follow state live, such as a status bar | `neru watch`, narrowed with `--event` | `reference/cli.md` (`neru watch`), and `reference/configuration.md` (`[hooks]`) for the event names |
-| The elements hints would label, and their labels | `neru query hints --json` | `reference/cli.md` (`neru query`) |
-| To hand hints mode their own targets | `neru hints --targets` | `reference/cli.md` (Supplying your own targets) |
-| A client in Python, Node, Rust or similar | JSON over the IPC socket | `reference/ipc.md` for the protocol, and `reference/cli.md` for each command's fields |
-| A Go program | the `github.com/y3owk1n/neru/client` package | `guide/integrations.md` (Go client), `go doc` on the module, and `reference/cli.md` for each command's fields |
+The table in `guide/integrations.md` maps what the user wants to the
+interface that does it. Fetch it as "Read the contract" below shows, and
+choose from that table. Then:
+
+- Hooks, and any other change to the user's config, go to `neru-setup-config`.
+- A socket client also needs `reference/ipc.md` for the protocol, and a Go
+  program needs `go doc` on the module. Both need `reference/cli.md` for what
+  each command's fields mean.
 
 Prefer the CLI for a script. It handles the endpoint, the timeout and the
 error codes, and a shell tool needs nothing else. Use the socket or the Go
@@ -33,8 +31,7 @@ process per update.
 ## Check the installed version has it
 
 Run these before writing anything. When the binary and the docs disagree,
-the binary is right.
-Check the flags the plan uses, such as these:
+the binary is right. Check the flags the plan uses, such as these:
 
 ```bash
 neru --version
@@ -71,10 +68,12 @@ go doc -all github.com/y3owk1n/neru/client
 ```
 
 The client needs a daemon from the release that added the package, or later.
-An older daemon answers its requests with `ERR_VERSION_MISMATCH`. `Ping`
-returns the protocol the daemon speaks, to compare with the package's
-`ProtocolVersion`. The same code from the CLI means the `neru` binary and the
-running daemon are different builds, usually after an upgrade. Restarting the
+A daemon from before that release does not know the request's `protocol`
+field and refuses with `ERR_INVALID_INPUT`. A later daemon that speaks an
+older protocol refuses with `ERR_VERSION_MISMATCH`. `Ping` returns the
+protocol the daemon speaks, to compare with the package's `ProtocolVersion`.
+`ERR_VERSION_MISMATCH` from the CLI means the `neru` binary and the running
+daemon are different builds, usually after an upgrade. Restarting the
 daemon fixes it: `neru services restart` when it runs as a service, otherwise
 quit Neru from its menu bar or tray icon and run `neru launch`.
 
@@ -163,9 +162,11 @@ Do not guess at a field.
   one line per event. A reader that falls behind gets a fresh snapshot in
   place of the events it missed, so rebuild the tool's state from every
   snapshot, not only the first. Read the `reason` on `mode_exit` in the
-  `neru watch` table before showing a mode, or the display flashes idle on
-  every switch between modes. The stream ends when the daemon exits. Ask
-  the user whether the tool should then exit or reconnect.
+  `neru watch` table before showing a mode. It says when a `mode_enter`
+  follows and when none does. A display that ignores it either flashes idle
+  on every switch or keeps showing a mode that failed to open.
+  The stream ends when the daemon exits. Ask the user whether the tool
+  should then exit or reconnect.
 - **Output.** A tool another program reads line by line, such as a status
   bar script, flushes after every line.
 - **Privacy.** Neru never logs keystrokes, element text or hint search
@@ -182,8 +183,9 @@ inside the tool or a `kill` after it.
 
 Then check the two states it will meet:
 
-- **Paused.** Run `neru stop`, confirm the tool shows Neru as paused, and run
-  `neru start`.
+- **Paused.** Read `enabled` from `neru status --json` first. Run
+  `neru stop`, confirm the tool shows Neru as paused, then run `neru start`
+  only if Neru was enabled before, so the test leaves it as it found it.
 - **No daemon.** On macOS and Linux, run the tool with both
   `XDG_RUNTIME_DIR` and `TMPDIR` pointed at an empty, short directory, such
   as one from `mktemp -d /tmp/nr.XXXXXX`. Nothing listens there, so it meets
