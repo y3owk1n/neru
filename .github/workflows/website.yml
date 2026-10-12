@@ -13,6 +13,9 @@ on:
             - ".github/workflows/website.yml"
     release:
         types: [published]
+    # A daily build keeps the GitHub star count on the pages at most a day old.
+    schedule:
+        - cron: "17 6 * * *"
     workflow_dispatch:
 name: Website
 permissions:
@@ -58,6 +61,9 @@ jobs:
 
             - name: Build latest and nightly
               run: just website-build
+              env:
+                  # The build reads the star count from the GitHub API.
+                  GITHUB_TOKEN: ${{ github.token }}
 
             - name: Upload the site
               if: github.event_name != 'pull_request'

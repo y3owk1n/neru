@@ -2,6 +2,7 @@
 import '../styles/landing.css';
 import { channel, channelBases, docHref, latestVersion, ogImage, repo, site, siteTitle } from '../site.mjs';
 import icon from '../assets/neru-appicon.png';
+import { formatStars, starCount } from '../stars.mjs';
 
 const base = import.meta.env.BASE_URL;
 const start = docHref('guide/getting-started.md', 'INSTALLATION.md');
@@ -11,6 +12,7 @@ const title = `${siteTitle} | The mouse is now optional`;
 
 const current = channel === 'latest' ? latestVersion : 'Nightly';
 const otherBase = channelBases[channel === 'latest' ? 'nightly' : 'latest'];
+const stars = await starCount();
 ---
 
 <!doctype html>
@@ -49,7 +51,10 @@ const otherBase = channelBases[channel === 'latest' ? 'nightly' : 'latest'];
           {channel === 'latest' ? 'Nightly' : <>Latest<span class="version">{latestVersion}</span></>}
         </a>
         <a class="docs" href={start}>Docs</a>
-        <a href={repo}>GitHub</a>
+        <a href={repo}>
+          GitHub
+          {stars !== null && <span class="stars" aria-label={`${stars} stars`}>★ {formatStars(stars)}</span>}
+        </a>
       </nav>
     </header>
 
@@ -59,6 +64,10 @@ const otherBase = channelBases[channel === 'latest' ? 'nightly' : 'latest'];
         <p class="lede">Hints, grids and vim keys for your whole desktop.</p>
         <div class="actions">
           <a class="button primary" href={start}>Get started</a>
+          <a class="button" href={repo}>
+            Star on GitHub
+            {stars !== null && <span class="stars" aria-label={`${stars} stars`}>★ {formatStars(stars)}</span>}
+          </a>
         </div>
       </div>
 

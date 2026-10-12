@@ -81,6 +81,13 @@ a:focus-visible {
   margin-left: auto;
 }
 
+/* The star count after "GitHub" and "Star on GitHub". */
+.stars {
+  margin-inline-start: 0.4em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* The release number after "Latest" in the channel link. */
 .nav .version {
   margin-inline-start: 0.3em;
@@ -278,9 +285,11 @@ h1 {
     border-radius: 10px;
   }
 
-  /* No room for both Docs and Get started, which go to the same page. */
+  /* No room for both Docs and Get started, which go to the same page, or for
+     the star count twice, which the hero button also shows. */
   .nav .docs,
-  .nav .version {
+  .nav .version,
+  .nav .stars {
     display: none;
   }
 }
