@@ -15,12 +15,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ipcendpoint"
 )
 
 const (
-	// SocketName is the name of the Unix socket file.
-	SocketName = "neru.sock"
-
 	// DefaultTimeout is the default timeout for IPC operations.
 	DefaultTimeout = 5 * time.Second
 
@@ -42,9 +40,6 @@ const (
 	// listenerCloseTimeout bounds how long Stop waits for the listener to
 	// close. See closeListener for why the close can fail to return at all.
 	listenerCloseTimeout = 2 * time.Second
-
-	// DefaultSocketPerms is the default socket permissions.
-	DefaultSocketPerms = 0o600
 
 	// maxCommandBytes bounds one command. A command is a verb, a small
 	// parameter map and its arguments; the largest realistic one — a config
@@ -159,7 +154,7 @@ type CommandHandler func(ctx context.Context, cmd Command) Response
 // this process's environment does not name — it returns that instead, so a CLI
 // reaches the daemon that is actually running rather than reporting none.
 func SocketPath() string {
-	return clientEndpointPath()
+	return ipcendpoint.ClientPath()
 }
 
 // errCommandTooLarge is returned by boundedReader once a command has spent its
@@ -198,9 +193,9 @@ func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 	logger = logger.Named("ipc")
 	// The daemon binds the transport's preferred endpoint, never the one
 	// SocketPath may have resolved to some other running daemon's.
-	socketPath := daemonEndpointPath()
+	socketPath := ipcendpoint.DaemonPath()
 
-	listener, listenerErr := listenEndpoint(context.Background(), socketPath)
+	listener, listenerErr := ipcendpoint.Listen(context.Background(), socketPath)
 	if listenerErr != nil {
 		return nil, derrors.Wrap(
 			listenerErr,
@@ -273,7 +268,7 @@ func (s *Server) Stop() error {
 		s.logger.Warn("Timed out waiting for IPC connections to close")
 	}
 
-	cleanupErr := cleanupEndpoint(s.socketPath)
+	cleanupErr := ipcendpoint.Cleanup(s.socketPath)
 	if cleanupErr != nil {
 		return derrors.Wrap(cleanupErr, derrors.CodeIPCFailed, "failed to clean up IPC endpoint")
 	}
@@ -533,7 +528,7 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	connection, connectionErr := dialEndpoint(ctx, dialer, c.socketPath)
+	connection, connectionErr := ipcendpoint.Dial(ctx, dialer, c.socketPath)
 	if connectionErr != nil {
 		if derrors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return Response{}, derrors.New(
@@ -638,7 +633,7 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 func connectFailureMessage() string {
 	message := "failed to connect to neru (is it running?)"
 
-	hint := endpointHint()
+	hint := ipcendpoint.Hint()
 	if hint != "" {
 		message += "; " + hint
 	}

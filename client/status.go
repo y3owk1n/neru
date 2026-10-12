@@ -1,4 +1,4 @@
-package ipc
+package client
 
 // StatusData is the payload of `neru status`, and the status a `watch` stream
 // opens with. Its fields are declared in key order, so it encodes byte for byte

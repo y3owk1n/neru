@@ -1,6 +1,6 @@
 //go:build !windows
 
-package ipc
+package ipcendpoint
 
 import (
 	"context"
@@ -11,6 +11,23 @@ import (
 	"strings"
 	"testing"
 )
+
+// shortTempDir is t.TempDir with a name short enough to bind a socket in. A
+// Unix socket path is capped near 104 bytes on darwin.
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+
+	//nolint:usetesting // t.TempDir names its directory after the test, which is
+	// far too long for a socket path here.
+	dir, mkdirErr := os.MkdirTemp("", "neru")
+	if mkdirErr != nil {
+		t.Fatalf("MkdirTemp() error = %v", mkdirErr)
+	}
+
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+
+	return dir
+}
 
 // isolateEndpoint points both endpoint candidates at directories this test owns
 // and returns the runtime-directory base. Setting XDG_RUNTIME_DIR also switches
@@ -52,17 +69,17 @@ func listenAt(t *testing.T, path string, dirPerms os.FileMode) {
 
 // The endpoint's own mode must never be the only gate: the directory it sits in
 // is owner-only too, so no other account can even reach the socket to try.
-func TestListenEndpoint_PutsTheSocketInAnOwnerOnlyDirectory(t *testing.T) {
+func TestListen_PutsTheSocketInAnOwnerOnlyDirectory(t *testing.T) {
 	runtimeDir, _ := isolateEndpoint(t)
 
-	path := daemonEndpointPath()
+	path := DaemonPath()
 	if want := filepath.Join(runtimeDir, endpointDirName, SocketName); path != want {
-		t.Fatalf("daemonEndpointPath() = %s, want %s", path, want)
+		t.Fatalf("DaemonPath() = %s, want %s", path, want)
 	}
 
-	listener, listenErr := listenEndpoint(context.Background(), path)
+	listener, listenErr := Listen(context.Background(), path)
 	if listenErr != nil {
-		t.Fatalf("listenEndpoint() error = %v", listenErr)
+		t.Fatalf("Listen() error = %v", listenErr)
 	}
 
 	t.Cleanup(func() { _ = listener.Close() })
@@ -81,14 +98,14 @@ func TestListenEndpoint_PutsTheSocketInAnOwnerOnlyDirectory(t *testing.T) {
 		t.Fatalf("Stat(%s) error = %v", path, socketErr)
 	}
 
-	if perm := socketInfo.Mode().Perm(); perm != os.FileMode(DefaultSocketPerms) {
-		t.Errorf("socket mode = %#o, want %#o", perm, DefaultSocketPerms)
+	if perm := socketInfo.Mode().Perm(); perm != os.FileMode(socketPerms) {
+		t.Errorf("socket mode = %#o, want %#o", perm, socketPerms)
 	}
 }
 
 // A directory left over from an earlier run keeps whatever mode it had, so the
 // daemon tightens the one it owns rather than trusting it.
-func TestListenEndpoint_TightensADirectoryLeftOpen(t *testing.T) {
+func TestListen_TightensADirectoryLeftOpen(t *testing.T) {
 	runtimeDir, _ := isolateEndpoint(t)
 
 	dir := filepath.Join(runtimeDir, endpointDirName)
@@ -103,9 +120,9 @@ func TestListenEndpoint_TightensADirectoryLeftOpen(t *testing.T) {
 		t.Fatalf("Chmod(%s) error = %v", dir, chmodErr)
 	}
 
-	listener, listenErr := listenEndpoint(context.Background(), daemonEndpointPath())
+	listener, listenErr := Listen(context.Background(), DaemonPath())
 	if listenErr != nil {
-		t.Fatalf("listenEndpoint() error = %v", listenErr)
+		t.Fatalf("Listen() error = %v", listenErr)
 	}
 
 	t.Cleanup(func() { _ = listener.Close() })
@@ -223,35 +240,35 @@ func TestPrepareEndpoint_ClearsThisUsersOwnStaleSocket(t *testing.T) {
 
 // A daemon whose environment named no runtime directory listens under the
 // temporary directory instead; a CLI that does have one must still find it.
-func TestClientEndpointPath_FindsAnEndpointOutsideTheRuntimeDirectory(t *testing.T) {
+func TestClientPath_FindsAnEndpointOutsideTheRuntimeDirectory(t *testing.T) {
 	_, tempDir := isolateEndpoint(t)
 
 	want := filepath.Join(tempDir, endpointDirPrefix+strconv.Itoa(os.Getuid()), SocketName)
 	listenAt(t, want, endpointDirPerms)
 
-	if got := clientEndpointPath(); got != want {
-		t.Errorf("clientEndpointPath() = %s, want the live endpoint %s", got, want)
+	if got := ClientPath(); got != want {
+		t.Errorf("ClientPath() = %s, want the live endpoint %s", got, want)
 	}
 }
 
 // A daemon started before this release still listens in the temporary directory
 // itself. Reaching it is what lets the version handshake tell the user to
 // restart it, instead of the CLI reporting that nothing is running.
-func TestClientEndpointPath_FallsBackToAnOlderDaemonsEndpoint(t *testing.T) {
+func TestClientPath_FallsBackToAnOlderDaemonsEndpoint(t *testing.T) {
 	_, tempDir := isolateEndpoint(t)
 
 	want := filepath.Join(tempDir, SocketName)
 	listenAt(t, want, 0o755)
 
-	if got := clientEndpointPath(); got != want {
-		t.Errorf("clientEndpointPath() = %s, want the previous location %s", got, want)
+	if got := ClientPath(); got != want {
+		t.Errorf("ClientPath() = %s, want the previous location %s", got, want)
 	}
 }
 
 // An endpoint anyone can reach is not one the CLI should hand a command to,
 // however plausible its path looks. Here the exposed one sits in the fallback
 // location, which the CLI would otherwise have picked up.
-func TestClientEndpointPath_IgnoresAnEndpointInAWorldReachableDirectory(t *testing.T) {
+func TestClientPath_IgnoresAnEndpointInAWorldReachableDirectory(t *testing.T) {
 	_, tempDir := isolateEndpoint(t)
 
 	reachable := filepath.Join(
@@ -261,22 +278,22 @@ func TestClientEndpointPath_IgnoresAnEndpointInAWorldReachableDirectory(t *testi
 	)
 	listenAt(t, reachable, 0o777)
 
-	got := clientEndpointPath()
+	got := ClientPath()
 	if got == reachable {
-		t.Fatalf("clientEndpointPath() = %s, want the exposed endpoint ignored", got)
+		t.Fatalf("ClientPath() = %s, want the exposed endpoint ignored", got)
 	}
 
-	if want := daemonEndpointPath(); got != want {
-		t.Errorf("clientEndpointPath() = %s, want the preferred path %s", got, want)
+	if want := DaemonPath(); got != want {
+		t.Errorf("ClientPath() = %s, want the preferred path %s", got, want)
 	}
 }
 
 // With nothing listening anywhere, the CLI reports the path the daemon would
 // bind, so a failure names somewhere real.
-func TestClientEndpointPath_ReportsThePreferredPathWhenNothingIsListening(t *testing.T) {
+func TestClientPath_ReportsThePreferredPathWhenNothingIsListening(t *testing.T) {
 	isolateEndpoint(t)
 
-	if got, want := clientEndpointPath(), daemonEndpointPath(); got != want {
-		t.Errorf("clientEndpointPath() = %s, want %s", got, want)
+	if got, want := ClientPath(), DaemonPath(); got != want {
+		t.Errorf("ClientPath() = %s, want %s", got, want)
 	}
 }

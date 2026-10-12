@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ipcendpoint"
 )
 
 // maxStreams caps how many streams the daemon keeps open at once. A stream
@@ -197,7 +198,11 @@ func (c *Client) Stream(
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	connection, dialErr := dialEndpoint(ctx, net.Dialer{Timeout: ConnectionTimeout}, c.socketPath)
+	connection, dialErr := ipcendpoint.Dial(
+		ctx,
+		net.Dialer{Timeout: ConnectionTimeout},
+		c.socketPath,
+	)
 	if dialErr != nil {
 		return Response{}, derrors.Wrap(dialErr, derrors.CodeIPCFailed, connectFailureMessage())
 	}

@@ -45,8 +45,10 @@ A capability only one adapter package uses is not a port. Put an
 **unexported** function such as `platformActiveScreenBounds` in
 `platform_darwin.go`, `platform_other.go` and so on, because an exported one
 becomes another package's dependency and so a badly specified port. Examples:
-`accessibility/priming_*.go`, `appwatcher/platform_*.go`,
-`ipc/transport_unix.go`.
+`accessibility/priming_*.go`, `appwatcher/platform_*.go`. The exception is a
+package whose whole job is the platform split and which several packages
+need. `internal/ipcendpoint` exports its functions because the daemon, the CLI
+and the public `client` package all reach the endpoint through it.
 
 ### Tier 3: Optional port extension
 
@@ -300,7 +302,7 @@ landing page. The homes:
 | Which platforms an option, mode flag or action does anything on | the `PlatformSupport()` declaration beside that vocabulary, then `just gensupportref` |
 | A config option, its default or its platform column | [configuration reference](../reference/configuration.md) |
 | The schema editors read for `config.toml` | the config structs, then `just genschema` |
-| The IPC schema | the wire types in `internal/adapter/ipc`, then `just genschema` |
+| The IPC schema | the reply types in `client` and the request and response in `internal/adapter/ipc`, then `just genschema` |
 | A command or flag | [CLI reference](../reference/cli.md), with mode flags through `just genflagref` |
 | Install methods, prebuilt binaries, from source, uninstall | [installation](../guide/installation.md) |
 | First run, per-OS permissions, first hotkey | [getting started](../guide/getting-started.md) |

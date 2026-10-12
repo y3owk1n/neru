@@ -9,8 +9,11 @@ implementation.
 
 Neru is a **daemon plus a thin CLI**. `neru launch` starts the daemon. The
 other commands (`neru hints`, `neru action left_click`, `neru config reload`)
-dial a Unix domain socket or a Windows named pipe. The transport is in
-`internal/adapter/ipc` and the command handlers in `internal/app/ipcctrl`.
+dial a Unix domain socket or a Windows named pipe. The endpoint lookup is in
+`internal/ipcendpoint`, the server and the CLI's client in
+`internal/adapter/ipc`, and the command handlers in `internal/app/ipcctrl`.
+`client` is the public Go client, and it reaches the endpoint through the
+same lookup.
 
 The endpoint is scoped to one user, in where it lives and in what the daemon
 checks before serving a connection. Its paths are in

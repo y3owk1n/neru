@@ -293,6 +293,7 @@ test-foundation:
         ./internal/domain/state ./internal/derrors \
         ./internal/flagref ./internal/supportref ./internal/configschema \
         ./internal/schematest \
+        ./client \
         ./internal/adapter/logger \
         ./internal/adapter/overlay/render/badge \
         ./internal/adapter/overlay/render/motion \

@@ -1,6 +1,6 @@
 //go:build !windows
 
-package ipc
+package ipcendpoint
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Unix-domain socket transport for IPC on darwin and linux.
+// Unix-domain socket endpoint for IPC on darwin and linux.
 // Does not implement the Windows named-pipe transport.
 //
 // The endpoint lives inside a directory only its owner can enter, rather than
@@ -26,6 +26,12 @@ import (
 // somebody else — a squatted endpoint would otherwise stop the daemon binding
 // at all, and `/tmp` is world-writable wherever `$TMPDIR` is unset.
 const (
+	// SocketName is the name of the socket file inside the endpoint directory.
+	SocketName = "neru.sock"
+
+	// socketPerms is the socket's own mode: owner-only.
+	socketPerms = 0o600
+
 	// endpointDirPerms is the mode of the directory holding the endpoint:
 	// owner-only, no traversal for anyone else.
 	endpointDirPerms fs.FileMode = 0o700
@@ -91,8 +97,8 @@ func sessionRuntimeDir(uid int) string {
 	return sessionDir
 }
 
-// daemonEndpointPath is where the daemon listens.
-func daemonEndpointPath() string {
+// DaemonPath is where the daemon listens.
+func DaemonPath() string {
 	return filepath.Join(endpointDirs()[0], SocketName)
 }
 
@@ -111,10 +117,10 @@ func legacyEndpointPath() string {
 	return filepath.Join(os.TempDir(), SocketName)
 }
 
-// clientEndpointPath returns the endpoint a CLI process should dial: the first
-// candidate that exists and is a socket this user owns, or the daemon's
-// preferred path when there is none to be found.
-func clientEndpointPath() string {
+// ClientPath returns the endpoint a client should dial: the first candidate
+// that exists and is a socket this user owns, or the daemon's preferred path
+// when there is none to be found.
+func ClientPath() string {
 	dirs := endpointDirs()
 
 	for _, dir := range dirs {
@@ -131,9 +137,9 @@ func clientEndpointPath() string {
 	return filepath.Join(dirs[0], SocketName)
 }
 
-// endpointHint returns extra guidance for a failed connection. The Unix client
+// Hint returns extra guidance for a failed connection. The Unix client
 // falls back to the previous location on its own, so there is nothing to add.
-func endpointHint() string {
+func Hint() string {
 	return ""
 }
 
@@ -198,7 +204,9 @@ func prepareEndpoint(path string) error {
 	return nil
 }
 
-func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
+// Listen binds the daemon's socket at path, in a directory only this user can
+// enter, refusing to replace anything that is not this user's own socket.
+func Listen(ctx context.Context, path string) (net.Listener, error) {
 	dirErr := prepareEndpointDir(filepath.Dir(path))
 	if dirErr != nil {
 		return nil, dirErr
@@ -222,7 +230,7 @@ func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
 	// bind() applies the process umask, so the socket is briefly whatever that
 	// leaves. The 0700 directory it was created in is what makes that window
 	// harmless; this narrows the file itself to its owner regardless.
-	chmodErr := os.Chmod(path, DefaultSocketPerms)
+	chmodErr := os.Chmod(path, socketPerms)
 	if chmodErr != nil {
 		_ = listener.Close()
 
@@ -237,11 +245,13 @@ func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
 	return listener, nil
 }
 
-func dialEndpoint(ctx context.Context, dialer net.Dialer, path string) (net.Conn, error) {
+// Dial connects to the daemon's socket at path.
+func Dial(ctx context.Context, dialer net.Dialer, path string) (net.Conn, error) {
 	return dialer.DialContext(ctx, "unix", path)
 }
 
-func cleanupEndpoint(path string) error {
+// Cleanup removes the socket at path once the daemon stops listening on it.
+func Cleanup(path string) error {
 	removeErr := os.Remove(path)
 	if removeErr != nil && !errors.Is(removeErr, fs.ErrNotExist) {
 		return removeErr

@@ -1,10 +1,10 @@
-package ipc_test
+package client_test
 
 import (
 	"encoding/json"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/client"
 )
 
 // TestStatusData_EncodesAsTheSortedMapItReplaced pins `neru status --json` and
@@ -13,14 +13,14 @@ import (
 func TestStatusData_EncodesAsTheSortedMapItReplaced(t *testing.T) {
 	following := true
 
-	status := ipc.StatusData{
+	status := client.StatusData{
 		Enabled:               true,
 		Mode:                  "hints",
 		Config:                "/tmp/config.toml",
 		Capabilities:          map[string]any{"platform": "darwin"},
 		Profile:               map[string]any{"os": "darwin"},
 		CursorFollowSelection: &following,
-		SavedCursorSlots:      map[string]ipc.CursorSlotData{"home": {X: 1, Y: 2}},
+		SavedCursorSlots:      map[string]client.CursorSlotData{"home": {X: 1, Y: 2}},
 		StickyModifiers:       "cmd",
 	}
 

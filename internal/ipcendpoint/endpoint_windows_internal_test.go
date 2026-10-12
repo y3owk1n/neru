@@ -1,6 +1,6 @@
 //go:build windows
 
-package ipc
+package ipcendpoint
 
 import (
 	"context"
@@ -12,12 +12,11 @@ import (
 	"time"
 
 	"github.com/Microsoft/go-winio"
-	"go.uber.org/zap"
 )
 
 // The pipe namespace is machine-wide, so the endpoint name has to say which
 // user it belongs to. Sharing one name is what the previous release did.
-func TestDaemonEndpointPath_NamesTheEndpointAfterThisUser(t *testing.T) {
+func TestDaemonPath_NamesTheEndpointAfterThisUser(t *testing.T) {
 	t.Parallel()
 
 	sid, sidErr := pipeIdentity()
@@ -29,18 +28,18 @@ func TestDaemonEndpointPath_NamesTheEndpointAfterThisUser(t *testing.T) {
 		t.Fatalf("pipeIdentity() = %q, want a SID in string form", sid)
 	}
 
-	path := daemonEndpointPath()
+	path := DaemonPath()
 	if path == legacyPipePath {
-		t.Fatalf("daemonEndpointPath() = %s, want a name of this user's own", path)
+		t.Fatalf("DaemonPath() = %s, want a name of this user's own", path)
 	}
 
 	if !strings.HasSuffix(path, sid) {
-		t.Errorf("daemonEndpointPath() = %s, want it to end in this user's SID %s", path, sid)
+		t.Errorf("DaemonPath() = %s, want it to end in this user's SID %s", path, sid)
 	}
 
 	// A CLI that derived a different name would never find its daemon.
-	if client := clientEndpointPath(); client != path {
-		t.Errorf("clientEndpointPath() = %s, want the daemon's own endpoint %s", client, path)
+	if client := ClientPath(); client != path {
+		t.Errorf("ClientPath() = %s, want the daemon's own endpoint %s", client, path)
 	}
 }
 
@@ -66,29 +65,6 @@ func TestPipeSecurityDescriptor_GrantsOnlyTheNamedUser(t *testing.T) {
 	}
 }
 
-// Windows answers the "who is connecting" question before the connection
-// exists, through the descriptor above rather than through a check on the
-// accepted connection. This pins that the nil is that answer and not an
-// omission — if the descriptor ever stops being applied, this is the test whose
-// premise has gone.
-func TestAuthorizePeer_DefersToThePipeSecurityDescriptor(t *testing.T) {
-	t.Parallel()
-
-	sid, sidErr := pipeIdentity()
-	if sidErr != nil {
-		t.Fatalf("pipeIdentity() error = %v", sidErr)
-	}
-
-	if pipeSecurityDescriptor(sid) == "" {
-		t.Fatal("the pipe carries no security descriptor, so nothing gates the connection")
-	}
-
-	authErr := authorizePeer(nil)
-	if authErr != nil {
-		t.Fatalf("authorizePeer() error = %v, want the descriptor to have settled it", authErr)
-	}
-}
-
 // servePipe listens on path as this user and accepts the one connection the
 // test dials, so that dial has something real on the other end to be checked.
 //
@@ -102,9 +78,9 @@ func TestAuthorizePeer_DefersToThePipeSecurityDescriptor(t *testing.T) {
 func servePipe(t *testing.T, path string) {
 	t.Helper()
 
-	listener, listenErr := listenEndpoint(context.Background(), path)
+	listener, listenErr := Listen(context.Background(), path)
 	if listenErr != nil {
-		t.Fatalf("listenEndpoint(%s) error = %v", path, listenErr)
+		t.Fatalf("Listen(%s) error = %v", path, listenErr)
 	}
 
 	accepted := make(chan net.Conn, 1)
@@ -174,48 +150,37 @@ func TestVerifyPipeServer_RefusesAPipeServedByAnotherUser(t *testing.T) {
 	}
 }
 
-// An upgraded CLI meeting a daemon started by the previous binary gets the
-// version-mismatch reply asking for a restart, the way the Unix client does,
-// rather than a connection failure naming the old pipe.
+// An upgraded CLI meeting a daemon started by the previous binary reaches it,
+// so the daemon can answer with the version mismatch asking for a restart,
+// rather than the CLI reporting a connection failure naming the old pipe.
 //
-// Not parallel: it relies on nothing listening on this user's endpoint, and
-// the integration tests in this package bind exactly that.
-func TestDialEndpoint_ReachesAnOldDaemonOnThePreviousName(t *testing.T) {
-	listener, listenErr := listenEndpoint(context.Background(), legacyPipePath)
-	if listenErr != nil {
-		t.Fatalf("listenEndpoint(%s) error = %v", legacyPipePath, listenErr)
+// It skips while something answers on this user's own name, a running daemon
+// or a test in another package, since Dial then never needs the old one.
+func TestDial_ReachesAnOldDaemonOnThePreviousName(t *testing.T) {
+	ctx := context.Background()
+
+	current, currentErr := Dial(ctx, net.Dialer{Timeout: time.Second}, DaemonPath())
+	if currentErr == nil {
+		_ = current.Close()
+
+		t.Skip("something answers on this user's endpoint")
 	}
 
-	server := &Server{
-		listener:   listener,
-		logger:     zap.NewNop(),
-		socketPath: legacyPipePath,
-		handler: func(_ context.Context, _ Command) Response {
-			t.Error("the old daemon ran a command from a newer CLI")
+	servePipe(t, legacyPipePath)
 
-			return Response{Success: true, Code: CodeOK}
-		},
+	conn, dialErr := Dial(ctx, net.Dialer{Timeout: time.Second}, DaemonPath())
+	if dialErr != nil {
+		t.Fatalf("Dial(%s) error = %v, want the old daemon's pipe", DaemonPath(), dialErr)
 	}
 
-	server.Start()
+	defer func() { _ = conn.Close() }()
 
-	t.Cleanup(func() { _ = server.Stop() })
-
-	client := &Client{socketPath: daemonEndpointPath()}
-
-	response, sendErr := client.SendWithTimeout(
-		Command{Action: "ping", Version: "older"},
-		PingTimeout,
-	)
-	if sendErr != nil {
-		t.Fatalf("SendWithTimeout() error = %v, want the old daemon's reply", sendErr)
-	}
-
-	if response.Code != CodeVersionMismatch {
-		t.Fatalf("response code = %s, want %s", response.Code, CodeVersionMismatch)
-	}
-
-	if !strings.Contains(response.Message, "restart the neru daemon") {
-		t.Errorf("response message = %q, want it to ask for a restart", response.Message)
+	if got := conn.RemoteAddr().String(); got != legacyPipePath {
+		t.Errorf(
+			"Dial(%s) reached %s, want the previous name %s",
+			DaemonPath(),
+			got,
+			legacyPipePath,
+		)
 	}
 }

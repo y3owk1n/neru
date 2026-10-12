@@ -78,6 +78,12 @@ Writing a client:
   as unknown, and its replies carry none. Send `{"action":"ping"}` first to
   find out which you have.
 
+A Go program can import `github.com/y3owk1n/neru/client` instead of writing
+any of this. It finds the endpoint the way the CLI does, sends `protocol` 1,
+and returns typed replies for `status`, the queries and `watch`. Its API
+follows the rule above and breaks only at a major Neru release. See the
+[package documentation](https://pkg.go.dev/github.com/y3owk1n/neru/client).
+
 ## Schemas
 
 Neru publishes the shapes on this page as a JSON Schema, generated from the

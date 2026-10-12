@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/ipcendpoint"
 )
 
 // shortTempDir is t.TempDir with a name short enough to bind a socket in.
@@ -34,7 +36,7 @@ func shortTempDir(t *testing.T) string {
 func connectedUnixPair(t *testing.T) (net.Conn, net.Conn) {
 	t.Helper()
 
-	path := filepath.Join(shortTempDir(t), SocketName)
+	path := filepath.Join(shortTempDir(t), ipcendpoint.SocketName)
 
 	listener, listenErr := (&net.ListenConfig{}).Listen(t.Context(), "unix", path)
 	if listenErr != nil {

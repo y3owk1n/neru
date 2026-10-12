@@ -1,6 +1,6 @@
 //go:build windows
 
-package ipc
+package ipcendpoint
 
 import (
 	"context"
@@ -70,11 +70,11 @@ func pipeSecurityDescriptor(sid string) string {
 	return "D:P(A;;GA;;;" + sid + ")"
 }
 
-// daemonEndpointPath is where the daemon listens. It is empty when the user's SID
+// DaemonPath is where the daemon listens. It is empty when the user's SID
 // cannot be read: the alternative would be to fall back to the machine-wide
-// name, which is the thing being scoped away. listenEndpoint and dialEndpoint
-// report the reason instead.
-func daemonEndpointPath() string {
+// name, which is the thing being scoped away. Listen and Dial report the
+// reason instead.
+func DaemonPath() string {
 	sid, sidErr := pipeIdentity()
 	if sidErr != nil {
 		return ""
@@ -83,21 +83,22 @@ func daemonEndpointPath() string {
 	return pipePrefix + "-" + sid
 }
 
-// clientEndpointPath returns the endpoint a CLI process should dial. Unlike the
-// Unix transport there is no search here: a named pipe cannot be inspected
+// ClientPath returns the endpoint a client should dial. Unlike the Unix
+// transport there is no search here: a named pipe cannot be inspected
 // without opening it, so the fallback to the previous name lives in
-// dialEndpoint, where the open has already happened.
-func clientEndpointPath() string {
-	return daemonEndpointPath()
+// Dial, where the open has already happened.
+func ClientPath() string {
+	return DaemonPath()
 }
 
-// endpointHint returns extra guidance for a failed connection. The Windows
-// client falls back to the previous name on its own, so there is nothing to add.
-func endpointHint() string {
+// Hint returns extra guidance for a failed connection. The Windows client
+// falls back to the previous name on its own, so there is nothing to add.
+func Hint() string {
 	return ""
 }
 
-func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
+// Listen creates the daemon's pipe at path, open to this user alone.
+func Listen(ctx context.Context, path string) (net.Listener, error) {
 	ctxErr := ctx.Err()
 	if ctxErr != nil {
 		return nil, ctxErr
@@ -123,8 +124,8 @@ func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
 	return listener, nil
 }
 
-// dialEndpoint opens path and hands back a connection only once the process
-// serving it is known to run as this user.
+// Dial opens path and hands back a connection only once the process serving
+// it is known to run as this user.
 //
 // Opening is safe to do first: go-winio dials at SECURITY_ANONYMOUS, so
 // whatever holds the name cannot impersonate the caller, and nothing is written
@@ -132,7 +133,7 @@ func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
 // the previous machine-wide name is tried under the same check, so an old
 // daemon is reached and answers with the version mismatch rather than being
 // reported as absent.
-func dialEndpoint(ctx context.Context, dialer net.Dialer, path string) (net.Conn, error) {
+func Dial(ctx context.Context, dialer net.Dialer, path string) (net.Conn, error) {
 	sid, sidErr := pipeIdentity()
 	if sidErr != nil {
 		return nil, sidErr
@@ -146,7 +147,7 @@ func dialEndpoint(ctx context.Context, dialer net.Dialer, path string) (net.Conn
 	}
 
 	conn, dialErr := dialVerifiedPipe(ctx, path, sid)
-	if errors.Is(dialErr, fs.ErrNotExist) && path == daemonEndpointPath() {
+	if errors.Is(dialErr, fs.ErrNotExist) && path == DaemonPath() {
 		legacyConn, legacyErr := dialVerifiedPipe(ctx, legacyPipePath, sid)
 		if legacyErr == nil {
 			return legacyConn, nil
@@ -235,6 +236,7 @@ func pipeServerSID(handle windows.Handle) (string, error) {
 	return user.User.Sid.String(), nil
 }
 
-func cleanupEndpoint(_ string) error {
+// Cleanup does nothing: a named pipe goes away with its last handle.
+func Cleanup(_ string) error {
 	return nil
 }

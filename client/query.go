@@ -1,4 +1,4 @@
-package ipc
+package client
 
 // DisplayData is one display as `neru query displays` reports it. Bounds are
 // in the coordinates `neru action move_mouse` takes.
