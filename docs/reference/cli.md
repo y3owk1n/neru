@@ -232,13 +232,16 @@ error, where hints mode would open on what else it found.
 
 Every key is stable.
 
-Neru assigns labels afresh on every scan, so a label stays valid only while
-the screen does not change. To select an element by its label, start hints
-mode and type the label into it:
+Neru assigns labels afresh on every scan, after the flags filter the
+elements. A label stays valid only while the screen does not change, and only
+for `neru hints` given the same `--role`, `--text`, `--strategy`,
+`--capture-scope`, `--split-word` and `--label-direction`. To select an
+element by its label, start hints mode with the query's flags, then type the
+label into it:
 
 ```sh
 label=$(neru query hints --text Save --json | jq -r '.hints[0].label')
-neru hints --action left_click
+neru hints --text Save --action left_click
 neru action feed --mode $(echo "$label" | fold -w1)
 ```
 
