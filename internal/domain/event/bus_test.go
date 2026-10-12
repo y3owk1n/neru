@@ -55,6 +55,52 @@ func TestBus_Publish_CountsWhatAFullSubscriberMissed(t *testing.T) {
 	}
 }
 
+// TestBus_SubscribeTo_OffersOnlyTheEventsNamed pins a filtered subscription:
+// it receives only the events it named, an event left out never counts as
+// missed however many go by, and the numbers stay the bus's own.
+func TestBus_SubscribeTo_OffersOnlyTheEventsNamed(t *testing.T) {
+	bus := event.NewBus(nil)
+
+	sub := bus.SubscribeTo(1, []event.Name{event.Enable})
+	defer sub.Stop()
+
+	for range 5 {
+		bus.Publish(event.Event{Name: event.Disable})
+	}
+
+	bus.Publish(event.Event{Name: event.Enable})
+
+	if got := <-sub.Events(); got.Name != event.Enable || got.Seq != 6 || got.Dropped != 0 {
+		t.Errorf("event = %+v, want enable at seq 6 with nothing dropped", got)
+	}
+}
+
+// TestSubscription_TakeMissed_ReportsALossOnce pins the count a reader asks
+// for when no event is left to carry it: it reports what the full buffer
+// lost, and the next event delivered does not report the same loss again.
+func TestSubscription_TakeMissed_ReportsALossOnce(t *testing.T) {
+	bus := event.NewBus(nil)
+
+	sub := bus.SubscribeTo(1, nil)
+	defer sub.Stop()
+
+	for range 3 {
+		bus.Publish(event.Event{Name: event.Enable})
+	}
+
+	<-sub.Events()
+
+	if missed := sub.TakeMissed(); missed != 2 {
+		t.Fatalf("TakeMissed() = %d, want the 2 the full buffer lost", missed)
+	}
+
+	bus.Publish(event.Event{Name: event.Disable})
+
+	if got := <-sub.Events(); got.Dropped != 0 {
+		t.Errorf("next event = %+v, want nothing dropped once the loss was taken", got)
+	}
+}
+
 func TestBus_Publish_DoesNotBlockOnASubscriberThatNeverReads(t *testing.T) {
 	bus := event.NewBus(nil)
 

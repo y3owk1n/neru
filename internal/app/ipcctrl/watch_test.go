@@ -210,19 +210,21 @@ func TestController_HandleWatch_SendsOnlyTheNamedEvents(t *testing.T) {
 	}
 }
 
-// TestController_HandleWatch_LeftOutEventsAreNotCountedAsDropped pins that an
-// event the filter leaves out is still one the reader kept up with: a
-// snapshot after an overflow counts only the events really missed.
-func TestController_HandleWatch_LeftOutEventsAreNotCountedAsDropped(t *testing.T) {
+// TestController_HandleWatch_CountsOnlyNamedEventsAsDropped pins dropped
+// under --event: the events left out never reach the watcher, so they can
+// neither fill its buffer nor count as missed, and a snapshot after an
+// overflow counts only the named events it replaces.
+func TestController_HandleWatch_CountsOnlyNamedEventsAsDropped(t *testing.T) {
 	bus := event.NewBus(nil)
 	gate := make(chan struct{})
 	lines, _ := watchLines(t.Context(), t, watchController(bus), gate, "--event=enable")
 
 	<-gate
 
-	const published = 80
+	const named = 80
 
-	for range published {
+	for range named {
+		bus.Publish(event.Event{Name: event.Enable})
 		bus.Publish(event.Event{Name: event.Disable})
 	}
 
@@ -230,13 +232,49 @@ func TestController_HandleWatch_LeftOutEventsAreNotCountedAsDropped(t *testing.T
 
 	nextLine(t, lines)
 
-	line := nextLine(t, lines)
+	delivered := 0
 
-	dropped, _ := line["dropped"].(float64)
-	if line["event"] != eventSnapshot || line["seq"] != float64(published) ||
-		dropped <= 0 || dropped >= published {
-		t.Errorf("line = %v, want a snapshot at seq %d counting only the events the buffer lost",
-			line, published)
+	for {
+		line := nextLine(t, lines)
+		if line["event"] == "enable" {
+			delivered++
+
+			continue
+		}
+
+		dropped, _ := line["dropped"].(float64)
+		if line["event"] != eventSnapshot || line["seq"] != float64(2*named) ||
+			delivered+int(dropped) != named {
+			t.Errorf("delivered %d enable lines, then %v, want a snapshot at seq %d "+
+				"accounting for the other enable events only", delivered, line, 2*named)
+		}
+
+		return
+	}
+}
+
+// TestController_HandleWatch_LeftOutEventsNeverFillTheBuffer pins the reason
+// the bus filters: a burst of events a watch left out, larger than its
+// buffer, costs it nothing, and the next named event arrives as itself.
+func TestController_HandleWatch_LeftOutEventsNeverFillTheBuffer(t *testing.T) {
+	bus := event.NewBus(nil)
+	gate := make(chan struct{})
+	lines, _ := watchLines(t.Context(), t, watchController(bus), gate, "--event=enable")
+
+	<-gate
+
+	for range 200 {
+		bus.Publish(event.Event{Name: event.Disable})
+	}
+
+	bus.Publish(event.Event{Name: event.Enable})
+
+	gate <- struct{}{}
+
+	nextLine(t, lines)
+
+	if line := nextLine(t, lines); line["event"] != "enable" || line["seq"] != float64(201) {
+		t.Errorf("line = %v, want the enable event at seq 201 with no snapshot before it", line)
 	}
 }
 

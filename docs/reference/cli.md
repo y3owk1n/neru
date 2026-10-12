@@ -135,7 +135,7 @@ snapshot as the whole state and each event as a change to it.
 | `x`, `y`    | `cursor_save`, `select`        | The position saved, or the point selected                             |
 | `modifiers` | `sticky_modifiers`             | The set held now, as `sticky_modifiers` reports it                    |
 | `monitor`   | `monitor_move`                 | The display moved to, as `move_monitor --name` takes it               |
-| `dropped`   | a snapshot after missed events | How many events this snapshot replaces. Events `--event` left out are not counted. |
+| `dropped`   | a snapshot after missed events | How many events this snapshot replaces. With `--event`, only the events named count, and the rest can never fill the reader's buffer. |
 
 The daemon disconnects a reader once a line has
 waited 5 seconds to send. At most 16 watches can be open at once, and the next

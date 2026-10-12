@@ -50,8 +50,10 @@ func (c *Controller) HandleWatch(
 
 	// Subscribe before reading the status, so no event falls between the
 	// two. One published between reading Seq and the status shows in both.
-	events, stop := c.Events.Subscribe(watchBuffer)
-	defer stop()
+	// The bus offers only the events wanted, so one left out can neither
+	// fill the buffer nor count as missed.
+	sub := c.Events.SubscribeTo(watchBuffer, wanted)
+	defer sub.Stop()
 
 	line, err := c.snapshotLine()
 	if err != nil {
@@ -64,61 +66,57 @@ func (c *Controller) HandleWatch(
 	}
 
 	// last is the seq of the newest event the client has, in a line or a
-	// snapshot. The bus numbers every event for every subscriber, so a gap
-	// after it is events this watcher missed.
+	// snapshot. An event at or below it is already covered.
 	last := line.Seq
-	behind := false
+
+	// held is an event a resync took off the channel that its snapshot does
+	// not cover, handled before the next receive.
+	var held *event.Event
 
 	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case evt, open := <-events:
-			if !open {
+		var evt event.Event
+
+		if held != nil {
+			evt, held = *held, nil
+		} else {
+			select {
+			case <-ctx.Done():
 				return nil
-			}
-
-			// The bus drops only while the buffer is full, and only this
-			// loop drains it, so a buffer full up to this receive is the one
-			// sign that events may have been dropped after the ones queued.
-			// That holds for an event a snapshot already covered too, since
-			// a queue full of those is what drops the newer ones.
-			behind = behind || len(events) == cap(events)-1
-
-			switch {
-			case evt.Seq <= last:
-			case evt.Seq == last+1:
-				// An event left out still advances last, so a gap in seq
-				// means only events the reader really missed.
-				if wanted == nil || wanted[evt.Name] {
-					err = emit(watchLineFor(evt))
+			case received, open := <-sub.Events():
+				if !open {
+					return nil
 				}
 
-				last = evt.Seq
-			default:
-				last, err = c.resync(emit, last)
+				evt = received
 			}
+		}
 
+		switch {
+		case evt.Seq <= last:
+		case evt.Dropped > 0:
+			// The bus lost events just before this one, so a snapshot
+			// replaces them and this one too.
+			last, held, err = c.resync(emit, sub, evt.Dropped+1)
+		default:
+			err = emit(watchLineFor(evt))
+			last = evt.Seq
+		}
+
+		if err != nil {
+			return err
+		}
+
+		// Caught up, with no event left to report a loss in its Dropped, so
+		// ask the bus. It loses events only while the buffer is full, so a
+		// loss it still holds happened before the buffer emptied.
+		if held != nil || len(sub.Events()) > 0 {
+			continue
+		}
+
+		if missed := sub.TakeMissed(); missed > 0 {
+			last, held, err = c.resync(emit, sub, missed)
 			if err != nil {
 				return err
-			}
-
-			// Caught up with no event left to carry the news of a drop, so
-			// check the bus for one. Seq is read before the length, so an
-			// event still to come is queued rather than counted as missed.
-			if !behind {
-				continue
-			}
-
-			if newest := c.Events.Seq(); len(events) == 0 {
-				behind = false
-
-				if newest > last {
-					last, err = c.resync(emit, last)
-					if err != nil {
-						return err
-					}
-				}
 			}
 		}
 	}
@@ -127,8 +125,8 @@ func (c *Controller) HandleWatch(
 // watchFilter reads the --event flags a watch was given into the events it
 // sends, nil when it sends every one. It refuses anything else before the
 // first line, so a client learns what this daemon cannot filter on.
-func watchFilter(args []string) (map[event.Name]bool, error) {
-	var wanted map[event.Name]bool
+func watchFilter(args []string) ([]event.Name, error) {
+	var wanted []event.Name
 
 	for idx := 0; idx < len(args); idx++ {
 		value, found := strings.CutPrefix(args[idx], watchEventFlag+"=")
@@ -148,17 +146,13 @@ func watchFilter(args []string) (map[event.Name]bool, error) {
 			value = args[idx]
 		}
 
-		if wanted == nil {
-			wanted = map[event.Name]bool{}
-		}
-
 		for name := range strings.SplitSeq(value, ",") {
 			err := checkWatchEvent(name)
 			if err != nil {
 				return nil, err
 			}
 
-			wanted[event.Name(name)] = true
+			wanted = append(wanted, event.Name(name))
 		}
 	}
 
@@ -204,17 +198,53 @@ func (c *Controller) snapshotLine() (ipc.WatchLine, error) {
 	return ipc.WatchLine{Seq: seq, Event: watchSnapshot, Status: &status}, nil
 }
 
-// resync sends a snapshot in place of the events since last, counting them in
-// dropped, and returns the seq it is at.
-func (c *Controller) resync(emit func(value any) error, last uint64) (uint64, error) {
+// resync sends a snapshot in place of the events since the last line. It
+// returns the snapshot's seq and the first queued event the snapshot does not
+// cover, for the caller to handle next. replaced starts as the count of events
+// already known to be replaced. Every event queued up to the snapshot's seq
+// is replaced too, along with the events each one reports lost before it.
+func (c *Controller) resync(
+	emit func(value any) error,
+	sub *event.Subscription,
+	replaced uint64,
+) (uint64, *event.Event, error) {
 	line, err := c.snapshotLine()
 	if err != nil {
-		return last, err
+		return 0, nil, err
 	}
 
-	line.Dropped = line.Seq - last
+	var held *event.Event
 
-	return line.Seq, emit(line)
+drain:
+	for {
+		select {
+		case evt, open := <-sub.Events():
+			if !open {
+				break drain
+			}
+
+			if evt.Seq > line.Seq {
+				held = &evt
+
+				break drain
+			}
+
+			replaced += 1 + evt.Dropped
+		default:
+			break drain
+		}
+	}
+
+	// With nothing past the snapshot queued, a loss the bus still holds came
+	// before it. With something past it, the loss may be newer, and is left
+	// for that event or the next empty buffer to report.
+	if held == nil {
+		replaced += sub.TakeMissed()
+	}
+
+	line.Dropped = replaced
+
+	return line.Seq, held, emit(line)
 }
 
 // watchLineFor puts an event on the wire. A field whose zero value is an

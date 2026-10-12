@@ -27,6 +27,8 @@ type Bus struct {
 type subscription struct {
 	events  chan Event
 	dropped uint64
+	// names are the events offered, every one when nil.
+	names map[Name]bool
 }
 
 // NewBus returns a bus with no subscribers. A nil logger logs nothing.
@@ -81,14 +83,38 @@ func (b *Bus) Seq() uint64 {
 // ends the subscription and closes the channel. The channel is closed only
 // by that function. A nil bus returns a channel that is already closed.
 func (b *Bus) Subscribe(buffer int) (<-chan Event, func()) {
+	sub := b.SubscribeTo(buffer, nil)
+
+	return sub.Events(), sub.Stop
+}
+
+// Subscription receives the events it was opened for, and can ask how many
+// of them it has lost.
+type Subscription struct {
+	bus  *Bus
+	sub  *subscription
+	stop func()
+}
+
+// SubscribeTo is Subscribe for only the events named, every event when names
+// is empty. An event left out is never offered, so it can neither fill the
+// buffer nor count as missed. Its number still advances the bus's Seq.
+func (b *Bus) SubscribeTo(buffer int, names []Name) *Subscription {
 	if b == nil {
 		closed := make(chan Event)
 		close(closed)
 
-		return closed, func() {}
+		return &Subscription{sub: &subscription{events: closed}, stop: func() {}}
 	}
 
 	sub := &subscription{events: make(chan Event, buffer)}
+
+	if len(names) > 0 {
+		sub.names = make(map[Name]bool, len(names))
+		for _, name := range names {
+			sub.names[name] = true
+		}
+	}
 
 	b.mu.Lock()
 	b.subs[sub] = struct{}{}
@@ -96,7 +122,7 @@ func (b *Bus) Subscribe(buffer int) (<-chan Event, func()) {
 
 	var once sync.Once
 
-	return sub.events, func() {
+	return &Subscription{bus: b, sub: sub, stop: func() {
 		once.Do(func() {
 			b.mu.Lock()
 			defer b.mu.Unlock()
@@ -104,7 +130,35 @@ func (b *Bus) Subscribe(buffer int) (<-chan Event, func()) {
 			delete(b.subs, sub)
 			close(sub.events)
 		})
+	}}
+}
+
+// Events is the channel the subscription's events arrive on. Only Stop
+// closes it.
+func (s *Subscription) Events() <-chan Event {
+	return s.sub.events
+}
+
+// Stop ends the subscription and closes its channel.
+func (s *Subscription) Stop() {
+	s.stop()
+}
+
+// TakeMissed returns how many events the subscription has lost since the
+// last one it was handed, and clears the count, so the next event it is handed
+// does not report them again in Dropped.
+func (s *Subscription) TakeMissed() uint64 {
+	if s.bus == nil {
+		return 0
 	}
+
+	s.bus.mu.Lock()
+	defer s.bus.mu.Unlock()
+
+	missed := s.sub.dropped
+	s.sub.dropped = 0
+
+	return missed
 }
 
 // offer numbers evt and makes one non-blocking send of it to each subscriber.
@@ -116,6 +170,10 @@ func (b *Bus) offer(evt *Event) {
 	evt.Seq = b.seq
 
 	for sub := range b.subs {
+		if sub.names != nil && !sub.names[evt.Name] {
+			continue
+		}
+
 		delivered := *evt
 		delivered.Dropped = sub.dropped
 
