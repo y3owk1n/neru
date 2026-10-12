@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"time"
+
 	"github.com/spf13/cobra"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
@@ -34,7 +36,10 @@ var configDumpCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ipcClient := ipc.NewClient()
 
-		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandConfig})
+		ipcResponse, ipcResponseErr := ipcClient.SendWithTimeout(
+			ipc.Command{Action: domain.CommandConfig},
+			time.Duration(timeoutSec)*time.Second,
+		)
 		if ipcResponseErr != nil {
 			return derrors.Wrap(
 				ipcResponseErr,

@@ -24,7 +24,7 @@ Scripts read that code, since the exit status is the same for every failure.
 | Flag        | Shorthand | Type   | Default | Description                                                                        |
 | ----------- | --------- | ------ | ------- | ---------------------------------------------------------------------------------- |
 | `--config`  | `-c`      | string | `""`    | Config file path. Overrides the default search paths. See [Config file location](../guide/configuring.md#where-neru-looks-for-the-file). |
-| `--timeout` |           | int    | `10`    | IPC timeout in seconds. `config set`, `config reset` and `config dump` ignore it and wait a fixed 5 seconds. |
+| `--timeout` |           | int    | `10`    | IPC timeout in seconds. |
 
 `neru --version`, or `neru -v`, prints the version, git commit and build date.
 It works on `neru` itself, not after a subcommand.
@@ -100,7 +100,7 @@ stderr with a non-zero exit status.
 | `config`                                                | string | Path of the config file in use.                           |
 | `hints_enabled`, `grid_enabled`, `recursive_grid_enabled`, `bisect_enabled` | bool | Whether each mode is enabled in the config. |
 | `scroll_inverted`                                       | bool   | Set by [`toggle-scroll-invert`](#neru-toggle-scroll-invert). |
-| `hidden_for_screen_share`                               | bool   | Set by [`toggle-screen-share`](#neru-toggle-screen-share). `true` means hidden. |
+| `hidden_for_screen_share`                               | bool   | Set by [`toggle-screen-share`](#neru-toggle-screen-share). `true` means hidden. Always `false` on Linux and Windows, where nothing hides the overlay. |
 | `cursor_follow_selection`                               | bool or null | Set by [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection). `null` unless hints, grid, recursive_grid or bisect is active, so test for `null` before reading it as a boolean. |
 | `saved_cursor_slots`                                    | object | The occupied [cursor slots](#cursor-slots), each `{"x": …, "y": …}`. Empty when none are saved. |
 | `sticky_modifiers`                                      | string | The sticky modifiers held, such as `cmd,shift`. Empty when none is. |
@@ -324,9 +324,6 @@ state.
   daemon is running. A daemon paused by `neru stop` still answers and does not
   fail it. On Windows a daemon that is not running does not fail it, and the
   command prints its client-side checks instead.
-- In a [declared mode](configuration.md#modes), the `Mode` line and the
-  `mode` key of `daemon` say `mode`, where `neru status` names the declared
-  mode.
 
 With `--json`, the object goes to stdout alone, and the exit status is the same
 as without it. The object leaves out the checks Windows prints while no daemon
@@ -1172,9 +1169,10 @@ neru toggle-screen-share [--state on|off|toggle]
 ```
 
 Hide overlays from screen sharing while keeping them visible locally.
-`--state on` hides, matching `hidden_for_screen_share`. The command succeeds
-on every platform and flips `hidden_for_screen_share`, but only macOS hides
-the overlay. Neru uses the deprecated `NSWindow.sharingType` API:
+`--state on` hides, matching `hidden_for_screen_share`. Only macOS can hide the
+overlay from a screen share. On Linux and Windows the command fails with
+`ERR_NOT_SUPPORTED` and changes nothing. Neru uses the deprecated
+`NSWindow.sharingType` API:
 
 | macOS version  | Behavior                              |
 | -------------- | -------------------------------------- |

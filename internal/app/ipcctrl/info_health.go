@@ -11,7 +11,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
-	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -137,7 +136,7 @@ func (h *InfoHandler) handleHealth(ctx context.Context, _ ipc.Command) ipc.Respo
 
 	mode := ""
 	if h.appState != nil {
-		mode = domain.ModeString(h.appState.CurrentMode())
+		mode = h.appState.ModeName()
 	}
 
 	data := map[string]any{

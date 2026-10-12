@@ -41,11 +41,7 @@ func (h *InfoHandler) handleConfigSet(ctx context.Context, cmd ipc.Command) ipc.
 	if h.setConfigField != nil {
 		err := h.setConfigField(ctx, key, value)
 		if err != nil {
-			return ipc.Response{
-				Success: false,
-				Message: err.Error(),
-				Code:    ipc.CodeActionFailed,
-			}
+			return fieldChangeFailedResponse(err)
 		}
 
 		return ipc.Response{
@@ -193,13 +189,14 @@ func (h *InfoHandler) handleConfigSetInMemory(
 	}
 }
 
-// fieldChangeFailedResponse reports why a field change did not apply. The key
-// or the value being wrong is the caller's to fix and says so; failing to copy
-// the configuration to change is not, and must not read as if the user typed
-// something bad.
+// fieldChangeFailedResponse reports why a field change did not apply. A wrong
+// key or value is the caller's to fix, and the reply says so. Failing to copy
+// the configuration to change, or to save it, is not the caller's, and must not
+// read as if the user typed something bad.
 func fieldChangeFailedResponse(err error) ipc.Response {
 	code := ipc.CodeInvalidInput
-	if derrors.IsCode(err, derrors.CodeSerializationFailed) {
+	if derrors.IsCode(err, derrors.CodeSerializationFailed) ||
+		derrors.IsCode(err, derrors.CodeConfigIOFailed) {
 		code = ipc.CodeActionFailed
 	}
 

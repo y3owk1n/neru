@@ -413,7 +413,8 @@ func setupScreenShareStateSubscription(app *App) {
 	// Apply initial config value to overlay if set to hide in screen share.
 	// The OnScreenShareStateChanged callback fires immediately with the current
 	// state, so no direct SetSharingType call is needed here.
-	if app.config != nil && app.config.General.HideOverlayInScreenShare {
+	if app.config != nil && app.config.General.HideOverlayInScreenShare &&
+		config.HidesFromScreenShareHere() {
 		app.appState.SetHiddenForScreenShare(true)
 	}
 

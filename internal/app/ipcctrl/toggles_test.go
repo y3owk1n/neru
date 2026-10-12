@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
@@ -204,6 +205,7 @@ func TestHandleToggleScreenShare_ConvergesOnRequestedState(t *testing.T) {
 			appState.SetHiddenForScreenShare(testCase.initial)
 
 			handler := NewOverlayHandler(appState, zap.NewNop())
+			handler.platform = func() (parity.Platform, bool) { return parity.Darwin, true }
 
 			resp := handler.handleToggleScreenShare(
 				context.Background(),
@@ -218,6 +220,34 @@ func TestHandleToggleScreenShare_ConvergesOnRequestedState(t *testing.T) {
 			}
 
 			assertToggleData(t, resp, "hidden", testCase.want)
+		})
+	}
+}
+
+// TestHandleToggleScreenShare_RefusesWhereNothingHidesTheOverlay pins that
+// toggle-screen-share answers ERR_NOT_SUPPORTED on a platform where the option
+// it switches does nothing, and changes no state, rather than reporting an
+// overlay hidden that nothing hid.
+func TestHandleToggleScreenShare_RefusesWhereNothingHidesTheOverlay(t *testing.T) {
+	t.Parallel()
+
+	for _, platform := range []parity.Platform{parity.Linux, parity.Windows} {
+		t.Run(string(platform), func(t *testing.T) {
+			t.Parallel()
+
+			appState := state.NewAppState()
+
+			handler := NewOverlayHandler(appState, zap.NewNop())
+			handler.platform = func() (parity.Platform, bool) { return platform, true }
+
+			resp := handler.handleToggleScreenShare(context.Background(), ipc.Command{})
+			if resp.Success || resp.Code != ipc.CodeNotSupported {
+				t.Fatalf("handleToggleScreenShare() = %+v, want %s", resp, ipc.CodeNotSupported)
+			}
+
+			if appState.IsHiddenForScreenShare() {
+				t.Error("hidden for screen share = true after a refused toggle")
+			}
 		})
 	}
 }

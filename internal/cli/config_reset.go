@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -41,10 +42,10 @@ Examples:
 
 		client := ipc.NewClient()
 
-		resp, err := client.Send(ipc.Command{
+		resp, err := client.SendWithTimeout(ipc.Command{
 			Action: domain.CommandConfig,
 			Args:   ipcArgs,
-		})
+		}, time.Duration(timeoutSec)*time.Second)
 		if err != nil {
 			return fmt.Errorf("failed to send config-reset command: %w", err)
 		}

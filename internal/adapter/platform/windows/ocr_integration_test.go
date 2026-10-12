@@ -5,6 +5,7 @@ package windows
 import (
 	"context"
 	"image"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -68,21 +69,7 @@ func TestRecognizeText_ReadsAWordOffTheScreen(t *testing.T) {
 		t.Fatalf("Flush: %v", flushErr)
 	}
 
-	time.Sleep(100 * time.Millisecond)
-
-	img, err := CaptureScreenRegion(context.Background(), card)
-	if err != nil {
-		t.Fatalf("CaptureScreenRegion(%v): %v", card, err)
-	}
-
-	words, stats, err := RecognizeText(
-		context.Background(),
-		img,
-		OCRParams{WordLevel: true, TimeoutMS: 5000},
-	)
-	if err != nil {
-		t.Fatalf("RecognizeText: %v", err)
-	}
+	img, words, stats := readCard(t, card, word)
 
 	t.Logf("recognized %d runs in %s", len(words), stats.Recognition)
 
@@ -120,6 +107,46 @@ func TestRecognizeText_ReadsAWordOffTheScreen(t *testing.T) {
 	}
 
 	t.Errorf("recognized %d runs, none of them %q", len(words), word)
+}
+
+// readCard captures card and reads it until the engine finds word, or a few
+// seconds pass. The overlay reaches the screen some time after Flush returns,
+// and a CI desktop can take longer than a fixed wait allows, so the capture is
+// retried rather than timed. It returns the last frame and what the engine read
+// in it.
+func readCard(
+	t *testing.T,
+	card image.Rectangle,
+	word string,
+) (*image.RGBA, []OCRWord, OCRStats) {
+	t.Helper()
+
+	deadline := time.Now().Add(3 * time.Second)
+
+	for {
+		time.Sleep(100 * time.Millisecond)
+
+		img, err := CaptureScreenRegion(context.Background(), card)
+		if err != nil {
+			t.Fatalf("CaptureScreenRegion(%v): %v", card, err)
+		}
+
+		words, stats, err := RecognizeText(
+			context.Background(),
+			img,
+			OCRParams{WordLevel: true, TimeoutMS: 5000},
+		)
+		if err != nil {
+			t.Fatalf("RecognizeText: %v", err)
+		}
+
+		found := slices.ContainsFunc(words, func(got OCRWord) bool {
+			return strings.EqualFold(got.Text, word)
+		})
+		if found || time.Now().After(deadline) {
+			return img, words, stats
+		}
+	}
 }
 
 // TestRecognizeText_BlankFrameIsNotAnError pins the difference between "there

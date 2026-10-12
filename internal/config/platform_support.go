@@ -90,7 +90,8 @@ var (
 func PlatformSupport() parity.Declaration {
 	return parity.Join(
 		parity.On(parity.KindOption, darwinOnly, noteScreenShareHide,
-			"general.hide_overlay_in_screen_share",
+			ScreenShareHideOption,
+			"hooks.on_screen_share_hide",
 		),
 
 		parity.On(parity.KindOption, darwinOnly, noteMacOSSurfaces,
@@ -258,7 +259,6 @@ func PlatformSupport() parity.Declaration {
 			"hooks.on_disable",
 			"hooks.on_config_reload",
 			"hooks.on_scroll_invert",
-			"hooks.on_screen_share_hide",
 			"hooks.on_cursor_save",
 			"hooks.on_cursor_restore",
 			"hooks.on_sticky_modifiers",

@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/event"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
 // simEvents is a subscription to the app's event bus, opened before a journey
@@ -324,6 +325,15 @@ func TestSimulation_EventsReportEachRuntimeToggle(t *testing.T) {
 	events.expectNone(100 * time.Millisecond)
 
 	sim.pressHotkey(hideShare)
+
+	// Only macOS can hide the overlay from a screen share, and elsewhere the
+	// toggle is refused, so it reports nothing.
+	if platform, _ := parity.Current(); platform != parity.Darwin {
+		events.expectNone(100 * time.Millisecond)
+
+		return
+	}
+
 	events.expect(event.Event{Name: event.ScreenShareHide, On: true})
 }
 

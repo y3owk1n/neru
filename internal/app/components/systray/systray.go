@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/buildinfo"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -218,6 +219,10 @@ func (c *Component) OnReady() {
 	c.tray.AddSeparator()
 
 	c.mToggleScreenShare = c.tray.AddMenuItem("Screen Share: Visible")
+	if !config.HidesFromScreenShareHere() {
+		c.mToggleScreenShare.Hide()
+	}
+
 	c.mToggleScrollInvert = c.tray.AddMenuItem("Scroll Invert: Off")
 
 	c.tray.AddSeparator()

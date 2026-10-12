@@ -138,20 +138,21 @@ The last column says whether the command answers while Neru is stopped by
 | `ping` | none | none | yes |
 | `start`, `stop` | none. `start` while running gets `ERR_ALREADY_RUNNING`, and `stop` while stopped gets `ERR_NOT_RUNNING`. | none | yes |
 | `status` | none | The object [`neru status --json`](cli.md#neru-status) prints. | yes |
-| `health` | none | The checks [`neru doctor`](cli.md#neru-doctor) reports, as `version`, `config`, `mode`, `capabilities`, `profile` and `components`. In a declared mode, `mode` is `mode`, where `status` gives the declared name. A failed check makes the reply `ERR_ACTION_FAILED`, and the reply still carries `data`. | yes |
+| `health` | none | The checks [`neru doctor`](cli.md#neru-doctor) reports, as `version`, `config`, `mode`, `capabilities`, `profile` and `components`. A failed check makes the reply `ERR_ACTION_FAILED`, and the reply still carries `data`. | yes |
 | `config` | None, or `set <key> <value>`, `reset <key>` or `reload`. `set` and `reset` take `--no-reload` last. | With no `args`, the running configuration under the key names `config.toml` uses, which [`neru config dump`](cli.md#neru-config-dump) prints. | yes |
 | `config-set` | `<key> <value>`, then optionally `--no-reload`. | none | yes |
 | `reload` | none | none | yes |
 | `toggle-scroll-invert` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"inverted": bool}` | yes |
-| `toggle-screen-share` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"hidden": bool}` | yes |
+| `toggle-screen-share` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). `ERR_NOT_SUPPORTED` on Linux and Windows, where nothing can hide the overlay. | `{"hidden": bool}` | yes |
 | `toggle-cursor-follow-selection` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"following": bool}` | yes, but `stop` exits the mode, so it gets `ERR_INVALID_INPUT` |
 | `query-displays`, `query-cursor`, `query-window`, `query-app` | See [Querying](#querying). | See [Querying](#querying). | yes |
 | `query-hints` | See [Querying](#querying). | See [Querying](#querying). | no |
 | `watch` | None, or `--event=<name>[,<name>...]`, repeatable, to send only those events. | A [stream](#streaming). | yes |
 
 A bad key or value for `config set`, or for `config-set`, gets
-`ERR_ACTION_FAILED`, and `ERR_INVALID_INPUT` with `--no-reload`. `config reset`
-with an unknown key gets `ERR_INVALID_INPUT`.
+`ERR_INVALID_INPUT`, with or without `--no-reload`. A change that cannot be
+saved gets `ERR_ACTION_FAILED`. `config reset` with an unknown key gets
+`ERR_INVALID_INPUT`.
 
 ## Querying
 

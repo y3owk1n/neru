@@ -6,7 +6,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
@@ -15,6 +17,8 @@ import (
 type OverlayHandler struct {
 	appState *state.AppState
 	logger   *zap.Logger
+	// platform names the platform the handler answers for.
+	platform func() (parity.Platform, bool)
 }
 
 // NewOverlayHandler creates a new overlay command handler.
@@ -22,6 +26,7 @@ func NewOverlayHandler(appState *state.AppState, logger *zap.Logger) *OverlayHan
 	return &OverlayHandler{
 		appState: appState,
 		logger:   logger,
+		platform: parity.Current,
 	}
 }
 
@@ -36,6 +41,11 @@ func (h *OverlayHandler) handleToggleScreenShare(
 	_ context.Context,
 	cmd ipc.Command,
 ) ipc.Response {
+	refusal := h.screenShareRefusal()
+	if refusal != nil {
+		return *refusal
+	}
+
 	desired, errResponse := parseToggleState(domain.CommandToggleScreenShare, cmd.Args)
 	if errResponse != nil {
 		return *errResponse
@@ -60,5 +70,26 @@ func (h *OverlayHandler) handleToggleScreenShare(
 		Message: "screen share visibility: " + status,
 		Code:    ipc.CodeOK,
 		Data:    ipc.ScreenShareData{Hidden: newState},
+	}
+}
+
+// screenShareRefusal refuses toggle-screen-share where the option it switches
+// does nothing, rather than reporting a hidden overlay that nothing hid.
+func (h *OverlayHandler) screenShareRefusal() *ipc.Response {
+	platform, known := h.platform()
+	if known && config.HidesFromScreenShare(platform) {
+		return nil
+	}
+
+	where := string(platform)
+	if !known {
+		where = "this platform"
+	}
+
+	return &ipc.Response{
+		Success: false,
+		Message: domain.CommandToggleScreenShare + " does nothing on " + where + ": " +
+			config.ScreenShareHideNote,
+		Code: ipc.CodeNotSupported,
 	}
 }

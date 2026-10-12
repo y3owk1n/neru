@@ -19,6 +19,7 @@ const (
 	cliTestStatus    = "status"
 	cliTestLeftClick = "left_click"
 	cliTestRecursive = "recursive_grid"
+	cliTestConfig    = "config"
 )
 
 // Helper to get command by name from RootCmd.
@@ -78,7 +79,7 @@ func TestCommandInitialization(t *testing.T) {
 		cliTestRoles:                     false,
 		"launch":                         false,
 		"docs":                           false,
-		"config":                         false,
+		cliTestConfig:                    false,
 		"services":                       false,
 		"toggle-screen-share":            false,
 		"toggle-cursor-follow-selection": false,
@@ -212,8 +213,8 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"toggle-screen-share", getCmd("toggle-screen-share"), true},
 		{"toggle-cursor-follow-selection", getCmd("toggle-cursor-follow-selection"), true},
 		{"recursive_grid", getCmd("recursive_grid"), true},
-		{"config_dump", getSubCmd("config", "dump"), true},
-		{"config_reload", getSubCmd("config", "reload"), true},
+		{"config_dump", getSubCmd(cliTestConfig, "dump"), true},
+		{"config_reload", getSubCmd(cliTestConfig, "reload"), true},
 	}
 
 	for _, testCase := range tests {

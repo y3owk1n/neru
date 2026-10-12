@@ -220,8 +220,9 @@ func (a *App) updateControllerConfigs(cfg *config.Config) {
 }
 
 func (a *App) syncScreenShareConfig(cfg *config.Config) {
-	if a.appState.IsHiddenForScreenShare() != cfg.General.HideOverlayInScreenShare {
-		a.appState.SetHiddenForScreenShare(cfg.General.HideOverlayInScreenShare)
+	hidden := cfg.General.HideOverlayInScreenShare && config.HidesFromScreenShareHere()
+	if a.appState.IsHiddenForScreenShare() != hidden {
+		a.appState.SetHiddenForScreenShare(hidden)
 	}
 }
 
@@ -237,8 +238,9 @@ func (a *App) syncScrollInvertConfig(cfg *config.Config) {
 func syncInitialConfigToAppState(app *App) {
 	cfg := app.configSnapshot()
 
-	if app.appState.IsHiddenForScreenShare() != cfg.General.HideOverlayInScreenShare {
-		app.appState.SetHiddenForScreenShare(cfg.General.HideOverlayInScreenShare)
+	hidden := cfg.General.HideOverlayInScreenShare && config.HidesFromScreenShareHere()
+	if app.appState.IsHiddenForScreenShare() != hidden {
+		app.appState.SetHiddenForScreenShare(hidden)
 	}
 
 	if app.appState.IsScrollInverted() != cfg.Scroll.InvertScroll {
