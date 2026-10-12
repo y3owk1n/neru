@@ -336,6 +336,20 @@ func TestReportServiceStatus_SetsTheFlagsAScriptReads(t *testing.T) {
 			},
 			want: serviceStatus{Supported: true, Installed: true},
 		},
+		{
+			name: "installed, but the user manager did not answer",
+			state: serviceUnitState{
+				systemdBooted: true,
+				installed:     true,
+				active:        "Failed to connect to bus: No medium found",
+				enabled:       systemctlNoAnswer,
+			},
+			want: serviceStatus{
+				Supported: true,
+				Installed: true,
+				Error:     "systemctl could not read the unit: Failed to connect to bus: No medium found",
+			},
+		},
 	}
 
 	for _, testCase := range testCases {

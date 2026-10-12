@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"runtime"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 )
 
 // goosWindows is the one platform where a stopped daemon passes the doctor.
@@ -17,6 +19,12 @@ func TestDoctorCmd_JSONWithoutADaemon(t *testing.T) {
 	// the machine cannot answer.
 	t.Setenv("TMPDIR", t.TempDir())
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+
+	// Windows names its pipe after the user, so a daemon running there still
+	// answers.
+	if ipc.IsServerRunning() {
+		t.Skip("a running daemon answers on this machine")
+	}
 
 	// Roles that belong to a platform other than the one running the test.
 	foreign := map[string]string{

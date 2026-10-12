@@ -367,8 +367,16 @@ func statusService() serviceStatus {
 	path, err := plistPath()
 	installed := err == nil && plistInstalled(path)
 
+	// print-disabled reads the same domain as print. When launchd cannot read
+	// that domain, the error comes from here, so a script does not mistake it
+	// for a missing agent.
 	disabled, err := launchctlOutput("print-disabled", serviceDomain())
 	startsAtLogin := installed && err == nil && !launchdDisabled(disabled)
+
+	readErr := ""
+	if err != nil {
+		readErr = err.Error()
+	}
 
 	printed, err := launchctlOutput("print", serviceTarget())
 	if err == nil {
@@ -378,6 +386,7 @@ func statusService() serviceStatus {
 			Running:       launchdRunning(printed),
 			StartsAtLogin: startsAtLogin,
 			Message:       "Service loaded",
+			Error:         readErr,
 		}
 	}
 
@@ -387,10 +396,11 @@ func statusService() serviceStatus {
 			Installed:     true,
 			StartsAtLogin: startsAtLogin,
 			Message:       "Service stopped (run `neru services start` to start it)",
+			Error:         readErr,
 		}
 	}
 
-	return serviceStatus{Supported: true, Message: "Service not loaded"}
+	return serviceStatus{Supported: true, Message: "Service not loaded", Error: readErr}
 }
 
 // launchdDisabled reads the agent's entry out of `launchctl print-disabled`.

@@ -654,14 +654,30 @@ func statusService() serviceStatus {
 
 // reportServiceStatus is a gathered state as `neru services status` reports it.
 func reportServiceStatus(state serviceUnitState, docsURL string) serviceStatus {
-	return serviceStatus{
+	status := serviceStatus{
 		Supported:     state.systemdBooted,
 		Installed:     state.installed,
 		Running:       state.active == "active",
 		StartsAtLogin: state.enabled == unitEnabled,
 		Message:       describeServiceStatus(state, docsURL),
 	}
+
+	if state.installed {
+		for _, word := range []string{state.active, state.enabled} {
+			if !systemctlAnswered(word) {
+				status.Error = "systemctl could not read the unit: " + word
+
+				break
+			}
+		}
+	}
+
+	return status
 }
+
+// systemctlNoAnswer is what systemctlWord returns when systemctl printed
+// nothing, as when it timed out.
+const systemctlNoAnswer = "unknown"
 
 // systemctlWord reads a one-word query such as is-active or is-enabled.
 // Both exit non-zero for a perfectly ordinary answer ("inactive", "disabled"),
@@ -669,8 +685,15 @@ func reportServiceStatus(state serviceUnitState, docsURL string) serviceStatus {
 func systemctlWord(query string) string {
 	output, _ := systemctl(query, serviceUnitName)
 	if output == "" {
-		return "unknown"
+		return systemctlNoAnswer
 	}
 
 	return output
+}
+
+// systemctlAnswered reports whether word is an answer from systemd. systemd
+// answers in single words. A failed read prints a sentence, such as "Failed
+// to connect to bus", or nothing.
+func systemctlAnswered(word string) bool {
+	return word != systemctlNoAnswer && !strings.ContainsAny(word, " \t\n")
 }
