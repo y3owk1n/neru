@@ -130,6 +130,57 @@ func TestDescribeServiceStatus_ReadsAsAStatementNotAnError(t *testing.T) {
 	}
 }
 
+// TestReportServiceStatus_SetsTheFlagsAScriptReads pins the booleans
+// `neru services status --json` prints for each gathered state.
+func TestReportServiceStatus_SetsTheFlagsAScriptReads(t *testing.T) {
+	testCases := []struct {
+		name  string
+		state serviceTaskState
+		want  serviceStatus
+	}{
+		{
+			name:  "not installed",
+			state: serviceTaskState{path: serviceTaskPath},
+			want:  serviceStatus{Supported: true},
+		},
+		{
+			name: "running and enabled",
+			state: serviceTaskState{
+				installed:      true,
+				state:          taskStateRunning,
+				enabled:        true,
+				triggerEnabled: true,
+			},
+			want: serviceStatus{
+				Supported:     true,
+				Installed:     true,
+				Running:       true,
+				StartsAtLogin: true,
+			},
+		},
+		{
+			name: "ready with its logon trigger switched off",
+			state: serviceTaskState{
+				installed: true,
+				state:     taskStateReady,
+				enabled:   true,
+			},
+			want: serviceStatus{Supported: true, Installed: true},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := reportServiceStatus(testCase.state)
+			got.Message = ""
+
+			if got != testCase.want {
+				t.Errorf("reportServiceStatus() = %+v, want %+v", got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestNewBSTR_CarriesTheByteLengthPrefix(t *testing.T) {
 	value, err := newBSTR("ab")
 	if err != nil {

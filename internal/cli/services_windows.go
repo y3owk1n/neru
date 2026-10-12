@@ -872,7 +872,7 @@ func describeServiceStatus(state serviceTaskState) string {
 	return "Service installed: " + taskStateWord(state.state) + ", " + enabled + " at login"
 }
 
-func statusServiceTask(path string) string {
+func statusServiceTask(path string) serviceStatus {
 	state := serviceTaskState{path: path}
 
 	err := withTaskFolder(func(folder taskFolder) error {
@@ -909,12 +909,27 @@ func statusServiceTask(path string) string {
 		return nil
 	})
 	if err != nil {
-		return "Service status unavailable: " + err.Error()
+		return serviceStatus{
+			Supported: true,
+			Message:   "Service status unavailable: " + err.Error(),
+			Error:     err.Error(),
+		}
 	}
 
-	return describeServiceStatus(state)
+	return reportServiceStatus(state)
 }
 
-func statusService() string {
+// reportServiceStatus is a gathered state as `neru services status` reports it.
+func reportServiceStatus(state serviceTaskState) serviceStatus {
+	return serviceStatus{
+		Supported:     true,
+		Installed:     state.installed,
+		Running:       state.state == taskStateRunning,
+		StartsAtLogin: state.enabled && state.triggerEnabled,
+		Message:       describeServiceStatus(state),
+	}
+}
+
+func statusService() serviceStatus {
 	return statusServiceTask(serviceTaskPath)
 }

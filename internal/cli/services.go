@@ -116,19 +116,44 @@ var ServicesRestartCmd = &cobra.Command{
 	},
 }
 
+// serviceStatus is what `neru services status` reports. Message is the line
+// the human form prints, and the booleans are the same answer for a script.
+// Error is set when the state could not be read, and the booleans then say
+// nothing.
+type serviceStatus struct {
+	Supported     bool   `json:"supported"`
+	Installed     bool   `json:"installed"`
+	Running       bool   `json:"running"`
+	StartsAtLogin bool   `json:"starts_at_login"` //nolint:tagliatelle // snake_case like every key neru prints.
+	Message       string `json:"message"`
+	Error         string `json:"error"`
+}
+
 // ServicesStatusCmd is the CLI status subcommand.
 var ServicesStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check the status of the system service",
-	Long:  `Check whether the Neru service is installed and running. A machine where it was never installed is reported as such rather than as an error.`,
+	Long:  `Check whether the Neru service is installed and running. A machine where it was never installed is reported as such rather than as an error. Use --json to print the answer as a JSON object.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.Println(statusService())
+		asJSON, flagErr := cmd.Flags().GetBool("json")
+		if flagErr != nil {
+			return flagErr
+		}
+
+		status := statusService()
+		if asJSON {
+			return formatter.PrintJSON(cmd, status)
+		}
+
+		cmd.Println(status.Message)
 
 		return nil
 	},
 }
 
 func init() {
+	ServicesStatusCmd.Flags().Bool("json", false, "Print the status as a JSON object")
+
 	ServicesCmd.AddCommand(ServicesInstallCmd)
 	ServicesCmd.AddCommand(ServicesUninstallCmd)
 	ServicesCmd.AddCommand(ServicesStartCmd)

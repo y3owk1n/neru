@@ -207,7 +207,7 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{
 			"doctor",
 			getCmd("doctor"),
-			runtime.GOOS != "windows",
+			runtime.GOOS != goosWindows,
 		}, // Windows runs client-side doctor when daemon is down
 		{"toggle-screen-share", getCmd("toggle-screen-share"), true},
 		{"toggle-cursor-follow-selection", getCmd("toggle-cursor-follow-selection"), true},

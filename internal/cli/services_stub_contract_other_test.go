@@ -45,10 +45,15 @@ func TestServicesStubsRefuseLoudly(t *testing.T) {
 }
 
 // TestStatusServiceSaysItIsUnsupported covers the one subcommand whose signature
-// carries no error, so the refusal has to be in the words.
+// carries no error, so the refusal has to be in the words and in supported.
 func TestStatusServiceSaysItIsUnsupported(t *testing.T) {
 	status := statusService()
-	if !strings.Contains(status, "not supported") {
-		t.Errorf("statusService() = %q, want it to say service management is unsupported", status)
+	if !strings.Contains(status.Message, "not supported") {
+		t.Errorf("statusService() = %q, want it to say service management is unsupported",
+			status.Message)
+	}
+
+	if status.Supported || status.Installed || status.Running || status.StartsAtLogin {
+		t.Errorf("statusService() = %+v, want every flag false", status)
 	}
 }

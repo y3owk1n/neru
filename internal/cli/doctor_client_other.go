@@ -8,6 +8,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// stoppedDaemonFailsDoctor is whether `neru doctor` fails while the daemon is
+// stopped. Here it does, since there are no client-side probes to run instead.
+const stoppedDaemonFailsDoctor = true
+
 // Non-Windows fallback when the daemon IPC socket is missing.
 // Does not run client-side platform probes.
 var errDaemonNotRunning = errors.New("daemon not running")

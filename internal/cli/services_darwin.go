@@ -94,10 +94,17 @@ func serviceTarget() string {
 // launchctl runs a launchctl subcommand, folding launchctl's own explanation
 // into the error rather than leaving only an exit status.
 func launchctl(args ...string) error {
+	_, err := launchctlOutput(args...)
+
+	return err
+}
+
+// launchctlOutput is launchctl for a subcommand whose output is the answer.
+func launchctlOutput(args ...string) (string, error) {
 	output, err := exec.CommandContext(context.Background(), "launchctl", args...).
 		CombinedOutput()
 	if err != nil {
-		return derrors.Wrapf(
+		return "", derrors.Wrapf(
 			err,
 			derrors.CodeExecFailed,
 			"launchctl %s: %s",
@@ -106,7 +113,7 @@ func launchctl(args ...string) error {
 		)
 	}
 
-	return nil
+	return string(output), nil
 }
 
 // plistPath is where the agent's plist lives, expanded.
@@ -354,17 +361,62 @@ func restartService() error {
 	return nil
 }
 
-func statusService() string {
-	if isServiceLoaded() {
-		return "Service loaded"
-	}
-
+// statusService reads the agent from launchd. launchd loads an installed
+// plist at login unless the agent is disabled, which stopService does.
+func statusService() serviceStatus {
 	path, err := plistPath()
-	if err == nil && plistInstalled(path) {
-		return "Service stopped (run `neru services start` to start it)"
+	installed := err == nil && plistInstalled(path)
+
+	disabled, err := launchctlOutput("print-disabled", serviceDomain())
+	startsAtLogin := installed && err == nil && !launchdDisabled(disabled)
+
+	printed, err := launchctlOutput("print", serviceTarget())
+	if err == nil {
+		return serviceStatus{
+			Supported:     true,
+			Installed:     true,
+			Running:       launchdRunning(printed),
+			StartsAtLogin: startsAtLogin,
+			Message:       "Service loaded",
+		}
 	}
 
-	return "Service not loaded"
+	if installed {
+		return serviceStatus{
+			Supported:     true,
+			Installed:     true,
+			StartsAtLogin: startsAtLogin,
+			Message:       "Service stopped (run `neru services start` to start it)",
+		}
+	}
+
+	return serviceStatus{Supported: true, Message: "Service not loaded"}
+}
+
+// launchdDisabled reads the agent's entry out of `launchctl print-disabled`.
+// Older macOS releases write true for disabled, newer ones write disabled.
+func launchdDisabled(printed string) bool {
+	for line := range strings.SplitSeq(printed, "\n") {
+		label, value, found := strings.Cut(strings.TrimSpace(line), " => ")
+		if found && label == strconv.Quote(serviceLabel) {
+			return value == "disabled" || value == "true"
+		}
+	}
+
+	return false
+}
+
+// launchdRunning reads the agent's state out of `launchctl print`, which
+// indents the agent's own properties by one tab and the state lines of nested
+// blocks, such as its endpoints, further.
+func launchdRunning(printed string) bool {
+	for line := range strings.SplitSeq(printed, "\n") {
+		if line == "\tstate = running" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func expandPath(path string) (string, error) {

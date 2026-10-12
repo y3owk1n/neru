@@ -24,7 +24,7 @@ func testTaskPath(t *testing.T) string {
 func requireTaskScheduler(t *testing.T, path string) {
 	t.Helper()
 
-	status := statusServiceTask(path)
+	status := statusServiceTask(path).Message
 	if strings.HasPrefix(status, "Service status unavailable") {
 		t.Skipf("skipping: %s", status)
 	}
@@ -43,7 +43,7 @@ func TestServiceTask_RoundTrip(t *testing.T) {
 
 	t.Cleanup(func() { _ = uninstallServiceTask(path) })
 
-	if status := statusServiceTask(path); !strings.Contains(status, "not installed") {
+	if status := statusServiceTask(path).Message; !strings.Contains(status, "not installed") {
 		t.Fatalf("statusServiceTask() before install = %q, want not installed", status)
 	}
 
@@ -57,7 +57,7 @@ func TestServiceTask_RoundTrip(t *testing.T) {
 		t.Errorf("second installServiceTask() error = %v, want %v", err, derrors.CodeInvalidInput)
 	}
 
-	status := statusServiceTask(path)
+	status := statusServiceTask(path).Message
 	if !strings.HasPrefix(status, "Service installed: ") ||
 		!strings.Contains(status, "enabled at login") {
 		t.Errorf("statusServiceTask() after install = %q, want installed and enabled", status)
@@ -68,7 +68,7 @@ func TestServiceTask_RoundTrip(t *testing.T) {
 		t.Fatalf("stop error = %v", err)
 	}
 
-	if status := statusServiceTask(path); !strings.Contains(status, "disabled at login") {
+	if status := statusServiceTask(path).Message; !strings.Contains(status, "disabled at login") {
 		t.Errorf("statusServiceTask() after stop = %q, want disabled at login", status)
 	}
 
@@ -82,7 +82,7 @@ func TestServiceTask_RoundTrip(t *testing.T) {
 		t.Fatalf("start error = %v", err)
 	}
 
-	if status := statusServiceTask(path); !strings.Contains(status, "enabled at login") ||
+	if status := statusServiceTask(path).Message; !strings.Contains(status, "enabled at login") ||
 		strings.Contains(status, "disabled at login") {
 		t.Errorf("statusServiceTask() after start = %q, want enabled at login", status)
 	}
@@ -97,7 +97,7 @@ func TestServiceTask_RoundTrip(t *testing.T) {
 		t.Fatalf("uninstallServiceTask() error = %v", err)
 	}
 
-	if status := statusServiceTask(path); !strings.Contains(status, "not installed") {
+	if status := statusServiceTask(path).Message; !strings.Contains(status, "not installed") {
 		t.Errorf("statusServiceTask() after uninstall = %q, want not installed", status)
 	}
 

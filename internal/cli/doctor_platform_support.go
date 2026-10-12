@@ -78,6 +78,28 @@ func printPlatformSupportCheck(cmd *cobra.Command, loadResult *config.LoadResult
 	}
 }
 
+// inertSetting is one setting the platform_support check lists.
+type inertSetting struct {
+	Written string `json:"written"`
+	Note    string `json:"note"`
+}
+
+// inertSettings is the platform_support check as `neru doctor --json` prints
+// it, and nil when the check does not run: no platform support is declared
+// here, or the configuration is invalid.
+func inertSettings(loadResult *config.LoadResult) []inertSetting {
+	if _, known := parity.Current(); !known || loadResult.ValidationError != nil {
+		return nil
+	}
+
+	settings := make([]inertSetting, 0, len(loadResult.Inert))
+	for _, word := range loadResult.Inert {
+		settings = append(settings, inertSetting{Written: word.Written(), Note: word.Note})
+	}
+
+	return settings
+}
+
 // pluralSettingsDo words the count so a single finding does not read as though
 // the check itself is broken.
 func pluralSettingsDo(count int) string {

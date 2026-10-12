@@ -12,6 +12,10 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
+// stoppedDaemonFailsDoctor is whether `neru doctor` fails while the daemon is
+// stopped. Here it does not, since the client-side probes run instead.
+const stoppedDaemonFailsDoctor = false
+
 // Client-side neru doctor checks when the Windows daemon is not running.
 // Does not query overlay, hotkeys, or IPC-backed components.
 func printClientDoctorWithoutDaemon(cmd *cobra.Command) error {

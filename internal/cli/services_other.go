@@ -39,6 +39,6 @@ func restartService() error {
 	return unsupportedServices("restart")
 }
 
-func statusService() string {
-	return "Service management is not supported on this platform"
+func statusService() serviceStatus {
+	return serviceStatus{Message: "Service management is not supported on this platform"}
 }

@@ -233,12 +233,16 @@ Every key is stable.
 ### neru doctor
 
 ```
-neru doctor
+neru doctor [--json]
 ```
 
 Report config validity, socket health, platform capabilities from the
 [capability matrix](platform-support.md#capability-matrix), and component
 state.
+
+| Flag     | Type | Default | Description                         |
+| -------- | ---- | ------- | ----------------------------------- |
+| `--json` | bool | `false` | Print every check as one JSON object. |
 
 - With the daemon running, the `Overlay backend` line names the renderer in
   use. On Windows it tells DirectComposition + Direct2D from the GDI fallback
@@ -247,6 +251,26 @@ state.
   config writes that do nothing on this platform, with the reason for each.
   These never fail the check. The full set is in
   [Platform support per word](platform-support.md#platform-support-per-word).
+- The check fails when the config fails to load or selects no role that
+  applies here, when the daemon reports an unhealthy component, or when the
+  daemon is stopped. On Windows a stopped daemon does not fail it, and the
+  command prints its client-side checks instead.
+
+With `--json`, the object goes to stdout alone, and the exit status is the same
+as without it. The object leaves out the checks Windows prints while the daemon
+is stopped.
+
+| Key                | Type           | Description |
+| ------------------ | -------------- | ----------- |
+| `healthy`          | bool           | `false` exactly when the command exits non-zero. |
+| `config`           | object         | `path` is the config file checked, empty for the built-in defaults. `error` says why it failed to load, and is empty when it loaded. |
+| `clickable_roles`  | object         | How `hints.clickable_roles` resolves here. `entries` counts the entries written, `native` the native roles they select, and `ignored` the entries for other platforms. `usable` is `false` when no role applies. |
+| `platform_support` | object or null | `inert` lists `{"written": …, "note": …}` for each setting that does nothing here. `null` when the config failed to load, or when Neru declares no platform support for this OS. |
+| `ipc_endpoint`     | object         | `path` is where the daemon listens, empty when Neru cannot determine it for this user. `reachable` is whether the daemon answers there. |
+| `daemon`           | object or null | The [`health`](ipc.md#commands) reply's data. `null` when the daemon does not answer. |
+
+Every key is stable except the contents of `daemon`, which follow the `health`
+reply.
 
 ## Navigation modes
 
@@ -999,7 +1023,7 @@ deprecated `NSWindow.sharingType` API:
 ### neru roles
 
 ```
-neru roles [--explain] [-c <path>]
+neru roles [--explain] [--json] [-c <path>]
 ```
 
 List the roles accepted by `hints.clickable_roles` and `neru hints --role`,
@@ -1016,11 +1040,31 @@ platform are ignored, so one config serves several machines.
 | Flag        | Type | Default | Description                                                                         |
 | ----------- | ---- | ------- | ----------------------------------------------------------------------------------- |
 | `--explain` | bool | `false` | Resolve the loaded config entry by entry, showing each entry's native roles and which do not apply here. |
+| `--json`    | bool | `false` | Print the answer as one JSON object.                                               |
+
+With `--json`, the object goes to stdout alone, and errors go to stderr with a
+non-zero exit status. Every key is stable.
+
+| Key          | Type   | Description |
+| ------------ | ------ | ----------- |
+| `platform`   | string | The OS the roles resolve on: `darwin`, `linux` or `windows`. |
+| `vocabulary` | string | The native vocabulary here: `ax`, `atspi` or `uia`. Empty with no accessibility backend. |
+| `roles`      | array  | One object per semantic role. `semantic` is its name, and `native` lists its native roles here. `subrole` is `true` when macOS reports those names as an element's subrole. |
+
+With `--explain --json`, the keys are:
+
+| Key        | Type   | Description |
+| ---------- | ------ | ----------- |
+| `platform` | string | As above. |
+| `config`   | string | Path of the config file resolved, empty for the built-in defaults. |
+| `entries`  | array  | One object per `hints.clickable_roles` entry, in order. `entry` is the entry as written, and `vocabulary` its prefix, empty for a semantic name. `native` lists the native roles it adds here. `ignored` says why it adds none, and is empty when it applies. |
+| `native`   | array  | Every native role the entries select, once each. |
 
 ### neru services
 
 ```
-neru services install|uninstall|start|stop|restart|status
+neru services install|uninstall|start|stop|restart
+neru services status [--json]
 ```
 
 Manage Neru as a login service. If a package manager such as Nix, Homebrew or
@@ -1042,6 +1086,18 @@ installed and running.
 On Linux and Windows, every subcommand but `status` refuses to touch a unit or
 task Neru did not write. `status` on a machine without the service reports that
 rather than failing.
+
+`neru services status --json` prints the answer as one JSON object and exits 0
+whatever the service is doing. Every key is stable.
+
+| Key               | Type   | Description |
+| ----------------- | ------ | ----------- |
+| `supported`       | bool   | Whether this machine has the service manager Neru drives. `false` on Linux without systemd. |
+| `installed`       | bool   | Whether the service is installed. |
+| `running`         | bool   | Whether the daemon the service starts is running. |
+| `starts_at_login` | bool   | Whether the service starts Neru at login. `neru services stop` turns it off. |
+| `message`         | string | The line `neru services status` prints without `--json`. |
+| `error`           | string | Why the state could not be read, empty when it was. When set, the booleans say nothing. |
 
 ### neru docs
 

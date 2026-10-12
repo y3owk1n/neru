@@ -115,3 +115,75 @@ func TestRenderPlist_EscapesPathsThatAreNotValidXML(t *testing.T) {
 		})
 	}
 }
+
+// TestLaunchdRunning_ReadsTheAgentStateOnly pins `neru services status --json`
+// to the agent's own state line in `launchctl print`, not the state an
+// endpoint nested under it reports.
+func TestLaunchdRunning_ReadsTheAgentStateOnly(t *testing.T) {
+	testCases := []struct {
+		name    string
+		printed string
+		want    bool
+	}{
+		{
+			name:    "running agent",
+			printed: "gui/501/com.y3owk1n.neru = {\n\tactive count = 1\n\tstate = running\n\tpid = 42\n}\n",
+			want:    true,
+		},
+		{
+			name: "agent waiting to be relaunched",
+			printed: "gui/501/com.y3owk1n.neru = {\n\tstate = not running\n" +
+				"\tendpoints = {\n\t\t\"x\" = {\n\t\t\tstate = running\n\t\t}\n\t}\n}\n",
+			want: false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := launchdRunning(testCase.printed); got != testCase.want {
+				t.Errorf("launchdRunning() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
+// TestLaunchdDisabled_ReadsTheAgentEntryOnly pins starts_at_login in
+// `neru services status --json` to the agent's own entry in
+// `launchctl print-disabled`, in both spellings macOS has used.
+func TestLaunchdDisabled_ReadsTheAgentEntryOnly(t *testing.T) {
+	testCases := []struct {
+		name    string
+		printed string
+		want    bool
+	}{
+		{
+			name:    "disabled",
+			printed: "\tdisabled services = {\n\t\t\"com.y3owk1n.neru\" => disabled\n\t}\n",
+			want:    true,
+		},
+		{
+			name:    "disabled on an older release",
+			printed: "\tdisabled services = {\n\t\t\"com.y3owk1n.neru\" => true\n\t}\n",
+			want:    true,
+		},
+		{
+			name: "enabled while another agent is disabled",
+			printed: "\tdisabled services = {\n\t\t\"com.example.other\" => disabled\n" +
+				"\t\t\"com.y3owk1n.neru\" => enabled\n\t}\n",
+			want: false,
+		},
+		{
+			name:    "no entry",
+			printed: "\tdisabled services = {\n\t}\n",
+			want:    false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := launchdDisabled(testCase.printed); got != testCase.want {
+				t.Errorf("launchdDisabled() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}

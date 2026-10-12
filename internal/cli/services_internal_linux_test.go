@@ -293,6 +293,63 @@ func TestDescribeServiceStatus_NamesEveryState(t *testing.T) {
 	}
 }
 
+// TestReportServiceStatus_SetsTheFlagsAScriptReads pins the booleans
+// `neru services status --json` prints for each gathered state.
+func TestReportServiceStatus_SetsTheFlagsAScriptReads(t *testing.T) {
+	testCases := []struct {
+		name  string
+		state serviceUnitState
+		want  serviceStatus
+	}{
+		{
+			name:  "no systemd on the machine",
+			state: serviceUnitState{unitPath: testDefaultUnitPath},
+			want:  serviceStatus{},
+		},
+		{
+			name:  "systemd, but the unit was never installed",
+			state: serviceUnitState{systemdBooted: true, unitPath: testDefaultUnitPath},
+			want:  serviceStatus{Supported: true},
+		},
+		{
+			name: "installed, running and enabled",
+			state: serviceUnitState{
+				systemdBooted: true,
+				installed:     true,
+				active:        "active",
+				enabled:       unitEnabled,
+			},
+			want: serviceStatus{
+				Supported:     true,
+				Installed:     true,
+				Running:       true,
+				StartsAtLogin: true,
+			},
+		},
+		{
+			name: "installed, failed and disabled",
+			state: serviceUnitState{
+				systemdBooted: true,
+				installed:     true,
+				active:        "failed",
+				enabled:       unitDisabled,
+			},
+			want: serviceStatus{Supported: true, Installed: true},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := reportServiceStatus(testCase.state, "")
+			got.Message = ""
+
+			if got != testCase.want {
+				t.Errorf("reportServiceStatus() = %+v, want %+v", got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestRenderServiceUnit_AnchorsOnTheGraphicalSession(t *testing.T) {
 	unit := renderServiceUnit("/usr/local/bin/neru")
 

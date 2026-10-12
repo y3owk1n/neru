@@ -14,8 +14,38 @@ import (
 // rolesColumnPadding is the gap between the role name and its expansion.
 const rolesColumnPadding = 2
 
-// explainRoles is set by the --explain flag.
-var explainRoles bool
+// explainRoles is set by the --explain flag, and rolesJSON by --json.
+var explainRoles, rolesJSON bool
+
+// rolesListing is `neru roles --json`.
+type rolesListing struct {
+	Platform   string        `json:"platform"`
+	Vocabulary string        `json:"vocabulary"`
+	Roles      []roleListing `json:"roles"`
+}
+
+// roleListing is one semantic role and the native roles it expands to here.
+type roleListing struct {
+	Semantic string   `json:"semantic"`
+	Native   []string `json:"native"`
+	Subrole  bool     `json:"subrole"`
+}
+
+// rolesExplanation is `neru roles --explain --json`.
+type rolesExplanation struct {
+	Platform string            `json:"platform"`
+	Config   string            `json:"config"`
+	Entries  []roleExplanation `json:"entries"`
+	Native   []string          `json:"native"`
+}
+
+// roleExplanation is one configured entry and what it contributes here.
+type roleExplanation struct {
+	Entry      string   `json:"entry"`
+	Vocabulary string   `json:"vocabulary"`
+	Native     []string `json:"native"`
+	Ignored    string   `json:"ignored"`
+}
 
 // rolesCmd is the CLI roles command.
 var rolesCmd = &cobra.Command{
@@ -36,12 +66,19 @@ Prefixed entries for other platforms are ignored rather than rejected, so one
 configuration file can serve several machines.
 
 With --explain, the loaded configuration is resolved entry by entry, showing
-which native roles each entry contributes here and which entries do not apply.`,
+which native roles each entry contributes here and which entries do not apply.
+
+Use --json with either form to print the answer as a JSON object.`,
 	Example: `  neru roles             Show the semantic vocabulary for this platform
-  neru roles --explain   Show how the loaded config resolves here`,
+  neru roles --explain   Show how the loaded config resolves here
+  neru roles --json      Print the vocabulary as a JSON object`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if explainRoles {
 			return runRolesExplain(cmd)
+		}
+
+		if rolesJSON {
+			return formatter.PrintJSON(cmd, listRoles())
 		}
 
 		runRolesList(cmd)
@@ -53,7 +90,29 @@ which native roles each entry contributes here and which entries do not apply.`,
 func init() {
 	rolesCmd.Flags().BoolVar(&explainRoles, "explain", false,
 		"resolve the loaded config entry by entry")
+	rolesCmd.Flags().BoolVar(&rolesJSON, "json", false, "Print the answer as a JSON object")
 	RootCmd.AddCommand(rolesCmd)
+}
+
+// listRoles is the semantic vocabulary and its expansion here.
+func listRoles() rolesListing {
+	vocabulary, _ := element.CurrentVocabulary()
+
+	listing := rolesListing{
+		Platform:   runtime.GOOS,
+		Vocabulary: string(vocabulary),
+		Roles:      make([]roleListing, 0, len(element.RoleVocabulary)),
+	}
+
+	for _, mapping := range element.RoleVocabulary {
+		listing.Roles = append(listing.Roles, roleListing{
+			Semantic: string(mapping.Semantic),
+			Native:   append([]string{}, mapping.Native(vocabulary)...),
+			Subrole:  vocabulary == element.VocabularyAX && mapping.AXIsSubrole,
+		})
+	}
+
+	return listing
 }
 
 // runRolesList prints the semantic vocabulary and its expansion here.
@@ -117,16 +176,20 @@ func runRolesExplain(cmd *cobra.Command) error {
 		return &silentError{err: errConfigValidationFailed}
 	}
 
+	resolution := element.ResolveRolesForCurrentPlatform(
+		loadResult.Config.Hints.ClickableRoles,
+	)
+
+	if rolesJSON {
+		return formatter.PrintJSON(cmd, explainRolesJSON(loadResult.ConfigPath, resolution))
+	}
+
 	source := loadResult.ConfigPath
 	if source == "" {
 		source = "built-in defaults (no config file found)"
 	}
 
 	cmd.Printf("hints.clickable_roles on %s, from %s\n\n", runtime.GOOS, source)
-
-	resolution := element.ResolveRolesForCurrentPlatform(
-		loadResult.Config.Hints.ClickableRoles,
-	)
 
 	writer := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, rolesColumnPadding, ' ', 0)
 
@@ -147,6 +210,34 @@ func runRolesExplain(cmd *cobra.Command) error {
 	return nil
 }
 
+// explainRolesJSON is a resolved configuration as --explain --json prints it.
+// A configuration that loaded has no fatal entry, so a diagnostic left on an
+// entry is the reason it does not apply here.
+func explainRolesJSON(configPath string, resolution element.RoleResolution) rolesExplanation {
+	explanation := rolesExplanation{
+		Platform: runtime.GOOS,
+		Config:   configPath,
+		Entries:  make([]roleExplanation, 0, len(resolution.Entries)),
+		Native:   append([]string{}, resolution.Native...),
+	}
+
+	for _, entry := range resolution.Entries {
+		explained := roleExplanation{
+			Entry:      entry.Entry,
+			Vocabulary: string(entry.Vocabulary),
+			Native:     append([]string{}, entry.Native...),
+		}
+
+		if entry.Diagnostic != nil {
+			explained.Ignored = entry.Diagnostic.Message()
+		}
+
+		explanation.Entries = append(explanation.Entries, explained)
+	}
+
+	return explanation
+}
+
 // printClickableRolesCheck reports how the configured clickable roles resolve
 // on this platform, and returns whether they are usable. It is a client-side
 // doctor check: a config whose roles all belong to another platform loads
@@ -162,11 +253,8 @@ func printClickableRolesCheck(cmd *cobra.Command, loadResult *config.LoadResult)
 		return false
 	}
 
-	resolution := element.ResolveRolesForCurrentPlatform(
-		loadResult.Config.Hints.ClickableRoles,
-	)
-
-	if len(resolution.Native) == 0 {
+	check := checkClickableRoles(loadResult)
+	if !check.Usable {
 		cmd.Printf("  ❌ %-24s %s\n", "clickable_roles",
 			"no roles apply on "+runtime.GOOS+"; hints would be empty")
 		cmd.Printf("  %-27s %s\n", "", "run: neru roles --explain")
@@ -175,13 +263,44 @@ func printClickableRolesCheck(cmd *cobra.Command, loadResult *config.LoadResult)
 	}
 
 	cmd.Printf("  ✅ %-24s %d entries → %d native roles on %s\n",
-		"clickable_roles", len(resolution.Entries), len(resolution.Native), runtime.GOOS)
+		"clickable_roles", check.Entries, check.Native, runtime.GOOS)
 
-	if ignored := len(resolution.IgnoredMessages()); ignored > 0 {
-		cmd.Printf("  %-27s %d entries do not apply here (neru roles --explain)\n", "", ignored)
+	if check.Ignored > 0 {
+		cmd.Printf(
+			"  %-27s %d entries do not apply here (neru roles --explain)\n",
+			"",
+			check.Ignored,
+		)
 	}
 
 	return true
+}
+
+// clickableRolesCheck is how the configured clickable roles resolve here.
+type clickableRolesCheck struct {
+	Entries int  `json:"entries"`
+	Native  int  `json:"native"`
+	Ignored int  `json:"ignored"`
+	Usable  bool `json:"usable"`
+}
+
+// checkClickableRoles resolves the configured clickable roles. An invalid
+// configuration resolves to nothing usable.
+func checkClickableRoles(loadResult *config.LoadResult) clickableRolesCheck {
+	if loadResult.ValidationError != nil {
+		return clickableRolesCheck{}
+	}
+
+	resolution := element.ResolveRolesForCurrentPlatform(
+		loadResult.Config.Hints.ClickableRoles,
+	)
+
+	return clickableRolesCheck{
+		Entries: len(resolution.Entries),
+		Native:  len(resolution.Native),
+		Ignored: len(resolution.IgnoredMessages()),
+		Usable:  len(resolution.Native) > 0,
+	}
 }
 
 // explainEntry renders the resolution of a single configured entry.

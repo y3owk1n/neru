@@ -86,7 +86,7 @@ func TestStatusService_ReportsNotInstalledWhenTheUnitIsAbsent(t *testing.T) {
 
 	requireNoExistingUnit(t, unitPath)
 
-	status := statusService()
+	status := statusService().Message
 	if !strings.Contains(status, "Service not installed") {
 		t.Errorf("statusService() = %q, want it to report that nothing is installed", status)
 	}
@@ -308,7 +308,7 @@ func TestInstallService_RoundTripsThroughSystemd(t *testing.T) {
 			)
 		}
 
-		status := statusService()
+		status := statusService().Message
 		if !strings.Contains(status, "Service not installed") {
 			t.Errorf(
 				"statusService() after uninstall = %q, want it to report nothing installed",
@@ -332,7 +332,7 @@ func TestInstallService_RoundTripsThroughSystemd(t *testing.T) {
 		t.Errorf("is-enabled = %q, want %q", enabled, unitEnabled)
 	}
 
-	status := statusService()
+	status := statusService().Message
 	if !strings.Contains(status, "Service installed") {
 		t.Errorf("statusService() = %q, want it to report an installed unit", status)
 	}
