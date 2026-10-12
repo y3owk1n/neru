@@ -4,6 +4,8 @@ package windows
 
 import (
 	"image"
+	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -329,13 +331,27 @@ func (o *winOverlay) paintRecursiveGrid(
 		style.PreviewsNextDepth(len(nextKeyRunes), nextDims)
 	scale := o.scale()
 
-	for idx, cell := range cellRects {
+	for _, cell := range cellRects {
+		if cell.Empty() {
+			continue
+		}
+
 		if style.HighlightColorARGB() != 0 {
 			o.window.FillRect(cell, style.HighlightColorARGB())
 		}
 
-		if style.LineWidthF() > 0 {
+		if !style.HasSecondaryLine() && style.LineWidthF() > 0 {
 			o.window.StrokeRect(cell, style.LineColorARGB(), style.LineWidthF()*scale)
+		}
+	}
+
+	if style.HasSecondaryLine() {
+		o.drawRadialDualGridLines(cellRects, style)
+	}
+
+	for idx, cell := range cellRects {
+		if cell.Empty() {
+			continue
 		}
 
 		if idx < len(keyRunes) {
@@ -366,8 +382,105 @@ func (o *winOverlay) paintRecursiveGrid(
 	}
 
 	o.drawGridPointer(virtualPointer)
-
 	o.flushOverlay("recursive-grid")
+}
+
+func (o *winOverlay) drawRadialDualGridLines(
+	cellRects []image.Rectangle,
+	style recursivegridcomponent.Style,
+) {
+	if o.window == nil {
+		return
+	}
+
+	validCells := make([]image.Rectangle, 0, len(cellRects))
+	for _, c := range cellRects {
+		if !c.Empty() {
+			validCells = append(validCells, c)
+		}
+	}
+	if len(validCells) == 0 {
+		return
+	}
+
+	minX, minY := validCells[0].Min.X, validCells[0].Min.Y
+	maxX, maxY := validCells[0].Max.X, validCells[0].Max.Y
+	for _, cell := range validCells[1:] {
+		if cell.Min.X < minX {
+			minX = cell.Min.X
+		}
+		if cell.Min.Y < minY {
+			minY = cell.Min.Y
+		}
+		if cell.Max.X > maxX {
+			maxX = cell.Max.X
+		}
+		if cell.Max.Y > maxY {
+			maxY = cell.Max.Y
+		}
+	}
+
+	cx := (minX + maxX) / 2
+	cy := (minY + maxY) / 2
+
+	xsMap := make(map[int]struct{})
+	ysMap := make(map[int]struct{})
+	for _, cell := range validCells {
+		xsMap[cell.Min.X] = struct{}{}
+		xsMap[cell.Max.X] = struct{}{}
+		ysMap[cell.Min.Y] = struct{}{}
+		ysMap[cell.Max.Y] = struct{}{}
+	}
+
+	xs := make([]int, 0, len(xsMap))
+	for x := range xsMap {
+		xs = append(xs, x)
+	}
+	slices.Sort(xs)
+
+	ys := make([]int, 0, len(ysMap))
+	for y := range ysMap {
+		ys = append(ys, y)
+	}
+	slices.Sort(ys)
+
+	wPrim := max(1, int(math.Round(style.LineWidthF())))
+	wSec := max(1, int(math.Round(style.SecondaryLineWidthF())))
+
+	primColor := style.LineColorARGB()
+	secColor := style.SecondaryLineColorARGB()
+
+	for _, x := range xs {
+		if x == minX {
+			o.window.FillRect(image.Rect(minX, minY, minX+wPrim, maxY), primColor)
+			o.window.FillRect(image.Rect(minX+wPrim, minY, minX+wPrim+wSec, maxY), secColor)
+		} else if x == maxX {
+			o.window.FillRect(image.Rect(maxX-wPrim, minY, maxX, maxY), primColor)
+			o.window.FillRect(image.Rect(maxX-wPrim-wSec, minY, maxX-wPrim, maxY), secColor)
+		} else if x <= cx {
+			o.window.FillRect(image.Rect(x-wPrim, minY, x, maxY), primColor)
+			o.window.FillRect(image.Rect(x, minY, x+wSec, maxY), secColor)
+		} else {
+			o.window.FillRect(image.Rect(x-wSec, minY, x, maxY), secColor)
+			o.window.FillRect(image.Rect(x, minY, x+wPrim, maxY), primColor)
+		}
+	}
+
+	for _, y := range ys {
+		if y == minY {
+			o.window.FillRect(image.Rect(minX, minY, maxX, minY+wPrim), primColor)
+			o.window.FillRect(image.Rect(minX, minY+wPrim, maxX, minY+wPrim+wSec), secColor)
+		} else if y == maxY {
+			o.window.FillRect(image.Rect(minX, maxY-wPrim, maxX, maxY), primColor)
+			o.window.FillRect(image.Rect(minX, maxY-wPrim-wSec, maxX, maxY-wPrim), secColor)
+		} else if y <= cy {
+			o.window.FillRect(image.Rect(minX, y-wPrim, maxX, y), primColor)
+			o.window.FillRect(image.Rect(minX, y, maxX, y+wSec), secColor)
+		} else {
+			o.window.FillRect(image.Rect(minX, y-wSec, maxX, y), secColor)
+			o.window.FillRect(image.Rect(minX, y, maxX, y+wPrim), primColor)
+		}
+	}
 }
 
 // drawGridPointer paints a grid mode's pointer stand-in into the pass the

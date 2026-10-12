@@ -19,11 +19,12 @@ import (
 // to report, and that is exactly the bug these tests pin — a corner radius the
 // configuration accepts but the draw never passes on.
 type recordedRect struct {
-	bounds  image.Rectangle
-	radius  float64
-	fill    uint32
-	border  uint32
-	rounded bool
+	bounds    image.Rectangle
+	radius    float64
+	fill      uint32
+	border    uint32
+	lineWidth float64
+	rounded   bool
 }
 
 // recordingSurface is an overlaySurface that draws nothing and remembers what
@@ -96,15 +97,17 @@ func (s *recordingSurface) finishIndicator() {}
 
 func (s *recordingSurface) syncBeforeAnimation() {}
 
-func (s *recordingSurface) rectPrim(bounds image.Rectangle, fill, border uint32, _ float64) {
-	s.rects = append(s.rects, recordedRect{bounds: bounds, fill: fill, border: border})
+func (s *recordingSurface) rectPrim(bounds image.Rectangle, fill, border uint32, lineWidth float64) {
+	s.rects = append(s.rects, recordedRect{
+		bounds: bounds, fill: fill, border: border, lineWidth: lineWidth,
+	})
 }
 
 func (s *recordingSurface) roundedRectPrim(
-	bounds image.Rectangle, radius float64, fill, border uint32, _ float64,
+	bounds image.Rectangle, radius float64, fill, border uint32, lineWidth float64,
 ) {
 	s.rects = append(s.rects, recordedRect{
-		bounds: bounds, radius: radius, fill: fill, border: border, rounded: true,
+		bounds: bounds, radius: radius, fill: fill, border: border, lineWidth: lineWidth, rounded: true,
 	})
 }
 

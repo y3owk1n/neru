@@ -178,8 +178,10 @@ void neru_x11_overlay_rect(
 	cairo_t *cr = overlay->cr;
 	cairo_save(cr);
 	cairo_rectangle(cr, x, y, width, height);
-	neru_x11_overlay_color(cr, fill);
-	cairo_fill_preserve(cr);
+	if (fill != 0) {
+		neru_x11_overlay_color(cr, fill);
+		cairo_fill_preserve(cr);
+	}
 	neru_x11_overlay_color(cr, stroke);
 	cairo_set_line_width(cr, stroke_width);
 	cairo_stroke(cr);
