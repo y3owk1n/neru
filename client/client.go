@@ -17,6 +17,7 @@ import (
 	"io"
 	"io/fs"
 	"net"
+	"strings"
 	"syscall"
 
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -123,10 +124,16 @@ func (c *Client) Hints(ctx context.Context, flags ...string) (HintsData, error) 
 }
 
 // Watch calls each with every line of the watch stream: the status snapshot
-// it opens with, then one line per event. It returns nil when the daemon ends the
-// stream, the error each returns, or the context's error once it is done.
-func (c *Client) Watch(ctx context.Context, each func(WatchLine) error) error {
-	_, err := c.exchange(ctx, "watch", nil, func(decoder *json.Decoder) error {
+// it opens with, then one line per event. Naming events sends only those, and
+// every snapshot still. It returns nil when the daemon ends the stream, the
+// error each returns, or the context's error once it is done.
+func (c *Client) Watch(ctx context.Context, each func(WatchLine) error, events ...string) error {
+	var args []string
+	if len(events) > 0 {
+		args = []string{"--event=" + strings.Join(events, ",")}
+	}
+
+	_, err := c.exchange(ctx, "watch", args, func(decoder *json.Decoder) error {
 		for {
 			var line WatchLine
 

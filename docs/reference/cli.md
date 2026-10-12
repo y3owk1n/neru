@@ -96,12 +96,16 @@ entries as subsystems are added, so read only the keys you need.
 ### neru watch
 
 ```
-neru watch
+neru watch [--event <name>[,<name>...]]
 ```
 
 Print the status, then one JSON object per line for each event the daemon
 publishes, as it happens. The events are the ones [`[hooks]`](configuration.md#hooks)
 runs on, under the same names.
+
+| Flag      | Type   | Default | Description |
+| --------- | ------ | ------- | ----------- |
+| `--event` | string | none    | Print only these events, comma-separated, such as `mode_enter,mode_exit`. Repeat to add more. Snapshots always print. An unknown name fails with `ERR_INVALID_INPUT`. |
 
 ```json
 {"seq":0,"event":"snapshot","status":{"enabled":true,"mode":"idle"}}
@@ -118,7 +122,7 @@ snapshot as the whole state and each event as a change to it.
 
 | Key         | Present on                     | Value                                                                 |
 | ----------- | ------------------------------ | --------------------------------------------------------------------- |
-| `seq`       | every line                     | Rises by one with each event. On a snapshot, the `seq` of the last event it includes. |
+| `seq`       | every line                     | Rises by one with each event. On a snapshot, the `seq` of the last event it includes. With `--event`, it skips the events left out. |
 | `event`     | every line                     | `snapshot`, or the event, such as `mode_enter`                        |
 | `status`    | `snapshot`                     | The `neru status --json` object                                       |
 | `mode`      | `mode_enter`, `mode_exit`, `select` | The mode, named as `neru status` names it                        |
@@ -131,7 +135,7 @@ snapshot as the whole state and each event as a change to it.
 | `x`, `y`    | `cursor_save`, `select`        | The position saved, or the point selected                             |
 | `modifiers` | `sticky_modifiers`             | The set held now, as `sticky_modifiers` reports it                    |
 | `monitor`   | `monitor_move`                 | The display moved to, as `move_monitor --name` takes it               |
-| `dropped`   | a snapshot after missed events | How many events since the previous line this snapshot replaces |
+| `dropped`   | a snapshot after missed events | How many events this snapshot replaces. Events `--event` left out are not counted. |
 
 The daemon disconnects a reader once a line has
 waited 5 seconds to send. At most 16 watches can be open at once, and the next

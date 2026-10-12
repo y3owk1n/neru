@@ -21,6 +21,9 @@ import (
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
+// eventSnapshot is the event a snapshot line carries.
+const eventSnapshot = "snapshot"
+
 // watchController is a controller whose watch streams bus.
 func watchController(bus *event.Bus) *ipcctrl.Controller {
 	cfg := config.DefaultConfig()
@@ -34,15 +37,16 @@ func watchController(bus *event.Bus) *ipcctrl.Controller {
 	})
 }
 
-// watchLines runs a watch until ctx ends, handing each line to the returned
-// channel as the JSON object a client would read. gate, when not nil, holds
-// the first line: the watch sends on it once that line is ready, then waits to
-// receive from it.
+// watchLines runs a watch with args until ctx ends, handing each line to the
+// returned channel as the JSON object a client would read. gate, when not nil,
+// holds the first line: the watch sends on it once that line is ready, then
+// waits to receive from it.
 func watchLines(
 	ctx context.Context,
 	t *testing.T,
 	controller *ipcctrl.Controller,
 	gate chan struct{},
+	args ...string,
 ) (<-chan map[string]any, <-chan error) {
 	t.Helper()
 
@@ -51,7 +55,9 @@ func watchLines(
 
 	go func() {
 		first := true
-		done <- controller.HandleWatch(ctx, ipc.Command{Action: domain.CommandWatch}, func(value any) error {
+
+		watch := ipc.Command{Action: domain.CommandWatch, Args: args}
+		done <- controller.HandleWatch(ctx, watch, func(value any) error {
 			if first && gate != nil {
 				gate <- struct{}{}
 
@@ -101,7 +107,7 @@ func TestController_HandleWatch_OpensWithTheStatusThenStreamsEvents(t *testing.T
 	lines, done := watchLines(ctx, t, watchController(bus), nil)
 
 	snapshot := nextLine(t, lines)
-	if snapshot["event"] != "snapshot" || snapshot["seq"] != float64(0) {
+	if snapshot["event"] != eventSnapshot || snapshot["seq"] != float64(0) {
 		t.Fatalf("first line = %v, want the snapshot at seq 0", snapshot)
 	}
 
@@ -113,7 +119,7 @@ func TestController_HandleWatch_OpensWithTheStatusThenStreamsEvents(t *testing.T
 		)
 	}
 
-	bus.Publish(event.Event{Name: event.ModeEnter, Mode: "hints"})
+	bus.Publish(event.Event{Name: event.ModeEnter, Mode: actionHints})
 	bus.Publish(event.Event{Name: event.ConfigReload, OK: false})
 
 	entered := nextLine(t, lines)
@@ -164,7 +170,7 @@ func TestController_HandleWatch_ResyncsAReaderThatFellBehind(t *testing.T) {
 
 	for {
 		line := nextLine(t, lines)
-		if line["event"] != "snapshot" {
+		if line["event"] != eventSnapshot {
 			delivered++
 
 			continue
@@ -177,6 +183,89 @@ func TestController_HandleWatch_ResyncsAReaderThatFellBehind(t *testing.T) {
 		}
 
 		return
+	}
+}
+
+// TestController_HandleWatch_SendsOnlyTheNamedEvents pins --event: the
+// snapshot still opens the stream, only the events named follow it, and their
+// seq skips the events left out.
+func TestController_HandleWatch_SendsOnlyTheNamedEvents(t *testing.T) {
+	bus := event.NewBus(nil)
+	lines, _ := watchLines(t.Context(), t, watchController(bus), nil, "--event=mode_enter")
+
+	if snapshot := nextLine(t, lines); snapshot["event"] != eventSnapshot {
+		t.Fatalf("first line = %v, want the snapshot", snapshot)
+	}
+
+	bus.Publish(event.Event{Name: event.ModeEnter, Mode: actionHints})
+	bus.Publish(event.Event{Name: event.AppFocus, BundleID: "com.example"})
+	bus.Publish(event.Event{Name: event.ModeExit, Mode: actionHints})
+	bus.Publish(event.Event{Name: event.ModeEnter, Mode: "grid"})
+
+	for _, wantSeq := range []float64{1, 4} {
+		line := nextLine(t, lines)
+		if line["event"] != "mode_enter" || line["seq"] != wantSeq {
+			t.Errorf("line = %v, want mode_enter at seq %v", line, wantSeq)
+		}
+	}
+}
+
+// TestController_HandleWatch_LeftOutEventsAreNotCountedAsDropped pins that an
+// event the filter leaves out is still one the reader kept up with: a
+// snapshot after an overflow counts only the events really missed.
+func TestController_HandleWatch_LeftOutEventsAreNotCountedAsDropped(t *testing.T) {
+	bus := event.NewBus(nil)
+	gate := make(chan struct{})
+	lines, _ := watchLines(t.Context(), t, watchController(bus), gate, "--event=enable")
+
+	<-gate
+
+	const published = 80
+
+	for range published {
+		bus.Publish(event.Event{Name: event.Disable})
+	}
+
+	gate <- struct{}{}
+
+	nextLine(t, lines)
+
+	line := nextLine(t, lines)
+
+	dropped, _ := line["dropped"].(float64)
+	if line["event"] != eventSnapshot || line["seq"] != float64(published) ||
+		dropped <= 0 || dropped >= published {
+		t.Errorf("line = %v, want a snapshot at seq %d counting only the events the buffer lost",
+			line, published)
+	}
+}
+
+// TestController_HandleWatch_RefusesAFilterItCannotApply pins the refusals
+// --event gives before the first line, so a client learns what this daemon
+// cannot filter on.
+func TestController_HandleWatch_RefusesAFilterItCannotApply(t *testing.T) {
+	for _, args := range [][]string{
+		{"--event=focus_stolen"},
+		{"--event=snapshot"},
+		{"--event"},
+		{"--event="},
+		{"--event=mode_enter,"},
+		{"--loud"},
+	} {
+		t.Run(args[0], func(t *testing.T) {
+			err := watchController(event.NewBus(nil)).HandleWatch(
+				t.Context(),
+				ipc.Command{Action: domain.CommandWatch, Args: args},
+				func(value any) error {
+					t.Errorf("sent %v for a refused watch", value)
+
+					return nil
+				},
+			)
+			if !derrors.IsCode(err, derrors.CodeInvalidInput) {
+				t.Errorf("HandleWatch(%v) = %v, want CodeInvalidInput", args, err)
+			}
+		})
 	}
 }
 

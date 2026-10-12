@@ -138,7 +138,7 @@ ignores a leading repeat of the mode's own name in `args`.
 | `toggle-screen-share` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"hidden": bool}` |
 | `toggle-cursor-follow-selection` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"following": bool}` |
 | `query-displays`, `query-cursor`, `query-window`, `query-app`, `query-hints` | See [Querying](#querying). | See [Querying](#querying). |
-| `watch` | none | A [stream](#streaming). |
+| `watch` | None, or `--event=<name>[,<name>...]`, repeatable, to send only those events. | A [stream](#streaming). |
 
 While Neru is stopped, the daemon refuses with `ERR_NOT_RUNNING` everything
 except `ping`, `start`, `stop`, `idle`, `status`, `health`, `config`,
@@ -165,7 +165,11 @@ are the ones [`neru watch`](cli.md#neru-watch) prints.
 
 ```json
 { "action": "watch" }
+{ "action": "watch", "args": ["--event=mode_enter,mode_exit"] }
 ```
+
+With `--event`, the daemon sends only the events named, and every snapshot.
+An unknown event name refuses the stream with `ERR_INVALID_INPUT`.
 
 Send nothing after the request. To end a watch, close your end. The daemon
 disconnects a reader once a line has waited 5 seconds to send, and a 17th open

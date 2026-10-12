@@ -2,6 +2,8 @@ package ipcctrl
 
 import (
 	"context"
+	"slices"
+	"strings"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -16,6 +18,12 @@ const (
 	// watchSnapshot names the line a watch opens with: the status, at the
 	// sequence number the events that follow it start after.
 	watchSnapshot = "snapshot"
+
+	// watchEventFlag names the events a watch sends.
+	watchEventFlag = "--event"
+
+	// msgWatchEventValue is what --event says without a usable value.
+	msgWatchEventValue = "--event requires a value (use comma-separated: --event=mode_enter,mode_exit)"
 )
 
 // HandleWatch serves `neru watch`: the status, then every event the daemon
@@ -24,14 +32,20 @@ const (
 //
 // A watcher that falls behind gets a fresh snapshot in place of the events it
 // missed, so a client that keeps state from the lines is never left on a
-// stale one.
+// stale one. With --event it sends only the events named, and every snapshot
+// still, since a snapshot is the state the events change.
 func (c *Controller) HandleWatch(
 	ctx context.Context,
-	_ ipc.Command,
+	cmd ipc.Command,
 	emit func(value any) error,
 ) error {
 	if c.Events == nil {
 		return derrors.New(derrors.CodeNotSupported, "this daemon publishes no events")
+	}
+
+	wanted, err := watchFilter(cmd.Args)
+	if err != nil {
+		return err
 	}
 
 	// Subscribe before reading the status, so no event falls between the
@@ -74,7 +88,12 @@ func (c *Controller) HandleWatch(
 			switch {
 			case evt.Seq <= last:
 			case evt.Seq == last+1:
-				err = emit(watchLineFor(evt))
+				// An event left out still advances last, so a gap in seq
+				// means only events the reader really missed.
+				if wanted == nil || wanted[evt.Name] {
+					err = emit(watchLineFor(evt))
+				}
+
 				last = evt.Seq
 			default:
 				last, err = c.resync(emit, last)
@@ -103,6 +122,74 @@ func (c *Controller) HandleWatch(
 			}
 		}
 	}
+}
+
+// watchFilter reads the --event flags a watch was given into the events it
+// sends, nil when it sends every one. It refuses anything else before the
+// first line, so a client learns what this daemon cannot filter on.
+func watchFilter(args []string) (map[event.Name]bool, error) {
+	var wanted map[event.Name]bool
+
+	for idx := 0; idx < len(args); idx++ {
+		value, found := strings.CutPrefix(args[idx], watchEventFlag+"=")
+		if !found {
+			if args[idx] != watchEventFlag {
+				return nil, derrors.New(
+					derrors.CodeInvalidInput,
+					"unexpected argument for watch: "+args[idx],
+				)
+			}
+
+			if idx+1 == len(args) {
+				return nil, derrors.New(derrors.CodeInvalidInput, msgWatchEventValue)
+			}
+
+			idx++
+			value = args[idx]
+		}
+
+		if wanted == nil {
+			wanted = map[event.Name]bool{}
+		}
+
+		for name := range strings.SplitSeq(value, ",") {
+			err := checkWatchEvent(name)
+			if err != nil {
+				return nil, err
+			}
+
+			wanted[event.Name(name)] = true
+		}
+	}
+
+	return wanted, nil
+}
+
+// checkWatchEvent refuses a name that is no event a watch streams.
+func checkWatchEvent(name string) error {
+	switch {
+	case name == "":
+		return derrors.New(derrors.CodeInvalidInput, msgWatchEventValue)
+	case name == watchSnapshot:
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"snapshot lines always come, so --event takes the events only",
+		)
+	case slices.Contains(event.All(), event.Name(name)):
+		return nil
+	}
+
+	names := make([]string, 0, len(event.All()))
+	for _, known := range event.All() {
+		names = append(names, string(known))
+	}
+
+	return derrors.Newf(
+		derrors.CodeInvalidInput,
+		"%q is not an event watch streams, which are %s",
+		name,
+		strings.Join(names, ", "),
+	)
 }
 
 // snapshotLine is the status as of the newest event published.

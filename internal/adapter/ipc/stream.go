@@ -121,11 +121,14 @@ func (s *Server) serveStream(
 
 // responseCode names a refused stream's error on the wire.
 func responseCode(err error) string {
-	if derrors.IsNotSupported(err) {
+	switch {
+	case derrors.IsNotSupported(err):
 		return CodeNotSupported
+	case derrors.IsCode(err, derrors.CodeInvalidInput):
+		return CodeInvalidInput
+	default:
+		return CodeActionFailed
 	}
-
-	return CodeActionFailed
 }
 
 // addStream records connection as an open stream, or returns the reply that

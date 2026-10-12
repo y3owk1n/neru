@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/client"
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 const (
@@ -127,6 +128,33 @@ func TestClient_Hints_PassesItsFlags(t *testing.T) {
 	got := <-requests
 	if got.Action != "query-hints" || !slices.Equal(got.Args, []string{"--role", "button"}) {
 		t.Errorf("request = %+v, want query-hints with its flags", got)
+	}
+}
+
+// TestClient_Watch_NamesTheEventsItWants pins that the events Watch is given
+// reach the daemon as --event, and that a refused watch comes back as the
+// daemon's code.
+func TestClient_Watch_NamesTheEventsItWants(t *testing.T) {
+	isolate(t)
+
+	requests := make(chan ipc.Command, 1)
+
+	serve(t, nil, func(_ context.Context, cmd ipc.Command, _ func(any) error) error {
+		requests <- cmd
+
+		return derrors.New(derrors.CodeInvalidInput, "unknown event")
+	})
+
+	err := client.New().Watch(testContext(t), func(client.WatchLine) error { return nil },
+		eventModeEnter, "mode_exit")
+
+	var refusal *client.Error
+	if !errors.As(err, &refusal) || refusal.Code != ipc.CodeInvalidInput {
+		t.Errorf("Watch() error = %v, want a *client.Error with %s", err, ipc.CodeInvalidInput)
+	}
+
+	if got := <-requests; !slices.Equal(got.Args, []string{"--event=mode_enter,mode_exit"}) {
+		t.Errorf("watch args = %v, want the events as one --event", got.Args)
 	}
 }
 
