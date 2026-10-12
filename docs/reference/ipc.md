@@ -5,7 +5,9 @@ without spawning the `neru` binary. For most scripts, calling `neru` is
 simpler, see [Scripting](../guide/scripting.md).
 
 Each call sends one JSON request and reads one JSON response, except a
-[stream](#streaming), which keeps sending lines after it.
+[stream](#streaming), which keeps sending lines after it. The request needs
+no newline after it. The daemon ends the response, and each stream line, with
+one.
 
 ## Endpoint
 
@@ -16,6 +18,10 @@ The endpoint is private to your user:
 | macOS and Linux | `$XDG_RUNTIME_DIR/neru/neru.sock`, else `$TMPDIR/neru-<uid>/neru.sock`   |
 | Windows         | The named pipe `\\.\pipe\neru-<SID>`                                     |
 
+When `$XDG_RUNTIME_DIR` is unset, Neru uses `/run/user/<uid>` in its place if
+that directory exists, as it does in a Linux login session. `$TMPDIR` falls back to
+`/tmp`. The `neru` CLI looks in both places. To check the path a client should
+dial, read `ipc_endpoint.path` from [`neru doctor --json`](cli.md#neru-doctor).
 The daemon prints its endpoint at startup. It queues commands, so concurrent
 calls are safe.
 
@@ -184,9 +190,9 @@ are the ones [`neru watch`](cli.md#neru-watch) prints.
 With `--event`, the daemon sends only the events named, and every snapshot.
 An unknown event name refuses the stream with `ERR_INVALID_INPUT`.
 
-Send nothing after the request. To end a watch, close your end. The daemon
-disconnects a reader once a line has waited 5 seconds to send, and a 17th open
-watch gets `ERR_BUSY`.
+Send nothing after the request. To end a watch, close your end. Shutting
+down only your write side ends it too. The daemon disconnects a reader once a
+line has waited 5 seconds to send, and a 17th open watch gets `ERR_BUSY`.
 
 ## Response codes
 

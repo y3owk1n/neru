@@ -4,7 +4,9 @@ How to build tools on top of Neru, such as a status bar, a launcher, voice
 control or another program that drives the cursor. Every command a hotkey
 runs is also a `neru` command and an IPC request, so a tool can do anything a
 binding can, read what Neru sees, and follow what it does. Shell recipes are
-in [Scripting](scripting.md).
+in [Scripting](scripting.md). With a coding agent, the
+`neru-build-integration` skill makes the same choices, checked against your
+installed version. See [Set up with an agent](installation.md#set-up-with-an-agent).
 
 ## Pick an interface
 

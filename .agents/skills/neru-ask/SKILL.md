@@ -138,6 +138,8 @@ Things a user often does not know:
 
 - Config, hotkeys, macros, modes, per-app overrides, or service work goes to
   `neru-setup-config`.
+- Building a tool on Neru, such as a status bar, a launcher, or a program
+  that reads its state or drives it, goes to `neru-build-integration`.
 - A question with a one-command answer gets the command and the help page
   that documents it.
 - When something does not work, in this order: `neru status`, `neru doctor`,

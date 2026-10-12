@@ -143,7 +143,7 @@ status, err := neru.Status(ctx)
 _, err = neru.Send(ctx, "hints", "--action", "left_click")
 ```
 
-Which interface fits which tool is in [Build on Neru](docs/guide/integrations.md).
+Which interface fits which tool is in [Build on Neru](docs/guide/integrations.md). With a coding agent, the `neru-build-integration` [skill](docs/guide/installation.md#set-up-with-an-agent) writes and tests one against your installed version.
 
 ## Documentation
 

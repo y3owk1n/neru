@@ -278,13 +278,15 @@ What it registers on each platform, and when it refuses, is under
 
 ## Set up with an agent
 
-Two skills for coding agents such as Claude Code, Codex and Cursor.
+Three skills for coding agents such as Claude Code, Codex and Cursor.
 `neru-ask` answers what Neru can do and which command or option does it.
-`neru-setup-config` writes, validates and applies your config. Both read the
-installed version's help, man pages and docs, so no checkout is needed.
+`neru-setup-config` writes, validates and applies your config.
+`neru-build-integration` helps you build a script or program on Neru's CLI,
+IPC socket or Go client. All three read the installed version's help, man
+pages and docs, so no checkout is needed.
 
 ```bash
-npx skills add y3owk1n/neru --skill neru-ask --skill neru-setup-config
+npx skills add y3owk1n/neru --skill neru-ask --skill neru-setup-config --skill neru-build-integration
 ```
 
 Add `-g` to install them for every project.

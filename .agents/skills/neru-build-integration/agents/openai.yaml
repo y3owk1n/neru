@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build on Neru"
+  short_description: "Build a script, status bar, launcher or program on Neru's CLI, socket or Go client"
+  default_prompt: "Use $neru-build-integration to help me build a tool on top of Neru for what I describe, checked against my installed version."
