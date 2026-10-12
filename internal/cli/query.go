@@ -121,6 +121,7 @@ var hintsQueryFlags = []modecmd.Flag{
 	modecmd.FlagText,
 	modecmd.FlagStrategy,
 	modecmd.FlagCaptureScope,
+	modecmd.FlagLabelDirection,
 	modecmd.FlagSplitWord,
 }
 
@@ -130,16 +131,19 @@ var queryHintsCmd = &cobra.Command{
 	Long: `List the elements hints mode would label in the focused window, without
 drawing the overlay or entering the mode.
 
-Each element lists its role, position and size, and its title, description
-and value. --text matches against those three strings. The role is spelled
-the way --role takes it, so a script can find an element and narrow 'neru
-hints' to it.
+Each element lists the label 'neru hints' with the same flags would draw on
+it now, its role, position and size, and its title, description and value.
+--text matches against those three strings. The role is spelled the way
+--role takes it, so a script can find an element and narrow 'neru hints' to
+it. Neru assigns labels afresh on every scan, so a label stays valid only
+while the screen does not change.
 
 Run from a terminal, it reports the terminal. Bind it to a hotkey, or run
 'sleep 3; neru query hints' and switch to the app.
 
 It takes the hints flags that decide which elements it collects: --role,
---text, --strategy, --capture-scope and --split-word.
+--text, --strategy, --capture-scope and --split-word, and --label-direction,
+which decides their labels.
 
 Examples:
   neru query hints
@@ -261,7 +265,8 @@ func printHints(cmd *cobra.Command, data ipc.HintsData) {
 	cmd.Printf("%d hints\n", len(data.Hints))
 
 	for _, hint := range data.Hints {
-		cmd.Printf("%s %d,%d %dx%d", hint.Role, hint.X, hint.Y, hint.Width, hint.Height)
+		cmd.Printf("%s %s %d,%d %dx%d",
+			hint.Label, hint.Role, hint.X, hint.Y, hint.Width, hint.Height)
 
 		for _, text := range []struct{ key, value string }{
 			{"title", hint.Title},

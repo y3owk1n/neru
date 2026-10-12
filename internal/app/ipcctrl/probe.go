@@ -13,14 +13,15 @@ import (
 // It is deliberately not an activation. A probe draws nothing and enters
 // nothing, so the flags that describe an activation — the pending action, the
 // modifiers held during it, toggling, repeating, what runs on exit — mean
-// nothing here. Only the four that shape which elements get collected carry
-// over, which is why the probe reads its own request rather than a mode
-// command.
+// nothing here. Only the flags that shape which elements get collected carry
+// over, plus --label-direction, which shapes the labels the probe reports.
+// That is why the probe reads its own request rather than a mode command.
 type probeOptions struct {
 	FilterRoles        []string
 	FilterTextContains []string
 	Strategy           string
 	CaptureScope       string
+	LabelDirection     string
 	SplitWord          bool
 }
 
@@ -28,7 +29,7 @@ type probeOptions struct {
 //
 // Anything outside the probe's own vocabulary is refused rather than ignored,
 // so a caller that sends an activation flag learns it had no effect instead of
-// assuming it did. The four flags are named and spelled from the mode-command
+// assuming it did. The flags are named and spelled from the mode-command
 // grammar even so: a probe is written with the same words as the mode it
 // reports on.
 func (h *ModesHandler) extractProbeOptions(cmd ipc.Command) (probeOptions, *ipc.Response) {
@@ -81,6 +82,21 @@ func readProbeFlag(args *probeArgs, opts *probeOptions) *ipc.Response {
 		}
 
 		opts.CaptureScope = scope
+
+		return nil
+
+	case args.is(modecmd.FlagLabelDirection):
+		value, resp := args.take(valueMessage(modecmd.FlagLabelDirection))
+		if resp != nil {
+			return resp
+		}
+
+		direction, err := modecmd.ParseLabelDirection(value)
+		if err != nil {
+			return refuse(valueMessage(modecmd.FlagLabelDirection))
+		}
+
+		opts.LabelDirection = direction
 
 		return nil
 
@@ -149,22 +165,25 @@ func (h *ModesHandler) handleQueryHints(ctx context.Context, cmd ipc.Command) ip
 		return *errResp
 	}
 
-	elements, probeErr := h.modes.ProbeHints(
+	hints, probeErr := h.modes.ProbeHints(
 		ctx,
 		opts.FilterRoles,
 		opts.FilterTextContains,
 		opts.Strategy,
 		opts.CaptureScope,
+		opts.LabelDirection,
 		opts.SplitWord,
 	)
 	if probeErr != nil {
 		return queryFailedResponse("hints", probeErr)
 	}
 
-	data := ipc.HintsData{Hints: make([]ipc.HintData, len(elements))}
-	for idx, elem := range elements {
+	data := ipc.HintsData{Hints: make([]ipc.HintData, len(hints))}
+	for idx, hint := range hints {
+		elem := hint.Element()
 		bounds := elem.Bounds()
 		data.Hints[idx] = ipc.HintData{
+			Label:       hint.Label(),
 			Role:        roleEntry(elem.Role()),
 			Title:       elem.Title(),
 			Description: elem.Description(),

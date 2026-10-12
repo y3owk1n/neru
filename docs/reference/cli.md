@@ -147,7 +147,7 @@ neru query displays [--json]
 neru query cursor [--json]
 neru query window [--json]
 neru query app [--json]
-neru query hints [--role ...] [--text ...] [--strategy ...] [--capture-scope ...] [--split-word] [--json]
+neru query hints [--role ...] [--text ...] [--strategy ...] [--capture-scope ...] [--label-direction ...] [--split-word] [--json]
 ```
 
 Print what the daemon sees right now. Positions and sizes use the coordinates
@@ -212,23 +212,35 @@ sleep 3; neru query app
 `neru query hints` lists the elements hints mode would label in the focused
 window, without drawing the overlay or entering the mode. It takes the
 `hints` flags that decide which elements it collects: `--role`, `--text`,
-`--strategy`, `--capture-scope` and `--split-word`. Like `query app`, it
+`--strategy`, `--capture-scope` and `--split-word`, and `--label-direction`,
+which decides their labels. Like `query app`, it
 reports the terminal when run from one. Unlike the other queries, it does not
 answer while Neru is stopped, because the `vision` and `contour` strategies
 capture the screen. When one of those scans fails, the query fails with its
 error, where hints mode would open on what else it found.
 
 ```json
-{"hints":[{"role":"ax:AXButton","title":"","description":"Back","value":"","x":100,"y":38,"width":44,"height":52}]}
+{"hints":[{"label":"A","role":"ax:AXButton","title":"","description":"Back","value":"","x":100,"y":38,"width":44,"height":52}]}
 ```
 
 | Key                         | Type   | Description                                                     |
 | --------------------------- | ------ | --------------------------------------------------------------- |
+| `label`                     | string | The label `neru hints` with the same flags would draw on the element now. |
 | `role`                      | string | The native role, spelled as `--role` takes it, such as `ax:AXButton`. |
 | `title`, `description`, `value` | string | The element's text. `--text` matches any of the three. Empty when the element has none. |
 | `x`, `y`, `width`, `height` | int    | The element's bounds.                                           |
 
 Every key is stable.
+
+Neru assigns labels afresh on every scan, so a label stays valid only while
+the screen does not change. To select an element by its label, start hints
+mode and type the label into it:
+
+```sh
+label=$(neru query hints --text Save --json | jq -r '.hints[0].label')
+neru hints --action left_click
+neru action feed --mode $(echo "$label" | fold -w1)
+```
 
 ### neru doctor
 

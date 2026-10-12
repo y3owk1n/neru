@@ -111,6 +111,9 @@
               "height": {
                 "type": "integer"
               },
+              "label": {
+                "type": "string"
+              },
               "role": {
                 "type": "string"
               },
@@ -131,6 +134,7 @@
               }
             },
             "required": [
+              "label",
               "role",
               "title",
               "description",

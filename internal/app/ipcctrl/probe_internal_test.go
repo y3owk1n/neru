@@ -22,6 +22,7 @@ func TestExtractProbeOptions_ReadsEveryCollectionFlag(t *testing.T) {
 		"--role=AXButton,AXLink",
 		"--text=OK",
 		"--strategy=vision",
+		"--label-direction=reverse",
 		"--split-word",
 	))
 	if resp != nil {
@@ -38,6 +39,10 @@ func TestExtractProbeOptions_ReadsEveryCollectionFlag(t *testing.T) {
 
 	if opts.Strategy != domain.StrategyVision {
 		t.Errorf("Strategy = %q, want %q", opts.Strategy, domain.StrategyVision)
+	}
+
+	if opts.LabelDirection != domain.LabelDirectionReverse {
+		t.Errorf("LabelDirection = %q, want %q", opts.LabelDirection, domain.LabelDirectionReverse)
 	}
 
 	if !opts.SplitWord {
@@ -57,7 +62,6 @@ func TestExtractProbeOptions_RefusesActivationFlags(t *testing.T) {
 		flagToggle,
 		"--on-exit=scroll",
 		"--search",
-		"--label-direction=reverse",
 		"--cursor-selection-mode=hold",
 		leftClick,
 	} {
@@ -75,7 +79,7 @@ func TestExtractProbeOptions_RefusesActivationFlags(t *testing.T) {
 func TestExtractProbeOptions_RefusesAMissingValue(t *testing.T) {
 	handler := &ModesHandler{}
 
-	for _, arg := range []string{"--role", "--text", "--strategy"} {
+	for _, arg := range []string{"--role", "--text", "--strategy", "--label-direction"} {
 		t.Run(arg, func(t *testing.T) {
 			_, resp := handler.extractProbeOptions(probeCommand(arg))
 			if resp == nil {
@@ -85,15 +89,19 @@ func TestExtractProbeOptions_RefusesAMissingValue(t *testing.T) {
 	}
 }
 
-func TestExtractProbeOptions_RefusesAnInvalidStrategy(t *testing.T) {
+func TestExtractProbeOptions_RefusesAnInvalidValue(t *testing.T) {
 	handler := &ModesHandler{}
 
-	_, resp := handler.extractProbeOptions(probeCommand("--strategy=telepathy"))
-	if resp == nil {
-		t.Fatal("an unknown strategy was accepted")
-	}
+	for _, arg := range []string{"--strategy=telepathy", "--label-direction=sideways"} {
+		t.Run(arg, func(t *testing.T) {
+			_, resp := handler.extractProbeOptions(probeCommand(arg))
+			if resp == nil {
+				t.Fatalf("%s was accepted", arg)
+			}
 
-	if resp.Code != ipc.CodeInvalidInput {
-		t.Errorf("code = %s, want %s", resp.Code, ipc.CodeInvalidInput)
+			if resp.Code != ipc.CodeInvalidInput {
+				t.Errorf("code = %s, want %s", resp.Code, ipc.CodeInvalidInput)
+			}
+		})
 	}
 }

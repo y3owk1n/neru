@@ -44,10 +44,13 @@ type AppData struct {
 }
 
 // HintData is one element hints mode would label, as `neru query hints`
-// reports it. Title, Description and Value are the strings --text matches
-// against, and Role is the native role spelled as --role takes it, such as
-// ax:AXButton.
+// reports it. Label is the label `neru hints` with the same flags would draw
+// on it now. Neru assigns labels afresh on every scan, so one stays valid only
+// while the screen does not change. Title, Description and Value are the
+// strings --text matches against, and Role is the native role spelled as
+// --role takes it, such as ax:AXButton.
 type HintData struct {
+	Label       string `json:"label"`
 	Role        string `json:"role"`
 	Title       string `json:"title"`
 	Description string `json:"description"`

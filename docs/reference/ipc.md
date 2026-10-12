@@ -150,8 +150,8 @@ except `ping`, `start`, `stop`, `idle`, `status`, `health`, `config`,
 `query-displays`, `query-cursor`, `query-window`, `query-app` and
 `query-hints` return in `data` the objects [`neru query`](cli.md#neru-query)
 prints with `--json`. Only `query-hints` takes `args`: `--role`, `--text`,
-`--strategy`, `--capture-scope` and `--split-word`, written as a user types
-them. It refuses anything else with `ERR_INVALID_INPUT`.
+`--strategy`, `--capture-scope`, `--label-direction` and `--split-word`,
+written as a user types them. It refuses anything else with `ERR_INVALID_INPUT`.
 
 ```json
 { "action": "query-hints", "args": ["--role=button", "--strategy=vision"] }

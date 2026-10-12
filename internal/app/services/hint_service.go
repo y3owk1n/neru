@@ -104,10 +104,11 @@ func (s *HintService) ProbeHints(
 	bundleID string,
 	strategyOverride string,
 	captureScopeOverride string,
+	labelDirectionOverride string,
 	splitWord bool,
 ) ([]*hint.Interface, error) {
 	return s.generate(ctx, filterRoles, filterTextContains, bundleID,
-		strategyOverride, captureScopeOverride, "", splitWord, true)
+		strategyOverride, captureScopeOverride, labelDirectionOverride, splitWord, true)
 }
 
 // RefreshHints updates the hint display (e.g., after screen changes).

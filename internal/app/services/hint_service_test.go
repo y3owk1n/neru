@@ -325,7 +325,7 @@ func TestHintService_ProbeHints_ReturnsAFailedCaptureDetection(t *testing.T) {
 			)
 
 			_, err := service.ProbeHints(
-				context.Background(), nil, nil, "com.example.app", strategy, "", false,
+				context.Background(), nil, nil, "com.example.app", strategy, "", "", false,
 			)
 			if !derrors.IsNotSupported(err) {
 				t.Fatalf("ProbeHints() error = %v, want the detection's CodeNotSupported", err)

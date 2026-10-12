@@ -20,7 +20,9 @@ func TestQueryHints_OffersOnlyTheCollectionFlags(t *testing.T) {
 		offered = append(offered, flag.Name)
 	})
 
-	want := []string{"capture-scope", "json", "role", "split-word", "strategy", "text"}
+	want := []string{
+		"capture-scope", "json", "label-direction", "role", "split-word", "strategy", "text",
+	}
 
 	slices.Sort(offered)
 

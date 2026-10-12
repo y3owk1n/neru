@@ -5,13 +5,13 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/domain/element"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 )
 
 // ProbeHints runs the hint-generation pipeline once against the focused window
-// and returns the elements hints mode would label on the active screen,
-// without drawing the overlay or entering hints mode. It backs `neru query
-// hints`.
+// and returns the hints that hints mode would draw on the active screen, with
+// their labels, without drawing the overlay or entering hints mode. It backs
+// `neru query hints`.
 //
 // The probe enumerates whatever window is focused when it runs, so when
 // invoked directly from a terminal it reports that terminal's elements.
@@ -21,8 +21,9 @@ func (h *Handler) ProbeHints(
 	filterTextContains []string,
 	strategy string,
 	captureScope string,
+	labelDirection string,
 	splitWord bool,
-) ([]*element.Element, error) {
+) ([]*domainHint.Interface, error) {
 	bundleID, bundleErr := h.actionService.FocusedAppBundleID(ctx)
 	if bundleErr != nil {
 		h.logger.Debug("Failed to get the focused app for the hints probe", zap.Error(bundleErr))
@@ -40,18 +41,12 @@ func (h *Handler) ProbeHints(
 		bundleID,
 		strategy,
 		captureScope,
+		labelDirection,
 		splitWord,
 	)
 	if genErr != nil {
 		return nil, genErr
 	}
 
-	onScreen := filterHintsForScreen(generated, screenBounds)
-
-	elements := make([]*element.Element, len(onScreen))
-	for idx, hintItem := range onScreen {
-		elements[idx] = hintItem.Element()
-	}
-
-	return elements, nil
+	return filterHintsForScreen(generated, screenBounds), nil
 }

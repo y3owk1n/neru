@@ -554,11 +554,12 @@ var descriptors = []Descriptor{
 	),
 	valueFlag(FlagLabelDirection, "", usageLabelDirection, msgLabelDirectionValue, hintsOnly,
 		func(activation *Activation, value string) error {
-			if value != domain.LabelDirectionNormal && value != domain.LabelDirectionReverse {
-				return invalid(msgLabelDirectionValue)
+			direction, err := ParseLabelDirection(value)
+			if err != nil {
+				return err
 			}
 
-			activation.LabelDirection = &value
+			activation.LabelDirection = &direction
 
 			return nil
 		},
@@ -658,6 +659,16 @@ func ParseStrategy(value string) (string, error) {
 func ParseCaptureScope(value string) (string, error) {
 	if value != domain.CaptureScopeWindow && value != domain.CaptureScopeScreen {
 		return "", invalid(msgCaptureScopeValue)
+	}
+
+	return value, nil
+}
+
+// ParseLabelDirection reads a label direction, the value --label-direction
+// accepts. Exported for the hints probe, for the reason ParseStrategy is.
+func ParseLabelDirection(value string) (string, error) {
+	if value != domain.LabelDirectionNormal && value != domain.LabelDirectionReverse {
+		return "", invalid(msgLabelDirectionValue)
 	}
 
 	return value, nil

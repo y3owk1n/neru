@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"image"
+	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
@@ -39,8 +41,13 @@ func TestSimulation_QueryHintsListsWhatHintsWouldLabel(t *testing.T) {
 	}
 
 	want := ipc.HintData{Role: wantRole, Title: "Save", X: 100, Y: 100, Width: 120, Height: 40}
-	if len(data.Hints) != 1 || data.Hints[0] != want {
+	if len(data.Hints) != 1 {
 		t.Fatalf("hints = %+v, want [%+v]", data.Hints, want)
+	}
+
+	want.Label = data.Hints[0].Label
+	if data.Hints[0] != want || want.Label == "" {
+		t.Fatalf("hints = %+v, want [%+v] with a label", data.Hints, want)
 	}
 
 	if mode := sim.app.CurrentMode(); mode != domain.ModeIdle {
@@ -49,6 +56,73 @@ func TestSimulation_QueryHintsListsWhatHintsWouldLabel(t *testing.T) {
 
 	if draws := sim.overlay.hintDrawCount(); draws != 0 {
 		t.Errorf("the query drew hints %d times, want none", draws)
+	}
+}
+
+// TestSimulation_QueryHintsReportsTheLabelsHintsModeDraws pins the label each
+// entry carries to the one `neru hints` then draws on the same element, with
+// and without --label-direction.
+func TestSimulation_QueryHintsReportsTheLabelsHintsModeDraws(t *testing.T) {
+	// More elements than hint characters, so the labels run to two
+	// characters, which is where the two directions part.
+	elements := make([]*element.Element, 12)
+	for idx := range elements {
+		left := 100 + idx*60
+		elements[idx] = simElement(
+			t,
+			"button-"+strconv.Itoa(idx),
+			image.Rect(left, 100, left+40, 140),
+			"Button "+strconv.Itoa(idx),
+		)
+	}
+
+	labelsBy := map[string][]string{}
+
+	for _, direction := range []string{"", domain.LabelDirectionNormal, domain.LabelDirectionReverse} {
+		t.Run("direction "+direction, func(t *testing.T) {
+			sim := newSimHarness(t, simConfig(), elements)
+
+			var args []string
+			if direction != "" {
+				args = []string{"--label-direction", direction}
+			}
+
+			resp := sim.app.HandleCommand(
+				context.Background(),
+				ipc.Command{Action: domain.CommandQueryHints, Args: args},
+			)
+			if !resp.Success {
+				t.Fatalf("query hints failed: %s (%s)", resp.Message, resp.Code)
+			}
+
+			data, _ := resp.Data.(ipc.HintsData)
+
+			queried := make([]string, len(data.Hints))
+			for idx, hint := range data.Hints {
+				queried[idx] = hint.Label
+			}
+
+			activation := ipc.Command{Action: "hints", Args: args}
+
+			activated := sim.app.HandleCommand(context.Background(), activation)
+			if !activated.Success {
+				t.Fatalf("neru hints %v failed: %s", args, activated.Message)
+			}
+
+			sim.waitMode(domain.ModeHints)
+
+			drawn := sim.overlay.lastHintLabels()
+			if len(queried) != len(elements) || !slices.Equal(queried, drawn) {
+				t.Errorf("query hints labels = %v, hints mode drew %v", queried, drawn)
+			}
+
+			labelsBy[direction] = queried
+		})
+	}
+
+	if slices.Equal(labelsBy[domain.LabelDirectionNormal], labelsBy[domain.LabelDirectionReverse]) {
+		t.Errorf("both directions labeled %v, so the cases cannot tell them apart",
+			labelsBy[domain.LabelDirectionNormal])
 	}
 }
 
