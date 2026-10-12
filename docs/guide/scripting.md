@@ -21,8 +21,9 @@ neru status &>/dev/null && echo "Running" || echo "Not running"
 
 ## Check Neru's health
 
-`healthy` is `false` exactly when [`neru doctor`](../reference/cli.md#neru-doctor)
-fails, so `jq -e` turns it into an exit status:
+[`neru doctor --json`](../reference/cli.md#neru-doctor) prints every check as
+one object, and the reference says what each key means. This notifies when
+the check fails:
 
 ```bash
 neru doctor --json | jq -e .healthy >/dev/null || notify-send "Neru is unhealthy"

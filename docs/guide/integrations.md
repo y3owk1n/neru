@@ -37,9 +37,9 @@ The full script, with the `jq` filter and an Eww example, is in
 
 ### A health check
 
-`neru doctor --json` prints every check as one object. Its `healthy` key is
-`false` exactly when the command exits non-zero, so a script can test the
-exit status and read the details from the object.
+[`neru doctor --json`](../reference/cli.md#neru-doctor) prints every check as
+one object, so a script can test the exit status and read the details from
+the object. The reference says what each key means.
 
 ```bash
 neru doctor --json | jq '{healthy, config_error: .config.error, reachable: .ipc_endpoint.reachable}'
