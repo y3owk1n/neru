@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.58.0](https://github.com/y3owk1n/neru/compare/v1.57.0...v1.58.0) (2026-10-12)
+
+
+### Features
+
+* add [hooks] for mode, focus, pause and reload events ([#1746](https://github.com/y3owk1n/neru/issues/1746)) ([c8d576e](https://github.com/y3owk1n/neru/commit/c8d576e712c4fe92a45ecbf52e1a3eae1a12ca02))
+* add hooks and watch events for toggles, cursor slots, displays and lifecycle ([#1753](https://github.com/y3owk1n/neru/issues/1753)) ([1f449f6](https://github.com/y3owk1n/neru/commit/1f449f62fa401ba52868add695e2f0e59c5ff214))
+* **cli:** add --json to doctor, roles and services status ([#1767](https://github.com/y3owk1n/neru/issues/1767)) ([27d4811](https://github.com/y3owk1n/neru/commit/27d481104dd7e55e65eeb3ae35c098533bc1f119))
+* **cli:** add `neru watch` to stream status and events ([#1750](https://github.com/y3owk1n/neru/issues/1750)) ([3f3a6f5](https://github.com/y3owk1n/neru/commit/3f3a6f556198a853271ecf25a447936cf86eb2b8))
+* **cli:** add neru query for displays, cursor, window, app and hints ([#1759](https://github.com/y3owk1n/neru/issues/1759)) ([de39c65](https://github.com/y3owk1n/neru/commit/de39c6582184592155abbe8eebb05d71f0def947))
+* **config:** implement json schema for toml config ([#1763](https://github.com/y3owk1n/neru/issues/1763)) ([b02041b](https://github.com/y3owk1n/neru/commit/b02041b5433d6de1a1180b61e8ffd95f00d3984c))
+* **config:** print config dump under the key names config.toml uses ([#1766](https://github.com/y3owk1n/neru/issues/1766)) ([26010dd](https://github.com/y3owk1n/neru/commit/26010ddcbb6f597124bd042eeb5107e4e63c1397))
+* **config:** warn about keys that neru doesnt know ([#1764](https://github.com/y3owk1n/neru/issues/1764)) ([923c4ed](https://github.com/y3owk1n/neru/commit/923c4ed99dc1c1bb680dd0a2ca59b4d5dd88949a))
+* **hints:** allow external tools supply the targets hints mode labels ([#1770](https://github.com/y3owk1n/neru/issues/1770)) ([8514f5c](https://github.com/y3owk1n/neru/commit/8514f5c0c415efdf7360218443bee7b7f0822bcf))
+* **hints:** report each element's hint label in query hints ([#1769](https://github.com/y3owk1n/neru/issues/1769)) ([e59dee4](https://github.com/y3owk1n/neru/commit/e59dee4215efe71b1191e0b2c5f298d0ee77df1b))
+* **hooks:** add the select event and on_select hook ([#1760](https://github.com/y3owk1n/neru/issues/1760)) ([5f52713](https://github.com/y3owk1n/neru/commit/5f5271302e623c5eca9b4130efbbd8f175cbb557))
+* **ipc:** add an importable go client package ([#1768](https://github.com/y3owk1n/neru/issues/1768)) ([97a79a7](https://github.com/y3owk1n/neru/commit/97a79a743f8d3d23442ff3b030160e646ac403b1))
+* **ipc:** add protocol version on ipc ([#1761](https://github.com/y3owk1n/neru/issues/1761)) ([5a9468d](https://github.com/y3owk1n/neru/commit/5a9468d9cbfba463d90e60be4de6056242a32b8b))
+* **ipc:** allow filtered watch stream ([#1771](https://github.com/y3owk1n/neru/issues/1771)) ([ff4e848](https://github.com/y3owk1n/neru/commit/ff4e8488852bde55debbb35233901ea2a7bb80e5))
+* **ipc:** publish a json schema for ipc replies and watch lines ([#1765](https://github.com/y3owk1n/neru/issues/1765)) ([76526d9](https://github.com/y3owk1n/neru/commit/76526d9b3f2dd9ab86b5b41bdd2a176eeaba1c88))
+* **modes:** accept `move_mouse` as mode `--action` ([#1748](https://github.com/y3owk1n/neru/issues/1748)) ([e2d67d9](https://github.com/y3owk1n/neru/commit/e2d67d97161b5e4ac02784ac68c15b55c5ebea8b))
+* **modes:** pass the selection to --on-exit steps via vars ([#1762](https://github.com/y3owk1n/neru/issues/1762)) ([521355a](https://github.com/y3owk1n/neru/commit/521355a4a7a29ac4b21eff9c82a17b5407a6a9f8))
+
+
+### Bug Fixes
+
+* **build:** stamp the man pages with the release version ([#1757](https://github.com/y3owk1n/neru/issues/1757)) ([94ffda3](https://github.com/y3owk1n/neru/commit/94ffda3f743202ad9d9c3aea7f5c672a891f9614))
+* **cli:** make `neru services stop` keep the service stopped ([#1755](https://github.com/y3owk1n/neru/issues/1755)) ([592240e](https://github.com/y3owk1n/neru/commit/592240e9f44dbf32a217c1f495dc9ef5933b2253))
+* **darwin:** detect mission control and it's hints properly ([#1745](https://github.com/y3owk1n/neru/issues/1745)) ([6adbb9d](https://github.com/y3owk1n/neru/commit/6adbb9d70f21bad1e275dd8babf5fbf2dc7d1d95))
+* **darwin:** hint Stage Manager's strip ([#1747](https://github.com/y3owk1n/neru/issues/1747)) ([b93858d](https://github.com/y3owk1n/neru/commit/b93858dd8e8282aad86da1c31f88170235642168))
+* **darwin:** more autoreleasepool that are missing ([#1776](https://github.com/y3owk1n/neru/issues/1776)) ([35d94ad](https://github.com/y3owk1n/neru/commit/35d94add42f9bdfcb5fba350aa4d35605f928480))
+* **darwin:** stop the daemon crashing on quit with monitor_select open ([#1754](https://github.com/y3owk1n/neru/issues/1754)) ([baa0ab8](https://github.com/y3owk1n/neru/commit/baa0ab85880ebc805ee6c0096eecdb9538c0040e))
+* ensure config set, health, toggle-screen-share and the config timeouts behave consistently ([#1773](https://github.com/y3owk1n/neru/issues/1773)) ([b793e7a](https://github.com/y3owk1n/neru/commit/b793e7a01b6d3fc13a156bbdd7d8692dc330341c))
+* **ipc:** refuse a disabled mode ([#1737](https://github.com/y3owk1n/neru/issues/1737)) ([8db242b](https://github.com/y3owk1n/neru/commit/8db242bf86b50701dc94be80ab6d2fe34d3dd26c))
+* **linux:** stop native leaks in the overlay, keymap and accessibility paths ([#1778](https://github.com/y3owk1n/neru/issues/1778)) ([fca5ec1](https://github.com/y3owk1n/neru/commit/fca5ec119b77be74d0700405533ec99f8f9700c3))
+* **modes:** refuse --on-exit with --repeat ([#1758](https://github.com/y3owk1n/neru/issues/1758)) ([53d7f68](https://github.com/y3owk1n/neru/commit/53d7f68e6a6e59c15f8b56b4d2341e068c814ebe))
+* **modes:** report a mode switch that fails to open as a canceled exit ([#1780](https://github.com/y3owk1n/neru/issues/1780)) ([7652a39](https://github.com/y3owk1n/neru/commit/7652a39e555d7a3f9bdb1b077bd023c32a1b5e70))
+* stop exec steps from waiting on and holding output of background commands ([#1777](https://github.com/y3owk1n/neru/issues/1777)) ([74c7458](https://github.com/y3owk1n/neru/commit/74c745826ed609423788fac384a6ccdea78b07a3))
+
 ## [1.57.0](https://github.com/y3owk1n/neru/compare/v1.56.0...v1.57.0) (2026-10-04)
 
 
