@@ -22,9 +22,9 @@ On Linux, Neru supports X11 and the Wayland desktops listed in
 - **Alpha**: core navigation works, but hint coverage is incomplete and per-app
   config does not re-apply on focus change.
 
-Linux and Windows have no known gaps, but stay Beta because CI proves them
-rather than daily use. A Beta platform becomes Stable
-after six releases in a row with no bug filed against it alone.
+Windows has no known gaps, and Linux has one, under [Known gaps](#known-gaps).
+Both stay Beta because CI proves them rather than daily use. A Beta platform
+becomes Stable after six releases in a row with no bug filed against it alone.
 
 ## Capability matrix
 
@@ -156,10 +156,21 @@ Linux and Windows have no exclusives.
 A gap is anything you can write that means less on a platform than on macOS.
 A boundary is a requirement the platform imposes, not something Neru lacks.
 
-**Linux**: none. These are boundaries, not gaps:
+**Linux**: one gap.
+
+- **A Wayland monitor's resolution or scale change** needs a
+  [daemon restart](../guide/troubleshooting.md#restart-the-daemon) before
+  overlays fit it again. Plugging in or removing a monitor is tracked live.
+
+These are boundaries, not gaps:
 
 - Wayland global hotkeys need the `input` group
   ([Linux setup](../guide/linux.md#setup-steps)).
+- On wlroots compositors other than Sway, Hyprland and niri, such as River,
+  Wayfire and labwc, the compositor does not report where the focused window
+  is. Hints in native apps are offset there, and `--capture-scope window`
+  covers the whole screen, see
+  [wlroots compositors](../guide/linux-desktops.md#wlroots-compositors).
 - GNOME Wayland needs a shell extension for the focused window. X11 cannot do
   modifier passthrough. `neru services` needs systemd.
 - A source build with `CGO_ENABLED=0` cannot move the cursor, click, scroll,

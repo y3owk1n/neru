@@ -14,12 +14,20 @@ and exits non-zero, and
 [Platform support per word](platform-support.md#platform-support-per-word)
 lists the flags and actions this applies to.
 
+Every command exits 0 on success and 1 on any failure. When the daemon
+refuses a request, the error line on stderr ends with its
+[response code](ipc.md#response-codes), as in `(code: ERR_NOT_RUNNING)`.
+Scripts read that code, since the exit status is the same for every failure.
+
 ## Global flags
 
 | Flag        | Shorthand | Type   | Default | Description                                                                        |
 | ----------- | --------- | ------ | ------- | ---------------------------------------------------------------------------------- |
 | `--config`  | `-c`      | string | `""`    | Config file path. Overrides the default search paths. See [Config file location](../guide/configuring.md#where-neru-looks-for-the-file). |
-| `--timeout` |           | int    | `10`    | IPC timeout in seconds.                                                             |
+| `--timeout` |           | int    | `10`    | IPC timeout in seconds. `config set`, `config reset` and `config dump` ignore it and wait a fixed 5 seconds. |
+
+`neru --version`, or `neru -v`, prints the version, git commit and build date.
+It works on `neru` itself, not after a subcommand.
 
 ## Daemon lifecycle
 
@@ -30,7 +38,8 @@ neru launch [-c <path>] [--timeout <seconds>]
 ```
 
 Start the daemon that owns the event tap, overlays and IPC server. Takes only
-the [global flags](#global-flags).
+the [global flags](#global-flags). With a daemon already running, it prints
+`Neru is already running` and exits 0.
 
 ### neru start
 
@@ -40,14 +49,20 @@ neru start
 
 Resume mode switching and overlay rendering after `neru stop`.
 
+Errors: `ERR_ALREADY_RUNNING` when Neru is not stopped.
+
 ### neru stop
 
 ```
 neru stop
 ```
 
-Disable mode switching and overlay rendering. The daemon keeps running and
-keeps its socket open.
+Disable mode switching and overlay rendering, and exit the active mode. The
+daemon keeps running and keeps its socket open. Until `neru start`, the mode
+commands, `action`, `run` and `macro` fail with `ERR_NOT_RUNNING`. The
+[IPC Commands table](ipc.md#commands) lists what still answers.
+
+Errors: `ERR_NOT_RUNNING` when Neru is already stopped.
 
 ### neru idle
 
@@ -70,11 +85,13 @@ Print the daemon state and the current mode.
 | -------- | ---- | ------- | ------------------------------------ |
 | `--json` | bool | `false` | Print the state as one JSON object.  |
 
-The human form prints `Status` (`running` or `disabled`) and `Mode` (`idle`,
-`hints`, `grid`, `recursive_grid`, `bisect`, `scroll`, `monitor_select`, or
-the name of the open [declared mode](configuration.md#modes)). With `--json`,
-the object goes to stdout alone, and errors go to stderr with a non-zero exit
-status.
+The human form prints `Status` (`running`, or `stopped` after `neru stop`) and
+`Mode` (`idle`, `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`,
+`monitor_select`, or the name of the open [declared mode](configuration.md#modes)).
+It then prints `Config`, `Platform`, the adapter profile, and the runtime
+toggles as `yes` or `no`. `Cursor follows selection` appears only while it has
+a value. With `--json`, the object goes to stdout alone, and errors go to
+stderr with a non-zero exit status.
 
 | Key                                                     | Type   | Description                                              |
 | ------------------------------------------------------- | ------ | -------------------------------------------------------- |
@@ -84,7 +101,7 @@ status.
 | `hints_enabled`, `grid_enabled`, `recursive_grid_enabled`, `bisect_enabled` | bool | Whether each mode is enabled in the config. |
 | `scroll_inverted`                                       | bool   | Set by [`toggle-scroll-invert`](#neru-toggle-scroll-invert). |
 | `hidden_for_screen_share`                               | bool   | Set by [`toggle-screen-share`](#neru-toggle-screen-share). `true` means hidden. |
-| `cursor_follow_selection`                               | bool or null | Set by [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection). `null` when no mode is running, so test for `null` before reading it as a boolean. |
+| `cursor_follow_selection`                               | bool or null | Set by [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection). `null` unless hints, grid, recursive_grid or bisect is active, so test for `null` before reading it as a boolean. |
 | `saved_cursor_slots`                                    | object | The occupied [cursor slots](#cursor-slots), each `{"x": …, "y": …}`. Empty when none are saved. |
 | `sticky_modifiers`                                      | string | The sticky modifiers held, such as `cmd,shift`. Empty when none is. |
 | `capabilities`                                          | object | Per-subsystem support on this platform, as `neru doctor` reports it. |
@@ -101,7 +118,8 @@ neru watch [--event <name>[,<name>...]]
 
 Print the status, then one JSON object per line for each event the daemon
 publishes, as it happens. The events are the ones [`[hooks]`](configuration.md#hooks)
-runs on, under the same names.
+runs on, named without the `on_` prefix. The hook `on_mode_enter` runs on the
+event `mode_enter`.
 
 | Flag      | Type   | Default | Description |
 | --------- | ------ | ------- | ----------- |
@@ -144,6 +162,9 @@ one fails with `ERR_BUSY`.
 The command runs while Neru is stopped too, and exits 0 when the daemon exits.
 `--timeout` bounds connecting only, never the stream.
 
+Errors: `ERR_INVALID_INPUT` for an unknown event name, `ERR_BUSY` when 16
+watches are open. Every key is stable.
+
 ### neru query
 
 ```
@@ -156,10 +177,17 @@ neru query hints [--role ...] [--text ...] [--strategy ...] [--capture-scope ...
 
 Print what the daemon sees right now. Positions and sizes use the coordinates
 [`move_mouse`](#neru-action-move_mouse) takes, with a global top-left origin
-and Y growing down. With `--json`, the object goes to stdout alone, and errors go
-to stderr with a non-zero exit status. A platform that cannot answer a query
-fails it with `ERR_NOT_SUPPORTED`. Queries answer while Neru is stopped, as
-`neru status` does, except `query hints`.
+and Y growing down. Queries answer while Neru is stopped, as `neru status`
+does, except `query hints`.
+
+| Flag     | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `--json` | bool | `false` | Print the answer as one JSON object on stdout. Errors still go to stderr with a non-zero exit status. |
+
+`query hints` also takes six `hints` flags, listed with it below.
+
+Errors: `ERR_NOT_SUPPORTED` when the platform cannot answer the query, and
+`ERR_ACTION_FAILED` when it tried and failed. Every key is stable.
 
 `neru query displays` lists every connected display, in the order the
 platform enumerates them.
@@ -189,20 +217,21 @@ refresh.
 | `display`       | string or null | The display's name, as `query displays` lists it. `null` when no display holds the cursor. |
 | `display_index` | int or null | The display's position in the `query displays` list, which tells apart two displays that share a name. |
 
-`neru query window` prints the focused window's bounds as `x`, `y`, `width`
-and `height`. With `--json` it prints `null` when no window has focus, such as
-when the desktop does. A Wayland compositor that exposes no window geometry
-fails it with `ERR_NOT_SUPPORTED`. GNOME needs the
+`neru query window` prints the focused window's bounds. When no window has
+focus, such as when the desktop does, it prints `No window has focus`, and
+with `--json` it prints `null`. A Wayland compositor that exposes no window
+geometry fails it with `ERR_NOT_SUPPORTED`. GNOME needs the
 [Neru GNOME Shell extension](../guide/linux-desktops.md#gnome-wayland).
 
 ```json
 {"x":0,"y":25,"width":1440,"height":875}
 ```
 
-`neru query app` prints the focused application as one key, `bundle_id`. Neru
-reads it from the same source per-app config matches against, so it is the
-exact string to write in [`[[app_configs]]`](configuration.md#app-identity-across-platforms-bundle_id).
-GNOME needs the Neru GNOME Shell extension here too. Run from a terminal, it
+| Key                         | Type | Description             |
+| --------------------------- | ---- | ----------------------- |
+| `x`, `y`, `width`, `height` | int  | The window's bounds.    |
+
+`neru query app` prints the focused application. Run from a terminal, it
 reports the terminal, so give yourself time to switch:
 
 ```bash
@@ -213,15 +242,33 @@ sleep 3; neru query app
 {"bundle_id":"com.apple.Safari"}
 ```
 
+| Key         | Type   | Description |
+| ----------- | ------ | ----------- |
+| `bundle_id` | string | The application, read from the same source per-app config matches against. It is the exact string to write in [`[[app_configs]]`](configuration.md#app-identity-across-platforms-bundle_id). |
+
+GNOME needs the Neru GNOME Shell extension here too.
+
 `neru query hints` lists the elements hints mode would label in the focused
-window, without drawing the overlay or entering the mode. It takes the
-`hints` flags that decide which elements it collects: `--role`, `--text`,
-`--strategy`, `--capture-scope` and `--split-word`, and `--label-direction`,
-which decides their labels. Like `query app`, it
-reports the terminal when run from one. Unlike the other queries, it does not
-answer while Neru is stopped, because the `vision` and `contour` strategies
-capture the screen. When one of those scans fails, the query fails with its
-error, where hints mode would open on what else it found.
+window, without drawing the overlay or entering the mode. Like `query app`, it
+reports the terminal when run from one.
+
+It takes the `hints` flags that decide which elements it collects, and
+`--label-direction`, which decides their labels. Each works as in the
+[mode flag reference](#mode-flag-reference).
+
+| Flag                | Type                | Default                 | Description |
+| ------------------- | ------------------- | ----------------------- | ----------- |
+| `--role`            | string, repeatable  | none                    | Only these roles. |
+| `--text`            | string, repeatable  | none                    | Only elements whose text contains one of these. |
+| `--strategy`        | string              | `hints.strategy`        | How to find elements. |
+| `--capture-scope`   | string              | `hints.capture_scope`   | Region `vision` and `contour` scan. |
+| `--split-word`      | bool                | `false`                 | One element per word of detected text. Needs `vision`. |
+| `--label-direction` | string              | `hints.label_direction` | Label order. |
+
+Unlike the other queries, it does not answer while Neru is stopped, because
+the `vision` and `contour` strategies capture the screen. It fails with
+`ERR_NOT_RUNNING` then. When one of those scans fails, the query fails with
+its error, where hints mode would open on what else it found.
 
 ```json
 {"hints":[{"label":"A","role":"ax:AXButton","title":"","description":"Back","value":"","x":100,"y":38,"width":44,"height":52}]}
@@ -234,14 +281,16 @@ error, where hints mode would open on what else it found.
 | `title`, `description`, `value` | string | The element's text. `--text` matches any of the three. Empty when the element has none. |
 | `x`, `y`, `width`, `height` | int    | The element's bounds.                                           |
 
-Every key is stable.
-
 Neru assigns labels afresh on every scan, after the flags filter the
 elements. A label stays valid only while the screen does not change, and only
 for `neru hints` given the same `--role`, `--text`, `--strategy`,
 `--capture-scope`, `--split-word` and `--label-direction`. To select an
-element by its label, start hints mode with the query's flags, then type the
-label into it:
+element by its label:
+
+1. Run `neru query hints` with the flags you need, and read the label.
+2. Start hints mode with exactly the same flags, plus `--action`.
+3. Type the label into the mode with `neru action feed --mode`, one key per
+   character, before the screen changes.
 
 ```sh
 label=$(neru query hints --text Save --json | jq -r '.hints[0].label')
@@ -271,13 +320,17 @@ state.
   These never fail the check. The full set is in
   [Platform support per word](platform-support.md#platform-support-per-word).
 - The check fails when the config fails to load or selects no role that
-  applies here, when the daemon reports an unhealthy component, or when the
-  daemon is stopped. On Windows a stopped daemon does not fail it, and the
+  applies here, when the daemon reports an unhealthy component, or when no
+  daemon is running. A daemon paused by `neru stop` still answers and does not
+  fail it. On Windows a daemon that is not running does not fail it, and the
   command prints its client-side checks instead.
+- In a [declared mode](configuration.md#modes), the `Mode` line and the
+  `mode` key of `daemon` say `mode`, where `neru status` names the declared
+  mode.
 
 With `--json`, the object goes to stdout alone, and the exit status is the same
-as without it. The object leaves out the checks Windows prints while the daemon
-is stopped.
+as without it. The object leaves out the checks Windows prints while no daemon
+is running.
 
 | Key                | Type           | Description |
 | ------------------ | -------------- | ----------- |
@@ -311,11 +364,14 @@ replaces its earlier value unless its entry says it can be repeated.
   [`hints.strategy`](configuration.md#hints), `--label-direction` from
   `hints.label_direction`. `--cursor-selection-mode` defaults to `follow`.
 
-**Cycling lists.** In a `--strategy` or `--capture-scope` list, the value in
-use may come from the config. The list wraps, and falls back to its first
-entry if it does not name the value in use. Each value may appear once, and one
-flag per command may take a list. `--toggle` refuses a list, and
-`--split-word` refuses a `--strategy` list.
+**Cycling lists.** A `--strategy` or `--capture-scope` list follows these rules:
+
+- The value in use may come from the config.
+- The list wraps, and falls back to its first entry if it does not name the
+  value in use.
+- Each value may appear once.
+- Only one flag per command may take a list.
+- `--toggle` refuses a list, and `--split-word` refuses a `--strategy` list.
 
 <!-- BEGIN GENERATED MODE FLAGS: edit internal/domain/modecmd, then run `just genflagref` -->
 
@@ -423,6 +479,19 @@ Whether the real cursor follows the selection (follow) or stays put (hold).
 
 <!-- END GENERATED MODE FLAGS -->
 
+### What a mode command answers
+
+A mode command succeeds once the daemon accepts the activation, which does not
+mean the mode opened. `--toggle` on the open mode leaves it, and
+`monitor_select` with one display opens nothing, and both still succeed. To
+confirm a mode opened, read `mode` from [`neru status --json`](#neru-status),
+or wait for the `mode_enter` line of `neru watch --event mode_enter`.
+
+Errors: `ERR_MODE_DISABLED` when the config sets `enabled = false` for the
+mode, which hints, grid, recursive_grid, bisect and monitor_select can do.
+`ERR_NOT_RUNNING` after `neru stop`. A flag the mode refuses fails too. The CLI
+refuses it before sending, and the daemon answers `ERR_INVALID_INPUT`.
+
 ### neru hints
 
 ```
@@ -468,8 +537,7 @@ neru query hints --json | jq '.hints |= map(select(.width > 20))' \
   `--split-word` and `--repeat`. Filter the targets before sending them.
 - A screen change or a monitor move exits hints mode, since nothing can scan
   the targets again.
-- A request to the daemon is capped at 64 KiB, which holds several hundred
-  targets.
+- The [request size cap](ipc.md#request) holds several hundred targets.
 
 ### neru grid
 
@@ -492,6 +560,9 @@ neru grid --action left_click --on-exit 'exec notify-send clicked'
 ```
 neru recursive_grid [flags]
 ```
+
+The CLI also accepts `neru recursive-grid`. Over IPC and in bindings the name
+is `recursive_grid` only.
 
 Subdivide the selected cell on each keypress until you reach the point.
 Backspace backtracks one level, and [`move_cell`](#neru-action-move_cell)
@@ -543,7 +614,10 @@ neru monitor_select [flags]
 ```
 
 Show a labeled panel on every other display, and move the cursor to the one
-whose label you type. Requires more than one display. Labels come from
+whose label you type. The mode is off by default, so set
+`monitor_select.enabled = true` first, or it fails with `ERR_MODE_DISABLED`.
+It needs more than one display. With one, the command succeeds and opens
+nothing. Labels come from
 `monitor_select.characters`, default `123456789`, and `Escape` cancels. Takes
 the `monitor_select` flags in the [mode flag reference](#mode-flag-reference).
 
@@ -591,15 +665,16 @@ These names work as a mode `--action`, in a hotkey binding, or after
 | Release  | `left_mouse_up`, `right_mouse_up`, `middle_mouse_up`                                                |
 | Toggle   | `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`                                    |
 | Movement | `move_mouse`, `move_mouse_relative`, `move_monitor`                                                 |
-| Scroll   | `scroll`, `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`, `page_up`, `page_down`, `go_top`, `go_bottom` |
+| Scroll   | `scroll` ³, `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`, `page_up`, `page_down`, `go_top`, `go_bottom` |
 | Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `search_hints` ³, `wait_for_mode_exit`   |
 | Cursor   | `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`                               |
 | Keys     | `feed`                                                                                              |
 | Timing   | `sleep`, in [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
 
-³ `search_hints` opens the hint search field in hints mode. It has no
-`neru action` subcommand. Bind it as `"action search_hints"` in a mode's
-`[hotkeys]`, or run it through `neru run` or `neru macro`.
+³ No `neru action` subcommand. `search_hints` opens the hint search field in
+hints mode. Bind it as `"action search_hints"` in a mode's `[hotkeys]`, or run
+it through `neru run` or `neru macro`. `scroll` takes no flags. For one-shot
+scrolling use the directional names below.
 
 A mode `--action` accepts only the click, press, release and toggle names,
 `move_mouse`, and the deprecated `mouse_down` and `mouse_up`. `move_mouse`
@@ -627,10 +702,11 @@ Press and release a mouse button, or one half of that.
 - `--state` and `--toggle` cannot be combined, and only these three
   subcommands accept them.
 - Neru releases held buttons when it returns to idle.
-- A comma chain or a mode `--action` cannot carry flags, so use the action
-  name instead: `<button>_click --state down` is `<button>_mouse_down`,
-  `--state up` is `<button>_mouse_up`, and `--toggle` is
-  `<button>_mouse_toggle`.
+- A comma chain takes `--modifier`, `--selection` and `--bare` when every
+  action in it does. Neither a chain nor a mode `--action` takes `--state` or
+  `--toggle`, so use the action name instead. `<button>_click --state down`
+  is `<button>_mouse_down`, `--state up` is `<button>_mouse_up`, and
+  `--toggle` is `<button>_mouse_toggle`.
 
 ```bash
 neru action left_click,left_click   # double-click
@@ -667,8 +743,12 @@ neru action move_mouse --center --x 50 --y -30
 neru action move_mouse_relative --dx <px> --dy <px>
 ```
 
-Move the cursor by a delta. Both flags are required. Positive `--dx` moves
-right and positive `--dy` moves down.
+Move the cursor by a delta.
+
+| Flag   | Type | Default | Description                                  |
+| ------ | ---- | ------- | -------------------------------------------- |
+| `--dx` | int  |         | Required. Pixels to move. Positive moves right. |
+| `--dy` | int  |         | Required. Pixels to move. Positive moves down.  |
 
 ### neru action move_monitor
 
@@ -794,7 +874,10 @@ neru action cycle_hint [--backward]
 ```
 
 Move the hint selection without acting on it. Hints mode only.
-`--backward` (default `false`) cycles to the previous hint.
+
+| Flag         | Type | Default | Description                     |
+| ------------ | ---- | ------- | ------------------------------- |
+| `--backward` | bool | `false` | Cycle to the previous hint.     |
 
 ### neru action wait_for_mode_exit
 
@@ -802,9 +885,11 @@ Move the hint selection without acting on it. Hints mode only.
 neru action wait_for_mode_exit [--bail]
 ```
 
-Block an action chain until the current mode exits. `--bail` (default
-`false`) aborts the chain with `ERR_CHAIN_BAIL` if the mode exits with no
-selection.
+Block an action chain until the current mode exits.
+
+| Flag     | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `--bail` | bool | `false` | Abort the chain with `ERR_CHAIN_BAIL` if the mode exits with no selection. |
 
 ### neru action reset, backspace
 
@@ -881,12 +966,15 @@ action, a mode, `exec <command>`, or `macro <name> [arg...]` from
 | ----------------- | ---- | ------- | ------------------------------------------------------------------------ |
 | `--stop-on-error` | bool | `false` | End at the first failing step, as if every step carried `--bail-on-error`. |
 
-- Blank steps are refused.
+- The CLI refuses a blank step. Over IPC, the daemon drops blank steps, and
+  refuses only a request with no steps left, with `ERR_INVALID_INPUT`.
 - `action wait_for_mode_exit --bail` after a canceled mode ends the sequence
   with `ERR_CHAIN_BAIL`.
-- A failing step is reported and the rest still run. The command exits with
+- Neru reports a failing step and still runs the rest. The command fails with
   `ERR_ACTION_FAILED` naming the first failure.
-- A sequence may start another sequence, up to five levels deep.
+- A sequence may start another sequence, up to five levels deep. Neru refuses
+  one nested deeper with `ERR_INVALID_INPUT` before any of its steps run, and
+  the sequence that started it counts that as one failed step.
 - A sequence with sleeps or `wait_for_mode_exit` can outlast the 10-second
   IPC timeout. Raise it with `--timeout`, or bind the sequence to a hotkey,
   which runs with no caller waiting.
@@ -925,7 +1013,7 @@ Run a named sequence from [`[macros]`](configuration.md#macros), as a binding's
 count must match the highest placeholder. Each shell argument passes through
 unchanged, so `"hello there"` needs no extra quoting.
 
-Exit codes match [`neru run`](#neru-run), plus `ERR_INVALID_INPUT` for an
+Response codes match [`neru run`](#neru-run), plus `ERR_INVALID_INPUT` for an
 unknown macro or a wrong argument count. Raise `--timeout` for long macros.
 
 ```bash
@@ -980,7 +1068,9 @@ neru config set [--no-reload] <key> <value>
 
 Change a value on the running daemon. The change applies at once and is saved
 to the [override file](../guide/configuring.md#how-the-layers-combine).
-`<key>` is a dotted TOML path, and `neru config dump` lists them all.
+`<key>` is a dotted TOML path, such as `hints.strategy`. `neru config dump`
+prints the whole configuration as nested JSON, where each path is a chain of
+keys.
 
 | Flag          | Type | Default | Description                                                         |
 | ------------- | ---- | ------- | ------------------------------------------------------------------- |
@@ -997,16 +1087,27 @@ array, `'["exec echo a,b", "idle"]'`.
 Setting several dependent values with `--no-reload` is shown in
 [Configuring Neru](../guide/configuring.md#change-one-value-without-editing-the-file).
 
+The CLI checks the key and the value before it sends them, so a bad one fails
+with the field's type and no response code.
+
+Errors: `ERR_ACTION_FAILED` when the daemon cannot apply or save the change.
+
 ### neru config reset
 
 ```
 neru config reset [--no-reload] <key>
 ```
 
-Remove a key from the override file. It reverts to the base config or the
-built-in default on the next reload. `--no-reload` (default `false`) defers
-the reload. To remove every override at once, see
+Remove a key from the override file, and reload so it reverts to the base
+config or the built-in default. To remove every override at once, see
 [How the layers combine](../guide/configuring.md#how-the-layers-combine).
+
+| Flag          | Type | Default | Description |
+| ------------- | ---- | ------- | ----------- |
+| `--no-reload` | bool | `false` | Skip the reload. Run `neru config reload` after the last of several resets. |
+
+Errors: `ERR_INVALID_INPUT` for an unknown key, `ERR_ACTION_FAILED` when the
+override file cannot be changed or the reload fails.
 
 ### neru config dump
 
@@ -1029,10 +1130,20 @@ daemon restart.
 
 ## Runtime toggles
 
-Each toggle lasts until the daemon restarts. All three accept
-`--state on|off|toggle`. `on` and `off` set the state whatever it was, and
-`toggle`, the default, flips it. Scripts should use `on` or `off`, and read
-the result from `neru status --json`.
+Each toggle lasts until the daemon restarts, and answers while Neru is
+stopped. All three take one flag.
+
+| Flag      | Type   | Default  | Description |
+| --------- | ------ | -------- | ----------- |
+| `--state` | string | `toggle` | `on` or `off` sets the state whatever it was, and `toggle` flips it. |
+
+Scripts should use `on` or `off`, and read the result from
+`neru status --json`. The CLI prints the reply as a line of text. Over IPC the
+reply also carries the new state in `data`, whose keys are in the
+[IPC Commands table](ipc.md#commands).
+
+Errors: a `--state` value other than these three fails. The CLI refuses it
+before sending, and the daemon answers `ERR_INVALID_INPUT`.
 
 ### neru toggle-scroll-invert
 
@@ -1050,8 +1161,9 @@ neru toggle-cursor-follow-selection [--state on|off|toggle]
 ```
 
 Toggle whether the real cursor follows the selection in the active hints,
-grid or recursive_grid session. Fails when no mode is running, even with
-`--state`. Reported as `cursor_follow_selection`.
+grid, recursive_grid or bisect session. In any other mode, idle included, it
+fails with `ERR_INVALID_INPUT`, even with `--state`. Reported as
+`cursor_follow_selection`.
 
 ### neru toggle-screen-share
 
@@ -1059,9 +1171,10 @@ grid or recursive_grid session. Fails when no mode is running, even with
 neru toggle-screen-share [--state on|off|toggle]
 ```
 
-Hide overlays from screen sharing while keeping them visible locally. macOS
-only. `--state on` hides, matching `hidden_for_screen_share`. Neru uses the
-deprecated `NSWindow.sharingType` API:
+Hide overlays from screen sharing while keeping them visible locally.
+`--state on` hides, matching `hidden_for_screen_share`. The command succeeds
+on every platform and flips `hidden_for_screen_share`, but only macOS hides
+the overlay. Neru uses the deprecated `NSWindow.sharingType` API:
 
 | macOS version  | Behavior                              |
 | -------------- | -------------------------------------- |
@@ -1130,7 +1243,7 @@ installed and running.
 
 | Platform | Definition | Notes |
 | -------- | ---------- | ----- |
-| macOS    | launchd plist in `~/Library/LaunchAgents` | `install` refuses if a plist exists, so run `uninstall` first. `stop` runs `launchctl disable` and `bootout`, and `restart` runs `launchctl kickstart -k`. `status` reports a stopped service as stopped. Stderr goes to `~/Library/Logs/neru/daemon.err.log`. |
+| macOS    | launchd plist in `~/Library/LaunchAgents` | `install` refuses if a plist exists, so run `uninstall` first. `stop` runs `launchctl disable` and `bootout`, and `restart` runs `launchctl kickstart -k`. `status` reports a stopped service as stopped. For where its output goes, see [Log file locations](../guide/troubleshooting.md#log-file-locations). |
 | Linux    | systemd user unit | See [Linux setup](../guide/linux.md#systemd-user-service). |
 | Windows  | Task Scheduler task `\Neru`, logon trigger | Runs `neru launch` as you with an interactive token, restarts on failure, no time limit, no admin rights. `status` reads the task state (running, ready, queued, disabled). `stop` works like `schtasks /Change /DISABLE` followed by `schtasks /End`. |
 
@@ -1138,8 +1251,12 @@ On Linux and Windows, every subcommand but `status` refuses to touch a unit or
 task Neru did not write. `status` on a machine without the service reports that
 rather than failing.
 
-`neru services status --json` prints the answer as one JSON object and exits 0
-whatever the service is doing. Every key is stable.
+| Flag     | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `--json` | bool | `false` | `status` only. Print the answer as one JSON object. |
+
+`neru services status --json` exits 0 whatever the service is doing. Every
+key is stable.
 
 | Key               | Type   | Description |
 | ----------------- | ------ | ----------- |
@@ -1156,6 +1273,6 @@ whatever the service is doing. Every key is stable.
 neru docs config|cli
 ```
 
-Open the configuration reference (`config`) or this page (`cli`) with the
-desktop's default handler. URLs point at the tag of the installed version, or
+Open the configuration reference (`config`, or its alias `configuration`) or
+this page (`cli`) with the desktop's default handler. URLs point at the tag of the installed version, or
 `main` for development builds.

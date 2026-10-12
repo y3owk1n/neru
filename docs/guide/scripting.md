@@ -19,6 +19,20 @@ if [ "$(neru status --json | jq -r .enabled)" = true ]; then neru stop; else ner
 neru status &>/dev/null && echo "Running" || echo "Not running"
 ```
 
+## Check Neru's health
+
+`healthy` is `false` exactly when [`neru doctor`](../reference/cli.md#neru-doctor)
+fails, so `jq -e` turns it into an exit status:
+
+```bash
+neru doctor --json | jq -e .healthy >/dev/null || notify-send "Neru is unhealthy"
+```
+
+[`neru services status --json`](../reference/cli.md#neru-services) reports
+whether the login service is installed and running, and
+[`neru roles --json`](../reference/cli.md#neru-roles) how your roles resolve on
+this machine.
+
 ## Drive Neru from another hotkey daemon
 
 ```text
@@ -72,13 +86,15 @@ macOS:
 A hook starts a process per event. A bar that runs its own long-lived command,
 such as Waybar's `exec` or an Eww `deflisten`, can read
 [`neru watch`](../reference/cli.md#neru-watch) instead. The script below prints
-the current mode, then a new line each time the mode changes.
+the current mode, then a new line each time the mode changes. `--event` leaves
+out every other event, and a `mode_exit` with reason `switched` prints nothing,
+because the next mode's `mode_enter` follows.
 
 ```bash
-neru watch | jq --unbuffered -r '
+neru watch --event mode_enter,mode_exit | jq --unbuffered -r '
   if .event == "snapshot" then .status.mode
   elif .event == "mode_enter" then .mode
-  elif .event == "mode_exit" and .reason != "switched" then "idle"
+  elif .reason != "switched" then "idle"
   else empty end'
 ```
 
@@ -100,6 +116,28 @@ them straight back. This prints the name of the display under the cursor:
 neru query cursor --json | jq -r .display
 ```
 
+## Select an element by its label
+
+[`neru query hints`](../reference/cli.md#neru-query) reports the label hints
+mode would draw on each element. To select one, open hints mode with the same
+flags and feed it the label. This script clicks the first element its flags
+select:
+
+```bash
+#!/bin/sh
+# neru-click: click the first element the given hints flags select
+label=$(neru query hints "$@" --json | jq -r '.hints[0].label // empty')
+[ -n "$label" ] || { echo "neru-click: no match" >&2; exit 1; }
+neru hints "$@" --action left_click
+neru action feed --mode $(echo "$label" | fold -w1)
+```
+
+Save it as an executable script, for example `~/.local/bin/neru-click`, and
+run `neru-click --text Save`. It passes the same flags to both commands,
+because Neru assigns labels afresh on every scan and a label holds only for
+the same flags. `fold -w1` splits a label such as `AS` into one key per
+argument.
+
 ## Click what another tool found
 
 When an app hides its controls from every strategy, a tool that knows where
@@ -116,5 +154,7 @@ The details are under
 
 ## Talking to the daemon directly
 
-To skip the `neru` binary, send JSON over the socket. The format is in
-[IPC protocol](../reference/ipc.md).
+To skip the `neru` binary, send JSON over the socket, or import the Go client
+`github.com/y3owk1n/neru/client`. See [Build on Neru](integrations.md) for
+programs built this way, and [IPC protocol](../reference/ipc.md) for the
+protocol and its schemas.

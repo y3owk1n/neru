@@ -15,7 +15,7 @@ Hints, grids and vim keys for your whole desktop. Free, open source, one binary,
 | :---------------: | :----------------------: | :-----------------: |
 |     Stable ✅     |      Beta, daily 🔵      |    Beta, daily 🔵   |
 
-<sub>Beta means every option, flag and action already works. Stable comes after six clean releases. [What the labels mean](docs/reference/platform-support.md#what-the-labels-mean)</sub>
+<sub>[What the labels mean](docs/reference/platform-support.md#what-the-labels-mean)</sub>
 
 </div>
 
@@ -30,7 +30,7 @@ Neru does what Vimium does in the browser, for every app, window, menu bar and d
 - **Works where accessibility trees don't.** Grid modes split pixels, not widgets, so they work in canvases, games and remote desktops. Hints use the accessibility tree, on-device OCR, or a pure-Go contour scan.
 - **Fast.** The event tap sits on every keystroke, and Neru treats any added latency as a bug.
 - **No per-app hacks.** Good defaults, plus per-app overrides you write yourself, applied when focus changes.
-- **Scriptable.** Hotkeys, the `neru` CLI and the IPC socket run the same commands, so a binding works unchanged from skhd, Hammerspoon, Raycast or a shell script. Hooks run your own steps when a mode opens or closes, the focused app changes, or Neru pauses.
+- **Scriptable.** Hotkeys, the `neru` CLI and the IPC socket run the same commands, so a binding works unchanged from skhd, Hammerspoon, Raycast or a shell script. Hooks run your own steps when a mode opens or closes, the focused app changes, or Neru pauses. `neru watch` streams the same events live, filtered with `--event`, `neru query` reports displays, the cursor and hint targets, and `--json` on the status and query commands gives a program something to parse. The IPC protocol is versioned, with JSON schemas and a Go client package.
 - **Private.** OCR and element detection run on-device. No telemetry, no accounts, and typed text never reaches the log.
 - **Fails loudly.** A mistyped flag in a binding fails config validation instead of doing nothing when you press the key.
 
@@ -81,17 +81,17 @@ Run `neru launch`, grant the permissions `neru doctor` asks for, then press
 
 | Mode                  | Default hotkey        | How it works                                                    | Best for                                    |
 | :-------------------- | :-------------------- | :-------------------------------------------------------------- | :------------------------------------------ |
-| **Recursive Grid** ⭐ | `Primary+Shift+C`     | Halve the screen with home-row keys until the cursor lands      | Anything, including canvases and games      |
+| **Recursive Grid** ⭐ | `Primary+Shift+C`     | Split 3x3 and pick cell after cell until the cursor lands       | Anything, including canvases and games      |
 | **Bisect**            | `Primary+Shift+B`     | `hjkl` keep a half, `yubn` a quadrant, until the cursor lands   | Anything, without reading labels            |
 | **Hints**             | `Primary+Shift+Space` | Labels every target via accessibility tree, OCR or contour scan | Native apps, Electron, browsers, Figma      |
 | **Grid**              | `Primary+Shift+G`     | Type a row and column label to jump to a cell                   | Coarse jumps across big monitors            |
 | **Scroll**            | `Primary+Shift+S`     | `j`/`k`, `u`/`d`, `gg`/`G`, `h`/`l` in any scroll view          | Reading without lifting your hands          |
-| **Monitor Select**    | unbound               | Labels each display, type one to jump                           | Multi-monitor setups                        |
+| **Monitor Select**    | disabled, unbound     | Labels each display, type one to jump                           | Multi-monitor setups                        |
 | **Your own**          | unbound               | A name, an indicator and a key table you declare in config      | Window management layers, app-specific keys |
 
 `Primary` is `Cmd` on macOS and `Ctrl` on Linux and Windows. Linux ships without these defaults so they never collide with terminal shortcuts. Every binding is remappable.
 
-Every mode gives you left, right and middle click, double and triple click, drag with any button, held-key glide with acceleration, and sticky modifiers.
+Every mode except monitor select gives you left, right and middle click, double and triple click, drag with any button, and sticky modifiers. `[held_repeat]` adds held-key glide, with acceleration if you want it.
 
 ## Configuration
 
@@ -128,6 +128,22 @@ neru doctor                            # diagnose permissions and backends
 ```
 
 Themes, indicators, smooth cursor and scroll, virtual pointer, app exclusions and screen-share hiding are options too.
+
+## Build on Neru
+
+Status bars, launchers and voice tools can follow Neru and drive it:
+
+```bash
+neru watch --event mode_enter,mode_exit   # one JSON line per mode change
+```
+
+```go
+neru := client.New()   // github.com/y3owk1n/neru/client
+status, err := neru.Status(ctx)
+_, err = neru.Send(ctx, "hints", "--action", "left_click")
+```
+
+Which interface fits which tool is in [Build on Neru](docs/guide/integrations.md).
 
 ## Documentation
 

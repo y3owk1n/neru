@@ -26,11 +26,11 @@ Navigation:
   - Press exit key (default: escape) to exit mode
 
 Examples:
-  neru recursive_grid                                  # Start recursive-grid mode
-  neru recursive_grid --action click                   # Start with pending click action
-  neru recursive_grid --action left_click --repeat     # Click and restart mode
-  neru recursive_grid --zoom-to-depth 2                # Zoom to depth 2 at cursor
-  neru recursive_grid --zoom-to-depth 3 --action click # Zoom to depth 3 and click`,
+  neru recursive_grid                                       # Start recursive-grid mode
+  neru recursive_grid --action left_click                   # Start with pending click action
+  neru recursive_grid --action left_click --repeat          # Click and restart mode
+  neru recursive_grid --zoom-to-depth 2                     # Zoom to depth 2 at cursor
+  neru recursive_grid --zoom-to-depth 3 --action left_click # Zoom to depth 3 and click`,
 })
 
 func init() {

@@ -16,7 +16,7 @@ var configInitCmd = &cobra.Command{
 The config is written to the default config directory for your platform
 (%APPDATA%/neru on Windows, $XDG_CONFIG_HOME/neru or ~/.config/neru on Unix).
 Use the global --config flag to write to a custom path instead.
-This copies the fully-commented default configuration to get you started.
+This writes every option at its default value, so delete the lines you do not change.
 If a config file already exists, use --force to overwrite it.
 After running this command, start Neru with 'neru launch' and try:
   Primary+Shift+C      Recursive Grid mode (recommended)

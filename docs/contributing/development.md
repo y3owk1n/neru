@@ -83,12 +83,13 @@ gofumpt and golines are optional, through `go install`.
 | `just lint` | golangci-lint, plus clang-tidy on `.m` files (macOS) |
 | `just vet`, `vuln` | `go vet`, and `govulncheck` for reachable CVEs in dependencies |
 | `just check-cross` | CGO-off type-check of the Linux and Windows builds |
-| `just lint-cross` | Lint the Linux build with CGO on, in Docker |
+| `just lint-cross` | Lint the Linux build with CGO on and the Windows build with CGO off, in Docker |
 | `just ci` | The pre-push gate: the checks CI gates on, on this host |
 | `just fmt`, `fmt-check` | Format Go and Objective-C, or check Objective-C formatting |
 | `just genman` | Generate man pages |
 | `just genflagref` | Rewrite the mode-flag reference in `docs/reference/cli.md` |
 | `just gensupportref` | Rewrite the platform-support table in `docs/reference/platform-support.md` |
+| `just genschema` | Rewrite `schemas/config.schema.json` and `schemas/ipc.schema.json` through `cmd/genschema` |
 | `just clean` | Remove build artifacts |
 
 Targeting a single package or test:
@@ -102,15 +103,18 @@ go test -tags=integration ./internal/adapter/accessibility/
 ### What `just ci` covers, and what it does not
 
 `just ci` runs `fmt-check lint vet build check-cross test-ci vuln`, in that
-order, on this host. CI runs the same recipes on macOS, Linux and Windows, so a
-green local run covers one leg of three. For the deepest local check on a real
-desktop session, also run `just test-all`.
+order, on this host. CI runs `lint`, `vet`, `build`, `test-ci` and `vuln`
+natively on macOS, Linux and Windows, so a green local run covers one leg of
+three. `fmt-check` and `coverage` run on macOS only, and the two
+[Linux desktop legs](#what-the-linux-desktop-legs-cover-and-what-they-do-not)
+run on Ubuntu. CI never runs `check-cross`. For the deepest local check on a
+real desktop session, also run `just test-all`.
 
 | Check | Covers | Misses |
 | ----- | ------ | ------ |
 | `just lint`, `just vet` | the host build | every other GOOS |
 | `just check-cross` (in `just ci`, no Docker) | plain `//go:build linux` and `//go:build windows` files, CGO off | cgo-tagged files |
-| `just lint-cross`, `just test-linux` (Docker) | the cgo Linux paths | left out of `just ci` so it runs without Docker ([ADR 0012](../adr/0012-the-first-hour-must-not-lie.md)). CI runs both on every push |
+| `just lint-cross`, `just test-linux` (Docker) | the cgo Linux paths | left out of `just ci` so it runs without Docker ([ADR 0012](../adr/0012-the-first-hour-must-not-lie.md)). No workflow calls them. They are local stand-ins for CI's native Linux leg |
 
 ### What the Linux desktop legs cover, and what they do not
 
@@ -198,7 +202,7 @@ are in the [Linux setup guide](../guide/linux.md).
 | Unit | shared Go logic, using mocks from `internal/ports/mocks` | `*_test.go`, none | `just test-unit` |
 | Contract | ports and adapters agree on error semantics such as `CodeNotSupported` | `*_test.go`, an OS tag where needed | `just test-unit` |
 | Integration | real OS behavior | `*_integration_<os>_test.go`, `integration && <os>` | `just test-integration` |
-| Architecture | package boundaries and platform isolation in `internal/architecture/` | `*_test.go`, none | `just test-unit` |
+| Architecture | the guardrails in `internal/architecture/`, from package boundaries to generated docs, indexed in [doc.go](../../internal/architecture/doc.go) | `*_test.go`, none | `just test-unit` |
 
 When you stub a platform feature, update the subsystem's contract test, or
 write one if a caller could read the stub's `nil` as success
@@ -210,7 +214,9 @@ macOS main-run-loop harness in
 Integration tests are mostly macOS. Linux has a few in
 `internal/adapter/platform/linux/` plus the evdev probe, smooth-scroll and
 `neru services` tests. Windows has services, the overlay transition and the
-UIA tree walk. From a macOS host, run the Linux ones in the container:
+UIA tree walk. From a macOS host, run the Linux ones in the container. The
+`neru-linux-ci` image exists only once `just test-linux` or `just lint-cross`
+has built it, so run one of those first:
 
 ```bash
 docker run --rm -v "$PWD":/src -w /src -e CGO_ENABLED=1 neru-linux-ci \
@@ -253,7 +259,20 @@ debugger, run `dlv debug ./cmd/neru`.
 | `internal/app/modes/`      | Navigation mode implementations                    |
 | `internal/cli/`            | Cobra CLI commands, IPC dispatch                   |
 | `internal/config/`         | TOML parsing, validation, defaults                 |
+| `internal/configschema/`   | Renders the `config.toml` JSON Schema from the config structs |
+| `internal/ipcschema/`      | Renders the IPC JSON Schema from the wire types    |
+| `internal/schematest/`     | Checks a document against a published schema, for tests |
+| `internal/ipcendpoint/`    | Finds, binds and dials the per-user IPC endpoint   |
+| `internal/derrors/`        | The shared error vocabulary                        |
+| `internal/flagref/`        | Renders the mode-flag reference from the `modecmd` descriptor table |
+| `internal/supportref/`     | Renders the platform-support table from the platform declarations |
+| `internal/docsregion/`     | Finds and replaces a generated region in a docs page |
+| `internal/architecture/`   | Guardrail tests, indexed in [doc.go](../../internal/architecture/doc.go) |
+| `client/`                  | The public Go client for the IPC protocol          |
+| `cmd/`                     | `neru`, plus the `genman`, `genflagref`, `gensupportref` and `genschema` generators |
+| `schemas/`                 | The published JSON Schemas, written by `just genschema` |
 
+What `client/` may import is in [Runtime shape](architecture.md#runtime-shape).
 Layer boundaries are in
 [Component architecture](architecture.md#component-architecture), and platform
 file names in [File Layout Rules](porting.md#file-layout-rules).
@@ -280,16 +299,24 @@ or the `neru-add-config-option` skill.
 
 **CLI commands**: a cobra command in `internal/cli/` (registered in an
 `init()`), the IPC handler in `internal/app/ipcctrl/`, `just genman`, and the
-[CLI reference](../reference/cli.md). The `neru-add-cli-command` skill walks it.
+[CLI reference](../reference/cli.md). A new IPC command also needs a row in
+the Commands table of the [IPC protocol](../reference/ipc.md#commands), which
+[ipc_reference_test.go](../../internal/architecture/ipc_reference_test.go)
+checks. When a reply type changes, run `just genschema`, or
+[ipc_schema_test.go](../../internal/architecture/ipc_schema_test.go) fails.
+The `neru-add-cli-command` skill walks it.
 
 **Mode flags**: add one entry to the descriptor table in
 `internal/domain/modecmd`, then run `just genflagref`. The entry registers the
 flag on every command that accepts it and writes its
 [CLI reference](../reference/cli.md) row. Declare its platforms in
 `platform_support.go` beside the table, as config options and actions do in
-their own packages, then run `just gensupportref`. Architecture tests fail
-while either is missing, and the daemon warns once at load about inert words a
-configuration writes.
+their own packages, then run `just gensupportref`.
+[mode_flag_contract_test.go](../../internal/architecture/mode_flag_contract_test.go)
+fails while the reference is out of date with the descriptor entry, and
+[platform_support_test.go](../../internal/architecture/platform_support_test.go)
+fails while the flag has no platform declaration. The daemon warns once at
+load about inert words a configuration writes.
 
 ### Dependency injection
 
@@ -333,8 +360,9 @@ Node comes from [website/oku.toml](../../website/oku.toml). Run
 | `just website-build`   | Build both channels into `website/dist/site`, then check every internal link |
 | `just website-preview` | Serve the build as GitHub Pages does, 404 page included. Use this to try the version switcher and 404 redirects |
 
-The website workflow builds the site on pull requests that touch `docs/` or
-`website/`, and deploys it to GitHub Pages on pushes to `main` and on releases.
+The website workflow builds the site on pull requests that touch `docs/`,
+`website/` or the workflow file. It deploys to GitHub Pages on pushes to
+`main` that touch the same paths, and on releases.
 
 ## Release process
 

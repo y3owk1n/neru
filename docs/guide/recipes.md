@@ -16,8 +16,11 @@ Click as soon as you finish typing a hint label:
 "Primary+Shift+R"     = "hints --action right_click"   # context menu
 ```
 
-On macOS and Windows the first line replaces the default hints launcher. Bind
-another key to keep both.
+A `[hotkeys]` entry that opens a mode replaces that mode's default launcher,
+listed under [Global hotkeys](../reference/configuration.md#global-hotkeys),
+rather than adding a second way in. So plain `hints` is gone even with only
+the second line. To keep it, bind it again, such as
+`"Primary+Shift+H" = "hints"`.
 
 ### Click with Return
 
@@ -37,7 +40,8 @@ A comma chain clicks several times at one point, so
 
 ### Click and leave the mode with one key
 
-Click and leave the mode with one key, in any mode:
+Click and leave hints mode with one key. The same lines work in the other
+mode tables, such as `[grid.hotkeys]`:
 
 ```toml
 [hints.hotkeys]
@@ -91,17 +95,21 @@ Give a button its own key, such as `Cmd+1` for the Home view in Claude for
 macOS. A root-level `[[app_configs]]` entry applies only while that app has
 focus.
 
-**If the button has unique text,** filter hints to it and select the first
-one. This survives window moves and resizes:
+**If the button has unique text,** filter hints to it and click the first
+match with the `neru-click` script from
+[Scripting](scripting.md#select-an-element-by-its-label). This survives window
+moves and resizes:
 
 ```toml
 [[app_configs]]
 bundle_id = "com.anthropic.claudefordesktop"
-hotkeys = { "Cmd+1" = ["hints --role button --text Home --action left_click", "action feed --mode a"] }
+hotkeys = { "Cmd+1" = "exec ~/.local/bin/neru-click --role button --text Home" }
 ```
 
-`a` is the first label with the default `hint_characters`. A common word can
-match other buttons too, such as "Code" matching every "Copy code" button.
+The script asks `neru query hints` for the label instead of assuming one,
+because Neru assigns labels afresh on every scan, see
+[`neru query`](../reference/cli.md#neru-query). A common word can match other
+buttons too, such as "Code" matching every "Copy code" button.
 
 **Otherwise, click at an offset from the window's top-left corner.** This
 survives window moves, but not layout changes. Define the steps once as a
@@ -145,10 +153,15 @@ or open hints with search showing:
 
 - Typing filters by element title, description or value. `Space` is allowed.
 - `Backspace` deletes a character. `Escape` cancels and restores every hint.
-- `Return` selects the first match and runs the binding's `--action`. With an
-  `--action` and several matches, `Return` only closes the search so you can
-  type the label.
 - `Tab` (`action cycle_hint`) moves between matches without running the action.
+
+`Return` closes the search. What else it does depends on the matches:
+
+| Matches | With `--action`                                   | Without `--action`                      |
+| ------- | ------------------------------------------------- | --------------------------------------- |
+| None    | Every hint comes back                             | Every hint comes back                   |
+| One     | Moves the cursor to it and runs the action        | Moves the cursor to it                  |
+| Several | The matches keep their labels, so type one        | Moves the cursor to the first match     |
 
 Search needs element text, so it does not work with the `contour` strategy.
 
@@ -253,10 +266,10 @@ Enter and leave a mode with one key:
 
 ### Cycle through modes with one key
 
-Step through hints, recursive grid, grid and scroll with one key. Inside a
-mode, its `[<mode>.hotkeys]` binding wins over the global one, see
-[Resolution order](../concepts/bindings.md#which-binding-wins), so every
-mode in the cycle needs an entry.
+Step through hints, recursive grid, grid, bisect and scroll with one key.
+Inside a mode, its `[<mode>.hotkeys]` binding wins over the global one, see
+[Resolution order](../concepts/bindings.md#which-binding-wins), so every mode
+in the cycle needs an entry.
 
 ```toml
 [hotkeys]
@@ -269,15 +282,19 @@ mode in the cycle needs an entry.
 "Primary+Ctrl+F" = "grid"
 
 [grid.hotkeys]
+"Primary+Ctrl+F" = "bisect"
+
+[bisect.hotkeys]
 "Primary+Ctrl+F" = "scroll"
 
 [scroll.hotkeys]
 "Primary+Ctrl+F" = "hints"            # wrap back to the start
 ```
 
-`Escape` still returns to idle. On macOS and Windows, you can set the default
-launchers `Primary+Shift+Space`, `Primary+Shift+G`, `Primary+Shift+C` and
-`Primary+Shift+S` to `"__disabled__"`.
+`Escape` still returns to idle. The `[hotkeys]` line replaces the default
+hints launcher. The other modes keep theirs, listed under
+[Global hotkeys](../reference/configuration.md#global-hotkeys), and setting one
+to `"__disabled__"` removes it.
 
 ### Switch grid layouts with one key
 

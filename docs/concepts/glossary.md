@@ -58,9 +58,18 @@ hints, grid, recursive grid, bisect, scroll or monitor select. You can also
 declare your own under [`[modes]`](../reference/configuration.md#modes). See
 [Using Neru](../guide/using-neru.md).
 
+**Mode command.** A step that opens a mode, written as the mode's name and its
+flags, such as `hints --action left_click`. You write the same text in a
+binding and after `neru` in a shell. See the
+[mode flag reference](../reference/cli.md#mode-flag-reference).
+
 **Mode flag.** An option on a mode command, such as `--action` in
 `hints --action left_click`. It means the same in a binding, in a shell and
 over IPC. See the [mode flag reference](../reference/cli.md#mode-flag-reference).
+
+**Option.** One setting you can write in `config.toml`, such as
+`hints.hint_characters`. Each option has one key, one default and one meaning.
+See the [configuration reference](../reference/configuration.md).
 
 **Overlay.** The transparent layer Neru draws hints, grids and indicators on.
 Clicks pass through it.
@@ -72,6 +81,10 @@ config. See [How the layers combine](../guide/configuring.md#how-the-layers-comb
 **Primary.** The main modifier of each platform: `Cmd` on macOS, `Ctrl` on
 Linux and Windows. Write `Primary` in a hotkey to share one config across
 platforms.
+
+**Probe.** A read-only question asked with `neru query`, such as which
+elements hints mode would label. Neru answers it without opening the mode. See
+[`neru query`](../reference/cli.md#neru-query).
 
 **Selection.** The point a mode has picked, such as a typed hint or a grid
 cell. Clicks and other actions aimed at a point run at the selection while a

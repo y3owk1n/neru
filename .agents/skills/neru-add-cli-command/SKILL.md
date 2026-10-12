@@ -32,6 +32,12 @@ wrong even when it compiles.
    command's `Short`/`Long`, not the output.
 6. **Docs**: update `docs/reference/cli.md`. It is the single home for CLI reference
    facts.
+7. **IPC reference**: a new IPC command gets a row in the Commands table of
+   `docs/reference/ipc.md`. `internal/architecture/ipc_reference_test.go`
+   fails while the table and the commands the daemon answers differ.
+8. **Schemas**: when a reply type changes, run `just genschema`.
+   `internal/architecture/ipc_schema_test.go` fails while
+   `schemas/ipc.schema.json` is out of date.
 
 ## Mode flags are different
 

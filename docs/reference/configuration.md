@@ -30,6 +30,24 @@ version, replace `main` with its release tag. Releases from before the schema
 have no copy of it, so an editor reports their URL as a schema it cannot
 load.
 
+## Validation
+
+Neru checks the file each time it loads it, at launch and on every reload.
+Each problem it finds is either refused or warned about.
+
+- **Refused.** A TOML syntax error, a wrong type, a malformed color, a value
+  out of range, or a conflict this page marks as refused. Neru drops the whole
+  file, not just the bad line. At launch it prints the error, shows an alert
+  where the platform has one, and exits. A reload keeps the config already
+  running, and [`on_config_reload`](#hooks) sees `NERU_OK=false`.
+- **Warned.** An unknown key, an option that does nothing on this platform, a
+  deprecated key, or a setting that loads but cannot take effect. The file
+  loads anyway.
+
+`neru config validate` prints both without touching the daemon. The daemon
+logs each warning when it loads the file. Why a problem lands in one tier or
+the other is in [ADR 0002](../adr/0002-severity-tiered-config-validation.md).
+
 ## Hotkeys
 
 The syntax and defaults of every hotkey table. When each table applies, and
@@ -84,13 +102,24 @@ see [Getting started](../guide/getting-started.md#bind-your-first-hotkey).
 | Section present, empty | All hotkeys disabled      |
 | Section has entries    | Merged on top of defaults |
 
+> [!WARNING]
+> An empty `[<mode>.hotkeys]` or `[modes.<name>.hotkeys]` also removes the
+> default `Escape` binding, so no key leaves that mode until you bind one.
+> [`neru idle`](cli.md#neru-idle) still exits it.
+
 Use `__disabled__` to remove one default:
 
 ```toml
 [hotkeys]
 "Primary+Shift+S" = "__disabled__"   # removes default scroll binding
-"Ctrl+Space"      = "hints"          # adds binding, other defaults unchanged
+"Ctrl+Space"      = "hints"          # moves hints off its default chord
 ```
+
+An entry whose only step opens a built-in mode moves that mode's launcher.
+Neru drops every default chord that opens the same mode, so in the example
+`Primary+Shift+Space` stops opening hints. Bind the default chord again to keep
+both. This holds with flags too, as in `"Ctrl+Space" = "hints --action
+left_click"`.
 
 Disabling a mode (`enabled = false`) also removes its default launcher hotkey,
 and `neru <mode>` then fails with [`ERR_MODE_DISABLED`](ipc.md#response-codes).
@@ -98,8 +127,17 @@ and `neru <mode>` then fails with [`ERR_MODE_DISABLED`](ipc.md#response-codes).
 ### Per-mode hotkeys
 
 `[<mode>.hotkeys]` follows the same [merging rules](#merging-behavior), and
-also accepts multi-key sequences such as `gg`. Every built-in mode except
-`monitor_select` ships these, plus the defaults listed in its own section:
+also accepts two-letter sequences such as `gg`. Neru refuses the file when:
+
+- A single key shadows a sequence that starts with it, such as `"g"` in
+  `[scroll.hotkeys]` beside the default `"gg"`. The single key always matches
+  first, so the sequence could never fire. Disable one of them.
+- Two keys you write name the same chord once aliases are resolved, such as
+  `"Ctrl+Space"` and `"Control+Space"`. `[hotkeys]` refuses this too. A key
+  that matches a default this way replaces the default.
+
+Every built-in mode except `monitor_select` ships these, plus the defaults
+listed in its own section:
 
 ```toml
 "Escape"    = "idle"
@@ -126,6 +164,16 @@ also accepts multi-key sequences such as `gg`. Every built-in mode except
 bundle_id = "com.brave.Browser"
 hotkeys = { "Return" = "action left_click", "Shift+L" = "__disabled__" }
 ```
+
+An entry applies while its app is focused. Its `hotkeys` merge over the
+mode's table, and each other field it sets replaces the mode's value. A field
+left out, or a string left empty, keeps the mode's value. The bool fields have
+a third state, unset, so an entry can write `ignore_clickable_check = false`
+to turn off for one app what `[hints]` turns on. Neru refuses two entries in
+one mode with the same `bundle_id`, compared regardless of case. It also
+refuses a field that belongs to another mode, such as `scroll_step` under
+`[[hints.app_configs]]` or `additional_clickable_roles` under
+`[[grid.app_configs]]`.
 
 #### Per-app global hotkey overrides
 
@@ -226,7 +274,7 @@ indicator = "Window"
   [Which binding wins](../concepts/bindings.md#which-binding-wins), and
   unbound bare keys are swallowed.
 
-### Options
+### Declared mode options
 
 | Option      | Type   | Default                 | Description                                                                    |
 | ----------- | ------ | ----------------------- | ------------------------------------------------------------------------------ |
@@ -234,11 +282,12 @@ indicator = "Window"
 | `hotkeys`   | map    | `{ "Escape" = "idle" }` | The mode's [hotkeys](#per-mode-hotkeys), merged over the default               |
 
 The name is the table key: letters, digits, `_` and `-`, starting with a
-letter. Built-in mode names (`hints`, `grid`, `recursive_grid`, `scroll`,
-`monitor_select`, `idle`) and `mode` are refused. The indicator style comes
+letter. Neru refuses the built-in mode names (`hints`, `grid`,
+`recursive_grid`, `bisect`, `scroll`, `monitor_select`, `idle`) and `mode`. The
+indicator style comes
 from [`[mode_indicator.ui]`](#mode_indicator).
 
-### Per-app config
+### Declared mode per-app config
 
 `[[modes.<name>.app_configs]]` takes `bundle_id` and
 [`hotkeys`](#per-app-hotkey-overrides).
@@ -285,16 +334,28 @@ from a mode key such as `Shift+L` is an action, not a step that moves the
 target, so it does not run `on_select`.
 
 A hook runs for every binding. To run steps after one binding's selection
-only, give that binding [`--on-exit`](cli.md#mode-flag-reference). It runs
-once, after the action, and never on a cancel. Its `exec` steps see the
-variables `on_select` sets, listed below. `on_mode_exit` runs on every
-close. `--on-exit` and `on_select` both start after the selection, in no set
-order, so do not give both a step that opens a mode.
+only, give that binding [`--on-exit`](cli.md#mode-flag-reference). How the
+three compare:
+
+- `on_select` runs for every binding, once per step that moves the target.
+- `--on-exit` runs for one binding, once, after its action. It never runs on a
+  cancel. Its `exec` steps see the variables `on_select` sets, listed below.
+- `on_mode_exit` runs on every close, a cancel included.
+
+`--on-exit` and `on_select` both start after the selection, in no set order,
+so do not give both a step that opens a mode.
 
 `hints.on_mission_control_activated` and `hints.on_mission_control_deactivated`
 are deprecated and are removed in v2. Move their steps to the two keys here,
 which take the same values. Until then the `[hints]` keys still run, alongside
-these, and `neru config validate` warns about each one set.
+these. Both pairs need `hints.detect_mission_control = true`, and act
+differently when it is off:
+
+- The deprecated `[hints]` keys refuse the file.
+- The `[hooks]` keys load, and `neru config validate` warns that they never
+  run.
+
+With it on, `neru config validate` warns about each deprecated key set.
 
 ### What a hook's steps see
 
@@ -328,17 +389,17 @@ of running as a command.
 
 ### When a hook runs
 
-- After the change it reports, on a goroutine apart from key handling, so a
-  slow hook never delays a mode.
-- One hook runs once at a time. Hooks for different events can run together.
-- An event raised while its own hook is still running does not start that hook
-  again. This rule stops `on_mode_enter = "grid"` from looping, so it enters
-  grid once. The same rule skips a second event of the same kind that arrives
-  while the hook is busy. Use a hook to act on an event. It cannot keep another
-  program in step with every change.
-- Two hooks that keep triggering each other, such as
-  `on_mode_exit = "hints"` with `on_mode_enter = "idle"`, are not caught and
-  loop until the config changes.
+- A slow hook never delays a mode. It runs after the change it reports, apart
+  from key handling.
+- A busy hook misses events. An event raised while its own hook is still
+  running does not start that hook again, so a hook cannot keep another
+  program in step with every change. Use it to act on an event. The same rule
+  stops `on_mode_enter = "grid"` from looping, so it enters grid once.
+- Each hook runs once at a time, and hooks for different events can run
+  together.
+- Two hooks that keep triggering each other loop until the config changes,
+  and Neru does not catch it. An example is `on_mode_exit = "hints"` with
+  `on_mode_enter = "idle"`.
 - While Neru is stopped, the only hooks that run are `on_enable`, `on_disable`,
   `on_ready`, `on_quit`, and `on_mode_exit` for the mode the pause closed.
   Their `exec` steps run even though Neru is stopped. Neru refuses their other
@@ -366,8 +427,11 @@ passthrough_unbounded_keys = true
 | `passthrough_unbounded_keys`           | bool   | `false`       | Let unbound Cmd/Ctrl/Alt shortcuts pass through                                             |
 | `should_exit_after_passthrough`        | bool   | `false`       | Exit mode after a passthrough shortcut                                                      |
 | `passthrough_unbounded_keys_blacklist` | array  | `[]`          | Shortcuts to keep consumed when passthrough is on                                           |
-| `exec_shell`                           | string | `"/bin/bash"` | Shell binary used for `exec` hotkey commands                                                |
-| `exec_shell_args`                      | array  | `["-lc"]`     | Shell arguments, with the command string appended last                                      |
+| `exec_shell`                           | string | `"/bin/bash"` | Shell binary used for `exec` hotkey commands. Windows default below                         |
+| `exec_shell_args`                      | array  | `["-lc"]`     | Shell arguments, with the command string appended last. Windows default below               |
+
+On Windows, `exec_shell` defaults to `%SystemRoot%\System32\cmd.exe`
+(usually `C:\Windows\System32\cmd.exe`) and `exec_shell_args` to `["/c"]`.
 
 `kb_layout_to_use` decides which physical key a binding answers. Empty picks a
 layout with Latin letters, so bindings stay put while you type in another
@@ -414,7 +478,7 @@ accent = "#6E82D6"
 Every color option takes hex with optional alpha. The alpha byte is
 `round(opacity * 255)`, e.g. `F2` for 95% and `B3` for 70%. A color is a string,
 or a table with `light` and `dark` keys such as
-`{ light = "#FF0000AA", dark = "#00FF00AA" }`. A color you leave out is derived
+`{ light = "#AAFF0000", dark = "#AA00FF00" }`. A color you leave out is derived
 from `[theme]` and follows the system appearance.
 
 | Format      | Example     | Alpha | Notes              |
@@ -456,14 +520,14 @@ strategy = "vision"
 font_size = 12
 ```
 
-### Options
+### Hints options
 
 | Option                             | Type         | Default                  | Description                                                                                                                                                |
 | ---------------------------------- | ------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `enabled`                          | bool         | `true`                   | Turn hints mode on or off                                                                                                                                  |
 | `strategy`                         | string       | `"axtree"`               | Element detection: `"axtree"`, `"vision"` or `"contour"`. Overridable per app                                                                              |
 | `capture_scope`                    | string       | `"window"`               | Region `vision` and `contour` scan: `"window"` (the screen if nothing is focused) or `"screen"`. Overridable per app and with `neru hints --capture-scope` |
-| `hint_characters`                  | string       | `"asdfghjkl"`            | Characters used for labels                                                                                                                                 |
+| `hint_characters`                  | string       | `"asdfghjkl"`            | Characters used for labels. Refused if empty, shorter than 2, non-ASCII, or with a repeated character |
 | `label_direction`                  | string       | `"normal"`               | `"normal"` or `"reverse"`, see [Choosing a label direction](#choosing-a-label-direction). Overridable per app and with `neru hints --label-direction`      |
 | `max_depth`                        | int          | `50`                     | Deepest accessibility tree level to read, `0` for unlimited                                                                                                               |
 | `include_menubar_hints`            | bool         | `false`                  | Show hints on menubar items                                                                                                                                |
@@ -472,13 +536,29 @@ font_size = 12
 | `include_stage_manager_hints`      | bool         | `false`                  | Show hints in Stage Manager                                                                                                                                |
 | `include_pip_hints`                | bool         | `false`                  | Show hints on Picture in Picture controls                                                                                                                  |
 | `include_screen_capture_hints`     | bool         | `false`                  | Show hints on Screen Capture controls                                                                                                                      |
-| `detect_mission_control`           | bool         | `false`                  | Detect Mission Control, so hints target its windows and desktops instead of the frontmost window                                                          |
-| `on_mission_control_activated`     | string/array | none                     | Deprecated, removed in v2. Use [`hooks.on_mission_control_activated`](#hooks)                                                                              |
-| `on_mission_control_deactivated`   | string/array | none                     | Deprecated, removed in v2. Use [`hooks.on_mission_control_deactivated`](#hooks)                                                                            |
+| `detect_mission_control`           | bool         | `false`                  | Detect Mission Control, so hints target its windows and desktops instead of the frontmost window. Refused without `include_dock_hints = true`. Needs a daemon restart |
+| `on_mission_control_activated`     | string/array | none                     | Deprecated, removed in v2. Use [`hooks.on_mission_control_activated`](#hooks). Refused without `detect_mission_control = true`                                                                              |
+| `on_mission_control_deactivated`   | string/array | none                     | Deprecated, removed in v2. Use [`hooks.on_mission_control_deactivated`](#hooks). Refused without `detect_mission_control = true`                                                                            |
 | `additional_menubar_hints_targets` | array        | macOS-specific defaults  | Extra menubar bundle IDs                                                                                                                                   |
 | `clickable_roles`                  | array        | shared semantic defaults | Roles that generate hints. See [Clickable roles](#clickable-roles)                                                                                         |
 | `ignore_clickable_check`           | bool         | `false`                  | Skip clickability heuristic                                                                                                                                |
 | `visible_check_enabled`            | bool         | `false`                  | Enable visibility hit-test (slower but fewer noisy hints)                                                                                                  |
+
+#### Choosing a label direction
+
+`label_direction` sets how multi-character labels are enumerated once
+single-character labels run out. With `asdf` and 5 elements:
+
+| Direction          | Sequence         | Notes                                                                              |
+| ------------------ | ---------------- | ---------------------------------------------------------------------------------- |
+| `normal` (default) | `A S D FA FS`    | Keeps 3 single-char labels, then expands the 4th alphabet slot into 2-char labels. |
+| `reverse`          | `AA SA DA FA AS` | Fills the 2-char tier uniformly from the first alphabet character.                 |
+
+Use `normal` for most workflows and for short alphabets, since it needs fewer
+keystrokes. Use `reverse` when many hints cluster in one region or you
+regularly need more than `len(hint_characters)` hints, since it spreads first
+characters evenly. Set it per app in the [per-app config](#hints-per-app-config)
+or per activation with [`neru hints --label-direction`](cli.md#neru-hints).
 
 ### Clickable roles
 
@@ -556,7 +636,7 @@ role, and an unknown one is a config error:
 hints.clickable_roles: unknown role "AXButton": use "button"
 ```
 
-### UI
+### Hints UI
 
 | Option               | Type   | Default    | Description                                                                                                                   |
 | -------------------- | ------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -580,13 +660,13 @@ Element outlines for dense layouts, in `[hints.boundary_highlight]`.
 | ------------------ | ----- | ------- | ------------------------------ |
 | `enabled`          | bool  | `false` | Draw element boundaries        |
 | `border_width`     | int   | `1`     | Stroke width in pixels         |
-| `border_radius`    | int   | `-1`    | Corner radius (-1 = auto pill) |
+| `border_radius`    | int   | `-1`    | Corner radius, `-1` for an automatic pill |
 | `background_color` | color | derived | Element fill color             |
 | `border_color`     | color | derived | Element stroke color           |
 
 ### Search input UI
 
-`[hints.search_input_ui]` also takes the [hints UI](#ui) options except
+`[hints.search_input_ui]` also takes the [hints UI](#hints-ui) options except
 `placement` and `matched_text_color`.
 
 | Option     | Type   | Default           | Description                                                                                             |
@@ -599,8 +679,10 @@ Element outlines for dense layouts, in `[hints.boundary_highlight]`.
 ### Vision
 
 `[hints.vision]` is read only when the global or per-app `strategy` is
-`"vision"`. The rectangle and confidence options do nothing on some platforms,
-see [Platform support per word](platform-support.md#platform-support-per-word).
+`"vision"`. Turning off both `detect_text` and `detect_rectangles` refuses the
+file, whatever the strategy. The rectangle and confidence options do nothing on
+some platforms, see
+[Platform support per word](platform-support.md#platform-support-per-word).
 
 | Option                             | Type  | Default | Description                                                                   |
 | ---------------------------------- | ----- | ------- | ----------------------------------------------------------------------------- |
@@ -647,23 +729,7 @@ notification cards and toasts.
 | `square_icon_size`    | float | `40.0`  | A roughly square parent smaller than this keeps its box and drops its inner detail      |
 | `square_icon_slack`   | float | `5.0`   | How far from square (width minus height) that parent may be                             |
 
-### Choosing a label direction
-
-`label_direction` sets how multi-character labels are enumerated once
-single-character labels run out. With `asdf` and 5 elements:
-
-| Direction          | Sequence         | Notes                                                                              |
-| ------------------ | ---------------- | ---------------------------------------------------------------------------------- |
-| `normal` (default) | `A S D FA FS`    | Keeps 3 single-char labels, then expands the 4th alphabet slot into 2-char labels. |
-| `reverse`          | `AA SA DA FA AS` | Fills the 2-char tier uniformly from the first alphabet character.                 |
-
-Use `normal` for most workflows and for short alphabets, since it needs fewer
-keystrokes. Use `reverse` when many hints cluster in one region or you
-regularly need more than `len(hint_characters)` hints, since it spreads first
-characters evenly. Set it per app in the [per-app config](#per-app-config-1)
-or per activation with [`neru hints --label-direction`](cli.md#neru-hints).
-
-### Default hotkeys
+### Hints default hotkeys
 
 ```toml
 [hints.hotkeys]  # plus the shared defaults under Per-mode hotkeys
@@ -673,9 +739,10 @@ or per activation with [`neru hints --label-direction`](cli.md#neru-hints).
 "Shift+Tab" = "action cycle_hint --backward"
 ```
 
-### Per-app config
+### Hints per-app config
 
-An empty string falls back to the global value.
+An empty string or an unset bool keeps the `[hints]` value. How an entry
+applies is under [Per-app hotkey overrides](#per-app-hotkey-overrides).
 
 | Field                        | Type   | Description                                                                                  |
 | ---------------------------- | ------ | -------------------------------------------------------------------------------------------- |
@@ -699,7 +766,7 @@ characters = "asdfghjkl"
 capture_scope = "window"
 ```
 
-### Options
+### Grid options
 
 | Option              | Type   | Default                       | Description                                                                                                       |
 | ------------------- | ------ | ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -713,21 +780,24 @@ capture_scope = "window"
 | `live_match_update` | bool   | `true`                        | Highlight cells as you type                                                                                       |
 | `hide_unmatched`    | bool   | `true`                        | Hide non-matching cells                                                                                           |
 | `prewarm_enabled`   | bool   | `true`                        | Pre-compute grid on startup                                                                                       |
-| `enable_gc`         | bool   | `false`                       | Periodic memory cleanup                                                                                           |
+| `enable_gc`         | bool   | `false`                       | Periodic memory cleanup. Needs a daemon restart |
 
-`neru config validate` warns, without refusing the file, when `characters`,
-`row_labels` or `col_labels` has a single character, a repeat (case-folded, so
-`aA` repeats), whitespace or a control character, or when `row_labels` or
-`col_labels` has non-ASCII.
+Neru checks the label sets at three levels.
 
-- A repeat is dropped, in every set including `sublayer_keys`.
-- A `characters` with fewer than two distinct characters falls back to `a-z`.
-- Short row or column labels cap the grid to the cells they can name.
-- An empty label set is checked and reported as `characters`.
-- `sublayer_keys` is not checked for these faults. A 9-character set with a
-  repeat leaves one subgrid cell unlabeled.
+- **Refused.** An empty `characters`, non-ASCII in `characters` or
+  `sublayer_keys`, or a `max_label_length` outside 2 to 4.
+- **Warned.** `neru config validate` warns, and the file loads, when
+  `characters`, `row_labels` or `col_labels` has a single character, a repeat
+  (case-folded, so `aA` repeats), whitespace or a control character, or when
+  `row_labels` or `col_labels` has non-ASCII. The grid then drops each repeat,
+  and a `characters` with fewer than two distinct characters falls back to
+  `a-z`. Short row or column labels cap the grid to the cells they can name.
+  Neru infers an empty `row_labels` or `col_labels` from `characters`, so it
+  reports their faults as `characters`.
+- **Silent.** `sublayer_keys` gets no warning. The grid drops its repeats, so a
+  9-character set with a repeat leaves one subgrid cell unlabeled.
 
-### UI
+### Grid UI
 
 | Option                     | Type   | Default | Description                                                                                                                |
 | -------------------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -741,7 +811,7 @@ capture_scope = "window"
 | `matched_border_color`     | color  | derived | Matched cell border                                                                                                        |
 | `border_color`             | color  | derived | Default cell border                                                                                                        |
 
-### Default hotkeys
+### Grid default hotkeys
 
 ```toml
 [grid.hotkeys]  # plus the shared defaults under Per-mode hotkeys
@@ -750,7 +820,7 @@ capture_scope = "window"
 "Backspace" = "action backspace"
 ```
 
-### Per-app config
+### Grid per-app config
 
 | Field           | Type   | Description                                           |
 | --------------- | ------ | ----------------------------------------------------- |
@@ -770,30 +840,33 @@ grid_rows = 2
 keys = "uijk"   # one key per cell
 ```
 
-### Options
+### Recursive grid options
 
 | Option            | Type   | Default       | Description                                                                                                     |
 | ----------------- | ------ | ------------- | --------------------------------------------------------------------------------------------------------------- |
 | `enabled`         | bool   | `true`        | Turn the mode on or off                                                                                             |
 | `capture_scope`   | string | `"screen"`    | Region the first level covers: `screen` or `window` (the screen if nothing is focused). `--capture-scope` overrides it |
-| `grid_cols`       | int    | `3`           | Columns (≥ 1, total cells ≥ 2)                                                                                  |
-| `grid_rows`       | int    | `3`           | Rows (≥ 1, total cells ≥ 2)                                                                                     |
-| `keys`            | string | `"rtyfghvbn"` | Cell selection keys (must be `grid_cols × grid_rows` characters)                                                |
+| `grid_cols`       | int    | `3`           | Columns, at least 1. Columns times rows must be at least 2 |
+| `grid_rows`       | int    | `3`           | Rows, at least 1. Columns times rows must be at least 2 |
+| `keys`            | string | `"rtyfghvbn"` | Cell selection keys, exactly `grid_cols` times `grid_rows` characters |
 | `min_size_width`  | int    | `1`           | Minimum cell width, in apparent pixels (scaled with the display on Windows and X11)                             |
 | `min_size_height` | int    | `1`           | Minimum cell height, in apparent pixels (scaled with the display on Windows and X11)                            |
-| `max_depth`       | int    | `10`          | Maximum recursion levels (1 to 20)                                                                              |
+| `max_depth`       | int    | `10`          | Maximum recursion levels, at least 1 |
 | `layers`          | array  | `[]`          | Per-depth layout overrides (see below)                                                                          |
 
 #### Layers
 
-Each entry overrides the grid dimensions and keys at one depth:
+Each entry overrides the grid dimensions and keys at one depth. A depth with
+no entry uses the top-level `grid_cols`, `grid_rows` and `keys`. An entry must
+set all three, under the same rules as the top-level ones, or Neru refuses the
+file.
 
-| Field       | Type   | Default        | Description                 |
-| ----------- | ------ | -------------- | --------------------------- |
-| `depth`     | int    | required       | Depth to override (0-based) |
-| `grid_cols` | int    | same as parent | Columns at this depth       |
-| `grid_rows` | int    | same as parent | Rows at this depth          |
-| `keys`      | string | same as parent | Selection keys at this depth |
+| Field       | Type   | Default  | Description                              |
+| ----------- | ------ | -------- | ---------------------------------------- |
+| `depth`     | int    | `0`      | Depth to override, counted from 0        |
+| `grid_cols` | int    | required | Columns at this depth                    |
+| `grid_rows` | int    | required | Rows at this depth                       |
+| `keys`      | string | required | Selection keys, one per cell at this depth |
 
 ```toml
 [recursive_grid]
@@ -803,14 +876,14 @@ layers = [
 ]
 ```
 
-### Animation
+### Recursive grid animation
 
 | Option        | Type | Default | Description                                     |
 | ------------- | ---- | ------- | ----------------------------------------------- |
 | `enabled`     | bool | `true`  | Native depth transitions on supported platforms |
 | `duration_ms` | int  | `50`    | Transition duration, in ms             |
 
-### UI
+### Recursive grid UI
 
 Labels shrink to fit narrowing cells, keeping each cell at least
 `label_autohide_multiplier` times the font size, and hide below
@@ -841,12 +914,16 @@ own size and multiplier.
 | `sub_key_preview_text_color`          | color  | derived | Sub-key preview text color                                                   |
 | `sub_key_preview_label_char`          | string | `""`    | Override sub-key labels with a single character (e.g. `·`), empty = use key  |
 
-### Default hotkeys
+### Recursive grid default hotkeys
 
-The same as [grid](#grid): `` ` `` toggles cursor follow, `Space` resets, and
-`Backspace` steps back.
+```toml
+[recursive_grid.hotkeys]  # plus the shared defaults under Per-mode hotkeys
+"`"         = "toggle-cursor-follow-selection"
+"Space"     = "action reset"
+"Backspace" = "action backspace"
+```
 
-### Per-app config
+### Recursive grid per-app config
 
 `[[recursive_grid.app_configs]]` takes `bundle_id`, `capture_scope` and
 [`hotkeys`](#per-app-hotkey-overrides), as in [grid](#grid).
@@ -861,14 +938,14 @@ Settings for bisect mode. How the mode behaves is in
 capture_scope = "window"
 ```
 
-### Options
+### Bisect options
 
 | Option          | Type   | Default    | Description                                                                                                        |
 | --------------- | ------ | ---------- | ------------------------------------------------------------------------------------------------------------------ |
 | `enabled`       | bool   | `true`     | Turn the mode on or off                                                                                                |
 | `capture_scope` | string | `"screen"` | Region the session starts from: `screen` or `window` (the screen if nothing is focused). `--capture-scope` overrides it |
 
-### Default hotkeys
+### Bisect default hotkeys
 
 The quadrant cells show whichever single-character keys are bound to the
 quadrant cuts.
@@ -888,21 +965,21 @@ quadrant cuts.
 "Backspace" = "action backspace"
 ```
 
-### Animation
+### Bisect animation
 
 | Option        | Type | Default | Description                                           |
 | ------------- | ---- | ------- | ----------------------------------------------------- |
 | `enabled`     | bool | `true`  | Native transition between cuts on supported platforms |
 | `duration_ms` | int  | `50`    | Transition duration, in ms                   |
 
-### UI
+### Bisect UI
 
-The same options and defaults as [`[recursive_grid.ui]`](#ui-2). `label_char`
+The same options and defaults as [`[recursive_grid.ui]`](#recursive-grid-ui). `label_char`
 overrides the four quadrant labels, and `label_autohide_multiplier` and
 `min_font_size` shrink and then hide them. The `sub_key_preview*` options are
 accepted and do nothing.
 
-### Per-app config
+### Bisect per-app config
 
 `[[bisect.app_configs]]` takes `bundle_id`, `capture_scope` and
 [`hotkeys`](#per-app-hotkey-overrides), as in [grid](#grid).
@@ -917,7 +994,7 @@ scroll_step = 80
 invert_scroll = true
 ```
 
-### Options
+### Scroll options
 
 | Option             | Type | Default   | Description                                                                       |
 | ------------------ | ---- | --------- | --------------------------------------------------------------------------------- |
@@ -926,7 +1003,7 @@ invert_scroll = true
 | `scroll_step_full` | int  | `1000000` | Pixels for top/bottom jump actions                                                |
 | `invert_scroll`    | bool | `false`   | Invert scroll direction (for tools like Mos that reverse synthetic scroll events) |
 
-### Default hotkeys
+### Scroll default hotkeys
 
 ```toml
 [scroll.hotkeys]  # plus the shared defaults under Per-mode hotkeys
@@ -942,7 +1019,7 @@ invert_scroll = true
 "PageDown"= "action page_down"
 ```
 
-### Per-app config
+### Scroll per-app config
 
 | Field              | Type   | Description                                           |
 | ------------------ | ------ | ----------------------------------------------------- |
@@ -968,28 +1045,34 @@ characters = "asdf"
 | `enabled`    | bool   | `false`       | Enable interactive monitor picking |
 | `characters` | string | `"123456789"` | Characters used for monitor labels |
 
-### UI
+### Monitor select UI
 
-| Key                    | Default        | Description                                                                                                         |
-| ---------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `font_size`            | `96`           | Largest badge label size. It shrinks to fit the badge, which is capped at 80% of the monitor                       |
-| `font_family`          | `""` (sans)    | Badge label font family. Accepts [generic aliases](#fonts), and empty means sans     |
-| `subtitle_font_size`   | `18`           | Largest monitor name size. It shrinks so a long name fits the badge                                                 |
-| `subtitle_font_family` | `""` (label's) | Subtitle font family, defaulting to the label's. Accepts [generic aliases](#fonts)  |
-| `border_radius`        | `-1` (auto)    | Badge corner radius                                                                                                 |
-| `padding_x`            | `-1` (auto)    | Horizontal padding                                                                                                  |
-| `padding_y`            | `-1` (auto)    | Vertical padding                                                                                                    |
-| `border_width`         | `1`            | Badge border width                                                                                                  |
-| `background_color`     | derived        | Badge fill color                                                                                                    |
-| `text_color`           | derived        | Label text color                                                                                                    |
-| `matched_text_color`   | derived        | Partially-typed label text color                                                                                    |
-| `border_color`         | derived        | Badge border color                                                                                                  |
-| `backdrop_color`       | `""` (none)    | Per-monitor overlay backdrop tint                                                                                   |
-| `subtitle_text_color`  | derived        | Subtitle text color                                                                                                 |
+| Option                 | Type   | Default | Description                                                                                  |
+| ---------------------- | ------ | ------- | -------------------------------------------------------------------------------------------- |
+| `font_size`            | int    | `96`    | Largest badge label size. It shrinks to fit the badge, which is capped at 80% of the monitor |
+| `font_family`          | string | `""`    | Badge label font family. Accepts [generic aliases](#fonts), and empty means sans             |
+| `subtitle_font_size`   | int    | `18`    | Largest monitor name size. It shrinks so a long name fits the badge                          |
+| `subtitle_font_family` | string | `""`    | Subtitle font family. Accepts [generic aliases](#fonts), and empty uses the label's          |
+| `border_radius`        | int    | `-1`    | Badge corner radius, `-1` for automatic                                                      |
+| `padding_x`            | int    | `-1`    | Horizontal padding, `-1` for automatic                                                       |
+| `padding_y`            | int    | `-1`    | Vertical padding, `-1` for automatic                                                         |
+| `border_width`         | int    | `1`     | Badge border width                                                                           |
+| `background_color`     | color  | derived | Badge fill color                                                                             |
+| `text_color`           | color  | derived | Label text color                                                                             |
+| `matched_text_color`   | color  | derived | Partially-typed label text color                                                             |
+| `border_color`         | color  | derived | Badge border color                                                                           |
+| `backdrop_color`       | color  | derived | Per-monitor overlay backdrop tint, black at 20% opacity in light and 40% in dark             |
+| `subtitle_text_color`  | color  | derived | Subtitle text color                                                                          |
 
-### Hotkeys
+### Monitor select default hotkeys
 
-`[monitor_select.hotkeys]` defaults to `"Escape" = "idle"`.
+`monitor_select` does not ship the shared defaults under
+[Per-mode hotkeys](#per-mode-hotkeys), only this one:
+
+```toml
+[monitor_select.hotkeys]
+"Escape" = "idle"
+```
 
 ## [virtual_pointer]
 
@@ -1004,7 +1087,7 @@ char = "+"
 font_size = 12
 ```
 
-### UI
+### Virtual pointer UI
 
 | Option        | Type   | Default | Description                                                                                                                |
 | ------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -1035,7 +1118,7 @@ shape = "square"
 `actions` accepts any mouse button action from the
 [action names](cli.md#action-names) that a mode `--action` accepts.
 
-### UI
+### Mouse action indicator UI
 
 | Option             | Type   | Default    | Description          |
 | ------------------ | ------ | ---------- | -------------------- |
@@ -1045,7 +1128,7 @@ shape = "square"
 | `border_color`     | color  | derived    | Stroke color         |
 | `shape`            | string | `"circle"` | `circle` or `square` |
 
-### Animation
+### Mouse action indicator animation
 
 | Option          | Type   | Default      | Description                                    |
 | --------------- | ------ | ------------ | ---------------------------------------------- |
@@ -1081,7 +1164,7 @@ default, and the default `text` is the mode's name in title case, e.g.
 | `text_color`       | color  | derived        | Override text color               |
 | `border_color`     | color  | derived        | Override border color             |
 
-### UI
+### Mode indicator UI
 
 | Option               | Type   | Default | Description                                                                                                                |
 | -------------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -1111,10 +1194,10 @@ tap_max_duration = 200
 | `enabled`          | bool | `true`  | Enable sticky modifiers                             |
 | `tap_max_duration` | int  | `300`   | Longest press that counts as a tap, in ms. `0` always toggles |
 
-### UI
+### Sticky modifiers UI
 
 `[sticky_modifiers.ui]` takes the same options and defaults as
-[`[mode_indicator.ui]`](#mode_indicator), except `indicator_x_offset` defaults
+[`[mode_indicator.ui]`](#mode-indicator-ui), except `indicator_x_offset` defaults
 to `-40` (left of the cursor).
 
 On Linux the indicator draws `❖⇧⌥⌃`. If they show as boxes, set `font_family`
@@ -1249,6 +1332,9 @@ disable_file_logging = false
 | `max_file_size`        | int    | `10`     | MB before the log file is rotated                                           |
 | `max_backups`          | int    | `5`      | Rotated log files to keep                                                   |
 | `max_age`              | int    | `30`     | Days to keep rotated log files                                              |
+
+A change to any `[logging]` option needs a daemon restart, since
+`neru config reload` keeps the logger as is.
 
 `info` covers daemon start (with the config path) and stop, config reloads,
 and mode activation and exit. `warn` marks something Neru worked around, and `error` a

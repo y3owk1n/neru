@@ -88,13 +88,16 @@ neru = { ref = "github:y3owk1n/neru", service = true }
 - **macOS:** oku copies `Neru.app` to `~/Applications`, and `neru` on your
   `PATH` runs that copy, so the CLI and the daemon share its Accessibility and
   Screen Recording permissions. macOS may ask for them again after an update.
-- **Login service:** `--service` registers the daemon with launchd on macOS
-  and Task Scheduler on Windows, and `oku service` controls it. On Linux oku
-  has no service, because the daemon needs the graphical session, so use
-  [`neru services install`](#login-service). The unit it writes points at the
-  build in oku's store, so after `oku update neru` run `neru services uninstall` and
-  `neru services install` again. Use one of the two, not both, since
-  `neru services install` does not see oku's service.
+- **Login service on macOS and Windows:** `--service` registers the daemon
+  with launchd on macOS and Task Scheduler on Windows. `oku service` controls
+  it.
+- **Login service on Linux:** oku has no service there, because the daemon
+  needs the graphical session. Use [`neru services install`](#login-service)
+  instead.
+- **After `oku update neru` on Linux:** the unit points at the build in oku's
+  store, so run `neru services uninstall` and `neru services install` again.
+- **One service only:** use oku's service or `neru services install`, not
+  both. `neru services install` does not see oku's service.
 - **From source:** `oku add -g github:y3owk1n/neru --from-source` builds the
   release tag with Go, which oku installs, and writes `from_source = true` to
   your list so every update builds too. A Linux machine with musl libc has no
@@ -175,10 +178,11 @@ Service options per module:
 | home-manager | `launchd.enable`, `launchd.keepAlive` on macOS. `systemd.enable` (`true`), `systemd.restart`, `systemd.restartSec` on Linux | Same as above, and writes `~/.config/neru/config.toml` |
 
 > [!WARNING]
-> With no config set, the modules use `configs/default-config.toml`, which
-> binds `Primary+Shift+...` hotkeys. On Linux `Primary` is `Ctrl`, so
-> `Ctrl+Shift+C` shadows your terminal's copy. On Linux, set your own
-> `[hotkeys]`, or an empty table to leave binding to your compositor.
+> With no config set, the modules use `configs/default-config.toml` as is,
+> which binds `Primary+Shift+...` hotkeys even on Linux, where `Primary` is
+> `Ctrl` and `Ctrl+Shift+C` shadows your terminal's copy. On Linux, set your
+> own `[hotkeys]`, or an empty table to leave binding to your compositor. See
+> [Bind your first hotkey](getting-started.md#bind-your-first-hotkey).
 
 ### Nix notes
 
@@ -269,9 +273,7 @@ The install script offers this. To add it later:
 neru services install
 ```
 
-This registers a launchd agent on macOS, a systemd user unit on Linux, or a
-Task Scheduler task on Windows. It refuses when Homebrew, Nix or another
-package manager manages the service. See
+What it registers on each platform, and when it refuses, is under
 [`neru services`](../reference/cli.md#neru-services).
 
 ## Set up with an agent
@@ -375,9 +377,7 @@ rm -rf ~/.config/neru ~/Library/Application\ Support/neru ~/Library/Logs/neru
 Linux:
 
 ```bash
-systemctl --user disable --now neru.service
-rm -f ~/.config/systemd/user/neru.service
-systemctl --user daemon-reload
+neru services uninstall
 rm -f ~/.local/bin/neru
 rm -f ~/.local/share/bash-completion/completions/neru ~/.zsh/completions/_neru \
       ~/.config/fish/completions/neru.fish
@@ -387,6 +387,9 @@ rm -rf ~/.config/neru ~/.local/share/neru ~/.local/state/neru
 # only if nothing else needs it
 sudo gpasswd -d "$USER" input
 ```
+
+Where the systemd unit lives, if you remove it by hand, is in
+[Systemd user service](linux.md#systemd-user-service).
 
 Windows:
 

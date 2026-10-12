@@ -132,12 +132,15 @@ that needs one is matched best-effort from the app_id.
 **App watcher.** On Linux and Windows it reports activation and deactivation
 only. Launch, terminate and Mission Control events are macOS-only. See
 [App identity across platforms](../reference/configuration.md#app-identity-across-platforms-bundle_id).
-On macOS, Neru detects Mission Control from the Dock's accessibility tree. It
-checks once a second and on every Space change while
-`hints.detect_mission_control` is on. Mission Control is up while the Dock has
-a child group with the identifier `mc`, which App Expose, Show Desktop and the
-Apps launcher never add. The window list cannot tell, because the Dock keeps a
-full-display window on screen whenever the Dock itself is visible.
+
+On macOS, Neru treats Mission Control as up while the Dock's accessibility tree
+has a child group with the identifier `mc`. It checks once a second and on
+every Space change while `hints.detect_mission_control` is on.
+
+The Dock's tree is the signal because App Expose, Show Desktop and the Apps
+launcher never add that group. The window list cannot tell, because the Dock
+keeps a full-display window on screen whenever the Dock itself is visible.
+
 WindowManager draws Mission Control's windows and Spaces bar, so hints read its
 tree while Mission Control is up. WindowManager lists the windows of every
 desktop, so a thumbnail counts only while its window, named by an undocumented

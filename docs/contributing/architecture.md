@@ -13,7 +13,11 @@ dial a Unix domain socket or a Windows named pipe. The endpoint lookup is in
 `internal/ipcendpoint`, the server and the CLI's client in
 `internal/adapter/ipc`, and the command handlers in `internal/app/ipcctrl`.
 `client` is the public Go client, and it reaches the endpoint through the
-same lookup.
+same lookup. It may import only the standard library, `internal/derrors`,
+`internal/ipcendpoint` and the Windows pipe libraries, which
+[client_package_test.go](../../internal/architecture/client_package_test.go)
+pins. The wire protocol carries a protocol number and breaks only at a major release
+([ADR 0015](../adr/0015-the-wire-protocol-breaks-only-at-a-major.md)).
 
 The endpoint is scoped to one user, in where it lives and in what the daemon
 checks before serving a connection. Its paths are in
@@ -142,17 +146,27 @@ Follow one event from the OS to the user-visible action:
 Input follows the path in [Codebase navigation guide](#codebase-navigation-guide):
 event tap, handler, active mode, service, adapter, native API.
 
-The daemon publishes what happens on the event bus (`internal/domain/event`).
-The mode handler publishes mode changes, sticky modifiers and monitor moves.
-The app state publishes the scroll-invert and screen-share switches, and the
-cursor slots publish their saves and restores. The app publishes focus, pause,
-reload, screen change, Mission Control, ready and quit events. The hook runner
-skips the quit event. Shutdown runs the quit hook itself, with a one-second
-bound, before it cancels the root context. Publishing never blocks, so it is safe
-under the handler's lock and on the macOS main queue. Each subscriber reads a
-channel of its own. The hook runner (`internal/app/hooks.go`) is one, and runs
-the `[hooks]` steps through the sequence executor on its own goroutines, apart
-from key handling.
+The daemon publishes what happens on the event bus (`internal/domain/event`):
+
+- **The mode handler** publishes mode changes, selects (each step that moves a
+  mode's target, in `internal/app/modes/mode_handlers.go`), sticky modifiers
+  and monitor moves.
+- **The app state** publishes the scroll-invert and screen-share switches.
+- **The cursor slots** publish their saves and restores.
+- **The app** publishes focus, pause, reload, screen change, Mission Control,
+  ready and quit events.
+
+Publishing never blocks, so it is safe under the handler's lock and on the
+macOS main queue.
+
+Each subscriber reads a channel of its own. The hook runner
+(`internal/app/hooks.go`) runs the `[hooks]` steps through the sequence
+executor on its own goroutines, apart from key handling. It skips the quit
+event. Shutdown runs the quit hook itself, with a one-second bound, before it
+cancels the root context. The IPC watch stream
+(`internal/app/ipcctrl/watch.go`) serves `neru watch`. It subscribes through
+`event.Bus.SubscribeTo`, so the bus offers it only the events its client named
+with `--event`, or every event when the client named none.
 
 ### Overlay rendering
 

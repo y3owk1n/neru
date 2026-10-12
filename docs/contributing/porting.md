@@ -79,11 +79,18 @@ rules:
 | `internal/{domain,ports,derrors,adapter}` never import `internal/app` | adapters implement ports, and no dependency points upward |
 | app code reaches adapters only through ports        | only the composition root knows which adapter exists |
 
-The third rule exempts shared vocabulary (`adapter/ipc`, `adapter/logger`, and
-`adapter/platform` for the factory and `Profile`), the composition root
-(`wiring.go`, `startup_phases.go`, `cmd/neru/main.go`), and Tier 2 dispatch
-files in the app layer. `knownLayeringExceptions` is **empty**, and a second
-test fails if an entry stops being a real violation.
+The third rule has three exemptions:
+
+| Exemption | What it covers |
+| --------- | -------------- |
+| shared vocabulary, which anything may import | `adapter/ipc`, `adapter/logger`, and `adapter/platform` for the factory and `Profile` |
+| the composition root | `wiring.go`, `startup_phases.go`, `cmd/neru/main.go` |
+| Tier 2 dispatch | build-tagged platform files in the app layer |
+
+A violation that cannot be fixed in the same change goes in
+`knownLayeringExceptions`, one entry per file with a reason, never to silence
+one. The list is **empty** and can only shrink. A second test fails when
+an entry stops being a real violation, so a fixed one has to be deleted.
 
 ## File Layout Rules
 
@@ -121,7 +128,8 @@ checks that every relative `#include` resolves. Never add empty platform files.
 
 ## Backend packages
 
-Every OS capability is a contract plus one directory per GOOS:
+A capability with a substantial implementation on every platform is a
+contract plus one directory per GOOS:
 
 ```
 adapter/accessibility/{ax, atspi, native/{darwin,linux,windows}}
@@ -132,9 +140,10 @@ adapter/overlay/{manager, darwin, linux, windows}
 ```
 
 The parent package keeps the port adapter and a small build-tagged factory,
-the only place that knows which implementation exists. A backend earns a
-package only when every platform has a substantial implementation. One real
-renderer plus small stubs stays as build-tagged files, as in
+the only place that knows which implementation exists. Every other capability
+stays one package of build-tagged files. That covers a small per-platform
+function, as in [`keyfeed`](../../internal/adapter/keyfeed/), and one real
+renderer plus small stubs, as in
 `overlay/render/{grid,hints,recursivegrid,modeindicator,stickyindicator}`.
 
 To split a capability, extract the methods the shell calls into a leaf
@@ -302,7 +311,7 @@ landing page. The homes:
 | Which platforms an option, mode flag or action does anything on | the `PlatformSupport()` declaration beside that vocabulary, then `just gensupportref` |
 | A config option, its default or its platform column | [configuration reference](../reference/configuration.md) |
 | The schema editors read for `config.toml` | the config structs, then `just genschema` |
-| The IPC schema | the reply types in `client` and the request and response in `internal/adapter/ipc`, then `just genschema` |
+| The IPC schema | the reply types in `client` and the request and response in `internal/adapter/ipc`, then `just genschema`. What counts as a breaking change is in [ADR 0015](../adr/0015-the-wire-protocol-breaks-only-at-a-major.md) |
 | A command or flag | [CLI reference](../reference/cli.md), with mode flags through `just genflagref` |
 | Install methods, prebuilt binaries, from source, uninstall | [installation](../guide/installation.md) |
 | First run, per-OS permissions, first hotkey | [getting started](../guide/getting-started.md) |
@@ -312,6 +321,7 @@ landing page. The homes:
 | A user-facing term's definition | [glossary](../concepts/glossary.md), worded to match `CONTEXT.md` |
 | A workflow recipe | [recipes](../guide/recipes.md) |
 | Scripting examples / the IPC wire format | [scripting](../guide/scripting.md) / [IPC protocol](../reference/ipc.md) |
+| Choosing a channel to build on Neru, its use cases, the Go client walkthrough | [build on Neru](../guide/integrations.md) |
 | Linux runtime libraries, input group, uinput, portals, systemd | [Linux guide](../guide/linux.md), kept desktop-agnostic |
 | Desktop-specific setup, protocol support, or a desktop workaround | [Linux desktops](../guide/linux-desktops.md) |
 | A symptom and its fix, log locations | [troubleshooting](../guide/troubleshooting.md) |

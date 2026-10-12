@@ -17,14 +17,12 @@ so the roadmap has no platform feature list.
 
 1. **Prove Linux and Windows in use.** A bug filed against either platform
    outranks any new capability. Windows has had little real-world use, so
-   expect bugs and report them, such as
-   [#1483](https://github.com/y3owk1n/neru/issues/1483): an injected scroll on
-   Windows carries modifiers the user is physically holding.
+   expect bugs and report them.
 2. **Reliability over features.** Startup, config reload and mode transitions
    fail loudly and recover cleanly. Regressions here are fixed before anything
    else ships.
 3. **More automated checks.** Anything that could break without an error gets
-   a test. Config reload and the platform contracts have the fewest so far.
+   a test.
 
 ## Open direction
 

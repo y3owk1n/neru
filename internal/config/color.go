@@ -8,7 +8,7 @@ import (
 )
 
 // ColorPattern is the regular expression a color value matches: #RGB,
-// #RRGGBB or #RRGGBBAA. SolidColorPattern is the same without the alpha form,
+// #RRGGBB or #AARRGGBB. SolidColorPattern is the same without the alpha form,
 // for the theme palette. The published config schema repeats both.
 const (
 	ColorPattern      = `^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$`

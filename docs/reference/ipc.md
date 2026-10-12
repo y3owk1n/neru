@@ -34,6 +34,10 @@ calls are safe.
 
 The daemon refuses a field it does not know with `ERR_INVALID_INPUT`.
 
+A request may be at most 64 KiB. The daemon refuses a larger one with
+`ERR_INVALID_INPUT`. It waits 30 seconds after you connect for the request,
+then drops the connection.
+
 ## Response
 
 ```json
@@ -120,38 +124,46 @@ flag, a flag the mode does not accept, an unusable value, or an unmet
 dependency such as `--on-exit` without `--action` with `ERR_INVALID_INPUT`. It
 ignores a leading repeat of the mode's own name in `args`.
 
-| Command | `args` | `data` |
-| ------- | ------ | ------ |
-| `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`, `monitor_select`, `idle` | The mode's flags, from the [mode flag reference](cli.md#mode-flag-reference). `--targets` carries its JSON as one entry, as `--targets={"hints":[…]}`. | none |
-| `mode` | The declared mode's name, then optionally `--toggle`. | none |
-| `action` | An [action name](cli.md#action-names), then its flags, as after `neru action`. | none |
-| `run` | One entry per step, as [`neru run`](cli.md#neru-run) takes them. `--stop-on-error` as an entry of its own sets the policy. | none |
-| `macro` | The macro's name, then its arguments. | none |
-| `ping` | none | none |
-| `start`, `stop` | none | none |
-| `status` | none | The object [`neru status --json`](cli.md#neru-status) prints. |
-| `health` | none | The checks [`neru doctor`](cli.md#neru-doctor) reports, as `version`, `config`, `mode`, `capabilities`, `profile` and `components`. A failed check makes the reply `ERR_ACTION_FAILED`, and the reply still carries `data`. |
-| `config` | None, or `set <key> <value>`, `reset <key>` or `reload`. `set` and `reset` take `--no-reload` last. | With no `args`, the running configuration under the key names `config.toml` uses, which [`neru config dump`](cli.md#neru-config-dump) prints. |
-| `config-set` | `<key> <value>`, then optionally `--no-reload`. | none |
-| `reload` | none | none |
-| `toggle-scroll-invert` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"inverted": bool}` |
-| `toggle-screen-share` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"hidden": bool}` |
-| `toggle-cursor-follow-selection` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"following": bool}` |
-| `query-displays`, `query-cursor`, `query-window`, `query-app`, `query-hints` | See [Querying](#querying). | See [Querying](#querying). |
-| `watch` | None, or `--event=<name>[,<name>...]`, repeatable, to send only those events. | A [stream](#streaming). |
+The last column says whether the command answers while Neru is stopped by
+`neru stop`. A command marked no gets `ERR_NOT_RUNNING` until `start`.
 
-While Neru is stopped, the daemon refuses with `ERR_NOT_RUNNING` everything
-except `ping`, `start`, `stop`, `idle`, `status`, `health`, `config`,
-`config-set`, `reload`, the toggles, `watch` and every query but
-`query-hints`.
+| Command | `args` | `data` | Answers while stopped |
+| ------- | ------ | ------ | --------------------- |
+| `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`, `monitor_select` | The mode's flags, from the [mode flag reference](cli.md#mode-flag-reference). `--targets` carries its JSON as one entry, as `--targets={"hints":[…]}`. `OK` means the daemon accepted the activation, as [What a mode command answers](cli.md#what-a-mode-command-answers) explains. A mode the config disables gets `ERR_MODE_DISABLED`. | none | no |
+| `idle` | none | none | yes |
+| `mode` | The declared mode's name, then optionally `--toggle`. `OK` means the same as for the modes above. | none | no |
+| `action` | An [action name](cli.md#action-names), then its flags, as after `neru action`. | none | no |
+| `run` | One entry per step, as [`neru run`](cli.md#neru-run) takes them. `--stop-on-error` as an entry of its own sets the policy. The daemon drops blank entries, and a request with no steps left gets `ERR_INVALID_INPUT`. The daemon refuses a sequence nested more than five levels deep with `ERR_INVALID_INPUT` before any of its steps run, and the sequence that started it reports that as one failed step. | none | no |
+| `macro` | The macro's name, then its arguments. | none | no |
+| `ping` | none | none | yes |
+| `start`, `stop` | none. `start` while running gets `ERR_ALREADY_RUNNING`, and `stop` while stopped gets `ERR_NOT_RUNNING`. | none | yes |
+| `status` | none | The object [`neru status --json`](cli.md#neru-status) prints. | yes |
+| `health` | none | The checks [`neru doctor`](cli.md#neru-doctor) reports, as `version`, `config`, `mode`, `capabilities`, `profile` and `components`. In a declared mode, `mode` is `mode`, where `status` gives the declared name. A failed check makes the reply `ERR_ACTION_FAILED`, and the reply still carries `data`. | yes |
+| `config` | None, or `set <key> <value>`, `reset <key>` or `reload`. `set` and `reset` take `--no-reload` last. | With no `args`, the running configuration under the key names `config.toml` uses, which [`neru config dump`](cli.md#neru-config-dump) prints. | yes |
+| `config-set` | `<key> <value>`, then optionally `--no-reload`. | none | yes |
+| `reload` | none | none | yes |
+| `toggle-scroll-invert` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"inverted": bool}` | yes |
+| `toggle-screen-share` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"hidden": bool}` | yes |
+| `toggle-cursor-follow-selection` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"following": bool}` | yes, but `stop` exits the mode, so it gets `ERR_INVALID_INPUT` |
+| `query-displays`, `query-cursor`, `query-window`, `query-app` | See [Querying](#querying). | See [Querying](#querying). | yes |
+| `query-hints` | See [Querying](#querying). | See [Querying](#querying). | no |
+| `watch` | None, or `--event=<name>[,<name>...]`, repeatable, to send only those events. | A [stream](#streaming). | yes |
+
+A bad key or value for `config set`, or for `config-set`, gets
+`ERR_ACTION_FAILED`, and `ERR_INVALID_INPUT` with `--no-reload`. `config reset`
+with an unknown key gets `ERR_INVALID_INPUT`.
 
 ## Querying
 
 `query-displays`, `query-cursor`, `query-window`, `query-app` and
 `query-hints` return in `data` the objects [`neru query`](cli.md#neru-query)
-prints with `--json`. Only `query-hints` takes `args`: `--role`, `--text`,
-`--strategy`, `--capture-scope`, `--label-direction` and `--split-word`,
-written as a user types them. It refuses anything else with `ERR_INVALID_INPUT`.
+prints with `--json`. The one exception is `query-window` when no window has
+focus. It answers `OK` with no `data` key at all, where
+`neru query window --json` prints `null`.
+
+Only `query-hints` takes `args`: `--role`, `--text`, `--strategy`,
+`--capture-scope`, `--label-direction` and `--split-word`, written as a user
+types them. It refuses anything else with `ERR_INVALID_INPUT`.
 
 ```json
 { "action": "query-hints", "args": ["--role=button", "--strategy=vision"] }
@@ -183,7 +195,7 @@ watch gets `ERR_BUSY`.
 | `ERR_UNKNOWN_COMMAND`   | No such command                                          |
 | `ERR_INVALID_INPUT`     | Malformed arguments, flag values or request fields       |
 | `ERR_NOT_RUNNING`       | Neru is paused via `neru stop`                           |
-| `ERR_ALREADY_RUNNING`   | Target is already in the requested state                 |
+| `ERR_ALREADY_RUNNING`   | `start` while Neru is already running                    |
 | `ERR_MODE_DISABLED`     | The requested mode is disabled in the configuration      |
 | `ERR_ACTION_FAILED`     | The action was dispatched but did not complete           |
 | `ERR_CHAIN_BAIL`        | An action chain aborted, for example `--bail`            |

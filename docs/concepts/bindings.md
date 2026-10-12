@@ -110,7 +110,7 @@ Neru checks every binding and macro when the config loads, so a typo fails
 
 | In a binding                                                                            | Result                                             |
 | --------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| A flag no mode has (`hints --serach`), or a value no flag takes (`--strategy=nonsense`) | The config fails to load and Neru runs on defaults |
+| A flag no mode has (`hints --serach`), or a value no flag takes (`--strategy=nonsense`) | Refused. `neru launch` shows the error and exits, and `neru config reload` keeps the previous config |
 | A flag the named mode does not accept (`grid --search`)                                 | Loads, and `neru config validate` warns            |
 | A flag whose partner is missing (`hints --repeat` with no `--action`)                   | Loads, and `neru config validate` warns            |
 

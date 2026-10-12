@@ -17,7 +17,9 @@ command for lookup.
   apply changes.
 - [Recipes](guide/recipes.md): ready-to-copy configs for common goals.
 - [Scripting](guide/scripting.md): drive Neru from scripts and other hotkey
-  tools.
+  tools, with hooks, the event stream, queries and targets you supply.
+- [Build on Neru](guide/integrations.md): which interface to use for a status
+  bar, a launcher, voice control or a Go program.
 
 ## Linux
 
@@ -35,7 +37,8 @@ command for lookup.
 
 - [Configuration](reference/configuration.md): every option in `config.toml`.
 - [CLI](reference/cli.md): every `neru` command and flag.
-- [IPC protocol](reference/ipc.md): the JSON format the CLI and daemon speak.
+- [IPC protocol](reference/ipc.md): the JSON format the CLI and daemon speak,
+  its versioning, JSON schemas and the Go client.
 - [Platform support](reference/platform-support.md): what works on macOS,
   Linux and Windows.
 
