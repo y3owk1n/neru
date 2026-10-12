@@ -91,9 +91,10 @@ func (h *handlerState) exitCurrentMode(keepEventTap bool) {
 
 	exited := h.CurrModeString()
 
-	// A --repeat re-activation comes through here too, so its click reports a
-	// switch into the same mode rather than a completion: the mode really is
-	// torn down and opened again.
+	// wait_for_mode_exit --bail reads this reason and bails on anything but a
+	// completed selection, including a switch whose next mode never opened.
+	// The event stream does not read it. publishSwitch reports a transition's
+	// exit once the next mode opens or fails to.
 	if keepEventTap {
 		h.appState.SetModeExitReason(state.ModeExitReasonSwitched)
 	}
