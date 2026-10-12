@@ -73,20 +73,6 @@ func (c *Client) ensureA11yEvents(conn *dbus.Conn) {
 	c.eventsReady = true
 	c.activeMu.Unlock()
 
-	// Ask the registry to forward window activations, bounded so a wedged bus
-	// cannot hang the first hints request. A failure is not fatal: some desktops
-	// broadcast the event regardless, and any gap is covered by the scan fallback.
-	regCtx, cancel := context.WithTimeout(context.Background(), atspiCallTimeout)
-	regCall := conn.Object(atspiRegistryDest, atspiRegistryObjPath).
-		CallWithContext(regCtx, atspiRegistryRegisterEvent, 0, atspiRegisterWindowActivate)
-
-	cancel()
-
-	if regCall.Err != nil {
-		c.logger.Debug("AT-SPI RegisterEvent failed; relying on scan fallback",
-			zap.Error(regCall.Err))
-	}
-
 	matchCtx, cancelMatch := context.WithTimeout(context.Background(), atspiCallTimeout)
 	err := conn.AddMatchSignalContext(matchCtx,
 		dbus.WithMatchInterface(atspiEventWindowIfc),
@@ -111,6 +97,22 @@ func (c *Client) ensureA11yEvents(conn *dbus.Conn) {
 		c.activeMu.Unlock()
 
 		return
+	}
+
+	// Ask the registry to forward window activations only after the match
+	// succeeds, so a failed match leaves no registration for the retry to
+	// repeat. A timeout bounds the call so a wedged bus cannot hang the first
+	// hints request. A failure is not fatal. Some desktops broadcast the event
+	// regardless, and the scan fallback covers any gap.
+	regCtx, cancel := context.WithTimeout(context.Background(), atspiCallTimeout)
+	regCall := conn.Object(atspiRegistryDest, atspiRegistryObjPath).
+		CallWithContext(regCtx, atspiRegistryRegisterEvent, 0, atspiRegisterWindowActivate)
+
+	cancel()
+
+	if regCall.Err != nil {
+		c.logger.Debug("AT-SPI RegisterEvent failed; relying on scan fallback",
+			zap.Error(regCall.Err))
 	}
 
 	signals := make(chan *dbus.Signal, atspiEventChanBuffer)

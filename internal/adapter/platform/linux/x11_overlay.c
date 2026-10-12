@@ -48,7 +48,9 @@ NeruX11Overlay *neru_x11_overlay_new(void) {
 	attrs.colormap = overlay->colormap;
 	attrs.background_pixel = 0;
 	attrs.border_pixel = 0;
-	attrs.event_mask = ExposureMask;
+	// Select no events. Nothing reads this connection's queue, so an Expose
+	// would pile up there on every map and resize.
+	attrs.event_mask = NoEventMask;
 
 	// One row taller than the screen, on purpose. Mutter treats an
 	// override-redirect window whose rectangle equals a monitor as a

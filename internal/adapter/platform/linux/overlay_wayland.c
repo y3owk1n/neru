@@ -204,7 +204,12 @@ static void neru_overlay_release_screen(NeruWaylandOverlayScreen *scr) {
 		scr->xdg_output = NULL;
 	}
 	if (scr->wl_output) {
-		wl_output_destroy(scr->wl_output);
+		// Release, not destroy, so the compositor frees its output resource
+		// too. The connection outlives the output.
+		if (wl_output_get_version(scr->wl_output) >= WL_OUTPUT_RELEASE_SINCE_VERSION)
+			wl_output_release(scr->wl_output);
+		else
+			wl_output_destroy(scr->wl_output);
 		scr->wl_output = NULL;
 	}
 	scr->registry_name = 0;
@@ -504,11 +509,13 @@ NeruWaylandOverlay *neru_wayland_overlay_new(void) {
 	// Setup xkb context
 	overlay->xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 
-	// Try to get keyboard immediately and set up listener
-	if (overlay->wl_seat) {
-		struct wl_keyboard *kb = wl_seat_get_keyboard(overlay->wl_seat);
-		if (kb) {
-			wl_keyboard_add_listener(kb, &keyboard_listener, overlay);
+	// Try to get keyboard immediately and set up listener. Store it so a later
+	// capabilities event cannot add a second keyboard, which would push every
+	// key into the ring twice.
+	if (overlay->wl_seat && !overlay->wl_keyboard) {
+		overlay->wl_keyboard = wl_seat_get_keyboard(overlay->wl_seat);
+		if (overlay->wl_keyboard) {
+			wl_keyboard_add_listener(overlay->wl_keyboard, &keyboard_listener, overlay);
 		}
 	}
 
@@ -691,9 +698,11 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		}
 		size_t stride = ((size_t)buf_width) * 4u;
 
+		// Fill slots from 0, since the free loops walk only the first
+		// num_buffers. A failed attempt leaves its slot untouched.
 		int ok = 0;
 		for (int b = 0; b < NERU_NUM_BUFFERS; b++) {
-			if (neru_create_single_buffer(overlay, scr, b, buf_width, buf_height, (int)stride, scale_factor) == 0)
+			if (neru_create_single_buffer(overlay, scr, ok, buf_width, buf_height, (int)stride, scale_factor) == 0)
 				ok++;
 		}
 		scr->num_buffers = ok;

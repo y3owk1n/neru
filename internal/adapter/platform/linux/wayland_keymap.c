@@ -247,6 +247,7 @@ neru_xkb_state *neru_xkb_state_create(void) {
 	}
 
 	struct wl_keyboard *kb = wl_seat_get_keyboard(rd.seat);
+	wl_seat_destroy(rd.seat);
 	wl_registry_destroy(registry);
 
 	if (!kb) {
@@ -315,8 +316,11 @@ void neru_xkb_state_destroy(neru_xkb_state *state) {
 	if (!state)
 		return;
 
-	if (state->state)
-		xkb_state_unref(state->state);
+	// Unref kr.state, not state->state. When a keymap change and a connection
+	// error arrive in the same dispatch, kr.state holds the new state while
+	// state->state still points at the old one, which is already freed.
+	if (state->kr.state)
+		xkb_state_unref(state->kr.state);
 	if (state->kr.command_state)
 		xkb_state_unref(state->kr.command_state);
 	free(state->kr.requested_layout);

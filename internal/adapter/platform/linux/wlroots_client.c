@@ -1246,7 +1246,12 @@ static void neru_wlr_registry_global_remove(void *data, struct wl_registry *regi
 			zxdg_output_v1_destroy(scr->xdg_output);
 		}
 		if (scr->wl_output) {
-			wl_proxy_destroy((struct wl_proxy *)scr->wl_output);
+			// Release, not destroy, so the compositor frees its output resource
+			// too. The connection outlives the output.
+			if (wl_output_get_version(scr->wl_output) >= WL_OUTPUT_RELEASE_SINCE_VERSION)
+				wl_output_release(scr->wl_output);
+			else
+				wl_output_destroy(scr->wl_output);
 		}
 
 		for (int j = i; j < c->nr_screens - 1; j++) {
