@@ -371,16 +371,18 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 		command.Env = append(os.Environ(), env...)
 	}
 
-	commandOutput, commandErr := command.CombinedOutput()
+	// Output goes to the null device, not a pipe. A background child inherits
+	// the pipe, so reading it would block the step until the child exits and
+	// keep everything the child prints in memory.
+	commandErr := command.Run()
 	if commandErr != nil {
-		// Never the command or its output, which are config content and the
-		// user's shell output. The sequence that ran the step logs this once.
+		// Never the command, which is config content. The sequence that ran the
+		// step logs this once.
 		return derrors.Wrapf(
 			commandErr,
 			derrors.CodeInternal,
-			"exec step failed (exit code %d, %d output bytes)",
+			"exec step failed (exit code %d)",
 			exitCodeOf(commandErr),
-			len(commandOutput),
 		)
 	}
 
@@ -388,7 +390,6 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 		"Exec step completed",
 		zap.String("source", source),
 		zap.Int("cmd_length", len(cmdString)),
-		zap.Int("output_bytes", len(commandOutput)),
 	)
 
 	return nil

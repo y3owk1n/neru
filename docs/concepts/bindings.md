@@ -42,7 +42,10 @@ Each step is one of:
 - `run <step>...`, a nested sequence
 - `exec <command>`, which runs a shell command through
   [`general.exec_shell`](../reference/configuration.md#general), such as
-  `"Primary+T" = "exec open -a Terminal"`
+  `"Primary+T" = "exec open -a Terminal"`. The next step waits up to 30
+  seconds for the shell to exit. Neru discards what the command prints. On
+  macOS and Linux, end the command with `&` to leave it running in the
+  background.
 
 Apart from `exec`, each step is the command you would type after `neru` in a
 shell, with the same flags, so you can try a binding from a terminal first.

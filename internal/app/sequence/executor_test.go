@@ -8,10 +8,13 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
 )
+
+const goosWindows = "windows"
 
 // TestExecutor_Run_SkipsExecStepWhileStopped pins that `neru stop` reaches a
 // sequence already under way: an exec step never passes through the command
@@ -39,13 +42,42 @@ func TestExecutor_Run_SkipsExecStepWhileStopped(t *testing.T) {
 	}
 }
 
+// TestExecutor_Run_ExecStepReturnsWithoutWaitingOnBackgroundChild pins that a
+// step ends when its shell exits. A background child inherits the step's
+// output. Reading that through a pipe blocked the step until the child exited
+// and kept every byte the child wrote in memory.
+func TestExecutor_Run_ExecStepReturnsWithoutWaitingOnBackgroundChild(t *testing.T) {
+	t.Parallel()
+
+	if runtime.GOOS == goosWindows {
+		t.Skip("cmd.exe has no & to leave a child running in the background")
+	}
+
+	executor := sequence.NewExecutor(sequence.ExecutorDeps{
+		Config:      config.DefaultConfig,
+		BaseContext: context.Background,
+		Enabled:     func() bool { return true },
+	})
+
+	started := time.Now()
+	outcome := executor.Run(context.Background(), "test", []string{"exec sleep 10 &"})
+
+	if outcome.Err != nil {
+		t.Fatalf("exec step failed: %v", outcome.Err)
+	}
+
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("exec step waited %s for its background child", elapsed)
+	}
+}
+
 // writeEnvStep is an exec step that writes the variable name to the file the
 // variable outVar names. The step reads the path from the environment rather
 // than the command, so a space in it needs no quoting. Windows runs the step in
 // PowerShell, which useEnvShell sets, because cmd.exe cannot read the quotes Go
 // escapes around an argument.
 func writeEnvStep(name, outVar string) string {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == goosWindows {
 		return fmt.Sprintf(
 			"exec Set-Content -NoNewline -LiteralPath $env:%s -Value $env:%s",
 			outVar,
@@ -58,7 +90,7 @@ func writeEnvStep(name, outVar string) string {
 
 // useEnvShell sets the shell writeEnvStep's steps are written for.
 func useEnvShell(cfg *config.Config) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == goosWindows {
 		cfg.General.ExecShell = filepath.Join(
 			os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
 		)
