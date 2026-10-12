@@ -2972,30 +2972,32 @@ static void applySearchInputStyle(OverlayView *view, SearchInputStyle style) {
 }
 
 void NeruDrawHintSearchInput(OverlayWindow window, SearchInputData input, SearchInputStyle style) {
-	if (!window)
-		return;
+	@autoreleasepool {
+		if (!window)
+			return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
-	SearchInputItem *item = buildSearchInputItem(input);
-	SearchInputStyle styleCopy = {
-	    .fontSize = style.fontSize,
-	    .borderRadius = style.borderRadius,
-	    .borderWidth = style.borderWidth,
-	    .paddingX = style.paddingX,
-	    .paddingY = style.paddingY,
-	    .fontFamily = safe_strdup(style.fontFamily),
-	    .backgroundColor = safe_strdup(style.backgroundColor),
-	    .textColor = safe_strdup(style.textColor),
-	    .borderColor = safe_strdup(style.borderColor)};
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+		SearchInputItem *item = buildSearchInputItem(input);
+		SearchInputStyle styleCopy = {
+		    .fontSize = style.fontSize,
+		    .borderRadius = style.borderRadius,
+		    .borderWidth = style.borderWidth,
+		    .paddingX = style.paddingX,
+		    .paddingY = style.paddingY,
+		    .fontFamily = safe_strdup(style.fontFamily),
+		    .backgroundColor = safe_strdup(style.backgroundColor),
+		    .textColor = safe_strdup(style.textColor),
+		    .borderColor = safe_strdup(style.borderColor)};
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			controller.overlayView.searchInput = item;
-			applySearchInputStyle(controller.overlayView, styleCopy);
-			[controller.overlayView setNeedsDisplay:YES];
-			free_search_input_style_strings(&styleCopy);
-		}
-	});
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				controller.overlayView.searchInput = item;
+				applySearchInputStyle(controller.overlayView, styleCopy);
+				[controller.overlayView setNeedsDisplay:YES];
+				free_search_input_style_strings(&styleCopy);
+			}
+		});
+	}
 }
 
 void NeruHideHintSearchInput(OverlayWindow window) {
@@ -3016,35 +3018,37 @@ void NeruHideHintSearchInput(OverlayWindow window) {
 /// @param window Overlay window handle
 /// @param prefix Match prefix
 void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
-	if (!window)
-		return;
+	@autoreleasepool {
+		if (!window)
+			return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
-	NSString *prefixStr = prefix ? @(prefix) : @"";
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+		NSString *prefixStr = prefix ? @(prefix) : @"";
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			BOOL anyChanged = NO;
-			NSUInteger prefixLen = [prefixStr length];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				BOOL anyChanged = NO;
+				NSUInteger prefixLen = [prefixStr length];
 
-			for (HintItem *hintItem in controller.overlayView.hints) {
-				NSString *label = hintItem.label ?: @"";
-				int newMatchedPrefixLength = 0;
-				if (prefixLen > 0 && [label hasPrefix:prefixStr]) {
-					newMatchedPrefixLength = (int)prefixLen;
+				for (HintItem *hintItem in controller.overlayView.hints) {
+					NSString *label = hintItem.label ?: @"";
+					int newMatchedPrefixLength = 0;
+					if (prefixLen > 0 && [label hasPrefix:prefixStr]) {
+						newMatchedPrefixLength = (int)prefixLen;
+					}
+
+					if (hintItem.matchedPrefixLength != newMatchedPrefixLength) {
+						hintItem.matchedPrefixLength = newMatchedPrefixLength;
+						anyChanged = YES;
+					}
 				}
 
-				if (hintItem.matchedPrefixLength != newMatchedPrefixLength) {
-					hintItem.matchedPrefixLength = newMatchedPrefixLength;
-					anyChanged = YES;
+				if (anyChanged) {
+					[controller.overlayView setNeedsDisplay:YES];
 				}
 			}
-
-			if (anyChanged) {
-				[controller.overlayView setNeedsDisplay:YES];
-			}
-		}
-	});
+		});
+	}
 }
 
 /// Draw hints incrementally (add/update/remove specific hints without clearing entire overlay)
@@ -3057,157 +3061,160 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 void NeruDrawIncrementHints(
     OverlayWindow window, HintData *hintsToAdd, int addCount, CGPoint *positionsToRemove, int removeCount,
     HintStyle style) {
-	if (!window)
-		return;
+	@autoreleasepool {
+		if (!window)
+			return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	// Build hint data arrays upfront — safe from any thread
-	NSMutableArray<HintItem *> *hintItemsToAdd = nil;
-	if (hintsToAdd && addCount > 0) {
-		hintItemsToAdd = buildHintItems(hintsToAdd, addCount, style.showArrow ? YES : NO, style.placement);
-	}
-
-	// Build positions array for hints to remove
-	NSMutableArray *positionsToRemoveArray = nil;
-	if (positionsToRemove && removeCount > 0) {
-		positionsToRemoveArray = [NSMutableArray arrayWithCapacity:removeCount];
-		for (int i = 0; i < removeCount; i++) {
-			NSValue *positionValue = [NSValue valueWithPoint:NSPointFromCGPoint(positionsToRemove[i])];
-			[positionsToRemoveArray addObject:positionValue];
+		// Build hint data arrays upfront — safe from any thread
+		NSMutableArray<HintItem *> *hintItemsToAdd = nil;
+		if (hintsToAdd && addCount > 0) {
+			hintItemsToAdd = buildHintItems(hintsToAdd, addCount, style.showArrow ? YES : NO, style.placement);
 		}
-	}
 
-	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
-	NSString *fontFamily = nil;
-	if (style.fontFamily) {
-		fontFamily = @(style.fontFamily);
-		if (fontFamily.length == 0)
-			fontFamily = nil;
-	}
-	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
-	NSString *textHex = style.textColor ? @(style.textColor) : nil;
-	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
-	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
-	NSString *boundaryBgHex = style.boundaryBackgroundColor ? @(style.boundaryBackgroundColor) : nil;
-	NSString *boundaryBorderHex = style.boundaryBorderColor ? @(style.boundaryBorderColor) : nil;
-	int borderRadius = style.borderRadius;
-	int borderWidth = style.borderWidth;
-	int paddingX = style.paddingX;
-	int paddingY = style.paddingY;
-	int boundaryHighlightEnabled = style.boundaryHighlightEnabled;
-	int boundaryBorderWidth = style.boundaryBorderWidth;
-	int boundaryBorderRadius = style.boundaryBorderRadius;
+		// Build positions array for hints to remove
+		NSMutableArray *positionsToRemoveArray = nil;
+		if (positionsToRemove && removeCount > 0) {
+			positionsToRemoveArray = [NSMutableArray arrayWithCapacity:removeCount];
+			for (int i = 0; i < removeCount; i++) {
+				NSValue *positionValue = [NSValue valueWithPoint:NSPointFromCGPoint(positionsToRemove[i])];
+				[positionsToRemoveArray addObject:positionValue];
+			}
+		}
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			// Apply font — only re-create when family or size changed
-			BOOL hintFamilyChanged =
-			    (fontFamily != controller.overlayView.cachedHintFontFamily &&
-			     ![fontFamily isEqualToString:controller.overlayView.cachedHintFontFamily]);
-			if (hintFamilyChanged || fontSize != controller.overlayView.cachedHintFontSize) {
-				NSFont *font = nil;
-				if (fontFamily && [fontFamily length] > 0) {
-					font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:YES];
-				}
-				if (!font)
-					font = [NSFont boldSystemFontOfSize:fontSize];
-				controller.overlayView.hintFont = font;
-				controller.overlayView.cachedHintFontFamily = fontFamily;
-				controller.overlayView.cachedHintFontSize = fontSize;
-			}
+		// Copy all style properties NOW (before async block)
+		CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
+		NSString *fontFamily = nil;
+		if (style.fontFamily) {
+			fontFamily = @(style.fontFamily);
+			if (fontFamily.length == 0)
+				fontFamily = nil;
+		}
+		NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+		NSString *textHex = style.textColor ? @(style.textColor) : nil;
+		NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+		NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+		NSString *boundaryBgHex = style.boundaryBackgroundColor ? @(style.boundaryBackgroundColor) : nil;
+		NSString *boundaryBorderHex = style.boundaryBorderColor ? @(style.boundaryBorderColor) : nil;
+		int borderRadius = style.borderRadius;
+		int borderWidth = style.borderWidth;
+		int paddingX = style.paddingX;
+		int paddingY = style.paddingY;
+		int boundaryHighlightEnabled = style.boundaryHighlightEnabled;
+		int boundaryBorderWidth = style.boundaryBorderWidth;
+		int boundaryBorderRadius = style.boundaryBorderRadius;
 
-			// Apply colors
-			if (bgHex) {
-				NSColor *defaultBg = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
-				                                      alpha:1.0] colorWithAlphaComponent:0.95];
-				controller.overlayView.hintBackgroundColor = [controller.overlayView colorFromHex:bgHex
-				                                                                     defaultColor:defaultBg];
-			}
-			if (textHex) {
-				controller.overlayView.hintTextColor = [controller.overlayView colorFromHex:textHex
-				                                                               defaultColor:[NSColor blackColor]];
-			}
-			if (matchedTextHex) {
-				controller.overlayView.hintMatchedTextColor =
-				    [controller.overlayView colorFromHex:matchedTextHex defaultColor:[NSColor systemBlueColor]];
-			}
-			if (borderHex) {
-				controller.overlayView.hintBorderColor = [controller.overlayView colorFromHex:borderHex
-				                                                                 defaultColor:[NSColor blackColor]];
-			}
-			if (boundaryBgHex) {
-				NSColor *defaultBoundaryBg = [[NSColor systemBlueColor] colorWithAlphaComponent:0.08];
-				controller.overlayView.hintBoundaryBackgroundColor =
-				    [controller.overlayView colorFromHex:boundaryBgHex defaultColor:defaultBoundaryBg];
-			}
-			if (boundaryBorderHex) {
-				NSColor *defaultBoundaryBorder = [[NSColor systemBlueColor] colorWithAlphaComponent:0.45];
-				controller.overlayView.hintBoundaryBorderColor =
-				    [controller.overlayView colorFromHex:boundaryBorderHex defaultColor:defaultBoundaryBorder];
-			}
-
-			// Apply geometry properties
-			controller.overlayView.hintBorderRadius = borderRadius;
-			controller.overlayView.hintBorderWidth = borderWidth >= 0 ? borderWidth : 1.0;
-			controller.overlayView.hintPaddingX = paddingX;
-			controller.overlayView.hintPaddingY = paddingY;
-			controller.overlayView.hintBoundaryHighlightEnabled = boundaryHighlightEnabled ? YES : NO;
-			controller.overlayView.hintBoundaryBorderWidth = boundaryBorderWidth >= 0 ? boundaryBorderWidth : 1.0;
-			controller.overlayView.hintBoundaryBorderRadius = boundaryBorderRadius >= 0 ? boundaryBorderRadius : 4.0;
-
-			// Remove hints matching the given positions
-			if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {
-				// Build a set of position keys for O(1) lookup
-				NSMutableSet *positionsToRemoveSet = [NSMutableSet setWithCapacity:[positionsToRemoveArray count]];
-				for (NSValue *removePositionValue in positionsToRemoveArray) {
-					NSPoint removePosition = [removePositionValue pointValue];
-					NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", removePosition.x, removePosition.y];
-					[positionsToRemoveSet addObject:key];
-				}
-
-				NSMutableArray<HintItem *> *hintsToKeep =
-				    [NSMutableArray arrayWithCapacity:[controller.overlayView.hints count]];
-				for (HintItem *hintItem in controller.overlayView.hints) {
-					NSPoint hintPosition = hintItem.position;
-					NSString *hintKey = [NSString stringWithFormat:@"%.6f,%.6f", hintPosition.x, hintPosition.y];
-					if (![positionsToRemoveSet containsObject:hintKey]) {
-						[hintsToKeep addObject:hintItem];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				// Apply font — only re-create when family or size changed
+				BOOL hintFamilyChanged =
+				    (fontFamily != controller.overlayView.cachedHintFontFamily &&
+				     ![fontFamily isEqualToString:controller.overlayView.cachedHintFontFamily]);
+				if (hintFamilyChanged || fontSize != controller.overlayView.cachedHintFontSize) {
+					NSFont *font = nil;
+					if (fontFamily && [fontFamily length] > 0) {
+						font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:YES];
 					}
-				}
-				controller.overlayView.hints = hintsToKeep;
-			}
-
-			// Add or update hints
-			if (hintItemsToAdd && [hintItemsToAdd count] > 0) {
-				// Build lookup map for existing hints by position for O(1) access
-				NSMutableDictionary *hintsByPosition =
-				    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.hints count]];
-				for (HintItem *hintItem in controller.overlayView.hints) {
-					NSPoint pos = hintItem.position;
-					NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", pos.x, pos.y];
-					hintsByPosition[key] = hintItem;
+					if (!font)
+						font = [NSFont boldSystemFontOfSize:fontSize];
+					controller.overlayView.hintFont = font;
+					controller.overlayView.cachedHintFontFamily = fontFamily;
+					controller.overlayView.cachedHintFontSize = fontSize;
 				}
 
-				for (HintItem *newHintItem in hintItemsToAdd) {
-					NSPoint newPosition = newHintItem.position;
-					NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", newPosition.x, newPosition.y];
-					HintItem *existingHint = hintsByPosition[key];
-					if (existingHint) {
-						NSUInteger index = [controller.overlayView.hints indexOfObjectIdenticalTo:existingHint];
-						if (index != NSNotFound) {
-							controller.overlayView.hints[index] = newHintItem;
+				// Apply colors
+				if (bgHex) {
+					NSColor *defaultBg = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
+					                                      alpha:1.0] colorWithAlphaComponent:0.95];
+					controller.overlayView.hintBackgroundColor = [controller.overlayView colorFromHex:bgHex
+					                                                                     defaultColor:defaultBg];
+				}
+				if (textHex) {
+					controller.overlayView.hintTextColor = [controller.overlayView colorFromHex:textHex
+					                                                               defaultColor:[NSColor blackColor]];
+				}
+				if (matchedTextHex) {
+					controller.overlayView.hintMatchedTextColor =
+					    [controller.overlayView colorFromHex:matchedTextHex defaultColor:[NSColor systemBlueColor]];
+				}
+				if (borderHex) {
+					controller.overlayView.hintBorderColor = [controller.overlayView colorFromHex:borderHex
+					                                                                 defaultColor:[NSColor blackColor]];
+				}
+				if (boundaryBgHex) {
+					NSColor *defaultBoundaryBg = [[NSColor systemBlueColor] colorWithAlphaComponent:0.08];
+					controller.overlayView.hintBoundaryBackgroundColor =
+					    [controller.overlayView colorFromHex:boundaryBgHex defaultColor:defaultBoundaryBg];
+				}
+				if (boundaryBorderHex) {
+					NSColor *defaultBoundaryBorder = [[NSColor systemBlueColor] colorWithAlphaComponent:0.45];
+					controller.overlayView.hintBoundaryBorderColor =
+					    [controller.overlayView colorFromHex:boundaryBorderHex defaultColor:defaultBoundaryBorder];
+				}
+
+				// Apply geometry properties
+				controller.overlayView.hintBorderRadius = borderRadius;
+				controller.overlayView.hintBorderWidth = borderWidth >= 0 ? borderWidth : 1.0;
+				controller.overlayView.hintPaddingX = paddingX;
+				controller.overlayView.hintPaddingY = paddingY;
+				controller.overlayView.hintBoundaryHighlightEnabled = boundaryHighlightEnabled ? YES : NO;
+				controller.overlayView.hintBoundaryBorderWidth = boundaryBorderWidth >= 0 ? boundaryBorderWidth : 1.0;
+				controller.overlayView.hintBoundaryBorderRadius =
+				    boundaryBorderRadius >= 0 ? boundaryBorderRadius : 4.0;
+
+				// Remove hints matching the given positions
+				if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {
+					// Build a set of position keys for O(1) lookup
+					NSMutableSet *positionsToRemoveSet = [NSMutableSet setWithCapacity:[positionsToRemoveArray count]];
+					for (NSValue *removePositionValue in positionsToRemoveArray) {
+						NSPoint removePosition = [removePositionValue pointValue];
+						NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", removePosition.x, removePosition.y];
+						[positionsToRemoveSet addObject:key];
+					}
+
+					NSMutableArray<HintItem *> *hintsToKeep =
+					    [NSMutableArray arrayWithCapacity:[controller.overlayView.hints count]];
+					for (HintItem *hintItem in controller.overlayView.hints) {
+						NSPoint hintPosition = hintItem.position;
+						NSString *hintKey = [NSString stringWithFormat:@"%.6f,%.6f", hintPosition.x, hintPosition.y];
+						if (![positionsToRemoveSet containsObject:hintKey]) {
+							[hintsToKeep addObject:hintItem];
 						}
-					} else {
-						[controller.overlayView.hints addObject:newHintItem];
+					}
+					controller.overlayView.hints = hintsToKeep;
+				}
+
+				// Add or update hints
+				if (hintItemsToAdd && [hintItemsToAdd count] > 0) {
+					// Build lookup map for existing hints by position for O(1) access
+					NSMutableDictionary *hintsByPosition =
+					    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.hints count]];
+					for (HintItem *hintItem in controller.overlayView.hints) {
+						NSPoint pos = hintItem.position;
+						NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", pos.x, pos.y];
+						hintsByPosition[key] = hintItem;
+					}
+
+					for (HintItem *newHintItem in hintItemsToAdd) {
+						NSPoint newPosition = newHintItem.position;
+						NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", newPosition.x, newPosition.y];
+						HintItem *existingHint = hintsByPosition[key];
+						if (existingHint) {
+							NSUInteger index = [controller.overlayView.hints indexOfObjectIdenticalTo:existingHint];
+							if (index != NSNotFound) {
+								controller.overlayView.hints[index] = newHintItem;
+							}
+						} else {
+							[controller.overlayView.hints addObject:newHintItem];
+						}
 					}
 				}
-			}
 
-			[controller.overlayView setNeedsDisplay:YES];
-		}
-	});
+				[controller.overlayView setNeedsDisplay:YES];
+			}
+		});
+	}
 }
 
 /// Replace overlay window
@@ -3256,144 +3263,147 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 /// @param count Number of cells
 /// @param style Grid cell style
 void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCellStyle style) {
-	if (!window || !cells)
-		return;
+	@autoreleasepool {
+		if (!window || !cells)
+			return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	// Build cell data array upfront — safe from any thread
-	NSMutableArray<GridCellItem *> *cellItems = buildGridCellItems(cells, count);
+		// Build cell data array upfront — safe from any thread
+		NSMutableArray<GridCellItem *> *cellItems = buildGridCellItems(cells, count);
 
-	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
-	NSString *fontFamily = nil;
-	if (style.fontFamily) {
-		fontFamily = @(style.fontFamily);
-		if (fontFamily.length == 0)
-			fontFamily = nil;
-	}
-	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
-	NSString *labelBgHex = style.labelBackgroundColor ? @(style.labelBackgroundColor) : nil;
-	NSString *textHex = style.textColor ? @(style.textColor) : nil;
-	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
-	NSString *matchedBgHex = style.matchedBackgroundColor ? @(style.matchedBackgroundColor) : nil;
-	NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
-	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
-	int borderWidth = style.borderWidth;
-	BOOL drawLabelBackground = style.drawLabelBackground ? YES : NO;
-	CGFloat labelBackgroundPaddingX = style.labelBackgroundPaddingX;
-	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
-	CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
-	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
-	BOOL hideLabel = style.hideLabel != 0;
-	BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
-	int subKeyGridCols = style.subKeyGridCols;
-	int subKeyGridRows = style.subKeyGridRows;
-	CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
-	NSString *subKeyFontFamily = nil;
-	if (style.subKeyFontFamily) {
-		subKeyFontFamily = @(style.subKeyFontFamily);
-		if (subKeyFontFamily.length == 0)
-			subKeyFontFamily = nil;
-	}
-	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
-
-	// Build sub-key labels array from the next-depth key string.
-	// Use composed-character enumeration so this stays correct even if
-	// non-ASCII characters are ever allowed in the future.
-	NSString *subKeyKeysStr = style.subKeyKeys ? @(style.subKeyKeys) : nil;
-	NSMutableArray<NSString *> *subKeyLabels = nil;
-	if (subKeyKeysStr && subKeyKeysStr.length > 0) {
-		subKeyLabels = [NSMutableArray arrayWithCapacity:subKeyKeysStr.length];
-		[subKeyKeysStr
-		    enumerateSubstringsInRange:NSMakeRange(0, subKeyKeysStr.length)
-		                       options:NSStringEnumerationByComposedCharacterSequences
-		                    usingBlock:^(
-		                        NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop) {
-			                    [subKeyLabels addObject:substring];
-		                    }];
-	}
-
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			// Apply font — only re-create when family or size changed
-			BOOL gridFamilyChanged =
-			    (fontFamily != controller.overlayView.cachedGridFontFamily &&
-			     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
-			if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
-				NSFont *font = nil;
-				if (fontFamily && [fontFamily length] > 0) {
-					font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
-				}
-				if (!font)
-					font = [NSFont systemFontOfSize:fontSize];
-				controller.overlayView.gridFont = font;
-				controller.overlayView.cachedGridFontFamily = fontFamily;
-				controller.overlayView.cachedGridFontSize = fontSize;
-			}
-
-			// Apply colors
-			controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
-			                                                                     defaultColor:[NSColor whiteColor]];
-			controller.overlayView.gridLabelBackgroundColor = [controller.overlayView
-			    colorFromHex:labelBgHex
-			    defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.8]];
-			controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
-			                                                               defaultColor:[NSColor blackColor]];
-			controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
-			                                                                      defaultColor:[NSColor blueColor]];
-			controller.overlayView.gridMatchedBackgroundColor =
-			    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
-			controller.overlayView.gridMatchedBorderColor = [controller.overlayView colorFromHex:matchedBorderHex
-			                                                                        defaultColor:[NSColor blueColor]];
-			controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
-			                                                                 defaultColor:[NSColor grayColor]];
-
-			// Apply geometry and layout properties
-			controller.overlayView.gridBorderWidth = borderWidth > 0 ? borderWidth : 1.0;
-			controller.overlayView.gridDrawLabelBackground = drawLabelBackground;
-			controller.overlayView.gridLabelBackgroundPaddingX = labelBackgroundPaddingX;
-			controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
-			controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
-			controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
-			controller.overlayView.gridHideLabel = hideLabel;
-
-			// Apply sub-key preview settings
-			controller.overlayView.gridDrawSubKeyPreview = drawSubKeyPreview;
-			controller.overlayView.gridSubKeyCols = subKeyGridCols;
-			controller.overlayView.gridSubKeyRows = subKeyGridRows;
-			controller.overlayView.gridSubKeyLabels = subKeyLabels;
-			if (drawSubKeyPreview) {
-				if (subKeyFontSize != controller.overlayView.cachedGridSubKeyFontSize ||
-				    (subKeyFontFamily != controller.overlayView.cachedGridSubKeyFontFamily &&
-				     ![subKeyFontFamily isEqualToString:controller.overlayView.cachedGridSubKeyFontFamily])) {
-					NSFont *subFont = nil;
-					if (subKeyFontFamily && [subKeyFontFamily length] > 0) {
-						subFont = [controller.overlayView resolveFont:subKeyFontFamily size:subKeyFontSize bold:NO];
-					}
-					if (!subFont) {
-						subFont = [NSFont systemFontOfSize:subKeyFontSize];
-					}
-					controller.overlayView.gridSubKeyFont = subFont;
-					controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
-					controller.overlayView.cachedGridSubKeyFontFamily = subKeyFontFamily;
-				}
-				controller.overlayView.gridSubKeyTextColor = [controller.overlayView colorFromHex:subKeyTextHex
-				                                                                     defaultColor:[NSColor grayColor]];
-			}
-
-			// Sync cached color references
-			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
-			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
-
-			// Replace cell data and redisplay
-			[controller.overlayView cancelGridTransition];
-			[controller.overlayView cancelCursorIndicatorTransition];
-			[controller.overlayView.gridCells removeAllObjects];
-			[controller.overlayView.gridCells addObjectsFromArray:cellItems];
-			[controller.overlayView setNeedsDisplay:YES];
+		// Copy all style properties NOW (before async block)
+		CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
+		NSString *fontFamily = nil;
+		if (style.fontFamily) {
+			fontFamily = @(style.fontFamily);
+			if (fontFamily.length == 0)
+				fontFamily = nil;
 		}
-	});
+		NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+		NSString *labelBgHex = style.labelBackgroundColor ? @(style.labelBackgroundColor) : nil;
+		NSString *textHex = style.textColor ? @(style.textColor) : nil;
+		NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+		NSString *matchedBgHex = style.matchedBackgroundColor ? @(style.matchedBackgroundColor) : nil;
+		NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
+		NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+		int borderWidth = style.borderWidth;
+		BOOL drawLabelBackground = style.drawLabelBackground ? YES : NO;
+		CGFloat labelBackgroundPaddingX = style.labelBackgroundPaddingX;
+		CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
+		CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
+		CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
+		BOOL hideLabel = style.hideLabel != 0;
+		BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
+		int subKeyGridCols = style.subKeyGridCols;
+		int subKeyGridRows = style.subKeyGridRows;
+		CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
+		NSString *subKeyFontFamily = nil;
+		if (style.subKeyFontFamily) {
+			subKeyFontFamily = @(style.subKeyFontFamily);
+			if (subKeyFontFamily.length == 0)
+				subKeyFontFamily = nil;
+		}
+		NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
+
+		// Build sub-key labels array from the next-depth key string.
+		// Use composed-character enumeration so this stays correct even if
+		// non-ASCII characters are ever allowed in the future.
+		NSString *subKeyKeysStr = style.subKeyKeys ? @(style.subKeyKeys) : nil;
+		NSMutableArray<NSString *> *subKeyLabels = nil;
+		if (subKeyKeysStr && subKeyKeysStr.length > 0) {
+			subKeyLabels = [NSMutableArray arrayWithCapacity:subKeyKeysStr.length];
+			[subKeyKeysStr
+			    enumerateSubstringsInRange:NSMakeRange(0, subKeyKeysStr.length)
+			                       options:NSStringEnumerationByComposedCharacterSequences
+			                    usingBlock:^(
+			                        NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop) {
+				                    [subKeyLabels addObject:substring];
+			                    }];
+		}
+
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				// Apply font — only re-create when family or size changed
+				BOOL gridFamilyChanged =
+				    (fontFamily != controller.overlayView.cachedGridFontFamily &&
+				     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+				if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
+					NSFont *font = nil;
+					if (fontFamily && [fontFamily length] > 0) {
+						font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
+					}
+					if (!font)
+						font = [NSFont systemFontOfSize:fontSize];
+					controller.overlayView.gridFont = font;
+					controller.overlayView.cachedGridFontFamily = fontFamily;
+					controller.overlayView.cachedGridFontSize = fontSize;
+				}
+
+				// Apply colors
+				controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
+				                                                                     defaultColor:[NSColor whiteColor]];
+				controller.overlayView.gridLabelBackgroundColor =
+				    [controller.overlayView colorFromHex:labelBgHex
+				                            defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0
+				                                                          alpha:1.0] colorWithAlphaComponent:0.8]];
+				controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
+				                                                               defaultColor:[NSColor blackColor]];
+				controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
+				                                                                      defaultColor:[NSColor blueColor]];
+				controller.overlayView.gridMatchedBackgroundColor =
+				    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
+				controller.overlayView.gridMatchedBorderColor =
+				    [controller.overlayView colorFromHex:matchedBorderHex defaultColor:[NSColor blueColor]];
+				controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
+				                                                                 defaultColor:[NSColor grayColor]];
+
+				// Apply geometry and layout properties
+				controller.overlayView.gridBorderWidth = borderWidth > 0 ? borderWidth : 1.0;
+				controller.overlayView.gridDrawLabelBackground = drawLabelBackground;
+				controller.overlayView.gridLabelBackgroundPaddingX = labelBackgroundPaddingX;
+				controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
+				controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
+				controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
+				controller.overlayView.gridHideLabel = hideLabel;
+
+				// Apply sub-key preview settings
+				controller.overlayView.gridDrawSubKeyPreview = drawSubKeyPreview;
+				controller.overlayView.gridSubKeyCols = subKeyGridCols;
+				controller.overlayView.gridSubKeyRows = subKeyGridRows;
+				controller.overlayView.gridSubKeyLabels = subKeyLabels;
+				if (drawSubKeyPreview) {
+					if (subKeyFontSize != controller.overlayView.cachedGridSubKeyFontSize ||
+					    (subKeyFontFamily != controller.overlayView.cachedGridSubKeyFontFamily &&
+					     ![subKeyFontFamily isEqualToString:controller.overlayView.cachedGridSubKeyFontFamily])) {
+						NSFont *subFont = nil;
+						if (subKeyFontFamily && [subKeyFontFamily length] > 0) {
+							subFont = [controller.overlayView resolveFont:subKeyFontFamily size:subKeyFontSize bold:NO];
+						}
+						if (!subFont) {
+							subFont = [NSFont systemFontOfSize:subKeyFontSize];
+						}
+						controller.overlayView.gridSubKeyFont = subFont;
+						controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
+						controller.overlayView.cachedGridSubKeyFontFamily = subKeyFontFamily;
+					}
+					controller.overlayView.gridSubKeyTextColor =
+					    [controller.overlayView colorFromHex:subKeyTextHex defaultColor:[NSColor grayColor]];
+				}
+
+				// Sync cached color references
+				controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
+				controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
+
+				// Replace cell data and redisplay
+				[controller.overlayView cancelGridTransition];
+				[controller.overlayView cancelCursorIndicatorTransition];
+				[controller.overlayView.gridCells removeAllObjects];
+				[controller.overlayView.gridCells addObjectsFromArray:cellItems];
+				[controller.overlayView setNeedsDisplay:YES];
+			}
+		});
+	}
 }
 
 /// Animate recursive-grid cells between the current and next depth state.
@@ -3404,147 +3414,151 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 /// @param duration Animation duration in seconds
 void NeruAnimateRecursiveGridTransition(
     OverlayWindow window, GridCell *cells, int count, GridCellStyle style, double duration) {
-	if (!window || !cells) {
-		return;
-	}
-
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
-	NSMutableArray<GridCellItem *> *cellItems = buildGridCellItems(cells, count);
-
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
-	NSString *fontFamily = nil;
-	if (style.fontFamily) {
-		fontFamily = @(style.fontFamily);
-		if (fontFamily.length == 0) {
-			fontFamily = nil;
+	@autoreleasepool {
+		if (!window || !cells) {
+			return;
 		}
-	}
-	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
-	NSString *labelBgHex = style.labelBackgroundColor ? @(style.labelBackgroundColor) : nil;
-	NSString *textHex = style.textColor ? @(style.textColor) : nil;
-	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
-	NSString *matchedBgHex = style.matchedBackgroundColor ? @(style.matchedBackgroundColor) : nil;
-	NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
-	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
-	int borderWidth = style.borderWidth;
-	BOOL drawLabelBackground = style.drawLabelBackground ? YES : NO;
-	CGFloat labelBackgroundPaddingX = style.labelBackgroundPaddingX;
-	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
-	CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
-	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
-	BOOL hideLabel = style.hideLabel != 0;
-	CGFloat transitionFontSize = style.transitionFontSize > 0 ? style.transitionFontSize : fontSize;
-	BOOL transitionHideLabel = style.transitionHideLabel != 0;
-	BOOL transitionHideSubKeyPreview = style.transitionHideSubKeyPreview != 0;
-	BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
-	int subKeyGridCols = style.subKeyGridCols;
-	int subKeyGridRows = style.subKeyGridRows;
-	CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
-	CGFloat transitionSubKeyFontSize =
-	    style.transitionSubKeyFontSize > 0 ? style.transitionSubKeyFontSize : subKeyFontSize;
-	NSString *subKeyFontFamily = nil;
-	if (style.subKeyFontFamily) {
-		subKeyFontFamily = @(style.subKeyFontFamily);
-		if (subKeyFontFamily.length == 0)
-			subKeyFontFamily = nil;
-	}
-	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
 
-	NSString *subKeyKeysStr = style.subKeyKeys ? @(style.subKeyKeys) : nil;
-	NSMutableArray<NSString *> *subKeyLabels = nil;
-	if (subKeyKeysStr && subKeyKeysStr.length > 0) {
-		subKeyLabels = [NSMutableArray arrayWithCapacity:subKeyKeysStr.length];
-		[subKeyKeysStr
-		    enumerateSubstringsInRange:NSMakeRange(0, subKeyKeysStr.length)
-		                       options:NSStringEnumerationByComposedCharacterSequences
-		                    usingBlock:^(
-		                        NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop) {
-			                    [subKeyLabels addObject:substring];
-		                    }];
-	}
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+		NSMutableArray<GridCellItem *> *cellItems = buildGridCellItems(cells, count);
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			BOOL gridFamilyChanged =
-			    (fontFamily != controller.overlayView.cachedGridFontFamily &&
-			     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
-			if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
-				NSFont *font = nil;
-				if (fontFamily && [fontFamily length] > 0) {
-					font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
-				}
-				if (!font) {
-					font = [NSFont systemFontOfSize:fontSize];
-				}
-				controller.overlayView.gridFont = font;
-				controller.overlayView.cachedGridFontFamily = fontFamily;
-				controller.overlayView.cachedGridFontSize = fontSize;
+		CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
+		NSString *fontFamily = nil;
+		if (style.fontFamily) {
+			fontFamily = @(style.fontFamily);
+			if (fontFamily.length == 0) {
+				fontFamily = nil;
 			}
-
-			controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
-			                                                                     defaultColor:[NSColor whiteColor]];
-			controller.overlayView.gridLabelBackgroundColor = [controller.overlayView
-			    colorFromHex:labelBgHex
-			    defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.8]];
-			controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
-			                                                               defaultColor:[NSColor blackColor]];
-			controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
-			                                                                      defaultColor:[NSColor blueColor]];
-			controller.overlayView.gridMatchedBackgroundColor =
-			    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
-			controller.overlayView.gridMatchedBorderColor = [controller.overlayView colorFromHex:matchedBorderHex
-			                                                                        defaultColor:[NSColor blueColor]];
-			controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
-			                                                                 defaultColor:[NSColor grayColor]];
-
-			controller.overlayView.gridBorderWidth = borderWidth > 0 ? borderWidth : 1.0;
-			controller.overlayView.gridDrawLabelBackground = drawLabelBackground;
-			controller.overlayView.gridLabelBackgroundPaddingX = labelBackgroundPaddingX;
-			controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
-			controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
-			controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
-			controller.overlayView.gridHideLabel = hideLabel;
-			controller.overlayView.gridDrawSubKeyPreview = drawSubKeyPreview;
-			controller.overlayView.gridSubKeyCols = subKeyGridCols;
-			controller.overlayView.gridSubKeyRows = subKeyGridRows;
-			controller.overlayView.gridSubKeyLabels = subKeyLabels;
-			if (drawSubKeyPreview) {
-				if (subKeyFontSize != controller.overlayView.cachedGridSubKeyFontSize ||
-				    (subKeyFontFamily != controller.overlayView.cachedGridSubKeyFontFamily &&
-				     ![subKeyFontFamily isEqualToString:controller.overlayView.cachedGridSubKeyFontFamily])) {
-					NSFont *subFont = nil;
-					if (subKeyFontFamily && [subKeyFontFamily length] > 0) {
-						subFont = [controller.overlayView resolveFont:subKeyFontFamily size:subKeyFontSize bold:NO];
-					}
-					if (!subFont) {
-						subFont = [NSFont systemFontOfSize:subKeyFontSize];
-					}
-					controller.overlayView.gridSubKeyFont = subFont;
-					controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
-					controller.overlayView.cachedGridSubKeyFontFamily = subKeyFontFamily;
-				}
-				controller.overlayView.gridSubKeyTextColor = [controller.overlayView colorFromHex:subKeyTextHex
-				                                                                     defaultColor:[NSColor grayColor]];
-			}
-
-			// What the transition holds from its first frame to its last. The fonts
-			// come from a cache by size. A depth's held size recurs on every visit.
-			controller.overlayView.gridTransitionHideLabel = transitionHideLabel;
-			controller.overlayView.gridTransitionFont =
-			    transitionHideLabel
-			        ? nil
-			        : [controller.overlayView transitionFontForFamily:fontFamily size:transitionFontSize];
-			controller.overlayView.gridTransitionHideSubKeyPreview = transitionHideSubKeyPreview;
-			controller.overlayView.gridTransitionSubKeyFont =
-			    (drawSubKeyPreview && !transitionHideSubKeyPreview)
-			        ? [controller.overlayView transitionFontForFamily:subKeyFontFamily size:transitionSubKeyFontSize]
-			        : nil;
-
-			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
-			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
-			[controller.overlayView startGridTransitionToCells:cellItems duration:duration];
 		}
-	});
+		NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+		NSString *labelBgHex = style.labelBackgroundColor ? @(style.labelBackgroundColor) : nil;
+		NSString *textHex = style.textColor ? @(style.textColor) : nil;
+		NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+		NSString *matchedBgHex = style.matchedBackgroundColor ? @(style.matchedBackgroundColor) : nil;
+		NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
+		NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+		int borderWidth = style.borderWidth;
+		BOOL drawLabelBackground = style.drawLabelBackground ? YES : NO;
+		CGFloat labelBackgroundPaddingX = style.labelBackgroundPaddingX;
+		CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
+		CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
+		CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
+		BOOL hideLabel = style.hideLabel != 0;
+		CGFloat transitionFontSize = style.transitionFontSize > 0 ? style.transitionFontSize : fontSize;
+		BOOL transitionHideLabel = style.transitionHideLabel != 0;
+		BOOL transitionHideSubKeyPreview = style.transitionHideSubKeyPreview != 0;
+		BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
+		int subKeyGridCols = style.subKeyGridCols;
+		int subKeyGridRows = style.subKeyGridRows;
+		CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
+		CGFloat transitionSubKeyFontSize =
+		    style.transitionSubKeyFontSize > 0 ? style.transitionSubKeyFontSize : subKeyFontSize;
+		NSString *subKeyFontFamily = nil;
+		if (style.subKeyFontFamily) {
+			subKeyFontFamily = @(style.subKeyFontFamily);
+			if (subKeyFontFamily.length == 0)
+				subKeyFontFamily = nil;
+		}
+		NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
+
+		NSString *subKeyKeysStr = style.subKeyKeys ? @(style.subKeyKeys) : nil;
+		NSMutableArray<NSString *> *subKeyLabels = nil;
+		if (subKeyKeysStr && subKeyKeysStr.length > 0) {
+			subKeyLabels = [NSMutableArray arrayWithCapacity:subKeyKeysStr.length];
+			[subKeyKeysStr
+			    enumerateSubstringsInRange:NSMakeRange(0, subKeyKeysStr.length)
+			                       options:NSStringEnumerationByComposedCharacterSequences
+			                    usingBlock:^(
+			                        NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop) {
+				                    [subKeyLabels addObject:substring];
+			                    }];
+		}
+
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				BOOL gridFamilyChanged =
+				    (fontFamily != controller.overlayView.cachedGridFontFamily &&
+				     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+				if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
+					NSFont *font = nil;
+					if (fontFamily && [fontFamily length] > 0) {
+						font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
+					}
+					if (!font) {
+						font = [NSFont systemFontOfSize:fontSize];
+					}
+					controller.overlayView.gridFont = font;
+					controller.overlayView.cachedGridFontFamily = fontFamily;
+					controller.overlayView.cachedGridFontSize = fontSize;
+				}
+
+				controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
+				                                                                     defaultColor:[NSColor whiteColor]];
+				controller.overlayView.gridLabelBackgroundColor =
+				    [controller.overlayView colorFromHex:labelBgHex
+				                            defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0
+				                                                          alpha:1.0] colorWithAlphaComponent:0.8]];
+				controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
+				                                                               defaultColor:[NSColor blackColor]];
+				controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
+				                                                                      defaultColor:[NSColor blueColor]];
+				controller.overlayView.gridMatchedBackgroundColor =
+				    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
+				controller.overlayView.gridMatchedBorderColor =
+				    [controller.overlayView colorFromHex:matchedBorderHex defaultColor:[NSColor blueColor]];
+				controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
+				                                                                 defaultColor:[NSColor grayColor]];
+
+				controller.overlayView.gridBorderWidth = borderWidth > 0 ? borderWidth : 1.0;
+				controller.overlayView.gridDrawLabelBackground = drawLabelBackground;
+				controller.overlayView.gridLabelBackgroundPaddingX = labelBackgroundPaddingX;
+				controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
+				controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
+				controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
+				controller.overlayView.gridHideLabel = hideLabel;
+				controller.overlayView.gridDrawSubKeyPreview = drawSubKeyPreview;
+				controller.overlayView.gridSubKeyCols = subKeyGridCols;
+				controller.overlayView.gridSubKeyRows = subKeyGridRows;
+				controller.overlayView.gridSubKeyLabels = subKeyLabels;
+				if (drawSubKeyPreview) {
+					if (subKeyFontSize != controller.overlayView.cachedGridSubKeyFontSize ||
+					    (subKeyFontFamily != controller.overlayView.cachedGridSubKeyFontFamily &&
+					     ![subKeyFontFamily isEqualToString:controller.overlayView.cachedGridSubKeyFontFamily])) {
+						NSFont *subFont = nil;
+						if (subKeyFontFamily && [subKeyFontFamily length] > 0) {
+							subFont = [controller.overlayView resolveFont:subKeyFontFamily size:subKeyFontSize bold:NO];
+						}
+						if (!subFont) {
+							subFont = [NSFont systemFontOfSize:subKeyFontSize];
+						}
+						controller.overlayView.gridSubKeyFont = subFont;
+						controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
+						controller.overlayView.cachedGridSubKeyFontFamily = subKeyFontFamily;
+					}
+					controller.overlayView.gridSubKeyTextColor =
+					    [controller.overlayView colorFromHex:subKeyTextHex defaultColor:[NSColor grayColor]];
+				}
+
+				// What the transition holds from its first frame to its last. The fonts
+				// come from a cache by size. A depth's held size recurs on every visit.
+				controller.overlayView.gridTransitionHideLabel = transitionHideLabel;
+				controller.overlayView.gridTransitionFont =
+				    transitionHideLabel
+				        ? nil
+				        : [controller.overlayView transitionFontForFamily:fontFamily size:transitionFontSize];
+				controller.overlayView.gridTransitionHideSubKeyPreview = transitionHideSubKeyPreview;
+				controller.overlayView.gridTransitionSubKeyFont =
+				    (drawSubKeyPreview && !transitionHideSubKeyPreview)
+				        ? [controller.overlayView transitionFontForFamily:subKeyFontFamily
+				                                                     size:transitionSubKeyFontSize]
+				        : nil;
+
+				controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
+				controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
+				[controller.overlayView startGridTransitionToCells:cellItems duration:duration];
+			}
+		});
+	}
 }
 
 /// Update grid match prefix (incremental update for typing).
@@ -3553,37 +3567,39 @@ void NeruAnimateRecursiveGridTransition(
 /// @param window Overlay window handle
 /// @param prefix Match prefix
 void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
-	if (!window)
-		return;
+	@autoreleasepool {
+		if (!window)
+			return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
-	NSString *prefixStr = prefix ? @(prefix) : @"";
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+		NSString *prefixStr = prefix ? @(prefix) : @"";
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			OverlayView *view = controller.overlayView;
-			NSUInteger cellCount = [view.gridCells count];
-			if (cellCount == 0)
-				return;
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				OverlayView *view = controller.overlayView;
+				NSUInteger cellCount = [view.gridCells count];
+				if (cellCount == 0)
+					return;
 
-			NSUInteger prefixLen = [prefixStr length];
-			BOOL anyChanged = NO;
-			for (GridCellItem *cellItem in view.gridCells) {
-				NSString *label = cellItem.label ?: @"";
-				BOOL newIsMatched = (prefixLen > 0 && [label hasPrefix:prefixStr]);
-				int newMatchedPrefixLength = newIsMatched ? (int)prefixLen : 0;
-				if (cellItem.isMatched != newIsMatched || cellItem.matchedPrefixLength != newMatchedPrefixLength) {
-					cellItem.isMatched = newIsMatched;
-					cellItem.matchedPrefixLength = newMatchedPrefixLength;
-					anyChanged = YES;
+				NSUInteger prefixLen = [prefixStr length];
+				BOOL anyChanged = NO;
+				for (GridCellItem *cellItem in view.gridCells) {
+					NSString *label = cellItem.label ?: @"";
+					BOOL newIsMatched = (prefixLen > 0 && [label hasPrefix:prefixStr]);
+					int newMatchedPrefixLength = newIsMatched ? (int)prefixLen : 0;
+					if (cellItem.isMatched != newIsMatched || cellItem.matchedPrefixLength != newMatchedPrefixLength) {
+						cellItem.isMatched = newIsMatched;
+						cellItem.matchedPrefixLength = newMatchedPrefixLength;
+						anyChanged = YES;
+					}
+				}
+
+				if (anyChanged) {
+					[view setNeedsDisplay:YES];
 				}
 			}
-
-			if (anyChanged) {
-				[view setNeedsDisplay:YES];
-			}
-		}
-	});
+		});
+	}
 }
 
 /// Set overlay level
@@ -3650,175 +3666,178 @@ void NeruSetOverlaySharingType(OverlayWindow window, int sharingType) {
 void NeruDrawIncrementGrid(
     OverlayWindow window, GridCell *cellsToAdd, int addCount, CGRect *cellsToRemove, int removeCount,
     GridCellStyle style) {
-	if (!window)
-		return;
+	@autoreleasepool {
+		if (!window)
+			return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	// Build cell data arrays upfront — safe from any thread
-	NSMutableArray<GridCellItem *> *cellItemsToAdd = nil;
-	if (cellsToAdd && addCount > 0) {
-		cellItemsToAdd = buildGridCellItems(cellsToAdd, addCount);
-	}
-
-	// Build bounds array for cells to remove
-	NSMutableArray *boundsToRemove = nil;
-	if (cellsToRemove && removeCount > 0) {
-		boundsToRemove = [NSMutableArray arrayWithCapacity:removeCount];
-		for (int i = 0; i < removeCount; i++) {
-			NSValue *boundsValue = [NSValue valueWithRect:NSRectFromCGRect(cellsToRemove[i])];
-			[boundsToRemove addObject:boundsValue];
+		// Build cell data arrays upfront — safe from any thread
+		NSMutableArray<GridCellItem *> *cellItemsToAdd = nil;
+		if (cellsToAdd && addCount > 0) {
+			cellItemsToAdd = buildGridCellItems(cellsToAdd, addCount);
 		}
-	}
 
-	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
-	NSString *fontFamily = nil;
-	if (style.fontFamily) {
-		fontFamily = @(style.fontFamily);
-		if (fontFamily.length == 0)
-			fontFamily = nil;
-	}
-	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
-	NSString *labelBgHex = style.labelBackgroundColor ? @(style.labelBackgroundColor) : nil;
-	NSString *textHex = style.textColor ? @(style.textColor) : nil;
-	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
-	NSString *matchedBgHex = style.matchedBackgroundColor ? @(style.matchedBackgroundColor) : nil;
-	NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
-	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
-	int borderWidth = style.borderWidth;
-	BOOL drawLabelBackground = style.drawLabelBackground ? YES : NO;
-	CGFloat labelBackgroundPaddingX = style.labelBackgroundPaddingX;
-	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
-	CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
-	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
+		// Build bounds array for cells to remove
+		NSMutableArray *boundsToRemove = nil;
+		if (cellsToRemove && removeCount > 0) {
+			boundsToRemove = [NSMutableArray arrayWithCapacity:removeCount];
+			for (int i = 0; i < removeCount; i++) {
+				NSValue *boundsValue = [NSValue valueWithRect:NSRectFromCGRect(cellsToRemove[i])];
+				[boundsToRemove addObject:boundsValue];
+			}
+		}
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			// Apply font — only re-create when family or size changed
-			BOOL gridFamilyChanged =
-			    (fontFamily != controller.overlayView.cachedGridFontFamily &&
-			     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
-			if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
-				NSFont *font = nil;
-				if (fontFamily && [fontFamily length] > 0) {
-					font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
-				}
-				if (!font)
-					font = [NSFont systemFontOfSize:fontSize];
-				controller.overlayView.gridFont = font;
-				controller.overlayView.cachedGridFontFamily = fontFamily;
-				controller.overlayView.cachedGridFontSize = fontSize;
-			}
+		// Copy all style properties NOW (before async block)
+		CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
+		NSString *fontFamily = nil;
+		if (style.fontFamily) {
+			fontFamily = @(style.fontFamily);
+			if (fontFamily.length == 0)
+				fontFamily = nil;
+		}
+		NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+		NSString *labelBgHex = style.labelBackgroundColor ? @(style.labelBackgroundColor) : nil;
+		NSString *textHex = style.textColor ? @(style.textColor) : nil;
+		NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+		NSString *matchedBgHex = style.matchedBackgroundColor ? @(style.matchedBackgroundColor) : nil;
+		NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
+		NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+		int borderWidth = style.borderWidth;
+		BOOL drawLabelBackground = style.drawLabelBackground ? YES : NO;
+		CGFloat labelBackgroundPaddingX = style.labelBackgroundPaddingX;
+		CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
+		CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
+		CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
 
-			// Apply color updates if provided
-			if (bgHex) {
-				controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
-				                                                                     defaultColor:[NSColor whiteColor]];
-			}
-			if (labelBgHex) {
-				controller.overlayView.gridLabelBackgroundColor =
-				    [controller.overlayView colorFromHex:labelBgHex
-				                            defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0
-				                                                          alpha:1.0] colorWithAlphaComponent:0.8]];
-			}
-			if (textHex) {
-				controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
-				                                                               defaultColor:[NSColor blackColor]];
-			}
-			if (matchedTextHex) {
-				controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
-				                                                                      defaultColor:[NSColor blueColor]];
-			}
-			if (matchedBgHex) {
-				controller.overlayView.gridMatchedBackgroundColor =
-				    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
-			}
-			if (matchedBorderHex) {
-				controller.overlayView.gridMatchedBorderColor =
-				    [controller.overlayView colorFromHex:matchedBorderHex defaultColor:[NSColor blueColor]];
-			}
-			if (borderHex) {
-				controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
-				                                                                 defaultColor:[NSColor grayColor]];
-			}
-
-			// Apply geometry and layout properties unconditionally.
-			// Previously borderWidth was gated behind the color guard and would be
-			// skipped if only borderWidth changed without any color properties.
-			if (borderWidth > 0) {
-				controller.overlayView.gridBorderWidth = borderWidth;
-			}
-			controller.overlayView.gridDrawLabelBackground = drawLabelBackground;
-			controller.overlayView.gridLabelBackgroundPaddingX = labelBackgroundPaddingX;
-			controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
-			controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
-			controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
-
-			// Sync cached color references
-			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
-			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
-			[controller.overlayView cancelGridTransition];
-			[controller.overlayView cancelCursorIndicatorTransition];
-
-			// Remove cells matching the given bounds
-			if (boundsToRemove && [boundsToRemove count] > 0) {
-				// Build a set of bounds keys for O(1) lookup
-				NSMutableSet *boundsToRemoveSet = [NSMutableSet setWithCapacity:[boundsToRemove count]];
-				for (NSValue *removeBoundsValue in boundsToRemove) {
-					NSRect removeBounds = [removeBoundsValue rectValue];
-					NSString *key =
-					    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", removeBounds.origin.x, removeBounds.origin.y,
-					                               removeBounds.size.width, removeBounds.size.height];
-					[boundsToRemoveSet addObject:key];
-				}
-
-				NSMutableArray<GridCellItem *> *cellsToKeep =
-				    [NSMutableArray arrayWithCapacity:[controller.overlayView.gridCells count]];
-				for (GridCellItem *cellItem in controller.overlayView.gridCells) {
-					NSRect cellBounds = cellItem.bounds;
-					NSString *cellKey =
-					    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", cellBounds.origin.x, cellBounds.origin.y,
-					                               cellBounds.size.width, cellBounds.size.height];
-					if (![boundsToRemoveSet containsObject:cellKey]) {
-						[cellsToKeep addObject:cellItem];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				// Apply font — only re-create when family or size changed
+				BOOL gridFamilyChanged =
+				    (fontFamily != controller.overlayView.cachedGridFontFamily &&
+				     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+				if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
+					NSFont *font = nil;
+					if (fontFamily && [fontFamily length] > 0) {
+						font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
 					}
-				}
-				controller.overlayView.gridCells = cellsToKeep;
-			}
-
-			// Add or update cells
-			if (cellItemsToAdd && [cellItemsToAdd count] > 0) {
-				// Build lookup map for existing cells by bounds for O(1) access
-				NSMutableDictionary *cellsByBounds =
-				    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.gridCells count]];
-				for (GridCellItem *cellItem in controller.overlayView.gridCells) {
-					NSRect bounds = cellItem.bounds;
-					NSString *key = [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", bounds.origin.x, bounds.origin.y,
-					                                           bounds.size.width, bounds.size.height];
-					cellsByBounds[key] = cellItem;
+					if (!font)
+						font = [NSFont systemFontOfSize:fontSize];
+					controller.overlayView.gridFont = font;
+					controller.overlayView.cachedGridFontFamily = fontFamily;
+					controller.overlayView.cachedGridFontSize = fontSize;
 				}
 
-				for (GridCellItem *newCellItem in cellItemsToAdd) {
-					NSRect newBounds = newCellItem.bounds;
-					NSString *key =
-					    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", newBounds.origin.x, newBounds.origin.y,
-					                               newBounds.size.width, newBounds.size.height];
-					GridCellItem *existingCell = cellsByBounds[key];
-					if (existingCell) {
-						NSUInteger index = [controller.overlayView.gridCells indexOfObjectIdenticalTo:existingCell];
-						if (index != NSNotFound) {
-							controller.overlayView.gridCells[index] = newCellItem;
+				// Apply color updates if provided
+				if (bgHex) {
+					controller.overlayView.gridBackgroundColor =
+					    [controller.overlayView colorFromHex:bgHex defaultColor:[NSColor whiteColor]];
+				}
+				if (labelBgHex) {
+					controller.overlayView.gridLabelBackgroundColor =
+					    [controller.overlayView colorFromHex:labelBgHex
+					                            defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0
+					                                                          alpha:1.0] colorWithAlphaComponent:0.8]];
+				}
+				if (textHex) {
+					controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
+					                                                               defaultColor:[NSColor blackColor]];
+				}
+				if (matchedTextHex) {
+					controller.overlayView.gridMatchedTextColor =
+					    [controller.overlayView colorFromHex:matchedTextHex defaultColor:[NSColor blueColor]];
+				}
+				if (matchedBgHex) {
+					controller.overlayView.gridMatchedBackgroundColor =
+					    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
+				}
+				if (matchedBorderHex) {
+					controller.overlayView.gridMatchedBorderColor =
+					    [controller.overlayView colorFromHex:matchedBorderHex defaultColor:[NSColor blueColor]];
+				}
+				if (borderHex) {
+					controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
+					                                                                 defaultColor:[NSColor grayColor]];
+				}
+
+				// Apply geometry and layout properties unconditionally.
+				// Previously borderWidth was gated behind the color guard and would be
+				// skipped if only borderWidth changed without any color properties.
+				if (borderWidth > 0) {
+					controller.overlayView.gridBorderWidth = borderWidth;
+				}
+				controller.overlayView.gridDrawLabelBackground = drawLabelBackground;
+				controller.overlayView.gridLabelBackgroundPaddingX = labelBackgroundPaddingX;
+				controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
+				controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
+				controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
+
+				// Sync cached color references
+				controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
+				controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
+				[controller.overlayView cancelGridTransition];
+				[controller.overlayView cancelCursorIndicatorTransition];
+
+				// Remove cells matching the given bounds
+				if (boundsToRemove && [boundsToRemove count] > 0) {
+					// Build a set of bounds keys for O(1) lookup
+					NSMutableSet *boundsToRemoveSet = [NSMutableSet setWithCapacity:[boundsToRemove count]];
+					for (NSValue *removeBoundsValue in boundsToRemove) {
+						NSRect removeBounds = [removeBoundsValue rectValue];
+						NSString *key = [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", removeBounds.origin.x,
+						                                           removeBounds.origin.y, removeBounds.size.width,
+						                                           removeBounds.size.height];
+						[boundsToRemoveSet addObject:key];
+					}
+
+					NSMutableArray<GridCellItem *> *cellsToKeep =
+					    [NSMutableArray arrayWithCapacity:[controller.overlayView.gridCells count]];
+					for (GridCellItem *cellItem in controller.overlayView.gridCells) {
+						NSRect cellBounds = cellItem.bounds;
+						NSString *cellKey =
+						    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", cellBounds.origin.x, cellBounds.origin.y,
+						                               cellBounds.size.width, cellBounds.size.height];
+						if (![boundsToRemoveSet containsObject:cellKey]) {
+							[cellsToKeep addObject:cellItem];
 						}
-					} else {
-						[controller.overlayView.gridCells addObject:newCellItem];
+					}
+					controller.overlayView.gridCells = cellsToKeep;
+				}
+
+				// Add or update cells
+				if (cellItemsToAdd && [cellItemsToAdd count] > 0) {
+					// Build lookup map for existing cells by bounds for O(1) access
+					NSMutableDictionary *cellsByBounds =
+					    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.gridCells count]];
+					for (GridCellItem *cellItem in controller.overlayView.gridCells) {
+						NSRect bounds = cellItem.bounds;
+						NSString *key =
+						    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", bounds.origin.x, bounds.origin.y,
+						                               bounds.size.width, bounds.size.height];
+						cellsByBounds[key] = cellItem;
+					}
+
+					for (GridCellItem *newCellItem in cellItemsToAdd) {
+						NSRect newBounds = newCellItem.bounds;
+						NSString *key =
+						    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", newBounds.origin.x, newBounds.origin.y,
+						                               newBounds.size.width, newBounds.size.height];
+						GridCellItem *existingCell = cellsByBounds[key];
+						if (existingCell) {
+							NSUInteger index = [controller.overlayView.gridCells indexOfObjectIdenticalTo:existingCell];
+							if (index != NSNotFound) {
+								controller.overlayView.gridCells[index] = newCellItem;
+							}
+						} else {
+							[controller.overlayView.gridCells addObject:newCellItem];
+						}
 					}
 				}
-			}
 
-			[controller.overlayView setNeedsDisplay:YES];
-		}
-	});
+				[controller.overlayView setNeedsDisplay:YES];
+			}
+		});
+	}
 }
 
 /// Show a virtual cursor indicator at the specified point.
@@ -3827,47 +3846,49 @@ void NeruDrawIncrementGrid(
 /// @param position Indicator center position in overlay coordinates
 /// @param style Indicator style
 void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndicatorStyle style) {
-	if (!window)
-		return;
+	@autoreleasepool {
+		if (!window)
+			return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	NSString *labelChar = style.labelChar ? @(style.labelChar) : @"\u25CF";
-	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
-	NSString *textHex = style.textColor ? @(style.textColor) : nil;
+		NSString *labelChar = style.labelChar ? @(style.labelChar) : @"\u25CF";
+		NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+		NSString *textHex = style.textColor ? @(style.textColor) : nil;
 
-	CGFloat fontSize = style.fontSize > 0 ? (CGFloat)style.fontSize : 8.0;
+		CGFloat fontSize = style.fontSize > 0 ? (CGFloat)style.fontSize : 8.0;
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			NSPoint nextPosition = NSMakePoint(position.x, position.y);
-			if (controller.overlayView.gridTransitionActive && controller.overlayView.cursorIndicatorVisible) {
-				controller.overlayView.cursorIndicatorFromPosition =
-				    [controller.overlayView currentCursorIndicatorPosition];
-				controller.overlayView.cursorIndicatorToPosition = nextPosition;
-				controller.overlayView.cursorIndicatorTransitionActive = YES;
-			} else {
-				[controller.overlayView cancelCursorIndicatorTransition];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				NSPoint nextPosition = NSMakePoint(position.x, position.y);
+				if (controller.overlayView.gridTransitionActive && controller.overlayView.cursorIndicatorVisible) {
+					controller.overlayView.cursorIndicatorFromPosition =
+					    [controller.overlayView currentCursorIndicatorPosition];
+					controller.overlayView.cursorIndicatorToPosition = nextPosition;
+					controller.overlayView.cursorIndicatorTransitionActive = YES;
+				} else {
+					[controller.overlayView cancelCursorIndicatorTransition];
+				}
+
+				controller.overlayView.cursorIndicatorVisible = YES;
+				controller.overlayView.cursorIndicatorPosition = nextPosition;
+				controller.overlayView.cursorIndicatorLabel = labelChar;
+
+				NSFont *font = nil;
+				if (fontFamily.length > 0) {
+					font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
+				}
+				if (!font) {
+					font = [NSFont systemFontOfSize:fontSize];
+				}
+				controller.overlayView.cursorIndicatorFont = font;
+				controller.overlayView.cursorIndicatorTextColor =
+				    [controller.overlayView colorFromHex:textHex defaultColor:[NSColor whiteColor]];
+
+				[controller.overlayView setNeedsDisplay:YES];
 			}
-
-			controller.overlayView.cursorIndicatorVisible = YES;
-			controller.overlayView.cursorIndicatorPosition = nextPosition;
-			controller.overlayView.cursorIndicatorLabel = labelChar;
-
-			NSFont *font = nil;
-			if (fontFamily.length > 0) {
-				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
-			}
-			if (!font) {
-				font = [NSFont systemFontOfSize:fontSize];
-			}
-			controller.overlayView.cursorIndicatorFont = font;
-			controller.overlayView.cursorIndicatorTextColor =
-			    [controller.overlayView colorFromHex:textHex defaultColor:[NSColor whiteColor]];
-
-			[controller.overlayView setNeedsDisplay:YES];
-		}
-	});
+		});
+	}
 }
 
 static NSPoint NeruAppKitPointFromQuartzPoint(CGPoint point);
@@ -3877,84 +3898,86 @@ static NSScreen *NeruScreenContainingQuartzPoint(CGPoint point);
 /// Draws the configured character using the configured font and text color.
 void NeruPositionAndDrawVirtualPointer(
     OverlayWindow window, double absoluteX, double absoluteY, CursorIndicatorStyle style) {
-	if (!window)
-		return;
+	@autoreleasepool {
+		if (!window)
+			return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	NSString *labelChar = style.labelChar ? @(style.labelChar) : @"\u25CF";
-	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
-	NSString *textHex = style.textColor ? @(style.textColor) : nil;
-	CGFloat margin = 2.0;
+		NSString *labelChar = style.labelChar ? @(style.labelChar) : @"\u25CF";
+		NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+		NSString *textHex = style.textColor ? @(style.textColor) : nil;
+		CGFloat margin = 2.0;
 
-	CGFloat fontSize = style.fontSize > 0 ? (CGFloat)style.fontSize : 8.0;
+		CGFloat fontSize = style.fontSize > 0 ? (CGFloat)style.fontSize : 8.0;
 
-	// Measure the actual glyph size so the window accommodates wide/tall characters
-	// (e.g. "⬤", "◆") that can exceed fontSize.
-	// Use the same resolution strategy as resolveFont:size:bold: (without bold trait)
-	// to keep measurement consistent with the rendering font set inside the dispatch block.
-	NSFont *measureFont = nil;
-	if (fontFamily.length > 0) {
-		measureFont = [NSFont fontWithName:fontFamily size:fontSize];
+		// Measure the actual glyph size so the window accommodates wide/tall characters
+		// (e.g. "⬤", "◆") that can exceed fontSize.
+		// Use the same resolution strategy as resolveFont:size:bold: (without bold trait)
+		// to keep measurement consistent with the rendering font set inside the dispatch block.
+		NSFont *measureFont = nil;
+		if (fontFamily.length > 0) {
+			measureFont = [NSFont fontWithName:fontFamily size:fontSize];
+			if (!measureFont) {
+				NSFontManager *fm = [NSFontManager sharedFontManager];
+				measureFont = [fm fontWithFamily:fontFamily traits:0 weight:5 size:fontSize];
+			}
+		}
 		if (!measureFont) {
-			NSFontManager *fm = [NSFontManager sharedFontManager];
-			measureFont = [fm fontWithFamily:fontFamily traits:0 weight:5 size:fontSize];
+			measureFont = [NSFont systemFontOfSize:fontSize];
 		}
-	}
-	if (!measureFont) {
-		measureFont = [NSFont systemFontOfSize:fontSize];
-	}
-	NSSize labelSize = [labelChar sizeWithAttributes:@{NSFontAttributeName : measureFont}];
-	CGFloat textDimension = MAX(labelSize.width, labelSize.height);
-	CGFloat windowSize = textDimension + margin * 2.0;
+		NSSize labelSize = [labelChar sizeWithAttributes:@{NSFontAttributeName : measureFont}];
+		CGFloat textDimension = MAX(labelSize.width, labelSize.height);
+		CGFloat windowSize = textDimension + margin * 2.0;
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			CGPoint desiredCenter = CGPointMake(absoluteX, absoluteY);
-			NSPoint appKitCenter = NeruAppKitPointFromQuartzPoint(desiredCenter);
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				CGPoint desiredCenter = CGPointMake(absoluteX, absoluteY);
+				NSPoint appKitCenter = NeruAppKitPointFromQuartzPoint(desiredCenter);
 
-			NSScreen *cursorScreen = NeruScreenContainingQuartzPoint(desiredCenter);
-			if (cursorScreen != nil) {
-				NSRect screenFrame = cursorScreen.frame;
-				CGFloat half = windowSize / 2.0;
-				CGFloat minX = screenFrame.origin.x + half;
-				CGFloat maxX = NSMaxX(screenFrame) - half;
-				CGFloat minY = screenFrame.origin.y + half;
-				CGFloat maxY = NSMaxY(screenFrame) - half;
-				if (minX <= maxX) {
-					appKitCenter.x = MAX(minX, MIN(appKitCenter.x, maxX));
+				NSScreen *cursorScreen = NeruScreenContainingQuartzPoint(desiredCenter);
+				if (cursorScreen != nil) {
+					NSRect screenFrame = cursorScreen.frame;
+					CGFloat half = windowSize / 2.0;
+					CGFloat minX = screenFrame.origin.x + half;
+					CGFloat maxX = NSMaxX(screenFrame) - half;
+					CGFloat minY = screenFrame.origin.y + half;
+					CGFloat maxY = NSMaxY(screenFrame) - half;
+					if (minX <= maxX) {
+						appKitCenter.x = MAX(minX, MIN(appKitCenter.x, maxX));
+					}
+					if (minY <= maxY) {
+						appKitCenter.y = MAX(minY, MIN(appKitCenter.y, maxY));
+					}
 				}
-				if (minY <= maxY) {
-					appKitCenter.y = MAX(minY, MIN(appKitCenter.y, maxY));
+
+				NSRect frame = NSMakeRect(
+				    appKitCenter.x - windowSize / 2.0, appKitCenter.y - windowSize / 2.0, windowSize, windowSize);
+
+				[controller.window setFrame:frame display:NO];
+				[controller.overlayView setFrame:NSMakeRect(0, 0, windowSize, windowSize)];
+				NeruOrderOverlayWindowIfDrawable(controller, NO);
+
+				[controller.overlayView cancelCursorIndicatorTransition];
+				controller.overlayView.cursorIndicatorVisible = YES;
+				controller.overlayView.cursorIndicatorPosition = NSMakePoint(windowSize / 2.0, windowSize / 2.0);
+				controller.overlayView.cursorIndicatorLabel = labelChar;
+
+				NSFont *font = nil;
+				if (fontFamily.length > 0) {
+					font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
 				}
+				if (!font) {
+					font = [NSFont systemFontOfSize:fontSize];
+				}
+				controller.overlayView.cursorIndicatorFont = font;
+				controller.overlayView.cursorIndicatorTextColor =
+				    [controller.overlayView colorFromHex:textHex defaultColor:[NSColor whiteColor]];
+
+				[controller.overlayView setNeedsDisplay:YES];
 			}
-
-			NSRect frame = NSMakeRect(
-			    appKitCenter.x - windowSize / 2.0, appKitCenter.y - windowSize / 2.0, windowSize, windowSize);
-
-			[controller.window setFrame:frame display:NO];
-			[controller.overlayView setFrame:NSMakeRect(0, 0, windowSize, windowSize)];
-			NeruOrderOverlayWindowIfDrawable(controller, NO);
-
-			[controller.overlayView cancelCursorIndicatorTransition];
-			controller.overlayView.cursorIndicatorVisible = YES;
-			controller.overlayView.cursorIndicatorPosition = NSMakePoint(windowSize / 2.0, windowSize / 2.0);
-			controller.overlayView.cursorIndicatorLabel = labelChar;
-
-			NSFont *font = nil;
-			if (fontFamily.length > 0) {
-				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
-			}
-			if (!font) {
-				font = [NSFont systemFontOfSize:fontSize];
-			}
-			controller.overlayView.cursorIndicatorFont = font;
-			controller.overlayView.cursorIndicatorTextColor =
-			    [controller.overlayView colorFromHex:textHex defaultColor:[NSColor whiteColor]];
-
-			[controller.overlayView setNeedsDisplay:YES];
-		}
-	});
+		});
+	}
 }
 
 /// Hide the virtual cursor indicator.
@@ -4175,107 +4198,110 @@ static NSMutableSet *_NeruMouseActionPanels;
 static dispatch_once_t _NeruMouseActionPanelsOnceToken;
 
 void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle style) {
-	NSString *backgroundHex = style.backgroundColor ? @(style.backgroundColor) : nil;
-	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
-	NSString *shape = style.shape ? @(style.shape) : @"circle";
-	NSString *easing = style.easing ? @(style.easing) : @"ease_out";
+	@autoreleasepool {
+		NSString *backgroundHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+		NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+		NSString *shape = style.shape ? @(style.shape) : @"circle";
+		NSString *easing = style.easing ? @(style.easing) : @"ease_out";
 
-	dispatch_once(&_NeruMouseActionPanelsOnceToken, ^{
-		_NeruMouseActionPanels = [NSMutableSet set];
-	});
+		dispatch_once(&_NeruMouseActionPanelsOnceToken, ^{
+			_NeruMouseActionPanels = [NSMutableSet set];
+		});
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			if (atomic_load(&_NeruMouseActionPanelCount) >= _NeruMaxMouseActionPanels) {
-				return;
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				if (atomic_load(&_NeruMouseActionPanelCount) >= _NeruMaxMouseActionPanels) {
+					return;
+				}
+				CGFloat size = MAX(style.size, 1);
+				CGFloat endScale = style.endScale > 0 ? style.endScale : 1.0;
+				CGFloat maxScale = MAX(style.startScale > 0 ? style.startScale : 1.0, MAX(endScale, 1.0));
+				CGFloat canvasSize = ceil(size * maxScale + MAX(style.borderWidth, 0) * 4.0);
+				NSPoint center = NeruAppKitPointFromQuartzPoint(position);
+				NSRect frame =
+				    NSMakeRect(center.x - canvasSize / 2.0, center.y - canvasSize / 2.0, canvasSize, canvasSize);
+
+				NSPanel *panel = [[NSPanel alloc]
+				    initWithContentRect:frame
+				              styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
+				                backing:NSBackingStoreBuffered
+				                  defer:NO];
+				[panel setHidesOnDeactivate:NO];
+				[panel setReleasedWhenClosed:NO];
+				[panel setTitle:@"neru-overlay"];
+				[panel setLevel:kCGMaximumWindowLevel];
+				[panel setOpaque:NO];
+				[panel setBackgroundColor:[NSColor clearColor]];
+				[panel setIgnoresMouseEvents:YES];
+				[panel setAcceptsMouseMovedEvents:NO];
+				[panel setHasShadow:NO];
+				[panel setSharingType:style.hideInScreenShare ? NSWindowSharingNone : NSWindowSharingReadOnly];
+				[panel setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
+				                             NSWindowCollectionBehaviorStationary |
+				                             NSWindowCollectionBehaviorFullScreenAuxiliary |
+				                             NSWindowCollectionBehaviorIgnoresCycle];
+				atomic_fetch_add(&_NeruMouseActionPanelCount, 1);
+				[_NeruMouseActionPanels addObject:panel];
+
+				NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, canvasSize, canvasSize)];
+				view.wantsLayer = YES;
+				view.layer.backgroundColor = NSColor.clearColor.CGColor;
+				[panel setContentView:view];
+
+				CGRect indicatorRect = CGRectMake((canvasSize - size) / 2.0, (canvasSize - size) / 2.0, size, size);
+				CGFloat cornerRadius = [shape isEqualToString:@"square"] ? MAX(size * 0.18, 2.0) : size / 2.0;
+
+				CAShapeLayer *layer = [CAShapeLayer layer];
+				layer.frame = view.bounds;
+				CGPathRef path = CGPathCreateWithRoundedRect(indicatorRect, cornerRadius, cornerRadius, NULL);
+				layer.path = path;
+				CGPathRelease(path);
+				layer.fillColor = NeruColorFromHexString(backgroundHex, [NSColor clearColor]).CGColor;
+				layer.strokeColor = NeruColorFromHexString(borderHex, [NSColor whiteColor]).CGColor;
+				layer.lineWidth = MAX(style.borderWidth, 0);
+				layer.opacity = style.startOpacity;
+				[view.layer addSublayer:layer];
+
+				[panel orderFrontRegardless];
+
+				CFTimeInterval duration = MAX(style.durationMS, 1) / 1000.0;
+				CAMediaTimingFunction *timing = NeruTimingFunction(easing);
+
+				CABasicAnimation *scaleAnimation = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
+				scaleAnimation.fromValue = @(style.startScale);
+				scaleAnimation.toValue = @(style.endScale);
+				scaleAnimation.duration = duration;
+				scaleAnimation.timingFunction = timing;
+
+				CABasicAnimation *opacityAnimation = [CABasicAnimation animationWithKeyPath:@"opacity"];
+				opacityAnimation.fromValue = @(style.startOpacity);
+				opacityAnimation.toValue = @(style.endOpacity);
+				opacityAnimation.duration = duration;
+				opacityAnimation.timingFunction = timing;
+
+				layer.transform = CATransform3DMakeScale(style.endScale, style.endScale, 1.0);
+				layer.opacity = style.endOpacity;
+				[layer addAnimation:scaleAnimation forKey:@"mouseActionScale"];
+				[layer addAnimation:opacityAnimation forKey:@"mouseActionOpacity"];
+
+				__weak NSPanel *weakPanel = panel;
+				dispatch_after(
+				    dispatch_time(DISPATCH_TIME_NOW, (int64_t)(duration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+					    @autoreleasepool {
+						    NSPanel *strongPanel = weakPanel;
+						    if (!strongPanel)
+							    return;
+						    [strongPanel.contentView.layer removeAllAnimations];
+						    [strongPanel setContentView:nil];
+						    [strongPanel orderOut:nil];
+						    [strongPanel close];
+						    [_NeruMouseActionPanels removeObject:strongPanel];
+						    atomic_fetch_add(&_NeruMouseActionPanelCount, -1);
+					    }
+				    });
 			}
-			CGFloat size = MAX(style.size, 1);
-			CGFloat endScale = style.endScale > 0 ? style.endScale : 1.0;
-			CGFloat maxScale = MAX(style.startScale > 0 ? style.startScale : 1.0, MAX(endScale, 1.0));
-			CGFloat canvasSize = ceil(size * maxScale + MAX(style.borderWidth, 0) * 4.0);
-			NSPoint center = NeruAppKitPointFromQuartzPoint(position);
-			NSRect frame = NSMakeRect(center.x - canvasSize / 2.0, center.y - canvasSize / 2.0, canvasSize, canvasSize);
-
-			NSPanel *panel =
-			    [[NSPanel alloc] initWithContentRect:frame
-			                               styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
-			                                 backing:NSBackingStoreBuffered
-			                                   defer:NO];
-			[panel setHidesOnDeactivate:NO];
-			[panel setReleasedWhenClosed:NO];
-			[panel setTitle:@"neru-overlay"];
-			[panel setLevel:kCGMaximumWindowLevel];
-			[panel setOpaque:NO];
-			[panel setBackgroundColor:[NSColor clearColor]];
-			[panel setIgnoresMouseEvents:YES];
-			[panel setAcceptsMouseMovedEvents:NO];
-			[panel setHasShadow:NO];
-			[panel setSharingType:style.hideInScreenShare ? NSWindowSharingNone : NSWindowSharingReadOnly];
-			[panel setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
-			                             NSWindowCollectionBehaviorStationary |
-			                             NSWindowCollectionBehaviorFullScreenAuxiliary |
-			                             NSWindowCollectionBehaviorIgnoresCycle];
-			atomic_fetch_add(&_NeruMouseActionPanelCount, 1);
-			[_NeruMouseActionPanels addObject:panel];
-
-			NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, canvasSize, canvasSize)];
-			view.wantsLayer = YES;
-			view.layer.backgroundColor = NSColor.clearColor.CGColor;
-			[panel setContentView:view];
-
-			CGRect indicatorRect = CGRectMake((canvasSize - size) / 2.0, (canvasSize - size) / 2.0, size, size);
-			CGFloat cornerRadius = [shape isEqualToString:@"square"] ? MAX(size * 0.18, 2.0) : size / 2.0;
-
-			CAShapeLayer *layer = [CAShapeLayer layer];
-			layer.frame = view.bounds;
-			CGPathRef path = CGPathCreateWithRoundedRect(indicatorRect, cornerRadius, cornerRadius, NULL);
-			layer.path = path;
-			CGPathRelease(path);
-			layer.fillColor = NeruColorFromHexString(backgroundHex, [NSColor clearColor]).CGColor;
-			layer.strokeColor = NeruColorFromHexString(borderHex, [NSColor whiteColor]).CGColor;
-			layer.lineWidth = MAX(style.borderWidth, 0);
-			layer.opacity = style.startOpacity;
-			[view.layer addSublayer:layer];
-
-			[panel orderFrontRegardless];
-
-			CFTimeInterval duration = MAX(style.durationMS, 1) / 1000.0;
-			CAMediaTimingFunction *timing = NeruTimingFunction(easing);
-
-			CABasicAnimation *scaleAnimation = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
-			scaleAnimation.fromValue = @(style.startScale);
-			scaleAnimation.toValue = @(style.endScale);
-			scaleAnimation.duration = duration;
-			scaleAnimation.timingFunction = timing;
-
-			CABasicAnimation *opacityAnimation = [CABasicAnimation animationWithKeyPath:@"opacity"];
-			opacityAnimation.fromValue = @(style.startOpacity);
-			opacityAnimation.toValue = @(style.endOpacity);
-			opacityAnimation.duration = duration;
-			opacityAnimation.timingFunction = timing;
-
-			layer.transform = CATransform3DMakeScale(style.endScale, style.endScale, 1.0);
-			layer.opacity = style.endOpacity;
-			[layer addAnimation:scaleAnimation forKey:@"mouseActionScale"];
-			[layer addAnimation:opacityAnimation forKey:@"mouseActionOpacity"];
-
-			__weak NSPanel *weakPanel = panel;
-			dispatch_after(
-			    dispatch_time(DISPATCH_TIME_NOW, (int64_t)(duration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-				    @autoreleasepool {
-					    NSPanel *strongPanel = weakPanel;
-					    if (!strongPanel)
-						    return;
-					    [strongPanel.contentView.layer removeAllAnimations];
-					    [strongPanel setContentView:nil];
-					    [strongPanel orderOut:nil];
-					    [strongPanel close];
-					    [_NeruMouseActionPanels removeObject:strongPanel];
-					    atomic_fetch_add(&_NeruMouseActionPanelCount, -1);
-				    }
-			    });
-		}
-	});
+		});
+	}
 }
 
 #pragma mark - System Cursor

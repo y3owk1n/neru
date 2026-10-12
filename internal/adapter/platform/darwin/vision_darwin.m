@@ -130,11 +130,13 @@ static CGImageRef captureDisplayImageWithScreenCaptureKit(CGDirectDisplayID disp
 }
 
 static CGImageRef captureDisplayImage(CGDirectDisplayID displayID) {
-	if (@available(macOS 14.0, *)) {
-		return captureDisplayImageWithScreenCaptureKit(displayID);
-	}
+	@autoreleasepool {
+		if (@available(macOS 14.0, *)) {
+			return captureDisplayImageWithScreenCaptureKit(displayID);
+		}
 
-	return createDisplayImage(displayID);
+		return createDisplayImage(displayID);
+	}
 }
 
 // displayContaining resolves which display holds rect, falling back to the

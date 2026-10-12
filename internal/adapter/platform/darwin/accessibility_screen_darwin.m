@@ -555,7 +555,11 @@ void NeruFreeScreens(NeruScreenInfo *screens, int count) {
 /// @return true when the screen is magnified by Accessibility Zoom
 /// @note Used for diagnostics — cursor positioning is zoom-independent because
 ///       synthetic mouse events are posted at kNeruMouseEventTapLocation.
-bool NeruIsScreenZoomed(void) { return UAZoomEnabled(); }
+bool NeruIsScreenZoomed(void) {
+	@autoreleasepool {
+		return UAZoomEnabled();
+	}
+}
 
 /// Get current cursor position
 /// @return Current cursor position
