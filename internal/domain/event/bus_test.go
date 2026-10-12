@@ -75,34 +75,35 @@ func TestBus_SubscribeTo_OffersOnlyTheEventsNamed(t *testing.T) {
 	}
 }
 
-// TestSubscription_TakeMissed_ReportsALossOnce pins the count a reader asks
-// for when no event is left to carry it: it reports what the full buffer
-// lost with the number of the newest event, which covers every loss counted,
-// and the next event delivered does not report the same loss again.
-func TestSubscription_TakeMissed_ReportsALossOnce(t *testing.T) {
+// TestSubscription_Drain_TakesEverythingTheBufferHolds pins the catch-up a
+// reader asks for: every queued event and every loss, counted with the newest
+// event's number, which covers all of them, and none reported again after.
+func TestSubscription_Drain_TakesEverythingTheBufferHolds(t *testing.T) {
 	bus := event.NewBus(nil)
 
-	sub := bus.SubscribeTo(1, nil)
+	sub := bus.SubscribeTo(2, nil)
 	defer sub.Stop()
 
-	for range 3 {
+	for range 5 {
 		bus.Publish(event.Event{Name: event.Enable})
 	}
 
-	<-sub.Events()
+	if missed := sub.Missed(); missed != 3 {
+		t.Fatalf("Missed() = %d, want the 3 the full buffer lost", missed)
+	}
 
-	if missed, seq := sub.TakeMissed(); missed != 2 || seq != 3 {
-		t.Fatalf(
-			"TakeMissed() = %d, %d, want the 2 the full buffer lost, through seq 3",
-			missed,
-			seq,
-		)
+	if taken, seq := sub.Drain(); taken != 5 || seq != 5 {
+		t.Fatalf("Drain() = %d, %d, want the 2 queued and 3 lost, through seq 5", taken, seq)
+	}
+
+	if missed := sub.Missed(); missed != 0 {
+		t.Errorf("Missed() after Drain = %d, want the loss already taken", missed)
 	}
 
 	bus.Publish(event.Event{Name: event.Disable})
 
-	if got := <-sub.Events(); got.Dropped != 0 {
-		t.Errorf("next event = %+v, want nothing dropped once the loss was taken", got)
+	if got := <-sub.Events(); got.Seq != 6 || got.Dropped != 0 {
+		t.Errorf("next event = %+v, want seq 6 with nothing dropped", got)
 	}
 }
 

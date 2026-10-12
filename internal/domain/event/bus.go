@@ -14,8 +14,8 @@ import (
 // macOS publishes from the main queue. A subscriber whose buffer is full
 // misses the event, and the next one it does receive counts what it missed.
 //
-// mu is a leaf. It is held only across non-blocking channel sends and never
-// across a call out of this package, logging included.
+// mu is a leaf. It is held only across non-blocking channel sends and
+// receives, and never across a call out of this package, logging included.
 type Bus struct {
 	logger *zap.Logger
 
@@ -144,12 +144,25 @@ func (s *Subscription) Stop() {
 	s.stop()
 }
 
-// TakeMissed returns how many events the subscription has lost since the
-// last one it was handed, with the number of the newest event published. It
-// reads both under the bus's lock, so every loss it counts is numbered at or
-// below that event. It clears the count, so the next event the subscription
-// is handed does not report the same loss again in Dropped.
-func (s *Subscription) TakeMissed() (uint64, uint64) {
+// Missed reports how many events the subscription has lost since the last
+// one it was handed, without clearing the count.
+func (s *Subscription) Missed() uint64 {
+	if s.bus == nil {
+		return 0
+	}
+
+	s.bus.mu.Lock()
+	defer s.bus.mu.Unlock()
+
+	return s.sub.dropped
+}
+
+// Drain takes every event still queued for the subscription and every loss
+// it has not been told of. It returns how many events that is, counting each
+// queued event with the losses it reports, and the number of the newest event
+// published. It holds the lock publishers take, so no event arrives while it
+// runs, and every event it counts is numbered at or below that one.
+func (s *Subscription) Drain() (uint64, uint64) {
 	if s.bus == nil {
 		return 0, 0
 	}
@@ -157,10 +170,21 @@ func (s *Subscription) TakeMissed() (uint64, uint64) {
 	s.bus.mu.Lock()
 	defer s.bus.mu.Unlock()
 
-	missed := s.sub.dropped
+	taken := s.sub.dropped
 	s.sub.dropped = 0
 
-	return missed, s.bus.seq
+	for {
+		select {
+		case evt, open := <-s.sub.events:
+			if !open {
+				return taken, s.bus.seq
+			}
+
+			taken += 1 + evt.Dropped
+		default:
+			return taken, s.bus.seq
+		}
+	}
 }
 
 // offer numbers evt and makes one non-blocking send of it to each subscriber.
