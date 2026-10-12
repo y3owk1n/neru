@@ -130,6 +130,42 @@ func TestClient_Hints_PassesItsFlags(t *testing.T) {
 	}
 }
 
+// TestClient_Window_WithNoWindowFocused pins a reply that carries no data,
+// which is how the daemon answers query-window when nothing has focus.
+func TestClient_Window_WithNoWindowFocused(t *testing.T) {
+	isolate(t)
+
+	serve(t, func(_ context.Context, _ ipc.Command) ipc.Response {
+		return ipc.Response{Success: true}
+	}, nil)
+
+	window, err := client.New().Window(testContext(t))
+	if err != nil || window != nil {
+		t.Fatalf("Window() = %+v, %v, want nil and no error", window, err)
+	}
+}
+
+// TestClient_FindsADaemonStartedAfterIt pins that a client looks up the
+// endpoint on each call. A client made before the daemon starts still reaches
+// it, and so does one made before the daemon moves to its other possible
+// location.
+func TestClient_FindsADaemonStartedAfterIt(t *testing.T) {
+	isolate(t)
+
+	neru := client.New()
+
+	isolate(t)
+
+	serve(t, func(_ context.Context, _ ipc.Command) ipc.Response {
+		return ipc.Response{Success: true}
+	}, nil)
+
+	_, err := neru.Ping(testContext(t))
+	if err != nil {
+		t.Fatalf("Ping() error = %v, want the daemon started after the client", err)
+	}
+}
+
 func TestClient_Send_ReturnsARefusalAsAnError(t *testing.T) {
 	isolate(t)
 

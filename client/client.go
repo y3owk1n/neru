@@ -14,12 +14,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"net"
 	"syscall"
 
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/ipcendpoint"
 )
 
@@ -44,16 +44,15 @@ func (e *Error) Error() string {
 	return e.Code + ": " + e.Message
 }
 
-// Client sends requests to one daemon endpoint. Each call opens its own
+// Client sends requests to this user's daemon. Each call opens its own
 // connection, so a Client is safe to share.
-type Client struct {
-	endpoint string
-}
+type Client struct{}
 
-// New returns a client for this user's daemon, found the way the neru CLI
-// finds it.
+// New returns a client for this user's daemon. Each call finds the endpoint
+// the way the neru CLI does, so a client made before the daemon starts still
+// reaches it.
 func New() *Client {
-	return &Client{endpoint: ipcendpoint.ClientPath()}
+	return &Client{}
 }
 
 type request struct {
@@ -137,7 +136,7 @@ func (c *Client) Watch(ctx context.Context, each func(WatchLine) error) error {
 			}
 
 			if decodeErr != nil {
-				return fmt.Errorf("read the watch stream: %w", decodeErr)
+				return derrors.Wrap(decodeErr, derrors.CodeIPCFailed, "read the watch stream")
 			}
 
 			eachErr := each(line)
@@ -159,9 +158,20 @@ func call[T any](ctx context.Context, c *Client, action string, args ...string) 
 		return data, err
 	}
 
+	// A reply with no data, such as query-window with no window focused,
+	// leaves the zero value.
+	if len(raw) == 0 {
+		return data, nil
+	}
+
 	err = json.Unmarshal(raw, &data)
 	if err != nil {
-		return data, fmt.Errorf("read the %s reply: %w", action, err)
+		return data, derrors.Wrapf(
+			err,
+			derrors.CodeSerializationFailed,
+			"read the %s reply",
+			action,
+		)
 	}
 
 	return data, nil
@@ -179,13 +189,15 @@ func (c *Client) exchange(
 	args []string,
 	stream func(*json.Decoder) error,
 ) (reply, error) {
-	conn, err := ipcendpoint.Dial(ctx, net.Dialer{}, c.endpoint)
+	endpoint := ipcendpoint.ClientPath()
+
+	conn, err := ipcendpoint.Dial(ctx, net.Dialer{}, endpoint)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ECONNREFUSED) {
-			return reply{}, fmt.Errorf("%w at %s", ErrNoDaemon, c.endpoint)
+			err = ErrNoDaemon
 		}
 
-		return reply{}, fmt.Errorf("dial %s: %w", c.endpoint, err)
+		return reply{}, derrors.Wrapf(err, derrors.CodeIPCFailed, "dial %s", endpoint)
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -212,7 +224,7 @@ func (c *Client) exchange(
 func talk(conn net.Conn, req request, stream func(*json.Decoder) error) (reply, error) {
 	err := json.NewEncoder(conn).Encode(req)
 	if err != nil {
-		return reply{}, fmt.Errorf("send %s: %w", req.Action, err)
+		return reply{}, derrors.Wrapf(err, derrors.CodeIPCFailed, "send %s", req.Action)
 	}
 
 	decoder := json.NewDecoder(conn)
@@ -221,7 +233,7 @@ func talk(conn net.Conn, req request, stream func(*json.Decoder) error) (reply, 
 
 	err = decoder.Decode(&answer)
 	if err != nil {
-		return reply{}, fmt.Errorf("read the %s reply: %w", req.Action, err)
+		return reply{}, derrors.Wrapf(err, derrors.CodeIPCFailed, "read the %s reply", req.Action)
 	}
 
 	if !answer.Success {
