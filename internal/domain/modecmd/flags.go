@@ -60,6 +60,9 @@ const (
 	// FlagSplitWord splits detected text into word-level regions.
 	FlagSplitWord Flag = "split-word"
 
+	// FlagTargets supplies the targets hints mode labels, in place of a scan.
+	FlagTargets Flag = "targets"
+
 	// FlagZoomToDepth auto-zooms recursive grid to a depth.
 	FlagZoomToDepth Flag = "zoom-to-depth"
 
@@ -84,6 +87,7 @@ const (
 	msgStrategyValue            = "--strategy requires axtree, vision, or contour"
 	msgCaptureScopeValue        = "--capture-scope requires window or screen"
 	msgLabelDirectionValue      = "--label-direction requires normal or reverse"
+	msgTargetsValue             = `--targets requires JSON listing at least one target with a width and height, as {"hints":[{"x":10,"y":20,"width":80,"height":24}]}`
 	msgZoomToDepthValue         = "--zoom-to-depth requires a non-negative integer"
 	msgCursorSelectionModeValue = "--cursor-selection-mode requires follow or hold"
 
@@ -120,6 +124,7 @@ const (
 	usageCaptureScope        = "Region to work in: window (the focused window) or screen (the whole screen). " + usageCycle + ", as in --capture-scope=window,screen"
 	usageLabelDirection      = "Label order: normal (shorter labels first) or reverse (spread across the alphabet)"
 	usageSplitWord           = "Hint each word of detected text separately. Needs the vision strategy"
+	usageTargets             = "Label these targets instead of scanning, as JSON in the shape 'neru query hints --json' prints. Refuses the flags that decide what a scan collects, and --repeat"
 	usageZoomToDepth         = "Open recursive grid already zoomed to this depth at the cursor"
 )
 
@@ -566,6 +571,19 @@ var descriptors = []Descriptor{
 		func(activation Activation) []string {
 			return renderValue(FlagLabelDirection, activation.LabelDirection)
 		},
+	),
+	valueFlag(FlagTargets, "", usageTargets, msgTargetsValue, hintsOnly,
+		func(activation *Activation, value string) error {
+			targets, err := parseTargets(value)
+			if err != nil {
+				return err
+			}
+
+			activation.Targets = targets
+
+			return nil
+		},
+		renderTargets,
 	),
 	presenceFlag(FlagSplitWord, "", usageSplitWord, hintsOnly,
 		func(activation *Activation) { activation.SplitWord = enabled() },

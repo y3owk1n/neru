@@ -88,4 +88,8 @@ type Activation struct {
 
 	// LabelDirection chooses how hint labels are enumerated.
 	LabelDirection *string
+
+	// Targets are the places hints mode labels in place of the elements a scan
+	// would find. Nil means scan.
+	Targets []Target
 }

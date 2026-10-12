@@ -100,6 +100,20 @@ them straight back. This prints the name of the display under the cursor:
 neru query cursor --json | jq -r .display
 ```
 
+## Click what another tool found
+
+When an app hides its controls from every strategy, a tool that knows where
+they are can pass them to hints mode. `--targets` takes the JSON `neru query
+hints --json` prints, so you can filter a query and feed it back, and any tool
+that writes the same shape works too:
+
+```bash
+some-tool --emit-targets | neru hints --targets - --action left_click
+```
+
+The details are under
+[Supplying your own targets](../reference/cli.md#supplying-your-own-targets).
+
 ## Talking to the daemon directly
 
 To skip the `neru` binary, send JSON over the socket. The format is in

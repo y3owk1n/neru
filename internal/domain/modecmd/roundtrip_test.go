@@ -74,7 +74,7 @@ func TestRoundTrip_CarriesAWholeCommand(t *testing.T) {
 		flagHideOnEmpty,
 		"--role=AXButton,AXLink",
 		"--text=OK,Cancel",
-		"--strategy=vision",
+		argStrategyVision,
 		"--label-direction=reverse",
 		"--split-word",
 		"--cursor-selection-mode=hold",

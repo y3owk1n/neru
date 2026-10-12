@@ -21,6 +21,7 @@ type baseContext struct {
 	activeCaptureScope     string
 	labelDirectionOverride string
 	splitWord              bool
+	targetsSupplied        bool
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -97,6 +98,7 @@ func (c *baseContext) Reset() {
 	c.activeCaptureScope = ""
 	c.labelDirectionOverride = ""
 	c.splitWord = false
+	c.targetsSupplied = false
 }
 
 // SetFilterRoles sets the filter roles for hint mode.
@@ -187,6 +189,18 @@ func (c *baseContext) SetSplitWord(split bool) {
 // SplitWord returns the session word splitting preference.
 func (c *baseContext) SplitWord() bool {
 	return c.splitWord
+}
+
+// SetTargetsSupplied records whether the session labels targets a caller
+// supplied rather than what a scan found.
+func (c *baseContext) SetTargetsSupplied(supplied bool) {
+	c.targetsSupplied = supplied
+}
+
+// TargetsSupplied reports whether the session labels supplied targets, which
+// nothing can scan again.
+func (c *baseContext) TargetsSupplied() bool {
+	return c.targetsSupplied
 }
 
 // Context holds the state and context for hint mode operations.

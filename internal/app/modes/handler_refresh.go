@@ -42,6 +42,15 @@ func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 		h.cancelHintSearch()
 	}
 
+	// Nothing can scan supplied targets again, and their coordinates describe
+	// the display as it was.
+	if h.hints.Context.TargetsSupplied() {
+		h.logger.Debug("Screen changed under supplied hint targets; exiting hints mode")
+		h.exitMode()
+
+		return false
+	}
+
 	// Get the filters the mode was activated with from the context
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()

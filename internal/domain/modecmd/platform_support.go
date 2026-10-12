@@ -33,6 +33,7 @@ func PlatformSupport() parity.Declaration {
 		FlagSplitWord.String(),
 		FlagCaptureScope.String(),
 		FlagLabelDirection.String(),
+		FlagTargets.String(),
 		FlagZoomToDepth.String(),
 		FlagCursorSelectionMode.String(),
 	)

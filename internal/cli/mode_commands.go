@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"io"
+
 	"github.com/spf13/cobra"
 
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -197,6 +199,17 @@ func applyFlag(
 		value, err := cmd.Flags().GetString(name)
 		if err != nil {
 			return err
+		}
+
+		// A binding or an IPC caller has no stdin, so reading it is the one
+		// thing the command line adds to --targets.
+		if descriptor.Name() == modecmd.FlagTargets && value == "-" {
+			stdin, readErr := io.ReadAll(cmd.InOrStdin())
+			if readErr != nil {
+				return derrors.Wrap(readErr, derrors.CodeInvalidInput, "read --targets from stdin")
+			}
+
+			value = string(stdin)
 		}
 
 		return descriptor.Apply(activation, value)

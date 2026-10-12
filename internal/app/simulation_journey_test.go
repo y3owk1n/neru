@@ -1647,7 +1647,7 @@ func TestSimulation_MonitorSelectJourney_DisplaysSharingAName(t *testing.T) {
 // the second even though both have one name, and a second step must return.
 func TestSimulation_MonitorMoveNext_StepsThroughDisplaysSharingAName(t *testing.T) {
 	cfg := simConfig()
-	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{"action move_monitor"}
+	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{moveMonitorBinding}
 
 	const sharedName = "Generic PnP Monitor"
 
@@ -2440,6 +2440,9 @@ func TestSimulation_LeavingMonitorSelectForScrollTakesItsPanelsDown(t *testing.T
 
 // moveMonitorHotkey runs the move-monitor action rather than opening a mode.
 const moveMonitorHotkey = "Primary+Shift+N"
+
+// moveMonitorBinding is the step moveMonitorHotkey is bound to.
+const moveMonitorBinding = "action move_monitor"
 
 // TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay covers what a user
 // sees when they send the cursor to another display with a mode open: the

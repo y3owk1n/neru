@@ -386,6 +386,14 @@ func (h *handlerState) refreshHintsForMonitorMove(
 		return
 	}
 
+	// Nothing can scan supplied targets on the display moved to.
+	if h.hints.Context.TargetsSupplied() {
+		h.logger.Debug("Monitor moved under supplied hint targets; exiting hints mode")
+		h.exitMode()
+
+		return
+	}
+
 	generateCtx, cancelGenerate := context.WithTimeout(ctx, HintTimeout)
 	defer cancelGenerate()
 

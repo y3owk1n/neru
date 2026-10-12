@@ -393,6 +393,12 @@ Takes a value. Modes: `hints`.
 
 Label order: normal (shorter labels first) or reverse (spread across the alphabet).
 
+#### `--targets`
+
+Takes a value. Modes: `hints`.
+
+Label these targets instead of scanning, as JSON in the shape 'neru query hints --json' prints. Refuses the flags that decide what a scan collects, and --repeat.
+
 #### `--split-word`
 
 Takes no value. Modes: `hints`.
@@ -434,6 +440,32 @@ OCR language pack on Windows. See
 ```bash
 neru hints --action left_click --role button --text submit
 ```
+
+#### Supplying your own targets
+
+Where no strategy finds what you need to click, another tool can supply the
+targets instead. `--targets` takes JSON in the shape
+[`neru query hints --json`](#neru-query) prints, and hints mode labels those
+targets in place of a scan. Each target needs `x`, `y`, `width` and `height`
+in the coordinates `move_mouse` takes. `role`, `title`, `description` and
+`value` are optional, and other keys, such as a query's `label`, are ignored.
+From the command line, `--targets -` reads the JSON from stdin.
+
+```bash
+neru query hints --json | jq '.hints |= map(select(.width > 20))' \
+  | neru hints --targets - --action left_click
+```
+
+- Targets whose center is off the active display are dropped, as scanned
+  elements are.
+- A target has no accessibility handle, so every action works at its
+  coordinates, as it does on what the `vision` strategy finds.
+- `--targets` refuses `--role`, `--text`, `--strategy`, `--capture-scope`,
+  `--split-word` and `--repeat`. Filter the targets before sending them.
+- A screen change or a monitor move exits hints mode, since nothing can scan
+  the targets again.
+- A request to the daemon is capped at 64 KiB, which holds several hundred
+  targets.
 
 ### neru grid
 

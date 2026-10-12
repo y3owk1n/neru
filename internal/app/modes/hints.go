@@ -182,7 +182,7 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		strategy = overrides.strategy
 	}
 
-	if h.needsScreenCapturePermission(strategy) {
+	if activation.Targets == nil && h.needsScreenCapturePermission(strategy) {
 		// The permission request blocks on a modal dialog and h.mu must not be
 		// held across it (see the SystemPort contract). The activation is
 		// suspended here and re-entered through the outer locked surface once
@@ -201,16 +201,28 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		h.hints.Context.SetActiveScan(strategy, captureScope)
 	}
 
-	domainHints, domainHintsErr := h.hintService.GenerateHints(
-		ctx,
-		activation.FilterRoles,
-		activation.FilterTextContains,
-		bundleID,
-		overrides.strategy,
-		overrides.captureScope,
-		overrides.labelDirection,
-		overrides.splitWord,
+	var (
+		domainHints    []*domainHint.Interface
+		domainHintsErr error
 	)
+
+	if activation.Targets != nil {
+		domainHints, domainHintsErr = h.labelTargets(
+			ctx, activation.Targets, bundleID, overrides.labelDirection,
+		)
+	} else {
+		domainHints, domainHintsErr = h.hintService.GenerateHints(
+			ctx,
+			activation.FilterRoles,
+			activation.FilterTextContains,
+			bundleID,
+			overrides.strategy,
+			overrides.captureScope,
+			overrides.labelDirection,
+			overrides.splitWord,
+		)
+	}
+
 	if domainHintsErr != nil {
 		h.logger.Error(
 			"Failed to show hints",

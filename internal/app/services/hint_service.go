@@ -111,6 +111,25 @@ func (s *HintService) ProbeHints(
 		strategyOverride, captureScopeOverride, labelDirectionOverride, splitWord, true)
 }
 
+// LabelElements labels elements a caller supplied, in place of a scan, with
+// the label direction a scan of bundleID's window would use unless
+// labelDirectionOverride names one.
+func (s *HintService) LabelElements(
+	ctx context.Context,
+	elements []*element.Element,
+	bundleID string,
+	labelDirectionOverride string,
+) ([]*hint.Interface, error) {
+	labelDirection := labelDirectionOverride
+	if labelDirection == "" {
+		s.mu.RLock()
+		labelDirection = s.config.LabelDirectionForApp(bundleID)
+		s.mu.RUnlock()
+	}
+
+	return s.labelElements(ctx, elements, labelDirection)
+}
+
 // RefreshHints updates the hint display (e.g., after screen changes).
 func (s *HintService) RefreshHints(ctx context.Context) error {
 	if !s.overlay.IsVisible() {

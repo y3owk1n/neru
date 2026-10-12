@@ -31,10 +31,12 @@ const (
 	argOnExitStep       = "--on-exit=action left_click"
 	argModifierCmd      = "--modifier=cmd"
 	argBadStrategy      = "--strategy=nonsense"
+	argStrategyVision   = "--strategy=vision"
 	argZoomToDepth2     = "--zoom-to-depth=2"
 	flagMistyped        = "--serach"
 	stepLeftClick       = "action left_click"
 	directionReverse    = "reverse"
+	argTargets          = `--targets={"hints":[{"x":10,"y":20,"width":80,"height":24,"title":"Save"}]}`
 
 	// msgZoomToDepth is the one message that flag gives, whichever way its
 	// value is unusable.
@@ -45,6 +47,11 @@ const (
 	msgRepeatNeedsAction = "--repeat requires --action"
 	msgStrategyValue     = "--strategy requires axtree, vision, or contour"
 	msgGridRejectsSearch = "grid does not accept --search"
+
+	// The messages --targets gives for an unusable value and for a flag it
+	// replaces.
+	msgTargets               = `--targets requires JSON listing at least one target with a width and height, as {"hints":[{"x":10,"y":20,"width":80,"height":24}]}`
+	msgTargetsWithCollection = "--targets cannot be combined with --role, --text, --strategy, --capture-scope or --split-word, because the targets replace the scan, so filter them before sending them"
 )
 
 // flagCase is one flag together with proof that parsing it took effect.
@@ -153,7 +160,7 @@ func flagCases() map[modecmd.Flag]flagCase {
 		},
 		modecmd.FlagStrategy: {
 			mode:    domain.ModeHints,
-			args:    []string{"--strategy=vision"},
+			args:    []string{argStrategyVision},
 			applied: func(a modecmd.Activation) bool { return a.Strategy != nil },
 			build:   func(a *modecmd.Activation) { a.Strategy = new("vision") },
 		},
@@ -168,6 +175,14 @@ func flagCases() map[modecmd.Flag]flagCase {
 			args:    []string{"--label-direction=" + directionReverse},
 			applied: func(a modecmd.Activation) bool { return a.LabelDirection != nil },
 			build:   func(a *modecmd.Activation) { a.LabelDirection = new(directionReverse) },
+		},
+		modecmd.FlagTargets: {
+			mode:    domain.ModeHints,
+			args:    []string{argTargets},
+			applied: func(a modecmd.Activation) bool { return len(a.Targets) == 1 },
+			build: func(a *modecmd.Activation) {
+				a.Targets = []modecmd.Target{{X: 10, Y: 20, Width: 80, Height: 24, Title: "Save"}}
+			},
 		},
 		modecmd.FlagSplitWord: {
 			mode:    domain.ModeHints,
@@ -695,6 +710,14 @@ func TestParse_RefusalMessages(t *testing.T) {
 			[]string{"--label-direction=sideways"},
 			"--label-direction requires normal or reverse",
 		},
+		{domain.ModeHints, []string{"--targets"}, msgTargets},
+		{domain.ModeHints, []string{"--targets=not json"}, msgTargets},
+		{domain.ModeHints, []string{`--targets={"hints":[]}`}, msgTargets},
+		{
+			domain.ModeHints,
+			[]string{`--targets={"hints":[{"x":10,"y":20,"width":0,"height":24}]}`},
+			msgTargets,
+		},
 		{
 			domain.ModeGrid,
 			[]string{"--cursor-selection-mode"},
@@ -788,6 +811,24 @@ func TestValidate_EnforcesFlagDependencies(t *testing.T) {
 			mode: domain.ModeHints,
 			args: []string{argAction, "--modifier=,"},
 			want: "modifier values cannot be empty",
+		},
+		{
+			name: "targets with a collection flag",
+			mode: domain.ModeHints,
+			args: []string{argTargets, "--role=button"},
+			want: msgTargetsWithCollection,
+		},
+		{
+			name: "targets with a strategy",
+			mode: domain.ModeHints,
+			args: []string{argTargets, argStrategyVision},
+			want: msgTargetsWithCollection,
+		},
+		{
+			name: "targets with repeat",
+			mode: domain.ModeHints,
+			args: []string{argTargets, argAction, flagRepeat},
+			want: "--targets cannot be combined with --repeat, because the targets go stale once the action runs",
 		},
 	}
 

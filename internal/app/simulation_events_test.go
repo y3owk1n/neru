@@ -389,7 +389,7 @@ func TestSimulation_EventsReportAMonitorMove(t *testing.T) {
 	const stayHotkey = "Primary+Shift+5"
 
 	cfg := monitorSelectConfig()
-	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{"action move_monitor"}
+	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{moveMonitorBinding}
 	cfg.Hotkeys.Bindings[stayHotkey] = []string{"action move_monitor --name " + mainDisplayName}
 
 	sim := newSimHarnessWithDisplays(t, cfg, nil, []simDisplay{

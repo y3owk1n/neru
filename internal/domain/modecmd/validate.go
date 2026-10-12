@@ -23,6 +23,8 @@ const (
 	msgToggleWithCycle                 = "--toggle cannot be combined with a cycle list, because --toggle exits an open mode and a cycle list advances it"
 	msgTwoCycles                       = "only one flag per command can take a cycle list, because two lists advance together and never mix, so give --strategy or --capture-scope a single value"
 	msgSplitWordWithCycle              = "--split-word cannot be combined with a --strategy cycle list, because word splitting needs the vision strategy on every step"
+	msgTargetsWithCollection           = "--targets cannot be combined with --role, --text, --strategy, --capture-scope or --split-word, because the targets replace the scan, so filter them before sending them"
+	msgTargetsWithRepeat               = "--targets cannot be combined with --repeat, because the targets go stale once the action runs"
 	msgModifierEmpty                   = "modifier values cannot be empty"
 	msgNameRequired                    = "mode requires the name of a declared mode: mode <name>"
 	msgNameInvalid                     = "a mode name starts with a letter and continues with letters, digits, _ or -"
@@ -133,6 +135,20 @@ var dependencies = []dependency{
 	{
 		unmet:   func(a Activation) bool { return isTrue(a.SplitWord) && len(a.StrategyCycle) > 0 },
 		message: msgSplitWordWithCycle,
+	},
+	// Conflicts. Supplied targets replace the scan, so a flag shaping what the
+	// scan collects has nothing to act on, and a repeat would label targets
+	// the action has just changed.
+	{
+		unmet: func(a Activation) bool {
+			return a.Targets != nil && (a.FilterRoles != nil || a.FilterTextContains != nil ||
+				a.Strategy != nil || a.CaptureScope != nil || isTrue(a.SplitWord))
+		},
+		message: msgTargetsWithCollection,
+	},
+	{
+		unmet:   func(a Activation) bool { return a.Targets != nil && isTrue(a.Repeat) },
+		message: msgTargetsWithRepeat,
 	},
 }
 

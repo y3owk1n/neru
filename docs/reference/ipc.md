@@ -122,7 +122,7 @@ ignores a leading repeat of the mode's own name in `args`.
 
 | Command | `args` | `data` |
 | ------- | ------ | ------ |
-| `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`, `monitor_select`, `idle` | The mode's flags, from the [mode flag reference](cli.md#mode-flag-reference). | none |
+| `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`, `monitor_select`, `idle` | The mode's flags, from the [mode flag reference](cli.md#mode-flag-reference). `--targets` carries its JSON as one entry, as `--targets={"hints":[…]}`. | none |
 | `mode` | The declared mode's name, then optionally `--toggle`. | none |
 | `action` | An [action name](cli.md#action-names), then its flags, as after `neru action`. | none |
 | `run` | One entry per step, as [`neru run`](cli.md#neru-run) takes them. `--stop-on-error` as an entry of its own sets the policy. | none |
