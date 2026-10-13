@@ -45,8 +45,9 @@ const (
 
 	// AT-SPI state bit indices (atspi-constants.h). All < 32, so they live in
 	// the first uint32 of the state bitfield array.
-	atspiStateActive  = 1
-	atspiStateShowing = 25
+	atspiStateActive   = 1
+	atspiStateEditable = 7
+	atspiStateShowing  = 25
 
 	// Bit width of the int32 words AT-SPI packs its state and role sets into
 	// (one bit per state/role index).
@@ -631,9 +632,22 @@ func (c *Client) materializeMatch(
 	// Re-verify the role is in the requested set: a toolkit may return a role we
 	// did not ask for, and this keeps parity with the walk's filter.
 	roleName := strings.ToLower(c.roleName(ctx, conn, ref))
-
-	if _, ok := roleSet[roleName]; !ok {
+	if !candidateRole(roleName, roleSet) {
 		return nil
+	}
+
+	// The match rule cannot tell editable text from read-only text, so read
+	// the element's state to tell them apart.
+	if roleName == atspiRoleText {
+		states, ok := c.states(ctx, conn, ref)
+		if !ok {
+			return nil
+		}
+
+		roleName = effectiveRole(roleName, states)
+		if _, ok := roleSet[roleName]; !ok {
+			return nil
+		}
 	}
 
 	rect, valid := c.extents(ctx, conn, ref)
@@ -754,6 +768,30 @@ func (c *Client) states(ctx context.Context, conn *dbus.Conn, ref accRef) ([]uin
 	return states, true
 }
 
+// showingRole returns the element's role read through effectiveRole, and
+// whether the element is showing with that role in roles.
+func (c *Client) showingRole(
+	ctx context.Context,
+	conn *dbus.Conn,
+	ref accRef,
+	roles map[string]struct{},
+	roleName string,
+) (string, bool) {
+	if !candidateRole(roleName, roles) {
+		return roleName, false
+	}
+
+	states, read := c.states(ctx, conn, ref)
+	if !read || !atspiStateBit(states, atspiStateShowing) {
+		return roleName, false
+	}
+
+	roleName = effectiveRole(roleName, states)
+	_, wanted := roles[roleName]
+
+	return roleName, wanted
+}
+
 // atspiStateBit reports whether the given AT-SPI state bit is set in a state
 // bitfield returned by GetState.
 func atspiStateBit(states []uint32, bit uint) bool {
@@ -763,16 +801,6 @@ func atspiStateBit(states []uint32, bit uint) bool {
 	}
 
 	return states[word]&(1<<(bit%atspiBitsPerWord)) != 0
-}
-
-// stateHas reports whether the accessible has the given AT-SPI state bit set.
-func (c *Client) stateHas(ctx context.Context, conn *dbus.Conn, ref accRef, bit uint) bool {
-	states, ok := c.states(ctx, conn, ref)
-	if !ok {
-		return false
-	}
-
-	return atspiStateBit(states, bit)
 }
 
 // frameStates reads a frame's ACTIVE and SHOWING state from a single GetState
@@ -838,10 +866,13 @@ func (c *Client) walk(
 	// Match the AT-SPI role name against the requested set. Both sides are
 	// native AT-SPI names: configured roles are resolved into this vocabulary
 	// before they reach the client, and the node carries the native name
-	// downstream so Adapter.MatchesFilter compares like with like.
-	roleName := strings.ToLower(c.roleName(ctx, conn, ref))
+	// downstream so Adapter.MatchesFilter compares like with like. A single
+	// state read tells whether the element is showing and, for text, whether
+	// it is editable.
+	roleName, matched := c.showingRole(ctx, conn, ref, roles,
+		strings.ToLower(c.roleName(ctx, conn, ref)))
 
-	if _, ok := roles[roleName]; ok && c.stateHas(ctx, conn, ref, atspiStateShowing) {
+	if matched {
 		if rect, valid := c.extents(ctx, conn, ref); valid {
 			// AT-SPI reports window-relative coords on Wayland; offset by the
 			// focused window's screen origin from the KWin bridge.

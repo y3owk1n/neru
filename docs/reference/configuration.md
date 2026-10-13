@@ -587,9 +587,9 @@ clickable_roles = ["button", "link", "text_field"]
 | `radio`        | `AXRadioButton`        | `radio button`, `radio menu item`       | `RadioButton`         |
 | `switch`       | `AXSwitch` †           | `switch`, `toggle button`               | —                     |
 | `disclosure`   | `AXDisclosureTriangle` | —                                       | —                     |
-| `text_field`   | `AXTextField`          | `entry`, `password text`                | `Edit`                |
-| `text_area`    | `AXTextArea`           | `entry`                                 | `Edit`                |
-| `search_field` | `AXSearchField` †      | `entry`                                 | `Edit`                |
+| `text_field`   | `AXTextField`          | `entry` ‡, `password text`              | `Edit`                |
+| `text_area`    | `AXTextArea`           | `entry` ‡                               | `Edit`                |
+| `search_field` | `AXSearchField` †      | `entry` ‡                               | `Edit`                |
 | `slider`       | `AXSlider`             | `slider`                                | `Slider`              |
 | `stepper`      | `AXIncrementor`        | `spin button`                           | `Spinner`             |
 | `tab`          | `AXTabButton` †        | `page tab`                              | `TabItem`             |
@@ -600,7 +600,7 @@ clickable_roles = ["button", "link", "text_field"]
 | `row`          | `AXRow`                | `table row`                             | `TreeItem`            |
 | `list_item`    | `AXRow`                | `list item`                             | `ListItem`            |
 | `image`        | `AXImage`              | `image`, `icon`                         | `Image`               |
-| `static_text`  | `AXStaticText`         | `static`, `label`, `text`               | `Text`                |
+| `static_text`  | `AXStaticText`         | `static`, `label`, `text` ‡             | `Text`                |
 | `heading`      | `AXHeading`            | `heading`                               | —                     |
 | `color_well`   | `AXColorWell`          | `color chooser`                         | —                     |
 | `toolbar_button` | `AXToolbarButton` †  | —                                       | —                     |
@@ -613,6 +613,10 @@ differs from the shipped list, and always for `additional_clickable_roles`.
 † A subrole. AppKit reports it in the element's subrole while the role stays
 generic, e.g. a search field is an `AXTextField` with subrole `AXSearchField`.
 Neru matches names against both role and subrole, so these work as written.
+
+‡ GTK 3 reports its entries and text views as `text`, which other toolkits use
+for read-only text. Neru reads a `text` element as `entry` when AT-SPI marks
+it editable, and as `text` otherwise.
 
 #### Native roles
 

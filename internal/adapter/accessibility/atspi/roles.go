@@ -208,16 +208,58 @@ var defaultClickableRoles = func() map[string]struct{} {
 	return set
 }()
 
+// The two roles effectiveRole tells apart by state.
+const (
+	atspiRoleEntry = "entry"
+	atspiRoleText  = "text"
+)
+
+// effectiveRole returns the role the client matches and reports an element as.
+// GTK 3 reports its entries and text views as text. Other toolkits use text for
+// read-only text, and only AT-SPI's EDITABLE state tells the two apart.
+// effectiveRole reads an editable text element as an entry, which text_field
+// and text_area resolve to. A read-only one stays text, which static_text
+// resolves to.
+func effectiveRole(roleName string, states []uint32) string {
+	if roleName == atspiRoleText && atspiStateBit(states, atspiStateEditable) {
+		return atspiRoleEntry
+	}
+
+	return roleName
+}
+
+// candidateRole reports whether an element of roleName can be in roles once
+// effectiveRole has read its states.
+func candidateRole(roleName string, roles map[string]struct{}) bool {
+	if _, ok := roles[roleName]; ok {
+		return true
+	}
+
+	_, wantsEntry := roles[atspiRoleEntry]
+
+	return wantsEntry && roleName == atspiRoleText
+}
+
 // deriveTargetRoleIDs returns the AtspiRole ids for the requested role names —
 // exactly the roles the per-node walk would keep — so the Collection query has
-// identical semantics. Requested names with no known id are skipped; the caller
-// falls back to the walk when nothing resolves.
+// identical semantics. A request for entries also fetches text, which
+// effectiveRole may read as an entry. Requested names with no known id are
+// skipped; the caller falls back to the walk when nothing resolves.
 func deriveTargetRoleIDs(roleSet map[string]struct{}) []int32 {
 	var ids []int32
 
 	seen := make(map[int32]struct{})
 
+	names := make([]string, 0, len(roleSet)+1)
 	for roleName := range roleSet {
+		names = append(names, roleName)
+	}
+
+	if _, ok := roleSet[atspiRoleEntry]; ok {
+		names = append(names, atspiRoleText)
+	}
+
+	for _, roleName := range names {
 		roleID, ok := atspiRoleNameToID[roleName]
 		if !ok {
 			continue
