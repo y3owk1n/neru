@@ -53,7 +53,8 @@ struct NeruTextField {
 	struct zwlr_layer_surface_v1 *layer_surface;
 	struct wl_buffer *buffer;
 	int width, height;
-	int focused;  // the surface holds the keyboard
+	int focused;   // the surface holds the keyboard
+	int finished;  // Return or Escape ended the search
 
 	struct xkb_context *xkb_context;
 	struct xkb_keymap *xkb_keymap;
@@ -74,6 +75,11 @@ struct NeruTextField {
 };
 
 // Text the field holds.
+
+// neru_text_field_finished reports whether Return or Escape already ended the
+// search. Input after it is dropped, so a batch holding both keys, or a key
+// typed after Return, cannot change what the first one decided.
+static int neru_text_field_finished(NeruTextField *field) { return field->finished; }
 
 static void neru_text_field_append(NeruTextField *field, const char *text) {
 	size_t used = strlen(field->committed);
@@ -106,7 +112,7 @@ static int neru_text_field_mod_active(NeruTextField *field, const char *name) {
 }
 
 static void neru_text_field_key_press(NeruTextField *field, uint32_t key) {
-	if (!field->xkb_state) {
+	if (!field->xkb_state || neru_text_field_finished(field)) {
 		return;
 	}
 
@@ -134,10 +140,12 @@ static void neru_text_field_key_press(NeruTextField *field, uint32_t key) {
 	switch (keysym) {
 	case XKB_KEY_Escape:
 		field->flags |= NERU_TEXT_FIELD_CANCEL;
+		field->finished = 1;
 		return;
 	case XKB_KEY_Return:
 	case XKB_KEY_KP_Enter:
 		field->flags |= NERU_TEXT_FIELD_CONFIRM;
+		field->finished = 1;
 		return;
 	case XKB_KEY_BackSpace:
 		neru_text_field_delete_last(field);
@@ -290,6 +298,9 @@ static void neru_text_input_delete_surrounding_cb(
 
 static void neru_text_input_done_cb(void *data, struct zwp_text_input_v3 *text_input, uint32_t serial) {
 	NeruTextField *field = data;
+	if (neru_text_field_finished(field)) {
+		return;
+	}
 	if (field->pending_commit) {
 		neru_text_field_append(field, field->pending_commit);
 		free(field->pending_commit);

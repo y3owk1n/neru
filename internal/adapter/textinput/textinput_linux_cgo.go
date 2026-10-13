@@ -75,8 +75,11 @@ func (t *TextInput) StartHintSearchSession(
 
 	t.stopLocked()
 
+	// The frame is relative to the active screen, and the field is placed in
+	// global coordinates.
 	handle := C.neru_text_field_open(
-		C.int(frame.X), C.int(frame.Y), C.int(frame.Width), C.int(frame.Height))
+		C.int(frame.Screen.Min.X+frame.X), C.int(frame.Screen.Min.Y+frame.Y),
+		C.int(frame.Width), C.int(frame.Height))
 	if handle == nil {
 		t.logger.Debug("Hint search field unavailable, reading the key stream")
 
