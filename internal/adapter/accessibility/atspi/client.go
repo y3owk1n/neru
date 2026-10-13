@@ -147,8 +147,7 @@ type Client struct {
 
 	logger       *zap.Logger
 	windowOrigin windowOriginSource
-	// coordType is the AT-SPI coordinate type every extents read asks for
-	// (see coordTypeFor).
+	// coordType is the AT-SPI coordinate type every extents read asks for.
 	coordType uint32
 
 	// originFailure is the reason the window-origin source last gave for not

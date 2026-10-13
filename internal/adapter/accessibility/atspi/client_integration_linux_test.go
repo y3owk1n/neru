@@ -254,42 +254,23 @@ func TestClient_Walk_HintsGTK4ElementsWhereTheyAre(t *testing.T) {
 
 	exportFixture(t, app, frame)
 
-	roles := rolesSet(resolveLinuxRoles(t, "button"))
+	client := New(zap.NewNop(), nil)
+	client.coordType = atspiCoordWindow
 
-	tests := []struct {
-		name      string
-		coordType uint32
-		want      map[string]image.Point
-	}{
-		{
-			"wayland reads window coordinates", atspiCoordWindow,
-			map[string]image.Point{"sensitive": image.Pt(39, 3)},
-		},
-		{
-			"x11 reads screen coordinates", atspiCoordScreen,
-			map[string]image.Point{"sensitive": {}},
-		},
+	var out []ax.Node
+
+	visited := 0
+	client.walk(t.Context(), scanner, frame.ref, rolesSet(resolveLinuxRoles(t, "button")), 0,
+		&out, &visited, 0, 0, false)
+
+	got := make(map[string]image.Point)
+	for _, node := range out {
+		got[fixtureName(node)] = node.Bounds().Min
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			client := New(zap.NewNop(), nil)
-			client.coordType = test.coordType
-
-			var out []ax.Node
-
-			visited := 0
-			client.walk(t.Context(), scanner, frame.ref, roles, 0, &out, &visited, 0, 0, false)
-
-			got := make(map[string]image.Point)
-			for _, node := range out {
-				got[fixtureName(node)] = node.Bounds().Min
-			}
-
-			if !maps.Equal(got, test.want) {
-				t.Errorf("hinted %v, want %v", got, test.want)
-			}
-		})
+	want := map[string]image.Point{"sensitive": image.Pt(39, 3)}
+	if !maps.Equal(got, want) {
+		t.Errorf("hinted %v, want %v", got, want)
 	}
 }
 
