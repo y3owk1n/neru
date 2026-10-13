@@ -13,7 +13,7 @@ import (
 )
 
 // atspiMaxHitSteps bounds the descent to the element at a point and the walk
-// back up through its parents. Real trees are far shallower; the bound only
+// back up through its parents. Real trees are far shallower. The bound only
 // stops a toolkit whose tree loops.
 const atspiMaxHitSteps = 64
 
@@ -32,13 +32,11 @@ func (c *Client) visibleCheckFor(appID string) bool {
 	return cfg != nil && cfg.ShouldEnableVisibleCheckForApp(appID)
 }
 
-// visibleNodes keeps the nodes whose center hit-tests to themselves or to an
-// element inside them, the same gate the AX and UIA checks apply behind
-// hints.visible_check_enabled. A node something else in the window covers
-// hit-tests to that element and is dropped. The app answers the hit-test from
-// its own widgets, so only covering within the window is caught, on X11 and
-// Wayland alike. The hit-tests run concurrently, bounded like the Collection
-// reads.
+// visibleNodes keeps the nodes whose center hit-tests to the node or to an
+// element inside it, for hints.visible_check_enabled. A node that something
+// else in the window covers is dropped. The app answers the hit-test from its
+// own widgets, so other windows never count, on X11 or Wayland. The hit-tests
+// run in parallel, bounded like the Collection reads.
 func (c *Client) visibleNodes(
 	ctx context.Context,
 	conn *dbus.Conn,

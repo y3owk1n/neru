@@ -800,8 +800,8 @@ func TestClient_VisibleNodes_HitTestsEachCenterInWindowCoordinates(t *testing.T)
 	}
 
 	// The window sits at (100, 50) on screen, and each button's center is
-	// (20, 20) into the window. Only that window-relative point answers with
-	// the button, so a scan that hit-tested the screen point would drop both.
+	// (20, 20) into the window. Only that window-relative point answers, so a
+	// scan that hit-tested the screen point would get no answer and keep both.
 	center := image.Pt(20, 20)
 	frame.atPoint = shown
 	frame.atPointOnly = &center
@@ -816,7 +816,8 @@ func TestClient_VisibleNodes_HitTestsEachCenterInWindowCoordinates(t *testing.T)
 		&atspiNode{ref: covered.ref, id: "covered", rect: screen},
 	}
 
-	// The lookup answers with shown, so covered at the same point is covered.
+	// Both buttons share a center, and the lookup there answers with shown, so
+	// covered is the one dropped.
 	kept := New(zap.NewNop(), nil).visibleNodes(t.Context(), scanner, frame.ref, nodes, place)
 
 	got := make([]string, 0, len(kept))
