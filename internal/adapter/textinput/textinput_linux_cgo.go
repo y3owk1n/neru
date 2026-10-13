@@ -91,14 +91,17 @@ func (t *TextInput) StartHintSearchSession(
 
 	if backend.IsWayland() {
 		if handle := C.neru_text_field_open(left, top, width, height); handle != nil {
+			field := &waylandField{handle: handle}
+
 			var err error
 
-			session, err = startFieldSession(&waylandField{handle: handle}, callbacks, t.logger)
+			session, err = startFieldSession(field, callbacks, t.logger)
 			if err != nil {
 				t.logger.Debug(
 					"Hint search field could not start, reading the key stream",
 					zap.Error(err),
 				)
+				field.close()
 			}
 		}
 	} else {
@@ -195,14 +198,16 @@ func openX11Session(
 		}
 
 		session, err := startFieldSession(field, callbacks, logger)
+
+		result <- session
+
 		if err != nil {
 			logger.Debug(
 				"Hint search field could not start, reading the key stream",
 				zap.Error(err),
 			)
+			field.close()
 		}
-
-		result <- session
 	}()
 
 	select {
@@ -302,10 +307,10 @@ func startFieldSession(
 ) (*fieldSession, error) {
 	var pipe [2]int
 
+	// On failure the caller closes the field, after it has answered whoever
+	// waits on it, since closing the X11 field can wait on its input method.
 	err := unix.Pipe2(pipe[:], unix.O_CLOEXEC)
 	if err != nil {
-		field.close()
-
 		return nil, err
 	}
 
