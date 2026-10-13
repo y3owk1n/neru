@@ -164,10 +164,11 @@ func (o *TreeOptions) visibleCheckFor(bundleID string) bool {
 // via UI Automation and returns a root node with one child per control. For
 // non-window elements (no HWND) it returns an empty root.
 //
-// The UIA query is one blocking COM call and cannot be interrupted, so the
-// context is honored at its edges: a deadline that has already passed skips
-// the query, and one that passes during it discards the result rather than
-// handing stale elements to a caller that has stopped waiting.
+// The default UIA query is one blocking COM call that cannot be interrupted,
+// so the context is checked before and after it. A deadline that has already
+// passed skips the query. One that passes during it discards the result
+// instead of handing stale elements to a caller that has stopped waiting. The
+// depth-limited walk also stops between its calls once the context is done.
 func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode, error) {
 	if root == nil {
 		return &TreeNode{}, nil
@@ -190,7 +191,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 
 	started := time.Now()
 
-	controls := enumerateClickableElements(root.hwnd, enumerateOptions{
+	controls := enumerateClickableElements(ctx, root.hwnd, enumerateOptions{
 		frame:        winplatform.WindowFrame(root.hwnd),
 		roles:        opts.Roles,
 		maxDepth:     opts.MaxDepth,

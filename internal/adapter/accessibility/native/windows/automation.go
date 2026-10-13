@@ -3,6 +3,7 @@
 package windows
 
 import (
+	"context"
 	"image"
 	"runtime"
 	"strconv"
@@ -131,9 +132,14 @@ const (
 const vtBSTR = 8
 
 // AutomationElementMode_None: cached elements carry only the requested
-// properties and no live reference back to the provider, which is all the
-// walk needs since every value is copied out before the array is released.
-const automationElementModeNone = 0
+// properties and no live reference back to the provider, which is all FindAll
+// needs since every value is copied out before the array is released.
+// AutomationElementMode_Full keeps that reference, which a tree walker needs
+// to move from an element to its children and siblings.
+const (
+	automationElementModeNone = 0
+	automationElementModeFull = 1
+)
 
 // UI Automation control-type names referenced from more than one place.
 const (
@@ -280,7 +286,11 @@ func failed(hresult uintptr) bool {
 // enumerateClickableElements returns the on-screen, clickable controls of the
 // given top-level window handle, filtered as opts says. It returns nil on any
 // failure; callers treat an empty result as "no hints", never as a crash.
-func enumerateClickableElements(hwnd uintptr, opts enumerateOptions) []winElement {
+func enumerateClickableElements(
+	ctx context.Context,
+	hwnd uintptr,
+	opts enumerateOptions,
+) []winElement {
 	keptRoles := opts.roles
 	if len(keptRoles) == 0 {
 		keptRoles = defaultClickableRoles
@@ -330,7 +340,16 @@ func enumerateClickableElements(hwnd uintptr, opts enumerateOptions) []winElemen
 	}
 	defer comCall(condition, vtRelease)
 
-	cache := createCacheRequest(automation, condition, opts.readState)
+	// FindAll matches the whole subtree and cannot stop at a depth, so a
+	// limit below the default goes to the walker.
+	walk := opts.maxDepth > 0 && opts.maxDepth < config.DefaultMaxDepth
+
+	mode := uintptr(automationElementModeNone)
+	if walk {
+		mode = automationElementModeFull
+	}
+
+	cache := createCacheRequest(automation, condition, mode, opts.readState)
 	if cache == nil {
 		return nil
 	}
@@ -338,13 +357,11 @@ func enumerateClickableElements(hwnd uintptr, opts enumerateOptions) []winElemen
 
 	var controls []winElement
 
-	// FindAll matches the whole subtree and cannot stop at a depth, so a
-	// limit below the default goes to the walker.
-	if opts.maxDepth == 0 || opts.maxDepth >= config.DefaultMaxDepth {
-		controls = findAllControls(root, condition, cache, opts.frame, keptRoles, opts.readState)
-	} else {
-		controls = walkControls(automation, root, cache, opts.maxDepth, opts.frame, keptRoles,
+	if walk {
+		controls = walkControls(ctx, automation, root, cache, opts.maxDepth, opts.frame, keptRoles,
 			opts.readState)
+	} else {
+		controls = findAllControls(root, condition, cache, opts.frame, keptRoles, opts.readState)
 	}
 
 	if opts.visibleCheck {
@@ -387,6 +404,7 @@ func findAllControls(
 // control view one element at a time, with one round trip per element,
 // because FindAll cannot stop at a depth.
 func walkControls(
+	ctx context.Context,
 	automation, root, cache unsafe.Pointer,
 	maxDepth int,
 	frame image.Rectangle,
@@ -403,7 +421,7 @@ func walkControls(
 
 	var result []winElement
 
-	walkChildren(walker, cache, root, 1, maxDepth, func(element unsafe.Pointer) {
+	walkChildren(ctx, walker, cache, root, 1, maxDepth, func(element unsafe.Pointer) {
 		result = appendControl(result, element, frame, keptRoles, readState)
 	})
 
@@ -411,8 +429,9 @@ func walkControls(
 }
 
 // walkChildren calls visit on each control-view child of parent at depth,
-// then on their children, down to maxDepth.
+// then on their children, down to maxDepth. It stops once ctx is done.
 func walkChildren(
+	ctx context.Context,
 	walker, cache, parent unsafe.Pointer,
 	depth, maxDepth int,
 	visit func(unsafe.Pointer),
@@ -432,8 +451,14 @@ func walkChildren(
 	)
 
 	for !failed(hresult) && child != nil {
+		if ctx.Err() != nil {
+			comCall(child, vtRelease)
+
+			return
+		}
+
 		visit(child)
-		walkChildren(walker, cache, child, depth+1, maxDepth, visit)
+		walkChildren(ctx, walker, cache, child, depth+1, maxDepth, visit)
 
 		var next unsafe.Pointer
 
@@ -566,15 +591,17 @@ func centerOf(rect image.Rectangle) image.Point {
 	return image.Pt(rect.Min.X+rect.Dx()/2, rect.Min.Y+rect.Dy()/2)
 }
 
-// createCacheRequest builds the cache request FindAllBuildCache fills: the
-// properties extractWinElement and readControlDetails read, filtered to the
-// control view so the provider never serializes raw-view scaffolding. It adds
+// createCacheRequest builds the cache request that FindAllBuildCache and the
+// walker fill, in the given AutomationElementMode. It holds the properties
+// extractWinElement and readControlDetails read, filtered to the control view
+// so the provider never serializes raw-view scaffolding. It adds
 // the identifier and focus properties, which only `neru query hints` reports,
 // only with readState, because the provider computes every cached property
 // for every control.
 func createCacheRequest(
 	automation unsafe.Pointer,
 	filter unsafe.Pointer,
+	mode uintptr,
 	readState bool,
 ) unsafe.Pointer {
 	var cache unsafe.Pointer
@@ -601,7 +628,7 @@ func createCacheRequest(
 	}
 
 	if failed(comCall(cache, vtCachePutTreeFilter, uintptr(filter))) ||
-		failed(comCall(cache, vtCachePutAutomationElementMode, automationElementModeNone)) {
+		failed(comCall(cache, vtCachePutAutomationElementMode, mode)) {
 		comCall(cache, vtRelease)
 
 		return nil
