@@ -52,6 +52,7 @@ var (
 	procFieldGetWindowTextLength = user32.NewProc("GetWindowTextLengthW")
 	procFieldSetWindowLongPtrW   = user32.NewProc("SetWindowLongPtrW")
 	procFieldCallWindowProcW     = user32.NewProc("CallWindowProcW")
+	procFieldActivateLayout      = user32.NewProc("ActivateKeyboardLayout")
 
 	// activeTextField is the field the window procedures dispatch to. One
 	// search is open at a time, and the procedures run on its thread.
@@ -323,6 +324,16 @@ func (f *TextField) takeForeground() {
 
 	if f.previous != 0 {
 		foregroundThread, _, _ = procGetWindowThreadProcessID.Call(uintptr(f.previous), 0)
+	}
+
+	// A keyboard layout belongs to a thread, so the field's thread starts with
+	// Neru's. Taking the layout the user was typing in keeps the same
+	// characters and input method in the search.
+	if foregroundThread != 0 {
+		layout, _, _ := procGetKeyboardLayout.Call(foregroundThread)
+		if layout != 0 {
+			discardCall(procFieldActivateLayout.Call(layout, 0))
+		}
 	}
 
 	attached := foregroundThread != 0 && foregroundThread != ourThread
