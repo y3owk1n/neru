@@ -47,11 +47,12 @@ type fakeAccessible struct {
 	// atPoint is what a point lookup on this element returns, and parent its
 	// Parent property. Nil answers with AT-SPI's null reference. atPointOnly,
 	// when set, is the one point the lookup answers at, and atPointFails
-	// makes the lookup return an error.
+	// makes the lookup return an error, as parentFails does the Parent read.
 	atPoint      *fakeAccessible
 	atPointOnly  *image.Point
 	atPointFails bool
 	parent       *fakeAccessible
+	parentFails  bool
 	// screenOrigin and windowOrigin are where the element sits in screen and
 	// in window coordinates.
 	screenOrigin image.Point
@@ -82,6 +83,10 @@ func (f *fakeAccessible) GetChildren() ([]accRef, *dbus.Error) {
 func (f *fakeAccessible) Get(_, property string) (dbus.Variant, *dbus.Error) {
 	switch property {
 	case "Parent":
+		if f.parentFails {
+			return dbus.Variant{}, dbus.NewError("org.freedesktop.DBus.Error.Failed", nil)
+		}
+
 		return dbus.MakeVariant(refOrNull(f.parent)), nil
 	case "Description":
 		return dbus.MakeVariant(f.description), nil
@@ -730,6 +735,12 @@ func TestClient_HitReaches_KeepsOnlyElementsTheirPointLandsOn(t *testing.T) {
 		frame.atPoint = text
 	}
 
+	// As leaf, but reading the text's parent fails.
+	leafParentFails := func(frame, target *fakeAccessible) {
+		leaf(frame, target)
+		target.children[0].parentFails = true
+	}
+
 	// Something else in the window sits over the target.
 	covered := func(frame, target *fakeAccessible) {
 		cover := child(strings.TrimPrefix(string(target.ref.Path), "/fixture/")+"_cover", "panel",
@@ -762,6 +773,7 @@ func TestClient_HitReaches_KeepsOnlyElementsTheirPointLandsOn(t *testing.T) {
 		{"another element covers it", covered, false},
 		{"the app answers no lookup", silent, true},
 		{"a lookup fails partway down", failing, true},
+		{"a parent read fails on the way up", leafParentFails, true},
 	}
 
 	for index, test := range tests {

@@ -51,7 +51,7 @@ func (c *Client) visibleNodes(
 
 	for index, node := range nodes {
 		atspi, ok := node.(*atspiNode)
-		if !ok {
+		if !ok || ctx.Err() != nil {
 			keep[index] = true
 
 			continue
@@ -90,7 +90,8 @@ func (c *Client) visibleNodes(
 // level at a time, so the descent passes through target. Chromium jumps to the
 // deepest element, often a text leaf inside a link, so the walk back up its
 // parents finds target. GTK 4 answers nothing, and an app that cannot answer,
-// or a lookup that fails partway, keeps the element rather than losing hints.
+// or a lookup or parent read that fails partway, keeps the element rather
+// than losing hints.
 func (c *Client) hitReaches(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -122,8 +123,12 @@ func (c *Client) hitReaches(
 	}
 
 	for range atspiMaxHitSteps {
-		parent, ok := c.parent(ctx, conn, current)
-		if !ok || parent == frame {
+		parent, found, err := c.parent(ctx, conn, current)
+		if err != nil {
+			return true
+		}
+
+		if !found || parent == frame {
 			return false
 		}
 
@@ -163,9 +168,9 @@ func (c *Client) accessibleAtPoint(
 	return hit, hit.Name != "" && hit.Path != atspiNullPath, nil
 }
 
-// parent returns the parent of ref, or false when it has none or the app does
-// not answer.
-func (c *Client) parent(ctx context.Context, conn *dbus.Conn, ref accRef) (accRef, bool) {
+// parent returns the parent of ref, false when it has none, and an error when
+// the app does not answer.
+func (c *Client) parent(ctx context.Context, conn *dbus.Conn, ref accRef) (accRef, bool, error) {
 	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
 	defer cancel()
 
@@ -176,15 +181,15 @@ func (c *Client) parent(ctx context.Context, conn *dbus.Conn, ref accRef) (accRe
 	if err != nil {
 		c.noteCallErr(ctx, err)
 
-		return accRef{}, false
+		return accRef{}, false, err
 	}
 
 	var parent accRef
 
 	err = value.Store(&parent)
 	if err != nil {
-		return accRef{}, false
+		return accRef{}, false, err
 	}
 
-	return parent, parent.Name != "" && parent.Path != atspiNullPath
+	return parent, parent.Name != "" && parent.Path != atspiNullPath, nil
 }
