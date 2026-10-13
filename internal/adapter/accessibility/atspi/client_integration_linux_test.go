@@ -45,9 +45,13 @@ type fakeAccessible struct {
 	textReads       atomic.Int32
 	identifierReads atomic.Int32
 	// atPoint is what a point lookup on this element returns, and parent its
-	// Parent property. Nil answers with AT-SPI's null reference.
-	atPoint *fakeAccessible
-	parent  *fakeAccessible
+	// Parent property. Nil answers with AT-SPI's null reference. atPointOnly,
+	// when set, is the one point the lookup answers at, and atPointFails
+	// makes the lookup return an error.
+	atPoint      *fakeAccessible
+	atPointOnly  *image.Point
+	atPointFails bool
+	parent       *fakeAccessible
 	// screenOrigin and windowOrigin are where the element sits in screen and
 	// in window coordinates.
 	screenOrigin image.Point
@@ -90,9 +94,17 @@ func (f *fakeAccessible) Get(_, property string) (dbus.Variant, *dbus.Error) {
 	}
 }
 
-// GetAccessibleAtPoint answers the point lookup with atPoint, whatever the
-// point.
-func (f *fakeAccessible) GetAccessibleAtPoint(int32, int32, uint32) (accRef, *dbus.Error) {
+// GetAccessibleAtPoint answers the point lookup with atPoint, at any point
+// unless atPointOnly names one.
+func (f *fakeAccessible) GetAccessibleAtPoint(x, y int32, _ uint32) (accRef, *dbus.Error) {
+	if f.atPointFails {
+		return accRef{}, dbus.NewError("org.freedesktop.DBus.Error.UnknownMethod", nil)
+	}
+
+	if f.atPointOnly != nil && *f.atPointOnly != image.Pt(int(x), int(y)) {
+		return refOrNull(nil), nil
+	}
+
 	return refOrNull(f.atPoint), nil
 }
 
@@ -730,6 +742,16 @@ func TestClient_HitReaches_KeepsOnlyElementsTheirPointLandsOn(t *testing.T) {
 	// GTK 4 answers no point lookup.
 	silent := func(*fakeAccessible, *fakeAccessible) {}
 
+	// The frame answers with a pane, and the lookup on the pane fails.
+	failing := func(frame, target *fakeAccessible) {
+		pane := child(strings.TrimPrefix(string(target.ref.Path), "/fixture/")+"_pane", "panel",
+			atspiStateShowing)
+		pane.parent = frame
+		pane.atPointFails = true
+		frame.children = append(frame.children, pane)
+		frame.atPoint = pane
+	}
+
 	tests := []struct {
 		name    string
 		arrange func(frame, target *fakeAccessible)
@@ -739,6 +761,7 @@ func TestClient_HitReaches_KeepsOnlyElementsTheirPointLandsOn(t *testing.T) {
 		{"the lookup lands on a leaf inside the element", leaf, true},
 		{"another element covers it", covered, false},
 		{"the app answers no lookup", silent, true},
+		{"a lookup fails partway down", failing, true},
 	}
 
 	for index, test := range tests {
@@ -756,6 +779,55 @@ func TestClient_HitReaches_KeepsOnlyElementsTheirPointLandsOn(t *testing.T) {
 
 // textEditorName is the AT-SPI application name GNOME Text Editor reports.
 const textEditorName = "gnome-text-editor"
+
+func TestClient_VisibleNodes_HitTestsEachCenterInWindowCoordinates(t *testing.T) {
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	shown := child("shown", "push button", atspiStateShowing, atspiStateEnabled)
+	covered := child("covered", "push button", atspiStateShowing, atspiStateEnabled)
+	cover := child("cover", "panel", atspiStateShowing)
+
+	frame := child("frame", "frame", atspiStateShowing)
+	frame.children = []*fakeAccessible{shown, covered, cover}
+
+	for _, element := range frame.children {
+		element.parent = frame
+	}
+
+	// The window sits at (100, 50) on screen, and each button's center is
+	// (20, 20) into the window. Only that window-relative point answers with
+	// the button, so a scan that hit-tested the screen point would drop both.
+	center := image.Pt(20, 20)
+	frame.atPoint = shown
+	frame.atPointOnly = &center
+
+	exportFixture(t, app, frame)
+
+	place := placement{coordType: atspiCoordWindow, offset: image.Pt(100, 50)}
+	screen := image.Rect(110, 60, 130, 80)
+
+	nodes := []ax.Node{
+		&atspiNode{ref: shown.ref, id: "shown", rect: screen},
+		&atspiNode{ref: covered.ref, id: "covered", rect: screen},
+	}
+
+	// The lookup answers with shown, so covered at the same point is covered.
+	kept := New(zap.NewNop(), nil).visibleNodes(t.Context(), scanner, frame.ref, nodes, place)
+
+	got := make([]string, 0, len(kept))
+	for _, node := range kept {
+		got = append(got, node.ID())
+	}
+
+	if !slices.Equal(got, []string{"shown"}) {
+		t.Errorf("kept %v, want [shown]", got)
+	}
+}
 
 // exportFixture exports frame and every element under it on app under the
 // interfaces a scan calls.

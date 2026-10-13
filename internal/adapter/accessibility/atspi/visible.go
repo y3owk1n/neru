@@ -35,9 +35,10 @@ func (c *Client) visibleCheckFor(appID string) bool {
 // visibleNodes keeps the nodes whose center hit-tests to themselves or to an
 // element inside them, the same gate the AX and UIA checks apply behind
 // hints.visible_check_enabled. A node something else in the window covers
-// hit-tests to that element and is dropped. On Wayland an app cannot see
-// another app's windows, so only covering within the app is caught. The
-// hit-tests run concurrently, bounded like the Collection reads.
+// hit-tests to that element and is dropped. The app answers the hit-test from
+// its own widgets, so only covering within the window is caught, on X11 and
+// Wayland alike. The hit-tests run concurrently, bounded like the Collection
+// reads.
 func (c *Client) visibleNodes(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -90,8 +91,8 @@ func (c *Client) visibleNodes(
 // target or lies inside it. Firefox, Qt and GTK 3 answer the point lookup one
 // level at a time, so the descent passes through target. Chromium jumps to the
 // deepest element, often a text leaf inside a link, so the walk back up its
-// parents finds target. GTK 4 answers nothing, and an app that cannot answer
-// keeps the element rather than losing every hint.
+// parents finds target. GTK 4 answers nothing, and an app that cannot answer,
+// or a lookup that fails partway, keeps the element rather than losing hints.
 func (c *Client) hitReaches(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -102,8 +103,12 @@ func (c *Client) hitReaches(
 	current := frame
 
 	for range atspiMaxHitSteps {
-		next, ok := c.accessibleAtPoint(ctx, conn, current, point, coordType)
-		if !ok || next == current {
+		next, found, err := c.accessibleAtPoint(ctx, conn, current, point, coordType)
+		if err != nil {
+			return true
+		}
+
+		if !found || next == current {
 			break
 		}
 
@@ -134,15 +139,15 @@ func (c *Client) hitReaches(
 	return false
 }
 
-// accessibleAtPoint returns the child of ref at point, or false when there is
-// none or the app does not answer.
+// accessibleAtPoint returns the child of ref at point, false when there is
+// none, and an error when the app does not answer.
 func (c *Client) accessibleAtPoint(
 	ctx context.Context,
 	conn *dbus.Conn,
 	ref accRef,
 	point image.Point,
 	coordType uint32,
-) (accRef, bool) {
+) (accRef, bool, error) {
 	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
 	defer cancel()
 
@@ -154,10 +159,10 @@ func (c *Client) accessibleAtPoint(
 	if err != nil {
 		c.noteCallErr(ctx, err)
 
-		return accRef{}, false
+		return accRef{}, false, err
 	}
 
-	return hit, hit.Name != "" && hit.Path != atspiNullPath
+	return hit, hit.Name != "" && hit.Path != atspiNullPath, nil
 }
 
 // parent returns the parent of ref, or false when it has none or the app does

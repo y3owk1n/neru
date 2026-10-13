@@ -49,7 +49,8 @@ var captureScopeOptions = []string{
 	"app_configs.capture_scope",
 }
 
-// darwinOnly and darwinAndLinux are the narrow columns this schema uses today, named so a reader compares two options by the same words.
+// darwinOnly and darwinAndLinux are the narrow columns this schema uses today,
+// named so a reader compares two options by the same words.
 // A linux-only column existed for contour until macOS fed it a frame; add one
 // back the moment an option needs it rather than reaching for the nearest fit.
 var (

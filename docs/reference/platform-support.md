@@ -73,8 +73,9 @@ apps, which set no AT-SPI `AccessibleId`. GTK 4 apps report no screen positions,
 so Neru places their hints only where it can read the window's position. On
 X11, and on Wayland wherever Neru gets no window position, their hints stack
 at the top-left corner. `hints.visible_check_enabled` keeps every element in
-GTK 4 apps, which answer no hit-test. On Wayland it drops only elements the app
-covers itself, since an app cannot see other apps' windows there.
+GTK 4 apps, which answer no hit-test. Elsewhere on Linux it drops only
+elements something else in the same window covers. The app answers the hit-test
+itself, so it never sees other windows, on X11 or Wayland.
 
 ² **OCR finds text only.** Linux (tesseract) and Windows (`Windows.Media.Ocr`)
 find words but not button shapes, so the `hints.vision.rectangle_*` options do
