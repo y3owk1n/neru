@@ -847,7 +847,7 @@ func TestHintService_GenerateHintsContour(t *testing.T) {
 		image.Rect(100, 100, 150, 120),
 		element.RoleButton,
 		element.WithClickable(true),
-		element.WithVisionOnly(),
+		element.WithSource(element.SourceContour),
 	)
 	if err != nil {
 		t.Fatalf("NewElement failed: %v", err)
@@ -965,7 +965,7 @@ func TestHintService_GenerateHintsContour_ScansFocusedWindow(t *testing.T) {
 		image.Rect(200, 150, 300, 190),
 		element.RoleButton,
 		element.WithClickable(true),
-		element.WithVisionOnly(),
+		element.WithSource(element.SourceContour),
 	)
 	if err != nil {
 		t.Fatalf("NewElement failed: %v", err)
@@ -1431,4 +1431,51 @@ func foreignRolesForCurrentPlatform() []string {
 		"linux":   {"ax:AXButton", "uia:Button"},
 		"windows": {"ax:AXButton", "atspi:push button"},
 	}[runtime.GOOS]
+}
+
+// TestHintService_ProbeHints_AsksForElementStateHintsModeSkips pins that only
+// a caller reporting the hints asks the scan for the element state, so hints
+// mode never pays for the reads behind it.
+func TestHintService_ProbeHints_AsksForElementStateHintsModeSkips(t *testing.T) {
+	t.Parallel()
+
+	var asked []bool
+
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockAcc.ClickableElementsFunc = func(
+		_ context.Context,
+		filter ports.ElementFilter,
+	) ([]*element.Element, error) {
+		asked = append(asked, filter.ReadElementState)
+
+		return []*element.Element{mustNewElement("e1", image.Rect(0, 0, 10, 10))}, nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		mockAcc,
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{},
+		generator,
+		config.HintsConfig{},
+		logger.Get(),
+		nil,
+	)
+
+	ctx := context.Background()
+
+	_, err := service.GenerateHints(ctx, nil, nil, "com.example.app", "", "", "", false)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	_, err = service.ProbeHints(ctx, nil, nil, "com.example.app", "", "", "", false)
+	if err != nil {
+		t.Fatalf("ProbeHints() unexpected error: %v", err)
+	}
+
+	if !slices.Equal(asked, []bool{false, true}) {
+		t.Errorf("read element state asked %v for hints mode then the query, want [false true]",
+			asked)
+	}
 }

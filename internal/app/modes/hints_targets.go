@@ -29,7 +29,7 @@ func (h *handlerState) labelTargets(
 			element.WithTitle(target.Title),
 			element.WithDescription(target.Description),
 			element.WithValue(target.Value),
-			element.WithVisionOnly(),
+			element.WithSource(element.SourceTargets),
 		)
 		if err != nil {
 			return nil, err

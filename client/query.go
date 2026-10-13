@@ -48,13 +48,18 @@ type AppData struct {
 // on it now. Neru assigns labels afresh on every scan, so one stays valid only
 // while the screen does not change. Title, Description and Value are the
 // strings --text matches against, and Role is the native role spelled as
-// --role takes it, such as ax:AXButton.
+// --role takes it, such as ax:AXButton. Source is what found the element, as
+// --strategy names it. Identifier and Focused come from the accessibility
+// tree and mean something only when Source is axtree.
 type HintData struct {
 	Label       string `json:"label"`
 	Role        string `json:"role"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Value       string `json:"value"`
+	Source      string `json:"source"`
+	Identifier  string `json:"identifier"`
+	Focused     bool   `json:"focused"`
 	X           int    `json:"x"`
 	Y           int    `json:"y"`
 	Width       int    `json:"width"`

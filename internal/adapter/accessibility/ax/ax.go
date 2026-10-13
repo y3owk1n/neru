@@ -26,11 +26,15 @@ type Client interface {
 	FrontmostAndPopoverWindows(ctx context.Context) ([]Window, error)
 	FocusedApplication(ctx context.Context) (App, error)
 	ApplicationByBundleID(ctx context.Context, bundleID string) (App, error)
+	// ClickableNodes returns the clickable nodes under root. readState asks
+	// for each node's identifier and focused state (see
+	// ports.ElementFilter.ReadElementState).
 	ClickableNodes(
 		ctx context.Context,
 		root Element,
 		roles []string,
 		maxDepth int,
+		readState bool,
 	) ([]Node, error)
 	MenuBarClickableElements(ctx context.Context, maxDepth int) ([]Node, error)
 	// MissionControlClickableNodes returns what Mission Control draws that a
@@ -93,6 +97,8 @@ type Node interface {
 	Title() string
 	Description() string
 	Value() string
+	IsFocused() bool
+	Identifier() string
 	IsClickable() bool
 	Release()
 }

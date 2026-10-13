@@ -65,6 +65,9 @@ func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {}
 // SetRoles is a Linux stub: the AT-SPI client receives the role set directly.
 func (o *TreeOptions) SetRoles(roles map[string]struct{}) {}
 
+// SetReadState does nothing. Linux hints read elements through AT-SPI.
+func (o *TreeOptions) SetReadState(_ bool) {}
+
 // BuildTree builds the accessibility tree for the specified root element (Linux stub).
 func BuildTree(_ context.Context, _ *Element, _ TreeOptions) (*TreeNode, error) {
 	return &TreeNode{}, nil

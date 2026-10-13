@@ -68,6 +68,8 @@ decides what it exposes. Chromium and Electron apps need
 in UI Automation's raw view. Where hints are thin, use `vision`, `contour` or
 a grid mode. On some Wayland compositors hints in native apps can be offset,
 see [wlroots compositors](../guide/linux-desktops.md#wlroots-compositors).
+The `identifier` that `neru query hints` reports is empty on Linux for GTK 3
+apps, which set no AT-SPI `AccessibleId`.
 
 ² **OCR finds text only.** Linux (tesseract) and Windows (`Windows.Media.Ocr`)
 find words but not button shapes, so the `hints.vision.rectangle_*` options do

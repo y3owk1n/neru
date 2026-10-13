@@ -34,6 +34,8 @@ type atspiNode struct {
 	title       string
 	description string
 	value       string
+	identifier  string
+	focused     bool
 	rect        image.Rectangle
 }
 
@@ -48,6 +50,10 @@ func (n *atspiNode) Title() string { return n.title }
 func (n *atspiNode) Description() string { return n.description }
 
 func (n *atspiNode) Value() string { return n.value }
+
+func (n *atspiNode) IsFocused() bool { return n.focused }
+
+func (n *atspiNode) Identifier() string { return n.identifier }
 
 func (n *atspiNode) IsClickable() bool { return true }
 

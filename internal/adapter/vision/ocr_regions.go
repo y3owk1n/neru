@@ -112,7 +112,7 @@ func elementsFromRegions(
 
 		role, clickable := classifier.Classify(region)
 
-		opts := []element.Option{element.WithVisionOnly()}
+		opts := []element.Option{element.WithSource(element.SourceVision)}
 		if clickable {
 			opts = append(opts, element.WithClickable(true))
 		}

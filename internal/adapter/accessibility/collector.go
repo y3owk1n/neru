@@ -237,7 +237,8 @@ func (a *Adapter) scanWindow(
 	defer func() { <-scan.sem }()
 	defer window.Release()
 
-	nodes, nodesErr := a.client.ClickableNodes(ctx, window, stringRoles(filter.Roles), 0)
+	nodes, nodesErr := a.client.ClickableNodes(ctx, window, stringRoles(filter.Roles), 0,
+		filter.ReadElementState)
 	if nodesErr != nil {
 		a.logger.Warn("Failed to collect clickable nodes from window", zap.Error(nodesErr))
 		scan.recordFailure(nodesErr)

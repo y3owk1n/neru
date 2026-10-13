@@ -173,7 +173,13 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.ClickableNodes(ctx, dockApp, dockRoles, dockTreeDepth)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(
+		ctx,
+		dockApp,
+		dockRoles,
+		dockTreeDepth,
+		false,
+	)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -281,7 +287,7 @@ func (a *Adapter) addStageManagerElements(
 	}
 
 	// Build tree and find clickable elements
-	wmNodes, wmNodesErr := a.client.ClickableNodes(ctx, wmApp, nil, stageManagerTreeDepth)
+	wmNodes, wmNodesErr := a.client.ClickableNodes(ctx, wmApp, nil, stageManagerTreeDepth, false)
 	if wmNodesErr != nil {
 		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
 

@@ -271,7 +271,7 @@ the `vision` and `contour` strategies capture the screen. It fails with
 its error, where hints mode would open on what else it found.
 
 ```json
-{"hints":[{"label":"A","role":"ax:AXButton","title":"","description":"Back","value":"","x":100,"y":38,"width":44,"height":52}]}
+{"hints":[{"label":"A","role":"ax:AXButton","title":"","description":"Back","value":"","source":"axtree","identifier":"back-button","focused":false,"x":100,"y":38,"width":44,"height":52}]}
 ```
 
 | Key                         | Type   | Description                                                     |
@@ -279,6 +279,13 @@ its error, where hints mode would open on what else it found.
 | `label`                     | string | The label `neru hints` with the same flags would draw on the element now. |
 | `role`                      | string | The native role, spelled as `--role` takes it, such as `ax:AXButton`. |
 | `title`, `description`, `value` | string | The element's text. `--text` matches any of the three. Empty when the element has none. |
+| `source`                    | string | What found the element: `axtree`, `vision` or `contour`, as `--strategy` names them. Actions on an `axtree` element can use its accessibility handle. On the others they act at its coordinates. |
+| `identifier`                | string | The ID the app's developer gave the element, such as an `AXIdentifier`, UI Automation `AutomationId` or AT-SPI `AccessibleId`. It does not change with the element's text or language, so it is the steadiest way to find one element. Empty when the app set none. |
+| `focused`                   | bool   | Whether the element has keyboard focus. |
+
+`identifier` and `focused` come from the accessibility tree, so they mean
+something only when `source` is `axtree`. An element found any other way
+reports `""` and `false`.
 | `x`, `y`, `width`, `height` | int    | The element's bounds.                                           |
 
 Neru assigns labels afresh on every scan, after the flags filter the

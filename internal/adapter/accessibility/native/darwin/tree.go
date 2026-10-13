@@ -204,6 +204,10 @@ func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {
 // role selection happens in FindClickableElements.
 func (o *TreeOptions) SetRoles(_ map[string]struct{}) {}
 
+// SetReadState does nothing on macOS. The identifier and focused state come in
+// the batched attribute read every element gets anyway.
+func (o *TreeOptions) SetReadState(_ bool) {}
+
 // SetMaxDepth sets the max depth for tree traversal.
 func (o *TreeOptions) SetMaxDepth(depth int) {
 	o.maxDepth = depth

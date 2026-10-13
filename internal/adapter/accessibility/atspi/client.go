@@ -48,6 +48,8 @@ const (
 	// the first uint32 of the state bitfield array.
 	atspiStateActive   = 1
 	atspiStateEditable = 7
+	atspiStateEnabled  = 8
+	atspiStateFocused  = 12
 	atspiStateShowing  = 25
 
 	// Bit width of the int32 words AT-SPI packs its state and role sets into
@@ -280,6 +282,7 @@ func (c *Client) ClickableNodes(
 	root ax.Element,
 	roles []string,
 	_ int,
+	readState bool,
 ) ([]ax.Node, error) {
 	win, ok := root.(*atspiWindow)
 	if !ok || !win.valid {
@@ -370,7 +373,7 @@ func (c *Client) ClickableNodes(
 
 	// Fast path: a single Collection.GetMatches call instead of the per-node
 	// walk. Falls back to the walk when the toolkit doesn't implement Collection.
-	if nodes, ok := c.collectViaCollection(ctx, conn, win.ref, roleSet, offX, offY); ok {
+	if nodes, ok := c.collectViaCollection(ctx, conn, win.ref, roleSet, offX, offY, readState); ok {
 		c.logger.Debug("AT-SPI clickable scan complete",
 			zap.String("path", "collection"),
 			zap.Int("count", len(nodes)),
@@ -384,7 +387,7 @@ func (c *Client) ClickableNodes(
 
 	out := make([]ax.Node, 0, atspiClickableNodesCap)
 	visited := 0
-	c.walk(ctx, conn, win.ref, roleSet, 0, &out, &visited, offX, offY)
+	c.walk(ctx, conn, win.ref, roleSet, 0, &out, &visited, offX, offY, readState)
 
 	c.logger.Debug("AT-SPI clickable scan complete",
 		zap.String("path", "walk"),
@@ -488,13 +491,15 @@ func (c *Client) Close() error {
 // to signal the caller to fall back to the walk — when Collection is disabled,
 // no requested role maps to an AtspiRole, or the toolkit does not implement the
 // interface (the GetMatches call errors). Results have identical semantics to
-// the walk: SHOWING elements whose role maps (via atspiToAXRole) into roleSet.
+// the walk: SHOWING and ENABLED elements whose role maps (via atspiToAXRole)
+// into roleSet.
 func (c *Client) collectViaCollection(
 	ctx context.Context,
 	conn *dbus.Conn,
 	root accRef,
 	roleSet map[string]struct{},
 	offX, offY int,
+	readState bool,
 ) ([]ax.Node, bool) {
 	if os.Getenv("NERU_ATSPI_NO_COLLECTION") != "" {
 		return nil, false
@@ -508,7 +513,7 @@ func (c *Client) collectViaCollection(
 	}
 
 	rule := atspiMatchRule{
-		States:     stateBitset(atspiStateShowing),
+		States:     stateBitset(atspiStateShowing, atspiStateEnabled),
 		StateMatch: atspiMatchAll,
 		Attributes: map[string]string{},
 		AttrMatch:  atspiMatchAll,
@@ -585,7 +590,7 @@ func (c *Client) collectViaCollection(
 				return
 			}
 
-			node := c.materializeMatch(ctx, conn, ref, roleSet, offX, offY)
+			node := c.materializeMatch(ctx, conn, ref, roleSet, offX, offY, readState)
 			if node != nil {
 				results[slot] = node
 
@@ -629,6 +634,7 @@ func (c *Client) materializeMatch(
 	ref accRef,
 	roleSet map[string]struct{},
 	offX, offY int,
+	readState bool,
 ) *atspiNode {
 	// Re-verify the role is in the requested set: a toolkit may return a role we
 	// did not ask for, and this keeps parity with the walk's filter.
@@ -651,21 +657,7 @@ func (c *Client) materializeMatch(
 		}
 	}
 
-	rect, valid := c.extents(ctx, conn, ref)
-	if !valid {
-		return nil
-	}
-
-	title, description, value := c.nodeTexts(ctx, conn, ref, roleName)
-
-	return &atspiNode{
-		id:          string(ref.Path) + "@" + ref.Name,
-		role:        roleName,
-		title:       title,
-		description: description,
-		value:       value,
-		rect:        rect.Add(image.Pt(offX, offY)),
-	}
+	return c.readNode(ctx, conn, ref, roleName, image.Pt(offX, offY), readState)
 }
 
 // D-Bus error names that mean the scan cannot make progress: the target
@@ -750,56 +742,102 @@ func (c *Client) name(ctx context.Context, conn *dbus.Conn, ref accRef) string {
 // never leaves the app.
 var atspiValueRoles = map[string]struct{}{atspiRoleEntry: {}, "spin button": {}}
 
-// nodeTexts reads an accessible's name, its description and, for a role in
-// atspiValueRoles, its text content. It sends the reads together and godbus
-// multiplexes them over the one connection, so reading the extra text adds no
-// round trip over reading the name alone.
-func (c *Client) nodeTexts(
+// readNode reads a matched element's bounds, shifted by offset, its title,
+// description and, for a role in atspiValueRoles, its value. With readState it
+// also reads the identifier and focused state, which only `neru query hints`
+// reports. Each read costs the app time, so a hints-mode scan skips those two.
+// It returns nil for an element with no on-screen size.
+//
+// It sends the reads together and godbus multiplexes them over the one
+// connection, so they cost one round trip between them. It sends the text
+// reads before it knows the bounds are valid, which wastes them only for an
+// element that is showing yet has no size.
+func (c *Client) readNode(
 	ctx context.Context,
 	conn *dbus.Conn,
 	ref accRef,
 	roleName string,
-) (string, string, string) {
+	offset image.Point,
+	readState bool,
+) *atspiNode {
 	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
 	defer cancel()
 
 	obj := conn.Object(ref.Name, ref.Path)
-	nameCall := obj.GoWithContext(callCtx, atspiPropertiesGet, 0, nil, atspiAccessibleIfc, "Name")
-	descriptionCall := obj.GoWithContext(callCtx, atspiPropertiesGet, 0, nil,
-		atspiAccessibleIfc, "Description")
+	property := func(name string) *dbus.Call {
+		return obj.GoWithContext(callCtx, atspiPropertiesGet, 0, nil, atspiAccessibleIfc, name)
+	}
 
-	var valueCall *dbus.Call
+	extentsCall := obj.GoWithContext(
+		callCtx,
+		atspiComponentIfc+".GetExtents",
+		0,
+		nil,
+		atspiCoordScreen,
+	)
+	nameCall := property("Name")
+	descriptionCall := property("Description")
+
+	var valueCall, identifierCall, stateCall *dbus.Call
 	if _, ok := atspiValueRoles[roleName]; ok {
 		valueCall = obj.GoWithContext(callCtx, atspiTextIfc+".GetText", 0, nil, int32(0), int32(-1))
 	}
 
-	name := c.propertyString(ctx, nameCall)
-	description := c.propertyString(ctx, descriptionCall)
+	if readState {
+		identifierCall = property("AccessibleId")
+		stateCall = obj.GoWithContext(callCtx, atspiAccessibleIfc+".GetState", 0, nil)
+	}
 
-	value := ""
+	rect, valid := c.extentsFrom(ctx, extentsCall)
+
+	node := &atspiNode{
+		id:          string(ref.Path) + "@" + ref.Name,
+		role:        roleName,
+		rect:        rect.Add(offset),
+		title:       c.propertyString(ctx, nameCall),
+		description: c.propertyString(ctx, descriptionCall),
+	}
+
 	if valueCall != nil {
-		<-valueCall.Done
+		c.callStore(ctx, valueCall, &node.value)
+	}
 
-		err := valueCall.Store(&value)
-		if err != nil {
-			c.noteCallErr(ctx, err)
+	if readState {
+		node.identifier = c.propertyString(ctx, identifierCall)
+
+		var states []uint32
+		if c.callStore(ctx, stateCall, &states) {
+			node.focused = atspiStateBit(states, atspiStateFocused)
 		}
 	}
 
-	return name, description, value
+	if !valid {
+		return nil
+	}
+
+	return node
+}
+
+// callStore waits for call and stores its reply in out, reporting whether it
+// could.
+func (c *Client) callStore(ctx context.Context, call *dbus.Call, out any) bool {
+	<-call.Done
+
+	err := call.Store(out)
+	if err != nil {
+		c.noteCallErr(ctx, err)
+
+		return false
+	}
+
+	return true
 }
 
 // propertyString waits for a Properties.Get call and returns its string, or
 // "" when the read failed or the property is not a string.
 func (c *Client) propertyString(ctx context.Context, call *dbus.Call) string {
-	<-call.Done
-
 	var val dbus.Variant
-
-	err := call.Store(&val)
-	if err != nil {
-		c.noteCallErr(ctx, err)
-
+	if !c.callStore(ctx, call, &val) {
 		return ""
 	}
 
@@ -829,7 +867,8 @@ func (c *Client) states(ctx context.Context, conn *dbus.Conn, ref accRef) ([]uin
 }
 
 // showingRole returns the element's role read through effectiveRole, and
-// whether the element is showing with that role in roles.
+// whether the element is showing, enabled and has that role in roles. A
+// disabled element gets no hint, as on macOS, since clicking it does nothing.
 func (c *Client) showingRole(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -842,7 +881,8 @@ func (c *Client) showingRole(
 	}
 
 	states, read := c.states(ctx, conn, ref)
-	if !read || !atspiStateBit(states, atspiStateShowing) {
+	if !read || !atspiStateBit(states, atspiStateShowing) ||
+		!atspiStateBit(states, atspiStateEnabled) {
 		return roleName, false
 	}
 
@@ -884,17 +924,15 @@ func (c *Client) extents(
 	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
 	defer cancel()
 
+	return c.extentsFrom(ctx, conn.Object(ref.Name, ref.Path).
+		GoWithContext(callCtx, atspiComponentIfc+".GetExtents", 0, nil, atspiCoordScreen))
+}
+
+// extentsFrom waits for a GetExtents call and returns the rectangle, or false
+// when the read failed or the element has no size.
+func (c *Client) extentsFrom(ctx context.Context, call *dbus.Call) (image.Rectangle, bool) {
 	var ext atspiExtents
-
-	err := conn.Object(ref.Name, ref.Path).
-		CallWithContext(callCtx, atspiComponentIfc+".GetExtents", 0, atspiCoordScreen).Store(&ext)
-	if err != nil {
-		c.noteCallErr(ctx, err)
-
-		return image.Rectangle{}, false
-	}
-
-	if ext.W <= 0 || ext.H <= 0 {
+	if !c.callStore(ctx, call, &ext) || ext.W <= 0 || ext.H <= 0 {
 		return image.Rectangle{}, false
 	}
 
@@ -912,6 +950,7 @@ func (c *Client) walk(
 	visited *int,
 	offX int,
 	offY int,
+	readState bool,
 ) {
 	if depth > atspiMaxDepth || len(*out) >= atspiMaxNodes {
 		return
@@ -933,23 +972,15 @@ func (c *Client) walk(
 		strings.ToLower(c.roleName(ctx, conn, ref)))
 
 	if matched {
-		if rect, valid := c.extents(ctx, conn, ref); valid {
-			// AT-SPI reports window-relative coords on Wayland; offset by the
-			// focused window's screen origin from the KWin bridge.
-			rect = rect.Add(image.Pt(offX, offY))
-			title, description, value := c.nodeTexts(ctx, conn, ref, roleName)
-			*out = append(*out, &atspiNode{
-				id:          string(ref.Path) + "@" + ref.Name,
-				role:        roleName,
-				title:       title,
-				description: description,
-				value:       value,
-				rect:        rect,
-			})
+		// AT-SPI reports window-relative coords on Wayland; offset by the
+		// focused window's screen origin from the KWin bridge.
+		node := c.readNode(ctx, conn, ref, roleName, image.Pt(offX, offY), readState)
+		if node != nil {
+			*out = append(*out, node)
 		}
 	}
 
 	for _, child := range c.children(ctx, conn, ref) {
-		c.walk(ctx, conn, child, roles, depth+1, out, visited, offX, offY)
+		c.walk(ctx, conn, child, roles, depth+1, out, visited, offX, offY, readState)
 	}
 }

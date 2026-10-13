@@ -27,7 +27,8 @@ so you can correct a near miss before you click.
 ![Animated demo of hints mode](https://github.com/user-attachments/assets/a19ef869-6400-4b5f-b3c6-92af69c2a76b)
 
 1. Press the hotkey. Every clickable element in the focused window gets a
-   short label such as `as` or `f`.
+   short label such as `as` or `f`. A disabled element, such as a greyed-out
+   button, gets none, since clicking it does nothing.
 2. Type a label. The cursor moves to that element, and fresh labels appear so
    you can pick again.
 3. Press `Shift+L` to click it.

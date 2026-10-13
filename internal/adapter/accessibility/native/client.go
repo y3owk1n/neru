@@ -85,12 +85,14 @@ func (c *Client) FocusedApplication(_ context.Context) (ax.App, error) {
 }
 
 // ClickableNodes returns clickable nodes for the given root element.
-// If maxDepth is > 0, it overrides the configured tree depth.
+// If maxDepth is > 0, it overrides the configured tree depth. readState asks
+// for each node's identifier and focused state.
 func (c *Client) ClickableNodes(
 	ctx context.Context,
 	root ax.Element,
 	roles []string,
 	maxDepth int,
+	readState bool,
 ) ([]ax.Node, error) {
 	element, extractErr := c.extractElement(root)
 	if extractErr != nil {
@@ -98,6 +100,7 @@ func (c *Client) ClickableNodes(
 	}
 
 	opts, allowedRoles, ignoreClickableCheck := c.buildClickableOpts(element, roles, maxDepth)
+	opts.SetReadState(readState)
 
 	tree, treeErr := BuildTree(ctx, element, opts)
 	if treeErr != nil {
@@ -585,6 +588,24 @@ func (n *InfraNode) SearchText() string {
 	}
 
 	return n.node.Info().SearchText()
+}
+
+// IsFocused returns whether the node has keyboard focus.
+func (n *InfraNode) IsFocused() bool {
+	if n.node == nil || n.node.Info() == nil {
+		return false
+	}
+
+	return n.node.Info().IsFocused()
+}
+
+// Identifier returns the identifier the app's developer gave the node.
+func (n *InfraNode) Identifier() string {
+	if n.node == nil || n.node.Info() == nil {
+		return ""
+	}
+
+	return n.node.Info().Identifier()
 }
 
 // IsClickable returns true if the node is clickable.

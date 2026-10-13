@@ -93,6 +93,10 @@ func (ei *ElementInfo) IsEnabled() bool { return ei.isEnabled }
 // IsFocused returns whether the element is focused.
 func (ei *ElementInfo) IsFocused() bool { return ei.isFocused }
 
+// Identifier always returns "". Linux hints read elements through AT-SPI, so
+// this native stub never answers for a hint.
+func (ei *ElementInfo) Identifier() string { return "" }
+
 // PID returns the element's process ID.
 func (ei *ElementInfo) PID() int { return ei.pid }
 

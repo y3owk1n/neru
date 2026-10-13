@@ -17,9 +17,19 @@ import (
 
 // TestSimulation_QueryHintsListsWhatHintsWouldLabel covers `neru query hints`:
 // it answers with the elements hints mode would label, each with the text
-// --text matches and its bounds, and draws nothing and enters no mode.
+// --text matches, what found it, its identifier and state, and its bounds, and
+// draws nothing and enters no mode.
 func TestSimulation_QueryHintsListsWhatHintsWouldLabel(t *testing.T) {
-	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	save, err := element.NewElement("save", image.Rect(100, 100, 220, 140), "button",
+		element.WithClickable(true),
+		element.WithTitle("Save"),
+		element.WithIdentifier("save-button"),
+		element.WithFocused(true),
+	)
+	if err != nil {
+		t.Fatalf("build the fixture element: %v", err)
+	}
+
 	sim := newSimHarness(t, simConfig(), []*element.Element{save})
 
 	resp := sim.app.HandleCommand(
@@ -40,7 +50,11 @@ func TestSimulation_QueryHintsListsWhatHintsWouldLabel(t *testing.T) {
 		wantRole = string(vocab) + ":" + wantRole
 	}
 
-	want := ipc.HintData{Role: wantRole, Title: "Save", X: 100, Y: 100, Width: 120, Height: 40}
+	want := ipc.HintData{
+		Role: wantRole, Title: "Save",
+		Source: "axtree", Identifier: "save-button", Focused: true,
+		X: 100, Y: 100, Width: 120, Height: 40,
+	}
 	if len(data.Hints) != 1 {
 		t.Fatalf("hints = %+v, want [%+v]", data.Hints, want)
 	}

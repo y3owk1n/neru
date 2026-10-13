@@ -41,7 +41,7 @@ func Elements(
 			bounds,
 			element.RoleButton,
 			element.WithClickable(true),
-			element.WithVisionOnly(),
+			element.WithSource(element.SourceContour),
 		)
 		if err != nil {
 			continue

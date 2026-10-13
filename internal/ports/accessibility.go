@@ -136,6 +136,13 @@ type ElementFilter struct {
 	// ValueContains filters elements whose value contains this substring (case-insensitive).
 	ValueContains string
 
+	// ReadElementState asks for each element's identifier and focused state,
+	// which only `neru query hints` reports. A backend that would make extra
+	// reads for them skips those reads when it is false, so a Linux or Windows
+	// element scanned without it reports unfocused and no identifier whatever
+	// its real state.
+	ReadElementState bool
+
 	// TextContainsList is a list of additional text substrings to match against (OR logic).
 	// This is used when multiple text matches are needed - elements matching any of these
 	// will be included. The first string should be set in TitleContains, DescriptionContains,

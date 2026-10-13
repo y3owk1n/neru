@@ -66,8 +66,23 @@ const (
 	SubroleMenuExtra Subrole = "AXMenuExtra"
 )
 
+// Source names what found an element, in the words --strategy takes, plus
+// targets for the ones a caller supplied with --targets.
+type Source string
+
+// The sources an element can come from.
+const (
+	SourceAXTree  Source = "axtree"
+	SourceVision  Source = "vision"
+	SourceContour Source = "contour"
+	SourceTargets Source = "targets"
+)
+
 // Element is a UI element in the accessibility tree (or detected
 // via vision). It is immutable after creation to ensure thread safety.
+//
+// A new element is unfocused and has no identifier. One found on screen
+// rather than in the accessibility tree keeps those defaults.
 type Element struct {
 	id          ID
 	bounds      image.Rectangle
@@ -77,7 +92,9 @@ type Element struct {
 	description string
 	value       string
 	searchText  string
-	visionOnly  bool
+	source      Source
+	focused     bool
+	identifier  string
 }
 
 // NewElement creates a new element with validation.
@@ -94,6 +111,7 @@ func NewElement(elementID ID, bounds image.Rectangle, role Role, opts ...Option)
 		id:     elementID,
 		bounds: bounds,
 		role:   role,
+		source: SourceAXTree,
 	}
 
 	// Apply options
@@ -142,12 +160,25 @@ func WithSearchText(text string) Option {
 	}
 }
 
-// WithVisionOnly marks the element as detected via vision rather than
-// the accessibility tree. Vision-only elements have no AX reference and
-// actions must always use coordinate-based clicks (PerformActionAtPoint).
-func WithVisionOnly() Option {
+// WithSource sets what found the element. IsVisionOnly reports true for any
+// source but axtree.
+func WithSource(source Source) Option {
 	return func(e *Element) {
-		e.visionOnly = true
+		e.source = source
+	}
+}
+
+// WithFocused sets whether the element has keyboard focus.
+func WithFocused(focused bool) Option {
+	return func(e *Element) {
+		e.focused = focused
+	}
+}
+
+// WithIdentifier sets the identifier the app's developer gave the element.
+func WithIdentifier(identifier string) Option {
+	return func(e *Element) {
+		e.identifier = identifier
 	}
 }
 
@@ -191,11 +222,26 @@ func (e *Element) SearchText() string {
 	return e.searchText
 }
 
-// IsVisionOnly returns true if the element was detected via vision rather
-// than the accessibility tree. Vision-only elements have no AX reference;
-// actions must use coordinate-based clicks (PerformActionAtPoint).
+// IsVisionOnly returns true if the element was found anywhere but the
+// accessibility tree. Vision-only elements have no AX reference; actions must
+// use coordinate-based clicks (PerformActionAtPoint).
 func (e *Element) IsVisionOnly() bool {
-	return e.visionOnly
+	return e.source != SourceAXTree
+}
+
+// Source returns what found the element.
+func (e *Element) Source() Source {
+	return e.source
+}
+
+// IsFocused returns whether the element has keyboard focus.
+func (e *Element) IsFocused() bool {
+	return e.focused
+}
+
+// Identifier returns the identifier the app's developer gave the element.
+func (e *Element) Identifier() string {
+	return e.identifier
 }
 
 // Center returns the center point of the element.

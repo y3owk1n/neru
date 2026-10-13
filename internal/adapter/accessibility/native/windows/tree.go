@@ -107,6 +107,9 @@ type TreeOptions struct {
 	// falls back to the shipped defaults. It is applied during enumeration so
 	// unwanted controls are rejected before their properties are read.
 	Roles map[string]struct{}
+	// readState asks for each control's identifier and focused state, which
+	// only `neru query hints` reports.
+	readState bool
 }
 
 // DefaultTreeOptions returns the default tree options.
@@ -138,6 +141,10 @@ func (o *TreeOptions) SetFilterFunc(_ func(*ElementInfo) bool) {}
 
 // SetRoles records the UIA control-type names to enumerate.
 func (o *TreeOptions) SetRoles(roles map[string]struct{}) { o.Roles = roles }
+
+// SetReadState records whether to read each control's identifier and focused
+// state.
+func (o *TreeOptions) SetReadState(readState bool) { o.readState = readState }
 
 // visibleCheckFor resolves hints.visible_check_enabled for the window's
 // application, per-app override first.
@@ -188,6 +195,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 		frame:        winplatform.WindowFrame(root.hwnd),
 		roles:        opts.Roles,
 		visibleCheck: opts.visibleCheckFor(root.bundleIdentifier),
+		readState:    opts.readState,
 	})
 
 	if ctx.Err() != nil {
@@ -207,9 +215,12 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 			title:       control.name,
 			description: control.description,
 			value:       control.value,
+			identifier:  control.identifier,
 			role:        control.role,
-			isEnabled:   control.enabled,
-			clickable:   true,
+			// collectArray drops disabled controls, so every one kept is enabled.
+			isEnabled: true,
+			isFocused: control.focused,
+			clickable: true,
 		}
 
 		children = append(children, &TreeNode{

@@ -249,6 +249,10 @@ func (s *HintService) generate(
 		return nil, nil
 	}
 
+	// Only a caller that reports the hints shows the identifier and focus, so
+	// hints mode skips the reads behind them.
+	filter.ReadElementState = strict
+
 	strategy := cfg.StrategyForApp(bundleID)
 	if strategyOverride != "" {
 		strategy = strategyOverride

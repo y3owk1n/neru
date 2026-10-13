@@ -108,13 +108,22 @@
               "description": {
                 "type": "string"
               },
+              "focused": {
+                "type": "boolean"
+              },
               "height": {
                 "type": "integer"
+              },
+              "identifier": {
+                "type": "string"
               },
               "label": {
                 "type": "string"
               },
               "role": {
+                "type": "string"
+              },
+              "source": {
                 "type": "string"
               },
               "title": {
@@ -139,6 +148,9 @@
               "title",
               "description",
               "value",
+              "source",
+              "identifier",
+              "focused",
               "x",
               "y",
               "width",

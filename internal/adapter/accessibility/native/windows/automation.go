@@ -92,7 +92,9 @@ const (
 	vtGetCachedPropertyValue     = 12
 	vtGetCachedControlType       = 53
 	vtGetCachedName              = 55
+	vtGetCachedHasKeyboardFocus  = 58
 	vtGetCachedIsEnabled         = 60
+	vtGetCachedAutomationID      = 61
 	vtGetCachedHelpText          = 63
 	vtGetCachedIsPassword        = 67
 	vtGetCachedIsOffscreen       = 70
@@ -113,7 +115,9 @@ const (
 	propBoundingRectangle = 30001
 	propControlType       = 30003
 	propName              = 30005
+	propHasKeyboardFocus  = 30008
 	propIsEnabled         = 30010
+	propAutomationID      = 30011
 	propHelpText          = 30013
 	propIsPassword        = 30019
 	propIsOffscreen       = 30022
@@ -218,7 +222,8 @@ type winElement struct {
 	name        string
 	description string
 	value       string
-	enabled     bool
+	identifier  string
+	focused     bool
 	clickable   bool
 }
 
@@ -233,6 +238,9 @@ type enumerateOptions struct {
 	// visibleCheck hit-tests each control's center and drops the ones another
 	// element covers. It is hints.visible_check_enabled on Windows.
 	visibleCheck bool
+	// readState also reads each control's identifier and focused state (see
+	// ports.ElementFilter.ReadElementState).
+	readState bool
 }
 
 // comCall invokes the method at vtable slot index on the COM object this.
@@ -316,7 +324,7 @@ func enumerateClickableElements(hwnd uintptr, opts enumerateOptions) []winElemen
 	}
 	defer comCall(condition, vtRelease)
 
-	cache := createCacheRequest(automation, condition)
+	cache := createCacheRequest(automation, condition, opts.readState)
 	if cache == nil {
 		return nil
 	}
@@ -340,7 +348,7 @@ func enumerateClickableElements(hwnd uintptr, opts enumerateOptions) []winElemen
 	}
 	defer comCall(array, vtRelease)
 
-	controls := collectArray(array, opts.frame, keptRoles)
+	controls := collectArray(array, opts.frame, keptRoles, opts.readState)
 
 	if opts.visibleCheck {
 		controls = visibleControls(automation, cache, opts.frame, controls)
@@ -465,9 +473,16 @@ func centerOf(rect image.Rectangle) image.Point {
 }
 
 // createCacheRequest builds the cache request FindAllBuildCache fills: the
-// properties extractWinElement reads, filtered to the control view so
-// the provider never serializes raw-view scaffolding.
-func createCacheRequest(automation unsafe.Pointer, filter unsafe.Pointer) unsafe.Pointer {
+// properties extractWinElement and readControlDetails read, filtered to the
+// control view so the provider never serializes raw-view scaffolding. It adds
+// the identifier and focus properties, which only `neru query hints` reports,
+// only with readState, because the provider computes every cached property
+// for every control.
+func createCacheRequest(
+	automation unsafe.Pointer,
+	filter unsafe.Pointer,
+	readState bool,
+) unsafe.Pointer {
 	var cache unsafe.Pointer
 
 	hresult := comCall(automation, vtCreateCacheRequest, uintptr(unsafe.Pointer(&cache)))
@@ -475,10 +490,15 @@ func createCacheRequest(automation unsafe.Pointer, filter unsafe.Pointer) unsafe
 		return nil
 	}
 
-	for _, property := range []uintptr{
-		propControlType, propName, propBoundingRectangle, propIsOffscreen,
-		propHelpText, propIsEnabled, propIsPassword, propValueValue,
-	} {
+	properties := []uintptr{
+		propControlType, propName, propBoundingRectangle, propIsOffscreen, propIsEnabled,
+		propHelpText, propIsPassword, propValueValue,
+	}
+	if readState {
+		properties = append(properties, propAutomationID, propHasKeyboardFocus)
+	}
+
+	for _, property := range properties {
 		if failed(comCall(cache, vtCacheAddProperty, property)) {
 			comCall(cache, vtRelease)
 
@@ -515,11 +535,14 @@ func createAutomation() unsafe.Pointer {
 }
 
 // collectArray walks an IUIAutomationElementArray and extracts the clickable
-// controls. Each element is released as soon as its data is copied out.
+// controls. It drops a disabled control before reading its text, since a
+// disabled control gets no hint, as on macOS. Each element is released as soon
+// as its data is copied out.
 func collectArray(
 	array unsafe.Pointer,
 	frame image.Rectangle,
 	keptRoles map[string]struct{},
+	readState bool,
 ) []winElement {
 	var length int32
 
@@ -539,12 +562,12 @@ func collectArray(
 		}
 
 		extracted, ok := extractWinElement(element, frame, keptRoles)
-
-		comCall(element, vtRelease)
-
-		if ok {
+		if ok && cachedBool(element, vtGetCachedIsEnabled, true) {
+			readControlDetails(element, &extracted, readState)
 			result = append(result, extracted)
 		}
+
+		comCall(element, vtRelease)
 	}
 
 	return result
@@ -600,20 +623,29 @@ func extractWinElement(
 		return winElement{}, false
 	}
 
-	extracted := winElement{
-		bounds:      bounds,
-		role:        role,
-		name:        cachedString(element, vtGetCachedName),
-		description: cachedString(element, vtGetCachedHelpText),
-		enabled:     cachedBool(element, vtGetCachedIsEnabled, true),
-		clickable:   true,
-	}
+	return winElement{
+		bounds:    bounds,
+		role:      role,
+		name:      cachedString(element, vtGetCachedName),
+		clickable: true,
+	}, true
+}
+
+// readControlDetails copies a kept control's description and value and, with
+// readState, its identifier and focused state. The visible check matches
+// controls on what extractWinElement reads, so these reads happen only for a
+// control that becomes a hint.
+func readControlDetails(element unsafe.Pointer, control *winElement, readState bool) {
+	control.description = cachedString(element, vtGetCachedHelpText)
 
 	if !cachedBool(element, vtGetCachedIsPassword, true) {
-		extracted.value = cachedValue(element)
+		control.value = cachedValue(element)
 	}
 
-	return extracted, true
+	if readState {
+		control.identifier = cachedString(element, vtGetCachedAutomationID)
+		control.focused = cachedBool(element, vtGetCachedHasKeyboardFocus, false)
+	}
 }
 
 // clipToFrame returns the part of bounds inside the window frame, which is

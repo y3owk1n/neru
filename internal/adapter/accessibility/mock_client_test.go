@@ -92,6 +92,7 @@ func (m *MockAXClient) ClickableNodes(
 	_ ax.Element,
 	roles []string,
 	_ int,
+	_ bool,
 ) ([]ax.Node, error) {
 	m.mu.Lock()
 	m.LastClickableNodesRoles = roles
@@ -239,6 +240,8 @@ type MockNode struct {
 	MockDescription string
 	MockValue       string
 	MockSearchText  string
+	MockFocused     bool
+	MockIdentifier  string
 	MockClickable   bool
 }
 
@@ -275,6 +278,16 @@ func (n *MockNode) Value() string {
 // SearchText returns the configured search text.
 func (n *MockNode) SearchText() string {
 	return n.MockSearchText
+}
+
+// IsFocused returns the configured focused state.
+func (n *MockNode) IsFocused() bool {
+	return n.MockFocused
+}
+
+// Identifier returns the configured identifier.
+func (n *MockNode) Identifier() string {
+	return n.MockIdentifier
 }
 
 // IsClickable returns the configured clickable state.

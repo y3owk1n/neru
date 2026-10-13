@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"os/exec"
 	"path/filepath"
@@ -29,15 +30,17 @@ var errStateUnavailable = errors.New("state unavailable")
 
 // fakeAccessible answers the AT-SPI calls a scan makes for one element.
 type fakeAccessible struct {
-	ref         accRef
-	role        string
-	states      []uint32
-	stateFails  bool
-	children    []*fakeAccessible
-	name        string
-	description string
-	text        string
-	textReads   atomic.Int32
+	ref             accRef
+	role            string
+	states          []uint32
+	stateFails      bool
+	children        []*fakeAccessible
+	name            string
+	description     string
+	identifier      string
+	text            string
+	textReads       atomic.Int32
+	identifierReads atomic.Int32
 }
 
 func (f *fakeAccessible) GetRoleName() (string, *dbus.Error) { return f.role, nil }
@@ -59,14 +62,19 @@ func (f *fakeAccessible) GetChildren() ([]accRef, *dbus.Error) {
 	return refs, nil
 }
 
-// Get answers org.freedesktop.DBus.Properties.Get for the two properties a
-// scan reads.
+// Get answers org.freedesktop.DBus.Properties.Get for the properties a scan
+// reads.
 func (f *fakeAccessible) Get(_, property string) (dbus.Variant, *dbus.Error) {
-	if property == "Description" {
+	switch property {
+	case "Description":
 		return dbus.MakeVariant(f.description), nil
-	}
+	case "AccessibleId":
+		f.identifierReads.Add(1)
 
-	return dbus.MakeVariant(f.name), nil
+		return dbus.MakeVariant(f.identifier), nil
+	default:
+		return dbus.MakeVariant(f.name), nil
+	}
 }
 
 func (f *fakeAccessible) GetText(int32, int32) (string, *dbus.Error) {
@@ -80,7 +88,7 @@ func (f *fakeAccessible) GetExtents(uint32) (atspiExtents, *dbus.Error) {
 }
 
 // GetMatches answers the Collection query as a toolkit does: the children
-// whose role is in the rule and that are showing.
+// whose role is in the rule and that have every state the rule names.
 func (f *fakeAccessible) GetMatches(
 	rule atspiMatchRule,
 	_ uint32,
@@ -93,7 +101,7 @@ func (f *fakeAccessible) GetMatches(
 		roleID := atspiRoleNameToID[child.role]
 		inRule := rule.Roles[roleID/atspiBitsPerWord]&(1<<(roleID%atspiBitsPerWord)) != 0
 
-		if inRule && atspiStateBit(child.states, atspiStateShowing) {
+		if inRule && hasStates(child.states, rule.States) {
 			refs = append(refs, child.ref)
 		}
 	}
@@ -101,7 +109,7 @@ func (f *fakeAccessible) GetMatches(
 	return refs, nil
 }
 
-func TestClient_ScanPaths_ReadEditableTextAsEntry(t *testing.T) {
+func TestClient_ScanPaths_ReadEditableTextAsEntryAndSkipDisabled(t *testing.T) {
 	address := startPrivateBus(t)
 
 	app := connectBus(t, address)
@@ -109,20 +117,22 @@ func TestClient_ScanPaths_ReadEditableTextAsEntry(t *testing.T) {
 
 	child := fixtureChild(app.Names()[0])
 
-	stateFails := child("state_fails", atspiRoleText, atspiStateShowing, atspiStateEditable)
+	stateFails := child("state_fails", atspiRoleText,
+		atspiStateShowing, atspiStateEnabled, atspiStateEditable)
 	stateFails.stateFails = true
 
 	frame := child("frame", "frame", atspiStateShowing)
 	frame.children = []*fakeAccessible{
-		child("editable", atspiRoleText, atspiStateShowing, atspiStateEditable),
-		child("read_only", atspiRoleText, atspiStateShowing),
-		child("hidden", atspiRoleText, atspiStateEditable),
+		child("editable", atspiRoleText, atspiStateShowing, atspiStateEnabled, atspiStateEditable),
+		child("read_only", atspiRoleText, atspiStateShowing, atspiStateEnabled),
+		child("hidden", atspiRoleText, atspiStateEnabled, atspiStateEditable),
+		child("disabled", "push button", atspiStateShowing),
 		stateFails,
-		child("button", "push button", atspiStateShowing),
+		child("button", "push button", atspiStateShowing, atspiStateEnabled),
 	}
 
 	exportFixture(t, app, frame)
-	scans := scanPaths(t, scanner, frame)
+	scans := scanPaths(t, scanner, frame, false)
 
 	tests := []struct {
 		roles []string
@@ -164,13 +174,20 @@ func TestClient_ScanPaths_ReadNameDescriptionAndValue(t *testing.T) {
 
 	child := fixtureChild(app.Names()[0])
 
-	entry := child("entry", atspiRoleText, atspiStateShowing, atspiStateEditable)
+	entry := child(
+		"search",
+		atspiRoleText,
+		atspiStateShowing,
+		atspiStateEnabled,
+		atspiStateEditable,
+	)
 	entry.name, entry.description, entry.text = "Search", "Find in page", "typed text"
 
-	password := child("password", "password text", atspiStateShowing, atspiStateEditable)
+	password := child("password", "password text",
+		atspiStateShowing, atspiStateEnabled, atspiStateEditable)
 	password.text = "hunter2"
 
-	button := child("save", "push button", atspiStateShowing)
+	button := child("save", "push button", atspiStateShowing, atspiStateEnabled)
 	button.name, button.description, button.text = "Save", "Save the file", "button text"
 
 	frame := child("frame", "frame", atspiStateShowing)
@@ -179,14 +196,14 @@ func TestClient_ScanPaths_ReadNameDescriptionAndValue(t *testing.T) {
 	exportFixture(t, app, frame)
 
 	want := map[string][3]string{
-		"entry":    {"Search", "Find in page", "typed text"},
+		"search":   {"Search", "Find in page", "typed text"},
 		"password": {"", "", ""},
 		"save":     {"Save", "Save the file", ""},
 	}
 
 	roles := rolesSet(resolveLinuxRoles(t, "text_field", "button"))
 
-	for path, scan := range scanPaths(t, scanner, frame) {
+	for path, scan := range scanPaths(t, scanner, frame, false) {
 		t.Run(path, func(t *testing.T) {
 			got := make(map[string][3]string)
 			for _, node := range scan(New(zap.NewNop(), nil), roles) {
@@ -204,6 +221,17 @@ func TestClient_ScanPaths_ReadNameDescriptionAndValue(t *testing.T) {
 	}
 }
 
+// hasStates reports whether states has every bit set in want.
+func hasStates(states []uint32, want []int32) bool {
+	for word, bits := range want {
+		if word >= len(states) || states[word]&uint32(bits) != uint32(bits) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // fixtureChild returns a constructor for fake elements owned by busName.
 func fixtureChild(busName string) func(string, string, ...uint) *fakeAccessible {
 	return func(name, role string, states ...uint) *fakeAccessible {
@@ -211,6 +239,76 @@ func fixtureChild(busName string) func(string, string, ...uint) *fakeAccessible 
 			ref:    accRef{Name: busName, Path: dbus.ObjectPath("/fixture/" + name)},
 			role:   role,
 			states: stateBitsFor(states...),
+		}
+	}
+}
+
+func TestClient_ScanPaths_ReadElementStateOnlyWhenAsked(t *testing.T) {
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	entry := child("field", atspiRoleText,
+		atspiStateShowing, atspiStateEditable, atspiStateEnabled, atspiStateFocused)
+	entry.identifier = "search-field"
+
+	button := child("action", "push button", atspiStateShowing, atspiStateEnabled)
+	button.identifier = "save-button"
+
+	frame := child("frame", "frame", atspiStateShowing)
+	frame.children = []*fakeAccessible{entry, button}
+
+	exportFixture(t, app, frame)
+
+	type state struct {
+		identifier string
+		focused    bool
+	}
+
+	tests := []struct {
+		readState bool
+		want      map[string]state
+	}{
+		{
+			readState: true,
+			want: map[string]state{
+				"field":  {"search-field", true},
+				"action": {"save-button", false},
+			},
+		},
+		{
+			readState: false,
+			want: map[string]state{
+				"field":  {"", false},
+				"action": {"", false},
+			},
+		},
+	}
+
+	roles := rolesSet(resolveLinuxRoles(t, "text_field", "button"))
+
+	for _, test := range tests {
+		for path, scan := range scanPaths(t, scanner, frame, test.readState) {
+			t.Run(fmt.Sprintf("%s read state %v", path, test.readState), func(t *testing.T) {
+				reads := entry.identifierReads.Load() + button.identifierReads.Load()
+
+				got := make(map[string]state)
+				for _, node := range scan(New(zap.NewNop(), nil), roles) {
+					got[fixtureName(node)] = state{node.Identifier(), node.IsFocused()}
+				}
+
+				if !maps.Equal(got, test.want) {
+					t.Errorf("read %v, want %v", got, test.want)
+				}
+
+				reads = entry.identifierReads.Load() + button.identifierReads.Load() - reads
+				if !test.readState && reads != 0 {
+					t.Errorf("the scan read %d identifiers, want none without read state", reads)
+				}
+			})
 		}
 	}
 }
@@ -236,11 +334,12 @@ func exportFixture(t *testing.T, app *dbus.Conn, frame *fakeAccessible) {
 }
 
 // scanPaths returns the walk and the Collection path, each scanning frame
-// for roles.
+// for roles and reading the element state when readState is set.
 func scanPaths(
 	t *testing.T,
 	scanner *dbus.Conn,
 	frame *fakeAccessible,
+	readState bool,
 ) map[string]func(*Client, map[string]struct{}) []ax.Node {
 	t.Helper()
 
@@ -249,12 +348,13 @@ func scanPaths(
 			var out []ax.Node
 
 			visited := 0
-			client.walk(t.Context(), scanner, frame.ref, roles, 0, &out, &visited, 0, 0)
+			client.walk(t.Context(), scanner, frame.ref, roles, 0, &out, &visited, 0, 0, readState)
 
 			return out
 		},
 		"collection": func(client *Client, roles map[string]struct{}) []ax.Node {
-			out, ok := client.collectViaCollection(t.Context(), scanner, frame.ref, roles, 0, 0)
+			out, ok := client.collectViaCollection(
+				t.Context(), scanner, frame.ref, roles, 0, 0, readState)
 			if !ok {
 				t.Fatal("the Collection path fell back to the walk")
 			}

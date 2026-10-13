@@ -110,6 +110,7 @@ type ElementInfo struct {
 	title           string
 	description     string
 	value           string
+	identifier      string
 	searchText      string
 	role            string
 	subrole         string
@@ -134,6 +135,9 @@ func (ei *ElementInfo) Description() string { return ei.description }
 
 // Value returns the element value.
 func (ei *ElementInfo) Value() string { return ei.value }
+
+// Identifier returns the control's UI Automation AutomationId.
+func (ei *ElementInfo) Identifier() string { return ei.identifier }
 
 // SearchText returns extra searchable text collected from descendant elements.
 func (ei *ElementInfo) SearchText() string { return ei.searchText }
