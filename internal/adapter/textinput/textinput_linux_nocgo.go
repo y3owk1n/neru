@@ -10,7 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// TextInput is the Linux field without cgo, which the Wayland field needs.
+// TextInput is the Linux slot without cgo, which the Wayland field needs.
 // Hint search reads the event tap's key stream instead.
 //
 // The started == false return — rather than a CodeNotSupported error — is the

@@ -28,17 +28,18 @@
  * THIS SOFTWARE.
  */
 
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include "wayland-util.h"
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
 #ifndef __has_attribute
-# define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
+#define __has_attribute(x) 0 /* Compatibility with non-clang compilers. */
 #endif
 
 #if (__has_attribute(visibility) || defined(__GNUC__) && __GNUC__ >= 4)
-#define WL_PRIVATE __attribute__ ((visibility("hidden")))
+#define WL_PRIVATE __attribute__((visibility("hidden")))
 #else
 #define WL_PRIVATE
 #endif
@@ -48,56 +49,51 @@ extern const struct wl_interface wl_surface_interface;
 extern const struct wl_interface zwp_text_input_v3_interface;
 
 static const struct wl_interface *text_input_unstable_v3_types[] = {
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	&wl_surface_interface,
-	&wl_surface_interface,
-	&zwp_text_input_v3_interface,
-	&wl_seat_interface,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    &wl_surface_interface,
+    &wl_surface_interface,
+    &zwp_text_input_v3_interface,
+    &wl_seat_interface,
 };
 
 static const struct wl_message zwp_text_input_v3_requests[] = {
-	{ "destroy", "", text_input_unstable_v3_types + 0 },
-	{ "enable", "", text_input_unstable_v3_types + 0 },
-	{ "disable", "", text_input_unstable_v3_types + 0 },
-	{ "set_surrounding_text", "sii", text_input_unstable_v3_types + 0 },
-	{ "set_text_change_cause", "u", text_input_unstable_v3_types + 0 },
-	{ "set_content_type", "uu", text_input_unstable_v3_types + 0 },
-	{ "set_cursor_rectangle", "iiii", text_input_unstable_v3_types + 0 },
-	{ "commit", "", text_input_unstable_v3_types + 0 },
-	{ "set_available_actions", "2a", text_input_unstable_v3_types + 0 },
-	{ "show_input_panel", "2", text_input_unstable_v3_types + 0 },
-	{ "hide_input_panel", "2", text_input_unstable_v3_types + 0 },
+    {"destroy", "", text_input_unstable_v3_types + 0},
+    {"enable", "", text_input_unstable_v3_types + 0},
+    {"disable", "", text_input_unstable_v3_types + 0},
+    {"set_surrounding_text", "sii", text_input_unstable_v3_types + 0},
+    {"set_text_change_cause", "u", text_input_unstable_v3_types + 0},
+    {"set_content_type", "uu", text_input_unstable_v3_types + 0},
+    {"set_cursor_rectangle", "iiii", text_input_unstable_v3_types + 0},
+    {"commit", "", text_input_unstable_v3_types + 0},
+    {"set_available_actions", "2a", text_input_unstable_v3_types + 0},
+    {"show_input_panel", "2", text_input_unstable_v3_types + 0},
+    {"hide_input_panel", "2", text_input_unstable_v3_types + 0},
 };
 
 static const struct wl_message zwp_text_input_v3_events[] = {
-	{ "enter", "o", text_input_unstable_v3_types + 4 },
-	{ "leave", "o", text_input_unstable_v3_types + 5 },
-	{ "preedit_string", "?sii", text_input_unstable_v3_types + 0 },
-	{ "commit_string", "?s", text_input_unstable_v3_types + 0 },
-	{ "delete_surrounding_text", "uu", text_input_unstable_v3_types + 0 },
-	{ "done", "u", text_input_unstable_v3_types + 0 },
-	{ "action", "2uu", text_input_unstable_v3_types + 0 },
-	{ "language", "2s", text_input_unstable_v3_types + 0 },
-	{ "preedit_hint", "2uuu", text_input_unstable_v3_types + 0 },
+    {"enter", "o", text_input_unstable_v3_types + 4},
+    {"leave", "o", text_input_unstable_v3_types + 5},
+    {"preedit_string", "?sii", text_input_unstable_v3_types + 0},
+    {"commit_string", "?s", text_input_unstable_v3_types + 0},
+    {"delete_surrounding_text", "uu", text_input_unstable_v3_types + 0},
+    {"done", "u", text_input_unstable_v3_types + 0},
+    {"action", "2uu", text_input_unstable_v3_types + 0},
+    {"language", "2s", text_input_unstable_v3_types + 0},
+    {"preedit_hint", "2uuu", text_input_unstable_v3_types + 0},
 };
 
 WL_PRIVATE const struct wl_interface zwp_text_input_v3_interface = {
-	"zwp_text_input_v3", 2,
-	11, zwp_text_input_v3_requests,
-	9, zwp_text_input_v3_events,
+    "zwp_text_input_v3", 2, 11, zwp_text_input_v3_requests, 9, zwp_text_input_v3_events,
 };
 
 static const struct wl_message zwp_text_input_manager_v3_requests[] = {
-	{ "destroy", "", text_input_unstable_v3_types + 0 },
-	{ "get_text_input", "no", text_input_unstable_v3_types + 6 },
+    {"destroy", "", text_input_unstable_v3_types + 0},
+    {"get_text_input", "no", text_input_unstable_v3_types + 6},
 };
 
 WL_PRIVATE const struct wl_interface zwp_text_input_manager_v3_interface = {
-	"zwp_text_input_manager_v3", 2,
-	2, zwp_text_input_manager_v3_requests,
-	0, NULL,
+    "zwp_text_input_manager_v3", 2, 2, zwp_text_input_manager_v3_requests, 0, NULL,
 };
-

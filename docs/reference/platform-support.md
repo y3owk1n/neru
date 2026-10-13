@@ -37,7 +37,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Hints from the accessibility tree | ✅ | ⚠️ ¹     | ⚠️ ¹              | ⚠️ ¹          | ⚠️ ¹    |
 | Hints from OCR (`vision`)      | ✅    | ⚠️ ²      | ⚠️ ²              | ⚠️ ²          | ⚠️ ²    |
 | Hints from shapes (`contour`)  | ✅    | ✅        | ✅                | ✅            | ✅      |
-| Hint search                    | ✅    | ⚠️ ³      | ✅                | ✅            | ⚠️ ³    |
+| Hint search                    | ✅    | ⚠️ ³      | ✅                | ⚠️ ³          | ⚠️ ³    |
 | Menu bar, Dock and other system surfaces in hints | ✅ | ➖ | ➖          | ➖            | ➖      |
 | Scroll mode                    | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Monitor select                 | ✅    | ✅        | ✅                | ✅            | ✅      |
@@ -88,8 +88,10 @@ text.
 ³ **Hint search reads raw keys on X11, Windows and GNOME**, so dead keys and
 input-method composition do not work in the search field there. On Wayland
 compositors with a layer shell, search opens a text field that takes the
-keyboard, as on macOS. GNOME has no layer shell. `neru doctor` reports the
-native search field as a stub on Windows.
+keyboard, as on macOS. GNOME has no layer shell. KDE has the protocols the
+field needs, but it has not been tested there. `neru doctor` reports the
+native search field as a stub wherever it cannot open, and on builds without
+cgo.
 
 ⁴ **Modified clicks on Wayland** need a writable `/dev/uinput`, see
 [Linux setup](../guide/linux.md#setup-steps).

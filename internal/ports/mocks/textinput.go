@@ -53,6 +53,15 @@ func (m *MockTextInputPort) StopHintSearchSession(_ context.Context) error {
 	return m.StopErr
 }
 
+// Callbacks returns the callbacks passed to the last StartHintSearchSession
+// call, so a test can invoke one after a later session started.
+func (m *MockTextInputPort) Callbacks() ports.TextInputCallbacks {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.callbacks
+}
+
 // Frame returns the frame passed to the last StartHintSearchSession call.
 func (m *MockTextInputPort) Frame() ports.TextInputFrame {
 	m.mu.Lock()

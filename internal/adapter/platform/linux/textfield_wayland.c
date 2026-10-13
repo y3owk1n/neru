@@ -5,12 +5,15 @@
 #include "wlr_protocol/text-input-v3.h"
 #include "wlr_protocol/xdg-output.h"
 
+#include <errno.h>
+#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/timerfd.h>
+#include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon-compose.h>
@@ -19,6 +22,11 @@
 
 #define NERU_TEXT_FIELD_MAX_OUTPUTS 16
 #define NERU_TEXT_FIELD_MAX_QUERY 1024
+
+// NERU_TEXT_FIELD_OPEN_TIMEOUT_MS bounds the compositor round trips opening
+// the field. The caller holds the mode handler's lock, so a compositor that
+// stops answering costs at most this, and search falls back to the key stream.
+#define NERU_TEXT_FIELD_OPEN_TIMEOUT_MS 250
 
 typedef struct {
 	struct wl_output *output;
@@ -45,6 +53,7 @@ struct NeruTextField {
 	struct zwlr_layer_surface_v1 *layer_surface;
 	struct wl_buffer *buffer;
 	int width, height;
+	int focused; // the surface holds the keyboard
 
 	struct xkb_context *xkb_context;
 	struct xkb_keymap *xkb_keymap;
@@ -197,11 +206,18 @@ static void neru_keyboard_keymap_cb(
 }
 
 static void neru_keyboard_enter_cb(
-    void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {}
+    void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+	NeruTextField *field = data;
+	if (surface == field->surface) {
+		field->focused = 1;
+	}
+}
 
 static void neru_keyboard_leave_cb(
     void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface) {
-	neru_text_field_stop_repeat(data);
+	NeruTextField *field = data;
+	field->focused = 0;
+	neru_text_field_stop_repeat(field);
 }
 
 static void neru_keyboard_key_cb(
@@ -376,6 +392,58 @@ static const struct zwlr_layer_surface_v1_listener neru_text_field_layer_listene
     .closed = neru_layer_surface_closed_cb,
 };
 
+// Bounded round trips.
+
+static void neru_text_field_sync_done_cb(void *data, struct wl_callback *callback, uint32_t serial) {
+	*(int *)data = 1;
+	wl_callback_destroy(callback);
+}
+
+static const struct wl_callback_listener neru_text_field_sync_listener = {
+    .done = neru_text_field_sync_done_cb,
+};
+
+static long neru_text_field_ms_until(const struct timespec *deadline) {
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	return (deadline->tv_sec - now.tv_sec) * 1000L + (deadline->tv_nsec - now.tv_nsec) / 1000000L;
+}
+
+// neru_text_field_roundtrip waits until the compositor has handled every
+// request sent so far, like wl_display_roundtrip, but gives up at deadline.
+// It returns 0 when the compositor answered in time.
+static int neru_text_field_roundtrip(NeruTextField *field, const struct timespec *deadline) {
+	int done = 0;
+	struct wl_callback *callback = wl_display_sync(field->display);
+	wl_callback_add_listener(callback, &neru_text_field_sync_listener, &done);
+
+	while (!done) {
+		if (wl_display_flush(field->display) < 0 && errno != EAGAIN) {
+			return -1;
+		}
+		if (wl_display_prepare_read(field->display) != 0) {
+			if (wl_display_dispatch_pending(field->display) < 0) {
+				return -1;
+			}
+			continue;
+		}
+		long remaining = neru_text_field_ms_until(deadline);
+		struct pollfd ready = {.fd = wl_display_get_fd(field->display), .events = POLLIN};
+		int polled = remaining > 0 ? poll(&ready, 1, (int)remaining) : 0;
+		if (polled <= 0) {
+			wl_display_cancel_read(field->display);
+			if (polled < 0 && errno == EINTR) {
+				continue;
+			}
+			return -1;
+		}
+		if (wl_display_read_events(field->display) < 0 || wl_display_dispatch_pending(field->display) < 0) {
+			return -1;
+		}
+	}
+	return 0;
+}
+
 // Registry.
 
 static void neru_seat_capabilities_cb(void *data, struct wl_seat *seat, uint32_t capabilities) {
@@ -466,14 +534,25 @@ NeruTextField *neru_text_field_open(int x, int y, int width, int height) {
 	field->height = height;
 
 	field->display = wl_display_connect(NULL);
-	if (!field->display) {
+	field->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+	field->repeat_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+	if (!field->display || !field->xkb_context || field->repeat_fd < 0) {
 		neru_text_field_close(field);
 		return NULL;
 	}
 
+	struct timespec deadline;
+	clock_gettime(CLOCK_MONOTONIC, &deadline);
+	deadline.tv_nsec += NERU_TEXT_FIELD_OPEN_TIMEOUT_MS * 1000000L;
+	deadline.tv_sec += deadline.tv_nsec / 1000000000L;
+	deadline.tv_nsec %= 1000000000L;
+
 	field->registry = wl_display_get_registry(field->display);
 	wl_registry_add_listener(field->registry, &neru_text_field_registry_listener, field);
-	wl_display_roundtrip(field->display);
+	if (neru_text_field_roundtrip(field, &deadline) != 0) {
+		neru_text_field_close(field);
+		return NULL;
+	}
 
 	if (!field->compositor || !field->shm || !field->seat || !field->layer_shell) {
 		neru_text_field_close(field);
@@ -487,20 +566,12 @@ NeruTextField *neru_text_field_open(int x, int y, int width, int height) {
 			zxdg_output_v1_add_listener(output->xdg_output, &neru_text_field_xdg_output_listener, output);
 		}
 	}
-	// The second roundtrip delivers the seat's keyboard and the output layout.
-	wl_display_roundtrip(field->display);
-
-	if (!field->keyboard) {
+	// The second round trip delivers the seat's keyboard and the output layout.
+	if (neru_text_field_roundtrip(field, &deadline) != 0 || !field->keyboard) {
 		neru_text_field_close(field);
 		return NULL;
 	}
 
-	field->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-	field->repeat_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
-	if (!field->xkb_context || field->repeat_fd < 0) {
-		neru_text_field_close(field);
-		return NULL;
-	}
 	neru_text_field_compose_init(field);
 
 	NeruTextFieldOutput *output = neru_text_field_output_at(field, x, y);
@@ -529,8 +600,17 @@ NeruTextField *neru_text_field_open(int x, int y, int width, int height) {
 		zwp_text_input_v3_add_listener(field->text_input, &neru_text_field_text_input_listener, field);
 	}
 
+	// Hand the field over only once it holds the keyboard. The caller turns the
+	// key capture off when it gets the field, and until the surface has focus
+	// the compositor still sends keys to the window the user was in.
 	wl_surface_commit(field->surface);
-	wl_display_roundtrip(field->display);
+	while (!field->focused) {
+		if (neru_text_field_roundtrip(field, &deadline) != 0 || (field->flags & NERU_TEXT_FIELD_CANCEL)) {
+			neru_text_field_close(field);
+			return NULL;
+		}
+	}
+	field->flags = 0;
 	wl_display_flush(field->display);
 
 	return field;
@@ -548,7 +628,11 @@ static int neru_text_field_take_flags(NeruTextField *field) {
 }
 
 int neru_text_field_dispatch(NeruTextField *field) {
-	if (wl_display_dispatch(field->display) < 0) {
+	// The caller polled the descriptor readable, so the read does not block.
+	if (wl_display_prepare_read(field->display) == 0 && wl_display_read_events(field->display) < 0) {
+		return -1;
+	}
+	if (wl_display_dispatch_pending(field->display) < 0) {
 		return -1;
 	}
 	return neru_text_field_take_flags(field);

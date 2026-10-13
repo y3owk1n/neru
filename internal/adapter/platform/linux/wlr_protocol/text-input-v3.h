@@ -3,11 +3,12 @@
 #ifndef TEXT_INPUT_UNSTABLE_V3_CLIENT_PROTOCOL_H
 #define TEXT_INPUT_UNSTABLE_V3_CLIENT_PROTOCOL_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include "wayland-client.h"
 
-#ifdef  __cplusplus
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -158,6 +159,7 @@ extern const struct wl_interface zwp_text_input_manager_v3_interface;
 
 #ifndef ZWP_TEXT_INPUT_V3_CHANGE_CAUSE_ENUM
 #define ZWP_TEXT_INPUT_V3_CHANGE_CAUSE_ENUM
+
 /**
  * @ingroup iface_zwp_text_input_v3
  * text change reason
@@ -178,6 +180,7 @@ enum zwp_text_input_v3_change_cause {
 
 #ifndef ZWP_TEXT_INPUT_V3_CONTENT_HINT_ENUM
 #define ZWP_TEXT_INPUT_V3_CONTENT_HINT_ENUM
+
 /**
  * @ingroup iface_zwp_text_input_v3
  * content hint
@@ -246,6 +249,7 @@ enum zwp_text_input_v3_content_hint {
 	 */
 	ZWP_TEXT_INPUT_V3_CONTENT_HINT_PREEDIT_SHOWN = 0x1000,
 };
+
 /**
  * @ingroup iface_zwp_text_input_v3
  */
@@ -262,6 +266,7 @@ enum zwp_text_input_v3_content_hint {
 
 #ifndef ZWP_TEXT_INPUT_V3_CONTENT_PURPOSE_ENUM
 #define ZWP_TEXT_INPUT_V3_CONTENT_PURPOSE_ENUM
+
 /**
  * @ingroup iface_zwp_text_input_v3
  * content purpose
@@ -334,6 +339,7 @@ enum zwp_text_input_v3_content_purpose {
 
 #ifndef ZWP_TEXT_INPUT_V3_ERROR_ENUM
 #define ZWP_TEXT_INPUT_V3_ERROR_ENUM
+
 enum zwp_text_input_v3_error {
 	/**
 	 * an invalid or duplicate action was specified
@@ -344,6 +350,7 @@ enum zwp_text_input_v3_error {
 
 #ifndef ZWP_TEXT_INPUT_V3_ACTION_ENUM
 #define ZWP_TEXT_INPUT_V3_ACTION_ENUM
+
 /**
  * @ingroup iface_zwp_text_input_v3
  * action
@@ -367,6 +374,7 @@ enum zwp_text_input_v3_action {
 
 #ifndef ZWP_TEXT_INPUT_V3_PREEDIT_HINT_ENUM
 #define ZWP_TEXT_INPUT_V3_PREEDIT_HINT_ENUM
+
 /**
  * @ingroup iface_zwp_text_input_v3
  * preedit style hint
@@ -423,9 +431,7 @@ struct zwp_text_input_v3_listener {
 	 * follows the keyboard focus. This event sets the current surface
 	 * for the text-input object.
 	 */
-	void (*enter)(void *data,
-		      struct zwp_text_input_v3 *zwp_text_input_v3,
-		      struct wl_surface *surface);
+	void (*enter)(void *data, struct zwp_text_input_v3 *zwp_text_input_v3, struct wl_surface *surface);
 	/**
 	 * leave event
 	 *
@@ -441,9 +447,7 @@ struct zwp_text_input_v3_listener {
 	 * When the seat has the keyboard capability the text-input focus
 	 * follows the keyboard focus.
 	 */
-	void (*leave)(void *data,
-		      struct zwp_text_input_v3 *zwp_text_input_v3,
-		      struct wl_surface *surface);
+	void (*leave)(void *data, struct zwp_text_input_v3 *zwp_text_input_v3, struct wl_surface *surface);
 	/**
 	 * pre-edit
 	 *
@@ -468,11 +472,9 @@ struct zwp_text_input_v3_listener {
 	 * The initial value of text is an empty string, and cursor_begin,
 	 * cursor_end and cursor_hidden are all 0.
 	 */
-	void (*preedit_string)(void *data,
-			       struct zwp_text_input_v3 *zwp_text_input_v3,
-			       const char *text,
-			       int32_t cursor_begin,
-			       int32_t cursor_end);
+	void (*preedit_string)(
+	    void *data, struct zwp_text_input_v3 *zwp_text_input_v3, const char *text, int32_t cursor_begin,
+	    int32_t cursor_end);
 	/**
 	 * text commit
 	 *
@@ -486,9 +488,7 @@ struct zwp_text_input_v3_listener {
 	 *
 	 * The initial value of text is an empty string.
 	 */
-	void (*commit_string)(void *data,
-			      struct zwp_text_input_v3 *zwp_text_input_v3,
-			      const char *text);
+	void (*commit_string)(void *data, struct zwp_text_input_v3 *zwp_text_input_v3, const char *text);
 	/**
 	 * delete surrounding text
 	 *
@@ -511,10 +511,8 @@ struct zwp_text_input_v3_listener {
 	 * @param before_length length of text before current cursor position
 	 * @param after_length length of text after current cursor position
 	 */
-	void (*delete_surrounding_text)(void *data,
-					struct zwp_text_input_v3 *zwp_text_input_v3,
-					uint32_t before_length,
-					uint32_t after_length);
+	void (*delete_surrounding_text)(
+	    void *data, struct zwp_text_input_v3 *zwp_text_input_v3, uint32_t before_length, uint32_t after_length);
 	/**
 	 * apply changes
 	 *
@@ -549,9 +547,7 @@ struct zwp_text_input_v3_listener {
 	 * zwp_text_input_v3 object should be sent and committed after
 	 * receiving a zwp_text_input_v3.done event with a matching serial.
 	 */
-	void (*done)(void *data,
-		     struct zwp_text_input_v3 *zwp_text_input_v3,
-		     uint32_t serial);
+	void (*done)(void *data, struct zwp_text_input_v3 *zwp_text_input_v3, uint32_t serial);
 	/**
 	 * action performed
 	 *
@@ -566,10 +562,7 @@ struct zwp_text_input_v3_listener {
 	 * @param serial serial number of the action event
 	 * @since 2
 	 */
-	void (*action)(void *data,
-		       struct zwp_text_input_v3 *zwp_text_input_v3,
-		       uint32_t action,
-		       uint32_t serial);
+	void (*action)(void *data, struct zwp_text_input_v3 *zwp_text_input_v3, uint32_t action, uint32_t serial);
 	/**
 	 * notify of language selection
 	 *
@@ -584,9 +577,7 @@ struct zwp_text_input_v3_listener {
 	 * @param language new language set by IME
 	 * @since 2
 	 */
-	void (*language)(void *data,
-			 struct zwp_text_input_v3 *zwp_text_input_v3,
-			 const char *language);
+	void (*language)(void *data, struct zwp_text_input_v3 *zwp_text_input_v3, const char *language);
 	/**
 	 * pre-edit
 	 *
@@ -618,22 +609,16 @@ struct zwp_text_input_v3_listener {
 	 * @param hint hint to apply
 	 * @since 2
 	 */
-	void (*preedit_hint)(void *data,
-			     struct zwp_text_input_v3 *zwp_text_input_v3,
-			     uint32_t start,
-			     uint32_t end,
-			     uint32_t hint);
+	void (*preedit_hint)(
+	    void *data, struct zwp_text_input_v3 *zwp_text_input_v3, uint32_t start, uint32_t end, uint32_t hint);
 };
 
 /**
  * @ingroup iface_zwp_text_input_v3
  */
-static inline int
-zwp_text_input_v3_add_listener(struct zwp_text_input_v3 *zwp_text_input_v3,
-			       const struct zwp_text_input_v3_listener *listener, void *data)
-{
-	return wl_proxy_add_listener((struct wl_proxy *) zwp_text_input_v3,
-				     (void (**)(void)) listener, data);
+static inline int zwp_text_input_v3_add_listener(
+    struct zwp_text_input_v3 *zwp_text_input_v3, const struct zwp_text_input_v3_listener *listener, void *data) {
+	return wl_proxy_add_listener((struct wl_proxy *)zwp_text_input_v3, (void (**)(void))listener, data);
 }
 
 #define ZWP_TEXT_INPUT_V3_DESTROY 0
@@ -731,23 +716,17 @@ zwp_text_input_v3_add_listener(struct zwp_text_input_v3 *zwp_text_input_v3,
 #define ZWP_TEXT_INPUT_V3_HIDE_INPUT_PANEL_SINCE_VERSION 2
 
 /** @ingroup iface_zwp_text_input_v3 */
-static inline void
-zwp_text_input_v3_set_user_data(struct zwp_text_input_v3 *zwp_text_input_v3, void *user_data)
-{
-	wl_proxy_set_user_data((struct wl_proxy *) zwp_text_input_v3, user_data);
+static inline void zwp_text_input_v3_set_user_data(struct zwp_text_input_v3 *zwp_text_input_v3, void *user_data) {
+	wl_proxy_set_user_data((struct wl_proxy *)zwp_text_input_v3, user_data);
 }
 
 /** @ingroup iface_zwp_text_input_v3 */
-static inline void *
-zwp_text_input_v3_get_user_data(struct zwp_text_input_v3 *zwp_text_input_v3)
-{
-	return wl_proxy_get_user_data((struct wl_proxy *) zwp_text_input_v3);
+static inline void *zwp_text_input_v3_get_user_data(struct zwp_text_input_v3 *zwp_text_input_v3) {
+	return wl_proxy_get_user_data((struct wl_proxy *)zwp_text_input_v3);
 }
 
-static inline uint32_t
-zwp_text_input_v3_get_version(struct zwp_text_input_v3 *zwp_text_input_v3)
-{
-	return wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3);
+static inline uint32_t zwp_text_input_v3_get_version(struct zwp_text_input_v3 *zwp_text_input_v3) {
+	return wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3);
 }
 
 /**
@@ -756,11 +735,10 @@ zwp_text_input_v3_get_version(struct zwp_text_input_v3 *zwp_text_input_v3)
  * Destroy the wp_text_input object. Also disables all surfaces enabled
  * through this wp_text_input object.
  */
-static inline void
-zwp_text_input_v3_destroy(struct zwp_text_input_v3 *zwp_text_input_v3)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), WL_MARSHAL_FLAG_DESTROY);
+static inline void zwp_text_input_v3_destroy(struct zwp_text_input_v3 *zwp_text_input_v3) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_DESTROY, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), WL_MARSHAL_FLAG_DESTROY);
 }
 
 /**
@@ -795,11 +773,10 @@ zwp_text_input_v3_destroy(struct zwp_text_input_v3 *zwp_text_input_v3)
  * The changes must be applied by the compositor after issuing a
  * zwp_text_input_v3.commit request.
  */
-static inline void
-zwp_text_input_v3_enable(struct zwp_text_input_v3 *zwp_text_input_v3)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_ENABLE, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0);
+static inline void zwp_text_input_v3_enable(struct zwp_text_input_v3 *zwp_text_input_v3) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_ENABLE, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0);
 }
 
 /**
@@ -811,11 +788,10 @@ zwp_text_input_v3_enable(struct zwp_text_input_v3 *zwp_text_input_v3)
  * State set with this request is double-buffered. It will get applied on
  * the next zwp_text_input_v3.commit request.
  */
-static inline void
-zwp_text_input_v3_disable(struct zwp_text_input_v3 *zwp_text_input_v3)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_DISABLE, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0);
+static inline void zwp_text_input_v3_disable(struct zwp_text_input_v3 *zwp_text_input_v3) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_DISABLE, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0);
 }
 
 /**
@@ -853,11 +829,11 @@ zwp_text_input_v3_disable(struct zwp_text_input_v3 *zwp_text_input_v3)
  * input does not support sending surrounding text. If the empty values
  * get applied, subsequent attempts to change them may have no effect.
  */
-static inline void
-zwp_text_input_v3_set_surrounding_text(struct zwp_text_input_v3 *zwp_text_input_v3, const char *text, int32_t cursor, int32_t anchor)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_SET_SURROUNDING_TEXT, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0, text, cursor, anchor);
+static inline void zwp_text_input_v3_set_surrounding_text(
+    struct zwp_text_input_v3 *zwp_text_input_v3, const char *text, int32_t cursor, int32_t anchor) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_SET_SURROUNDING_TEXT, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0, text, cursor, anchor);
 }
 
 /**
@@ -878,11 +854,11 @@ zwp_text_input_v3_set_surrounding_text(struct zwp_text_input_v3 *zwp_text_input_
  *
  * The initial value of cause is input_method.
  */
-static inline void
-zwp_text_input_v3_set_text_change_cause(struct zwp_text_input_v3 *zwp_text_input_v3, uint32_t cause)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_SET_TEXT_CHANGE_CAUSE, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0, cause);
+static inline void zwp_text_input_v3_set_text_change_cause(
+    struct zwp_text_input_v3 *zwp_text_input_v3, uint32_t cause) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_SET_TEXT_CHANGE_CAUSE, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0, cause);
 }
 
 /**
@@ -900,11 +876,11 @@ zwp_text_input_v3_set_text_change_cause(struct zwp_text_input_v3 *zwp_text_input
  * The initial value for hint is none, and the initial value for purpose
  * is normal.
  */
-static inline void
-zwp_text_input_v3_set_content_type(struct zwp_text_input_v3 *zwp_text_input_v3, uint32_t hint, uint32_t purpose)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_SET_CONTENT_TYPE, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0, hint, purpose);
+static inline void zwp_text_input_v3_set_content_type(
+    struct zwp_text_input_v3 *zwp_text_input_v3, uint32_t hint, uint32_t purpose) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_SET_CONTENT_TYPE, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0, hint, purpose);
 }
 
 /**
@@ -941,11 +917,11 @@ zwp_text_input_v3_set_content_type(struct zwp_text_input_v3 *zwp_text_input_v3, 
  * the input method popup in the same frame as the contents
  * of the text on the surface are updated.
  */
-static inline void
-zwp_text_input_v3_set_cursor_rectangle(struct zwp_text_input_v3 *zwp_text_input_v3, int32_t x, int32_t y, int32_t width, int32_t height)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_SET_CURSOR_RECTANGLE, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0, x, y, width, height);
+static inline void zwp_text_input_v3_set_cursor_rectangle(
+    struct zwp_text_input_v3 *zwp_text_input_v3, int32_t x, int32_t y, int32_t width, int32_t height) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_SET_CURSOR_RECTANGLE, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0, x, y, width, height);
 }
 
 /**
@@ -975,11 +951,10 @@ zwp_text_input_v3_set_cursor_rectangle(struct zwp_text_input_v3 *zwp_text_input_
  * each zwp_text_input_v3 object and use the count as the serial in done
  * events.
  */
-static inline void
-zwp_text_input_v3_commit(struct zwp_text_input_v3 *zwp_text_input_v3)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_COMMIT, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0);
+static inline void zwp_text_input_v3_commit(struct zwp_text_input_v3 *zwp_text_input_v3) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_COMMIT, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0);
 }
 
 /**
@@ -996,11 +971,11 @@ zwp_text_input_v3_commit(struct zwp_text_input_v3 *zwp_text_input_v3)
  *
  * Initially, no actions are available.
  */
-static inline void
-zwp_text_input_v3_set_available_actions(struct zwp_text_input_v3 *zwp_text_input_v3, struct wl_array *available_actions)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_SET_AVAILABLE_ACTIONS, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0, available_actions);
+static inline void zwp_text_input_v3_set_available_actions(
+    struct zwp_text_input_v3 *zwp_text_input_v3, struct wl_array *available_actions) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_SET_AVAILABLE_ACTIONS, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0, available_actions);
 }
 
 /**
@@ -1012,11 +987,10 @@ zwp_text_input_v3_set_available_actions(struct zwp_text_input_v3 *zwp_text_input
  * client side, and its effect may be ignored by compositors given
  * other environmental factors. Repeated calls will be ignored.
  */
-static inline void
-zwp_text_input_v3_show_input_panel(struct zwp_text_input_v3 *zwp_text_input_v3)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_SHOW_INPUT_PANEL, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0);
+static inline void zwp_text_input_v3_show_input_panel(struct zwp_text_input_v3 *zwp_text_input_v3) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_SHOW_INPUT_PANEL, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0);
 }
 
 /**
@@ -1028,16 +1002,14 @@ zwp_text_input_v3_show_input_panel(struct zwp_text_input_v3 *zwp_text_input_v3)
  * client side, and its effect may be ignored by compositors given
  * other environmental factors. Repeated calls will be ignored.
  */
-static inline void
-zwp_text_input_v3_hide_input_panel(struct zwp_text_input_v3 *zwp_text_input_v3)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_v3,
-			 ZWP_TEXT_INPUT_V3_HIDE_INPUT_PANEL, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_v3), 0);
+static inline void zwp_text_input_v3_hide_input_panel(struct zwp_text_input_v3 *zwp_text_input_v3) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_v3, ZWP_TEXT_INPUT_V3_HIDE_INPUT_PANEL, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_v3), 0);
 }
 
 #define ZWP_TEXT_INPUT_MANAGER_V3_DESTROY 0
 #define ZWP_TEXT_INPUT_MANAGER_V3_GET_TEXT_INPUT 1
-
 
 /**
  * @ingroup iface_zwp_text_input_manager_v3
@@ -1049,23 +1021,20 @@ zwp_text_input_v3_hide_input_panel(struct zwp_text_input_v3 *zwp_text_input_v3)
 #define ZWP_TEXT_INPUT_MANAGER_V3_GET_TEXT_INPUT_SINCE_VERSION 1
 
 /** @ingroup iface_zwp_text_input_manager_v3 */
-static inline void
-zwp_text_input_manager_v3_set_user_data(struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3, void *user_data)
-{
-	wl_proxy_set_user_data((struct wl_proxy *) zwp_text_input_manager_v3, user_data);
+static inline void zwp_text_input_manager_v3_set_user_data(
+    struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3, void *user_data) {
+	wl_proxy_set_user_data((struct wl_proxy *)zwp_text_input_manager_v3, user_data);
 }
 
 /** @ingroup iface_zwp_text_input_manager_v3 */
-static inline void *
-zwp_text_input_manager_v3_get_user_data(struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3)
-{
-	return wl_proxy_get_user_data((struct wl_proxy *) zwp_text_input_manager_v3);
+static inline void *zwp_text_input_manager_v3_get_user_data(
+    struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3) {
+	return wl_proxy_get_user_data((struct wl_proxy *)zwp_text_input_manager_v3);
 }
 
-static inline uint32_t
-zwp_text_input_manager_v3_get_version(struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3)
-{
-	return wl_proxy_get_version((struct wl_proxy *) zwp_text_input_manager_v3);
+static inline uint32_t zwp_text_input_manager_v3_get_version(
+    struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3) {
+	return wl_proxy_get_version((struct wl_proxy *)zwp_text_input_manager_v3);
 }
 
 /**
@@ -1073,11 +1042,10 @@ zwp_text_input_manager_v3_get_version(struct zwp_text_input_manager_v3 *zwp_text
  *
  * Destroy the wp_text_input_manager object.
  */
-static inline void
-zwp_text_input_manager_v3_destroy(struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_manager_v3,
-			 ZWP_TEXT_INPUT_MANAGER_V3_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_manager_v3), WL_MARSHAL_FLAG_DESTROY);
+static inline void zwp_text_input_manager_v3_destroy(struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_manager_v3, ZWP_TEXT_INPUT_MANAGER_V3_DESTROY, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_text_input_manager_v3), WL_MARSHAL_FLAG_DESTROY);
 }
 
 /**
@@ -1085,18 +1053,19 @@ zwp_text_input_manager_v3_destroy(struct zwp_text_input_manager_v3 *zwp_text_inp
  *
  * Creates a new text-input object for a given seat.
  */
-static inline struct zwp_text_input_v3 *
-zwp_text_input_manager_v3_get_text_input(struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3, struct wl_seat *seat)
-{
+static inline struct zwp_text_input_v3 *zwp_text_input_manager_v3_get_text_input(
+    struct zwp_text_input_manager_v3 *zwp_text_input_manager_v3, struct wl_seat *seat) {
 	struct wl_proxy *id;
 
-	id = wl_proxy_marshal_flags((struct wl_proxy *) zwp_text_input_manager_v3,
-			 ZWP_TEXT_INPUT_MANAGER_V3_GET_TEXT_INPUT, &zwp_text_input_v3_interface, wl_proxy_get_version((struct wl_proxy *) zwp_text_input_manager_v3), 0, NULL, seat);
+	id = wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_text_input_manager_v3, ZWP_TEXT_INPUT_MANAGER_V3_GET_TEXT_INPUT,
+	    &zwp_text_input_v3_interface, wl_proxy_get_version((struct wl_proxy *)zwp_text_input_manager_v3), 0, NULL,
+	    seat);
 
-	return (struct zwp_text_input_v3 *) id;
+	return (struct zwp_text_input_v3 *)id;
 }
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

@@ -238,3 +238,54 @@ func TestHintsModeRefreshForThemeChange_RedrawsAnOpenSearchBox(t *testing.T) {
 		)
 	}
 }
+
+// TestStartHintSearch_IgnoresCallbacksFromAStoppedSession pins the session
+// token. A platform field can queue a callback just before it stops, and that
+// callback runs once the handler lock is free, possibly after a new search
+// started. A stale cancel must not close the new search, and a stale query
+// must not replace its text.
+func TestStartHintSearch_IgnoresCallbacksFromAStoppedSession(t *testing.T) {
+	t.Parallel()
+
+	overlayPort := &portmocks.MockOverlayPort{
+		HintSearchBoundsFunc: func(image.Rectangle) image.Rectangle {
+			return image.Rect(0, 0, 200, 30)
+		},
+	}
+	textInput := &portmocks.MockTextInputPort{Started: true}
+
+	handler := newHintSearchTestHandler(t, overlayPort, textInput)
+
+	handler.mu.Lock()
+	err := handler.startHintSearch()
+	handler.mu.Unlock()
+
+	if err != nil {
+		t.Fatalf("first startHintSearch() error = %v", err)
+	}
+
+	stale := textInput.Callbacks()
+
+	handler.mu.Lock()
+	err = handler.startHintSearch()
+	handler.hints.Context.SetSearchQuery("new")
+	handler.mu.Unlock()
+
+	if err != nil {
+		t.Fatalf("second startHintSearch() error = %v", err)
+	}
+
+	stale.OnQueryChanged("old")
+	stale.OnCancel()
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	if !handler.hints.Context.SearchActive() {
+		t.Error("a callback from the stopped session closed the new search")
+	}
+
+	if got := handler.hints.Context.SearchQuery(); got != "new" {
+		t.Errorf("query = %q, want %q", got, "new")
+	}
+}

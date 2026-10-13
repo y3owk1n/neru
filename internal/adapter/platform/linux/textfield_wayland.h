@@ -19,8 +19,9 @@ enum {
 };
 
 // neru_text_field_open places a width x height field at x, y in global
-// coordinates. It returns NULL when there is no Wayland display, or the
-// compositor offers no layer shell or keyboard.
+// coordinates. It returns NULL when there is no Wayland display, the
+// compositor offers no layer shell or keyboard, or it does not answer within
+// NERU_TEXT_FIELD_OPEN_TIMEOUT_MS.
 NeruTextField *neru_text_field_open(int x, int y, int width, int height);
 
 // neru_text_field_display_fd is readable when the compositor sent events.
