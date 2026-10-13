@@ -231,10 +231,9 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 			value:       control.value,
 			identifier:  control.identifier,
 			role:        control.role,
-			// collectArray drops disabled controls, so every one kept is enabled.
-			isEnabled: true,
-			isFocused: control.focused,
-			clickable: true,
+			isEnabled:   control.enabled,
+			isFocused:   control.focused,
+			clickable:   true,
 		}
 
 		children = append(children, &TreeNode{

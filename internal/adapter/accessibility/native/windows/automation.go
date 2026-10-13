@@ -232,6 +232,7 @@ type winElement struct {
 	description string
 	value       string
 	identifier  string
+	enabled     bool
 	focused     bool
 	clickable   bool
 }
@@ -708,7 +709,12 @@ func appendControl(
 	readState bool,
 ) []winElement {
 	extracted, ok := extractWinElement(element, frame, keptRoles)
-	if !ok || (!anyState && !cachedBool(element, vtGetCachedIsEnabled, true)) {
+	if !ok {
+		return result
+	}
+
+	extracted.enabled = cachedBool(element, vtGetCachedIsEnabled, true)
+	if !extracted.enabled && !anyState {
 		return result
 	}
 

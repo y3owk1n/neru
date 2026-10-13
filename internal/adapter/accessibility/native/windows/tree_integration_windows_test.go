@@ -294,14 +294,18 @@ func TestBuildTree_KeepsDisabledControlsWhenTheClickableCheckIsIgnored(t *testin
 
 		hints := tree.FindClickableElements(roles, nil, ignore)
 
+		// got maps each hinted control to whether it reports itself enabled.
 		got := make(map[string]bool, len(hints))
 		for _, hint := range hints {
-			got[hint.Info().Title()] = true
+			got[hint.Info().Title()] = hint.Info().IsEnabled()
 		}
 
-		want := map[string]bool{"neru-ignore-button": true, "neru-ignore-disabled": ignore}
-		if !got["neru-ignore-button"] || got["neru-ignore-disabled"] != ignore ||
-			got["neru-ignore-label"] {
+		want := map[string]bool{"neru-ignore-button": true}
+		if ignore {
+			want["neru-ignore-disabled"] = false
+		}
+
+		if !maps.Equal(got, want) {
 			t.Errorf("ignore %v: hinted %v, want %v", ignore, got, want)
 		}
 	}

@@ -576,8 +576,7 @@ func (c *Client) scan(
 
 // ignoresClickableCheck reports whether hints.ignore_clickable_check is set
 // for appID. A scan then keeps elements of the clickable roles that the app
-// reports as disabled. On macOS the option skips the whole AX clickability
-// test, which includes the enabled state.
+// reports as disabled.
 func (c *Client) ignoresClickableCheck(appID string) bool {
 	if c.configProvider == nil {
 		return false
