@@ -301,7 +301,7 @@ same way.
 ```toml
 [hooks]
 on_mode_enter    = "exec sketchybar --trigger neru_mode MODE=\"$NERU_MODE\""
-on_mode_exit     = "exec sketchybar --trigger neru_mode MODE=idle"
+on_mode_exit     = "exec [ \"$NERU_REASON\" = switched ] || sketchybar --trigger neru_mode MODE=idle"
 on_config_reload = "exec [ \"$NERU_OK\" = true ] || say 'Neru config did not load'"
 ```
 

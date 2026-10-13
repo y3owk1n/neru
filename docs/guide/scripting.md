@@ -62,8 +62,13 @@ something happens, such as a mode opening or the focused app changing. Their
 # ~/.config/neru/config.toml
 [hooks]
 on_mode_enter = "exec sketchybar --trigger neru_mode MODE=\"$NERU_MODE\""
-on_mode_exit  = "exec sketchybar --trigger neru_mode MODE=idle"
+on_mode_exit  = "exec [ \"$NERU_REASON\" = switched ] || sketchybar --trigger neru_mode MODE=idle"
 ```
+
+The exit hook skips the trigger when `NERU_REASON` is `switched`, because the
+next mode's enter hook follows. Neru starts the two hooks at the same time, so
+an idle trigger sent on a switch can reach sketchybar after the new mode and
+leave the bar showing idle.
 
 Hooks also fire on each selection a mode makes, sticky modifiers, cursor
 slots, display changes, and the daemon starting and quitting. The reference
