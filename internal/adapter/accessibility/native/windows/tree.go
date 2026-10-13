@@ -125,9 +125,8 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 // enumeration rather than handed in by the caller.
 func (o *TreeOptions) SetCache(_ any) {}
 
-// SetMaxDepth records the maximum tree depth. The UIA query has no depth
-// knob (TreeScope_Descendants is all or nothing), so the value is recorded and
-// not applied; hints.max_depth is declared inert on Windows for that reason.
+// SetMaxDepth sets the deepest control-view level enumeration reads, 0 for
+// unlimited.
 func (o *TreeOptions) SetMaxDepth(depth int) { o.MaxDepth = depth }
 
 // SetBundleID is a no-op on Windows.
@@ -194,6 +193,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	controls := enumerateClickableElements(root.hwnd, enumerateOptions{
 		frame:        winplatform.WindowFrame(root.hwnd),
 		roles:        opts.Roles,
+		maxDepth:     opts.MaxDepth,
 		visibleCheck: opts.visibleCheckFor(root.bundleIdentifier),
 		readState:    opts.readState,
 	})

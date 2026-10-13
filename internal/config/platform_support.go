@@ -24,8 +24,6 @@ const (
 		"picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart"
 	noteMissionControl = "Mission Control is a macOS concept, so the detection never fires " +
 		"and the hooks never run"
-	noteTreeDepth = "only the AX walk takes a depth limit; the AT-SPI walk uses a fixed one " +
-		"and the UIA walk records the option without reading it"
 	noteClickableCheck = "the clickable check is AX-specific; the AT-SPI and UIA walks " +
 		"decide what is clickable their own way and never consult it"
 	noteVisibleCheck = "the visibility hit-test is an AX and UIA question; the AT-SPI walk " +
@@ -111,9 +109,6 @@ func PlatformSupport() parity.Declaration {
 			"hooks.on_mission_control_deactivated",
 		),
 
-		parity.On(parity.KindOption, darwinOnly, noteTreeDepth,
-			"hints.max_depth",
-		),
 		parity.On(parity.KindOption, darwinOnly, noteClickableCheck,
 			"hints.ignore_clickable_check",
 			"hints.app_configs.ignore_clickable_check",
@@ -292,6 +287,7 @@ func PlatformSupport() parity.Declaration {
 			"hints.boundary_highlight.border_width",
 			"hints.boundary_highlight.border_radius",
 			"hints.clickable_roles",
+			"hints.max_depth",
 			"hints.app_configs",
 			"hints.app_configs.bundle_id",
 			"hints.app_configs.strategy",
