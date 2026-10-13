@@ -237,6 +237,140 @@ func TestClient_ScanPaths_ReadNameDescriptionAndValue(t *testing.T) {
 	}
 }
 
+func TestClient_FindFrameByTitle_PicksTheOneWindowWithTheFocusedTitle(t *testing.T) {
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	// window returns an application holding one frame titled title, so the
+	// frame's AT-SPI name is the window title as GTK sets it.
+	window := func(path, title string, states ...uint) (*fakeAccessible, *fakeAccessible) {
+		frame := child(path+"_frame", "frame", states...)
+		frame.name = title
+
+		application := child(path, "application")
+		application.children = []*fakeAccessible{frame}
+
+		exportFixture(t, app, application)
+
+		return application, frame
+	}
+
+	editor, editorFrame := window("editor", "Notes - Text Editor", atspiStateShowing)
+	files, _ := window("files", "Home", atspiStateShowing)
+	hidden, _ := window("hidden", "Draft", atspiStateActive)
+	twinA, _ := window("twin_a", "Untitled", atspiStateShowing)
+	twinB, _ := window("twin_b", "Untitled", atspiStateShowing)
+
+	apps := []accRef{editor.ref, files.ref, hidden.ref, twinA.ref, twinB.ref}
+	names := []string{textEditorName, "org.gnome.Nautilus", "hidden", "twin_a", "twin_b"}
+
+	// An application that has left the bus fails every read, which must not
+	// count as a window without the title.
+	gone := accRef{Name: ":1.9999", Path: "/gone"}
+
+	tests := []struct {
+		name      string
+		title     string
+		apps      []accRef
+		want      accRef
+		wantFound bool
+		wantNone  bool
+	}{
+		{"one window has the title", "Notes - Text Editor", apps, editorFrame.ref, true, false},
+		{"two windows share the title", "Untitled", apps, accRef{}, false, false},
+		{"the window with the title is not showing", "Draft", apps, accRef{}, false, true},
+		{"no window has the title", "Nothing has this title", apps, accRef{}, false, true},
+		{
+			"a read failed",
+			"Nothing has this title",
+			append(slices.Clone(apps), gone),
+			accRef{},
+			false,
+			false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			appNames := make([]string, len(test.apps))
+			copy(appNames, names)
+
+			client := New(zap.NewNop(), nil)
+
+			// Frame selection's own diagnostic must hear about a failed read.
+			caller := &atspiScanDiag{}
+			ctx := context.WithValue(t.Context(), atspiScanDiagKey{}, caller)
+
+			got, _, found, none := client.findFrameByTitle(
+				ctx, scanner, test.apps, appNames, test.title)
+			if got != test.want || found != test.wantFound || none != test.wantNone {
+				t.Errorf("findFrameByTitle(%q) = %v, found %v, none %v, want %v, %v, %v",
+					test.title, got, found, none, test.want, test.wantFound, test.wantNone)
+			}
+
+			if failed := caller.fatalErr() != nil; failed != slices.Contains(test.apps, gone) {
+				t.Errorf("the caller's diagnostic recorded a failure: %v, want %v",
+					failed, slices.Contains(test.apps, gone))
+			}
+		})
+	}
+}
+
+func TestClient_FindFocusedFrameByTitle_ChecksTheTitleInTheRememberedApp(t *testing.T) {
+	address := startPrivateBus(t)
+
+	first := connectBus(t, address)
+	second := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	// Two instances of one app, each on its own bus connection with one
+	// window.
+	instance := func(conn *dbus.Conn, title string) (accRef, accRef) {
+		frame := fixtureChild(conn.Names()[0])("frame", "frame", atspiStateShowing)
+		frame.name = title
+
+		application := fixtureChild(conn.Names()[0])("app", "application")
+		application.children = []*fakeAccessible{frame}
+
+		exportFixture(t, conn, application)
+
+		return application.ref, frame.ref
+	}
+
+	firstApp, firstFrame := instance(first, "Notes")
+	secondApp, secondFrame := instance(second, "Draft")
+
+	apps := []accRef{firstApp, secondApp}
+	names := []string{textEditorName, textEditorName}
+
+	const appID = "org.gnome.TextEditor"
+
+	client := New(zap.NewNop(), nil)
+	client.rememberTitleMatch(appID, firstApp.Name)
+
+	tests := []struct {
+		title    string
+		want     accRef
+		wantPath string
+	}{
+		{"Notes", firstFrame, "focused-title-remembered"},
+		{"Draft", secondFrame, "focused-title-only"},
+	}
+
+	for _, test := range tests {
+		got, path, _, ok := client.findFocusedFrameByTitle(
+			t.Context(), scanner, apps, names, appID, test.title)
+		if !ok || got != test.want || path != test.wantPath {
+			t.Errorf("findFocusedFrameByTitle(%q) = %v via %q, ok %v, want %v via %q",
+				test.title, got, path, ok, test.want, test.wantPath)
+		}
+	}
+}
+
 func TestClient_Walk_HintsGTK4ElementsThatAreOnlySensitive(t *testing.T) {
 	address := startPrivateBus(t)
 
@@ -613,6 +747,9 @@ func TestClient_Scan_KeepsDisabledElementsWhenTheClickableCheckIsIgnored(t *test
 		}
 	}
 }
+
+// textEditorName is the AT-SPI application name GNOME Text Editor reports.
+const textEditorName = "gnome-text-editor"
 
 // exportFixture exports frame and every element under it on app under the
 // interfaces a scan calls.

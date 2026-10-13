@@ -166,6 +166,15 @@ type Client struct {
 	savedIsOn bool // original IsEnabled before our first enable
 	savedSrOn bool // original ScreenReaderEnabled before our first enable
 
+	// titleMatched maps a focused app_id that no AT-SPI application name
+	// answers to onto the bus name of the application whose window last
+	// matched it by title, and titleMissed records title scans that found no
+	// window. Both keep findFocusedFrameByTitle from reading every window on
+	// the bus on every activation.
+	titleMatchedMu sync.Mutex
+	titleMatched   map[string]string
+	titleMissed    map[string]titleMiss
+
 	// Event-driven active-window cache. A background listener records the AT-SPI
 	// window that most recently emitted a window:activate event, so frame
 	// selection can skip the registry scan entirely when the cached window still

@@ -5,6 +5,9 @@ package atspi
 import (
 	"slices"
 	"testing"
+	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
@@ -41,6 +44,47 @@ func TestAppMatchesFocusedID(t *testing.T) {
 			if got := appMatchesFocusedID(tc.atspiName, tc.appID); got != tc.want {
 				t.Errorf("appMatchesFocusedID(%q, %q) = %v, want %v",
 					tc.atspiName, tc.appID, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestClient_TitleScanMissed_SkipsOnlyWhileNothingChanged(t *testing.T) {
+	client := New(zap.NewNop(), nil)
+
+	const appID, title = "foot", "~/src"
+
+	apps := []accRef{{Name: ":1.10"}, {Name: ":1.11"}}
+	withNewApp := []accRef{{Name: ":1.10"}, {Name: ":1.11"}, {Name: ":1.12"}}
+
+	client.rememberTitleMiss(appID, title, apps)
+
+	tests := []struct {
+		name  string
+		title string
+		apps  []accRef
+		want  bool
+	}{
+		{"the same title among the same apps", title, apps, true},
+		{"a new title", "~/src/neru", apps, false},
+		{"an app started since", title, withNewApp, false},
+	}
+
+	expired := New(zap.NewNop(), nil)
+	expired.rememberTitleMiss(appID, title, apps)
+	expired.titleMissed[appID+"\x00"+title] = titleMiss{
+		apps: busFingerprint(apps),
+		at:   time.Now().Add(-titleMissTTL),
+	}
+
+	if expired.titleScanMissed(appID, title, apps) {
+		t.Error("a miss older than titleMissTTL still skipped the scan")
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := client.titleScanMissed(appID, test.title, test.apps); got != test.want {
+				t.Errorf("titleScanMissed() = %v, want %v", got, test.want)
 			}
 		})
 	}
