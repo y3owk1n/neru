@@ -541,7 +541,7 @@ font_size = 12
 | `on_mission_control_deactivated`   | string/array | none                     | Deprecated, removed in v2. Use [`hooks.on_mission_control_deactivated`](#hooks). Refused without `detect_mission_control = true`                                                                            |
 | `additional_menubar_hints_targets` | array        | macOS-specific defaults  | Extra menubar bundle IDs                                                                                                                                   |
 | `clickable_roles`                  | array        | shared semantic defaults | Roles that generate hints. See [Clickable roles](#clickable-roles)                                                                                         |
-| `ignore_clickable_check`           | bool         | `false`                  | Skip clickability heuristic                                                                                                                                |
+| `ignore_clickable_check`           | bool         | `false`                  | Hint every visible element, whatever its role and whether or not it is enabled |
 | `visible_check_enabled`            | bool         | `false`                  | Enable visibility hit-test (slower but fewer noisy hints)                                                                                                  |
 
 #### Choosing a label direction
@@ -755,7 +755,7 @@ applies is under [Per-app hotkey overrides](#per-app-hotkey-overrides).
 | `capture_scope`              | string | `"window"` or `"screen"`                                                                     |
 | `label_direction`            | string | `"normal"` or `"reverse"`                                                                    |
 | `additional_clickable_roles` | array  | Extra roles to treat as clickable, same vocabulary as [`clickable_roles`](#clickable-roles) |
-| `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app                                                     |
+| `ignore_clickable_check`     | bool   | Hint every visible element in this app, whatever its role and whether or not it is enabled |
 | `visible_check_enabled`      | bool   | Enable visibility hit-test for this app                                                      |
 | `hotkeys`                    | map    | [per-app hotkey overrides](#per-app-hotkey-overrides)                                        |
 

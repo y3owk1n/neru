@@ -56,11 +56,12 @@ func (n *TreeNode) Children() []*TreeNode {
 func (n *TreeNode) Parent() *TreeNode { return nil }
 
 // FindClickableElements returns the clickable descendant nodes. When keptRoles
-// is non-empty, only nodes whose role is in the set are returned.
+// is non-empty and ignoreClickableCheck is not set, only nodes whose role is
+// in the set are returned.
 func (n *TreeNode) FindClickableElements(
 	keptRoles map[string]struct{},
 	_ config.Provider,
-	_ bool,
+	ignoreClickableCheck bool,
 ) []*TreeNode {
 	if n == nil {
 		return nil
@@ -76,7 +77,8 @@ func (n *TreeNode) FindClickableElements(
 		}
 
 		if node.info != nil && node.info.clickable {
-			if _, ok := keptRoles[node.info.role]; ok || len(keptRoles) == 0 {
+			if _, ok := keptRoles[node.info.role]; ok || len(keptRoles) == 0 ||
+				ignoreClickableCheck {
 				out = append(out, node)
 			}
 		}
@@ -145,6 +147,18 @@ func (o *TreeOptions) SetRoles(roles map[string]struct{}) { o.Roles = roles }
 // state.
 func (o *TreeOptions) SetReadState(readState bool) { o.readState = readState }
 
+// ignoreClickableCheckFor resolves hints.ignore_clickable_check for the
+// window's application, per-app override first.
+func (o *TreeOptions) ignoreClickableCheckFor(bundleID string) bool {
+	if o.configProvider == nil {
+		return false
+	}
+
+	cfg := o.configProvider.Get()
+
+	return cfg != nil && cfg.ShouldIgnoreClickableCheckForApp(bundleID)
+}
+
 // visibleCheckFor resolves hints.visible_check_enabled for the window's
 // application, per-app override first.
 func (o *TreeOptions) visibleCheckFor(bundleID string) bool {
@@ -195,6 +209,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 		frame:        winplatform.WindowFrame(root.hwnd),
 		roles:        opts.Roles,
 		maxDepth:     opts.MaxDepth,
+		anyControl:   opts.ignoreClickableCheckFor(root.bundleIdentifier),
 		visibleCheck: opts.visibleCheckFor(root.bundleIdentifier),
 		readState:    opts.readState,
 	})

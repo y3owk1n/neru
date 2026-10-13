@@ -529,6 +529,64 @@ func TestClient_Scan_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 	}
 }
 
+// staticConfig is a config.Provider that always returns the same configuration.
+type staticConfig struct{ cfg *config.Config }
+
+func (s staticConfig) Get() *config.Config { return s.cfg }
+
+func TestClient_Scan_HintsEveryShowingElementWhenTheClickableCheckIsIgnored(t *testing.T) {
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	frame := child("frame", "frame", atspiStateShowing)
+	frame.children = []*fakeAccessible{
+		child("button", "push button", atspiStateShowing, atspiStateEnabled),
+		child("disabled", "push button", atspiStateShowing),
+		child("label", "label", atspiStateShowing),
+		child("hidden", "push button", atspiStateEnabled),
+	}
+
+	exportFixture(t, app, frame)
+
+	const ignoredApp = "org.example.Editor"
+
+	ignore := true
+	cfg := config.DefaultConfig()
+	cfg.Hints.AppConfigs = []config.AppConfig{{BundleID: ignoredApp, IgnoreClickableCheck: &ignore}}
+
+	tests := []struct {
+		appID string
+		want  []string
+	}{
+		{ignoredApp, []string{"button", "disabled", "frame", "label"}},
+		{"org.example.Other", []string{"button"}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.appID, func(t *testing.T) {
+			client := New(zap.NewNop(), staticConfig{cfg})
+
+			nodes, _, _ := client.scan(t.Context(), scanner, frame.ref,
+				client.scanRoles(nil, test.appID), config.DefaultMaxDepth, placement{}, false)
+
+			got := make([]string, 0, len(nodes))
+			for _, node := range nodes {
+				got = append(got, fixtureName(node))
+			}
+
+			slices.Sort(got)
+
+			if !slices.Equal(got, test.want) {
+				t.Errorf("hinted %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
 // exportFixture exports frame and every element under it on app under the
 // interfaces a scan calls.
 func exportFixture(t *testing.T, app *dbus.Conn, frame *fakeAccessible) {

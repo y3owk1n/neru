@@ -330,7 +330,7 @@ func (c *Client) ClickableNodes(
 	}
 
 	depth := c.treeDepth(maxDepth)
-	out, path, visited := c.scan(ctx, conn, win.ref, rolesSet(roles), depth,
+	out, path, visited := c.scan(ctx, conn, win.ref, c.scanRoles(roles, win.focusedAppID), depth,
 		place, readState)
 
 	c.logger.Debug("AT-SPI clickable scan complete",
@@ -520,7 +520,8 @@ const (
 
 // scan returns the nodes under root whose role is in roles, read no deeper
 // than depth (0 for unlimited), and which path read them. visited counts the
-// nodes the walk read, and is 0 on the Collection path.
+// nodes the walk read, and is 0 on the Collection path. Nil roles return
+// every showing element, which only the walk can do.
 func (c *Client) scan(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -534,7 +535,7 @@ func (c *Client) scan(
 	// walk. Falls back to the walk when the toolkit doesn't implement Collection.
 	// Collection matches the whole subtree and cannot stop at a depth, so a
 	// limit below the default goes to the walk.
-	if depth == 0 || depth >= config.DefaultMaxDepth {
+	if roles != nil && (depth == 0 || depth >= config.DefaultMaxDepth) {
 		nodes, ok := c.collectViaCollection(ctx, conn, root, roles, place, readState)
 		if ok {
 			return nodes, scanPathCollection, 0
@@ -551,6 +552,21 @@ func (c *Client) scan(
 	c.walk(ctx, conn, root, roles, 0, limit, &out, &visited, place, readState)
 
 	return out, scanPathWalk, visited
+}
+
+// scanRoles returns the role set a scan of appID's window matches. That is nil
+// when hints.ignore_clickable_check is set for appID, so every showing element
+// gets a hint whatever its role or state, as on macOS, where the option skips
+// the clickability test entirely.
+func (c *Client) scanRoles(roles []string, appID string) map[string]struct{} {
+	if c.configProvider != nil {
+		cfg := c.configProvider.Get()
+		if cfg != nil && cfg.ShouldIgnoreClickableCheckForApp(appID) {
+			return nil
+		}
+	}
+
+	return rolesSet(roles)
 }
 
 // treeDepth returns the deepest level a scan reads, or 0 for unlimited. That
@@ -956,6 +972,8 @@ func (c *Client) states(ctx context.Context, conn *dbus.Conn, ref accRef) ([]uin
 // showingRole returns the element's role read through effectiveRole, and
 // whether the element is showing, enabled and has that role in roles. A
 // disabled element gets no hint, as on macOS, since clicking it does nothing.
+// Nil roles skip both the role and the enabled test, for
+// hints.ignore_clickable_check.
 func (c *Client) showingRole(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -963,11 +981,15 @@ func (c *Client) showingRole(
 	roles map[string]struct{},
 	roleName string,
 ) (string, bool) {
-	if !candidateRole(roleName, roles) {
+	if roles != nil && !candidateRole(roleName, roles) {
 		return roleName, false
 	}
 
 	states, read := c.states(ctx, conn, ref)
+	if roles == nil {
+		return effectiveRole(roleName, states), read && atspiStateBit(states, atspiStateShowing)
+	}
+
 	if !read || !atspiStateBit(states, atspiStateShowing) || !atspiEnabled(states) {
 		return roleName, false
 	}

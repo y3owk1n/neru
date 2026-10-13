@@ -244,6 +244,9 @@ type enumerateOptions struct {
 	// roles is the set of UIA control-type names to keep. An empty set falls
 	// back to the shipped defaults.
 	roles map[string]struct{}
+	// anyControl keeps every control, whatever its type and whether or not it
+	// is enabled, in place of roles. It is hints.ignore_clickable_check.
+	anyControl bool
 	// maxDepth is the deepest control-view level read below the window, 0 for
 	// unlimited. It is hints.max_depth.
 	maxDepth int
@@ -294,6 +297,10 @@ func enumerateClickableElements(
 	keptRoles := opts.roles
 	if len(keptRoles) == 0 {
 		keptRoles = defaultClickableRoles
+	}
+
+	if opts.anyControl {
+		keptRoles = nil
 	}
 
 	if hwnd == 0 {
@@ -690,7 +697,8 @@ func collectArray(
 
 // appendControl appends element to result when it is a clickable control. It
 // drops a disabled control before reading its text, since a disabled control
-// gets no hint, as on macOS. The caller releases element.
+// gets no hint, as on macOS. Nil keptRoles keep every control, enabled or not,
+// for hints.ignore_clickable_check. The caller releases element.
 func appendControl(
 	result []winElement,
 	element unsafe.Pointer,
@@ -699,7 +707,7 @@ func appendControl(
 	readState bool,
 ) []winElement {
 	extracted, ok := extractWinElement(element, frame, keptRoles)
-	if !ok || !cachedBool(element, vtGetCachedIsEnabled, true) {
+	if !ok || (keptRoles != nil && !cachedBool(element, vtGetCachedIsEnabled, true)) {
 		return result
 	}
 

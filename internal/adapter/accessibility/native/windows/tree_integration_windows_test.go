@@ -247,6 +247,76 @@ func TestBuildTree_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 	}
 }
 
+// staticConfig is a config.Provider that always returns the same configuration.
+type staticConfig struct{ cfg *config.Config }
+
+func (s staticConfig) Get() *config.Config { return s.cfg }
+
+func TestBuildTree_ReportsEveryControlWhenTheClickableCheckIsIgnored(t *testing.T) {
+	runtime.LockOSThread()
+
+	defer runtime.UnlockOSThread()
+
+	const child = fixtureChild | fixtureVisible
+
+	window := createFixtureWindow(t, "STATIC", "neru-uia-ignore-fixture",
+		fixturePopup|fixtureVisible,
+		image.Pt(0, 0), fixtureWindowSize, fixtureWindowSize, 0)
+
+	createFixtureWindow(t, "BUTTON", "neru-ignore-button", child,
+		image.Pt(10, 10), fixtureControlSize*3, fixtureControlSize, window)
+	createFixtureWindow(t, "BUTTON", "neru-ignore-disabled", child|fixtureDisabled,
+		image.Pt(10, 60), fixtureControlSize*3, fixtureControlSize, window)
+	createFixtureWindow(t, "STATIC", "neru-ignore-label", child,
+		image.Pt(10, 110), fixtureControlSize*3, fixtureControlSize, window)
+
+	roles := map[string]struct{}{uiaControlButton: {}}
+
+	// The cases run inline, not as subtests, for the reason
+	// TestBuildTree_ReadsNoDeeperThanMaxDepth gives.
+	for _, ignore := range []bool{false, true} {
+		cfg := config.DefaultConfig()
+		cfg.Hints.IgnoreClickableCheck = ignore
+
+		opts := DefaultTreeOptions(zap.NewNop())
+		opts.SetRoles(roles)
+		opts.SetConfigProvider(staticConfig{cfg})
+
+		ctx, cancel := context.WithTimeout(context.Background(), fixtureDeadline)
+
+		tree, err := BuildTree(ctx, &Element{hwnd: window}, opts)
+
+		cancel()
+
+		if err != nil {
+			t.Fatalf("ignore %v: BuildTree failed: %v", ignore, err)
+		}
+
+		hints := tree.FindClickableElements(roles, nil, ignore)
+
+		got := make(map[string]bool, len(hints))
+		for _, hint := range hints {
+			got[hint.Info().Title()] = true
+		}
+
+		want := map[string]bool{"neru-ignore-button": true}
+		if ignore {
+			want["neru-ignore-disabled"] = true
+			want["neru-ignore-label"] = true
+		}
+
+		for title := range want {
+			if !got[title] {
+				t.Errorf("ignore %v: %s got no hint; hinted %v", ignore, title, got)
+			}
+		}
+
+		if !ignore && (got["neru-ignore-disabled"] || got["neru-ignore-label"]) {
+			t.Errorf("ignore false: hinted %v, want only the enabled button", got)
+		}
+	}
+}
+
 func TestBuildTree_ReportsTextIdentifierAndFocusButNoDisabledOrPassword(t *testing.T) {
 	runtime.LockOSThread()
 
