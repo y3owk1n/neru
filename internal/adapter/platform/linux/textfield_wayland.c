@@ -639,9 +639,16 @@ static int neru_text_field_take_flags(NeruTextField *field) {
 }
 
 int neru_text_field_dispatch(NeruTextField *field) {
-	// The caller polled the descriptor readable, so the read does not block.
-	if (wl_display_prepare_read(field->display) == 0 && wl_display_read_events(field->display) < 0) {
-		return -1;
+	// Read only what has arrived, so a call with nothing pending does not block.
+	if (wl_display_prepare_read(field->display) == 0) {
+		struct pollfd ready = {.fd = wl_display_get_fd(field->display), .events = POLLIN};
+		if (poll(&ready, 1, 0) > 0) {
+			if (wl_display_read_events(field->display) < 0) {
+				return -1;
+			}
+		} else {
+			wl_display_cancel_read(field->display);
+		}
 	}
 	if (wl_display_dispatch_pending(field->display) < 0) {
 		return -1;

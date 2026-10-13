@@ -25,8 +25,9 @@ int neru_text_field_display_fd(NeruTextField *field);
 // neru_text_field_repeat_fd is readable when a held key should repeat.
 int neru_text_field_repeat_fd(NeruTextField *field);
 
-// neru_text_field_dispatch reads and handles the compositor's events. It
-// returns NERU_TEXT_FIELD_* flags, or -1 when the connection failed.
+// neru_text_field_dispatch reads and handles the compositor's events that have
+// arrived, without blocking. It returns NERU_TEXT_FIELD_* flags, or -1 when the
+// connection failed.
 int neru_text_field_dispatch(NeruTextField *field);
 
 // neru_text_field_repeat handles a repeat tick and returns the flags.

@@ -1,5 +1,6 @@
 #include "textfield_x11.h"
 
+#include "locale_guard.h"
 #include "x11_error_trap.h"
 
 #include <X11/Xlib.h>
@@ -14,13 +15,14 @@
 
 #define NERU_X11_TEXT_FIELD_MAX_QUERY 1024
 
-// NERU_X11_TEXT_FIELD_OPEN_TIMEOUT_MS bounds the wait for the window to map.
-// The caller holds the mode handler's lock, so a server that stops answering
-// costs at most this, and search falls back to the key stream.
-#define NERU_X11_TEXT_FIELD_OPEN_TIMEOUT_MS 250
+// NERU_X11_TEXT_FIELD_MAP_TIMEOUT_MS bounds the wait for the window to map.
+// The caller bounds the whole open as well; this only keeps prepare from
+// waiting on a server that never maps the window.
+#define NERU_X11_TEXT_FIELD_MAP_TIMEOUT_MS 250
 
 struct NeruX11TextField {
 	Display *display;
+	int tolerated;
 	Window window;
 	Window previous_focus;
 	XIM im;
@@ -54,15 +56,26 @@ static void neru_x11_text_field_delete_last(NeruX11TextField *field) {
 	field->flags |= NERU_TEXT_FIELD_CHANGED;
 }
 
+// neru_x11_text_field_im_destroyed runs when the input-method server goes
+// away. The method and its context are gone with it, and keys fall back to
+// XLookupString.
+static void neru_x11_text_field_im_destroyed(XIM im, XPointer client_data, XPointer call_data) {
+	NeruX11TextField *field = (NeruX11TextField *)client_data;
+	field->im = NULL;
+	field->ic = NULL;
+}
+
 // neru_x11_text_field_open_im opens the input method XMODIFIERS names, or the
 // built-in one that applies the locale's compose rules when there is none.
 //
 // XIM works in the locale the process has when the method opens, and a Go
 // process runs in the C locale, which has no compose rules and which IBus and
 // fcitx refuse. So LC_CTYPE is switched to the user's locale for the open and
-// switched straight back: tesseract requires the C locale when it starts, and
-// the method keeps the locale it was opened in.
+// switched straight back, under the guard tesseract's engine creation takes
+// (locale_guard.h). The method keeps the locale it was opened in.
 static XIM neru_x11_text_field_open_im(Display *display) {
+	neru_locale_guard_lock();
+
 	char saved[256] = "C";
 	const char *current = setlocale(LC_CTYPE, NULL);
 	if (current) {
@@ -84,6 +97,8 @@ static XIM neru_x11_text_field_open_im(Display *display) {
 	}
 
 	setlocale(LC_CTYPE, saved);
+	neru_locale_guard_unlock();
+
 	return im;
 }
 
@@ -121,14 +136,20 @@ static long neru_x11_text_field_ms_until(const struct timespec *deadline) {
 }
 
 // neru_x11_text_field_wait_mapped waits for MapNotify on the window, which
-// XSetInputFocus needs, until deadline.
-static int neru_x11_text_field_wait_mapped(NeruX11TextField *field, const struct timespec *deadline) {
+// XSetInputFocus needs.
+static int neru_x11_text_field_wait_mapped(NeruX11TextField *field) {
+	struct timespec deadline;
+	clock_gettime(CLOCK_MONOTONIC, &deadline);
+	deadline.tv_nsec += NERU_X11_TEXT_FIELD_MAP_TIMEOUT_MS * 1000000L;
+	deadline.tv_sec += deadline.tv_nsec / 1000000000L;
+	deadline.tv_nsec %= 1000000000L;
+
 	for (;;) {
 		XEvent event;
-		while (XCheckTypedWindowEvent(field->display, field->window, MapNotify, &event)) {
+		if (XCheckTypedWindowEvent(field->display, field->window, MapNotify, &event)) {
 			return 1;
 		}
-		long remaining = neru_x11_text_field_ms_until(deadline);
+		long remaining = neru_x11_text_field_ms_until(&deadline);
 		if (remaining <= 0) {
 			return 0;
 		}
@@ -139,7 +160,7 @@ static int neru_x11_text_field_wait_mapped(NeruX11TextField *field, const struct
 	}
 }
 
-NeruX11TextField *neru_x11_text_field_open(int x, int y, int width, int height) {
+NeruX11TextField *neru_x11_text_field_prepare(int x, int y, int width, int height) {
 	if (width <= 0 || height <= 0) {
 		return NULL;
 	}
@@ -154,15 +175,7 @@ NeruX11TextField *neru_x11_text_field_open(int x, int y, int width, int height) 
 		neru_x11_text_field_close(field);
 		return NULL;
 	}
-
-	struct timespec deadline;
-	clock_gettime(CLOCK_MONOTONIC, &deadline);
-	deadline.tv_nsec += NERU_X11_TEXT_FIELD_OPEN_TIMEOUT_MS * 1000000L;
-	deadline.tv_sec += deadline.tv_nsec / 1000000000L;
-	deadline.tv_nsec %= 1000000000L;
-
-	int revert = 0;
-	XGetInputFocus(field->display, &field->previous_focus, &revert);
+	field->tolerated = neru_x11_error_tolerate(field->display);
 
 	// One pixel at the bottom-left corner of the box: the window has to be
 	// mapped to hold the focus, and an input method places its candidates next
@@ -176,6 +189,8 @@ NeruX11TextField *neru_x11_text_field_open(int x, int y, int width, int height) 
 
 	field->im = neru_x11_text_field_open_im(field->display);
 	if (field->im) {
+		XIMCallback destroyed = {.client_data = (XPointer)field, .callback = neru_x11_text_field_im_destroyed};
+		XSetIMValues(field->im, XNDestroyCallback, &destroyed, NULL);
 		field->ic = neru_x11_text_field_create_ic(field);
 	}
 	if (field->ic) {
@@ -187,10 +202,17 @@ NeruX11TextField *neru_x11_text_field_open(int x, int y, int width, int height) 
 	XMapRaised(field->display, field->window);
 	XFlush(field->display);
 
-	if (!neru_x11_text_field_wait_mapped(field, &deadline)) {
+	if (!neru_x11_text_field_wait_mapped(field)) {
 		neru_x11_text_field_close(field);
 		return NULL;
 	}
+
+	return field;
+}
+
+int neru_x11_text_field_focus(NeruX11TextField *field) {
+	int revert = 0;
+	XGetInputFocus(field->display, &field->previous_focus, &revert);
 
 	neru_x11_error_trap_begin(field->display);
 	XSetInputFocus(field->display, field->window, RevertToParent, CurrentTime);
@@ -199,8 +221,7 @@ NeruX11TextField *neru_x11_text_field_open(int x, int y, int width, int height) 
 	Window focus = None;
 	XGetInputFocus(field->display, &focus, &revert);
 	if (failed || focus != field->window) {
-		neru_x11_text_field_close(field);
-		return NULL;
+		return 0;
 	}
 
 	if (field->ic) {
@@ -208,48 +229,59 @@ NeruX11TextField *neru_x11_text_field_open(int x, int y, int width, int height) 
 	}
 	XFlush(field->display);
 
-	return field;
+	return 1;
 }
 
 int neru_x11_text_field_fd(NeruX11TextField *field) { return ConnectionNumber(field->display); }
 
 static void neru_x11_text_field_key(NeruX11TextField *field, XKeyEvent *key) {
-	char text[64] = {0};
+	char buffer[64];
+	char *text = buffer;
 	KeySym keysym = NoSymbol;
 	Status status = XLookupNone;
 	int length;
 
 	if (field->ic) {
-		length = Xutf8LookupString(field->ic, key, text, sizeof(text) - 1, &keysym, &status);
+		length = Xutf8LookupString(field->ic, key, text, sizeof(buffer) - 1, &keysym, &status);
+		// A long input-method commit does not fit: ask again with room for it.
+		if (status == XBufferOverflow) {
+			text = malloc(length + 1);
+			if (!text) {
+				return;
+			}
+			length = Xutf8LookupString(field->ic, key, text, length, &keysym, &status);
+		}
 	} else {
-		length = XLookupString(key, text, sizeof(text) - 1, &keysym, NULL);
-		status = length > 0 ? XLookupBoth : XLookupKeySym;
+		length = XLookupString(key, text, sizeof(buffer) - 1, &keysym, NULL);
+		// Without an input method the bytes are Latin-1, so only ASCII is
+		// taken as text.
+		status = length > 0 && (unsigned char)text[0] < 0x80 ? XLookupBoth : XLookupKeySym;
 	}
 
 	switch (keysym) {
 	case XK_Escape:
 		field->flags |= NERU_TEXT_FIELD_CANCEL;
 		field->finished = 1;
-		return;
+		break;
 	case XK_Return:
 	case XK_KP_Enter:
 		field->flags |= NERU_TEXT_FIELD_CONFIRM;
 		field->finished = 1;
-		return;
+		break;
 	case XK_BackSpace:
 		neru_x11_text_field_delete_last(field);
-		return;
+		break;
+	default:
+		// A chord with Ctrl, Alt or Super types nothing into the search.
+		if (!(key->state & (ControlMask | Mod1Mask | Mod4Mask)) && (status == XLookupChars || status == XLookupBoth) &&
+		    length > 0 && (unsigned char)text[0] >= 0x20 && text[0] != 0x7f) {
+			text[length] = '\0';
+			neru_x11_text_field_append(field, text);
+		}
 	}
 
-	// A chord with Ctrl, Alt or Super types nothing into the search.
-	if (key->state & (ControlMask | Mod1Mask | Mod4Mask)) {
-		return;
-	}
-
-	if ((status == XLookupChars || status == XLookupBoth) && length > 0 && (unsigned char)text[0] >= 0x20 &&
-	    text[0] != 0x7f) {
-		text[length] = '\0';
-		neru_x11_text_field_append(field, text);
+	if (text != buffer) {
+		free(text);
 	}
 }
 
@@ -293,11 +325,11 @@ void neru_x11_text_field_close(NeruX11TextField *field) {
 	if (!field) {
 		return;
 	}
-	if (field->display && field->window) {
+	if (field->display && field->window && field->previous_focus != None) {
 		Window focus = None;
 		int revert = 0;
 		XGetInputFocus(field->display, &focus, &revert);
-		if (focus == field->window && field->previous_focus != None) {
+		if (focus == field->window) {
 			neru_x11_error_trap_begin(field->display);
 			XSetInputFocus(field->display, field->previous_focus, RevertToParent, CurrentTime);
 			neru_x11_error_trap_end(field->display);
@@ -312,6 +344,10 @@ void neru_x11_text_field_close(NeruX11TextField *field) {
 	if (field->display) {
 		if (field->window) {
 			XDestroyWindow(field->display, field->window);
+		}
+		XSync(field->display, False);
+		if (field->tolerated) {
+			neru_x11_error_untolerate(field->display);
 		}
 		XCloseDisplay(field->display);
 	}

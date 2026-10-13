@@ -50,6 +50,9 @@ type fakeField struct {
 	display, repeatPipe [2]int
 	flags               chan int
 	dispatched          chan struct{}
+	// closing, when set, holds close until it is closed, the way an X11
+	// input method that stopped answering holds XCloseIM.
+	closing chan struct{}
 }
 
 func newFakeField(t *testing.T) *fakeField {
@@ -58,7 +61,7 @@ func newFakeField(t *testing.T) *fakeField {
 	field := &fakeField{flags: make(chan int, 8), dispatched: make(chan struct{}, 8)}
 
 	for _, pipe := range []*[2]int{&field.display, &field.repeatPipe} {
-		err := unix.Pipe2(pipe[:], unix.O_CLOEXEC)
+		err := unix.Pipe2(pipe[:], unix.O_CLOEXEC|unix.O_NONBLOCK)
 		if err != nil {
 			t.Fatalf("Pipe2() error = %v", err)
 		}
@@ -89,10 +92,15 @@ func (f *fakeField) repeatFD() int  { return f.repeatPipe[0] }
 func (f *fakeField) repeat() int    { return 0 }
 func (f *fakeField) query() string  { return "query" }
 
+// dispatch answers one batch per byte written, and nothing when none waits,
+// as a real field does when the session drains it before its first poll.
 func (f *fakeField) dispatch() int {
 	var buf [1]byte
 
-	_, _ = unix.Read(f.display[0], buf[:])
+	n, _ := unix.Read(f.display[0], buf[:])
+	if n != 1 {
+		return 0
+	}
 
 	defer func() { f.dispatched <- struct{}{} }()
 
@@ -100,6 +108,10 @@ func (f *fakeField) dispatch() int {
 }
 
 func (f *fakeField) close() {
+	if f.closing != nil {
+		<-f.closing
+	}
+
 	_ = unix.Close(f.display[0])
 	_ = unix.Close(f.repeatPipe[0])
 }
@@ -208,4 +220,29 @@ func TestFieldSession_LostConnectionCancelsTheSearch(t *testing.T) {
 	waitFor(t, "the cancel", canceled)
 
 	session.stop()
+}
+
+// TestFieldSession_StopReturnsWhileTheFieldIsSlowToClose pins the bound on
+// stop, which the handler calls holding its lock. Closing the X11 field's
+// input method waits on its server, and a server that stopped answering must
+// not hold the handler.
+func TestFieldSession_StopReturnsWhileTheFieldIsSlowToClose(t *testing.T) {
+	field := newFakeField(t)
+	field.closing = make(chan struct{})
+
+	t.Cleanup(func() { close(field.closing) })
+
+	session, err := startFieldSession(field, ports.TextInputCallbacks{}, zap.NewNop())
+	if err != nil {
+		t.Fatalf("startFieldSession() error = %v", err)
+	}
+
+	stopped := make(chan struct{})
+
+	go func() {
+		session.stop()
+		close(stopped)
+	}()
+
+	waitFor(t, "stop to return while close is held", stopped)
 }

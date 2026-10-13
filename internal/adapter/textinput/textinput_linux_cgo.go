@@ -13,6 +13,8 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
@@ -41,10 +43,11 @@ const (
 // stream.
 //
 // The handler calls Start and Stop holding its lock, so h.mu comes before
-// TextInput.mu. Opening a field waits on the display server for at most 250 ms
-// (NERU_TEXT_FIELD_OPEN_TIMEOUT_MS, NERU_X11_TEXT_FIELD_OPEN_TIMEOUT_MS), and
-// Stop waits only for run to notice the stop pipe, since run reads events only
-// once they arrived.
+// TextInput.mu. Start waits at most 250 ms for a field to open: the Wayland
+// field bounds its compositor round trips (NERU_TEXT_FIELD_OPEN_TIMEOUT_MS),
+// and the X11 field opens on a goroutine of its own, since its input method
+// answers with no timeout. Stop waits at most fieldStopWait, because closing
+// that input method waits on it too.
 //
 // The query is keystream. Nothing here logs it.
 type TextInput struct {
@@ -84,25 +87,26 @@ func (t *TextInput) StartHintSearchSession(
 	left, top := C.int(frame.Screen.Min.X+frame.X), C.int(frame.Screen.Min.Y+frame.Y)
 	width, height := C.int(frame.Width), C.int(frame.Height)
 
-	var field nativeField
+	var session *fieldSession
 
 	if backend.IsWayland() {
 		if handle := C.neru_text_field_open(left, top, width, height); handle != nil {
-			field = &waylandField{handle: handle}
+			var err error
+
+			session, err = startFieldSession(&waylandField{handle: handle}, callbacks, t.logger)
+			if err != nil {
+				t.logger.Debug(
+					"Hint search field could not start, reading the key stream",
+					zap.Error(err),
+				)
+			}
 		}
-	} else if handle := C.neru_x11_text_field_open(left, top, width, height); handle != nil {
-		field = &x11Field{handle: handle}
+	} else {
+		session = openX11Session(left, top, width, height, callbacks, t.logger)
 	}
 
-	if field == nil {
+	if session == nil {
 		t.logger.Debug("Hint search field unavailable, reading the key stream")
-
-		return false, nil
-	}
-
-	session, err := startFieldSession(field, callbacks, t.logger)
-	if err != nil {
-		t.logger.Debug("Hint search field could not start, reading the key stream", zap.Error(err))
 
 		return false, nil
 	}
@@ -110,6 +114,85 @@ func (t *TextInput) StartHintSearchSession(
 	t.session = session
 
 	return true, nil
+}
+
+// fieldOpenWait bounds how long Start waits for the X11 field, which opens on
+// a goroutine of its own because its input method answers with no timeout. A
+// method slower than this leaves the search on the key stream.
+const fieldOpenWait = 250 * time.Millisecond
+
+// fieldStopWait bounds how long Stop waits for a session to end. Closing the
+// X11 field's input method waits on its server, and a session that takes
+// longer finishes closing on its own.
+const fieldStopWait = 500 * time.Millisecond
+
+// An X11 field's open: opening until it holds the focus, open once the
+// goroutine has gone on to take it, or abandoned when Start stopped waiting
+// first, in which case the field never takes the focus.
+const (
+	x11FieldOpening int32 = iota
+	x11FieldOpen
+	x11FieldAbandoned
+)
+
+// openX11Session opens the X11 field off the caller's goroutine and returns its
+// session, or nil when it did not open within fieldOpenWait.
+func openX11Session(
+	left, top, width, height C.int,
+	callbacks ports.TextInputCallbacks,
+	logger *zap.Logger,
+) *fieldSession {
+	var state atomic.Int32
+
+	result := make(chan *fieldSession, 1)
+
+	go func() {
+		handle := C.neru_x11_text_field_prepare(left, top, width, height)
+		if handle == nil {
+			result <- nil
+
+			return
+		}
+
+		field := &x11Field{handle: handle}
+
+		if !state.CompareAndSwap(x11FieldOpening, x11FieldOpen) {
+			field.close()
+
+			return
+		}
+
+		if C.neru_x11_text_field_focus(handle) == 0 {
+			field.close()
+
+			result <- nil
+
+			return
+		}
+
+		session, err := startFieldSession(field, callbacks, logger)
+		if err != nil {
+			logger.Debug(
+				"Hint search field could not start, reading the key stream",
+				zap.Error(err),
+			)
+		}
+
+		result <- session
+	}()
+
+	select {
+	case session := <-result:
+		return session
+	case <-time.After(fieldOpenWait):
+		if state.CompareAndSwap(x11FieldOpening, x11FieldAbandoned) {
+			return nil
+		}
+
+		// The field opened as the wait ran out, and taking the focus is a round
+		// trip to the X server.
+		return <-result
+	}
 }
 
 // StopHintSearchSession closes the field and waits until it let the keyboard
@@ -136,8 +219,8 @@ func (t *TextInput) stopLocked() {
 type nativeField interface {
 	displayFD() int
 	repeatFD() int
-	// dispatch handles the compositor's events and returns the field flags,
-	// or -1 when the connection failed.
+	// dispatch handles the events that have arrived, without blocking, and
+	// returns the field flags, or -1 when the connection failed.
 	dispatch() int
 	repeat() int
 	query() string
@@ -212,13 +295,20 @@ func startFieldSession(
 	return session, nil
 }
 
-// stop closes the field. Callbacks not yet run are dropped from here on, and
-// the handler's session token covers one already waiting on its lock.
+// stop closes the field, waiting for it for at most fieldStopWait. Callbacks
+// not yet run are dropped from here on, and the handler's session token covers
+// one already waiting on its lock.
 func (s *fieldSession) stop() {
 	s.queue.stop()
 
 	_, _ = unix.Write(s.stopWrite, []byte{0})
-	<-s.done
+
+	select {
+	case <-s.done:
+	case <-time.After(fieldStopWait):
+		s.logger.Warn("Hint search field is slow to close, leaving it to finish")
+	}
+
 	_ = unix.Close(s.stopWrite)
 }
 
@@ -231,6 +321,12 @@ func (s *fieldSession) run(field nativeField) {
 		{Fd: int32(field.displayFD()), Events: unix.POLLIN},
 		{Fd: int32(field.repeatFD()), Events: unix.POLLIN},
 		{Fd: int32(s.stopRead), Events: unix.POLLIN},
+	}
+
+	// Opening the field can leave events already read off the connection,
+	// which would otherwise wait for the next one to arrive.
+	if !s.report(field, field.dispatch()) {
+		return
 	}
 
 	for {
@@ -252,35 +348,44 @@ func (s *fieldSession) run(field nativeField) {
 		flags := 0
 
 		if fds[0].Revents != 0 {
-			dispatched := field.dispatch()
-			if dispatched < 0 {
-				s.lost(errLostConnection)
-
-				return
-			}
-
-			flags |= dispatched
+			flags = field.dispatch()
 		}
 
-		if fds[1].Revents != 0 {
+		if fds[1].Revents != 0 && flags >= 0 {
 			flags |= field.repeat()
 		}
 
-		if flags&fieldChanged != 0 {
-			s.queue.queryChanged(field.query())
-		}
-
-		if flags&fieldConfirm != 0 {
-			s.queue.confirm()
-		}
-
-		if flags&fieldCancel != 0 {
-			s.queue.cancel()
+		if !s.report(field, flags) {
+			return
 		}
 	}
 }
 
-var errLostConnection = errors.New("wayland connection failed")
+// report hands what the field reported to the callbacks, and returns false
+// when the connection failed and the session has ended.
+func (s *fieldSession) report(field nativeField, flags int) bool {
+	if flags < 0 {
+		s.lost(errLostConnection)
+
+		return false
+	}
+
+	if flags&fieldChanged != 0 {
+		s.queue.queryChanged(field.query())
+	}
+
+	if flags&fieldConfirm != 0 {
+		s.queue.confirm()
+	}
+
+	if flags&fieldCancel != 0 {
+		s.queue.cancel()
+	}
+
+	return true
+}
+
+var errLostConnection = errors.New("display connection failed")
 
 // lost ends a session nobody asked to stop. Cancel closes the search, which
 // turns the event tap back on, so the keyboard is never left with no reader.

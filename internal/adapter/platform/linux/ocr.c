@@ -1,5 +1,6 @@
 #include "ocr.h"
 
+#include "locale_guard.h"
 #include "screencapture.h"
 
 #include <errno.h>
@@ -123,15 +124,24 @@ static TessBaseAPI *neru_ocr_acquire_locked(const NeruOCRConfig *config) {
 
 	neru_ocr_release_locked();
 
+	// Tesseract asserts the C locale while it builds the engine, and the X11
+	// hint-search field leaves it briefly (locale_guard.h).
+	neru_locale_guard_lock();
+
 	TessBaseAPI *api = TessBaseAPICreate();
 	if (api == NULL) {
+		neru_locale_guard_unlock();
+
 		return NULL;
 	}
 
 	// OEM_LSTM_ONLY rather than the legacy engine or the combination: the
 	// legacy half is slower, needs its own data files, and is what tesseract 5
 	// itself defaults away from.
-	if (TessBaseAPIInit2(api, config->datapath, config->language, OEM_LSTM_ONLY) != 0) {
+	int initialized = TessBaseAPIInit2(api, config->datapath, config->language, OEM_LSTM_ONLY) == 0;
+	neru_locale_guard_unlock();
+
+	if (!initialized) {
 		TessBaseAPIDelete(api);
 
 		return NULL;
