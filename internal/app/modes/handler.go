@@ -184,6 +184,10 @@ type handlerState struct {
 	textInput                  ports.TextInputPort
 	hintSearchTextInputActive  bool
 	hintSearchEventTapDisabled bool
+	// hintSearchSession counts text-input sessions. A callback a session
+	// queued before it stopped compares it under h.mu and does nothing, so it
+	// cannot reach the next session.
+	hintSearchSession uint64
 
 	// Pending modifier taps waiting to be committed after a short "no follow-up"
 	// window. A regular key press cancels all pending taps.
