@@ -237,7 +237,7 @@ load, and `neru doctor` lists it under `platform_support`.
 | **Popovers / menus**    | dedicated detection                      | only if inside the active window                | none                              |
 | **Element text** (title, description, value) | `AXTitle`, `AXDescription`, `AXValue` when it is a string | `Name`, `Description`, and `Text.GetText` for the entry and spin button roles, never password text | `Name`, `HelpText`, and the Value pattern's value, never a password field's |
 | **Disabled elements** | skipped when `AXEnabled` is false | skipped without the ENABLED or SENSITIVE state, since GTK 4 sets only SENSITIVE. The Collection query asks for ENABLED, and GTK 4 has no Collection | skipped when `IsEnabled` is false, before their text is read |
-| **`ignore_clickable_check`** | every element with a size, skipping the role and the action and enabled tests | every SHOWING element, skipping the role and enabled tests. It always walks, since Collection needs a role set | every control that is on screen, skipping the control-type and `IsEnabled` tests |
+| **`ignore_clickable_check`** | skips the press-action, enabled, hidden and hit tests. The role filter still applies | skips the ENABLED or SENSITIVE test. The Collection query then asks only for SHOWING | skips the `IsEnabled` test |
 | **Element identifier and focus** (`neru query hints` only) | `AXIdentifier` and `AXFocused`, in the attribute batch every element gets | `AccessibleId` and the FOCUSED state, read only for the query | `AutomationId` and `HasKeyboardFocus`, cached only for the query |
 
 On Linux, coverage depends on each app exposing AT-SPI. On Windows, an element

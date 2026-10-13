@@ -258,7 +258,7 @@ func TestClient_Walk_HintsGTK4ElementsThatAreOnlySensitive(t *testing.T) {
 
 	visited := 0
 	New(zap.NewNop(), nil).walk(t.Context(), scanner, frame.ref,
-		rolesSet(resolveLinuxRoles(t, "button")), 0, atspiWalkDepthCeiling, &out, &visited,
+		rolesSet(resolveLinuxRoles(t, "button")), false, 0, atspiWalkDepthCeiling, &out, &visited,
 		placement{}, false)
 
 	got := make([]string, 0, len(out))
@@ -350,9 +350,21 @@ func TestClient_PlacementFor_PutsHintsOnTheScreen(t *testing.T) {
 			var out []ax.Node
 
 			visited := 0
-			client.walk(t.Context(), scanner, test.frame.ref,
-				rolesSet(resolveLinuxRoles(t, "button")), 0, atspiWalkDepthCeiling, &out, &visited,
-				place, false)
+			client.walk(
+				t.Context(),
+				scanner,
+				test.frame.ref,
+				rolesSet(
+					resolveLinuxRoles(t, "button"),
+				),
+				false,
+				0,
+				atspiWalkDepthCeiling,
+				&out,
+				&visited,
+				place,
+				false,
+			)
 
 			got := make([]image.Point, 0, len(out))
 			for _, node := range out {
@@ -508,7 +520,7 @@ func TestClient_Scan_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			client := New(zap.NewNop(), nil)
 
-			nodes, path, _ := client.scan(t.Context(), scanner, frame.ref, roles,
+			nodes, path, _ := client.scan(t.Context(), scanner, frame.ref, roles, false,
 				test.maxDepth, placement{}, false)
 
 			got := make([]string, 0, len(nodes))
@@ -534,7 +546,7 @@ type staticConfig struct{ cfg *config.Config }
 
 func (s staticConfig) Get() *config.Config { return s.cfg }
 
-func TestClient_Scan_HintsEveryShowingElementWhenTheClickableCheckIsIgnored(t *testing.T) {
+func TestClient_Scan_KeepsDisabledElementsWhenTheClickableCheckIsIgnored(t *testing.T) {
 	address := startPrivateBus(t)
 
 	app := connectBus(t, address)
@@ -544,7 +556,7 @@ func TestClient_Scan_HintsEveryShowingElementWhenTheClickableCheckIsIgnored(t *t
 
 	frame := child("frame", "frame", atspiStateShowing)
 	frame.children = []*fakeAccessible{
-		child("button", "push button", atspiStateShowing, atspiStateEnabled),
+		child("enabled", "push button", atspiStateShowing, atspiStateEnabled),
 		child("disabled", "push button", atspiStateShowing),
 		child("label", "label", atspiStateShowing),
 		child("hidden", "push button", atspiStateEnabled),
@@ -558,32 +570,36 @@ func TestClient_Scan_HintsEveryShowingElementWhenTheClickableCheckIsIgnored(t *t
 	cfg := config.DefaultConfig()
 	cfg.Hints.AppConfigs = []config.AppConfig{{BundleID: ignoredApp, IgnoreClickableCheck: &ignore}}
 
+	client := New(zap.NewNop(), staticConfig{cfg})
+	roles := rolesSet(resolveLinuxRoles(t, "button"))
+
 	tests := []struct {
 		appID string
 		want  []string
 	}{
-		{ignoredApp, []string{"button", "disabled", "frame", "label"}},
-		{"org.example.Other", []string{"button"}},
+		{ignoredApp, []string{"disabled", "enabled"}},
+		{"org.example.Other", []string{"enabled"}},
 	}
 
-	for _, test := range tests {
-		t.Run(test.appID, func(t *testing.T) {
-			client := New(zap.NewNop(), staticConfig{cfg})
+	// The default depth reads through Collection, a lower one walks.
+	for _, depth := range []int{config.DefaultMaxDepth, 5} {
+		for _, test := range tests {
+			t.Run(fmt.Sprintf("%s depth %d", test.appID, depth), func(t *testing.T) {
+				nodes, _, _ := client.scan(t.Context(), scanner, frame.ref, roles,
+					client.ignoresClickableCheck(test.appID), depth, placement{}, false)
 
-			nodes, _, _ := client.scan(t.Context(), scanner, frame.ref,
-				client.scanRoles(nil, test.appID), config.DefaultMaxDepth, placement{}, false)
+				got := make([]string, 0, len(nodes))
+				for _, node := range nodes {
+					got = append(got, fixtureName(node))
+				}
 
-			got := make([]string, 0, len(nodes))
-			for _, node := range nodes {
-				got = append(got, fixtureName(node))
-			}
+				slices.Sort(got)
 
-			slices.Sort(got)
-
-			if !slices.Equal(got, test.want) {
-				t.Errorf("hinted %v, want %v", got, test.want)
-			}
-		})
+				if !slices.Equal(got, test.want) {
+					t.Errorf("hinted %v, want %v", got, test.want)
+				}
+			})
+		}
 	}
 }
 
@@ -629,6 +645,7 @@ func scanPaths(
 				scanner,
 				frame.ref,
 				roles,
+				false,
 				0,
 				atspiWalkDepthCeiling,
 				&out,
@@ -641,7 +658,7 @@ func scanPaths(
 		},
 		"collection": func(client *Client, roles map[string]struct{}) []ax.Node {
 			out, ok := client.collectViaCollection(
-				t.Context(), scanner, frame.ref, roles, placement{}, readState)
+				t.Context(), scanner, frame.ref, roles, false, placement{}, readState)
 			if !ok {
 				t.Fatal("the Collection path fell back to the walk")
 			}

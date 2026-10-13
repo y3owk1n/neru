@@ -244,9 +244,9 @@ type enumerateOptions struct {
 	// roles is the set of UIA control-type names to keep. An empty set falls
 	// back to the shipped defaults.
 	roles map[string]struct{}
-	// anyControl keeps every control, whatever its type and whether or not it
-	// is enabled, in place of roles. It is hints.ignore_clickable_check.
-	anyControl bool
+	// anyState keeps controls that are not enabled. It is
+	// hints.ignore_clickable_check.
+	anyState bool
 	// maxDepth is the deepest control-view level read below the window, 0 for
 	// unlimited. It is hints.max_depth.
 	maxDepth int
@@ -297,10 +297,6 @@ func enumerateClickableElements(
 	keptRoles := opts.roles
 	if len(keptRoles) == 0 {
 		keptRoles = defaultClickableRoles
-	}
-
-	if opts.anyControl {
-		keptRoles = nil
 	}
 
 	if hwnd == 0 {
@@ -366,9 +362,10 @@ func enumerateClickableElements(
 
 	if walk {
 		controls = walkControls(ctx, automation, root, cache, opts.maxDepth, opts.frame, keptRoles,
-			opts.readState)
+			opts.anyState, opts.readState)
 	} else {
-		controls = findAllControls(root, condition, cache, opts.frame, keptRoles, opts.readState)
+		controls = findAllControls(root, condition, cache, opts.frame, keptRoles, opts.anyState,
+			opts.readState)
 	}
 
 	if opts.visibleCheck {
@@ -383,6 +380,7 @@ func findAllControls(
 	root, condition, cache unsafe.Pointer,
 	frame image.Rectangle,
 	keptRoles map[string]struct{},
+	anyState bool,
 	readState bool,
 ) []winElement {
 	var array unsafe.Pointer
@@ -403,7 +401,7 @@ func findAllControls(
 	}
 	defer comCall(array, vtRelease)
 
-	return collectArray(array, frame, keptRoles, readState)
+	return collectArray(array, frame, keptRoles, anyState, readState)
 }
 
 // walkControls returns the clickable controls no deeper than maxDepth below
@@ -416,6 +414,7 @@ func walkControls(
 	maxDepth int,
 	frame image.Rectangle,
 	keptRoles map[string]struct{},
+	anyState bool,
 	readState bool,
 ) []winElement {
 	var walker unsafe.Pointer
@@ -429,7 +428,7 @@ func walkControls(
 	var result []winElement
 
 	walkChildren(ctx, walker, cache, root, 1, maxDepth, func(element unsafe.Pointer) {
-		result = appendControl(result, element, frame, keptRoles, readState)
+		result = appendControl(result, element, frame, keptRoles, anyState, readState)
 	})
 
 	return result
@@ -668,6 +667,7 @@ func collectArray(
 	array unsafe.Pointer,
 	frame image.Rectangle,
 	keptRoles map[string]struct{},
+	anyState bool,
 	readState bool,
 ) []winElement {
 	var length int32
@@ -687,7 +687,7 @@ func collectArray(
 			continue
 		}
 
-		result = appendControl(result, element, frame, keptRoles, readState)
+		result = appendControl(result, element, frame, keptRoles, anyState, readState)
 
 		comCall(element, vtRelease)
 	}
@@ -697,17 +697,18 @@ func collectArray(
 
 // appendControl appends element to result when it is a clickable control. It
 // drops a disabled control before reading its text, since a disabled control
-// gets no hint, as on macOS. Nil keptRoles keep every control, enabled or not,
-// for hints.ignore_clickable_check. The caller releases element.
+// gets no hint, as on macOS, unless anyState keeps it for
+// hints.ignore_clickable_check. The caller releases element.
 func appendControl(
 	result []winElement,
 	element unsafe.Pointer,
 	frame image.Rectangle,
 	keptRoles map[string]struct{},
+	anyState bool,
 	readState bool,
 ) []winElement {
 	extracted, ok := extractWinElement(element, frame, keptRoles)
-	if !ok || (keptRoles != nil && !cachedBool(element, vtGetCachedIsEnabled, true)) {
+	if !ok || (!anyState && !cachedBool(element, vtGetCachedIsEnabled, true)) {
 		return result
 	}
 

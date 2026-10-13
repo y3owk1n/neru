@@ -252,7 +252,7 @@ type staticConfig struct{ cfg *config.Config }
 
 func (s staticConfig) Get() *config.Config { return s.cfg }
 
-func TestBuildTree_ReportsEveryControlWhenTheClickableCheckIsIgnored(t *testing.T) {
+func TestBuildTree_KeepsDisabledControlsWhenTheClickableCheckIsIgnored(t *testing.T) {
 	runtime.LockOSThread()
 
 	defer runtime.UnlockOSThread()
@@ -299,20 +299,10 @@ func TestBuildTree_ReportsEveryControlWhenTheClickableCheckIsIgnored(t *testing.
 			got[hint.Info().Title()] = true
 		}
 
-		want := map[string]bool{"neru-ignore-button": true}
-		if ignore {
-			want["neru-ignore-disabled"] = true
-			want["neru-ignore-label"] = true
-		}
-
-		for title := range want {
-			if !got[title] {
-				t.Errorf("ignore %v: %s got no hint; hinted %v", ignore, title, got)
-			}
-		}
-
-		if !ignore && (got["neru-ignore-disabled"] || got["neru-ignore-label"]) {
-			t.Errorf("ignore false: hinted %v, want only the enabled button", got)
+		want := map[string]bool{"neru-ignore-button": true, "neru-ignore-disabled": ignore}
+		if !got["neru-ignore-button"] || got["neru-ignore-disabled"] != ignore ||
+			got["neru-ignore-label"] {
+			t.Errorf("ignore %v: hinted %v, want %v", ignore, got, want)
 		}
 	}
 }

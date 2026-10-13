@@ -56,12 +56,11 @@ func (n *TreeNode) Children() []*TreeNode {
 func (n *TreeNode) Parent() *TreeNode { return nil }
 
 // FindClickableElements returns the clickable descendant nodes. When keptRoles
-// is non-empty and ignoreClickableCheck is not set, only nodes whose role is
-// in the set are returned.
+// is non-empty, only nodes whose role is in the set are returned.
 func (n *TreeNode) FindClickableElements(
 	keptRoles map[string]struct{},
 	_ config.Provider,
-	ignoreClickableCheck bool,
+	_ bool,
 ) []*TreeNode {
 	if n == nil {
 		return nil
@@ -77,8 +76,7 @@ func (n *TreeNode) FindClickableElements(
 		}
 
 		if node.info != nil && node.info.clickable {
-			if _, ok := keptRoles[node.info.role]; ok || len(keptRoles) == 0 ||
-				ignoreClickableCheck {
+			if _, ok := keptRoles[node.info.role]; ok || len(keptRoles) == 0 {
 				out = append(out, node)
 			}
 		}
@@ -209,7 +207,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 		frame:        winplatform.WindowFrame(root.hwnd),
 		roles:        opts.Roles,
 		maxDepth:     opts.MaxDepth,
-		anyControl:   opts.ignoreClickableCheckFor(root.bundleIdentifier),
+		anyState:     opts.ignoreClickableCheckFor(root.bundleIdentifier),
 		visibleCheck: opts.visibleCheckFor(root.bundleIdentifier),
 		readState:    opts.readState,
 	})
