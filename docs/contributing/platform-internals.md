@@ -231,7 +231,7 @@ load, and `neru doctor` lists it under `platform_support`.
 | Aspect                  | macOS                                       | Linux                                              | Windows                              |
 | ----------------------- | ------------------------------------------- | -------------------------------------------------- | ------------------------------------ |
 | **Backend**             | AXUIElement                                 | AT-SPI over D-Bus                                  | UI Automation                        |
-| **Traversal**           | Full recursive walk of the accessibility tree | Recursive walk of the active window, depth and node capped | Control-view tree, any depth |
+| **Traversal**           | Full recursive walk of the accessibility tree, to `hints.max_depth` | One Collection query of the active window at the default or unlimited `hints.max_depth`, a recursive walk to it below the default, or when the toolkit lacks Collection, node capped | One `FindAll` of the control view at the default or unlimited `hints.max_depth`, a control-view walker to it below the default |
 | **Sources collected**   | Frontmost + all windows, popovers, menubar, dock, notification center, Stage Manager, PIP | Active window only          | Foreground window's control view     |
 | **Strategies**          | `axtree` (default), `vision` and `contour`, incl. per-app overrides | `axtree`, `vision` (text only) and `contour` | `axtree`, `vision` (text only) and `contour` |
 | **Popovers / menus**    | dedicated detection                      | only if inside the active window                | none                              |

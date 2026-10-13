@@ -21,6 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // Both scan paths run against a fake application exported on a private
@@ -98,12 +99,13 @@ func (f *fakeAccessible) GetExtents(coordType uint32) (atspiExtents, *dbus.Error
 	return atspiExtents{X: int32(origin.X), Y: int32(origin.Y), W: 10, H: 10}, nil
 }
 
-// GetMatches answers the Collection query as a toolkit does: the children
-// whose role is in the rule and that have every state the rule names.
+// GetMatches answers the Collection query as a toolkit does: the descendants
+// at any depth whose role is in the rule and that have every state the rule
+// names.
 func (f *fakeAccessible) GetMatches(
 	rule atspiMatchRule,
-	_ uint32,
-	_ int32,
+	count uint32,
+	traverse int32,
 	_ bool,
 ) ([]accRef, *dbus.Error) {
 	var refs []accRef
@@ -115,6 +117,9 @@ func (f *fakeAccessible) GetMatches(
 		if inRule && hasStates(child.states, rule.States) {
 			refs = append(refs, child.ref)
 		}
+
+		deeper, _ := child.GetMatches(rule, count, traverse, false)
+		refs = append(refs, deeper...)
 	}
 
 	return refs, nil
@@ -253,7 +258,8 @@ func TestClient_Walk_HintsGTK4ElementsThatAreOnlySensitive(t *testing.T) {
 
 	visited := 0
 	New(zap.NewNop(), nil).walk(t.Context(), scanner, frame.ref,
-		rolesSet(resolveLinuxRoles(t, "button")), 0, &out, &visited, placement{}, false)
+		rolesSet(resolveLinuxRoles(t, "button")), 0, atspiWalkDepthCeiling, &out, &visited,
+		placement{}, false)
 
 	got := make([]string, 0, len(out))
 	for _, node := range out {
@@ -333,7 +339,8 @@ func TestClient_PlacementFor_PutsHintsOnTheScreen(t *testing.T) {
 
 			visited := 0
 			client.walk(t.Context(), scanner, test.frame.ref,
-				rolesSet(resolveLinuxRoles(t, "button")), 0, &out, &visited, place, false)
+				rolesSet(resolveLinuxRoles(t, "button")), 0, atspiWalkDepthCeiling, &out, &visited,
+				place, false)
 
 			if len(out) != 1 || out[0].Bounds().Min != test.want {
 				t.Errorf("hinted %v, want one hint at %v", out, test.want)
@@ -434,8 +441,79 @@ func TestClient_ScanPaths_ReadElementStateOnlyWhenAsked(t *testing.T) {
 	}
 }
 
-// exportFixture exports frame and its children on app under the interfaces a
-// scan calls.
+func TestClient_Scan_ReadsNoDeeperThanMaxDepth(t *testing.T) {
+	const depth1, depth2, depth3 = "depth1", "depth2", "depth3"
+
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	// The buttons sit at depth 1, 2 and 3 under the frame. Darwin also counts
+	// the window's children as depth 1.
+	inner := child("inner", "panel", atspiStateShowing)
+	inner.children = []*fakeAccessible{
+		child(depth3, "push button", atspiStateShowing, atspiStateEnabled),
+	}
+
+	outer := child("outer", "panel", atspiStateShowing)
+	outer.children = []*fakeAccessible{
+		child(depth2, "push button", atspiStateShowing, atspiStateEnabled),
+		inner,
+	}
+
+	frame := child("frame", "frame", atspiStateShowing)
+	frame.children = []*fakeAccessible{
+		child(depth1, "push button", atspiStateShowing, atspiStateEnabled),
+		outer,
+	}
+
+	exportFixture(t, app, frame)
+
+	roles := rolesSet(resolveLinuxRoles(t, "button"))
+	all := []string{depth1, depth2, depth3}
+
+	tests := []struct {
+		name     string
+		maxDepth int
+		want     []string
+		wantPath string
+	}{
+		{"one level", 1, []string{depth1}, scanPathWalk},
+		{"two levels", 2, []string{depth1, depth2}, scanPathWalk},
+		{"unlimited", 0, all, scanPathCollection},
+		{"the default", config.DefaultMaxDepth, all, scanPathCollection},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := New(zap.NewNop(), nil)
+
+			nodes, path, _ := client.scan(t.Context(), scanner, frame.ref, roles,
+				test.maxDepth, placement{}, false)
+
+			got := make([]string, 0, len(nodes))
+			for _, node := range nodes {
+				got = append(got, fixtureName(node))
+			}
+
+			slices.Sort(got)
+
+			if !slices.Equal(got, test.want) {
+				t.Errorf("hinted %v, want %v", got, test.want)
+			}
+
+			if path != test.wantPath {
+				t.Errorf("read through the %s path, want %s", path, test.wantPath)
+			}
+		})
+	}
+}
+
+// exportFixture exports frame and every element under it on app under the
+// interfaces a scan calls.
 func exportFixture(t *testing.T, app *dbus.Conn, frame *fakeAccessible) {
 	t.Helper()
 
@@ -444,13 +522,15 @@ func exportFixture(t *testing.T, app *dbus.Conn, frame *fakeAccessible) {
 		"org.freedesktop.DBus.Properties",
 	}
 
-	for _, fake := range append([]*fakeAccessible{frame}, frame.children...) {
-		for _, iface := range ifaces {
-			err := app.Export(fake, fake.ref.Path, iface)
-			if err != nil {
-				t.Fatalf("export %s on %s: %v", iface, fake.ref.Path, err)
-			}
+	for _, iface := range ifaces {
+		err := app.Export(frame, frame.ref.Path, iface)
+		if err != nil {
+			t.Fatalf("export %s on %s: %v", iface, frame.ref.Path, err)
 		}
+	}
+
+	for _, child := range frame.children {
+		exportFixture(t, app, child)
 	}
 }
 
@@ -475,6 +555,7 @@ func scanPaths(
 				frame.ref,
 				roles,
 				0,
+				atspiWalkDepthCeiling,
 				&out,
 				&visited,
 				placement{},

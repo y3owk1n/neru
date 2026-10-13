@@ -180,6 +180,73 @@ func TestBuildTree_ReportsControlsNestedBelowTheWindow(t *testing.T) {
 	t.Logf("built tree with %d hints in %v", len(hints), time.Since(started))
 }
 
+func TestBuildTree_ReadsNoDeeperThanMaxDepth(t *testing.T) {
+	runtime.LockOSThread()
+
+	defer runtime.UnlockOSThread()
+
+	const (
+		child  = fixtureChild | fixtureVisible
+		depth1 = "neru-depth-1"
+		depth2 = "neru-depth-2"
+	)
+
+	window := createFixtureWindow(t, "STATIC", "neru-uia-depth-fixture",
+		fixturePopup|fixtureVisible,
+		image.Pt(0, 0), fixtureWindowSize, fixtureWindowSize, 0)
+
+	createFixtureWindow(t, "BUTTON", depth1, child,
+		image.Pt(10, 10), fixtureControlSize*3, fixtureControlSize, window)
+
+	pane := createFixtureWindow(t, "STATIC", "neru-depth-pane", child,
+		image.Pt(10, 60), fixtureControlSize*4, fixtureControlSize*2, window)
+	createFixtureWindow(t, "BUTTON", depth2, child,
+		image.Pt(10, 10), fixtureControlSize*3, fixtureControlSize, pane)
+
+	tests := []struct {
+		name     string
+		maxDepth int
+		want     []string
+	}{
+		{"one level", 1, []string{depth1}},
+		{"two levels", 2, []string{depth1, depth2}},
+		{"unlimited", 0, []string{depth1, depth2}},
+		{"the default", config.DefaultMaxDepth, []string{depth1, depth2}},
+	}
+
+	// The cases run inline, not as subtests. t.Run would move each one to
+	// another goroutine, off the thread that owns the fixture window, and the
+	// Win32 controls would then block the query, as the file comment explains.
+	for _, test := range tests {
+		opts := DefaultTreeOptions(zap.NewNop())
+		opts.SetRoles(map[string]struct{}{uiaControlButton: {}})
+		opts.SetMaxDepth(test.maxDepth)
+
+		ctx, cancel := context.WithTimeout(context.Background(), fixtureDeadline)
+
+		tree, err := BuildTree(ctx, &Element{hwnd: window}, opts)
+
+		cancel()
+
+		if err != nil {
+			t.Fatalf("%s: BuildTree failed: %v", test.name, err)
+		}
+
+		hints := ProcessClickableNodes(tree, config.HintsConfig{})
+
+		got := make([]string, 0, len(hints))
+		for _, hint := range hints {
+			got = append(got, hint.Info().Title())
+		}
+
+		slices.Sort(got)
+
+		if !slices.Equal(got, test.want) {
+			t.Errorf("%s: hinted %v, want %v", test.name, got, test.want)
+		}
+	}
+}
+
 func TestBuildTree_ReportsTextIdentifierAndFocusButNoDisabledOrPassword(t *testing.T) {
 	runtime.LockOSThread()
 

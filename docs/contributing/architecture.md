@@ -267,7 +267,7 @@ The code says "bundle ID" for whatever identifier the platform uses, which
    and heavy work runs in goroutines.
 2. **Bounded accessibility walks**: the macOS walk has `maxDepth`
    ([ax.go](../../internal/adapter/accessibility/ax/ax.go)), and the Linux
-   AT-SPI walk has `atspiMaxDepth` and `atspiMaxNodes`
+   AT-SPI walk takes the same `hints.max_depth` plus `atspiMaxNodes`
    ([atspi/client.go](../../internal/adapter/accessibility/atspi/client.go)).
 3. **Caching**: a TTL/LRU cache holds computed grid layouts
    ([grid/cache.go](../../internal/domain/grid/cache.go)), and another holds C
