@@ -41,16 +41,19 @@ const (
 	atspiComponentIfc  = "org.a11y.atspi.Component"
 	atspiTextIfc       = "org.a11y.atspi.Text"
 
-	// ATSPI_COORD_TYPE_SCREEN: extents relative to the screen origin.
+	// ATSPI_COORD_TYPE_SCREEN and ATSPI_COORD_TYPE_WINDOW: extents relative to
+	// the screen origin and to the top-level window.
 	atspiCoordScreen = uint32(0)
+	atspiCoordWindow = uint32(1)
 
 	// AT-SPI state bit indices (atspi-constants.h). All < 32, so they live in
 	// the first uint32 of the state bitfield array.
-	atspiStateActive   = 1
-	atspiStateEditable = 7
-	atspiStateEnabled  = 8
-	atspiStateFocused  = 12
-	atspiStateShowing  = 25
+	atspiStateActive    = 1
+	atspiStateEditable  = 7
+	atspiStateEnabled   = 8
+	atspiStateFocused   = 12
+	atspiStateSensitive = 24
+	atspiStateShowing   = 25
 
 	// Bit width of the int32 words AT-SPI packs its state and role sets into
 	// (one bit per state/role index).
@@ -144,6 +147,9 @@ type Client struct {
 
 	logger       *zap.Logger
 	windowOrigin windowOriginSource
+	// coordType is the AT-SPI coordinate type every extents read asks for
+	// (see coordTypeFor).
+	coordType uint32
 
 	// originFailure is the reason the window-origin source last gave for not
 	// answering, so a session-long failure is warned about once rather than on
@@ -183,11 +189,36 @@ func New(logger *zap.Logger, configProvider config.Provider) *Client {
 		logger = zap.NewNop()
 	}
 
+	backend := platform.DetectLinuxBackend()
+
 	return &Client{
 		Client:       native.New(logger, configProvider),
 		logger:       logger.Named("accessibility.atspi"),
-		windowOrigin: newWindowOriginSource(platform.DetectLinuxBackend(), logger),
+		windowOrigin: newWindowOriginSource(backend, logger),
+		coordType:    coordTypeFor(backend),
 	}
+}
+
+// coordTypeFor returns the coordinate type extents are read in. On Wayland no
+// client knows its own screen position, so every toolkit reports
+// window-relative extents and Neru adds the window origin afterwards. Firefox,
+// Chromium, Qt and GTK 3 give the same answer for screen and window
+// coordinates there, but GTK 4 answers screen coordinates with a zero origin,
+// so Wayland reads window coordinates. X11 reads screen coordinates, which
+// are the final positions there.
+func coordTypeFor(backend platform.LinuxBackend) uint32 {
+	switch backend {
+	case platform.BackendWaylandWlroots,
+		platform.BackendWaylandGNOME,
+		platform.BackendWaylandKDE,
+		platform.BackendWaylandCOSMIC,
+		platform.BackendWaylandOther:
+		return atspiCoordWindow
+	case platform.BackendX11, platform.BackendUnknown:
+		return atspiCoordScreen
+	}
+
+	return atspiCoordScreen
 }
 
 // FrontmostWindow returns the active top-level window via AT-SPI.
@@ -773,7 +804,7 @@ func (c *Client) readNode(
 		atspiComponentIfc+".GetExtents",
 		0,
 		nil,
-		atspiCoordScreen,
+		c.coordType,
 	)
 	nameCall := property("Name")
 	descriptionCall := property("Description")
@@ -881,8 +912,7 @@ func (c *Client) showingRole(
 	}
 
 	states, read := c.states(ctx, conn, ref)
-	if !read || !atspiStateBit(states, atspiStateShowing) ||
-		!atspiStateBit(states, atspiStateEnabled) {
+	if !read || !atspiStateBit(states, atspiStateShowing) || !atspiEnabled(states) {
 		return roleName, false
 	}
 
@@ -890,6 +920,14 @@ func (c *Client) showingRole(
 	_, wanted := roles[roleName]
 
 	return roleName, wanted
+}
+
+// atspiEnabled reports whether an element takes input. GTK 4 sets SENSITIVE
+// and never ENABLED, where other toolkits set both, so either one counts.
+// Collection asks for ENABLED alone, which is safe because GTK 4 does not
+// implement Collection and always reaches the walk.
+func atspiEnabled(states []uint32) bool {
+	return atspiStateBit(states, atspiStateEnabled) || atspiStateBit(states, atspiStateSensitive)
 }
 
 // atspiStateBit reports whether the given AT-SPI state bit is set in a state
@@ -925,7 +963,7 @@ func (c *Client) extents(
 	defer cancel()
 
 	return c.extentsFrom(ctx, conn.Object(ref.Name, ref.Path).
-		GoWithContext(callCtx, atspiComponentIfc+".GetExtents", 0, nil, atspiCoordScreen))
+		GoWithContext(callCtx, atspiComponentIfc+".GetExtents", 0, nil, c.coordType))
 }
 
 // extentsFrom waits for a GetExtents call and returns the rectangle, or false

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image"
 	"maps"
 	"os/exec"
 	"path/filepath"
@@ -41,6 +42,9 @@ type fakeAccessible struct {
 	text            string
 	textReads       atomic.Int32
 	identifierReads atomic.Int32
+	// windowOrigin is where the element sits in window coordinates. Screen
+	// coordinates always report a zero origin, as GTK 4 does on Wayland.
+	windowOrigin image.Point
 }
 
 func (f *fakeAccessible) GetRoleName() (string, *dbus.Error) { return f.role, nil }
@@ -83,7 +87,16 @@ func (f *fakeAccessible) GetText(int32, int32) (string, *dbus.Error) {
 	return f.text, nil
 }
 
-func (f *fakeAccessible) GetExtents(uint32) (atspiExtents, *dbus.Error) {
+func (f *fakeAccessible) GetExtents(coordType uint32) (atspiExtents, *dbus.Error) {
+	if coordType == atspiCoordWindow {
+		return atspiExtents{
+			X: int32(f.windowOrigin.X),
+			Y: int32(f.windowOrigin.Y),
+			W: 10,
+			H: 10,
+		}, nil
+	}
+
 	return atspiExtents{W: 10, H: 10}, nil
 }
 
@@ -218,6 +231,65 @@ func TestClient_ScanPaths_ReadNameDescriptionAndValue(t *testing.T) {
 
 	if reads := password.textReads.Load(); reads != 0 {
 		t.Errorf("the password field's text was read %d times, want never", reads)
+	}
+}
+
+func TestClient_Walk_HintsGTK4ElementsWhereTheyAre(t *testing.T) {
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	// GTK 4 marks an element that takes input SENSITIVE and never ENABLED.
+	sensitive := child("sensitive", "button", atspiStateShowing, atspiStateSensitive)
+	sensitive.windowOrigin = image.Pt(39, 3)
+
+	insensitive := child("insensitive", "button", atspiStateShowing)
+	insensitive.windowOrigin = image.Pt(80, 3)
+
+	frame := child("frame", "frame", atspiStateShowing)
+	frame.children = []*fakeAccessible{sensitive, insensitive}
+
+	exportFixture(t, app, frame)
+
+	roles := rolesSet(resolveLinuxRoles(t, "button"))
+
+	tests := []struct {
+		name      string
+		coordType uint32
+		want      map[string]image.Point
+	}{
+		{
+			"wayland reads window coordinates", atspiCoordWindow,
+			map[string]image.Point{"sensitive": image.Pt(39, 3)},
+		},
+		{
+			"x11 reads screen coordinates", atspiCoordScreen,
+			map[string]image.Point{"sensitive": {}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := New(zap.NewNop(), nil)
+			client.coordType = test.coordType
+
+			var out []ax.Node
+
+			visited := 0
+			client.walk(t.Context(), scanner, frame.ref, roles, 0, &out, &visited, 0, 0, false)
+
+			got := make(map[string]image.Point)
+			for _, node := range out {
+				got[fixtureName(node)] = node.Bounds().Min
+			}
+
+			if !maps.Equal(got, test.want) {
+				t.Errorf("hinted %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 
