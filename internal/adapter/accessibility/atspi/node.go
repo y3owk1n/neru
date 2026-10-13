@@ -29,10 +29,12 @@ func (w *atspiWindow) Role() string { return atspiRoleFrame }
 
 // atspiNode implements ax.Node for a clickable AT-SPI element.
 type atspiNode struct {
-	id    string
-	role  string
-	title string
-	rect  image.Rectangle
+	id          string
+	role        string
+	title       string
+	description string
+	value       string
+	rect        image.Rectangle
 }
 
 func (n *atspiNode) ID() string { return n.id }
@@ -43,9 +45,9 @@ func (n *atspiNode) Role() string { return n.role }
 
 func (n *atspiNode) Title() string { return n.title }
 
-func (n *atspiNode) Description() string { return "" }
+func (n *atspiNode) Description() string { return n.description }
 
-func (n *atspiNode) Value() string { return "" }
+func (n *atspiNode) Value() string { return n.value }
 
 func (n *atspiNode) IsClickable() bool { return true }
 

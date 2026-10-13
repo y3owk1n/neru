@@ -235,6 +235,7 @@ load, and `neru doctor` lists it under `platform_support`.
 | **Sources collected**   | Frontmost + all windows, popovers, menubar, dock, notification center, Stage Manager, PIP | Active window only          | Foreground window's control view     |
 | **Strategies**          | `axtree` (default), `vision` and `contour`, incl. per-app overrides | `axtree`, `vision` (text only) and `contour` | `axtree`, `vision` (text only) and `contour` |
 | **Popovers / menus**    | dedicated detection                      | only if inside the active window                | none                              |
+| **Element text** (title, description, value) | `AXTitle`, `AXDescription`, `AXValue` when it is a string | `Name`, `Description`, and `Text.GetText` for the entry and spin button roles, never password text | `Name`, `HelpText`, and the Value pattern's value, never a password field's |
 
 On Linux, coverage depends on each app exposing AT-SPI. On Windows, an element
 an app exposes only in UI Automation's raw view gets no hint. Where the tree is

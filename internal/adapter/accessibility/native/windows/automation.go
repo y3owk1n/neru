@@ -35,6 +35,7 @@ var (
 	procCoUninitialize   = modole32.NewProc("CoUninitialize")
 	procCoCreateInstance = modole32.NewProc("CoCreateInstance")
 	procSysFreeString    = modoleaut32.NewProc("SysFreeString")
+	procVariantClear     = modoleaut32.NewProc("VariantClear")
 )
 
 const (
@@ -88,8 +89,12 @@ const (
 	// the walk reads is fetched by the cache request, so a Current* getter
 	// would be a second cross-process call for data already in hand.
 	vtFindAllBuildCache          = 8
+	vtGetCachedPropertyValue     = 12
 	vtGetCachedControlType       = 53
 	vtGetCachedName              = 55
+	vtGetCachedIsEnabled         = 60
+	vtGetCachedHelpText          = 63
+	vtGetCachedIsPassword        = 67
 	vtGetCachedIsOffscreen       = 70
 	vtGetCachedBoundingRectangle = 75
 
@@ -108,8 +113,15 @@ const (
 	propBoundingRectangle = 30001
 	propControlType       = 30003
 	propName              = 30005
+	propIsEnabled         = 30010
+	propHelpText          = 30013
+	propIsPassword        = 30019
 	propIsOffscreen       = 30022
+	propValueValue        = 30045
 )
+
+// vtBSTR is the VARTYPE of a VARIANT holding a BSTR.
+const vtBSTR = 8
 
 // AutomationElementMode_None: cached elements carry only the requested
 // properties and no live reference back to the provider, which is all the
@@ -186,12 +198,28 @@ type winRect struct {
 	bottom int32
 }
 
+// variant mirrors the Win32 VARIANT: a VARTYPE, three reserved words, and a
+// union two pointers wide, which is 16 bytes on 386 and 24 on 64-bit targets.
+// cachedValue reads only the BSTR member of the union.
+type variant struct {
+	vt       uint16
+	reserved [3]uint16
+	bstr     *uint16
+	_        uintptr
+}
+
 // winElement is the extracted, COM-free description of a clickable control.
+// description is the UIA HelpText, which providers fill from a tooltip or an
+// ARIA title. value is the Value pattern's string, and stays empty for a
+// password field.
 type winElement struct {
-	bounds    image.Rectangle
-	role      string
-	name      string
-	clickable bool
+	bounds      image.Rectangle
+	role        string
+	name        string
+	description string
+	value       string
+	enabled     bool
+	clickable   bool
 }
 
 // enumerateOptions steers one enumeration.
@@ -437,7 +465,7 @@ func centerOf(rect image.Rectangle) image.Point {
 }
 
 // createCacheRequest builds the cache request FindAllBuildCache fills: the
-// four properties extractWinElement reads, filtered to the control view so
+// properties extractWinElement reads, filtered to the control view so
 // the provider never serializes raw-view scaffolding.
 func createCacheRequest(automation unsafe.Pointer, filter unsafe.Pointer) unsafe.Pointer {
 	var cache unsafe.Pointer
@@ -447,7 +475,10 @@ func createCacheRequest(automation unsafe.Pointer, filter unsafe.Pointer) unsafe
 		return nil
 	}
 
-	for _, property := range []uintptr{propControlType, propName, propBoundingRectangle, propIsOffscreen} {
+	for _, property := range []uintptr{
+		propControlType, propName, propBoundingRectangle, propIsOffscreen,
+		propHelpText, propIsEnabled, propIsPassword, propValueValue,
+	} {
 		if failed(comCall(cache, vtCacheAddProperty, property)) {
 			comCall(cache, vtRelease)
 
@@ -569,12 +600,20 @@ func extractWinElement(
 		return winElement{}, false
 	}
 
-	return winElement{
-		bounds:    bounds,
-		role:      role,
-		name:      cachedName(element),
-		clickable: true,
-	}, true
+	extracted := winElement{
+		bounds:      bounds,
+		role:        role,
+		name:        cachedString(element, vtGetCachedName),
+		description: cachedString(element, vtGetCachedHelpText),
+		enabled:     cachedBool(element, vtGetCachedIsEnabled, true),
+		clickable:   true,
+	}
+
+	if !cachedBool(element, vtGetCachedIsPassword, true) {
+		extracted.value = cachedValue(element)
+	}
+
+	return extracted, true
 }
 
 // clipToFrame returns the part of bounds inside the window frame, which is
@@ -592,18 +631,49 @@ func clipToFrame(bounds, frame image.Rectangle) image.Rectangle {
 	return bounds.Intersect(frame)
 }
 
-// cachedName reads the element's cached name (BSTR) and frees it.
-func cachedName(element unsafe.Pointer) string {
+// cachedString reads the cached BSTR property behind the getter at slot and
+// frees it.
+func cachedString(element unsafe.Pointer, slot int) string {
 	var bstr *uint16
-	if failed(comCall(element, vtGetCachedName, uintptr(unsafe.Pointer(&bstr)))) || bstr == nil {
+	if failed(comCall(element, slot, uintptr(unsafe.Pointer(&bstr)))) || bstr == nil {
 		return ""
 	}
 
-	name := windows.UTF16PtrToString(bstr)
+	text := windows.UTF16PtrToString(bstr)
 
 	discardCall(procSysFreeString.Call(uintptr(unsafe.Pointer(bstr))))
 
-	return name
+	return text
+}
+
+// cachedBool reads the cached BOOL property behind the getter at slot, or
+// fallback when the provider cannot answer.
+func cachedBool(element unsafe.Pointer, slot int, fallback bool) bool {
+	var value int32
+	if failed(comCall(element, slot, uintptr(unsafe.Pointer(&value)))) {
+		return fallback
+	}
+
+	return value != 0
+}
+
+// cachedValue reads the Value pattern's cached string. A control without the
+// pattern answers with an empty VARIANT, which reads as "".
+func cachedValue(element unsafe.Pointer) string {
+	var value variant
+	if failed(
+		comCall(element, vtGetCachedPropertyValue, propValueValue, uintptr(unsafe.Pointer(&value))),
+	) {
+		return ""
+	}
+
+	defer func() { discardCall(procVariantClear.Call(uintptr(unsafe.Pointer(&value)))) }()
+
+	if value.vt != vtBSTR || value.bstr == nil {
+		return ""
+	}
+
+	return windows.UTF16PtrToString(value.bstr)
 }
 
 // controlTypeName returns the programmatic name for a UIA CONTROLTYPEID. The

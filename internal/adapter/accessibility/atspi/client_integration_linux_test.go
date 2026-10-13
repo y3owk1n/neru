@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,11 +29,15 @@ var errStateUnavailable = errors.New("state unavailable")
 
 // fakeAccessible answers the AT-SPI calls a scan makes for one element.
 type fakeAccessible struct {
-	ref        accRef
-	role       string
-	states     []uint32
-	stateFails bool
-	children   []*fakeAccessible
+	ref         accRef
+	role        string
+	states      []uint32
+	stateFails  bool
+	children    []*fakeAccessible
+	name        string
+	description string
+	text        string
+	textReads   atomic.Int32
 }
 
 func (f *fakeAccessible) GetRoleName() (string, *dbus.Error) { return f.role, nil }
@@ -52,6 +57,22 @@ func (f *fakeAccessible) GetChildren() ([]accRef, *dbus.Error) {
 	}
 
 	return refs, nil
+}
+
+// Get answers org.freedesktop.DBus.Properties.Get for the two properties a
+// scan reads.
+func (f *fakeAccessible) Get(_, property string) (dbus.Variant, *dbus.Error) {
+	if property == "Description" {
+		return dbus.MakeVariant(f.description), nil
+	}
+
+	return dbus.MakeVariant(f.name), nil
+}
+
+func (f *fakeAccessible) GetText(int32, int32) (string, *dbus.Error) {
+	f.textReads.Add(1)
+
+	return f.text, nil
 }
 
 func (f *fakeAccessible) GetExtents(uint32) (atspiExtents, *dbus.Error) {
@@ -86,14 +107,7 @@ func TestClient_ScanPaths_ReadEditableTextAsEntry(t *testing.T) {
 	app := connectBus(t, address)
 	scanner := connectBus(t, address)
 
-	busName := app.Names()[0]
-	child := func(name, role string, states ...uint) *fakeAccessible {
-		return &fakeAccessible{
-			ref:    accRef{Name: busName, Path: dbus.ObjectPath("/fixture/" + name)},
-			role:   role,
-			states: stateBitsFor(states...),
-		}
-	}
+	child := fixtureChild(app.Names()[0])
 
 	stateFails := child("state_fails", atspiRoleText, atspiStateShowing, atspiStateEditable)
 	stateFails.stateFails = true
@@ -107,33 +121,8 @@ func TestClient_ScanPaths_ReadEditableTextAsEntry(t *testing.T) {
 		child("button", "push button", atspiStateShowing),
 	}
 
-	for _, fake := range append([]*fakeAccessible{frame}, frame.children...) {
-		for _, iface := range []string{atspiAccessibleIfc, atspiComponentIfc, atspiCollectionIfc} {
-			err := app.Export(fake, fake.ref.Path, iface)
-			if err != nil {
-				t.Fatalf("export %s on %s: %v", iface, fake.ref.Path, err)
-			}
-		}
-	}
-
-	scans := map[string]func(*Client, map[string]struct{}) []ax.Node{
-		"walk": func(client *Client, roles map[string]struct{}) []ax.Node {
-			var out []ax.Node
-
-			visited := 0
-			client.walk(t.Context(), scanner, frame.ref, roles, 0, &out, &visited, 0, 0)
-
-			return out
-		},
-		"collection": func(client *Client, roles map[string]struct{}) []ax.Node {
-			out, ok := client.collectViaCollection(t.Context(), scanner, frame.ref, roles, 0, 0)
-			if !ok {
-				t.Fatal("the Collection path fell back to the walk")
-			}
-
-			return out
-		},
-	}
+	exportFixture(t, app, frame)
+	scans := scanPaths(t, scanner, frame)
 
 	tests := []struct {
 		roles []string
@@ -156,7 +145,7 @@ func TestClient_ScanPaths_ReadEditableTextAsEntry(t *testing.T) {
 
 				got := make(map[string]string)
 				for _, node := range scan(New(zap.NewNop(), nil), roles) {
-					got[strings.TrimPrefix(strings.Split(node.ID(), "@")[0], "/fixture/")] = node.Role()
+					got[fixtureName(node)] = node.Role()
 				}
 
 				if !maps.Equal(got, test.want) {
@@ -165,6 +154,119 @@ func TestClient_ScanPaths_ReadEditableTextAsEntry(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestClient_ScanPaths_ReadNameDescriptionAndValue(t *testing.T) {
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	entry := child("entry", atspiRoleText, atspiStateShowing, atspiStateEditable)
+	entry.name, entry.description, entry.text = "Search", "Find in page", "typed text"
+
+	password := child("password", "password text", atspiStateShowing, atspiStateEditable)
+	password.text = "hunter2"
+
+	button := child("save", "push button", atspiStateShowing)
+	button.name, button.description, button.text = "Save", "Save the file", "button text"
+
+	frame := child("frame", "frame", atspiStateShowing)
+	frame.children = []*fakeAccessible{entry, password, button}
+
+	exportFixture(t, app, frame)
+
+	want := map[string][3]string{
+		"entry":    {"Search", "Find in page", "typed text"},
+		"password": {"", "", ""},
+		"save":     {"Save", "Save the file", ""},
+	}
+
+	roles := rolesSet(resolveLinuxRoles(t, "text_field", "button"))
+
+	for path, scan := range scanPaths(t, scanner, frame) {
+		t.Run(path, func(t *testing.T) {
+			got := make(map[string][3]string)
+			for _, node := range scan(New(zap.NewNop(), nil), roles) {
+				got[fixtureName(node)] = [3]string{node.Title(), node.Description(), node.Value()}
+			}
+
+			if !maps.Equal(got, want) {
+				t.Errorf("read %v, want %v", got, want)
+			}
+		})
+	}
+
+	if reads := password.textReads.Load(); reads != 0 {
+		t.Errorf("the password field's text was read %d times, want never", reads)
+	}
+}
+
+// fixtureChild returns a constructor for fake elements owned by busName.
+func fixtureChild(busName string) func(string, string, ...uint) *fakeAccessible {
+	return func(name, role string, states ...uint) *fakeAccessible {
+		return &fakeAccessible{
+			ref:    accRef{Name: busName, Path: dbus.ObjectPath("/fixture/" + name)},
+			role:   role,
+			states: stateBitsFor(states...),
+		}
+	}
+}
+
+// exportFixture exports frame and its children on app under the interfaces a
+// scan calls.
+func exportFixture(t *testing.T, app *dbus.Conn, frame *fakeAccessible) {
+	t.Helper()
+
+	ifaces := []string{
+		atspiAccessibleIfc, atspiComponentIfc, atspiCollectionIfc, atspiTextIfc,
+		"org.freedesktop.DBus.Properties",
+	}
+
+	for _, fake := range append([]*fakeAccessible{frame}, frame.children...) {
+		for _, iface := range ifaces {
+			err := app.Export(fake, fake.ref.Path, iface)
+			if err != nil {
+				t.Fatalf("export %s on %s: %v", iface, fake.ref.Path, err)
+			}
+		}
+	}
+}
+
+// scanPaths returns the walk and the Collection path, each scanning frame
+// for roles.
+func scanPaths(
+	t *testing.T,
+	scanner *dbus.Conn,
+	frame *fakeAccessible,
+) map[string]func(*Client, map[string]struct{}) []ax.Node {
+	t.Helper()
+
+	return map[string]func(*Client, map[string]struct{}) []ax.Node{
+		"walk": func(client *Client, roles map[string]struct{}) []ax.Node {
+			var out []ax.Node
+
+			visited := 0
+			client.walk(t.Context(), scanner, frame.ref, roles, 0, &out, &visited, 0, 0)
+
+			return out
+		},
+		"collection": func(client *Client, roles map[string]struct{}) []ax.Node {
+			out, ok := client.collectViaCollection(t.Context(), scanner, frame.ref, roles, 0, 0)
+			if !ok {
+				t.Fatal("the Collection path fell back to the walk")
+			}
+
+			return out
+		},
+	}
+}
+
+// fixtureName returns the fixture name in a node's object path.
+func fixtureName(node ax.Node) string {
+	return strings.TrimPrefix(strings.Split(node.ID(), "@")[0], "/fixture/")
 }
 
 // startPrivateBus runs a dbus-daemon for this test alone and returns its

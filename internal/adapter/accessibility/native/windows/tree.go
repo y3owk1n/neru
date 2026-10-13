@@ -202,12 +202,14 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 
 	for _, control := range controls {
 		info := &ElementInfo{
-			position:  control.bounds.Min,
-			size:      image.Pt(control.bounds.Dx(), control.bounds.Dy()),
-			title:     control.name,
-			role:      control.role,
-			isEnabled: true,
-			clickable: true,
+			position:    control.bounds.Min,
+			size:        image.Pt(control.bounds.Dx(), control.bounds.Dy()),
+			title:       control.name,
+			description: control.description,
+			value:       control.value,
+			role:        control.role,
+			isEnabled:   control.enabled,
+			clickable:   true,
 		}
 
 		children = append(children, &TreeNode{

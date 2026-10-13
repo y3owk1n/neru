@@ -43,6 +43,7 @@ const (
 	fixtureVisible     = 0x10000000
 	fixtureChild       = 0x40000000
 	fixtureCheckBox    = 0x2
+	fixtureDisabled    = 0x08000000
 	fixtureWindowSize  = 320
 	fixtureControlSize = 40
 
@@ -165,4 +166,61 @@ func TestBuildTree_ReportsControlsNestedBelowTheWindow(t *testing.T) {
 	}
 
 	t.Logf("built tree with %d hints in %v", len(hints), time.Since(started))
+}
+
+func TestBuildTree_ReportsEditValueAndDisabledState(t *testing.T) {
+	runtime.LockOSThread()
+
+	defer runtime.UnlockOSThread()
+
+	const child = fixtureChild | fixtureVisible
+
+	window := createFixtureWindow(t, "STATIC", "neru-uia-fixture",
+		fixturePopup|fixtureVisible,
+		image.Pt(0, 0), fixtureWindowSize, fixtureWindowSize, 0)
+
+	createFixtureWindow(t, "EDIT", "neru-fixture-edit-text", child,
+		image.Pt(10, 10), fixtureControlSize*3, fixtureControlSize, window)
+	createFixtureWindow(t, "BUTTON", "neru-fixture-enabled", child,
+		image.Pt(10, 60), fixtureControlSize*3, fixtureControlSize, window)
+	createFixtureWindow(t, "BUTTON", "neru-fixture-disabled", child|fixtureDisabled,
+		image.Pt(10, 110), fixtureControlSize*3, fixtureControlSize, window)
+
+	opts := DefaultTreeOptions(zap.NewNop())
+	opts.SetRoles(map[string]struct{}{uiaControlButton: {}, uiaControlEdit: {}})
+
+	ctx, cancel := context.WithTimeout(context.Background(), fixtureDeadline)
+	defer cancel()
+
+	tree, err := BuildTree(ctx, &Element{hwnd: window}, opts)
+	if err != nil {
+		t.Fatalf("BuildTree failed: %v", err)
+	}
+
+	var editValues []string
+
+	enabled := map[string]bool{}
+
+	for _, hint := range ProcessClickableNodes(tree, config.HintsConfig{}) {
+		info := hint.Info()
+
+		switch info.Role() {
+		case uiaControlEdit:
+			editValues = append(editValues, info.Value())
+		case uiaControlButton:
+			enabled[info.Title()] = info.IsEnabled()
+		}
+	}
+
+	if len(editValues) != 1 || editValues[0] != "neru-fixture-edit-text" {
+		t.Errorf("edit values = %q, want the edit's text", editValues)
+	}
+
+	if state, ok := enabled["neru-fixture-enabled"]; !ok || !state {
+		t.Errorf("enabled button: reported %v, enabled %v, want reported and enabled", ok, state)
+	}
+
+	if state, ok := enabled["neru-fixture-disabled"]; !ok || state {
+		t.Errorf("disabled button: reported %v, enabled %v, want reported and disabled", ok, state)
+	}
 }

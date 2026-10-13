@@ -39,6 +39,7 @@ const (
 
 	atspiAccessibleIfc = "org.a11y.atspi.Accessible"
 	atspiComponentIfc  = "org.a11y.atspi.Component"
+	atspiTextIfc       = "org.a11y.atspi.Text"
 
 	// ATSPI_COORD_TYPE_SCREEN: extents relative to the screen origin.
 	atspiCoordScreen = uint32(0)
@@ -655,11 +656,15 @@ func (c *Client) materializeMatch(
 		return nil
 	}
 
+	title, description, value := c.nodeTexts(ctx, conn, ref, roleName)
+
 	return &atspiNode{
-		id:    string(ref.Path) + "@" + ref.Name,
-		role:  roleName,
-		title: c.name(ctx, conn, ref),
-		rect:  rect.Add(image.Pt(offX, offY)),
+		id:          string(ref.Path) + "@" + ref.Name,
+		role:        roleName,
+		title:       title,
+		description: description,
+		value:       value,
+		rect:        rect.Add(image.Pt(offX, offY)),
 	}
 }
 
@@ -733,10 +738,65 @@ func (c *Client) name(ctx context.Context, conn *dbus.Conn, ref accRef) string {
 	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
 	defer cancel()
 
+	return c.propertyString(ctx, conn.Object(ref.Name, ref.Path).
+		GoWithContext(callCtx, atspiPropertiesGet, 0, nil, atspiAccessibleIfc, "Name"))
+}
+
+// atspiValueRoles are the roles whose text content becomes the element's
+// value, as AXValue does on macOS. They are the fields a user types into, and
+// effectiveRole reads GTK 3's editable text as one of them. That includes a
+// multi-line text view, whose whole buffer becomes the value, as macOS reads a
+// text area's whole AXValue. The list leaves out password text so a password
+// never leaves the app.
+var atspiValueRoles = map[string]struct{}{atspiRoleEntry: {}, "spin button": {}}
+
+// nodeTexts reads an accessible's name, its description and, for a role in
+// atspiValueRoles, its text content. It sends the reads together and godbus
+// multiplexes them over the one connection, so reading the extra text adds no
+// round trip over reading the name alone.
+func (c *Client) nodeTexts(
+	ctx context.Context,
+	conn *dbus.Conn,
+	ref accRef,
+	roleName string,
+) (string, string, string) {
+	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
+	obj := conn.Object(ref.Name, ref.Path)
+	nameCall := obj.GoWithContext(callCtx, atspiPropertiesGet, 0, nil, atspiAccessibleIfc, "Name")
+	descriptionCall := obj.GoWithContext(callCtx, atspiPropertiesGet, 0, nil,
+		atspiAccessibleIfc, "Description")
+
+	var valueCall *dbus.Call
+	if _, ok := atspiValueRoles[roleName]; ok {
+		valueCall = obj.GoWithContext(callCtx, atspiTextIfc+".GetText", 0, nil, int32(0), int32(-1))
+	}
+
+	name := c.propertyString(ctx, nameCall)
+	description := c.propertyString(ctx, descriptionCall)
+
+	value := ""
+	if valueCall != nil {
+		<-valueCall.Done
+
+		err := valueCall.Store(&value)
+		if err != nil {
+			c.noteCallErr(ctx, err)
+		}
+	}
+
+	return name, description, value
+}
+
+// propertyString waits for a Properties.Get call and returns its string, or
+// "" when the read failed or the property is not a string.
+func (c *Client) propertyString(ctx context.Context, call *dbus.Call) string {
+	<-call.Done
+
 	var val dbus.Variant
 
-	err := conn.Object(ref.Name, ref.Path).
-		CallWithContext(callCtx, atspiPropertiesGet, 0, atspiAccessibleIfc, "Name").Store(&val)
+	err := call.Store(&val)
 	if err != nil {
 		c.noteCallErr(ctx, err)
 
@@ -877,11 +937,14 @@ func (c *Client) walk(
 			// AT-SPI reports window-relative coords on Wayland; offset by the
 			// focused window's screen origin from the KWin bridge.
 			rect = rect.Add(image.Pt(offX, offY))
+			title, description, value := c.nodeTexts(ctx, conn, ref, roleName)
 			*out = append(*out, &atspiNode{
-				id:    string(ref.Path) + "@" + ref.Name,
-				role:  roleName,
-				title: c.name(ctx, conn, ref),
-				rect:  rect,
+				id:          string(ref.Path) + "@" + ref.Name,
+				role:        roleName,
+				title:       title,
+				description: description,
+				value:       value,
+				rect:        rect,
 			})
 		}
 	}
