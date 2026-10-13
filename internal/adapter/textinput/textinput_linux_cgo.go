@@ -43,7 +43,7 @@ const (
 // stream.
 //
 // The handler calls Start and Stop holding its lock, so h.mu comes before
-// TextInput.mu. Start waits at most 250 ms for a field to open: the Wayland
+// TextInput.mu. Start waits at most 250 ms for a field to open. The Wayland
 // field bounds its compositor round trips (NERU_TEXT_FIELD_OPEN_TIMEOUT_MS),
 // and the X11 field opens on a goroutine of its own, since its input method
 // answers with no timeout. Stop waits at most fieldStopWait, because closing

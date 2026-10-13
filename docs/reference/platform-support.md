@@ -91,11 +91,12 @@ through XIM on X11, so `XMODIFIERS` has to name one, as it does for any X
 application. KDE has the protocols the field needs, but it has not been tested
 there. On Windows, search opens a text field too when Windows lets Neru take
 the foreground, and reads raw keys when it does not. GNOME has no layer shell,
-so search reads raw keys there: dead keys and input-method composition do not
+so search reads raw keys there. Dead keys and input-method composition do not
 work, and shifted symbols such as `!` are dropped, because the raw key does
 not say which symbol the layout puts there. `neru doctor` reports the native
-search field as a stub on GNOME and on Linux builds without cgo. It does not report a field that failed to open on one
-search, such as when Windows refused the foreground.
+search field as a stub on GNOME and on Linux builds without cgo. It does not
+report a field that failed to open on one search, such as when Windows refused
+the foreground.
 
 ⁴ **Modified clicks on Wayland** need a writable `/dev/uinput`, see
 [Linux setup](../guide/linux.md#setup-steps).

@@ -16,7 +16,7 @@
 #define NERU_X11_TEXT_FIELD_MAX_QUERY 1024
 
 // NERU_X11_TEXT_FIELD_MAP_TIMEOUT_MS bounds the wait for the window to map.
-// The caller bounds the whole open as well; this only keeps prepare from
+// The caller bounds the whole open as well. This only keeps prepare from
 // waiting on a server that never maps the window.
 #define NERU_X11_TEXT_FIELD_MAP_TIMEOUT_MS 250
 
@@ -177,7 +177,7 @@ NeruX11TextField *neru_x11_text_field_prepare(int x, int y, int width, int heigh
 	}
 	field->tolerated = neru_x11_error_tolerate(field->display);
 
-	// One pixel at the bottom-left corner of the box: the window has to be
+	// One pixel at the bottom-left corner of the box. The window has to be
 	// mapped to hold the focus, and an input method places its candidates next
 	// to it.
 	XSetWindowAttributes attributes = {0};
@@ -243,7 +243,7 @@ static void neru_x11_text_field_key(NeruX11TextField *field, XKeyEvent *key) {
 
 	if (field->ic) {
 		length = Xutf8LookupString(field->ic, key, text, sizeof(buffer) - 1, &keysym, &status);
-		// A long input-method commit does not fit: ask again with room for it.
+		// A long input-method commit does not fit, so ask again with room for it.
 		if (status == XBufferOverflow) {
 			text = malloc(length + 1);
 			if (!text) {
