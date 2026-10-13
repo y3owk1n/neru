@@ -6,6 +6,7 @@ import (
 	"context"
 	"image"
 	"runtime"
+	"slices"
 	"testing"
 	"time"
 	"unsafe"
@@ -44,6 +45,7 @@ const (
 	fixtureChild       = 0x40000000
 	fixtureCheckBox    = 0x2
 	fixtureDisabled    = 0x08000000
+	fixturePassword    = 0x20
 	fixtureWindowSize  = 320
 	fixtureControlSize = 40
 
@@ -168,7 +170,7 @@ func TestBuildTree_ReportsControlsNestedBelowTheWindow(t *testing.T) {
 	t.Logf("built tree with %d hints in %v", len(hints), time.Since(started))
 }
 
-func TestBuildTree_ReportsEditValueAndDisabledState(t *testing.T) {
+func TestBuildTree_ReportsEditValueAndDisabledStateButNoPassword(t *testing.T) {
 	runtime.LockOSThread()
 
 	defer runtime.UnlockOSThread()
@@ -185,6 +187,8 @@ func TestBuildTree_ReportsEditValueAndDisabledState(t *testing.T) {
 		image.Pt(10, 60), fixtureControlSize*3, fixtureControlSize, window)
 	createFixtureWindow(t, "BUTTON", "neru-fixture-disabled", child|fixtureDisabled,
 		image.Pt(10, 110), fixtureControlSize*3, fixtureControlSize, window)
+	createFixtureWindow(t, "EDIT", "neru-fixture-password", child|fixturePassword,
+		image.Pt(10, 160), fixtureControlSize*3, fixtureControlSize, window)
 
 	opts := DefaultTreeOptions(zap.NewNop())
 	opts.SetRoles(map[string]struct{}{uiaControlButton: {}, uiaControlEdit: {}})
@@ -212,8 +216,14 @@ func TestBuildTree_ReportsEditValueAndDisabledState(t *testing.T) {
 		}
 	}
 
-	if len(editValues) != 1 || editValues[0] != "neru-fixture-edit-text" {
-		t.Errorf("edit values = %q, want the edit's text", editValues)
+	// A Win32 edit takes its UIA name from a neighboring label, so the two
+	// edits are told apart by their values: the plain edit reports its text
+	// and the password edit reports none.
+	slices.Sort(editValues)
+
+	if !slices.Equal(editValues, []string{"", "neru-fixture-edit-text"}) {
+		t.Errorf("edit values = %q, want the plain edit's text and an empty password value",
+			editValues)
 	}
 
 	if state, ok := enabled["neru-fixture-enabled"]; !ok || !state {
