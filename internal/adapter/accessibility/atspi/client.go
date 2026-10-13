@@ -56,9 +56,9 @@ const (
 	// (one bit per state/role index).
 	atspiBitsPerWord = 32
 
-	// Walk bounds to keep D-Bus traffic sane on large trees. The depth bound is
-	// hints.max_depth, and atspiWalkDepthCeiling stands in for it when that is
-	// unlimited, so an app whose tree cycles cannot hold the walk forever.
+	// Walk bounds that keep D-Bus traffic down on large trees. hints.max_depth
+	// bounds the depth. When it is 0 (unlimited), atspiWalkDepthCeiling bounds
+	// it instead, so the walk ends in an app whose accessibility tree loops.
 	atspiMaxNodes         = 2000
 	atspiWalkDepthCeiling = 256
 
@@ -498,8 +498,8 @@ func (c *Client) scan(
 ) ([]ax.Node, string, int) {
 	// Fast path: a single Collection.GetMatches call instead of the per-node
 	// walk. Falls back to the walk when the toolkit doesn't implement Collection.
-	// Collection matches the whole subtree with no notion of depth, so a limit
-	// below the default, which asks to read less of the tree, goes to the walk.
+	// Collection matches the whole subtree and cannot stop at a depth, so a
+	// limit below the default goes to the walk.
 	if depth == 0 || depth >= config.DefaultMaxDepth {
 		nodes, ok := c.collectViaCollection(ctx, conn, root, roles, offset.X, offset.Y, readState)
 		if ok {
@@ -519,8 +519,8 @@ func (c *Client) scan(
 	return out, scanPathWalk, visited
 }
 
-// treeDepth returns the deepest level a scan reads, 0 for unlimited: maxDepth
-// when the caller sets one, else hints.max_depth.
+// treeDepth returns the deepest level a scan reads, or 0 for unlimited. That
+// is maxDepth when the caller sets one, and hints.max_depth otherwise.
 func (c *Client) treeDepth(maxDepth int) int {
 	if maxDepth > 0 {
 		return maxDepth

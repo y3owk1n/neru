@@ -338,9 +338,8 @@ func enumerateClickableElements(hwnd uintptr, opts enumerateOptions) []winElemen
 
 	var controls []winElement
 
-	// FindAll matches the whole subtree with no notion of depth, so a limit
-	// below the default, which asks to read less of the tree, goes to the
-	// walker.
+	// FindAll matches the whole subtree and cannot stop at a depth, so a
+	// limit below the default goes to the walker.
 	if opts.maxDepth == 0 || opts.maxDepth >= config.DefaultMaxDepth {
 		controls = findAllControls(root, condition, cache, opts.frame, keptRoles, opts.readState)
 	} else {
@@ -384,9 +383,9 @@ func findAllControls(
 }
 
 // walkControls returns the clickable controls no deeper than maxDepth below
-// root, the window's children being depth one as on macOS. It walks the
-// control view one element at a time, a round trip per element, which is the
-// price of a limit FindAll cannot take.
+// root. The window's children are depth one, as on macOS. It walks the
+// control view one element at a time, with one round trip per element,
+// because FindAll cannot stop at a depth.
 func walkControls(
 	automation, root, cache unsafe.Pointer,
 	maxDepth int,

@@ -330,8 +330,8 @@ func TestClient_Scan_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 
 	child := fixtureChild(app.Names()[0])
 
-	// Each button sits one level below the last: depth 1, 2 and 3 under the
-	// frame, the way darwin counts the window's children as depth 1.
+	// The buttons sit at depth 1, 2 and 3 under the frame. Darwin also counts
+	// the window's children as depth 1.
 	inner := child("inner", "panel", atspiStateShowing)
 	inner.children = []*fakeAccessible{
 		child(depth3, "push button", atspiStateShowing, atspiStateEnabled),
