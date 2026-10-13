@@ -1,4 +1,4 @@
-//go:build !darwin
+//go:build !darwin && !linux
 
 package textinput
 
@@ -10,16 +10,16 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// TextInput is the non-darwin slot for the native hint-search field. Only macOS
-// has a native implementation (an NSTextField overlay); everywhere else hint
-// search reads the event tap's key stream instead.
+// TextInput is the slot for platforms with no native hint-search field,
+// Windows among them. Hint search reads the event tap's key stream there
+// instead.
 //
 // The started == false return — rather than a CodeNotSupported error — is the
 // contract here: TextInputPort.StartHintSearchSession is defined as
 // best-effort, and callers already branch on started to pick the key-stream
 // path. Reporting an error would make an expected degrade look like a failure.
 // The unavailability is instead surfaced through the text_input entry in
-// ports.PlatformCapabilities, which reports stub off macOS.
+// ports.PlatformCapabilities, which reports stub here.
 type TextInput struct {
 	logger *zap.Logger
 }

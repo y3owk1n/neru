@@ -46,7 +46,7 @@ func DarwinCapabilities() PlatformCapabilities {
 			"system dark mode detection available via Cocoa appearance APIs",
 		),
 		TextInput: supportedCapability(
-			"native hint-search field available via an NSTextField overlay",
+			"native hint-search field available via a text view in a key panel",
 		),
 		Vision: supportedCapability(
 			"OCR element detection available via the Vision framework and ScreenCaptureKit",
@@ -125,15 +125,14 @@ func LinuxCapabilities() PlatformCapabilities {
 		DarkModeDetection: supportedCapability(
 			"dark mode detection via freedesktop appearance portal (Settings.Read), with kdeglobals fallback",
 		),
-		// What is a stub here is the *field*: no Linux text control owns
-		// keyboard focus for hint search, so the characters come from the event
-		// tap and an input method never sees them. The query is on screen —
-		// the overlay draws the badge — which is why the detail says so rather
-		// than leaving "not implemented" to imply nothing appears.
-		TextInput: stubCapability(
-			"no native hint-search field: the query is read from the event tap's " +
-				"key stream, so dead keys and IME composition do not reach it; " +
-				"the overlay draws the search badge",
+		// The field is a layer-shell surface, so it exists only where the
+		// compositor offers one. Elsewhere the characters come from the event
+		// tap and an input method never sees them.
+		TextInput: supportedCapability(
+			"native hint-search field on Wayland compositors with a layer shell, " +
+				"taking input-method text through text-input-v3 and dead keys " +
+				"through xkb compose; on X11 and GNOME the query is read from the " +
+				"event tap's key stream",
 		),
 		// Both halves are implemented on every backend: capture through
 		// wlr-screencopy, XGetImage or the portal's ScreenCast session,

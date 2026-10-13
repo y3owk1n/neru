@@ -52,7 +52,7 @@ func requireDesktop(t *testing.T) {
 }
 
 // TestTextInput_StartThenStop exercises a full session against the real
-// NSTextField overlay.
+// text view in its key panel.
 func TestTextInput_StartThenStop(t *testing.T) {
 	requireDesktop(t)
 
