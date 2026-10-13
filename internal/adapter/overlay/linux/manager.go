@@ -481,12 +481,11 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 
 // DrawHintSearchInput paints the hints search badge on the active backend.
 //
-// It is a display and nothing more: the query arrives as an argument, having
-// been read from the event tap's key stream and held by the mode handler, and
-// no key reaches this surface. That is the whole difference from the macOS
-// implementation, where the field is a real NSTextField that owns keyboard
-// focus — here there is one owner of the query string and it is not the
-// overlay.
+// It is a display and nothing more: the query arrives as an argument, held by
+// the mode handler, and no key reaches this surface. The keys go to the event
+// tap or, on Wayland compositors with a layer shell, to the separate
+// hint-search field in the textinput adapter. There is one owner of the query
+// string and it is not the overlay.
 //
 // Nothing is cleared first. The badge is painted over the hints the same draw
 // cycle just put on the surface, the way an indicator badge is, because a

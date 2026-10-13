@@ -125,6 +125,18 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 		capabilities.AppWatcher = gnomeAppWatcherCapability()
 	}
 
+	// The hint-search field is a layer-shell surface built with cgo, so a
+	// session or build without either reads the search from the key stream.
+	if !nativeBackendsCompiledIn || s.backend == backendX11 || s.backend == backendWaylandGNOME ||
+		s.backend == backendUnknown {
+		capabilities.TextInput = ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: "no native hint-search field in this session: the query is read from " +
+				"the event tap's key stream, so dead keys and input-method composition " +
+				"do not reach it",
+		}
+	}
+
 	capabilities.Screen = s.probedCapability("screen enumeration", capabilities.Screen,
 		func() error {
 			_, err := s.ScreenBounds(context.Background())

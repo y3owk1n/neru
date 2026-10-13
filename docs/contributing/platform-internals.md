@@ -63,7 +63,7 @@ the footnotes below give the mechanism behind its limits.
 | **Secure input detection**    | private macOS API     | always false        | always false              | always false         | always false              |
 | **System cursor hide**        | `CGDisplayHideCursor` | none                | none                      | none                 | none                      |
 | **`monitor_select` mode**     | native panels         | Cairo panels        | Cairo panels              | Cairo panels         | layered panels            |
-| **Native hint-search field**  | NSTextField overlay   | key-stream input ⁴  | key-stream input ⁴        | key-stream input ⁴   | `EDIT` control in a tool window ⁴ |
+| **Native hint-search field**  | text view in a key panel | key-stream input ⁴  | layer-shell field ⁴       | layer-shell field ⁴  | `EDIT` control in a tool window ⁴ |
 | **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁵ | `BitBlt` ⁵        |
 | **Vision / OCR detection**    | Vision framework      | tesseract and contour ⁶ | tesseract and contour ⁶ | tesseract and contour ⁶ | `Windows.Media.Ocr` and contour ⁶ |
 | **Key feed (`action feed`)** | `CGEventPost`         | uinput               | uinput / virtual-keyboard | uinput               | `SendInput`               |
@@ -87,15 +87,19 @@ wlroots and libei send fractional deltas, Windows sends 120ths of a notch, and
 X11 sends whole notches. Linux notch paths use 30 px per notch, rounded, at
 least one.
 
-⁴ **Native hint-search field.** macOS draws an `NSTextField` with keyboard
-focus and the system input method. Windows places a standard `EDIT` control in
-a nearly transparent tool window over the search box, which gets input-method
-text through IMM and dead keys through `TranslateMessage`. The keyboard hook is
-off for the session. Windows lets a background process take the foreground
-only in some cases, so the field joins the foreground window's input queue for
-the request and falls back to the key stream when it is still refused. Losing
-the foreground cancels the search. Elsewhere the query is read from the key
-stream.
+⁴ **Native hint-search field.** macOS places an `NSTextView` in an invisible
+key panel over the search box, which the input method types into. On Wayland a
+transparent layer-shell surface over the box takes the keyboard, with
+`zwp_text_input_v3` for input-method text and xkb compose for dead keys. The
+event tap is off for the session, so the evdev proxy forwards keys to the
+compositor as it does when Neru is idle. Windows places a standard `EDIT`
+control in a nearly transparent tool window over the search box, which gets
+input-method text through IMM and dead keys through `TranslateMessage`. The
+keyboard hook is off for the session. Windows lets a background process take
+the foreground only in some cases, so the field joins the foreground window's
+input queue for the request and falls back to the key stream when it is still
+refused. Losing the foreground cancels the search. On X11, and on GNOME, which
+has no layer shell, the query is read from the key stream.
 
 ⁵ **Screen capture.** X11, wlroots and Windows capture without a prompt. KWin
 supports neither protocol, so KDE uses the `org.freedesktop.portal.ScreenCast`

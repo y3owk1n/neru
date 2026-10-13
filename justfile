@@ -875,6 +875,7 @@ fetch-protocols:
     curl -fsSL "https://gitlab.freedesktop.org/wlroots/wlr-protocols/-/raw/master/unstable/wlr-foreign-toplevel-management-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/wlr-foreign-toplevel-management-unstable-v1.xml
     curl -fsSL "https://gitlab.freedesktop.org/wlroots/wlr-protocols/-/raw/master/unstable/wlr-screencopy-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/wlr-screencopy-unstable-v1.xml
     curl -fsSL "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/master/stable/viewporter/viewporter.xml" -o {{ PROTOCOL_DIR }}/viewporter.xml
+    curl -fsSL "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/main/unstable/text-input/text-input-unstable-v3.xml" -o {{ PROTOCOL_DIR }}/text-input-unstable-v3.xml
     curl -fsSL "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/master/staging/fractional-scale/fractional-scale-v1.xml" -o {{ PROTOCOL_DIR }}/fractional-scale-v1.xml
     curl -fsSL "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/main/staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml" -o {{ PROTOCOL_DIR }}/ext-foreign-toplevel-list-v1.xml
     curl -fsSL "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/main/staging/ext-workspace/ext-workspace-v1.xml" -o {{ PROTOCOL_DIR }}/ext-workspace-v1.xml
@@ -923,6 +924,10 @@ generate-protocols:
     # viewporter (stable) — maps an over-rendered buffer down to logical size for fractional scaling
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/viewporter.xml > {{ WLR_PROTOCOL_DIR }}/viewporter.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/viewporter.xml > {{ WLR_PROTOCOL_DIR }}/viewporter.c
+
+    # text-input-v3 (unstable) — input-method text for the hint-search field
+    wayland-scanner client-header < {{ PROTOCOL_DIR }}/text-input-unstable-v3.xml > {{ WLR_PROTOCOL_DIR }}/text-input-v3.h
+    wayland-scanner private-code < {{ PROTOCOL_DIR }}/text-input-unstable-v3.xml > {{ WLR_PROTOCOL_DIR }}/text-input-v3.c
 
     # fractional-scale (staging) — compositor's preferred per-surface fractional scale
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/fractional-scale-v1.xml > {{ WLR_PROTOCOL_DIR }}/fractional-scale-v1.h

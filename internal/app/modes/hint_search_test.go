@@ -245,37 +245,6 @@ func TestHintsModeRefreshForThemeChange_RedrawsAnOpenSearchBox(t *testing.T) {
 	}
 }
 
-// TestHandleSearchInputKey_KeepsShiftedLettersAndSpaces pins the query text
-// itself, which matching cannot: search ignores case, so a capital typed as
-// "Shift+c" and kept as "c" would still find the same elements. The Linux and
-// Windows taps name a key typed with Shift held this way.
-func TestHandleSearchInputKey_KeepsShiftedLettersAndSpaces(t *testing.T) {
-	t.Parallel()
-
-	overlayPort := &portmocks.MockOverlayPort{
-		HintSearchBoundsFunc: func(image.Rectangle) image.Rectangle { return image.Rectangle{} },
-	}
-
-	handler := newHintSearchTestHandler(t, overlayPort, &portmocks.MockTextInputPort{})
-
-	handler.mu.Lock()
-	defer handler.mu.Unlock()
-
-	err := handler.startHintSearch()
-	if err != nil {
-		t.Fatalf("startHintSearch() error = %v", err)
-	}
-
-	for _, key := range []string{"Shift+c", "a", "Shift+Space", "shift+b", "Shift+1"} {
-		handler.handleSearchInputKey(key)
-	}
-
-	// The shifted symbol depends on the layout, so it stays dropped.
-	if got := handler.hints.Context.SearchQuery(); got != "Ca B" {
-		t.Errorf("query = %q, want %q", got, "Ca B")
-	}
-}
-
 // TestStartHintSearch_IgnoresCallbacksFromAStoppedSession pins the session
 // token. A platform field can queue a callback just before it stops, and that
 // callback runs once the handler lock is free, possibly after a new search
@@ -324,6 +293,37 @@ func TestStartHintSearch_IgnoresCallbacksFromAStoppedSession(t *testing.T) {
 
 	if got := handler.hints.Context.SearchQuery(); got != "new" {
 		t.Errorf("query = %q, want %q", got, "new")
+	}
+}
+
+// TestHandleSearchInputKey_KeepsShiftedLettersAndSpaces pins the query text
+// itself, which matching cannot: search ignores case, so a capital typed as
+// "Shift+c" and kept as "c" would still find the same elements. The Linux and
+// Windows taps name a key typed with Shift held this way.
+func TestHandleSearchInputKey_KeepsShiftedLettersAndSpaces(t *testing.T) {
+	t.Parallel()
+
+	overlayPort := &portmocks.MockOverlayPort{
+		HintSearchBoundsFunc: func(image.Rectangle) image.Rectangle { return image.Rectangle{} },
+	}
+
+	handler := newHintSearchTestHandler(t, overlayPort, &portmocks.MockTextInputPort{})
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	err := handler.startHintSearch()
+	if err != nil {
+		t.Fatalf("startHintSearch() error = %v", err)
+	}
+
+	for _, key := range []string{"Shift+c", "a", "Shift+Space", "shift+b", "Shift+1"} {
+		handler.handleSearchInputKey(key)
+	}
+
+	// The shifted symbol depends on the layout, so it stays dropped.
+	if got := handler.hints.Context.SearchQuery(); got != "Ca B" {
+		t.Errorf("query = %q, want %q", got, "Ca B")
 	}
 }
 
