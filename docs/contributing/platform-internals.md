@@ -65,7 +65,7 @@ the footnotes below give the mechanism behind its limits.
 | **`monitor_select` mode**     | native panels         | Cairo panels        | Cairo panels              | Cairo panels         | layered panels            |
 | **Native hint-search field**  | NSTextField overlay   | key-stream input ⁴  | key-stream input ⁴        | key-stream input ⁴   | key-stream input ⁴        |
 | **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁵ | `BitBlt` ⁵        |
-| **Vision / OCR detection**    | Vision framework      | tesseract, text only ⁶ | tesseract, text only ⁶ | tesseract, text only ⁶ | `Windows.Media.Ocr`, text only ⁶ |
+| **Vision / OCR detection**    | Vision framework      | tesseract and contour ⁶ | tesseract and contour ⁶ | tesseract and contour ⁶ | `Windows.Media.Ocr` and contour ⁶ |
 | **Key feed (`action feed`)** | `CGEventPost`         | uinput               | uinput / virtual-keyboard | uinput               | `SendInput`               |
 | **Service management (`neru services`)** | launchd user agent | systemd user unit only ² | systemd user unit only ² | systemd user unit only ² | Task Scheduler logon task |
 
@@ -101,8 +101,9 @@ physical pixels, as on Retina.
 ⁶ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing
 `eng.traineddata` gets `ERR_NOT_SUPPORTED` naming that file. Windows uses
-`Windows.Media.Ocr`, which reports no per-word confidence. Neither reports
-rectangles. Recognized text is never logged or stored.
+`Windows.Media.Ocr`, which reports no per-word confidence. On both, the
+contour detector finds rectangles in the same frame, with its shipped
+thresholds. Recognized text is never logged or stored.
 
 ⁷ **Modifiers on injected input.** On X11, Wayland and Windows, an injected
 pointer event carries whatever modifiers the keyboard holds, so a chord still
@@ -233,7 +234,7 @@ load, and `neru doctor` lists it under `platform_support`.
 | **Backend**             | AXUIElement                                 | AT-SPI over D-Bus                                  | UI Automation                        |
 | **Traversal**           | Full recursive walk of the accessibility tree, to `hints.max_depth` | One Collection query of the active window at the default or unlimited `hints.max_depth`, a recursive walk to it below the default, or when the toolkit lacks Collection, node capped | One `FindAll` of the control view at the default or unlimited `hints.max_depth`, a control-view walker to it below the default |
 | **Sources collected**   | Frontmost + all windows, popovers, menubar, dock, notification center, Stage Manager, PIP | Active window only          | Foreground window's control view     |
-| **Strategies**          | `axtree` (default), `vision` and `contour`, incl. per-app overrides | `axtree`, `vision` (text only) and `contour` | `axtree`, `vision` (text only) and `contour` |
+| **Strategies**          | `axtree` (default), `vision` and `contour`, incl. per-app overrides | `axtree`, `vision` and `contour` | `axtree`, `vision` and `contour` |
 | **Popovers / menus**    | dedicated detection                      | only if inside the active window                | none                              |
 | **Element text** (title, description, value) | `AXTitle`, `AXDescription`, `AXValue` when it is a string | `Name`, `Description`, and `Text.GetText` for the entry and spin button roles, never password text | `Name`, `HelpText`, and the Value pattern's value, never a password field's |
 | **Disabled elements** | skipped when `AXEnabled` is false | skipped without the ENABLED or SENSITIVE state, since GTK 4 sets only SENSITIVE. The Collection query asks for ENABLED, and GTK 4 has no Collection | skipped when `IsEnabled` is false, before their text is read |
@@ -298,7 +299,7 @@ Mode logic is shared. Only these rows differ, by rendering or element discovery.
 | Mode              | Feature                        | macOS                      | Linux                      | Windows                     |
 | ----------------- | ------------------------------ | -------------------------- | -------------------------- | --------------------------- |
 | **Hints**         | Element discovery              | full AX tree            | AT-SPI, toolkit-dependent | UIA, control view only |
-| **Hints**         | `vision` strategy + per-app overrides | Vision framework, text and rectangles | tesseract; text only, no rectangles | `Windows.Media.Ocr`; text only, no rectangles, no confidence |
+| **Hints**         | `vision` strategy + per-app overrides | Vision framework, text and rectangles | tesseract for text, the contour detector for rectangles | `Windows.Media.Ocr` for text, the contour detector for rectangles, no confidence |
 | **Hints**         | Label arrow / tail             | NSBezierPath            | Cairo triangle          | triangle |
 | **Scroll**        | Smooth scroll animation        | continuous              | continuous (X11: whole notches) | 120ths of a notch |
 | **Monitor select**| Whole mode                     | native panels           | Cairo panels            | one layered window per display |

@@ -510,8 +510,7 @@ without the overlay, use [`neru query hints`](#neru-query).
 Element discovery uses the full accessibility tree on macOS, an AT-SPI walk
 on Linux whose coverage depends on the application, and a cached UI Automation
 walk on Windows. The `vision` strategy is the fallback where the tree is thin.
-It works on every platform, is text-only on Linux and Windows, and needs an
-OCR language pack on Windows. See
+It works on every platform and needs an OCR language pack on Windows. See
 [Accessibility and hints](platform-support.md#notes).
 
 ```bash

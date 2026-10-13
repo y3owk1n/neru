@@ -47,18 +47,18 @@ func TestVisionAdapter_DetectElementsAnswersOnLinux(t *testing.T) {
 	}
 }
 
-// TestVisionAdapter_DetectElementsHonorsDetectTextOff is the one documented
+// TestVisionAdapter_DetectElementsHonorsBothHalvesOff is the one documented
 // "neither" answer, and it is worth pinning precisely because it looks like the
 // failure the rule above forbids.
 //
-// Text is the whole of what this backend detects — rectangle detection has no
-// OCR equivalent and is declared macOS-only — so hints.vision.detect_text = false
-// leaves nothing to run. That is the user's own instruction rather than a
-// failure, so it is an empty result and not an error, and it must come back
-// without capturing the screen first.
-func TestVisionAdapter_DetectElementsHonorsDetectTextOff(t *testing.T) {
+// With hints.vision.detect_text and detect_rectangles both off there is
+// nothing to run. That is the user's own instruction rather than a failure, so
+// it is an empty result and not an error, and it must come back without
+// capturing the screen first.
+func TestVisionAdapter_DetectElementsHonorsBothHalvesOff(t *testing.T) {
 	cfg := config.DefaultConfig().Hints.Vision
 	cfg.DetectText = false
+	cfg.DetectRectangles = false
 
 	elements, err := vision.NewAdapter(nil).DetectElements(
 		context.Background(),
@@ -67,11 +67,11 @@ func TestVisionAdapter_DetectElementsHonorsDetectTextOff(t *testing.T) {
 		false,
 	)
 	if err != nil {
-		t.Fatalf("DetectElements failed with text detection off: %v", err)
+		t.Fatalf("DetectElements failed with both halves off: %v", err)
 	}
 
 	if len(elements) != 0 {
-		t.Errorf("got %d elements with text detection off, want none", len(elements))
+		t.Errorf("got %d elements with both halves off, want none", len(elements))
 	}
 }
 

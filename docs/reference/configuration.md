@@ -696,7 +696,7 @@ some platforms, see
 | `minimum_confidence`               | float | `0.0`   | Minimum confidence (0.0 to 1.0) for keeping an observation                    |
 | `merge_iou_threshold`              | float | `0.5`   | Intersection-over-Union overlap at which boxes merge                          |
 | `rectangle_max_candidates`         | int   | `100`   | Maximum rectangle candidates to evaluate                                      |
-| `rectangle_min_size`               | float | `0.01`  | Minimum rectangle size as a fraction of the captured region (`0.01` is 1%)      |
+| `rectangle_min_size`               | float | `0.01`  | Minimum rectangle size as a fraction of the captured region's shorter side (`0.01` is 1%) |
 | `rectangle_min_aspect`             | float | `0.3`   | Minimum rectangle aspect ratio (width/height)                                 |
 | `rectangle_max_aspect`             | float | `10.0`  | Maximum rectangle aspect ratio (width/height)                                 |
 | `button_min_confidence`            | float | `0.3`   | Minimum confidence for classifying a rectangle as a button                    |

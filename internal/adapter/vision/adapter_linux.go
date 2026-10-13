@@ -22,20 +22,17 @@ import (
 // off the portal's ScreenCast session on KDE) and tesseract through
 // platform/linux/ocr.c.
 //
-// It answers the *text* half of the strategy only. macOS runs three Vision
-// requests — text recognition, rectangle detection and saliency — and an OCR
-// engine answers the first. hints.vision.detect_rectangles and its four
-// rectangle_* companions are declared macOS-only rather than met with a
-// contour-detection library, so Linux `vision` is text-only and says so
-// (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
+// macOS runs Vision's text and rectangle requests. Here tesseract answers the
+// text half and the pure-Go contour detector the rectangle half, both over the
+// one captured frame and at the same time (rectangles.go).
 //
 // Privacy runs through every line below. Recognized text is screen content: it
 // reaches an element's title and search text, where the hint pipeline needs it,
 // and nowhere else. Nothing here logs it, counts characters of it into a
 // message, or writes it anywhere; the debug lines carry durations and counts.
 
-// DetectElements captures screenBounds and returns the text found in it as
-// hintable elements.
+// DetectElements captures screenBounds and returns the text and button shapes
+// found in it as hintable elements.
 //
 // screenBounds is where the caller wants hints — normally the focused window —
 // in global top-left-origin unscaled pixels, and it is honored rather than
@@ -64,11 +61,9 @@ func (a *Adapter) DetectElements(
 		)
 	}
 
-	if !cfg.DetectText {
-		// Text is the whole of what this backend detects, so with
-		// hints.vision.detect_text off there is nothing left to run. Capturing
-		// the screen to find nothing in it would be a plain waste.
-		a.logger.Debug("Vision detection skipped: text detection is disabled")
+	if !cfg.DetectText && !cfg.DetectRectangles {
+		// Capturing the screen to find nothing in it would be a plain waste.
+		a.logger.Debug("Vision detection skipped: text and rectangle detection are disabled")
 
 		return nil, nil
 	}
@@ -78,9 +73,11 @@ func (a *Adapter) DetectElements(
 	// every activation only to be told there is nothing to read it with —
 	// paying for a frame, and taking one, to answer a question about which
 	// packages are installed. After the first call this is a cached handle.
-	engineErr := platformlinux.OCRHealth()
-	if engineErr != nil {
-		return nil, engineErr
+	if cfg.DetectText {
+		engineErr := platformlinux.OCRHealth()
+		if engineErr != nil {
+			return nil, engineErr
+		}
 	}
 
 	img, err := a.captureRegion(ctx, region)
@@ -88,38 +85,44 @@ func (a *Adapter) DetectElements(
 		return nil, err
 	}
 
-	words, stats, err := platformlinux.RecognizeText(img, platformlinux.OCRParams{
-		WordLevel: splitWord,
-		TimeoutMS: cfg.RequestTimeoutMS,
-	})
-	if err != nil {
-		// A refusal already names what to install, and that text reaches the
-		// user as written, so it passes through unchanged.
-		if derrors.IsNotSupported(err) {
-			return nil, err
-		}
+	rectangles := a.startRectangles(ctx, img, region, cfg)
 
-		// The cost and budget tell an early give-up from a timeout. The error
-		// never carries the recognized text.
-		return nil, derrors.Wrapf(
-			err,
-			derrors.GetCode(err),
-			"text recognition failed after %s (budget %d ms, frame %dx%d)",
-			stats.Recognition,
-			cfg.RequestTimeoutMS,
-			img.Rect.Dx(),
-			img.Rect.Dy(),
-		)
-	}
-
-	regions := regionsFromWords(
-		toRecognizedWords(words),
-		region,
-		img.Rect,
-		cfg.MinimumConfidence,
+	var (
+		words []platformlinux.OCRWord
+		stats platformlinux.OCRStats
+		text  []DetectedRegion
 	)
 
-	merged := MergeRegions(regions, cfg.MergeIOUThreshold)
+	if cfg.DetectText {
+		words, stats, err = platformlinux.RecognizeText(img, platformlinux.OCRParams{
+			WordLevel: splitWord,
+			TimeoutMS: cfg.RequestTimeoutMS,
+		})
+		if err != nil {
+			// A refusal already names what to install, and that text reaches the
+			// user as written, so it passes through unchanged.
+			if derrors.IsNotSupported(err) {
+				return nil, err
+			}
+
+			// The cost and budget tell an early give-up from a timeout. The error
+			// never carries the recognized text.
+			return nil, derrors.Wrapf(
+				err,
+				derrors.GetCode(err),
+				"text recognition failed after %s (budget %d ms, frame %dx%d)",
+				stats.Recognition,
+				cfg.RequestTimeoutMS,
+				img.Rect.Dx(),
+				img.Rect.Dy(),
+			)
+		}
+
+		text = regionsFromWords(toRecognizedWords(words), region, img.Rect, cfg.MinimumConfidence)
+	}
+
+	rects := withoutTextOverlap(rectangles(), text, cfg.MergeIOUThreshold)
+	merged := MergeRegions(append(text, rects...), cfg.MergeIOUThreshold)
 
 	classifier := newRegionClassifier(cfg)
 
@@ -130,6 +133,7 @@ func (a *Adapter) DetectElements(
 		zap.Int("frame_width", img.Rect.Dx()),
 		zap.Int("frame_height", img.Rect.Dy()),
 		zap.Int("raw_words", len(words)),
+		zap.Int("rectangles", len(rects)),
 		zap.Int("merged_elements", len(elements)),
 		zap.Int("skipped_regions", skipped),
 		zap.Bool("word_level", splitWord),

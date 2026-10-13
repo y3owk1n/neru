@@ -141,7 +141,9 @@ that promise broken, and the matrix is structurally unable to see it.
   alternative was contour-based rectangle detection, which means a heavy new
   required library for a sub-feature of a strategy that is not the default —
   failing the "every option is a cost" rule twice over. Linux `vision` is
-  text-only and says so. Deferring the decision was the worst of the three
+  text-only and says so. *(Amended: the contour detector later shipped in pure
+  Go and now answers the rectangle half on Linux and Windows. See the amendment
+  at the end.)* Deferring the decision was the worst of the three
   options available, because it leaves five options in exactly the undefined
   state this ADR exists to end.
 - **OCR needs a screen-capture backend that does not exist.** There is no
@@ -321,3 +323,26 @@ Two limits, recorded rather than papered over:
   — there is no Linux latency measurement to gate on. A performance bar with no
   benchmark behind it is the judgment call under a different name. Gating on it
   means building the measurement first.
+
+## Amendment: Rectangle detection ported after all
+
+This ADR declared `detect_rectangles` and the four `rectangle_*` options
+macOS-only, because contour-based rectangle detection meant a heavy new
+required library. The `contour` strategy later shipped as a pure-Go port of
+wl-kbptr's detector, with no new dependency and no cgo. That removed the cost
+the decision rested on, so the five options are now declared on every platform.
+On Linux and Windows the `vision` strategy runs the contour detector over the
+same frame its OCR reads, at the same time.
+
+The two halves differ from macOS in four recorded ways:
+
+- The detector scores nothing, so every rectangle scores one, and the
+  confidence options never filter a rectangle.
+- `rectangle_max_candidates` keeps the largest rectangles, since there is no
+  score to rank by.
+- The rectangle half uses the detector's shipped thresholds. `[hints.contour]`
+  tunes the `contour` strategy only.
+- A rectangle that a recognized word overlaps by at least
+  `merge_iou_threshold` is dropped, so the word keeps its hint and the label
+  hint search matches. Rectangles add hints where OCR found no text, such as
+  icon buttons.

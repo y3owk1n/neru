@@ -41,11 +41,6 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 			parity.Platforms{parity.Darwin},
 		},
 		{
-			"rectangle detection has no OCR answer",
-			"hints.vision.detect_rectangles", "",
-			parity.Platforms{parity.Darwin},
-		},
-		{
 			"Windows.Media.Ocr reports no confidence, so the floor is inert there",
 			visionMinConfidence, "",
 			parity.Platforms{parity.Darwin, parity.Linux},

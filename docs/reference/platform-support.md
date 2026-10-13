@@ -77,10 +77,13 @@ GTK 4 apps, which answer no hit-test. Elsewhere on Linux it drops only
 elements something else in the same window covers. The app answers the hit-test
 itself, so it never sees other windows, on X11 or Wayland.
 
-² **OCR finds text only.** Linux (tesseract) and Windows (`Windows.Media.Ocr`)
-find words but not button shapes, so the `hints.vision.rectangle_*` options do
-nothing there. Windows also needs an OCR language pack, and ignores the
-`*_confidence` options. Neru never logs or stores recognized text.
+² **Text and shapes come from two engines.** Linux (tesseract) and Windows
+(`Windows.Media.Ocr`) read the words, and the `contour` detector finds button
+shapes in the same frame. It uses its shipped thresholds, not
+`[hints.contour]`, and scores every shape one, so the `*_confidence` options
+never drop a shape. Windows also needs an OCR language pack, and ignores the
+`*_confidence` options for words too. Neru never logs or stores recognized
+text.
 
 ³ **Hint search reads raw keys outside macOS**, so dead keys and IME
 composition do not work in the search field. `neru doctor` reports the native
@@ -138,7 +141,6 @@ load, and `neru doctor` lists them under `platform_support`.
 | `hints.detect_mission_control`, `hints.on_mission_control_activated`, `hints.on_mission_control_deactivated`, `hooks.on_mission_control_activated`, `hooks.on_mission_control_deactivated` | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
 | `grid.prewarm_enabled` | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
 | `hints.vision.minimum_confidence`, `hints.vision.button_min_confidence`, `hints.vision.generic_clickable_min_confidence` | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; the Vision framework and tesseract score each word |
-| `hints.vision.detect_rectangles`, `hints.vision.rectangle_max_candidates`, `hints.vision.rectangle_min_size`, `hints.vision.rectangle_min_aspect`, `hints.vision.rectangle_max_aspect` | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
 | `hide_cursor` (action), `show_cursor` (action) | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 
 <!-- END GENERATED PLATFORM SUPPORT -->

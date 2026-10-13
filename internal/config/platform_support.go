@@ -18,8 +18,6 @@ const (
 	noteVisionConfidence = "Windows.Media.Ocr reports no per-word confidence, so every word " +
 		"scores one there and a floor keeps everything; the Vision framework and tesseract " +
 		"score each word"
-	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
-		"even where the vision strategy lands; that half is text-only"
 	noteMacOSSurfaces = "the menu bar, the Dock, Notification Center, Stage Manager, " +
 		"picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart"
 	noteMissionControl = "Mission Control is a macOS concept, so the detection never fires " +
@@ -113,14 +111,6 @@ func PlatformSupport() parity.Declaration {
 			"hints.vision.button_min_confidence",
 			"hints.vision.generic_clickable_min_confidence",
 		),
-		parity.On(parity.KindOption, darwinOnly, noteVisionRectangles,
-			"hints.vision.detect_rectangles",
-			"hints.vision.rectangle_max_candidates",
-			"hints.vision.rectangle_min_size",
-			"hints.vision.rectangle_min_aspect",
-			"hints.vision.rectangle_max_aspect",
-		),
-
 		parity.Everywhere(parity.KindOption,
 			"recursive_grid.animation.enabled",
 			"recursive_grid.animation.duration_ms",
@@ -171,6 +161,11 @@ func PlatformSupport() parity.Declaration {
 		// strategy value itself carries no declaration, like contour.
 		parity.Everywhere(parity.KindOption,
 			"hints.vision.detect_text",
+			"hints.vision.detect_rectangles",
+			"hints.vision.rectangle_max_candidates",
+			"hints.vision.rectangle_min_size",
+			"hints.vision.rectangle_min_aspect",
+			"hints.vision.rectangle_max_aspect",
 			"hints.vision.request_timeout_ms",
 			"hints.vision.merge_iou_threshold",
 			"hints.vision.button_min_aspect",
