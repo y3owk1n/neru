@@ -35,7 +35,9 @@ func openTestTextField(t *testing.T) chan string {
 	return reported
 }
 
-// waitForReport reads the field's reports until want arrives.
+// waitForReport reads the field's reports until want arrives. A cancel it
+// was not waiting for fails the test, since a stray one would close the
+// search.
 func waitForReport(t *testing.T, reported <-chan string, want string) {
 	t.Helper()
 
@@ -49,6 +51,10 @@ func waitForReport(t *testing.T, reported <-chan string, want string) {
 			seen = append(seen, report)
 			if report == want {
 				return
+			}
+
+			if report == "cancel" {
+				t.Fatalf("the field canceled while waiting for %q, saw %v", want, seen)
 			}
 		case <-deadline:
 			t.Fatalf("never saw %q, saw %v", want, seen)

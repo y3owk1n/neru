@@ -146,8 +146,8 @@ func OpenTextField(bounds image.Rectangle, events TextFieldEvents) (*TextField, 
 	}
 }
 
-// Close destroys the field and gives the foreground back to the window the
-// user was in, unless they moved to another one. It waits for the field's
+// Close destroys the field, which gives the foreground back to the window the
+// user was in unless they moved to another one. It waits for the field's
 // thread for at most textFieldWait. No event fires after it returns.
 func (f *TextField) Close() {
 	if !f.closing.Swap(true) {
@@ -158,11 +158,6 @@ func (f *TextField) Close() {
 	case <-f.done:
 	case <-time.After(textFieldWait):
 		// The thread ends once Windows lets it, and nothing waits for it.
-		return
-	}
-
-	if f.previous != 0 && !f.lostForeground.Load() {
-		discardCall(procFieldSetForegroundWindow.Call(uintptr(f.previous)))
 	}
 }
 
@@ -267,7 +262,15 @@ func (f *TextField) create(bounds image.Rectangle) error {
 	}
 
 	f.edit = edit
-	f.editProc, _, _ = procFieldSetWindowLongPtrW.Call(edit, gwlpWndProc, textFieldEditProcPtr())
+
+	f.editProc, _, callErr = procFieldSetWindowLongPtrW.Call(
+		edit,
+		gwlpWndProc,
+		textFieldEditProcPtr(),
+	)
+	if f.editProc == 0 {
+		return fmt.Errorf("SetWindowLongPtrW: %w", callErr)
+	}
 
 	discardCall(procShowWindow.Call(hwnd, swShow))
 
@@ -339,6 +342,14 @@ func textFieldWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uint
 				}
 			}
 		case wmClose:
+			// Hand the foreground back while the field still holds it, which
+			// is when Windows allows it. A user who clicked into another
+			// window keeps that one.
+			if field.previous != 0 && !field.lostForeground.Load() &&
+				windows.GetForegroundWindow() == windows.HWND(hwnd) {
+				discardCall(procFieldSetForegroundWindow.Call(uintptr(field.previous)))
+			}
+
 			discardCall(procDestroyWindow.Call(hwnd))
 
 			return 0
