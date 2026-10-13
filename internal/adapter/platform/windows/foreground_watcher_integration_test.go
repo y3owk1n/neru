@@ -26,7 +26,6 @@ var procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
 
 const (
 	wsOverlappedWindow = 0x00CF0000
-	wsVisible          = 0x10000000
 	cwUseDefault       = 0x80000000
 	testWindowSize     = 200
 )
