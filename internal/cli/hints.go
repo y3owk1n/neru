@@ -32,12 +32,13 @@ var HintsCmd = BuildModeCommand(ModeConfig{
 
   Use --strategy vision to detect elements by recognizing what is on screen
   instead of walking the accessibility tree — the Vision framework on macOS,
-  tesseract OCR on Linux, where it finds text only. Not available on Windows.
+  tesseract OCR on Linux and Windows.Media.Ocr on Windows, with button shapes
+  from the contour detector on both.
 
   Use --strategy contour to detect interactive targets (buttons, icons,
   text) by edge and contour analysis of the focused window's pixels, an
   algorithm ported from wl-kbptr. Faster than vision and needs no OCR engine,
-  but yields no text to search. Not available on Windows.
+  but yields no text to search.
 
   Both capture strategies scan the focused window. Use --capture-scope screen
   to scan the whole active screen instead, so notifications, panels and

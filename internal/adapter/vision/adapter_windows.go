@@ -82,7 +82,11 @@ func (a *Adapter) DetectElements(
 		return nil, err
 	}
 
-	rectangles := a.startRectangles(ctx, img, region, cfg)
+	// Canceling on return stops the rectangle pass when the text half fails.
+	rectCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	rectangles := a.startRectangles(rectCtx, img, region, cfg)
 
 	var (
 		words []platformwindows.OCRWord

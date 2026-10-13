@@ -154,3 +154,27 @@ func TestVisionAdapter_DetectionRefusesAnEmptyRegion(t *testing.T) {
 		t.Error("DetectElements returned elements alongside its error")
 	}
 }
+
+// TestVisionAdapter_DetectionHonorsBothHalvesOff pins the one documented
+// "neither" answer. With hints.vision.detect_text and detect_rectangles both
+// off there is nothing to run, which is the user's own instruction rather than
+// a failure, so it is an empty result and not an error.
+func TestVisionAdapter_DetectionHonorsBothHalvesOff(t *testing.T) {
+	cfg := config.DefaultConfig().Hints.Vision
+	cfg.DetectText = false
+	cfg.DetectRectangles = false
+
+	elements, err := vision.NewAdapter(nil).DetectElements(
+		context.Background(),
+		image.Rect(0, 0, 100, 100),
+		cfg,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("DetectElements failed with both halves off: %v", err)
+	}
+
+	if len(elements) != 0 {
+		t.Errorf("got %d elements with both halves off, want none", len(elements))
+	}
+}

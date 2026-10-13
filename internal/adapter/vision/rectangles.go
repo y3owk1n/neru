@@ -1,5 +1,3 @@
-//go:build linux || windows
-
 package vision
 
 import (

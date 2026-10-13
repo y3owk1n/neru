@@ -1,5 +1,3 @@
-//go:build linux || windows
-
 package vision
 
 import (
@@ -9,6 +7,8 @@ import (
 	"image/draw"
 	"slices"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
 )
@@ -129,6 +129,36 @@ func TestWithoutTextOverlap(t *testing.T) {
 
 			if got := len(kept) == 1; got != test.want {
 				t.Errorf("kept = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestAdapter_StartRectangles(t *testing.T) {
+	frame := image.NewRGBA(image.Rect(0, 0, 400, 300))
+	draw.Draw(frame, frame.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
+	draw.Draw(frame, image.Rect(40, 40, 160, 80), image.NewUniform(color.Black), image.Point{},
+		draw.Src)
+
+	adapter := &Adapter{logger: zap.NewNop()}
+
+	tests := []struct {
+		name   string
+		detect bool
+		want   int
+	}{
+		{"detect_rectangles off runs nothing", false, 0},
+		{"detect_rectangles on finds the box", true, 1},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := config.DefaultConfig().Hints.Vision
+			cfg.DetectRectangles = test.detect
+
+			got := adapter.startRectangles(t.Context(), frame, frame.Rect, cfg)()
+			if len(got) != test.want {
+				t.Errorf("found %d rectangles, want %d", len(got), test.want)
 			}
 		})
 	}

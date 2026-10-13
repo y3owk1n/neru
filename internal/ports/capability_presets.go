@@ -148,8 +148,8 @@ func LinuxCapabilities() PlatformCapabilities {
 			"vision element detection via tesseract OCR over a screen capture " +
 				"(wlr-screencopy on wlroots, XGetImage on X11, the xdg-desktop-portal " +
 				"ScreenCast session on KDE and COSMIC, which asks for screen-sharing consent " +
-				"once); text only, with no rectangle detection; needs a cgo build " +
-				"and the tesseract eng language data installed",
+				"once), with button shapes from the contour detector over the same " +
+				"frame; text needs a cgo build and the tesseract eng language data installed",
 		),
 		KeyFeed: supportedCapability(
 			"key injection via a uinput virtual keyboard when /dev/uinput is " +
@@ -213,8 +213,8 @@ func WindowsCapabilities() PlatformCapabilities {
 		),
 		Vision: supportedCapability(
 			"vision element detection via Windows.Media.Ocr over a BitBlt screen " +
-				"capture; text only, and it needs an OCR language pack for one of the " +
-				"account's languages",
+				"capture, with button shapes from the contour detector over the same " +
+				"frame; text needs an OCR language pack for one of the account's languages",
 		),
 		KeyFeed: supportedCapability("key injection available via SendInput"),
 		Systray: supportedCapability(
