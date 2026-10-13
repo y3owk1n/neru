@@ -214,33 +214,36 @@ func TestBuildTree_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 		{"the default", config.DefaultMaxDepth, []string{depth1, depth2}},
 	}
 
+	// The cases run inline, not as subtests. t.Run would move each one to
+	// another goroutine, off the thread that owns the fixture window, and the
+	// Win32 controls would then block the query, as the file comment explains.
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			opts := DefaultTreeOptions(zap.NewNop())
-			opts.SetRoles(map[string]struct{}{uiaControlButton: {}})
-			opts.SetMaxDepth(test.maxDepth)
+		opts := DefaultTreeOptions(zap.NewNop())
+		opts.SetRoles(map[string]struct{}{uiaControlButton: {}})
+		opts.SetMaxDepth(test.maxDepth)
 
-			ctx, cancel := context.WithTimeout(context.Background(), fixtureDeadline)
-			defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), fixtureDeadline)
 
-			tree, err := BuildTree(ctx, &Element{hwnd: window}, opts)
-			if err != nil {
-				t.Fatalf("BuildTree failed: %v", err)
-			}
+		tree, err := BuildTree(ctx, &Element{hwnd: window}, opts)
 
-			hints := ProcessClickableNodes(tree, config.HintsConfig{})
+		cancel()
 
-			got := make([]string, 0, len(hints))
-			for _, hint := range hints {
-				got = append(got, hint.Info().Title())
-			}
+		if err != nil {
+			t.Fatalf("%s: BuildTree failed: %v", test.name, err)
+		}
 
-			slices.Sort(got)
+		hints := ProcessClickableNodes(tree, config.HintsConfig{})
 
-			if !slices.Equal(got, test.want) {
-				t.Errorf("hinted %v, want %v", got, test.want)
-			}
-		})
+		got := make([]string, 0, len(hints))
+		for _, hint := range hints {
+			got = append(got, hint.Info().Title())
+		}
+
+		slices.Sort(got)
+
+		if !slices.Equal(got, test.want) {
+			t.Errorf("%s: hinted %v, want %v", test.name, got, test.want)
+		}
 	}
 }
 
