@@ -65,6 +65,13 @@ func (c *Client) visibleNodes(
 			defer waitGroup.Done()
 			defer func() { <-sem }()
 
+			// The scan may have been canceled while this waited for a slot.
+			if ctx.Err() != nil {
+				keep[slot] = true
+
+				return
+			}
+
 			bounds := node.rect.Sub(place.offset)
 			center := image.Pt(bounds.Min.X+bounds.Dx()/2, bounds.Min.Y+bounds.Dy()/2)
 
