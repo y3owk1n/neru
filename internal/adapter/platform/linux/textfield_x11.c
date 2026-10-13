@@ -175,7 +175,13 @@ NeruX11TextField *neru_x11_text_field_prepare(int x, int y, int width, int heigh
 		neru_x11_text_field_close(field);
 		return NULL;
 	}
+	// Without tolerance, an input-method window vanishing mid-search would
+	// reach Xlib's default handler, which exits.
 	field->tolerated = neru_x11_error_tolerate(field->display);
+	if (!field->tolerated) {
+		neru_x11_text_field_close(field);
+		return NULL;
+	}
 
 	// One pixel at the bottom-left corner of the box. The window has to be
 	// mapped to hold the focus, and an input method places its candidates next

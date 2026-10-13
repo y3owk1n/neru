@@ -127,7 +127,8 @@ func ocrError(status ocrStatus) error {
 	case ocrStatusBusy:
 		return derrors.New(
 			derrors.CodeActionFailed,
-			"the OCR engine was still busy with an earlier frame; try again",
+			"the OCR engine was busy with an earlier frame or behind an input method "+
+				"opening for hint search, so try again",
 		)
 	case ocrStatusTimeout:
 		return derrors.New(

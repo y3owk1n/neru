@@ -126,9 +126,9 @@ const fieldOpenWait = 250 * time.Millisecond
 // longer finishes closing on its own.
 const fieldStopWait = 500 * time.Millisecond
 
-// An X11 field's open: opening until it holds the focus, open once the
-// goroutine has gone on to take it, or abandoned when Start stopped waiting
-// first, in which case the field never takes the focus.
+// An X11 field's open: opening until it holds the focus, open once Start may
+// have it, or abandoned when Start stopped waiting first, in which case the
+// field gives the focus back and closes.
 const (
 	x11FieldOpening int32 = iota
 	x11FieldOpen
@@ -156,16 +156,18 @@ func openX11Session(
 
 		field := &x11Field{handle: handle}
 
-		if !state.CompareAndSwap(x11FieldOpening, x11FieldOpen) {
+		// Every reply goes out before a close, which can wait on the input
+		// method, so Start never waits behind one.
+		if C.neru_x11_text_field_focus(handle) == 0 {
+			result <- nil
+
 			field.close()
 
 			return
 		}
 
-		if C.neru_x11_text_field_focus(handle) == 0 {
+		if !state.CompareAndSwap(x11FieldOpening, x11FieldOpen) {
 			field.close()
-
-			result <- nil
 
 			return
 		}
@@ -189,8 +191,8 @@ func openX11Session(
 			return nil
 		}
 
-		// The field opened as the wait ran out, and taking the focus is a round
-		// trip to the X server.
+		// The field took the focus as the wait ran out, and all that is left
+		// before its reply is starting the session.
 		return <-result
 	}
 }

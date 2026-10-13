@@ -29,6 +29,15 @@
 // turns that into one failed activation that says so.
 static pthread_mutex_t neru_ocr_mutex = PTHREAD_MUTEX_INITIALIZER;
 static TessBaseAPI *neru_ocr_api;
+
+// neru_ocr_locale_busy is set when the last engine creation gave up waiting for
+// the locale guard (locale_guard.h), so the caller reports busy rather than
+// unusable language data. Guarded by neru_ocr_mutex.
+static int neru_ocr_locale_busy;
+
+// NERU_OCR_LOCALE_WAIT_MS bounds the wait for the locale guard, which the X11
+// hint-search field holds while an input-method server answers.
+#define NERU_OCR_LOCALE_WAIT_MS 1000
 static char *neru_ocr_datapath;
 static char *neru_ocr_language;
 
@@ -126,7 +135,12 @@ static TessBaseAPI *neru_ocr_acquire_locked(const NeruOCRConfig *config) {
 
 	// Tesseract asserts the C locale while it builds the engine, and the X11
 	// hint-search field leaves it briefly (locale_guard.h).
-	neru_locale_guard_lock();
+	neru_ocr_locale_busy = 0;
+	if (neru_locale_guard_timedlock(NERU_OCR_LOCALE_WAIT_MS) != 0) {
+		neru_ocr_locale_busy = 1;
+
+		return NULL;
+	}
 
 	TessBaseAPI *api = TessBaseAPICreate();
 	if (api == NULL) {
@@ -203,9 +217,14 @@ int neru_ocr_probe(const NeruOCRConfig *config) {
 	}
 
 	TessBaseAPI *api = neru_ocr_acquire_locked(config);
+	int busy = neru_ocr_locale_busy;
 	pthread_mutex_unlock(&neru_ocr_mutex);
 
-	return api != NULL ? NERU_OCR_OK : NERU_OCR_ERR_INIT;
+	if (api == NULL) {
+		return busy ? NERU_OCR_ERR_BUSY : NERU_OCR_ERR_INIT;
+	}
+
+	return NERU_OCR_OK;
 }
 
 // neru_ocr_append grows words and copies one finding into it. The copy is what
@@ -313,9 +332,10 @@ int neru_ocr_recognize(
 
 	TessBaseAPI *api = neru_ocr_acquire_locked(config);
 	if (api == NULL) {
+		int busy = neru_ocr_locale_busy;
 		pthread_mutex_unlock(&neru_ocr_mutex);
 
-		return NERU_OCR_ERR_INIT;
+		return busy ? NERU_OCR_ERR_BUSY : NERU_OCR_ERR_INIT;
 	}
 
 	TessBaseAPISetImage(api, pixels, width, height, NERU_OCR_BYTES_PER_PIXEL, stride);

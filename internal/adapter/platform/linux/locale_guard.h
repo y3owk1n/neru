@@ -12,4 +12,10 @@
 void neru_locale_guard_lock(void);
 void neru_locale_guard_unlock(void);
 
+// neru_locale_guard_timedlock waits at most timeout_ms for the guard and
+// returns 0 once it holds it. The field holds the guard across XOpenIM, which
+// waits on an input-method server with no timeout, so a caller that must not
+// stall behind a server that stopped answering uses this.
+int neru_locale_guard_timedlock(int timeout_ms);
+
 #endif /* LOCALE_GUARD_H */

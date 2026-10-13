@@ -22,8 +22,9 @@ typedef struct NeruX11TextField NeruX11TextField;
 
 // neru_x11_text_field_prepare opens the input method, then creates and maps
 // the window at the bottom-left corner of the search box, given in global
-// coordinates. It returns NULL when there is no X display or the window does
-// not map. The window does not take the focus yet.
+// coordinates. It returns NULL when there is no X display, no slot is left to
+// tolerate its errors, or the window does not map. The window does not take
+// the focus yet.
 NeruX11TextField *neru_x11_text_field_prepare(int x, int y, int width, int height);
 
 // neru_x11_text_field_focus gives the window the input focus and reports

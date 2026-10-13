@@ -27,7 +27,8 @@
 // Recognition failed, or ran past the caller's deadline.
 #define NERU_OCR_ERR_RECOGNIZE 4
 // The engine was busy with another recognition for longer than this caller was
-// willing to wait.
+// willing to wait, or could not be created yet because the X11 hint-search
+// field held the locale guard (locale_guard.h).
 #define NERU_OCR_ERR_BUSY 5
 // Recognition ran past the caller's deadline. Split from ERR_RECOGNIZE because
 // the two want opposite responses: a timeout means raise the budget or hand
