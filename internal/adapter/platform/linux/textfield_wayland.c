@@ -53,7 +53,7 @@ struct NeruTextField {
 	struct zwlr_layer_surface_v1 *layer_surface;
 	struct wl_buffer *buffer;
 	int width, height;
-	int focused; // the surface holds the keyboard
+	int focused;  // the surface holds the keyboard
 
 	struct xkb_context *xkb_context;
 	struct xkb_keymap *xkb_keymap;
