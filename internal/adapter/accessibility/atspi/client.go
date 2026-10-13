@@ -56,9 +56,11 @@ const (
 	// (one bit per state/role index).
 	atspiBitsPerWord = 32
 
-	// Walk bound to keep D-Bus traffic sane on large trees. The depth bound is
-	// hints.max_depth.
-	atspiMaxNodes = 2000
+	// Walk bounds to keep D-Bus traffic sane on large trees. The depth bound is
+	// hints.max_depth, and atspiWalkDepthCeiling stands in for it when that is
+	// unlimited, so an app whose tree cycles cannot hold the walk forever.
+	atspiMaxNodes         = 2000
+	atspiWalkDepthCeiling = 256
 
 	// atspiCallTimeout bounds a single AT-SPI D-Bus round-trip. A healthy
 	// toolkit answers each read (role, extents, name, children, state) in
@@ -505,9 +507,14 @@ func (c *Client) scan(
 		}
 	}
 
+	limit := depth
+	if limit == 0 {
+		limit = atspiWalkDepthCeiling
+	}
+
 	out := make([]ax.Node, 0, atspiClickableNodesCap)
 	visited := 0
-	c.walk(ctx, conn, root, roles, 0, depth, &out, &visited, offset.X, offset.Y, readState)
+	c.walk(ctx, conn, root, roles, 0, limit, &out, &visited, offset.X, offset.Y, readState)
 
 	return out, scanPathWalk, visited
 }
@@ -999,7 +1006,7 @@ func (c *Client) walk(
 	offY int,
 	readState bool,
 ) {
-	if (maxDepth > 0 && depth > maxDepth) || len(*out) >= atspiMaxNodes {
+	if depth > maxDepth || len(*out) >= atspiMaxNodes {
 		return
 	}
 

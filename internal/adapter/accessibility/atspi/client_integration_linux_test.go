@@ -434,7 +434,7 @@ func scanPaths(
 				frame.ref,
 				roles,
 				0,
-				0,
+				atspiWalkDepthCeiling,
 				&out,
 				&visited,
 				0,
