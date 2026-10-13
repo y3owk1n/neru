@@ -339,8 +339,8 @@ func (c *Client) ClickableNodes(
 	}
 
 	depth := c.treeDepth(maxDepth)
-	out, path, visited := c.scan(ctx, conn, win.ref, rolesSet(roles), depth,
-		place, readState)
+	out, path, visited := c.scan(ctx, conn, win.ref, rolesSet(roles),
+		c.ignoresClickableCheck(win.focusedAppID), depth, place, readState)
 
 	if c.visibleCheckFor(win.focusedAppID) {
 		out = c.visibleNodes(ctx, conn, win.ref, out, place)
@@ -386,6 +386,16 @@ type atspiMatchRule struct {
 	Interfaces []string
 	IfaceMatch int32
 	Invert     bool
+}
+
+// collectionStates returns the states a Collection match requires: SHOWING,
+// and ENABLED unless anyState keeps disabled elements too.
+func collectionStates(anyState bool) []int32 {
+	if anyState {
+		return stateBitset(atspiStateShowing)
+	}
+
+	return stateBitset(atspiStateShowing, atspiStateEnabled)
 }
 
 // stateBitset packs AT-SPI state indices into the fixed 2-word int32 array
@@ -533,12 +543,14 @@ const (
 
 // scan returns the nodes under root whose role is in roles, read no deeper
 // than depth (0 for unlimited), and which path read them. visited counts the
-// nodes the walk read, and is 0 on the Collection path.
+// nodes the walk read, and is 0 on the Collection path. anyState keeps an
+// element whatever its enabled state, for hints.ignore_clickable_check.
 func (c *Client) scan(
 	ctx context.Context,
 	conn *dbus.Conn,
 	root accRef,
 	roles map[string]struct{},
+	anyState bool,
 	depth int,
 	place placement,
 	readState bool,
@@ -548,7 +560,7 @@ func (c *Client) scan(
 	// Collection matches the whole subtree and cannot stop at a depth, so a
 	// limit below the default goes to the walk.
 	if depth == 0 || depth >= config.DefaultMaxDepth {
-		nodes, ok := c.collectViaCollection(ctx, conn, root, roles, place, readState)
+		nodes, ok := c.collectViaCollection(ctx, conn, root, roles, anyState, place, readState)
 		if ok {
 			return nodes, scanPathCollection, 0
 		}
@@ -561,9 +573,22 @@ func (c *Client) scan(
 
 	out := make([]ax.Node, 0, atspiClickableNodesCap)
 	visited := 0
-	c.walk(ctx, conn, root, roles, 0, limit, &out, &visited, place, readState)
+	c.walk(ctx, conn, root, roles, anyState, 0, limit, &out, &visited, place, readState)
 
 	return out, scanPathWalk, visited
+}
+
+// ignoresClickableCheck reports whether hints.ignore_clickable_check is set
+// for appID. A scan then keeps elements of the clickable roles that the app
+// reports as disabled.
+func (c *Client) ignoresClickableCheck(appID string) bool {
+	if c.configProvider == nil {
+		return false
+	}
+
+	cfg := c.configProvider.Get()
+
+	return cfg != nil && cfg.ShouldIgnoreClickableCheckForApp(appID)
 }
 
 // treeDepth returns the deepest level a scan reads, or 0 for unlimited. That
@@ -591,13 +616,14 @@ func (c *Client) treeDepth(maxDepth int) int {
 // to signal the caller to fall back to the walk — when Collection is disabled,
 // no requested role maps to an AtspiRole, or the toolkit does not implement the
 // interface (the GetMatches call errors). Results have identical semantics to
-// the walk: SHOWING and ENABLED elements whose role maps (via atspiToAXRole)
-// into roleSet.
+// the walk: SHOWING elements, ENABLED too unless anyState, whose role maps
+// (via atspiToAXRole) into roleSet.
 func (c *Client) collectViaCollection(
 	ctx context.Context,
 	conn *dbus.Conn,
 	root accRef,
 	roleSet map[string]struct{},
+	anyState bool,
 	place placement,
 	readState bool,
 ) ([]ax.Node, bool) {
@@ -613,7 +639,7 @@ func (c *Client) collectViaCollection(
 	}
 
 	rule := atspiMatchRule{
-		States:     stateBitset(atspiStateShowing, atspiStateEnabled),
+		States:     collectionStates(anyState),
 		StateMatch: atspiMatchAll,
 		Attributes: map[string]string{},
 		AttrMatch:  atspiMatchAll,
@@ -970,11 +996,13 @@ func (c *Client) states(ctx context.Context, conn *dbus.Conn, ref accRef) ([]uin
 // showingRole returns the element's role read through effectiveRole, and
 // whether the element is showing, enabled and has that role in roles. A
 // disabled element gets no hint, as on macOS, since clicking it does nothing.
+// anyState skips the enabled test, for hints.ignore_clickable_check.
 func (c *Client) showingRole(
 	ctx context.Context,
 	conn *dbus.Conn,
 	ref accRef,
 	roles map[string]struct{},
+	anyState bool,
 	roleName string,
 ) (string, bool) {
 	if !candidateRole(roleName, roles) {
@@ -982,7 +1010,8 @@ func (c *Client) showingRole(
 	}
 
 	states, read := c.states(ctx, conn, ref)
-	if !read || !atspiStateBit(states, atspiStateShowing) || !atspiEnabled(states) {
+	if !read || !atspiStateBit(states, atspiStateShowing) ||
+		(!anyState && !atspiEnabled(states)) {
 		return roleName, false
 	}
 
@@ -1054,6 +1083,7 @@ func (c *Client) walk(
 	conn *dbus.Conn,
 	ref accRef,
 	roles map[string]struct{},
+	anyState bool,
 	depth int,
 	maxDepth int,
 	out *[]ax.Node,
@@ -1077,7 +1107,7 @@ func (c *Client) walk(
 	// downstream so Adapter.MatchesFilter compares like with like. A single
 	// state read tells whether the element is showing and, for text, whether
 	// it is editable.
-	roleName, matched := c.showingRole(ctx, conn, ref, roles,
+	roleName, matched := c.showingRole(ctx, conn, ref, roles, anyState,
 		strings.ToLower(c.roleName(ctx, conn, ref)))
 
 	if matched {
@@ -1088,6 +1118,6 @@ func (c *Client) walk(
 	}
 
 	for _, child := range c.children(ctx, conn, ref) {
-		c.walk(ctx, conn, child, roles, depth+1, maxDepth, out, visited, place, readState)
+		c.walk(ctx, conn, child, roles, anyState, depth+1, maxDepth, out, visited, place, readState)
 	}
 }

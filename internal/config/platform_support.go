@@ -24,8 +24,6 @@ const (
 		"picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart"
 	noteMissionControl = "Mission Control is a macOS concept, so the detection never fires " +
 		"and the hooks never run"
-	noteClickableCheck = "the clickable check is AX-specific; the AT-SPI and UIA walks " +
-		"decide what is clickable their own way and never consult it"
 	noteGridPrewarm = "only the darwin grid overlay prewarms its layers; the other backends " +
 		"draw on demand"
 )
@@ -104,16 +102,6 @@ func PlatformSupport() parity.Declaration {
 			"hints.on_mission_control_deactivated",
 			"hooks.on_mission_control_activated",
 			"hooks.on_mission_control_deactivated",
-		),
-
-		parity.On(parity.KindOption, darwinOnly, noteClickableCheck,
-			"hints.ignore_clickable_check",
-			"hints.app_configs.ignore_clickable_check",
-			"grid.app_configs.ignore_clickable_check",
-			"recursive_grid.app_configs.ignore_clickable_check",
-			"bisect.app_configs.ignore_clickable_check",
-			"scroll.app_configs.ignore_clickable_check",
-			"app_configs.ignore_clickable_check",
 		),
 
 		parity.On(parity.KindOption, darwinOnly, noteGridPrewarm,
@@ -283,6 +271,13 @@ func PlatformSupport() parity.Declaration {
 			"bisect.app_configs.visible_check_enabled",
 			"scroll.app_configs.visible_check_enabled",
 			"app_configs.visible_check_enabled",
+			"hints.ignore_clickable_check",
+			"hints.app_configs.ignore_clickable_check",
+			"grid.app_configs.ignore_clickable_check",
+			"recursive_grid.app_configs.ignore_clickable_check",
+			"bisect.app_configs.ignore_clickable_check",
+			"scroll.app_configs.ignore_clickable_check",
+			"app_configs.ignore_clickable_check",
 			"hints.app_configs",
 			"hints.app_configs.bundle_id",
 			"hints.app_configs.strategy",

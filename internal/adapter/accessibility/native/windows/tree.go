@@ -145,6 +145,18 @@ func (o *TreeOptions) SetRoles(roles map[string]struct{}) { o.Roles = roles }
 // state.
 func (o *TreeOptions) SetReadState(readState bool) { o.readState = readState }
 
+// ignoreClickableCheckFor resolves hints.ignore_clickable_check for the
+// window's application, per-app override first.
+func (o *TreeOptions) ignoreClickableCheckFor(bundleID string) bool {
+	if o.configProvider == nil {
+		return false
+	}
+
+	cfg := o.configProvider.Get()
+
+	return cfg != nil && cfg.ShouldIgnoreClickableCheckForApp(bundleID)
+}
+
 // visibleCheckFor resolves hints.visible_check_enabled for the window's
 // application, per-app override first.
 func (o *TreeOptions) visibleCheckFor(bundleID string) bool {
@@ -195,6 +207,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 		frame:        winplatform.WindowFrame(root.hwnd),
 		roles:        opts.Roles,
 		maxDepth:     opts.MaxDepth,
+		anyState:     opts.ignoreClickableCheckFor(root.bundleIdentifier),
 		visibleCheck: opts.visibleCheckFor(root.bundleIdentifier),
 		readState:    opts.readState,
 	})
@@ -218,10 +231,9 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 			value:       control.value,
 			identifier:  control.identifier,
 			role:        control.role,
-			// collectArray drops disabled controls, so every one kept is enabled.
-			isEnabled: true,
-			isFocused: control.focused,
-			clickable: true,
+			isEnabled:   control.enabled,
+			isFocused:   control.focused,
+			clickable:   true,
 		}
 
 		children = append(children, &TreeNode{

@@ -430,7 +430,7 @@ func TestClient_Walk_HintsGTK4ElementsThatAreOnlySensitive(t *testing.T) {
 
 	visited := 0
 	New(zap.NewNop(), nil).walk(t.Context(), scanner, frame.ref,
-		rolesSet(resolveLinuxRoles(t, "button")), 0, atspiWalkDepthCeiling, &out, &visited,
+		rolesSet(resolveLinuxRoles(t, "button")), false, 0, atspiWalkDepthCeiling, &out, &visited,
 		placement{}, false)
 
 	got := make([]string, 0, len(out))
@@ -522,9 +522,21 @@ func TestClient_PlacementFor_PutsHintsOnTheScreen(t *testing.T) {
 			var out []ax.Node
 
 			visited := 0
-			client.walk(t.Context(), scanner, test.frame.ref,
-				rolesSet(resolveLinuxRoles(t, "button")), 0, atspiWalkDepthCeiling, &out, &visited,
-				place, false)
+			client.walk(
+				t.Context(),
+				scanner,
+				test.frame.ref,
+				rolesSet(
+					resolveLinuxRoles(t, "button"),
+				),
+				false,
+				0,
+				atspiWalkDepthCeiling,
+				&out,
+				&visited,
+				place,
+				false,
+			)
 
 			got := make([]image.Point, 0, len(out))
 			for _, node := range out {
@@ -680,7 +692,7 @@ func TestClient_Scan_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			client := New(zap.NewNop(), nil)
 
-			nodes, path, _ := client.scan(t.Context(), scanner, frame.ref, roles,
+			nodes, path, _ := client.scan(t.Context(), scanner, frame.ref, roles, false,
 				test.maxDepth, placement{}, false)
 
 			got := make([]string, 0, len(nodes))
@@ -789,6 +801,79 @@ func TestClient_HitReaches_KeepsOnlyElementsTheirPointLandsOn(t *testing.T) {
 	}
 }
 
+// staticConfig is a config.Provider that always returns the same configuration.
+type staticConfig struct{ cfg *config.Config }
+
+func (s staticConfig) Get() *config.Config { return s.cfg }
+
+func TestClient_Scan_KeepsDisabledElementsWhenTheClickableCheckIsIgnored(t *testing.T) {
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	frame := child("frame", "frame", atspiStateShowing)
+	frame.children = []*fakeAccessible{
+		child("enabled", "push button", atspiStateShowing, atspiStateEnabled),
+		child("disabled", "push button", atspiStateShowing),
+		child("label", "label", atspiStateShowing),
+		child("hidden", "push button", atspiStateEnabled),
+	}
+
+	exportFixture(t, app, frame)
+
+	const ignoredApp = "org.example.Editor"
+
+	ignore := true
+	cfg := config.DefaultConfig()
+	cfg.Hints.AppConfigs = []config.AppConfig{{BundleID: ignoredApp, IgnoreClickableCheck: &ignore}}
+
+	client := New(zap.NewNop(), staticConfig{cfg})
+	roles := rolesSet(resolveLinuxRoles(t, "button"))
+
+	tests := []struct {
+		appID string
+		want  []string
+	}{
+		{ignoredApp, []string{"disabled", "enabled"}},
+		{"org.example.Other", []string{"enabled"}},
+	}
+
+	paths := []struct {
+		depth int
+		want  string
+	}{
+		{config.DefaultMaxDepth, scanPathCollection},
+		{5, scanPathWalk},
+	}
+
+	for _, scanned := range paths {
+		for _, test := range tests {
+			t.Run(fmt.Sprintf("%s depth %d", test.appID, scanned.depth), func(t *testing.T) {
+				nodes, path, _ := client.scan(t.Context(), scanner, frame.ref, roles,
+					client.ignoresClickableCheck(test.appID), scanned.depth, placement{}, false)
+
+				if path != scanned.want {
+					t.Errorf("scanned via %s, want %s", path, scanned.want)
+				}
+
+				got := make([]string, 0, len(nodes))
+				for _, node := range nodes {
+					got = append(got, fixtureName(node))
+				}
+
+				slices.Sort(got)
+
+				if !slices.Equal(got, test.want) {
+					t.Errorf("hinted %v, want %v", got, test.want)
+				}
+			})
+		}
+	}
+}
+
 // textEditorName is the AT-SPI application name GNOME Text Editor reports.
 const textEditorName = "gnome-text-editor"
 
@@ -884,6 +969,7 @@ func scanPaths(
 				scanner,
 				frame.ref,
 				roles,
+				false,
 				0,
 				atspiWalkDepthCeiling,
 				&out,
@@ -896,7 +982,7 @@ func scanPaths(
 		},
 		"collection": func(client *Client, roles map[string]struct{}) []ax.Node {
 			out, ok := client.collectViaCollection(
-				t.Context(), scanner, frame.ref, roles, placement{}, readState)
+				t.Context(), scanner, frame.ref, roles, false, placement{}, readState)
 			if !ok {
 				t.Fatal("the Collection path fell back to the walk")
 			}

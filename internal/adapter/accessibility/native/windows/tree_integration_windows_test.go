@@ -253,6 +253,65 @@ type staticConfig struct{ cfg *config.Config }
 
 func (s staticConfig) Get() *config.Config { return s.cfg }
 
+func TestBuildTree_KeepsDisabledControlsWhenTheClickableCheckIsIgnored(t *testing.T) {
+	runtime.LockOSThread()
+
+	defer runtime.UnlockOSThread()
+
+	const child = fixtureChild | fixtureVisible
+
+	window := createFixtureWindow(t, "STATIC", "neru-uia-ignore-fixture",
+		fixturePopup|fixtureVisible,
+		image.Pt(0, 0), fixtureWindowSize, fixtureWindowSize, 0)
+
+	createFixtureWindow(t, "BUTTON", "neru-ignore-button", child,
+		image.Pt(10, 10), fixtureControlSize*3, fixtureControlSize, window)
+	createFixtureWindow(t, "BUTTON", "neru-ignore-disabled", child|fixtureDisabled,
+		image.Pt(10, 60), fixtureControlSize*3, fixtureControlSize, window)
+	createFixtureWindow(t, "STATIC", "neru-ignore-label", child,
+		image.Pt(10, 110), fixtureControlSize*3, fixtureControlSize, window)
+
+	roles := map[string]struct{}{uiaControlButton: {}}
+
+	// The cases run inline, not as subtests, for the reason
+	// TestBuildTree_ReadsNoDeeperThanMaxDepth gives.
+	for _, ignore := range []bool{false, true} {
+		cfg := config.DefaultConfig()
+		cfg.Hints.IgnoreClickableCheck = ignore
+
+		opts := DefaultTreeOptions(zap.NewNop())
+		opts.SetRoles(roles)
+		opts.SetConfigProvider(staticConfig{cfg})
+
+		ctx, cancel := context.WithTimeout(context.Background(), fixtureDeadline)
+
+		tree, err := BuildTree(ctx, &Element{hwnd: window}, opts)
+
+		cancel()
+
+		if err != nil {
+			t.Fatalf("ignore %v: BuildTree failed: %v", ignore, err)
+		}
+
+		hints := tree.FindClickableElements(roles, nil, ignore)
+
+		// got maps each hinted control to whether it reports itself enabled.
+		got := make(map[string]bool, len(hints))
+		for _, hint := range hints {
+			got[hint.Info().Title()] = hint.Info().IsEnabled()
+		}
+
+		want := map[string]bool{"neru-ignore-button": true}
+		if ignore {
+			want["neru-ignore-disabled"] = false
+		}
+
+		if !maps.Equal(got, want) {
+			t.Errorf("ignore %v: hinted %v, want %v", ignore, got, want)
+		}
+	}
+}
+
 func TestBuildTree_VisibleCheckDropsCoveredControlsOnly(t *testing.T) {
 	runtime.LockOSThread()
 
