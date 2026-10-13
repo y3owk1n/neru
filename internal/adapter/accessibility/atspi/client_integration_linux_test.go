@@ -309,8 +309,19 @@ func TestClient_PlacementFor_PutsHintsOnTheScreen(t *testing.T) {
 	xwaylandButton.windowOrigin = inside
 	xwaylandFrame.children = []*fakeAccessible{xwaylandButton}
 
+	// A toolkit that draws a shadow around its window puts the frame, and
+	// every element with it, that far into its own window coordinates.
+	shadow := image.Pt(26, 23)
+
+	shadowFrame := child("shadow", "frame", atspiStateShowing)
+	shadowFrame.windowOrigin = shadow
+	shadowButton := child("shadow_button", "button", atspiStateShowing, atspiStateEnabled)
+	shadowButton.windowOrigin = shadow.Add(inside)
+	shadowFrame.children = []*fakeAccessible{shadowButton}
+
 	exportFixture(t, app, gtk4Frame)
 	exportFixture(t, app, xwaylandFrame)
+	exportFixture(t, app, shadowFrame)
 
 	tests := []struct {
 		name   string
@@ -326,6 +337,7 @@ func TestClient_PlacementFor_PutsHintsOnTheScreen(t *testing.T) {
 			window.Add(inside),
 		},
 		{"xwayland without the window origin", xwaylandFrame, fixedOrigin{}, window.Add(inside)},
+		{"a frame inset by a shadow", shadowFrame, fixedOrigin{window, true}, window.Add(inside)},
 	}
 
 	for _, test := range tests {
@@ -342,8 +354,13 @@ func TestClient_PlacementFor_PutsHintsOnTheScreen(t *testing.T) {
 				rolesSet(resolveLinuxRoles(t, "button")), 0, atspiWalkDepthCeiling, &out, &visited,
 				place, false)
 
-			if len(out) != 1 || out[0].Bounds().Min != test.want {
-				t.Errorf("hinted %v, want one hint at %v", out, test.want)
+			got := make([]image.Point, 0, len(out))
+			for _, node := range out {
+				got = append(got, node.Bounds().Min)
+			}
+
+			if !slices.Equal(got, []image.Point{test.want}) {
+				t.Errorf("hinted at %v, want one hint at %v", got, test.want)
 			}
 		})
 	}
