@@ -365,7 +365,7 @@ func enumerateClickableElements(
 	}
 
 	if opts.visibleCheck {
-		controls = visibleControls(automation, cache, opts.frame, controls)
+		controls = visibleControls(automation, condition, opts.frame, controls)
 	}
 
 	return controls
@@ -481,12 +481,19 @@ func walkChildren(
 // hints.visible_check_enabled. A control another element covers, in this
 // window or another, hit-tests to that element and is dropped. A hit-test
 // that fails keeps the control, so a provider that cannot answer does not
-// blank the hints.
+// blank the hints. The hits are cached in Full mode, since the walk up from a
+// hit needs the live reference that the FindAll cache leaves out.
 func visibleControls(
-	automation, cache unsafe.Pointer,
+	automation, condition unsafe.Pointer,
 	frame image.Rectangle,
 	controls []winElement,
 ) []winElement {
+	cache := createCacheRequest(automation, condition, automationElementModeFull, false)
+	if cache == nil {
+		return controls
+	}
+	defer comCall(cache, vtRelease)
+
 	var walker unsafe.Pointer
 
 	hresult := comCall(automation, vtGetControlViewWalker, uintptr(unsafe.Pointer(&walker)))

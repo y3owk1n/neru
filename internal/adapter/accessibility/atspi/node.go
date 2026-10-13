@@ -29,6 +29,7 @@ func (w *atspiWindow) Role() string { return atspiRoleFrame }
 
 // atspiNode implements ax.Node for a clickable AT-SPI element.
 type atspiNode struct {
+	ref         accRef
 	id          string
 	role        string
 	title       string

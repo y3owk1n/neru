@@ -42,6 +42,7 @@ var (
 	procFixtureSetForeground = moduser32.NewProc("SetForegroundWindow")
 	procFixtureGetForeground = moduser32.NewProc("GetForegroundWindow")
 	procFixtureSetFocus      = moduser32.NewProc("SetFocus")
+	procFixtureSetWindowPos  = moduser32.NewProc("SetWindowPos")
 	procFixtureModuleHandleW = modkernel32.NewProc("GetModuleHandleW")
 )
 
@@ -243,6 +244,87 @@ func TestBuildTree_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 
 		if !slices.Equal(got, test.want) {
 			t.Errorf("%s: hinted %v, want %v", test.name, got, test.want)
+		}
+	}
+}
+
+// staticConfig is a config.Provider that always returns the same configuration.
+type staticConfig struct{ cfg *config.Config }
+
+func (s staticConfig) Get() *config.Config { return s.cfg }
+
+func TestBuildTree_VisibleCheckDropsCoveredControlsOnly(t *testing.T) {
+	runtime.LockOSThread()
+
+	defer runtime.UnlockOSThread()
+
+	const (
+		child = fixtureChild | fixtureVisible
+		// swpNoSizeNoMove keeps a window's size and position in SetWindowPos.
+		swpNoSizeNoMove = 0x3
+		hwndTopmost     = ^uintptr(0) // HWND_TOPMOST, -1
+	)
+
+	window := createFixtureWindow(t, "STATIC", "neru-uia-visible-fixture",
+		fixturePopup|fixtureVisible,
+		image.Pt(0, 0), fixtureWindowSize, fixtureWindowSize, 0)
+
+	// The hit-test asks the screen, so the fixture must be above every other
+	// window on the desktop.
+	discardCall(procFixtureSetWindowPos.Call(window, hwndTopmost, 0, 0, 0, 0, swpNoSizeNoMove))
+
+	createFixtureWindow(t, "BUTTON", "neru-visible-plain", child,
+		image.Pt(10, 10), fixtureControlSize*3, fixtureControlSize, window)
+
+	// The hit-test at this button's center lands on the edit box inside it,
+	// so keeping it takes the walk up from the hit.
+	nested := createFixtureWindow(t, "BUTTON", "neru-visible-nested", child,
+		image.Pt(10, 60), fixtureControlSize*3, fixtureControlSize, window)
+	createFixtureWindow(t, "EDIT", "", child,
+		image.Pt(10, 5), fixtureControlSize*2, fixtureControlSize-10, nested)
+
+	createFixtureWindow(t, "BUTTON", "neru-visible-covered", child,
+		image.Pt(20, 115), fixtureControlSize, fixtureControlSize/2, window)
+
+	cover := createFixtureWindow(t, "BUTTON", "neru-visible-cover", child,
+		image.Pt(10, 110), fixtureControlSize*3, fixtureControlSize, window)
+	discardCall(procFixtureSetWindowPos.Call(cover, 0, 0, 0, 0, 0, swpNoSizeNoMove))
+
+	cfg := config.DefaultConfig()
+	cfg.Hints.VisibleCheckEnabled = true
+
+	want := []string{"neru-visible-cover", "neru-visible-nested", "neru-visible-plain"}
+
+	// The default depth reads through FindAll, a lower one walks. The cases
+	// run inline, not as subtests, for the reason
+	// TestBuildTree_ReadsNoDeeperThanMaxDepth gives.
+	for _, depth := range []int{config.DefaultMaxDepth, 5} {
+		opts := DefaultTreeOptions(zap.NewNop())
+		opts.SetRoles(map[string]struct{}{uiaControlButton: {}})
+		opts.SetMaxDepth(depth)
+		opts.SetConfigProvider(staticConfig{cfg})
+
+		ctx, cancel := context.WithTimeout(context.Background(), fixtureDeadline)
+
+		tree, err := BuildTree(ctx, &Element{hwnd: window}, opts)
+
+		cancel()
+
+		if err != nil {
+			t.Fatalf("depth %d: BuildTree failed: %v", depth, err)
+		}
+
+		hints := ProcessClickableNodes(tree, config.HintsConfig{})
+
+		got := make([]string, 0, len(hints))
+		for _, hint := range hints {
+			got = append(got, hint.Info().Title())
+		}
+
+		slices.Sort(got)
+
+		if !slices.Equal(got, want) {
+			t.Errorf("depth %d: hinted %v, want %v", depth, got, want)
 		}
 	}
 }

@@ -333,6 +333,10 @@ func (c *Client) ClickableNodes(
 	out, path, visited := c.scan(ctx, conn, win.ref, rolesSet(roles), depth,
 		place, readState)
 
+	if c.visibleCheckFor(win.focusedAppID) {
+		out = c.visibleNodes(ctx, conn, win.ref, out, place)
+	}
+
 	c.logger.Debug("AT-SPI clickable scan complete",
 		zap.String("path", path),
 		zap.Int("count", len(out)),
@@ -878,6 +882,7 @@ func (c *Client) readNode(
 	rect, valid := c.extentsFrom(ctx, extentsCall)
 
 	node := &atspiNode{
+		ref:         ref,
 		id:          string(ref.Path) + "@" + ref.Name,
 		role:        roleName,
 		rect:        rect.Add(place.offset),

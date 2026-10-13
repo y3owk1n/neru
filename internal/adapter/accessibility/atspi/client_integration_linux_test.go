@@ -44,6 +44,10 @@ type fakeAccessible struct {
 	text            string
 	textReads       atomic.Int32
 	identifierReads atomic.Int32
+	// atPoint is what a point lookup on this element returns, and parent its
+	// Parent property. Nil answers with AT-SPI's null reference.
+	atPoint *fakeAccessible
+	parent  *fakeAccessible
 	// screenOrigin and windowOrigin are where the element sits in screen and
 	// in window coordinates.
 	screenOrigin image.Point
@@ -73,6 +77,8 @@ func (f *fakeAccessible) GetChildren() ([]accRef, *dbus.Error) {
 // reads.
 func (f *fakeAccessible) Get(_, property string) (dbus.Variant, *dbus.Error) {
 	switch property {
+	case "Parent":
+		return dbus.MakeVariant(refOrNull(f.parent)), nil
 	case "Description":
 		return dbus.MakeVariant(f.description), nil
 	case "AccessibleId":
@@ -82,6 +88,21 @@ func (f *fakeAccessible) Get(_, property string) (dbus.Variant, *dbus.Error) {
 	default:
 		return dbus.MakeVariant(f.name), nil
 	}
+}
+
+// GetAccessibleAtPoint answers the point lookup with atPoint, whatever the
+// point.
+func (f *fakeAccessible) GetAccessibleAtPoint(int32, int32, uint32) (accRef, *dbus.Error) {
+	return refOrNull(f.atPoint), nil
+}
+
+// refOrNull returns fake's reference, or AT-SPI's null reference for nil.
+func refOrNull(fake *fakeAccessible) accRef {
+	if fake == nil {
+		return accRef{Path: atspiNullPath}
+	}
+
+	return fake.ref
 }
 
 func (f *fakeAccessible) GetText(int32, int32) (string, *dbus.Error) {
@@ -524,6 +545,76 @@ func TestClient_Scan_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 
 			if path != test.wantPath {
 				t.Errorf("read through the %s path, want %s", path, test.wantPath)
+			}
+		})
+	}
+}
+
+func TestClient_HitReaches_KeepsOnlyElementsTheirPointLandsOn(t *testing.T) {
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	// window returns a frame holding target, set up by arrange.
+	window := func(name string, arrange func(frame, target *fakeAccessible)) (accRef, accRef) {
+		frame := child(name, "frame", atspiStateShowing)
+		target := child(name+"_target", "push button", atspiStateShowing, atspiStateEnabled)
+		target.parent = frame
+		frame.children = []*fakeAccessible{target}
+
+		arrange(frame, target)
+		exportFixture(t, app, frame)
+
+		return frame.ref, target.ref
+	}
+
+	// Firefox, Qt and GTK 3 answer one level at a time.
+	direct := func(frame, target *fakeAccessible) { frame.atPoint = target }
+
+	// Chromium jumps straight to the deepest element, a text leaf inside.
+	leaf := func(frame, target *fakeAccessible) {
+		text := child(strings.TrimPrefix(string(target.ref.Path), "/fixture/")+"_text", "static",
+			atspiStateShowing)
+		text.parent = target
+		text.atPoint = text
+		target.children = []*fakeAccessible{text}
+		frame.atPoint = text
+	}
+
+	// Something else in the window sits over the target.
+	covered := func(frame, target *fakeAccessible) {
+		cover := child(strings.TrimPrefix(string(target.ref.Path), "/fixture/")+"_cover", "panel",
+			atspiStateShowing)
+		cover.parent = frame
+		frame.children = append(frame.children, cover)
+		frame.atPoint = cover
+	}
+
+	// GTK 4 answers no point lookup.
+	silent := func(*fakeAccessible, *fakeAccessible) {}
+
+	tests := []struct {
+		name    string
+		arrange func(frame, target *fakeAccessible)
+		want    bool
+	}{
+		{"the lookup reaches the element", direct, true},
+		{"the lookup lands on a leaf inside the element", leaf, true},
+		{"another element covers it", covered, false},
+		{"the app answers no lookup", silent, true},
+	}
+
+	for index, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			frame, target := window(fmt.Sprintf("window%d", index), test.arrange)
+
+			got := New(zap.NewNop(), nil).hitReaches(t.Context(), scanner, frame, target,
+				image.Pt(5, 5), atspiCoordWindow)
+			if got != test.want {
+				t.Errorf("hitReaches() = %v, want %v", got, test.want)
 			}
 		})
 	}
