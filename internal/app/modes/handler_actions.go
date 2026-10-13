@@ -326,13 +326,19 @@ func (h *handlerState) startHintSearch() error {
 		textInputFrame,
 	)
 
-	if started {
-		h.hintSearchTextInputActive = true
+	if !started {
+		// A session this one replaced left the tap off for it, and no field
+		// took its place, so the key stream is all that is left.
+		h.stopHintSearchTextInput(false)
 
-		if h.hasEventTap() {
-			h.disableEventTap()
-			h.hintSearchEventTapDisabled = true
-		}
+		return nil
+	}
+
+	h.hintSearchTextInputActive = true
+
+	if h.hasEventTap() {
+		h.disableEventTap()
+		h.hintSearchEventTapDisabled = true
 	}
 
 	return nil

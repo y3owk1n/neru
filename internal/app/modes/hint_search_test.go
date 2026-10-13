@@ -326,3 +326,53 @@ func TestHandleSearchInputKey_KeepsShiftedLettersAndSpaces(t *testing.T) {
 		t.Errorf("query = %q, want %q", got, "Ca B")
 	}
 }
+
+// TestStartHintSearch_ReplacementThatFailsGivesTheKeyboardBack is the same
+// promise for a restarted search. The live session is stopped with the tap
+// left off for its replacement, and when the replacement field does not
+// start, the tap has to come back on.
+func TestStartHintSearch_ReplacementThatFailsGivesTheKeyboardBack(t *testing.T) {
+	t.Parallel()
+
+	enables := 0
+	eventTap := &portmocks.MockEventTapPort{
+		EnableFunc: func(context.Context) error {
+			enables++
+
+			return nil
+		},
+	}
+
+	overlayPort := &portmocks.MockOverlayPort{
+		HintSearchBoundsFunc: func(image.Rectangle) image.Rectangle {
+			return image.Rect(0, 0, 200, 30)
+		},
+	}
+
+	handler := newHintSearchTestHandler(
+		t,
+		overlayPort,
+		&portmocks.MockTextInputPort{Started: false},
+	)
+
+	handler.mu.Lock()
+	handler.eventTap = eventTap
+	handler.hintSearchTextInputActive = true
+	handler.hintSearchEventTapDisabled = true
+
+	err := handler.startHintSearch()
+	stillDisabled := handler.hintSearchEventTapDisabled
+	handler.mu.Unlock()
+
+	if err != nil {
+		t.Fatalf("startHintSearch() error = %v", err)
+	}
+
+	if enables != 1 {
+		t.Errorf("event tap enabled %d times, want 1: the keyboard is still switched off", enables)
+	}
+
+	if stillDisabled {
+		t.Error("the handler still believes it owes the event tap a re-enable")
+	}
+}
