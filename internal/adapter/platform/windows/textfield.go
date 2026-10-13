@@ -3,8 +3,6 @@
 package windows
 
 import (
-	"errors"
-	"fmt"
 	"image"
 	"runtime"
 	"sync"
@@ -14,6 +12,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // The hint-search field: a nearly transparent tool window over the drawn
@@ -69,9 +69,12 @@ var (
 	textFieldClassOnce sync.Once
 	errTextFieldClass  error
 
-	errTextFieldNotForeground = errors.New("the hint search field did not get the foreground")
-	errTextFieldAlreadyOpen   = errors.New("a hint search field is already open")
-	errTextFieldTimedOut      = errors.New("the hint search field did not open in time")
+	errTextFieldNotForeground = derrors.New(derrors.CodeActionFailed,
+		"the hint search field did not get the foreground")
+	errTextFieldAlreadyOpen = derrors.New(derrors.CodeActionFailed,
+		"a hint search field is already open")
+	errTextFieldTimedOut = derrors.New(derrors.CodeTimeout,
+		"the hint search field did not open in time")
 )
 
 // textFieldWait bounds each wait on the field's thread. The caller holds the
@@ -107,8 +110,11 @@ type TextField struct {
 
 	state   atomic.Int32
 	closing atomic.Bool
-	// lostForeground is set when the user moved to another window, which
-	// closing must then leave in front.
+	// focusTaken is set once the field holds the foreground and the keyboard,
+	// and lostForeground when it lost them after that, for example because
+	// the user moved to another window, which closing must then leave in
+	// front.
+	focusTaken     atomic.Bool
 	lostForeground atomic.Bool
 }
 
@@ -175,10 +181,25 @@ func (f *TextField) run(bounds image.Rectangle) {
 	defer activeTextField.CompareAndSwap(f, nil)
 
 	err := f.create(bounds)
+
+	// Focus can move away between taking it and this point, and then the field
+	// would hold no keyboard while the caller turns its key capture off.
+	if err == nil &&
+		(f.lostForeground.Load() || windows.GetForegroundWindow() != windows.HWND(f.hwnd)) {
+		err = errTextFieldNotForeground
+	}
+
+	// The opener may have stopped waiting, and then nobody will close this
+	// field.
+	if err == nil && !f.state.CompareAndSwap(textFieldOpening, textFieldOpen) {
+		err = errTextFieldTimedOut
+	}
+
 	if err != nil {
 		f.closing.Store(true)
 
 		if f.hwnd != 0 {
+			f.restoreForeground()
 			discardCall(procDestroyWindow.Call(f.hwnd))
 			f.pump()
 		}
@@ -188,18 +209,19 @@ func (f *TextField) run(bounds image.Rectangle) {
 		return
 	}
 
-	if !f.state.CompareAndSwap(textFieldOpening, textFieldOpen) {
-		// The opener stopped waiting, so nobody will close this field.
-		f.closing.Store(true)
-		discardCall(procDestroyWindow.Call(f.hwnd))
-		f.pump()
-
-		return
-	}
-
 	f.startErr <- nil
 
 	f.pump()
+}
+
+// restoreForeground hands the foreground back to the window the user was in,
+// while the field still holds it, which is when Windows allows it. A user who
+// moved to another window keeps that one.
+func (f *TextField) restoreForeground() {
+	if f.previous != 0 && !f.lostForeground.Load() &&
+		windows.GetForegroundWindow() == windows.HWND(f.hwnd) {
+		discardCall(procFieldSetForegroundWindow.Call(uintptr(f.previous)))
+	}
 }
 
 func (f *TextField) pump() {
@@ -242,7 +264,7 @@ func (f *TextField) create(bounds image.Rectangle) error {
 		0, 0, moduleHandle(), 0,
 	)
 	if hwnd == 0 {
-		return fmt.Errorf("CreateWindowExW: %w", callErr)
+		return derrors.Wrap(callErr, derrors.CodeActionFailed, "CreateWindowExW")
 	}
 
 	f.hwnd = hwnd
@@ -258,7 +280,7 @@ func (f *TextField) create(bounds image.Rectangle) error {
 		hwnd, 0, moduleHandle(), 0,
 	)
 	if edit == 0 {
-		return fmt.Errorf("CreateWindowExW(EDIT): %w", callErr)
+		return derrors.Wrap(callErr, derrors.CodeActionFailed, "CreateWindowExW(EDIT)")
 	}
 
 	f.edit = edit
@@ -269,10 +291,14 @@ func (f *TextField) create(bounds image.Rectangle) error {
 		textFieldEditProcPtr(),
 	)
 	if f.editProc == 0 {
-		return fmt.Errorf("SetWindowLongPtrW: %w", callErr)
+		return derrors.Wrap(callErr, derrors.CodeActionFailed, "SetWindowLongPtrW")
 	}
 
 	discardCall(procShowWindow.Call(hwnd, swShow))
+
+	if f.state.Load() == textFieldAbandoned {
+		return errTextFieldTimedOut
+	}
 
 	f.takeForeground()
 
@@ -281,6 +307,7 @@ func (f *TextField) create(bounds image.Rectangle) error {
 	}
 
 	discardCall(procFieldSetFocus.Call(edit))
+	f.focusTaken.Store(true)
 
 	return nil
 }
@@ -334,22 +361,15 @@ func textFieldWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uint
 		case wmActivate:
 			// Losing the foreground ends the search, so the keyboard hook comes
 			// back on rather than leaving no one reading keys.
-			if wParam&0xFFFF == waInactive && field.live() {
+			if wParam&0xFFFF == waInactive && field.focusTaken.Load() && !field.closing.Load() {
 				field.lostForeground.Store(true)
 
-				if field.events.Cancel != nil {
+				if field.live() && field.events.Cancel != nil {
 					field.events.Cancel()
 				}
 			}
 		case wmClose:
-			// Hand the foreground back while the field still holds it, which
-			// is when Windows allows it. A user who clicked into another
-			// window keeps that one.
-			if field.previous != 0 && !field.lostForeground.Load() &&
-				windows.GetForegroundWindow() == windows.HWND(hwnd) {
-				discardCall(procFieldSetForegroundWindow.Call(uintptr(field.previous)))
-			}
-
+			field.restoreForeground()
 			discardCall(procDestroyWindow.Call(hwnd))
 
 			return 0
@@ -427,7 +447,7 @@ func registerTextFieldClass() error {
 
 		atom, _, err := procRegisterClassExW.Call(uintptr(unsafe.Pointer(&class)))
 		if atom == 0 {
-			errTextFieldClass = fmt.Errorf("RegisterClassExW: %w", err)
+			errTextFieldClass = derrors.Wrap(err, derrors.CodeActionFailed, "RegisterClassExW")
 		}
 	})
 

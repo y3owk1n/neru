@@ -6,6 +6,7 @@ import (
 	"context"
 	"image"
 	"sync"
+	"sync/atomic"
 
 	"go.uber.org/zap"
 
@@ -26,10 +27,11 @@ import (
 //
 // The query is keystream. Nothing here logs it.
 type TextInput struct {
-	logger *zap.Logger
-	mu     sync.Mutex
-	field  *platformwindows.TextField
-	queue  *callbackQueue
+	logger         *zap.Logger
+	mu             sync.Mutex
+	field          *platformwindows.TextField
+	queue          *callbackQueue
+	fallbackWarned atomic.Bool
 }
 
 // NewTextInput creates a TextInput.
@@ -66,7 +68,20 @@ func (t *TextInput) StartHintSearchSession(
 	})
 	if err != nil {
 		queue.stop()
-		t.logger.Debug("Hint search field unavailable, reading the key stream", zap.Error(err))
+
+		// Without the field, input methods, dead keys and shifted symbols do
+		// not reach the search. The first fallback is a warning, and later ones
+		// stay at debug, since a session that refuses once usually refuses
+		// every time.
+		log := t.logger.Debug
+		if t.fallbackWarned.CompareAndSwap(false, true) {
+			log = t.logger.Warn
+		}
+
+		log(
+			"Hint search field unavailable, so input methods and dead keys will not reach the search",
+			zap.Error(err),
+		)
 
 		return false, nil
 	}

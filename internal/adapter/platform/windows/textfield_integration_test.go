@@ -7,12 +7,14 @@ import (
 	"image"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/windows"
 )
 
 // openTestTextField opens a field and records what it reports. It skips the
 // test in a session that does not let the process take the foreground, which
 // the field needs as much as bringToFront does.
-func openTestTextField(t *testing.T) chan string {
+func openTestTextField(t *testing.T) (*TextField, chan string) {
 	t.Helper()
 
 	reported := make(chan string, 32)
@@ -32,7 +34,7 @@ func openTestTextField(t *testing.T) chan string {
 
 	t.Cleanup(field.Close)
 
-	return reported
+	return field, reported
 }
 
 // waitForReport reads the field's reports until want arrives. A cancel it
@@ -62,10 +64,16 @@ func waitForReport(t *testing.T, reported <-chan string, want string) {
 	}
 }
 
-func feedKeys(t *testing.T, keys ...string) {
+// feedKeys types keys into the field. Each key is sent only while the field
+// holds the foreground, so a key can never land in another application.
+func feedKeys(t *testing.T, field *TextField, keys ...string) {
 	t.Helper()
 
 	for _, key := range keys {
+		if windows.GetForegroundWindow() != windows.HWND(field.hwnd) {
+			t.Skip("skipping: the field lost the foreground before the keys were typed")
+		}
+
 		err := FeedKey(key)
 		if err != nil {
 			t.Fatalf("FeedKey(%q) error = %v", key, err)
@@ -77,19 +85,19 @@ func feedKeys(t *testing.T, keys ...string) {
 // shifted symbol arrives as the symbol, which the raw key stream cannot carry,
 // and Return confirms rather than typing a line break.
 func TestTextField_TypesTheQueryAndConfirms(t *testing.T) {
-	reported := openTestTextField(t)
+	field, reported := openTestTextField(t)
 
-	feedKeys(t, "Shift+s", "a", "!")
+	feedKeys(t, field, "Shift+s", "a", "!")
 	waitForReport(t, reported, "query Sa!")
 
-	feedKeys(t, "Return")
+	feedKeys(t, field, "Return")
 	waitForReport(t, reported, "confirm")
 }
 
 // TestTextField_EscapeCancels pins the other way out of a search.
 func TestTextField_EscapeCancels(t *testing.T) {
-	reported := openTestTextField(t)
+	field, reported := openTestTextField(t)
 
-	feedKeys(t, "Escape")
+	feedKeys(t, field, "Escape")
 	waitForReport(t, reported, "cancel")
 }
