@@ -654,50 +654,64 @@ func manyButtons(tb testing.TB, count int) []*element.Element {
 // else: the query still reaches the hints through the event tap's key stream.
 // A refusal that surfaced as a failed mode, or that stopped the keystrokes
 // getting through, is what this second case pins.
+//
+// Each case also types a capital the way the Linux and Windows taps name it,
+// "Shift+c". Dropped, it would leave "a", which matches every button.
 func TestSimulation_HintsSearchJourney(t *testing.T) {
 	overlays := map[string]func(testing.TB, *config.Config, []*element.Element) *simHarness{
 		"search input drawn":   newSimHarness,
 		"search input refused": newSimHarnessRefusingHintSearch,
 	}
 
+	queries := []struct {
+		name   string
+		keys   []string
+		target int
+	}{
+		{"lowercase", []string{"s", "a", "v"}, 0},       // matches only "Save"
+		{"shifted letter", []string{"Shift+c", "a"}, 1}, // matches only "Cancel"
+	}
+
 	for name, newHarness := range overlays {
-		t.Run(name, func(t *testing.T) {
-			elements := threeButtons(t)
-			sim := newHarness(t, simConfig(), elements)
+		for _, query := range queries {
+			t.Run(name+" "+query.name, func(t *testing.T) {
+				elements := threeButtons(t)
+				sim := newHarness(t, simConfig(), elements)
 
-			sim.pressHotkey(hintsHotkey)
-			sim.waitMode(domain.ModeHints)
-			sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+				sim.pressHotkey(hintsHotkey)
+				sim.waitMode(domain.ModeHints)
+				sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
 
-			// "/" dispatches search_hints asynchronously; wait for search to be
-			// open before typing, or the query characters would be read as
-			// labels. The wait is on the ask rather than on anything drawn,
-			// because the refusing overlay draws nothing.
-			sim.press("/")
-			sim.waitFor("search input asked for", func() bool {
-				return sim.overlay.searchInputAskCount() > 0
+				// "/" dispatches search_hints asynchronously; wait for search to be
+				// open before typing, or the query characters would be read as
+				// labels. The wait is on the ask rather than on anything drawn,
+				// because the refusing overlay draws nothing.
+				sim.press("/")
+				sim.waitFor("search input asked for", func() bool {
+					return sim.overlay.searchInputAskCount() > 0
+				})
+
+				sim.press(query.keys...)
+
+				sim.waitFor("hints narrowed to the query", func() bool {
+					return len(sim.overlay.lastHintLabels()) == 1
+				})
+
+				sim.press("Return")
+
+				labels := sim.overlay.lastHintLabels()
+				if len(labels) != 1 {
+					t.Fatalf("expected one hint after confirmed search, got %v", labels)
+				}
+
+				sim.typeLabel(labels[0])
+
+				target := elements[query.target].Center()
+				sim.waitFor("cursor on the searched element", func() bool {
+					return sim.cursor.position() == target
+				})
 			})
-
-			sim.typeLabel("sav") // matches only the "Save" button title
-
-			sim.waitFor("hints narrowed to the query", func() bool {
-				return len(sim.overlay.lastHintLabels()) == 1
-			})
-
-			sim.press("Return")
-
-			labels := sim.overlay.lastHintLabels()
-			if len(labels) != 1 {
-				t.Fatalf("expected one hint after confirmed search, got %v", labels)
-			}
-
-			sim.typeLabel(labels[0])
-
-			saveCenter := elements[0].Center()
-			sim.waitFor("cursor on the searched element", func() bool {
-				return sim.cursor.position() == saveCenter
-			})
-		})
+		}
 	}
 }
 

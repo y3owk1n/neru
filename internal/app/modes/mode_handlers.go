@@ -4,6 +4,7 @@ import (
 	"image"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"go.uber.org/zap"
@@ -391,12 +392,14 @@ func (h *handlerState) handleSearchInputKey(key string) {
 		}
 
 		return
-	case configpkg.KeyNameSpace:
+	case configpkg.KeyNameSpace, shiftPrefix + configpkg.KeyNameSpace:
 		ctx.SetSearchQuery(ctx.SearchQuery() + " ")
 		h.applyHintSearchFilter()
 
 		return
 	}
+
+	key = shiftedLetter(key)
 
 	if utf8.RuneCountInString(key) != 1 {
 		return
@@ -617,4 +620,26 @@ func (h *handlerState) handleGridModeKey(key string) {
 			h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 		}
 	}
+}
+
+// shiftPrefix is how the Linux and Windows taps name a key typed with Shift
+// held, after NormalizeKeyForComparison.
+const shiftPrefix = "shift+"
+
+// shiftedLetter turns "Shift+c", how the Linux and Windows taps name a capital,
+// into "C", the character the macOS tap sends. Any other key comes back as
+// given. A shifted symbol depends on the keyboard layout, which the key name
+// does not carry, so it stays dropped.
+func shiftedLetter(key string) string {
+	base, ok := strings.CutPrefix(strings.ToLower(key), shiftPrefix)
+	if !ok {
+		return key
+	}
+
+	letter, size := utf8.DecodeRuneInString(base)
+	if size == 0 || size != len(base) || !unicode.IsLetter(letter) {
+		return key
+	}
+
+	return string(unicode.ToUpper(letter))
 }
