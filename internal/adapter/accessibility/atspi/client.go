@@ -204,7 +204,8 @@ func New(logger *zap.Logger, configProvider config.Provider) *Client {
 // Chromium, Qt and GTK 3 give the same answer for screen and window
 // coordinates there, but GTK 4 answers screen coordinates with a zero origin,
 // so Wayland reads window coordinates. X11 reads screen coordinates, which
-// are the final positions there.
+// are the final positions there for every toolkit but GTK 4. GTK 4 reports a
+// zero origin on X11 too, and Neru has no X11 window origin to add yet.
 func coordTypeFor(backend platform.LinuxBackend) uint32 {
 	switch backend {
 	case platform.BackendWaylandWlroots,
