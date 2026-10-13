@@ -7,13 +7,6 @@ func supportedCapability(detail string) FeatureCapability {
 	}
 }
 
-func stubCapability(detail string) FeatureCapability {
-	return FeatureCapability{
-		Status: FeatureStatusStub,
-		Detail: detail,
-	}
-}
-
 // DarwinCapabilities returns the supported macOS runtime capabilities.
 func DarwinCapabilities() PlatformCapabilities {
 	return PlatformCapabilities{
