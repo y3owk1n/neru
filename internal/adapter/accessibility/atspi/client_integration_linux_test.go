@@ -581,12 +581,23 @@ func TestClient_Scan_KeepsDisabledElementsWhenTheClickableCheckIsIgnored(t *test
 		{"org.example.Other", []string{"enabled"}},
 	}
 
-	// The default depth reads through Collection, a lower one walks.
-	for _, depth := range []int{config.DefaultMaxDepth, 5} {
+	paths := []struct {
+		depth int
+		want  string
+	}{
+		{config.DefaultMaxDepth, scanPathCollection},
+		{5, scanPathWalk},
+	}
+
+	for _, scanned := range paths {
 		for _, test := range tests {
-			t.Run(fmt.Sprintf("%s depth %d", test.appID, depth), func(t *testing.T) {
-				nodes, _, _ := client.scan(t.Context(), scanner, frame.ref, roles,
-					client.ignoresClickableCheck(test.appID), depth, placement{}, false)
+			t.Run(fmt.Sprintf("%s depth %d", test.appID, scanned.depth), func(t *testing.T) {
+				nodes, path, _ := client.scan(t.Context(), scanner, frame.ref, roles,
+					client.ignoresClickableCheck(test.appID), scanned.depth, placement{}, false)
+
+				if path != scanned.want {
+					t.Errorf("scanned via %s, want %s", path, scanned.want)
+				}
 
 				got := make([]string, 0, len(nodes))
 				for _, node := range nodes {
