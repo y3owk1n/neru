@@ -63,7 +63,7 @@ the footnotes below give the mechanism behind its limits.
 | **Secure input detection**    | private macOS API     | always false        | always false              | always false         | always false              |
 | **System cursor hide**        | `CGDisplayHideCursor` | none                | none                      | none                 | none                      |
 | **`monitor_select` mode**     | native panels         | Cairo panels        | Cairo panels              | Cairo panels         | layered panels            |
-| **Native hint-search field**  | text view in a key panel | key-stream input ⁴  | layer-shell field ⁴       | layer-shell field ⁴  | `EDIT` control in a tool window ⁴ |
+| **Native hint-search field**  | text view in a key panel | XIM window ⁴        | layer-shell field ⁴       | layer-shell field ⁴  | `EDIT` control in a tool window ⁴ |
 | **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁵ | `BitBlt` ⁵        |
 | **Vision / OCR detection**    | Vision framework      | tesseract and contour ⁶ | tesseract and contour ⁶ | tesseract and contour ⁶ | `Windows.Media.Ocr` and contour ⁶ |
 | **Key feed (`action feed`)** | `CGEventPost`         | uinput               | uinput / virtual-keyboard | uinput               | `SendInput`               |
@@ -98,7 +98,11 @@ input-method text through IMM and dead keys through `TranslateMessage`. The
 keyboard hook is off for the session. Windows lets a background process take
 the foreground only in some cases, so the field joins the foreground window's
 input queue for the request and falls back to the key stream when it is still
-refused. Losing the foreground cancels the search. On X11, and on GNOME, which
+refused. Losing the foreground cancels the search. On X11 a one-pixel
+override-redirect window at the box takes the input focus and reads keys
+through an XIM input context, which brings the input method `XMODIFIERS` names
+and the locale's compose rules for dead keys. The keyboard grab is released for
+the session, and the window that had the focus gets it back. On GNOME, which
 has no layer shell, the query is read from the key stream.
 
 ⁵ **Screen capture.** X11, wlroots and Windows capture without a prompt. KWin

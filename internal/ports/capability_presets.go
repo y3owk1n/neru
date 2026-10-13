@@ -122,10 +122,10 @@ func LinuxCapabilities() PlatformCapabilities {
 		// compositor offers one. Elsewhere the characters come from the event
 		// tap and an input method never sees them.
 		TextInput: supportedCapability(
-			"native hint-search field on Wayland compositors with a layer shell, " +
-				"taking input-method text through text-input-v3 and dead keys " +
-				"through xkb compose; on X11 and GNOME the query is read from the " +
-				"event tap's key stream",
+			"native hint-search field on X11, taking input-method and dead-key " +
+				"text through XIM, and on Wayland compositors with a layer shell, " +
+				"taking it through text-input-v3 and xkb compose; on GNOME the " +
+				"query is read from the event tap's key stream",
 		),
 		// Both halves are implemented on every backend: capture through
 		// wlr-screencopy, XGetImage or the portal's ScreenCast session,

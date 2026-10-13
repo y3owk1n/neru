@@ -1,6 +1,8 @@
 #ifndef TEXTFIELD_WAYLAND_H
 #define TEXTFIELD_WAYLAND_H
 
+#include "textfield.h"
+
 // The Wayland hint-search field: a transparent layer-shell surface over the
 // drawn search box that takes the keyboard while search is open. Input-method
 // text arrives through text-input-v3, and plain keys go through xkb with
@@ -10,13 +12,6 @@
 // The query is screen input. Nothing here logs or stores it beyond the field.
 
 typedef struct NeruTextField NeruTextField;
-
-// Flags the dispatch functions return.
-enum {
-	NERU_TEXT_FIELD_CHANGED = 1,  // the query changed, read it with neru_text_field_query
-	NERU_TEXT_FIELD_CONFIRM = 2,  // Return outside a composition
-	NERU_TEXT_FIELD_CANCEL = 4,   // Escape outside a composition
-};
 
 // neru_text_field_open places a width x height field at x, y in global
 // coordinates. It returns NULL when there is no Wayland display, the

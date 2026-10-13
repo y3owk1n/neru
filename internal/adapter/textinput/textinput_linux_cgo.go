@@ -3,8 +3,9 @@
 package textinput
 
 /*
-#cgo linux pkg-config: wayland-client xkbcommon
+#cgo linux pkg-config: wayland-client xkbcommon x11
 #include "../platform/linux/textfield_wayland.h"
+#include "../platform/linux/textfield_x11.h"
 */
 import "C"
 
@@ -31,16 +32,19 @@ const (
 	fieldCancel  = int(C.NERU_TEXT_FIELD_CANCEL)
 )
 
-// TextInput is the Wayland hint-search field: a transparent layer-shell
-// surface over the drawn search box that takes the keyboard while search is
-// open, so input methods and dead keys reach the query as they do on macOS.
-// X11 and compositors without a layer shell, GNOME among them, get
-// started == false and keep reading the event tap's key stream.
+// TextInput is the Linux hint-search field, which takes the keyboard while
+// search is open so input methods and dead keys reach the query as they do on
+// macOS. On Wayland it is a transparent layer-shell surface over the drawn
+// search box, and on X11 a one-pixel window that holds the input focus and
+// reads keys through XIM. GNOME, which has no layer shell, and a field that
+// cannot open get started == false and keep reading the event tap's key
+// stream.
 //
 // The handler calls Start and Stop holding its lock, so h.mu comes before
-// TextInput.mu. Opening the field waits on the compositor for at most
-// NERU_TEXT_FIELD_OPEN_TIMEOUT_MS, and Stop waits only for run to notice the
-// stop pipe, since run never blocks inside Wayland.
+// TextInput.mu. Opening a field waits on the display server for at most 250 ms
+// (NERU_TEXT_FIELD_OPEN_TIMEOUT_MS, NERU_X11_TEXT_FIELD_OPEN_TIMEOUT_MS), and
+// Stop waits only for run to notice the stop pipe, since run reads events only
+// once they arrived.
 //
 // The query is keystream. Nothing here logs it.
 type TextInput struct {
@@ -66,7 +70,7 @@ func (t *TextInput) StartHintSearchSession(
 	frame ports.TextInputFrame,
 ) (bool, error) {
 	backend := platform.DetectLinuxBackend()
-	if !backend.IsWayland() || backend == platform.BackendWaylandGNOME {
+	if backend == platform.BackendWaylandGNOME || backend == platform.BackendUnknown {
 		return false, nil
 	}
 
@@ -77,16 +81,26 @@ func (t *TextInput) StartHintSearchSession(
 
 	// The frame is relative to the active screen, and the field is placed in
 	// global coordinates.
-	handle := C.neru_text_field_open(
-		C.int(frame.Screen.Min.X+frame.X), C.int(frame.Screen.Min.Y+frame.Y),
-		C.int(frame.Width), C.int(frame.Height))
-	if handle == nil {
+	left, top := C.int(frame.Screen.Min.X+frame.X), C.int(frame.Screen.Min.Y+frame.Y)
+	width, height := C.int(frame.Width), C.int(frame.Height)
+
+	var field nativeField
+
+	if backend.IsWayland() {
+		if handle := C.neru_text_field_open(left, top, width, height); handle != nil {
+			field = &waylandField{handle: handle}
+		}
+	} else if handle := C.neru_x11_text_field_open(left, top, width, height); handle != nil {
+		field = &x11Field{handle: handle}
+	}
+
+	if field == nil {
 		t.logger.Debug("Hint search field unavailable, reading the key stream")
 
 		return false, nil
 	}
 
-	session, err := startFieldSession(&waylandField{handle: handle}, callbacks, t.logger)
+	session, err := startFieldSession(field, callbacks, t.logger)
 	if err != nil {
 		t.logger.Debug("Hint search field could not start, reading the key stream", zap.Error(err))
 
@@ -142,6 +156,21 @@ func (f *waylandField) close()         { C.neru_text_field_close(f.handle) }
 
 func (f *waylandField) query() string {
 	return C.GoString(C.neru_text_field_query(f.handle))
+}
+
+// x11Field is the field on X11, where the server repeats held keys itself.
+type x11Field struct {
+	handle *C.NeruX11TextField
+}
+
+func (f *x11Field) displayFD() int { return int(C.neru_x11_text_field_fd(f.handle)) }
+func (f *x11Field) repeatFD() int  { return -1 } // poll ignores a negative descriptor
+func (f *x11Field) dispatch() int  { return int(C.neru_x11_text_field_dispatch(f.handle)) }
+func (f *x11Field) repeat() int    { return 0 }
+func (f *x11Field) close()         { C.neru_x11_text_field_close(f.handle) }
+
+func (f *x11Field) query() string {
+	return C.GoString(C.neru_x11_text_field_query(f.handle))
 }
 
 // fieldSession serves one open field. run owns the field and is the only

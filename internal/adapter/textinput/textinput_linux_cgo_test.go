@@ -20,6 +20,7 @@ import (
 // instead of switching the event tap off with nothing to type into.
 func TestTextInput_StartHintSearchSession_FallsBackWithoutACompositor(t *testing.T) {
 	t.Setenv("WAYLAND_DISPLAY", "neru-test-no-such-compositor")
+	t.Setenv("DISPLAY", ":neru-test-no-such-server")
 
 	input := NewTextInput(zap.NewNop())
 

@@ -37,7 +37,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Hints from the accessibility tree | ✅ | ⚠️ ¹     | ⚠️ ¹              | ⚠️ ¹          | ⚠️ ¹    |
 | Hints from OCR (`vision`)      | ✅    | ⚠️ ²      | ⚠️ ²              | ⚠️ ²          | ⚠️ ²    |
 | Hints from shapes (`contour`)  | ✅    | ✅        | ✅                | ✅            | ✅      |
-| Hint search                    | ✅    | ⚠️ ³      | ✅                | ⚠️ ³          | ⚠️ ³    |
+| Hint search                    | ✅    | ✅        | ✅                | ⚠️ ³          | ⚠️ ³    |
 | Menu bar, Dock and other system surfaces in hints | ✅ | ➖ | ➖          | ➖            | ➖      |
 | Scroll mode                    | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Monitor select                 | ✅    | ✅        | ✅                | ✅            | ✅      |
@@ -85,16 +85,16 @@ never drop a shape. Windows also needs an OCR language pack, and ignores the
 `*_confidence` options for words too. Neru never logs or stores recognized
 text.
 
-³ **Hint search reads raw keys on X11 and GNOME**, so dead keys and
-input-method composition do not work in the search field there. Shifted
-letters arrive, but shifted symbols such as `!` do not, because the raw key
-does not say which symbol the layout puts there. On Wayland compositors with a
-layer shell, search opens a text field that takes the keyboard, as on macOS.
-GNOME has no layer shell. KDE has the protocols the field needs, but it has not
-been tested there. On Windows, search opens a text field too when Windows lets
-Neru take the foreground, and reads raw keys when it does not. `neru doctor`
-reports the native search field as a stub on X11, on GNOME and on Linux
-builds without cgo. It does not report a field that failed to open on one
+³ **Hint search opens a text field that takes the keyboard**, as on macOS, on
+X11 and on Wayland compositors with a layer shell. An input method reaches it
+through XIM on X11, so `XMODIFIERS` has to name one, as it does for any X
+application. KDE has the protocols the field needs, but it has not been tested
+there. On Windows, search opens a text field too when Windows lets Neru take
+the foreground, and reads raw keys when it does not. GNOME has no layer shell,
+so search reads raw keys there: dead keys and input-method composition do not
+work, and shifted symbols such as `!` are dropped, because the raw key does
+not say which symbol the layout puts there. `neru doctor` reports the native
+search field as a stub on GNOME and on Linux builds without cgo. It does not report a field that failed to open on one
 search, such as when Windows refused the foreground.
 
 ⁴ **Modified clicks on Wayland** need a writable `/dev/uinput`, see
