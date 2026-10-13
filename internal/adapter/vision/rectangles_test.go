@@ -156,10 +156,27 @@ func TestAdapter_StartRectangles(t *testing.T) {
 			cfg := config.DefaultConfig().Hints.Vision
 			cfg.DetectRectangles = test.detect
 
-			got := adapter.startRectangles(t.Context(), frame, frame.Rect, cfg)()
+			got, err := adapter.startRectangles(t.Context(), frame, frame.Rect, cfg)()
+			if err != nil {
+				t.Fatalf("startRectangles failed: %v", err)
+			}
+
 			if len(got) != test.want {
 				t.Errorf("found %d rectangles, want %d", len(got), test.want)
 			}
 		})
+	}
+}
+
+func TestAdapter_StartRectangles_ReportsAFailedPass(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	frame := image.NewRGBA(image.Rect(0, 0, 400, 300))
+	adapter := &Adapter{logger: zap.NewNop()}
+
+	_, err := adapter.startRectangles(ctx, frame, frame.Rect, config.DefaultConfig().Hints.Vision)()
+	if err == nil {
+		t.Error("a canceled rectangle pass reported no error")
 	}
 }

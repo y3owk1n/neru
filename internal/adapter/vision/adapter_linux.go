@@ -125,7 +125,12 @@ func (a *Adapter) DetectElements(
 		text = regionsFromWords(toRecognizedWords(words), region, img.Rect, cfg.MinimumConfidence)
 	}
 
-	rects := withoutTextOverlap(rectangles(), text, cfg.MergeIOUThreshold)
+	found, err := rectangles()
+	if err != nil && !cfg.DetectText {
+		return nil, err
+	}
+
+	rects := withoutTextOverlap(found, text, cfg.MergeIOUThreshold)
 	merged := MergeRegions(append(text, rects...), cfg.MergeIOUThreshold)
 
 	classifier := newRegionClassifier(cfg)

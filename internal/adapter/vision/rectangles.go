@@ -112,20 +112,25 @@ func withoutTextOverlap(
 
 // startRectangles runs rectangleRegions in the background when
 // hints.vision.detect_rectangles is on, bounded by request_timeout_ms, so it
-// overlaps the text recognition. The returned function waits for the regions.
-// A failure, the timeout included, yields no rectangles, and the text half
-// still answers.
+// overlaps the text recognition. The returned function waits for the regions
+// and the error, the timeout included. A caller with text results keeps them
+// and drops the error, since the text half still answers.
 func (a *Adapter) startRectangles(
 	ctx context.Context,
 	frame *image.RGBA,
 	region image.Rectangle,
 	cfg config.HintsVisionConfig,
-) func() []DetectedRegion {
+) func() ([]DetectedRegion, error) {
 	if !cfg.DetectRectangles {
-		return func() []DetectedRegion { return nil }
+		return func() ([]DetectedRegion, error) { return nil, nil }
 	}
 
-	done := make(chan []DetectedRegion, 1)
+	type result struct {
+		regions []DetectedRegion
+		err     error
+	}
+
+	done := make(chan result, 1)
 
 	go func() {
 		ctx, cancel := context.WithTimeout(
@@ -146,10 +151,14 @@ func (a *Adapter) startRectangles(
 				zap.Int("rectangles", len(regions)))
 		}
 
-		done <- regions
+		done <- result{regions, err}
 	}()
 
-	return func() []DetectedRegion { return <-done }
+	return func() ([]DetectedRegion, error) {
+		found := <-done
+
+		return found.regions, found.err
+	}
 }
 
 func area(rect image.Rectangle) int {
