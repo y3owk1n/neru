@@ -248,11 +248,15 @@ or filter setting ([Clickable roles](../reference/configuration.md#clickable-rol
 default. Launch them with `--force-renderer-accessibility`. Native GTK and Qt
 apps and Firefox need no flag.
 
-**Window-origin offset on Wayland.** AT-SPI positions are window-relative on
-Wayland, so Neru reads them in window coordinates and asks the compositor for
-the window's screen origin. Window coordinates matter for GTK 4, which reports
-a zero origin for every element in screen coordinates. Other toolkits give the
-same answer in both. X11 reads screen coordinates.
+**Window-origin offset on Wayland.** AT-SPI positions of native Wayland
+clients are window-relative, so Neru asks the compositor for the window's
+screen origin. When it gets one, it reads element positions in window
+coordinates and adds the origin, less the frame's own window position. When it
+gets none, it reads screen coordinates and uses them as they are, which is
+right on X11 and for XWayland clients. The choice is made per scan because GTK
+4 reports a zero origin for every element in screen coordinates. Native
+Firefox, Chromium, Qt and GTK 3 clients report the same numbers in both,
+measured on niri.
 
 | Compositor | Source                                                       | Limits                                                                                                                    |
 | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |

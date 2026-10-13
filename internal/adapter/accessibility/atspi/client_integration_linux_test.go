@@ -11,6 +11,7 @@ import (
 	"maps"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -42,8 +43,9 @@ type fakeAccessible struct {
 	text            string
 	textReads       atomic.Int32
 	identifierReads atomic.Int32
-	// windowOrigin is where the element sits in window coordinates. Screen
-	// coordinates always report a zero origin, as GTK 4 does on Wayland.
+	// screenOrigin and windowOrigin are where the element sits in screen and
+	// in window coordinates.
+	screenOrigin image.Point
 	windowOrigin image.Point
 }
 
@@ -88,16 +90,12 @@ func (f *fakeAccessible) GetText(int32, int32) (string, *dbus.Error) {
 }
 
 func (f *fakeAccessible) GetExtents(coordType uint32) (atspiExtents, *dbus.Error) {
+	origin := f.screenOrigin
 	if coordType == atspiCoordWindow {
-		return atspiExtents{
-			X: int32(f.windowOrigin.X),
-			Y: int32(f.windowOrigin.Y),
-			W: 10,
-			H: 10,
-		}, nil
+		origin = f.windowOrigin
 	}
 
-	return atspiExtents{W: 10, H: 10}, nil
+	return atspiExtents{X: int32(origin.X), Y: int32(origin.Y), W: 10, H: 10}, nil
 }
 
 // GetMatches answers the Collection query as a toolkit does: the children
@@ -234,7 +232,7 @@ func TestClient_ScanPaths_ReadNameDescriptionAndValue(t *testing.T) {
 	}
 }
 
-func TestClient_Walk_HintsGTK4ElementsWhereTheyAre(t *testing.T) {
+func TestClient_Walk_HintsGTK4ElementsThatAreOnlySensitive(t *testing.T) {
 	address := startPrivateBus(t)
 
 	app := connectBus(t, address)
@@ -243,34 +241,104 @@ func TestClient_Walk_HintsGTK4ElementsWhereTheyAre(t *testing.T) {
 	child := fixtureChild(app.Names()[0])
 
 	// GTK 4 marks an element that takes input SENSITIVE and never ENABLED.
-	sensitive := child("sensitive", "button", atspiStateShowing, atspiStateSensitive)
-	sensitive.windowOrigin = image.Pt(39, 3)
-
-	insensitive := child("insensitive", "button", atspiStateShowing)
-	insensitive.windowOrigin = image.Pt(80, 3)
-
 	frame := child("frame", "frame", atspiStateShowing)
-	frame.children = []*fakeAccessible{sensitive, insensitive}
+	frame.children = []*fakeAccessible{
+		child("sensitive", "button", atspiStateShowing, atspiStateSensitive),
+		child("insensitive", "button", atspiStateShowing),
+	}
 
 	exportFixture(t, app, frame)
-
-	client := New(zap.NewNop(), nil)
-	client.coordType = atspiCoordWindow
 
 	var out []ax.Node
 
 	visited := 0
-	client.walk(t.Context(), scanner, frame.ref, rolesSet(resolveLinuxRoles(t, "button")), 0,
-		&out, &visited, 0, 0, false)
+	New(zap.NewNop(), nil).walk(t.Context(), scanner, frame.ref,
+		rolesSet(resolveLinuxRoles(t, "button")), 0, &out, &visited, placement{}, false)
 
-	got := make(map[string]image.Point)
+	got := make([]string, 0, len(out))
 	for _, node := range out {
-		got[fixtureName(node)] = node.Bounds().Min
+		got = append(got, fixtureName(node))
 	}
 
-	want := map[string]image.Point{"sensitive": image.Pt(39, 3)}
-	if !maps.Equal(got, want) {
-		t.Errorf("hinted %v, want %v", got, want)
+	if !slices.Equal(got, []string{"sensitive"}) {
+		t.Errorf("hinted %v, want [sensitive]", got)
+	}
+}
+
+// fixedOrigin is a window-origin source that always gives the same answer.
+type fixedOrigin struct {
+	origin image.Point
+	known  bool
+}
+
+func (fixedOrigin) start() {}
+
+func (f fixedOrigin) originFor(windowFrame) (image.Point, bool, error) {
+	return f.origin, f.known, nil
+}
+
+func TestClient_PlacementFor_PutsHintsOnTheScreen(t *testing.T) {
+	address := startPrivateBus(t)
+
+	app := connectBus(t, address)
+	scanner := connectBus(t, address)
+
+	child := fixtureChild(app.Names()[0])
+
+	// A window at (646, 52) with a button 39 by 3 pixels into it. GTK 4
+	// reports a zero origin in screen coordinates. An XWayland client reports
+	// real screen positions there.
+	window := image.Pt(646, 52)
+	inside := image.Pt(39, 3)
+
+	gtk4Frame := child("gtk4", "frame", atspiStateShowing)
+	gtk4Button := child("gtk4_button", "button", atspiStateShowing, atspiStateSensitive)
+	gtk4Button.windowOrigin = inside
+	gtk4Frame.children = []*fakeAccessible{gtk4Button}
+
+	xwaylandFrame := child("xwayland", "frame", atspiStateShowing)
+	xwaylandFrame.screenOrigin = window
+	xwaylandButton := child("xwayland_button", "button", atspiStateShowing, atspiStateEnabled)
+	xwaylandButton.screenOrigin = window.Add(inside)
+	xwaylandButton.windowOrigin = inside
+	xwaylandFrame.children = []*fakeAccessible{xwaylandButton}
+
+	exportFixture(t, app, gtk4Frame)
+	exportFixture(t, app, xwaylandFrame)
+
+	tests := []struct {
+		name   string
+		frame  *fakeAccessible
+		origin fixedOrigin
+		want   image.Point
+	}{
+		{"gtk 4 with the window origin", gtk4Frame, fixedOrigin{window, true}, window.Add(inside)},
+		{
+			"xwayland with the window origin",
+			xwaylandFrame,
+			fixedOrigin{window, true},
+			window.Add(inside),
+		},
+		{"xwayland without the window origin", xwaylandFrame, fixedOrigin{}, window.Add(inside)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := New(zap.NewNop(), nil)
+			client.windowOrigin = test.origin
+
+			place, _ := client.placementFor(t.Context(), scanner, &atspiWindow{ref: test.frame.ref})
+
+			var out []ax.Node
+
+			visited := 0
+			client.walk(t.Context(), scanner, test.frame.ref,
+				rolesSet(resolveLinuxRoles(t, "button")), 0, &out, &visited, place, false)
+
+			if len(out) != 1 || out[0].Bounds().Min != test.want {
+				t.Errorf("hinted %v, want one hint at %v", out, test.want)
+			}
+		})
 	}
 }
 
@@ -401,13 +469,23 @@ func scanPaths(
 			var out []ax.Node
 
 			visited := 0
-			client.walk(t.Context(), scanner, frame.ref, roles, 0, &out, &visited, 0, 0, readState)
+			client.walk(
+				t.Context(),
+				scanner,
+				frame.ref,
+				roles,
+				0,
+				&out,
+				&visited,
+				placement{},
+				readState,
+			)
 
 			return out
 		},
 		"collection": func(client *Client, roles map[string]struct{}) []ax.Node {
 			out, ok := client.collectViaCollection(
-				t.Context(), scanner, frame.ref, roles, 0, 0, readState)
+				t.Context(), scanner, frame.ref, roles, placement{}, readState)
 			if !ok {
 				t.Fatal("the Collection path fell back to the walk")
 			}
