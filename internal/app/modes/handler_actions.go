@@ -278,6 +278,7 @@ func (h *handlerState) startHintSearch() error {
 		Y:      bounds.Min.Y,
 		Width:  bounds.Dx(),
 		Height: bounds.Dy(),
+		Screen: h.screenBounds,
 	}
 
 	started, _ := h.textInput.StartHintSearchSession(

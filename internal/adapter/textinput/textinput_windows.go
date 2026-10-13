@@ -52,7 +52,10 @@ func (t *TextInput) StartHintSearchSession(
 	t.stopLocked()
 
 	queue := newCallbackQueue(callbacks)
-	bounds := image.Rect(frame.X, frame.Y, frame.X+frame.Width, frame.Y+frame.Height)
+	// The frame is relative to the active screen, and the field is placed in
+	// global coordinates.
+	bounds := image.Rect(frame.X, frame.Y, frame.X+frame.Width, frame.Y+frame.Height).
+		Add(frame.Screen.Min)
 
 	field, err := platformwindows.OpenTextField(bounds, platformwindows.TextFieldEvents{
 		QueryChanged: queue.queryChanged,

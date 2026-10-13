@@ -85,11 +85,13 @@ never drop a shape. Windows also needs an OCR language pack, and ignores the
 `*_confidence` options for words too. Neru never logs or stores recognized
 text.
 
-³ **Hint search reads raw keys outside macOS**, so dead keys and IME
-composition do not work in the search field. Shifted letters arrive, but
-shifted symbols such as `!` do not, because the raw key does not say which
-symbol the layout puts there. `neru doctor` reports the native search field as
-a stub there.
+³ **Hint search reads raw keys on Linux**, so dead keys and IME composition do
+not work in the search field there. Shifted letters arrive, but shifted
+symbols such as `!` do not, because the raw key does not say which symbol the
+layout puts there. `neru doctor` reports the native search field as a stub
+there. On Windows, search opens a text field that takes the keyboard, as on
+macOS, when Windows lets Neru take the foreground. When it does not, search
+reads raw keys as on Linux.
 
 ⁴ **Modified clicks on Wayland** need a writable `/dev/uinput`, see
 [Linux setup](../guide/linux.md#setup-steps).

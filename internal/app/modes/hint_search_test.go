@@ -69,7 +69,10 @@ func newHintSearchTestHandler(
 func TestStartHintSearch_PlacesTheTextInputOverTheDrawnBox(t *testing.T) {
 	t.Parallel()
 
+	// The box is relative to the active screen, here a second monitor, and
+	// the frame carries that screen so a platform field can place itself.
 	box := image.Rect(410, 740, 610, 780)
+	screen := image.Rect(1920, 0, 3840, 1080)
 	overlayPort := &portmocks.MockOverlayPort{
 		HintSearchBoundsFunc: func(image.Rectangle) image.Rectangle { return box },
 	}
@@ -78,6 +81,7 @@ func TestStartHintSearch_PlacesTheTextInputOverTheDrawnBox(t *testing.T) {
 	handler := newHintSearchTestHandler(t, overlayPort, textInput)
 
 	handler.mu.Lock()
+	handler.screenBounds = screen
 	err := handler.startHintSearch()
 	handler.mu.Unlock()
 
@@ -89,7 +93,9 @@ func TestStartHintSearch_PlacesTheTextInputOverTheDrawnBox(t *testing.T) {
 		t.Fatalf("text input started %d times, want 1", textInput.StartCount())
 	}
 
-	want := ports.TextInputFrame{X: box.Min.X, Y: box.Min.Y, Width: box.Dx(), Height: box.Dy()}
+	want := ports.TextInputFrame{
+		X: box.Min.X, Y: box.Min.Y, Width: box.Dx(), Height: box.Dy(), Screen: screen,
+	}
 	if got := textInput.Frame(); got != want {
 		t.Errorf("text input frame = %+v, want %+v", got, want)
 	}
