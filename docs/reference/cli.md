@@ -282,11 +282,11 @@ its error, where hints mode would open on what else it found.
 | `source`                    | string | What found the element: `axtree`, `vision` or `contour`, as `--strategy` names them. Actions on an `axtree` element can use its accessibility handle. On the others they act at its coordinates. |
 | `identifier`                | string | The ID the app's developer gave the element, such as an `AXIdentifier`, UI Automation `AutomationId` or AT-SPI `AccessibleId`. It does not change with the element's text or language, so it is the steadiest way to find one element. Empty when the app set none. |
 | `focused`                   | bool   | Whether the element has keyboard focus. |
+| `x`, `y`, `width`, `height` | int    | The element's bounds.                                           |
 
 `identifier` and `focused` come from the accessibility tree, so they mean
 something only when `source` is `axtree`. An element found any other way
 reports `""` and `false`.
-| `x`, `y`, `width`, `height` | int    | The element's bounds.                                           |
 
 Neru assigns labels afresh on every scan, after the flags filter the
 elements. A label stays valid only while the screen does not change, and only

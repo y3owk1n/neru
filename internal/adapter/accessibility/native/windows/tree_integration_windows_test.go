@@ -39,6 +39,9 @@ var (
 	procFixtureCreateWindowW = moduser32.NewProc("CreateWindowExW")
 	procFixtureDestroyWindow = moduser32.NewProc("DestroyWindow")
 	procFixtureSetWindowLong = moduser32.NewProc("SetWindowLongPtrW")
+	procFixtureSetForeground = moduser32.NewProc("SetForegroundWindow")
+	procFixtureGetForeground = moduser32.NewProc("GetForegroundWindow")
+	procFixtureSetFocus      = moduser32.NewProc("SetFocus")
 	procFixtureModuleHandleW = modkernel32.NewProc("GetModuleHandleW")
 )
 
@@ -177,7 +180,7 @@ func TestBuildTree_ReportsControlsNestedBelowTheWindow(t *testing.T) {
 	t.Logf("built tree with %d hints in %v", len(hints), time.Since(started))
 }
 
-func TestBuildTree_ReportsTextAndIdentifierSkipsDisabledAndPassword(t *testing.T) {
+func TestBuildTree_ReportsTextIdentifierAndFocusButNoDisabledOrPassword(t *testing.T) {
 	runtime.LockOSThread()
 
 	defer runtime.UnlockOSThread()
@@ -188,7 +191,7 @@ func TestBuildTree_ReportsTextAndIdentifierSkipsDisabledAndPassword(t *testing.T
 		fixturePopup|fixtureVisible,
 		image.Pt(0, 0), fixtureWindowSize, fixtureWindowSize, 0)
 
-	createFixtureWindow(t, "EDIT", "neru-fixture-edit-text", child,
+	edit := createFixtureWindow(t, "EDIT", "neru-fixture-edit-text", child,
 		image.Pt(10, 10), fixtureControlSize*3, fixtureControlSize, window)
 	enabled := createFixtureWindow(t, "BUTTON", "neru-fixture-enabled", child,
 		image.Pt(10, 60), fixtureControlSize*3, fixtureControlSize, window)
@@ -198,6 +201,17 @@ func TestBuildTree_ReportsTextAndIdentifierSkipsDisabledAndPassword(t *testing.T
 		image.Pt(10, 160), fixtureControlSize*3, fixtureControlSize, window)
 
 	discardCall(procFixtureSetWindowLong.Call(enabled, gwlpID, fixtureControlID))
+
+	// UI Automation reports keyboard focus only inside the foreground window,
+	// which a runner may refuse to hand over, so focus is expected only when
+	// the window got it.
+	discardCall(procFixtureSetForeground.Call(window))
+	discardCall(procFixtureSetFocus.Call(edit))
+
+	foreground, _, _ := procFixtureGetForeground.Call()
+	if foreground != window {
+		t.Log("the fixture window could not take the foreground, so focus is not checked")
+	}
 
 	scan := func(readState bool) []*TreeNode {
 		opts := DefaultTreeOptions(zap.NewNop())
@@ -235,10 +249,16 @@ func TestBuildTree_ReportsTextAndIdentifierSkipsDisabledAndPassword(t *testing.T
 
 	for _, readState := range []bool{true, false} {
 		buttons := map[string]string{}
+		editFocused := false
 
 		for _, hint := range scan(readState) {
-			if info := hint.Info(); info.Role() == uiaControlButton {
+			info := hint.Info()
+
+			switch {
+			case info.Role() == uiaControlButton:
 				buttons[info.Title()] = info.Identifier()
+			case info.Value() == "neru-fixture-edit-text":
+				editFocused = info.IsFocused()
 			}
 		}
 
@@ -254,6 +274,11 @@ func TestBuildTree_ReportsTextAndIdentifierSkipsDisabledAndPassword(t *testing.T
 				buttons,
 				want,
 			)
+		}
+
+		if wantFocused := readState && foreground == window; editFocused != wantFocused {
+			t.Errorf("read state %v: the focused edit reported focused %v, want %v",
+				readState, editFocused, wantFocused)
 		}
 	}
 }
