@@ -175,9 +175,12 @@ func (f *TextField) live() bool {
 }
 
 func (f *TextField) run(bounds image.Rectangle) {
+	// The thread is never unlocked, so Go ends it when run returns rather than
+	// handing it to other goroutines with the keyboard layout and input state
+	// the field gave it. A later FeedKey reads the layout of whichever thread
+	// it runs on.
 	runtime.LockOSThread()
 
-	defer runtime.UnlockOSThread()
 	defer close(f.done)
 	defer activeTextField.CompareAndSwap(f, nil)
 
