@@ -135,6 +135,13 @@ const (
 	x11FieldAbandoned
 )
 
+// x11FieldExists is set from the moment an X11 field starts opening until it
+// has closed. Two fields would take the focus from each other, and the one
+// that lost it would read that as the user leaving and cancel its search, so
+// while an earlier field is still opening or closing a new search reads the
+// key stream instead.
+var x11FieldExists atomic.Bool
+
 // openX11Session opens the X11 field off the caller's goroutine and returns its
 // session, or nil when it did not open within fieldOpenWait.
 func openX11Session(
@@ -142,6 +149,12 @@ func openX11Session(
 	callbacks ports.TextInputCallbacks,
 	logger *zap.Logger,
 ) *fieldSession {
+	if !x11FieldExists.CompareAndSwap(false, true) {
+		logger.Debug("An earlier hint search field is still closing, reading the key stream")
+
+		return nil
+	}
+
 	var state atomic.Int32
 
 	result := make(chan *fieldSession, 1)
@@ -149,12 +162,21 @@ func openX11Session(
 	go func() {
 		handle := C.neru_x11_text_field_prepare(left, top, width, height)
 		if handle == nil {
+			x11FieldExists.Store(false)
+
 			result <- nil
 
 			return
 		}
 
 		field := &x11Field{handle: handle}
+
+		// Most abandoned fields stop here, before they take the focus.
+		if state.Load() == x11FieldAbandoned {
+			field.close()
+
+			return
+		}
 
 		// Every reply goes out before a close, which can wait on the input
 		// method, so Start never waits behind one.
@@ -252,7 +274,10 @@ func (f *x11Field) displayFD() int { return int(C.neru_x11_text_field_fd(f.handl
 func (f *x11Field) repeatFD() int  { return -1 } // poll ignores a negative descriptor
 func (f *x11Field) dispatch() int  { return int(C.neru_x11_text_field_dispatch(f.handle)) }
 func (f *x11Field) repeat() int    { return 0 }
-func (f *x11Field) close()         { C.neru_x11_text_field_close(f.handle) }
+func (f *x11Field) close() {
+	C.neru_x11_text_field_close(f.handle)
+	x11FieldExists.Store(false)
+}
 
 func (f *x11Field) query() string {
 	return C.GoString(C.neru_x11_text_field_query(f.handle))
