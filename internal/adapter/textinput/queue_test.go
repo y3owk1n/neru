@@ -121,3 +121,27 @@ func TestCallbackQueue_RunsNothingAfterStop(t *testing.T) {
 		t.Errorf("callbacks = %v, want only the one running at stop", calls.calls)
 	}
 }
+
+// TestCallbackQueue_StopFromInsideACallbackReturns pins the handler's path:
+// a callback stops the session, which stops this queue from the goroutine
+// running the callback, so stop must not wait for that goroutine.
+func TestCallbackQueue_StopFromInsideACallbackReturns(t *testing.T) {
+	stopped := make(chan struct{})
+
+	var queue *callbackQueue
+
+	queue = newCallbackQueue(ports.TextInputCallbacks{
+		OnCancel: func() {
+			queue.stop()
+			close(stopped)
+		},
+	})
+
+	queue.cancel()
+
+	select {
+	case <-stopped:
+	case <-time.After(2 * time.Second):
+		t.Fatal("stop called from a callback did not return")
+	}
+}

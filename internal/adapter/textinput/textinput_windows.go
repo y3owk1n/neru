@@ -19,8 +19,10 @@ import (
 // field the foreground, StartHintSearchSession reports started == false and
 // hint search keeps reading the event tap's key stream.
 //
-// The handler calls Start and Stop holding its lock, so h.mu comes before
-// TextInput.mu. Neither waits on anything but the field's own thread.
+// The handler calls Start and Stop holding its lock, so the order is h.mu,
+// then TextInput.mu, then the queue's own lock, which is a leaf. Start and Stop
+// wait on the field's thread for at most 500 ms each, since taking the
+// foreground can wait on another app's input queue.
 //
 // The query is keystream. Nothing here logs it.
 type TextInput struct {

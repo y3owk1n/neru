@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -70,6 +71,20 @@ var (
 
 	errTextFieldNotForeground = errors.New("the hint search field did not get the foreground")
 	errTextFieldAlreadyOpen   = errors.New("a hint search field is already open")
+	errTextFieldTimedOut      = errors.New("the hint search field did not open in time")
+)
+
+// textFieldWait bounds each wait on the field's thread. The caller holds the
+// mode handler's lock, and the thread joins another app's input queue to take
+// the foreground, so an app that stopped responding costs at most this.
+const textFieldWait = 500 * time.Millisecond
+
+// A field's life: opening until its thread has the foreground, then open, or
+// abandoned when the opener stopped waiting first.
+const (
+	textFieldOpening int32 = iota
+	textFieldOpen
+	textFieldAbandoned
 )
 
 // TextFieldEvents receives what the user does in the field, on the field's
@@ -87,9 +102,14 @@ type TextField struct {
 	edit     uintptr
 	editProc uintptr
 	previous windows.HWND
-	closing  atomic.Bool
 	done     chan struct{}
 	startErr chan error
+
+	state   atomic.Int32
+	closing atomic.Bool
+	// lostForeground is set when the user moved to another window, which
+	// closing must then leave in front.
+	lostForeground atomic.Bool
 }
 
 // OpenTextField places the field over bounds, in global coordinates, and gives
@@ -109,32 +129,47 @@ func OpenTextField(bounds image.Rectangle, events TextFieldEvents) (*TextField, 
 
 	go field.run(bounds)
 
-	err := <-field.startErr
-	if err != nil {
-		<-field.done
+	select {
+	case err := <-field.startErr:
+		if err != nil {
+			return nil, err
+		}
 
-		return nil, err
+		return field, nil
+	case <-time.After(textFieldWait):
+		if field.state.CompareAndSwap(textFieldOpening, textFieldAbandoned) {
+			return nil, errTextFieldTimedOut
+		}
+
+		// The field opened just as the wait ran out.
+		return field, <-field.startErr
 	}
-
-	return field, nil
 }
 
-// Close destroys the field, waits for its thread to end, and gives the
-// foreground back to the window the user was in. No event fires after it
-// returns.
+// Close destroys the field and gives the foreground back to the window the
+// user was in, unless they moved to another one. It waits for the field's
+// thread for at most textFieldWait. No event fires after it returns.
 func (f *TextField) Close() {
-	if f.closing.Swap(true) {
-		<-f.done
+	if !f.closing.Swap(true) {
+		discardCall(procFieldPostMessageW.Call(f.hwnd, wmClose, 0, 0))
+	}
 
+	select {
+	case <-f.done:
+	case <-time.After(textFieldWait):
+		// The thread ends once Windows lets it, and nothing waits for it.
 		return
 	}
 
-	discardCall(procFieldPostMessageW.Call(f.hwnd, wmClose, 0, 0))
-	<-f.done
-
-	if f.previous != 0 {
+	if f.previous != 0 && !f.lostForeground.Load() {
 		discardCall(procFieldSetForegroundWindow.Call(uintptr(f.previous)))
 	}
+}
+
+// live reports whether the field may report events: it is open and not
+// closing.
+func (f *TextField) live() bool {
+	return f.state.Load() == textFieldOpen && !f.closing.Load()
 }
 
 func (f *TextField) run(bounds image.Rectangle) {
@@ -154,6 +189,15 @@ func (f *TextField) run(bounds image.Rectangle) {
 		}
 
 		f.startErr <- err
+
+		return
+	}
+
+	if !f.state.CompareAndSwap(textFieldOpening, textFieldOpen) {
+		// The opener stopped waiting, so nobody will close this field.
+		f.closing.Store(true)
+		discardCall(procDestroyWindow.Call(f.hwnd))
+		f.pump()
 
 		return
 	}
@@ -279,7 +323,7 @@ func textFieldWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uint
 	if field != nil && field.hwnd == hwnd {
 		switch message {
 		case wmCommand:
-			if wParam>>16 == enChange && field.events.QueryChanged != nil {
+			if wParam>>16 == enChange && field.live() && field.events.QueryChanged != nil {
 				field.events.QueryChanged(field.query())
 			}
 
@@ -287,8 +331,12 @@ func textFieldWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uint
 		case wmActivate:
 			// Losing the foreground ends the search, so the keyboard hook comes
 			// back on rather than leaving no one reading keys.
-			if wParam&0xFFFF == waInactive && !field.closing.Load() && field.events.Cancel != nil {
-				field.events.Cancel()
+			if wParam&0xFFFF == waInactive && field.live() {
+				field.lostForeground.Store(true)
+
+				if field.events.Cancel != nil {
+					field.events.Cancel()
+				}
 			}
 		case wmClose:
 			discardCall(procDestroyWindow.Call(hwnd))
@@ -321,13 +369,13 @@ func textFieldEditProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uin
 	case wmKeyDown:
 		switch wParam {
 		case vkReturn:
-			if field.events.Confirm != nil {
+			if field.live() && field.events.Confirm != nil {
 				field.events.Confirm()
 			}
 
 			return 0
 		case vkEscape:
-			if field.events.Cancel != nil {
+			if field.live() && field.events.Cancel != nil {
 				field.events.Cancel()
 			}
 
