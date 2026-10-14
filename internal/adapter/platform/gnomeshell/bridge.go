@@ -56,7 +56,7 @@ var errExtensionAbsent = errors.New(
 // errNotConnected is what Focused reports before the first connection attempt
 // has finished, so a caller arriving ahead of the warm-up reads "not yet"
 // rather than "nothing is focused".
-var errNotConnected = errors.New("the GNOME Shell bridge has not connected yet")
+var errNotConnected = errors.New("the Neru GNOME Shell extension has not answered yet")
 
 // Window is what the extension last said about the focused window: where it
 // is, and which window it is.
@@ -280,14 +280,14 @@ func (b *Bridge) warnOnce(err error) {
 func (b *Bridge) connect() error {
 	conn, err := b.connection()
 	if err != nil {
-		return fmt.Errorf("session bus: %w", err)
+		return fmt.Errorf("the Neru GNOME Shell extension needs a session bus: %w", err)
 	}
 
 	b.watch(conn)
 
 	present, err := nameHasOwner(conn, busName)
 	if err != nil {
-		return err
+		return fmt.Errorf("looking for the Neru GNOME Shell extension: %w", err)
 	}
 
 	if !present {
@@ -306,7 +306,7 @@ func (b *Bridge) connect() error {
 	err = conn.Object(busName, objectPath).CallWithContext(ctx, focusedMethod, 0).
 		Store(&found, &appID, &title, &posX, &posY, &width, &hgt)
 	if err != nil {
-		return fmt.Errorf("%s: %w", focusedMethod, err)
+		return fmt.Errorf("asking the Neru GNOME Shell extension (%s): %w", focusedMethod, err)
 	}
 
 	b.update(windowFrom(appID, title, posX, posY, width, hgt), found)
