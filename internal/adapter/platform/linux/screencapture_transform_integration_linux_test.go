@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -29,7 +31,15 @@ var quadrantColors = [4]color.RGBA{
 // the output and checks that every corner of the captured frame holds the
 // color painted there. Screencopy answers in the output's buffer orientation,
 // so without undoing the transform a rotated output's frame came back turned.
+//
+// It rotates the output and replaces its background, so it runs only when
+// desktop tests were asked for, and only on a headless sway output: a real
+// monitor's wallpaper cannot be read back to restore it.
 func TestCaptureScreenRegion_ReadsATransformedOutputAsShown(t *testing.T) {
+	if testing.Short() || os.Getenv("NERU_DESKTOP_TESTS") == "" {
+		t.Skip("skipping desktop-driving test; run `just test-desktop` to include it")
+	}
+
 	if os.Getenv("WAYLAND_DISPLAY") == "" || os.Getenv("SWAYSOCK") == "" {
 		t.Skip("needs a sway session: set WAYLAND_DISPLAY and SWAYSOCK")
 	}
@@ -39,27 +49,30 @@ func TestCaptureScreenRegion_ReadsATransformedOutputAsShown(t *testing.T) {
 		t.Skip("swaymsg is not installed")
 	}
 
-	output, _ := swayOutput(t, swaymsg)
+	original := swayOutput(t, swaymsg)
+	if !strings.HasPrefix(original.name, "HEADLESS-") {
+		t.Skipf("output %s is a real monitor; this test only rotates a headless one", original.name)
+	}
+
 	background := writeQuadrantBackground(t)
 
 	t.Cleanup(func() {
-		_ = exec.CommandContext(context.Background(), swaymsg, "output", output, "transform", "normal").
-			Run()
-		_ = exec.CommandContext(context.Background(), swaymsg, "output", output, "bg", "#000000", "solid_color").
-			Run()
+		_ = exec.CommandContext(
+			context.Background(), swaymsg, "output", original.name, "transform", original.transform,
+		).Run()
 	})
 
-	runSwaymsg(t, swaymsg, "output", output, "bg", background, "stretch")
+	runSwaymsg(t, swaymsg, "output", original.name, "bg", background, "stretch")
 
 	for _, transform := range []string{
 		"normal", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270",
 	} {
 		t.Run(transform, func(t *testing.T) {
-			runSwaymsg(t, swaymsg, "output", output, "transform", transform)
+			runSwaymsg(t, swaymsg, "output", original.name, "transform", transform)
 
 			// A quarter turn swaps the output's logical width and height, so the
 			// test reads the region back from sway after each change.
-			_, region := swayOutput(t, swaymsg)
+			region := swayOutput(t, swaymsg).rect
 
 			var got [4]color.RGBA
 
@@ -76,12 +89,32 @@ func TestCaptureScreenRegion_ReadsATransformedOutputAsShown(t *testing.T) {
 				time.Sleep(100 * time.Millisecond)
 			}
 
+			// A frame turned the wrong way still holds the painted colors, in
+			// the wrong corners. A frame with none of them means the compositor
+			// drew no background for this transform, which sway 1.9 does for the
+			// mirrored ones, and says nothing about the capture.
+			if !holdsAnyQuadrantColor(got) {
+				t.Skipf("the compositor drew no background for transform %s", transform)
+			}
+
 			if got != quadrantColors {
 				t.Errorf("corners (top left, top right, bottom left, bottom right) = %v, want %v",
 					got, quadrantColors)
 			}
 		})
 	}
+}
+
+// holdsAnyQuadrantColor reports whether any corner sample is one of the painted
+// colors.
+func holdsAnyQuadrantColor(samples [4]color.RGBA) bool {
+	for _, sample := range samples {
+		if slices.Contains(quadrantColors[:], sample) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // quadrantSamples reads the middle of each quarter of img.
@@ -140,9 +173,15 @@ func writeQuadrantBackground(t *testing.T) string {
 	return path
 }
 
-// swayOutput returns the name and logical rectangle of the first output sway
-// reports.
-func swayOutput(t *testing.T, swaymsg string) (string, image.Rectangle) {
+// swayOutputState is what the transform test reads about an output.
+type swayOutputState struct {
+	name      string
+	transform string
+	rect      image.Rectangle
+}
+
+// swayOutput returns the first output sway reports.
+func swayOutput(t *testing.T, swaymsg string) swayOutputState {
 	t.Helper()
 
 	raw, err := exec.CommandContext(context.Background(), swaymsg, "-t", "get_outputs", "-r").
@@ -152,8 +191,9 @@ func swayOutput(t *testing.T, swaymsg string) (string, image.Rectangle) {
 	}
 
 	var outputs []struct {
-		Name string `json:"name"`
-		Rect struct {
+		Name      string `json:"name"`
+		Transform string `json:"transform"`
+		Rect      struct {
 			X      int `json:"x"`
 			Y      int `json:"y"`
 			Width  int `json:"width"`
@@ -168,7 +208,11 @@ func swayOutput(t *testing.T, swaymsg string) (string, image.Rectangle) {
 
 	rect := outputs[0].Rect
 
-	return outputs[0].Name, image.Rect(rect.X, rect.Y, rect.X+rect.Width, rect.Y+rect.Height)
+	return swayOutputState{
+		name:      outputs[0].Name,
+		transform: outputs[0].Transform,
+		rect:      image.Rect(rect.X, rect.Y, rect.X+rect.Width, rect.Y+rect.Height),
+	}
 }
 
 func runSwaymsg(t *testing.T, swaymsg string, args ...string) {
