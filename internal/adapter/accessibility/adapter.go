@@ -5,6 +5,7 @@ import (
 	"image"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -54,9 +55,11 @@ var elementSlicePool = sync.Pool{
 
 // Adapter implements ports.AccessibilityPort by wrapping the ax.Client.
 type Adapter struct {
-	logger               *zap.Logger
-	client               ax.Client
-	detectMissionControl bool
+	logger *zap.Logger
+	client ax.Client
+	// detectMissionControl is hints.detect_mission_control. A reload changes
+	// it while scans read it, so it is atomic.
+	detectMissionControl atomic.Bool
 }
 
 // NewAdapter creates a new accessibility adapter.
@@ -65,11 +68,14 @@ func NewAdapter(
 	client ax.Client,
 	detectMissionControl bool,
 ) *Adapter {
-	return &Adapter{
-		logger:               logger,
-		client:               client,
-		detectMissionControl: detectMissionControl,
+	adapter := &Adapter{
+		logger: logger,
+		client: client,
 	}
+
+	adapter.detectMissionControl.Store(detectMissionControl)
+
+	return adapter
 }
 
 // ClickableElements retrieves all clickable UI elements matching the filter.
@@ -99,7 +105,7 @@ func (a *Adapter) ClickableElements(
 	// answer, rather than each deciding separately as the state changes under
 	// them.
 	var missionControlActive bool
-	if a.detectMissionControl {
+	if a.detectMissionControl.Load() {
 		missionControlActive = a.client.IsMissionControlActive()
 	}
 
@@ -286,6 +292,11 @@ func (a *Adapter) Health(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// UpdateMissionControlDetection turns the Mission Control check on or off.
+func (a *Adapter) UpdateMissionControlDetection(enabled bool) {
+	a.detectMissionControl.Store(enabled)
 }
 
 // UpdateClickableRoles updates the list of clickable roles.

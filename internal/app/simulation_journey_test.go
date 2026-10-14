@@ -2604,6 +2604,39 @@ func TestSimulation_MonitorMoveCarriesCaptureHintsToTheNewDisplay(t *testing.T) 
 	}
 }
 
+// TestSimulation_MissionControlDetectionFollowsAReload covers
+// hints.detect_mission_control changing on reload. It used to be armed once at
+// startup, so switching it on or off took a daemon restart.
+func TestSimulation_MissionControlDetectionFollowsAReload(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), threeButtons(t))
+
+	for _, detect := range []bool{true, false} {
+		configPath := filepath.Join(t.TempDir(), "config.toml")
+
+		writeErr := os.WriteFile(configPath, fmt.Appendf(nil, `
+[hints]
+include_dock_hints = true
+detect_mission_control = %t
+
+[hotkeys]
+%q = "hints"
+`, detect, hintsHotkey), 0o600)
+		if writeErr != nil {
+			t.Fatalf("failed to write the reloaded config: %v", writeErr)
+		}
+
+		reloadErr := sim.app.ReloadConfig(context.Background(), configPath)
+		if reloadErr != nil {
+			t.Fatalf("ReloadConfig() error = %v", reloadErr)
+		}
+
+		if got := sim.watcher.MCDetectionEnabled(); got != detect {
+			t.Errorf("Mission Control detection after reloading detect_mission_control = %t is %t",
+				detect, got)
+		}
+	}
+}
+
 // TestSimulation_ScreenChangeWhileIdleLeavesTheOverlayHidden pins the quietest
 // display change there is: plugging a monitor in with no mode open must not
 // flash an overlay at the user.

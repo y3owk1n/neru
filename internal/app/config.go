@@ -152,6 +152,21 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	// causing refreshHotkeysForAppOrCurrent to skip because the bundle
 	// hasn't changed.  Force clean registration with the new config.
 	a.hotkeys.ForceRefresh()
+
+	// This runs after the hotkeys, as it does at startup (Run), because what
+	// it arms can run an action sequence.
+	a.applyMissionControlDetection(loadResult.Config)
+}
+
+// applyMissionControlDetection arms or disarms Mission Control detection for
+// both of its readers: the app watcher, which reports Mission Control opening
+// and closing, and the accessibility adapter, which aims hints at it.
+func (a *App) applyMissionControlDetection(cfg *config.Config) {
+	a.appWatcher.SetMCDetection(cfg.Hints.DetectMissionControl)
+
+	if a.accessibility != nil {
+		a.accessibility.UpdateMissionControlDetection(cfg.Hints.DetectMissionControl)
+	}
 }
 
 func (a *App) restoreHotkeysAfterFailedReload() {

@@ -109,8 +109,8 @@ func (a *App) Run() error {
 	// Gate Mission Control detection at all levels using config. It stays after
 	// the hotkeys are live because what it arms can run an action sequence, and
 	// it reads the configuration now rather than the snapshot taken at the top
-	// of Run: the IPC server is already accepting a reload by this point, and
-	// nothing applies this setting again afterwards.
+	// of Run: the IPC server is already accepting a reload by this point. Each
+	// reload applies it again (reconfigureAfterUpdate).
 	a.appWatcher.SetMCDetection(a.configSnapshot().Hints.DetectMissionControl)
 
 	a.setupSleepObserver()

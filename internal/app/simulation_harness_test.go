@@ -830,6 +830,8 @@ func (a *simAXPort) ClickableElements(
 
 func (a *simAXPort) UpdateClickableRoles(_ []string) {}
 
+func (a *simAXPort) UpdateMissionControlDetection(_ bool) {}
+
 func (a *simAXPort) PerformAction(
 	_ context.Context,
 	_ *element.Element,

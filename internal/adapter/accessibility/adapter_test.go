@@ -22,6 +22,7 @@ const (
 	bundleIDGoogleChrome = "com.google.Chrome"
 	axButtonRole         = "AXButton"
 	axLinkRole           = "AXLink"
+	axApplicationRole    = "AXApplication"
 )
 
 // errTestAccessibility is a static error for testing accessibility failures.
@@ -361,7 +362,7 @@ func TestAdapter_RolePassing(t *testing.T) {
 		// Need checking Info() role == AXApplication
 		if app, ok := mockClient.MockFocusedApp.(*mockAXApp); ok {
 			app.MockInfo = &ax.AppInfo{
-				Role:  "AXApplication",
+				Role:  axApplicationRole,
 				Title: "Dock",
 			}
 		}
@@ -472,7 +473,7 @@ func TestAdapter_ClickableElements_MissionControlIsPartOfDockHints(t *testing.T)
 				MockMissionControlActive: testCase.missionControl,
 				MockFocusedApp: &mockAXApp{
 					bundleID: bundleIDAppleDock,
-					MockInfo: &ax.AppInfo{Role: "AXApplication"},
+					MockInfo: &ax.AppInfo{Role: axApplicationRole},
 				},
 			}
 
@@ -481,6 +482,61 @@ func TestAdapter_ClickableElements_MissionControlIsPartOfDockHints(t *testing.T)
 			_, err := adapter.ClickableElements(
 				context.Background(),
 				ports.ElementFilter{IncludeDock: testCase.includeDock},
+			)
+			if err != nil {
+				t.Fatalf("ClickableElements() error = %v", err)
+			}
+
+			if collected := mockClient.MissionControlCalls > 0; collected != testCase.wantCollected {
+				t.Errorf(
+					"Mission Control collected = %v, want %v",
+					collected,
+					testCase.wantCollected,
+				)
+			}
+		})
+	}
+}
+
+// TestAdapter_UpdateMissionControlDetection_FollowsTheReloadedSetting covers
+// hints.detect_mission_control changing on reload. The adapter used to keep
+// the value it was built with, so the change only took effect after a restart.
+func TestAdapter_UpdateMissionControlDetection_FollowsTheReloadedSetting(t *testing.T) {
+	tests := []struct {
+		name          string
+		atStartup     bool
+		reloadedTo    bool
+		wantCollected bool
+	}{
+		{name: "switched on by a reload", atStartup: false, reloadedTo: true, wantCollected: true},
+		{
+			name:          "switched off by a reload",
+			atStartup:     true,
+			reloadedTo:    false,
+			wantCollected: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockWindow := &accessibility.MockWindow{}
+			mockClient := &accessibility.MockAXClient{
+				MockPermissions:          true,
+				MockFrontmostWindow:      mockWindow,
+				MockAllWindows:           []ax.Window{mockWindow},
+				MockMissionControlActive: true,
+				MockFocusedApp: &mockAXApp{
+					bundleID: bundleIDAppleDock,
+					MockInfo: &ax.AppInfo{Role: axApplicationRole},
+				},
+			}
+
+			adapter := accessibility.NewAdapter(zap.NewNop(), mockClient, testCase.atStartup)
+			adapter.UpdateMissionControlDetection(testCase.reloadedTo)
+
+			_, err := adapter.ClickableElements(
+				context.Background(),
+				ports.ElementFilter{IncludeDock: true},
 			)
 			if err != nil {
 				t.Fatalf("ClickableElements() error = %v", err)

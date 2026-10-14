@@ -28,6 +28,11 @@ type AccessibilityPort interface {
 	// tree walk decides clickability another way — accept and ignore them.
 	UpdateClickableRoles(roles []string)
 
+	// UpdateMissionControlDetection turns hints' Mission Control check on or
+	// off. Config reload calls it when hints.detect_mission_control changes.
+	// Backends with no Mission Control accept and ignore it.
+	UpdateMissionControlDetection(enabled bool)
+
 	// PerformAction executes an action on the specified element.
 	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
 
