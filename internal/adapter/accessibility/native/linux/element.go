@@ -295,6 +295,12 @@ func MoveMouseToPoint(point image.Point, _ bool) {
 	}
 }
 
+// noMouseBackend is what a mouse action answers with neither X11 nor Wayland
+// detected. nil would report a click or drag that never happened.
+func noMouseBackend(what string) error {
+	return derrors.Newf(derrors.CodeNotSupported, "%s requires an X11 or Wayland backend", what)
+}
+
 // LeftClickAtPoint performs a left click.
 func LeftClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
 	if currentLinuxBackend() == linuxBackendX11 {
@@ -305,7 +311,7 @@ func LeftClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Mo
 		return wlrootsLeftClickAtPoint(point, restoreCursor, modifiers)
 	}
 
-	return nil
+	return noMouseBackend("left click")
 }
 
 // RightClickAtPoint performs a right click.
@@ -318,7 +324,7 @@ func RightClickAtPoint(point image.Point, restoreCursor bool, modifiers action.M
 		return wlrootsRightClickAtPoint(point, restoreCursor, modifiers)
 	}
 
-	return nil
+	return noMouseBackend("right click")
 }
 
 // MiddleClickAtPoint performs a middle click.
@@ -331,7 +337,7 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.
 		return wlrootsMiddleClickAtPoint(point, restoreCursor, modifiers)
 	}
 
-	return nil
+	return noMouseBackend("middle click")
 }
 
 // MouseDownAtPoint presses and holds the given mouse button at the point.
@@ -358,7 +364,7 @@ func MouseDownAtPoint(
 		return err
 	}
 
-	return nil
+	return noMouseBackend("mouse down")
 }
 
 // MouseUpAtPoint releases the given mouse button at the point.
@@ -396,7 +402,7 @@ func MouseUpAtPoint(
 		return err
 	}
 
-	return nil
+	return noMouseBackend("mouse up")
 }
 
 // MouseUp releases the given mouse button at the cursor, together with the
@@ -423,7 +429,7 @@ func MouseUp(button action.MouseButton) error {
 		return err
 	}
 
-	return nil
+	return noMouseBackend("mouse up")
 }
 
 // scrollPixelsPerNotch is how many pixels of a caller's delta make one wheel
