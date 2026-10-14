@@ -259,6 +259,19 @@ func (c *Client) PerformAction(
 
 	switch actionType {
 	case action.TypeLeftClick:
+		// A left click while the left button is held ends that drag at the
+		// click point, as left_click --state up would. A full click there would
+		// press over the held button and leave it recorded as held.
+		if IsMouseButtonDown(action.ButtonLeft) {
+			performActionErr = MouseUpAtPoint(point, action.ButtonLeft, modifiers)
+
+			ensureMouseUp()
+
+			break
+		}
+
+		ensureMouseUp()
+
 		performActionErr = LeftClickAtPoint(point, restoreCursor, modifiers)
 	case action.TypeRightClick:
 		ensureMouseUp()
