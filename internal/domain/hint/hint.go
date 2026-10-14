@@ -5,6 +5,7 @@ import (
 	"image"
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
 
 	"golang.org/x/text/cases"
@@ -233,6 +234,13 @@ type Collection struct {
 	hints   []*Interface
 	byLabel map[string]*Interface
 	trie    *Trie
+
+	// searchTexts holds each hint's element texts normalized for search. The
+	// first search builds it and later ones reuse it. A search runs on every
+	// keystroke, normalizing is most of its cost, and the hints do not change
+	// while the user types.
+	searchOnce  sync.Once
+	searchTexts [][]string
 }
 
 // NewCollection creates a new hint collection with indexed lookups.
@@ -281,17 +289,13 @@ func (c *Collection) FilterByText(query string) *Collection {
 	normalizedQuery := normalizeForSearch(query)
 	filtered := make([]*Interface, 0, len(c.hints))
 
-	for _, hint := range c.hints {
-		elem := hint.Element()
-		if elem == nil {
-			continue
-		}
+	for i, texts := range c.normalizedSearchTexts() {
+		for _, text := range texts {
+			if strings.Contains(text, normalizedQuery) {
+				filtered = append(filtered, c.hints[i])
 
-		if strings.Contains(normalizeForSearch(elem.Title()), normalizedQuery) ||
-			strings.Contains(normalizeForSearch(elem.Description()), normalizedQuery) ||
-			strings.Contains(normalizeForSearch(elem.Value()), normalizedQuery) ||
-			strings.Contains(normalizeForSearch(elem.SearchText()), normalizedQuery) {
-			filtered = append(filtered, hint)
+				break
+			}
 		}
 	}
 
@@ -324,4 +328,28 @@ func (c *Collection) Count() int {
 // Empty returns true if the collection has no hints.
 func (c *Collection) Empty() bool {
 	return len(c.hints) == 0
+}
+
+// normalizedSearchTexts returns the texts FilterByText matches against, one
+// entry per hint, nil for a hint without an element.
+func (c *Collection) normalizedSearchTexts() [][]string {
+	c.searchOnce.Do(func() {
+		c.searchTexts = make([][]string, len(c.hints))
+
+		for index, hint := range c.hints {
+			elem := hint.Element()
+			if elem == nil {
+				continue
+			}
+
+			c.searchTexts[index] = []string{
+				normalizeForSearch(elem.Title()),
+				normalizeForSearch(elem.Description()),
+				normalizeForSearch(elem.Value()),
+				normalizeForSearch(elem.SearchText()),
+			}
+		}
+	})
+
+	return c.searchTexts
 }
