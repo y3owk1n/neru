@@ -106,6 +106,13 @@ type App struct {
 	// concurrent writers (theme change observer, IPC config reload, systray reload).
 	configMu sync.RWMutex
 
+	// configApplyMu is held by `config set` and reload from reading the new
+	// config until every reader has it. Two commands arriving together then
+	// apply one after the other, and the later one wins. They take it after
+	// the active mode has exited, since an on-exit step may itself change the
+	// config.
+	configApplyMu sync.Mutex
+
 	// enabledMu orders a pause or resume with its effects on the mode handler
 	// and the hotkey binder, so a stop racing a start cannot exit a mode the
 	// start allowed. It is taken before modes.Handler's lock and never under it.

@@ -44,6 +44,9 @@ func (a *App) newConfigService(logger *zap.Logger) *loader.Service {
 func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 	a.prepareForConfigUpdate()
 
+	a.configApplyMu.Lock()
+	defer a.configApplyMu.Unlock()
+
 	newCfg, newWritten, err := loader.ApplyFieldChange(a.configService.Written(), key, value)
 	if err != nil {
 		a.restoreHotkeysAfterFailedReload()
@@ -97,6 +100,9 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 // Preserves the current app state (enabled/disabled, current mode).
 func (a *App) ReloadConfig(ctx context.Context, configPath string) error {
 	a.prepareForConfigUpdate()
+
+	a.configApplyMu.Lock()
+	defer a.configApplyMu.Unlock()
 
 	loadResult, err := a.configService.ReloadWithAppContext(
 		ctx,

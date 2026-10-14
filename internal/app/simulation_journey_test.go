@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -2605,8 +2606,10 @@ func TestSimulation_MonitorMoveCarriesCaptureHintsToTheNewDisplay(t *testing.T) 
 }
 
 // TestSimulation_MissionControlDetectionFollowsAReload covers
-// hints.detect_mission_control changing on reload. It used to be armed once at
-// startup, so switching it on or off took a daemon restart.
+// hints.detect_mission_control changing on reload and on `config set`. It used
+// to be armed once at startup, so switching it on or off took a daemon restart.
+// The test checks both readers: the watcher, which reports Mission Control
+// opening, and the accessibility port, which aims hints at it.
 func TestSimulation_MissionControlDetectionFollowsAReload(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), threeButtons(t))
 
@@ -2630,10 +2633,27 @@ detect_mission_control = %t
 			t.Fatalf("ReloadConfig() error = %v", reloadErr)
 		}
 
-		if got := sim.watcher.MCDetectionEnabled(); got != detect {
-			t.Errorf("Mission Control detection after reloading detect_mission_control = %t is %t",
-				detect, got)
+		assertMissionControlDetection(t, sim, detect, "reloading")
+
+		setErr := sim.app.SetConfigField(context.Background(),
+			"hints.detect_mission_control", strconv.FormatBool(!detect))
+		if setErr != nil {
+			t.Fatalf("SetConfigField() error = %v", setErr)
 		}
+
+		assertMissionControlDetection(t, sim, !detect, "setting")
+	}
+}
+
+func assertMissionControlDetection(t *testing.T, sim *simHarness, want bool, how string) {
+	t.Helper()
+
+	if got := sim.watcher.MCDetectionEnabled(); got != want {
+		t.Errorf("watcher detection after %s detect_mission_control = %t is %t", how, want, got)
+	}
+
+	if got := sim.ax.missionControlDetection(); got != want {
+		t.Errorf("hint scan detection after %s detect_mission_control = %t is %t", how, want, got)
 	}
 }
 

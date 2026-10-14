@@ -809,6 +809,10 @@ type simAXPort struct {
 	// it is stating what a keystroke costs rather than describing it.
 	focusedApp        string
 	focusedAppQueries int
+
+	// mcDetection is the Mission Control detection setting the app last
+	// handed the port.
+	mcDetection bool
 }
 
 var _ ports.AccessibilityPort = (*simAXPort)(nil)
@@ -830,7 +834,12 @@ func (a *simAXPort) ClickableElements(
 
 func (a *simAXPort) UpdateClickableRoles(_ []string) {}
 
-func (a *simAXPort) UpdateMissionControlDetection(_ bool) {}
+func (a *simAXPort) UpdateMissionControlDetection(enabled bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.mcDetection = enabled
+}
 
 func (a *simAXPort) PerformAction(
 	_ context.Context,
@@ -911,6 +920,13 @@ func (a *simAXPort) setFocusedApp(bundleID string) {
 	defer a.mu.Unlock()
 
 	a.focusedApp = bundleID
+}
+
+func (a *simAXPort) missionControlDetection() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.mcDetection
 }
 
 // focusedAppQueryCount reports how many times the app has asked which
