@@ -97,6 +97,11 @@ const (
 	// 120 per notch, so a pixel is four units and an application accumulates
 	// the fraction the way it does for a high-resolution wheel.
 	wheelUnitsPerPixel = wheelDelta / scrollPixelsPerNotch
+	// maxWheelRecord is the most one wheel record carries, in whole notches
+	// that fit the signed 16-bit wheel delta an application reads. A larger
+	// value wraps, and the application then scrolls a fraction of the distance
+	// or the opposite way.
+	maxWheelRecord = math.MaxInt16 / wheelDelta * wheelDelta
 )
 
 // mouseInput and input mirror Win32 MOUSEINPUT/INPUT on 64-bit Windows (40 bytes).
@@ -581,12 +586,20 @@ func wheelEvents(deltaX, deltaY int) []wheelEvent {
 func wheelRecords(vertical, horizontal int32) []wheelEvent {
 	var events []wheelEvent
 
-	if vertical != 0 {
-		events = append(events, wheelEvent{flags: mouseeventfWheel, data: uint32(vertical)})
-	}
+	events = appendWheelRecords(events, mouseeventfWheel, vertical)
+	events = appendWheelRecords(events, mouseeventfHWheel, horizontal)
 
-	if horizontal != 0 {
-		events = append(events, wheelEvent{flags: mouseeventfHWheel, data: uint32(horizontal)})
+	return events
+}
+
+// appendWheelRecords splits one axis into records of at most maxWheelRecord
+// units each, so a long scroll such as go_top travels its whole distance in
+// the direction asked.
+func appendWheelRecords(events []wheelEvent, flags uint32, units int32) []wheelEvent {
+	for units != 0 {
+		step := min(max(units, -maxWheelRecord), maxWheelRecord)
+		events = append(events, wheelEvent{flags: flags, data: uint32(step)})
+		units -= step
 	}
 
 	return events

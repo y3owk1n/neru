@@ -117,6 +117,53 @@ func TestWheelEvents_NegatesHorizontalDelta(t *testing.T) {
 	}
 }
 
+// TestWheelEvents_SplitsALongScrollWithoutWrapping pins that a scroll larger
+// than one wheel record arrives whole. An application reads each record's
+// delta as a signed 16-bit value, so one oversized record would scroll a
+// fraction of the distance, or the opposite way.
+func TestWheelEvents_SplitsALongScrollWithoutWrapping(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		deltaX    int
+		deltaY    int
+		flags     uint32
+		wantUnits int32
+	}{
+		{name: "go_top", deltaY: 1_000_000, flags: mouseeventfWheel, wantUnits: 4_000_000},
+		{name: "go_bottom", deltaY: -1_000_000, flags: mouseeventfWheel, wantUnits: -4_000_000},
+		{name: "9000 px up", deltaY: 9_000, flags: mouseeventfWheel, wantUnits: 36_000},
+		{name: "9000 px left", deltaX: 9_000, flags: mouseeventfHWheel, wantUnits: -36_000},
+		{name: "9000 px right", deltaX: -9_000, flags: mouseeventfHWheel, wantUnits: 36_000},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var total int32
+
+			for _, event := range wheelEvents(testCase.deltaX, testCase.deltaY) {
+				// What the application reads is the low 16 bits, signed.
+				delta := int32(int16(event.data))
+				if event.flags != testCase.flags || delta != int32(event.data) ||
+					(delta < 0) != (testCase.wantUnits < 0) {
+					t.Fatalf("wheelEvents(%d, %d) sent %+v, which an application reads as %d",
+						testCase.deltaX, testCase.deltaY, event, delta)
+				}
+
+				total += delta
+			}
+
+			if total != testCase.wantUnits {
+				t.Errorf("wheelEvents(%d, %d) travels %d units, want %d",
+					testCase.deltaX, testCase.deltaY, total, testCase.wantUnits)
+			}
+		})
+	}
+}
+
 // TestDragGlidePath_StepsEvenlyOntoTheTarget pins the shape of a held warp's
 // path: even steps, target last, and no step repeating the pixel before it.
 func TestDragGlidePath_StepsEvenlyOntoTheTarget(t *testing.T) {
