@@ -1023,7 +1023,7 @@ func TestEvdevProxy_AKeyboardThatDisappearsReleasesTheKeysItHeld(t *testing.T) {
 	capture := proxy.capture
 	capture.events = make(chan waylandEvdevEvent, 8)
 	capture.stopCh = make(chan struct{})
-	// Marked as let go on purpose, so its reader does not rescan /dev/input
+	// Mark it as let go on purpose, so its reader does not rescan /dev/input
 	// when it exits.
 	capture.devices = map[*os.File]trackedDevice{device: {released: true}}
 	capture.files = []*os.File{device}

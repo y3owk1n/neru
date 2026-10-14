@@ -524,10 +524,10 @@ func (capture *waylandEvdevCapture) startReader(file *os.File) {
 // rather than drops: with the device grabbed, an event dropped here is a key the
 // user pressed that reaches nothing.
 //
-// It also keeps which keys are down on this device, because a device can
+// It also tracks which keys are down on this device, because a device can
 // disappear without reporting their release. The kernel queues a release as it
-// unregisters the device, but a read made after the device is gone fails before
-// returning it, and a reader frozen across a suspend makes exactly that read.
+// unregisters the device. But a read made after the device is gone fails before
+// returning it, and a reader frozen across a suspend makes that read.
 // releaseHeld sends the releases in their place. Without them, a modifier held
 // into a suspend stays down on the proxy keyboard and turns every later key into
 // a chord.
@@ -600,8 +600,8 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 }
 
 // releaseHeld sends the proxy a release for each key a vanished device still had
-// down, then a sync report to end the frame: what the device would have sent had
-// the user let go.
+// down, then a sync report to end the frame. That is what the device would have
+// sent had the user let go.
 func (capture *waylandEvdevCapture) releaseHeld(held map[uint16]struct{}) {
 	if len(held) == 0 {
 		return

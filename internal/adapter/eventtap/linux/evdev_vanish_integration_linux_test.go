@@ -6,8 +6,8 @@ package linux
 // queues a release for every held key as it unregisters a device, but a read
 // made after the device is gone fails before returning it. A reader frozen
 // while the keyboard went away makes that read after the wake, so the capture
-// sends the release itself. Desktop-safe: only the test's own uinput keyboard is
-// read.
+// sends the release itself. The test reads only its own uinput keyboard, so it
+// is safe to run on a desktop.
 
 import (
 	"os"
@@ -16,9 +16,6 @@ import (
 
 	"go.uber.org/zap"
 )
-
-// readerSettle is how long the reader is given to read a key that was just sent.
-const readerSettle = 100 * time.Millisecond
 
 func TestWaylandEvdevCapture_AKeyboardDestroyedWithAKeyDownReleasesIt(t *testing.T) {
 	keyboard, err := createTestProxyKeyboard()
@@ -43,11 +40,11 @@ func TestWaylandEvdevCapture_AKeyboardDestroyedWithAKeyDownReleasesIt(t *testing
 
 	capture := &waylandEvdevCapture{
 		logger: zap.NewNop(),
-		// Unbuffered, so the reader holds the press until the test takes it and
-		// is not reading while the keyboard goes away.
+		// Unbuffered, so the reader blocks handing over each event until the
+		// test takes it, and is not reading while the keyboard goes away.
 		events: make(chan waylandEvdevEvent),
 		stopCh: make(chan struct{}),
-		// Marked as let go on purpose, so its reader does not rescan
+		// Mark it as let go on purpose, so its reader does not rescan
 		// /dev/input when it exits.
 		devices: map[*os.File]trackedDevice{node.file: {released: true}},
 		files:   []*os.File{node.file},
@@ -65,9 +62,22 @@ func TestWaylandEvdevCapture_AKeyboardDestroyedWithAKeyDownReleasesIt(t *testing
 	capture.startReader(node.file)
 	keyboard.key(evdevKeyLeftMeta, evdevValuePress)
 
-	// Give the reader time to read the press and block handing it over. A
-	// reader frozen by a suspend is not reading either.
-	time.Sleep(readerSettle)
+	// Take the press before the keyboard goes away. The frame's sync report is
+	// already queued behind it, so the reader reads it at once and then blocks
+	// handing it over. Like a reader frozen by a suspend, it is not reading when
+	// the keyboard goes away.
+	select {
+	case event := <-capture.events:
+		if event.eventType != evdevEventKey || event.code != evdevKeyLeftMeta ||
+			event.value != evdevValuePress {
+			keyboard.destroy()
+			t.Fatalf("first event from the keyboard = %+v, want a Super press", event)
+		}
+	case <-time.After(proxyNodeAppearance):
+		keyboard.destroy()
+		t.Fatal("the reader did not read the Super press")
+	}
+
 	keyboard.destroy()
 
 	received := make(chan []waylandEvdevEvent)
@@ -96,23 +106,13 @@ func TestWaylandEvdevCapture_AKeyboardDestroyedWithAKeyDownReleasesIt(t *testing
 
 	close(capture.events)
 
-	presses, releases := 0, 0
+	releases := 0
 
 	for _, event := range <-received {
-		if event.eventType != evdevEventKey || event.code != evdevKeyLeftMeta {
-			continue
-		}
-
-		switch event.value {
-		case evdevValuePress:
-			presses++
-		case evdevValueRelease:
+		if event.eventType == evdevEventKey && event.code == evdevKeyLeftMeta &&
+			event.value == evdevValueRelease {
 			releases++
 		}
-	}
-
-	if presses != 1 {
-		t.Fatalf("Super pressed %d times before its keyboard went away, want 1", presses)
 	}
 
 	if releases != 1 {
