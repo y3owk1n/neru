@@ -445,6 +445,11 @@ func scrollNotches(delta int) int {
 
 // ScrollAtCursor scrolls at the cursor, presenting modifiers as held.
 //
+// The caller's deltaX is positive-left, Neru's shared convention. Every Linux
+// layer below reads positive as right, which covers X11 button 7, REL_HWHEEL
+// and the Wayland horizontal axis. This function negates deltaX once, so every
+// call below it uses the Linux convention.
+//
 // Linux has no event-flags concept, so a modifier is a real key press around
 // the scroll. On Wayland that forces a choice of injection layer: the modifier
 // can only be pressed on the wlroots virtual keyboard (or libei on KDE), while
@@ -471,6 +476,8 @@ func scrollNotches(delta int) int {
 // to go back to — and a refusal that reaches nobody is exactly the silent
 // no-op turning this option on must not introduce.
 func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
+	deltaX = -deltaX
+
 	cfg := currentLinuxConfig()
 	if cfg != nil && cfg.SmoothScroll.Enabled {
 		err := scrollBackendAvailable()

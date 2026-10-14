@@ -531,7 +531,8 @@ func (s *waylandScrollSession) close() {
 // the compositor socket.
 //
 // Wayland axis convention: positive = scroll down (axis 0) / right (axis 1).
-// Application  convention: positive delta = scroll up (axis 0) / right (axis 1).
+// Caller convention: positive delta = scroll up (axis 0) / right (axis 1), as
+// ScrollAtCursor passes it.
 // Vertical axis sign is negated to convert between the two.
 func wlrootsScrollAxis(axis int, delta int) error {
 	totalNotches := scrollNotches(delta)
