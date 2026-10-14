@@ -194,7 +194,11 @@ func TestDetect_KeepsLoneNarrowGlyph(t *testing.T) {
 	fill(img, stroke, blue)
 
 	if rects := detect(t, img, 1); !hitsOnce(rects, stroke) {
-		t.Errorf("Detect(lone I) = %v, want one target over %v: a one-letter link is not a separator", rects, stroke)
+		t.Errorf(
+			"Detect(lone I) = %v, want one target over %v: a one-letter link is not a separator",
+			rects,
+			stroke,
+		)
 	}
 }
 
