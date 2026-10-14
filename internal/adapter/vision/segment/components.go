@@ -48,19 +48,28 @@ func (b *blob) encloses(o *blob) bool {
 	return b.minX <= o.minX && b.maxX >= o.maxX && b.minY <= o.minY && b.maxY >= o.maxY
 }
 
-// run is one horizontal stretch of ink in one row, with a provisional label.
+// run is one horizontal stretch of ink in one row. Its label is provisional
+// while components labels, and the index of its blob once it returns.
 type run struct {
 	x0, x1 int32
 	label  int32
 }
 
+// runMap is every run of ink in a frame, row by row: runs[rowStart[y]:
+// rowStart[y+1]] are row y's, so a blob's own pixels can be walked.
+type runMap struct {
+	runs     []run
+	rowStart []int32
+}
+
 // components labels 8-connected ink over row runs with union-find, then
 // measures every blob in two more passes over the runs: its box, ink and
 // background on the first, the ink along each side of the now-known box on the
-// second. Blobs are returned in raster order of their first run.
+// second. Blobs are returned in raster order of their first run, with the runs
+// they are made of.
 //
 //nolint:varnamelen // pixel kernel: coordinates read as the algorithm writes them
-func components(img *image.RGBA, mask []bool, width, height int) []blob {
+func components(img *image.RGBA, mask []bool, width, height int) ([]blob, runMap) {
 	runs := make([]run, 0, width*height/16) //nolint:mnd // a first guess; append grows it
 	rowStart := make([]int32, height+1)
 	parent := make([]int32, 0, 1024) //nolint:mnd // a first guess; append grows it
@@ -176,8 +185,9 @@ func components(img *image.RGBA, mask []bool, width, height int) []blob {
 
 	for y := range height {
 		for r := rowStart[y]; r < rowStart[y+1]; r++ {
+			runs[r].label = index[runs[r].label]
 			cur := runs[r]
-			b := &blobs[index[cur.label]]
+			b := &blobs[cur.label]
 			n := int(cur.x1 - cur.x0 + 1)
 
 			if k := y - b.minY; k < rimWidth {
@@ -203,7 +213,7 @@ func components(img *image.RGBA, mask []bool, width, height int) []blob {
 		}
 	}
 
-	return blobs
+	return blobs, runMap{runs: runs, rowStart: rowStart}
 }
 
 // distance is the sum of absolute channel differences.

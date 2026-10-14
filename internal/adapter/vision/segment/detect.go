@@ -56,13 +56,13 @@ func Detect(ctx context.Context, img *image.RGBA, scale float64) ([]image.Rectan
 		return nil, err
 	}
 
-	comps := components(frame, mask, width, height)
+	comps, ink := components(frame, mask, width, height)
 
 	// Texture raised some tile's threshold: read the frame again through the
 	// quieter mask, keeping the plain one inside pictures so an avatar stays
 	// whole. A dense blob too big to be one target is a photo: read it again
 	// for what is drawn on it.
-	photos := densePhotos(comps, lim)
+	photos, anyPhoto := densePhotos(comps, lim)
 	quiet, raised := noiseMask(steps, width, height)
 
 	if raised {
@@ -70,12 +70,12 @@ func Detect(ctx context.Context, img *image.RGBA, scale float64) ([]image.Rectan
 		mask = quiet
 	}
 
-	if len(photos) > 0 {
-		remaskPhotos(steps, mask, width, photos)
+	if anyPhoto {
+		remaskPhotos(steps, mask, width, ink, photos)
 	}
 
-	if raised || len(photos) > 0 {
-		comps = components(frame, mask, width, height)
+	if raised || anyPhoto {
+		comps, _ = components(frame, mask, width, height)
 	}
 
 	err = checkDeadline(ctx)

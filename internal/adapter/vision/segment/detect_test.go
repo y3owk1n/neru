@@ -298,6 +298,43 @@ func TestDetect_ButtonIsOneTarget(t *testing.T) {
 	}
 }
 
+func TestDetect_MultiwordButtonIsOneTarget(t *testing.T) {
+	t.Parallel()
+
+	img := canvas(260, 80, white)
+	button := image.Rect(30, 20, 230, 50)
+	border(img, button, black)
+	sentence(img, 60, 31, black, black)
+
+	rects := detect(t, img, 1)
+
+	if len(rects) != 1 || rects[0] != button {
+		t.Errorf("Detect(\"Save changes\") = %v, want only the button %v", rects, button)
+	}
+}
+
+func TestDetect_TabStripIsSeparateTargets(t *testing.T) {
+	t.Parallel()
+
+	img := canvas(300, 80, white)
+	strip := image.Rect(20, 20, 280, 50)
+	border(img, strip, black)
+
+	tabs := []image.Rectangle{
+		word(img, 40, 31, 4, black),
+		word(img, 120, 31, 4, black),
+		word(img, 200, 31, 4, black),
+	}
+
+	rects := detect(t, img, 1)
+
+	for _, tab := range tabs {
+		if !hitsOnce(rects, tab) {
+			t.Errorf("tab %v should be its own target, got %v", tab, rects)
+		}
+	}
+}
+
 func TestDetect_CardIsAContainer(t *testing.T) {
 	t.Parallel()
 
@@ -377,6 +414,34 @@ func TestDetect_PictureBySize(t *testing.T) {
 			"Detect() = %v, want only the avatar %v: a photo is content, not a target",
 			rects,
 			avatar,
+		)
+	}
+}
+
+func TestDetect_KeepsFaintFieldOnWindowOverWallpaper(t *testing.T) {
+	t.Parallel()
+
+	img := canvas(900, 600, white)
+	rng := rand.New(rand.NewPCG(7, 8))
+
+	for y := range 600 {
+		for x := range 900 {
+			v := uint8(80 + rng.IntN(60))
+			img.SetRGBA(x, y, color.RGBA{v, v - 20, v + 30, 255})
+		}
+	}
+
+	window := image.Rect(250, 150, 650, 450)
+	fill(img, window, white)
+
+	field := image.Rect(300, 250, 560, 280)
+	border(img, field, color.RGBA{234, 238, 242, 255})
+
+	if rects := detect(t, img, 1); !hitsOnce(rects, field) {
+		t.Errorf(
+			"Detect() = %v, want the faint field %v: a window on a wallpaper is not the wallpaper",
+			rects,
+			field,
 		)
 	}
 }

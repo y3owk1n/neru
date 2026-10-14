@@ -179,27 +179,39 @@ func classify(blobs []blob, lim limits) []image.Rectangle {
 
 	label := groupLabels(blobs, glyphs, scope, lim)
 
-	// A control holding two or more separate things, labels or frames of its
-	// own, is a group of them (a segmented control, a tab strip) rather than
-	// one target.
-	firstPart := map[int]int{}
+	// A control holding two or more separate things is a group of them (a
+	// segmented control, a tab strip) rather than one target. Its words are
+	// one thing when they read as one caption ("Save changes"); frames of its
+	// own are each one thing.
+	wordBoxes := map[int]map[int]image.Rectangle{}
+	frameParts := map[int]int{}
+
 	for i := range blobs {
 		j := scope[i]
-		if j < 0 || kinds[j] != control {
+		if j < 0 || kinds[j] != control || kinds[i] == line {
 			continue
 		}
 
-		part := i
-		switch {
-		case glyphs[i]:
-			part = label[i]
-		case kinds[i] == line:
+		if !glyphs[i] {
+			frameParts[j]++
+
 			continue
 		}
 
-		if first, seen := firstPart[j]; !seen {
-			firstPart[j] = part
-		} else if first != part {
+		if wordBoxes[j] == nil {
+			wordBoxes[j] = map[int]image.Rectangle{}
+		}
+
+		if box, ok := wordBoxes[j][label[i]]; ok {
+			wordBoxes[j][label[i]] = box.Union(blobs[i].rect())
+		} else {
+			wordBoxes[j][label[i]] = blobs[i].rect()
+		}
+	}
+
+	for j := range blobs {
+		if kinds[j] == control &&
+			frameParts[j]+captions(wordBoxes[j]) >= 2 {
 			kinds[j] = container
 		}
 	}
@@ -296,6 +308,54 @@ func dropCoincident(targets []image.Rectangle) []image.Rectangle {
 	}
 
 	return kept
+}
+
+// captions counts the captions a control's words make. Words on one line no
+// further apart than half their height, a space, are one caption, the way a
+// button reads "Save changes", while tabs in a strip and links in a bar stand
+// further apart than that.
+//
+//nolint:varnamelen // word indices read as the geometry writes them
+func captions(words map[int]image.Rectangle) int {
+	boxes := make([]image.Rectangle, 0, len(words))
+	for _, box := range words {
+		boxes = append(boxes, box)
+	}
+
+	parent := make([]int, len(boxes))
+	for i := range parent {
+		parent[i] = i
+	}
+
+	find := func(a int) int {
+		for parent[a] != a {
+			a = parent[a]
+		}
+
+		return a
+	}
+
+	for i, a := range boxes {
+		for j := i + 1; j < len(boxes); j++ {
+			b := boxes[j]
+			overlap := min(a.Max.Y, b.Max.Y) - max(a.Min.Y, b.Min.Y)
+			gap := max(a.Min.X, b.Min.X) - min(a.Max.X, b.Max.X)
+
+			if overlap*2 >= min(a.Dy(), b.Dy()) && gap*2 <= max(a.Dy(), b.Dy()) {
+				parent[find(j)] = find(i)
+			}
+		}
+	}
+
+	count := 0
+
+	for i := range boxes {
+		if find(i) == i {
+			count++
+		}
+	}
+
+	return count
 }
 
 // fits reports whether a blob is small enough to be one target.
