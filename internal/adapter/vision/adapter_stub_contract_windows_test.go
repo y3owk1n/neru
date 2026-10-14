@@ -207,3 +207,13 @@ func TestVisionAdapter_DetectionHonorsBothHalvesOff(t *testing.T) {
 		t.Errorf("got %d elements with both halves off, want none", len(elements))
 	}
 }
+
+// TestVisionAdapter_CaptureIncludesOwnWindowsOnWindows pins that Windows says its
+// capture includes Neru's own windows. A hints refresh that reads the screen
+// takes the old labels off first only when this is false, so a true here would
+// let it read them back as targets.
+func TestVisionAdapter_CaptureIncludesOwnWindowsOnWindows(t *testing.T) {
+	if vision.NewAdapter(nil).CaptureExcludesOwnWindows() {
+		t.Error("CaptureExcludesOwnWindows() = true, but the desktop BitBlt reads the overlay")
+	}
+}

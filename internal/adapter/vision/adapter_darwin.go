@@ -147,6 +147,10 @@ func (a *Adapter) DetectElements(
 	return elements, nil
 }
 
+// CaptureExcludesOwnWindows is true on macOS, where every capture asks
+// ScreenCaptureKit to leave Neru's application out (vision_darwin.m).
+func (a *Adapter) CaptureExcludesOwnWindows() bool { return true }
+
 // CaptureScreen captures the current screen image for the primary display.
 func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
 	cgImage := C.NeruCaptureScreen()

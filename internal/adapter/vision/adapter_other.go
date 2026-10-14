@@ -51,6 +51,10 @@ func (a *Adapter) DetectSegments(
 	)
 }
 
+// CaptureExcludesOwnWindows is false. This slot captures nothing, so every
+// screen-reading scan fails before the answer matters.
+func (a *Adapter) CaptureExcludesOwnWindows() bool { return false }
+
 // CaptureScreen reports not-supported: this slot has no capture backend.
 // Linux has one in adapter_linux.go and Windows in adapter_windows.go.
 func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {

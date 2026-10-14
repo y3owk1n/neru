@@ -163,6 +163,13 @@ func (s *HintService) UpdateConfig(config config.HintsConfig) {
 		zap.Bool("include_screen_capture", config.IncludeScreenCaptureHints))
 }
 
+// CaptureShowsOwnWindows reports whether a screen-reading scan would see
+// Neru's own windows in its capture. With no vision port there is no capture,
+// so nothing is seen.
+func (s *HintService) CaptureShowsOwnWindows() bool {
+	return s.vision != nil && !s.vision.CaptureExcludesOwnWindows()
+}
+
 // Generator returns the registered hint generator for the given label
 // direction. An empty direction resolves to the default generator. If no
 // generator exists for the requested direction the default is returned as a

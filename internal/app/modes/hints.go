@@ -206,6 +206,15 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		domainHintsErr error
 	)
 
+	// A refresh leaves the old labels up until it draws the new set. A capture
+	// that includes Neru's windows would read them as targets, so they come off
+	// first. A failed scan exits the mode, so no running mode is left without
+	// labels.
+	if isRefresh && activation.Targets == nil && readsScreen(strategy) &&
+		h.hintService.CaptureShowsOwnWindows() {
+		h.clearOverlayFrameForRedraw()
+	}
+
 	if activation.Targets != nil {
 		domainHints, domainHintsErr = h.labelTargets(
 			ctx, activation.Targets, bundleID, overrides.labelDirection,
@@ -329,13 +338,17 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 // blocked on the screen-recording permission. Vision, contour and segment all
 // read the window's pixels, so all pay the gate. Axtree never touches the screen.
 func (h *handlerState) needsScreenCapturePermission(strategy string) bool {
+	return readsScreen(strategy) && h.system != nil && !h.system.CheckScreenCapturePermission(h.ctx)
+}
+
+// readsScreen reports whether strategy finds its targets in a screen capture.
+func readsScreen(strategy string) bool {
 	switch strategy {
 	case domain.StrategyVision, domain.StrategyContour, domain.StrategySegment:
+		return true
 	default:
 		return false
 	}
-
-	return h.system != nil && !h.system.CheckScreenCapturePermission(h.ctx)
 }
 
 // requestScreenCapturePermissionAndResume shows the blocking permission dialog

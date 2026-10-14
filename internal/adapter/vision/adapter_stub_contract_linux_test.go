@@ -292,3 +292,13 @@ func TestVisionAdapter_PixelDetectorsKeepTheContractOnLinux(t *testing.T) {
 		})
 	}
 }
+
+// TestVisionAdapter_CaptureIncludesOwnWindowsOnLinux pins that Linux says its
+// capture includes Neru's own windows. A hints refresh that reads the screen
+// takes the old labels off first only when this is false, so a true here would
+// let it read them back as targets.
+func TestVisionAdapter_CaptureIncludesOwnWindowsOnLinux(t *testing.T) {
+	if vision.NewAdapter(nil).CaptureExcludesOwnWindows() {
+		t.Error("CaptureExcludesOwnWindows() = true, but every Linux capture reads the overlay")
+	}
+}

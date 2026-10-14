@@ -1101,6 +1101,7 @@ type simHarness struct {
 	appearance *atomic.Bool
 	overlay    *simOverlayPort
 	ax         *simAXPort
+	vision     *simVisionPort
 	cursor     *simCursor
 	hotkeys    *simHotkeyPort
 	// tap is the port the app was wired with: the shared mock, whose methods
@@ -1362,6 +1363,7 @@ func buildSimHarness(
 	cfg = running
 
 	axPort := &simAXPort{elements: elements, focusedApp: simFixtureBundleID}
+	vision := simVision(recorder)
 	appearance := &atomic.Bool{}
 	watcher := &mocks.MockAppWatcherPort{}
 	cursor := &simCursor{pos: displays[0].bounds.Min.Add(
@@ -1434,7 +1436,7 @@ func buildSimHarness(
 		app.WithOverlayPort(overlayPort),
 		app.WithSystemPort(system),
 		app.WithAccessibility(axPort),
-		app.WithVisionPort(simVision()),
+		app.WithVisionPort(vision),
 	)
 	if err != nil {
 		tb.Fatalf("app.New failed: %v", err)
@@ -1446,6 +1448,7 @@ func buildSimHarness(
 		appearance: appearance,
 		overlay:    recorder,
 		ax:         axPort,
+		vision:     vision,
 		cursor:     cursor,
 		hotkeys:    hotkeys,
 		tap:        tap,
@@ -1615,28 +1618,52 @@ func (h *simHarness) neverMode(mode domain.Mode, window time.Duration) {
 	}
 }
 
-// simVision is the screen-reading backend the capture strategies use. It finds
-// one target in the middle of whatever region it is asked to scan, so a
-// journey can tell from where the labels land which region that was.
-func simVision() *mocks.MockVisionPort {
-	return &mocks.MockVisionPort{
-		DetectContoursFunc: func(
-			_ context.Context,
-			bounds image.Rectangle,
-			_ config.HintsContourConfig,
-		) ([]*element.Element, error) {
-			center := bounds.Min.Add(image.Pt(bounds.Dx()/2, bounds.Dy()/2))
+// simVisionPort is the screen-reading backend the capture strategies use. It
+// finds one target in the middle of whatever region it is asked to scan, so a
+// journey can tell from where the labels land which region that was. It also
+// records which modes had content on screen at each capture, which is what a
+// real capture that does not leave Neru's windows out would have read.
+type simVisionPort struct {
+	*mocks.MockVisionPort
 
-			target, err := element.NewElement(
-				"contour-target",
-				image.Rectangle{Min: center, Max: center.Add(image.Pt(60, 30))},
-				element.RoleButton,
-			)
-			if err != nil {
-				return nil, err
-			}
+	mu        sync.Mutex
+	onScreens [][]string
+}
 
-			return []*element.Element{target}, nil
-		},
+func simVision(overlay *simOverlayPort) *simVisionPort {
+	vision := &simVisionPort{MockVisionPort: &mocks.MockVisionPort{}}
+
+	vision.DetectContoursFunc = func(
+		_ context.Context,
+		bounds image.Rectangle,
+		_ config.HintsContourConfig,
+	) ([]*element.Element, error) {
+		vision.mu.Lock()
+		vision.onScreens = append(vision.onScreens, overlay.drawnModeNames())
+		vision.mu.Unlock()
+
+		center := bounds.Min.Add(image.Pt(bounds.Dx()/2, bounds.Dy()/2))
+
+		target, err := element.NewElement(
+			"contour-target",
+			image.Rectangle{Min: center, Max: center.Add(image.Pt(60, 30))},
+			element.RoleButton,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return []*element.Element{target}, nil
 	}
+
+	return vision
+}
+
+// onScreenAtCaptures reports, per capture so far, which modes had content on
+// screen when it was taken.
+func (v *simVisionPort) onScreenAtCaptures() [][]string {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	return slices.Clone(v.onScreens)
 }

@@ -166,6 +166,11 @@ func toRecognizedWords(words []platformwindows.OCRWord) []recognizedWord {
 	return converted
 }
 
+// CaptureExcludesOwnWindows is false on Windows. The capture is a BitBlt off
+// the desktop DC with CAPTUREBLT, which reads the overlay along with
+// everything else on screen.
+func (a *Adapter) CaptureExcludesOwnWindows() bool { return false }
+
 // CaptureScreen returns the pixels currently on the active screen, the
 // monitor under the cursor.
 func (a *Adapter) CaptureScreen(ctx context.Context) (*image.RGBA, error) {

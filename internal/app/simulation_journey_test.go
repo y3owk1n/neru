@@ -2605,6 +2605,66 @@ func TestSimulation_MonitorMoveCarriesCaptureHintsToTheNewDisplay(t *testing.T) 
 	}
 }
 
+// TestSimulation_ScreenReadingRefreshLeavesOldLabelsOutOfTheCapture covers
+// pressing a capture-strategy hints binding again while its labels are up. The
+// refresh scans the screen with the old labels still drawn, so on a platform
+// whose capture includes Neru's windows (Linux, Windows) the scan read them back
+// as targets. There they now come off before the capture. Where the capture
+// leaves Neru out (macOS) they stay up, as before.
+func TestSimulation_ScreenReadingRefreshLeavesOldLabelsOutOfTheCapture(t *testing.T) {
+	const contourHintsHotkey = "Primary+Shift+O"
+
+	for _, testCase := range []struct {
+		name               string
+		excludesOwnWindows bool
+		wantLabelsInFrame  bool
+	}{
+		{name: "capture includes Neru's windows", excludesOwnWindows: false, wantLabelsInFrame: false},
+		{name: "capture leaves Neru out", excludesOwnWindows: true, wantLabelsInFrame: true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hotkeys.Bindings[contourHintsHotkey] = []string{"hints --strategy contour"}
+
+			sim := newSimHarness(t, cfg, nil)
+			sim.vision.ExcludesOwnWindows = testCase.excludesOwnWindows
+
+			sim.desktop.focusWindow(image.Rect(100, 100, 900, 700))
+
+			sim.pressHotkey(contourHintsHotkey)
+			sim.waitMode(domain.ModeHints)
+			sim.waitFor(
+				"the first labels drawn",
+				func() bool { return sim.overlay.hintDrawCount() >= 1 },
+			)
+
+			sim.pressHotkey(contourHintsHotkey)
+			sim.waitFor(
+				"the refresh scan",
+				func() bool { return len(sim.vision.onScreenAtCaptures()) >= 2 },
+			)
+
+			refresh := sim.vision.onScreenAtCaptures()[1]
+			if got := slices.Contains(
+				refresh,
+				domain.ModeNameHints,
+			); got != testCase.wantLabelsInFrame {
+				t.Errorf(
+					"hint labels on screen during the refresh capture = %t, want %t (on screen: %v)",
+					got,
+					testCase.wantLabelsInFrame,
+					refresh,
+				)
+			}
+
+			sim.waitFor(
+				"the refreshed labels drawn",
+				func() bool { return sim.overlay.hintDrawCount() >= 2 },
+			)
+		})
+	}
+}
+
 // TestSimulation_MissionControlDetectionFollowsAReload covers
 // hints.detect_mission_control changing on reload and on `config set`. It used
 // to be armed once at startup, so switching it on or off took a daemon restart.

@@ -119,6 +119,9 @@ whole display at its size in points. Neru does not use macOS 15.2's
 Windows the `contour` and `segment` strategies get the monitor's DPI scale, so
 their size rules are in points while their results stay in physical pixels.
 The rectangle half of `vision` still applies them in physical pixels.
+On macOS the capture leaves Neru's own windows out. Every other backend
+captures them along with the rest of the screen, so a hints refresh with a
+screen-reading strategy takes the old labels off before it captures.
 
 ⁶ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing

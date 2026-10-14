@@ -847,6 +847,8 @@ func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {
 	return nil, derrors.New(derrors.CodeBridgeFailed, "capture screen not implemented")
 }
 
+func (m *mockVisionPort) CaptureExcludesOwnWindows() bool { return false }
+
 func (m *mockVisionPort) Health(context.Context) error {
 	return nil
 }

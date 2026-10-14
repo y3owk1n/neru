@@ -64,4 +64,10 @@ type VisionPort interface {
 	// never log it, derive log text from it, write it to disk, or keep it past
 	// the detection that asked for it.
 	CaptureScreen(ctx context.Context) (*image.RGBA, error)
+
+	// CaptureExcludesOwnWindows reports whether a capture leaves Neru's own
+	// windows out of the frame. When it does not, a hints refresh that reads
+	// the screen takes the old labels off first, or it reads them back as
+	// targets.
+	CaptureExcludesOwnWindows() bool
 }

@@ -26,6 +26,8 @@ type MockVisionPort struct {
 	CaptureScreenFunc  func(context.Context) (*image.RGBA, error)
 	DetectContoursFunc func(context.Context, image.Rectangle, config.HintsContourConfig) ([]*element.Element, error)
 	DetectSegmentsFunc func(context.Context, image.Rectangle, config.HintsSegmentConfig) ([]*element.Element, error)
+	// ExcludesOwnWindows is what CaptureExcludesOwnWindows answers.
+	ExcludesOwnWindows bool
 
 	mu       sync.Mutex
 	detectN  int
@@ -145,6 +147,9 @@ func (m *MockVisionPort) DetectSegmentsCallCount() int {
 
 	return m.segmentN
 }
+
+// CaptureExcludesOwnWindows implements ports.VisionPort.
+func (m *MockVisionPort) CaptureExcludesOwnWindows() bool { return m.ExcludesOwnWindows }
 
 // Ensure MockVisionPort implements ports.VisionPort.
 var _ ports.VisionPort = (*MockVisionPort)(nil)
