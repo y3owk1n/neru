@@ -13,12 +13,15 @@ import "C"
 import (
 	"context"
 	"image"
+	"math"
+	"time"
 	"unsafe"
 
 	"go.uber.org/zap"
 
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin" // ensure darwin CGo .m files are compiled
 	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
+	"github.com/y3owk1n/neru/internal/adapter/vision/frame"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -157,6 +160,16 @@ func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
 
 // cgImageToRGBA copies a CGImage into an RGBA buffer at its native pixel size.
 func cgImageToRGBA(cgImage C.CGImageRef) (*image.RGBA, error) {
+	return cgImageToFrame(cgImage, 1)
+}
+
+// cgImageToFrame copies a CGImage into an RGBA buffer, box-filtered down by
+// factor. The image is drawn into Go memory as BGRA in its own color space,
+// which is the layout ScreenCaptureKit hands out, so Core Graphics copies
+// rather than converts; frame.Resample then swizzles and filters it in one
+// pass across cores. No native copy of the pixels is made, so there is none
+// to wipe.
+func cgImageToFrame(cgImage C.CGImageRef, factor int) (*image.RGBA, error) {
 	width := int(C.CGImageGetWidth(cgImage))
 	height := int(C.CGImageGetHeight(cgImage))
 
@@ -164,21 +177,27 @@ func cgImageToRGBA(cgImage C.CGImageRef) (*image.RGBA, error) {
 		return nil, derrors.New(derrors.CodeInternal, "captured screen image has zero size")
 	}
 
-	bytesPerRow := width * bytesPerPixel
-	buf := make([]byte, height*bytesPerRow)
+	stride := width * bytesPerPixel
+	pix := make([]byte, stride*height)
 
-	colorSpace := C.CGColorSpaceCreateDeviceRGB()
-
-	defer C.CGColorSpaceRelease(colorSpace)
+	colorSpace := C.CGImageGetColorSpace(cgImage)
+	if uintptr(colorSpace) == 0 || C.CGColorSpaceGetModel(colorSpace) != C.kCGColorSpaceModelRGB {
+		colorSpace = C.CGColorSpaceCreateDeviceRGB()
+		defer C.CGColorSpaceRelease(colorSpace)
+	}
 
 	ctx := C.CGBitmapContextCreate(
-		unsafe.Pointer(&buf[0]),
+		unsafe.Pointer(&pix[0]),
 		C.size_t(width),
 		C.size_t(height),
 		8, // bits per component
-		C.size_t(bytesPerRow),
+		C.size_t(stride),
 		colorSpace,
-		C.kCGImageAlphaPremultipliedLast,
+		C.CGBitmapInfo(
+			C.kCGBitmapByteOrder32Little,
+		)|C.CGBitmapInfo(
+			C.kCGImageAlphaPremultipliedFirst,
+		),
 	)
 
 	if uintptr(ctx) == 0 {
@@ -186,17 +205,12 @@ func cgImageToRGBA(cgImage C.CGImageRef) (*image.RGBA, error) {
 	}
 	defer C.CGContextRelease(ctx)
 
-	// Draw the captured image into our context
 	C.CGContextDrawImage(ctx, C.CGRect{
 		origin: C.CGPoint{x: 0, y: 0},
 		size:   C.CGSize{width: C.double(width), height: C.double(height)},
 	}, cgImage)
 
-	// Create RGBA image
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	copy(img.Pix, buf)
-
-	return img, nil
+	return frame.Resample(pix, stride, width, height, frame.BGRA, factor), nil
 }
 
 // Health checks whether Vision Framework is available.
@@ -217,28 +231,42 @@ func (a *Adapter) Health(ctx context.Context) error {
 }
 
 // DetectContours captures the display holding screenBounds and runs the
-// contour detector over it. The frame is the whole display because that is
-// the unit the capture backend hands out; the rectangles come back in points,
-// are offset by the display origin (CGDisplayBounds is already global
-// top-left, so no flip is needed) and trimmed to screenBounds.
+// contour detector over it.
 func (a *Adapter) DetectContours(
 	ctx context.Context,
 	screenBounds image.Rectangle,
 	cfg config.HintsContourConfig,
 ) ([]*element.Element, error) {
-	select {
-	case <-ctx.Done():
-		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
+	frame, err := a.captureDetectionFrame(ctx, screenBounds, "contour")
+	if err != nil {
+		return nil, err
 	}
 
-	region := screenBounds.Canon()
-	if region.Empty() {
-		return nil, derrors.Newf(
-			derrors.CodeActionFailed,
-			"contour detection needs a region to read; %v is empty",
-			screenBounds,
-		)
+	rects, err := contour.Detect(ctx, frame.img, frame.scale, contour.ParamsFromConfig(cfg))
+	if err != nil {
+		return nil, err
+	}
+
+	return targetElements(frame, rects, element.SourceContour), nil
+}
+
+// captureDetectionFrame captures screenBounds for a pixel detector.
+//
+// It captures just the region, clipped to the display that holds it, at its
+// size in points: the detectors were tuned on logical pixels, and contour on a
+// 2x frame finds half again as many targets at a fifth of the speed. When that
+// path is unavailable it captures the whole display containing the region
+// instead; either way the detectors' rectangles are offset by where the frame
+// sits (CGDisplayBounds is already global top-left, so no flip is needed) and
+// trimmed to screenBounds.
+func (a *Adapter) captureDetectionFrame(
+	ctx context.Context,
+	screenBounds image.Rectangle,
+	detector string,
+) (detectionFrame, error) {
+	region, err := detectionRegion(ctx, screenBounds, detector)
+	if err != nil {
+		return detectionFrame{}, err
 	}
 
 	cgRect := C.CGRect{
@@ -246,31 +274,102 @@ func (a *Adapter) DetectContours(
 		size:   C.CGSize{width: C.double(region.Dx()), height: C.double(region.Dy())},
 	}
 
+	started := time.Now()
+
+	var captured C.CGRect
+
+	timeout, err := captureTimeoutMS(ctx)
+	if err != nil {
+		return detectionFrame{}, err
+	}
+
+	if regionImage := C.NeruCaptureRect(cgRect, &captured, timeout); uintptr(regionImage) != 0 {
+		defer C.CGImageRelease(regionImage)
+
+		capturedWidth := max(int(captured.size.width), 1)
+		factor := int(math.Round(float64(C.CGImageGetWidth(regionImage)) / float64(capturedWidth)))
+
+		img, err := cgImageToFrame(regionImage, factor)
+		if err != nil {
+			return detectionFrame{}, err
+		}
+
+		a.logCapture("region", started, img)
+
+		return detectionFrame{
+			img:    img,
+			origin: image.Pt(int(captured.origin.x), int(captured.origin.y)),
+			region: region,
+			scale:  float64(img.Rect.Dx()) / float64(capturedWidth),
+		}, nil
+	}
+
+	// The region capture failed or ran out of time. The fallback gets only
+	// what is left of the caller's deadline, so with one set the two never
+	// wait longer than it allows.
+	timeout, err = captureTimeoutMS(ctx)
+	if err != nil {
+		return detectionFrame{}, err
+	}
+
 	var displayBounds C.CGRect
 
-	cgImage := C.NeruCaptureDisplayContaining(cgRect, &displayBounds)
+	cgImage := C.NeruCaptureDisplayContaining(cgRect, &displayBounds, timeout)
 	if uintptr(cgImage) == 0 {
-		return nil, derrors.New(derrors.CodeInternal, "failed to capture display")
+		return detectionFrame{}, derrors.New(derrors.CodeInternal, "failed to capture display")
 	}
 
 	defer C.CGImageRelease(cgImage)
 
 	img, err := cgImageToRGBA(cgImage)
 	if err != nil {
-		return nil, err
+		return detectionFrame{}, err
 	}
+
+	a.logCapture("display", started, img)
 
 	scale := 1.0
 	if displayBounds.size.height > 0 {
 		scale = float64(img.Rect.Dy()) / float64(displayBounds.size.height)
 	}
 
-	origin := image.Pt(int(displayBounds.origin.x), int(displayBounds.origin.y))
+	return detectionFrame{
+		img:    img,
+		origin: image.Pt(int(displayBounds.origin.x), int(displayBounds.origin.y)),
+		region: region,
+		scale:  scale,
+	}, nil
+}
 
-	rects, err := contour.Detect(ctx, img, scale, contour.ParamsFromConfig(cfg))
+// defaultCaptureTimeout bounds a capture whose context carries no deadline.
+const defaultCaptureTimeout = 5 * time.Second
+
+// captureTimeoutMS is how long the native capture may wait: what is left on
+// ctx, or defaultCaptureTimeout when ctx has no deadline. The native side
+// cannot read a Go context, so this is the bound it does read. A context that
+// is already done is refused before anything is captured.
+func captureTimeoutMS(ctx context.Context) (C.int64_t, error) {
+	err := ctx.Err()
 	if err != nil {
-		return nil, err
+		return 0, derrors.Wrap(err, derrors.CodeContextCanceled, "operation canceled")
 	}
 
-	return contour.Elements(origin, region, rects), nil
+	remaining := defaultCaptureTimeout
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining = time.Until(deadline)
+	}
+
+	return C.int64_t(max(remaining.Milliseconds(), 1)), nil
+}
+
+// logCapture records how a detection frame was taken. It carries a duration
+// and the frame's dimensions, which describe the capture rather than its
+// contents.
+func (a *Adapter) logCapture(path string, started time.Time, img *image.RGBA) {
+	a.logger.Debug("Captured detection frame",
+		zap.String("path", path),
+		zap.Duration("duration", time.Since(started)),
+		zap.Int("width", img.Rect.Dx()),
+		zap.Int("height", img.Rect.Dy()),
+	)
 }

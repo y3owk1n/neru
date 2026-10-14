@@ -1,26 +1,28 @@
-package contour_test
+package vision
 
 import (
 	"image"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-func TestElements_ClipsToRegionAndDropsOutside(t *testing.T) {
+func TestTargetElements_ClipsToRegionAndDropsOutside(t *testing.T) {
 	t.Parallel()
 
-	origin := image.Pt(1920, 0)
-	region := image.Rect(2000, 100, 2800, 700)
+	frame := detectionFrame{
+		origin: image.Pt(1920, 0),
+		region: image.Rect(2000, 100, 2800, 700),
+	}
 	rects := []image.Rectangle{
 		image.Rect(100, 150, 200, 190), // inside once offset
 		image.Rect(10, 10, 50, 30),     // outside region
 		image.Rect(40, 300, 120, 340),  // straddles the region's left edge
 	}
 
-	got := contour.Elements(origin, region, rects)
+	got := targetElements(frame, rects, element.SourceContour)
 	if len(got) != 2 {
-		t.Fatalf("len(Elements) = %d, want 2", len(got))
+		t.Fatalf("len(targetElements) = %d, want 2", len(got))
 	}
 
 	want := image.Rect(2020, 150, 2120, 190)
@@ -35,5 +37,9 @@ func TestElements_ClipsToRegionAndDropsOutside(t *testing.T) {
 
 	if !got[0].IsClickable() || !got[0].IsVisionOnly() {
 		t.Error("element must be clickable and vision-only")
+	}
+
+	if got[0].Source() != element.SourceContour {
+		t.Errorf("Source() = %q, want %q", got[0].Source(), element.SourceContour)
 	}
 }

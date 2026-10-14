@@ -110,7 +110,15 @@ supports neither protocol, so KDE uses the `org.freedesktop.portal.ScreenCast`
 portal over PipeWire, with the grant kept under `$XDG_STATE_HOME/neru/`. A
 region that leaves the screen, spans two Wayland outputs, or lies on an
 unshared monitor fails rather than coming back clipped. Scaled outputs return
-physical pixels, as on Retina.
+physical pixels. On macOS, Neru caches ScreenCaptureKit's list of displays and
+drops it when the display configuration changes or a capture fails. `contour`
+captures only its region, through a source rect, at its size in points, and
+falls back to the whole display holding it. `vision` captures the whole
+display at its size in points. Neru does not use macOS 15.2's
+`captureImageInRect:`, because it leaks the captured image on every call. On
+Windows the `contour` strategy gets the monitor's DPI scale, so its size rules
+are in points while its results stay in physical pixels. The rectangle half of
+`vision` still applies them in physical pixels.
 
 ⁶ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing

@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 // Linux implements both halves of ports.VisionPort: screen capture through
@@ -244,4 +245,47 @@ func TestVisionAdapter_NilLoggerIsAcceptedOnLinux(t *testing.T) {
 	}
 
 	_, _ = adapter.CaptureScreen(context.Background())
+}
+
+// TestVisionAdapter_PixelDetectorsKeepTheContractOnLinux pins the pixel
+// detectors to the same rule as recognition: a result or a reason,
+// never both; an empty region refused rather than read as the whole screen;
+// and a caller that has given up spared the capture.
+func TestVisionAdapter_PixelDetectorsKeepTheContractOnLinux(t *testing.T) {
+	adapter := vision.NewAdapter(nil)
+	detectors := map[string]func(context.Context, image.Rectangle) ([]*element.Element, error){
+		"DetectContours": func(ctx context.Context, region image.Rectangle) ([]*element.Element, error) {
+			return adapter.DetectContours(ctx, region, config.DefaultConfig().Hints.Contour)
+		},
+	}
+
+	for name, detect := range detectors {
+		t.Run(name, func(t *testing.T) {
+			elements, err := detect(context.Background(), image.Rect(0, 0, 100, 100))
+			if err != nil && elements != nil {
+				t.Errorf("returned %d elements alongside its error %v", len(elements), err)
+			}
+
+			elements, err = detect(context.Background(), image.Rectangle{})
+			if err == nil || elements != nil {
+				t.Errorf(
+					"empty region = %d elements, %v; want an error and nothing else",
+					len(elements),
+					err,
+				)
+			}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+
+			elements, err = detect(ctx, image.Rect(0, 0, 100, 100))
+			if derrors.GetCode(err) != derrors.CodeContextCanceled || elements != nil {
+				t.Errorf(
+					"canceled = %d elements, %v; want CodeContextCanceled and nothing else",
+					len(elements),
+					err,
+				)
+			}
+		})
+	}
 }

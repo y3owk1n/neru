@@ -179,37 +179,43 @@ func (a *Adapter) DetectContours(
 	screenBounds image.Rectangle,
 	cfg config.HintsContourConfig,
 ) ([]*element.Element, error) {
-	select {
-	case <-ctx.Done():
-		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
+	frame, err := a.captureDetectionFrame(ctx, screenBounds, "contour")
+	if err != nil {
+		return nil, err
 	}
 
-	region := screenBounds.Canon()
-	if region.Empty() {
-		return nil, derrors.Newf(
-			derrors.CodeActionFailed,
-			"contour detection needs a region to read; %v is empty",
-			screenBounds,
-		)
+	rects, err := contour.Detect(ctx, frame.img, frame.scale, contour.ParamsFromConfig(cfg))
+	if err != nil {
+		return nil, err
+	}
+
+	return targetElements(frame, rects, element.SourceContour), nil
+}
+
+// captureDetectionFrame captures just screenBounds. The backends read the
+// region at the output's native resolution, so the scale is whatever the
+// frame's height says it is against the logical region.
+func (a *Adapter) captureDetectionFrame(
+	ctx context.Context,
+	screenBounds image.Rectangle,
+	detector string,
+) (detectionFrame, error) {
+	region, err := detectionRegion(ctx, screenBounds, detector)
+	if err != nil {
+		return detectionFrame{}, err
 	}
 
 	img, err := a.captureRegion(ctx, region)
 	if err != nil {
-		return nil, err
+		return detectionFrame{}, err
 	}
 
 	scale := 1.0
-	if region.Dy() > 0 && img.Rect.Dy() > 0 {
+	if img.Rect.Dy() > 0 {
 		scale = float64(img.Rect.Dy()) / float64(region.Dy())
 	}
 
-	rects, err := contour.Detect(ctx, img, scale, contour.ParamsFromConfig(cfg))
-	if err != nil {
-		return nil, err
-	}
-
-	return contour.Elements(region.Min, region, rects), nil
+	return detectionFrame{img: img, origin: region.Min, region: region, scale: scale}, nil
 }
 
 // Health reports whether the vision strategy can run on this machine, by

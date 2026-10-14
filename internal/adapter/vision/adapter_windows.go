@@ -5,6 +5,7 @@ package vision
 import (
 	"context"
 	"image"
+	"math"
 	"time"
 
 	"go.uber.org/zap"
@@ -181,34 +182,42 @@ func (a *Adapter) DetectContours(
 	screenBounds image.Rectangle,
 	cfg config.HintsContourConfig,
 ) ([]*element.Element, error) {
-	select {
-	case <-ctx.Done():
-		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
+	frame, err := a.captureDetectionFrame(ctx, screenBounds, "contour")
+	if err != nil {
+		return nil, err
 	}
 
-	region := screenBounds.Canon()
-	if region.Empty() {
-		return nil, derrors.Newf(
-			derrors.CodeActionFailed,
-			"contour detection needs a region to read; %v is empty",
-			screenBounds,
-		)
+	dpi := platformwindows.DPIScaleAt(regionCenter(frame.region))
+
+	rects, err := contour.Detect(ctx, frame.img, dpi, contour.ParamsFromConfig(cfg))
+	if err != nil {
+		return nil, err
+	}
+
+	return targetElements(frame, scaleRects(rects, dpi), element.SourceContour), nil
+}
+
+// captureDetectionFrame captures just screenBounds. The process is
+// per-monitor-v2 DPI aware, so the frame is the region's own size in physical
+// pixels, which is also what Neru's coordinates are on Windows, and the scale
+// is one. The detectors' size rules are in points, so the callers hand them
+// the monitor's DPI scale and scale their boxes back up (scaleRects).
+func (a *Adapter) captureDetectionFrame(
+	ctx context.Context,
+	screenBounds image.Rectangle,
+	detector string,
+) (detectionFrame, error) {
+	region, err := detectionRegion(ctx, screenBounds, detector)
+	if err != nil {
+		return detectionFrame{}, err
 	}
 
 	img, err := a.captureRegion(ctx, region)
 	if err != nil {
-		return nil, err
+		return detectionFrame{}, err
 	}
 
-	// The process is per-monitor-v2 DPI aware, so the frame is the region's own
-	// size in physical pixels and the scale is one.
-	rects, err := contour.Detect(ctx, img, 1, contour.ParamsFromConfig(cfg))
-	if err != nil {
-		return nil, err
-	}
-
-	return contour.Elements(region.Min, region, rects), nil
+	return detectionFrame{img: img, origin: region.Min, region: region, scale: 1}, nil
 }
 
 // Health reports whether the vision strategy can run on this machine.
@@ -251,4 +260,33 @@ func (a *Adapter) captureRegion(ctx context.Context, region image.Rectangle) (*i
 	)
 
 	return img, nil
+}
+
+// regionCenter is the point a region's monitor is looked up by.
+//
+//nolint:mnd // the midpoint
+func regionCenter(region image.Rectangle) image.Point {
+	return image.Pt((region.Min.X+region.Max.X)/2, (region.Min.Y+region.Max.Y)/2)
+}
+
+// scaleRects multiplies detector rectangles by factor, rounding outward. A
+// detector reports points; where the frame's own pixels are what the caller
+// places results in (Windows, which works in physical pixels), its boxes are
+// scaled back up by the DPI scale it was given.
+func scaleRects(rects []image.Rectangle, factor float64) []image.Rectangle {
+	if factor == 1 {
+		return rects
+	}
+
+	out := make([]image.Rectangle, len(rects))
+	for i, rect := range rects {
+		out[i] = image.Rect(
+			int(math.Floor(float64(rect.Min.X)*factor)),
+			int(math.Floor(float64(rect.Min.Y)*factor)),
+			int(math.Ceil(float64(rect.Max.X)*factor)),
+			int(math.Ceil(float64(rect.Max.Y)*factor)),
+		)
+	}
+
+	return out
 }
