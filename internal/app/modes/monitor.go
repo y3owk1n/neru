@@ -397,6 +397,15 @@ func (h *handlerState) refreshHintsForMonitorMove(
 	generateCtx, cancelGenerate := context.WithTimeout(ctx, HintTimeout)
 	defer cancelGenerate()
 
+	// The focused window stays on the display just left, so a capture
+	// strategy scanning it would find nothing on this one. The session scans
+	// the whole screen moved to from here on, the way grid covers it, and the
+	// refreshes after this keep doing so. The axtree strategy ignores the
+	// scope. Updating the active scan as well lets a --capture-scope cycle
+	// advance from the scope now in use.
+	h.hints.Context.SetCaptureScopeOverride(domain.CaptureScopeScreen)
+	h.hints.Context.SetActiveScan(h.hints.Context.ActiveStrategy(), domain.CaptureScopeScreen)
+
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()
 	strategyOverride := h.hints.Context.StrategyOverride()
