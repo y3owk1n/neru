@@ -9,6 +9,7 @@
 #import "appwatcher.h"
 
 #import <Cocoa/Cocoa.h>
+#include <stdatomic.h>
 
 #pragma mark - External Function Declarations
 
@@ -17,6 +18,19 @@ extern void handleAppTerminate(const char *appName, const char *bundleID);
 extern void handleAppActivate(const char *appName, const char *bundleID);
 extern void handleAppDeactivate(const char *appName, const char *bundleID);
 extern void handleScreenParametersChanged(void);
+
+/// Neru activates itself to give hint search's text field the keyboard. That is
+/// not the user switching applications, so the watcher does not forward Neru's
+/// own activations.
+static BOOL isNeruProcess(NSRunningApplication *app) { return app.processIdentifier == getpid(); }
+
+/// lastForwardedActivation is the process whose activation the watcher forwarded
+/// last. When hint search closes, the application the user was in activates
+/// again. The watcher dropped Neru's own activation in between, so this is the
+/// same application, and forwarding it would announce a focus change that did
+/// not happen. It is atomic because a notification can arrive off the main
+/// thread.
+static _Atomic(pid_t) lastForwardedActivation = 0;
 
 #pragma mark - App Watcher Delegate Implementation
 
@@ -91,6 +105,12 @@ extern void handleScreenParametersChanged(void);
 		NSRunningApplication *app = notification.userInfo[NSWorkspaceApplicationKey];
 		if (!app)
 			return;
+
+		if (isNeruProcess(app) ||
+		    atomic_exchange(&lastForwardedActivation, app.processIdentifier) == app.processIdentifier) {
+			NeruUpdateMissionControlState();
+			return;
+		}
 
 		// Copy strings to prevent dangling pointers across the thread boundary
 		NSString *appName = app.localizedName ?: @"Unknown";
