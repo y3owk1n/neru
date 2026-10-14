@@ -33,7 +33,10 @@ func wlrootsCaptureRegion(region image.Rectangle) (*image.RGBA, error) {
 		)
 	}
 
-	var capture C.NeruCapture
+	var (
+		capture   C.NeruCapture
+		transform C.int
+	)
 
 	status := C.neru_screencopy_capture_region(
 		C.int(region.Min.X),
@@ -42,11 +45,17 @@ func wlrootsCaptureRegion(region image.Rectangle) (*image.RGBA, error) {
 		C.int(region.Dy()),
 		C.int(screenCaptureTimeoutMS),
 		&capture,
+		&transform,
 	)
 
 	if status != C.NERU_CAPTURE_OK {
 		return nil, captureError(captureStatus(status), captureLabelCompositor)
 	}
 
-	return captureResult(&capture)
+	img, err := captureResult(&capture)
+	if err != nil {
+		return nil, err
+	}
+
+	return orientToOutput(img, int(transform)), nil
 }

@@ -39,6 +39,10 @@ typedef struct {
 	int h;
 	int has_position;
 	int has_size;
+	// transform is the output's wl_output.transform. A frame arrives in the
+	// output's buffer orientation, so the caller turns a rotated or flipped
+	// output's frame back to match what is on screen.
+	int32_t transform;
 } NeruScreencopyOutput;
 
 typedef struct {
@@ -89,7 +93,6 @@ static void neru_screencopy_xdg_string(void *data, struct zxdg_output_v1 *xdg_ou
 static void neru_screencopy_output_geometry(
     void *data, struct wl_output *output, int32_t x, int32_t y, int32_t physical_width, int32_t physical_height,
     int32_t subpixel, const char *make, const char *model, int32_t transform) {
-	(void)data;
 	(void)output;
 	(void)x;
 	(void)y;
@@ -98,7 +101,8 @@ static void neru_screencopy_output_geometry(
 	(void)subpixel;
 	(void)make;
 	(void)model;
-	(void)transform;
+
+	((NeruScreencopyOutput *)data)->transform = transform;
 }
 
 static void neru_screencopy_output_mode(
@@ -533,7 +537,7 @@ static int neru_screencopy_copy_frame(
 	return status;
 }
 
-int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, NeruCapture *out) {
+int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, NeruCapture *out, int *transform) {
 	int begin = neru_capture_begin(out, w, h);
 	if (begin != NERU_CAPTURE_OK) {
 		return begin;
@@ -608,6 +612,10 @@ int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, N
 		status = ctx.failed ? NERU_CAPTURE_ERR_FAILED : NERU_CAPTURE_ERR_TIMEOUT;
 	} else {
 		status = neru_screencopy_copy_frame(&ctx, frame, deadline, out);
+	}
+
+	if (transform) {
+		*transform = target->transform;
 	}
 
 	zwlr_screencopy_frame_v1_destroy(frame);

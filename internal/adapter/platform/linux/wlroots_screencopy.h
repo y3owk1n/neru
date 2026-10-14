@@ -25,9 +25,13 @@
 // that client has a dispatch thread owning its reads. overlay_wayland.c and
 // wayland_keymap.c take the same approach for the same reason.
 //
+// The frame is in the output's buffer orientation. transform receives the
+// output's wl_output.transform, which the caller undoes to get the image as it
+// appears on screen.
+//
 // timeout_ms bounds the whole exchange. Returns NERU_CAPTURE_OK and fills out on
 // success, one of the NERU_CAPTURE_ERR_* codes otherwise; on success the caller
 // owns out and must release it with neru_capture_free.
-int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, NeruCapture *out);
+int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, NeruCapture *out, int *transform);
 
 #endif /* WLROOTS_SCREENCOPY_H */
