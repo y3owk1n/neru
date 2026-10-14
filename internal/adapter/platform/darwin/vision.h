@@ -51,5 +51,12 @@ CGImageRef NeruCaptureDisplayContaining(CGRect rect, CGRect *outBounds, int64_t 
 // NeruCaptureDisplayContaining.
 CGImageRef NeruCaptureRect(CGRect rect, CGRect *outCaptured, int64_t timeoutMS);
 
+// Creates a bitmap context drawing into data as 32-bit little-endian BGRA with
+// premultiplied alpha, stride bytes per row, in space. The flags are combined
+// here rather than in Go because SDKs disagree on the parameter's C type
+// (uint32_t on older ones, CGBitmapInfo on newer), and Go accepts only the one
+// it was compiled against. Returns NULL on failure. The caller releases it.
+CGContextRef NeruCreateBGRABitmapContext(void *data, size_t width, size_t height, size_t stride, CGColorSpaceRef space);
+
 // Frees a VisionResult previously returned by NeruDetectElements.
 void NeruFreeVisionResult(VisionResult *result);

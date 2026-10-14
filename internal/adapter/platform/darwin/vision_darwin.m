@@ -526,3 +526,9 @@ void NeruFreeVisionResult(VisionResult *result) {
 		free(result);
 	}
 }
+
+CGContextRef NeruCreateBGRABitmapContext(
+    void *data, size_t width, size_t height, size_t stride, CGColorSpaceRef space) {
+	return CGBitmapContextCreate(
+	    data, width, height, 8, stride, space, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+}

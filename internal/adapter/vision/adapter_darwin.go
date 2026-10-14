@@ -186,18 +186,12 @@ func cgImageToFrame(cgImage C.CGImageRef, factor int) (*image.RGBA, error) {
 		defer C.CGColorSpaceRelease(colorSpace)
 	}
 
-	ctx := C.CGBitmapContextCreate(
+	ctx := C.NeruCreateBGRABitmapContext(
 		unsafe.Pointer(&pix[0]),
 		C.size_t(width),
 		C.size_t(height),
-		8, // bits per component
 		C.size_t(stride),
 		colorSpace,
-		C.CGBitmapInfo(
-			C.kCGBitmapByteOrder32Little,
-		)|C.CGBitmapInfo(
-			C.kCGImageAlphaPremultipliedFirst,
-		),
 	)
 
 	if uintptr(ctx) == 0 {
