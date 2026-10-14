@@ -175,6 +175,25 @@ func TestDetect_PhrasesJoinWordsOfOneColor(t *testing.T) {
 	}
 }
 
+func TestDetect_PhraseTooWideKeepsItsWords(t *testing.T) {
+	t.Parallel()
+
+	inks := make([]color.RGBA, 40)
+	for i := range inks {
+		inks[i] = black
+	}
+
+	img := canvas(1000, 60, white)
+	words := sentence(img, 20, 20, inks...)
+	rects := detectTargets(t, img, 1, domain.SegmentTargetsPhrases)
+
+	for _, w := range words {
+		if !hitsOnce(rects, w) {
+			t.Errorf("word %v of a line too wide to be one phrase got no hint of its own", w)
+		}
+	}
+}
+
 func TestDetect_ControlsDropText(t *testing.T) {
 	t.Parallel()
 

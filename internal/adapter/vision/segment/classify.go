@@ -73,9 +73,11 @@ type limits struct {
 	maxControlHeight, maxTargetWidth, maxPictureSide, minPictureSide int
 	minFrameSide, lineLength, lineThickness, minTargetArea, markGap  int
 	smallGlyph, iconSide                                             int
-	// wordGap is the label gap in glyph heights, and textOnlyIcons drops
-	// every label but icons.
-	wordGap       float64
+	// labelGap is the widest gap within a label, in glyph heights. phrases is
+	// set when words join into phrases, and textOnlyIcons when every label
+	// but an icon is dropped.
+	labelGap      float64
+	phrases       bool
 	textOnlyIcons bool
 }
 
@@ -83,13 +85,9 @@ type limits struct {
 func newLimits(scale float64, targets string) limits {
 	px := func(v float64) int { return max(int(math.Round(v*scale)), 1) }
 
-	gap := wordGap
-	if targets == domain.SegmentTargetsPhrases {
-		gap = phraseGap
-	}
-
 	return limits{
-		wordGap:          gap,
+		labelGap:         wordGap,
+		phrases:          targets == domain.SegmentTargetsPhrases,
 		textOnlyIcons:    targets == domain.SegmentTargetsControls,
 		iconSide:         px(iconSide),
 		maxControlHeight: px(maxControlHeight),
@@ -197,6 +195,12 @@ func classify(blobs []blob, lim limits) []image.Rectangle {
 	dropSeparators(blobs, glyphs, lim)
 
 	label := groupLabels(blobs, glyphs, scope, lim)
+
+	if lim.phrases {
+		wide := lim
+		wide.labelGap = phraseGap
+		label = joinPhrases(blobs, glyphs, label, groupLabels(blobs, glyphs, scope, wide), lim)
+	}
 
 	// A control holding two or more separate things is a group of them (a
 	// segmented control, a tab strip) rather than one target. Its words are
@@ -498,7 +502,7 @@ func groupLabels(blobs []blob, glyphs []bool, scope []int, lim limits) []int {
 		return a
 	}
 
-	reach := func(b *blob) int { return int(lim.wordGap*float64(b.height())) + lim.markGap }
+	reach := func(b *blob) int { return int(lim.labelGap*float64(b.height())) + lim.markGap }
 	index := newGrid(blobs, reach)
 
 	for i := range blobs {
@@ -528,9 +532,42 @@ func groupLabels(blobs []blob, glyphs []bool, scope []int, lim limits) []int {
 	return label
 }
 
+// joinPhrases relabels each glyph with its phrase, unless the phrase is wider
+// than a target may be. A line of body text in one color is such a phrase,
+// and its glyphs keep their words rather than losing their hint. A phrase is
+// made of whole words, so a word's label never matches another phrase's.
+//
+//nolint:varnamelen // blob indices read as the geometry writes them
+func joinPhrases(blobs []blob, glyphs []bool, words, phrases []int, lim limits) []int {
+	type span struct{ minX, maxX int }
+
+	spans := map[int]span{}
+
+	for i := range blobs {
+		if !glyphs[i] {
+			continue
+		}
+
+		s, ok := spans[phrases[i]]
+		if !ok {
+			s = span{blobs[i].minX, blobs[i].maxX}
+		}
+
+		spans[phrases[i]] = span{min(s.minX, blobs[i].minX), max(s.maxX, blobs[i].maxX)}
+	}
+
+	for i := range blobs {
+		if s := spans[phrases[i]]; glyphs[i] && s.maxX-s.minX+1 <= lim.maxTargetWidth {
+			words[i] = phrases[i]
+		}
+	}
+
+	return words
+}
+
 // sameLabel reports whether two sibling glyphs read as one label: a mark
 // (dot, accent, underline) stacked on a glyph, or neighbors on one line closer
-// than wordGap heights in the same ink on the same background. A blob never
+// than labelGap heights in the same ink on the same background. A blob never
 // groups with one that encloses it.
 //
 //nolint:varnamelen // blob indices and box sides read as the geometry writes them
@@ -557,7 +594,7 @@ func sameLabel(a, b *blob, lim limits) bool {
 	// pixel early: the ink gap is one wider, and the ink one shorter, than the
 	// boxes say. Words are told apart on the ink.
 	inkGap, inkHeight := gapX+1, hi-1
-	if float64(inkGap) > max(lim.wordGap*float64(inkHeight), float64(lim.markGap)) ||
+	if float64(inkGap) > max(lim.labelGap*float64(inkHeight), float64(lim.markGap)) ||
 		distance(a.bg, b.bg) > bgMatch {
 		return false
 	}
