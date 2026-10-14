@@ -1,12 +1,16 @@
 package cli_test
 
 import (
+	"bytes"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/cli"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 const (
@@ -270,6 +274,41 @@ func TestLaunchCommandExecution(t *testing.T) {
 	err := launchCmd.RunE(launchCmd, []string{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// TestLaunchCommand_FailsWithoutALaunchFunction pins a launch that cannot start
+// a daemon. It says so once on stderr and fails, instead of reporting success
+// with nothing running.
+func TestLaunchCommand_FailsWithoutALaunchFunction(t *testing.T) {
+	// Point the endpoint at directories no daemon listens in. Windows names its
+	// pipe after the user instead, so there the test skips when a daemon is up.
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Setenv("TMPDIR", t.TempDir())
+
+	if ipc.IsServerRunning() {
+		t.Skip("a Neru daemon is running for this user")
+	}
+
+	originalLaunchFunc := cli.LaunchFunc
+	cli.LaunchFunc = nil
+
+	defer func() { cli.LaunchFunc = originalLaunchFunc }()
+
+	launchCmd := getCmd("launch")
+
+	var stderr bytes.Buffer
+
+	launchCmd.SetErr(&stderr)
+	defer launchCmd.SetErr(nil)
+
+	err := launchCmd.RunE(launchCmd, []string{})
+	if !derrors.IsCode(err, derrors.CodeInternal) {
+		t.Fatalf("launch without a launch function returned %v, want CodeInternal", err)
+	}
+
+	if got := strings.Count(stderr.String(), "Launch function not initialized"); got != 1 {
+		t.Errorf("stderr reported the failure %d times, want once: %q", got, stderr.String())
 	}
 }
 
