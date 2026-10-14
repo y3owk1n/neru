@@ -131,23 +131,25 @@ static CGImageRef awaitScreenshot(
 // Go.
 static os_unfair_lock contentLock = OS_UNFAIR_LOCK_INIT;
 static id cachedDisplays = nil;
+// displaysGeneration counts resets, so a lookup that started before one
+// cannot put the list it fetched back afterwards.
+static uint64_t displaysGeneration = 0;
 
-// replaceDisplays swaps the cached list under the lock and lets the old one
-// go after it, in a pool of its own: the display-change callback and
-// ScreenCaptureKit's completion queues both land here, and nothing should
-// deallocate while the lock is held.
-static void replaceDisplays(id displays) {
+// forgetShareableContent drops the cached list and starts a new generation.
+// The old list is let go after the lock, in a pool of its own: the
+// display-change callback and ScreenCaptureKit's completion queues both land
+// here, and nothing should deallocate while the lock is held.
+static void forgetShareableContent(void) {
 	@autoreleasepool {
 		os_unfair_lock_lock(&contentLock);
 		id previous = cachedDisplays;
-		cachedDisplays = displays;
+		cachedDisplays = nil;
+		displaysGeneration++;
 		os_unfair_lock_unlock(&contentLock);
 
 		previous = nil;
 	}
 }
-
-static void forgetShareableContent(void) { replaceDisplays(nil); }
 
 static void displaysReconfigured(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags, void *info) {
 	(void)display;
@@ -157,7 +159,9 @@ static void displaysReconfigured(CGDirectDisplayID display, CGDisplayChangeSumma
 	}
 }
 
-static NSArray<SCDisplay *> *rememberedDisplays(void) API_AVAILABLE(macos(12.3)) {
+// rememberedDisplays returns the cached list, or nil, and the generation it
+// belongs to, which a lookup made now hands back to rememberDisplays.
+static NSArray<SCDisplay *> *rememberedDisplays(uint64_t *generation) API_AVAILABLE(macos(12.3)) {
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
 		CGDisplayRegisterReconfigurationCallback(displaysReconfigured, NULL);
@@ -165,13 +169,28 @@ static NSArray<SCDisplay *> *rememberedDisplays(void) API_AVAILABLE(macos(12.3))
 
 	os_unfair_lock_lock(&contentLock);
 	NSArray<SCDisplay *> *displays = cachedDisplays;
+	*generation = displaysGeneration;
 	os_unfair_lock_unlock(&contentLock);
 
 	return displays;
 }
 
-static void rememberDisplays(NSArray<SCDisplay *> *displays) API_AVAILABLE(macos(12.3)) {
-	replaceDisplays([displays copy]);
+// rememberDisplays caches a freshly fetched list, unless the display
+// configuration changed while it was being fetched.
+static void rememberDisplays(NSArray<SCDisplay *> *displays, uint64_t generation) API_AVAILABLE(macos(12.3)) {
+	@autoreleasepool {
+		NSArray<SCDisplay *> *copied = [displays copy];
+
+		os_unfair_lock_lock(&contentLock);
+		id previous = nil;
+		if (generation == displaysGeneration) {
+			previous = cachedDisplays;
+			cachedDisplays = copied;
+		}
+		os_unfair_lock_unlock(&contentLock);
+
+		previous = nil;
+	}
 }
 
 // captureDisplay screenshots source, a display-local rectangle in points, or
@@ -212,7 +231,8 @@ static void captureDisplay(SCDisplay *display, CGRect source, NeruScreenshotStat
 // wrong pixels anywhere else. Its caller then falls back to the display path.
 static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRect source, int64_t timeoutMS) {
 	if (@available(macOS 14.0, *)) {
-		NSArray<SCDisplay *> *remembered = rememberedDisplays();
+		uint64_t generation = 0;
+		NSArray<SCDisplay *> *remembered = rememberedDisplays(&generation);
 		SCDisplay *rememberedDisplay = remembered != nil ? screenCaptureDisplayForID(displayID, remembered) : nil;
 
 		return awaitScreenshot(timeoutMS, ^(NeruScreenshotState *state, dispatch_group_t group) {
@@ -228,7 +248,7 @@ static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRec
 					    return;
 				    }
 
-				    rememberDisplays(content.displays);
+				    rememberDisplays(content.displays, generation);
 
 				    SCDisplay *display = screenCaptureDisplayForID(displayID, content.displays);
 				    if (display == nil && !CGRectIsNull(source)) {
