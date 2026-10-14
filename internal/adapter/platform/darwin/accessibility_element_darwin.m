@@ -297,6 +297,7 @@ ElementInfo *NeruGetElementInfo(void *element) {
 		info->isVisible = true;  // default visible when attribute not available
 
 		static CFStringRef kVisibleAttr = CFSTR("AXVisible");
+		const CFIndex attributeCount = 13;
 
 		CFArrayRef attributes = CFArrayCreate(
 		    NULL,
@@ -315,7 +316,7 @@ ElementInfo *NeruGetElementInfo(void *element) {
 		        kAXHiddenAttribute,
 		        kVisibleAttr,
 		    },
-		    13, &kCFTypeArrayCallBacks);
+		    attributeCount, &kCFTypeArrayCallBacks);
 
 		if (!attributes) {
 			free(info);
@@ -339,7 +340,10 @@ ElementInfo *NeruGetElementInfo(void *element) {
 		}
 		CFRelease(attributes);
 
-		if (error != kAXErrorSuccess || !values) {
+		// The target app's own accessibility code builds this reply, so it can be
+		// short. Reading past its end throws an exception that aborts the daemon,
+		// so this treats a short reply like any other unreadable element.
+		if (error != kAXErrorSuccess || !values || CFArrayGetCount(values) < attributeCount) {
 			if (values)
 				CFRelease(values);
 			pid_t pid;
@@ -349,8 +353,8 @@ ElementInfo *NeruGetElementInfo(void *element) {
 			return info;
 		}
 
-		// With option=0, values always has exactly 13 entries (one per requested attribute).
-		// Slots for unsupported/errored attributes hold an AX error placeholder, or
+		// values has one entry per requested attribute from here on. Slots for
+		// unsupported/errored attributes hold an AX error placeholder, or
 		// kCFNull when read one at a time, which the CFGetTypeID checks below reject.
 		CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
 		if (positionValue && CFGetTypeID(positionValue) == AXValueGetTypeID()) {
