@@ -16,9 +16,7 @@ in the background until quit from the system tray menu.
 
 Use 'neru stop' to pause functionality (daemon stays running).`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		launchProgram(cmd, configPath)
-
-		return nil
+		return launchProgram(cmd, configPath)
 	},
 }
 

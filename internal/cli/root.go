@@ -52,9 +52,7 @@ vim-like navigation capabilities across applications using accessibility APIs.`,
 	Version:       buildinfo.Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if IsRunningFromAppBundle() && len(args) == 0 {
-			launchProgram(cmd, configPath)
-
-			return nil
+			return launchProgram(cmd, configPath)
 		}
 
 		return cmd.Help()
@@ -150,10 +148,14 @@ func IsRunningFromAppBundle() bool {
 	return isRunningFromAppBundle()
 }
 
-func launchProgram(cmd *cobra.Command, cfgPath string) {
+// launchProgram runs the daemon in this process, or reports that one is
+// already running. It returns to the command rather than exiting, so its
+// caller decides the exit status.
+func launchProgram(cmd *cobra.Command, cfgPath string) error {
 	if ipc.IsServerRunning() {
 		cmd.Println("Neru is already running")
-		os.Exit(0)
+
+		return nil
 	}
 
 	// From here on this process is the daemon rather than a CLI client. On
@@ -162,12 +164,17 @@ func launchProgram(cmd *cobra.Command, cfgPath string) {
 	// elsewhere, and no-op when a terminal owns the console.
 	detachConsoleIfOwned()
 
-	if LaunchFunc != nil {
-		LaunchFunc(cfgPath)
-	} else {
+	if LaunchFunc == nil {
 		cmd.PrintErrln("Error: Launch function not initialized")
-		os.Exit(1)
+
+		return &silentError{
+			err: derrors.New(derrors.CodeInternal, "launch function not initialized"),
+		}
 	}
+
+	LaunchFunc(cfgPath)
+
+	return nil
 }
 
 // sendCommand transmits a command to the running Neru daemon via IPC.
