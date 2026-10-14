@@ -36,6 +36,12 @@ const (
 	// of the CLI reporting that nothing is running. Drop it once daemons
 	// predating the move are no longer a realistic thing to meet.
 	legacyPipePath = pipePrefix
+
+	// pipeBufferBytes is the buffer quota on each side of the pipe. With none,
+	// a command of certain lengths, such as 513 bytes, never reached the daemon
+	// and the client gave up at its deadline. 64 KiB matches the largest
+	// command the daemon accepts (ipc.MaxCommandBytes).
+	pipeBufferBytes = 64 << 10
 )
 
 // pipeHandle is the part of a go-winio pipe connection the server check needs:
@@ -111,6 +117,8 @@ func Listen(ctx context.Context, path string) (net.Listener, error) {
 
 	listener, listenErr := winio.ListenPipe(path, &winio.PipeConfig{
 		SecurityDescriptor: pipeSecurityDescriptor(sid),
+		InputBufferSize:    pipeBufferBytes,
+		OutputBufferSize:   pipeBufferBytes,
 	})
 	if listenErr != nil {
 		return nil, derrors.Wrapf(
