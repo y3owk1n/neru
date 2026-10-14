@@ -206,3 +206,59 @@ func TestScrollAtCursor_DeliversWholeNotchesWithoutSmoothScroll(t *testing.T) {
 		}
 	}
 }
+
+// TestScrollAtCursor_ScrollsLeftOnPositiveDeltaX pins the horizontal sign
+// where an application reads it. A positive deltaX is a scroll to the left
+// everywhere in Neru. Wayland reads a positive horizontal axis as right, so the
+// value the application receives has the opposite sign of the deltaX passed in.
+func TestScrollAtCursor_ScrollsLeftOnPositiveDeltaX(t *testing.T) {
+	requireDesktop(t)
+
+	tests := []struct {
+		name   string
+		deltaX int
+		want   string
+	}{
+		{name: "positive deltaX scrolls left", deltaX: probeNotchPixels, want: "left"},
+		{name: "negative deltaX scrolls right", deltaX: -probeNotchPixels, want: "right"},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			probe := startProbe(t)
+			aimAtTheProbe(t, probe)
+
+			cfg := config.DefaultConfig()
+			cfg.SmoothScroll.Enabled = false
+
+			SetConfigProvider(fixedConfig{cfg: cfg})
+			t.Cleanup(func() { SetConfigProvider(nil) })
+
+			err := ScrollAtCursor(testCase.deltaX, 0, 0)
+			if err != nil {
+				t.Fatalf("ScrollAtCursor(%d, 0) failed: %v", testCase.deltaX, err)
+			}
+
+			pump(probe, 2*time.Second)
+
+			var total float64
+			for _, event := range probe.axisEvents() {
+				total += event.horizontal
+			}
+
+			if total == 0 {
+				t.Fatal("the probe received no horizontal scroll at all")
+			}
+
+			got := "left"
+			if total > 0 {
+				got = "right"
+			}
+
+			if got != testCase.want {
+				t.Errorf("ScrollAtCursor(%d, 0) scrolled %s by %v, want %s",
+					testCase.deltaX, got, math.Abs(total), testCase.want)
+			}
+		})
+	}
+}
