@@ -32,6 +32,9 @@ Neru rather than develop it, see [installation](../guide/installation.md).
 - **Go 1.26+**, **Just** and **golangci-lint**, from oku or by hand (below)
 - **Xcode Command Line Tools** (macOS): `xcode-select --install`
 - **Build dependencies** (Linux): see [Build dependencies](#build-dependencies)
+- **A POSIX shell** (Windows): `just` runs every recipe with `sh`. Run them
+  from Git Bash, which comes with Git for Windows, or another shell that puts
+  `sh` on `PATH`. CI runs them under bash.
 - An EditorConfig plugin, for the `.editorconfig` rules CI enforces
 
 ### Option A: oku (recommended)
