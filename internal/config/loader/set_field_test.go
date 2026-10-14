@@ -268,6 +268,17 @@ func TestValidateConfigSetField_Valid(t *testing.T) {
 	}
 }
 
+// TestValidateConfigSetField_LeavesSettingsThatDependOnOthersToTheDaemon covers
+// a value that is only valid together with another setting. The defaults are
+// not the user's config, so checking the rule against them would refuse a
+// change the daemon accepts.
+func TestValidateConfigSetField_LeavesSettingsThatDependOnOthersToTheDaemon(t *testing.T) {
+	err := loader.ValidateConfigSetField("hints.detect_mission_control", "true")
+	if err != nil {
+		t.Fatalf("ValidateConfigSetField() refused a value the daemon may accept: %v", err)
+	}
+}
+
 func TestValidateConfigSetField_InvalidPath(t *testing.T) {
 	err := loader.ValidateConfigSetField("hints.nonexistent", "value")
 	if err == nil {

@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -53,13 +52,7 @@ Use "neru config dump | jq" to explore all available keys.`,
 
 		noReload, _ := cmd.Flags().GetBool(noReloadFlagName)
 
-		var valErr error
-		if noReload {
-			valErr = loader.SetField(config.DefaultConfig(), key, value)
-		} else {
-			valErr = loader.ValidateConfigSetField(key, value)
-		}
-
+		valErr := loader.ValidateConfigSetField(key, value)
 		if valErr != nil {
 			typeHint := loader.ConfigFieldType(key)
 
