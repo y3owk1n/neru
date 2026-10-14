@@ -91,6 +91,13 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	return h.cycleHint(ctx, backward, executeAction)
+}
+
+// cycleHint is the body of CycleHint.
+//
+// Caller must hold h.mu.
+func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeAction bool) error {
 	if h.appState.CurrentMode() != domain.ModeHints {
 		return derrors.New(derrors.CodeInvalidInput, "cycle_hint requires hints mode")
 	}

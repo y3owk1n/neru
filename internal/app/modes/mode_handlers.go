@@ -465,15 +465,20 @@ func (h *handlerState) confirmHintSearch() {
 			return
 		}
 
-		go func() {
-			err := h.outer.CycleHint(h.ctx, false, true)
-			if err != nil {
-				h.logger.Warn("Failed to select the hint search match", zap.Error(err))
-			}
-		}()
-	} else {
-		h.cancelHintSearch()
+		// Return selects the match within its own keystroke. A deferred
+		// selection acted on whatever hints were up when it ran, which after a
+		// quick label or a re-arm was a different set.
+		h.cycleHintIndex = -1
+
+		err := h.cycleHint(h.ctx, false, true)
+		if err != nil {
+			h.logger.Warn("Failed to select the hint search match", zap.Error(err))
+		}
+
+		return
 	}
+
+	h.cancelHintSearch()
 
 	h.cycleHintIndex = -1
 }

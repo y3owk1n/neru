@@ -749,19 +749,17 @@ func TestSimulation_HintsSearchJourney(t *testing.T) {
 					return len(sim.overlay.lastHintLabels()) == 1
 				})
 
+				// Return selects the one match itself, within the keystroke.
 				sim.press("Return")
 
-				labels := sim.overlay.lastHintLabels()
-				if len(labels) != 1 {
-					t.Fatalf("expected one hint after confirmed search, got %v", labels)
-				}
-
-				sim.typeLabel(labels[0])
-
 				target := elements[query.target].Center()
-				sim.waitFor("cursor on the searched element", func() bool {
-					return sim.cursor.position() == target
-				})
+				if got := sim.cursor.position(); got != target {
+					t.Fatalf(
+						"cursor after Return = %v, want the searched element at %v",
+						got,
+						target,
+					)
+				}
 			})
 		}
 	}
