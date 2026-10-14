@@ -86,6 +86,10 @@ type handlerState struct {
 	// outer is the owning Handler. Deferred callbacks only; see the type comment.
 	outer *Handler
 
+	// activationRefusal is why the activation in progress did not open its
+	// mode, or nil. ActivateEnabledMode clears it, activates, and reports it.
+	activationRefusal error
+
 	config        *configpkg.Config
 	system        ports.SystemPort
 	logger        *zap.Logger
@@ -440,19 +444,21 @@ func (h *Handler) ActivateMode(activation modecmd.Activation) {
 
 // ActivateEnabledMode is ActivateMode for a caller that has to report a
 // refusal. It returns false, and does nothing, when the configuration disables
-// the mode. The check and the activation share one hold of the lock, so a
-// reload cannot disable the mode between them.
-func (h *Handler) ActivateEnabledMode(activation modecmd.Activation) bool {
+// the mode. Otherwise it activates and returns the reason the mode refused to
+// open, such as an excluded focused app, or nil. The check and the activation
+// share one hold of the lock, so a reload cannot disable the mode between them.
+func (h *Handler) ActivateEnabledMode(activation modecmd.Activation) (bool, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	if h.config != nil && !h.config.ModeEnabled(domain.ModeString(activation.Mode)) {
-		return false
+		return false, nil
 	}
 
+	h.activationRefusal = nil
 	h.activateMode(activation)
 
-	return true
+	return true, h.activationRefusal
 }
 
 // activateMode is the body of both activation entry points.
@@ -467,6 +473,8 @@ func (h *handlerState) activateMode(activation modecmd.Activation) {
 	if mode != domain.ModeIdle && !h.appState.IsEnabled() {
 		h.logger.Debug("Neru is stopped, ignoring mode activation",
 			zap.String("mode", domain.ModeString(mode)))
+
+		h.activationRefusal = derrors.New(derrors.CodeInvalidInput, "neru is stopped")
 
 		return
 	}

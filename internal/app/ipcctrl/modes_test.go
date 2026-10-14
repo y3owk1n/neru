@@ -25,10 +25,20 @@ import (
 // newModeTestController builds a controller over the real registration path, so
 // these cases exercise the wiring rather than a handler called directly.
 func newModeTestController(cfg *config.Config) *ipcctrl.Controller {
+	return newModeTestControllerWith(cfg, &portmocks.MockAccessibilityPort{}, state.NewAppState())
+}
+
+// newModeTestControllerWith is newModeTestController over a given
+// accessibility port and app state, for a case that needs the focused app or
+// reads the mode back.
+func newModeTestControllerWith(
+	cfg *config.Config,
+	accessibility *portmocks.MockAccessibilityPort,
+	appState *state.AppState,
+) *ipcctrl.Controller {
 	logger := zap.NewNop()
-	appState := state.NewAppState()
 	actionService := services.NewActionService(
-		&portmocks.MockAccessibilityPort{},
+		accessibility,
 		&portmocks.MockOverlayPort{},
 		&portmocks.MockSystemPort{},
 		logger,
@@ -230,5 +240,39 @@ func TestHandleCommand_RefusesADisabledMode(t *testing.T) {
 				t.Errorf("message = %q, want %q", resp.Message, want)
 			}
 		})
+	}
+}
+
+// TestHandleCommand_ReportsWhyAModeDidNotOpen pins the answer for a mode that
+// is enabled but refuses to open, here over an excluded app. The daemon used to
+// answer "activated" with code OK while nothing opened, so a script read the
+// refusal as success.
+func TestHandleCommand_ReportsWhyAModeDidNotOpen(t *testing.T) {
+	const excludedApp = "com.example.excluded"
+
+	cfg := config.DefaultConfig()
+	cfg.General.ExcludedApps = []string{excludedApp}
+
+	appState := state.NewAppState()
+	controller := newModeTestControllerWith(cfg, &portmocks.MockAccessibilityPort{
+		FocusedAppBundleIDFunc: func(context.Context) (string, error) { return excludedApp, nil },
+	}, appState)
+
+	resp := controller.HandleCommand(context.Background(), ipc.Command{Action: domain.ModeNameGrid})
+
+	if resp.Success {
+		t.Fatalf("grid over an excluded app was reported as %q with success", resp.Message)
+	}
+
+	if resp.Message != "focused app is excluded" {
+		t.Errorf("message = %q, want %q", resp.Message, "focused app is excluded")
+	}
+
+	if resp.Code != ipc.CodeInvalidInput {
+		t.Errorf("code = %q, want %q", resp.Code, ipc.CodeInvalidInput)
+	}
+
+	if got := appState.CurrentMode(); got != domain.ModeIdle {
+		t.Errorf("mode = %s, want idle", domain.ModeString(got))
 	}
 }

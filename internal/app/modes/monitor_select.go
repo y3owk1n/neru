@@ -102,6 +102,8 @@ func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 		h.logger.Debug("Mode activation refused",
 			zap.String("mode", domain.ModeNameMonitorSelect), zap.Error(err))
 
+		h.activationRefusal = err
+
 		return
 	}
 

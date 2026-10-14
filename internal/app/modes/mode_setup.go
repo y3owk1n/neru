@@ -189,6 +189,8 @@ func (h *handlerState) activateModeBase(
 	if err != nil {
 		h.logger.Debug("Mode activation refused", zap.String("mode", modeName), zap.Error(err))
 
+		h.activationRefusal = err
+
 		return action.TypeMoveMouse, false
 	}
 
