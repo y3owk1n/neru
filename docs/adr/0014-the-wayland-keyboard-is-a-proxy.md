@@ -148,6 +148,16 @@ asks.
   inotify event announces. So a captured device vanishing starts a rescan of
   `/dev/input`, which adopts them; when the remapper's output device comes
   back, the yield above hands them over again.
+- A captured device that vanishes with a key down never reports its release.
+  The kernel queues one as it unregisters the device, but a read made after the
+  device is gone fails before returning it, and a reader frozen across a
+  suspend makes exactly that read. A key left down there stays down on the
+  proxy keyboard, and the compositor reads every later key as a chord with it.
+  So each reader keeps the keys its device has down, and when the device
+  vanishes it sends their releases and a SYN_REPORT through the proxy before
+  the rescan (`releaseHeld`, pinned by
+  `TestEvdevProxy_AKeyboardThatDisappearsReleasesTheKeysItHeld` and, against a
+  real kernel, `TestWaylandEvdevCapture_AKeyboardDestroyedWithAKeyDownReleasesIt`).
 - A remapper's device auto-detect takes any node that advertises keyboard
   keys. Kanata's excludes only a device named `kanata`, keyd's only its own
   virtual keyboard, so either grabs `neru-keyboard-proxy` when the daemon

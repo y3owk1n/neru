@@ -9,6 +9,7 @@ package linux
 // press went.
 
 import (
+	"encoding/binary"
 	"errors"
 	"os"
 	"slices"
@@ -1003,4 +1004,68 @@ func TestEvdevProxy_LiftsNothingWithNoModifierHeld(t *testing.T) {
 	}
 
 	proxy.restoreLiftedModifiers()
+}
+
+// TestEvdevProxy_AKeyboardThatDisappearsReleasesTheKeysItHeld covers a keyboard
+// that goes away with a key down, as one does across a suspend. Its release
+// never arrives, and Super used to stay down on the proxy keyboard. The
+// compositor then read every later key as a Super chord, and so did the next
+// mode.
+func TestEvdevProxy_AKeyboardThatDisappearsReleasesTheKeysItHeld(t *testing.T) {
+	t.Parallel()
+
+	device, unplug, pipeErr := os.Pipe()
+	if pipeErr != nil {
+		t.Fatalf("os.Pipe() error = %v", pipeErr)
+	}
+
+	proxy := newTestProxy()
+	capture := proxy.capture
+	capture.events = make(chan waylandEvdevEvent, 8)
+	capture.stopCh = make(chan struct{})
+	// Marked as let go on purpose, so its reader does not rescan /dev/input
+	// when it exits.
+	capture.devices = map[*os.File]trackedDevice{device: {released: true}}
+	capture.files = []*os.File{device}
+
+	capture.startReader(device)
+	writeInputEvent(t, unplug, evdevEventKey, evdevKeyLeftMeta, evdevValuePress)
+	_ = unplug.Close()
+
+	capture.done.Wait()
+	close(capture.events)
+
+	for event := range capture.events {
+		proxy.handle(event)
+	}
+
+	if proxy.rule.isDown(evdevKeyLeftMeta) {
+		t.Fatal("Super is still down on the proxy keyboard after its keyboard went away")
+	}
+
+	tap, keys := collectKeys(t)
+	beginSession(proxy, tap)
+
+	proxy.handle(keyEvent(evdevKeyJ, evdevValuePress))
+
+	if got := nextKey(t, keys); got != "j" {
+		t.Errorf("a mode after the keyboard went away dispatched %q, want %q", got, "j")
+	}
+}
+
+// writeInputEvent writes one struct input_event as the kernel lays it out on a
+// 64-bit system: a zero timestamp, then type, code and value.
+func writeInputEvent(t *testing.T, file *os.File, eventType, code uint16, value int32) {
+	t.Helper()
+
+	var event [24]byte
+
+	binary.NativeEndian.PutUint16(event[16:], eventType)
+	binary.NativeEndian.PutUint16(event[18:], code)
+	binary.NativeEndian.PutUint32(event[20:], uint32(value))
+
+	_, writeErr := file.Write(event[:])
+	if writeErr != nil {
+		t.Fatalf("writing an input event: %v", writeErr)
+	}
 }

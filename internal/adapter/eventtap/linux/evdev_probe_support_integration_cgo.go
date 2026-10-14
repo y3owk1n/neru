@@ -1,6 +1,7 @@
-// Test support for the probe's integration test, built only under the
-// integration tag: a proxy keyboard of the test's own, and a grab from a second
-// fd standing in for a remapper. Nothing here reaches a shipped binary.
+// Test support for the evdev integration tests, built only under the
+// integration tag: a proxy keyboard of the test's own that can type, and a grab
+// from a second fd standing in for a remapper. Nothing here reaches a shipped
+// binary.
 
 //go:build integration && linux && cgo
 
@@ -46,6 +47,12 @@ func (k *testProxyKeyboard) node() *proxyNode {
 
 func (k *testProxyKeyboard) destroy() {
 	C.neru_uinput_destroy(k.fd)
+}
+
+// key sends one key event on the keyboard, as a user's keypress would arrive.
+func (k *testProxyKeyboard) key(code uint16, value int32) {
+	frame := keyFrame(code, value)
+	C.neru_evdev_write_events(k.fd, &frame[0], C.int(len(frame)))
 }
 
 // grabFile takes or releases an exclusive grab on file, as a remapper would.

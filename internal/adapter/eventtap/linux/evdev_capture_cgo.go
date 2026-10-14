@@ -12,8 +12,10 @@ package linux
 import "C"
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -521,15 +523,24 @@ func (capture *waylandEvdevCapture) startReader(file *os.File) {
 // readLoop hands every event the device produces to the proxy. The send blocks
 // rather than drops: with the device grabbed, an event dropped here is a key the
 // user pressed that reaches nothing.
+//
+// It also keeps which keys are down on this device, because a device can
+// disappear without reporting their release. The kernel queues a release as it
+// unregisters the device, but a read made after the device is gone fails before
+// returning it, and a reader frozen across a suspend makes exactly that read.
+// releaseHeld sends the releases in their place. Without them, a modifier held
+// into a suspend stays down on the proxy keyboard and turns every later key into
+// a chord.
 func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 	defer capture.done.Done()
 
-	fd := C.int(file.Fd())
+	descriptor := C.int(file.Fd())
+	held := make(map[uint16]struct{})
 
 	for {
 		var inputEvent C.struct_input_event
 
-		readResult := C.neru_evdev_read_event(fd, &inputEvent)
+		readResult := C.neru_evdev_read_event(descriptor, &inputEvent)
 		if readResult <= 0 {
 			if capture.logger != nil {
 				capture.logger.Debug(
@@ -547,6 +558,8 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 			capture.deviceMu.Unlock()
 			_ = file.Close()
 
+			capture.releaseHeld(held)
+
 			// A device that is gone may have been a remapper's output, whose
 			// exit also freed the keyboards it held; pick those up. Not for a
 			// device this capture let go of itself, which its remapper wants.
@@ -563,12 +576,50 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 			return
 		}
 
-		select {
-		case capture.events <- waylandEvdevEvent{
+		event := waylandEvdevEvent{
 			eventType: uint16(inputEvent._type),
 			code:      uint16(inputEvent.code),
 			value:     int32(inputEvent.value),
-		}:
+		}
+
+		if event.eventType == evdevEventKey {
+			switch event.value {
+			case evdevValuePress:
+				held[event.code] = struct{}{}
+			case evdevValueRelease:
+				delete(held, event.code)
+			}
+		}
+
+		select {
+		case capture.events <- event:
+		case <-capture.stopCh:
+			return
+		}
+	}
+}
+
+// releaseHeld sends the proxy a release for each key a vanished device still had
+// down, then a sync report to end the frame: what the device would have sent had
+// the user let go.
+func (capture *waylandEvdevCapture) releaseHeld(held map[uint16]struct{}) {
+	if len(held) == 0 {
+		return
+	}
+
+	events := make([]waylandEvdevEvent, 0, len(held)+1)
+	for _, code := range slices.Sorted(maps.Keys(held)) {
+		events = append(
+			events,
+			waylandEvdevEvent{eventType: evdevEventKey, code: code, value: evdevValueRelease},
+		)
+	}
+
+	events = append(events, waylandEvdevEvent{eventType: evdevEventSyn, code: evdevSynReport})
+
+	for _, event := range events {
+		select {
+		case capture.events <- event:
 		case <-capture.stopCh:
 			return
 		}
