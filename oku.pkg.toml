@@ -188,7 +188,7 @@ when = { os = "windows" }
 name = "neru"
 command = "bin/neru"
 args = ["launch"]
-restart = "always"
+restart = "on-failure"
 interactive = true
 when = { os = "darwin" }
 
@@ -196,6 +196,6 @@ when = { os = "darwin" }
 name = "neru"
 command = "bin/neru.exe"
 args = ["launch"]
-restart = "always"
+restart = "on-failure"
 interactive = true
 when = { os = "windows" }

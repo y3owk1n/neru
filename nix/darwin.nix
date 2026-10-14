@@ -47,7 +47,7 @@ in
         keepAlive = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Whether the launchd service should be kept alive.";
+          description = "Whether launchd restarts Neru after it crashes or exits with an error. Quitting from the menu bar does not restart it.";
         };
       };
 
@@ -83,7 +83,7 @@ in
           + (lib.optionalString (cfg.configFile != null || cfg.config != "") " --config ${configFile}");
         serviceConfig = {
           EnvironmentVariables = effectiveEnv;
-          KeepAlive = cfg.launchd.keepAlive;
+          KeepAlive = if cfg.launchd.keepAlive then { SuccessfulExit = false; } else false;
           RunAtLoad = true;
           # Neither stream is redirected. This agent is installed system-wide
           # and runs for whichever user logs in, so no per-user log path can be

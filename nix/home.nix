@@ -95,7 +95,7 @@ in
         keepAlive = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Whether the launchd service should be kept alive.";
+          description = "Whether launchd restarts Neru after it crashes or exits with an error. Quitting from the menu bar does not restart it.";
         };
       };
 
@@ -171,7 +171,7 @@ in
         ];
         EnvironmentVariables = effectiveEnv;
         RunAtLoad = true;
-        KeepAlive = cfg.launchd.keepAlive;
+        KeepAlive = if cfg.launchd.keepAlive then { SuccessfulExit = false; } else false;
         # Standard output is left alone: Neru's own rotated log file already
         # holds every log line. Standard error goes beside it, in the user's own
         # log directory rather than a shared one, for a crash or a failure

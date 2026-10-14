@@ -11,8 +11,13 @@
     </array>
     <key>RunAtLoad</key>
     <true/>
+    <!-- launchd restarts Neru only after a crash or an error exit, so quitting
+         from the menu bar does not restart it. -->
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
     <!-- Standard output is not redirected: neru's own log file already holds
          every log line, rotated, at ~/Library/Logs/neru/app.log. Standard error
          catches what that file cannot — a crash, or a failure before the log

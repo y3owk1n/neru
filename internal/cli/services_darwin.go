@@ -46,7 +46,10 @@ const plistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
     <key>StandardErrorPath</key>
     <string>NERU_STDERR_PATH</string>
     <key>ProcessType</key>
@@ -308,10 +311,9 @@ func startService() error {
 
 // stopService stops the agent until startService, across logins too.
 //
-// The plist sets KeepAlive, so after a plain launchctl stop launchd starts
-// neru again within seconds. Disabling the agent keeps launchd from loading it
-// at the next login, and unloading it stops neru now. The plist stays, so
-// startService can load it again.
+// A plain launchctl stop would last only until the next login. Disabling the
+// agent keeps launchd from loading it at the next login, and unloading it
+// stops neru now. The plist stays, so startService can load it again.
 func stopService() error {
 	path, err := plistPath()
 	if err != nil {
@@ -341,8 +343,7 @@ func stopService() error {
 }
 
 // restartService restarts the loaded agent with one kickstart -k, which kills
-// whatever runs under it and spawns it again. A stop followed by a start races
-// launchd's own KeepAlive relaunch instead.
+// whatever runs under it and spawns it again.
 func restartService() error {
 	if !isServiceLoaded() {
 		path, err := plistPath()
