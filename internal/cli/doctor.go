@@ -99,7 +99,7 @@ the same either way.`,
 			return &silentError{err: errDaemonUnreachable}
 		}
 
-		err = formatter.PrintHealth(cmd, ipcResponse.Success, ipcResponse.Data)
+		err = formatter.PrintHealth(cmd, ipcResponse)
 
 		if errors.Is(err, cliutil.ErrUnhealthy) {
 			return &silentError{err: err}

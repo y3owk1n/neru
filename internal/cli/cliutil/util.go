@@ -159,8 +159,10 @@ func (f *OutputFormatter) PrintStatus(cmd *cobra.Command, data any) error {
 }
 
 // PrintHealth prints health check results.
-func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any) error {
-	healthData, ok := data.(map[string]any)
+func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, response ipc.Response) error {
+	success := response.Success
+
+	healthData, ok := response.Data.(map[string]any)
 	if !ok {
 		// Fallback for unexpected data shape
 		if success {
@@ -169,7 +171,14 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 			return nil
 		}
 
-		cmd.Println("  ⚠️  Health check returned errors")
+		// A daemon that refused the request, such as one running another
+		// version, sends no data but says why.
+		line := "  ⚠️  Health check returned errors"
+		if response.Message != "" {
+			line += ": " + response.Message + " (code: " + response.Code + ")"
+		}
+
+		cmd.Println(line)
 
 		return ErrUnhealthy
 	}

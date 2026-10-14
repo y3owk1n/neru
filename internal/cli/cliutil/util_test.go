@@ -3,10 +3,13 @@ package cliutil
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 )
 
 const (
@@ -237,5 +240,35 @@ func TestPrintOverlayBackend_SkipsAbsentDetail(t *testing.T) {
 
 	if got := output.String(); got != "" {
 		t.Fatalf("printOverlayBackend output = %q, want nothing", got)
+	}
+}
+
+// TestPrintHealth_SaysWhyTheDaemonRefused covers a daemon that refuses the
+// health check and sends no data, as one running another version does. Its
+// message is the only thing that tells the user what to do, so doctor prints
+// it rather than a bare "returned errors".
+func TestPrintHealth_SaysWhyTheDaemonRefused(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&output)
+
+	const refusal = "version mismatch: client=1.2.3, server=1.2.2 - please restart the neru daemon"
+
+	err := NewOutputFormatter().PrintHealth(cmd, ipc.Response{
+		Success: false,
+		Message: refusal,
+		Code:    ipc.CodeVersionMismatch,
+	})
+	if !errors.Is(err, ErrUnhealthy) {
+		t.Fatalf("PrintHealth() error = %v, want ErrUnhealthy", err)
+	}
+
+	for _, want := range []string{refusal, ipc.CodeVersionMismatch} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("PrintHealth() printed %q, want it to include %q", output.String(), want)
+		}
 	}
 }
