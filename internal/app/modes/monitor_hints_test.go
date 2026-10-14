@@ -36,6 +36,15 @@ func TestRefreshActiveModeForMonitorMove_ScansTheDisplayMovedTo(t *testing.T) {
 		{name: "segment", strategy: domain.StrategySegment},
 	}
 
+	// The vision strategy keeps only elements in the platform's clickable
+	// roles, which name a button differently on each platform.
+	clickableRoles := configpkg.DefaultConfig().Hints.ClickableRolesForApp("")
+	if len(clickableRoles) == 0 {
+		t.Fatal("the default config resolves no clickable roles on this platform")
+	}
+
+	targetRole := element.Role(clickableRoles[0])
+
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			var scanned []image.Rectangle
@@ -48,7 +57,7 @@ func TestRefreshActiveModeForMonitorMove_ScansTheDisplayMovedTo(t *testing.T) {
 				found, err := element.NewElement(
 					"capture-target",
 					image.Rect(bounds.Min.X+40, bounds.Min.Y+40, bounds.Min.X+100, bounds.Min.Y+70),
-					element.RoleButton,
+					targetRole,
 				)
 				if err != nil {
 					return nil, err
