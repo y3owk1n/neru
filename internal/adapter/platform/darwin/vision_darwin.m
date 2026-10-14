@@ -117,12 +117,13 @@ static CGImageRef awaitScreenshot(
 }
 
 // The shareable-content list costs ScreenCaptureKit tens of milliseconds to
-// assemble, and every capture used to ask for it afresh. Only its displays are
-// read, so they alone are kept: the window list and its titles are let go with
-// the content they came in. The displays are kept until the display
-// configuration changes, or until a capture made from them fails. The
-// reconfiguration callback is delivered through the main run loop, which the
-// daemon runs; a process without one relies on the failed-capture reset alone.
+// assemble, and every capture used to ask for it afresh. Only its displays and
+// Neru's own application are read, so they alone are kept. The window list and
+// its titles are let go with the content they came in. The kept entries last
+// until the display configuration changes, or until a capture made from them
+// fails. The reconfiguration callback is delivered through the main run loop,
+// which the daemon runs; a process without one relies on the failed-capture
+// reset alone.
 // Typed id so the variable needs no availability annotation; only macOS 14+
 // code reads it.
 //
@@ -131,6 +132,9 @@ static CGImageRef awaitScreenshot(
 // Go.
 static os_unfair_lock contentLock = OS_UNFAIR_LOCK_INIT;
 static id cachedDisplays = nil;
+// cachedOwnApplication is Neru's entry in the same list, or nil when the list
+// did not include it.
+static id cachedOwnApplication = nil;
 // displaysGeneration counts resets, so a lookup that started before one
 // cannot put the list it fetched back afterwards.
 static uint64_t displaysGeneration = 0;
@@ -143,11 +147,14 @@ static void forgetShareableContent(void) {
 	@autoreleasepool {
 		os_unfair_lock_lock(&contentLock);
 		id previous = cachedDisplays;
+		id previousOwn = cachedOwnApplication;
 		cachedDisplays = nil;
+		cachedOwnApplication = nil;
 		displaysGeneration++;
 		os_unfair_lock_unlock(&contentLock);
 
 		previous = nil;
+		previousOwn = nil;
 	}
 }
 
@@ -159,9 +166,22 @@ static void displaysReconfigured(CGDirectDisplayID display, CGDisplayChangeSumma
 	}
 }
 
-// rememberedDisplays returns the cached list, or nil, and the generation it
-// belongs to, which a lookup made now hands back to rememberDisplays.
-static NSArray<SCDisplay *> *rememberedDisplays(uint64_t *generation) API_AVAILABLE(macos(12.3)) {
+// ownApplication finds Neru's own entry in content's applications, or nil.
+static SCRunningApplication *ownApplication(SCShareableContent *content) API_AVAILABLE(macos(12.3)) {
+	pid_t pid = getpid();
+	for (SCRunningApplication *application in content.applications) {
+		if (application.processID == pid) {
+			return application;
+		}
+	}
+	return nil;
+}
+
+// rememberedDisplays returns the cached list, or nil, with Neru's own
+// application from the same lookup and the generation it belongs to, which a
+// lookup made now hands back to rememberDisplays.
+static NSArray<SCDisplay *> *rememberedDisplays(uint64_t *generation, SCRunningApplication **own)
+    API_AVAILABLE(macos(12.3)) {
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
 		CGDisplayRegisterReconfigurationCallback(displaysReconfigured, NULL);
@@ -169,6 +189,7 @@ static NSArray<SCDisplay *> *rememberedDisplays(uint64_t *generation) API_AVAILA
 
 	os_unfair_lock_lock(&contentLock);
 	NSArray<SCDisplay *> *displays = cachedDisplays;
+	*own = cachedOwnApplication;
 	*generation = displaysGeneration;
 	os_unfair_lock_unlock(&contentLock);
 
@@ -177,28 +198,39 @@ static NSArray<SCDisplay *> *rememberedDisplays(uint64_t *generation) API_AVAILA
 
 // rememberDisplays caches a freshly fetched list, unless the display
 // configuration changed while it was being fetched.
-static void rememberDisplays(NSArray<SCDisplay *> *displays, uint64_t generation) API_AVAILABLE(macos(12.3)) {
+static void rememberDisplays(NSArray<SCDisplay *> *displays, SCRunningApplication *own, uint64_t generation)
+    API_AVAILABLE(macos(12.3)) {
 	@autoreleasepool {
 		NSArray<SCDisplay *> *copied = [displays copy];
 
 		os_unfair_lock_lock(&contentLock);
 		id previous = nil;
+		id previousOwn = nil;
 		if (generation == displaysGeneration) {
 			previous = cachedDisplays;
+			previousOwn = cachedOwnApplication;
 			cachedDisplays = copied;
+			cachedOwnApplication = own;
 		}
 		os_unfair_lock_unlock(&contentLock);
 
 		previous = nil;
+		previousOwn = nil;
 	}
 }
 
 // captureDisplay screenshots source, a display-local rectangle in points, or
 // the whole display when source is CGRectNull, at its size in points: the size
-// the rest of the pipeline was written against.
-static void captureDisplay(SCDisplay *display, CGRect source, NeruScreenshotState *state, dispatch_group_t group)
+// the rest of the pipeline was written against. When own is known, the filter
+// leaves Neru's own windows out, so a scan that runs while labels are on screen
+// does not read them back as targets.
+static void captureDisplay(
+    SCDisplay *display, SCRunningApplication *own, CGRect source, NeruScreenshotState *state, dispatch_group_t group)
     API_AVAILABLE(macos(14.0)) {
-	SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:display excludingWindows:@[]];
+	SCContentFilter *filter = own != nil ? [[SCContentFilter alloc] initWithDisplay:display
+	                                                          excludingApplications:@[ own ]
+	                                                               exceptingWindows:@[]]
+	                                     : [[SCContentFilter alloc] initWithDisplay:display excludingWindows:@[]];
 	SCStreamConfiguration *config = [[SCStreamConfiguration alloc] init];
 
 	if (CGRectIsNull(source)) {
@@ -232,12 +264,13 @@ static void captureDisplay(SCDisplay *display, CGRect source, NeruScreenshotStat
 static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRect source, int64_t timeoutMS) {
 	if (@available(macOS 14.0, *)) {
 		uint64_t generation = 0;
-		NSArray<SCDisplay *> *remembered = rememberedDisplays(&generation);
+		SCRunningApplication *rememberedOwn = nil;
+		NSArray<SCDisplay *> *remembered = rememberedDisplays(&generation, &rememberedOwn);
 		SCDisplay *rememberedDisplay = remembered != nil ? screenCaptureDisplayForID(displayID, remembered) : nil;
 
 		return awaitScreenshot(timeoutMS, ^(NeruScreenshotState *state, dispatch_group_t group) {
 			if (rememberedDisplay != nil) {
-				captureDisplay(rememberedDisplay, source, state, group);
+				captureDisplay(rememberedDisplay, rememberedOwn, source, state, group);
 				return;
 			}
 
@@ -248,7 +281,8 @@ static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRec
 					    return;
 				    }
 
-				    rememberDisplays(content.displays, generation);
+				    SCRunningApplication *own = ownApplication(content);
+				    rememberDisplays(content.displays, own, generation);
 
 				    SCDisplay *display = screenCaptureDisplayForID(displayID, content.displays);
 				    if (display == nil && !CGRectIsNull(source)) {
@@ -256,7 +290,7 @@ static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRec
 					    return;
 				    }
 
-				    captureDisplay(display != nil ? display : content.displays.firstObject, source, state, group);
+				    captureDisplay(display != nil ? display : content.displays.firstObject, own, source, state, group);
 			    }];
 		});
 	}
