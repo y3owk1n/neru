@@ -95,7 +95,7 @@ neru = { ref = "github:y3owk1n/neru", service = true }
   writes, so the same [session setup](linux.md#systemd-user-service) applies.
   With an older oku, leave out `--service` and use
   [`neru services install`](#login-service).
-- **With `neru services install` instead:** its unit points at the build in
+- **With `neru services install` on Linux:** its unit points at the build in
   oku's store, so after `oku update neru` run `neru services uninstall` and
   `neru services install` again.
 - **One service only:** use oku's service or `neru services install`, not
