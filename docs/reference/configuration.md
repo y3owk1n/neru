@@ -509,9 +509,10 @@ Each scans the focused window by default and adds the system surfaces the
   word splitting do not apply. Tune it under [`[hints.contour]`](#contour-options).
 - `segment`: splits the screen image into controls, pictures and words, in a
   few milliseconds with no dependency. One hint goes on each button, field or
-  chip and on each word of text, so every link is reachable, and it finds
-  controls drawn over a photo or a wallpaper too. Dense text gets many
-  hints. Like `contour`, its hints carry no text, and it has no options.
+  chip, and it finds controls drawn over a photo or a wallpaper too. By default
+  each word of text gets a hint too, so every link is reachable and dense text
+  gets many hints. Like `contour`, its hints carry no text. Choose what it
+  hints under [`[hints.segment]`](#segment-options).
 
 Press `/` in hints mode to filter hints by text. See the
 [hints search recipe](../guide/recipes.md#search-hints-by-text).
@@ -737,6 +738,19 @@ notification cards and toasts.
 | `same_center_slack`   | float | `8.0`   | A nested blob whose center is this close to its parent's duplicates the parent          |
 | `square_icon_size`    | float | `40.0`  | A roughly square parent smaller than this keeps its box and drops its inner detail      |
 | `square_icon_slack`   | float | `5.0`   | How far from square (width minus height) that parent may be                             |
+
+### Segment options
+
+`[hints.segment]` works on all three platforms.
+
+| Option    | Type   | Default   | Description                                                                                                                                                                                                                        |
+| --------- | ------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `targets` | string | `"words"` | What `segment` hints. `"words"` puts a hint on every word, so every link is reachable. `"phrases"` joins words of one color into phrases, for fewer hints on dense text. `"controls"` hints buttons, fields, icons and pictures, and no text |
+
+```toml
+[hints.segment]
+targets = "phrases"
+```
 
 ### Hints default hotkeys
 

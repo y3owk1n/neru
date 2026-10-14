@@ -41,7 +41,7 @@ func TestVisionAdapter_PixelDetectorsStayInTheirRegion(t *testing.T) {
 
 	detectors := map[string]func(context.Context) ([]*element.Element, error){
 		"segment": func(ctx context.Context) ([]*element.Element, error) {
-			return adapter.DetectSegments(ctx, region)
+			return adapter.DetectSegments(ctx, region, config.DefaultConfig().Hints.Segment)
 		},
 		"contour": func(ctx context.Context) ([]*element.Element, error) {
 			return adapter.DetectContours(ctx, region, config.DefaultConfig().Hints.Contour)

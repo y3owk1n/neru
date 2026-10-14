@@ -460,6 +460,19 @@ func (c *Config) validateHintVocabulary() error {
 		)
 	}
 
+	switch c.Hints.Segment.Targets {
+	case domain.SegmentTargetsWords,
+		domain.SegmentTargetsPhrases,
+		domain.SegmentTargetsControls,
+		"":
+	default:
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"hints.segment.targets must be %q, %q, or %q",
+			domain.SegmentTargetsWords, domain.SegmentTargetsPhrases, domain.SegmentTargetsControls,
+		)
+	}
+
 	switch c.Hints.CaptureScope {
 	case domain.CaptureScopeWindow, domain.CaptureScopeScreen, "":
 	default:

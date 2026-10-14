@@ -40,7 +40,11 @@ func (a *Adapter) DetectContours(
 }
 
 // DetectSegments reports not-supported, for the reason DetectContours does.
-func (a *Adapter) DetectSegments(_ context.Context, _ image.Rectangle) ([]*element.Element, error) {
+func (a *Adapter) DetectSegments(
+	_ context.Context,
+	_ image.Rectangle,
+	_ config.HintsSegmentConfig,
+) ([]*element.Element, error) {
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
 		"segment element detection needs a screen capture backend, which this platform lacks",

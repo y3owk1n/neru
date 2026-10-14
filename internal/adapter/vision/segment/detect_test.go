@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/vision/segment"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 var (
@@ -65,7 +66,13 @@ func sentence(img *image.RGBA, left, top int, inks ...color.RGBA) []image.Rectan
 func detect(t *testing.T, img *image.RGBA, scale float64) []image.Rectangle {
 	t.Helper()
 
-	rects, err := segment.Detect(context.Background(), img, scale)
+	return detectTargets(t, img, scale, domain.SegmentTargetsWords)
+}
+
+func detectTargets(t *testing.T, img *image.RGBA, scale float64, targets string) []image.Rectangle {
+	t.Helper()
+
+	rects, err := segment.Detect(context.Background(), img, scale, targets)
 	if err != nil {
 		t.Fatalf("Detect() error = %v", err)
 	}
@@ -106,7 +113,7 @@ func TestDetect_RefusesEmptyFrame(t *testing.T) {
 		"nil":   nil,
 		"empty": image.NewRGBA(image.Rect(0, 0, 0, 0)),
 	} {
-		rects, err := segment.Detect(context.Background(), img, 1)
+		rects, err := segment.Detect(context.Background(), img, 1, domain.SegmentTargetsWords)
 		if err == nil || rects != nil {
 			t.Errorf("%s: Detect() = %v, %v; want nil and an error", name, rects, err)
 		}
@@ -127,7 +134,7 @@ func TestDetect_CanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := segment.Detect(ctx, canvas(200, 100, white), 1)
+	_, err := segment.Detect(ctx, canvas(200, 100, white), 1, domain.SegmentTargetsWords)
 	if code := derrors.GetCode(err); code != derrors.CodeContextCanceled {
 		t.Errorf("Detect(canceled) code = %v, want %v", code, derrors.CodeContextCanceled)
 	}
@@ -143,6 +150,56 @@ func TestDetect_HintsEachWordOnce(t *testing.T) {
 	for _, w := range words {
 		if got := covering(rects, image.Pt(w.Min.X+1, 24)); len(got) != 1 || got[0] != w {
 			t.Errorf("word %v = %v, want one target over exactly that word", w, got)
+		}
+	}
+}
+
+func TestDetect_PhrasesJoinWordsOfOneColor(t *testing.T) {
+	t.Parallel()
+
+	img := canvas(400, 60, white)
+	words := sentence(img, 20, 20, black, black, blue, blue, black)
+	rects := detectTargets(t, img, 1, domain.SegmentTargetsPhrases)
+
+	text := words[0].Union(words[1])
+	link := words[2].Union(words[3])
+
+	for name, want := range map[string]image.Rectangle{"text": text, "link": link, "tail": words[4]} {
+		if !hitsOnce(rects, want) {
+			t.Errorf("%s %v should be one phrase, got %v", name, want, rects)
+		}
+	}
+
+	if len(rects) != 3 {
+		t.Errorf("Detect(phrases) = %d targets, want 3 phrases", len(rects))
+	}
+}
+
+func TestDetect_ControlsDropText(t *testing.T) {
+	t.Parallel()
+
+	img := canvas(400, 100, white)
+	button := image.Rect(20, 20, 120, 50)
+	border(img, button, black)
+	word(img, 40, 31, 6, black)
+
+	icon := image.Rect(160, 22, 178, 40)
+	border(img, icon, gray)
+	fill(img, image.Rect(165, 27, 173, 35), gray)
+
+	text := sentence(img, 220, 30, black, black)
+
+	rects := detectTargets(t, img, 1, domain.SegmentTargetsControls)
+
+	if !hitsOnce(rects, button) || !hitsOnce(rects, icon) {
+		t.Errorf("Detect(controls) = %v, want the button %v and the icon %v", rects, button, icon)
+	}
+
+	for _, w := range text {
+		for _, r := range rects {
+			if (image.Point{(r.Min.X + r.Max.X) / 2, (r.Min.Y + r.Max.Y) / 2}).In(w) {
+				t.Errorf("plain word %v got a hint %v with controls targets", w, r)
+			}
 		}
 	}
 }
@@ -474,6 +531,6 @@ func BenchmarkDetect_FullScreenFrame(b *testing.B) {
 	}
 
 	for b.Loop() {
-		_, _ = segment.Detect(context.Background(), img, 1)
+		_, _ = segment.Detect(context.Background(), img, 1, domain.SegmentTargetsWords)
 	}
 }

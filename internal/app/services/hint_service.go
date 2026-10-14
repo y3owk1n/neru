@@ -296,7 +296,7 @@ func (s *HintService) generate(
 		elements, captureErr = s.generateHintsFromPixels(
 			ctx, filter, captureScope, strategy, segmentTimeout,
 			func(ctx context.Context, region image.Rectangle) ([]*element.Element, error) {
-				return s.vision.DetectSegments(ctx, region)
+				return s.vision.DetectSegments(ctx, region, cfg.Segment)
 			},
 		)
 	default:

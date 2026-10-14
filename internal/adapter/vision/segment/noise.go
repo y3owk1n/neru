@@ -22,8 +22,8 @@ const (
 	noiseQuantile = 4
 	// noiseFactor is how far above its floor a step must be to count as ink.
 	noiseFactor = 3
-	// noiseBins caps the floor's histogram; a floor past it is texture either
-	// way, and the threshold is capped at overlayStep below it.
+	// noiseBins caps the floor's histogram. A floor past it is texture either
+	// way, and the threshold stops at overlayStep below it.
 	noiseBins = 64
 )
 
@@ -86,8 +86,8 @@ func stepMask(steps []uint8) []bool {
 
 // noiseMask marks a pixel when it steps by at least its tile's threshold, the
 // tile's floor times noiseFactor, never under inkStep and never over
-// overlayStep. It reports whether any tile's threshold rose above inkStep; a
-// frame with none is exactly stepMask's, and the caller keeps that.
+// overlayStep. It reports whether any tile's threshold rose above inkStep. A
+// frame with none gets exactly stepMask's mask, and the caller keeps that.
 //
 //nolint:varnamelen // pixel kernel: coordinates read as the algorithm writes them
 func noiseMask(steps []uint8, width, height int) ([]bool, bool) {

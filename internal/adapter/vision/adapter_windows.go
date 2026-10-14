@@ -203,6 +203,7 @@ func (a *Adapter) DetectContours(
 func (a *Adapter) DetectSegments(
 	ctx context.Context,
 	screenBounds image.Rectangle,
+	cfg config.HintsSegmentConfig,
 ) ([]*element.Element, error) {
 	frame, err := a.captureDetectionFrame(ctx, screenBounds, "segment")
 	if err != nil {
@@ -211,7 +212,7 @@ func (a *Adapter) DetectSegments(
 
 	dpi := platformwindows.DPIScaleAt(regionCenter(frame.region))
 
-	rects, err := segment.Detect(ctx, frame.img, dpi)
+	rects, err := segment.Detect(ctx, frame.img, dpi, cfg.Targets)
 	if err != nil {
 		return nil, err
 	}

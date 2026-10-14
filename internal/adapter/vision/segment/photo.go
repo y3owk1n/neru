@@ -10,8 +10,8 @@ const (
 	// overlayStep is the per-channel step that still counts as ink on a photo.
 	overlayStep = 56
 	// photoFill is how dense a blob too big to be one target must be to be a
-	// photo. Layout containers are outlines, far sparser; a wallpaper with a
-	// window cut out of it is not as dense as a thumbnail.
+	// photo. Layout containers are outlines and far sparser. A wallpaper with
+	// a window cut out of it is not as dense as a thumbnail.
 	photoFill = 0.5
 )
 
@@ -38,8 +38,8 @@ func densePhotos(blobs []blob, lim limits) ([]bool, bool) {
 
 // remaskPhotos marks the photos' own pixels again with only the steps of at
 // least overlayStep, which is what text, icons and controls drawn on a photo
-// have and its own texture mostly does not. Only the photo's pixels change.
-// A window lying on a wallpaper is blobs of its own, and keeps its mask.
+// have and its own texture mostly does not. A window lying on a wallpaper is
+// blobs of its own, and keeps its mask.
 //
 //nolint:varnamelen // pixel kernel: coordinates read as the algorithm writes them
 func remaskPhotos(steps []uint8, mask []bool, width int, ink runMap, photos []bool) {

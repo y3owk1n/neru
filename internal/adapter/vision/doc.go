@@ -17,8 +17,8 @@
 // The contour and segment strategies are two more detectors: the wl-kbptr
 // algorithm in the contour subpackage, and the segment subpackage, which
 // splits a frame into controls, pictures and text labels. Both are pure Go and
-// platform-neutral; darwin, linux and windows each feed them a frame from
-// their own capture backend (targets.go), so they land wherever capture does.
+// platform-neutral. Darwin, linux and windows each feed them a frame from
+// their own capture backend (targets.go), so they work wherever capture does.
 //
 // Captured pixels and recognized text are both screen content. Neither is
 // logged, written to disk, or held past the call that asked for it; the native

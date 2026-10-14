@@ -257,7 +257,9 @@ func TestVisionAdapter_PixelDetectorsKeepTheContractOnLinux(t *testing.T) {
 		"DetectContours": func(ctx context.Context, region image.Rectangle) ([]*element.Element, error) {
 			return adapter.DetectContours(ctx, region, config.DefaultConfig().Hints.Contour)
 		},
-		"DetectSegments": adapter.DetectSegments,
+		"DetectSegments": func(ctx context.Context, region image.Rectangle) ([]*element.Element, error) {
+			return adapter.DetectSegments(ctx, region, config.DefaultConfig().Hints.Segment)
+		},
 	}
 
 	for name, detect := range detectors {

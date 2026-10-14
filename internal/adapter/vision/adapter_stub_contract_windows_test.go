@@ -118,7 +118,11 @@ func TestVisionAdapter_CaptureAnswersOnWindows(t *testing.T) {
 		)
 	}
 
-	segments, err := adapter.DetectSegments(ctx, image.Rect(0, 0, 100, 100))
+	segments, err := adapter.DetectSegments(
+		ctx,
+		image.Rect(0, 0, 100, 100),
+		config.DefaultConfig().Hints.Segment,
+	)
 	if err != nil && segments != nil {
 		t.Errorf("DetectSegments returned %d elements alongside its error %v", len(segments), err)
 	}
@@ -152,7 +156,11 @@ func TestVisionAdapter_DetectionRefusesAnEmptyRegion(t *testing.T) {
 		t.Error("DetectContours returned elements alongside its error")
 	}
 
-	segments, err := adapter.DetectSegments(ctx, image.Rectangle{})
+	segments, err := adapter.DetectSegments(
+		ctx,
+		image.Rectangle{},
+		config.DefaultConfig().Hints.Segment,
+	)
 	if err == nil {
 		t.Fatalf("DetectSegments accepted an empty region and returned %d elements", len(segments))
 	}

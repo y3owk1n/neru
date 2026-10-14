@@ -659,6 +659,15 @@
           },
           "type": "object"
         },
+        "segment": {
+          "additionalProperties": false,
+          "properties": {
+            "targets": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
         "strategy": {
           "type": "string"
         },

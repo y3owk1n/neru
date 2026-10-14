@@ -16,14 +16,21 @@ import (
 const inkStep = 8
 
 // Detect returns the bounding boxes of likely hint targets in img, in logical
-// pixels relative to the frame's top-left corner. scale is frame pixels per
-// logical pixel. A frame at two or more pixels per logical pixel is
-// box-filtered down by the whole part of that first, and the size rules scale
-// by the rest, so they mean the same thing on every display. An empty frame is
-// refused; a frame with nothing in it returns no rectangles and no error. The
-// context is checked between stages, so a deadline set by the caller ends a
-// slow frame early instead of after the fact.
-func Detect(ctx context.Context, img *image.RGBA, scale float64) ([]image.Rectangle, error) {
+// pixels relative to the frame's top-left corner. targets is what to hint, one
+// of the domain.SegmentTargets values: every word, phrases, or controls only.
+// scale is frame pixels per logical pixel. A frame at two or more pixels per
+// logical pixel is box-filtered down by the whole part of that first, and the
+// size rules scale by the rest, so they mean the same thing on every display.
+// An empty frame is refused, and a frame with nothing in it returns no
+// rectangles and no error. The context is checked between stages, so a
+// deadline set by the caller ends a slow frame early instead of after the
+// fact.
+func Detect(
+	ctx context.Context,
+	img *image.RGBA,
+	scale float64,
+	targets string,
+) ([]image.Rectangle, error) {
 	if img == nil || img.Rect.Dx() <= 0 || img.Rect.Dy() <= 0 {
 		return nil, derrors.New(
 			derrors.CodeInvalidInput,
@@ -46,7 +53,7 @@ func Detect(ctx context.Context, img *image.RGBA, scale float64) ([]image.Rectan
 	}
 
 	width, height := frame.Rect.Dx(), frame.Rect.Dy()
-	lim := newLimits(scale)
+	lim := newLimits(scale, targets)
 
 	steps := stepValues(frame, width, height)
 	mask := stepMask(steps)

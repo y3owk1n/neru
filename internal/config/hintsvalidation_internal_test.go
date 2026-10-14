@@ -252,6 +252,12 @@ func hintsCases() []hintsCase {
 			placement: HintPlacementBottom,
 		},
 		{
+			name:      "bad segment targets",
+			breakIt:   func(c *Config) { c.Hints.Segment.Targets = "sentences" },
+			message:   "[INVALID_CONFIG] hints.segment.targets must be \"words\", \"phrases\", or \"controls\"",
+			placement: HintPlacementBottom,
+		},
+		{
 			name:      "bad capture scope",
 			breakIt:   func(c *Config) { c.Hints.CaptureScope = "desk" },
 			message:   "[INVALID_CONFIG] hints.capture_scope must be \"window\" or \"screen\"",

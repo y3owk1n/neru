@@ -475,6 +475,9 @@ func defaultHints() HintsConfig {
 			SquareIconSize:    DefaultContourSquareIconSize,
 			SquareIconSlack:   DefaultContourSquareIconSlack,
 		},
+		Segment: HintsSegmentConfig{
+			Targets: domain.SegmentTargetsWords,
+		},
 
 		IncludeMenubarHints:           false,
 		AdditionalMenubarHintsTargets: []string{},

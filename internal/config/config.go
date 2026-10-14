@@ -509,6 +509,11 @@ type HintsContourConfig struct {
 	SquareIconSlack   float64 `json:"squareIconSlack"   toml:"square_icon_slack"`
 }
 
+// HintsSegmentConfig defines settings for the segment strategy.
+type HintsSegmentConfig struct {
+	Targets string `json:"targets" toml:"targets"`
+}
+
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
 	Enabled           bool                `json:"enabled"           toml:"enabled"`
@@ -522,6 +527,7 @@ type HintsConfig struct {
 	BoundaryHighlight BoundaryHighlightUI `json:"boundaryHighlight" toml:"boundary_highlight"`
 	Vision            HintsVisionConfig   `json:"vision"            toml:"vision"`
 	Contour           HintsContourConfig  `json:"contour"           toml:"contour"`
+	Segment           HintsSegmentConfig  `json:"segment"           toml:"segment"`
 
 	IncludeMenubarHints           bool                `json:"includeMenubarHints"           toml:"include_menubar_hints"`
 	AdditionalMenubarHintsTargets []string            `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`

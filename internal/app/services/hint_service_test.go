@@ -834,6 +834,7 @@ func (m *mockVisionPort) DetectContours(
 func (m *mockVisionPort) DetectSegments(
 	context.Context,
 	image.Rectangle,
+	config.HintsSegmentConfig,
 ) ([]*element.Element, error) {
 	if m.detectErr != nil {
 		return nil, m.detectErr
@@ -1545,7 +1546,7 @@ func TestHintService_GenerateHintsSegment_ScansFocusedWindow(t *testing.T) {
 		},
 		zap.NewNop(),
 		&mocks.MockVisionPort{
-			DetectSegmentsFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+			DetectSegmentsFunc: func(_ context.Context, region image.Rectangle, _ config.HintsSegmentConfig) ([]*element.Element, error) {
 				capturedRegion = region
 
 				return []*element.Element{windowElement}, nil
@@ -1581,5 +1582,55 @@ func TestHintService_GenerateHintsSegment_ScansFocusedWindow(t *testing.T) {
 			capturedRegion,
 			want,
 		)
+	}
+}
+
+// TestHintService_GenerateHintsSegment_PassesTargets pins that
+// hints.segment.targets reaches the detector.
+func TestHintService_GenerateHintsSegment_PassesTargets(t *testing.T) {
+	t.Parallel()
+
+	var got string
+
+	cfg := config.DefaultConfig().Hints
+	cfg.Segment.Targets = domain.SegmentTargetsControls
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{
+			FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rect(0, 0, 800, 600), true, nil
+			},
+		},
+		generator,
+		cfg,
+		zap.NewNop(),
+		&mocks.MockVisionPort{
+			DetectSegmentsFunc: func(_ context.Context, _ image.Rectangle, segmentCfg config.HintsSegmentConfig) ([]*element.Element, error) {
+				got = segmentCfg.Targets
+
+				return nil, nil
+			},
+		},
+	)
+
+	_, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		domain.StrategySegment,
+		"",
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() failed: %v", err)
+	}
+
+	if got != domain.SegmentTargetsControls {
+		t.Errorf("detector got targets %q, want %q", got, domain.SegmentTargetsControls)
 	}
 }

@@ -3,16 +3,18 @@ package segment
 import (
 	"image"
 	"math"
+
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // The size rules, in logical pixels. They describe desktop UI, not a tuning
 // surface: each was checked against rendered light and dark scenes with known
 // clickable boxes.
 const (
-	// maxControlHeight is the tallest frame that is one control; a taller one
+	// maxControlHeight is the tallest frame that is one control. A taller one
 	// is a card or panel whose children are the targets.
 	maxControlHeight = 64
-	// maxTargetWidth is the widest target; anything wider is layout.
+	// maxTargetWidth is the widest target. Anything wider is layout.
 	maxTargetWidth = 650
 	// maxPictureSide bounds a picture that is one target (an avatar, a
 	// thumbnail). Bigger pictures are content, and only suppress what is on them.
@@ -35,8 +37,13 @@ const (
 	minTargetArea = 12
 	// markGap is how far a dot, accent or underline may sit from its glyph.
 	markGap = 2
-	// wordGap is the widest gap between glyphs of one label, in glyph heights.
-	wordGap = 0.4
+	// wordGap is the widest gap between glyphs of one label, in glyph heights,
+	// and phraseGap the same when words join into phrases.
+	wordGap   = 0.4
+	phraseGap = 0.6
+	// iconSide is the smallest height at which a label reads as an icon rather
+	// than text. Controls targets keep only icon labels.
+	iconSide = 12
 	// inkCos is the least cosine between two glyphs' ink directions that still
 	// reads as one color.
 	inkCos = 0.97
@@ -61,18 +68,30 @@ const (
 	gridCell = 32
 )
 
-// limits are the size rules in frame pixels.
+// limits are the size rules in frame pixels, and what is hinted.
 type limits struct {
 	maxControlHeight, maxTargetWidth, maxPictureSide, minPictureSide int
 	minFrameSide, lineLength, lineThickness, minTargetArea, markGap  int
-	smallGlyph                                                       int
+	smallGlyph, iconSide                                             int
+	// wordGap is the label gap in glyph heights, and textOnlyIcons drops
+	// every label but icons.
+	wordGap       float64
+	textOnlyIcons bool
 }
 
 //nolint:varnamelen // blob indices and box sides read as the geometry writes them
-func newLimits(scale float64) limits {
+func newLimits(scale float64, targets string) limits {
 	px := func(v float64) int { return max(int(math.Round(v*scale)), 1) }
 
+	gap := wordGap
+	if targets == domain.SegmentTargetsPhrases {
+		gap = phraseGap
+	}
+
 	return limits{
+		wordGap:          gap,
+		textOnlyIcons:    targets == domain.SegmentTargetsControls,
+		iconSide:         px(iconSide),
 		maxControlHeight: px(maxControlHeight),
 		maxTargetWidth:   px(maxTargetWidth),
 		maxPictureSide:   px(maxPictureSide),
@@ -181,7 +200,7 @@ func classify(blobs []blob, lim limits) []image.Rectangle {
 
 	// A control holding two or more separate things is a group of them (a
 	// segmented control, a tab strip) rather than one target. Its words are
-	// one thing when they read as one caption ("Save changes"); frames of its
+	// one thing when they read as one caption ("Save changes"). Frames of its
 	// own are each one thing.
 	wordBoxes := map[int]map[int]image.Rectangle{}
 	frameParts := map[int]int{}
@@ -254,6 +273,12 @@ func classify(blobs []blob, lim limits) []image.Rectangle {
 			continue
 		}
 
+		// Controls targets keep icons and drop text. An icon is tall enough
+		// and about as wide as it is tall, which a word is not.
+		if lim.textOnlyIcons && (box.Dy() < lim.iconSide || box.Dx() > 2*box.Dy()) {
+			continue
+		}
+
 		targets = append(targets, box)
 	}
 
@@ -310,10 +335,10 @@ func dropCoincident(targets []image.Rectangle) []image.Rectangle {
 	return kept
 }
 
-// captions counts the captions a control's words make. Words on one line no
-// further apart than half their height, a space, are one caption, the way a
-// button reads "Save changes", while tabs in a strip and links in a bar stand
-// further apart than that.
+// captions counts the captions a control's words make. Words on one line
+// with a gap of at most half their height, about one space, are one caption,
+// as in a button reading "Save changes". Tabs in a strip and links in a bar
+// stand further apart than that.
 //
 //nolint:varnamelen // word indices read as the geometry writes them
 func captions(words map[int]image.Rectangle) int {
@@ -473,7 +498,7 @@ func groupLabels(blobs []blob, glyphs []bool, scope []int, lim limits) []int {
 		return a
 	}
 
-	reach := func(b *blob) int { return int(wordGap*float64(b.height())) + lim.markGap }
+	reach := func(b *blob) int { return int(lim.wordGap*float64(b.height())) + lim.markGap }
 	index := newGrid(blobs, reach)
 
 	for i := range blobs {
@@ -532,7 +557,7 @@ func sameLabel(a, b *blob, lim limits) bool {
 	// pixel early: the ink gap is one wider, and the ink one shorter, than the
 	// boxes say. Words are told apart on the ink.
 	inkGap, inkHeight := gapX+1, hi-1
-	if float64(inkGap) > max(wordGap*float64(inkHeight), float64(lim.markGap)) ||
+	if float64(inkGap) > max(lim.wordGap*float64(inkHeight), float64(lim.markGap)) ||
 		distance(a.bg, b.bg) > bgMatch {
 		return false
 	}

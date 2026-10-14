@@ -221,6 +221,9 @@ same_center_slack = 8.0                     # px
 square_icon_size = 40.0
 square_icon_slack = 5.0
 
+[hints.segment]
+targets = "words"                           # words, phrases, controls
+
 # Grid mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#grid
 [grid]

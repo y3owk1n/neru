@@ -177,8 +177,10 @@ func PlatformSupport() parity.Declaration {
 			"hints.vision.image_min_size",
 			"hints.vision.checkbox_max_size",
 		),
-		// The contour detector is pure Go and every capture backend feeds it.
+		// The contour and segment detectors are pure Go and every capture
+		// backend feeds them.
 		parity.Everywhere(parity.KindOption,
+			"hints.segment.targets",
 			"hints.contour.request_timeout_ms",
 			"hints.contour.edge_low_threshold",
 			"hints.contour.edge_high_threshold",

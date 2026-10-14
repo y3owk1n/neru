@@ -55,8 +55,8 @@ type run struct {
 	label  int32
 }
 
-// runMap is every run of ink in a frame, row by row: runs[rowStart[y]:
-// rowStart[y+1]] are row y's, so a blob's own pixels can be walked.
+// runMap holds every run of ink in a frame, row by row. Row y's runs are
+// runs[rowStart[y]:rowStart[y+1]], so a blob's own pixels can be walked.
 type runMap struct {
 	runs     []run
 	rowStart []int32

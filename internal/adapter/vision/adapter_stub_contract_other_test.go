@@ -76,7 +76,11 @@ func TestVisionAdapter_AllMethodsReportNotSupportedOffDarwin(t *testing.T) {
 		{
 			name: "DetectSegments",
 			call: func() error {
-				_, err := adapter.DetectSegments(ctx, image.Rect(0, 0, 100, 100))
+				_, err := adapter.DetectSegments(
+					ctx,
+					image.Rect(0, 0, 100, 100),
+					config.DefaultConfig().Hints.Segment,
+				)
 
 				return err
 			},
@@ -138,7 +142,11 @@ func TestVisionAdapter_StubsReturnNoPartialResults(t *testing.T) {
 			len(contours))
 	}
 
-	segments, err := adapter.DetectSegments(ctx, image.Rect(0, 0, 100, 100))
+	segments, err := adapter.DetectSegments(
+		ctx,
+		image.Rect(0, 0, 100, 100),
+		config.DefaultConfig().Hints.Segment,
+	)
 	if err == nil {
 		t.Fatal("DetectSegments returned a nil error")
 	}

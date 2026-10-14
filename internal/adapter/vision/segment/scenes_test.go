@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/vision/segment"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // TestDetect_FindsEveryTargetInRenderedScenes runs the detector over real
@@ -40,7 +41,7 @@ func TestDetect_FindsEveryTargetInRenderedScenes(t *testing.T) {
 
 			img, targets := loadScene(t, name)
 
-			rects, err := segment.Detect(context.Background(), img, 1)
+			rects, err := segment.Detect(context.Background(), img, 1, domain.SegmentTargetsWords)
 			if err != nil {
 				t.Fatalf("Detect() error = %v", err)
 			}

@@ -25,7 +25,7 @@ type MockVisionPort struct {
 	) ([]*element.Element, error)
 	CaptureScreenFunc  func(context.Context) (*image.RGBA, error)
 	DetectContoursFunc func(context.Context, image.Rectangle, config.HintsContourConfig) ([]*element.Element, error)
-	DetectSegmentsFunc func(context.Context, image.Rectangle) ([]*element.Element, error)
+	DetectSegmentsFunc func(context.Context, image.Rectangle, config.HintsSegmentConfig) ([]*element.Element, error)
 
 	mu       sync.Mutex
 	detectN  int
@@ -98,13 +98,14 @@ func (m *MockVisionPort) DetectContours(
 func (m *MockVisionPort) DetectSegments(
 	ctx context.Context,
 	screenBounds image.Rectangle,
+	cfg config.HintsSegmentConfig,
 ) ([]*element.Element, error) {
 	m.mu.Lock()
 	m.segmentN++
 	m.mu.Unlock()
 
 	if m.DetectSegmentsFunc != nil {
-		return m.DetectSegmentsFunc(ctx, screenBounds)
+		return m.DetectSegmentsFunc(ctx, screenBounds, cfg)
 	}
 
 	return nil, derrors.New(

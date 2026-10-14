@@ -115,6 +115,20 @@ const (
 	StrategySegment = "segment"
 )
 
+// What the segment strategy hints, the values hints.segment.targets accepts.
+const (
+	// SegmentTargetsWords hints every word, so every link is reachable. This
+	// is the default.
+	SegmentTargetsWords = "words"
+
+	// SegmentTargetsPhrases joins words of one color into phrases. Dense
+	// text gets fewer hints, but adjacent links of one color share a hint.
+	SegmentTargetsPhrases = "phrases"
+
+	// SegmentTargetsControls hints controls, icons and pictures, and no text.
+	SegmentTargetsControls = "controls"
+)
+
 // Hint label enumeration orders, the values hints.label_direction accepts.
 const (
 	// LabelDirectionReverse spreads labels across the alphabet by varying the

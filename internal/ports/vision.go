@@ -43,9 +43,14 @@ type VisionPort interface {
 	) ([]*element.Element, error)
 
 	// DetectSegments captures screenBounds and returns the targets the segment
-	// detector finds in it (controls, pictures and text labels), as clickable
-	// vision-only buttons with no title. The caller bounds the pass with ctx.
-	DetectSegments(ctx context.Context, screenBounds image.Rectangle) ([]*element.Element, error)
+	// detector finds in it (controls, pictures and words), as clickable
+	// vision-only buttons with no title. cfg says what to hint. The caller
+	// bounds the pass with ctx.
+	DetectSegments(
+		ctx context.Context,
+		screenBounds image.Rectangle,
+		cfg config.HintsSegmentConfig,
+	) ([]*element.Element, error)
 
 	// CaptureScreen returns the current screen image. Which screen "current"
 	// means is the platform's own answer: macOS captures the primary display,

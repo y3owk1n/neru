@@ -14,6 +14,6 @@
 // included. Each vision adapter supplies the frame from its own capture
 // backend and maps the boxes back to global coordinates.
 //
-// The frame is screen content. Detect reads it and returns rectangles; nothing
-// here logs, copies past the call, or retains the pixels.
+// The frame is screen content. Detect reads it and returns rectangles, and
+// nothing here logs, copies past the call, or retains the pixels.
 package segment
