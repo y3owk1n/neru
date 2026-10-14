@@ -186,6 +186,18 @@ func TestDetect_SeparatorSplitsLinks(t *testing.T) {
 	}
 }
 
+func TestDetect_KeepsLoneNarrowGlyph(t *testing.T) {
+	t.Parallel()
+
+	img := canvas(100, 40, white)
+	stroke := image.Rect(40, 15, 42, 24)
+	fill(img, stroke, blue)
+
+	if rects := detect(t, img, 1); !hitsOnce(rects, stroke) {
+		t.Errorf("Detect(lone I) = %v, want one target over %v: a one-letter link is not a separator", rects, stroke)
+	}
+}
+
 func TestDetect_RoundKeyIsOneTarget(t *testing.T) {
 	t.Parallel()
 

@@ -94,9 +94,16 @@ func components(img *image.RGBA, mask []bool, width, height int) []blob {
 
 			cur := run{x0: int32(x0), x1: int32(x - 1), label: -1}
 
+			// Runs within a row are in order and do not overlap, so the
+			// previous row's runs that end too far left to touch this one
+			// cannot touch any later one either, and are skipped for good.
+			for prev0 < prev1 && runs[prev0].x1+1 < cur.x0 {
+				prev0++
+			}
+
 			for _, above := range runs[prev0:prev1] {
-				if above.x0 > cur.x1+1 || cur.x0 > above.x1+1 {
-					continue
+				if above.x0 > cur.x1+1 {
+					break
 				}
 
 				root := find(above.label)

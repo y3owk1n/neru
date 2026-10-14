@@ -349,10 +349,11 @@ func holders(blobs []blob, kinds []kind) []int {
 	return holder
 }
 
-// dropSeparators takes thin vertical strokes standing apart on their line, the
-// "|" between links in "hide | 93 comments", out of the glyphs, so they never
-// join two labels into one. A stroke inside a word ("l", "I", "1") sits a pixel
-// from its neighbors and stays a glyph.
+// dropSeparators takes thin vertical strokes standing apart between two words
+// on their line, the "|" between links in "hide | 93 comments", out of the
+// glyphs, so they never join two labels into one. A stroke inside a word ("l",
+// "I", "1") sits a pixel from its neighbors, and one with no word on either
+// side is a label of its own, so both stay glyphs.
 //
 //nolint:varnamelen // blob indices and box sides read as the geometry writes them
 func dropSeparators(blobs []blob, glyphs []bool, lim limits) {
@@ -365,21 +366,29 @@ func dropSeparators(blobs []blob, glyphs []bool, lim limits) {
 			continue
 		}
 
-		alone := true
+		// Words on both sides within the stroke's own height, none touching.
+		reach := b.height()
+		touching, left, right := false, false, false
 
-		index.each(b.minX-lim.markGap-1, b.minY, b.maxX+lim.markGap+1, b.maxY, func(j int32) {
+		index.each(b.minX-reach, b.minY, b.maxX+reach, b.maxY, func(j int32) {
 			o := &blobs[j]
 			if int(j) == i || !glyphs[j] || o.maxY < b.minY || o.minY > b.maxY {
 				return
 			}
 
 			gap := max(o.minX, b.minX) - min(o.maxX, b.maxX) - 1
-			if gap <= lim.markGap {
-				alone = false
+
+			switch {
+			case gap <= lim.markGap:
+				touching = true
+			case gap <= reach && o.maxX < b.minX:
+				left = true
+			case gap <= reach && o.minX > b.maxX:
+				right = true
 			}
 		})
 
-		if alone {
+		if !touching && left && right {
 			glyphs[i] = false
 		}
 	}
