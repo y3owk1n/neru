@@ -109,6 +109,10 @@ const (
 	// StrategyContour detects interactive targets from the screen image by
 	// edge and contour analysis, an algorithm ported from wl-kbptr.
 	StrategyContour = "contour"
+
+	// StrategySegment detects targets from the screen image by segmenting it
+	// into controls, pictures and text labels, with no recognition step.
+	StrategySegment = "segment"
 )
 
 // Hint label enumeration orders, the values hints.label_direction accepts.

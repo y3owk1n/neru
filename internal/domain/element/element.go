@@ -75,6 +75,7 @@ const (
 	SourceAXTree  Source = "axtree"
 	SourceVision  Source = "vision"
 	SourceContour Source = "contour"
+	SourceSegment Source = "segment"
 	SourceTargets Source = "targets"
 )
 

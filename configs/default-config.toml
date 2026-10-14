@@ -99,7 +99,7 @@ text = "#E8EEFF"
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#hints
 [hints]
 enabled = true
-strategy = "axtree"                         # axtree, vision, contour
+strategy = "axtree"                         # axtree, vision, contour, segment
 capture_scope = "window"                    # window, screen
 hint_characters = "asdfghjkl"
 label_direction = "normal"                  # normal, reverse

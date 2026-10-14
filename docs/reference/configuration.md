@@ -497,8 +497,8 @@ to DejaVu Sans or Segoe UI.
 ## [hints]
 
 Labels clickable elements. The default `axtree` strategy reads the platform
-accessibility tree. Two screen-capture strategies cover apps with a thin tree.
-Both scan the focused window by default and add the system surfaces the
+accessibility tree. Three screen-capture strategies cover apps with a thin tree.
+Each scans the focused window by default and adds the system surfaces the
 `include_*` options ask for.
 
 - `vision`: one OCR pass per activation, so hint search (`--search`) and
@@ -507,6 +507,11 @@ Both scan the focused window by default and add the system surfaces the
 - `contour`: edge analysis from [wl-kbptr](https://github.com/moverest/wl-kbptr),
   a few milliseconds with no dependency. Its hints carry no text, so search and
   word splitting do not apply. Tune it under [`[hints.contour]`](#contour-options).
+- `segment`: splits the screen image into controls, pictures and words, in a
+  few milliseconds with no dependency. One hint goes on each button, field or
+  chip and on each word of text, so every link is reachable, and it finds
+  controls drawn over a photo or a wallpaper too. Dense text gets many
+  hints. Like `contour`, its hints carry no text, and it has no options.
 
 Press `/` in hints mode to filter hints by text. See the
 [hints search recipe](../guide/recipes.md#search-hints-by-text).
@@ -525,8 +530,8 @@ font_size = 12
 | Option                             | Type         | Default                  | Description                                                                                                                                                |
 | ---------------------------------- | ------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `enabled`                          | bool         | `true`                   | Turn hints mode on or off                                                                                                                                  |
-| `strategy`                         | string       | `"axtree"`               | Element detection: `"axtree"`, `"vision"` or `"contour"`. Overridable per app                                                                              |
-| `capture_scope`                    | string       | `"window"`               | Region `vision` and `contour` scan: `"window"` (the screen if nothing is focused) or `"screen"`. Overridable per app and with `neru hints --capture-scope` |
+| `strategy`                         | string       | `"axtree"`               | Element detection: `"axtree"`, `"vision"`, `"contour"` or `"segment"`. Overridable per app                                                                              |
+| `capture_scope`                    | string       | `"window"`               | Region `vision`, `contour` and `segment` scan: `"window"` (the screen if nothing is focused) or `"screen"`. Overridable per app and with `neru hints --capture-scope` |
 | `hint_characters`                  | string       | `"asdfghjkl"`            | Characters used for labels. Refused if empty, shorter than 2, non-ASCII, or with a repeated character |
 | `label_direction`                  | string       | `"normal"`               | `"normal"` or `"reverse"`, see [Choosing a label direction](#choosing-a-label-direction). Overridable per app and with `neru hints --label-direction`      |
 | `max_depth`                        | int          | `50`                     | Deepest accessibility tree level to read, `0` for unlimited                                                                                                               |
@@ -751,7 +756,7 @@ applies is under [Per-app hotkey overrides](#per-app-hotkey-overrides).
 | Field                        | Type   | Description                                                                                  |
 | ---------------------------- | ------ | -------------------------------------------------------------------------------------------- |
 | `bundle_id`                  | string | App bundle ID                                                                                |
-| `strategy`                   | string | `"axtree"`, `"vision"` or `"contour"`                                                        |
+| `strategy`                   | string | `"axtree"`, `"vision"`, `"contour"` or `"segment"`                                           |
 | `capture_scope`              | string | `"window"` or `"screen"`                                                                     |
 | `label_direction`            | string | `"normal"` or `"reverse"`                                                                    |
 | `additional_clickable_roles` | array  | Extra roles to treat as clickable, same vocabulary as [`clickable_roles`](#clickable-roles) |

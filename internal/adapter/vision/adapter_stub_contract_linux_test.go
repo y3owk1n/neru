@@ -247,8 +247,8 @@ func TestVisionAdapter_NilLoggerIsAcceptedOnLinux(t *testing.T) {
 	_, _ = adapter.CaptureScreen(context.Background())
 }
 
-// TestVisionAdapter_PixelDetectorsKeepTheContractOnLinux pins the pixel
-// detectors to the same rule as recognition: a result or a reason,
+// TestVisionAdapter_PixelDetectorsKeepTheContractOnLinux pins the contour and
+// segment detectors to the same rule as recognition: a result or a reason,
 // never both; an empty region refused rather than read as the whole screen;
 // and a caller that has given up spared the capture.
 func TestVisionAdapter_PixelDetectorsKeepTheContractOnLinux(t *testing.T) {
@@ -257,6 +257,7 @@ func TestVisionAdapter_PixelDetectorsKeepTheContractOnLinux(t *testing.T) {
 		"DetectContours": func(ctx context.Context, region image.Rectangle) ([]*element.Element, error) {
 			return adapter.DetectContours(ctx, region, config.DefaultConfig().Hints.Contour)
 		},
+		"DetectSegments": adapter.DetectSegments,
 	}
 
 	for name, detect := range detectors {

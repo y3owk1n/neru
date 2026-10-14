@@ -45,7 +45,7 @@ const (
 	// The messages both this file and the diagnosis cases pin, so that the two
 	// readings of the same command are held to the same sentence.
 	msgRepeatNeedsAction = "--repeat requires --action"
-	msgStrategyValue     = "--strategy requires axtree, vision, or contour"
+	msgStrategyValue     = "--strategy requires axtree, vision, contour, or segment"
 	msgGridRejectsSearch = "grid does not accept --search"
 
 	// The messages --targets gives for an unusable value and for a flag it
@@ -1054,6 +1054,12 @@ func TestParse_CycleLists(t *testing.T) {
 				"--strategy=" + domain.StrategyContour,
 			},
 			wantValue: domain.StrategyContour,
+		},
+		{
+			name:      "segment is a strategy",
+			mode:      domain.ModeHints,
+			args:      []string{"--strategy=" + domain.StrategySegment},
+			wantValue: domain.StrategySegment,
 		},
 		{
 			name:    "an unknown entry is refused like a lone one",

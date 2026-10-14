@@ -40,7 +40,13 @@ var HintsCmd = BuildModeCommand(ModeConfig{
   algorithm ported from wl-kbptr. Faster than vision and needs no OCR engine,
   but yields no text to search.
 
-  Both capture strategies scan the focused window. Use --capture-scope screen
+  Use --strategy segment to split the focused window's pixels into controls,
+  pictures and words. It puts one hint on each button or field and on each
+  word, so every link is reachable, including controls drawn over a photo.
+  It is faster than contour, has no options to tune, and likewise yields no
+  text to search.
+
+  The capture strategies scan the focused window. Use --capture-scope screen
   to scan the whole active screen instead, so notifications, panels and
   adjacent windows get hints too.
 
@@ -66,6 +72,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     neru hints --strategy vision             Detect elements by screen recognition
     neru hints --strategy contour           Detect buttons and icons via contour analysis
     neru hints --strategy contour --capture-scope screen  Hint the whole screen, not just the window
+    neru hints --strategy segment           Detect controls and words from pixels
     neru hints --strategy vision --split-word  Use vision strategy with word-level splitting
     neru hints --label-direction reverse     Use spread labels for this run`,
 })

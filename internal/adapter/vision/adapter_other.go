@@ -39,6 +39,14 @@ func (a *Adapter) DetectContours(
 	)
 }
 
+// DetectSegments reports not-supported, for the reason DetectContours does.
+func (a *Adapter) DetectSegments(_ context.Context, _ image.Rectangle) ([]*element.Element, error) {
+	return nil, derrors.New(
+		derrors.CodeNotSupported,
+		"segment element detection needs a screen capture backend, which this platform lacks",
+	)
+}
+
 // CaptureScreen reports not-supported: this slot has no capture backend.
 // Linux has one in adapter_linux.go and Windows in adapter_windows.go.
 func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {

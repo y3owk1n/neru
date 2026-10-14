@@ -112,13 +112,13 @@ region that leaves the screen, spans two Wayland outputs, or lies on an
 unshared monitor fails rather than coming back clipped. Scaled outputs return
 physical pixels. On macOS, Neru caches ScreenCaptureKit's list of displays and
 drops it when the display configuration changes or a capture fails. `contour`
-captures only its region, through a source rect, at its size in points, and
-falls back to the whole display holding it. `vision` captures the whole
-display at its size in points. Neru does not use macOS 15.2's
+and `segment` capture only their region, through a source rect, at its size in
+points, and fall back to the whole display holding it. `vision` captures the
+whole display at its size in points. Neru does not use macOS 15.2's
 `captureImageInRect:`, because it leaks the captured image on every call. On
-Windows the `contour` strategy gets the monitor's DPI scale, so its size rules
-are in points while its results stay in physical pixels. The rectangle half of
-`vision` still applies them in physical pixels.
+Windows the `contour` and `segment` strategies get the monitor's DPI scale, so
+their size rules are in points while their results stay in physical pixels.
+The rectangle half of `vision` still applies them in physical pixels.
 
 ⁶ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing
@@ -256,7 +256,7 @@ load, and `neru doctor` lists it under `platform_support`.
 | **Backend**             | AXUIElement                                 | AT-SPI over D-Bus                                  | UI Automation                        |
 | **Traversal**           | Full recursive walk of the accessibility tree, to `hints.max_depth` | One Collection query of the active window at the default or unlimited `hints.max_depth`, a recursive walk to it below the default, or when the toolkit lacks Collection, node capped | One `FindAll` of the control view at the default or unlimited `hints.max_depth`, a control-view walker to it below the default |
 | **Sources collected**   | Frontmost + all windows, popovers, menubar, dock, notification center, Stage Manager, PIP | Active window only          | Foreground window's control view     |
-| **Strategies**          | `axtree` (default), `vision` and `contour`, incl. per-app overrides | `axtree`, `vision` and `contour` | `axtree`, `vision` and `contour` |
+| **Strategies**          | `axtree` (default), `vision`, `contour` and `segment`, incl. per-app overrides | `axtree`, `vision`, `contour` and `segment` | `axtree`, `vision`, `contour` and `segment` |
 | **Popovers / menus**    | dedicated detection                      | only if inside the active window                | none                              |
 | **Element text** (title, description, value) | `AXTitle`, `AXDescription`, `AXValue` when it is a string | `Name`, `Description`, and `Text.GetText` for the entry and spin button roles, never password text | `Name`, `HelpText`, and the Value pattern's value, never a password field's |
 | **Disabled elements** | skipped when `AXEnabled` is false | skipped without the ENABLED or SENSITIVE state, since GTK 4 sets only SENSITIVE. The Collection query asks for ENABLED, and GTK 4 has no Collection | skipped when `IsEnabled` is false, before their text is read |
@@ -266,7 +266,7 @@ load, and `neru doctor` lists it under `platform_support`.
 
 On Linux, coverage depends on each app exposing AT-SPI. On Windows, an element
 an app exposes only in UI Automation's raw view gets no hint. Where the tree is
-thin, use the `vision` or `contour` strategy. Fix a missing element with a role
+thin, use the `vision`, `contour` or `segment` strategy. Fix a missing element with a role
 or filter setting ([Clickable roles](../reference/configuration.md#clickable-roles)).
 
 **Chromium and Electron apps on Linux** hide their web content from AT-SPI by
@@ -293,8 +293,8 @@ measured on niri.
 | Anything else (X11, River, Wayfire) | none                                                | X11 needs none, because AT-SPI already reports screen positions there. The rest report no origin, so hints stay window-relative. |
 
 Without an origin, positions stay unoffset. Neru warns when a compositor
-command fails or returns invalid output. The same sources scope vision and
-contour detection, `neru action move_mouse --window`, and grid, recursive grid
+command fails or returns invalid output. The same sources scope vision,
+contour and segment detection, `neru action move_mouse --window`, and grid, recursive grid
 or bisect with `--capture-scope window`. River and Wayfire report
 `ERR_NOT_SUPPORTED` for these.
 

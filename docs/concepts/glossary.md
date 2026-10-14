@@ -104,5 +104,5 @@ stays held for the following clicks and scrolls. See
 [Using Neru](../guide/using-neru.md#more-than-a-left-click).
 
 **Strategy.** How hints mode finds elements: `axtree` reads the accessibility
-tree, `vision` reads the screen with OCR, and `contour` finds shapes in the
-screen image. See [`[hints]`](../reference/configuration.md#hints).
+tree, `vision` reads the screen with OCR, `contour` finds shapes in the
+screen image, and `segment` splits it into controls, pictures and words. See [`[hints]`](../reference/configuration.md#hints).

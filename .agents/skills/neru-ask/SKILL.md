@@ -102,9 +102,10 @@ old name from the same `docs/` URL:
 
 Things a user often does not know:
 
-- **Hints have three strategies.** `axtree` reads the accessibility tree
+- **Hints have four strategies.** `axtree` reads the accessibility tree
   and is the default. `vision` recognises text on a screen capture, and on
-  macOS rectangles too. `contour` finds edges on every platform. An app
+  macOS rectangles too. `contour` finds edges on every platform, and
+  `segment` finds controls and words from pixels on every platform. An app
   with a poor tree, such as an Electron app or a game, gets `--strategy
   vision` for one call or a per-app strategy in config.
 - **Grid modes need no accessibility tree.** When hints show nothing in an

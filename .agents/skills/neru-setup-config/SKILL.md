@@ -61,8 +61,8 @@ handing all hotkeys to skhd or another daemon.
 1. **Check the install.** `neru doctor` runs without the daemon and reports
    config validity, socket health, permissions, and what this platform
    supports. `neru status` says whether the daemon runs. On macOS, hints
-   and actions need Accessibility, and the `vision` and `contour` strategies
-   need Screen Recording, both under System Settings, Privacy & Security.
+   and actions need Accessibility, and the `vision`, `contour` and `segment`
+   strategies need Screen Recording, both under System Settings, Privacy & Security.
    On Linux the user needs the `input` group and a `/dev/uinput` udev rule,
    covered in `docs/guide/linux.md`. Windows needs nothing beyond the install.
 
@@ -95,7 +95,7 @@ handing all hotkeys to skhd or another daemon.
    - **Hints that miss elements.** Run `sleep 3; neru query hints` and
      switch to the app first. A role missing from the list goes into
      `hints.clickable_roles`, checked against `neru roles --explain`. An
-     app whose tree is empty gets `strategy = "vision"` or `"contour"`,
+     app whose tree is empty gets `strategy = "vision"`, `"contour"` or `"segment"`,
      globally or under `[[hints.app_configs]]` with its `bundle_id`. The
      per-app table also takes `additional_clickable_roles`,
      `ignore_clickable_check`, and `label_direction`, and it is the

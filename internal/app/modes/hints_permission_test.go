@@ -146,6 +146,18 @@ func TestActivateMode_ContourStrategyRequestsScreenCapturePermission(t *testing.
 	modal.consent <- ports.ScreenCaptureCanceled
 }
 
+func TestActivateMode_SegmentStrategyRequestsScreenCapturePermission(t *testing.T) {
+	modal := newPermissionModal()
+	handler := newCaptureHintsHandler(domain.StrategySegment, modal.system, zap.NewNop(), func() {})
+
+	// Segment reads the window's pixels too, so it pays the same gate.
+	handler.ActivateMode(modecmd.Activation{Mode: domain.ModeHints})
+
+	modal.awaitOpen(t)
+
+	modal.consent <- ports.ScreenCaptureCanceled
+}
+
 func TestResumeHintActivationAfterPermission_DoesNotRepromptWhenCheckStillFails(t *testing.T) {
 	requests := make(chan struct{}, 2)
 	consent := make(chan ports.ScreenCaptureConsent)

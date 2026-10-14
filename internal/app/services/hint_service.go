@@ -285,7 +285,20 @@ func (s *HintService) generate(
 	case domain.StrategyVision:
 		elements, captureErr = s.generateHintsVision(ctx, filter, captureScope, splitWord)
 	case domain.StrategyContour:
-		elements, captureErr = s.generateHintsContour(ctx, filter, captureScope, cfg.Contour)
+		elements, captureErr = s.generateHintsFromPixels(
+			ctx, filter, captureScope, strategy,
+			time.Duration(cfg.Contour.RequestTimeoutMS)*time.Millisecond,
+			func(ctx context.Context, region image.Rectangle) ([]*element.Element, error) {
+				return s.vision.DetectContours(ctx, region, cfg.Contour)
+			},
+		)
+	case domain.StrategySegment:
+		elements, captureErr = s.generateHintsFromPixels(
+			ctx, filter, captureScope, strategy, segmentTimeout,
+			func(ctx context.Context, region image.Rectangle) ([]*element.Element, error) {
+				return s.vision.DetectSegments(ctx, region)
+			},
+		)
 	default:
 		elements, genErr = s.generateHintsAX(ctx, filter)
 	}
@@ -416,20 +429,28 @@ func (s *HintService) supplementaryElements(
 	return supplementElements
 }
 
-// generateHintsContour is the vision path with the contour detector in place
-// of recognition: the same include_* supplement from the accessibility tree,
-// the same focused-window region, so the two strategies are interchangeable
-// per app.
-func (s *HintService) generateHintsContour(
+// segmentTimeout bounds one segment pass, capture included. The detector
+// takes a few milliseconds on a full screen, so this is a safety net for a
+// stalled capture backend rather than a tuning knob, and it has no option.
+const segmentTimeout = 2 * time.Second
+
+// generateHintsFromPixels is the vision path with a pixel detector in place of
+// recognition: the same include_* supplement from the accessibility tree, the
+// same focused-window region, so the capture strategies are interchangeable
+// per app. detect runs on the region under timeout.
+func (s *HintService) generateHintsFromPixels(
 	ctx context.Context,
 	filter ports.ElementFilter,
 	captureScope string,
-	cfg config.HintsContourConfig,
+	strategy string,
+	timeout time.Duration,
+	detect func(context.Context, image.Rectangle) ([]*element.Element, error),
 ) ([]*element.Element, error) {
 	allElements := s.supplementaryElements(ctx, filter)
 
 	if s.vision == nil {
-		s.logger.Warn("Contour strategy selected but vision port is unavailable")
+		s.logger.Warn("Capture strategy selected but vision port is unavailable",
+			zap.String("strategy", strategy))
 
 		return allElements, nil
 	}
@@ -439,21 +460,19 @@ func (s *HintService) generateHintsContour(
 		return allElements, nil
 	}
 
-	contourCtx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(cfg.RequestTimeoutMS)*time.Millisecond,
-	)
+	detectCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	contourStart := time.Now()
+	started := time.Now()
 
-	elements, err := s.vision.DetectContours(contourCtx, windowBounds, cfg)
+	elements, err := detect(detectCtx, windowBounds)
 	if err != nil {
 		return allElements, err
 	}
 
-	s.logger.Debug("Contour detection finished",
-		zap.Duration("duration", time.Since(contourStart)),
+	s.logger.Debug("Pixel detection finished",
+		zap.String("strategy", strategy),
+		zap.Duration("duration", time.Since(started)),
 		zap.Int("count", len(elements)))
 
 	return append(allElements, elements...), nil

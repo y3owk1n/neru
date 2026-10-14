@@ -14,10 +14,11 @@
 // detector over the same frame (rectangles.go), and neither runs saliency.
 // adapter_other.go has no capture and refuses everything.
 //
-// The contour strategy is a third detector, the wl-kbptr algorithm in the
-// contour subpackage, which is pure Go and platform-neutral; darwin, linux and
-// windows each feed it a frame from their own capture backend, so it lands
-// wherever capture does.
+// The contour and segment strategies are two more detectors: the wl-kbptr
+// algorithm in the contour subpackage, and the segment subpackage, which
+// splits a frame into controls, pictures and text labels. Both are pure Go and
+// platform-neutral; darwin, linux and windows each feed them a frame from
+// their own capture backend (targets.go), so they land wherever capture does.
 //
 // Captured pixels and recognized text are both screen content. Neither is
 // logged, written to disk, or held past the call that asked for it; the native

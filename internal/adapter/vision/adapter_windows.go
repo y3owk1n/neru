@@ -12,6 +12,7 @@ import (
 
 	platformwindows "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
+	"github.com/y3owk1n/neru/internal/adapter/vision/segment"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -195,6 +196,27 @@ func (a *Adapter) DetectContours(
 	}
 
 	return targetElements(frame, scaleRects(rects, dpi), element.SourceContour), nil
+}
+
+// DetectSegments captures screenBounds and runs the segment detector over it,
+// with the same region contract as DetectContours.
+func (a *Adapter) DetectSegments(
+	ctx context.Context,
+	screenBounds image.Rectangle,
+) ([]*element.Element, error) {
+	frame, err := a.captureDetectionFrame(ctx, screenBounds, "segment")
+	if err != nil {
+		return nil, err
+	}
+
+	dpi := platformwindows.DPIScaleAt(regionCenter(frame.region))
+
+	rects, err := segment.Detect(ctx, frame.img, dpi)
+	if err != nil {
+		return nil, err
+	}
+
+	return targetElements(frame, scaleRects(rects, dpi), element.SourceSegment), nil
 }
 
 // captureDetectionFrame captures just screenBounds. The process is

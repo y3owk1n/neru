@@ -22,6 +22,7 @@ import (
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin" // ensure darwin CGo .m files are compiled
 	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
 	"github.com/y3owk1n/neru/internal/adapter/vision/frame"
+	"github.com/y3owk1n/neru/internal/adapter/vision/segment"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -242,6 +243,25 @@ func (a *Adapter) DetectContours(
 	}
 
 	return targetElements(frame, rects, element.SourceContour), nil
+}
+
+// DetectSegments captures the display holding screenBounds and runs the
+// segment detector over it.
+func (a *Adapter) DetectSegments(
+	ctx context.Context,
+	screenBounds image.Rectangle,
+) ([]*element.Element, error) {
+	frame, err := a.captureDetectionFrame(ctx, screenBounds, "segment")
+	if err != nil {
+		return nil, err
+	}
+
+	rects, err := segment.Detect(ctx, frame.img, frame.scale)
+	if err != nil {
+		return nil, err
+	}
+
+	return targetElements(frame, rects, element.SourceSegment), nil
 }
 
 // captureDetectionFrame captures screenBounds for a pixel detector.

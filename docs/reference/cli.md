@@ -261,12 +261,12 @@ It takes the `hints` flags that decide which elements it collects, and
 | `--role`            | string, repeatable  | none                    | Only these roles. |
 | `--text`            | string, repeatable  | none                    | Only elements whose text contains one of these. |
 | `--strategy`        | string              | `hints.strategy`        | How to find elements. |
-| `--capture-scope`   | string              | `hints.capture_scope`   | Region `vision` and `contour` scan. |
+| `--capture-scope`   | string              | `hints.capture_scope`   | Region `vision`, `contour` and `segment` scan. |
 | `--split-word`      | bool                | `false`                 | One element per word of detected text. Needs `vision`. |
 | `--label-direction` | string              | `hints.label_direction` | Label order. |
 
 Unlike the other queries, it does not answer while Neru is stopped, because
-the `vision` and `contour` strategies capture the screen. It fails with
+the `vision`, `contour` and `segment` strategies capture the screen. It fails with
 `ERR_NOT_RUNNING` then. When one of those scans fails, the query fails with
 its error, where hints mode would open on what else it found.
 
@@ -279,7 +279,7 @@ its error, where hints mode would open on what else it found.
 | `label`                     | string | The label `neru hints` with the same flags would draw on the element now. |
 | `role`                      | string | The native role, spelled as `--role` takes it, such as `ax:AXButton`. |
 | `title`, `description`, `value` | string | The element's text. `--text` matches any of the three. Empty when the element has none. |
-| `source`                    | string | What found the element: `axtree`, `vision` or `contour`, as `--strategy` names them. Actions on an `axtree` element can use its accessibility handle. On the others they act at its coordinates. |
+| `source`                    | string | What found the element: `axtree`, `vision`, `contour` or `segment`, as `--strategy` names them. Actions on an `axtree` element can use its accessibility handle. On the others they act at its coordinates. |
 | `identifier`                | string | The ID the app's developer gave the element, such as an `AXIdentifier`, UI Automation `AutomationId` or AT-SPI `AccessibleId`. It does not change with the element's text or language, so it is the steadiest way to find one element. Empty when the app set none. |
 | `focused`                   | bool   | Whether the element has keyboard focus. |
 | `x`, `y`, `width`, `height` | int    | The element's bounds.                                           |
@@ -443,7 +443,7 @@ Only hint elements whose text contains one of these, comma-separated and case-in
 
 Takes a value. Modes: `hints`.
 
-How hints find elements: axtree (accessibility tree), vision (OCR) or contour (shape detection). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --strategy=axtree,vision.
+How hints find elements: axtree (accessibility tree), vision (OCR), contour (shape detection) or segment (controls and labels from pixels). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --strategy=axtree,vision.
 
 #### `--capture-scope`
 

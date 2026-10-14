@@ -449,12 +449,14 @@ func validateHookSteps(field string, steps []string) error {
 // behaviors: how elements are found, and how labels are enumerated.
 func (c *Config) validateHintVocabulary() error {
 	switch c.Hints.Strategy {
-	case domain.StrategyAXTree, domain.StrategyVision, domain.StrategyContour, "":
+	case domain.StrategyAXTree, domain.StrategyVision, domain.StrategyContour,
+		domain.StrategySegment, "":
 	default:
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"hints.strategy must be %q, %q, or %q",
+			"hints.strategy must be %q, %q, %q, or %q",
 			domain.StrategyAXTree, domain.StrategyVision, domain.StrategyContour,
+			domain.StrategySegment,
 		)
 	}
 

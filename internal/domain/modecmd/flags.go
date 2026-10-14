@@ -84,7 +84,7 @@ const (
 	msgOnExitValue              = "--on-exit requires a value"
 	msgRoleValue                = "--role requires a value (use comma-separated: --role=button,link)"
 	msgTextValue                = "--text requires a value (use comma-separated: --text=foo,bar)"
-	msgStrategyValue            = "--strategy requires axtree, vision, or contour"
+	msgStrategyValue            = "--strategy requires axtree, vision, contour, or segment"
 	msgCaptureScopeValue        = "--capture-scope requires window or screen"
 	msgLabelDirectionValue      = "--label-direction requires normal or reverse"
 	msgTargetsValue             = `--targets requires JSON listing at least one target with a width and height, as {"hints":[{"x":10,"y":20,"width":80,"height":24}]}`
@@ -120,7 +120,7 @@ const (
 	usageExitOnUnmatched     = "Exit when a key matches no hint"
 	usageRole                = "Only hint these roles, comma-separated, such as button,link (see 'neru roles'). Repeat to add more"
 	usageText                = "Only hint elements whose text contains one of these, comma-separated and case-insensitive. Repeat to add more"
-	usageStrategy            = "How hints find elements: axtree (accessibility tree), vision (OCR) or contour (shape detection). " + usageCycle + ", as in --strategy=axtree,vision"
+	usageStrategy            = "How hints find elements: axtree (accessibility tree), vision (OCR), contour (shape detection) or segment (controls and labels from pixels). " + usageCycle + ", as in --strategy=axtree,vision"
 	usageCaptureScope        = "Region to work in: window (the focused window) or screen (the whole screen). " + usageCycle + ", as in --capture-scope=window,screen"
 	usageLabelDirection      = "Label order: normal (shorter labels first) or reverse (spread across the alphabet)"
 	usageSplitWord           = "Hint each word of detected text separately. Needs the vision strategy"
@@ -664,8 +664,12 @@ func Lookup(name Flag) (Descriptor, bool) {
 // nothing, so it has an argument list of its own. Reading the vocabulary from
 // here is what stops the two from disagreeing about what "axtree" means.
 func ParseStrategy(value string) (string, error) {
-	if value != domain.StrategyAXTree && value != domain.StrategyVision &&
-		value != domain.StrategyContour {
+	switch value {
+	case domain.StrategyAXTree,
+		domain.StrategyVision,
+		domain.StrategyContour,
+		domain.StrategySegment:
+	default:
 		return "", invalid(msgStrategyValue)
 	}
 

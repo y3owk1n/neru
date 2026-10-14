@@ -297,7 +297,7 @@ func TestHintService_GenerateHintsVisionNotifiesWhenTheStrategyIsUnavailable(t *
 // found nothing. A report has no overlay for the user to wonder about, so it
 // notifies nobody.
 func TestHintService_ProbeHints_ReturnsAFailedCaptureDetection(t *testing.T) {
-	for _, strategy := range []string{domain.StrategyVision, domain.StrategyContour} {
+	for _, strategy := range []string{domain.StrategyVision, domain.StrategyContour, domain.StrategySegment} {
 		t.Run(strategy, func(t *testing.T) {
 			notified := make(chan string, 1)
 
@@ -823,6 +823,17 @@ func (m *mockVisionPort) DetectContours(
 	context.Context,
 	image.Rectangle,
 	config.HintsContourConfig,
+) ([]*element.Element, error) {
+	if m.detectErr != nil {
+		return nil, m.detectErr
+	}
+
+	return m.detectedElements, nil
+}
+
+func (m *mockVisionPort) DetectSegments(
+	context.Context,
+	image.Rectangle,
 ) ([]*element.Element, error) {
 	if m.detectErr != nil {
 		return nil, m.detectErr
@@ -1477,5 +1488,98 @@ func TestHintService_ProbeHints_AsksForElementStateHintsModeSkips(t *testing.T) 
 	if !slices.Equal(asked, []bool{false, true}) {
 		t.Errorf("read element state asked %v for hints mode then the query, want [false true]",
 			asked)
+	}
+}
+
+// TestHintService_GenerateHintsSegment_ScansFocusedWindow pins that the
+// segment strategy reads the focused window, as the other capture strategies
+// do, and keeps the accessibility supplement beside what it found there.
+func TestHintService_GenerateHintsSegment_ScansFocusedWindow(t *testing.T) {
+	t.Parallel()
+
+	supplementElement := mustNewElement("menubar", image.Rect(10, 0, 60, 20))
+
+	windowElement, err := element.NewElement(
+		element.ID("window-label"),
+		image.Rect(200, 150, 300, 170),
+		element.RoleButton,
+		element.WithClickable(true),
+		element.WithSource(element.SourceSegment),
+	)
+	if err != nil {
+		t.Fatalf("NewElement failed: %v", err)
+	}
+
+	var capturedRegion image.Rectangle
+
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockAcc.ClickableElementsFunc = func(
+		_ context.Context,
+		filter ports.ElementFilter,
+	) ([]*element.Element, error) {
+		if !filter.SkipWindowElements {
+			t.Error("accessibility should not collect window elements when using segment strategy")
+
+			return nil, nil
+		}
+
+		return []*element.Element{supplementElement}, nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		mockAcc,
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{
+			ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
+				return image.Rect(0, 0, 1920, 1080), nil
+			},
+			FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rect(100, 100, 800, 600), true, nil
+			},
+		},
+		generator,
+		config.HintsConfig{
+			ClickableRoles:      []string{string(element.SemanticButton)},
+			IncludeMenubarHints: true,
+		},
+		zap.NewNop(),
+		&mocks.MockVisionPort{
+			DetectSegmentsFunc: func(_ context.Context, region image.Rectangle) ([]*element.Element, error) {
+				capturedRegion = region
+
+				return []*element.Element{windowElement}, nil
+			},
+		},
+	)
+
+	hints, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		domain.StrategySegment, "",
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() failed: %v", err)
+	}
+
+	seen := map[element.ID]int{}
+	for _, generatedHint := range hints {
+		seen[generatedHint.Element().ID()]++
+	}
+
+	if seen[supplementElement.ID()] != 1 || seen[windowElement.ID()] != 1 {
+		t.Errorf("hint ids = %v, want one supplementary and one window element", seen)
+	}
+
+	if want := image.Rect(100, 100, 800, 600); capturedRegion != want {
+		t.Errorf(
+			"DetectSegments captured region = %v, want focused window %v",
+			capturedRegion,
+			want,
+		)
 	}
 }

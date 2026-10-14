@@ -163,7 +163,8 @@ or open hints with search showing:
 | One     | Moves the cursor to it and runs the action        | Moves the cursor to it                  |
 | Several | The matches keep their labels, so type one        | Moves the cursor to the first match     |
 
-Search needs element text, so it does not work with the `contour` strategy.
+Search needs element text, so it does not work with the `contour` or `segment`
+strategy.
 
 ### Wait for a page to load before hints redraw
 

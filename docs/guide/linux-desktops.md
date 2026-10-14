@@ -27,7 +27,7 @@ again.
 
 ### Screen-sharing consent
 
-The `vision` and `contour` hint strategies read the screen. The first time
+The `vision`, `contour` and `segment` hint strategies read the screen. The first time
 one needs a frame, KDE shows a source picker. Pick every screen Neru may read,
 because hints on an unshared screen fail. Neru asks for monitors only, not
 the pointer, and a capture never raises the picker by itself.
@@ -94,7 +94,7 @@ Hints read window positions from the compositor.
   places hints in native apps relative to the window, not the screen.
 
 On River, Wayfire and labwc, `--capture-scope window` covers the whole screen
-instead of the window, for grid modes, `vision` and `contour` alike. Neru logs
+instead of the window, for grid modes, `vision`, `contour` and `segment` alike. Neru logs
 a warning each time, and `neru query window` and `move_mouse --window` refuse.
 Grid modes with the default screen scope are not affected. See also
 [Known gaps](../reference/platform-support.md#known-gaps).

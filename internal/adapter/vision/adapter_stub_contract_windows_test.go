@@ -117,6 +117,18 @@ func TestVisionAdapter_CaptureAnswersOnWindows(t *testing.T) {
 			err,
 		)
 	}
+
+	segments, err := adapter.DetectSegments(ctx, image.Rect(0, 0, 100, 100))
+	if err != nil && segments != nil {
+		t.Errorf("DetectSegments returned %d elements alongside its error %v", len(segments), err)
+	}
+
+	if derrors.IsNotSupported(err) {
+		t.Errorf(
+			"DetectSegments reports CodeNotSupported on Windows, which has a capture backend: %v",
+			err,
+		)
+	}
 }
 
 // TestVisionAdapter_DetectionRefusesAnEmptyRegion pins the one input that
@@ -138,6 +150,15 @@ func TestVisionAdapter_DetectionRefusesAnEmptyRegion(t *testing.T) {
 
 	if contours != nil {
 		t.Error("DetectContours returned elements alongside its error")
+	}
+
+	segments, err := adapter.DetectSegments(ctx, image.Rectangle{})
+	if err == nil {
+		t.Fatalf("DetectSegments accepted an empty region and returned %d elements", len(segments))
+	}
+
+	if segments != nil {
+		t.Error("DetectSegments returned elements alongside its error")
 	}
 
 	elements, err := adapter.DetectElements(

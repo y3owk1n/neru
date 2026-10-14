@@ -37,6 +37,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Hints from the accessibility tree | ✅ | ⚠️ ¹     | ⚠️ ¹              | ⚠️ ¹          | ⚠️ ¹    |
 | Hints from OCR (`vision`)      | ✅    | ⚠️ ²      | ⚠️ ²              | ⚠️ ²          | ⚠️ ²    |
 | Hints from shapes (`contour`)  | ✅    | ✅        | ✅                | ✅            | ✅      |
+| Hints from layout (`segment`)  | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Hint search                    | ✅    | ✅        | ✅                | ⚠️ ³          | ⚠️ ³    |
 | Menu bar, Dock and other system surfaces in hints | ✅ | ➖ | ➖          | ➖            | ➖      |
 | Scroll mode                    | ✅    | ✅        | ✅                | ✅            | ✅      |
@@ -65,8 +66,8 @@ config and window positions need the Neru GNOME Shell extension, see
 ¹ **Hint coverage depends on the app.** Linux reads AT-SPI, and each app
 decides what it exposes. Chromium and Electron apps need
 `--force-renderer-accessibility`. Windows misses elements an app exposes only
-in UI Automation's raw view. Where hints are thin, use `vision`, `contour` or
-a grid mode. On some Wayland compositors hints in native apps can be offset,
+in UI Automation's raw view. Where hints are thin, use `vision`, `contour`,
+`segment` or a grid mode. On some Wayland compositors hints in native apps can be offset,
 see [wlroots compositors](../guide/linux-desktops.md#wlroots-compositors).
 The `identifier` that `neru query hints` reports is empty on Linux for GTK 3
 apps, which set no AT-SPI `AccessibleId`. GTK 4 apps report no screen positions,
