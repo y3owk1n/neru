@@ -1431,6 +1431,7 @@ func buildSimHarness(
 		app.WithOverlayPort(overlayPort),
 		app.WithSystemPort(system),
 		app.WithAccessibility(axPort),
+		app.WithVisionPort(simVision()),
 	)
 	if err != nil {
 		tb.Fatalf("app.New failed: %v", err)
@@ -1608,5 +1609,31 @@ func (h *simHarness) neverMode(mode domain.Mode, window time.Duration) {
 		}
 
 		time.Sleep(simPollInterval)
+	}
+}
+
+// simVision is the screen-reading backend the capture strategies use. It finds
+// one target in the middle of whatever region it is asked to scan, so a
+// journey can tell from where the labels land which region that was.
+func simVision() *mocks.MockVisionPort {
+	return &mocks.MockVisionPort{
+		DetectContoursFunc: func(
+			_ context.Context,
+			bounds image.Rectangle,
+			_ config.HintsContourConfig,
+		) ([]*element.Element, error) {
+			center := bounds.Min.Add(image.Pt(bounds.Dx()/2, bounds.Dy()/2))
+
+			target, err := element.NewElement(
+				"contour-target",
+				image.Rectangle{Min: center, Max: center.Add(image.Pt(60, 30))},
+				element.RoleButton,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			return []*element.Element{target}, nil
+		},
 	}
 }

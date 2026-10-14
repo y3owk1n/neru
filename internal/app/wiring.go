@@ -163,6 +163,7 @@ func initializeServices(
 	accAdapter ports.AccessibilityPort,
 	overlayAdapter ports.OverlayPort,
 	systemPort ports.SystemPort,
+	visionPort ports.VisionPort,
 	logger *zap.Logger,
 ) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, indicatorServices, error) {
 	// Hint Generator - creates unique labels for UI elements
@@ -179,7 +180,9 @@ func initializeServices(
 	}
 
 	// Vision adapter - vision-based element detection (optional, used on "vision" strategy)
-	visionPort := visionAdapter.NewAdapter(logger)
+	if visionPort == nil {
+		visionPort = visionAdapter.NewAdapter(logger)
+	}
 
 	// Hint Service - orchestrates hint generation and display
 	hintService := services.NewHintService(

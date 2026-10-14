@@ -27,37 +27,102 @@ func TestRefreshActiveModeForMonitorMove_ScansTheDisplayMovedTo(t *testing.T) {
 	focusedWindow := image.Rect(100, 100, 900, 700)
 	target := image.Rect(1920, 0, 3840, 1080)
 
-	var scanned []image.Rectangle
+	tests := []struct {
+		name     string
+		strategy string
+	}{
+		{name: "vision", strategy: domain.StrategyVision},
+		{name: "contour", strategy: domain.StrategyContour},
+		{name: "segment", strategy: domain.StrategySegment},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			var scanned []image.Rectangle
+
+			// Every detector records the region it was asked to read and finds
+			// one target inside it.
+			detect := func(bounds image.Rectangle) ([]*element.Element, error) {
+				scanned = append(scanned, bounds)
+
+				found, err := element.NewElement(
+					"capture-target",
+					image.Rect(bounds.Min.X+40, bounds.Min.Y+40, bounds.Min.X+100, bounds.Min.Y+70),
+					element.RoleButton,
+				)
+				if err != nil {
+					return nil, err
+				}
+
+				return []*element.Element{found}, nil
+			}
+
+			vision := &portmocks.MockVisionPort{
+				DetectElementsFunc: func(
+					_ context.Context,
+					bounds image.Rectangle,
+					_ configpkg.HintsVisionConfig,
+					_ bool,
+				) ([]*element.Element, error) {
+					return detect(bounds)
+				},
+				DetectContoursFunc: func(
+					_ context.Context,
+					bounds image.Rectangle,
+					_ configpkg.HintsContourConfig,
+				) ([]*element.Element, error) {
+					return detect(bounds)
+				},
+				DetectSegmentsFunc: func(
+					_ context.Context,
+					bounds image.Rectangle,
+					_ configpkg.HintsSegmentConfig,
+				) ([]*element.Element, error) {
+					return detect(bounds)
+				},
+			}
+
+			handler := newDisplayScanHintsHandler(t, focusedWindow, target, vision)
+			handler.hints.Context.SetStrategyOverride(testCase.strategy)
+
+			handler.refreshActiveModeForMonitorMove(context.Background(), target)
+
+			if len(scanned) != 1 || scanned[0] != target {
+				t.Fatalf(
+					"the monitor move scanned %v, want the display moved to %v",
+					scanned,
+					target,
+				)
+			}
+
+			if got := handler.appState.CurrentMode(); got != domain.ModeHints {
+				t.Errorf("mode after the monitor move = %v, want hints", got)
+			}
+
+			if got := handler.hints.Context.ActiveCaptureScope(); got != domain.CaptureScopeScreen {
+				t.Errorf("active capture scope after the monitor move = %q, want %q",
+					got, domain.CaptureScopeScreen)
+			}
+		})
+	}
+}
+
+// newDisplayScanHintsHandler builds a handler in hints mode whose focused window is
+// focusedWindow and whose cursor is already on target, the state a monitor
+// move leaves behind.
+func newDisplayScanHintsHandler(
+	t *testing.T,
+	focusedWindow, target image.Rectangle,
+	vision *portmocks.MockVisionPort,
+) *Handler {
+	t.Helper()
 
 	system := &portmocks.MockSystemPort{
 		FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
 			return focusedWindow, true, nil
 		},
-		// The cursor has already been warped, so the screen under it is the
-		// display moved to.
 		ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
 			return target, nil
-		},
-	}
-
-	vision := &portmocks.MockVisionPort{
-		DetectContoursFunc: func(
-			_ context.Context,
-			bounds image.Rectangle,
-			_ configpkg.HintsContourConfig,
-		) ([]*element.Element, error) {
-			scanned = append(scanned, bounds)
-
-			found, err := element.NewElement(
-				"contour-target",
-				image.Rect(bounds.Min.X+40, bounds.Min.Y+40, bounds.Min.X+100, bounds.Min.Y+70),
-				element.RoleButton,
-			)
-			if err != nil {
-				return nil, err
-			}
-
-			return []*element.Element{found}, nil
 		},
 	}
 
@@ -91,20 +156,6 @@ func TestRefreshActiveModeForMonitorMove_ScansTheDisplayMovedTo(t *testing.T) {
 	})
 
 	handler.appState.SetMode(domain.ModeHints)
-	handler.hints.Context.SetStrategyOverride(domain.StrategyContour)
 
-	handler.refreshActiveModeForMonitorMove(context.Background(), target)
-
-	if len(scanned) != 1 || scanned[0] != target {
-		t.Fatalf("the monitor move scanned %v, want the display moved to %v", scanned, target)
-	}
-
-	if got := handler.appState.CurrentMode(); got != domain.ModeHints {
-		t.Errorf("mode after the monitor move = %v, want hints", got)
-	}
-
-	if got := handler.hints.Context.ActiveCaptureScope(); got != domain.CaptureScopeScreen {
-		t.Errorf("active capture scope after the monitor move = %q, want %q",
-			got, domain.CaptureScopeScreen)
-	}
+	return handler
 }

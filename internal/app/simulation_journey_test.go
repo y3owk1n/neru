@@ -2510,6 +2510,49 @@ func TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay(t *testing.T) {
 	}
 }
 
+// TestSimulation_MonitorMoveCarriesCaptureHintsToTheNewDisplay covers hints
+// with a capture strategy when the cursor is sent to another display. The
+// focused window stays behind on the first display, so scanning it would find
+// nothing on the second one and hints would close. The labels have to come
+// back on the display the user moved to instead.
+func TestSimulation_MonitorMoveCarriesCaptureHintsToTheNewDisplay(t *testing.T) {
+	const contourHintsHotkey = "Primary+Shift+O"
+
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[contourHintsHotkey] = []string{"hints --strategy contour"}
+	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{
+		"action move_monitor --name " + secondDisplayName,
+	}
+
+	second := image.Rect(1920, 0, 3840, 1080)
+	sim := newSimHarnessWithDisplays(t, cfg, nil, []simDisplay{
+		{name: mainDisplayName, bounds: simScreen},
+		{name: secondDisplayName, bounds: second},
+	})
+
+	sim.desktop.focusWindow(image.Rect(100, 100, 900, 700))
+
+	sim.pressHotkey(contourHintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn on the first display", func() bool {
+		screen, drawn := sim.overlay.lastHintScreen()
+
+		return drawn && screen == simScreen
+	})
+
+	sim.pressHotkey(moveMonitorHotkey)
+
+	sim.waitFor("hints drawn on the second display", func() bool {
+		screen, drawn := sim.overlay.lastHintScreen()
+
+		return drawn && screen == second
+	})
+
+	if got := sim.app.CurrentMode(); got != domain.ModeHints {
+		t.Fatalf("mode after the monitor move = %v, want hints", got)
+	}
+}
+
 // TestSimulation_ScreenChangeWhileIdleLeavesTheOverlayHidden pins the quietest
 // display change there is: plugging a monitor in with no mode open must not
 // flash an overlay at the user.

@@ -121,6 +121,7 @@ func initializeServicesAndAdapters(app *App) error {
 		accAdapter,
 		overlayAdapter,
 		app.systemPort,
+		app.vision,
 		logger,
 	)
 	if err != nil {

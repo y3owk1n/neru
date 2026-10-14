@@ -58,6 +58,7 @@ type App struct {
 	systemPort    ports.SystemPort
 	motion        *heldmotion.Controller
 	accessibility ports.AccessibilityPort
+	vision        ports.VisionPort
 
 	appState    *state.AppState
 	cursorState *state.CursorState
