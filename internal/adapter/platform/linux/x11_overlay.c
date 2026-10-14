@@ -116,9 +116,12 @@ void neru_x11_overlay_show(NeruX11Overlay *overlay) {
 	XFlush(overlay->display);
 }
 
+// The hide is synced rather than flushed. A screen capture reads the root
+// window on a connection of its own, and only a round trip makes the server
+// unmap the overlay before it answers that capture.
 void neru_x11_overlay_hide(NeruX11Overlay *overlay) {
 	XUnmapWindow(overlay->display, overlay->window);
-	XFlush(overlay->display);
+	XSync(overlay->display, False);
 }
 
 void neru_x11_overlay_clear(NeruX11Overlay *overlay) {
