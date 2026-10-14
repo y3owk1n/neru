@@ -95,8 +95,6 @@ func initializeAdapters(
 	// the real adapter and its platform AX client when none was provided.
 	accAdapter := app.accessibility
 	if accAdapter == nil {
-		excludedBundles := cfg.General.ExcludedApps
-
 		// Create infrastructure client.
 		axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService)
 
@@ -106,7 +104,6 @@ func initializeAdapters(
 		// Create base accessibility adapter with core functionality
 		accAdapter = accessibilityAdapter.NewAdapter(
 			logger,
-			excludedBundles,
 			axClient,
 			cfg.Hints.DetectMissionControl,
 		)

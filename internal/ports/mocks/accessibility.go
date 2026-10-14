@@ -20,7 +20,6 @@ type MockAccessibilityPort struct {
 	PerformActionAtPointFunc func(context.Context, action.Type, image.Point, action.Modifiers) error
 	ScrollFunc               func(context.Context, int, int, action.Modifiers) error
 	FocusedAppBundleIDFunc   func(context.Context) (string, error)
-	IsAppExcludedFunc        func(context.Context, string) bool
 	PrimeApplicationFunc     func(context.Context, string) (bool, error)
 	ReleaseHeldButtonsFunc   func(context.Context) error
 	UpdateClickableRolesFunc func([]string)
@@ -123,15 +122,6 @@ func (m *MockAccessibilityPort) FocusedAppBundleID(ctx context.Context) (string,
 	}
 
 	return "", nil
-}
-
-// IsAppExcluded implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) IsAppExcluded(ctx context.Context, bundleID string) bool {
-	if m.IsAppExcludedFunc != nil {
-		return m.IsAppExcludedFunc(ctx, bundleID)
-	}
-
-	return false
 }
 
 // Ensure MockAccessibilityPort implements ports.AccessibilityPort.

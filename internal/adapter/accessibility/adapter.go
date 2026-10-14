@@ -56,26 +56,18 @@ var elementSlicePool = sync.Pool{
 type Adapter struct {
 	logger               *zap.Logger
 	client               ax.Client
-	excludedBundles      map[string]bool
 	detectMissionControl bool
 }
 
 // NewAdapter creates a new accessibility adapter.
 func NewAdapter(
 	logger *zap.Logger,
-	excludedBundles []string,
 	client ax.Client,
 	detectMissionControl bool,
 ) *Adapter {
-	excludedMap := make(map[string]bool, len(excludedBundles))
-	for _, bundle := range excludedBundles {
-		excludedMap[bundle] = true
-	}
-
 	return &Adapter{
 		logger:               logger,
 		client:               client,
-		excludedBundles:      excludedMap,
 		detectMissionControl: detectMissionControl,
 	}
 }
@@ -257,11 +249,6 @@ func (a *Adapter) FocusedAppBundleID(ctx context.Context) (string, error) {
 	return bundleID, nil
 }
 
-// IsAppExcluded checks if the given bundle ID is in the exclusion list.
-func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
-	return a.excludedBundles[bundleID]
-}
-
 // ReleaseHeldButtons releases any mouse button this process still holds down.
 func (a *Adapter) ReleaseHeldButtons(ctx context.Context) error {
 	err := a.checkContext(ctx)
@@ -305,16 +292,6 @@ func (a *Adapter) Health(ctx context.Context) error {
 func (a *Adapter) UpdateClickableRoles(roles []string) {
 	a.logger.Debug("Updating clickable roles", zap.Int("count", len(roles)))
 	a.client.SetClickableRoles(roles)
-}
-
-// UpdateExcludedBundles updates the list of excluded bundle IDs.
-func (a *Adapter) UpdateExcludedBundles(bundles []string) {
-	a.logger.Debug("Updating excluded bundles", zap.Int("count", len(bundles)))
-
-	a.excludedBundles = make(map[string]bool, len(bundles))
-	for _, bundle := range bundles {
-		a.excludedBundles[bundle] = true
-	}
 }
 
 // checkContext checks if the context is canceled and returns an error if so.

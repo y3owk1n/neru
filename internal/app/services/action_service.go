@@ -113,29 +113,9 @@ func mouseActionIndicatorIncludes(actions []string, actionType action.Type) bool
 	})
 }
 
-// IsFocusedAppExcluded checks if the currently focused application is in the exclusion list.
-func (s *ActionService) IsFocusedAppExcluded(ctx context.Context) (bool, error) {
-	bundleID, bundleIDErr := s.accessibility.FocusedAppBundleID(ctx)
-	if bundleIDErr != nil {
-		return false, derrors.WrapAccessibilityFailed(bundleIDErr, "get focused app bundle ID")
-	}
-
-	isExcluded := s.accessibility.IsAppExcluded(ctx, bundleID)
-	if isExcluded {
-		s.logger.Debug("Focused app is excluded", zap.String("bundle_id", bundleID))
-	}
-
-	return isExcluded, nil
-}
-
 // FocusedAppBundleID returns the bundle ID of the currently focused application.
 func (s *ActionService) FocusedAppBundleID(ctx context.Context) (string, error) {
 	return s.accessibility.FocusedAppBundleID(ctx)
-}
-
-// IsAppExcluded checks if the given bundle ID is in the exclusion list.
-func (s *ActionService) IsAppExcluded(ctx context.Context, bundleID string) bool {
-	return s.accessibility.IsAppExcluded(ctx, bundleID)
 }
 
 // MoveCursorToElement moves the cursor to the center of the specified element.

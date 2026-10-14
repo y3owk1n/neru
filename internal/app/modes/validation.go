@@ -46,20 +46,22 @@ func (h *handlerState) validateModeActivation(
 		return derrors.Newf(derrors.CodeInvalidInput, "mode %s is disabled", modeName)
 	}
 
-	if bundleID != "" {
-		if h.actionService.IsAppExcluded(h.ctx, bundleID) {
-			return derrors.New(derrors.CodeInvalidInput, "focused app is excluded")
-		}
-	} else {
+	if bundleID == "" {
 		ctx, cancel := context.WithTimeout(h.ctx, ValidationTimeout)
 		defer cancel()
 
-		isExcluded, isExcludedErr := h.actionService.IsFocusedAppExcluded(ctx)
-		if isExcludedErr != nil {
-			h.logger.Warn("Failed to check if app is excluded", zap.Error(isExcludedErr))
-		} else if isExcluded {
-			return derrors.New(derrors.CodeInvalidInput, "focused app is excluded")
+		focused, focusedErr := h.actionService.FocusedAppBundleID(ctx)
+		if focusedErr != nil {
+			h.logger.Warn("Failed to check if app is excluded", zap.Error(focusedErr))
 		}
+
+		bundleID = focused
+	}
+
+	// This reads the live config, the same list the hotkey binder checks, so a
+	// reload that changes excluded_apps takes effect here too.
+	if h.config != nil && h.config.IsAppExcluded(bundleID) {
+		return derrors.New(derrors.CodeInvalidInput, "focused app is excluded")
 	}
 
 	return nil

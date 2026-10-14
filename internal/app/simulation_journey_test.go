@@ -605,17 +605,68 @@ func TestSimulation_HintsWithoutElements(t *testing.T) {
 }
 
 // TestSimulation_ExcludedApp covers the exclusion list: when the focused app
-// is excluded, no mode activates.
+// is excluded, no mode activates. The binder registers no hotkeys for it, so
+// the activation comes the way an IPC command would send it.
 func TestSimulation_ExcludedApp(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), threeButtons(t))
-	sim.ax.setExcluded(true)
+	cfg := simConfig()
+	cfg.General.ExcludedApps = []string{simFixtureBundleID}
 
-	sim.pressHotkey(hintsHotkey)
+	sim := newSimHarness(t, cfg, threeButtons(t))
+
+	sim.app.ActivateMode(domain.ModeHints)
 	sim.neverMode(domain.ModeHints, 250*time.Millisecond)
 
 	if sim.overlay.hintDrawCount() != 0 {
 		t.Fatal("hints must not be drawn for an excluded app")
 	}
+}
+
+// TestSimulation_ExcludedAppsFollowAReload covers a reload that changes
+// excluded_apps. Every check that a mode may open has to use the reloaded
+// list, in whatever letter case the file spells the app.
+func TestSimulation_ExcludedAppsFollowAReload(t *testing.T) {
+	reload := func(t *testing.T, sim *simHarness, excludedApps string) {
+		t.Helper()
+
+		configPath := filepath.Join(t.TempDir(), "config.toml")
+
+		writeErr := os.WriteFile(configPath, fmt.Appendf(nil, `
+[general]
+excluded_apps = [%s]
+
+[hotkeys]
+%q = "hints"
+`, excludedApps, hintsHotkey), 0o600)
+		if writeErr != nil {
+			t.Fatalf("failed to write the reloaded config: %v", writeErr)
+		}
+
+		reloadErr := sim.app.ReloadConfig(context.Background(), configPath)
+		if reloadErr != nil {
+			t.Fatalf("ReloadConfig() error = %v", reloadErr)
+		}
+	}
+
+	t.Run("an app taken off the list opens hints again", func(t *testing.T) {
+		cfg := simConfig()
+		cfg.General.ExcludedApps = []string{simFixtureBundleID}
+
+		sim := newSimHarness(t, cfg, threeButtons(t))
+
+		reload(t, sim, "")
+
+		sim.pressHotkey(hintsHotkey)
+		sim.waitMode(domain.ModeHints)
+	})
+
+	t.Run("an app put on the list no longer opens a mode", func(t *testing.T) {
+		sim := newSimHarness(t, simConfig(), threeButtons(t))
+
+		reload(t, sim, fmt.Sprintf("%q", strings.ToUpper(simFixtureBundleID)))
+
+		sim.app.ActivateMode(domain.ModeGrid)
+		sim.neverMode(domain.ModeGrid, 250*time.Millisecond)
+	})
 }
 
 const (

@@ -66,11 +66,6 @@ type AccessibilityPort interface {
 	// executable name; on Windows an AppUserModelID or executable path.
 	FocusedAppBundleID(ctx context.Context) (string, error)
 
-	// IsAppExcluded checks if the given application identifier is in the
-	// configured exclusion list. The identifier format is platform-dependent
-	// (see FocusedAppBundleID).
-	IsAppExcluded(ctx context.Context, bundleID string) bool
-
 	// PrimeApplication reports whether bundleID has an accessibility tree to
 	// hint against, waiting briefly for one. Exists for macOS, where Electron,
 	// Chromium and Gecko build their tree asynchronously; eager backends
