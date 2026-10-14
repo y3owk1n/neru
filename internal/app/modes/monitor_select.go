@@ -117,6 +117,8 @@ func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 			h.logger.Error("Failed to discover monitors for monitor_select", zap.Error(err))
 		}
 
+		h.activationRefusal = err
+
 		return
 	}
 
@@ -130,6 +132,8 @@ func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 			h.confirmMonitorSelect(&monitors[0])
 		} else {
 			h.logger.Warn("Monitor select activation skipped, no selectable monitors")
+
+			h.activationRefusal = derrors.New(derrors.CodeActionFailed, "no selectable monitors")
 		}
 
 		return
@@ -156,6 +160,8 @@ func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 		if derrors.IsNotSupported(err) {
 			h.reportMonitorSelectNotSupported()
 		}
+
+		h.activationRefusal = err
 
 		return
 	}

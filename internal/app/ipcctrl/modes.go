@@ -111,8 +111,12 @@ func refusalFor(err error) ipc.Response {
 	message := derrors.Message(err)
 
 	code := ipc.CodeActionFailed
-	if derrors.IsCode(err, derrors.CodeInvalidInput) {
+
+	switch {
+	case derrors.IsCode(err, derrors.CodeInvalidInput):
 		code = ipc.CodeInvalidInput
+	case derrors.IsNotSupported(err):
+		code = ipc.CodeNotSupported
 	}
 
 	return ipc.Response{Success: false, Message: message, Code: code}

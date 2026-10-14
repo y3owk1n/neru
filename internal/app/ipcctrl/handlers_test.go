@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -32,6 +33,7 @@ func newTestModesHandler(
 	logger *zap.Logger,
 	appState *state.AppState,
 	actionService *services.ActionService,
+	system ports.SystemPort,
 ) *modes.Handler {
 	// Only the fields this test needs; every other dependency is legitimately
 	// the zero value, which the deps struct expresses by omission.
@@ -43,6 +45,7 @@ func newTestModesHandler(
 		CursorState:           state.NewCursorState(),
 		ScrollComponent:       &components.ScrollComponent{Context: &scroll.Context{}},
 		ActionService:         actionService,
+		System:                system,
 		RefreshHotkeys:        func() {},
 		ExecuteActionSequence: func(string, []string, []string) {},
 		Shutdown:              func() {},
@@ -69,7 +72,7 @@ func newToggleTestController(
 		ConfigService: loader.NewService(cfg, "", logger, nil),
 		AppState:      appState,
 		Config:        cfg,
-		Modes:         newTestModesHandler(cfg, logger, appState, actionService),
+		Modes:         newTestModesHandler(cfg, logger, appState, actionService, nil),
 		ExecuteMacro:  executeMacro,
 		Logger:        logger,
 	})

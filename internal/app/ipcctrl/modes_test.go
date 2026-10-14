@@ -11,8 +11,10 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -25,22 +27,28 @@ import (
 // newModeTestController builds a controller over the real registration path, so
 // these cases exercise the wiring rather than a handler called directly.
 func newModeTestController(cfg *config.Config) *ipcctrl.Controller {
-	return newModeTestControllerWith(cfg, &portmocks.MockAccessibilityPort{}, state.NewAppState())
+	return newModeTestControllerWith(
+		cfg,
+		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockSystemPort{},
+		state.NewAppState(),
+	)
 }
 
-// newModeTestControllerWith is newModeTestController over a given
-// accessibility port and app state, for a case that needs the focused app or
-// reads the mode back.
+// newModeTestControllerWith is newModeTestController over given ports and app
+// state, for a case that needs the focused app, secure input or the screens,
+// or reads the mode back.
 func newModeTestControllerWith(
 	cfg *config.Config,
 	accessibility *portmocks.MockAccessibilityPort,
+	system *portmocks.MockSystemPort,
 	appState *state.AppState,
 ) *ipcctrl.Controller {
 	logger := zap.NewNop()
 	actionService := services.NewActionService(
 		accessibility,
 		&portmocks.MockOverlayPort{},
-		&portmocks.MockSystemPort{},
+		system,
 		logger,
 	)
 
@@ -49,7 +57,7 @@ func newModeTestControllerWith(
 		ConfigService: loader.NewService(cfg, "", logger, nil),
 		AppState:      appState,
 		Config:        cfg,
-		Modes:         newTestModesHandler(cfg, logger, appState, actionService),
+		Modes:         newTestModesHandler(cfg, logger, appState, actionService, system),
 		Logger:        logger,
 	})
 }
@@ -244,35 +252,118 @@ func TestHandleCommand_RefusesADisabledMode(t *testing.T) {
 }
 
 // TestHandleCommand_ReportsWhyAModeDidNotOpen pins the answer for a mode that
-// is enabled but refuses to open, here over an excluded app. The daemon used to
-// answer "activated" with code OK while nothing opened, so a script read the
-// refusal as success.
+// is enabled but refuses or fails to open. The daemon used to answer
+// "activated" with code OK while nothing opened, so a script read the refusal
+// as success.
 func TestHandleCommand_ReportsWhyAModeDidNotOpen(t *testing.T) {
+	const excludedApp = "com.example.excluded"
+
+	tests := []struct {
+		name        string
+		action      string
+		focusedApp  string
+		secureInput bool
+		stopped     bool
+		screensErr  error
+		wantMessage string
+		wantCode    string
+	}{
+		{
+			name:        "focused app is excluded",
+			action:      actionGrid,
+			focusedApp:  excludedApp,
+			wantMessage: "focused app is excluded",
+			wantCode:    ipc.CodeInvalidInput,
+		},
+		{
+			name:        "secure input is on",
+			action:      actionGrid,
+			secureInput: true,
+			wantMessage: "secure input is enabled - a password field may be focused",
+			wantCode:    ipc.CodeActionFailed,
+		},
+		{
+			name:        "neru is stopped",
+			action:      actionGrid,
+			stopped:     true,
+			wantMessage: "neru is stopped; run `neru start` first",
+			wantCode:    ipc.CodeNotRunning,
+		},
+		{
+			name:        "the monitor picker cannot list the screens",
+			action:      domain.ModeNameMonitorSelect,
+			screensErr:  derrors.New(derrors.CodeNotSupported, "screens unavailable"),
+			wantMessage: "screens unavailable",
+			wantCode:    ipc.CodeNotSupported,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			cfg.General.ExcludedApps = []string{excludedApp}
+			cfg.MonitorSelect.Enabled = true
+
+			appState := state.NewAppState()
+			if testCase.stopped {
+				appState.Disable()
+			}
+
+			controller := newModeTestControllerWith(cfg, &portmocks.MockAccessibilityPort{
+				FocusedAppBundleIDFunc: func(context.Context) (string, error) {
+					return testCase.focusedApp, nil
+				},
+			}, &portmocks.MockSystemPort{
+				IsSecureInputEnabledFunc: func() bool { return testCase.secureInput },
+				ScreensFunc: func(context.Context) ([]ports.Screen, error) {
+					return nil, testCase.screensErr
+				},
+			}, appState)
+
+			resp := controller.HandleCommand(
+				context.Background(),
+				ipc.Command{Action: testCase.action},
+			)
+
+			if resp.Success {
+				t.Fatalf("%s was reported as %q with success", testCase.action, resp.Message)
+			}
+
+			if resp.Message != testCase.wantMessage {
+				t.Errorf("message = %q, want %q", resp.Message, testCase.wantMessage)
+			}
+
+			if resp.Code != testCase.wantCode {
+				t.Errorf("code = %q, want %q", resp.Code, testCase.wantCode)
+			}
+
+			if got := appState.CurrentMode(); got != domain.ModeIdle {
+				t.Errorf("mode = %s, want idle", domain.ModeString(got))
+			}
+		})
+	}
+}
+
+// TestHandleCommand_ARefusalDoesNotCarryOver pins that the reason one command
+// did not open is not reported again for the next command, which opens.
+func TestHandleCommand_ARefusalDoesNotCarryOver(t *testing.T) {
 	const excludedApp = "com.example.excluded"
 
 	cfg := config.DefaultConfig()
 	cfg.General.ExcludedApps = []string{excludedApp}
 
-	appState := state.NewAppState()
 	controller := newModeTestControllerWith(cfg, &portmocks.MockAccessibilityPort{
 		FocusedAppBundleIDFunc: func(context.Context) (string, error) { return excludedApp, nil },
-	}, appState)
+	}, &portmocks.MockSystemPort{}, state.NewAppState())
 
-	resp := controller.HandleCommand(context.Background(), ipc.Command{Action: domain.ModeNameGrid})
-
-	if resp.Success {
-		t.Fatalf("grid over an excluded app was reported as %q with success", resp.Message)
+	refused := controller.HandleCommand(context.Background(), ipc.Command{Action: actionGrid})
+	if refused.Success {
+		t.Fatalf("grid over an excluded app was reported as %q with success", refused.Message)
 	}
 
-	if resp.Message != "focused app is excluded" {
-		t.Errorf("message = %q, want %q", resp.Message, "focused app is excluded")
-	}
+	resp := controller.HandleCommand(context.Background(), ipc.Command{Action: actionIdle})
 
-	if resp.Code != ipc.CodeInvalidInput {
-		t.Errorf("code = %q, want %q", resp.Code, ipc.CodeInvalidInput)
-	}
-
-	if got := appState.CurrentMode(); got != domain.ModeIdle {
-		t.Errorf("mode = %s, want idle", domain.ModeString(got))
+	if !resp.Success {
+		t.Errorf("idle after a refused grid was refused: %s", resp.Message)
 	}
 }

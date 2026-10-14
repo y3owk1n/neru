@@ -38,7 +38,7 @@ func newDeclaredModeController() (*ipcctrl.Controller, *state.AppState) {
 		ConfigService: loader.NewService(cfg, "", logger, nil),
 		AppState:      appState,
 		Config:        cfg,
-		Modes:         newTestModesHandler(cfg, logger, appState, actionService),
+		Modes:         newTestModesHandler(cfg, logger, appState, actionService, nil),
 		Logger:        logger,
 	}), appState
 }
