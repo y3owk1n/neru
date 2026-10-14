@@ -72,8 +72,7 @@ only.
 > if a library is missing.
 
 ```bash
-oku add -g github:y3owk1n/neru --service   # macOS and Windows, with the login service
-oku add -g github:y3owk1n/neru             # Linux, then run `neru services install`
+oku add -g github:y3owk1n/neru --service   # with the login service
 ```
 
 `-g` adds it to your global list. Inside a project directory oku installs
@@ -88,14 +87,17 @@ neru = { ref = "github:y3owk1n/neru", service = true }
 - **macOS:** oku copies `Neru.app` to `~/Applications`, and `neru` on your
   `PATH` runs that copy, so the CLI and the daemon share its Accessibility and
   Screen Recording permissions. macOS may ask for them again after an update.
-- **Login service on macOS and Windows:** `--service` registers the daemon
-  with launchd on macOS and Task Scheduler on Windows. `oku service` controls
-  it.
-- **Login service on Linux:** oku has no service there, because the daemon
-  needs the graphical session. Use [`neru services install`](#login-service)
-  instead.
-- **After `oku update neru` on Linux:** the unit points at the build in oku's
-  store, so run `neru services uninstall` and `neru services install` again.
+- **Login service:** `--service` registers the daemon with launchd on macOS,
+  Task Scheduler on Windows and a systemd user unit on Linux. `oku service`
+  controls it.
+- **Login service on Linux:** needs oku 0.18.0 or later. oku's unit starts
+  and stops with your graphical session, like the one `neru services install`
+  writes, so the same [session setup](linux.md#systemd-user-service) applies.
+  With an older oku, leave out `--service` and use
+  [`neru services install`](#login-service).
+- **With `neru services install` instead:** its unit points at the build in
+  oku's store, so after `oku update neru` run `neru services uninstall` and
+  `neru services install` again.
 - **One service only:** use oku's service or `neru services install`, not
   both. `neru services install` does not see oku's service.
 - **From source:** `oku add -g github:y3owk1n/neru --from-source` builds the
@@ -107,8 +109,8 @@ neru = { ref = "github:y3owk1n/neru", service = true }
   newest commit of `main` instead of a release, and needs the same tools. Its
   version is the date and commit, such as `2026.10.09-a73243f`, and
   `oku update neru` takes the newest commit. It installs the same `neru`, so
-  remove the release package first. On macOS and Windows, add `--service` to
-  keep Neru starting at login.
+  remove the release package first. Add `--service` to keep Neru starting at
+  login.
 - **Updating:** `oku update neru`.
 
 ## Prebuilt binaries

@@ -181,16 +181,16 @@ when = { os = "linux" }
 install = { bin = ["neru.exe"] }
 when = { os = "windows" }
 
-# Replaces `neru services install`, so use one of them. Linux has none,
-# because the daemon needs the graphical session, and the unit
-# `neru services install` writes waits for graphical-session.target.
+# Replaces `neru services install`, so use one of them. On Linux oku 0.18.0
+# and later start it with the graphical session, like the unit
+# `neru services install` writes.
 [[service]]
 name = "neru"
 command = "bin/neru"
 args = ["launch"]
 restart = "on-failure"
 interactive = true
-when = { os = "darwin" }
+when = [{ os = "darwin" }, { os = "linux" }]
 
 [[service]]
 name = "neru"

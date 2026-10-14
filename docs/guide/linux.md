@@ -204,6 +204,10 @@ service does not start, check `systemctl --user status neru.service` and
 `systemctl --user is-active graphical-session.target`. If the target stays
 inactive, run `neru launch` from your compositor's autostart instead.
 
+- **oku's service.** With oku 0.18.0 or later,
+  `oku add -g github:y3owk1n/neru --service` writes `oku-neru.service` on the
+  same target, so the setup above applies to it too. Check it with
+  `oku service status neru`. Use it or `neru services install`, not both.
 - **Other init systems.** On runit, OpenRC or s6, `neru services` reports that
   it is not supported. Run `neru launch` from your session instead.
 - **A unit Neru did not write.** Neru manages only units starting with
