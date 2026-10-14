@@ -78,6 +78,13 @@ func hresultError(what string, hresult uintptr) error {
 // winrtCall invokes the method at vtable slot index on the WinRT object this.
 // The object pointer is the implicit first argument; the return value is the
 // HRESULT.
+//
+// The out-parameter addresses in args are uintptrs, which the runtime does
+// not track. If the stack grows before SyscallN runs, the caller's variables
+// move and COM writes into the old frame. //go:uintptrescapes moves them to
+// the heap and keeps them alive for the call, as it does for syscall.Proc.Call.
+//
+//go:uintptrescapes
 func winrtCall(this unsafe.Pointer, index int, args ...uintptr) uintptr {
 	vtbl := *(*unsafe.Pointer)(this)
 	method := *(*uintptr)(unsafe.Add(vtbl, uintptr(index)*unsafe.Sizeof(uintptr(0))))

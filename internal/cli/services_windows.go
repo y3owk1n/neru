@@ -281,6 +281,14 @@ func readBSTR(value *uint16) string {
 // free calls it sinks have no actionable failure path.
 func discardCall(uintptr, uintptr, error) {}
 
+// comCall invokes the method at vtable slot index on the COM object this.
+//
+// The out-parameter addresses in args are uintptrs, which the runtime does
+// not track. If the stack grows before SyscallN runs, the caller's variables
+// move and COM writes into the old frame. //go:uintptrescapes moves them to
+// the heap and keeps them alive for the call, as it does for syscall.Proc.Call.
+//
+//go:uintptrescapes
 func comCall(this unsafe.Pointer, index int, args ...uintptr) uintptr {
 	vtbl := *(*unsafe.Pointer)(this)
 	method := *(*uintptr)(unsafe.Add(vtbl, uintptr(index)*unsafe.Sizeof(uintptr(0))))

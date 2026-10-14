@@ -269,6 +269,13 @@ type enumerateOptions struct {
 // creation, property reads, release — and every property is copied into a plain
 // Go value before its object is released, so no COM pointer escapes this file
 // or crosses a goroutine.
+//
+// The out-parameter addresses in args are uintptrs, which the runtime does
+// not track. If the stack grows before SyscallN runs, the caller's variables
+// move and COM writes into the old frame. //go:uintptrescapes moves them to
+// the heap and keeps them alive for the call, as it does for syscall.Proc.Call.
+//
+//go:uintptrescapes
 func comCall(this unsafe.Pointer, index int, args ...uintptr) uintptr {
 	vtbl := *(*unsafe.Pointer)(this)
 	method := *(*uintptr)(unsafe.Add(vtbl, uintptr(index)*unsafe.Sizeof(uintptr(0))))
