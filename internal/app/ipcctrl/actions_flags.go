@@ -80,7 +80,7 @@ var actionFlagSupport = map[string][]string{
 
 	string(action.NameReset):            {},
 	string(action.NameBackspace):        {},
-	string(action.NameSearchHints):      {},
+	string(action.NameSearchHints):      {flagConfirmOnLabel},
 	string(action.NameSaveCursorPos):    {flagSlot},
 	string(action.NameRestoreCursorPos): {flagSlot},
 	string(action.NameHideCursor):       {},

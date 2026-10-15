@@ -262,7 +262,7 @@ func (h *ActionsHandler) handleCycleHintAction(
 }
 
 // handleSearchHintsAction activates text search in hints mode.
-func (h *ActionsHandler) handleSearchHintsAction() ipc.Response {
+func (h *ActionsHandler) handleSearchHintsAction(parsed parsedActionArgs) ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -271,7 +271,7 @@ func (h *ActionsHandler) handleSearchHintsAction() ipc.Response {
 		}
 	}
 
-	err := h.modesHandler.StartHintSearch()
+	err := h.modesHandler.StartHintSearch(parsed.confirmOnLabel)
 	if err != nil {
 		h.logger.Debug("Failed to start hint search", zap.Error(err))
 

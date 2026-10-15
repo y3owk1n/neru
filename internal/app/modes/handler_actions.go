@@ -75,12 +75,13 @@ func (h *Handler) BisectCurrentMode(cut bisect.Cut, count int) {
 	h.trackSelection(func() { cutter.Bisect(cut, count) })
 }
 
-// StartHintSearch activates text filtering for hints mode.
-func (h *Handler) StartHintSearch() error {
+// StartHintSearch activates text filtering for hints mode. confirmOnLabel
+// turns on --confirm-on-label for this search alone.
+func (h *Handler) StartHintSearch(confirmOnLabel bool) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	return h.startHintSearch()
+	return h.startHintSearch(confirmOnLabel)
 }
 
 // CycleHint cycles through visible hints in hints mode, selecting the next or previous one.
@@ -168,6 +169,7 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 		filterRoles := h.hints.Context.FilterRoles()
 		filterTextContains := h.hints.Context.FilterTextContains()
 		startWithSearch := h.hints.Context.StartWithSearch()
+		confirmOnLabel := h.hints.Context.ConfirmOnLabel()
 		exitOnUnmatched := h.hints.Context.ExitOnUnmatched()
 		strategyOverride := h.hints.Context.StrategyOverride()
 		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
@@ -181,6 +183,7 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 				FilterRoles:        filterRoles,
 				FilterTextContains: filterTextContains,
 				Search:             &startWithSearch,
+				ConfirmOnLabel:     &confirmOnLabel,
 				ExitOnUnmatched:    &exitOnUnmatched,
 				Strategy:           &strategyOverride,
 				CaptureScope:       &captureScopeOverride,
@@ -202,6 +205,7 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 				h.hints.Context.SetFilterRoles(filterRoles)
 				h.hints.Context.SetFilterTextContains(filterTextContains)
 				h.hints.Context.SetStartWithSearch(startWithSearch)
+				h.hints.Context.SetConfirmOnLabel(confirmOnLabel)
 				h.hints.Context.SetExitOnUnmatched(exitOnUnmatched)
 				h.hints.Context.SetStrategyOverride(strategyOverride)
 				h.hints.Context.SetCaptureScopeOverride(captureScopeOverride)
@@ -218,7 +222,7 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 	return nil
 }
 
-func (h *handlerState) startHintSearch() error {
+func (h *handlerState) startHintSearch(confirmOnLabel bool) error {
 	if h.appState.CurrentMode() != domain.ModeHints {
 		return derrors.New(derrors.CodeInvalidInput, "search_hints requires hints mode")
 	}
@@ -234,6 +238,7 @@ func (h *handlerState) startHintSearch() error {
 	h.stopHintSearchTextInput(true)
 	h.hints.Context.SetSearchQuery("")
 	h.hints.Context.SetSearchActive(true)
+	h.hints.Context.SetSearchConfirmOnLabel(confirmOnLabel)
 
 	session := h.hintSearchSession
 

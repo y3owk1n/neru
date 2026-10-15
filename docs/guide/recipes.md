@@ -155,6 +155,10 @@ or open hints with search showing:
 - A label typed after a space narrows the matches to that label. `save a`
   keeps the `save` matches whose label starts with `A`, along with any text
   still matching `save a`. Once one is left, `Return` acts on it.
+  With `--confirm-on-label`, it acts as soon as one is left, without
+  `Return`. A single match by text alone still waits for `Return`. To turn
+  this on only for searches opened with `/`, bind
+  `"/" = "action search_hints --confirm-on-label"` under `[hints.hotkeys]`.
 - `Backspace` deletes a character. `Escape` cancels and restores every hint.
 - `Tab` (`action cycle_hint`) moves between matches without running the action.
 

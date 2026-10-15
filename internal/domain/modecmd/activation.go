@@ -51,6 +51,10 @@ type Activation struct {
 	// HideOnEmptySearch hides every hint while the search query is empty.
 	HideOnEmptySearch *bool
 
+	// ConfirmOnLabel confirms a search once a label typed after it leaves one
+	// match.
+	ConfirmOnLabel *bool
+
 	// ExitOnUnmatched exits the mode when a key matches no hint.
 	ExitOnUnmatched *bool
 

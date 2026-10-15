@@ -35,25 +35,26 @@ const (
 	// decides whether a binding is an action step.
 	ActionCommand = action.PrefixAction
 
-	flagCenter    = "--center"
-	flagWindow    = "--window"
-	flagSelection = "--selection"
-	flagPrevious  = "--previous"
-	flagName      = "--name"
-	flagBare      = "--bare"
-	flagBail      = "--bail"
-	flagState     = "--state"
-	flagToggle    = "--toggle"
-	flagDirection = "--direction"
-	flagCount     = "--count"
-	flagSlot      = "--slot"
-	flagModifier  = "--modifier"
-	flagX         = "--x"
-	flagY         = "--y"
-	flagDX        = "--dx"
-	flagDY        = "--dy"
-	flagSteps     = "--steps"
-	flagBackward  = "--backward"
+	flagCenter         = "--center"
+	flagWindow         = "--window"
+	flagSelection      = "--selection"
+	flagPrevious       = "--previous"
+	flagName           = "--name"
+	flagBare           = "--bare"
+	flagBail           = "--bail"
+	flagState          = "--state"
+	flagToggle         = "--toggle"
+	flagDirection      = "--direction"
+	flagCount          = "--count"
+	flagSlot           = "--slot"
+	flagModifier       = "--modifier"
+	flagX              = "--x"
+	flagY              = "--y"
+	flagDX             = "--dx"
+	flagDY             = "--dy"
+	flagSteps          = "--steps"
+	flagBackward       = "--backward"
+	flagConfirmOnLabel = "--confirm-on-label"
 
 	// slotDataKey names the slot a cursor action acted on, in its response data.
 	slotDataKey = "slot"
@@ -216,7 +217,7 @@ func (h *ActionsHandler) dispatchByName(
 		return h.handleCycleHintAction(ctx, parsed), true
 
 	case action.IsSearchHintsAction(actionName):
-		return h.handleSearchHintsAction(), true
+		return h.handleSearchHintsAction(parsed), true
 
 	case action.IsHideCursorAction(actionName) || action.IsShowCursorAction(actionName):
 		return h.handleCursorVisibilityAction(action.IsHideCursorAction(actionName)), true

@@ -23,6 +23,10 @@ var HintsCmd = BuildModeCommand(ModeConfig{
   search query is empty. Hints appear only as you type a query, making
   it easier to focus on matching results.
 
+  In a search, a label typed after a space narrows the matches to that
+  label. Use --confirm-on-label to act on the match as soon as the label
+  leaves one, without pressing Return.
+
   Use --exit-on-unmatched to exit hints mode when a pressed key does not
   start any hint label.
 
@@ -67,6 +71,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     neru hints --action left_click --repeat  Click multiple elements in sequence
     neru hints --search                      Start with search input shown
     neru hints --search --hide-on-empty-search  Start search with hints hidden until you type
+    neru hints --action left_click --search --confirm-on-label  Click as soon as a typed label leaves one match
     neru hints --action left_click --exit-on-unmatched Exit overlay if key matches no hint
     neru hints --role button                 Hint only buttons
     neru hints --strategy vision             Detect elements by screen recognition

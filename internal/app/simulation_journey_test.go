@@ -934,6 +934,139 @@ func TestSimulation_HintSearchConfirmClearsLabelHighlight(t *testing.T) {
 	sim.waitFor("typed label clicked", func() bool { return len(sim.ax.recordedClicks()) == 1 })
 }
 
+// TestSimulation_HintSearchConfirmOnLabel covers --confirm-on-label. "cancel"
+// leaves one match by text alone, which still waits for Return. "s" then a
+// label leaves one match by label, which clicks without Return.
+func TestSimulation_HintSearchConfirmOnLabel(t *testing.T) {
+	const confirmHotkey = "Primary+Shift+L"
+
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[confirmHotkey] = []string{
+		"hints --action left_click --search --confirm-on-label",
+	}
+
+	elements := threeButtons(t)
+	sim := newSimHarness(t, cfg, elements)
+
+	sim.pressHotkey(confirmHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("search input asked for", func() bool {
+		return sim.overlay.searchInputAskCount() > 0
+	})
+
+	sim.typeLabel("cancel")
+	sim.waitFor("hints narrowed to the text", func() bool {
+		return len(sim.overlay.lastHintLabels()) == 1
+	})
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
+		t.Fatalf("clicks after a single text match = %+v, want none before Return", clicks)
+	}
+
+	for range "cancel" {
+		sim.press(config.KeyNameDelete)
+	}
+
+	sim.press("s", config.KeyNameSpace)
+	sim.waitFor("both s matches kept after the space", func() bool {
+		return len(sim.overlay.lastHintLabels()) == 2
+	})
+
+	sim.typeLabel(sim.overlay.lastHintLabels()[0])
+
+	clicks := sim.ax.recordedClicks()
+	if len(clicks) != 1 {
+		t.Fatalf("clicks after the label = %+v, want one without Return", clicks)
+	}
+
+	if point := clicks[0].point; point != elements[0].Center() && point != elements[2].Center() {
+		t.Fatalf("click at %v, want Save or Search, the two s matches", point)
+	}
+}
+
+// TestSimulation_SearchHintsActionConfirmOnLabel covers search_hints
+// --confirm-on-label bound to "/" in hints mode. The mode was opened without
+// the flag, so the click without Return comes from the binding.
+func TestSimulation_SearchHintsActionConfirmOnLabel(t *testing.T) {
+	const clickHotkey = "Primary+Shift+L"
+
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[clickHotkey] = []string{"hints --action left_click --repeat"}
+	cfg.Hints.Hotkeys["/"] = config.StringOrStringArray{"action search_hints --confirm-on-label"}
+
+	elements := threeButtons(t)
+	sim := newSimHarness(t, cfg, elements)
+
+	sim.pressHotkey(clickHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	sim.press("/")
+	sim.waitFor("search input asked for", func() bool {
+		return sim.overlay.searchInputAskCount() > 0
+	})
+
+	sim.press("s", config.KeyNameSpace)
+	sim.waitFor("both s matches kept after the space", func() bool {
+		return len(sim.overlay.lastHintLabels()) == 2
+	})
+
+	sim.typeLabel(sim.overlay.lastHintLabels()[0])
+
+	sim.waitFor("label clicked without Return", func() bool {
+		return len(sim.ax.recordedClicks()) == 1
+	})
+}
+
+// TestSimulation_HintSearchFieldConfirmOnLabel covers --confirm-on-label in a
+// platform search field, where the query arrives through its callback. With
+// --repeat, confirming clicks and reopens hints with a new field from inside
+// the old field's callback, which has to return.
+func TestSimulation_HintSearchFieldConfirmOnLabel(t *testing.T) {
+	const confirmHotkey = "Primary+Shift+L"
+
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[confirmHotkey] = []string{
+		"hints --action left_click --repeat --search --confirm-on-label",
+	}
+
+	elements := threeButtons(t)
+	sim := newSimHarness(t, cfg, elements)
+	sim.textInput.Started = true
+
+	sim.pressHotkey(confirmHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("search field opened", func() bool { return sim.textInput.StartCount() == 1 })
+
+	callbacks := sim.textInput.Callbacks()
+	callbacks.OnQueryChanged("s ")
+	sim.waitFor("both s matches kept after the space", func() bool {
+		return len(sim.overlay.lastHintLabels()) == 2
+	})
+
+	query := "s " + strings.ToLower(sim.overlay.lastHintLabels()[0])
+	changed := make(chan struct{})
+
+	go func() {
+		callbacks.OnQueryChanged(query)
+		close(changed)
+	}()
+
+	select {
+	case <-changed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("typing the label into the search field did not return")
+	}
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 1 {
+		t.Fatalf("clicks after the label = %+v, want one without confirming", clicks)
+	}
+
+	if got := sim.textInput.StartCount(); got != 2 {
+		t.Errorf("search fields opened = %d, want 2, since the repeat reopens one", got)
+	}
+}
+
 // TestSimulation_HintsTwoCharLabels covers label generation past the
 // single-character alphabet: 12 elements with 9 hint characters force
 // two-character labels; a first keystroke narrows the drawn set, and the

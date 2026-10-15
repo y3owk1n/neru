@@ -421,6 +421,12 @@ Takes no value. Modes: `hints`.
 
 Hide every hint until the search has text. Needs --search.
 
+#### `--confirm-on-label`
+
+Takes no value. Modes: `hints`.
+
+Confirm the search as soon as a label typed after the search text leaves one match, without Return.
+
 #### `--exit-on-unmatched`
 
 Takes no value. Modes: `hints`.
@@ -676,8 +682,9 @@ These names work as a mode `--action`, in a hotkey binding, or after
 
 ³ No `neru action` subcommand. `search_hints` opens the hint search field in
 hints mode. Bind it as `"action search_hints"` in a mode's `[hotkeys]`, or run
-it through `neru run` or `neru macro`. `scroll` takes no flags. For one-shot
-scrolling use the directional names below.
+it through `neru run` or `neru macro`. `search_hints --confirm-on-label` turns
+on the hints flag of the same name for that one search. `scroll` takes no
+flags. For one-shot scrolling use the directional names below.
 
 A mode `--action` accepts only the click, press, release and toggle names,
 `move_mouse`, and the deprecated `mouse_down` and `mouse_up`. `move_mouse`

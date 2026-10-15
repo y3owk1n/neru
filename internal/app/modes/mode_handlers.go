@@ -313,6 +313,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 		filterRoles := h.hints.Context.FilterRoles()
 		filterTextContains := h.hints.Context.FilterTextContains()
 		startWithSearch := h.hints.Context.StartWithSearch()
+		confirmOnLabel := h.hints.Context.ConfirmOnLabel()
 		exitOnUnmatched := h.hints.Context.ExitOnUnmatched()
 		strategyOverride := h.hints.Context.StrategyOverride()
 		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
@@ -333,6 +334,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 					FilterRoles:           filterRoles,
 					FilterTextContains:    filterTextContains,
 					Search:                &startWithSearch,
+					ConfirmOnLabel:        &confirmOnLabel,
 					ExitOnUnmatched:       &exitOnUnmatched,
 					Strategy:              &strategyOverride,
 					CaptureScope:          &captureScopeOverride,
@@ -354,6 +356,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 					h.hints.Context.SetFilterRoles(filterRoles)
 					h.hints.Context.SetFilterTextContains(filterTextContains)
 					h.hints.Context.SetStartWithSearch(startWithSearch)
+					h.hints.Context.SetConfirmOnLabel(confirmOnLabel)
 					h.hints.Context.SetExitOnUnmatched(exitOnUnmatched)
 					h.hints.Context.SetStrategyOverride(strategyOverride)
 					h.hints.Context.SetCaptureScopeOverride(captureScopeOverride)
@@ -436,6 +439,16 @@ func (h *handlerState) applyHintSearchFilter() {
 	setHintsErr := ctx.SetVisibleHints(filteredHints)
 	if setHintsErr != nil {
 		h.logger.Error("Failed to apply hint search filter", zap.Error(setHintsErr))
+	}
+
+	// A hint carries a matched prefix only when the label typed after the
+	// search text kept it, so a single match by text alone still waits for
+	// Return.
+	if ctx.SearchConfirmsOnLabel() && filteredHints.Count() == 1 &&
+		filteredHints.All()[0].MatchedPrefix() != "" {
+		h.confirmHintSearch()
+
+		return
 	}
 
 	h.drawHintSearchInput()

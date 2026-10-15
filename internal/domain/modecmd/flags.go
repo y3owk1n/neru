@@ -39,6 +39,10 @@ const (
 	// FlagHideOnEmptySearch hides every hint while the search query is empty.
 	FlagHideOnEmptySearch Flag = "hide-on-empty-search"
 
+	// FlagConfirmOnLabel confirms a search once a label typed after it leaves
+	// one match.
+	FlagConfirmOnLabel Flag = "confirm-on-label"
+
 	// FlagExitOnUnmatched exits the mode when a key matches no hint.
 	FlagExitOnUnmatched Flag = "exit-on-unmatched"
 
@@ -117,6 +121,7 @@ const (
 	usageCursorSelectionMode = "Whether the real cursor follows the selection (follow) or stays put (hold)"
 	usageSearch              = "Open with the hint search field showing"
 	usageHideOnEmptySearch   = "Hide every hint until the search has text. Needs --search"
+	usageConfirmOnLabel      = "Confirm the search as soon as a label typed after the search text leaves one match, without Return"
 	usageExitOnUnmatched     = "Exit when a key matches no hint"
 	usageRole                = "Only hint these roles, comma-separated, such as button,link (see 'neru roles'). Repeat to add more"
 	usageText                = "Only hint elements whose text contains one of these, comma-separated and case-insensitive. Repeat to add more"
@@ -483,6 +488,12 @@ var descriptors = []Descriptor{
 		func(activation *Activation) { activation.HideOnEmptySearch = enabled() },
 		func(activation Activation) []string {
 			return renderPresence(FlagHideOnEmptySearch, activation.HideOnEmptySearch)
+		},
+	),
+	presenceFlag(FlagConfirmOnLabel, "", usageConfirmOnLabel, hintsOnly,
+		func(activation *Activation) { activation.ConfirmOnLabel = enabled() },
+		func(activation Activation) []string {
+			return renderPresence(FlagConfirmOnLabel, activation.ConfirmOnLabel)
 		},
 	),
 	presenceFlag(FlagExitOnUnmatched, "", usageExitOnUnmatched, hintsOnly,

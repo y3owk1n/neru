@@ -26,6 +26,7 @@ type parsedActionArgs struct {
 	stepsOverride  int
 	hasSteps       bool
 	useBail        bool
+	confirmOnLabel bool
 	stateStr       string
 	hasState       bool
 	useToggle      bool
@@ -143,6 +144,9 @@ var actionFlagSpecs = map[string]flagSpec{
 	flagPrevious:  {apply: intoFlag(func(p *parsedActionArgs) { p.usePrevious = true })},
 	flagBackward:  {apply: intoFlag(func(p *parsedActionArgs) { p.useBackward = true })},
 	flagBail:      {apply: intoFlag(func(p *parsedActionArgs) { p.useBail = true })},
+	flagConfirmOnLabel: {
+		apply: intoFlag(func(p *parsedActionArgs) { p.confirmOnLabel = true }),
+	},
 }
 
 // intoFlag adapts a valueless flag setter to flagSpec.apply.

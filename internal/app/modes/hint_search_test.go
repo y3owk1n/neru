@@ -82,7 +82,7 @@ func TestStartHintSearch_PlacesTheTextInputOverTheDrawnBox(t *testing.T) {
 
 	handler.mu.Lock()
 	handler.screenBounds = screen
-	err := handler.startHintSearch()
+	err := handler.startHintSearch(false)
 	handler.mu.Unlock()
 
 	if err != nil {
@@ -120,7 +120,7 @@ func TestStartHintSearch_NoBoxOnScreenStartsNoTextInput(t *testing.T) {
 	handler := newHintSearchTestHandler(t, overlayPort, textInput)
 
 	handler.mu.Lock()
-	err := handler.startHintSearch()
+	err := handler.startHintSearch(false)
 	searchActive := handler.hints.Context.SearchActive()
 	textInputActive := handler.hintSearchTextInputActive
 	handler.mu.Unlock()
@@ -181,7 +181,7 @@ func TestStartHintSearch_NoBoxOnScreenGivesTheKeyboardBack(t *testing.T) {
 	handler.hintSearchTextInputActive = true
 	handler.hintSearchEventTapDisabled = true
 
-	err := handler.startHintSearch()
+	err := handler.startHintSearch(false)
 	stillDisabled := handler.hintSearchEventTapDisabled
 	handler.mu.Unlock()
 
@@ -263,7 +263,7 @@ func TestStartHintSearch_IgnoresCallbacksFromAStoppedSession(t *testing.T) {
 	handler := newHintSearchTestHandler(t, overlayPort, textInput)
 
 	handler.mu.Lock()
-	err := handler.startHintSearch()
+	err := handler.startHintSearch(false)
 	handler.mu.Unlock()
 
 	if err != nil {
@@ -273,7 +273,7 @@ func TestStartHintSearch_IgnoresCallbacksFromAStoppedSession(t *testing.T) {
 	stale := textInput.Callbacks()
 
 	handler.mu.Lock()
-	err = handler.startHintSearch()
+	err = handler.startHintSearch(false)
 	handler.hints.Context.SetSearchQuery("new")
 	handler.mu.Unlock()
 
@@ -312,7 +312,7 @@ func TestHandleSearchInputKey_KeepsShiftedLettersAndSpaces(t *testing.T) {
 	handler.mu.Lock()
 	defer handler.mu.Unlock()
 
-	err := handler.startHintSearch()
+	err := handler.startHintSearch(false)
 	if err != nil {
 		t.Fatalf("startHintSearch() error = %v", err)
 	}
@@ -360,7 +360,7 @@ func TestStartHintSearch_ReplacementThatFailsGivesTheKeyboardBack(t *testing.T) 
 	handler.hintSearchTextInputActive = true
 	handler.hintSearchEventTapDisabled = true
 
-	err := handler.startHintSearch()
+	err := handler.startHintSearch(false)
 	stillDisabled := handler.hintSearchEventTapDisabled
 	handler.mu.Unlock()
 

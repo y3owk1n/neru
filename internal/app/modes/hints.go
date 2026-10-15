@@ -325,7 +325,7 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	h.logger.Info("Hints mode activated", fields...)
 
 	if activation.Search != nil && *activation.Search {
-		err := h.startHintSearch()
+		err := h.startHintSearch(false)
 		if err != nil {
 			h.logger.Error("Failed to start hint search on activation", zap.Error(err))
 		}

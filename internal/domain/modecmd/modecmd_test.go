@@ -136,6 +136,16 @@ func flagCases() map[modecmd.Flag]flagCase {
 				a.HideOnEmptySearch = new(true)
 			},
 		},
+		modecmd.FlagConfirmOnLabel: {
+			mode: domain.ModeHints,
+			args: []string{"--confirm-on-label"},
+			applied: func(a modecmd.Activation) bool {
+				return a.ConfirmOnLabel != nil && *a.ConfirmOnLabel
+			},
+			build: func(a *modecmd.Activation) {
+				a.ConfirmOnLabel = new(true)
+			},
+		},
 		modecmd.FlagExitOnUnmatched: {
 			mode: domain.ModeHints,
 			args: []string{flagExitOnUnmatched},
