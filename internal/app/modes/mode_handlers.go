@@ -461,7 +461,7 @@ func (h *handlerState) confirmHintSearch() {
 		if cleared := visibleHints.WithoutMatchedPrefixes(); cleared != visibleHints {
 			setHintsErr := ctx.SetVisibleHints(cleared)
 			if setHintsErr != nil {
-				h.logger.Error("Failed to clear search label highlights", zap.Error(setHintsErr))
+				h.logger.Warn("Failed to clear search label highlights", zap.Error(setHintsErr))
 			}
 
 			visibleHints = ctx.Hints()
