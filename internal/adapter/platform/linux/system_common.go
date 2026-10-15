@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/compositorcli"
 	"github.com/y3owk1n/neru/internal/adapter/platform/gnomeshell"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
@@ -279,6 +280,16 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	}
 
 	if s.waylandUsesWlrClientStack() {
+		// Hyprland knows where the real pointer is; the wlroots cache does not
+		// once the user has moved it. Fall back to the cache when it cannot say.
+		ipcCtx, cancel := context.WithTimeout(ctx, compositorcli.QueryTimeout)
+		defer cancel()
+
+		bounds, ok := hyprlandActiveScreenBounds(ipcCtx)
+		if ok {
+			return bounds, nil
+		}
+
 		return wlrootsScreenBounds()
 	}
 
@@ -410,6 +421,14 @@ func (s *SystemAdapter) MoveCursorInstantly(ctx context.Context, point image.Poi
 	s.cursorAnimator.stop()
 
 	if s.backend == backendWaylandWlroots {
+		// The delta is only as good as the cache; Hyprland can correct it.
+		ipcCtx, cancel := context.WithTimeout(ctx, compositorcli.QueryTimeout)
+		defer cancel()
+
+		if actual, ok := waylandCompositorCursorPosition(ipcCtx); ok {
+			_ = wlrootsSetCursor(actual)
+		}
+
 		cached, err := waylandCursorPosition()
 		if err != nil {
 			return err
