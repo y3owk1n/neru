@@ -152,6 +152,9 @@ or open hints with search showing:
 ```
 
 - Typing filters by element title, description or value. `Space` is allowed.
+- A label typed after a space narrows the matches to that label. `save a`
+  keeps the `save` matches whose label starts with `A`, along with any text
+  still matching `save a`. Once one is left, `Return` acts on it.
 - `Backspace` deletes a character. `Escape` cancels and restores every hint.
 - `Tab` (`action cycle_hint`) moves between matches without running the action.
 

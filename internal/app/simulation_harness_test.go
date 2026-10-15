@@ -665,6 +665,26 @@ func (m *simOverlayPort) lastHintLabels() []string {
 	return labels
 }
 
+// lastHintMatchedPrefixes returns the highlighted label prefix of each hint in
+// the last hints frame, by label.
+func (m *simOverlayPort) lastHintMatchedPrefixes() map[string]string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.hintFrames) == 0 {
+		return nil
+	}
+
+	last := m.hintFrames[len(m.hintFrames)-1]
+
+	prefixes := make(map[string]string, len(last.Hints))
+	for _, h := range last.Hints {
+		prefixes[h.Label()] = h.MatchedPrefix()
+	}
+
+	return prefixes
+}
+
 // lastHintScreen returns the display the most recent hints frame was drawn
 // against, and whether one was ever drawn. A screen change is only complete
 // when this is the display the user is now looking at.

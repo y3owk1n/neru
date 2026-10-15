@@ -821,6 +821,119 @@ func TestSimulation_HintSearchFieldConfirmSelectsTheMatch(t *testing.T) {
 	}
 }
 
+// TestSimulation_HintSearchNarrowsByTrailingLabel covers typing a label after
+// the search text. "s" matches Save and Search, the space keeps both, and the
+// label typed after it leaves one for Return to select. Each of the two labels
+// lands on a different button.
+func TestSimulation_HintSearchNarrowsByTrailingLabel(t *testing.T) {
+	elements := threeButtons(t)
+	saveCenter, searchCenter := elements[0].Center(), elements[2].Center()
+
+	landed := map[image.Point]bool{}
+
+	for pick := range 2 {
+		sim := newSimHarness(t, simConfig(), elements)
+
+		sim.pressHotkey(hintsHotkey)
+		sim.waitMode(domain.ModeHints)
+		sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+		sim.press("/")
+		sim.waitFor("search input asked for", func() bool {
+			return sim.overlay.searchInputAskCount() > 0
+		})
+
+		sim.press("s")
+		sim.waitFor("hints narrowed to the text", func() bool {
+			return len(sim.overlay.lastHintLabels()) == 2
+		})
+
+		sim.press(config.KeyNameSpace)
+
+		labels := sim.overlay.lastHintLabels()
+		if len(labels) != 2 {
+			t.Fatalf("hints after the space = %v, want both text matches kept", labels)
+		}
+
+		sim.typeLabel(labels[pick])
+		sim.waitFor("hints narrowed to the label", func() bool {
+			return len(sim.overlay.lastHintLabels()) == 1
+		})
+
+		sim.press("Return")
+
+		landed[sim.cursor.position()] = true
+	}
+
+	if len(landed) != 2 || !landed[saveCenter] || !landed[searchCenter] {
+		t.Fatalf(
+			"cursor landings = %v, want one on Save at %v and one on Search at %v",
+			landed,
+			saveCenter,
+			searchCenter,
+		)
+	}
+}
+
+// TestSimulation_HintSearchConfirmClearsLabelHighlight covers Return when the
+// first character of a label still leaves several matches. With --action, the
+// search closes and the matches keep their labels for the user to type. The
+// label input starts empty there, so the search's highlight comes off, and
+// typing the whole label clicks.
+func TestSimulation_HintSearchConfirmClearsLabelHighlight(t *testing.T) {
+	const searchClickHotkey = "Primary+Shift+S"
+
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[searchClickHotkey] = []string{"hints --action left_click --search"}
+
+	elements := manyButtons(t, 13)
+	sim := newSimHarness(t, cfg, elements)
+
+	sim.pressHotkey(searchClickHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("search input asked for", func() bool {
+		return sim.overlay.searchInputAskCount() > 0
+	})
+
+	// Find a first character that more than one label starts with.
+	starts := map[string][]string{}
+	for _, label := range sim.overlay.lastHintLabels() {
+		first := label[:1]
+		starts[first] = append(starts[first], label)
+	}
+
+	var shared []string
+
+	for _, labels := range starts {
+		if len(labels) > 1 {
+			shared = labels
+
+			break
+		}
+	}
+
+	if shared == nil {
+		t.Fatalf("no two labels share a first character: %v", starts)
+	}
+
+	sim.press(config.KeyNameSpace)
+	sim.typeLabel(shared[0][:1])
+	sim.waitFor("hints narrowed to the label start", func() bool {
+		return len(sim.overlay.lastHintLabels()) == len(shared)
+	})
+
+	sim.press("Return")
+
+	for label, prefix := range sim.overlay.lastHintMatchedPrefixes() {
+		if prefix != "" {
+			t.Fatalf("label %q still highlights %q after the search closed", label, prefix)
+		}
+	}
+
+	sim.typeLabel(shared[0])
+	sim.waitFor("typed label clicked", func() bool { return len(sim.ax.recordedClicks()) == 1 })
+}
+
 // TestSimulation_HintsTwoCharLabels covers label generation past the
 // single-character alphabet: 12 elements with 9 hint characters force
 // two-character labels; a first keystroke narrows the drawn set, and the

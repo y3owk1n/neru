@@ -431,7 +431,7 @@ func (h *handlerState) applyHintSearchFilter() {
 		return
 	}
 
-	filteredHints := sourceHints.FilterByText(ctx.SearchQuery())
+	filteredHints := sourceHints.FilterBySearch(ctx.SearchQuery())
 
 	setHintsErr := ctx.SetVisibleHints(filteredHints)
 	if setHintsErr != nil {
@@ -454,6 +454,20 @@ func (h *handlerState) confirmHintSearch() {
 	h.hideHintSearchInput()
 
 	visibleHints := ctx.Hints()
+
+	// The label input starts empty once the search closes, so redraw the hints
+	// left on screen without the label prefix the search highlighted.
+	if visibleHints != nil && visibleHints.Count() > 1 {
+		if cleared := visibleHints.WithoutMatchedPrefixes(); cleared != visibleHints {
+			setHintsErr := ctx.SetVisibleHints(cleared)
+			if setHintsErr != nil {
+				h.logger.Error("Failed to clear search label highlights", zap.Error(setHintsErr))
+			}
+
+			visibleHints = ctx.Hints()
+		}
+	}
+
 	if visibleHints != nil && visibleHints.Count() >= 1 {
 		// When a pending action is configured and more than one hint matches
 		// the search query, just close the search overlay without executing

@@ -280,26 +280,82 @@ func (c *Collection) FilterByPrefix(prefix string) []*Interface {
 	return c.trie.FindByPrefix(prefix)
 }
 
-// FilterByText returns hints whose element text contains query.
-func (c *Collection) FilterByText(query string) *Collection {
+// FilterBySearch returns the hints whose element text contains query. When
+// query has a space, it also returns the hints whose text contains the words
+// before the last space and whose label starts with the word after it, so
+// "save a" keeps the "save" matches labeled A. A label match never hides a
+// text match. Hints kept by label carry the typed label as their matched
+// prefix.
+func (c *Collection) FilterBySearch(query string) *Collection {
 	if query == "" {
 		return c
 	}
 
 	normalizedQuery := normalizeForSearch(query)
+
+	space := strings.LastIndex(query, " ")
+	readsLabel := space >= 0
+	normalizedHead := ""
+	labelPrefix := ""
+
+	if readsLabel {
+		normalizedHead = normalizeForSearch(strings.TrimRight(query[:space], " "))
+		labelPrefix = strings.ToUpper(query[space+1:])
+	}
+
 	filtered := make([]*Interface, 0, len(c.hints))
 
 	for i, texts := range c.normalizedSearchTexts() {
-		for _, text := range texts {
-			if strings.Contains(text, normalizedQuery) {
-				filtered = append(filtered, c.hints[i])
+		hint := c.hints[i]
 
-				break
+		if readsLabel && strings.HasPrefix(hint.labelUpper, labelPrefix) &&
+			(normalizedHead == "" || containsAny(texts, normalizedHead)) {
+			if labelPrefix != "" {
+				hint = hint.WithMatchedPrefix(labelPrefix)
 			}
+
+			filtered = append(filtered, hint)
+
+			continue
+		}
+
+		if containsAny(texts, normalizedQuery) {
+			filtered = append(filtered, hint)
 		}
 	}
 
 	return NewCollection(filtered)
+}
+
+// WithoutMatchedPrefixes returns the collection with every hint's matched
+// prefix cleared, or the collection itself when no hint carries one.
+func (c *Collection) WithoutMatchedPrefixes() *Collection {
+	cleared := make([]*Interface, len(c.hints))
+	changed := false
+
+	for i, hint := range c.hints {
+		cleared[i] = hint
+		if hint.matchedPrefix != "" {
+			cleared[i] = hint.WithMatchedPrefix("")
+			changed = true
+		}
+	}
+
+	if !changed {
+		return c
+	}
+
+	return NewCollection(cleared)
+}
+
+func containsAny(texts []string, query string) bool {
+	for _, text := range texts {
+		if strings.Contains(text, query) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func normalizeForSearch(text string) string {
@@ -330,7 +386,7 @@ func (c *Collection) Empty() bool {
 	return len(c.hints) == 0
 }
 
-// normalizedSearchTexts returns the texts FilterByText matches against, one
+// normalizedSearchTexts returns the texts FilterBySearch matches against, one
 // entry per hint, nil for a hint without an element.
 func (c *Collection) normalizedSearchTexts() [][]string {
 	c.searchOnce.Do(func() {
