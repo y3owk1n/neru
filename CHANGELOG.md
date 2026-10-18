@@ -1,5 +1,63 @@
 # Changelog
 
+## [1.59.0](https://github.com/y3owk1n/neru/compare/v1.58.0...v1.59.0) (2026-10-18)
+
+
+### Features
+
+* **cli:** toggle a cycle list with --toggle ([#1842](https://github.com/y3owk1n/neru/issues/1842)) ([11b6e48](https://github.com/y3owk1n/neru/commit/11b6e4804e7dcc0b728b5c32c6411261879e4326))
+* **hints:** add `--confirm-on-label` for search ([#1838](https://github.com/y3owk1n/neru/issues/1838)) ([9a0fbc7](https://github.com/y3owk1n/neru/commit/9a0fbc758006ff5964204b0c5a1eb3d4d6eb8b83))
+* **hints:** add `segment` strategy ([#1809](https://github.com/y3owk1n/neru/issues/1809)) ([97c81c4](https://github.com/y3owk1n/neru/commit/97c81c44b57946c22b18e38878ebd28f400ee5a5))
+* **hints:** detect button shapes in the vision strategy on Linux and Windows ([#1800](https://github.com/y3owk1n/neru/issues/1800)) ([2dd7779](https://github.com/y3owk1n/neru/commit/2dd7779ac142c1e19fa296b84edf09443ee4a8bc))
+* **hints:** honour hints.max_depth on Linux and Windows ([#1788](https://github.com/y3owk1n/neru/issues/1788)) ([9644301](https://github.com/y3owk1n/neru/commit/964430175595edb8acd387560c8a4d8da23676eb))
+* **hints:** honour ignore_clickable_check on Linux and Windows ([#1798](https://github.com/y3owk1n/neru/issues/1798)) ([58b43ad](https://github.com/y3owk1n/neru/commit/58b43ad1edaa7bb09623d26c9bdde9eec50bb738))
+* **hints:** honour visible_check_enabled on Linux ([#1799](https://github.com/y3owk1n/neru/issues/1799)) ([cfcb4e0](https://github.com/y3owk1n/neru/commit/cfcb4e02747dac268b4d13a4d4d154c7b020fa75))
+* **hints:** narrow a search by the label on last space separator ([#1837](https://github.com/y3owk1n/neru/issues/1837)) ([427ea06](https://github.com/y3owk1n/neru/commit/427ea06465a59de4260b24a45866a44784f8ba8a))
+* **hints:** report source, identifier and focus, and skip disabled elements ([#1787](https://github.com/y3owk1n/neru/issues/1787)) ([b23012e](https://github.com/y3owk1n/neru/commit/b23012eb5902227fd78e74f8aff11495e5532a40))
+* **hints:** type into hint search through a real text field on Wayland ([#1802](https://github.com/y3owk1n/neru/issues/1802)) ([4533bdb](https://github.com/y3owk1n/neru/commit/4533bdb6aebf9f59664cdb732ef6e77cb4262556))
+* **hints:** type into hint search through a real text field on Windows ([#1803](https://github.com/y3owk1n/neru/issues/1803)) ([1927af4](https://github.com/y3owk1n/neru/commit/1927af496ac09fde0ec8482dccc325c00d92739e))
+* **hints:** type into hint search through a real text field on X11 ([#1804](https://github.com/y3owk1n/neru/issues/1804)) ([2ef0970](https://github.com/y3owk1n/neru/commit/2ef0970bbc2a0d9547e27fb75af7489e417853bc))
+
+
+### Bug Fixes
+
+* **action:** end a held drag where a left click lands ([#1814](https://github.com/y3owk1n/neru/issues/1814)) ([d1fd4a2](https://github.com/y3owk1n/neru/commit/d1fd4a24aa5cb80e85af826d2fb0a07236621e3a))
+* **cli:** allow `config set` to pass for depended settings ([#1820](https://github.com/y3owk1n/neru/issues/1820)) ([253be44](https://github.com/y3owk1n/neru/commit/253be44e47245e7c73aee92eece0f43100b3b3c3))
+* **cli:** report properly when a mode failed to activate ([#1826](https://github.com/y3owk1n/neru/issues/1826)) ([69222f5](https://github.com/y3owk1n/neru/commit/69222f5a3c62802af09bcab55c9e7c9041109640))
+* **cli:** show why the daemon refused in neru doctor ([#1824](https://github.com/y3owk1n/neru/issues/1824)) ([0ed2101](https://github.com/y3owk1n/neru/commit/0ed2101593a86f249cf3635ddb0ff9c0482e2163))
+* **config:** apply excluded_apps changes on reload everywhere ([#1819](https://github.com/y3owk1n/neru/issues/1819)) ([0309787](https://github.com/y3owk1n/neru/commit/030978732ff96cd4c8f88213f79674e154dbaf15))
+* **darwin:** build on the macOS 15 SDK again ([#1810](https://github.com/y3owk1n/neru/issues/1810)) ([f1aa79e](https://github.com/y3owk1n/neru/commit/f1aa79eb05be87e5e069eb4f3be9f9bcb9d546e7))
+* **darwin:** ignore priming neru self on hint search ([#1825](https://github.com/y3owk1n/neru/issues/1825)) ([98e6ff7](https://github.com/y3owk1n/neru/commit/98e6ff7761dbf1fd925beb4701afa9dcaa6338b4))
+* **darwin:** keep our own labels out of vision based scans ([#1821](https://github.com/y3owk1n/neru/issues/1821)) ([a8ccb56](https://github.com/y3owk1n/neru/commit/a8ccb563366663b14e39a01db4b71119d4226ce0))
+* **darwin:** make tree priming cancellable with cap ([#1841](https://github.com/y3owk1n/neru/issues/1841)) ([2e36858](https://github.com/y3owk1n/neru/commit/2e36858d304b3fe657ec00c5002769dad093b604))
+* **darwin:** make tree priming cancellable with cap ([#1841](https://github.com/y3owk1n/neru/issues/1841)) ([62412cc](https://github.com/y3owk1n/neru/commit/62412cc14f6883d88ae11cc2ae9dc1d506b865df))
+* **darwin:** prevent crash on fewer element attributes returned ([#1815](https://github.com/y3owk1n/neru/issues/1815)) ([fbef0c7](https://github.com/y3owk1n/neru/commit/fbef0c7f367f960ae9c08ea86068742a648321e3))
+* **darwin:** stay quit after Quit instead of being restarted by the login service ([#1813](https://github.com/y3owk1n/neru/issues/1813)) ([e3e7f07](https://github.com/y3owk1n/neru/commit/e3e7f078ae68e43aa28f2e04fab5b5ce6b7038da))
+* **hints:** apply `detect_mission_control` on reload ([#1827](https://github.com/y3owk1n/neru/issues/1827)) ([d489b29](https://github.com/y3owk1n/neru/commit/d489b29bd54651ca701a2e7e3a2bb65dc7843508))
+* **hints:** keep capital letters typed into hint search on Linux and Windows ([#1801](https://github.com/y3owk1n/neru/issues/1801)) ([e2bb9a8](https://github.com/y3owk1n/neru/commit/e2bb9a8dc14a9a62a4eabb43bc09ca615b180c87))
+* **hints:** make Return in hint search select the match it confirmed ([#1831](https://github.com/y3owk1n/neru/issues/1831)) ([05f189d](https://github.com/y3owk1n/neru/commit/05f189dafe238b5cbbd61575fac9d67f5df5cf7d))
+* **hints:** read element description and value on Linux and Windows ([#1786](https://github.com/y3owk1n/neru/issues/1786)) ([79e40a0](https://github.com/y3owk1n/neru/commit/79e40a00f9ff02eb5fe7c8c29e2cf4a5dbd0b020))
+* **hints:** refresh old labels for visions on reactivate on Linux and Windows ([#1830](https://github.com/y3owk1n/neru/issues/1830)) ([43b7f65](https://github.com/y3owk1n/neru/commit/43b7f658863b120495bc67a737e5e4c817cfc805))
+* **hints:** show hints after `move_monitor` ([#1822](https://github.com/y3owk1n/neru/issues/1822)) ([a1fb110](https://github.com/y3owk1n/neru/commit/a1fb110897aa0238ec31375c1b565f960d2554ad))
+* **install:** stop the running daemon on update and uninstall instead of pausing it ([#1812](https://github.com/y3owk1n/neru/issues/1812)) ([5ca5a6d](https://github.com/y3owk1n/neru/commit/5ca5a6dffcb7f8c24d3a0334de40ff2d13f6328f))
+* **linux:** capture rotated wlroots displays correctly ([#1823](https://github.com/y3owk1n/neru/issues/1823)) ([7eb9c69](https://github.com/y3owk1n/neru/commit/7eb9c6976e3ff766dbaa1a3f90e5dd0043128e7b))
+* **linux:** hint GNOME apps whose name differs from their app id ([#1790](https://github.com/y3owk1n/neru/issues/1790)) ([e0d08c1](https://github.com/y3owk1n/neru/commit/e0d08c13945aa236082ad2dcbf793b1ab6f35b6e))
+* **linux:** hint GTK 3 text fields ([#1784](https://github.com/y3owk1n/neru/issues/1784)) ([66de454](https://github.com/y3owk1n/neru/commit/66de4545326b631cb04cdbce55202d7b05a79ce8))
+* **linux:** hint GTK 4 apps again and place them where the window position is known ([#1789](https://github.com/y3owk1n/neru/issues/1789)) ([4da72d3](https://github.com/y3owk1n/neru/commit/4da72d350a9fedb4e22305580e612a8503946909))
+* **linux:** name the GNOME Shell extension while it is still connecting ([#1832](https://github.com/y3owk1n/neru/issues/1832)) ([f730d1e](https://github.com/y3owk1n/neru/commit/f730d1e86e44918a702abc77d5340d23cac7e5a1))
+* **linux:** release keys a keyboard held when it disappears ([#1835](https://github.com/y3owk1n/neru/issues/1835)) ([8eace01](https://github.com/y3owk1n/neru/commit/8eace01756cfc85883e07f91014db772c0d97bf3))
+* **linux:** report clicks and drags with no display backend ([#1828](https://github.com/y3owk1n/neru/issues/1828)) ([2bb1024](https://github.com/y3owk1n/neru/commit/2bb10241036d5d75e23e2ae0ae826587a7119006))
+* **linux:** scroll left and right correctly ([#1811](https://github.com/y3owk1n/neru/issues/1811)) ([4a38a04](https://github.com/y3owk1n/neru/commit/4a38a04589b645904c95d82431f5333e479ee553))
+* **windows:** keep COM out-parameters valid across a stack move ([#1818](https://github.com/y3owk1n/neru/issues/1818)) ([c5aac45](https://github.com/y3owk1n/neru/commit/c5aac45318bdbbfb97a4f6144129b8f3a37c8957))
+* **windows:** scroll the full distance on large scrolls instead of wrapping ([#1817](https://github.com/y3owk1n/neru/issues/1817)) ([9bfdb94](https://github.com/y3owk1n/neru/commit/9bfdb94188354577e67f5b0c0e8b22590aa3ae6a))
+* **windows:** stop commands hanging on the IPC pipe ([#1816](https://github.com/y3owk1n/neru/issues/1816)) ([fee5c61](https://github.com/y3owk1n/neru/commit/fee5c618b7eee52261298dfce9c6cc67a74f05c5))
+
+
+### Performance Improvements
+
+* **hints:** capture only the hinted region and cache the display list ([#1808](https://github.com/y3owk1n/neru/issues/1808)) ([5d1a5d8](https://github.com/y3owk1n/neru/commit/5d1a5d8e7ecfef8d166ef83bcfc847ceb0b1c8a1))
+* **hints:** normalize search text once per hint scan ([#1829](https://github.com/y3owk1n/neru/issues/1829)) ([195f003](https://github.com/y3owk1n/neru/commit/195f003e9414808e7ada85faa68ce7bd97b6fa5a))
+
 ## [1.58.0](https://github.com/y3owk1n/neru/compare/v1.57.0...v1.58.0) (2026-10-12)
 
 
