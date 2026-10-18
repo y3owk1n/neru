@@ -179,7 +179,7 @@ func selectBestCandidate(
 // findValidGridConfigurations searches through all valid grid configurations.
 // Evaluates combinations of columns and rows within cell size constraints,
 // calculating aspect ratio scores to find grids that produce square-like cells.
-// Returns candidates sorted by score (lower is better).
+// Returns valid candidates in no particular order.
 func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []Candidate {
 	var (
 		candidates []Candidate
