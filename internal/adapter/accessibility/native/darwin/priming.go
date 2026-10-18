@@ -18,9 +18,9 @@ const (
 	primingRetryCount = 10
 	primingRetryDelay = 100 * time.Millisecond
 	maxPrimingDepth   = 10
-	// maxPrimingNodes caps how many elements one walk visits. A tree with this
-	// many elements has been built, whatever roles it holds, so reaching the
-	// cap counts as ready.
+	// maxPrimingNodes caps how many elements one walk takes from the
+	// application. A tree with this many elements has been built, whatever
+	// roles it holds, so reaching the cap counts as ready.
 	maxPrimingNodes = 2000
 )
 
@@ -66,7 +66,7 @@ func PrimeApplication(ctx context.Context, bundleID string, logger *zap.Logger) 
 
 func waitForAccessibility(ctx context.Context, app *Element, logger *zap.Logger) bool {
 	for range primingRetryCount {
-		if hasUsableAccessibilityTree(ctx, app, logger) {
+		if hasUsableAccessibilityTree(ctx, app, maxPrimingNodes, logger) {
 			return true
 		}
 
@@ -80,7 +80,12 @@ func waitForAccessibility(ctx context.Context, app *Element, logger *zap.Logger)
 	return false
 }
 
-func hasUsableAccessibilityTree(ctx context.Context, root *Element, logger *zap.Logger) bool {
+func hasUsableAccessibilityTree(
+	ctx context.Context,
+	root *Element,
+	budget int,
+	logger *zap.Logger,
+) bool {
 	if root == nil {
 		return false
 	}
@@ -95,7 +100,7 @@ func hasUsableAccessibilityTree(ctx context.Context, root *Element, logger *zap.
 	// element under more than one parent, or under its own descendant. A hash
 	// collision only skips an element, and the next poll walks again.
 	visited := make(map[uint64]struct{})
-	walked := 0
+	taken := 0
 
 	// Children() hands over retained AXUIElementRefs; release everything this
 	// walk enqueues, but not the caller-owned root.
@@ -139,16 +144,6 @@ func hasUsableAccessibilityTree(ctx context.Context, root *Element, logger *zap.
 			visited[hash] = struct{}{}
 		}
 
-		walked++
-		if walked > maxPrimingNodes {
-			logger.Debug("Accessibility tree reached the priming node budget",
-				zap.Int("budget", maxPrimingNodes))
-			releaseVisited(cur.el)
-			drainQueue()
-
-			return true
-		}
-
 		info, err := cur.el.Info()
 		if err != nil || info == nil {
 			releaseVisited(cur.el)
@@ -185,6 +180,16 @@ func hasUsableAccessibilityTree(ctx context.Context, root *Element, logger *zap.
 
 		if childrenErr != nil {
 			continue
+		}
+
+		taken += len(children)
+		if taken > budget {
+			logger.Debug("Accessibility tree reached the priming node budget",
+				zap.Int("budget", budget))
+			ReleaseAll(children)
+			drainQueue()
+
+			return true
 		}
 
 		for _, child := range children {
