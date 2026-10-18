@@ -373,9 +373,12 @@ replaces its earlier value unless its entry says it can be repeated.
 - The value in use may come from the config.
 - The list wraps, and falls back to its first entry if it does not name the
   value in use.
+- With `--toggle`, a press while the mode is on the last entry closes it
+  instead of wrapping. `hints --strategy axtree,contour --toggle` opens on
+  `axtree`, steps to `contour`, then closes.
 - Each value may appear once.
 - Only one flag per command may take a list.
-- `--toggle` refuses a list, and `--split-word` refuses a `--strategy` list.
+- `--split-word` refuses a `--strategy` list.
 
 <!-- BEGIN GENERATED MODE FLAGS: edit internal/domain/modecmd, then run `just genflagref` -->
 
@@ -449,13 +452,13 @@ Only hint elements whose text contains one of these, comma-separated and case-in
 
 Takes a value. Modes: `hints`.
 
-How hints find elements: axtree (accessibility tree), vision (OCR), contour (shape detection) or segment (controls and labels from pixels). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --strategy=axtree,vision.
+How hints find elements: axtree (accessibility tree), vision (OCR), contour (shape detection) or segment (controls and labels from pixels). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --strategy=axtree,vision. With --toggle, running the command on the last value leaves the mode instead of wrapping.
 
 #### `--capture-scope`
 
 Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect`.
 
-Region to work in: window (the focused window) or screen (the whole screen). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --capture-scope=window,screen.
+Region to work in: window (the focused window) or screen (the whole screen). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --capture-scope=window,screen. With --toggle, running the command on the last value leaves the mode instead of wrapping.
 
 #### `--label-direction`
 

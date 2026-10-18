@@ -1086,10 +1086,11 @@ func TestParse_CycleLists(t *testing.T) {
 			wantErr: "--strategy lists a value twice",
 		},
 		{
-			name:    "toggle alongside a list",
-			mode:    domain.ModeGrid,
-			args:    []string{argToggle, "--capture-scope=window,screen"},
-			wantErr: "--toggle cannot be combined with a cycle list",
+			name:      "toggle alongside a list",
+			mode:      domain.ModeGrid,
+			args:      []string{argToggle, "--capture-scope=window,screen"},
+			wantValue: domain.CaptureScopeWindow,
+			wantCycle: []string{domain.CaptureScopeWindow, domain.CaptureScopeScreen},
 		},
 		{
 			name: "two lists in one command",

@@ -1554,6 +1554,46 @@ func TestSimulation_CaptureScopeCycleStepsWhileTheModeIsOpen(t *testing.T) {
 	}
 }
 
+// TestSimulation_CaptureScopeCycleWithToggleExitsAfterTheLastEntry covers a
+// cycle list with --toggle. The list steps as it does without the flag until
+// the last entry. The press there exits instead of wrapping, and the next
+// press starts again from the first entry.
+func TestSimulation_CaptureScopeCycleWithToggleExitsAfterTheLastEntry(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[globalToggleChord] = []string{
+		"bisect --capture-scope window,screen --toggle",
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	window := image.Rect(400, 200, 1200, 900)
+	sim.desktop.focusWindow(window)
+
+	for range 2 {
+		sim.pressHotkey(globalToggleChord)
+		sim.waitMode(domain.ModeBisect)
+		sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+		for _, step := range []struct {
+			what string
+			want image.Rectangle
+		}{
+			{"entering takes the first entry, the window", window},
+			{"the command again steps to the screen", simScreen},
+		} {
+			sim.waitFor(step.what, func() bool {
+				frame, ok := sim.overlay.lastBisectFrame()
+
+				return ok && frame.Bounds.Eq(step.want)
+			})
+
+			sim.press(globalToggleChord)
+		}
+
+		sim.waitMode(domain.ModeIdle)
+	}
+}
+
 // TestSimulation_GridCoversTheFocusedWindow covers the window scope for grid:
 // with --capture-scope window the grid covers the focused window's bounds,
 // placed where the window is, and a selected cell lands inside it.

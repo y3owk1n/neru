@@ -482,9 +482,11 @@ func (h *handlerState) activateMode(activation modecmd.Activation) {
 	// Toggle: if the mode is already active and --toggle was specified,
 	// exit to idle instead of re-activating. Every declared mode shares one
 	// enum value, so there "already active" also means the same name: toggling
-	// one declared mode from inside another switches rather than exits.
+	// one declared mode from inside another switches rather than exits. With a
+	// cycle list, it exits only when the session is on the list's last entry.
 	if activation.Toggle != nil && *activation.Toggle && h.appState.CurrentMode() == mode &&
-		(mode != domain.ModeCustom || h.appState.CustomModeName() == activation.Name) {
+		(mode != domain.ModeCustom || h.appState.CustomModeName() == activation.Name) &&
+		h.cycleOnLastEntry(activation) {
 		h.exitMode()
 
 		return
@@ -543,6 +545,25 @@ func (h *handlerState) advanceCycles(activation *modecmd.Activation, target Mode
 		next := modecmd.NextInCycle(activation.CaptureScopeCycle, reporter.ActiveCaptureScope())
 		activation.CaptureScope = &next
 	}
+}
+
+// cycleOnLastEntry reports whether the open session is on the last entry of
+// the activation's cycle list, which is where --toggle exits rather than
+// advancing. An activation without a list counts as on its last entry, so a
+// plain --toggle exits on the second press.
+func (h *handlerState) cycleOnLastEntry(activation modecmd.Activation) bool {
+	target := h.modes[activation.Mode]
+
+	if reporter, ok := target.(strategyReporter); ok && len(activation.StrategyCycle) > 0 {
+		return reporter.ActiveStrategy() == activation.StrategyCycle[len(activation.StrategyCycle)-1]
+	}
+
+	if reporter, ok := target.(captureScopeReporter); ok && len(activation.CaptureScopeCycle) > 0 {
+		return reporter.ActiveCaptureScope() ==
+			activation.CaptureScopeCycle[len(activation.CaptureScopeCycle)-1]
+	}
+
+	return true
 }
 
 // UpdateConfig updates the handler with new configuration. Overlay appearance

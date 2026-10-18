@@ -72,3 +72,57 @@ func TestAdvanceCycles_StepsFromTheStrategyInUse(t *testing.T) {
 		})
 	}
 }
+
+// TestCycleOnLastEntry_TogglesFromTheLastStrategy pins the hints half of
+// --toggle with a cycle list, which no journey reaches because the harness has
+// no capture strategy. A press exits only when the session is on the last
+// entry. Every other press advances, and a command without a list exits like a
+// plain --toggle.
+func TestCycleOnLastEntry_TogglesFromTheLastStrategy(t *testing.T) {
+	const cycle = domain.StrategyAXTree + "," + domain.StrategyContour
+
+	tests := []struct {
+		name     string
+		strategy string
+		inUse    string
+		wantExit bool
+	}{
+		{"open on the first entry advances", cycle, domain.StrategyAXTree, false},
+		{"open on the last entry exits", cycle, domain.StrategyContour, true},
+		{
+			"open on a strategy outside the list advances",
+			cycle,
+			domain.StrategyVision,
+			false,
+		},
+		{"a single strategy exits", domain.StrategyAXTree, domain.StrategyAXTree, true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			appState := state.NewAppState()
+			appState.SetMode(domain.ModeHints)
+
+			hintContext := &componenthints.Context{}
+			hintContext.SetActiveScan(testCase.inUse, domain.CaptureScopeWindow)
+
+			handler := newHandlerWithState(handlerState{
+				logger:   zap.NewNop(),
+				appState: appState,
+				hints:    &components.HintsComponent{Context: hintContext},
+			})
+
+			activation, err := modecmd.Parse(
+				domain.ModeHints,
+				[]string{"--toggle", "--strategy=" + testCase.strategy},
+			)
+			if err != nil {
+				t.Fatalf("Parse error = %v", err)
+			}
+
+			if got := handler.cycleOnLastEntry(activation); got != testCase.wantExit {
+				t.Errorf("cycleOnLastEntry = %v, want %v", got, testCase.wantExit)
+			}
+		})
+	}
+}

@@ -125,8 +125,8 @@ const (
 	usageExitOnUnmatched     = "Exit when a key matches no hint"
 	usageRole                = "Only hint these roles, comma-separated, such as button,link (see 'neru roles'). Repeat to add more"
 	usageText                = "Only hint elements whose text contains one of these, comma-separated and case-insensitive. Repeat to add more"
-	usageStrategy            = "How hints find elements: axtree (accessibility tree), vision (OCR), contour (shape detection) or segment (controls and labels from pixels). " + usageCycle + ", as in --strategy=axtree,vision"
-	usageCaptureScope        = "Region to work in: window (the focused window) or screen (the whole screen). " + usageCycle + ", as in --capture-scope=window,screen"
+	usageStrategy            = "How hints find elements: axtree (accessibility tree), vision (OCR), contour (shape detection) or segment (controls and labels from pixels). " + usageCycle + ", as in --strategy=axtree,vision. " + usageCycleToggle
+	usageCaptureScope        = "Region to work in: window (the focused window) or screen (the whole screen). " + usageCycle + ", as in --capture-scope=window,screen. " + usageCycleToggle
 	usageLabelDirection      = "Label order: normal (shorter labels first) or reverse (spread across the alphabet)"
 	usageSplitWord           = "Hint each word of detected text separately. Needs the vision strategy"
 	usageTargets             = "Label these targets instead of scanning, as JSON in the shape 'neru query hints --json' prints. Refuses the flags that decide what a scan collects, and --repeat"
@@ -135,6 +135,9 @@ const (
 
 // usageCycle is what a comma-separated list means on the flags that cycle.
 const usageCycle = "A comma-separated list cycles, moving to the next value each time the command runs while the mode is open"
+
+// usageCycleToggle is how --toggle changes a cycle list.
+const usageCycleToggle = "With --toggle, running the command on the last value leaves the mode instead of wrapping"
 
 // usageAction names the actions a mode can perform, so the vocabulary a user
 // is offered is the one the rules accept rather than a list kept alongside it.
