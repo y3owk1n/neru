@@ -86,3 +86,42 @@ func TestTreeWalk_ReleasesEveryElement(t *testing.T) {
 		}
 	}
 }
+
+// TestPrimeApplication_ReleasesEveryElement pins the same ownership rule for
+// the tree warmup that runs on every application switch. Whether the warmup
+// finds a ready tree, gives up, or stops at its node budget, it must release
+// every Element it queued before it returns.
+func TestPrimeApplication_ReleasesEveryElement(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping input/permission-dependent integration test in short mode")
+	}
+
+	if !nativedarwin.CheckAccessibilityPermissions() {
+		t.Skip("Accessibility permission not granted; cannot walk a real tree")
+	}
+
+	log := logger.Get()
+	adapter := accessibility.NewAdapter(log, native.New(log, nil), false)
+
+	ctx, cancel := context.WithTimeout(context.Background(), integrationScanBudget)
+	defer cancel()
+
+	bundleID, err := adapter.FocusedAppBundleID(ctx)
+	if err != nil || bundleID == "" {
+		t.Skipf("no focused application to prime: %v", err)
+	}
+
+	baseline := nativedarwin.LiveElementCount()
+
+	runWithinBudget(t, "PrimeApplication", func() {
+		_, err = adapter.PrimeApplication(ctx, bundleID)
+	})
+
+	if err != nil {
+		t.Fatalf("PrimeApplication() error = %v", err)
+	}
+
+	if live := nativedarwin.LiveElementCount(); live != baseline {
+		t.Fatalf("priming leaked AX element wrappers: live count %d, baseline %d", live, baseline)
+	}
+}

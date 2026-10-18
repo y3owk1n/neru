@@ -118,6 +118,11 @@ type App struct {
 	// start allowed. It is taken before modes.Handler's lock and never under it.
 	enabledMu sync.Mutex
 
+	// primingMu guards primingCancel, which stops the accessibility priming
+	// the last application activation started.
+	primingMu     sync.Mutex
+	primingCancel context.CancelFunc
+
 	// New Architecture Services
 	hintService   *services.HintService
 	gridService   *services.GridService

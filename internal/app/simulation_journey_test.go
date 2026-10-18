@@ -3719,6 +3719,60 @@ func TestSimulation_TheAppHearsFocusChangesFromTheMomentItWatchesForThem(t *test
 	}
 }
 
+// TestSimulation_AppSwitchStopsWarmingThePreviousApp pins that switching
+// applications stops the tree warmup the previous switch started. Each warmup
+// walks the application's accessibility tree and keeps every element it has
+// queued until it returns. Warmups that outlive their switch pile up, so a user
+// who switches applications all day grows the daemon without bound.
+func TestSimulation_AppSwitchStopsWarmingThePreviousApp(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	// err is the warmup context's Err, so it reports whether the warmup stopped.
+	type warmup struct {
+		bundleID string
+		err      func() error
+	}
+
+	started := make(chan warmup, 8)
+	sim.ax.setPrime(func(ctx context.Context, bundleID string) (bool, error) {
+		started <- warmup{bundleID, ctx.Err}
+
+		<-ctx.Done()
+
+		return false, ctx.Err()
+	})
+
+	waitWarmup := func(bundleID string) func() error {
+		t.Helper()
+
+		timeout := time.After(simWaitHeadroom)
+		for {
+			select {
+			case w := <-started:
+				if w.bundleID == bundleID {
+					return w.err
+				}
+			case <-timeout:
+				t.Fatalf("no tree warmup started for %s", bundleID)
+			}
+		}
+	}
+
+	sim.focusApp(simOtherAppName, simOtherAppBundleID)
+	previous := waitWarmup(simOtherAppBundleID)
+
+	sim.focusApp("Fixture", simFixtureBundleID)
+	current := waitWarmup(simFixtureBundleID)
+
+	sim.waitFor("the previous app's warmup to stop", func() bool {
+		return previous() != nil
+	})
+
+	if current() != nil {
+		t.Error("switching applications stopped the warmup of the application now in front")
+	}
+}
+
 // TestSimulation_FocusChangeMidModeRebindsTheKey covers switching applications
 // without leaving the mode — passing a shortcut through to the system and
 // landing somewhere else is the ordinary way it happens — and pins what the

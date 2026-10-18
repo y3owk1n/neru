@@ -839,6 +839,10 @@ type simAXPort struct {
 	// mcDetection is the Mission Control detection setting the app last
 	// handed the port.
 	mcDetection bool
+
+	// prime replaces the platform's tree warmup when a journey sets it. Left
+	// nil, every application reports ready at once.
+	prime func(ctx context.Context, bundleID string) (bool, error)
 }
 
 var _ ports.AccessibilityPort = (*simAXPort)(nil)
@@ -926,8 +930,23 @@ func (a *simAXPort) FocusedAppBundleID(_ context.Context) (string, error) {
 	return a.focusedApp, nil
 }
 
-func (a *simAXPort) PrimeApplication(_ context.Context, _ string) (bool, error) {
-	return true, nil
+func (a *simAXPort) PrimeApplication(ctx context.Context, bundleID string) (bool, error) {
+	a.mu.Lock()
+	prime := a.prime
+	a.mu.Unlock()
+
+	if prime == nil {
+		return true, nil
+	}
+
+	return prime(ctx, bundleID)
+}
+
+func (a *simAXPort) setPrime(prime func(ctx context.Context, bundleID string) (bool, error)) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.prime = prime
 }
 
 // setElements replaces the accessibility tree, the way a display change that

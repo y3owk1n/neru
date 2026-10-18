@@ -377,11 +377,25 @@ func (a *App) handleAppActivation(bundleID string) {
 
 // handleAdditionalAccessibility waits for the app's accessibility tree to become
 // ready (needed by Electron/Chromium/Firefox apps which initialize asynchronously).
+// Each activation cancels the previous one's priming, so at most one priming
+// walk runs at a time.
 func (a *App) handleAdditionalAccessibility(bundleID string) {
+	ctx, cancel := context.WithCancel(a.ctx)
+
+	a.primingMu.Lock()
+	if a.primingCancel != nil {
+		a.primingCancel()
+	}
+
+	a.primingCancel = cancel
+	a.primingMu.Unlock()
+
 	go func() {
+		defer cancel()
+
 		const maxRetries = 5
 		for range maxRetries {
-			ready, err := a.accessibility.PrimeApplication(a.ctx, bundleID)
+			ready, err := a.accessibility.PrimeApplication(ctx, bundleID)
 			if err != nil {
 				a.logger.Debug("Accessibility priming failed", zap.Error(err))
 
