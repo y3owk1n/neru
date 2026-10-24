@@ -10,7 +10,6 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
-	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
 var validModifiers = map[string]bool{
@@ -48,18 +47,14 @@ var primaryModifierNames = []string{
 const minModifierComboParts = 2
 
 func (p PrimaryModifierConfig) validate() error {
-	for _, entry := range []struct{ field, value string }{
-		{string(parity.Darwin), p.Darwin},
-		{string(parity.Linux), p.Linux},
-		{string(parity.Windows), p.Windows},
-	} {
+	for _, entry := range PerPlatform[string](p).entries() {
 		if !slices.ContainsFunc(primaryModifierNames, func(name string) bool {
 			return strings.EqualFold(name, strings.TrimSpace(entry.value))
 		}) {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"general.primary_modifier.%s must be one of %s, got %q",
-				entry.field,
+				entry.platform,
 				strings.Join(primaryModifierNames, ", "),
 				entry.value,
 			)

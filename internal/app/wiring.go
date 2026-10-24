@@ -1,6 +1,7 @@
 package app
 
 import (
+	"runtime"
 	"strings"
 
 	"go.uber.org/zap"
@@ -247,7 +248,7 @@ func processHotkeyBindings(cfg *config.Config, logger *zap.Logger) []string {
 
 // configureEventTapHotkeys configures the event tap with hotkeys from the configuration.
 func (a *App) configureEventTapHotkeys(cfg *config.Config, logger *zap.Logger) {
-	layoutID := strings.TrimSpace(cfg.General.KBLayoutToUse)
+	layoutID := strings.TrimSpace(cfg.General.KBLayoutToUse.ForOS(runtime.GOOS))
 
 	layoutResolved := a.eventTap.SetKeyboardLayout(layoutID)
 	if layoutID != "" && !layoutResolved {

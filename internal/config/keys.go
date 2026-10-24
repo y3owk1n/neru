@@ -1,6 +1,7 @@
 package config
 
 import (
+	"reflect"
 	"runtime"
 	"slices"
 	"strings"
@@ -166,26 +167,28 @@ func publishedPrimaryToken() string {
 	return modifierNameCtrl
 }
 
-// forOS returns the modifier written for goos.
-func (p PrimaryModifierConfig) forOS(goos string) string {
-	if parity.Platform(goos) == parity.Darwin {
-		return p.Darwin
-	}
+// ForOS returns the modifier written for goos.
+func (p PrimaryModifierConfig) ForOS(goos string) string {
+	return PerPlatform[string](p).ForOS(goos)
+}
 
-	if parity.Platform(goos) == parity.Windows {
-		return p.Windows
-	}
+// PlatformValueType is the type of one platform's modifier name.
+func (p PrimaryModifierConfig) PlatformValueType() reflect.Type {
+	return PerPlatform[string](p).PlatformValueType()
+}
 
-	return p.Linux
+// UnmarshalTOML reads the table as PerPlatform does.
+func (p *PrimaryModifierConfig) UnmarshalTOML(data any) error {
+	return (*PerPlatform[string])(p).UnmarshalTOML(data)
 }
 
 // token is the comparison token of the modifier written for goos. An empty
 // entry, which validation refuses in a file, reads as the default, so a Config
 // built in code without the table resolves Primary as it always has.
 func (p PrimaryModifierConfig) token(goos string) string {
-	name := p.forOS(goos)
+	name := p.ForOS(goos)
 	if strings.TrimSpace(name) == "" {
-		name = defaultPrimaryModifier().forOS(goos)
+		name = defaultPrimaryModifier().ForOS(goos)
 	}
 
 	return normalizeModifierToken(name, "")

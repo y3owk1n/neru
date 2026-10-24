@@ -5,6 +5,7 @@ package ipcctrl
 
 import (
 	"context"
+	"runtime"
 	"strings"
 
 	"go.uber.org/zap"
@@ -62,7 +63,7 @@ func (h *InfoHandler) handleHealth(ctx context.Context, _ ipc.Command) ipc.Respo
 	if reporter, ok := h.eventTap.(ports.KeyboardLayoutReporter); ok {
 		var requested string
 		if cfg != nil {
-			requested = strings.TrimSpace(cfg.General.KBLayoutToUse)
+			requested = strings.TrimSpace(cfg.General.KBLayoutToUse.ForOS(runtime.GOOS))
 		}
 
 		status, found := keyboardLayoutsStatus(reporter.KeyboardLayouts(), requested)

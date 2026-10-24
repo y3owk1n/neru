@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 
 	"go.uber.org/zap"
@@ -356,15 +357,9 @@ func (e *Executor) shell(ctx context.Context, source, actionStr string) error {
 	execCtx, cancel := context.WithTimeout(ctx, domain.ShellCommandTimeout)
 	defer cancel()
 
-	cfg := e.settings()
-	shell := cfg.General.ExecShell
-	shellArgs := cfg.General.ExecShellArgs
+	argv := append(e.settings().General.ShellCommand(runtime.GOOS), cmdString)
 
-	args := make([]string, 0, len(shellArgs)+1)
-	args = append(args, shellArgs...)
-	args = append(args, cmdString)
-
-	command := exec.CommandContext(execCtx, shell, args...) //nolint:gosec
+	command := exec.CommandContext(execCtx, argv[0], argv[1:]...) //nolint:gosec
 	procattr.HideConsole(command)
 
 	if env := execEnv(ctx); len(env) > 0 {

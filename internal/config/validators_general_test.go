@@ -1,8 +1,8 @@
 package config_test
 
 import (
-	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -10,151 +10,165 @@ import (
 
 const goosWindows = "windows"
 
-func validExecShell() (string, []string) {
+// hostShell is an absolute path to a shell on the machine running the test,
+// which is what the deprecated general.exec_shell is checked against.
+func hostShell() string {
 	if runtime.GOOS == goosWindows {
-		return filepath.Join("C:\\", "Windows", "System32", "cmd.exe"), []string{"/c"}
+		return TestWindowsCmd
 	}
 
-	return config.DefaultExecShell, []string{config.DefaultExecShellFlag}
+	return TestShellZsh
 }
 
 func TestConfig_ValidateGeneral(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  config.Config
-		wantErr bool
+		name        string
+		change      func(general *config.GeneralConfig)
+		wantErr     bool
+		wantWarning string
 	}{
 		{
+			name:   "defaults - valid",
+			change: func(*config.GeneralConfig) {},
+		},
+		{
 			name: "kb layout id set - valid",
-			config: func() config.Config {
-				shell, args := validExecShell()
-
-				return config.Config{
-					General: config.GeneralConfig{
-						KBLayoutToUse:   "com.apple.keylayout.ABC",
-						ExecShell:       shell,
-						ExecShellArgs:   args,
-						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
-					},
-				}
-			}(),
-			wantErr: false,
+			change: func(general *config.GeneralConfig) {
+				general.KBLayoutToUse.Darwin = "com.apple.keylayout.ABC"
+			},
 		},
 		{
 			name: "kb layout id whitespace-only - invalid",
-			config: func() config.Config {
-				shell, args := validExecShell()
-
-				return config.Config{
-					General: config.GeneralConfig{
-						KBLayoutToUse:   "   ",
-						ExecShell:       shell,
-						ExecShellArgs:   args,
-						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
-					},
-				}
-			}(),
+			change: func(general *config.GeneralConfig) {
+				general.KBLayoutToUse.Linux = "   "
+			},
 			wantErr: true,
 		},
 		{
 			name: "passthrough blacklist with modifier combo - valid",
-			config: func() config.Config {
-				shell, args := validExecShell()
-
-				return config.Config{
-					General: config.GeneralConfig{
-						PassthroughUnboundedKeysBlacklist: []string{"Cmd+W", "Ctrl+Space"},
-						ExecShell:                         shell,
-						ExecShellArgs:                     args,
-						PrimaryModifier:                   config.DefaultConfig().General.PrimaryModifier,
-					},
-				}
-			}(),
-			wantErr: false,
+			change: func(general *config.GeneralConfig) {
+				general.PassthroughUnboundedKeysBlacklist = []string{"Cmd+W", "Ctrl+Space"}
+			},
 		},
 		{
 			name: "passthrough blacklist without passthrough modifier - invalid",
-			config: func() config.Config {
-				shell, args := validExecShell()
-
-				return config.Config{
-					General: config.GeneralConfig{
-						PassthroughUnboundedKeysBlacklist: []string{"Shift+Tab"},
-						ExecShell:                         shell,
-						ExecShellArgs:                     args,
-						PrimaryModifier:                   config.DefaultConfig().General.PrimaryModifier,
-					},
-				}
-			}(),
+			change: func(general *config.GeneralConfig) {
+				general.PassthroughUnboundedKeysBlacklist = []string{"Shift+Tab"}
+			},
 			wantErr: true,
 		},
 		{
-			name: "exec_shell is empty - invalid",
-			config: func() config.Config {
-				_, args := validExecShell()
-
-				return config.Config{
-					General: config.GeneralConfig{
-						ExecShell:       "",
-						ExecShellArgs:   args,
-						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
-					},
-				}
-			}(),
+			name: "shell entry is a Windows path on darwin - invalid",
+			change: func(general *config.GeneralConfig) {
+				general.Shell.Darwin = []string{TestWindowsCmd, "/c"}
+			},
 			wantErr: true,
 		},
 		{
-			name: "exec_shell is relative path - invalid",
-			config: func() config.Config {
-				_, args := validExecShell()
-
-				return config.Config{
-					General: config.GeneralConfig{
-						ExecShell:       "bash",
-						ExecShellArgs:   args,
-						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
-					},
-				}
-			}(),
+			name: "shell entry is a relative path - invalid",
+			change: func(general *config.GeneralConfig) {
+				general.Shell.Linux = []string{"bash", TestShellFlag}
+			},
 			wantErr: true,
 		},
 		{
-			name: "exec_shell is absolute path - valid",
-			config: func() config.Config {
-				shell, args := validExecShell()
-
-				return config.Config{
-					General: config.GeneralConfig{
-						ExecShell:       shell,
-						ExecShellArgs:   args,
-						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
-					},
-				}
-			}(),
-			wantErr: false,
+			name: "shell entry has no argument - invalid",
+			change: func(general *config.GeneralConfig) {
+				general.Shell.Darwin = []string{TestShellZsh}
+			},
+			wantErr: true,
 		},
 		{
-			name: "exec_shell_args is empty - invalid",
-			config: func() config.Config {
-				shell, _ := validExecShell()
-
-				return config.Config{
-					General: config.GeneralConfig{
-						ExecShell:       shell,
-						ExecShellArgs:   []string{},
-						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
-					},
-				}
-			}(),
+			name: "shell windows entry on a UNC share - valid",
+			change: func(general *config.GeneralConfig) {
+				general.Shell.Windows = []string{`\\server\tools\pwsh.exe`, "-Command"}
+			},
+		},
+		{
+			name: "deprecated exec_shell absolute - valid, warned",
+			change: func(general *config.GeneralConfig) {
+				shell := hostShell()
+				general.ExecShell = &shell
+			},
+			wantWarning: "general.exec_shell is deprecated and is removed in v2. Move it to general.shell",
+		},
+		{
+			name: "deprecated exec_shell relative - invalid",
+			change: func(general *config.GeneralConfig) {
+				shell := "bash"
+				general.ExecShell = &shell
+			},
 			wantErr: true,
+		},
+		{
+			name: "deprecated exec_shell_args set - valid, warned",
+			change: func(general *config.GeneralConfig) {
+				general.ExecShellArgs = &[]string{"-c"}
+			},
+			wantWarning: "general.exec_shell_args is deprecated and is removed in v2. Move it to general.shell",
+		},
+		{
+			name: "deprecated exec_shell_args empty - unset",
+			change: func(general *config.GeneralConfig) {
+				general.ExecShellArgs = &[]string{}
+			},
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			err := testCase.config.ValidateGeneral()
+			cfg := config.DefaultConfig()
+			testCase.change(&cfg.General)
+
+			var warnings config.Warnings
+
+			err := cfg.ValidateGeneral(&warnings)
 			if (err != nil) != testCase.wantErr {
-				t.Errorf("ValidateGeneral() error = %v, wantErr %v", err, testCase.wantErr)
+				t.Fatalf("ValidateGeneral() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+
+			if testCase.wantWarning != "" &&
+				!slices.Contains(warnings.Messages(), testCase.wantWarning) {
+				t.Errorf("warnings = %q, want %q", warnings.Messages(), testCase.wantWarning)
+			}
+		})
+	}
+}
+
+// TestGeneralConfig_ShellCommand_DeprecatedKeysReplaceTheirPart pins what the
+// deprecated keys mean until v2: each one, when set, replaces its part of the
+// shell command on every platform.
+func TestGeneralConfig_ShellCommand_DeprecatedKeysReplaceTheirPart(t *testing.T) {
+	tests := []struct {
+		name  string
+		shell string
+		args  []string
+		want  []string
+	}{
+		{name: "neither", want: []string{TestShellBash, TestShellFlag}},
+		{name: "shell only", shell: TestShellZsh, want: []string{TestShellZsh, TestShellFlag}},
+		{name: "args only", args: []string{"-c"}, want: []string{TestShellBash, "-c"}},
+		{
+			name:  "both",
+			shell: TestShellZsh,
+			args:  []string{"-c"},
+			want:  []string{TestShellZsh, "-c"},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			general := config.DefaultConfig().General
+			if testCase.shell != "" {
+				general.ExecShell = &testCase.shell
+			}
+
+			if testCase.args != nil {
+				general.ExecShellArgs = &testCase.args
+			}
+
+			if got := general.ShellCommand(TestGOOSLinux); !slices.Equal(got, testCase.want) {
+				t.Errorf("ShellCommand(linux) = %q, want %q", got, testCase.want)
 			}
 		})
 	}
@@ -184,7 +198,7 @@ func TestConfig_ValidateGeneral_PrimaryModifier(t *testing.T) {
 			cfg := config.DefaultConfig()
 			cfg.General.PrimaryModifier.Linux = testCase.linux
 
-			err := cfg.ValidateGeneral()
+			err := cfg.ValidateGeneral(nil)
 			if (err != nil) != testCase.wantErr {
 				t.Errorf("ValidateGeneral() with linux = %q: error = %v, wantErr %v",
 					testCase.linux, err, testCase.wantErr)

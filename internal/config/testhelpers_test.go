@@ -11,5 +11,10 @@ const (
 	TestRoleWebArea    = "ax:AXWebArea"
 	TestBundleIDSafari = "com.apple.Safari"
 	KeyCmdSpace        = "Cmd+Space"
+	TestShellBash      = "/bin/bash"
+	TestShellZsh       = "/bin/zsh"
+	TestShellFlag      = "-lc"
+	TestWindowsCmd     = `C:\Windows\System32\cmd.exe`
+	TestGOOSLinux      = "linux"
 	KeySuperSpace      = "Super+Space"
 )

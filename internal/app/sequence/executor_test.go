@@ -91,10 +91,12 @@ func writeEnvStep(name, outVar string) string {
 // useEnvShell sets the shell writeEnvStep's steps are written for.
 func useEnvShell(cfg *config.Config) {
 	if runtime.GOOS == goosWindows {
-		cfg.General.ExecShell = filepath.Join(
-			os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
-		)
-		cfg.General.ExecShellArgs = []string{"-NoProfile", "-NonInteractive", "-Command"}
+		cfg.General.Shell.Windows = []string{
+			filepath.Join(
+				os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
+			),
+			"-NoProfile", "-NonInteractive", "-Command",
+		}
 	}
 }
 

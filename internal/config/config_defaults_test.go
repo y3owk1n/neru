@@ -1,8 +1,7 @@
 package config_test
 
 import (
-	"path/filepath"
-	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -22,9 +21,9 @@ func TestDefaultConfig(t *testing.T) {
 	})
 
 	t.Run("General Keyboard Layout Defaults", func(t *testing.T) {
-		if cfg.General.KBLayoutToUse != "" {
+		if cfg.General.KBLayoutToUse != (config.PerPlatform[string]{}) {
 			t.Errorf(
-				"Expected General.KBLayoutToUse to be empty by default, got %q",
+				"Expected General.KBLayoutToUse to be empty by default, got %+v",
 				cfg.General.KBLayoutToUse,
 			)
 		}
@@ -47,25 +46,15 @@ func TestDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("General Exec Shell Defaults", func(t *testing.T) {
-		if runtime.GOOS != goosWindows {
-			t.Skip("only the Windows shell differs from the shared defaults table")
-		}
-
-		if !filepath.IsAbs(cfg.General.ExecShell) {
-			t.Errorf(
-				"Expected General.ExecShell to be an absolute path, got %q",
-				cfg.General.ExecShell,
-			)
-		}
-
-		if len(cfg.General.ExecShellArgs) != 1 ||
-			cfg.General.ExecShellArgs[0] != "/c" {
-			t.Errorf(
-				"Expected General.ExecShellArgs to be [%q], got %v",
-				"/c",
-				cfg.General.ExecShellArgs,
-			)
+	t.Run("General Shell Defaults", func(t *testing.T) {
+		for goos, want := range map[string][]string{
+			"darwin":      {TestShellBash, TestShellFlag},
+			TestGOOSLinux: {TestShellBash, TestShellFlag},
+			goosWindows:   {TestWindowsCmd, "/c"},
+		} {
+			if got := cfg.General.ShellCommand(goos); !slices.Equal(got, want) {
+				t.Errorf("ShellCommand(%q) = %q, want %q", goos, got, want)
+			}
 		}
 	})
 

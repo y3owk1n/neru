@@ -202,12 +202,18 @@ func PlatformSupport() parity.Declaration {
 		parity.Everywhere(parity.KindOption, passthroughOptions...),
 		parity.Everywhere(parity.KindOption,
 			"general.excluded_apps",
-			"general.kb_layout_to_use",
 			"general.exec_shell",
 			"general.exec_shell_args",
-			// Each entry is read only on the platform it names. A file shared
-			// across machines carries all three on purpose, so none of them
-			// warns on a platform that does not read it.
+			// A PerPlatform option's entries are each read only on the
+			// platform they name. A file shared across machines carries all
+			// three on purpose, so none of them warns on a platform that does
+			// not read it.
+			"general.kb_layout_to_use.darwin",
+			"general.kb_layout_to_use.linux",
+			"general.kb_layout_to_use.windows",
+			"general.shell.darwin",
+			"general.shell.linux",
+			"general.shell.windows",
 			"general.primary_modifier.darwin",
 			"general.primary_modifier.linux",
 			"general.primary_modifier.windows",

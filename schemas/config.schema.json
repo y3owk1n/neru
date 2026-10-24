@@ -261,7 +261,26 @@
           "type": "boolean"
         },
         "kb_layout_to_use": {
-          "type": "string"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "darwin": {
+                  "type": "string"
+                },
+                "linux": {
+                  "type": "string"
+                },
+                "windows": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          ]
         },
         "passthrough_unbounded_keys": {
           "type": "boolean"
@@ -273,19 +292,60 @@
           "type": "array"
         },
         "primary_modifier": {
-          "additionalProperties": false,
-          "properties": {
-            "darwin": {
+          "oneOf": [
+            {
               "type": "string"
             },
-            "linux": {
-              "type": "string"
-            },
-            "windows": {
-              "type": "string"
+            {
+              "additionalProperties": false,
+              "properties": {
+                "darwin": {
+                  "type": "string"
+                },
+                "linux": {
+                  "type": "string"
+                },
+                "windows": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
             }
-          },
-          "type": "object"
+          ]
+        },
+        "shell": {
+          "oneOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "darwin": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "linux": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "windows": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            }
+          ]
         },
         "should_exit_after_passthrough": {
           "type": "boolean"

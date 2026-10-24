@@ -2,6 +2,7 @@ package architecture_test
 
 import (
 	"go/ast"
+	"go/types"
 	"maps"
 	"path/filepath"
 	"slices"
@@ -611,13 +612,21 @@ func defaultLiteralSites(t *testing.T) map[string][]map[string]bool {
 }
 
 // recordLiteralSite notes the fields one keyed literal of a named struct type
-// sets. A literal whose type is not a bare name is skipped — an unkeyed or
-// elided one names nothing, and the schema structs are never written that way.
-// Skipping fails closed: an unread literal makes its fields look undefaulted,
-// which reports, rather than making them look defaulted, which would not.
+// sets. An instantiated generic (PerPlatform[string]) is recorded under the
+// name reflect gives it, which is how it is written. A literal whose type is
+// neither is skipped — an unkeyed or elided one names nothing, and the schema
+// structs are never written that way. Skipping fails closed: an unread literal
+// makes its fields look undefaulted, which reports, rather than making them
+// look defaulted, which would not.
 func recordLiteralSite(lit *ast.CompositeLit, sites map[string][]map[string]bool) {
-	ident, isIdent := lit.Type.(*ast.Ident)
-	if !isIdent {
+	var name string
+
+	switch typ := lit.Type.(type) {
+	case *ast.Ident:
+		name = typ.Name
+	case *ast.IndexExpr:
+		name = types.ExprString(typ)
+	default:
 		return
 	}
 
@@ -634,7 +643,7 @@ func recordLiteralSite(lit *ast.CompositeLit, sites map[string][]map[string]bool
 		}
 	}
 
-	sites[ident.Name] = append(sites[ident.Name], fields)
+	sites[name] = append(sites[name], fields)
 }
 
 // parsedConfigPackage parses every non-test Go file in internal/config,

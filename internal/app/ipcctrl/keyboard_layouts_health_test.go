@@ -103,7 +103,9 @@ func TestIPCController_HealthListsKeyboardLayouts(t *testing.T) {
 			t.Parallel()
 
 			cfg := config.DefaultConfig()
-			cfg.General.KBLayoutToUse = test.requested
+			cfg.General.KBLayoutToUse = config.PerPlatform[string]{
+				Darwin: test.requested, Linux: test.requested, Windows: test.requested,
+			}
 
 			logger := zap.NewNop()
 			controller := ipcctrl.New(ipcctrl.Deps{

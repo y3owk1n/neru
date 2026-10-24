@@ -41,7 +41,7 @@ Each step is one of:
   or `toggle-screen-share`
 - `run <step>...`, a nested sequence
 - `exec <command>`, which runs a shell command through
-  [`general.exec_shell`](../reference/configuration.md#general), such as
+  [`general.shell`](../reference/configuration.md#general), such as
   `"Primary+T" = "exec open -a Terminal"`. The next step waits up to 30
   seconds for the shell to exit. Neru discards what the command prints. On
   macOS and Linux, end the command with `&` to leave it running in the

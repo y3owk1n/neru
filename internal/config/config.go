@@ -176,21 +176,21 @@ type GeneralConfig struct {
 	ShouldExitAfterPassthrough        bool                  `json:"shouldExitAfterPassthrough"        toml:"should_exit_after_passthrough"`
 	PassthroughUnboundedKeysBlacklist []string              `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`
 	HideOverlayInScreenShare          bool                  `json:"hideOverlayInScreenShare"          toml:"hide_overlay_in_screen_share"`
-	KBLayoutToUse                     string                `json:"kbLayoutToUse"                     toml:"kb_layout_to_use"`
-	ExecShell                         string                `json:"execShell"                         toml:"exec_shell"`
-	ExecShellArgs                     []string              `json:"execShellArgs"                     toml:"exec_shell_args"`
-	PrimaryModifier                   PrimaryModifierConfig `json:"primaryModifier"                   toml:"primary_modifier"`
+	KBLayoutToUse                     PerPlatform[string]   `json:"kbLayoutToUse"                     toml:"kb_layout_to_use"`
+	Shell                             PerPlatform[[]string] `json:"shell"                             toml:"shell"`
+	// ExecShell and ExecShellArgs are deprecated and are removed in v2. Until
+	// then each one that is set and not empty replaces its part of the shell
+	// command on every platform (ShellCommand). Nil is unset, so a dump leaves
+	// them out.
+	ExecShell       *string               `json:"execShell"       toml:"exec_shell,omitempty"`
+	ExecShellArgs   *[]string             `json:"execShellArgs"   toml:"exec_shell_args,omitempty"`
+	PrimaryModifier PrimaryModifierConfig `json:"primaryModifier" toml:"primary_modifier"`
 }
 
 // PrimaryModifierConfig names the modifier a hotkey written with Primary means
 // on each platform, so one shared config file can bind Cmd on macOS and Ctrl
-// or Super elsewhere. Every platform that is neither darwin nor windows reads
-// the linux entry.
-type PrimaryModifierConfig struct {
-	Darwin  string `json:"darwin"  toml:"darwin"`
-	Linux   string `json:"linux"   toml:"linux"`
-	Windows string `json:"windows" toml:"windows"`
-}
+// or Super elsewhere.
+type PrimaryModifierConfig PerPlatform[string] //nolint:recvcheck // UnmarshalTOML needs a pointer, readers take the table by value
 
 // ModeIndicatorUI defines the visual/appearance settings for the mode indicator.
 type ModeIndicatorUI struct {

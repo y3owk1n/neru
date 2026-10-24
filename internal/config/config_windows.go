@@ -2,14 +2,6 @@
 
 package config
 
-import (
-	"os"
-	"path/filepath"
-)
-
-func applyPlatformDefaults(cfg *Config) {
-	// Windows-specific exec shell defaults (absolute path required for validation)
-	// %SystemRoot% is always set on Windows (e.g. C:\Windows).
-	cfg.General.ExecShell = filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
-	cfg.General.ExecShellArgs = []string{"/c"}
-}
+// applyPlatformDefaults is a no-op on Windows. Its defaults are entries of the
+// per-platform options, such as the windows entry of general.shell.
+func applyPlatformDefaults(_ *Config) {}

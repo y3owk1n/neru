@@ -70,22 +70,11 @@ func WriteDefaultConfig(cfgPath string, force bool, schemaURL string) error {
 }
 
 // platformDefaultConfig returns the embedded default config with platform-specific
-// adjustments applied (e.g. exec_shell path on Windows).
+// adjustments applied (the Linux hotkeys are left commented out).
 func platformDefaultConfig() []byte {
 	cfg := configs.DefaultConfig
 
 	content := string(cfg)
-
-	if runtime.GOOS == "windows" {
-		content = strings.ReplaceAll(content,
-			`exec_shell = "/bin/bash"`,
-			`exec_shell = "C:\\Windows\\System32\\cmd.exe"`,
-		)
-		content = strings.ReplaceAll(content,
-			`exec_shell_args = ["-lc"]`,
-			`exec_shell_args = ["/c"]`,
-		)
-	}
 
 	if runtime.GOOS == "linux" {
 		content = strings.ReplaceAll(content,

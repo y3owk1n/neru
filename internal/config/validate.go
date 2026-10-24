@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -37,7 +36,7 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return err
 	}
 
-	err = c.ValidateGeneral()
+	err = c.ValidateGeneral(warnings)
 	if err != nil {
 		return err
 	}
@@ -248,18 +247,22 @@ func (c *Config) ValidateHotkeyBindings() error {
 	return nil
 }
 
-// ValidateGeneral validates general settings.
-func (c *Config) ValidateGeneral() error {
+// ValidateGeneral validates general settings, and warns about each deprecated
+// shell key that is set.
+func (c *Config) ValidateGeneral(warnings *Warnings) error {
 	err := c.General.PrimaryModifier.validate()
 	if err != nil {
 		return err
 	}
 
-	if c.General.KBLayoutToUse != "" && strings.TrimSpace(c.General.KBLayoutToUse) == "" {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"general.kb_layout_to_use cannot be whitespace-only",
-		)
+	for _, entry := range c.General.KBLayoutToUse.entries() {
+		if entry.value != "" && strings.TrimSpace(entry.value) == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"general.kb_layout_to_use.%s cannot be whitespace-only",
+				entry.platform,
+			)
+		}
 	}
 
 	for index, key := range c.General.PassthroughUnboundedKeysBlacklist {
@@ -280,29 +283,7 @@ func (c *Config) ValidateGeneral() error {
 		}
 	}
 
-	if c.General.ExecShell == "" {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"general.exec_shell cannot be empty",
-		)
-	}
-
-	if !filepath.IsAbs(c.General.ExecShell) {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"general.exec_shell must be an absolute path (got: %q)",
-			c.General.ExecShell,
-		)
-	}
-
-	if len(c.General.ExecShellArgs) == 0 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"general.exec_shell_args cannot be empty",
-		)
-	}
-
-	return nil
+	return c.General.validateShell(warnings)
 }
 
 // ValidateModeIndicator validates the mode indicator configuration.

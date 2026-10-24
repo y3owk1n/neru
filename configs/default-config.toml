@@ -11,14 +11,24 @@
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#general
 [general]
 excluded_apps = []                          # Bundle IDs, e.g. "com.apple.Terminal"
-kb_layout_to_use = ""                       # Empty = auto
 passthrough_unbounded_keys = false
 should_exit_after_passthrough = false
 passthrough_unbounded_keys_blacklist = []
 hide_overlay_in_screen_share = false
-# exec_shell is left unset so the platform default applies.
-# exec_shell = "/bin/bash"                   # e.g. "/bin/dash", "/bin/zsh"
-# exec_shell_args = ["-lc"]                  # last argument receives the command string
+# exec_shell = "/bin/zsh"                    # Deprecated, removed in v2. Use [general.shell]
+# exec_shell_args = ["-lc"]                  # Deprecated, removed in v2. Use [general.shell]
+
+# The keyboard layout keys are named in, per platform. Empty = auto
+[general.kb_layout_to_use]
+darwin = ""
+linux = ""
+windows = ""
+
+# The shell an exec step runs on each platform. The command string is appended last
+[general.shell]
+darwin = ["/bin/bash", "-lc"]
+linux = ["/bin/bash", "-lc"]
+windows = ['C:\Windows\System32\cmd.exe', "/c"]
 
 # What a Primary hotkey means on each platform, so one file serves every machine
 [general.primary_modifier]

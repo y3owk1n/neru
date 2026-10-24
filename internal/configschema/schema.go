@@ -41,6 +41,9 @@ var (
 	stepsType = reflect.TypeFor[config.StringOrStringArray]()
 	// paletteType holds plain strings that ValidateTheme reads as solid colors.
 	paletteType = reflect.TypeFor[config.ThemePalette]()
+	// perPlatformType is what every config.PerPlatform instantiation, and each
+	// type defined from one, implements.
+	perPlatformType = reflect.TypeFor[interface{ PlatformValueType() reflect.Type }]()
 )
 
 // URL is where the schema for a build of the given version is published: its
@@ -92,6 +95,10 @@ func schema(goType reflect.Type) (map[string]any, error) {
 		return ref(colorDefinition), nil
 	case stepsType:
 		return ref(stepsDefinition), nil
+	}
+
+	if goType.Implements(perPlatformType) {
+		return perPlatformSchema(goType)
 	}
 
 	switch goType.Kind() { //nolint:exhaustive // every other kind fails below
@@ -198,6 +205,34 @@ func colorSchema() map[string]any {
 			},
 		},
 	}
+}
+
+// perPlatformSchema accepts what config.PerPlatform decodes: one value for
+// every platform, or a table that names some of them.
+func perPlatformSchema(goType reflect.Type) (map[string]any, error) {
+	marker, _ := reflect.TypeAssert[interface{ PlatformValueType() reflect.Type }](
+		reflect.Zero(goType),
+	)
+
+	value, err := schema(marker.PlatformValueType())
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"oneOf": []any{
+			value,
+			map[string]any{
+				keyType: typeObject,
+				keyProperties: map[string]any{
+					"darwin":  value,
+					"linux":   value,
+					"windows": value,
+				},
+				keyExtra: false,
+			},
+		},
+	}, nil
 }
 
 // solidColorSchema accepts what ValidateTheme takes for a palette color: a

@@ -422,35 +422,67 @@ passthrough_unbounded_keys = true
 | Option                                 | Type   | Default       | Description                                                                                 |
 | -------------------------------------- | ------ | ------------- | ------------------------------------------------------------------------------------------- |
 | `excluded_apps`                        | array  | `[]`          | Apps where Neru won't activate, by [app identity](#app-identity-across-platforms-bundle_id) |
-| `kb_layout_to_use`                     | string | `""`          | Keyboard layout keys are named in, as the platform names it (auto if empty). See below      |
+| `kb_layout_to_use`                     | per platform | `""`    | Keyboard layout keys are named in, as the platform names it (auto if empty). See below      |
 | `hide_overlay_in_screen_share`         | bool   | `false`       | Hide overlay in screen sharing apps                                                         |
 | `passthrough_unbounded_keys`           | bool   | `false`       | Let unbound Cmd/Ctrl/Alt shortcuts pass through                                             |
 | `should_exit_after_passthrough`        | bool   | `false`       | Exit mode after a passthrough shortcut                                                      |
 | `passthrough_unbounded_keys_blacklist` | array  | `[]`          | Shortcuts to keep consumed when passthrough is on                                           |
-| `exec_shell`                           | string | `"/bin/bash"` | Shell binary used for `exec` hotkey commands. Windows default below                         |
-| `exec_shell_args`                      | array  | `["-lc"]`     | Shell arguments, with the command string appended last. Windows default below               |
-| `primary_modifier`                     | table  | see below     | The modifier `Primary` stands for on each platform. See below                               |
+| `shell`                                | per platform | see below | The shell and arguments an `exec` step runs, with the command string appended last. See below |
+| `primary_modifier`                     | per platform | see below | The modifier `Primary` stands for. See below                                          |
+| `exec_shell`                           | string | none          | Deprecated, removed in v2. Use `shell`. When set, replaces the shell on every platform      |
+| `exec_shell_args`                      | array  | none          | Deprecated, removed in v2. Use `shell`. When set, replaces the arguments on every platform  |
 
-On Windows, `exec_shell` defaults to `%SystemRoot%\System32\cmd.exe`
-(usually `C:\Windows\System32\cmd.exe`) and `exec_shell_args` to `["/c"]`.
+`passthrough_unbounded_keys` and `should_exit_after_passthrough` work on macOS,
+Windows and Wayland with the evdev keyboard proxy. X11 cannot pass a grabbed
+chord through.
 
-`primary_modifier` names the modifier a `Primary` hotkey uses, with one entry
-per platform, so one config file can serve every machine:
+### Per-platform options
+
+`kb_layout_to_use`, `shell` and `primary_modifier` take their own value on each
+platform, so one config file can serve every machine. Write a table keyed by
+`darwin`, `linux` and `windows`:
 
 ```toml
 [general]
 primary_modifier = { darwin = "Cmd", linux = "Super", windows = "Ctrl" }
+kb_layout_to_use = { darwin = "com.apple.keylayout.Dvorak", linux = "English (Dvorak)" }
+
+[general.shell]
+darwin = ["/bin/zsh", "-lc"]
+linux = ["/bin/bash", "-lc"]
 ```
 
-Each entry is one of `Cmd`, `Ctrl` or `Alt`, or an alias of one from the
-[modifier table](#global-hotkeys). An entry left out keeps its default (`Cmd`
-on macOS, `Ctrl` on Linux and Windows). Platforms other than macOS and Windows
-read `linux`. A reload or `neru config set` applies a change at once, to every
-`Primary` hotkey in every table.
+Or write one value, which every platform takes, such as
+`shell = ["/bin/zsh", "-lc"]`.
+
+A platform the table leaves out keeps its default. Neru refuses a key that
+names no platform, such as `macos`. Platforms other than macOS and Windows read
+`linux`. Neru checks every entry on every machine, so it refuses a shared file
+whose entry for another machine is wrong. To change one entry at runtime, name
+it:
+`neru config set general.shell.linux '["/bin/zsh", "-c"]'`.
+
+`shell` is the command line an `exec` step runs, with the step's command string
+appended as the last argument. Each entry starts with an absolute path for its
+platform and has at least one argument. The default is `["/bin/bash", "-lc"]`
+on macOS and Linux and `['C:\Windows\System32\cmd.exe', "/c"]` on Windows. If
+Windows is installed on another drive, set the `windows` entry.
+
+Until v2, the deprecated `exec_shell` and `exec_shell_args` still work. When
+set, `exec_shell` replaces the shell and `exec_shell_args` replaces the
+arguments, on every platform. `neru config validate` warns about each one that
+is set.
+
+`primary_modifier` names the modifier a `Primary` hotkey uses. Each entry is
+one of `Cmd`, `Ctrl` or `Alt`, or an alias of one from the
+[modifier table](#global-hotkeys). The defaults are `Cmd` on macOS and `Ctrl`
+on Linux and Windows. A reload or `neru config set` applies a change at once,
+to every `Primary` hotkey in every table.
 
 `kb_layout_to_use` decides which physical key a binding answers. Empty picks a
 layout with Latin letters, so bindings stay put while you type in another
-language. To force one, use your platform's name for it:
+language. To force one, set the entry for that platform in the name the
+platform uses:
 
 | Platform | Value                                       | Example                      |
 | -------- | ------------------------------------------- | ---------------------------- |
@@ -461,10 +493,6 @@ language. To force one, use your platform's name for it:
 The `keyboard_layouts` row of `neru doctor` lists the layouts Neru sees, in
 this option's form, and the one in use. An unmatched value is reported there and
 in the log, and Neru keeps its automatic choice.
-
-`passthrough_unbounded_keys` and `should_exit_after_passthrough` work on macOS,
-Windows and Wayland with the evdev keyboard proxy. X11 cannot pass a grabbed
-chord through.
 
 ## [theme]
 

@@ -120,10 +120,12 @@ func recordEnvStep(name, outVar string) string {
 // useRecordShell sets the shell recordEnvStep's steps are written for.
 func useRecordShell(cfg *config.Config) {
 	if runtime.GOOS == goosWindows {
-		cfg.General.ExecShell = filepath.Join(
-			os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
-		)
-		cfg.General.ExecShellArgs = []string{"-NoProfile", "-NonInteractive", "-Command"}
+		cfg.General.Shell.Windows = []string{
+			filepath.Join(
+				os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
+			),
+			"-NoProfile", "-NonInteractive", "-Command",
+		}
 	}
 }
 
