@@ -20,6 +20,12 @@ hide_overlay_in_screen_share = false
 # exec_shell = "/bin/bash"                   # e.g. "/bin/dash", "/bin/zsh"
 # exec_shell_args = ["-lc"]                  # last argument receives the command string
 
+# What a Primary hotkey means on each platform, so one file serves every machine
+[general.primary_modifier]
+darwin = "Cmd"
+linux = "Ctrl"
+windows = "Ctrl"
+
 # Theme palette
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#theme
 [theme.light]

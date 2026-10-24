@@ -41,7 +41,7 @@ func TestFindNormalizedMapKey_Bindings(t *testing.T) {
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := FindNormalizedMapKey(bindings, testCase.rawKey)
+			got := FindNormalizedMapKey(bindings, testCase.rawKey, defaultPrimaryModifier())
 			if got != testCase.expected {
 				t.Errorf("FindNormalizedMapKey(%q) = %q, want %q",
 					testCase.rawKey, got, testCase.expected)
@@ -97,7 +97,7 @@ func TestFindNormalizedMapKey_SOSA(t *testing.T) {
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := FindNormalizedMapKey(_map, testCase.rawKey)
+			got := FindNormalizedMapKey(_map, testCase.rawKey, defaultPrimaryModifier())
 			if got != testCase.expected {
 				t.Errorf("FindNormalizedMapKey(%q) = %q, want %q",
 					testCase.rawKey, got, testCase.expected)

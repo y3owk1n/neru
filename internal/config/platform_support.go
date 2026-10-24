@@ -205,6 +205,12 @@ func PlatformSupport() parity.Declaration {
 			"general.kb_layout_to_use",
 			"general.exec_shell",
 			"general.exec_shell_args",
+			// Each entry is read only on the platform it names. A file shared
+			// across machines carries all three on purpose, so none of them
+			// warns on a platform that does not read it.
+			"general.primary_modifier.darwin",
+			"general.primary_modifier.linux",
+			"general.primary_modifier.windows",
 
 			"theme.light.surface",
 			"theme.light.accent",

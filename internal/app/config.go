@@ -180,6 +180,10 @@ func (a *App) restoreHotkeysAfterFailedReload() {
 }
 
 func (a *App) updateConfigSnapshot(loadResult *config.LoadResult) {
+	// Publish before the swap, so nothing reads the new configuration's keys
+	// under the old meaning of Primary.
+	config.UsePrimaryModifier(loadResult.Config.General.PrimaryModifier)
+
 	a.configMu.Lock()
 	a.config = loadResult.Config
 	a.ConfigPath = loadResult.ConfigPath

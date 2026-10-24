@@ -75,7 +75,7 @@ see [Getting started](../guide/getting-started.md#bind-your-first-hotkey).
 | `Ctrl`    | `Control`                               |
 | `Alt`     | `Option`                                |
 | `Shift`   |                                         |
-| `Primary` | `Cmd` on macOS, `Ctrl` on Linux/Windows |
+| `Primary` | Set per platform by [`general.primary_modifier`](#general), `Cmd` on macOS and `Ctrl` on Linux/Windows by default |
 
 | Category   | Keys                                                                                                  |
 | ---------- | ----------------------------------------------------------------------------------------------------- |
@@ -429,9 +429,24 @@ passthrough_unbounded_keys = true
 | `passthrough_unbounded_keys_blacklist` | array  | `[]`          | Shortcuts to keep consumed when passthrough is on                                           |
 | `exec_shell`                           | string | `"/bin/bash"` | Shell binary used for `exec` hotkey commands. Windows default below                         |
 | `exec_shell_args`                      | array  | `["-lc"]`     | Shell arguments, with the command string appended last. Windows default below               |
+| `primary_modifier`                     | table  | see below     | The modifier `Primary` stands for on each platform. See below                               |
 
 On Windows, `exec_shell` defaults to `%SystemRoot%\System32\cmd.exe`
 (usually `C:\Windows\System32\cmd.exe`) and `exec_shell_args` to `["/c"]`.
+
+`primary_modifier` names the modifier a `Primary` hotkey uses, with one entry
+per platform, so one config file can serve every machine:
+
+```toml
+[general]
+primary_modifier = { darwin = "Cmd", linux = "Super", windows = "Ctrl" }
+```
+
+Each entry is one of `Cmd`, `Ctrl` or `Alt`, or an alias of one from the
+[modifier table](#global-hotkeys). An entry left out keeps its default (`Cmd`
+on macOS, `Ctrl` on Linux and Windows). Platforms other than macOS and Windows
+read `linux`. A reload or `neru config set` applies a change at once, to every
+`Primary` hotkey in every table.
 
 `kb_layout_to_use` decides which physical key a binding answers. Empty picks a
 layout with Latin letters, so bindings stay put while you type in another

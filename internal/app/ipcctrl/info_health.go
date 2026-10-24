@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -240,7 +241,7 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 func profileMap(profile platform.Profile) map[string]any {
 	return map[string]any{
 		"os":                          string(profile.OS),
-		"primary_modifier":            profile.PrimaryModifier,
+		"primary_modifier":            action.PrimaryModifier().Canonical(),
 		"display_server":              string(profile.DisplayServer),
 		"accessibility_backend":       profile.Accessibility.Name,
 		"accessibility_build_mode":    string(profile.Accessibility.BuildMode),

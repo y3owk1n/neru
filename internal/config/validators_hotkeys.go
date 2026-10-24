@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
 var validModifiers = map[string]bool{
@@ -35,7 +36,38 @@ var validModifiers = map[string]bool{
 	"LeftShift":   true,
 }
 
+// primaryModifierNames are what Primary may stand for. Shift is left out
+// because a mode reads a Shift chord as typed input, not as a hotkey. The
+// sided names are left out because the hotkey backends match a modifier and
+// not the side it was pressed on.
+var primaryModifierNames = []string{
+	modifierDisplayCmd, "Command", modifierDisplaySuper, "Meta",
+	modifierDisplayCtrl, "Control", modifierDisplayAlt, "Option",
+}
+
 const minModifierComboParts = 2
+
+func (p PrimaryModifierConfig) validate() error {
+	for _, entry := range []struct{ field, value string }{
+		{string(parity.Darwin), p.Darwin},
+		{string(parity.Linux), p.Linux},
+		{string(parity.Windows), p.Windows},
+	} {
+		if !slices.ContainsFunc(primaryModifierNames, func(name string) bool {
+			return strings.EqualFold(name, strings.TrimSpace(entry.value))
+		}) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"general.primary_modifier.%s must be one of %s, got %q",
+				entry.field,
+				strings.Join(primaryModifierNames, ", "),
+				entry.value,
+			)
+		}
+	}
+
+	return nil
+}
 
 func isValidModifier(mod string) bool {
 	return validModifiers[mod]
@@ -136,7 +168,7 @@ func (c *Config) checkHotkeysConflicts() error {
 	}
 
 	for _, mode := range modes {
-		err := checkHotkeyConflicts(mode.modeName+".hotkeys", mode.table)
+		err := checkHotkeyConflicts(mode.modeName+".hotkeys", mode.table, c.General.PrimaryModifier)
 		if err != nil {
 			return err
 		}
@@ -153,6 +185,7 @@ func (c *Config) checkHotkeysConflicts() error {
 					appConfig.BundleID,
 				),
 				c.HotkeysForModeAndApp(name, appConfig.BundleID),
+				c.General.PrimaryModifier,
 			)
 			if err != nil {
 				return err
@@ -168,6 +201,7 @@ func (c *Config) checkHotkeysConflicts() error {
 				appConfig.BundleID,
 			),
 			c.HotkeysForModeAndApp(ModeNameHints, appConfig.BundleID),
+			c.General.PrimaryModifier,
 		)
 		if err != nil {
 			return err
@@ -182,6 +216,7 @@ func (c *Config) checkHotkeysConflicts() error {
 				appConfig.BundleID,
 			),
 			c.HotkeysForModeAndApp(ModeNameScroll, appConfig.BundleID),
+			c.General.PrimaryModifier,
 		)
 		if err != nil {
 			return err
@@ -196,6 +231,7 @@ func (c *Config) checkHotkeysConflicts() error {
 				appConfig.BundleID,
 			),
 			c.HotkeysForModeAndApp(ModeNameBisect, appConfig.BundleID),
+			c.General.PrimaryModifier,
 		)
 		if err != nil {
 			return err
@@ -221,6 +257,7 @@ func (c *Config) checkHotkeysConflicts() error {
 				appConfig.BundleID,
 			),
 			table,
+			c.General.PrimaryModifier,
 		)
 		if err != nil {
 			return err
@@ -230,10 +267,14 @@ func (c *Config) checkHotkeysConflicts() error {
 	return nil
 }
 
-func checkHotkeyConflicts(fieldPrefix string, table map[string]StringOrStringArray) error {
+func checkHotkeyConflicts(
+	fieldPrefix string,
+	table map[string]StringOrStringArray,
+	primary PrimaryModifierConfig,
+) error {
 	seen := map[string]string{}
 	for key := range table {
-		normalized := NormalizeKeyForComparison(key)
+		normalized := primary.NormalizeKey(key)
 		if prev, ok := seen[normalized]; ok {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
@@ -257,7 +298,7 @@ func checkHotkeyConflicts(fieldPrefix string, table map[string]StringOrStringArr
 	// letters in the original form. Named keys like "Up" normalize to
 	// "up" which passes IsAllLetters, but they are not sequences.
 	for key := range table {
-		normalized := NormalizeKeyForComparison(key)
+		normalized := primary.NormalizeKey(key)
 		if len(normalized) != 1 {
 			continue
 		}
@@ -267,7 +308,7 @@ func checkHotkeyConflicts(fieldPrefix string, table map[string]StringOrStringArr
 				continue
 			}
 
-			normalizedSeq := NormalizeKeyForComparison(seqKey)
+			normalizedSeq := primary.NormalizeKey(seqKey)
 			if strings.HasPrefix(normalizedSeq, normalized) {
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,

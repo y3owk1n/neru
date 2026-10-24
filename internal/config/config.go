@@ -116,6 +116,10 @@ const (
 	modifierNameCtrl     = "ctrl"
 	modifierNameAlt      = "alt"
 	modifierNameShift    = "shift"
+	modifierDisplayCmd   = "Cmd"
+	modifierDisplayCtrl  = "Ctrl"
+	modifierDisplayAlt   = "Alt"
+	modifierDisplaySuper = "Super"
 )
 
 // Config is the complete application configuration structure.
@@ -167,14 +171,25 @@ type ThemeConfig struct {
 
 // GeneralConfig defines general application-wide settings.
 type GeneralConfig struct {
-	ExcludedApps                      []string `json:"excludedApps"                      toml:"excluded_apps"`
-	PassthroughUnboundedKeys          bool     `json:"passthroughUnboundedKeys"          toml:"passthrough_unbounded_keys"`
-	ShouldExitAfterPassthrough        bool     `json:"shouldExitAfterPassthrough"        toml:"should_exit_after_passthrough"`
-	PassthroughUnboundedKeysBlacklist []string `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`
-	HideOverlayInScreenShare          bool     `json:"hideOverlayInScreenShare"          toml:"hide_overlay_in_screen_share"`
-	KBLayoutToUse                     string   `json:"kbLayoutToUse"                     toml:"kb_layout_to_use"`
-	ExecShell                         string   `json:"execShell"                         toml:"exec_shell"`
-	ExecShellArgs                     []string `json:"execShellArgs"                     toml:"exec_shell_args"`
+	ExcludedApps                      []string              `json:"excludedApps"                      toml:"excluded_apps"`
+	PassthroughUnboundedKeys          bool                  `json:"passthroughUnboundedKeys"          toml:"passthrough_unbounded_keys"`
+	ShouldExitAfterPassthrough        bool                  `json:"shouldExitAfterPassthrough"        toml:"should_exit_after_passthrough"`
+	PassthroughUnboundedKeysBlacklist []string              `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`
+	HideOverlayInScreenShare          bool                  `json:"hideOverlayInScreenShare"          toml:"hide_overlay_in_screen_share"`
+	KBLayoutToUse                     string                `json:"kbLayoutToUse"                     toml:"kb_layout_to_use"`
+	ExecShell                         string                `json:"execShell"                         toml:"exec_shell"`
+	ExecShellArgs                     []string              `json:"execShellArgs"                     toml:"exec_shell_args"`
+	PrimaryModifier                   PrimaryModifierConfig `json:"primaryModifier"                   toml:"primary_modifier"`
+}
+
+// PrimaryModifierConfig names the modifier a hotkey written with Primary means
+// on each platform, so one shared config file can bind Cmd on macOS and Ctrl
+// or Super elsewhere. Every platform that is neither darwin nor windows reads
+// the linux entry.
+type PrimaryModifierConfig struct {
+	Darwin  string `json:"darwin"  toml:"darwin"`
+	Linux   string `json:"linux"   toml:"linux"`
+	Windows string `json:"windows" toml:"windows"`
 }
 
 // ModeIndicatorUI defines the visual/appearance settings for the mode indicator.

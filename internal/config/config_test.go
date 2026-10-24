@@ -12,6 +12,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -1051,5 +1052,35 @@ func TestConfig_ClickableRolesForApp_MixedVocabulary(t *testing.T) {
 		case goos != runtime.GOOS && seen[name] > 0:
 			t.Errorf("ClickableRolesForApp() = %v, leaked %s-only role %q", got, goos, name)
 		}
+	}
+}
+
+// TestUsePrimaryModifier_ResolvesPrimaryHotkeys pins that the table the daemon
+// publishes is what a Primary hotkey means to every key comparison after it.
+func TestUsePrimaryModifier_ResolvesPrimaryHotkeys(t *testing.T) {
+	t.Cleanup(func() {
+		config.UsePrimaryModifier(config.DefaultConfig().General.PrimaryModifier)
+	})
+
+	const option = "Option"
+
+	config.UsePrimaryModifier(config.PrimaryModifierConfig{
+		Darwin:  option,
+		Linux:   option,
+		Windows: option,
+	})
+
+	if got := config.CanonicalHotkeyForPlatform("Primary+Space"); got != "Alt+Space" {
+		t.Errorf(`CanonicalHotkeyForPlatform("Primary+Space") = %q, want "Alt+Space"`, got)
+	}
+
+	if got := config.NormalizeKeyForComparison("Primary+Shift+X"); got != "alt+shift+x" {
+		t.Errorf(`NormalizeKeyForComparison("Primary+Shift+X") = %q, want "alt+shift+x"`, got)
+	}
+
+	// An action's --modifier primary means the same modifier a hotkey does.
+	got, err := action.ParseModifiers("primary")
+	if err != nil || got != action.ModAlt {
+		t.Errorf(`ParseModifiers("primary") = %v, %v, want Alt`, got, err)
 	}
 }

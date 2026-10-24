@@ -23,6 +23,7 @@ import (
 func validateAppConfigsHotkeys(
 	modeName string,
 	raw map[string]any,
+	primary config.PrimaryModifierConfig,
 ) *config.LoadResult {
 	var appConfigsRaw []any
 	switch ac := raw["app_configs"].(type) {
@@ -50,6 +51,7 @@ func validateAppConfigsHotkeys(
 		err := validateRawHotkeyTable(
 			fmt.Sprintf("%s.app_configs[%d].hotkeys", modeName, idx),
 			hotkeysRaw,
+			primary,
 		)
 		if err != nil {
 			return &config.LoadResult{
@@ -147,7 +149,11 @@ func parseRawHotkeyActions(fieldName string, value any) ([]string, error) {
 	}
 }
 
-func validateRawHotkeyTable(fieldName string, rawTable any) error {
+func validateRawHotkeyTable(
+	fieldName string,
+	rawTable any,
+	primary config.PrimaryModifierConfig,
+) error {
 	hotkeyMap, ok := rawTable.(map[string]any)
 	if !ok {
 		return derrors.Newf(
@@ -164,7 +170,7 @@ func validateRawHotkeyTable(fieldName string, rawTable any) error {
 
 	seenRaw := make(map[string]string, len(hotkeyMap))
 	for _, key := range keys {
-		norm := config.NormalizeKeyForComparison(key)
+		norm := primary.NormalizeKey(key)
 		if prev, dup := seenRaw[norm]; dup {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,

@@ -7,12 +7,17 @@ import (
 )
 
 // FindNormalizedMapKey returns the existing map key in m whose normalized form
-// matches the normalized form of rawKey. If no match is found it returns rawKey
-// itself so callers can use the result directly.
-func FindNormalizedMapKey[V any](m map[string]V, rawKey string) string {
-	norm := NormalizeKeyForComparison(rawKey)
+// matches the normalized form of rawKey, with Primary resolved by primary. If
+// no match is found it returns rawKey itself so callers can use the result
+// directly.
+func FindNormalizedMapKey[V any](
+	m map[string]V,
+	rawKey string,
+	primary PrimaryModifierConfig,
+) string {
+	norm := primary.NormalizeKey(rawKey)
 	for k := range m {
-		if NormalizeKeyForComparison(k) == norm {
+		if primary.NormalizeKey(k) == norm {
 			return k
 		}
 	}

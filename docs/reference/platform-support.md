@@ -5,7 +5,7 @@ implements it is in the contributor docs.
 
 ## Platform status
 
-| Platform | Status     | Primary modifier | Ships as                          |
+| Platform | Status     | Default `Primary` | Ships as                          |
 | -------- | ---------- | ---------------- | --------------------------------- |
 | macOS 14+     | **Stable** | `Cmd`            | `Neru.app`, codesigned            |
 | Linux    | **Beta**   | `Ctrl`           | Binary and install script         |

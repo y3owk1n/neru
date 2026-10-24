@@ -28,6 +28,10 @@ func New(opts ...Option) (*App, error) {
 		app.config = config.DefaultConfig()
 	}
 
+	// Publish before anything binds a hotkey or builds a keymap, since every
+	// key comparison from here on reads it.
+	config.UsePrimaryModifier(app.config.General.PrimaryModifier)
+
 	if app.logger == nil {
 		logger, err := initializeLogger(app.config)
 		if err != nil {

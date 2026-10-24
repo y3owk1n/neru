@@ -272,6 +272,21 @@
           },
           "type": "array"
         },
+        "primary_modifier": {
+          "additionalProperties": false,
+          "properties": {
+            "darwin": {
+              "type": "string"
+            },
+            "linux": {
+              "type": "string"
+            },
+            "windows": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
         "should_exit_after_passthrough": {
           "type": "boolean"
         }

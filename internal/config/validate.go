@@ -196,7 +196,7 @@ func (c *Config) ValidateHotkeyBindings() error {
 			)
 		}
 
-		normalized := NormalizeKeyForComparison(key)
+		normalized := c.General.PrimaryModifier.NormalizeKey(key)
 		if prev, ok := seen[normalized]; ok {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
@@ -250,6 +250,11 @@ func (c *Config) ValidateHotkeyBindings() error {
 
 // ValidateGeneral validates general settings.
 func (c *Config) ValidateGeneral() error {
+	err := c.General.PrimaryModifier.validate()
+	if err != nil {
+		return err
+	}
+
 	if c.General.KBLayoutToUse != "" && strings.TrimSpace(c.General.KBLayoutToUse) == "" {
 		return derrors.New(
 			derrors.CodeInvalidConfig,

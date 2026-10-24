@@ -31,9 +31,10 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 
 				return config.Config{
 					General: config.GeneralConfig{
-						KBLayoutToUse: "com.apple.keylayout.ABC",
-						ExecShell:     shell,
-						ExecShellArgs: args,
+						KBLayoutToUse:   "com.apple.keylayout.ABC",
+						ExecShell:       shell,
+						ExecShellArgs:   args,
+						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
 					},
 				}
 			}(),
@@ -46,9 +47,10 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 
 				return config.Config{
 					General: config.GeneralConfig{
-						KBLayoutToUse: "   ",
-						ExecShell:     shell,
-						ExecShellArgs: args,
+						KBLayoutToUse:   "   ",
+						ExecShell:       shell,
+						ExecShellArgs:   args,
+						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
 					},
 				}
 			}(),
@@ -64,6 +66,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 						PassthroughUnboundedKeysBlacklist: []string{"Cmd+W", "Ctrl+Space"},
 						ExecShell:                         shell,
 						ExecShellArgs:                     args,
+						PrimaryModifier:                   config.DefaultConfig().General.PrimaryModifier,
 					},
 				}
 			}(),
@@ -79,6 +82,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 						PassthroughUnboundedKeysBlacklist: []string{"Shift+Tab"},
 						ExecShell:                         shell,
 						ExecShellArgs:                     args,
+						PrimaryModifier:                   config.DefaultConfig().General.PrimaryModifier,
 					},
 				}
 			}(),
@@ -91,8 +95,9 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 
 				return config.Config{
 					General: config.GeneralConfig{
-						ExecShell:     "",
-						ExecShellArgs: args,
+						ExecShell:       "",
+						ExecShellArgs:   args,
+						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
 					},
 				}
 			}(),
@@ -105,8 +110,9 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 
 				return config.Config{
 					General: config.GeneralConfig{
-						ExecShell:     "bash",
-						ExecShellArgs: args,
+						ExecShell:       "bash",
+						ExecShellArgs:   args,
+						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
 					},
 				}
 			}(),
@@ -119,8 +125,9 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 
 				return config.Config{
 					General: config.GeneralConfig{
-						ExecShell:     shell,
-						ExecShellArgs: args,
+						ExecShell:       shell,
+						ExecShellArgs:   args,
+						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
 					},
 				}
 			}(),
@@ -133,8 +140,9 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 
 				return config.Config{
 					General: config.GeneralConfig{
-						ExecShell:     shell,
-						ExecShellArgs: []string{},
+						ExecShell:       shell,
+						ExecShellArgs:   []string{},
+						PrimaryModifier: config.DefaultConfig().General.PrimaryModifier,
 					},
 				}
 			}(),
@@ -147,6 +155,39 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			err := testCase.config.ValidateGeneral()
 			if (err != nil) != testCase.wantErr {
 				t.Errorf("ValidateGeneral() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+		})
+	}
+}
+
+// TestConfig_ValidateGeneral_PrimaryModifier pins what Primary may stand for.
+// Every entry is checked on every platform, so a shared file that is wrong for
+// another machine is refused on this one too.
+func TestConfig_ValidateGeneral_PrimaryModifier(t *testing.T) {
+	tests := []struct {
+		name    string
+		linux   string
+		wantErr bool
+	}{
+		{name: "shipped default", linux: "Ctrl", wantErr: false},
+		{name: "alias in any case", linux: "super", wantErr: false},
+		{name: "alt alias", linux: "Option", wantErr: false},
+		{name: "primary is circular", linux: "Primary", wantErr: true},
+		{name: "shift types capitals", linux: "Shift", wantErr: true},
+		{name: "sided modifier", linux: "LeftCtrl", wantErr: true},
+		{name: "unknown modifier", linux: "Hyper", wantErr: true},
+		{name: "empty", linux: "", wantErr: true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			cfg.General.PrimaryModifier.Linux = testCase.linux
+
+			err := cfg.ValidateGeneral()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("ValidateGeneral() with linux = %q: error = %v, wantErr %v",
+					testCase.linux, err, testCase.wantErr)
 			}
 		})
 	}

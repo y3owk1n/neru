@@ -355,6 +355,17 @@ func defaultGeneral() GeneralConfig {
 		KBLayoutToUse:                     "",
 		ExecShell:                         DefaultExecShell,
 		ExecShellArgs:                     []string{DefaultExecShellFlag},
+		PrimaryModifier:                   defaultPrimaryModifier(),
+	}
+}
+
+// defaultPrimaryModifier is Cmd on macOS, where it is the shortcut modifier,
+// and Ctrl elsewhere, where Super usually belongs to the desktop.
+func defaultPrimaryModifier() PrimaryModifierConfig {
+	return PrimaryModifierConfig{
+		Darwin:  modifierDisplayCmd,
+		Linux:   modifierDisplayCtrl,
+		Windows: modifierDisplayCtrl,
 	}
 }
 

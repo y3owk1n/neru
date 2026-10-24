@@ -5,6 +5,8 @@ package linux
 import (
 	"sort"
 	"strings"
+
+	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 // Canonicalizes hotkey chord strings into a stable, order-independent signature
@@ -87,13 +89,16 @@ func chordSignature(chord string, baseKey func(string) string) string {
 }
 
 // canonicalModifierToken maps the many modifier spellings Neru and the various
-// platforms use down to one of four canonical tokens. "Primary" resolves to
-// ctrl here because it is already Ctrl on Linux by the time hotkeys register.
+// platforms use down to one of four canonical tokens. Hotkeys register with
+// Primary already resolved. A "primary" that still reaches this function
+// resolves to the modifier general.primary_modifier set.
 func canonicalModifierToken(token string) string {
 	switch strings.ToLower(strings.TrimSpace(token)) {
+	case "primary":
+		return canonicalModifierToken(action.PrimaryModifier().Canonical())
 	case evdevModifierShift:
 		return evdevModifierShift
-	case evdevModifierCtrl, evdevModifierAliasControl, "primary":
+	case evdevModifierCtrl, evdevModifierAliasControl:
 		return evdevModifierCtrl
 	case evdevModifierAlt, evdevModifierAliasOption, "opt":
 		return evdevModifierAlt

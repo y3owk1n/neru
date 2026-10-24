@@ -1,0 +1,69 @@
+package loader_test
+
+import (
+	"strings"
+	"testing"
+)
+
+// TestLoadWithValidation_PrimaryModifierKeepsUnwrittenEntries pins that a
+// table naming one platform leaves the other two at their defaults, so a user
+// changing Linux does not silently unbind macOS.
+func TestLoadWithValidation_PrimaryModifierKeepsUnwrittenEntries(t *testing.T) {
+	result, _ := loadWithObservedLogger(t, `
+[general]
+primary_modifier = { linux = "Super" }
+`, "")
+
+	if result.ValidationError != nil {
+		t.Fatalf("load refused: %v", result.ValidationError)
+	}
+
+	got := result.Config.General.PrimaryModifier
+	if got.Linux != "Super" || got.Darwin != "Cmd" || got.Windows != "Ctrl" {
+		t.Errorf(
+			"primary_modifier = %+v, want linux Super with darwin Cmd and windows Ctrl kept",
+			got,
+		)
+	}
+}
+
+// TestLoadWithValidation_PrimaryModifierComparesUnderTheFilesOwnTable pins
+// that a file's hotkeys are compared under the table it declares, not the one
+// the running daemon was started with. Primary as Alt makes these two the same
+// chord, and only one of them could ever fire.
+func TestLoadWithValidation_PrimaryModifierComparesUnderTheFilesOwnTable(t *testing.T) {
+	tests := []struct {
+		name    string
+		general string
+		wantErr bool
+	}{
+		{name: "default table keeps them apart", general: "", wantErr: false},
+		{
+			name:    "alt table makes them one chord",
+			general: `primary_modifier = { darwin = "Alt", linux = "Alt", windows = "Alt" }`,
+			wantErr: true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			result, _ := loadWithObservedLogger(t, `
+[general]
+`+testCase.general+`
+
+[hotkeys]
+"Primary+Shift+X" = "hints"
+"Alt+Shift+X" = "grid"
+`, "")
+
+			err := result.ValidationError
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("ValidationError = %v, wantErr %v", err, testCase.wantErr)
+			}
+
+			if err != nil && !strings.Contains(err.Error(), "duplicate") {
+				t.Errorf("ValidationError = %v, want it to name the duplicate", err)
+			}
+		})
+	}
+}

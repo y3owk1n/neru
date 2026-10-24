@@ -60,7 +60,7 @@ edits.
 Neru ships a launcher for every mode except monitor select, which is disabled
 and unbound, and the modes you declare yourself. Hints is
 `Primary+Shift+Space`, where `Primary` is `Cmd` on macOS and `Ctrl` on
-Windows. The [default hotkeys](../reference/configuration.md#global-hotkeys)
+Windows by default. The [default hotkeys](../reference/configuration.md#global-hotkeys)
 list the rest. Go on to [Try it](#try-it).
 
 ### Linux

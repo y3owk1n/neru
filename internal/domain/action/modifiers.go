@@ -3,6 +3,7 @@ package action
 import (
 	"runtime"
 	"strings"
+	"sync/atomic"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -34,9 +35,24 @@ var modifierNames = map[string]Modifiers{
 	"control": ModCtrl,
 }
 
-// PrimaryModifier returns the platform's default "main" accelerator modifier.
-// On macOS this is Command; on Linux and Windows it is Control.
+// primaryModifier is the modifier Primary stands for in this process, and
+// zero until UsePrimaryModifier sets it.
+var primaryModifier atomic.Uint64
+
+// UsePrimaryModifier makes mod what Primary stands for in this process, in
+// action modifiers and, through internal/config, in every hotkey.
+func UsePrimaryModifier(mod Modifiers) {
+	primaryModifier.Store(uint64(mod))
+}
+
+// PrimaryModifier returns the modifier Primary stands for. Until
+// UsePrimaryModifier sets one, that is the platform's default accelerator,
+// Command on macOS and Control on Linux and Windows.
 func PrimaryModifier() Modifiers {
+	if mod := Modifiers(primaryModifier.Load()); mod != 0 {
+		return mod
+	}
+
 	if runtime.GOOS == "darwin" {
 		return ModCmd
 	}

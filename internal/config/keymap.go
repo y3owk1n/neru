@@ -55,7 +55,7 @@ type Binding struct {
 // precedence, the disabled sentinel, and matching a key written one way
 // against the same key written another. The caller holds the result.
 func (c *Config) ResolveKeymap(modeName, focusedApp string) Keymap {
-	return newKeymap(c.HotkeysForModeAndApp(modeName, focusedApp))
+	return newKeymap(c.HotkeysForModeAndApp(modeName, focusedApp), c.General.PrimaryModifier)
 }
 
 // ResolveGlobalKeymap resolves the global [hotkeys] bindings in force with an
@@ -81,7 +81,7 @@ func (c *Config) ResolveGlobalKeymap(focusedApp string) Keymap {
 		table[key] = StringOrStringArray(steps)
 	}
 
-	return newKeymap(table)
+	return newKeymap(table, c.General.PrimaryModifier)
 }
 
 // ModifierChords returns the bindings whose key carries a Ctrl, Alt or Cmd
@@ -124,7 +124,7 @@ func (k Keymap) ModifierChords() Keymap {
 // is a map, so the keys are indexed in a stable order and the first one wins.
 // Which of the two survives matters less than that the same configuration
 // always resolves to the same keymap.
-func newKeymap(hotkeys map[string]StringOrStringArray) Keymap {
+func newKeymap(hotkeys map[string]StringOrStringArray, primary PrimaryModifierConfig) Keymap {
 	if len(hotkeys) == 0 {
 		return Keymap{}
 	}
@@ -135,7 +135,7 @@ func newKeymap(hotkeys map[string]StringOrStringArray) Keymap {
 	}
 
 	for _, key := range slices.Sorted(maps.Keys(hotkeys)) {
-		normalized := NormalizeKeyForComparison(key)
+		normalized := primary.NormalizeKey(key)
 		if _, taken := keymap.byKey[normalized]; taken {
 			continue
 		}

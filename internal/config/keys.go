@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
 // StringOrStringArray is a type that can unmarshal from either a TOML string
@@ -65,7 +67,19 @@ func CanonicalNamedKeyForm(key string) (string, bool) {
 // On macOS "backspace" and "delete" are both the DEL key (\x7f). Named keys —
 // arrows, function keys, nav keys — become their lowercase form.
 // Also normalizes fullwidth CJK characters to their halfwidth ASCII equivalents.
+// Primary resolves to the modifier UsePrimaryModifier published.
 func NormalizeKeyForComparison(key string) string {
+	return normalizeKey(key, publishedPrimaryToken())
+}
+
+// NormalizeKey is NormalizeKeyForComparison with Primary resolved by this
+// table rather than the published one, for comparing the keys of a
+// configuration while it is being loaded or validated.
+func (p PrimaryModifierConfig) NormalizeKey(key string) string {
+	return normalizeKey(key, p.token(runtime.GOOS))
+}
+
+func normalizeKey(key, primary string) string {
 	// Normalize fullwidth CJK characters first, before lowercasing and canonical matching.
 	// So a fullwidth space (U+3000) becomes " " becomes "space" in one pass.
 	key = normalizeFullwidthChars(key)
@@ -95,7 +109,7 @@ func NormalizeKeyForComparison(key string) string {
 
 	// Normalize modifier aliases like "Primary" to the platform-native token
 	// so shared config can map to Cmd on macOS and Ctrl elsewhere.
-	key = normalizeModifierAliasesInCombo(key, runtime.GOOS)
+	key = normalizeModifierAliasesInCombo(key, primary)
 
 	// All other keys (named keys, plain characters, modifier combos) are already
 	// lowercased by strings.ToLower above and pass through as-is.
@@ -122,18 +136,67 @@ func HasPassthroughModifier(key string) bool {
 	return false
 }
 
-func primaryModifierTokenForOS(goos string) string {
-	if goos == "darwin" {
-		return "cmd"
+// UsePrimaryModifier makes table what Primary means in this process, for
+// hotkeys and action modifiers alike. The daemon calls it whenever it adopts a
+// configuration. The value lives in internal/domain/action, the lowest layer
+// that reads it, so there is one copy.
+func UsePrimaryModifier(table PrimaryModifierConfig) {
+	switch table.token(runtime.GOOS) {
+	case modifierNameCmd:
+		action.UsePrimaryModifier(action.ModCmd)
+	case modifierNameAlt:
+		action.UsePrimaryModifier(action.ModAlt)
+	default:
+		action.UsePrimaryModifier(action.ModCtrl)
+	}
+}
+
+// publishedPrimaryToken is the comparison token of the modifier
+// UsePrimaryModifier published.
+func publishedPrimaryToken() string {
+	mod := action.PrimaryModifier()
+	if mod == action.ModCmd {
+		return modifierNameCmd
+	}
+
+	if mod == action.ModAlt {
+		return modifierNameAlt
 	}
 
 	return modifierNameCtrl
 }
 
-func normalizeModifierTokenForOS(token, goos string) string {
+// forOS returns the modifier written for goos.
+func (p PrimaryModifierConfig) forOS(goos string) string {
+	if parity.Platform(goos) == parity.Darwin {
+		return p.Darwin
+	}
+
+	if parity.Platform(goos) == parity.Windows {
+		return p.Windows
+	}
+
+	return p.Linux
+}
+
+// token is the comparison token of the modifier written for goos. An empty
+// entry, which validation refuses in a file, reads as the default, so a Config
+// built in code without the table resolves Primary as it always has.
+func (p PrimaryModifierConfig) token(goos string) string {
+	name := p.forOS(goos)
+	if strings.TrimSpace(name) == "" {
+		name = defaultPrimaryModifier().forOS(goos)
+	}
+
+	return normalizeModifierToken(name, "")
+}
+
+// normalizeModifierToken resolves a modifier name to its comparison token,
+// with Primary resolving to primary.
+func normalizeModifierToken(token, primary string) string {
 	switch strings.TrimSpace(strings.ToLower(token)) {
 	case "primary":
-		return primaryModifierTokenForOS(goos)
+		return primary
 	case modifierNameCmd, "command", "super", "meta", "rightcmd", "leftcmd":
 		return modifierNameCmd
 	case modifierNameCtrl, "control", "rightctrl", "leftctrl":
@@ -178,7 +241,7 @@ func normalizeKeyAliases(key string) string {
 // and sorts the modifiers. Each tap spells modifiers in its own order, so the
 // sort makes "Primary+Shift+C" from config match "Shift+Ctrl+c" from the Linux
 // tap. A combo with a segment that is not a modifier ("ctrl++") keeps its order.
-func normalizeModifierAliasesInCombo(key, goos string) string {
+func normalizeModifierAliasesInCombo(key, primary string) string {
 	parts := strings.Split(key, "+")
 	if len(parts) < minimumModifierParts {
 		return key
@@ -187,7 +250,7 @@ func normalizeModifierAliasesInCombo(key, goos string) string {
 	allModifiers := true
 
 	for idx := range len(parts) - 1 {
-		parts[idx] = normalizeModifierTokenForOS(parts[idx], goos)
+		parts[idx] = normalizeModifierToken(parts[idx], primary)
 
 		switch parts[idx] {
 		case modifierNameCmd, modifierNameCtrl, modifierNameAlt, modifierNameShift:
@@ -206,15 +269,15 @@ func normalizeModifierAliasesInCombo(key, goos string) string {
 func displayModifierTokenForOS(token, goos string) string {
 	switch token {
 	case modifierNameCmd:
-		if goos == "darwin" {
-			return "Cmd"
+		if parity.Platform(goos) == parity.Darwin {
+			return modifierDisplayCmd
 		}
 
-		return "Super"
+		return modifierDisplaySuper
 	case modifierNameCtrl:
-		return "Ctrl"
+		return modifierDisplayCtrl
 	case modifierNameAlt:
-		return "Alt"
+		return modifierDisplayAlt
 	case modifierNameShift:
 		return "Shift"
 	default:
@@ -225,10 +288,10 @@ func displayModifierTokenForOS(token, goos string) string {
 // CanonicalHotkeyForPlatform rewrites shared modifier aliases like "Primary"
 // into the concrete tokens expected by the current platform backend.
 func CanonicalHotkeyForPlatform(hotkey string) string {
-	return canonicalHotkeyForOS(hotkey, runtime.GOOS)
+	return canonicalHotkey(hotkey, publishedPrimaryToken(), runtime.GOOS)
 }
 
-func canonicalHotkeyForOS(hotkey, goos string) string {
+func canonicalHotkey(hotkey, primary, goos string) string {
 	if hotkey == "" {
 		return hotkey
 	}
@@ -236,7 +299,7 @@ func canonicalHotkeyForOS(hotkey, goos string) string {
 	parts := strings.Split(hotkey, "+")
 
 	for idx := range len(parts) - 1 {
-		parts[idx] = displayModifierTokenForOS(normalizeModifierTokenForOS(parts[idx], goos), goos)
+		parts[idx] = displayModifierTokenForOS(normalizeModifierToken(parts[idx], primary), goos)
 	}
 
 	last := strings.TrimSpace(parts[len(parts)-1])
