@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.60.0](https://github.com/y3owk1n/neru/compare/v1.59.0...v1.60.0) (2026-10-24)
+
+
+### Features
+
+* **config:** configurable primary modifiers ([#1854](https://github.com/y3owk1n/neru/issues/1854)) ([b553a66](https://github.com/y3owk1n/neru/commit/b553a660752382baf546d05eb45e6d1ebfca1d20))
+* **config:** per-platform shell and keyboard layout ([#1856](https://github.com/y3owk1n/neru/issues/1856)) ([8067a80](https://github.com/y3owk1n/neru/commit/8067a80f2af219825c78cd556bfa01cb84426662))
+
 ## [1.59.0](https://github.com/y3owk1n/neru/compare/v1.58.0...v1.59.0) (2026-10-18)
 
 
