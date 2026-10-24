@@ -457,16 +457,18 @@ Or write one value, which every platform takes, such as
 
 A platform the table leaves out keeps its default. Neru refuses a key that
 names no platform, such as `macos`. Platforms other than macOS and Windows read
-`linux`. Neru checks every entry on every machine, so it refuses a shared file
-whose entry for another machine is wrong. To change one entry at runtime, name
-it:
-`neru config set general.shell.linux '["/bin/zsh", "-c"]'`.
+`linux`. To change one entry at runtime, name it, as in
+`neru config set general.shell.linux '["/bin/zsh", "-c"]'`. Naming the option
+alone, as in `neru config set general.kb_layout_to_use 00010409`, gives every
+platform that value.
 
 `shell` is the command line an `exec` step runs, with the step's command string
-appended as the last argument. Each entry starts with an absolute path for its
-platform and has at least one argument. The default is `["/bin/bash", "-lc"]`
-on macOS and Linux and `['C:\Windows\System32\cmd.exe', "/c"]` on Windows. If
-Windows is installed on another drive, set the `windows` entry.
+appended as the last argument. Every entry needs at least one argument, and the
+entry for the platform Neru runs on has to start with an absolute path. So one
+value such as `shell = ["/bin/zsh", "-lc"]` loads on macOS and Linux, and
+Windows refuses it. The default is `["/bin/bash", "-lc"]` on macOS and Linux and
+`['C:\Windows\System32\cmd.exe', "/c"]` on Windows. If Windows is installed on
+another drive, set the `windows` entry.
 
 Until v2, the deprecated `exec_shell` and `exec_shell_args` still work. When
 set, `exec_shell` replaces the shell and `exec_shell_args` replaces the

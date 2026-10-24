@@ -1,6 +1,7 @@
 package loader_test
 
 import (
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -70,13 +71,36 @@ macos = "com.apple.keylayout.Dvorak"
 	}
 }
 
+// TestLoadWithValidation_OneShellValueLoadsOnThisPlatform pins that one shell
+// for every platform loads, though it cannot be a valid path on all three.
+// Only the entry this machine reads has to be.
+func TestLoadWithValidation_OneShellValueLoadsOnThisPlatform(t *testing.T) {
+	shell := hostAbsoluteShell()
+
+	result, _ := loadWithObservedLogger(t, `
+[general]
+shell = ['`+shell+`', "-c"]
+`, "")
+
+	if result.ValidationError != nil {
+		t.Fatalf("load refused: %v", result.ValidationError)
+	}
+
+	want := []string{shell, "-c"}
+	if got := result.Config.General.Shell.Windows; !slices.Equal(got, want) {
+		t.Errorf("shell.windows = %q, want the one value %q", got, want)
+	}
+}
+
 // TestLoadWithValidation_DeprecatedShellKeysStillApply pins that a config
 // written before general.shell keeps running its shell until v2, and is told
 // to move the line.
 func TestLoadWithValidation_DeprecatedShellKeysStillApply(t *testing.T) {
+	shell := hostAbsoluteShell()
+
 	result, _ := loadWithObservedLogger(t, `
 [general]
-exec_shell = "/bin/zsh"
+exec_shell = '`+shell+`'
 exec_shell_args = ["-c"]
 `, "")
 
@@ -84,13 +108,9 @@ exec_shell_args = ["-c"]
 		t.Fatalf("load refused: %v", result.ValidationError)
 	}
 
-	if got := result.Config.General.ShellCommand(
-		"darwin",
-	); !slices.Equal(
-		got,
-		[]string{"/bin/zsh", "-c"},
-	) {
-		t.Errorf("ShellCommand(darwin) = %q, want the deprecated keys' /bin/zsh -c", got)
+	want := []string{shell, "-c"}
+	if got := result.Config.General.ShellCommand("darwin"); !slices.Equal(got, want) {
+		t.Errorf("ShellCommand(darwin) = %q, want the deprecated keys' %q", got, want)
 	}
 
 	for _, key := range []string{"general.exec_shell", "general.exec_shell_args"} {
@@ -102,15 +122,17 @@ exec_shell_args = ["-c"]
 }
 
 // TestSetField_ReachesPerPlatformEntriesAndDeprecatedShellKeys pins the paths
-// `neru config set` takes for these options: one platform's entry, and the
-// deprecated keys until v2.
+// `neru config set` takes for these options: one platform's entry, the whole
+// option, and the deprecated keys until v2.
 func TestSetField_ReachesPerPlatformEntriesAndDeprecatedShellKeys(t *testing.T) {
+	const layout = "00010409"
+
 	cfg := config.DefaultConfig()
 
 	for path, value := range map[string]string{
-		"general.shell.linux":              `["/bin/zsh", "-c"]`,
-		"general.kb_layout_to_use.windows": "00010409",
-		"general.exec_shell":               "/bin/fish",
+		"general.shell.linux":      `["/bin/zsh", "-c"]`,
+		"general.kb_layout_to_use": layout,
+		"general.exec_shell":       "/bin/fish",
 	} {
 		err := loader.SetField(cfg, path, value)
 		if err != nil {
@@ -122,7 +144,22 @@ func TestSetField_ReachesPerPlatformEntriesAndDeprecatedShellKeys(t *testing.T) 
 		t.Errorf("ShellCommand(linux) = %q, want the deprecated shell over the entry's -c", got)
 	}
 
-	if got := cfg.General.KBLayoutToUse.Windows; got != "00010409" {
-		t.Errorf("kb_layout_to_use.windows = %q, want 00010409", got)
+	// The whole option takes one value for every platform, as the file's
+	// single-value form does, so a `config set general.kb_layout_to_use` written
+	// before the option became per-platform still works.
+	want := config.PerPlatform[string]{Darwin: layout, Linux: layout, Windows: layout}
+	if got := cfg.General.KBLayoutToUse; got != want {
+		t.Errorf("kb_layout_to_use = %+v, want %+v", got, want)
 	}
+}
+
+// hostAbsoluteShell is an absolute path on the machine running the test, which
+// is what the running platform's shell entry and the deprecated exec_shell are
+// checked against.
+func hostAbsoluteShell() string {
+	if runtime.GOOS == "windows" {
+		return `C:\Windows\System32\cmd.exe`
+	}
+
+	return "/bin/zsh"
 }

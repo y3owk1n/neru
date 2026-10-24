@@ -20,6 +20,19 @@ func hostShell() string {
 	return TestShellZsh
 }
 
+// runningShellEntry is the general.shell entry the machine running the test
+// reads.
+func runningShellEntry(general *config.GeneralConfig) *[]string {
+	switch runtime.GOOS {
+	case "darwin":
+		return &general.Shell.Darwin
+	case goosWindows:
+		return &general.Shell.Windows
+	default:
+		return &general.Shell.Linux
+	}
+}
+
 func TestConfig_ValidateGeneral(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -58,18 +71,22 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "shell entry is a Windows path on darwin - invalid",
+			name: "this platform's shell is a relative path - invalid",
 			change: func(general *config.GeneralConfig) {
-				general.Shell.Darwin = []string{TestWindowsCmd, "/c"}
+				*runningShellEntry(general) = []string{"bash", TestShellFlag}
 			},
 			wantErr: true,
 		},
 		{
-			name: "shell entry is a relative path - invalid",
+			name: "one shell value for every platform - valid on this one",
 			change: func(general *config.GeneralConfig) {
-				general.Shell.Linux = []string{"bash", TestShellFlag}
+				argv := []string{hostShell(), TestShellFlag}
+				general.Shell = config.PerPlatform[[]string]{
+					Darwin:  argv,
+					Linux:   argv,
+					Windows: argv,
+				}
 			},
-			wantErr: true,
 		},
 		{
 			name: "shell entry has no argument - invalid",
@@ -77,12 +94,6 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 				general.Shell.Darwin = []string{TestShellZsh}
 			},
 			wantErr: true,
-		},
-		{
-			name: "shell windows entry on a UNC share - valid",
-			change: func(general *config.GeneralConfig) {
-				general.Shell.Windows = []string{`\\server\tools\pwsh.exe`, "-Command"}
-			},
 		},
 		{
 			name: "deprecated exec_shell absolute - valid, warned",

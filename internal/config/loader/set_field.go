@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
 // SetField sets a field on a Config by dotted path (e.g. "hints.hint_characters").
@@ -34,6 +35,10 @@ func SetField(cfg *config.Config, path, value string) error {
 		}
 
 		if partIdx == len(parts)-1 {
+			if field.Type().Implements(perPlatformType) {
+				return setEveryPlatform(field, value)
+			}
+
 			return setLeafValue(field, value)
 		}
 
@@ -44,6 +49,22 @@ func SetField(cfg *config.Config, path, value string) error {
 				"%q in path %q is not a struct",
 				part, path,
 			)
+		}
+	}
+
+	return nil
+}
+
+// perPlatformType is what every config.PerPlatform option implements.
+var perPlatformType = reflect.TypeFor[interface{ PlatformValueType() reflect.Type }]()
+
+// setEveryPlatform gives each platform of a PerPlatform option the one value,
+// as the single-value form in a config file does.
+func setEveryPlatform(field reflect.Value, value string) error {
+	for _, platform := range []parity.Platform{parity.Darwin, parity.Linux, parity.Windows} {
+		err := setLeafValue(findFieldByTomlTag(field, string(platform)), value)
+		if err != nil {
+			return err
 		}
 	}
 

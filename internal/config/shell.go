@@ -2,8 +2,7 @@ package config
 
 import (
 	"path/filepath"
-	"regexp"
-	"strings"
+	"runtime"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/parity"
@@ -19,9 +18,6 @@ const (
 	defaultWindowsFlag   = "/c"
 	minShellCommandParts = 2
 )
-
-// windowsAbsolutePath matches a path rooted at a drive letter or a UNC share.
-var windowsAbsolutePath = regexp.MustCompile(`^([A-Za-z]:[\\/]|\\\\)`)
 
 func defaultShell() PerPlatform[[]string] {
 	return PerPlatform[[]string]{
@@ -56,20 +52,18 @@ func (g GeneralConfig) ShellCommand(goos string) []string {
 	return append([]string{shell}, args...)
 }
 
-// isAbsoluteOn reports whether path is absolute on goos rather than on the
-// host, so a shared file's windows entry is checked as a Windows path on every
-// machine.
-func isAbsoluteOn(goos, path string) bool {
-	if parity.Platform(goos) == parity.Windows {
-		return windowsAbsolutePath.MatchString(path)
+// validateShell refuses a shell command that cannot run an exec step, and warns
+// about each deprecated key that is set. Every entry needs an argument. Only
+// the running platform's entry needs an absolute path, so one value such as
+// ["/bin/zsh", "-lc"] loads on macOS and Linux, and Windows refuses it.
+func (g GeneralConfig) validateShell(warnings *Warnings) error {
+	// The entry this machine reads: its GOOS, or linux for every platform
+	// that is neither darwin nor windows.
+	running := parity.Platform(runtime.GOOS)
+	if running != parity.Darwin && running != parity.Windows {
+		running = parity.Linux
 	}
 
-	return strings.HasPrefix(path, "/")
-}
-
-// validateShell refuses a shell command that cannot run an exec step on the
-// platform it is written for, and warns about each deprecated key that is set.
-func (g GeneralConfig) validateShell(warnings *Warnings) error {
 	for _, entry := range g.Shell.entries() {
 		if len(entry.value) < minShellCommandParts {
 			return derrors.Newf(
@@ -80,7 +74,7 @@ func (g GeneralConfig) validateShell(warnings *Warnings) error {
 			)
 		}
 
-		if !isAbsoluteOn(string(entry.platform), entry.value[0]) {
+		if entry.platform == running && !filepath.IsAbs(entry.value[0]) {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"general.shell.%s must start with an absolute path (got: %q)",
