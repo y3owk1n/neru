@@ -6,21 +6,24 @@ include = []
 name = 'node'
 ref = './.oku/node.toml'
 manifest_sha256 = 'dac06b5356b71310287375b86870692576109d54d5cca334ee7c9b039722e572'
-version = '24.21.0'
-tag = 'v24.21.0'
+version = '26.12.1'
+tag = 'v26.12.1'
 
 [package.platform]
 [package.platform.darwin-arm64]
 strategy = 'artifact'
-url = 'https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-arm64.tar.gz'
-sha256 = 'bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057'
+url = 'https://nodejs.org/dist/v26.12.1/node-v26.12.1-darwin-arm64.tar.gz'
+sha256 = '1901d539912c02afa10d1cc126943a8855a7eedebe830119463470db5e6c59e8'
+verified = 'checksum-file'
 
 [package.platform.linux-amd64-glibc]
 strategy = 'artifact'
-url = 'https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.gz'
-sha256 = '6e1db87ef58b8819e5d5402eff1536491b18edd8eb7bee5ef7897876e88dc5ff'
+url = 'https://nodejs.org/dist/v26.12.1/node-v26.12.1-linux-x64.tar.gz'
+sha256 = '0fd1eb7770598f52a21995edf6ed35fc690400fa437c2386af329519e9143132'
+verified = 'checksum-file'
 
 [package.platform.linux-arm64-glibc]
 strategy = 'artifact'
-url = 'https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-arm64.tar.gz'
-sha256 = '724282c3b43aec998aa9527380465b45d229e021b58035f5f4f63095eabfe5d5'
+url = 'https://nodejs.org/dist/v26.12.1/node-v26.12.1-linux-arm64.tar.gz'
+sha256 = 'a6c01af459dd8972ab3fb08ee5da81244d26ba8c4944a62d5bbba8c597ae154f'
+verified = 'checksum-file'

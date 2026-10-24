@@ -5,4 +5,4 @@
 platforms = ["darwin-arm64", "linux-amd64-glibc", "linux-arm64-glibc"]
 
 [packages]
-node = { ref = "./.oku/node.toml", version = "^24" }
+node = { ref = "./.oku/node.toml", version = "^26" }
