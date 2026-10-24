@@ -67,3 +67,31 @@ func TestLoadWithValidation_PrimaryModifierComparesUnderTheFilesOwnTable(t *test
 		})
 	}
 }
+
+// TestLoadWithValidation_PrimaryModifierFromTheOverrideAppliesToTheFile pins
+// that a table `neru config set` saved is in force when the main file's
+// hotkeys are compared. Primary as Alt keeps these two apart. Compared under
+// the file's own Ctrl they collide, and the load would be refused.
+func TestLoadWithValidation_PrimaryModifierFromTheOverrideAppliesToTheFile(t *testing.T) {
+	result, _ := loadWithObservedLogger(t, `
+[general]
+primary_modifier = { darwin = "Ctrl", linux = "Ctrl", windows = "Ctrl" }
+
+[hotkeys]
+"Primary+Shift+X" = "hints"
+"Ctrl+Shift+X" = "grid"
+`, `
+[general.primary_modifier]
+darwin = "Alt"
+linux = "Alt"
+windows = "Alt"
+`)
+
+	if result.ValidationError != nil {
+		t.Fatalf("load refused: %v", result.ValidationError)
+	}
+
+	if got := result.Config.General.PrimaryModifier.Linux; got != "Alt" {
+		t.Errorf("primary_modifier.linux = %q, want the override's Alt", got)
+	}
+}

@@ -50,6 +50,16 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 
 	warnUnknownKeys(warnings, undecoded, result.Config)
 
+	// The hotkey merges compare keys under the Primary table the daemon will
+	// run on, so an override of that table has to be in place before them.
+	overridePath := overrideFileToLayer(result.ConfigPath)
+	if overridePath != "" {
+		primaryErr := layerOverridePrimaryModifier(result.Config, overridePath)
+		if primaryErr != nil {
+			return refuse(result, primaryErr)
+		}
+	}
+
 	globalErr := s.applyGlobalHotkeys(result.Config, raw, warnings)
 	if globalErr != nil {
 		return refuse(result, globalErr)
@@ -67,7 +77,6 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		return rejected
 	}
 
-	overridePath := overrideFileToLayer(result.ConfigPath)
 	if overridePath != "" {
 		overrideErr := s.applyOverrideFile(result.Config, overridePath, warnings)
 		if overrideErr != nil {
@@ -659,6 +668,28 @@ func overrideFileToLayer(configPath string) string {
 	}
 
 	return overridePath
+}
+
+// layerOverridePrimaryModifier applies the override file's
+// general.primary_modifier entries to cfg, leaving every entry it does not
+// name as it was.
+func layerOverridePrimaryModifier(cfg *config.Config, overridePath string) error {
+	var layer struct {
+		General struct {
+			PrimaryModifier config.PrimaryModifierConfig `toml:"primary_modifier"`
+		} `toml:"general"`
+	}
+
+	layer.General.PrimaryModifier = cfg.General.PrimaryModifier
+
+	_, decodeErr := toml.DecodeFile(overridePath, &layer)
+	if decodeErr != nil {
+		return derrors.WrapConfigFailed(decodeErr, "parse of override file "+overridePath)
+	}
+
+	cfg.General.PrimaryModifier = layer.General.PrimaryModifier
+
+	return nil
 }
 
 // applyOverrideFile layers the file `neru config set` writes over the config,
