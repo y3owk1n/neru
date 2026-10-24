@@ -70,38 +70,38 @@ sha256 = '8f29fbc3e8aa0552810dd0e3e69f3158f8dbf0edb425e0437798e9db9d0a28a6'
 name = 'go'
 ref = './.oku/go.toml'
 manifest_sha256 = '2022b9ea9d9e33afb9ca6a565a6ec9b4655f57311f5c8db4f0a5d6fe81b191ae'
-version = '1.26.9'
-tag = 'go1.26.9'
+version = '1.26.10'
+tag = 'go1.26.10'
 
 [package.platform]
 [package.platform.darwin-arm64]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.9.darwin-arm64.tar.gz'
-sha256 = 'f9bb7c0a02506c5d9bf0d1eb1f7ee6c7684f844ae49558308a0427b830e022cc'
+url = 'https://dl.google.com/go/go1.26.10.darwin-arm64.tar.gz'
+sha256 = '0b5183492292ada170f9b561a834863808dd02edba599e4ad0e89899330020b3'
 verified = 'checksum-file'
 
 [package.platform.linux-amd64-glibc]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.9.linux-amd64.tar.gz'
-sha256 = '42d158b4d8f7b61ac0a830567c940a86098fb7aac52e467a5ebec03ef5cc2f8d'
+url = 'https://dl.google.com/go/go1.26.10.linux-amd64.tar.gz'
+sha256 = 'ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5'
 verified = 'checksum-file'
 
 [package.platform.linux-arm64-glibc]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.9.linux-arm64.tar.gz'
-sha256 = '4a97373d49fcacdcf3694fea368a500b00ee3e963974f3e7514132717632f052'
+url = 'https://dl.google.com/go/go1.26.10.linux-arm64.tar.gz'
+sha256 = '3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797'
 verified = 'checksum-file'
 
 [package.platform.windows-amd64]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.9.windows-amd64.zip'
-sha256 = 'd722201a9c0c086d1610e111c48203009af690892ed708072bd5ae20160e7a59'
+url = 'https://dl.google.com/go/go1.26.10.windows-amd64.zip'
+sha256 = '7ecd2d7260e82c59bcbd7f1077a07cee2dea607295b858df67195a1e4e09629b'
 verified = 'checksum-file'
 
 [package.platform.windows-arm64]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.26.9.windows-arm64.zip'
-sha256 = '05215f9e71ea27c9e843409314b1e6bf12dc6a5516318126b2357d497fed42c5'
+url = 'https://dl.google.com/go/go1.26.10.windows-arm64.zip'
+sha256 = '6831fd8c31091243d5695c8fa3a721c9f4ae2bb36482763e77e57ee01b76489f'
 verified = 'checksum-file'
 
 [[package]]
