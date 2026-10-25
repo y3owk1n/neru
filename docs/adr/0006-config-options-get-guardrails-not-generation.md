@@ -20,7 +20,7 @@ forget one quietly.
 
 The part worth recording is the measurement, because it is the whole argument
 and it is not what the file count suggests. Reflecting over the schema and
-diffing it against `configs/default-config.toml` gives 350 leaf paths, 188
+diffing it against `configs/default-config.toml` gives 350 leaf paths, 185
 written and 165 absent, and **161 of those 165 absences are correct**. Of those,
 100 are `config.Color` leaves that `ResolveThemeDefaults()` fills, 54 are
 `app_configs[]` sub-fields of a repeated table nobody ships entries for, and 7

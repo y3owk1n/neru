@@ -108,7 +108,9 @@ are the precedent, not the exception.
   `internal/adapter/platform/linux/overlay_wayland.c` format with `printf`
   because neither can import `internal/domain/keyvocab`, held to that package by
   `internal/architecture/keyvocab_wire_test.go`. That one predates this ADR and
-  is the precedent the placement-vocabulary pin followed. The fifth is the first
+  is the precedent the placement-vocabulary pin followed. **Amended (#1691):**
+  it deleted the two autohide pins with their copies, as above, so five
+  copies are pinned now. The fifth is the first
   pin over a *list*. It covers the named keys, retyped twice in Objective-C.
   `gSpecialNameToCodeMap` in `keymap_darwin.m` turns a written binding into a
   keycode, and `specialKeyName` in `eventtap_darwin.m` turns a keystroke back
@@ -178,8 +180,8 @@ are the precedent, not the exception.
   pin's own doc comment says which cases are left to the pin, where someone
   editing it will read it.
 
-  That list is the complete set of *pinned* copies, and it is not a claim that no
-  others exist. Sweeping for them while writing the sub-key preview pin turned
+  That list was the complete set of *pinned* copies as of #1407, and the five
+  left after #1691 still are. It is not a claim that no others exist. Sweeping for them while writing the sub-key preview pin turned
   up more. The nearest was ten lines below it in the same pair of methods:
   which sub-cell of the preview mini-grid is left blank, the
   center one when both next-level dimensions are odd, decided in

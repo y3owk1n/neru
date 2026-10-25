@@ -40,7 +40,7 @@ a one-line option into a ten-file one, and that no guide used to name.
    that check them.
 4. **Docs.** Add the row to `docs/reference/configuration.md`. That file is the single
    home for config reference facts. Do not also describe the option in
-   ARCHITECTURE or README. **No test catches a missing row.** This is the one
+   `docs/contributing/architecture.md` or README. **No test catches a missing row.** This is the one
    universal link a reviewer has to check by eye.
 5. **Platform column.** Add the option's path to `PlatformSupport()` in
    `internal/config/platform_support.go`, saying which of macOS, Linux and

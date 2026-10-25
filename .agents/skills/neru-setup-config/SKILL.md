@@ -152,8 +152,8 @@ handing all hotkeys to skhd or another daemon.
   nothing on purpose, to avoid colliding with the compositor. Either write
   `[hotkeys]` or bind `neru hints` and friends in the compositor's keymap.
 - **`bundle_id` works on every platform.** Per-app tables match a bundle
-  identifier on macOS, a window class on Linux, and an executable name on
-  Windows, under the same key. The reference names how to find each.
+  identifier on macOS, a window class on Linux, and the full executable
+  path on Windows, under the same key. The reference names how to find each.
 - **Runtime toggles are not config.** `neru toggle-scroll-invert` and its
   siblings last until restart. The lasting version is the matching key.
 - **A stale Accessibility grant looks like a broken hotkey.** After an

@@ -24,12 +24,12 @@ whole `screen`. Set with `capture_scope` or `--capture-scope`.
 hotkeys and draws the overlays. Every other `neru` command sends it a request, so most commands
 fail with a connection error when it is not running.
 
-**Focused app.** The app your keystrokes go to. Neru applies its
-`app_configs` entry, if one matches its app identity.
-
 **Event.** Something that happens inside Neru, such as a mode opening or Neru
 pausing. A hook runs steps when one fires. See
 [`[hooks]`](../reference/configuration.md#hooks).
+
+**Focused app.** The app your keystrokes go to. Neru applies its
+`app_configs` entry, if one matches its app identity.
 
 **Hint.** A short label Neru draws on a clickable element in hints mode. Type
 it to move the cursor there.
