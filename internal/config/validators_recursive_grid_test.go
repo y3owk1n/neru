@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -107,5 +108,36 @@ func TestConfigValidateRecursiveGrid_InvalidAnimationDuration(t *testing.T) {
 	err := cfg.ValidateRecursiveGrid()
 	if err == nil {
 		t.Fatal("ValidateRecursiveGrid() expected error for negative animation duration")
+	}
+}
+
+func TestConfig_ValidateRecursiveGrid_ErrorNamesTheUIKey(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(cfg *config.Config)
+		want   string
+	}{
+		{
+			"font size",
+			func(cfg *config.Config) { cfg.RecursiveGrid.UI.FontSize = 0 },
+			"recursive_grid.ui.font_size",
+		},
+		{
+			"sub-key preview label char",
+			func(cfg *config.Config) { cfg.RecursiveGrid.UI.SubKeyPreviewLabelChar = "ab" },
+			"recursive_grid.ui.sub_key_preview_label_char",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			testCase.mutate(cfg)
+
+			err := cfg.ValidateRecursiveGrid()
+			if err == nil || !strings.Contains(err.Error(), testCase.want) {
+				t.Fatalf("error = %v, want it to name %s", err, testCase.want)
+			}
+		})
 	}
 }

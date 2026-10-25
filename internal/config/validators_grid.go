@@ -406,11 +406,11 @@ func validateRegionGridAnimation(section string, anim RecursiveGridAnimationConf
 // the shape and so share the rules.
 func validateRegionGridUI(section string, appearance RecursiveGridUI) error {
 	err := validateColors([]colorField{
-		{appearance.LineColor, section + ".appearance.line_color"},
-		{appearance.HighlightColor, section + ".appearance.highlight_color"},
-		{appearance.TextColor, section + ".appearance.text_color"},
-		{appearance.LabelBackgroundColor, section + ".appearance.label_background_color"},
-		{appearance.SubKeyPreviewTextColor, section + ".appearance.sub_key_preview_text_color"},
+		{appearance.LineColor, section + ".ui.line_color"},
+		{appearance.HighlightColor, section + ".ui.highlight_color"},
+		{appearance.TextColor, section + ".ui.text_color"},
+		{appearance.LabelBackgroundColor, section + ".ui.label_background_color"},
+		{appearance.SubKeyPreviewTextColor, section + ".ui.sub_key_preview_text_color"},
 	})
 	if err != nil {
 		return err
@@ -419,7 +419,7 @@ func validateRegionGridUI(section string, appearance RecursiveGridUI) error {
 	if appearance.LineWidth < 0 {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"%s.appearance.line_width must be non-negative",
+			"%s.ui.line_width must be non-negative",
 			section,
 		)
 	}
@@ -427,7 +427,7 @@ func validateRegionGridUI(section string, appearance RecursiveGridUI) error {
 	if appearance.FontSize < 1 || appearance.FontSize > maxFontSize {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"%s.appearance.font_size must be between 1 and %d",
+			"%s.ui.font_size must be between 1 and %d",
 			section, maxFontSize,
 		)
 	}
@@ -438,7 +438,7 @@ func validateRegionGridUI(section string, appearance RecursiveGridUI) error {
 	if appearance.MinFontSize < 1 || appearance.MinFontSize > maxFontSize {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"%s.appearance.min_font_size must be between 1 and %d",
+			"%s.ui.min_font_size must be between 1 and %d",
 			section, maxFontSize,
 		)
 	}
@@ -446,7 +446,7 @@ func validateRegionGridUI(section string, appearance RecursiveGridUI) error {
 	if appearance.SubKeyPreviewFontSize < 1 || appearance.SubKeyPreviewFontSize > maxFontSize {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"%s.appearance.sub_key_preview_font_size must be between 1 and %d",
+			"%s.ui.sub_key_preview_font_size must be between 1 and %d",
 			section, maxFontSize,
 		)
 	}
@@ -454,7 +454,7 @@ func validateRegionGridUI(section string, appearance RecursiveGridUI) error {
 	if utf8.RuneCountInString(appearance.LabelChar) > 1 {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"%s.appearance.label_char must be empty or a single character",
+			"%s.ui.label_char must be empty or a single character",
 			section,
 		)
 	}
@@ -462,7 +462,7 @@ func validateRegionGridUI(section string, appearance RecursiveGridUI) error {
 	if utf8.RuneCountInString(appearance.SubKeyPreviewLabelChar) > 1 {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"%s.appearance.sub_key_preview_label_char must be empty or a single character",
+			"%s.ui.sub_key_preview_label_char must be empty or a single character",
 			section,
 		)
 	}
