@@ -177,9 +177,12 @@ func TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocke
 				t.Fatalf("unmatched is %v after setting %q", priorUnmatched, test.prior)
 			}
 
-			const stall = 2 * time.Second
+			release := darwin.BlockMainQueueForTesting()
+			t.Cleanup(release)
 
-			darwin.BlockMainQueueForTesting(stall)
+			// The call gives the main queue 500ms, so taking this long means
+			// it waited on the blocked queue.
+			const callLimit = 2 * time.Second
 
 			start := time.Now()
 
@@ -187,7 +190,7 @@ func TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocke
 				t.Fatal("SetReferenceKeyboardLayout reported a layout not yet applied as missing")
 			}
 
-			if elapsed := time.Since(start); elapsed >= stall {
+			if elapsed := time.Since(start); elapsed >= callLimit {
 				t.Fatalf("SetReferenceKeyboardLayout waited %v for the blocked main queue", elapsed)
 			}
 
@@ -195,7 +198,9 @@ func TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocke
 				t.Fatal("layout was applied off the main thread while the main queue was blocked")
 			}
 
-			deadline := time.Now().Add(stall + 3*time.Second)
+			release()
+
+			deadline := time.Now().Add(5 * time.Second)
 			for {
 				if _, _, unmatched := darwin.KeyboardLayouts(); unmatched != priorUnmatched {
 					return
