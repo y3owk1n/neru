@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1433,6 +1434,46 @@ func TestHintService_GenerateHintsVisionSaysWhyItFellBackToTheScreen(t *testing.
 			}
 		})
 	}
+}
+
+// TestHintService_GenerateHints_VisionDuringUpdateConfig pins that a vision
+// scan reads its settings from the snapshot taken under the lock, so a config
+// reload during a scan is not a data race. It only fails under -race.
+func TestHintService_GenerateHints_VisionDuringUpdateConfig(t *testing.T) {
+	t.Parallel()
+
+	service := newVisionHintService(zap.NewNop(),
+		func(context.Context) (image.Rectangle, bool, error) {
+			return image.Rect(0, 0, 200, 200), true, nil
+		})
+
+	const iterations = 200
+
+	var racing sync.WaitGroup
+
+	racing.Go(func() {
+		for range iterations {
+			_, err := service.GenerateHints(
+				context.Background(), nil, nil, "com.example.app",
+				domain.StrategyVision, "", "", false,
+			)
+			if err != nil {
+				t.Errorf("GenerateHints() unexpected error: %v", err)
+
+				return
+			}
+		}
+	})
+
+	racing.Go(func() {
+		for i := range iterations {
+			service.UpdateConfig(config.HintsConfig{
+				Vision: config.HintsVisionConfig{RequestTimeoutMS: i},
+			})
+		}
+	})
+
+	racing.Wait()
 }
 
 // foreignRolesForCurrentPlatform returns native role entries that belong to
