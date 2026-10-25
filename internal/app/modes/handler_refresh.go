@@ -38,7 +38,7 @@ func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 	// screen. The old IME session is bound to the previous screen and loses
 	// focus during the space transition, causing subsequent keystrokes to be
 	// forwarded to the frontmost app instead.
-	if h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
+	if h.hints.Context.SearchActive() {
 		h.cancelHintSearch()
 	}
 
@@ -57,14 +57,11 @@ func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 	strategyOverride := h.hints.Context.StrategyOverride()
 	captureScopeOverride := h.hints.Context.CaptureScopeOverride()
 	labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
+	splitWordOverride := h.hints.Context.SplitWord()
 
 	// Generate hints with filters preserved. SetHints below performs the
 	// single redraw after active-screen filtering.
-	splitWordOverride := false
-	if h.hints != nil && h.hints.Context != nil {
-		splitWordOverride = h.hints.Context.SplitWord()
-	}
-
+	//
 	// The walk is given the same HintTimeout budget the activation and
 	// monitor-move paths give it. The context a screen change arrives with is
 	// the application's own and carries no deadline, and this walk runs under
@@ -152,8 +149,6 @@ func (h *handlerState) refreshGridForScreenChange() bool {
 	// createGridInstance also updates h.screenBounds and sets the grid on the context.
 	gridInstance := h.createGridInstance(h.grid.Context.CaptureScope())
 
-	currentInput := ""
-
 	if h.grid.Manager != nil {
 		// Sync the Manager's internal grid reference so subsequent key presses
 		// use the new grid's geometry for cell matching (fixes stale-bounds bug).
@@ -172,7 +167,7 @@ func (h *handlerState) refreshGridForScreenChange() bool {
 	// The screen changed under the overlay, so this is a transition onto the
 	// new one, and it is resized and shown as well as redrawn.
 	if !h.showFrame(
-		ports.GridFrame{Grid: gridInstance, Input: currentInput},
+		ports.GridFrame{Grid: gridInstance},
 		"refresh grid after screen change",
 	) {
 		return false

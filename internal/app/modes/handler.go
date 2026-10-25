@@ -418,10 +418,6 @@ func fillIndicatorServices(state *handlerState, logger *zap.Logger) {
 // logIndicatorSubstitution reports an indicator the handler was not given a
 // service for. It names the indicator and nothing it would draw.
 func logIndicatorSubstitution(logger *zap.Logger, indicator ports.Indicator) {
-	if logger == nil {
-		return
-	}
-
 	logger.Debug(
 		"No service for indicator; it will not be drawn",
 		zap.String("indicator", indicator.String()),
