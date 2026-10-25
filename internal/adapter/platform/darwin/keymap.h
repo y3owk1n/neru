@@ -191,6 +191,9 @@ void NeruRefreshKeyboardLayoutMaps(void);
 /// 4) current keyboard layout (last-resort)
 /// Returns 1 when the explicit layout ID is resolved (or auto mode is used),
 /// and 0 when an explicit ID was provided but could not be resolved.
+/// Off the main thread the call applies the layout on the main queue. When that
+/// queue does not answer within 500ms the call returns 1 and the layout
+/// applies once the main run loop runs it, logging a warning if it is missing.
 int NeruSetReferenceKeyboardLayout(const char *inputSourceID);
 
 /// NeruCopyKeyboardLayoutIDs returns the input source IDs of the enabled

@@ -1296,41 +1296,36 @@ int NeruSetReferenceKeyboardLayout(const char *inputSourceID) {
 	if ([NSThread isMainThread]) {
 		applyReferenceLayout();
 	} else {
-		// Dispatch to main thread and wait, with a once-guard to prevent double execution
-		NSLock *applyLock = [[NSLock alloc] init];
-		__block BOOL didApply = NO;
+		// TIS must run on the main thread, so the apply never falls back to
+		// this one. A main queue that does not answer in time keeps it queued.
+		// The compare-and-swap decides who reports the outcome. The caller
+		// returns it when the apply finished in time, else the apply logs it.
+		enum { applyPending, applyFinished, applyAbandoned };
 
-		void (^applyReferenceLayoutOnce)(void) = ^{
-			[applyLock lock];
-			BOOL shouldApply = !didApply;
-			if (shouldApply) {
-				didApply = YES;
-			}
-			[applyLock unlock];
-
-			if (shouldApply) {
-				applyReferenceLayout();
-			}
-		};
+		__block _Atomic(int) applyState = applyPending;
 
 		dispatch_semaphore_t completed = dispatch_semaphore_create(0);
 		dispatch_async(dispatch_get_main_queue(), ^{
-			applyReferenceLayoutOnce();
+			applyReferenceLayout();
+
+			int expected = applyPending;
+			if (!atomic_compare_exchange_strong(&applyState, &expected, applyFinished) && !configuredResolved) {
+				NeruLog(
+				    NeruLogLevelWarn, @"Configured keyboard layout was not found, using automatic fallback",
+				    trimmedInputSourceID);
+			}
 			dispatch_semaphore_signal(completed);
 		});
 
 		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(500 * NSEC_PER_MSEC));
 		if (dispatch_semaphore_wait(completed, timeout) != 0) {
-			// In tests/CLI runs the main queue may not be pumping, so run directly
-			applyReferenceLayoutOnce();
+			int expected = applyPending;
+			if (atomic_compare_exchange_strong(&applyState, &expected, applyAbandoned)) {
+				NeruLog(
+				    NeruLogLevelWarn, @"Timed out waiting for the main queue, keyboard layout stays queued", @"500ms");
+				return 1;
+			}
 		}
-
-		// Re-read the authoritative value under lock to avoid a data race.
-		// The __block configuredResolved variable may be concurrently written
-		// by the main queue thread and read here without synchronization.
-		[gKeymapLock lock];
-		configuredResolved = gConfiguredInputSourceResolved;
-		[gKeymapLock unlock];
 	}
 
 	return configuredResolved ? 1 : 0;

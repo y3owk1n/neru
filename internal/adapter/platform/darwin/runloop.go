@@ -4,6 +4,8 @@ package darwin
 
 /*
 #include <CoreFoundation/CoreFoundation.h>
+#include <dispatch/dispatch.h>
+#include <unistd.h>
 
 // Runs the main run loop for at most `seconds` and returns the CFRunLoopRunResult.
 static int neruRunMainLoopSlice(double seconds) {
@@ -12,6 +14,13 @@ static int neruRunMainLoopSlice(double seconds) {
 
 static void neruStopMainLoop(void) {
 	CFRunLoopStop(CFRunLoopGetMain());
+}
+
+// Queues a block that holds the main thread for `micros` microseconds.
+static void neruBlockMainQueue(unsigned int micros) {
+	dispatch_async(dispatch_get_main_queue(), ^{
+		usleep(micros);
+	});
 }
 */
 import "C"
@@ -61,4 +70,11 @@ func RunMainLoopForTesting(testMain func() int) int {
 			time.Sleep(mainLoopSlice)
 		}
 	}
+}
+
+// BlockMainQueueForTesting queues work that holds the main thread for d, so a
+// test can see what a caller off the main thread does while the main queue
+// stalls. It returns at once, and work queued after it runs once d is up.
+func BlockMainQueueForTesting(d time.Duration) {
+	C.neruBlockMainQueue(C.uint(d.Microseconds()))
 }

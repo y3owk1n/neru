@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 )
@@ -143,5 +144,69 @@ func TestKeyboardLayouts_ListsTheEnabledLayoutsAndTheReference(t *testing.T) {
 
 	if !slices.Contains(names, reference) {
 		t.Fatalf("reference layout %q is not among the enabled layouts %v", reference, names)
+	}
+}
+
+// TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocked
+// pins that a caller off the main thread never applies the layout itself when
+// the main queue stalls. Resolving the layout calls TIS, which must run on the
+// main thread, so the apply waits in the queue and runs once the main thread
+// is free. The call returns true meanwhile, because a layout not yet applied
+// has not failed to resolve. An ID no layout has makes the apply visible on
+// any machine, since it flips the unmatched flag KeyboardLayouts reports.
+func TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocked(t *testing.T) {
+	const missingLayout = "com.example.keylayout.NoSuchLayout"
+
+	tests := []struct {
+		name  string
+		prior string
+		next  string
+	}{
+		{name: "missing layout after auto", prior: "", next: missingLayout},
+		{name: "auto after missing layout", prior: missingLayout, next: ""},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Cleanup(func() { darwin.SetReferenceKeyboardLayout("") })
+
+			darwin.SetReferenceKeyboardLayout(test.prior)
+
+			_, _, priorUnmatched := darwin.KeyboardLayouts()
+			if priorUnmatched != (test.prior != "") {
+				t.Fatalf("unmatched is %v after setting %q", priorUnmatched, test.prior)
+			}
+
+			const stall = 2 * time.Second
+
+			darwin.BlockMainQueueForTesting(stall)
+
+			start := time.Now()
+
+			if !darwin.SetReferenceKeyboardLayout(test.next) {
+				t.Fatal("SetReferenceKeyboardLayout reported a layout not yet applied as missing")
+			}
+
+			if elapsed := time.Since(start); elapsed >= stall {
+				t.Fatalf("SetReferenceKeyboardLayout waited %v for the blocked main queue", elapsed)
+			}
+
+			if _, _, unmatched := darwin.KeyboardLayouts(); unmatched != priorUnmatched {
+				t.Fatal("layout was applied off the main thread while the main queue was blocked")
+			}
+
+			deadline := time.Now().Add(stall + 3*time.Second)
+			for {
+				if _, _, unmatched := darwin.KeyboardLayouts(); unmatched != priorUnmatched {
+					return
+				}
+
+				if time.Now().After(deadline) {
+					t.Fatal("queued layout was never applied after the main queue drained")
+				}
+
+				time.Sleep(50 * time.Millisecond)
+			}
+		})
 	}
 }
