@@ -411,11 +411,7 @@ func (h *handlerState) refreshHintsForMonitorMove(
 	strategyOverride := h.hints.Context.StrategyOverride()
 	captureScopeOverride := h.hints.Context.CaptureScopeOverride()
 	labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
-
-	splitWordOverride := false
-	if h.hints != nil && h.hints.Context != nil {
-		splitWordOverride = h.hints.Context.SplitWord()
-	}
+	splitWordOverride := h.hints.Context.SplitWord()
 
 	domainHints, err := h.hintService.GenerateHints(
 		generateCtx,

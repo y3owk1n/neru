@@ -117,48 +117,6 @@ func TestCreateGridInstance_UsesMaxLabelLength(t *testing.T) {
 	}
 }
 
-// TestInitializeGridManager_FallbackGridUsesTheResolvedLabels covers the
-// defensive branch that builds its own grid when handed none. It reached for
-// grid.characters directly while the path above reached for the hint
-// characters when those were blank, so the two disagreed about what the grid
-// was labeled from. That was invisible while the labels were inferred at draw
-// time from whichever set was passed, and is a wrong grid once they are
-// resolved once.
-func TestInitializeGridManager_FallbackGridUsesTheResolvedLabels(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Grid.Enabled = true
-	cfg.Grid.Characters = ""
-	cfg.Hints.HintCharacters = gridLabelHintChars
-	cfg.Grid.RowLabels = ""
-	cfg.Grid.ColLabels = ""
-	cfg.ResolveGridLabels()
-
-	handler := newGridLabelHandler(cfg)
-
-	handler.initializeGridManager(nil)
-
-	built := handler.grid.Manager.Grid()
-	if built == nil {
-		t.Fatal("initializeGridManager(nil) left the manager without a grid")
-	}
-
-	if got := built.RowLabels(); got != cfg.Grid.RowLabels {
-		t.Errorf("fallback grid RowLabels() = %q, want config's %q", got, cfg.Grid.RowLabels)
-	}
-
-	if got := built.ColLabels(); got != cfg.Grid.ColLabels {
-		t.Errorf("fallback grid ColLabels() = %q, want config's %q", got, cfg.Grid.ColLabels)
-	}
-
-	if got := built.Characters(); got != gridLabelHintLabels {
-		t.Errorf(
-			"fallback grid Characters() = %q, want %q — the same set the labels were "+
-				"resolved from",
-			got, gridLabelHintLabels,
-		)
-	}
-}
-
 // newGridLabelHandler builds the least handler these tests need. The screen
 // has to be a real one. A grid with no area short-circuits to a minimal grid
 // that carries no labels at all, which would pass these assertions vacuously.

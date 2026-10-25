@@ -42,7 +42,7 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 		// Mode and event tap are already in the correct state so we avoid the
 		// full exit cycle which would hide the overlay, disable the event tap,
 		// run cursor restoration, and transition to idle.
-		// The overlay is cleared unconditionally below.
+		// The frame shown below replaces the overlay in place.
 		h.stopIndicatorPolling()
 	} else {
 		// Coming from another mode, the keyboard is handed over rather than
@@ -53,15 +53,17 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 	scope := h.resolveCaptureScope(domain.ModeNameGrid, activation, &h.config.Grid)
 	gridInstance := h.createGridInstance(scope)
 
-	// Reset the previous manager's input before initializeGridManager replaces
-	// it. The router is rebuilt each activation so it reads fresh exit keys
-	// from the config.
+	// Reset fires the old manager's update callback, which clears hide-unmatched
+	// and the match prefix. A refresh skips ClearFrame, so without it a refresh
+	// with hide_unmatched on and partial input hides every cell on macOS.
 	if h.grid.Manager != nil {
 		h.grid.Manager.Reset()
 	}
 
 	h.initializeGridManager(gridInstance)
 
+	// The router is rebuilt each activation so it reads fresh exit keys from
+	// the config.
 	h.grid.Router = domainGrid.NewRouter(h.grid.Manager, h.logger)
 
 	// Hand the grid over as a Frame. Showing the overlay, switching it to grid
@@ -140,28 +142,6 @@ func (h *handlerState) createGridInstance(scope string) *domainGrid.Grid {
 // update callback that redraws and narrows the grid and the subgrid callback
 // that opens a cell.
 func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
-	if gridInstance == nil {
-		h.logger.Warn("Grid instance is nil, creating with default bounds")
-
-		var screenBounds image.Rectangle
-
-		if h.system != nil {
-			b, err := h.system.ScreenBounds(h.ctx)
-			if err == nil {
-				screenBounds = b
-			} else if !derrors.IsNotSupported(err) {
-				h.logger.Warn("Failed to get screen bounds for grid fallback", zap.Error(err))
-			}
-		}
-
-		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
-		gridInstance = domainGrid.NewGridWithOptions(
-			h.gridOptionsFor(screenBounds),
-			bounds,
-			h.logger,
-		)
-	}
-
 	h.grid.Manager = domainGrid.NewManager(
 		gridInstance,
 		domain.SubgridDimensions(),
