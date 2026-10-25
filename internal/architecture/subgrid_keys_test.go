@@ -96,6 +96,12 @@ const subgridKeySync = "syncSublayerKeysLocked"
 
 var subgridDraws = []string{"ShowSubgrid", "DrawGrid"}
 
+// subgridKeyDrawFloor is the fewest draws this pin expects to read in
+// subgridKeyCarriers. Four are there today, both draws in each manager, so
+// three leaves room for one draw to be merged into the other and still catches
+// a walk that has lost a manager.
+const subgridKeyDrawFloor = 3
+
 // TestSubgridDrawHandsOverTheKeys pins the half of #1269 that a resolved option
 // cannot reach on its own. Deleting the hardcoded per-platform alphabets left
 // the Windows manager syncing its surface in DrawGrid and nowhere else, so a
@@ -143,13 +149,12 @@ func TestSubgridDrawHandsOverTheKeys(t *testing.T) {
 
 	// A rename of either backend call would otherwise leave this passing over
 	// nothing at all, which is the failure mode a guardrail can least afford.
-	if checked == 0 {
-		t.Errorf(
-			"found no method calling any of %v in %v; the walk is broken and this "+
-				"check would pass vacuously",
-			subgridDraws, subgridKeyCarriers,
-		)
-	}
+	assertWalkedAtLeast(
+		t,
+		"methods in the key-carrying managers that draw a subgrid",
+		checked,
+		subgridKeyDrawFloor,
+	)
 }
 
 // callsAnyMethod reports whether the body calls a method with one of the given

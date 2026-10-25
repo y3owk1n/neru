@@ -20,6 +20,11 @@ const docGoFile = "doc.go"
 // code. It is currently empty, because every port carries its own mock.
 var portsWithoutOwnMock = map[string]string{}
 
+// portMockFloor is the fewest ports TestEveryPortHasAMock expects to check.
+// Eleven are declared today, so ten leaves room for one to be retired and still
+// catches a walk that has lost internal/ports or stopped recognizing a port.
+const portMockFloor = 10
+
 // TestEveryPortHasAMock enforces the third requirement of Tier 1 in
 // docs/contributing/porting.md. A port is not done until it has a mock.
 //
@@ -30,6 +35,7 @@ func TestEveryPortHasAMock(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "ports"))
 	mockNames := typeNamesIn(t, filepath.Join(repoRoot, "internal", "ports", "mocks"))
+	checked := 0
 
 	for _, name := range portNames {
 		if !strings.HasSuffix(name, "Port") {
@@ -40,6 +46,8 @@ func TestEveryPortHasAMock(t *testing.T) {
 			continue
 		}
 
+		checked++
+
 		if _, ok := mockNames["Mock"+name]; !ok {
 			t.Errorf(
 				"ports.%s has no Mock%s in internal/ports/mocks; every port "+
@@ -49,6 +57,8 @@ func TestEveryPortHasAMock(t *testing.T) {
 			)
 		}
 	}
+
+	assertWalkedAtLeast(t, "ports needing a mock", checked, portMockFloor)
 }
 
 // TestMockExemptionsAreStillReal keeps the exemption list from outliving the

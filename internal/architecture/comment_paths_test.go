@@ -28,8 +28,6 @@ const bannerScanLines = 6
 // grep for the old name finds only the stale comment itself, which reads like
 // confirmation that the file is still there.
 func TestCommentPaths_HeadersMatchTheirFile(t *testing.T) {
-	repoRoot := findRepoRoot(t)
-
 	for _, file := range goFiles(t) {
 		content, readErr := os.ReadFile(file.absPath)
 		if readErr != nil {
@@ -60,8 +58,6 @@ func TestCommentPaths_HeadersMatchTheirFile(t *testing.T) {
 
 			break
 		}
-
-		_ = repoRoot
 	}
 }
 

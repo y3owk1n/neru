@@ -3,6 +3,8 @@
 package darwin_test
 
 import (
+	"math"
+	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -265,58 +267,24 @@ func TestActiveScreenBounds(t *testing.T) {
 	}
 }
 
-func TestShowConfigValidationError(t *testing.T) {
-	tests := []struct {
-		name         string
-		errorMessage string
-		configPath   string
-	}{
-		{
-			name:         "show error with valid message",
-			errorMessage: "Invalid configuration",
-			configPath:   "/path/to/config.yml",
-		},
-		{
-			name:         "show error with empty message",
-			errorMessage: "",
-			configPath:   "/path/to/config.yml",
-		},
-		{
-			name:         "show error with empty path",
-			errorMessage: "Invalid configuration",
-			configPath:   "",
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			darwin.InitializeLogger(zap.NewNop())
-
-			t.Skip(
-				"Skipping UI dialog test - would require mocking C functions",
-			)
-		})
-	}
-}
-
+// TestSetApplicationAttribute pins the false a caller gets when the attribute
+// cannot be set. Each row is one the bridge refuses whether or not this process
+// holds accessibility permission, so the test never changes another app.
 func TestSetApplicationAttribute(t *testing.T) {
 	tests := []struct {
 		name      string
 		pid       int
 		attribute string
-		value     bool
 	}{
 		{
-			name:      "set attribute true",
-			pid:       1234,
-			attribute: "AXManualAccessibility",
-			value:     true,
+			name:      "unknown attribute on this process",
+			pid:       os.Getpid(),
+			attribute: "AXNeruNoSuchAttribute",
 		},
 		{
-			name:      "set attribute false",
-			pid:       1234,
+			name:      "real attribute on a pid no process holds",
+			pid:       math.MaxInt32,
 			attribute: "AXManualAccessibility",
-			value:     false,
 		},
 	}
 
@@ -324,7 +292,13 @@ func TestSetApplicationAttribute(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			darwin.InitializeLogger(zap.NewNop())
 
-			t.Skip("Skipping accessibility test - requires system permissions")
+			if darwin.SetApplicationAttribute(testCase.pid, testCase.attribute, true) {
+				t.Errorf(
+					"SetApplicationAttribute(%d, %q, true) = true, want false",
+					testCase.pid,
+					testCase.attribute,
+				)
+			}
 		})
 	}
 }
