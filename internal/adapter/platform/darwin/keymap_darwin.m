@@ -35,6 +35,9 @@ static TISInputSourceRef gReferenceInputSource = nil;
 static BOOL gUsesCurrentLayoutFallback = NO;
 /// whether the configured layout ID was resolved successfully (or no explicit ID was set)
 static BOOL gConfiguredInputSourceResolved = YES;
+/// layout ID the latest NeruSetReferenceKeyboardLayout call asked for, recorded
+/// before its apply is queued, so it can differ from gConfiguredInputSourceID
+static NSString *gRequestedInputSourceID = nil;
 
 /// cached keycode-to-char maps for common modifier combinations (shift, caps, shift+caps)
 /// to avoid UCKeyTranslate calls during key event handling
@@ -1255,8 +1258,13 @@ void NeruCopyKeyboardLayouts(char **layoutIDsOut, char **referenceIDOut, int *re
 		if (dispatch_semaphore_wait(completed, timeout) != 0) {
 			NeruLog(NeruLogLevelWarn, @"Timed out waiting for the main queue, keyboard layouts not read", @"500ms");
 
+			// The flag belongs to the configured layout. While an apply for
+			// another layout is still queued it says nothing about the one
+			// requested, so the call reports that one as not unmatched.
 			[gKeymapLock lock];
-			*resolvedOut = gConfiguredInputSourceResolved ? 1 : 0;
+			BOOL applied = gRequestedInputSourceID == gConfiguredInputSourceID ||
+			               [gRequestedInputSourceID isEqualToString:gConfiguredInputSourceID];
+			*resolvedOut = (!applied || gConfiguredInputSourceResolved) ? 1 : 0;
 			[gKeymapLock unlock];
 
 			return;
@@ -1287,11 +1295,15 @@ int NeruSetReferenceKeyboardLayout(const char *inputSourceID) {
 		}
 	}
 
+	initializeKeyMaps();
+
+	[gKeymapLock lock];
+	gRequestedInputSourceID = [trimmedInputSourceID copy];
+	[gKeymapLock unlock];
+
 	__block BOOL configuredResolved = YES;
 
 	void (^applyReferenceLayout)(void) = ^{
-		initializeKeyMaps();
-
 		[gKeymapLock lock];
 		gConfiguredInputSourceID = [trimmedInputSourceID copy];
 		clearResolvedReferenceInputSourceLocked();

@@ -96,8 +96,9 @@ func SetReferenceKeyboardLayout(inputSourceID string) bool {
 //
 // KeyboardLayouts reads the layouts on the main thread, because TIS must run
 // there. When the main queue does not answer within 500ms it returns no names
-// and no reference, and the last result says whether the resolver found the
-// layout when it last ran.
+// and no reference. The last result is then whether the resolver last failed
+// to find the configured layout, and false while an apply for another layout
+// is still queued, since that one has not been resolved yet.
 func KeyboardLayouts() ([]string, string, bool) {
 	var cIDs, cReference *C.char
 	var cResolved C.int

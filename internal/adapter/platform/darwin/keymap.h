@@ -203,7 +203,8 @@ int NeruSetReferenceKeyboardLayout(const char *inputSourceID);
 /// kb_layout_to_use names a layout the resolver could not find, and 1 otherwise.
 /// Off the main thread the call reads on the main queue. When that queue does
 /// not answer within 500ms the call leaves both IDs NULL and sets resolvedOut
-/// to what the main thread last recorded.
+/// to what the main thread last recorded, or to 1 while a
+/// NeruSetReferenceKeyboardLayout apply for another layout is still queued.
 void NeruCopyKeyboardLayouts(char **layoutIDsOut, char **referenceIDOut, int *resolvedOut);
 
 /// Callback type invoked after keyboard layout maps are rebuilt.
