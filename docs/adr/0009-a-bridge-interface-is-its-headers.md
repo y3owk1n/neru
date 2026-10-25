@@ -16,7 +16,7 @@ the headers are the interface that matters, and `overlay.h` alone declares 31
 entry points. The Go API is a *link edge*. Importing the package is what pulls
 its compiled objects into the binary, whether or not any Go symbol is called.
 Four packages state that edge outright: `app/modes/cursor_darwin.go:16`,
-`adapter/textinput/textinput_darwin.go:29`, `adapter/vision/adapter_darwin.go:21`
+`adapter/textinput/textinput_darwin.go:28`, `adapter/vision/adapter_darwin.go:21`
 and `adapter/keyfeed/keyfeed_darwin.go:15`, the third with the comment
 `// ensure darwin CGo .m files are compiled`. Two more do it with a named
 import (`accessibility/native/darwin`, `eventtap/darwin`). The remaining eight
