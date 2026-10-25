@@ -64,10 +64,6 @@ static BOOL _exitCalled = NO;
 
 AppDelegate *appDelegate;
 
-void NeruRegisterSystray(void) {
-	// Placeholder if needed for init
-}
-
 void internalNativeLoop(void) {
 	@autoreleasepool {
 		[NSApplication sharedApplication];

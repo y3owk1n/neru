@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 
-void NeruRegisterSystray(void);
 void NeruNativeLoop(void);
 void NeruNativeLoopHeadless(void);
 void NeruQuit(void);

@@ -102,13 +102,6 @@ var (
 // singleCharCache caches single-character strings to avoid allocations.
 var singleCharCache sync.Map // map[rune]string
 
-// stringBuilderPool is a pool of string builders for label generation.
-var stringBuilderPool = sync.Pool{
-	New: func() any {
-		return &strings.Builder{}
-	},
-}
-
 // AlphabetGenerator generates hint labels using an alphabet-based strategy.
 //
 // Two label directions are supported:
@@ -410,12 +403,8 @@ func (g *AlphabetGenerator) computeLabelsReverse(
 	}
 
 	for index := range count {
-		stringBuilder, ok := stringBuilderPool.Get().(*strings.Builder)
-		if !ok {
-			stringBuilder = &strings.Builder{}
-		}
+		var stringBuilder strings.Builder
 
-		stringBuilder.Reset()
 		stringBuilder.Grow(length)
 
 		v := index
@@ -427,7 +416,6 @@ func (g *AlphabetGenerator) computeLabelsReverse(
 		}
 
 		labels = append(labels, stringBuilder.String())
-		stringBuilderPool.Put(stringBuilder)
 	}
 
 	return labels
@@ -513,12 +501,8 @@ func (g *AlphabetGenerator) computeLabelsNormal(
 			}
 
 			for range keep {
-				stringBuilder, ok := stringBuilderPool.Get().(*strings.Builder)
-				if !ok {
-					stringBuilder = &strings.Builder{}
-				}
+				var stringBuilder strings.Builder
 
-				stringBuilder.Reset()
 				stringBuilder.Grow(length)
 
 				for _, index := range current {
@@ -526,7 +510,6 @@ func (g *AlphabetGenerator) computeLabelsNormal(
 				}
 
 				labels = append(labels, stringBuilder.String())
-				stringBuilderPool.Put(stringBuilder)
 
 				// Increment cursor like adding 1 in base-N.
 				for pos := range slices.Backward(current) {
