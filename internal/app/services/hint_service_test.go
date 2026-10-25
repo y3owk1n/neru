@@ -1476,6 +1476,67 @@ func TestHintService_GenerateHints_VisionDuringUpdateConfig(t *testing.T) {
 	racing.Wait()
 }
 
+// TestHintService_GenerateHints_VisionKeepsItsStartingSettings pins that a
+// reload after a scan has started does not reach that scan's detector, so one
+// scan never mixes settings from two configs. The reload runs inside the
+// focused-window lookup, which happens after the snapshot and before the
+// detection call.
+func TestHintService_GenerateHints_VisionKeepsItsStartingSettings(t *testing.T) {
+	t.Parallel()
+
+	starting := config.HintsVisionConfig{RequestTimeoutMS: 100}
+	reloaded := config.HintsVisionConfig{RequestTimeoutMS: 999}
+
+	var (
+		service *services.HintService
+		got     config.HintsVisionConfig
+	)
+
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+		service.UpdateConfig(config.HintsConfig{Vision: reloaded})
+
+		return image.Rect(0, 0, 200, 200), true, nil
+	}
+
+	mockVision := &mocks.MockVisionPort{
+		DetectElementsFunc: func(
+			_ context.Context,
+			_ image.Rectangle,
+			visionConfig config.HintsVisionConfig,
+			_ bool,
+		) ([]*element.Element, error) {
+			got = visionConfig
+
+			return nil, nil
+		},
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service = services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{Vision: starting},
+		zap.NewNop(),
+		mockVision,
+	)
+
+	_, err := service.GenerateHints(
+		context.Background(), nil, nil, "com.example.app",
+		domain.StrategyVision, "", "", false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	if got != starting {
+		t.Errorf("DetectElements() got request_timeout_ms %d, want the starting %d",
+			got.RequestTimeoutMS, starting.RequestTimeoutMS)
+	}
+}
+
 // foreignRolesForCurrentPlatform returns native role entries that belong to
 // platforms other than the one running the tests, so they resolve to nothing
 // here. Returns nil on a platform with no accessibility backend.
