@@ -2716,6 +2716,63 @@ text_color = %q
 	})
 }
 
+// TestSimulation_ConfigReloadEnablingHintsShowsHints turns hints on with a
+// reload and then presses the hints hotkey. The daemon draws hints whatever
+// the setting was at launch, including when an earlier reload turned them off.
+func TestSimulation_ConfigReloadEnablingHintsShowsHints(t *testing.T) {
+	writeConfig := func(t *testing.T, enabled bool) string {
+		t.Helper()
+
+		configPath := filepath.Join(t.TempDir(), "config.toml")
+
+		writeErr := os.WriteFile(configPath, fmt.Appendf(nil, `
+[hotkeys]
+%q = "hints"
+
+[hints]
+enabled = %t
+`, hintsHotkey, enabled), 0o600)
+		if writeErr != nil {
+			t.Fatalf("failed to write the reloaded config: %v", writeErr)
+		}
+
+		return configPath
+	}
+
+	tests := []struct {
+		name            string
+		enabledAtLaunch bool
+		reloads         []bool
+	}{
+		{name: "disabled at launch", enabledAtLaunch: false, reloads: []bool{true}},
+		{
+			name:            "disabled by a reload, then enabled again",
+			enabledAtLaunch: true,
+			reloads:         []bool{false, true},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hints.Enabled = test.enabledAtLaunch
+
+			sim := newSimHarness(t, cfg, threeButtons(t))
+
+			for _, enabled := range test.reloads {
+				reloadErr := sim.app.ReloadConfig(context.Background(), writeConfig(t, enabled))
+				if reloadErr != nil {
+					t.Fatalf("ReloadConfig(enabled = %t) error = %v", enabled, reloadErr)
+				}
+			}
+
+			sim.pressHotkey(hintsHotkey)
+			sim.waitMode(domain.ModeHints)
+			sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+		})
+	}
+}
+
 // TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain pins the decision
 // ADR 0003 rests on. Entering hints puts the overlay on screen once, and every
 // keystroke that narrows the labels redraws it without paying for the window
