@@ -72,7 +72,10 @@ func KeyCodeToName(keyCode uint16) string {
 
 // SetReferenceKeyboardLayout configures the key translation reference layout.
 // Pass an empty inputSourceID to use automatic fallback resolution.
-// Returns false only when a non-empty layout ID was provided but could not be resolved.
+// Returns false only when a non-empty layout ID was applied and could not be
+// resolved. When the main queue stalls, the layout stays queued there and the
+// result is true, since nothing is resolved yet. The queued apply logs a
+// warning if the ID does not resolve, and KeyboardLayouts reports the outcome.
 func SetReferenceKeyboardLayout(inputSourceID string) bool {
 	layoutID := strings.TrimSpace(inputSourceID)
 	var cLayoutID *C.char
