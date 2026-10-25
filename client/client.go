@@ -126,7 +126,8 @@ func (c *Client) Hints(ctx context.Context, flags ...string) (HintsData, error) 
 // Watch calls each with every line of the watch stream: the status snapshot
 // it opens with, then one line per event. Naming events sends only those, and
 // every snapshot still. It returns nil when the daemon ends the stream, the
-// error each returns, or the context's error once it is done.
+// error each returns, or the context's error once it is done. If closing
+// the connection fails after the daemon ends the stream, it returns that error.
 func (c *Client) Watch(ctx context.Context, each func(WatchLine) error, events ...string) error {
 	var args []string
 	if len(events) > 0 {
@@ -206,16 +207,32 @@ func (c *Client) exchange(
 
 		return reply{}, derrors.Wrapf(err, derrors.CodeIPCFailed, "dial %s", endpoint)
 	}
-	defer func() { _ = conn.Close() }()
 
-	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
-	defer stop()
-
-	answer, err := talk(
+	return converse(
+		ctx,
 		conn,
 		request{Protocol: ProtocolVersion, Action: action, Args: args},
 		stream,
 	)
+}
+
+// converse runs exchange on conn, then closes it.
+func converse(
+	ctx context.Context,
+	conn net.Conn,
+	req request,
+	stream func(*json.Decoder) error,
+) (reply, error) {
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+
+	answer, err := talk(conn, req, stream)
+
+	// When the context has already closed the connection, that close error is
+	// not worth reporting.
+	var closeErr error
+	if stop() {
+		closeErr = conn.Close()
+	}
 
 	// A read on a connection the context closed fails with a closed-connection
 	// error, and the context's own error is the one worth reporting.
@@ -223,7 +240,22 @@ func (c *Client) exchange(
 		return answer, ctx.Err()
 	}
 
-	return answer, err
+	if err != nil {
+		return answer, err
+	}
+
+	// A close that fails after a good reply still fails the call, since the
+	// caller has no other way to hear about it.
+	if closeErr != nil {
+		return answer, derrors.Wrapf(
+			closeErr,
+			derrors.CodeIPCFailed,
+			"close the %s connection",
+			req.Action,
+		)
+	}
+
+	return answer, nil
 }
 
 // talk writes req to conn and reads the reply, then hands the rest of the

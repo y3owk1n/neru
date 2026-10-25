@@ -192,7 +192,8 @@ func (s *Server) closeStreams() {
 // bounds the connect and the reply only, never the stream.
 //
 // A refused stream returns its reply and no error. A stream the daemon ends,
-// as it does when it exits, returns the accepting reply and no error.
+// as it does when it exits, returns the accepting reply and no error. Both
+// return an error with the reply when closing the connection fails.
 func (c *Client) Stream(
 	cmd Command,
 	timeout time.Duration,
@@ -209,8 +210,46 @@ func (c *Client) Stream(
 	if dialErr != nil {
 		return Response{}, derrors.Wrap(dialErr, derrors.CodeIPCFailed, connectFailureMessage())
 	}
-	defer func() { _ = connection.Close() }()
 
+	return streamOver(connection, cmd, timeout, each)
+}
+
+// streamOver runs Stream on connection, then closes it.
+func streamOver(
+	connection net.Conn,
+	cmd Command,
+	timeout time.Duration,
+	each func(line json.RawMessage) error,
+) (Response, error) {
+	response, streamErr := readStream(connection, cmd, timeout, each)
+
+	// A close that fails after the stream ended cleanly still fails the call,
+	// since the caller has no other way to hear about it.
+	closeErr := connection.Close()
+
+	if streamErr != nil {
+		return response, streamErr
+	}
+
+	if closeErr != nil {
+		return response, derrors.Wrap(
+			closeErr,
+			derrors.CodeIPCFailed,
+			"failed to close connection",
+		)
+	}
+
+	return response, nil
+}
+
+// readStream sends cmd over connection, reads the reply, and hands each line
+// after it to each.
+func readStream(
+	connection net.Conn,
+	cmd Command,
+	timeout time.Duration,
+	each func(line json.RawMessage) error,
+) (Response, error) {
 	deadlineErr := connection.SetDeadline(time.Now().Add(timeout))
 	if deadlineErr != nil {
 		return Response{}, derrors.Wrap(
