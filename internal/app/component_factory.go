@@ -42,15 +42,10 @@ func NewComponentFactory(
 	}
 }
 
-// CreateHintsComponent creates the hints component.
-//
-// Hints are the one mode whose component is left empty when the mode is
-// disabled, since nothing reads its context.
+// CreateHintsComponent creates the hints component. It is built in full even
+// when hints are disabled, because a config reload enables the mode without
+// rebuilding the component.
 func (f *ComponentFactory) CreateHintsComponent() *components.HintsComponent {
-	if !f.config.Hints.Enabled {
-		return &components.HintsComponent{}
-	}
-
 	return &components.HintsComponent{
 		Context: &hints.Context{},
 	}
