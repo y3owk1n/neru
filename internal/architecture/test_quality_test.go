@@ -23,9 +23,9 @@ var failCalls = map[string]bool{
 //
 //	if err != nil { t.Logf("...", err) }
 //
-// shape: the code under test can break on every run and the suite stays
+// shape, where the code under test can break on every run and the suite stays
 // green. Use t.Error for real failures or t.Skip for environments where the
-// case cannot run — a skip is visible, a swallowed error is not.
+// case cannot run. A skip is visible, a swallowed error is not.
 func TestNoTestSwallowsAnErrorWithoutFailing(t *testing.T) {
 	var offenders []string
 
@@ -54,10 +54,10 @@ func TestNoTestSwallowsAnErrorWithoutFailing(t *testing.T) {
 }
 
 // TestEveryTestBodyCanFail forbids test functions and subtests that contain no
-// failure-producing call at all — they exercise code without checking anything,
+// failure-producing call at all. They exercise code without checking anything,
 // so they only ever catch an outright panic.
 //
-// A function whose body only delegates to t.Run is fine: the assertions live in
+// A function whose body only delegates to t.Run is fine, because the assertions live in
 // the subtests, which are checked individually.
 func TestEveryTestBodyCanFail(t *testing.T) {
 	var offenders []string
@@ -122,7 +122,7 @@ func checkBodyCanFail(
 
 		checkBodyCanFail(fset, subName, closure.Body, offenders)
 
-		// Do not descend further here; the recursive call covers this closure.
+		// Do not descend further here. The recursive call covers this closure.
 		return false
 	})
 
@@ -140,7 +140,7 @@ func checkBodyCanFail(
 
 // scanForCalls reports whether the node contains a t.Log-style call and whether
 // it contains anything that can fail or skip the test. Nested t.Run closures
-// are not descended into: they are separate scopes with their own assertions.
+// are not descended into, because they are separate scopes with their own assertions.
 func scanForCalls(node ast.Node) (bool, bool) {
 	var logged, failed bool
 

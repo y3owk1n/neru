@@ -289,7 +289,7 @@ func TestDispatchModeAwareHeldHotkey_RepeatVsOnce(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	cfg.HeldRepeat.Enabled = true
-	// Large delays so the repeat goroutine parks before ticking; the test
+	// Large delays so the repeat goroutine parks before ticking. The test
 	// cancels via the release callback (and the deferred ctx cancel) first.
 	cfg.HeldRepeat.InitialDelay = 60000
 	cfg.HeldRepeat.Interval = 60000

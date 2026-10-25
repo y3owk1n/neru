@@ -62,8 +62,8 @@ type InfoHandler struct {
 
 // InfoHandlerDeps collects everything NewInfoHandler needs.
 //
-// The reasoning matches Deps: the positional list had reached fourteen
-// arguments, several nil at any given call site. Zero values are valid — a nil
+// The reasoning matches Deps. The positional list had reached fourteen
+// arguments, several nil at any given call site. Zero values are valid. A nil
 // service means the commands that need it report it as unavailable, and
 // EventTap and IPCServer are nil until initialization phase 8.
 type InfoHandlerDeps struct {
@@ -229,7 +229,7 @@ func (h *InfoHandler) stickyModifiers() string {
 // preference, or nil when no mode carries one.
 //
 // It is null rather than false in that case because the two are different
-// answers: false means a running mode is not following the selection, and null
+// answers. False means a running mode is not following the selection, and null
 // means there is nothing to follow it with. A caller that treated the absence
 // as false would think it had read a state it can in fact only set once a mode
 // is running.
@@ -250,7 +250,7 @@ func (h *InfoHandler) cursorFollowSelection() *bool {
 // holds, as an object keyed by slot name.
 //
 // The points are re-keyed to lowercase x and y rather than encoded straight
-// from image.Point, whose fields marshal as X and Y — the rest of this payload
+// from image.Point, whose fields marshal as X and Y. The rest of this payload
 // is snake_case, and the shape a script reads should not depend on how the
 // position happens to be stored.
 func (h *InfoHandler) savedCursorSlots() map[string]ipc.CursorSlotData {

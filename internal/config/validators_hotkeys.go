@@ -239,7 +239,7 @@ func (c *Config) checkHotkeysConflicts() error {
 		if merged == nil {
 			continue
 		}
-		// Convert to StringOrStringArray for conflict checking
+
 		table := make(map[string]StringOrStringArray, len(merged))
 		for k, v := range merged {
 			table[k] = StringOrStringArray(v)
@@ -289,7 +289,7 @@ func checkHotkeyConflicts(
 	// start), making the sequence silently unreachable.
 	//
 	// We use the original key (not normalized) to identify sequences,
-	// matching the ValidateHotkey logic: a sequence is exactly 2 ASCII
+	// matching the ValidateHotkey logic, where a sequence is exactly 2 ASCII
 	// letters in the original form. Named keys like "Up" normalize to
 	// "up" which passes IsAllLetters, but they are not sequences.
 	for key := range table {
@@ -458,7 +458,7 @@ func validateHotkeyActionString(actionStr string) error {
 	}
 
 	// Mode commands may include flags (e.g. "hints --action left_click"). Only
-	// the command word is judged here: the flags after it are read by
+	// the command word is judged here. The flags after it are read by
 	// ValidateModeCommands, which weighs what it finds rather than refusing all
 	// of it.
 	cmd := strings.Fields(trimmed)[0]
@@ -472,7 +472,7 @@ func validateHotkeyActionString(actionStr string) error {
 		"toggle-scroll-invert",
 		"config",
 		// "run" takes its own steps as arguments. Each one is validated when
-		// the sequence executes, not here: the steps arrive as a single quoted
+		// the sequence executes, not here. The steps arrive as a single quoted
 		// string per step, so splitting them apart correctly is the runtime's
 		// job, not the validator's.
 		CmdRun,

@@ -11,7 +11,7 @@ import (
 // against both vocabularies that have a vision backend: macOS's AX names and
 // Linux's AT-SPI names. Asserting a literal "AXButton" would pass on the
 // developer's machine and say nothing about the platform the OCR backend runs
-// on — which is the bug classifier_roles.go exists to prevent. Each case names
+// on, which is the bug classifier_roles.go exists to prevent. Each case names
 // the field it expects rather than the string, and the vocabulary supplies the
 // string.
 var classifierVocabularies = map[string]classifierRoles{

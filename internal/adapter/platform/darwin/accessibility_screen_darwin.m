@@ -15,7 +15,7 @@
 
 // State tracking for Mission Control detection
 static bool g_missionControlActive = false;
-static bool g_mcDetectionEnabled = NO;                // Default to disabled — must be opted in via config
+static bool g_mcDetectionEnabled = NO;                // Disabled until opted in via config
 static CFAbsoluteTime g_lastDetectionTime = 0;        // Use CFAbsoluteTime (double) instead of NSDate
 static NSTimeInterval g_detectionCacheTimeout = 0.5;  // Cache for 500ms
 static id g_spaceChangeObserver = nil;
@@ -48,7 +48,7 @@ static bool getCachedMissionControlState(void) {
 static void setCachedMissionControlState(bool state) {
 	os_unfair_lock_lock(&g_stateLock);
 	g_missionControlActive = state;
-	// Use CFAbsoluteTimeGetCurrent() - plain C function, no ObjC messaging under lock
+	// CFAbsoluteTimeGetCurrent() is a plain C function, so no ObjC messaging under lock
 	g_lastDetectionTime = CFAbsoluteTimeGetCurrent();
 	os_unfair_lock_unlock(&g_stateLock);
 }
@@ -79,7 +79,7 @@ static bool isCacheValid(void) {
 		return false;
 	}
 
-	// Use CFAbsoluteTimeGetCurrent() - plain C function, no ObjC messaging under lock
+	// CFAbsoluteTimeGetCurrent() is a plain C function, so no ObjC messaging under lock
 	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
 	NSTimeInterval timeSinceLastUpdate = now - g_lastDetectionTime;
 	bool valid = (timeSinceLastUpdate < g_detectionCacheTimeout);
@@ -162,7 +162,7 @@ int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY, CGEventFlags flags) {
 		CGEventSetLocation(scrollEvent, pos);
 		// Stamp unconditionally, zero included. A NULL-source event is born
 		// carrying the combined session state's modifier flags, so skipping this
-		// for an empty set does not produce an unmodified scroll — it produces
+		// for an empty set does not produce an unmodified scroll. It produces
 		// whatever the system currently believes is held, which is how a plain
 		// scroll_down ended up zooming after a Ctrl+J binding. Every other
 		// positioned event Neru posts clears its flags the same way.
@@ -179,7 +179,7 @@ int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY, CGEventFlags flags) {
 static const float kNeruDockQueryTimeout = 0.25f;
 
 /// Whether Mission Control is up. While it is, the Dock's accessibility tree
-/// has a child group whose identifier is "mc", and at no other time: App
+/// has a child group whose identifier is "mc", and at no other time. App
 /// Expose, Show Desktop and the Apps launcher leave it out.
 ///
 /// The window list cannot answer this. The Dock keeps one full-display window
@@ -357,7 +357,7 @@ static void initializeMissionControlDetection(void) {
 
 		// Set up a periodic detection timer to handle the case where no
 		// notification fires when MC opens (macOS 15+ Tahoe). This runs on
-		// the background detection queue — fast path when state hasn't changed.
+		// the background detection queue and is a fast path when state hasn't changed.
 		g_detectionTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, g_detectionQueue);
 		if (g_detectionTimer) {
 			dispatch_source_set_timer(
@@ -402,7 +402,7 @@ static void initializeMissionControlDetection(void) {
 /// Try to detect if Mission Control is currently active.
 /// Uses a hybrid approach:
 /// 1. NSWorkspaceActiveSpaceDidChangeNotification triggers detection when spaces change
-/// 2. Cached result is returned to avoid expensive window enumeration on every call
+/// 2. Cached result is returned to avoid querying the Dock on every call
 /// 3. Cache expires after 500ms to ensure freshness
 ///
 /// Works on Sequoia 15.1 (Tahoe) and should work on older versions.
@@ -419,7 +419,7 @@ bool NeruIsMissionControlActive(void) {
 		return getCachedMissionControlState();
 	}
 
-	// Cache expired or not yet set — perform synchronous detection and update cache
+	// Cache expired or not yet set, so perform synchronous detection and update cache
 	bool result = detectMissionControlActive();
 	setCachedMissionControlState(result);
 
@@ -553,7 +553,7 @@ void NeruFreeScreens(NeruScreenInfo *screens, int count) {
 
 /// Report whether the macOS Accessibility Zoom feature is currently zoomed in
 /// @return true when the screen is magnified by Accessibility Zoom
-/// @note Used for diagnostics — cursor positioning is zoom-independent because
+/// @note Used for diagnostics. Cursor positioning is zoom-independent because
 ///       synthetic mouse events are posted at kNeruMouseEventTapLocation.
 bool NeruIsScreenZoomed(void) {
 	@autoreleasepool {

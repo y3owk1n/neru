@@ -79,7 +79,7 @@ func (b LinuxBackend) IsWayland() bool {
 
 // displayServer returns the display-stack label for this backend: what the
 // daemon is driving, said in the vocabulary `neru info` and `neru doctor`
-// report. It is derived rather than detected on purpose — a second read of the
+// report. It is derived rather than detected on purpose. A second read of the
 // environment answered "wayland" for a session whose backend was X11 (#1429).
 func (b LinuxBackend) displayServer() DisplayServer {
 	switch b {
@@ -172,7 +172,7 @@ func IsHyprlandSession() bool {
 }
 
 // XwaylandAvailable reports whether a Wayland session also exposes an X server,
-// which on Wayland is Xwayland. It is what the GNOME backend draws on: Mutter
+// which on Wayland is Xwayland. It is what the GNOME backend draws on. Mutter
 // has no layer shell, and an override-redirect X window is the one surface it
 // stacks above every toplevel without animating it (docs/guide/linux-desktops.md).
 //
@@ -188,7 +188,7 @@ func XwaylandAvailable() bool {
 	return cachedXwayland
 }
 
-// isHyprlandFromEnv answers behind the backend rather than beside it: a desktop
+// isHyprlandFromEnv answers behind the backend rather than beside it. A desktop
 // naming Hyprland on a session the detector did not call wlroots is not a
 // Hyprland session, it is a stale variable.
 func isHyprlandFromEnv(currentDesktop string, waylandDisplay string) bool {

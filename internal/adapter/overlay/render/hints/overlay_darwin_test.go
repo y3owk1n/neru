@@ -13,15 +13,15 @@ import (
 )
 
 // unknownPlacement is a `hints.ui.placement` value the vocabulary does not
-// declare — the shape a fourth placement would have on the day someone adds it
+// declare. It has the shape a fourth placement would have on the day someone adds it
 // to config and forgets this renderer.
 const unknownPlacement = "floating"
 
 // TestHintPlacementValue_EveryPlacementMapsToItsOwnConstant is the macOS half
 // of the placement pin. The architecture test keeps the C header and the
-// Objective-C enum agreeing about the numbers; this keeps the translation
+// Objective-C enum agreeing about the numbers, and this keeps the translation
 // honest. A placement added to config.HintPlacements() and not to this switch
-// would validate, reach the overlay and be refused rather than drawn — this
+// would validate, reach the overlay and be refused rather than drawn. This
 // test is what says so before a user sees it.
 func TestHintPlacementValue_EveryPlacementMapsToItsOwnConstant(t *testing.T) {
 	t.Parallel()
@@ -77,9 +77,9 @@ func TestHintPlacementValue_UnsetDrawsTheDefault(t *testing.T) {
 }
 
 // TestHintPlacementValue_UnknownPlacementIsNotSupported pins the other half of
-// the vocabulary: a value outside it is refused, not translated. It used to
+// the vocabulary. A value outside it is refused, not translated. It used to
 // come back as HINT_PLACEMENT_BOTTOM, which made a placement with no branch
-// here indistinguishable from `bottom` — silent everywhere and wrong on
+// here indistinguishable from `bottom`, silent everywhere and wrong on
 // screen. The Linux overlay already refuses the same value (#1331).
 func TestHintPlacementValue_UnknownPlacementIsNotSupported(t *testing.T) {
 	t.Parallel()
@@ -119,8 +119,8 @@ func drawnHints() []*Hint {
 }
 
 // newTestOverlay builds a hint renderer over no window. Every C draw call
-// guards a nil window and returns, so this exercises the Go side of a draw —
-// which is where the placement is resolved — without an NSWindow.
+// guards a nil window and returns, so this exercises the Go side of a draw,
+// which is where the placement is resolved, without an NSWindow.
 func newTestOverlay(t *testing.T) *Overlay {
 	t.Helper()
 
@@ -133,7 +133,7 @@ func newTestOverlay(t *testing.T) *Overlay {
 }
 
 // TestOverlay_DrawHintsWithStyle_UnknownPlacementIsRefusedNotDrawn pins where
-// the refusal reaches a caller: the draw the mode handler makes, before a
+// the refusal reaches a caller, which is the draw the mode handler makes, before a
 // single label crosses into Objective-C. Drawing them at the bottom instead
 // would leave the user looking at hints in a placement they did not choose,
 // with nothing anywhere saying so.
@@ -160,14 +160,14 @@ func TestOverlay_DrawHintsWithStyle_UnknownPlacementIsRefusedNotDrawn(t *testing
 }
 
 // TestOverlay_DrawHintsWithStyle_UnknownPlacementIsRefusedOnARedraw pins the
-// refusal on a draw that follows one already on screen — the keystroke case,
-// which would otherwise take the incremental route and build its own style for
+// refusal on a draw that follows one already on screen. That is the keystroke
+// case, which would otherwise take the incremental route and build its own style for
 // the C call. The resolution happens once above both routes, so this asserts
-// that placement of the guard rather than a second guard: a refusal put inside
+// that placement of the guard rather than a second guard. A refusal put inside
 // the full redraw would let every keystroke after the first through.
 //
-// What no test can reach is which constant each route hands to Objective-C:
-// the draw's only effect is the C call. The architecture test pins the
+// What no test can reach is which constant each route hands to Objective-C,
+// because the draw's only effect is the C call. The architecture test pins the
 // translation, and this pins that neither route runs without it.
 func TestOverlay_DrawHintsWithStyle_UnknownPlacementIsRefusedOnARedraw(t *testing.T) {
 	t.Parallel()
@@ -198,7 +198,7 @@ func TestOverlay_DrawHintsWithStyle_UnknownPlacementIsRefusedOnARedraw(t *testin
 // TestOverlay_DrawHintsWithStyle_UnknownPlacementStillClearsAnEmptySet pins the
 // one draw the refusal does not cover. An empty hint set means "take the labels
 // off the screen", and a placement decides where a label goes, not whether one
-// can be removed — refusing here would strand whatever is on screen there.
+// can be removed. Refusing here would strand whatever is on screen there.
 func TestOverlay_DrawHintsWithStyle_UnknownPlacementStillClearsAnEmptySet(t *testing.T) {
 	t.Parallel()
 

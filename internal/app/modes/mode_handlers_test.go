@@ -80,7 +80,7 @@ func TestRunOnExit_NilAndEmptyNoop(t *testing.T) {
 	}
 }
 
-// stepExecFoo is the on-exit step these cases pass around; what it says does
+// stepExecFoo is the on-exit step these cases pass around. What it says does
 // not matter, only that it survives the trip.
 const stepExecFoo = "exec foo"
 
@@ -182,7 +182,7 @@ func TestActivateMode_HandsTheWholeActivationToTheMode(t *testing.T) {
 }
 
 // TestActivateMode_OnExitAbsentClearsStaleSteps covers the sharpest edge of the
-// --on-exit contract as an external command sees it: a fresh command that says
+// --on-exit contract as an external command sees it. A fresh command that says
 // nothing about --on-exit must not inherit the steps a previous activation
 // stored, or a later completed action runs a command the user never asked for.
 func TestActivateMode_OnExitAbsentClearsStaleSteps(t *testing.T) {

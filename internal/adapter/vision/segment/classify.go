@@ -7,9 +7,9 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
-// The size rules, in logical pixels. They describe desktop UI, not a tuning
-// surface: each was checked against rendered light and dark scenes with known
-// clickable boxes.
+// The size rules, in logical pixels. They describe desktop UI and are not
+// tuning knobs. Each was checked against rendered light and dark scenes with
+// known clickable boxes.
 const (
 	// maxControlHeight is the tallest frame that is one control. A taller one
 	// is a card or panel whose children are the targets.
@@ -591,7 +591,7 @@ func sameLabel(a, b *blob, lim limits) bool {
 	}
 
 	// The mask marks the pixel before each step, so a blob's box starts one
-	// pixel early: the ink gap is one wider, and the ink one shorter, than the
+	// pixel early. The ink gap is one wider, and the ink one shorter, than the
 	// boxes say. Words are told apart on the ink.
 	inkGap, inkHeight := gapX+1, hi-1
 	if float64(inkGap) > max(lim.labelGap*float64(inkHeight), float64(lim.markGap)) ||

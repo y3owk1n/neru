@@ -67,7 +67,7 @@ const (
 	// high bit of the result flags a dead key.
 	mapvkVkToChar = 2
 
-	// loWordMask isolates the low 16 bits; byteMask isolates the low 8 bits.
+	// loWordMask isolates the low 16 bits, and byteMask the low 8 bits.
 	loWordMask = 0xFFFF
 	byteMask   = 0xFF
 
@@ -182,7 +182,7 @@ func KeyNameFromVirtualKey(virtualKey uint32) string {
 		if name := functionKeyName(virtualKey); name != "" {
 			return name
 		}
-		// OEM/punctuation keys (e.g. "`", "/", "-") are layout-dependent: the
+		// OEM/punctuation keys (e.g. "`", "/", "-") are layout-dependent. The
 		// same character lives on different VK codes across keyboard layouts.
 		// Translate via the reference layout (layout.go) so hotkeys like "`"
 		// match on a US, UK, or other layout, and keep matching while a

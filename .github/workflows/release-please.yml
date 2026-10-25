@@ -40,10 +40,10 @@ jobs:
             - prepare-release-macos-version
         if: ${{ needs.release-please.outputs.release_created == 'true' }}
         # Build-provenance permissions, required here because a called workflow
-        # can only narrow what its caller granted — see the header comment in
-        # publish-artifacts.yml. Scoped to this job rather than raised
-        # workflow-wide: the release-please job above has no business minting an
-        # OIDC token.
+        # can only narrow what its caller granted. See the header comment in
+        # publish-artifacts.yml. They are scoped to this job rather than raised
+        # workflow-wide, because the release-please job above has no reason to
+        # mint an OIDC token.
         permissions:
             contents: write
             id-token: write

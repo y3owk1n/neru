@@ -80,7 +80,7 @@ const (
 )
 
 // Element is a UI element in the accessibility tree (or detected
-// via vision). It is immutable after creation to ensure thread safety.
+// via vision). It is immutable after creation, so goroutines can share it.
 //
 // A new element is unfocused and has no identifier. One found on screen
 // rather than in the accessibility tree keeps those defaults.
@@ -115,7 +115,6 @@ func NewElement(elementID ID, bounds image.Rectangle, role Role, opts ...Option)
 		source: SourceAXTree,
 	}
 
-	// Apply options
 	for _, opt := range opts {
 		opt(element)
 	}
@@ -224,8 +223,8 @@ func (e *Element) SearchText() string {
 }
 
 // IsVisionOnly returns true if the element was found anywhere but the
-// accessibility tree. Vision-only elements have no AX reference; actions must
-// use coordinate-based clicks (PerformActionAtPoint).
+// accessibility tree. Vision-only elements have no AX reference, so actions
+// must use coordinate-based clicks (PerformActionAtPoint).
 func (e *Element) IsVisionOnly() bool {
 	return e.source != SourceAXTree
 }

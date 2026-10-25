@@ -8,10 +8,9 @@ import (
 // Warnings collects what a configuration says that will not happen.
 //
 // A warning is for a setting that is written well enough to load and will not
-// do what it reads as — a binding naming a flag its mode has no use for, say.
+// do what it reads as, such as a binding naming a flag its mode has no use for.
 // It is also for a setting that works today and is deprecated, and names what
-// replaces it.
-// Refusing the load over one would be worse than the bug: a refused
+// replaces it. Refusing the load over one would be worse than the bug. A refused
 // configuration is replaced by the defaults, so the user loses every binding,
 // theme and setting they wrote over one line that mostly works (ADR 0002).
 //
@@ -37,7 +36,7 @@ func (w *Warnings) Addf(format string, args ...any) {
 
 // Messages returns what was collected, sorted.
 //
-// Sorted because most of a configuration lives in maps: the same file walked
+// Sorted because most of a configuration lives in maps, so the same file walked
 // twice reports the same warnings in a different order, and a user comparing
 // two runs of `neru config validate` should not have to notice that nothing
 // changed. The order that results groups a field's warnings together.

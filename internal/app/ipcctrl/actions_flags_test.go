@@ -19,7 +19,7 @@ const (
 )
 
 // TestActionFlagSupport_CoversEveryParsedFlag is the guard that keeps flag
-// validation fail-closed: a flag the parser understands but no action declares
+// validation fail-closed. A flag the parser understands but no action declares
 // would be accepted everywhere and silently ignored.
 func TestActionFlagSupport_CoversEveryParsedFlag(t *testing.T) {
 	declared := map[string]bool{}
@@ -41,7 +41,7 @@ func TestActionFlagSupport_CoversEveryParsedFlag(t *testing.T) {
 	}
 }
 
-// TestActionFlagSupport_DeclaresOnlyParsedFlags catches the reverse typo: a
+// TestActionFlagSupport_DeclaresOnlyParsedFlags catches the reverse typo. A
 // table entry naming a flag the parser never produces would silently never
 // match.
 func TestActionFlagSupport_DeclaresOnlyParsedFlags(t *testing.T) {
@@ -66,10 +66,10 @@ func TestActionFlagSupport_NamesAreKnownActions(t *testing.T) {
 
 // TestActionFlagSupport_CoversEveryDispatchableAction lists the actions that
 // reach flag parsing. An action missing from actionFlagSupport is not rejected
-// (unknown names are left to the dispatcher), so it would accept every flag —
-// this test is what forces a new action to declare its flags.
+// (unknown names are left to the dispatcher), so it would accept every flag.
+// This test is what forces a new action to declare its flags.
 //
-// feed and sleep are intentionally absent: both consume their raw arguments
+// feed and sleep are intentionally absent, because both consume their raw arguments
 // before flag parsing runs.
 func TestActionFlagSupport_CoversEveryDispatchableAction(t *testing.T) {
 	dispatchable := []action.Name{
@@ -178,7 +178,7 @@ func TestRejectUnsupportedFlags_RejectsFlagsAnActionDoesNotDeclare(t *testing.T)
 	}
 }
 
-// TestRejectUnsupportedFlags_AcceptsDeclaredFlags is the other half: a declared
+// TestRejectUnsupportedFlags_AcceptsDeclaredFlags is the other half. A declared
 // flag must pass.
 func TestRejectUnsupportedFlags_AcceptsDeclaredFlags(t *testing.T) {
 	for name, allowed := range actionFlagSupport {
@@ -235,7 +235,7 @@ func TestRejectUnsupportedFlags_IgnoresUnknownActions(t *testing.T) {
 }
 
 // TestHandleAction_RejectsFlagsThatUsedToBeIgnored pins the drift this
-// restructure fixes: these flags were silently accepted before, because each
+// restructure fixes. These flags were silently accepted before, because each
 // handler kept its own hand-written reject list. A row with a wantMessage also
 // checks the exact message the user sees, spelled out here instead of looked
 // up in the table.
@@ -318,7 +318,7 @@ func TestHandleAction_RejectsFlagsThatUsedToBeIgnored(t *testing.T) {
 }
 
 // TestRejectUnsupportedFlags_ChainsDoNotMutateTheTable guards the aliasing
-// hazard in chain handling: the table's flag slices are shared between actions,
+// hazard in chain handling. The table's flag slices are shared between actions,
 // so narrowing them for a chain must work on a copy.
 func TestRejectUnsupportedFlags_ChainsDoNotMutateTheTable(t *testing.T) {
 	before := slices.Clone(actionFlagSupport[string(action.NameLeftClick)])

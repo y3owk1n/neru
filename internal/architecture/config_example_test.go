@@ -22,15 +22,15 @@ const defaultExample = "default-config.toml"
 
 // Why an option can be missing from the example, in the order the rules apply.
 const (
-	// A config.Color is written as one value; its light/dark leaves are what
+	// A config.Color is written as one value. Its light/dark leaves are what
 	// ResolveThemeDefaults() fills in from the theme palette.
 	exemptColorLeaf = "leaf beneath a config.Color field"
 	// A collection that ships empty has nothing to show. Writing it out would
 	// put a bare [] in the example and assert nothing.
 	exemptEmptyCollection = "collection option that is empty by default"
 	// The same rule reaching the keys of a repeated table nobody ships entries
-	// for. This is what exempts the app_configs and layers sub-fields — the
-	// bulk of the legitimate absences — so it is named rather than folded into
+	// for. This is what exempts the app_configs and layers sub-fields, the
+	// bulk of the legitimate absences, so it is named rather than folded into
 	// the reason above, which is untrue of a leaf.
 	exemptInsideEmptyCollection = "sub-field of a collection option that is empty by default"
 )
@@ -45,24 +45,24 @@ const (
 var exemptedOptions = map[string]string{}
 
 // minSchemaOptions guards against a vacuous pass. The walk below finds roughly
-// 350 leaf options today; a reflection bug that returned none would satisfy
+// 350 leaf options today. A reflection bug that returned none would satisfy
 // every assertion in this file without anyone noticing.
 const minSchemaOptions = 200
 
 // colorType is the named struct the by-type exemption keys on. Color has
 // exactly Light and Dark (internal/config/color.go), so matching the type
-// reaches those two leaves and nothing else — ThemeConfig.Light and .Dark are
-// ThemePalette, and stay under the normal rule. TestConfigExampleExemptions-
-// StayHonest pins that shape, because a third leaf would widen the exemption
-// without anyone deciding it should.
+// reaches those two leaves and nothing else. ThemeConfig.Light and .Dark are
+// ThemePalette, and stay under the normal rule.
+// TestConfigExampleExemptionsStayHonest pins that shape, because a third leaf
+// would widen the exemption without anyone deciding it should.
 var colorType = reflect.TypeFor[config.Color]()
 
 // colorLeaves are the two names the by-type exemption skips.
 var colorLeaves = []string{"light", "dark"}
 
-// stringOrArrayType is a slice in Go and one value in TOML: it unmarshals from
+// stringOrArrayType is a slice in Go and one value in TOML. It unmarshals from
 // a bare string as readily as from an array (internal/config/keys.go). The
-// by-kind exemption is about collections, and this is not one — a nil default
+// by-kind exemption is about collections, and this is not one. A nil default
 // means the option has no default, not that it ships empty.
 var stringOrArrayType = reflect.TypeFor[config.StringOrStringArray]()
 
@@ -81,7 +81,7 @@ type configOption struct {
 // schemaField is one struct field the walk passes through, intermediate tables
 // included, addressed the way Go declares it.
 //
-// The example checks work in TOML terms because an example file does; the
+// The example checks work in TOML terms because an example file does. The
 // explicit-default check in config_chain_test.go has to speak Go, because what
 // it reads is a composite literal. Both come off this one walk rather than two,
 // so a schema the reflection cannot reach is invisible to neither or to both.
@@ -106,7 +106,7 @@ type configSchema struct {
 	known map[string]bool
 	// colorNodes holds the path of every config.Color field, which is one
 	// option to whoever writes it and two leaves to the walk. The example
-	// checks want the leaves; the platform-support declaration wants the node,
+	// checks want the leaves. The platform-support declaration wants the node,
 	// because a Color is written as one value as readily as a table.
 	colorNodes []string
 	// opaque holds the prefixes whose children the user names rather than the
@@ -116,12 +116,12 @@ type configSchema struct {
 
 // TestConfigOptionsAppearInTheDefaultExample pins the example TOML to the
 // schema. That file is what a user copies, so an option missing from it is one
-// most users never learn exists — and forgetting the line failed nothing,
+// most users never learn exists. And forgetting the line failed nothing,
 // because TOML has no opinion about the keys a file leaves out.
 //
 // The exemption rule is the whole design here. 161 of the 165 absences on the
 // day this landed were correct, so a naive assertion would be 97% false
-// positives; see docs/adr/0006-config-options-get-guardrails-not-generation.md.
+// positives. See docs/adr/0006-config-options-get-guardrails-not-generation.md.
 func TestConfigOptionsAppearInTheDefaultExample(t *testing.T) {
 	schema := reflectConfigSchema(t)
 	present := defaultExampleKeyPaths(t)
@@ -152,8 +152,8 @@ func TestConfigOptionsAppearInTheDefaultExample(t *testing.T) {
 
 // TestShippedExamplesWriteOnlySchemaKeys catches the drift running the other
 // way. TOML decoding ignores a key the schema does not have, silently, so a
-// misspelled key in an example is a dead line that looks like it works — to
-// the reviewer, and then to every user who copies the file.
+// misspelled key in an example is a dead line that looks like it works, to
+// the reviewer and then to every user who copies the file.
 func TestShippedExamplesWriteOnlySchemaKeys(t *testing.T) {
 	schema := reflectConfigSchema(t)
 	root := findRepoRoot(t)
@@ -178,7 +178,7 @@ func TestShippedExamplesWriteOnlySchemaKeys(t *testing.T) {
 }
 
 // TestConfigExampleExemptionsStayHonest keeps the exemptions from outliving
-// what they describe. The by-kind rule needs no companion — it is recomputed
+// what they describe. The by-kind rule needs no companion, because it is recomputed
 // from the defaults on every run, so a collection that gains a non-empty
 // default stops being exempt by itself. The other two are claims about the
 // code, and claims rot.
@@ -270,12 +270,12 @@ func (s *configSchema) walkStruct(typ reflect.Type, val reflect.Value, prefix, e
 
 		// A collection that ships empty is exempt from needing an explicit
 		// default for the same reason it is exempt from needing an example
-		// line: nil and empty are the same collection to every reader of it,
-		// so there is no forgotten-versus-deliberate to tell apart. That is
-		// also the rule's limit — a collection meant to ship non-empty, whose
+		// line, because nil and empty are the same collection to every reader of
+		// it, so there is no forgotten-versus-deliberate to tell apart. That is
+		// also the rule's limit. A collection meant to ship non-empty, whose
 		// default was forgotten, reads as empty and gets forgiven. A scalar
-		// gets no such pass, which is the point: grid.row_labels defaulting to
-		// "" by omission is exactly what this must not forgive.
+		// gets no such pass, and that is the point. A grid.row_labels defaulting
+		// to "" by omission is exactly what this must not forgive.
 		fieldExemption := exemption
 		if fieldExemption == "" && isEmptyCollection(field.Type, fieldVal) {
 			fieldExemption = exemptEmptyCollection
@@ -289,7 +289,7 @@ func (s *configSchema) walkStruct(typ reflect.Type, val reflect.Value, prefix, e
 		})
 
 		if freeForm {
-			// The struct decoder never sees these — internal/config/loader/
+			// The struct decoder never sees these, because internal/config/loader/
 			// load.go reads them off the raw map, because their keys are the
 			// key combinations the user invents. Nothing below is a schema path.
 			s.opaque = append(s.opaque, path)
@@ -383,8 +383,8 @@ func joinPath(prefix, name string) string {
 }
 
 // tomlFieldName returns the name a field is written under and whether its
-// contents are free-form. A toml:"-" field is still written in a config file —
-// the hotkey tables are the reason the tag is there — so its name comes from
+// contents are free-form. A toml:"-" field is still written in a config file,
+// and the hotkey tables are the reason the tag is there. So its name comes from
 // the json tag, and everything below it is the user's vocabulary.
 func tomlFieldName(t *testing.T, owner reflect.Type, field reflect.StructField) (string, bool) {
 	t.Helper()
@@ -425,9 +425,9 @@ func defaultExampleKeyPaths(t *testing.T) map[string]bool {
 // shape with the line commented out.
 //
 // Live and commented lines carry their own table cursor. A commented block
-// names its own table — the macro example does — and letting that header
+// names its own table, as the macro example does, and letting that header
 // retarget the live keys below it would file a real option under a table it is
-// not in, which fails open: the option reads as absent, or worse, a phantom
+// not in, which fails open. The option reads as absent, or worse, a phantom
 // path marks a genuinely missing one present.
 func exampleKeyPaths(t *testing.T, path string) map[string]bool {
 	t.Helper()
@@ -489,7 +489,7 @@ func tableHeader(line string) (string, bool) {
 }
 
 // decodedKeyPaths returns the paths the TOML decoder actually reads out of an
-// example. Going through the decoder rather than the text is the point: these
+// example. Going through the decoder rather than the text is the point, because these
 // are exactly the keys a user's copy would carry, expanded the same way.
 func decodedKeyPaths(t *testing.T, path string, schema *configSchema) []string {
 	t.Helper()
@@ -538,7 +538,7 @@ func collectKeyPaths(node map[string]any, prefix string, schema *configSchema, o
 }
 
 // isEmptyCollection reports whether a default value is a slice or map that
-// ships empty. A StringOrStringArray is excluded: it is a slice in Go and one
+// ships empty. A StringOrStringArray is excluded, because it is a slice in Go and one
 // value in TOML, so an empty one is an option with no default rather than a
 // collection with an empty one.
 func isEmptyCollection(typ reflect.Type, val reflect.Value) bool {

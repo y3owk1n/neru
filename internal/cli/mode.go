@@ -8,7 +8,7 @@ var ModeCmd = BuildModeCommand(ModeConfig{
 	Short: "Enter a mode declared in your config",
 	Long: `Activate a mode you declared under [modes.<name>] in config.toml.
 
-A declared mode has no logic of its own: it captures the keyboard, shows its
+A declared mode has no logic of its own. It captures the keyboard, shows its
 indicator, and answers every key from its own [modes.<name>.hotkeys] table.
 Escape returns to idle unless the table rebinds it.
 

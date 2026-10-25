@@ -22,7 +22,7 @@ type Manager struct {
 	callbacks SelectionCallbacks    // What the selection tells its owner
 }
 
-// NewManager creates a recursive-grid manager with default dimensions (3×3)
+// NewManager creates a recursive-grid manager with default dimensions (3x3)
 // and default size/depth limits. Used primarily in tests.
 func NewManager(
 	screenBounds image.Rectangle,
@@ -61,7 +61,7 @@ func NewManagerWithLayers(
 	logger *zap.Logger,
 ) *Manager {
 	// A shape that cannot narrow anything is replaced with the default one.
-	// UsableDimensions owns that rule; what belongs here is naming the values
+	// UsableDimensions owns that rule. What belongs here is naming the values
 	// it rejected, which it cannot report once it has replaced them.
 	usableDims, asGiven := UsableDimensions(dims)
 	if !asGiven {
@@ -97,7 +97,7 @@ func NewManagerWithLayers(
 
 	// Validate consistency: every depth that appears in one map must appear
 	// in the other, and the key count must match the layout dimensions.
-	// Mismatched entries are dropped with a warning to prevent keyToCell
+	// Mismatched entries are dropped and logged to prevent keyToCell
 	// returning cell indices outside the range of Divide().
 	for depth := range depthLayouts {
 		depthKey, hasKeys := depthKeys[depth]

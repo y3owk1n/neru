@@ -27,7 +27,7 @@ const (
 )
 
 // NormalizeKey canonicalizes a key string of the form
-// "modifier+...+baseKey": an alias base key becomes the key it means
+// "modifier+...+baseKey". An alias base key becomes the key it means
 // (enter -> Return, esc -> Escape, backspace -> Delete), every other named base
 // key gets its display spelling (pagedown -> PageDown), and single-rune base
 // keys are lowercased. Anything else passes through unchanged, as do modifier
@@ -97,7 +97,7 @@ func KeyUpEvent(key string) string {
 
 // ModifierToggleEvent formats the synthetic modifier transition event for a
 // modifier press (isDown true) or release. The modifier is canonicalized
-// first; a non-modifier input returns "".
+// first, and a non-modifier input returns "".
 func ModifierToggleEvent(modifier string, isDown bool) string {
 	modifier = CanonicalModifier(modifier)
 	if modifier == "" {

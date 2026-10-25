@@ -21,13 +21,13 @@ func init() {
 //
 // The native text field is created and torn down on the main queue. A plain
 // `go test` binary drains nothing, so calling into the real TextInput without
-// this harness deadlocks — which is why these assertions live behind the
+// this harness deadlocks, which is why these assertions live behind the
 // integration tag rather than in adapter_test.go.
 func TestMain(m *testing.M) {
 	os.Exit(darwin.RunMainLoopForTesting(m.Run))
 }
 
-// TestTextInput_StopIsIdempotent covers the teardown path: mode exit and
+// TestTextInput_StopIsIdempotent covers the teardown path. Mode exit and
 // cleanup both call Stop, so the second call must be harmless.
 func TestTextInput_StopIsIdempotent(t *testing.T) {
 	adapter := textinput.NewAdapter(textinput.NewTextInput(nil), nil)
@@ -41,8 +41,8 @@ func TestTextInput_StopIsIdempotent(t *testing.T) {
 }
 
 // requireDesktop skips unless this run opted into tests that drive the real
-// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable;
-// plain `just test` stays hands-off the machine.
+// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable,
+// and plain `just test` stays hands-off the machine.
 func requireDesktop(t *testing.T) {
 	t.Helper()
 

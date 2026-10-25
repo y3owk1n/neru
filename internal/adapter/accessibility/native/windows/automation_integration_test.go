@@ -9,7 +9,7 @@ import (
 )
 
 // Real IUIAutomation enumeration test against the live foreground window.
-// Does not run in default CI; execute on WIN-VM with a GUI app focused:
+// Does not run in default CI. Execute on WIN-VM with a GUI app focused:
 // go test -tags=integration ./internal/adapter/accessibility/...
 func TestEnumerateClickableElementsIntegration(t *testing.T) {
 	user32 := windows.NewLazySystemDLL("user32.dll")

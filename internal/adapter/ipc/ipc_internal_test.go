@@ -33,7 +33,7 @@ func TestBoundedReader_Read(t *testing.T) {
 		},
 		{
 			// A decoder stops as soon as it has a whole JSON value, so it never
-			// asks for the byte past the budget; io.ReadAll always does.
+			// asks for the byte past the budget. io.ReadAll always does.
 			name:      "spends the budget exactly",
 			input:     payload,
 			remaining: 5,
@@ -71,8 +71,8 @@ func TestBoundedReader_Read(t *testing.T) {
 }
 
 // A handler is free to outlive the deadline set when the connection was
-// accepted — an action sequence can sleep, or wait for the user to finish a
-// mode. The reply must still be attempted, or a command that succeeded would
+// accepted, since an action sequence can sleep or wait for the user to finish
+// a mode. The reply must still be attempted, or a command that succeeded would
 // be reported to its caller as a timeout.
 func TestWriteResponse_SendsAfterTheAcceptDeadlineHasPassed(t *testing.T) {
 	t.Parallel()
@@ -128,7 +128,7 @@ func TestWriteResponse_SendsAfterTheAcceptDeadlineHasPassed(t *testing.T) {
 	}
 }
 
-// The write side still has a bound of its own: a client that stops reading
+// The write side still has a bound of its own. A client that stops reading
 // must not pin the connection goroutine indefinitely.
 func TestWriteResponse_TimesOutWhenTheClientStopsReading(t *testing.T) {
 	t.Parallel()

@@ -1,7 +1,7 @@
 package app_test
 
 // Full-loop user-journey tests. Each test drives the real app with nothing
-// but key strings — the same input the native event tap delivers — and
+// but key strings, the same input the native event tap delivers, and
 // asserts on the observable outcome: what was drawn, where the cursor went,
 // and what was clicked or scrolled. See simulation_harness_test.go.
 
@@ -40,7 +40,7 @@ const (
 )
 
 // The two fixture applications a journey switches between. The desktop starts
-// focused on the first; the second is what it can switch away to.
+// focused on the first, and the second is what it can switch away to.
 const (
 	simFixtureAppName   = "Sim Fixture"
 	simOtherAppBundleID = "com.example.otherapp"
@@ -121,13 +121,13 @@ func TestSimulation_HintsJourney_SelectMovesCursor(t *testing.T) {
 }
 
 // TestSimulation_HintsJourney_ClickAction covers the canonical "click a
-// button without a mouse" journey: a binding with an explicit action
+// button without a mouse" journey. A binding with an explicit action
 // ("hints left_click") makes typing the label move the cursor to the element
 // center, click there, and drop back to idle.
 //
 // The three spellings of that binding run the same journey. A binding is text
 // the daemon reads for itself, so this is where a flag that parses but never
-// reaches the mode would show up — as a hint that highlights and then does
+// reaches the mode would show up, as a hint that highlights and then does
 // nothing.
 func TestSimulation_HintsJourney_ClickAction(t *testing.T) {
 	bindings := map[string]string{
@@ -177,7 +177,7 @@ func TestSimulation_HintsJourney_ClickAction(t *testing.T) {
 	}
 }
 
-// TestSimulation_HintsEscape covers bailing out: Escape exits hints, hides
+// TestSimulation_HintsEscape covers bailing out. Escape exits hints, hides
 // the overlay, and returns to idle without side effects.
 func TestSimulation_HintsEscape(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), threeButtons(t))
@@ -196,7 +196,7 @@ func TestSimulation_HintsEscape(t *testing.T) {
 	}
 }
 
-// TestSimulation_GridJourney covers the accessibility-independent path: grid
+// TestSimulation_GridJourney covers the accessibility-independent path. Grid
 // mode needs no elements at all. Typing a cell's coordinate moves the cursor
 // into that cell.
 func TestSimulation_GridJourney(t *testing.T) {
@@ -238,9 +238,9 @@ func TestSimulation_GridJourney(t *testing.T) {
 }
 
 // TestSimulation_GridNarrowingCostsNoRedraw is the promise ADR 0003 makes a
-// user: typing in grid mode narrows what is on screen without redrawing the
+// user. Typing in grid mode narrows what is on screen without redrawing the
 // grid or putting the overlay up again. It asserts the domain value the user's
-// keystroke produced — the prefix the cells are matched against — rather than
+// keystroke produced, the prefix the cells are matched against, rather than
 // which call carried it.
 func TestSimulation_GridNarrowingCostsNoRedraw(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -262,7 +262,7 @@ func TestSimulation_GridNarrowingCostsNoRedraw(t *testing.T) {
 	drawsBefore := sim.overlay.gridDrawCount()
 	showsBefore := sim.overlay.showCount()
 
-	// Labels are drawn upper case and the grid matches on them; a user types
+	// Labels are drawn upper case and the grid matches on them. A user types
 	// the key, so the two differ in case and only in case.
 	first := string([]rune(label)[0])
 	sim.press(strings.ToLower(first))
@@ -295,7 +295,7 @@ func TestSimulation_GridNarrowingCostsNoRedraw(t *testing.T) {
 
 // stopCursorFollowing turns cursor-follow-selection off with the key bound to
 // it and waits for the change to land. The toggle is a mode hotkey, so the app
-// runs it on a goroutine; the pointer refresh it owes is what says it ran.
+// runs it on a goroutine. The pointer refresh it owes is what says it ran.
 func stopCursorFollowing(sim *simHarness) {
 	sim.t.Helper()
 
@@ -309,15 +309,15 @@ func stopCursorFollowing(sim *simHarness) {
 }
 
 // TestSimulation_GridSelectionUpdatesTheSurfaceOnce is the other half of what
-// ADR 0003 promises, and what #1492 was: the keystroke that picks a cell opens
+// ADR 0003 promises, and what #1492 was. The keystroke that picks a cell opens
 // the subgrid *and* moves the selection, and where both are painted onto one
 // surface saying it in two calls repaints that surface twice for one key. The
 // mode says it once.
 //
 // Cursor-follow is turned off first ("`"), because that is the session this is
-// about: with the real cursor following the selection there is no pointer
+// about. With the real cursor following the selection there is no pointer
 // stand-in to move and the second update never existed. The last keystroke of
-// the label is the one measured — the ones before it narrow, which is the path
+// the label is the one measured. The ones before it narrow, which is the path
 // the test above covers.
 func TestSimulation_GridSelectionUpdatesTheSurfaceOnce(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -354,7 +354,7 @@ func TestSimulation_GridSelectionUpdatesTheSurfaceOnce(t *testing.T) {
 			got)
 	}
 
-	// And the one call carried both: the pointer stands on the cell the subgrid
+	// And the one call carried both. The pointer stands on the cell the subgrid
 	// was opened inside, which is the only thing on screen saying where the
 	// selection is for this user.
 	pointer, drawn := sim.overlay.lastGridPointer()
@@ -366,12 +366,12 @@ func TestSimulation_GridSelectionUpdatesTheSurfaceOnce(t *testing.T) {
 
 // moveCellKey is the key this file's arrow-key journey binds `move_cell` to.
 // Grid mode's default hotkeys point the arrows at `move_mouse_*`, so sliding an
-// open subgrid is a binding a user writes — and it reaches the same subgrid
+// open subgrid is a binding a user writes, and it reaches the same subgrid
 // callback the selection keystroke does, which is why it is measured here.
 const moveCellKey = "Right"
 
 // TestSimulation_MovingAnOpenSubgridUpdatesTheSurfaceOncePerPress is the third
-// keystroke #1492 names: a held arrow inside a subgrid re-opens the subgrid over
+// keystroke #1492 names. A held arrow inside a subgrid re-opens the subgrid over
 // the neighboring cell and moves the selection with it, once per repeat. Each
 // press must cost the surface one change, or a held key multiplies the one the
 // spec is about.
@@ -419,7 +419,7 @@ func TestSimulation_MovingAnOpenSubgridUpdatesTheSurfaceOncePerPress(t *testing.
 }
 
 // TestSimulation_LeavingGridRepaintsNothingOnTheWayOut is the teardown half of
-// the same promise (#1492): the grid is about to be taken off the screen, so
+// the same promise (#1492). The grid is about to be taken off the screen, so
 // resetting what the overlay still holds for it must not repaint it first. The
 // overlay's own leaving half drops that state, and a mode that reset it from
 // here repainted a grid twice to throw it away a moment later.
@@ -458,7 +458,7 @@ func TestSimulation_LeavingGridRepaintsNothingOnTheWayOut(t *testing.T) {
 	}
 }
 
-// TestSimulation_GridLeavesNothingOnScreen pins the leaving half: exiting grid
+// TestSimulation_GridLeavesNothingOnScreen pins the leaving half. Exiting grid
 // mode takes the grid off the screen and returns the overlay to idle, so the
 // next mode does not appear next to the last one.
 func TestSimulation_GridLeavesNothingOnScreen(t *testing.T) {
@@ -479,7 +479,7 @@ func TestSimulation_GridLeavesNothingOnScreen(t *testing.T) {
 }
 
 // TestSimulation_RecursiveGridZoomsWithoutShowingAgain covers the other grid
-// surface: every keystroke repaints it, and none of them puts the overlay up a
+// surface. Every keystroke repaints it, and none of them puts the overlay up a
 // second time.
 func TestSimulation_RecursiveGridZoomsWithoutShowingAgain(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -507,7 +507,7 @@ func TestSimulation_RecursiveGridZoomsWithoutShowingAgain(t *testing.T) {
 	}
 }
 
-// TestSimulation_ScrollJourney covers scroll mode: j scrolls, Escape leaves
+// TestSimulation_ScrollJourney covers scroll mode, where j scrolls and Escape leaves
 // the mode and lands back in idle.
 func TestSimulation_ScrollJourney(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -529,7 +529,7 @@ func TestSimulation_ScrollJourney(t *testing.T) {
 }
 
 // TestSimulation_ModeIndicatorDisappearsWhenModeExits pins what a user sees
-// after leaving a mode: the indicator that named it is gone. Scroll mode is
+// after leaving a mode. The indicator that named it is gone. Scroll mode is
 // the one whose indicator is on by default.
 //
 // The indicator is driven by a polling goroutine racing mode teardown, which
@@ -556,7 +556,7 @@ func TestSimulation_ModeIndicatorDisappearsWhenModeExits(t *testing.T) {
 		return asked && !visible
 	})
 
-	// Nothing may put it back once the mode is gone: the polling goroutine is
+	// Nothing may put it back once the mode is gone. The polling goroutine is
 	// stopped before the indicator is hidden, and a late tick would show it.
 	time.Sleep(4 * indicatorSettleWindow)
 
@@ -589,7 +589,7 @@ func TestSimulation_ModeSwitch(t *testing.T) {
 }
 
 // TestSimulation_HintsWithoutElements covers the failure path a real user
-// hits on an empty screen: activation is abandoned, the app stays idle and
+// hits on an empty screen. Activation is abandoned, the app stays idle and
 // keeps working (grid still activates afterwards).
 func TestSimulation_HintsWithoutElements(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -605,7 +605,7 @@ func TestSimulation_HintsWithoutElements(t *testing.T) {
 	sim.waitMode(domain.ModeGrid)
 }
 
-// TestSimulation_ExcludedApp covers the exclusion list: when the focused app
+// TestSimulation_ExcludedApp covers the exclusion list. When the focused app
 // is excluded, no mode activates. The binder registers no hotkeys for it, so
 // the activation comes the way an IPC command would send it.
 func TestSimulation_ExcludedApp(t *testing.T) {
@@ -696,14 +696,14 @@ func manyButtons(tb testing.TB, count int) []*element.Element {
 	return elements
 }
 
-// TestSimulation_HintsSearchJourney covers text search: "/" opens search,
+// TestSimulation_HintsSearchJourney covers text search. Pressing "/" opens search,
 // typing a query narrows the hints to matching elements, Return confirms,
 // and selecting the surviving label lands on the matched element.
 //
 // The second case runs the identical journey on an overlay that reports
-// CodeNotSupported for the search input — the Linux overlay, where no backend
+// CodeNotSupported for the search input, as the Linux overlay does where no backend
 // draws that badge (#1328). The user sees no "/ sav 1 /" box and loses nothing
-// else: the query still reaches the hints through the event tap's key stream.
+// else, because the query still reaches the hints through the event tap's key stream.
 // A refusal that surfaced as a failed mode, or that stopped the keystrokes
 // getting through, is what this second case pins.
 //
@@ -734,7 +734,7 @@ func TestSimulation_HintsSearchJourney(t *testing.T) {
 				sim.waitMode(domain.ModeHints)
 				sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
 
-				// "/" dispatches search_hints asynchronously; wait for search to be
+				// "/" dispatches search_hints asynchronously. Wait for search to be
 				// open before typing, or the query characters would be read as
 				// labels. The wait is on the ask rather than on anything drawn,
 				// because the refusing overlay draws nothing.
@@ -1068,8 +1068,8 @@ func TestSimulation_HintSearchFieldConfirmOnLabel(t *testing.T) {
 }
 
 // TestSimulation_HintsTwoCharLabels covers label generation past the
-// single-character alphabet: 12 elements with 9 hint characters force
-// two-character labels; a first keystroke narrows the drawn set, and the
+// single-character alphabet, since 12 elements with 9 hint characters force
+// two-character labels. A first keystroke narrows the drawn set, and the
 // full label still lands the cursor on an element.
 func TestSimulation_HintsTwoCharLabels(t *testing.T) {
 	elements := manyButtons(t, 12)
@@ -1165,7 +1165,7 @@ func TestSimulation_HintsInModeClick(t *testing.T) {
 	}
 }
 
-// TestSimulation_HintsRightClickAction covers a non-default pending action:
+// TestSimulation_HintsRightClickAction covers a non-default pending action.
 // "hints right_click" must produce a right click at the element center.
 func TestSimulation_HintsRightClickAction(t *testing.T) {
 	cfg := simConfig()
@@ -1192,7 +1192,7 @@ func TestSimulation_HintsRightClickAction(t *testing.T) {
 	}
 }
 
-// TestSimulation_HintsRepeatJourney covers --repeat: after each click the
+// TestSimulation_HintsRepeatJourney covers --repeat. After each click the
 // mode re-arms with the action preserved, so consecutive selections click
 // consecutively without re-pressing the hotkey.
 func TestSimulation_HintsRepeatJourney(t *testing.T) {
@@ -1265,11 +1265,11 @@ func TestSimulation_HintsRepeatExitOnUnmatchedJourney(t *testing.T) {
 // whole activation rather than a bare action: what to do, what to hold while
 // doing it, and what to run once it is done.
 //
-// Each flag is asserted where a user would notice it — which button was
-// clicked, what was held, and what ran afterwards. A flag that parses and then
+// Each flag is asserted where a user would notice it, which is which button
+// was clicked, what was held, and what ran afterwards. A flag that parses and then
 // goes missing between the binding and the mode is invisible to the grammar's
 // own tests, because the command still reads correctly and the mode still
-// activates; this is the seam where it shows up.
+// activates. This is the seam where it shows up.
 func TestSimulation_HintsFlaggedBindingJourney(t *testing.T) {
 	cfg := simConfig()
 	cfg.Hotkeys.Bindings[hintsHotkey] = []string{
@@ -1349,12 +1349,12 @@ func TestSimulation_HintsMoveMouseThenScroll(t *testing.T) {
 	}
 }
 
-// TestSimulation_RefusedBindingActivatesNothing covers the other half: a
+// TestSimulation_RefusedBindingActivatesNothing covers the other half. A
 // binding the grammar refuses enters no mode and draws nothing.
 //
 // Both refusals are ones a user used to experience as Neru being unreliable
 // rather than as a mistake they had made. A typo activated the mode and did
-// nothing else; "grid --search" activated grid and dropped the flag in silence,
+// nothing else. "grid --search" activated grid and dropped the flag in silence,
 // so the search input a user was waiting for never appeared. Refusing the whole
 // command is what makes that a mistake somebody can find.
 func TestSimulation_RefusedBindingActivatesNothing(t *testing.T) {
@@ -1390,7 +1390,7 @@ func TestSimulation_RefusedBindingActivatesNothing(t *testing.T) {
 	}
 }
 
-// TestSimulation_RecursiveGridJourney covers the recursive grid: activation
+// TestSimulation_RecursiveGridJourney covers the recursive grid. Activation
 // draws the full-screen grid, and choosing a cell redraws zoomed into that
 // cell's bounds.
 func TestSimulation_RecursiveGridJourney(t *testing.T) {
@@ -1419,7 +1419,7 @@ func TestSimulation_RecursiveGridJourney(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
-// TestSimulation_BisectJourney covers bisect mode end to end: activation
+// TestSimulation_BisectJourney covers bisect mode end to end. Activation
 // draws the whole screen divided in four with the quadrant keys, each cut
 // redraws the half or quadrant kept and moves the cursor to its center,
 // Backspace takes a cut back, and Escape lands in idle with the cursor where
@@ -1476,8 +1476,8 @@ func TestSimulation_BisectJourney(t *testing.T) {
 	}
 }
 
-// TestSimulation_BisectStartsFromTheFocusedWindow covers the window scope:
-// with --capture-scope window the region starts as the focused window's
+// TestSimulation_BisectStartsFromTheFocusedWindow covers the window scope.
+// With --capture-scope window the region starts as the focused window's
 // bounds, placed where the window is rather than in the screen's corner, and
 // the cursor goes to that window's center. The default scope, screen, ignores
 // the window.
@@ -1594,8 +1594,8 @@ func TestSimulation_CaptureScopeCycleWithToggleExitsAfterTheLastEntry(t *testing
 	}
 }
 
-// TestSimulation_GridCoversTheFocusedWindow covers the window scope for grid:
-// with --capture-scope window the grid covers the focused window's bounds,
+// TestSimulation_GridCoversTheFocusedWindow covers the window scope for grid.
+// With --capture-scope window the grid covers the focused window's bounds,
 // placed where the window is, and a selected cell lands inside it.
 // The default scope, screen, ignores the window.
 func TestSimulation_GridCoversTheFocusedWindow(t *testing.T) {
@@ -1647,7 +1647,7 @@ func TestSimulation_GridCoversTheFocusedWindow(t *testing.T) {
 }
 
 // TestSimulation_RecursiveGridStartsFromTheFocusedWindow covers the window
-// scope for recursive grid: with --capture-scope window the first level is
+// scope for recursive grid. With --capture-scope window the first level is
 // the focused window's bounds, placed where the window is, and a cell chosen
 // at that level is a third of the window rather than of the screen.
 func TestSimulation_RecursiveGridStartsFromTheFocusedWindow(t *testing.T) {
@@ -1697,7 +1697,7 @@ func TestSimulation_RecursiveGridStartsFromTheFocusedWindow(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
-// TestSimulation_BisectHoldMode covers --cursor-selection-mode hold: cuts
+// TestSimulation_BisectHoldMode covers --cursor-selection-mode hold. Cuts
 // narrow the region and draw the pointer stand-in at its center while the
 // real cursor stays where it was, and the backtick toggle brings the cursor
 // onto the selection.
@@ -1732,7 +1732,7 @@ func TestSimulation_BisectHoldMode(t *testing.T) {
 }
 
 // TestSimulation_BisectWindowScopeOnASecondDisplay covers the placement on a
-// display that does not start at the origin: the window's region lands where
+// display that does not start at the origin. The window's region lands where
 // the window is on that display, not offset by the display's position.
 func TestSimulation_BisectWindowScopeOnASecondDisplay(t *testing.T) {
 	cfg := simConfig()
@@ -1767,7 +1767,7 @@ func TestSimulation_BisectWindowScopeOnASecondDisplay(t *testing.T) {
 }
 
 // TestSimulation_ScrollDirections covers all four scroll directions with
-// their default keys; each keypress must scroll on the right axis in the
+// their default keys. Each keypress must scroll on the right axis in the
 // right direction.
 func TestSimulation_ScrollDirections(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -1822,7 +1822,7 @@ func TestSimulation_ScrollTopSequence(t *testing.T) {
 	})
 }
 
-// TestSimulation_HotkeyRegistration covers startup registration: every
+// TestSimulation_HotkeyRegistration covers startup registration. Every
 // binding in the config must be registered with the hotkey backend,
 // canonicalized for the platform.
 func TestSimulation_HotkeyRegistration(t *testing.T) {
@@ -1837,7 +1837,7 @@ func TestSimulation_HotkeyRegistration(t *testing.T) {
 	}
 }
 
-// TestSimulation_DisabledModeBindingSkipped covers config gating: a binding
+// TestSimulation_DisabledModeBindingSkipped covers config gating. A binding
 // whose mode is disabled must never be registered, while others still are.
 func TestSimulation_DisabledModeBindingSkipped(t *testing.T) {
 	cfg := simConfig()
@@ -1863,7 +1863,7 @@ func TestSimulation_DisabledModeBindingSkipped(t *testing.T) {
 	}
 }
 
-// TestSimulation_PassthroughExitsMode covers exit_after_passthrough: when a
+// TestSimulation_PassthroughExitsMode covers exit_after_passthrough. When a
 // modifier shortcut passes through to the OS, the active mode exits.
 func TestSimulation_PassthroughExitsMode(t *testing.T) {
 	cfg := simConfig()
@@ -1951,7 +1951,7 @@ func monitorSelectConfig() *config.Config {
 }
 
 // TestSimulation_MonitorSelectJourney covers picking a monitor on a
-// two-display desktop: activation draws one labeled panel per monitor, and
+// two-display desktop. Activation draws one labeled panel per monitor, and
 // typing a label moves the cursor to that monitor's center and exits.
 func TestSimulation_MonitorSelectJourney(t *testing.T) {
 	cfg := monitorSelectConfig()
@@ -2081,8 +2081,8 @@ func TestSimulation_MonitorMoveNext_StepsThroughDisplaysSharingAName(t *testing.
 	})
 }
 
-// TestSimulation_MonitorSelectNotSupported pins the platform-stub contract:
-// on a backend without the MonitorSelector extension, activation reports
+// TestSimulation_MonitorSelectNotSupported pins the platform-stub contract.
+// On a backend without the MonitorSelector extension, activation reports
 // CodeNotSupported, the mode never engages, and the app keeps working.
 func TestSimulation_MonitorSelectNotSupported(t *testing.T) {
 	sim := newSimHarnessHeadlessOverlay(t, monitorSelectConfig(), []simDisplay{
@@ -2097,7 +2097,7 @@ func TestSimulation_MonitorSelectNotSupported(t *testing.T) {
 	sim.waitMode(domain.ModeGrid)
 }
 
-// TestSimulation_StickyModifierClick covers sticky modifiers: tapping Shift
+// TestSimulation_StickyModifierClick covers sticky modifiers. Tapping Shift
 // arms it (indicator drawn), and the next hint-selection click carries the
 // Shift modifier.
 func TestSimulation_StickyModifierClick(t *testing.T) {
@@ -2119,7 +2119,7 @@ func TestSimulation_StickyModifierClick(t *testing.T) {
 	})
 
 	// With Shift held (sticky posts it physically), the event tap reports the
-	// label keystroke as a Shift chord; Neru strips it for label matching.
+	// label keystroke as a Shift chord. Neru strips it for label matching.
 	sim.press("Shift+" + strings.ToUpper(sim.overlay.lastHintLabels()[0]))
 
 	sim.waitFor("click recorded", func() bool { return len(sim.ax.recordedClicks()) > 0 })
@@ -2135,7 +2135,7 @@ func TestSimulation_StickyModifierClick(t *testing.T) {
 }
 
 // TestSimulation_StickyModifierScroll pins that a sticky modifier reaches a
-// scroll the way it reaches a click: tapping ctrl in scroll mode and then
+// scroll the way it reaches a click. Tapping ctrl in scroll mode and then
 // scrolling is the user asking for a ctrl+scroll, which most applications read
 // as zoom, and the plain scroll that used to go out instead read as a broken
 // binding.
@@ -2162,7 +2162,7 @@ func TestSimulation_StickyModifierScroll(t *testing.T) {
 	}
 }
 
-// TestSimulation_HeldRepeatScroll covers held-key repeat: holding j keeps
+// TestSimulation_HeldRepeatScroll covers held-key repeat. Holding j keeps
 // scrolling on the configured interval, and the key release stops it.
 func TestSimulation_HeldRepeatScroll(t *testing.T) {
 	const (
@@ -2190,7 +2190,7 @@ func TestSimulation_HeldRepeatScroll(t *testing.T) {
 	sim.press("j")
 
 	// Unlike every other wait in these journeys, this one is waiting on a
-	// timer: the first scroll cannot arrive before the initial delay and each
+	// timer. The first scroll cannot arrive before the initial delay and each
 	// one after it costs an interval, however fast the machine is. That
 	// duration is stated on top of the headroom rather than absorbed into it,
 	// so a journey that turns the interval up does not silently eat the slack
@@ -2206,7 +2206,7 @@ func TestSimulation_HeldRepeatScroll(t *testing.T) {
 		},
 	)
 
-	// Release stops the repeat: wait for two identical samples a
+	// Release stops the repeat. Wait for two identical samples a
 	// stopSampleWindow apart. Each attempt at that costs the window, and the
 	// first one may still catch a scroll dispatched before the release landed,
 	// so the budget carries room for the sample that fails and the one that
@@ -2229,7 +2229,7 @@ func TestSimulation_HeldRepeatScroll(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
-// TestSimulation_HeldMotionDiagonal covers the held-key glide: two held direction
+// TestSimulation_HeldMotionDiagonal covers the held-key glide. Two held direction
 // keys glide the cursor diagonally on the motion tick, native autorepeat of a
 // held key is ignored, and releasing both keys stops the glide.
 func TestSimulation_HeldMotionDiagonal(t *testing.T) {
@@ -2247,7 +2247,7 @@ func TestSimulation_HeldMotionDiagonal(t *testing.T) {
 
 	start := sim.cursor.position()
 
-	// Right and Down are bound to relative mouse movement; held together they
+	// Right and Down are bound to relative mouse movement. Held together they
 	// steer one diagonal glide. The repeated Right is what the OS autorepeat
 	// delivers for a key that stays down.
 	sim.press("Right")
@@ -2372,7 +2372,7 @@ func TestSimulation_DragJourney(t *testing.T) {
 		t.Fatalf("expected left mouse down at %v, got %+v", start, got)
 	}
 
-	// Move while holding: Down is bound to relative mouse movement.
+	// Move while holding. Down is bound to relative mouse movement.
 	sim.press("Down")
 
 	sim.waitFor("cursor dragged downward", func() bool {
@@ -2399,7 +2399,7 @@ func TestSimulation_DragJourney(t *testing.T) {
 	}
 }
 
-// TestSimulation_ReleaseHeldButtonsOnExit pins the safety invariant: exiting
+// TestSimulation_ReleaseHeldButtonsOnExit pins the safety invariant. Exiting
 // a mode between a mouse down and its release must release held buttons, or
 // the desktop is left stuck mid-drag.
 func TestSimulation_ReleaseHeldButtonsOnExit(t *testing.T) {
@@ -2446,18 +2446,18 @@ func TestSimulation_RapidModeSwitching(t *testing.T) {
 }
 
 // TestSimulation_ModeSwitchNeverDropsTheKeyboard is the regression for a
-// reported Linux bug: the journey is a user going from one mode straight into
+// reported Linux bug. The journey is a user going from one mode straight into
 // another, and what must not happen in between is Neru letting go of the
 // keyboard.
 //
-// It was letting go — every mode but scroll ran the full exit, which releases
+// It was letting go. Every mode but scroll ran the full exit, which releases
 // the capture, and only took it back after the next mode had queried the
 // screen, built its state and drawn its overlay. On Linux that is long enough
-// to type into: the user switched from scroll to recursive grid, pressed their
+// to type into. The user switched from scroll to recursive grid, pressed their
 // grid keys, and watched them arrive in Discord as text.
 //
 // The whole assertion is that no disable reaches the tap between the two
-// activations, because a disable *is* the window: there is no way for the
+// activations, because a disable *is* the window. There is no way for the
 // capture to drop and the keys in it to still be Neru's.
 func TestSimulation_ModeSwitchNeverDropsTheKeyboard(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), threeButtons(t))
@@ -2466,7 +2466,7 @@ func TestSimulation_ModeSwitchNeverDropsTheKeyboard(t *testing.T) {
 	sim.waitMode(domain.ModeScroll)
 	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
 
-	// Record from here: the calls made on the way into scroll are not what
+	// Record from here, because the calls made on the way into scroll are not what
 	// this journey is about.
 	var (
 		releasedMu sync.Mutex
@@ -2485,7 +2485,7 @@ func TestSimulation_ModeSwitchNeverDropsTheKeyboard(t *testing.T) {
 	})
 
 	// Every mode-to-mode pair goes through the same exit, so the two that are
-	// not scroll are worth walking as well: scroll was the only one already
+	// not scroll are worth walking as well, because scroll was the only one already
 	// carrying the carve-out this fixes.
 	for _, step := range []struct {
 		hotkey string
@@ -2520,18 +2520,18 @@ func TestSimulation_ModeSwitchNeverDropsTheKeyboard(t *testing.T) {
 // original ask, which the two tests around this one do not actually cover:
 // "I would at least like it if those inputs are delayed than if they are
 // ignored". Keeping the keyboard is what makes that possible, but what delivers
-// it is the lock — an activation holds h.mu from start to finish and the tap's
-// dispatcher delivers through HandleKeyPress, which takes the same lock — and
+// it is the lock. An activation holds h.mu from start to finish and the tap's
+// dispatcher delivers through HandleKeyPress, which takes the same lock, and
 // nothing pinned that the key actually arrives.
 //
 // The switch is held open at the overlay draw, which is where a real Linux
 // activation spends its time and which runs under h.mu. With the activation
 // parked there, a grid key is pressed. It must not be dropped, and it must not
-// be handled by the mode being left: it has to wait and land in the mode coming
+// be handled by the mode being left. It has to wait and land in the mode coming
 // up, which is observable as the recursive grid zooming into the cell that key
 // names.
 //
-// This pins the delivery half only, and deliberately: press() calls
+// This pins the delivery half only, and deliberately, because press() calls
 // HandleKeyPress directly, the way the tap's dispatcher does, so what is
 // asserted here is that a key arriving mid-activation waits on the lock and is
 // handled by the new mode. That it is *captured* rather than leaked to the
@@ -2539,11 +2539,11 @@ func TestSimulation_ModeSwitchNeverDropsTheKeyboard(t *testing.T) {
 // TestSimulation_ModeSwitchNeverDropsTheKeyboard above. Neither test is the
 // whole claim on its own.
 //
-// What none of the three covers is the race that remains: a key the tap reads
+// What none of the three covers is the race that remains. A key the tap reads
 // *before* the activation takes h.mu is still the old mode's, and scroll drops
 // it (handleGenericScrollKey does nothing). The hotkey dispatch and the tap's
 // dispatcher are separate goroutines contending for the lock unordered, so that
-// window is not closed by anything here — see exitModeForTransition, which says
+// window is not closed by anything here. See exitModeForTransition, which says
 // so rather than claiming the whole ask is delivered.
 func TestSimulation_KeyPressedDuringAModeSwitchLandsInTheNewMode(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -2585,8 +2585,8 @@ func TestSimulation_KeyPressedDuringAModeSwitchLandsInTheNewMode(t *testing.T) {
 		sim.press("r")
 	}()
 
-	// Give the press long enough to be wrongly handled by scroll — where the
-	// generic key handler does nothing — before letting the activation finish.
+	// Give the press long enough to be wrongly handled by scroll, where the
+	// generic key handler does nothing, before letting the activation finish.
 	time.Sleep(simPollInterval)
 	close(releaseGate)
 
@@ -2604,13 +2604,13 @@ func TestSimulation_KeyPressedDuringAModeSwitchLandsInTheNewMode(t *testing.T) {
 }
 
 // TestSimulation_AbandonedModeSwitchGivesTheKeyboardBack is the other half of
-// the journey above, and the reason keeping the capture is safe: the transition
+// the journey above, and the reason keeping the capture is safe. The transition
 // hands the keyboard to a mode that may never arrive.
 //
-// Here it does not — hints is asked for on a screen with nothing clickable, so
+// Here it does not. Hints is asked for on a screen with nothing clickable, so
 // the activation gives up after the exit that kept the capture. The app is left
-// idle, and idle holding the keyboard would be worse than the bug being fixed:
-// every key the user pressed would go nowhere at all.
+// idle, and idle holding the keyboard would be worse than the bug being fixed.
+// Every key the user pressed would go nowhere at all.
 func TestSimulation_AbandonedModeSwitchGivesTheKeyboardBack(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
 
@@ -2625,12 +2625,12 @@ func TestSimulation_AbandonedModeSwitchGivesTheKeyboardBack(t *testing.T) {
 }
 
 // TestSimulation_ThemeChangeReachesVisibleOverlay covers the journey the
-// overlay's Style ownership exists for: hints are on screen when the system
+// overlay's Style ownership exists for. Hints are on screen when the system
 // switches to dark mode, and the user sees them redrawn in the new theme
 // rather than left in the old one until the mode is re-entered.
 //
 // The overlay owns config + theme -> Style, so at this seam the appearance is
-// not observable and does not need to be: what reaches the overlay is one
+// not observable and does not need to be. What reaches the overlay is one
 // notification to re-resolve, followed by a redraw of the frame already up.
 // That the re-resolution actually produces the dark theme's colors is pinned
 // where it happens, in TestStyleResolver_RefreshPicksUpTheNewTheme.
@@ -2668,7 +2668,7 @@ func TestSimulation_ThemeChangeReachesVisibleOverlay(t *testing.T) {
 }
 
 // TestSimulation_ConfigReloadReachesTheOverlay is the config half of the same
-// ownership: a reload notifies the overlay once, with the colors the reloaded
+// ownership. A reload notifies the overlay once, with the colors the reloaded
 // file asks for, and the mode drawn after it goes back on screen.
 func TestSimulation_ConfigReloadReachesTheOverlay(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), threeButtons(t))
@@ -2717,10 +2717,10 @@ text_color = %q
 }
 
 // TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain pins the decision
-// ADR 0003 rests on: entering hints puts the overlay on screen once, and every
+// ADR 0003 rests on. Entering hints puts the overlay on screen once, and every
 // keystroke that narrows the labels redraws it without paying for the window
 // sequence again. On macOS a show queues window-level, collection-behavior
-// and ordering work on the main thread; doing that per keystroke is the
+// and ordering work on the main thread. Doing that per keystroke is the
 // latency regression AGENTS.md forbids.
 func TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain(t *testing.T) {
 	elements := manyButtons(t, 12)
@@ -2774,14 +2774,14 @@ func TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain(t *testing.T) {
 }
 
 // TestSimulation_ModeTransitionLeavesOneModeDrawn pins what a user sees when
-// one mode replaces another: the mode they left is off the screen by the time
+// one mode replaces another. The mode they left is off the screen by the time
 // the one they entered is on it, never both at once.
 //
-// It walks the four surfaces that draw — grid, hints, recursive grid and
-// monitor-select — switching straight from each to the next without going
+// It walks the four surfaces that draw, which are grid, hints, recursive grid
+// and monitor-select, switching straight from each to the next without going
 // through idle first, because a transition is where two overlays used to be
 // left on screen together. The assertion is on what is drawn, not on the calls
-// that got it there: which of them the overlay uses to realize a Frame is
+// that got it there. Which of them the overlay uses to realize a Frame is
 // exactly what this seam must be free to change.
 func TestSimulation_ModeTransitionLeavesOneModeDrawn(t *testing.T) {
 	cfg := monitorSelectConfig()
@@ -2818,10 +2818,10 @@ func TestSimulation_ModeTransitionLeavesOneModeDrawn(t *testing.T) {
 }
 
 // TestSimulation_LeavingMonitorSelectForScrollTakesItsPanelsDown covers the
-// one transition that does not go through the common mode cleanup: scroll is
+// one transition that does not go through the common mode cleanup. Scroll is
 // entered without leaving the previous mode first, so that its event tap stays
 // up. The monitor picker draws on panels of its own rather than on the shared
-// surface, so nothing about clearing that surface takes them off the screen —
+// surface, so nothing about clearing that surface takes them off the screen,
 // and a user who switched to scroll would be looking at the picker over their
 // work.
 func TestSimulation_LeavingMonitorSelectForScrollTakesItsPanelsDown(t *testing.T) {
@@ -2851,7 +2851,7 @@ const moveMonitorHotkey = "Primary+Shift+N"
 const moveMonitorBinding = "action move_monitor"
 
 // TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay covers what a user
-// sees when they send the cursor to another display with a mode open: the
+// sees when they send the cursor to another display with a mode open. The
 // overlay leaves the display they came from and is back on the one they land
 // on, with only that mode drawn.
 //
@@ -3058,11 +3058,11 @@ func assertMissionControlDetection(t *testing.T, sim *simHarness, want bool, how
 }
 
 // TestSimulation_ScreenChangeWhileIdleLeavesTheOverlayHidden pins the quietest
-// display change there is: plugging a monitor in with no mode open must not
+// display change there is. Plugging a monitor in with no mode open must not
 // flash an overlay at the user.
 //
 // Idle is the state a user is in almost all of the time, so this is the screen
-// change that happens most; the overlay window coming up for it would be
+// change that happens most. The overlay window coming up for it would be
 // visible on every dock, undock and wake.
 func TestSimulation_ScreenChangeWhileIdleLeavesTheOverlayHidden(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), threeButtons(t))
@@ -3093,11 +3093,11 @@ func TestSimulation_ScreenChangeWhileIdleLeavesTheOverlayHidden(t *testing.T) {
 }
 
 // TestSimulation_ScreenChangeRegeneratesHintsOnTheNewScreen covers the
-// heaviest thing a display change does: hints are open when the arrangement
+// heaviest thing a display change does. Hints are open when the arrangement
 // changes, and the labels a user is looking at have to come from the
 // accessibility tree as it is now, drawn against the display as it is now.
 //
-// Stale labels here are worse than none: they point at positions that no
+// Stale labels here are worse than none. They point at positions that no
 // longer exist, so typing one moves the cursor somewhere the user did not
 // choose. The journey therefore changes the tree along with the display and
 // asserts the drawn labels followed it.
@@ -3116,7 +3116,7 @@ func TestSimulation_ScreenChangeRegeneratesHintsOnTheNewScreen(t *testing.T) {
 	cursorBefore := sim.cursor.position()
 	movesBefore := sim.cursor.moveCount()
 
-	// The display change relaid out the windows: one of the three buttons is
+	// The display change relaid out the windows. One of the three buttons is
 	// gone from the tree.
 	sim.ax.setElements([]*element.Element{
 		simElement(t, "save", image.Rect(100, 100, 220, 140), "Save"),
@@ -3146,7 +3146,7 @@ func TestSimulation_ScreenChangeRegeneratesHintsOnTheNewScreen(t *testing.T) {
 		t.Error("the screen change left the hints overlay off the screen")
 	}
 
-	// The user chose none of this: a display changing under them must leave
+	// The user chose none of this. A display changing under them must leave
 	// their pointer where they put it.
 	if got := sim.cursor.moveCount(); got != movesBefore {
 		t.Errorf(
@@ -3163,13 +3163,13 @@ func TestSimulation_ScreenChangeRegeneratesHintsOnTheNewScreen(t *testing.T) {
 }
 
 // TestSimulation_ScreenChangeRebuildsGridAndClearsSelection covers the grid
-// half: the cells a user is about to type have to describe the display as it
+// half. The cells a user is about to type have to describe the display as it
 // now is, and the selection they made on the display that is gone has to go
-// with it — a cell coordinate from the old layout selects a different point on
+// with it, because a cell coordinate from the old layout selects a different point on
 // the new one.
 //
 // The selection is read off the pointer the grid draws for it, so the journey
-// turns cursor-follow off first ("`"): with the cursor following, the selection
+// turns cursor-follow off first ("`"), because with the cursor following, the selection
 // has nothing on screen of its own.
 func TestSimulation_ScreenChangeRebuildsGridAndClearsSelection(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -3229,11 +3229,11 @@ func TestSimulation_ScreenChangeRebuildsGridAndClearsSelection(t *testing.T) {
 // TestSimulation_ScreenChangePreservesTheZoomedRegion covers what a display
 // change must not cost a recursive-grid user: the region they have already
 // zoomed into. Recursive grid is a sequence of narrowing choices, so throwing
-// the region away would throw their progress away with it — the mode is
+// the region away would throw their progress away with it. The mode is
 // remapped onto the new display rather than restarted on it.
 //
 // "The same region" means the same fraction of the display, which is what the
-// journey asserts: the zoomed rectangle covers the same proportion of the
+// journey asserts. The zoomed rectangle covers the same proportion of the
 // smaller screen as it did of the larger one.
 func TestSimulation_ScreenChangePreservesTheZoomedRegion(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -3300,13 +3300,13 @@ func TestSimulation_ScreenChangePreservesTheZoomedRegion(t *testing.T) {
 }
 
 // TestSimulation_ScreenChangeWithNothingToDrawExitsTheMode pins the failure
-// path: the display changed, hints were regenerated for it, and this time the
-// accessibility tree has nothing to offer — the window the labels belonged to
+// path. The display changed, hints were regenerated for it, and this time the
+// accessibility tree has nothing to offer. The window the labels belonged to
 // went with the display.
 //
 // Leaving the mode running would strand the user in hints with the old
 // display's labels on screen, so the mode is left instead and the overlay comes
-// down. Idle with nothing drawn is recoverable; a mode showing labels that
+// down. Idle with nothing drawn is recoverable, but a mode showing labels that
 // point nowhere is not.
 func TestSimulation_ScreenChangeWithNothingToDrawExitsTheMode(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), threeButtons(t))
@@ -3328,33 +3328,33 @@ func TestSimulation_ScreenChangeWithNothingToDrawExitsTheMode(t *testing.T) {
 		return !sim.overlay.isVisible() && len(sim.overlay.drawnModeNames()) == 0
 	})
 
-	// The app is still usable afterwards: a mode that needs no elements still
+	// The app is still usable afterwards. A mode that needs no elements still
 	// activates.
 	sim.pressHotkey(gridHotkey)
 	sim.waitMode(domain.ModeGrid)
 }
 
 // The display-change journeys above all have the mode open when the
-// arrangement changes. The four below are the other half of that set: the
+// arrangement changes. The four below are the other half of that set. The
 // change lands while the mode is *inactive*, and the mode has to come back
 // built for the display that exists now rather than the one it last drew on.
 //
-// Nothing records that a display changed while a mode was away — each
-// activation reads the current arrangement unconditionally — so what these
+// Nothing records that a display changed while a mode was away, because each
+// activation reads the current arrangement unconditionally, so what these
 // pin is that eager rebuild. It is the whole mechanism protecting a user who
 // docks, undocks or changes resolution between two activations, and without a
 // journey on it, replacing it with anything cheaper would look free.
 //
-// Four rather than five: scroll draws no surface of its own, so it has no
+// Four rather than five, because scroll draws no surface of its own, so it has no
 // frame built for a display for a journey to read. Its overlay content is the
 // indicators, which are placed by the adapter rather than described in a
 // Frame.
 
 // TestSimulation_GridComesBackOnTheDisplayThatChangedWhileItWasInactive covers
-// the commonest shape of this: a user leaves grid mode, plugs a display in or
+// the commonest shape of this. A user leaves grid mode, plugs a display in or
 // changes resolution, and comes back to grid.
 //
-// A grid built for the display that is gone is worse than no grid: its cells
+// A grid built for the display that is gone is worse than no grid. Its cells
 // still have labels, so typing one lands the cursor at a position derived from
 // a screen the user is no longer looking at.
 func TestSimulation_GridComesBackOnTheDisplayThatChangedWhileItWasInactive(t *testing.T) {
@@ -3375,9 +3375,9 @@ func TestSimulation_GridComesBackOnTheDisplayThatChangedWhileItWasInactive(t *te
 
 	sim.changeScreen(simDisplayResized())
 
-	// The mode is not on screen, so the change itself must draw nothing —
-	// that half is TestSimulation_ScreenChangeWhileIdleLeavesTheOverlayHidden;
-	// what matters here is that the rebuild happens on activation instead.
+	// The mode is not on screen, so the change itself must draw nothing.
+	// That half is TestSimulation_ScreenChangeWhileIdleLeavesTheOverlayHidden.
+	// What matters here is that the rebuild happens on activation instead.
 	if got := sim.overlay.gridDrawCount(); got != drawsBefore {
 		t.Errorf("the grid was drawn %d times by a display change it was not open for",
 			got-drawsBefore)
@@ -3404,7 +3404,7 @@ func TestSimulation_GridComesBackOnTheDisplayThatChangedWhileItWasInactive(t *te
 // TestSimulation_HintsComeBackOnTheDisplayThatChangedWhileTheyWereInactive is
 // the same journey for hints, which has two things to get right rather than
 // one: the display the labels are drawn against, and the accessibility tree
-// they came from — a display change relays windows out, so the elements are
+// they came from. A display change relays windows out, so the elements are
 // not the ones the last activation saw either.
 func TestSimulation_HintsComeBackOnTheDisplayThatChangedWhileTheyWereInactive(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), threeButtons(t))
@@ -3422,7 +3422,7 @@ func TestSimulation_HintsComeBackOnTheDisplayThatChangedWhileTheyWereInactive(t 
 
 	drawsBefore := sim.overlay.hintDrawCount()
 
-	// The display change relaid out the windows: one of the three buttons is
+	// The display change relaid out the windows. One of the three buttons is
 	// gone from the tree.
 	sim.ax.setElements([]*element.Element{
 		simElement(t, "save", image.Rect(100, 100, 220, 140), "Save"),
@@ -3459,7 +3459,7 @@ func TestSimulation_HintsComeBackOnTheDisplayThatChangedWhileTheyWereInactive(t 
 // covers the mode with state worth stranding: a zoomed region. Left open
 // across a display change the region is remapped and kept
 // (TestSimulation_ScreenChangePreservesTheZoomedRegion), but an activation is
-// a fresh start, so this asserts the opposite outcome — the whole of the new
+// a fresh start, so this asserts the opposite outcome, the whole of the new
 // display, not the old display's zoom drawn onto it.
 func TestSimulation_RecursiveGridComesBackOnTheDisplayThatChangedWhileItWasInactive(
 	t *testing.T,
@@ -3474,7 +3474,7 @@ func TestSimulation_RecursiveGridComesBackOnTheDisplayThatChangedWhileItWasInact
 		return ok
 	})
 
-	// "r" is the top-left cell of the default 3x3 key layout: the user got as
+	// "r" is the top-left cell of the default 3x3 key layout. The user got as
 	// far as one narrowing choice before leaving.
 	sim.press("r")
 
@@ -3517,7 +3517,7 @@ func TestSimulation_RecursiveGridComesBackOnTheDisplayThatChangedWhileItWasInact
 
 // TestSimulation_MonitorSelectComesBackOnTheDisplaysThatChangedWhileItWasInactive
 // closes the set with the mode whose whole content is the display
-// arrangement: the picker's panels are the monitors, so a rearrangement while
+// arrangement. The picker's panels are the monitors, so a rearrangement while
 // it is closed is a rearrangement of everything it draws.
 //
 // A panel describing a display that has been reconfigured is a target the user
@@ -3525,7 +3525,7 @@ func TestSimulation_RecursiveGridComesBackOnTheDisplayThatChangedWhileItWasInact
 // out.
 //
 // Unlike its three siblings this asserts nothing about the shared overlay
-// being visible, and deliberately: the picker draws on panels of its own and
+// being visible, and deliberately. The picker draws on panels of its own and
 // never brings that window up, so pinning it visible here would pin something
 // the adapter does not do.
 func TestSimulation_MonitorSelectComesBackOnTheDisplaysThatChangedWhileItWasInactive(
@@ -3567,7 +3567,7 @@ func TestSimulation_MonitorSelectComesBackOnTheDisplaysThatChangedWhileItWasInac
 		t.Fatalf("the picker came back with %d panels, want 2", len(targets))
 	}
 
-	// Both displays, named individually: a count of two says nothing about
+	// Both displays, named individually, because a count of two says nothing about
 	// which two, and the picker coming back with the rearranged display twice
 	// is exactly the shape a rebuild that half-followed the change would take.
 	drawnFor := make(map[image.Rectangle]bool, len(targets))
@@ -3589,13 +3589,13 @@ func TestSimulation_MonitorSelectComesBackOnTheDisplaysThatChangedWhileItWasInac
 	}
 }
 
-// TestSimulation_ThemeChangeRedrawsMonitorSelect closes the theme-change set:
-// every other mode that draws is already pinned redrawing itself when the
+// TestSimulation_ThemeChangeRedrawsMonitorSelect closes the theme-change set.
+// Every other mode that draws is already pinned redrawing itself when the
 // system switches between light and dark, and the monitor picker is the one
 // that was not.
 //
 // It draws on panels of its own rather than the shared surface, so nothing
-// about the other modes picking the new theme up brings it along: left out, it
+// about the other modes picking the new theme up brings it along. Left out, it
 // is the one overlay a user finds still in the old theme.
 //
 // That the overlay re-resolves every Style for the change is not mode-specific
@@ -3636,23 +3636,23 @@ func TestSimulation_ThemeChangeRedrawsMonitorSelect(t *testing.T) {
 // active mode declares per-app hotkey overrides.
 //
 // It used to be one question per keystroke where overrides were declared, and
-// ADR 0005 is the decision that drove it to zero: the focused app is published
+// ADR 0005 is the decision that drove it to zero. The focused app is published
 // by the application watcher and the keymap is settled when it changes, so a
 // keystroke consults bindings that are already resolved.
 //
 // Asking which application is focused was the only thing on the keystroke path
-// that left the process — on macOS it is a message to another application,
-// which can be busy or wedged — and the handler holds the lock that serializes
+// that left the process. On macOS it is a message to another application,
+// which can be busy or wedged, and the handler holds the lock that serializes
 // key handling, mode exit included, while it waits. The count is therefore
 // what a user can be stalled by, which is why it is asserted here rather than
 // described somewhere.
 //
-// Both directions are kept because they fail differently: the first is the
+// Both directions are kept because they fail differently. The first is the
 // regression this fixed, and the second is the mode that never paid, which a
 // settle that asked unconditionally would newly charge.
 //
 // Grid mode drives both directions because it needs no accessibility tree of
-// its own: nothing else in the keystroke being measured has any reason to ask
+// its own. Nothing else in the keystroke being measured has any reason to ask
 // which app is focused, so the count belongs to key dispatch and to nothing
 // else.
 func TestSimulation_KeystrokeAsksWhichAppIsFocused(t *testing.T) {
@@ -3692,9 +3692,9 @@ func TestSimulation_KeystrokeAsksWhichAppIsFocused(t *testing.T) {
 			sim.waitMode(domain.ModeGrid)
 			sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
 
-			// Entering the mode is allowed to ask — that is the one-shot the
+			// Entering the mode is allowed to ask. That is the one-shot the
 			// keymap settles on. The grid is drawn before the mode starts
-			// taking keys, so this waits for the event tap as well: the count
+			// taking keys, so this waits for the event tap as well, because the count
 			// has to start from an activation that has finished, not one still
 			// in flight.
 			sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
@@ -3721,7 +3721,7 @@ func TestSimulation_KeystrokeAsksWhichAppIsFocused(t *testing.T) {
 
 // TestSimulation_TheAppHearsFocusChangesFromTheMomentItWatchesForThem is the
 // precondition the two journeys below it rest on, and #1348 is what happens
-// without it: the daemon started the application watcher and made the hotkeys
+// without it. The daemon started the application watcher and made the hotkeys
 // live before it registered the callback activations are delivered to, so an
 // application switch in that window reached nobody, was never retried, and left
 // the journey below entering the mode the *previous* application bound the key
@@ -3729,15 +3729,15 @@ func TestSimulation_KeystrokeAsksWhichAppIsFocused(t *testing.T) {
 // merely late.
 //
 // Worth stating what it is not, because the intermittency points elsewhere and
-// #1348 named two suspects: neither goroutine `handleAppActivation` starts is
+// #1348 named two suspects. Neither goroutine `handleAppActivation` starts is
 // involved. Publication is a lock-free cell write on the caller's goroutine, so
-// it is already in place before the keystroke that reads it; the passthrough
-// refresh only reads; and the hotkey refresh is deferred outright while a mode
+// it is already in place before the keystroke that reads it. The passthrough
+// refresh only reads. And the hotkey refresh is deferred outright while a mode
 // is open. What was intermittent was whether the daemon had finished starting,
 // not what it did once it had.
 //
 // It asserts the order rather than the symptom because the order is what makes
-// the symptom impossible: whether the window is wide enough to fall into is a
+// the symptom impossible. Whether the window is wide enough to fall into is a
 // property of the machine, and CI found it on a busy runner.
 func TestSimulation_TheAppHearsFocusChangesFromTheMomentItWatchesForThem(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
@@ -3814,9 +3814,9 @@ func TestSimulation_AppSwitchStopsWarmingThePreviousApp(t *testing.T) {
 }
 
 // TestSimulation_FocusChangeMidModeRebindsTheKey covers switching applications
-// without leaving the mode — passing a shortcut through to the system and
-// landing somewhere else is the ordinary way it happens — and pins what the
-// next keystroke does: it runs the binding the newly focused application's
+// without leaving the mode, which ordinarily happens by passing a shortcut
+// through to the system and landing somewhere else, and pins what the
+// next keystroke does. It runs the binding the newly focused application's
 // overrides put on that key, not the one the mode was opened under.
 //
 // That is what per-app bindings mean, and it is the behavior most at risk
@@ -3847,7 +3847,7 @@ func TestSimulation_FocusChangeMidModeRebindsTheKey(t *testing.T) {
 
 	// A mode-to-mode switch runs off the keystroke on a goroutine and passes
 	// through idle on its way in, so idle is a moment in the transition rather
-	// than an answer: wait for whichever mode the binding opens.
+	// than an answer. Wait for whichever mode the binding opens.
 	sim.waitFor("a binding for the shared key to open a mode", func() bool {
 		mode := sim.app.CurrentMode()
 
@@ -3867,12 +3867,12 @@ func TestSimulation_FocusChangeMidModeRebindsTheKey(t *testing.T) {
 }
 
 // TestSimulation_FocusChangeMidModeRetargetsThePassthroughBlacklist is the
-// other half of the journey above, and the one #1252 reported: knowing what
+// other half of the journey above, and the one #1252 reported. Knowing what
 // the next key means is worth nothing if the key never arrives.
 //
 // With passthrough on, the event tap passes every modifier chord to the
 // focused application except the ones it is told to keep. Those are the chords
-// the mode binds — which per-app overrides make a function of the focused
+// the mode binds, which per-app overrides make a function of the focused
 // application, so switching applications mid-mode has to move them. Otherwise
 // the mode consumes what the application the user left had bound and hands the
 // application they arrived in the chord it binds itself.
@@ -3948,7 +3948,7 @@ func boundsWithin(got, want image.Rectangle, tolerance int) bool {
 
 // TestSimulation_ConfigSetRelabelsTheGridWithoutAReload is the user-visible end
 // of issue #1268. grid.row_labels means "infer from the characters the grid is
-// drawn with" while it is empty, and a load settles it — after which a settled
+// drawn with" while it is empty, and a load settles it. After that a settled
 // label is indistinguishable from one somebody typed. Applying a change to
 // grid.characters on the settled configuration therefore found the labels
 // already filled in and left them, so the grid went on drawing coordinates from
@@ -3983,7 +3983,7 @@ func TestSimulation_ConfigSetRelabelsTheGridWithoutAReload(t *testing.T) {
 		t.Fatal("grid drawn with zero cells")
 	}
 
-	// The labels the user reads, not just the strings they were built from: a
+	// The labels the user reads, not just the strings they were built from, because a
 	// coordinate outside the new characters is a cell nobody can type.
 	for _, cell := range cells {
 		if strings.ContainsFunc(cell.Coordinate(), func(r rune) bool {
@@ -4002,11 +4002,11 @@ const (
 )
 
 // TestSimulation_GlobalHotkeyTogglesAModeEnteredFromAnotherMode is the journey
-// behind #1519's neighbor: --toggle exits the mode it names whenever that mode
+// behind #1519's neighbor, where --toggle exits the mode it names whenever that mode
 // is the active one, and how the user got there is not part of the question.
 //
 // It presses the chord the way the in-mode capture delivers it rather than
-// through the hotkey port, because that is the only way it arrives on Linux: the
+// through the hotkey port, because that is the only way it arrives on Linux. The
 // evdev grab silences the listener that registered it, so the handler resolving
 // the global table itself is what makes the toggle work at all
 // (internal/app/modes/keymap.go, settledKeymaps).
@@ -4072,7 +4072,7 @@ func TestSimulation_ModeHotkeyMatchesWhateverModifierOrderTheTapSpells(t *testin
 	sim.waitMode(domain.ModeScroll)
 }
 
-// TestSimulation_StopPausesEverything pins what `neru stop` promises: the open
+// TestSimulation_StopPausesEverything pins what `neru stop` promises. The open
 // mode closes, no route enters a mode until `neru start`, and the global
 // hotkeys are unregistered and restored at once rather than at the next
 // application switch.

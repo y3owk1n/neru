@@ -6,7 +6,7 @@ package linux
 // a keyboard: the position of a finger or a pen. A keyboard with a trackpad
 // built in advertises them, and grabbing it for its keys would swallow its
 // touches, since re-emitting those would need the device's own axis ranges and
-// slots. Any other absolute axis is left to count for nothing: a Bluetooth
+// slots. Any other absolute axis is left to count for nothing. A Bluetooth
 // keyboard's consumer-control page puts a volume knob on ABS_VOLUME, and a
 // keyboard is no less a keyboard for having one.
 const (
@@ -18,7 +18,7 @@ const (
 )
 
 // evdevPointerAxes is the mask of those axes over the EVIOCGBIT(EV_ABS)
-// bitmap, which is one word: ABS_CNT is 64.
+// bitmap, which is one word, since ABS_CNT is 64.
 const evdevPointerAxes uint64 = 1<<evdevAbsX | 1<<evdevAbsY | 1<<evdevAbsMtSlot |
 	1<<evdevAbsMtPositionX | 1<<evdevAbsMtPositionY
 

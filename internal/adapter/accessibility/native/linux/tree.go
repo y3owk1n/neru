@@ -62,7 +62,7 @@ func (o *TreeOptions) SetConfigProvider(cp config.Provider) {}
 // SetFilterFunc is a Linux stub.
 func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {}
 
-// SetRoles is a Linux stub: the AT-SPI client receives the role set directly.
+// SetRoles is a Linux stub. The AT-SPI client receives the role set directly.
 func (o *TreeOptions) SetRoles(roles map[string]struct{}) {}
 
 // SetReadState does nothing. Linux hints read elements through AT-SPI.
@@ -81,10 +81,7 @@ func ProcessClickableNodes(root *TreeNode, cfg config.HintsConfig) []*TreeNode {
 // ReleaseTree releases the tree and its nodes to the pool (Linux stub).
 func ReleaseTree(root *TreeNode) {}
 
-// ReleaseTreeExcept releases all AXUIElementRefs in the tree except those
-// belonging to the keep list. This prevents leaking CFRetain'd refs from
-// NeruGetChildren/NeruGetVisibleRows that are stored in tree nodes but never returned
-// to callers.
+// ReleaseTreeExcept releases the tree except the nodes in keep (Linux stub).
 func ReleaseTreeExcept(tree *TreeNode, keep []*TreeNode) {
 	keepSet := make(map[*Element]struct{}, len(keep))
 	for _, node := range keep {

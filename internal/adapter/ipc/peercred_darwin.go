@@ -11,7 +11,7 @@ import (
 )
 
 // xucredVersion is XUCRED_VERSION from <sys/ucred.h>, the layout the fields
-// below are read at. Darwin fills it in on every successful call; a different
+// below are read at. Darwin fills it in on every successful call. A different
 // value would mean the struct is not the one this code knows, and a uid read
 // out of it would be a guess.
 const xucredVersion = 0

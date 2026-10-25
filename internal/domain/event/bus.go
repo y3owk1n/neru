@@ -9,9 +9,9 @@ import (
 // Bus hands each published event to every subscriber, in one order for all of
 // them.
 //
-// Publish never blocks, because events are raised from places that must not:
-// the mode handler publishes under its lock, and the application watcher on
-// macOS publishes from the main queue. A subscriber whose buffer is full
+// Publish never blocks, because events are raised from places that must not
+// block. The mode handler publishes under its lock, and the application watcher
+// on macOS publishes from the main queue. A subscriber whose buffer is full
 // misses the event, and the next one it does receive counts what it missed.
 //
 // mu is a leaf. It is held only across non-blocking channel sends and

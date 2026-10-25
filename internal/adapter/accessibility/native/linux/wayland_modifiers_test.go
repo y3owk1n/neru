@@ -104,7 +104,7 @@ func TestPressWaylandModifiers_ReportsWhatTheCallerMustRelease(t *testing.T) {
 }
 
 // TestReleaseWaylandModifiers_LetsGoOfEveryKeyDespiteAFailure keeps a failed
-// release from stranding the modifiers behind it: stopping at the first error
+// release from stranding the modifiers behind it. Stopping at the first error
 // would leave them held with nobody left to undo them.
 func TestReleaseWaylandModifiers_LetsGoOfEveryKeyDespiteAFailure(t *testing.T) {
 	recorder := &modifierRecorder{}

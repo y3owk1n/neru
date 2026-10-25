@@ -104,8 +104,8 @@ func x11ActiveWindowQuery(display *C.Display) (C.Window, x11ActiveWindowResult) 
 		return 0, x11ActiveWindowQueryFailed
 	default:
 		// A result the header grew and this switch has not. Reporting it as a
-		// failed query is the safe direction: the caller surfaces it instead of
-		// degrading past a state nobody has classified.
+		// failed query is the safe direction, because the caller surfaces it
+		// instead of degrading past a state nobody has classified.
 		return 0, x11ActiveWindowQueryFailed
 	}
 }
@@ -151,8 +151,8 @@ func x11WindowPIDQuery(display *C.Display, window C.Window, pid *C.ulong) x11Win
 		return x11WindowPIDMalformed
 	default:
 		// A result the header grew and this switch has not. Reporting it as a
-		// failed query is the safe direction: the caller surfaces it instead of
-		// degrading past a state nobody has classified.
+		// failed query is the safe direction, because the caller surfaces it
+		// instead of degrading past a state nobody has classified.
 		return x11WindowPIDQueryFailed
 	}
 }
@@ -164,11 +164,11 @@ func x11WindowPIDQuery(display *C.Display, window C.Window, pid *C.ulong) x11Win
 //
 // It keeps the bare bool that x11FocusedApplicationPID gave up, deliberately.
 // Its only caller is the app watcher, which maps every false to "no focused
-// app" and re-samples on the next focus event or safety tick; a failed query
+// app" and re-samples on the next focus event or safety tick. A failed query
 // and an unfocused desktop lead it to the identical dispatch, so an error it
-// cannot act on would be ceremony. The four answers are still told apart —
-// x11ActiveWindowQuery does that for both callers — this one just has one
-// honest answer for all of them.
+// cannot act on would be ceremony. x11ActiveWindowQuery still tells the
+// answers apart for both callers, and this one has one honest answer for all
+// of them.
 func x11FocusedAppID() (string, bool) {
 	appID, _, ok := x11FocusedAppIdentity()
 
@@ -225,7 +225,7 @@ var (
 // readable fd that becomes ready when the active window changes. ok is false
 // when X11 is unavailable (DISPLAY unset, XOpenDisplay failed). The monitor is
 // process-global and persists for the daemon lifetime, matching the singleton
-// wlroots client; the fd is owned by the monitor and callers must not close it.
+// wlroots client. The monitor owns the fd and callers must not close it.
 func x11FocusEventFD() (int, bool) {
 	x11FocusMonitorMu.Lock()
 	defer x11FocusMonitorMu.Unlock()
@@ -254,7 +254,7 @@ var (
 // a readable fd that becomes ready when the display configuration changes
 // (monitors added/removed/resized/moved). ok is false when X11 or the RandR
 // extension is unavailable. The monitor is process-global and persists for the
-// daemon lifetime, matching x11FocusEventFD; the fd is owned by the monitor and
+// daemon lifetime, matching x11FocusEventFD. The monitor owns the fd and
 // callers must not close it.
 func x11ScreenEventFD() (int, bool) {
 	x11ScreenMonitorMu.Lock()
@@ -279,10 +279,10 @@ func x11ScreenEventFD() (int, bool) {
 // window via _NET_ACTIVE_WINDOW.
 //
 // found is false with a nil error only when the display answered that nothing
-// has focus; callers widen to the active-screen bounds and are obeying an
-// answer. A query that never got one — no live window manager, a failed or
-// malformed property, or a window the X server would not describe — is an error,
-// so the same widening can be told apart from guessing.
+// has focus. Callers widen to the active-screen bounds and are obeying an
+// answer. A query that never got one is an error, so the same widening can be
+// told apart from guessing. That covers no live window manager, a failed or
+// malformed property, and a window the X server would not describe.
 func x11FocusedWindowBounds() (image.Rectangle, bool, error) {
 	display, err := x11OpenDisplay()
 	if err != nil {
@@ -398,13 +398,13 @@ func x11Screens() ([]ports.Screen, error) {
 }
 
 // xwaylandDiscoveryTimeout bounds the wait for the pointer's entry into the
-// discovery window. Mutter answers within a frame or two; the bound is for a
+// discovery window. Mutter answers within a frame or two. The bound is for a
 // pointer that is on no X-visible output at all, where nothing ever arrives.
 const xwaylandDiscoveryTimeout = 120 * time.Millisecond
 
 // xwaylandRefreshCursorPosition re-learns the physical cursor position on a
 // GNOME session and mirrors it into the wlroots cursor cache, which is where
-// every Wayland caller reads it from. XQueryPointer is not the answer here:
+// every Wayland caller reads it from. XQueryPointer is not the answer here.
 // Xwayland sees the pointer only while it is over an X window, so the query
 // reports where the pointer last left one. A mapped override-redirect window
 // that accepts input, the same shape the overlay takes on GNOME, is what makes
@@ -412,7 +412,7 @@ const xwaylandDiscoveryTimeout = 120 * time.Millisecond
 // space, which Mutter keeps equal to the logical layout the wlroots client's
 // screens live in (docs/guide/linux-desktops.md, GNOME).
 //
-// A discovery that finds nothing is an error, not a silent keep: the caller is
+// A discovery that finds nothing is an error, not a silent keep. The caller is
 // re-syncing because it distrusts the cache, and a cache it cannot confirm is
 // what it should be told about.
 func xwaylandRefreshCursorPosition(ctx context.Context) error {

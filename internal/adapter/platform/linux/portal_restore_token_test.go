@@ -26,7 +26,7 @@ func storeUnderTempState(t *testing.T) (*fileRestoreTokenStore, string) {
 }
 
 // TestFileRestoreTokenStore_SaveWritesATokenOnlyItsOwnerCanRead is the reason
-// this store exists rather than a plain os.WriteFile call: a RemoteDesktop
+// this store exists rather than a plain os.WriteFile call. A RemoteDesktop
 // restore token is a credential that replays a granted input session, so any
 // other user on the machine being able to read it would hand them the grant.
 func TestFileRestoreTokenStore_SaveWritesATokenOnlyItsOwnerCanRead(t *testing.T) {
@@ -61,7 +61,7 @@ func TestFileRestoreTokenStore_SaveWritesATokenOnlyItsOwnerCanRead(t *testing.T)
 }
 
 // TestFileRestoreTokenStore_SaveTightensPermissionsOnALooseFile covers the
-// upgrade path: a token file left world-readable by an earlier write (or by a
+// upgrade path. A token file left world-readable by an earlier write (or by a
 // user's own tinkering) must not stay that way just because the path already
 // exists.
 func TestFileRestoreTokenStore_SaveTightensPermissionsOnALooseFile(t *testing.T) {
@@ -97,7 +97,7 @@ func TestFileRestoreTokenStore_SaveTightensPermissionsOnALooseFile(t *testing.T)
 }
 
 // TestFileRestoreTokenStore_LoadReportsNoTokenWhenNoneIsStored pins the
-// first-run answer: an absent file is the ordinary state before the first
+// first-run answer. An absent file is the ordinary state before the first
 // grant, not a failure, and the caller reads it as "prompt the user".
 func TestFileRestoreTokenStore_LoadReportsNoTokenWhenNoneIsStored(t *testing.T) {
 	store, _ := storeUnderTempState(t)
@@ -108,8 +108,8 @@ func TestFileRestoreTokenStore_LoadReportsNoTokenWhenNoneIsStored(t *testing.T) 
 }
 
 // TestFileRestoreTokenStore_ClearRemovesTheStoredToken pins both halves of the
-// refusal path: the dead token goes away, and clearing again is not an error —
-// the caller clears on every refusal without first asking whether it stored
+// refusal path: the dead token goes away, and clearing again is not an error.
+// The caller clears on every refusal without first asking whether it stored
 // anything.
 func TestFileRestoreTokenStore_ClearRemovesTheStoredToken(t *testing.T) {
 	store, _ := storeUnderTempState(t)
@@ -135,7 +135,7 @@ func TestFileRestoreTokenStore_ClearRemovesTheStoredToken(t *testing.T) {
 }
 
 // TestFileRestoreTokenStore_LoadIgnoresSurroundingWhitespace keeps a token
-// written with a trailing newline — by us, or by a user inspecting the file —
+// written with a trailing newline, by us or by a user inspecting the file,
 // from being replayed with the newline attached, which the portal would refuse.
 func TestFileRestoreTokenStore_LoadIgnoresSurroundingWhitespace(t *testing.T) {
 	store, dir := storeUnderTempState(t)

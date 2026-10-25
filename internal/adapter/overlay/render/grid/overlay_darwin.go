@@ -23,7 +23,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
-	// The overlay.h included above only declares its symbols; importing the
+	// The overlay.h included above only declares its symbols. Importing the
 	// bridge is what links the Objective-C that defines them (ADR 0009).
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/config"
@@ -35,9 +35,9 @@ const (
 	// DefaultGridLinesCount is the default number of grid lines.
 	DefaultGridLinesCount = 4
 
-	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	// NSWindowSharingNone represents NSWindowSharingNone (0), which hides the window from screen sharing.
 	NSWindowSharingNone = 0
-	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1), which shows the window in screen sharing.
 	NSWindowSharingReadOnly = 1
 )
 
@@ -77,7 +77,7 @@ type Overlay struct {
 	cachedLabels map[string]*C.char
 
 	// drawMu serializes draw operations against cache invalidation.
-	// Draw paths hold RLock; freeAllCaches holds Lock.
+	// Draw paths hold RLock, and freeAllCaches holds Lock.
 	drawMu sync.RWMutex
 
 	// virtualPointerCfg stores the config for rendering the virtual pointer character.
@@ -221,7 +221,6 @@ func (o *Overlay) SetConfig(config config.GridConfig) {
 	o.config = config
 	o.configMu.Unlock()
 
-	// Invalidate caches when config changes
 	o.freeAllCaches()
 }
 
@@ -351,7 +350,7 @@ func (o *Overlay) ResizeToActiveScreen() {
 		)
 	})
 	if !started {
-		// Pool exhausted — fall back to non-callback resize so the overlay
+		// Pool exhausted, so fall back to non-callback resize so the overlay
 		// is still moved to the correct screen.
 		C.NeruResizeOverlayToActiveScreen(o.window)
 	}
@@ -387,7 +386,6 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 	if canIncrementalUpdate {
 		// Try incremental update (handles both input changes and structural changes)
 		if o.drawGridIncremental(grid, currentInput, style) {
-			// Update cached state on successful incremental update
 			o.gridStateMu.Lock()
 			o.previousGrid = grid
 			o.previousInput = currentInput
@@ -402,12 +400,10 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 		o.logger.Debug("Grid incremental update failed, falling back to full redraw")
 	}
 
-	// Full redraw
 	o.Clear()
 	visibleCells := o.filterCellsByViewport(cells)
 	o.drawGridCells(visibleCells, currentInput, style, style.LabelFontSizeFor(1, grid))
 
-	// Update cached state
 	o.gridStateMu.Lock()
 	o.previousGrid = grid
 	o.previousInput = currentInput
@@ -437,7 +433,7 @@ func (o *Overlay) UpdateMatches(prefix string) {
 // ShowSubgrid draws a 3x3 subgrid inside the selected cell.
 func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	// Snapshot config fields under configMu to avoid racing with SetConfig.
-	// The keys arrive resolved (config.ResolveSublayerKeys): this overlay is
+	// The keys arrive resolved (config.ResolveSublayerKeys). This overlay is
 	// handed the grid configuration alone and cannot see the characters the
 	// rest of it falls back to, so a fallback here could only disagree with
 	// the keys the mode layer accepts.
@@ -478,7 +474,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	subCells := domainGrid.SubgridCells(cell.Bounds(), domain.SubgridDimensions())
 
 	// One cell per key, and fewer keys than cells is a configuration that
-	// leaves the last cells unlabelled: the key set is capped at the same count
+	// leaves the last cells unlabelled. The key set is capped at the same count
 	// the division produces, which is what MaxKeyIndex is.
 	for cellIndex := range cells {
 		label := string(chars[cellIndex])
@@ -540,12 +536,11 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	*labelsPtr = (*labelsPtr)[:0]
 	subgridCellSlicePool.Put(cellsPtr)
 	subgridLabelSlicePool.Put(labelsPtr)
-	// Note: We don't free cached style strings - they're reused across draws
+	// Cached style strings are reused across draws, so they are not freed here.
 }
 
 // SetViewport sets the current viewport for lazy rendering and forces a full redraw on next draw.
 func (o *Overlay) SetViewport(viewport image.Rectangle) {
-	// Update viewport
 	o.viewportMu.Lock()
 	o.viewport = viewport
 	o.viewportMu.Unlock()
@@ -592,19 +587,16 @@ func (o *Overlay) drawGridIncremental(
 	}
 
 	if o.gridsAreStructurallyEqual(grid, previousGrid) && style == previousStyle {
-		// Only input changed - we can do incremental match updates
+		// Only the input changed, so update the match states in place.
 		if currentInput != previousInput {
 			o.updateMatchesIncremental(grid, currentInput, previousInput)
 
 			return true
 		}
-		// No changes at all - but we need to ensure overlay is actually visible
-		// If the overlay was cleared between activations, we need to redraw even if nothing changed.
-		// Since we can't easily check if overlay is empty from Go, we'll be conservative:
-		// If this is the first draw after a potential clear (indicated by empty input and no previous input),
-		// force a redraw to ensure visibility.
+		// Nothing changed, but the overlay may have been cleared between
+		// activations and Go cannot ask whether it is empty. Empty input with
+		// no previous input may be the first draw after a clear, so redraw.
 		if currentInput == "" && previousInput == "" {
-			// This might be a fresh activation after clear - force redraw to be safe
 			return false
 		}
 		// Otherwise, assume overlay is still showing and no redraw needed
@@ -665,7 +657,7 @@ func (o *Overlay) drawGridIncrementalStructural(
 	currentCells := currentGrid.AllCells()
 	previousCells := previousGrid.AllCells()
 
-	// Reuse the coordinate→cell index already built on the Grid domain object
+	// Reuse the coordinate-to-cell index already built on the Grid domain object
 	// instead of allocating new maps on every structural diff.
 	previousCellMap := previousGrid.Index()
 	currentCellMap := currentGrid.Index()
@@ -697,12 +689,9 @@ func (o *Overlay) drawGridIncrementalStructural(
 	// If we need to add all cells (overlay is likely empty), do a full redraw instead
 	// This handles the case where the overlay was cleared between activations
 	if len(cellsToAdd) == len(currentCells) && len(cellsToRemove) == len(previousCells) {
-		// All cells need to be added and all previous cells removed - this is effectively a full redraw
-		// Fall back to full redraw for better performance and correctness
 		return false
 	}
 
-	// If no changes, nothing to do
 	if len(cellsToAdd) == 0 && len(cellsToRemove) == 0 {
 		return true
 	}
@@ -711,10 +700,8 @@ func (o *Overlay) drawGridIncrementalStructural(
 	// draw call so that freeLabelCache cannot free labels mid-draw.
 	o.drawMu.RLock()
 
-	// Convert cells to C structures
 	cellsToAddC := o.convertCellsToC(cellsToAdd, currentInput)
 
-	// Convert bounds to C structures
 	var cellsToRemoveC []C.CGRect
 	if len(cellsToRemove) > 0 {
 		cellsToRemoveC = make([]C.CGRect, len(cellsToRemove))
@@ -732,7 +719,6 @@ func (o *Overlay) drawGridIncrementalStructural(
 		}
 	}
 
-	// Get style strings
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
 		cached.FontFamily = unsafe.Pointer(C.CString(currentStyle.FontFamily()))
 		cached.BgColor = unsafe.Pointer(C.CString(currentStyle.BackgroundColor()))
@@ -755,7 +741,6 @@ func (o *Overlay) drawGridIncrementalStructural(
 		borderWidth:            C.int(currentStyle.BorderWidth()),
 	}
 
-	// Call incremental C API
 	var cellsToAddPtr *C.GridCell
 	var cellsToRemovePtr *C.CGRect
 	if len(cellsToAddC) > 0 {
@@ -908,7 +893,6 @@ func (o *Overlay) drawGridCells(
 	tmpCells := gridCellSlicePool.Get()
 	cGridCellsPtr, ok := tmpCells.(*[]C.GridCell)
 	if !ok {
-		// If type assertion fails, create a new slice
 		s := make([]C.GridCell, len(cellsGo))
 		cGridCellsPtr = &s
 	} else {
@@ -923,7 +907,6 @@ func (o *Overlay) drawGridCells(
 	tmpLabels := gridLabelSlicePool.Get()
 	cLabelsPtr, typeOk := tmpLabels.(*[]*C.char)
 	if !typeOk {
-		// If type assertion fails, create a new slice
 		s := make([]*C.char, len(cellsGo))
 		cLabelsPtr = &s
 	} else {
@@ -1007,5 +990,5 @@ func (o *Overlay) drawGridCells(
 	*cLabelsPtr = (*cLabelsPtr)[:0]
 	gridCellSlicePool.Put(cGridCellsPtr)
 	gridLabelSlicePool.Put(cLabelsPtr)
-	// Note: We don't free cached style strings - they're reused across draws
+	// Cached style strings are reused across draws, so they are not freed here.
 }

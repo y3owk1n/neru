@@ -90,7 +90,7 @@ func TestMouseActionIndicatorRect(t *testing.T) {
 
 // Every method a Linux overlay backend exposes to the manager survives a nil
 // receiver, because the manager dispatches on possibly-nil backend pointers.
-// cancelAnimation was the one exception: it took cancelMu straight off the
+// cancelAnimation was the one exception. It took cancelMu straight off the
 // receiver.
 func TestSharedOverlay_CancelAnimation_NilReceiver(t *testing.T) {
 	t.Parallel()

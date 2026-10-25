@@ -153,9 +153,9 @@ func trayIconAtReady(t *testing.T, enabled bool) []byte {
 
 // TestComponent_OnReady_ShowsADistinctIconWhilePaused pins the one place a
 // user can see that Neru is paused without pressing a key. Every platform owes
-// two tray icons — macOS a second template glyph, the tray hosts that render
-// bytes literally a greyed tile — and showing one icon for both states makes the
-// state invisible.
+// two tray icons. macOS gets a second template glyph, and the tray hosts that
+// render bytes literally get a greyed tile. Showing one icon for both states
+// makes the state invisible.
 func TestComponent_OnReady_ShowsADistinctIconWhilePaused(t *testing.T) {
 	running := trayIconAtReady(t, true)
 	paused := trayIconAtReady(t, false)

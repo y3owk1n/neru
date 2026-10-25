@@ -65,9 +65,9 @@ func Detect(
 
 	comps, ink := components(frame, mask, width, height)
 
-	// Texture raised some tile's threshold: read the frame again through the
+	// Texture raised some tile's threshold, so read the frame again through the
 	// quieter mask, keeping the plain one inside pictures so an avatar stays
-	// whole. A dense blob too big to be one target is a photo: read it again
+	// whole. A dense blob too big to be one target is a photo, so read it again
 	// for what is drawn on it.
 	photos, anyPhoto := densePhotos(comps, lim)
 	quiet, raised := noiseMask(steps, width, height)

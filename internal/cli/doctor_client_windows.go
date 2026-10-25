@@ -35,7 +35,7 @@ func printClientDoctorWithoutDaemon(cmd *cobra.Command) error {
 	cmd.Println("Platform capabilities:")
 	printCapabilityLine(cmd, "platform", caps.Platform, "")
 
-	// Iterating the registry keeps this listing complete by construction; it
+	// Iterating the registry keeps this listing complete by construction. It
 	// previously spelled out a subset and silently dropped notifications,
 	// app_watcher, and dark_mode_detection.
 	for _, entry := range caps.Entries() {

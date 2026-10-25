@@ -40,14 +40,14 @@ type x11HotkeyState struct {
 	// XOpenDisplay, and nothing in this process calls it. Manager.mu guards the
 	// Go maps and says nothing about the connection, so without this lock a
 	// registration on a caller's goroutine and the poll loop on its own would
-	// be inside the same connection buffers at once: XPending flushes the
+	// be inside the same connection buffers at once. XPending flushes the
 	// output buffer and reads from the socket, which is exactly what the
 	// XGrabKey/XSelectInput/XFlush sequence beside it is doing.
 	//
 	// It is never held across a call that waits for a key. The loop polls with
 	// neru_hotkeys_pending and only calls XNextEvent when an event is already
 	// queued, so the longest a registration can wait behind it is one
-	// non-blocking read — holding it across a bare XNextEvent would wedge
+	// non-blocking read. Holding it across a bare XNextEvent would wedge
 	// registration until the user pressed something.
 	displayMu sync.Mutex
 
@@ -66,11 +66,11 @@ type x11HotkeyState struct {
 
 // x11IgnoredModifierMasks are the lock modifiers a grab has to be repeated
 // under, because the server reports them in a key event's state and a grab
-// naming a different state does not match: Lock is CapsLock, and Mod2 is where
+// naming a different state does not match. Lock is CapsLock, and Mod2 is where
 // NumLock conventionally sits.
 //
-// The set is stated once so a grab and the ungrab that undoes it cannot drift:
-// an ungrab that misses a mask leaves a hotkey grabbed after Neru forgot it.
+// The set is stated once so a grab and the ungrab that undoes it cannot drift.
+// An ungrab that misses a mask leaves a hotkey grabbed after Neru forgot it.
 func x11IgnoredModifierMasks() [4]C.uint {
 	return [4]C.uint{0, C.Mod2Mask, C.LockMask, C.Mod2Mask | C.LockMask}
 }
@@ -78,7 +78,7 @@ func x11IgnoredModifierMasks() [4]C.uint {
 // grab resolves keyString against the connection's keymap and installs the
 // grabs for it, as one critical section.
 //
-// The resolve belongs inside the lock rather than beside it: XKeysymToKeycode
+// The resolve belongs inside the lock rather than beside it. XKeysymToKeycode
 // is an Xlib call on this same connection, so it is one of the calls being
 // serialized, not a pure computation that happens to precede them.
 func (s *x11HotkeyState) grab(keyString string) (x11HotkeyBinding, error) {
@@ -129,10 +129,10 @@ func (s *x11HotkeyState) ungrab(binding x11HotkeyBinding) {
 // none was waiting.
 //
 // The pending check and the read are one critical section because they are one
-// sequence: XPending answering "an event is queued" is only a fact about this
+// sequence. XPending answering "an event is queued" is only a fact about this
 // connection while nothing else is draining it, and an XNextEvent whose event
-// another thread has taken blocks until the next one arrives — with displayMu
-// held, which is the one way this lock could wedge registration.
+// another thread has taken blocks until the next one arrives. It would block
+// with displayMu held, which is the one way this lock could wedge registration.
 func (s *x11HotkeyState) nextEvent() (C.XEvent, bool) {
 	s.displayMu.Lock()
 	defer s.displayMu.Unlock()
@@ -149,7 +149,7 @@ func (s *x11HotkeyState) nextEvent() (C.XEvent, bool) {
 }
 
 // closeDisplay tears down the connection. Callers must have stopped the poll
-// loop first — the lock orders this against a registration, not against a read
+// loop first. The lock orders this against a registration, not against a read
 // of a display that has been freed.
 func (s *x11HotkeyState) closeDisplay() {
 	s.displayMu.Lock()
@@ -235,7 +235,7 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 	}
 
 	// XOpenDisplay and the root-window read are the two Xlib calls here that do
-	// not go through displayMu, and the only ones that need not: they run
+	// not go through displayMu, and the only ones that need not. They run
 	// before the state exists to lock, before it is published to x11States and
 	// before the poll loop that would share the connection is started.
 	display := C.XOpenDisplay(nil)
@@ -288,8 +288,8 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 		// nextEvent polls with XPending instead of calling the blocking
 		// XNextEvent directly. This allows the stop channel to be checked
 		// between iterations, preventing a goroutine leak and a
-		// use-after-free when unregisterAllX11Hotkeys closes the display —
-		// and it is what lets every Xlib call on this connection share one
+		// use-after-free when unregisterAllX11Hotkeys closes the display.
+		// It is also what lets every Xlib call on this connection share one
 		// lock without a registration ever waiting on a keystroke.
 		event, hasEvent := state.nextEvent()
 		if !hasEvent {
@@ -309,7 +309,7 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 				&event,
 			) & x11CoreModifierMask &^ (C.Mod2Mask | C.LockMask)
 
-			// Hold m.mu while reading state.ids — Register/Unregister write
+			// Hold m.mu while reading state.ids. Register/Unregister write
 			// to this map under the same lock, so an unguarded read here is a
 			// concurrent map read/write (runtime crash under the race
 			// detector). The callback is fetched in the same critical section
@@ -413,17 +413,17 @@ func parseX11Hotkey(display *C.Display, keyString string) (C.uint, C.uint, error
 
 // x11KeysymFor resolves the base key of a hotkey to the X11 keysym a grab
 // needs. The keys below are mapped here rather than left to XStringToKeysym,
-// which knows X11's own spellings ("Page_Up", "Prior") and not Neru's: a name
+// which knows X11's own spellings ("Page_Up", "Prior") and not Neru's. A name
 // from the vocabulary resolves only where this switch says it does, and "Home"
 // and "End" landing on the right keysym through XStringToKeysym is a
 // coincidence of spelling, not a contract.
 //
-// "Backspace" is the same story with a sharper edge: X11 spells it "BackSpace",
+// "Backspace" is the same story with a sharper edge. X11 spells it "BackSpace",
 // so it resolved through neither path. "Delete" reaches the same keysym on
-// purpose: in [hotkeys] the name means the backspace key on every platform —
-// kVK_Delete on macOS, VK_BACK on Windows — and X11's own "Delete", the
+// purpose. In [hotkeys] the name means the backspace key on every platform
+// (kVK_Delete on macOS, VK_BACK on Windows), and X11's own "Delete", the
 // forward-delete key, is what a config file would have grabbed here alone.
-// The forward-delete key has no hotkey name; one that all three platforms can
+// The forward-delete key has no hotkey name. One that all three platforms can
 // bind is the way to add it, not a Linux-only meaning for this one. Insert is
 // mapped alongside the pair rather than left to its matching spelling, so a
 // reader sees the editing keys in one place.
@@ -487,14 +487,14 @@ func x11KeysymFor(key string) C.KeySym {
 // vocabulary does not know is returned unchanged for XStringToKeysym to try.
 //
 // This is keyvocab.NormalizeKey minus the alias fold, which is how the hotkey
-// strings reaching this adapter were already canonicalized — config's
+// strings reaching this adapter were already canonicalized (config's
 // CanonicalHotkeyForPlatform display-cases the base key without folding
-// aliases — and it is what a grab needs: a grab names a physical key, and the
+// aliases). It is also what a grab needs. A grab names a physical key, and the
 // switch above is where each name is given one. Folding "Backspace" to
 // "Delete" the way the taps do and then handing "Delete" to XStringToKeysym
 // is how a binding written "Backspace" once grabbed the forward-delete key.
-// So a named key keeps its own spelling here — "Enter" does not become
-// "Return", though both are mapped above — and only "esc", which the
+// So a named key keeps its own spelling here. "Enter" does not become
+// "Return", though both are mapped above, and only "esc", which the
 // vocabulary deliberately keeps out of the named-key set, resolves through
 // its alias.
 func x11CanonicalKeyName(key string) string {

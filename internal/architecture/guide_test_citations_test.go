@@ -14,20 +14,20 @@ import (
 // guideCitationExemptions are citations a guide deliberately makes to something
 // that is not in the tree, mapped to the reason.
 //
-// It is empty, which is the goal state: a guide naming a test that does not
+// It is empty, which is the goal state. A guide naming a test that does not
 // exist is the failure this pin is for, and a naming *shape* is written with
 // angle brackets (Test<Type>_<Method>_<EdgeCase>) so it is not a citation at
 // all. An entry here should be temporary and carry the reason it exists.
 //
 // TestGuideCitations_ExemptionsAreStillReal holds each entry to both halves of
-// its claim — that a guide still makes the citation, and that it still does not
-// resolve — so this list can only shrink.
+// its claim, that a guide still makes the citation and that it still does not
+// resolve, so this list can only shrink.
 var guideCitationExemptions = map[string]string{}
 
 // guideCitedTestNameFloor and guideCitedTestFileFloor are the fewest citations
 // of each kind the guides are expected to carry. Both are tripwires against a
 // pattern that has stopped matching rather than measurements of the prose,
-// which is why neither is a count the guides have to keep up with: the checkout
+// which is why neither is a count the guides have to keep up with. The checkout
 // carries a few dozen of each, and a check recognizing none of them reports
 // success over every one of them. Below half, the pattern has broken rather
 // than the guides having gone quiet.
@@ -36,9 +36,9 @@ const (
 	guideCitedTestFileFloor = 28
 )
 
-// generatedGuideDoc is the one markdown file in the checkout nobody writes:
-// release-please regenerates it from commit subjects, so a citation inside it
-// cannot be corrected in place and a failure naming it would have no fix.
+// generatedGuideDoc is the one markdown file in the checkout nobody writes,
+// since release-please regenerates it from commit subjects. A citation inside
+// it cannot be corrected in place, and a failure naming it would have no fix.
 const generatedGuideDoc = "CHANGELOG.md"
 
 // symlinkedGuideDoc is the sibling every AGENTS.md keeps
@@ -57,11 +57,11 @@ var guideTestNameCitation = regexp.MustCompile(`\bTest[A-Z][A-Za-z0-9_]*`)
 var guideTestFileCitation = regexp.MustCompile(`[A-Za-z0-9_./-]*[A-Za-z0-9-]_test\.go`)
 
 // globStar is the character a match can only follow when what the prose wrote
-// is a file *slot* rather than a file — *integration_darwin_test.go, the
+// is a file *slot* rather than a file, such as *integration_darwin_test.go, the
 // exemption shape the One Rule is stated in. A slot is a contract about naming,
 // pinned by platform_slots_test.go, and not a claim that a file exists.
 //
-// The other placeholder shape needs no rule: both patterns here require a
+// The other placeholder shape needs no rule, because both patterns here require a
 // letter or a digit where *_integration_<os>_test.go and
 // Test<Type>_<Method>_<EdgeCase> have a bracket, so neither ever matches.
 const globStar = '*'
@@ -82,13 +82,13 @@ const guideCitationRule = "name a test only when it exists, and keep the name " 
 // test when three existed against thirty-eight candidates, and the config guide
 // said three of its four links are guarded when it is two links by three tests.
 // Both compiled, linted and tested green for months, because neither named
-// anything a check could resolve — and a sentence like that is worse than one
+// anything a check could resolve. A sentence like that is worse than one
 // claiming nothing, since it stops the reader looking. Requiring a name is what
-// makes the claim checkable; this is the check.
+// makes the claim checkable, and this is the check.
 //
 // It is one-directional, deliberately. Whether a sentence claims enforcement
 // without naming a test is a question about prose that no test can ask, so that
-// half stays with the reviewer. What lands here is the consequence: once a name
+// half stays with the reviewer. What lands here is the consequence. Once a name
 // is written down, a rename that leaves it behind fails rather than sending the
 // next reader to a `go test -run` that matches nothing.
 func TestGuideCitations_NameTestsThatExist(t *testing.T) {
@@ -108,14 +108,14 @@ func TestGuideCitations_NameTestsThatExist(t *testing.T) {
 // TestGuideCitations_NameTestFilesThatExist covers the other spelling of the
 // same claim. The platform guide names five contract-test *paths* rather than
 // the functions inside them (#1432), and doc_links_test.go reaches none of
-// them: it reads the root and docs/ only, and matches paths anchored at a
+// them, because it reads the root and docs/ only, and matches paths anchored at a
 // top-level repo directory, while a nested guide writes the path relative to
 // wherever the reader already is.
 //
 // A citation resolves when some test file's path ends with it, which is what
-// lets one rule judge every spelling the guides use — the bare
+// lets one rule judge every spelling the guides use: the bare
 // extensions_test.go, the partial platform/linux/system_stub_contract_test.go,
-// and a full path alike. The looseness is deliberate and bounded: it cannot
+// and a full path alike. The looseness is deliberate and bounded. It cannot
 // tell a correct path from one missing a directory, and it does catch the
 // failure that actually happens, which is a file that was renamed or deleted
 // while the sentence naming it stayed.
@@ -181,9 +181,9 @@ func assertEveryCitationResolves(t *testing.T, check citationCheck) {
 
 // TestGuideCitations_ExemptionsAreStillReal keeps guideCitationExemptions from
 // outliving its reasons, in both directions. An entry no guide cites is dead
-// weight that makes the next exemption easier to add; one that now resolves is
+// weight that makes the next exemption easier to add. One that now resolves is
 // worse, because it silently exempts a citation the checks above would have
-// been happy to pass on their own — and would go on exempting it after the test
+// been happy to pass on their own, and would go on exempting it after the test
 // it names is deleted again.
 func TestGuideCitations_ExemptionsAreStillReal(t *testing.T) {
 	if len(guideCitationExemptions) == 0 {
@@ -227,7 +227,7 @@ type guideDocument struct {
 // The set is "all of it" rather than a list of guides on purpose. Deciding
 // which documents are contract and which are commentary is the judgement call
 // that let the false sentences sit in the first place, and the rule reads the
-// same either way — a document naming a test that does not exist is wrong
+// same either way. A document naming a test that does not exist is wrong
 // whether it is an AGENTS.md, a skill, a review profile or an ADR. The two
 // exclusions are structural rather than editorial: one file is generated, and
 // one is a symlink to a file already read.
@@ -295,7 +295,7 @@ func anyGuideCites(t *testing.T, docs []guideDocument, citation string) bool {
 // declaredTestFunctions returns every test function the checkout declares.
 //
 // Build-tagged files are parsed rather than built (forEachTestFile), so a guide
-// naming an integration test resolves on a host that cannot run it — which is
+// naming an integration test resolves on a host that cannot run it. That is
 // the point, since the guides that name those tests are read on every platform.
 func declaredTestFunctions(t *testing.T) map[string]bool {
 	t.Helper()
@@ -336,7 +336,7 @@ func testFilePaths(t *testing.T) []string {
 }
 
 // testFileCitationResolves reports whether a cited path names one of the test
-// files in paths. Leading ../ and ./ segments are dropped first: a link in
+// files in paths. Leading ../ and ./ segments are dropped first, because a link in
 // docs/ is written relative to that directory, and the anchor it is relative to
 // is what this check deliberately does not try to know.
 func testFileCitationResolves(cited string, paths []string) bool {

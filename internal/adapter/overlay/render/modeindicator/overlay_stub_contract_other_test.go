@@ -10,14 +10,14 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Off darwin this type resolves the label and nothing else: the badge is
+// Off darwin this type resolves the label and nothing else. The badge is
 // painted onto the manager's shared surface (Cairo on Linux, GDI on Windows),
 // which is why ResolveLabelText next door is real behavior and
 // DrawModeIndicator is not. That split is the whole reason the stub is easy to
-// miss — the file it lives in is not otherwise a stub.
+// miss, because the file it lives in is not otherwise a stub.
 //
-// Nothing calls it today; the managers draw the badge themselves. Pinning the
-// refusal is what keeps the split legible: an indicator whose draw silently
+// Nothing calls it today. The managers draw the badge themselves. Pinning the
+// refusal is what keeps the split legible. An indicator whose draw silently
 // succeeds is one the user is told is on while the screen shows nothing, and
 // on Linux the indicator is the only thing on screen in scroll mode.
 //
@@ -57,7 +57,7 @@ func TestOverlay_DrawModeIndicatorReportsNotSupportedOffDarwin(t *testing.T) {
 }
 
 // TestOverlay_DrawModeIndicatorIsStableAcrossCalls guards against a stub that
-// refuses once and then changes its answer: the indicator is redrawn on a
+// refuses once and then changes its answer. The indicator is redrawn on a
 // poll, so a later call reporting success would look like the badge arrived.
 func TestOverlay_DrawModeIndicatorIsStableAcrossCalls(t *testing.T) {
 	t.Parallel()

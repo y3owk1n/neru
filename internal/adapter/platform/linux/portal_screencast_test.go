@@ -26,7 +26,7 @@ func twoMonitorStreams() []screenCastStream {
 }
 
 // TestSelectScreenCastStream_PicksTheMonitorHoldingTheRegion is the region
-// contract's first half: a caller asking for a window on the second monitor
+// contract's first half. A caller asking for a window on the second monitor
 // gets that monitor's node, with the region translated into its local
 // coordinates so the crop lands on the right pixels.
 func TestSelectScreenCastStream_PicksTheMonitorHoldingTheRegion(t *testing.T) {
@@ -49,7 +49,7 @@ func TestSelectScreenCastStream_PicksTheMonitorHoldingTheRegion(t *testing.T) {
 }
 
 // TestSelectScreenCastStream_RefusesARegionNoMonitorContains is the other half,
-// and the contract #1459 set: a rectangle that leaves the screen, or that spans
+// and the contract #1459 set. A rectangle that leaves the screen, or that spans
 // two monitors, fails rather than coming back clipped. A clipped frame carries
 // nothing that says where its own top-left is.
 func TestSelectScreenCastStream_RefusesARegionNoMonitorContains(t *testing.T) {
@@ -96,7 +96,7 @@ func TestSelectScreenCastStream_RefusesAStreamWithNoGeometry(t *testing.T) {
 }
 
 // TestSelectScreenCastStream_RefusesASessionStreamingNothing covers the session
-// the user approved with no monitor selected: there is nothing to read, and
+// the user approved with no monitor selected. There is nothing to read, and
 // saying so beats a nil dereference or an empty frame.
 func TestSelectScreenCastStream_RefusesASessionStreamingNothing(t *testing.T) {
 	_, _, err := selectScreenCastStream(nil, image.Rect(0, 0, 100, 100))
@@ -106,14 +106,14 @@ func TestSelectScreenCastStream_RefusesASessionStreamingNothing(t *testing.T) {
 }
 
 // TestScreenCastSelectSourcesOptions_AsksForPersistentCursorlessMonitors pins
-// the four values the whole backend rests on. Monitors rather than windows,
-// because only a monitor stream carries a position and a region has to be
-// placeable; every monitor the user is willing to share, because a region can
-// land on any of them; no cursor, because the frame exists to be read for text
-// and a pointer drawn into it is a shape the detector would try to interpret;
-// and a persistence mode that outlives the process, since persist_mode 1 would
-// keep the grant only while this daemon runs — precisely the restart the
-// restore token exists to survive.
+// the four values the whole backend rests on. It asks for monitors rather than
+// windows, because only a monitor stream carries a position and a region has to
+// be placeable. It asks for every monitor the user is willing to share, because
+// a region can land on any of them. It asks for no cursor, because the frame
+// exists to be read for text and a pointer drawn into it is a shape the
+// detector would try to interpret. And it asks for a persistence mode that
+// outlives the process, since persist_mode 1 would keep the grant only while
+// this daemon runs, which is the restart the restore token exists to survive.
 func TestScreenCastSelectSourcesOptions_AsksForPersistentCursorlessMonitors(t *testing.T) {
 	options := screenCastSelectSourcesOptions(storedToken)
 
@@ -147,7 +147,7 @@ func TestScreenCastSelectSourcesOptions_AsksForPersistentCursorlessMonitors(t *t
 
 // TestScreenCastSelectSourcesOptions_OmitsTheRestoreTokenWhenThereIsNothingToRestore
 // keeps an empty string out of the options map, for the same reason the input
-// grant does: a portal that validates the key it was given would refuse the
+// grant does. A portal that validates the key it was given would refuse the
 // call outright, turning the ordinary first run into a hard failure.
 func TestScreenCastSelectSourcesOptions_OmitsTheRestoreTokenWhenThereIsNothingToRestore(
 	t *testing.T,
@@ -160,8 +160,8 @@ func TestScreenCastSelectSourcesOptions_OmitsTheRestoreTokenWhenThereIsNothingTo
 }
 
 // portalStreamReply builds the streams entry of a Start reply the way godbus
-// decodes one: a(ua{sv}) arrives as a slice of two-element slices, and each
-// (ii) member as a slice of int32.
+// decodes one, in which a(ua{sv}) arrives as a slice of two-element slices, and
+// each (ii) member as a slice of int32.
 func portalStreamReply(entries ...[]any) map[string]dbus.Variant {
 	return map[string]dbus.Variant{"streams": dbus.MakeVariant(entries)}
 }
@@ -199,7 +199,7 @@ const (
 
 // TestDecodeScreenCastStreams_KeepsASizedStreamWithoutAPosition is the shape
 // every released Plasma sends, and the one the first release of this backend
-// refused as "named no geometry": the size is kept at the origin, the stream
+// refused as "named no geometry". The size is kept at the origin, the stream
 // is marked unpositioned so it can be placed later, and a mapping id is read
 // when a newer Plasma attaches one.
 func TestDecodeScreenCastStreams_KeepsASizedStreamWithoutAPosition(t *testing.T) {
@@ -327,7 +327,7 @@ func TestPlaceScreenCastStreams_PlacesUnpositionedStreams(t *testing.T) {
 }
 
 // TestDecodeScreenCastStreams_ReadsEachMonitorsPlaceOnScreen is what makes a
-// captured frame placeable: the portal's position and size are the only source
+// captured frame placeable. The portal's position and size are the only source
 // for where a streamed monitor sits, and without them a crop could not be
 // mapped back to the caller's global coordinates.
 func TestDecodeScreenCastStreams_ReadsEachMonitorsPlaceOnScreen(t *testing.T) {
@@ -412,9 +412,9 @@ func screenCastAnswer(token string) screenCastGrant {
 }
 
 // TestRestorePortalGrant_NeverPromptsWhenNothingIsStored is the promise the
-// capture path makes: it establishes a session out of a stored grant or it
+// capture path makes. It establishes a session out of a stored grant or it
 // refuses, and it never reaches a handshake whose only possible outcome is a
-// dialog. The opener is scripted to fail the test if it is called at all.
+// dialog. The opener counts its calls, and the test fails if there is any.
 func TestRestorePortalGrant_NeverPromptsWhenNothingIsStored(t *testing.T) {
 	store := &fakeTokenStore{}
 
@@ -441,9 +441,9 @@ func TestRestorePortalGrant_NeverPromptsWhenNothingIsStored(t *testing.T) {
 }
 
 // TestRestorePortalGrant_RestoresTheStoredGrantAndKeepsTheNextToken is the
-// happy path, and it shares every line of its policy with the input grant: the
-// stored token is presented, and the one the portal hands back replaces it —
-// a restore token is invalidated by the use that consumes it.
+// happy path, and it shares every line of its policy with the input grant. The
+// stored token is presented, and the one the portal hands back replaces it,
+// because a restore token is invalidated by the use that consumes it.
 func TestRestorePortalGrant_RestoresTheStoredGrantAndKeepsTheNextToken(t *testing.T) {
 	store := &fakeTokenStore{token: storedToken}
 
@@ -500,7 +500,7 @@ func TestRestorePortalGrant_DropsATokenThePortalRefused(t *testing.T) {
 }
 
 // TestRestorePortalGrant_KeepsATokenTheFailureWasNotAbout is the other side of
-// that: a bus that could not be reached says nothing about the grant, and
+// that. A bus that could not be reached says nothing about the grant, and
 // throwing the token away would cost the user a fresh consent dialog for a
 // failure the token had no part in.
 func TestRestorePortalGrant_KeepsATokenTheFailureWasNotAbout(t *testing.T) {

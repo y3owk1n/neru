@@ -12,7 +12,7 @@ import (
 )
 
 // testPointer is a resolved virtual-pointer appearance for the notifications
-// these tests send. Its values are arbitrary; what they stand for is that a
+// these tests send. Its values are arbitrary. What they stand for is that a
 // caller always has every one of them settled by the time it notifies.
 var testPointer = manager.PointerAppearance{
 	FillColor:  "#ffffff",
@@ -27,7 +27,7 @@ type lightTheme struct{}
 func (lightTheme) IsDarkMode() bool { return false }
 
 // TestBase_BuildComponents_BuildsNothingWhenHeadless pins the guard that used
-// to live in the app's component factory: a manager with no surface builds no
+// to live in the app's component factory. A manager with no surface builds no
 // render components, because every draw through one reaches a native API
 // (CGo, X11) that was never opened. Headlessness is stated by the backend, not
 // inferred here from a window handle that happens to be visible.
@@ -62,7 +62,7 @@ func TestBase_BuildComponents_BuildsNothingWhenHeadless(t *testing.T) {
 }
 
 // TestBase_ConfigureComponents_LeavesDisabledOverlaysAlone pins the gate the
-// per-component reload path used to carry: a disabled overlay draws nothing,
+// per-component reload path used to carry. A disabled overlay draws nothing,
 // so reconfiguring it would only invalidate caches nobody reads.
 func TestBase_ConfigureComponents_LeavesDisabledOverlaysAlone(t *testing.T) {
 	t.Parallel()
@@ -71,7 +71,7 @@ func TestBase_ConfigureComponents_LeavesDisabledOverlaysAlone(t *testing.T) {
 	cfg.Hints.Enabled = true
 	cfg.Hints.UI.FontSize = 11
 
-	// Built directly rather than through BuildComponents: the hints overlay
+	// Built directly rather than through BuildComponents. The hints overlay
 	// shares the manager's window, so it needs no surface of its own.
 	hintOverlay, err := renderhints.NewOverlayWithWindow(cfg.Hints, zap.NewNop(), nil)
 	if err != nil {
@@ -104,7 +104,7 @@ func TestBase_ConfigureComponents_LeavesDisabledOverlaysAlone(t *testing.T) {
 
 // TestBase_ConfigureComponents_WithoutComponents pins that the notification is
 // silent before anything is built. A headless start and a failed build both
-// leave the registry empty, and the config reload path runs regardless — it
+// leave the registry empty, and the config reload path runs regardless. It
 // must neither panic nor conjure a component to configure.
 func TestBase_ConfigureComponents_WithoutComponents(t *testing.T) {
 	t.Parallel()

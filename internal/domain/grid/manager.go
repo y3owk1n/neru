@@ -14,7 +14,7 @@ type Manager struct {
 	domain.BaseManager
 
 	grid          *Grid
-	mainGridInput string            // This variable is just to restore the captured keys to subgrid when needed
+	mainGridInput string            // Main-grid input, restored when backspace leaves the subgrid
 	labelLength   int               // Length of labels (2, 3, or 4)
 	onUpdate      func(redraw bool) // redraw is only used for exiting subgrid
 	onShowSub     func(cell *Cell)
@@ -29,9 +29,9 @@ type Manager struct {
 //
 // subDims is the shape of the subgrid a cell opens into. It is one value rather
 // than a row count beside a column count because it is handed straight to
-// SubgridCells, which decides where a subgrid key sends the cursor: an adjacent
-// pair here would just be the transposition SubgridCells no longer has, one
-// call up (#1294).
+// SubgridCells, which decides where a subgrid key sends the cursor. An adjacent
+// pair here would bring back, one call up, the transposition SubgridCells no
+// longer has (#1294).
 func NewManager(
 	grid *Grid,
 	subDims domain.GridDimensions,
@@ -64,7 +64,7 @@ func NewManager(
 // Completion occurs when labelLength characters are entered or a subgrid selection is made.
 // Returns (point, true) when selection is complete, (zero point, false) otherwise.
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
-	// Ignore keys that are not single characters or not in the configured characters, except reset
+	// Ignore keys that are not single characters or not in the configured characters.
 	upper := strings.ToUpper(key)
 
 	allowed := false
@@ -78,12 +78,9 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		return image.Point{}, false
 	}
 
-	// Cache uppercase conversion once
-	upperKey := strings.ToUpper(key)
-
 	// For main grid, ensure the new input would match at least one coordinate.
 	if !m.inSubgrid && m.grid != nil {
-		newInput := m.CurrentInput() + upperKey
+		newInput := m.CurrentInput() + upper
 		if !m.hasMatchingCoordinate(newInput) {
 			return image.Point{}, false
 		}
@@ -91,16 +88,10 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 
 	// If in subgrid mode, delegate to subgrid selection handler
 	if m.inSubgrid && m.selectedCell != nil {
-		return m.handleSubgridSelection(upperKey)
+		return m.handleSubgridSelection(upper)
 	}
 
-	// Note: reset key already handled above (supports modifiers and single chars).
-
-	if !m.validateInputKey(upperKey) {
-		return image.Point{}, false
-	}
-
-	m.SetCurrentInput(m.CurrentInput() + upperKey)
+	m.SetCurrentInput(m.CurrentInput() + upper)
 
 	// Transition to subgrid when main grid coordinate is complete
 	if !m.inSubgrid && len(m.CurrentInput()) >= m.labelLength {
@@ -157,8 +148,8 @@ func (m *Manager) UpdateSubKeys(subKeys string) {
 	m.subKeys = string(SubgridKeys(subKeys, m.subDims.CellCount()))
 }
 
-// HandleBackspace applies grid backspace behavior: delete one input character,
-// or exit subgrid and restore main-grid input context when appropriate.
+// HandleBackspace applies grid backspace behavior. It deletes one input character,
+// or exits subgrid and restores main-grid input context when appropriate.
 func (m *Manager) HandleBackspace() (image.Point, bool) {
 	if len(m.CurrentInput()) > 0 {
 		m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
@@ -174,13 +165,9 @@ func (m *Manager) HandleBackspace() (image.Point, bool) {
 	if m.inSubgrid {
 		m.inSubgrid = false
 		m.selectedCell = nil
-		// Restore main grid input
+		// Restore the main-grid input without the key that completed it.
 		if len(m.mainGridInput) > 0 {
-			// remove the last character
 			m.SetCurrentInput(m.mainGridInput[:len(m.mainGridInput)-1])
-		} else {
-			// just in case
-			m.SetCurrentInput("")
 		}
 
 		if m.onUpdate != nil {
@@ -192,8 +179,8 @@ func (m *Manager) HandleBackspace() (image.Point, bool) {
 }
 
 // MoveDirection slides the selected cell count cells in dir and redraws the
-// subgrid over the new cell. It only applies while a subgrid is open — before
-// that no cell is selected, so there is nothing to move.
+// subgrid over the new cell. It only applies while a subgrid is open, because
+// before that no cell is selected and there is nothing to move.
 //
 // Returns the resulting cell center and whether anything moved.
 func (m *Manager) MoveDirection(dir domain.Direction, count int) (image.Point, bool) {
@@ -277,50 +264,36 @@ func (m *Manager) hasMatchingCoordinate(prefix string) bool {
 
 // handleLabelLengthReached handles the case when label length is reached.
 func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
-	coordinate := m.CurrentInput()[:m.labelLength]
-	if m.grid != nil {
-		cell := m.grid.CellByCoordinate(coordinate)
-		if cell != nil {
-			if !m.inSubgrid {
-				center := cell.center
-
-				m.inSubgrid = true
-				m.selectedCell = cell
-				// Save the main grid input for restoring after subgrid
-				m.mainGridInput = m.CurrentInput()
-				m.SetCurrentInput("")
-
-				if m.onShowSub != nil {
-					m.onShowSub(cell)
-				}
-
-				// Return false for completion since we're entering subgrid, not completing selection
-				return image.Point{X: center.X, Y: center.Y}, false
-			}
-		}
-	}
-	// Invalid coordinate, reset
-	m.Reset()
-
-	return image.Point{}, false
-}
-
-// validateInputKey validates the input key.
-func (m *Manager) validateInputKey(key string) bool {
-	if m.inSubgrid {
-		return strings.Contains(m.subKeys, key)
-	} else if m.grid != nil {
-		return strings.Contains(m.grid.ValidCharacters(), key)
+	var cell *Cell
+	if m.grid != nil && !m.inSubgrid {
+		cell = m.grid.CellByCoordinate(m.CurrentInput()[:m.labelLength])
 	}
 
-	return false
+	if cell == nil {
+		// Invalid coordinate, reset
+		m.Reset()
+
+		return image.Point{}, false
+	}
+
+	m.inSubgrid = true
+	m.selectedCell = cell
+	// Save the main grid input for restoring after subgrid
+	m.mainGridInput = m.CurrentInput()
+	m.SetCurrentInput("")
+
+	if m.onShowSub != nil {
+		m.onShowSub(cell)
+	}
+
+	// Entering the subgrid does not complete the selection.
+	return cell.center, false
 }
 
 // handleSubgridSelection handles subgrid selection.
-// Maps the input key to a 3x3 subgrid position, calculates the precise point within the selected cell,
+// Maps the input key to a subgrid position, calculates the precise point within the selected cell,
 // and returns the final target coordinates. Completes the selection process.
 func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
-	// Find the index of the key in subgrid keys
 	keyIndex := strings.Index(m.subKeys, key)
 	if keyIndex < 0 {
 		return image.Point{}, false
@@ -332,7 +305,7 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 
 	// A key past the last cell names nothing. The bound is this manager's own
 	// cell count rather than the shipped subgrid's, because the manager is
-	// built with the row and column count it was handed: a fixed bound would
+	// built with the row and column count it was handed. A fixed bound would
 	// refuse keys a larger subgrid had drawn.
 	if keyIndex >= len(cells) {
 		return image.Point{}, false
@@ -345,6 +318,6 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	m.Logger.Debug("Grid subgrid selection complete",
 		zap.Int("row", keyIndex/m.subDims.Cols), zap.Int("col", keyIndex%m.subDims.Cols),
 		zap.Int("x", xCoordinate), zap.Int("y", yCoordinate))
-	// m.Reset()
+
 	return image.Point{X: xCoordinate, Y: yCoordinate}, true
 }

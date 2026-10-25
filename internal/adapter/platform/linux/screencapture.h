@@ -8,7 +8,7 @@
 // (wlr-screencopy-unstable-v1). Both hand Go the same thing, so the Go side has
 // one conversion and one error vocabulary rather than one per backend.
 //
-// Privacy: a capture buffer holds arbitrary screen content — whatever the user
+// Privacy: a capture buffer holds arbitrary screen content, whatever the user
 // happens to have on screen, including windows Neru was never asked about.
 // Nothing in this subsystem writes a byte of it anywhere but the buffer the
 // caller asked for, and neru_capture_free wipes that buffer before releasing

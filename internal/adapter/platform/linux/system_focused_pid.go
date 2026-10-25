@@ -16,7 +16,7 @@ import (
 // Wayland session that speaks wlr-foreign-toplevel-management (wlroots + KDE).
 //
 // The protocol exposes the focused window's app_id but deliberately not its
-// PID — Wayland clients cannot read each other's process credentials. We
+// PID, because Wayland clients cannot read each other's process credentials. We
 // therefore best-effort match the app_id against running processes in /proc.
 // When no match is found the caller gets CodeNotSupported with the app_id in
 // the message, keeping the "PID is not natively available on Wayland" contract
@@ -53,10 +53,10 @@ func focusedApplicationPIDFromAppID(appID string, ok bool) (int, error) {
 
 	pid, found := resolvePIDByAppID(appID, "/proc")
 	if !found {
-		// Not the unfocused-desktop sentinel: a window *is* focused, and the
-		// heuristic that maps its app_id onto a process missed. Wearing the
-		// sentinel here would tell the user to focus a window they already have
-		// focused.
+		// Not the unfocused-desktop sentinel, because a window *is* focused,
+		// and the heuristic that maps its app_id onto a process missed. Wearing
+		// the sentinel here would tell the user to focus a window they already
+		// have focused.
 		return 0, derrors.Newf(
 			derrors.CodeNotSupported,
 			"FocusedApplicationPID: Wayland exposes no PID for the focused app (app_id=%q); no /proc match found",
@@ -71,13 +71,13 @@ func focusedApplicationPIDFromAppID(appID string, ok bool) (int, error) {
 // manager, which is the wlroots family's version of an unfocused desktop.
 //
 // It wraps errNoFocusedWindow so the capability surface explains it the way the
-// X11 arm's is explained (#1495): the query works, and it answers as soon as a
+// X11 arm's is explained (#1495). The query works, and it answers as soon as a
 // window takes focus. The CGO-off build takes the other branch, because there
 // the manager is absent rather than idle, and the reassuring sentence would be a
 // lie on a binary that can never answer.
 //
 // What it cannot yet separate is a compositor whose foreign-toplevel manager
-// never bound: WaylandFocusedAppID reports that with the same bare false as an
+// never bound. WaylandFocusedAppID reports that with the same bare false as an
 // idle session, so on a CGO build both arrive here. Telling them apart needs the
 // wlroots client to say which happened, in both its cgo and nocgo halves.
 func waylandNoFocusedAppError() error {
@@ -97,9 +97,9 @@ func waylandNoFocusedAppError() error {
 }
 
 // resolvePIDByAppID scans procRoot (normally "/proc") for a process whose
-// identity matches appID and returns its PID. It is a heuristic: Wayland
-// app_ids and process names do not always agree, so a miss is expected and
-// handled gracefully by the caller. procRoot is a parameter so tests can point
+// identity matches appID and returns its PID. It is a heuristic. Wayland
+// app_ids and process names do not always agree, so a miss is expected and the
+// caller handles it. procRoot is a parameter so tests can point
 // it at a synthetic /proc tree.
 func resolvePIDByAppID(appID, procRoot string) (int, bool) {
 	entries, err := os.ReadDir(procRoot)
@@ -131,8 +131,8 @@ func resolvePIDByAppID(appID, procRoot string) (int, bool) {
 }
 
 // readProcComm returns the trimmed contents of <procDir>/comm, or "".
-// Note: the kernel truncates comm to 15 characters, so exe/cmdline are more
-// reliable for long names; comm is still a cheap first signal.
+// The kernel truncates comm to 15 characters, so exe and cmdline are more
+// reliable for long names. comm is still a cheap first signal.
 func readProcComm(procDir string) string {
 	data, err := os.ReadFile(filepath.Join(procDir, "comm"))
 	if err != nil {
@@ -180,7 +180,7 @@ func readProcCmdlineBase(procDir string) string {
 // Two forms are compared, both case-insensitively:
 //   - the full app_id (covers plain ids like "firefox" or "Alacritty")
 //   - the last dotted segment (covers reverse-DNS ids like "org.kde.konsole"
-//     → "konsole" and "org.mozilla.firefox" → "firefox")
+//     to "konsole" and "org.mozilla.firefox" to "firefox")
 //
 // It is intentionally conservative: an exact equality against one of the
 // process name candidates, never a substring match, to avoid false positives

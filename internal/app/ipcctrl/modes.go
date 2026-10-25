@@ -14,14 +14,14 @@ import (
 
 // ModesHandler activates and exits the navigation modes on request.
 //
-// It holds no mode state of its own: the mode handler owns that, and this
+// It holds no mode state of its own. The mode handler owns that, and this
 // hands it the activation the grammar parsed, unaltered. It holds no rules
-// either — what a mode command may say is the grammar's business, in
+// either. What a mode command may say is the grammar's business, in
 // internal/domain/modecmd, which the CLI and the configuration validator read
 // the same command with.
 type ModesHandler struct {
 	modes  *modes.Handler
-	logger *zap.Logger // Reserved for future logging needs (maintains consistency with other IPC controllers)
+	logger *zap.Logger
 }
 
 // NewModesHandler creates a new mode command handler.
@@ -61,7 +61,7 @@ var activationMessages = map[domain.Mode]string{
 
 // activationHandler answers a mode command by entering the mode it names.
 //
-// Every mode is served by this one handler: the flags a mode accepts, and the
+// Every mode is served by this one handler. The flags a mode accepts, and the
 // rules between them, are the grammar's to know, so there is nothing left here
 // for a mode to be an exception to.
 func (h *ModesHandler) activationHandler(
@@ -78,7 +78,7 @@ func (h *ModesHandler) activationHandler(
 			return refusalFor(err)
 		}
 
-		// The grammar reads the declared name; whether anything declares it
+		// The grammar reads the declared name. Whether anything declares it
 		// is the configuration's answer, and a caller is told here rather
 		// than by an activation that cannot report back.
 		if mode == domain.ModeCustom && !h.modes.DeclaresMode(activation.Name) {
@@ -105,7 +105,7 @@ func (h *ModesHandler) activationHandler(
 // refusalFor answers a grammar error.
 //
 // The message a user sees is the grammar's own sentence, without the code the
-// domain error carries for callers — the code travels in the response's own
+// domain error carries for callers. The code travels in the response's own
 // field instead, which is what a script branches on.
 func refusalFor(err error) ipc.Response {
 	message := derrors.Message(err)
@@ -149,7 +149,7 @@ func (h *ModesHandler) handleToggleCursorFollowSelection(
 
 	// The preference belongs to the active mode's session rather than to the
 	// daemon, so unlike the other two toggles this one has nothing to set when
-	// no mode is running — including when --state named the state it wants.
+	// no mode is running, including when --state named the state it wants.
 	enabled, ok := applyToggleStateWithResult(
 		desired,
 		h.modes.ToggleCursorFollowSelection,

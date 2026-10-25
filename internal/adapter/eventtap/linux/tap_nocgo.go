@@ -43,12 +43,12 @@ func ScrollDeviceScrollBatch(_ int, _ []int) error {
 	return errUinputScrollNoCGO("uinput scroll batch")
 }
 
-// IsUinputScrollAvailable reports false: uinput needs cgo.
+// IsUinputScrollAvailable reports false, because uinput needs cgo.
 func IsUinputScrollAvailable() bool {
 	return false
 }
 
-// IsWaylandEvdevKeyboardActive reports false: evdev capture needs cgo.
+// IsWaylandEvdevKeyboardActive reports false, because evdev capture needs cgo.
 func IsWaylandEvdevKeyboardActive() bool {
 	return false
 }

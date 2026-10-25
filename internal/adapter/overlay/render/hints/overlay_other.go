@@ -42,7 +42,7 @@ func NewOverlayWithWindow(
 	}, nil
 }
 
-// DrawHints reports CodeNotSupported: off darwin this type owns no surface, so
+// DrawHints reports CodeNotSupported. Off darwin this type owns no surface, so
 // there is nothing here that can paint a label. The manager's backend draws
 // them.
 func (o *Overlay) DrawHints(_ []*Hint, _ StyleMode) error {

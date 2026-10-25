@@ -1,8 +1,8 @@
 package config
 
-// ThemeProvider is an interface for querying the current macOS system theme.
-// The config package can then resolve theme-aware defaults without
-// depending directly on the bridge package (avoiding import cycles).
+// ThemeProvider reports the current macOS system theme, so the config package
+// can resolve theme-aware defaults without importing the bridge package and
+// creating an import cycle.
 type ThemeProvider interface {
 	// IsDarkMode returns true if macOS Dark Mode is currently active.
 	IsDarkMode() bool

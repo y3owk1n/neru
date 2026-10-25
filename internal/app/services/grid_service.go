@@ -8,7 +8,7 @@ import (
 
 // GridService reports the health of the overlay that grid mode draws through.
 // Grid drawing itself runs in the mode handler, not here, so this deliberately
-// does not embed BaseService — there is no accessibility or system dependency
+// does not embed BaseService. There is no accessibility or system dependency
 // to hold, and a nil one would panic through a promoted method.
 type GridService struct {
 	overlay ports.OverlayPort

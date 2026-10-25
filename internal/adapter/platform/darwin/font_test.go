@@ -6,7 +6,7 @@ import "testing"
 
 func TestNSFontResolver_GenericAliases(t *testing.T) {
 	// Which spellings count as generic is pinned by the shared parser
-	// (platform/fontgeneric); this pins what each generic means on macOS.
+	// (platform/fontgeneric). This pins what each generic means on macOS.
 	cases := map[string]string{
 		"":           defaultDarwinSans,
 		"sans":       defaultDarwinSans,
@@ -50,8 +50,8 @@ func TestNSFontResolver_NonGenericPassesThroughTrimmed(t *testing.T) {
 }
 
 func TestNSFontResolver_AnswersEachSpellingFromItsOwnName(t *testing.T) {
-	// Caching must not rewrite a caller's spelling; the shared rule is pinned
-	// on every CI leg in platform/fontcache, this pins that macOS uses it.
+	// Caching must not rewrite a caller's spelling. The shared rule is pinned
+	// on every CI leg in platform/fontcache, and this pins that macOS uses it.
 	fontResolver := NewFontResolver()
 
 	if got := fontResolver.Resolve("Arial"); got != "Arial" {

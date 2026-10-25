@@ -83,7 +83,7 @@ func (m *Manager) SetExitOnUnmatched(exit bool) {
 }
 
 // SetHints updates the current hint collection and resets the input state.
-// The caller MUST hold externalMu (when set) — see requireExternalMuHeld.
+// The caller MUST hold externalMu (when set). See requireExternalMuHeld.
 func (m *Manager) SetHints(hints *Collection) error {
 	err := m.requireExternalMuHeld("SetHints")
 	if err != nil {
@@ -102,27 +102,27 @@ func (m *Manager) SetHints(hints *Collection) error {
 	m.hints = hints
 	m.SetCurrentInput("")
 
-	if hints != nil {
-		m.lastFilteredLen = len(hints.All())
-	} else {
+	if hints == nil {
 		m.lastFilteredLen = 0
+
+		return nil
 	}
 
-	if hints != nil {
-		m.mu.Lock()
-		callback := m.onUpdate
-		m.mu.Unlock()
+	m.lastFilteredLen = len(hints.All())
 
-		if callback != nil {
-			callback(hints.All())
-		}
+	m.mu.Lock()
+	callback := m.onUpdate
+	m.mu.Unlock()
+
+	if callback != nil {
+		callback(hints.All())
 	}
 
 	return nil
 }
 
 // Reset clears the current input.
-// The caller MUST hold externalMu (when set) — see requireExternalMuHeld.
+// The caller MUST hold externalMu (when set). See requireExternalMuHeld.
 func (m *Manager) Reset() error {
 	err := m.requireExternalMuHeld("Reset")
 	if err != nil {
@@ -140,20 +140,20 @@ func (m *Manager) Reset() error {
 
 	m.SetCurrentInput("")
 
-	if m.hints != nil {
-		m.lastFilteredLen = len(m.hints.All())
-	} else {
+	if m.hints == nil {
 		m.lastFilteredLen = 0
+
+		return nil
 	}
 
-	if m.hints != nil {
-		m.mu.Lock()
-		callback := m.onUpdate
-		m.mu.Unlock()
+	m.lastFilteredLen = len(m.hints.All())
 
-		if callback != nil {
-			callback(m.hints.All())
-		}
+	m.mu.Lock()
+	callback := m.onUpdate
+	m.mu.Unlock()
+
+	if callback != nil {
+		callback(m.hints.All())
 	}
 
 	return nil
@@ -188,7 +188,7 @@ func (m *Manager) Clear() error {
 }
 
 // HandleInput processes an input character and returns the matched hint if an exact match is found.
-// Handles backspace for input correction, filters hints by prefix, and detects exact matches.
+// It filters hints by prefix and detects exact matches.
 // It returns the hint and exactMatch=true on an exact match, and unmatched=true
 // when no hint matches the input and exitOnUnmatched is enabled.
 // Maintains input state and triggers overlay updates for filtered hints.
@@ -215,25 +215,23 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, bool, error) {
 			return nil, false, true, nil
 		}
 
-		// No matches - reset input and update to show all hints
+		// No matches, so reset the input and show all hints.
 		m.SetCurrentInput("")
 		allLen := len(m.hints.All())
 		m.lastFilteredLen = allLen
 
-		if m.hints != nil {
-			// Apply the same count-based heuristic as the other paths:
-			// if the hint count didn't change (e.g., repeated invalid
-			// keystrokes that keep resetting to the full set), update
-			// immediately since only text colors change. Otherwise
-			// debounce to batch the structural redraw.
-			if allLen == prevLen {
-				err := m.immediateUpdate(m.hints.All())
-				if err != nil {
-					return nil, false, false, err
-				}
-			} else {
-				m.debouncedUpdate(m.hints.All())
+		// Apply the same count-based heuristic as the other paths. If the
+		// hint count didn't change (e.g., repeated invalid keystrokes that
+		// keep resetting to the full set), update immediately since only
+		// text colors change. Otherwise debounce to batch the structural
+		// redraw.
+		if allLen == prevLen {
+			err := m.immediateUpdate(m.hints.All())
+			if err != nil {
+				return nil, false, false, err
 			}
+		} else {
+			m.debouncedUpdate(m.hints.All())
 		}
 
 		return nil, false, false, nil
@@ -272,12 +270,12 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, bool, error) {
 
 	// When the hint set structure changes (count differs), debounce to avoid
 	// excessive redraws. When only the matched prefix changed (same count),
-	// update immediately — the overlay only repaints text colors (very cheap).
+	// update immediately, because the overlay only repaints text colors.
 	//
 	// This count-based heuristic is safe because Collection is immutable after
-	// creation — the underlying hint set cannot change between keystrokes.
-	// Typing can only narrow (or maintain) the set; backspacing can only widen
-	// (or maintain) it. If Collection ever gains mutation methods, this
+	// creation, so the underlying hint set cannot change between keystrokes.
+	// Typing can only narrow (or maintain) the set, and backspacing can only
+	// widen (or maintain) it. If Collection ever gains mutation methods, this
 	// assumption must be revisited.
 	if len(filtered) == prevLen {
 		err := m.immediateUpdate(m.cachedFilteredHints)
@@ -304,8 +302,8 @@ func (m *Manager) FilteredHints() []*Interface {
 	return m.hints.FilterByPrefix(m.CurrentInput())
 }
 
-// HandleBackspace applies the same input-correction behavior used when
-// backspace is pressed during HandleInput.
+// HandleBackspace removes the last input character and redraws the hints it
+// still matches. On empty input it resets to the full hint set.
 func (m *Manager) HandleBackspace() error {
 	if len(m.CurrentInput()) > 0 {
 		prevLen := m.lastFilteredLen
@@ -329,8 +327,8 @@ func (m *Manager) HandleBackspace() error {
 
 			// When the hint set structure changes (count differs), debounce
 			// to avoid excessive redraws. When only the matched prefix
-			// changed (same count), update immediately — the overlay only
-			// needs to repaint text colors which is very cheap.
+			// changed (same count), update immediately, because the overlay
+			// only repaints text colors.
 			if len(filtered) == prevLen {
 				err := m.immediateUpdate(m.cachedFilteredHints)
 				if err != nil {
@@ -353,8 +351,8 @@ func (m *Manager) HandleBackspace() error {
 // immediateUpdate) must be called while the caller holds externalMu to protect
 // shared state (e.g., screen bounds, overlay manager) accessed by the callback.
 //
-// TryLock succeeds only if the mutex is NOT held — meaning the caller forgot
-// to lock it, which would cause a data race on shared state.
+// TryLock succeeds only if the mutex is NOT held, which means the caller forgot
+// to lock it and would race on shared state.
 func (m *Manager) requireExternalMuHeld(caller string) error {
 	if m.externalMu == nil {
 		return nil
@@ -370,11 +368,11 @@ func (m *Manager) requireExternalMuHeld(caller string) error {
 }
 
 // immediateUpdate runs the update callback synchronously, canceling any
-// pending debounced update — for cheap changes where the 50ms debounce would
-// feel sluggish. The caller must hold externalMu when set (debouncedUpdate's
-// timer takes it itself; this runs in the caller's goroutine). No defensive
-// copy of hints: the callback consumes the slice before returning. Add one if
-// that contract ever changes.
+// pending debounced update. It is for cheap changes where the 50ms debounce
+// would feel sluggish. The caller must hold externalMu when set, because this
+// runs in the caller's goroutine while debouncedUpdate's timer takes the lock
+// itself. There is no defensive copy of hints because the callback consumes
+// the slice before returning. Add one if that contract ever changes.
 func (m *Manager) immediateUpdate(hints []*Interface) error {
 	err := m.requireExternalMuHeld("immediateUpdate")
 	if err != nil {
@@ -414,7 +412,6 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 	hintsCopy := make([]*Interface, len(hints))
 	copy(hintsCopy, hints)
 
-	// Start new timer
 	m.debounceTimer = time.AfterFunc(m.debounceDuration, func() {
 		// Acquire the external mutex first (if set) so the callback can
 		// safely access caller-owned state (e.g., screen bounds, overlay).
@@ -426,7 +423,7 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 		m.mu.Lock()
 
 		// A newer update (immediate or debounced) has occurred since this
-		// timer was scheduled — our data is stale, so skip the callback.
+		// timer was scheduled, so this data is stale and the callback is skipped.
 		if m.updateGen != gen {
 			m.mu.Unlock()
 

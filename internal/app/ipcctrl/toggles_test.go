@@ -75,7 +75,7 @@ func TestParseToggleState_RejectsBadInput(t *testing.T) {
 	}{
 		{name: "unknown value", args: []string{flagState + "=maybe"}},
 		{name: "empty value", args: []string{flagState + "="}},
-		// The value is missing, not the next flag: swallowing it would turn a
+		// The value is missing, not the next flag. Swallowing it would turn a
 		// typo into a state change the caller never asked for.
 		{name: "flag as value", args: []string{flagState, stateOnArg}},
 		{name: "missing value at end", args: []string{flagState}},

@@ -46,7 +46,6 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 		t.Skip("Skipping overlay integration test in CI (no window server run loop)")
 	}
 
-	// Setup
 	logger := logger.Get()
 	manager := overlay.Init(logger)
 	theme := &testThemeProvider{darkMode: false}
@@ -67,7 +66,6 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("ClearFrame", func(t *testing.T) {
-		// Clearing should not error
 		clearErr := adapter.ClearFrame(ctx)
 		if clearErr != nil {
 			t.Errorf("ClearFrame() error = %v, want nil", clearErr)
@@ -75,7 +73,6 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("Refresh", func(t *testing.T) {
-		// Refresh should not error
 		refreshErr := adapter.Refresh(ctx)
 		if refreshErr != nil {
 			t.Errorf("Refresh() error = %v, want nil", refreshErr)
@@ -135,7 +132,6 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 
 	adapter := overlay.NewAdapter(manager, styles, logger)
 
-	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

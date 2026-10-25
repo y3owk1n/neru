@@ -14,9 +14,9 @@ import (
 // which the dispatcher answers before any mode is reached, so an unbound key
 // arriving at the mode must do nothing at all.
 //
-// A dropped no-op is invisible by construction — no test can tell "does
+// A dropped no-op is invisible by construction. No test can tell "does
 // nothing" from "is not there". What this catches is the key being routed
-// somewhere it should not go: the handler here has no components wired, so
+// somewhere it should not go. The handler here has no components wired, so
 // reaching another mode's key handling panics on a nil field.
 func TestScrollMode_HandleKey_DoesNothing(t *testing.T) {
 	appState := state.NewAppState()

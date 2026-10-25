@@ -17,10 +17,11 @@ const blockedCallTimeout = 2 * time.Second
 // fakeTap stands in for a platform tap. Every method records that it was
 // reached, so a test can say what the adapter did and did not forward.
 //
-// onDestroy is what makes it useful here: all three real backends spend their
-// Destroy waiting for the key dispatcher to drain — dispatchWg.Wait() on Linux
-// and Windows, stopDispatcher on macOS — and that wait runs whatever the dispatcher is in
-// the middle of delivering. onDestroy is where a test puts that.
+// onDestroy is what makes it useful here. All three real backends spend their
+// Destroy waiting for the key dispatcher to drain, through dispatchWg.Wait() on
+// Linux and Windows and stopDispatcher on macOS, and that wait runs whatever
+// the dispatcher is in the middle of delivering. onDestroy is where a test puts
+// that.
 type fakeTap struct {
 	mu     sync.Mutex
 	counts map[string]int
@@ -93,14 +94,14 @@ var _ tap.Tap = (*fakeTap)(nil)
 
 // TestAdapter_Destroy_DoesNotHoldTheLockWhileTheTapDrainsItsDispatcher is the
 // ordering pin for the lock inversion `internal/app/modes/AGENTS.md` states the
-// rule against: nothing holding the adapter's mu may wait on anything that
+// rule against. Nothing holding the adapter's mu may wait on anything that
 // takes the mode handler's mu.
 //
 // Tearing a tap down waits for its key dispatcher, and that dispatcher delivers
 // keys into modes.Handler.HandleKeyPress, which takes h.mu and pushes the
 // passthrough lists straight back out through this adapter. Hold the adapter's
 // lock across the wait and a shutdown racing a focus change deadlocks with
-// neither side able to give way — so the push modeled here has to complete
+// neither side able to give way. So the push modeled here has to complete
 // while Destroy is still inside the tap.
 func TestAdapter_Destroy_DoesNotHoldTheLockWhileTheTapDrainsItsDispatcher(t *testing.T) {
 	t.Parallel()
@@ -130,11 +131,11 @@ func TestAdapter_Destroy_DoesNotHoldTheLockWhileTheTapDrainsItsDispatcher(t *tes
 	adapter.Destroy()
 }
 
-// TestAdapter_Destroy_IsSafeToCallTwice covers the two paths that reach it —
+// TestAdapter_Destroy_IsSafeToCallTwice covers the two paths that reach it,
 // the ordinary shutdown (app/lifecycle.go) and the startup unwind
-// (app/startup_phases.go) — plus the case of both running.
+// (app/startup_phases.go), plus the case of both running.
 //
-// The adapter's own lock used to serialize the whole teardown; now that the tap
+// The adapter's own lock used to serialize the whole teardown. Now that the tap
 // is torn down outside it, the guard that keeps a second teardown from starting
 // has to be the adapter's own.
 func TestAdapter_Destroy_IsSafeToCallTwice(t *testing.T) {
@@ -155,10 +156,10 @@ func TestAdapter_Destroy_IsSafeToCallTwice(t *testing.T) {
 // postcondition now that the lock no longer supplies it.
 //
 // Holding mu across the teardown used to park a second caller until the tap was
-// down; with the teardown outside the lock, the destroyed flag alone would let
+// down. With the teardown outside the lock, the destroyed flag alone would let
 // that caller return while the dispatcher was still draining. The app closes
 // the rest of its infrastructure on the strength of Destroy having returned, so
-// the second caller waits — on the teardown, not on the lock.
+// the second caller waits on the teardown, not on the lock.
 func TestAdapter_Destroy_MakesASecondCallerWaitForTheTeardown(t *testing.T) {
 	t.Parallel()
 
@@ -213,16 +214,16 @@ func TestAdapter_Destroy_MakesASecondCallerWaitForTheTeardown(t *testing.T) {
 }
 
 // TestAdapter_Destroy_StopsLaterCallsFromReachingTheTap is the other half of
-// letting go of the lock: with the teardown outside it, a caller racing a
+// letting go of the lock. With the teardown outside it, a caller racing a
 // shutdown can no longer be made to queue behind it, so it must find an adapter
 // that has already stopped answering for the tap.
 //
 // A late call reaching a tap mid-teardown is a use-after-free on macOS, where
 // the tap methods run against a handle Destroy is about to release. It covers
 // every method that takes the adapter's lock to drive the tap, which is every
-// method that reaches the handle: SetKeyboardLayout and PostModifierEvent take
+// method that reaches the handle. SetKeyboardLayout and PostModifierEvent take
 // no lock and are deliberately left out, because no backend routes either
-// through it — their doc comments say so.
+// through it. Their doc comments say so.
 func TestAdapter_Destroy_StopsLaterCallsFromReachingTheTap(t *testing.T) {
 	t.Parallel()
 

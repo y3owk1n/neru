@@ -29,7 +29,7 @@ func (s *cgoSlot[T]) isZero(v T) bool {
 }
 
 // isEmptyValue reports whether v is unset. Typed nil interfaces are handled
-// before reflect (ValueOf(nil) is invalid). Function types use IsNil; other
+// before reflect (ValueOf(nil) is invalid). Function types use IsNil, other
 // scalars use IsZero.
 func isEmptyValue[T any](v T) bool {
 	valueAsAny := any(v)
@@ -95,8 +95,8 @@ func (s *cgoSlot[T]) withValid(callback func(T)) {
 
 // dispatchIfValid invokes callback with target when gen is still the live
 // generation. It is the body the async dispatch goroutine runs, named rather
-// than inline so a test can drive it at the moment a concurrent clear lands —
-// the window between scheduling the dispatch and running it is the one this
+// than inline so a test can drive it at the moment a concurrent clear lands.
+// The window between scheduling the dispatch and running it is the one this
 // re-check exists to close, and a test cannot force it from outside.
 func (s *cgoSlot[T]) dispatchIfValid(target T, gen uint64, callback func(T)) {
 	if !s.stillValid(gen) {

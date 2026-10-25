@@ -8,7 +8,7 @@ on:
             - "CHANGELOG.md"
             - ".release-please-manifest.json"
             - "release-please-config.json"
-    # Re-verify main after every merge: two individually green PRs can merge
+    # Re-verify main after every merge. Two individually green PRs can merge
     # into a semantically broken combination, and nightly.yml publishes
     # artifacts from main without running any tests of its own.
     push:
@@ -21,9 +21,9 @@ name: CI
 permissions:
     contents: read
     pull-requests: read
-# A force-push to a PR branch obsoletes the in-flight run; without a
+# A force-push to a PR branch obsoletes the in-flight run. Without a
 # concurrency group each push stacks another full 17-job matrix behind it.
-# Runs on main are never canceled — every merge commit gets a full verdict.
+# Runs on main are never canceled, so every merge commit gets a full verdict.
 concurrency:
     group: ci-${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -33,13 +33,13 @@ jobs:
         strategy:
             # One failing check must not cancel the other twelve. With fail-fast
             # a single Linux lint error cancelled every macOS job mid-install,
-            # and the run reported thirteen failures for one real problem —
-            # which is worse than no signal, because it hides which platforms
-            # were actually fine.
+            # and the run reported thirteen failures for one real problem.
+            # That is worse than no signal, because it hides which platforms
+            # were fine.
             fail-fast: false
             matrix:
                 os: [macos-latest, ubuntu-latest, windows-latest]
-                # vuln runs on every OS: govulncheck is build-tag aware, so a
+                # vuln runs on every OS. govulncheck is build-tag aware, so a
                 # vulnerable Windows-only dependency is invisible from a macOS run.
                 check: [lint, vet, test, build, vuln]
                 include:
@@ -52,16 +52,16 @@ jobs:
                     - os: macos-latest
                       check: coverage
                     # The desktop-driving test tier, once per Linux display
-                    # stack. `desktop` is the blessed stack of ADR 0013 — sway
+                    # stack. `desktop` is the blessed stack of ADR 0013, sway
                     # on the wlroots headless backend, where parity is a
                     # behavioral claim. `desktop-x11` is the same tier under
-                    # Xvfb, where ADR 0013 asks for capability parity instead:
-                    # a lower bar than behavior, but not the zero bar it had
-                    # while nothing observed X11 at all.
+                    # Xvfb, where ADR 0013 asks for capability parity instead.
+                    # That is a lower bar than behavior, but not the zero bar
+                    # it had while nothing observed X11 at all.
                     #
                     # Every step below is shared between the two legs except
                     # the one that starts the display server and the one that
-                    # asserts it; `session_packages` is that difference in apt
+                    # asserts it. `session_packages` is that difference in apt
                     # form, and `session` is the name the job summary prints.
                     # What each leg covers and what it does not is stated in
                     # docs/contributing/development.md, with the rest of the test tiers.
@@ -75,22 +75,22 @@ jobs:
                       session_packages: xvfb x11-utils x11-xkb-utils openbox
         runs-on: ${{ matrix.os }}
         # Both desktop legs block. They are the only jobs that observe Linux
-        # behavior at all — Neru is developed on macOS, where none of it can
-        # run — so ADR 0013's promises are worth exactly as much as the jobs
+        # behavior at all. Neru is developed on macOS, where none of it can
+        # run, so ADR 0013's promises are worth exactly as much as the jobs
         # that check them, and an advisory job nobody has to read is not a
         # check. The two legs owe different bars (behavioral parity on the
         # blessed stack, capability parity on X11), which is a statement about
         # what the tests assert, not about whether a suite that passes today may
         # start failing unnoticed.
         #
-        # They earned it on a measurement rather than a feeling: 40 runs each
-        # across pull requests and main with no failing step. Job-level
+        # They earned it with 40 runs each across pull requests and main
+        # with no failing step. Job-level
         # `continue-on-error` reports a failed job as successful, so that was
         # counted from step conclusions. docs/contributing/development.md carries the detail.
         steps:
             # Default checkout: on pull_request events this tests the merge
-            # commit (PR + main combined), which is what will actually land —
-            # overriding repository/ref to the branch head skips that and is
+            # commit (PR + main combined), which is what will land.
+            # Overriding repository/ref to the branch head skips that and is
             # wrong for fork PRs. On push events it checks out the pushed ref.
             - uses: actions/checkout@v7
 
@@ -200,9 +200,10 @@ jobs:
             # ---------------------------------------------------------------
             # The desktop legs: everything below runs only for a matrix.check
             # starting with 'desktop'. It stands up the session the desktop
-            # tier needs — a display server, a session bus, and AT-SPI on it —
-            # and runs the tier against it. Only the two display-server steps
-            # differ between the wlroots and X11 legs; the bus, AT-SPI, the
+            # tier needs and runs the tier against it. That session is a
+            # display server, a session bus, and AT-SPI on it. Only the two
+            # display-server steps differ between the wlroots and X11 legs.
+            # The bus, AT-SPI, the
             # CGO and a11y assertions, the tier itself, the reporting and the
             # log artifact are one copy each. What the legs cover and what they
             # do not is in docs/contributing/development.md.
@@ -213,8 +214,8 @@ jobs:
               env:
                   SESSION_PACKAGES: ${{ matrix.session_packages }}
               run: |
-                  # Word-splitting SESSION_PACKAGES is the point: it is the one
-                  # per-leg difference in an otherwise shared install.
+                  # Word-splitting SESSION_PACKAGES is deliberate, because it is
+                  # the one per-leg difference in an otherwise shared install.
                   # shellcheck disable=SC2086
                   sudo apt-get install -y \
                     dbus-x11 \
@@ -235,9 +236,9 @@ jobs:
                   mkdir -p "$runtime_dir"
                   chmod 700 "$runtime_dir"
 
-                  # A session bus first: AT-SPI's bus launcher is activated on
-                  # it, and every later step inherits the address through
-                  # GITHUB_ENV.
+                  # The session bus starts first, because AT-SPI's bus launcher
+                  # is activated on it. Every later step inherits the address
+                  # through GITHUB_ENV.
                   eval "$(dbus-launch --sh-syntax)"
 
                   {
@@ -306,16 +307,16 @@ jobs:
                     echo "XDG_CURRENT_DESKTOP=sway"
                   } >> "$GITHUB_ENV"
 
-            # Xvfb is a bare X server: it serves the extensions neru's X11
+            # Xvfb is a bare X server. It serves the extensions neru's X11
             # paths call (XTEST for injection, XFIXES for the click-through
             # overlay shape, RANDR for screen enumeration) but it is not a
             # window manager, and EWMH properties are a window manager's job.
             # Without one the root window has no _NET_SUPPORTED at all, so
-            # x11_system.c and x11_accessibility.c — which both read
-            # _NET_ACTIVE_WINDOW to answer "what is focused" — would find
+            # x11_system.c and x11_accessibility.c, which both read
+            # _NET_ACTIVE_WINDOW to answer "what is focused", would find
             # nothing and the leg would report a session no user runs. openbox
-            # is the smallest EWMH-aware answer in the archive; the verify step
-            # below turns that reasoning into an assertion rather than a claim.
+            # is the smallest EWMH-aware window manager in the archive. The
+            # verify step below turns that reasoning into an assertion.
             - name: Start Xvfb and a window manager
               if: matrix.check == 'desktop-x11'
               shell: bash
@@ -347,7 +348,7 @@ jobs:
                     > "${RUNNER_TEMP}/openbox.log" 2>&1 &
 
                   # The window manager owns _NET_SUPPORTED, so its appearance on
-                  # the root window is the readiness signal — openbox having
+                  # the root window is the readiness signal. openbox having
                   # been exec'd is not the same thing.
                   for attempt in $(seq 1 100); do
                     if DISPLAY="$display" xprop -root _NET_SUPPORTED 2>/dev/null \
@@ -415,18 +416,18 @@ jobs:
 
             # The X11 counterpart of the step above: the extensions neru's X11
             # code calls, and the EWMH property that decides whether a window
-            # manager was needed here. It was: a bare Xvfb has no
+            # manager was needed here. It was. A bare Xvfb has no
             # _NET_SUPPORTED, so this assertion fails without openbox running,
-            # which is what makes the previous step's window manager evidence
-            # rather than superstition.
+            # which is the evidence that the previous step needs its window
+            # manager.
             - name: Verify the session is a usable X11 stack
               if: matrix.check == 'desktop-x11'
               shell: bash
               run: |
                   set -euo pipefail
                   xdpyinfo > "${RUNNER_TEMP}/xdpyinfo.log"
-                  # The extension list is the block between those two headings;
-                  # matching the whole file would let "RANDR" in a screen's
+                  # The extension list is the block between those two headings.
+                  # Matching the whole file would let "RANDR" in a screen's
                   # description stand in for the extension itself.
                   offered=$(sed -n '/number of extensions:/,/^default screen number/p' \
                     "${RUNNER_TEMP}/xdpyinfo.log")
@@ -454,7 +455,7 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  # ADR 0013 blesses the CGO build; the CGO-off Linux build is a
+                  # ADR 0013 blesses the CGO build. The CGO-off Linux build is a
                   # near-total stub, and a green run of it would prove nothing.
                   cgo=$(go env CGO_ENABLED)
                   if [ "$cgo" != "1" ]; then
@@ -478,11 +479,12 @@ jobs:
                   done
 
             # Both legs run this tier on a desktop with nothing focused, which
-            # is a state no other job here reaches: the X11 leg found a real
+            # is a state no other job here reaches. The X11 leg found a real
             # defect in it on its first run (#1495, the X11 sibling of #1493),
             # fixed before this leg landed. Capability status is
-            # docs/reference/platform-support.md's to state; docs/contributing/development.md says what
-            # these legs cover and what they do not.
+            # docs/reference/platform-support.md's to state, and
+            # docs/contributing/development.md says what these legs cover and
+            # what they do not.
             - name: Run just test-desktop
               if: startsWith(matrix.check, 'desktop')
               shell: bash
@@ -492,12 +494,12 @@ jobs:
                   just test-desktop 2>&1 | tee "${RUNNER_TEMP}/test-desktop.log"
 
             # A skip in this tier is a claim that Linux behavior went unchecked,
-            # which is the thing the job exists to make visible — so executions,
+            # which is the thing the job exists to make visible, so executions,
             # skips and failures are counted into the job summary rather than
             # left in 20,000 lines of -v output nobody opens.
             #
-            # The counts are also a floor, not decoration: a leg that skips its
-            # way to green is worth less than no leg at all, so this step fails
+            # The counts are also a floor. A leg that skips its way to green
+            # is worth less than no leg at all, so this step fails
             # when nothing executed, and when a test skipped because it could
             # not see the display server this job exists to provide.
             - name: Report what ran, skipped and failed
@@ -526,9 +528,9 @@ jobs:
                   # test in it, so the per-test count alone would read as green.
                   badpkgs=$(grep -c '^FAIL[[:space:]]' "$log" || true)
                   # The skip reason a test gives when neither DISPLAY nor
-                  # WAYLAND_DISPLAY reached it — owned by
-                  # screencapture_integration_linux_test.go. On this job that is
-                  # never a property of the test; it means the session steps
+                  # WAYLAND_DISPLAY reached it, which
+                  # screencapture_integration_linux_test.go owns. On this job
+                  # that is never a property of the test. It means the session steps
                   # above built a display server the test process never saw.
                   # Anchored to the file:line a t.Skip reason carries, so the
                   # phrase appearing anywhere else in 20,000 lines of -v output
@@ -570,7 +572,8 @@ jobs:
                       echo '```'
                       # go test -v prints what t.Skip logged *before* the
                       # result line, so the reason is the line already gone
-                      # past — hence the one-line lookback rather than getline.
+                      # past. That is why this looks one line back rather than
+                      # calling getline.
                       awk '
                         /--- SKIP: /{
                           name = $0
@@ -610,7 +613,7 @@ jobs:
               uses: actions/upload-artifact@v7
               with:
                   # linux-desktop-logs for the sway leg, linux-desktop-x11-logs
-                  # for the X11 one: artifact names are unique per run, so the
+                  # for the X11 one. Artifact names are unique per run, so the
                   # two legs cannot share one.
                   name: linux-${{ matrix.check }}-logs
                   path: |

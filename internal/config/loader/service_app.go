@@ -13,7 +13,7 @@ import (
 // the reload wait for them to read it.
 //
 // The alert is a modal dialog on macOS. Shown inline, it held the reload until
-// someone dismissed it — so `neru config reload` reported a receive timeout,
+// someone dismissed it, so `neru config reload` reported a receive timeout,
 // which reads as a hung daemon rather than as a bad config file. Every reload
 // has someone waiting on it: the CLI, or the systray menu item. Only the
 // systray has no other way to learn the reload failed, so the alert stays, off
@@ -27,10 +27,10 @@ func (s *Service) alertInvalidReload(
 		return
 	}
 
-	// Showing the alert inline used to serialize these: a second reload could
+	// Showing the alert inline used to serialize these. A second reload could
 	// not start until the first dialog was dismissed. Off the reply's path
 	// that no longer holds, so repeated failures would stack a dialog and park
-	// a goroutine each. One outstanding alert is enough — it names the file to
+	// a goroutine each. One outstanding alert is enough. It names the file to
 	// fix, and fixing it is what the next reload reports on.
 	if !s.alertShowing.CompareAndSwap(false, true) {
 		logger.Debug("Config validation alert already showing; not queueing another")
@@ -65,11 +65,9 @@ func (s *Service) alertInvalidReload(
 	}()
 }
 
-// ReloadWithAppContext reloads configuration with app-specific context and side effects.
-// This handles the app-specific logic for configuration reloading including:
-// - UI alerts for validation errors
-// - Accessibility role updates
-// - Global config updates.
+// ReloadWithAppContext reloads the configuration at path. A file that fails
+// validation raises an alert and returns the error. A valid one replaces the
+// service's configuration and is sent to every watcher that is ready.
 func (s *Service) ReloadWithAppContext(
 	ctx context.Context,
 	path string,
@@ -83,7 +81,6 @@ func (s *Service) ReloadWithAppContext(
 		return loadResult, derrors.WrapConfigFailed(loadResult.ValidationError, "validate config")
 	}
 
-	// Update the service with the new config
 	s.mu.Lock()
 	s.config = loadResult.Config
 	s.written = loadResult.Written

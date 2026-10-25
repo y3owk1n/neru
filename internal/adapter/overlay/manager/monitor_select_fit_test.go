@@ -64,8 +64,8 @@ func TestMonitorSelectStyle_FittedTo(t *testing.T) {
 			wantSubtitle: 18,
 		},
 		{
-			// 0.8 x 400 less 58 of padding is 262, of which 0.9 is 235.8:
-			// twenty-three runes fit at 10.
+			// 0.8 x 400 less 58 of padding is 262, of which 0.9 is 235.8,
+			// so twenty-three runes fit at 10.
 			name:  "a long name shrinks the subtitle into its panel",
 			style: defaults,
 			target: manager.MonitorSelectTarget{

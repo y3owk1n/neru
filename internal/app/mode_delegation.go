@@ -13,7 +13,6 @@ func (a *App) ActivateMode(mode Mode) {
 // ExitMode exits the current mode.
 func (a *App) ExitMode() { a.modes.ExitMode() }
 
-// SetModeHints sets the mode to hints.
 // SetModeHints switches the application to hints mode.
 func (a *App) SetModeHints() { a.modes.SetModeHints() }
 

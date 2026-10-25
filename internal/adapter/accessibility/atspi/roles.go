@@ -13,7 +13,7 @@ import (
 
 // The AT-SPI role vocabulary: native role names, their aliases, the name->ID
 // table, and the clickable-role defaults hints filters on.
-// It does not walk the tree; it only answers what a role is called and whether
+// It does not walk the tree. It only answers what a role is called and whether
 // it counts.
 //
 // atspiRoleNames lists AT-SPI role names in AtspiRole declaration order, so a
@@ -23,7 +23,7 @@ import (
 //
 // A name is the GEnum nick of the role with hyphens replaced by spaces, which
 // is exactly what Accessible.GetRoleName returns. The enum is ABI-stable
-// (append-only), so existing entries never move; the list is complete through
+// (append-only), so existing entries never move. The list is complete through
 // ATSPI_ROLE_SWITCH, and roles added later fall back to the per-node walk
 // instead of the Collection query.
 //
@@ -240,11 +240,11 @@ func candidateRole(roleName string, roles map[string]struct{}) bool {
 	return wantsEntry && roleName == atspiRoleText
 }
 
-// deriveTargetRoleIDs returns the AtspiRole ids for the requested role names —
-// exactly the roles the per-node walk would keep — so the Collection query has
-// identical semantics. A request for entries also fetches text, which
+// deriveTargetRoleIDs returns the AtspiRole ids for the requested role names,
+// which are exactly the roles the per-node walk would keep, so the Collection
+// query has identical semantics. A request for entries also fetches text, which
 // effectiveRole may read as an entry. Requested names with no known id are
-// skipped; the caller falls back to the walk when nothing resolves.
+// skipped. The caller falls back to the walk when nothing resolves.
 func deriveTargetRoleIDs(roleSet map[string]struct{}) []int32 {
 	var ids []int32
 

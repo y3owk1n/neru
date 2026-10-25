@@ -14,9 +14,9 @@ import (
 )
 
 // These are the only tests that run Windows.Media.Ocr. Everything else about
-// the backend — how a word's box lands on the screen, which failures a caller
-// should stop retrying — is decided in Go and tested without an engine;
-// whether the bridge actually reads text cannot be.
+// the backend, such as how a word's box lands on the screen and which failures
+// a caller should stop retrying, is decided in Go and tested without an engine.
+// Whether the bridge actually reads text cannot be.
 //
 // The end-to-end test paints a word on the overlay, captures it back off the
 // desktop and asks the engine what it says, which is the whole vision
@@ -44,7 +44,7 @@ func requireEngine(t *testing.T) {
 }
 
 // TestRecognizeText_ReadsAWordOffTheScreen is the acceptance check for the
-// vision strategy on Windows: a known word rendered into a window is captured
+// vision strategy on Windows. A known word rendered into a window is captured
 // and found, at the rectangle it was drawn in.
 func TestRecognizeText_ReadsAWordOffTheScreen(t *testing.T) {
 	requireEngine(t)
@@ -101,7 +101,7 @@ func TestRecognizeText_ReadsAWordOffTheScreen(t *testing.T) {
 	}
 
 	// The frame is a region of a live desktop, so what the engine read there
-	// is screen content: only the boxes are logged, never the text.
+	// is screen content. Only the boxes are logged, never the text.
 	for _, got := range words {
 		t.Logf("recognized a run of %d characters at %v", len(got.Text), got.Bounds)
 	}
@@ -171,8 +171,8 @@ func TestRecognizeText_BlankFrameIsNotAnError(t *testing.T) {
 	}
 }
 
-// TestRecognizeText_AcceptsAFrameWiderThanTheEngineLimit pins the resample:
-// a frame past MaxImageDimension, which any 4K monitor is, is read rather
+// TestRecognizeText_AcceptsAFrameWiderThanTheEngineLimit pins the resample.
+// A frame past MaxImageDimension, which any 4K monitor is, is read rather
 // than refused, and comes back in its own coordinate space.
 func TestRecognizeText_AcceptsAFrameWiderThanTheEngineLimit(t *testing.T) {
 	requireEngine(t)

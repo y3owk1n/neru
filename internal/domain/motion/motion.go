@@ -1,4 +1,4 @@
-// Package motion is the velocity model behind the held-key glide: a set of
+// Package motion is the velocity model behind the held-key glide. A set of
 // held direction keys becomes one direction vector, and a fixed-rate tick
 // integrates a speed that may ramp toward a cap into a subpixel cursor position.
 package motion
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// diagonalScale is cos(45°): the per-axis share of a unit diagonal.
+// diagonalScale is cos(45 degrees), the per-axis share of a unit diagonal.
 const diagonalScale = math.Sqrt2 / 2
 
 // Direction is the axis-wise sum of the held direction keys, each axis
@@ -51,8 +51,8 @@ func clampAxis(v int) int {
 }
 
 // Ramp is what the held_repeat accel options say, before a binding's step
-// turns it into speeds: a step is worth Interval of travel, the speed ramps
-// to Multiplier times that over Duration, and holds there.
+// turns it into speeds. A step is worth Interval of travel, and the speed
+// ramps to Multiplier times that over Duration and holds there.
 type Ramp struct {
 	Interval   time.Duration
 	Multiplier float64
@@ -67,7 +67,7 @@ type Params struct {
 }
 
 // ParamsFor resolves the ramp for a binding that moves stepPx per Interval.
-// A zero Duration reaches the cap at once; a Multiplier under 1 is treated
+// A zero Duration reaches the cap at once. A Multiplier under 1 is treated
 // as 1, so speed never ramps down.
 func (r Ramp) ParamsFor(stepPx int) Params {
 	base := float64(stepPx) / r.Interval.Seconds()
@@ -85,7 +85,7 @@ func (r Ramp) ParamsFor(stepPx int) Params {
 }
 
 // Integrator carries the subpixel position and current speed between ticks.
-// Bounds clamp the position; an empty rectangle means no clamp.
+// Bounds clamp the position, and an empty rectangle means no clamp.
 type Integrator struct {
 	bounds image.Rectangle
 	x, y   float64
@@ -102,7 +102,7 @@ func NewIntegrator(start image.Point, bounds image.Rectangle) *Integrator {
 }
 
 // Step advances by elapsed in dir under params and returns the position to
-// post. Params travel with every step because the held set decides them: a
+// post. Params travel with every step because the held set decides them. A
 // second key with a larger step raises the floor mid-hold. A zero direction
 // returns the integrator to rest, so the next press ramps from the floor.
 func (i *Integrator) Step(params Params, dir Direction, elapsed time.Duration) image.Point {

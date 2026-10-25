@@ -28,9 +28,10 @@ func gridSizes() []image.Rectangle {
 }
 
 // gridAlphabets covers the sizes a coordinate set comes in, plus one that lists
-// a character twice: a repeat used to reach the labeling pass as an extra
-// character, and every invariant below broke on it at once — two cells sharing a
-// coordinate, an index smaller than the cell count, cells nothing can address.
+// a character twice. A repeat used to reach the labeling pass as an extra
+// character, and every invariant below broke on it at once: two cells sharing a
+// coordinate, an index smaller than the cell count, and cells nothing can
+// address.
 func gridAlphabets() []string {
 	return []string{"ab", "aab", "abcd", "asdfghjkl", "abcdefghijklmnopqrstuvwxyz"}
 }
@@ -44,16 +45,16 @@ func gridCaseName(bounds image.Rectangle, characters string) string {
 		bounds.Dx(), bounds.Dy(), bounds.Min.X, bounds.Min.Y, len(characters))
 }
 
-// TestGrid_CellsStayWithinBounds is the most basic geometric requirement: a
+// TestGrid_CellsStayWithinBounds is the most basic geometric requirement. A
 // cell outside the screen cannot be clicked, and a cell that pokes past the
 // edge would place its center off-screen.
 //
 // The grid is built by a geometry pass (splitting the screen into rows and
 // columns, distributing the leftover pixels) and a labeling pass (assigning a
 // coordinate to each cell). Both are arithmetic-heavy, and a single off-by-one
-// in either still produces a plausible-looking grid — cells exist, coordinates
-// look right — while leaving dead pixels the user cannot click, overlapping
-// cells that shadow each other, or duplicate coordinates.
+// in either still produces a plausible-looking grid, with cells that exist and
+// coordinates that look right, while leaving dead pixels the user cannot click,
+// overlapping cells that shadow each other, or duplicate coordinates.
 //
 // These tests assert the structural invariants that must hold for every grid,
 // rather than pinning specific numbers for one screen size.
@@ -96,8 +97,8 @@ func TestGrid_CellsStayWithinBounds(t *testing.T) {
 // pixel distribution. Rows and columns rarely divide the screen evenly, so the
 // remainder is spread one pixel at a time across the leading cells. If that
 // arithmetic drifts, adjacent cells either overlap (two labels claim the same
-// pixel) or leave a seam the user cannot target — neither of which changes the
-// cell count, so only a coverage check like this notices.
+// pixel) or leave a seam the user cannot target. Neither changes the cell
+// count, so only a coverage check like this notices.
 func TestGrid_CellsTileTheBoundsExactly(t *testing.T) {
 	for _, bounds := range gridSizes() {
 		for _, characters := range gridAlphabets() {
@@ -124,7 +125,7 @@ func TestGrid_CellsTileTheBoundsExactly(t *testing.T) {
 }
 
 // TestGrid_CellsNeverOverlapOrLeaveSeams is the weaker structural companion to
-// the tiling check: whatever cells exist must line up exactly, and the grid must
+// the tiling check. Whatever cells exist must line up exactly, and the grid must
 // start at the bounds origin. Kept separate because it holds even for grids that
 // legitimately cannot cover the screen (a character set too small to address it).
 func TestGrid_CellsNeverOverlapOrLeaveSeams(t *testing.T) {
@@ -139,7 +140,7 @@ func TestGrid_CellsNeverOverlapOrLeaveSeams(t *testing.T) {
 					t.Fatal("grid covers no area at all")
 				}
 
-				// Cells must start at the origin of the bounds; an offset grid
+				// Cells must start at the origin of the bounds. An offset grid
 				// would push the whole layout off the top-left of the screen.
 				minX, minY := cells[0].Bounds().Min.X, cells[0].Bounds().Min.Y
 				for _, cell := range cells {
@@ -192,7 +193,7 @@ func assertStripsAbut(t *testing.T, strips map[int][]image.Rectangle, horizontal
 		sorted := make([]image.Rectangle, len(strip))
 		copy(sorted, strip)
 
-		// Insertion sort along the varying axis; strips are short.
+		// Insertion sort along the varying axis, since strips are short.
 		for i := 1; i < len(sorted); i++ {
 			for j := i; j > 0 && startOf(sorted[j], horizontal) < startOf(sorted[j-1], horizontal); j-- {
 				sorted[j], sorted[j-1] = sorted[j-1], sorted[j]
@@ -273,7 +274,7 @@ func TestGrid_CoordinatesAreUniqueAndAddressable(t *testing.T) {
 					seen[coordinate] = cell.Bounds()
 
 					// Every character in a coordinate must be typeable, i.e.
-					// reported by ValidCharacters — that set is what the input
+					// reported by ValidCharacters. That set is what the input
 					// validator accepts, so a coordinate outside it could
 					// never be entered.
 					for _, char := range coordinate {
@@ -337,7 +338,7 @@ func TestGrid_CoordinateLengthIsUniform(t *testing.T) {
 					}
 				}
 
-				// The label must be long enough to address every cell: with
+				// The label must be long enough to address every cell. With
 				// numChars characters, a label of length L can name at most
 				// numChars^L cells.
 				capacity := 1
@@ -360,7 +361,7 @@ func TestGrid_CoordinateLengthIsUniform(t *testing.T) {
 }
 
 // TestGrid_NilLoggerIsAccepted pins the constructor convention every other
-// constructor in this tree follows: a nil logger falls back to a no-op instead
+// constructor in this tree follows. A nil logger falls back to a no-op instead
 // of panicking. This is reachable in production from any path that builds a
 // grid before logging is wired, and the panic takes the daemon down.
 func TestGrid_NilLoggerIsAccepted(t *testing.T) {
@@ -385,8 +386,8 @@ func TestGrid_NilLoggerIsAccepted(t *testing.T) {
 
 // TestGrid_HasCoordinatePrefixMatchesRealPrefixes checks the prefix index the
 // input handler consults on every keystroke to decide whether the partial input
-// can still lead anywhere. A false negative rejects a valid keystroke; a false
-// positive leaves the user in a dead end.
+// can still lead anywhere. A false negative rejects a valid keystroke, and a
+// false positive leaves the user in a dead end.
 func TestGrid_HasCoordinatePrefixMatchesRealPrefixes(t *testing.T) {
 	testGrid := newTestGrid(image.Rect(0, 0, 1920, 1080), "asdfghjkl")
 
@@ -412,7 +413,7 @@ func TestGrid_HasCoordinatePrefixMatchesRealPrefixes(t *testing.T) {
 	}
 
 	// And a prefix no coordinate starts with must be rejected. "ZZ" cannot
-	// occur: Z is not in the alphabet above.
+	// occur because Z is not in the alphabet above.
 	for _, absent := range []string{"Z", "ZZ", "ZZZ"} {
 		if testGrid.HasCoordinatePrefix(absent) {
 			t.Errorf("HasCoordinatePrefix(%q) = true, but no coordinate starts with it", absent)

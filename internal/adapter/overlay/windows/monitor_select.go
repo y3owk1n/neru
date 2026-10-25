@@ -126,7 +126,7 @@ func monitorSelectPanelLayout(
 
 // DrawMonitorSelect renders one labeled panel per monitor for the interactive
 // monitor picker. Each target gets a layered window of its own covering that
-// monitor, the way macOS gives each display an NSPanel: the shared overlay is
+// monitor, the way macOS gives each display an NSPanel. The shared overlay is
 // sized to the active monitor only, and the picker has to reach every one.
 // Windows are kept between draws so a narrowing keystroke repaints in place,
 // and one left over from a display that went away is hidden rather than
@@ -162,7 +162,7 @@ func (m *Manager) DrawMonitorSelect(
 
 		drawn++
 
-		// Every rect below is global; the window's own pixels start at the
+		// Every rect below is global, and the window's own pixels start at the
 		// monitor's origin.
 		local := target.Bounds.Sub(target.Bounds.Min)
 

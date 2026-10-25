@@ -9,7 +9,7 @@
 // KWin implements no screencopy protocol Neru can use, so unlike X11
 // (x11_screencapture.c) and the wlroots family (wlroots_screencopy.c) this
 // backend reads its pixels through the portal. Which node, and where that
-// node's monitor sits, is negotiated in Go (portal_screencast.go); everything
+// node's monitor sits, is negotiated in Go (portal_screencast.go), and everything
 // below the socket is here.
 //
 // Privacy: the frame is mapped, the requested rectangle is copied out of it,
@@ -45,7 +45,7 @@ typedef struct {
 //
 // On a scaled output the frame arrives in physical pixels, so what comes back
 // is larger than the logical rectangle by the output's scale factor. It always
-// covers exactly the rectangle asked for: a crop that does not fit inside the
+// covers exactly the rectangle asked for. A crop that does not fit inside the
 // frame is NERU_CAPTURE_ERR_REGION rather than a silently clipped result.
 //
 // Returns NERU_CAPTURE_OK or one of the NERU_CAPTURE_ERR_* codes.

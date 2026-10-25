@@ -35,7 +35,7 @@ func requireNoExistingUnit(t *testing.T, unitPath string) {
 // TestRenderServiceUnit_IsAcceptedBySystemdAnalyze parses the unit Neru writes
 // with systemd's own parser.
 //
-// Every other test here can pass while the unit is subtly wrong — a directive
+// Every other test here can pass while the unit is subtly wrong. A directive
 // spelled the way the documentation spells the concept rather than the way
 // systemd spells the key is accepted by every string comparison and ignored by
 // systemd. `systemd-analyze verify` is the only reader whose opinion counts,
@@ -48,7 +48,7 @@ func TestRenderServiceUnit_IsAcceptedBySystemdAnalyze(t *testing.T) {
 	}
 
 	// The verifier resolves ExecStart, so the unit points at a binary that
-	// really exists — the test binary itself.
+	// really exists: the test binary itself.
 	binary, err := os.Executable()
 	if err != nil {
 		t.Fatalf("os.Executable() error = %v", err)
@@ -72,7 +72,7 @@ func TestRenderServiceUnit_IsAcceptedBySystemdAnalyze(t *testing.T) {
 }
 
 // TestStatusService_ReportsNotInstalledWhenTheUnitIsAbsent pins the acceptance
-// criterion that matters most on a fresh machine: asking about a service nobody
+// criterion that matters most on a fresh machine. Asking about a service nobody
 // installed is answered, not refused.
 func TestStatusService_ReportsNotInstalledWhenTheUnitIsAbsent(t *testing.T) {
 	requireSystemdMachine(t)
@@ -97,13 +97,13 @@ func TestStatusService_ReportsNotInstalledWhenTheUnitIsAbsent(t *testing.T) {
 }
 
 // shadowSystemctl puts a systemctl on PATH ahead of the real one, failing for
-// the verb named in failVerb — or for every verb when that is empty — and
+// the verb named in failVerb (or for every verb when that is empty), and
 // succeeding silently otherwise.
 //
 // It is what lets an unreachable or uncooperative user manager be tested
-// without one: the failures that matter here (a stale session bus, a manager
-// that never started) cannot be provoked on a working machine, and the
-// alternative — driving the real manager into a failure — is exactly what a
+// without one, because the failures that matter here (a stale session bus, a manager
+// that never started) cannot be provoked on a working machine. The
+// alternative, driving the real manager into a failure, is exactly what a
 // test must not do to a developer's session.
 func shadowSystemctl(t *testing.T, failVerb string) {
 	t.Helper()
@@ -188,7 +188,7 @@ exit 0
 //
 // A discarded `disable --now` error is an uninstall that prints success while
 // the daemon keeps running and the unit stays enabled for the next login, which
-// is the worst of the three outcomes: the user believes the machine is in a
+// is the worst of the three outcomes, because the user believes the machine is in a
 // state it is not in.
 func TestUninstallService_ReportsSystemdFailures(t *testing.T) {
 	requireSystemdMachine(t)
@@ -264,12 +264,12 @@ func TestUninstallService_ReportsSystemdFailures(t *testing.T) {
 	}
 }
 
-// TestInstallService_RoundTripsThroughSystemd is the end-to-end claim: the unit
+// TestInstallService_RoundTripsThroughSystemd is the end-to-end claim that the unit
 // Neru writes is one systemd accepts, enables and forgets again.
 //
 // It installs a real user unit and starts it, so it belongs to the tier that is
 // allowed to take the machine over. The unit it installs points at the test
-// binary, which exits immediately — the round trip is about systemd accepting
+// binary, which exits immediately. The round trip is about systemd accepting
 // and enabling the unit, not about the daemon staying up.
 func TestInstallService_RoundTripsThroughSystemd(t *testing.T) {
 	if os.Getenv("NERU_DESKTOP_TESTS") == "" {
@@ -279,7 +279,7 @@ func TestInstallService_RoundTripsThroughSystemd(t *testing.T) {
 	requireSystemdMachine(t)
 
 	// A machine systemd booted still need not have a *user* manager reachable
-	// from this session — CI runners routinely do not — and every step below
+	// from this session (CI runners routinely do not), and every step below
 	// talks to one.
 	_, reachErr := systemctl("list-units", "--type=service")
 	if reachErr != nil {

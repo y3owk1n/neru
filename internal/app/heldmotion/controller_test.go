@@ -130,7 +130,7 @@ func TestGroup_NilIsInert(t *testing.T) {
 }
 
 // TestGroup_Press_AfterConcurrentChurnRestartsTheLoop pins the handoff the
-// loop relies on: a press racing the last release either joins the running
+// loop relies on. A press racing the last release either joins the running
 // loop or starts the next one. Under -race it also covers the held-set
 // bookkeeping from several goroutines at once.
 func TestGroup_Press_AfterConcurrentChurnRestartsTheLoop(t *testing.T) {
@@ -202,7 +202,7 @@ func waitQuiet(t *testing.T, rec *recorder) (image.Point, int) {
 }
 
 // TestGroup_Release_ShortTapStillTravelsOneStep pins what a stepped binding
-// always did on a tap: the key is released before the loop has ticked, and
+// always did on a tap. The key is released before the loop has ticked, and
 // the cursor still moves its step.
 func TestGroup_Release_ShortTapStillTravelsOneStep(t *testing.T) {
 	rec := &recorder{}

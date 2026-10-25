@@ -13,7 +13,7 @@ import (
 
 // Adapter implements ports.KeyFeedPort.
 //
-// Normalization is shared and lives here; only the final injection differs per
+// Normalization is shared and lives here. Only the final injection differs per
 // platform, behind the unexported postKey dispatch (keyfeed_darwin.go,
 // keyfeed_linux.go, keyfeed_windows.go, keyfeed_other.go).
 type Adapter struct {

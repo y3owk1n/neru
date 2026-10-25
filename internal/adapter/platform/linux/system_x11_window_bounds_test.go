@@ -28,7 +28,7 @@ func TestX11BoundsForActiveWindow(t *testing.T) {
 			wantGeometry: true,
 		},
 		{
-			// The one case that keeps the nil error: the display answered, and
+			// The one case that keeps the nil error. The display answered, and
 			// widening to the active screen is obeying the answer rather than
 			// guessing past a failure.
 			name:   "an unfocused desktop reports no bounds and no failure",
@@ -87,8 +87,8 @@ func TestX11BoundsForActiveWindow(t *testing.T) {
 
 // TestX11WindowGeometryError names the failure a bounds caller gets when the
 // window was found and the X server would not describe it. It has to be a
-// failure and it has to say what was asked, because the caller's own answer —
-// the whole screen — looks identical to a window that filled it.
+// failure and it has to say what was asked, because the caller's own answer,
+// the whole screen, looks identical to a window that filled it.
 func TestX11WindowGeometryError(t *testing.T) {
 	err := x11WindowGeometryError()
 	if err == nil {

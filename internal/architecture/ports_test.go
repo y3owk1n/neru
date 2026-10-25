@@ -15,16 +15,16 @@ import (
 const docGoFile = "doc.go"
 
 // portsWithoutOwnMock exempts interfaces named *Port that are composed into a
-// larger port rather than injected on their own; they are exercised through
+// larger port rather than injected on their own. They are exercised through
 // the mock of the port that embeds them, so a separate mock would be dead
-// code. Currently empty — every port carries its own mock.
+// code. It is currently empty, because every port carries its own mock.
 var portsWithoutOwnMock = map[string]string{}
 
 // TestEveryPortHasAMock enforces the third requirement of Tier 1 in
-// docs/contributing/porting.md: a port is not done until it has a mock.
+// docs/contributing/porting.md. A port is not done until it has a mock.
 //
 // Without one, consumers grow hand-rolled fakes in _test.go files that go stale
-// the moment the contract changes — which is exactly how two hotkey fakes ended
+// the moment the contract changes, which is exactly how two hotkey fakes ended
 // up silently under-implementing HotkeyPort.
 func TestEveryPortHasAMock(t *testing.T) {
 	repoRoot := findRepoRoot(t)
@@ -152,7 +152,7 @@ func typeDeclsIn(t *testing.T, dir string) []*ast.TypeSpec {
 // TestEveryMockAssertsInterfaceSatisfaction requires every mock type in the
 // mocks package to carry a compile-time assertion tying it to its interface
 // (var _ ports.X = (*MockX)(nil), plain or inside a var block). Without one,
-// a mock can drop or fumble a method and still compile on its own — the
+// a mock can drop or fumble a method and still compile on its own. The
 // break only surfaces at some consumer, far from the cause. The assertion
 // moves that failure into the mocks package itself. The check is per mock
 // type, not per file, so a second mock added to an existing file cannot

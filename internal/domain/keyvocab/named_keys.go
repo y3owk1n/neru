@@ -32,7 +32,7 @@ const (
 )
 
 // shorthandEscape is the one spelling that resolves to a named key without
-// being one. It is deliberately absent from namedKeys: a keystroke arriving as
+// being one. It is deliberately absent from namedKeys. A keystroke arriving as
 // "esc" compares equal to Escape, while a binding written "esc" is refused, so
 // a config file has exactly one spelling for the key.
 const shorthandEscape = "esc"
@@ -43,13 +43,14 @@ const shorthandEscape = "esc"
 // platforms without failing validation.
 const functionKeyCount = 24
 
-// CapsLock is deliberately not here: a modifier-shaped key with per-platform
-// semantics nobody has asked for (docs/adr/0008-a-vocabulary-has-one-home.md).
+// CapsLock is deliberately not here. It is a modifier-shaped key with
+// per-platform semantics nobody has asked for
+// (docs/adr/0008-a-vocabulary-has-one-home.md).
 var namedKeys = buildNamedKeys()
 
 // namedKeyAliases maps a spelling to the named key it means. Enter and
-// Backspace are named keys in their own right — a config file may write either,
-// and a diagnostic echoes back what was written — that mean Return and Delete.
+// Backspace are named keys in their own right that mean Return and Delete. A
+// config file may write either, and a diagnostic echoes back what was written.
 var namedKeyAliases = map[string]string{
 	KeyEnter:        KeyReturn,
 	KeyBackspace:    KeyDelete,
@@ -111,17 +112,17 @@ func lowercaseAliases(aliases map[string]string) map[string]string {
 
 // IsNamedKey reports whether name is one of the named keys, case-insensitively.
 // A single character key ("j") is not a named key, and neither is a modifier
-// combo — callers that accept those check for them separately.
+// combo. Callers that accept those check for them separately.
 func IsNamedKey(name string) bool {
 	_, ok := namedKeyDisplay[strings.ToLower(name)]
 
 	return ok
 }
 
-// NamedKeyDisplay returns the display spelling of a named key ("pagedown" →
-// "PageDown", "f1" → "F1"). An alias keeps its own spelling — "enter" is
-// "Enter", not "Return" — because this answers how to write a key, not which
-// key it means; ResolveAlias answers that. A name that is not a named key comes
+// NamedKeyDisplay returns the display spelling of a named key ("pagedown" is
+// "PageDown", "f1" is "F1"). An alias keeps its own spelling, so "enter" is
+// "Enter" and not "Return", because this answers how to write a key, not which
+// key it means. ResolveAlias answers that. A name that is not a named key comes
 // back unchanged with ok false.
 func NamedKeyDisplay(name string) (string, bool) {
 	display, ok := namedKeyDisplay[strings.ToLower(name)]
@@ -132,9 +133,10 @@ func NamedKeyDisplay(name string) (string, bool) {
 	return display, true
 }
 
-// ResolveAlias returns the named key an alias means, in display form ("enter" →
-// "Return", "backspace" → "Delete", "esc" → "Escape"). ok is false for anything
-// that is not an alias, including a named key that means itself.
+// ResolveAlias returns the named key an alias means, in display form ("enter"
+// means "Return", "backspace" means "Delete", "esc" means "Escape"). ok is
+// false for anything that is not an alias, including a named key that means
+// itself.
 func ResolveAlias(name string) (string, bool) {
 	means, ok := aliasTargets[strings.ToLower(name)]
 
@@ -142,9 +144,9 @@ func ResolveAlias(name string) (string, bool) {
 }
 
 // NamedKeys returns every named key in display form, sorted. It exists so the
-// set can be checked against a written-out list rather than sampled: the pin in
-// this package's tests reads it, which is what makes an entry added here fail
-// loudly instead of quietly widening the vocabulary.
+// set can be checked against a written-out list rather than sampled. The pin in
+// this package's tests reads it, so an entry added here fails loudly instead of
+// quietly widening the vocabulary.
 func NamedKeys() []string {
 	keys := slices.Clone(namedKeys)
 	slices.Sort(keys)

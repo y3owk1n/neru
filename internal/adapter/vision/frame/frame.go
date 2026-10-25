@@ -14,7 +14,7 @@ import (
 
 const bytesPerPixel = 4
 
-// Rows runs fn over [0, height) split into one band of rows per core, and
+// Rows runs work over [0, height) split into one band of rows per core, and
 // returns once every band is done.
 func Rows(height int, work func(y0, y1 int)) {
 	workers := max(min(runtime.GOMAXPROCS(0), height), 1)

@@ -20,7 +20,7 @@ const (
 	namedKeyCodeHeader     = "internal/adapter/platform/darwin/keymap.h"
 
 	// namedKeyInboundTable is the dictionary a hotkey string is parsed
-	// through: a name it does not carry resolves to 0xFFFF and the binding is
+	// through. A name it does not carry resolves to 0xFFFF and the binding is
 	// refused. namedKeyInboundFunc is the function it is built in, which also
 	// holds the code-to-name overrides.
 	namedKeyInboundTable = "gSpecialNameToCodeMap"
@@ -51,7 +51,7 @@ const (
 // namedKeySite is one place in the darwin bridge that spells named keys: the
 // source file, and what inside it does the spelling. They always travel
 // together into a failure message, and one of the three is a dictionary while
-// the other two are functions — which is why this is a site rather than a
+// the other two are functions, which is why this is a site rather than a
 // table.
 type namedKeySite struct {
 	source string
@@ -80,12 +80,12 @@ var (
 )
 
 // carbonStopsAtF20 is the reason four function keys are missing from every
-// macOS table; keyvocab's own functionKeyCount comment carries the same fact.
+// macOS table, and keyvocab's own functionKeyCount comment carries the same fact.
 const carbonStopsAtF20 = "Carbon declares no virtual key code above F20, " +
 	"so this key reaches a binding only on Linux and Windows"
 
 // darwinNamedKeyGaps are the named keys no macOS table carries, each with the
-// reason it is absent. They are written out rather than skipped: a gap this
+// reason it is absent. They are written out rather than skipped. A gap this
 // list does not name fails the pin, and a gap it names that macOS has since
 // grown a keycode for fails it too, so neither half can rot quietly.
 var darwinNamedKeyGaps = map[string]string{
@@ -104,17 +104,17 @@ var darwinNamedKeyGaps = map[string]string{
 // The named keys are declared once in Go (internal/domain/keyvocab), and the
 // config validators, the Linux tap and the Windows tap all read that
 // declaration. macOS re-types the set twice in Objective-C, because a .m file
-// cannot import a Go package: gSpecialNameToCodeMap turns a written binding
+// cannot import a Go package. gSpecialNameToCodeMap turns a written binding
 // into a keycode, and specialKeyName turns a keystroke back into a name. This
 // is ADR 0007's deliberate exception to the one-implementation rule
-// (docs/adr/0007-a-shared-derivation-has-one-implementation.md) — where the
+// (docs/adr/0007-a-shared-derivation-has-one-implementation.md). Where the
 // second implementation is in another language, what the rule asks for is a
 // test holding the copies together rather than a deletion.
 //
 // It fails on four shapes: a native name the vocabulary does not declare, a
 // native name spelled differently from the vocabulary's, a named key macOS
 // carries no entry for, and a keycode symbol that is not the one the name
-// means. The failure it exists for is silent: a binding written against a name
+// means. The failure it exists for is silent. A binding written against a name
 // gSpecialNameToCodeMap does not carry parses to 0xFFFF, parseHotkeyString
 // returns NO, and the key simply never fires.
 func TestDarwinNamedKeyTablesArePinnedToTheVocabulary(t *testing.T) {
@@ -128,10 +128,10 @@ func TestDarwinNamedKeyTablesArePinnedToTheVocabulary(t *testing.T) {
 // TestDarwinNamedKeyTablesArePinnedToEachOther keeps the two tables spelling
 // one vocabulary between them.
 //
-// They are not copies of each other — one reads names and one writes them, so
+// They are not copies of each other. One reads names and one writes them, so
 // the inbound table carries the Enter and Backspace aliases and the outbound
 // one must not, or a keystroke would reach the mode handler under two
-// spellings. Everything else has to match: a name only the inbound table knows
+// spellings. Everything else has to match. A name only the inbound table knows
 // is a binding that parses and never fires, and a name only the outbound one
 // knows is a keystroke no binding can be written for.
 func TestDarwinNamedKeyTablesArePinnedToEachOther(t *testing.T) {
@@ -147,10 +147,10 @@ func TestDarwinNamedKeyTablesArePinnedToEachOther(t *testing.T) {
 //
 // Two overrides canonicalize the aliases, so a Return keystroke is never
 // reported as "Enter". Two more fold the numpad keys that have a named-key
-// equivalent (#1372), and they are on the keymap side only — the tap reaches
+// equivalent (#1372), and they are on the keymap side only, because the tap reaches
 // them through NeruKeyCodeToName and NeruKeyCodeToCharacter rather than through
 // specialKeyName. Which numpad key folds where is a macOS decision that
-// keymap_integration_darwin_test.go pins, on a tagged macOS-only run; what this
+// keymap_integration_darwin_test.go pins, on a tagged macOS-only run. What this
 // pin holds to the vocabulary is what a fold is allowed to spell, so a fold
 // deleted outright is caught there and not here.
 func TestDarwinNamedKeyFoldsSpellTheVocabulary(t *testing.T) {
@@ -174,7 +174,7 @@ func TestDarwinNamedKeyFoldsSpellTheVocabulary(t *testing.T) {
 // honest against the keycode enum both tables index into.
 //
 // A gap is a claim that macOS has no such key, not a license to leave an entry
-// out. So each gap is checked against the KeyCode enum in keymap.h: the day
+// out. So each gap is checked against the KeyCode enum in keymap.h. The day
 // Carbon grows an F21, the enum gains kKeyCodeF21 and this fails, which is
 // where someone decides whether the tables should carry it.
 func TestDarwinNamedKeyGapsAreRealKeycodeGaps(t *testing.T) {
@@ -230,12 +230,12 @@ func TestDarwinNamedKeyTablePinCatchesDrift(t *testing.T) {
 }
 
 // TestDarwinNamedKeyTablePinReportsATableItCannotRead pins the other half of
-// the guardrail: a table this pin cannot read must be reported, never skipped.
+// the guardrail. A table this pin cannot read must be reported, never skipped.
 // A pin that reads nothing and passes is worse than no pin, because it reads as
 // coverage.
 //
 // The cost is that the pin reads one spelling of each table. Rewriting either
-// in an equivalent shape — a C array of structs, a name built at runtime —
+// in an equivalent shape, such as a C array of structs or a name built at runtime,
 // fails here rather than being understood, and the failure names the shape it
 // expected, which leaves the next author a one-line change to this file
 // alongside the one they are already making to the .m file.
@@ -321,7 +321,7 @@ func TestDarwinNamedKeyTablePinReportsATableItCannotRead(t *testing.T) {
 //
 // The overrides are matched line by line inside a longer function, which makes
 // a commented-out override look exactly like a live one. Reading one as live
-// would have the pin holding the vocabulary to code that never runs — and,
+// would have the pin holding the vocabulary to code that never runs and,
 // worse, reporting coverage of a fold that is not there.
 func TestDarwinNamedKeyFoldParserSkipsCommentedOverrides(t *testing.T) {
 	t.Parallel()
@@ -355,8 +355,8 @@ func TestDarwinNamedKeyFoldParserSkipsCommentedOverrides(t *testing.T) {
 // darwinNamedKeyTables is what the pin read out of the two Objective-C sources.
 //
 // Nothing here is an expectation. Every entry comes out of a .m file, and
-// internal/domain/keyvocab is the only expectation this pin has — which is what
-// makes it bidirectional: change either side alone and the two stop agreeing.
+// internal/domain/keyvocab is the only expectation this pin has. That is what
+// makes it bidirectional, because changing either side alone makes the two stop agreeing.
 type darwinNamedKeyTables struct {
 	// inbound maps each name gSpecialNameToCodeMap accepts to the keycode
 	// symbol it resolves to. It carries the aliases.
@@ -374,8 +374,8 @@ type darwinNamedKeyTables struct {
 
 // darwinNamedKeyProblems is every check the pin makes, in the order the tests
 // above make them. TestDarwinNamedKeyTablePinCatchesDrift runs it whole,
-// because which check catches a given drift is not the point — that one of them
-// does is.
+// because which check catches a given drift is not the point, but that one of
+// them does is.
 func darwinNamedKeyProblems(tables darwinNamedKeyTables) []string {
 	problems := darwinNamedKeyVocabularyProblems(tables)
 	problems = append(problems, darwinNamedKeyCrossTableProblems(tables)...)
@@ -434,8 +434,8 @@ func darwinNamedKeyCoverageProblems(tables darwinNamedKeyTables) []string {
 		_, accepted := tables.inbound[name]
 
 		// An entry and an excuse are the two answers to "can macOS reach this
-		// key", so exactly one of them has to be there: both means a gap that
-		// has been filled, neither means a key that went missing without one.
+		// key", so exactly one of them has to be there. Both means a gap that
+		// has been filled, and neither means a key that went missing without one.
 		if accepted == excused {
 			problems = append(problems, darwinNamedKeyCoverageProblem(
 				namedKeyInboundSite, name, reason, excused,
@@ -481,7 +481,7 @@ func darwinNamedKeyCoverageProblem(
 }
 
 // darwinNamedKeySpellingProblems checks one native name against the vocabulary.
-// Case matters: the tap compares the name it emits against the binding a config
+// Case matters, because the tap compares the name it emits against the binding a config
 // file wrote, and "PageDown" and "Pagedown" are two keys to a string compare.
 func darwinNamedKeySpellingProblems(site namedKeySite, name string) []string {
 	display, declared := keyvocab.NamedKeyDisplay(name)
@@ -503,7 +503,7 @@ func darwinNamedKeySpellingProblems(site namedKeySite, name string) []string {
 }
 
 // darwinNamedKeySymbolProblems checks that a name is wired to the keycode of
-// the key it means — kKeyCodeReturn for both "Return" and its alias "Enter".
+// the key it means, such as kKeyCodeReturn for both "Return" and its alias "Enter".
 // Deriving the symbol from the Go value rather than listing the pairs is what
 // the placement-vocabulary pin next door does, and it means a key added to the
 // vocabulary needs no edit here.
@@ -580,10 +580,11 @@ func darwinNamedKeyAliasProblems(tables darwinNamedKeyTables, alias string) []st
 
 // darwinNamedKeyFoldProblems holds the code-to-name overrides to the
 // vocabulary. A fold may name a key the vocabulary declares, in its canonical
-// spelling, or the one name it deliberately does not — Clear, which exists so
-// the numpad Clear key stops impersonating Delete and matches nothing instead.
+// spelling, or the one name it deliberately does not declare. That name is
+// Clear, which exists so the numpad Clear key stops impersonating Delete and
+// matches nothing instead.
 //
-// It also keeps the folds one-directional: a numpad keycode in the inbound
+// It also keeps the folds one-directional. A numpad keycode in the inbound
 // table would make "Return" synthesize a numpad keypress.
 func darwinNamedKeyFoldProblems(tables darwinNamedKeyTables) []string {
 	var problems []string
@@ -818,7 +819,7 @@ func darwinNamedKeyWithout(
 	}
 }
 
-// darwinNamedKeyRespelled stands for a name retyped in the .m file: the key
+// darwinNamedKeyRespelled stands for a name retyped in the .m file. The key
 // keeps its keycode and loses the spelling a config file writes. Only the
 // inbound table is keyed by name, so only it can drift this way.
 func darwinNamedKeyRespelled(
@@ -862,7 +863,7 @@ var (
 
 	// namedKeyFoldOpeningPattern marks a line as an override written against a
 	// literal keycode, and namedKeyFoldPattern reads the whole of one. The
-	// split is what lets an unreadable override be reported: the enumerate
+	// split is what lets an unreadable override be reported. The enumerate
 	// block's `codeToName[code] = name;` is not an override and must be passed
 	// over, while `codeToName[@(kKeyCodeNumpadEnter)] = someName;` is one this
 	// pin cannot read and must not be.
@@ -892,7 +893,7 @@ func readDarwinNamedKeyTables(t *testing.T) darwinNamedKeyTables {
 
 // parseDarwinNamedKeyTables reads the three name tables out of the two
 // Objective-C sources. The second result describes why they could not be read,
-// and is empty when they could — an error value would buy nothing here, since
+// and is empty when they could. An error value would buy nothing here, since
 // the only caller turns it straight into a test failure.
 func parseDarwinNamedKeyTables(
 	keymapSource, eventTapSource string,
@@ -937,7 +938,7 @@ func parseDarwinNamedKeyTables(
 
 // parseDarwinNamedKeyDictionary reads the `@"Name" : @(kKeyCodeName),` entries
 // of the inbound dictionary literal. Every line inside the literal has to be an
-// entry, a comment or blank: a line this pin cannot read is one it would
+// entry, a comment or blank. A line this pin cannot read is one it would
 // otherwise skip past, which is how a pin comes to cover less than it claims.
 func parseDarwinNamedKeyDictionary(builder string) (map[string]string, string) {
 	opening := namedKeyDictOpeningPattern.FindStringIndex(builder)
@@ -990,7 +991,7 @@ func parseDarwinNamedKeyDictionary(builder string) (map[string]string, string) {
 //
 // Unlike the other two tables, these are found inside a longer function rather
 // than inside a literal, so "this line is not an override" and "this override
-// is one I cannot read" would otherwise be the same answer — and a pin that
+// is one I cannot read" would otherwise be the same answer. And a pin that
 // answers them the same way quietly covers fewer folds than it claims. A line
 // that starts an override against a literal keycode therefore has to be
 // readable in full, and a commented-out one is skipped rather than read as
@@ -1026,7 +1027,7 @@ func parseDarwinNamedKeyFolds(builder string) (map[string]string, string) {
 
 // parseDarwinNamedKeySwitch reads the `case kKeyCodeName: return @"Name";` arms
 // of the outbound switch, keyed by keycode symbol. Arms sharing one return are
-// read as one each; an arm returning anything but a string literal or nil is
+// read as one each. An arm returning anything but a string literal or nil is
 // reported rather than skipped.
 func parseDarwinNamedKeySwitch(body string) (map[string]string, string) {
 	arms := make(map[string]string)

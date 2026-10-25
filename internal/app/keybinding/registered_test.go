@@ -3,8 +3,8 @@ package keybinding_test
 // What the event taps are told about global hotkeys is the set registration
 // actually took, not the set the configuration asked for. Two of the three taps
 // hand a chord in that set straight back to the backend that owns it rather than
-// dispatching it, so a chord the backend refused must not be in it: nobody would
-// run it at all.
+// dispatching it, so a chord the backend refused must not be in it, or nobody
+// would run it at all.
 
 import (
 	"errors"

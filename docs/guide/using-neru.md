@@ -2,7 +2,7 @@
 
 A tour of every mode, from moving the cursor to clicking, dragging and
 scrolling. It takes about ten minutes. Neru should be running with its
-permissions granted, see [Getting started](getting-started.md).
+permissions granted. See [Getting started](getting-started.md).
 
 The hotkeys below are the macOS and Windows
 [defaults](../reference/configuration.md#global-hotkeys). On Linux, bind them
@@ -50,7 +50,7 @@ covers the common causes. A tool that knows where the controls are can also
 typed, like Vimium. Bind `hints --action left_click`, as in
 [Recipes](recipes.md#click-as-soon-as-a-hint-is-typed). To hand the picked
 point to a script instead, add `--on-exit` steps, which read it from `NERU_X`
-and `NERU_Y`, see [Scripting](scripting.md#hand-the-picked-point-to-a-script).
+and `NERU_Y`. See [Scripting](scripting.md#hand-the-picked-point-to-a-script).
 
 ## Recursive grid
 
@@ -130,7 +130,7 @@ scroll, so `Cmd` then `Shift+L` is a Cmd-click. Tap it again to release it. See
 [`[sticky_modifiers]`](../reference/configuration.md#sticky_modifiers).
 
 **Glide.** With `[held_repeat] enabled = true`, holding an arrow key glides
-the cursor smoothly instead of stepping, and `accel_enabled = true` speeds it
+the cursor instead of stepping, and `accel_enabled = true` speeds it
 up the longer you hold. See
 [`[held_repeat]`](../reference/configuration.md#held_repeat).
 

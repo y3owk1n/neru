@@ -12,7 +12,7 @@ import (
 
 // X11 keysym values from X11/keysym.h. The production lookup names them through
 // cgo, which a test file cannot do (`go test` rejects cgo in in-package test
-// files), so the protocol constants are pinned here as literals — they are
+// files), so the protocol constants are pinned here as literals. They are
 // frozen X11 protocol numbers. Untyped constants compare against the cgo return
 // type at the call site. The X11 event tap pins the same four navigation
 // keysyms for the same reason in eventtap/linux/x11_keys_test.go.
@@ -37,9 +37,9 @@ const (
 )
 
 // TestX11KeysymFor_NavigationKeys pins the four navigation keys on the X11
-// global-hotkey path. The names come from the named-key vocabulary — the
-// spellings a config file writes and the taps emit — and the keysyms from the
-// X11 protocol, so this fails if either side stops agreeing with the other.
+// global-hotkey path. The names come from the named-key vocabulary, which holds
+// the spellings a config file writes and the taps emit. The keysyms come from
+// the X11 protocol, so this fails if either side stops agreeing with the other.
 // XStringToKeysym knows "Page_Up" and "Prior", not Neru's "PageUp", so these
 // only resolve when the lookup maps them itself.
 func TestX11KeysymFor_NavigationKeys(t *testing.T) {
@@ -72,9 +72,9 @@ func TestX11KeysymFor_NavigationKeys(t *testing.T) {
 // TestX11KeysymFor_EditingKeys pins Backspace, Delete and Insert, and pins them
 // together because the first two are the pair a hotkey can get wrong without
 // noticing. X11 spells the erase-left key "BackSpace", so Neru's "Backspace"
-// resolves only when the lookup maps it; and X11 spells the forward-delete key
-// "Delete", so Neru's "Delete" — the backspace key, as on macOS and Windows —
-// resolves to the right key only when the lookup maps it too. Both spellings
+// resolves only when the lookup maps it. X11 also spells the forward-delete key
+// "Delete", so Neru's "Delete", which is the backspace key as on macOS and
+// Windows, resolves to the right key only when the lookup maps it too. Both spellings
 // must reach XK_BackSpace, and neither may reach XK_Delete.
 func TestX11KeysymFor_EditingKeys(t *testing.T) {
 	t.Parallel()
@@ -106,7 +106,7 @@ func TestX11KeysymFor_EditingKeys(t *testing.T) {
 // TestX11KeysymFor_ExistingSpellings pins the keys that resolved before the
 // navigation keys joined the switch. The lookup now canonicalizes through the
 // named-key vocabulary rather than lowercasing in place, so every spelling a
-// hotkey could already be written in has to keep landing on the same keysym —
+// hotkey could already be written in has to keep landing on the same keysym,
 // including the ones that resolve through XStringToKeysym rather than the
 // switch. The function keys, the other fallback resolvers, have a test of their
 // own below.
@@ -146,13 +146,13 @@ func TestX11KeysymFor_ExistingSpellings(t *testing.T) {
 
 // TestX11KeysymFor_FunctionKeys walks the whole function-key range rather than
 // sampling it. F1-F24 are the one group the lookup leaves to XStringToKeysym,
-// because X11's own name for each of them is the name Neru writes; restating 24
+// because X11's own name for each of them is the name Neru writes. Restating 24
 // spellings in the switch to say so would be noise, so the claim is checked
 // here instead, for every key in the range and in both the spellings a config
 // file can use.
 //
 // XK_F1 through XK_F35 are one contiguous block in keysymdef.h, which is what
-// makes the expected value computable rather than a list; the ends of Neru's
+// makes the expected value computable rather than a list. The ends of Neru's
 // range are pinned as literals above so a wrong base cannot go unnoticed.
 func TestX11KeysymFor_FunctionKeys(t *testing.T) {
 	t.Parallel()
@@ -179,7 +179,7 @@ func TestX11KeysymFor_FunctionKeys(t *testing.T) {
 	}
 }
 
-// TestX11KeysymFor_EveryNamedKeyResolves is the net under the tests above: a
+// TestX11KeysymFor_EveryNamedKeyResolves is the net under the tests above. A
 // named key the vocabulary accepts but this lookup cannot resolve is a binding
 // `neru config validate` calls fine and a grab then rejects with
 // CodeInvalidInput, which is how "Backspace" reached a release. Adding a name to

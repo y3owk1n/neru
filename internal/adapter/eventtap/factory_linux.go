@@ -10,8 +10,8 @@ import (
 )
 
 // NewEventTap returns the Linux event tap. It captures through X11 or through
-// evdev on Wayland; the package picks between them at runtime from the detected
-// backend, so there is nothing to choose here.
+// evdev on Wayland. The package picks between them at runtime from the
+// detected backend, so there is nothing to choose here.
 func NewEventTap(callback tap.Callback, logger *zap.Logger) tap.Tap {
 	built := linux.NewEventTap(callback, logger)
 	if built == nil {

@@ -15,8 +15,8 @@ import (
 // dead entry rides out on the result so `neru config validate` says so instead
 // of "Configuration is valid" (#1376).
 //
-// The role has to be chosen per machine, and on macOS there is none to choose:
-// every mapping in the vocabulary carries an AX name, so the diagnostic cannot
+// The role has to be chosen per machine, and on macOS there is none to choose.
+// Every mapping in the vocabulary carries an AX name, so the diagnostic cannot
 // arise there. What the pass reports on each platform is pinned without a
 // machine to run it on in internal/config.
 func TestLoadWithValidation_ReportsARoleThisPlatformCannotExpress(t *testing.T) {
@@ -40,7 +40,7 @@ clickable_roles = ["button", "`+role+`"]
 		t.Errorf("result.Warnings = %q, want it to contain %q", result.Warnings, want)
 	}
 
-	// The entry the user wrote survives: a warning reports, it does not undo.
+	// The entry the user wrote survives. A warning reports, it does not undo.
 	if !slices.Contains(result.Config.Hints.ClickableRoles, role) {
 		t.Errorf("hints.clickable_roles = %q, want it left as written",
 			result.Config.Hints.ClickableRoles)

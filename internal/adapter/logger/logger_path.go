@@ -19,7 +19,7 @@ func defaultLogFilePath() (string, error) {
 
 // DefaultLogDir returns the per-user directory neru writes its logs to. It is
 // exported because the daemon's log file is not the only thing that belongs
-// there: a service definition redirecting the daemon's stderr needs the same
+// there. A service definition redirecting the daemon's stderr needs the same
 // directory, and a second spelling of it would be a second answer to where
 // neru's logs live.
 func DefaultLogDir() (string, error) {
@@ -41,7 +41,7 @@ func DefaultLogDir() (string, error) {
 
 		logDir = filepath.Join(localAppData, "neru", "log")
 	default:
-		// The rest are Linux, BSD, etc.: honor $XDG_STATE_HOME per the XDG
+		// The rest are Linux, BSD, etc. Honor $XDG_STATE_HOME per the XDG
 		// Base Directory spec (absolute values only), matching the Linux
 		// system adapter's LogDir.
 		stateHome := os.Getenv("XDG_STATE_HOME")

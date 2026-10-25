@@ -17,9 +17,9 @@ const (
 )
 
 // validateGridWithWarnings runs the whole ladder with nothing to compare
-// against — the shape every caller that never loaded a file is in — and returns
+// against, the shape every caller that never loaded a file is in, and returns
 // what it collected, failing the test if the configuration was refused. Every
-// case here describes a file that loads: the point of the tier is that a label
+// case here describes a file that loads. The point of the tier is that a label
 // set the grid cannot use costs the user the label set, not the rest of their
 // configuration (ADR 0002).
 func validateGridWithWarnings(t *testing.T, cfg *config.Config) []string {
@@ -52,7 +52,7 @@ func validateGridAgainstWritten(
 // wrote, which is the only copy where an empty label still means "infer".
 //
 // The column labels are left empty in every case, which is what makes them the
-// control: whatever the row labels are told, a field nobody wrote must stay its
+// control. Whatever the row labels are told, a field nobody wrote must stay its
 // source's business.
 func gridLabelsAsLoaded(characters, rowLabels string) (*config.Config, *config.Config) {
 	written := config.DefaultConfigForDecoding()
@@ -83,7 +83,7 @@ func warningsMentioning(warnings []string, field string) []string {
 
 // TestConfigValidateGrid_ResolvedLabelsAreSilent is the half that must not fire.
 // The default labels are the ones inferred from grid.characters, and a user who
-// wrote nothing must hear nothing — a warning naming a field that is not in
+// wrote nothing must hear nothing. A warning naming a field that is not in
 // their file sends them looking for a line they never wrote.
 func TestConfigValidateGrid_ResolvedLabelsAreSilent(t *testing.T) {
 	cfg := config.DefaultConfig()
@@ -102,7 +102,7 @@ func TestConfigValidateGrid_ResolvedLabelsAreSilent(t *testing.T) {
 // TestConfigValidateGrid_RawEmptyLabelsAreSilent covers the other shape a
 // configuration can be in: the value the user wrote, before the derivation
 // settles it. An empty label set means "infer from characters", so it is
-// nothing to warn about — checking the raw value rather than the resolved one
+// nothing to warn about. Checking the raw value rather than the resolved one
 // would warn on every configuration that leaves the option alone.
 func TestConfigValidateGrid_RawEmptyLabelsAreSilent(t *testing.T) {
 	cfg := config.DefaultConfig()
@@ -160,7 +160,7 @@ func TestConfigValidateGrid_ShortLabelsWarn(t *testing.T) {
 
 // TestConfigValidateGrid_ShortSetsSayWhatTheyCost keeps the two too-short
 // warnings from wearing each other's consequence. A short grid.characters is
-// not used at all — the grid is relabelled a-z — while short labels are used as
+// not used at all, because the grid is relabelled a-z, while short labels are used as
 // written and cap the grid instead, and a warning that swapped the two would
 // send the user to fix the wrong thing.
 func TestConfigValidateGrid_ShortSetsSayWhatTheyCost(t *testing.T) {
@@ -192,7 +192,7 @@ func TestConfigValidateGrid_ShortSetsSayWhatTheyCost(t *testing.T) {
 // TestConfigValidateGrid_SublayerKeysAreNotCheckedHere pins the decision issue
 // #1271 left open. The runtime trims, uppercases and caps sublayer_keys at the
 // number of subgrid cells, so a fault past that cap is in a character that is
-// never drawn — and this package cannot see the subgrid size to tell the two
+// never drawn, and this package cannot see the subgrid size to tell the two
 // apart. Silence here is the choice, not an oversight.
 func TestConfigValidateGrid_SublayerKeysAreNotCheckedHere(t *testing.T) {
 	cfg := config.DefaultConfig()
@@ -244,7 +244,7 @@ func TestConfigValidateGrid_DuplicateLabelsWarn(t *testing.T) {
 }
 
 // TestConfigValidateGrid_RepeatedCharacterIsReportedOnce keeps the report
-// proportional to the fault: a label set that repeats one character three times
+// proportional to the fault. A label set that repeats one character three times
 // is one thing wrong, not two.
 func TestConfigValidateGrid_RepeatedCharacterIsReportedOnce(t *testing.T) {
 	cfg := config.DefaultConfig()
@@ -259,7 +259,7 @@ func TestConfigValidateGrid_RepeatedCharacterIsReportedOnce(t *testing.T) {
 // TestConfigValidateGrid_RepeatsThatLeaveTooFewCharactersWarn covers the two
 // faults that arrive as one. Repeats come out before the grid applies its floor
 // (domain/grid.newGridAlphabet), so "aa" is a set of two characters that can
-// label with one, and the grid replaces it with a-z: the repeat and the set being
+// label with one, and the grid replaces it with a-z. The repeat and the set being
 // too short are both true, and counting the written length would have reported
 // neither.
 func TestConfigValidateGrid_RepeatsThatLeaveTooFewCharactersWarn(t *testing.T) {
@@ -308,7 +308,7 @@ func TestConfigValidateGrid_UntypeableLabelsWarn(t *testing.T) {
 
 // TestConfigValidateGrid_InferredLabelsReportTheirSource is what keeps one
 // mistake from reading as four. Labels left empty are the characters, so a fault
-// in grid.characters reaches row_labels, col_labels and sublayer_keys as well —
+// in grid.characters reaches row_labels, col_labels and sublayer_keys as well,
 // and reporting it against all four would name three fields the user never
 // wrote and cannot fix.
 func TestConfigValidateGrid_InferredLabelsReportTheirSource(t *testing.T) {
@@ -331,7 +331,7 @@ func TestConfigValidateGrid_InferredLabelsReportTheirSource(t *testing.T) {
 }
 
 // TestConfigValidateGrid_WrittenLabelsAreReportedThemselves is the other side of
-// that rule: a label set the user did write is judged on its own, whatever
+// that rule. A label set the user did write is judged on its own, whatever
 // grid.characters says.
 func TestConfigValidateGrid_WrittenLabelsAreReportedThemselves(t *testing.T) {
 	cfg := config.DefaultConfig()
@@ -353,7 +353,7 @@ func TestConfigValidateGrid_WrittenLabelsAreReportedThemselves(t *testing.T) {
 // spacedCharacters is the fault this file's #1281 cases are built on: a space
 // between two groups of keys, which loads and cannot be typed at a grid. It is
 // the fault a hand-written label can carry while still being character-for-
-// character what an empty one would settle to — the inference drops repeats and
+// character what an empty one would settle to. The inference drops repeats and
 // applies a floor (domain/grid.DistinctKeys), so a label equal to it has
 // neither a repeat nor too few characters left to be told off for.
 const spacedCharacters = "ab c"
@@ -362,9 +362,9 @@ const spacedCharacters = "ab c"
 // #1281: a label set the user typed by hand that is exactly what an empty one
 // would have settled to. Compared by value the two are the same string, so the
 // fault in the label went unreported until the user fixed grid.characters and
-// ran the command again — one sitting turned into two, and a "your
+// ran the command again. One sitting turned into two, and a "your
 // configuration is fine" in between that was not true. The written
-// configuration answers it outright: both fields are in the file, so both are
+// configuration answers it outright. Both fields are in the file, so both are
 // named, and the user fixes them together.
 func TestConfigValidateGrid_WrittenLabelsEqualToTheInferenceAreReported(t *testing.T) {
 	cfg, written := gridLabelsAsLoaded(spacedCharacters, "AB C")
@@ -378,7 +378,7 @@ func TestConfigValidateGrid_WrittenLabelsEqualToTheInferenceAreReported(t *testi
 	}
 
 	// The column labels were left empty, so they are the inference and stay
-	// their source's business — the fix for this file is two lines, not three.
+	// their source's business. The fix for this file is two lines, not three.
 	if found := warningsMentioning(got, fieldColLabels); len(found) > 0 {
 		t.Errorf("warnings for grid.col_labels = %q, want none", found)
 	}
@@ -387,7 +387,7 @@ func TestConfigValidateGrid_WrittenLabelsEqualToTheInferenceAreReported(t *testi
 // TestConfigValidateGrid_InferredLabelsStaySilentAgainstTheWritten keeps the
 // answer above from costing the common case. Labels left empty are the
 // derivation's own output whatever they equal, and the written configuration is
-// what says so — a fault in grid.characters is still one warning, under the one
+// what says so. A fault in grid.characters is still one warning, under the one
 // name that is in the user's file.
 func TestConfigValidateGrid_InferredLabelsStaySilentAgainstTheWritten(t *testing.T) {
 	cfg, written := gridLabelsAsLoaded(spacedCharacters, "")
@@ -403,8 +403,8 @@ func TestConfigValidateGrid_InferredLabelsStaySilentAgainstTheWritten(t *testing
 	}
 }
 
-// TestConfigValidateGrid_WrittenLabelsAreJudgedOnTheirOwn pins the third shape:
-// a hand-written label set that differs from the characters is reported under
+// TestConfigValidateGrid_WrittenLabelsAreJudgedOnTheirOwn pins the third shape.
+// A hand-written label set that differs from the characters is reported under
 // its own name, which is the case the value comparison already got right and
 // must keep getting right now that it is not the one deciding.
 func TestConfigValidateGrid_WrittenLabelsAreJudgedOnTheirOwn(t *testing.T) {
@@ -422,10 +422,10 @@ func TestConfigValidateGrid_WrittenLabelsAreJudgedOnTheirOwn(t *testing.T) {
 }
 
 // TestConfigValidateGrid_TheComparisonIsTheFloorWithoutAWrittenConfig pins what
-// a caller that never loaded a file still gets, which is what it got before:
-// the same file judged by value alone reports the source and suppresses the
+// a caller that never loaded a file still gets, which is what it got before.
+// The same file judged by value alone reports the source and suppresses the
 // label. It is the case above with the answer taken away, and writing it down
-// is what keeps the fallback from being mistaken for the rule — every caller
+// is what keeps the fallback from being mistaken for the rule. Every caller
 // that can do better hands over the written configuration.
 func TestConfigValidateGrid_TheComparisonIsTheFloorWithoutAWrittenConfig(t *testing.T) {
 	cfg, _ := gridLabelsAsLoaded(spacedCharacters, "AB C")
@@ -442,7 +442,7 @@ func TestConfigValidateGrid_TheComparisonIsTheFloorWithoutAWrittenConfig(t *test
 }
 
 // TestConfigValidateGrid_DisabledGridIsSilent keeps the warnings consistent with
-// the refusals around them: ValidateGrid returns early for a disabled grid so a
+// the refusals around them. ValidateGrid returns early for a disabled grid so a
 // user can leave a section they do not use alone, and a warning that fired
 // anyway would be advice about a mode that never runs.
 func TestConfigValidateGrid_DisabledGridIsSilent(t *testing.T) {

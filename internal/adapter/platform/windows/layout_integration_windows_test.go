@@ -159,7 +159,7 @@ func TestSetReferenceKeyboardLayout_ForcesAnInstalledLayoutByIdentifier(t *testi
 }
 
 // TestSetReferenceLayoutChangeHandler_CallsBackWhenTheReferenceChanges pins the
-// watcher that re-registers hotkeys after a layout switch (#1713): a change of
+// watcher that re-registers hotkeys after a layout switch (#1713). A change of
 // reference layout reaches the handler within a poll or two.
 func TestSetReferenceLayoutChangeHandler_CallsBackWhenTheReferenceChanges(t *testing.T) {
 	loadTestKeyboardLayout(t, klidRussian)

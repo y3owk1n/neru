@@ -8,10 +8,10 @@ package modes
 */
 import "C"
 
-// The header above only declares these symbols; the Objective-C that defines
+// The header above only declares these symbols. The Objective-C that defines
 // them is compiled by the darwin platform package. This package used to reach
 // it by accident, through the overlay adapter it imported for the Linux
-// keyboard-capture extension — since #1213 that import is gone, so the link
+// keyboard-capture extension. Since #1213 that import is gone, so the link
 // edge is stated here instead of inherited.
 import _ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 

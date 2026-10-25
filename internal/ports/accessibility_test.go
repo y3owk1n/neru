@@ -10,7 +10,6 @@ import (
 func TestDefaultElementFilter(t *testing.T) {
 	filter := ports.DefaultElementFilter()
 
-	// Check default values
 	expectedMinSize := image.Point{X: 1, Y: 1}
 	if filter.MinSize != expectedMinSize {
 		t.Errorf("Expected MinSize to be %v, got %v", expectedMinSize, filter.MinSize)

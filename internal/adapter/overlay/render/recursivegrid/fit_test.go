@@ -26,7 +26,7 @@ func cellsOf(side int) []image.Rectangle {
 	return cells
 }
 
-// TestStyle_FitDraw_ShrinksTheLabelWithTheCells is #1691: font_size 20 drew at
+// TestStyle_FitDraw_ShrinksTheLabelWithTheCells is #1691, where font_size 20 drew at
 // the first depth and nothing by the third. It now shrinks with the cells and
 // hides only under min_font_size.
 func TestStyle_FitDraw_ShrinksTheLabelWithTheCells(t *testing.T) {

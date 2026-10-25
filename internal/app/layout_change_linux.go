@@ -2,7 +2,7 @@
 
 package app
 
-// registerLayoutChangeHandler is a no-op on Linux — global hotkeys on Linux
+// registerLayoutChangeHandler is a no-op on Linux. Global hotkeys on Linux
 // use platform-specific backends that re-parse key strings each time, so no
 // layout-change re-registration is needed.
 func (a *App) registerLayoutChangeHandler() {}

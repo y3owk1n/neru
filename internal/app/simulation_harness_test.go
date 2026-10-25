@@ -2,14 +2,14 @@ package app_test
 
 // Full-loop simulation harness: builds the real application via app.New with
 // every OS port replaced by an in-process fake, then drives it the way the
-// native event tap would — one key string at a time through HandleKeyPress —
+// native event tap would, one key string at a time through HandleKeyPress,
 // and observes what a user would observe: hints and grids drawn on the
 // (recording) overlay manager, cursor moves on the system port, and clicks,
 // scrolls and element actions on the accessibility port.
 //
-// Everything between those edges — hotkey resolution, mode transitions, hint
-// generation and matching, grid math, services, locking — is the production
-// code path. Nothing here touches native APIs, so these tests are
+// Everything between those edges, such as hotkey resolution, mode transitions,
+// hint generation and matching, grid math, services and locking, is the
+// production code path. Nothing here touches native APIs, so these tests are
 // deterministic and platform-neutral.
 
 import (
@@ -43,9 +43,9 @@ const simFixtureBundleID = "com.example.simfixture"
 
 // --- wait budgets ----------------------------------------------------------
 //
-// Every journey below waits on the same shape of thing: in-process
-// asynchronous work — a hotkey callback, a goroutine the app started, a mode
-// transition queued behind the handler lock — that finishes in single-digit
+// Every journey below waits on the same shape of thing, in-process
+// asynchronous work such as a hotkey callback, a goroutine the app started, or
+// a mode transition queued behind the handler lock. It finishes in single-digit
 // milliseconds on an idle machine. So a wait's budget is not an estimate of
 // how long its step takes. It is headroom against the machine, plus, where the
 // awaited thing has a duration of its own, that duration.
@@ -58,20 +58,20 @@ const simFixtureBundleID = "com.example.simfixture"
 //     knowable factor, so simWaitHeadroom scales by simRaceSlowdown.
 //   - A loaded shared runner can deschedule this process for whole seconds
 //     regardless of how little work it has left. No budget survives that by
-//     being bigger, so waitForWithin does not rely on one: it evaluates the
+//     being bigger, so waitForWithin does not rely on one. It evaluates the
 //     condition and only then looks at the clock, so the last thing a wait
 //     does before giving up is ask again. A wait therefore fails only on work
-//     that has not happened — never on work that happened while the process
+//     that has not happened, never on work that happened while the process
 //     was not running. Of the two halves of #1324, that is the half no bigger
 //     number could have bought.
 //
 // What the budget buys after that is the case where the work is genuinely
 // still coming, and what it costs is how long a genuinely hung journey takes
-// to report — which is why it is seconds and not minutes.
+// to report, which is why it is seconds and not minutes.
 //
 // Adding a journey: call waitFor and inherit simWaitHeadroom. Reach for
-// waitForWithin only when what you are awaiting has its own duration — a
-// configured repeat interval, a sampling window — and write that duration into
+// waitForWithin only when what you are awaiting has its own duration, such as
+// a configured repeat interval or a sampling window, and write that duration into
 // the call as `simWaitHeadroom + <it>`, so the headroom stays one thing and
 // the journey's own timing stays visible. Growing simWaitHeadroom to cover one
 // slow wait puts every other journey's hang detection behind it.
@@ -79,13 +79,13 @@ const (
 	// simWaitHeadroomBase is the machine headroom one wait gets on an
 	// uninstrumented build. The work these journeys await completes in
 	// single-digit milliseconds, so this is roughly three orders of magnitude
-	// of slack — sized for a shared runner having a bad minute, not for the
+	// of slack, sized for a shared runner having a bad minute, not for the
 	// work.
 	simWaitHeadroomBase = 5 * time.Second
 
 	// simRaceSlowdown is how much further to stretch a wait budget when the
 	// binary carries the race detector. The detector's documented cost is a
-	// 2-20x slowdown; 4 sits inside that on top of a base that is already
+	// 2-20x slowdown. 4 sits inside that on top of a base that is already
 	// mostly slack, and it is applied once, here, so no journey has to know
 	// how it was built.
 	simRaceSlowdown = 4
@@ -98,13 +98,13 @@ const (
 
 	// simShutdownBudgetBase is what Stop() gets to unwind every startup phase
 	// and return from Run(). It is a budget of its own rather than a reuse of
-	// the wait headroom because it covers a different thing: not one
-	// asynchronous hop, but the whole application coming down.
+	// the wait headroom because it covers a different thing, the whole
+	// application coming down rather than one asynchronous hop.
 	simShutdownBudgetBase = 5 * time.Second
 )
 
 // simWaitHeadroom is the default budget for a single waitFor, and
-// simShutdownBudget the one the harness gives a stopping app; both are stated
+// simShutdownBudget the one the harness gives a stopping app. Both are stated
 // above in idle-machine terms and scaled here, once.
 var (
 	simWaitHeadroom   = simScaleForRace(simWaitHeadroomBase)
@@ -171,33 +171,33 @@ type simGridDraw struct {
 }
 
 // simOverlayPort is the screen the journeys observe. It implements
-// ports.OverlayPort outright — no embedding, no inherited silent success — so
+// ports.OverlayPort outright, with no embedding and no inherited silent success, so
 // a call production makes that this fake forgot is a compile error rather than
 // a journey that passes without it.
 //
-// It records domain values, never call sequences: which calls an adapter would
+// It records domain values, never call sequences. Which calls an adapter would
 // use to realize a Frame is exactly what the Frame port exists to be free to
-// change. What it models instead is what a user would see — which mode has
-// content on screen, whether the overlay is up, what was drawn on it.
+// change. What it models instead is what a user would see, which is which mode
+// has content on screen, whether the overlay is up, and what was drawn on it.
 type simOverlayPort struct {
 	// refuseMonitorSelect stands in for a backend with no surface for the
-	// monitor picker: showing that frame reports CodeNotSupported, the way an
+	// monitor picker. Showing that frame reports CodeNotSupported, the way an
 	// adapter over a backend without the capability does.
 	refuseMonitorSelect bool
 	// refuseHintSearch stands in for a backend that draws no hint search
-	// badge: the draw reports CodeNotSupported, the way the Linux overlay does
+	// badge. The draw reports CodeNotSupported, the way the Linux overlay does
 	// for a search input no backend there implements.
 	refuseHintSearch bool
 
 	mu sync.Mutex
-	// visible is whether the overlay is on screen; shows counts how many times
-	// a frame was put there. A journey needs both: entering a mode shows the
+	// visible is whether the overlay is on screen, and shows counts how many
+	// times a frame was put there. A journey needs both. Entering a mode shows the
 	// overlay once, and every keystroke after it must redraw without showing
 	// again (ADR 0003).
 	visible bool
 	shows   int
 	// drawnModes is which modes have content on screen right now, tracked the
-	// way a display would: showing a frame replaces whatever was on screen with
+	// way a display would. Showing a frame replaces whatever was on screen with
 	// that frame's content, redrawing repaints it, and clearing empties the
 	// screen. It is what lets a journey say what a user would see rather than
 	// which method was called.
@@ -223,8 +223,8 @@ type simOverlayPort struct {
 	gridPointerCalls int
 
 	// indicatorVisible is the visibility each indicator was last asked for.
-	// An indicator draws through its own call rather than a frame, so this —
-	// not a frame — is what a journey can observe about one being on screen.
+	// An indicator draws through its own call rather than a frame, so this,
+	// not a frame, is what a journey can observe about one being on screen.
 	indicatorVisible map[ports.Indicator]bool
 
 	// destroyed is whether the overlay has been released. A shutdown journey
@@ -242,7 +242,7 @@ type simOverlayPort struct {
 
 	// showFrameGate, when set, is called at the top of ShowFrame with the frame
 	// about to be drawn, *outside* m.mu. It is how a journey holds an
-	// activation open at a known point: the draw is the slowest step of one and
+	// activation open at a known point. The draw is the slowest step of one and
 	// runs under the handler's lock, so a gate that blocks there parks the
 	// activation mid-flight with h.mu held, which is the state a key pressed
 	// during a mode switch actually meets. Set it before the activation and
@@ -255,7 +255,7 @@ var _ ports.OverlayPort = (*simOverlayPort)(nil)
 
 func (m *simOverlayPort) Health(_ context.Context) error { return nil }
 
-// ShowFrame puts a frame on screen: the overlay comes up and the frame's
+// ShowFrame puts a frame on screen. The overlay comes up and the frame's
 // content replaces whatever was there.
 func (m *simOverlayPort) ShowFrame(_ context.Context, frame ports.Frame) error {
 	if gate := m.frameGate(); gate != nil {
@@ -301,8 +301,8 @@ func (m *simOverlayPort) ClearFrame(_ context.Context) error {
 func (m *simOverlayPort) SetActiveScreen(_ image.Rectangle) {}
 
 // DrawHintSearch records the query the search input was asked to show. A
-// refusing overlay records the ask too and then reports CodeNotSupported —
-// what a journey observes there is that the user was asked for, not that
+// refusing overlay records the ask too and then reports CodeNotSupported.
+// What a journey observes there is that the user was asked for, not that
 // anything was drawn.
 func (m *simOverlayPort) DrawHintSearch(search ports.HintSearch) error {
 	m.mu.Lock()
@@ -330,7 +330,7 @@ func (m *simOverlayPort) HintSearchBounds(_ image.Rectangle) image.Rectangle {
 }
 
 // UpdateGridMatches records the prefix the grid was narrowed to. This is the
-// per-keystroke path in grid mode: a journey asserts the user's typing reached
+// per-keystroke path in grid mode. A journey asserts the user's typing reached
 // the overlay here, not that the whole grid was drawn again.
 func (m *simOverlayPort) UpdateGridMatches(prefix string) {
 	m.mu.Lock()
@@ -351,7 +351,7 @@ func (m *simOverlayPort) SetGridHideUnmatched(hide bool) {
 // stand-in that came with it.
 //
 // The pointer is recorded where UpdateGridPointer records one, because it is
-// the same statement about the same surface: a user whose cursor does not
+// the same statement about the same surface. A user whose cursor does not
 // follow the selection sees the pointer land on the cell they just picked, and
 // which call carried it is the overlay's business (#1492).
 func (m *simOverlayPort) ShowGridSubgrid(cell *domainGrid.Cell, pointer ports.GridPointer) {
@@ -406,7 +406,7 @@ func (m *simOverlayPort) Flush() {}
 func (m *simOverlayPort) IsVisible() bool { return m.isVisible() }
 
 // Refresh sizes the overlay to the display that is now active, which brings it
-// up: it is the same resize the window sequence performs on its way to putting
+// up. It is the same resize the window sequence performs on its way to putting
 // a frame on screen, so a surface that was not on screen is afterwards. That
 // is the whole reason the screen-change path refuses to call it while idle
 // ("Resizing the overlay when idle would cause it to become visible",
@@ -439,7 +439,7 @@ func (m *simOverlayPort) RefreshStyles() {
 
 func (m *simOverlayPort) SetHiddenInScreenShare(_ bool) {}
 
-// SetKeyboardCaptureEnabled does nothing, and no journey can make it fire: the
+// SetKeyboardCaptureEnabled does nothing, and no journey can make it fire, because the
 // caller is gated on the event tap reporting that the overlay holds the
 // keyboard, which only the Linux evdev tap does and the simulated tap never
 // does. It is spelled out rather than inherited so that stays a stated fact
@@ -447,7 +447,7 @@ func (m *simOverlayPort) SetHiddenInScreenShare(_ bool) {}
 func (m *simOverlayPort) SetKeyboardCaptureEnabled(_ bool) {}
 
 // Destroy releases the overlay. What it records is the one thing a shutdown
-// journey needs to observe: from here on there is no surface, so anything that
+// journey needs to observe. From here on there is no surface, so anything that
 // still reaches this port is reaching one that has been freed.
 func (m *simOverlayPort) Destroy() {
 	m.mu.Lock()
@@ -505,7 +505,7 @@ func (m *simOverlayPort) recordLocked(frame ports.Frame) {
 	case ports.MonitorSelectFrame:
 		m.monitorDraws = append(m.monitorDraws, slices.Clone(drawn.Targets))
 	case ports.ScrollFrame:
-		// Scroll draws nothing: it is a mode the indicators name rather than a
+		// Scroll draws nothing. It is a mode the indicators name rather than a
 		// surface with content, so it leaves the screen empty.
 		return
 	}
@@ -711,7 +711,7 @@ func (m *simOverlayPort) lastGrid() *domainGrid.Grid {
 }
 
 // gridDrawCount reports how many times the whole grid was drawn. A journey
-// uses it to pin what a keystroke costs: narrowing must not redraw the grid.
+// uses it to pin what a keystroke costs. Narrowing must not redraw the grid.
 func (m *simOverlayPort) gridDrawCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -765,8 +765,8 @@ func (m *simOverlayPort) subgridCount() int {
 }
 
 // gridSurfaceUpdates reports how many times the grid surface was asked to
-// change by an incremental call — narrowing, opening a subgrid, moving the
-// pointer. On a backend that paints that surface whole it is the repaint count
+// change by an incremental call, such as narrowing, opening a subgrid, or
+// moving the pointer. On a backend that paints that surface whole it is the repaint count
 // for everything short of a frame, which is what makes it worth counting.
 func (m *simOverlayPort) gridSurfaceUpdates() int {
 	m.mu.Lock()
@@ -814,7 +814,7 @@ type simClick struct {
 	modifiers action.Modifiers
 }
 
-// simAXPort plays the role of the OS accessibility tree: it serves a fixed
+// simAXPort plays the role of the OS accessibility tree. It serves a fixed
 // set of fixture elements and records every action the app performs.
 type simAXPort struct {
 	mu             sync.Mutex
@@ -828,7 +828,7 @@ type simAXPort struct {
 	// focusedApp is which application the fixture desktop routes keystrokes
 	// to, and focusedAppQueries how many times the app asked for it.
 	//
-	// Both exist because asking is not free on a real desktop: on macOS it is a
+	// Both exist because asking is not free on a real desktop. On macOS it is a
 	// message to another process, so an application that is busy or wedged
 	// answers slowly or not at all. How many times a single keystroke asks is
 	// therefore a property a user can be stalled by, and a journey that counts
@@ -1025,7 +1025,7 @@ func (a *simAXPort) releaseCount() int {
 // --- hotkey backend fake ---------------------------------------------------
 
 // simHotkeyPort stands in for the OS global-hotkey backend. The app registers
-// chord -> callback through it; the harness "presses" a chord by invoking the
+// chord -> callback through it, and the harness "presses" a chord by invoking the
 // stored callback, exactly as the native backend does.
 type simHotkeyPort struct {
 	mu        sync.Mutex
@@ -1119,7 +1119,7 @@ func (c *simCursor) moveCount() int {
 // --- harness ---------------------------------------------------------------
 
 // simEventTap is the shared event tap mock plus the one thing a shutdown
-// journey needs a real tap for: tearing one down drains its key dispatcher,
+// journey needs a real tap for. Tearing one down drains its key dispatcher,
 // and that drain delivers whatever key was still queued (`dispatchWg.Wait()`
 // on Linux, `stopDispatcher` on macOS). drain is where a journey puts that.
 type simEventTap struct {
@@ -1162,7 +1162,7 @@ type simHarness struct {
 	runDone chan error
 }
 
-// focusApp switches the fixture desktop to another application: the desktop
+// focusApp switches the fixture desktop to another application. The desktop
 // answers with it from now on, and the platform watcher announces the
 // activation the way it does when the user brings an application to the front.
 //
@@ -1182,7 +1182,7 @@ func (h *simHarness) switchToDarkMode() {
 }
 
 // changeScreen rearranges the fixture desktop to the given displays and
-// notifies the app the way a platform screen-parameters observer does — a
+// notifies the app the way a platform screen-parameters observer does for a
 // monitor plugged in or unplugged, or a resolution change.
 //
 // The new arrangement is in place before the notification, so everything the
@@ -1200,16 +1200,16 @@ func (h *simHarness) changeScreen(displays ...simDisplay) {
 }
 
 // simConfig returns the default config with the standard mode bindings set
-// explicitly; tests mutate it before newSimHarness.
+// explicitly. Tests mutate it before newSimHarness.
 //
-// The bindings cannot come from platform defaults: Linux deliberately ships
+// The bindings cannot come from platform defaults. Linux deliberately ships
 // with an empty [hotkeys] table (config_linux.go) because chords like
 // Ctrl+Shift+C collide with common application shortcuts there. The journeys
 // test the binding machinery, not each platform's default binding content, so
 // they declare their own.
 func simConfig() *config.Config {
 	// The defaults as written rather than as derived, because buildSimHarness
-	// derives — a journey that changes a source option at runtime has to start
+	// derives. A journey that changes a source option at runtime has to start
 	// from a configuration where the values derived from it are still empty,
 	// which is what the daemon's own defaults are before a load settles them.
 	cfg := config.DefaultConfigForDecoding()
@@ -1225,7 +1225,7 @@ func simConfig() *config.Config {
 }
 
 // unpressedOverrideKey is what a per-app override that exists only to open the
-// focused-app path is bound to. Nothing presses it: declaring an override at
+// focused-app path is bound to. Nothing presses it. Declaring an override at
 // all is what makes a keystroke resolve the focused app, so the binding's key
 // is deliberately one no journey types.
 const unpressedOverrideKey = "F13"
@@ -1240,7 +1240,7 @@ func perAppHotkeyOverride(bundleID, key string, steps ...string) config.AppConfi
 }
 
 // firstGridLabelKey returns the lower-case first character of a drawn cell's
-// label — the key a user would press to start narrowing to it.
+// label, the key a user would press to start narrowing to it.
 func firstGridLabelKey(sim *simHarness) string {
 	grid := sim.overlay.lastGrid()
 
@@ -1270,7 +1270,7 @@ type simDesktop struct {
 	mu       sync.Mutex
 	displays []simDisplay
 	// window is the focused window the system port reports when hasWindow
-	// is set; otherwise the active screen stands in for it.
+	// is set. Otherwise the active screen stands in for it.
 	window    image.Rectangle
 	hasWindow bool
 }
@@ -1338,7 +1338,7 @@ func newSimHarnessWithDisplays(
 
 // newSimHarnessRefusingHintSearch builds the app on an overlay that draws
 // everything except the hint search badge, which it refuses with
-// CodeNotSupported — the Linux overlay's answer for a search input no backend
+// CodeNotSupported, the Linux overlay's answer for a search input no backend
 // there implements. The recorder is kept, because what this stands up is a
 // mode that has to go on working without it.
 func newSimHarnessRefusingHintSearch(
@@ -1357,8 +1357,8 @@ func newSimHarnessRefusingHintSearch(
 
 // newSimHarnessHeadlessOverlay builds the app on an overlay with no surface
 // for the monitor picker, standing in for a backend that cannot draw it. The
-// returned harness has a nil overlay recorder — only for journeys asserting
-// that a capability is refused.
+// returned harness has a nil overlay recorder, so it is only for journeys
+// asserting that a capability is refused.
 func newSimHarnessHeadlessOverlay(
 	tb testing.TB,
 	cfg *config.Config,
@@ -1376,7 +1376,7 @@ func newSimHarnessHeadlessOverlay(
 	)
 }
 
-// buildSimHarness wires the app with the given overlay port; recorder is that
+// buildSimHarness wires the app with the given overlay port. recorder is that
 // same port when the journey reads from it, nil otherwise.
 func buildSimHarness(
 	tb testing.TB,
@@ -1395,8 +1395,8 @@ func buildSimHarness(
 	// The journey's cfg is the configuration as written, and the app is handed
 	// both halves of it the way the daemon hands it the two the loader produced.
 	// A journey that writes a source option and expects the values derived from
-	// it to follow — `neru config set grid.characters` relabelling the grid —
-	// only reaches that behavior through this pair.
+	// it to follow, such as `neru config set grid.characters` relabelling the
+	// grid, only reaches that behavior through this pair.
 	written := cfg
 
 	running, deriveErr := loader.DeepCopyConfig(written)
@@ -1531,12 +1531,12 @@ func buildSimHarness(
 		application.Cleanup()
 	})
 
-	// Wait for the app watcher to be running, not for IsEnabled: the app is
+	// Wait for the app watcher to be running, not for IsEnabled. The app is
 	// enabled before Run is entered at all, so waiting on that waited for
 	// nothing and a journey could drive the fixture desktop before the app was
 	// listening. Run starts the watcher last of the three steps that have to be
 	// in place first (lifecycle.go), so this says exactly that a focus change
-	// from here on is one the app hears — and no more than that.
+	// from here on is one the app hears, and no more than that.
 	sim.waitFor("the app watcher running", watcher.Started)
 
 	// And for the rest of startup, which ends by publishing ready: a journey
@@ -1573,7 +1573,7 @@ func (h *simHarness) press(keys ...string) {
 	}
 }
 
-// pressHotkey fires a global hotkey chord the way the OS backend does: it
+// pressHotkey fires a global hotkey chord the way the OS backend does. It
 // waits for the app to register the (platform-canonicalized) chord on the
 // hotkey port, then invokes the registered callback.
 func (h *simHarness) pressHotkey(binding string) {
@@ -1608,15 +1608,15 @@ func (h *simHarness) waitFor(desc string, cond func() bool) {
 
 // waitForWithin polls cond until it holds or budget elapses.
 //
-// The order of the two checks is the load-bearing part: cond is evaluated
+// The order of the two checks is the load-bearing part. cond is evaluated
 // first and the clock consulted only after it comes back false, so however far
 // past the budget a descheduled poll wakes up, the condition is still asked
 // once more before the wait gives up. A journey therefore fails on work that
 // did not happen, never on work that happened while this process was starved
-// of a CPU — the flake #1324 reported.
+// of a CPU, the flake #1324 reported.
 //
 // The budget is therefore when a wait stops trying, not a ceiling on how long
-// it takes: a wait can outlast it by one evaluation of cond, which matters
+// it takes. A wait can outlast it by one evaluation of cond, which matters
 // only for a condition that is itself slow to answer.
 func (h *simHarness) waitForWithin(budget time.Duration, desc string, cond func() bool) {
 	h.t.Helper()
@@ -1646,13 +1646,13 @@ func (h *simHarness) waitMode(mode domain.Mode) {
 }
 
 // neverMode asserts the app does not enter the given mode within the window.
-// Absence can only be checked for a bounded time; the window is generous
+// Absence can only be checked for a bounded time, so the window is generous
 // relative to the (in-process, no-IO) activation path it guards against.
 //
 // Deliberately not scaled by simScaleForRace, unlike every wait budget above.
-// A wait is scaled because slowness turns it into a failure; this window's
-// failure mode is the opposite one — a starved process watches nothing and
-// passes vacuously — and stretching the window does not fix that, because a
+// A wait is scaled because slowness turns it into a failure. This window's
+// failure mode is the opposite one, where a starved process watches nothing
+// and passes vacuously, and stretching the window does not fix that, because a
 // starved four seconds is as empty as a starved 250 milliseconds. It would
 // only add real seconds to every -race run. The window a caller writes is the
 // window it gets.

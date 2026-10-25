@@ -1,6 +1,7 @@
 package config
 
-// DefaultConfig returns the default application configuration with sensible defaults for the current platform.
+// DefaultConfig returns the default configuration for the current platform,
+// with the derived values resolved.
 func DefaultConfig() *Config {
 	cfg := newDefaultConfig()
 	applyPlatformDefaults(cfg)

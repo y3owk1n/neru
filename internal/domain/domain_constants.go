@@ -20,13 +20,13 @@ const (
 	ModeScroll
 	// ModeRecursiveGrid is the recursive-grid navigation mode.
 	ModeRecursiveGrid
-	// ModeBisect is the bisect navigation mode: every press keeps half of the
+	// ModeBisect is the bisect navigation mode. Every press keeps half of the
 	// region, or a quadrant of it.
 	ModeBisect
 	// ModeMonitorSelect is the interactive monitor selection mode.
 	ModeMonitorSelect
 	// ModeCustom is a mode the user declared in [modes.<name>]. It has no
-	// logic of its own: a keymap and an indicator label, and the declared
+	// logic of its own, only a keymap and an indicator label, and the declared
 	// name says which. One value serves every declared mode, so the switches
 	// that name a mode gain one arm rather than one per declaration.
 	ModeCustom
@@ -36,7 +36,7 @@ const (
 //
 // CommandMacro deliberately spells the same word as config.MacroCommand, which
 // names the step keyword inside a binding. A macro is invoked the same way
-// wherever it is written, so the two must not drift apart; they are separate
+// wherever it is written, so the two must not drift apart. They are separate
 // constants only because the domain package cannot import config.
 const (
 	CommandPing                        = "ping"
@@ -84,11 +84,11 @@ const (
 // The values a mode command's options accept.
 //
 // They live here rather than beside the configuration fields or the mode that
-// reads them because a mode command reaches the daemon from three places — the
-// CLI, a hotkey binding, and a direct IPC caller — and all three have to agree
-// on the vocabulary. Config validates bindings, so the module that parses a
-// mode command cannot import config; putting the values beneath both is what
-// lets every reader name the same constant.
+// reads them because a mode command reaches the daemon from the CLI, a hotkey
+// binding, and a direct IPC caller, and all three have to agree on the
+// vocabulary. Config validates bindings, so the module that parses a mode
+// command cannot import config. Putting the values beneath both lets every
+// reader name the same constant.
 
 // Element detection strategies, the values hints.strategy accepts.
 const (
@@ -98,7 +98,7 @@ const (
 	// StrategyVision detects elements from the screen image instead.
 	StrategyVision = "vision"
 
-	// CaptureScopeWindow scans the focused window; the whole screen when
+	// CaptureScopeWindow scans the focused window, or the whole screen when
 	// nothing is focused.
 	CaptureScopeWindow = "window"
 
@@ -157,8 +157,7 @@ const (
 	ShellCommandTimeout = 30 * time.Second
 )
 
-// BaseManager provides common functionality for domain managers.
-// It contains shared fields and methods used across different domain managers.
+// BaseManager holds the typed input and logger that the domain managers share.
 type BaseManager struct {
 	currentInput string
 	Logger       *zap.Logger

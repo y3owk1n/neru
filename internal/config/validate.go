@@ -12,7 +12,7 @@ import (
 // It is the form every caller that can act on nothing else uses.
 //
 // It collects no warnings, so it has nothing to attribute and passes no written
-// configuration: the zero [WrittenConfig] is the honest answer for a caller
+// configuration. The zero [WrittenConfig] is the honest answer for a caller
 // that never loaded a file.
 func (c *Config) Validate() error {
 	return c.ValidateWithWarnings(nil, WrittenConfig{})
@@ -20,11 +20,11 @@ func (c *Config) Validate() error {
 
 // ValidateWithWarnings validates the configuration and collects, into warnings,
 // the parts of it that load and will not do what they say. A nil sink discards
-// them; see [Warnings] for why the two are told apart at all.
+// them. See [Warnings] for why the two are told apart at all.
 //
 // The configuration validated is the one the daemon will run on, derived values
 // and all. written is what the user wrote it from, for the warnings that have
-// to name a line in a file rather than a field in a struct; see
+// to name a line in a file rather than a field in a struct. See
 // [WrittenConfig], whose zero value means there is none to consult.
 func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig) error {
 	if c == nil {
@@ -86,13 +86,11 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return err
 	}
 
-	// Validate grid settings
 	err = c.ValidateGrid(warnings, written)
 	if err != nil {
 		return err
 	}
 
-	// Validate recursive-grid settings
 	err = c.ValidateRecursiveGrid()
 	if err != nil {
 		return err
@@ -113,31 +111,26 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return err
 	}
 
-	// Validate sticky modifiers settings
 	err = c.ValidateStickyModifiers()
 	if err != nil {
 		return err
 	}
 
-	// Validate smooth cursor settings
 	err = c.ValidateSmoothCursor()
 	if err != nil {
 		return err
 	}
 
-	// Validate smooth scroll settings
 	err = c.ValidateSmoothScroll()
 	if err != nil {
 		return err
 	}
 
-	// Validate held-key repeat settings
 	err = c.ValidateHeldRepeat(warnings)
 	if err != nil {
 		return err
 	}
 
-	// Validate top-level hotkey bindings
 	err = c.ValidateHotkeyBindings()
 	if err != nil {
 		return err
@@ -150,7 +143,6 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return err
 	}
 
-	// Validate per-mode custom hotkeys
 	err = c.ValidateHotkeys()
 	if err != nil {
 		return err
@@ -164,11 +156,11 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 	// The two whole-configuration walks close the ladder. Both go through
 	// eachBindingAction, which reads every action string the configuration can
 	// dispatch rather than one section of it, so both run after the validators
-	// that own the tables it reads: a fault either reports then names a binding
-	// already read for shape.
+	// that own the tables it reads. A fault either walk reports then names a
+	// binding already read for shape.
 	//
-	// Their order relative to each other carries nothing: neither reads what the
-	// other establishes. That they come last does, and
+	// Their order relative to each other carries nothing, because neither reads
+	// what the other establishes. That they come last does, and
 	// TestTheBindingWalksCloseTheLadder in internal/architecture fails when one
 	// stops being at the end.
 	err = c.ValidateMacros()
@@ -410,10 +402,5 @@ func (c *Config) ValidateScroll() error {
 		return err
 	}
 
-	err = validateScrollAppConfigs("scroll", c.Scroll.AppConfigs)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return validateScrollAppConfigs("scroll", c.Scroll.AppConfigs)
 }

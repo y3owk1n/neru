@@ -13,7 +13,7 @@ Supported on Plasma 6.
    session.
 2. Start Neru. A "Remote Control" prompt appears.
 3. Tick **Enable keyboard**, then allow.
-4. Bind your modes, see [Global hotkeys on Wayland](#global-hotkeys-on-wayland).
+4. Bind your modes. See [Global hotkeys on Wayland](#global-hotkeys-on-wayland).
 
 > [!WARNING]
 > If you allow without ticking **Enable keyboard**, modified clicks degrade
@@ -66,7 +66,7 @@ or later.
 2. Start Neru and approve the prompts, as on
    [KDE](#kde-plasma-wayland), including
    [screen-sharing consent](#screen-sharing-consent).
-3. Bind your modes, see [Global hotkeys on Wayland](#global-hotkeys-on-wayland).
+3. Bind your modes. See [Global hotkeys on Wayland](#global-hotkeys-on-wayland).
 
 ## wlroots compositors
 
@@ -141,8 +141,8 @@ scaled monitors. Turn it off. The daemon warns at startup when it sees this.
 
 ### Budgie, Cinnamon and Pantheon
 
-Budgie identifies as GNOME and takes this backend untested, and its shell
-cannot load the extension. For Cinnamon and Pantheon, see
+Budgie identifies as GNOME, so Neru gives it this backend. That path is
+untested, and Budgie's shell cannot load the extension. For Cinnamon and Pantheon, see
 [Supported desktops](linux.md#supported-desktops).
 
 ## Global hotkeys on Wayland

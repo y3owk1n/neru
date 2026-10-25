@@ -20,8 +20,8 @@ import (
 )
 
 // x11Overlay is the X11 backend: the cgo connection, the HiDPI scale probe,
-// and the overlaySurface primitives. Everything above the primitives —
-// drawing, animation, and the exported methods the manager calls — lives on
+// and the overlaySurface primitives. Everything above the primitives,
+// drawing, animation, and the exported methods the manager calls, lives on
 // the embedded sharedOverlay and is promoted from there. What stays here is
 // what X11 does differently: Show, Resize and Destroy, the scale probe, and
 // the primitives themselves.
@@ -113,10 +113,10 @@ func (o *x11Overlay) s() float64 {
 
 func (o *x11Overlay) surfaceScale() float64 { return o.s() }
 
-// ensureBuffers is a no-op: X11 draws into a single server-side pixmap.
+// ensureBuffers is a no-op, because X11 draws into a single server-side pixmap.
 func (o *x11Overlay) ensureBuffers() {}
 
-// beginFrame always succeeds: X11 has no buffer pool to run dry.
+// beginFrame always succeeds, because X11 has no buffer pool to run dry.
 func (o *x11Overlay) beginFrame() bool { return true }
 
 func (o *x11Overlay) surfaceClear() {

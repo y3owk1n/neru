@@ -3,6 +3,6 @@
 // or the depth limit is hit. Backspace backtracks one level.
 //
 // The key mapping is a string of grid_cols*grid_rows characters, "rtyfghvbn"
-// by default for 3x3. NewRecursiveGrid drives one grid; Manager wires it to
+// by default for 3x3. NewRecursiveGrid drives one grid, and Manager wires it to
 // the mode system with overlay and completion callbacks.
 package recursivegrid

@@ -59,7 +59,8 @@ func filterHintsForScreen(
 	return filtered
 }
 
-// activateHintModeWithAction activates hint mode with optional action parameter.
+// activateHintModeWithAction activates hint mode with the flags the activation
+// carries.
 func (h *handlerState) activateHintModeWithAction(activation modecmd.Activation) {
 	h.activateHintModeInternal(activation)
 
@@ -69,9 +70,8 @@ func (h *handlerState) activateHintModeWithAction(activation modecmd.Activation)
 	}
 }
 
-// activateHintModeInternal activates hint mode with an optional action.
-// It handles mode validation, overlay positioning, element collection, hint
-// generation, and UI setup for hint-based navigation.
+// activateHintModeInternal validates the activation, collects and labels the
+// elements, and puts the hints on screen.
 func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
@@ -81,7 +81,7 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		h.cycleHintIndex = -1
 	}
 
-	// On refresh, properly escape the active IME and clear search state first.
+	// On refresh, cancel the active IME and clear the search state first.
 	// Otherwise the IME is left orphaned during screen or space transitions,
 	// where the OS moves focus to the frontmost app.
 	if isRefresh && h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
@@ -113,10 +113,10 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		h.stopIndicatorPolling()
 	} else {
 		// Coming from another mode, the keyboard is handed over rather than
-		// given back: exit now, release at return if nothing is entered. Hints
-		// has more ways to give up than any other mode — every
-		// abandonHintActivation below, plus the permission dialog that suspends
-		// the activation — and the deferred release covers all of them.
+		// given back. Exit now, release at return if nothing is entered. Hints
+		// has more ways to give up than any other mode. The deferred release
+		// covers every abandonHintActivation below and the permission dialog
+		// that suspends the activation.
 		defer h.exitModeForTransition()()
 	}
 
@@ -128,7 +128,7 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		return
 	}
 
-	// Always resize overlay to the active screen (where mouse is) before collecting elements.
+	// Read the active screen (where the mouse is) before collecting elements.
 	// Otherwise the overlay lands on the display the mouse just left.
 	var activeScreenBounds image.Rectangle
 
@@ -144,7 +144,7 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	h.setScreenBounds(activeScreenBounds)
 	// On a fresh activation, take whatever frame is on screen off it (e.g.
 	// scroll highlights) before drawing hints. Entering from another mode has
-	// already done this through exitMode above; entering from idle has not,
+	// already done this through exitMode above. Entering from idle has not,
 	// and that is the case this covers. A refresh keeps its frame so the
 	// existing labels persist until the redraw draws the new set over them.
 	if !isRefresh {
@@ -264,22 +264,21 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		return
 	}
 
-	// Create domain hint collection from generated hints
 	hintCollection := domainHint.NewCollection(domainHints)
 
-	// Initialize hint manager and router if not already set up
-	// Note: Manager is created once and reused across activations (holds mutable state).
-	// Router is recreated each activation (stateless, needs fresh exit keys from config).
+	// The manager is created once and reused across activations, because it
+	// holds mutable state. The router is rebuilt each activation below so it
+	// reads fresh exit keys from the config.
 	if h.hints.Context.Manager() == nil {
 		manager := domainHint.NewManager(h.logger, &h.outer.mu)
 		manager.SetUpdateCallback(h.drawHints)
 		h.hints.Context.SetManager(manager)
 	}
 
-	// Only set mode and enable event tap on initial activation;
-	// during refresh these are already in the correct state. The overlay is
-	// not switched here: hints hands over a Frame, and switching the overlay
-	// belongs to the one place that realizes it.
+	// Only set the mode and enable the event tap on the first activation.
+	// During a refresh these are already in the correct state. The overlay is
+	// not switched here, because hints hands over a Frame, and switching the
+	// overlay belongs to the one place that realizes it.
 	if !isRefresh {
 		h.enterMode(domain.ModeHints)
 	} else {
@@ -293,13 +292,13 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
 
 	// Every activation puts the hints Frame on screen again, fresh or
-	// in-place: the refresh path runs after a passthrough or a space change,
+	// in place. The refresh path runs after a passthrough or a space change,
 	// where the overlay has to be re-shown on the display the user is now on.
 	//
 	// This sits immediately before SetHints on purpose. Clearing the flag says
 	// "the next draw performs the window sequence", so it may only be cleared
 	// where the hint manager's pending debounced updates are invalidated in the
-	// same locked section — SetHints below bumps the update generation, and on
+	// same locked section. SetHints below bumps the update generation, and on
 	// the teardown path Manager.Clear does. Clearing it any earlier would let a
 	// debounce timer that fired in between show and switch an overlay this
 	// activation may still abandon.
@@ -373,7 +372,7 @@ func (h *handlerState) requestScreenCapturePermissionAndResume(
 // resumeHintActivationAfterPermission re-enters the handler once the
 // screen-capture permission dialog is answered. A granted consent re-runs the
 // activation from the top, which re-reads the screen bounds, focused app and
-// strategy that may have changed while the dialog was open; a consent whose
+// strategy that may have changed while the dialog was open. A consent whose
 // mode session moved on is dropped.
 func (h *Handler) resumeHintActivationAfterPermission(
 	consent ports.ScreenCaptureConsent,
@@ -396,9 +395,9 @@ func (h *Handler) resumeHintActivationAfterPermission(
 		h.shutdown()
 	case ports.ScreenCaptureCanceled:
 		// Canceled is the platform's answer for "the user said no" *and* for a
-		// permission gate that could not be reached at all — a stopped
-		// xdg-desktop-portal on KDE, say — because the consent vocabulary has no
-		// third word for it. Leaving the mode without a line would make the two
+		// permission gate that could not be reached at all, such as a stopped
+		// xdg-desktop-portal on KDE, because the consent vocabulary has no third
+		// word for it. Leaving the mode without a line would make the two
 		// indistinguishable from a hint activation that silently did nothing.
 		h.logger.Warn("Screen capture was not permitted, leaving hints mode")
 		h.exitMode()

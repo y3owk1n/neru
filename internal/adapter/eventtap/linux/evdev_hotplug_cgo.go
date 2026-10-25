@@ -56,7 +56,7 @@ func (capture *waylandEvdevCapture) startHotplugWatcher() {
 
 	capture.deviceMu.Lock()
 	if capture.inotifyFd != -1 {
-		// A watcher is already running; clean up the duplicate.
+		// A watcher is already running, so clean up the duplicate.
 		capture.deviceMu.Unlock()
 
 		_ = syscall.Close(inotifyFd)
@@ -149,9 +149,9 @@ func (capture *waylandEvdevCapture) handleInotifyEvents(buf []byte) {
 
 // handleNewDevice opens a newly created /dev/input/event* device and, if it
 // is a keyboard this capture should read, adds it under the same rules as the
-// initial scan — grabbed and seeded when the capture grabs — and starts a
+// initial scan, grabbed and seeded when the capture grabs, and starts a
 // reader for it. A uinput keyboard from another process is a remapper's output
-// device, and the remapper is about to grab its inputs: the physical keyboards
+// device, and the remapper is about to grab its inputs, so the physical keyboards
 // are yielded to it, whether it is starting for the first time with this
 // capture already up, or starting again after an exit that had the capture
 // take the keyboards it released (rescan).
@@ -169,11 +169,11 @@ func (capture *waylandEvdevCapture) handleNewDevice(name string) {
 // rescan runs after a captured device is gone, looking for keyboards that
 // refused the grab earlier and are free now. A remapper (kanata, keyd) that
 // exits releases the physical keyboards it held in the same instant its output
-// device, the one this capture was reading, disappears; the released keyboards
+// device, the one this capture was reading, disappears. The released keyboards
 // are existing nodes, so no inotify event announces them, and without this the
 // user's keys would bypass the proxy until the daemon restarted.
 func (capture *waylandEvdevCapture) rescan() {
-	// The remapper's fds close in whatever order its process teardown picks;
+	// The remapper's fds close in whatever order its process teardown picks, so
 	// give the release of its inputs a moment to land before trying them.
 	time.Sleep(waylandEvdevHotplugSettleDelay)
 
@@ -192,7 +192,7 @@ func (capture *waylandEvdevCapture) rescan() {
 // whether it did, and whether the keyboard is another process's uinput device.
 // A keyboard with a key down is adopted once it is idle instead. reason is
 // what brought the path here, for the log. Nothing is adopted once the capture
-// is closing: a reader started then would outlive the wait Close makes on the
+// is closing. A reader started then would outlive the wait Close makes on the
 // readers, which is why the reader is counted under the same lock the closing
 // check takes.
 func (capture *waylandEvdevCapture) adopt(path string, reason string) (bool, bool) {

@@ -27,9 +27,9 @@ import (
 )
 
 // Manager manages overlay rendering on Windows, backed by a click-through
-// Win32 HWND — DirectComposition and Direct2D where they come up, a layered
-// window updated from GDI otherwise — drawing grid, hints, and recursive-grid
-// overlays.
+// Win32 HWND, drawing grid, hints, and recursive-grid overlays. It uses
+// DirectComposition and Direct2D where they come up, and a layered window
+// updated from GDI otherwise.
 // Does not implement keyboard capture (handled by the low-level keyboard hook).
 type Manager struct {
 	manager.Base
@@ -241,7 +241,7 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 // BuildComponents constructs the render components this manager draws through.
 //
 // It never reports itself headless, and deliberately does not declare the
-// HeadlessReporter capability at all: the surface is recreated on demand at
+// HeadlessReporter capability at all. The surface is recreated on demand at
 // draw time, so having no window while components are built is not a verdict
 // on whether it can render. The components here only store the handle they are
 // given, so building them against a missing surface costs nothing.
@@ -308,7 +308,7 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 
 // DrawHintsWithStyle draws the hints overlay on the Windows overlay window.
 //
-// The placement is resolved once, before anything is drawn: it is the same for
+// The placement is resolved once, before anything is drawn. It is the same for
 // every badge in the frame, and a placement this overlay cannot draw is
 // reported rather than approximated. Drawing every hint centered instead would
 // leave the user looking at labels in a placement they did not choose, with
@@ -329,7 +329,7 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	offset, offsetErr := resolveHintBadgeOffset(style.Placement())
 	if offsetErr != nil {
 		// The error reaches the mode handler, which degrades quietly on
-		// CodeNotSupported — so say it here too, or a placement this overlay
+		// CodeNotSupported, so say it here too, or a placement this overlay
 		// cannot draw costs the user every hint with only a debug line to
 		// explain it. The placement is a fixed configuration keyword.
 		m.placementRefusal.Warn(m.logger, style.Placement(),
@@ -342,7 +342,7 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 
 	m.placementRefusal.Reset()
 
-	// Shared activation may draw before the resize; enforce monitor bounds here.
+	// Shared activation may draw before the resize, so enforce monitor bounds here.
 	m.win.Resize()
 	m.win.DrawHints(hintsSlice, style, offset)
 
@@ -354,13 +354,13 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 // here, and every value config.HintPlacements() declares has a branch.
 //
 // Anything else is refused rather than drawn, the way the Linux and macOS
-// overlays refuse it: a placement added to the vocabulary without a branch
+// overlays refuse it. A placement added to the vocabulary without a branch
 // here would otherwise validate, reach this backend and draw somewhere nobody
 // chose, with nothing failing anywhere.
 //
-// The empty string is not one of those: it is a style that reached the overlay
-// before a configuration settled it, and it draws at the documented default —
-// the same answer the other two backends give it, so a draw that beats the
+// The empty string is not one of those. It is a style that reached the overlay
+// before a configuration settled it, and it draws at the documented default.
+// That is the same answer the other two backends give it, so a draw that beats the
 // first Apply puts hints in the same place on all three.
 func resolveHintBadgeOffset(placement string) (badge.HintOffset, error) {
 	if placement == "" {
@@ -463,7 +463,7 @@ func (m *Manager) HideHintSearchInput() {
 
 	if m.win.lastHints != nil {
 		m.win.Resize()
-		// DrawHints clears + redraws; using it erases the search overlay.
+		// DrawHints clears and redraws, so using it erases the search overlay.
 		m.win.DrawHints(m.win.lastHints, m.win.lastHintStyle, m.win.lastHintOffset)
 	}
 }
@@ -730,7 +730,6 @@ func (m *Manager) DrawMouseActionIndicator(
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	// Cancel any running mouse action animation.
 	if m.mouseActionCancel != nil {
 		m.mouseActionCancel()
 		m.mouseActionCancel = nil
@@ -756,7 +755,7 @@ func (m *Manager) DrawMouseActionIndicator(
 	winSize := int(maxIndicatorSize) + int(borderWidth)*2 + paddingFactor
 	halfWinSize := winSize / 2 //nolint:mnd // divide by 2
 
-	// Not badge.CenteredOn: this places a native window, which takes an origin
+	// Not badge.CenteredOn, because this places a native window, which takes an origin
 	// and a size rather than a rectangle, and the animation inside it measures
 	// from the same half.
 	posX := point.X - halfWinSize
@@ -807,7 +806,7 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 		)
 	}
 
-	// Shared activation may call draw before resize; enforce monitor bounds here.
+	// Shared activation may call draw before resize, so enforce monitor bounds here.
 	m.win.Resize()
 
 	if m.logger != nil {
@@ -829,7 +828,7 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 // DrawRecursiveGrid draws the recursive-grid overlay on the Windows overlay window.
 //
 // The next-depth keys and dimensions are handed on to the draw, which previews
-// them as a mini-grid inside each cell. So is the depth: the surface compares
+// them as a mini-grid inside each cell. So is the depth. The surface compares
 // it against the last one drawn and zooms between them when
 // recursive_grid.animation says to (transition.go), the way the Linux
 // backends do.
@@ -885,8 +884,8 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 // ShowSubgrid shows a subgrid inside the selected cell, with the pointer
 // stand-in that belongs on the same surface once the cell has been picked.
 //
-// Both are painted into one pixel buffer here, so the pointer rides the open
-// (#1492) rather than following it as a call of its own: applied afterwards
+// Both are painted into one pixel buffer here, so the pointer is painted with
+// the open (#1492) rather than following it as a call of its own. Applied afterwards
 // through Base.ApplyGridPointer it would dispatch statically past the
 // DrawGridPointer override below and repaint the surface a second time for
 // one keystroke, arrow keys inside a subgrid included.
@@ -906,9 +905,9 @@ func (m *Manager) ShowSubgrid(
 
 // DrawGridPointer puts grid mode's pointer stand-in on the layered window.
 //
-// Overrides the Base method, which resolves a mode to a render component: off
+// Overrides the Base method, which resolves a mode to a render component. Off
 // darwin those components own no surface, which is why the pointer was a no-op
-// in grid mode here while recursive grid, whose pointer rides the frame every
+// in grid mode here while recursive grid, whose pointer travels in the frame every
 // keystroke hands over, drew it. Recursive grid is still delegated so the Base
 // keeps answering for a mode this backend does not paint on its own.
 func (m *Manager) DrawGridPointer(
@@ -973,7 +972,7 @@ func (m *Manager) Flush() {
 	}
 }
 
-// SetKeyboardCaptureEnabled is a no-op on Windows; the low-level keyboard hook
+// SetKeyboardCaptureEnabled is a no-op on Windows. The low-level keyboard hook
 // manages capture directly and has no scroll-passthrough toggle.
 func (m *Manager) SetKeyboardCaptureEnabled(_ bool) {}
 
@@ -1015,7 +1014,7 @@ func (m *Manager) drawRegionGrid(
 		animDuration = time.Duration(animCfg.DurationMS) * time.Millisecond
 	}
 
-	// Shared activation may draw before the resize; enforce monitor bounds here.
+	// Shared activation may draw before the resize, so enforce monitor bounds here.
 	m.win.Resize()
 	m.win.DrawRecursiveGrid(
 		bounds, depth, keys, dims, nextKeys, nextDims, style, virtualPointer,
@@ -1169,7 +1168,7 @@ func scaleColorAlpha(hexColor string, opacity float64) uint32 {
 // dispatchGridPointer hands the pointer state to the backend, which keeps it
 // and repaints the grid surface with it. It takes renderMu the way
 // UpdateGridMatches does for the same repaint, and no caller holds the lock
-// already: the adapter reaches it directly from UpdateGridPointer and
+// already. The adapter reaches it directly from UpdateGridPointer and
 // ClearFrame.
 func (m *Manager) dispatchGridPointer(pointer recursivegrid.VirtualPointerState) {
 	m.renderMu.Lock()
@@ -1196,7 +1195,7 @@ func (m *Manager) ensureWinOverlayLocked() {
 // syncSublayerKeysLocked hands the surface the keys the subgrid is drawn with.
 // Every draw that can put a subgrid on screen calls it, because the surface is
 // rebuilt behind this manager (ensureWinOverlayLocked) and a rebuilt one starts
-// with no keys — and a surface with no keys draws a subgrid the user cannot see
+// with no keys. A surface with no keys draws a subgrid the user cannot see
 // but can still act on.
 func (m *Manager) syncSublayerKeysLocked() {
 	if m.win == nil || m.GridOverlay() == nil {

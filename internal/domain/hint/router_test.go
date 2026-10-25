@@ -74,7 +74,7 @@ func TestRouter_WithHints(t *testing.T) {
 		t.Fatalf("SetHints: %v", err)
 	}
 
-	// Test partial match - typing "A" should not complete yet
+	// Typing "A" is a partial match and does not complete yet.
 	result, err := router.RouteKey("a")
 	if err != nil {
 		t.Fatalf("RouteKey: %v", err)
@@ -84,7 +84,7 @@ func TestRouter_WithHints(t *testing.T) {
 		t.Error("Should not have exact hint match for partial input 'a'")
 	}
 
-	// Test exact match - typing "AB" should complete
+	// Typing "AB" is an exact match and completes.
 	result, err = router.RouteKey("b")
 	if err != nil {
 		t.Fatalf("RouteKey: %v", err)
@@ -98,8 +98,8 @@ func TestRouter_WithHints(t *testing.T) {
 		t.Errorf("Expected hint label 'AB', got %s", result.ExactHint().Label())
 	}
 
-	// Reset and test another partial/exact sequence
-	err = manager.SetHints(collection) // Reset input state
+	// Reset the input and run another partial then exact sequence.
+	err = manager.SetHints(collection)
 	if err != nil {
 		t.Fatalf("SetHints: %v", err)
 	}

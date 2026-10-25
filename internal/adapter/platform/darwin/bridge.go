@@ -53,19 +53,13 @@ func SetHotkeyHandler(handler HotkeyHandler) {
 // CreateHotkeyTap creates a per-hotkey CGEventTap.
 // Returns an opaque handle (must be destroyed via DestroyHotkeyTap) or nil on failure.
 func CreateHotkeyTap(hotkeyID, keyCode, modifiers int) unsafe.Pointer {
-	tap := C.NeruCreateHotkeyTap(
+	return unsafe.Pointer(C.NeruCreateHotkeyTap(
 		C.int(hotkeyID),
 		C.int(keyCode),
 		C.int(modifiers),
 		C.HotkeyTapCallback(C.hotkeyCallbackBridge),
 		nil,
-	)
-
-	if tap == nil {
-		return nil
-	}
-
-	return unsafe.Pointer(tap)
+	))
 }
 
 // DestroyHotkeyTap destroys a per-hotkey CGEventTap previously created by CreateHotkeyTap.
@@ -85,9 +79,7 @@ func ParseKeyString(keyString string) (int, int, bool) {
 	var modifiers C.int
 	result := C.NeruParseKeyString(cKeyString, &keyCode, &modifiers)
 
-	success := result == 1
-
-	return int(keyCode), int(modifiers), success
+	return int(keyCode), int(modifiers), result == 1
 }
 
 //export hotkeyCallbackBridge
@@ -108,8 +100,8 @@ func SetAppWatcher(watcher AppWatcherInterface) {
 }
 
 // SetDetectMissionControlEnabled enables or disables Mission Control detection.
-// When disabled, the entire detection pipeline is gated at the ObjC level —
-// no timer, no window scans, and no callbacks to the Go bridge.
+// When disabled, the entire detection pipeline is gated at the ObjC level,
+// with no timer, no window scans, and no callbacks to the Go bridge.
 func SetDetectMissionControlEnabled(enabled bool) {
 	mcDetectionEnabled.Store(enabled)
 	C.NeruSetDetectMissionControlEnabled(C.bool(enabled))

@@ -13,25 +13,25 @@ import (
 //
 // Tearing the event tap down drains its key dispatcher, and that drain
 // delivers whatever key was still queued into the mode handler, which draws.
-// So the tap has to go first: released the other way round, a key arriving in
+// So the tap has to go first. Released the other way round, a key arriving in
 // the window between the two calls is handled after the overlay is gone, and
 // on macOS the native window it would draw on has already been freed.
 //
 // The drain below is where the real taps spend their teardown, and pressing a
 // mode hotkey from inside it is exactly the key the issue describes. What the
-// journey asserts is the state that key found — an overlay still alive — rather
+// journey asserts is the state that key found, an overlay still alive, rather
 // than a frame reaching the screen, because in this path it would not reach
-// one either way: the activation's own draw is refused by the already-canceled
+// one either way. The activation's own draw is refused by the already-canceled
 // root context (`showFrame` keeps h.ctx for precisely that reason,
 // `modes/frames.go`). What is not gated that way is everything else the port
-// declares — mode teardown's ClearFrame deliberately uses a background context,
-// and none of the grid surface's per-keystroke updates takes one at all — so
+// declares. Mode teardown's ClearFrame deliberately uses a background context,
+// and none of the grid surface's per-keystroke updates takes one at all, so
 // the ordering is what covers them, and the overlay adapter's own guard
 // (`TestAdapterDestroy_StopsEveryPortCallFromReachingTheBackend`) is what
 // covers a caller that arrives anyway.
 //
-// The shutdown under test is the harness's own — stop the app, wait for Run to
-// return, then clean up — rather than a Cleanup called from the body. Cleaning
+// The shutdown under test is the harness's own rather than a Cleanup called
+// from the body. It stops the app, waits for Run to return, then cleans up. Cleaning
 // up while Run is still bringing the daemon the rest of the way up races the
 // startup it has not finished, which is a fixture problem and not the one this
 // journey is about. That puts the assertions in a t.Cleanup registered before
@@ -65,7 +65,7 @@ func TestSimulation_ShutdownDrainsTheEventTapBeforeReleasingTheOverlay(t *testin
 	sim = newSimHarness(t, simConfig(), nil)
 
 	// The key is delivered from a goroutine the drain then joins, because that
-	// is the shape the real teardown has: the dispatcher is a goroutine of its
+	// is the shape the real teardown has. The dispatcher is a goroutine of its
 	// own, and what a backend's Destroy spends its time on is waiting for it.
 	// Delivering inline would pin the ordering and model nothing, and would
 	// give the -race pass nothing to see.

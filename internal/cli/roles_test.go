@@ -119,7 +119,7 @@ func TestRolesCmd_ListsEverySemanticRole(t *testing.T) {
 		return
 	}
 
-	// Roles that apply here must show their native expansion; roles that do
+	// Roles that apply here must show their native expansion. Roles that do
 	// not must say so rather than render an empty column.
 	for _, mapping := range element.RoleVocabulary {
 		native := mapping.Native(vocabulary)
@@ -156,7 +156,7 @@ func TestRolesCmd_MarksAXSubroleNames(t *testing.T) {
 }
 
 // TestRolesCmd_ExplainReportsEveryEntry covers the --explain path, including
-// the entries that do not apply on this platform — the case the command exists
+// the entries that do not apply on this platform, the case the command exists
 // to make visible.
 func TestRolesCmd_ExplainReportsEveryEntry(t *testing.T) {
 	entries := []string{"button", "ax:AXGenericElement", "atspi:page tab list", "uia:Custom"}

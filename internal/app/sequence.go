@@ -10,10 +10,10 @@ import (
 // newSequenceExecutor builds the executor from the App's own components.
 //
 // Every dependency is handed over as a function or a one-method interface, so
-// the executor never sees the App. That is what lets sequencing be tested — and
-// eventually moved — without a daemon.
+// the executor never sees the App. That is what lets sequencing be tested, and
+// eventually moved, without a daemon.
 func (a *App) newSequenceExecutor() *sequence.Executor {
-	// Handing over a typed nil would defeat the executor's own nil check: the
+	// Handing over a typed nil would defeat the executor's own nil check. The
 	// interface would be non-nil and the first step would dereference it.
 	var commands sequence.CommandHandler
 	if a.ipcController != nil {

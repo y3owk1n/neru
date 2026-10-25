@@ -108,7 +108,7 @@ func TestSimulation_EventsReportASelectionAsCompleted(t *testing.T) {
 }
 
 // TestSimulation_EventsReportASelectionThatRanNoAction covers the default
-// binding, a bare hints: a label moves the cursor to the element and hints
+// binding, a bare hints. A label moves the cursor to the element and hints
 // stays open for the next step, so no mode change is published. The selection
 // is still published, with no action, and it is the only event a script sees.
 func TestSimulation_EventsReportASelectionThatRanNoAction(t *testing.T) {

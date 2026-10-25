@@ -19,7 +19,7 @@ import (
 )
 
 // Low-level Win32 helpers for screen, cursor, window, and process queries.
-// Does not implement ports.SystemPort; system.go delegates here.
+// Does not implement ports.SystemPort. system.go delegates here.
 const (
 	cchDeviceName                  = 32
 	processQueryLimitedInformation = 0x1000
@@ -125,7 +125,7 @@ func moveCursorTo(point image.Point) error {
 
 // warpCursor is one SetCursorPos, followed while a button is held by the
 // injected move that gets the pointer redrawn there (dragMotionTo). The
-// redraw is best-effort: a warp the pointer still makes beats one that fails
+// redraw is best-effort, because a warp the pointer still makes beats one that fails
 // because SendInput was refused.
 func warpCursor(point image.Point) error {
 	ret, _, err := procSetCursorPos.Call(uintptr(point.X), uintptr(point.Y))
@@ -221,7 +221,7 @@ type monitorEnumState struct {
 var (
 	// monitorEnumMu serializes enumeration passes. It is held across the whole
 	// EnumDisplayMonitors call, which is what makes the single shared collector
-	// below safe: Windows invokes MONITORENUMPROC synchronously, on the
+	// below safe. Windows invokes MONITORENUMPROC synchronously, on the
 	// goroutine that made the call, before the call returns.
 	//
 	// It is an ordinary non-reentrant mutex held across a syscall, so nothing
@@ -243,13 +243,13 @@ var (
 	// frees a slot, and the table is a fixed cb_max = 2000 entries
 	// (runtime/zcallback_windows.go). Every distinct closure passed to
 	// syscall.NewCallback therefore burns one permanently. enumerateMonitors
-	// runs on repeated mode activations — activeScreenBounds,
-	// screenBoundsByName, screenNames and NewOverlayWindow all reach it — so a
+	// runs on repeated mode activations, since activeScreenBounds,
+	// screenBoundsByName, screenNames and NewOverlayWindow all reach it. A
 	// per-call closure made a long session a countdown to "too many callback
-	// functions", which is a runtime throw rather than a panic: unrecoverable,
-	// and it takes the daemon with it.
+	// functions", which is a runtime throw rather than a panic. It cannot be
+	// recovered, and it takes the daemon with it.
 	//
-	// Hoisting it also keeps the property the closure was written for: the
+	// Hoisting it also keeps the property the closure was written for. The
 	// per-call state never round-trips through the dwData uintptr, so there is
 	// no uintptr-to-pointer conversion for go vet's unsafeptr check to object
 	// to.
@@ -261,7 +261,7 @@ var (
 // collectMonitor is the MONITORENUMPROC Windows calls once per monitor. It
 // appends to whichever collector the enumeration pass installed.
 //
-// Returning 1 continues the enumeration: a monitor whose info cannot be read is
+// Returning 1 continues the enumeration, so a monitor whose info cannot be read is
 // dropped rather than costing the caller the monitors after it. A nil target
 // cannot happen while the pass holds monitorEnumMu, and is treated the same way
 // rather than dereferenced.
@@ -302,7 +302,7 @@ func enumerateMonitors() ([]displayMonitor, error) {
 // monitors it collected.
 //
 // Installing and clearing the shared collector is the whole reason this is its
-// own function: the lock and the target have to be released together and on
+// own function. The lock and the target have to be released together and on
 // every path out, including a panic from the lazy proc lookup, and a deferred
 // pair here is what keeps that from being spread across the caller.
 func runMonitorEnumeration() ([]displayMonitor, error) {
@@ -448,7 +448,7 @@ func focusedWindowBounds() (image.Rectangle, bool, error) {
 // window, seven or eight pixels on the left, right and bottom on a themed
 // desktop, so a region placed from it overhangs the visible window on those
 // sides. DwmGetWindowAttribute's extended frame bounds are the visible frame,
-// so that is asked first; GetWindowRect is the answer where DWM cannot say,
+// so that is asked first. GetWindowRect is the answer where DWM cannot say,
 // on a desktop with composition off or a window it does not manage.
 func visibleWindowRect(hwnd windows.HWND) (image.Rectangle, error) {
 	var rect windows.Rect
@@ -484,7 +484,7 @@ func visibleWindowRect(hwnd windows.HWND) (image.Rectangle, error) {
 // every side. That overhang holds nothing hintable, and a screen-capture
 // strategy that asked for it would be refused, because a frame that leaves the
 // screen cannot be placed. The clip is to the whole desktop rather than to one
-// monitor so a window dragged across a seam keeps both halves; BitBlt reads
+// monitor so a window dragged across a seam keeps both halves, since BitBlt reads
 // across the seam. It lives here, where every consumer of the focused window
 // sees the same rectangle, rather than in the capture path alone. A window
 // with nothing left on screen reads as no focused window.

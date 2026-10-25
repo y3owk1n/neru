@@ -2,9 +2,9 @@ package app
 
 // The hotkey binder is built in a phase that runs before the phase building the
 // event tap, so everything it is handed has to survive the fields it reads being
-// nil. This is the one that bit: `app.eventTap.SetHotkeys` as a method value is
+// nil. This is the one that bit. `app.eventTap.SetHotkeys` as a method value is
 // evaluated where it is written, which on a nil interface is a segfault during
-// startup — before the daemon has logged anything to diagnose it from, and
+// startup, before the daemon has logged anything to diagnose it from, and
 // invisible to every journey, because the simulation harness injects an event tap
 // through WithEventTap and so never has a nil one here.
 
@@ -27,8 +27,8 @@ func TestHotkeyBinderDeps_PublishSurvivesAnEventTapThatDoesNotExistYet(t *testin
 		t.Fatal("no publish hook; the taps would keep the configured table")
 	}
 
-	// Registration can run before the tap exists — a systray toggle or a failed
-	// reload both reach it — so the hook has to answer to that, not just be built
+	// Registration can run before the tap exists, since a systray toggle or a
+	// failed reload both reach it, so the hook has to answer to that, not just be built
 	// without panicking.
 	deps.PublishRegisteredHotkeys([]string{"Ctrl+G"})
 }

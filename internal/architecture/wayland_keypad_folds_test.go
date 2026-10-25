@@ -89,7 +89,7 @@ const (
 // expected to say about it.
 //
 // An absence is a claim that the copy cannot be reached for this keysym, not a
-// license to leave an entry out: an empty reason means the copy must carry the
+// license to leave an entry out. An empty reason means the copy must carry the
 // name, and a reason means it must not. Both halves fail, so a gap that stops
 // being a gap is caught the same way a missing entry is.
 type keypadFold struct {
@@ -110,7 +110,7 @@ type keypadFold struct {
 // The reasons a keypad keysym reaches no table row, or no Go copy.
 const (
 	// characterNamesTheKeysym covers the keypad operators and KP_Decimal on
-	// the Wayland side: they type a character, so neru_xkb_keysym_name names
+	// the Wayland side. They type a character, so neru_xkb_keysym_name names
 	// them by it and the fold table is never consulted. A row for one of them
 	// would be dead, and this pin fails on it rather than holding the Go copies
 	// to a name the resolver never produces.
@@ -118,7 +118,7 @@ const (
 		"it types, so it never reaches the fold table"
 
 	// xlookupAnswersWithACharacter covers the keysyms Xlib's XLookupString
-	// resolves to a character — the keypad operators and KP_Decimal, which the
+	// resolves to a character: the keypad operators and KP_Decimal, which the
 	// keypad reports only with NumLock on. Those reach x11KeyFromLookup through
 	// its character branch, so the keysym cascade deliberately has no case for
 	// them.
@@ -129,7 +129,7 @@ const (
 	// xlookupAnswersKeypadEnterLikeReturn covers KP_Enter, which Xlib resolves
 	// to the same carriage return it resolves XK_Return to. The keypad key
 	// therefore reaches x11KeyFromLookup the way the main Return key does,
-	// through the character branch — and what that branch answers with is the
+	// through the character branch. What that branch answers with is the
 	// main key's question, not the keypad's, so this pin holds neither.
 	xlookupAnswersKeypadEnterLikeReturn = "Xlib resolves this keysym to the same character " +
 		"it resolves XK_Return to, so the keypad key reaches x11KeyFromLookup " +
@@ -148,13 +148,13 @@ const (
 // This list is the pin's own claim about the shape of the table, and it is
 // checked both ways: a KP_ row the table grows that is not here fails, and a
 // row here the table no longer carries fails. The names themselves are never
-// written down here — they are read out of the C source, which is the whole
+// written down here. They are read out of the C source, which is the whole
 // point.
 //
-// The keypad operators and KP_Decimal are excused from the table itself: they
+// The keypad operators and KP_Decimal are excused from the table itself. They
 // type a character, and the character-first rule names them before the table
 // is read, on both Linux backends. What this pin buys for those five is that
-// the table does not grow a dead row for them; the name they reach a binding
+// the table does not grow a dead row for them. The name they reach a binding
 // as is libxkbcommon's answer, which no source in the tree spells and so
 // nothing here can hold a copy to. KP_Decimal is excused from the evdev copy
 // besides, and saying so is better than implying a check that is not there.
@@ -212,8 +212,8 @@ func keypadFolds() []keypadFold {
 // The whole table is parsed and only its keypad rows are pinned, which is a
 // boundary rather than an oversight. The rest of it renames ISO_Left_Tab,
 // Prior and Next, and Caps_Lock, and each would need a join this one does not
-// have: evdevKeyNames answers those by key code, and only for the keypad does
-// the tree say which keysym a code reports — that is what keypadKeyNameCases
+// have. evdevKeyNames answers those by key code, and only for the keypad does
+// the tree say which keysym a code reports, which is what keypadKeyNameCases
 // is. Prior and Next could be held to the X11 cascade
 // alone, since that side is keyed by keysym, and pinning one copy of two under
 // a heading that says "the keypad" is how a pin comes to claim more than it
@@ -233,10 +233,10 @@ func TestWaylandKeypadFoldTableIsTheTableThisPinDeclares(t *testing.T) {
 // evdevKeyNames is the table the evdev tap drops to when xkb state creation
 // fails, and the only table the global hotkey reader has. It names a raw kernel
 // key code without a keymap, so every keypad name in it was copied from
-// neru_normalize_xkb_name — and nothing kept it copied. A name that drifts is
+// neru_normalize_xkb_name, and nothing kept it copied. A name that drifts is
 // one physical key reaching one binding under Wayland and another under evdev.
 //
-// keypadKeyNameCases is checked as the third copy it is: the test table carries
+// keypadKeyNameCases is checked as the third copy it is. The test table carries
 // its own `want` column, so a name changed in both the table and its test would
 // otherwise pass the suite that owns them.
 func TestEvdevKeypadNamesArePinnedToTheWaylandFoldTable(t *testing.T) {
@@ -251,11 +251,11 @@ func TestEvdevKeypadNamesArePinnedToTheWaylandFoldTable(t *testing.T) {
 // the keypad the way the Wayland keymap does.
 //
 // With NumLock off the keypad reports keysyms of its own, and XLookupString
-// yields no character for the navigation half of them — so x11KeysymName is the
+// yields no character for the navigation half of them, so x11KeysymName is the
 // only path by which those keys reach the mode handler, and every name in it
 // was copied from neru_normalize_xkb_name. The keysyms it deliberately has no
 // case for are declared in keypadFolds() with the reason, and a case appearing
-// for one of them fails here too: an excuse that stopped being true is how a
+// for one of them fails here too, because an excuse that stopped being true is how a
 // pin comes to cover less than it claims.
 func TestX11KeypadNamesArePinnedToTheWaylandFoldTable(t *testing.T) {
 	t.Parallel()
@@ -292,13 +292,13 @@ func TestWaylandKeypadFoldPinCatchesDrift(t *testing.T) {
 }
 
 // TestWaylandKeypadFoldPinReportsACopyItCannotRead pins the other half of the
-// guardrail: a table this pin cannot read must be reported, never skipped. A
+// guardrail. A table this pin cannot read must be reported, never skipped. A
 // pin that reads nothing and passes is worse than no pin, because it reads as
 // coverage.
 //
 // The cost is that the pin reads one spelling of each copy. Rewriting any of
-// them in an equivalent shape — a name built at runtime, a keysym reached
-// through a variable, a table renamed — fails here rather than being
+// them in an equivalent shape, such as a name built at runtime, a keysym reached
+// through a variable or a table renamed, fails here rather than being
 // understood, and the failure names the shape it expected, which leaves the
 // next author a one-line change to this file alongside the one they are already
 // making.
@@ -316,8 +316,8 @@ func TestWaylandKeypadFoldPinReportsACopyItCannotRead(t *testing.T) {
 }
 
 // keypadProblems is every check the pins above make. The drift test runs it
-// whole, because which check catches a given drift is not the point — that one
-// of them does is.
+// whole, because which check catches a given drift is not the point, but that
+// one of them does is.
 func keypadProblems(copies keypadCopies) []string {
 	problems := keypadFoldTableProblems(copies)
 	problems = append(problems, keypadEvdevProblems(copies)...)
@@ -494,8 +494,8 @@ func keypadDriftIn(mutate func(*keypadCopies)) func(keypadCopies) keypadCopies {
 }
 
 // keypadDoctored rewrites one of the sources, leaving the rest as the tree
-// wrote them, and fails when the text it rewrites is no longer there: a rewrite
-// that missed would leave the tree's own source in place, which parses fine —
+// wrote them, and fails when the text it rewrites is no longer there. A rewrite
+// that missed would leave the tree's own source in place, which parses fine,
 // and the test would report the pin as strict when it had tested nothing.
 func keypadDoctored(
 	t *testing.T,
@@ -663,7 +663,7 @@ func keypadUnreadableX11Sources(t *testing.T, tree keypadSources) []keypadUnread
 }
 
 // keypadCopies is what the pin read out of the sources. Nothing here is an
-// expectation: the C table is the one declaration, and every other field is a
+// expectation. The C table is the one declaration, and every other field is a
 // transcription of it read back out of the file that carries it.
 type keypadCopies struct {
 	// folds maps each xkb keysym name the C table rewrites to the name it
@@ -1058,7 +1058,7 @@ var keypadCharacterFuncPattern = regexp.MustCompile(
 // pin reads, in the order the C source writes them. Together they say: ask
 // libxkbcommon for the character, keep it when it is printable and not a
 // space, and only then fall through to the name and the fold table. The two
-// guards are part of the rule — without them Tab would be named "\t" and Space
+// guards are part of the rule. Without them Tab would be named "\t" and Space
 // " ", neither of which a binding spells.
 var keypadCharacterRuleFragments = []string{
 	`xkb_keysym_to_utf8(keysym, buf, buf_size)`,
@@ -1071,7 +1071,7 @@ var keypadCharacterRuleFragments = []string{
 // readKeypadCopies reads every copy out of the tree, failing the test when it
 // cannot.
 //
-// The two Go copies are read as text like the C one, rather than called: both
+// The two Go copies are read as text like the C one, rather than called, because both
 // are behind //go:build linux (and the X11 one behind cgo besides), so this
 // package cannot link them from any host. readNativeSource is the shared entry
 // point for exactly that, native side or not.
@@ -1111,7 +1111,7 @@ func readKeypadSources(t *testing.T) keypadSources {
 
 // parseKeypadCopies reads the fold table and each transcription of it. The
 // second result describes why they could not be read, and is empty when they
-// could — an error value would buy nothing here, since the only caller turns it
+// could. An error value would buy nothing here, since the only caller turns it
 // straight into a test failure.
 func parseKeypadCopies(sources keypadSources) (keypadCopies, string) {
 	body, problem := nativeRuleMethodBody(
@@ -1178,9 +1178,9 @@ func parseKeypadCopies(sources keypadSources) (keypadCopies, string) {
 // parseKeypadX11Cascade reads the name x11KeysymName returns for each keysym it
 // has a case for, keyed by keysym without its XK_ prefix.
 //
-// Both halves of the cascade are read, the function keys included: a keypad
+// Both halves of the cascade are read, the function keys included, because a keypad
 // case hiding in the half this pin skipped would be a name held to nothing. So
-// every case has to be readable — a label that is not a C.XK_ keysym, or an arm
+// every case has to be readable. A label that is not a C.XK_ keysym, or an arm
 // returning something other than a name, is reported rather than passed over.
 func parseKeypadX11Cascade(source string, constants keypadGoConstants) (map[string]string, string) {
 	file, problem := parseKeypadGoFile(keypadX11Source, source)
@@ -1238,8 +1238,8 @@ func parseKeypadX11Switch(
 }
 
 // parseKeypadX11Clause reads one arm of the cascade. The default arm names no
-// keysym, so it is passed over — but only once this pin has seen that it names
-// none: an arm it cannot read at all is reported, because the alternative is
+// keysym, so it is passed over, but only once this pin has seen that it names
+// none. An arm it cannot read at all is reported, because the alternative is
 // skipping a keysym while reporting coverage of it.
 func parseKeypadX11Clause(
 	funcName string,
@@ -1558,7 +1558,7 @@ type keypadGoConstants struct {
 }
 
 // parseKeypadGoFile parses one Go transcription. The build tags on these files
-// are irrelevant here: go/parser reads the source, and nothing links it.
+// are irrelevant here, because go/parser reads the source, and nothing links it.
 func parseKeypadGoFile(repoRelPath, source string) (*ast.File, string) {
 	parsed, err := parser.ParseFile(
 		token.NewFileSet(),
@@ -1574,7 +1574,7 @@ func parseKeypadGoFile(repoRelPath, source string) (*ast.File, string) {
 }
 
 // collectKeypadGoConstants records the string and integer constants a file
-// declares. Constants declared as anything else are passed over: this is a
+// declares. Constants declared as anything else are passed over, because this is a
 // lookup for the values the tables are written with, not a claim about the
 // file, and every table entry that fails to resolve through it is reported by
 // the parser that needed it.
@@ -1630,7 +1630,7 @@ func collectKeypadGoConstant(name string, value ast.Expr, into keypadGoConstants
 // parseKeypadEvdevTable reads the keypad half of evdevKeyNames, and the key
 // codes its constants carry.
 //
-// Every entry of the table has to be readable, not just the keypad ones: an
+// Every entry of the table has to be readable, not just the keypad ones, because an
 // entry written in a shape this pin passes over could be the keypad entry it
 // claims to be holding, which is how a pin comes to cover less than it says.
 func parseKeypadEvdevTable(
@@ -1679,7 +1679,7 @@ func parseKeypadEvdevTable(
 }
 
 // parseKeypadEvdevEntry reads one `evdevKeyKP7: evdevKeyNameHome,` entry. An
-// entry outside the keypad is read and then handed back with no symbol: it has
+// entry outside the keypad is read and then handed back with no symbol. It has
 // to be readable, since an entry this pin passed over could be the keypad entry
 // it claims to be holding, but it is not a keypad name.
 func parseKeypadEvdevEntry(
@@ -1887,7 +1887,7 @@ func keypadGoStringValue(value ast.Expr, constants keypadGoConstants) (string, b
 }
 
 // keypadGoNumberValue reads a key code, which keypadKeyNameCases writes as a
-// literal on purpose: those are frozen kernel ABI numbers, pinned there rather
+// literal on purpose, because those are frozen kernel ABI numbers, pinned there rather
 // than read back from the table under test.
 func keypadGoNumberValue(value ast.Expr) (uint16, bool) {
 	literal, isLiteral := value.(*ast.BasicLit)
@@ -1901,7 +1901,7 @@ func keypadGoNumberValue(value ast.Expr) (uint16, bool) {
 }
 
 // parseKeypadFoldTable reads the `{"KP_Home", "Home"},` rows of the fold table.
-// Every line inside the literal has to be a row, a comment or blank: a line this
+// Every line inside the literal has to be a row, a comment or blank. A line this
 // pin cannot read is one it would otherwise skip past, which is how a pin comes
 // to cover less than it claims.
 func parseKeypadFoldTable(body string) (map[string]string, string) {
@@ -1946,7 +1946,7 @@ func parseKeypadFoldTable(body string) (map[string]string, string) {
 		}
 
 		// The C lookup returns on the first row that matches, so a second row
-		// for the same keysym is dead code — and reading it would have this pin
+		// for the same keysym is dead code, and reading it would have this pin
 		// hold the Go copies to a name the keypad never produces.
 		if existing, folded := folds[keysym]; folded {
 			return nil, fmt.Sprintf(
@@ -1986,7 +1986,7 @@ func unquoteKeypadFoldRow(keysymLiteral, nameLiteral string) (string, string, bo
 // keypadNamesByCharacter reports whether the resolver still spells "a keysym
 // with a printable character is that character, and only otherwise its folded
 // name". It is read as fragments in order rather than as whole lines, because
-// the rule is a C condition and two calls rather than a table row; what matters
+// the rule is a C condition and two calls rather than a table row. What matters
 // is that every part of it is there, and that the character comes first.
 func keypadNamesByCharacter(resolver string) bool {
 	rest := strings.Join(strings.Fields(resolver), " ")

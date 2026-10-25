@@ -9,7 +9,7 @@ import (
 
 // Unit tests for the hint badge/arrow placement math every overlay that draws a
 // hint badge shares. They live beside the math rather than in a backend so they
-// run on every CI leg: the Windows backend that also calls it is behind a build
+// run on every CI leg. The Windows backend that also calls it is behind a build
 // tag no test run here can reach.
 
 func TestPlaceHint_CenterHasNoArrow(t *testing.T) {
@@ -134,7 +134,7 @@ func TestPlaceHint_Top(t *testing.T) {
 }
 
 // TestPlaceHint_TopAndBottomAreMirrorImages pins the pair a user actually
-// compares: `top` and `bottom` put the badge the same distance from the target,
+// compares, `top` and `bottom`, which put the badge the same distance from the target,
 // on opposite sides, with the arrow pointing back at it either way. A backend
 // that got one sign wrong would still pass each single-placement test above.
 func TestPlaceHint_TopAndBottomAreMirrorImages(t *testing.T) {
@@ -169,7 +169,7 @@ func TestPlaceHint_TopAndBottomAreMirrorImages(t *testing.T) {
 func TestPlaceHint_ArrowBaseClampedToFlatEdge(t *testing.T) {
 	t.Parallel()
 
-	// A narrow badge with a large radius leaves little flat edge; the arrow base
+	// A narrow badge with a large radius leaves little flat edge. The arrow base
 	// must clamp inside the corner radius rather than run onto the rounded
 	// corners or overflow the badge.
 	target := image.Pt(50, 50)
@@ -215,7 +215,7 @@ func TestPlaceHint_OddBadgeSizeKeepsItsSize(t *testing.T) {
 func TestHintRadius_ReservesArrowFlatEdge(t *testing.T) {
 	t.Parallel()
 
-	// Center placement is never capped — the arrow doesn't exist there.
+	// Center placement is never capped, because the arrow doesn't exist there.
 	if got := badge.HintRadius(100, 40, badge.HintOnTarget); got != 100 {
 		t.Errorf("center radius should be unchanged, got %d", got)
 	}

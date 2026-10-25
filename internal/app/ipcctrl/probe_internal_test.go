@@ -8,7 +8,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
-// probeCommand builds a probe request the way the CLI sends one: the action
+// probeCommand builds a probe request the way the CLI sends one. The action
 // names the probe, and the arguments carry only the flags that decide which
 // elements are collected.
 func probeCommand(args ...string) ipc.Command {

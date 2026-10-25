@@ -2,7 +2,7 @@
 .SYNOPSIS
 Assemble the Windows release layout: bin\neru.exe and share\man\man1. It is
 the exact tree a release zip unpacks to, so scripts\install.ps1 -From and
-CI's publish jobs both consume it. Invoked by `just dist` on Windows; the
+CI's publish jobs both consume it. `just dist` invokes it on Windows. The
 macOS and Linux counterpart is scripts/dist.sh.
 
     scripts\dist.ps1 [-Bin bin\neru.exe] [-Out build\dist] [-Version v1.2.3]
@@ -22,7 +22,7 @@ if (-not $Version) {
     if ($LASTEXITCODE -ne 0 -or -not $Version) { $Version = 'dev' }
 }
 if (-not (Test-Path $Bin)) {
-    [Console]::Error.WriteLine("dist: $Bin not found; run 'just build' first")
+    [Console]::Error.WriteLine("dist: $Bin not found, run 'just build' first")
     exit 1
 }
 

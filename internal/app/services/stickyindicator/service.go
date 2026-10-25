@@ -36,7 +36,7 @@ func (s *Service) UpdateIndicatorPosition(posX, posY int, symbols string) {
 }
 
 // cmdSymbol returns the platform-appropriate symbol for the Command / Super modifier.
-// On macOS this is "⌘"; on Linux it is "❖" (the Super/Windows key symbol).
+// On macOS this is "⌘". Elsewhere it is "❖" (the Super/Windows key symbol).
 func cmdSymbol() string {
 	if runtime.GOOS == "darwin" {
 		return "⌘"

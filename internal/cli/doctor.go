@@ -20,15 +20,15 @@ var (
 // DoctorCmd is the CLI doctor command.
 var DoctorCmd = &cobra.Command{
 	Use:   "doctor",
-	Short: "Run comprehensive diagnostics",
-	Long: `Run a comprehensive health check of the Neru system.
+	Short: "Run diagnostics",
+	Long: `Run a health check of the Neru system.
 
-This command performs client-side checks (IPC socket, config) first,
+This command runs client-side checks (IPC socket, config) first,
 then queries the running daemon for component-level health status
 (accessibility permissions, overlay state, input monitoring).
 
 The platform_support row is a different question from the component
-health below it: it names the options, actions and mode flags your
+health below it. It names the options, actions and mode flags your
 configuration writes that do nothing on this platform. They load and
 the daemon runs, so it never fails the check.
 
@@ -49,7 +49,7 @@ the same either way.`,
 
 		cmd.Println("Neru Doctor — pre-flight checks")
 		cmd.Println()
-		// --- client-side checks (no daemon needed) --------------------------
+		// Client-side checks, which need no daemon.
 		loadResult := doctorConfigLoad()
 
 		rolesUsable := printClickableRolesCheck(cmd, loadResult)
@@ -57,7 +57,7 @@ the same either way.`,
 		printPlatformSupportCheck(cmd, loadResult)
 
 		// The endpoint is named after the user it belongs to, so on a system
-		// that will not say who that is there is no path to print — and
+		// that will not say who that is there is no path to print, and
 		// nowhere for the daemon to listen either.
 		endpointPath := ipc.SocketPath()
 		if endpointPath == "" {
@@ -83,7 +83,7 @@ the same either way.`,
 
 		cmd.Printf("  ✅ %-24s %s\n", "ipc_endpoint", endpointPath)
 		cmd.Println()
-		// --- daemon-side checks (via IPC) -----------------------------------
+		// Daemon-side checks, over IPC.
 		cmd.Println("Querying daemon...")
 		cmd.Println()
 

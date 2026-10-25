@@ -17,9 +17,8 @@ import (
 //
 // Only read-only probes belong here. Capabilities whose only entry point has a
 // side effect (moving the cursor, showing an overlay, injecting a key) are
-// deliberately absent — see TestCapabilities_ProbeCoverageIsDocumented, which
-// pins exactly which ones are and are not covered so the gap cannot widen
-// silently.
+// deliberately absent. TestCapabilities_ProbeCoverageIsDocumented pins exactly
+// which ones are and are not covered so the gap cannot widen silently.
 type systemCapabilityProbe struct {
 	key   ports.CapabilityKey
 	read  func(ports.PlatformCapabilities) ports.FeatureCapability
@@ -62,12 +61,12 @@ func systemCapabilityProbes() []systemCapabilityProbe {
 // environment genuinely cannot provide one.
 //
 // On Linux, NewSystemPort refuses to construct an adapter when no display
-// server is detected — a headless CI runner, a container, an SSH session — and
-// reports that as CodeNotSupported. That is correct behavior, not a failure, so
+// server is detected, as on a headless CI runner, in a container or over SSH,
+// and reports that as CodeNotSupported. That is correct behavior, not a failure, so
 // these tests skip rather than fail there. The skip is visible in the test
 // output, unlike a silently-passing assertion.
 //
-// The Linux capability surface is not left unchecked by that skip: its
+// The Linux capabilities are not left unchecked by that skip. Their
 // backend-by-backend contract is asserted in the linux package itself, where
 // adapters are constructed directly and need no display. Any other error from
 // NewSystemPort is a real failure.
@@ -89,9 +88,9 @@ func newSystemPort(t *testing.T) ports.SystemPort {
 }
 
 // TestCapabilities_DeclaredStatusMatchesAdapterBehavior checks the hand-written
-// capability matrix against what the adapters actually do: declared supported
+// capability matrix against what the adapters actually do. Declared supported
 // must not answer CodeNotSupported, declared stub must. The matrix is the
-// external contract — `neru doctor` prints it — and nothing else ties it to
+// external contract that `neru doctor` prints, and nothing else ties it to
 // behavior. Each CI platform checks its own declaration, so adding a stub
 // without downgrading its status, or implementing one without promoting it,
 // fails there. Strictness works because adapters report what is reachable at
@@ -139,8 +138,8 @@ func TestCapabilities_DeclaredStatusMatchesAdapterBehavior(t *testing.T) {
 // carries a detail saying why, and what to do.
 //
 // A bare "stub" in `neru doctor` tells a user their feature is missing but not
-// whether that is fixable — installing a portal, using a CGO build, switching
-// compositor — which is the only thing they can act on.
+// whether that is fixable, which is the only thing they can act on. The fix may
+// be installing a portal, using a CGO build, or switching compositor.
 func TestCapabilities_DowngradedEntriesExplainThemselves(t *testing.T) {
 	live := newSystemPort(t).Capabilities()
 
@@ -166,11 +165,11 @@ func TestCapabilities_DowngradedEntriesExplainThemselves(t *testing.T) {
 		}
 
 		if declared[entry.Key].Status != ports.FeatureStatusSupported {
-			// Statically stubbed: its detail is already the static description.
+			// Statically stubbed. Its detail is already the static description.
 			continue
 		}
 
-		// Downgraded at runtime — the detail must differ from the static one,
+		// Downgraded at runtime. The detail must differ from the static one,
 		// or the user is being shown a description of a feature that is not
 		// actually available to them.
 		if entry.Detail == declared[entry.Key].Detail {
@@ -188,13 +187,13 @@ func TestCapabilities_DowngradedEntriesExplainThemselves(t *testing.T) {
 }
 
 // TestCapabilities_PlatformLabelMatchesBuildTarget guards against a
-// copy-paste slip in the presets — a preset returning another platform's label
+// copy-paste slip in the presets. A preset returning another platform's label
 // would make `neru doctor` misreport what it is running on.
 //
-// The label is either the bare GOOS or GOOS with a backend suffix: Linux
+// The label is either the bare GOOS or GOOS with a backend suffix. Linux
 // refines it to "linux/x11", "linux/wayland-wlroots" and so on, because which
-// backend is live is the first thing that matters when diagnosing Linux. Both
-// shapes are accepted; a different GOOS entirely is not.
+// backend is live is the first thing that matters when diagnosing Linux. The
+// test accepts both shapes, and rejects a different GOOS.
 func TestCapabilities_PlatformLabelMatchesBuildTarget(t *testing.T) {
 	platform := newSystemPort(t).Capabilities().Platform
 
@@ -215,8 +214,8 @@ func TestCapabilities_PlatformLabelMatchesBuildTarget(t *testing.T) {
 	}
 }
 
-// TestCapabilities_EveryEntryHasAStatusAndDetail checks the surface that
-// actually reaches users. An entry with an empty status serializes as an empty
+// TestCapabilities_EveryEntryHasAStatusAndDetail checks the entries that
+// reach users. An entry with an empty status serializes as an empty
 // string in the IPC response, and one with no detail leaves `neru doctor`
 // printing a capability name with no explanation of what it means here.
 func TestCapabilities_EveryEntryHasAStatusAndDetail(t *testing.T) {
@@ -305,8 +304,8 @@ func TestCapabilities_ProbeCoverageIsDocumented(t *testing.T) {
 		}
 	}
 
-	// The exclusion list must not name capabilities that no longer exist —
-	// otherwise a renamed capability would silently become unprobed.
+	// The exclusion list must not name capabilities that no longer exist.
+	// Otherwise a renamed capability would silently become unprobed.
 	known := make(map[ports.CapabilityKey]bool)
 	for _, entry := range newSystemPort(t).Capabilities().Entries() {
 		known[entry.Key] = true

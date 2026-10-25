@@ -112,7 +112,7 @@ func HasClickAction(element unsafe.Pointer) bool {
 		0,     // centerY
 		false, // preHasPressAction
 		false, // preHasShowMenuAction
-		false,
+		false, // preActionsFetched
 	) != 0
 
 	return clickable
@@ -128,7 +128,5 @@ func SetApplicationAttribute(pid int, attribute string, value bool) bool {
 		val = 1
 	}
 
-	result := C.NeruSetApplicationAttribute(C.int(pid), cAttr, C.int(val)) != 0
-
-	return result
+	return C.NeruSetApplicationAttribute(C.int(pid), cAttr, C.int(val)) != 0
 }

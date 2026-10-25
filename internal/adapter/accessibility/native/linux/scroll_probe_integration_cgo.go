@@ -7,8 +7,8 @@ package linux
 // application" rather than argue it.
 //
 // It is a non-test file behind the integration tag, and not a _test.go one,
-// because Go does not allow cgo in a test file at all — and not a plain file,
-// because it is scaffolding and has no business in the shipped binary. The
+// because Go does not allow cgo in a test file at all. It is not a plain file
+// either, because it is scaffolding and has no business in the shipped binary. The
 // generated xdg-shell bindings come from the wlr_protocol package, blank
 // imported below so the linker resolves them.
 
@@ -18,8 +18,8 @@ package linux
 // window is allocated without touching the filesystem.
 #cgo CFLAGS: -D_GNU_SOURCE
 
-// One xdg-shell toplevel — an ordinary application window, which is the thing
-// the claim is about — recording the wl_pointer axis events it is sent. The C
+// One xdg-shell toplevel, an ordinary application window and the thing
+// the claim is about, recording the wl_pointer axis events it is sent. The C
 // is inline here rather than in a .c file because every .c file in a package
 // compiles into it unconditionally, and scaffolding has no business there.
 
@@ -35,7 +35,7 @@ package linux
 #define NERU_PROBE_MAX_EVENTS 512
 
 // One delivered scroll frame: the continuous distance, and whether a wheel-step
-// count came with it. The second is the half that matters — a step count is the
+// count came with it. The second is the half that matters. A step count is the
 // compositor saying "one notch", which is exactly what a sub-notch value must
 // arrive without. horizontal holds the frame's horizontal distance in its own
 // field, so the vertical measurements never read it.
@@ -289,8 +289,8 @@ static const struct xdg_toplevel_listener neru_probe_toplevel_listener = {
     .close = neru_probe_toplevel_close,
 };
 
-// neru_probe_attach paints the surface at its current size. It is called twice:
-// a window is only told the size the compositor tiled it to after it maps, and
+// neru_probe_attach paints the surface at its current size. It is called twice.
+// A window is only told the size the compositor tiled it to after it maps, and
 // a surface smaller than its container leaves the pointer over the container
 // rather than over the window, where no axis event would ever arrive.
 static int neru_probe_attach(neru_probe *p) {
@@ -440,7 +440,7 @@ type scrollProbe struct {
 }
 
 // startScrollProbe maps the window. The bool is false when this session cannot
-// carry one, which is a skip rather than a failure: it says nothing about the
+// carry one, which is a skip rather than a failure. It says nothing about the
 // code under test.
 func startScrollProbe() (*scrollProbe, bool) {
 	handle := C.neru_probe_start()

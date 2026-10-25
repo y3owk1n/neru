@@ -11,12 +11,12 @@ import (
 )
 
 // TestManager_WithoutAWindowDeclaresItselfHeadless pins what a macOS manager
-// reports when it has no overlay window: nothing for the render overlays to
-// draw on. Its own component build reads that declaration before it builds
+// reports when it has no overlay window, which leaves nothing for the render
+// overlays to draw on. Its own component build reads that declaration before it builds
 // them, and building them against a window that was never created crashes on
 // the first CGo call.
 //
-// A zero-value Manager is exactly that state; Init is deliberately avoided,
+// A zero-value Manager is exactly that state. Init is deliberately avoided,
 // being a process-global singleton that creates a real NSWindow.
 func TestManager_WithoutAWindowDeclaresItselfHeadless(t *testing.T) {
 	tests := map[string]*darwin.Manager{
@@ -38,7 +38,7 @@ func TestManager_WithoutAWindowDeclaresItselfHeadless(t *testing.T) {
 			}
 
 			// The declaration has to be what building reads. A backend that
-			// re-derived it — from a window handle it can see, say — would
+			// re-derived it, from a window handle it can see, say, would
 			// still pass the assertion above and then build overlays on a
 			// window that was never created.
 			built, err := overlayManager.BuildComponents(config.DefaultConfig(), nil)

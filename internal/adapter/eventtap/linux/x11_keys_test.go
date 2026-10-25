@@ -7,7 +7,7 @@ import "testing"
 // X11 keysym values for the navigation keys, from X11/keysym.h. The production
 // lookup names them through cgo, which a test file cannot do (`go test` rejects
 // cgo in in-package test files), so the protocol constants are pinned here as
-// literals — they are frozen X11 protocol numbers. Untyped constants convert to
+// literals, since they are frozen X11 protocol numbers. Untyped constants convert to
 // the cgo parameter type at the call site.
 const (
 	x11KeysymHome     = 0xFF50 // XK_Home
@@ -102,8 +102,8 @@ func TestX11KeyFromLookupNavigationKeys(t *testing.T) {
 // XLookupString yields no character for any of them, so the keysym lookup is
 // again the only path to the handler. The names are copied from the fold table
 // neru_normalize_xkb_name applies to these keysyms
-// (internal/adapter/platform/linux/wayland_keymap.c) — the table the Wayland
-// and evdev taps both read — so this is what pins the X11 tap to it.
+// (internal/adapter/platform/linux/wayland_keymap.c), the table the Wayland
+// and evdev taps both read, so this is what pins the X11 tap to it.
 func TestX11KeyFromLookupKeypadNavigationKeys(t *testing.T) {
 	t.Parallel()
 
@@ -142,9 +142,9 @@ func TestX11KeyFromLookupKeypadNavigationKeys(t *testing.T) {
 
 // TestX11KeyFromLookupKeypadDigits pins the other half of the NumLock
 // question. With NumLock on the keypad reports KP_0 through KP_9, and
-// XLookupString resolves those to digit characters — so the digit a person
+// XLookupString resolves those to digit characters, so the digit a person
 // types comes from the character branch of x11KeyFromLookup, never from the
-// keysym lookup. The lookup must therefore stay silent on them: a name here
+// keysym lookup. The lookup must therefore stay silent on them. A name here
 // would let the fold speak for a key the character branch already answers.
 func TestX11KeyFromLookupKeypadDigits(t *testing.T) {
 	t.Parallel()

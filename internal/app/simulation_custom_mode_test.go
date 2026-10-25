@@ -33,7 +33,7 @@ func simConfigDeclaringAMode() *config.Config {
 }
 
 // TestSimulation_CustomModeJourney is the whole path a declared mode exists
-// for, as a user walks it: the global chord enters the mode, the indicator
+// for, as a user walks it. The global chord enters the mode, the indicator
 // names it, a bare key runs the step the declaration bound, and Escape leaves
 // with the indicator gone.
 func TestSimulation_CustomModeJourney(t *testing.T) {
@@ -72,7 +72,7 @@ func TestSimulation_CustomModeJourney(t *testing.T) {
 }
 
 // TestSimulation_CustomModeSwitchesToABuiltInMode pins that a declared mode
-// is a mode among the others: a step in its table enters scroll the way a
+// is a mode among the others. A step in its table enters scroll the way a
 // hotkey would, and the keyboard is handed over rather than given back.
 func TestSimulation_CustomModeSwitchesToABuiltInMode(t *testing.T) {
 	cfg := simConfigDeclaringAMode()

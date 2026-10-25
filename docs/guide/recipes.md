@@ -50,7 +50,7 @@ mode tables, such as `[grid.hotkeys]`:
 ```
 
 The mode exits even if the click fails. To stay in the mode on failure, write
-`"action left_click --bail-on-error"`, see
+`"action left_click --bail-on-error"`. See
 [Failure policy](../reference/cli.md#failure-policy).
 
 ### Pause after a click
@@ -107,7 +107,7 @@ hotkeys = { "Cmd+1" = "exec ~/.local/bin/neru-click --role button --text Home" }
 ```
 
 The script asks `neru query hints` for the label instead of assuming one,
-because Neru assigns labels afresh on every scan, see
+because Neru assigns labels afresh on every scan. See
 [`neru query`](../reference/cli.md#neru-query). A common word can match other
 buttons too, such as "Code" matching every "Copy code" button.
 
@@ -226,7 +226,7 @@ When the click comes from the mode's `--action`, use the repeatable
 ```
 
 `--on-exit` runs only after the action, so `Escape` leaves the cursor where you
-moved it. Use `--slot` to keep two saved positions apart, see
+moved it. Use `--slot` to keep two saved positions apart. See
 [Cursor slots](../reference/cli.md#cursor-slots).
 
 ### Keep the cursor still while you aim
@@ -275,9 +275,9 @@ Enter and leave a mode with one key:
 ### Cycle through modes with one key
 
 Step through hints, recursive grid, grid, bisect and scroll with one key.
-Inside a mode, its `[<mode>.hotkeys]` binding wins over the global one, see
-[Resolution order](../concepts/bindings.md#which-binding-wins), so every mode
-in the cycle needs an entry.
+Inside a mode, its `[<mode>.hotkeys]` binding wins over the global one, so
+every mode in the cycle needs an entry. See
+[Resolution order](../concepts/bindings.md#which-binding-wins).
 
 ```toml
 [hotkeys]
@@ -322,7 +322,7 @@ Swap recursive grid layouts. `--no-reload` defers the reload to the last step:
 ]
 ```
 
-`config set` values persist in the override file, see
+`config set` values persist in the override file. See
 [Configuring Neru](configuring.md#how-the-layers-combine).
 
 ### Leave global hotkeys to another tool

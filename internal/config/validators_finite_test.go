@@ -9,7 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// minFloatFields guards the sweep against passing vacuously: the schema
+// minFloatFields guards the sweep against passing vacuously. The schema
 // carries well over twenty float options today.
 const minFloatFields = 20
 
@@ -56,7 +56,7 @@ func TestConfig_ValidateFinite_RejectsEveryNonFiniteFloat(t *testing.T) {
 	}
 }
 
-// TestConfig_ValidateFinite_AcceptsTheDefaults pins the other direction: the
+// TestConfig_ValidateFinite_AcceptsTheDefaults pins the other direction, that the
 // shipped configuration is finite everywhere.
 func TestConfig_ValidateFinite_AcceptsTheDefaults(t *testing.T) {
 	err := config.DefaultConfig().ValidateFinite()
@@ -71,7 +71,7 @@ func TestConfig_ValidateFinite_AcceptsTheDefaults(t *testing.T) {
 type floatRoute []routeHop
 
 type routeHop struct {
-	// name is the toml name of the field; empty for the final hop when the
+	// name is the toml name of the field, empty for the final hop when the
 	// float sits directly in a collection rather than in a struct.
 	name string
 	kind reflect.Kind // the container met before the field: Pointer, Slice, Array, Map or Invalid
@@ -242,7 +242,7 @@ func floatRoutesOf(root reflect.Type) []floatRoute {
 		switch typ.Kind() { //nolint:exhaustive // only the kinds that can hold or contain a float matter
 		case reflect.Float32, reflect.Float64:
 			if via != reflect.Invalid {
-				// The float sits directly in a collection; the hop records
+				// The float sits directly in a collection, so the hop records
 				// the collection and no field name.
 				route = append(append(floatRoute{}, route...), routeHop{kind: via})
 			}

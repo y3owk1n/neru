@@ -122,8 +122,8 @@ func TestCallbackQueue_RunsNothingAfterStop(t *testing.T) {
 	}
 }
 
-// TestCallbackQueue_StopFromInsideACallbackReturns pins the handler's path:
-// a callback stops the session, which stops this queue from the goroutine
+// TestCallbackQueue_StopFromInsideACallbackReturns pins the handler's path.
+// A callback stops the session, which stops this queue from the goroutine
 // running the callback, so stop must not wait for that goroutine.
 func TestCallbackQueue_StopFromInsideACallbackReturns(t *testing.T) {
 	stopped := make(chan struct{})

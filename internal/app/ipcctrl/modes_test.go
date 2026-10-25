@@ -105,7 +105,7 @@ func TestHandleCommand_EveryModeCommandReadsTheGrammar(t *testing.T) {
 // the grammar's own sentence on, without the error code the domain error
 // carries for callers and without a wording of its own.
 //
-// --on-exit without an action is the one a user notices: it was refused when
+// --on-exit without an action is the one a user notices. It was refused when
 // typed and accepted over the wire, where the steps were stored and never run.
 func TestHandleCommand_RefusalsCarryTheGrammarsWording(t *testing.T) {
 	controller := newModeTestController(config.DefaultConfig())
@@ -160,7 +160,7 @@ func TestHandleCommand_RefusalsCarryTheGrammarsWording(t *testing.T) {
 }
 
 // TestHandleCommand_ModeCommandEntersItsMode pins the other half of the
-// delegation: a command the grammar accepts reaches the mode handler and is
+// delegation. A command the grammar accepts reaches the mode handler and is
 // answered as done.
 //
 // Idle is the mode used here because leaving one needs nothing of the platform.

@@ -3,6 +3,6 @@
 //
 // It is mode state, not drawing. It lived in the overlay's recursive-grid
 // renderer until #1213, which is why the app layer had to name an adapter
-// package to say what a mode was doing; nothing here knows a color or a
+// package to say what a mode was doing. Nothing here knows a color or a
 // surface.
 package recursivegrid

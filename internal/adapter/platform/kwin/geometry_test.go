@@ -17,12 +17,12 @@ import (
 const initialGeneration = 0
 
 // errTestInstallFailed stands in for whatever kept the KWin script from being
-// installed. It is deliberately not errKWinAbsent: what is pinned is that the
+// installed. It is deliberately not errKWinAbsent, because what is pinned is that the
 // reason reaches the caller verbatim, whatever it happens to be.
 var errTestInstallFailed = errors.New("the session bus refused the connection")
 
 // TestGeometry_BoundsBeforeAnyUpdate pins the cold answer. Nothing has been
-// pushed yet, so the bridge reports "nothing to say" — not a zero rectangle a
+// pushed yet, so the bridge reports "nothing to say". That is not a zero rectangle a
 // caller could mistake for a window at the origin, and not a failure either.
 func TestGeometry_BoundsBeforeAnyUpdate(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
@@ -34,8 +34,8 @@ func TestGeometry_BoundsBeforeAnyUpdate(t *testing.T) {
 	}
 }
 
-// TestGeometry_UpdateActiveWindowFeedsBounds is the whole point of the bridge:
-// what the KWin script pushes is what FocusedWindowBounds later answers with.
+// TestGeometry_UpdateActiveWindowFeedsBounds is the whole point of the bridge.
+// What the KWin script pushes is what FocusedWindowBounds later answers with.
 func TestGeometry_UpdateActiveWindowFeedsBounds(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
@@ -57,7 +57,7 @@ func TestGeometry_UpdateActiveWindowFeedsBounds(t *testing.T) {
 
 // TestGeometry_UpdateActiveWindowRejectsUnusablePayloads keeps a malformed or
 // degenerate push from replacing a good cache. The script is remote code as far
-// as this process is concerned: a truncated payload, a non-numeric field or a
+// as this process is concerned. A truncated payload, a non-numeric field or a
 // zero-area window must leave the last known geometry alone rather than
 // answering with a rectangle nothing can be inside.
 func TestGeometry_UpdateActiveWindowRejectsUnusablePayloads(t *testing.T) {
@@ -96,7 +96,7 @@ func TestGeometry_UpdateActiveWindowRejectsUnusablePayloads(t *testing.T) {
 }
 
 // TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass keeps the geometry
-// working when the class is absent — it is a correlation key, not part of the
+// working when the class is absent. It is a correlation key, not part of the
 // answer, and a KWin version that reports no class must still report a window.
 func TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
@@ -141,9 +141,9 @@ func TestGeometry_FocusedCarriesTheWindowIdentity(t *testing.T) {
 // this bridge needed: a rectangle that has stopped describing anything.
 //
 // KWin reported on activation and nothing else, so once a window had been seen
-// the cache could never empty — after the last one closed, "where is the
+// the cache could never empty. After the last one closed, "where is the
 // focused window" was answered with the rectangle the dead window had. Emptying
-// it is not a failure and must not be reported as one: the bridge is installed
+// it is not a failure and must not be reported as one. The bridge is installed
 // and working, and what it has to say is that nothing is focused.
 func TestGeometry_ClearActiveWindowEmptiesTheCache(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
@@ -183,8 +183,8 @@ func TestGeometry_UpdateAfterAClearReportsAgain(t *testing.T) {
 //
 // A malformed push is a push that failed, and the previous rectangle survives
 // it as the best available answer. A clear is KWin saying that rectangle
-// describes nothing on screen. Collapsing them — a clear expressed as an empty
-// payload, say — would make one of the two behave as the other.
+// describes nothing on screen. Collapsing them, say by expressing a clear as an
+// empty payload, would make one of the two behave as the other.
 func TestGeometry_ClearActiveWindowIsNotAMalformedPush(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
@@ -206,7 +206,7 @@ func TestGeometry_ClearActiveWindowIsNotAMalformedPush(t *testing.T) {
 
 // TestGeometry_BoundsReportsAFailedInstall is the honesty half. A bridge that
 // never installed cannot answer, and saying "no focused window" there is the
-// silent fallback this source exists to end: the caller would constrain to the
+// silent fallback this source exists to end. The caller would constrain to the
 // active screen believing it had asked and been told there was no window.
 func TestGeometry_BoundsReportsAFailedInstall(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
@@ -224,7 +224,7 @@ func TestGeometry_BoundsReportsAFailedInstall(t *testing.T) {
 }
 
 // TestGeometry_BoundsPrefersLiveGeometryOverAStaleFailure covers the ordering
-// that matters when the script is reinstalled after a transient failure: a
+// that matters when the script is reinstalled after a transient failure. A
 // geometry push proves the bridge works, so the recorded reason is spent.
 func TestGeometry_BoundsPrefersLiveGeometryOverAStaleFailure(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
@@ -244,7 +244,7 @@ func TestGeometry_BoundsPrefersLiveGeometryOverAStaleFailure(t *testing.T) {
 // The daemon starts when the session does, so the first attempt can land before
 // the session bus or KWin is up. A once-only attempt would spend the daemon's
 // only try on that race and leave the whole run with no focused-window
-// geometry, which is the failure this source exists to remove — so a failed
+// geometry, which is the failure this source exists to remove. So a failed
 // attempt is retried by the next caller, while one already in flight is not
 // duplicated and a successful one is never repeated.
 func TestGeometry_BeginStartRetriesUntilTheScriptIsInstalled(t *testing.T) {
@@ -293,10 +293,10 @@ func TestGeometry_ASuccessfulRetryClearsTheRecordedReason(t *testing.T) {
 // retry the request path cannot provide.
 //
 // A caller-triggered retry heals the session but not the caller that triggered
-// it: that request reads the previous failure, and for the AT-SPI origin it is
+// it. That request reads the previous failure, and for the AT-SPI origin it is
 // the one that places a screenful of hints at the wrong position. So a failed
-// attempt is retried by the installer itself, and the transient case — a daemon
-// that started before the session bus or KWin did — is over before anything
+// attempt is retried by the installer itself, and the transient case, a daemon
+// that started before the session bus or KWin did, is over before anything
 // asks.
 func TestGeometry_RunInstallRetriesWithoutWaitingForACaller(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
@@ -332,8 +332,8 @@ func TestGeometry_RunInstallRetriesWithoutWaitingForACaller(t *testing.T) {
 }
 
 // TestGeometry_RunInstallStopsRetryingAndReportsTheReason keeps the installer's
-// own retry bounded, and keeps it from swallowing the answer when it gives up:
-// a session with no KWin must end up carrying the reason, because the caller
+// own retry bounded, and keeps it from swallowing the answer when it gives up.
+// A session with no KWin must end up carrying the reason, because the caller
 // that reads it is the one deciding whether to widen to the active screen.
 // Giving up also hands the retry back to the next caller rather than ending it.
 func TestGeometry_RunInstallStopsRetryingAndReportsTheReason(t *testing.T) {
@@ -366,7 +366,7 @@ func TestGeometry_RunInstallStopsRetryingAndReportsTheReason(t *testing.T) {
 // TestGeometry_RunInstallReportsEachFailureAsItHappens keeps Bounds honest for
 // the length of the backoff. The installer holds its claim across the whole
 // sequence, so if it published nothing until the last attempt, every caller
-// arriving in between would be told "no window" — the silent fallback — instead
+// arriving in between would be told "no window", the silent fallback, instead
 // of the reason.
 func TestGeometry_RunInstallReportsEachFailureAsItHappens(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
@@ -393,7 +393,7 @@ func TestGeometry_RunInstallReportsEachFailureAsItHappens(t *testing.T) {
 	}
 }
 
-// TestShared_ReturnsOneBridge pins the shared derivation: both callers must
+// TestShared_ReturnsOneBridge pins the shared derivation. Both callers must
 // read the same cache, because each one that builds its own also owns the
 // D-Bus name and installs the script a second time.
 func TestShared_ReturnsOneBridge(t *testing.T) {
@@ -406,7 +406,7 @@ func TestShared_ReturnsOneBridge(t *testing.T) {
 }
 
 // TestGeometry_ServeOwnerChanges_ReinstallsWhenTheChannelCloses pins what the
-// bridge does when the connection carrying its watch is closed under it: the
+// bridge does when the connection carrying its watch is closed under it. The
 // cache empties, the reason is recorded, and an install is scheduled on the
 // spot rather than waiting for a caller to notice a permanently stale window.
 func TestGeometry_ServeOwnerChanges_ReinstallsWhenTheChannelCloses(t *testing.T) {
@@ -446,7 +446,7 @@ func TestGeometry_ServeOwnerChanges_ReinstallsWhenTheChannelCloses(t *testing.T)
 }
 
 // TestGeometry_ServeOwnerChanges_IgnoresAReplacedConnection pins the other
-// half: a watcher whose connection the bridge has already replaced leaves the
+// half. A watcher whose connection the bridge has already replaced leaves the
 // successor's claim, cache and install alone when its own channel closes.
 func TestGeometry_ServeOwnerChanges_IgnoresAReplacedConnection(t *testing.T) {
 	geometry := newGeometry(nil)

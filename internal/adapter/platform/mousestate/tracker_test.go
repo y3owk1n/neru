@@ -66,7 +66,7 @@ func TestTracker_HeldButtonsOrdering(t *testing.T) {
 	var tracker mousestate.Tracker
 
 	// Pressed out of order to prove the result is ordered by button, not by
-	// press order — the drag event type is picked from the first entry.
+	// press order. The drag event type is picked from the first entry.
 	tracker.SetDown(action.ButtonMiddle, image.Point{}, 0)
 	tracker.SetDown(action.ButtonLeft, image.Point{}, 0)
 

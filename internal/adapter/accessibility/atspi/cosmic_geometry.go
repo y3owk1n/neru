@@ -12,7 +12,7 @@ import (
 
 // cosmicOriginSource reads the focused window's origin from cosmic-comp's
 // zcosmic_toplevel_info_v1, which the shared wlroots client already tracks for
-// the focused app_id. No query leaves the process: the geometry is whatever the
+// the focused app_id. No query leaves the process. The geometry is whatever the
 // compositor last pushed.
 type cosmicOriginSource struct {
 	logger *zap.Logger
@@ -43,7 +43,7 @@ func (s *cosmicOriginSource) originFor(frame windowFrame) (image.Point, bool, er
 
 // cosmicOrigin accepts the compositor's rectangle as the frame's origin only
 // when the two describe a window of the same size, as the niri and Sway
-// sources do: a focus change that raced the AT-SPI read would otherwise offset
+// sources do. A focus change that raced the AT-SPI read would otherwise offset
 // one window's hints by another's position.
 func cosmicOrigin(
 	bounds image.Rectangle,

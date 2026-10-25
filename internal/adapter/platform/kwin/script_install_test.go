@@ -16,7 +16,7 @@ import (
 // The script is code KWin executes, so the directory holding it decides who can
 // decide what runs inside the compositor. A fallback to os.TempDir() used to
 // cover an unset XDG_RUNTIME_DIR, which put a fixed-named executable script in
-// a directory every user on the machine can write to; refusing is the only
+// a directory every user on the machine can write to. Refusing is the only
 // answer that is not a worse one.
 func TestScriptDir_RefusesAnythingButAPrivateRuntimeDirectory(t *testing.T) {
 	tests := []struct {
@@ -233,7 +233,7 @@ func writeFileForTest(t *testing.T, path string, contents string, mode os.FileMo
 }
 
 // assertNoWriteLeftovers fails when the write left its temporary file behind.
-// One leftover is harmless; one per install attempt, in a runtime directory
+// One leftover is harmless. One per install attempt, in a runtime directory
 // that lives as long as the session, is not, and the defer that removes it is
 // easy to lose in a later edit.
 func assertNoWriteLeftovers(t *testing.T, dir string) {

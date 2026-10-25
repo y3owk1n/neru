@@ -8,7 +8,7 @@ import (
 )
 
 // TestPlatformCapabilities_EntriesCoverEveryField is the guardrail behind the
-// capability registry: Entries is the single list every renderer iterates, so a
+// capability registry. Entries is the single list every renderer iterates, so a
 // FeatureCapability field that is not registered would be invisible to
 // `neru doctor` and the IPC info response without anything failing to compile.
 func TestPlatformCapabilities_EntriesCoverEveryField(t *testing.T) {
@@ -55,7 +55,7 @@ func TestPlatformCapabilities_EntriesCoverEveryField(t *testing.T) {
 	}
 }
 
-// TestPlatformCapabilities_EntriesKeysAreUnique pins the wire contract: the
+// TestPlatformCapabilities_EntriesKeysAreUnique pins the wire contract. The
 // keys become map keys in the IPC response, so a duplicate would silently drop
 // one capability from the output.
 func TestPlatformCapabilities_EntriesKeysAreUnique(t *testing.T) {
@@ -76,7 +76,7 @@ func TestPlatformCapabilities_EntriesKeysAreUnique(t *testing.T) {
 }
 
 // TestPlatformCapabilities_EntriesReadTheMatchingField catches a copy-paste
-// slip where an entry is wired to the wrong struct field — the registry would
+// slip where an entry is wired to the wrong struct field. The registry would
 // still look exhaustive but would report one capability's status under
 // another's key.
 func TestPlatformCapabilities_EntriesReadTheMatchingField(t *testing.T) {

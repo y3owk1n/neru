@@ -6,14 +6,14 @@ import (
 )
 
 // TestSimHarness_WaitForWithinAsksTheConditionAfterTheBudgetIsSpent pins the
-// property that keeps the journeys off the flake list (#1324): a wait fails
+// property that keeps the journeys off the flake list (#1324). A wait fails
 // only on work that has not happened.
 //
 // It is written as the shape a loaded runner produces rather than by loading
 // one. A poll sleeps, the runner takes the CPU away for longer than the whole
-// budget, and the poll wakes to a deadline already in the past — with the
+// budget, and the poll wakes to a deadline already in the past, with the
 // awaited work long since done. Handing waitForWithin a budget that is already
-// spent is exactly that moment, minus the waiting: a wait that consults the
+// spent is exactly that moment, minus the waiting. A wait that consults the
 // clock before the condition never asks it at all and fails the journey, and
 // one that asks first sees the work and returns.
 func TestSimHarness_WaitForWithinAsksTheConditionAfterTheBudgetIsSpent(t *testing.T) {

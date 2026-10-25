@@ -36,7 +36,7 @@ type callbackEvent struct {
 }
 
 // unboundedQueue is an infinite-capacity event queue.
-// Producers always succeed (non-blocking); the consumer drains via next().
+// Producers never block. The consumer drains it through next().
 type unboundedQueue struct {
 	mu    sync.Mutex
 	cond  *sync.Cond
@@ -125,7 +125,6 @@ func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 
 	eventTap.startDispatcher()
 
-	// Store in global variable for callbacks with mutex protection
 	globalEventTapMu.Lock()
 	globalEventTap = eventTap
 	globalEventTapMu.Unlock()
@@ -152,7 +151,6 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 		return
 	}
 
-	// Convert Go string slice to C array
 	cHotkeys := make([]*C.char, len(hotkeys))
 	for index, hotkey := range hotkeys {
 		if hotkey != "" {
@@ -164,7 +162,6 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 		}
 	}
 
-	// Pass pointer to first element and length
 	cHotkeysPtr := (**C.char)(nil)
 	if len(cHotkeys) > 0 {
 		cHotkeysPtr = &cHotkeys[0]
@@ -319,7 +316,7 @@ func (et *EventTap) Disable() {
 }
 
 // Destroy cleans up the event tap resources and releases system hooks.
-// This method ensures proper cleanup by disabling the tap first and clearing references.
+// It disables the tap before destroying it and clears the callbacks after.
 func (et *EventTap) Destroy() {
 	// Clear global reference first so no new C callbacks enqueue keys while
 	// teardown is in progress.
@@ -353,7 +350,7 @@ func (et *EventTap) Destroy() {
 	et.logger.Debug("Event tap destroyed")
 }
 
-// handleKeyCallback processes key press events received from the C event tap darwin.
+// handleKeyCallback processes key press events received from the C event tap.
 // It forwards the key information to the registered callback function if one exists.
 func (et *EventTap) handleKeyCallback(key string) {
 	et.callbackMu.RLock()
@@ -445,15 +442,15 @@ func (et *EventTap) enqueuePassthrough(callback tap.PassthroughCallback) {
 	})
 }
 
-// Global event tap instance for C callbacks with thread safety.
-// This is used to route events from the C bridge function back to the Go EventTap instance.
+// globalEventTap routes events from the C bridge functions back to the Go
+// EventTap. globalEventTapMu guards it.
 var (
 	globalEventTap   *EventTap
 	globalEventTapMu sync.RWMutex
 )
 
-// eventTapCallbackBridge serves as the C-to-Go callback bridge for event tap notifications.
-// It safely retrieves the global EventTap instance and forwards the key event to handleCallback.
+// eventTapCallbackBridge is the C-to-Go callback bridge for event tap notifications.
+// It reads globalEventTap under its lock and queues the key for the dispatcher.
 //
 //export eventTapCallbackBridge
 func eventTapCallbackBridge(key *C.char, _ unsafe.Pointer) {
@@ -469,7 +466,7 @@ func eventTapCallbackBridge(key *C.char, _ unsafe.Pointer) {
 
 // eventTapPassthroughBridge is the C-to-Go callback bridge for passthrough
 // notifications. It is invoked on the event tap thread when a modifier shortcut
-// passes through to macOS. The callback snapshot is enqueued onto the existing
+// passes through to macOS. The callback snapshot is enqueued onto the
 // dispatcher so delivery stays ordered with key events without blocking the
 // CGEvent tap thread.
 //

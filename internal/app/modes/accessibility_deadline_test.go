@@ -1,19 +1,19 @@
 package modes
 
 // The element walk is bounded on every path that runs it under h.mu. h.mu
-// serializes key handling, so a walk of a tree that stops answering — a hung
-// application in the frontmost position — costs whatever it costs, and without
-// a deadline that is unbounded: the keyboard stops with it.
+// serializes key handling, so a walk of a tree that stops answering (a hung
+// application in the frontmost position) costs whatever it costs, and without
+// a deadline that is unbounded. The keyboard stops with it.
 //
 // These pin the bound at each call site rather than the behavior of any one
 // refresh. What they assert is the deadline reaching the port, not the timeout
 // expiring, so they cost nothing in wall clock.
 //
-// Asserting on what the port is handed is deliberate: a deadline is only as
+// Asserting on what the port is handed is deliberate. A deadline is only as
 // good as the callee's willingness to read it, which is the accessibility
 // client's business, not the handler's. What the handler can be held to is the
-// budget it sets. The area guide's deadline rule says which calls read one —
-// the walk does, which is why it is the walk that is pinned here.
+// budget it sets. The area guide's deadline rule says which calls read one.
+// The walk does, which is why it is the walk that is pinned here.
 
 import (
 	"context"
@@ -40,7 +40,7 @@ import (
 // accessibility call was made with, and whether it carried one at all.
 //
 // The walk fans out across goroutines, so the port can be reached from more
-// than one; the mutex keeps this an assertion failure rather than a -race
+// than one. The mutex keeps this an assertion failure rather than a -race
 // failure if it ever is.
 type capturedDeadline struct {
 	mu     sync.Mutex
@@ -99,10 +99,10 @@ func (c *capturedDeadline) assertBoundedBy(t *testing.T, what string, want time.
 // allowed when the walk reached it.
 func newBoundedWalkHintsHandler(walk *capturedDeadline, cfg *configpkg.Config) *Handler {
 	accessibility := &portmocks.MockAccessibilityPort{
-		// The walk itself, and the only call here that reads a deadline: it is
+		// The walk itself, and the only call here that reads a deadline. It is
 		// the traversal the budget exists to cut short. Capturing the focused
 		// application lookup instead would measure a different context, on an
-		// earlier call, that the platform ignores anyway — and would keep
+		// earlier call, that the platform ignores anyway, and would keep
 		// passing if this one were later handed an unbounded context.
 		ClickableElementsFunc: func(
 			ctx context.Context,

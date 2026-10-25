@@ -46,7 +46,7 @@ func (s *SystemAdapter) Health(ctx context.Context) error {
 // Capabilities returns the current Windows capability surface.
 //
 // Notifications are balloon tips on the tray icon, so once this process has
-// started its tray loop the row follows whether the shell holds the icon: a
+// started its tray loop the row follows whether the shell holds the icon. A
 // headless run or a failed registration downgrades it live with the reason,
 // and neru doctor says so rather than repeating the static preset. Before the
 // loop starts, and in a process that never runs one, the preset stands.
@@ -203,7 +203,7 @@ func (s *SystemAdapter) FocusedWindowBounds(
 //
 // When smooth cursor is enabled (config smooth_cursor.move_mouse_enabled) and
 // the caller has not requested a bypass, the move is animated by the shared
-// cursor animator, which steps SetCursorPos over time; callers that need the
+// cursor animator, which steps SetCursorPos over time. Callers that need the
 // cursor settled before acting pair this with WaitForCursorIdle. Otherwise
 // (bypass, disabled, or no config wired) it warps directly.
 func (s *SystemAdapter) MoveCursorToPoint(
@@ -228,7 +228,7 @@ func (s *SystemAdapter) MoveCursorToPoint(
 		return nil
 	}
 
-	// Stop before warping: stop() drains the animator's injection mutex, so on
+	// Stop before warping. stop() drains the animator's injection mutex, so on
 	// return no animation step is in flight and none will start, and this warp
 	// lands last instead of racing a stale step back to an intermediate point.
 	s.cursorAnimator.stop()
@@ -295,7 +295,7 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 	return s.cursorAnimator.wait(ctx)
 }
 
-// SettleCursor finishes any in-flight cursor animation immediately: the
+// SettleCursor finishes any in-flight cursor animation immediately. The
 // worker is stopped and the cursor warps straight to the endpoint it was
 // animating toward. Action paths call this before resolving their target
 // point from the cursor, so an action firing mid-animation acts at the point
@@ -327,12 +327,12 @@ func (s *SystemAdapter) CheckPermissions(ctx context.Context) error {
 	return nil
 }
 
-// IsSecureInputEnabled returns false on Windows — secure input is a macOS-only concept.
+// IsSecureInputEnabled returns false on Windows, because secure input is a macOS-only concept.
 func (s *SystemAdapter) IsSecureInputEnabled() bool {
 	return false
 }
 
-// ShowSecureInputNotification is a no-op on Windows — secure input is a macOS-only concept.
+// ShowSecureInputNotification is a no-op on Windows, because secure input is a macOS-only concept.
 func (s *SystemAdapter) ShowSecureInputNotification() {}
 
 // ShowAlert displays a native system alert on Windows using MessageBoxW.
@@ -349,13 +349,13 @@ func (s *SystemAdapter) ShowNotification(_ context.Context, title, message strin
 	return wintray.ShowBalloon(title, message)
 }
 
-// CheckScreenCapturePermission reports true: Windows does not gate screen capture
+// CheckScreenCapturePermission reports true, because Windows does not gate screen capture
 // behind a permission.
 func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
 	return true
 }
 
-// RequestScreenCapturePermission reports granted without prompting: Windows has no
+// RequestScreenCapturePermission reports granted without prompting, because Windows has no
 // screen-recording permission to request.
 func (s *SystemAdapter) RequestScreenCapturePermission(
 	_ context.Context,
@@ -365,7 +365,7 @@ func (s *SystemAdapter) RequestScreenCapturePermission(
 
 // currentCursorPosition returns the current cursor position for the animator,
 // collapsing the error to a zero point. The animator samples this once per
-// request to seed interpolation; a bad read only skews the glide path, never
+// request to seed interpolation. A bad read only skews the glide path, never
 // the final landing point (the last step lands exactly on the target).
 func (s *SystemAdapter) currentCursorPosition() image.Point {
 	point, err := cursorPosition()

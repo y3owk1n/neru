@@ -16,12 +16,13 @@ import (
 // distinguishes fatal bus errors from apps that are merely uncooperative, so a
 // scan that finds nothing can say why.
 //
-// atspiScanDiag records diagnostics for a single ClickableNodes scan. It rides
-// on the scan context so the leaf D-Bus helpers can report a scan-fatal failure
-// (a per-call timeout, a closed connection, or the target app disappearing from
-// the bus) without threading an extra parameter through the whole walk. A scan
+// atspiScanDiag records diagnostics for a single ClickableNodes scan. It is
+// stored on the scan context so the leaf D-Bus helpers can report a scan-fatal
+// failure (a per-call timeout, a closed connection, or the target app
+// disappearing from the bus) without threading an extra parameter through the
+// whole walk. A scan
 // that ends up empty for one of those reasons can then surface an actionable
-// error instead of a silent empty result; benign per-node errors are ignored.
+// error instead of a silent empty result. Benign per-node errors are ignored.
 type atspiScanDiag struct {
 	mu  sync.Mutex
 	err error

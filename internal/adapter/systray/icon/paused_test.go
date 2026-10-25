@@ -23,8 +23,8 @@ func decodeTile(t *testing.T, name string, data []byte) image.Image {
 
 // TestBrandPaused pins what the paused tray tile owes a user: it is a real PNG
 // of the running tile's size, it is visibly not the running tile, and it is
-// still there — a transform that erased the artwork would leave the tray
-// showing nothing at all, which is the invisible-state bug in a new costume.
+// still there. A transform that erased the artwork would leave the tray
+// showing nothing at all, which is the invisible-state bug again.
 func TestBrandPaused(t *testing.T) {
 	paused := icon.BrandPaused()
 
@@ -67,7 +67,7 @@ func TestBrandPaused(t *testing.T) {
 }
 
 // TestBrandPaused_IsStable pins that the derivation is computed once and the
-// same bytes come back on every call: the tray sets an icon on every state
+// same bytes come back on every call. The tray sets an icon on every state
 // change, and a fresh encode per call would put PNG work on that path.
 func TestBrandPaused_IsStable(t *testing.T) {
 	first := icon.BrandPaused()

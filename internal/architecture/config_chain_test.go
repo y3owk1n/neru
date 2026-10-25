@@ -15,12 +15,12 @@ import (
 const validatorLadder = "ValidateWithWarnings"
 
 // validatorPrefix is the naming convention the ladder's steps share. It is what
-// makes the set of validators discoverable at all: there is no interface, no
+// makes the set of validators discoverable at all. There is no interface, no
 // table and no registration, only the name.
 const validatorPrefix = "Validate"
 
 // plainValidator is the ladder's other entry point, which delegates to it. Its
-// name happens to equal validatorPrefix; the two are spelled separately because
+// name happens to equal validatorPrefix. The two are spelled separately because
 // one names a method and the other a naming convention.
 const plainValidator = "Validate"
 
@@ -50,33 +50,33 @@ var exemptedDefaults = map[string]string{}
 
 // minSchemaFields guards against a vacuous pass, the same way
 // minSchemaOptions does for the example checks. The walk finds a few hundred
-// fields today; a reflection bug that returned none would satisfy every
+// fields today. A reflection bug that returned none would satisfy every
 // assertion here without anyone noticing.
 const minSchemaFields = 150
 
-// minLadderSteps guards the other walk. An AST pass that matched nothing —
-// because the ladder was renamed, or the receiver stopped being c — would
+// minLadderSteps guards the other walk. An AST pass that matched nothing,
+// because the ladder was renamed or the receiver stopped being c, would
 // report a perfectly wired ladder made of no validators at all.
 const minLadderSteps = 15
 
 // bindingWalk is the helper that reads every action string the configuration
 // can dispatch: the global bindings, each mode's, the per-app overrides of
 // both, the Mission Control hooks and the macro bodies. A validator that goes
-// through it is not checking one section of the file — it is reading all of
+// through it is not checking one section of the file. It is reading all of
 // them, which is why it cannot run before the validators that own them.
 const bindingWalk = "eachBindingAction"
 
 // minBindingWalks guards the ordering check against passing vacuously. Two
-// validators go through the binding walk today; a name match that found none
+// validators go through the binding walk today. A name match that found none
 // would leave it asserting nothing about an empty tail.
 const minBindingWalks = 2
 
 // TestEveryConfigValidatorRunsInTheLadder pins the validator link of the option
-// chain (internal/config/AGENTS.md): a validator that is written but never
+// chain (internal/config/AGENTS.md). A validator that is written but never
 // called is indistinguishable, to a user, from one that was never written.
 //
-// Nothing is unwired today and this test finds nothing on the day it lands;
-// that is the bargain, and
+// Nothing is unwired today and this test finds nothing on the day it lands.
+// That is the bargain, and
 // docs/adr/0006-config-options-get-guardrails-not-generation.md is the answer
 // to "what was this for". It is an AST pass rather than reflection because the
 // ladder is a hand-ordered sequence of calls, and only the source says which
@@ -111,8 +111,8 @@ func TestEveryConfigValidatorRunsInTheLadder(t *testing.T) {
 }
 
 // TestValidatorLadderExemptionsStayHonest keeps the two exemptions from
-// outliving what they describe. Both are claims about the code, and claims rot:
-// an entry point that stopped delegating is a validator nobody runs, wearing an
+// outliving what they describe. Both are claims about the code, and claims rot.
+// An entry point that stopped delegating is a validator nobody runs, wearing an
 // exemption that says it is fine.
 func TestValidatorLadderExemptionsStayHonest(t *testing.T) {
 	declared := declaredConfigValidators(t)
@@ -147,17 +147,17 @@ func TestValidatorLadderExemptionsStayHonest(t *testing.T) {
 }
 
 // TestTheBindingWalksCloseTheLadder pins the one ordering the ladder has. Its
-// steps are otherwise independent — each reads its own section — but the two
+// steps are otherwise independent, since each reads its own section, but the two
 // that read every binding in the file are not, and they close the sequence.
 //
-// The ladder said so in a comment for two releases while it was not true: the
+// The ladder said so in a comment for two releases while it was not true. The
 // comment claimed ValidateMacros ran last and a step appended after it in
 // #1201 left the claim standing (#1270). A stated contract nothing enforces is
 // believed, which is the whole premise of the guardrails around it
 // (docs/adr/0006-config-options-get-guardrails-not-generation.md), so the
 // ordering is either declared here or it is not a contract at all.
 //
-// What it does not pin is the order of the walks among themselves: neither
+// What it does not pin is the order of the walks among themselves, because neither
 // reads what the other establishes, and pinning that would invent a dependency
 // the code does not have.
 func TestTheBindingWalksCloseTheLadder(t *testing.T) {
@@ -192,7 +192,7 @@ func TestTheBindingWalksCloseTheLadder(t *testing.T) {
 		)
 	}
 
-	// From the first walk rather than the last len(walks) entries: a validator
+	// From the first walk rather than the last len(walks) entries, because a validator
 	// the ladder happened to call twice would shift a window counted from the
 	// end, and let the step it was hiding through.
 	firstWalk := slices.IndexFunc(order, func(name string) bool { return walks[name] })
@@ -213,12 +213,12 @@ func TestTheBindingWalksCloseTheLadder(t *testing.T) {
 }
 
 // TestEverySchemaFieldHasAnExplicitDefault pins the second universal link of
-// the option chain (internal/config/AGENTS.md): every field the schema declares
+// the option chain (internal/config/AGENTS.md). Every field the schema declares
 // is assigned a value by name in the shared defaults, rather than inheriting
 // Go's zero value by omission.
 //
-// Reflection alone cannot tell a deliberate zero from a forgotten one — both
-// read as "". grid.row_labels and grid.col_labels were the forgotten kind for
+// Reflection alone cannot tell a deliberate zero from a forgotten one, because
+// both read as "". grid.row_labels and grid.col_labels were the forgotten kind for
 // as long as the guide claimed otherwise, with their real meaning living in a
 // consumer, so the question this asks is whether the source names the field,
 // not what value it ends up with.
@@ -245,7 +245,7 @@ func TestEverySchemaFieldHasAnExplicitDefault(t *testing.T) {
 
 // TestConfigDefaultExemptionsStayHonest keeps the named allowlist from
 // outliving what it describes. The structural exemptions need no companion
-// here: both are recomputed from the live defaults on every run, so a field
+// here, because both are recomputed from the live defaults on every run, so a field
 // that stops qualifying stops being exempt by itself.
 func TestConfigDefaultExemptionsStayHonest(t *testing.T) {
 	missing := undefaultedSchemaFields(t)
@@ -275,9 +275,9 @@ type undefaultedField struct {
 // assign by name at every literal of its owning struct, keyed Type.Field.
 //
 // It is keyed by declaration rather than by TOML path because that is the shape
-// of the fix: the mode indicator's per-mode table is one struct reached five
+// of the fix. The mode indicator's per-mode table is one struct reached five
 // times, and one missing line in the defaults is one thing to correct, not
-// five. The path of one place it shows up rides along for the failure message.
+// five. The path of one place it shows up is kept for the failure message.
 func undefaultedSchemaFields(t *testing.T) map[string]undefaultedField {
 	t.Helper()
 
@@ -345,7 +345,7 @@ func validatorsCalledByLadder(t *testing.T) map[string]bool {
 
 // ladderCallOrder names every validator the ladder calls on its own receiver,
 // in the order the source makes the calls. The set the wiring checks read
-// answers which validators run; only a sequence answers when.
+// answers which validators run. Only a sequence answers when.
 func ladderCallOrder(t *testing.T) []string {
 	t.Helper()
 
@@ -356,12 +356,12 @@ func ladderCallOrder(t *testing.T) []string {
 // binding walk.
 //
 // The call has to be a direct one, which is how the wiring checks read the
-// ladder itself: a validator that reached the walk through a helper would go
+// ladder itself. A validator that reached the walk through a helper would go
 // unfound here, and the ordering would stop being demanded of it. Nothing is
-// written that way today — eachBindingAction takes the visitor, so a caller
-// hands it one — and minBindingWalks catches the day this finds none at all.
+// written that way today, since eachBindingAction takes the visitor, so a caller
+// hands it one. And minBindingWalks catches the day this finds none at all.
 //
-// The entry points are excluded rather than found and dropped later: the ladder
+// The entry points are excluded rather than found and dropped later, because the ladder
 // calls the validators that walk, so it walks too, and it is not a step in the
 // sequence whose order this is about.
 func validatorsWalkingBindings(t *testing.T) map[string]bool {
@@ -388,7 +388,7 @@ func validatorsWalkingBindings(t *testing.T) map[string]bool {
 
 // configMethodsWithPrefix names every method on *Config whose name starts with
 // the prefix, sorted so failures read in a stable order. The prefix is the only
-// thing that makes such a set discoverable: there is no interface, no table and
+// thing that makes such a set discoverable. There is no interface, no table and
 // no registration behind either the validator ladder or the derivation chain.
 func configMethodsWithPrefix(t *testing.T, prefix string) []string {
 	t.Helper()
@@ -428,7 +428,7 @@ func configMethodsCalledBy(t *testing.T, method, prefix string) map[string]bool 
 }
 
 // configMethodCallOrder is the same reading in the order the source makes the
-// calls. The set is derived from it rather than walked separately: two passes
+// calls. The set is derived from it rather than walked separately, because two passes
 // over one method would be free to disagree about what a call is.
 func configMethodCallOrder(t *testing.T, method, prefix string) []string {
 	t.Helper()
@@ -517,10 +517,10 @@ func receiverName(decl *ast.FuncDecl) string {
 	return decl.Recv.List[0].Names[0].Name
 }
 
-// configMethodDecl finds one method on Config by name, failing when it is gone
-// — a renamed ladder must break this suite loudly rather than leave it checking
+// configMethodDecl finds one method on Config by name, failing when it is gone.
+// A renamed ladder must break this suite loudly rather than leave it checking
 // nothing. It insists on the receiver because the package has more than one
-// Validate: Color carries its own.
+// Validate, and Color carries its own.
 func configMethodDecl(t *testing.T, name string) *ast.FuncDecl {
 	t.Helper()
 
@@ -547,13 +547,13 @@ func configMethodDecl(t *testing.T, name string) *ast.FuncDecl {
 // newDefaultConfig() reaches.
 //
 // Per literal rather than merged per type, because merging lets two literals of
-// one struct cover for each other — each omitting a field the other sets, and
+// one struct cover for each other, each omitting a field the other sets and
 // neither stating a default. That is the exact shape the mode indicator table
 // had when this check first ran, five literals deep.
 //
 // It follows plain function calls out of newDefaultConfig() because the builder
-// is written as one — defaultGrid(), defaultHints() and the rest are that
-// function's body, split up. Platform overrides are deliberately not followed:
+// is written as one. defaultGrid(), defaultHints() and the rest are that
+// function's body, split up. Platform overrides are deliberately not followed.
 // applyPlatformDefaults() adjusts a default that already exists, and a field
 // that only a platform sets has no shared default at all.
 func defaultLiteralSites(t *testing.T) map[string][]map[string]bool {
@@ -614,8 +614,8 @@ func defaultLiteralSites(t *testing.T) map[string][]map[string]bool {
 // recordLiteralSite notes the fields one keyed literal of a named struct type
 // sets. An instantiated generic (PerPlatform[string]) is recorded under the
 // name reflect gives it, which is how it is written. A literal whose type is
-// neither is skipped — an unkeyed or elided one names nothing, and the schema
-// structs are never written that way. Skipping fails closed: an unread literal
+// neither is skipped. An unkeyed or elided one names nothing, and the schema
+// structs are never written that way. Skipping fails closed. An unread literal
 // makes its fields look undefaulted, which reports, rather than making them
 // look defaulted, which would not.
 func recordLiteralSite(lit *ast.CompositeLit, sites map[string][]map[string]bool) {
@@ -647,10 +647,10 @@ func recordLiteralSite(lit *ast.CompositeLit, sites map[string][]map[string]bool
 }
 
 // parsedConfigPackage parses every non-test Go file in internal/config,
-// platform files included: the validators are spread across a dozen of them.
+// platform files included, because the validators are spread across a dozen of them.
 // Build tags are not honored, so a Validate* method declared for one platform
 // only would be demanded of the shared ladder. There are none today, and the
-// demand would be the right one to raise — a validator that runs on one
+// demand would be the right one to raise. A validator that runs on one
 // platform and silently not on another is the failure this file exists for.
 func parsedConfigPackage(t *testing.T) []*ast.File {
 	t.Helper()

@@ -6,18 +6,19 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Adapter implements ports.VisionPort using the macOS Vision Framework.
-// On non-darwin platforms the implementation is a no-op stub.
+// Adapter implements ports.VisionPort. Its methods live in the platform files:
+// the macOS Vision framework in adapter_darwin.go, tesseract in
+// adapter_linux.go, Windows.Media.Ocr in adapter_windows.go, and
+// CodeNotSupported stubs in adapter_other.go.
 //
-// The adapter captures screenshots of the frontmost window and runs
-// Vision Framework requests (text recognition, rectangle detection,
-// saliency) to detect interactive UI elements. The results are passed
-// through a heuristic classifier to assign roles and confidence scores.
+// The adapter captures the screen and runs text recognition and rectangle
+// detection (plus saliency on macOS) to detect interactive UI elements. A
+// heuristic classifier assigns the results roles and confidence scores.
 type Adapter struct {
 	logger *zap.Logger
 }
 
-// NewAdapter creates a new Vision Framework adapter.
+// NewAdapter creates a vision adapter.
 func NewAdapter(logger *zap.Logger) ports.VisionPort {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -28,7 +29,7 @@ func NewAdapter(logger *zap.Logger) ports.VisionPort {
 	}
 }
 
-// Ensure Adapter implements ports.VisionPort. The non-darwin build satisfies it
-// with CodeNotSupported stubs (adapter_other.go), so this assertion holds on
-// every target and catches a signature drift in either half.
+// Ensure Adapter implements ports.VisionPort. Every platform file satisfies it,
+// the `other` slot with CodeNotSupported stubs (adapter_other.go), so this
+// assertion holds on every target and catches a signature drift in any of them.
 var _ ports.VisionPort = (*Adapter)(nil)

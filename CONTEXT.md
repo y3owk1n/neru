@@ -1,11 +1,11 @@
 # Neru
 
-Neru is a keyboard-driven, mouse-free navigation tool: every pointer action
-reachable from the keyboard, instantly. This file is the glossary — the words
+Neru is a keyboard-driven, mouse-free navigation tool that makes every pointer action
+reachable from the keyboard, instantly. This file is the glossary of the words
 this repo uses for its own concepts, and the words it deliberately does not.
 
 Mode, Port / Adapter and Semantic role are defined in `AGENTS.md`
-under Domain Concepts and are not repeated here; each fact has one home.
+under Domain Concepts and are not repeated here, because each fact has one home.
 
 ## Language
 
@@ -21,7 +21,7 @@ The mapping from one hotkey to the ordered steps it runs.
 _Avoid_: keybinding, mapping
 
 **Step**:
-One unit of work written in a binding — a mode command, an action, a shell
+One unit of work written in a binding: a mode command, an action, a shell
 command, or a nested sequence.
 _Avoid_: action string, command, entry
 
@@ -54,10 +54,10 @@ per-app overrides apply.
 _Avoid_: frontmost app, active app, current app, bundle ID as a bare noun
 
 **Keymap**:
-The [[Binding]]s in force right now — the ones the current mode answers to, or
+The [[Binding]]s in force right now, meaning the ones the current mode answers to, or
 the global ones when no mode is active, with the [[Focused app]]'s overrides
 already applied. A keymap is settled when the mode, the focused app or the
-configuration changes, not when a key arrives; a keystroke consults one, it
+configuration changes, not when a key arrives. A keystroke consults one and
 never builds one. That is the rule the word carries, and the decision behind
 it is ADR 0005.
 _Avoid_: dispatch table, hotkey map, resolved config, keymap table
@@ -66,7 +66,7 @@ _Avoid_: dispatch table, hotkey map, resolved config, keymap table
 
 **Option**:
 One setting a person can write in `config.toml`: one key path, one default,
-one meaning. An Option is declared once; its default, its line in the example
+one meaning. An Option is declared once. Its default, its line in the example
 configuration and its row in the reference are projections of that
 declaration, never independent facts. When they disagree, the declaration is
 right and the others are stale.
@@ -75,7 +75,7 @@ _Avoid_: setting, key, field, knob, param, config value
 ### Entering a mode
 
 **Mode command**:
-A step that names a navigation mode, written with flags — `hints --action
+A step that names a navigation mode, written with flags, such as `hints --action
 left_click`. This is the text form, the thing a person writes in a binding or
 types after `neru`.
 _Avoid_: mode invocation, mode action string, launcher
@@ -87,8 +87,8 @@ _Avoid_: option, param, arg, switch
 
 **Activation**:
 The typed intent to enter a mode: which mode, plus the value of every mode
-flag that was given. A mode command parses into an Activation; the CLI builds
-one directly from its flags; both reach the mode handler as the same value.
+flag that was given. A mode command parses into an Activation, the CLI builds
+one directly from its flags, and both reach the mode handler as the same value.
 _Avoid_: mode activation options, request, params, opts, config
 
 **Probe**:
@@ -103,8 +103,8 @@ _Avoid_: window, HUD, canvas
 
 **Frame**:
 The complete description of what should be on screen for one mode. A mode hands
-over a Frame; realising it — showing the overlay, switching to the mode,
-drawing — belongs to the adapter, not to the mode.
+over a Frame. Realising it, which means showing the overlay, switching to the
+mode and drawing, belongs to the adapter, not to the mode.
 _Avoid_: draw call, render pass, overlay state
 
 **Refresh**:
@@ -122,8 +122,8 @@ the virtual pointer.
 _Avoid_: badge, HUD, widget
 
 **Badge**:
-The chip drawn behind a label — a hint's, a recursive-grid cell's, a
-monitor-select target's. A rendering primitive, not an [[Indicator]].
+The chip drawn behind a label, such as a hint's, a recursive-grid cell's or a
+monitor-select target's. A low-level drawing element, not an [[Indicator]].
 _Avoid_: pill, chip, tag
 
 **Style**:
@@ -135,20 +135,20 @@ _Avoid_: theme, palette, config
 
 **Modifier**:
 A key Neru presents as held while an action fires. A person names one either on
-the action itself — `--modifier ctrl` — or by switching on a sticky modifier
-beforehand; which actions honor which route is part of the action's
+the action itself, as in `--modifier ctrl`, or by switching on a sticky modifier
+beforehand. Which actions honor which route is part of the action's
 definition, not the modifier's. How a platform produces the effect is not part
 of the word.
 _Avoid_: modifier flag, mod key, held key, chord
 
 **Bridge**:
-A package that compiles native source — Objective-C on macOS, C on Linux — and
-publishes it as headers. A Bridge's interface is those headers, not its Go API:
-other packages call it by including a header, and the Go import is what links
+A package that compiles native source, Objective-C on macOS and C on Linux, and
+publishes it as headers. A Bridge's interface is those headers, not its Go API.
+Other packages call it by including a header, and the Go import is what links
 the compiled objects into the binary. So a package that includes a Bridge's
 header states a direct import of it even when it calls no Go symbol there, and
 that import is deliberate rather than dead. Untagged code cannot import a
-Bridge at all — it crosses through a build-tagged pair. The decision is ADR
+Bridge at all. It crosses through a build-tagged pair. The decision is ADR
 0009.
 _Avoid_: cgo package, native layer, FFI layer, glue
 
@@ -156,11 +156,11 @@ _Avoid_: cgo package, native layer, FFI layer, glue
 
 **Parity**:
 The promise that Linux behaves as macOS does for every name a person can
-write — every option, mode flag, action and command — on the [[Blessed stack]].
-Parity is defined over the vocabulary, not over subsystems: a capability
+write, meaning every option, mode flag, action and command, on the [[Blessed stack]].
+Parity is defined over the vocabulary, not over subsystems. A capability
 reported as supported while an [[Option]] it backs is silently ignored is not
 parity. A closed, declared set of capabilities is exempt because the concept
-itself is macOS-only; anything not on that list is a gap, whatever the
+itself is macOS-only. Anything not on that list is a gap, whatever the
 capability matrix currently claims. The decision is ADR 0013.
 _Avoid_: feature parity, full support, cross-platform
 
@@ -170,7 +170,7 @@ capability claim: wlroots Wayland, CGO build. It names a protocol family rather
 than a compositor, so one compositor's upstream defect is an exception to
 document, not a parity failure. The other supported backends owe the same
 capabilities and inherit their own documented limits. Being blessed is not a
-statement about popularity — it is the stack whose remaining gaps are closable.
+statement about popularity. It is the stack whose remaining gaps are closable.
 _Avoid_: reference platform, primary backend, tier one
 
 ### Computing the same thing twice
@@ -180,7 +180,7 @@ A value more than one layer computes from the same inputs and must compute
 identically: where a grid cell is drawn and where the cursor lands inside it,
 what a written font name means. A shared derivation has exactly one
 implementation, and it lives at the lowest layer that has more than one
-caller — not in the domain by default. Where the second implementation is in
+caller, not in the domain by default. Where the second implementation is in
 Objective-C, Go cannot be the one implementation, so the copies are pinned by
 a test instead. ADR 0007 has the reasoning.
 _Avoid_: helper, util, common code, shared logic
@@ -190,16 +190,16 @@ _Avoid_: helper, util, common code, shared logic
 **Contract**:
 A binding rule stated in an `AGENTS.md`: something the code must do or must
 never do. The guide files also carry guidance, rationale and product direction,
-and those are not contracts — only a contract can be *broken*, and only a
+and those are not contracts. Only a contract can be *broken*, and only a
 contract is a candidate for a [[Guardrail]]. A sentence claiming a guardrail
 exists must name it.
 _Avoid_: rule, convention, invariant, guideline, policy
 
 **Guardrail**:
 A test in `internal/architecture` that fails when a [[Contract]] is broken. A
-contract earns one when breaking it is *silent* — the code compiles, the linter
+contract earns one when breaking it is *silent*. The code compiles, the linter
 passes, every other test passes, and the breach ships anyway. A guardrail states
-the rule in its failure message and cites the document that states it; the
+the rule in its failure message and cites the document that states it. The
 document never cites the guardrail back. Where the type system can be made to
 carry the rule instead, that is better than a guardrail, because it deletes the
 contract rather than pinning it. The reasoning is ADR 0011.
@@ -208,9 +208,9 @@ _Avoid_: architecture test, lint rule, invariant test, check, assertion
 ### Naming what a person can write
 
 **Vocabulary**:
-A closed set of names a person can write and Neru promises to recognise — the
+A closed set of names a person can write and Neru promises to recognise, such as the
 semantic roles, the named keys, the hint placements. A vocabulary is declared
-exactly once, in Go; a validator, a platform table or a docs row is a
+exactly once, in Go. A validator, a platform table or a docs row is a
 projection of that declaration, and a copy in another language is pinned to it
 the way a [[Shared derivation]]'s language-boundary copy is, never generated.
 Which declaration a contested vocabulary belongs to is ADR 0008.

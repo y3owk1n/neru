@@ -7,7 +7,7 @@ description: "Answer a Neru user's question about what Neru does, which command,
 
 Neru is a keyboard-driven mouse replacement. A daemon watches global hotkeys
 and draws overlays, and a CLI sends it commands over a socket. Modes take the
-keyboard until a target is picked: hints label clickable elements, grid and
+keyboard until a target is picked. Hints label clickable elements, grid and
 recursive grid divide the screen, scroll moves content, monitor select jumps
 between displays. Actions click, scroll, and move the cursor without a mode.
 Every answer should come from the installed version, since commands, flags,
@@ -148,7 +148,7 @@ Things a user often does not know:
   a hotkey report, then the Troubleshooting doc as above, before guessing at
   a cause. Its Permissions and Hotkeys Not Working sections cover most
   reports. On macOS, a hotkey that never fires after an update is usually a
-  stale Accessibility grant: remove Neru from the list and add it again.
+  stale Accessibility grant. Remove Neru from the list and add it again.
 - A bug or a missing feature goes to a GitHub issue on `y3owk1n/neru`.
   Blank issues are disabled, so use the issue forms, and include
   `neru --version` and `neru doctor` output. Questions and config help

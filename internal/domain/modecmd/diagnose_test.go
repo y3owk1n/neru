@@ -44,7 +44,7 @@ func TestDiagnose_WarnsAboutACommandThatStillRuns(t *testing.T) {
 			want: []string{"grid does not accept --strategy"},
 		},
 		{
-			// The flag after it is not its value: stepping over "--search"
+			// The flag after it is not its value. Stepping over "--search"
 			// here would drop a flag in silence, which is the whole failure
 			// this package exists to remove.
 			name: "a flag written where the dropped flag's value would be",
@@ -88,7 +88,7 @@ func TestDiagnose_WarnsAboutACommandThatStillRuns(t *testing.T) {
 			want: []string{"--hide-on-empty-search requires --search"},
 		},
 		{
-			// Every fault is reported, not just the first: a user fixing their
+			// Every fault is reported, not just the first. A user fixing their
 			// configuration should see the whole of what is wrong with a
 			// binding rather than one fault per edit.
 			name: "several at once",
@@ -118,8 +118,8 @@ func TestDiagnose_WarnsAboutACommandThatStillRuns(t *testing.T) {
 	}
 }
 
-// TestDiagnose_RefusesACommandThatCouldNotRun pins the other side of the split:
-// a command naming a flag nothing knows, or a value no flag can carry, never
+// TestDiagnose_RefusesACommandThatCouldNotRun pins the other side of the split.
+// A command naming a flag nothing knows, or a value no flag can carry, never
 // activated anything, so refusing the configuration takes nothing away that
 // worked.
 func TestDiagnose_RefusesACommandThatCouldNotRun(t *testing.T) {
@@ -168,8 +168,8 @@ func TestDiagnose_RefusesACommandThatCouldNotRun(t *testing.T) {
 			want: "modifier values cannot be empty",
 		},
 		{
-			// The command cannot run, so there is nothing left to weigh: the
-			// inert --repeat is not reported alongside it.
+			// The command cannot run, so there is nothing left to weigh, and
+			// the inert --repeat is not reported alongside it.
 			name: "unusable action outweighs a warning",
 			mode: domain.ModeHints,
 			args: []string{flagRepeat, "--action=nonsense"},
@@ -234,8 +234,8 @@ func TestDiagnose_AcceptsACleanCommand(t *testing.T) {
 	}
 }
 
-// TestDiagnose_SaysWhatParseSays pins that weighing a fault does not reword it:
-// the sentence a configuration prints is the one the daemon and the command
+// TestDiagnose_SaysWhatParseSays pins that weighing a fault does not reword it.
+// The sentence a configuration prints is the one the daemon and the command
 // line give for the same mistake.
 func TestDiagnose_SaysWhatParseSays(t *testing.T) {
 	t.Parallel()

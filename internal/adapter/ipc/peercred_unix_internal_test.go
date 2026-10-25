@@ -87,7 +87,7 @@ func TestAuthorizePeer_AcceptsThisUsersOwnProcess(t *testing.T) {
 }
 
 // peerUID must report the identity the kernel recorded, not a zero it never
-// read — a silent zero would read as root and pass the check.
+// read. A silent zero would read as root and pass the check.
 func TestPeerUID_ReportsTheConnectingProcessesOwner(t *testing.T) {
 	t.Parallel()
 

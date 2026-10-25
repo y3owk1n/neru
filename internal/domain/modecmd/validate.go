@@ -36,7 +36,7 @@ const (
 //
 // [Parse] calls it, so a parsed command is always a validated one. It is
 // exported separately for a caller that builds an activation from typed flags
-// rather than from a string, which is how the CLI reads its own flags: the
+// rather than from a string, which is how the CLI reads its own flags. The
 // rules it is held to have to be these ones.
 func Validate(activation Activation) error {
 	acceptanceErr := validateAcceptance(activation)
@@ -55,10 +55,10 @@ func Validate(activation Activation) error {
 // validateAcceptance refuses a flag the named mode has no use for.
 //
 // Whether a flag was given is read from its own renderer rather than from a
-// third closure per flag: a flag renders exactly what it was given, so
+// third closure per flag. A flag renders exactly what it was given, so
 // rendering nothing is what "absent" means. A presence-only flag set
-// explicitly off renders nothing too, and rightly: it asks the mode for
-// nothing, so there is nothing for the mode to refuse.
+// explicitly off renders nothing too, which is right, because it asks the mode
+// for nothing and so there is nothing for the mode to refuse.
 func validateAcceptance(activation Activation) error {
 	for _, descriptor := range descriptors {
 		if len(descriptor.render(activation)) == 0 {
@@ -83,7 +83,7 @@ type dependency struct {
 // dependencies are the co-dependency rules, in the order they are reported.
 //
 // They are a table rather than a run of conditions because they have two
-// readers that need different amounts of them: [Validate] refuses at the
+// readers that need different amounts of them. [Validate] refuses at the
 // first, and [Diagnose] weighs every one.
 var dependencies = []dependency{
 	{
@@ -199,7 +199,7 @@ func validateName(activation Activation) error {
 }
 
 // validateModifier refuses a --modifier value that names no modifier key. An
-// empty one is named separately: it parses, and holds nothing.
+// empty one gets its own message, because it parses but holds nothing.
 func validateModifier(activation Activation) error {
 	if activation.Modifier == nil {
 		return nil
@@ -282,7 +282,7 @@ func NotDeclared(name string) error {
 	)
 }
 
-// isTrue reads a presence-only flag: absent and false are the same answer.
+// isTrue reads a presence-only flag, where absent and false are the same answer.
 func isTrue(value *bool) bool {
 	return value != nil && *value
 }

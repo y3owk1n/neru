@@ -19,7 +19,7 @@ import (
 var nativeRuleMethodEndPattern = regexp.MustCompile(`(?m)^\}`)
 
 // nativeRuleMethodBody returns the body of the native definition a pinned copy
-// lives in — an Objective-C method or a C function — found by the pattern
+// lives in, an Objective-C method or a C function, found by the pattern
 // matching its opening line. Addressing it by name means a rename surfaces as a
 // failure rather than as a silent pass over a definition that no longer exists,
 // so a source the opening pattern does not match is reported with the spelling

@@ -14,8 +14,8 @@ import (
 // Frame selection otherwise has to scan every application on the a11y bus to
 // find the focused window (there is no direct mapping from a Wayland toplevel to
 // an AT-SPI object). Instead, this listener subscribes once to the AT-SPI
-// window:activate event — emitted by the toolkit when a window gains keyboard
-// focus — and records the activated window. findActiveFrame can then resolve the
+// window:activate event, which the toolkit emits when a window gains keyboard
+// focus, and records the activated window. findActiveFrame can then resolve the
 // frame from that cache with no scan, validating it against the compositor's
 // live focus identity so a stale or missing cache falls back to the scan rather
 // than returning the wrong window.
@@ -38,8 +38,8 @@ const (
 	atspiSignalWindowActivate = "org.a11y.atspi.Event.Window.activate"
 
 	// atspiEventChanBuffer sizes the signal channel. Window activations are
-	// infrequent (only on focus changes); godbus drops rather than blocks if it
-	// ever fills, and the scan fallback still covers a missed event.
+	// infrequent (only on focus changes). If the channel ever fills, godbus
+	// drops rather than blocks, and the scan fallback still covers a missed event.
 	atspiEventChanBuffer = 64
 )
 
@@ -53,12 +53,12 @@ type atspiActiveWindow struct {
 }
 
 // ensureA11yEvents registers the window:activate listener on conn exactly once.
-// Every failure path is non-fatal: frame selection falls back to scanning the
+// Every failure path is non-fatal. Frame selection falls back to scanning the
 // registry, so accessibility still works where the events are unavailable.
 func (c *Client) ensureA11yEvents(conn *dbus.Conn) {
 	// Claim the one-time setup and publish the stop channel up front, all under
 	// activeMu, so that a concurrent Close always finds this listener's stop and
-	// closes it — the goroutine below then exits even if it starts after Close.
+	// closes it. The goroutine below then exits even if it starts after Close.
 	// The D-Bus registration is deliberately done *without* the lock held (see
 	// below), so a wedged registry cannot stall other activeMu/conn users.
 	c.activeMu.Lock()
@@ -85,7 +85,7 @@ func (c *Client) ensureA11yEvents(conn *dbus.Conn) {
 		c.logger.Debug("AT-SPI AddMatchSignal failed; relying on scan fallback",
 			zap.Error(err))
 
-		// Roll back the claim so a later request can retry — unless Close already
+		// Roll back the claim so a later request can retry, unless Close already
 		// took over this listener's stop.
 		c.activeMu.Lock()
 
@@ -172,8 +172,8 @@ func (c *Client) recordActiveWindow(conn *dbus.Conn, frame accRef) {
 	ctx, cancel := context.WithTimeout(context.Background(), atspiCallTimeout)
 	defer cancel()
 
-	// Cache only genuine top-level windows; ignore any other source that slips
-	// through the signal match.
+	// Cache only genuine top-level windows, and ignore any other source that
+	// slips through the signal match.
 	role := c.roleName(ctx, conn, frame)
 	if !isWindowRole(role) {
 		return
@@ -197,7 +197,7 @@ func (c *Client) recordActiveWindow(conn *dbus.Conn, frame accRef) {
 // activeWindowMatching returns the event-tracked active window when it still
 // matches the compositor's focused toplevel, or ok=false to fall back to the
 // registry scan. The cross-check against the live focus identity is what makes
-// the cache safe: a stale entry (focus moved without a window:activate) or a
+// the cache safe. A stale entry (focus moved without a window:activate) or a
 // missing one can never resolve to the wrong window.
 func (c *Client) activeWindowMatching(focusedAppID, focusedTitle string) (accRef, bool) {
 	// Without a focus identity (GNOME without the extension) there is nothing to
@@ -223,7 +223,7 @@ func (c *Client) activeWindowMatching(focusedAppID, focusedTitle string) (accRef
 	// When the compositor reports a title, it must name the cached window, so a
 	// switch between sibling windows of one application (shared app_id) is not
 	// mistaken for a cache hit. A cached window with no title cannot be confirmed
-	// against a titled focus, so it is rejected rather than trusted — otherwise a
+	// against a titled focus, so it is rejected rather than trusted. Otherwise a
 	// failed title read would let a stale sibling pass.
 	if focusedTitle != "" &&
 		(active.title == "" || !titleMatchesFocused(active.title, focusedTitle)) {

@@ -12,7 +12,7 @@ import (
 // created it. It mirrors IPCController.SetInfrastructure and must be called
 // before any mode is activated.
 //
-// Every method here tolerates a nil tap: the handler is built in phase 7 and
+// Every method here tolerates a nil tap. The handler is built in phase 7 and
 // the tap only exists in phase 8, and mode setup can run in tests with none.
 func (h *Handler) SetEventTap(eventTap ports.EventTapPort) {
 	h.mu.Lock()
@@ -114,8 +114,8 @@ func (h *handlerState) postModifierEvent(modifier string, isDown bool) {
 // give up exclusive keyboard capture so scroll reaches the focused app.
 //
 // Backends that cannot answer (everything but the Linux Wayland evdev tap) do
-// not implement the extension, and the conservative false keeps capture — the
-// behavior that works everywhere.
+// not implement the extension, and the conservative false keeps capture,
+// which works everywhere.
 func (h *handlerState) allowsOverlayKeyboardPassthrough() bool {
 	reporter, ok := h.eventTap.(ports.OverlayKeyboardPassthroughReporter)
 

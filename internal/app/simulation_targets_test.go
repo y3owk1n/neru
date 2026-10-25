@@ -35,7 +35,7 @@ func activateWithTargets(t *testing.T, sim *simHarness) {
 }
 
 // TestSimulation_HintsTargets_LabelsAndClicksTheSuppliedTargets covers
-// `neru hints --targets`: hints mode labels exactly the targets given, not
+// `neru hints --targets`. Hints mode labels exactly the targets given, not
 // what a scan finds, and selecting one acts at its center.
 func TestSimulation_HintsTargets_LabelsAndClicksTheSuppliedTargets(t *testing.T) {
 	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
@@ -60,7 +60,7 @@ func TestSimulation_HintsTargets_LabelsAndClicksTheSuppliedTargets(t *testing.T)
 }
 
 // TestSimulation_HintsTargets_SelectionWithoutAnActionKeepsTheTargets pins
-// the re-activation a selection with no --action makes: hints mode comes back
+// the re-activation a selection with no --action makes. Hints mode comes back
 // on the supplied targets, not on what a scan finds.
 func TestSimulation_HintsTargets_SelectionWithoutAnActionKeepsTheTargets(t *testing.T) {
 	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
@@ -126,7 +126,7 @@ func TestSimulation_HintsTargets_ExitOnAMonitorMove(t *testing.T) {
 }
 
 // TestSimulation_HintsTargets_ReadsBackAQueryAnswer pins the round trip the
-// shape was chosen for: what `neru query hints --json` prints, handed back
+// shape was chosen for. What `neru query hints --json` prints, handed back
 // as --targets, is labeled the way the query said.
 func TestSimulation_HintsTargets_ReadsBackAQueryAnswer(t *testing.T) {
 	elements := []*element.Element{

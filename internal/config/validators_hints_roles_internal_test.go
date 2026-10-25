@@ -8,22 +8,22 @@ import (
 // The platform a role list is judged against is an argument to the pass rather
 // than something a test can arrange, so these run against the unexported form
 // that takes one. The alternative is a suite that can only assert this
-// behavior on the two platforms where it happens — a semantic role with no
-// native equivalent cannot exist on macOS, where every mapping carries an AX
-// name — which would leave the primary platform's CI blind to it.
+// behavior on the two platforms where it happens, which would leave the
+// primary platform's CI blind to it. A semantic role with no native
+// equivalent cannot exist on macOS, where every mapping carries an AX name.
 const (
 	goosDarwin  = "darwin"
 	goosLinux   = "linux"
 	goosWindows = "windows"
 )
 
-// A role every platform can express, as the company an unresolvable one keeps:
-// a list is only reported entry by entry if the rest of it survives.
+// A role every platform can express, as the company an unresolvable one keeps.
+// A list is only reported entry by entry if the rest of it survives.
 const testRoleButton = "button"
 
 // TestConfig_WarnUnresolvableClickableRoles_NamesEntriesThatResolveToNothing
 // pins what a user is told about a role that this platform's accessibility
-// vocabulary has no counterpart for: the entry is named, and so is the field it
+// vocabulary has no counterpart for. The entry is named, and so is the field it
 // was written in.
 func TestConfig_WarnUnresolvableClickableRoles_NamesEntriesThatResolveToNothing(t *testing.T) {
 	t.Parallel()
@@ -35,7 +35,7 @@ func TestConfig_WarnUnresolvableClickableRoles_NamesEntriesThatResolveToNothing(
 		want  []string
 	}{
 		{
-			// AT-SPI has no disclosure triangle; the other two resolve.
+			// AT-SPI has no disclosure triangle, and the other two resolve.
 			name:  "a role AT-SPI cannot express",
 			goos:  goosLinux,
 			roles: []string{testRoleButton, "disclosure", "link"},
@@ -63,7 +63,7 @@ func TestConfig_WarnUnresolvableClickableRoles_NamesEntriesThatResolveToNothing(
 		{
 			// A native entry addressed to another platform is how one
 			// configuration serves several machines, and stays silent on
-			// purpose: it is not a mistake, it is the other machine's line.
+			// purpose. It is not a mistake, it is the other machine's line.
 			name:  "a native entry belonging to another platform",
 			goos:  goosDarwin,
 			roles: []string{testRoleButton, "atspi:push button", "uia:Button"},
@@ -90,7 +90,7 @@ func TestConfig_WarnUnresolvableClickableRoles_NamesEntriesThatResolveToNothing(
 
 // TestConfig_WarnUnresolvableClickableRoles_LeavesTheShippedListAlone is the
 // gate the whole pass hangs on. The roles neru ships are one list for every
-// platform, and some of them resolve to nothing on Linux and Windows — warning
+// platform, and some of them resolve to nothing on Linux and Windows. Warning
 // about those would greet every user of two platforms with a complaint about a
 // file they have not written a line of.
 func TestConfig_WarnUnresolvableClickableRoles_LeavesTheShippedListAlone(t *testing.T) {
@@ -113,7 +113,7 @@ func TestConfig_WarnUnresolvableClickableRoles_LeavesTheShippedListAlone(t *test
 // TestConfig_WarnUnresolvableClickableRoles_ReadsAnApplicationsExtraRoles pins
 // the other place a role list is written. An application's extra roles are
 // never shipped, so every entry in one is the user's own and there is nothing
-// to compare against — and each list is named with its index, so a file with
+// to compare against. Each list is named with its index, so a file with
 // several overrides says which one to go and edit rather than reporting them
 // all under one name.
 func TestConfig_WarnUnresolvableClickableRoles_ReadsAnApplicationsExtraRoles(t *testing.T) {

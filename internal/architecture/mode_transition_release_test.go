@@ -15,43 +15,43 @@ const (
 )
 
 // transitionExitFloor is the fewest transition exits expected in the mode
-// handler package. Four are there today — grid, recursive grid, hints and
-// monitor select — so three catches a walk that has lost the package or stopped
+// handler package. Four are there today, for grid, recursive grid, hints and
+// monitor select, so three catches a walk that has lost the package or stopped
 // recognizing the call, and never fires on one mode's activation being
 // restructured away.
 //
-// The floor is what matters most here: a reader that found no call sites would
+// The floor is what matters most here. A reader that found no call sites would
 // report the package compliant while reading none of them.
 const transitionExitFloor = 3
 
 // TestModeTransitionExitsDeferTheirRelease fails when internal/app/modes calls
 // exitModeForTransition as anything but `defer h.exitModeForTransition()()`.
 //
-// The exit leaves the keyboard captured on purpose: releasing it on a
+// The exit leaves the keyboard captured on purpose. Releasing it on a
 // mode-to-mode transition opens a window, spanning the whole of the next mode's
 // activation, in which nobody holds the keyboard and everything typed reaches
 // the focused application instead of Neru. What it costs is that the capture is
 // then live while the app is momentarily idle, so the activation owes a release
-// on every path that fails to enter a mode — and hints alone has five of those,
+// on every path that fails to enter a mode, and hints alone has five of those,
 // counting the permission dialog that suspends the activation and returns.
 //
-// Forgetting it leaves the daemon idle holding the keyboard: every key the user
+// Forgetting it leaves the daemon idle holding the keyboard. Every key the user
 // presses goes nowhere at all, which is worse than the bug the exit exists to
 // fix. Nothing else catches it. The bare call compiles, discarding a return
 // value is legal Go, `just lint` is clean on it, and both journey tests in
-// internal/app only walk the four activations that exist today — so a fifth
+// internal/app only walk the four activations that exist today, so a fifth
 // mode written next year ships the breach green (ADR 0011).
 //
-// The pinned form is the one the package uses, and the strictness is the point:
+// The pinned form is the one the package uses, and the strictness is the point.
 // `defer h.exitModeForTransition()()` runs the exit at the defer statement and
 // the release at return, in one expression that cannot be half-written. Two
 // statements that split the call from its defer are as correct at runtime and
 // still fail here, because the shape that can be got half-right is exactly the
-// shape this is meant to keep out — the failure names the form to use rather
+// shape this is meant to keep out. The failure names the form to use rather
 // than trying to decide which half-written versions happen to work.
 //
-// Test files are outside this, and that is a scope rather than an exemption:
-// a test calling the exit directly is exercising the exit, not performing a
+// Test files are outside this, and that is a scope rather than an exemption.
+// A test calling the exit directly is exercising the exit, not performing a
 // transition, and owes nothing to a mode that is never entered.
 func TestModeTransitionExitsDeferTheirRelease(t *testing.T) {
 	exits := modeTransitionExits(t)
@@ -75,9 +75,9 @@ func TestModeTransitionExitsDeferTheirRelease(t *testing.T) {
 // TestModeTransitionReleaseIsReachedThroughTheExit fails when internal/app/modes
 // calls releaseKeyboardIfNoModeEntered directly.
 //
-// The release is the exit's return value, so the two cannot drift apart: a call
-// site that reaches for the release on its own is either pairing it by hand —
-// the shape the test above exists to keep out — or releasing a capture no
+// The release is the exit's return value, so the two cannot drift apart. A call
+// site that reaches for the release on its own is either pairing it by hand,
+// the shape the test above exists to keep out, or releasing a capture no
 // transition took, which is a mode losing the keyboard mid-activation. Reaching
 // it only through the exit is what makes "the exit owes a release" a property of
 // the exit rather than of everyone who calls it.
@@ -121,7 +121,7 @@ type transitionExit struct {
 	// scope names the function the call sits in.
 	scope string
 	// deferredWithRelease reports whether the call is written as the pinned
-	// `defer h.exitModeForTransition()()` — the inner call of a deferred outer
+	// `defer h.exitModeForTransition()()`, the inner call of a deferred outer
 	// call, so the returned release runs at the scope's return.
 	deferredWithRelease bool
 }
@@ -172,7 +172,7 @@ func modeTransitionExits(t *testing.T) []transitionExit {
 }
 
 // deferredInnerCallsIn returns the inner calls of a scope's deferred double
-// calls: for `defer f()()` it holds the `f()`, which is the call that runs at
+// calls. For `defer f()()` it holds the `f()`, which is the call that runs at
 // the defer statement and whose result is what runs at return.
 func deferredInnerCallsIn(body *ast.BlockStmt) map[*ast.CallExpr]bool {
 	inner := make(map[*ast.CallExpr]bool)

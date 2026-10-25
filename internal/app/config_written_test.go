@@ -10,8 +10,8 @@ import (
 )
 
 // TestNewConfigService_CarriesTheWrittenConfig pins the handoff the daemon
-// depends on. The loader produces two halves — the configuration to run on and
-// the one the user wrote — and only the second can answer whether a derived
+// depends on. The loader produces two halves, the configuration to run on and
+// the one the user wrote, and only the second can answer whether a derived
 // value was inferred. Dropping it here compiles, runs, and silently puts
 // `neru config set grid.characters` back to relabelling nothing.
 func TestNewConfigService_CarriesTheWrittenConfig(t *testing.T) {
@@ -39,7 +39,7 @@ func TestNewConfigService_CarriesTheWrittenConfig(t *testing.T) {
 }
 
 // TestNewConfigService_WithoutAWrittenConfig covers the constructors that have
-// no load behind them (tests, embedders): the service still answers, with the
+// no load behind them (tests, embedders). The service still answers, with the
 // configuration it was given, so a field change normalizes what was typed even
 // though it cannot re-infer.
 func TestNewConfigService_WithoutAWrittenConfig(t *testing.T) {

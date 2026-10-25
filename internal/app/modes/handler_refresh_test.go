@@ -24,7 +24,7 @@ import (
 )
 
 // newThemeChangeHintsHandler builds a handler with hints mode active and a
-// collection on screen, which is all a theme refresh needs: the labels are not
+// collection on screen, which is all a theme refresh needs. The labels are not
 // regenerated, only drawn again in the colors the overlay re-resolved.
 func newThemeChangeHintsHandler(overlay *portmocks.MockOverlayPort) *Handler {
 	handler := newHandlerWithState(handlerState{
@@ -47,13 +47,13 @@ func newThemeChangeHintsHandler(overlay *portmocks.MockOverlayPort) *Handler {
 }
 
 // TestRefreshActiveModeForThemeChange_ReadsTheModeUnderTheHandlerLock is the
-// concurrency test the modes area guide asks of a locking change: it must fail
+// concurrency test the modes area guide asks of a locking change. It must fail
 // under -race if the theme-change dispatch reads a mode's session outside h.mu.
 //
 // The app layer used to read the active mode unlocked and then call into a
 // refresher that locked for itself. Now one hold covers the read, the selection
 // and the work, and the session state on either side of it is the same state a
-// concurrent mode exit clears: exiting hints resets the collection that the
+// concurrent mode exit clears. Exiting hints resets the collection that the
 // redraw reads. This guards that hold rather than the redraw's result.
 //
 // How often the two loops below actually meet is the scheduler's business, so
@@ -64,10 +64,10 @@ func TestRefreshActiveModeForThemeChange_ReadsTheModeUnderTheHandlerLock(t *test
 
 	handler := newThemeChangeHintsHandler(&portmocks.MockOverlayPort{})
 
-	// A refresh reaches the session at all — asserted on its own, before the two
-	// loops below, because whether either of them ever catches the other mid-round
-	// is up to the scheduler. Without this the whole test could pass on a
-	// dispatch that never redrew anything.
+	// A refresh reaches the session at all. That is asserted on its own, before
+	// the two loops below, because whether either of them ever catches the
+	// other mid-round is up to the scheduler. Without this the whole test could
+	// pass on a dispatch that never redrew anything.
 	if !handler.RefreshActiveModeForThemeChange() {
 		t.Fatal("a theme refresh did not reach an open hints session")
 	}
@@ -87,7 +87,7 @@ func TestRefreshActiveModeForThemeChange_ReadsTheModeUnderTheHandlerLock(t *test
 		for range rounds {
 			// Re-enter hints so the next exit has a session to tear down, the
 			// way a repeating activation does. Both sides of the round are
-			// locked writers — an activation and an exit — and the exit resets
+			// locked writers (an activation and an exit), and the exit resets
 			// the collection the refresh reads.
 			handler.mu.Lock()
 			handler.appState.SetMode(domain.ModeHints)
@@ -99,7 +99,7 @@ func TestRefreshActiveModeForThemeChange_ReadsTheModeUnderTheHandlerLock(t *test
 	})
 
 	// The refresher runs flat out for as long as the mode is being entered and
-	// exited, rather than for a round count of its own: under the race detector
+	// exited, rather than for a round count of its own. Under the race detector
 	// the exit side is much the slower of the two.
 	waitGroup.Go(func() {
 		<-start
@@ -128,7 +128,7 @@ func TestRefreshActiveModeForThemeChange_ReadsTheModeUnderTheHandlerLock(t *test
 }
 
 // TestRefreshActiveModeForThemeChange_LeavesTheOverlayAloneWhileIdle pins the
-// arm the mode map answers by having no entry: switching the system theme with
+// arm the mode map answers by having no entry. Switching the system theme with
 // nothing open must not put a frame on screen, which is what the deleted idle
 // arm of the app-layer switch used to say.
 func TestRefreshActiveModeForThemeChange_LeavesTheOverlayAloneWhileIdle(t *testing.T) {
@@ -152,7 +152,7 @@ func TestRefreshActiveModeForThemeChange_LeavesTheOverlayAloneWhileIdle(t *testi
 
 // TestRefreshActiveModeForThemeChange_ScrollDeclinesAndSaysSo pins the other
 // mode that carries this axis by not implementing it. Scroll draws nothing of
-// its own, so a theme change leaves the screen alone — and because the axis is
+// its own, so a theme change leaves the screen alone. Because the axis is
 // an effect rather than a getter, "the overlay stayed as it was" is answerable
 // from the debug log instead of by reading the dispatch.
 func TestRefreshActiveModeForThemeChange_ScrollDeclinesAndSaysSo(t *testing.T) {
@@ -193,11 +193,11 @@ func TestRefreshActiveModeForThemeChange_ScrollDeclinesAndSaysSo(t *testing.T) {
 }
 
 // The fixture values a screen-change refresh is driven with. They are named
-// rather than repeated so that what a test is varying — the mode, the
-// configuration gate — is the only thing that reads as significant.
+// rather than repeated so that what a test is varying (the mode, the
+// configuration gate) is the only thing that reads as significant.
 const (
-	// screenChangeFilterRole is a role a hint session was activated with:
-	// exiting the mode resets it, which is the state a concurrent refresh
+	// screenChangeFilterRole is a role a hint session was activated with.
+	// Exiting the mode resets it, which is the state a concurrent refresh
 	// reads.
 	screenChangeFilterRole = "button"
 
@@ -251,15 +251,15 @@ func newScreenChangeHintsHandler(
 }
 
 // TestRefreshActiveModeForScreenChange_ReadsTheModeSessionUnderTheHandlerLock
-// is the concurrency test the modes area guide asks of a locking change: it
+// is the concurrency test the modes area guide asks of a locking change. It
 // must fail under -race if the screen-change dispatch reads a mode's session
 // outside h.mu.
 //
 // The app layer used to snapshot the active mode unlocked, hand that snapshot
 // to whichever of three per-mode functions matched, and have each of them lock
 // for itself and re-check the mode. Now one hold covers the read, the selection
-// and the work — and the session state on either side of it is the same state a
-// concurrent mode exit clears: exiting hints resets the filter roles and
+// and the work, and the session state on either side of it is the same state a
+// concurrent mode exit clears. Exiting hints resets the filter roles and
 // overrides that regenerating the labels reads.
 //
 // How often the two loops below actually meet is the scheduler's business, so
@@ -270,8 +270,8 @@ func TestRefreshActiveModeForScreenChange_ReadsTheModeSessionUnderTheHandlerLock
 
 	handler := newScreenChangeHintsHandler(&regenerations, &portmocks.MockOverlayPort{})
 
-	// A refresh reaches the session at all — asserted on its own, before the two
-	// loops below, because whether either of them ever catches the other
+	// A refresh reaches the session at all. That is asserted on its own, before
+	// the two loops below, because whether either of them ever catches the other
 	// mid-round is up to the scheduler. Without this the whole test could pass
 	// on a dispatch that never reached a session.
 	handler.RefreshActiveModeForScreenChange(context.Background())
@@ -297,7 +297,7 @@ func TestRefreshActiveModeForScreenChange_ReadsTheModeSessionUnderTheHandlerLock
 		for range rounds {
 			// Re-enter hints so the next exit has a session to tear down, the
 			// way a repeating activation does. Both sides of the round are
-			// locked writers — an activation and an exit — and the exit resets
+			// locked writers (an activation and an exit), and the exit resets
 			// the session flags the refresh reads.
 			handler.mu.Lock()
 			handler.appState.SetMode(domain.ModeHints)
@@ -309,7 +309,7 @@ func TestRefreshActiveModeForScreenChange_ReadsTheModeSessionUnderTheHandlerLock
 	})
 
 	// The refresher runs flat out for as long as the mode is being entered and
-	// exited, rather than for a round count of its own: under the race detector
+	// exited, rather than for a round count of its own. Under the race detector
 	// the exit side is much the slower of the two.
 	waitGroup.Go(func() {
 		<-start
@@ -328,10 +328,10 @@ func TestRefreshActiveModeForScreenChange_ReadsTheModeSessionUnderTheHandlerLock
 	close(start)
 	waitGroup.Wait()
 
-	// Reported rather than asserted: the exit side re-locks the moment it
+	// Reported rather than asserted. The exit side re-locks the moment it
 	// unlocks, so how many of the concurrent refreshes find a session open is
 	// the scheduler's decision. Asserting on it makes the test flaky rather
-	// than strict — the guarantee that a refresh reaches a session at all is
+	// than strict. The guarantee that a refresh reaches a session at all is
 	// the one made before the loops started.
 	t.Logf("%d of the concurrent refreshes reached an open session", regenerations.Load())
 
@@ -341,11 +341,11 @@ func TestRefreshActiveModeForScreenChange_ReadsTheModeSessionUnderTheHandlerLock
 }
 
 // TestRefreshActiveModeForScreenChange_LeavesTheOverlayAloneWhileIdle pins the
-// arm the dispatch answers before it looks at any mode: a display change with
+// arm the dispatch answers before it looks at any mode. A display change with
 // nothing open must leave the overlay alone.
 //
 // The caller resizes the overlay itself when this reports the resize is still
-// owed, and resizing is what brings the overlay up — so reporting it here would
+// owed, and resizing is what brings the overlay up, so reporting it here would
 // flash an overlay at a user who only plugged a monitor in.
 func TestRefreshActiveModeForScreenChange_LeavesTheOverlayAloneWhileIdle(t *testing.T) {
 	overlay := &portmocks.MockOverlayPort{}
@@ -368,7 +368,7 @@ func TestRefreshActiveModeForScreenChange_LeavesTheOverlayAloneWhileIdle(t *test
 
 // TestRefreshActiveModeForScreenChange_ScrollDeclinesAndSaysSo pins the mode
 // that carries this axis by not implementing it. Scroll holds no drawing built
-// for the bounds that changed, so there is nothing to rebuild — but it is on
+// for the bounds that changed, so there is nothing to rebuild. But it is on
 // screen, so the overlay is still resized for it, which is what the app layer's
 // three per-mode functions used to say by all returning false.
 //
@@ -416,7 +416,7 @@ func TestRefreshActiveModeForScreenChange_ScrollDeclinesAndSaysSo(t *testing.T) 
 // per mode.
 //
 // A user who has switched grid off in configuration while a grid session is
-// still open must not have it rebuilt underneath them; the overlay is left for
+// still open must not have it rebuilt underneath them. The overlay is left for
 // the caller to resize, exactly as the app-layer gate left it.
 func TestRefreshActiveModeForScreenChange_GridDisabledInConfigIsNotRefreshed(t *testing.T) {
 	for _, testCase := range []struct {

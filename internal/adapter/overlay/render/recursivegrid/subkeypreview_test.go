@@ -14,7 +14,7 @@ import (
 //
 // The zero next layout is the case that matters. The mode leaves it zero when
 // the region can no longer be divided, and the deepest level of a recursive grid
-// must draw no preview at all — a mini-grid of keys nothing can select is worse
+// must draw no preview at all. A mini-grid of keys nothing can select is worse
 // than a bare cell. The Cairo and GDI backends both ask this, so the cases run
 // in every job rather than only where a particular backend is built.
 func TestStyle_PreviewsNextDepth(t *testing.T) {
@@ -234,7 +234,7 @@ func TestStyle_SubKeyPreviewFontSizeIn_NeverShrinkAnswersAsTheOldAutohideRule(t 
 }
 
 // TestStyle_SubKeyPreviewCells_PlacesEachKeyOnTheCellItSelects is the whole point
-// of the mini-grid: a previewed key has to sit where the cell it selects will be
+// of the mini-grid. A previewed key has to sit where the cell it selects will be
 // drawn, or it tells the user the wrong thing.
 //
 // So the expectation is not a hand-written rectangle list but the subdivision the
@@ -300,7 +300,7 @@ func TestStyle_SubKeyPreviewCells_LeavesTheCenterOfAnOddDivisionBlank(t *testing
 }
 
 // TestStyle_SubKeyPreviewCells_EvenDivisionsLabelEverySubCell is the other half
-// of the rule above: an even dimension has no center sub-cell for the cell's own
+// of the rule above. An even dimension has no center sub-cell for the cell's own
 // label to collide with, so every key is drawn.
 func TestStyle_SubKeyPreviewCells_EvenDivisionsLabelEverySubCell(t *testing.T) {
 	style := NewStyle(StyleOptions{SubKeyPreview: true})
@@ -393,7 +393,7 @@ func TestStyle_SubKeyPreviewCells_DrawsNothingWithoutANextDepth(t *testing.T) {
 }
 
 // TestStyle_SubKeyPreviewCells_FewerKeysThanSubCellsLeavesTheRestBlank pins the
-// degenerate configuration rather than leaving it to panic: a key mapping shorter
+// degenerate configuration rather than leaving it to panic. A key mapping shorter
 // than the division labels what it can and stops.
 func TestStyle_SubKeyPreviewCells_FewerKeysThanSubCellsLeavesTheRestBlank(t *testing.T) {
 	style := NewStyle(StyleOptions{SubKeyPreview: true})

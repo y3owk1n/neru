@@ -24,7 +24,7 @@ const (
 const domainModeTypeName = "Mode"
 
 // modeConstantFloor is the fewest domain.Mode constants this pin expects to
-// read. Six are declared today — idle and the five registered modes — so five
+// read. Six are declared today, idle and the five registered modes, so five
 // leaves room for one to be retired and still catches a reader that has stopped
 // recognizing how they are written.
 //
@@ -34,11 +34,10 @@ const domainModeTypeName = "Mode"
 const modeConstantFloor = 5
 
 // modeSwitchFloor is the fewest switch statements expected in
-// internal/app/modes. Five are there today — one of them the exempt mode switch
-// below, the other four discriminating on a key, a permission answer, a
-// modifier and, tagless, on a hint index — so three catches a walk that has
-// lost the package and never
-// fires on a switch being refactored away.
+// internal/app/modes. Five are there today. One of them is the exempt mode
+// switch below, and the other four discriminate on a key, a permission answer,
+// a modifier and, tagless, on a hint index. Three catches a walk that has lost
+// the package and never fires on a switch being refactored away.
 const modeSwitchFloor = 3
 
 // modeSwitchRule is the rule a failure states, in the imperative, with the
@@ -52,11 +51,11 @@ const modeSwitchRule = "behavior only some modes have is an optional extension �
 // knownModeSwitchExemptions are the switches over domain.Mode that internal/app/modes
 // still holds, keyed by "<file>:<scope>" as the failure below spells a site.
 //
-// Each entry carries the reason it is still here, so the list can only shrink:
+// Each entry carries the reason it is still here, so the list can only shrink.
 // TestKnownModeSwitchExemptionsAreStillReal fails on an entry that no longer
 // names a mode switch, and a new one fails the guardrail rather than joining the
-// list. Add an entry only when converting the switch is a design change that
-// cannot ride along, never to silence one.
+// list. Add an entry only when converting the switch is a design change too
+// large to make in the same change, never to silence one.
 var knownModeSwitchExemptions = map[string]string{
 	"internal/app/modes/indicator_polling.go:handlerState.modeIndicatorEnabled": "" +
 		"every arm reads a different field of config.ModeIndicator — one per " +
@@ -74,17 +73,17 @@ var knownModeSwitchExemptions = map[string]string{
 // The bug it prevents is behavior only some modes have written as a switch: an
 // arm per mode, empty arms for the modes that do not participate, and a new
 // mode silently taking the empty one. The extension model exists so that a mode
-// answers for itself — a narrow interface it either implements or does not, with
-// TestModeExtensionMatrix (extensions_test.go) failing until every registered
-// mode has stated which — and a switch reintroduces the shape that model
-// replaced, in a place the matrix cannot see: it iterates the registered
+// answers for itself, through a narrow interface it either implements or does
+// not. TestModeExtensionMatrix (extensions_test.go) fails until every registered
+// mode has stated which. A switch reintroduces the shape that model replaced, in
+// a place the matrix cannot see, because the matrix iterates the registered
 // extension list, so an axis nobody added to that list is an axis it never asks
 // about.
 //
 // The half of this that is already covered is the other half. exhaustive is
 // enabled (.golangci.yml runs with default: all and does not disable it) and it
 // fires on an *incomplete* switch over domain.Mode, default clause or not. A
-// complete one lints clean — and a complete switch is exactly what a careful
+// complete one lints clean, and a complete switch is exactly what a careful
 // contributor writes, listing all six constants and giving three of them an
 // empty arm. So the case the linter cannot see is the case this targets, and
 // catching only the incomplete one would duplicate the linter while missing the
@@ -100,7 +99,7 @@ var knownModeSwitchExemptions = map[string]string{
 //
 // Test files are outside this, and that is a scope rather than an exemption. The
 // rule's subject is behavior the package implements for a mode, and a table in a
-// test is not that — it ships nothing, and no mode added to newModes can fall
+// test is not that. It ships nothing, and no mode added to newModes can fall
 // into an empty arm of it.
 func TestModeHandlerHasNoSwitchOverDomainMode(t *testing.T) {
 	offenders, judged := modeSwitchesIn(
@@ -125,7 +124,7 @@ func TestModeHandlerHasNoSwitchOverDomainMode(t *testing.T) {
 	)
 }
 
-// TestKnownModeSwitchExemptionsAreStillReal keeps the exemption list honest: an
+// TestKnownModeSwitchExemptionsAreStillReal keeps the exemption list honest. An
 // entry that no longer names a switch over domain.Mode is stale and must be
 // deleted, or the list becomes a place where the extension contract goes to die.
 func TestKnownModeSwitchExemptionsAreStillReal(t *testing.T) {
@@ -150,13 +149,13 @@ func TestKnownModeSwitchExemptionsAreStillReal(t *testing.T) {
 }
 
 // TestModeSwitchPin_CatchesTheSwitchesTheLinterDoesNot is the ticket's
-// acceptance check, kept rather than performed once: each shape a mode switch
+// acceptance check, kept rather than performed once. Each shape a mode switch
 // arrives in is applied to a file built for the purpose, and the pin has to
 // report it.
 //
-// The complete switch is the one that matters — it compiles, it lints clean
+// The complete switch is the one that matters. It compiles, it lints clean
 // under exhaustive, and it is what a contributor writes when they are being
-// careful — so a pin that only ever met the tree's own switches could not show
+// careful. So a pin that only ever met the tree's own switches could not show
 // that it reaches the case it exists for.
 func TestModeSwitchPin_CatchesTheSwitchesTheLinterDoesNot(t *testing.T) {
 	for _, breach := range modeSwitchBreaches() {
@@ -176,9 +175,9 @@ func TestModeSwitchPin_CatchesTheSwitchesTheLinterDoesNot(t *testing.T) {
 //
 // Getting this wrong is how a guardrail like this one gets reverted rather than
 // obeyed. The package holds five switches that discriminate on something else,
-// and the mode constants appear all over its bodies — every activation names its
-// own mode — so a reader that judged a switch by what its arms *do* rather than
-// by what they match on would report most of the package.
+// and the mode constants appear all over its bodies, because every activation
+// names its own mode. A reader that judged a switch by what its arms *do* rather
+// than by what they match on would report most of the package.
 func TestModeSwitchPin_LeavesEverySwitchThatIsNotOneAlone(t *testing.T) {
 	for _, allowed := range modeSwitchNonBreaches() {
 		offenders, _ := modeSwitchesIn(
@@ -208,7 +207,7 @@ type modeSwitch struct {
 	arms []string
 }
 
-// site is the key the exemption list uses, stable across line moves — a switch
+// site is the key the exemption list uses, stable across line moves, so a switch
 // that survives an edit above it keeps its entry.
 func (s modeSwitch) site() string {
 	return fmt.Sprintf("%s:%s", s.file, s.scope)
@@ -216,7 +215,7 @@ func (s modeSwitch) site() string {
 
 // modeSwitchesIn returns every switch over domain.Mode in the given files, and
 // how many switch statements it judged. The count is what the floor is asserted
-// on: a reader that stopped finding switches would report no offenders at all.
+// on, because a reader that stopped finding switches would report no offenders at all.
 func modeSwitchesIn(files []modeHandlerFile, constants map[string]bool) ([]modeSwitch, int) {
 	var (
 		offenders []modeSwitch
@@ -280,21 +279,21 @@ func forEachSwitchStatement(file modeHandlerFile, visit func(scope string, stmt 
 // modeConstantsMatchedBy returns the mode constants a switch discriminates on,
 // in source order and without repeats.
 //
-// Only what the switch matches *on* is read — its tag and its case expressions —
-// never an arm's body. A mode constant inside a body is an ordinary use of one:
-// every activation in the package names its own mode there, and a reader that
+// Only what the switch matches *on* is read, meaning its tag and its case
+// expressions, never an arm's body. A mode constant inside a body is an ordinary
+// use of one. Every activation in the package names its own mode there, and a reader that
 // counted those would call most of the package a mode switch. That also keeps a
 // switch nested inside an arm a switch of its own, judged when the walk reaches
 // it.
 //
 // A constant handed to a call is not read either, wherever the call sits. A
-// switch on what a helper answers *about* a named mode — `switch h.enabledFor(
-// domain.ModeGrid)` — discriminates on the answer, not on the mode, and the
+// switch on what a helper answers *about* a named mode, such as `switch h.enabledFor(
+// domain.ModeGrid)`, discriminates on the answer, not on the mode, and the
 // three call sites this change deleted had exactly that shape one level out. The
-// call's own name is still read, so a comparison whose operand is a call —
-// `case h.activeMode() == domain.ModeHints` — is reported like any other.
+// call's own name is still read, so a comparison whose operand is a call, such
+// as `case h.activeMode() == domain.ModeHints`, is reported like any other.
 //
-// A tagless switch is covered by the same reading: `case mode == domain.ModeGrid`
+// A tagless switch is covered by the same reading. `case mode == domain.ModeGrid`
 // puts the constant in the case expression, which is where this looks.
 func modeConstantsMatchedBy(
 	stmt *ast.SwitchStmt,
@@ -310,7 +309,7 @@ func modeConstantsMatchedBy(
 
 	read = func(node ast.Node) bool {
 		if call, isCall := node.(*ast.CallExpr); isCall {
-			// The callee is still read; its arguments are not.
+			// The callee is still read. Its arguments are not.
 			ast.Inspect(call.Fun, read)
 
 			return false
@@ -350,7 +349,7 @@ func modeConstantsMatchedBy(
 }
 
 // qualifiedConstant reports the name a node selects from the given package
-// qualifier — "ModeGrid" for domain.ModeGrid.
+// qualifier, such as "ModeGrid" for domain.ModeGrid.
 func qualifiedConstant(node ast.Node, qualifier string) (string, bool) {
 	selector, isSelector := node.(*ast.SelectorExpr)
 	if !isSelector {
@@ -366,12 +365,12 @@ func qualifiedConstant(node ast.Node, qualifier string) (string, bool) {
 }
 
 // domainQualifier returns the name a file refers to the domain package by, and
-// false when it does not import it — in which case no switch in it can name a
+// false when it does not import it, in which case no switch in it can name a
 // mode constant.
 //
 // The alias is read rather than assumed, so renaming the import in a file does
 // not take that file out of the pin. A dot-import would, and the repository has
-// none: gci and the house import style both keep the package named.
+// none, because gci and the house import style both keep the package named.
 func domainQualifier(file *ast.File) (string, bool) {
 	for _, spec := range file.Imports {
 		path, unquoteErr := strconv.Unquote(spec.Path.Value)
@@ -393,7 +392,7 @@ func domainQualifier(file *ast.File) (string, bool) {
 // type Mode.
 //
 // They are read out of the tree rather than listed in this file for the reason
-// the extension matrix iterates the live mode map: a mode added to the domain
+// the extension matrix iterates the live mode map. A mode added to the domain
 // vocabulary is one this pin has to know about, and remembering to add it here
 // is exactly the step nobody takes.
 func domainModeConstants(t *testing.T) map[string]bool {
@@ -417,9 +416,9 @@ func domainModeConstants(t *testing.T) map[string]bool {
 
 // collectModeConstants adds the Mode-typed constants a file declares to names.
 //
-// The type carries down a const block the way Go does — a spec with no type of
-// its own continues the last one, and a spec with a value but no type ends it —
-// so the iota block that declares the modes is read whole rather than one line
+// The type carries down a const block the way Go does. A spec with no type of
+// its own continues the last one, and a spec with a value but no type ends it.
+// So the iota block that declares the modes is read whole rather than one line
 // of it.
 func collectModeConstants(file *ast.File, names map[string]bool) {
 	for _, decl := range file.Decls {
@@ -479,7 +478,7 @@ func fixtureModeConstants() map[string]bool {
 const fixturePreamble = "package modes\n\nimport \"" + domainPackagePath + "\"\n\n"
 
 // modeSwitchBreaches are the shapes a mode switch arrives in. Every one of them
-// compiles; the first two also lint clean.
+// compiles, and the first two also lint clean.
 func modeSwitchBreaches() []modeSwitchFixture {
 	return []modeSwitchFixture{
 		{

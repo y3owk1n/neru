@@ -40,7 +40,7 @@ func EaseInOut(progress float64) float64 {
 }
 
 // Eased maps a raw progress in [0,1] onto the transition curve. A transition
-// that continues one still running keeps a linear curve: the cells are
+// that continues one still running keeps a linear curve, because the cells are
 // already moving, and easing in again from where they are reads as a
 // stutter on every fast keystroke. macOS makes the same choice.
 func Eased(rawProgress float64, continuing bool) float64 {
@@ -88,8 +88,8 @@ func LerpPoint(from, to image.Point, progress float64) image.Point {
 }
 
 // LerpRects interpolates each rectangle of from towards the one at the same
-// index of to by progress. The slices are expected to be the same length;
-// extra entries in from are ignored and missing ones are taken as already
+// index of to by progress. The slices are expected to be the same length.
+// Extra entries in from are ignored and missing ones are taken as already
 // arrived.
 func LerpRects(from, to []image.Rectangle, progress float64) []image.Rectangle {
 	out := make([]image.Rectangle, len(to))

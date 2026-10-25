@@ -16,11 +16,11 @@ const syncOp = "sync"
 // failure, or nil when there is none.
 //
 // Flushing the process's standard streams is expected to fail whenever they are
-// not a flushable destination — a pipe, a terminal, or a descriptor already torn
-// down by an exiting test binary. That is the long-standing zap-on-stdout/stderr
-// caveat (uber-go/zap#328, #370), not a lost log line, so those errors are
-// dropped here. Every other error — a log file that failed to flush, above all —
-// is returned unchanged so callers still report it.
+// not a flushable destination, such as a pipe, a terminal, or a descriptor
+// already torn down by an exiting test binary. That is the long-standing
+// zap-on-stdout/stderr caveat (uber-go/zap#328, #370), not a lost log line, so
+// those errors are dropped here. Every other error, above all a log file that
+// failed to flush, is returned unchanged so callers still report it.
 //
 // zap combines the per-sink errors of a tee core with multierr, so each error is
 // classified individually and only the survivors are returned.
@@ -78,10 +78,10 @@ func isUnflushableStreamError(err error, streams []*os.File) bool {
 
 // isUnflushable reports whether a flush of stream could never have succeeded.
 // The standard streams keep their name (/dev/stdout, /dev/stderr) when they are
-// redirected, so the name alone says nothing: a redirect to a regular file is
+// redirected, so the name alone says nothing. A redirect to a regular file is
 // flushable, and a failure there is real and must be reported. A stream whose
-// descriptor is already gone counts as unflushable — there is nothing left to
-// flush it to.
+// descriptor is already gone counts as unflushable, since there is nothing left
+// to flush it to.
 func isUnflushable(stream *os.File) bool {
 	info, err := stream.Stat()
 	if err != nil {

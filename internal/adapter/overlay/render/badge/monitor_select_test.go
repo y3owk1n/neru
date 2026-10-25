@@ -50,7 +50,7 @@ func TestMonitorSelectText_FitIn(t *testing.T) {
 			wantSubtitle: 18,
 		},
 		{
-			// 0.8 x 250 less 60 of padding is 140, of which 0.9 is 126: twenty
+			// 0.8 x 250 less 60 of padding is 140, of which 0.9 is 126, and twenty
 			// runes fit at 6.3, which is under the subtitle's floor.
 			name: "a long name shrinks to its floor and no further",
 			text: func() badge.MonitorSelectText {

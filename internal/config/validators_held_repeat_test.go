@@ -94,7 +94,7 @@ func TestConfigValidateHeldRepeat_AccelInvalid(t *testing.T) {
 
 // TestConfigValidateHeldRepeat_AccelWithoutRepeatWarns pins which tier the
 // cross-field rule sits in. Acceleration only ever scales a repeat, so turning
-// it on without repeat itself does nothing — but refusing the file over it
+// it on without repeat itself does nothing, but refusing the file over it
 // would replace every other setting in it with the defaults (ADR 0002), and
 // reporting it to the log alone would hide it from `neru config validate`,
 // which is the command someone runs to find exactly this (ADR 0006).
@@ -119,7 +119,7 @@ func TestConfigValidateHeldRepeat_AccelWithoutRepeatWarns(t *testing.T) {
 	}
 }
 
-// TestConfigValidateHeldRepeat_AccelWithRepeatIsSilent is the other half: the
+// TestConfigValidateHeldRepeat_AccelWithRepeatIsSilent is the other half. The
 // warning names a combination, so it must not fire on the one that works.
 func TestConfigValidateHeldRepeat_AccelWithRepeatIsSilent(t *testing.T) {
 	cfg := config.DefaultConfig()

@@ -77,7 +77,7 @@ func pipeSecurityDescriptor(sid string) string {
 }
 
 // DaemonPath is where the daemon listens. It is empty when the user's SID
-// cannot be read: the alternative would be to fall back to the machine-wide
+// cannot be read. The alternative would be to fall back to the machine-wide
 // name, which is the thing being scoped away. Listen and Dial report the
 // reason instead.
 func DaemonPath() string {
@@ -90,7 +90,7 @@ func DaemonPath() string {
 }
 
 // ClientPath returns the endpoint a client should dial. Unlike the Unix
-// transport there is no search here: a named pipe cannot be inspected
+// transport there is no search here. A named pipe cannot be inspected
 // without opening it, so the fallback to the previous name lives in
 // Dial, where the open has already happened.
 func ClientPath() string {
@@ -135,7 +135,7 @@ func Listen(ctx context.Context, path string) (net.Listener, error) {
 // Dial opens path and hands back a connection only once the process serving
 // it is known to run as this user.
 //
-// Opening is safe to do first: go-winio dials at SECURITY_ANONYMOUS, so
+// Opening is safe to do first, because go-winio dials at SECURITY_ANONYMOUS, so
 // whatever holds the name cannot impersonate the caller, and nothing is written
 // until verifyPipeServer has passed. When this user's own name has no server,
 // the previous machine-wide name is tried under the same check, so an old
@@ -162,7 +162,7 @@ func Dial(ctx context.Context, dialer net.Dialer, path string) (net.Conn, error)
 		}
 
 		// The failure reported is the one on the name the daemon should be
-		// on; a missing legacy pipe is the ordinary case, not news.
+		// on. A missing legacy pipe is the ordinary case, not news.
 	}
 
 	return conn, dialErr
@@ -186,9 +186,9 @@ func dialVerifiedPipe(ctx context.Context, path string, owner string) (net.Conn,
 }
 
 // verifyPipeServer reports whether the process on the server end of conn runs
-// as owner. Anything that stops the question being answered is a refusal: the
-// pipe name is the only thing the client chose, and a name is what another
-// account can take first.
+// as owner. Anything that stops the question being answered is a refusal,
+// because the pipe name is the only thing the client chose, and a name is what
+// another account can take first.
 func verifyPipeServer(conn net.Conn, path string, owner string) error {
 	pipe, ok := conn.(pipeHandle)
 	if !ok {
@@ -244,7 +244,7 @@ func pipeServerSID(handle windows.Handle) (string, error) {
 	return user.User.Sid.String(), nil
 }
 
-// Cleanup does nothing: a named pipe goes away with its last handle.
+// Cleanup does nothing, because a named pipe goes away with its last handle.
 func Cleanup(_ string) error {
 	return nil
 }

@@ -32,7 +32,7 @@ func (t *countingTheme) IsDarkMode() bool {
 }
 
 // TestStyleResolver_ResolvesPerChangeNotPerDraw pins the decision that makes
-// this ownership move free: a Style is resolved when the config or the theme
+// this ownership move free. A Style is resolved when the config or the theme
 // changes, and a draw reads the cached result. If a draw ever resolved again
 // the overlay would pay a theme lookup and a fresh allocation per frame.
 func TestStyleResolver_ResolvesPerChangeNotPerDraw(t *testing.T) {
@@ -104,7 +104,7 @@ func TestStyleResolver_ResolvesPerChangeNotPerDraw(t *testing.T) {
 	}
 }
 
-// TestStyleResolver_RefreshPicksUpTheNewTheme is the user-facing half: the
+// TestStyleResolver_RefreshPicksUpTheNewTheme is the user-facing half. The
 // same configuration resolves to different colors once the system appearance
 // flips, and nothing but the one notification is needed to get there.
 func TestStyleResolver_RefreshPicksUpTheNewTheme(t *testing.T) {
@@ -160,7 +160,7 @@ func TestStyleResolver_RefreshPicksUpTheNewTheme(t *testing.T) {
 }
 
 // TestStyleResolver_ZeroValueTheme pins that a resolver built without a theme
-// provider still resolves rather than panicking; a headless start has no
+// provider still resolves rather than panicking, because a headless start has no
 // appearance to report.
 func TestStyleResolver_ZeroValueTheme(t *testing.T) {
 	t.Parallel()
@@ -263,7 +263,7 @@ func TestStyleResolver_ApplyNotifiesTheComponentsOnce(t *testing.T) {
 	}
 
 	// Resolving is never gated, even though handing the configuration on can
-	// be: a mode that is disabled now and re-enabled later must not draw with
+	// be. A mode that is disabled now and re-enabled later must not draw with
 	// pre-reload colors.
 	disabled := config.DefaultConfig()
 	disabled.Hints.Enabled = false
@@ -277,7 +277,7 @@ func TestStyleResolver_ApplyNotifiesTheComponentsOnce(t *testing.T) {
 }
 
 // TestStyleResolver_ConcurrentApplyAndRead drives the two writers the daemon
-// really has — a config reload and a theme observer — against the readers
+// really has, a config reload and a theme observer, against the readers
 // every draw is, under -race. A draw must never observe a half-published
 // Style, and a theme change must never republish a configuration a reload has
 // already replaced.
@@ -325,7 +325,7 @@ func TestStyleResolver_ConcurrentApplyAndRead(t *testing.T) {
 	waiter.Wait()
 
 	// Every reload applied the same config, so whichever writer went last, the
-	// resolved Style must be the reloaded one — a Refresh that snapshotted the
+	// resolved Style must be the reloaded one. A Refresh that snapshotted the
 	// config before a reload and applied it afterwards would leave the old
 	// value here.
 	if got := resolver.Style().Hints.FontSize(); got != 41 {
@@ -354,9 +354,9 @@ const (
 // families that used to be copied out of the configuration verbatim, so a
 // generic alias reached the platform as a family name nothing is installed
 // under and the overlay silently fell back to the system font (#1305). Every
-// other overlay's family goes through the shared resolver; these must too.
+// other overlay's family goes through the shared resolver, and these must too.
 //
-// Not parallel: the font resolver is process-wide.
+// Not parallel, because the font resolver is process-wide.
 func TestStyleResolver_RoutesItsFontFamiliesThroughTheResolver(t *testing.T) {
 	ports.SetFontResolver(markerFontResolver{})
 	t.Cleanup(func() { ports.SetFontResolver(nil) })
@@ -396,10 +396,10 @@ func TestStyleResolver_RoutesItsFontFamiliesThroughTheResolver(t *testing.T) {
 // other half of the same fix: the components that draw the virtual pointer
 // read the family out of the configuration they are handed, so the resolved
 // one has to travel with the notification. Without it macOS keeps drawing the
-// written name — the alias never reaches a face, and the platform falls back
+// written name, the alias never reaches a face, and the platform falls back
 // to the system font (#1305).
 //
-// Not parallel: the font resolver is process-wide.
+// Not parallel, because the font resolver is process-wide.
 func TestStyleResolver_NotifiesTheComponentsOfTheResolvedPointerFamily(t *testing.T) {
 	ports.SetFontResolver(markerFontResolver{})
 	t.Cleanup(func() { ports.SetFontResolver(nil) })
@@ -434,14 +434,14 @@ func TestStyleResolver_NotifiesTheComponentsOfTheResolvedPointerFamily(t *testin
 // TestStyleResolver_NotifiesTheComponentsOfTheSettledPointerCharAndSize pins
 // the same propagation for the two fields a user can leave empty. The resolver
 // falls back to the documented `●` at 8pt for them, and the Linux and Windows
-// draws see that because they read the Style; the macOS components read char
+// draws see that because they read the Style. The macOS components read char
 // and font size out of the configuration they are handed, so an explicitly
 // empty char or zero font size drew nothing at no size there (#1337). The
 // settled values have to travel with the notification, like the family.
 func TestStyleResolver_NotifiesTheComponentsOfTheSettledPointerCharAndSize(t *testing.T) {
 	t.Parallel()
 
-	// Written empty on purpose: omitting the keys is filled in by the config
+	// Written empty on purpose, because omitting the keys is filled in by the config
 	// defaults, so only an explicit empty string or zero reaches the resolver.
 	cfg := config.DefaultConfig()
 	cfg.VirtualPointer.UI.Char = ""
@@ -485,7 +485,7 @@ func TestStyleResolver_NotifiesTheComponentsOfTheSettledPointerCharAndSize(t *te
 // that nothing resolves a second time downstream, so a frame carrying the
 // written name would put an alias in front of a font engine again (#1305).
 //
-// Not parallel: the font resolver is process-wide.
+// Not parallel, because the font resolver is process-wide.
 func TestAdapterShowFrame_CarriesTheResolvedPointerFamily(t *testing.T) {
 	ports.SetFontResolver(markerFontResolver{})
 	t.Cleanup(func() { ports.SetFontResolver(nil) })
@@ -529,7 +529,7 @@ func TestAdapterShowFrame_CarriesTheResolvedPointerFamily(t *testing.T) {
 // and a monitor picker configured with one family would draw its subtitles in
 // another.
 //
-// Not parallel: the font resolver is process-wide.
+// Not parallel, because the font resolver is process-wide.
 func TestStyleResolver_SubtitleFamilyFallsBackBeforeResolution(t *testing.T) {
 	ports.SetFontResolver(markerFontResolver{})
 	t.Cleanup(func() { ports.SetFontResolver(nil) })

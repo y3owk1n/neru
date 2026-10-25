@@ -18,15 +18,15 @@ type RoleDiagnosticKind int
 
 const (
 	// RoleDiagnosticUnknownName marks a bare entry that is not a semantic role.
-	// It is fatal: the semantic vocabulary is closed, so this is a typo or a
+	// It is fatal. The semantic vocabulary is closed, so this is a typo or a
 	// native role name written without its vocabulary prefix.
 	RoleDiagnosticUnknownName RoleDiagnosticKind = iota
 	// RoleDiagnosticUnknownVocabulary marks an entry whose prefix is not one of
 	// the known native vocabularies. It is fatal.
 	RoleDiagnosticUnknownVocabulary
 	// RoleDiagnosticForeignVocabulary marks a well-formed native entry that
-	// belongs to a different platform. It is informational: cross-platform
-	// configurations are expected to carry entries for every machine.
+	// belongs to a different platform. It is informational, because a
+	// cross-platform configuration carries entries for every machine.
 	RoleDiagnosticForeignVocabulary
 	// RoleDiagnosticNoNativeEquivalent marks a valid semantic role that has no
 	// counterpart on the running platform. It is informational.
@@ -47,8 +47,8 @@ type RoleDiagnostic struct {
 }
 
 // IsFatal reports whether the diagnostic should reject the configuration
-// rather than merely be reported. Only malformed or unrecognized entries are
-// fatal; entries that simply do not apply to this platform are not.
+// rather than only be reported. Only malformed or unrecognized entries are
+// fatal. Entries that do not apply to this platform are not.
 func (d RoleDiagnostic) IsFatal() bool {
 	return d.Kind == RoleDiagnosticUnknownName || d.Kind == RoleDiagnosticUnknownVocabulary
 }
@@ -205,7 +205,7 @@ func resolveRoleEntry(
 
 // splitVocabularyEntry splits a prefixed entry into its vocabulary and native
 // role name. The third result reports whether the entry carried a separator at
-// all; an unrecognized prefix still returns true so the caller can report it
+// all. An unrecognized prefix still returns true so the caller can report it
 // rather than treating the whole string as a semantic name.
 func splitVocabularyEntry(entry string) (NativeVocabulary, string, bool) {
 	prefix, native, found := strings.Cut(entry, vocabularySeparator)
@@ -302,8 +302,8 @@ func knownVocabulary(vocab NativeVocabulary) bool {
 }
 
 // suggestionForBareEntry derives a replacement for a bare entry that is not a
-// semantic role. A native role name written without its prefix — the shape
-// every pre-vocabulary configuration has — resolves to the semantic role that
+// semantic role. A native role name written without its prefix, as every
+// pre-vocabulary configuration writes it, resolves to the semantic role that
 // covers it, which is the migration users need.
 func suggestionForBareEntry(entry string) string {
 	for _, vocab := range []NativeVocabulary{VocabularyAX, VocabularyATSPI, VocabularyUIA} {

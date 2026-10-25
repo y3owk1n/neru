@@ -18,7 +18,7 @@ import (
 // TestManager_DrawHintsWithStyle_UnknownPlacementTravelsAsNotSupported pins the
 // code a placement refusal arrives with. The renderer reports CodeNotSupported
 // for a placement it cannot draw (#1333), and the mode handler degrades quietly
-// on exactly that code — hints mode stays up, with a debug line instead of an
+// on exactly that code. Hints mode stays up, with a debug line instead of an
 // overlay error. Wrapping it here as an overlay failure would turn a
 // degradation into a fault report, which is why the refusal travels unwrapped,
 // the same way the overlay adapter already passes one on.
@@ -34,8 +34,8 @@ func TestManager_DrawHintsWithStyle_UnknownPlacementTravelsAsNotSupported(t *tes
 	cfg := config.DefaultConfig()
 	cfg.Hints.UI.Placement = unknownPlacement
 
-	// Built directly rather than through BuildComponents: the hints overlay
-	// shares the manager's window, and this draw never reaches one.
+	// Built directly rather than through BuildComponents, because the hints
+	// overlay shares the manager's window, and this draw never reaches one.
 	hintOverlay, err := hints.NewOverlayWithWindow(cfg.Hints, zap.NewNop(), nil)
 	if err != nil {
 		t.Fatalf("NewOverlayWithWindow() error = %v", err)

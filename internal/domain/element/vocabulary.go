@@ -3,15 +3,15 @@ package element
 import "runtime"
 
 // SemanticRole is a platform-neutral role name accepted in user configuration.
-// Semantic roles are the closed vocabulary neru documents: each one expands to
+// Semantic roles are the closed vocabulary neru documents. Each one expands to
 // zero or more native role names for the platform neru is running on. Roles
 // that have no semantic equivalent remain reachable through a vocabulary
 // prefix (see NativeVocabulary).
 type SemanticRole string
 
-// The semantic role vocabulary. This set is closed: an unrecognized bare entry
-// in clickable_roles is a configuration error, which is what makes typos
-// detectable. Anything missing here is still addressable as "ax:...",
+// The semantic role vocabulary. This set is closed. An unrecognized bare entry
+// in clickable_roles is a configuration error, which makes typos detectable.
+// Anything missing here is still addressable as "ax:...",
 // "atspi:..." or "uia:...".
 const (
 	SemanticButton        SemanticRole = "button"
@@ -96,8 +96,8 @@ func CurrentVocabulary() (NativeVocabulary, bool) {
 }
 
 // RoleMapping records how one semantic role expands into native role names on
-// each supported platform. An empty slice means the platform has no equivalent;
-// such roles are reported by `neru roles` rather than silently ignored.
+// each supported platform. An empty slice means the platform has no
+// equivalent, and `neru roles` reports such roles rather than ignoring them.
 type RoleMapping struct {
 	// Semantic is the platform-neutral name written in configuration.
 	Semantic SemanticRole
@@ -105,7 +105,7 @@ type RoleMapping struct {
 	AX []string
 	// AXIsSubrole marks that AppKit declares this mapping's AX names as
 	// subroles (NSAccessibilitySubrole constants in
-	// NSAccessibilityConstants.h), not roles: an element reports such a name
+	// NSAccessibilityConstants.h), not roles. An element reports such a name
 	// in its AXSubrole attribute while its AXRole stays something more
 	// generic, so the macOS matcher compares configured names against the
 	// subrole as well as the role. AXSubroleNames collects the marked names.
@@ -135,7 +135,7 @@ func (m RoleMapping) Native(vocab NativeVocabulary) []string {
 // the single source of truth for `neru roles`, config resolution, and the role
 // table in docs/reference/configuration.md.
 //
-// Overlapping expansions are intentional: Linux and Windows do not distinguish
+// Overlapping expansions are intentional. Linux and Windows do not distinguish
 // a text area or a search field from a plain text field, so those semantic
 // roles expand onto the same native name there. Resolution unions the results.
 var RoleVocabulary = []RoleMapping{
@@ -149,7 +149,7 @@ var RoleVocabulary = []RoleMapping{
 		Semantic: SemanticMenuButton,
 		AX:       []string{string(RoleMenuButton)},
 		// AT-SPI reports the GEnum nick of ATSPI_ROLE_PUSH_BUTTON_MENU, which
-		// is "push button menu" — not "menu button".
+		// is "push button menu", not "menu button".
 		ATSPI: []string{"push button menu"},
 	},
 	{
@@ -187,8 +187,8 @@ var RoleVocabulary = []RoleMapping{
 		// SwiftUI toggles report AXCheckBox / AXSwitch.
 		AX:          []string{string(RoleSwitch)},
 		AXIsSubrole: true,
-		// ATSPI_ROLE_SWITCH is the dedicated role (GTK4 GtkSwitch and friends);
-		// older toolkits still report a toggle button.
+		// ATSPI_ROLE_SWITCH is the dedicated role (GTK4 GtkSwitch and others).
+		// Older toolkits still report a toggle button.
 		ATSPI: []string{"switch", "toggle button"},
 	},
 	{
@@ -390,12 +390,7 @@ func LookupSemantic(role SemanticRole) (RoleMapping, bool) {
 // the given vocabulary. Where several semantic roles expand onto the same
 // native name, the first in RoleVocabulary order wins.
 func SemanticForNative(vocab NativeVocabulary, native string) (SemanticRole, bool) {
-	names, ok := nativeIndex[vocab]
-	if !ok {
-		return "", false
-	}
-
-	semantic, found := names[native]
+	semantic, found := nativeIndex[vocab][native]
 
 	return semantic, found
 }

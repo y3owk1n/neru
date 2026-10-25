@@ -113,7 +113,7 @@ func TestAdapter_ClickableElements_FilterContract(t *testing.T) {
 		{
 			name: "MinSize compares both axes, not area",
 			filter: ports.ElementFilter{
-				// wide-flat-link is 300x4: far larger in area than the
+				// wide-flat-link is 300x4, far larger in area than the
 				// 10x10 minimum, but too short. An implementation that
 				// compared areas would wrongly keep it.
 				MinSize: image.Point{X: 10, Y: 10},
@@ -220,7 +220,7 @@ func TestAdapter_ClickableElements_PreservesNodeAttributes(t *testing.T) {
 
 // TestAdapter_ClickableElements_PropagatesClientError makes sure a failure from
 // the underlying AX client surfaces instead of being reported as an empty but
-// successful result — which would look to a caller like "nothing on screen".
+// successful result, which would look to a caller like "nothing on screen".
 func TestAdapter_ClickableElements_PropagatesClientError(t *testing.T) {
 	window := &accessibility.MockWindow{}
 	client := &accessibility.MockAXClient{

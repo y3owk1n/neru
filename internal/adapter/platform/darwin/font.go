@@ -35,7 +35,7 @@ func NewFontResolver() ports.FontResolver {
 }
 
 // nsFontResolver implements ports.FontResolver for macOS. Generic
-// aliases are translated to concrete macOS families; everything else
+// aliases are translated to concrete macOS families, and everything else
 // is passed through trimmed to the C layer, which already performs the
 // full NSFont + NSFontManager resolution chain.
 type nsFontResolver struct {

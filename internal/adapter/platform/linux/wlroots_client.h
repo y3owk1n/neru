@@ -34,7 +34,7 @@ typedef struct {
 // NeruToplevel mirrors one zwlr_foreign_toplevel_handle_v1. Nodes are heap
 // allocated and threaded onto NeruWlrootsClient.toplevels via `link`, so there
 // is no fixed cap on the number of windows tracked. app_id and the activated
-// flag are committed atomically on the handle's `done` event; the `pending_*`
+// flag are committed atomically on the handle's `done` event, and the `pending_*`
 // fields buffer values arriving between `done` events so a half-applied state
 // is never observed.
 // A node mirrors exactly one of two handle kinds. On wlroots and KWin it is a
@@ -69,7 +69,7 @@ typedef struct NeruWlrootsClient {
 	struct zwlr_layer_shell_v1 *layer_shell;
 	struct wl_seat *seat;
 	// Atomic because the seat's capabilities event is what sets it, and that
-	// event can arrive on the dispatch thread long after connect — a mouse
+	// event can arrive on the dispatch thread long after connect, as with a mouse
 	// plugged into a session that started without one. Everything else here
 	// reads it.
 	_Atomic(struct wl_pointer *) pointer;
@@ -88,13 +88,13 @@ typedef struct NeruWlrootsClient {
 	// the "activated" (focused) state so Neru can resolve the focused app_id
 	// on wlroots/KWin Wayland sessions (GNOME/Mutter does not implement it).
 	struct zwlr_foreign_toplevel_manager_v1 *toplevel_mgr;
-	// cosmic-comp's replacement for the wlr manager: the ext list names every
+	// cosmic-comp's replacement for the wlr manager. The ext list names every
 	// toplevel, the cosmic info global says which is activated and where it is.
-	// Both are bound only when the wlr manager is absent; neither alone is
+	// Both are bound only when the wlr manager is absent. Neither alone is
 	// enough to resolve focus, so the pair is used together or not at all.
 	struct ext_foreign_toplevel_list_v1 *ext_toplevel_list;
 	struct zcosmic_toplevel_info_v1 *cosmic_toplevel_info;
-	// The registry only records these two globals; they are bound later, with
+	// The registry only records these two globals. They are bound later, with
 	// their listeners attached in the same breath, so the replay of existing
 	// windows a bind triggers cannot land on a listenerless proxy and leak.
 	uint32_t ext_toplevel_list_name;
@@ -109,7 +109,7 @@ typedef struct NeruWlrootsClient {
 	int toplevel_mutex_ready;
 
 	// focus_pipe is a self-pipe that pushes focus-change notifications to Go
-	// without a cross-thread callback: neru_wlr_recompute_focused writes one
+	// without a cross-thread callback. neru_wlr_recompute_focused writes one
 	// byte to focus_pipe[1] (the write end) whenever focused_app_id changes, and
 	// the Go app watcher blocks reading focus_pipe[0] (the read end, exposed via
 	// neru_wlr_focus_event_fd). Both ends are non-blocking so the dispatch
@@ -120,7 +120,7 @@ typedef struct NeruWlrootsClient {
 	// screen_pipe is a self-pipe that pushes display-configuration changes
 	// (outputs added/removed via wl_registry global/global_remove) to Go, the
 	// same way focus_pipe pushes focus changes. Both ends are non-blocking so the
-	// dispatch thread never stalls; both are -1 until initialized.
+	// dispatch thread never stalls. Both are -1 until initialized.
 	int screen_pipe[2];
 	int screen_pipe_ready;
 
@@ -138,7 +138,7 @@ typedef struct NeruWlrootsClient {
 	atomic_int cursor_x;
 	atomic_int cursor_y;
 	_Atomic int cursor_initialized;
-	wl_fixed_t cursor_x_frac;  // guarded by display_mutex — fractional
+	wl_fixed_t cursor_x_frac;  // guarded by display_mutex, fractional
 	wl_fixed_t cursor_y_frac;  // remainder for sub-pixel accumulation
 
 	struct wl_surface *entered_discovery_surface;
@@ -149,7 +149,7 @@ typedef struct NeruWlrootsClient {
 	_Atomic int dispatch_running;
 
 	// Barrier bookkeeping for neru_wlr_sync. sync_issued is the id of the last
-	// wl_display.sync request sent, stamped under display_mutex; sync_completed
+	// wl_display.sync request sent, stamped under display_mutex, and sync_completed
 	// is the id of the last one the compositor answered, stored by the callback
 	// on the dispatch thread. Callbacks complete in the order they were issued,
 	// so a waiter watching for its own id cannot be satisfied by an earlier one.
@@ -171,10 +171,10 @@ int neru_wlr_click(NeruWlrootsClient *c, int button);
 int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete);
 int neru_wlr_scroll_batch(NeruWlrootsClient *c, int axis, int *deltas, int *discretes, int count);
 // Emit one continuous (sub-notch capable) scroll step: an axis event carrying a
-// fractional wl_fixed value and no discrete step count.  With no discrete step
+// fractional wl_fixed value and no discrete step count. With no discrete step
 // the compositor forwards the fraction to the focused client as a plain
 // wl_pointer.axis, which is what makes an animated scroll finer than a wheel
-// notch possible.  value is in the same units neru_wlr_scroll's delta uses.
+// notch possible. value is in the same units neru_wlr_scroll's delta uses.
 int neru_wlr_scroll_continuous(NeruWlrootsClient *c, int axis, double value);
 int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_down);
 
@@ -226,15 +226,15 @@ int neru_wlr_focused_app_identity(NeruWlrootsClient *c, char *app_out, int app_l
 // readable whenever the focused app_id changes. Callers poll it, drain the
 // pending byte(s), then re-query neru_wlr_focused_app_id. Returns -1 when no
 // pipe is available. The fd is owned by the client and closed by
-// neru_wlr_disconnect; callers must not close it.
+// neru_wlr_disconnect, and callers must not close it.
 int neru_wlr_focus_event_fd(NeruWlrootsClient *c);
 
 // neru_wlr_screen_event_fd returns a readable file descriptor that becomes
 // readable whenever the display configuration changes (an output is added or
 // removed). Callers poll it, drain the pending byte(s), then re-read the screen
 // list via neru_wlr_screen_count / neru_wlr_screen_info. Returns -1 when no pipe
-// is available. The fd is owned by the client and closed by neru_wlr_disconnect;
-// callers must not close it.
+// is available. The fd is owned by the client and closed by neru_wlr_disconnect,
+// and callers must not close it.
 int neru_wlr_screen_event_fd(NeruWlrootsClient *c);
 
 #endif /* WLROOTS_CLIENT_H */

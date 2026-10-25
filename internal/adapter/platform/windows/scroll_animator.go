@@ -23,11 +23,11 @@ const (
 	// produces the same shape everywhere.
 	easeOutCubicExponent = 3
 	// defaultScrollSteps answers a caller that supplied a nonsense step count
-	// (<= 0). ValidateSmoothScroll already requires steps >= 1, so it exists
-	// so a direct caller cannot divide by zero.
+	// (<= 0). ValidateSmoothScroll already requires steps >= 1, so it only
+	// keeps a direct caller from dividing by zero.
 	defaultScrollSteps = 12
 	// scrollGranularity is the smallest distance a wheel event can carry, in
-	// the caller's pixels: MOUSEINPUT.mouseData is an integer count of
+	// the caller's pixels. MOUSEINPUT.mouseData is an integer count of
 	// WHEEL_DELTA/120ths and wheelUnitsPerPixel of them make a pixel, so a
 	// step can be as short as a quarter pixel, one 120th of a notch. That is
 	// what makes this animate below a notch the way Wayland does and X11
@@ -37,7 +37,7 @@ const (
 
 // scrollSession is one animation's hold on the injection path.
 //
-// It exists because a modifier has to stay held across every step: a
+// It exists because a modifier has to stay held across every step. A
 // ctrl-modified scroll is a real ctrl key pressed before the first chunk and
 // released after the last, and pressing it around each chunk would read to an
 // application as that many separate zoom gestures.
@@ -65,7 +65,7 @@ func newSendInputScrollSession(modifiers action.Modifiers) (scrollSession, error
 }
 
 func (s *sendInputScrollSession) inject(deltaX, deltaY float64) error {
-	// The same sign convention wheelEvents applies: positive deltaY is up and
+	// This is the sign convention wheelEvents applies. Positive deltaY is up and
 	// positive deltaX is left, and only the horizontal axis needs negating.
 	records := wheelRecords(
 		int32(math.Round(deltaY*wheelUnitsPerPixel)),
@@ -90,7 +90,7 @@ func (s *sendInputScrollSession) close() {
 // inject so that the steps together travel the requested distance.
 //
 // The curve is eased on the cumulative position and each chunk is the
-// difference between two positions on it, so rounding never accumulates: a
+// difference between two positions on it, so rounding never accumulates. A
 // fraction of a wheel unit that one chunk cannot express stays in the
 // difference and goes out with a later chunk. The schedule is laid out in
 // whole wheel units and the last chunk takes whatever is left, so the steps
@@ -132,7 +132,7 @@ func scrollChunks(delta float64, steps int) []float64 {
 // scrollRequest is one animated scroll.
 //
 // The modifier set belongs to the request rather than to the animator,
-// because a request preempts whatever is in flight: a plain scroll_down
+// because a request preempts whatever is in flight. A plain scroll_down
 // arriving mid-zoom cancels the zoom and finishes unmodified, which is what
 // the second binding asked for.
 type scrollRequest struct {
@@ -143,11 +143,11 @@ type scrollRequest struct {
 	durationPerPixel float64
 }
 
-// composeUndelivered folds the part of inflight that never went out — remX,
-// remY — into the request preempting it, but only when the two ask for the
+// composeUndelivered folds the part of inflight that never went out, remX and
+// remY, into the request preempting it, but only when the two ask for the
 // same modifiers.
 //
-// Same modifiers is the held-repeat case: without this, every tick throws
+// Same modifiers is the held-repeat case. Without this, every tick throws
 // away whatever the previous tick had not yet injected, and holding a scroll
 // key travels visibly less than the same number of discrete presses.
 // Different modifiers is the deliberate cancel scrollRequest documents, and
@@ -166,11 +166,11 @@ func composeUndelivered(next, inflight scrollRequest, remX, remY float64) scroll
 
 // scrollAnimator spreads a scroll over time on one worker goroutine, with the
 // latest request winning. It is the cursor animator's shape applied to the
-// wheel: the daemon has one scroll at a time, and a second one arriving
+// wheel. The daemon has one scroll at a time, and a second one arriving
 // mid-animation replaces the first rather than queueing behind it.
 type scrollAnimator struct {
-	// begin opens a session. It is a field so a test can substitute one;
-	// production wires newSendInputScrollSession.
+	// begin opens a session. It is a field so a test can substitute one.
+	// Production wires newSendInputScrollSession.
 	begin func(action.Modifiers) (scrollSession, error)
 
 	mu     sync.Mutex
@@ -179,7 +179,7 @@ type scrollAnimator struct {
 
 	// injectSem is a size-1 semaphore the worker holds across opening a
 	// session, each injected chunk, and closing it, re-checking stopCh under
-	// it before injecting. It is the handoff to stop(): once stop() holds it,
+	// it before injecting. It is the handoff to stop(). Once stop() holds it,
 	// no chunk is mid-flight and none will start. A session holds real
 	// modifier keys down, so a stale worker's release is ordered against a
 	// later worker's press by the same token. It is never held together with
@@ -275,7 +275,7 @@ func (a *scrollAnimator) enqueueLocked(req scrollRequest) {
 
 // underFence runs one native call while holding injectSem, so stop() can
 // order itself after it. When stopCh is non-nil the call is skipped if the
-// session was canceled while we waited for the token; it reports whether the
+// session was canceled while we waited for the token. It reports whether the
 // call ran.
 func (a *scrollAnimator) underFence(call func(), stopCh <-chan struct{}) bool {
 	a.injectSem <- struct{}{}
@@ -347,7 +347,7 @@ func (a *scrollAnimator) runOnce(
 		err     error
 	)
 
-	// Opening presses real modifier keys, so it takes the fence too: without
+	// Opening presses real modifier keys, so it takes the fence too. Without
 	// it a worker starting here could press ctrl before a worker stopped a
 	// moment ago released it. It also checks stopCh under the fence, because
 	// a request the worker took just before stop() must not press a key the
@@ -359,7 +359,7 @@ func (a *scrollAnimator) runOnce(
 
 	if err != nil {
 		// Reported the way the cursor animator reports a failed step, which
-		// is not at all: there is no caller left to return it to.
+		// is not at all, because there is no caller left to return it to.
 		return scrollRequest{}, false
 	}
 
@@ -395,7 +395,7 @@ func (a *scrollAnimator) runOnce(
 			if !injected || injectErr != nil {
 				// Canceled, or SendInput went away mid-animation. Playing the
 				// remaining steps out would spend the whole duration failing
-				// once per step; the session is closed on the way out.
+				// once per step. The session is closed on the way out.
 				return scrollRequest{}, false
 			}
 		}
@@ -414,7 +414,7 @@ func (a *scrollAnimator) runOnce(
 		case next := <-reqCh:
 			stopAndDrainTimer(timer)
 
-			// This chunk has gone out; the undelivered remainder starts at
+			// This chunk has gone out. The undelivered remainder starts at
 			// the next one.
 			return composeUndelivered(
 				next, req, sumFrom(chunksX, step+1), sumFrom(chunksY, step+1),

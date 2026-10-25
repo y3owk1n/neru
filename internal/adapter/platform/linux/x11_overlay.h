@@ -39,7 +39,7 @@ void neru_x11_overlay_text(
     unsigned int color, int bold);
 void neru_x11_overlay_flush(NeruX11Overlay *overlay);
 // neru_x11_overlay_scale returns the desktop-wide HiDPI UI scale from Xft.dpi
-// (clamped to [1.0, 4.0]); 1.0 when unset. See the implementation for why this
+// (clamped to [1.0, 4.0]), or 1.0 when unset. See the implementation for why this
 // is global rather than per-monitor on X11.
 double neru_x11_overlay_scale(NeruX11Overlay *overlay);
 

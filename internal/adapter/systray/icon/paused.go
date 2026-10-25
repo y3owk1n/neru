@@ -19,15 +19,15 @@ const (
 
 	// neutralGray is what the desaturated tile is mixed towards, and
 	// pausedContrast is how much of its own contrast survives the mix. Flat is
-	// the tray's oldest idiom for "this is not running": three fifths leaves
+	// the tray's oldest idiom for "this is not running". Three fifths leaves
 	// the glyph readable against the tile while putting both far enough from
 	// the running colors to tell apart at 22 pixels.
 	//
 	// Contrast rather than opacity, deliberately. A translucent tile would
 	// depend on the host compositing it correctly, and the Win32 notification
 	// area is handed these bytes with straight alpha where GDI's icon path
-	// wants it premultiplied — a latent difference that today only touches the
-	// tile's anti-aliased corners, and that fading the whole tile would put on
+	// wants it premultiplied. That latent difference today only touches the
+	// tile's anti-aliased corners, and fading the whole tile would put it on
 	// screen. This transform leaves every alpha value exactly as the running
 	// tile has it.
 	neutralGray    = 128.0
@@ -38,19 +38,19 @@ const (
 // desaturated and flattened, the same artwork at the same size.
 //
 // It is derived from Brand rather than shipped as a second asset so the two
-// can never drift — the paused tile is the running tile by construction, and a
+// can never drift. The paused tile is the running tile by construction, and a
 // new brand tile needs no second export. macOS answers this question with a
-// pair of hand-drawn template glyphs instead (see trayicon_darwin.go); those
+// pair of hand-drawn template glyphs instead (see trayicon_darwin.go). Those
 // are white-on-transparent and would be invisible in a tray host that renders
 // icon bytes literally, which is the whole reason this derivation exists.
 //
-// The derivation runs at most once, on the first paused state of the process:
-// the tray sets an icon on every toggle, and a decode-transform-encode per
+// The derivation runs at most once, on the first paused state of the process.
+// The tray sets an icon on every toggle, and a decode-transform-encode per
 // toggle would put PNG work on a path the user is waiting on. Its input is an
 // embedded asset and TestBrandPaused runs the transform over it, so the
-// fallback below is unreachable short of a corrupt binary — and it hands back
-// the running tile rather than nothing, because a tray showing the wrong state
-// is still better than a tray with no icon in it.
+// fallback below is unreachable short of a corrupt binary. It hands back the
+// running tile rather than nothing, because a tray showing the wrong state is
+// still better than a tray with no icon in it.
 func BrandPaused() []byte {
 	return brandPaused()
 }

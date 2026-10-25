@@ -34,7 +34,7 @@ func TestPlanGridDimensions_DefaultLimitKeepsLegacyTwoKeyRegions(t *testing.T) {
 }
 
 // TestPlanTwoKeyGrid_KeepsCellsNearSquareAcrossScreenShapes pins the reason
-// the two-stage planner exists: a two-key cap must not collapse a wide or tall
+// the two-stage planner exists. A two-key cap must not collapse a wide or tall
 // display into one-row prefix bands. Each stage stays within its own key budget
 // and the combined layout stays inside the ordinary cell-size planner's target.
 func TestPlanTwoKeyGrid_KeepsCellsNearSquareAcrossScreenShapes(t *testing.T) {

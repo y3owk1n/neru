@@ -123,18 +123,18 @@ function Ask([string]$Prompt) {
 
 # ------------------------------------------------------------------- flags --
 
-# Validated by hand rather than with ValidateSet: PowerShell re-checks that
-# attribute on every later assignment, and the local-build path sets 'source'.
+# Validated by hand rather than with ValidateSet, because PowerShell re-checks
+# that attribute on every later assignment, and the local-build path sets 'source'.
 if ($Channel -notin '', 'stable', 'nightly') { Fail "-Channel must be stable or nightly, got '$Channel'." }
 if ($Purge -and -not $Uninstall) { Fail '-Purge only makes sense with -Uninstall.' }
 if ($Version) {
     if ($Version -match '^\d') { $Version = "v$Version" }
     if ($Version -notmatch '^v\d') { Fail "-Version must look like v1.52.0, got '$Version'." }
-    if ($Channel -eq 'nightly') { Fail '-Version pins a stable release; it cannot be combined with -Channel nightly.' }
+    if ($Channel -eq 'nightly') { Fail '-Version pins a stable release, so it cannot be combined with -Channel nightly.' }
     $Channel = 'stable'
 }
 if ($From) {
-    if ($Channel -or $Version) { Fail '-From installs a local build; it cannot be combined with -Channel or -Version.' }
+    if ($Channel -or $Version) { Fail '-From installs a local build, so it cannot be combined with -Channel or -Version.' }
     if (-not (Test-Path (Join-Path $From 'bin\neru.exe'))) { Fail "$From\bin\neru.exe not found. Build the tree with 'just dist' first." }
     $From = (Resolve-Path $From).Path
     $Channel = 'source'
@@ -143,7 +143,7 @@ if ($From) {
 # ---------------------------------------------------------------- platform --
 
 # PROCESSOR_ARCHITEW6432 names the real machine when this PowerShell runs
-# emulated (x86 Windows PowerShell on an ARM64 machine, say); the .NET
+# emulated (x86 Windows PowerShell on an ARM64 machine, say). The .NET
 # RuntimeInformation call is not reliable there under Windows PowerShell 5.1.
 $machine = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
 $arch = switch ($machine) {
@@ -204,15 +204,15 @@ function Invoke-Neru {
 
 function Get-InstalledVersion {
     if (-not (Test-Path $exe)) { return '' }
-    # Invoke-Neru hands back one multi-line string, so split before matching:
-    # ^ and $ would otherwise anchor to the whole output and never match.
+    # Invoke-Neru hands back one multi-line string, so split before matching.
+    # Otherwise ^ and $ anchor to the whole output and never match.
     foreach ($line in ((Invoke-Neru --version) -split "`r?`n")) {
         if ($line -match '^Neru version (.+)$') { return $Matches[1].Trim() }
     }
     return ''
 }
 
-# A release tag is exactly vX.Y.Z; a source build carries git describe's
+# A release tag is exactly vX.Y.Z. A source build carries git describe's
 # -N-gSHA or -dirty suffix behind it.
 $installedVersion = Get-InstalledVersion
 $installedChannel = ''
@@ -553,8 +553,8 @@ if (-not $NoService) {
             Invoke-Neru services install | Out-Null
             if ($script:neruExit -eq 0) {
                 $serviceState = 'installed'
-                # An older installer wrote a Run key for the same purpose; left
-                # in place it would launch a second daemon at every login.
+                # An older installer wrote a Run key for the same purpose. Left
+                # in place, it would launch a second daemon at every login.
                 Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name Neru -ErrorAction SilentlyContinue
                 Write-Ok 'Registered and running'
             } else {

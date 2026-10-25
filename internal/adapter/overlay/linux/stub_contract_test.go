@@ -28,9 +28,9 @@ func noBackendManager() *Manager {
 
 // With no backend initialized (KWin, GNOME, headless), every Manager draw
 // call must report CodeNotSupported. A stub returning nil would leave the mode
-// handler believing a mode is displayed — keyboard capture armed, the user
-// trapped in an invisible mode. A zero-value Manager is exactly the no-backend
-// state, so these cases run headless; Init() is deliberately avoided, being a
+// handler believing a mode is displayed, with keyboard capture armed and the
+// user trapped in an invisible mode. A zero-value Manager is the no-backend
+// state, so these cases run headless. Init() is deliberately avoided, being a
 // process-global singleton that probes for a display.
 func TestLinuxOverlayManager_DrawCallsReportNotSupportedWithNoBackend(t *testing.T) {
 	tests := []struct {
@@ -141,12 +141,12 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 
 // TestLinuxOverlayManager_HintSearchInputRefusesWhenNothingWasPainted pins what
 // the refusal means now that both backends draw the badge. It used to mean
-// "unimplemented here", and attaching X11 or wlroots changed nothing; it now
-// means the draw put no pixels anywhere — a backend pointer whose native handle
+// "unimplemented here", and attaching X11 or wlroots changed nothing. It now
+// means the draw put no pixels anywhere, a backend pointer whose native handle
 // is closed or was never opened, which is the state a torn-down session leaves.
 //
 // Answering nil there is the failure the old body was written against from the
-// other end: the mode handler would believe a query and a match count were on
+// other end. The mode handler would believe a query and a match count were on
 // screen with nothing on it. What a live surface answers is
 // TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheQueryOnTheActiveScreen.
 func TestLinuxOverlayManager_HintSearchInputRefusesWhenNothingWasPainted(t *testing.T) {
@@ -174,13 +174,13 @@ func TestLinuxOverlayManager_HintSearchInputRefusesWhenNothingWasPainted(t *test
 }
 
 // TestLinuxOverlayManager_NoBackendDeclaresItselfHeadless pins the other half
-// of the no-backend contract: a Manager with no surface has to say so, because
+// of the no-backend contract. A Manager with no surface has to say so, because
 // its own component build reads that declaration before it builds the render
 // overlays, and it must not hand the app components this Manager has no way to
 // draw.
 //
 // The nil case follows the package's nil-guarded-delegate rule rather than
-// blessing a typed nil: NewOverlayManager returns a nil *Manager when no
+// blessing a typed nil. NewOverlayManager returns a nil *Manager when no
 // display is detected, and the accessor that wraps it does not yet guard that,
 // so Headless can be reached on a nil receiver and must answer rather than
 // panic.
@@ -204,7 +204,7 @@ func TestLinuxOverlayManager_NoBackendDeclaresItselfHeadless(t *testing.T) {
 			}
 
 			// The declaration has to be what building reads. A backend that
-			// re-derived it — from a window handle it can see, say — would
+			// re-derived it, from a window handle it can see, say, would
 			// still pass the assertion above and then hand the app components
 			// it has no surface to draw.
 			built, err := overlayManager.BuildComponents(config.DefaultConfig(), nil)
@@ -223,7 +223,7 @@ func TestLinuxOverlayManager_NoBackendDeclaresItselfHeadless(t *testing.T) {
 }
 
 // TestLinuxOverlayManager_StubsAreRepeatable guards against a stub that reports
-// NotSupported once and then changes its answer — the mode handler retries a
+// NotSupported once and then changes its answer. The mode handler retries a
 // draw on screen-change events, and an inconsistent answer would let a later
 // attempt look like success.
 func TestLinuxOverlayManager_StubsAreRepeatable(t *testing.T) {
@@ -239,7 +239,7 @@ func TestLinuxOverlayManager_StubsAreRepeatable(t *testing.T) {
 }
 
 // TestLinuxOverlayManager_HideIndicatorErasesTheBadgeItPainted pins what
-// hiding an indicator costs here: a Linux indicator is a badge painted onto
+// hiding an indicator costs here. A Linux indicator is a badge painted onto
 // the one shared overlay surface, not a window of its own, so hiding it means
 // forgetting the rectangle it occupied. Without that an indicator turned off
 // mid-session would stay on screen until the whole overlay is hidden, which is
@@ -291,7 +291,7 @@ func TestLinuxOverlayManager_HideIndicatorErasesTheBadgeItPainted(t *testing.T) 
 // The virtual pointer is hidden from the cursor-visibility path, which runs
 // with the mode handler's lock held (`internal/app/modes/AGENTS.md`). It draws
 // into its own surface, so there is no rectangle on the shared overlay to
-// erase — and taking renderMu, which every draw contends for, would stall the
+// erase, and taking renderMu, which every draw contends for, would stall the
 // handler for a case body that does nothing.
 func TestLinuxOverlayManager_HidingTheVirtualPointerTakesNoRenderLock(t *testing.T) {
 	mgr := noBackendManager()

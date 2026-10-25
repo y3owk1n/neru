@@ -26,7 +26,7 @@ const strayArgument = "left_click"
 // modeCommands are the seven commands the builder produces, each against the mode
 // it enters.
 //
-// Which flags each one offers is not asserted here: that the command line
+// Which flags each one offers is not asserted here. That the command line
 // registers exactly what the grammar declares is a contract rather than a
 // behavior, and it is pinned in internal/architecture alongside the published
 // reference it has to agree with.

@@ -1,4 +1,4 @@
-// Package components provides feature-specific implementations.
-// Each feature contains the UI components, context management, and overlay
-// logic specific to that navigation mode (hints, grid, scroll, action).
+// Package components holds the state each navigation mode keeps for one
+// session: hints, grid, recursive grid, bisect and scroll. None of it draws.
+// The overlay is reached through ports.OverlayPort.
 package components

@@ -20,7 +20,7 @@ import (
 // modes accept it, and writes its row in the published reference.
 //
 // "Declared once" is only worth anything if the other two follow, and they
-// followed by diligence until these tests: a flag added to the table without
+// followed by diligence until these tests. A flag added to the table without
 // being registered was a flag the daemon accepted and nobody could type, and
 // one missing from the reference was documentation that quietly disagreed with
 // the binary. Both are now build failures.
@@ -30,8 +30,8 @@ import (
 //
 // The modes are named rather than left open because a flag outside the grammar
 // is exactly what per-mode divergence looks like. Allowing "debug" everywhere
-// would let it be hand-added to grid — a flag offered by one command and
-// understood by nothing — which is what this whole contract exists to catch.
+// would let it be hand-added to grid, a flag offered by one command and
+// understood by nothing, which is what this whole contract exists to catch.
 type cliOwnedFlag struct {
 	name string
 
@@ -51,7 +51,7 @@ func (f cliOwnedFlag) offeredBy(mode domain.Mode) bool {
 //
 // The list is spelled out rather than pattern-matched so that adding to it is a
 // decision somebody writes down. A flag that reaches a mode belongs in the
-// descriptor table; a flag that does something else has to say what it does and
+// descriptor table. A flag that does something else has to say what it does and
 // where it is allowed.
 var flagsOwnedByTheCLI = []cliOwnedFlag{
 	{
@@ -200,7 +200,7 @@ func modeNames(modes []domain.Mode) string {
 // TestModeFlagReference_IsGeneratedFromTheDescriptorTable pins the published
 // reference to the same table.
 //
-// It regenerates each page's flag region and compares: a descriptor added,
+// It regenerates each page's flag region and compares. A descriptor added,
 // removed or re-worded without regenerating fails here rather than shipping a
 // page that describes a binary nobody built.
 //

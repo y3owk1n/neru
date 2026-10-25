@@ -42,7 +42,7 @@ func (h *handlerState) setAppMode(mode domain.Mode) {
 
 	// Settle the keymap for the mode being entered before anything reads it.
 	// Entering a mode is a one-shot the user is waiting on, which is where
-	// learning the focused app from the platform is allowed to happen; doing it
+	// learning the focused app from the platform is allowed to happen. Doing it
 	// here is what leaves the keystrokes after it with nothing to ask (ADR 0005).
 	h.settledKeymap()
 
@@ -143,9 +143,8 @@ func (h *handlerState) syncStickyModifierToggle(mode domain.Mode) {
 	h.setStickyModifierToggle(enabled)
 }
 
-// SetModeIdle switches the application to idle mode, disabling active navigation modes.
-// This function resets the application state to idle, disables event tapping,
-// and takes whatever was on screen off it.
+// SetModeIdle switches the application to idle, disables the event tap, and
+// takes whatever was on screen off it.
 //
 // NOTE: Every code path that calls appState.SetMode() must also call
 // syncModifierPassthrough() with the same mode to keep the event tap
@@ -178,7 +177,7 @@ func (h *handlerState) enterMode(appMode domain.Mode) {
 
 // activateModeBase performs common activation steps for all modes.
 //
-//nolint:unparam // every mode enters with the move-mouse action and no app scope today; the parameters are the seam a mode that differs would use
+//nolint:unparam // every mode enters with the move-mouse action and no app scope today. The parameters are the seam a mode that differs would use
 func (h *handlerState) activateModeBase(
 	modeName string,
 	enabled bool,
@@ -194,21 +193,19 @@ func (h *handlerState) activateModeBase(
 		return action.TypeMoveMouse, false
 	}
 
-	// Prepare for mode activation (reset transient mode state)
 	h.prepareForModeActivation()
 
 	// The overlay is not sized here. Every mode that reaches this hands over a
 	// Frame, and sizing to the active screen is the first step of realizing
-	// one; doing it here as well is a second trip to the main thread for a
+	// one. Doing it here as well is a second trip to the main thread for a
 	// screen the frame is about to ask for anyway.
 
 	return actionEnum, true
 }
 
-// SetModeHints switches the application to hints mode for accessibility-based
-// navigation. This function sets the application state to hints mode and
-// enables event tapping for capturing keyboard input. The overlay comes up
-// when the mode hands over its Frame, not here.
+// SetModeHints switches the application to hints mode and enables the event
+// tap to capture the keyboard. The overlay comes up when the mode hands over
+// its Frame, not here.
 func (h *Handler) SetModeHints() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -216,10 +213,9 @@ func (h *Handler) SetModeHints() {
 	h.enterMode(domain.ModeHints)
 }
 
-// SetModeGrid switches the application to grid mode for coordinate-based
-// navigation. This function sets the application state to grid mode and
-// enables event tapping for capturing keyboard input. The overlay comes up
-// when the mode hands over its Frame, not here.
+// SetModeGrid switches the application to grid mode and enables the event
+// tap to capture the keyboard. The overlay comes up when the mode hands over
+// its Frame, not here.
 func (h *Handler) SetModeGrid() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -227,10 +223,9 @@ func (h *Handler) SetModeGrid() {
 	h.enterMode(domain.ModeGrid)
 }
 
-// SetModeRecursiveGrid switches the application to recursive-grid mode for
-// recursive cell navigation. This function sets the application state to
-// recursive-grid mode and enables event tapping for capturing keyboard input.
-// The overlay comes up when the mode hands over its Frame, not here.
+// SetModeRecursiveGrid switches the application to recursive-grid mode and
+// enables the event tap to capture the keyboard. The overlay comes up when the
+// mode hands over its Frame, not here.
 func (h *Handler) SetModeRecursiveGrid() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -238,10 +233,9 @@ func (h *Handler) SetModeRecursiveGrid() {
 	h.enterMode(domain.ModeRecursiveGrid)
 }
 
-// SetModeScroll switches the application to scroll mode for scroll-based
-// navigation. This function sets the application state to scroll mode and
-// enables event tapping for capturing keyboard input. The overlay comes up
-// when the mode hands over its Frame, not here.
+// SetModeScroll switches the application to scroll mode and enables the event
+// tap to capture the keyboard. The overlay comes up when the mode hands over
+// its Frame, not here.
 func (h *Handler) SetModeScroll() {
 	h.mu.Lock()
 	defer h.mu.Unlock()

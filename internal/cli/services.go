@@ -7,7 +7,7 @@ import (
 // ServicesCmd is the CLI services command for managing the system service.
 //
 // macOS: backed by a launchd user agent.
-// Linux: backed by a systemd user unit; other init systems return
+// Linux: backed by a systemd user unit. Other init systems return
 // CodeNotSupported.
 // Windows: backed by a Task Scheduler logon task for the current user.
 // Other platforms: stubbed and returns CodeNotSupported until implemented.
@@ -52,7 +52,7 @@ var ServicesInstallCmd = &cobra.Command{
 var ServicesUninstallCmd = &cobra.Command{
 	Use:   "uninstall",
 	Short: "Unload and remove the system service",
-	Long:  `Unload the Neru service and remove what describes it — the launchd plist on macOS, the systemd user unit on Linux, the Task Scheduler task on Windows. Neru will no longer start automatically on login.`,
+	Long:  `Unload the Neru service and remove what describes it: the launchd plist on macOS, the systemd user unit on Linux, the Task Scheduler task on Windows. Neru will no longer start automatically on login.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := uninstallService()
 		if err != nil {

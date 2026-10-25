@@ -12,7 +12,7 @@ import (
 
 // Overlay manages the rendering of sticky modifiers indicator overlay
 // (non-darwin stub). Drawing happens in the overlay manager's native surface
-// (Cairo on Linux, GDI on Windows); this type only carries the configuration
+// (Cairo on Linux, GDI on Windows). This type only carries the configuration
 // and theme the manager resolves colors through.
 type Overlay struct {
 	uiConfig config.StickyModifiersUI

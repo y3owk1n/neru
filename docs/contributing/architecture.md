@@ -19,8 +19,8 @@ same lookup. It may import only the standard library, `internal/derrors`,
 pins. The wire protocol carries a protocol number and breaks only at a major release
 ([ADR 0015](../adr/0015-the-wire-protocol-breaks-only-at-a-major.md)).
 
-The endpoint is scoped to one user, in where it lives and in what the daemon
-checks before serving a connection. Its paths are in
+The endpoint is scoped to one user by where it lives and by what the daemon
+checks before it serves a connection. Its paths are in
 [IPC protocol](../reference/ipc.md#endpoint).
 
 - **Unix socket**: mode 0600 inside a 0700 directory the daemon creates and
@@ -204,10 +204,9 @@ All shared code uses one global coordinate system:
 - **Y-axis**: increases downwards
 - **Units**: screen pixels, unscaled
 
-Cocoa's bottom-left origin is inverted at each darwin adapter site that needs
-it, such as
-[accessibility_screen_darwin.m](../../internal/adapter/platform/darwin/accessibility_screen_darwin.m),
-and never reaches shared Go. `internal/domain/geometry` holds no flip. It
+Each darwin adapter site that needs it inverts Cocoa's bottom-left origin, as
+[accessibility_screen_darwin.m](../../internal/adapter/platform/darwin/accessibility_screen_darwin.m)
+does, and the flip never reaches shared Go. `internal/domain/geometry` holds no flip. It
 translates origins, rescales and clamps, preserves the sign of Y, and Linux
 imports it too.
 

@@ -40,7 +40,7 @@ func (h *Handler) ClearCurrentSelectionPoint() bool {
 
 // cursorFollowContext is the part of a mode's context that carries the
 // session's cursor-follow-selection preference. Hints, grid, and recursive grid
-// each have their own context type; this is the shape they share, so a mode can
+// each have their own context type. This is the shape they share, so a mode can
 // read and write the preference without the three implementations repeating
 // how it is set.
 type cursorFollowContext interface {
@@ -95,7 +95,7 @@ func (h *Handler) SetCursorFollowSelection(enabled bool) (bool, bool) {
 //
 // Setting the preference to the value it already holds still runs whatever the
 // mode owes the change. That is what makes the setter idempotent in the way a
-// caller needs: "on" always ends with the cursor on the selection, whether or
+// caller needs. "on" always ends with the cursor on the selection, whether or
 // not it was already following.
 func (h *Handler) applyCursorFollowSelection(desired *bool) (bool, bool) {
 	h.mu.Lock()
@@ -147,7 +147,7 @@ func (h *handlerState) refreshGridVirtualPointer() {
 }
 
 // gridPointer is the pointer grid mode should be showing. Like
-// recursiveGridPointer it is read twice — as a call of its own, and as part of
+// recursiveGridPointer it is read twice, as a call of its own and as part of
 // the subgrid open that repaints the surface it stands on.
 func (h *handlerState) gridPointer() ports.GridPointer {
 	if h.grid == nil || h.grid.Context == nil {
@@ -167,9 +167,9 @@ func (h *handlerState) refreshRecursiveGridVirtualPointer() {
 }
 
 // recursiveGridPointer is the pointer recursive-grid mode should be showing.
-// It is read twice — as a call of its own, and as part of the frame the
-// surface is redrawn with — because the backend paints the pointer in the same
-// pass as the cells.
+// It is read twice, as a call of its own and as part of the frame the surface
+// is redrawn with, because the backend paints the pointer in the same pass as
+// the cells.
 func (h *handlerState) recursiveGridPointer() ports.GridPointer {
 	if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
 		return ports.GridPointer{}

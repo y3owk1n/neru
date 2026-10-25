@@ -5,7 +5,7 @@ import "context"
 // KeyFeedPort injects synthetic keystrokes into the focused application.
 //
 // This is the inverse of EventTapPort. The event tap intercepts what the user
-// types so Neru can act on it; KeyFeedPort posts keys *to* whatever application
+// types so Neru can act on it. KeyFeedPort posts keys *to* whatever application
 // currently has focus, as if the user had pressed them. It backs the
 // `neru key <key>...` command.
 //

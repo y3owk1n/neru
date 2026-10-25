@@ -209,13 +209,13 @@ int NeruReferenceKeyboardLayoutResolved(void);
 typedef void (*KeymapLayoutChangeCallback)(void);
 
 /// Register a callback to be invoked after keyboard layout maps are rebuilt.
-/// Only one callback is supported; subsequent calls replace the previous one.
+/// Only one callback is supported, and subsequent calls replace the previous one.
 /// Pass NULL to unregister.
 void NeruSetKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback);
 
 /// Register a second callback to be invoked after keyboard layout maps are rebuilt.
 /// This is intended for Go-level notifications (e.g., re-registering hotkeys).
-/// Only one callback is supported; subsequent calls replace the previous one.
+/// Only one callback is supported, and subsequent calls replace the previous one.
 /// Pass NULL to unregister.
 void NeruSetKeymapLayoutChangeCallback2(KeymapLayoutChangeCallback callback);
 

@@ -47,7 +47,6 @@ func validateAppConfigsWithCallback(
 			return err
 		}
 
-		// Call mode-specific field validator if provided
 		if fieldValidator != nil {
 			err = fieldValidator(idx, &appConfig)
 			if err != nil {
@@ -139,13 +138,11 @@ func rejectModeSpecificFields(modeName string) AppConfigFieldValidator {
 // validateScrollAppConfigs validates per-app scroll configuration.
 func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
 	scrollFieldValidator := func(idx int, appConfig *AppConfig) error {
-		// First, reject hints fields
 		err := rejectHintsFields(modeName)(idx, appConfig)
 		if err != nil {
 			return err
 		}
 
-		// Then validate scroll fields
 		if appConfig.ScrollStep != nil {
 			err := validateMinValue(
 				*appConfig.ScrollStep,

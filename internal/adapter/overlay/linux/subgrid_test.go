@@ -14,7 +14,7 @@ import (
 )
 
 // subgridCancelWait is how long the cancel below is given before the test calls
-// it absent. It is generous on purpose: the wait is only reached on a failure,
+// it absent. It is generous on purpose. The wait is only reached on a failure,
 // so it costs a slow machine nothing and buys a named failure instead of a test
 // binary that hangs until the package timeout.
 const subgridCancelWait = 10 * time.Second
@@ -22,7 +22,7 @@ const subgridCancelWait = 10 * time.Second
 // subgridTestKeys is a key per cell of the subgrid every overlay draws. The
 // test below sets it on the backend directly because these managers are stood
 // up without render components, and a manager with none leaves the keys it was
-// last given alone (syncSublayerKeysLocked) — so an unset one draws a subgrid
+// last given alone (syncSublayerKeysLocked), so an unset one draws a subgrid
 // with no labels at all, which is a surface nothing can be asserted about.
 const subgridTestKeys = "abcdefghi"
 
@@ -31,7 +31,7 @@ const subgridTestKeys = "abcdefghi"
 // TestLinuxOverlayManager_DrawGridPointer_BeginsTheFrameBeforeClearingIt pins it
 // for the pointer's repaint of the same surface. beginFrame is what selects the
 // writable buffer on Wayland, so clearing before it wipes the buffer that is on
-// screen and leaves the one about to be shown holding the last frame — which on
+// screen and leaves the one about to be shown holding the last frame, which on
 // a wlroots compositor is a stale grid where the subgrid should be, on every
 // subgrid open.
 func TestLinuxOverlayManager_ShowSubgrid_BeginsTheFrameBeforeClearingIt(t *testing.T) {
@@ -48,14 +48,14 @@ func TestLinuxOverlayManager_ShowSubgrid_BeginsTheFrameBeforeClearingIt(t *testi
 }
 
 // TestLinuxOverlayManager_ShowSubgrid_CancelsTheAnimationWithRenderMuReleased
-// pins the contract cancelAnimation states: the caller must not hold renderMu,
+// pins the contract cancelAnimation states. The caller must not hold renderMu,
 // because the goroutine being canceled takes that lock on every frame and would
 // never reach the stop signal. Opening a subgrid while the surface is animating
-// used to cancel from inside the lock, which is the deadlock that shape makes —
-// the mode would hang with the grid still on screen.
+// used to cancel from inside the lock, which is the deadlock that shape makes.
+// The mode would hang with the grid still on screen.
 //
 // The stand-in below is the animation goroutine reduced to what makes the
-// hazard: it is signaled to stop, and then needs renderMu to finish its frame.
+// hazard. It is signaled to stop, and then needs renderMu to finish its frame.
 // Asking for the lock rather than blocking on it is what lets this report the
 // defect instead of hanging the test binary on it.
 func TestLinuxOverlayManager_ShowSubgrid_CancelsTheAnimationWithRenderMuReleased(t *testing.T) {
@@ -109,7 +109,7 @@ func TestLinuxOverlayManager_ShowSubgrid_CancelsTheAnimationWithRenderMuReleased
 // though every repaint after it agreed.
 //
 // Comparing the rectangles themselves rather than counting them is what extends
-// the second half to geometry: a repaint that drew the subgrid somewhere else,
+// the second half to geometry. A repaint that drew the subgrid somewhere else,
 // or at another size, fails too.
 func TestLinuxOverlayManager_ShowSubgrid_IsWhatEveryRepaintAfterItDraws(t *testing.T) {
 	t.Parallel()
@@ -125,7 +125,7 @@ func TestLinuxOverlayManager_ShowSubgrid_IsWhatEveryRepaintAfterItDraws(t *testi
 	}
 
 	// The pointer arrives with the open (#1492), so it is part of what the open
-	// paints — which leaves moving it below a repaint of the same content
+	// paints, which leaves moving it below a repaint of the same content
 	// rather than a change to it.
 	repaints := []struct {
 		name    string

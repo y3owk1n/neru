@@ -159,7 +159,7 @@ func (m *BisectMode) CursorFollowSelection() (bool, bool) {
 }
 
 // ApplyCursorFollowSelection sets or toggles the preference and then settles
-// what the change owes: the virtual pointer stands in only while the cursor
+// what the change owes. The virtual pointer stands in only while the cursor
 // is held back, and turning following on puts the cursor on the center.
 func (m *BisectMode) ApplyCursorFollowSelection(desired *bool) (bool, bool) {
 	if m.handler.bisect == nil || m.handler.bisect.Context == nil {

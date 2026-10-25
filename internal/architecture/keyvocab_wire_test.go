@@ -26,7 +26,7 @@ var nativeKeyEventEmitters = map[string][]string{
 
 // TestNativeKeyEventEmittersMatchKeyvocab pins the two native emitters to the
 // Go wire vocabulary. The synthetic key-up and modifier-toggle events cross a
-// language boundary as bare printf format strings; if the Go prefixes in
+// language boundary as bare printf format strings. If the Go prefixes in
 // internal/domain/keyvocab ever change, this test fails on each native file
 // that still emits the old spelling, instead of the protocol silently
 // splitting between the taps and the mode handler.

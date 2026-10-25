@@ -145,7 +145,7 @@ func (h *handlerState) executeActionAtPoint(
 
 	// Capture the mode's --on-exit action before exitMode clears the
 	// context. It only runs when the action chain was fulfilled and the mode
-	// idled through this action path — never on manual escape or a switch.
+	// idled through this action path, never on manual escape or a switch.
 	onExit := h.currentModeOnExit()
 
 	h.exitMode()
@@ -158,7 +158,7 @@ func (h *handlerState) executeActionAtPoint(
 // currentModeOnExit returns the --on-exit steps configured for the currently
 // active action mode, or nil when none are set or the mode has no context.
 //
-// A mode that reports no exit steps at all — scroll, the monitor picker, idle —
+// A mode that reports no exit steps at all (scroll, the monitor picker, idle)
 // takes no pending --action either, so there is nothing here it could have been
 // asked to run and its silence is the same nothing as an empty list.
 func (h *handlerState) currentModeOnExit() []string {
@@ -172,10 +172,9 @@ func (h *handlerState) currentModeOnExit() []string {
 
 // runOnExit dispatches the mode's --on-exit steps after the pending action was
 // fulfilled. They reuse the hotkey action grammar ("action ...", "exec ...",
-// mode names) and run asynchronously: a step may route back through IPC into
-// ActivateMode, which acquires h.mu — held by the
-// executeActionAtPoint caller. Their exec steps get env, the selection's
-// variables.
+// mode names) and run asynchronously, because a step may route back through
+// IPC into ActivateMode, which acquires h.mu, and the executeActionAtPoint
+// caller holds it. Their exec steps get env, the selection's variables.
 func (h *handlerState) runOnExit(onExit []string, env []string) {
 	if len(onExit) == 0 || h.executeActionSequence == nil {
 		return
@@ -221,7 +220,7 @@ func (h *handlerState) moveCursorAndHandleAction(
 
 	h.publishSelect(point, "")
 
-	// No pending action - re-activate mode if requested
+	// No pending action, so re-activate the mode if requested.
 	if shouldReActivate && reActivateFunc != nil {
 		h.logger.Debug("Re-activating mode after cursor movement")
 		reActivateFunc()
@@ -299,7 +298,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 		return
 	}
 
-	// Hint input processed by router; if exact match, perform action
+	// The router processed the input. On an exact match, perform the action.
 	if hintKeyResult.ExactHint() != nil {
 		hint := hintKeyResult.ExactHint()
 		center := hint.Element().Center()
@@ -344,9 +343,9 @@ func (h *handlerState) handleHintsModeKey(key string) {
 					// OnExit is left nil to preserve the stored steps across
 					// re-activation.
 				})
-				// Restore repeat, action and modifier on the fresh context so subsequent
-				// selections continue the repeat cycle.
-				// Guard: only restore if re-activation succeeded (mode is still hints).
+				// Restore the session's settings on the fresh context so later
+				// selections continue the repeat cycle, but only when the
+				// re-activation succeeded and the mode is still hints.
 				if repeat && h.appState.CurrentMode() == domain.ModeHints &&
 					h.hints != nil && h.hints.Context != nil {
 					h.hints.Context.SetPendingAction(pendingAction)
@@ -544,7 +543,7 @@ func (h *handlerState) drawHintSearchInput() {
 		resultCount = ctx.Hints().Count()
 	}
 
-	// Where the input sits is resolved from configuration by the overlay; the
+	// Where the input sits is resolved from configuration by the overlay. The
 	// handler says what is in it and which screen it is on, and nothing else.
 	err := h.overlayPort.DrawHintSearch(ports.HintSearch{
 		Screen:      h.screenBounds,
@@ -554,7 +553,7 @@ func (h *handlerState) drawHintSearchInput() {
 	if err != nil {
 		if derrors.IsNotSupported(err) {
 			// Either the backend draws no search input or it could not place
-			// the configured anchor; both mean nothing is on screen, and the
+			// the configured anchor. Both mean nothing is on screen, and the
 			// overlay says which it was.
 			h.logger.Debug("Hint search input not drawn")
 
@@ -598,7 +597,7 @@ func (h *handlerState) handleGridModeKey(key string) {
 	if gridKeyResult.Complete() {
 		targetPoint := gridKeyResult.TargetPoint()
 
-		// Convert from window-local coordinates to absolute screen coordinates using helper
+		// Convert from window-local coordinates to absolute screen coordinates.
 		absolutePoint := geometry.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
 		h.grid.Context.SetSelectionPoint(absolutePoint)
 

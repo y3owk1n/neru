@@ -28,7 +28,7 @@ import (
 
 // Element is a UI element in the macOS accessibility hierarchy.
 //
-// Element owns a +1 retained AXUIElementRef: every Element produced by this
+// Element owns a +1 retained AXUIElementRef. Every Element produced by this
 // package (lookups, Children, traversals) must be balanced with exactly one
 // Release (or ReleaseAll) call, including elements a traversal enqueues but
 // never uses. ARC does not manage AX refs, so a dropped Element is a leak of
@@ -39,8 +39,8 @@ type Element struct {
 }
 
 // liveElements counts Elements constructed but not yet released. It exists
-// for the leak-regression integration test: a balanced walk must return the
-// count to its baseline. The counter is not a lifecycle mechanism — Release
+// for the leak-regression integration test, where a balanced walk must return
+// the count to its baseline. The counter is not a lifecycle mechanism. Release
 // remains the contract.
 var liveElements atomic.Int64
 
@@ -53,7 +53,7 @@ func newElement(ref unsafe.Pointer) *Element {
 }
 
 // LiveElementCount reports how many Elements are currently alive (constructed
-// and not yet released). Test support; see liveElements.
+// and not yet released). Test support. See liveElements.
 func LiveElementCount() int64 {
 	return liveElements.Load()
 }
@@ -107,7 +107,6 @@ func ClickableRoles() []string {
 	clickableRolesMu.RLock()
 	defer clickableRolesMu.RUnlock()
 
-	// Pre-allocate with exact capacity
 	roles := make([]string, 0, len(clickableRoles))
 	for role := range clickableRoles {
 		roles = append(roles, role)
@@ -142,7 +141,7 @@ type ElementInfo struct {
 
 // NewElementInfo builds an ElementInfo from already-read attribute values.
 //
-// The fields stay unexported because only the AX bridge fills them in; this
+// The fields stay unexported because only the AX bridge fills them in. This
 // exists so the shell's menu-bar filtering can be tested without a live tree.
 func NewElementInfo(role, subrole, title string) ElementInfo {
 	return ElementInfo{role: role, subrole: subrole, title: title}
@@ -237,10 +236,10 @@ func (ei *ElementInfo) PID() int {
 
 // matchesRoleFilter reports whether the element satisfies a configured role
 // filter. AppKit declares several vocabulary names as subroles rather than
-// roles (element.AXSubroleNames) — a search field is AXTextField /
-// AXSearchField, a SwiftUI toggle AXCheckBox / AXSwitch — so a configured
+// roles (element.AXSubroleNames). A search field is AXTextField /
+// AXSearchField and a SwiftUI toggle is AXCheckBox / AXSwitch, so a configured
 // name matches when it appears in either attribute. The result is a single
-// yes/no per element: an element whose role and subrole are both configured
+// yes/no per element, so an element whose role and subrole are both configured
 // is still one hint target.
 func (ei *ElementInfo) matchesRoleFilter(allowed map[string]struct{}) bool {
 	if _, ok := allowed[ei.role]; ok {
@@ -652,7 +651,6 @@ func IsMouseButtonDown(button action.MouseButton) bool {
 
 // EnsureMouseUp releases every mouse button Neru is currently holding down.
 // This should be called before any action that is incompatible with a drag operation.
-// EnsureMouseUp releases any mouse button left held.
 func EnsureMouseUp() {
 	darwin.EnsureMouseUp()
 }
@@ -728,7 +726,6 @@ func (e *Element) IsClickable(
 		return false
 	}
 
-	// If info is not provided, try to get it
 	if info == nil {
 		var infoErr error
 		info, infoErr = e.Info()
@@ -737,8 +734,8 @@ func (e *Element) IsClickable(
 		}
 	}
 
-	// Check roles (and subroles: several AX vocabulary names only ever
-	// appear in AXSubrole — see ElementInfo.matchesRoleFilter).
+	// Subroles count too, since several AX vocabulary names only ever appear
+	// in AXSubrole. See ElementInfo.matchesRoleFilter.
 	var isRoleAllowed bool
 	if len(allowedRoles) > 0 {
 		isRoleAllowed = info.matchesRoleFilter(allowedRoles)
@@ -755,8 +752,8 @@ func (e *Element) IsClickable(
 	if isRoleAllowed {
 		// NeruHasClickAction handles all checks internally:
 		// 1. AXHidden/AXVisible attribute check (quick reject)
-		// 2. Clickability checks: AXActionNames → role exclusion → AXPress
-		//    description → link+URL (no early returns, accumulate result)
+		// 2. Clickability checks: AXActionNames, then role exclusion, then AXPress
+		//    description, then link+URL (no early returns, accumulate result)
 		// 3. Hit-test visibility as final gate for ALL clickable results
 		cRole := C.CString(info.Role())
 
@@ -793,7 +790,7 @@ func (e *Element) IsClickable(
 	return false
 }
 
-// pidBundleCache maps PID → bundle identifier to avoid repeated Cocoa lookups.
+// pidBundleCache maps a PID to its bundle identifier to avoid repeated Cocoa lookups.
 // NOTE: PIDs are reused by macOS. The cache intentionally omits negative results
 // (empty bundleID) so that a reused PID is always re-queried rather than
 // inheriting a stale mapping from a previous process.

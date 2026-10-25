@@ -28,7 +28,7 @@ func (c *Config) IsAppExcluded(bundleID string) bool {
 
 // MergedForApp returns a copy of the HintsConfig with app-specific overrides
 // merged on top. Only fields explicitly set in the [[hints.app_configs]] entry
-// override the base; unset fields inherit from the root [hints] config.
+// override the base, and unset fields inherit from the root [hints] config.
 // Hotkeys are handled separately via HotkeysForModeAndApp since they require
 // key-level merge semantics (__disabled__ sentinel, etc.).
 func (c *HintsConfig) MergedForApp(bundleID string) HintsConfig {
@@ -83,14 +83,14 @@ func (c *Config) ClickableRolesForApp(bundleID string) []string {
 
 // ShouldIgnoreClickableCheckForApp returns whether clickable check should be
 // ignored for a specific app bundle ID. Delegates to MergedForApp to handle
-// the root→app-config override chain.
+// the root to app-config override chain.
 func (c *Config) ShouldIgnoreClickableCheckForApp(bundleID string) bool {
 	return c.Hints.MergedForApp(bundleID).IgnoreClickableCheck
 }
 
 // ShouldEnableVisibleCheckForApp returns whether the visibility hit-test check
 // should be performed for a specific app bundle ID. Delegates to MergedForApp
-// to handle the root→app-config override chain.
+// to handle the root to app-config override chain.
 func (c *Config) ShouldEnableVisibleCheckForApp(bundleID string) bool {
 	return c.Hints.MergedForApp(bundleID).VisibleCheckEnabled
 }
@@ -180,7 +180,7 @@ func (c *HintsConfig) ResolvedClickableRoles() []string {
 }
 
 // StrategyForApp returns the element detection strategy for the given bundle ID.
-// Delegates to MergedForApp to handle the root→app-config override chain.
+// Delegates to MergedForApp to handle the root to app-config override chain.
 func (c *HintsConfig) StrategyForApp(bundleID string) string {
 	return c.MergedForApp(bundleID).Strategy
 }

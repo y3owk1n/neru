@@ -11,7 +11,7 @@ const (
 // PlatformSupport declares, for every action name, the platforms on which
 // writing it in a binding does something.
 //
-// It is exhaustive: an action supported everywhere says so rather than
+// It is exhaustive. An action supported everywhere says so rather than
 // inheriting it by omission, which is what lets
 // TestEveryActionDeclaresItsPlatformSupport fail the build on an action added
 // without the decision being made

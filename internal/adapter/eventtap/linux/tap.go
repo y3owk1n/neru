@@ -72,7 +72,7 @@ type EventTap struct {
 
 	// Modifier passthrough state. Populated by SetModifierPassthrough /
 	// SetInterceptedModifierKeys and consulted only by the Wayland evdev
-	// backend (evdevSession.handlePress): the proxy keyboard can re-emit an
+	// backend (evdevSession.handlePress). The proxy keyboard can re-emit an
 	// unbound chord to the focused app. The X11 grab and the
 	// wl-keyboard fallback cannot re-inject selectively, so this stays inert
 	// there. Chords are stored canonicalized via tap.CanonicalChord.
@@ -82,7 +82,7 @@ type EventTap struct {
 
 	// Detection arming: sticky modifier events are only dispatched once all
 	// initially-held modifiers have been released (matching macOS behavior).
-	// SetStickyModifierToggle(true) disarms; the platform handler re-arms when
+	// SetStickyModifierToggle(true) disarms, and the platform handler re-arms when
 	// the modifier state reaches a clean slate.
 	stickyModifierDetectionArmed bool
 
@@ -94,7 +94,7 @@ type EventTap struct {
 	// dispatchCh decouples the event-tap goroutine from the callback
 	// goroutine, preventing a deadlock when a key dispatch triggers a mode
 	// exit that waits for the event-tap goroutine to stop.
-	// The event-tap goroutine enqueues keys here; the dispatch goroutine
+	// The event-tap goroutine enqueues keys here, and the dispatch goroutine
 	// reads from this channel and invokes the callback. This matches the
 	// macOS eventtap design.
 	dispatchCh chan string
@@ -185,7 +185,7 @@ func (et *EventTap) Disable() {
 }
 
 // Destroy stops and cleans up the EventTap.
-// It is safe to call multiple times — subsequent calls are no-ops.
+// It is safe to call multiple times. Later calls are no-ops.
 func (et *EventTap) Destroy() {
 	et.mu.Lock()
 	if et.destroyed {
@@ -200,9 +200,8 @@ func (et *EventTap) Destroy() {
 	et.Disable()
 
 	// Stop the dispatch goroutine and wait for it to finish.
-	// The dispatchCh is created once in NewEventTap and lives for the
-	// entire lifetime of the EventTap, so we close the channel to signal
-	// the dispatch goroutine to exit.
+	// dispatchCh is created once in NewEventTap and lives as long as the
+	// EventTap, so closing it is what tells the dispatch goroutine to exit.
 	close(et.dispatchCh)
 	et.dispatchWg.Wait()
 }
@@ -226,7 +225,7 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 // SetModifierPassthrough enables/disables modifier passthrough and records the
 // blacklist of chords Neru must keep consuming even when they are otherwise
 // unbound (the mode layer folds the active mode's own hotkeys into this list).
-// Only the Wayland evdev backend acts on it; see the struct field comment.
+// Only the Wayland evdev backend acts on it, as the struct field comment says.
 func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {
 	set := tap.CanonicalChordSet(blacklist)
 
@@ -261,7 +260,7 @@ func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 
 	et.stickyModifierToggle = enabled
 	if enabled {
-		// Disarm detection: the platform handler will re-arm once the
+		// Disarm detection. The platform handler will re-arm once the
 		// modifier state reaches a clean slate (all pre-held modifiers
 		// released). This matches macOS behavior where modifier events
 		// from the activation chord are not interpreted as sticky toggles.
@@ -286,7 +285,7 @@ func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 	// press within the suppression window.
 	//
 	// This must be the same answer postLinuxModifierEvent gives, or the
-	// bookkeeping is kept for an injection that never happens; both ask the
+	// bookkeeping is kept for an injection that never happens. Both ask the
 	// one detector.
 	onWayland := platform.DetectLinuxBackend().IsWayland()
 	if !onWayland {
@@ -319,7 +318,7 @@ var syntheticModifierNames = []struct {
 // as the user's.
 //
 // PostModifierEvent posts its own key events and books them in on the way past.
-// The accessibility backend does not go through it: presenting an action's
+// The accessibility backend does not go through it. Presenting an action's
 // modifiers on X11 means pressing and releasing real keys against the display
 // server (see internal/adapter/platform/modifierstate), and those key events
 // re-enter the grab like any other. A press followed by a release is a modifier
@@ -327,21 +326,21 @@ var syntheticModifierNames = []struct {
 // sticky modifier the user never pressed (#1484).
 //
 // It is the caller's job to call this immediately before injecting rather than
-// after: the grab reads on its own goroutine and can see the event first
+// after. The grab reads on its own goroutine and can see the event first
 // otherwise. Registrations expire on their own after
 // syntheticModifierSuppressionWindow, which is what covers an injection that
-// the display server ends up refusing — an XTest key event reports nothing to
+// the display server ends up refusing. An XTest key event reports nothing to
 // take back.
 //
 // X11 is the whole of what this is for. Wayland's virtual-keyboard modifier
 // path generates no evdev or wl_keyboard event, so nothing re-enters and the
-// only caller — the X11 injection backend — never runs there.
+// only caller, the X11 injection backend, never runs there.
 func (et *EventTap) RememberSyntheticModifier(modifier action.Modifiers, isDown bool) {
 	name := syntheticModifierName(modifier)
 	if name == "" {
 		// Unreachable while every key a plan names carries one modifier, and a
-		// silent regression to #1484 if that ever stops being true — so it
-		// says so rather than degrading quietly. Debug, not warn: the
+		// silent regression to #1484 if that ever stops being true, so it
+		// says so rather than degrading quietly. Debug, not warn, because the
 		// injection itself is still correct, and this is per-keypress.
 		if et.logger != nil && modifier != 0 {
 			et.logger.Debug(
@@ -361,9 +360,9 @@ func (et *EventTap) RememberSyntheticModifier(modifier action.Modifiers, isDown 
 //
 // One key event resolves to one name (x11ModifierName) and one registration is
 // what consuming it takes off the queue, so a set naming two would leave one
-// entry unanswered for the whole suppression window — long enough to swallow a
+// entry unanswered for the whole suppression window, long enough to swallow a
 // modifier the user really pressed. Announcing nothing for a set it cannot
-// place is the safer of the two failures: it leaves the injection unannounced,
+// place is the safer of the two failures. It leaves the injection unannounced,
 // which is where the injection path started, rather than suppressing an event
 // that was never Neru's.
 func syntheticModifierName(modifier action.Modifiers) string {
@@ -459,8 +458,8 @@ func (et *EventTap) firePassthroughCallback() {
 // keyboard grab on X11.
 //
 // The choice comes off platform.DetectLinuxBackend, the one detector for the
-// compositor family, rather than a read of the environment here — this package
-// has always documented it that way and did not do it (#1429). A backend the
+// compositor family, rather than a read of the environment here. This package
+// had always documented it that way and did not do it (#1429). A backend the
 // factory refuses to serve runs the X11 loop, which finds no DISPLAY and
 // returns.
 func (et *EventTap) run() {

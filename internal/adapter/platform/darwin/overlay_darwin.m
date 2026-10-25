@@ -119,7 +119,7 @@ static const CGFloat kHintArrowWidthMultiplier = 3.5;
 static const CGFloat kHintArrowGap = 1.0;
 
 /// Where a hint badge sits relative to its element. These values must equal the
-/// HINT_PLACEMENT_* macros in overlay.h, which is what Go passes in; the pin is
+/// HINT_PLACEMENT_* macros in overlay.h, which is what Go passes in. The pin is
 /// internal/architecture/hint_placement_vocabulary_test.go.
 typedef NS_ENUM(NSInteger, HintPlacement) {
 	HintPlacementTop = 1,
@@ -764,7 +764,7 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 /// Apply hint style
 /// @param style Hint style
 - (void)applyStyle:(HintStyle)style {
-	// Font resolution — only re-create when family or size actually changed
+	// Font resolution. Only re-create when family or size actually changed
 	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
@@ -921,8 +921,8 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 		// a lighter weight (e.g. Medium instead of Bold).
 		NSFontTraitMask actualTraits = [fm traitsOfFont:font];
 		if (!(actualTraits & NSBoldFontMask)) {
-			// convertFont:toHaveTrait: never returns nil per Apple docs —
-			// it returns the original font unchanged if the trait cannot be added.
+			// convertFont:toHaveTrait: never returns nil per Apple docs.
+			// It returns the original font unchanged if the trait cannot be added.
 			// We must re-check traits to know whether the conversion succeeded.
 			NSFont *boldFont = [fm convertFont:font toHaveTrait:NSBoldFontMask];
 			NSFontTraitMask boldTraits = [fm traitsOfFont:boldFont];
@@ -1558,8 +1558,8 @@ static NSString *NeruColorKey(NSColor *color) {
 	    [NSString stringWithFormat:@"%@|%.3f|%@|%.2f", font.fontName, font.pointSize, NeruColorKey(color), scale];
 	NeruGlyphSet *set = self.glyphSets[key];
 	if (!set) {
-		// Fonts, colors and scales change with config reloads and displays;
-		// dropping every set past the limit keeps the old ones from piling up.
+		// Fonts, colors and scales change with config reloads and displays.
+		// Dropping every set past the limit keeps the old ones from piling up.
 		if ([self.glyphSets count] >= kNeruGlyphSetLimit)
 			[self.glyphSets removeAllObjects];
 		set = [[NeruGlyphSet alloc] init];
@@ -2270,8 +2270,8 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 }
 
 // Expensive recovery path for a genuinely invalidated window-server
-// attachment (wake, display reconfiguration) — never for routine Space
-// switches; `delayNs` absorbs notification bursts into one pending cycle.
+// attachment (wake, display reconfiguration), never for routine Space
+// switches. `delayNs` absorbs notification bursts into one pending cycle.
 - (void)reattachToAllSpacesIfVisibleAfterDelay:(int64_t)delayNs {
 	if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
 		return;
@@ -2321,14 +2321,14 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 	[old close];
 }
 
-// A healthy CanJoinAllSpaces window is already on the new Space; repair only
+// A healthy CanJoinAllSpaces window is already on the new Space, so repair only
 // a window AppKit or the WindowServer reports dropped.
 - (void)reassertOverlayOnActiveSpace {
 	if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
 		return;
 
 	if (self.window.isVisible && self.window.isOnActiveSpace) {
-		// AppKit looks healthy — double-check server truth, rate-limited.
+		// AppKit looks healthy, so double-check server truth, rate-limited.
 		CFTimeInterval now = CACurrentMediaTime();
 		if (now - self.lastOnscreenVerifyTime < kNeruOnscreenVerifyInterval ||
 		    self.onscreenProbeFailureStreak >= kNeruOnscreenProbeFailureLimit)
@@ -2342,7 +2342,7 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 		self.onscreenProbeFailureStreak++;
 	}
 
-	// Re-applying cached-identical state never reaches the server; only a new
+	// Re-applying cached-identical state never reaches the server. Only a new
 	// window un-pins a window stuck on one Space.
 	self.needsWindowServerReattach = YES;
 	[self reattachToAllSpacesIfVisible];
@@ -2473,7 +2473,7 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 	                                             name:NSApplicationDidChangeScreenParametersNotification
 	                                           object:nil];
 
-	// Set sharing type — default to visible (NSWindowSharingReadOnly = 1) unless explicitly configured
+	// Set sharing type, defaulting to visible (NSWindowSharingReadOnly = 1) unless explicitly configured
 	if (!self.sharingTypeExplicit) {
 		self.sharingType = NSWindowSharingReadOnly;
 	}
@@ -2489,9 +2489,9 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 
 #pragma mark - C Interface Implementation
 
-/// Server-truth visibility check — AppKit's cached window state goes stale
+/// Server-truth visibility check. AppKit's cached window state goes stale
 /// when the WindowServer silently drops a Space attachment. Must enumerate via
-/// CGWindowListCopyWindowInfo: CGWindowListCreateDescriptionFromArray omits
+/// CGWindowListCopyWindowInfo, because CGWindowListCreateDescriptionFromArray omits
 /// NSWindowSharingNone windows, which overlays are when hidden from capture.
 static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber) {
 	if (windowNumber <= 0)
@@ -2517,7 +2517,7 @@ static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber) {
 }
 
 /// Order an overlay window front once it has a drawable frame.
-/// Hidden overlays are shrunk to 1x1 to release backing memory; callers may
+/// Hidden overlays are shrunk to 1x1 to release backing memory, and callers may
 /// request Show before the small indicator window has been resized. In that
 /// case Show records shouldBeVisible but intentionally does not order the tiny
 /// window. The resize path calls this helper again after it has a real frame.
@@ -2541,7 +2541,7 @@ static void NeruOrderOverlayWindowIfDrawable(OverlayWindowController *controller
 	[controller.window orderFrontRegardless];
 
 	// The server can silently pin the window to one Space while AppKit's
-	// cache still looks healthy, making the calls above no-ops — probe server
+	// cache still looks healthy, making the calls above no-ops. Probe server
 	// truth and repair with the full reattach cycle. A just-ordered window is
 	// not committed server-side yet, so it gets one interval before probing.
 	CFTimeInterval now = CACurrentMediaTime();
@@ -2638,7 +2638,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	// Hiding keeps the window-server attachment intact, so it must not set
-	// needsWindowServerReattach — only invalidation events (sleep, display
+	// needsWindowServerReattach. Only invalidation events (sleep, display
 	// reconfiguration) do.
 	if ([NSThread isMainThread]) {
 		controller.shouldBeVisible = NO;
@@ -2887,7 +2887,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 	@autoreleasepool {
 		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-		// Build hint items upfront — safe from any thread
+		// Build hint items upfront, which is safe from any thread
 		NSMutableArray<HintItem *> *hintItems =
 		    buildHintItems(hints, count, style.showArrow ? YES : NO, style.placement);
 
@@ -3067,7 +3067,7 @@ void NeruDrawIncrementHints(
 
 		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-		// Build hint data arrays upfront — safe from any thread
+		// Build hint data arrays upfront, which is safe from any thread
 		NSMutableArray<HintItem *> *hintItemsToAdd = nil;
 		if (hintsToAdd && addCount > 0) {
 			hintItemsToAdd = buildHintItems(hintsToAdd, addCount, style.showArrow ? YES : NO, style.placement);
@@ -3107,7 +3107,7 @@ void NeruDrawIncrementHints(
 
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
-				// Apply font — only re-create when family or size changed
+				// Apply font, re-creating it only when family or size changed
 				BOOL hintFamilyChanged =
 				    (fontFamily != controller.overlayView.cachedHintFontFamily &&
 				     ![fontFamily isEqualToString:controller.overlayView.cachedHintFontFamily]);
@@ -3224,8 +3224,8 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 		return;
 
 	// Must use dispatch_sync (not dispatch_async) because pwindow points into
-	// Go struct memory (&o.window).  The pointer is only guaranteed to remain
-	// valid while the calling Go function is on the stack; an async dispatch
+	// Go struct memory (&o.window). The pointer is only guaranteed to remain
+	// valid while the calling Go function is on the stack. An async dispatch
 	// could dereference it after the Go side has moved on, causing a
 	// use-after-free.
 	void (^replaceBlock)(void) = ^{
@@ -3269,7 +3269,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 
 		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-		// Build cell data array upfront — safe from any thread
+		// Build cell data array upfront, which is safe from any thread
 		NSMutableArray<GridCellItem *> *cellItems = buildGridCellItems(cells, count);
 
 		// Copy all style properties NOW (before async block)
@@ -3324,7 +3324,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
-				// Apply font — only re-create when family or size changed
+				// Apply font, re-creating it only when family or size changed
 				BOOL gridFamilyChanged =
 				    (fontFamily != controller.overlayView.cachedGridFontFamily &&
 				     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
@@ -3672,7 +3672,7 @@ void NeruDrawIncrementGrid(
 
 		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-		// Build cell data arrays upfront — safe from any thread
+		// Build cell data arrays upfront, which is safe from any thread
 		NSMutableArray<GridCellItem *> *cellItemsToAdd = nil;
 		if (cellsToAdd && addCount > 0) {
 			cellItemsToAdd = buildGridCellItems(cellsToAdd, addCount);
@@ -3712,7 +3712,7 @@ void NeruDrawIncrementGrid(
 
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
-				// Apply font — only re-create when family or size changed
+				// Apply font, re-creating it only when family or size changed
 				BOOL gridFamilyChanged =
 				    (fontFamily != controller.overlayView.cachedGridFontFamily &&
 				     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
@@ -3760,9 +3760,8 @@ void NeruDrawIncrementGrid(
 					                                                                 defaultColor:[NSColor grayColor]];
 				}
 
-				// Apply geometry and layout properties unconditionally.
-				// Previously borderWidth was gated behind the color guard and would be
-				// skipped if only borderWidth changed without any color properties.
+				// Apply geometry and layout properties unconditionally, outside the
+				// color guard, so a borderWidth change lands even when no color changed.
 				if (borderWidth > 0) {
 					controller.overlayView.gridBorderWidth = borderWidth;
 				}
@@ -4096,7 +4095,7 @@ static NSScreen *NeruScreenContainingQuartzPoint(CGPoint point) {
 /// clamps the resulting frame to the screen containing the desired center so
 /// the entire window stays within a single display.
 ///
-/// Clamping is critical: without it, a window straddling two displays causes
+/// Clamping is critical. Without it, a window straddling two displays causes
 /// AppKit to oscillate the window's `screen` (and therefore the layer's
 /// contentsScale) as the cursor moves near the boundary. That oscillation
 /// triggers `viewDidChangeBackingProperties` redraws at different scales and

@@ -21,11 +21,8 @@ func (a *Adapter) MatchesFilter(
 		return false
 	}
 
-	if len(filter.Roles) > 0 {
-		found := slices.Contains(filter.Roles, elem.Role())
-		if !found {
-			return false
-		}
+	if len(filter.Roles) > 0 && !slices.Contains(filter.Roles, elem.Role()) {
+		return false
 	}
 
 	if slices.Contains(filter.ExcludeRoles, elem.Role()) {

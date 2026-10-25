@@ -1,6 +1,6 @@
 // Package mocks provides mock implementations of port interfaces for testing.
 //
-// These mocks use function fields to allow tests to customize behavior: set
+// These mocks use function fields to allow tests to customize behavior. Set
 // only the funcs a test cares about, and each mock supplies a sensible,
 // stateful default when a field is nil. Every mock carries a compile-time
 // interface-satisfaction assertion (var _ ports.X = (*MockX)(nil)), so a mock
@@ -12,8 +12,8 @@
 // pattern keeps call sites free of expectation DSLs, the curated defaults
 // (in-memory state, realistic zero values) are behavior a generator cannot
 // author, and no extra toolchain step stands between a contributor and a
-// green build. The cost — adding a port method means adding a func field and
-// a default by hand — is bounded by the guardrails: the compile-time
+// green build. The cost, adding a func field and a default by hand for each new
+// port method, is bounded by the guardrails. The compile-time
 // assertion and the architecture tests fail loudly until parity is restored.
 // Revisit only if the port surface grows far beyond its current size.
 package mocks

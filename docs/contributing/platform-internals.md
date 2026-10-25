@@ -50,9 +50,9 @@ the footnotes below give the mechanism behind its limits.
 | **Held-key glide (`held_repeat`)** | `CGEventPost` per tick | XTest per tick | virtual-pointer relative motion per tick | libei per tick | `SetCursorPos` per tick |
 | **Smooth scroll animation**   | continuous axis       | whole notches only ³ | continuous axis ³ (whole notches when modified on Hyprland ⁹) | libei scroll delta, unverified ³ | 120ths of a notch ³ |
 | **Element discovery (hints)** | AXUIElement           | AT-SPI walk         | AT-SPI walk               | AT-SPI walk          | UIA, control view only    |
-| **Overlay**                   | NSPanel + CoreAnimation | X11 + Cairo       | layer-shell + Cairo       | layer-shell + Cairo  | DirectComposition + Direct2D (GDI fallback; windows/arm64 is GDI only ¹⁰) |
+| **Overlay**                   | NSPanel + CoreAnimation | X11 + Cairo       | layer-shell + Cairo       | layer-shell + Cairo  | DirectComposition + Direct2D (GDI fallback, and windows/arm64 is GDI only ¹⁰) |
 | **Global hotkeys**            | per-key CGEventTap    | `XGrabKey`          | evdev proxy (`input` group) | evdev proxy (`input` group) | `RegisterHotKey`          |
-| **Keyboard capture**          | CGEventTap            | `XGrabKeyboard`     | evdev proxy (uinput; wl-keyboard fallback) | evdev proxy (uinput) | `WH_KEYBOARD_LL`          |
+| **Keyboard capture**          | CGEventTap            | `XGrabKeyboard`     | evdev proxy (uinput, wl-keyboard fallback) | evdev proxy (uinput) | `WH_KEYBOARD_LL`          |
 | **Modifier passthrough**      | CGEventTap forwards or blocks per event | none, the grab is all-or-nothing | evdev backend only        | evdev backend only   | `WH_KEYBOARD_LL` forwards or blocks per event |
 | **Dark mode detection**       | Cocoa appearance      | xdg appearance portal | xdg appearance portal   | kdeglobals + portal  | registry                  |
 | **Font resolution**           | NSFont                | fontconfig          | fontconfig                | fontconfig           | GDI `EnumFontFamiliesExW` ¹ |
@@ -281,7 +281,7 @@ clients are window-relative, so Neru asks the compositor for the window's
 screen origin. When it gets one, it reads element positions in window
 coordinates and adds the origin, less the frame's own window position. When it
 gets none, it reads screen coordinates and uses them as they are, which is
-right on X11 and for XWayland clients. The choice is made per scan because GTK
+right on X11 and for XWayland clients. Neru makes the choice per scan because GTK
 4 reports a zero origin for every element in screen coordinates. Native
 Firefox, Chromium, Qt and GTK 3 clients report the same numbers in both,
 measured on niri.

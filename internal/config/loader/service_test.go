@@ -109,7 +109,6 @@ func TestService_Update(t *testing.T) {
 		t.Error("Update() did not update config")
 	}
 
-	// Test invalid update
 	invalidConfig := config.DefaultConfig()
 	invalidConfig.Hints.Enabled = true
 	invalidConfig.Hints.HintCharacters = "a" // Invalid
@@ -119,7 +118,6 @@ func TestService_Update(t *testing.T) {
 		t.Error("Update() should fail with invalid config")
 	}
 
-	// Ensure config wasn't updated on error
 	if service.Get().Hints.HintCharacters == "a" {
 		t.Error("Update() updated config despite validation error")
 	}
@@ -131,7 +129,6 @@ func TestService_Watch(t *testing.T) {
 
 	channel := service.Watch(ctx)
 
-	// Should receive initial config
 	select {
 	case config := <-channel:
 		if config == nil {
@@ -141,12 +138,10 @@ func TestService_Watch(t *testing.T) {
 		t.Error("Watch channel did not receive initial config")
 	}
 
-	// Update config
 	newConfig := config.DefaultConfig()
 	newConfig.Hints.HintCharacters = "abc"
 	_ = service.Update(newConfig, newConfig)
 
-	// Should receive update
 	select {
 	case config := <-channel:
 		if config.Hints.HintCharacters != "abc" {
@@ -165,7 +160,7 @@ func TestService_Replace(t *testing.T) {
 
 	watchCh := service.Watch(ctx)
 
-	// Drain the initial notification. Bounded rather than a bare receive: if
+	// Drain the initial notification. Bounded rather than a bare receive, because if
 	// Watch ever stops emitting it, that is the regression this test exists
 	// around, and it should be reported as a failure instead of hanging until
 	// the package's test timeout kills every other test in the binary.

@@ -507,8 +507,8 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 }
 
 func TestFindConfigFile(t *testing.T) {
-	// Test that FindConfigFile doesn't panic and returns a string
-	// (We can't easily test the actual file discovery without complex mocking)
+	// Only checks that FindConfigFile does not panic. The actual file discovery
+	// would need complex mocking.
 	defer func() {
 		if r := recover(); r != nil {
 			t.Errorf("FindConfigFile() panicked: %v", r)
@@ -552,7 +552,7 @@ func TestFindConfigFile_DotConfigFallback(t *testing.T) {
 	preferredDir := t.TempDir()
 
 	// Point the preferred directory at an empty location, and os.UserHomeDir
-	// at ours: it reads USERPROFILE on Windows and HOME on Unix.
+	// at ours. It reads USERPROFILE on Windows and HOME on Unix.
 	if runtime.GOOS == goosWindows {
 		t.Setenv("XDG_CONFIG_HOME", "")
 		t.Setenv("APPDATA", preferredDir)
@@ -605,7 +605,7 @@ func TestNormalizeKeyForComparison_FullwidthChars(t *testing.T) {
 		input    string
 		expected string
 	}{
-		// Fullwidth comma (most common case - reset key)
+		// Fullwidth comma, the most common case (the reset key)
 		{
 			name:     "fullwidth comma",
 			input:    "\uFF0C",
@@ -1001,7 +1001,7 @@ func TestConfig_ClickableRolesForApp_MixedVocabulary(t *testing.T) {
 					BundleID: testBundleIDA,
 					AdditionalClickable: []string{
 						// Resolves onto the same native role as text_field on
-						// Linux and Windows; distinct only on macOS.
+						// Linux and Windows, and distinct only on macOS.
 						"text_area",
 						// Already in the base list: must not duplicate.
 						TestRoleButton,
@@ -1037,7 +1037,7 @@ func TestConfig_ClickableRolesForApp_MixedVocabulary(t *testing.T) {
 		}
 	}
 
-	// Exactly one of the three prefixed entries applies here; the other two
+	// Exactly one of the three prefixed entries applies here. The other two
 	// must resolve to nothing rather than leaking across platforms.
 	exclusive := map[string]string{
 		goosDarwin: "AXGenericElement",

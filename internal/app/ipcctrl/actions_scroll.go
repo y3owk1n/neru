@@ -39,7 +39,7 @@ func (h *ActionsHandler) handleScrollAction(
 		return refuseAction(modErr.Error())
 	}
 
-	// A sticky modifier reaches a scroll the way it reaches a click: the user
+	// A sticky modifier reaches a scroll the way it reaches a click. The user
 	// tapped it inside the mode and the indicator shows it, so a scroll that
 	// dropped it would pan where they asked to zoom. The chord they are
 	// physically holding is a different matter, and the backend's flag

@@ -36,7 +36,6 @@ func TestAdapter_UpdateClickableRoles(t *testing.T) {
 	newRoles := []string{axButtonRole, axLinkRole, "AXMenuItem"}
 	adapter.UpdateClickableRoles(newRoles)
 
-	// Verify mock was updated
 	if len(mockClient.MockClickableRoles) != len(newRoles) {
 		t.Errorf(
 			"Expected mock to have %d roles, got %d",
@@ -101,7 +100,6 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 	mockClient := &accessibility.MockAXClient{}
 	adapter := accessibility.NewAdapter(logger, mockClient, false)
 
-	// Create test element
 	elem, _ := element.NewElement(
 		element.ID("test-id"),
 		image.Rect(0, 0, 100, 100),
@@ -319,7 +317,6 @@ func TestAdapter_RolePassing(t *testing.T) {
 		}
 	})
 
-	// Case 1: Additional Menubar Targets
 	t.Run("Additional Menubar Targets", func(t *testing.T) {
 		filter := ports.ElementFilter{
 			IncludeMenubar:           true,
@@ -328,7 +325,6 @@ func TestAdapter_RolePassing(t *testing.T) {
 
 		_, _ = adapter.ClickableElements(ctx, filter)
 
-		// Verify roles passed contain AXMenuBarItem
 		calledRoles := mockClient.LastBundleRoles
 
 		hasMenuBarItem := slices.Contains(calledRoles, "AXMenuBarItem")
@@ -348,23 +344,18 @@ func TestAdapter_RolePassing(t *testing.T) {
 		}
 	})
 
-	// Case 2: Dock
 	t.Run("Dock Elements", func(t *testing.T) {
-		// Reset last called roles
 		mockClient.LastClickableNodesRoles = nil
 		mockClient.ClickableNodesRolesHistory = nil
 
-		// Setup mock dock app
-		mockClient.MockFocusedApp = &mockAXApp{bundleID: bundleIDAppleDock}
-		// Need ApplicationByBundleID to return something for "com.apple.dock"
-		// The mock implementation returns MockFocusedApp for ApplicationByBundleID too.
-
-		// Need checking Info() role == AXApplication
-		if app, ok := mockClient.MockFocusedApp.(*mockAXApp); ok {
-			app.MockInfo = &ax.AppInfo{
+		// The mock returns MockFocusedApp from ApplicationByBundleID too, and the
+		// adapter only reads the Dock when its Info() role is AXApplication.
+		mockClient.MockFocusedApp = &mockAXApp{
+			bundleID: bundleIDAppleDock,
+			MockInfo: &ax.AppInfo{
 				Role:  axApplicationRole,
 				Title: "Dock",
-			}
+			},
 		}
 
 		filter := ports.ElementFilter{
@@ -373,7 +364,6 @@ func TestAdapter_RolePassing(t *testing.T) {
 
 		_, _ = adapter.ClickableElements(ctx, filter)
 
-		// Verify roles passed contain AXDockItem in history
 		found := false
 		for _, roles := range mockClient.ClickableNodesRolesHistory {
 			if slices.Contains(roles, "AXDockItem") {

@@ -1,4 +1,4 @@
-// Package heldmotion drives the held-key glide: the direction keys currently
+// Package heldmotion drives the held-key glide. The direction keys currently
 // held, from either key path, feed one fixed-rate loop that moves the cursor.
 package heldmotion
 
@@ -38,7 +38,7 @@ type heldEntry struct {
 }
 
 // tap is the travel a key released within one interval of its press is still
-// owed: the glide had not yet moved it a full step, and a tap on a stepped
+// owed. The glide had not yet moved it a full step, and a tap on a stepped
 // binding always moved one.
 type tap struct {
 	dir      motion.Direction
@@ -46,7 +46,7 @@ type tap struct {
 }
 
 // Controller owns the held-key set and the loop that consumes it. Its mutex
-// is a leaf: nothing under it calls out, so callers may hold their own locks.
+// is a leaf. Nothing under it calls out, so callers may hold their own locks.
 type Controller struct {
 	ctx    context.Context //nolint:containedctx // bounds the loop to the daemon's lifetime
 	system ports.SystemPort
@@ -63,7 +63,7 @@ type Controller struct {
 
 // New wires a controller. ramp is read on every press, and the loop reads
 // the latest value on every tick, so a reload takes effect at the next key
-// down even mid-glide; it runs inside Press under whatever lock the caller
+// down even mid-glide. It runs inside Press under whatever lock the caller
 // holds, so it must not block or reach the mode handler. A nil logger is
 // replaced with a no-op.
 func New(
@@ -173,8 +173,8 @@ func (c *Controller) press(key heldKey, entry heldEntry) {
 }
 
 // release drops the key and, when it was held for less than one interval,
-// owes the loop the rest of a step: a tap on a stepped binding always moved
-// one, and the glide may not have ticked at all yet.
+// owes the loop the rest of a step, because a tap on a stepped binding always
+// moved one, and the glide may not have ticked at all yet.
 func (c *Controller) release(key heldKey) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -311,7 +311,7 @@ func (c *Controller) run(id uint64) {
 			}
 
 			// A platform that cannot move the cursor at all will not start to
-			// on the next tick; ticking on would only spin until release.
+			// on the next tick. Ticking on would only spin until release.
 			if derrors.IsNotSupported(err) {
 				return
 			}

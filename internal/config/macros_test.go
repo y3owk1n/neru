@@ -195,7 +195,7 @@ func TestValidateMacros(t *testing.T) {
 			wantErr: errNoMacroNamed,
 		},
 		{
-			// A step is not always a leaf: "run" carries its own steps, and a
+			// A step is not always a leaf. "run" carries its own steps, and a
 			// mode command carries the steps of its --on-exit. A macro invoked
 			// from either is still a macro this config will run.
 			name: "call nested in a run",
@@ -296,7 +296,7 @@ func TestValidateMacros(t *testing.T) {
 
 // Every action string the daemon can dispatch is checked when the config
 // loads, at whatever depth and on whatever surface it is written. Execution
-// has one path through the sequence executor; validation has to have the same
+// has one path through the sequence executor, and validation has to have the same
 // reach or a step that names nothing real reaches a running daemon.
 func TestValidate_CoversEveryActionSurface(t *testing.T) {
 	t.Parallel()

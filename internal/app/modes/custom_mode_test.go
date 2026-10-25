@@ -73,7 +73,7 @@ func activate(name string, toggle bool) modecmd.Activation {
 }
 
 // TestCustomMode_Activate_EntersTheDeclaredModeAndAnswersItsKeys pins the
-// whole path a declared mode exists for: entering it by name settles that
+// whole path a declared mode exists for. Entering it by name settles that
 // declaration's keymap, a bound bare key runs its steps, the default Escape
 // binding leads out, and leaving clears the name.
 func TestCustomMode_Activate_EntersTheDeclaredModeAndAnswersItsKeys(t *testing.T) {
@@ -112,7 +112,7 @@ func TestCustomMode_Activate_EntersTheDeclaredModeAndAnswersItsKeys(t *testing.T
 }
 
 // TestCustomMode_Activate_SwitchesBetweenDeclarations pins that two declared
-// modes are two modes even though they share one enum value: entering the
+// modes are two modes even though they share one enum value. Entering the
 // second from the first switches the keymap, and --toggle exits only when the
 // name matches the one already open.
 func TestCustomMode_Activate_SwitchesBetweenDeclarations(t *testing.T) {
@@ -142,7 +142,7 @@ func TestCustomMode_Activate_SwitchesBetweenDeclarations(t *testing.T) {
 }
 
 // TestCustomMode_Activate_RefusesAnUndeclaredName pins that an activation the
-// grammar never saw cannot enter a mode nothing declares: the daemon stays
+// grammar never saw cannot enter a mode nothing declares. The daemon stays
 // idle with the keyboard uncaptured rather than in a mode that answers nothing.
 func TestCustomMode_Activate_RefusesAnUndeclaredName(t *testing.T) {
 	t.Parallel()
@@ -160,7 +160,7 @@ func TestCustomMode_Activate_RefusesAnUndeclaredName(t *testing.T) {
 	}
 }
 
-// TestUpdateConfig_ExitsADeclaredModeTheReloadDropped pins the reload rule: a
+// TestUpdateConfig_ExitsADeclaredModeTheReloadDropped pins the reload rule. A
 // mode the new configuration no longer declares has no keymap to settle, so
 // the session ends rather than leaving the keyboard captured.
 func TestUpdateConfig_ExitsADeclaredModeTheReloadDropped(t *testing.T) {

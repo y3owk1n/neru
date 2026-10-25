@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
-	// The overlay.h included above only declares its symbols; importing the
+	// The overlay.h included above only declares its symbols. Importing the
 	// bridge is what links the Objective-C that defines them (ADR 0009).
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/config"
@@ -24,9 +24,9 @@ import (
 )
 
 const (
-	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	// NSWindowSharingNone represents NSWindowSharingNone (0), which hides the window from screen sharing.
 	NSWindowSharingNone = 0
-	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1), which shows the window in screen sharing.
 	NSWindowSharingReadOnly = 1
 )
 
@@ -161,7 +161,7 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 				),
 			),
 		)
-		// No matching in indicator mode; reuse TextColor.
+		// An indicator has no matching, so reuse TextColor.
 		cached.MatchedTextColor = unsafe.Pointer(
 			C.CString(
 				o.uiConfig.TextColor.ForTheme(

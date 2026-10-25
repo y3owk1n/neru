@@ -47,7 +47,7 @@ CGImageRef NeruCaptureDisplayContaining(CGRect rect, CGRect *outBounds, int64_t 
 // holds it, at its size in points, and reports the part captured in the same
 // coordinates through outCaptured. Reuses the shareable-content list between
 // calls. Returns a CGImageRef (caller must CFRelease), or NULL before macOS 14
-// and when capture fails or runs out of timeoutMS; callers fall back to
+// and when capture fails or runs out of timeoutMS. Callers fall back to
 // NeruCaptureDisplayContaining.
 CGImageRef NeruCaptureRect(CGRect rect, CGRect *outCaptured, int64_t timeoutMS);
 

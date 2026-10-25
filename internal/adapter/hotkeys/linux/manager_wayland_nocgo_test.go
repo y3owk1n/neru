@@ -13,23 +13,23 @@ import (
 	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 )
 
-// This is the wiring the no-cgo stub's refusal is for, driven end to end:
+// This is the wiring the no-cgo stub's refusal is for, driven end to end.
 // `eventtap/linux/global_hotkey_stub_contract_nocgo_test.go` pins that Start
 // returns CodeNotSupported, and this pins what the manager then does with it.
 //
 // Both halves used to be wrong on a CGO_ENABLED=0 Wayland build. Start returned
 // nil, so the manager logged "config keybindings are active" at info while
-// nothing read the keyboard; making it loud without this fix swapped that for
+// nothing read the keyboard. Making it loud without this fix swapped that for
 // the /dev/input warning, which sends the user after an `input` group
 // membership that changes nothing in a build with no evdev in it.
 //
-// Note where this runs: the CI Linux leg builds with cgo on, so nothing on the
+// Note where this runs. The CI Linux leg builds with cgo on, so nothing on the
 // gate compiles this file. `just test-linux-nocgo` does.
 func TestManager_EnsureWaylandStarted_ReportsTheBuildWithoutCgo(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
 
 	mgr := NewManager(zap.New(core))
-	// Set directly rather than relying on backend detection: the listener is
+	// Set directly rather than relying on backend detection, because the listener is
 	// only constructed on a detected Wayland session, and the test host is not
 	// required to be one.
 	mgr.waylandHotkeys = eventtaplinux.NewGlobalHotkeyListener(nil)

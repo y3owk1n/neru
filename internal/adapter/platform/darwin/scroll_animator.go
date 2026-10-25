@@ -22,14 +22,14 @@ const (
 	easeOutCubicExponent       = 3  // Exponent for ease-out cubic easing
 	// defaultScrollSteps answers a caller that supplied a nonsense step count
 	// (<= 0). ValidateSmoothScroll already requires steps >= 1, so no validated
-	// configuration reaches it; it exists so a direct caller cannot divide by
+	// configuration reaches it. It exists so a direct caller cannot divide by
 	// zero. Linux's animator keeps the same fallback.
 	defaultScrollSteps = 12
 )
 
 // scrollRequest is one animated scroll. The modifier set belongs to the
 // request rather than to the call that started the animation, because a
-// request preempts whatever is in flight: a plain scroll_down arriving mid-zoom
+// request preempts whatever is in flight. A plain scroll_down arriving mid-zoom
 // cancels the zoom and finishes unmodified, which is what the second binding
 // asked for.
 type scrollRequest struct {
@@ -42,11 +42,11 @@ type scrollRequest struct {
 
 type scrollAnimator struct {
 	// pos samples the live cursor position and post emits one scroll chunk
-	// there. Both are injected so the schedule can be driven without cgo — the
-	// animator is otherwise only observable through the events it posts to the
-	// window server — mirroring smoothCursorAnimator's pos/post pair.
+	// there. Both are injected so the schedule can be driven without cgo, since
+	// the animator is otherwise only observable through the events it posts to
+	// the window server. This mirrors smoothCursorAnimator's pos/post pair.
 	//
-	// Neither may call back into the animator; the production pair are plain
+	// Neither may call back into the animator. The production pair are plain
 	// cgo calls, which is what makes that safe.
 	pos  func() image.Point
 	post func(at image.Point, deltaX, deltaY int, modifiers action.Modifiers)
@@ -120,7 +120,7 @@ func (a *scrollAnimator) animate(
 // so after draining the buffer is empty and the follow-up send cannot block.
 //
 // A request still sitting in the buffer has had none of its delta delivered, so
-// composeUndelivered folds all of it in — on the same rule the worker applies
+// composeUndelivered folds all of it in. It uses the same rule the worker applies
 // when a request preempts it mid-animation, which is what keeps the two seams
 // from disagreeing about whether a same-modifier scroll can be dropped.
 func (a *scrollAnimator) enqueueLocked(req scrollRequest) {
@@ -158,7 +158,7 @@ func (a *scrollAnimator) run(reqCh <-chan scrollRequest, stopCh <-chan struct{})
 }
 
 // runRequest animates one request to completion, or until a newer one preempts
-// it — in which case the preempting request is played next, carrying whatever
+// it. The preempting request is then played next, carrying whatever
 // composeUndelivered folded into it.
 func (a *scrollAnimator) runRequest(
 	req scrollRequest,
@@ -210,7 +210,7 @@ func (a *scrollAnimator) runOnce(
 
 	// sentX/sentY is what has actually gone out. The curve is eased on the
 	// cumulative position and each chunk is the difference between two points
-	// on it, so at the last step they equal the request's delta exactly — which
+	// on it, so at the last step they equal the request's delta exactly. That
 	// is what makes req.delta - sent the undelivered remainder.
 	var sentX, sentY int
 
@@ -257,20 +257,20 @@ func (a *scrollAnimator) runOnce(
 	return scrollRequest{}, false
 }
 
-// composeUndelivered folds the part of inflight that never went out — remX,
-// remY — into the request preempting it, but only when the two ask for the same
+// composeUndelivered folds remX and remY, the part of inflight that never went
+// out, into the request preempting it, but only when the two ask for the same
 // modifiers.
 //
 // Same modifiers is the held-repeat case, since a repeat re-sends the binding
-// it is repeating: without this, every tick throws away whatever the previous
+// it is repeating. Without this, every tick throws away whatever the previous
 // tick had not yet emitted, and holding a scroll key travels visibly less than
 // the same number of discrete presses.
 //
-// Different modifiers is the deliberate cancel scrollRequest documents: a plain
+// Different modifiers is the deliberate cancel scrollRequest documents. A plain
 // scroll_down arriving mid-zoom finishes unmodified, which is what the second
 // binding asked for. Carrying the zoom's remainder into it would emit that
-// distance as a plain scroll — a scroll the user never asked for — so it is
-// dropped exactly as before.
+// distance as a plain scroll the user never asked for, so it is dropped
+// exactly as before.
 func composeUndelivered(next, inflight scrollRequest, remX, remY int) scrollRequest {
 	if next.modifiers != inflight.modifiers {
 		return next

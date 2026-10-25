@@ -11,11 +11,11 @@ import (
 //
 // Two guardrails ask the justfile questions, and they are different questions.
 // foundation_slice_test.go asks which packages the test-foundation recipe
-// passes to `go test` and what reaches that recipe; justfile_doc_test.go asks
-// what `just --list` prints for every recipe it shows. Both need the same
-// underlying answer first — what the recipes are, what each one's body and
-// attributes say, and which recipes run which — so that answer is computed
-// once, here, and nothing in this file states a rule.
+// passes to `go test` and what reaches that recipe, and justfile_doc_test.go
+// asks what `just --list` prints for every recipe it shows. Both need the same
+// underlying answer first: what the recipes are, what each one's body and
+// attributes say, and which recipes run which. That is why the answer is
+// computed once, here, and nothing in this file states a rule.
 //
 // The alternative is two parsers, and the cost is not the duplicated lines. It
 // is that "what a recipe is" would be defined twice: where a header ends, that
@@ -26,12 +26,12 @@ import (
 //
 // What lives here is the justfile-specific reading and nothing else. The two
 // generic helpers it leans on, readRepoFile and withoutComments, stay in
-// foundation_slice_test.go beside the CI-workflow reader that also uses them:
-// neither is about justfiles, and moving them here would point the same borrow
+// foundation_slice_test.go beside the CI-workflow reader that also uses them,
+// because neither is about justfiles, and moving them here would point the same borrow
 // the other way.
 //
 // Reading the file as text rather than shelling out to `just` is deliberate,
-// per ADR 0011: the guardrails in this package hold on every CI leg regardless
+// per ADR 0011, so the guardrails in this package hold on every CI leg regardless
 // of what is installed on it.
 const justfileName = "justfile"
 
@@ -39,7 +39,7 @@ const justfileName = "justfile"
 type justRecipes map[string]justRecipe
 
 // justRecipe is one recipe: the indented lines under its header, the
-// attributes declared immediately above it, and the recipes running it runs —
+// attributes declared immediately above it, and the recipes running it runs:
 // its header dependencies plus any `just <name>` call in that body.
 type justRecipe struct {
 	body string
@@ -89,8 +89,8 @@ func (recipes justRecipes) reaches(roots []string, target string) bool {
 }
 
 // invokedIn returns the recipes text calls with `just <name>`, keeping only
-// names the justfile defines — so prose in a workflow step, "Install just on
-// Linux", contributes nothing.
+// names the justfile defines, so prose in a workflow step, such as "Install
+// just on Linux", contributes nothing.
 func (recipes justRecipes) invokedIn(text string) []string {
 	var invoked []string
 
@@ -128,7 +128,7 @@ func justHeaderLine(line string) (string, []string, bool) {
 // parseJustfile reads the justfile once and returns every recipe with its body
 // and the recipes it runs.
 //
-// A recipe runs another two ways — as a header dependency, and as a `just
+// A recipe runs another two ways: as a header dependency, and as a `just
 // <name>` call in its body, which is how test-all reaches its work. Following
 // only the first would report a recipe as ungated for moving between two forms
 // that run the same thing.
@@ -166,8 +166,8 @@ func parseJustfileText(text string) justRecipes {
 			if current != "" {
 				bodies[current] = append(bodies[current], line)
 			}
-		// A comment in column one interrupts nothing: the recipe it decorates
-		// has not started yet. It does end an attribute run, for the reason
+		// A comment in column one interrupts nothing, because the recipe it
+		// decorates has not started yet. It does end an attribute run, for the reason
 		// above.
 		case strings.HasPrefix(line, "#"):
 			pending = ""

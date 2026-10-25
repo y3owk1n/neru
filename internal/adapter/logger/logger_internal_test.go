@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// errSyncSinkFailed stands in for a sink whose flush genuinely failed — the one
+// errSyncSinkFailed stands in for a sink whose flush really failed, the one
 // case Close() must report without abandoning the rest of the teardown.
 var errSyncSinkFailed = errors.New("sink failed to flush")
 
@@ -81,7 +81,7 @@ func assertTornDown(t *testing.T) {
 	}
 }
 
-// A sync failure must not cost the teardown below it: the log file is still
+// A sync failure must not cost the teardown below it. The log file is still
 // closed and the global logger still cleared, and the failure is still reported.
 func TestClose_SyncFailureStillTearsDown(t *testing.T) {
 	file := &spyLogFile{}
@@ -100,7 +100,7 @@ func TestClose_SyncFailureStillTearsDown(t *testing.T) {
 	assertTornDown(t)
 }
 
-// Both teardown steps can fail; Close() reports both, not just the first.
+// Both teardown steps can fail, and Close() reports both, not just the first.
 func TestClose_ReportsEveryTeardownFailure(t *testing.T) {
 	file := &spyLogFile{closeErr: errLogFileCloseFailed}
 
@@ -127,7 +127,7 @@ func TestClose_ReportsEveryTeardownFailure(t *testing.T) {
 }
 
 // Close() runs on the shutdown path, where a second call after a failed one is
-// ordinary: it must report nothing and must not close the log file twice.
+// ordinary. It must report nothing and must not close the log file twice.
 func TestClose_SecondCloseAfterFailureIsQuiet(t *testing.T) {
 	file := &spyLogFile{closeErr: errLogFileCloseFailed}
 

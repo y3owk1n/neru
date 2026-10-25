@@ -1,4 +1,4 @@
-# Neru Build System
+# Neru build system
 # Version information (can be overridden)
 
 VERSION := `git describe --tags --always --dirty 2>/dev/null || echo "dev"`
@@ -14,15 +14,15 @@ MACOSX_DEPLOYMENT_TARGET := "14.0"
 export CGO_CFLAGS_ALLOW := "-fno-strict-overflow"
 
 # Ldflags for version injection. Windows deliberately builds for the console
-# subsystem (no -H windowsgui) so a single neru.exe serves as both the CLI and
-# the daemon: subcommands can write to the terminal they were typed into, and
+# subsystem (no -H windowsgui) so a single neru.exe is both the CLI and the
+# daemon. Subcommands can write to the terminal they were typed into, and
 # the daemon frees the console the shell allocated for it (see
 # internal/cli/console_windows.go).
 
 LDFLAGS := "-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version=" + VERSION + " -X github.com/y3owk1n/neru/internal/buildinfo.GitCommit=" + GIT_COMMIT + " -X github.com/y3owk1n/neru/internal/buildinfo.BuildDate=" + BUILD_DATE
 
 # Default build
-[doc('Build the development binary; what plain `just` with no recipe runs.')]
+[doc('Build the development binary, which plain `just` with no recipe runs.')]
 default: build
 
 # Build the application (development)
@@ -49,7 +49,7 @@ build:
 # arches Neru ships (amd64, arm64), and a compiler that cannot answer
 # -dumpmachine gets the benefit of the doubt. Both fail open, so the guard never
 # blocks a build that would have worked.
-[doc('Build a Linux binary with CGO; needs a Linux-targeting C compiler.')]
+[doc('Build a Linux binary with CGO, using a Linux-targeting C compiler.')]
 build-linux ARCH="amd64":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -182,9 +182,9 @@ release-ci-windows ARCH VERSION_OVERRIDE:
 # Assemble the release layout: bin/neru, share/man/man1 and, on macOS, an
 # ad-hoc signed Neru.app. It is the exact tree a release zip unpacks to, so the
 # installer and CI's publish jobs both consume it. BIN defaults to `just build`
-# output; CI passes its cross-built binary plus the Info.plist versions. The
+# output. CI passes its cross-built binary plus the Info.plist versions. The
 # bodies live in scripts/dist.sh and scripts/dist.ps1 rather than a shebang
-# recipe, which needs cygpath on Windows; the Windows variant needs no Bash.
+# recipe, which needs cygpath on Windows. The Windows variant needs no Bash.
 # Usage: just dist [BIN] [OUT] [BUNDLE_VERSION] [SHORT_VERSION] [BUILD_ID]
 [unix]
 [doc('Assemble the release layout (bin, man, Neru.app on macOS) under build/dist.')]
@@ -199,7 +199,7 @@ dist BIN="" OUT="build/dist" BUNDLE_VERSION="" SHORT_VERSION="" BUILD_ID="":
 # Build, assemble the release layout, and install it with the same script a
 # `curl | bash` user runs (scripts/install.sh, or install.ps1 on Windows), so
 # a source install lands in the same places as a release. Pass -y to accept
-# every prompt (`just install -y`); other flags are the installer's own.
+# every prompt (`just install -y`). Other flags are the installer's own.
 [unix]
 [doc('Build and install from source via the release installer; -y auto-accepts.')]
 install *ARGS: build dist
@@ -214,19 +214,19 @@ install *ARGS: build dist
 # accept every prompt, and --purge to also remove your config and logs (they
 # are kept otherwise, so -y alone can never delete your config.toml).
 [unix]
-[doc('Undo `just install`; your config survives unless you pass --purge.')]
+[doc('Undo `just install`. Your config survives unless you pass --purge.')]
 uninstall *ARGS:
     bash scripts/install.sh --uninstall {{ ARGS }}
 
 [windows]
-[doc('Undo `just install`; your config survives unless you pass -Purge.')]
+[doc('Undo `just install`. Your config survives unless you pass -Purge.')]
 uninstall *ARGS:
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -Uninstall {{ ARGS }}
 
 # Run tests
 
 # Run all tests (unit + integration). Desktop-safe: tests that would drive the
-# real cursor, keyboard or overlays skip themselves here — run `just
+# real cursor, keyboard or overlays skip themselves here. Run `just
 # test-desktop` to include them when you can hand the machine over.
 [doc('Run the unit and integration tests, leaving the desktop alone.')]
 test: test-unit test-integration
@@ -237,17 +237,17 @@ test: test-unit test-integration
 # No -v here or on test-race-unit, and test-foundation has never carried one,
 # while test-integration, test-desktop and test-race-integration below keep
 # theirs (test-integration-ci has never had one either). The asymmetry is
-# deliberate — ADR 0012 (docs/adr/0012-the-first-hour-must-not-lie.md) decided
+# deliberate. ADR 0012 (docs/adr/0012-the-first-hour-must-not-lie.md) decided
 # it, so read that before "fixing" the inconsistency.
 #
 # `go test` prints a failing test's name and its full output without -v, so on
-# the unit suites the flag adds the passing lines and nothing else: one line
-# per test where a green run needs one per package, and noise around the part
-# that matters when it is red. The three recipes that keep it are the ones
-# where that per-test line is progress — they run -p 1 serialized, skip
+# the unit suites the flag adds the passing lines and nothing else. That is one
+# line per test where a green run needs one per package, and noise around the
+# part that matters when it is red. The three recipes that keep it are the ones
+# where that per-test line is progress. They run -p 1 serialized, skip
 # heavily on headless runners, and have hung.
 #
-# The intuitive split — quiet locally, verbose in CI — is not available:
+# The intuitive split, quiet locally and verbose in CI, is not available.
 # test-ci is a composition of other recipes and never invokes `go test`
 # itself, so there is no seam between the two audiences to hang a switch on.
 [doc('Run the unit tests.')]
@@ -258,11 +258,11 @@ test-unit:
 # Run the cross-platform-safe test slice: every package that contains no
 # platform-tagged source at all, so its behavior is identical on macOS, Linux
 # and Windows. Useful as a fast confidence check before or during Linux/Windows
-# work — a failure here is a real cross-platform regression, not a
+# work. A failure here is a real cross-platform regression, not a
 # host-specific one.
 #
-# This list is kept by hand but not on trust: TestFoundationSliceMatchesTheRecipe
-# in internal/architecture parses it and fails when it stops matching the
+# This list is kept by hand, and TestFoundationSliceMatchesTheRecipe in
+# internal/architecture parses it and fails when it stops matching the
 # packages that qualify, naming each one. `just list-foundation-packages` prints
 # the corrected list to paste back in.
 #
@@ -313,8 +313,9 @@ test-foundation:
 # Print the packages test-foundation should be running. Use it to fix the recipe
 # after TestFoundationSliceMatchesTheRecipe reports drift.
 #
-# The rule this applies — a package compiles to the same files on darwin, linux
-# and windows, and has tests — lives in that test and only there. Deciding it a
+# The rule this applies lives in that test and only there. A package qualifies
+# when it compiles to the same files on darwin, linux and windows, and has
+# tests. Deciding it a
 # second time here is what let the old version of this recipe report packages
 # that were platform-specific by directory or by a //go:build line no filename
 # check could see.
@@ -326,19 +327,19 @@ list-foundation-packages:
 # Run integration tests (desktop-safe subset)
 # Tests that drive the real cursor, keyboard or overlays gate themselves on
 # NERU_DESKTOP_TESTS (see requireDesktop in the test files) and skip here, so
-# this target never commandeers the machine; `just test-desktop` opts in.
+# this target never takes over the machine. `just test-desktop` opts in.
 #
 # -p 1 runs one package binary at a time. The desktop-driving tests share one
 # physical input device, and even the passive half shares daemon sockets and
-# log files; concurrent package binaries fight over them.
+# log files, and concurrent package binaries fight over them.
 #
-# -count=1 disables the test cache. Go keys that cache on the inputs it can see
-# — sources, env, files read — and none of those change when the thing an
-# integration test actually depends on does: whether Accessibility permission is
+# -count=1 disables the test cache. Go keys that cache on the inputs it can
+# see, which are sources, env and files read. None of those change when the
+# thing an integration test depends on does: whether Accessibility permission is
 # granted, whether a daemon holds the socket, whether the screen is locked. A
 # result cached from a run under different conditions is then replayed as a
-# pass, which is worse than no result at all: it reports green for a run that
-# never happened.
+# pass. That is worse than no result at all, because it reports green for a run
+# that never happened.
 [doc('Run the integration tests, minus the ones that drive the desktop.')]
 test-integration:
     @echo "Running integration tests (desktop-safe)..."
@@ -375,7 +376,7 @@ test-race-integration:
 # The full test suite at maximum depth: everything plain and again under
 # -race (four passes: unit, integration, race-unit, race-integration),
 # including the desktop-driving tests. This is the deep local bar for a real
-# desktop session with Accessibility granted — it takes over the cursor and
+# desktop session with Accessibility granted. It takes over the cursor and
 # keyboard while it runs. CI gates on test-ci below, which is the same minus
 # the passes that are meaningless on a headless runner.
 [doc('Run every suite, plain and under -race, desktop-driving tests included.')]
@@ -384,10 +385,10 @@ test-all:
 
 # Integration tests as CI runs them: -short makes tests that drive the real
 # cursor/keyboard or need OS permissions skip *explicitly* (via their
-# testing.Short guards) instead of passing for reasons nobody wrote down —
+# testing.Short guards) instead of passing for reasons nobody wrote down.
 # GitHub runners have no Accessibility grant and no interactive session.
 # Tests that touch real input or permissions must guard themselves with
-# testing.Short(); permission-free integration tests (config, logger, IPC,
+# testing.Short(). Permission-free integration tests (config, logger, IPC,
 # CLI) still run fully.
 [doc('Run the integration tests the way CI does, under -short.')]
 test-integration-ci:
@@ -396,15 +397,15 @@ test-integration-ci:
 
 # Everything CI's test job runs: the foundation slice, unit, unit under -race,
 # and the CI profile of the integration suite. Race coverage on the integration
-# half is left to test-all on real machines — on a permission-less runner it
+# half is left to test-all on real machines. On a permission-less runner it
 # doubles the runtime of the least meaningful pass.
 #
-# test-foundation runs first and is otherwise pure duplication: every package it
+# test-foundation runs first and is otherwise pure duplication. Every package it
 # names, test-unit runs again seconds later. It is here for the recipe itself.
 # Nothing gated on it until #1267, and it spent weeks aborting before it ran a
-# single test — a package deleted in #1221 stayed in its list, so every
+# single test. A package deleted in #1221 stayed in its list, so every
 # invocation died on "directory not found" and reported that to nobody.
-# TestFoundationSliceRunsInCI keeps it reachable from here; the workflow invokes
+# TestFoundationSliceRunsInCI keeps it reachable from here. The workflow invokes
 # this recipe on macOS, Linux and Windows alike, which is where a slice claiming
 # to be cross-platform-safe should be proven.
 [doc('Run every test suite CI runs: foundation, unit, unit -race, integration.')]
@@ -412,8 +413,8 @@ test-ci: test-foundation test-unit test-race-unit test-integration-ci
 
 # Run the set of checks CI gates a pull request on, in the same order, on this
 # host. CI runs the same recipes on macOS, Linux and Windows, so a green run
-# here is one leg of three. This is the real pre-push bar — `just test` alone
-# is a subset of it. For the deepest local verification (full integration +
+# here is one leg of three. This is the real pre-push bar, and `just test`
+# alone is a subset of it. For the deepest local verification (full integration +
 # race passes on a real desktop session) run `just test-all` as well.
 #
 # check-cross narrows the gap that leaves rather than closing it. go vet and
@@ -423,7 +424,7 @@ test-ci: test-foundation test-unit test-race-unit test-integration-ci
 # a plain compile error surfaces before the test suites do. What the check
 # reaches, and what it cannot, is stated in docs/contributing/development.md.
 #
-# lint-cross and test-linux stay out on purpose: both need a running Docker
+# lint-cross and test-linux stay out on purpose. Both need a running Docker
 # daemon, and a documented pre-push gate that fails on absent infrastructure is
 # precisely the first-hour failure docs/adr/0012-the-first-hour-must-not-lie.md
 # is about. CI remains the check for the cgo-only Linux paths, and a real Linux
@@ -466,7 +467,7 @@ genman OUTPUT_DIR="build/man":
     @echo "✓ Man pages generated in {{ OUTPUT_DIR }}/"
 
 # Rewrite the mode-flag reference from the grammar's descriptor table.
-# Run after adding, removing or re-wording a mode flag; the architecture
+# Run after adding, removing or re-wording a mode flag. The architecture
 # guardrail fails while the page is out of date.
 [doc('Rewrite the mode-flag reference in docs/reference/cli.md from the grammar.')]
 genflagref:
@@ -475,7 +476,7 @@ genflagref:
 
 # Rewrite the published schemas: the one editors read for config.toml, from
 # the config structs, and the IPC one, from the wire types. Run after changing
-# either; the architecture guardrails fail while a committed schema is out of
+# either. The architecture guardrails fail while a committed schema is out of
 # date.
 [doc('Rewrite the schemas in schemas/ from the config structs and the IPC wire types.')]
 genschema:
@@ -483,7 +484,7 @@ genschema:
     go run ./cmd/genschema .
 
 # Rewrite the platform-support table from the per-vocabulary declarations.
-# Run after changing a platform column in any platform_support.go; the
+# Run after changing a platform column in any platform_support.go. The
 # architecture guardrail fails while the page is out of date.
 [doc('Rewrite the platform-support table in docs/reference/platform-support.md.')]
 gensupportref:
@@ -508,8 +509,8 @@ clean:
 # checkouts of this repository. They all wrote to that one cache, so removing a
 # worktree left entries behind naming files under a directory that no longer
 # exists, and the next `just fmt` in another checkout reported them as a lint
-# failure against a real-looking path — nothing wrong with the code, and no hint
-# in the message that the cache was the problem.
+# failure against a real-looking path. Nothing was wrong with the code, and the
+# message gave no hint that the cache was the problem.
 #
 # Keeping the cache in the checkout gives each one its own, keeps repeat lints
 # warm (it persists between runs, and `just clean` is what removes it), and lets
@@ -540,17 +541,17 @@ lint-go:
     @echo "✓ Go lint complete"
 
 # Lint Objective-C with the clang static analyzer (via clang-tidy, which
-# oku.toml provides). macOS only — the .m files need the macOS SDK.
+# oku.toml provides). macOS only, since the .m files need the macOS SDK.
 #
 # Excluded checks, each for a reason:
-#  - optin.osx.cocoa.localizability: Neru is not localized; user-facing
-#    strings are intentionally plain literals.
+#  - optin.osx.cocoa.localizability: Neru is not localized, so user-facing
+#    strings are plain literals.
 #  - deadcode.DeadStores: the eventtap bridge deliberately copies old table
 #    refs to locals and nils them after unlocking so ARC releases the old
-#    tables outside the lock — the analyzer sees those stores as dead.
+#    tables outside the lock. The analyzer sees those stores as dead.
 #  - optin.performance.GCDAntipattern: permission prompts are called from Go
 #    through a synchronous bridge, so blocking on a semaphore is the contract.
-[doc('Lint the Objective-C sources with the clang analyzer; macOS only.')]
+[doc('Lint the Objective-C sources with the clang analyzer, on macOS only.')]
 lint-objc:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -600,11 +601,11 @@ vet-cross:
     GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go vet ./...
     @echo "✓ Cross-platform vet complete"
 
-# The libraries a CGO build links against come from the distro, not from oku:
+# The libraries a CGO build links against come from the distro, not from oku.
 # oku.toml provides the toolchain only. The package lists are the ones in
 # docs/contributing/development.md#build-dependencies, which says what each is for.
 [linux]
-[doc('Install the system libraries a Linux build links against; needs sudo.')]
+[doc('Install the system libraries a Linux build links against, with sudo.')]
 linux-deps:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -639,16 +640,16 @@ linux-deps:
 
 # Actually run the Linux test suite locally, in a container.
 #
-# This is the strongest cross-platform check available without pushing: it
-# executes the linux-tagged tests — the stub contracts, the backend dispatch,
-# the linux-only packages — rather than only type-checking them.
+# This is the strongest cross-platform check available without pushing. It
+# executes the linux-tagged tests rather than only type-checking them: the stub
+# contracts, the backend dispatch, the linux-only packages.
 #
 # The image mirrors the Linux CI job: same native dev packages, CGO enabled, and
 # headless (no DISPLAY / WAYLAND_DISPLAY), so what passes here is what CI sees.
 # Docker caches the image after the first run.
 #
 # Requires a running Docker daemon.
-[doc('Run the Linux test suite in a CI-equivalent container; needs Docker.')]
+[doc('Run the Linux test suite in a CI-equivalent Docker container.')]
 test-linux:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -669,7 +670,7 @@ test-linux:
     echo "✓ Linux test suite passed"
 
 # Same as test-linux but with CGO off, exercising the no-cgo Linux backends.
-[doc('Run the Linux test suite in a container with CGO off; needs Docker.')]
+[doc('Run the Linux test suite in a Docker container with CGO off.')]
 test-linux-nocgo:
     @echo "Running the Linux test suite in a container (CGO off)..."
     docker run --rm -v "$PWD":/src -w /src \
@@ -680,7 +681,7 @@ test-linux-nocgo:
 # Compile every package *and its test binary* for Windows.
 #
 # Windows cannot be executed from a macOS or Linux host, so this is the
-# strongest available check: it catches everything `go vet` does plus anything
+# strongest available check. It catches everything `go vet` does plus anything
 # that only fails when the test binary is linked.
 [doc('Compile every package and its test binary for Windows.')]
 test-windows-compile:
@@ -707,7 +708,7 @@ test-windows-compile:
 # the golangci-lint version pinned in .github/workflows/ci.yml.
 #
 # Requires a running Docker daemon.
-[doc('Lint the Linux and Windows builds in a container; needs Docker.')]
+[doc('Lint the Linux and Windows builds in a Docker container.')]
 lint-cross:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -738,21 +739,21 @@ lint-cross:
 
 # Everything that can be checked for other platforms without pushing.
 #
-# Deliberately excludes lint-cross and test-linux, which need Docker — run those
+# Deliberately excludes lint-cross and test-linux, which need Docker. Run those
 # separately for a real Linux lint and execution rather than a type-check.
-[doc('Type-check the Linux and Windows builds; no Docker, no cross toolchain.')]
+[doc('Type-check the Linux and Windows builds without Docker or a cross toolchain.')]
 check-cross: vet-cross test-windows-compile
     @echo "✓ Cross-platform checks complete (run 'just lint-cross' and 'just test-linux' for real Linux runs)"
 
 # Scan dependencies for known vulnerabilities.
 #
-# govulncheck is call-graph aware: it only reports a CVE when the vulnerable
+# govulncheck is call-graph aware. It only reports a CVE when the vulnerable
 # symbol is actually reachable from this module, so a finding here is a finding
 # that ships. It respects GOOS/GOARCH, which matters for a tree this
-# build-tagged — a vulnerable Windows-only dependency is invisible from a macOS
+# build-tagged. A vulnerable Windows-only dependency is invisible from a macOS
 # run, so CI runs this natively on all three platforms.
 #
-# The tool is fetched at @latest rather than pinned: its value is knowing about
+# The tool is fetched at @latest rather than pinned, because its value is knowing about
 # vulnerabilities published after the pin would have been written, and the
 # vulnerability database is fetched at run time regardless.
 [doc('Scan the dependencies for known vulnerabilities with govulncheck.')]
@@ -763,14 +764,14 @@ vuln:
 
 # Run unit tests with coverage and print the total.
 #
-# Unit tests only: integration tests need real permissions, a real screen and a
+# Unit tests only, because integration tests need real permissions, a real screen and a
 # free socket, so including them would make the number depend on the machine
 # rather than on the code.
 #
 # -coverpkg=./... is what makes the number honest. Without it Go credits a
 # package only for the statements its own tests execute, so code that is
 # thoroughly exercised from a neighbouring package reads as zero. The action
-# sequence executor measured 0% that way and 77% this way; nothing about the
+# sequence executor measured 0% that way and 77% this way. Nothing about the
 # tests changed, only which package was asked.
 [doc('Run the unit tests with coverage and print the total.')]
 coverage:
@@ -825,7 +826,7 @@ generate-icns SOURCE:
     echo "✓ Generated resources/icon.icns"
 
 # Generate systray tray icon PNGs from source PNGs
-# Resizes to 44×44 pixels (22pt @2x retina for macOS menu bar)
+# Resizes to 44x44 pixels (22pt @2x retina for macOS menu bar)
 
 # Usage: just generate-tray-icons active.png disabled.png
 [doc('Generate the two 44x44 systray icons from source PNGs.')]
@@ -915,35 +916,35 @@ generate-protocols:
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/relative-pointer-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/relative-pointer-unstable-v1.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/relative-pointer-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/relative-pointer-unstable-v1.c
 
-    # wlr-foreign-toplevel-management (unstable) — focused-app app_id tracking
+    # wlr-foreign-toplevel-management (unstable), for focused-app app_id tracking
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/wlr-foreign-toplevel-management-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/foreign-toplevel.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/wlr-foreign-toplevel-management-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/foreign-toplevel.c
 
-    # wlr-screencopy (unstable) — reads output pixels back for the vision hint strategy
+    # wlr-screencopy (unstable), reads output pixels back for the vision hint strategy
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/wlr-screencopy-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/screencopy.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/wlr-screencopy-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/screencopy.c
 
-    # viewporter (stable) — maps an over-rendered buffer down to logical size for fractional scaling
+    # viewporter (stable), maps an over-rendered buffer down to logical size for fractional scaling
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/viewporter.xml > {{ WLR_PROTOCOL_DIR }}/viewporter.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/viewporter.xml > {{ WLR_PROTOCOL_DIR }}/viewporter.c
 
-    # text-input-v3 (unstable) — input-method text for the hint-search field
+    # text-input-v3 (unstable), for input-method text in the hint-search field
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/text-input-unstable-v3.xml > {{ WLR_PROTOCOL_DIR }}/text-input-v3.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/text-input-unstable-v3.xml > {{ WLR_PROTOCOL_DIR }}/text-input-v3.c
 
-    # fractional-scale (staging) — compositor's preferred per-surface fractional scale
+    # fractional-scale (staging), for the compositor's preferred per-surface fractional scale
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/fractional-scale-v1.xml > {{ WLR_PROTOCOL_DIR }}/fractional-scale-v1.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/fractional-scale-v1.xml > {{ WLR_PROTOCOL_DIR }}/fractional-scale-v1.c
 
-    # ext-foreign-toplevel-list (staging) — app_id/title on compositors without the wlr manager (cosmic-comp)
+    # ext-foreign-toplevel-list (staging), for app_id/title on compositors without the wlr manager (cosmic-comp)
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/ext-foreign-toplevel-list-v1.xml > {{ WLR_PROTOCOL_DIR }}/ext-foreign-toplevel-list-v1.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/ext-foreign-toplevel-list-v1.xml > {{ WLR_PROTOCOL_DIR }}/ext-foreign-toplevel-list-v1.c
 
-    # cosmic-toplevel-info (unstable) — activated state and global geometry of every toplevel on cosmic-comp
+    # cosmic-toplevel-info (unstable), for the activated state and global geometry of every toplevel on cosmic-comp
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/cosmic-toplevel-info-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/cosmic-toplevel-info.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/cosmic-toplevel-info-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/cosmic-toplevel-info.c
 
-    # ext-workspace and cosmic-workspace — only linked because cosmic-toplevel-info's events name their handles
+    # ext-workspace and cosmic-workspace, linked only because cosmic-toplevel-info's events name their handles
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/ext-workspace-v1.xml > {{ WLR_PROTOCOL_DIR }}/ext-workspace-v1.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/ext-workspace-v1.xml > {{ WLR_PROTOCOL_DIR }}/ext-workspace-v1.c
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/cosmic-workspace-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/cosmic-workspace.h

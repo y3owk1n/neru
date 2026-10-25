@@ -22,9 +22,9 @@ const passthroughHintRefreshDelay = 300 * time.Millisecond
 // answers to, so it consumes those and passes the rest through.
 //
 // Both lists it builds are the keys of the keymap in force, read rather than
-// merged: this runs on the triggers that settle one — a mode change, a
+// merged. This runs on the triggers that settle one (a mode change, a
 // configuration replacement, a hints refresh after the focused app changed, and
-// a focused-app change under an open mode — so there is nothing here to
+// a focused-app change under an open mode), so there is nothing here to
 // invalidate. Every caller passes the mode that is active, which is what makes
 // the settled keymap the right one to read.
 //
@@ -38,7 +38,7 @@ func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
 
 	h.setPassthroughCallback(h.passthroughCallbackFor(mode, enabled))
 
-	// The keymaps are only consulted when passthrough is on: with it off the tap
+	// The keymaps are only consulted when passthrough is on. With it off the tap
 	// consumes everything anyway, and a mode that is not open binds nothing.
 	keymap := configpkg.Keymap{}
 	globalHotkeys := configpkg.Keymap{}
@@ -51,7 +51,7 @@ func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
 
 		// The keys the mode binds must also be blacklisted so the event tap
 		// consumes them instead of passing them through. So must the global
-		// chords the mode falls back to, and for the same reason: passed through,
+		// chords the mode falls back to, and for the same reason. Passed through,
 		// the tap would hand the user's own hotkey to the application in front of
 		// them and the fallback would never see the key at all.
 		for _, key := range append(keymap.Keys(), globalHotkeys.Keys()...) {
@@ -66,7 +66,7 @@ func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
 
 // passthroughEnabledFor reports whether the event tap should hand unbound
 // modifier chords to the focused application while mode is active. Idle counts
-// as off: a mode that is not open binds nothing, so there would be nothing to
+// as off. A mode that is not open binds nothing, so there would be nothing to
 // hold back.
 //
 // Caller must hold h.mu.
@@ -82,21 +82,21 @@ func (h *handlerState) passthroughEnabledFor(mode domain.Mode) bool {
 // set while a mode stays open across an application switch.
 //
 // The keymap can settle lazily because a keystroke reads it, so the read is the
-// trigger (ADR 0005). Passthrough cannot: the blacklist is what decides whether
+// trigger (ADR 0005). Passthrough cannot. The blacklist is what decides whether
 // the next chord reaches Neru at all, so waiting for a keystroke means waiting
 // for the keystroke that already went to the other application. This has to be
 // pushed, and it is pushed from a goroutine the app layer starts
-// (`handleAppActivation`, `app/lifecycle.go`) — never inline from the watcher
+// (`handleAppActivation`, `app/lifecycle.go`), never inline from the watcher
 // callback, which on macOS runs on the main queue, where taking h.mu is
 // forbidden (internal/app/modes/AGENTS.md). What the goroutine buys is only
-// that the handler is reached off the main queue: this still queues behind
+// that the handler is reached off the main queue. This still queues behind
 // whatever holds h.mu, so it lands as soon as the handler is free rather than
 // in step with the focus change.
 //
 // It reads the published cell rather than taking the application as an
-// argument, which is what makes two of these racing harmless: whichever runs
+// argument, which is what makes two of these racing harmless. Whichever runs
 // last reads the newest publication and the other is a no-op against an
-// unchanged keymap. Reading it is also all it will ever do: settling a keymap
+// unchanged keymap. Reading it is also all it will ever do. Settling a keymap
 // with nothing published asks the platform, and that call is the unbounded
 // cross-process one ADR 0005 keeps off h.mu for everything the user is not
 // waiting on. Nobody waits on a focus change, so this returns instead.
@@ -109,7 +109,7 @@ func (h *Handler) RefreshPassthroughForFocusedAppChange() {
 	// Nothing to move unless all three hold: something has to have announced
 	// the application, the tap has to be routing chords by the lists at all,
 	// and the active mode has to bind something the focused application can
-	// change — the last is the reasoning keymapInputs applies to the keymap.
+	// change. The last is the reasoning keymapInputs applies to the keymap.
 	// With any of them missing, the state set when the mode opened still
 	// describes what is bound.
 	if _, published := h.focusedApp.published(); !published {
@@ -117,7 +117,7 @@ func (h *Handler) RefreshPassthroughForFocusedAppChange() {
 	}
 
 	// The last of the three asks about both tables in force, not just the mode's
-	// own: a global chord the mode falls back to is on the blacklist too, and an
+	// own. A global chord the mode falls back to is on the blacklist too, and an
 	// [[app_configs]] entry can rebind one, so the focused application moving can
 	// move that half as well.
 	if !h.passthroughEnabledFor(mode) || !h.focusedAppCanChangeWhatIsBound(mode) {
@@ -142,13 +142,13 @@ func (h *handlerState) passthroughCallbackFor(mode domain.Mode, enabled bool) fu
 const initialCapacity = 16
 
 // modeModifierKeys is the modifier chords the given keymaps bind, in the form
-// the platform canonicalizes them to: the event tap intercepts these instead of
+// the platform canonicalizes them to. The event tap intercepts these instead of
 // passing them through to the focused application.
 //
-// It takes both tables in force while a mode is open — the mode's own, and the
-// global chords it falls back to — because the tap asks a single question about a
-// chord, so the two reach it as one list. A chord both tables bind is one entry,
-// which is also the answer either way.
+// It takes both tables in force while a mode is open (the mode's own, and the
+// global chords it falls back to), because the tap asks a single question about
+// a chord, so the two reach it as one list. A chord both tables bind is one
+// entry, which is also the answer either way.
 func modeModifierKeys(mode, global configpkg.Keymap) []string {
 	keys := make([]string, 0, initialCapacity)
 	seen := make(map[string]struct{}, initialCapacity)

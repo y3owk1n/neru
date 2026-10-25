@@ -8,14 +8,14 @@ import (
 )
 
 // modeHandlerPackageDir holds modes.Handler, whose locking contract is the
-// strictest in the repo: internal/app/modes/AGENTS.md states a lock order and
-// the rules that keep it followable.
+// strictest in the repo. The guide internal/app/modes/AGENTS.md states a lock
+// order and the rules that keep it followable.
 const modeHandlerPackageDir = "internal/app/modes"
 
 // modeHandlerSourceFileFloor is the fewest non-test Go files the mode handler
 // package is expected to hold. It carries thirty-eight today, so twenty catches
-// a filter that has lost the package — a rename, a move, a directory spelled
-// differently — and never fires on the package shrinking by a file or two.
+// a filter that has lost the package to a rename, a move or a directory spelled
+// differently, and never fires on the package shrinking by a file or two.
 const modeHandlerSourceFileFloor = 20
 
 // modeLockOrder mirrors, one entry per mutex, the lock order
@@ -24,13 +24,13 @@ const modeHandlerSourceFileFloor = 20
 //
 //	moveMonitorMu -> h.mu -> StyleResolver.mu
 //
-// The guide is where a position is stated and argued; this map is the
+// The guide is where a position is stated and argued. This map is the
 // mechanical half, because no test here reads that prose (ADR 0011). A mutex
-// declared in the package and missing from both is a lock nobody has placed:
-// the next contributor cannot tell whether it goes above h.mu or below it, and
+// declared in the package and missing from both is a lock nobody has placed.
+// The next contributor cannot tell whether it goes above h.mu or below it, and
 // the answer they guess is only wrong the day two goroutines take the pair in
 // opposite orders. That failure is silent to every check that runs before it
-// ships — the code compiles, the linters pass, the tests pass, and what the
+// ships. The code compiles, the linters pass, the tests pass, and what the
 // user gets is a frozen keyboard.
 //
 // Keys are "<Type>.<field>" for a struct field, with an embedded mutex named by
@@ -38,13 +38,14 @@ const modeHandlerSourceFileFloor = 20
 // mutex's purpose.
 //
 // Two kinds of lock are deliberately out of range. Locks the guide names but
-// this package does not declare — StyleResolver.mu and the resolver's applyMu,
-// the Linux overlay manager's renderMu, the event tap adapter's mu — live in
-// other packages, and the subject here is what a change to this one can add.
-// And a lock reached through a name that is not written sync.Mutex or
-// sync.RWMutex — a named wrapper type, a sync.Locker field, a mutex embedded in
-// a struct type held by a field — is beyond what a syntactic match can see;
-// introducing one means stating its position in the guide by hand.
+// this package does not declare live in other packages, and the subject here
+// is what a change to this one can add. These are StyleResolver.mu and the
+// resolver's applyMu, the Linux overlay manager's renderMu, and the event tap
+// adapter's mu. And a lock reached through a name that is not written
+// sync.Mutex or sync.RWMutex, such as a named wrapper type, a sync.Locker
+// field, or a mutex embedded in a struct type held by a field, is beyond what
+// a syntactic match can see. Introducing one means stating its position in the
+// guide by hand.
 var modeLockOrder = map[string]string{
 	"Handler.mu": "the handler lock, and the middle of the stated order: taken " +
 		"below moveMonitorMu and held across the overlay adapter, which is where " +
@@ -59,12 +60,12 @@ var modeLockOrder = map[string]string{
 //
 // This is the registry the rest of the locking contract rests on. "No method
 // releases a lock it did not take" is reasoning anyone can do only while the
-// set of locks is known; a lock nobody placed is one the reader of the guide
+// set of locks is known. A lock nobody placed is one the reader of the guide
 // does not know exists, so no reasoning about order covers it.
 //
 // What it checks is that a position was stated, not that the position is
-// obeyed. No test here can watch two goroutines take a pair in opposite orders
-// — that is what the guide's prose and a reviewer are for. This is the tripwire
+// obeyed. No test here can watch two goroutines take a pair in opposite orders.
+// That is what the guide's prose and a reviewer are for. This is the tripwire
 // that the prose was written at all.
 func TestModeHandlerMutexesArePlacedInTheLockOrder(t *testing.T) {
 	for site, file := range modeHandlerMutexDeclarations(t) {
@@ -106,7 +107,7 @@ func TestModeLockOrderEntriesAreStillReal(t *testing.T) {
 // of the mode handler package, as a map from site to the file declaring it.
 //
 // Test files are not read. A mutex in a test fake is not on the order this
-// registry describes: the one the package has today (the fake accessibility
+// registry describes. The one the package has today (the fake accessibility
 // client in accessibility_deadline_test.go) is reached from under h.mu, so its
 // edge is h.mu -> fake, never the reverse, and no production hold can end up
 // beneath it.
@@ -146,9 +147,9 @@ func modeHandlerMutexDeclarations(t *testing.T) map[string]string {
 }
 
 // modeMutexFloor is the fewest mutex declarations expected in the mode handler
-// package: it declares exactly the two modeLockOrder places, Handler.mu and
+// package. It declares exactly the two modeLockOrder places, Handler.mu and
 // Handler.moveMonitorMu. There is no headroom to leave, which is why the
-// failure above names both readings — a floor with none cannot tell a matcher
+// failure above names both readings. A floor with none cannot tell a matcher
 // that broke from a lock that went away, and only the first of those is a bug.
 const modeMutexFloor = 2
 
@@ -322,7 +323,7 @@ func modeHandlerSourceFiles(t *testing.T) []modeHandlerFile {
 }
 
 // parseRepoGoFile parses one Go file of the checkout, failing the test rather
-// than returning an error: a file that will not parse is a broken checkout, and
+// than returning an error. A file that will not parse is a broken checkout, and
 // skipping it would leave the guardrail passing over the one file it cannot
 // read.
 func parseRepoGoFile(

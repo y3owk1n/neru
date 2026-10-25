@@ -32,7 +32,7 @@ var windowsFamilies = fontgeneric.Families{
 	Mono:  defaultWindowsMono,
 }
 
-// logFontW mirrors LOGFONTW; only lfCharSet and lfFaceName take part in an
+// logFontW mirrors LOGFONTW. Only lfCharSet and lfFaceName take part in an
 // EnumFontFamiliesExW query.
 type logFontW struct {
 	height         int32
@@ -95,7 +95,7 @@ func (r *winFontResolver) Resolve(family string) string {
 }
 
 // resolveWindowsFamily maps the input to a concrete family and asks GDI
-// whether that family is installed: if it is, the answer is the name as
+// whether that family is installed. If it is, the answer is the name as
 // written, which is what ports.FontResolver promises. If it is not, the answer
 // is the sans baseline, the rule the fontconfig-backed Linux resolver follows.
 // When GDI cannot be consulted nothing can be verified, so the name passes

@@ -376,7 +376,7 @@ func TestActionsReferenceDisabledModeSeesModesInsideRun(t *testing.T) {
 	}
 }
 
-// The walk must stop where the executor does: past the nesting limit a
+// The walk must stop where the executor does. Past the nesting limit a
 // sequence is refused, so its steps never run and must not be reported as
 // things the binding does.
 func TestAnyBindingStep_StopsAtTheExecutorsNestingLimit(t *testing.T) {

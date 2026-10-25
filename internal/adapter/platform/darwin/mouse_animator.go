@@ -41,7 +41,7 @@ func (d *cursorAnimationDone) close() {
 }
 
 // cursorRequest is a single "animate to end" target. It carries no completion
-// object of its own: completion is tracked per animation *session* (see
+// object of its own. Completion is tracked per animation *session* (see
 // smoothCursorAnimator), so coalescing a superseded target never releases a
 // waiter early.
 type cursorRequest struct {
@@ -58,31 +58,31 @@ type cursorRequest struct {
 // goroutine, latest-target-wins, and a completion channel WaitForCursorIdle
 // blocks on.
 //
-// Completion is per session — every target arriving mid-session shares one
+// Completion is per session. Every target arriving mid-session shares one
 // completion, so a waiter tracks the latest target rather than being released
 // when an intermediate one is superseded. A move, wait, act sequence
 // (ActionService) would otherwise act at a point the cursor had already left.
 type smoothCursorAnimator struct {
 	// pos samples the live cursor position and post emits one move event.
-	// Both are injected so the worker loop can be driven without cgo: the
+	// Both are injected so the worker loop can be driven without cgo, because the
 	// animator is otherwise only observable through the events it posts to the
 	// window server. Production wires them to CoreGraphics in cursorAnimator.
 	//
 	// Both may be called with a.mu held (post always is, so the check and the
-	// post cannot be split — see postIfCurrent), so neither may call back into
+	// post cannot be split, see postIfCurrent), so neither may call back into
 	// the animator. The production pair are plain cgo calls, which is what
-	// makes that safe; a substitute must be too.
+	// makes that safe, and a substitute must be too.
 	pos  func() image.Point
 	post func(point image.Point, eventType, button uint32)
 
 	mu     sync.Mutex
 	reqCh  chan cursorRequest
 	stopCh chan struct{}
-	// done is the current session's completion; nil only between stop() and
+	// done is the current session's completion, nil only between stop() and
 	// the next session. After a session ends naturally it keeps referencing
 	// the closed completion, so a late waiter still sees "idle".
 	done *cursorAnimationDone
-	// busy reports that a session is in progress — the worker is still
+	// busy reports that a session is in progress, with the worker still
 	// draining toward a target. A target submitted while busy joins that
 	// session instead of starting a new completion.
 	busy bool
@@ -120,10 +120,10 @@ func (a *smoothCursorAnimator) stop() {
 	a.stopCh = nil
 	a.done = nil
 
-	// Closing stopCh on its own is not enough to stop the worker: it can already
+	// Closing stopCh on its own is not enough to stop the worker, because it can already
 	// have passed its cancellation check and be about to post a step, which then
-	// lands after whatever replaced this animation and drags the cursor — and
-	// the zoom viewport — back toward the abandoned target. Bumping the
+	// lands after whatever replaced this animation and drags the cursor and
+	// the zoom viewport back toward the abandoned target. Bumping the
 	// generation under the same lock the worker posts under closes that window.
 	a.generation++
 	a.busy = false
@@ -146,7 +146,7 @@ func (a *smoothCursorAnimator) pendingTarget() (image.Point, bool) {
 	return a.pendingEnd, a.hasPending
 }
 
-// settle finishes any in-flight animation immediately: the worker is canceled
+// settle finishes any in-flight animation immediately. The worker is canceled
 // and the cursor warps straight to the endpoint it was animating toward.
 // Position-dependent reads call this so an action firing mid-animation acts
 // at the point the user aimed for, without waiting the animation out.
@@ -162,9 +162,9 @@ func (a *smoothCursorAnimator) settle() {
 }
 
 // takePendingForSettle atomically ends the in-flight animation and hands back
-// its endpoint: the worker is canceled with the same generation bump as
-// stop() — so a step already past its checks is dropped rather than landing
-// after the settle warp — waiters are released, and the pending endpoint is
+// its endpoint. The worker is canceled with the same generation bump as
+// stop(), so a step already past its checks is dropped rather than landing
+// after the settle warp. Waiters are released, and the pending endpoint is
 // cleared. ok reports whether there was an animation to settle.
 func (a *smoothCursorAnimator) takePendingForSettle() (image.Point, bool) {
 	a.mu.Lock()
@@ -268,7 +268,7 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType, 
 // The base is the pending endpoint of the animation in flight (falling back to
 // the live cursor position), extended by delta and clamped by the caller's
 // clamp. Base computation, bookkeeping, and submission all happen under one
-// lock hold: two concurrent relative movers therefore compose their deltas
+// lock hold. Two concurrent relative movers therefore compose their deltas
 // instead of one silently overwriting the other's endpoint.
 func (a *smoothCursorAnimator) animateRelativeBy(
 	delta image.Point,
@@ -287,7 +287,7 @@ func (a *smoothCursorAnimator) animateRelativeBy(
 
 	end := clamp(base.Add(delta))
 	if end == base {
-		// Nothing to animate: the delta was zero or the clamp ate it at a
+		// Nothing to animate, because the delta was zero or the clamp ate it at a
 		// screen edge. The in-flight animation (if any) already targets base,
 		// so submitting would only cancel and restart it.
 		return
@@ -336,11 +336,11 @@ func (a *smoothCursorAnimator) submitLocked(req cursorRequest) {
 //
 // The buffer holds one request and, under the lock, we are the only producer
 // while the worker is the only consumer (it removes, never adds), so after
-// draining a stale target the follow-up send cannot block — it stays a plain
+// draining a stale target the follow-up send cannot block. It stays a plain
 // send rather than another non-blocking one, because submitLocked has already
 // published req.end as the pending endpoint and a dropped target would leave
 // pendingTarget() naming a point nothing is animating toward. Targets carry no
-// completion object, so dropping a superseded one is a plain discard — the
+// completion object, so dropping a superseded one is a plain discard. The
 // shared session completion is untouched, and its waiters stay attached to the
 // target that replaced it.
 func (a *smoothCursorAnimator) enqueueLocked(req cursorRequest) {
@@ -423,7 +423,7 @@ restart:
 			Y: int(float64(start.Y) + float64(req.end.Y-start.Y)*progress),
 		}
 
-		// A false answer means stop() or settle() bumped the generation; both
+		// A false answer means stop() or settle() bumped the generation. Both
 		// already closed this session's completion, so the worker just leaves.
 		if !a.postIfCurrent(generation, intermediate, req.eventType, req.button) {
 			return
@@ -448,7 +448,7 @@ restart:
 	}
 
 	// Target reached. Continue the same session if a newer target is already
-	// queued; otherwise the session ends and its waiters are released.
+	// queued, otherwise the session ends and its waiters are released.
 	next, ok := a.finishOrNext(reqCh, stopCh)
 	if ok {
 		req = next

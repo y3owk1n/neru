@@ -60,7 +60,7 @@ func TestLoadResolvesGridLabels(t *testing.T) {
 
 // TestReloadReresolvesGridLabels is the hazard the resolution introduces. The
 // fallback used to be re-read on every use, so a characters change carried the
-// labels with it for free; settling the labels once at load means a reload
+// labels with it for free. Settling the labels once at load means a reload
 // that changes characters has to settle them again, or the daemon keeps
 // drawing a grid labeled from a character set the user has replaced.
 func TestReloadReresolvesGridLabels(t *testing.T) {
@@ -114,7 +114,7 @@ func TestReloadReresolvesGridLabels(t *testing.T) {
 
 // TestLoadResolvesGridLabelsAfterOverrides pins the ordering. The override
 // file is layered after the config file is validated, so labels settled before
-// that layer would be settled from characters the daemon does not run on —
+// that layer would be settled from characters the daemon does not run on,
 // which is what `neru config set grid.characters` writes.
 func TestLoadResolvesGridLabelsAfterOverrides(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -150,7 +150,7 @@ func TestLoadResolvesGridLabelsAfterOverrides(t *testing.T) {
 	}
 }
 
-// TestLoadKeepsConfiguredGridLabels guards the other direction: resolution
+// TestLoadKeepsConfiguredGridLabels guards the other direction. Resolution
 // fills the option in, it does not take it over.
 func TestLoadKeepsConfiguredGridLabels(t *testing.T) {
 	tmpDir := t.TempDir()

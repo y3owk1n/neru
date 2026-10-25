@@ -15,7 +15,7 @@ func initializePlatformLogger(logger *zap.Logger) {
 	darwin.InitializeLogger(logger)
 }
 
-// registerSyntheticModifierSink has nothing to wire on macOS: a CGEvent carries
+// registerSyntheticModifierSink has nothing to wire on macOS. A CGEvent carries
 // its own modifier flags, so injecting an action's modifiers never touches the
 // keyboard and there is no key event for the tap to mistake for the user's.
 func registerSyntheticModifierSink(_ tap.Tap, _ *zap.Logger) {}

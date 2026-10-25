@@ -237,7 +237,7 @@ func (h *handlerState) scheduleModifierToggle(mod action.Modifiers, downTime tim
 		// path (cancelPendingModifierToggle via setAppMode) already
 		// stops timers and nils pendingModifierKeys, but this check provides
 		// defense-in-depth in case a timer fires between the mode exit and the
-		// cancel — matching the pattern used by refreshHintsTimer.
+		// cancel, matching the pattern refreshHintsTimer uses.
 		if h.modeSession != timerSession {
 			delete(h.pendingModifierTimers, mod)
 
@@ -389,7 +389,7 @@ func (h *Handler) SuppressModifiersUntilReleased(mods action.Modifiers) {
 		if mods.Has(mod) {
 			delete(h.pendingModifierKeys, mod)
 			h.stopPendingModifierTimer(mod)
-			// Don't clear usedInChordModifiers here — it may have been
+			// Don't clear usedInChordModifiers here. It may have been
 			// set by SuppressModifiersForHotkey (called from the global
 			// hotkey dispatch path) before the async mode-action path
 			// reaches us. Clearing it would let a modifier UP event
@@ -422,8 +422,8 @@ func (h *Handler) SuppressModifiersForHotkey(mods action.Modifiers) {
 	for _, mod := range allStickyModifiers {
 		if mods.Has(mod) {
 			// Clean up any modifierFreshPress state from a previous suppressed
-			// DOWN handler invocation — this prevents stale fresh-press flags
-			// from triggering spurious sticky toggles on the next cycle.
+			// DOWN handler invocation, so stale fresh-press flags cannot
+			// trigger spurious sticky toggles on the next cycle.
 			delete(h.modifierFreshPress, mod)
 			delete(h.pendingModifierKeys, mod)
 			h.stopPendingModifierTimer(mod)

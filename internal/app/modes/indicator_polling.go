@@ -23,13 +23,13 @@ func (h *handlerState) startIndicatorPolling(mode domain.Mode) {
 		return
 	}
 
-	// All callers hold h.mu, so state methods are callable directly.
+	// All callers hold h.mu, so handlerState methods are callable directly.
 	if h.config == nil || !h.shouldPollCursorOverlays(mode) {
 		return
 	}
 	// Disable exclusive keyboard so scroll events pass through to applications
 	// when indicator overlays are shown, but only if uinput scroll is active.
-	// Skip when an evdev keyboard grab owns the keyboard: there the overlay
+	// Skip when an evdev keyboard grab owns the keyboard. There the overlay
 	// must stay keyboard-passive, and the evdev path already keeps it that way.
 	setOverlayKeyboardCapture(h, false)
 
@@ -101,16 +101,16 @@ type indicatorSnapshot struct {
 // and executed by pollIndicatorsOnce after the lock is released, so a draw is
 // never made while the handler's lock is held.
 type indicatorTickPlan struct {
-	// resizeIndicators means the screen bounds changed under the cursor:
-	// resize the indicator overlays instead of drawing, and let the next tick
+	// resizeIndicators means the screen bounds changed under the cursor.
+	// Resize the indicator overlays instead of drawing, and let the next tick
 	// work from the updated bounds.
 	resizeIndicators bool
 
 	snap indicatorSnapshot
 }
 
-// pollIndicatorsOnce runs one tick: read the cursor, compute a plan under the
-// lock, then execute it with the lock released. Skipped entirely when the lock
+// pollIndicatorsOnce runs one tick. It reads the cursor, computes a plan under the
+// lock, then executes it with the lock released. Skipped entirely when the lock
 // is contended.
 func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, indicatorPollTimeout)
@@ -146,9 +146,9 @@ func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 }
 
 // planIndicatorTick computes what this tick should do. It takes and releases
-// h.mu itself; the caller executes the returned plan with the lock free.
+// h.mu itself. The caller executes the returned plan with the lock free.
 //
-// TryLock, not Lock: stopIndicatorPolling runs while h.mu is held and blocks
+// TryLock, not Lock, because stopIndicatorPolling runs while h.mu is held and blocks
 // on indicatorDoneCh, so waiting here would deadlock. A contended tick is just
 // skipped, reported as ok == false.
 func (h *Handler) planIndicatorTick(
@@ -190,7 +190,7 @@ func (h *handlerState) snapshotIndicators(cursorX, cursorY int) indicatorSnapsho
 }
 
 // adoptChangedScreenBounds re-reads the screen bounds and records them when
-// they changed, reporting whether they did. Caller must hold h.mu; the overlay
+// they changed, reporting whether they did. Caller must hold h.mu. The overlay
 // resize that must follow happens after the lock is released.
 func (h *handlerState) adoptChangedScreenBounds(ctx context.Context) bool {
 	boundsCtx, boundsCancel := context.WithTimeout(ctx, indicatorPollTimeout)
@@ -211,7 +211,7 @@ func (h *handlerState) adoptChangedScreenBounds(ctx context.Context) bool {
 //
 // The polling goroutine calls it with h.mu released, from the plan a tick
 // computed. startIndicatorPolling calls it once before the goroutine starts,
-// under the lock every mode activation already holds, as it always has: the
+// under the lock every mode activation already holds, as it always has. The
 // resize dispatches to the main queue on macOS and is a no-op where an
 // indicator has no window of its own.
 func (h *handlerState) resizeIndicators() {
@@ -221,9 +221,9 @@ func (h *handlerState) resizeIndicators() {
 }
 
 // drawIndicators shows, draws or hides each indicator from one snapshot. It
-// runs with h.mu released — everything it needs is in the snapshot. The
-// indicators take absolute global coordinates; the backend clamps them to the
-// active display.
+// runs with h.mu released, because everything it needs is in the snapshot.
+// The indicators take absolute global coordinates. The backend clamps them to
+// the active display.
 func (h *Handler) drawIndicators(snap indicatorSnapshot, cursorX, cursorY int) {
 	if snap.showModeIndicator {
 		h.modeIndicatorService.Show()
@@ -257,7 +257,7 @@ func (h *Handler) drawIndicators(snap indicatorSnapshot, cursorX, cursorY int) {
 // both mode indicator and sticky modifiers indicator overlays.
 func (h *handlerState) stopIndicatorPolling() {
 	// Restore keyboard capture if uinput scroll was active. Never re-enable it
-	// while an evdev keyboard grab owns the keyboard: on wlroots compositors the
+	// while an evdev keyboard grab owns the keyboard. On wlroots compositors the
 	// overlay's exclusive keyboard grab deactivates the focused app's toplevel,
 	// so a hints refresh (which stops indicator polling before rescanning) would
 	// re-read the wrong focused window and clear the hints.
@@ -281,7 +281,7 @@ func (h *handlerState) stopIndicatorPolling() {
 
 	// The virtual pointer stands in for the system cursor rather than for a
 	// mode, so it outlives polling whenever the cursor is still hidden.
-	// All callers hold h.mu, so state methods are callable directly.
+	// All callers hold h.mu, so handlerState methods are callable directly.
 	if !h.shouldShowCursorFollowingVirtualPointer() {
 		h.hideCursorFollowingVirtualPointer()
 	}
@@ -313,7 +313,7 @@ func (h *handlerState) modeIndicatorEnabled(mode domain.Mode) bool {
 	case domain.ModeMonitorSelect:
 		return h.config.ModeIndicator.MonitorSelect.Enabled
 	case domain.ModeCustom:
-		// A declared mode has no enabled flag: its indicator is shown when it
+		// A declared mode has no enabled flag. Its indicator is shown when it
 		// was given text, and an undeclared name reads the zero value.
 		return h.config.Modes[h.appState.CustomModeName()].Indicator != ""
 	default:
@@ -323,7 +323,7 @@ func (h *handlerState) modeIndicatorEnabled(mode domain.Mode) bool {
 
 // stickyIndicatorAnchor reports where the sticky-modifier indicator should
 // sit. A mode that tracks a selection anchors it there rather than to the
-// cursor, so the indicator follows what the user is aiming at; every other
+// cursor, so the indicator follows what the user is aiming at. Every other
 // mode, and a mode whose cursor is already on its selection, anchors to the
 // cursor.
 func (h *handlerState) stickyIndicatorAnchor(cursorPoint image.Point) image.Point {
@@ -342,9 +342,9 @@ func (h *handlerState) stickyIndicatorAnchor(cursorPoint image.Point) image.Poin
 
 // setOverlayKeyboardCapture asks the overlay to hold or release the keyboard.
 //
-// What confines this to Linux is the gate, not the overlay: only the evdev
+// What confines this to Linux is the gate, not the overlay. Only the evdev
 // event tap reports that the overlay holds the keyboard, and only there does
-// releasing it matter — an evdev grab deactivates the focused toplevel, so the
+// releasing it matter. An evdev grab deactivates the focused toplevel, so the
 // poller has to let go before reading which window is focused. Everywhere else
 // the gate is closed, and an overlay with no grab to release is a no-op anyway.
 func setOverlayKeyboardCapture(h *handlerState, enabled bool) {

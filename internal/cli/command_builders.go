@@ -1,6 +1,6 @@
-// Command factories shared by the generated CLI surface: each Build*Command
-// returns a cobra command that forwards its action to the running daemon over
-// IPC. root.go owns process bootstrap; the factories live here.
+// Command factories shared by the CLI commands. Each Build*Command returns a
+// cobra command that forwards its action to the running daemon over IPC.
+// root.go owns process bootstrap, and the factories live here.
 
 package cli
 
@@ -36,7 +36,7 @@ func BuildSimpleCommand(use, short, long string, action string) *cobra.Command {
 //
 // Flipping is right for a key binding, where the user sees the result and
 // presses again if it went the wrong way. A script has no such feedback loop,
-// so it needs to be able to name the state it wants — and to read it back from
+// so it needs to be able to name the state it wants, and to read it back from
 // "neru status --json", which reports every toggle these commands change.
 func BuildToggleCommand(use, short, long string, action string) *cobra.Command {
 	var state string
@@ -283,9 +283,9 @@ Use --bare to force current-cursor targeting.`,
 	}
 
 	cmd.Flags().
-		IntVar(&targetX, "x", 0, "X coordinate (pixels); with --center, horizontal offset (default 0)")
+		IntVar(&targetX, "x", 0, "X coordinate (pixels), or the horizontal offset with --center (default 0)")
 	cmd.Flags().
-		IntVar(&targetY, "y", 0, "Y coordinate (pixels); with --center, vertical offset (default 0)")
+		IntVar(&targetY, "y", 0, "Y coordinate (pixels), or the vertical offset with --center (default 0)")
 	cmd.Flags().BoolVar(&center, "center", false, "Move to the center of the active screen")
 	cmd.Flags().
 		BoolVar(&window, "window", false, "Move to the center of the focused window")
@@ -361,7 +361,7 @@ func BuildScrollActionCommand(use, short, long string, supportSteps bool) *cobra
 
 	if supportSteps {
 		cmd.Flags().
-			IntVar(&steps, "steps", 0, "Override the scroll step amount (pixels); configured default is used when omitted")
+			IntVar(&steps, "steps", 0, "Override the scroll step amount (pixels). The configured default is used when omitted")
 	}
 
 	return cmd
@@ -536,7 +536,7 @@ func BuildBisectCommand() *cobra.Command {
 
 left, right, up and down keep that half of the region; up_left, up_right,
 down_left and down_right keep that quadrant. --count repeats the cut that
-many times as one press: left with --count 2 keeps the left quarter, and one
+many times as one press, so left with --count 2 keeps the left quarter, and one
 backspace takes the whole press back. The cursor moves to the center of what
 is left. Outside bisect mode the action does nothing.
 

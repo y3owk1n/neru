@@ -78,7 +78,7 @@ func (r *eventRecorder) waitFor(t *testing.T, want []watchEvent) {
 	}
 }
 
-// fakeHook stands in for the Win32 foreground hook: the test fires events by
+// fakeHook stands in for the Win32 foreground hook. The test fires events by
 // calling the callback the backend subscribed with.
 type fakeHook struct {
 	mu       sync.Mutex

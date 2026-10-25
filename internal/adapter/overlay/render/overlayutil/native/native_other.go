@@ -4,7 +4,7 @@ package native
 
 import "unsafe"
 
-// MallocCallbackContext returns nil: no C heap exists off darwin. Every
+// MallocCallbackContext returns nil, because no C heap exists off darwin. Every
 // function here is a deliberate no-op so overlayutil compiles on every
 // platform without importing platform/darwin.
 func MallocCallbackContext(_, _ uint64) unsafe.Pointer { return nil }

@@ -28,10 +28,10 @@ const (
 // DrawHints renders the hint overlay, mirroring the cross-platform software
 // renderer: a label badge per hint, placed against the element the hint
 // labels. Each hint is queued as a unit (fill + arrow + stroke + text) and the
-// window paints in queue order, so overlapping hints have correct Z-ordering —
-// later hints are fully on top of earlier ones, matching macOS behavior.
+// window paints in queue order, so overlapping hints have correct Z-ordering.
+// Later hints are fully on top of earlier ones, matching macOS behavior.
 //
-// offset is the resolved `hints.ui.placement`: the caller reads the vocabulary
+// offset is the resolved `hints.ui.placement`. The caller reads the vocabulary
 // and refuses a placement this backend cannot draw before anything is painted
 // (Manager.DrawHintsWithStyle), so there is no configured string here and no
 // unrecognized case to answer.
@@ -54,7 +54,7 @@ func (o *winOverlay) DrawHints(
 		return
 	}
 
-	// Hints own the surface; drop any cached grid so Show() does not redraw it.
+	// Hints own the surface. Drop any cached grid so Show() does not redraw it.
 	o.forgetTransition()
 	o.cachedGrid = nil
 	o.currentSubgrid = nil
@@ -74,9 +74,9 @@ func (o *winOverlay) DrawHints(
 		}
 
 		if style.BoundaryHighlightEnabled() {
-			// The element's own box, rebuilt from what the hint carries:
+			// The element's own box is rebuilt from what the hint carries.
 			// hint.Position() is the element center and hint.Size() its
-			// bounds. Only the boundary highlight draws it; the badge is
+			// bounds. Only the boundary highlight draws it. The badge is
 			// placed against the same center point below.
 			element := badge.CenteredOn(hint.Position(), hint.Size().X, hint.Size().Y)
 
@@ -107,8 +107,8 @@ func (o *winOverlay) DrawHints(
 		) + paddingX*winPaddingMultiplier
 		badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 
-		// The corner radius is resolved from the badge's size alone — where the
-		// badge lands does not change how round it is — and then capped so an
+		// The corner radius is resolved from the badge's size alone, since where
+		// the badge lands does not change how round it is, and then capped so an
 		// offset badge keeps a flat edge for the connector arrow to attach to.
 		radius := badge.HintRadius(
 			int(badge.BorderRadius(
@@ -123,7 +123,7 @@ func (o *winOverlay) DrawHints(
 		// hint.Position() is the element center, the same point the boundary
 		// highlight is drawn around. The badge is centered horizontally on it
 		// and placed above / on / below it exactly as the macOS and Linux
-		// overlays place theirs; an offset badge also gets a connector arrow
+		// overlays place theirs. An offset badge also gets a connector arrow
 		// pointing back at the target.
 		bounds, arrow, hasArrow := badge.PlaceHint(
 			hint.Position(), badgeWidth, badgeHeight, radius, offset,
@@ -175,7 +175,7 @@ func (o *winOverlay) DrawHints(
 // The Cairo and Quartz backends build the badge and the arrow as one outline,
 // so their border runs around both. This surface has no path primitive to do
 // that with, so the arrow is a triangle drawn over a slightly larger triangle
-// in the border color — which gives its two slanted edges the same border,
+// in the border color. That gives its two slanted edges the same border,
 // leaving only the badge's own edge running across the arrow's base.
 func (o *winOverlay) drawHintArrow(
 	arrow badge.HintArrow,
@@ -225,7 +225,7 @@ func outsetHintArrow(arrow badge.HintArrow, width int) badge.HintArrow {
 // the region can no longer be divided, and then nothing is previewed.
 //
 // A depth other than the one last drawn zooms the cells there over
-// animDuration when animEnabled says so (transition.go); a zero duration, a
+// animDuration when animEnabled says so (transition.go). A zero duration, a
 // first draw and a redraw at the same depth paint in place. The dimensions
 // arrive as domain.GridDimensions rather than as a column count beside a row
 // count so that this backend has no pair to transpose on its way to
@@ -374,7 +374,7 @@ func (o *winOverlay) paintRecursiveGrid(
 // caller has begun, or nothing when the state is not visible. Grid and
 // recursive grid both draw theirs here, on the one primitive the window owns.
 //
-// FontName arrives resolved: it comes from the Style, which settles every
+// FontName arrives resolved. It comes from the Style, which settles every
 // family it hands out. Resolving again here would be a lock and a cache lookup
 // per drawn frame for the same answer.
 func (o *winOverlay) drawGridPointer(pointer recursivegridcomponent.VirtualPointerState) {
@@ -393,7 +393,7 @@ func (o *winOverlay) drawGridPointer(pointer recursivegridcomponent.VirtualPoint
 
 // drawFilledRect fills bounds then strokes its border, optionally with rounded
 // corners. When radius > 0 the anti-aliased SDF rounded-rect primitives are
-// used; otherwise the faster axis-aligned FillRect/StrokeRect path is taken.
+// used. Otherwise the faster axis-aligned FillRect/StrokeRect path is taken.
 func (o *winOverlay) drawFilledRect(
 	bounds image.Rectangle,
 	fill uint32,
@@ -447,7 +447,7 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 // drawSubKeyMiniGrid paints the next depth's keys inside one cell, each on the
 // sub-cell it would select.
 //
-// Where they go is not this backend's arithmetic: Style.SubKeyPreviewCells
+// Where they go is not this backend's arithmetic. Style.SubKeyPreviewCells
 // divides the cell and decides which sub-cell is left blank, and the Cairo
 // backend draws the same list (ADR 0007). What is left here is the painting.
 func (o *winOverlay) drawSubKeyMiniGrid(

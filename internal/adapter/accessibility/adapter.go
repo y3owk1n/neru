@@ -223,7 +223,7 @@ func (a *Adapter) Scroll(
 
 	scrollErr := a.client.Scroll(deltaX, deltaY, modifiers)
 	if scrollErr != nil {
-		// Preserve a refusal the backend made explicitly; see Client.Scroll.
+		// Preserve a refusal the backend made explicitly. See Client.Scroll.
 		if derrors.IsNotSupported(scrollErr) {
 			return scrollErr
 		}
@@ -269,7 +269,7 @@ func (a *Adapter) ReleaseHeldButtons(ctx context.Context) error {
 
 // PrimeApplication waits briefly for the application's accessibility tree to
 // become queryable. The per-platform behavior lives in native/darwin/priming.go /
-// priming_other.go; see ports.AccessibilityPort.PrimeApplication for why only
+// priming_other.go. See ports.AccessibilityPort.PrimeApplication for why only
 // macOS has work to do.
 func (a *Adapter) PrimeApplication(ctx context.Context, bundleID string) (bool, error) {
 	err := a.checkContext(ctx)
@@ -526,7 +526,7 @@ func (a *Adapter) finishCollection(
 	}
 
 	if len(collector.elements) == 0 && missionControlActive {
-		// Not a failure: the frontmost window is deliberately skipped while
+		// Not a failure. The frontmost window is deliberately skipped while
 		// Mission Control is up, so with no supplementary source enabled there
 		// is nothing left to collect.
 		a.logger.Debug("No elements collected while Mission Control is active")

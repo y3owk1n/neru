@@ -20,8 +20,8 @@ func generateCellsWithRegions(
 	// Clamp both dimensions into [1, Max]. Dimensions arrive as parameters, so
 	// a zero or negative count would otherwise reach the arithmetic below, and
 	// the constant bounds are what keep the cell count allocation-safe.
-	// Explicit comparisons, not min/max: static analysis follows this form when
-	// proving the allocation bound.
+	// Explicit comparisons rather than min/max, because static analysis follows
+	// this form when proving the allocation bound.
 	if gridCols < 1 {
 		gridCols = 1
 	}
@@ -38,7 +38,7 @@ func generateCellsWithRegions(
 		gridRows = MaxGridRows
 	}
 
-	// The loop's stop condition. A ceiling, not a count: how many cells the
+	// The loop's stop condition. A ceiling, not a count. How many cells the
 	// region walk produces depends on how regions tile the grid, so cells is
 	// grown by append rather than pre-sized.
 	cellCapacity := gridCols * gridRows
@@ -126,7 +126,7 @@ func regionPrefix(chars []rune, numChars, regionIndex, labelLength int) (rune, r
 }
 
 // cellCoordinate builds one cell's label. A two-key region uses its second key
-// as a row-major local-cell index; longer labels retain their column and row
+// as a row-major local-cell index. Longer labels keep their column and row
 // characters after the region prefix.
 func cellCoordinate(
 	labelLength int,
@@ -222,7 +222,7 @@ func fitToAvailableRegions(
 		canTrimRows := gridRows > MinGridRows
 
 		if !canTrimCols && !canTrimRows {
-			// Already at the floor; the caller's dimensions are the best
+			// Already at the floor. The caller's dimensions are the best
 			// available even if some cells go unlabeled.
 			break
 		}
@@ -246,7 +246,7 @@ func fitToAvailableRegions(
 // calculateLabelLength picks the label length from the cell count and the
 // characters available to build labels from.
 func calculateLabelLength(totalCells, numChars, numRowChars, numColChars int) int {
-	// If custom row/col labels are provided (numRowChars/numColChars != numChars), use more labels
+	// Custom row or column labels change how many cells each label length can name.
 	if numRowChars != numChars || numColChars != numChars {
 		max2Char := numChars * numColChars
 
@@ -260,7 +260,7 @@ func calculateLabelLength(totalCells, numChars, numRowChars, numColChars int) in
 			return LabelLength4
 		}
 	}
-	// Default logic when using characters for everything
+	// Without custom labels, every position draws from the same characters.
 	switch {
 	case totalCells <= numChars*numChars:
 		return LabelLength2

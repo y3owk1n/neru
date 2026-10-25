@@ -4,8 +4,8 @@ package config
 // the screen the hints search box is anchored to.
 //
 // This is the one declaration of that vocabulary. The seven strings were
-// written three times — the validator's accepted set, the message it refuses an
-// unknown value with, and the render layer's constants — and a spelling missed
+// written three times, in the validator's accepted set, the message it refuses
+// an unknown value with, and the render layer's constants. A spelling missed
 // in one of them is either a position that validates and then draws somewhere
 // else, or a message that lies about what is accepted. It lives here rather
 // than in the render package because the validator and the renderer both need
@@ -40,7 +40,7 @@ const (
 
 // SearchInputPositionDefault is the anchor a configuration that does not name
 // one is shipped with. Unlike `hints.ui.placement`, an unset value is refused
-// rather than settled — this is the default written into the defaults, not a
+// rather than settled. This is the default written into the defaults, not a
 // fallback the validator applies.
 const SearchInputPositionDefault = SearchInputPositionBottomCenter
 

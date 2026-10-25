@@ -151,8 +151,8 @@ const (
 	DefaultSmoothCursorRelativeMovementDuration = 50
 
 	// MinSmoothCursorAnimationDuration is the floor for every smooth cursor
-	// animation in ms — the animator raises shorter animations to it. It is
-	// also the smallest accepted relative_movement_duration: anything below
+	// animation in ms. The animator raises shorter animations to it. It is
+	// also the smallest accepted relative_movement_duration. Anything below
 	// would be silently rounded up rather than honored, so the validator
 	// rejects it.
 	MinSmoothCursorAnimationDuration = 10
@@ -314,7 +314,7 @@ func newDefaultConfig() *Config {
 	}
 }
 
-// defaultHooks sets no hook: nil steps run nothing.
+// defaultHooks sets no hook, and nil steps run nothing.
 func defaultHooks() HooksConfig {
 	return HooksConfig{
 		OnModeEnter:                 nil,
@@ -366,9 +366,9 @@ func defaultPrimaryModifier() PrimaryModifierConfig {
 }
 
 // DefaultCustomModeHotkeys is the table a declared mode's [modes.<name>.hotkeys]
-// merges over: Escape returns to idle, as it does in every built-in mode. A
+// merges over. Escape returns to idle, as it does in every built-in mode. A
 // mode declared with no table at all still gets it, so no declaration can be
-// entered and not left; `"Escape" = "__disabled__"` removes it on purpose.
+// entered and not left. `"Escape" = "__disabled__"` removes it on purpose.
 func DefaultCustomModeHotkeys() map[string]StringOrStringArray {
 	return map[string]StringOrStringArray{
 		KeyDisplayEscape: {CmdIdle},
@@ -523,7 +523,7 @@ func defaultGrid() GridConfig {
 		SublayerKeys:   domainGrid.DefaultCharacters,
 		MaxLabelLength: domainGrid.DefaultMaxLabelLength,
 
-		// Empty is the meaning, not a missing default: "" tells the grid to
+		// Empty is the meaning, not a missing default. "" tells the grid to
 		// infer its row and column labels from the characters it is drawn
 		// with, so shipping a value here would take that inference away
 		// from everyone who only sets characters.
@@ -566,8 +566,8 @@ func defaultGrid() GridConfig {
 }
 
 // defaultRegionGridUI is the appearance the recursive grid and bisect share by
-// default: one drawing, so one starting point, with each mode's section free
-// to depart from it.
+// default. They are one drawing, so they get one starting point, and each
+// mode's section is free to depart from it.
 func defaultRegionGridUI() RecursiveGridUI {
 	return RecursiveGridUI{
 		LineColor:                       Color{},
@@ -639,7 +639,7 @@ func defaultBisect() BisectConfig {
 			DurationMS: DefaultRecursiveGridAnimationDurationMS,
 		},
 		UI: defaultRegionGridUI(),
-		// AppConfigs ships empty: per-app overrides are the user's.
+		// AppConfigs ships empty, because per-app overrides are the user's.
 		AppConfigs: []AppConfig{},
 		Hotkeys: map[string]StringOrStringArray{
 			KeyDisplayEscape:    {CmdIdle},
@@ -721,14 +721,14 @@ const (
 )
 
 // defaultModeIndicatorMode is one mode's row of the indicator table. Enabled
-// and Text differ per mode; the three color overrides do not, and writing them
+// and Text differ per mode. The three color overrides do not, and writing them
 // once here is what keeps their default a stated one.
 func defaultModeIndicatorMode(enabled bool, text string) ModeIndicatorModeConfig {
 	return ModeIndicatorModeConfig{
 		Enabled: enabled,
 		Text:    text,
 
-		// Empty is the meaning, not a missing default: an unset per-mode color
+		// Empty is the meaning, not a missing default. An unset per-mode color
 		// inherits the matching [mode_indicator.ui] value, light and dark leg
 		// independently (Color.ForThemeWithOverride). Shipping a value here
 		// would take that inheritance away from everyone who only styles the
@@ -885,6 +885,6 @@ func defaultHeldRepeat() HeldRepeatConfig {
 
 func defaultSystray() SystrayConfig {
 	return SystrayConfig{
-		Enabled: true, // Enabled by default
+		Enabled: true,
 	}
 }

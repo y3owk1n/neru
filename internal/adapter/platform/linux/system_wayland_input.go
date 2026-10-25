@@ -67,7 +67,7 @@ func libeiButtonRelease(button int) error {
 // WarmWaylandInput pre-establishes the input backend at daemon startup. This
 // file routes input to one of two backends: the wlroots virtual-pointer and
 // virtual-keyboard protocols, or libei via the RemoteDesktop portal on KWin,
-// which does not implement them. Only input differs by compositor — screens
+// which does not implement them. Only input differs by compositor. Screens
 // and the overlay go through the wlroots client on both.
 //
 // On wlroots or X11 the warm-up is a cheap no-op. On KWin it triggers the
@@ -134,15 +134,15 @@ func waylandMoveCursorToPoint(point image.Point) error {
 }
 
 func waylandCursorPosition() (image.Point, error) {
-	// The cursor cache lives in the wlroots client for both backends; libei
-	// moves are mirrored into it by waylandMoveCursorToPoint.
+	// The cursor cache lives in the wlroots client for both backends.
+	// waylandMoveCursorToPoint mirrors libei moves into it.
 	return wlrootsCursorPosition()
 }
 
 // waylandRefreshCursorPosition re-learns the physical cursor position after
 // user-driven mouse movement the daemon cannot observe. The compositor's own
 // IPC is authoritative and cheap where it exists (Hyprland), so it is asked
-// first and mirrored into the wlroots cache; the layer-shell discovery pass
+// first and mirrored into the wlroots cache. The layer-shell discovery pass
 // stays as the fallback for compositors without such a query (#1279).
 func waylandRefreshCursorPosition(ctx context.Context) error {
 	if point, ok := waylandCompositorCursorPosition(ctx); ok {
@@ -150,7 +150,7 @@ func waylandRefreshCursorPosition(ctx context.Context) error {
 	}
 
 	// An IPC attempt that burned the whole deadline must not buy the discovery
-	// pass a second budget: this can run under the mode handler's lock, and the
+	// pass a second budget. This can run under the mode handler's lock, and the
 	// discovery wait is bounded internally, not by this context.
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -237,9 +237,9 @@ func waylandScroll(axis, delta, discrete int) error {
 // waylandScrollContinuous routes one sub-notch-capable scroll step through the
 // same backend choice as waylandScroll.
 //
-// Both backends carry a fraction of a notch without rounding it away — the
-// wlroots virtual pointer through an axis event with no discrete step count,
-// libei through ei_device_scroll_delta, which is pixel-precise by contract — so
+// Both backends carry a fraction of a notch without rounding it away. The
+// wlroots virtual pointer sends an axis event with no discrete step count, and
+// libei sends ei_device_scroll_delta, which is pixel-precise by contract. So
 // unlike the discrete path this one needs no per-backend fallback.
 func waylandScrollContinuous(axis int, delta float64) error {
 	hasVirtualPointer, err := wlrootsHasVirtualPointer()
@@ -256,10 +256,10 @@ func waylandScrollContinuous(axis int, delta float64) error {
 
 // waylandScrollBatch routes a batched scroll through the same backend choice as
 // waylandScroll. wlroots compositors flush every event in one wlrootsScrollBatch
-// call; KWin/KDE has no virtual pointer and libei has no batch API, so it emits
+// call. KWin/KDE has no virtual pointer and libei has no batch API, so it emits
 // one libeiScroll event per delta (mirroring the working single-event
-// WaylandScroll path). discretes is honored only on the wlroots path; libei
-// scrolls by continuous delta, not discrete steps.
+// WaylandScroll path). discretes is honored only on the wlroots path, because
+// libei scrolls by continuous delta, not discrete steps.
 func waylandScrollBatch(axis int, deltas, discretes []int) error {
 	hasVirtualPointer, err := wlrootsHasVirtualPointer()
 	if err != nil {
@@ -270,7 +270,7 @@ func waylandScrollBatch(axis int, deltas, discretes []int) error {
 		return wlrootsScrollBatch(axis, deltas, discretes)
 	}
 
-	// Attempt every delta even if one fails: a transient libei hiccup (device
+	// Attempt every delta even if one fails. A transient libei hiccup (device
 	// pause/resume) mid-batch would otherwise drop the remaining deltas and
 	// strand the user at a partial scroll position. The first error is still
 	// reported to the caller.

@@ -97,7 +97,6 @@ int NeruSetApplicationAttribute(int pid, const char *attribute, int value) {
 			return 0;
 		}
 
-		// Set the attribute value
 		CFBooleanRef boolValue = value ? kCFBooleanTrue : kCFBooleanFalse;
 		AXError error = AXUIElementSetAttributeValue(appRef, attrName, boolValue);
 

@@ -14,11 +14,11 @@ import (
 // configuration.
 //
 // Calls are checked at load rather than when a key is pressed because a
-// binding runs in the background: a mistyped macro name would otherwise
+// binding runs in the background, so a mistyped macro name would otherwise
 // produce nothing but a log line, with the key appearing to do nothing at all.
 //
 // Definitions before calls, so a call is checked against a table already known
-// to be sound: a call that names a macro whose own definition is malformed
+// to be sound. A call that names a macro whose own definition is malformed
 // should be told the definition is wrong, not that the arity does not match.
 func (c *Config) ValidateMacros() error {
 	// The [macros] table first.
@@ -72,16 +72,16 @@ func validateMacroDefinition(name string, steps []string) error {
 }
 
 // maxValidatedNesting bounds how deep validation follows a step into the
-// sequences it carries. It mirrors the runtime nesting limit; a sequence deeper
+// sequences it carries. It mirrors the runtime nesting limit. A sequence deeper
 // than this is refused when it runs, so there is nothing to check below it.
 const maxValidatedNesting = 5
 
 // validateMacroCall checks a single action string, and the steps it carries.
 //
-// A step is not always a leaf: "run" holds its own steps, and a mode command
+// A step is not always a leaf. "run" holds its own steps, and a mode command
 // holds the steps of its --on-exit. A macro invoked from either of those is
-// still a macro this configuration will run, so it is checked the same way —
-// otherwise the load-time guarantee would hold everywhere except the two
+// still a macro this configuration will run, so it is checked the same way.
+// Otherwise the load-time guarantee would hold everywhere except the two
 // places a sequence nests.
 func (c *Config) validateMacroCall(field, actionStr string) error {
 	return c.validateActionStep(field, actionStr, 0)
@@ -111,11 +111,11 @@ func (c *Config) validateActionStep(field, step string, depth int) error {
 		}
 	}
 
-	// A nested step is a step: it has to name a real command, exactly like one
-	// written directly in the binding. Reaching it only through this walk is
-	// why a step inside a run or an --on-exit went unchecked before. The
-	// declared mode a nested "mode <name>" enters is checked here for the
-	// same reason; a top-level one is checked by ValidateModeCommands.
+	// A nested step has to name a real command, exactly like one written
+	// directly in the binding. Reaching it only through this walk is why a
+	// step inside a run or an --on-exit went unchecked before. The declared
+	// mode a nested "mode <name>" enters is checked here for the same reason.
+	// ValidateModeCommands checks a top-level one.
 	if depth > 0 {
 		err := validateHotkeyActionString(step)
 		if err != nil {
@@ -233,7 +233,7 @@ func (c *Config) eachBindingAction(visit func(field, actionStr string) error) er
 		}
 	}
 
-	// The Mission Control hooks are action sequences like any binding — they
+	// The Mission Control hooks are action sequences like any binding. They
 	// are dispatched through the same executor when the transition fires, so a
 	// macro they name has to exist by the time it does.
 	hooks := []struct {

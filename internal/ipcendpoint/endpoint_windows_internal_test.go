@@ -69,7 +69,7 @@ func TestPipeSecurityDescriptor_GrantsOnlyTheNamedUser(t *testing.T) {
 // test dials, so that dial has something real on the other end to be checked.
 //
 // The listener is closed only once that accept has returned. go-winio's
-// listener cannot be closed while an accept is still setting up: a Close that
+// listener cannot be closed while an accept is still setting up. A Close that
 // lands between the accept's own closed check and its connect call hands the
 // accept an invalid-handle error instead of the closed one, the listener loops
 // back believing it is still open, and Close waits on it forever. Accepting in
@@ -92,7 +92,7 @@ func servePipe(t *testing.T, path string) {
 
 	t.Cleanup(func() {
 		// A test that never dialed leaves the accept pending on a connect
-		// issued long ago, which Close cancels cleanly; only a fresh accept
+		// issued long ago, which Close cancels cleanly. Only a fresh accept
 		// is unsafe, and nothing issues one here.
 		select {
 		case conn := <-accepted:

@@ -102,7 +102,7 @@ func TestOwnerFrom_ReadsOnlyTheExtensionsName(t *testing.T) {
 	}
 }
 
-// A bridge nobody has connected reports that, not an unfocused desktop: the
+// A bridge nobody has connected reports that, not an unfocused desktop. The
 // caller must be able to tell the two apart.
 func TestBridge_Focused_ReportsNotConnectedBeforeTheFirstAttempt(t *testing.T) {
 	bridge := newBridge(nil)

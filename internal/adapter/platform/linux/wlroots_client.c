@@ -25,7 +25,7 @@
 #include "wlr_protocol/xdg-shell.h"
 #include "wlroots_client.h"
 
-// Pointer listener callbacks — update cursor cache.
+// Pointer listener callbacks, which update the cursor cache.
 // Forward discovery-surface pointer events through the virtual pointer so the
 // underlying application still receives them instead of having them swallowed.
 static void neru_wlr_pointer_enter(
@@ -202,7 +202,7 @@ static const struct wl_pointer_listener neru_wlr_pointer_listener = {
 // ---------- Seat listener ----------
 
 // The relative pointer is what tracks physical mouse movement into the cursor
-// cache, and it is built on top of the wl_pointer — so it has to be rebuilt
+// cache, and it is built on top of the wl_pointer, so it has to be rebuilt
 // every time that is, not only at connect. A pointer that came back without one
 // would leave the cached cursor position silently frozen against the user's own
 // hand.
@@ -217,7 +217,7 @@ static void neru_wlr_bind_relative_pointer(NeruWlrootsClient *c) {
 // The seat tells us when a pointer exists, and only then may we ask for one.
 // Our own virtual pointer is enough to bring one into being, so a seat that
 // starts without one gains it as soon as neru_wlr_connect creates the virtual
-// pointer — which is why connect waits a roundtrip before using c->pointer.
+// pointer, which is why connect waits a roundtrip before using c->pointer.
 static void neru_wlr_seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
 	if (!c)
@@ -233,7 +233,7 @@ static void neru_wlr_seat_capabilities(void *data, struct wl_seat *seat, uint32_
 	// The event is level-triggered, so a seat that loses its pointer sends it
 	// again with the bit clear and the compositor treats the wl_pointer as
 	// gone. Holding on to it would turn the next use into a request on a dead
-	// object — a protocol error that kills the connection, which is the failure
+	// object, a protocol error that kills the connection, which is the failure
 	// this listener exists to avoid in the other direction.
 	if (!(capabilities & WL_SEAT_CAPABILITY_POINTER) && c->pointer) {
 		if (c->rel_ptr) {
@@ -408,7 +408,7 @@ static int neru_wlr_setup_virtual_keyboard(NeruWlrootsClient *c) {
 	// US pc105 layout is intentionally hardcoded:
 	// 1) Modifier index resolution (Shift/Ctrl/Alt/Logo) is layout-independent.
 	// 2) The keymap is sent to the compositor but Neru only uses it to inject
-	//    synthetic key events; actual key symbols are resolved via xkbcommon
+	//    synthetic key events. Actual key symbols are resolved via xkbcommon
 	//    in the overlay-keyboard path, so the virtual layout never appears
 	//    to the user.
 	struct xkb_rule_names names = {
@@ -494,12 +494,12 @@ static const struct zxdg_output_v1_listener neru_xdg_output_listener = {
 //
 // Wayland exposes no core protocol for "which application is focused". The
 // wlr-foreign-toplevel-management protocol (implemented by wlroots compositors
-// and KWin/KDE, but not Mutter/GNOME) fills the gap: the compositor streams a
+// and KWin/KDE, but not Mutter/GNOME) fills the gap. The compositor streams a
 // handle per toplevel window and marks exactly one with the ACTIVATED state.
 // We track every handle and cache the activated one's app_id, which Neru uses
 // as the focused application's bundle identifier for per-app configuration.
 //
-// All callbacks below run on the dispatch thread; they take toplevel_mutex to
+// All callbacks below run on the dispatch thread and take toplevel_mutex to
 // stay consistent with neru_wlr_focused_app_id, which reads under the same
 // lock from a Go goroutine.
 
@@ -553,7 +553,7 @@ static void neru_wlr_free_toplevel(NeruToplevel *t) {
 }
 
 // Recompute the cached focused app_id and title from the committed per-toplevel
-// state. The last activated toplevel carrying a non-empty app_id wins; if none
+// state. The last activated toplevel carrying a non-empty app_id wins. If none
 // is activated the cache is cleared. Callers must hold toplevel_mutex.
 static void neru_wlr_recompute_focused(NeruWlrootsClient *c) {
 	// Snapshot the previous focused app_id so we only wake the Go watcher when
@@ -582,9 +582,9 @@ static void neru_wlr_recompute_focused(NeruWlrootsClient *c) {
 	}
 
 	// Push a focus-change notification to Go. The write is non-blocking, so a
-	// full pipe (a byte still unread) simply drops this one via EAGAIN — the
+	// full pipe (a byte still unread) simply drops this one via EAGAIN. The
 	// reader re-queries the live focused_app_id on the next wake regardless, so
-	// no state is lost. Runs under toplevel_mutex; a non-blocking write never
+	// no state is lost. Runs under toplevel_mutex, where a non-blocking write never
 	// stalls the dispatch thread.
 	if (c->focus_pipe_ready && strcmp(prev, c->focused_app_id) != 0) {
 		char b = 1;
@@ -723,7 +723,7 @@ static void neru_wlr_manager_toplevel(
 
 	NeruToplevel *node = calloc(1, sizeof(*node));
 	if (!node) {
-		// Out of memory — drop tracking for this window rather than leak the
+		// Out of memory. Drop tracking for this window rather than leak the
 		// handle. Losing one window's focus signal is preferable to a crash.
 		zwlr_foreign_toplevel_handle_v1_destroy(handle);
 		return;
@@ -745,10 +745,10 @@ static void neru_wlr_manager_finished(void *data, struct zwlr_foreign_toplevel_m
 
 	// The compositor has invalidated the manager, so every tracked handle and
 	// the cached focus are now stale. Release each handle proxy (its own
-	// `destroy` request — `finished` invalidates only the manager, not the
+	// `destroy` request, since `finished` invalidates only the manager, not the
 	// handles) and free the nodes so nothing leaks and focused-app queries stop
 	// returning a dead window's app_id. Runs on the dispatch thread, serialized
-	// with the handle callbacks; once destroyed a proxy dispatches no further
+	// with the handle callbacks. Once destroyed a proxy dispatches no further
 	// events, so a late `closed` is a safe no-op.
 	neru_wlr_toplevel_lock(c);
 	NeruToplevel *t;
@@ -762,9 +762,9 @@ static void neru_wlr_manager_finished(void *data, struct zwlr_foreign_toplevel_m
 	c->focused_has_geometry = 0;
 	neru_wlr_toplevel_unlock(c);
 
-	// Do not destroy the manager proxy here: the server destroys it right after
+	// Do not destroy the manager proxy here. The server destroys it right after
 	// `finished`, so sending its `stop` destructor request would target a dead
-	// object. Just drop our reference; wl_display_disconnect reaps the proxy.
+	// object. Just drop our reference, and wl_display_disconnect reaps the proxy.
 	c->toplevel_mgr = NULL;
 }
 
@@ -786,7 +786,7 @@ static const struct zwlr_foreign_toplevel_manager_v1_listener neru_wlr_manager_l
 // Commits: the ext handle's `done` commits that window's app_id, title,
 // geometry and activation. Activation is exclusive, and a focus change sends
 // `state` to the window losing it and the one gaining it in either order, so
-// committing an activation clears every other window's: whichever `done`
+// committing an activation clears every other window's, so whichever `done`
 // comes second, at most one window reads as active. The info global's own
 // `done` (v2), the protocol's atomicity point across windows, commits every
 // pending state again once the batch has settled.
@@ -889,7 +889,7 @@ static const struct ext_foreign_toplevel_handle_v1_listener neru_wlr_ext_topleve
 };
 
 // The v1 handle events (closed, done, title, app_id) are deprecated since v2,
-// which is the minimum Neru binds, so they never arrive: the ext handle owns
+// which is the minimum Neru binds, so they never arrive. The ext handle owns
 // identity and lifetime.
 static void neru_wlr_cosmic_toplevel_closed(void *data, struct zcosmic_toplevel_handle_v1 *handle) {
 	(void)data;
@@ -1089,7 +1089,7 @@ static void neru_wlr_cosmic_info_finished(void *data, struct zcosmic_toplevel_in
 	(void)info;
 }
 
-// `done` closes a batch of cosmic handle events across every window: commit
+// `done` closes a batch of cosmic handle events across every window. Commit
 // whatever is still pending, including geometry that arrived without an ext
 // `done` beside it.
 static void neru_wlr_cosmic_info_done(void *data, struct zcosmic_toplevel_info_v1 *info) {
@@ -1117,7 +1117,7 @@ static const struct zcosmic_toplevel_info_v1_listener neru_wlr_cosmic_info_liste
 
 // neru_wlr_screen_signal pushes a display-configuration-change notification to
 // Go. The write is non-blocking, so a full pipe (a byte still unread) drops this
-// one via EAGAIN — the reader re-enumerates the live screen list on the next
+// one via EAGAIN. The reader re-enumerates the live screen list on the next
 // wake regardless, so no state is lost.
 static void neru_wlr_screen_signal(NeruWlrootsClient *c) {
 	if (c && c->screen_pipe_ready && c->screen_pipe[1] >= 0) {
@@ -1127,12 +1127,12 @@ static void neru_wlr_screen_signal(NeruWlrootsClient *c) {
 	}
 }
 
-// wl_output listener for the system client. Only `done` is meaningful: the
-// compositor sends it after a batch of output property changes — including,
+// wl_output listener for the system client. Only `done` is meaningful, because
+// the compositor sends it after a batch of output property changes, including,
 // per xdg-output v3, *after* the xdg_output logical geometry events. Signalling
 // Go here (rather than from registry_global on bind) means a hotplugged output
-// is re-enumerated once its geometry has actually arrived, not with zero bounds;
-// it also fires on resolution/scale changes to an existing output. user_data is
+// is re-enumerated once its geometry has actually arrived, not with zero bounds.
+// It also fires on resolution/scale changes to an existing output. user_data is
 // the stable client pointer, so array compaction never invalidates it.
 static void neru_wlr_output_geometry(
     void *data, struct wl_output *output, int32_t x, int32_t y, int32_t phys_w, int32_t phys_h, int32_t subpixel,
@@ -1145,7 +1145,7 @@ static void neru_wlr_output_scale(void *data, struct wl_output *output, int32_t 
 
 static void neru_wlr_output_done(void *data, struct wl_output *output) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	// Skip the initial discovery burst (connected == 0); that enumeration is
+	// Skip the initial discovery burst (connected == 0). That enumeration is
 	// read synchronously by ensureWlrootsState. Only runtime changes wake Go.
 	if (c && c->connected) {
 		neru_wlr_screen_signal(c);
@@ -1177,11 +1177,11 @@ static void neru_wlr_registry_global(
 		c->rel_ptr_mgr = wl_registry_bind(registry, name, &zwp_relative_pointer_manager_v1_interface, 1);
 	} else if (strcmp(interface, "wl_seat") == 0) {
 		c->seat = wl_registry_bind(registry, name, &wl_seat_interface, 7 < version ? 7 : version);
-		// The pointer is taken from the capabilities event rather than here:
-		// wl_seat.get_pointer on a seat that has never advertised a pointer is
-		// a protocol error, and it kills the whole connection.  A seat with no
-		// pointer yet is not hypothetical — a session with no input device
-		// attached is one, and so is the headless compositor CI runs.
+		// The pointer is taken from the capabilities event rather than here,
+		// because wl_seat.get_pointer on a seat that has never advertised a
+		// pointer is a protocol error, and it kills the whole connection. A
+		// seat with no pointer yet is not hypothetical. A session with no input
+		// device attached is one, and so is the headless compositor CI runs.
 		wl_seat_add_listener(c->seat, &neru_wlr_seat_listener, c);
 	} else if (strcmp(interface, "wl_output") == 0) {
 		if (c->nr_screens < NERU_MAX_OUTPUTS) {
@@ -1190,7 +1190,7 @@ static void neru_wlr_registry_global(
 			scr->registry_name = name;
 			scr->wl_output = wl_registry_bind(registry, name, &wl_output_interface, 3 < version ? 3 : version);
 			// wl_output.done wakes Go once the output's geometry is current (both
-			// on hotplug and on later resolution/scale changes) — see the listener.
+			// on hotplug and on later resolution/scale changes). See the listener.
 			wl_output_add_listener(scr->wl_output, &neru_wlr_output_listener, c);
 			// On runtime hotplug (after the initial connect) wire the new output's
 			// xdg_output immediately so its logical geometry populates. During the
@@ -1211,7 +1211,7 @@ static void neru_wlr_registry_global(
 		    wl_registry_bind(registry, name, &zwlr_foreign_toplevel_manager_v1_interface, 3 < version ? 3 : version);
 		// The listener goes on before this handler returns. Binding makes the
 		// compositor replay a `toplevel` event for every existing window, and
-		// those arrive with the next roundtrip; a listener attached after it
+		// those arrive with the next roundtrip, and a listener attached after it
 		// would miss every window already open, and the focus changes between
 		// them for the rest of the session (only windows opened later would be
 		// tracked at all).
@@ -1257,7 +1257,7 @@ static void neru_wlr_registry_global_remove(void *data, struct wl_registry *regi
 		for (int j = i; j < c->nr_screens - 1; j++) {
 			c->screens[j] = c->screens[j + 1];
 			// The moved screen's xdg_output listener still carries the old slot
-			// address as user_data; re-point it to the new slot so later
+			// address as user_data. Re-point it to the new slot so later
 			// logical_position/size/name events update the correct output rather
 			// than a neighbor's (or the freed tail) slot.
 			if (c->screens[j].xdg_output) {
@@ -1305,7 +1305,7 @@ static void *neru_wlr_dispatch_loop(void *arg) {
 		if (pfd.revents & (POLLERR | POLLHUP)) {
 			// Compositor connection broken (e.g. compositor killed).
 			// Cancel the prepared read and exit the loop cleanly.
-			// Do NOT clear dispatch_running — neru_wlr_disconnect
+			// Do NOT clear dispatch_running, because neru_wlr_disconnect
 			// still needs to pthread_join this thread.
 			wl_display_cancel_read(c->display);
 			pthread_mutex_unlock(&c->display_mutex);
@@ -1329,8 +1329,8 @@ static void *neru_wlr_dispatch_loop(void *arg) {
 	// via dispatch_running == 0), close the focus pipe's write end so the Go
 	// reader observes POLLHUP and restores its polling fallback rather than
 	// silently degrading to the safety-sample interval. Set to -1 so
-	// neru_wlr_disconnect's later close is a no-op. Safe without extra locking:
-	// this thread is the only pipe writer and has stopped dispatching by here.
+	// neru_wlr_disconnect's later close is a no-op. Safe without extra locking.
+	// This thread is the only pipe writer and has stopped dispatching by here.
 	if (connection_lost && c->focus_pipe[1] >= 0) {
 		close(c->focus_pipe[1]);
 		c->focus_pipe[1] = -1;
@@ -1367,7 +1367,7 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 		return NULL;
 	}
 
-	// Guards the foreign-toplevel bookkeeping; must be ready before the
+	// Guards the foreign-toplevel bookkeeping, and must be ready before the
 	// manager listener starts delivering toplevel/handle events below. The
 	// list head must be initialized before any toplevel event can insert.
 	wl_list_init(&c->toplevels);
@@ -1378,8 +1378,8 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 	// foreign-toplevel listener is bound below so the initial focus burst during
 	// the discovery roundtrip is signaled too. calloc zeroed focus_pipe, but 0
 	// is a valid fd, so reset to -1 before pipe() so cleanup can tell "unset"
-	// from "fd 0". A failure here is non-fatal: focus_pipe_ready stays 0 and Go
-	// falls back to polling.
+	// from "fd 0". A failure here is non-fatal, because focus_pipe_ready stays 0
+	// and Go falls back to polling.
 	c->focus_pipe[0] = -1;
 	c->focus_pipe[1] = -1;
 	if (pipe(c->focus_pipe) == 0) {
@@ -1428,18 +1428,18 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 		neru_wlr_setup_virtual_keyboard(c);
 	}
 
-	// Let the seat answer before anything reads c->pointer: the pointer is
-	// taken from the capabilities event, and on a seat that had none the
+	// Let the seat answer before anything reads c->pointer, because the pointer
+	// is taken from the capabilities event, and on a seat that had none the
 	// virtual pointer created just above is what brings it into existence.
 	wl_display_roundtrip(c->display);
 
 	// Create relative pointer for tracking physical cursor motion. The seat
-	// handler usually got here first — the roundtrip above is what lets it —
+	// handler usually got here first, since the roundtrip above is what lets it,
 	// and this is the case where the manager arrived after the capability.
 	neru_wlr_bind_relative_pointer(c);
 
 	// The manager's listener was attached at bind time. Binding makes the
-	// compositor replay a `toplevel` event for every existing window; a
+	// compositor replay a `toplevel` event for every existing window, and a
 	// roundtrip drains that initial burst (plus each handle's app_id/state/
 	// done) so the focused app_id is populated before the daemon needs it.
 	if (c->toplevel_mgr) {
@@ -1472,7 +1472,7 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 		    wl_registry_bind(c->registry, c->ext_toplevel_list_name, &ext_foreign_toplevel_list_v1_interface, 1);
 		ext_foreign_toplevel_list_v1_add_listener(c->ext_toplevel_list, &neru_wlr_ext_list_listener, c);
 		// First roundtrip replays every toplevel and requests its cosmic
-		// extension; the second drains the state and geometry those requests
+		// extension, and the second drains the state and geometry those requests
 		// produce, so focus is resolved before the daemon needs it.
 		wl_display_roundtrip(c->display);
 		wl_display_roundtrip(c->display);
@@ -1742,7 +1742,7 @@ int neru_wlr_move_relative(NeruWlrootsClient *c, int dx, int dy) {
 	wl_display_flush(c->display);
 	pthread_mutex_unlock(&c->display_mutex);
 
-	// Update cache synchronously — relative-motion events from the compositor
+	// Update cache synchronously. Relative-motion events from the compositor
 	// never reach us because this client never owns pointer focus (all our
 	// surfaces have empty input regions after init). Without this, every
 	// MoveCursorBy call drifts the cache further from the real cursor.
@@ -1805,16 +1805,16 @@ int neru_wlr_scroll_continuous(NeruWlrootsClient *c, int axis, double value) {
 		return 0;
 
 	pthread_mutex_lock(&c->display_mutex);
-	// Source "continuous" rather than "wheel": a wheel source tells the client
+	// Source "continuous" rather than "wheel". A wheel source tells the client
 	// the value came off a detented device, and a toolkit is entitled to round
-	// it back to detents on that word alone.  What this sends is a distance in
+	// it back to detents on that word alone. What this sends is a distance in
 	// a continuous space, which is what the enum's continuous member means, and
 	// unlike "finger" it implies no kinetic scrolling and needs no axis_stop.
 	zwlr_virtual_pointer_v1_axis_source(c->vptr, WL_POINTER_AXIS_SOURCE_CONTINUOUS);
-	// axis rather than axis_discrete: wlroots leaves delta_discrete at zero for
-	// this request, and a zero delta_discrete is what makes the compositor send
-	// the fraction on to the client instead of holding it in a v120 accumulator
-	// until a whole notch adds up.
+	// axis rather than axis_discrete, because wlroots leaves delta_discrete at
+	// zero for this request, and a zero delta_discrete is what makes the
+	// compositor send the fraction on to the client instead of holding it in a
+	// v120 accumulator until a whole notch adds up.
 	zwlr_virtual_pointer_v1_axis(c->vptr, 0, (uint32_t)axis, wl_fixed_from_double(value));
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
@@ -1832,10 +1832,10 @@ int neru_wlr_scroll_batch(NeruWlrootsClient *c, int axis, int *deltas, int *disc
 		zwlr_virtual_pointer_v1_axis_discrete(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(deltas[i]), discretes[i]);
 		zwlr_virtual_pointer_v1_frame(c->vptr);
 	}
-	// Ignore flush return value — the events are queued in the client
-	// output buffer and will be flushed by the dispatch loop.  Returning 0
-	// on EAGAIN (transient buffer-full) is worse than ignoring it:
-	// it would cause the entire batch to be reported as failed even though
+	// Ignore the flush return value. The events are queued in the client
+	// output buffer and will be flushed by the dispatch loop. Returning 0
+	// on EAGAIN (transient buffer-full) is worse than ignoring it,
+	// because it would cause the entire batch to be reported as failed even though
 	// delivery is guaranteed.
 	wl_display_flush(c->display);
 	pthread_mutex_unlock(&c->display_mutex);
@@ -1889,7 +1889,7 @@ static void neru_wlr_sync_done(void *data, struct wl_callback *cb, uint32_t seri
 	(void)serial;
 	NeruWlrootsSyncRequest *req = (NeruWlrootsSyncRequest *)data;
 	// Callbacks are answered in issue order, so storing rather than maxing is
-	// monotonic: id here is always at least the one stored before it.
+	// monotonic, because id here is always at least the one stored before it.
 	atomic_store(&req->client->sync_completed, req->id);
 	wl_callback_destroy(cb);
 	free(req);
@@ -1911,7 +1911,7 @@ int neru_wlr_sync(NeruWlrootsClient *c, int timeout_ms) {
 	// With no dispatch thread running, nothing would ever read the answer, so
 	// the waiter has to do the reading itself. This is the same split
 	// neru_wlr_refresh_cursor makes: roundtrip when this thread owns the
-	// display, poll an atomic when the dispatch thread does — calling
+	// display, poll an atomic when the dispatch thread does. Calling
 	// wl_display_roundtrip while that thread sits in wl_display_prepare_read is
 	// what the split exists to avoid.
 	if (!atomic_load(&c->dispatch_running)) {
@@ -1925,7 +1925,7 @@ int neru_wlr_sync(NeruWlrootsClient *c, int timeout_ms) {
 	if (!req)
 		return 0;
 
-	// want is read here and never again: the moment the mutex is dropped the
+	// want is read here and never again. The moment the mutex is dropped the
 	// dispatch thread may answer this sync, and the callback frees req.
 	pthread_mutex_lock(&c->display_mutex);
 	req->client = c;
@@ -1976,7 +1976,7 @@ int neru_wlr_screen_count(NeruWlrootsClient *c) {
 		return 0;
 
 	// The dispatch thread mutates nr_screens/screens[] (registry add/remove and
-	// xdg_output geometry callbacks) while holding display_mutex — it runs the
+	// xdg_output geometry callbacks) while holding display_mutex, because it runs the
 	// wayland callbacks inside wl_display_dispatch_pending under that lock. Take
 	// the same lock here so a hotplug re-enumeration from Go never reads a torn
 	// count. The critical section touches no wayland call, so it cannot deadlock
@@ -2080,7 +2080,7 @@ int neru_wlr_focused_app_identity(NeruWlrootsClient *c, char *app_out, int app_l
 
 	int ok = 0;
 	// Read app_id and title under a single lock so they always describe the same
-	// toplevel; a focus commit cannot interleave between them.
+	// toplevel, so a focus commit cannot interleave between them.
 	neru_wlr_toplevel_lock(c);
 	if (c->focused_app_id[0] != '\0') {
 		strncpy(app_out, c->focused_app_id, (size_t)(app_len - 1));

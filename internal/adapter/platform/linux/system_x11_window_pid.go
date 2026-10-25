@@ -9,13 +9,13 @@ import (
 )
 
 // x11WindowPIDResult names the answers reading _NET_WM_PID off the focused
-// window can give. It mirrors NeruX11WindowPIDResult in x11_system.h; the
+// window can give. It mirrors NeruX11WindowPIDResult in x11_system.h. The
 // translation between the two is the switch in x11WindowPIDQuery
 // (system_x11_cgo.go), which maps each C constant by name, so the numbering here
 // is this package's own and need not match the header's.
 //
 // It is the same split x11ActiveWindowResult makes one property up, for the same
-// reason: a window that is alive and advertises no pid answered the question,
+// reason. A window that is alive and advertises no pid answered the question,
 // and callers degrade through it, while a window that closed under the query is
 // a failure they surface.
 type x11WindowPIDResult int
@@ -25,11 +25,11 @@ const (
 	x11WindowPIDFound x11WindowPIDResult = iota
 	// x11WindowPIDAbsent means the read succeeded and the window sets no
 	// _NET_WM_PID. EWMH makes the property a convention rather than a
-	// requirement — older toolkits omit it, and a client on another machine
-	// has no pid this one could use — so this is an ordinary answer about a
-	// perfectly healthy window.
+	// requirement. Older toolkits omit it, and a client on another machine
+	// has no pid this one could use, so this is an ordinary answer about a
+	// healthy window.
 	x11WindowPIDAbsent
-	// x11WindowPIDWindowGone means the request drew a protocol error: the
+	// x11WindowPIDWindowGone means the request drew a protocol error. The
 	// window id _NET_ACTIVE_WINDOW named has closed since it was read.
 	x11WindowPIDWindowGone
 	// x11WindowPIDQueryFailed means XGetWindowProperty itself failed.
@@ -41,7 +41,7 @@ const (
 
 // errNoWindowPID is the cause the "a window has focus, and it publishes no pid"
 // error wraps. It is errNoFocusedWindow's sibling and deliberately not the same
-// sentinel: both are queries that worked and answered no, but the fix differs,
+// sentinel. Both are queries that worked and answered no, but the fix differs,
 // and the sentence errNoFocusedWindow buys ("answers as soon as a window takes
 // focus") would be false about a session where a window is focused already.
 var errNoWindowPID = errors.New("the focused window publishes no pid")

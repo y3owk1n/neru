@@ -16,7 +16,7 @@ import (
 //
 // A depth change zooms the cells from where the last depth left them to where
 // the new depth puts them, on the curve the Linux Cairo path and CoreAnimation
-// use (render/motion). A goroutine paces the frames; each one takes the
+// use (render/motion). A goroutine paces the frames. Each one takes the
 // manager's renderMu the way the mouse-action indicator's does, queues the
 // interpolated cells and hands them to the overlay UI thread through Flush, so
 // the painting and presenting stay on that thread and a frame the thread has
@@ -70,7 +70,7 @@ func (o *winOverlay) runTransition(ctx context.Context, plan transitionPlan, don
 		rawProgress := min(float64(time.Since(startTime))/float64(plan.duration), 1)
 
 		// The draw that canceled this transition may have been waiting for
-		// the lock this frame now holds; its cancel is the last word.
+		// the lock this frame now holds, and its cancel wins.
 		select {
 		case <-ctx.Done():
 			o.renderMu.Unlock()
@@ -88,7 +88,7 @@ func (o *winOverlay) runTransition(ctx context.Context, plan transitionPlan, don
 			o.animPointer = pointer.Position
 			o.animSettled = rawProgress >= 1
 			// The frame a transition settles on is drawn at the size that fits
-			// it; every frame before it holds the one that fits both ends.
+			// it. Every frame before it holds the one that fits both ends.
 			sizes := plan.held
 			if o.animSettled {
 				sizes = plan.settled
@@ -125,7 +125,7 @@ func (o *winOverlay) runTransition(ctx context.Context, plan transitionPlan, don
 }
 
 // cancelTransition stops a running transition without waiting for its
-// goroutine: the goroutine re-checks the cancel under renderMu before it
+// goroutine. The goroutine re-checks the cancel under renderMu before it
 // paints, so a caller holding the lock has the last frame it will see on
 // screen. Every draw that repaints this surface calls it first.
 func (o *winOverlay) cancelTransition() {
@@ -140,7 +140,7 @@ func (o *winOverlay) cancelTransition() {
 
 // forgetTransition cancels a running transition and forgets the depth the
 // surface last drew, so the next recursive-grid frame draws in place rather
-// than zooming out of bounds that are gone: a cleared surface, a resized
+// than zooming out of bounds that are gone. A cleared surface, a resized
 // window and every other mode's draw all end here.
 func (o *winOverlay) forgetTransition() {
 	if o == nil {

@@ -53,7 +53,7 @@ func TestPhysicalLift_Release_WaitsForTheDragThatEndedUnderAScroll(t *testing.T)
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Cleanup(func() { globalWlrootsPointerState.Clear(action.ButtonLeft) })
 
-			// The proxy is stood in for: what is under test is who restores.
+			// The proxy is stubbed, since what is under test is who restores.
 			restores := 0
 			lift := &physicalLift{
 				liftHeld:    func() (bool, error) { return true, nil },

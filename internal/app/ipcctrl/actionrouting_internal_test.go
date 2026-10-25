@@ -13,13 +13,13 @@ import (
 	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
-// handleAction is the whole of `neru action ...`: it decides which of two dozen
+// handleAction is the whole of `neru action ...`. It decides which of two dozen
 // handlers a request reaches, and the order of its checks is load-bearing. A
 // missing service is reported before a missing flag, for instance, so
 // move_mouse_relative with no --dy says the service is unavailable rather than
 // naming the flag.
 //
-// These cases pin the routing rather than the work: with no services wired, each
+// These cases pin the routing rather than the work. With no services wired, each
 // request travels as far as the branch that reports what it needs, and that
 // report identifies the branch. Reordering the checks changes these answers.
 //
@@ -328,8 +328,9 @@ func servedHandler() *ActionsHandler {
 
 // The cases above run with no services wired, so each request travels only as
 // far as the branch that reports what it needs. That pins the routing but never
-// reaches a success path — and the success paths carry rules of their own: which
-// name the reply quotes, and whether a landed move clears the selection point.
+// reaches a success path, and the success paths carry rules of their own. They
+// decide which name the reply quotes, and whether a landed move clears the
+// selection point.
 //
 // These cases wire a real ActionService over mocked ports so those paths run.
 func TestHandleAction_SucceedingMoveReportsTheRequestedName(t *testing.T) {
@@ -373,7 +374,7 @@ func TestHandleAction_SucceedingMoveReportsTheRequestedName(t *testing.T) {
 }
 
 // TestHandleAction_MissingServiceIsReportedBeforeAMissingFlag pins the order of the two
-// checks. move_mouse_relative needs both a service and its --dx/--dy; a user
+// checks. move_mouse_relative needs both a service and its --dx/--dy. A user
 // with neither is told about the service, because that is the one they cannot
 // fix by retyping the command.
 func TestHandleAction_MissingServiceIsReportedBeforeAMissingFlag(t *testing.T) {

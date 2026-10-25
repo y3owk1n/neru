@@ -1,31 +1,31 @@
 # AGENTS.md — Neru Agent Guide
 
-This file is the shared source of truth for any AI agent working on this repo (Claude Code, Codex, Copilot, Cursor, etc.). `CLAUDE.md` is a symlink to this file — edit here, never the symlink. Area-specific contracts live in nested `AGENTS.md` files — read the nearest one (and its parents) before editing there: `internal/app/modes/`, `internal/config/`, `internal/adapter/overlay/`, `internal/adapter/platform/` and its `darwin/` and `linux/` subdirectories. Personal overrides go in gitignored `AGENTS.local.md` / `CLAUDE.local.md`.
+This file is the shared source of truth for any AI agent working on this repo (Claude Code, Codex, Copilot, Cursor, etc.). `CLAUDE.md` is a symlink to this file, so edit here, never the symlink. Area-specific contracts live in nested `AGENTS.md` files. Read the nearest one (and its parents) before editing there: `internal/app/modes/`, `internal/config/`, `internal/adapter/overlay/`, `internal/adapter/platform/` and its `darwin/` and `linux/` subdirectories. Personal overrides go in gitignored `AGENTS.local.md` / `CLAUDE.local.md`.
 
-Neru is a keyboard-driven, mouse-free navigation tool (hints / grid / recursive grid / scroll modes) written in Go, with native bridges per platform (Objective-C on macOS, X11/Wayland/evdev on Linux, Win32 on Windows). macOS is the primary platform; Linux and Windows are partially supported.
+Neru is a keyboard-driven, mouse-free navigation tool (hints / grid / recursive grid / scroll modes) written in Go, with native bridges per platform (Objective-C on macOS, X11/Wayland/evdev on Linux, Win32 on Windows). macOS is the primary platform. Linux and Windows are partially supported.
 
 ## Product Direction
 
-Neru is a free, open-source mouse replacement: every pointer action reachable from the keyboard, instantly. Judge features and fixes against these properties (current intent: `docs/project/roadmap.md`):
+Neru is a free, open-source mouse replacement that makes every pointer action reachable from the keyboard, instantly. Judge features and fixes against these properties (current intent: `docs/project/roadmap.md`):
 
-- **Latency is the product.** The event tap sits on every keystroke; a correct feature that makes activation or key handling feel slower is a regression.
-- **Good defaults over per-app hacks.** No hardcoded per-application workarounds — the answer to "app X doesn't work" is better defaults plus user-configurable roles/filters.
-- **Grid modes stay accessibility-independent.** They exist precisely because accessibility trees are unreliable; never make them depend on element detection.
-- **Privacy is absolute.** Neru observes every keystroke and on-screen element. No telemetry, no accounts; nothing logged beyond what Conventions allows.
+- **Latency is the product.** The event tap sees every keystroke. A correct feature that makes activation or key handling feel slower is a regression.
+- **Good defaults over per-app hacks.** No hardcoded per-application workarounds. The answer to "app X doesn't work" is better defaults plus user-configurable roles/filters.
+- **Grid modes stay accessibility-independent.** They exist because accessibility trees are unreliable, so never make them depend on element detection.
+- **Privacy is absolute.** Neru observes every keystroke and on-screen element. No telemetry, no accounts, and nothing logged beyond what Conventions allows.
 - **Config is the interface, but every option is a cost.** A new option passes only when no single default is right for everyone. Prefer fixing the default.
 - **Reliability beats features.** Startup, reload, and mode transitions failing loudly and recovering cleanly outranks any new capability.
 
-When a feature doesn't clearly fit, park it in a GitHub Discussion instead of implementing — narrowing scope is a maintainer decision.
+When a feature doesn't clearly fit, park it in a GitHub Discussion instead of implementing it. Narrowing scope is a maintainer decision.
 
 ## Domain Concepts
 
-- **Mode**: navigation context (hints, grid, recursive_grid, scroll, monitor_select; idle when none is active)
+- **Mode**: navigation context (hints, grid, recursive_grid, scroll, monitor_select, or idle when none is active)
 - **Port / Adapter**: interface in `internal/ports` / its implementation in `internal/adapter`
-- **Semantic role**: platform-neutral role name in `hints.clickable_roles` (`button`, `text_field`), resolved to native vocabulary (AX / AT-SPI / UIA) at config load; native roles use prefixes (`ax:`, `atspi:`, `uia:`). See `internal/domain/element/vocabulary.go`
+- **Semantic role**: platform-neutral role name in `hints.clickable_roles` (`button`, `text_field`), resolved to native vocabulary (AX / AT-SPI / UIA) at config load. Native roles use prefixes (`ax:`, `atspi:`, `uia:`). See `internal/domain/element/vocabulary.go`
 
 ## Commands
 
-Everything goes through `just` (`just --list` for the full set); `oku sync && oku allow` provides the toolchain.
+Everything goes through `just` (`just --list` shows the full set). `oku sync && oku allow` provides the toolchain.
 
 ```bash
 just build              # dev build -> bin/neru; no `just run` — build then ./bin/neru launch
@@ -39,13 +39,13 @@ just genflagref         # mode-flag reference in docs/reference/cli.md via ./cmd
 just gensupportref      # platform-support table in docs/reference/platform-support.md via ./cmd/gensupportref
 ```
 
-Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — the same recipes CI gates on, on your host only (adds `vet`, `test-foundation`, `check-cross`, `vuln`, and a **unit-only** `-race` pass; integration under `-race` is `just test-all`, and CI itself runs the whole set on macOS, Linux and Windows). `check-cross` is the only step that looks at the other two targets; `docs/contributing/development.md` states what it covers and what it does not.
+Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing, run `just ci`. It runs the same recipes CI gates on, on your host only, and adds `vet`, `test-foundation`, `check-cross`, `vuln`, and a **unit-only** `-race` pass. Integration under `-race` is `just test-all`, and CI itself runs the whole set on macOS, Linux and Windows. `check-cross` is the only step that looks at the other two targets. `docs/contributing/development.md` states what it covers and what it does not.
 
-Single test: `go test -run TestScrollMode_HandleKey_DoesNothing ./internal/app/modes/`; integration tests need `-tags=integration`.
+Single test: `go test -run TestScrollMode_HandleKey_DoesNothing ./internal/app/modes/`. Integration tests need `-tags=integration`.
 
 ## Architecture
 
-Hexagonal (ports and adapters). Domain and application logic are pure Go; every OS capability is an interface in `internal/ports` implemented by an adapter in `internal/adapter`.
+Hexagonal (ports and adapters). Domain and application logic are pure Go. Every OS capability is an interface in `internal/ports` implemented by an adapter in `internal/adapter`.
 
 ```
 client              public Go client for the IPC protocol, importable by other programs
@@ -64,33 +64,33 @@ internal/architecture   guardrail tests for package boundaries
 
 Hard rules that apply everywhere:
 
-- **The One Rule**: non-darwin-tagged code must never import `internal/adapter/platform/darwin`. Enforced by `depguard` and `internal/architecture/dependency_boundary_test.go`. Details and platform file slots: `internal/adapter/platform/AGENTS.md`.
-- **Coordinates**: all shared code uses global top-left origin, Y down, unscaled pixels; Cocoa's bottom-left flip stays inside the darwin adapter and never reaches shared Go. Detail, including where a flip does *not* live: `docs/contributing/architecture.md` (Coordinate System).
-- **Errors**: use `derrors` (`derrors.New` / `derrors.Wrap`). Unsupported platform behavior returns `derrors.CodeNotSupported` explicitly — never a silent no-op; callers degrade via `IsNotSupported`.
-- **`modes.Handler` has a strict locking contract** — read `internal/app/modes/AGENTS.md` before touching modes or anything that calls back into the handler.
+- **The One Rule**: non-darwin-tagged code must never import `internal/adapter/platform/darwin`. `depguard` and `internal/architecture/dependency_boundary_test.go` enforce it. Details and platform file slots: `internal/adapter/platform/AGENTS.md`.
+- **Coordinates**: all shared code uses global top-left origin, Y down, unscaled pixels. Cocoa's bottom-left flip stays inside the darwin adapter and never reaches shared Go. Detail, including where a flip does *not* live: `docs/contributing/architecture.md` (Coordinate System).
+- **Errors**: use `derrors` (`derrors.New` / `derrors.Wrap`). Unsupported platform behavior returns `derrors.CodeNotSupported` explicitly, never a silent no-op. Callers degrade via `IsNotSupported`.
+- **`modes.Handler` has a strict locking contract.** Read `internal/app/modes/AGENTS.md` before touching modes or anything that calls back into the handler.
 
-Runtime shape: a daemon plus a thin CLI. `neru launch` starts the daemon; other commands dial a per-user Unix socket (`$XDG_RUNTIME_DIR/neru/neru.sock`, else `$TMPDIR/neru-<uid>/neru.sock`, 0600 in a 0700 directory) or a per-user Windows named pipe (`\\.\pipe\neru-<SID>`) — endpoint lookup in `internal/ipcendpoint`, server in `internal/adapter/ipc`, handlers in `internal/app/ipcctrl`, and the public Go client in `client`. The endpoint stays scoped to one user and never widens; `docs/contributing/architecture.md` (Runtime Shape) owns the detail. New user-facing behavior usually needs a CLI command, an IPC handler, and the service/mode work behind it (the `neru-add-cli-command` skill walks it). Startup is a numbered, individually-unwound phase sequence in `internal/app/new.go`. Input flow: native event tap → `adapter/eventtap` → `app/modes/handler.go` → active `Mode` → `app/services/*` → adapter → native API. Keys steering the held-key glide leave that path at the handler (and at the hotkey binder): `app/heldmotion` integrates the held set on its own tick and posts to the system port directly.
+Runtime shape: a daemon plus a thin CLI. `neru launch` starts the daemon. Other commands dial a per-user Unix socket (`$XDG_RUNTIME_DIR/neru/neru.sock`, else `$TMPDIR/neru-<uid>/neru.sock`, 0600 in a 0700 directory) or a per-user Windows named pipe (`\\.\pipe\neru-<SID>`). Endpoint lookup is in `internal/ipcendpoint`, the server in `internal/adapter/ipc`, handlers in `internal/app/ipcctrl`, and the public Go client in `client`. The endpoint stays scoped to one user and never widens. `docs/contributing/architecture.md` (Runtime Shape) owns the detail. New user-facing behavior usually needs a CLI command, an IPC handler, and the service/mode work behind it (the `neru-add-cli-command` skill walks through it). Startup is a numbered, individually-unwound phase sequence in `internal/app/new.go`. Input flow: native event tap → `adapter/eventtap` → `app/modes/handler.go` → active `Mode` → `app/services/*` → adapter → native API. Keys steering the held-key glide leave that path at the handler (and at the hotkey binder). `app/heldmotion` integrates the held set on its own tick and posts to the system port directly.
 
-Configuration is hot-reloadable TOML; adding an option touches five links every time and up to four more when it needs them, with a guardrail test behind most of them — read `internal/config/AGENTS.md` or use the `neru-add-config-option` skill. One of the five is the option's **platform column**: every option, mode flag and action declares which of macOS, Linux and Windows writing it does anything on, beside the vocabulary that owns it, and writing an inert one warns at load rather than refusing (`docs/adr/0013-parity-is-measured-in-words-not-subsystems.md`).
+Configuration is hot-reloadable TOML. Adding an option touches five links every time and up to four more when it needs them, with a guardrail test behind most of them. Read `internal/config/AGENTS.md` or use the `neru-add-config-option` skill. One of the five is the option's **platform column**. Every option, mode flag and action declares which of macOS, Linux and Windows writing it does anything on, beside the vocabulary that owns it, and writing an inert one warns at load rather than refusing (`docs/adr/0013-parity-is-measured-in-words-not-subsystems.md`).
 
 ## Conventions
 
-Formatting and lint mechanics are fully enforced by `just fmt` + `just lint` — run them rather than memorizing rules. What tooling cannot enforce:
+`just fmt` and `just lint` enforce formatting and lint mechanics, so run them rather than memorizing rules. What tooling cannot enforce:
 
-- Logging: give your subsystem's logger its own name (`logger.Named("eventtap")`) — that is the direction rather than an invariant, since a package handed a logger and not naming it logs under its caller's name, and most do. Constructors accept nil (`zap.NewNop()` fallback). Use `error` only when an operation failed with no fallback and nothing upstream reports it, since every error prints a stack trace. Use `warn` when Neru degraded or fell back and kept running, and `info` for lifecycle, config, and mode activation and exit only. Everything per-event or per-keypress goes to `debug`. Log an error once, where it is handled, so a function that returns an error does not also log it. Messages are sentence case with no trailing period or decoration. Values go in snake_case fields and are never interpolated into the message. **Never log UI text, element titles/values, hint search terms, keystreams, exec output, or raw config subtrees** — log counts, durations, IDs, booleans instead.
-- Tests: unit tests use port mocks from `internal/ports/mocks`; real-OS tests are `*_integration_<os>_test.go` tagged `//go:build integration && <os>`. Table-driven, and the name says what broke. `Test<Type>_<Method>_<EdgeCase>` where the subject is a method — three quarters of the tree — and otherwise a name for whatever the subject actually is: the rule a guardrail states (`TestEverySchemaFieldHasAnExplicitDefault`, and nearly all of `internal/architecture`), or a package-level function under test (`TestSelectFrame`, `internal/adapter/accessibility/atspi`). A guide file may claim a test exists only by naming it, and `internal/architecture/guide_test_citations_test.go` fails when a name one cites resolves to nothing. Platform stubs return `derrors.CodeNotSupported`; contract tests pin that per subsystem rather than for every stub in the tree — `internal/adapter/platform/AGENTS.md` names the ones that exist. Full user journeys (hotkey → overlay draw → cursor/click) run as plain unit tests through the simulation harness in `internal/app/simulation_harness_test.go` — extend those journeys when changing user-visible mode behavior.
-- Commits are conventional commits, and so is the PR title. Only the **title** reaches users — the repo squash-merges, so Release Please ships that verbatim in the changelog and nothing from the branch (the `neru-create-pr` skill covers this).
-- Each documented fact has exactly one home — ownership table in `docs/contributing/porting.md`. Capability *status* goes there, never in `docs/contributing/architecture.md` (shape, not status). Update docs in the same change as platform work.
+- Logging: give your subsystem's logger its own name (`logger.Named("eventtap")`). That is the direction rather than an invariant, since a package handed a logger and not naming it logs under its caller's name, and most do. Constructors accept nil (`zap.NewNop()` fallback). Use `error` only when an operation failed with no fallback and nothing upstream reports it, since every error prints a stack trace. Use `warn` when Neru degraded or fell back and kept running, and `info` for lifecycle, config, and mode activation and exit only. Everything per-event or per-keypress goes to `debug`. Log an error once, where it is handled, so a function that returns an error does not also log it. Messages are sentence case with no trailing period or decoration. Values go in snake_case fields and are never interpolated into the message. **Never log UI text, element titles/values, hint search terms, keystreams, exec output, or raw config subtrees.** Log counts, durations, IDs, and booleans instead.
+- Tests: unit tests use port mocks from `internal/ports/mocks`. Real-OS tests are `*_integration_<os>_test.go` tagged `//go:build integration && <os>`. Tests are table-driven, and the name says what broke. Use `Test<Type>_<Method>_<EdgeCase>` where the subject is a method, which is three quarters of the tree. Otherwise name whatever the subject actually is, such as the rule a guardrail states (`TestEverySchemaFieldHasAnExplicitDefault`, and nearly all of `internal/architecture`) or a package-level function under test (`TestSelectFrame`, `internal/adapter/accessibility/atspi`). A guide file may claim a test exists only by naming it, and `internal/architecture/guide_test_citations_test.go` fails when a name one cites resolves to nothing. Platform stubs return `derrors.CodeNotSupported`. Contract tests pin that per subsystem rather than for every stub in the tree, and `internal/adapter/platform/AGENTS.md` names the ones that exist. Full user journeys (hotkey → overlay draw → cursor/click) run as plain unit tests through the simulation harness in `internal/app/simulation_harness_test.go`. Extend those journeys when changing user-visible mode behavior.
+- Commits are conventional commits, and so is the PR title. Only the **title** reaches users. The repo squash-merges, so Release Please ships that verbatim in the changelog and nothing from the branch (the `neru-create-pr` skill covers this).
+- Each documented fact has exactly one home, listed in the ownership table in `docs/contributing/porting.md`. Capability *status* goes there, never in `docs/contributing/architecture.md` (shape, not status). Update docs in the same change as platform work.
 
 ## Agent Resources
 
-- `.agents/skills/` is the canonical home for project skills; `.claude/skills` is a directory symlink to it — never add skill bodies there. Each skill may carry an `agents/openai.yaml` overlay for Codex. `neru-add-config-option`, `neru-add-cli-command`, `neru-add-platform-feature`, `neru-create-pr` and `neru-file-issue` are for contributors. `neru-ask`, `neru-setup-config` and `neru-build-integration` are for users and must work without a checkout, since every install method ships the binary and man pages only.
+- `.agents/skills/` is the canonical home for project skills. `.claude/skills` is a directory symlink to it, so never add skill bodies there. Each skill may carry an `agents/openai.yaml` overlay for Codex. `neru-add-config-option`, `neru-add-cli-command`, `neru-add-platform-feature`, `neru-create-pr` and `neru-file-issue` are for contributors. `neru-ask`, `neru-setup-config` and `neru-build-integration` are for users and must work without a checkout, since every install method ships the binary and man pages only.
 - `.claude/agents/` contains review profiles (`platform-boundary-reviewer`, `deadlock-reviewer`) that read the current contract from these guide files.
 - `.claude/settings.json` wires a non-blocking format-on-edit hook.
-- The layout is pinned by `internal/architecture/agent_contract_test.go`: every `AGENTS.md` (root and nested) keeps a sibling `CLAUDE.md` symlink, and `.claude/skills` stays a symlink to `.agents/skills`.
+- `internal/architecture/agent_contract_test.go` pins the layout. Every `AGENTS.md` (root and nested) keeps a sibling `CLAUDE.md` symlink, and `.claude/skills` stays a symlink to `.agents/skills`.
 
 ## Documentation
 
 `docs/README.md` indexes everything. User docs live in `docs/guide/` (tutorials and how-to), `docs/concepts/` (explanation) and `docs/reference/` (lookup), contributor docs in `docs/contributing/`, and the table saying which doc owns which fact is in `docs/contributing/porting.md` (Documentation Checklist). For contributors start with `docs/contributing/architecture.md` (shape) and `docs/contributing/development.md` (workflow), and `docs/reference/platform-support.md` for capability status. Docs drift in places. When they disagree with code, read the code.
 
-Keep this file lean — it loads into every agent session. Add only contracts an agent cannot infer from the code; area-specific depth goes in the nested guides, workflow depth in a skill.
+Keep this file lean, since it loads into every agent session. Add only contracts an agent cannot infer from the code. Area-specific depth goes in the nested guides, workflow depth in a skill.

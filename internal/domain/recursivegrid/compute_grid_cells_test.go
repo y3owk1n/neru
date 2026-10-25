@@ -15,7 +15,7 @@ import (
 // Every case here is deliberately non-square, and the two dimensions are
 // deliberately different in the remainder they leave. A division that read the
 // row count as the column count would have to produce these same rectangles to
-// pass, and it cannot: a 5-column, 2-row grid of a 13x7 rectangle and a
+// pass, and it cannot. A 5-column, 2-row grid of a 13x7 rectangle and a
 // 2-column, 5-row one share neither their cell count per row nor their edges.
 func TestComputeGridCells(t *testing.T) {
 	testCases := []struct {

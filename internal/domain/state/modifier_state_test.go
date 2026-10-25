@@ -18,10 +18,10 @@ const callbackTimeout = 30 * time.Second
 // that takes longer than callbackTimeout.
 //
 // A bare waitGroup.Wait() here would turn the very regression these tests exist
-// to catch — a callback that stops firing — into a silent hang that runs out
+// to catch, a callback that stops firing, into a silent hang that runs out
 // the whole package's test timeout and takes every other test in the binary
 // down with an unreadable goroutine dump. A bounded wait reports it as what it
-// is: this callback did not fire.
+// is, a callback that did not fire.
 func waitForCallbacks(t *testing.T, waitGroup *sync.WaitGroup, what string) {
 	t.Helper()
 

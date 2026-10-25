@@ -108,8 +108,8 @@ func (p MousePhase) String() string {
 }
 
 // ParsePhase parses the value of the --state flag into a mouse phase.
-// Only the down and up phases are expressible as --state values; click is the
-// absence of the flag and toggle has its own --toggle flag.
+// Only the down and up phases are expressible as --state values. Click is the
+// absence of the flag, and toggle has its own --toggle flag.
 func ParsePhase(phaseString string) (MousePhase, error) {
 	switch phaseString {
 	case "down":
@@ -328,14 +328,14 @@ const (
 	// NameMouseDown is the original spelling of NameLeftMouseDown, from before
 	// the right and middle buttons could be pressed and released.
 	//
-	// Deprecated: use NameLeftMouseDown; "mouse_down" is still accepted from
-	// configs and IPC callers.
+	// Deprecated: use NameLeftMouseDown. Configs and IPC callers may still
+	// send "mouse_down".
 	NameMouseDown Name = "mouse_down"
 	// NameMouseUp is the original spelling of NameLeftMouseUp, from before the
 	// right and middle buttons could be pressed and released.
 	//
-	// Deprecated: use NameLeftMouseUp; "mouse_up" is still accepted from
-	// configs and IPC callers.
+	// Deprecated: use NameLeftMouseUp. Configs and IPC callers may still send
+	// "mouse_up".
 	NameMouseUp Name = "mouse_up"
 	// NameRightMouseDown is the right mouse button down action.
 	NameRightMouseDown Name = "right_mouse_down"
@@ -417,8 +417,8 @@ func IsExecStep(step string) bool {
 
 // knownNames lists the action names that can be used as pending mode actions
 // (e.g. --action flag on hints/grid commands). Scroll sub-actions (scroll_up,
-// page_down, etc.) are intentionally excluded — they are IPC/CLI-only and are
-// recognized separately by IsScrollSubAction and IsKnownName.
+// page_down, etc.) are left out because they are IPC/CLI-only.
+// IsScrollSubAction and IsKnownName recognize them separately.
 var knownNames = []Name{
 	NameLeftClick,
 	NameRightClick,
@@ -549,8 +549,8 @@ func IsSearchHintsAction(name string) bool {
 }
 
 // IsKnownName determines whether the specified action name is recognized by the
-// application. This is a superset of the names in knownNames — it also includes
-// scroll sub-actions (scroll_up, page_down, etc.) which are IPC/CLI-only.
+// application. This is a superset of knownNames. It also includes the
+// IPC/CLI-only scroll sub-actions (scroll_up, page_down, etc.).
 // Use IsScrollSubAction to distinguish scroll sub-actions from mode-compatible names.
 func IsKnownName(name Name) bool {
 	switch name {

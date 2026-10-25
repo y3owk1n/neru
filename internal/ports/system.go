@@ -13,7 +13,7 @@ type ScreenCaptureConsent int
 const (
 	// ScreenCaptureGranted means recording is permitted and the caller may proceed.
 	ScreenCaptureGranted ScreenCaptureConsent = iota
-	// ScreenCaptureCanceled means the user declined; the caller should abandon
+	// ScreenCaptureCanceled means the user declined. The caller should abandon
 	// the operation but keep running.
 	ScreenCaptureCanceled
 	// ScreenCaptureQuit means the user asked to quit Neru entirely.
@@ -23,7 +23,7 @@ const (
 // SystemPort is the platform system contract: health, capabilities, standard
 // directories, process information, screen and cursor operations, permission
 // gates, theme, and secure-input detection. Every consumer takes the whole
-// port; optional per-platform extensions (RelativeCursorMover,
+// port. Optional per-platform extensions (RelativeCursorMover,
 // CursorSynchronizer) are declared separately and reached by type assertion.
 type SystemPort interface {
 	// Health returns nil if the component is healthy, or an error if it is not.
@@ -72,14 +72,14 @@ type SystemPort interface {
 	// Returns the bounds and true if a window was found, or a zero rectangle
 	// and false if no focused window exists (e.g. the desktop is focused).
 	//
-	// A platform that cannot answer the question at all — a Wayland compositor
-	// exposing no window geometry to other clients — returns CodeNotSupported
-	// rather than false, so a caller scoping itself to the whole screen instead
-	// knows it is falling back rather than obeying an answer. Any other error
-	// means the source exists and did not answer this time: a compositor IPC
-	// that could not be run, refused or timed out. Both are the same fallback
-	// and neither is false, because a caller that widens to the whole screen
-	// must be able to tell that it is guessing.
+	// A platform that cannot answer the question at all, such as a Wayland
+	// compositor exposing no window geometry to other clients, returns
+	// CodeNotSupported rather than false, so a caller scoping itself to the
+	// whole screen instead knows it is falling back rather than obeying an
+	// answer. Any other error means the source exists and did not answer this
+	// time, such as a compositor IPC that could not be run, refused or timed
+	// out. Both are the same fallback and neither is false, because a caller
+	// that widens to the whole screen must be able to tell that it is guessing.
 	FocusedWindowBounds(ctx context.Context) (image.Rectangle, bool, error)
 
 	// MoveCursorToPoint moves the mouse cursor to the specified point.
@@ -102,7 +102,7 @@ type SystemPort interface {
 	// Only the vision hint strategy needs this. Two backends gate screen
 	// capture: macOS behind TCC, and KDE Plasma behind the xdg-desktop-portal
 	// ScreenCast grant its compositor leaves as the only way to read the
-	// screen. Everywhere else — X11, wlroots, Windows — there is no such gate
+	// screen. Everywhere else (X11, wlroots, Windows) there is no such gate,
 	// and the answer is true, which is a statement rather than a silent no-op.
 	CheckScreenCapturePermission(ctx context.Context) bool
 
@@ -114,12 +114,12 @@ type SystemPort interface {
 	// showing anything.
 	//
 	// It is also the only place a gated backend may put a consent prompt on
-	// screen: a capture runs while the user waits for a mode to open, so the
+	// screen. A capture runs while the user waits for a mode to open, so the
 	// prompt belongs here, where the caller has already taken it off its lock
 	// and given it a budget sized for a human.
 	//
 	// Returning ScreenCaptureGranted implies a subsequent
-	// CheckScreenCapturePermission reports true — callers retry a blocked
+	// CheckScreenCapturePermission reports true. Callers retry a blocked
 	// activation on Granted, and a consent that does not deliver the
 	// permission would re-prompt forever.
 	RequestScreenCapturePermission(ctx context.Context) ScreenCaptureConsent
@@ -138,37 +138,37 @@ type SystemPort interface {
 
 	// PlatformLabel returns a human-readable platform identifier that can be
 	// used in startup notices and diagnostics. Unlike Capabilities().Platform,
-	// this method performs no I/O or live probes — it returns a cached label
+	// this method performs no I/O or live probes. It returns a cached label
 	// set at construction time.
 	// Examples: "darwin", "windows", "linux/x11", "linux/wayland-kde".
 	PlatformLabel() string
 
 	// ShowAlert displays a native system alert/notification.
-	// title   — brief summary shown as the alert heading (e.g. the error message)
-	// message — detail text shown in the alert body (e.g. the config file path)
+	// title is the brief summary shown as the alert heading (e.g. the error message).
+	// message is the detail text shown in the alert body (e.g. the config file path).
 	ShowAlert(ctx context.Context, title, message string) error
 
 	// ShowNotification displays a lightweight toast/banner notification.
 	//
-	// It carries an error because a notification is not always deliverable:
-	// on Linux the session's notification daemon may be absent, which is an
+	// It carries an error because a notification is not always deliverable.
+	// On Linux the session's notification daemon may be absent, which is an
 	// ordinary state on a minimal compositor session, and a caller that
 	// cannot tell "shown" from "dropped" has nothing to fall back to.
 	// Platforms with no notification path at all report CodeNotSupported.
 	//
 	// Returning nil means the platform accepted the message, not that the
-	// user has seen it — delivery can still be asynchronous.
+	// user has seen it. Delivery can still be asynchronous.
 	ShowNotification(ctx context.Context, title, message string) error
 }
 
 // RelativeCursorMover is an optional SystemPort extension: move the cursor by
 // a delta natively, without a read-then-warp round trip. Optional extensions
 // are declared here beside the port, opted into by implementing them, and
-// reached by type assertion; the caller always needs a fallback. See
+// reached by type assertion. The caller always needs a fallback. See
 // docs/contributing/porting.md ("The three tiers").
 //
 // Implemented by the Linux adapter, whose Wayland backends have no
-// authoritative cursor query — warping to position+delta would compound the
+// authoritative cursor query. Warping to position+delta would compound the
 // cache error, so the delta is applied directly. The darwin and Linux
 // adapters also animate relative moves when smooth cursor is enabled (on
 // wlroots the animation itself stays in delta space for the same
@@ -176,20 +176,20 @@ type SystemPort interface {
 // unimplemented or handled == false.
 type RelativeCursorMover interface {
 	// MoveCursorBy moves the cursor by delta from its current position.
-	// It returns handled == false when this particular backend cannot — or,
-	// per configuration, chooses not to — apply the delta itself, which means
-	// the caller should use its fallback.
+	// It returns handled == false when this backend cannot apply the delta
+	// itself, or is configured not to, which means the caller should use its
+	// fallback.
 	MoveCursorBy(ctx context.Context, delta image.Point) (handled bool, err error)
 }
 
 // CursorSettler is an optional SystemPort extension for platforms that
 // animate cursor movement asynchronously. SettleCursor finishes any in-flight
-// animation immediately — stopping it and placing the cursor at the endpoint
-// it was animating toward — so a position-dependent action that fires
+// animation immediately, stopping it and placing the cursor at the endpoint
+// it was animating toward, so a position-dependent action that fires
 // mid-animation acts at the point the user aimed for.
 //
 // Callers resolving an action's target point from the cursor call this before
-// reading the position; plain observers (indicator followers, pollers) read
+// reading the position. Plain observers (indicator followers, pollers) read
 // the position directly so animations are not cut short. Treat a missing
 // implementation as "already settled".
 type CursorSettler interface {
@@ -200,12 +200,12 @@ type CursorSettler interface {
 // CursorSynchronizer is an optional SystemPort extension for platforms whose
 // cursor position is cached client-side and can drift from the compositor's.
 //
-// Implemented by the Linux adapter: on Wayland a client cannot query the
-// pointer position directly, so the adapter keeps a cache that a plain
+// Implemented by the Linux adapter, because on Wayland a client cannot query
+// the pointer position directly, so the adapter keeps a cache that a plain
 // user-driven mouse move invalidates. Modes call this before activation so the
 // first cursor-follow lands correctly.
 //
-// Callers must treat a missing implementation as "already in sync" — never as
+// Callers must treat a missing implementation as "already in sync", never as
 // an error.
 type CursorSynchronizer interface {
 	// SyncCursorPosition refreshes the adapter's cached cursor position from
@@ -216,8 +216,8 @@ type CursorSynchronizer interface {
 // InstantCursorMover is an optional SystemPort extension for platforms whose
 // plain MoveCursorToPoint waits for the window server to process the move.
 // MoveCursorInstantly posts one absolute move (or drag, while a button is
-// held) and returns at once, which is what a fixed-rate motion loop needs:
-// a 10 ms tick cannot afford a 10 ms wait per step. It cancels any cursor
+// held) and returns at once, which is what a fixed-rate motion loop needs.
+// A 10 ms tick cannot afford a 10 ms wait per step. It cancels any cursor
 // animation in flight. Fall back to MoveCursorToPoint with bypassSmooth
 // when unimplemented.
 type InstantCursorMover interface {

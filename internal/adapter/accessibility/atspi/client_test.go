@@ -312,7 +312,8 @@ func TestStateBitset(t *testing.T) {
 }
 
 func TestRoleBitfield(t *testing.T) {
-	// push button 43 -> word1 bit11; link 88 -> word2 bit24; menu 129 -> word4 bit1.
+	// push button (43) is word 1 bit 11, link (88) is word 2 bit 24, and push
+	// button menu (129) is word 4 bit 1.
 	got := roleBitfield([]int32{43, 88, 129})
 	if len(got) != atspiRoleWords {
 		t.Fatalf("len = %d, want %d", len(got), atspiRoleWords)
@@ -459,7 +460,7 @@ func TestAtspiRoleNameToIDCoversTheVocabulary(t *testing.T) {
 
 // TestAtspiRoleNames_CoverTheEnum checks the role list against the shape of the
 // AtspiRole enum. Ids are the slice indices, so gaps and duplicates cannot
-// occur by construction; what can still go wrong is a name being added or
+// occur by construction. What can still go wrong is a name being added or
 // dropped, which shifts every id after it. Pinning the length and the last
 // entry catches that, and TestAtspiRoleNameToIDAnchors catches a reordering.
 // ATSPI_ROLE_LAST_DEFINED (131) is a sentinel and must not be listed.

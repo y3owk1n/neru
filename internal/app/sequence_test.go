@@ -62,8 +62,8 @@ func (r *stepRecorder) recorded() []string {
 }
 
 // newSequenceTestApp builds a whitebox App whose IPC controller answers the
-// fake step command with the recorder. Everything the executor touches — the
-// logger, the app context, the controller — is real; only the command the
+// fake step command with the recorder. Everything the executor touches, the
+// logger, the app context and the controller, is real. Only the command the
 // steps name is fake.
 func newSequenceTestApp(t *testing.T, recorder *stepRecorder) *App {
 	t.Helper()
@@ -245,7 +245,7 @@ func TestExecuteActionSequence_StopsRunawayNesting(t *testing.T) {
 }
 
 // A step marked fatal ends the sequence, while an unmarked failure beside it
-// does not — that is the whole point of making the policy explicit per step.
+// does not. That is the whole point of making the policy explicit per step.
 func TestExecuteActionSequence_StopsAtAFatalStep(t *testing.T) {
 	recorder := &stepRecorder{
 		respond: func(_ context.Context, step string) ipc.Response {
@@ -277,7 +277,7 @@ func TestExecuteActionSequence_StopsAtAFatalStep(t *testing.T) {
 	}
 
 	// The directive is a sequencing instruction, so the step must be dispatched
-	// without it — the action's own flag parser would reject it.
+	// without it, or the action's own flag parser would reject it.
 	want := []string{stepOne, stepTwo}
 	if got := recorder.recorded(); !slices.Equal(got, want) {
 		t.Fatalf("dispatched %v, want %v", got, want)
@@ -342,8 +342,8 @@ func TestSplitBailOnError(t *testing.T) {
 			wantStep: `exec sh -c "echo ` + sequence.BailOnErrorFlag + `"`,
 		},
 		{
-			// Quoted as the final argument: the author wants the text, not the
-			// directive, so the step must reach the action unchanged.
+			// Quoted as the final argument, so the author wants the text, not the
+			// directive, and the step must reach the action unchanged.
 			name:     "quoted final token is an argument",
 			step:     `exec printf '` + sequence.BailOnErrorFlag + `'`,
 			wantStep: `exec printf '` + sequence.BailOnErrorFlag + `'`,
@@ -501,7 +501,7 @@ func TestExecuteActionSequence_RejectsBadMacroCalls(t *testing.T) {
 }
 
 // A macro that invokes itself is a runaway sequence, and the depth guard is
-// what stops it — the same guard that bounds a nested run.
+// what stops it, the same guard that bounds a nested run.
 func TestExecuteActionSequence_StopsASelfInvokingMacro(t *testing.T) {
 	recorder := &stepRecorder{}
 	application := macroTestApp(t, recorder, map[string][]string{
@@ -576,7 +576,7 @@ func TestExecuteActionSequence_BailDirectiveIsNotAMacroArgument(t *testing.T) {
 		[]string{"macro needs_two alpha beta " + sequence.BailOnErrorFlag, stepThree},
 	)
 
-	// The call is well-formed: it is the macro's own step that fails, and the
+	// The call is well-formed. It is the macro's own step that fails, and the
 	// directive makes that failure end the calling sequence.
 	if !outcome.Stopped {
 		t.Fatalf("outcome = %+v, want the directive to stop the sequence", outcome)

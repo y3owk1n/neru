@@ -8,7 +8,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
-// HeldRepeatActionName returns the name of a lone "action <name> …" binding, or "".
+// HeldRepeatActionName returns the name of a lone "action <name> ..." binding, or "".
 func HeldRepeatActionName(actions []string) string {
 	if len(actions) != 1 {
 		return ""
@@ -50,7 +50,7 @@ func (c HeldRepeatConfig) HeldMotion(actions []string) (motion.Direction, int, b
 	return dir, max(absInt(deltaX), absInt(deltaY)), true
 }
 
-// Ramp is the glide's speed in the units the integrator takes: a binding's
+// Ramp is the glide's speed in the units the integrator takes. A binding's
 // step is worth one interval of travel, and the accel options say whether and
 // how far that speed climbs. With accel_enabled off the multiplier is 1, a
 // constant-speed glide.

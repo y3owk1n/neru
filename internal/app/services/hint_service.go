@@ -75,7 +75,7 @@ func NewHintService(
 
 // GenerateHints collects clickable elements and generates labels without
 // drawing them, so mode handlers can filter and position hints before the
-// first render. A non-empty bundleID skips the AX lookup; non-empty overrides
+// first render. A non-empty bundleID skips the AX lookup, and non-empty overrides
 // win over the config-derived strategy and label direction.
 //
 // When a capture strategy's detection fails, it keeps what else it collected
@@ -190,7 +190,7 @@ func (s *HintService) Generator(direction string) hint.Generator {
 }
 
 // UpdateGenerator registers a hint generator for a specific label direction.
-// The first registration becomes the default fallback; subsequent
+// The first registration becomes the default fallback. Subsequent
 // registrations for the *same* direction also replace the default so a
 // config reload that changes `hint_characters` keeps the empty/unknown
 // direction fallback in sync with the configured generator. A nil
@@ -230,7 +230,7 @@ func (s *HintService) generate(
 	splitWord bool,
 	strict bool,
 ) ([]*hint.Interface, error) {
-	// This read must not be widened to span the strategy switch below: a
+	// This read must not be widened to span the strategy switch below. A
 	// failed capture takes s.mu for writing (degradeCapture, through
 	// notifyVisionUnavailable), and a sync.RWMutex is neither reentrant nor
 	// upgradable, so a read lock still held there would deadlock this goroutine
@@ -353,9 +353,9 @@ func (s *HintService) generateHintsAX(
 }
 
 // generateHintsVision collects window elements via vision detection and
-// supplementary elements (menubar, dock, etc.) via AX. This hybrid approach
-// ensures system UI is always detected while the frontmost window content
-// uses vision-based detection for apps with poor AX trees.
+// supplementary elements (menubar, dock, etc.) via AX. The AX pass still finds
+// the system UI, while vision covers the frontmost window's content in apps
+// with poor AX trees.
 func (s *HintService) generateHintsVision(
 	ctx context.Context,
 	filter ports.ElementFilter,
@@ -375,7 +375,6 @@ func (s *HintService) generateHintsVision(
 		return allElements, nil
 	}
 
-	// Detect window elements via vision
 	visionStart := time.Now()
 
 	windowElements, visionErr := s.vision.DetectElements(
@@ -411,7 +410,7 @@ func (s *HintService) generateHintsVision(
 // supplementaryElements collects the system surfaces the include_* options
 // ask for (menubar, dock, notification center, stage manager) through the
 // accessibility tree, with the window itself skipped because a capture
-// strategy is about to scan it. Roles are not filtered here: the role filter
+// strategy is about to scan it. Roles are not filtered here. The role filter
 // is meant for the window's own elements.
 func (s *HintService) supplementaryElements(
 	ctx context.Context,
@@ -490,7 +489,7 @@ func (s *HintService) generateHintsFromPixels(
 //
 // CodeNotSupported means the machine cannot run this strategy at all, and the
 // error names what to install or which display server has no path. That has
-// to reach a person: what a user otherwise sees is an overlay with nothing on
+// to reach a person. What a user otherwise sees is an overlay with nothing on
 // it, because the supplementary elements kept are macOS surfaces with no
 // counterpart elsewhere, and a log line reaches nobody (ADR 0002). Transient
 // failures stay in the log.
@@ -543,7 +542,7 @@ func (s *HintService) resolveDetectionBounds(
 // notifyVisionUnavailable tells the user, once, that the vision strategy
 // cannot run here, carrying the reason the port gave.
 //
-// Once per distinct reason: a user who keeps pressing the hotkey gets one
+// Once per distinct reason. A user who keeps pressing the hotkey gets one
 // notification rather than one per press, and a different reason (the language
 // data arrived, the session changed) is a new thing worth saying. The notice is
 // the port's own sentence, which names a package or a display server and never
@@ -557,7 +556,7 @@ func (s *HintService) resolveDetectionBounds(
 //
 // It drops the activation context's cancellation. Those callers build the
 // context with a hint timeout and cancel it on return, which is microseconds
-// after this is reached — and the Linux notification path honors a caller's
+// after this is reached, and the Linux notification path honors a caller's
 // deadline, so keeping it would cancel the very first send, the one that also
 // dials the session bus. The send is still bounded, by the deadline that path
 // imposes itself.
@@ -567,7 +566,7 @@ func (s *HintService) resolveDetectionBounds(
 // so a session that had no notification daemon at the first attempt is not
 // silenced for the life of the daemon.
 //
-// Locking: s.mu sits below the mode handler's lock — nothing held under it does
+// Locking: s.mu sits below the mode handler's lock. Nothing held under it does
 // I/O or reaches the handler, which is what makes taking it from locked context
 // safe (internal/app/modes/AGENTS.md).
 func (s *HintService) notifyVisionUnavailable(ctx context.Context, reason string) {
@@ -607,7 +606,7 @@ func (s *HintService) notifyVisionUnavailable(ctx context.Context, reason string
 }
 
 // hintFilter builds the element filter for one activation. The second result
-// is false when every requested role belongs to another platform: hinting
+// is false when every requested role belongs to another platform. Hinting
 // everything would hide that misconfiguration, so nothing is hinted instead
 // (`neru roles --explain` and `neru doctor` report the cause).
 func (s *HintService) hintFilter(

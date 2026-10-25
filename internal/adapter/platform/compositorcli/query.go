@@ -19,9 +19,9 @@ const QueryTimeout = 500 * time.Millisecond
 
 // pipeGuard bounds how long the read of the CLI's stdout may continue after the
 // deadline has killed the process. A CLI that leaked a child inheriting stdout
-// would otherwise hold the pipe — and the caller — open past its own deadline.
+// would otherwise hold the pipe, and the caller, open past its own deadline.
 //
-// It is a ceiling on a pathology, not part of the ordinary cost: a killed
+// It is a ceiling on a pathology, not part of the ordinary cost. A killed
 // process closes its own stdout, so the guard only ever elapses for a CLI that
 // left something else holding the pipe. The honest worst case for one query is
 // therefore the deadline plus this, and the reason it is bounded at all is that
@@ -32,7 +32,7 @@ const pipeGuard = time.Second
 // into dst.
 //
 // A nil error means the compositor answered and dst holds what it said. Any
-// error means the question went unanswered — which is never the same fact as a
+// error means the question went unanswered. That is never the same fact as a
 // compositor reporting no focused window, and must not be reported as one.
 func Query(dst any, name string, args ...string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), QueryTimeout)
@@ -42,8 +42,8 @@ func Query(dst any, name string, args ...string) error {
 }
 
 // QueryContext is Query bounded by the caller's context, for call sites that
-// already carry a deadline. The deadline is real: CommandContext kills the CLI
-// when it expires and pipeGuard keeps the read from waiting past the kill.
+// already carry a deadline. CommandContext kills the CLI when the deadline
+// expires, and pipeGuard keeps the read from waiting past the kill.
 func QueryContext(ctx context.Context, dst any, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.WaitDelay = pipeGuard
@@ -54,7 +54,7 @@ func QueryContext(ctx context.Context, dst any, name string, args ...string) err
 	}
 
 	if json.Unmarshal(out, dst) != nil {
-		// The decoder's own complaint is dropped rather than wrapped: it quotes
+		// The decoder's own complaint is dropped rather than wrapped, because it quotes
 		// the byte it stopped at, and what a compositor CLI prints is a window
 		// title as often as not. Which command failed and that its answer was
 		// undecodable is the whole of what a reader can act on anyway.
@@ -69,7 +69,7 @@ func QueryContext(ctx context.Context, dst any, name string, args ...string) err
 
 // failureCode separates the one failure the rest of this tree already has a
 // word for. A query that outlived its budget is CodeTimeout, as every other
-// bounded wait on Linux reports one; everything else is the bridge itself
+// bounded wait on Linux reports one. Everything else is the bridge itself
 // failing, which is what a compositor CLI is here.
 func failureCode(ctx context.Context) derrors.Code {
 	if ctx.Err() != nil {
@@ -80,7 +80,7 @@ func failureCode(ctx context.Context) derrors.Code {
 }
 
 // failureMessage says which compositor CLI did not answer and why, in the words
-// of the thing the reader can act on: a CLI that is not installed, a compositor
+// of the thing the reader can act on. A CLI that is not installed, a compositor
 // that refused, and one that never came back are three different problems and
 // only one of them is Neru's.
 //
@@ -100,7 +100,7 @@ func failureMessage(ctx context.Context, name string, args []string, err error) 
 
 // query spells the command as it was asked, so the sentence names the
 // compositor and the question rather than just the failure. The name and every
-// argument are literals in Neru's own source; nothing a compositor said reaches
+// argument are literals in Neru's own source. Nothing a compositor said reaches
 // here.
 func query(name string, args []string) string {
 	if len(args) == 0 {

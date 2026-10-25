@@ -46,7 +46,7 @@ type Manager struct {
 	waylandUnsupportedLogged bool
 }
 
-// NewManager creates and creates a new hotkey manager instance.
+// NewManager creates a hotkey manager.
 func NewManager(logger *zap.Logger) *Manager {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -76,7 +76,7 @@ func (m *Manager) Register(
 	return m.RegisterWithRelease(keyString, callback, nil)
 }
 
-// Both backends see the key come up: the evdev proxy reads every release, and
+// Both backends see the key come up. The evdev proxy reads every release, and
 // an XGrabKey delivers KeyRelease to the grabbing client. The binder reaches
 // this by type assertion, so a signature drift would silently return every
 // hotkey to press-only instead of failing to compile.
@@ -84,7 +84,7 @@ var _ ports.HotkeyReleaseRegistrar = (*Manager)(nil)
 
 // RegisterWithRelease adds a new global hotkey with press and optional release
 // callbacks. A held chord is one press and one release, however long it is
-// held: the backends report the hold as repeats, which fire nothing.
+// held, because the backends report the hold as repeats, which fire nothing.
 func (m *Manager) RegisterWithRelease(
 	keyString string,
 	pressCallback ports.HotkeyCallback,
@@ -128,7 +128,7 @@ func (m *Manager) RegisterWithRelease(
 	return hotkeyID, nil
 }
 
-// Unregister removes a previously registered hotkey by its ID (Linux stub).
+// Unregister removes a previously registered hotkey by its ID.
 func (m *Manager) Unregister(hotkeyID ports.HotkeyID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -149,7 +149,7 @@ func (m *Manager) Unregister(hotkeyID ports.HotkeyID) {
 	}
 }
 
-// UnregisterAll removes all currently registered hotkeys (Linux stub).
+// UnregisterAll removes all currently registered hotkeys.
 func (m *Manager) UnregisterAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -250,9 +250,9 @@ func (m *Manager) ensureWaylandStarted() {
 //
 // The two failures need different advice. A CodeNotSupported refusal means this
 // binary was built without cgo and carries no evdev reader at all, so telling
-// the user to join the `input` group sends them after a fix that cannot work —
-// and nothing about a compile-time answer changes on a later attempt, which is
-// why it is said once. Everything else is a live listener that could not read
+// the user to join the `input` group sends them after a fix that cannot work.
+// A compile-time answer also never changes on a later attempt, which is why it
+// is said once. Everything else is a live listener that could not read
 // `/dev/input`, which permissions can still fix, so that one keeps warning per
 // attempt.
 func (m *Manager) logWaylandStartFailure(err error) {
@@ -293,7 +293,7 @@ func (m *Manager) stopWayland() {
 	m.waylandStarted = false
 }
 
-// SetGlobalManager assigns the global manager instance (Linux stub).
+// SetGlobalManager does nothing on Linux.
 func SetGlobalManager(_ *Manager) {}
 
 func platformBackend() platform.LinuxBackend {

@@ -16,13 +16,11 @@ import (
 func TestIPCAdapterIntegration(t *testing.T) {
 	log := zap.NewNop()
 
-	// Dummy handler for testing
 	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
 		return ipc.Response{Success: true}
 	}
 
-	// Use a unique port for testing to avoid conflicts
-	// Note: NewServer uses a fixed socket path, so we can't easily run parallel tests
+	// NewServer uses a fixed socket path, so these tests cannot run in parallel.
 	server, serverErr := ipc.NewServer(handler, log)
 	if serverErr != nil {
 		t.Fatalf("Failed to create server: %v", serverErr)
@@ -33,24 +31,20 @@ func TestIPCAdapterIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Start and Stop", func(t *testing.T) {
-		// Start should initialize server
 		startErr := adapter.Start(ctx)
 		if startErr != nil {
 			t.Fatalf("Start() error = %v, want nil", startErr)
 		}
 
-		// IsRunning should return true after start
 		if !adapter.IsRunning() {
 			t.Error("IsRunning() = false, want true after Start()")
 		}
 
-		// Stop should shut down server
 		stopErr := adapter.Stop(ctx)
 		if stopErr != nil {
 			t.Errorf("Stop() error = %v, want nil", stopErr)
 		}
 
-		// IsRunning should return false after stop
 		if adapter.IsRunning() {
 			t.Error("IsRunning() = true, want false after Stop()")
 		}
@@ -68,13 +62,12 @@ func TestIPCAdapterIntegration(t *testing.T) {
 
 		defer adapter.Stop(context.Background()) //nolint:errcheck
 
-		// First start should succeed
 		serverErr = adapter.Start(ctx)
 		if serverErr != nil {
 			t.Fatalf("First Start() error = %v, want nil", serverErr)
 		}
 
-		// Start is documented as idempotent: it returns nil when the server is
+		// Start is documented as idempotent. It returns nil when the server is
 		// already running rather than erroring or starting a second listener.
 		// The daemon relies on that during config reload, which re-runs the
 		// startup phase without tearing the socket down.
@@ -83,7 +76,7 @@ func TestIPCAdapterIntegration(t *testing.T) {
 			t.Errorf("second Start() error = %v, want nil (Start must be idempotent)", serverErr)
 		}
 
-		// A single Stop must still fully stop it — the second Start must not
+		// A single Stop must still fully stop it. The second Start must not
 		// have incremented a reference count that leaves the socket open.
 		serverErr = adapter.Stop(ctx)
 		if serverErr != nil {
@@ -119,7 +112,6 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 	adapter := ipc.NewAdapter(server, log)
 	defer adapter.Stop(context.Background()) //nolint:errcheck
 
-	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

@@ -216,7 +216,7 @@ func (a *App) runQuitHook() {
 // published just before the state flips (setEnabledLocked), so its hook waits
 // here for the flip.
 //
-// Taking enabledMu is the barrier, not a critical section: the resume holds it
+// Taking enabledMu is the barrier, not a critical section. The resume holds it
 // until it has applied, and this holds nothing while it waits. It runs on the
 // hook's goroutine, never the runner loop, so a resume that never finishes
 // during shutdown falls under hookStopTimeout instead of hanging it.

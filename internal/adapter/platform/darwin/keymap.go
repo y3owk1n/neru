@@ -81,9 +81,7 @@ func SetReferenceKeyboardLayout(inputSourceID string) bool {
 		defer C.free(unsafe.Pointer(cLayoutID))
 	}
 
-	result := C.NeruSetReferenceKeyboardLayout(cLayoutID) != 0
-
-	return result
+	return C.NeruSetReferenceKeyboardLayout(cLayoutID) != 0
 }
 
 // KeyboardLayouts lists the enabled keyboard layouts by input source ID, as

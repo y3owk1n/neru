@@ -62,8 +62,8 @@ func matchedPrefixLength(label, input string) int {
 }
 
 // redrawMonitorSelect repaints the picker over the panels already on screen.
-// Every keystroke redraws the whole surface — the picker has no incremental
-// path — so a keystroke hands over a frame, as recursive grid does.
+// The picker has no incremental path, so every keystroke redraws the whole
+// surface by handing over a frame, as recursive grid does.
 func (h *handlerState) redrawMonitorSelect() {
 	if h.monitorSelect == nil {
 		return

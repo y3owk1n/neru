@@ -49,7 +49,7 @@ func withUinputScrollRecorder(t *testing.T, recorder *uinputScrollRecorder) {
 }
 
 // TestHyprlandScrollSession_HoldsTheModifierAcrossEveryChunk is the reason this
-// session exists rather than a press and release around each chunk: an
+// session exists rather than a press and release around each chunk. An
 // application reads twenty presses of ctrl as twenty zoom gestures, not as one.
 func TestHyprlandScrollSession_HoldsTheModifierAcrossEveryChunk(t *testing.T) {
 	modifiers := &modifierRecorder{}
@@ -88,7 +88,7 @@ func TestHyprlandScrollSession_HoldsTheModifierAcrossEveryChunk(t *testing.T) {
 }
 
 // TestHyprlandScrollSession_Close_RestoresHeldModifiersAfterRelease pins the
-// order that keeps a scroll unmodified end to end: the session's own press
+// order that keeps a scroll unmodified end to end. The session's own press
 // comes off before the user's held chord goes back on, and the restore runs
 // even when the session pressed nothing.
 func TestHyprlandScrollSession_Close_RestoresHeldModifiersAfterRelease(t *testing.T) {
@@ -119,7 +119,7 @@ func TestHyprlandScrollSession_Close_RestoresHeldModifiersAfterRelease(t *testin
 }
 
 // TestHyprlandScrollSession_Inject pins the chunk-to-notch conversion, which is
-// what granularity promises the animator: it only ever hands whole notches, and
+// what granularity promises the animator. It only ever hands whole notches, and
 // each one goes out as a single event of the right sign on the right axis.
 func TestHyprlandScrollSession_Inject(t *testing.T) {
 	tests := []struct {
@@ -177,7 +177,7 @@ func TestHyprlandScrollSession_Inject(t *testing.T) {
 }
 
 // TestHyprlandScrollSession_InjectReportsAFailedBatch keeps a dead scroll
-// device from reading as a scroll: the animator stops on an injection error,
+// device from reading as a scroll. The animator stops on an injection error,
 // and a nil here would ease its way through the whole curve moving nothing.
 func TestHyprlandScrollSession_InjectReportsAFailedBatch(t *testing.T) {
 	withUinputScrollRecorder(t, &uinputScrollRecorder{err: errScrollDeviceGone})

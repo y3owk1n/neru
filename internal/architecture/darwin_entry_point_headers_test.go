@@ -16,8 +16,8 @@ import (
 const darwinBridgeDir = bridgePackageDirPrefix + "darwin"
 
 const (
-	// nativeHeaderExt is what a subsystem's interface is written in — the
-	// interface of a bridge, per ADR 0009.
+	// nativeHeaderExt is what a subsystem's interface is written in, which is
+	// the interface of a bridge per ADR 0009.
 	nativeHeaderExt = ".h"
 
 	// darwinSourceInfix is the platform token a bridge .m carries, which is
@@ -26,12 +26,12 @@ const (
 )
 
 // darwinBridgeFileFloor is the fewest native files the darwin bridge holds.
-// Thirty-five are there today; below half of that, the walk has stopped
+// Thirty-five are there today. Below half of that, the walk has stopped
 // recognizing them rather than the bridge having shrunk.
 const darwinBridgeFileFloor = 15
 
 // darwinEntryPointFloor is the fewest non-static Neru* entry points the bridge
-// defines. It is the floor that matters most here: the rule is checked per
+// defines. It is the floor that matters most here. The rule is checked per
 // entry point, so a signature scanner that stopped matching would report every
 // entry point as compliant while reading none of them. A hundred and thirty-one
 // are there today.
@@ -43,7 +43,7 @@ const darwinEntryPointFloor = 60
 //
 // Deriving the subsystem by dropping trailing words off the file name is what
 // makes accessibility_element_darwin.m part of the accessibility subsystem and
-// accessibility_visibility_darwin.m its own; a file whose name does not lead
+// accessibility_visibility_darwin.m its own. A file whose name does not lead
 // with its subsystem needs an entry here, and the entry is a claim that the
 // header named is genuinely where that subsystem's interface lives.
 //
@@ -51,14 +51,14 @@ const darwinEntryPointFloor = 60
 // that claim, so this list can only shrink.
 var darwinSubsystemHeaderExemptions = map[string]string{
 	// The monitor-select panels are a second .m of the overlay subsystem rather
-	// than a subsystem of their own: they draw into the same overlay windows,
+	// than a subsystem of their own, because they draw into the same overlay windows,
 	// and both entry points are declared in overlay.h beside the other 31.
 	"monitor_select_overlay_darwin.m": "overlay.h",
 }
 
 // darwinEntryPointRule is the rule a failure states, in the imperative, with
 // the documents that state it. ADR 0009 promised this pin and left it out of
-// its own scope; ADR 0011 sharpened what it targets.
+// its own scope. ADR 0011 sharpened what it targets.
 const darwinEntryPointRule = "declare every non-static Neru* entry point in its own " +
 	"subsystem's header, not in the calling .m, a cgo preamble or another " +
 	"subsystem's header (internal/adapter/platform/darwin/AGENTS.md, " +
@@ -69,28 +69,28 @@ const darwinEntryPointRule = "declare every non-static Neru* entry point in its 
 //
 // The bug it prevents is a prototype that drifts away from the interface it
 // belongs to. A `Neru*` function declared in *no* header is not that bug and is
-// not silent: clang has errored on a call to an undeclared function by default
+// not silent. Clang has errored on a call to an undeclared function by default
 // since version 16, this repo passes no -W flags of its own, and cgo refuses
-// the same call on the Go side — so the naive breach fails the build and names
+// the same call on the Go side, so the naive breach fails the build and names
 // the symbol. Six such definitions exist in the bridge today and every one of
 // them is static, which is the shape that is meant to have no prototype. A
-// seventh definition reads like one and is not counted here:
+// seventh definition reads like one and is not counted here.
 // _NeruEnableCursorInBackground is static as well, but what puts it outside
-// this pin is its leading underscore — the Neru* PascalCase naming contract,
-// which nativeEntryPointOpening's leading word boundary is what enforces.
+// this pin is its leading underscore, which breaks the Neru* PascalCase naming
+// contract that nativeEntryPointOpening's leading word boundary enforces.
 //
 // What is silent is the same definition with its prototype written somewhere
 // else: at the top of the calling .m, into a cgo preamble (for which there is
-// precedent in this package — keymap.go and bridge.go both carry one), or into
+// precedent in this package, since keymap.go and bridge.go both carry one), or into
 // another subsystem's header, where overlay.h's thirty-one entry points hide
 // one more. All three compile, lint and link, and each one costs the bridge the
 // property ADR 0009 records as its interface: that reading a subsystem's header
 // tells you what that subsystem publishes.
 //
-// So the check is per entry point and one-directional — is this definition
-// declared in this subsystem's header — and a declaration anywhere else counts
-// for nothing. A header with no .m beside it is left alone, which is what keeps
-// ADR 0009's header-only exemption legal: systray.h publishes the systray
+// So the check is per entry point and one-directional. It asks whether this
+// definition is declared in this subsystem's header, and a declaration anywhere
+// else counts for nothing. A header with no .m beside it is left alone, which is
+// what keeps ADR 0009's header-only exemption legal, since systray.h publishes the systray
 // bridge while its .m compiles in internal/adapter/systray/darwin, and nothing
 // here asks a header for a definition.
 func TestDarwinEntryPoints_AreDeclaredInTheirSubsystemHeader(t *testing.T) {
@@ -112,14 +112,14 @@ func TestDarwinEntryPoints_AreDeclaredInTheirSubsystemHeader(t *testing.T) {
 }
 
 // TestDarwinEntryPoints_PinCatchesTheSilentBreaches is the ticket's acceptance
-// check, kept rather than performed once: each way a prototype can end up
+// check, kept rather than performed once. Each way a prototype can end up
 // outside its subsystem's header is applied to a bridge built for the purpose,
 // and the pin has to report it.
 //
 // The fixtures are written here rather than doctored out of the tree because
-// every one of these breaches is hypothetical — the tree has none, which is the
+// every one of these breaches is hypothetical. The tree has none, which is the
 // point of landing the pin now. What they exercise is the reader as much as the
-// rule: a pin that quietly matched nothing would pass its own drift test only
+// rule. A pin that quietly matched nothing would pass its own drift test only
 // if the drifts were compared against a tree it had also read as empty.
 func TestDarwinEntryPoints_PinCatchesTheSilentBreaches(t *testing.T) {
 	t.Parallel()
@@ -142,7 +142,7 @@ func TestDarwinEntryPoints_PinCatchesTheSilentBreaches(t *testing.T) {
 //
 // A static function is file-local by construction, so a header declaring it
 // would be the mistake. Getting this wrong is the way a guardrail like this one
-// gets reverted rather than obeyed — six of the bridge's Neru* definitions are
+// gets reverted rather than obeyed. Six of the bridge's Neru* definitions are
 // static today, and a pin that demanded prototypes for them would ask for six
 // declarations that no caller could use.
 func TestDarwinEntryPoints_PinLeavesFileLocalHelpersAlone(t *testing.T) {
@@ -162,8 +162,8 @@ func TestDarwinEntryPoints_PinLeavesFileLocalHelpersAlone(t *testing.T) {
 
 // TestDarwinEntryPoints_SubsystemHeaderExemptionsStayHonest keeps
 // darwinSubsystemHeaderExemptions from outliving its reasons. An entry whose .m
-// or header is gone describes nothing; one the derivation now finds on its own
-// is dead weight; and one whose header declares none of the file's entry points
+// or header is gone describes nothing. One the derivation now finds on its own
+// is dead weight. And one whose header declares none of the file's entry points
 // has stopped being true, which would leave a whole .m pinned to a header that
 // publishes something else.
 func TestDarwinEntryPoints_SubsystemHeaderExemptionsStayHonest(t *testing.T) {
@@ -246,10 +246,10 @@ func definesNativeSymbols(name string) bool {
 // readDarwinBridge reads the darwin bridge's definitions and headers out of the
 // tree.
 //
-// Everything below the bridge directory is read, not only the directory itself:
-// the bridge is one flat directory today, and a file parked in a subdirectory
+// Everything below the bridge directory is read, not only the directory itself,
+// because the bridge is one flat directory today, and a file parked in a subdirectory
 // of it should be judged rather than quietly escape. That is also why two files
-// sharing a base name are a failure — the map is keyed by base name, which is
+// sharing a base name are a failure. The map is keyed by base name, which is
 // what a .m and the header beside it have in common, and silently keeping one
 // of the two would leave the other unchecked.
 func readDarwinBridge(t *testing.T) darwinBridge {
@@ -291,7 +291,7 @@ func readDarwinBridge(t *testing.T) darwinBridge {
 
 // darwinEntryPointProblems reports every entry point whose prototype is not in
 // its subsystem's header, and how many entry points it judged. The count is
-// what the floor is asserted on: a reader that stopped matching signatures
+// what the floor is asserted on, because a reader that stopped matching signatures
 // would report no problems at all.
 func darwinEntryPointProblems(bridge darwinBridge) ([]string, int) {
 	var problems []string
@@ -386,9 +386,9 @@ func (bridge darwinBridge) subsystemHeader(sourceName string) (string, bool) {
 // until a header of that name is in the bridge.
 //
 // That is what "one header + _darwin.m pair per subsystem" means for a
-// subsystem written as several files — accessibility_element_darwin.m and
-// accessibility_window_darwin.m are both the accessibility subsystem — and it
-// is why accessibility_visibility_darwin.m is its own: the longest name wins,
+// subsystem written as several files, where accessibility_element_darwin.m and
+// accessibility_window_darwin.m are both the accessibility subsystem. It is also
+// why accessibility_visibility_darwin.m is its own. The longest name wins,
 // so publishing a narrower header re-homes the file that matches it rather than
 // leaving it pinned to the wider one.
 func (bridge darwinBridge) derivedSubsystemHeader(sourceName string) (string, bool) {
@@ -421,7 +421,7 @@ type nativeSignature struct {
 
 	// defines is true when a body follows, which is what tells a definition
 	// from a prototype. A call written as a statement ends in a semicolon and
-	// reads as a prototype here; that costs nothing, because only a header is
+	// reads as a prototype here. That costs nothing, because only a header is
 	// ever asked what it declares.
 	defines bool
 
@@ -433,8 +433,8 @@ type nativeSignature struct {
 // nativeEntryPointOpening matches the start of a Neru* signature: the name and
 // the parenthesis opening its parameter list.
 //
-// The leading word boundary is what keeps _NeruEnableCursorInBackground out:
-// the naming contract is Neru* PascalCase, and a name that only contains those
+// The leading word boundary is what keeps _NeruEnableCursorInBackground out,
+// because the naming contract is Neru* PascalCase, and a name that only contains those
 // four letters is not an entry point.
 var nativeEntryPointOpening = regexp.MustCompile(`\bNeru[A-Za-z0-9_]*[ \t\r\n]*\(`)
 
@@ -447,21 +447,21 @@ var nativeStaticSpecifier = regexp.MustCompile(`\bstatic\b`)
 // name. That one is handed the spelling of one definition and returns its body,
 // so that a pin can read the copy written inside it. A rename there has to fail
 // rather than pass over nothing, which is why it is addressed by name. This
-// asks the opposite question — what does this file state, whose names nobody
-// knows in advance — and has no body to read.
+// asks the opposite question: what does this file state, whose names nobody
+// knows in advance? It has no body to read.
 //
 // Reading text rather than preprocessed C, this cannot tell a declaration the
-// compiler sees from one behind an inactive #if — but it can refuse to be
+// compiler sees from one behind an inactive #if. But it can refuse to be
 // fooled by the two shapes that are not signatures at all. Comments and string
 // literals are removed first, so an old prototype left commented out declares
-// nothing and a parenthesis inside a string cannot unbalance a parameter list;
-// and what follows the parameter list decides what the signature is, so a call
+// nothing and a parenthesis inside a string cannot unbalance a parameter list.
+// And what follows the parameter list decides what the signature is, so a call
 // (followed by a `)` or a `,`) is neither a definition nor a declaration.
 //
-// What it does not read is a prototype carrying a trailing attribute —
-// __attribute__, API_AVAILABLE, CF_RETURNS_RETAINED — between the parameter
+// What it does not read is a prototype carrying a trailing attribute, such as
+// __attribute__, API_AVAILABLE or CF_RETURNS_RETAINED, between the parameter
 // list and the semicolon. The bridge has none today, and the failure direction
-// is the safe one: such a header would be reported as declaring nothing rather
+// is the safe one. Such a header would be reported as declaring nothing rather
 // than pass silently.
 func nativeSignatures(source string) []nativeSignature {
 	readable := stripNativeCommentsAndLiterals(source)
@@ -498,7 +498,7 @@ func nativeSignatures(source string) []nativeSignature {
 //
 // The specifiers are whatever sits between the end of the previous declaration
 // or block and the name, which is how a definition is found without assuming
-// the return type shares its line — a rewrap by clang-format must not change
+// the return type shares its line, because a rewrap by clang-format must not change
 // what this reads.
 func hasStaticSpecifier(readable string, nameStart int) bool {
 	boundary := strings.LastIndexAny(readable[:nameStart], ";{}")
@@ -531,10 +531,10 @@ func balancedParenEnd(readable string, openParen int) int {
 // character literals of a C or Objective-C source, leaving everything else
 // where it was.
 //
-// The comments are the removal that catches something: a prototype left
+// The comments are the removal that catches something. A prototype left
 // commented out in a header must not count as a declaration, which is the same
 // "an old copy left beside the new one" case callback_context_layout_test.go
-// reports. Emptying the literals is defensive — a parenthesis inside one would
+// reports. Emptying the literals is defensive. A parenthesis inside one would
 // otherwise be balanced against the parameter list of the call it sits in, and
 // a signature scanner should not have to reason about which side of the
 // resulting mismatch it errs on.
@@ -647,7 +647,7 @@ func darwinEntryPointDrifts() []darwinEntryPointFixture {
 		},
 		{
 			// A cgo preamble lives in a .go file, which is not the bridge's
-			// interface and is not read here; from the header's side the breach
+			// interface and is not read here. From the header's side the breach
 			// looks exactly like a prototype that went missing.
 			name:   "the prototype is written into a cgo preamble instead",
 			bridge: inACgoPreamble,

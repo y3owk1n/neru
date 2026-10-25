@@ -50,7 +50,7 @@ func (c *Client) readA11yStatus() (bool, bool, error) {
 
 // setA11yStatus writes the given values for IsEnabled and ScreenReaderEnabled
 // on org.a11y.Status. When disabling, ScreenReaderEnabled is cleared before
-// IsEnabled; when enabling, IsEnabled is set first.
+// IsEnabled. When enabling, IsEnabled is set first.
 func (c *Client) setA11yStatus(srEnabled, isEnabled bool) error {
 	conn, connErr := dbus.SessionBus()
 	if connErr != nil {
@@ -103,8 +103,8 @@ func (c *Client) setA11yProp(prop string, val bool) error {
 
 // ensureA11yEnabled activates AT-SPI on first call (lazy, safe to call
 // multiple times). It saves the original a11y status so Close can restore it.
-// a11yMu is held across the D-Bus calls so Close() sees a consistent view:
-// either activation has finished (activated == true) or it hasn't started.
+// a11yMu is held across the D-Bus calls so Close() sees a consistent view.
+// Either activation has finished (activated == true) or it hasn't started.
 func (c *Client) ensureA11yEnabled() error {
 	c.a11yMu.Lock()
 	defer c.a11yMu.Unlock()
@@ -154,7 +154,7 @@ func (c *Client) ensureA11yConn() (*dbus.Conn, error) {
 	// Re-check closed while holding mu, not before it. Close sets closed (under
 	// a11yMu) before its own mu section runs, so once Close's teardown has
 	// completed, any ensureA11yConn that then acquires mu sees closed==true and
-	// bails — it cannot publish a fresh connection that Close would never clean
+	// bails, so it cannot publish a fresh connection that Close would never clean
 	// up. If instead this call wins mu first, it publishes c.a11y and Close's
 	// later mu section closes that connection. Either ordering leaks nothing.
 	c.a11yMu.Lock()
@@ -216,8 +216,7 @@ func (c *Client) ensureA11yConn() (*dbus.Conn, error) {
 // mismatch means focus changed before the walk, so the selected frame is stale
 // and must not be walked or offset. When no live app_id is available (X11)
 // there is nothing to compare, so it returns true. Identical or empty titles
-// cannot distinguish sibling windows, so a switch between them is not detected —
-// there is no distinguishing information to use.
+// cannot distinguish sibling windows, so a switch between them is not detected.
 func (c *Client) focusStableSince(selectedAppID, selectedTitle string) bool {
 	currentAppID, currentTitle, ok := linux.FocusedAppIdentity(
 		platform.DetectLinuxBackend().String(),

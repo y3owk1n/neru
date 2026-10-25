@@ -9,7 +9,7 @@ import "net"
 // The named pipe is created with a protected DACL naming this user's SID
 // alone (see internal/ipcendpoint/endpoint_windows.go), so a connection that
 // reached Accept was already opened by a process the kernel checked against
-// that descriptor. There is no second question to ask here — go-winio exposes
+// that descriptor. There is no second question to ask here. go-winio exposes
 // no handle to query the client with, and impersonating one would be a wider
 // capability than the check needs.
 func authorizePeer(_ net.Conn) error {

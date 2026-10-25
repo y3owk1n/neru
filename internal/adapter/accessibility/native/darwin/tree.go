@@ -42,7 +42,7 @@ func rectFromInfo(info *ElementInfo) image.Rectangle {
 }
 
 // screenBoundsOrRect returns the active screen bounds when the provided rect is
-// empty; otherwise returns the rect unchanged. This ensures that tree builders
+// empty, and otherwise returns the rect unchanged. This ensures that tree builders
 // for all sources (main window, supplementary) always have meaningful clip
 // bounds even when the root element has no position/size (e.g. an AXApplication).
 func screenBoundsOrRect(r image.Rectangle) image.Rectangle {
@@ -74,9 +74,9 @@ func getTreeNode(elem *Element, info *ElementInfo, parent *TreeNode, childrenCap
 	_node.info = info
 	_node.parent = parent
 	// Reuse the pooled backing array when it is large enough for the
-	// requested capacity; otherwise allocate a fresh slice.
+	// requested capacity, and otherwise allocate a fresh slice.
 	// When childrenCap == 0 the children slice is still explicitly reset
-	// to [:0] (or nil→[:0]) so the node is always in a clean state —
+	// to [:0], from nil too, so the node is always in a clean state and
 	// callers are not required to overwrite children before use.
 	if cap(_node.children) >= childrenCap {
 		_node.children = _node.children[:0]
@@ -100,7 +100,7 @@ func putTreeNode(node *TreeNode) {
 	node.element = nil
 	node.info = nil
 	node.parent = nil
-	// Clear child pointers but keep the backing array for reuse — unless it
+	// Clear child pointers but keep the backing array for reuse, unless it
 	// exceeds the cap threshold, in which case discard it entirely so the
 	// pool does not retain oversized allocations from pathological trees.
 	if cap(node.children) > maxPooledChildrenCap {
@@ -200,7 +200,7 @@ func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {
 	o.filterFunc = fn
 }
 
-// SetRoles is a no-op on macOS: the AX tree is walked with its own filters and
+// SetRoles is a no-op on macOS. The AX tree is walked with its own filters and
 // role selection happens in FindClickableElements.
 func (o *TreeOptions) SetRoles(_ map[string]struct{}) {}
 
@@ -394,7 +394,7 @@ var leafRolesWithImportantChildren = map[element.Role]bool{
 	element.RoleLink:               true,
 	element.RoleComboBox:           true, // dropdown AXMenu
 	element.RoleDisclosureTriangle: true, // reveals children when expanded
-	element.RoleGenericElement:     true, // catch-all — could contain anything
+	element.RoleGenericElement:     true, // catch-all, could contain anything
 	element.RoleTextArea:           true, // in notes.app, link field in note needs to be clickable...
 	element.RoleRadioButton:        true, // in safari, url bar is radio button, but has nested button in it...
 }
@@ -450,7 +450,7 @@ func buildTreeRecursive(
 	// subtrees avoids expensive AXAPI round-trips).
 	//
 	// This check is intentionally placed before the Children() call to avoid
-	// expensive AXAPI round-trips for off-screen subtrees — the majority of
+	// expensive AXAPI round-trips for off-screen subtrees. The majority of
 	// noise on long Chromium pages comes from elements outside the viewport.
 	//
 	// Example, try this site: https://nix-darwin.github.io/nix-darwin/manual/
@@ -620,8 +620,8 @@ const minElementSize = 10
 
 // shouldIncludeElement combines all filtering logic into one function.
 //
-// The clip-bounds overlap check is always applied so that ALL tree sources —
-// including supplementary ones (dock, menubar, PIP, etc.) — benefit from
+// The clip-bounds overlap check is always applied so that ALL tree sources,
+// including supplementary ones (dock, menubar, PIP, etc.), benefit from
 // spatial filtering against their respective clip bounds.
 func shouldIncludeElement(
 	info *ElementInfo,
@@ -787,15 +787,15 @@ func accumulateSearchText(root *TreeNode) {
 //
 // All non-root, non-kept TreeNode structs are returned to treeNodePool for
 // reuse. Kept nodes only have their tree pointers cleared. The root node is
-// never pooled — it is owned by the caller and must remain valid after Release
+// never pooled. It is owned by the caller and must remain valid after Release
 // so that callers can still safely (if accidentally) read Element()/Info().
 // A post-order walk is used so that children are processed before their parent,
 // which is required because putTreeNode clears the children slice.
 func (n *TreeNode) Release(keep map[*Element]struct{}) {
 	n.walkTreePostOrder(func(node *TreeNode) {
 		if node == n {
-			// Root element is owned by the caller — do not release it.
-			// Never pool the root node: the caller holds a reference to it
+			// Root element is owned by the caller, so do not release it.
+			// Never pool the root node, because the caller holds a reference to it
 			// (the `tree` variable) and may still read Element()/Info().
 			// Only clear tree pointers to avoid dangling references.
 			node.children = nil

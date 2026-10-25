@@ -254,7 +254,7 @@ func TestDeepCopyConfig(t *testing.T) {
 		)
 	}
 
-	// Ensure it's a deep copy — modifying the copy should not affect the original
+	// Modifying the copy must not affect the original.
 	deepCopy.Hints.HintCharacters = "asdf"
 	if cfg.Hints.HintCharacters != testHintChars {
 		t.Fatal("DeepCopyConfig() did not produce an independent copy")

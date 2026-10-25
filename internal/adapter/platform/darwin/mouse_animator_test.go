@@ -12,7 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// cursorRecorder stands in for the window server: it captures every move the
+// cursorRecorder stands in for the window server. It captures every move the
 // animator posts, and answers pos() with the last posted point so a glide
 // composes across requests the way a real cursor does.
 type cursorRecorder struct {
@@ -73,7 +73,7 @@ func workerAnimator(rec *cursorRecorder) *smoothCursorAnimator {
 }
 
 // testAnimator returns an animator whose request channel exists but has no
-// worker goroutine behind it. submitLocked then only queues (and drops) —
+// worker goroutine behind it. submitLocked then only queues (and drops), since
 // nothing consumes the requests, so no mouse events are posted during tests.
 func testAnimator() *smoothCursorAnimator {
 	animator := newSmoothCursorAnimator(
@@ -98,7 +98,7 @@ func (a *smoothCursorAnimator) submitForTest(end image.Point) *cursorAnimationDo
 
 // animateForTest submits an animation with explicit timing. It stands in for
 // animateTo, which reads max_duration / duration_per_pixel from the process
-// config; a test needs to choose them so the glide reliably outlives the
+// config. A test needs to choose them so the glide reliably outlives the
 // requests that supersede it.
 func (a *smoothCursorAnimator) animateForTest(
 	end image.Point,
@@ -117,7 +117,7 @@ func (a *smoothCursorAnimator) animateForTest(
 }
 
 // TestCursorAnimator_PendingTarget pins the pending-target contract relative
-// moves build on: the endpoint of the animation in flight is visible while it
+// moves build on. The endpoint of the animation in flight is visible while it
 // is pending and gone once the animation is stopped. Without it, each held-key
 // repeat would restart from the mid-animation cursor position and silently
 // drop the un-animated remainder of every delta.
@@ -148,9 +148,9 @@ func TestCursorAnimator_PendingTarget(t *testing.T) {
 }
 
 // TestCursorAnimator_FinishOrNext guards the completion path. Reaching a
-// target ends the session only when nothing newer is queued — a target that
+// target ends the session only when nothing newer is queued. A target that
 // superseded this one continues the same session, keeping its waiters
-// attached — and a worker left over from a canceled session must not close a
+// attached, and a worker left over from a canceled session must not close a
 // newer session's completion.
 func TestCursorAnimator_FinishOrNext(t *testing.T) {
 	animator := testAnimator()
@@ -198,7 +198,7 @@ func TestCursorAnimator_FinishOrNext(t *testing.T) {
 	default:
 	}
 
-	// Nothing left to animate: the session ends and its waiters are released.
+	// Nothing is left to animate, so the session ends and its waiters are released.
 	if _, ok := animator.finishOrNext(animator.reqCh, animator.stopCh); ok {
 		t.Fatal("finishOrNext() handed back a target on an empty queue")
 	}
@@ -215,9 +215,9 @@ func TestCursorAnimator_FinishOrNext(t *testing.T) {
 }
 
 // TestCursorAnimator_AnimateRelativeBy_NoopKeepsAnimation pins the no-op
-// guard: a move whose endpoint equals the pending one — zero delta, or a
-// delta the screen-edge clamp ate — must not cancel and resubmit the
-// animation already heading there.
+// guard. A move whose endpoint equals the pending one must not cancel and
+// resubmit the animation already heading there. That happens on a zero delta,
+// or a delta the screen-edge clamp ate.
 func TestCursorAnimator_AnimateRelativeBy_NoopKeepsAnimation(t *testing.T) {
 	animator := testAnimator()
 
@@ -251,7 +251,7 @@ func TestCursorAnimator_AnimateRelativeBy_NoopKeepsAnimation(t *testing.T) {
 }
 
 // TestCursorAnimator_AnimateRelativeBy_ConcurrentDeltasCompose pins the
-// single-lock read-modify-write of animateRelativeBy: deltas from concurrent
+// single-lock read-modify-write of animateRelativeBy. Deltas from concurrent
 // movers (mode held-repeat and hotkey held-repeat are independent goroutines)
 // must all end up in the pending endpoint, none silently overwritten. Run
 // under -race, this also covers the submit/pendingTarget interleavings.
@@ -291,7 +291,7 @@ func TestCursorAnimator_AnimateRelativeBy_ConcurrentDeltasCompose(t *testing.T) 
 }
 
 // TestCursorAnimator_TakePendingForSettle pins the state transition behind
-// settle(): it hands back the in-flight endpoint exactly once, releases
+// settle(). It hands back the in-flight endpoint exactly once, releases
 // waiters, invalidates queued steps, and reports ok == false on an idle
 // animator so no settle warp is posted when there is nothing to finish.
 func TestCursorAnimator_TakePendingForSettle(t *testing.T) {
@@ -326,13 +326,13 @@ func TestCursorAnimator_TakePendingForSettle(t *testing.T) {
 }
 
 // TestCursorAnimator_WaiterTracksSupersedingTarget guards the coalescing race,
-// mirroring Linux's TestSmoothCursorAnimatorWaiterTracksSupersedingTarget: a
+// mirroring Linux's TestSmoothCursorAnimatorWaiterTracksSupersedingTarget. A
 // waiter that attaches
 // while an earlier target animates must not be released until the cursor
 // reaches the *latest* target, even when the queued target is superseded
 // mid-flight. With per-request completion this waiter returned early at the
-// intermediate/previous position, and ActionService — which moves, waits, then
-// acts — performed its action at a point the cursor had already left.
+// intermediate/previous position, and ActionService, which moves, waits, then
+// acts, performed its action at a point the cursor had already left.
 func TestCursorAnimator_WaiterTracksSupersedingTarget(t *testing.T) {
 	rec := &cursorRecorder{}
 
@@ -408,7 +408,7 @@ func TestCursorAnimator_WaitAfterSettledReturnsImmediately(t *testing.T) {
 		t.Fatalf("animation landed on %v, %v, want %v, true", last, ok, target)
 	}
 
-	// The session is over; a late waiter must not block on it.
+	// The session is over, so a late waiter must not block on it.
 	lateCtx, lateCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer lateCancel()
 
@@ -419,7 +419,7 @@ func TestCursorAnimator_WaitAfterSettledReturnsImmediately(t *testing.T) {
 }
 
 // TestCursorAnimator_StopHaltsPostsAndReleasesWaiter pins the cancellation
-// window: a waiter already blocked on the running session is released by
+// window. A waiter already blocked on the running session is released by
 // stop() rather than left hanging, and once stop() returns no further step
 // from the canceled animation may reach the window server.
 func TestCursorAnimator_StopHaltsPostsAndReleasesWaiter(t *testing.T) {
@@ -438,8 +438,8 @@ func TestCursorAnimator_StopHaltsPostsAndReleasesWaiter(t *testing.T) {
 		waitResult <- animator.wait(ctx)
 	}()
 
-	// The session is still running, so the waiter must still be blocked —
-	// otherwise stop() releasing it below would prove nothing.
+	// The session is still running, so the waiter must still be blocked.
+	// Otherwise stop() releasing it below would prove nothing.
 	select {
 	case <-waitResult:
 		t.Fatal("wait returned while the animation was still in flight")
@@ -467,7 +467,7 @@ func TestCursorAnimator_StopHaltsPostsAndReleasesWaiter(t *testing.T) {
 }
 
 // TestCursorAnimator_DragEventTypeReachesEveryStep pins the darwin-only drag
-// path: a move issued while a mouse button is held must post every step as a
+// path. A move issued while a mouse button is held must post every step as a
 // drag of that button, or the application never sees the drag.
 func TestCursorAnimator_DragEventTypeReachesEveryStep(t *testing.T) {
 	rec := &cursorRecorder{}

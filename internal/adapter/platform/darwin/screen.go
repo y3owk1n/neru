@@ -64,9 +64,9 @@ func IsMissionControlActive() bool {
 }
 
 // IsScreenZoomed reports whether the macOS Accessibility Zoom feature is
-// currently zoomed in. Cursor positioning does not depend on this — synthetic
-// mouse events are posted at the session tap so they bypass the window server's
-// zoom coordinate transform — but it is useful when diagnosing pointer bugs.
+// currently zoomed in. Cursor positioning does not depend on this, because
+// synthetic mouse events are posted at the session tap and so bypass the window
+// server's zoom coordinate transform. It is useful when diagnosing pointer bugs.
 func IsScreenZoomed() bool {
 	return bool(C.NeruIsScreenZoomed())
 }
@@ -74,9 +74,9 @@ func IsScreenZoomed() bool {
 // ZoomViewportAt returns the region that Accessibility Zoom currently shows on
 // the display containing point, in global CG coordinates. The viewport edges are
 // fractional, so this is the smallest integer rectangle that fully contains it.
-// The second return value is false when that display is not magnified — zoom is
-// off, zoomed all the way out, or magnifying a different display — or when the
-// SkyLight zoom SPI that backs it is unavailable.
+// The second return value is false when that display is not magnified, or when
+// the SkyLight zoom SPI that backs it is unavailable. A display is not magnified
+// when zoom is off, zoomed all the way out, or magnifying a different display.
 func ZoomViewportAt(point image.Point) (image.Rectangle, bool) {
 	var viewport C.CGRect
 

@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// Real GDI capture tests. They need an interactive desktop: a session-0
+// Real GDI capture tests. They need an interactive desktop. A session-0
 // service, which is what a headless runner may be, has no desktop to read and
 // the overlay refuses to open there, so every test here skips on that answer.
 // Run with: go test -tags=integration ./internal/adapter/platform/windows/
@@ -24,9 +24,9 @@ const dpiAwarenessContextPerMonitorV2 = ^uintptr(3) // (DPI_AWARENESS_CONTEXT)-4
 
 // captureTestDPIOnce makes the test process per-monitor-v2 DPI aware, which
 // the shipped exe gets from its manifest and a go test binary does not. It is
-// what makes the mixed-DPI assertion below mean something: an unaware process
+// what makes the mixed-DPI assertion below mean something. An unaware process
 // sees every monitor virtualized to 96 DPI, and the coordinates then agree by
-// construction. Failing is fine, it means the context was already set.
+// construction. Failing is fine. It means the context was already set.
 var captureTestDPIOnce = sync.OnceFunc(func() {
 	proc := user32.NewProc("SetProcessDpiAwarenessContext")
 	if proc.Find() != nil {
@@ -65,14 +65,14 @@ func paintedOverlay(t *testing.T, rect image.Rectangle, argb uint32) *OverlayWin
 		t.Fatalf("Flush: %v", flushErr)
 	}
 
-	// UpdateLayeredWindow hands the frame to the compositor; give it a vblank
+	// UpdateLayeredWindow hands the frame to the compositor. Give it a vblank
 	// or two before reading it back.
 	time.Sleep(100 * time.Millisecond)
 
 	return overlay
 }
 
-// TestCaptureScreenRegion_ReadsBackAKnownColor is the acceptance check: a
+// TestCaptureScreenRegion_ReadsBackAKnownColor is the acceptance check. A
 // rectangle painted one color reads back as that color at the expected
 // pixel, in the RGBA layout image.RGBA promises.
 func TestCaptureScreenRegion_ReadsBackAKnownColor(t *testing.T) {
@@ -112,10 +112,10 @@ func TestCaptureScreenRegion_ReadsBackAKnownColor(t *testing.T) {
 	}
 }
 
-// TestCaptureScreenRegion_MatchesEnumDisplayMonitors pins the DPI contract: on
+// TestCaptureScreenRegion_MatchesEnumDisplayMonitors pins the DPI contract. On
 // a mixed-DPI arrangement, capturing each monitor's reported bounds yields a
 // frame of exactly those dimensions. Under per-monitor-v2 both answers are
-// physical pixels; a process that lost that awareness would read a scaled
+// physical pixels. A process that lost that awareness would read a scaled
 // monitor back at the wrong size, and every hint on it would land off target.
 func TestCaptureScreenRegion_MatchesEnumDisplayMonitors(t *testing.T) {
 	captureTestDPIOnce()
@@ -170,7 +170,7 @@ func TestCaptureScreenRegion_ZeroRegionIsTheActiveScreen(t *testing.T) {
 }
 
 // TestCaptureScreenRegion_RejectsARegionOffTheScreen pins the exact-region
-// contract: a rectangle that leaves every monitor fails rather than coming
+// contract. A rectangle that leaves every monitor fails rather than coming
 // back clipped, and a degenerate one is refused rather than widened.
 func TestCaptureScreenRegion_RejectsARegionOffTheScreen(t *testing.T) {
 	tests := []struct {
@@ -195,8 +195,8 @@ func TestCaptureScreenRegion_RejectsARegionOffTheScreen(t *testing.T) {
 	}
 }
 
-// TestClipToScreen_KeepsAWindowOnScreen pins the clip the focused window gets:
-// the bounds a capture strategy is handed never leave the virtual screen. It
+// TestClipToScreen_KeepsAWindowOnScreen pins the clip the focused window gets.
+// The bounds a capture strategy is handed never leave the virtual screen. It
 // uses the desktop window, which every session has and which spans the
 // primary monitor exactly, widened by the border a maximized window overhangs.
 func TestClipToScreen_KeepsAWindowOnScreen(t *testing.T) {

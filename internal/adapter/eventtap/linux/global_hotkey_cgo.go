@@ -12,7 +12,7 @@ import (
 // GlobalHotkeyListener is the Wayland substitute for OS-level global hotkeys,
 // which compositors do not expose to ordinary clients. It is a set of chord
 // bindings on the evdev proxy, which matches them while no mode is open and
-// withholds a matched chord from the focused app — the mode handler resolves
+// withholds a matched chord from the focused app. The mode handler resolves
 // the same chords itself while a mode is open, out of the same global table
 // (internal/app/modes/keymap.go, settledKeymaps), and exactly one of the two
 // sees any given press.
@@ -65,7 +65,7 @@ func (l *GlobalHotkeyListener) ClearBindings() {
 
 // Start attaches the bindings to the evdev proxy, building it on first use. It
 // is idempotent. An error is returned when no keyboard can be opened (typically
-// a permissions problem: the user needs read access to /dev/input/event*).
+// a permissions problem, meaning the user needs read access to /dev/input/event*).
 func (l *GlobalHotkeyListener) Start() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -95,7 +95,7 @@ func (l *GlobalHotkeyListener) Start() error {
 	return nil
 }
 
-// Stop detaches the bindings. The proxy keeps forwarding keys: it is the
+// Stop detaches the bindings. The proxy keeps forwarding keys. It is the
 // keyboard now, and stays so for the daemon's lifetime. Idempotent.
 func (l *GlobalHotkeyListener) Stop() {
 	l.mu.Lock()
@@ -109,8 +109,8 @@ func (l *GlobalHotkeyListener) Stop() {
 	l.publishLocked()
 }
 
-// StopWithTimeout is Stop. Detaching is a pointer swap and cannot take long;
-// the deadline is kept for the callers that pass one.
+// StopWithTimeout is Stop. Detaching is a pointer swap and cannot take long.
+// The deadline is kept for the callers that pass one.
 func (l *GlobalHotkeyListener) StopWithTimeout(_ time.Duration) bool {
 	l.Stop()
 

@@ -12,7 +12,7 @@ import (
 )
 
 // The Linux tap is the only thing the factory builds, and it is what the sink
-// is for; a build where the two have drifted apart should not link.
+// is for. A build where the two have drifted apart should not link.
 var _ tap.SyntheticModifierSink = (*eventtaplinux.EventTap)(nil)
 
 // initializePlatformLogger is a no-op on Linux.
@@ -28,10 +28,10 @@ func initializePlatformLogger(_ *zap.Logger) {}
 // wired here, beside the tap's construction, because the injection backend is
 // reached through package-level functions with nowhere to pass it.
 //
-// Wayland needs none of this: its virtual-keyboard modifier path generates no
+// Wayland needs none of this. Its virtual-keyboard modifier path generates no
 // evdev or wl_keyboard event, so nothing re-enters. It is wired on a Wayland
 // session all the same, because what makes it inert there is that the only code
-// announcing anything is the X11 backend, which does not run — leaving the
+// announcing anything is the X11 backend, which does not run. That leaves the
 // compositor question where it is already answered rather than asking it twice.
 func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 	if built == nil {
@@ -40,7 +40,7 @@ func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 		return
 	}
 
-	// The var above pins that the Linux tap has the method; this pins that the
+	// The var above pins that the Linux tap has the method. This pins that the
 	// tap the factory handed back is that one. The factory answers with the
 	// cross-platform tap.Tap, so nothing here can say so at compile time.
 	sink, ok := built.(tap.SyntheticModifierSink)
@@ -57,7 +57,7 @@ func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 }
 
 // platformQuit unblocks the systray loop so App.Quit() (tray menu or signal)
-// actually stops the Linux daemon; without it systray.Run/RunHeadless keeps
+// actually stops the Linux daemon. Without it systray.Run/RunHeadless keeps
 // the process alive after a clean quit. Mirrors darwin/windows.
 func platformQuit() {
 	infrasystray.Quit()

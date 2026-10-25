@@ -47,8 +47,8 @@ func FocusedAppIdentity(backend string) (string, string, bool) {
 }
 
 // gnomeFocusedAppIdentity reads the extension's cache. EnsureStarted is asked
-// on every read for the reason the origin source asks on every activation:
-// the shell can reload the extension, and a reader that only tried at startup
+// on every read for the reason the origin source asks on every activation.
+// The shell can reload the extension, and a reader that only tried at startup
 // would spend the rest of the session with nothing.
 func gnomeFocusedAppIdentity() (string, string, bool) {
 	bridge := gnomeshell.Shared(nil)

@@ -75,8 +75,8 @@ func TestPollIndicatorsOnce_DrawsOnlyAfterReleasingLock(t *testing.T) {
 
 			assertLockFree("DrawModeIndicator")
 		},
-		// Visibility reaches the platform the same way a draw does — on Linux
-		// hiding an indicator erases the rectangle it painted — so the tick
+		// Visibility reaches the platform the same way a draw does (on Linux
+		// hiding an indicator erases the rectangle it painted), so the tick
 		// must have released the lock before it asks for either.
 		ShowIndicatorFunc: func(indicator ports.Indicator) {
 			if indicator == ports.ModeIndicator {

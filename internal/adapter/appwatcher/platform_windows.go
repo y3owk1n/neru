@@ -15,18 +15,18 @@ import (
 // callback runs on the hook's own message-loop thread. That callback only
 // offers the new HWND to a one-slot channel, latest wins, and a goroutine
 // owned by this backend resolves it to an application identity and dispatches
-// the change — so callbacks registered on the Watcher never run on the pump
-// thread and never run inside a Win32 callback (internal/app/modes/AGENTS.md,
+// the change. Callbacks registered on the Watcher therefore never run on the
+// pump thread and never run inside a Win32 callback (internal/app/modes/AGENTS.md,
 // ADR 0005). The identity is the executable path, the same value
 // GetForegroundWindow resolves to for the focused app, so per-app
 // configuration keys on one string whichever way it is learned.
 //
-// Display changes take the same route from a second source: a hidden window
+// Display changes take the same route from a second source. A hidden window
 // (winplatform.StartDisplayWatcher) receives WM_DISPLAYCHANGE and
 // WM_DPICHANGED on its own pump thread, offers a token to a one-slot channel,
-// and the dispatch goroutine turns it into HandleScreenParametersChanged —
-// the event macOS's screen-parameters notification and Linux's RandR fd
-// produce, so the app re-lays-out the overlay the same way on all three.
+// and the dispatch goroutine turns it into HandleScreenParametersChanged.
+// That is the event macOS's screen-parameters notification and Linux's RandR
+// fd produce, so the app re-lays-out the overlay the same way on all three.
 //
 // globalWindowsWatcher is the process-wide backend, mirroring
 // globalLinuxWatcher. NewWatcher registers itself here via
@@ -59,16 +59,16 @@ var globalWindowsWatcher = &windowsAppWatcher{
 // windowsAppWatcher turns foreground-window changes into activate and
 // deactivate dispatches on the registered Watcher.
 type windowsAppWatcher struct {
-	// subscribe installs the foreground hook and returns its stop function;
-	// injectable for tests.
+	// subscribe installs the foreground hook and returns its stop function.
+	// Tests inject it.
 	subscribe func(callback func(uintptr)) (func(), error)
 	// subscribeDisplay installs the display-change window and returns its stop
-	// function; injectable for tests.
+	// function. Tests inject it.
 	subscribeDisplay func(callback func()) (func(), error)
 	// foreground samples the current foreground HWND once at start, so the
 	// keymap has a published app before the first switch.
 	foreground func() uintptr
-	// identity resolves an HWND to (appName, bundleID); ok=false means no
+	// identity resolves an HWND to (appName, bundleID). ok=false means no
 	// application has focus.
 	identity func(hwnd uintptr) (string, string, bool)
 
@@ -76,7 +76,7 @@ type windowsAppWatcher struct {
 	watcher *Watcher
 	stopCh  chan struct{}
 	unhook  func()
-	// unhookDisplay stops the display watcher; nil when it failed to install.
+	// unhookDisplay stops the display watcher. It is nil when it failed to install.
 	unhookDisplay func()
 	wg            sync.WaitGroup
 
@@ -94,7 +94,7 @@ func (l *windowsAppWatcher) register(w *Watcher) {
 }
 
 // start installs the hook and launches the dispatch goroutine. Idempotent.
-// A hook that fails to install leaves the watcher idle and says so: the
+// A hook that fails to install leaves the watcher idle and says so. The
 // keymap then asks the platform when it settles, as it did before the
 // watcher existed.
 func (l *windowsAppWatcher) start() {
@@ -123,13 +123,13 @@ func (l *windowsAppWatcher) start() {
 	// hook is live first so no change slips between sample and install, the
 	// snapshot yields to a hook event already in the slot because that event
 	// is newer, and the loop starts only afterwards so nothing is consumed
-	// between the two — any interleaving publishes the newest identity last.
+	// between the two. Any interleaving publishes the newest identity last.
 	select {
 	case events <- l.foreground():
 	default:
 	}
 
-	// A display watcher that fails to install costs only hotplug: the
+	// A display watcher that fails to install costs only hotplug. The
 	// foreground hook is already live and the overlay is still re-sized on
 	// each activation, so the watcher runs on without it and says so.
 	unhookDisplay, err := l.subscribeDisplay(func() { offerToken(displayEvents) })
@@ -175,7 +175,7 @@ func (l *windowsAppWatcher) stop() {
 	l.wg.Wait()
 }
 
-// offer hands an HWND to the dispatch goroutine without blocking: a burst of
+// offer hands an HWND to the dispatch goroutine without blocking. A burst of
 // foreground changes coalesces to the newest one, which is the only one whose
 // identity still matters. It runs on the hook's pump thread, which is why it
 // takes the channel rather than reading it off the backend.
@@ -194,7 +194,7 @@ func offer(events chan uintptr, hwnd uintptr) {
 	}
 }
 
-// offerToken is offer for the display channel: a burst of display messages
+// offerToken is offer for the display channel. A burst of display messages
 // coalesces to a single pending refresh, because the refresh re-reads the
 // display and has nothing to learn from the count. It runs on the display
 // watcher's pump thread.
@@ -252,6 +252,6 @@ func platformRegisterWatcher(w *Watcher) { globalWindowsWatcher.register(w) }
 func platformStartWatcher()              { globalWindowsWatcher.start() }
 func platformStopWatcher()               { globalWindowsWatcher.stop() }
 
-// platformSetMCDetection is a no-op on Windows: Mission Control is a macOS
+// platformSetMCDetection is a no-op on Windows, because Mission Control is a macOS
 // concept with no Windows equivalent.
 func platformSetMCDetection(_ bool) {}

@@ -14,13 +14,13 @@ import (
 //
 // What is refused here and what is only warned about is ADR 0002's split. A
 // refused configuration is replaced by the defaults in full, so that is spent
-// only on a binding that could not have run at all — one naming a flag nothing
-// knows, or a value no flag can carry. A binding that runs minus one flag is
+// only on a binding that could not have run at all, such as one naming a flag
+// nothing knows, or a value no flag can carry. A binding that runs minus one flag is
 // left loading and reported through warnings, which reach the user through
 // `neru config validate` rather than only the log.
 //
-// A step nested inside another one — the steps an --on-exit carries, or the
-// steps of a "run" — is checked for the command it names, by
+// A step nested inside another one, such as the steps an --on-exit carries or
+// the steps of a "run", is checked for the command it names, by
 // validateHotkeyActionString, and not for its flags. Reading those would mean
 // reading a step out of the argument list it was quoted into, which is the
 // runtime's job at the moment it dispatches them.
@@ -55,7 +55,7 @@ func (c *Config) ValidateModeCommands(warnings *Warnings) error {
 }
 
 // checkDeclaredMode refuses a step that enters a declared mode nothing
-// declares, wherever the step sits: ValidateModeCommands reads the top-level
+// declares, wherever the step sits. ValidateModeCommands reads the top-level
 // steps, and the binding walk hands the ones nested in a run or an --on-exit
 // here, so a typo'd name is reported at load at any depth.
 func (c *Config) checkDeclaredMode(field, step string) error {
@@ -73,10 +73,10 @@ func (c *Config) checkDeclaredMode(field, step string) error {
 }
 
 // refuseUndeclared is the refusal for a custom activation naming a mode the
-// configuration does not declare. The grammar reads the name; only the
-// configuration knows whether anything declares it, and a binding into a
-// mode nothing declares is a key that does nothing, so it is refused like a
-// typo'd flag.
+// configuration does not declare. The grammar reads the name, but only the
+// configuration knows whether anything declares it. A binding into a mode
+// nothing declares is a key that does nothing, so it is refused like a typo'd
+// flag.
 func (c *Config) refuseUndeclared(field string, activation modecmd.Activation) error {
 	if activation.Mode != domain.ModeCustom {
 		return nil
@@ -99,8 +99,8 @@ func (c *Config) refuseUndeclared(field string, activation modecmd.Activation) e
 // command at all, which most steps are not.
 //
 // Tokenising with SplitStepArgs is what makes this the same reading the daemon
-// does: a step is dispatched by splitting it exactly this way and handing the
-// rest to the grammar.
+// does. The daemon dispatches a step by splitting it exactly this way and
+// handing the rest to the grammar.
 func parseModeCommand(actionStr string) (domain.Mode, []string, bool) {
 	step := strings.TrimSpace(actionStr)
 

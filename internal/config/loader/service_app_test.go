@@ -56,7 +56,7 @@ func (p *blockingAlertProvider) dismiss() {
 
 // A reload of an invalid config must report the error to whoever asked for it
 // rather than waiting behind the alert. Held inline, the dialog made
-// `neru config reload` fail with a receive timeout — the daemon looking hung
+// `neru config reload` fail with a receive timeout, so the daemon looked hung
 // when the real problem was a bad config file.
 func TestReloadWithAppContext_DoesNotWaitForTheAlert(t *testing.T) {
 	t.Parallel()
@@ -93,8 +93,8 @@ func TestReloadWithAppContext_DoesNotWaitForTheAlert(t *testing.T) {
 		t.Fatal("ReloadWithAppContext() blocked on the alert instead of reporting the error")
 	}
 
-	// The alert is still shown — it is the only feedback the systray menu
-	// item has — just not on the reply's path.
+	// The alert is still shown, because it is the only feedback the systray
+	// menu item has. It is just not on the reply's path.
 	select {
 	case <-alert.shown:
 	case <-time.After(5 * time.Second):
@@ -103,9 +103,9 @@ func TestReloadWithAppContext_DoesNotWaitForTheAlert(t *testing.T) {
 }
 
 // Repeated failing reloads must not stack dialogs. Shown inline the alert
-// serialized them — a second reload could not start until the first was
-// dismissed — and moving it off the reply's path removed that, so the limit
-// has to be explicit.
+// serialized them, since a second reload could not start until the first was
+// dismissed. Moving it off the reply's path removed that, so the limit has to
+// be explicit.
 func TestReloadWithAppContext_ShowsOneAlertAtATime(t *testing.T) {
 	t.Parallel()
 

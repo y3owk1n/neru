@@ -78,8 +78,8 @@ func TestBase_GetCursorPositionWrapsPortFailure(t *testing.T) {
 }
 
 // TestBase_VisibilityTargetsItsOwnIndicator pins that each of the three
-// visibility calls names the indicator the Base was built for and no other —
-// the whole point of one module owning one indicator.
+// visibility calls names the indicator the Base was built for and no other.
+// That is the whole point of one module owning one indicator.
 func TestBase_VisibilityTargetsItsOwnIndicator(t *testing.T) {
 	t.Parallel()
 
@@ -138,7 +138,7 @@ func TestBase_VisibilityTargetsItsOwnIndicator(t *testing.T) {
 }
 
 // TestBase_WithoutOverlayIsSilent pins the "this indicator was never
-// constructed" case — a disabled indicator, or a backend with no surface.
+// constructed" case, a disabled indicator or a backend with no surface.
 // Mode logic drives an indicator without checking, so the guard has to be
 // here.
 func TestBase_WithoutOverlayIsSilent(t *testing.T) {

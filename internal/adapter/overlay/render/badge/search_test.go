@@ -60,7 +60,7 @@ func TestSearchLabel(t *testing.T) {
 }
 
 // TestSearchBounds pins the box the label is painted in. The configured width
-// is a floor rather than the width: a query longer than the box would otherwise
+// is a floor rather than the width. A query longer than the box would otherwise
 // be drawn past its own border, which is the one thing a badge that exists to
 // show text must not do to it.
 func TestSearchBounds(t *testing.T) {

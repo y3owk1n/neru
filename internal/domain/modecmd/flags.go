@@ -77,10 +77,10 @@ const (
 
 // The one message each flag gives when its value is missing or unusable.
 //
-// Missing and unusable share a message on purpose: they are the same mistake
+// Missing and unusable share a message on purpose. They are the same mistake
 // seen from two sides, and the answer to both is the same sentence. Each is
-// written to be true wherever it is read — on a command line, in an IPC
-// response, and as advice about a binding — so none of them names a way of
+// written to be true wherever it is read, whether on a command line, in an IPC
+// response, or as advice about a binding, so none of them names a way of
 // invoking Neru that only one of those three has.
 const (
 	msgActionValue              = "--action requires a value"
@@ -108,11 +108,11 @@ const (
 // What each flag is for, in one sentence.
 //
 // A flag is explained here rather than where it is registered, for the same
-// reason its rules are: a mode command is written in three places, and the
+// reason its rules are. A mode command is written in three places, and the
 // sentence that says what a flag does is true in all of them. It is worded to
 // read as advice about a flag rather than about a command line, so a reader
-// that is not one — the daemon's answer, a generated reference — can say it
-// too.
+// that is not one, such as the daemon's answer or a generated reference, can
+// say it too.
 const (
 	usageToggle              = "Open the mode, or leave it if it is already open"
 	usageRepeat              = "Reopen the mode after the action runs. Needs --action"
@@ -161,7 +161,7 @@ func (f Flag) Assign(value string) string { return "--" + string(f) + "=" + valu
 //
 // Its fields are unexported and it is built only by the two constructors
 // below, so a flag cannot be declared without saying how it parses and how it
-// renders — the compiler asks for both.
+// renders. The compiler asks for both.
 type Descriptor struct {
 	name  Flag
 	short string
@@ -185,7 +185,7 @@ type Descriptor struct {
 type Kind int
 
 const (
-	// KindPresence is a flag that carries no value: writing it is the whole
+	// KindPresence is a flag that carries no value. Writing it is the whole
 	// statement.
 	KindPresence Kind = iota
 
@@ -225,7 +225,7 @@ func valueFlag(
 // occurrence adding to the list the earlier ones started.
 //
 // It is a value flag in every other respect. What separates the two is what a
-// second occurrence means: on a plain value flag the last one wins, and on one
+// second occurrence means. On a plain value flag the last one wins, and on one
 // of these none of them is lost. A reader that offers the flag has to know
 // which, or the steps of an --on-exit sequence would silently come down to the
 // last one written.
@@ -244,12 +244,12 @@ func listFlag(
 	return descriptor
 }
 
-// presenceFlag declares a flag that carries no value: writing it is the whole
+// presenceFlag declares a flag that carries no value. Writing it is the whole
 // statement.
 //
 // A value written onto one anyway is refused rather than dropped. Taking
 // "--toggle=false" as a request to toggle is the shape of mistake this module
-// exists to stop: the flag was read, the value was not, and nothing said so.
+// exists to stop. The flag was read, the value was not, and nothing said so.
 func presenceFlag(
 	name Flag,
 	short string,
@@ -295,11 +295,11 @@ func (d Descriptor) Kind() Kind { return d.kind }
 func (d Descriptor) TakesValue() bool { return d.kind != KindPresence }
 
 // Apply reads one written value into an activation, as this flag's own rule
-// says. A presence-only flag is applied with an empty value: writing it is the
-// whole statement.
+// says. A presence-only flag is applied with an empty value, because writing it
+// is the whole statement.
 //
 // It is exported for the reader that holds a flag's value already typed rather
-// than as an argument to be found — the CLI reads cobra's own flags this way.
+// than as an argument to be found. The CLI reads cobra's own flags this way.
 // Going through the same function a parse does is what keeps the two from
 // disagreeing about what a written value means.
 func (d Descriptor) Apply(activation *Activation, value string) error {
@@ -310,7 +310,7 @@ func (d Descriptor) Apply(activation *Activation, value string) error {
 // given it. [Render] is the whole table's version of the same thing.
 //
 // It is exported for a reader that carries some of the vocabulary but not all
-// of it: the hints probe takes the flags that decide which elements are
+// of it. The hints probe takes the flags that decide which elements are
 // collected and refuses the rest, and answering "was this one given?" is what
 // it needs to say so.
 func (d Descriptor) Render(activation Activation) []string { return d.render(activation) }
@@ -330,7 +330,7 @@ func (d Descriptor) AcceptedBy(mode domain.Mode) bool {
 // vocabulary declares them.
 //
 // [Descriptor.AcceptedBy] answers the question a reader with a mode in hand
-// asks. This answers the one a reader without a mode asks — the published flag
+// asks. This answers the one a reader without a mode asks. The published flag
 // reference lists which modes take a flag, and reading that from the same
 // declaration is what stops the document from claiming a mode the binary does
 // not offer it on.
@@ -406,7 +406,7 @@ var (
 // Modes returns every mode a mode command can name, idle included.
 //
 // It is exported for the reader that has to answer "is every mode accounted
-// for?" rather than "what does this one accept?" — the guardrail that pins a
+// for?" rather than "what does this one accept?". The guardrail that pins a
 // command to the vocabulary needs the list to walk, and reading it from here is
 // what makes a mode added to the grammar and forgotten on the command line a
 // build failure.
@@ -422,7 +422,7 @@ var modeNamePattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 // ValidModeName reports whether name may be used as a declared mode's name.
 //
 // It is exported for the configuration, which judges the keys of [modes] by
-// the same rule the grammar judges the argument of a mode command: a name one
+// the same rule the grammar judges the argument of a mode command. A name one
 // accepts and the other refuses is a mode that can be declared and never
 // entered.
 func ValidModeName(name string) bool {
@@ -432,7 +432,7 @@ func ValidModeName(name string) bool {
 // LookupMode returns the mode a command word names.
 //
 // It is exported for the reader that has to decide whether something is a mode
-// command before it can be parsed: a configuration holds its bindings as text,
+// command before it can be parsed. A configuration holds its bindings as text,
 // and the word it recognizes has to be the word the daemon dispatches on, or
 // the two would disagree about which steps are even mode commands.
 func LookupMode(word string) (domain.Mode, bool) {
@@ -674,7 +674,7 @@ func Lookup(name Flag) (Descriptor, bool) {
 // accepts.
 //
 // It is exported because the hints probe takes the same flag without being a
-// mode command: a probe reports what hints mode would target and enters
+// mode command. A probe reports what hints mode would target and enters
 // nothing, so it has an argument list of its own. Reading the vocabulary from
 // here is what stops the two from disagreeing about what "axtree" means.
 func ParseStrategy(value string) (string, error) {

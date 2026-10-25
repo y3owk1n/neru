@@ -41,7 +41,7 @@ type Params struct {
 }
 
 // component is one 8-connected blob of dilated edge pixels with its place in
-// the enclosure hierarchy. Indices are into the components slice; -1 is none.
+// the enclosure hierarchy. Indices are into the components slice, and -1 is none.
 type component struct {
 	minX, minY, maxX, maxY int
 	parent                 int
@@ -58,7 +58,7 @@ func (c component) area() int64 {
 // 5x5 Gaussian blur, Sobel, non-maximum suppression, Canny hysteresis,
 // scale-dependent dilation, connected components and hierarchical filtering.
 // Rectangles are returned in logical coordinates (divided by scale). An empty
-// frame is refused; a frame with nothing in it returns no rectangles and no
+// frame is refused. A frame with nothing in it returns no rectangles and no
 // error. The context is checked between stages, so a deadline set by the
 // caller ends a slow frame early instead of after the fact.
 func Detect(
@@ -406,7 +406,7 @@ func connectedComponents(dilated []uint8, width, height int) []component {
 // box encloses it, with one pixel of slack on every side. A parent must be
 // strictly larger than its child, which keeps the parent links acyclic so the
 // child walk in filterTargets always ends. Dilated blobs are thick and
-// 4-connected, so two disjoint ones cannot share a box within the slack; the
+// 4-connected, so two disjoint ones cannot share a box within the slack. The
 // rule is a guard on that argument, not a case a frame is known to reach.
 //
 //nolint:varnamelen // i and j index two components being compared
@@ -513,7 +513,7 @@ func filterTargets(comps []component, scale float64, params Params) []image.Rect
 	}
 
 	// A container (at least ContainerHeight tall, under the max) holding
-	// button-sized children is a dialog whose buttons are the targets; one
+	// button-sized children is a dialog whose buttons are the targets. One
 	// holding none is a toast and stays clickable itself.
 	for i := range comps {
 		if filtered[i] || rh[i] < params.ContainerHeight {

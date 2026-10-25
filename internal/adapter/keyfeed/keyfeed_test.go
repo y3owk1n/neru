@@ -98,7 +98,7 @@ func TestNormalizeKeyForFeed(t *testing.T) {
 	}
 }
 
-// TestAdapter_FeedRejectsEmptyKey pins the shared validation: it runs on every
+// TestAdapter_FeedRejectsEmptyKey pins the shared validation. It runs on every
 // platform because normalization is shared code, unlike the injection behind it.
 func TestAdapter_FeedRejectsEmptyKey(t *testing.T) {
 	adapter := keyfeed.NewAdapter(nil)
@@ -128,11 +128,11 @@ func TestAdapter_FeedHonorsCanceledContext(t *testing.T) {
 }
 
 // TestNormalizeKeyForFeed_ExplicitModifierSuppressesShiftInjection covers the
-// case the table cannot: an uppercase letter already carrying a modifier must
+// case the table cannot. An uppercase letter already carrying a modifier must
 // not have Shift added on top of it.
 //
 // It asserts the property rather than an exact string because the rendered
-// modifier name is platform-specific — config.CanonicalHotkeyForPlatform maps
+// modifier name is platform-specific. config.CanonicalHotkeyForPlatform maps
 // "Cmd" to "Cmd" on macOS and "Super" elsewhere. Pinning "Cmd+A" here is what
 // made this test pass on macOS and fail on Linux.
 func TestNormalizeKeyForFeed_ExplicitModifierSuppressesShiftInjection(t *testing.T) {

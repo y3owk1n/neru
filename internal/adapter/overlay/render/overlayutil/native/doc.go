@@ -3,7 +3,7 @@
 //
 // On macOS the overlay pipeline passes callback context pointers through cgo to
 // Objective-C that runs asynchronously. Go's GC may move or collect heap
-// objects, so those pointers must live on the C heap; this package owns their
+// objects, so those pointers must live on the C heap, and this package owns their
 // malloc/free lifecycle. Everywhere else the functions are no-ops
 // (native_other.go).
 //

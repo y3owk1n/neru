@@ -11,7 +11,7 @@ import (
 
 // platformSupportRow is the label the platform-support check reports under. It
 // is a client-side check about the words in a configuration, which is a
-// different question from the component health the daemon answers below it: a
+// different question from the component health the daemon answers below it. A
 // subsystem can be perfectly healthy while an option a person wrote means
 // nothing here (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
 const platformSupportRow = "platform_support"
@@ -19,7 +19,7 @@ const platformSupportRow = "platform_support"
 // doctorConfigLoad reads the configuration the way the daemon would, for the
 // client-side checks that judge it.
 //
-// One load for all of them: two would be two chances to disagree about which
+// One load for all of them, since two would be two chances to disagree about which
 // file is even being judged, and the load is what discovers that file.
 func doctorConfigLoad() *config.LoadResult {
 	svc := clientConfigLoader()
@@ -36,9 +36,9 @@ func doctorConfigLoad() *config.LoadResult {
 // configuration writes that do nothing on this platform or on the display
 // backend it is running.
 //
-// It never fails the doctor. An inert word is not a broken configuration — the
-// same file is meant to work on every platform, which is why writing one is a
-// warning and never a refusal — so this reports and returns.
+// It never fails the doctor. An inert word is not a broken configuration,
+// because the same file is meant to work on every platform. That is why writing
+// one is a warning and never a refusal, so this reports and returns.
 func printPlatformSupportCheck(cmd *cobra.Command, loadResult *config.LoadResult) {
 	platform, known := parity.Current()
 	if !known {
@@ -62,7 +62,7 @@ func printPlatformSupportCheck(cmd *cobra.Command, loadResult *config.LoadResult
 		return
 	}
 
-	// "This session" rather than the platform: the list carries the words the
+	// "This session" rather than the platform, because the list carries the words the
 	// display backend cannot honor beside the ones the platform cannot, and
 	// passthrough on X11 does nothing here without doing nothing on Linux.
 	cmd.Printf(
@@ -85,8 +85,8 @@ type inertSetting struct {
 }
 
 // inertSettings is the platform_support check as `neru doctor --json` prints
-// it, and nil when the check does not run: no platform support is declared
-// here, or the configuration is invalid.
+// it, and nil when the check does not run, because no platform support is declared
+// here or the configuration is invalid.
 func inertSettings(loadResult *config.LoadResult) []inertSetting {
 	if _, known := parity.Current(); !known || loadResult.ValidationError != nil {
 		return nil

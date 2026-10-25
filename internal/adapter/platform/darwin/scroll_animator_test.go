@@ -17,7 +17,7 @@ type scrollChunk struct {
 	modifiers      action.Modifiers
 }
 
-// scrollRecorder stands in for the window server: it captures every chunk the
+// scrollRecorder stands in for the window server. It captures every chunk the
 // animator posts so a test can total the distance actually traveled.
 type scrollRecorder struct {
 	mu     sync.Mutex
@@ -71,7 +71,7 @@ func (r *scrollRecorder) count() int {
 }
 
 // The shipped smooth_scroll defaults, which are what makes the truncation
-// visible: the animation runs for max_duration (180ms) while held_repeat fires
+// visible. The animation runs for max_duration (180ms) while held_repeat fires
 // every 50ms, so most of each tick's travel is still unsent when the next tick
 // arrives.
 const (
@@ -100,7 +100,7 @@ func waitForScroll(t *testing.T, condition func() bool) {
 }
 
 // TestScrollAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses is the
-// property the whole fix rests on: switching smooth scroll on changes how a
+// property the whole fix rests on. Switching smooth scroll on changes how a
 // held scroll key looks, never how far it goes. Each repeat tick preempts the
 // animation still in flight, and before the remainder was composed in, roughly
 // 70% of every tick's travel was thrown away.
@@ -126,7 +126,7 @@ func TestScrollAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses(t *testi
 
 	want := ticks * scrollTestHalfPage
 
-	// The last tick's animation is still draining; the run is only equal to the
+	// The last tick's animation is still draining. The run is only equal to the
 	// same number of discrete presses once it finishes.
 	waitForScroll(t, func() bool { return rec.traveled() == want })
 
@@ -137,17 +137,17 @@ func TestScrollAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses(t *testi
 }
 
 // TestScrollAnimator_Animate_KeepsTheBacklogBounded covers the risk composition
-// introduces: the animation (180ms) outlives the repeat interval (50ms), so
-// undelivered delta accumulates across ticks. It has to self-limit — duration is
+// introduces. The animation (180ms) outlives the repeat interval (50ms), so
+// undelivered delta accumulates across ticks. It has to self-limit. Duration is
 // capped at max_duration, so a larger pending delta drains over the same window
-// and the delivery rate rises with the backlog — and that convergence is worth a
+// and the delivery rate rises with the backlog. That convergence is worth a
 // test rather than an assumption. Without it a long hold would keep scrolling
 // long after the key came up.
 func TestScrollAnimator_Animate_KeepsTheBacklogBounded(t *testing.T) {
 	const (
 		ticks = 15
 		// Steady state is ~0.6 of one tick's delta at these settings, so four
-		// ticks' worth is loose enough to absorb scheduler jitter — and an
+		// ticks' worth is loose enough to absorb scheduler jitter, and an
 		// uncomposed backlog, which grows by ~0.4 of a tick's delta every tick,
 		// still crosses it well inside the run.
 		maxBacklog = 4 * -scrollTestHalfPage
@@ -178,7 +178,7 @@ func TestScrollAnimator_Animate_KeepsTheBacklogBounded(t *testing.T) {
 }
 
 // TestScrollAnimator_Animate_DropsTheRemainderOnADifferentModifierSet pins the
-// half of the rule that must not change: a plain scroll_down arriving mid-zoom
+// half of the rule that must not change. A plain scroll_down arriving mid-zoom
 // cancels the zoom and finishes unmodified, which is what the second binding
 // asked for. Carrying the zoom's undelivered distance into it would emit that
 // distance as a plain scroll nobody asked for.
@@ -216,9 +216,9 @@ func TestScrollAnimator_Animate_DropsTheRemainderOnADifferentModifierSet(t *test
 }
 
 // TestScrollAnimator_Animate_AReversalNetsTheTwoDeltas is the same rule read
-// backwards, and the case composition is most often suspected of breaking: a
+// backwards, and the case composition is most often suspected of breaking. A
 // scroll_up landing mid-scroll_down inherits a *negative* remainder, so the new
-// animation travels less than its own delta — or not at all.
+// animation travels less than its own delta, or not at all.
 //
 // That is the point. The pair asked for -600 then +600, which is a net zero,
 // and the first animation has already sent part of its -600. Ignoring the
@@ -257,9 +257,9 @@ func TestScrollAnimator_Animate_AReversalNetsTheTwoDeltas(t *testing.T) {
 }
 
 // TestScrollAnimator_EnqueueLocked_ComposesAQueuedRequest covers the other seam
-// a delta can be dropped at: a request the worker has not taken yet is replaced
+// a delta can be dropped at. A request the worker has not taken yet is replaced
 // wholesale by the next one. None of it has been delivered, so all of it folds
-// into the replacement — under the same modifier rule the worker applies.
+// into the replacement, under the same modifier rule the worker applies.
 func TestScrollAnimator_EnqueueLocked_ComposesAQueuedRequest(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -277,7 +277,7 @@ func TestScrollAnimator_EnqueueLocked_ComposesAQueuedRequest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			// No worker: nothing consumes the channel, so the test owns both
+			// With no worker, nothing consumes the channel, so the test owns both
 			// requests and no scroll is posted.
 			animator := newScrollAnimator(
 				func() image.Point { return image.Point{} },

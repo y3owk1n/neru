@@ -30,9 +30,9 @@ import (
 )
 
 const (
-	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	// NSWindowSharingNone represents NSWindowSharingNone (0), which hides the window from screen sharing.
 	NSWindowSharingNone = 0
-	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1), which shows the window in screen sharing.
 	NSWindowSharingReadOnly = 1
 )
 
@@ -55,17 +55,17 @@ type Manager struct {
 	// through: the shared window handle and the render overlays that own their
 	// own. Destroy takes it too, because the screen-share callback is the one
 	// port call that arrives on a goroutine of its own (state.AppState notifies
-	// on `go callback(...)`) and can therefore overlap a teardown — reading a
+	// on `go callback(...)`) and can therefore overlap a teardown. Reading a
 	// window handle the release is about to hand to CFBridgingRelease is a
 	// use-after-free, not a stale write. It is deliberately separate from the
 	// Base mode/subscriber mutex so SetSharingType can never contend with
 	// SwitchTo/Subscribe callers.
 	//
 	// What makes a teardown safe to run under it is a property of the callers,
-	// not of the lock: every native call SetSharingType makes is a
+	// not of the lock. Every native call SetSharingType makes is a
 	// dispatch_async, so a holder always finishes without needing the main
 	// thread, and a Destroy waiting here can never be waiting on something
-	// waiting on it. Destroy's own calls are not async — which is why Destroy
+	// waiting on it. Destroy's own calls are not async, which is why Destroy
 	// is main-thread-only.
 	shareMu           sync.RWMutex
 	hideInScreenShare bool
@@ -101,8 +101,8 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 }
 
 // Ensure the manager keeps declaring the optional headless capability. Its own
-// BuildComponents reads Headless directly, so drift there fails to compile;
-// this pins the shared spelling every backend answers headlessness with.
+// BuildComponents reads Headless directly, so drift there fails to compile,
+// and this pins the shared spelling every backend answers headlessness with.
 var _ manager.HeadlessReporter = (*Manager)(nil)
 
 // Headless reports whether the overlay window failed to be created, leaving
@@ -113,7 +113,7 @@ func (m *Manager) Headless() bool {
 
 // BuildComponents constructs the render components this manager draws through,
 // on the window it owns, then hands the virtual pointer the screen-share
-// visibility the manager is already holding — it has its own window, so the
+// visibility the manager is already holding. It has its own window, so the
 // state the other overlays were given does not otherwise reach it.
 func (m *Manager) BuildComponents(
 	cfg *config.Config,
@@ -210,7 +210,7 @@ func (m *Manager) Clear() {
 	}
 }
 
-// ClearCache is a no-op on Darwin; each overlay owns its own NSWindow and
+// ClearCache is a no-op on Darwin, because each overlay owns its own NSWindow and
 // does not retain stale cross-mode cache state.
 func (m *Manager) ClearCache() {}
 
@@ -237,17 +237,17 @@ func (m *Manager) SetActiveScreenOrigin(_ image.Point) {}
 
 // Destroy destroys the overlay window and cleans up all overlay resources.
 //
-// It runs under shareMu so an in-flight SetSharingType cannot overlap it: the
+// It runs under shareMu so an in-flight SetSharingType cannot overlap it. The
 // adapter's destroyed flag stops calls that arrive after the release begins,
 // but a screen-share callback already past that check is inside this manager,
 // and the two touch the same window handles.
 //
-// It must be called on the main thread, which both callers are —
+// It must be called on the main thread, which both callers are. They are
 // App.Cleanup (cmd/neru/daemon_host_darwin.go runs it once the Cocoa loop has
 // stopped) and the startup unwind, which reaches the manager before any
 // screen-share subscription exists. Off it, the native release below is a
 // dispatch_sync, and the indicator teardown takes a draw mutex whose holder
-// dispatch_syncs as well: shareMu would then be held across a wait on the main
+// dispatch_syncs as well. shareMu would then be held across a wait on the main
 // queue, and every later screen-share callback would park behind it.
 func (m *Manager) Destroy() {
 	m.shareMu.Lock()
@@ -255,7 +255,7 @@ func (m *Manager) Destroy() {
 
 	// Clean up Go-side resources (callbackManager, styleCache, labelCache) for
 	// overlays that share the manager's window. We call Cleanup() instead of
-	// Destroy() because the shared window is destroyed below — calling each
+	// Destroy() because the shared window is destroyed below, and calling each
 	// overlay's Destroy() would double-destroy the same native window.
 	if m.HintOverlay() != nil {
 		m.HintOverlay().Cleanup()
@@ -297,8 +297,8 @@ func (m *Manager) Destroy() {
 }
 
 // UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay
-// renderer, propagating the current screen-share visibility to it. Overrides
-// the Base method; the other renderers are registered through Base directly.
+// renderer, propagating the current screen-share visibility to it. It overrides
+// the Base method. The other renderers are registered through Base directly.
 func (m *Manager) UseVirtualPointerOverlay(overlay *virtualpointer.Overlay) {
 	m.Base.UseVirtualPointerOverlay(overlay)
 
@@ -314,7 +314,7 @@ func (m *Manager) UseVirtualPointerOverlay(overlay *virtualpointer.Overlay) {
 // DrawHintsWithStyle draws hints with the specified style using the hint overlay renderer.
 //
 // A placement the renderer cannot draw is reported as CodeNotSupported (#1333),
-// and the caller degrades on that code — so it travels unwrapped, the way the
+// and the caller degrades on that code, so it travels unwrapped, the way the
 // overlay adapter already passes one on. Wrapping it as an overlay failure
 // would report a degradation as a fault.
 func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error {
@@ -538,7 +538,7 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 //
 // The pointer is a layer of the overlay window here rather than something
 // painted into the cells, so applying it after the subgrid costs a layer
-// update and no redraw — which is why this platform never paid the double
+// update and no redraw. That is why this platform never paid the double
 // repaint #1492 is about, and why taking the pointer as an argument changes
 // nothing it does.
 func (m *Manager) ShowSubgrid(
@@ -561,7 +561,7 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 	m.GridOverlay().SetHideUnmatched(hide)
 }
 
-// Flush is a no-op on macOS — indicator overlays use independent windows
+// Flush is a no-op on macOS, because indicator overlays use independent windows
 // that are positioned dynamically per draw call.
 func (m *Manager) Flush() {}
 
@@ -585,7 +585,7 @@ func (m *Manager) SetSharingType(hide bool) {
 
 	C.NeruSetOverlaySharingType(m.window, sharingType)
 
-	// Also update grid, recursive_grid, and mode indicator overlay windows if they exist
+	// Also update the render overlays that own windows of their own.
 	if m.GridOverlay() != nil {
 		m.GridOverlay().SetSharingType(hide)
 	}

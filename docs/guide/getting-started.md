@@ -57,8 +57,8 @@ edits.
 
 ### macOS and Windows
 
-Neru ships a launcher for every mode except monitor select, which is disabled
-and unbound, and the modes you declare yourself. Hints is
+Neru ships a hotkey for every built-in mode except monitor select, which is
+disabled and unbound. Modes you declare yourself get no hotkey. Hints is
 `Primary+Shift+Space`, where `Primary` is `Cmd` on macOS and `Ctrl` on
 Windows by default. The [default hotkeys](../reference/configuration.md#global-hotkeys)
 list the rest. Go on to [Try it](#try-it).
@@ -71,9 +71,9 @@ list the rest. Go on to [Try it](#try-it).
 
 On Wayland, Neru's own `[hotkeys]` need the `input` group from
 [Linux setup](linux.md). Without it, bind `neru hints` and the other modes in
-your compositor instead, see
-[Global hotkeys on Wayland](linux-desktops.md#global-hotkeys-on-wayland), and
-skip the rest of this section. X11 needs nothing more.
+your compositor instead, as
+[Global hotkeys on Wayland](linux-desktops.md#global-hotkeys-on-wayland)
+describes, and skip the rest of this section. X11 needs nothing more.
 
 The file `neru config init` writes has a commented-out `[hotkeys]` table.
 Uncomment it and replace its `Primary+Shift` keys with your own, for example:

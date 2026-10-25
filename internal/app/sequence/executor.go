@@ -29,8 +29,8 @@ type CommandHandler interface {
 // ExecutorDeps collects what running a sequence needs.
 //
 // Every field is a function or a one-method interface rather than a component,
-// which is what keeps this package out of the application's dependency graph:
-// the executor drives modes and IPC without importing either.
+// which is what keeps this package out of the application's dependency graph.
+// The executor drives modes and IPC without importing either.
 type ExecutorDeps struct {
 	// Commands dispatches a step that is not a shell command. A nil handler
 	// makes every such step fail rather than silently succeed.
@@ -47,7 +47,7 @@ type ExecutorDeps struct {
 	// sequences that no hotkey triggered.
 	SuppressModifiers func(source string)
 
-	// BaseContext returns the context steps run under — the daemon's, so a
+	// BaseContext returns the context steps run under. It is the daemon's, so a
 	// blocking step is released at shutdown rather than at the caller's whim.
 	// It is a function so the executor can be built before the context exists.
 	BaseContext func() context.Context
@@ -97,8 +97,8 @@ func NewExecutor(deps ExecutorDeps) *Executor {
 //
 // A step that reports CodeChainBail stops the sequence. Any other failure is
 // reported and the remaining steps still run, unless the step was marked
-// fatal — with the trailing --bail-on-error directive, or by a policy that
-// marks every step — in which case the sequence stops there.
+// fatal, either with the trailing --bail-on-error directive or by a policy
+// that marks every step. A fatal step stops the sequence there.
 //
 // Steps execute against the base context rather than against ctx, so a blocking
 // step (wait_for_mode_exit) is still released at shutdown. The nesting depth is
@@ -119,7 +119,7 @@ func (e *Executor) RunWithPolicy(
 
 	depth := Depth(ctx)
 	if depth >= MaxDepth {
-		// Nothing ran, so there is no step to point at: Executed and
+		// Nothing ran, so there is no step to point at. Executed and
 		// FailedIndex stay zero and reporting says the sequence never started.
 		outcome.Stopped = true
 		outcome.Err = derrors.Newf(
@@ -159,7 +159,7 @@ func (e *Executor) RunWithPolicy(
 
 		bailed := derrors.IsCode(stepErr, derrors.CodeChainBail)
 
-		// A malformed directive is always fatal: the step never ran, and
+		// A malformed directive is always fatal. The step never ran, and
 		// carrying on would act on a sequence the author did not write.
 		if bailed || stepIsFatal || directiveErr != nil {
 			outcome.Bailed = bailed
@@ -223,9 +223,9 @@ func (e *Executor) RunAndForgetWithEnv(source string, steps []string, env []stri
 
 // RunMacro runs the named macro's steps as a nested sequence.
 //
-// Running it nested rather than splicing its steps into the caller keeps two
-// things honest: the depth guard sees the nesting, so a macro that invokes
-// itself is stopped like any other runaway sequence; and the caller reports
+// Running it nested rather than splicing its steps into the caller does two
+// things. The depth guard sees the nesting, so a macro that invokes itself is
+// stopped like any other runaway sequence. And the caller reports
 // failures against the step the author actually wrote ("macro foo 1 2") rather
 // than against an expanded position they never saw.
 func (e *Executor) RunMacro(ctx context.Context, name string, args []string) error {
@@ -237,7 +237,7 @@ func (e *Executor) RunMacro(ctx context.Context, name string, args []string) err
 	}
 
 	// The table is read when the call runs, not pinned for the whole sequence,
-	// which is how every other step reads configuration — a scroll step takes
+	// which is how every other step reads configuration. A scroll step takes
 	// the step size current at the time it fires. A reload mid-sequence
 	// therefore affects the calls after it, and a macro deleted by that reload
 	// fails here rather than running a definition the config no longer has.
@@ -258,7 +258,7 @@ func (e *Executor) RunMacro(ctx context.Context, name string, args []string) err
 		)
 	}
 
-	// The nested sequence starts with its own policy: a macro decides for
+	// The nested sequence starts with its own policy. A macro decides for
 	// itself which of its steps are fatal, and its overall failure is what the
 	// caller sees.
 	outcome := e.RunWithPolicy(
@@ -282,8 +282,8 @@ func (e *Executor) RunMacro(ctx context.Context, name string, args []string) err
 	return derrors.Wrapf(outcome.Err, code, "macro %q", name)
 }
 
-// step runs one step of a sequence: a macro invocation expands to the sequence
-// it names, anything else is dispatched as an action.
+// step runs one step of a sequence. A macro invocation expands to the sequence
+// it names, and anything else is dispatched as an action.
 func (e *Executor) step(ctx context.Context, source, step string) error {
 	name, args, isMacro := config.ParseMacroCall(step)
 	if !isMacro {
@@ -339,7 +339,7 @@ func (e *Executor) action(ctx context.Context, source, actionStr string) error {
 }
 
 // entersAMode reports whether a command word enters a mode, as opposed to
-// leaving one: idle is a mode command too, and the modifiers of the chord that
+// leaving one. Idle is a mode command too, and the modifiers of the chord that
 // left need no suppressing.
 func entersAMode(word string) bool {
 	mode, isMode := modecmd.LookupMode(word)

@@ -15,7 +15,7 @@ import (
 )
 
 // The freedesktop Desktop Notification Specification, spelled out here rather
-// than imported from the adapter: this test is the independent statement of
+// than imported from the adapter. This test is the independent statement of
 // what has to go on the wire, so sharing the adapter's constants would let a
 // wrong name pass on both sides.
 const (
@@ -40,7 +40,7 @@ type notifyCall struct {
 	expire   int32
 }
 
-// fakeDaemon stands in for mako, dunst or a desktop's own daemon: it owns the
+// fakeDaemon stands in for mako, dunst or a desktop's own daemon. It owns the
 // notification name for the length of the test and records what arrives.
 type fakeDaemon struct {
 	calls chan notifyCall
@@ -73,11 +73,11 @@ func (d *fakeDaemon) Notify(
 
 // startFakeDaemon owns the notification name on the session bus for this test.
 // It skips rather than fails when there is no bus (a container or an ssh
-// session) or when a real daemon already owns the name — neither says anything
+// session) or when a real daemon already owns the name. Neither says anything
 // about the code under test.
 //
 // That makes the delivery tests and TestShowNotification_ReportsASessionWithNoDaemon
-// mutually exclusive by construction, which is the point: a session either has
+// mutually exclusive by construction, which is the point. A session either has
 // something able to show a notification or it does not, and each test covers
 // the state its machine is actually in. Between a developer desktop and CI both
 // halves get exercised.
@@ -129,10 +129,10 @@ func (d *fakeDaemon) awaitNotification(t *testing.T) notifyCall {
 }
 
 // TestShowNotification_ReachesTheFreedesktopDaemon is the wire-level check the
-// unit tests cannot make: that the arguments Neru sends are the ones a real
+// unit tests cannot make, that the arguments Neru sends are the ones a real
 // notification daemon accepts, in the order and types the specification fixes.
-// A signature mistake here is invisible to a compiler and silent at runtime —
-// the message simply never appears.
+// A signature mistake here is invisible to a compiler and silent at runtime.
+// The message never appears.
 func TestShowNotification_ReachesTheFreedesktopDaemon(t *testing.T) {
 	daemon := startFakeDaemon(t)
 
@@ -161,11 +161,10 @@ func TestShowNotification_ReachesTheFreedesktopDaemon(t *testing.T) {
 	}
 }
 
-// TestShowNotification_ReportsASessionWithNoDaemon is the other half, and the
-// state this change exists for: a session bus that works and nothing owning the
-// notification name — an ordinary minimal wlroots setup. The bus answers
-// ServiceUnknown, and that has to reach the caller as CodeNotSupported instead
-// of being swallowed the way the empty body swallowed it.
+// TestShowNotification_ReportsASessionWithNoDaemon is the other half. It covers
+// a session bus that works and nothing owning the notification name, an
+// ordinary minimal wlroots setup. The bus answers ServiceUnknown, and that has
+// to reach the caller as CodeNotSupported instead of being swallowed.
 func TestShowNotification_ReportsASessionWithNoDaemon(t *testing.T) {
 	conn, err := dbus.SessionBus()
 	if err != nil {
@@ -185,7 +184,7 @@ func TestShowNotification_ReportsASessionWithNoDaemon(t *testing.T) {
 		t.Skipf("%s is owned here, so the no-daemon path cannot be exercised", notificationsName)
 	}
 
-	// A name nothing owns is not the same as a name nothing answers: a daemon
+	// A name nothing owns is not the same as a name nothing answers. A daemon
 	// shipped as a D-Bus service owns nothing until the bus starts it on this
 	// very call, and there the notification arrives. Only a session where the
 	// bus would start nothing either is the one this test is about.
@@ -214,8 +213,8 @@ func TestShowNotification_ReportsASessionWithNoDaemon(t *testing.T) {
 	}
 }
 
-// TestShowAlert_ReachesTheDaemonAndStaysUp pins the decision Linux made about
-// alerts: macOS blocks the user with a modal NSAlert, and the stand-in is a
+// TestShowAlert_ReachesTheDaemonAndStaysUp pins what an alert is on Linux.
+// macOS blocks the user with a modal NSAlert, and the stand-in is a
 // critical-urgency notification with no expiry, so a config error cannot scroll
 // away before it is read.
 func TestShowAlert_ReachesTheDaemonAndStaysUp(t *testing.T) {

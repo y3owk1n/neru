@@ -57,16 +57,12 @@ func MenuBarClickableElements(
 		return []*TreeNode{}, nil
 	}
 
-	// Create local allowed roles map including AXMenuBarItem
+	// The clickable roles plus AXMenuBarItem.
 	allowedRoles := make(map[string]struct{})
-
-	// Add global roles
-	globalRoles := ClickableRoles()
-	for _, role := range globalRoles {
+	for _, role := range ClickableRoles() {
 		allowedRoles[role] = struct{}{}
 	}
 
-	// Add menubar specific role
 	allowedRoles[string(element.RoleMenuBarItem)] = struct{}{}
 
 	ignoreClickableCheck := false

@@ -21,8 +21,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// testStyles is a StyleOwner for the tests that never assert on appearance:
-// every Style it hands out is the zero one, and re-resolving is a no-op.
+// testStyles is a StyleOwner for the tests that never assert on appearance.
+// Every Style it hands out is the zero one, and re-resolving is a no-op.
 type testStyles struct{}
 
 func (testStyles) Style() overlay.Style   { return overlay.Style{} }
@@ -92,7 +92,7 @@ func TestAdapterHealth_ReturnsNotSupportedForStubOverlayManager(t *testing.T) {
 
 // screenManager records the state a user could observe: whether the overlay is
 // on screen, which mode it is in, and what was last drawn on it. It deliberately
-// records no call sequence — which calls the adapter uses to realize a Frame is
+// records no call sequence, because which calls the adapter uses to realize a Frame is
 // exactly what the Frame port exists to be free to change.
 type screenManager struct {
 	headlessManager
@@ -314,7 +314,7 @@ func hintsFrame(
 }
 
 // TestAdapterShowFrame_PutsTheFrameOnScreenInItsMode is the acceptance the
-// Frame port exists for: a caller hands over what should be on screen, and
+// Frame port exists for. A caller hands over what should be on screen, and
 // what ends up there is visible, in the frame's mode, showing the frame's
 // content. Nothing about the order the adapter got there in is asserted.
 func TestAdapterShowFrame_PutsTheFrameOnScreenInItsMode(t *testing.T) {
@@ -348,7 +348,7 @@ func TestAdapterShowFrame_PutsTheFrameOnScreenInItsMode(t *testing.T) {
 }
 
 // TestAdapterShowFrame_DrawsHintsInScreenLocalCoordinates pins the one
-// conversion a Frame deliberately does not carry: hints arrive in global
+// conversion a Frame deliberately does not carry. Hints arrive in global
 // coordinates and the overlay draws in the active screen's own.
 func TestAdapterShowFrame_DrawsHintsInScreenLocalCoordinates(t *testing.T) {
 	t.Parallel()
@@ -374,7 +374,7 @@ func TestAdapterShowFrame_DrawsHintsInScreenLocalCoordinates(t *testing.T) {
 }
 
 // TestAdapterRedrawFrame_DrawsWithoutTheWindowSequence pins the decision that
-// keeps grid narrowing and hint narrowing as fast as they are: a redraw of a
+// keeps grid narrowing and hint narrowing as fast as they are. A redraw of a
 // surface already up costs a draw and nothing else (ADR 0003).
 func TestAdapterRedrawFrame_DrawsWithoutTheWindowSequence(t *testing.T) {
 	t.Parallel()
@@ -434,7 +434,7 @@ func gridFrame(t *testing.T, input string) ports.GridFrame {
 }
 
 // TestAdapterShowFrame_PutsTheGridOnScreenInGridMode is the grid half of the
-// acceptance the Frame port exists for: a mode says a grid should be on
+// acceptance the Frame port exists for. A mode says a grid should be on
 // screen, and the adapter owns everything it takes to get it there.
 func TestAdapterShowFrame_PutsTheGridOnScreenInGridMode(t *testing.T) {
 	t.Parallel()
@@ -467,7 +467,7 @@ func TestAdapterShowFrame_PutsTheGridOnScreenInGridMode(t *testing.T) {
 }
 
 // TestAdapterShowFrame_DrawsAGridOnACleanSurface pins the one thing a grid
-// transition needs that a hint one does not: the surface may be holding a
+// transition needs that a hint one does not. The surface may be holding a
 // subgrid this grid replaces, and the backend's incremental path cannot diff
 // that away.
 func TestAdapterShowFrame_DrawsAGridOnACleanSurface(t *testing.T) {
@@ -490,7 +490,7 @@ func TestAdapterShowFrame_DrawsAGridOnACleanSurface(t *testing.T) {
 	}
 }
 
-// TestAdapterRedrawFrame_DrawsAGridWithoutClearingIt is the other half: a
+// TestAdapterRedrawFrame_DrawsAGridWithoutClearingIt is the other half. A
 // redraw leaves the surface alone, so the indicators painted on it survive a
 // theme change instead of blinking out until the next poll.
 func TestAdapterRedrawFrame_DrawsAGridWithoutClearingIt(t *testing.T) {
@@ -514,7 +514,7 @@ func TestAdapterRedrawFrame_DrawsAGridWithoutClearingIt(t *testing.T) {
 }
 
 // TestAdapterRedrawFrame_ErasesASubgridTheGridReplaces is what a user sees on
-// the keystroke that leaves a subgrid: the main grid comes back and the
+// the keystroke that leaves a subgrid. The main grid comes back and the
 // subgrid does not stay drawn over it. The overlay knows a subgrid is up
 // because it drew it, so no caller has to tell it.
 func TestAdapterRedrawFrame_ErasesASubgridTheGridReplaces(t *testing.T) {
@@ -539,7 +539,7 @@ func TestAdapterRedrawFrame_ErasesASubgridTheGridReplaces(t *testing.T) {
 		t.Error("the subgrid was left on the surface the grid was redrawn onto")
 	}
 
-	// And only that once: the subgrid is gone, so the next redraw is a plain
+	// And only that once. The subgrid is gone, so the next redraw is a plain
 	// one again.
 	clearedAfterRestore := manager.cleared
 
@@ -564,7 +564,7 @@ func TestAdapterShowFrame_PutsTheRecursiveGridOnScreen(t *testing.T) {
 	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
 
 	// The two layouts are deliberately non-square, and transposes of each
-	// other: a draw that swapped a layout's rows for its columns on the way
+	// other. A draw that swapped a layout's rows for its columns on the way
 	// through would still divide the region into the same number of cells, and
 	// only a shape this asymmetric fails on it.
 	frame := ports.RecursiveGridFrame{
@@ -612,7 +612,7 @@ func TestAdapterShowFrame_PutsTheRecursiveGridOnScreen(t *testing.T) {
 }
 
 // TestAdapterRedrawFrame_DrawsTheRecursiveGridWithoutClearingIt pins the
-// difference from grid: the recursive-grid draw repaints its whole surface, so
+// difference from grid. The recursive-grid draw repaints its whole surface, so
 // a redraw that cleared first would throw away the animation state a user sees
 // as the grid zooming in.
 func TestAdapterRedrawFrame_DrawsTheRecursiveGridWithoutClearingIt(t *testing.T) {
@@ -651,8 +651,8 @@ func TestAdapterRedrawFrame_DrawsTheRecursiveGridWithoutClearingIt(t *testing.T)
 	}
 }
 
-// TestAdapterGridUpdates_ReachTheOverlayWithoutAFrame is ADR 0003's hot half:
-// the values that change on every keystroke in grid mode travel as plain
+// TestAdapterGridUpdates_ReachTheOverlayWithoutAFrame is ADR 0003's hot half.
+// The values that change on every keystroke in grid mode travel as plain
 // calls, and none of them costs a frame or the window sequence.
 func TestAdapterGridUpdates_ReachTheOverlayWithoutAFrame(t *testing.T) {
 	t.Parallel()
@@ -688,12 +688,12 @@ func TestAdapterGridUpdates_ReachTheOverlayWithoutAFrame(t *testing.T) {
 }
 
 // TestAdapterShowGridSubgrid_CarriesThePointerIntoTheSameCall is what #1492
-// asks of this seam: the keystroke that picks a cell moves the selection too,
+// asks of this seam. The keystroke that picks a cell moves the selection too,
 // and a backend that paints both into one surface must be told both at once or
 // it repaints that surface twice for one key.
 //
 // The appearance is asserted with the cell, because the pointer travels as
-// position alone from a mode: a subgrid open that carried the position and left
+// position alone from a mode. A subgrid open that carried the position and left
 // the Style behind would draw the default glyph rather than the user's.
 func TestAdapterShowGridSubgrid_CarriesThePointerIntoTheSameCall(t *testing.T) {
 	t.Parallel()
@@ -734,7 +734,7 @@ func TestAdapterShowGridSubgrid_CarriesThePointerIntoTheSameCall(t *testing.T) {
 }
 
 // TestAdapterUpdateGridPointer_CarriesTheWholeResolvedAppearance pins what a
-// backend that paints the glyph itself needs and used to be denied: the char
+// backend that paints the glyph itself needs and used to be denied. The char
 // and the font family travel with the size and the fill, so a backend with no
 // render component holding the pointer's configuration can still draw the
 // pointer the user configured rather than a hardcoded fallback.
@@ -763,7 +763,7 @@ func TestAdapterUpdateGridPointer_CarriesTheWholeResolvedAppearance(t *testing.T
 
 // TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface pins that the
 // caller says which grid surface the pointer belongs to and where it sits, and
-// nothing else: its appearance is the Style the overlay already resolved.
+// nothing else. Its appearance is the Style the overlay already resolved.
 func TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface(t *testing.T) {
 	t.Parallel()
 
@@ -824,8 +824,8 @@ func (pointerStyles) Style() overlay.Style {
 	}
 }
 
-// TestAdapterClearFrame_TakesTheFrameOffScreen is the leaving half: the
-// content goes, the window goes, and the overlay is idle again — one call, so
+// TestAdapterClearFrame_TakesTheFrameOffScreen is the leaving half. The
+// content goes, the window goes, and the overlay is idle again. It is one call, so
 // no caller can do two of the three and leave the last mode on screen.
 func TestAdapterClearFrame_TakesTheFrameOffScreen(t *testing.T) {
 	t.Parallel()
@@ -866,11 +866,11 @@ func TestAdapterClearFrame_TakesTheFrameOffScreen(t *testing.T) {
 }
 
 // TestAdapterClearFrame_DropsWhatTheGridUpdatesLeft is the other half of "content
-// and all" (#1492): the hide-unmatched flag and the pointer stand-in outlive a
-// clear unless this call drops them, and grid mode used to drop them itself —
+// and all" (#1492). The hide-unmatched flag and the pointer stand-in outlive a
+// clear unless this call drops them, and grid mode used to drop them itself,
 // which meant repainting a grid on the way to taking it off the screen.
 //
-// It is also what makes that free: both run after the surface is cleared, so a
+// It is also what makes that free. Both run after the surface is cleared, so a
 // backend that repaints on a pointer change has nothing left to repaint and its
 // own record is already empty. Losing this call would put the flag back on the
 // next session's first draw.
@@ -960,8 +960,8 @@ func (s searchStyles) Style() overlay.Style {
 //
 // It is keyed by config.SearchInputPositions() and the test below fails when
 // the two disagree, so a position added to the vocabulary has to be given a
-// place here — and, since an anchor the placement does not recognize is now
-// refused rather than drawn, a branch in the overlay to go with it.
+// place here. Since an anchor the placement does not recognize is now refused
+// rather than drawn, it also needs a branch in the overlay to go with it.
 func wantSearchInputBounds() map[string]image.Rectangle {
 	return map[string]image.Rectangle{
 		config.SearchInputPositionTopLeft:      image.Rect(10, 20, 210, 60),
@@ -976,7 +976,7 @@ func wantSearchInputBounds() map[string]image.Rectangle {
 
 // TestAdapterHintSearchBounds_PlacesTheInputFromConfiguration pins where the
 // search input lands for each accepted anchor. The maths moved out of the mode
-// layer with #1210 — a caller says which screen, and the overlay says where on
+// layer with #1210. A caller says which screen, and the overlay says where on
 // it, because the IME field has to be put over the same rectangle.
 //
 // It walks config.SearchInputPositions() rather than a list of its own, so an
@@ -1025,7 +1025,7 @@ func TestAdapterHintSearchBounds_PlacesTheInputFromConfiguration(t *testing.T) {
 	}
 }
 
-// TestAdapterHintSearchBounds_KeepsTheInputOnScreen pins the clamp: an offset
+// TestAdapterHintSearchBounds_KeepsTheInputOnScreen pins the clamp. An offset
 // larger than the display cannot push the input off it, because a search box
 // the user cannot see is a search they cannot cancel.
 func TestAdapterHintSearchBounds_KeepsTheInputOnScreen(t *testing.T) {
@@ -1050,7 +1050,7 @@ func TestAdapterHintSearchBounds_KeepsTheInputOnScreen(t *testing.T) {
 }
 
 // TestAdapterDrawHintSearch_PutsTheQueryAndCountWhereTheStyleSaid is the
-// search input's half of the same move: the caller says what is in the box and
+// search input's half of the same move. The caller says what is in the box and
 // which screen it is on, and the overlay decides where the box goes.
 func TestAdapterDrawHintSearch_PutsTheQueryAndCountWhereTheStyleSaid(t *testing.T) {
 	t.Parallel()
@@ -1099,7 +1099,7 @@ func TestAdapterDrawHintSearch_PutsTheQueryAndCountWhereTheStyleSaid(t *testing.
 }
 
 // unknownSearchAnchor is a `hints.search_input_ui.position` value the vocabulary
-// does not declare — the shape an eighth anchor would have on the day someone
+// does not declare. It has the shape an eighth anchor would have on the day someone
 // adds it to config and forgets the overlay.
 const unknownSearchAnchor = "floating"
 
@@ -1115,10 +1115,10 @@ func anchoredSearchStyles(position string) searchStyles {
 }
 
 // TestAdapterDrawHintSearch_UnknownAnchorIsRefusedNotDrawn pins the other half
-// of the vocabulary: an anchor the placement has no branch for is refused
+// of the vocabulary. An anchor the placement has no branch for is refused
 // before anything is drawn, rather than being placed in the top-left corner.
 // Top-left used to be where an unrecognized anchor landed, which made an anchor
-// nobody implemented indistinguishable from `top_left` — silent everywhere and
+// nobody implemented indistinguishable from `top_left`, silent everywhere and
 // wrong on screen.
 func TestAdapterDrawHintSearch_UnknownAnchorIsRefusedNotDrawn(t *testing.T) {
 	t.Parallel()
@@ -1167,7 +1167,7 @@ func TestAdapterDrawHintSearch_UnknownAnchorIsRefusedNotDrawn(t *testing.T) {
 
 // TestAdapterHintSearchBounds_UnknownAnchorHasNoBounds pins how the bounds half
 // degrades. It answers a rectangle and cannot report, so an anchor the
-// placement refuses answers the empty one — the same nothing a handler with no
+// placement refuses answers the empty one. That is the same nothing a handler with no
 // overlay at all already returns, and honest, because the draw refused too and
 // there is no box on screen for the IME field to be put over.
 func TestAdapterHintSearchBounds_UnknownAnchorHasNoBounds(t *testing.T) {
@@ -1190,8 +1190,8 @@ func TestAdapterHintSearchBounds_UnknownAnchorHasNoBounds(t *testing.T) {
 // TestAdapterSearchInput_UnsetAnchorIsRefusedWithTheRest pins the empty string
 // as unrecognized rather than as a default, and deliberately so. Unlike
 // `hints.ui.placement`, an unset `hints.search_input_ui.position` is not settled
-// anywhere: the validator refuses it (config/search_input_position.go), so the
-// only Style that carries one is a Style nothing ever resolved — whose width and
+// anywhere. The validator refuses it (config/search_input_position.go), so the
+// only Style that carries one is a Style nothing ever resolved, whose width and
 // height are zero too, and which would draw a box of no size wherever it landed.
 func TestAdapterSearchInput_UnsetAnchorIsRefusedWithTheRest(t *testing.T) {
 	t.Parallel()
@@ -1261,7 +1261,7 @@ func (monitorSelectStyles) Style() overlay.Style {
 }
 
 // TestAdapterShowFrame_PutsTheMonitorPickerOnScreen is the acceptance for the
-// last surface to convert: a mode says which displays are on offer, and the
+// last surface to convert. A mode says which displays are on offer, and the
 // overlay meets that with the Style it resolved and the capability the backend
 // declared.
 func TestAdapterShowFrame_PutsTheMonitorPickerOnScreen(t *testing.T) {
@@ -1316,7 +1316,7 @@ func TestAdapterShowFrame_PutsTheMonitorPickerOnScreen(t *testing.T) {
 }
 
 // TestAdapterShowFrame_ReportsAMonitorPickerTheBackendCannotDraw pins the
-// extension pattern: drawing the picker is an optional capability reached by
+// extension pattern. Drawing the picker is an optional capability reached by
 // type assertion, and a backend without it degrades rather than fails.
 func TestAdapterShowFrame_ReportsAMonitorPickerTheBackendCannotDraw(t *testing.T) {
 	t.Parallel()
@@ -1332,7 +1332,7 @@ func TestAdapterShowFrame_ReportsAMonitorPickerTheBackendCannotDraw(t *testing.T
 }
 
 // TestAdapterClearFrame_TakesTheMonitorPanelsDown covers the failure the
-// Indicator work exists to prevent, one surface further: the panels are not on
+// Indicator work exists to prevent, one surface further. The panels are not on
 // the shared surface, so clearing that surface is not enough to take them off
 // the screen.
 func TestAdapterClearFrame_TakesTheMonitorPanelsDown(t *testing.T) {
@@ -1368,12 +1368,12 @@ func TestAdapterClearFrame_TakesTheMonitorPanelsDown(t *testing.T) {
 }
 
 // TestAdapterShowFrame_ScrollTakesTheSurfaceOverWithoutDrawing pins what
-// entering scroll mode means for the overlay: the mode the indicators name
+// entering scroll mode means for the overlay. The mode the indicators name
 // changes and whatever the previous mode drew comes off the surface, but
 // nothing of scroll's own is drawn on it.
 //
 // The window still comes up, because on Linux the indicators that report the
-// mode are painted on that surface — a hidden window is an invisible
+// mode are painted on that surface, and a hidden window is an invisible
 // indicator.
 func TestAdapterShowFrame_ScrollTakesTheSurfaceOverWithoutDrawing(t *testing.T) {
 	t.Parallel()

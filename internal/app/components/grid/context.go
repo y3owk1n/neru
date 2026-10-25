@@ -7,7 +7,6 @@ import (
 )
 
 // baseContext provides common functionality for mode component contexts.
-// It contains shared state fields used across different mode contexts.
 type baseContext struct {
 	pendingAction         *string
 	pendingModifier       *string

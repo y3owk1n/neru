@@ -29,7 +29,7 @@ const (
 	widthReferenceSize = 64
 
 	// maxWidthTables bounds the tables kept. A table is a family and a weight,
-	// so a configuration uses a handful; somebody trying fonts one after
+	// so a configuration uses a handful. Somebody trying fonts one after
 	// another would otherwise keep every one for the daemon's lifetime.
 	maxWidthTables = 32
 )

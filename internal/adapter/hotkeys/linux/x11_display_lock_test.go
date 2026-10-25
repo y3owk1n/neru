@@ -16,7 +16,7 @@ import (
 // key events off it. Xlib is thread-safe only when XInitThreads runs before the
 // first XOpenDisplay, and nothing in this process calls it, so those two must
 // never be inside the connection at the same time. Manager.mu does not buy
-// that: it guards the Go maps, and the poll loop deliberately does not hold it
+// that. It guards the Go maps, and the poll loop deliberately does not hold it
 // while reading the connection.
 //
 // The rule is therefore about a lock the compiler cannot see the need for, in
@@ -25,16 +25,16 @@ import (
 // keeps it true.
 //
 // They read the sources instead of running them, and carry no build tag for
-// the same reason: the edit they exist to catch — a new Xlib call added to
-// x11_cgo.go — is made on the maintainer's macOS host, where neither the file
+// the same reason. The edit they exist to catch, a new Xlib call added to
+// x11_cgo.go, is made on the maintainer's macOS host, where neither the file
 // nor a Linux-tagged test compiles. A rule checked only on the CI leg is a rule
 // found broken later than it was written.
 
 // x11DisplayCalls are the cgo entry points that speak on the hotkey connection.
 // Each takes the Display as an argument, and each therefore writes to or reads
-// from its buffers — including neru_hotkeys_pending, which is XPending, which
-// flushes the request buffer and reads the socket rather than merely peeking at
-// a counter.
+// from its buffers. That includes neru_hotkeys_pending, which is XPending, which
+// flushes the request buffer and reads the socket rather than peeking at a
+// counter.
 var x11DisplayCalls = map[string]struct{}{
 	"XCloseDisplay":        {},
 	"XFlush":               {},
@@ -58,8 +58,8 @@ var x11DisplayCalls = map[string]struct{}{
 // a field out of an XEvent already copied into Go memory.
 //
 // Anything not in this list and not in x11DisplayCalls fails the classification
-// test rather than being assumed harmless — that assumption is what a new
-// Xlib call would arrive on.
+// test rather than being assumed harmless. A new Xlib call would arrive on that
+// assumption.
 var x11ConnectionFreeCalls = map[string]struct{}{
 	"CString":           {},
 	"XStringToKeysym":   {},
@@ -84,7 +84,7 @@ var x11DisplayLockHolders = map[string]string{
 
 // x11DisplayLockCallees are the helpers that speak on the connection without
 // taking the lock themselves because every caller already holds it. The claim
-// each entry makes is checked, not trusted:
+// each entry makes is checked, not trusted.
 // TestEveryDisplayTouchingHelperIsCalledOnlyFromALockHolder fails on a call
 // site outside a holder.
 var x11DisplayLockCallees = map[string]string{
@@ -108,11 +108,11 @@ var x11DisplayLockExemptions = map[string]string{
 const x11HotkeySourceFile = "x11_cgo.go"
 
 // TestEveryXlibCallOnTheHotkeyDisplayHoldsTheDisplayLock pins the serialization
-// itself: a call into the connection happens in a function that holds
+// itself. A call into the connection happens in a function that holds
 // displayMu, or in one of the exemptions above with its reason written down.
 func TestEveryXlibCallOnTheHotkeyDisplayHoldsTheDisplayLock(t *testing.T) {
 	// A walk that matched nothing would pass whatever the code did, so what it
-	// found is asserted alongside what it judged: a rename in the C bridge that
+	// found is asserted alongside what it judged. A rename in the C bridge that
 	// emptied x11DisplayCalls would otherwise turn this green.
 	seen := 0
 
@@ -170,7 +170,7 @@ func TestEveryXlibCallOnTheHotkeyDisplayHoldsTheDisplayLock(t *testing.T) {
 	}
 }
 
-// TestEveryDisplayLockHolderStillTakesTheLock is the other half: a holder that
+// TestEveryDisplayLockHolderStillTakesTheLock is the other half. A holder that
 // stops locking would leave the first test green, because it only asks which
 // function the call is in.
 //
@@ -233,7 +233,7 @@ func TestEveryDisplayLockHolderStillTakesTheLock(t *testing.T) {
 // TestEveryDisplayLockExemptionIsStillReal keeps the one list that weakens the
 // rule from outliving what it excuses. An exemption for a function that no
 // longer exists, or that no longer touches the connection, is a hole nobody
-// meant to leave open — so the list can only shrink.
+// meant to leave open, so the list can only shrink.
 func TestEveryDisplayLockExemptionIsStillReal(t *testing.T) {
 	touching := map[string]bool{}
 
@@ -259,8 +259,8 @@ func TestEveryDisplayLockExemptionIsStillReal(t *testing.T) {
 // TestEveryDisplayTouchingHelperIsCalledOnlyFromALockHolder checks the claim
 // each x11DisplayLockCallees entry makes. A helper that speaks on the
 // connection is safe only for as long as nothing calls it from outside a
-// critical section, and that is a property of its call sites, not of the helper
-// — so a second caller is exactly the change this has to catch.
+// critical section, and that is a property of its call sites, not of the
+// helper. A second caller is therefore exactly the change this has to catch.
 func TestEveryDisplayTouchingHelperIsCalledOnlyFromALockHolder(t *testing.T) {
 	callSites := map[string]int{}
 

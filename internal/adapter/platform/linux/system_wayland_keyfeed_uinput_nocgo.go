@@ -4,9 +4,9 @@ package linux
 
 import "github.com/y3owk1n/neru/internal/derrors"
 
-// uinputKeyboardAvailable is always false without CGO — the uinput device is
-// driven by the native bridge, so FeedKey falls through to the compositor
-// backends (which are themselves CGO-only and report CodeNotSupported here).
+// uinputKeyboardAvailable is always false without CGO. The native bridge drives
+// the uinput device, so FeedKey falls through to the compositor backends (which
+// are themselves CGO-only and report CodeNotSupported here).
 func uinputKeyboardAvailable() bool {
 	return false
 }

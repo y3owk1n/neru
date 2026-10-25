@@ -257,7 +257,7 @@ func TestKeymap_KeysAreTheSpellingsWritten(t *testing.T) {
 	}
 }
 
-// The global keymap is the other table a keystroke can resolve against: the
+// The global keymap is the other table a keystroke can resolve against. The
 // mode handler falls back to it for a chord the active mode does not bind, so it
 // has to answer the same merge rules the mode tables do.
 func TestConfig_ResolveGlobalKeymap_AppliesFocusedAppOverrides(t *testing.T) {
@@ -305,7 +305,7 @@ func TestConfig_ResolveGlobalKeymap_AppliesFocusedAppOverrides(t *testing.T) {
 }
 
 // ModifierChords is what keeps the global table from shadowing what a mode reads
-// as input: only a chord carrying Ctrl, Alt or Cmd survives it.
+// as input. Only a chord carrying Ctrl, Alt or Cmd survives it.
 func TestKeymap_ModifierChordsKeepsOnlyShortcuts(t *testing.T) {
 	t.Parallel()
 

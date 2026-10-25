@@ -16,16 +16,16 @@ import (
 // `hotkeys/linux.Manager.ensureWaylandStarted`, which reads a nil error as
 // "the listener is reading the keyboard" and sets waylandStarted, logging the
 // info line that tells the user their config keybindings are active. On a
-// no-cgo build nothing is reading anything: the user is told their hotkeys
-// work, presses one, and nothing happens — with no warning anywhere pointing
+// no-cgo build nothing is reading anything. The user is told their hotkeys
+// work, presses one, and nothing happens, with no warning anywhere pointing
 // at the build. CodeNotSupported routes the same call into the warn branch
 // that already exists for an unreadable /dev/input.
 //
 // The rule is `internal/adapter/platform/AGENTS.md`, "Stubs are loud".
 //
-// Note where this runs: the CI Linux leg builds with CGO on, so nothing on the
-// gate compiles this file. `just test-linux-nocgo` does, as does any
-// CGO_ENABLED=0 Linux build — run it after touching the no-cgo twins.
+// The CI Linux leg builds with CGO on, so nothing on the gate compiles this
+// file. `just test-linux-nocgo` does, as does any CGO_ENABLED=0 Linux build.
+// Run it after touching the no-cgo twins.
 func TestGlobalHotkeyListener_StartReportsNotSupportedWithoutCgo(t *testing.T) {
 	listener := NewGlobalHotkeyListener(nil)
 
@@ -59,7 +59,7 @@ func TestGlobalHotkeyListener_StartIsStableAcrossCalls(t *testing.T) {
 }
 
 // TestGlobalHotkeyListener_IsRunningStaysFalseAfterStart pins the other half of
-// the refusal: IsRunning and DeviceCount are what
+// the refusal. IsRunning and DeviceCount are what
 // `hotkeys/linux.Manager.HealthCheck` polls, and a stub that claimed to be
 // running would make the health loop stop trying to recover a listener that
 // does not exist.

@@ -16,8 +16,8 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// The weight each surface draws at is the one macOS draws it at: hint labels
-// bold, everything else regular. Before this was pinned every Windows string
+// The weight each surface draws at is the one macOS draws it at, with hint
+// labels bold and everything else regular. Before this was pinned every Windows string
 // was bold in both renderers, so a grid at the default 10 points read heavier
 // than on macOS.
 

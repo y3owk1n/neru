@@ -139,7 +139,7 @@ single key.`,
 //
 // The flag form (left_click --state down) is the documented spelling, but the
 // action names are what a mode --action takes, and hotkey action strings reach
-// the daemon without passing through Cobra — so "action right_mouse_down" in a
+// the daemon without passing through Cobra, so "action right_mouse_down" in a
 // config already works. These keep `neru action right_mouse_down` working too,
 // so a string that works in one place works everywhere. Hidden, so that help
 // output still steers people to the flags.
@@ -199,8 +199,8 @@ func clickFlagSpelling(button action.MouseButton, phase action.MousePhase) strin
 }
 
 // buildDeprecatedMouseButtonCommand builds one of the original left-button
-// press/release commands. They still work, but warn on stderr — stdout stays
-// clean for scripts — pointing at the --state spelling that also covers the
+// press/release commands. They still work, but warn on stderr (stdout stays
+// clean for scripts), pointing at the --state spelling that also covers the
 // right and middle buttons.
 func buildDeprecatedMouseButtonCommand(
 	use, short, long, param, replacement string,
@@ -290,7 +290,7 @@ const actionCmdName = "action"
 // save_cursor_pos or restore_cursor_pos, whose only flag is --slot.
 //
 // It does not go through buildActionCommand because that one always offers
-// --modifier, which the daemon rejects for these two actions: a command should
+// --modifier, which the daemon rejects for these two actions. A command should
 // not advertise a flag its own daemon refuses.
 func BuildCursorSlotActionCommand(use, short, long string, params []string) *cobra.Command {
 	var slot string

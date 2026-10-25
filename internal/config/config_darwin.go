@@ -3,7 +3,6 @@
 package config
 
 func applyPlatformDefaults(cfg *Config) {
-	// macOS-specific defaults
 	cfg.Hints.AdditionalMenubarHintsTargets = append(cfg.Hints.AdditionalMenubarHintsTargets,
 		"com.apple.TextInputMenuAgent",
 		"com.apple.controlcenter",

@@ -11,7 +11,7 @@ import (
 // docsExemptFromLinkChecking are files that deliberately name paths which do
 // not exist.
 //
-// It is empty, which is the goal state: a doc that wants to name a path that
+// It is empty, which is the goal state. A doc that wants to name a path that
 // does not exist is a doc that is wrong. An entry here should be temporary and
 // carry the reason it exists.
 var docsExemptFromLinkChecking = map[string]string{}
@@ -24,7 +24,7 @@ var repoPathPattern = regexp.MustCompile(
 )
 
 // Documentation that names a file which no longer exists is worse than
-// documentation that says nothing: it sends a contributor to a path, the path
+// documentation that says nothing. It sends a contributor to a path, the path
 // 404s, and now they distrust the rest of the page too.
 //
 // It is the cheapest guardrail here and it catches the most common review
@@ -45,7 +45,7 @@ func TestDocLinks_DoNotPointAtMissingPaths(t *testing.T) {
 		for _, match := range repoPathPattern.FindAllStringSubmatch(string(content), -1) {
 			reference := match[1]
 
-			// Links are written relative to the doc; inline code is written
+			// Links are written relative to the doc. Inline code is written
 			// from the repo root. Resolving from the doc's directory covers
 			// both, since a root-relative path resolves the same way from a
 			// doc at the root and needs the ../ prefix from docs/.
@@ -77,7 +77,7 @@ func TestDocLinks_DoNotPointAtMissingPaths(t *testing.T) {
 }
 
 // TestDocLinks_ExemptionsAreStillReal keeps the exemption list honest, the same
-// way knownLayeringExceptions is kept honest: an entry for a file that no
+// way knownLayeringExceptions is kept honest. An entry for a file that no
 // longer exists is dead weight that makes the next exemption easier to add.
 func TestDocLinks_ExemptionsAreStillReal(t *testing.T) {
 	repoRoot := findRepoRoot(t)
@@ -103,8 +103,8 @@ type markdownFile struct {
 // top-level guides and everything under docs/.
 //
 // It carried its own skip list until the walks in this package were collapsed
-// into one — vendored and generated trees are the shared walker's business
-// now, and were never this list's real work: the root-and-docs rule below had
+// into one. Vendored and generated trees are the shared walker's business
+// now, and were never this list's real work, since the root-and-docs rule below had
 // already excluded every one of them.
 func markdownFiles(t *testing.T, repoRoot string) []markdownFile {
 	t.Helper()

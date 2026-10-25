@@ -53,7 +53,7 @@ func ParseHexARGB(value string) uint32 {
 }
 
 // AutoPadding resolves a configured padding value against the font size.
-// Non-negative values are used as-is; negative values select an automatic
+// Non-negative values are used as-is. Negative values select an automatic
 // padding proportional to the font size with a floor.
 func AutoPadding(fontSize float64, padding int, horizontal bool) int {
 	if padding >= 0 {
@@ -128,7 +128,7 @@ func Bounds(
 // The centering is integer arithmetic and truncates toward the container's
 // origin on an odd container or badge dimension, so a label plate lands on the
 // same pixel on every backend. A badge larger than its container overhangs it
-// rather than being clamped: the callers draw label plates, and a plate that
+// rather than being clamped, because the callers draw label plates, and a plate that
 // outgrew its cell is the autohide threshold's problem, not this function's.
 func CenteredIn(container image.Rectangle, width, height int) image.Rectangle {
 	centerX := container.Min.X + container.Dx()/halfDivisor
@@ -146,8 +146,8 @@ func CenteredOn(center image.Point, width, height int) image.Rectangle {
 }
 
 // BorderRadius resolves a configured border-radius value for the given
-// rectangle. Negative values select an automatic radius: autoCap limits the
-// auto-radius for badge-style corners (e.g. 6 px for hint badges); pass 0 for
+// rectangle. Negative values select an automatic radius. autoCap limits the
+// auto-radius for badge-style corners (e.g. 6 px for hint badges). Pass 0 for
 // a full pill shape (label backgrounds). Zero means sharp corners. Positive
 // values are clamped to half the smaller dimension.
 func BorderRadius(configured int, bounds image.Rectangle, autoCap float64) float64 {

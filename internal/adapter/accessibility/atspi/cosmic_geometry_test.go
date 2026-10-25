@@ -10,8 +10,8 @@ import (
 )
 
 // TestCosmicOrigin_RejectsAFrameOfAnotherSize pins the race guard shared with
-// the niri and Sway sources: the compositor's rectangle names the origin only
-// for a window the size AT-SPI just measured.
+// the niri and Sway sources. The compositor's rectangle names the origin only
+// for a window of the size AT-SPI just measured.
 func TestCosmicOrigin_RejectsAFrameOfAnotherSize(t *testing.T) {
 	bounds := image.Rect(120, 40, 920, 640)
 

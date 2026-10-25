@@ -40,7 +40,7 @@ func (qg *RecursiveGrid) restore(state gridState) {
 
 // MoveDirection slides the current selection one cell in dir, repeated count
 // times, without changing the active depth. Movement is spatial rather than
-// confined to the parent's cells: the selection crosses into a neighboring
+// confined to the parent's cells. The selection crosses into a neighboring
 // parent when it reaches the edge of its own, and the ancestor chain is
 // rebuilt to match, so backtracking afterwards stays correct.
 //
@@ -65,7 +65,7 @@ func (qg *RecursiveGrid) MoveDirection(dir domain.Direction, count int) (image.P
 }
 
 // moveOnce slides the selection by exactly one cell. It reports whether the
-// move happened; when it does not, the grid is left untouched.
+// move happened. When it does not, the grid is left untouched.
 func (qg *RecursiveGrid) moveOnce(dir domain.Direction) bool {
 	rect := qg.EffectiveBounds()
 	if rect.Empty() {
@@ -76,7 +76,7 @@ func (qg *RecursiveGrid) moveOnce(dir domain.Direction) bool {
 	next := rect.Add(image.Point{X: deltaX * rect.Dx(), Y: deltaY * rect.Dy()})
 
 	// rectCenter keeps the probe inside next, which matters for one-pixel
-	// cells: an unclamped center would resolve to the cell beyond the one we
+	// cells. An unclamped center would resolve to the cell beyond the one we
 	// mean, skipping a cell and drifting diagonally.
 	target := rectCenter(next)
 
@@ -89,7 +89,7 @@ func (qg *RecursiveGrid) moveOnce(dir domain.Direction) bool {
 	previous := qg.snapshot()
 
 	// Re-walk from the root towards the target instead of patching bounds in
-	// place: ZoomToPoint resolves the containing cell at every depth using
+	// place. ZoomToPoint resolves the containing cell at every depth using
 	// that depth's own layout, so per-depth overrides and remainder-sized
 	// cells come out right and the rebuilt history matches the new position.
 	qg.Reset()

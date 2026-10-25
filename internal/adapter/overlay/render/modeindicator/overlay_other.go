@@ -13,12 +13,12 @@ import (
 
 // Overlay manages the rendering of mode indicator overlays (non-darwin stub).
 // Drawing happens in the overlay manager's native surface (Cairo on Linux,
-// GDI on Windows); this type only carries the configuration and theme, and
+// GDI on Windows). This type only carries the configuration and theme, and
 // resolves the per-mode label both managers render.
 type Overlay struct {
 	indicatorConfig config.ModeIndicatorConfig
 	// customLabels is the indicator text of every declared mode that has one,
-	// by name; see the darwin overlay for why it sits beside the config.
+	// by name. See the darwin overlay for why it sits beside the config.
 	customLabels map[string]string
 	theme        config.ThemeProvider
 	logger       *zap.Logger
@@ -40,7 +40,7 @@ func NewOverlay(
 	}, nil
 }
 
-// DrawModeIndicator reports CodeNotSupported: off darwin the badge is painted
+// DrawModeIndicator reports CodeNotSupported. Off darwin the badge is painted
 // onto the manager's shared surface, not by this type. ResolveLabelText below
 // is the part of the indicator that does live here.
 func (o *Overlay) DrawModeIndicator(_ string) error {
@@ -90,7 +90,7 @@ func (o *Overlay) ThemeProvider() config.ThemeProvider {
 
 // ResolveLabelText returns the configured indicator label for the mode.
 // It is the single source of truth for label semantics on every non-darwin
-// platform: a per-mode disabled indicator draws nothing, and an empty custom
+// platform. A per-mode disabled indicator draws nothing, and an empty custom
 // text falls back to the mode name.
 func (o *Overlay) ResolveLabelText(mode string) string {
 	o.configMu.RLock()

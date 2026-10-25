@@ -50,7 +50,6 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	NSString *error = errorMessage ? [NSString stringWithUTF8String:errorMessage] : @"Unknown error";
 	NSString *path = configPath ? [NSString stringWithUTF8String:configPath] : @"No config file";
 
-	// Configure alert content
 	NSAlert *alert = [[NSAlert alloc] init];
 	alert.messageText = @"⚠️ Configuration Validation Failed";
 	alert.informativeText =
@@ -60,7 +59,6 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	alert.alertStyle = NSAlertStyleWarning;
 	alert.icon = [NSImage imageNamed:NSImageNameCaution];
 
-	// Add buttons
 	[alert addButtonWithTitle:@"OK"];
 	[alert addButtonWithTitle:@"Copy Path"];
 
@@ -75,7 +73,6 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	NSModalResponse response = [alert runModal];
 	[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
-	// Handle button response
 	if (response == NSAlertFirstButtonReturn) {
 		return 1;
 	} else if (response == NSAlertSecondButtonReturn) {
@@ -115,7 +112,6 @@ int NeruShowConfigOnboardingAlert(const char *configPath) {
 static int showOnboardingAlertOnMainThread(const char *configPath) {
 	NSString *path = configPath ? [NSString stringWithUTF8String:configPath] : @"~/.config/neru/config.toml";
 
-	// Configure alert content
 	NSAlert *alert = [[NSAlert alloc] init];
 	alert.messageText = @"👋 Welcome to Neru!";
 	alert.informativeText =
@@ -124,7 +120,6 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 	                               path];
 	alert.alertStyle = NSAlertStyleInformational;
 
-	// Add buttons
 	[alert addButtonWithTitle:@"Create Config"];
 	[alert addButtonWithTitle:@"Use Defaults (No Config)"];
 	[alert addButtonWithTitle:@"Quit"];
@@ -140,7 +135,6 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 	NSModalResponse response = [alert runModal];
 	[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
-	// Handle button response
 	if (response == NSAlertFirstButtonReturn) {
 		return 1;
 	} else if (response == NSAlertSecondButtonReturn) {
@@ -226,7 +220,7 @@ static void showNotificationWithUNUserNotificationCenter(NSString *title, NSStri
 
 /// Guards all mutable notification state below. Every read/write of
 /// _pendingCompletions, _notificationAuthorized, and _notificationSetupDone
-/// MUST happen on this serial queue — do NOT access them from any other context.
+/// MUST happen on this serial queue. Do NOT access them from any other context.
 static dispatch_queue_t _notificationSetupQueue;
 /// Completions queued before the first authorization response is known.
 /// Protected by _notificationSetupQueue.
@@ -241,7 +235,7 @@ static BOOL _notificationSetupDone = NO;
 /// Completions arriving before the first authorization response are queued and
 /// drained once the result is known. Subsequent calls dispatch immediately.
 static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
-	// Static to ensure the delegate lives for the program's lifetime —
+	// Static to ensure the delegate lives for the program's lifetime.
 	// UNUserNotificationCenter.delegate is weak and would silently nil out otherwise.
 	static NeruNotificationDelegate *delegate = nil;
 	static dispatch_once_t onceToken;
@@ -269,7 +263,7 @@ static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
 					                      NeruLog(NeruLogLevelWarn, @"Notification authorization denied", nil);
 				                      }
 
-				                      // Safe to dispatch_sync here: this completion handler runs on a
+				                      // Safe to dispatch_sync here. This completion handler runs on a
 				                      // system queue (not _notificationSetupQueue), so no deadlock.
 				                      // The pending blocks only call addNotificationRequest (async)
 				                      // and do not re-enter _notificationSetupQueue.

@@ -6,22 +6,21 @@ import "sync"
 // family on the host system. Implementations handle generic aliases
 // (e.g. "Sans", "Monospace"), may verify family availability where the
 // platform can see it, and apply platform-specific fallback chains. Results
-// may be cached internally
-// (adapter/platform/fontcache); caching never changes an answer, so what a
-// name resolves to depends on that name alone.
+// may be cached internally (adapter/platform/fontcache). Caching never changes
+// an answer, so what a name resolves to depends on that name alone.
 type FontResolver interface {
 	// Resolve returns a family name guaranteed to be usable on this platform.
 	//
 	//   - empty input maps to a sensible default sans-serif family
 	//   - generic aliases ("Sans", "Sans Serif", "Serif", "Monospace", ...) are
-	//     mapped to a known-good installed family; every platform reads the
-	//     same spellings (adapter/platform/fontgeneric)
-	//   - other family names are returned as written, trimmed: the answer is
-	//     the family the caller asked for, not the family the platform would
+	//     mapped to a known-good installed family, and every platform reads
+	//     the same spellings (adapter/platform/fontgeneric)
+	//   - other family names are returned as written, trimmed, because the answer
+	//     is the family the caller asked for, not the family the platform would
 	//     render in its place
 	//   - the one exception is a family the platform can see is not installed,
 	//     which falls back to the sans family. The fontconfig-backed Linux
-	//     resolver and the GDI-backed Windows one can see that; macOS and the
+	//     resolver and the GDI-backed Windows one can see that. macOS and the
 	//     non-CGO Linux build check nothing, pass the written name on, and
 	//     leave substitution to the native text layer, which does it when the
 	//     text is drawn either way

@@ -55,7 +55,7 @@ func IsValidNamedKey(key string) bool {
 }
 
 // CanonicalNamedKeyForm returns the canonical display form of a named key
-// (e.g. "pagedown" → "PageDown", "UP" → "Up", "f1" → "F1").
+// (e.g. "pagedown" becomes "PageDown", "UP" becomes "Up", "f1" becomes "F1").
 // If the key is not a recognized named key, it returns the input unchanged
 // and false as the second return value.
 func CanonicalNamedKeyForm(key string) (string, bool) {
@@ -65,8 +65,8 @@ func CanonicalNamedKeyForm(key string) (string, bool) {
 // NormalizeKeyForComparison puts escape sequences and key names into one form,
 // so "\x1b" and "escape" are the same key and "q" matches "Q".
 //
-// On macOS "backspace" and "delete" are both the DEL key (\x7f). Named keys —
-// arrows, function keys, nav keys — become their lowercase form.
+// On macOS "backspace" and "delete" are both the DEL key (\x7f). Named keys,
+// such as arrows, function keys and nav keys, become their lowercase form.
 // Also normalizes fullwidth CJK characters to their halfwidth ASCII equivalents.
 // Primary resolves to the modifier UsePrimaryModifier published.
 func NormalizeKeyForComparison(key string) string {
@@ -97,9 +97,8 @@ func normalizeKey(key, primary string) string {
 	case " ":
 		return KeyNameSpace
 	case "\x08", "\x7f":
-		// On macOS, the Delete key (above Return) sends \x7f.
-		// \x08 is the ASCII BS control character (rarely generated on macOS but included for completeness).
-		// Treat \x7f and \x08 as synonyms of "delete" for user-friendly matching.
+		// On macOS the Delete key (above Return) sends \x7f. \x08 is the ASCII
+		// BS control character. Both match "delete".
 		return KeyNameDelete
 	}
 
@@ -214,18 +213,18 @@ func normalizeModifierToken(token, primary string) string {
 }
 
 // normalizeKeyAliases resolves a key-name alias to the key it means, in the
-// lowercase comparison form: "enter" → "return", "cmd+backspace" →
-// "cmd+delete", "esc" → "escape". The aliases are keyvocab's, so config does
+// lowercase comparison form. "enter" becomes "return", "cmd+backspace" becomes
+// "cmd+delete", and "esc" becomes "escape". The aliases are keyvocab's, so config does
 // not carry a second list of them.
 //
-// Only the base key — the segment after the last "+", or the whole string when
-// there is none — is a candidate. A modifier name is never an alias, and
+// Only the base key is a candidate, which is the segment after the last "+",
+// or the whole string when there is none. A modifier name is never an alias, and
 // splitting on the last "+" keeps a canonical form from being mangled into one
 // that shares its prefix ("escape" vs "esc").
 //
-// This is a deliberate near-miss of keyvocab.NormalizeKey (ADR 0007): both
+// This is a deliberate near-miss of keyvocab.NormalizeKey (ADR 0007). Both
 // resolve the same aliases from the same declaration, but they canonicalize to
-// different forms — NormalizeKey produces the display spelling a tap emits,
+// different forms. NormalizeKey produces the display spelling a tap emits, and
 // this produces the lowercase form a keystroke is matched in. Calling
 // NormalizeKey and lowercasing would also trim the key, which comparison must
 // not do.
@@ -317,8 +316,8 @@ func canonicalHotkey(hotkey, primary, goos string) string {
 
 // normalizeFullwidthChars converts fullwidth CJK characters (U+FF01-U+FF5E)
 // to their halfwidth ASCII equivalents (U+0021-U+007E).
-// Without it, keys misfire under CJK input methods.
-// Uses strings.Map for efficiency - only allocates when transformation occurs.
+// Without it, keys misfire under CJK input methods. strings.Map only allocates
+// when a character changes.
 func normalizeFullwidthChars(key string) string {
 	const (
 		fullwidthStart  = 0xFF01 // Fullwidth exclamation mark
@@ -330,13 +329,10 @@ func normalizeFullwidthChars(key string) string {
 	return strings.Map(func(char rune) rune {
 		switch {
 		case char >= fullwidthStart && char <= fullwidthEnd:
-			// Convert fullwidth to halfwidth
 			return char - halfwidthOffset
 		case char == fullwidthSpace:
-			// Fullwidth space -> regular space
 			return ' '
 		default:
-			// Return unchanged (strings.Map optimizes this case)
 			return char
 		}
 	}, key)

@@ -54,7 +54,7 @@ func WaylandScroll(axis, delta, discrete int) error {
 // convention.
 //
 // It exists beside WaylandScroll because the two say different things to a
-// client: WaylandScroll's discrete step count declares "one wheel notch", which
+// client. WaylandScroll's discrete step count declares "one wheel notch", which
 // a compositor is entitled to hold back until whole notches accumulate, while
 // this one declares a continuous distance and is delivered as written. Smooth
 // scroll is the caller.
@@ -80,14 +80,14 @@ func WaylandModifierEvent(modifier string, isDown bool) error {
 // events issued on this connection so far, and reports whether it answered
 // within timeout.
 //
-// It is the barrier a caller mixing injection layers needs: a virtual-keyboard
+// It is the barrier a caller mixing injection layers needs. A virtual-keyboard
 // modifier and a uinput scroll reach the compositor through different sources
 // with nothing ordering them, and the only side that can say "I am applied" is
 // this one. A false answer means the compositor did not answer in time, or
-// there is no virtual keyboard to ask — the caller falls back to waiting a
-// fixed period, which is what it did before this existed.
+// there is no virtual keyboard to ask, and the caller then falls back to
+// waiting a fixed period.
 //
-// KDE is not a caller: its modifier goes out on libei, which has no equivalent
+// KDE is not a caller. Its modifier goes out on libei, which has no equivalent
 // request to sync against, and its scroll never leaves the wlroots seat.
 func WaylandSyncModifiers(timeout time.Duration) bool {
 	return wlrootsSync(timeout)
@@ -106,9 +106,9 @@ func WaylandKeyEvent(keycode uint32, pressed bool) error {
 // the wlr-foreign-toplevel-management protocol. It works on wlroots
 // compositors (Sway, Hyprland, niri) and KWin/KDE, which all implement that
 // protocol, and via ext-foreign-toplevel-list plus zcosmic_toplevel_info_v1 on
-// cosmic-comp; GNOME/Mutter has neither, so the bool is false there. The bool
+// cosmic-comp. GNOME/Mutter has neither, so the bool is false there. The bool
 // is also false when nothing is focused yet or CGO is disabled. app_id is the
-// identifier Neru uses for per-app configuration on Wayland; the protocol does
+// identifier Neru uses for per-app configuration on Wayland. The protocol does
 // not expose a PID.
 func WaylandFocusedAppID() (string, bool) {
 	return wlrootsFocusedAppID()
@@ -126,7 +126,7 @@ func WaylandFocusedAppIdentity() (string, string, bool) {
 // WaylandFocusedWindowGeometry returns the focused toplevel's global bounds
 // (top-left origin, logical pixels) where the compositor's toplevel protocol
 // carries them, which today is cosmic-comp's zcosmic_toplevel_info_v1. It is
-// CodeNotSupported everywhere else; found=false with a nil error means nothing
+// CodeNotSupported everywhere else. found=false with a nil error means nothing
 // is focused or the window has no position yet.
 func WaylandFocusedWindowGeometry() (image.Rectangle, bool, error) {
 	return wlrootsFocusedWindowGeometry()

@@ -22,16 +22,16 @@ import "time"
 // caller re-checks whether the tests finished.
 const mainLoopSlice = 100 * time.Millisecond
 
-// cfRunLoopRunFinished mirrors kCFRunLoopRunFinished: the mode had nothing left
+// cfRunLoopRunFinished mirrors kCFRunLoopRunFinished. The mode had nothing left
 // to service, so CFRunLoopRunInMode returned without waiting out its timeout.
 const cfRunLoopRunFinished = 1
 
 // RunMainLoopForTesting runs testMain on a background goroutine while the
 // caller services the CoreFoundation main run loop. Native work (keymaps,
 // CGEventTap) is dispatched to the main queue, which only drains while that
-// loop runs; the daemon starts it, a `go test` binary never does, so without
-// this dispatch_async times out and dispatch_sync deadlocks — the source of
-// the old macOS test flakes. Use from TestMain, with the main thread locked
+// loop runs. The daemon starts it and a `go test` binary never does, so without
+// this dispatch_async times out and dispatch_sync deadlocks. That was the
+// source of the old macOS test flakes. Use from TestMain, with the main thread locked
 // from an init in the same package:
 //
 //	func init() { runtime.LockOSThread() }
@@ -55,7 +55,7 @@ func RunMainLoopForTesting(testMain func() int) int {
 		default:
 		}
 
-		// A run loop with no sources left returns immediately; sleep out
+		// A run loop with no sources left returns immediately, so sleep out
 		// the slice instead of spinning on it.
 		if C.neruRunMainLoopSlice(C.double(mainLoopSlice.Seconds())) == cfRunLoopRunFinished {
 			time.Sleep(mainLoopSlice)

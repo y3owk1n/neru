@@ -18,54 +18,44 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	// Initially should return a development logger
 	log := logger.Get()
 	if log == nil {
 		t.Fatal("Get() returned nil")
 	}
 
-	// Should be a zap logger
 	_ = log.With(zap.String("test", "value")) // Should not panic
 }
 
 func TestReset(t *testing.T) {
-	// Set a logger
 	original := logger.Get()
 
-	// Reset
 	logger.Reset()
 
-	// Get should return a new logger
 	newLogger := logger.Get()
 	if newLogger == nil {
 		t.Fatal("Get() returned nil after reset")
 	}
 
-	// They should be different instances
 	if original == newLogger {
 		t.Error("Reset() did not create a new logger instance")
 	}
 }
 
 func TestInit(t *testing.T) {
-	// Reset before test
 	logger.Reset()
 
 	var buf bytes.Buffer
 
-	// Test basic initialization
 	err := logger.Init("info", "", true, 10, 5, 30, &buf)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
 
-	// Logger should be set
 	log := logger.Get()
 	if log == nil {
 		t.Fatal("Get() returned nil after Init")
 	}
 
-	// Test logging to buffer
 	log.Info("test message", zap.String("key", "value"))
 	output := buf.String()
 
@@ -134,7 +124,6 @@ func TestInit_ConsoleWritesOneLinePerEntry(t *testing.T) {
 }
 
 func TestSync(t *testing.T) {
-	// Reset and init
 	logger.Reset()
 
 	err := logger.Init("info", "", true, 10, 5, 30, &bytes.Buffer{})
@@ -142,7 +131,6 @@ func TestSync(t *testing.T) {
 		t.Fatalf("Init() error = %v", err)
 	}
 
-	// Sync should not error
 	syncErr := logger.Sync()
 	if syncErr != nil {
 		t.Errorf("Sync() error = %v", syncErr)
@@ -150,7 +138,6 @@ func TestSync(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	// Reset and init
 	logger.Reset()
 
 	err := logger.Init("info", "", true, 10, 5, 30, &bytes.Buffer{})
@@ -158,7 +145,6 @@ func TestClose(t *testing.T) {
 		t.Fatalf("Init() error = %v", err)
 	}
 
-	// Close should not error
 	closeErr := logger.Close()
 	if closeErr != nil {
 		t.Errorf("Close() error = %v", closeErr)
@@ -186,15 +172,15 @@ func (w syncStubWriter) Write(p []byte) (int, error) { return len(p), nil }
 func (w syncStubWriter) Sync() error { return w.syncErr }
 
 // stdStreamSyncErr is what os.Stderr.Sync() returns when stderr is a pipe
-// rather than a flushable destination — the zap-on-stderr caveat that floods
-// test teardown with warnings.
+// rather than a flushable destination. This is the zap-on-stderr caveat that
+// floods test teardown with warnings.
 func stdStreamSyncErr(errno syscall.Errno) error {
 	return &fs.PathError{Op: "sync", Path: os.Stderr.Name(), Err: errno}
 }
 
 // requirePipedStderr skips a test whose premise is that this binary's stderr
 // cannot be flushed. That holds for the pipe or terminal a test run normally
-// has; a run redirected straight to a file is the case where such a failure is
+// has. A run redirected straight to a file is the case where such a failure is
 // real and reported, so there is nothing to assert here.
 func requirePipedStderr(t *testing.T) {
 	t.Helper()
@@ -264,7 +250,7 @@ func TestSyncAndClose_ReportGenuineSinkFailure(t *testing.T) {
 }
 
 // A log-file sink that fails to sync stays a real failure even when its errno
-// matches the standard-stream caveat: only the standard streams get the benefit
+// matches the standard-stream caveat. Only the standard streams get the benefit
 // of the doubt.
 func TestSyncAndClose_ReportFileSinkFailureWithSameErrno(t *testing.T) {
 	fileSyncErr := &fs.PathError{
@@ -292,7 +278,7 @@ func TestSyncAndClose_ReportFileSinkFailureWithSameErrno(t *testing.T) {
 	}
 }
 
-// The teardown path that floods the gate: Get() builds a fallback development
+// This is the teardown path that floods the gate. Get() builds a fallback development
 // logger on os.Stderr, and closing it must stay quiet even when the test
 // binary's stderr is a pipe that cannot be synced.
 func TestClose_QuietOnFallbackStderrLogger(t *testing.T) {

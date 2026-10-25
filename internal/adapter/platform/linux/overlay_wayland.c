@@ -28,7 +28,7 @@
 // which also holds renderMu. Therefore no concurrent access can occur.
 //
 // A ring buffer (rather than a single slot) is necessary because
-// wl_display_roundtrip — called from the rendering path — may dispatch
+// wl_display_roundtrip, called from the rendering path, may dispatch
 // multiple keyboard events in a single call. With a single-slot buffer the
 // second event would silently overwrite the first.
 static void neru_key_ring_push(NeruWaylandOverlay *overlay, const char *key) {
@@ -111,7 +111,7 @@ static const struct wl_output_listener wl_output_listener = {
 };
 
 // Per-surface fractional-scale listener. The compositor reports its preferred
-// scale as a numerator over 120 (e.g. 180 == 1.5x); we render the buffer at that
+// scale as a numerator over 120 (e.g. 180 == 1.5x). We render the buffer at that
 // scale and let wp_viewport map it back down to the logical output size.
 static void neru_fractional_preferred_scale(
     void *data, struct wp_fractional_scale_v1 *fractional_scale, uint32_t scale) {
@@ -153,7 +153,7 @@ static const struct zxdg_output_v1_listener xdg_output_listener = {
 // output and leaves the slot inert (all pointers NULL, num_buffers 0). Used on
 // runtime output removal. The slot is tombstoned rather than compacted out of
 // the array because the xdg_output / wl_output / fractional_scale / wl_buffer
-// listeners all carry this slot's *address* as user_data; shifting slots would
+// listeners all carry this slot's *address* as user_data, and shifting slots would
 // dangle them. Every draw/buffer loop skips inert slots (wl_output/cr NULL), and
 // a later hotplug-add reuses the slot.
 static void neru_overlay_release_screen(NeruWaylandOverlayScreen *scr) {
@@ -466,9 +466,9 @@ NeruWaylandOverlay *neru_wayland_overlay_new(void) {
 		return NULL;
 
 	// NONE by default so the overlay never steals keyboard focus on creation. A
-	// layer-surface keyboard grab makes wlroots compositors (niri, Sway, …)
+	// layer-surface keyboard grab makes wlroots compositors (niri, Sway, ...)
 	// deactivate the focused app's toplevel, which breaks the "focused window"
-	// query a hints refresh depends on. Keys are captured via the evdev grab; only
+	// query a hints refresh depends on. Keys are captured via the evdev grab, and only
 	// the non-evdev fallback (see runWayland in eventtap_linux_wayland.go) turns
 	// this back to EXCLUSIVE via neru_wayland_overlay_set_keyboard_capture. This
 	// mirrors macOS, whose overlay is a non-activating panel.
@@ -495,7 +495,7 @@ NeruWaylandOverlay *neru_wayland_overlay_new(void) {
 		scr->xdg_output = zxdg_output_manager_v1_get_xdg_output(overlay->xdg_output_mgr, scr->wl_output);
 		zxdg_output_v1_add_listener(scr->xdg_output, &xdg_output_listener, scr);
 	}
-	// Initial outputs are wired; a later hotplug-added output now wires its own
+	// Initial outputs are wired, so a later hotplug-added output now wires its own
 	// xdg_output inline in neru_overlay_registry_global.
 	overlay->outputs_configured = 1;
 	wl_display_roundtrip(overlay->display);  // get screen sizes
@@ -620,16 +620,16 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 
 		scr->wl_surface = wl_compositor_create_surface(overlay->compositor);
 
-		// We want all pointer clicks to PASS THROUGH the overlay to the window behind it.
-		// On Wayland, a surface intercepts all events across its entire dimension unless
-		// an input region is explicitly provided. We set an empty region here:
+		// Pointer clicks must pass through the overlay to the window behind it. On
+		// Wayland a surface takes every pointer event across its whole area unless it
+		// has an input region, so the overlay sets an empty one.
 		struct wl_region *empty_region = wl_compositor_create_region(overlay->compositor);
 		wl_surface_set_input_region(scr->wl_surface, empty_region);
 		wl_region_destroy(empty_region);
 
 		// Fractional-scale + viewport: over-render the buffer at the compositor's
 		// preferred fractional scale and let the viewport map it back to the
-		// logical output size. Both are optional; absence falls back to the
+		// logical output size. Both are optional, and absence falls back to the
 		// integer wl_output.scale path in the buffer-creation loop below.
 		if (overlay->viewporter) {
 			scr->viewport = wp_viewporter_get_viewport(overlay->viewporter, scr->wl_surface);
@@ -650,7 +650,7 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		zwlr_layer_surface_v1_set_exclusive_zone(scr->layer_surface, -1);
 
 		// Apply the current keyboard-interactivity mode (NONE by default so the
-		// overlay does not steal focus; the non-evdev fallback raises it to
+		// overlay does not steal focus, and the non-evdev fallback raises it to
 		// EXCLUSIVE via neru_wayland_overlay_set_keyboard_capture).
 		zwlr_layer_surface_v1_set_keyboard_interactivity(scr->layer_surface, overlay->keyboard_interactivity_set);
 
@@ -677,7 +677,7 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		if (scr->num_buffers > 0)
 			continue;
 		if (scr->layer_surface == NULL)
-			continue;  // Inert slot, or dimensions not set yet — no surface to back
+			continue;  // Inert slot, or dimensions not set yet, so no surface to back
 
 		// Prefer fractional scaling (buffer over-rendered, then mapped down by the
 		// viewport). Fall back to the integer wl_output.scale + set_buffer_scale
@@ -708,7 +708,6 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		scr->num_buffers = ok;
 
 		if (ok > 0) {
-			// Point current pointers to buffer 0
 			scr->current_buffer = 0;
 			scr->buffer = scr->buffers[0];
 			scr->cairo_surface = scr->cairo_surfaces[0];
@@ -718,7 +717,7 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		}
 
 		if (use_fractional) {
-			// The buffer is over-rendered; map it back onto the logical output
+			// The buffer is over-rendered. Map it back onto the logical output
 			// size. buffer_scale stays at its default of 1 (the buffer dims are
 			// not an integer multiple of the logical size).
 			wp_viewport_set_destination(scr->viewport, scr->width, scr->height);
@@ -755,7 +754,7 @@ void neru_wayland_overlay_hide(NeruWaylandOverlay *overlay) {
 			wl_surface_attach(scr->wl_surface, NULL, 0, 0);
 			wl_surface_commit(scr->wl_surface);
 		}
-		// Destroy the viewport and fractional-scale objects: both are bound to the
+		// Destroy the viewport and fractional-scale objects. Both are bound to the
 		// wl_surface, which is recreated (and re-queried) on the next show.
 		if (scr->viewport) {
 			wp_viewport_destroy(scr->viewport);
@@ -771,12 +770,10 @@ void neru_wayland_overlay_hide(NeruWaylandOverlay *overlay) {
 			zwlr_layer_surface_v1_destroy(scr->layer_surface);
 			scr->layer_surface = NULL;
 		}
-		// Also destroy the surface
 		if (scr->wl_surface) {
 			wl_surface_destroy(scr->wl_surface);
 			scr->wl_surface = NULL;
 		}
-		// Destroy all buffers and cairo
 		for (int b = 0; b < scr->num_buffers; b++) {
 			if (scr->crs[b])
 				cairo_destroy(scr->crs[b]);
@@ -794,7 +791,6 @@ void neru_wayland_overlay_hide(NeruWaylandOverlay *overlay) {
 			scr->busy[b] = 0;
 		}
 		scr->num_buffers = 0;
-		// Reset current pointers
 		scr->buffer = NULL;
 		scr->cairo_surface = NULL;
 		scr->cr = NULL;
@@ -887,11 +883,11 @@ int neru_wayland_overlay_available_buffer(NeruWaylandOverlay *overlay) {
 		return -1;
 
 	// Return a buffer index the compositor has released on every LIVE output.
-	// Outputs release buffers at different rates — most visibly a fractional-scale
-	// output, which holds its viewport-mapped buffer a frame longer — so an index
+	// Outputs release buffers at different rates, most visibly a fractional-scale
+	// output, which holds its viewport-mapped buffer a frame longer, so an index
 	// still busy on another output attaches a buffer the compositor already owns,
 	// freezing that output. Inert slots left by a removed output (num_buffers == 0)
-	// are skipped; otherwise min_buffers would collapse to 0 and stall everything.
+	// are skipped, since otherwise min_buffers would collapse to 0 and stall everything.
 	int min_buffers = 0;
 	int have_live = 0;
 	for (int s = 0; s < overlay->nr_screens; s++) {
@@ -1082,13 +1078,13 @@ void neru_wayland_overlay_hint_badge(
 	}
 }
 
-// neru_resolve_font_family returns a font family cairo's toy API can actually
+// neru_resolve_font_family returns a font family cairo's toy API can
 // render, substituting a generic fallback when the requested family fails.
 //
-// This guards against a subtle, catastrophic failure mode: on some
+// This guards against a failure that breaks every later draw. On some
 // cairo/fontconfig setups (e.g. certain Nix closures on non-NixOS hosts)
-// cairo_show_text with a specific family name — even a common one like
-// "DejaVu Sans" — fails with CAIRO_STATUS_NO_MEMORY, which permanently poisons
+// cairo_show_text with a specific family name, even a common one like
+// "DejaVu Sans", fails with CAIRO_STATUS_NO_MEMORY, which permanently poisons
 // the cairo context so every subsequent draw silently no-ops. Generic families
 // ("sans-serif", "monospace", ...) resolve fine there. We probe the requested
 // family on a throwaway context (never touching a real buffer context, so a

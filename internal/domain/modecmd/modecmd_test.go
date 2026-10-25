@@ -56,7 +56,7 @@ const (
 
 // flagCase is one flag together with proof that parsing it took effect.
 //
-// Every flag in the table needs one: a flag the grammar declares but does not
+// Every flag in the table needs one. A flag the grammar declares but does not
 // act on is a flag that fails silently, which is the failure this module
 // exists to remove.
 type flagCase struct {
@@ -275,7 +275,7 @@ func TestParse_ShortFormsReachTheSameFlag(t *testing.T) {
 			testCase := covered[descriptor.Name()]
 
 			short := slices.Clone(testCase.args)
-			// Rewrite only this flag's own argument into its short form; any
+			// Rewrite only this flag's own argument into its short form. Any
 			// others the case needed stay as they are.
 			for index, arg := range short {
 				if descriptor.Match(arg) {
@@ -307,7 +307,7 @@ func valueOf(arg string) string {
 }
 
 // TestParse_ValueFlagsRefuseAMissingValue pins the other half of what the
-// vocabulary declares: a flag that takes a value says so when it arrives
+// vocabulary declares. A flag that takes a value says so when it arrives
 // without one, rather than swallowing whatever follows.
 func TestParse_ValueFlagsRefuseAMissingValue(t *testing.T) {
 	t.Parallel()
@@ -337,7 +337,7 @@ func TestParse_ValueFlagsRefuseAMissingValue(t *testing.T) {
 // that carries none is reported.
 //
 // Reading "--toggle=false" as a request to toggle is the shape of failure this
-// module exists to remove: the flag was read, the value was not, and nothing
+// module exists to remove. The flag was read, the value was not, and nothing
 // said so.
 func TestParse_PresenceFlagsRefuseAValue(t *testing.T) {
 	t.Parallel()
@@ -402,7 +402,7 @@ func TestParse_ListFlagsRefuseAnEmptyValue(t *testing.T) {
 }
 
 // TestParse_AcceptsBothArgumentShapes pins the normalization every other case
-// depends on: a caller modeled on the CLI's own traffic repeats the mode name
+// depends on. A caller modeled on the CLI's own traffic repeats the mode name
 // as the first argument, and a binding does not.
 func TestParse_AcceptsBothArgumentShapes(t *testing.T) {
 	t.Parallel()
@@ -508,7 +508,7 @@ func TestParse_OnExitAccumulatesSteps(t *testing.T) {
 			want: []string{"first", "second"},
 		},
 		{
-			// Absent is not the same as empty: it leaves whatever a previous
+			// Absent is not the same as empty. It leaves whatever a previous
 			// activation stored alone.
 			name: "omitted stays nil",
 			args: []string{argAction},
@@ -529,7 +529,7 @@ func TestParse_OnExitAccumulatesSteps(t *testing.T) {
 		},
 		{
 			// A step that is nothing but padding is no step, and says what an
-			// empty one says: clear what was stored and run nothing.
+			// empty one says. It clears what was stored and runs nothing.
 			name: "padding only clears",
 			args: []string{argAction, "--on-exit=   "},
 			want: []string{},
@@ -558,7 +558,7 @@ func TestParse_OnExitAccumulatesSteps(t *testing.T) {
 }
 
 // TestParse_RefusesFlagsTheModeDoesNotAccept pins the failure the whole module
-// exists for: a flag a mode has no use for was accepted, stored and dropped,
+// exists for. A flag a mode had no use for was accepted, stored and dropped,
 // so the mode activated and the flag did nothing.
 func TestParse_RefusesFlagsTheModeDoesNotAccept(t *testing.T) {
 	t.Parallel()
@@ -779,7 +779,7 @@ func TestParse_RefusalMessages(t *testing.T) {
 // TestValidate_EnforcesFlagDependencies pins the rules that make one flag
 // meaningless without another, and the one message each of them gives.
 //
-// --on-exit is the rule that used to exist on the command line only: over the
+// --on-exit is the rule that used to exist on the command line only. Over the
 // wire and from a binding the steps were stored and never run.
 func TestValidate_EnforcesFlagDependencies(t *testing.T) {
 	t.Parallel()

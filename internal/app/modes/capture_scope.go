@@ -70,7 +70,7 @@ func (h *handlerState) captureStart(
 
 	window, focused, err := h.system.FocusedWindowBounds(h.ctx)
 	if err != nil {
-		// Warned at every code, CodeNotSupported included: the user asked for
+		// Warned at every code, CodeNotSupported included. The user asked for
 		// a window and is getting the screen.
 		h.logger.Warn("Failed to get the focused window; using the screen",
 			zap.String("mode", mode), zap.Error(err))

@@ -27,10 +27,10 @@ func init() {
 
 // wlrootsOverlay is the wlroots layer-shell backend: the cgo connection, the
 // shared-memory buffer pool, the keyboard poller, and the overlaySurface
-// primitives. Everything above the primitives — drawing, animation, and the
-// exported methods the manager calls — lives on the embedded sharedOverlay and
+// primitives. Everything above the primitives, drawing, animation, and the
+// exported methods the manager calls, lives on the embedded sharedOverlay and
 // is promoted from there. What stays here is what Wayland does differently:
-// Show (buffer setup first), Resize (nothing; layer shells auto-resize),
+// Show (buffer setup first), Resize (nothing, layer shells auto-resize),
 // Destroy (waits on the poller), the poller itself, and the primitives.
 type wlrootsOverlay struct {
 	sharedOverlay
@@ -83,7 +83,7 @@ func (o *wlrootsOverlay) Show() {
 	}
 }
 
-// Resize is a no-op: Wayland layer shells auto-resize with their output.
+// Resize is a no-op. Wayland layer shells auto-resize with their output.
 func (o *wlrootsOverlay) Resize() {}
 
 func (o *wlrootsOverlay) Destroy() {
@@ -108,7 +108,7 @@ func (o *wlrootsOverlay) alive() bool {
 }
 
 // startPoller launches the keyboard poller goroutine. Called once per overlay
-// by the manager; the poller exits when Destroy closes stopCh.
+// by the manager. The poller exits when Destroy closes stopCh.
 func (o *wlrootsOverlay) startPoller() {
 	go o.keyboardPoller()
 }
@@ -206,7 +206,7 @@ func (o *wlrootsOverlay) selectAvailableBuffer() bool {
 
 // --- overlaySurface primitives ---
 
-// surfaceScale is 1: Wayland renders in logical coordinates and the
+// surfaceScale is 1, because Wayland renders in logical coordinates and the
 // compositor scales the buffer.
 func (o *wlrootsOverlay) surfaceScale() float64 { return 1 }
 
@@ -214,7 +214,7 @@ func (o *wlrootsOverlay) ensureBuffers() {
 	C.neru_wayland_overlay_setup_buffers(o.raw)
 }
 
-// beginFrame makes a released shared-memory buffer current; reports false
+// beginFrame makes a released shared-memory buffer current. It reports false
 // when none is available and the frame must be dropped.
 func (o *wlrootsOverlay) beginFrame() bool {
 	return o.selectAvailableBuffer()
@@ -224,7 +224,7 @@ func (o *wlrootsOverlay) surfaceClear() {
 	C.neru_wayland_overlay_clear(o.raw)
 }
 
-// clearFrame is a plain clear: beginFrame already selected the buffer.
+// clearFrame is a plain clear, because beginFrame already selected the buffer.
 func (o *wlrootsOverlay) clearFrame() {
 	C.neru_wayland_overlay_clear(o.raw)
 }
@@ -247,7 +247,7 @@ func (o *wlrootsOverlay) surfaceHide() {
 	C.neru_wayland_overlay_hide(o.raw)
 }
 
-// showIndicator maps the indicator surface under the render lock — the
+// showIndicator maps the indicator surface under the render lock, because the
 // keyboard poller runs concurrently on this overlay's wl_display. The surface
 // must never steal keyboard focus from the app it decorates, so keyboard
 // capture is switched off before mapping.
@@ -266,7 +266,7 @@ func (o *wlrootsOverlay) showIndicator() {
 	}
 }
 
-// finishIndicator only hides: clearing would write into an unselected buffer.
+// finishIndicator only hides, because clearing would write into an unselected buffer.
 func (o *wlrootsOverlay) finishIndicator() {
 	C.neru_wayland_overlay_hide(o.raw)
 }

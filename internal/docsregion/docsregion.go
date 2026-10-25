@@ -1,14 +1,14 @@
 // Package docsregion is the one implementation of a generated region inside a
 // hand-written documentation page.
 //
-// Two references are published this way — the mode-flag table in docs/reference/cli.md
-// and the platform-support table in docs/reference/platform-support.md — and both need the
-// same three things: locate the region, replace what is between the markers,
-// and hand back what a page currently holds so a guardrail can report it. A
-// shared derivation has one implementation
-// (docs/adr/0007-a-shared-derivation-has-one-implementation.md); the second
-// copy had already drifted from the first in how it reported markers written
-// out of order.
+// Two references are published this way, the mode-flag table in
+// docs/reference/cli.md and the platform-support table in
+// docs/reference/platform-support.md. Both need the same three things: locate
+// the region, replace what is between the markers, and hand back what a page
+// currently holds so a guardrail can report it. A shared derivation has one
+// implementation (docs/adr/0007-a-shared-derivation-has-one-implementation.md).
+// The second copy had already drifted from the first in how it reported
+// markers written out of order.
 //
 // What each renderer keeps is the part that is actually its own: its markers,
 // and the table it renders.
@@ -35,7 +35,7 @@ type Markers struct {
 // Rewrite returns the document with its generated region replaced by the table,
 // and reports a document that has no region to write into.
 //
-// Everything outside the markers is left exactly as it was: a reference is one
+// Everything outside the markers is left exactly as it was. A reference is one
 // table inside a hand-written page, not the page.
 func (m Markers) Rewrite(document, table string) (string, error) {
 	begin, end, err := m.bounds(document)
@@ -48,10 +48,10 @@ func (m Markers) Rewrite(document, table string) (string, error) {
 
 // Region returns what a document currently holds between the markers.
 //
-// [Markers.Rewrite] answers "what should this page say?"; this answers "what
-// does it say?", which is what a reader reporting a page's contents back — a
-// guardrail naming the row it could not find — needs. Both read the markers
-// here, so there is one answer to where a region starts.
+// [Markers.Rewrite] answers "what should this page say?", and this answers
+// "what does it say?". A reader reporting a page's contents back, such as a
+// guardrail naming the row it could not find, needs the second. Both read the
+// markers here, so there is one answer to where a region starts.
 func (m Markers) Region(document string) (string, error) {
 	begin, end, err := m.bounds(document)
 	if err != nil {
@@ -98,7 +98,7 @@ func (m Markers) bounds(document string) (int, int, error) {
 // Generate rewrites one page in place and reports what it did, which is the
 // whole body of every generator command that writes a region.
 //
-// The page's own mode is kept: a generated region does not make the file the
+// The page's own mode is kept. A generated region does not make the file the
 // generator's to re-permission.
 func Generate(path string, rewrite func(string) (string, error)) (string, error) {
 	contents, err := os.ReadFile(path) //nolint:gosec // the path is a build argument

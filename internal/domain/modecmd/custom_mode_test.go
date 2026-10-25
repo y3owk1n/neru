@@ -76,7 +76,7 @@ func TestParse_ReadsTheCustomModeName(t *testing.T) {
 
 // TestParse_RefusesACustomActivationWithoutAName pins that the word alone
 // names nothing, and that a second bare word is a stray argument rather than a
-// positional action: a declared mode makes no selection to act on.
+// positional action, because a declared mode makes no selection to act on.
 func TestParse_RefusesACustomActivationWithoutAName(t *testing.T) {
 	t.Parallel()
 
@@ -156,7 +156,7 @@ func TestRoundTrip_CarriesTheCustomModeName(t *testing.T) {
 	}
 }
 
-// TestValidate_RefusesANameOnABuiltInMode pins the other side of the rule: a
+// TestValidate_RefusesANameOnABuiltInMode pins the other side of the rule. A
 // name on a built-in activation is dropped by the rendering, so accepting it
 // would let a caller build an activation that says one thing and sends another.
 func TestValidate_RefusesANameOnABuiltInMode(t *testing.T) {

@@ -72,9 +72,7 @@ func WriteDefaultConfig(cfgPath string, force bool, schemaURL string) error {
 // platformDefaultConfig returns the embedded default config with platform-specific
 // adjustments applied (the Linux hotkeys are left commented out).
 func platformDefaultConfig() []byte {
-	cfg := configs.DefaultConfig
-
-	content := string(cfg)
+	content := string(configs.DefaultConfig)
 
 	if runtime.GOOS == "linux" {
 		content = strings.ReplaceAll(content,
@@ -83,9 +81,7 @@ func platformDefaultConfig() []byte {
 		)
 	}
 
-	cfg = []byte(content)
-
-	return cfg
+	return []byte(content)
 }
 
 // DefaultConfigPath returns the default configuration file path.

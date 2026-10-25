@@ -4,7 +4,7 @@ package linux
 
 import "testing"
 
-// The split has to agree with the proxy keyboard's advertised codes: a button
+// The split has to agree with the proxy keyboard's advertised codes. A button
 // sent there is dropped by the kernel, and a key sent to the pointer proxy is
 // dropped the same way.
 func TestIsPointerButton_MirrorsTheProxyKeyboardRange(t *testing.T) {

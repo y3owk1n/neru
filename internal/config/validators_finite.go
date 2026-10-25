@@ -9,11 +9,11 @@ import (
 )
 
 // ValidateFinite rejects NaN and infinite floats anywhere in the schema. Both
-// reach a field untouched: TOML spells them nan and inf, and neru config set
-// parses them the same way. Every range check downstream compares, and a
+// reach a field untouched, since TOML spells them nan and inf and neru config
+// set parses them the same way. Every range check downstream compares, and a
 // comparison with NaN is false, so a NaN would pass every one of them and
 // then disable whatever heuristic the field drives. Walking the whole struct
-// keeps the rule exhaustive: a float added tomorrow is covered on the day it
+// keeps the rule exhaustive, so a float added tomorrow is covered on the day it
 // lands. It runs first in the ladder because no other check is meaningful
 // on a non-finite value.
 func (c *Config) ValidateFinite() error {

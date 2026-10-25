@@ -34,7 +34,7 @@ func requireTaskScheduler(t *testing.T, path string) {
 // the real scheduler, which is the only reader whose opinion of the XML counts.
 //
 // The action is this test binary with `launch` as its argument, which exits at
-// once, so the task's state after Run may already be back to ready; the
+// once, so the task's state after Run may already be back to ready. The
 // assertion is that Run was accepted, and that status reports an installed
 // task, not that a daemon stays up.
 func TestServiceTask_RoundTrip(t *testing.T) {

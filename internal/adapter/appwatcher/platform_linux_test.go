@@ -177,7 +177,7 @@ func TestLinuxAppWatcherStartStopLifecycle(t *testing.T) {
 // TestLinuxAppWatcherEventLoopWakesOnFD proves the event-driven path dispatches
 // an activation when the focus-change fd becomes readable, rather than waiting
 // for a poll interval. A real non-blocking pipe stands in for the platform
-// focus fd; writing a byte simulates a compositor/X11 focus-change signal.
+// focus fd, and writing a byte simulates a compositor/X11 focus-change signal.
 func TestLinuxAppWatcherEventLoopWakesOnFD(t *testing.T) {
 	watcher := NewWatcher(nil)
 

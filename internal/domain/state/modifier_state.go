@@ -38,9 +38,7 @@ func (s *ModifierState) Toggle(mod action.Modifiers) action.Modifiers {
 	s.mu.Unlock()
 
 	for _, callback := range callbacks {
-		if callback != nil {
-			callback(newModifiers)
-		}
+		callback(newModifiers)
 	}
 
 	return newModifiers
@@ -73,9 +71,7 @@ func (s *ModifierState) Reset() {
 	s.mu.Unlock()
 
 	for _, callback := range callbacks {
-		if callback != nil {
-			callback(0)
-		}
+		callback(0)
 	}
 }
 

@@ -1,7 +1,7 @@
 // Package stickyindicator renders the badge showing which modifiers are
 // currently held sticky.
 //
-// It owns the overlay's style and drawing only; which modifiers are sticky is
+// It owns the overlay's style and drawing only. Which modifiers are sticky is
 // tracked by the mode handler's modifier state.
 //
 // Drawing is per-platform (overlay_darwin.go, overlay_linux_*.go,

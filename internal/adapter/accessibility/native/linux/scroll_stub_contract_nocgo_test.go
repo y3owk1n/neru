@@ -15,9 +15,9 @@ import (
 //
 // Backend detection reads the environment and nothing else, so a CGO_ENABLED=0
 // build in a real X11 or Wayland session reports that backend exactly as a CGO
-// build does — while every injection path in it is a CodeNotSupported stub. The
+// build does, while every injection path in it is a CodeNotSupported stub. The
 // animation runs on a worker goroutine, so a refusal discovered there reaches
-// nobody: it has to be available synchronously, before the handoff. A nil from
+// nobody. It has to be available synchronously, before the handoff. A nil from
 // either function here would be the silent no-op ADR 0013 exists to end,
 // reintroduced by turning an option on.
 //
@@ -46,7 +46,7 @@ func TestScrollBackendAvailable_RefusesOnACgoLessBuild(t *testing.T) {
 	}
 }
 
-// TestBeginScrollSession_RefusesOnACgoLessBuild is the other half: the session
+// TestBeginScrollSession_RefusesOnACgoLessBuild is the other half. The session
 // the worker would open refuses too, so a backend that somehow reached the
 // animator still injects nothing rather than half of something.
 func TestBeginScrollSession_RefusesOnACgoLessBuild(t *testing.T) {

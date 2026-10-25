@@ -7,7 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/modifierstate"
 )
 
-// button numbers are arbitrary; a stash only ever passes them back.
+// button numbers are arbitrary. A stash only ever passes them back.
 const (
 	leftButton  = 1
 	rightButton = 3
@@ -164,7 +164,7 @@ func TestStash_Put_MergesASecondPressOfAButtonAlreadyDown(t *testing.T) {
 				"before Neru touched it, and that is the state the release has " +
 				"to land on.",
 			// The first press pressed shift itself and released the ctrl the
-			// user was holding; the second sees exactly the opposite of both.
+			// user was holding. The second sees exactly the opposite of both.
 			presses: []stashedPress{
 				{
 					button: leftButton,
@@ -182,7 +182,7 @@ func TestStash_Put_MergesASecondPressOfAButtonAlreadyDown(t *testing.T) {
 				},
 			},
 			// Only the ctrl the user is holding, and only the shift Neru
-			// pressed: that is the state before Neru touched either key.
+			// pressed. That is the state before Neru touched either key.
 			releases: []expectedRelease{{
 				button:       leftButton,
 				wantHeld:     true,
@@ -197,9 +197,9 @@ func TestStash_Put_MergesASecondPressOfAButtonAlreadyDown(t *testing.T) {
 // arrive on whichever goroutine ran the action, so the map behind the stash is
 // reachable from more than one at a time.
 //
-// This one stays off the scenario table: what it asserts is that concurrent
-// callers do not lose each other's plans, which no ordered list of presses and
-// releases can describe.
+// This one stays off the scenario table, because what it asserts is that
+// concurrent callers do not lose each other's plans, which no ordered list of
+// presses and releases can describe.
 func TestStash_Put_SerializesConcurrentPresses(t *testing.T) {
 	var (
 		stash modifierstate.Stash

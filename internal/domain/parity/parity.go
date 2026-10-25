@@ -21,7 +21,7 @@ const (
 
 // AllPlatforms is every platform, in the order a column is read and rendered.
 //
-// It is the order, as well as the set: a declaration that listed its platforms
+// It is the order, as well as the set. A declaration that listed its platforms
 // in whatever order it was typed would render two documentation rows that mean
 // the same thing differently.
 var AllPlatforms = Platforms{Darwin, Linux, Windows}
@@ -29,7 +29,7 @@ var AllPlatforms = Platforms{Darwin, Linux, Windows}
 // Current is the platform this binary is running on, and false when it is one
 // Neru declares nothing about.
 //
-// A build for anything but the three above — the CGO-less `other` slot — has no
+// A build for anything but the three above, the CGO-less `other` slot, has no
 // row in any declaration, so nothing is claimed for it either way. Warning
 // there would be inventing a platform column, and staying silent is what the
 // rest of the tree already does (config_other.go).
@@ -75,7 +75,7 @@ func (p Platforms) Everywhere() bool {
 }
 
 // Kind is the family of vocabulary a word belongs to. It is part of a word's
-// identity: `strategy` is a config option and a mode flag, and the two are
+// identity. `strategy` is a config option and a mode flag, and the two are
 // declared separately because they are two names.
 type Kind string
 
@@ -92,7 +92,7 @@ const (
 // something on.
 //
 // Value is empty for the name itself and set for one of the values it may
-// carry: `hints.strategy` is recognized everywhere while `hints.strategy =
+// carry. `hints.strategy` is recognized everywhere while `hints.strategy =
 // vision` is not, and the two are separate declarations because they are
 // separate promises.
 type Word struct {
@@ -137,8 +137,8 @@ type Declaration []Word
 // Everywhere declares words supported on every platform.
 //
 // Being supported everywhere is written down rather than assumed, for the
-// reason a zero is written down in the config defaults: a column nobody wrote
-// cannot be told from a forgotten one, and the forgotten one is exactly how
+// reason a zero is written down in the config defaults. A column nobody wrote
+// cannot be told from a forgotten one, and a forgotten one is how
 // `smooth_scroll` shipped.
 func Everywhere(kind Kind, names ...string) Declaration {
 	declaration := make(Declaration, 0, len(names))
@@ -172,8 +172,8 @@ func On(kind Kind, platforms Platforms, note string, names ...string) Declaratio
 }
 
 // ValueOn declares one value of a word as supported only on the given
-// platforms. The word itself is declared separately: it is recognized
-// everywhere, and only this value of it is not.
+// platforms. The word itself is declared separately, because it is recognized
+// everywhere and only this value of it is not.
 func ValueOn(
 	kind Kind,
 	platforms Platforms,

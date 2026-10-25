@@ -218,8 +218,6 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 					textY = badgeY + (badgeHeight - totalTextH) / 2;
 				}
 
-				/// --- Build sublayers ---
-
 				// Badge background (CAShapeLayer for rounded rect)
 				CAShapeLayer *bgLayer = [CAShapeLayer layer];
 				CGRect badgeRect = CGRectMake(badgeX, badgeY, badgeWidth, badgeHeight);
@@ -229,7 +227,6 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 					bgLayer.strokeColor = borderColor.CGColor;
 					bgLayer.lineWidth = style.borderWidth;
 				}
-				// Build rounded rect CGPath
 				CGMutablePathRef bgPath = CGPathCreateMutable();
 				CGPathAddRoundedRect(bgPath, NULL, badgeRect, radius, radius);
 				bgLayer.path = bgPath;

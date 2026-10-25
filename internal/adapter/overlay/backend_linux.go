@@ -16,7 +16,7 @@ func Init(logger *zap.Logger) manager.Interface { return linux.Init(logger) }
 //
 // It is a package-level accessor because the overlay is one native window per
 // process. Since #1213 its only caller is the Linux event tap, whose evdev and
-// Wayland keyboard paths have no injected handle to use instead; cleanup and
+// Wayland keyboard paths have no injected handle to use instead. Cleanup and
 // indicator polling reach the overlay through ports.OverlayPort.
 func Get() manager.Interface {
 	built := linux.Get()

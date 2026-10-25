@@ -13,7 +13,8 @@ import (
 // the key drawn there.
 type SubKeyPreviewCell struct {
 	// Bounds is the sub-cell, in whatever space the cell it was laid out in
-	// was given in — screen-local or global, this does not translate.
+	// was given in. That may be screen-local or global, and this does not
+	// translate it.
 	Bounds image.Rectangle
 
 	// Label is the key that selects the sub-cell, or the configured
@@ -26,20 +27,20 @@ type SubKeyPreviewCell struct {
 // divide a cell into.
 //
 // It is one question per draw rather than per cell, and it is what keeps a
-// preview off the deepest level — the mode leaves the next layout zero when the
+// preview off the deepest level. The mode leaves the next layout zero when the
 // region can no longer be divided, so there are no keys and no shape, and the
 // cells are drawn bare. Windows drew a label there until #1297, because it was
-// handed the next layout and discarded it; asking here is what stops the next
+// handed the next layout and discarded it. Asking here is what stops the next
 // backend doing the same.
 //
-// A zero shape is also what makes this a gate rather than a hint: the
+// A zero shape is also what makes this a gate rather than a hint, because the
 // subdivision divides by the column and row counts, so a draw that reached
 // SubKeyPreviewCells with a zero one would divide by zero.
 //
 // nextKeyCount is taken as a number rather than as the keys themselves because
 // only "are there any" is asked of it, and the three backends hold them in three
-// forms — a rune slice on Cairo and GDI, the string the mode handed over on the
-// Quartz one, which is passed on to Objective-C rather than decoded. Every form
+// forms. Cairo and GDI hold a rune slice, and Quartz holds the string the mode
+// handed over, which is passed on to Objective-C rather than decoded. Every form
 // answers this the same way, and none of them has to be converted to ask.
 func (s Style) PreviewsNextDepth(nextKeyCount int, nextDims domain.GridDimensions) bool {
 	return s.subKeyPreview && nextKeyCount > 0 &&
@@ -104,20 +105,20 @@ func (s Style) SubKeyPreviewFontSizeIn(
 //
 // It divides the cell with the same recursivegrid.ComputeGridCells the next
 // depth will actually be drawn with, so a previewed key sits where its cell will
-// be. The center sub-cell of an odd-by-odd division carries no key: the cell's
-// own label is drawn there, and a preview key under it would be unreadable.
+// be. The center sub-cell of an odd-by-odd division carries no key, because the
+// cell's own label is drawn there, and a preview key under it would be unreadable.
 //
 // Callers get only the sub-cells that carry a key, so nothing downstream has to
 // know which one was left out. A draw the preview is switched off for, or one
-// with no next depth to preview, gets nothing back — PreviewsNextDepth is the
+// with no next depth to preview, gets nothing back. PreviewsNextDepth is the
 // same question asked once per draw instead of once per cell.
 //
-// One thing this does not match the macOS overlay on, and it is deliberate:
-// given fewer keys than sub-cells, drawSubKeyPreviewInCellRect: refuses the
+// One thing this does not match the macOS overlay on, and it is deliberate.
+// Given fewer keys than sub-cells, drawSubKeyPreviewInCellRect: refuses the
 // whole mini-grid while this labels what it can and leaves the rest blank, which
 // is what the Cairo backend has always done. Correcting either would be a
 // behavior change on a platform this is not fixing, and no configuration
-// reaches it — recursivegrid.Manager takes a key mapping only when its length is
+// reaches it. recursivegrid.Manager takes a key mapping only when its length is
 // the cell count, and drops a per-depth override whose length does not match
 // that depth's shape, so a short mapping never leaves the mode layer.
 func (s Style) SubKeyPreviewCells(
@@ -156,10 +157,10 @@ func (s Style) SubKeyPreviewCells(
 // and -1 comes back.
 //
 // The macOS overlay decides this a second time in Objective-C
-// (drawSubKeyPreviewInCellRect:), and ADR 0007 names that copy as unpinned: the
-// autohide rule beside it has a test holding the two together, this one does
-// not. What changed with #1297 is the count — Linux and Windows now read this
-// one, so there are two copies rather than three.
+// (drawSubKeyPreviewInCellRect:), and ADR 0007 names that copy as unpinned. The
+// autohide rule beside it has a test holding the two together, and this one
+// does not. What changed with #1297 is the count. Linux and Windows now read
+// this one, so there are two copies rather than three.
 //
 //nolint:mnd // the 2s are "odd?" and "the middle of", not tunable values.
 func blankSubKeyPreviewIndex(dims domain.GridDimensions) int {

@@ -8,7 +8,7 @@ import (
 )
 
 // TestSystemAdapter_Dirs_HonorXDGBaseDirectories pins the XDG Base Directory
-// contract: an absolute env value wins, a relative value is ignored per the
+// contract. An absolute env value wins, a relative value is ignored per the
 // spec, and an unset variable falls back to the spec default under $HOME.
 func TestSystemAdapter_Dirs_HonorXDGBaseDirectories(t *testing.T) {
 	adapter := &SystemAdapter{}

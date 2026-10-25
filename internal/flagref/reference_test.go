@@ -14,7 +14,7 @@ import (
 const page = "# CLI Reference\n\nBefore.\n\n" +
 	flagref.BeginMarker + "\n\nstale\n\n" + flagref.EndMarker + "\n\nAfter.\n"
 
-// TestRegion_ReadsBackWhatWasWritten pins the two halves against each other: a
+// TestRegion_ReadsBackWhatWasWritten pins the two halves against each other. A
 // reader asking what a page says has to be reading the same span the writer
 // wrote, or a guardrail built on the pair would report the wrong page as wrong.
 //
@@ -70,7 +70,7 @@ func TestRewrite_ReplacesOnlyTheRegion(t *testing.T) {
 }
 
 // TestRewrite_IsIdempotent is what lets the guardrail compare rather than
-// regenerate: applying to an up-to-date page has to be a no-op, or every page
+// regenerate. Applying to an up-to-date page has to be a no-op, or every page
 // would read as out of date.
 func TestRewrite_IsIdempotent(t *testing.T) {
 	t.Parallel()

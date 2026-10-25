@@ -33,8 +33,8 @@ var quadrantColors = [4]color.RGBA{
 // so without undoing the transform a rotated output's frame came back turned.
 //
 // It rotates the output and replaces its background, so it runs only when
-// desktop tests were asked for, and only on a headless sway output: a real
-// monitor's wallpaper cannot be read back to restore it.
+// desktop tests were asked for, and only on a headless sway output, because a
+// real monitor's wallpaper cannot be read back to restore it.
 func TestCaptureScreenRegion_ReadsATransformedOutputAsShown(t *testing.T) {
 	if testing.Short() || os.Getenv("NERU_DESKTOP_TESTS") == "" {
 		t.Skip("skipping desktop-driving test; run `just test-desktop` to include it")

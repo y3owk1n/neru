@@ -22,7 +22,7 @@ const (
 )
 
 // TestWaylandFocusedWindowSource_FollowsTheBackend pins which source answers
-// for each session, including the two orderings that were wrong before: KDE
+// for each session, including the two orderings that were wrong before. KDE
 // fell through the socket switch to nothing at all, and a KDE session that
 // inherited a stale wlroots socket asked that compositor's CLI about a window
 // it has never seen.
@@ -113,13 +113,13 @@ const (
 // installed, which is a case in its own right.
 //
 // Spawning a process is the mechanism under test rather than an implementation
-// detail behind it: what separates "the compositor answered, and nothing is
+// detail behind it. What separates "the compositor answered, and nothing is
 // focused" from "the query never happened" is entirely in how that process
 // behaved, and a stubbed decoder would pin neither.
 //
 // The same scaffolding stands in
 // internal/adapter/accessibility/atspi/window_origin_test.go, and stays
-// duplicated on purpose: sharing it between two test packages in different
+// duplicated on purpose. Sharing it between two test packages in different
 // trees would mean a test-only package in the production tree, which is a
 // larger thing to own than sixty lines that answer to a compiler.
 func fakeCompositorCLIs(t *testing.T, scripts map[string]string) {
@@ -147,7 +147,7 @@ type boundsAnswer struct {
 	err   error
 }
 
-// assertBoundsAnswer holds an arm to the contract all of them share: a failed
+// assertBoundsAnswer holds an arm to the contract all of them share. A failed
 // query is an error naming the CLI that failed, and everything else is either a
 // rectangle or a plain not-found.
 func assertBoundsAnswer(t *testing.T, cli string, got, want boundsAnswer, wantErr bool) {
@@ -184,7 +184,7 @@ func assertBoundsAnswer(t *testing.T, cli string, got, want boundsAnswer, wantEr
 // the shape #1493 is about, on the arm with the simplest CLI.
 //
 // A hyprctl that is missing, wedged or broken used to answer exactly what a
-// desktop with nothing focused answers — not-found with no error — so callers
+// desktop with nothing focused answers, not-found with no error, so callers
 // widened to the whole active screen and nothing said why.
 func TestHyprlandFocusedWindowBounds_SeparatesAFailedQueryFromAnEmptyDesktop(t *testing.T) {
 	cases := []struct {
@@ -242,7 +242,7 @@ const swayTreeWithFocus = `{"focused":false,"rect":{"x":0,"y":0,"width":1920,"he
  "nodes":[{"focused":true,"rect":{"x":960,"y":0,"width":960,"height":1080},
  "nodes":[],"floating_nodes":[]}],"floating_nodes":[]}],"floating_nodes":[]}`
 
-// swayTreeWithNoFocus is the same tree with nothing focused in it — a real
+// swayTreeWithNoFocus is the same tree with nothing focused in it, a real
 // answer from a working compositor.
 const swayTreeWithNoFocus = `{"focused":false,"rect":{"x":0,"y":0,"width":1920,"height":1080},
  "nodes":[],"floating_nodes":[]}`
@@ -304,7 +304,7 @@ func TestSwayFocusedWindowBounds_SeparatesAFailedQueryFromAnEmptyDesktop(t *test
 // niriCLI is a fake `niri msg -j <what>` answering the two subcommands the
 // bounds query asks, each case supplying what it wants said. An empty answer
 // makes that subcommand exit non-zero, which is how a case proves a query was
-// made — or never made.
+// made or never made.
 func niriCLI(focusedWindow, focusedOutput string) map[string]string {
 	answer := func(body string) string {
 		if body == "" {
@@ -324,14 +324,14 @@ func niriCLI(focusedWindow, focusedOutput string) map[string]string {
 }
 
 // TestNiriFocusedWindowBounds_KeepsATiledWindowAnAnswer is the constraint that
-// decides the shape of this whole change.
+// decides the shape of the niri arm.
 //
 // niri populates tile_pos_in_workspace_view for floating windows only
-// (niri#2381), so a tiled window — the ordinary case on niri — genuinely has no
-// on-screen position to report. That is the compositor answering, not a query
+// (niri#2381), so a tiled window, the ordinary case on niri, has no on-screen
+// position to report. That is the compositor answering, not a query
 // that failed, and turning it into an error would warn a niri user on every
-// activation. The second query is not made either: there is nothing left for an
-// output origin to be added to.
+// activation. The second query is not made either, because there is nothing
+// left for an output origin to be added to.
 func TestNiriFocusedWindowBounds_KeepsATiledWindowAnAnswer(t *testing.T) {
 	// focused-output is wired to fail, so an error here would mean the tiled
 	// answer had not stopped the query before it.
@@ -346,7 +346,7 @@ func TestNiriFocusedWindowBounds_KeepsATiledWindowAnAnswer(t *testing.T) {
 }
 
 // TestNiriFocusedWindowBounds_SeparatesAFailedQueryFromAnEmptyDesktop pins the
-// rest of the niri arm around that constraint: a floating window is reported,
+// rest of the niri arm around that constraint. A floating window is reported,
 // an unreachable niri is a failure, and neither of the two queries may swallow
 // one.
 func TestNiriFocusedWindowBounds_SeparatesAFailedQueryFromAnEmptyDesktop(t *testing.T) {

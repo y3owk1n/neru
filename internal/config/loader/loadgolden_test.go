@@ -26,7 +26,7 @@ type loadCase struct {
 type loadSnapshot struct {
 	// Delta is every path at which the loaded config differs from the baseline,
 	// which is this same setup loading an empty file. It is left out when the
-	// load was refused: a refusal hands back the platform defaults, and which
+	// load was refused, because a refusal hands back the platform defaults, and which
 	// defaults those are is a platform question covered by other tests.
 	Delta []string `json:"delta"`
 
@@ -43,7 +43,7 @@ type loadSnapshot struct {
 
 // fixedHotkeyDefaults is the binding set every case starts from.
 //
-// The platform defaults disagree — Linux clears them entirely — so a case that
+// The platform defaults disagree, since Linux clears them entirely, so a case that
 // merges over a default binding, replaces one, or disables one would be testing
 // something different on each OS, and on Linux would be testing nothing at all.
 // Injecting one set through the service's defaults gives every platform the same
@@ -199,7 +199,7 @@ bundle_id = "com.apple.Safari"
 `,
 		},
 		{
-			// The default is spelled "Escape"; this must replace it rather than
+			// The default is spelled "Escape", and this must replace it rather than
 			// add a second binding that never fires.
 			name: "a differently cased mode hotkey replaces its default",
 			config: `
@@ -233,7 +233,7 @@ font_size = 21
 `,
 		},
 		{
-			// The binding works minus the flag, so it keeps working: the delta
+			// The binding works minus the flag, so it keeps working. The delta
 			// shows it loaded, and the warning says what it will not do.
 			// Refusing it would cost the user every other binding in the file.
 			name: "a binding with an inert flag loads and warns",
@@ -289,7 +289,7 @@ func loadConfigFor(t *testing.T, testCase loadCase) *config.LoadResult {
 		}
 	}
 
-	// WithDefaults is the injection point for the hotkey defaults; NewService's
+	// WithDefaults is the injection point for the hotkey defaults. NewService's
 	// first argument is the active config, not the defaults a load starts from.
 	service := loader.NewService(nil, path, zap.NewNop(), nil).
 		WithDefaults(fixedHotkeyDefaults())
@@ -383,11 +383,11 @@ func configDelta(t *testing.T, baseline, loaded *config.Config) []string {
 }
 
 // TestLoadWithValidation_MatchesItsSnapshot compares what each config file
-// *changed* against a recorded delta. Whole-config snapshots cannot work: the
-// defaults vary by platform and machine (Linux ships no global hotkeys, macOS
+// *changed* against a recorded delta. Whole-config snapshots cannot work, because
+// the defaults vary by platform and machine (Linux ships no global hotkeys, macOS
 // adds menu-bar targets, Windows derives its shell from %SystemRoot%), while
 // the change a file makes is the same everywhere. Set UPDATE_GOLDEN=1 to
-// re-record after an intentional change; a failing diff is the difference
+// re-record after an intentional change. A failing diff is the difference
 // between two daemons.
 func TestLoadWithValidation_MatchesItsSnapshot(t *testing.T) {
 	baseline := loadConfigFor(t, loadCase{name: "baseline"})

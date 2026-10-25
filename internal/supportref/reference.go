@@ -40,8 +40,8 @@ const (
 // the three vocabularies declare them.
 //
 // This is the one place they are read together. Each table stays beside the
-// declaration that owns its words; a projection over all of them — this page,
-// and the load-time warning through internal/config — needs them joined, and
+// declaration that owns its words. A projection over all of them, such as this
+// page or the load-time warning through internal/config, needs them joined, and
 // joining them in one function is what stops two projections from disagreeing
 // about which vocabularies are in scope.
 func Declaration() parity.Declaration {

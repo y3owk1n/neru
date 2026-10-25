@@ -35,7 +35,7 @@ func newTestModesHandler(
 	actionService *services.ActionService,
 	system ports.SystemPort,
 ) *modes.Handler {
-	// Only the fields this test needs; every other dependency is legitimately
+	// Only the fields this test needs. Every other dependency is legitimately
 	// the zero value, which the deps struct expresses by omission.
 	return modes.NewHandler(modes.HandlerDeps{
 		Ctx:                   context.Background(),
@@ -117,7 +117,7 @@ func TestHandleCommand_ToggleStateConvergesThroughTheController(t *testing.T) {
 
 	controller := newToggleTestController(appState, nil)
 
-	// Asking twice for the same state must land there both times: that is what
+	// Asking twice for the same state must land there both times, because that is what
 	// a script relies on and what a bare toggle cannot give it.
 	for range 2 {
 		resp := controller.HandleCommand(context.Background(), ipc.Command{
@@ -182,7 +182,7 @@ func TestHandleCommand_StatusReportsTheToggles(t *testing.T) {
 	}
 
 	// What a script actually reads is the encoded form, so pin that rather than
-	// the Go value: "neru status --json | jq .cursor_follow_selection" has to
+	// the Go value. "neru status --json | jq .cursor_follow_selection" has to
 	// print null, not false and not a missing key.
 	encoded, encodeErr := json.Marshal(status)
 	if encodeErr != nil {
@@ -201,7 +201,7 @@ func TestHandleCommand_StatusReportsTheToggles(t *testing.T) {
 func TestHandleCommand_StatusReportsSavedCursorSlots(t *testing.T) {
 	controller := newToggleTestController(state.NewAppState(), nil)
 
-	// Empty is an empty object, not a null: a script indexing into it should
+	// Empty is an empty object, not a null. A script indexing into it should
 	// not have to guard the container as well as the key.
 	before := statusField(t, controller, "saved_cursor_slots")
 	if slots, ok := before.(map[string]any); !ok || len(slots) != 0 {

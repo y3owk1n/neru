@@ -195,7 +195,7 @@ var evdevModifierNames = map[uint16]string{
 
 // evdevKeyNames names a raw evdev key code without consulting a keyboard
 // layout. It is the fallback the evdev tap drops to when xkb state creation
-// fails, and the only table the global hotkey reader has; a code with no entry
+// fails, and the only table the global hotkey reader has. A code with no entry
 // here reaches nothing.
 var evdevKeyNames = map[uint16]string{
 	evdevKeyA:          "a",
@@ -287,18 +287,18 @@ var evdevKeyNames = map[uint16]string{
 
 	// The keypad. Every name below is the one neru_normalize_xkb_name gives
 	// the keysym this key reports with NumLock off
-	// (internal/adapter/platform/linux/wayland_keymap.c) — the table the
-	// Wayland tap reads and the X11 keysym lookup was copied from — so one
+	// (internal/adapter/platform/linux/wayland_keymap.c). That is the table the
+	// Wayland tap reads and the X11 keysym lookup was copied from, so one
 	// physical key reaches one binding whichever Linux tap is running.
 	//
-	// NumLock off is the only state this table can answer for: the kernel
+	// NumLock off is the only state this table can answer for. The kernel
 	// reports the same code either way, and resolving the digit is exactly the
 	// layout work this table has no keymap to do. The keys whose keysym does
-	// not change with NumLock — the operators, the keypad Enter, and the center
-	// key, whose KP_Begin fold is the digit it carries — are therefore right in
-	// both states. The ten dual-function keys are right only with NumLock off,
-	// which for the tap is the degraded half of an already-degraded path but
-	// for the global hotkey reader is the only answer it has: a Home hotkey is
+	// not change with NumLock are therefore right in both states. Those are
+	// the operators, the keypad Enter, and the center key, whose KP_Begin fold
+	// is the digit it carries. The ten dual-function keys are right only with
+	// NumLock off, which for the tap is the degraded half of an already-degraded
+	// path but for the global hotkey reader is the only answer it has. A Home hotkey is
 	// reachable from the keypad and a keypad 7 typed with NumLock on can reach
 	// it. Naming them a third way rather than Wayland's would trade that for a
 	// keypad no Linux backend agrees about.

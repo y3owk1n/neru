@@ -4,7 +4,7 @@ package windows
 
 // The hook either hands a chord to the application or dispatches it to Neru,
 // never both. Which of the two happens is decided from the passthrough state
-// the mode layer pushes down, in the same way the macOS tap decides it; deleting
+// the mode layer pushes down, in the same way the macOS tap decides it. Deleting
 // that decision is silent everywhere except on a Windows desktop (ADR 0011).
 
 import (
@@ -17,7 +17,7 @@ const chordCtrlC = "ctrl+c"
 
 // routedKey drives handleKey for one key-down and reports where it went.
 // Delivery is asynchronous, so a sentinel is queued behind the key and the
-// keys that arrive ahead of it are the ones the chord dispatched: the
+// keys that arrive ahead of it are the ones the chord dispatched. The
 // dispatcher delivers in order, which is what makes the sentinel a fence.
 func routedKey(t *testing.T, eventTap *EventTap, key string) ([]string, bool) {
 	t.Helper()
@@ -134,7 +134,7 @@ func TestEventTap_HandleKey_KeepsAChordTheModeBinds(t *testing.T) {
 }
 
 // Shift-only chords and bare keys are the mode's input, whatever passthrough
-// says: a hint label or a grid cell key is typed with them.
+// says, because a hint label or a grid cell key is typed with them.
 func TestEventTap_HandleKey_ConsumesShiftOnlyChordsWithPassthroughOn(t *testing.T) {
 	t.Parallel()
 

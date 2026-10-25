@@ -30,7 +30,7 @@ func newTestController() *ipcctrl.Controller {
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
 	// WithWritten is what the daemon does with the two halves of its load, and
-	// a controller without it cannot re-derive — which is the behavior under
+	// a controller without it cannot re-derive. That is the behavior under
 	// test in the config-set cases below.
 	configService := loader.NewService(cfg, "", logger, nil).
 		WithWritten(config.DefaultConfigForDecoding())
@@ -155,7 +155,6 @@ func TestIPCController_HandleActionAndScroll(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Test that the scroll handler can be called
 	scrollResponse := controller.HandleCommand(ctx, ipc.Command{Action: actionScroll})
 	if scrollResponse.Code == ipc.CodeUnknownCommand {
 		t.Error("Scroll command should be recognized")
@@ -182,7 +181,6 @@ func TestIPCController_HandleConfigSet_String(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Set a string config field
 	commandResponse := controller.HandleCommand(ctx, ipc.Command{
 		Action: domain.CommandConfigSet,
 		Args:   []string{"hints.hint_characters", "qwerty"},
@@ -200,7 +198,6 @@ func TestIPCController_HandleConfigSet_String(t *testing.T) {
 		t.Fatalf("Expected code=%s, got %s", ipc.CodeOK, commandResponse.Code)
 	}
 
-	// Verify the change took effect by dumping the config
 	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
 	cfg := dumpedConfig(t, cfgResp)
 
@@ -227,7 +224,6 @@ func TestIPCController_HandleConfigSet_Integer(t *testing.T) {
 		)
 	}
 
-	// Verify the change
 	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
 	cfg := dumpedConfig(t, cfgResp)
 
@@ -254,7 +250,6 @@ func TestIPCController_HandleConfigSet_Bool(t *testing.T) {
 		)
 	}
 
-	// Verify the change
 	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
 	cfg := dumpedConfig(t, cfgResp)
 
@@ -308,7 +303,7 @@ func TestIPCController_HandleConfigSet_NoReload(t *testing.T) {
 	// Default config: grid_cols=3, grid_rows=3, keys="rtyfghvbn" (9 chars).
 
 	// Step 1: change grid_cols to 4 with --no-reload.
-	// This creates an unbalanced state (4*3=12 ≠ 9 chars keys).
+	// This creates an unbalanced state (4*3=12 != 9 chars keys).
 	// Without --no-reload this would fail validation.
 	resp := controller.HandleCommand(ctx, ipc.Command{
 		Action: domain.CommandConfigSet,
@@ -372,19 +367,18 @@ func TestIPCController_HandleConfigSet_NoReload(t *testing.T) {
 func TestIPCController_UpdateConfig(t *testing.T) {
 	controller := newTestController()
 	ctx := context.Background()
-	// Verify initial config is returned
+
 	commandResponse := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
 	if !commandResponse.Success {
 		t.Fatalf("Expected success=true, got %v", commandResponse.Success)
 	}
 
 	initialCfg := dumpedConfig(t, commandResponse)
-	// Create a new config with different values
+
 	newCfg := config.DefaultConfig()
 	newCfg.Hints.Enabled = !initialCfg.Hints.Enabled
-	// Propagate via UpdateConfig
 	controller.UpdateConfig(newCfg)
-	// Verify the config handler now returns the updated config
+
 	commandResponse = controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
 	if !commandResponse.Success {
 		t.Fatalf("Expected success=true after update, got %v", commandResponse.Success)
@@ -402,7 +396,7 @@ func TestIPCController_UpdateConfig(t *testing.T) {
 // change to the grid labels leaves the config holding the labels in use rather
 // than the string as typed. The config carries the resolved form since the
 // option stopped being inferred by its consumers, and a raw value slipped in
-// here reads as a change on every subsequent reload — rebuilding the grid and
+// here reads as a change on every subsequent reload, rebuilding the grid and
 // discarding whatever coordinate the user was part-way through typing.
 func TestIPCController_HandleConfigSet_GridLabelsStayResolved(t *testing.T) {
 	controller := newTestController()
@@ -483,7 +477,7 @@ func setConfigField(t *testing.T, controller *ipcctrl.Controller, args ...string
 // TestIPCController_HandleConfigSet_RelabelsGridFromNewCharacters is the
 // acceptance for a derived value whose *source* changed. The labels are
 // inferred from the characters when nobody wrote them, and a settled label
-// reads exactly like one somebody typed — so applying the change to the
+// reads exactly like one somebody typed, so applying the change to the
 // resolved config found the labels filled in and left the grid drawing an
 // alphabet from a character set it no longer uses.
 func TestIPCController_HandleConfigSet_RelabelsGridFromNewCharacters(t *testing.T) {
@@ -499,7 +493,7 @@ func TestIPCController_HandleConfigSet_RelabelsGridFromNewCharacters(t *testing.
 }
 
 // TestIPCController_HandleConfigSet_RecoloursFromTheme is the same class one
-// derived value over: the component colors are derived from [theme], so a
+// derived value over. The component colors are derived from [theme], so a
 // theme change has to reach them.
 func TestIPCController_HandleConfigSet_RecoloursFromTheme(t *testing.T) {
 	cfg := setConfigField(t, newTestController(), "theme.light.surface", "#123456")
@@ -526,7 +520,7 @@ func TestIPCController_HandleConfigSet_NoReloadRelabelsGrid(t *testing.T) {
 }
 
 // TestIPCController_HandleConfigSet_KeepsWrittenGridLabels guards the other
-// direction: re-deriving fills the option in, it does not take it back from a
+// direction. Re-deriving fills the option in, it does not take it back from a
 // user who set it.
 func TestIPCController_HandleConfigSet_KeepsWrittenGridLabels(t *testing.T) {
 	controller := newTestController()
@@ -545,7 +539,7 @@ func TestIPCController_HandleConfigSet_KeepsWrittenGridLabels(t *testing.T) {
 }
 
 // TestIPCController_HandleConfigSet_RekeysSubgridFromNewCharacters covers the
-// third derived value: the subgrid keys are the characters the grid is labeled
+// third derived value. The subgrid keys are the characters the grid is labeled
 // with when nobody wrote them, so changing the characters has to move the
 // subgrid with the grid rather than leave it on the set the grid no longer uses.
 func TestIPCController_HandleConfigSet_RekeysSubgridFromNewCharacters(t *testing.T) {
@@ -564,7 +558,7 @@ func TestIPCController_HandleConfigSet_RekeysSubgridFromNewCharacters(t *testing
 }
 
 // TestIPCController_HandleConfigSet_KeepsWrittenSublayerKeys guards the other
-// direction, the way the grid labels are guarded: keys the user set stay set
+// direction, the way the grid labels are guarded. Keys the user set stay set
 // when the characters they would otherwise be inferred from change.
 func TestIPCController_HandleConfigSet_KeepsWrittenSublayerKeys(t *testing.T) {
 	controller := newTestController()
@@ -579,7 +573,7 @@ func TestIPCController_HandleConfigSet_KeepsWrittenSublayerKeys(t *testing.T) {
 }
 
 // TestIPCController_HandleCommand_RefusesWhilePaused pins the promise `neru
-// stop` makes: every navigation mode and action is off until `neru start`.
+// stop` makes. Every navigation mode and action is off until `neru start`.
 // The hotkey and macro executors send each step through this same entry, so
 // one refusal here covers a bound hotkey as well as the CLI.
 func TestIPCController_HandleCommand_RefusesWhilePaused(t *testing.T) {

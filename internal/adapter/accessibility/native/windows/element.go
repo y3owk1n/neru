@@ -63,7 +63,7 @@ func (e *Element) BundleIdentifier() string {
 func (e *Element) MenuBar() *Element { return nil }
 
 // IsClickable reports whether the element is a clickable control. Clickability
-// is decided during UI Automation extraction (see mapControlType) and stored on
+// is decided during UI Automation extraction (see extractWinElement) and stored on
 // the element info, so this just reads the cached flag.
 func (e *Element) IsClickable(
 	info *ElementInfo,
@@ -202,7 +202,7 @@ func AllWindows() ([]*Element, error) {
 }
 
 // FrontmostAndPopoverWindows returns the foreground window. Popover tracking is
-// not modeled on Windows; UI Automation enumerates popups under the same root.
+// not modeled on Windows. UI Automation enumerates popups under the same root.
 func FrontmostAndPopoverWindows() ([]*Element, error) {
 	window := FrontmostWindow()
 	if window == nil {

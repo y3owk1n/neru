@@ -10,29 +10,28 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Adapter implements ports.EventTapPort by wrapping the existing EventTap.
+// Adapter implements ports.EventTapPort by wrapping a tap.Tap.
 //
 // Every method that drives the tap holds mu, and mu sits below the mode
-// handler's own lock: a focus change pushes the passthrough lists down that
+// handler's own lock. A focus change pushes the passthrough lists down that
 // edge (`internal/app/modes/AGENTS.md`). So nothing holding mu may wait on
-// anything that takes the handler's lock — which is the whole reason Destroy
-// tears the tap down outside it, and the reason destroyed exists.
+// anything that takes the handler's lock. That is why Destroy tears the tap
+// down outside it, and why destroyed exists.
 type Adapter struct {
 	tap    tap.Tap
 	logger *zap.Logger
 	mu     sync.RWMutex
 	// destroyed is set by Destroy before it lets go of mu. It is what keeps a
 	// caller racing a shutdown out of a tap that is being torn down, now that
-	// the lock no longer serializes them: every method that takes mu to drive
+	// the lock no longer serializes them. Every method that takes mu to drive
 	// the tap returns early on it. Enable and Disable say so at debug as well,
 	// because they answer their caller with a nil error and would otherwise
-	// report a success that did not happen; the setters answer nothing, so
+	// report a success that did not happen. The setters answer nothing, so
 	// there is nothing to correct.
 	destroyed bool
 	// teardownDone is closed once the tap teardown has returned. It is what a
-	// second Destroy waits on, so the method keeps its postcondition — the tap
-	// is down when it returns — for a caller that raced the first one, which
-	// the lock used to give for free.
+	// second Destroy waits on, so the method keeps its postcondition, that the
+	// tap is down when it returns, for a caller that raced the first one.
 	teardownDone chan struct{}
 	enabled      bool
 }
@@ -51,7 +50,7 @@ func NewAdapter(tap tap.Tap, logger *zap.Logger) *Adapter {
 
 // Enable enables the event tap.
 //
-// After Destroy it is a no-op rather than an error: a mode exiting into a
+// After Destroy it is a no-op rather than an error. A mode exiting into a
 // teardown is a race the shutdown already won, not a failure the user needs
 // told about, and its callers log an error for anything that comes back.
 func (a *Adapter) Enable(_ context.Context) error {
@@ -122,8 +121,8 @@ func (a *Adapter) SetHotkeys(hotkeys []string) {
 // SetModifierPassthrough configures whether unbound modifier shortcuts should
 // pass through to macOS and which shortcuts remain blacklisted.
 //
-// This is the push a focus change makes, and the one that races a shutdown:
-// see the Destroy comment.
+// This is the push a focus change makes, and the one that races a shutdown.
+// See the Destroy comment.
 func (a *Adapter) SetModifierPassthrough(enabled bool, blacklist []string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -176,7 +175,7 @@ func (a *Adapter) SetStickyModifierToggle(enabled bool) {
 // SetKeyboardLayout configures the reference keyboard layout used by key translation.
 //
 // Like PostModifierEvent it takes no lock and carries no destroyed guard,
-// because no backend routes it through the tap handle: macOS resolves a
+// because no backend routes it through the tap handle. macOS resolves a
 // process-wide input source, and Linux and Windows answer true without
 // touching anything. So it is neither a caller of the tap being torn down nor
 // something a shutdown has to keep out.
@@ -194,28 +193,28 @@ func (a *Adapter) PostModifierEvent(modifier string, isDown bool) {
 // Destroy cleans up the event tap resources. It is safe to call twice, and
 // safe from the startup unwind as well as the ordinary shutdown.
 //
-// The tap teardown runs **outside** mu, and that is the point of the method's
+// The tap teardown runs outside mu, and that is the point of the method's
 // shape. The macOS and Linux taps spend it waiting for the key dispatcher to
-// drain — stopDispatcher there, dispatchWg.Wait() here — and the dispatcher
-// they wait for delivers keys into modes.Handler.HandleKeyPress, which takes
-// the handler's lock and pushes the passthrough lists straight back out
-// through SetModifierPassthrough, which takes mu. Holding mu across the wait
-// inverts the documented handler → adapter order, so a shutdown racing a focus
-// change deadlocked with neither side able to give way. The Linux tap's own
-// Destroy releases its lock before waiting for the same reason, and the
-// Windows tap waits the same way since it gained a dispatcher
-// (dispatchWg.Wait() in eventtap/windows/tap.go); only the hook join beneath
+// drain, through stopDispatcher on macOS and dispatchWg.Wait() on Linux. The
+// dispatcher they wait for delivers keys into modes.Handler.HandleKeyPress,
+// which takes the handler's lock and pushes the passthrough lists straight back
+// out through SetModifierPassthrough, which takes mu. Holding mu across the
+// wait inverts the documented handler-before-adapter lock order, so a shutdown
+// racing a focus change deadlocked with neither side able to give way. The
+// Linux tap's own Destroy releases its lock before waiting for the same reason,
+// and the Windows tap waits the same way since it gained a dispatcher
+// (dispatchWg.Wait() in eventtap/windows/tap.go). Only the hook join beneath
 // it stays bounded at 250ms.
 //
-// What mu still covers is the state: the adapter marks itself destroyed and
-// disabled under it, in one hold, before letting go — so a caller racing the
+// What mu still covers is the state. The adapter marks itself destroyed and
+// disabled under it, in one hold, before letting go, so a caller racing the
 // teardown finds an adapter that has already stopped answering for the tap
 // instead of one whose tap is being freed underneath it. A second caller waits
 // on the first one's teardown rather than returning early, because the method
 // promises a tap that is down when it returns and the app closes the rest of
 // its infrastructure on the strength of that.
 //
-// Nothing here unlocks mid-method: the state change is claimTeardown's whole
+// Nothing here unlocks mid-method. The state change is claimTeardown's whole
 // body, released by its own defer, and this method runs what it was handed
 // after that returns. That is the "settle it under the lock, act after the
 // release" idiom the handler's guide states, and the reason it is two methods
@@ -237,7 +236,7 @@ func (a *Adapter) Destroy() {
 // safely drop exclusive keyboard capture.
 //
 // Both conditions must hold: a uinput scroll device is available to carry the
-// scroll events, and no evdev keyboard grab is active — on wlroots an overlay
+// scroll events, and no evdev keyboard grab is active. On wlroots an overlay
 // grab deactivates the focused toplevel, which breaks the next hints refresh.
 // Non-Linux backends and the no-cgo Linux build report false.
 func (a *Adapter) AllowsOverlayKeyboardPassthrough() bool {
@@ -254,7 +253,7 @@ func (a *Adapter) KeyboardLayouts() ports.KeyboardLayouts {
 // destroyed and disabled in the same hold.
 //
 // It answers the channel that closes when the teardown is finished, and
-// whether this caller is the one that has to run it: false means someone else
+// whether this caller is the one that has to run it. False means someone else
 // already claimed it and the channel is theirs to wait on.
 func (a *Adapter) claimTeardown() (chan struct{}, bool) {
 	a.mu.Lock()

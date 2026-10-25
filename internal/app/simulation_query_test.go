@@ -15,8 +15,8 @@ import (
 	"github.com/y3owk1n/neru/internal/schematest"
 )
 
-// TestSimulation_QueryHintsListsWhatHintsWouldLabel covers `neru query hints`:
-// it answers with the elements hints mode would label, each with the text
+// TestSimulation_QueryHintsListsWhatHintsWouldLabel covers `neru query hints`.
+// It answers with the elements hints mode would label, each with the text
 // --text matches, what found it, its identifier and state, and its bounds, and
 // draws nothing and enters no mode.
 func TestSimulation_QueryHintsListsWhatHintsWouldLabel(t *testing.T) {

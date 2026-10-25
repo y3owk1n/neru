@@ -11,7 +11,7 @@ import (
 
 // Semantic role names injected into the clickable role list when the
 // corresponding hints flags are enabled. They are resolved to native role
-// names alongside the user's own entries; on platforms with no menu bar or
+// names alongside the user's own entries. On platforms with no menu bar or
 // dock they resolve to nothing.
 const (
 	RoleMenuBarItem = string(element.SemanticMenubarItem)
@@ -102,7 +102,7 @@ const DisabledSentinel = "__disabled__"
 const OverrideSuffix = ".override.toml"
 
 // The comparison forms the control characters a tap delivers resolve to, and
-// the modifier names. These are not a listing of the named keys —
+// the modifier names. These are not a listing of the named keys.
 // internal/domain/keyvocab declares those, and every other named key reaches
 // its comparison form by being lowercased rather than by being named here.
 const (
@@ -147,9 +147,9 @@ type Config struct {
 	Systray         SystrayConfig                  `json:"systray"         toml:"systray"`
 
 	// AppConfigs holds per-application overrides for global hotkeys, similar to
-	// per-mode [[<mode>.app_configs]].  Each entry can override or disable
+	// per-mode [[<mode>.app_configs]]. Each entry can override or disable
 	// specific global bindings (via __disabled__) when the identified app
-	// is focused.  Populated by the TOML struct decoder from [[app_configs]].
+	// is focused. Populated by the TOML struct decoder from [[app_configs]].
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 }
 
@@ -208,8 +208,9 @@ type ModeIndicatorUI struct {
 }
 
 // ModeIndicatorModeConfig defines per-mode settings for the mode indicator.
-// Text is the label shown in the indicator; empty string hides the label.
-// Color overrides are optional; empty string inherits from [mode_indicator.ui].
+// Text is the label shown in the indicator, and an empty string hides it.
+// Color overrides are optional, and an empty string inherits from
+// [mode_indicator.ui].
 type ModeIndicatorModeConfig struct {
 	Enabled         bool   `json:"enabled"         toml:"enabled"`
 	Text            string `json:"text"            toml:"text"`
@@ -268,17 +269,17 @@ type AppConfig struct {
 
 // HotkeysConfig defines hotkey mappings and their associated actions.
 type HotkeysConfig struct {
-	// Bindings holds hotkey -> action mappings parsed from the [hotkeys] table.
+	// Bindings holds the hotkey to action mappings parsed from the [hotkeys] table.
 	// Supported TOML format (preferred):
 	// [hotkeys]
 	// "Cmd+Shift+Space" = "hints"
 	// Values can be a single string or an array of strings:
 	// "PageUp" = ["action go_top", "action scroll_down"]
 	// The special exec prefix is supported: "exec /usr/bin/say hi"
-	// Bindings is never populated by the TOML struct decoder — it is always
-	// overwritten by the raw-map processing in service.go.  Both this field
+	// Bindings is never populated by the TOML struct decoder. The loader
+	// always fills it from the raw [hotkeys] table (load.go). Both this field
 	// and the parent Config.Hotkeys are tagged toml:"-" so the encoder skips
-	// them entirely; Save writes the flat [hotkeys] section manually instead.
+	// them entirely.
 	Bindings map[string][]string `json:"bindings" toml:"-"`
 }
 
@@ -306,11 +307,11 @@ type BisectConfig struct {
 	CaptureScope string `json:"captureScope" toml:"capture_scope"`
 	// Animation configures the native transition between cuts on supported
 	// platforms. It is the recursive grid's shape because the two modes draw
-	// the same picture; the values are bisect's own.
+	// the same picture. The values are bisect's own.
 	Animation RecursiveGridAnimationConfig `json:"animation" toml:"animation"`
 	// UI is the region's appearance, the recursive grid's shape for the same
-	// reason. The sub-key preview options are accepted and inert: a bisect
-	// level has no next level to preview.
+	// reason. The sub-key preview options are accepted and inert, since a
+	// bisect level has no next level to preview.
 	UI RecursiveGridUI `json:"ui" toml:"ui"`
 
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
@@ -333,7 +334,7 @@ func (c *BisectConfig) RenderConfig() RecursiveGridConfig {
 // keyboard and answers every key from its own hotkey table.
 //
 // The hotkey table is tagged toml:"-" like every mode's, and read from the raw
-// decode by the loader for the same reason; [DefaultCustomModeHotkeys] is what
+// decode by the loader for the same reason. [DefaultCustomModeHotkeys] is what
 // a declared table merges over. Per-app overrides reuse AppConfig so the
 // same walk and the same __disabled__ sentinel apply, and the fields on it
 // that belong to hints or scroll are refused here as they are for grid.
@@ -507,7 +508,7 @@ type HintsVisionConfig struct {
 }
 
 // HintsContourConfig defines tunable settings for the contour strategy. The
-// shipped values are wl-kbptr's; sizes are logical pixels and the edge
+// shipped values are wl-kbptr's. Sizes are logical pixels and the edge
 // thresholds are Sobel gradient magnitudes on a 0..255 luma frame.
 type HintsContourConfig struct {
 	RequestTimeoutMS  int     `json:"requestTimeoutMs"  toml:"request_timeout_ms"`
@@ -740,7 +741,7 @@ type LoggingConfig struct {
 	LogLevel string `json:"logLevel" toml:"log_level"`
 	LogFile  string `json:"logFile"  toml:"log_file"`
 
-	// New options for log rotation and file logging control
+	// Log rotation and file logging control.
 	DisableFileLogging bool `json:"disableFileLogging" toml:"disable_file_logging"`
 	MaxFileSize        int  `json:"maxFileSize"        toml:"max_file_size"` // Size in MB
 	MaxBackups         int  `json:"maxBackups"         toml:"max_backups"`   // Maximum number of old log files to retain
@@ -751,10 +752,9 @@ type LoggingConfig struct {
 //
 // RelativeMovementDuration applies to relative (keyboard-driven) movements
 // such as move_mouse_relative. Unlike jumps, these arrive as rapid small
-// deltas under key repeat, so their animation uses a fixed duration per move
-// — speed then scales with the delta — instead of the distance-proportional
-// duration used for jumps, which would clamp every delta to the same constant
-// velocity.
+// deltas under key repeat, so their animation uses a fixed duration per move,
+// and speed scales with the delta. The distance-proportional duration used
+// for jumps would clamp every delta to the same constant velocity.
 type SmoothCursorConfig struct {
 	MoveMouseEnabled         bool    `json:"moveMouseEnabled"         toml:"move_mouse_enabled"`
 	Steps                    int     `json:"steps"                    toml:"steps"`
@@ -795,25 +795,25 @@ type LoadResult struct {
 
 	// Written is Config before any derived value was settled: the
 	// configuration the user wrote, every layer of it, and nothing the daemon
-	// worked out for them. Settling is one-way — a resolved grid label reads
-	// exactly like one somebody typed — so a change to a *source* option can
+	// worked out for them. Settling is one-way. A resolved grid label reads
+	// exactly like one somebody typed, so a change to a *source* option can
 	// only be re-derived from a configuration that never had the derivation
-	// applied. It is what `neru config set` starts from; keeping it is the
+	// applied. It is what `neru config set` starts from, and keeping it is the
 	// price of that command not re-reading the file.
 	Written *Config
 
 	// Warnings are the parts of the loaded configuration that will not do what
-	// they say. The configuration loaded regardless — that is what separates
-	// one of these from ValidationError, which leaves the defaults running
-	// instead — so they are reported rather than acted on. They are empty
-	// whenever ValidationError is set: the configuration they described is not
-	// the one that ended up loaded.
+	// they say. The configuration loaded regardless, so they are reported
+	// rather than acted on. That is what separates one of these from
+	// ValidationError, which leaves the defaults running instead. They are
+	// empty whenever ValidationError is set, because the configuration they
+	// described is not the one that ended up loaded.
 	Warnings []string
 
 	// Inert are the words the user's files write that do nothing on this
 	// platform, as [InertWords] found them, or on the display backend it is
 	// running, as [X11InertWords] found them. The warnings above say the same
-	// thing in a sentence; this is the same finding with its platform column
+	// thing in a sentence. This is the same finding with its platform column
 	// and its reason still attached, which is what `neru doctor` prints
 	// (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
 	Inert parity.Declaration
@@ -854,14 +854,14 @@ func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringAr
 	case ModeNameMonitorSelect:
 		return c.MonitorSelect.Hotkeys
 	default:
-		// A name no built-in mode answers to is a declared one, or nothing:
-		// an undeclared name reads the zero value, whose table is nil.
+		// A name no built-in mode answers to is a declared one, or nothing.
+		// An undeclared name reads the zero value, whose table is nil.
 		return c.Modes[modeName].Hotkeys
 	}
 }
 
 // LabelDirectionForApp returns the label direction for the given bundle ID.
-// Delegates to MergedForApp to handle the root→app-config override chain.
+// Delegates to MergedForApp to handle the root to app-config override chain.
 // An empty result is normalized to the default "normal".
 func (c *HintsConfig) LabelDirectionForApp(bundleID string) string {
 	dir := c.MergedForApp(bundleID).LabelDirection

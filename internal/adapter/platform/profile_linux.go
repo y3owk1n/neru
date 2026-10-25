@@ -6,7 +6,7 @@ package platform
 // Wayland is detected, returns user-facing backend descriptions for that stack.
 // It does not perform live capability probes or alter runtime backend selection.
 //
-// Both halves come off the one detector: the profile must describe the stack
+// Both halves come off the one detector. The profile must describe the stack
 // NewSystemPort is driving, and reading the environment a second time to name
 // it is how it came to disagree with itself (#1429).
 func linuxProfileForCurrentBackend() Profile {
@@ -28,7 +28,7 @@ func linuxProfileForCurrentBackend() Profile {
 
 // Every plan here carries a Name only. This profile describes one live stack to
 // the user running on it, so the contributor-facing BuildMode/Notes pair the
-// target-by-target profiles use has nothing to add: the answer is whatever the
+// target-by-target profiles use has nothing to add. The answer is whatever the
 // KDE backend already does.
 func linuxKDEProfile() Profile {
 	return Profile{

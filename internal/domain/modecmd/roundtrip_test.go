@@ -8,11 +8,11 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
-// A mode command makes the trip twice: what a user writes is parsed into an
+// A mode command makes the trip twice. What a user writes is parsed into an
 // activation, and an activation is written back out as the arguments that
 // travel to the daemon. The two halves have to agree, or a flag survives the
-// first trip and is lost on the second — which is exactly how flags went
-// missing before this module existed.
+// first trip and is lost on the second. That is how flags went missing before
+// this module existed.
 //
 // These cases pin that agreement flag by flag, so a new flag whose renderer
 // disagrees with its parser fails here rather than in a user's binding.
@@ -29,7 +29,7 @@ func TestRoundTrip_ParsingARenderingReturnsTheSameActivation(t *testing.T) {
 }
 
 // TestRoundTrip_CarriesAnActivationBuiltByHand pins the same agreement from the
-// other side: an activation assembled field by field, as a caller holding typed
+// other side. An activation assembled field by field, as a caller holding typed
 // flags assembles one, renders to a command that parses back into it.
 //
 // This is the half a parsed activation cannot prove. Parsing only ever produces
@@ -58,7 +58,7 @@ func TestRoundTrip_CarriesAnActivationBuiltByHand(t *testing.T) {
 }
 
 // TestRoundTrip_CarriesAWholeCommand pins that the flags survive together, not
-// only one at a time: a renderer that overwrites another flag's argument would
+// only one at a time. A renderer that overwrites another flag's argument would
 // pass every case above. This case leaves out --repeat because --on-exit
 // refuses it.
 func TestRoundTrip_CarriesAWholeCommand(t *testing.T) {

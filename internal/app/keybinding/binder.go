@@ -52,7 +52,7 @@ func (b *Binder) registerHotkeys(bundleID string) {
 		bindings = cfg.GlobalHotkeysForApp(bundleID)
 	}
 
-	// What the backend actually took, which is not what was asked for: a chord
+	// What the backend actually took, which is not what was asked for. A chord
 	// another process already owns is refused, logged and skipped below. The taps
 	// are told the difference because they hand a registered chord back to the
 	// mechanism that owns it, and one nobody owns has to be dispatched instead
@@ -85,7 +85,7 @@ func (b *Binder) registerHotkeys(bundleID string) {
 		// the release path and decide press-by-press whether to repeat. The
 		// repeat-vs-once choice depends on the effective binding (the per-mode
 		// override when the active mode binds this key, otherwise the global
-		// binding), which is only known at press time — so it cannot be made here,
+		// binding), which is only known at press time. So it cannot be made here,
 		// at registration, from the global action alone.
 		if releaseManager, ok := b.hotkeyManager.(ports.HotkeyReleaseRegistrar); ok {
 			_, registerHotkeyErr = releaseManager.RegisterWithRelease(
@@ -98,9 +98,9 @@ func (b *Binder) registerHotkeys(bundleID string) {
 				},
 			)
 		} else {
-			// Backend without release events: held-key repeat is not possible, so
+			// Backend without release events. Held-key repeat is not possible, so
 			// a single mode-aware dispatch is the whole behavior. Every shipped
-			// manager reports releases; this is the fallback the port's optional
+			// manager reports releases. This is the fallback the port's optional
 			// extension rules require.
 			_, registerHotkeyErr = b.hotkeyManager.Register(bindKey, func() {
 				b.dispatchModeAwareHotkeyAsync(bindKey, bindActions)
@@ -127,11 +127,12 @@ func (b *Binder) registerHotkeys(bundleID string) {
 }
 
 // dispatchModeAwareHotkeyAsync dispatches a global hotkey once, letting a
-// per-mode binding for the same key win while a mode is active — the global
+// per-mode binding for the same key win while a mode is active. The global
 // tap consumes the event before the mode tap can see it, so the override is
 // resolved here. Falls back to the global actions when the mode does not bind
-// the key. This is the path for backends that cannot report key releases;
-// ones that can use dispatchModeAwareHeldHotkey, which also repeats.
+// the key. This is the path for backends that cannot report key releases.
+// Backends that can report releases use dispatchModeAwareHeldHotkey, which
+// also repeats.
 func (b *Binder) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
 	actions := globalActions
 
@@ -155,7 +156,7 @@ func (b *Binder) dispatchModeAwareHotkeyAsync(key string, globalActions []string
 // when the active mode binds the key, otherwise the global binding) and
 // dispatches it, repeating while held only when that effective binding is a
 // single held-repeatable action and held-key repeat is enabled. The matching
-// release callback (stopHotkeyRepeat) cancels any repeat this started; it is a
+// release callback (stopHotkeyRepeat) cancels any repeat this started. It is a
 // no-op when nothing was started.
 func (b *Binder) dispatchModeAwareHeldHotkey(key string, globalActions []string) {
 	var (
@@ -214,7 +215,7 @@ func (b *Binder) startMotion(key string, actions []string) bool {
 // effectiveHeldHotkey resolves which actions a global hotkey press should run
 // and whether they should repeat while held. The per-mode override wins over
 // the global binding when present, and the repeat decision is then made from
-// the resolved actions — not from the global binding — so a per-mode override
+// the resolved actions rather than the global binding, so a per-mode override
 // takes precedence on the held-repeat path too.
 func (b *Binder) effectiveHeldHotkey(
 	hasOverride bool,
@@ -375,7 +376,7 @@ func commandOf(actionStr string) string {
 // Expansion follows nested sequences, and a binding whose macros fan out into
 // each other multiplies at every level. That is a config nobody writes on
 // purpose, but the inspection runs on the key-press path, so it is bounded
-// rather than trusted: past the budget the answer is "no mode named here",
+// rather than trusted. Past the budget the answer is "no mode named here",
 // the same conclusion drawn for anything else that cannot be expanded.
 const maxInspectedSteps = 256
 
@@ -384,7 +385,7 @@ const maxInspectedSteps = 256
 // executor will follow them.
 //
 // It walks rather than expanding into a slice, so a match short-circuits and
-// nothing accumulates in memory — both callers only ever need the first hit.
+// nothing accumulates in memory. Both callers only ever need the first hit.
 func anyBindingStep(actions []string, cfg *config.Config, pred func(step string) bool) bool {
 	budget := maxInspectedSteps
 
@@ -431,8 +432,8 @@ func anyBindingStepAtDepth(
 }
 
 // nestedSteps returns the steps a "run" or "macro" step carries, or nil when
-// the step is an ordinary action or cannot be expanded — an unknown macro, or
-// nesting the executor would refuse anyway.
+// the step is an ordinary action or cannot be expanded, such as an unknown
+// macro or nesting the executor would refuse anyway.
 func nestedSteps(step string, cfg *config.Config, depth int) []string {
 	if depth >= sequence.MaxDepth {
 		return nil
@@ -488,7 +489,6 @@ func (b *Binder) refreshHotkeysForAppOrCurrent(bundleID string) {
 	cfg := b.settings()
 
 	if bundleID == "" {
-		// Use ActionService to get focused bundle ID
 		ctx := b.context()
 
 		var bundleIDErr error
@@ -501,7 +501,7 @@ func (b *Binder) refreshHotkeysForAppOrCurrent(bundleID string) {
 			// Failing closed would permanently disable Neru on those platforms.
 			// The next focus event re-evaluates per-app exclusion on platforms
 			// that support it. When exclusions are configured but cannot be
-			// enforced, warn so the user knows; otherwise this is routine.
+			// enforced, warn so the user knows. Otherwise this is routine.
 			logFn := b.logger.Debug
 			if len(cfg.General.ExcludedApps) > 0 {
 				logFn = b.logger.Warn

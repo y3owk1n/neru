@@ -33,11 +33,11 @@ func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 		accessibilityStatus ports.FeatureStatus
 		notificationsStatus ports.FeatureStatus
 	}{
-		// Linux discovers clickable elements via an AT-SPI (D-Bus) tree walk;
-		// Windows discovers them via UI Automation. Linux notifications go to
+		// Linux discovers clickable elements via an AT-SPI (D-Bus) tree walk,
+		// and Windows discovers them via UI Automation. Linux notifications go to
 		// the freedesktop notification daemon over the same session bus, so the
 		// preset is supported and the adapter downgrades it live when no daemon
-		// is running; Windows anchors balloon tips to the tray icon it owns.
+		// is running. Windows anchors balloon tips to the tray icon it owns.
 		{
 			name:                "linux",
 			capabilities:        ports.LinuxCapabilities(),

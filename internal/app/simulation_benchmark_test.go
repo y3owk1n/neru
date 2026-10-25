@@ -5,21 +5,21 @@ package app_test
 // The event tap sits on every keystroke, so key handling getting slower is a
 // regression (AGENTS.md), and ADR 0003 keeps the grid's incremental updates on
 // a direct call path for exactly that reason. These benchmarks are what makes
-// "unchanged" a measurement rather than a claim: they drive the real
+// "unchanged" a measurement rather than a claim. They drive the real
 // application through the simulation harness, so a keystroke costs everything
 // it costs in production except the native draw.
 //
 // One iteration is exactly one keystroke. Where getting back to where the
 // iteration started costs a keystroke of its own, that one is deliberately
-// outside the timer: it is dispatched on a goroutine (backspace is a mode
+// outside the timer. It is dispatched on a goroutine (backspace is a mode
 // hotkey), so timing it would measure a scheduler rather than the key path.
 //
-// The hints benchmark measures the other thing a keystroke can cost: deciding
+// The hints benchmark measures the other thing a keystroke can cost, deciding
 // what a key is bound to while the mode declares per-app hotkey overrides. That
-// used to ask the operating system which application is focused — on macOS a
-// message to another process, made under the lock that serializes key handling
-// — and since ADR 0005 it consults a keymap settled when the focused app
-// changed. None of these gate continuous integration — a timing threshold on a
+// used to ask the operating system which application is focused, which on macOS
+// is a message to another process made under the lock that serializes key
+// handling. Since ADR 0005 it consults a keymap settled when the focused app
+// changed. None of these gate continuous integration. A timing threshold on a
 // three-operating-system matrix is a source of flakes, and the durable
 // guarantee is the call count the journeys assert, not the nanoseconds.
 
@@ -51,7 +51,7 @@ const benchHintElements = 12
 const unmatchedHintKey = "z"
 
 // BenchmarkGridNarrowingKeystroke measures one narrowing keystroke in grid
-// mode: the event tap hands a key to the handler, the grid manager matches it,
+// mode. The event tap hands a key to the handler, the grid manager matches it,
 // and the overlay is told the new prefix.
 func BenchmarkGridNarrowingKeystroke(b *testing.B) {
 	sim := newSimHarness(b, simConfig(), nil)
@@ -81,7 +81,7 @@ func BenchmarkGridNarrowingKeystroke(b *testing.B) {
 			domain.ModeString(mode))
 	}
 
-	// Narrowing must never redraw the grid — that is the property being
+	// Narrowing must never redraw the grid. That is the property being
 	// measured, and a benchmark that redrew would be measuring the wrong path.
 	if drawn := sim.overlay.gridDrawCount() - drawsBefore; drawn != 0 {
 		b.Fatalf("grid redrawn %d times while narrowing; the keystrokes took the draw path",
@@ -92,10 +92,11 @@ func BenchmarkGridNarrowingKeystroke(b *testing.B) {
 // BenchmarkGridSelectionKeystroke measures the other keystroke grid mode has:
 // the one that completes a cell's label. It opens the subgrid inside that cell
 // *and* moves the selection onto it, and on a backend that paints both into one
-// surface — every Linux one — that used to be two full repaints of it (#1492).
+// surface, which is every Linux one, that used to be two full repaints of it
+// (#1492).
 //
 // The session has cursor-follow turned off, because that is the one this is
-// about: with the real cursor riding the selection there is no pointer stand-in
+// about. With the real cursor riding the selection there is no pointer stand-in
 // to move and nothing was ever paid twice.
 //
 // surface-updates/op is the number that matters and the one a host without a
@@ -122,7 +123,7 @@ func BenchmarkGridSelectionKeystroke(b *testing.B) {
 			string(label))
 	}
 
-	// The narrowing half is typed once, outside the loop: each iteration
+	// The narrowing half is typed once, outside the loop. Each iteration
 	// re-enters the subgrid from the same prefix, which is where backing out of
 	// one leaves the input.
 	sim.typeLabel(string(label[:len(label)-1]))
@@ -214,9 +215,9 @@ func BenchmarkRecursiveGridKeystroke(b *testing.B) {
 	}
 }
 
-// BenchmarkHintsKeystroke measures one keystroke in hints mode — the mode a
-// user spends most of their keystrokes in — configured the way that used to
-// make a keystroke expensive: the mode declares per-app hotkey overrides, which
+// BenchmarkHintsKeystroke measures one keystroke in hints mode, the mode a
+// user spends most of their keystrokes in, configured the way that used to
+// make a keystroke expensive. The mode declares per-app hotkey overrides, which
 // before ADR 0005 meant asking the operating system which application is
 // focused before the handler could decide what the key was bound to, holding
 // the lock that serializes key handling while it waited. Leaving the overrides
@@ -224,11 +225,10 @@ func BenchmarkRecursiveGridKeystroke(b *testing.B) {
 // the same number if the settled keymap were quietly given up.
 //
 // The key it presses is a prefix of no label, and that is the point rather than
-// a shortcut: it pays for the whole key path — the keymap lookup, the hint
-// filter and the redraw — and leaves the drawn set
-// exactly as it found it, so every iteration measures the same keystroke and
-// none of them needs untimed work in between. A narrowing keystroke could not:
-// changing how many hints are drawn is a structural change, which the hint
+// a shortcut. It pays for the whole key path, the keymap lookup, the hint
+// filter and the redraw, and leaves the drawn set exactly as it found it, so
+// every iteration measures the same keystroke and none of them needs untimed
+// work in between. A narrowing keystroke could not. Changing how many hints are drawn is a structural change, which the hint
 // manager deliberately debounces onto a timer, so its redraw would land outside
 // the iteration that caused it and the reset between iterations would cost far
 // more than the thing being measured.
@@ -273,7 +273,7 @@ func BenchmarkHintsKeystroke(b *testing.B) {
 	}
 
 	// A key that matched a label would have selected an element and moved the
-	// cursor — a different, and much more expensive, path than the one claimed.
+	// cursor, a different and much more expensive path than the one claimed.
 	if moved := sim.cursor.moveCount() - movesBefore; moved != 0 {
 		b.Fatalf("cursor moved %d times; the keystrokes selected hints instead of missing them",
 			moved)

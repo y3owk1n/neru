@@ -9,7 +9,7 @@ import (
 )
 
 // TestBase_SwitchTo_NotifiesOnRealTransitionsOnly pins the transition
-// semantics every backend now shares: subscribers see each real mode change
+// semantics every backend now shares. Subscribers see each real mode change
 // exactly once, and switching to the already-active mode publishes nothing.
 // The three backends used to hand-roll this and had drifted on the
 // equal-mode case.
@@ -90,9 +90,9 @@ func TestBase_IndicatorCallsAreSilentWithoutARenderComponent(t *testing.T) {
 }
 
 // TestBase_GridPointerCallsAreSilentWithoutARenderComponent is the same guard
-// for the pointer a grid mode draws on its own surface: the mode names a mode,
-// and whether there is a component behind it — a disabled mode, a backend
-// whose grid overlay is a stub — is this package's question. A mode that draws
+// for the pointer a grid mode draws on its own surface. The mode names a mode,
+// and whether there is a component behind it, which a disabled mode or a
+// backend whose grid overlay is a stub lacks, is this package's question. A mode that draws
 // no pointer of its own resolves to nothing at all.
 func TestBase_GridPointerCallsAreSilentWithoutARenderComponent(t *testing.T) {
 	t.Parallel()

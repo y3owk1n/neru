@@ -1,5 +1,5 @@
 // The uinput scroll OUTPUT device. Unlike everything else in the evdev
-// files this is not input capture: scroll actions are injected into the
+// files this is not input capture. Scroll actions are injected into the
 // session through a virtual mouse wheel so they reach the focused app
 // directly instead of being drawn through the overlay.
 
@@ -31,8 +31,8 @@ var (
 )
 
 // uinputScrollMu serializes writes to the shared scroll device fd. A single
-// ScrollDeviceScroll emits three separate write() calls (hi-res, lo-res, SYN);
-// without this lock, two concurrent scroll requests (each on its own IPC
+// ScrollDeviceScroll emits three separate write() calls (hi-res, lo-res, SYN).
+// Without this lock, two concurrent scroll requests (each on its own IPC
 // goroutine) could interleave those writes and deliver a malformed event
 // stream.
 var uinputScrollMu sync.Mutex

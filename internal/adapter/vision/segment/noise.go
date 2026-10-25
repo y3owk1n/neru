@@ -10,7 +10,7 @@ import (
 // background steps by a few units on every pixel, enough to clear inkStep
 // and fill a region with stray blobs that each become a target. Each tile's
 // floor (the step a quarter of its pixels stay under) says how textured it
-// is: flat UI, even dense text, leaves a quarter of a tile flat and has a
+// is. Flat UI, even dense text, leaves a quarter of a tile flat and has a
 // floor of zero, while texture has no flat quarter. A textured tile only
 // counts steps well above its floor as ink, so its noise drops out while text
 // and controls drawn on it, which step by far more, stay.

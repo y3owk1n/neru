@@ -6,7 +6,7 @@
 // Both readers of `/dev/input` need it and must agree: the in-mode event tap
 // (evdev_session_cgo.go) and the passive global-hotkey listener
 // (global_hotkey_cgo.go). One naming for one physical key is what lets a chord a
-// user wrote once match in both — the listener naming keys by raw scan code while
+// user wrote once match in both. The listener naming keys by raw scan code while
 // the tap named them by keymap meant a `[hotkeys]` binding answered a different
 // physical key inside a mode than out of it on any layout that is not us.
 
@@ -38,7 +38,7 @@ var waylandKeyboardLayouts atomic.Pointer[KeyboardLayouts]
 // Russian active, the key left of W still matches a binding written q. It falls
 // back to the built-in scan-code table when there is no keymap to ask.
 //
-// The fallback is a real answer rather than a failure: it is the name the code
+// The fallback is a real answer rather than a failure. It is the name the code
 // carries on a us layout, which is what the table holds.
 func (capture *waylandEvdevCapture) keyName(code uint16) string {
 	if capture == nil || capture.xkbState == nil {
@@ -194,10 +194,10 @@ func (capture *waylandEvdevCapture) feedKey(code uint16, isDown bool) {
 // names the proxy resolves following a layout the user changes mid-session,
 // now that the state is built once rather than at every mode start.
 //
-// It reports whether the state is fresh. A fresh state has no key history: the
+// It reports whether the state is fresh. A fresh state has no key history. The
 // caller, which knows what is held, feeds that back in.
 func (capture *waylandEvdevCapture) pollKeymap() bool {
-	// A state that never came up already said so once; asking again every
+	// A state that never came up already said so once, and asking again every
 	// two seconds would say it again every two seconds.
 	if capture == nil || capture.xkbState == nil {
 		return false
@@ -215,8 +215,8 @@ func (capture *waylandEvdevCapture) pollKeymap() bool {
 		capture.appliedLayout = nil
 		capture.applyRequestedLayout()
 
-		// The state under the keymap is fresh, so its lock modifiers are not:
-		// read them off the devices again.
+		// The state under the keymap is fresh, so its lock modifiers are not.
+		// Read them off the devices again.
 		capture.syncLeds()
 	default:
 		capture.refreshXkbState()

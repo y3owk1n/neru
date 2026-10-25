@@ -60,7 +60,7 @@ func newBisectFixture(t *testing.T) *bisectFixture {
 	}
 
 	fixture.handler.initializeBisectRegion(image.Rect(0, 0, 1000, 800))
-	// Activation settles this from the flag; the fixture starts in follow.
+	// Activation settles this from the flag. The fixture starts in follow.
 	fixture.handler.bisect.Context.SetCursorFollowSelection(true)
 
 	return fixture

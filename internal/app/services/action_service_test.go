@@ -444,8 +444,8 @@ func TestPerformActionAtPoint_MouseActionIndicatorIgnoresUnparseableEntry(t *tes
 
 // TestMoveMouseToCenterOfWindow_KeepsANotSupportedRefusalIntact pins what a
 // person sees when their compositor cannot report focused-window geometry at
-// all. The platform refuses with CodeNotSupported and names what is missing;
-// re-coding that as an accessibility failure would send them to check a
+// all. The platform refuses with CodeNotSupported and names what is missing.
+// Re-coding that as an accessibility failure would send them to check a
 // permission they have already granted.
 func TestMoveMouseToCenterOfWindow_KeepsANotSupportedRefusalIntact(t *testing.T) {
 	refusal := derrors.New(
@@ -473,7 +473,7 @@ func TestMoveMouseToCenterOfWindow_KeepsANotSupportedRefusalIntact(t *testing.T)
 }
 
 // TestMoveMouseToCenterOfWindow_ReportsARealFailureAsAccessibilityFailure keeps
-// the other half: an error that is not a platform refusal still reads as one
+// the other half. An error that is not a platform refusal still reads as one
 // thing going wrong rather than as a feature this platform never had.
 func TestMoveMouseToCenterOfWindow_ReportsARealFailureAsAccessibilityFailure(t *testing.T) {
 	sys := &portmocks.MockSystemPort{
@@ -501,7 +501,7 @@ type syncingSystemPort struct {
 
 	synced  bool
 	syncErr error
-	// position is what CursorPosition reports; SyncCursorPosition moves it
+	// position is what CursorPosition reports. SyncCursorPosition moves it
 	// to physical, the way the adapter re-learns the real pointer.
 	position image.Point
 	physical image.Point
@@ -524,7 +524,7 @@ func (s *syncingSystemPort) SyncCursorPosition(ctx context.Context) error {
 }
 
 // TestActionService_CursorPositionForAction_SyncsStaleCursorCache pins the
-// idle-hotkey click on Wayland: with no mode active nothing has refreshed the
+// idle-hotkey click on Wayland. With no mode active nothing has refreshed the
 // adapter's cursor cache since the user moved the mouse by hand, so the action
 // must resync before it resolves its target point.
 func TestActionService_CursorPositionForAction_SyncsStaleCursorCache(t *testing.T) {
@@ -571,7 +571,7 @@ func TestActionService_CursorPositionForAction_SyncsStaleCursorCache(t *testing.
 }
 
 // TestActionService_ReleaseHeldButtons_SettlesCursorBeforeRelease pins the
-// order a mode exit needs: a drag released while the final warp is still
+// order a mode exit needs. A drag released while the final warp is still
 // animating would end part-way to the point the user chose.
 func TestActionService_ReleaseHeldButtons_SettlesCursorBeforeRelease(t *testing.T) {
 	system := &settlingSystemPort{}

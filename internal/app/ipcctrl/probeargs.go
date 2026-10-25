@@ -9,8 +9,8 @@ import (
 
 // probeArgs walks a hints probe's arguments.
 //
-// Every flag that carries a value can be written two ways — "--flag=value" or
-// "--flag value" — and reading the second form means looking at the next
+// Every flag that carries a value can be written two ways, "--flag=value" or
+// "--flag value". Reading the second form means looking at the next
 // argument and skipping it on the following pass. Doing that at each flag is
 // the same dozen lines repeated, including a bounds check whose absence is a
 // panic rather than a refusal, so it lives here once.

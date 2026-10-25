@@ -5,8 +5,8 @@ package windows
 // The hook hands a chord the backend registered back to RegisterHotKey instead of
 // dispatching it, so that exactly one of the two runs the binding. Which chords
 // those are is compared in the normalized form both sides are matched in, and
-// deleting the comparison is silent everywhere except on a Windows desktop — which
-// is what this is for (ADR 0011).
+// deleting the comparison is silent everywhere except on a Windows desktop,
+// which is what this is for (ADR 0011).
 
 import "testing"
 
@@ -25,7 +25,7 @@ func TestEventTap_IsRegisteredHotkey(t *testing.T) {
 
 	registered := []string{
 		registeredChord,
-		// The hook reads a chord in its own spelling and casing; matching is on
+		// The hook reads a chord in its own spelling and casing. Matching is on
 		// the normalized form, so these are the same chord.
 		"ctrl+g",
 		"Ctrl+g",
@@ -97,7 +97,7 @@ func TestEventTap_HandleKey_StickyModifierDoesNotFireGlobalHotkey(t *testing.T) 
 		t.Fatal("physical Shift+Ctrl+J under sticky Shift was not handed to RegisterHotKey")
 	}
 
-	// A held modifier autorepeats its key-down; one release still ends it.
+	// A held modifier autorepeats its key-down, but one release still ends it.
 	tap.handleKey("Shift", false)
 	tap.handleKey("Shift", true)
 

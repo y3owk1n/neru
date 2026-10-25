@@ -9,7 +9,7 @@ import (
 )
 
 // The heuristic classifier hands back a *native* role name, because that is
-// what the hint pipeline filters on: ports.ElementFilter.Roles holds the
+// what the hint pipeline filters on. ports.ElementFilter.Roles holds the
 // configured clickable roles already resolved to the running platform's
 // vocabulary. A classifier that answered "AXButton" on Linux would be compared
 // against a list holding "push button", match nothing, and produce a vision
@@ -17,7 +17,7 @@ import (
 
 // classifiableRoles pairs each field of classifierRoles that names a real
 // semantic role with that role, so the two tests below can walk them together.
-// Generic and Unknown are absent on purpose: neither is a semantic role a user
+// Generic and Unknown are absent on purpose, because neither is a semantic role a user
 // can write, and both exist for regions the classifier could not identify.
 var classifiableRoles = []struct {
 	field    string

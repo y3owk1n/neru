@@ -30,7 +30,7 @@ const (
 
 // overlayWindow is the surface the grid overlay paints on: what winOverlay
 // asks of a winplatform.OverlayWindow, and nothing it does not. The concrete
-// window is the one implementation that ships; the tests in this package
+// window is the one implementation that ships. The tests in this package
 // stand a recording one in for it, because reaching the drawing code through
 // the real type means creating a layered HWND on an interactive desktop.
 type overlayWindow interface {
@@ -70,7 +70,7 @@ type winOverlay struct {
 	// draw to one warning until the operation succeeds again.
 	recreateFailure logonce.Latch
 	flushFailure    logonce.Latch
-	// renderMu is the manager's lock, which every draw here runs under; the
+	// renderMu is the manager's lock, which every draw here runs under. The
 	// transition goroutine takes it per frame (transition.go).
 	renderMu       *sync.Mutex
 	currentPrefix  string
@@ -83,7 +83,7 @@ type winOverlay struct {
 	// gridPointer is where grid mode's pointer stand-in belongs. It is state
 	// the next repaint of the grid surface reads rather than a draw of its
 	// own, the same shape the Linux backends keep (#1463), because this
-	// surface is one pixel buffer: the pointer has to be painted in the same
+	// surface is one pixel buffer. The pointer has to be painted in the same
 	// pass as the cells or the subgrid it sits on.
 	gridPointer recursivegridcomponent.VirtualPointerState
 
@@ -91,13 +91,13 @@ type winOverlay struct {
 	lastHintStyle hintscomponent.StyleMode
 	// lastHintOffset is the placement the last accepted hint draw resolved to.
 	// The redraws that put the hints back after the search input comes or goes
-	// replay it rather than re-reading the placement: the offset a draw was
+	// replay it rather than re-reading the placement. The offset a draw was
 	// accepted with is what is on screen, and re-resolving would hand a
 	// void-returning redraw a refusal it has nowhere to report.
 	lastHintOffset badge.HintOffset
 
 	// The depth the recursive grid last drew, which is what a depth change
-	// zooms from (transition.go). hasLast says whether there is one; a clear,
+	// zooms from (transition.go). hasLast says whether there is one. A clear,
 	// a resize or another mode's draw forgets it.
 	hasLast    bool
 	lastDepth  int
@@ -107,11 +107,11 @@ type winOverlay struct {
 	// change arriving mid-zoom continues from the screen rather than jumping.
 	animRects []image.Rectangle
 	// animSettled says the transition that painted animRects reached its
-	// last frame; one that has not is continued rather than restarted.
+	// last frame. One that has not is continued rather than restarted.
 	animSettled bool
 	// animPointer is where the last transition frame painted the virtual
-	// pointer, and lastPointer where the last settled frame did: the pointer
-	// rides the zoom from one of them to where the new frame puts it.
+	// pointer, and lastPointer where the last settled frame did. The pointer
+	// zooms from one of them to where the new frame puts it.
 	animPointer      image.Point
 	lastPointer      recursivegridcomponent.VirtualPointerState
 	transitionCancel context.CancelFunc
@@ -230,7 +230,7 @@ func (o *winOverlay) Show() {
 		)
 	}
 
-	// Reopen after Esc: redraw from cache once the HWND is about to be shown.
+	// On reopen after Esc, redraw from cache once the HWND is about to be shown.
 	if o.cachedGrid != nil {
 		o.redrawGridWithoutFlush()
 	}
@@ -293,7 +293,7 @@ func (o *winOverlay) Resize() {
 	}
 
 	// Every recursive-grid draw resizes first, so only a window that moved
-	// forgets the depth it drew: the old cells belong to a screen that is gone.
+	// forgets the depth it drew. The old cells belong to a screen that is gone.
 	if o.window.Bounds() != before {
 		o.forgetTransition()
 	}
@@ -325,7 +325,7 @@ func (o *winOverlay) UpdateGridMatches(prefix string) {
 
 // ShowSubgrid opens the finer grid inside one cell, with the pointer stand-in
 // the same keystroke moved painted in the same pass (#1492). The pointer is
-// recorded only for a call that names a cell: one without says nothing about
+// recorded only for a call that names a cell. One without says nothing about
 // this surface, and a record kept from it would describe a screen nobody
 // asked for.
 func (o *winOverlay) ShowSubgrid(
@@ -346,12 +346,12 @@ func (o *winOverlay) ShowSubgrid(
 // repaints the grid surface so it appears there, or takes it off when the
 // state is not visible.
 //
-// A state equal to the one held paints nothing: grid mode refreshes the
+// A state equal to the one held paints nothing. Grid mode refreshes the
 // pointer on every keystroke and it moves only when a cell is chosen, so the
 // common key would otherwise repaint a surface the narrowing already
 // repainted. The record is kept even when nothing can be painted yet, for the
-// same reason UpdateGridMatches keeps its prefix while the window is hidden:
-// the next Show reads it.
+// same reason UpdateGridMatches keeps its prefix while the window is hidden.
+// The next Show reads it.
 func (o *winOverlay) SetGridPointer(pointer recursivegridcomponent.VirtualPointerState) {
 	if o == nil || pointer == o.gridPointer {
 		return
@@ -399,7 +399,7 @@ func (o *winOverlay) DrawGrid(gridValue *domainGrid.Grid, input string, style gr
 	o.currentPrefix = strings.ToUpper(input)
 	o.currentSubgrid = nil
 	// A frame describes a grid whose selection is gone with the one it
-	// replaces: every path that draws one clears the selection and refreshes
+	// replaces. Every path that draws one clears the selection and refreshes
 	// the pointer right after, so a record kept here would flash the previous
 	// pointer onto the new cells for one paint.
 	o.gridPointer = recursivegridcomponent.VirtualPointerState{}
@@ -443,7 +443,7 @@ func (o *winOverlay) ensureWindowForDraw() {
 		return
 	}
 
-	// HWND may be hidden between grid sessions; recreate only when invalid.
+	// HWND may be hidden between grid sessions, so recreate only when invalid.
 	if o.window == nil || !o.window.Healthy() {
 		o.recreateWindow()
 	}
@@ -488,12 +488,12 @@ func (o *winOverlay) dcompError() error {
 // the hide-unmatched toggle's next repaint all arrive at the same screen.
 //
 // The subgrid is the whole surface while one is open (#1491, #1610). macOS
-// settles that: its ShowSubgrid (adapter/overlay/render/grid/overlay_darwin.go)
+// settles that. Its ShowSubgrid (adapter/overlay/render/grid/overlay_darwin.go)
 // clears the overlay window and hands NeruDrawGridCells the nine subgrid cells,
 // and that bridge replaces the view's cell array rather than adding to it, so
 // the parent cells leave the reference platform's overlay for as long as the
 // subgrid is up. Linux agrees since #1491. The guard lives here rather than at
-// each caller because every repaint reaches this: a narrowing keystroke that
+// each caller because every repaint reaches this. A narrowing keystroke that
 // put the parent cells back under the subgrid changed what was on screen
 // without the user asking for it.
 func (o *winOverlay) redrawGrid() {
@@ -606,7 +606,7 @@ func (o *winOverlay) flushOverlay(context string) {
 
 // drawSubgrid paints the finer grid inside one cell. The keys it draws with
 // were handed over by the manager when the subgrid was opened, and the
-// surface has not been rebuilt since: only a manager draw rebuilds it, and
+// surface has not been rebuilt since. Only a manager draw rebuilds it, and
 // every one of those syncs the keys.
 func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
 	// The keys the subgrid is drawn with, which are the keys the mode layer
@@ -620,7 +620,7 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 	labelSize := style.SubgridLabelFontSizeIn(scale, winSubgridFontScale, cells)
 
 	// One cell per key, and fewer keys than cells is a configuration that
-	// leaves the last cells unlabelled: the key set is capped at the same count
+	// leaves the last cells unlabelled. The key set is capped at the same count
 	// the division produces, which is what MaxKeyIndex is.
 	for index, key := range keyRunes {
 		cell := cells[index]
@@ -655,7 +655,7 @@ func (o *winOverlay) drawCellFill(bounds image.Rectangle, fill uint32) {
 	o.window.FillRect(bounds, fill)
 }
 
-// drawCellBorder draws only the grid outline; cell interiors stay color-key transparent.
+// drawCellBorder draws only the grid outline. Cell interiors stay color-key transparent.
 func (o *winOverlay) drawCellBorder(
 	bounds image.Rectangle,
 	border uint32,
@@ -669,16 +669,16 @@ func (o *winOverlay) drawCellBorder(
 }
 
 // drawTextCentered draws text in the family it is given, and resolves
-// nothing. This is the one statement of that rule for this backend; every
+// nothing. This is the one statement of that rule for this backend, and every
 // label it draws is drawn from here.
 //
 // Every family that reaches a label comes off a Style the overlay's
 // StyleResolver built, and that is the one place ports.ResolveFont runs
 // (#1305). Resolving again would be a global RWMutex read and a font-cache
 // lookup per drawn label for an answer that cannot change. The Styles this
-// backend caches to redraw from are the resolver's too: ClearCache zeroes
+// backend caches to redraw from are the resolver's too. ClearCache zeroes
 // each one together with the grid or hint slice it belongs to, and a zeroed
-// Style paints nothing anyway — its font size and colors are zero as well.
+// Style paints nothing anyway, because its font size and colors are zero as well.
 //
 // The mode and sticky-modifier indicator badges do still resolve, because
 // they read raw configuration rather than a Style.

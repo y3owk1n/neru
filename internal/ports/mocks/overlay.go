@@ -68,7 +68,7 @@ type MockOverlayPort struct {
 	hintSearches []ports.HintSearch
 
 	gridMu sync.Mutex
-	// gridPrefixes records every prefix the grid was narrowed to, in order —
+	// gridPrefixes records every prefix the grid was narrowed to, in order. It is
 	// the per-keystroke path in grid mode, which by ADR 0003 never builds a
 	// Frame and so is not visible in frames above.
 	gridPrefixes []string
@@ -188,7 +188,7 @@ func (m *MockOverlayPort) SetGridHideUnmatched(hide bool) {
 
 // ShowGridSubgrid implements ports.OverlayPort. The pointer it carries is
 // recorded where UpdateGridPointer records one, because from a caller's side it
-// is the same statement about the same surface — made in the same call so the
+// is the same statement about the same surface, made in the same call so the
 // surface is painted once (#1492).
 func (m *MockOverlayPort) ShowGridSubgrid(_ *grid.Cell, pointer ports.GridPointer) {
 	m.gridMu.Lock()

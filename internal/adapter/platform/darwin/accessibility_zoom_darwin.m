@@ -16,13 +16,13 @@
 
 // When macOS Accessibility Zoom is zoomed in, only a sub-rectangle of the
 // display is on screen. Moving a real mouse to the edge of that rectangle pans
-// it; synthetic events never do, at either event tap. So a cursor we position
+// it, but synthetic events never do, at either event tap. So a cursor we position
 // outside the viewport is correct but invisible, and the user is left with no
 // idea where it went.
 //
 // UAZoomChangeFocus() is the public API for this and is a no-op when the user's
-// zoom is set to follow the pointer (it drives the keyboard-focus and insertion
-// -point paths only), so the viewport can only be moved through SkyLight's zoom
+// zoom is set to follow the pointer (it drives the keyboard-focus and
+// insertion-point paths only), so the viewport can only be moved through SkyLight's zoom
 // SPI. Those symbols are resolved with dlsym and every entry point degrades to
 // "leave the viewport alone" when they are missing, so a future macOS that drops
 // them costs the follow behavior and nothing else.
@@ -44,10 +44,10 @@ typedef CGError (*NeruSLSGetZoomParametersForDisplayFn)(
     NeruCGSConnectionID cid, CGDirectDisplayID display, CGPoint *outOrigin, double *outFactor, bool *outSmoothing);
 
 /// Moves one display's zoom viewport. The two reserved arguments are
-/// undocumented; zero reproduces the behavior of the system's own panning.
+/// undocumented, and zero reproduces the behavior of the system's own panning.
 ///
-/// @note smoothing is persistent user state rather than a per-call option —
-///       passing anything other than the value just read from the getter
+/// @note smoothing is persistent user state rather than a per-call option.
+///       Passing anything other than the value just read from the getter
 ///       silently rewrites the user's preference.
 typedef CGError (*NeruSLSSetZoomParametersForDisplayFn)(
     NeruCGSConnectionID cid, CGDirectDisplayID display, CGPoint *origin, int smoothing, int reserved, double factor,
@@ -125,7 +125,7 @@ static CGDirectDisplayID neruZoomedDisplayForPoint(
 	if (gNeruGetZoomParametersForDisplay(gNeruZoomConnection, display, &origin, &factor, &smoothing) != kCGErrorSuccess)
 		return kCGNullDirectDisplay;
 
-	// A factor of 1 means this display is not magnified — either zoom is on a
+	// A factor of 1 means this display is not magnified. Either zoom is on a
 	// different display, or it is zoomed all the way out. Either way there is no
 	// viewport to pan, and the point is already displayed normally.
 	if (factor <= 1.0)

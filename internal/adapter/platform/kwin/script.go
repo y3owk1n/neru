@@ -3,8 +3,8 @@
 package kwin
 
 // The KWin script, and nothing else. It is JavaScript running inside the
-// compositor rather than Go running here, and the rules it plays by are KWin's
-// — so it is kept apart from the Go that receives what it sends.
+// compositor rather than Go running here, and the rules it plays by are KWin's,
+// so it is kept apart from the Go that receives what it sends.
 
 // geometryScript is loaded into KWin. It reports the focused window's client
 // geometry (content rect, excludes the titlebar so it aligns 1:1 with the
@@ -14,26 +14,26 @@ package kwin
 // It is driven by three families of signal, because activation alone describes
 // only how a window's rectangle *starts*:
 //
-//   - activation (workspace.windowActivated) — which window to report on.
+//   - activation (workspace.windowActivated) says which window to report on.
 //   - geometry (clientGeometryChanged / frameGeometryChanged, and
-//     interactiveMoveResizeFinished) — a window dragged, resized, tiled or
+//     interactiveMoveResizeFinished) covers a window dragged, resized, tiled or
 //     maximized without ever losing focus. Without these the cache is a
 //     snapshot taken at the last focus change, and everything the user did to
 //     the window since is reported at its old position.
 //   - disappearance (workspace.windowRemoved, minimizedChanged, and activation
-//     going to nothing) — without these the cache can never empty, so after
+//     going to nothing) lets the cache empty. Without these it never can, so after
 //     the last window closes the answer is still the dead window's rectangle
 //     rather than "nothing is focused".
 //
 // The geometry handlers are connected once per window at windowAdded rather
-// than connected and disconnected as focus moves: the handler is two property
+// than connected and disconnected as focus moves, because the handler is two property
 // reads when the window is not the active one, and it never holds a reference
 // to a window KWin is destroying. Windows already open when the script loads
 // are picked up from workspace.stackingOrder.
 //
 // Two things are deliberately *not* reported. A drag is skipped while it is in
 // progress (c.move / c.resize) because KWin emits a geometry signal per frame
-// and each one would be a D-Bus message off the compositor thread; the final
+// and each one would be a D-Bus message off the compositor thread. The final
 // rectangle arrives on interactiveMoveResizeFinished. And a push identical to
 // the last one is dropped, which covers the client/frame geometry signals
 // arriving in pairs for one change.
@@ -41,13 +41,13 @@ package kwin
 // Three details are load-bearing and easy to undo by accident:
 //
 //   - **The desktop is tested before neruTransient, not after.** KWin defines
-//     isSpecialWindow() as isDesktop() || isDock() || …, and KDE's desktop is a
-//     plasmashell window — so the specialWindow flag and the class list below
+//     isSpecialWindow() as isDesktop() || isDock() || ..., and KDE's desktop is a
+//     plasmashell window, so the specialWindow flag and the class list below
 //     would each swallow it, and the clear would never fire. Activating the
 //     desktop is precisely how KDE says no application window is focused, which
 //     is the opposite of what a transient surface says.
 //   - **Every property reaching the payload goes through neruStr.** Absent KWin
-//     properties are undefined, which is falsy and therefore safe in a guard —
+//     properties are undefined, which is falsy and therefore safe in a guard,
 //     but concatenating it yields the string "undefined", which the Go side
 //     cannot tell from a window that really is called that. It would then read
 //     as an identity that was reported and disagrees, and reject this window's
@@ -61,7 +61,7 @@ package kwin
 // utility windows (caught by KWin's window-type flags), plus a few known
 // transient classes (the XWayland video bridge, plasmashell, and the portal
 // consent dialog). Focus landing on one of those keeps the last real window
-// cached rather than clobbering it — without this, focus flicking to e.g.
+// cached rather than clobbering it. Without this, focus flicking to
 // plasmashell or the RemoteDesktop consent dialog would mis-offset hint clicks.
 //
 // Accessing an absent KWin property yields undefined (falsy) and an absent

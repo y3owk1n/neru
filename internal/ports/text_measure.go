@@ -7,7 +7,7 @@ import (
 )
 
 // TextMetrics is how much room one line of text takes at one font, in the
-// units the size was given in. Width is the advance of the whole string;
+// units the size was given in. Width is the advance of the whole string.
 // Height is the font's line height (ascent plus descent), not the ink of the
 // particular glyphs, so two strings at one font answer the same Height.
 type TextMetrics struct {
@@ -23,8 +23,8 @@ type TextMetrics struct {
 // style is built, and derives every smaller size by arithmetic. Nothing on a
 // draw path may call Measure for a string it has not measured before.
 //
-// Implementations are safe for concurrent use and never hop to a UI thread:
-// styles are built on the main thread before its run loop is servicing, and on
+// Implementations are safe for concurrent use and never hop to a UI thread.
+// Styles are built on the main thread before its run loop is servicing, and on
 // background goroutines afterwards.
 type TextMeasurer interface {
 	// Measure returns the metrics of text drawn in family at size. family is a

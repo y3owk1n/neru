@@ -153,7 +153,7 @@ func TestAppState_TrySetScreenChangeProcessing_SetsRetryFlag(t *testing.T) {
 		t.Error("Expected FinishScreenChangeProcessing to return true (retry pending)")
 	}
 
-	// Processing flag should still be held — TrySet should fail.
+	// The processing flag is still held, so TrySet fails.
 	if _state.TrySetScreenChangeProcessing() {
 		t.Fatal("Expected TrySet to fail because processing flag is still held after retry")
 	}
@@ -166,12 +166,12 @@ func TestAppState_TrySetScreenChangeProcessing_SetsRetryFlag(t *testing.T) {
 		)
 	}
 
-	// Now finish with no pending retry — processing flag should be cleared.
+	// Finishing with no pending retry clears the processing flag.
 	if _state.FinishScreenChangeProcessing() {
 		t.Error("Expected FinishScreenChangeProcessing to return false (no retry)")
 	}
 
-	// Processing flag is now cleared — TrySet should succeed.
+	// The processing flag is now cleared, so TrySet succeeds.
 	if !_state.TrySetScreenChangeProcessing() {
 		t.Fatal("Expected TrySet to succeed after clean finish")
 	}
@@ -207,12 +207,12 @@ func TestAppState_TrySetScreenChangeProcessing_MultipleRetries(t *testing.T) {
 		}
 	}
 
-	// Only one retry should be reported; processing flag stays held.
+	// Only one retry is reported, and the processing flag stays held.
 	if !_state.FinishScreenChangeProcessing() {
 		t.Error("Expected retry after multiple concurrent events")
 	}
 
-	// Processing flag is still held — TrySet should fail.
+	// The processing flag is still held, so TrySet fails.
 	if _state.TrySetScreenChangeProcessing() {
 		t.Fatal("Expected TrySet to fail because processing flag is still held")
 	}
@@ -225,7 +225,7 @@ func TestAppState_TrySetScreenChangeProcessing_MultipleRetries(t *testing.T) {
 		)
 	}
 
-	// Clean finish — no retry pending, processing flag cleared.
+	// A clean finish has no retry pending and clears the processing flag.
 	if _state.FinishScreenChangeProcessing() {
 		t.Error("Expected no retry on clean finish")
 	}
@@ -298,7 +298,7 @@ func TestAppState_ScreenChangeProcessing_ConcurrentStress(t *testing.T) {
 
 			for range numCycles {
 				if !_state.TrySetScreenChangeProcessing() {
-					// Another goroutine owns the flag; this is expected.
+					// Another goroutine owns the flag, which is expected.
 					continue
 				}
 				// Record that this goroutine entered the critical section.
@@ -631,7 +631,7 @@ func TestAppState_StateInvariants(t *testing.T) {
 // TestAppState_MultipleFlags hammers the enabled flag from many goroutines.
 //
 // Its value is the race detector, but it also pins that the flag settles to a
-// readable, consistent value: it previously took `_ *testing.T` and so could
+// readable, consistent value. It previously took `_ *testing.T` and so could
 // not report anything even if the state had been corrupted.
 func TestAppState_MultipleFlags(t *testing.T) {
 	appState := state.NewAppState()
@@ -829,7 +829,6 @@ func TestAppState_OnEnabledStateChanged_MultipleCallbacks(t *testing.T) {
 func TestAppState_OnEnabledStateChanged_NilCallback(t *testing.T) {
 	_state := state.NewAppState()
 
-	// Should not panic and return 0
 	subscriptionID := _state.OnEnabledStateChanged(nil)
 
 	if subscriptionID != 0 {
@@ -875,7 +874,6 @@ func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
 	// Change state - callback should not be called
 	_state.SetEnabled(false)
 
-	// Verify callback was not invoked after unsubscribe
 	select {
 	case value := <-callbackCalled:
 		t.Errorf("Callback was invoked after unsubscribe with value: %v", value)
@@ -896,7 +894,7 @@ func TestAppState_OffEnabledStateChanged_InvalidID(t *testing.T) {
 	// assert a subsequently registered callback still receives events.
 	//
 	// Two deliveries are in flight here and both are dispatched on their own
-	// goroutine, so their order is not guaranteed: registration fires an
+	// goroutine, so their order is not guaranteed. Registration fires an
 	// initial callback carrying the current state, and the flip below fires
 	// another. Collect until the flipped value arrives rather than assuming
 	// which lands first.
@@ -929,7 +927,7 @@ func TestAppState_OffEnabledStateChanged_InvalidID(t *testing.T) {
 }
 
 // TestAppState_OnEnabledStateChanged_FiresInitialState pins the registration
-// contract the test above has to work around: subscribing delivers the current
+// contract the test above has to work around. Subscribing delivers the current
 // state immediately, so a subscriber does not have to prime itself.
 func TestAppState_OnEnabledStateChanged_FiresInitialState(t *testing.T) {
 	appState := state.NewAppState()
@@ -978,7 +976,6 @@ func TestAppState_OnEnabledStateChanged_Concurrent(t *testing.T) {
 	waitGroup.Wait()
 	close(ids)
 
-	// Verify all IDs are unique
 	idMap := make(map[uint64]bool)
 
 	for id := range ids {

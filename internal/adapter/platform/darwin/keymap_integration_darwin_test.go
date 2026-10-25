@@ -46,7 +46,7 @@ const (
 	namedKeyClear  = "Clear"
 )
 
-// TestKeymap_KeyCodeToCharacter_NumpadFoldsToNamedKeys pins issue #1372: the
+// TestKeymap_KeyCodeToCharacter_NumpadFoldsToNamedKeys pins issue #1372. The
 // numpad keys with a named-key equivalent must fold to it, the way the Wayland
 // keymap folds KP_Enter -> Return, instead of surfacing raw control characters
 // ("\x03" for numpad Enter, "\x7f" for numpad Clear) that either match no
@@ -83,7 +83,7 @@ func TestKeymap_KeyCodeToCharacter_NumpadFoldsToNamedKeys(t *testing.T) {
 }
 
 // TestKeymap_KeyCodeToName_NumpadFoldsToNamedKeys pins the modifier-combo
-// path of issue #1372: the event tap resolves "Cmd+..." / "Shift+..." combos
+// path of issue #1372. The event tap resolves "Cmd+..." / "Shift+..." combos
 // through the keycode-to-name map, so numpad Enter must name "Return" there
 // too or Cmd+NumpadEnter degrades to a bare character event.
 func TestKeymap_KeyCodeToName_NumpadFoldsToNamedKeys(t *testing.T) {

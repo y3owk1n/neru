@@ -65,7 +65,6 @@ func getSubCmd(parentName, childName string) *cobra.Command {
 }
 
 func TestCommandInitialization(t *testing.T) {
-	// Test that global commands are properly initialized
 	expectedCommands := map[string]bool{
 		cliTestStart:                     false,
 		cliTestStop:                      false,
@@ -111,7 +110,6 @@ func TestCommandInitialization(t *testing.T) {
 		}
 	}
 
-	// Test action subcommands
 	expectedActionSubcommands := map[string]bool{
 		cliTestLeftClick:      false,
 		"right_click":         false,
@@ -170,8 +168,7 @@ func TestCommandInitialization(t *testing.T) {
 }
 
 func TestCommandExecutionWithoutDaemon(t *testing.T) {
-	// Test that all CLI commands execute without panicking when no daemon is running
-	// Commands that require IPC should return errors, while utility commands should work
+	// Commands that require IPC should return errors, while utility commands should work.
 	tests := []struct {
 		name      string
 		cmd       *cobra.Command

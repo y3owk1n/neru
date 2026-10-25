@@ -46,7 +46,7 @@ const (
 // is not emitted after hibernation.
 //
 // All teardown state is captured per App instance in the closures registered
-// on the App — package-level state here would be shared across instances, and
+// on the App. Package-level state here would be shared across instances, and
 // a process that creates more than one (tests do) would close another
 // instance's channel and leak its goroutine. The teardown and post-reload
 // hooks are registered before the D-Bus attempt so the post-reload health
@@ -55,11 +55,11 @@ func (a *App) setupSleepObserver() {
 	stopChan := make(chan struct{})
 	waitGroup := &sync.WaitGroup{}
 
-	// Assigned once the D-Bus signal path is established; the stop closure
+	// Assigned once the D-Bus signal path is established. The stop closure
 	// reads it at call time, so the degraded no-bus path leaves it nil.
 	var dbusClose func() error
 
-	// Under observerMu: the IPC server is already live, so a reload can be
+	// Under observerMu, because the IPC server is already live, so a reload can be
 	// reading postReloadVerify while Run is still in here.
 	a.observerMu.Lock()
 
@@ -182,7 +182,7 @@ func (a *App) setupSleepObserver() {
 
 // reinitializeHotkeys tears down and re-registers the global hotkey listener
 // without touching the libei/RemoteDesktop session. Use this for health-check
-// recovery after stale evdev fds; it avoids triggering a fresh RemoteDesktop
+// recovery after stale evdev fds. It avoids triggering a fresh RemoteDesktop
 // portal consent prompt.
 func (a *App) reinitializeHotkeys() {
 	a.reinitializeHotkeysWithParams(hotkeyReinitRetries, hotkeyReinitDelay)
@@ -247,7 +247,7 @@ func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Dura
 //
 // Called from the logind PrepareForSleep(false) signal handler and the
 // deferred hibernation timer. Do NOT call this from post-reload health
-// checks — use reinitializeHotkeys instead to avoid triggering a fresh
+// checks. Use reinitializeHotkeys instead to avoid triggering a fresh
 // RemoteDesktop consent prompt on every recovery.
 func (a *App) handleWakeFromSleep() {
 	a.reinitializeHotkeysAfterSleep()

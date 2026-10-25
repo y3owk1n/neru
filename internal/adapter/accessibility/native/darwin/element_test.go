@@ -8,9 +8,9 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// AppKit reports several vocabulary names — AXSearchField, AXSwitch,
-// AXToolbarButton, AXTabButton — as subroles: the element's AXRole is
-// something more generic and the configured name arrives in AXSubrole
+// AppKit reports several vocabulary names as subroles, among them
+// AXSearchField, AXSwitch, AXToolbarButton and AXTabButton. The element's
+// AXRole is something more generic and the configured name arrives in AXSubrole
 // (element.AXSubroleNames). These pin the role filter that IsClickable
 // applies, through the same ElementInfo bundle the AX bridge fills in.
 

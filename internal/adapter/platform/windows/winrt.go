@@ -14,12 +14,12 @@ import (
 // The Windows Runtime, driven the way UI Automation is in
 // accessibility/native/windows: raw vtable calls through syscall, no CGO
 // (the justfile builds Windows with CGO_ENABLED=0). Everything here is the
-// plumbing a WinRT class needs before its own methods can be called — the
-// apartment, activation factories, HSTRINGs and the IInspectable vtable
-// prefix — and nothing here knows which class is being driven.
+// plumbing a WinRT class needs before its own methods can be called, namely
+// the apartment, activation factories, HSTRINGs and the IInspectable vtable
+// prefix. Nothing here knows which class is being driven.
 //
 // Interface IDs and vtable orders are read from the Windows SDK headers
-// (mingw-w64's copies of windows.media.ocr.h and friends); a wrong slot calls
+// (mingw-w64's copies of windows.media.ocr.h and friends). A wrong slot calls
 // the wrong method with the wrong arguments, so every slot constant names the
 // header method it stands for.
 
@@ -50,7 +50,7 @@ var (
 )
 
 // errHRESULT is the static error every failed WinRT call wraps, with the code
-// beside it: the code is the one thing a reader can look up, so it is spelled
+// beside it. The code is the one thing a reader can look up, so it is spelled
 // the way the SDK spells it.
 var errHRESULT = errors.New("WinRT call failed")
 
@@ -76,7 +76,7 @@ func hresultError(what string, hresult uintptr) error {
 }
 
 // winrtCall invokes the method at vtable slot index on the WinRT object this.
-// The object pointer is the implicit first argument; the return value is the
+// The object pointer is the implicit first argument. The return value is the
 // HRESULT.
 //
 // The out-parameter addresses in args are uintptrs, which the runtime does
@@ -178,7 +178,7 @@ func (h hstring) delete() {
 }
 
 // roInitialize joins the calling OS thread to the multithreaded apartment.
-// S_OK and S_FALSE both mean the thread is in; RPC_E_CHANGED_MODE means it
+// S_OK and S_FALSE both mean the thread is in. RPC_E_CHANGED_MODE means it
 // was already initialized in another mode, which no thread Neru owns does.
 func roInitialize() error {
 	hresult, _, _ := procRoInitialize.Call(roInitMultithreaded)
@@ -213,7 +213,7 @@ func activationFactory(className string, iid *windows.GUID) (unsafe.Pointer, err
 }
 
 // vectorView is the IVectorView<T> the OCR result hands out for lines and
-// words. The interface is generic, but its vtable is not: after the
+// words. The interface is generic, but its vtable is not. After the
 // IInspectable prefix come GetAt, get_Size, IndexOf and GetMany, in that order
 // for every T (windows.foundation.collections.h).
 type vectorView struct{ ptr unsafe.Pointer }

@@ -95,17 +95,17 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 
 	result.Written = written
 
-	// One reading, of the configuration the daemon will actually run: an
+	// One reading, of the configuration the daemon will actually run. An
 	// override sets a scalar, and a scalar can make a setting elsewhere in the
-	// file inert — `neru config set held_repeat.enabled false` is enough to
-	// answer for an accel_enabled the user wrote months ago — or answer a
-	// warning the file on its own would have raised. Judging the layers
-	// separately would leave both standing.
+	// file inert. `neru config set held_repeat.enabled false` is enough to
+	// answer for an accel_enabled the user wrote months ago. A scalar can also
+	// answer a warning the file on its own would have raised. Judging the
+	// layers separately would leave both standing.
 	// Read alongside what the user wrote, because a warning about a value the
-	// derivation settled has to name a line in a file: past the derivation the
+	// derivation settled has to name a line in a file. Past the derivation the
 	// two are the same string, and only the snapshot above still tells them
 	// apart (config.WrittenConfig).
-	// Judged against the files rather than the configuration they produced: a
+	// Judged against the files rather than the configuration they produced. A
 	// word that is inert here is only worth reporting when somebody wrote it,
 	// and past the merge a default nobody chose reads the same as a line
 	// somebody typed. A build for a platform no declaration has a column for
@@ -116,7 +116,7 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		result.Inert = warnInertWords(warnings, writtenWords, platform)
 	}
 
-	// The backend's limit rides on the same list, one warning of its own: a
+	// The backend's limit goes on the same list, with one warning of its own. A
 	// column says where an option does anything, and X11 is not a column.
 	if s.backendInert != nil {
 		result.Inert = append(result.Inert,
@@ -132,8 +132,8 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 
 	result.Warnings = warnings.Messages()
 
-	// Logged as well as reported, because a hot reload has no one to print to:
-	// the CLI shows these to whoever runs `neru config validate`, and the log
+	// Logged as well as reported, because a hot reload has no one to print to.
+	// The CLI shows these to whoever runs `neru config validate`, and the log
 	// is the only place a daemon that reloaded on its own can say them.
 	for _, warning := range result.Warnings {
 		s.logger.Warn("Configuration warning", zap.String("warning", warning))
@@ -155,7 +155,7 @@ func refuse(result *config.LoadResult, err error) *config.LoadResult {
 	result.Written = config.DefaultConfigForDecoding()
 
 	// The warnings were about the file that was refused, not about the defaults
-	// now running, so they go with it — and so do the inert words, which were
+	// now running, so they go with it, and so do the inert words, which were
 	// found in that same file.
 	result.Warnings = nil
 	result.Inert = nil
@@ -165,7 +165,7 @@ func refuse(result *config.LoadResult, err error) *config.LoadResult {
 
 // baseConfig is the platform defaults with any WithDefaults hotkeys over them.
 //
-// Built fresh each load: Hotkeys.Bindings is tagged toml:"-" so it survives the
+// Built fresh each load, because Hotkeys.Bindings is tagged toml:"-" so it survives the
 // decode, and a shared base would accumulate every previous load's bindings.
 func (s *Service) baseConfig() *config.Config {
 	base := config.PlatformDefaultConfig()
@@ -186,8 +186,8 @@ func (s *Service) baseConfig() *config.Config {
 }
 
 // locateConfigFile settles which file to read and reports whether the load is
-// already over. A missing file the user named is an error; a missing file we
-// only went looking for just means the defaults.
+// already over. A missing file the user named is an error, and a missing file
+// we only went looking for just means the defaults.
 func (s *Service) locateConfigFile(result *config.LoadResult, path string) bool {
 	explicit := path != ""
 	if !explicit {
@@ -229,7 +229,7 @@ func (s *Service) locateConfigFile(result *config.LoadResult, path string) bool 
 // decodeConfigFile reads the file twice, into a raw map and into the Config,
 // and returns the keys the typed pass found no field for.
 //
-// The hotkey tables need the raw map: their merge rules (the disable sentinel,
+// The hotkey tables need the raw map. Their merge rules (the disable sentinel,
 // folding a user's casing onto a default key) are not expressible as struct
 // tags, and the fields carry toml:"-" so the typed pass skips them. The typed
 // pass validates everything else. The TOML library cannot do both at once.
@@ -299,7 +299,7 @@ func readsHotkeyTable(key toml.Key, cfg *config.Config) bool {
 //
 // The disable sentinel removes the default an entry matches. An empty [hotkeys]
 // section removes every binding, which is how skhd and friends take over the
-// shortcuts; the modes stay reachable from the CLI.
+// shortcuts. The modes stay reachable from the CLI.
 func (s *Service) applyGlobalHotkeys(
 	cfg *config.Config,
 	raw map[string]any,
@@ -312,13 +312,11 @@ func (s *Service) applyGlobalHotkeys(
 
 	hotMap, isTable := hot.(map[string]any)
 	if !isTable {
-		err := derrors.Newf(
+		return derrors.Newf(
 			derrors.CodeInvalidConfig,
 			"[hotkeys] must be a TOML table, got %T",
 			hot,
 		)
-
-		return err
 	}
 
 	if len(hotMap) == 0 {
@@ -494,10 +492,10 @@ func (s *Service) applyModeHotkeys(
 // over it by the rules the built-in tables follow.
 //
 // The typed decode has already filled cfg.Modes with every declaration, so
-// the walk is over those rather than the raw table: a mode declared with no
-// hotkeys of its own still gets the default. It runs once per file that can
-// declare a mode — the configuration and then the override `neru config set`
-// writes — so a mode already given a table keeps it and the later file merges
+// the walk is over those rather than the raw table, and a mode declared with
+// no hotkeys of its own still gets the default. It runs once per file that can
+// declare a mode, first the configuration and then the override `neru config
+// set` writes. A mode already given a table keeps it and the later file merges
 // over it, and a mode the later file is the first to declare is seeded there.
 func (s *Service) applyCustomModeHotkeys(
 	cfg *config.Config,
@@ -606,7 +604,7 @@ func (s *Service) mergeModeHotkeys(
 }
 
 // validateNestedHotkeys checks the [[app_configs]] hotkey tables, top-level and
-// per-mode. The typed decode already loaded them; what is left to catch is two
+// per-mode. The typed decode already loaded them. What is left to catch is two
 // entries normalizing to the same chord, where only one would ever fire.
 func (s *Service) validateNestedHotkeys(
 	raw map[string]any,
@@ -653,7 +651,8 @@ func (s *Service) validateNestedHotkeys(
 }
 
 // overrideFileToLayer names the file `neru config set` writes, or "" when there
-// is none to layer: it exists only once a runtime change has been persisted.
+// is none to layer, since it exists only once a runtime change has been
+// persisted.
 func overrideFileToLayer(configPath string) string {
 	overridePath := OverridePath(configPath)
 	if overridePath == "" {
@@ -694,7 +693,7 @@ func layerOverridePrimaryModifier(cfg *config.Config, overridePath string) error
 
 // applyOverrideFile layers the file `neru config set` writes over the config,
 // so a runtime change outlives a restart. It is the last layer, which is why it
-// only decodes: deriving or validating here would be doing it to a
+// only decodes. Deriving or validating here would be doing it to a
 // configuration that is finally complete, and the caller does both once, there.
 func (s *Service) applyOverrideFile(
 	cfg *config.Config,

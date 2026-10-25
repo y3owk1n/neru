@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	// testKWinOwner is a bus name KWin could hold; only whether it is empty
+	// testKWinOwner is a bus name KWin could hold. Only whether it is empty
 	// matters.
 	testKWinOwner = ":1.42"
 
 	// installScheduleWait bounds how long a scheduled install may take to reach
-	// its installer. It is a failure deadline, not a delay: the happy path
+	// its installer. It is a failure deadline, not a delay. The happy path
 	// returns as soon as the goroutine runs.
 	installScheduleWait = 2 * time.Second
 )
@@ -26,15 +26,15 @@ const (
 // staleness a restart causes, and what has to be said about it.
 //
 // The script lives inside KWin, so `kwin --replace` or a Plasma crash takes it
-// with it. Nothing would arrive again, and an installed bridge never retries —
+// with it. Nothing would arrive again, and an installed bridge never retries,
 // so without this the cache would stay frozen at the last rectangle and serve
 // it as the truth for the rest of the daemon's life, which is the same
 // confidently wrong answer reached by a different route.
 //
 // Emptying it is only half the answer. An empty cache with no reason means the
 // bridge works and nothing is focused, which would send a caller to the active
-// screen believing it had asked and been told — the silent widening this bridge
-// exists to end. A compositor that is not on the bus has to say so.
+// screen believing it had asked and been told. That is the silent widening this
+// bridge exists to end. A compositor that is not on the bus has to say so.
 func TestGeometry_KWinLeavingTheBusReportsWhyRatherThanEmptying(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
@@ -64,7 +64,7 @@ func TestGeometry_KWinLeavingTheBusReportsWhyRatherThanEmptying(t *testing.T) {
 // would undo everything the departure just recorded.
 //
 // An install is several D-Bus round trips, so KWin can release its name while
-// one is still running — which is exactly what `kwin --replace` during daemon
+// one is still running, which is exactly what `kwin --replace` during daemon
 // startup does. That attempt can then succeed, and if it were believed it would
 // mark the bridge installed and clear the reason, leaving an empty cache with no
 // error: "the bridge works and nothing is focused", for a compositor that is not
@@ -123,7 +123,7 @@ func TestGeometry_AnInstallFromBeforeADepartureIsNotBelieved(t *testing.T) {
 //
 // The return finds the claim held by the attempt that is now stale, so it cannot
 // start the replacement itself and nothing else is coming. The stale attempt is
-// therefore the one that has to schedule it on its way out — otherwise the
+// therefore the one that has to schedule it on its way out. Otherwise the
 // bridge sits uninstalled, reporting the departure as the reason, until some
 // request happens along and pays for the discovery.
 func TestGeometry_ARetiredInstallSchedulesTheOneItBlocked(t *testing.T) {
@@ -155,7 +155,7 @@ func TestGeometry_ARetiredInstallSchedulesTheOneItBlocked(t *testing.T) {
 }
 
 // TestGeometry_KWinReturningToTheBusClearsTheReason keeps the departure from
-// outliving itself: a compositor that came back is not an absent one, and the
+// outliving itself. A compositor that came back is not an absent one, and the
 // reinstall that follows is what says so.
 func TestGeometry_KWinReturningToTheBusClearsTheReason(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
@@ -164,7 +164,7 @@ func TestGeometry_KWinReturningToTheBusClearsTheReason(t *testing.T) {
 
 	// The reinstall that follows a return is about the compositor that is there
 	// now, so it carries the generation the return put the bridge on and is
-	// believed — unlike the stale attempt in the test above.
+	// believed, unlike the stale attempt in the test above.
 	generation, _ := geometry.beginStart()
 	geometry.endStart(generation, nil)
 
@@ -178,8 +178,8 @@ func TestGeometry_KWinReturningToTheBusClearsTheReason(t *testing.T) {
 // TestKWinOwnerFrom_ReadsOnlyKWinOwnerChanges keeps the restart watch from
 // acting on somebody else's traffic.
 //
-// The match rule is a request to the bus, not a guarantee about what arrives:
-// this is the process-wide session connection, so every other subscription on
+// The match rule is a request to the bus, not a guarantee about what arrives.
+// This is the process-wide session connection, so every other subscription on
 // it is delivered here too. A stray signal read as "KWin restarted" would empty
 // a good cache and reinstall the script for no reason.
 func TestKWinOwnerFrom_ReadsOnlyKWinOwnerChanges(t *testing.T) {
@@ -247,7 +247,7 @@ func TestKWinOwnerFrom_ReadsOnlyKWinOwnerChanges(t *testing.T) {
 
 // TestClaim_TakeAdmitsOneHolderPerConnection pins what keeps the installer's
 // retries and every later reinstall from each adding a match rule and a
-// goroutine that live as long as the daemon does — while still letting an
+// goroutine that live as long as the daemon does, while still letting an
 // arming that failed be tried again, and letting a replacement connection arm
 // its own watch while the retired one is still winding down.
 func TestClaim_TakeAdmitsOneHolderPerConnection(t *testing.T) {

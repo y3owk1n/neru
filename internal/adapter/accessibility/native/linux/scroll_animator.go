@@ -30,7 +30,7 @@ const (
 	easeOutCubicExponent = 3
 	// defaultScrollSteps answers a caller that supplied a nonsense step count
 	// (<= 0). ValidateSmoothScroll already requires steps >= 1, so no validated
-	// configuration reaches it; it exists so a direct caller cannot divide by
+	// configuration reaches it. It exists so a direct caller cannot divide by
 	// zero.
 	defaultScrollSteps = 12
 )
@@ -38,7 +38,7 @@ const (
 // maxScrollUnitsPerRequest caps how many indivisible units one animated scroll
 // travels on a granular backend. It is the X11 ceiling the unanimated path
 // already applies (x11ScrollAtCursor's maxClicks), restated here because the
-// animator is what decides the schedule; a continuous backend reports
+// animator is what decides the schedule. A continuous backend reports
 // granularity 0 and the cap never applies to it.
 const maxScrollUnitsPerRequest = 50
 
@@ -48,13 +48,13 @@ const maxScrollUnitsPerRequest = 50
 //
 // This is what keeps smooth_scroll from turning a loud refusal into silence.
 // The animation runs on a worker goroutine, where an error has nobody to go
-// back to, and the backend enum alone does not answer the question: a
+// back to, and the backend enum alone does not answer the question. A
 // CGO_ENABLED=0 build reads WAYLAND_DISPLAY and reports the Wayland backend
 // exactly as a CGO build does, while every injection path in it is a
 // CodeNotSupported stub. Without this check that configuration would answer
-// "scrolled" and move nothing — the silent no-op ADR 0013 exists to end.
+// "scrolled" and move nothing, which is the silent no-op ADR 0013 exists to end.
 //
-// It answers "could this ever work", not "will this call succeed": a backend
+// It answers "could this ever work", not "will this call succeed". A backend
 // that fails once the animation is running is reported the way darwin reports
 // a failed native scroll, which is not at all.
 func scrollBackendAvailable() error {
@@ -83,8 +83,8 @@ func beginScrollSession(modifiers action.Modifiers) (scrollSession, error) {
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
-		// Hyprland only needs its own session when there is a modifier to hold:
-		// without one the virtual pointer carries the chunks as it does
+		// Hyprland only needs its own session when there is a modifier to hold.
+		// Without one the virtual pointer carries the chunks as it does
 		// everywhere else, and continuously, which beats whole notches. With
 		// uinput unavailable it falls back to the same session, which is the
 		// path a modified animated scroll took before Hyprland was named here.
@@ -106,16 +106,16 @@ func beginScrollSession(modifiers action.Modifiers) (scrollSession, error) {
 // scrollSession is one backend's hold on the injection path for the length of
 // one animation.
 //
-// It exists because a modifier has to stay held across every step: Linux has no
+// It exists because a modifier has to stay held across every step. Linux has no
 // event-flags concept, so a ctrl-modified scroll is a real ctrl key pressed
 // before the first chunk and released after the last. Pressing and releasing it
 // around each of twenty chunks would read to an application as twenty separate
 // zoom gestures. On X11 the session owns the display connection for the same
-// reason — the modifier is server state, and the connection that pressed it has
+// reason. The modifier is server state, and the connection that pressed it has
 // to be the one that lets it go.
 type scrollSession interface {
 	// granularity is the smallest distance this backend can express, in the
-	// same pixels the caller's delta is in. Zero means continuous: the backend
+	// same pixels the caller's delta is in. Zero means continuous, so the backend
 	// carries whatever fraction it is handed.
 	granularity() float64
 	// inject sends one chunk. Both deltas are exact multiples of granularity
@@ -129,7 +129,7 @@ type scrollSession interface {
 // inject so that the steps together travel the requested distance.
 //
 // The curve is eased on the cumulative position and each chunk is the
-// difference between two positions on it, so rounding never accumulates: a
+// difference between two positions on it, so rounding never accumulates. A
 // chunk a granular backend cannot express is not dropped, it stays in the
 // difference and goes out with a later chunk.
 //
@@ -169,11 +169,12 @@ func scrollChunks(delta float64, steps int, granularity float64, maxUnits int) [
 		total = math.Copysign(units*granularity, total)
 	}
 
-	// A scroll worth one unit on a granular backend is not an animation:
-	// whatever the curve says, exactly one event goes out. Putting it anywhere
+	// A scroll worth one unit on a granular backend is not an animation.
+	// Whatever the curve says, exactly one event goes out. Putting it anywhere
 	// but the first step would deliver the same single wheel click the
-	// unanimated path sends, only later — pure added latency, which is the one
-	// thing this must not buy. A scroll_step under 45 pixels is that case.
+	// unanimated path sends, only later. That is pure added latency, which is
+	// the one thing this must not buy. A scroll_step under 45 pixels is that
+	// case.
 	if granularity > 0 && math.Abs(total) == granularity {
 		unit := granularity
 		if total < 0 {
@@ -208,11 +209,11 @@ func scrollChunks(delta float64, steps int, granularity float64, maxUnits int) [
 // scrollRequest is one animated scroll.
 //
 // The modifier set belongs to the request rather than to the animator, because
-// a request preempts whatever is in flight: a plain scroll_down arriving
+// a request preempts whatever is in flight. A plain scroll_down arriving
 // mid-zoom cancels the zoom and finishes unmodified, which is what the second
 // binding asked for. darwin's animator carries them for the same reason.
 //
-// The deltas are floats although every caller's action is in whole pixels: a
+// The deltas are floats although every caller's action is in whole pixels. A
 // request that preempts a same-modifier one absorbs its undelivered remainder,
 // which is a point on an eased curve rather than a whole pixel.
 type scrollRequest struct {
@@ -223,16 +224,16 @@ type scrollRequest struct {
 	durationPerPixel float64
 }
 
-// composeUndelivered folds the part of inflight that never went out — remX,
-// remY — into the request preempting it, but only when the two ask for the same
+// composeUndelivered folds remX and remY, the part of inflight that never went
+// out, into the request preempting it, but only when the two ask for the same
 // modifiers.
 //
 // Same modifiers is the held-repeat case, since a repeat re-sends the binding
-// it is repeating: without this, every tick throws away whatever the previous
+// it is repeating. Without this, every tick throws away whatever the previous
 // tick had not yet injected, and holding a scroll key travels visibly less than
 // the same number of discrete presses.
 //
-// Different modifiers is the deliberate cancel scrollRequest documents: a plain
+// Different modifiers is the deliberate cancel scrollRequest documents. A plain
 // scroll_down arriving mid-zoom finishes unmodified. Carrying the zoom's
 // remainder into it would inject that distance as a plain scroll the user never
 // asked for, so it is dropped exactly as before.
@@ -248,12 +249,12 @@ func composeUndelivered(next, inflight scrollRequest, remX, remY float64) scroll
 }
 
 // scrollAnimator spreads a scroll over time on one worker goroutine, with the
-// latest request winning. It mirrors darwin's animator: the daemon has one
+// latest request winning. It mirrors darwin's animator. The daemon has one
 // scroll at a time, and a second one arriving mid-animation replaces the first
 // rather than queueing behind it.
 type scrollAnimator struct {
 	// begin opens a session on the live backend. It is a field so a test can
-	// substitute one; production wires beginScrollSession.
+	// substitute one. Production wires beginScrollSession.
 	begin func(action.Modifiers) (scrollSession, error)
 
 	mu     sync.Mutex
@@ -262,10 +263,10 @@ type scrollAnimator struct {
 
 	// injectSem is a size-1 semaphore the worker holds across opening a
 	// session, each injected chunk, and closing it, re-checking stopCh under it
-	// before injecting. It is the handoff to stop(): once stop() holds it, no
+	// before injecting. It is the handoff to stop(). Once stop() holds it, no
 	// chunk is mid-flight and none will start. The cursor animator in
 	// platform/linux uses the same fence for the same reason, and here there is
-	// a second one — a session holds real modifier keys down, so a stale
+	// a second one. A session holds real modifier keys down, so a stale
 	// worker's release has to be ordered against a later worker's press. It is
 	// never held together with mu.
 	injectSem chan struct{}
@@ -293,8 +294,8 @@ func (a *scrollAnimator) stop() {
 	a.mu.Unlock()
 
 	// Order whatever the caller does next after any chunk still in flight. The
-	// wait is one native call long — a display flush or a handful of XTest
-	// button events — and it is what keeps a canceled animation from landing
+	// wait is one native call long, a display flush or a handful of XTest
+	// button events, and it is what keeps a canceled animation from landing
 	// after the direct scroll that replaced it.
 	a.injectSem <- struct{}{}
 
@@ -338,7 +339,7 @@ func (a *scrollAnimator) animate(
 // so after draining the buffer is empty and the follow-up send cannot block.
 //
 // A request still sitting in the buffer has had none of its delta injected, so
-// composeUndelivered folds all of it in — on the same rule the worker applies
+// composeUndelivered folds all of it in, on the same rule the worker applies
 // when a request preempts it mid-animation, which is what keeps the two seams
 // from disagreeing about whether a same-modifier scroll can be dropped.
 func (a *scrollAnimator) enqueueLocked(req scrollRequest) {
@@ -363,7 +364,7 @@ func (a *scrollAnimator) enqueueLocked(req scrollRequest) {
 // underFence runs one native call while holding injectSem, so stop() can order
 // itself after it. When stopCh is non-nil the call is skipped if the session
 // was canceled while we waited for the token, which is what keeps a canceled
-// chunk from landing after the direct scroll that replaced it; it reports
+// chunk from landing after the direct scroll that replaced it. It reports
 // whether the call ran.
 func (a *scrollAnimator) underFence(call func(), stopCh <-chan struct{}) bool {
 	a.injectSem <- struct{}{}
@@ -435,23 +436,23 @@ func (a *scrollAnimator) runOnce(
 		err     error
 	)
 
-	// Opening presses real modifier keys, so it takes the fence too: without it
+	// Opening presses real modifier keys, so it takes the fence too. Without it
 	// a worker starting here could press ctrl before a worker stopped a moment
 	// ago released it.
 	a.underFence(func() { session, err = a.begin(req.modifiers) }, nil)
 
 	if err != nil {
 		// A backend that fails here rather than at ScrollAtCursor's check is
-		// one that broke between the two — the KDE portal grant dropped, the
-		// compositor connection lost. It is reported the way darwin reports a
-		// failed native scroll, which is not at all: there is no caller left to
+		// one that broke between the two, such as a dropped KDE portal grant or a
+		// lost compositor connection. It is reported the way darwin reports a
+		// failed native scroll, which is not at all. There is no caller left to
 		// return it to. What must never reach here is a backend that was never
 		// going to work, and scrollBackendAvailable is what keeps it out.
 		return scrollRequest{}, false
 	}
 
 	// Closing releases real modifier keys, so it goes out under the same fence
-	// as an injected chunk — and unconditionally, because a session left open
+	// as an injected chunk, and unconditionally, because a session left open
 	// leaves the key held. nil rather than stopCh is what makes it
 	// unconditional.
 	defer a.underFence(session.close, nil)
@@ -469,11 +470,11 @@ func (a *scrollAnimator) runOnce(
 		case next := <-reqCh:
 			// Chunks from step on have not gone out. What the schedule already
 			// declined to send is absent from them by construction, and stays
-			// dropped: the sub-unit residue a granular backend cannot express,
-			// which a discrete press drops too — so a held key and the same
-			// number of presses still land within one wheel notch per tick of
-			// each other on X11 — and the distance past maxUnits, which is a
-			// rate ceiling no animation was going to deliver.
+			// dropped. That is the sub-unit residue a granular backend cannot
+			// express, which a discrete press drops too, so a held key and the
+			// same number of presses still land within one wheel notch per tick
+			// of each other on X11. It is also the distance past maxUnits, which
+			// is a rate ceiling no animation was going to deliver.
 			return composeUndelivered(
 				next, req, sumFrom(chunksX, step), sumFrom(chunksY, step),
 			), true
@@ -494,7 +495,7 @@ func (a *scrollAnimator) runOnce(
 			if injectErr != nil {
 				// The backend went away mid-animation. Playing the remaining
 				// steps out against it would spend the whole duration failing
-				// once per step; the session is closed on the way out and the
+				// once per step. The session is closed on the way out and the
 				// next scroll starts clean.
 				return scrollRequest{}, false
 			}
@@ -514,7 +515,7 @@ func (a *scrollAnimator) runOnce(
 		case next := <-reqCh:
 			stopAndDrainScrollTimer(timer)
 
-			// This chunk has gone out; the undelivered remainder starts at the
+			// This chunk has gone out. The undelivered remainder starts at the
 			// next one.
 			return composeUndelivered(
 				next, req, sumFrom(chunksX, step+1), sumFrom(chunksY, step+1),
@@ -526,7 +527,7 @@ func (a *scrollAnimator) runOnce(
 	return scrollRequest{}, false
 }
 
-// sumFrom totals the chunks from index on — the part of a schedule that has not
+// sumFrom totals the chunks from index on, the part of a schedule that has not
 // been injected yet.
 func sumFrom(chunks []float64, from int) float64 {
 	var total float64

@@ -17,7 +17,7 @@ import (
 const goosWindows = "windows"
 
 // TestExecutor_Run_SkipsExecStepWhileStopped pins that `neru stop` reaches a
-// sequence already under way: an exec step never passes through the command
+// sequence already under way. An exec step never passes through the command
 // handler that refuses everything else, so the executor asks for itself.
 func TestExecutor_Run_SkipsExecStepWhileStopped(t *testing.T) {
 	t.Parallel()
@@ -156,7 +156,7 @@ func TestExecutor_Run_HookEnvReachesExecSteps(t *testing.T) {
 }
 
 // TestExecutor_Run_EnvReachesExecStepsButNotWhileStopped pins what a mode's
-// --on-exit gets: the selection reaches its exec steps, directly and through a
+// --on-exit gets. The selection reaches its exec steps, directly and through a
 // macro, but the environment is not a hook's, so Neru stopped still stops them.
 func TestExecutor_Run_EnvReachesExecStepsButNotWhileStopped(t *testing.T) {
 	t.Parallel()

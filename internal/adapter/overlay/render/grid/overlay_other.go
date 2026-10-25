@@ -41,7 +41,7 @@ func NewOverlayWithWindow(
 	}
 }
 
-// DrawGrid reports CodeNotSupported: off darwin this type owns no surface, so
+// DrawGrid reports CodeNotSupported. Off darwin this type owns no surface, so
 // there is nothing here that can paint a grid. The manager's backend draws it.
 func (o *Overlay) DrawGrid(_ *domainGrid.Grid) error {
 	return derrors.New(

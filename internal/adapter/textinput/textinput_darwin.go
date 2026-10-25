@@ -23,8 +23,8 @@ import (
 
 	// Blank import links the Objective-C bridge that defines
 	// NeruStartHintSearchTextInput / NeruStopHintSearchTextInput. Without it the
-	// package compiles but fails to link on its own — which is why this package
-	// had no tests: `go test ./internal/adapter/textinput/` could not build a
+	// package compiles but fails to link on its own, which is why this package
+	// had no tests. `go test ./internal/adapter/textinput/` could not build a
 	// test binary. keyfeed_darwin.go carries the same import for the same reason.
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -78,11 +78,7 @@ func (t *TextInput) StartHintSearchSession(
 		nil,
 	)
 
-	if started == 0 {
-		return false, nil
-	}
-
-	return true, nil
+	return started != 0, nil
 }
 
 // StopHintSearchSession stops the native hint search session.

@@ -75,14 +75,14 @@ func TestEvdevKeyNameFunctionKeysContiguous(t *testing.T) {
 }
 
 // keypadKeyNameCases is the keypad half of the fallback table, written out.
-// The codes are literals from linux/input-event-codes.h — frozen kernel ABI
-// numbers, pinned here rather than read back from the declaration under test —
+// The codes are literals from linux/input-event-codes.h, frozen kernel ABI
+// numbers pinned here rather than read back from the declaration under test,
 // and each `keysym` records which keysym the keypad reports for that key with
 // NumLock off, so the `want` column can be checked against the fold table
 // neru_normalize_xkb_name applies to it
 // (internal/adapter/platform/linux/wayland_keymap.c). Every navigation name
 // below is copied from that table, and every operator is the character its
-// keysym types, which neru_xkb_keysym_name answers before the table; none is
+// keysym types, which neru_xkb_keysym_name answers before the table. None is
 // chosen here.
 var keypadKeyNameCases = []struct {
 	name   string
@@ -109,7 +109,7 @@ var keypadKeyNameCases = []struct {
 	{name: "KEY_KP0", keysym: "KP_Insert", code: 82, want: evdevKeyNameInsert},
 	{name: "KEY_KPDOT", keysym: "KP_Delete", code: 83, want: evdevKeyNameDelete},
 
-	// Dual-function and NumLock-independent anyway: KP_Begin folds to the digit
+	// Dual-function and NumLock-independent anyway. KP_Begin folds to the digit
 	// the key carries, which is what KP_5 gives.
 	{name: "KEY_KP5", keysym: "KP_Begin", code: 76, want: "5"},
 }
@@ -133,12 +133,12 @@ func TestEvdevKeyName_Keypad(t *testing.T) {
 }
 
 // TestEvdevKeyName_KeypadNamesAreVocabularySpellings checks the other half of
-// naming the keypad: the dispatch path runs every name through
+// naming the keypad. The dispatch path runs every name through
 // keyvocab.NormalizeKey, and a name that is neither a named key nor a single
 // character survives it unchanged and then matches no binding. That is the
 // silent failure ADR 0008 was written about, so it is pinned rather than
 // assumed. It says nothing about whether a chord can be *written* with the
-// name — "+" is a single character and also the chord separator.
+// name, since "+" is a single character and also the chord separator.
 func TestEvdevKeyName_KeypadNamesAreVocabularySpellings(t *testing.T) {
 	t.Parallel()
 

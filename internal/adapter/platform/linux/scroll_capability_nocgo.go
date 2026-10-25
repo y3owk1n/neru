@@ -5,7 +5,7 @@ package linux
 import "github.com/y3owk1n/neru/internal/derrors"
 
 // uinputScrollDeviceError reports that the uinput scroll wheel is compiled
-// out: the device is created through cgo.
+// out, because the device is created through cgo.
 func uinputScrollDeviceError() error {
 	return derrors.New(
 		derrors.CodeNotSupported,

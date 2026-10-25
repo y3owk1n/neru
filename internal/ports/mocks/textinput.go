@@ -9,7 +9,7 @@ import (
 
 // MockTextInputPort is a mock implementation of ports.TextInputPort.
 //
-// By default it reports started == false, matching every platform but macOS —
+// By default it reports started == false, matching every platform but macOS,
 // so a test exercising the fallback path (reading the event tap's key stream)
 // gets that behavior without configuring anything. Set Started to true to
 // exercise the native-field path instead.

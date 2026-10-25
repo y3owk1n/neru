@@ -154,8 +154,8 @@ const (
 
 // drawCmd is one queued primitive. Commands are kept in the order they were
 // queued and painted in that order, so a later shape always lands over an
-// earlier one — the ordering every other backend has, and the one a hint
-// badge drawn over its neighbor relies on.
+// earlier one. Every other backend orders them the same way, and a hint
+// badge drawn over its neighbor relies on it.
 type drawCmd struct {
 	kind     drawKind
 	rect     image.Rectangle
@@ -173,7 +173,7 @@ type drawCmd struct {
 func (c drawCmd) bounds() image.Rectangle {
 	if c.kind != drawTriangle {
 		// A text command paints one pixel of anti-aliasing padding around
-		// its rectangle (gdiTextRenderer.paint); the same inset serves every
+		// its rectangle (gdiTextRenderer.paint). The same inset serves every
 		// rectangular command.
 		return c.rect.Inset(-1)
 	}
@@ -191,16 +191,16 @@ func (c drawCmd) bounds() image.Rectangle {
 
 // frame is what Flush hands the UI thread: the commands queued since the last
 // Flush, and whether the surface is to be cleared before they are painted.
-// Frames coalesce — a Flush that finds one still waiting appends to it, and a
-// Clear folds every waiting command away — so a burst of keystrokes presents
+// Frames coalesce. A Flush that finds one still waiting appends to it, and a
+// Clear folds every waiting command away, so a burst of keystrokes presents
 // once, with the newest state.
 type frame struct {
 	clear bool
 	cmds  []drawCmd
 }
 
-// FrameStats describes one presented frame: what it cost and where. Counts,
-// durations and rectangles only; nothing about what was drawn.
+// FrameStats describes one presented frame: what it cost and where. It holds
+// counts, durations and rectangles only, and nothing about what was drawn.
 type FrameStats struct {
 	// Backend names the surface that presented: "direct2d" or "gdi".
 	Backend string
@@ -212,16 +212,17 @@ type FrameStats struct {
 	Raster time.Duration
 	// Present is how long handing the pixels to the compositor took.
 	Present time.Duration
-	// Err is why the frame was not presented, when it was not: the surface
+	// Err is set when the frame was not presented because the surface
 	// failed and could not be rebuilt on GDI. Flush returns before the paint,
 	// so this is the only place that failure surfaces.
 	Err error
 }
 
 // overlaySurface is what actually holds pixels for a window. The window owns
-// the command queue and the HWND; the surface owns whatever the pixels live in
-// — a DIB the layered window is updated from, or a DirectComposition swapchain
-// — and paints one frame at a time. Every method runs on the overlay UI thread.
+// the command queue and the HWND. The surface owns whatever the pixels live in,
+// either a DIB the layered window is updated from or a DirectComposition
+// swapchain, and paints one frame at a time. Every method runs on the overlay
+// UI thread.
 type overlaySurface interface {
 	// name is the value FrameStats.Backend carries.
 	name() string
@@ -246,9 +247,9 @@ const maxRecordedCmds = 50000
 // OverlayWindow is a fullscreen click-through HWND with per-pixel alpha.
 //
 // Drawing is a queue of commands. Flush hands the queue to the overlay UI
-// thread and returns at once; the thread paints and presents when it gets to
-// it, and coalesces frames that pile up. Nothing on the caller's thread — the
-// keyboard hook's, on a keystroke — waits for pixels.
+// thread and returns at once. The thread paints and presents when it gets to
+// it, and coalesces frames that pile up. Nothing on the caller's thread, which
+// is the keyboard hook's on a keystroke, waits for pixels.
 type OverlayWindow struct {
 	mu      sync.Mutex
 	hwnd    windows.HWND
@@ -287,7 +288,7 @@ type OverlayWindow struct {
 
 func overlayWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	// Click-through. WS_EX_TRANSPARENT makes a layered window pass the mouse
-	// on; a DirectComposition window is not layered, so answer the hit test
+	// on. A DirectComposition window is not layered, so answer the hit test
 	// directly and both kinds behave the same.
 	if msg == wmNCHitTest {
 		return htTransparent
@@ -608,7 +609,7 @@ func (o *OverlayWindow) ResizeTo(posX, posY, width, height int) error {
 		))
 
 		// The indicator badges are moved to the cursor every tick at the size
-		// they already have; that is a move, and the pixel store stays. A
+		// they already have. That is a move, and the pixel store stays. A
 		// released surface grows to the new size when it next paints.
 		if o.surface != nil && !sameSize && !o.released {
 			resizeErr = o.surface.resize(width, height)
@@ -655,9 +656,9 @@ func (o *OverlayWindow) StrokeRect(bounds image.Rectangle, color uint32, lineWid
 // FillRoundedRect fills a rounded rectangle with an ARGB color.
 //
 // A rectangle hanging off the surface is queued whole, unlike the square fill
-// above: the shape is derived from the rectangle's own center and
+// above. The shape is derived from the rectangle's own center and
 // half-extents, so handing it a clipped rectangle would round the corners of
-// the *visible* part instead — a badge at the screen edge would be redrawn as
+// the *visible* part instead. A badge at the screen edge would be redrawn as
 // a smaller, differently rounded badge, while its stroke and its label (which
 // are not clipped here) stayed where the real one was. The surface clips its
 // own painting to the buffer, so nothing is drawn out of bounds either way.
@@ -702,7 +703,7 @@ func (o *OverlayWindow) StrokeRoundedRect(
 // anti-aliased.
 //
 // It is painted in queue order, so a triangle drawn to tie a badge back to its
-// target lands over the badge's own fill; the badge's stroke, queued after it,
+// target lands over the badge's own fill. The badge's stroke, queued after it,
 // closes the shared edge.
 func (o *OverlayWindow) FillTriangle(vertexA, vertexB, vertexC image.Point, color uint32) {
 	if o == nil {
@@ -780,7 +781,7 @@ func (o *OverlayWindow) DrawPointerGlyph(
 }
 
 // Flush hands the queued commands to the overlay UI thread and returns. The
-// thread paints and presents them when it gets to them; a Flush that arrives
+// thread paints and presents them when it gets to them. A Flush that arrives
 // while an earlier frame is still waiting joins that frame, so the window is
 // never more than one paint behind the newest state and the caller never
 // waits for one.
@@ -823,7 +824,7 @@ func (o *OverlayWindow) Flush() error {
 	return nil
 }
 
-// handle reads the window handle under the lock: a rebuild on the UI thread
+// handle reads the window handle under the lock, because a rebuild on the UI thread
 // (rebuildOnGDI) replaces it mid-life, and every caller off that thread
 // reads it through here.
 func (o *OverlayWindow) handle() windows.HWND {
@@ -952,7 +953,7 @@ func (o *OverlayWindow) renderPending() {
 	stats, err := o.surface.render(pending)
 	if err != nil {
 		// The surface is gone (a lost device, most likely). Come back on GDI
-		// and paint the frame there; the commands are just rectangles.
+		// and paint the frame there. The commands are just rectangles.
 		rebuildErr := o.rebuildOnGDI(err)
 		if rebuildErr != nil {
 			stats = FrameStats{Err: fmt.Errorf("%w; rebuilding on gdi: %w", err, rebuildErr)}
@@ -1008,7 +1009,7 @@ func (o *OverlayWindow) rebuildOnGDI(reason error) error {
 
 // createHWNDLocked creates the window and its surface. UI thread only.
 //
-// DirectComposition is tried first where the build supports it; the window
+// DirectComposition is tried first where the build supports it. The window
 // it needs is not a layered one, so a surface that fails to come up costs the
 // HWND too, and the GDI surface gets a fresh layered window of its own.
 func (o *OverlayWindow) createHWNDLocked() error {
@@ -1022,7 +1023,7 @@ func (o *OverlayWindow) createHWNDLocked() error {
 	if !o.noDComp {
 		err := dcompUnavailable()
 		if err == nil {
-			// Layered as well: WS_EX_TRANSPARENT only lets input through to
+			// Layered as well, because WS_EX_TRANSPARENT only lets input through to
 			// other processes on a layered window, and a click lands while
 			// the overlay is still up. Without the redirection bitmap the
 			// layered style changes nothing about how the frame is drawn.
@@ -1073,7 +1074,7 @@ func (o *OverlayWindow) createWindowWithSurface(
 	}
 
 	// A layered window stays invisible until it has attributes. The GDI
-	// surface sets them with every UpdateLayeredWindow; the DirectComposition
+	// surface sets them with every UpdateLayeredWindow. The DirectComposition
 	// window never calls that, so it is made opaque once here and its own
 	// frames carry the alpha.
 	if exStyle&wsExNoRedirectionBitmap != 0 {

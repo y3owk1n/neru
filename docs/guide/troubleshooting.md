@@ -61,7 +61,7 @@ See [Linux setup](linux.md#error-while-loading-shared-libraries-libtesseractso5)
 
 ### Neru does nothing on macOS
 
-Neru needs Accessibility permission, see
+Neru needs Accessibility permission. See
 [Grant permissions](getting-started.md#macos). If `neru doctor` still reports
 an error, which often happens after an upgrade, remove Neru from the
 Accessibility list, add it again, and [restart the daemon](#restart-the-daemon).
@@ -187,7 +187,7 @@ To drive Neru from another hotkey tool such as skhd, see
 ### Keys type the wrong characters
 
 Neru reads keys through your OS keyboard layout. Check the layout is selected
-in your OS. Some custom layouts are not resolved automatically, so set
+in your OS. Neru cannot resolve some custom layouts on its own, so set
 [`kb_layout_to_use`](../reference/configuration.md#general) to the one you want,
 copied from the `keyboard_layouts` row of `neru doctor`.
 
@@ -229,7 +229,7 @@ startup, then run `neru launch` again.
 
 ### The daemon exits on startup
 
-Usually a config error, and `neru config validate` names the key. To rule the
+It is usually a config error, and `neru config validate` names the key. To rule the
 config out, move `config.toml` aside and run `neru launch` in a terminal. On
 macOS it asks whether to create a config, with **Create Config**,
 **Use Defaults (No Config)** and **Quit**, and Windows asks the same with Yes,
@@ -266,7 +266,7 @@ If `neru launch` still fails, clear the stale socket as in
 
 ### My config changes do nothing
 
-Neru does not watch the file, see
+Neru does not watch the file. See
 [Apply your changes](configuring.md#apply-your-changes). Run
 `neru config validate`, then `neru config reload`. If the file has one error,
 Neru rejects the whole reload and keeps the previous config. To check which
@@ -283,7 +283,7 @@ An option that does nothing on your OS is not an error either. The
 `platform_support` row of [`neru doctor`](../reference/cli.md#neru-doctor)
 lists each one.
 
-A value set with `neru config set` wins over your file, see
+A value set with `neru config set` wins over your file. See
 [How the layers combine](configuring.md#how-the-layers-combine).
 `neru config reset <key>` removes it.
 
@@ -320,8 +320,8 @@ ignore_clickable_check = true
 
 Dock hints include Mission Control. Set `include_dock_hints = true` and
 `detect_mission_control = true` under `[hints]` to get hints on the current
-desktop's windows. The desktops in the Spaces bar get hints once the bar is
-expanded, so move the pointer to the top edge before showing hints.
+desktop's windows. The desktops in the Spaces bar get hints once the bar
+expands, so move the pointer to the top edge before showing hints.
 
 ### The cursor lands in the wrong place under Accessibility Zoom (macOS)
 
@@ -397,6 +397,6 @@ with the bug-report form. It asks for `neru doctor` output, your OS version,
 
 1. Force Neru to quit, as in
    [The daemon stops responding](#the-daemon-stops-responding-or-will-not-quit).
-2. Remove it, see [Uninstallation](installation.md#uninstallation).
+2. Remove it as [Uninstallation](installation.md#uninstallation) describes.
 3. Reinstall and run `neru launch`.
 4. On macOS, grant Accessibility permission again.

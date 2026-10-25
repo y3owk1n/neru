@@ -10,12 +10,12 @@ import (
 
 // TestInitializeGridManager_AcceptsTheKeysTheOverlayDraws is the acceptance for
 // #1269. The overlay decides which keys are *drawn* and the mode layer decides
-// which keys are *accepted*, from separate reads of the configuration — the
+// which keys are *accepted*, from separate reads of the configuration. The
 // overlay is handed GridConfig alone, so it cannot even see the hint characters
 // the rest of the chain fell back to. Four consumers inferred the blank case
 // for themselves and nothing made their answers agree.
 //
-// So this asserts both sides against one value: grid.SubgridKeys over the
+// So this asserts both sides against one value. grid.SubgridKeys over the
 // resolved grid.sublayer_keys is what every overlay backend draws
 // (render/grid/overlay_darwin.go, linux/overlay_shared_cgo.go,
 // windows/overlay.go), and the manager built here is what accepts.
@@ -50,8 +50,7 @@ func TestInitializeGridManager_AcceptsTheKeysTheOverlayDraws(t *testing.T) {
 		{
 			// The floor. Nothing is configured anywhere, so the grid labels
 			// itself from the default alphabet and the subgrid has to follow it
-			// there rather than be
-			// drawn with nothing.
+			// there rather than be drawn with nothing.
 			name: "no keys, no grid characters and no hint characters",
 		},
 	}
@@ -122,7 +121,7 @@ func openSubgridForKeys(t *testing.T, cfg *config.Config) *domainGrid.Manager {
 
 // notDrawn returns the letters the overlay would not put on the subgrid, so a
 // test can assert the manager refuses them rather than only that it accepts the
-// rest — accepting everything would satisfy the first half on its own.
+// rest, because accepting everything would satisfy the first half on its own.
 func notDrawn(drawn []rune) []rune {
 	isDrawn := make(map[rune]bool, len(drawn))
 	for _, key := range drawn {

@@ -16,7 +16,7 @@ const (
 // Parse reads a mode command's arguments into the activation they describe.
 //
 // The arguments are what a user wrote after the mode's name, in either shape
-// the wire carries: a caller modeled on the CLI's own traffic repeats the
+// the wire carries. A caller modeled on the CLI's own traffic repeats the
 // mode name as the first argument, and a binding does not. Both reach the same
 // activation.
 //
@@ -45,9 +45,9 @@ func Parse(mode domain.Mode, args []string) (Activation, error) {
 // the flags the named mode does not accept rather than stopping at the first
 // one.
 //
-// Reading past such a flag is what lets [Diagnose] weigh a whole command:
-// every caller that enters a mode refuses the first of them, and the one
-// caller that does not — a configuration deciding what a mistake costs — needs
+// Reading past such a flag is what lets [Diagnose] weigh a whole command.
+// Every caller that enters a mode refuses the first of them, and the one
+// caller that does not, a configuration deciding what a mistake costs, needs
 // all of them.
 func read(mode domain.Mode, args []string) (Activation, []Flag, error) {
 	activation := Activation{Mode: mode}
@@ -63,8 +63,8 @@ func read(mode domain.Mode, args []string) (Activation, []Flag, error) {
 		switch {
 		case known && !descriptor.AcceptedBy(mode):
 			// Read for its shape and then dropped. Stepping over the value it
-			// was written with is what keeps the rest of the command readable:
-			// left where it is, that value would be taken as the positional
+			// was written with is what keeps the rest of the command readable.
+			// Left where it is, that value would be taken as the positional
 			// action.
 			unsupported = append(unsupported, descriptor.name)
 			index += skipped(descriptor, rest, index)
@@ -84,8 +84,8 @@ func read(mode domain.Mode, args []string) (Activation, []Flag, error) {
 
 		case mode == domain.ModeCustom && activation.Name == "":
 			// The first argument of a custom activation is the declared mode
-			// it enters, which is the one thing a bare word can mean there:
-			// a custom mode makes no selection, so it takes no action.
+			// it enters, which is the one thing a bare word can mean there. A
+			// custom mode makes no selection, so it takes no action.
 			activation.Name = arg
 
 		case activation.Action == nil && accepts(FlagAction, mode):
@@ -113,8 +113,8 @@ func apply(
 ) (int, error) {
 	if !descriptor.TakesValue() {
 		// A value attached to a flag that carries none is the flag's own to
-		// refuse. Reading it here is what stops it from being dropped: the
-		// alternative is "--toggle=false" toggling.
+		// refuse. Reading it here is what stops it from being dropped.
+		// Otherwise "--toggle=false" would toggle.
 		_, attached, _ := strings.Cut(args[index], "=")
 
 		return 0, descriptor.set(activation, attached)
@@ -132,7 +132,7 @@ func apply(
 // was written, and reports whether it consumed the following argument.
 //
 // A flag that carries a value can be written "--flag=value" or "--flag value",
-// and reading the second form means looking ahead — including the bounds check
+// and reading the second form means looking ahead, including the bounds check
 // whose absence would be a panic rather than a refusal.
 func valueAt(descriptor Descriptor, args []string, index int) (string, int, error) {
 	if _, after, attached := strings.Cut(args[index], "="); attached {
@@ -150,8 +150,8 @@ func valueAt(descriptor Descriptor, args []string, index int) (string, int, erro
 // never going to be read, which is the flag the mode does not accept.
 //
 // It reads the value the same way applying the flag would, so the two cannot
-// disagree about where it ends, and stops short of one case: another flag is
-// never this one's value, whatever it was written next to. Stepping over
+// disagree about where it ends. It stops short in one case, because another
+// flag is never this one's value, whatever it was written next to. Stepping over
 // "--search" in "grid --strategy --search" would drop a flag in silence, which
 // is the failure this package exists to remove.
 func skipped(descriptor Descriptor, args []string, index int) int {
@@ -174,8 +174,8 @@ func skipped(descriptor Descriptor, args []string, index int) int {
 // withoutModeName drops the mode's own name when the caller repeated it as the
 // first argument.
 //
-// The CLI sends it — "neru grid --action left_click" arrives as
-// ["grid", "--action", "left_click"] — and a binding does not, so both shapes
+// The CLI sends it, so "neru grid --action left_click" arrives as
+// ["grid", "--action", "left_click"]. A binding does not, so both shapes
 // have to reach the same parse.
 func withoutModeName(mode domain.Mode, args []string) []string {
 	if len(args) > 0 && args[0] == domain.ModeString(mode) {

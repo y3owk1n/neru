@@ -50,7 +50,7 @@ func (a *App) ToggleEnabled() {
 // anything. Caller holds enabledMu.
 //
 // A resume is published before it takes effect and a pause after, so every
-// mode event falls between the two: nothing can enter a mode until the state
+// mode event falls between the two. Nothing can enter a mode until the state
 // flips, and a pause closes the open mode before it reports itself. The resume
 // is published under the state's lock, so a reader that sees it, such as a
 // `neru watch` snapshot, also sees Neru enabled.

@@ -68,7 +68,7 @@ type hotkeyUnregisterRequest struct {
 // key reads up, and done is closed once the release callback has run (or the
 // watcher was stopped), so a WM_HOTKEY that arrives between the two is told
 // apart from an autorepeat and waits for the release to land before it is a
-// new press: delivered the other way round, the stale release would cancel the
+// new press. Delivered the other way round, the stale release would cancel the
 // repeat the new press had just started.
 type hotkeyHold struct {
 	stop     chan struct{}
@@ -84,7 +84,7 @@ type HotkeyRegistry struct {
 	// registry id. A WM_HOTKEY for an id already here is the key still held
 	// and fires nothing.
 	held map[int]*hotkeyHold
-	// keyDown reads whether a virtual key is down right now; a test stands in
+	// keyDown reads whether a virtual key is down right now. A test stands in
 	// for GetAsyncKeyState here.
 	keyDown      func(vk uint32) bool
 	threadDone   chan struct{}
@@ -108,7 +108,7 @@ var (
 
 // GlobalHotkeyRegistry returns the process-wide hotkey registry.
 //
-// The error result is retained for API symmetry with other platforms; the
+// The error result is retained for API symmetry with other platforms. The
 // Windows registry starts its message thread lazily and never fails here.
 func GlobalHotkeyRegistry() (*HotkeyRegistry, error) {
 	globalHotkeyOnce.Do(func() {
@@ -159,7 +159,7 @@ func (r *HotkeyRegistry) Register(keyString string, callback func()) (int, error
 // the key's state (GetAsyncKeyState) every hotkeyPollInterval from the
 // WM_HOTKEY until it reads up. The poll runs only while a hotkey is held, which
 // is why it is preferred over the other source of releases, the WH_KEYBOARD_LL
-// hook: that hook sits on every keystroke for as long as it is installed, and
+// hook. That hook sits on every keystroke for as long as it is installed, and
 // installing it for the daemon's lifetime would put a hook procedure on the
 // idle path to pay for a release that only a held hotkey needs.
 func (r *HotkeyRegistry) RegisterWithRelease(keyString string, press, release func()) (int, error) {
@@ -287,7 +287,7 @@ func (r *HotkeyRegistry) handleRegister(req hotkeyRegisterRequest) {
 	hotkeyID := r.nextID
 	r.nextID++
 
-	// NULL hwnd posts WM_HOTKEY to this thread's queue; must match UnregisterHotKey.
+	// A NULL hwnd posts WM_HOTKEY to this thread's queue. UnregisterHotKey must pass the same.
 	ret, _, regErr := procRegisterHotKey.Call(
 		0,
 		uintptr(hotkeyID),
@@ -330,8 +330,8 @@ func (r *HotkeyRegistry) handleUnregister(req hotkeyUnregisterRequest) {
 	delete(r.callbacks, req.id)
 	delete(r.registered, req.id)
 
-	// A hotkey unregistered while held owes no release: the binder stops every
-	// repeat before it unregisters.
+	// A hotkey unregistered while held owes no release, because the binder stops
+	// every repeat before it unregisters.
 	if hold, held := r.held[req.id]; held {
 		close(hold.stop)
 		delete(r.held, req.id)

@@ -1,10 +1,10 @@
 package fontgeneric
 
 // Families are the concrete families one platform uses for the generic
-// aliases. Which family a generic resolves to is a platform decision — macOS
-// answers "sans" with Helvetica Neue and Linux with DejaVu Sans — so the
-// values are declared by each backend; only the reading of the written name
-// is shared.
+// aliases. Which family a generic resolves to is a platform decision. macOS
+// answers "sans" with Helvetica Neue and Linux with DejaVu Sans, so each
+// backend declares the values. Only the reading of the written name is
+// shared.
 type Families struct {
 	// Sans is the family a name asking for sans-serif resolves to. The empty
 	// name asks for this one.

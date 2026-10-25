@@ -69,7 +69,7 @@ func TestSubgridKeys(t *testing.T) {
 
 // TestSubgridKeys_CapAgreesWithTheCellsThereAre keeps the two ends of the cap
 // together. Every overlay caps its key set at MaxKeyIndex and then draws those
-// keys on the rectangles SubgridCells hands back; if the constant and the
+// keys on the rectangles SubgridCells hands back. If the constant and the
 // division ever disagree, a backend draws a label with no cell under it or a
 // cell with no label on it. Both are answers to "how big is the subgrid?", and
 // this is where they have to be one answer.
@@ -87,10 +87,10 @@ func TestSubgridKeys_CapAgreesWithTheCellsThereAre(t *testing.T) {
 	}
 }
 
-// TestManager_AcceptsExactlyTheKeysTheSubgridIsDrawnWith is the acceptance the
-// overlays rest on: the manager selects for every key SubgridKeys hands back,
+// TestManager_AcceptsExactlyTheKeysTheSubgridIsDrawnWith is the guarantee the
+// overlays rely on. The manager selects for every key SubgridKeys hands back,
 // and for no other key. An overlay draws that set, so a key the manager takes
-// and the overlay never drew — or the other way round — is a subgrid that lies
+// and the overlay never drew, or the other way round, is a subgrid that lies
 // about what it will do.
 func TestManager_AcceptsExactlyTheKeysTheSubgridIsDrawnWith(t *testing.T) {
 	// More keys than cells, so the cap is exercised rather than assumed.
@@ -153,15 +153,15 @@ func TestManager_EveryDrawnSubgridKeySelectsItsOwnPoint(t *testing.T) {
 
 // newSubgridKeyManager returns a manager sitting in an open subgrid, so the
 // next key it is handed is a subgrid selection, along with the bounds of the
-// cell that subgrid was opened on — the rectangle an overlay would have been
-// handed to draw it in.
+// cell that subgrid was opened on, which is the rectangle an overlay would have
+// been handed to draw it in.
 func newSubgridKeyManager(t *testing.T, subKeys string) (*grid.Manager, image.Rectangle) {
 	t.Helper()
 
 	return newSubgridManager(t, domain.SubgridDimensions(), subKeys)
 }
 
-// newSubgridManager is newSubgridKeyManager for a subgrid of any shape: it
+// newSubgridManager is newSubgridKeyManager for a subgrid of any shape. It
 // drives the manager into a cell's subgrid and hands back the manager and the
 // rectangle that subgrid covers.
 func newSubgridManager(

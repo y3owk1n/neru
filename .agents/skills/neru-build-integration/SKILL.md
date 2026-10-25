@@ -74,7 +74,7 @@ older protocol refuses with `ERR_VERSION_MISMATCH`. `Ping` returns the
 protocol the daemon speaks, to compare with the package's `ProtocolVersion`.
 `ERR_VERSION_MISMATCH` from the CLI means the `neru` binary and the running
 daemon are different builds, usually after an upgrade. Restarting the
-daemon fixes it: `neru services restart` when it runs as a service, otherwise
+daemon fixes it. Run `neru services restart` when it runs as a service, otherwise
 quit Neru from its menu bar or tray icon and run `neru launch`.
 
 ## Read the contract at the installed version

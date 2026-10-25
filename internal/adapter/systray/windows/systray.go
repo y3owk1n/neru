@@ -20,8 +20,8 @@ import (
 // Does not implement macOS template-icon theming or per-item icons.
 //
 // winTrayIconPNG is the startup/fallback tray tile. The shared component
-// normally selects the platform-appropriate asset and passes it via SetIcon;
-// this covers the window before that first call.
+// normally selects the platform-appropriate asset and passes it via SetIcon.
+// This covers the window before that first call.
 var winTrayIconPNG = icon.Brand
 
 // Win32 message and shell constants.
@@ -44,8 +44,8 @@ const (
 	nifTip     = 0x0004
 	nifInfo    = 0x0010
 
-	// niifNone: no stock glyph on the balloon; Windows 10 and 11 render the
-	// tip as a toast that already carries the tray icon.
+	// niifNone shows no stock glyph on the balloon. Windows 10 and 11 render
+	// the tip as a toast that already carries the tray icon.
 	niifNone = 0x0000
 
 	tpmRightButton = 0x0002
@@ -388,7 +388,7 @@ func Quit() {
 	}
 }
 
-// SetTitle is a no-op: Windows tray icons have no inline title text.
+// SetTitle is a no-op, because Windows tray icons have no inline title text.
 func SetTitle(title string) {}
 
 // SetTooltip sets the tooltip shown when hovering the tray icon.
@@ -406,9 +406,9 @@ func SetTooltip(tooltip string) {
 }
 
 // SetIcon replaces the tray icon with one built from the passed PNG bytes.
-// The shared component selects a host-appropriate asset (the colored brand
-// tile on Windows — a macOS template glyph would be invisible in the
-// notification area). Empty or undecodable bytes leave the current icon.
+// The shared component selects a host-appropriate asset, the colored brand
+// tile on Windows, because a macOS template glyph would be invisible in the
+// notification area. Empty or undecodable bytes leave the current icon.
 func SetIcon(iconBytes []byte) {
 	if len(iconBytes) == 0 {
 		return
@@ -423,7 +423,7 @@ func SetIcon(iconBytes []byte) {
 	defer trayMu.Unlock()
 
 	if trayHWND == 0 {
-		// Tray not created yet; addTrayIcon will pick this handle up.
+		// The tray is not created yet. addTrayIcon will pick this handle up.
 		if trayIconHandle != 0 {
 			discardCall(procDestroyIcon.Call(trayIconHandle))
 		}
@@ -464,7 +464,7 @@ func TrayState() (bool, bool) {
 }
 
 // noTrayIconDetail is the reason a notification cannot be shown without a
-// registered tray icon; the capability row carries the same words.
+// registered tray icon. The capability row carries the same words.
 const noTrayIconDetail = "notifications are tray balloon tips on Windows and the " +
 	"tray icon is not shown; enable systray.enabled to see them"
 
@@ -472,7 +472,7 @@ const noTrayIconDetail = "notifications are tray balloon tips on Windows and the
 func NoTrayIconDetail() string { return noTrayIconDetail }
 
 // ShowBalloon shows a balloon tip (a toast on Windows 10 and 11) anchored to
-// the tray icon. It is the Windows notification path: the shell renders
+// the tray icon. It is the Windows notification path. The shell renders
 // NIF_INFO tips for any icon in the notification area, with no AppUserModelID
 // or WinRT involved. Without a tray icon there is nothing to anchor to, so it
 // reports CodeNotSupported naming the reason rather than dropping the message.
@@ -565,7 +565,7 @@ const (
 )
 
 // discardCall consumes a fire-and-forget user32/shell32/gdi32 syscall result.
-// These tray calls have no actionable failure path here; the sink keeps
+// These tray calls have no actionable failure path here. The sink keeps
 // errcheck satisfied without a `_, _, _ =` assignment (which trips dogsled).
 func discardCall(uintptr, uintptr, error) {}
 
@@ -582,7 +582,7 @@ func createTrayWindow() error {
 		lpszClassName: className,
 	}
 
-	// Ignore RegisterClassExW failure: a re-run reuses the existing class.
+	// Ignore RegisterClassExW failure, because a re-run reuses the existing class.
 	discardCall(procRegisterClassExW.Call(uintptr(unsafe.Pointer(&windowClass))))
 
 	hwnd, _, err := procCreateWindowExW.Call(
@@ -716,7 +716,7 @@ func trayWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 		return 0
 	case taskbarCreated != 0 && msg == taskbarCreated:
-		// Explorer restarted; re-add the icon.
+		// Explorer restarted, so re-add the icon.
 		addTrayIcon()
 
 		return 0
@@ -918,7 +918,7 @@ func iconFromPNG(data []byte) uintptr {
 
 	hicon, _, _ := procCreateIconIndirect.Call(uintptr(unsafe.Pointer(&info)))
 
-	// CreateIconIndirect copies the bitmaps; release ours.
+	// CreateIconIndirect copies the bitmaps, so release ours.
 	discardCall(procDeleteObject.Call(hbmColor))
 
 	if hbmMask != 0 {

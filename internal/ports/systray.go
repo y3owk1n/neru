@@ -4,7 +4,7 @@ package ports
 //
 // Items are created through SystrayPort.AddMenuItem or a parent's
 // AddSubMenuItem, and stay valid for the life of the tray. Every method is safe
-// to call from any goroutine; implementations serialize onto whatever thread
+// to call from any goroutine. Implementations serialize onto whatever thread
 // their platform requires (the macOS main run loop, the Win32 message pump, the
 // D-Bus connection goroutine).
 type SystrayMenuItem interface {
@@ -14,8 +14,8 @@ type SystrayMenuItem interface {
 	// The channel is buffered by one and never closed, so a menu handler can
 	// select over many items without draining. Sends are dropped when the
 	// buffer is full, which means a click that arrives while the previous one
-	// is still unhandled is discarded rather than queued — correct for a menu,
-	// where a double activation should not run the action twice.
+	// is still unhandled is discarded rather than queued. That is correct for a
+	// menu, where a double activation should not run the action twice.
 	Clicked() <-chan struct{}
 
 	// SetTitle replaces the item's label.
@@ -41,9 +41,9 @@ type SystrayMenuItem interface {
 	AddSeparator()
 }
 
-// SystrayPort is the tray icon and its menu — the mechanism only; the menu's
+// SystrayPort is the tray icon and its menu, the mechanism only. The menu's
 // contents are policy in internal/app/components/systray. The run loop is not
-// part of the contract: it owns the main thread on macOS and Windows, so
+// part of the contract. It owns the main thread on macOS and Windows, so
 // starting and stopping it belongs to the daemon host in cmd/neru.
 type SystrayPort interface {
 	// SetTitle sets the text shown next to the tray icon. Platforms with no
@@ -56,9 +56,9 @@ type SystrayPort interface {
 	// SetIcon sets the tray icon from encoded image bytes.
 	//
 	// template asks the platform to treat the image as a monochrome template
-	// that follows the system appearance — a macOS concept. Platforms without
+	// that follows the system appearance, a macOS concept. Platforms without
 	// it ignore the flag, which is why Linux and Windows ship a colored asset
-	// instead: a white-on-transparent template glyph is invisible there.
+	// instead, because a white-on-transparent template glyph is invisible there.
 	SetIcon(icon []byte, template bool)
 
 	// AddMenuItem appends a top-level item and returns it.

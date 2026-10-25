@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-// Software rasterizer for the GDI surface: every primitive composites straight
+// Software rasterizer for the GDI surface. Every primitive composites straight
 // into a premultiplied BGRA buffer. The DirectComposition surface paints the
 // same commands on the GPU and never reaches this file.
 
@@ -54,7 +54,7 @@ func zeroRect(pixels []byte, bufW, bufH int, rect image.Rectangle) {
 
 // alphaFillRect composites a semi-transparent ARGB fill over the pixel buffer.
 //
-// An opaque fill is a row copy: the first row is composed pixel by pixel and
+// An opaque fill is a row copy. The first row is composed pixel by pixel and
 // every row below it copies that one, which is what a grid of several hundred
 // cells spends most of its paint on.
 func alphaFillRect(pixels []byte, bufW, bufH int, rect image.Rectangle, color uint32) {
@@ -187,8 +187,8 @@ func alphaStrokeRect(
 // covers, as a fraction of 1, by testing a triangleSamples x triangleSamples
 // grid of points inside it against the triangle's three edges.
 //
-// A point is inside when it is on the same side of all three directed edges;
-// the winding is unknown, so both all-non-negative and all-non-positive count.
+// A point is inside when it is on the same side of all three directed edges.
+// The winding is unknown, so both all-non-negative and all-non-positive count.
 // A degenerate triangle (three collinear points) has every cross product zero
 // and would read as fully covered, so the caller drops it before sampling.
 func triangleCoverage(vertices [triangleVertices]image.Point, col, row int) float64 {
@@ -230,7 +230,7 @@ func triangleCoverage(vertices [triangleVertices]image.Point, col, row int) floa
 
 // alphaFillTriangle composites an anti-aliased filled triangle over the pixel
 // buffer. It is what draws the connector arrow between an offset hint badge and
-// the element it labels; the Cairo and Quartz backends get the same shape from
+// the element it labels. The Cairo and Quartz backends get the same shape from
 // a path primitive they already have.
 func alphaFillTriangle(
 	pixels []byte,
@@ -243,7 +243,7 @@ func alphaFillTriangle(
 		return
 	}
 
-	// A triangle with no area covers nothing; sampling it would read every
+	// A triangle with no area covers nothing. Sampling it would read every
 	// point as "inside" because all three cross products are zero.
 	area := (vertices[1].X-vertices[0].X)*(vertices[2].Y-vertices[0].Y) -
 		(vertices[1].Y-vertices[0].Y)*(vertices[2].X-vertices[0].X)
@@ -304,7 +304,7 @@ func blendPixel(pixels []byte, idx int, colR, colG, colB, pixelAlpha uint32) {
 
 // sdRoundedBox computes the signed distance from a point (px, py) to a rounded
 // rectangle centered at the origin with half-extents (halfW, halfH) and corner
-// radius r.  Negative inside, positive outside, zero at the boundary.
+// radius r. Negative inside, positive outside, zero at the boundary.
 func sdRoundedBox(ptX, ptY, halfW, halfH, radius float64) float64 {
 	distX := math.Abs(ptX) - halfW + radius
 	distY := math.Abs(ptY) - halfH + radius
@@ -321,7 +321,7 @@ func sdRoundedBox(ptX, ptY, halfW, halfH, radius float64) float64 {
 // alphaFillRoundedRect composites an anti-aliased rounded rectangle fill
 // using signed-distance-function edge smoothing.
 //
-// Only the corner squares are evaluated through the distance field: the
+// Only the corner squares are evaluated through the distance field. The
 // middle of every row, and every row between the corner bands, is a plain
 // rectangle fill.
 func alphaFillRoundedRect(
@@ -338,7 +338,7 @@ func alphaFillRoundedRect(
 
 	corner := int(math.Ceil(radius)) + 1
 	if corner*2 >= rect.Dx() || corner*2 >= rect.Dy() {
-		// Too small for a flat middle; evaluate everything.
+		// Too small for a flat middle, so evaluate everything.
 		alphaFillRoundedRegion(pixels, bufW, bufH, rect, rect, radius, color)
 
 		return
@@ -414,7 +414,7 @@ func alphaFillRoundedRegion(
 // alphaStrokeRoundedRect composites an anti-aliased rounded rectangle stroke
 // using signed-distance-function edge smoothing at both outer and inner edges.
 //
-// Only the ring of the stroke is walked: the interior beyond the line width
+// Only the ring of the stroke is walked. The interior beyond the line width
 // is skipped row by row rather than tested pixel by pixel.
 func alphaStrokeRoundedRect(
 	pixels []byte,

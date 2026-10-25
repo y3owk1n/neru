@@ -41,7 +41,7 @@ func recordSelections(log *[]selectionEvent) recursivegrid.SelectionCallbacks {
 // TestManager_HandleInput_SelectionCallbacksAreNotInterchangeable pins which of
 // the two selection callbacks fires for which event. Both take a point and
 // neither returns anything, so wiring the update handler where the complete
-// handler belongs still compiles once they are inside a struct; what separates
+// handler belongs still compiles once they are inside a struct. What separates
 // them is *when* they fire. This records both in one ordered log so a
 // transposition is a failure rather than a silently different overlay.
 func TestManager_HandleInput_SelectionCallbacksAreNotInterchangeable(t *testing.T) {
@@ -102,7 +102,7 @@ func TestManager_ZoomToPoint_SelectionCallbacksAreNotInterchangeable(t *testing.
 	t.Run("running out of divisions is a completion", func(t *testing.T) {
 		var log []selectionEvent
 
-		// Depth 2 is unreachable: the 50x50 cell at depth 1 cannot divide, so
+		// Depth 2 is unreachable. The 50x50 cell at depth 1 cannot divide, so
 		// the zoom stops there and resolves.
 		_, completed := newManager(&log).ZoomToPoint(image.Point{X: 10, Y: 10}, 2)
 

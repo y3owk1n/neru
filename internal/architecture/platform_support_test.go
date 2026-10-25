@@ -32,7 +32,7 @@ const (
 
 // The floors that keep a walk which matched nothing from passing every
 // assertion here. The schema has a few hundred options and the other two
-// vocabularies a few dozen words each; a reflection or AST bug that returned
+// vocabularies a few dozen words each. A reflection or AST bug that returned
 // none would report a perfectly declared vocabulary made of nothing at all.
 const (
 	minDeclarableOptions = 200
@@ -41,23 +41,23 @@ const (
 	// minColorNodes guards the one place this reading departs from the example
 	// checks'. A Color is declared at the field and not at its two leaves, so a
 	// by-type match that stopped matching would drop the field from the schema
-	// side of the walk and leave every Color looking undeclared — while the
+	// side of the walk and leave every Color looking undeclared, while the
 	// count above stayed comfortably over its floor.
 	minColorNodes = 25
 )
 
 // actionNameType is the Go type whose constants are the action vocabulary. The
 // constants are read from the source rather than from a list in the package,
-// because a list is a second declaration and would drift from the first — which
+// because a list is a second declaration and would drift from the first, which
 // is the failure this whole file is about.
 const actionNameType = "Name"
 
 // TestEveryConfigOptionDeclaresItsPlatformSupport pins the rule ADR 0013
-// settled: every option in the schema is either supported on every platform or
+// settled. Every option in the schema is either supported on every platform or
 // declared as narrower, and both answers are written down.
 //
 // Nothing else in the tree can tell the two apart. smooth_scroll is a
-// cross-platform block that only the darwin scroll animator reads: it compiled,
+// cross-platform block that only the darwin scroll animator reads. It compiled,
 // linted, passed every test and shipped as a silent no-op, while the capability
 // matrix reported scroll injection as supported on all three Linux backends,
 // because scroll injection genuinely works. This is the check that would have
@@ -102,8 +102,8 @@ func TestEveryActionDeclaresItsPlatformSupport(t *testing.T) {
 }
 
 // TestEveryModeFlagDeclaresItsPlatformSupport is the same rule for the mode
-// flags. The grammar's descriptor table already owns which modes accept a flag;
-// this is the other column a flag needs before it can be believed.
+// flags. The grammar's descriptor table already owns which modes accept a flag.
+// This is the other column a flag needs before it can be believed.
 func TestEveryModeFlagDeclaresItsPlatformSupport(t *testing.T) {
 	declared := declaredWords(t, modecmd.PlatformSupport(), parity.KindModeFlag)
 
@@ -133,7 +133,7 @@ func TestEveryModeFlagDeclaresItsPlatformSupport(t *testing.T) {
 
 // TestPlatformSupportDeclaresNothingItCannotName catches the drift running the
 // other way. A declaration entry naming an option, action or flag that no
-// longer exists is worse than a missing one: it publishes a documentation row
+// longer exists is worse than a missing one. It publishes a documentation row
 // and a `neru doctor` line about a word nobody can write.
 func TestPlatformSupportDeclaresNothingItCannotName(t *testing.T) {
 	options := slices.Collect(maps.Keys(declarableOptionSet(t)))
@@ -186,7 +186,7 @@ func TestPlatformSupportDeclaresNothingItCannotName(t *testing.T) {
 
 // TestPlatformSupportDeclaresEachWordOnce keeps the declaration a declaration.
 // Two entries for one word are two answers to one question, and the lookup
-// takes the first — so the second is invisible, which is the shape of failure
+// takes the first, so the second is invisible, which is the shape of failure
 // this whole file exists to end.
 func TestPlatformSupportDeclaresEachWordOnce(t *testing.T) {
 	declarations := map[string]parity.Declaration{
@@ -216,7 +216,7 @@ func TestPlatformSupportDeclaresEachWordOnce(t *testing.T) {
 // TestPlatformSupportDeclaresTheWordBehindEveryValue pins the relationship
 // between the two shapes of entry. A declaration about `hints.strategy =
 // vision` is a claim about one value of an option that has to exist and be
-// declared in its own right; without the bare entry, the option itself would
+// declared in its own right. Without the bare entry, the option itself would
 // have no column and the guardrails above would have let it through.
 func TestPlatformSupportDeclaresTheWordBehindEveryValue(t *testing.T) {
 	for home, declaration := range map[string]parity.Declaration{
@@ -242,7 +242,7 @@ func TestPlatformSupportDeclaresTheWordBehindEveryValue(t *testing.T) {
 
 // TestEveryDeclaredPlatformIsAPlatform keeps a column honest. A typo in a
 // platform name reads as a narrower column, so an option supported everywhere
-// would start warning on a platform it works on — quietly, because nothing
+// would start warning on a platform it works on, and quietly, because nothing
 // downstream can tell a misspelled platform from a missing one.
 func TestEveryDeclaredPlatformIsAPlatform(t *testing.T) {
 	for home, declaration := range map[string]parity.Declaration{
@@ -283,10 +283,10 @@ func TestEveryDeclaredPlatformIsAPlatform(t *testing.T) {
 // TestPlatformSupportTable_IsGeneratedFromTheDeclarations pins the published
 // table to the declarations it projects.
 //
-// It regenerates each page's region and compares: a platform column changed
+// It regenerates each page's region and compares. A platform column changed
 // without regenerating fails here rather than shipping a page that describes a
 // binary nobody built. Every page carrying the markers is checked rather than
-// the one that carries them today — a second page nothing checked would be the
+// the one that carries them today, because a second page nothing checked would be the
 // drift this exists to end, in a new place.
 func TestPlatformSupportTable_IsGeneratedFromTheDeclarations(t *testing.T) {
 	published := 0
@@ -396,7 +396,7 @@ func declaredWords(t *testing.T, declaration parity.Declaration, kind parity.Kin
 // than at its light and dark leaves.
 //
 // The Color rule is the one place this reading differs from the example
-// checks', and it differs because the question differs: an example file writes
+// checks', and it differs because the question differs. An example file writes
 // the leaves, and a person deciding whether an option works on their platform
 // is deciding about the color, not about one of its two halves.
 func declarableOptionPaths(t *testing.T) []string {
@@ -454,7 +454,7 @@ func declarableOptionSet(t *testing.T) map[string]bool {
 // of type Name in internal/domain/action.
 //
 // Read rather than listed, because a list here would be one more copy of the
-// vocabulary to drift — the failure ADR 0008 settled for the keys and the roles.
+// vocabulary to drift, the failure ADR 0008 settled for the keys and the roles.
 func actionNames(t *testing.T) []string {
 	t.Helper()
 

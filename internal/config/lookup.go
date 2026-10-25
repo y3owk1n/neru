@@ -11,7 +11,7 @@ import (
 // per-app hotkey overrides through [[<mode>.app_configs]].
 //
 // It is the merge itself. Everything that dispatches a key reads a settled
-// Keymap instead (ResolveKeymap, keymap.go); what is left here is validation,
+// Keymap instead (ResolveKeymap, keymap.go). What is left here is validation,
 // which checks a table rather than matching against one.
 func (c *Config) HotkeysForModeAndApp(
 	modeName, bundleID string,
@@ -189,7 +189,7 @@ func (c *ScrollConfig) HasAppHotkeyOverrides() bool {
 }
 
 // CustomModeIndicators returns the indicator label of every declared mode, by
-// name, leaving out the ones declared with none: an absent name is what tells
+// name, leaving out the ones declared with none. An absent name is what tells
 // the overlay to draw nothing.
 func (c *Config) CustomModeIndicators() map[string]string {
 	labels := make(map[string]string, len(c.Modes))

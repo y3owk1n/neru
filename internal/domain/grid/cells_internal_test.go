@@ -7,7 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
-// This is a whitebox test — it calls the unexported generator directly, which
+// This is a whitebox test. It calls the unexported generator directly, which
 // the _internal_test.go suffix permits.
 //
 // generateCellsWithRegions takes its dimensions as parameters rather than
@@ -49,9 +49,9 @@ func TestGenerateCellsWithRegions_SurvivesDegenerateDimensions(t *testing.T) {
 				10, 10, 0, 0,
 			)
 
-			// Returning at all is most of the point: each of these inputs
+			// Returning at all is most of the point. Each of these inputs
 			// reaches arithmetic and an allocation that only the clamp keeps
-			// in range. The assertions pin what the clamp guarantees — a
+			// in range. The assertions pin what the clamp guarantees: a
 			// result no larger than the clamped grid can hold, and no nil
 			// cells. The exact count is left unpinned, since what a degenerate
 			// grid should contain is not what this covers.

@@ -70,8 +70,8 @@ type App struct {
 	// Core services
 	//
 	// overlayManager is the backend the composition root built the port over.
-	// Only the composition root names it — construction in phase 1, the port in
-	// phase 3, its render components in phase 4 — and everything the running
+	// Only the composition root names it, with construction in phase 1, the port
+	// in phase 3 and its render components in phase 4. Everything the running
 	// app says to the overlay goes through overlayPort instead.
 	overlayManager OverlayManager
 	// overlayPort is the one contract the app has with the overlay: frames for
@@ -89,12 +89,12 @@ type App struct {
 	modes *modes.Handler
 
 	// sequenceExecutor runs action sequences. It is built during initialization
-	// from the App's own components; see newSequenceExecutor.
+	// from the App's own components. See newSequenceExecutor.
 	sequenceExecutor *sequence.Executor
 
 	// axClient is stored so it can be closed during Cleanup.
 	// On Linux this resets AT-SPI accessibility status and releases the
-	// D-Bus connection; on other platforms it is a no-op.
+	// D-Bus connection. On other platforms it is a no-op.
 	axClient io.Closer
 
 	// Control channels
@@ -123,7 +123,7 @@ type App struct {
 	primingMu     sync.Mutex
 	primingCancel context.CancelFunc
 
-	// New Architecture Services
+	// Services
 	hintService   *services.HintService
 	gridService   *services.GridService
 	actionService *services.ActionService
@@ -149,7 +149,7 @@ type App struct {
 	// setup functions and consumed by the shared entry points in
 	// observers.go. Closures keep platform types off this struct.
 	//
-	// observerMu guards the three: Run assigns them after the IPC server is
+	// observerMu guards the three. Run assigns them after the IPC server is
 	// already accepting a reload, and the reload path reads postReloadVerify.
 	observerMu        sync.Mutex
 	themeObserverStop func()

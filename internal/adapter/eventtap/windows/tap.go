@@ -49,10 +49,10 @@ type EventTap struct {
 	interceptedChords    map[string]struct{}
 
 	// postedModifiers are the sticky modifiers PostModifierEvent is holding
-	// down; the hook reads them into every chord like a physical hold.
+	// down. The hook reads them into every chord like a physical hold.
 	// heldModifiers are the ones the user's hands hold, from the hook's own
 	// modifier events, so a modifier both posted and held stays in the chord.
-	// A set rather than a count: a held key autorepeats its key-down, and the
+	// A set rather than a count. A held key autorepeats its key-down, and the
 	// left and right keys of one modifier are not told apart here.
 	postedModifiers map[string]struct{}
 	heldModifiers   map[string]struct{}
@@ -64,7 +64,7 @@ type EventTap struct {
 	// WH_KEYBOARD_LL hook whose procedure overruns LowLevelHooksTimeout, and
 	// the handler holds the mode lock across a click, a mode exit or a hint
 	// refresh, so the hook procedure only classifies the event and enqueues.
-	// The channel and loop live for the tap's lifetime, like the Linux tap's;
+	// The channel and loop live for the tap's lifetime, like the Linux tap's.
 	// stopDispatch ends them from Destroy, and the channel is never closed,
 	// so a key the hook delivers during teardown is dropped rather than sent
 	// on a closed channel.
@@ -150,7 +150,7 @@ func (et *EventTap) Disable() {
 
 	// Anything still queued was read by the hook before it stopped and belongs
 	// to the mode that just exited. The bump covers an event dispatchLoop has
-	// already taken off the channel; the drain empties the rest. Disable runs
+	// already taken off the channel, and the drain empties the rest. Disable runs
 	// on the dispatcher itself when a key exits the mode, which is why neither
 	// step may wait on it.
 	et.dispatchEpoch.Add(1)
@@ -228,7 +228,7 @@ func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 
 // PostModifierEvent simulates a physical modifier key press or release. The
 // key goes out tagged as Neru's own, so the hook hands it on without reading
-// it as a modifier toggle; nothing has to be remembered here the way the X11
+// it as a modifier toggle. Nothing has to be remembered here the way the X11
 // tap remembers its XTest events.
 func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 	modifier = keyvocab.CanonicalModifier(modifier)
@@ -407,7 +407,7 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 	normalized := keyvocab.NormalizeKey(key)
 
 	// A chord carrying a system-level modifier (ctrl, alt, cmd) is either the
-	// application's or Neru's, never both: handing the event on and dispatching
+	// application's or Neru's, never both. Handing the event on and dispatching
 	// it too would run a mode binding and type into the window behind the
 	// overlay at once.
 	if config.HasPassthroughModifier(normalized) {
@@ -423,7 +423,7 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 		//
 		// Only the chord the user physically pressed qualifies. A sticky
 		// modifier is held by this tap, so with Shift sticky a Ctrl+J press
-		// reads as Ctrl+Shift+J; handing that back would fire a Ctrl+Shift+J
+		// reads as Ctrl+Shift+J. Handing that back would fire a Ctrl+Shift+J
 		// global hotkey the user never pressed. Sticky modifiers are for the
 		// next action, not for hotkeys, so the chord is consumed and dispatched
 		// instead, and the handler strips the sticky part before resolving it.
@@ -434,7 +434,7 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 		// An unbound chord the user asked to have passed through reaches the
 		// application as the real key event it is. Unlike an evdev grab, a
 		// low-level hook forwards or blocks each event on its own, so nothing
-		// has to be replayed: the modifiers were forwarded when they went
+		// has to be replayed. The modifiers were forwarded when they went
 		// down, and the app reads them off the same keyboard state Neru does.
 		if et.shouldPassthroughChord(normalized) {
 			et.firePassthroughCallback()
@@ -447,10 +447,10 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 		return true
 	}
 
-	// Non-modifier key-down (single character, Shift+letter, named key like
-	// Return/Space/arrows): consume the key so it does not reach the
-	// application behind the overlay. This matches macOS behavior where all
-	// non-modifier keys are consumed by the event tap.
+	// A non-modifier key-down, such as a single character, Shift+letter, or a
+	// named key like Return, Space or an arrow, is consumed so it does not
+	// reach the application behind the overlay. The macOS tap consumes every
+	// non-modifier key the same way.
 	et.dispatchKey(normalized)
 
 	return true
@@ -458,10 +458,10 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 
 // shouldPassthroughChord reports whether an unbound modifier chord should be
 // passed through to the focused application instead of consumed by Neru. It
-// mirrors the macOS event-tap decision: passthrough must be enabled and the
+// mirrors the macOS event-tap decision. Passthrough must be enabled and the
 // chord must be neither blacklisted nor in the mode's intercepted set. The
-// caller has already established that the chord carries Ctrl/Alt/Cmd;
-// shift-only chords stay usable inside modes.
+// caller has already established that the chord carries Ctrl, Alt or Cmd.
+// Shift-only chords never reach it and stay usable inside modes.
 func (et *EventTap) shouldPassthroughChord(chord string) bool {
 	et.mu.RLock()
 	defer et.mu.RUnlock()
@@ -496,8 +496,8 @@ func (et *EventTap) firePassthroughCallback() {
 	}
 }
 
-// dispatchKey queues a key for the dispatcher. It never blocks: the hook
-// procedure calls it on the hook thread, which has to return before Windows
+// dispatchKey queues a key for the dispatcher. It never blocks, because the
+// hook procedure calls it on the hook thread, which has to return before Windows
 // gives up on it.
 func (et *EventTap) dispatchKey(key string) {
 	if key != "" {

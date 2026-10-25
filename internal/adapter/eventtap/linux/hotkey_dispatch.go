@@ -10,13 +10,13 @@ import "sync"
 // Off that goroutine because a callback takes the mode handler's lock, and the
 // handler waits on the reader while holding it (the proxy's session ack, the
 // X11 loop's exit), so running it inline could deadlock. In order because a
-// goroutine per callback has none: a release and the press that follows it
+// goroutine per callback has no order. A release and the press that follows it
 // could run swapped, and the release would then cancel the repeat the new
 // press had just started, leaving a held key that stops repeating.
 //
 // The queue is unbounded rather than dropping under pressure, because a
-// release is the one thing that ends a held key's repeat: dropped, the repeat
-// would outlive the key. What queues is two callbacks per hotkey press, so
+// release is the one thing that ends a held key's repeat. A dropped release
+// would leave the repeat outliving the key. What queues is two callbacks per hotkey press, so
 // even a handler stuck for the length of a hold grows it by a few entries.
 type HotkeyDispatcher struct {
 	mu      sync.Mutex

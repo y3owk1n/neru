@@ -75,8 +75,8 @@ func TestRenderPlist_SendsOutputOnlyToThePathItIsGiven(t *testing.T) {
 }
 
 // TestRenderPlist_EscapesPathsThatAreNotValidXML keeps a legal directory name
-// from producing an illegal plist. Paths are arbitrary text — "A&B" is a
-// perfectly good directory on macOS — and launchctl refuses to load a plist
+// from producing an illegal plist. Paths are arbitrary text ("A&B" is a
+// valid directory on macOS), and launchctl refuses to load a plist
 // whose XML does not parse, after the file has already been written, so the
 // next install refuses too rather than replacing it.
 func TestRenderPlist_EscapesPathsThatAreNotValidXML(t *testing.T) {

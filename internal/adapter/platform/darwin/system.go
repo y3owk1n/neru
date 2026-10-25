@@ -112,7 +112,7 @@ func (s *SystemAdapter) MoveCursorToPoint(
 // MoveCursorBy animates a relative cursor move when smooth cursor is enabled
 // (smooth_cursor.move_mouse_enabled). It reports handled == false when it is
 // disabled, sending the caller to its CursorPosition + MoveCursorToPoint
-// fallback — the instant warp that was always used before relative moves
+// fallback, the instant warp that was always used before relative moves
 // gained animation.
 func (s *SystemAdapter) MoveCursorBy(
 	ctx context.Context,
@@ -136,20 +136,20 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 
 // CursorPosition returns the current cursor position on macOS.
 //
-// This is a pure read: an in-flight animation reports its mid-animation
+// This is a pure read. An in-flight animation reports its mid-animation
 // position, which is what pollers like the mode-indicator follower need.
 // Callers resolving an action's target point use SettleCursor first.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
 	return CursorPosition(), nil
 }
 
-// SettleCursor finishes any in-flight cursor animation immediately: the
+// SettleCursor finishes any in-flight cursor animation immediately. The
 // worker is stopped and the cursor warps straight to the endpoint it was
 // animating toward. Action paths call this before resolving their target
 // point from the cursor, so an action firing mid-animation (e.g. a click
 // right after an animated relative move) acts at the point the user aimed
-// for — without paying the animation's remaining duration in latency, and
-// without disturbing pollers that merely observe the cursor.
+// for. It does so without paying the animation's remaining duration in
+// latency, and without disturbing pollers that merely observe the cursor.
 func (s *SystemAdapter) SettleCursor(ctx context.Context) error {
 	cursorAnimator.settle()
 
@@ -193,8 +193,8 @@ func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) er
 // ShowNotification displays a lightweight toast/banner notification on macOS.
 //
 // The UserNotifications path is fire-and-forget, so this returns as soon as
-// the request is handed to the notification center; there is no failure to
-// report at this point and it always reports success.
+// the request is handed to the notification center. There is no failure to
+// report at this point, so it always reports success.
 func (s *SystemAdapter) ShowNotification(_ context.Context, title, message string) error {
 	ShowNotification(title, message)
 

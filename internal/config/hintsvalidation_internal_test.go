@@ -319,7 +319,7 @@ func hintsCases() []hintsCase {
 }
 
 // TestValidateHints_AcceptsEverySearchInputPosition holds the validator to the
-// vocabulary rather than to a list of its own: every value
+// vocabulary rather than to a list of its own. Every value
 // SearchInputPositions() names has to validate, so a position added there and
 // not to the check is caught here instead of at the draw.
 func TestValidateHints_AcceptsEverySearchInputPosition(t *testing.T) {
@@ -344,11 +344,11 @@ func TestValidateHints_AcceptsEverySearchInputPosition(t *testing.T) {
 // ValidateHints reports the first problem it finds, so which problem a user is
 // told about depends on the order the checks run in. These cases record the
 // message for one broken setting at a time, and for a few configs broken in more
-// than one way at once — those last are what pin the order, including the
+// than one way at once. Those last are what pin the order, including the
 // boundary-highlight checks sitting between the two halves of the search-input
 // checks.
 //
-// One case is not about failure at all: an unset placement is defaulted rather
+// One case is not about failure at all. An unset placement is defaulted rather
 // than refused, so validating a config quietly writes to it.
 //
 // badColor is a color no validator will accept.

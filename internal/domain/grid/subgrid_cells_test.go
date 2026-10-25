@@ -35,8 +35,8 @@ func TestSubgridCells(t *testing.T) {
 			},
 		},
 		{
-			// 10 wide over 3 columns rounds each break to the nearest pixel —
-			// 10/3 = 3.33 rounds to 3, 20/3 = 6.67 rounds to 7 — so the odd
+			// 10 wide over 3 columns rounds each break to the nearest pixel.
+			// 10/3 = 3.33 rounds to 3 and 20/3 = 6.67 rounds to 7, so the odd
 			// pixel lands in the middle column rather than at one end.
 			name:   "a cell that does not divide evenly rounds each break",
 			bounds: image.Rect(0, 0, 10, 8),
@@ -71,7 +71,7 @@ func TestSubgridCells(t *testing.T) {
 			},
 		},
 		{
-			// Not the shipped subgrid: the manager carries its own row and
+			// Not the shipped subgrid. The manager carries its own row and
 			// column count, so the shape has to come from the caller.
 			name:   "a subgrid that is not square divides by its own counts",
 			bounds: image.Rect(0, 0, 9, 5),
@@ -171,10 +171,11 @@ func TestSubgridCells_CoversTheCellExactly(t *testing.T) {
 	}
 }
 
-// TestManager_SubgridSelectionLandsInsideTheCellItDrew is the stake: the
-// rectangles an overlay draws and the point a keypress moves the cursor to are
-// the same arithmetic, so the cursor has to land in the cell the key was
-// written on. Four copies of that arithmetic used to agree by coincidence.
+// TestManager_SubgridSelectionLandsInsideTheCellItDrew is the reason
+// SubgridCells exists. The rectangles an overlay draws and the point a keypress
+// moves the cursor to are the same arithmetic, so the cursor has to land in the
+// cell the key was written on. Four copies of that arithmetic used to agree by
+// coincidence.
 func TestManager_SubgridSelectionLandsInsideTheCellItDrew(t *testing.T) {
 	const configured = "asdfghjkl"
 
@@ -198,11 +199,11 @@ func TestManager_SubgridSelectionLandsInsideTheCellItDrew(t *testing.T) {
 }
 
 // TestManager_SubgridSelectionLandsInsideTheCellItDrew_NonSquare is the same
-// stake on a subgrid whose two counts differ, which is the only shape that can
+// check on a subgrid whose two counts differ, which is the only shape that can
 // tell a row count from a column count. The shipped subgrid is 3x3, so a
 // manager that had its two counts the wrong way round would divide the cell
-// into exactly the same nine rectangles and this whole file would still pass —
-// the mistake would surface only for whoever configured a subgrid that was not
+// into exactly the same nine rectangles and this whole file would still pass.
+// The mistake would surface only for whoever configured a subgrid that was not
 // square, and would look like a rendering bug rather than a swapped pair.
 func TestManager_SubgridSelectionLandsInsideTheCellItDrew_NonSquare(t *testing.T) {
 	// Four columns over two rows, and eight keys to name the eight cells.

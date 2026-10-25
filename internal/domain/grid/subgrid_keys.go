@@ -14,18 +14,18 @@ import "strings"
 // (config.ResolveSublayerKeys), so there is one answer rather than five.
 //
 // The cap is the caller's cell count rather than a constant here, because the
-// caller is the one that knows how big the subgrid it is about to draw is —
-// taking it as a parameter is what lets each side drop the second cap it used
-// to apply on its own.
+// caller is the one that knows how big the subgrid it is about to draw is.
+// Taking it as a parameter lets each side drop the second cap it used to apply
+// on its own.
 //
-// Keys past the last cell are dropped rather than refused: a longer set is what
+// Keys past the last cell are dropped rather than refused. A longer set is what
 // a user gets by pointing sublayer_keys at their whole alphabet, and refusing
 // the configuration over it would cost them the grid. The keys that name a cell
 // are the keys, and the rest were never drawn.
 //
 // A key written twice is one key (DistinctKeys), and the repeat is dropped
 // before the cap rather than after, so the cells that do get a label get a
-// working one: selection finds a key by its first index, so the second label
+// working one. Selection finds a key by its first index, so the second label
 // drawn for a repeated key selected the first label's cell.
 func SubgridKeys(keys string, cells int) []rune {
 	runes := DistinctKeys(strings.TrimSpace(keys))

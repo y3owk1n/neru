@@ -10,7 +10,7 @@ import (
 )
 
 // Tesseract resolves its language data at *use*, from a directory no linking
-// decision can pin down: distributions disagree about where tessdata lives, and
+// decision can pin down. Distributions disagree about where tessdata lives, and
 // the language pack is a separate package from the library. So the whole of
 // "the vision strategy is unavailable because eng.traineddata is not
 // installed" is decided here, in Go, where the message can name the file and
@@ -34,7 +34,7 @@ func TestResolveTessdataDir_PrefersTheEnvironmentOverTheSystemPaths(t *testing.T
 }
 
 // TestResolveTessdataDir_AcceptsBothMeaningsOfTessdataPrefix covers the version
-// split that trips every tesseract consumer: tesseract 4 read TESSDATA_PREFIX
+// split that trips every tesseract consumer. Tesseract 4 read TESSDATA_PREFIX
 // as the *parent* of a tessdata/ directory, tesseract 5 reads it as the
 // directory itself, and both spellings are in the wild in shell profiles today.
 // Refusing one of them would look like missing language data.
@@ -69,7 +69,7 @@ func TestResolveTessdataDir_FallsBackToTheDistributionPaths(t *testing.T) {
 }
 
 // TestResolveTessdataDir_NamesWhatIsMissing is the acceptance criterion in test
-// form: a user whose distribution installed the library but not the language
+// form. A user whose distribution installed the library but not the language
 // pack must be told which file is absent, not that "vision failed".
 func TestResolveTessdataDir_NamesWhatIsMissing(t *testing.T) {
 	dir, err := resolveTessdataDir(stubEnv{}.get, stubExists{}.has)
@@ -87,7 +87,7 @@ func TestResolveTessdataDir_NamesWhatIsMissing(t *testing.T) {
 }
 
 // TestResolveTessdataDir_IgnoresAnEmptyEnvironmentEntry keeps an exported but
-// blank TESSDATA_PREFIX — which a wrapper script can leave behind — from
+// blank TESSDATA_PREFIX, which a wrapper script can leave behind, from
 // resolving to the root directory.
 func TestResolveTessdataDir_IgnoresAnEmptyEnvironmentEntry(t *testing.T) {
 	env := stubEnv{tessdataEnvVar: ""}
@@ -145,7 +145,7 @@ func TestOCRError_MapsEveryStatusToAnActionableSentence(t *testing.T) {
 }
 
 // TestOCRError_OKIsStillAnError guards the shape every status mapper in this
-// package shares: ocrError is only reached on a failure path, so being handed
+// package shares. ocrError is only reached on a failure path, so being handed
 // the success code means the caller's branch is wrong, and answering nil would
 // turn that into a silent success.
 func TestOCRError_OKIsStillAnError(t *testing.T) {

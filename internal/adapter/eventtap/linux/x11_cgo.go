@@ -47,7 +47,7 @@ const (
 	x11GroupMask  = 0x3 << x11GroupShift
 )
 
-// x11AutorepeatWarned says the refusal once: runX11 opens a connection per
+// x11AutorepeatWarned says the refusal once, because runX11 opens a connection per
 // mode activation, and the server's answer does not change between them.
 var x11AutorepeatWarned sync.Once
 
@@ -58,7 +58,7 @@ var x11WarnedLayout atomic.Pointer[string]
 // x11QueryModifierState queries the X11 server for the current keyboard
 // state and returns a linuxModifierState counting any held modifier keys.
 // This avoids premature detection arming when modifiers were held at grab
-// time — their initial KeyRelease events drive counts from positive toward
+// time. Their initial KeyRelease events drive counts from positive toward
 // zero rather than from zero into negative territory.
 func x11QueryModifierState(display *C.Display) linuxModifierState {
 	var state linuxModifierState
@@ -66,7 +66,7 @@ func x11QueryModifierState(display *C.Display) linuxModifierState {
 	var keymap [32]C.char
 	C.XQueryKeymap(display, &keymap[0])
 
-	// Map X11 modifier keysyms → our canonical modifier names.
+	// Map X11 modifier keysyms to our canonical modifier names.
 	type modifierKeysym struct {
 		keysym   C.KeySym
 		modifier string
@@ -139,7 +139,7 @@ func (et *EventTap) runX11() {
 	// XWayland grabs conflict with Wayland compositor focus policies and frequently
 	// result in the compositor sending synthetic "Escape" or "Cancel" keycodes
 	// to forcefully break the unauthorized grab, accidentally quitting modes.
-	// run() already routes a Wayland backend elsewhere; this stays as the
+	// run() already routes a Wayland backend elsewhere. This stays as the
 	// backstop for a direct caller, and asks the same detector run() does.
 	if platform.DetectLinuxBackend().IsWayland() {
 		return
@@ -173,7 +173,7 @@ func (et *EventTap) runX11() {
 	// held at grab time are counted in modState. Without this, initial
 	// KeyRelease events would drive counts negative, and allZero() would
 	// return true prematurely when only some of the held modifiers have
-	// been released — arming detection while others are still held.
+	// been released, arming detection while others are still held.
 	modState := x11QueryModifierState(display)
 
 	// The tap reads the keymap once per activation, because each activation
@@ -184,7 +184,7 @@ func (et *EventTap) runX11() {
 
 	// Keycodes down since the grab. With detectable autorepeat (set by
 	// neru_eventtap_open) a held key is repeated KeyPress events, and a
-	// modifier's repeats must not be counted as further presses: modState is
+	// modifier's repeats must not be counted as further presses. modState is
 	// a count, and one that never returns to zero never re-arms sticky
 	// detection.
 	down := make(map[C.uint]struct{})
@@ -398,17 +398,17 @@ func x11LookupInGroup(xkey *C.XKeyEvent, group uint, buffer []C.char) (C.int, C.
 //
 // Until this existed the X11 tap dispatched a bare key and reported modifiers
 // only as separate sticky-modifier events, so no chord was ever assembled while a
-// mode was open — which left every `[<mode>.hotkeys]` entry written as a
+// mode was open. That left every `[<mode>.hotkeys]` entry written as a
 // Ctrl/Alt/Super chord, and the global fallback with it, unable to match on X11.
 //
 // The base key comes from the *keysym* rather than from the string XLookupString
-// produced, because the two disagree exactly where it matters: with Ctrl held the
+// produced, because the two disagree exactly where it matters. With Ctrl held the
 // string is a control character (Ctrl+C gives \x03) while the keysym is still
-// XK_c. The keysym is state-resolved, so Shift has already chosen the level — the
+// XK_c. The keysym is state-resolved, so Shift has already chosen the level, the
 // same thing xkb_state_key_get_one_sym does for the evdev reader, which is what
 // makes the two backends agree about what Shift+; is called.
 //
-// A keysym this cannot name — a layout whose symbols fall outside Latin-1 —
+// A keysym this cannot name, from a layout whose symbols fall outside Latin-1,
 // falls back to the character the server produced, unprefixed, which is what this
 // tap dispatched for every key before chords existed. That keeps a non-Latin
 // layout no worse off than it was.
@@ -439,11 +439,11 @@ func x11ChordName(modState *linuxModifierState, base string) string {
 // x11BaseKeyName names the key a keysym stands for, ignoring which modifiers are
 // held: the named keys first, then anything whose keysym *is* its character.
 //
-// Latin-1 keysyms carry their code point directly — that is the X11 protocol's
-// own rule — which covers the printable ASCII and Latin-1 ranges. Everything else
+// Latin-1 keysyms carry their code point directly. That is the X11 protocol's
+// own rule, and it covers the printable ASCII and Latin-1 ranges. Everything else
 // answers "" and the caller decides what to do about it.
 func x11BaseKeyName(keysym uint32) string {
-	// The named keys win: XK_space is 0x20 and has to be "Space" rather than " ".
+	// The named keys win. XK_space is 0x20 and has to be "Space" rather than " ".
 	if name := x11KeysymName(C.KeySym(keysym)); name != "" {
 		return name
 	}
@@ -483,13 +483,13 @@ const x11KeypadBeginName = "5"
 // the names Neru binds. A key with no entry here is dropped.
 //
 // The keypad reports keysyms of its own while NumLock is off, and they mean the
-// same keys as their main-keyboard equivalents — so they fold onto the same
+// same keys as their main-keyboard equivalents, so they fold onto the same
 // names, the ones neru_normalize_xkb_name already gives them
 // (internal/adapter/platform/linux/wayland_keymap.c). That keeps one physical
 // key reaching one binding across the Linux backends, since the evdev tap reads
 // its names from that same table. With NumLock on the keypad reports KP_0
 // through KP_9 and the operators instead, which XLookupString does resolve to
-// characters; those never reach this lookup and deliberately have no case here.
+// characters. Those never reach this lookup and deliberately have no case here.
 func x11KeysymName(keysym C.KeySym) string {
 	switch keysym {
 	case C.XK_Return:
@@ -529,7 +529,7 @@ func x11KeysymName(keysym C.KeySym) string {
 	case C.XK_Insert, C.XK_KP_Insert:
 		return evdevKeyNameInsert
 	// Keypad-only, for want of a main-keyboard equivalent that reaches this
-	// lookup: XLookupString answers the main Delete key with a character, and
+	// lookup. XLookupString answers the main Delete key with a character, and
 	// the keypad's center key has no main-keyboard counterpart at all.
 	case C.XK_KP_Delete:
 		return evdevKeyNameDelete

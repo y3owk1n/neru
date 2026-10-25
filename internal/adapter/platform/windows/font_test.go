@@ -11,7 +11,7 @@ const (
 
 func TestWinFontResolver_GenericAliases(t *testing.T) {
 	// Which spellings count as generic is pinned by the shared parser
-	// (platform/fontgeneric); this pins what each generic means on Windows.
+	// (platform/fontgeneric). This pins what each generic means on Windows.
 	cases := map[string]string{
 		"":           defaultWindowsSans,
 		"sans":       defaultWindowsSans,
@@ -69,8 +69,8 @@ func TestWinFontResolver_MissingFamilyFallsBackToSans(t *testing.T) {
 }
 
 func TestWinFontResolver_AnswersEachSpellingFromItsOwnName(t *testing.T) {
-	// Caching must not rewrite a caller's spelling; the shared rule is pinned
-	// on every CI leg in platform/fontcache, this pins that Windows uses it.
+	// Caching must not rewrite a caller's spelling. The shared rule is pinned
+	// on every CI leg in platform/fontcache, and this pins that Windows uses it.
 	fontResolver := NewFontResolver()
 	if got := fontResolver.Resolve(arial); got != arial {
 		t.Fatalf("Resolve(%q) = %q, want %q", arial, got, arial)

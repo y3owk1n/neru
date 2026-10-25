@@ -16,21 +16,20 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
-	// The overlay.h included above only declares its symbols; importing the
+	// The overlay.h included above only declares its symbols. Importing the
 	// bridge is what links the Objective-C that defines them (ADR 0009).
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// Overlay renders a cursor-following virtual pointer in its own small window.
 const (
-	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	// NSWindowSharingNone represents NSWindowSharingNone (0), which hides the window from screen sharing.
 	NSWindowSharingNone = 0
-	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1), which shows the window in screen sharing.
 	NSWindowSharingReadOnly = 1
 )
 
-// Overlay is a virtual pointer overlay window.
+// Overlay renders a cursor-following virtual pointer in its own small window.
 type Overlay struct {
 	window C.OverlayWindow
 	config config.VirtualPointerConfig
@@ -92,7 +91,7 @@ func (o *Overlay) SetSharingType(hide bool) {
 	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
-// ResizeToActiveScreen is a no-op; positioning is handled per draw.
+// ResizeToActiveScreen is a no-op, because positioning is handled per draw.
 func (o *Overlay) ResizeToActiveScreen() {}
 
 // Draw positions the overlay on the cursor and renders the virtual pointer indicator.

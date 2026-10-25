@@ -26,10 +26,6 @@ func tree(version string) string {
 }
 
 func extractDocsTag(version string) string {
-	if version == "" {
-		return ""
-	}
-
 	if !strings.HasPrefix(version, "v") {
 		return ""
 	}

@@ -9,13 +9,12 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// New creates a new App with the provided options.
-// It applies sensible defaults and allows customization through functional options.
+// New creates an App from the given options. Fields no option sets get
+// defaults.
 func New(opts ...Option) (*App, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	app := &App{ctx: ctx, cancel: cancel}
 
-	// Apply all options
 	for _, opt := range opts {
 		err := opt(app)
 		if err != nil {
@@ -47,13 +46,12 @@ func New(opts ...Option) (*App, error) {
 		app.logger.Named("config").Warn("Configuration warning", zap.String("warning", warning))
 	}
 
-	// Initialize the rest of the application
 	return initializeApp(app)
 }
 
 // initializeApp completes the initialization of an App instance that has been
-// partially configured with options. It orchestrates the initialization of all
-// application components in the correct order.
+// partially configured with options. It runs the startup phases in order and,
+// if one fails, unwinds the phases that completed.
 func initializeApp(app *App) (*App, error) {
 	var initializedPhases []func() // Cleanup functions for successful phases
 
@@ -63,8 +61,7 @@ func initializeApp(app *App) (*App, error) {
 		failureErr           error
 	)
 
-	// Cleanup function that runs on failure to prevent resource leaks
-
+	// On failure, run the completed phases' cleanups to avoid leaking them.
 	defer func() {
 		if initializationFailed {
 			app.logger.Error("Initialization failed, cleaning up partially allocated resources",

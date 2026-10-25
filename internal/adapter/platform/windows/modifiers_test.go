@@ -85,7 +85,7 @@ func TestModifierKeysFrom_PlansAgainstTheLiveKeyboard(t *testing.T) {
 }
 
 // TestNoteModifierReleased_RecordsOnlyWhileAHoldIsOpen pins the window a
-// physical release is remembered in: a key-up the hook sees between a hold's
+// physical release is remembered in. A key-up the hook sees between a hold's
 // open and its release is what keeps that key from being pressed back, and
 // one seen outside a hold means nothing.
 func TestNoteModifierReleased_RecordsOnlyWhileAHoldIsOpen(t *testing.T) {

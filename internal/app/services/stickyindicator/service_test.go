@@ -37,7 +37,7 @@ func TestService_UpdateIndicatorPositionForwardsSymbols(t *testing.T) {
 }
 
 // TestService_ShowHideDriveTheStickyIndicator pins which indicator this
-// service owns. Hiding it is one call: the backend owns whatever erasing the
+// service owns. Hiding it is one call. The backend owns whatever erasing the
 // symbols costs, which is what used to be a draw-with-no-symbols in mode
 // logic.
 func TestService_ShowHideDriveTheStickyIndicator(t *testing.T) {

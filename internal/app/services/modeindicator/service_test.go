@@ -25,7 +25,7 @@ func TestService_UpdateIndicatorPositionForwardsToOverlay(t *testing.T) {
 }
 
 // TestService_ShowHideDriveTheModeIndicator pins which indicator this service
-// owns: showing and hiding it must never reach another one.
+// owns. Showing and hiding it must never reach another one.
 func TestService_ShowHideDriveTheModeIndicator(t *testing.T) {
 	t.Parallel()
 
@@ -46,7 +46,7 @@ func TestService_ShowHideDriveTheModeIndicator(t *testing.T) {
 }
 
 // TestService_WithoutOverlayDrawsNothing pins that a service built for an
-// indicator that was never constructed is silent rather than a panic: mode
+// indicator that was never constructed is silent rather than a panic. Mode
 // logic calls it unconditionally.
 func TestService_WithoutOverlayDrawsNothing(t *testing.T) {
 	t.Parallel()

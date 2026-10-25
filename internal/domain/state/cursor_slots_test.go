@@ -115,7 +115,7 @@ func TestCursorSlots_Snapshot(t *testing.T) {
 		t.Fatalf("Snapshot() = %v, want one entry for a", snapshot)
 	}
 
-	// The snapshot is a copy: mutating it must not reach the store.
+	// The snapshot is a copy, so mutating it must not reach the store.
 	delete(snapshot, "a")
 
 	if _, ok := slots.Take("a"); !ok {

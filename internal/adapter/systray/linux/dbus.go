@@ -17,10 +17,10 @@ import (
 // interfaces so the Linux daemon exports a real tray icon and menu on the
 // session bus (consumed by KDE/GNOME/Cinnamon SNI hosts). Hand-rolled over
 // godbus to avoid pulling in a GTK build dependency for Linux CI.
-// Does not implement the darwin/Windows tray; those have their own backends.
+// The darwin and Windows trays have their own backends.
 //
 // Sentinel errors for the D-Bus property interfaces. Static errors satisfy
-// err113; godbus wraps them into D-Bus error replies on the wire.
+// err113, and godbus wraps them into D-Bus error replies on the wire.
 var (
 	errUnknownInterface = errors.New("unknown interface")
 	errUnknownProperty  = errors.New("unknown property")
@@ -59,7 +59,7 @@ type toolTip struct {
 
 // sniServer implements org.kde.StatusNotifierItem on the tray object path. The
 // host reads item state through the org.freedesktop.DBus.Properties Get/GetAll
-// methods; Activate/SecondaryActivate are no-ops because the menu is served via
+// methods. Activate/SecondaryActivate are no-ops because the menu is served via
 // the separate menu object (the host shows it on click).
 type sniServer struct {
 	mu sync.Mutex
@@ -159,7 +159,7 @@ type menuNode struct {
 // menuServer implements com.canonical.dbusmenu on the menu object path. The
 // tray host calls GetLayout to fetch the whole tree, Event to deliver clicks,
 // and AboutToShow before opening a submenu. We serve the tree from the shared
-// menuItems map maintained by the package API in systray_linux.go.
+// menuItems map maintained by the package API in systray.go.
 type menuServer struct {
 	mu       sync.Mutex
 	revision uint32
@@ -345,7 +345,7 @@ func sendClicked(item *MenuItem) bool {
 
 // buildMenuNodeLocked constructs a menuNode for the given parent id, recursing
 // up to recursionDepth (-1 means unlimited). propertyNames filters which
-// properties are returned; an empty list means all. The caller must hold
+// properties are returned, and an empty list means all. The caller must hold
 // menuItemsLock (read) so the recursion does not re-lock.
 func buildMenuNodeLocked(parentID, recursionDepth int, propertyNames []string) menuNode {
 	node := menuNode{

@@ -16,10 +16,10 @@ import (
 )
 
 // Components are the render components a manager draws through. A nil entry is
-// an overlay this manager will not draw — disabled in configuration, or a
-// backend with no surface to build it on.
+// an overlay this manager will not draw, because it is disabled in
+// configuration or the backend has no surface to build it on.
 //
-// The manager owns them; it hands the set back so the few app-layer call sites
+// The manager owns them. It hands the set back so the few app-layer call sites
 // that still talk to a render component directly have something to hold. Those
 // go away as the frame port lands (#1210, #1211), and this type with them.
 type Components struct {
@@ -54,12 +54,12 @@ type ComponentSpec struct {
 // BuildComponents constructs the render components from spec and keeps them.
 //
 // A component whose constructor fails is logged and left nil rather than
-// failing the build: the mode it belongs to loses its overlay, and the rest of
-// the session still starts. The virtual pointer is the exception — it is the
+// failing the build. The mode it belongs to loses its overlay, and the rest of
+// the session still starts. The virtual pointer is the exception. It is the
 // one component whose absence the app treated as a startup failure, and the
 // numbered startup phases still unwind on that.
 func (b *Base) BuildComponents(spec ComponentSpec) (Components, error) {
-	// Nil-guarded for the same reason the backend delegates are: a backend
+	// Nil-guarded for the same reason the backend delegates are. A backend
 	// with no display server is handed out as a typed nil, and Base sits at
 	// its offset zero, so this receiver is the nil that arrives.
 	if b == nil {
@@ -84,7 +84,7 @@ func (b *Base) BuildComponents(spec ComponentSpec) (Components, error) {
 
 	built := Components{
 		// The grid and recursive-grid overlays are built even when their mode
-		// is disabled: enabling one through a config reload must not need a
+		// is disabled. Enabling one through a config reload must not need a
 		// restart to get an overlay.
 		Grid:          grid.NewOverlayWithWindow(cfg.Grid, logger, spec.Window),
 		RecursiveGrid: recursivegrid.NewOverlayWithWindow(cfg.RecursiveGrid, logger, spec.Window),
@@ -125,7 +125,7 @@ func (b *Base) BuildComponents(spec ComponentSpec) (Components, error) {
 
 	pointer, err := virtualpointer.NewOverlay(cfg.VirtualPointer, spec.Theme, logger)
 	if err != nil {
-		// Keep what was built before handing back the failure: the indicators
+		// Keep what was built before handing back the failure. The indicators
 		// own native windows, and Destroy only reaches the components the
 		// manager was given, so a caller that tears the manager down after
 		// this releases them. The caller still gets nothing back, because a
@@ -147,10 +147,10 @@ func (b *Base) BuildComponents(spec ComponentSpec) (Components, error) {
 }
 
 // useComponents stores the built set, keeping the registry writes in one
-// place. A backend that adds behavior to a registration — darwin hands the
-// virtual pointer the current screen-share visibility — applies it in its own
-// BuildComponents: an embedded Base cannot call back into the type embedding
-// it, so overriding a setter would not be seen from here.
+// place. A backend that adds behavior to a registration, as darwin does by
+// handing the virtual pointer the current screen-share visibility, applies it
+// in its own BuildComponents. An embedded Base cannot call back into the type
+// embedding it, so overriding a setter would not be seen from here.
 func (b *Base) useComponents(built Components) {
 	b.UseHintOverlay(built.Hints)
 	b.UseGridOverlay(built.Grid)
@@ -163,11 +163,11 @@ func (b *Base) useComponents(built Components) {
 
 // ConfigureComponents hands a new configuration to the render components, so
 // the native caches they keep are rebuilt against it on the next draw. pointer
-// is the resolved appearance of the virtual pointer; it arrives already themed
+// is the resolved appearance of the virtual pointer. It arrives already themed
 // and with its font family, char and font size already settled, because the
 // overlay resolves Style in one place and this is not it.
 //
-// A disabled overlay is left alone: nothing draws it, so reconfiguring it would
+// A disabled overlay is left alone. Nothing draws it, so reconfiguring it would
 // only invalidate caches nobody reads. The grid overlays are built even when
 // their mode is disabled, so they are the ones that actually sit in that state.
 func (b *Base) ConfigureComponents(cfg *config.Config, pointer PointerAppearance) {
@@ -178,10 +178,10 @@ func (b *Base) ConfigureComponents(cfg *config.Config, pointer PointerAppearance
 	}
 
 	// The pointer's configuration reaches its components with the settled
-	// values in place of the written ones: a component draws what it is handed,
+	// values in place of the written ones. A component draws what it is handed,
 	// and only this notification knows what an alias, an empty char or a zero
 	// font size settled to. Substituting here rather than in each component
-	// keeps the defaulting in one place — the style resolver — instead of three
+	// keeps the defaulting in one place, the style resolver, instead of three
 	// copies on the Objective-C boundary (#1305, #1337).
 	pointerCfg := cfg.VirtualPointer
 	pointerCfg.UI.FontFamily = pointer.FontFamily

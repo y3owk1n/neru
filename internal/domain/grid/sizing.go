@@ -114,7 +114,6 @@ func calculateOptimalCellSizes(width, height int, scale float64) (int, int) {
 
 	var minCellSize, maxCellSize int
 
-	// Calculate optimal cell size ranges based on screen size and pixel density
 	switch {
 	case screenArea < SmallScreenArea:
 		minCellSize = 30
@@ -179,24 +178,21 @@ func selectBestCandidate(
 // findValidGridConfigurations searches through all valid grid configurations.
 // Evaluates combinations of columns and rows within cell size constraints,
 // calculating aspect ratio scores to find grids that produce square-like cells.
-// Returns candidates sorted by score (lower is better).
+// Returns candidates in no particular order. A lower score is better.
 func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []Candidate {
 	var (
 		candidates []Candidate
 		mutex      sync.Mutex
 	)
 
-	// Calculate search ranges
 	minCols := max(width/maxCellSize, 1)
 	maxCols := max(width/minCellSize, 1)
 
 	minRows := max(height/maxCellSize, 1)
 	maxRows := max(height/minCellSize, 1)
 
-	// Use WaitGroup for parallel computation
 	var waitGroup sync.WaitGroup
 
-	// Search through all valid grid configurations within constraints
 	for colIndex := maxCols; colIndex >= minCols && colIndex >= 1; colIndex-- {
 		waitGroup.Add(1)
 

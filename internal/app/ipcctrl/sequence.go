@@ -40,7 +40,7 @@ const stopOnErrorFlag = "--stop-on-error"
 // SequenceHandler handles the "run" command, which executes an action
 // sequence on behalf of an external caller.
 //
-// Sequencing already backs every hotkey binding; this exposes the same
+// Sequencing already backs every hotkey binding. This exposes the same
 // executor over IPC so that external drivers (skhd, Hammerspoon, shell
 // scripts) can compose steps in one call instead of paying a process spawn
 // per step and losing bail handling in between.
@@ -51,7 +51,7 @@ type SequenceHandler struct {
 }
 
 // NewSequenceHandler creates a new sequence command handler. A nil runner
-// is valid: the corresponding command then reports that it is unavailable,
+// is valid. The corresponding command then reports that it is unavailable,
 // matching how the other handlers treat a missing dependency.
 func NewSequenceHandler(
 	run sequenceRunner,
@@ -98,7 +98,7 @@ func (h *SequenceHandler) handleMacro(ctx context.Context, cmd ipc.Command) ipc.
 	}
 
 	// Only the name is trimmed. The arguments are the macro's data rather than
-	// steps, so they are passed on exactly as given: trimming them would
+	// steps, so they are passed on exactly as given. Trimming them would
 	// silently rewrite an argument whose padding matters, and dropping the
 	// blank ones would shift every later argument onto the wrong placeholder.
 	name, macroArgs := strings.TrimSpace(cmd.Args[0]), cmd.Args[1:]
@@ -123,7 +123,7 @@ func (h *SequenceHandler) handleMacro(ctx context.Context, cmd ipc.Command) ipc.
 
 // macroFailureCode maps a macro failure onto the IPC code that describes it.
 //
-// The distinctions matter to a caller: a bail is a canceled mode rather than a
+// The distinctions matter to a caller. A bail is a canceled mode rather than a
 // fault, and an invalid call (no such macro, wrong number of arguments) is
 // worth telling apart from a step that ran and failed.
 func macroFailureCode(err error) string {
@@ -165,7 +165,7 @@ func (h *SequenceHandler) handleRun(ctx context.Context, cmd ipc.Command) ipc.Re
 	switch {
 	case outcome.FailedIndex == 0 && outcome.Err != nil:
 		// The sequence was refused before any step ran, so there is no step to
-		// name — nesting too deeply is the only way to get here today.
+		// name. Nesting too deeply is the only way to get here today.
 		return ipc.Response{
 			Success: false,
 			Message: "sequence did not run: " + outcome.Err.Error(),
@@ -183,7 +183,7 @@ func (h *SequenceHandler) handleRun(ctx context.Context, cmd ipc.Command) ipc.Re
 			Code: ipc.CodeChainBail,
 		}
 	case outcome.Stopped:
-		// Distinct from the case below: the steps after this one did not run,
+		// Distinct from the case below, because the steps after this one did not run,
 		// which a caller deciding what to clean up needs to know.
 		return ipc.Response{
 			Success: false,

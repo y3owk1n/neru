@@ -16,9 +16,9 @@ var guardrailFileMention = regexp.MustCompile(`[a-z0-9_]+_test\.go`)
 
 // TestDocInventory_ListsEveryGuardrailFile keeps the inventory in doc.go honest.
 //
-// The package comment is the map of this suite: it is how a contributor asked
+// The package comment is the map of this suite. It is how a contributor asked
 // to "add a guardrail" finds whether one already exists, and how a reviewer
-// judges whether a rule has a home. Written by hand it drifted — it claimed
+// judges whether a rule has a home. Written by hand it drifted. It claimed
 // eight files when there were seventeen, so nine guardrails were invisible to
 // anyone who read the map instead of the directory (#1319).
 //
@@ -61,7 +61,7 @@ func TestDocInventory_ListsEveryGuardrailFile(t *testing.T) {
 }
 
 // guardrailFilesNamedInDoc returns the file names the package comment in
-// docPath mentions, sorted and deduplicated. Only the comment is read: a name
+// docPath mentions, sorted and deduplicated. Only the comment is read. A name
 // appearing in code would make the inventory look complete without saying
 // anything.
 func guardrailFilesNamedInDoc(t *testing.T, docPath string) []string {
@@ -83,8 +83,8 @@ func guardrailFilesNamedInDoc(t *testing.T, docPath string) []string {
 }
 
 // guardrailFilesOnDisk returns the _test.go file names in the package
-// directory, sorted. The directory is read directly rather than walked: the
-// package is one flat directory, and this is the list the walker's own callers
+// directory, sorted. The directory is read directly rather than walked, because
+// the package is one flat directory, and this is the list the walker's own callers
 // are checked against.
 func guardrailFilesOnDisk(t *testing.T, packagePath string) []string {
 	t.Helper()

@@ -135,7 +135,7 @@ func TestPlatformFor_UnknownGOOSHasNoColumn(t *testing.T) {
 }
 
 // TestDeclaration_Lookup_SeparatesAValueFromItsWord pins the reason Value is
-// part of a word's identity: `hints.strategy` is recognized on every platform
+// part of a word's identity. `hints.strategy` is recognized on every platform
 // and `hints.strategy = vision` is not, so a lookup that ignored the value
 // would answer one question with the other's column.
 func TestDeclaration_Lookup_SeparatesAValueFromItsWord(t *testing.T) {

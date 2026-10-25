@@ -16,7 +16,7 @@ import (
 // matching a report to the line in their file is what the names are for.
 //
 // Both tiers of a report about an application's list carry the index, the way
-// every other app_configs diagnostic names one (validators_appconfig.go): a
+// every other app_configs diagnostic names one (validators_appconfig.go). A
 // file with several overrides otherwise reports every one of them under the
 // same name and leaves the user to find which.
 const (
@@ -27,7 +27,7 @@ const (
 // validateClickableRoles rejects role entries that name neither a semantic role
 // nor a native role in a known vocabulary. Entries that are well-formed but do
 // not apply to this machine are not refused here, so one config can serve
-// several: those go to [Config.warnUnresolvableClickableRoles] or, for a native
+// several. Those go to [Config.warnUnresolvableClickableRoles] or, for a native
 // entry addressed to another platform, to `neru roles` / `neru doctor`.
 func validateClickableRoles(field string, roles []string) error {
 	resolution := element.ResolveRolesForCurrentPlatform(roles)
@@ -50,31 +50,31 @@ func validateClickableRoles(field string, roles []string) error {
 // validate` stops calling a configuration valid when part of it draws no hints
 // at all (ADR 0002's tier, ADR 0008).
 //
-// Such an entry is not refused — a list written on a Mac and carried to a
+// Such an entry is not refused. A list written on a Mac and carried to a
 // Windows machine is the shape the semantic vocabulary exists to allow, and
 // refusing it would replace the user's whole configuration with the defaults
 // over a line that costs them one role. Entries addressed to another platform's
-// vocabulary ("atspi:push button" on macOS) stay silent for the same reason:
-// those are the other machine's lines and are expected to be there.
+// vocabulary ("atspi:push button" on macOS) stay silent for the same reason,
+// since those are the other machine's lines and are expected to be there.
 //
 // The shipped list is exempt, and that gate is the point of this pass rather
 // than a detail of it. hints.clickable_roles ships one list for every platform
 // and several of its roles have no Linux or Windows counterpart, so reporting
 // them would greet every user of two platforms with a complaint about a file
 // they never wrote. A list that differs from the shipped one, on the other
-// hand, is a list the user wrote out in full — the option replaces rather than
-// merges — so every entry in it is a line they can go and edit.
+// hand, is a list the user wrote out in full, because the option replaces
+// rather than merges. Every entry in it is a line they can go and edit.
 //
 // The blind spot the gate buys is a user who types the shipped list out
 // verbatim and is told nothing. That is the same trade #1281 named for the
-// derived grid labels: comparing against what the default would be is right for
+// derived grid labels. Comparing against what the default would be is right for
 // the common case and knowingly wrong for the one person who wrote it by hand.
-// Unlike the labels there is no written configuration to ask instead — the
-// option's default is a list, not the blank that means "infer" — so the
+// Unlike the labels there is no written configuration to ask instead, because
+// the option's default is a list, not the blank that means "infer". The
 // comparison is the answer rather than a fallback.
 //
 // An application's extra roles are never shipped, so there is nothing to
-// compare a list of those against: every entry in one is the user's own.
+// compare a list of those against, and every entry in one is the user's own.
 func (c *Config) warnUnresolvableClickableRoles(warnings *Warnings, goos string) {
 	if !clickableRolesAreShipped(c.Hints.ClickableRoles) {
 		warnUnresolvableRoles(warnings, fieldClickableRoles, c.Hints.ClickableRoles, goos)
@@ -111,12 +111,12 @@ func warnUnresolvableRoles(warnings *Warnings, field string, roles []string, goo
 
 // ValidateHints checks the hints configuration, reporting the first problem it
 // finds and collecting, into warnings, the parts of it that load and will draw
-// no hints. A nil sink discards them; see [Warnings].
+// no hints. A nil sink discards them. See [Warnings].
 //
 // The order the checks run in is the order a user sees their mistakes, so it is
 // listed here rather than left implicit in one long body. It is also why the
 // search-input checks come in two parts with the boundary-highlight checks
-// between them: that is where they have always run, and moving them would change
+// between them. That is where they have always run, and moving them would change
 // which problem a config with several is told about first.
 func (c *Config) ValidateHints(warnings *Warnings) error {
 	checks := []func() error{
@@ -147,7 +147,7 @@ func (c *Config) ValidateHints(warnings *Warnings) error {
 // validateHintClickableRoles checks the roles hints are drawn for, including the
 // extra roles an individual application adds.
 //
-// The refusals run first and to the end: an entry naming no role at all is the
+// The refusals run first and to the end. An entry naming no role at all is the
 // whole file's problem, and a configuration that is going to be replaced by the
 // defaults has nothing to be advised about.
 func (c *Config) validateHintClickableRoles(warnings *Warnings) error {
@@ -363,8 +363,8 @@ func (c *Config) validateHintBoundaryHighlight() error {
 
 // validateHintSearchInputPlacement checks where the search input sits and how
 // wide it is. Both the accepted set and the error message read
-// SearchInputPositions(), so a position added there is accepted here — and
-// named in the message — without this function being touched.
+// SearchInputPositions(), so a position added there is accepted here, and
+// named in the message, without this function being touched.
 func (c *Config) validateHintSearchInputPlacement() error {
 	positions := SearchInputPositions()
 	if !slices.Contains(positions, c.Hints.SearchInputUI.Position) {
@@ -604,7 +604,7 @@ func validateHintsContourConfig(contour HintsContourConfig) error {
 		)
 	}
 
-	// Sobel |gx|+|gy| peaks at 6*255 on a 0..255 frame: the two kernels
+	// Sobel |gx|+|gy| peaks at 6*255 on a 0..255 frame. The two kernels
 	// share three positive and three negative taps, each weighted twice.
 	const maxGradient = 255 * 6
 

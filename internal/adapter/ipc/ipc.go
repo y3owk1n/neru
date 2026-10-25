@@ -42,8 +42,8 @@ const (
 	listenerCloseTimeout = 2 * time.Second
 
 	// MaxCommandBytes bounds one command. A command is a verb, a small
-	// parameter map and its arguments; the largest realistic one — a config
-	// value or a sequence definition traveling in Args — is orders of
+	// parameter map and its arguments. The largest realistic one, a config
+	// value or a sequence definition traveling in Args, is orders of
 	// magnitude below this. The cap exists so a peer cannot make the daemon
 	// buffer without limit, not to police command shape, which
 	// DisallowUnknownFields already does.
@@ -149,10 +149,11 @@ type CommandHandler func(ctx context.Context, cmd Command) Response
 // a client should use.
 //
 // It is the endpoint the daemon listens on in every ordinary case. Where the
-// transport can tell that a live daemon answers somewhere else — an endpoint
-// left by a daemon started before this version, or one in a runtime directory
-// this process's environment does not name — it returns that instead, so a CLI
-// reaches the daemon that is actually running rather than reporting none.
+// transport can tell that a live daemon answers somewhere else, it returns that
+// instead. That covers an endpoint left by a daemon started before this
+// version, or one in a runtime directory this process's environment does not
+// name. A CLI then reaches the daemon that is actually running rather than
+// reporting none.
 func SocketPath() string {
 	return ipcendpoint.ClientPath()
 }
@@ -162,7 +163,7 @@ func SocketPath() string {
 // refusal it is rather than as the truncated JSON it looks like.
 var errCommandTooLarge = errors.New("command exceeds the maximum size")
 
-// boundedReader is io.LimitReader with a distinguishable ending: hitting the
+// boundedReader is io.LimitReader with a distinguishable ending. Hitting the
 // limit is an error rather than a clean EOF.
 type boundedReader struct {
 	reader    io.Reader
@@ -220,7 +221,6 @@ func (s *Server) Start() {
 		for {
 			connection, connectionErr := s.listener.Accept()
 			if connectionErr != nil {
-				// If listener is closed, exit gracefully
 				if errors.Is(connectionErr, net.ErrClosed) {
 					s.logger.Debug("IPC server listener closed, stopping accept loop")
 
@@ -277,12 +277,12 @@ func (s *Server) Stop() error {
 }
 
 // closeListener closes the listener, giving up if the close never returns.
-// The Windows named-pipe listener can hang: an aborting accept can consume the
+// The Windows named-pipe listener can hang. An aborting accept can consume the
 // single close signal, and if the client had already disconnected the listener
 // retries and waits for a second signal nobody sends. Every `neru status`
 // probe connects-and-drops, so a shutdown racing one reaches this. Abandoning
-// costs a goroutine the exiting process reclaims anyway; waiting costs the
-// exit itself.
+// costs a goroutine the exiting process reclaims anyway, while waiting costs
+// the exit itself.
 func (s *Server) closeListener() error {
 	if s.listener == nil {
 		return nil
@@ -313,7 +313,6 @@ func (s *Server) handleConnection(connection net.Conn) {
 	traceID := NewTraceID()
 	logger := s.logger.With(zap.String("trace_id", traceID.String()))
 
-	// Create context with trace ID
 	ctx := WithTraceID(context.Background(), traceID)
 
 	defer func() {
@@ -328,7 +327,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 	}()
 
 	// Who is on the other end is settled before anything they sent is read.
-	// A connection that fails this gets no reply at all: there is nothing
+	// A connection that fails this gets no reply at all. There is nothing
 	// useful to tell a caller that should not have reached the daemon, and a
 	// reply would confirm the endpoint to whoever found it.
 	authErr := authorizePeer(connection)
@@ -338,7 +337,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 		return
 	}
 
-	// Only the read side is bounded here: this guards a client that connects
+	// Only the read side is bounded here. This guards a client that connects
 	// and never sends a command. The write side gets its own deadline once the
 	// handler has finished, in writeResponse.
 	deadlineErr := connection.SetReadDeadline(time.Now().Add(ConnectionReadTimeout))
@@ -355,7 +354,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 
 	// reply sends one response and reports the outcome. A client that has
 	// already gone away is the expected end of a command that outlived its
-	// caller's patience, so it is logged quietly; anything else is a fault.
+	// caller's patience, so it is logged quietly. Anything else is a fault.
 	reply := func(response Response) {
 		writeErr := writeResponse(connection, encoder, response)
 		switch {
@@ -406,7 +405,6 @@ func (s *Server) handleConnection(connection net.Conn) {
 		return
 	}
 
-	// Validate build version if provided
 	serverVersion := BuildVersion()
 	if cmd.Version != "" && cmd.Version != serverVersion {
 		logger.Debug("Build version mismatch",
@@ -434,7 +432,6 @@ func (s *Server) handleConnection(connection net.Conn) {
 	}
 
 	response := s.handler(ctx, cmd)
-	// Always include server version in response
 	response.Version = serverVersion
 
 	reply(response)
@@ -471,9 +468,9 @@ func protocolRefusal(protocol int) *Response {
 //
 // The deadline set when the connection was accepted budgets the whole exchange,
 // including however long the handler ran. Handlers are allowed to take longer
-// than that — an action sequence can sleep, or wait for the user to finish a
-// mode — so the reply is given its own window here. Without it, a slow but
-// perfectly successful command would have its reply refused before it was even
+// than that, because an action sequence can sleep or wait for the user to
+// finish a mode. The reply therefore gets its own window here. Without it, a
+// slow but successful command would have its reply refused before it was even
 // attempted, and the caller would see a timeout for work that did happen.
 func writeResponse(connection net.Conn, encoder *json.Encoder, response Response) error {
 	response.Protocol = ProtocolVersion
@@ -520,7 +517,6 @@ func (c *Client) Send(cmd Command) (Response, error) {
 
 // SendWithTimeout transmits a command to the IPC server with a specified timeout.
 func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, error) {
-	// Create a dialer with timeout
 	dialer := net.Dialer{
 		Timeout: ConnectionTimeout,
 	}
@@ -642,8 +638,8 @@ func connectFailureMessage() string {
 }
 
 // IsServerRunning determines if the IPC server is currently accepting connections.
-// It returns true even when the daemon has a different build version — the
-// version mismatch error will surface when the actual command is sent.
+// It returns true even when the daemon has a different build version. The
+// version mismatch error surfaces when the actual command is sent.
 func IsServerRunning() bool {
 	client := NewClient()
 

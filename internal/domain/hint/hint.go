@@ -135,7 +135,6 @@ func NewTrie() *Trie {
 	return &Trie{
 		root: &TrieNode{
 			otherChildren: make(map[rune]*TrieNode),
-			hints:         nil, // Use nil instead of empty slice
 		},
 	}
 }
@@ -151,7 +150,6 @@ func (t *Trie) Insert(hint *Interface) {
 			if node.asciiChildren[index] == nil {
 				node.asciiChildren[index] = &TrieNode{
 					otherChildren: make(map[rune]*TrieNode),
-					hints:         nil,
 				}
 			}
 
@@ -160,7 +158,6 @@ func (t *Trie) Insert(hint *Interface) {
 			if node.otherChildren[char] == nil {
 				node.otherChildren[char] = &TrieNode{
 					otherChildren: make(map[rune]*TrieNode),
-					hints:         nil,
 				}
 			}
 
@@ -175,7 +172,7 @@ func (t *Trie) Insert(hint *Interface) {
 
 // FindByPrefix returns all hints that start with the given prefix.
 func (t *Trie) FindByPrefix(prefix string) []*Interface {
-	prefix = strings.ToUpper(prefix) // Normalize prefix to uppercase
+	prefix = strings.ToUpper(prefix)
 	node := t.root
 
 	// Traverse to the node corresponding to the prefix
