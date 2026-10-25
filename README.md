@@ -106,7 +106,7 @@ Everything is one TOML file. Apply edits with `neru config reload`, or change on
 click_and_exit = ["action left_click --bail-on-error", "idle"]
 
 [[hints.app_configs]]
-bundle_id = "com.brave.Browser"   # bundle ID on macOS, WM_CLASS or app_id on Linux, exe path on Windows
+bundle_id = "com.brave.Browser"   # bundle ID on macOS, WM_CLASS or app_id on Linux, full executable path on Windows
 hotkeys = { "Return" = "macro click_and_exit" }
 
 [modes.window]

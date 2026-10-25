@@ -2,7 +2,7 @@
 
 **Status**: accepted
 
-The seven `AGENTS.md` files carry 166 normative statements between them. Twenty-six
+The seven `AGENTS.md` files carry 142 normative statements between them. Twenty-six
 have a test in `internal/architecture` that fails when they are broken, seventy-nine
 more could have one and do not, and thirty-seven are judgement calls no test can reach.
 An architecture review proposed turning each stated contract into a guardrail test.
