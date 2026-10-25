@@ -123,6 +123,11 @@ var (
 	overlayWndProcPtr uintptr
 
 	overlayRegistry sync.Map
+
+	// afterBoundsSnapshot is nil outside tests. A test sets it to stop
+	// createHWNDLocked on the UI thread right after the bounds snapshot, so
+	// it can land a ResizeTo in that gap.
+	afterBoundsSnapshot func(*OverlayWindow)
 )
 
 type wndClassEx struct {
@@ -1022,6 +1027,10 @@ func (o *OverlayWindow) createHWNDLocked() error {
 	o.mu.Lock()
 	bounds := o.bounds
 	o.mu.Unlock()
+
+	if afterBoundsSnapshot != nil {
+		afterBoundsSnapshot(o)
+	}
 
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
 		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, bounds)

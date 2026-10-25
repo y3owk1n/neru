@@ -7,9 +7,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"unsafe"
-
-	"golang.org/x/sys/windows"
 
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 )
@@ -86,14 +83,12 @@ func TestOverlayRectDrawingIntegration(t *testing.T) {
 	_ = overlay.Flush()
 }
 
-var procGetWindowRect = windows.NewLazySystemDLL("user32.dll").NewProc("GetWindowRect")
-
-// TestOverlayWindow_Show_RecreateRacingResizeToEndsAtItsBounds recreates the
+// TestOverlayWindow_Show_RecreateDoesNotRaceCallerBoundsAccess recreates the
 // window on the overlay UI thread while another goroutine resizes, reads and
-// draws on it, as rebuildOnGDI does while the manager draws. -race reports
-// the unlocked accesses. The final check catches a ResizeTo that landed
-// while the UI thread built the window and never reached it.
-func TestOverlayWindow_Show_RecreateRacingResizeToEndsAtItsBounds(t *testing.T) {
+// draws on it, as rebuildOnGDI does while the manager draws. Only -race
+// reports a failure here. Whether a mid-create ResizeTo reaches the window
+// is pinned by TestOverlayWindow_Show_RecreateCatchesUpToAMidCreateResize.
+func TestOverlayWindow_Show_RecreateDoesNotRaceCallerBoundsAccess(t *testing.T) {
 	t.Parallel()
 
 	overlay, err := winplatform.NewOverlayWindowAt(0, 0, 64, 64)
@@ -107,10 +102,7 @@ func TestOverlayWindow_Show_RecreateRacingResizeToEndsAtItsBounds(t *testing.T) 
 
 	const iterations = 200
 
-	var (
-		waitGroup sync.WaitGroup
-		last      image.Rectangle
-	)
+	var waitGroup sync.WaitGroup
 
 	waitGroup.Go(func() {
 		for range iterations {
@@ -122,29 +114,11 @@ func TestOverlayWindow_Show_RecreateRacingResizeToEndsAtItsBounds(t *testing.T) 
 	waitGroup.Go(func() {
 		for i := range iterations {
 			size := 32 + i%32
-			last = image.Rect(i%16, i%16, i%16+size, i%16+size)
-			_ = overlay.ResizeTo(last.Min.X, last.Min.Y, size, size)
+			_ = overlay.ResizeTo(i%16, i%16, size, size)
 			_ = overlay.Bounds()
 			overlay.FillRect(image.Rect(0, 0, size, size), 0x8000FF00)
 		}
 	})
 
 	waitGroup.Wait()
-
-	hwnd := overlay.HWND()
-	if hwnd == 0 {
-		t.Fatal("overlay has no window after the last Show")
-	}
-
-	var rect windows.Rect
-
-	ret, _, callErr := procGetWindowRect.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&rect)))
-	if ret == 0 {
-		t.Fatalf("GetWindowRect: %v", callErr)
-	}
-
-	got := image.Rect(int(rect.Left), int(rect.Top), int(rect.Right), int(rect.Bottom))
-	if got != last {
-		t.Fatalf("window rect = %v, want the last ResizeTo %v", got, last)
-	}
 }
