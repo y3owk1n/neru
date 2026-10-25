@@ -887,7 +887,13 @@ func iconFromPNG(data []byte) uintptr {
 		0,
 		0,
 	)
-	if hbmColor == 0 || bits == nil {
+	if hbmColor == 0 {
+		return 0
+	}
+
+	if bits == nil {
+		discardCall(procDeleteObject.Call(hbmColor))
+
 		return 0
 	}
 
