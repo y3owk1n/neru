@@ -496,12 +496,14 @@ func isPeerGoneErr(err error) bool {
 // Client provides an interface for sending commands to the IPC server.
 type Client struct {
 	socketPath string
+	dial       func(ctx context.Context, dialer net.Dialer, path string) (net.Conn, error)
 }
 
 // NewClient creates a new IPC client instance.
 func NewClient() *Client {
 	return &Client{
 		socketPath: SocketPath(),
+		dial:       ipcendpoint.Dial,
 	}
 }
 
@@ -524,7 +526,7 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	connection, connectionErr := ipcendpoint.Dial(ctx, dialer, c.socketPath)
+	connection, connectionErr := c.dial(ctx, dialer, c.socketPath)
 	if connectionErr != nil {
 		if derrors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return Response{}, derrors.New(
@@ -540,19 +542,34 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 		)
 	}
 
-	var closeErr error
+	response, exchangeErr := exchange(ctx, connection, cmd, timeout)
 
-	defer func() {
-		connectionCloseErr := connection.Close()
-		if connectionCloseErr != nil && closeErr == nil {
-			closeErr = derrors.Wrap(
-				connectionCloseErr,
-				derrors.CodeIPCFailed,
-				"failed to close connection",
-			)
-		}
-	}()
+	// A close that fails after a good reply still fails the call, since the
+	// caller has no other way to hear about it.
+	connectionCloseErr := connection.Close()
 
+	if exchangeErr != nil {
+		return Response{}, exchangeErr
+	}
+
+	if connectionCloseErr != nil {
+		return response, derrors.Wrap(
+			connectionCloseErr,
+			derrors.CodeIPCFailed,
+			"failed to close connection",
+		)
+	}
+
+	return response, nil
+}
+
+// exchange sends cmd over connection and reads the daemon's reply.
+func exchange(
+	ctx context.Context,
+	connection net.Conn,
+	cmd Command,
+	timeout time.Duration,
+) (Response, error) {
 	connectionDeadlineErr := connection.SetDeadline(time.Now().Add(timeout))
 	if connectionDeadlineErr != nil {
 		return Response{}, derrors.Wrap(
@@ -578,18 +595,7 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 			)
 		}
 
-		var wrapped error = derrors.Wrap(encodeErr, derrors.CodeIPCFailed, "failed to send command")
-		if closeErr != nil {
-			wrapped = derrors.Wrapf(
-				wrapped,
-				derrors.CodeIPCFailed,
-				"%v (close error: %s)",
-				wrapped,
-				closeErr.Error(),
-			)
-		}
-
-		return Response{}, wrapped
+		return Response{}, derrors.Wrap(encodeErr, derrors.CodeIPCFailed, "failed to send command")
 	}
 
 	var response Response
@@ -603,22 +609,11 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 			)
 		}
 
-		var wrapped error = derrors.Wrap(decodeErr, derrors.CodeIPCFailed, "failed to receive response")
-		if closeErr != nil {
-			wrapped = derrors.Wrapf(
-				wrapped,
-				derrors.CodeIPCFailed,
-				"%v (close error: %s)",
-				wrapped,
-				closeErr.Error(),
-			)
-		}
-
-		return Response{}, wrapped
-	}
-
-	if closeErr != nil {
-		return response, closeErr
+		return Response{}, derrors.Wrap(
+			decodeErr,
+			derrors.CodeIPCFailed,
+			"failed to receive response",
+		)
 	}
 
 	return response, nil

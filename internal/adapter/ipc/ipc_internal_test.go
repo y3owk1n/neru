@@ -1,6 +1,7 @@
 package ipc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -160,5 +161,87 @@ func TestWriteResponse_TimesOutWhenTheClientStopsReading(t *testing.T) {
 		}
 	case <-time.After(ConnectionWriteTimeout + 5*time.Second):
 		t.Fatal("writeResponse() never returned; the write deadline is not being applied")
+	}
+}
+
+// failingCloseConn is a connection whose Close reports an error. A test cannot
+// make a real socket's Close fail.
+type failingCloseConn struct {
+	net.Conn
+}
+
+var errCloseFailed = errors.New("close failed")
+
+func (c failingCloseConn) Close() error {
+	_ = c.Conn.Close()
+
+	return errCloseFailed
+}
+
+// A failed close must reach the caller. It must not replace the error that
+// already failed the exchange.
+func TestClient_SendWithTimeout_ReportsACloseError(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		reply        bool
+		wantClose    bool
+		wantResponse bool
+	}{
+		{
+			name:         "after the daemon replied",
+			reply:        true,
+			wantClose:    true,
+			wantResponse: true,
+		},
+		{
+			name:         "keeps the receive error when the daemon hung up",
+			reply:        false,
+			wantClose:    false,
+			wantResponse: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			daemon, conn := net.Pipe()
+			t.Cleanup(func() { _ = daemon.Close() })
+
+			go func() {
+				var cmd Command
+
+				decodeErr := json.NewDecoder(daemon).Decode(&cmd)
+				if decodeErr != nil || !testCase.reply {
+					_ = daemon.Close()
+
+					return
+				}
+
+				_ = json.NewEncoder(daemon).Encode(Response{Success: true, Code: CodeOK})
+			}()
+
+			client := &Client{
+				dial: func(context.Context, net.Dialer, string) (net.Conn, error) {
+					return failingCloseConn{Conn: conn}, nil
+				},
+			}
+
+			response, err := client.SendWithTimeout(Command{Action: "ping"}, 2*time.Second)
+			if err == nil {
+				t.Fatal("SendWithTimeout() error = nil, want the failure reported")
+			}
+
+			if got := errors.Is(err, errCloseFailed); got != testCase.wantClose {
+				t.Fatalf("errors.Is(err, errCloseFailed) = %v, want %v (err = %v)",
+					got, testCase.wantClose, err)
+			}
+
+			if response.Success != testCase.wantResponse {
+				t.Fatalf("response.Success = %v, want %v", response.Success, testCase.wantResponse)
+			}
+		})
 	}
 }
