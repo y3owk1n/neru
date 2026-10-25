@@ -75,6 +75,12 @@ func TestIPCController_HealthListsKeyboardLayouts(t *testing.T) {
 			healthy:   true,
 		},
 		{
+			name:      "a forced layout known missing with no keymap read",
+			requested: "Klingon",
+			unmatched: true,
+			want:      "not found: Klingon (layouts not read)",
+		},
+		{
 			name:      "a forced layout matched regardless of case",
 			layouts:   []string{layoutUS, layoutDvorak},
 			reference: layoutDvorak,

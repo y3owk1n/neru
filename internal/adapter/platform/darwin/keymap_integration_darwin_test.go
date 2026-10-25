@@ -152,10 +152,18 @@ func TestKeyboardLayouts_ListsTheEnabledLayoutsAndTheReference(t *testing.T) {
 // the main queue stalls. Resolving the layout calls TIS, which must run on the
 // main thread, so the apply waits in the queue and runs once the main thread
 // is free. The call returns true meanwhile, because a layout not yet applied
-// has not failed to resolve. An ID no layout has makes the apply visible on
-// any machine, since it flips the unmatched flag KeyboardLayouts reports.
+// has not failed to resolve. KeyboardLayouts reports the queued layout as not
+// unmatched too. The previous layout's outcome would fail doctor for a valid
+// replacement, and an outcome for the new one would mean TIS ran off the main
+// thread. An ID no layout has makes either mistake visible on any machine,
+// since it flips the unmatched flag KeyboardLayouts reports.
 func TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocked(t *testing.T) {
 	const missingLayout = "com.example.keylayout.NoSuchLayout"
+
+	_, enabledLayout, _ := darwin.KeyboardLayouts()
+	if enabledLayout == "" {
+		t.Fatal("KeyboardLayouts named no reference layout")
+	}
 
 	tests := []struct {
 		name  string
@@ -164,6 +172,7 @@ func TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocke
 	}{
 		{name: "missing layout after auto", prior: "", next: missingLayout},
 		{name: "auto after missing layout", prior: missingLayout, next: ""},
+		{name: "enabled layout after missing layout", prior: missingLayout, next: enabledLayout},
 	}
 
 	for _, test := range tests {
@@ -172,9 +181,8 @@ func TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocke
 
 			darwin.SetReferenceKeyboardLayout(test.prior)
 
-			_, _, priorUnmatched := darwin.KeyboardLayouts()
-			if priorUnmatched != (test.prior != "") {
-				t.Fatalf("unmatched is %v after setting %q", priorUnmatched, test.prior)
+			if _, _, unmatched := darwin.KeyboardLayouts(); unmatched != (test.prior == missingLayout) {
+				t.Fatalf("unmatched is %v after setting %q", unmatched, test.prior)
 			}
 
 			release := darwin.BlockMainQueueForTesting()
@@ -194,24 +202,99 @@ func TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocke
 				t.Fatalf("SetReferenceKeyboardLayout waited %v for the blocked main queue", elapsed)
 			}
 
-			if _, _, unmatched := darwin.KeyboardLayouts(); unmatched != priorUnmatched {
-				t.Fatal("layout was applied off the main thread while the main queue was blocked")
+			if _, _, unmatched := darwin.KeyboardLayouts(); unmatched {
+				t.Fatal("KeyboardLayouts reported a layout still queued as unmatched")
 			}
 
 			release()
 
+			// A read that lists layouts ran on the main queue after the apply
+			// queued before it, so its unmatched flag is the applied outcome.
 			deadline := time.Now().Add(5 * time.Second)
 			for {
-				if _, _, unmatched := darwin.KeyboardLayouts(); unmatched != priorUnmatched {
+				names, _, unmatched := darwin.KeyboardLayouts()
+				if len(names) != 0 {
+					if want := test.next == missingLayout; unmatched != want {
+						t.Fatalf(
+							"unmatched is %v after %q applied, want %v",
+							unmatched,
+							test.next,
+							want,
+						)
+					}
+
 					return
 				}
 
 				if time.Now().After(deadline) {
-					t.Fatal("queued layout was never applied after the main queue drained")
+					t.Fatal("KeyboardLayouts read nothing after the main queue was released")
 				}
 
 				time.Sleep(50 * time.Millisecond)
 			}
 		})
+	}
+}
+
+// TestKeyboardLayouts_ReadsNothingOffTheMainThreadWhenTheMainQueueIsBlocked
+// pins that a caller off the main thread never reads the layouts through TIS
+// itself, which must run on the main thread. neru doctor and the health check
+// call it from the IPC goroutine. While the main queue is blocked it returns no
+// names and no reference, which doctor shows as not read yet. The unmatched
+// flag is the one the resolver last recorded. Only a TIS call produces the
+// names, so an empty list shows none ran here. Once the test releases the
+// queue, KeyboardLayouts reads the layouts again.
+func TestKeyboardLayouts_ReadsNothingOffTheMainThreadWhenTheMainQueueIsBlocked(t *testing.T) {
+	_, _, wantUnmatched := darwin.KeyboardLayouts()
+
+	release := darwin.BlockMainQueueForTesting()
+	t.Cleanup(release)
+
+	type layouts struct {
+		names     []string
+		reference string
+		unmatched bool
+	}
+
+	result := make(chan layouts, 1)
+
+	go func() {
+		names, reference, unmatched := darwin.KeyboardLayouts()
+		result <- layouts{names: names, reference: reference, unmatched: unmatched}
+	}()
+
+	var blocked layouts
+
+	select {
+	case blocked = <-result:
+	case <-time.After(2 * time.Second):
+		t.Fatal("KeyboardLayouts waited for the blocked main queue")
+	}
+
+	if len(blocked.names) != 0 || blocked.reference != "" {
+		t.Fatalf(
+			"KeyboardLayouts read %v and %q off the main thread",
+			blocked.names,
+			blocked.reference,
+		)
+	}
+
+	if blocked.unmatched != wantUnmatched {
+		t.Fatalf(
+			"unmatched is %v while the main queue is blocked, want %v",
+			blocked.unmatched,
+			wantUnmatched,
+		)
+	}
+
+	release()
+
+	names, reference, _ := darwin.KeyboardLayouts()
+	if len(names) == 0 {
+		t.Fatal("KeyboardLayouts read nothing after the main queue was released")
+	}
+
+	if !slices.Contains(names, reference) {
+		t.Fatalf("reference layout %q is not among the enabled layouts %v", reference, names)
 	}
 }

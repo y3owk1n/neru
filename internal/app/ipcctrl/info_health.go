@@ -282,6 +282,12 @@ func capabilityStatusSupported(status string) bool {
 // layout kb_layout_to_use names, which is a typo neru doctor should catch.
 func keyboardLayoutsStatus(layouts ports.KeyboardLayouts, requested string) (string, bool) {
 	if len(layouts.Names) == 0 {
+		// The platform may know the layout is missing without listing any,
+		// as macOS does when its main thread is too busy to list them.
+		if requested != "" && layouts.Unmatched {
+			return "not found: " + requested + " (layouts not read)", false
+		}
+
 		// Doctor cannot check a forced layout here, so it does not call it ok.
 		// It does not fail on it either, because the keymap may still arrive.
 		if requested != "" {
