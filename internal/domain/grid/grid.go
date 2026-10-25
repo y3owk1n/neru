@@ -216,8 +216,8 @@ func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Log
 
 	// Clamp to a practical maximum to bound candidate-search work and prevent
 	// overflow in area computation. Real displays are well under this.
-	width = gridMin(width, MaxDisplayDimension)
-	height = gridMin(height, MaxDisplayDimension)
+	width = min(width, MaxDisplayDimension)
+	height = min(height, MaxDisplayDimension)
 
 	plan := planGridDimensions(
 		width,
@@ -392,13 +392,13 @@ func planGridDimensions(
 	candidates := findValidGridConfigurations(width, height, minCellSize, maxCellSize)
 	gridCols, gridRows := selectBestCandidate(candidates, width, height, minCellSize, maxCellSize)
 
-	gridCols = gridMax(gridCols, MinGridCols)
-	gridRows = gridMax(gridRows, MinGridRows)
+	gridCols = max(gridCols, MinGridCols)
+	gridRows = max(gridRows, MinGridRows)
 
 	// Dimensions are screen-derived (< 300), so this clamp only guards
 	// against allocation panics on absurd input.
-	gridCols = gridMin(gridCols, MaxGridCols)
-	gridRows = gridMin(gridRows, MaxGridRows)
+	gridCols = min(gridCols, MaxGridCols)
+	gridRows = min(gridRows, MaxGridRows)
 
 	totalCells := gridRows * gridCols
 	automaticLabelLength := calculateLabelLength(
@@ -407,7 +407,7 @@ func planGridDimensions(
 		numRowChars,
 		numColChars,
 	)
-	labelLength := gridMin(automaticLabelLength, maxLabelLength)
+	labelLength := min(automaticLabelLength, maxLabelLength)
 
 	if labelLength == LabelLength2 && labelLength < automaticLabelLength {
 		return planTwoKeyGrid(
@@ -437,11 +437,11 @@ func planGridDimensions(
 
 	// Cap the grid to what the alphabet can label.
 	if totalCells > maxPossibleCells {
-		gridCols = gridMax(
+		gridCols = max(
 			int(math.Sqrt(float64(maxPossibleCells)*float64(width)/float64(height))),
 			1,
 		)
-		gridRows = gridMax(maxPossibleCells/gridCols, 1)
+		gridRows = max(maxPossibleCells/gridCols, 1)
 	}
 
 	// Cells are emitted region by region and a clipped region forfeits its
@@ -478,7 +478,7 @@ func normalizeMaxLabelLength(maxLabelLength int) int {
 		return DefaultMaxLabelLength
 	}
 
-	return gridMin(gridMax(maxLabelLength, MinLabelLength), DefaultMaxLabelLength)
+	return min(max(maxLabelLength, MinLabelLength), DefaultMaxLabelLength)
 }
 
 // normalizeDisplayScale settles an unset or nonsensical scale to 1. Below 1
