@@ -533,10 +533,13 @@ func cleanupInfrastructure(app *App) {
 	// after the App is torn down.
 	app.unregisterLayoutChangeHandler()
 
-	if app.hotkeyManager != nil {
+	// initializeIPCController builds the binder in phase 7, so a startup that
+	// failed earlier has no hotkeys registered to release.
+	if app.hotkeys != nil {
 		app.hotkeys.Unregister()
-		app.hotkeyManager = nil
 	}
+
+	app.hotkeyManager = nil
 
 	if app.appWatcher != nil {
 		app.appWatcher.Stop()
