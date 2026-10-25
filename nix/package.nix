@@ -1,9 +1,9 @@
 {
-  autoPatchelfHook,
   fetchurl,
   gitUpdater,
   installShellFiles,
   makeWrapper,
+  patchelf,
   stdenv,
   versionCheckHook,
   lib,
@@ -70,6 +70,23 @@ if useZip then
       }
       .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
 
+    linuxLibs = [
+      cairo
+      libei
+      libxkbcommon
+      wayland
+      wayland-protocols
+      libx11
+      libxext
+      libxfixes
+      libxrandr
+      libxrender
+      libxtst
+      libxi
+      fontconfig
+      tesseract
+      pipewire
+    ];
   in
   stdenv.mkDerivation {
     pname = "neru";
@@ -90,27 +107,11 @@ if useZip then
       unzip
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
-      autoPatchelfHook
+      patchelf
       makeWrapper
     ];
 
-    buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
-      cairo
-      libei
-      libxkbcommon
-      wayland
-      wayland-protocols
-      libx11
-      libxext
-      libxfixes
-      libxrandr
-      libxrender
-      libxtst
-      libxi
-      fontconfig
-      tesseract
-      pipewire
-    ];
+    buildInputs = lib.optionals stdenv.hostPlatform.isLinux linuxLibs;
 
     installPhase = ''
       runHook preInstall
@@ -127,6 +128,14 @@ if useZip then
           ''
             mkdir -p $out/bin
             mv bin/neru $out/bin/neru
+
+            # autoPatchelfHook sets the interpreter before the rpath. With
+            # patchelf 0.19.2 that order leaves .dynamic in a read-only
+            # segment, and the loader segfaults before neru runs. See
+            # NixOS/patchelf#674. Setting the rpath first, in a separate call,
+            # avoids the bug.
+            patchelf --set-rpath ${lib.makeLibraryPath linuxLibs} $out/bin/neru
+            patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" $out/bin/neru
             mkdir -p $out/share/man/man1
             mv share/man/man1/*.1 $out/share/man/man1/
           ''
