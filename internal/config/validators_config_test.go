@@ -90,6 +90,12 @@ func TestConfigValidateHotkeys_PrefixConflictInEveryTable(t *testing.T) {
 	appConfigs := func() []config.AppConfig {
 		return []config.AppConfig{{BundleID: TestBundleIDSafari, Hotkeys: conflict()}}
 	}
+	appOverride := func(key string) []config.AppConfig {
+		return []config.AppConfig{{
+			BundleID: TestBundleIDSafari,
+			Hotkeys:  map[string]config.StringOrStringArray{key: {config.CmdIdle}},
+		}}
+	}
 
 	tests := []struct {
 		name   string
@@ -105,6 +111,38 @@ func TestConfigValidateHotkeys_PrefixConflictInEveryTable(t *testing.T) {
 			name:   "recursive_grid app_configs",
 			field:  "recursive_grid.app_configs[0]",
 			mutate: func(cfg *config.Config) { cfg.RecursiveGrid.AppConfigs = appConfigs() },
+		},
+		{
+			name:  "grid base sequence and app single key",
+			field: "grid.hotkeys merged with grid.app_configs[0]",
+			mutate: func(cfg *config.Config) {
+				cfg.Grid.Hotkeys["gg"] = config.StringOrStringArray{config.CmdIdle}
+				cfg.Grid.AppConfigs = appOverride("g")
+			},
+		},
+		{
+			name:  "grid base single key and app sequence",
+			field: "grid.hotkeys merged with grid.app_configs[0]",
+			mutate: func(cfg *config.Config) {
+				cfg.Grid.Hotkeys["g"] = config.StringOrStringArray{config.CmdIdle}
+				cfg.Grid.AppConfigs = appOverride("gg")
+			},
+		},
+		{
+			name:  "recursive_grid base sequence and app single key",
+			field: "recursive_grid.hotkeys merged with recursive_grid.app_configs[0]",
+			mutate: func(cfg *config.Config) {
+				cfg.RecursiveGrid.Hotkeys["gg"] = config.StringOrStringArray{config.CmdIdle}
+				cfg.RecursiveGrid.AppConfigs = appOverride("g")
+			},
+		},
+		{
+			name:  "recursive_grid base single key and app sequence",
+			field: "recursive_grid.hotkeys merged with recursive_grid.app_configs[0]",
+			mutate: func(cfg *config.Config) {
+				cfg.RecursiveGrid.Hotkeys["g"] = config.StringOrStringArray{config.CmdIdle}
+				cfg.RecursiveGrid.AppConfigs = appOverride("gg")
+			},
 		},
 		{
 			name:   "monitor_select hotkeys",
