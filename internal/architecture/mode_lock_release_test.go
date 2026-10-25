@@ -104,7 +104,7 @@ func TestModeHandlerUnlocksAreDeferred(t *testing.T) {
 // lock order readable at all. The order in modeLockOrder describes who may hold
 // what while taking what, and that reasoning is local only while every hold
 // begins and ends inside one scope. A method that unlocks on its caller's
-// behalf moves the release somewhere the reader of either method can see it,
+// behalf moves the release somewhere the reader of either method cannot see it,
 // and the compiler's split of Handler from handlerState, which stops a
 // lock-held method from calling a locking entry point, says nothing about a
 // stray release.

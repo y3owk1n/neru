@@ -61,12 +61,8 @@ static void drain(NeruEiClient *c) {
 			struct ei_seat *s = ei_event_get_seat(e);
 			if (!c->seat) {
 				c->seat = ei_seat_ref(s);
-				// Stage 1: bind keyboard alone. KWin's EIS implementation
-				// silently drops the keyboard device when it is bound
-				// alongside pointer capabilities in a single call (KDE bug
-				// https://bugs.kde.org/show_bug.cgi?id=520464, confirmed on Plasma 6). After this bind is flushed
-				// and the keyboard device exists, a second bind adds the
-				// pointer capabilities without affecting the keyboard.
+				// Stage 1 of the two-stage capability bind, keyboard alone.
+				// See the stage 2 bind in attach_eis for why.
 				ei_seat_bind_capabilities(s, EI_DEVICE_CAP_KEYBOARD, NULL);
 			}
 			break;

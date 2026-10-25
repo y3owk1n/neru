@@ -12,6 +12,9 @@ import (
 // #cgo pkg-config, so a pure-Go build has no engine at all and says so rather
 // than returning an empty word list a caller would read as "no text on screen".
 
+// OCRHealth reports that text recognition cannot run in this build. It always
+// returns derrors.CodeNotSupported, because tesseract is reached only through
+// cgo.
 func OCRHealth() error {
 	return derrors.New(
 		derrors.CodeNotSupported,
@@ -20,6 +23,9 @@ func OCRHealth() error {
 	)
 }
 
+// RecognizeText recognizes nothing in this build. It always returns
+// derrors.CodeNotSupported, so a caller never reads an empty word list as a
+// screen with no text on it.
 func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, error) {
 	_, _ = img, params
 

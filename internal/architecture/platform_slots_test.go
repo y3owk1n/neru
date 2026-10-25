@@ -84,7 +84,7 @@ func wholePlatformDirs(t *testing.T) map[string]string {
 var fallbackSuffixes = []string{"_other.go", "_unix.go"}
 
 // bannedFallbackSuffixes are ad hoc fallback names that have shown up in the
-// past. They all mean "_other.go". Having four spellings for one slot is
+// past. They all mean "_other.go". Having several spellings for one slot is
 // exactly the drift these tests exist to stop.
 var bannedFallbackSuffixes = []string{
 	"_stub.go",

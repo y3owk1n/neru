@@ -140,7 +140,7 @@ func WithTextInput(textInput ports.TextInputPort) Option {
 	}
 }
 
-// WithVisionPort sets the vision port the capture hint strategies detect
+// WithVisionPort sets the vision port the "vision" hint strategy detects
 // targets with.
 // Note: vision can be nil, will be initialized during app startup if not provided.
 func WithVisionPort(vision ports.VisionPort) Option {

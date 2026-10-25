@@ -179,8 +179,9 @@ func TestGeometry_KWinReturningToTheBusClearsTheReason(t *testing.T) {
 // acting on somebody else's traffic.
 //
 // The match rule is a request to the bus, not a guarantee about what arrives.
-// This is the process-wide session connection, so every other subscription on
-// it is delivered here too. A stray signal read as "KWin restarted" would empty
+// The connection is the bridge's own, but the bus still sends it signals no
+// match rule asked for, such as NameAcquired for the bridge's name, and godbus
+// delivers them here too. A stray signal read as "KWin restarted" would empty
 // a good cache and reinstall the script for no reason.
 func TestKWinOwnerFrom_ReadsOnlyKWinOwnerChanges(t *testing.T) {
 	cases := []struct {

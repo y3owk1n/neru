@@ -25,10 +25,10 @@ var clientReach = struct {
 }
 
 // TestTheClientPackageStaysThin pins what importing github.com/y3owk1n/neru/client
-// costs a Go program: the standard library, the endpoint lookup, and the
-// pipe libraries Windows needs. A client that reached the daemon's own
-// packages would pull ports, config and every adapter behind them into the
-// program, and cgo with them.
+// costs a Go program: the standard library, the endpoint lookup, the error
+// vocabulary, and the pipe libraries Windows needs. A client that reached the
+// daemon's own packages would pull ports, config and every adapter behind them
+// into the program, and cgo with them.
 func TestTheClientPackageStaysThin(t *testing.T) {
 	importsByDir := map[string][]string{}
 

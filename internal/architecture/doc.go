@@ -12,8 +12,9 @@
 //     Go struct it is cast to have the same fields, in the same order, at the
 //     same widths.
 //   - client_package_test.go: the public client package builds only on the
-//     standard library, the endpoint lookup and the pipe libraries Windows
-//     needs, never on the daemon's own packages.
+//     standard library, the endpoint lookup, the error vocabulary
+//     (internal/derrors) and the pipe libraries Windows needs, never on the
+//     daemon's own packages.
 //   - cgo_includes_test.go: relative #include paths resolve, and native
 //     headers are reached through internal/adapter/platform/<os>/.
 //   - comment_paths_test.go: a path header, or a comment pointing at a
