@@ -8,8 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/godbus/dbus/v5"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -512,6 +511,11 @@ func TestSystemAdapter_AppWatcherIsAStubOnGNOMEWithoutTheExtension(t *testing.T)
 	}
 }
 
+// gnomeExtensionProbeTimeout bounds the session-bus dial that asks whether the
+// Neru GNOME Shell extension is running. A bus that does not answer in time
+// counts as no extension.
+const gnomeExtensionProbeTimeout = 2 * time.Second
+
 // skipWhenGNOMEExtensionIsLive skips a test that pins the answer for a
 // session without the Neru GNOME Shell extension, on the one kind of machine
 // where that answer is untrue, a GNOME session running it. The bridge is
@@ -520,7 +524,10 @@ func TestSystemAdapter_AppWatcherIsAStubOnGNOMEWithoutTheExtension(t *testing.T)
 func skipWhenGNOMEExtensionIsLive(t *testing.T) {
 	t.Helper()
 
-	conn, err := dbus.ConnectSessionBus()
+	ctx, cancel := context.WithTimeout(t.Context(), gnomeExtensionProbeTimeout)
+	defer cancel()
+
+	conn, err := linux.ConnectSessionBus(ctx)
 	if err != nil {
 		return
 	}
@@ -530,7 +537,7 @@ func skipWhenGNOMEExtensionIsLive(t *testing.T) {
 	var hasOwner bool
 
 	err = conn.BusObject().
-		Call("org.freedesktop.DBus.NameHasOwner", 0, "org.neru.Shell").
+		CallWithContext(ctx, "org.freedesktop.DBus.NameHasOwner", 0, "org.neru.Shell").
 		Store(&hasOwner)
 	if err == nil && hasOwner {
 		t.Skip("the Neru GNOME Shell extension is running in this session")

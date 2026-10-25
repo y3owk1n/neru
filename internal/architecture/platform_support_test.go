@@ -485,8 +485,10 @@ func actionNames(t *testing.T) []string {
 }
 
 // namedStringConstants reads the string values of one const block's entries
-// that are declared with the given type. A block whose first entry names the
-// type carries it to the rest, which is how the action vocabulary is written.
+// that are declared with the given type. Each entry has to name the type
+// itself, which is how the action vocabulary is written. Go carries a type
+// forward only to an entry with no value of its own. A string entry like that
+// repeats the value before it, so it names no new action.
 func namedStringConstants(decl *ast.GenDecl, typeName string) []string {
 	var values []string
 

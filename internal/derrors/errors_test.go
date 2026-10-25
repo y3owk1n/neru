@@ -182,7 +182,7 @@ func TestWrapf(t *testing.T) {
 
 func TestIsCode(t *testing.T) {
 	domainErr := derrors.New(derrors.CodeInvalidInput, "test error")
-	stdErr := derrors.New(derrors.CodeInternal, "standard error")
+	stdErr := errors.New("standard error") //nolint:err113 // dynamic errors needed for testing
 
 	tests := []struct {
 		name string
@@ -192,7 +192,7 @@ func TestIsCode(t *testing.T) {
 	}{
 		{"domain error matching code", domainErr, derrors.CodeInvalidInput, true},
 		{"domain error non-matching code", domainErr, derrors.CodeInvalidConfig, false},
-		{"standard error", stdErr, derrors.CodeInvalidInput, false},
+		{"standard error", stdErr, derrors.CodeInternal, false},
 		{"nil error", nil, derrors.CodeInvalidInput, false},
 	}
 
@@ -214,7 +214,7 @@ func TestIsCode(t *testing.T) {
 
 func TestGetCode(t *testing.T) {
 	domainErr := derrors.New(derrors.CodeInvalidInput, "test error")
-	stdErr := derrors.New(derrors.CodeInternal, "standard error")
+	stdErr := errors.New("standard error") //nolint:err113 // dynamic errors needed for testing
 
 	tests := []struct {
 		name string

@@ -19,6 +19,11 @@ const (
 	subgridCellSetCall = "SubgridCells"
 )
 
+// subgridDrawBackendFloor is the fewest subgrid draws this pin expects to read,
+// one in each of the macOS, Linux and Windows overlays. A walk that stops
+// recognizing any one backend falls below it.
+const subgridDrawBackendFloor = 3
+
 // TestSubgridCellsAreComputedOnce keeps the cell a person sees and the point
 // the cursor lands in the same rectangle. The breakpoint arithmetic that
 // divides a grid cell into a subgrid was written four times, with the 0.5 it
@@ -81,11 +86,10 @@ func TestSubgridCellsAreComputedOnce(t *testing.T) {
 
 	// Every backend renaming its draw would otherwise leave this passing over
 	// nothing, which is the failure mode a guardrail can least afford.
-	if checked == 0 {
-		t.Errorf(
-			"found no function outside %s calling %s; the walk is broken and this "+
-				"check would pass vacuously",
-			subgridCellDecider, subgridKeySetCall,
-		)
-	}
+	assertWalkedAtLeast(
+		t,
+		"functions outside "+subgridCellDecider+" calling "+subgridKeySetCall,
+		checked,
+		subgridDrawBackendFloor,
+	)
 }
