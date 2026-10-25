@@ -156,6 +156,7 @@ func (c *Config) checkHotkeysConflicts() error {
 		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
 		{ModeNameBisect, c.Bisect.Hotkeys},
 		{ModeNameScroll, c.Scroll.Hotkeys},
+		{ModeNameMonitorSelect, c.MonitorSelect.Hotkeys},
 	}, len(c.Modes))
 
 	for name, mode := range c.Modes {
@@ -188,48 +189,33 @@ func (c *Config) checkHotkeysConflicts() error {
 		}
 	}
 
-	for idx, appConfig := range c.Hints.AppConfigs {
-		err := checkHotkeyConflicts(
-			fmt.Sprintf(
-				"hints.hotkeys merged with hints.app_configs[%d] (%s)",
-				idx,
-				appConfig.BundleID,
-			),
-			c.HotkeysForModeAndApp(ModeNameHints, appConfig.BundleID),
-			c.General.PrimaryModifier,
-		)
-		if err != nil {
-			return err
-		}
+	appTables := []struct {
+		modeName   string
+		appConfigs []AppConfig
+	}{
+		{ModeNameHints, c.Hints.AppConfigs},
+		{ModeNameGrid, c.Grid.AppConfigs},
+		{ModeNameRecursiveGrid, c.RecursiveGrid.AppConfigs},
+		{ModeNameBisect, c.Bisect.AppConfigs},
+		{ModeNameScroll, c.Scroll.AppConfigs},
 	}
 
-	for idx, appConfig := range c.Scroll.AppConfigs {
-		err := checkHotkeyConflicts(
-			fmt.Sprintf(
-				"scroll.hotkeys merged with scroll.app_configs[%d] (%s)",
-				idx,
-				appConfig.BundleID,
-			),
-			c.HotkeysForModeAndApp(ModeNameScroll, appConfig.BundleID),
-			c.General.PrimaryModifier,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	for idx, appConfig := range c.Bisect.AppConfigs {
-		err := checkHotkeyConflicts(
-			fmt.Sprintf(
-				"bisect.hotkeys merged with bisect.app_configs[%d] (%s)",
-				idx,
-				appConfig.BundleID,
-			),
-			c.HotkeysForModeAndApp(ModeNameBisect, appConfig.BundleID),
-			c.General.PrimaryModifier,
-		)
-		if err != nil {
-			return err
+	for _, mode := range appTables {
+		for idx, appConfig := range mode.appConfigs {
+			err := checkHotkeyConflicts(
+				fmt.Sprintf(
+					"%s.hotkeys merged with %s.app_configs[%d] (%s)",
+					mode.modeName,
+					mode.modeName,
+					idx,
+					appConfig.BundleID,
+				),
+				c.HotkeysForModeAndApp(mode.modeName, appConfig.BundleID),
+				c.General.PrimaryModifier,
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
