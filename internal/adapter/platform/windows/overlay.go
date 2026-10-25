@@ -406,6 +406,9 @@ func (o *OverlayWindow) Visible() bool {
 
 // Bounds returns the overlay rectangle in screen coordinates.
 func (o *OverlayWindow) Bounds() image.Rectangle {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	return o.bounds
 }
 
@@ -553,15 +556,16 @@ func (o *OverlayWindow) ResizeToActiveScreen() error {
 		return err
 	}
 
+	o.mu.Lock()
 	if bounds == o.bounds && o.width == bounds.Dx() && o.height == bounds.Dy() {
 		// A scaling change keeps the monitor's physical bounds, so the
 		// factor is refreshed even when there is nothing to move.
-		o.mu.Lock()
 		o.scale = DPIScaleAt(rectCenter(bounds))
 		o.mu.Unlock()
 
 		return nil
 	}
+	o.mu.Unlock()
 
 	return o.ResizeTo(bounds.Min.X, bounds.Min.Y, bounds.Dx(), bounds.Dy())
 }
@@ -1013,11 +1017,14 @@ func (o *OverlayWindow) rebuildOnGDI(reason error) error {
 // it needs is not a layered one, so a surface that fails to come up costs the
 // HWND too, and the GDI surface gets a fresh layered window of its own.
 func (o *OverlayWindow) createHWNDLocked() error {
-	width := o.bounds.Dx()
+	// The window starts from a snapshot of the bounds. createWindowWithSurface
+	// moves it to any bounds a ResizeTo recorded in the meantime.
+	o.mu.Lock()
+	bounds := o.bounds
+	o.mu.Unlock()
 
-	height := o.bounds.Dy()
-	if width <= 0 || height <= 0 {
-		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, o.bounds)
+	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
+		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, bounds)
 	}
 
 	if !o.noDComp {
@@ -1028,8 +1035,7 @@ func (o *OverlayWindow) createHWNDLocked() error {
 			// the overlay is still up. Without the redirection bitmap the
 			// layered style changes nothing about how the frame is drawn.
 			err = o.createWindowWithSurface(
-				width,
-				height,
+				bounds,
 				wsExNoRedirectionBitmap|wsExLayered,
 				newDCompSurface,
 			)
@@ -1042,11 +1048,11 @@ func (o *OverlayWindow) createHWNDLocked() error {
 		o.dcompErr = err
 	}
 
-	return o.createWindowWithSurface(width, height, wsExLayered, newGDISurface)
+	return o.createWindowWithSurface(bounds, wsExLayered, newGDISurface)
 }
 
 func (o *OverlayWindow) createWindowWithSurface(
-	width, height int,
+	bounds image.Rectangle,
 	exStyle uintptr,
 	newSurface func(hwnd windows.HWND, width, height int) (overlaySurface, error),
 ) error {
@@ -1055,13 +1061,15 @@ func (o *OverlayWindow) createWindowWithSurface(
 		return err
 	}
 
+	width, height := bounds.Dx(), bounds.Dy()
+
 	hwnd, _, err := procCreateWindowExW.Call(
 		exStyle|wsExTransparent|wsExTopmost|wsExToolWindow|wsExNoActivate,
 		uintptr(unsafe.Pointer(className)),
 		0,
 		wsPopup,
-		uintptr(o.bounds.Min.X),
-		uintptr(o.bounds.Min.Y),
+		uintptr(bounds.Min.X),
+		uintptr(bounds.Min.Y),
 		uintptr(width),
 		uintptr(height),
 		0,
@@ -1088,9 +1096,50 @@ func (o *OverlayWindow) createWindowWithSurface(
 		return err
 	}
 
-	o.setHandle(windows.HWND(hwnd))
-	o.width = width
-	o.height = height
+	// A ResizeTo that lands while the handle is still 0 records its bounds and
+	// moves nothing, so the window catches up to them here before any caller
+	// can see its handle. The section that confirms the bounds also sets the
+	// handle and size, so a caller that reads the new handle reads the size of
+	// the window it names.
+	for {
+		o.mu.Lock()
+
+		current := o.bounds
+		if current == bounds {
+			o.hwnd = windows.HWND(hwnd)
+			o.width = width
+			o.height = height
+			o.mu.Unlock()
+
+			break
+		}
+
+		o.mu.Unlock()
+
+		discardCall(procSetWindowPos.Call(
+			hwnd,
+			hwndTopMost,
+			uintptr(current.Min.X),
+			uintptr(current.Min.Y),
+			uintptr(current.Dx()),
+			uintptr(current.Dy()),
+			swpNoActivate,
+		))
+
+		if current.Size() != bounds.Size() {
+			err = surface.resize(current.Dx(), current.Dy())
+			if err != nil {
+				surface.destroy()
+				discardCall(procDestroyWindow.Call(hwnd))
+
+				return err
+			}
+		}
+
+		bounds = current
+		width, height = current.Dx(), current.Dy()
+	}
+
 	o.surface = surface
 	o.released = false
 	overlayRegistry.Store(windows.HWND(hwnd), o)
@@ -1127,6 +1176,9 @@ func (o *OverlayWindow) destroyHWNDLocked() {
 }
 
 func (o *OverlayWindow) localBounds() image.Rectangle {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	return image.Rect(0, 0, o.width, o.height)
 }
 
