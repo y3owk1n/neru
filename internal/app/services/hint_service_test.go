@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1432,6 +1433,107 @@ func TestHintService_GenerateHintsVisionSaysWhyItFellBackToTheScreen(t *testing.
 					logged, testCase.wantText)
 			}
 		})
+	}
+}
+
+// TestHintService_GenerateHints_VisionDuringUpdateConfig pins that a vision
+// scan reads its settings from the snapshot taken under the lock, so a config
+// reload during a scan is not a data race. It only fails under -race.
+func TestHintService_GenerateHints_VisionDuringUpdateConfig(t *testing.T) {
+	t.Parallel()
+
+	service := newVisionHintService(zap.NewNop(),
+		func(context.Context) (image.Rectangle, bool, error) {
+			return image.Rect(0, 0, 200, 200), true, nil
+		})
+
+	const iterations = 200
+
+	var racing sync.WaitGroup
+
+	racing.Go(func() {
+		for range iterations {
+			_, err := service.GenerateHints(
+				context.Background(), nil, nil, "com.example.app",
+				domain.StrategyVision, "", "", false,
+			)
+			if err != nil {
+				t.Errorf("GenerateHints() unexpected error: %v", err)
+
+				return
+			}
+		}
+	})
+
+	racing.Go(func() {
+		for i := range iterations {
+			service.UpdateConfig(config.HintsConfig{
+				Vision: config.HintsVisionConfig{RequestTimeoutMS: i},
+			})
+		}
+	})
+
+	racing.Wait()
+}
+
+// TestHintService_GenerateHints_VisionKeepsItsStartingSettings pins that a
+// reload after a scan has started does not reach that scan's detector, so one
+// scan never mixes settings from two configs. The reload runs inside the
+// focused-window lookup, which happens after the snapshot and before the
+// detection call.
+func TestHintService_GenerateHints_VisionKeepsItsStartingSettings(t *testing.T) {
+	t.Parallel()
+
+	starting := config.HintsVisionConfig{RequestTimeoutMS: 100}
+	reloaded := config.HintsVisionConfig{RequestTimeoutMS: 999}
+
+	var (
+		service *services.HintService
+		got     config.HintsVisionConfig
+	)
+
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+		service.UpdateConfig(config.HintsConfig{Vision: reloaded})
+
+		return image.Rect(0, 0, 200, 200), true, nil
+	}
+
+	mockVision := &mocks.MockVisionPort{
+		DetectElementsFunc: func(
+			_ context.Context,
+			_ image.Rectangle,
+			visionConfig config.HintsVisionConfig,
+			_ bool,
+		) ([]*element.Element, error) {
+			got = visionConfig
+
+			return nil, nil
+		},
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service = services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{Vision: starting},
+		zap.NewNop(),
+		mockVision,
+	)
+
+	_, err := service.GenerateHints(
+		context.Background(), nil, nil, "com.example.app",
+		domain.StrategyVision, "", "", false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	if got != starting {
+		t.Errorf("DetectElements() got request_timeout_ms %d, want the starting %d",
+			got.RequestTimeoutMS, starting.RequestTimeoutMS)
 	}
 }
 

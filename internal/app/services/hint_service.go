@@ -290,7 +290,13 @@ func (s *HintService) generate(
 
 	switch strategy {
 	case domain.StrategyVision:
-		elements, captureErr = s.generateHintsVision(ctx, filter, captureScope, splitWord)
+		elements, captureErr = s.generateHintsVision(
+			ctx,
+			filter,
+			captureScope,
+			cfg.Vision,
+			splitWord,
+		)
 	case domain.StrategyContour:
 		elements, captureErr = s.generateHintsFromPixels(
 			ctx, filter, captureScope, strategy,
@@ -360,6 +366,7 @@ func (s *HintService) generateHintsVision(
 	ctx context.Context,
 	filter ports.ElementFilter,
 	captureScope string,
+	visionConfig config.HintsVisionConfig,
 	splitWord bool,
 ) ([]*element.Element, error) {
 	allElements := s.supplementaryElements(ctx, filter)
@@ -380,7 +387,7 @@ func (s *HintService) generateHintsVision(
 	windowElements, visionErr := s.vision.DetectElements(
 		ctx,
 		windowBounds,
-		s.config.Vision,
+		visionConfig,
 		splitWord,
 	)
 	if visionErr != nil {
