@@ -2,40 +2,62 @@ package textinput
 
 import (
 	"slices"
+	"sync"
 	"testing"
-	"time"
+	"unsafe"
 )
 
-// TestTextInput_Bridge_RunsConfirmAfterTheQueriesBeforeIt drives the exported
-// bridges the way the field does, two edits and then Return, and pins that
-// the confirm reaches the handler after the text it confirms. A test file
-// cannot build a C string, so both queries are empty and only their position
-// is asserted.
-func TestTextInput_Bridge_RunsConfirmAfterTheQueriesBeforeIt(t *testing.T) {
-	calls := newRecorder()
-	textInput := NewTextInput(nil)
-
-	textInput.queue = newCallbackQueue(calls.callbacks())
-	defer textInput.queue.stop()
-
-	textInputQueryBridge(nil, nil)
-	textInputQueryBridge(nil, nil)
-	textInputConfirmBridge(nil)
-
-	var got []string
-	for !slices.Contains(got, "confirm") || !slices.Contains(got, "query ") {
-		select {
-		case <-calls.ran:
-		case <-time.After(2 * time.Second):
-			t.Fatalf("timed out waiting for a query and a confirm, got %q", got)
-		}
-
-		calls.mu.Lock()
-		got = slices.Clone(calls.calls)
-		calls.mu.Unlock()
+// TestTextInput_Bridge_RunsControlAfterTheQueriesBeforeIt drives the exported
+// bridges the way the field does, two edits and then Return or Escape, and
+// pins that the control reaches the handler after the text before it. The
+// first query holds the callbacks while the rest arrive, so the second one is
+// queued alone and is not merged into the first. A test file cannot build a C
+// string, so both queries are empty and only their position is asserted.
+func TestTextInput_Bridge_RunsControlAfterTheQueriesBeforeIt(t *testing.T) {
+	tests := []struct {
+		name    string
+		control func(unsafe.Pointer)
+		want    string
+	}{
+		{name: "return confirms", control: textInputConfirmBridge, want: "confirm"},
+		{name: "escape cancels", control: textInputCancelBridge, want: "cancel"},
 	}
 
-	if got[len(got)-1] != "confirm" {
-		t.Errorf("callbacks ran in order %q, want every query before confirm", got)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			calls := newRecorder()
+			inFirst := make(chan struct{})
+			release := make(chan struct{})
+
+			var first sync.Once
+
+			callbacks := calls.callbacks()
+			onQuery := callbacks.OnQueryChanged
+			callbacks.OnQueryChanged = func(query string) {
+				first.Do(func() {
+					close(inFirst)
+					<-release
+				})
+				onQuery(query)
+			}
+
+			textInput := NewTextInput(nil)
+
+			textInput.queue = newCallbackQueue(callbacks)
+			defer textInput.queue.stop()
+
+			textInputQueryBridge(nil, nil)
+			<-inFirst
+			textInputQueryBridge(nil, nil)
+			test.control(nil)
+			close(release)
+
+			got := calls.waitFor(t, 3)
+
+			want := []string{"query ", "query ", test.want}
+			if !slices.Equal(got, want) {
+				t.Errorf("callbacks ran in order %q, want %q", got, want)
+			}
+		})
 	}
 }
