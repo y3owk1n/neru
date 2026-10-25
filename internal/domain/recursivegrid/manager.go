@@ -60,6 +60,12 @@ func NewManagerWithLayers(
 	callbacks SelectionCallbacks,
 	logger *zap.Logger,
 ) *Manager {
+	// Constructors in this tree accept a nil logger and fall back to a no-op
+	// rather than panicking on first use.
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	// A shape that cannot narrow anything is replaced with the default one.
 	// UsableDimensions owns that rule. What belongs here is naming the values
 	// it rejected, which it cannot report once it has replaced them.

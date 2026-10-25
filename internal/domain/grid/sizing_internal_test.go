@@ -3,6 +3,8 @@ package grid
 import (
 	"math"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // TestPlanGridDimensions_DefaultLimitKeepsLegacyTwoKeyRegions pins the
@@ -157,5 +159,47 @@ func TestCalculateOptimalCellSizes_ScaleGrowsTheRangeWithThePixels(t *testing.T)
 	if minScaled != minLogical*3/2 || maxScaled != maxLogical*3/2 {
 		t.Errorf("range at 150%% = %d..%d, want %d..%d (the logical %d..%d scaled up)",
 			minScaled, maxScaled, minLogical*3/2, maxLogical*3/2, minLogical, maxLogical)
+	}
+}
+
+// TestPlanGridDimensions_ScoreTieAlwaysPicksTheSameShape pins determinism. On
+// these screens two shapes score exactly the same, 13x11 and 16x13 on 500x418,
+// so the winner depends on the order candidates are collected in. Columns are
+// searched from the most down and the first lowest score wins, so every
+// activation must get the finer grid.
+func TestPlanGridDimensions_ScoreTieAlwaysPicksTheSameShape(t *testing.T) {
+	testCases := []struct {
+		name          string
+		width, height int
+		scale         float64
+		want          domain.GridDimensions
+	}{
+		{
+			name:  "500x418",
+			width: 500, height: 418, scale: 1,
+			want: domain.GridDimensions{Cols: 16, Rows: 13},
+		},
+		{
+			name:  "946x780 at 200%",
+			width: 946, height: 780, scale: 2,
+			want: domain.GridDimensions{Cols: 15, Rows: 12},
+		},
+	}
+
+	alpha := newGridAlphabet(DefaultCharacters, "", "")
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			for run := range 200 {
+				plan := planGridDimensions(
+					testCase.width, testCase.height, testCase.scale, alpha, DefaultMaxLabelLength,
+				)
+				if plan.dimensions != testCase.want {
+					t.Fatalf("run %d planned %dx%d, want %dx%d", run,
+						plan.dimensions.Cols, plan.dimensions.Rows,
+						testCase.want.Cols, testCase.want.Rows)
+				}
+			}
+		})
 	}
 }

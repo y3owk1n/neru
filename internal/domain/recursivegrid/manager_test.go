@@ -488,6 +488,66 @@ func TestNewManagerWithLayers_KeyCountMismatch_DropsOverride(t *testing.T) {
 	assert.Equal(t, 2, manager.GridRows())
 }
 
+// TestNewManagerWithLayers_NilLogger_DoesNotPanic covers every path that logs.
+// Constructors in this tree accept a nil logger and fall back to a no-op.
+func TestNewManagerWithLayers_NilLogger_DoesNotPanic(t *testing.T) {
+	const twoByTwoKeys, layerKeys = "uijk", "abcd"
+
+	tests := []struct {
+		name         string
+		keys         string
+		dims         domain.GridDimensions
+		depthLayouts map[int]recursivegrid.DepthLayout
+		depthKeys    map[int]string
+	}{
+		{
+			name: "invalid dimensions",
+			keys: twoByTwoKeys,
+			dims: domain.GridDimensions{Rows: 0, Cols: 3},
+		},
+		{name: "key count mismatch", keys: "abc", dims: domain.GridDimensions{Rows: 2, Cols: 2}},
+		{
+			name:         "layout without keys",
+			keys:         twoByTwoKeys,
+			dims:         domain.GridDimensions{Rows: 2, Cols: 2},
+			depthLayouts: map[int]recursivegrid.DepthLayout{1: {GridCols: 2, GridRows: 2}},
+		},
+		{
+			name:         "layer key count mismatch",
+			keys:         twoByTwoKeys,
+			dims:         domain.GridDimensions{Rows: 2, Cols: 2},
+			depthLayouts: map[int]recursivegrid.DepthLayout{1: {GridCols: 3, GridRows: 3}},
+			depthKeys:    map[int]string{1: layerKeys},
+		},
+		{
+			name:      "keys without layout",
+			keys:      twoByTwoKeys,
+			dims:      domain.GridDimensions{Rows: 2, Cols: 2},
+			depthKeys: map[int]string{1: layerKeys},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				manager := recursivegrid.NewManagerWithLayers(
+					image.Rect(0, 0, 120, 100),
+					testCase.keys,
+					10, 10, 10,
+					testCase.dims,
+					testCase.depthLayouts,
+					testCase.depthKeys,
+					recursivegrid.SelectionCallbacks{},
+					nil,
+				)
+				manager.HandleInput("?")
+				manager.HandleInput(manager.Keys()[:1])
+				manager.MoveDirection(domain.DirectionRight, 1)
+			})
+		})
+	}
+}
+
 func TestNewManagerWithLayers_ConsistentOverride_Works(t *testing.T) {
 	bounds := image.Rect(0, 0, 120, 100)
 	logger := zap.NewNop()

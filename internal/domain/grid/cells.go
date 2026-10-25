@@ -55,8 +55,8 @@ func generateCellsWithRegions(
 	for regionIndex < plan.regionCount && currentRow < gridRows {
 		regionChar1, regionChar2 := regionPrefix(chars, numChars, regionIndex, plan.labelLength)
 
-		colsForRegion := gridMin(plan.region.Cols, gridCols-currentCol)
-		rowsForRegion := gridMin(plan.region.Rows, gridRows-currentRow)
+		colsForRegion := min(plan.region.Cols, gridCols-currentCol)
+		rowsForRegion := min(plan.region.Rows, gridRows-currentRow)
 
 		for rowIndex := range rowsForRegion {
 			for colIndex := range colsForRegion {

@@ -2,7 +2,6 @@ package grid
 
 import (
 	"math"
-	"sync"
 
 	"github.com/y3owk1n/neru/internal/domain"
 )
@@ -83,8 +82,8 @@ func planTwoKeyGrid(
 func keyStageLayouts(keyCount, maxCols, maxRows int) []domain.GridDimensions {
 	var layouts []domain.GridDimensions
 
-	for cols := 1; cols <= gridMin(keyCount, maxCols); cols++ {
-		rowsLimit := gridMin(keyCount/cols, maxRows)
+	for cols := 1; cols <= min(keyCount, maxCols); cols++ {
+		rowsLimit := min(keyCount/cols, maxRows)
 		for rows := 1; rows <= rowsLimit; rows++ {
 			layouts = append(layouts, domain.GridDimensions{Rows: rows, Cols: cols})
 		}
@@ -161,7 +160,7 @@ func selectBestCandidate(
 	} else {
 		// Fallback: if no valid candidates, use simple best-fit approach
 		findBestFit := func(dimension, minSize, maxSize int) int {
-			count := gridMax(dimension/minSize, 1)
+			count := max(dimension/minSize, 1)
 			for dimension/count > maxSize {
 				count++
 			}
@@ -178,12 +177,11 @@ func selectBestCandidate(
 // findValidGridConfigurations searches through all valid grid configurations.
 // Evaluates combinations of columns and rows within cell size constraints,
 // calculating aspect ratio scores to find grids that produce square-like cells.
-// Returns candidates in no particular order. A lower score is better.
+// Returns candidates by column count and then row count, most first, so that
+// selectBestCandidate settles an exact score tie on the finer grid every time.
+// A lower score is better.
 func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []Candidate {
-	var (
-		candidates []Candidate
-		mutex      sync.Mutex
-	)
+	var candidates []Candidate
 
 	minCols := max(width/maxCellSize, 1)
 	maxCols := max(width/minCellSize, 1)
@@ -191,77 +189,43 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 	minRows := max(height/maxCellSize, 1)
 	maxRows := max(height/minCellSize, 1)
 
-	var waitGroup sync.WaitGroup
+	for col := maxCols; col >= minCols && col >= 1; col-- {
+		cellWidth := width / col
+		if cellWidth < minCellSize || cellWidth > maxCellSize {
+			continue
+		}
 
-	for colIndex := maxCols; colIndex >= minCols && colIndex >= 1; colIndex-- {
-		waitGroup.Add(1)
-
-		go func(col int) {
-			defer waitGroup.Done()
-
-			var localCandidates []Candidate
-
-			cellWidth := width / col
-			if cellWidth < minCellSize || cellWidth > maxCellSize {
-				return
+		for rowIndex := maxRows; rowIndex >= minRows && rowIndex >= 1; rowIndex-- {
+			cellHeight := height / rowIndex
+			if cellHeight < minCellSize || cellHeight > maxCellSize {
+				continue
 			}
 
-			for rowIndex := maxRows; rowIndex >= minRows && rowIndex >= 1; rowIndex-- {
-				cellHeight := height / rowIndex
-				if cellHeight < minCellSize || cellHeight > maxCellSize {
-					continue
-				}
+			// Calculate how square the cells are (aspect ratio deviation from 1.0)
+			cellAspect := float64(cellWidth) / float64(cellHeight)
 
-				// Calculate how square the cells are (aspect ratio deviation from 1.0)
-				cellAspect := float64(cellWidth) / float64(cellHeight)
+			aspectDiff := math.Abs(cellAspect - 1)
 
-				aspectDiff := math.Abs(cellAspect - 1)
+			// Prefer configurations with more cells for finer precision
+			totalCells := float64(col * rowIndex)
+			maxCells := float64(maxCols * maxRows)
+			cellScore := (maxCells - totalCells) / maxCells * ScoreWeight
 
-				// Prefer configurations with more cells for finer precision
-				totalCells := float64(col * rowIndex)
-				maxCells := float64(maxCols * maxRows)
-				cellScore := (maxCells - totalCells) / maxCells * ScoreWeight
+			aspectScore := aspectDiff + cellScore
 
-				aspectScore := aspectDiff + cellScore
-
-				cand := Candidate{
-					cols:  col,
-					rows:  rowIndex,
-					cellW: cellWidth,
-					cellH: cellHeight,
-					score: aspectScore,
-				}
-
-				localCandidates = append(localCandidates, cand)
+			cand := Candidate{
+				cols:  col,
+				rows:  rowIndex,
+				cellW: cellWidth,
+				cellH: cellHeight,
+				score: aspectScore,
 			}
 
-			mutex.Lock()
-
-			candidates = append(candidates, localCandidates...)
-
-			mutex.Unlock()
-		}(colIndex)
+			candidates = append(candidates, cand)
+		}
 	}
-
-	waitGroup.Wait()
 
 	return candidates
-}
-
-func gridMax(a, b int) int {
-	if a > b {
-		return a
-	}
-
-	return b
-}
-
-func gridMin(a, b int) int {
-	if a < b {
-		return a
-	}
-
-	return b
 }
 
 // gridRound performs integer division rounding to the nearest integer (half away from zero).
