@@ -27,11 +27,12 @@ const (
 	nameOwnerNewIndex = 2
 
 	// ownerSignalBuffer is the restart watch's queue. It is not sized for
-	// NameOwnerChanged, which fires about org.kde.KWin once a session. This is
-	// the process-wide session connection, so godbus delivers everything
-	// *anything* in this process subscribed to into this channel too, and the
-	// buffer is what keeps the common case off godbus's overflow path (a
-	// goroutine per signal, so it defers rather than drops).
+	// NameOwnerChanged, which fires about org.kde.KWin once a session. The
+	// connection is the bridge's own, but godbus delivers every signal it
+	// receives into this channel, including the ones the bus sends it directly
+	// whatever the match rule says, such as NameAcquired and NameLost for the
+	// bridge's name. The buffer is what keeps the common case off godbus's
+	// overflow path (a goroutine per signal, so it defers rather than drops).
 	ownerSignalBuffer = 32
 )
 
@@ -144,8 +145,9 @@ func (g *Geometry) serveOwnerChanges(conn *dbus.Conn, signals <-chan *dbus.Signa
 //
 // The signal channel is filtered by a match rule, but a match rule is a request
 // to the bus rather than a guarantee about what arrives. This connection is the
-// process-wide session bus, so anything else that subscribes on it is delivered
-// here too. The shape is therefore checked rather than assumed.
+// bridge's own, but the bus still sends it signals no match rule asked for,
+// such as NameAcquired and NameLost for the bridge's name, and godbus delivers
+// every one of them here. The shape is therefore checked rather than assumed.
 func kwinOwnerFrom(signal *dbus.Signal) (string, bool) {
 	if signal == nil || signal.Name != dbusNameOwnerSignal || len(signal.Body) < nameOwnerArgs {
 		return "", false

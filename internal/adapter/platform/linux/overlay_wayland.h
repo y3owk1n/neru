@@ -27,7 +27,9 @@ typedef struct {
 	struct wl_surface *wl_surface;
 	struct zwlr_layer_surface_v1 *layer_surface;
 
-	// Current buffer (pointers updated by select_buffer, avoids changing all C functions)
+	// The active buffer. These alias one slot of the pool below, and
+	// neru_wayland_overlay_select_buffer repoints them, so draw and commit
+	// code read one set of fields whichever buffer is current.
 	struct wl_buffer *buffer;
 	cairo_surface_t *cairo_surface;
 	cairo_t *cr;

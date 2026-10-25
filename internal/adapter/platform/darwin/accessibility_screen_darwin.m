@@ -356,7 +356,7 @@ static void initializeMissionControlDetection(void) {
 		                                        }];
 
 		// Set up a periodic detection timer to handle the case where no
-		// notification fires when MC opens (macOS 15+ Tahoe). This runs on
+		// notification fires when MC opens (observed on macOS 26 Tahoe). This runs on
 		// the background detection queue and is a fast path when state hasn't changed.
 		g_detectionTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, g_detectionQueue);
 		if (g_detectionTimer) {
@@ -405,7 +405,7 @@ static void initializeMissionControlDetection(void) {
 /// 2. Cached result is returned to avoid querying the Dock on every call
 /// 3. Cache expires after 500ms to ensure freshness
 ///
-/// Works on Sequoia 15.1 (Tahoe) and should work on older versions.
+/// Works on macOS 26 (Tahoe) and should work on older versions.
 /// Reference: https://stackoverflow.com/questions/12683225/osx-how-to-detect-if-mission-control-is-running
 ///
 /// @return true if Mission Control is active, false otherwise
