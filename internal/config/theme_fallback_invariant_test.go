@@ -65,6 +65,26 @@ func TestDefaultThemeFallbacksMatchResolvedDefaults(t *testing.T) {
 			want: config.HintsBorderColorDark,
 		},
 		{
+			name: "hints boundary background light",
+			got:  cfg.Hints.BoundaryHighlight.BackgroundColor.Light,
+			want: config.HintsBoundaryBackgroundColorLight,
+		},
+		{
+			name: "hints boundary background dark",
+			got:  cfg.Hints.BoundaryHighlight.BackgroundColor.Dark,
+			want: config.HintsBoundaryBackgroundColorDark,
+		},
+		{
+			name: "hints boundary border light",
+			got:  cfg.Hints.BoundaryHighlight.BorderColor.Light,
+			want: config.HintsBoundaryBorderColorLight,
+		},
+		{
+			name: "hints boundary border dark",
+			got:  cfg.Hints.BoundaryHighlight.BorderColor.Dark,
+			want: config.HintsBoundaryBorderColorDark,
+		},
+		{
 			name: "grid background light",
 			got:  cfg.Grid.UI.BackgroundColor.Light,
 			want: config.GridBackgroundColorLight,
@@ -203,6 +223,26 @@ func TestDefaultThemeFallbacksMatchResolvedDefaults(t *testing.T) {
 			name: "mode indicator border dark",
 			got:  cfg.ModeIndicator.UI.BorderColor.Dark,
 			want: config.ModeIndicatorBorderColorDark,
+		},
+		{
+			name: "mouse action background light",
+			got:  cfg.MouseAction.UI.BackgroundColor.Light,
+			want: config.MouseActionBackgroundColorLight,
+		},
+		{
+			name: "mouse action background dark",
+			got:  cfg.MouseAction.UI.BackgroundColor.Dark,
+			want: config.MouseActionBackgroundColorDark,
+		},
+		{
+			name: "mouse action border light",
+			got:  cfg.MouseAction.UI.BorderColor.Light,
+			want: config.MouseActionBorderColorLight,
+		},
+		{
+			name: "mouse action border dark",
+			got:  cfg.MouseAction.UI.BorderColor.Dark,
+			want: config.MouseActionBorderColorDark,
 		},
 		{
 			name: "sticky modifiers background light",

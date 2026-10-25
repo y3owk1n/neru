@@ -43,7 +43,7 @@ var (
 	// HintsBorderColorDark is the fallback dark border color for hints.
 	HintsBorderColorDark = solidRGBHex(defaultThemeDarkAccent)
 	// HintsBoundaryBackgroundColorLight is the fallback light fill color for hint target boundaries.
-	HintsBoundaryBackgroundColorLight = applyAlpha(defaultThemeLightAccent, "14")
+	HintsBoundaryBackgroundColorLight = applyAlpha(defaultThemeLightAccent, "1A")
 	// HintsBoundaryBackgroundColorDark is the fallback dark fill color for hint target boundaries.
 	HintsBoundaryBackgroundColorDark = applyAlpha(defaultThemeDarkAccentAlt, "1A")
 	// HintsBoundaryBorderColorLight is the fallback light stroke color for hint target boundaries.
@@ -113,7 +113,7 @@ var (
 	// MouseActionBackgroundColorLight is the fallback light fill color for mouse action indicators.
 	MouseActionBackgroundColorLight = applyAlpha(defaultThemeLightAccentAlt, "30")
 	// MouseActionBackgroundColorDark is the fallback dark fill color for mouse action indicators.
-	MouseActionBackgroundColorDark = applyAlpha(defaultThemeDarkAccentAlt, "40")
+	MouseActionBackgroundColorDark = applyAlpha(defaultThemeDarkAccentAlt, "30")
 	// MouseActionBorderColorLight is the fallback light border color for mouse action indicators.
 	MouseActionBorderColorLight = solidRGBHex(defaultThemeLightAccentAlt)
 	// MouseActionBorderColorDark is the fallback dark border color for mouse action indicators.
