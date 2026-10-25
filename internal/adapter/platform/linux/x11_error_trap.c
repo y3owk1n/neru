@@ -34,7 +34,7 @@ void neru_x11_error_trap_begin(Display *display) {
 }
 
 int neru_x11_error_trap_end(Display *display) {
-	// Errors arrive asynchronously; sync so the handler has run before it is
+	// Errors arrive asynchronously. Sync so the handler has run before it is
 	// swapped back out.
 	XSync(display, False);
 	XSetErrorHandler(neru_x11_error_trap_previous);

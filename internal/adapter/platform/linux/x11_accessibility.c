@@ -39,7 +39,7 @@ int neru_ax_button(Display *display, unsigned int button, int pressed) {
 }
 
 /* Resolves a keysym to the keycode carrying it, or 0 when the live keymap has
- * no key for it — a layout without a right Alt, say. */
+ * no key for it, as on a layout without a right Alt. */
 unsigned int neru_ax_keysym_to_keycode(Display *display, KeySym keysym) {
 	return (unsigned int)XKeysymToKeycode(display, keysym);
 }

@@ -5,7 +5,7 @@
 // consume.
 //
 // This is the one home for those names (ADR 0008,
-// docs/adr/0008-a-vocabulary-has-one-home.md): a named key is added here and
+// docs/adr/0008-a-vocabulary-has-one-home.md). A named key is added here and
 // nowhere else, and every producer and consumer of these strings goes through
 // this package. internal/config's validators and normalizers read the
 // declaration rather than keeping a set of their own.

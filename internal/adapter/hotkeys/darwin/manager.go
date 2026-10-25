@@ -30,7 +30,7 @@ type Manager struct {
 	nextID    ports.HotkeyID
 }
 
-// NewManager creates and creates a new hotkey manager instance.
+// NewManager creates a hotkey manager.
 // The manager is ready to register hotkeys immediately after creation.
 func NewManager(logger *zap.Logger) *Manager {
 	if logger == nil {
@@ -86,11 +86,9 @@ func (m *Manager) RegisterWithRelease(
 		)
 	}
 
-	// Generate hotkey ID
 	hotkeyID := m.nextID
 	m.nextID++
 
-	// Create per-hotkey CGEventTap
 	tap := darwin.CreateHotkeyTap(int(hotkeyID), keyCode, modifiers)
 	if tap == nil {
 		return 0, derrors.Newf(
@@ -100,7 +98,6 @@ func (m *Manager) RegisterWithRelease(
 		)
 	}
 
-	// Store callback and tap handle
 	m.callbacks[hotkeyID] = callbackPair{
 		press:   pressCallback,
 		release: releaseCallback,
@@ -141,7 +138,7 @@ func (m *Manager) UnregisterAll() {
 }
 
 // handleCallback processes hotkey events received from the C callback.
-// It looks up the appropriate callback function and executes it in a goroutine.
+// It looks up the callback for the event kind and runs it.
 func (m *Manager) handleCallback(hotkeyID ports.HotkeyID, eventKind darwin.HotkeyEventKind) {
 	m.mu.RLock()
 	callbacks, ok := m.callbacks[hotkeyID]
@@ -167,8 +164,7 @@ func (m *Manager) handleCallback(hotkeyID ports.HotkeyID, eventKind darwin.Hotke
 	}
 }
 
-// Global manager instance for C callbacks.
-// The C bridge uses it to forward an event to the right manager.
+// globalManager is the manager the C callback bridge forwards events to.
 var globalManager *Manager
 
 // SetGlobalManager assigns the global manager instance used by the C callback bridge.
@@ -182,7 +178,6 @@ func SetGlobalManager(manager *Manager) {
 
 	globalManager = manager
 
-	// Set the handler in the darwin package
 	if manager != nil {
 		darwin.SetHotkeyHandler(func(hotkeyID int, eventKind darwin.HotkeyEventKind) {
 			if globalManager != nil {

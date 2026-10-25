@@ -10,11 +10,11 @@ import (
 )
 
 // The sink is a process-global slot for the same reason the config provider
-// beside it is: this package's injection entry points are package-level
+// beside it is. This package's injection entry points are package-level
 // functions the dispatch table in ../backend_linux.go names, with nowhere to
 // hang a dependency. The interface itself lives beside the tap contract it
-// extends (tap.SyntheticModifierSink); what is set here is the live tap, wired
-// once at daemon startup and let go of at teardown — see
+// extends (tap.SyntheticModifierSink). What is set here is the live tap, wired
+// once at daemon startup and let go of at teardown. See
 // internal/app/wiring_platform_linux.go.
 //
 // A nil sink means "nobody is listening", which is what the CLI, the tests, and
@@ -35,7 +35,7 @@ func SetSyntheticModifierSink(sink tap.SyntheticModifierSink) {
 
 // recordSyntheticModifier announces one modifier key event to the wired sink.
 //
-// With no sink wired the injection still happens, unannounced — which is the
+// With no sink wired the injection still happens, unannounced, which is the
 // behavior this seam improves on rather than a reason to withhold the key the
 // caller asked for.
 func recordSyntheticModifier(modifier action.Modifiers, isDown bool) {

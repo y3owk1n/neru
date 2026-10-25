@@ -16,7 +16,7 @@ import (
 
 // Text recognition through Windows.Media.Ocr, the first-party WinRT engine
 // every Windows 10 and 11 desktop ships. It answers the *text* half of the
-// vision strategy the way tesseract does on Linux: macOS runs three Vision
+// vision strategy the way tesseract does on Linux. macOS runs three Vision
 // requests and an OCR engine answers the first, so the rectangle request stays
 // macOS-only (docs/contributing/platform-internals.md, the Vision footnote).
 //
@@ -28,33 +28,33 @@ import (
 //
 // Everything below runs on one OS thread the process keeps in the WinRT
 // multithreaded apartment for its lifetime, so the engine can be created once
-// and reused: RoUninitialize on the last thread in an apartment tears it down
+// and reused, because RoUninitialize on the last thread in an apartment tears it down
 // together with every object in it, and the daemon activates hints far more
 // often than it starts. Requests are serialized through that thread, which
 // also serializes the engine, and Windows.Media.Ocr is not reentrant anyway.
 //
 // Privacy: the frame and the text read from it are screen content. Both
-// reach the caller and nowhere else. Nothing here logs; OCRStats carries the
+// reach the caller and nowhere else. Nothing here logs. OCRStats carries the
 // duration a caller may log, and nothing that derives from what was read.
 
 // OCRWord is one run of recognized text, in the coordinate space of the image
-// it was read from — origin (0, 0) at the top-left of that buffer, not of the
-// screen.
+// it was read from, with origin (0, 0) at the top-left of that buffer, not of
+// the screen.
 //
-// Text is screen content and carries the same rules the capture buffer does:
-// it is never logged, never written to disk, and never held past the detection
+// Text is screen content and carries the same rules the capture buffer does.
+// It is never logged, never written to disk, and never held past the detection
 // that asked for it.
 type OCRWord struct {
 	Text   string
 	Bounds image.Rectangle
 	// Confidence is 0..1. Windows.Media.Ocr reports no per-word score, so
-	// every word carries 1: the engine has already dropped what it could not
+	// every word carries 1. The engine has already dropped what it could not
 	// read, and a floor a caller compares against keeps everything.
 	Confidence float64
 }
 
 // OCRStats describes the work one recognition did, so a caller can log it.
-// Durations only — nothing here derives from what was on the screen.
+// It holds durations only, and nothing here derives from what was on the screen.
 type OCRStats struct {
 	// Recognition is how long the engine spent on the frame.
 	Recognition time.Duration
@@ -97,7 +97,7 @@ const (
 	asyncInfoCancel                      = inspectableSlots + 3
 	asyncInfoClose                       = inspectableSlots + 4
 
-	// IBufferByteAccess derives from IUnknown, not IInspectable: Buffer is
+	// IBufferByteAccess derives from IUnknown, not IInspectable. Buffer is
 	// its only method, right after Release.
 	bufferByteAccessBuffer = 3
 
@@ -136,7 +136,7 @@ type winrtRect struct {
 type ocrWorker struct {
 	requests chan func()
 	// initErr is why the worker could not start, read after start has
-	// happened; nil means it is serving.
+	// happened. nil means it is serving.
 	initErr error
 
 	// The fields below are touched only from the worker goroutine.
@@ -250,9 +250,9 @@ func (w *ocrWorker) ensureEngine() error {
 	return nil
 }
 
-// OCRHealth reports whether text recognition can run on this machine: the
-// runtime is up and an OCR language pack is installed for one of the
-// account's languages. A caller that asks is also warming the engine; the
+// OCRHealth reports whether text recognition can run on this machine, meaning
+// the runtime is up and an OCR language pack is installed for one of the
+// account's languages. A caller that asks is also warming the engine. The
 // handle is kept for the process, and a later recognition finds it made.
 func OCRHealth() error {
 	bridge := worker()
@@ -261,10 +261,10 @@ func OCRHealth() error {
 }
 
 // RecognizeText reads the text in img and returns each run with its box, in
-// img's own pixel space. WordLevel asks for one run per word; otherwise a run
+// img's own pixel space. WordLevel asks for one run per word. Otherwise a run
 // is a line, and its box is the union of its words'.
 //
-// ctx is read while the engine works: a hint activation that is canceled or
+// ctx is read while the engine works. A hint activation that is canceled or
 // runs past its own deadline cancels the recognition rather than waiting on
 // params.TimeoutMS, which is the user's budget for the engine alone.
 //
@@ -530,7 +530,7 @@ func softwareBitmapFrom(img *image.RGBA) (unsafe.Pointer, error) {
 			derrors.CodeInternal, "could not copy the frame into its bitmap")
 	}
 
-	// The buffer's bytes are screen content; the bitmap now holds the only
+	// The buffer's bytes are screen content. The bitmap now holds the only
 	// copy that matters, so this one is wiped before it is released.
 	clear(dst)
 

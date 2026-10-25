@@ -18,7 +18,7 @@ int neru_evdev_grab(int fd, int grab) { return ioctl(fd, EVIOCGRAB, grab); }
 /* Revoke fd: every read on it, including one already blocked, returns ENODEV,
  * and the fd stays a dead descriptor until its owner closes it, so the number
  * cannot be reused under a reader that still holds it. The argument must be
- * NULL; the kernel refuses anything else. */
+ * NULL, because the kernel refuses anything else. */
 int neru_evdev_revoke(int fd) { return ioctl(fd, EVIOCREVOKE, NULL); }
 
 int neru_evdev_key_down(int fd, unsigned int keycode) {
@@ -175,7 +175,7 @@ int neru_uinput_create_scroll(int *out_fd) {
 }
 
 /* Create the scroll wheel the way the scroll path does, then tear it down
- * again. Opening the node alone is not the question `neru doctor` asks: the
+ * again. Opening the node alone is not the question `neru doctor` asks. The
  * UI_SET_* and UI_DEV_CREATE ioctls can refuse on a node that opened. On
  * failure errno is the same one neru_uinput_create_scroll leaves. */
 int neru_uinput_probe_scroll(void) {
@@ -277,7 +277,7 @@ int neru_uinput_create_keyboard(int *out_fd) {
 	struct uinput_setup usetup;
 	memset(&usetup, 0, sizeof(usetup));
 	// BUS_VIRTUAL marks this device as synthetic so Neru's own evdev capture
-	// (isUinputVirtualDevice) skips it — otherwise EVIOCGRAB would grab our
+	// (isUinputVirtualDevice) skips it. Otherwise EVIOCGRAB would grab our
 	// injected keys and loop them straight back into the event tap.
 	usetup.id.bustype = BUS_VIRTUAL;
 	usetup.id.vendor = NERU_UINPUT_VENDOR;
@@ -303,7 +303,7 @@ int neru_uinput_key(int fd, int keycode, int pressed) {
 	// Emit the key event and its SYN_REPORT in a single write so the pair is
 	// submitted atomically. If they were separate writes, a key-down could land
 	// while its SYN failed, leaving the event buffered until a later SYN
-	// committed it — latching the key even though this call reported failure.
+	// committed it, latching the key even though this call reported failure.
 	struct input_event ev[2];
 	memset(ev, 0, sizeof(ev));
 
@@ -332,7 +332,7 @@ static int neru_evdev_has_event_type(int fd, int type) {
 
 /* The absolute axes fd advertises, as the EVIOCGBIT(EV_ABS) bitmap. bits_size
  * is in bytes and must cover ABS_CNT, one word. Which axes make a node a touch surface
- * is decided by the caller (hasPointerAxes): a keyboard's volume knob is an
+ * is decided by the caller (hasPointerAxes). A keyboard's volume knob is an
  * absolute axis too, and a bare EV_ABS test would turn such a keyboard away. */
 int neru_evdev_get_abs_bits(int fd, unsigned long *bits, size_t bits_size) {
 	memset(bits, 0, bits_size);
@@ -424,7 +424,7 @@ int neru_uinput_create_proxy_keyboard(int *out_fd) {
 /* The pointer half of the proxy: where the relative motion and the mouse
  * buttons of a grabbed keyboard that carries them go. Created only once such a
  * keyboard is grabbed, so a setup without one sees no virtual mouse. Only the
- * mouse buttons are advertised: BTN_1 or a joystick or gamepad button would
+ * mouse buttons are advertised. BTN_1 or a joystick or gamepad button would
  * have udev class the device as a joystick (isMouseButton is the Go side of
  * this range). On failure errno is as neru_uinput_create_proxy_keyboard leaves
  * it. */
@@ -453,7 +453,7 @@ int neru_uinput_create_proxy_pointer(int *out_fd) {
 	}
 
 	/* Every relative axis, so whatever motion a grabbed device reports has a
-	 * code here; the kernel drops an event for a code a device does not
+	 * code here. The kernel drops an event for a code a device does not
 	 * advertise, and a dropped event on a grabbed device reaches nothing. */
 	for (int code = 0; code <= REL_MAX; code++) {
 		if (code == REL_RESERVED)

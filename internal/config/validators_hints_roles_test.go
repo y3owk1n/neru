@@ -8,7 +8,7 @@ import (
 )
 
 // TestValidateWithWarnings_LeavesRolesThisPlatformCanExpressSilent pins the
-// other half of the report: a user who has rewritten both role lists, and whose
+// other half of the report. A user who has rewritten both role lists, and whose
 // every entry resolves, is told nothing. A warning tier that also fires on
 // configurations with nothing wrong with them teaches people to ignore it.
 func TestValidateWithWarnings_LeavesRolesThisPlatformCanExpressSilent(t *testing.T) {
@@ -33,7 +33,7 @@ func TestValidateWithWarnings_LeavesRolesThisPlatformCanExpressSilent(t *testing
 	}
 }
 
-// TestValidateWithWarnings_KeepsRefusingAnUnknownRole pins the tier line: an
+// TestValidateWithWarnings_KeepsRefusingAnUnknownRole pins the tier line. An
 // entry naming no role at all is still the whole file's problem, and a refusal
 // says nothing on the side. Warnings describe the configuration that loaded,
 // and this one did not.
@@ -62,8 +62,8 @@ func TestValidateWithWarnings_KeepsRefusingAnUnknownRole(t *testing.T) {
 // TestValidateWithWarnings_NamesTheApplicationWhoseRoleIsUnknown pins the
 // refusal's half of the same question the warning above answers: which of a
 // file's overrides to go and edit. Two of them are configured and the second is
-// the one at fault, so a message that named the field without the index — or
-// named the first one — fails here.
+// the one at fault, so a message that named the field without the index, or
+// named the first one, fails here.
 func TestValidateWithWarnings_NamesTheApplicationWhoseRoleIsUnknown(t *testing.T) {
 	t.Parallel()
 

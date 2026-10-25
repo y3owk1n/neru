@@ -15,16 +15,16 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
-// Off darwin this type paints nothing: the grid is drawn by the overlay
+// Off darwin this type paints nothing. The grid is drawn by the overlay
 // manager's own surface (Cairo on Linux, GDI on Windows), and what survives
 // here is configuration and a window handle. DrawGrid is the one method that
 // keeps a signature it cannot honor, and it is reachable only through the
 // component the manager builds.
 //
-// Nothing calls it today — the managers draw through their backends, whose
+// Nothing calls it today. The managers draw through their backends, whose
 // no-surface path is pinned separately in
 // `internal/adapter/overlay/linux/stub_contract_test.go`. That is exactly why
-// this is pinned rather than trusted: a `return nil` inside an unused method
+// this is pinned rather than trusted, because a `return nil` inside an unused method
 // is invisible until the day a backend reaches for the component it was handed
 // and reads success from a draw that painted nothing, leaving the mode handler
 // with keyboard capture armed over an empty screen.
@@ -70,12 +70,12 @@ func TestOverlay_DrawGridReportsNotSupportedOffDarwin(t *testing.T) {
 
 // TestOverlay_DrawGridRefusalSurvivesAWindow pins that the refusal is about
 // this type having no drawing code at all, not about the window handle being
-// unset: the manager hands its shared window to NewOverlayWithWindow, and a
+// unset. The manager hands its shared window to NewOverlayWithWindow, and a
 // stub that started succeeding once one arrived would put a caller back where
 // the test above started.
 //
 // The handle is a fabricated pointer, which is safe precisely because the stub
-// is one — it stores the value and hands it back from Window(), and nothing
+// is one. It stores the value and hands it back from Window(), and nothing
 // off darwin dereferences it.
 func TestOverlay_DrawGridRefusalSurvivesAWindow(t *testing.T) {
 	t.Parallel()

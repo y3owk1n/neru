@@ -27,8 +27,8 @@ const (
 	AspectRatioAdjustment = 1.2
 
 	// MinCharactersLength is the fewest distinct characters a grid can be
-	// labeled from — distinct, because repeats are dropped before the floor is
-	// applied (newGridAlphabet).
+	// labeled from. They count as distinct because repeats are dropped before
+	// the floor is applied (newGridAlphabet).
 	MinCharactersLength = 2
 
 	// DefaultCharacters is the alphabet a grid is labeled from: a-z without
@@ -36,8 +36,8 @@ const (
 	// shipped default for grid.characters and grid.sublayer_keys (config
 	// assigns them from this constant) and the set newGridAlphabet falls back
 	// to when the configured one cannot label anything. Those were two
-	// literals and they drifted — the fallback kept the `o` the default had
-	// dropped — so they are one constant now, and a user who misconfigures
+	// literals and they drifted, since the fallback kept the `o` the default
+	// had dropped. They are one constant now, so a user who misconfigures
 	// grid.characters cannot be shown a character the default excludes.
 	DefaultCharacters = "abcdefghijklmnpqrstuvwxyz"
 
@@ -63,9 +63,9 @@ const (
 	// MaxKeyIndex is how many cells the subgrid every overlay draws has, and so
 	// the index no key of it reaches. It is what those overlays cap their key
 	// set at (SubgridKeys), which is why it is derived from the shipped
-	// dimensions rather than written: the cells a backend draws and the keys it
-	// draws on them have to be counted the same way, and a 9 written by hand is
-	// a second answer waiting for the day the subgrid stops being 3x3.
+	// dimensions rather than written. The cells a backend draws and the keys it
+	// draws on them have to be counted the same way, and a 9 written by hand
+	// would be wrong the day the subgrid stops being 3x3.
 	MaxKeyIndex = domain.SubgridRows * domain.SubgridCols
 
 	// CenterDivisor is the divisor for center calculation.
@@ -95,7 +95,7 @@ const (
 	// MinLabelLength is the shortest coordinate format supported by the grid.
 	MinLabelLength = LabelLength2
 
-	// DefaultMaxLabelLength preserves the grid's existing automatic 2–4 key
+	// DefaultMaxLabelLength preserves the grid's existing automatic 2 to 4 key
 	// coordinate selection and layout when no lower limit is supplied.
 	DefaultMaxLabelLength = LabelLength4
 )
@@ -114,12 +114,12 @@ type Grid struct {
 
 // Cell is a grid cell containing coordinate, bounds, and center point information.
 type Cell struct {
-	coordinate string          // 3-character coordinate (e.g., "AAA", "ABC")
+	coordinate string          // 2 to 4 character coordinate (e.g., "AAA", "ABC")
 	bounds     image.Rectangle // Cell bounds
 	center     image.Point     // Center point
 }
 
-// Coordinate returns the 3-character coordinate.
+// Coordinate returns the cell's coordinate label.
 func (c *Cell) Coordinate() string {
 	return c.coordinate
 }
@@ -138,7 +138,7 @@ func (c *Cell) Center() image.Point {
 // small display gets finer cells than a large one. See the ScreenArea constants
 // for the thresholds.
 //
-// Labels are grouped into regions named by their first character: within region
+// Labels are grouped into regions named by their first character. Within region
 // A the cells run AAA, ABA, ACA left to right, then AAB, ABB, ACB on the next
 // row, and regions themselves fill left to right and then wrap. That is what
 // lets a user read "C**" as "somewhere in region C".
@@ -176,7 +176,7 @@ type Options struct {
 }
 
 // NewGridWithOptions creates a grid from label options. MaxLabelLength limits
-// the coarse coordinate to 2–4 keypresses; zero keeps the default limit of 4.
+// the coarse coordinate to 2 to 4 keypresses. Zero keeps the default limit of 4.
 func NewGridWithOptions(options Options, bounds image.Rectangle, logger *zap.Logger) *Grid {
 	// Constructors in this tree accept a nil logger and fall back to a no-op
 	// rather than panicking on first use.
@@ -264,11 +264,11 @@ type gridAlphabet struct {
 // too small to label anything with.
 //
 // The repeats go here rather than at each of the three sets in turn because this
-// is the one place all three are read from — a coordinate is built from chars,
+// is the one place all three are read from. A coordinate is built from chars,
 // rowChars and colChars together (DistinctKeys says what a repeat costs).
 //
-// Dropping them can be what makes a set too small — "aa" is one character, not
-// two — so the floor is applied to what is left, not to what was written.
+// Dropping them can make a set too small, because "aa" is one character, not
+// two. The floor is therefore applied to what is left, not to what was written.
 func newGridAlphabet(characters, rowLabels, colLabels string) gridAlphabet {
 	chars := DistinctKeys(characters)
 
@@ -299,16 +299,16 @@ func newGridAlphabet(characters, rowLabels, colLabels string) gridAlphabet {
 // arguments will actually use, so a caller can hold that answer instead of
 // re-deriving it. Empty labels are inferred from characters, which is itself
 // replaced by DefaultCharacters when it is empty or too short to label
-// anything — that second step is why the answer is worth asking for rather than assuming
-// "empty means characters".
+// anything. That second step is why the answer is worth asking for rather than
+// assuming "empty means characters".
 //
 // A label set that was written comes back upper-cased and otherwise as it was,
 // repeats and all, even though the grid will drop those (newGridAlphabet). What
 // the derivation settles is what the *user asked for*, and a repeat is the one
-// part of that a reader still needs: config.warnGridKeySets reads these fields
-// to tell the user a character was dropped, and it runs after the derivation, so
-// dropping it here would leave nothing to report and the grid quietly labeled
-// with a set nobody chose.
+// part of that a reader still needs. config.warnGridKeySets reads these fields
+// to tell the user a character was dropped, and it runs after the derivation.
+// Dropping the repeat here would leave nothing to report, and the grid would be
+// labeled with a set nobody chose without a warning.
 //
 // Passing the result back into NewGridWithLabels builds the same grid as
 // passing the empty strings did, which is what lets config.ResolveGridLabels
@@ -334,7 +334,7 @@ func settleLabels(labels string, inferred []rune) string {
 // replaced by DefaultCharacters when what is left is too short to label with.
 //
 // It is for the caller comparing a reloaded configuration against the grid it is
-// already running — a set that differs from the live one only by a repeat or a
+// already running. A set that differs from the live one only by a repeat or a
 // letter's case is the same set, and treating it as a change rebuilds the grid
 // and discards whatever coordinate the user was halfway through typing.
 func ResolveCharacters(characters string) string {
@@ -376,8 +376,8 @@ type gridPlan struct {
 
 // planGridDimensions picks the column and row counts, label length and prefix
 // region shape for a screen. A two-key limit gets a staged 2D layout only when
-// it shortens the automatically selected label; an automatic two-key grid and
-// longer labels retain their existing region layouts.
+// it shortens the automatically selected label. An automatic two-key grid and
+// longer labels keep their existing region layouts.
 func planGridDimensions(
 	width, height int,
 	scale float64,
@@ -395,8 +395,8 @@ func planGridDimensions(
 	gridCols = gridMax(gridCols, MinGridCols)
 	gridRows = gridMax(gridRows, MinGridRows)
 
-	// Defensive: dimensions are screen-derived (< 300), the clamp prevents
-	// allocation panics on absurd input.
+	// Dimensions are screen-derived (< 300), so this clamp only guards
+	// against allocation panics on absurd input.
 	gridCols = gridMin(gridCols, MaxGridCols)
 	gridRows = gridMin(gridRows, MaxGridRows)
 
@@ -447,7 +447,7 @@ func planGridDimensions(
 	// Cells are emitted region by region and a clipped region forfeits its
 	// unused capacity. A small character set can run out of regions mid-grid,
 	// leaving screen area with no cell at all (a 4-character set on 1000x3000
-	// lost the bottom ~430px). Shrink until the regions reach every cell; the
+	// lost the bottom ~430px). Shrink until the regions reach every cell. The
 	// default 25-character alphabet comes through untouched.
 	availablePrefixes := numChars
 	if labelLength == LabelLength4 {
@@ -513,7 +513,6 @@ func (g *Grid) MaxLabelLength() int {
 
 // ValidCharacters returns all characters that can appear in grid coordinates.
 func (g *Grid) ValidCharacters() string {
-	// If no custom labels, return the main characters
 	if len(g.rowChars) == 0 && len(g.colChars) == 0 {
 		return g.characters
 	}
@@ -551,7 +550,7 @@ func (g *Grid) Cells() []*Cell {
 	return g.cells
 }
 
-// Index returns the coordinate→cell index built at construction time.
+// Index returns the coordinate-to-cell index built at construction time.
 // The returned map is shared internal state and must not be modified by callers.
 func (g *Grid) Index() map[string]*Cell {
 	return g.index

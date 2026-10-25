@@ -17,7 +17,7 @@ import (
 //
 // It is declared here, at the consumer, rather than taken from the component
 // that satisfies it, and names only the two methods binding hotkeys calls. That
-// is what let this package leave internal/app: the App passes its mode handler
+// is what let this package leave internal/app. The App passes its mode handler
 // without dragging the package along. The other interfaces here follow suit.
 type ModeBindings interface {
 	// ModeHotkeyOverride reports the actions the active mode binds to key, and
@@ -58,7 +58,7 @@ type Deps struct {
 	// registration rather than needing the binder rebuilt.
 	Config func() *config.Config
 	// RunSequence executes a binding's steps. It is the sequence executor's
-	// RunAndForget: hotkeys have nobody to report an outcome to.
+	// RunAndForget, since hotkeys have nobody to report an outcome to.
 	RunSequence func(source string, steps []string)
 	// PublishRegisteredHotkeys reports the chords the platform backend actually
 	// took, every time the table is rebuilt. May be nil.
@@ -66,15 +66,15 @@ type Deps struct {
 	// The event taps need it because two of them hand a registered chord back to
 	// the mechanism that owns it rather than dispatching it themselves (macOS in
 	// its tap, Windows in its hook), and a chord the backend *refused* is owned by
-	// nobody: handing that one back drops it, where dispatching it at least lets
+	// nobody. Handing that one back drops it, where dispatching it at least lets
 	// the mode handler resolve it. Registration is the only place that knows which
-	// is which — the configured table cannot tell, because a refusal is logged and
+	// is which. The configured table cannot tell, because a refusal is logged and
 	// skipped (registerHotkeys).
 	PublishRegisteredHotkeys func(keys []string)
 	// Context bounds held-key repeat, so shutdown stops a repeating key.
 	Context func() context.Context
-	// Motion is the binder's namespace in the held-key glide controller;
-	// nil leaves every held move_mouse_relative on the repeat path.
+	// Motion is the binder's namespace in the held-key glide controller.
+	// Nil leaves every held move_mouse_relative on the repeat path.
 	Motion *heldmotion.Group
 
 	Logger *zap.Logger
@@ -82,7 +82,7 @@ type Deps struct {
 
 // Binder owns hotkey registration and the held-key repeat loop.
 //
-// The repeat state below — the cancel table and the two mutexes — is private to
+// The repeat state below, the cancel table and the two mutexes, is private to
 // this file. A repeating key is a goroutine per key that has to be cancellable
 // from the event-tap thread, which is what the table and its lock are for.
 type Binder struct {
@@ -156,7 +156,7 @@ func (b *Binder) Unregister() {
 // ForceRefresh unregisters and registers again for the focused application.
 //
 // A plain RefreshFor is a no-op when the bundle identifier has not changed,
-// which is wrong after a config reload: the bindings changed even though the
+// which is wrong after a config reload, because the bindings changed even though the
 // application did not. This drops the table first so the new config always
 // takes effect.
 func (b *Binder) ForceRefresh() {
@@ -165,7 +165,7 @@ func (b *Binder) ForceRefresh() {
 }
 
 // Restore re-registers hotkeys if the daemon is enabled and they are currently
-// down — the recovery path after a config reload that failed to apply.
+// down. It is the recovery path after a config reload that failed to apply.
 func (b *Binder) Restore() {
 	b.hotkeyRegistrationMu.Lock()
 	defer b.hotkeyRegistrationMu.Unlock()
@@ -175,7 +175,7 @@ func (b *Binder) Restore() {
 	}
 
 	// Ask which application is focused now rather than trusting the cached
-	// identifier: focus can change while the blocking reload alert is up.
+	// identifier, because focus can change while the blocking reload alert is up.
 	bundleID := ""
 
 	if b.actionService != nil {
@@ -195,7 +195,7 @@ func (b *Binder) Restore() {
 // Reregister drops the hotkey table and builds it again for the focused
 // application, keeping the whole cycle under one lock.
 //
-// A keyboard layout change needs this: key names like "Space" or "H" map to
+// A keyboard layout change needs this. Key names like "Space" or "H" map to
 // different keycodes afterwards, so every registration is stale at once.
 func (b *Binder) Reregister() {
 	b.hotkeyRegistrationMu.Lock()
@@ -226,8 +226,8 @@ func (b *Binder) Reregister() {
 }
 
 // RunActions dispatches a binding's steps under the given source name, without
-// waiting for them. Callers that are not hotkeys use it for the same grammar —
-// the Mission Control hooks, for instance.
+// waiting for them. Callers that are not hotkeys use it for the same grammar,
+// the Mission Control hooks for instance.
 func (b *Binder) RunActions(source string, actions []string) {
 	b.dispatchHotkeyActionsAsync(source, actions)
 }

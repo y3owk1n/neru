@@ -21,7 +21,7 @@ func newEventTapHandler(t *testing.T) *Handler {
 }
 
 // TestHandler_EventTapHelpersTolerateNilTap pins the nil-safety the whole
-// design depends on: the handler is built in initialization phase 7 and the
+// design depends on. The handler is built in initialization phase 7 and the
 // event tap only arrives in phase 8, so every helper must be callable before
 // SetEventTap and in tests that never wire one.
 func TestHandler_EventTapHelpersTolerateNilTap(t *testing.T) {

@@ -12,8 +12,8 @@ import (
 )
 
 // updateRecorder captures how the manager delivered each hint update. The
-// distinction that matters is *when* onUpdate ran: immediateUpdate calls it
-// synchronously inside HandleInput, debouncedUpdate schedules it on a timer.
+// distinction that matters is *when* onUpdate ran. immediateUpdate calls it
+// synchronously inside HandleInput, and debouncedUpdate schedules it on a timer.
 type updateRecorder struct {
 	mu sync.Mutex
 
@@ -172,14 +172,15 @@ func newDispatchManager(
 }
 
 // TestManager_HandleInput_UpdateDispatchFollowsHintCount pins the heuristic
-// that decides between a synchronous repaint and a debounced one: when the
+// that decides between a synchronous repaint and a debounced one. When the
 // filtered hint count is unchanged only text colors move, so the update is
-// immediate; when the count changes the overlay has to restructure, so the
+// immediate. When the count changes the overlay has to restructure, so the
 // update is debounced to batch redraws.
 //
-// Getting this backwards is invisible to a count-only assertion — the callback
-// still runs, just at the wrong time — which is why this test distinguishes
-// callbacks delivered inside HandleInput from ones delivered by the timer.
+// Getting this backwards is invisible to a count-only assertion, because the
+// callback still runs, just at the wrong time. That is why this test
+// distinguishes callbacks delivered inside HandleInput from ones delivered by
+// the timer.
 func TestManager_HandleInput_UpdateDispatchFollowsHintCount(t *testing.T) {
 	// AAA and AAB share the "AA" prefix, ABC diverges at the second character,
 	// so typing A -> A narrows 3 -> 3 -> 2.
@@ -189,7 +190,7 @@ func TestManager_HandleInput_UpdateDispatchFollowsHintCount(t *testing.T) {
 	// SetHints itself delivers one update.
 	syncBefore, asyncBefore := recorder.counts()
 
-	// First "A" matches all three: the count is unchanged, so this must be an
+	// First "A" matches all three. The count is unchanged, so this must be an
 	// immediate, synchronous repaint.
 	if _, found := recorder.handleInput(t, manager, "A"); found {
 		t.Fatal(`HandleInput("A") reported an exact match, want none`)
@@ -212,7 +213,7 @@ func TestManager_HandleInput_UpdateDispatchFollowsHintCount(t *testing.T) {
 		)
 	}
 
-	// Second "A" narrows 3 -> 2: a structural change, so it must be debounced
+	// Second "A" narrows 3 -> 2, a structural change, so it must be debounced
 	// rather than delivered inside the call.
 	syncBefore, asyncBefore = recorder.counts()
 
@@ -276,7 +277,7 @@ func TestManager_HandleInput_ExactMatchRequiresUniqueAndEqualLabel(t *testing.T)
 
 	t.Run("input equal to a label but still ambiguous does not match", func(t *testing.T) {
 		// "AA" is a prefix of "AAB", so after typing "AA" two hints remain.
-		// The first of them has the label "AA", which is exactly the input —
+		// The first of them has the label "AA", which is exactly the input,
 		// but the set has not been narrowed to one, so this must not select.
 		manager, recorder, mut := newDispatchManager(t, "AA", "AAB")
 		defer mut.Unlock()
@@ -294,8 +295,8 @@ func TestManager_HandleInput_ExactMatchRequiresUniqueAndEqualLabel(t *testing.T)
 	})
 
 	t.Run("unique hint whose label is longer than the input does not match", func(t *testing.T) {
-		// After "AA" only "AAB" remains — a unique hint, but the user has not
-		// finished typing its label, so nothing may be selected yet.
+		// After "AA" only "AAB" remains. It is a unique hint, but the user has
+		// not finished typing its label, so nothing may be selected yet.
 		manager, recorder, mut := newDispatchManager(t, "AAB", "BBB")
 		defer mut.Unlock()
 
@@ -324,7 +325,7 @@ func TestManager_HandleInput_ExactMatchRequiresUniqueAndEqualLabel(t *testing.T)
 // TestManager_HandleBackspace_OnEmptyInputResetsToFullSet covers the guard on
 // the backspace path. Backspace is reachable before any character has been
 // typed (the user opens hints and immediately presses it), where slicing the
-// input would panic; the documented behavior is instead to reset and re-show
+// input would panic. The documented behavior is instead to reset and re-show
 // the full hint set. Repeating it must stay stable rather than drifting.
 func TestManager_HandleBackspace_OnEmptyInputResetsToFullSet(t *testing.T) {
 	manager, recorder, mut := newDispatchManager(t, "AA", "AB", "AC")
@@ -347,7 +348,7 @@ func TestManager_HandleBackspace_OnEmptyInputResetsToFullSet(t *testing.T) {
 
 	gotSync, gotAsync := recorder.counts()
 
-	// Each reset delivers its update synchronously; none may be deferred to a
+	// Each reset delivers its update synchronously. None may be deferred to a
 	// timer, or the overlay would briefly keep showing a stale filtered set.
 	if gotSync != syncBefore+3 {
 		t.Errorf("got %d synchronous updates from 3 backspaces, want 3", gotSync-syncBefore)
@@ -359,7 +360,7 @@ func TestManager_HandleBackspace_OnEmptyInputResetsToFullSet(t *testing.T) {
 }
 
 // TestManager_HandleBackspace_RestoresWiderHintSet checks the inverse of the
-// narrowing path: removing a character must widen the filtered set back out and
+// narrowing path. Removing a character must widen the filtered set back out and
 // clear the matched prefix, or the overlay keeps highlighting a prefix the user
 // has already deleted.
 func TestManager_HandleBackspace_RestoresWiderHintSet(t *testing.T) {
@@ -374,7 +375,7 @@ func TestManager_HandleBackspace_RestoresWiderHintSet(t *testing.T) {
 	}
 
 	// Backspacing "AA" -> "A" widens the filtered set from 2 back to 3. That is
-	// a structural change, so — exactly as on the typing path — it must be
+	// a structural change, so, exactly as on the typing path, it must be
 	// debounced rather than delivered inside the call.
 	syncBefore, asyncBefore := recorder.counts()
 

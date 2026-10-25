@@ -74,9 +74,9 @@ type Controller struct {
 // Deps collects everything New needs.
 //
 // It is a struct rather than a positional parameter list because the list had
-// grown to fourteen arguments, most of them nil at any given call site — which
+// grown to fourteen arguments, most of them nil at any given call site. That
 // made every new port a mechanical edit across seven test files and made the
-// nils impossible to read. Zero values are valid: a nil service simply means
+// nils impossible to read. Zero values are valid. A nil service means
 // the corresponding commands report that it is unavailable, and EventTap and
 // IPCServer are legitimately nil until initialization phase 8 fills them in via
 // SetInfrastructure.
@@ -157,7 +157,6 @@ func New(deps Deps) *Controller {
 		domain.CommandWatch: ipcController.HandleWatch,
 	}
 
-	// Register command handlers
 	ipcController.registerHandlers(deps.Config)
 
 	return ipcController
@@ -266,11 +265,10 @@ func (c *Controller) setEnabled(enabled bool) {
 
 // registerHandlers registers all command handlers by delegating to sub-controllers.
 func (c *Controller) registerHandlers(cfg *config.Config) {
-	// Initialize handler components
 	lifecycleHandler := NewLifecycleHandler(c.AppState, c.Modes, c.setEnabled, c.Logger)
 	modesHandler := NewModesHandler(c.Modes, c.Logger)
 	// The slots are IPC-session state with no dependencies, so the controller
-	// owns them: the actions handler writes them and the info handler reports
+	// owns them. The actions handler writes them and the info handler reports
 	// them, and nothing outside this controller needs to reach them.
 	cursorSlots := state.NewCursorSlots()
 	cursorSlots.PublishTo(c.Events)
@@ -284,7 +282,7 @@ func (c *Controller) registerHandlers(cfg *config.Config) {
 		cursorSlots,
 		c.Logger,
 	)
-	// SetConfigField stays zero here; SetConfigFieldCallback fills it in after
+	// SetConfigField stays zero here. SetConfigFieldCallback fills it in after
 	// construction, since the callback needs the fully built app.
 	c.infoHandler = NewInfoHandler(InfoHandlerDeps{
 		ConfigService: c.ConfigService,
@@ -310,15 +308,12 @@ func (c *Controller) registerHandlers(cfg *config.Config) {
 
 	c.infoHandler.RegisterHandlers(c.Handlers)
 
-	// Register overlay handler
 	overlayHandler := NewOverlayHandler(c.AppState, c.Logger)
 	overlayHandler.RegisterHandlers(c.Handlers)
 
-	// Register scroll handler
 	scrollHandler := NewScrollHandler(c.AppState, c.ScrollService, c.Logger)
 	scrollHandler.RegisterHandlers(c.Handlers)
 
-	// Register action sequence handler
 	sequenceHandler := NewSequenceHandler(c.ExecuteSequence, c.ExecuteMacro, c.Logger)
 	sequenceHandler.RegisterHandlers(c.Handlers)
 }

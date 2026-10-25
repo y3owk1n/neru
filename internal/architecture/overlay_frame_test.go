@@ -16,7 +16,7 @@ import (
 const frameSealMethod = "frame"
 
 // TestFrameCarriesDomainValuesOnly enforces the constraint the overlay Frame
-// exists under: a Frame carries domain values, never a resolved Style, a
+// exists under. A Frame carries domain values, never a resolved Style, a
 // render model or a platform handle (#1210, ADR 0003).
 //
 // It is the reason the layering ban is expressible at all. An app package that
@@ -97,7 +97,7 @@ func isDomainValuePackage(path string) bool {
 
 	if !strings.HasPrefix(path, repo) {
 		// Anything outside this module is either the standard library or a
-		// third-party value type; neither can be an overlay render model.
+		// third-party value type. Neither can be an overlay render model.
 		return true
 	}
 
@@ -142,7 +142,7 @@ func receiverTypeName(expr ast.Expr) string {
 }
 
 // packageQualifiersIn collects every package qualifier a type expression
-// names — the "hint" of hint.Interface, the "image" of image.Rectangle.
+// names, such as the "hint" of hint.Interface or the "image" of image.Rectangle.
 func packageQualifiersIn(expr ast.Expr) []string {
 	var qualifiers []string
 

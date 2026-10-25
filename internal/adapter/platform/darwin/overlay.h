@@ -17,7 +17,7 @@
 typedef void *OverlayWindow;
 
 /// Hint placement constants. Go reads these through cgo and passes one with
-/// every hint draw; the HintPlacement enum in overlay_darwin.m is what the
+/// every hint draw. The HintPlacement enum in overlay_darwin.m is what the
 /// drawing code compares against, so the two must agree. That is pinned by
 /// internal/architecture/hint_placement_vocabulary_test.go, which also checks
 /// both against the one Go declaration of the vocabulary (config.HintPlacements).
@@ -93,7 +93,7 @@ typedef struct {
 	int labelBackgroundPaddingY;      ///< Label badge vertical padding (-1 = auto)
 	int labelBackgroundBorderRadius;  ///< Label badge border radius (-1 = auto)
 	int labelBackgroundBorderWidth;   ///< Label badge border width
-	int hideLabel;            ///< Cells are too small for a label (1 = hide, 0 = draw); zero keeps grid mode's labels
+	int hideLabel;            ///< Cells are too small for a label (1 = hide, 0 = draw), zero keeps grid mode's labels
 	int transitionFontSize;   ///< Label font size held while a transition runs (0 = fontSize)
 	int transitionHideLabel;  ///< Hide labels while a transition runs (1 = hide, 0 = draw)
 	int subKeyGridCols;       ///< Sub-key preview grid columns (next depth's cols)
@@ -119,7 +119,7 @@ typedef struct {
 /// Virtual cursor indicator style configuration
 typedef struct {
 	double radius;     ///< Outer radius in points
-	char *fillColor;   ///< Text color (hex)
+	char *fillColor;   ///< Circle fallback fill color (hex)
 	char *labelChar;   ///< Character to draw (UTF-8, NULL for circle fallback)
 	char *fontFamily;  ///< Font family name (NULL for system)
 	int fontSize;      ///< Font size in points (0 for auto from radius)

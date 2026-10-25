@@ -124,7 +124,7 @@ char *NeruDetectBundleType(const char *bundle_id) {
 			return NULL;
 		}
 
-		// Find the app bundle on disk: try LaunchServices (installed apps) first,
+		// Find the app bundle on disk. Try LaunchServices (installed apps) first,
 		// then NSRunningApplication (running apps that may not be in LS database,
 		// e.g. Chromium PWA app shims with UUID-suffixed bundle IDs).
 		NSURL *bundleURL = nil;
@@ -211,7 +211,7 @@ char *NeruDetectBundleType(const char *bundle_id) {
 		if ([info[@"LSTemplateApplication"] boolValue])
 			return strdup("webkit");
 
-		// 6. http/https URL scheme registration — only web browsers register these.
+		// 6. http/https URL scheme registration. Only web browsers register these.
 		//    Non-browser apps (TextEdit, Terminal, IDEs, etc.) never do.
 		NSArray *urlTypes = info[@"CFBundleURLTypes"];
 		if (urlTypes) {
@@ -679,12 +679,6 @@ void **NeruGetVisibleRows(void *element, int *count) {
 	CFRelease(rowsValue);
 	return result;
 }
-
-#pragma mark - Constants
-
-static CFStringRef kAXLinkRole = CFSTR("AXLink");
-static CFStringRef kAXCheckboxRole = CFSTR("AXCheckBox");
-static CFStringRef kAXFocusableAttribute = CFSTR("AXFocusable");
 
 #pragma mark - Click Action Functions
 

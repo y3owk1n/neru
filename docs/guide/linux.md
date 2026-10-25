@@ -48,7 +48,7 @@ names a compositor in the first row, or contains `wlroots`, as labwc's
 5. Run `neru doctor`. Every row should be healthy.
 
 The install script offers step 2 for you. If you skip steps 2 and 3, Neru
-still runs with less, see [Running without the permissions](#running-without-the-permissions).
+still runs with fewer features. See [Running without the permissions](#running-without-the-permissions).
 
 ## Runtime libraries
 
@@ -164,7 +164,7 @@ group. The same device lets the keyboard proxy re-emit keys and gives
 ## Running without the permissions
 
 Without the `input` group, Neru's `[hotkeys]` do nothing on Wayland. Bind
-`neru hints` and the other modes in your compositor instead, see
+`neru hints` and the other modes in your compositor instead. See
 [Global hotkeys on Wayland](linux-desktops.md#global-hotkeys-on-wayland).
 
 Without a writable `/dev/uinput`:
@@ -246,7 +246,7 @@ Debian, Ubuntu, Arch and builds from source do not need this.
 ### "WAYLAND_DISPLAY is not set"
 
 Neru runs under X11 or a TTY, and uses the X11 backend when `DISPLAY` is set.
-From the systemd service, see [Systemd user service](#systemd-user-service).
+When the error comes from the systemd service, see [Systemd user service](#systemd-user-service).
 
 ### "neru does not recognize this Wayland compositor"
 

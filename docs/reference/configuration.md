@@ -195,15 +195,15 @@ the platform:
 
 | Platform | Identity Neru matches | How to find it |
 | --- | --- | --- |
-| macOS | Bundle ID, reverse-DNS (e.g. `com.apple.Safari`) | `osascript -e 'id of app "Safari"'` |
+| macOS | Bundle ID, reverse-DNS, such as `com.apple.Safari` | `osascript -e 'id of app "Safari"'` |
 | Linux · X11 | Window `WM_CLASS`, the *class* field | `xprop WM_CLASS`, then click the window |
 | Linux · Wayland | Toplevel `app_id` | `swaymsg -t get_tree` (Sway), `hyprctl activewindow` (Hyprland), `niri msg windows` (niri), or your compositor's window inspector |
-| Windows | Full path of the focused window's executable (e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe`) | Task Manager, Details tab, right-click the process, **Open file location**, or `(Get-Process chrome).Path` in PowerShell |
+| Windows | Full path of the focused window's executable, such as `C:\Program Files\Google\Chrome\Application\chrome.exe` | Task Manager, Details tab, right-click the process, **Open file location**, or `(Get-Process chrome).Path` in PowerShell |
 
 Matching is case-insensitive and exact, with no globbing or partial matches.
 
-- Linux identity strings vary by toolkit (e.g. `Google-chrome`, `code`,
-  `org.kde.konsole`). Confirm with the commands above.
+- Linux identity strings vary by toolkit. Examples are `Google-chrome`,
+  `code` and `org.kde.konsole`. Confirm with the commands above.
 - On Windows, write the path as a TOML literal string (`'C:\...'`) or double
   every backslash. A copy installed elsewhere, such as under `%LOCALAPPDATA%`,
   needs its own entry. Microsoft Store apps all share the identity
@@ -233,7 +233,7 @@ A worked example with arguments is in
 - **Names** use letters, digits, `_` and `-`, and start with a letter.
 - **Arguments** are positional: `$1`, `$2`, and so on, with `$$` for a literal
   dollar sign. Substitution is textual and happens before the step is split, so
-  quote a placeholder that may hold spaces, e.g. `exec say "$1"`.
+  quote a placeholder that may hold spaces, as in `exec say "$1"`.
 - **Arity is checked at load** wherever an action can be written, including
   [hooks](#hooks) and nested `run` or `--on-exit` steps. An
   unknown name or wrong argument count fails `neru config validate`.
@@ -521,7 +521,7 @@ accent = "#6E82D6"
 ### Color format
 
 Every color option takes hex with optional alpha. The alpha byte is
-`round(opacity * 255)`, e.g. `F2` for 95% and `B3` for 70%. A color is a string,
+`round(opacity * 255)`, so 95% is `F2` and 70% is `B3`. A color is a string,
 or a table with `light` and `dark` keys such as
 `{ light = "#AAFF0000", dark = "#AA00FF00" }`. A color you leave out is derived
 from `[theme]` and follows the system appearance.
@@ -662,7 +662,7 @@ differs from the shipped list, and always for `additional_clickable_roles`.
 `neru roles --explain` and `neru doctor` always report it.
 
 † A subrole. AppKit reports it in the element's subrole while the role stays
-generic, e.g. a search field is an `AXTextField` with subrole `AXSearchField`.
+generic. For example, a search field is an `AXTextField` with subrole `AXSearchField`.
 Neru matches names against both role and subrole, so these work as written.
 
 ‡ GTK 3 reports its entries and text views as `text`, which other toolkits use
@@ -973,14 +973,14 @@ own size and multiplier.
 | `label_background_padding_y`          | int    | `-1`    | Vertical label padding, `-1` for automatic                                           |
 | `label_background_border_radius`      | int    | `-1`    | Label corner radius, `-1` for automatic                                              |
 | `label_background_border_width`       | int    | `1`     | Label border width                                                           |
-| `label_char`                          | string | `""`    | Override all cell labels with a single character (e.g. `·`), empty = use key |
+| `label_char`                          | string | `""`    | Override all cell labels with a single character, such as `·`. Empty uses the key |
 | `min_font_size`                       | int    | `6`     | Smallest size a label or the sub-key preview shrinks to before it hides      |
-| `label_autohide_multiplier`           | float  | `1.5`   | Keep cell >= fontSize × multiplier by shrinking the label, `0` turns it off      |
+| `label_autohide_multiplier`           | float  | `1.5`   | Shrink the label so each cell stays at least the font size times this, `0` turns it off      |
 | `sub_key_preview`                     | bool   | `false` | Show a mini-grid of the next level's keys inside each cell                   |
 | `sub_key_preview_font_size`           | int    | `8`     | Sub-key preview font size                                                    |
 | `sub_key_preview_autohide_multiplier` | float  | `1.5`   | The same requirement for the preview, measured against one sub-cell          |
 | `sub_key_preview_text_color`          | color  | derived | Sub-key preview text color                                                   |
-| `sub_key_preview_label_char`          | string | `""`    | Override sub-key labels with a single character (e.g. `·`), empty = use key  |
+| `sub_key_preview_label_char`          | string | `""`    | Override sub-key labels with a single character, such as `·`. Empty uses the key  |
 
 ### Recursive grid default hotkeys
 
@@ -1221,7 +1221,7 @@ text = "H"
 
 Each mode has a `[mode_indicator.<mode>]` table for `scroll`, `hints`, `grid`,
 `recursive_grid`, `bisect` and `monitor_select`. Only `scroll` is shown by
-default, and the default `text` is the mode's name in title case, e.g.
+default, and the default `text` is the mode's name in title case, such as
 `Recursive Grid`.
 
 | Option             | Type   | Default        | Description                       |
@@ -1245,8 +1245,8 @@ default, and the default `text` is the mode's name in title case, e.g.
 | `padding_x`          | int    | `-1`    | Horizontal padding, `-1` for automatic                                                                                             |
 | `padding_y`          | int    | `-1`    | Vertical padding, `-1` for automatic                                                                                               |
 | `border_radius`      | int    | `-1`    | Corner radius, `-1` for automatic                                                                                                  |
-| `indicator_x_offset` | int    | `20`    | X offset from cursor (positive = right)                                                                                    |
-| `indicator_y_offset` | int    | `20`    | Y offset from cursor (positive = down)                                                                                     |
+| `indicator_x_offset` | int    | `20`    | X offset from cursor, positive to the right                                                                                    |
+| `indicator_y_offset` | int    | `20`    | Y offset from cursor, positive downward                                                                                     |
 
 ## [sticky_modifiers]
 
@@ -1287,7 +1287,7 @@ max_duration = 150
 | `steps`                      | int   | `10`    | Number of animation steps                      |
 | `max_duration`               | int   | `200`   | Longest animation, in ms                   |
 | `duration_per_pixel`         | float | `0.1`   | Ms per pixel for jumps, giving constant speed  |
-| `relative_movement_duration` | int   | `50`    | Fixed duration per relative move, in ms (>= 10) |
+| `relative_movement_duration` | int   | `50`    | Fixed duration per relative move, in ms, at least 10 |
 
 `relative_movement_duration` applies to `move_mouse_relative`, which the
 default arrow bindings use. Each relative move takes this fixed time, so cursor

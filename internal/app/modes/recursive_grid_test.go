@@ -80,7 +80,7 @@ func TestHandleRecursiveGridKey_CompleteSelectionDoesNotMoveWhenCursorFollowSele
 }
 
 // TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart pins the one
-// conversion left on the recursive-grid draw path: the mode layer is where the
+// conversion left on the recursive-grid draw path. The mode layer is where the
 // manager's separate row and column counts are paired up into the
 // domain.GridDimensions the port carries all the way to the division (#1313).
 //
@@ -88,7 +88,7 @@ func TestHandleRecursiveGridKey_CompleteSelectionDoesNotMoveWhenCursorFollowSele
 // each other's names here would transpose every recursive-grid cell on every
 // backend and nothing else would notice. The grid is deliberately non-square,
 // and its next depth a different non-square shape, so a swap cannot survive
-// either conversion — and the cells the frame's dimensions divide into are
+// either conversion. The cells the frame's dimensions divide into are
 // checked too, because a transposition is only a bug for what it does to the
 // screen.
 func TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart(t *testing.T) {
@@ -154,9 +154,9 @@ func TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart(t *testing.T) 
 // narrow anything (#1345).
 //
 // Only macOS corrects such a shape in its draw. Linux and Windows guard the
-// division and nothing more: a side of zero or less stops their draw entirely,
+// division and nothing more. A side of zero or less stops their draw entirely,
 // and a 1x1 divides into one cell over the whole region that no key can narrow.
-// That difference is unreachable, and this is where it is held unreachable: the
+// That difference is unreachable, and this is where it is held unreachable. The
 // manager replaces an unusable shape before anything is drawn, so the frame
 // every backend is handed already carries a usable one and the key mapping that
 // fits it. If the fallback ever moved out of the domain and into the macOS draw

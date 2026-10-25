@@ -103,7 +103,7 @@ An `app_configs` entry changes bindings while one app has focus.
 
 The entry merges over the base table under the same rules as a config table
 merges over the defaults. `bundle_id` means a different thing on each
-platform, see
+platform. See
 [App identity](../reference/configuration.md#app-identity-across-platforms-bundle_id).
 
 ## Mistakes are caught at load

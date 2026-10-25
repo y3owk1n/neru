@@ -17,7 +17,7 @@ import (
 // Display-configuration change notifications via a hidden top-level window.
 //
 // Windows has no hook for display changes the way it has one for the
-// foreground window: WM_DISPLAYCHANGE is broadcast to every top-level window
+// foreground window. WM_DISPLAYCHANGE is broadcast to every top-level window
 // when a resolution, arrangement or monitor set changes, and WM_DPICHANGED is
 // sent to a window whose monitor's DPI changes. Both need an HWND to land on,
 // so the watcher owns a hidden, never-shown popup window on a
@@ -36,13 +36,13 @@ const (
 )
 
 var (
-	// activeDisplayWatcher is the watcher displayWndProc dispatches to, atomic
-	// for the reason activeForegroundWatcher is: the pump thread stores it and
-	// Windows calls the procedure on that same thread, but Stop reads it from
-	// the caller's goroutine.
+	// activeDisplayWatcher is the watcher displayWndProc dispatches to. It is
+	// atomic for the reason activeForegroundWatcher is. The pump thread stores
+	// it and Windows calls the procedure on that same thread, but Stop reads it
+	// from the caller's goroutine.
 	activeDisplayWatcher atomic.Pointer[DisplayWatcher]
 
-	// displayWndProcPtr is allocated once for the process, never per watcher: a
+	// displayWndProcPtr is allocated once for the process, never per watcher. A
 	// syscall.NewCallback slot is never freed and the process has a fixed 2000
 	// of them (see keyboardHookProcPtr).
 	displayWndProcPtr = sync.OnceValue(func() uintptr {
@@ -98,14 +98,14 @@ func StartDisplayWatcher(callback func()) (*DisplayWatcher, error) {
 }
 
 // WindowHandle is the hidden window the watcher listens on. It exists so a
-// test can post the messages Windows would broadcast; nothing else needs it.
+// test can post the messages Windows would broadcast. Nothing else needs it.
 func (w *DisplayWatcher) WindowHandle() uintptr {
 	return w.hwnd
 }
 
 // Stop destroys the window and waits for the pump thread to exit. No callback
 // fires after it returns. The join is unbounded for the reason
-// ForegroundWatcher.Stop's is: the callback contract forbids parking on a lock
+// ForegroundWatcher.Stop's is. The callback contract forbids parking on a lock
 // the caller holds.
 func (w *DisplayWatcher) Stop() {
 	if w == nil {
@@ -122,7 +122,7 @@ func (w *DisplayWatcher) Stop() {
 }
 
 // displayWndProc is the WNDPROC for the watcher's window class. Only the two
-// display messages reach the callback; everything else is DefWindowProc's.
+// display messages reach the callback. Everything else goes to DefWindowProc.
 func displayWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	if message == wmDisplayChange || message == wmDPIChanged {
 		if current := activeDisplayWatcher.Load(); current != nil && current.hwnd == hwnd {

@@ -18,7 +18,7 @@ import (
 // ComponentFactory assembles the per-mode components: the state a mode keeps
 // and the callbacks it drives the overlay through.
 //
-// It builds no overlay of its own and names none: what the overlay draws
+// It builds no overlay of its own and names none. What the overlay draws
 // through is built by the overlay, on the surface only it knows about, and
 // what a mode says about it goes through ports.OverlayPort.
 type ComponentFactory struct {
@@ -45,7 +45,7 @@ func NewComponentFactory(
 // CreateHintsComponent creates the hints component.
 //
 // Hints are the one mode whose component is left empty when the mode is
-// disabled: nothing reads its context.
+// disabled, since nothing reads its context.
 func (f *ComponentFactory) CreateHintsComponent() *components.HintsComponent {
 	if !f.config.Hints.Enabled {
 		return &components.HintsComponent{}
@@ -70,7 +70,6 @@ func (f *ComponentFactory) CreateGridComponent() *components.GridComponent {
 		Context: ctx,
 	}
 
-	// Create grid manager with callbacks
 	component.Manager = domainGrid.NewManager(
 		nil,
 		domain.SubgridDimensions(),
@@ -86,7 +85,7 @@ func (f *ComponentFactory) CreateGridComponent() *components.GridComponent {
 			f.overlayPort.UpdateGridMatches(component.Manager.CurrentInput())
 		},
 		func(cell *domainGrid.Cell) {
-			// No pointer: this manager is the one the component is built with
+			// No pointer. This manager is the one the component is built with
 			// and the handler replaces it on every activation, so nothing here
 			// has a selection to stand for. The one that does builds the
 			// pointer from the mode's context (modes/grid.go).
@@ -99,7 +98,7 @@ func (f *ComponentFactory) CreateGridComponent() *components.GridComponent {
 }
 
 // CreateScrollComponent creates the scroll component. It owns scroll context
-// and key mappings only; the visual mode indicator is an overlay of its own.
+// and key mappings only. The visual mode indicator is an overlay of its own.
 func (f *ComponentFactory) CreateScrollComponent() *components.ScrollComponent {
 	return &components.ScrollComponent{
 		Context: &scroll.Context{},

@@ -102,8 +102,7 @@ void NeruSetEventTapStickyModifierToggle(EventTap tap, int enabled);
 #pragma mark - Per-Hotkey CGEventTap
 
 /// Create a per-hotkey CGEventTap that captures a single key+modifier combo.
-/// The tap is always active and
-/// consumes the event when matched.
+/// The tap is always active and consumes the event when matched.
 /// @param hotkeyID Opaque identifier passed back in the callback
 /// @param keyCode CG keycode of the hotkey
 /// @param modifiers ModifierKey bitmask

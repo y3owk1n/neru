@@ -12,25 +12,25 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// The animation floor itself is not declared here: every smooth-cursor
+// The animation floor itself is not declared here. Every smooth-cursor
 // animation is floored at config.MinSmoothCursorAnimationDuration, the same
 // constant ValidateSmoothCursor rejects a shorter relative_movement_duration
 // against, so the validator and the animator cannot disagree about what the
 // daemon will honor. The darwin and linux animators read it the same way.
 const (
-	// minCursorStepDelay is the shortest gap between injected steps — a
-	// scheduling floor on this animator's own timer, not a config value. No
+	// minCursorStepDelay is the shortest gap between injected steps, a
+	// scheduling floor on this animator's own timer and not a config value. No
 	// config option declares it and none derives from it (darwin likewise
 	// keeps its own minStepDelay local), so there is nothing here for a
 	// config change to desync from and it stays local.
 	minCursorStepDelay = 1 // ms
 	// defaultCursorSteps is the step count used when a caller passes none
 	// (<= 0). It equals config.DefaultSmoothCursorSteps today, and that is a
-	// coincidence rather than a derivation: both smooth-cursor call sites
+	// coincidence rather than a derivation. Both smooth-cursor call sites
 	// pass cfg.SmoothCursor.Steps, which ValidateSmoothCursor already
 	// requires to be >= 1, so no validated config can reach this fallback at
-	// all. It answers a different question — what step count to use for a
-	// caller that supplied a nonsense one — and moving the config default
+	// all. It answers a different question, what step count to use for a
+	// caller that supplied a nonsense one, and moving the config default
 	// must not move it.
 	defaultCursorSteps = 10
 )
@@ -58,7 +58,7 @@ func (d *cursorAnimationDone) close() {
 }
 
 // cursorRequest is a single "animate to end" target. It carries no completion
-// object of its own: completion is tracked per animation *session* (see
+// object of its own. Completion is tracked per animation *session* (see
 // smoothCursorAnimator), so coalescing a superseded target never releases a
 // waiter early.
 type cursorRequest struct {
@@ -72,15 +72,15 @@ type cursorRequest struct {
 // smoothCursorAnimator glides the cursor toward a target, matching the darwin
 // animator: one worker goroutine, latest-target-wins, a completion channel
 // WaitForCursorIdle blocks on. Callers do not serialize cursor access, so a
-// direct move cancels an in-flight animation; stop() fences on injectSem so a
+// direct move cancels an in-flight animation. stop() fences on injectSem so a
 // canceled tween can never land after the warp. Backend errors mid-animation
-// are dropped (darwin's native move cannot fail back to Go either); the direct
+// are dropped (darwin's native move cannot fail back to Go either). The direct
 // MoveCursorToPoint path still returns them.
 //
-// Completion is per session — every target arriving mid-session shares one
+// Completion is per session. Every target arriving mid-session shares one
 // completion, so a waiter tracks the latest target rather than being released
 // when an intermediate one is superseded. pos and move are injected to keep
-// the Win32 calls out; pos samples once per request, so a bad GetCursorPos
+// the Win32 calls out. pos samples once per request, so a bad GetCursorPos
 // read affects the glide path but never where the cursor lands.
 type smoothCursorAnimator struct {
 	pos  func() image.Point
@@ -89,7 +89,7 @@ type smoothCursorAnimator struct {
 	mu     sync.Mutex
 	reqCh  chan cursorRequest
 	stopCh chan struct{}
-	done   *cursorAnimationDone // current session completion; nil only between stop() and the next session
+	done   *cursorAnimationDone // current session completion, nil only between stop() and the next session
 	busy   bool                 // a session is in progress (worker actively draining toward a target)
 
 	// pendingEnd is the target of the animation currently in flight. Relative
@@ -99,7 +99,7 @@ type smoothCursorAnimator struct {
 	hasPending bool
 
 	// injectSem is a size-1 semaphore serializing actual backend injection (one
-	// step at a time) and is the ordering handoff to stop(): the worker holds it
+	// step at a time) and is the ordering handoff to stop(). The worker holds it
 	// across each step and re-checks stopCh under it, so once stop() acquires it
 	// no canceled step is mid-flight and none will start. It is never held
 	// together with mu.
@@ -139,7 +139,7 @@ func (a *smoothCursorAnimator) stop() {
 	done.close()
 
 	// Order a bypassed direct warp after any in-flight animation step. stopCh is
-	// already closed above, so once we hold injectSem: any step that was
+	// already closed above, so once we hold injectSem, any step that was
 	// mid-injection has finished (it releases the token on the way out), and any
 	// step that has not yet injected will see the closed stopCh (in stepMove) and
 	// skip. The caller's subsequent moveCursorDirect therefore lands last.
@@ -157,11 +157,11 @@ func (a *smoothCursorAnimator) pendingTarget() (image.Point, bool) {
 	return a.pendingEnd, a.hasPending
 }
 
-// settle finishes any in-flight animation immediately: the worker is canceled
+// settle finishes any in-flight animation immediately. The worker is canceled
 // and the cursor warps straight to the endpoint it was animating toward.
 // Position-dependent actions call this so an action firing mid-animation acts
 // at the point the user aimed for, without waiting the animation out. The
-// warp happens under injectSem — the same fence stop() uses — so a canceled
+// warp happens under injectSem, the same fence stop() uses, so a canceled
 // step can never land after it.
 func (a *smoothCursorAnimator) settle() {
 	a.mu.Lock()
@@ -210,8 +210,8 @@ func (a *smoothCursorAnimator) stepMove(point image.Point, stopCh <-chan struct{
 	default:
 	}
 
-	// Best-effort, matching darwin (whose native move cannot fail back to Go):
-	// a failed backend warp during the opt-in animation is not surfaced through
+	// Best-effort, matching darwin (whose native move cannot fail back to Go).
+	// A failed backend warp during the opt-in animation is not surfaced through
 	// WaitForCursorIdle. The direct MoveCursorToPoint path still returns backend
 	// errors synchronously.
 	_ = a.move(point)
@@ -240,11 +240,11 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 }
 
 // animateTo enqueues an animation toward end. A fresh session completion is
-// created only when the animator is idle; a target arriving mid-session joins
+// created only when the animator is idle. A target arriving mid-session joins
 // the running session so its waiter tracks the latest target.
 //
 // Worker start and enqueue happen under a.mu in one critical section. This is
-// what makes it safe against a concurrent stop(): a bypassed move can never
+// what makes it safe against a concurrent stop(). A bypassed move can never
 // swap out the channel or kill the worker between "pick a channel" and "send",
 // so a request can never be stranded on an orphaned channel. Because every
 // producer holds the lock and the worker is the sole consumer of the size-1
@@ -293,8 +293,8 @@ func (a *smoothCursorAnimator) animateRelativeBy(
 
 	end := clamp(base.Add(delta))
 	if end == base {
-		// Nothing to animate: the delta was zero or the clamp ate it at a
-		// screen edge. The in-flight animation (if any) already targets base,
+		// Nothing to animate, because the delta was zero or the clamp ate it at
+		// a screen edge. The in-flight animation (if any) already targets base,
 		// so submitting would only cancel and restart it.
 		return
 	}
@@ -334,8 +334,8 @@ func (a *smoothCursorAnimator) submitLocked(req cursorRequest) {
 // The buffer is size 1 and, under the lock, we are the only producer while the
 // worker is the only consumer (it removes, never adds). So after draining a
 // stale target the buffer is empty and the follow-up send cannot block. Targets
-// carry no completion object, so dropping a superseded one is a plain discard —
-// the shared session completion is untouched.
+// carry no completion object, so dropping a superseded one is a plain discard,
+// and the shared session completion is untouched.
 func (a *smoothCursorAnimator) enqueueLocked(req cursorRequest) {
 	select {
 	case a.reqCh <- req:
@@ -444,7 +444,7 @@ restart:
 	}
 
 	// Target reached. Continue the same session if a newer target is already
-	// queued; otherwise the session ends.
+	// queued. Otherwise the session ends.
 	next, ok := a.finishOrNext(reqCh, stopCh)
 	if ok {
 		req = next

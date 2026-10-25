@@ -31,8 +31,8 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	adapter := accessibility.NewAdapter(log, client, false)
 	system := darwinplatform.NewSystemAdapter()
 
-	// Bounded rather than context.Background(), but note what this does and
-	// does not buy: the AX client discards the context and calls straight into
+	// Bounded rather than context.Background(), though that buys less than it
+	// seems. The AX client discards the context and calls straight into
 	// the Objective-C bridge, so the deadline cannot interrupt a query that is
 	// already wedged there. What it does do is stop the scan's per-source
 	// goroutines from starting further work once it has expired.
@@ -73,7 +73,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 			t.Errorf("CursorPosition() = %v, outside any plausible desktop coordinate range", pos)
 		}
 
-		// Reading twice without moving must be stable; a jittering read means
+		// Reading twice without moving must be stable. A jittering read means
 		// the position is being derived from something other than HID state.
 		again, err := system.CursorPosition(ctx)
 		if err != nil {
@@ -88,13 +88,11 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	t.Run("MoveCursorToPoint", func(t *testing.T) {
 		requireInputPermission(t)
 
-		// Get current position
 		startPos, startPosErr := system.CursorPosition(ctx)
 		if startPosErr != nil {
 			t.Fatalf("CursorPosition() error = %v, want nil", startPosErr)
 		}
 
-		// Move slightly
 		target := image.Point{X: startPos.X + 10, Y: startPos.Y + 10}
 
 		startPosErr = system.MoveCursorToPoint(ctx, target, false)
@@ -105,7 +103,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		// This subtest uses the smooth-cursor path (bypassSmooth=false), so the
 		// cursor animates toward the target over several frames and its exact
 		// position at any instant is not assertable. What must hold is that it
-		// ends up at the target: "MoveCursorToPoint lands on the requested
+		// ends up at the target. "MoveCursorToPoint lands on the requested
 		// point" below pins exact placement for the direct path, and here we
 		// only require that the animated move converges rather than silently
 		// doing nothing.
@@ -136,18 +134,16 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("MoveCursorToPoint bypassSmooth", func(t *testing.T) {
-		// Gated even though it only asserts the call returns no error: without
-		// the permission that call succeeds while the cursor never moves, so a
+		// Gated even though it only asserts the call returns no error, because
+		// without the permission that call succeeds while the cursor never moves, so a
 		// pass here would say nothing about the path it exists to cover.
 		requireInputPermission(t)
 
-		// Get current position
 		startPos, startPosErr := system.CursorPosition(ctx)
 		if startPosErr != nil {
 			t.Fatalf("CursorPosition() error = %v, want nil", startPosErr)
 		}
 
-		// Move slightly with bypass smooth (direct movement)
 		target := image.Point{X: startPos.X + 20, Y: startPos.Y + 20}
 
 		startPosErr = system.MoveCursorToPoint(ctx, target, true)
@@ -159,7 +155,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	t.Run("MoveCursorToPoint lands on the requested point", func(t *testing.T) {
 		requireInputPermission(t)
 
-		// Regression guard for the macOS Accessibility Zoom interaction: when
+		// Regression guard for the macOS Accessibility Zoom interaction. When
 		// pointer-motion events are posted at the HID tap and the screen is
 		// zoomed in, the window server rewrites their location to
 		// zoomOrigin+(posted-displayCenter)/zoomFactor and the cursor lands
@@ -208,7 +204,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 		// The window server reflects a posted move in the cursor state
 		// asynchronously, so poll rather than reading once. A cursor that is
-		// merely late converges within a frame or two; one that is mispositioned
+		// merely late converges within a frame or two. One that is mispositioned
 		// (the zoom bug lands it hundreds of points away) never converges.
 		const settleTimeout = 500 * time.Millisecond
 
@@ -251,7 +247,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 				time.Sleep(5 * time.Millisecond)
 			}
 
-			// Landing on the point is not enough while zoomed in: the viewport
+			// Landing on the point is not enough while zoomed in. The viewport
 			// has to have followed, or the cursor is correct but off screen.
 			if viewport, zoomed := darwinplatform.ZoomViewportAt(
 				landed,
@@ -270,7 +266,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 		// A `go test` binary is not a foreground app with its own window, so
 		// the live AX tree usually yields zero elements here. That makes the
-		// element *count* unassertable, and any per-element loop vacuous — the
+		// element *count* unassertable, and any per-element loop vacuous. The
 		// filter semantics are pinned deterministically instead by
 		// TestAdapter_ClickableElements_FilterContract, which drives the same
 		// code through MockAXClient with known nodes.
@@ -291,7 +287,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		)
 
 		// The scan is the one call here that can wedge, and the deadline on ctx
-		// cannot stop it — see runWithinBudget for why.
+		// cannot stop it. See runWithinBudget for why.
 		runWithinBudget(t, "ClickableElements", func() {
 			clickableElements, err = adapter.ClickableElements(ctx, filter)
 		})

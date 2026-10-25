@@ -31,7 +31,7 @@ func TestParseModifierEvent(t *testing.T) {
 		{"__modifier_alt_up", action.ModAlt, false, true},
 		{"__modifier_ctrl_up", action.ModCtrl, false, true},
 		{"__modifier_CMD_up", action.ModCmd, false, true},
-		// Invalid — ok=false always comes with zero values.
+		// Invalid: ok=false always comes with zero values.
 		{"__modifier_shift", 0, false, false},
 		{"__modifier_cmd", 0, false, false},
 		{"__modifier_foo_down", 0, false, false}, // has _down suffix but unknown modifier
@@ -109,7 +109,7 @@ func awaitDebounce(t *testing.T, h *Handler) {
 
 func TestHandleModifierToggle_SingleModifier(t *testing.T) {
 	testHandler := newTestHandler()
-	// Shift↓ → Shift↑ should toggle Shift on.
+	// Shift down then Shift up should toggle Shift on.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.handleModifierToggle("__modifier_shift_up")
@@ -119,7 +119,7 @@ func TestHandleModifierToggle_SingleModifier(t *testing.T) {
 	if got := testHandler.modifierState.Current(); got != action.ModShift {
 		t.Errorf("Expected ModShift after single tap, got %v", got)
 	}
-	// Shift↓ → Shift↑ again should toggle Shift off.
+	// Shift down then Shift up again should toggle Shift off.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.handleModifierToggle("__modifier_shift_up")
@@ -134,7 +134,7 @@ func TestHandleModifierToggle_SingleModifier(t *testing.T) {
 func TestHandleModifierToggle_SimultaneousTwoModifiers(t *testing.T) {
 	testHandler := newTestHandler()
 	// Simulate pressing Cmd and Shift at the same time:
-	// Cmd↓ → Shift↓ → Cmd↑ → Shift↑
+	// Cmd down, Shift down, Cmd up, Shift up.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_cmd_down")
 	testHandler.handleModifierToggle("__modifier_shift_down")
@@ -159,7 +159,7 @@ func TestHandleModifierToggle_SimultaneousTwoModifiers(t *testing.T) {
 func TestHandleModifierToggle_SimultaneousThreeModifiers(t *testing.T) {
 	testHandler := newTestHandler()
 	// Simulate pressing Cmd+Shift+Alt at the same time:
-	// Cmd↓ → Shift↓ → Alt↓ → Cmd↑ → Shift↑ → Alt↑
+	// Cmd down, Shift down, Alt down, Cmd up, Shift up, Alt up.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_cmd_down")
 	testHandler.handleModifierToggle("__modifier_shift_down")
@@ -187,7 +187,7 @@ func TestHandleModifierToggle_SimultaneousThreeModifiers(t *testing.T) {
 func TestHandleModifierToggle_SimultaneousFourModifiers(t *testing.T) {
 	testHandler := newTestHandler()
 	// Simulate pressing all four modifiers simultaneously:
-	// Cmd↓ → Shift↓ → Alt↓ → Ctrl↓ → Cmd↑ → Shift↑ → Alt↑ → Ctrl↑
+	// Cmd, Shift, Alt and Ctrl down, then Cmd, Shift, Alt and Ctrl up.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_cmd_down")
 	testHandler.handleModifierToggle("__modifier_shift_down")
@@ -218,7 +218,7 @@ func TestHandleModifierToggle_SimultaneousFourModifiers(t *testing.T) {
 func TestHandleModifierToggle_SimultaneousReleaseOrderReversed(t *testing.T) {
 	testHandler := newTestHandler()
 	// Release order reversed from press order:
-	// Cmd↓ → Shift↓ → Alt↓ → Alt↑ → Shift↑ → Cmd↑
+	// Cmd down, Shift down, Alt down, Alt up, Shift up, Cmd up.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_cmd_down")
 	testHandler.handleModifierToggle("__modifier_shift_down")
@@ -245,7 +245,7 @@ func TestHandleModifierToggle_SimultaneousReleaseOrderReversed(t *testing.T) {
 
 func TestHandleModifierToggle_RegularKeyCancelsAllPending(t *testing.T) {
 	testHandler := newTestHandler()
-	// Cmd↓ → Shift↓ → (regular key cancels) → Cmd↑ → Shift↑
+	// Cmd down, Shift down, a regular key that cancels, Cmd up, Shift up.
 	// Neither should toggle because a regular key intervened.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_cmd_down")
@@ -366,7 +366,7 @@ func TestHandleModifierToggle_HeldTooLong(t *testing.T) {
 func TestHandleModifierToggle_HeldWithinThreshold(t *testing.T) {
 	testHandler := newTestHandler()
 	testHandler.config.StickyModifiers.TapMaxDuration = 500 // 500ms threshold
-	// Quick tap — should toggle.
+	// A quick tap should toggle.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.handleModifierToggle("__modifier_shift_up")
@@ -395,8 +395,8 @@ func TestHandleModifierToggle_ZeroThresholdAlwaysToggles(t *testing.T) {
 }
 
 // TestHandleModifierToggle_KarabinerScenario simulates the exact event sequence
-// that Karabiner sends when remapping Option+h → Left Arrow:
-// alt_down → alt_up → Left (regular key arrives after modifier released).
+// that Karabiner sends when remapping Option+h to Left Arrow: alt_down,
+// alt_up, then Left (the regular key arrives after the modifier is released).
 // The debounce window should allow the regular key to cancel the toggle.
 func TestHandleModifierToggle_KarabinerScenario(t *testing.T) {
 	testHandler := newTestHandler()

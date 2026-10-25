@@ -56,7 +56,7 @@ func (l *promptListener) Close() error {
 
 func (*promptListener) Addr() net.Addr { return nil }
 
-// A listener whose Close never returns is not hypothetical: the Windows
+// A listener whose Close never returns is not hypothetical. The Windows
 // named-pipe listener reaches that state when its close signal is consumed by an
 // accept that is aborting a connection, and the retry that follows waits for a
 // second signal nobody sends. The failure it produced was a daemon that could
@@ -83,7 +83,7 @@ func TestServer_Stop_GivesUpOnAListenerThatWillNotClose(t *testing.T) {
 		t.Fatal("Stop never tried to close the listener")
 	}
 
-	// Generous, so a slow machine cannot fail this: the point is that Stop
+	// Generous, so a slow machine cannot fail this. The point is that Stop
 	// returns at all, not exactly when.
 	limit := listenerCloseTimeout + 10*time.Second
 

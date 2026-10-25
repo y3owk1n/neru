@@ -61,7 +61,7 @@ func TestWarnInertWords_SaysItOnce(t *testing.T) {
 }
 
 // TestWarnInertWords_SaysNothingWhenNothingIsInert keeps the warning off the
-// path it does not belong on: a configuration whose every word works here has
+// path it does not belong on. A configuration whose every word works here has
 // nothing to be told.
 func TestWarnInertWords_SaysNothingWhenNothingIsInert(t *testing.T) {
 	t.Parallel()

@@ -64,7 +64,7 @@ var errNotConnected = errors.New("the Neru GNOME Shell extension has not answere
 // AppID is Mutter's WM_CLASS for the window, which for a native Wayland client
 // is its app_id and for an Xwayland client its X class, so it is the same
 // vocabulary the foreign-toplevel protocol speaks on every other Wayland
-// desktop. Title is the window title. Either can be empty: they are a
+// desktop. Title is the window title. Either can be empty. They are a
 // correlation key, never a requirement.
 type Window struct {
 	Rect  image.Rectangle
@@ -94,8 +94,8 @@ type Bridge struct {
 	// one the caller had.
 	dataDir string
 
-	// conn is the bridge's own session-bus connection. Not the process-wide
-	// dbus.SessionBus(): closing that closes every channel subscribed on it,
+	// conn is the bridge's own session-bus connection, not the process-wide
+	// dbus.SessionBus(). Closing that closes every channel subscribed on it,
 	// and the tray closes it when its loop ends, which would end the signal
 	// stream here with the last answer still cached and nothing to say so.
 	conn *dbus.Conn
@@ -138,7 +138,7 @@ func newBridge(logger *zap.Logger) *Bridge {
 }
 
 // EnsureStarted connects to the extension, off the calling goroutine. It never
-// blocks: the callers reaching it include the mode handler, where a slow call
+// blocks, because the callers reaching it include the mode handler, where a slow call
 // holds the keyboard grab. Until the connection lands, Focused reports
 // errNotConnected, and a caller that arrives while an attempt is in flight
 // gets whatever the last completed attempt learned.
@@ -154,7 +154,7 @@ func (b *Bridge) EnsureStarted() {
 //
 // The three answers are distinct on purpose. A window with ok is what the
 // shell says. ok=false with no error means the extension is connected and has
-// nothing to report: the desktop or the shell itself is focused. A non-nil
+// nothing to report, because the desktop or the shell itself is focused. A non-nil
 // error means the extension could not be reached, which is the one case a
 // caller must not read as "there is no focused window".
 func (b *Bridge) Focused() (Window, bool, error) {
@@ -178,7 +178,7 @@ func (b *Bridge) Bounds() (image.Rectangle, bool, error) {
 
 // FocusEventFD returns a file descriptor that becomes readable whenever the
 // cache changes, for the app watcher to poll instead of asking on a timer. The
-// descriptor is owned by the bridge and lives as long as the process; a caller
+// descriptor is owned by the bridge and lives as long as the process. A caller
 // dups it and drains what it reads. It exists before the extension answers, so
 // a watcher that subscribes early is woken by the first answer too.
 func (b *Bridge) FocusEventFD() (int, bool) {
@@ -238,7 +238,7 @@ func (b *Bridge) start() {
 // later caller anyway and a session without the extension would otherwise warn
 // on every hint activation. A success clears the reason.
 //
-// The one warning waits for a logger: the first caller is the system adapter's
+// The one warning waits for a logger. The first caller is the system adapter's
 // warm-up, which has none, and a warning said into the nop logger is a warning
 // nobody reads. adoptLogger replays it.
 func (b *Bridge) record(err error) {
@@ -353,7 +353,7 @@ func (b *Bridge) connection() (*dbus.Conn, error) {
 }
 
 // connectionClosed is how a serve loop reports that its channel closed. It is
-// true only for the connection the bridge still holds: a loop whose connection
+// true only for the connection the bridge still holds. A loop whose connection
 // was replaced while it was busy must not reset its successor's state.
 func (b *Bridge) connectionClosed(conn *dbus.Conn) bool {
 	b.startMu.Lock()
@@ -382,8 +382,8 @@ func nameHasOwner(conn *dbus.Conn, name string) (bool, error) {
 
 // watch subscribes once to the extension's state signal and to its name
 // changing hands, so a shell that reloads the extension is followed without a
-// caller having to notice. A match rule is a subscription, not a claim:
-// nothing is exported and nothing is written by it.
+// caller having to notice. A match rule is a subscription, not a claim.
+// Nothing is exported and nothing is written by it.
 func (b *Bridge) watch(conn *dbus.Conn) {
 	b.startMu.Lock()
 	already := b.watched == conn

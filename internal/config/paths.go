@@ -26,14 +26,12 @@ func FindNormalizedMapKey[V any](
 }
 
 // DefaultConfigDir returns the preferred directory for the Neru config file.
-// On Windows it uses %APPDATA%/neru (falling back to ~/AppData/Roaming/neru);
-// on Unix it checks $XDG_CONFIG_HOME/neru first, falling back to ~/.config/neru.
-// The $XDG_CONFIG_HOME environment variable is also respected on Windows when set,
-// for users of cross-platform shell environments.
-// This is the single source of truth for the primary config location,
-// used by both FindConfigFile and config init. It is where a config file is
-// written; FindConfigFile additionally reads ~/.config/neru on Windows, so a
-// config carried over from a Unix dotfiles repo is still picked up.
+// $XDG_CONFIG_HOME/neru wins on every platform when the variable is set, for
+// users of cross-platform shell environments. Otherwise Windows uses
+// %APPDATA%/neru, falling back to ~/AppData/Roaming/neru, and Unix uses
+// ~/.config/neru. FindConfigFile and config init both use it, and it is where
+// a config file is written. FindConfigFile also reads ~/.config/neru on
+// Windows, so a config carried over from a Unix dotfiles repo is still picked up.
 func DefaultConfigDir() (string, error) {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
 		return filepath.Join(xdg, "neru"), nil

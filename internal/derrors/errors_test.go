@@ -79,7 +79,6 @@ func TestError_Unwrap(t *testing.T) {
 		t.Errorf("Unwrap() = %v, want %v", unwrapped, cause)
 	}
 
-	// Test error without cause
 	errNoCause := derrors.New(derrors.CodeIPCFailed, "IPC failed")
 
 	if errNoCause.Unwrap() != nil {
@@ -103,7 +102,6 @@ func TestWrap(t *testing.T) {
 		t.Errorf("Wrap() code = %v, want %v", err.Code(), derrors.CodeActionFailed)
 	}
 
-	// Test Wrap with nil error
 	nilErr := derrors.Wrap(nil, derrors.CodeActionFailed, "action failed")
 	if nilErr != nil {
 		t.Error("Wrap() should return nil for nil error")
@@ -123,7 +121,6 @@ func TestError_WithContext(t *testing.T) {
 		t.Errorf("WithContext() context['element_id'] = %v, want 'test-123'", val)
 	}
 
-	// Add another context value
 	_ = errWithContext.WithContext("count", 5)
 
 	if val, ok := errWithContext.Context()["count"]; !ok || val != 5 {
@@ -144,7 +141,6 @@ func TestError_Is(t *testing.T) {
 		t.Error("Is() should return false for errors with different codes")
 	}
 
-	// Test with standard error
 	stdErr := errors.New("standard error") //nolint:err113 // dynamic errors needed for testing
 	if err1.Is(stdErr) {
 		t.Error("Is() should return false for non-Error types")
@@ -178,7 +174,6 @@ func TestWrapf(t *testing.T) {
 		t.Errorf("Wrapf() message = %q, want %q", err.Message(), expectedMsg)
 	}
 
-	// Test Wrapf with nil error
 	nilErr := derrors.Wrapf(nil, derrors.CodeActionFailed, "action failed")
 	if nilErr != nil {
 		t.Error("Wrapf() should return nil for nil error")
@@ -258,7 +253,6 @@ func TestErrorCodes(t *testing.T) {
 		derrors.CodeInternal,
 	}
 
-	// Verify all codes are unique
 	seen := make(map[derrors.Code]bool)
 	for _, code := range codes {
 		if seen[code] {
@@ -267,7 +261,6 @@ func TestErrorCodes(t *testing.T) {
 
 		seen[code] = true
 
-		// Verify code is not empty
 		if code == "" {
 			t.Error("Error code should not be empty")
 		}

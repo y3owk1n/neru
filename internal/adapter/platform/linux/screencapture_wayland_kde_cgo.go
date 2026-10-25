@@ -18,12 +18,12 @@ import (
 // of it.
 //
 // crop is in the monitor's local logical coordinates, and logicalWidth /
-// logicalHeight are that monitor's logical size — together they are what turns
-// the rectangle into physical pixels on a scaled output, which is the only
-// place the frame's own dimensions are known.
+// logicalHeight are that monitor's logical size. Together they turn the
+// rectangle into physical pixels on a scaled output, which is the only place
+// the frame's own dimensions are known.
 //
 // remoteFD's ownership passes to the native side, which closes it on every
-// path. There is exactly one frame per descriptor: the connection is opened for
+// path. There is exactly one frame per descriptor. The connection is opened for
 // this capture and torn down with it, so KWin is never left pushing frames of
 // the user's screen at a daemon that is not reading them.
 //

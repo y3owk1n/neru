@@ -80,7 +80,6 @@ func (s *ActionService) PerformActionAtPoint(
 	point image.Point,
 	modifiers action.Modifiers,
 ) error {
-	// Parse action string to domain type
 	actionType, actionTypeErr := action.ParseType(actionString)
 	if actionTypeErr != nil {
 		return derrors.WrapConfigFailed(actionTypeErr, "validate action type")
@@ -188,7 +187,7 @@ func (s *ActionService) MoveMouseTo(
 //
 // Mode-exit paths call this so an interrupted drag does not leave the desktop
 // behaving as if a button were still pressed. The release lands wherever the
-// cursor is, so any in-flight cursor animation is settled first: a grid whose
+// cursor is, so any in-flight cursor animation is settled first. A grid whose
 // final warp is still animating when the mode exits would otherwise release
 // the drag part-way to the cell the user chose.
 func (s *ActionService) ReleaseHeldButtons(ctx context.Context) error {
@@ -210,7 +209,7 @@ func (s *ActionService) ReleaseHeldButtons(ctx context.Context) error {
 // A ports.RelativeCursorMover implementation is consulted first and may apply
 // the delta itself (natively on Wayland, animated on macOS when
 // smooth_cursor.move_mouse_enabled is set). bypassSmooth applies only to the
-// read-then-warp fallback below it: when true, the fallback skips the jump
+// read-then-warp fallback below it. When true, the fallback skips the jump
 // animator (used for keyboard-driven movements).
 func (s *ActionService) MoveMouseRelative(
 	ctx context.Context,
@@ -220,7 +219,7 @@ func (s *ActionService) MoveMouseRelative(
 	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
 
 	// Platforms that can apply the delta natively (ports.RelativeCursorMover)
-	// avoid the read-then-warp round trip below; everything else falls through.
+	// avoid the read-then-warp round trip below. Everything else falls through.
 	if mover, ok := s.system.(ports.RelativeCursorMover); ok {
 		handled, err := mover.MoveCursorBy(ctx, image.Point{X: deltaX, Y: deltaY})
 		if handled {
@@ -246,8 +245,8 @@ const cursorSyncTimeout = 150 * time.Millisecond
 // action's target point. Unlike CursorPosition it first settles any in-flight
 // cursor animation (ports.CursorSettler), so an action fired mid-animation
 // acts at the point the user aimed for instead of a mid-animation position,
-// and then refreshes the platform's cursor cache (ports.CursorSynchronizer):
-// on Wayland a hand-moved mouse invalidates that cache, and an action fired
+// and then refreshes the platform's cursor cache (ports.CursorSynchronizer).
+// On Wayland a hand-moved mouse invalidates that cache, and an action fired
 // from idle, where no mode activation has resynced it, would otherwise land on
 // the stale point. Plain observers that must not cut animations short use
 // CursorPosition.
@@ -353,7 +352,6 @@ func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY 
 		target,
 		screenBounds,
 		false,
-
 		zap.Int("offset_x", offsetX),
 		zap.Int("offset_y", offsetY),
 	)
@@ -499,8 +497,6 @@ func (s *ActionService) mouseActionConfig() config.MouseActionConfig {
 }
 
 // moveMouseWithBounds clamps target to the given screen bounds and moves the cursor.
-// This is the shared implementation used by MoveMouseTo and MoveMouseToCenter to
-// avoid duplicating clamp-and-move logic.
 func (s *ActionService) moveMouseWithBounds(
 	ctx context.Context,
 	target image.Point,

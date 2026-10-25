@@ -58,7 +58,7 @@ var (
 	// search is open at a time, and the procedures run on its thread.
 	activeTextField atomic.Pointer[TextField]
 
-	// The procedures are allocated once for the process: a NewCallback slot is
+	// The procedures are allocated once for the process, because a NewCallback slot is
 	// never freed (see keyboardHookProcPtr).
 	textFieldWndProcPtr = sync.OnceValue(func() uintptr {
 		return syscall.NewCallback(textFieldWndProc)
@@ -168,8 +168,8 @@ func (f *TextField) Close() {
 	}
 }
 
-// live reports whether the field may report events: it is open and not
-// closing.
+// live reports whether the field may report events, which it may while it is
+// open and not closing.
 func (f *TextField) live() bool {
 	return f.state.Load() == textFieldOpen && !f.closing.Load()
 }

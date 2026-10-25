@@ -29,7 +29,7 @@ func NewScrollMode(handler *handlerState) *ScrollMode {
 
 // Activate enters scroll mode.
 //
-// Scroll mode reads no flags of its own: --toggle is the only one it accepts,
+// Scroll mode reads no flags of its own. --toggle is the only one it accepts,
 // and the handler answers that before a mode is reached.
 func (m *ScrollMode) Activate(_ modecmd.Activation) {
 	m.handler.startInteractiveScroll()
@@ -51,7 +51,7 @@ func (m *ScrollMode) RefreshForMonitorMove(_ context.Context, _ image.Rectangle)
 
 // Exit tears scroll mode down.
 func (m *ScrollMode) Exit() {
-	// Common cleanup takes the frame off the screen; stopping the poller
+	// Common cleanup takes the frame off the screen. Stopping the poller
 	// first keeps a late tick from putting an indicator back.
 	m.handler.stopIndicatorPolling()
 	m.handler.stopHeldRepeat()
@@ -59,8 +59,7 @@ func (m *ScrollMode) Exit() {
 	if m.handler.scroll != nil && m.handler.scroll.Context != nil {
 		m.handler.scroll.Context.Reset()
 	}
-	// Reset cursor state when exiting scroll mode to ensure proper cursor
-	// restoration in subsequent modes.
+	// Reset the cursor state so the next mode restores the cursor correctly.
 	if m.handler.cursorState != nil {
 		m.handler.cursorState.Reset()
 	}

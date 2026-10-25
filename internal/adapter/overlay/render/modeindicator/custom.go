@@ -5,7 +5,7 @@ import "github.com/y3owk1n/neru/internal/config"
 // customModeConfig is the per-mode indicator config of a declared mode, or nil
 // for a name no declaration gave a label.
 //
-// A declared mode has no [mode_indicator.<name>] section: its text is the
+// A declared mode has no [mode_indicator.<name>] section. Its text is the
 // declaration's, and its colors are left zero so every backend falls back to
 // [mode_indicator.ui] through the same override it applies to a built-in mode
 // without colors of its own. Enabled is what the non-darwin label resolution

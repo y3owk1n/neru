@@ -1,12 +1,12 @@
 package modes
 
 // The published focused app is the one piece of handler state written by a
-// goroutine that holds no lock — on macOS the main queue, which may not take
-// h.mu — and read by whichever thread is settling a keymap under it. That makes
+// goroutine that holds no lock (on macOS the main queue, which may not take
+// h.mu) and read by whichever thread is settling a keymap under it. That makes
 // it the state a wrong answer costs a data race rather than a wrong binding,
 // which is what this exercises.
 //
-// It publishes directly, which no journey may do: a journey drives a focus
+// It publishes directly, which no journey may do. A journey drives a focus
 // change through a watcher activation event so it fails if the watcher is never
 // wired up (TestSimulation_FocusChangeMidModeRebindsTheKey covers that). What
 // is under test here is the memory model, not the wiring, and the publisher is
@@ -38,7 +38,7 @@ func TestPublishFocusedApp_IsSafeWhileKeysAreHandled(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeGrid)
 
-	// Per-app overrides are what make the published app reach the keymap: with
+	// Per-app overrides are what make the published app reach the keymap. With
 	// none declared the handler has no reason to read the cell at all.
 	cfg := &configpkg.Config{
 		Grid: configpkg.GridConfig{

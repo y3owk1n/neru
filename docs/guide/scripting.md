@@ -148,7 +148,7 @@ argument.
 
 When an app hides its controls from every strategy, a tool that knows where
 they are can pass them to hints mode. `--targets` takes the JSON `neru query
-hints --json` prints, so you can filter a query and feed it back, and any tool
+hints --json` prints, so you can filter a query and feed it back. Any tool
 that writes the same shape works too:
 
 ```bash

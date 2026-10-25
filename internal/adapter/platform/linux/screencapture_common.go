@@ -39,11 +39,11 @@ const (
 // captureError maps a native capture status onto the shared error vocabulary.
 //
 // what names the display server, so a user reading the message knows which one
-// refused rather than only that "capture failed" — the difference between
-// "KWin cannot do this, and here is the gap" and "something went wrong".
+// refused rather than only that "capture failed". That is the difference
+// between "KWin cannot do this, and here is the gap" and "something went wrong".
 //
-// The two statuses that mean "this display server will never do this" are
-// CodeNotSupported, so callers degrade instead of retrying; everything else is
+// The statuses that mean "this display server will never do this" are
+// CodeNotSupported, so callers degrade instead of retrying. Everything else is
 // a live failure.
 func captureError(status captureStatus, what string) error {
 	switch status {
@@ -100,7 +100,7 @@ func captureError(status captureStatus, what string) error {
 // user-facing half of every message in captureError, so they live beside it.
 //
 // KDE is spelled out because its backend is the portal rather than the
-// compositor's own protocol: "this Wayland compositor failed to capture the
+// compositor's own protocol, and "this Wayland compositor failed to capture the
 // screen" would send someone looking at KWin for a failure that belongs to
 // xdg-desktop-portal or PipeWire.
 const (
@@ -113,22 +113,22 @@ const (
 // them as an RGBA image.
 //
 // region is in Neru's shared coordinate space: global origin, top-left, Y down,
-// unscaled pixels. The zero rectangle means "the whole active screen" — the
+// unscaled pixels. The zero rectangle means "the whole active screen", the
 // screen holding the cursor, which is what ports.VisionPort.CaptureScreen means
-// on Linux (Wayland exposes no primary display) — and is resolved here so the
+// on Linux (Wayland exposes no primary display). It is resolved here so the
 // native backends only ever receive a concrete rectangle and every capture goes
-// down one code path. Honoring the region is the point of the parameter: the
-// caller is normally the focused window, and reading a whole 4K display back to
-// examine one window is the difference between usable and not.
+// down one code path. The caller is normally the focused window, and reading a
+// whole 4K display back to examine one window is the difference between usable
+// and not.
 //
-// What comes back covers **exactly** the requested region. A rectangle that
+// What comes back covers exactly the requested region. A rectangle that
 // leaves the screen, or that spans two monitors on Wayland, fails rather than
 // coming back clipped, because a clipped frame carries nothing that says where
-// its top-left actually is. The image's own bounds start at (0, 0); the region
-// passed in is what places those pixels.
+// its top-left actually is. The image's own bounds start at (0, 0), and the
+// region passed in is what places those pixels.
 //
 // backend is the label NewSystemAdapter takes ("x11", "wayland-wlroots",
-// "wayland-kde"). Capture is per-backend by construction: X11 reads the root
+// "wayland-kde"). Capture is per-backend by construction. X11 reads the root
 // window back, wlroots-family compositors implement wlr-screencopy, KDE Plasma
 // reads a PipeWire stream off the portal's ScreenCast session because KWin
 // implements neither, and a display server with none of the three reports
@@ -136,16 +136,16 @@ const (
 //
 // On a scaled Wayland output the compositor answers in physical pixels, so the
 // returned image can be larger than the requested region by the output's scale
-// factor — the same thing a Retina capture does on macOS.
+// factor, the same thing a Retina capture does on macOS.
 //
 // ctx bounds the capture where a backend can observe it, which today means the
-// KDE one: its D-Bus round trips compose — a session establishment, then a
-// PipeWire connection, then a frame — so without the caller's budget on top of
+// KDE one. Its D-Bus round trips add up, a session establishment, then a
+// PipeWire connection, then a frame, so without the caller's budget on top of
 // them a capture could cost more wall clock than the caller allowed, and this
 // call runs under the mode handler's lock. The X11 and wlroots backends make a
 // single native call each, already bounded by screenCaptureTimeoutMS and not
-// cancelable once entered, so for them ctx is a check at the door rather than a
-// deadline they carry — a Go deadline is only worth threading where the callee
+// cancelable once entered, so for them ctx is checked once on entry and not
+// carried as a deadline. A Go deadline is only worth threading where the callee
 // reads it (internal/app/modes/AGENTS.md).
 //
 // Privacy: the returned image is the only copy that outlives this call. The
@@ -172,7 +172,7 @@ func CaptureScreenRegion(
 	}
 
 	// KDE and COSMIC are checked before the wlroots family they share a client
-	// stack with: KWin and cosmic-comp speak the same wl_output protocols, which
+	// stack with. KWin and cosmic-comp speak the same wl_output protocols, which
 	// is why the active screen is resolved the same way, but they advertise no
 	// screencopy and read their pixels through the portal instead.
 	if backendCapturesViaPortal(backend) {
@@ -200,16 +200,16 @@ func CaptureScreenRegion(
 // without capturing anything.
 //
 // It exists for the callers that need to know whether a capability built on
-// capture is available *before* deciding to use it — the vision hint strategy's
-// health check, which must not read the user's screen to answer a question
-// about which display server is running. nil means the backend implements
-// capture; the error is the same CodeNotSupported sentence a capture attempt
-// would have produced, naming the display server that has none.
+// capture is available before deciding to use it, such as the vision hint
+// strategy's health check, which must not read the user's screen to answer a
+// question about which display server is running. nil means the backend
+// implements capture. The error is the same CodeNotSupported sentence a capture
+// attempt would have produced, naming the display server that has none.
 //
 // It answers on the label alone, so it says nothing about whether this session
-// can capture *right now*. KDE's backend is behind a consent gate, and whether
-// that gate is open is what SystemPort.CheckScreenCapturePermission answers;
-// asking here would mean a health check that decides how a display server is
+// can capture right now. KDE's backend is behind a consent gate, and whether
+// that gate is open is what SystemPort.CheckScreenCapturePermission answers.
+// Asking here would mean a health check that decides how a display server is
 // configured by dialing the portal.
 func ScreenCaptureSupported(backend string) error {
 	if backend == backendX11 || backendUsesWlrClientStack(backend) {
@@ -223,7 +223,7 @@ func ScreenCaptureSupported(backend string) error {
 // "screen capture failed" means two different things on GNOME and on a session
 // with no display server at all, and only the message can tell them apart.
 func unsupportedCaptureBackend(backend string) string {
-	// DetectLinuxBackend spells "nothing detected" as "unknown"; an empty label
+	// DetectLinuxBackend spells "nothing detected" as "unknown". An empty label
 	// reaches here from a SystemAdapter built before detection ran. Both mean
 	// there is no session, and both deserve the sentence that says what to do.
 	if backend == "" || backend == backendUnknown {
@@ -238,10 +238,11 @@ func unsupportedCaptureBackend(backend string) string {
 // resolveCaptureRegion turns the caller's request into the rectangle handed to
 // a native backend.
 //
-// Only the *zero* rectangle means "the whole active screen". A region that was
-// asked for and came out degenerate — a focused-window rectangle that collapsed
-// to zero height, say — is refused rather than widened, because the one thing a
-// caller asking for a window must never get instead is everything on screen.
+// Only the zero rectangle means "the whole active screen". A region that was
+// asked for and came out degenerate, such as a focused-window rectangle that
+// collapsed to zero height, is refused rather than widened, because the one
+// thing a caller asking for a window must never get instead is everything on
+// screen.
 func resolveCaptureRegion(
 	region image.Rectangle,
 	activeScreen func() (image.Rectangle, error),

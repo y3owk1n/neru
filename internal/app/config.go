@@ -16,7 +16,7 @@ import (
 // newConfigService builds the config service from both halves of the load the
 // app was constructed with: the configuration to run on, and the one it was
 // derived from. Passing only the first leaves the service deriving from its own
-// output, which cannot re-infer — so the two travel together from here on.
+// output, which cannot re-infer. So the two travel together from here on.
 //
 // The backend limit is wired the same way main.go wires it for the first load,
 // so a hot reload warns about the same words the launch did.
@@ -37,8 +37,8 @@ func (a *App) newConfigService(logger *zap.Logger) *loader.Service {
 // than re-reading from disk.
 //
 // Derived values come along, because the change is applied to the
-// configuration the user wrote and the derivation is run again over the result
-// — so `neru config set grid.characters` relabels the grid at once, and
+// configuration the user wrote and the derivation runs again over the result.
+// So `neru config set grid.characters` relabels the grid at once, and
 // `neru config set theme.*` recolours at once. Both halves are read from the
 // service, which is the source of truth for prior --no-reload changes.
 func (a *App) SetConfigField(ctx context.Context, key, value string) error {
@@ -84,9 +84,9 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 			"config set at runtime but failed to persist (the change will not survive a restart)")
 	}
 
-	// Only the key: it names a schema field. The value is what the user typed,
-	// and the log is not a place config content goes — the same rule the IPC
-	// controller states in handleConfigSetInMemory.
+	// Only the key is logged, since it names a schema field. The value is what
+	// the user typed, and the log is not a place config content goes. The IPC
+	// controller states the same rule in handleConfigSetInMemory.
 	a.logger.Info("Config field updated at runtime",
 		zap.String("key", key),
 		zap.Int("value_length", len(value)),
@@ -136,7 +136,8 @@ func (a *App) prepareForConfigUpdate() {
 	a.hotkeys.Unregister()
 }
 
-// applyAppSpecificConfigUpdates applies app-specific configuration updates.
+// applyAppSpecificConfigUpdates pushes the reloaded clickable roles to the
+// accessibility adapter when hints are enabled.
 func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 	if loadResult.Config.Hints.Enabled && a.accessibility != nil {
 		roles := loadResult.Config.Hints.ResolvedClickableRoles()
@@ -156,7 +157,7 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	// An activation refresh between prepareForConfigUpdate and here may
 	// have re-registered with the old config for the current bundle,
 	// causing refreshHotkeysForAppOrCurrent to skip because the bundle
-	// hasn't changed.  Force clean registration with the new config.
+	// hasn't changed. Force clean registration with the new config.
 	a.hotkeys.ForceRefresh()
 
 	// This runs after the hotkeys, as it does at startup (Run), because what
@@ -193,7 +194,7 @@ func (a *App) updateConfigSnapshot(loadResult *config.LoadResult) {
 func (a *App) reconfigureRuntimeFromConfig(cfg *config.Config) {
 	a.configureEventTapHotkeys(cfg, a.logger)
 
-	// One notification reaches every overlay: the overlay re-resolves each
+	// One notification reaches every overlay. The overlay re-resolves each
 	// Style and hands the new configuration to the components it draws through.
 	if a.overlayPort != nil {
 		a.overlayPort.ApplyConfig(cfg)

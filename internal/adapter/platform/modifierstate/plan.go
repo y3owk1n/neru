@@ -8,9 +8,9 @@ import (
 
 // Key is one modifier key on the live keyboard, as a backend reads it back.
 //
-// Keycode is whatever identifier that backend injects with; this package only
-// ever hands it back. A keymap normally carries two keys per modifier — left
-// and right — and both count as holding it.
+// Keycode is whatever identifier that backend injects with. This package only
+// ever hands it back. A keymap normally carries two keys per modifier, left
+// and right, and both count as holding it.
 type Key struct {
 	// Keycode identifies the key to the backend that read it.
 	Keycode uint32
@@ -20,7 +20,7 @@ type Key struct {
 	Held bool
 	// Canonical marks the one key per modifier that Neru presses when it has
 	// to present that modifier itself. Exactly one key per modifier should
-	// carry it; the rest are read-only for planning purposes.
+	// carry it. The rest are read-only for planning purposes.
 	Canonical bool
 }
 
@@ -28,7 +28,7 @@ type Key struct {
 // key presents.
 //
 // The modifier travels with the keycode because injecting a modifier key is not
-// only a request to the display server — on a backend where an injected key
+// only a request to the display server. On a backend where an injected key
 // event re-enters Neru's own event tap, the tap has to be told which modifier
 // is about to move, and the keycode alone does not say. Reading it back off the
 // keymap a second time at injection would be a second round trip and a second
@@ -53,16 +53,16 @@ type Plan struct {
 
 // PlanFor works out how to present exactly requested, given the live keyboard.
 //
-// A modifier something is already holding — the user, or a sticky modifier
-// Neru posted earlier — is left exactly as it is when it was asked for, because
-// a key is one bit of keyboard state rather than a count: pressing it a second
-// time makes our release afterwards announce that the user let go while they
-// are still holding it. The same reasoning is why what is held and *not* asked
+// A modifier something is already holding, whether the user or a sticky
+// modifier Neru posted earlier, is left exactly as it is when it was asked for,
+// because a key is one bit of keyboard state rather than a count. Pressing it a
+// second time makes our release afterwards announce that the user let go while
+// they are still holding it. The same reasoning is why what is held and *not* asked
 // for has to be released rather than merely not pressed.
 //
 // A key the keymap has no keycode for is not injectable and is skipped, and a
-// keycode two names share is read once, under the first name that claimed it —
-// releasing one key twice would need two presses to undo.
+// keycode two names share is read once, under the first name that claimed it.
+// Releasing one key twice would need two presses to undo.
 func PlanFor(keys []Key, requested action.Modifiers) Plan {
 	var (
 		plan      Plan
@@ -129,10 +129,10 @@ func distinctKeys(keys []Key) []Key {
 // Restore reports which suppressed keys to press again once the injection is
 // over, given the keycodes the keyboard reports held at that moment.
 //
-// Everything suppressed is pressed back by default, because the failure that
-// direction — a modifier left released while the user is still holding it —
+// Everything suppressed is pressed back by default. A key not pressed back
+// leaves its modifier released while the user is still holding it, which
 // silently drops that modifier from everything they do next. The exception is a
-// key that reads down again: something pressed it after we let go, so a second
+// key that reads down again. Something pressed it after we let go, so a second
 // press would leave a hold our release never answers.
 func (p Plan) Restore(held []uint32) []Edit {
 	var restore []Edit

@@ -31,11 +31,11 @@ const (
 
 // HandleFedKeyPress dispatches a key injected over IPC as a discrete
 // press-and-release. A fed key has no eventtap key-up companion, so one bound
-// to a held-repeat action would start a repeat that nothing ever stops; the
+// to a held-repeat action would start a repeat that nothing ever stops. The
 // synthetic release tears it down while letting the action fire once. The
-// release is synthesized only when this press started the repeat — an
-// already-running repeat belongs to a physically held key — and press plus
-// release run under one lock hold so no key event sees a transient repeat.
+// release is synthesized only when this press started the repeat, since an
+// already-running repeat belongs to a physically held key. Press plus release
+// run under one lock hold so no key event sees a transient repeat.
 func (h *Handler) HandleFedKeyPress(key string) {
 	// The key-up handler compares against the modifier-free base key, so strip
 	// any modifier prefix before synthesizing the release.
@@ -49,14 +49,14 @@ func (h *Handler) HandleFedKeyPress(key string) {
 
 	repeatBefore := h.heldRepeatingKey
 
-	// A fed key has no release to come, so it must never enter the glide:
-	// it takes the discrete path and the synthesized release below.
+	// A fed key has no release to come, so it must never enter the glide.
+	// It takes the discrete path and the synthesized release below.
 	h.trackSelection(func() {
 		h.fedPress = true
 		h.handleKeyPress(key)
 		h.fedPress = false
 
-		// Only release a repeat this fed press just started; leave any
+		// Only release a repeat this fed press just started. Leave any
 		// pre-existing (physically held) repeat untouched.
 		if repeatBefore == "" && h.heldRepeatingKey != "" {
 			h.handleKeyPress(keyUpPrefix + base)
@@ -73,7 +73,7 @@ func (h *Handler) HandleKeyPress(key string) {
 }
 
 // handleKeyPress contains the key-dispatch logic. The caller must hold
-// h.mu; the whole body runs under the lock so held-repeat and modifier-toggle
+// h.mu. The whole body runs under the lock so held-repeat and modifier-toggle
 // state stays consistent across the dispatch.
 func (h *handlerState) handleKeyPress(key string) {
 	// Handle key-up events for held-key repeat suppression.
@@ -99,7 +99,7 @@ func (h *handlerState) handleKeyPress(key string) {
 	// Suppress macOS native key repeats when a custom held-key repeat is active.
 	// The custom goroutine handles repeat dispatch at heldRepeatInterval.
 	// heldRepeatingKey stores the sticky-stripped key, so we strip before comparing.
-	// The same suppression covers a key steering an held-key glide.
+	// The same suppression covers a key steering a held-key glide.
 	if h.heldRepeatingKey != "" || h.motion != nil {
 		suppressKey := key
 
@@ -124,9 +124,8 @@ func (h *handlerState) handleKeyPress(key string) {
 		return
 	}
 
-	// Cancel any pending modifier toggle if a non-modifier key is pressed
-	// This handles the case where Shift+L is pressed - the modifier tap
-	// is canceled when L comes in
+	// Cancel any pending modifier toggle when a non-modifier key is pressed.
+	// For Shift+L, the modifier tap is canceled when L comes in.
 	if !strings.HasPrefix(key, modifierTogglePrefix) {
 		h.markHeldModifiersUsedInChord()
 		h.cancelPendingModifierToggle()
@@ -152,7 +151,7 @@ func (h *handlerState) handleKeyPress(key string) {
 	// Check for per-mode hotkeys before mode-specific handling.
 	// If sticky modifiers were stripped, resolve bindings with the stripped key
 	// only. Sticky modifiers are for the next action, not Neru's own navigation
-	// keys; using rawKey here would make a sticky Ctrl turn "c" into "Ctrl+c".
+	// keys. Using rawKey here would make a sticky Ctrl turn "c" into "Ctrl+c".
 	if rawKey != key {
 		if actions, bindKey, ok := h.handleHotkey(key); ok {
 			if len(actions) > 0 {
@@ -184,8 +183,8 @@ func (h *handlerState) handleModeSpecificKey(key string) {
 
 // activeModeHasAppHotkeyOverrides reports whether the active mode defines any
 // per-app hotkey overrides. That is the only situation in which the focused app
-// selects which bindings are in force, so a mode that binds none — or does not
-// take per-app bindings at all — settles the same keymap whatever is focused,
+// selects which bindings are in force, so a mode that binds none, or does not
+// take per-app bindings at all, settles the same keymap whatever is focused,
 // and never has to learn which application that is.
 func (h *handlerState) activeModeHasAppHotkeyOverrides() bool {
 	reporter, ok := activeModeExtension[hotkeyOverrideReporter](h)
@@ -206,9 +205,10 @@ func (h *handlerState) activeModeHasAppHotkeyOverrides() bool {
 // consumes the event and runs the global action before the per-mode tap can
 // act, so the per-mode binding for that key would otherwise never take effect.
 // The global-hotkey dispatch path calls this so the more specific per-mode
-// binding wins while a mode is active — e.g. a global "Primary+Ctrl+F" = "hints"
-// launcher and a per-mode [hints.hotkeys] "Primary+Ctrl+F" = "recursive_grid"
-// can coexist, with the latter applied whenever hints mode is active.
+// binding wins while a mode is active. For example, a global
+// "Primary+Ctrl+F" = "hints" launcher and a per-mode [hints.hotkeys]
+// "Primary+Ctrl+F" = "recursive_grid" can coexist, with the latter applied
+// whenever hints mode is active.
 func (h *Handler) ModeHotkeyOverride(key string) ([]string, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -268,11 +268,11 @@ func (h *handlerState) stripStickyModifiersFromKey(key string, mods action.Modif
 
 // handleHotkey checks whether the key matches a binding in the keymap in
 // force. If it does, it executes the binding's steps (IPC command or shell
-// command) using the same logic as top-level hotkeys. Returns the matched steps
-// along with true if the key was consumed; returns nil, true for sequence
-// starts (Phase 3) where nothing is dispatched yet.
+// command) using the same logic as top-level hotkeys. It returns the matched
+// steps and true if the key was consumed, and nil steps with true for sequence
+// starts (Phase 3), where nothing is dispatched yet.
 //
-// It consults the settled keymap and resolves nothing: which bindings are in
+// It consults the settled keymap and resolves nothing. Which bindings are in
 // force was decided when the mode, the focused app or the configuration last
 // changed, so nothing here can ask the operating system anything (ADR 0005).
 //
@@ -307,9 +307,9 @@ func (h *handlerState) handleHotkey(key string) (
 			}
 		}
 
-		// Sequence failed to complete — drop the pending key (it was already
+		// The sequence failed to complete. Drop the pending key (it was already
 		// consumed as a sequence start) and fall through to process the
-		// current key normally via Phase 2/3.  This matches the old scroll
+		// current key normally via Phase 2/3. This matches the old scroll
 		// keymap behavior where an incomplete sequence silently discards the
 		// first key.
 	}
@@ -323,8 +323,8 @@ func (h *handlerState) handleHotkey(key string) (
 
 	// Phase 2b: the global [hotkeys] chord for the same key. The mode's own table
 	// has already had its say above, so a mode that binds the chord keeps
-	// winning it and this is reached only for one the mode leaves alone — where
-	// the global binding is what the user still expects to work, and where the
+	// winning it and this is reached only for one the mode leaves alone. There
+	// the global binding is what the user still expects to work, and the
 	// exclusive Linux capture leaves nothing else able to run it
 	// (settledKeymaps).
 	if binding, ok := globalHotkeys.Lookup(normalizedKey); ok {
@@ -350,7 +350,7 @@ func (h *handlerState) dispatchHotkeyActions(
 	rawKey string,
 	actions []string,
 ) {
-	// A gliding key moves the cursor for as long as it is down; its
+	// A gliding key moves the cursor for as long as it is down. Its
 	// discrete step is never dispatched.
 	if h.startMotion(rawKey, actions) {
 		return
@@ -365,15 +365,15 @@ func (h *handlerState) dispatchHotkeyActions(
 	// from handleHotkey which is called from HandleKeyPress while h.mu is held.
 	// Suppression via SuppressModifiersForHotkey would deadlock. However, this
 	// per-mode path is only reached when the per-mode event tap sees the key
-	// event before the global hotkey tap consumes it. In the certain scenario
-	// (switching modes on the same chord), the global hotkey tap consumes the
-	// non-modifier key first, so this path is never hit for the mode-switch
-	// hotkey. Modifier suppression for mode-switch actions is handled
-	// synchronously in dispatchModeAwareHeldHotkey / dispatchModeAwareHotkeyAsync
-	// in hotkeys.go before any async dispatch occurs.
+	// event before the global hotkey tap consumes it. When switching modes on
+	// the same chord, the global hotkey tap consumes the non-modifier key
+	// first, so this path is never hit for the mode-switch hotkey. Modifier
+	// suppression for mode-switch actions is handled synchronously in
+	// dispatchModeAwareHeldHotkey / dispatchModeAwareHotkeyAsync in hotkeys.go
+	// before any async dispatch occurs.
 
 	// Execute in a goroutine so the event tap callback returns quickly.
-	// This also avoids a deadlock: an action step may call
+	// This also avoids a deadlock. An action step may call
 	// ipcController.HandleCommand -> ActivateMode which
 	// acquires h.mu, but we already hold it.
 	capturedKey := bindKey
@@ -468,7 +468,7 @@ func (h *handlerState) motionApplies(actions []string) bool {
 }
 
 // startMotion presses key into the glide's held set when its binding
-// qualifies, reporting whether it did. Caller must hold h.mu; the controller's
+// qualifies, reporting whether it did. Caller must hold h.mu. The controller's
 // lock sits below it and never calls back.
 func (h *handlerState) startMotion(key string, actions []string) bool {
 	if h.motion == nil || h.fedPress {

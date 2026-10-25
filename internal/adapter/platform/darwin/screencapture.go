@@ -10,8 +10,8 @@ import "C"
 // Return values of ShowScreenCapturePermissionAlert, matching the button
 // indices the native NSAlert reports. SystemAdapter.RequestScreenCapturePermission
 // maps them onto ports.ScreenCaptureConsent, matching Quit and Cancel and
-// treating everything else as granted — so screenCaptureAlertGranted has no
-// call site and is kept to document the native button order the other two
+// treating everything else as granted. screenCaptureAlertGranted therefore has
+// no call site and is kept to document the native button order the other two
 // index into.
 const (
 	screenCaptureAlertGranted = 1

@@ -7,10 +7,10 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Base is the shared half of an indicator service: it owns whether the
+// Base is the shared half of an indicator service. It owns whether the
 // indicator is on screen, how big its surface is, and the cursor read that
 // every position update begins with. The service that embeds it adds the one
-// thing indicators do differently — what they draw.
+// thing indicators do differently, which is what they draw.
 //
 // A Base with no overlay is the "this indicator was never constructed" case:
 // a disabled indicator, or a headless backend with nothing to draw on. Every
@@ -23,8 +23,8 @@ type Base struct {
 }
 
 // NewBase returns the shared half of the service for one indicator. Either
-// port may be nil; an indicator reports nothing of its own, so there is no
-// logger — what a caller would want logged is the mode change that drove it.
+// port may be nil. An indicator reports nothing of its own, so there is no
+// logger. What a caller would want logged is the mode change that drove it.
 func NewBase(
 	indicator ports.Indicator,
 	system ports.SystemPort,
@@ -51,7 +51,7 @@ func (b *Base) GetCursorPosition(ctx context.Context) (int, int, error) {
 	return point.X, point.Y, nil
 }
 
-// Show makes the indicator visible. It draws nothing: what appears is
+// Show makes the indicator visible. It draws nothing. What appears is
 // whatever the next position update draws.
 func (b *Base) Show() {
 	if b.overlay == nil {

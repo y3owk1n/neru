@@ -1,8 +1,8 @@
-// The evdev keyboard proxy: every physical keyboard is held (EVIOCGRAB) for the
+// This is the evdev keyboard proxy. Every physical keyboard is held (EVIOCGRAB) for the
 // daemon's lifetime and re-emitted through one uinput keyboard, so the
 // compositor's libinput only ever sees a device Neru controls. Capturing keys
-// for a mode is then a routing decision on the run goroutine — the same shape
-// as the macOS CGEventTap — rather than a grab that has to be acquired, and
+// for a mode is then a routing decision on the run goroutine, the same shape
+// as the macOS CGEventTap, rather than a grab that has to be acquired, and
 // waited for, on every activation.
 //
 // One goroutine reads every device, applies the forward rule, and hands each
@@ -38,15 +38,15 @@ type evdevProxy struct {
 	capture *waylandEvdevCapture
 
 	// uinputFd is the proxy keyboard, or -1 when /dev/uinput could not be
-	// opened. Without it the proxy is passive: devices are read alongside the
+	// opened. Without it the proxy is passive. Devices are read alongside the
 	// compositor rather than grabbed, hotkeys still match, and a mode session
-	// is refused — there is nothing to re-emit the keys it would not capture.
+	// is refused, since there is nothing to re-emit the keys it would not capture.
 	uinputFd C.int
 
 	// forwarding is whether keys are re-emitted on uinputFd. It starts true
 	// with the device and goes false for good if a write to it ever fails
 	// (failOpen), which is the one way the proxy can lose the keyboard after
-	// grabbing it — so that is when it lets go.
+	// grabbing it, so that is when it lets go.
 	forwarding atomic.Bool
 
 	// Owned by the run goroutine.
@@ -81,7 +81,7 @@ type evdevProxy struct {
 
 	// heldHotkeys is the release callback owed for each key whose press
 	// matched a chord and is still down, by key code. Owned by the run
-	// goroutine. It is what lets a binding repeat while its key is held: the
+	// goroutine. It is what lets a binding repeat while its key is held. The
 	// press fires once, at match time, and the release fires when this key
 	// comes up, whichever consumer the events reached in between.
 	heldHotkeys map[uint16]func()
@@ -118,10 +118,10 @@ var (
 )
 
 // acquireEvdevProxy returns the process-wide proxy, building it on first use.
-// A failed build can be retried by the next caller: what failed was reading
+// A failed build can be retried by the next caller, because what failed was reading
 // /dev/input, which a login into the input group later fixes.
 //
-// The proxy lives for the process. Nothing closes it: the tap and the hotkey
+// The proxy lives for the process. Nothing closes it. The tap and the hotkey
 // listener both borrow it, and the kernel drops every grab and the uinput
 // device when the daemon exits, which is the recovery a crashed daemon gets too.
 func acquireEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
@@ -151,7 +151,7 @@ func acquireEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 // WarmEvdevProxy builds the proxy at daemon start, so the keyboards are held
 // before any key that could be down at a mode's activation. Built lazily by the
 // first mode instead, the proxy met a user who launches modes from compositor
-// bindings with the binding's modifier still down at grab time: the device then
+// bindings with the binding's modifier still down at grab time. The device then
 // waits for that key to come up (waitIdle), and a session asked for inside the
 // wait is refused. The hotkey listener and the tap borrow the proxy afterwards.
 func WarmEvdevProxy(logger *zap.Logger) error {
@@ -165,7 +165,7 @@ func newEvdevProxy(logger *zap.Logger) (*evdevProxy, error) {
 
 	created, errno := C.neru_uinput_create_proxy_keyboard(&uinputFd)
 	if created == 0 {
-		// Warn, not error: hotkeys still work. What does not is capturing
+		// Warn, not error, because hotkeys still work. What does not is capturing
 		// keys for a mode, and the tap says so again when a mode asks.
 		logger.Warn(
 			"Keyboard capture unavailable: /dev/uinput is not writable, so modes fall back "+
@@ -338,10 +338,10 @@ func (p *evdevProxy) run() {
 // probeOwnDevices fails open when another process has grabbed one of the
 // proxy's own devices. That is what a key remapper's device auto-detect does
 // to a new keyboard node, and with the remapper's output grabbed here it
-// closes a loop that reaches the compositor from neither side: every key the
+// closes a loop that reaches the compositor from neither side. Every key the
 // user types circles between the two processes, and the keyboard is dead until
 // one of them lets go. Letting go here returns the remapper's output to the
-// compositor, so the user's keys and remaps work again; what is lost is
+// compositor, so the user's keys and remaps work again. What is lost is
 // capturing keys for a mode, as after any other fail-open.
 //
 // The nodes are opened here rather than at construction, because udev creates
@@ -385,9 +385,9 @@ func (p *evdevProxy) refreshKeymap() {
 // handle applies the forward rule to one event and hands it to the consumer.
 //
 // Keys, scan codes and sync reports are re-emitted on the proxy keyboard.
-// Relative motion and buttons are not keys: they bypass the rule, the matcher
+// Relative motion and buttons are not keys. They bypass the rule, the matcher
 // and the session and go straight to the pointer proxy, with the sync report
-// that closes their frame; a button the pointer proxy does not advertise goes
+// that closes their frame. A button the pointer proxy does not advertise goes
 // nowhere (isMouseButton). LED events come back to the physical device from the
 // compositor by way of the proxy (ledLoop), and re-emitting the device's own
 // echo of them would send each one round again.
@@ -427,7 +427,7 @@ func (p *evdevProxy) handleKey(event waylandEvdevEvent) {
 		p.trackGlobal(code, true)
 
 		// A chord the idle matcher takes is withheld, so the focused app never
-		// sees the activation chord — what the macOS tap does by consuming
+		// sees the activation chord, which is what the macOS tap does by consuming
 		// the event. The match runs before the forward decision for that.
 		//
 		// A modifier is never withheld, so a compositor bind on a bare
@@ -482,8 +482,8 @@ func (p *evdevProxy) handleKey(event waylandEvdevEvent) {
 // KWin and Mutter open the launcher on a modifier pressed and released alone,
 // and a Hyprland release bind does the same, and each of them calls the
 // modifier alone when no other key went down in between. The compositor saw
-// the modifier's press and will see its release; the key between them, Neru
-// kept. So it is given another: a tap of KEY_UNKNOWN, which carries no symbol
+// the modifier's press and will see its release, but Neru kept the key between
+// them. So it is given another: a tap of KEY_UNKNOWN, which carries no symbol
 // and reaches no application, and is a key pressed under the modifier all the
 // same.
 func (p *evdevProxy) cancelModifierShortcut() {
@@ -506,7 +506,7 @@ func (p *evdevProxy) trackGlobal(code uint16, isDown bool) {
 }
 
 // matchHotkey fires the binding for the chord a press completes, if there is
-// one, and reports whether it did. A press fires once per hold: the kernel
+// one, and reports whether it did. A press fires once per hold, because the kernel
 // reports a held key as repeats, not presses, so none of those reach here.
 func (p *evdevProxy) matchHotkey(code uint16) bool {
 	bindings := *p.bindings.Load()
@@ -541,7 +541,7 @@ func (p *evdevProxy) matchHotkey(code uint16) bool {
 }
 
 // releaseHotkey fires the release owed for a key whose press matched a chord.
-// It is keyed by the key alone, not the chord: the binder needs the release
+// It is keyed by the key alone, not the chord, because the binder needs the release
 // whether or not the modifier is still down when the key comes up.
 func (p *evdevProxy) releaseHotkey(code uint16) {
 	release, held := p.heldHotkeys[code]
@@ -630,7 +630,7 @@ func (p *evdevProxy) write(fd C.int, events *C.struct_input_event, count int) {
 // failOpen releases the keyboards to the compositor and stops re-emitting, for
 // the one failure that would otherwise take the user's keyboard with it: a
 // proxy device that no longer accepts writes while the physical ones are held.
-// Typing works again at once; what is lost is capturing keys for a mode, which
+// Typing works again at once. What is lost is capturing keys for a mode, which
 // a session asked for from here on is refused, and the tap falls back to the
 // overlay's keyboard focus. The daemon has to restart to get the proxy back.
 func (p *evdevProxy) failOpen(err error) {
@@ -671,14 +671,14 @@ func (p *evdevProxy) failOpen(err error) {
 
 // releaseForwarded re-emits a release on the proxy keyboard for every key the
 // rule counts as forwarded and down, then zeroes the rule. Failing open is the
-// one time a keyboard is let go without waiting for it to be idle: a key down
+// one time a keyboard is let go without waiting for it to be idle. A key down
 // at that instant had its press re-emitted here, and its release goes to the
 // physical device next, whose libinput never saw the press and drops it. Left
 // down on the proxy keyboard it would stay down for the daemon's lifetime, and
 // a compositor that merges modifiers across keyboards (Hyprland) would put
 // that Super on every key typed afterwards. Base keys go up before modifiers,
 // the way a chord is let go of. The writes bypass the forwarding flag, which
-// failOpen has cleared; on a proxy that stopped taking writes they fail as the
+// failOpen has cleared. On a proxy that stopped taking writes they fail as the
 // last one did, and there is nothing more to do for it.
 func (p *evdevProxy) releaseForwarded() {
 	var keys, modifiers []uint16
@@ -704,7 +704,7 @@ func (p *evdevProxy) releaseForwarded() {
 // forwardWithheld hands a press the session had withheld to the compositor
 // after all, together with every modifier the user is physically holding that
 // the session withheld too. Each is marked forwarded, so its repeats and its
-// release follow it out under the ordinary rule: the app sees the modifier
+// release follow it out under the ordinary rule, so the app sees the modifier
 // held for exactly as long as the user holds it, with no re-tapping and
 // nothing to unwind when the mode ends.
 func (p *evdevProxy) forwardWithheld(code uint16) {
@@ -763,7 +763,7 @@ func (p *evdevProxy) liftHeldModifiers() bool {
 // restoreLiftedModifiers presses again the lifted modifiers the user is still
 // holding, so the keys they type next carry them as before. The re-press is
 // followed by the same symbol-less tap a withheld chord gets
-// (cancelModifierShortcut): a modifier pressed and then released alone is a
+// (cancelModifierShortcut), because a modifier pressed and then released alone is a
 // launcher shortcut on KWin, Mutter and a Hyprland release bind, and the click
 // between is not a key. Runs on the run goroutine.
 func (p *evdevProxy) restoreLiftedModifiers() {
@@ -797,7 +797,7 @@ func (p *evdevProxy) restoreLiftedModifiers() {
 // LiftHeldModifiers releases the modifiers the user is physically holding on
 // the proxy keyboard, so a pointer action injected next carries only the
 // modifiers it names, and reports whether any was released. Without a
-// forwarding proxy there is nothing to lift: the compositor reads the physical
+// forwarding proxy there is nothing to lift, because the compositor reads the physical
 // keyboards itself. RestoreLiftedModifiers puts them back.
 func LiftHeldModifiers() (bool, error) {
 	proxy := currentEvdevProxy()
@@ -830,7 +830,7 @@ func RestoreLiftedModifiers() error {
 }
 
 // currentEvdevProxy returns the process-wide proxy if one has been built, and
-// never builds one: a pointer action is not a reason to grab the keyboards.
+// never builds one, because a pointer action is not a reason to grab the keyboards.
 func currentEvdevProxy() *evdevProxy {
 	sharedProxyMu.Lock()
 	defer sharedProxyMu.Unlock()

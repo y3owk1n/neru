@@ -175,7 +175,7 @@ func failAction(message string) ipc.Response {
 }
 
 // dispatchByName routes the actions identified by their name alone. The second
-// result reports whether one of them matched; anything else acts on a point and
+// result reports whether one of them matched. Anything else acts on a point and
 // is handled after.
 func (h *ActionsHandler) dispatchByName(
 	ctx context.Context,

@@ -18,7 +18,7 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// closedSurface is an overlaySurface whose native handle is gone: alive says
+// closedSurface is an overlaySurface whose native handle is gone. alive says
 // so, and every primitive fails the test. It is the state Destroy leaves a
 // backend in, and the one each moved delegate used to guard for itself with an
 // `o.raw != nil` prologue before those prologues became one shared alive()
@@ -150,14 +150,14 @@ func movedDelegates() []movedDelegate {
 
 // The eighteen delegates on sharedOverlay (fourteen moved there in #1415) are promoted
 // into both backends, so the per-backend `o != nil && o.raw != nil` prologue
-// they each carried is gone. The receiver half of it is the manager's job —
-// promotion panics before any guard could run, which is why manager.go's
-// nil-checked dispatch stays (ADR 0010). The handle half is this: a backend
+// they each carried is gone. The receiver half of it is the manager's job,
+// since promotion panics before any guard could run, which is why manager.go's
+// nil-checked dispatch stays (ADR 0010). The handle half is that a backend
 // that was torn down, or one whose surface was never wired, must still return
 // without reaching C.
 //
 // These are the states the manager can hold one in. The zero value is not
-// hypothetical — it is what every test that stands a Manager up without a
+// hypothetical. It is what every test that stands a Manager up without a
 // display server attaches, and what a backend looks like between construction
 // and its first draw.
 func TestSharedOverlay_MovedDelegates_ReachNoSurfaceWithoutALiveHandle(t *testing.T) {
@@ -209,14 +209,13 @@ func TestSharedOverlay_MovedDelegates_ReachNoSurfaceWithoutALiveHandle(t *testin
 }
 
 // The other half of the contract, and the reason manager.go nil-checks a
-// backend pointer at every dispatch site: a moved delegate reached through a
-// *nil* one
-// panics on the promotion, before the guard above can run. That is what makes
-// those checks load-bearing rather than an interface nobody got round to
-// writing (ADR 0010), and it is the one premise this whole move rests on — so
-// it is asserted rather than assumed.
+// backend pointer at every dispatch site. A moved delegate reached through a
+// *nil* one panics on the promotion, before the guard above can run. That is
+// what makes those checks load-bearing rather than an interface nobody got
+// round to writing (ADR 0010), and it is the one premise this whole move rests
+// on, so it is asserted rather than assumed.
 //
-// The methods that stayed per-backend are the control: they guard their own
+// The methods that stayed per-backend are the control. They guard their own
 // receiver and survive, which is exactly what the moved ones no longer do.
 func TestBackends_APromotedDelegateOnANilBackendPanics(t *testing.T) {
 	t.Parallel()
@@ -272,7 +271,7 @@ func TestBackends_APromotedDelegateOnANilBackendPanics(t *testing.T) {
 }
 
 // The two delegates that touch no surface keep working after the handle is
-// gone, which is what their removed guards did: neither checked o.raw. They
+// gone, which is what their removed guards did. Neither checked o.raw. They
 // record what the next draw needs, and a draw that happens after a new handle
 // is attached would otherwise draw on the wrong monitor, or stop hiding
 // unmatched cells, for no reason either caller could see.

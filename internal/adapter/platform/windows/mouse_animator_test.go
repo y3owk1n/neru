@@ -91,16 +91,16 @@ func TestSmoothCursorAnimatorLandsOnTarget(t *testing.T) {
 }
 
 // TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum pins the floor
-// this animator applies to config.MinSmoothCursorAnimationDuration — the same
+// this animator applies to config.MinSmoothCursorAnimationDuration, the same
 // constant ValidateSmoothCursor rejects a shorter relative_movement_duration
 // against, so the value the validator promises to honor is the value the
 // animator honors.
 //
-// It reads the floor back out of behavior rather than comparing constants: a
+// It reads the floor back out of behavior rather than comparing constants. A
 // below-floor duration asked for in far more steps than the floor can schedule
 // collapses to one step per minCursorStepDelay of the floor, so the number of
 // injected moves *is* the floor. Move the config constant and this expectation
-// moves with it; re-introduce a local copy that disagrees and this fails.
+// moves with it. Re-introduce a local copy that disagrees and this fails.
 func TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum(t *testing.T) {
 	t.Parallel()
 
@@ -140,7 +140,7 @@ func TestSmoothCursorAnimatorCoalescesToLatestTarget(t *testing.T) {
 	rec := &recorder{start: image.Point{X: 0, Y: 0}}
 	animator := newSmoothCursorAnimator(rec.pos, rec.move)
 
-	// Fire several requests back-to-back; only the last target must win.
+	// Fire several requests back-to-back. Only the last target must win.
 	animator.animateTo(image.Point{X: 100, Y: 100}, 10, 80, 0.5)
 	animator.animateTo(image.Point{X: 500, Y: 50}, 10, 80, 0.5)
 	final := image.Point{X: 640, Y: 480}
@@ -170,7 +170,7 @@ func TestSmoothCursorAnimatorWaitReturnsWhenIdle(t *testing.T) {
 	rec := &recorder{}
 	animator := newSmoothCursorAnimator(rec.pos, rec.move)
 
-	// No animation started: wait must return immediately, preserving the
+	// No animation started, so wait must return immediately, preserving the
 	// historical no-op WaitForCursorIdle behavior on the direct move path.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -186,7 +186,7 @@ func TestSmoothCursorAnimatorWaitReturnsWhenIdle(t *testing.T) {
 }
 
 // TestSmoothCursorAnimatorWaiterTracksSupersedingTarget guards the coalescing
-// race: a waiter that attaches while an earlier target animates must not be
+// race. A waiter that attaches while an earlier target animates must not be
 // released until the cursor reaches the *latest* target, even when the queued
 // target is superseded mid-flight. With per-request completion this waiter
 // returned early at the intermediate/previous position.
@@ -243,7 +243,7 @@ func TestSmoothCursorAnimatorWaiterTracksSupersedingTarget(t *testing.T) {
 }
 
 // TestSmoothCursorAnimatorBestEffortOnMoveFailure documents that a failing
-// backend warp during the animation is best-effort (matching darwin): the
+// backend warp during the animation is best-effort (matching darwin). The
 // session still settles and WaitForCursorIdle returns without error.
 func TestSmoothCursorAnimatorBestEffortOnMoveFailure(t *testing.T) {
 	t.Parallel()
@@ -330,7 +330,7 @@ func TestSmoothCursorAnimatorStopFencesInflightStep(t *testing.T) {
 }
 
 // TestSmoothCursorAnimatorConcurrentStopAndAnimate guards the animateTo/stop
-// race: a bypassed move (stop) must never strand a smooth request on an
+// race. A bypassed move (stop) must never strand a smooth request on an
 // orphaned channel with an unclosed done. Run with -race. The test passes if it
 // completes without deadlocking on a wait that never returns.
 func TestSmoothCursorAnimatorConcurrentStopAndAnimate(t *testing.T) {
@@ -396,7 +396,7 @@ func TestSmoothCursorAnimatorStopReleasesWaiter(t *testing.T) {
 func identityClamp(p image.Point) image.Point { return p }
 
 // TestSmoothCursorAnimatorPendingTargetLifecycle pins the pending-target
-// contract relative moves build on: the endpoint of the animation in flight
+// contract relative moves build on. The endpoint of the animation in flight
 // is visible while it is pending and gone once the animation is stopped.
 func TestSmoothCursorAnimatorPendingTargetLifecycle(t *testing.T) {
 	t.Parallel()
@@ -459,7 +459,7 @@ func TestSmoothCursorAnimatorRelativeLandsExactly(t *testing.T) {
 }
 
 // TestSmoothCursorAnimatorRelativeExtendsPendingEndpoint pins the held-repeat
-// contract: a delta arriving mid-animation extends the pending endpoint
+// contract. A delta arriving mid-animation extends the pending endpoint
 // instead of restarting from the mid-glide position, and settle() warps
 // straight to the extended endpoint.
 func TestSmoothCursorAnimatorRelativeExtendsPendingEndpoint(t *testing.T) {
@@ -498,7 +498,7 @@ func TestSmoothCursorAnimatorRelativeExtendsPendingEndpoint(t *testing.T) {
 }
 
 // TestSmoothCursorAnimatorRelativeNoopKeepsAnimation pins the screen-edge
-// guard: a delta the clamp fully absorbs must not cancel and restart the
+// guard. A delta the clamp fully absorbs must not cancel and restart the
 // animation already heading to the pending endpoint.
 func TestSmoothCursorAnimatorRelativeNoopKeepsAnimation(t *testing.T) {
 	t.Parallel()
@@ -523,7 +523,7 @@ func TestSmoothCursorAnimatorRelativeNoopKeepsAnimation(t *testing.T) {
 }
 
 // TestSmoothCursorAnimatorRelativeConcurrentDeltasCompose pins the
-// single-lock read-modify-write of animateRelativeBy: deltas from concurrent
+// single-lock read-modify-write of animateRelativeBy. Deltas from concurrent
 // movers must all end up in the final position, none silently overwritten.
 // The recorder's pos() returns the last landed point, so composition must
 // stay exact even across session boundaries.

@@ -25,7 +25,7 @@ func TestNonDarwinFilesDoNotImportDarwinPlatformPackage(t *testing.T) {
 		// directory does. Matching the directory rather than naming packages
 		// means a new darwin backend needs no edit here, and
 		// TestPlatformPackagesTagEveryFile is what keeps such a directory
-		// honest — every file in it must carry the build tag.
+		// honest. Every file in it must carry the build tag.
 		if strings.Contains(file.rel, "/darwin/") ||
 			strings.HasSuffix(file.rel, "_darwin.go") ||
 			strings.HasSuffix(file.rel, "integration_darwin_test.go") {

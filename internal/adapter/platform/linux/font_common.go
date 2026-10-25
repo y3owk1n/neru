@@ -26,7 +26,7 @@ var linuxFamilies = fontgeneric.Families{
 // family, falling back to the sans-serif default.
 //
 // It matches on the mapped family rather than asking fontgeneric what the
-// written name was, which looks like the same question and is not: a person
+// written name was, which looks like the same question and is not. A person
 // who writes "DejaVu Serif" and has no DejaVu installed keeps the serif
 // baseline here, where classifying the name again would hand them the sans
 // one. Both answers are a hardcoded string for a font that is missing either

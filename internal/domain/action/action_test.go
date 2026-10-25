@@ -479,7 +479,6 @@ func TestName_ToType(t *testing.T) {
 }
 
 func TestType_Name_RoundTrip(t *testing.T) {
-	// Test that ToName() and ToType() are inverses for all valid types
 	for _, typ := range everyType {
 		name := typ.ToName()
 
@@ -497,9 +496,7 @@ func TestType_Name_RoundTrip(t *testing.T) {
 }
 
 func TestName_Type_ParseType_RoundTrip(t *testing.T) {
-	// Test that ParseType() and String() work with Name conversion
 	for _, name := range action.KnownNames() {
-		// Name -> Type via ToType
 		typ, err := name.ToType()
 		if err != nil {
 			t.Errorf("ToType(%v) error: %v", name, err)
@@ -507,10 +504,8 @@ func TestName_Type_ParseType_RoundTrip(t *testing.T) {
 			continue
 		}
 
-		// Type -> string via String()
 		str := typ.String()
 
-		// string -> Type via ParseType
 		parsedType, err := action.ParseType(str)
 		if err != nil {
 			t.Errorf("ParseType(%q) error: %v", str, err)
@@ -518,7 +513,6 @@ func TestName_Type_ParseType_RoundTrip(t *testing.T) {
 			continue
 		}
 
-		// Should get back the same type
 		if parsedType != typ {
 			t.Errorf("Round trip failed: %v -> %v -> %q -> %v", name, typ, str, parsedType)
 		}

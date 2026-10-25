@@ -17,7 +17,7 @@ import (
 // resolveMouseButtonPhase maps a click action carrying --state or --toggle onto
 // the action that performs that phase of the click (for example left_click with
 // --state down becomes mouse_down). Actions carrying neither flag are returned
-// unchanged; every other action rejects the flags.
+// unchanged. Every other action rejects the flags.
 func resolveMouseButtonPhase(
 	actionName string,
 	parsed parsedActionArgs,
@@ -310,7 +310,7 @@ func (h *ActionsHandler) handleSaveCursorPosAction(
 		return *slotErr
 	}
 
-	// Settle any in-flight animation first: saving mid-animation would record
+	// Settle any in-flight animation first, because saving mid-animation would record
 	// a point the cursor was merely passing through, not the one aimed for.
 	pos, posErr := h.actionService.CursorPositionForAction(ctx)
 	if posErr != nil {
@@ -348,8 +348,8 @@ func (h *ActionsHandler) handleRestoreCursorPosAction(
 		return *slotErr
 	}
 
-	// A restore consumes the slot, so the read and the clear are one operation
-	// — two restores racing on the same slot must not both move the cursor.
+	// A restore consumes the slot, so the read and the clear are one operation.
+	// Two restores racing on the same slot must not both move the cursor.
 	// The slot stays consumed if the move then fails, which keeps a failed
 	// restore from leaving a stale mark for a later one to trip over.
 	initialPos, present := h.cursorSlots.Take(slot)
@@ -419,13 +419,11 @@ func (h *ActionsHandler) handleMoveMonitorAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {
-	if parsed.hasMonitorName {
-		if parsed.usePrevious {
-			return ipc.Response{
-				Success: false,
-				Message: "--previous cannot be used with --name",
-				Code:    ipc.CodeInvalidInput,
-			}
+	if parsed.hasMonitorName && parsed.usePrevious {
+		return ipc.Response{
+			Success: false,
+			Message: "--previous cannot be used with --name",
+			Code:    ipc.CodeInvalidInput,
 		}
 	}
 

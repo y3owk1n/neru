@@ -12,7 +12,7 @@ var traceIDKey = contextKey{}
 
 // TraceID is a unique identifier stamped on every accepted IPC command so
 // the daemon's logs can correlate a CLI invocation with the handler work it
-// triggered. IDs travel via context; nothing else is stored.
+// triggered. IDs travel via context, and nothing else is stored.
 type TraceID string
 
 // NewTraceID generates a new unique trace ID.

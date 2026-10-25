@@ -95,7 +95,7 @@ func TestPointerOrigin_NoPointerBeforeAppearsInPlace(t *testing.T) {
 func TestLerpPoint_LandsOnTheNearestPixel(t *testing.T) {
 	t.Parallel()
 
-	// 0 -> 3 at a third is 1.0 exactly for X; 0 -> 5 at a third is 1.67,
+	// 0 -> 3 at a third is 1.0 exactly for X, and 0 -> 5 at a third is 1.67,
 	// which truncation would have put on 1 and rounding puts on 2.
 	got := motion.LerpPoint(image.Pt(0, 0), image.Pt(3, 5), 1.0/3.0)
 	if want := image.Pt(1, 2); got != want {
@@ -146,7 +146,7 @@ func TestTransitionOrigins_PrefersInterruptedThenLastThenGeometry(t *testing.T) 
 		t.Fatalf("no previous depth collapses to the center: got %v, want %v", got[0], want)
 	}
 
-	// Drilling into the bottom-right quarter: each new cell starts at its
+	// Drilling into the bottom-right quarter, each new cell starts at its
 	// relative spot inside the cell that was picked, at its final size.
 	got = motion.TransitionOrigins(target, bounds, nil, nil, image.Rect(100, 100, 200, 200))
 	if want := image.Rect(75, 75, 175, 175); got[0] != want {

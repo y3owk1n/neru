@@ -14,15 +14,15 @@ import (
 //
 // It exists because the session the rest of Wayland uses cannot serve this
 // case. That one carries its chunks on the virtual pointer, which is the half
-// Hyprland drops once a virtual-keyboard modifier is down (#1474) — so an
+// Hyprland drops once a virtual-keyboard modifier is down (#1474), so an
 // animated zoom would ease its way to nothing. Bypassing the animator instead
 // would answer that by taking smooth_scroll away from modified scrolls without
 // saying so, and a setting that silently stops applying to one binding is worse
 // than one that costs a wheel notch of precision.
 //
 // Granularity is a whole notch rather than zero for the same reason X11's
-// session reports one: uinput scrolling is REL_WHEEL clicks, and there is no
-// sub-notch value to hand it. What the animation still does is spread those
+// session reports one, since uinput scrolling is REL_WHEEL clicks and there is
+// no sub-notch value to hand it. What the animation still does is spread those
 // notches over the same eased curve every other backend uses.
 type hyprlandScrollSession struct {
 	pressed action.Modifiers

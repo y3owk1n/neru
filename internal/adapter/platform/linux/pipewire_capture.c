@@ -14,9 +14,9 @@
 // display, and small enough that width * height * 4 cannot overflow.
 #define NERU_PIPEWIRE_MAX_DIMENSION 32768
 
-// Only reached when a caller passes a non-positive budget; the Go wrapper
-// always passes screenCaptureTimeoutMS. It must never be zero: a zero timer
-// value disarms a PipeWire timer rather than firing it immediately.
+// Only reached when a caller passes a non-positive budget. The Go wrapper
+// always passes screenCaptureTimeoutMS. It must never be zero, because a zero
+// timer value disarms a PipeWire timer rather than firing it immediately.
 #define NERU_PIPEWIRE_FALLBACK_TIMEOUT_MS 2000
 
 #define NERU_PIPEWIRE_NSEC_PER_MSEC 1000000L
@@ -25,7 +25,7 @@
 // How many values the format choice below carries: the four pixel layouts this
 // backend reads, plus the leading copy of the first that a SPA enum choice uses
 // as its default. They are the layouts a portal ScreenCast stream actually
-// offers; the xRGB/ARGB family is deliberately not negotiated, because its
+// offers. The xRGB/ARGB family is deliberately not negotiated, because its
 // green channel sits at a different byte offset and carrying a second
 // conversion loop for a format nothing sends would be code with no way to go
 // wrong loudly.
@@ -53,14 +53,14 @@ typedef struct {
 
 // pw_init is process-global and not safe to call concurrently, so it runs
 // exactly once however many captures a session takes. There is no matching
-// pw_deinit: it would tear the library down under any capture still running,
-// and the library is meant to live for the process.
+// pw_deinit, because it would tear the library down under any capture still
+// running, and the library is meant to live for the process.
 static pthread_once_t neru_pipewire_init_once = PTHREAD_ONCE_INIT;
 
 static void neru_pipewire_init(void) { pw_init(NULL, NULL); }
 
 // neru_pipewire_finish records an answer and stops the loop. The first answer
-// wins: a stream error arriving after a frame was already converted must not
+// wins. A stream error arriving after a frame was already converted must not
 // turn a good capture into a failure.
 static void neru_pipewire_finish(NeruPipewireCtx *ctx, int status) {
 	if (ctx->finished) {
@@ -98,8 +98,8 @@ static int neru_pipewire_channel_offsets(uint32_t format, int *red_offset, int *
 }
 
 // neru_pipewire_scale maps one logical coordinate onto the physical grid,
-// rounding to the nearest pixel. Coordinates here are never negative — the
-// caller's rectangle is local to a monitor — so round-half-up is round-to-
+// rounding to the nearest pixel. Coordinates here are never negative, because the
+// caller's rectangle is local to a monitor, so round-half-up is round-to-
 // nearest.
 static int64_t neru_pipewire_scale(int value, int physical, int logical) {
 	if (logical <= 0) {
@@ -118,11 +118,11 @@ static int64_t neru_pipewire_scale(int value, int physical, int logical) {
 // being scaled and the size with it, which is what keeps a rectangle ending on
 // the monitor's edge ending on the frame's edge.
 //
-// The arithmetic is integer on purpose: every input is a pixel count, the
+// The arithmetic is integer on purpose. Every input is a pixel count, the
 // products fit in 64 bits for any dimension this file accepts, and a rounding
 // mode that is exactly stated beats one that depends on how a double lands.
 //
-// A crop that does not fit inside the frame is refused rather than clamped: a
+// A crop that does not fit inside the frame is refused rather than clamped. A
 // clipped frame carries nothing that says where its own top-left is.
 static int neru_pipewire_crop(
     const NeruPipewireRequest *request, int frame_width, int frame_height, int *crop_x, int *crop_y, int *crop_width,
@@ -162,7 +162,7 @@ static int neru_pipewire_convert(NeruPipewireCtx *ctx, const struct spa_buffer *
 	int frame_height = (int)ctx->format.size.height;
 
 	// Frame metadata comes from the compositor, so it is validated rather than
-	// trusted: the dimensions are capped and every product is computed in 64
+	// trusted. The dimensions are capped and every product is computed in 64
 	// bits, so a width near UINT32_MAX cannot wrap a size the loop then reads
 	// past.
 	if (frame_width <= 0 || frame_height <= 0 || frame_width > NERU_PIPEWIRE_MAX_DIMENSION ||
@@ -265,9 +265,9 @@ static void neru_pipewire_on_process(void *data) {
 	NeruPipewireCtx *ctx = (NeruPipewireCtx *)data;
 
 	// The first answer wins, and that has to be enforced at the door rather than
-	// only in neru_pipewire_finish: converting a second frame would overwrite
+	// only in neru_pipewire_finish. Converting a second frame would overwrite
 	// out->pixels and strand the first allocation, which neru_capture_free would
-	// then never wipe — the one way screen content could survive in freed heap.
+	// then never wipe, the one way screen content could survive in freed heap.
 	if (ctx->finished) {
 		return;
 	}
@@ -282,7 +282,7 @@ static void neru_pipewire_on_process(void *data) {
 	int status = NERU_CAPTURE_ERR_FAILED;
 
 	if (!ctx->have_format) {
-		// A frame before the format was parsed cannot be read; wait for the next
+		// A frame before the format was parsed cannot be read. Wait for the next
 		// one rather than failing, since param_changed normally precedes process.
 		pw_stream_queue_buffer(ctx->stream, pw_buf);
 
@@ -291,11 +291,11 @@ static void neru_pipewire_on_process(void *data) {
 
 	if (buffer->n_datas == 0 || buffer->datas[0].data == NULL) {
 		// PW_STREAM_FLAG_MAP_BUFFERS maps MemFd and MemPtr buffers, and the
-		// negotiated dataType excludes everything else — so a null mapping means
+		// negotiated dataType excludes everything else, so a null mapping means
 		// the compositor sent a buffer kind this backend cannot read.
 		status = NERU_CAPTURE_ERR_FORMAT;
 	} else if (buffer->datas[0].chunk == NULL || buffer->datas[0].chunk->size == 0) {
-		// An empty chunk is a frame the compositor had nothing new for; the next
+		// An empty chunk is a frame the compositor had nothing new for, and the next
 		// one will carry pixels.
 		pw_stream_queue_buffer(ctx->stream, pw_buf);
 
@@ -317,7 +317,7 @@ static void neru_pipewire_on_state_changed(
 	NeruPipewireCtx *ctx = (NeruPipewireCtx *)data;
 
 	// A stream that errors, or that goes back to unconnected before a frame
-	// arrived, will never produce one — answering now beats waiting out the
+	// arrived, will never produce one. Answering now beats waiting out the
 	// whole budget for something that cannot come.
 	if (state == PW_STREAM_STATE_ERROR || state == PW_STREAM_STATE_UNCONNECTED) {
 		neru_pipewire_finish(ctx, NERU_CAPTURE_ERR_FAILED);
@@ -365,7 +365,7 @@ static struct spa_source *neru_pipewire_arm_timeout(NeruPipewireCtx *ctx, int ti
 // layouts the conversion loop handles, so a format it cannot read is refused
 // during negotiation rather than discovered on the first frame. The buffer
 // param restricts the data type to shared memory, which keeps dmabuf out of the
-// negotiation — importing one would mean a GPU context for a job that is one
+// negotiation. Importing one would mean a GPU context for a job that is one
 // memcpy.
 static int neru_pipewire_connect_stream(NeruPipewireCtx *ctx, unsigned int node_id) {
 	uint8_t builder_buffer[1024];
@@ -455,8 +455,9 @@ int neru_pipewire_capture(const NeruPipewireRequest *request, NeruCapture *out) 
 		return NERU_CAPTURE_ERR_ALLOC;
 	}
 
-	// From here the descriptor belongs to PipeWire: pw_context_connect_fd closes
-	// it on disconnect and on its own failure, so no path below may close it.
+	// From here the descriptor belongs to PipeWire, since
+	// pw_context_connect_fd closes it on disconnect and on its own failure, so
+	// no path below may close it.
 	ctx.core = pw_context_connect_fd(ctx.context, request->fd, NULL, 0);
 	if (!ctx.core) {
 		neru_pipewire_teardown(&ctx);

@@ -182,7 +182,7 @@ static _Atomic(pid_t) lastForwardedActivation = 0;
 				self.debounceTimer = nil;
 			}
 
-			// Schedule a new debounce timer — fires 500ms after the last event
+			// Schedule a new debounce timer that fires 500ms after the last event
 			dispatch_source_t timer = dispatch_source_create(
 			    DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
 			if (timer) {
@@ -264,7 +264,7 @@ void NeruStartAppWatcher(void) {
 
 		// Synchronize the cached Mission Control state at startup.
 		// If detection is disabled (the default), this is a cheap no-op that
-		// resets the cache to false.  When detection is later enabled via
+		// resets the cache to false. When detection is later enabled via
 		// NeruSetDetectMissionControlEnabled, the queue, timer, and space-change
 		// observer are initialized lazily at that point.
 		NeruUpdateMissionControlState();
@@ -294,6 +294,6 @@ void NeruStopAppWatcher(void) {
 		[center removeObserver:delegate];
 		[[NSNotificationCenter defaultCenter] removeObserver:delegate];
 
-		delegate = nil;  // ARC will handle deallocation
+		delegate = nil;
 	});
 }

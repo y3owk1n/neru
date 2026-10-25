@@ -15,7 +15,7 @@ import (
 
 // OverridePath returns the path to the override file derived from the given
 // config path. For "config.toml" the override is "config.override.toml" in the
-// same directory; for "my-neru.toml" it is "my-neru.override.toml", etc.
+// same directory, and for "my-neru.toml" it is "my-neru.override.toml".
 func OverridePath(path string) string {
 	if path == "" {
 		return ""
@@ -151,7 +151,6 @@ func deleteNestedMapValue(data map[string]any, path string) {
 		current = next
 	}
 
-	// Delete the leaf key.
 	delete(current, parts[len(parts)-1])
 
 	// Prune empty ancestors from leaf upward.

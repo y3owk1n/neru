@@ -11,7 +11,7 @@ import (
 // DefaultCursorSlot is the slot a save or restore uses when none is named.
 //
 // It is an ordinary name rather than a reserved empty string, so the slots are
-// one flat namespace: the default has no privileges the others lack, and
+// one flat namespace. The default has no privileges the others lack, and
 // `--slot default` and no flag at all are the same request. That also keeps the
 // status payload free of an empty JSON key.
 const DefaultCursorSlot = "default"
@@ -20,10 +20,10 @@ const DefaultCursorSlot = "default"
 //
 // One unnamed slot was enough while only a hotkey binding could save a
 // position, because a binding runs to completion before the next one starts.
-// It stopped being enough once a sequence could invoke another one: an inner
+// It stopped being enough once a sequence could invoke another one. An inner
 // macro that saves the cursor would overwrite the outer sequence's save, and
-// the outer restore would then move the cursor somewhere it never asked for —
-// silently, since neither side had any way to notice the collision.
+// the outer restore would then move the cursor somewhere it never asked for.
+// Neither side had any way to notice the collision.
 type CursorSlots struct {
 	mu    sync.RWMutex
 	slots map[string]image.Point
@@ -62,8 +62,8 @@ func (c *CursorSlots) Save(name string, pos image.Point) {
 
 // Take removes the named slot and reports what it held.
 //
-// Reading and clearing are one operation because a restore consumes the slot:
-// were they separate, two restores racing on the same slot could both see it
+// Reading and clearing are one operation because a restore consumes the slot.
+// Were they separate, two restores racing on the same slot could both see it
 // occupied and both move the cursor.
 func (c *CursorSlots) Take(name string) (image.Point, bool) {
 	c.mu.Lock()

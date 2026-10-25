@@ -136,7 +136,7 @@ func TestWinOverlayDrawRecursiveGrid_ANewDrawCancelsTheRunningTransition(t *test
 		t.Fatal("a depth change with the animation enabled must start a transition")
 	}
 
-	// Another mode's draw takes the surface; the zoom must stop at once.
+	// Another mode's draw takes the surface, so the zoom must stop at once.
 	renderMu.Lock()
 	overlay.DrawHints(nil, hintscomponent.StyleMode{}, badge.HintOnTarget)
 	renderMu.Unlock()

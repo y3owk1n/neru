@@ -8,12 +8,12 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// stepGridSearch is a binding step that loads and does not do what it says:
-// grid makes a selection by coordinates and has no search of its own.
+// stepGridSearch is a binding step that loads and does not do what it says,
+// because grid makes a selection by coordinates and has no search of its own.
 const stepGridSearch = "grid --search"
 
 // TestValidateModeCommands_WarnsWithoutRefusing pins the severity split where a
-// user meets it: a binding that works minus one flag keeps loading, and what it
+// user meets it. A binding that works minus one flag keeps loading, and what it
 // will not do is reported instead.
 //
 // Refusing these would replace the whole configuration with the defaults, so
@@ -82,7 +82,7 @@ func TestValidateModeCommands_WarnsWithoutRefusing(t *testing.T) {
 	}
 }
 
-// TestValidateModeCommands_RefusesAnUnreadableCommand pins the other tier: a
+// TestValidateModeCommands_RefusesAnUnreadableCommand pins the other tier. A
 // binding naming a flag nothing knows never activated anything, so refusing it
 // takes away nothing that worked. An unknown *command* in a binding already
 // fails the whole load, so this extends a rule rather than inventing one.

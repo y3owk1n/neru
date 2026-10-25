@@ -45,7 +45,6 @@ func (a *Adapter) DetectElements(
 	default:
 	}
 
-	// Convert screen bounds to CGRect
 	cgRect := C.CGRect{
 		origin: C.CGPoint{x: C.double(screenBounds.Min.X), y: C.double(screenBounds.Min.Y)},
 		size:   C.CGSize{width: C.double(screenBounds.Dx()), height: C.double(screenBounds.Dy())},
@@ -89,7 +88,6 @@ func (a *Adapter) DetectElements(
 		return nil, nil
 	}
 
-	// Convert C regions to Go DetectedRegions
 	regions := make([]DetectedRegion, 0, count)
 	cRegions := (*[1 << 30]C.VisionRegion)(unsafe.Pointer(result.regions))[:count:count]
 
@@ -122,7 +120,6 @@ func (a *Adapter) DetectElements(
 		regions = append(regions, region)
 	}
 
-	// Merge overlapping regions via NMS
 	merged := MergeRegions(regions, cfg.MergeIOUThreshold)
 
 	// Filter regions outside the window bounds
@@ -133,7 +130,6 @@ func (a *Adapter) DetectElements(
 		}
 	}
 
-	// Classify and convert to domain elements
 	classifier := newRegionClassifier(cfg)
 
 	elements, skipped := elementsFromRegions(windowElements, &classifier)
@@ -171,7 +167,7 @@ func cgImageToRGBA(cgImage C.CGImageRef) (*image.RGBA, error) {
 // cgImageToFrame copies a CGImage into an RGBA buffer, box-filtered down by
 // factor. The image is drawn into Go memory as BGRA in its own color space,
 // which is the layout ScreenCaptureKit hands out, so Core Graphics copies
-// rather than converts; frame.Resample then swizzles and filters it in one
+// rather than converts, and frame.Resample then swizzles and filters it in one
 // pass across cores. No native copy of the pixels is made, so there is none
 // to wipe.
 func cgImageToFrame(cgImage C.CGImageRef, factor int) (*image.RGBA, error) {
@@ -272,10 +268,10 @@ func (a *Adapter) DetectSegments(
 // captureDetectionFrame captures screenBounds for a pixel detector.
 //
 // It captures just the region, clipped to the display that holds it, at its
-// size in points: the detectors were tuned on logical pixels, and contour on a
+// size in points. The detectors were tuned on logical pixels, and contour on a
 // 2x frame finds half again as many targets at a fifth of the speed. When that
 // path is unavailable it captures the whole display containing the region
-// instead; either way the detectors' rectangles are offset by where the frame
+// instead. Either way the detectors' rectangles are offset by where the frame
 // sits (CGDisplayBounds is already global top-left, so no flip is needed) and
 // trimmed to screenBounds.
 func (a *Adapter) captureDetectionFrame(

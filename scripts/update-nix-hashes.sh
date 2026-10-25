@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Brings the hashes of the Nix package up to date: latestVersion in flake.nix
+# Brings the hashes of the Nix package up to date. latestVersion in flake.nix
 # and the four release zip hashes in nix/package.nix follow the newest GitHub
 # release, and vendorHash follows go.mod and go.sum. Needs nix, gh and openssl.
 # The nix-hashes workflow runs this, so nobody needs Nix on their own machine.

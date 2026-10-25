@@ -40,9 +40,7 @@ func LaunchDaemon(configPath string) {
 	systemPort, sysPortErr := platform.NewSystemPort()
 
 	// On non-macOS, print a brief startup notice directing to 'neru doctor'
-	// for the full platform capability report. Uses the system port's
-	// lightweight PlatformLabel() (no I/O or live probes) as the primary
-	// source, falling back to CurrentOS() when the port is unavailable.
+	// for the full platform capability report.
 	if !platform.IsDarwin() {
 		if sysPortErr != nil {
 			fmt.Fprintf(os.Stderr, "%s\n\n", sysPortErr.Error())
@@ -66,7 +64,6 @@ func LaunchDaemon(configPath string) {
 
 	configResult := service.LoadWithValidation(configPath)
 
-	// If there's a validation error, show alert and exit
 	if configResult.ValidationError != nil {
 		handleConfigValidationError(configResult)
 	}

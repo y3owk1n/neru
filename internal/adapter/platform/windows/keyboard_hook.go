@@ -13,7 +13,7 @@ import (
 )
 
 // Low-level keyboard hook (WH_KEYBOARD_LL) for global key capture.
-// Does not dispatch Neru mode logic; callers receive normalized key events.
+// Does not dispatch Neru mode logic. Callers receive normalized key events.
 //
 // keyboardHookStopJoinTimeout bounds how long Stop waits for the hook goroutine
 // to exit before reaping it in the background. The normal teardown completes in
@@ -76,19 +76,19 @@ var (
 	procGetCurrentThreadID  = kernel32.NewProc("GetCurrentThreadId")
 
 	// activeKeyboardHook is the hook keyboardHookProc dispatches to. It is
-	// atomic because the two sides never share a lock: run stores it under h.mu
+	// atomic because the two sides never share a lock. run stores it under h.mu
 	// on the hook goroutine, and the hook procedure loads it on whichever
 	// thread Windows delivers the key event on.
 	activeKeyboardHook atomic.Pointer[KeyboardHook]
 
 	// keyboardHookProcPtr is the WH_KEYBOARD_LL procedure pointer
-	// SetWindowsHookExW is handed, allocated on first use and never again —
-	// for the reason monitorEnumProcPtr in win32.go carries in full: a callback
+	// SetWindowsHookExW is handed, allocated on first use and never again,
+	// for the reason monitorEnumProcPtr in win32.go gives in full. A callback
 	// slot is never freed and the process gets a fixed 2000 of them.
 	//
 	// StartKeyboardHook runs on every EventTap.Enable cycle, so a callback
 	// allocated there was spent on every mode activation. One procedure serves
-	// every hook because it carries no per-hook state: it reads
+	// every hook because it carries no per-hook state. It reads
 	// activeKeyboardHook, which is whichever hook is currently installed.
 	keyboardHookProcPtr = sync.OnceValue(func() uintptr {
 		return syscall.NewCallback(keyboardHookProc)
@@ -176,11 +176,11 @@ func (h *KeyboardHook) Stop() {
 
 	// Wait for the hook goroutine to exit, but never block the caller forever.
 	// Mode exit calls Stop while holding the handler mutex, and the key
-	// callback no longer takes it: the event tap classifies the key on the
+	// callback no longer takes it. The event tap classifies the key on the
 	// hook thread and hands it to its own dispatcher, so a key in flight
 	// cannot park this thread on the lock. The bound is a backstop for a hook
 	// thread wedged inside a Windows call. Past it the join moves to the
-	// background: the goroutine observes stopCh/WM_QUIT and exits, and
+	// background. The goroutine observes stopCh/WM_QUIT and exits, and
 	// human-scale latency before the next mode re-enable makes a double-hook
 	// overlap during that window effectively impossible.
 	select {
@@ -215,8 +215,8 @@ func keyboardHookProc(code int, wParam uintptr, lParam unsafe.Pointer) uintptr {
 	// Keys this process injected come back through this hook. Handing one
 	// to the callback would feed the mode handler its own output, and the
 	// down/up pair a modified scroll holds reads as the user tapping that
-	// modifier — latching a sticky modifier nobody pressed. Only Neru's
-	// own injection is skipped (neruInjectedTag); another tool's synthetic
+	// modifier, which latches a sticky modifier nobody pressed. Only Neru's
+	// own injection is skipped (neruInjectedTag). Another tool's synthetic
 	// input is still seen.
 	if kbd.dwExtraInfo == neruInjectedTag {
 		ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
@@ -245,7 +245,7 @@ func keyboardHookProc(code int, wParam uintptr, lParam unsafe.Pointer) uintptr {
 
 func (h *KeyboardHook) run() {
 	// The hook and its message queue are thread-affine (doc.go), and the
-	// thread is deliberately never unlocked: a goroutine that exits while
+	// thread is deliberately never unlocked. A goroutine that exits while
 	// locked takes its OS thread down with it, queue included. Stop's WM_QUIT
 	// is consumed by the GetMessage it wakes, but a Stop that lands before the
 	// first GetMessage leaves it queued, and a thread handed back to the
@@ -263,8 +263,6 @@ func (h *KeyboardHook) run() {
 		0,
 	)
 	if handle == 0 {
-		// Report the install failure so StartKeyboardHook returns an error
-		// instead of a hook that never receives input.
 		h.startErr <- errKeyboardHookInstallFailed
 
 		return
@@ -286,7 +284,6 @@ func (h *KeyboardHook) run() {
 	activeKeyboardHook.Store(h)
 	h.mu.Unlock()
 
-	// Signal successful install so StartKeyboardHook can return the hook.
 	close(h.startErr)
 
 	defer func() {
@@ -296,7 +293,7 @@ func (h *KeyboardHook) run() {
 			h.hook = 0
 		}
 
-		// Only this hook's own registration is cleared: a later hook may
+		// Only this hook's own registration is cleared. A later hook may
 		// already have installed itself, and clearing unconditionally would
 		// leave that one receiving key events with nowhere to deliver them.
 		activeKeyboardHook.CompareAndSwap(h, nil)

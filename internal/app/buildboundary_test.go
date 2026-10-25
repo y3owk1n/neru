@@ -13,9 +13,9 @@ import (
 )
 
 // TestAnnounceBuildBoundary pins ADR 0012's criterion applied to a build
-// variant: a CGO_ENABLED=0 Linux daemon starts and then fails feature by
-// feature, so it must say once, up front, what kind of build it is — and no
-// other build may say it, or the warning is noise the blessed stack teaches
+// variant. A CGO_ENABLED=0 Linux daemon starts and then fails feature by
+// feature, so it must say once, up front, what kind of build it is. No other
+// build may say it, or the warning is noise the blessed stack teaches
 // people to ignore.
 func TestAnnounceBuildBoundary(t *testing.T) {
 	tests := []struct {

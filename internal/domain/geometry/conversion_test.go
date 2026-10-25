@@ -141,14 +141,11 @@ func TestClampInt(t *testing.T) {
 }
 
 func TestMultiMonitor_CoordinateConversion(t *testing.T) {
-	// Test case: Hint on extended screen should be converted to local coordinates
-	// Screen bounds: (1920, 0) to (3840, 1080) - second monitor in extended desktop
+	// The second monitor of an extended desktop.
 	screenBounds := image.Rect(1920, 0, 3840, 1080)
 
-	// Hint position in screen coordinates (center of second monitor)
 	screenHintPos := image.Point{X: 2880, Y: 540} // center of second monitor
 
-	// Convert to local coordinates (relative to overlay window at screen origin)
 	localHintPos := geometry.ConvertToLocalCoordinates(screenHintPos, screenBounds)
 
 	expectedLocalPos := image.Point{X: 960, Y: 540} // 2880-1920=960, 540-0=540
@@ -158,7 +155,6 @@ func TestMultiMonitor_CoordinateConversion(t *testing.T) {
 			localHintPos, expectedLocalPos)
 	}
 
-	// Verify that converting back to absolute works
 	absolutePos := geometry.ConvertToAbsoluteCoordinates(localHintPos, screenBounds)
 	if absolutePos != screenHintPos {
 		t.Errorf("Round-trip conversion failed: got %v, expected %v",

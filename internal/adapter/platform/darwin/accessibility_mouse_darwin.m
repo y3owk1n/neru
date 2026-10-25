@@ -17,15 +17,15 @@
 
 /// Lock making "pan the zoom viewport, then post the event" indivisible.
 ///
-/// Cursor operations are issued concurrently — each hotkey press dispatches its
+/// Cursor operations are issued concurrently. Each hotkey press dispatches its
 /// own goroutine, repeat-while-held runs another, and IPC actions run on the IPC
-/// goroutine — and those paths do not share a lock. Two interleaved operations
+/// goroutine, and those paths do not share a lock. Two interleaved operations
 /// could otherwise pan for one target and then post the other, leaving the
 /// cursor at a correct coordinate but outside the magnified region, where
 /// nothing corrects it until the next move.
 ///
 /// Every posted event that carries a position takes this, button events
-/// included: they reposition the cursor just as a move does, so a click whose
+/// included, because they reposition the cursor just as a move does, so a click whose
 /// button events escaped the lock could still land outside the magnified region
 /// even though the move preceding it was itself atomic. Each pan/post pair being
 /// individually consistent is what guarantees that whichever one happens to go
@@ -33,7 +33,7 @@
 static os_unfair_lock mouseMoveLock = OS_UNFAIR_LOCK_INIT;
 
 /// Pan the zoom viewport to reveal a point and post an event positioned there
-/// @param event Event to post; its location must already be set to position
+/// @param event Event to post, with its location already set to position
 /// @param position Position the event acts at
 static void postPositionedEventLocked(CGEventRef event, CGPoint position) {
 	os_unfair_lock_lock(&mouseMoveLock);
@@ -51,7 +51,7 @@ static void postPositionedEventLocked(CGEventRef event, CGPoint position) {
 /// Pan the zoom viewport to reveal a point and post a mouse move there
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or a *MouseDragged type)
-/// @param button Button the drag belongs to; ignored for kCGEventMouseMoved
+/// @param button Button the drag belongs to, ignored for kCGEventMouseMoved
 static void postMouseMoveLocked(CGPoint position, CGEventType eventType, CGMouseButton button) {
 	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, button);
 	if (!move)
@@ -65,11 +65,11 @@ static void postMouseMoveLocked(CGPoint position, CGEventType eventType, CGMouse
 /// Move mouse cursor to position with specified event type and drag button
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or a *MouseDragged type)
-/// @param button Button the drag belongs to; ignored for kCGEventMouseMoved
+/// @param button Button the drag belongs to, ignored for kCGEventMouseMoved
 void NeruMoveMouseWithTypeAndButton(CGPoint position, CGEventType eventType, CGMouseButton button) {
 	postMouseMoveLocked(position, eventType, button);
 
-	// Deliberately outside the lock: this spins the run loop for milliseconds,
+	// Deliberately outside the lock, because this spins the run loop for milliseconds,
 	// and serialising that would stall every other cursor path.
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseMoveDelay, false);
 }
@@ -84,7 +84,7 @@ void NeruMoveMouseWithType(CGPoint position, CGEventType eventType) {
 /// Post a single mouse move event (non-blocking, for async animation)
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or a *MouseDragged type)
-/// @param button Button the drag belongs to; ignored for kCGEventMouseMoved
+/// @param button Button the drag belongs to, ignored for kCGEventMouseMoved
 void NeruPostMouseMoveEventWithButton(CGPoint position, CGEventType eventType, CGMouseButton button) {
 	postMouseMoveLocked(position, eventType, button);
 }
@@ -146,7 +146,6 @@ static int performClickAtPosition(
 
 	NeruMoveMouseWithType(pos, kCGEventMouseMoved);
 
-	// Create down and up events
 	CGEventRef down = CGEventCreateMouseEvent(NULL, downEvent, pos, button);
 	CGEventRef up = CGEventCreateMouseEvent(NULL, upEvent, pos, button);
 	if (!down || !up) {
@@ -188,7 +187,7 @@ static struct {
 	int clickCount;                ///< Current click count
 } clickState = {0};
 
-/// Lock guarding clickState — NeruPerformLeftClickAtPosition may be called
+/// Lock guarding clickState. NeruPerformLeftClickAtPosition may be called
 /// from concurrent goroutines via the CGo bridge.
 static os_unfair_lock clickStateLock = OS_UNFAIR_LOCK_INIT;
 
@@ -225,14 +224,13 @@ int NeruPerformLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEvent
 	    sqrt(pow(position.x - clickState.lastPosition.x, 2) + pow(position.y - clickState.lastPosition.y, 2));
 
 	if (timeDiff < kNeruDoubleClickIntervalMs && distance < kNeruDoubleClickDistancePoints) {
-		// Same location, quick succession — increment click count
+		// Same location in quick succession, so increment the click count
 		clickState.clickCount++;
 	} else {
 		// New click sequence
 		clickState.clickCount = 1;
 	}
 
-	// Update click state
 	clickState.lastPosition = position;
 	gettimeofday(&clickState.lastClickTime, NULL);
 
@@ -241,7 +239,6 @@ int NeruPerformLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEvent
 
 	NeruMoveMouseWithType(position, kCGEventMouseMoved);
 
-	// Create down and up events
 	CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, position, kCGMouseButtonLeft);
 	CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, position, kCGMouseButtonLeft);
 	if (!down || !up) {

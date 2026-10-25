@@ -11,7 +11,7 @@ import (
 )
 
 // TestRunConfigValidate_ReportsWhatLoadedAndWhatWillNotRun pins the reason a
-// warning is told apart from a refusal at all: it does not stop the
+// warning is told apart from a refusal at all. It does not stop the
 // configuration loading, so unless this command prints it, it exists only in
 // the daemon's log and never reaches the person checking their config.
 func TestRunConfigValidate_ReportsWhatLoadedAndWhatWillNotRun(t *testing.T) {
@@ -62,7 +62,7 @@ func TestRunConfigValidate_ReportsWhatLoadedAndWhatWillNotRun(t *testing.T) {
 			}
 
 			// The command reads the file named by the global --config flag,
-			// which is the only way to point it at one; it is restored so the
+			// which is the only way to point it at one. It is restored so the
 			// next test finds it as it was.
 			previous := configPath
 			configPath = path

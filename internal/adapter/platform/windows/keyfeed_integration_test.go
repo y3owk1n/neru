@@ -20,17 +20,17 @@ const (
 	homeKeyName      = "Home"
 	// keyFeedArrival bounds how long an injected key may take to reach the
 	// window's queue. SendInput is synchronous into the system queue, so a
-	// real arrival is milliseconds; the margin is for a loaded runner.
+	// real arrival is milliseconds. The margin is for a loaded runner.
 	keyFeedArrival = 2 * time.Second
-	// extendedKeyBit is bit 24 of a WM_KEYDOWN lParam: the scan code carried
-	// the 0xE0 prefix.
+	// extendedKeyBit is bit 24 of a WM_KEYDOWN lParam, which says the scan code
+	// carried the 0xE0 prefix.
 	extendedKeyBit = 1 << 24
 )
 
 var procSetFocus = user32.NewProc("SetFocus")
 
 func TestFeedKey_ArrivesInOwnedWindow(t *testing.T) {
-	// The window, the injection and the pump must share one thread: a
+	// The window, the injection and the pump must share one thread, because a
 	// window's messages land on the queue of the thread that created it,
 	// and t.Run would move each case onto another goroutine.
 	runtime.LockOSThread()

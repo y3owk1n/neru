@@ -17,7 +17,7 @@ const (
 )
 
 // CanonicalChord normalizes a modifier chord to a stable, order-independent
-// form for passthrough matching: aliases are resolved and tokens lowercased via
+// form for passthrough matching. Aliases are resolved and tokens lowercased via
 // config.NormalizeKeyForComparison, then the modifiers are re-emitted in a
 // fixed shift+ctrl+alt+cmd order with the base key last.
 //

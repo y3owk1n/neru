@@ -8,7 +8,7 @@ import (
 
 // What every backend sizes a monitor-select panel by. The Objective-C overlay
 // (monitor_select_overlay_darwin.m) and the Linux and Windows layouts each
-// carry these numbers for the panel itself; they are repeated here because the
+// carry these numbers for the panel itself. They are repeated here because the
 // text has to be fitted to the panel before any of them lays it out.
 const (
 	monitorSelectDefaultFontSize         = 96

@@ -3,12 +3,12 @@
 package linux
 
 /*
-// Only tesseract, not tesseract plus lept: ocr.c includes <tesseract/capi.h>,
-// which forward-declares `struct Pix` on the C path and needs no leptonica
-// header, and every symbol the bridge calls is a Tess* one. libtesseract.so
-// links leptonica itself, so the runtime dependency is there either way —
-// requiring lept.pc as well would only add a build that fails on a machine
-// where the library is present and its pkg-config file is not.
+// Only tesseract, not tesseract plus lept, because ocr.c includes
+// <tesseract/capi.h>, which forward-declares `struct Pix` on the C path and
+// needs no leptonica header, and every symbol the bridge calls is a Tess* one.
+// libtesseract.so links leptonica itself, so the runtime dependency is there
+// either way. Requiring lept.pc as well would only add a build that fails on a
+// machine where the library is present and its pkg-config file is not.
 #cgo linux pkg-config: tesseract
 #include <stdlib.h>
 #include "ocr.h"
@@ -24,7 +24,7 @@ import (
 
 // A Go test file cannot use cgo, so the NERU_OCR_* codes are mirrored as Go
 // constants in ocr_common.go and the error vocabulary is written against those.
-// These constant expressions keep the two halves honest: each converts a
+// These constant expressions keep the two halves honest. Each converts a
 // difference to uint in both directions, so a value that drifts stops compiling
 // here rather than silently mapping the wrong failure to the wrong sentence.
 const (
@@ -92,15 +92,15 @@ func OCRHealth() error {
 // line, positioned in img's own coordinate space.
 //
 // img must be RGBA8888, which is what CaptureScreenRegion returns. The pixels
-// cross into C for the duration of this call only: tesseract copies them into
+// cross into C for the duration of this call only. Tesseract copies them into
 // its own buffer before recognition starts, and the engine is cleared before
 // the call returns, so nothing native holds the frame afterwards.
 //
-// The second result describes the work rather than the frame — a duration, so
-// a caller can log how long a recognition took and, when one fails, whether it
+// The second result describes the work rather than the frame. It is a duration,
+// so a caller can log how long a recognition took and, when one fails, whether it
 // ran to the budget or gave up at once. It is filled on both paths.
 //
-// Nothing derived from the recognized text is logged here or by the caller — an
+// Nothing derived from the recognized text is logged here or by the caller. An
 // OCR result is a transcript of the user's screen.
 func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, error) {
 	var stats OCRStats
@@ -115,8 +115,8 @@ func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, erro
 	}
 
 	// The buffer has to hold every row the geometry claims. C reads it by
-	// stride, so a Pix shorter than the geometry describes — a hand-built image,
-	// a sub-image sliced wrong — is an out-of-bounds read inside tesseract
+	// stride, so a Pix shorter than the geometry describes, such as a hand-built
+	// image or a sub-image sliced wrong, is an out-of-bounds read inside tesseract
 	// rather than a Go panic. Checked here because this is the last place the
 	// Go type system can see it.
 	if len(img.Pix) < (img.Rect.Dy()-1)*img.Stride+img.Rect.Dx()*bytesPerCapturedPixel {

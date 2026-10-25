@@ -21,9 +21,9 @@ or a shell command ("exec open -a Safari").
 
 The daemon runs the steps in order, so an external driver (skhd, Hammerspoon, a
 shell script) can compose a workflow without spawning one process per step. A
-step that asks the sequence to stop — "action wait_for_mode_exit --bail" after
-the mode was canceled — ends it; any other failing step is reported while the
-remaining steps still run.
+step that asks the sequence to stop, such as "action wait_for_mode_exit --bail"
+after the mode was canceled, ends it. Any other failing step is reported while
+the remaining steps still run.
 
 To stop at a failure instead, end that step with --bail-on-error, or pass
 --stop-on-error to make every step in the sequence fatal.

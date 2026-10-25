@@ -24,8 +24,8 @@ type AccessibilityPort interface {
 	//
 	// roles are native platform role names (AXButton, push-button,
 	// ControlType.Button), already resolved from the semantic vocabulary by
-	// element.RoleVocabulary. Backends that do not filter by role — where the
-	// tree walk decides clickability another way — accept and ignore them.
+	// element.RoleVocabulary. Backends that do not filter by role, because the
+	// tree walk decides clickability another way, accept and ignore them.
 	UpdateClickableRoles(roles []string)
 
 	// UpdateMissionControlDetection turns hints' Mission Control check on or
@@ -45,18 +45,18 @@ type AccessibilityPort interface {
 	) error
 
 	// Scroll performs a scroll action at the current cursor position,
-	// presenting modifiers as held while the scroll is emitted — a ctrl-modified
+	// presenting modifiers as held while the scroll is emitted. A ctrl-modified
 	// scroll zooms where an unmodified one pans.
 	//
 	// A backend that cannot present a non-zero modifier set returns
-	// derrors.CodeNotSupported rather than scrolling without it: a scroll that
-	// silently drops its ctrl looks to the user like a broken binding.
+	// derrors.CodeNotSupported rather than scrolling without it, because a scroll
+	// that silently drops its ctrl looks to the user like a broken binding.
 	Scroll(ctx context.Context, deltaX, deltaY int, modifiers action.Modifiers) error
 
 	// ReleaseHeldButtons releases any mouse button this process is still
 	// holding down.
 	//
-	// Neru can leave a button held when a drag-style action is interrupted —
+	// Neru can leave a button held when a drag-style action is interrupted:
 	// the mode exits, the daemon is paused, or a chain bails between the
 	// press and the release. Without this the button stays down at the OS
 	// level and the desktop behaves as if the user were mid-drag.
@@ -68,12 +68,12 @@ type AccessibilityPort interface {
 	// FocusedAppBundleID returns the platform application identifier of the
 	// currently focused application. On macOS this is a bundle ID
 	// (e.g. "com.apple.Safari"). On Linux this will be a desktop ID or
-	// executable name; on Windows an AppUserModelID or executable path.
+	// executable name, and on Windows an AppUserModelID or executable path.
 	FocusedAppBundleID(ctx context.Context) (string, error)
 
 	// PrimeApplication reports whether bundleID has an accessibility tree to
 	// hint against, waiting briefly for one. Exists for macOS, where Electron,
-	// Chromium and Gecko build their tree asynchronously; eager backends
+	// Chromium and Gecko build their tree asynchronously. Eager backends
 	// report true immediately (a genuine "nothing to do", never
 	// CodeNotSupported). Safe to retry, off the event-tap thread.
 	PrimeApplication(ctx context.Context, bundleID string) (bool, error)

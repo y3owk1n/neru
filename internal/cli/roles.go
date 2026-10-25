@@ -89,7 +89,7 @@ Use --json with either form to print the answer as a JSON object.`,
 
 func init() {
 	rolesCmd.Flags().BoolVar(&explainRoles, "explain", false,
-		"resolve the loaded config entry by entry")
+		"Resolve the loaded config entry by entry")
 	rolesCmd.Flags().BoolVar(&rolesJSON, "json", false, "Print the answer as a JSON object")
 	RootCmd.AddCommand(rolesCmd)
 }
@@ -134,7 +134,7 @@ func runRolesList(cmd *cobra.Command) {
 		names := make([]string, len(native))
 		for index, name := range native {
 			names[index] = name
-			// AppKit declares some AX names as subroles: an element carries
+			// AppKit declares some AX names as subroles. An element carries
 			// them in AXSubrole while its AXRole stays generic, and neru
 			// matches them against both. Say so, or the column misdescribes
 			// what an element reports as its role.
@@ -240,7 +240,7 @@ func explainRolesJSON(configPath string, resolution element.RoleResolution) role
 
 // printClickableRolesCheck reports how the configured clickable roles resolve
 // on this platform, and returns whether they are usable. It is a client-side
-// doctor check: a config whose roles all belong to another platform loads
+// doctor check. A config whose roles all belong to another platform loads
 // cleanly but produces no hints at all, which is otherwise invisible until a
 // user reports a blank overlay.
 //
@@ -335,7 +335,7 @@ func prefixExample(vocabulary element.NativeVocabulary) string {
 	}
 }
 
-// writeTabbed writes one aligned two-column row, ignoring write errors: the
+// writeTabbed writes one aligned two-column row, ignoring write errors, because the
 // destination is the command's output stream and a failure there is already
 // surfaced by the caller's own write failures.
 func writeTabbed(writer *tabwriter.Writer, left, right string) {

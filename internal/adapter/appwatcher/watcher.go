@@ -18,8 +18,7 @@ type AppCallback = ports.AppEventCallback
 // On macOS events come from the NSWorkspace observer via the platform dispatch layer,
 // on Linux from a focus-change fd or poll, and on Windows from a foreground-window hook.
 type Watcher struct {
-	mu sync.RWMutex
-	// Callbacks for different events
+	mu                     sync.RWMutex
 	launchCallbacks        []AppCallback
 	terminateCallbacks     []AppCallback
 	activateCallbacks      []AppCallback
@@ -31,7 +30,7 @@ type Watcher struct {
 	mcDetection            bool
 }
 
-// NewWatcher creates and creates a new application watcher instance.
+// NewWatcher creates an application watcher.
 // The watcher is ready to register callbacks and start monitoring immediately.
 func NewWatcher(logger *zap.Logger) *Watcher {
 	if logger == nil {

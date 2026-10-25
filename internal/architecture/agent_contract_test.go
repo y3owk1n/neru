@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// TestClaudeGuideIsSymlinkToAgentsGuide pins the cross-agent contract: each
-// AGENTS.md — the root guide and every nested area guide — is the single
+// TestClaudeGuideIsSymlinkToAgentsGuide pins the cross-agent contract. Each
+// AGENTS.md, the root guide and every nested area guide alike, is the single
 // source of truth, and a sibling CLAUDE.md symlink must accompany it so every
 // agent runtime reads the same file (AGENTS.md "Agent Resources").
 func TestClaudeGuideIsSymlinkToAgentsGuide(t *testing.T) {
@@ -84,17 +84,17 @@ func TestAgentSkillsStayCanonical(t *testing.T) {
 }
 
 // TestAgentWorktreesStayIgnored pins the other half of the agent-worktree
-// contract: agent tooling parks whole checkouts of this repository under
+// contract. Agent tooling parks whole checkouts of this repository under
 // .claude/worktrees, and git must ignore that path. Untracked, each one shows
-// in git status — so the tree is never clean while agent work is in progress —
+// in git status, so the tree is never clean while agent work is in progress,
 // and `git add -A` sweeps a second checkout into the index.
 //
-// The rule has two sides, and the ignore entry has to satisfy both: it names
+// The rule has two sides, and the ignore entry has to satisfy both. It names
 // worktrees beneath .claude rather than .claude itself, because settings.json,
 // the agent definitions and the skills symlink stay tracked.
 //
 // Pruning the path from the walks in this package (isSkippedWalkDir) is a
-// separate concern: a directory git ignores is still a directory a guardrail
+// separate concern. A directory git ignores is still a directory a guardrail
 // walks.
 func TestAgentWorktreesStayIgnored(t *testing.T) {
 	repoRoot := findRepoRoot(t)
@@ -105,7 +105,7 @@ func TestAgentWorktreesStayIgnored(t *testing.T) {
 	}
 
 	// The path the entry has to name, taken from the walks' own constant so the
-	// two cannot drift, and the directory above it — the shortcut that would
+	// two cannot drift, and the directory above it, the shortcut that would
 	// ignore the tracked agent files along with the worktrees, taking
 	// TestAgentSkillsStayCanonical's subject with it.
 	worktreesPattern := filepath.ToSlash(agentWorktreeDir)

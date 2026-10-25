@@ -11,7 +11,7 @@ import (
 type ModeExitReason int
 
 const (
-	// ModeExitReasonNone is the initial state — no exit has been observed.
+	// ModeExitReasonNone is the initial state, before any exit has been observed.
 	ModeExitReasonNone ModeExitReason = iota
 	// ModeExitReasonCompleted means the user made a deliberate selection.
 	ModeExitReasonCompleted
@@ -35,7 +35,7 @@ type AppState struct {
 	modeExitReason       ModeExitReason
 	modeExitReasonValid  bool
 
-	// Callbacks - stored as map for O(1) unsubscribe
+	// Callbacks, stored as maps for O(1) unsubscribe.
 	// Note: All callback maps share a single nextCallbackID counter to ensure
 	// globally unique subscription IDs. Each Off* method only unsubscribes from
 	// its corresponding map, so misdirected unsubscribes are safely ignored.
@@ -107,10 +107,8 @@ func (s *AppState) SetEnabledAnnounced(enabled bool, announce func()) {
 	// Notify all callbacks if state actually changed
 	if oldEnabled != enabled {
 		for _, callback := range callbacks {
-			if callback != nil {
-				// Call callback outside of lock to avoid deadlocks
-				go callback(enabled)
-			}
+			// Call callback outside of lock to avoid deadlocks
+			go callback(enabled)
 		}
 	}
 }
@@ -167,9 +165,7 @@ func (s *AppState) ToggleEnabled() {
 
 	// State always changes in a toggle, notify all callbacks
 	for _, callback := range callbacks {
-		if callback != nil {
-			go callback(newEnabled)
-		}
+		go callback(newEnabled)
 	}
 }
 
@@ -220,10 +216,8 @@ func (s *AppState) SetHiddenForScreenShare(hidden bool) {
 	// Notify all callbacks if state actually changed
 	if oldHidden != hidden {
 		for _, callback := range callbacks {
-			if callback != nil {
-				// Call callback outside of lock to avoid deadlocks
-				go callback(hidden)
-			}
+			// Call callback outside of lock to avoid deadlocks
+			go callback(hidden)
 		}
 	}
 }
@@ -247,9 +241,7 @@ func (s *AppState) ToggleHiddenForScreenShare() bool {
 
 	// State always changes in a toggle, notify all callbacks
 	for _, callback := range callbacks {
-		if callback != nil {
-			go callback(newHidden)
-		}
+		go callback(newHidden)
 	}
 
 	return newHidden
@@ -311,9 +303,7 @@ func (s *AppState) SetScrollInverted(inverted bool) {
 
 	if oldInverted != inverted {
 		for _, callback := range callbacks {
-			if callback != nil {
-				go callback(inverted)
-			}
+			go callback(inverted)
 		}
 	}
 }
@@ -337,9 +327,7 @@ func (s *AppState) ToggleScrollInverted() bool {
 
 	// State always changes in a toggle, notify all callbacks
 	for _, callback := range callbacks {
-		if callback != nil {
-			go callback(newInverted)
-		}
+		go callback(newInverted)
 	}
 
 	return newInverted
@@ -393,8 +381,8 @@ func (s *AppState) SetMode(mode domain.Mode) {
 		s.modeExitReasonValid = false
 	}
 
-	// The declared name belongs to a ModeCustom session and to nothing else:
-	// a declared mode names itself before entering, and any other mode
+	// The declared name belongs to a ModeCustom session and to nothing else.
+	// A declared mode names itself before entering, and any other mode
 	// clears it on the way in.
 	if mode != domain.ModeCustom {
 		s.customModeName = ""
@@ -529,7 +517,7 @@ func (s *AppState) ResetScreenChangeProcessing() {
 // FinishScreenChangeProcessing checks whether a retry was requested while
 // processing was in progress. If a retry is pending, the processing flag
 // remains set (caller retains exclusive ownership) and the pending-retry
-// flag is cleared — the caller should re-process. If no retry is pending,
+// flag is cleared, and the caller should re-process. If no retry is pending,
 // the processing flag is cleared and the caller is done.
 func (s *AppState) FinishScreenChangeProcessing() bool {
 	s.mu.Lock()

@@ -20,7 +20,7 @@ import (
 const (
 	// concurrentDestroyRounds is how many fresh Managers each case races. A
 	// shutdown race only reports when the two goroutines actually overlap, so
-	// one round proves nothing; the case repeats until they do.
+	// one round proves nothing. The case repeats until they do.
 	concurrentDestroyRounds = 200
 
 	raceScreenWidth  = 800
@@ -31,7 +31,7 @@ const (
 )
 
 // attachedBackend builds a Manager with one backend attached. The overlay is a
-// zero value on purpose: every backend method short-circuits on a nil native
+// zero value on purpose. Every backend method short-circuits on a nil native
 // handle, so these cases need no display server and the only thing left under
 // test is the Manager's own locking around the backend pointer.
 type attachedBackend struct {
@@ -131,9 +131,9 @@ func firstGridCell() *domainGrid.Cell {
 
 // gridPointerCalls are the two entry points grid mode's pointer stand-in
 // travels on (#1463). They belong in a table of their own because they cancel
-// no animation: each reads the backend pointer and dispatches through it, both
+// no animation. Each reads the backend pointer and dispatches through it, both
 // inside renderMu, and that containment is the whole of what stops Destroy
-// nilling the pointer between the two — a promoted method reached through a nil
+// nilling the pointer between the two. A promoted method reached through a nil
 // backend panics on the promotion (ADR 0010).
 func gridPointerCalls() []cancelingCall {
 	return []cancelingCall{
@@ -160,16 +160,16 @@ func gridPointerCalls() []cancelingCall {
 }
 
 // Destroy nils both backend pointers under renderMu, so a call that reads them
-// beside the lock races it — and a call that reads twice, once to nil-test and
+// beside the lock races it, and a call that reads twice, once to nil-test and
 // once to dispatch, hands a nil backend to cancelAnimation and panics. The
 // reasoning is on Manager.cancelBackendAnimation, which is what these calls now
 // go through.
 //
-// Each round also asserts Destroy's post-condition: whatever raced it, the
+// Each round also asserts Destroy's post-condition. Whatever raced it, the
 // Manager must end up with no backend attached. The primary oracle, though, is
-// the race detector plus the absence of a panic, so run this with -race —
-// without the detector it only fails on the interleaving that actually
-// dereferences nil, which is rare enough to look green.
+// the race detector plus the absence of a panic, so run this with -race.
+// Without the detector it only fails on the interleaving that dereferences
+// nil, which is rare enough to look green.
 func TestManager_Destroy_RacedByCancelingCalls(t *testing.T) {
 	t.Parallel()
 
@@ -197,11 +197,11 @@ func TestManager_Destroy_RacedByCancelingCalls(t *testing.T) {
 }
 
 // The grid pointer takes the same shape as the calls above and none of their
-// cancel: what it has to survive is Destroy nilling the backend pointer between
+// cancel. What it has to survive is Destroy nilling the backend pointer between
 // the nil-test and the dispatch, which only holding renderMu across both
 // prevents. Without this the property is asserted by reading the code alone,
-// and the case above exercises the cancel-outside-the-lock calls instead — a
-// different hazard, on a different pair of lines.
+// and the case above exercises the cancel-outside-the-lock calls instead, a
+// different hazard on a different pair of lines.
 func TestManager_Destroy_RacedByGridPointerCalls(t *testing.T) {
 	t.Parallel()
 

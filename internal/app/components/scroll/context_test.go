@@ -8,7 +8,7 @@ import (
 )
 
 // TestContext_ZeroValueIsInactive pins that a Context is usable without a
-// constructor — the mode handler embeds one directly.
+// constructor. The mode handler embeds one directly.
 func TestContext_ZeroValueIsInactive(t *testing.T) {
 	t.Parallel()
 

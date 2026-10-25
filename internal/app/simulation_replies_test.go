@@ -10,7 +10,7 @@ import (
 
 // TestSimulation_ConfigSetRefusesABadKeyOrValueAsInvalidInput pins that a
 // mistyped key or a value that cannot be read is the caller's to fix on both
-// paths of config set: it answers ERR_INVALID_INPUT whether or not the change
+// paths of config set. It answers ERR_INVALID_INPUT whether or not the change
 // is applied at once.
 func TestSimulation_ConfigSetRefusesABadKeyOrValueAsInvalidInput(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)

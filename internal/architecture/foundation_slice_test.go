@@ -17,46 +17,46 @@ import (
 //
 // The slice only earns that description if it holds every package whose
 // behavior really is identical on every target. Kept by hand it drifted both
-// ways — nine eligible packages missing, one platform-dependent package listed
-// — and nothing noticed, because nothing checked. This is the check.
+// ways, with nine eligible packages missing and one platform-dependent package
+// listed, and nothing noticed, because nothing checked. This is the check.
 //
 // The rule lives here and nowhere else. `just list-foundation-packages` prints
 // what this file computes rather than deciding for itself, so there is no
 // second definition of "platform-free" to disagree with the first.
 //
 // The justfile itself is read through the shared parser in
-// justfile_parse_test.go, which owns justfileName; foundationRecipe below is
+// justfile_parse_test.go, which owns justfileName, and foundationRecipe below is
 // the only recipe name this file needs.
 const foundationRecipe = "test-foundation"
 
 // ciWorkflow is what CI actually runs. It invokes the individual just recipes
 // rather than the justfile's own `ci` recipe, so a recipe reachable only from
-// `ci` is still ungated — which is why this file checks both.
+// `ci` is still ungated, which is why this file checks both.
 const ciWorkflow = ".github/workflows/ci.yml"
 
 // localCIRecipe is the recipe CONTRIBUTING.md and AGENTS.md name as the
-// pre-push gate — the recipes CI gates on, run on one host. That description
+// pre-push gate: the recipes CI gates on, run on one host. That description
 // is only true while it reaches everything ciWorkflow reaches.
 //
-// Described rather than quoted, on purpose: the two documents word it
+// Described rather than quoted, on purpose, because the two documents word it
 // differently, and a comment quoting either goes stale the next time it is
 // edited, silently.
 const localCIRecipe = "ci"
 
 // listFoundationEnv makes the test print the slice it computes, one package per
 // line, so `just list-foundation-packages` can show it without a second
-// implementation. Unset — every other run, including CI — it prints nothing.
+// implementation. Unset, as on every other run including CI, it prints nothing.
 const listFoundationEnv = "NERU_LIST_FOUNDATION"
 
 // foundationGOARCH holds the architecture constant while GOOS varies. The rule
-// is about operating systems; letting the arch move too would report a package
+// is about operating systems. Letting the arch move too would report a package
 // split by *_arm64.go as platform-dependent, which is a different concern with
 // a different answer.
 const foundationGOARCH = "amd64"
 
 // minFoundationPackages guards against a vacuous pass. The walk finds a few
-// dozen packages today; a bug that matched none — a renamed directory, a walk
-// that never descended — would satisfy every assertion below while checking
+// dozen packages today. A bug that matched none, such as a renamed directory or
+// a walk that never descended, would satisfy every assertion below while checking
 // nothing at all.
 const minFoundationPackages = 25
 
@@ -66,7 +66,7 @@ const minFoundationPackages = 25
 // An exemption is a claim that the package's platform files are narrow enough
 // that a failure in it is still a real cross-platform regression rather than a
 // host-specific one. TestFoundationExemptionsStayHonest holds each entry to
-// that: the package must still compile, with tests, on every target, and must
+// that. The package must still compile, with tests, on every target, and must
 // still be genuinely ineligible. So this list can only shrink.
 var foundationExemptions = map[string]string{
 	"./internal/config": "its four platform files hold applyPlatformDefaults and " +
@@ -139,10 +139,10 @@ func TestFoundationSliceMatchesTheRecipe(t *testing.T) {
 // TestFoundationSliceRunsInCI fails when nothing CI runs reaches the
 // test-foundation recipe.
 //
-// TestFoundationSliceMatchesTheRecipe above pins the package *list*; this pins
+// TestFoundationSliceMatchesTheRecipe above pins the package *list*. This pins
 // that the recipe is executed. Both are needed. The list check would not have
 // caught a mistyped flag, a `go test` that stopped being reached at all, or a
-// package whose tests only fail in the slice's own invocation — and for weeks
+// package whose tests only fail in the slice's own invocation. And for weeks
 // nothing caught anything, because CI ran every recipe except this one while
 // AGENTS.md told agents to trust it.
 func TestFoundationSliceRunsInCI(t *testing.T) {
@@ -185,7 +185,7 @@ func TestFoundationSliceRunsInCI(t *testing.T) {
 
 // TestFoundationExemptionsStayHonest keeps foundationExemptions from outliving
 // its reasons. An entry whose package became platform-free belongs in the
-// derived set, not the allowlist; an entry that stopped compiling everywhere
+// derived set, not the allowlist. An entry that stopped compiling everywhere
 // was never safe to run everywhere.
 func TestFoundationExemptionsStayHonest(t *testing.T) {
 	byPath := map[string]packageDir{}
@@ -287,7 +287,7 @@ type buildSet struct {
 }
 
 // buildableFiles asks go/build which files in dir compile for goos, using the
-// same matcher the toolchain uses — so it reads filename suffixes and //go:build
+// same matcher the toolchain uses, so it reads filename suffixes and //go:build
 // lines alike, which is the whole point.
 //
 // Cgo is enabled so that a package's cgo files count as present on the target
@@ -336,7 +336,7 @@ type packageDir struct {
 }
 
 // goPackageDirs returns every directory in the repo holding Go source, test
-// files included — a package whose only tests are platform-tagged is not one
+// files included, because a package whose only tests are platform-tagged is not one
 // the slice can run everywhere, and that is invisible without them.
 func goPackageDirs(t *testing.T) []packageDir {
 	t.Helper()
@@ -404,8 +404,8 @@ func workflowRecipes(t *testing.T, recipes justRecipes) []string {
 }
 
 // runKeyPattern matches a step's `run:` key and captures both its indentation
-// and whatever follows on the same line — empty for a block scalar, the whole
-// command for an inline one.
+// and whatever follows on the same line, which is empty for a block scalar and
+// the whole command for an inline one.
 var runKeyPattern = regexp.MustCompile(`^(\s*)(?:-\s+)?run:\s*(.*)$`)
 
 // workflowRunCommands returns only the shell the CI workflow's steps run: every
@@ -413,7 +413,7 @@ var runKeyPattern = regexp.MustCompile(`^(\s*)(?:-\s+)?run:\s*(.*)$`)
 //
 // Reading the whole file instead would blur the difference between "CI runs
 // this recipe" and "the recipe's name appears somewhere". Every step here is
-// named for what it runs — `- name: Run just test-ci` — so a match on the file
+// named for what it runs, as in `- name: Run just test-ci`, so a match on the file
 // reports each recipe CI merely claims to run, and would go on reporting it
 // after the run: line underneath was deleted.
 func workflowRunCommands(t *testing.T) string {
@@ -445,7 +445,7 @@ func workflowRunCommands(t *testing.T) string {
 		}
 
 		// `run: |` and `run: >` carry the command on the lines below, indented
-		// past the key; anything else is the command itself.
+		// past the key. Anything else is the command itself.
 		if strings.HasPrefix(match[2], "|") || strings.HasPrefix(match[2], ">") {
 			blockKeyIndent = len(match[1])
 			inBlock = true
@@ -465,7 +465,7 @@ func workflowRunCommands(t *testing.T) string {
 
 // withoutComments drops whole-line # comments, shared by the justfile and the
 // workflow's shell because both use them. A comment naming a recipe would
-// otherwise be read as running it, and the false edge points the wrong way:
+// otherwise be read as running it, and the false edge points the wrong way.
 // "# `just ci` covers this locally" would satisfy the very assertion it was
 // written to excuse.
 func withoutComments(text string) string {

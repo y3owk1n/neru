@@ -20,7 +20,7 @@ func TestCallbackManagerCleanup_ReleasesCallbackMutexBeforeRegistryLock(t *testi
 
 	// Eagerly release the callback ID after the test so the 30-second
 	// deferred release timer doesn't leak global state into other tests.
-	// releaseCallbackID is idempotent — the later timer firing is a no-op.
+	// releaseCallbackID is idempotent, so the later timer firing is a no-op.
 	t.Cleanup(func() { releaseCallbackID(allocatedID) })
 
 	// Hold registry lock to force Cleanup to wait at the registry phase.
@@ -37,10 +37,10 @@ func TestCallbackManagerCleanup_ReleasesCallbackMutexBeforeRegistryLock(t *testi
 	// Let Cleanup proceed past callbackMu.
 	manager.callbackMu.Unlock()
 	// Because we still hold callbackManagerRegistryMu, Cleanup cannot
-	// finish — it will block on the registry lock after releasing
+	// finish. It will block on the registry lock after releasing
 	// callbackMu. Poll TryLock until callbackMu is free, proving
 	// Cleanup released it before acquiring the registry lock.
-	// Use a generous deadline as a safety net only; under correct
+	// Use a generous deadline as a safety net only. Under correct
 	// behavior TryLock succeeds almost immediately.
 	acquired := false
 

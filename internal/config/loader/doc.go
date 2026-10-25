@@ -3,5 +3,5 @@
 // validating the result, hot-reload watching, persistence of overrides, and
 // the reflection-based field access behind `neru config set`. The schema,
 // defaults and validators live in the parent config package, which this
-// package builds on; nothing in config imports loader.
+// package builds on. Nothing in config imports loader.
 package loader

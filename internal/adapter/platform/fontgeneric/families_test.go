@@ -16,7 +16,7 @@ var testFamilies = fontgeneric.Families{
 }
 
 func TestFamilies_Resolve_GenericAliases(t *testing.T) {
-	// Every spelling of a generic asks for the same face: case, surrounding
+	// Every spelling of a generic asks for the same face. Case, surrounding
 	// whitespace and the separator between the words are all ignored. The
 	// empty name asks for sans.
 	cases := map[string]string{
@@ -57,8 +57,8 @@ func TestFamilies_Resolve_GenericAliases(t *testing.T) {
 
 func TestFamilies_Resolve_NamedFamilyPassesThroughTrimmed(t *testing.T) {
 	// A family somebody named is handed on as written, with only the
-	// surrounding whitespace removed: the platform's font system is the one
-	// that knows whether it exists.
+	// surrounding whitespace removed, because the platform's font system is the
+	// one that knows whether it exists.
 	cases := map[string]string{
 		"  Arial  ":        "Arial",
 		"\tJetBrains Mono": "JetBrains Mono",

@@ -1,7 +1,6 @@
-// Package modes implements the different operational modes for Neru.
+// Package modes implements Neru's navigation modes and the Handler that
+// activates them, routes keys to the active one, and exits it.
 //
-// This package contains the core logic for managing and transitioning between
-// different navigation modes in Neru, including Idle, Hints, Grid, Scroll, and
-// Action modes. Each mode is a distinct state with specific behaviors
-// and user interactions.
+// The modes are hints, grid, recursive grid, bisect, scroll, monitor select,
+// and declared modes. When none is active the handler is idle.
 package modes

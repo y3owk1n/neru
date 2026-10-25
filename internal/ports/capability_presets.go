@@ -64,7 +64,7 @@ func LinuxCapabilities() PlatformCapabilities {
 			"cursor movement/tracking available via XTest, Wayland virtual-pointer, or libei (KDE/COSMIC)",
 		),
 		// Live-probed by the Linux SystemAdapter on Wayland, which downgrades
-		// this to a stub when /dev/uinput is not writable: the virtual-pointer
+		// this to a stub when /dev/uinput is not writable. The virtual-pointer
 		// fallback still scrolls most clients, but not Chromium or Electron on
 		// Hyprland. See linux.SystemAdapter.scrollCapability.
 		Scroll: supportedCapability(
@@ -112,7 +112,7 @@ func LinuxCapabilities() PlatformCapabilities {
 				"where the compositor/X11 exposes a focus-change signal and polling " +
 				"otherwise; on GNOME/Mutter the Neru GNOME Shell extension is the source",
 		),
-		// Default placeholder; the Linux SystemAdapter overrides this with
+		// Default placeholder. The Linux SystemAdapter overrides this with
 		// the live-probed state (current color-scheme + source) on each
 		// Capabilities() call. See linux.SystemAdapter.Capabilities.
 		DarkModeDetection: supportedCapability(
@@ -130,11 +130,11 @@ func LinuxCapabilities() PlatformCapabilities {
 		// Both halves are implemented on every backend: capture through
 		// wlr-screencopy, XGetImage or the portal's ScreenCast session,
 		// recognition through tesseract. The detail names the three things that
-		// can still be missing on a given machine — KDE's screen-sharing consent
-		// has to be approved once, the tesseract language data is a separate
-		// distribution package from the library Neru links, and the CGO-off
-		// build has no engine — because this preset is static and `neru doctor`
-		// reports it without probing. VisionPort.Health answers the same
+		// can still be missing on a given machine, because this preset is static
+		// and `neru doctor` reports it without probing. KDE's screen-sharing
+		// consent has to be approved once, the tesseract language data is a
+		// separate distribution package from the library Neru links, and the
+		// CGO-off build has no engine. VisionPort.Health answers the same
 		// question for the live session, and names which one it is.
 		Vision: supportedCapability(
 			"vision element detection via tesseract OCR over a screen capture " +

@@ -5,8 +5,8 @@ package darwin
 import "testing"
 
 // The priming walk roots at the application element, so the menu bar is in
-// reach of it. Reading a menu bar item's children is not an observation —
-// AppKit builds and displays the menu behind it — so a status-bar app gets its
+// reach of it. Reading a menu bar item's children is not an observation.
+// AppKit builds and displays the menu behind it, so a status-bar app gets its
 // menu popped open on the user's screen every time priming runs. These pin the
 // guard that stops the walk before that happens.
 
@@ -21,10 +21,10 @@ func TestMenuRolesCoverTheStatusItemPath(t *testing.T) {
 	}
 }
 
-// TestMenuRolesCannotMaskAReadyRole is the invariant that makes the guard free:
-// a role the walk refuses to enter must never be the role it is looking for,
+// TestMenuRolesCannotMaskAReadyRole is the invariant that makes the guard free.
+// A role the walk refuses to enter must never be the role it is looking for,
 // or skipping it would turn a ready tree into a timeout. Web content never
-// lives inside a menu, so the two sets are disjoint by construction — this
+// lives inside a menu, so the two sets are disjoint by construction, and this
 // fails if a later edit breaks that.
 func TestMenuRolesCannotMaskAReadyRole(t *testing.T) {
 	for role := range menuRoles {

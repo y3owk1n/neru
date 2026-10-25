@@ -26,7 +26,7 @@ const (
 )
 
 // TestCreateGridInstance_UsesTheResolvedLabels is the invariant the config-side
-// resolution rests on: the labels the config carries have to be the labels the
+// resolution rests on. The labels the config carries have to be the labels the
 // grid is built with. They are resolved from the characters a grid is built
 // from, so a call site that reached for a different character set would draw a
 // grid the configuration does not describe.
@@ -121,8 +121,9 @@ func TestCreateGridInstance_UsesMaxLabelLength(t *testing.T) {
 // defensive branch that builds its own grid when handed none. It reached for
 // grid.characters directly while the path above reached for the hint
 // characters when those were blank, so the two disagreed about what the grid
-// was labeled from — invisible while the labels were inferred at draw time
-// from whichever set was passed, and a wrong grid once they are resolved once.
+// was labeled from. That was invisible while the labels were inferred at draw
+// time from whichever set was passed, and is a wrong grid once they are
+// resolved once.
 func TestInitializeGridManager_FallbackGridUsesTheResolvedLabels(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Grid.Enabled = true
@@ -159,7 +160,7 @@ func TestInitializeGridManager_FallbackGridUsesTheResolvedLabels(t *testing.T) {
 }
 
 // newGridLabelHandler builds the least handler these tests need. The screen
-// has to be a real one: a grid with no area short-circuits to a minimal grid
+// has to be a real one. A grid with no area short-circuits to a minimal grid
 // that carries no labels at all, which would pass these assertions vacuously.
 func newGridLabelHandler(cfg *config.Config) *Handler {
 	var gridInstance *domainGrid.Grid

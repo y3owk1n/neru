@@ -14,8 +14,8 @@ import (
 // a whole block that only one platform reads, one value of an option every
 // platform recognizes, and a bound action that only one platform performs.
 //
-// What is inert about it depends on where the test runs, which is the point —
-// on macOS none of it is, and the assertions below are written against the
+// What is inert about it depends on where the test runs, which is the point.
+// On macOS none of it is, and the assertions below are written against the
 // declaration rather than against a list of paths, so they mean the same thing
 // on all three.
 const inertConfigTOML = `
@@ -31,7 +31,7 @@ strategy = "vision"
 `
 
 // TestLoadWithValidation_ReportsWhatDoesNothingHere pins the load-time half of
-// ADR 0013: a configuration writing words this platform ignores loads, runs,
+// ADR 0013. A configuration writing words this platform ignores loads, runs,
 // and says so once.
 func TestLoadWithValidation_ReportsWhatDoesNothingHere(t *testing.T) {
 	result, logs := loadWithObservedLogger(t, inertConfigTOML, "")
@@ -66,7 +66,7 @@ func TestLoadWithValidation_ReportsWhatDoesNothingHere(t *testing.T) {
 		)
 	}
 
-	// The settings the user wrote survive: a warning reports, it does not undo.
+	// The settings the user wrote survive. A warning reports, it does not undo.
 	if !result.Config.SmoothScroll.Enabled {
 		t.Error("smooth_scroll.enabled was cleared, want it left as written")
 	}
@@ -80,7 +80,7 @@ func TestLoadWithValidation_ReportsWhatDoesNothingHere(t *testing.T) {
 		return
 	}
 
-	// Once, however many words it names: the finding is one thing to learn.
+	// Once, however many words it names, because the finding is one thing to learn.
 	logged := countLogged(logs, "in this configuration")
 	if logged != 1 {
 		t.Errorf("the platform-support warning was logged %d times, want exactly 1", logged)
@@ -98,7 +98,7 @@ func TestLoadWithValidation_ReportsWhatDoesNothingHere(t *testing.T) {
 
 // TestLoadWithValidation_ReportsNothingForAConfigurationNobodyWrote is the
 // other half of the same rule. Every platform ships defaults that include
-// options it does not read; warning about those would fire on every daemon that
+// options it does not read. Warning about those would fire on every daemon that
 // has never seen a config file, about lines nobody typed.
 func TestLoadWithValidation_ReportsNothingForAConfigurationNobodyWrote(t *testing.T) {
 	result, _ := loadWithObservedLogger(t, "[grid]\nenabled = true\n", "")
@@ -184,7 +184,7 @@ var passthroughOptions = []string{
 	"general.should_exit_after_passthrough",
 }
 
-// onX11 stands in for the backend detection a composition root does: it wires
+// onX11 stands in for the backend detection a composition root does. It wires
 // the X11 limit onto the loader the way main.go does when the display server
 // it detected is X11. Faked rather than detected so the sentence an X11 user is
 // shown can be read from any machine (#1613).
@@ -193,7 +193,7 @@ func onX11(svc *loader.Service) *loader.Service {
 }
 
 // TestLoadWithValidation_WarnsOnceWhenTheX11BackendCannotPassThrough is the
-// load-time half of #1613: passthrough on the X11 backend is a word that means
+// load-time half of #1613. Passthrough on the X11 backend is a word that means
 // nothing, and the file says so once, naming the options, the backend and why.
 func TestLoadWithValidation_WarnsOnceWhenTheX11BackendCannotPassThrough(t *testing.T) {
 	result, logs := loadWithObservedLogger(t, passthroughConfigTOML, "", onX11)
@@ -234,7 +234,7 @@ func TestLoadWithValidation_WarnsOnceWhenTheX11BackendCannotPassThrough(t *testi
 		t.Errorf("the X11 passthrough warning was logged %d times, want exactly 1", logged)
 	}
 
-	// A warning reports, it does not undo: the option stays as written for the
+	// A warning reports, it does not undo, so the option stays as written for the
 	// day the same file is loaded under Wayland.
 	if !result.Config.General.PassthroughUnboundedKeys {
 		t.Error("passthrough_unbounded_keys was cleared, want it left as written")

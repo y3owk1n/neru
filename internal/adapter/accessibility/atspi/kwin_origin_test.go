@@ -17,14 +17,14 @@ const (
 	// titleKonsoleBash is the caption of the window the tests below cache.
 	titleKonsoleBash = "~ : bash"
 
-	// nameFirefoxX11 is Firefox's resourceName, which is not its resourceClass
-	// — the disagreement that makes matching either identifier necessary.
+	// nameFirefoxX11 is Firefox's resourceName, which is not its resourceClass.
+	// That disagreement is what makes matching either identifier necessary.
 	nameFirefoxX11 = "navigator"
 )
 
 // errTestKWinAbsent stands in for whatever kept the bridge from installing. The
 // origin source only has to carry it back, so the wording is deliberately not
-// the bridge's own: what is pinned is that any reason survives the wrap.
+// the bridge's own. The test pins that any reason survives the wrap.
 var errTestKWinAbsent = errors.New("the KWin geometry script could not be loaded")
 
 // fakeKWinGeometry stands in for the process-wide bridge, so what the KWin
@@ -62,8 +62,8 @@ func konsoleFrame(appID, title string) windowFrame {
 	return windowFrame{Width: 800, Height: 600, FocusedAppID: appID, FocusedTitle: title}
 }
 
-// TestKWinOriginSource_OriginForOffsetsByTheMatchingWindow is the ordinary case:
-// the cache and the frame describe one window, so hints are placed at its screen
+// TestKWinOriginSource_OriginForOffsetsByTheMatchingWindow is the ordinary case.
+// The cache and the frame describe one window, so hints are placed at its screen
 // position.
 func TestKWinOriginSource_OriginForOffsetsByTheMatchingWindow(t *testing.T) {
 	source := kwinSourceWith(fakeKWinGeometry{
@@ -99,9 +99,9 @@ func TestKWinOriginSource_OriginForRejectsAnotherApplication(t *testing.T) {
 	}
 }
 
-// TestKWinOriginSource_OriginForRejectsASiblingWindow is #972 exactly: two
-// windows of the same application, the same size, so the size check passes and
-// the origin is the other window's. Only the title separates them.
+// TestKWinOriginSource_OriginForRejectsASiblingWindow is #972 exactly. Two
+// windows of the same application are the same size, so the size check passes
+// and the origin is the other window's. Only the title separates them.
 func TestKWinOriginSource_OriginForRejectsASiblingWindow(t *testing.T) {
 	source := kwinSourceWith(fakeKWinGeometry{
 		window: cachedKonsole(titleKonsoleBash),
@@ -119,12 +119,12 @@ func TestKWinOriginSource_OriginForRejectsASiblingWindow(t *testing.T) {
 // TestKWinOriginSource_OriginForToleratesIdentifierSpelling keeps the identity
 // check from rejecting windows that match.
 //
-// The two sides read the same application through different vocabularies —
-// KWin's resourceClass and resourceName, and the foreign-toplevel app_id built
-// from one of them — which spell it differently often enough that an exact
-// comparison against either alone would refuse working sessions. A false reject
-// costs unoffset hints on every activation of that window; a false accept costs
-// no more than having no check.
+// The two sides read the same application through different vocabularies. One
+// is KWin's resourceClass and resourceName, the other the foreign-toplevel
+// app_id built from one of them, and they spell it differently often enough
+// that an exact comparison against either alone would refuse working sessions.
+// A false reject costs unoffset hints on every activation of that window. A
+// false accept costs no more than having no check.
 func TestKWinOriginSource_OriginForToleratesIdentifierSpelling(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -162,12 +162,12 @@ func TestKWinOriginSource_OriginForToleratesIdentifierSpelling(t *testing.T) {
 
 // TestKWinTitleMatches pins where the title comparison draws its line.
 //
-// KWin's caption is the window's title plus a suffix it adds itself — a window
-// shortcut, a hostname, a "<2>" when two windows share a title — and nothing
-// here knows whether the foreign-toplevel title was built before or after that
-// suffix. So a prefix in either direction is a match: an exact comparison would
-// unoffset every hint in a window that has a shortcut assigned, forever, to
-// close a case it was never the only defense against.
+// KWin's caption is the window's title plus a suffix it adds itself, such as a
+// window shortcut, a hostname, or a "<2>" when two windows share a title.
+// Nothing here knows whether the foreign-toplevel title was built before or
+// after that suffix. So a prefix in either direction is a match. An exact
+// comparison would unoffset every hint in a window that has a shortcut
+// assigned, forever, to close a case it was never the only defense against.
 func TestKWinTitleMatches(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -198,7 +198,7 @@ func TestKWinTitleMatches(t *testing.T) {
 // TestKWinOriginSource_OriginForAcceptsAnAbsentIdentity is the half that keeps
 // this check from being worse than what it replaces.
 //
-// A missing identity is not a mismatch: X11 and GNOME expose no
+// A missing identity is not a mismatch. X11 and GNOME expose no
 // foreign-toplevel protocol to read one from, and a KWin that reports no class
 // or caption has not thereby reported a different window. Refusing here would
 // unoffset every hint on a whole session to close a rare misplacement.
@@ -268,7 +268,7 @@ func TestKWinOriginSource_OriginForReportsNothingCachedAsAnAnswer(t *testing.T) 
 
 // TestKWinOriginSource_OriginForReportsAFailedInstall keeps a broken bridge
 // distinguishable from an idle one. Both leave hints window-relative, and only
-// one is something a person can fix — so the reason has to reach the caller
+// one is something a person can fix, so the reason has to reach the caller
 // rather than be folded into "no origin".
 func TestKWinOriginSource_OriginForReportsAFailedInstall(t *testing.T) {
 	source := kwinSourceWith(fakeKWinGeometry{err: errTestKWinAbsent})

@@ -19,7 +19,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
         runs-on: ubuntu-latest
         steps:
-            # The PAT, not GITHUB_TOKEN: a pull request opened with
+            # The PAT, not GITHUB_TOKEN, because a pull request opened with
             # GITHUB_TOKEN does not start CI.
             - uses: actions/checkout@v7
               with:

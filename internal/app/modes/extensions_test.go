@@ -23,7 +23,7 @@ type extensionAxis struct {
 }
 
 // allExtensions is every optional extension there is. A new one is added here
-// once; the matrix then asserts it for every mode.
+// once. The matrix then asserts it for every mode.
 var allExtensions = []extensionAxis{
 	{
 		name: extensionSelectionTracking,
@@ -116,10 +116,10 @@ var allExtensions = []extensionAxis{
 }
 
 // modeExtensionMatrix states, per mode, every optional extension that mode
-// carries. Omission is a statement too: a mode listed with no extensions has
+// carries. Omission is a statement too. A mode listed with no extensions has
 // been considered on every axis and carries none.
 //
-// This table is what makes optional extensions safe; the modes area guide says
+// This table is what makes optional extensions safe. The modes area guide says
 // why the guarantee lives here rather than in the linter.
 var modeExtensionMatrix = map[domain.Mode][]extensionName{
 	domain.ModeHints: {
@@ -180,7 +180,7 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 // optional-extension axis.
 //
 // It builds a real handler so it reads the same mode map the daemon dispatches
-// through: a mode added to newModes appears here without anyone remembering to
+// through. A mode added to newModes appears here without anyone remembering to
 // list it, and fails until its row above is stated.
 func TestModeExtensionMatrix(t *testing.T) {
 	handler := NewHandler(HandlerDeps{})
@@ -256,7 +256,7 @@ func TestCheckModeExtensions_AcceptsAFullyStatedMode(t *testing.T) {
 }
 
 // TestActiveModeEffect_DeclinedEffectIsDiagnosable pins the half of the absence
-// semantics a user can feel: pressing backspace in a mode that does not edit
+// semantics a user can feel. Pressing backspace in a mode that does not edit
 // input does nothing, and "nothing happened" has to be answerable from a debug
 // log rather than by reading the dispatch.
 //
@@ -293,7 +293,7 @@ func TestActiveModeEffect_DeclinedEffectIsDiagnosable(t *testing.T) {
 	}
 }
 
-// TestActiveModeExtension_AbsentGetterStaysSilent pins the other half: a getter
+// TestActiveModeExtension_AbsentGetterStaysSilent pins the other half. A getter
 // the active mode does not carry answers with its zero value and says nothing,
 // because the caller asked a question rather than for an effect.
 func TestActiveModeExtension_AbsentGetterStaysSilent(t *testing.T) {

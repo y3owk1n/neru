@@ -135,13 +135,9 @@ func TestCursorState_SkipNextRestore(t *testing.T) {
 	}
 }
 
-// TestCursorState_Concurrency tests thread-safe access to cursor state.
 // TestCursorState_Concurrency hammers the cursor state from many goroutines.
-// The race detector is the primary check; the post-run assertions make the test
-// meaningful under a plain `go test` too.
-// TestCursorState_Concurrency hammers the cursor state from many goroutines.
-// The race detector is the primary check; the post-run assertions make the test
-// meaningful under a plain `go test` too.
+// The race detector is the primary check, and the post-run assertions make the
+// test meaningful under a plain `go test` too.
 func TestCursorState_Concurrency(t *testing.T) {
 	cursorState := state.NewCursorState()
 

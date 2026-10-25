@@ -7,7 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// frame is an arbitrary non-zero frame; nothing asserts on its values, it just
+// frame is an arbitrary non-zero frame. Nothing asserts on its values, it just
 // has to be passed through.
 var frame = ports.TextInputFrame{X: 10, Y: 20, Width: 200, Height: 30}
 

@@ -30,7 +30,7 @@ type waylandEvdevCapture struct {
 	logger *zap.Logger
 
 	// grab is whether devices are taken exclusively (EVIOCGRAB) as they are
-	// opened. The proxy grabs; a passive capture, which has no uinput device
+	// opened. The proxy grabs. A passive capture, which has no uinput device
 	// to re-emit through, reads alongside the compositor instead.
 	grab bool
 
@@ -53,23 +53,23 @@ type waylandEvdevCapture struct {
 	appliedLayout *string
 
 	// devices is what the capture knows about each tracked file beyond its
-	// path; guarded by deviceMu like files.
+	// path. deviceMu guards it, as it does files.
 	devices map[*os.File]trackedDevice
 
 	// pending is the keyboards the constructor found with a key down, whose
-	// grab waits for them to go idle; startReaders launches those waits.
+	// grab waits for them to go idle. startReaders launches those waits.
 	pending []string
 
 	// pendingPaths is the keyboards whose wait is in flight, so overlapping
 	// scans start one wait per keyboard and a session asked for while one is
-	// still on its way in can be refused by name; deviceMu.
+	// still on its way in can be refused by name. deviceMu guards it.
 	pendingPaths map[string]struct{}
 
 	// sessionActive is whether a mode session is capturing keys, kept under
 	// deviceMu so a yield deciding to let a keyboard go (releaseIfIdle) and a
 	// session starting (beginSession) cannot cross. yielded counts the
 	// keyboards let go and not yet claimed or taken back, which is when a
-	// session is refused; deviceMu.
+	// session is refused. deviceMu guards it too.
 	sessionActive bool
 	yielded       int
 
@@ -88,7 +88,7 @@ type pointerProxy struct {
 type trackedDevice struct {
 	// virtual is whether the device is another process's uinput keyboard, a
 	// remapper's output. Physical keyboards are yielded to a remapper when
-	// one starts (yieldPhysicalKeyboards); virtual ones never are.
+	// one starts (yieldPhysicalKeyboards), but virtual ones never are.
 	virtual bool
 
 	// released is whether this capture let go of the file on purpose, or is
@@ -99,15 +99,15 @@ type trackedDevice struct {
 
 // newWaylandEvdevCapture opens every keyboard under /dev/input. With grab set,
 // each is taken exclusively on the way in, and only while no key on it is down
-// (deviceBusy): a keyboard with a key held is grabbed once it goes idle.
+// (deviceBusy). A keyboard with a key held is grabbed once it goes idle.
 //
 // A device another process already holds (a key remapper such as kanata or keyd
 // grabs its input keyboards for its own lifetime) refuses the grab and is
-// skipped; the remapper's virtual output keyboard is taken instead, which is the
+// skipped. The remapper's virtual output keyboard is taken instead, which is the
 // one that carries the user's keys. A remapper that starts after this capture
 // finds its keyboards held instead, so they are yielded to it when its output
 // device arrives (yieldPhysicalKeyboards). That device also advertises mouse
-// motion and buttons, so a key can move the pointer; they are re-emitted on the
+// motion and buttons, so a key can move the pointer. Those are re-emitted on the
 // pointer proxy, which is created the first time such a keyboard is grabbed.
 func newWaylandEvdevCapture(logger *zap.Logger, grab bool) (*waylandEvdevCapture, error) {
 	paths, err := filepath.Glob("/dev/input/event*")
@@ -159,7 +159,7 @@ func (capture *waylandEvdevCapture) Close() {
 	capture.closeOnce.Do(func() {
 		close(capture.stopCh)
 
-		// Stop the hotplug watcher first: closing the inotify fd unblocks
+		// Stop the hotplug watcher first. Closing the inotify fd unblocks
 		// the hotplugLoop goroutine, causing it to exit.
 		capture.stopHotplugWatcher()
 
@@ -209,7 +209,7 @@ const (
 	// deviceAdopted is a keyboard now tracked, grabbed when the capture grabs.
 	deviceAdopted
 	// deviceBusy is a keyboard with a key down, which the capture will not
-	// hold: libinput keeps that key down until a release arrives on the same
+	// hold, because libinput keeps that key down until a release arrives on the same
 	// device, and a release re-emitted on the proxy is discarded as a release
 	// for a key never pressed there (ADR 0014). The device is grabbed once it
 	// is idle instead (waitIdle).
@@ -221,7 +221,7 @@ const (
 // constructor before anyone else can.
 func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, deviceOutcome) {
 	// Read-write so the compositor's LED changes can be written back to the
-	// device; a node that only grants reading is still a keyboard to read.
+	// device. A node that only grants reading is still a keyboard to read.
 	file, openErr := os.OpenFile(path, os.O_RDWR, 0)
 	if openErr != nil {
 		file, openErr = os.Open(path)
@@ -267,7 +267,7 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, devi
 	if capture.grab {
 		if C.neru_evdev_grab(descriptor, 1) != 0 {
 			// Owned by another grabber, which is what a remapper looks like.
-			// Debug, not warn: its output device is captured in its place.
+			// Debug, not warn, because its output device is captured in its place.
 			if capture.logger != nil {
 				capture.logger.Debug(
 					"Keyboard device refused the grab; leaving it to its owner",
@@ -281,7 +281,7 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, devi
 		}
 
 		// A keyboard with relative motion on it is kept only once that motion
-		// has somewhere to go; otherwise it is handed back to the compositor,
+		// has somewhere to go. Otherwise it is handed back to the compositor,
 		// keys and all, rather than held with its motion swallowed. After the
 		// grab, so a keyboard another grabber owns creates no pointer proxy.
 		if C.neru_evdev_has_rel_axes(descriptor) != 0 && !capture.ensurePointerProxyLocked(path) {
@@ -292,7 +292,7 @@ func (capture *waylandEvdevCapture) addDeviceLocked(path string) (*os.File, devi
 		}
 
 		// Asked under the grab, so no press can land between the answer and
-		// the grab; a key found down means the grab is let go again at once,
+		// the grab. A key found down means the grab is let go again at once,
 		// and its release reaches the compositor as the press did.
 		held, heldErr := keysHeld(descriptor)
 		if held || heldErr != nil {
@@ -396,9 +396,9 @@ func keysHeld(fd C.int) (bool, error) {
 // hotplug watcher. These goroutines run for the entire lifetime of the capture.
 //
 // A remapper's output device found by the scan may belong to a remapper still
-// inside its startup delay, launched alongside the daemon: its inputs were
+// inside its startup delay, launched alongside the daemon. Its inputs were
 // free, so the scan took them, and the remapper is about to want them. They
-// are yielded as they would be had the output device arrived later; a
+// are yielded as they would be had the output device arrived later. A
 // remapper that is long up holds its inputs already, so there is nothing to
 // yield and the yield is free.
 func (capture *waylandEvdevCapture) startReaders() {
@@ -446,7 +446,7 @@ func (capture *waylandEvdevCapture) grabWhenIdleLocked(path string) {
 }
 
 // waitIdle adopts path once the kernel reports no key down on it. The wait is
-// forgotten before adopt runs, not deferred past it: a key pressed again in the
+// forgotten before adopt runs, not deferred past it. A key pressed again in the
 // gap makes adopt register a replacement wait on the same path, which a
 // cleanup running afterwards would erase.
 func (capture *waylandEvdevCapture) waitIdle(path string) {
@@ -461,7 +461,7 @@ func (capture *waylandEvdevCapture) waitIdle(path string) {
 
 // pollUntilIdle reports whether path reached a state with no key down. It
 // polls the key state rather than reading the device, so it takes nothing from
-// the device's owner; the poll quantum is paid once per device, when a daemon
+// the device's owner. The poll quantum is paid once per device, when a daemon
 // or a remapper is launched from a binding, and never per activation. False
 // is a device that is gone, or a capture that is closing.
 func (capture *waylandEvdevCapture) pollUntilIdle(path string) bool {
@@ -521,7 +521,7 @@ func (capture *waylandEvdevCapture) startReader(file *os.File) {
 }
 
 // readLoop hands every event the device produces to the proxy. The send blocks
-// rather than drops: with the device grabbed, an event dropped here is a key the
+// rather than drops. With the device grabbed, an event dropped here is a key the
 // user pressed that reaches nothing.
 //
 // It also tracks which keys are down on this device, because a device can
@@ -550,8 +550,8 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 				)
 			}
 
-			// Device disconnected — remove it from the tracked files slice
-			// so we don't attempt to write LEDs to a stale fd.
+			// The device disconnected. Remove it from the tracked files so
+			// nothing writes LEDs to a stale fd.
 			capture.deviceMu.Lock()
 			device := capture.devices[file]
 			capture.removeFileLocked(file)
@@ -561,7 +561,7 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 			capture.releaseHeld(held)
 
 			// A device that is gone may have been a remapper's output, whose
-			// exit also freed the keyboards it held; pick those up. Not for a
+			// exit also freed the keyboards it held, so pick those up. Not for a
 			// device this capture let go of itself, which its remapper wants.
 			if device.released {
 				return
@@ -648,9 +648,9 @@ func (capture *waylandEvdevCapture) removeFileLocked(file *os.File) {
 // them, are not a remapper's input and stay.
 //
 // Any uinput keyboard from another process looks like a remapper's output, so
-// one that is not (a key injector, a controller mapper) costs the same window:
-// keys go to the compositor unremapped and hotkeys are silent until the
-// keyboards are taken back. A mode never pays it: a keyboard is not let go
+// one that is not (a key injector, a controller mapper) costs the same window.
+// Keys go to the compositor unremapped and hotkeys are silent until the
+// keyboards are taken back. A mode never pays it. A keyboard is not let go
 // while a session is capturing keys (releaseIfIdle), and a session asked for
 // while keyboards are yielded is refused (beginSession), so the mode falls
 // back to the overlay's keyboard focus as it does while a key is held.
@@ -695,7 +695,7 @@ func (capture *waylandEvdevCapture) yieldPhysicalKeyboards() {
 }
 
 // beginSession records that a mode session is capturing keys, or refuses it
-// while a keyboard is yielded: its keys would reach the focused application
+// while a keyboard is yielded, because its keys would reach the focused application
 // rather than the mode until the remapper claimed it or it was taken back.
 func (capture *waylandEvdevCapture) beginSession() error {
 	capture.deviceMu.Lock()
@@ -725,7 +725,7 @@ func (capture *waylandEvdevCapture) endSession() {
 // left without its release in the compositor's picture of the proxy (the
 // invariant ADR 0014 rests on) and a mode's keys never reach the focused
 // application. The release is an ungrab and a revoke, which wakes the reader
-// with ENODEV; the remapper's grab then succeeds. After the grace the device
+// with ENODEV, and the remapper's grab then succeeds. After the grace the device
 // is adopted again if it is still free, which is a remapper that did not want
 // it.
 func (capture *waylandEvdevCapture) yieldDevice(file *os.File) {
@@ -765,7 +765,7 @@ func (capture *waylandEvdevCapture) yieldDevice(file *os.File) {
 // releaseIfIdle ungrabs and revokes file if no key on it is down and no mode
 // session is capturing keys, and reports whether it did, or whether the
 // device is gone. It runs under deviceMu after checking the file is still
-// tracked: the reader removes a vanished device under the same lock before it
+// tracked. The reader removes a vanished device under the same lock before it
 // closes the file, so the descriptor cannot be closed under the ioctl, and a
 // session begins under the same lock (beginSession), so one cannot slip in
 // between the check and the release.
@@ -800,7 +800,7 @@ func (capture *waylandEvdevCapture) releaseIfIdle(file *os.File) (bool, bool) {
 }
 
 // ungrabAll hands every device back to the compositor and stops grabbing the
-// ones that arrive later. It is the proxy failing open: with nothing to re-emit
+// ones that arrive later. It is the proxy failing open. With nothing to re-emit
 // through, holding the keyboards would be holding the user's keys.
 func (capture *waylandEvdevCapture) ungrabAll() {
 	capture.deviceMu.Lock()

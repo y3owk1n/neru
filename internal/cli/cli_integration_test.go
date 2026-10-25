@@ -66,7 +66,7 @@ func TestCLIIntegration(t *testing.T) {
 	logger := logger.Get()
 	appState := newMockAppState()
 
-	// Create a real IPC server with handlers that simulate app behavior
+	// A real IPC server with handlers that simulate app behavior.
 	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
 		switch cmd.Action {
 		case cmdPing:
@@ -274,7 +274,6 @@ func TestCLIIntegration(t *testing.T) {
 	t.Run("CLI action command", func(t *testing.T) {
 		client := ipc.NewClient()
 
-		// Test left click action
 		response, err := client.Send(ipc.Command{
 			Action: cmdAction,
 			Args:   []string{cmdLeftClick, "100", "100"},
@@ -308,7 +307,6 @@ func TestCLIIntegration(t *testing.T) {
 	t.Run("Commands fail after stop", func(t *testing.T) {
 		client := ipc.NewClient()
 
-		// Test that hints command fails after app is stopped
 		response, err := client.Send(ipc.Command{Action: modeHints})
 		if err != nil {
 			t.Fatalf("Failed to send hints command: %v", err)
@@ -322,7 +320,6 @@ func TestCLIIntegration(t *testing.T) {
 			)
 		}
 
-		// Test that grid command fails after app is stopped
 		response, err = client.Send(ipc.Command{Action: modeGrid})
 		if err != nil {
 			t.Fatalf("Failed to send grid command: %v", err)
@@ -336,7 +333,6 @@ func TestCLIIntegration(t *testing.T) {
 			)
 		}
 
-		// Test that action command fails after app is stopped
 		response, err = client.Send(ipc.Command{
 			Action: cmdAction,
 			Args:   []string{cmdLeftClick, "100", "100"},

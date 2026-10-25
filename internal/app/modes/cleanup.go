@@ -36,30 +36,30 @@ func (h *handlerState) exitMode() {
 // leaving the keyboard capture up across the handover. Caller must hold h.mu.
 //
 // Releasing it is what an exit *to idle* means, and doing it on a mode-to-mode
-// transition opens a window with nobody holding the keyboard: everything typed
+// transition opens a window with nobody holding the keyboard. Everything typed
 // between the release and the next mode's re-grab goes to the focused
-// application, and the activation in between is not fast — it queries the
+// application, and the activation in between is not fast. It queries the
 // screen, builds the mode's domain state and draws the overlay. On macOS the
 // window is a dropped keystroke or two, which is why scroll mode has skipped
 // the disable since it was first reported there (see startInteractiveScroll,
 // which keeps a partial cleanup of its own for reasons of its own). On Linux it
-// is worse in both directions, which is how it was reported: the keys land in
+// is worse in both directions, which is how it was reported. The keys land in
 // the focused app as literal text, and the re-grab that follows costs a keymap
 // rebuild plus a wait for every physically-held key to be released before the
 // evdev grab is even attempted, so a user still mashing keys keeps extending
 // the window they are being dropped into.
 //
-// Keeping the capture up closes it, and buys buffering with it — but only from
+// Keeping the capture up closes it, and buys buffering with it, but only from
 // the moment the activation owns h.mu. An activation holds the lock from start
 // to finish and the tap's dispatcher delivers through HandleKeyPress, which
 // takes that same lock, so a key the tap reads *after* the activation is under
 // way waits on the lock and lands in the mode coming up instead of in the
 // application behind it. A key that reaches the handler *before* it does is a
-// different thing and is not fixed here: the old mode is still the active one
+// different thing and is not fixed here. The old mode is still the active one
 // and the key is correctly its, which for scroll means dropped, because
-// handleGenericScrollKey does nothing. Nothing orders those two — the hotkey
+// handleGenericScrollKey does nothing. Nothing orders those two. The hotkey
 // dispatch is a goroutine and so is the tap's dispatcher, and they contend for
-// h.mu unordered — so "the key I pressed right after the chord" is buffered or
+// h.mu unordered, so "the key I pressed right after the chord" is buffered or
 // eaten by the mode it was actually pressed in, depending on which won. Closing
 // *that* window means ordering the activation ahead of the dispatcher, which
 // this does not attempt.
@@ -71,7 +71,7 @@ func (h *handlerState) exitMode() {
 //	defer h.exitModeForTransition()()
 //
 // which runs the exit now and the release at return. The double call is the
-// point: an activation that gives up after this must not leave idle holding the
+// point. An activation that gives up after this must not leave idle holding the
 // keyboard, and pairing the two by hand is a thing a new call site can half-do.
 // `internal/architecture/mode_transition_release_test.go` fails on any other
 // form, because getting it wrong is silent to everything else (ADR 0011).
@@ -82,8 +82,8 @@ func (h *handlerState) exitModeForTransition() func() {
 	return h.releaseKeyboardIfNoModeEntered
 }
 
-// exitCurrentMode is the body of both exits; keepEventTap is what separates
-// them. Caller must hold h.mu.
+// exitCurrentMode is the body of both exits, and keepEventTap is what
+// separates them. Caller must hold h.mu.
 func (h *handlerState) exitCurrentMode(keepEventTap bool) {
 	if h.appState.CurrentMode() == domain.ModeIdle {
 		return
@@ -114,8 +114,8 @@ func (h *handlerState) exitCurrentMode(keepEventTap bool) {
 // switch never happened. A watcher that saw no entry then knows Neru is idle.
 //
 // It is deferred rather than written into each abandon path because there are
-// several per mode — a refused draw, an empty hint scan, a permission dialog
-// that suspends the activation — and one that forgot would leave the daemon
+// several per mode (a refused draw, an empty hint scan, a permission dialog
+// that suspends the activation), and one that forgot would leave the daemon
 // idle with the keyboard grabbed, which is every key the user presses going
 // nowhere. Idle plus a live capture is the state that must not survive an
 // activation returning, whichever way it returns.
@@ -123,13 +123,13 @@ func (h *handlerState) exitCurrentMode(keepEventTap bool) {
 // What this costs on the abandon path is worth stating, because it is a
 // deliberate choice between two wrong answers. Keys the user typed while the
 // activation was running were captured, and the mode was idle throughout, where
-// nothing is passed through (syncModifierPassthrough, passthrough.go) — so they
+// nothing is passed through (syncModifierPassthrough, passthrough.go), so they
 // are sitting in the tap's dispatch queue with no mode to deliver them to.
-// Disable drops them: it bumps the dispatch epoch and drains the channel
+// Disable drops them. It bumps the dispatch epoch and drains the channel
 // (adapter/eventtap/linux/tap.go), by design, so a stale keystream cannot be
 // read by whatever comes next. They are therefore *discarded* rather than
 // reaching the focused application, which is the opposite of what this code
-// did before. That is the better of the two: leaking them into the focused
+// did before. That is the better of the two. Leaking them into the focused
 // application as text is the bug this whole change exists to stop, and a user
 // who typed into an activation that failed would otherwise get the failure
 // *and* the mess. It matters more on Linux than it reads, because the empty
@@ -174,13 +174,14 @@ func (h *handlerState) cleanupHintsMode() {
 	h.cycleHintIndex = -1
 
 	// Stop the indicator poller before common cleanup takes the frame off the
-	// screen: a tick landing after the clear would put an indicator back on it.
+	// screen, because a tick landing after the clear would put an indicator back
+	// on it.
 	h.stopIndicatorPolling()
 }
 
 // cleanupDefaultMode handles cleanup for a mode with no implementation
 // registered. There is no domain state to reset, and the frame on screen is
-// taken off by the common cleanup that follows — the same way it is for every
+// taken off by the common cleanup that follows, the same way it is for every
 // mode that does have one.
 func (h *handlerState) cleanupDefaultMode() {}
 
@@ -200,21 +201,22 @@ func (h *handlerState) cleanupGridMode() {
 		h.grid.Manager.ResetSilent()
 	}
 
-	// What the overlay still holds from this session — the hide-unmatched flag,
-	// the match prefix and the pointer stand-in — is dropped by the frame clear
-	// that follows in performCommonCleanup, and dropped there on purpose
-	// (#1492): resetting them from here repainted the grid, twice, to throw it
+	// The frame clear that follows in performCommonCleanup drops what the
+	// overlay still holds from this session: the hide-unmatched flag, the match
+	// prefix and the pointer stand-in. It drops them there on purpose (#1492),
+	// because resetting them from here repainted the grid, twice, to throw it
 	// away a moment later. ClearFrame owns the leaving half of every surface,
 	// and these are the last things a caller had to take off one itself.
 
 	// Stop the indicator poller before common cleanup takes the frame off the
-	// screen: a tick landing after the clear would put an indicator back on it.
+	// screen, because a tick landing after the clear would put an indicator back
+	// on it.
 	h.stopIndicatorPolling()
 }
 
 // performCommonCleanup handles common cleanup logic for all modes. keepEventTap
 // leaves the keyboard capture up for a caller that is handing it to the next
-// mode rather than giving it back — see exitModeForTransition.
+// mode rather than giving it back. See exitModeForTransition.
 func (h *handlerState) performCommonCleanup(keepEventTap bool) {
 	h.stopIndicatorPolling()
 	h.stopHeldRepeat()
@@ -233,7 +235,7 @@ func (h *handlerState) performCommonCleanup(keepEventTap bool) {
 	h.hotkeyLastKeyTime = 0
 
 	// Release synthetic sticky modifiers before disabling the Wayland event tap.
-	// The evdev-backed tap restores overlay keyboard focus during shutdown; if
+	// The evdev-backed tap restores overlay keyboard focus during shutdown. If
 	// we post modifier key-up events after that handoff, the overlay can receive
 	// the release instead of the target app and leave the app "stuck" with the
 	// modifier still logically held.
@@ -247,7 +249,7 @@ func (h *handlerState) performCommonCleanup(keepEventTap bool) {
 
 	h.setAppMode(domain.ModeIdle)
 
-	// Do NOT reset suppressedModifiers here — SuppressModifiersForHotkey was
+	// Do NOT reset suppressedModifiers here. SuppressModifiersForHotkey was
 	// called synchronously by the hotkey dispatch path (dispatchModeAwareHeldHotkey
 	// or dispatchModeAwareHotkeyAsync) before the mode switch, and the modifier
 	// UP events arrive after the user releases the chord. Clearing
@@ -258,9 +260,8 @@ func (h *handlerState) performCommonCleanup(keepEventTap bool) {
 	//
 	// expireSuppressedModifiersIfNeeded handles cleanup after the 2-second
 	// activationModifierSuppressionWindow expires.
-	// h.suppressedModifiers = 0
-	// h.suppressedUntil = time.Time{}
-	// The overlay is already idle: clearOverlayFrame above returned it there,
+	//
+	// The overlay is already idle. clearOverlayFrame above returned it there,
 	// because taking the frame off screen and leaving the mode behind are one
 	// step and not two a caller has to remember.
 
@@ -278,7 +279,7 @@ func (h *handlerState) performCommonCleanup(keepEventTap bool) {
 func (h *handlerState) handleCursorRestoration() {
 	h.cursorState.Reset()
 
-	// Always reset scroll context to ensure proper state cleanup when switching modes.
+	// Reset the scroll context on every exit.
 	h.scroll.Context.Reset()
 }
 

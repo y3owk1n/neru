@@ -24,10 +24,10 @@ const supportingWMCheckProperty = "_NET_SUPPORTING_WM_CHECK"
 const focusedAppFeature = "focused-app inspection"
 
 // TestX11ActiveWindowQueryError is the whole point of splitting the
-// _NET_ACTIVE_WINDOW answers apart: a desktop with nothing focused is a state
+// _NET_ACTIVE_WINDOW answers apart. A desktop with nothing focused is a state
 // callers degrade through, and the three ways the query can fail are failures
-// they surface. Collapsing them — which is what the C returning a bare 0 used
-// to force — made clicking the desktop background look like a broken X server.
+// they surface. Collapsing them, which the C returning a bare 0 used to force,
+// made clicking the desktop background look like a broken X server.
 func TestX11ActiveWindowQueryError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -52,7 +52,7 @@ func TestX11ActiveWindowQueryError(t *testing.T) {
 		},
 		{
 			// The property named here is the one that answers the question a
-			// window manager's own presence cannot: root-window properties
+			// window manager's own presence cannot. Root-window properties
 			// outlive the client that wrote them, so a window manager that was
 			// killed leaves _NET_SUPPORTED behind and only the
 			// _NET_SUPPORTING_WM_CHECK handshake still fails.
@@ -126,8 +126,8 @@ func TestX11ActiveWindowQueryError(t *testing.T) {
 // TestX11ActiveWindowQueryError_OnlyTheUnfocusedDesktopCarriesTheSentinel pins
 // the half of the split the capability surface reads. `neru doctor` explains an
 // unfocused desktop differently from a broken query, and it tells them apart by
-// this sentinel — a failure wearing it would put the reassuring wording on a
-// genuinely broken session.
+// this sentinel. A failure wearing it would put the reassuring wording on a
+// broken session.
 func TestX11ActiveWindowQueryError_OnlyTheUnfocusedDesktopCarriesTheSentinel(t *testing.T) {
 	unfocused := x11ActiveWindowQueryError(x11ActiveWindowNone)
 	if !errors.Is(unfocused, errNoFocusedWindow) {
@@ -157,10 +157,10 @@ func TestX11ActiveWindowQueryError_OnlyTheUnfocusedDesktopCarriesTheSentinel(t *
 // TestSystemAdapter_UnavailableDetail_SeparatesAnUnfocusedDesktopFromAFailure
 // covers what a user actually reads. `neru doctor` downgrades a capability its
 // live probe refused, and the probe refuses on an unfocused desktop as much as
-// on a broken one — but telling someone "focused-app inspection is unavailable"
+// on a broken one, but telling someone "focused-app inspection is unavailable"
 // because they clicked their wallpaper sends them looking for a fix that does
 // not exist. The status stays a stub, since that is what FocusedApplicationPID
-// answers right now and the matrix has to agree with behavior; the wording is
+// answers right now and the matrix has to agree with behavior. The wording is
 // what has to stop claiming the subsystem is gone.
 func TestSystemAdapter_UnavailableDetail_SeparatesAnUnfocusedDesktopFromAFailure(t *testing.T) {
 	adapter := NewSystemAdapter(backendX11)
@@ -179,7 +179,7 @@ func TestSystemAdapter_UnavailableDetail_SeparatesAnUnfocusedDesktopFromAFailure
 		}
 	}
 
-	// A real failure keeps the wording it had: something is wrong and the user
+	// A real failure keeps the wording it had. Something is wrong and the user
 	// has something to do about it.
 	broken := adapter.unavailableDetail(
 		feature,

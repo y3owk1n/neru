@@ -6,7 +6,7 @@ import (
 
 // The overlay vocabulary lives in the manager package so the per-platform
 // backends can satisfy the contract without importing this one, which selects
-// them. These aliases keep the name the application layer already uses:
+// them. These aliases keep the name the application layer already uses.
 // overlay.Mode and overlay.ManagerInterface are what the modes, services and
 // mode handler say, and there is no reason for a package split beneath them to
 // reach up and rename anything.

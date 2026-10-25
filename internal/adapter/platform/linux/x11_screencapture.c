@@ -9,8 +9,8 @@
 #include <stdlib.h>
 
 // XGetImage answers BadMatch for any rectangle that is not wholly inside the
-// drawable — which a display hotplug between the clip and the request can
-// produce however carefully the region was clipped — and Xlib's default error
+// drawable, which a display hotplug between the clip and the request can
+// produce however carefully the region was clipped, and Xlib's default error
 // handler calls exit() on it. The capture therefore runs inside the shared
 // protocol-error trap (x11_error_trap.h), which turns "the daemon dies
 // mid-capture" into "the capture failed".
@@ -45,7 +45,7 @@ static int neru_x11_mask_width(unsigned long mask) {
 
 // neru_x11_channel extracts one 8-bit channel from a raw pixel. Visuals with
 // fewer than 8 bits per channel (16-bit displays) are scaled up rather than
-// rejected; the vision strategy reads shapes and text, not exact colours.
+// rejected, since the vision strategy reads shapes and text, not exact colours.
 static unsigned char neru_x11_channel(unsigned long pixel, unsigned long mask, int shift, int bits) {
 	if (!mask || bits <= 0) {
 		return 0;
@@ -63,7 +63,7 @@ static unsigned char neru_x11_channel(unsigned long pixel, unsigned long mask, i
 }
 
 // neru_x11_read_pixel returns the raw pixel at (col, row). The 32-bits-per-pixel
-// case — every modern TrueColor visual — is read straight out of the image data
+// case, which every modern TrueColor visual uses, is read straight out of the image data
 // rather than through XGetPixel, which is an indirect call per pixel and shows
 // up as tens of milliseconds on a full-screen grab.
 static unsigned long neru_x11_read_pixel(XImage *image, int col, int row, int direct) {
@@ -87,8 +87,8 @@ static unsigned long neru_x11_read_pixel(XImage *image, int col, int row, int di
 // Go side expects.
 static int neru_x11_capture_convert(XImage *image, int width, int height, NeruCapture *out) {
 	if (!image->red_mask || !image->green_mask || !image->blue_mask) {
-		// A PseudoColor visual: the pixel value is a colormap index and the
-		// masks are zero. Refusing is better than emitting garbage.
+		// A PseudoColor visual, where the pixel value is a colormap index and
+		// the masks are zero. Refusing is better than emitting garbage.
 		return NERU_CAPTURE_ERR_FORMAT;
 	}
 
@@ -139,8 +139,8 @@ int neru_x11_capture_region(int x, int y, int w, int h, NeruCapture *out) {
 		return NERU_CAPTURE_ERR_NO_DISPLAY;
 	}
 
-	// Its own connection: every thread in this package owns its Display, which
-	// is what lets the tree do without XInitThreads.
+	// Its own connection, because every thread in this package owns its
+	// Display, which is what lets the tree do without XInitThreads.
 	Display *display = XOpenDisplay(NULL);
 	if (!display) {
 		return NERU_CAPTURE_ERR_NO_DISPLAY;
@@ -157,8 +157,8 @@ int neru_x11_capture_region(int x, int y, int w, int h, NeruCapture *out) {
 
 	// The region must lie wholly inside the root window. Clipping it instead
 	// would return a frame whose top-left is not the caller's, and nothing in
-	// the result says so — the caller could no longer map a pixel back to a
-	// screen coordinate. Refusing keeps one invariant worth having: what comes
+	// the result says so, and the caller could no longer map a pixel back to a
+	// screen coordinate. Refusing keeps the invariant that what comes
 	// back covers exactly what was asked for.
 	if (x < 0 || y < 0 || x + w > attrs.width || y + h > attrs.height) {
 		XCloseDisplay(display);
@@ -184,7 +184,7 @@ int neru_x11_capture_region(int x, int y, int w, int h, NeruCapture *out) {
 
 	int status = neru_x11_capture_convert(image, w, h, out);
 
-	// XDestroyImage frees image->data, which held screen pixels; wipe it first.
+	// XDestroyImage frees image->data, which held screen pixels, so wipe it first.
 	if (image->data) {
 		neru_capture_wipe((unsigned char *)image->data, (size_t)image->bytes_per_line * (size_t)image->height);
 	}

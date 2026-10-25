@@ -9,8 +9,8 @@ import (
 
 // TestUsableDimensions pins the rule that decides whether a configured
 // recursive-grid shape can be navigated at all, and what it is replaced with
-// when it cannot. It was written twice — once in the manager and once in the
-// macOS draw — and the copies had already drifted (#1345), so what this covers
+// when it cannot. It was written twice, once in the manager and once in the
+// macOS draw, and the copies had already drifted (#1345), so what this covers
 // is the whole rule rather than either site's reading of it.
 //
 // The expected shapes are literals rather than DefaultDimensions() so that a
@@ -49,7 +49,7 @@ func TestUsableDimensions(t *testing.T) {
 			wantUsed: true,
 		},
 		{
-			// 1x1 has the right shape and cannot subdivide: selecting its one
+			// 1x1 has the right shape and cannot subdivide. Selecting its one
 			// cell narrows nothing, so the grid never bottoms out.
 			name:     "1x1 is degenerate and falls back",
 			dims:     domain.GridDimensions{Rows: 1, Cols: 1},
@@ -95,7 +95,7 @@ func TestUsableDimensions(t *testing.T) {
 			wantUsed: false,
 		},
 		{
-			// The whole pair is replaced, not just the offending half: a grid
+			// The whole pair is replaced, not just the offending half. A grid
 			// of 7 columns and no rows would otherwise become 7x3, a shape
 			// nobody configured and no key mapping matches.
 			name:     "one bad dimension replaces both",

@@ -14,8 +14,8 @@ import (
 // TestResolveCaptureRegion covers the one piece of capture logic that is not
 // native: turning the caller's request into the concrete rectangle the backends
 // receive. An empty rectangle is the port's CaptureScreen contract ("the
-// current screen"), anything else is a region the caller wants honored —
-// grabbing the whole display for a focused window is the difference between
+// current screen"), and anything else is a region the caller wants honored.
+// Grabbing the whole display for a focused window is the difference between
 // usable and not on a 4K screen.
 func TestResolveCaptureRegion(t *testing.T) {
 	screen := image.Rect(0, 0, 3840, 2160)
@@ -113,7 +113,7 @@ func TestCaptureScreenRegion_UnknownBackendReportsNotSupported(t *testing.T) {
 		{name: "other wayland", backend: "wayland-other", want: "wayland-other"},
 		{name: "no backend detected", backend: "", want: "no display backend"},
 		// What DetectLinuxBackend actually returns for a session it could not
-		// identify — the label the production caller passes, and the one an
+		// identify. It is the label the production caller passes, and the one an
 		// earlier version of this code missed.
 		{name: "detection answered unknown", backend: "unknown", want: "no display backend"},
 	}

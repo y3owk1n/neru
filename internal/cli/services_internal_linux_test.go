@@ -116,8 +116,8 @@ func TestRequireOwnUnit_RefusesAUnitNeruDidNotWrite(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	// A unit somebody wrote by hand at Neru's own path — the snippet the setup
-	// guide told users to write before `neru services` could do it for them.
+	// A unit somebody wrote by hand at Neru's own path, from the snippet the
+	// setup guide told users to write before `neru services` could do it for them.
 	// Nothing but its contents tells it apart from one Neru installed.
 	handWrittenUnit := filepath.Join(dir, "hand-written.service")
 
@@ -384,7 +384,7 @@ func TestRenderServiceUnit_AnchorsOnTheGraphicalSession(t *testing.T) {
 //
 // The two characters that matter are not exotic: a space makes systemd read one
 // path as a command plus an argument, and a percent makes it resolve a
-// specifier — %h expands, and a specifier systemd does not know fails the whole
+// specifier. %h expands, and a specifier systemd does not know fails the whole
 // unit load.
 func TestRenderServiceUnit_EscapesTheExecutablePath(t *testing.T) {
 	testCases := []struct {

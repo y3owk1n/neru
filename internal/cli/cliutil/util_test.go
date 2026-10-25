@@ -102,7 +102,7 @@ func TestPrintProfile(t *testing.T) {
 	}
 }
 
-// The JSON form is what a script reads, so it must be the payload itself —
+// The JSON form is what a script reads, so it must be the payload itself:
 // parseable, and without the IPC envelope wrapped around it.
 func TestPrintJSON(t *testing.T) {
 	t.Parallel()
@@ -182,7 +182,7 @@ func TestPrintToggles(t *testing.T) {
 	}
 }
 
-// A toggle with no state is skipped, not printed as off: cursor-follow-selection
+// A toggle with no state is skipped, not printed as off, because cursor-follow-selection
 // is null while no mode is running, and "no" would name a state the daemon is
 // not in.
 func TestPrintToggles_SkipsAbsentState(t *testing.T) {

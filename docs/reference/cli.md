@@ -134,8 +134,8 @@ event `mode_enter`.
 
 The `snapshot` line comes first, with `status` holding the object
 [`neru status --json`](#neru-status) prints (shortened above). Every line after
-it is an event, except when the reader falls behind. Then the events it missed
-are replaced by a fresh `snapshot` with a `dropped` count, so take each
+it is an event, except when the reader falls behind. Then the daemon replaces the
+events it missed with a fresh `snapshot` carrying a `dropped` count, so take each
 snapshot as the whole state and each event as a change to it.
 
 | Key         | Present on                     | Value                                                                 |

@@ -8,14 +8,14 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// BailOnErrorFlag marks a step fatal: a failure there stops the sequence
+// BailOnErrorFlag marks a step fatal. A failure there stops the sequence
 // instead of letting the remaining steps run. It is a sequencing directive
-// rather than an action flag — the executor consumes it, and the step is
+// rather than an action flag. The executor consumes it, and the step is
 // dispatched without it.
 const BailOnErrorFlag = "--bail-on-error"
 
 // Outcome reports what an action sequence did. Callers that answer a client
-// (the "run" command) turn it into a response; callers that answer nobody
+// (the "run" command) turn it into a response. Callers that answer nobody
 // (hotkeys) ignore it and rely on the executor's logging.
 type Outcome struct {
 	// Err is the error that stopped the sequence when it stopped early,
@@ -31,7 +31,7 @@ type Outcome struct {
 	// step that failed, bailed, or was rejected before it could run.
 	Executed int
 	// Bailed reports whether a step asked the sequence to stop by reporting
-	// CodeChainBail — a canceled mode rather than a fault.
+	// CodeChainBail, which marks a canceled mode rather than a fault.
 	Bailed bool
 	// Stopped reports whether the sequence ended before its last step, whether
 	// through a bail or a failure the step marked as fatal.
@@ -41,7 +41,7 @@ type Outcome struct {
 // Policy describes how a sequence treats a failing step.
 //
 // A policy applies to the steps of one sequence and does not cross into a
-// nested one: a step that is itself a "run" carries whatever policy that run
+// nested one. A step that is itself a "run" carries whatever policy that run
 // was given. The nested sequence's failure is still reported to the outer one,
 // so an outer stop-on-error still stops there.
 type Policy struct {
@@ -53,13 +53,13 @@ type Policy struct {
 // SplitBailOnError separates the trailing bail-on-error directive from a step.
 //
 // The directive is recognized only as the final unquoted token, so a step that
-// merely carries the text as an argument keeps it: both
+// merely carries the text as an argument keeps it. Both
 // `exec sh -c "echo --bail-on-error"` and `exec printf '--bail-on-error'` are
 // passed through untouched.
 //
 // The directive anywhere else is an error rather than a silent pass-through.
 // Left in place it would reach the action's own flag parser, which reports
-// "invalid or missing flag value" without naming the flag — a much worse
+// "invalid or missing flag value" without naming the flag, a much worse
 // message than saying where the directive belongs.
 func SplitBailOnError(step string) (string, bool, error) {
 	step = strings.TrimSpace(step)

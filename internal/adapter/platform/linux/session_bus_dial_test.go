@@ -22,7 +22,7 @@ const (
 )
 
 // wedgedConnect stands in for a session bus that accepts the connection and
-// then stops answering: it announces each dial on dials and parks until release
+// then stops answering. It announces each dial on dials and parks until release
 // is closed, which is the state every bound in this file exists to survive.
 func wedgedConnect(dials chan<- struct{}, release <-chan struct{}) func() (*dbus.Conn, error) {
 	return func() (*dbus.Conn, error) {
@@ -56,7 +56,7 @@ func awaitDial(t *testing.T, dials <-chan struct{}) {
 }
 
 // TestSessionBusDialer_Dial_RefusesASecondCallerWhileOneIsStuck pins the policy
-// the mid-action input path depends on: an uncancellable dial that has wedged
+// the mid-action input path depends on. An uncancellable dial that has wedged
 // gets one outstanding attempt, not one per caller. Every mid-action input
 // operation reaches the portal while no session is up, so restarting would buy
 // an orphaned goroutine and a half-open connection per keypress.
@@ -174,8 +174,8 @@ func TestSessionBusDialer_Dial_SharesTheOutstandingDialWithLaterCallers(t *testi
 
 // TestSessionBusDialer_Dial_ClosesAPrivateConnectionEveryCallerWalkedAwayFrom is
 // the half of abandoning that is easy to lose. The dial cannot be canceled, so
-// it eventually produces a connection whether or not anyone is still waiting;
-// one nobody is left to close is a leaked file descriptor and a live bus
+// it eventually produces a connection whether or not anyone is still waiting.
+// One nobody is left to close is a leaked file descriptor and a live bus
 // connection per wedged dial.
 func TestSessionBusDialer_Dial_ClosesAPrivateConnectionEveryCallerWalkedAwayFrom(t *testing.T) {
 	release := make(chan struct{})
@@ -208,8 +208,8 @@ func TestSessionBusDialer_Dial_ClosesAPrivateConnectionEveryCallerWalkedAwayFrom
 }
 
 // TestSessionBusDialer_Dial_LeavesTheProcessWideConnectionOpenWhenAbandoned is
-// the exception, and it is not a detail: dbus.SessionBus hands back one
-// connection per process, which the tray's StatusNotifierItem speaks over too.
+// the exception, because dbus.SessionBus hands back one connection per process,
+// which the tray's StatusNotifierItem speaks over too.
 // Closing it because a notification timed out would take the tray down with it.
 func TestSessionBusDialer_Dial_LeavesTheProcessWideConnectionOpenWhenAbandoned(t *testing.T) {
 	release := make(chan struct{})
@@ -240,7 +240,7 @@ func TestSessionBusDialer_Dial_LeavesTheProcessWideConnectionOpenWhenAbandoned(t
 	close(release)
 
 	// The dialer has to be given the chance to close it and not take it, so this
-	// waits for the abandoned dial to finish rather than dialing again — a
+	// waits for the abandoned dial to finish rather than dialing again. A
 	// second caller would join the outstanding attempt and own it, which is the
 	// one thing that would stop the disposal being reached at all.
 	awaitIdle(t, dialer)
@@ -270,7 +270,7 @@ func TestSessionBusDialer_Dial_ReportsADialThatProducedNeitherConnectionNorReaso
 // TestPrivateBusConnection_GivesUpOnAWedgedBusRatherThanHoldingStartup is what
 // ConnectSessionBus exists for. The app's theme observer dials on the goroutine
 // that starts the daemon, so an uncancellable dial into a bus that accepts the
-// connection and then stops answering would hold startup itself — the caller
+// connection and then stops answering would hold startup itself. The caller
 // has to be told to fall back instead.
 func TestPrivateBusConnection_GivesUpOnAWedgedBusRatherThanHoldingStartup(t *testing.T) {
 	release := make(chan struct{})
@@ -311,7 +311,7 @@ func TestPrivateBusConnection_ReportsAnAbsentBusAsUnsupported(t *testing.T) {
 // TestPrivateBusConnection_GivesConcurrentCallersConnectionsOfTheirOwn is the
 // ownership rule this entry point is built around. What it hands back is the
 // caller's to close, so two callers handed one connection would be two callers
-// closing it — the dialer is therefore built per call, and never shared, which
+// closing it. The dialer is therefore built per call, and never shared, which
 // a caller waiting on somebody else's outstanding dial would undo.
 func TestPrivateBusConnection_GivesConcurrentCallersConnectionsOfTheirOwn(t *testing.T) {
 	release := make(chan struct{})
@@ -353,8 +353,8 @@ func TestPrivateBusConnection_GivesConcurrentCallersConnectionsOfTheirOwn(t *tes
 	}
 
 	// Both dials have to be outstanding at once for the sharing this guards
-	// against to be possible at all: a caller that joined the other's dial
-	// would never start a second one.
+	// against to be possible at all, because a caller that joined the other's
+	// dial would never start a second one.
 	awaitDial(t, dials)
 
 	select {
@@ -438,7 +438,7 @@ func awaitClosed(t *testing.T, conn *dbus.Conn) {
 }
 
 // stayOpen fails when conn is closed within the window a wrongly-closed one
-// would be: closing is the first thing the dial's goroutine does with an
+// would be. Closing is the first thing the dial's goroutine does with an
 // outcome it decides nobody owns.
 func stayOpen(t *testing.T, conn *dbus.Conn) {
 	t.Helper()

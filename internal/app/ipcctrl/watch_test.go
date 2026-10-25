@@ -39,7 +39,7 @@ func watchController(bus *event.Bus) *ipcctrl.Controller {
 
 // watchLines runs a watch with args until ctx ends, handing each line to the
 // returned channel as the JSON object a client would read. gate, when not nil,
-// holds the first line: the watch sends on it once that line is ready, then
+// holds the first line. The watch sends on it once that line is ready, then
 // waits to receive from it.
 func watchLines(
 	ctx context.Context,
@@ -186,7 +186,7 @@ func TestController_HandleWatch_ResyncsAReaderThatFellBehind(t *testing.T) {
 	}
 }
 
-// TestController_HandleWatch_SendsOnlyTheNamedEvents pins --event: the
+// TestController_HandleWatch_SendsOnlyTheNamedEvents pins --event. The
 // snapshot still opens the stream, only the events named follow it, and their
 // seq skips the events left out.
 func TestController_HandleWatch_SendsOnlyTheNamedEvents(t *testing.T) {
@@ -211,7 +211,7 @@ func TestController_HandleWatch_SendsOnlyTheNamedEvents(t *testing.T) {
 }
 
 // TestController_HandleWatch_CountsOnlyNamedEventsAsDropped pins dropped
-// under --event: the events left out never reach the watcher, so they can
+// under --event. The events left out never reach the watcher, so they can
 // neither fill its buffer nor count as missed, and a snapshot after an
 // overflow counts only the named events it replaces.
 func TestController_HandleWatch_CountsOnlyNamedEventsAsDropped(t *testing.T) {
@@ -254,7 +254,7 @@ func TestController_HandleWatch_CountsOnlyNamedEventsAsDropped(t *testing.T) {
 }
 
 // TestController_HandleWatch_LeftOutEventsNeverFillTheBuffer pins the reason
-// the bus filters: a burst of events a watch left out, larger than its
+// the bus filters. A burst of events a watch left out, larger than its
 // buffer, costs it nothing, and the next named event arrives as itself.
 func TestController_HandleWatch_LeftOutEventsNeverFillTheBuffer(t *testing.T) {
 	bus := event.NewBus(nil)

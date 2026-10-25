@@ -70,7 +70,7 @@ func Table() string {
 // Rewrite returns the document with its generated region rewritten, and
 // reports a document that has no region to write into.
 //
-// Everything outside the markers is left exactly as it was: the reference is
+// Everything outside the markers is left exactly as it was. The reference is
 // one table inside a hand-written page, not the page.
 func Rewrite(document string) (string, error) {
 	return markers.Rewrite(document, Table())
@@ -78,9 +78,9 @@ func Rewrite(document string) (string, error) {
 
 // Region returns what a document currently holds between the markers.
 //
-// [Rewrite] answers "what should this page say?"; this answers "what does it
-// say?", which is what a reader reporting a page's contents back — a guardrail
-// naming the flag it could not find — needs.
+// [Rewrite] answers "what should this page say?", and this answers "what does
+// it say?". A reader reporting a page's contents back, such as a guardrail
+// naming the flag it could not find, needs the second.
 func Region(document string) (string, error) {
 	return markers.Region(document)
 }

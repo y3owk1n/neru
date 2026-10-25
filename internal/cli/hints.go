@@ -20,8 +20,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
   instead of navigating by hint keys directly.
 
   Use --hide-on-empty-search with --search to hide all hints when the
-  search query is empty. Hints appear only as you type a query, making
-  it easier to focus on matching results.
+  search query is empty. Hints appear only as you type a query.
 
   In a search, a label typed after a space narrows the matches to that
   label. Use --confirm-on-label to act on the match as soon as the label
@@ -35,9 +34,9 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     --text "Submit,Cancel"        Only hint elements containing "Submit" or "Cancel"
 
   Use --strategy vision to detect elements by recognizing what is on screen
-  instead of walking the accessibility tree — the Vision framework on macOS,
-  tesseract OCR on Linux and Windows.Media.Ocr on Windows, with button shapes
-  from the contour detector on both.
+  instead of walking the accessibility tree. It uses the Vision framework on
+  macOS, tesseract OCR on Linux and Windows.Media.Ocr on Windows, with button
+  shapes from the contour detector on both.
 
   Use --strategy contour to detect interactive targets (buttons, icons,
   text) by edge and contour analysis of the focused window's pixels, an
@@ -62,7 +61,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
 
   Use --label-direction to override the configured hint label enumeration
   for this activation. "normal" (default) uses the prefix-avoidance
-  algorithm and prefers shorter labels; "reverse" spreads labels across
+  algorithm and prefers shorter labels. "reverse" spreads labels across
   the alphabet so same-prefix labels never cluster.
 
   Examples:

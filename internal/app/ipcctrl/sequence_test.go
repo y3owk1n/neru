@@ -257,7 +257,7 @@ func TestHandleRun_ReportsASequenceThatNeverStarted(t *testing.T) {
 	}
 }
 
-// "later steps still ran" must only appear when there were later steps: a
+// "later steps still ran" must only appear when there were later steps. A
 // tolerated failure on the final step leaves nothing after it.
 func TestHandleRun_DoesNotClaimLaterStepsRanWhenThereWereNone(t *testing.T) {
 	t.Parallel()

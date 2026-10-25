@@ -21,15 +21,15 @@ import (
 
 // Real UI Automation test against a fixture window this process owns. The
 // fixture nests a button inside a child pane so the walk has to reach depth
-// two below the window: a walk that only reads the window's direct children
+// two below the window. A walk that only reads the window's direct children
 // reports three controls where four exist.
 //
-// The window is a caption-less popup: an overlapped window's title bar adds
+// The window is a caption-less popup, because an overlapped window's title bar adds
 // Minimize, Maximize and Close as Button hints of its own. Controls are
 // counted by role because a Win32 edit box takes its UIA Name from a
 // neighboring label rather than its own text.
 //
-// The window and the query share one locked thread: Win32 controls answer the
+// The window and the query share one locked thread, because Win32 controls answer the
 // MSAA proxy's WM_GETTEXT with SendMessage, which is synchronous on the
 // creating thread and would need a message pump from any other.
 
@@ -61,7 +61,7 @@ const (
 	fixtureControlSize = 40
 
 	// fixtureDeadline is the budget hints mode gives element collection
-	// (modes.HintTimeout); the adapter cannot import modes, so the value is
+	// (modes.HintTimeout). The adapter cannot import modes, so the value is
 	// restated here.
 	fixtureDeadline = 5 * time.Second
 )
@@ -446,7 +446,7 @@ func TestBuildTree_ReportsTextIdentifierAndFocusButNoDisabledOrPassword(t *testi
 	}
 
 	// A Win32 edit takes its UIA name from a neighboring label, so the two
-	// edits are told apart by their values: the plain edit reports its text
+	// edits are told apart by their values. The plain edit reports its text
 	// and the password edit reports none.
 	slices.Sort(editValues)
 

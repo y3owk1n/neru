@@ -112,13 +112,13 @@ func boolSubscriptions() []boolSubscription {
 // nil is only discovered when the notify loop reaches it.
 //
 // AppState exposes three independent publish/subscribe flags. The enabled flag
-// is covered in app_state_test.go; the screen-share and scroll-invert flags had
+// is covered in app_state_test.go. The screen-share and scroll-invert flags had
 // no subscription tests at all, so their "only notify when the value actually
 // changed" guards and their nil-callback guards were unverified.
 //
 // Both guards fail quietly. A broken change-guard floods every subscriber on
 // each no-op write (the systray redraws, the overlay reconfigures) without
-// changing any observable state; a broken nil-guard stores a nil callback that
+// changing any observable state. A broken nil-guard stores a nil callback that
 // panics later, on a different goroutine, far from the subscribe call.
 func TestAppState_Subscriptions_RejectNilCallbacks(t *testing.T) {
 	for _, sub := range boolSubscriptions() {
@@ -129,7 +129,7 @@ func TestAppState_Subscriptions_RejectNilCallbacks(t *testing.T) {
 				t.Errorf("subscribing nil returned ID %d, want 0", id)
 			}
 
-			// A real callback must still get a usable, non-zero ID — the guard
+			// A real callback must still get a usable, non-zero ID. The guard
 			// must reject only nil.
 			recorder := newNotifyRecorder()
 
@@ -178,7 +178,7 @@ func TestAppState_Subscriptions_FireInitialStateOnSubscribe(t *testing.T) {
 	}
 }
 
-// TestAppState_Subscriptions_NotifyOnlyOnActualChange is the core guard: writing
+// TestAppState_Subscriptions_NotifyOnlyOnActualChange is the core guard. Writing
 // the value the flag already holds must not wake subscribers.
 func TestAppState_Subscriptions_NotifyOnlyOnActualChange(t *testing.T) {
 	for _, sub := range boolSubscriptions() {
@@ -229,7 +229,7 @@ func TestAppState_Subscriptions_ToggleAlwaysNotifies(t *testing.T) {
 
 			want := !sub.get(appState)
 
-			// The returned value must be the post-toggle state; callers use it
+			// The returned value must be the post-toggle state. Callers use it
 			// instead of a second racy read.
 			if got := sub.toggle(appState); got != want {
 				t.Errorf("toggle returned %t, want the new state %t", got, want)
@@ -260,7 +260,7 @@ func TestAppState_Subscriptions_ToggleAlwaysNotifies(t *testing.T) {
 }
 
 // TestAppState_Subscriptions_UnsubscribeStopsNotifications checks that a
-// canceled subscription really is detached — a leaked one keeps a stale
+// canceled subscription really is detached. A leaked one keeps a stale
 // component alive and repainting after it has been torn down.
 func TestAppState_Subscriptions_UnsubscribeStopsNotifications(t *testing.T) {
 	for _, sub := range boolSubscriptions() {
@@ -281,7 +281,7 @@ func TestAppState_Subscriptions_UnsubscribeStopsNotifications(t *testing.T) {
 
 			sub.toggle(appState)
 
-			// The remaining subscriber must still be notified: unsubscribing
+			// The remaining subscriber must still be notified. Unsubscribing
 			// one must not detach the others.
 			staying.awaitCount(t, 2, "the toggle notification for the retained subscriber")
 
@@ -298,8 +298,8 @@ func TestAppState_Subscriptions_UnsubscribeStopsNotifications(t *testing.T) {
 }
 
 // TestAppState_SetMode_InvalidatesStaleExitReasonOnlyForRealModes pins the
-// asymmetry in SetMode: entering a real mode clears any leftover exit reason,
-// while entering idle preserves the reason that was just recorded — that is how
+// asymmetry in SetMode. Entering a real mode clears any leftover exit reason,
+// while entering idle preserves the reason that was just recorded. That is how
 // the mode handler learns why the previous mode ended.
 func TestAppState_SetMode_InvalidatesStaleExitReasonOnlyForRealModes(t *testing.T) {
 	nonIdleModes := []domain.Mode{domain.ModeHints, domain.ModeGrid, domain.ModeScroll}

@@ -81,11 +81,11 @@ func TestHandleKeyPressUsesStickyStrippedKeyForBindings(t *testing.T) {
 }
 
 // A keymap is settled once and consulted by every keystroke after it, so the
-// configuration being replaced has to settle a new one: otherwise a key goes on
+// configuration being replaced has to settle a new one. Otherwise a key goes on
 // meaning what it meant under the configuration that is gone.
 //
-// The mode and the focused app both stay put here, which is the whole point —
-// this is the settle trigger that nothing else moves.
+// The mode and the focused app both stay put here, which is the whole point.
+// This is the settle trigger that nothing else moves.
 func TestHandleKeyPress_ReplacingTheConfigSettlesANewKeymap(t *testing.T) {
 	t.Parallel()
 

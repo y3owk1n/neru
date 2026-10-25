@@ -4,10 +4,10 @@ package config
 // the element it labels.
 //
 // This is the one declaration of that vocabulary. It was written out four
-// times — the default, the validator, the macOS hint renderer and the Linux
-// overlay each spelled the three strings for itself — and a spelling missed in
+// times, because the default, the validator, the macOS hint renderer and the
+// Linux overlay each spelled the three strings for itself. A spelling missed in
 // one of them is a placement that validates and then does not draw. It lives
-// here rather than in the domain because no domain code places a badge: the
+// here rather than in the domain because no domain code places a badge. The
 // callers are this package and the overlay backends that draw one, and this
 // package is the lowest layer all of them already reach (ADR 0007,
 // docs/adr/0007-a-shared-derivation-has-one-implementation.md).

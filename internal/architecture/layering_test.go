@@ -12,15 +12,15 @@ import (
 
 const modulePrefix = "github.com/y3owk1n/neru/"
 
-// TestDomainStaysPure pins the innermost layer. Domain is the pure-Go core: it
+// TestDomainStaysPure pins the innermost layer. Domain is the pure-Go core. It
 // may depend on config and ports, never on an adapter or on application wiring.
 // A domain package that imports infra cannot be tested without an OS.
 //
 // These tests enforce the dependency direction documented in
 // docs/contributing/porting.md ("The Three Tiers") and docs/contributing/architecture.md.
 //
-// The tier model is only worth anything if it holds. Prose did not hold it:
-// every violation these tests now catch was present in the tree before they
+// The tier model is only worth anything if it holds. Prose did not hold it.
+// Every violation these tests now catch was present in the tree before they
 // were written.
 func TestDomainStaysPure(t *testing.T) {
 	forbidden := []string{
@@ -64,12 +64,12 @@ var innerLayers = []string{
 	"internal/supportref/",
 }
 
-// TestInfraDoesNotImportApp pins the direction of the hexagon: adapters
+// TestInfraDoesNotImportApp pins the direction of the hexagon. Adapters
 // implement ports, so no inner layer may reach up into the application or UI
 // layers.
 //
 // This inversion was real and invisible until the overlay managers moved into
-// the adapter layer: every overlay backend imported internal/app/components for
+// the adapter layer. Every overlay backend imported internal/app/components for
 // its render models. The fix was to move those render packages down, not to
 // allow the edge.
 func TestInfraDoesNotImportApp(t *testing.T) {
@@ -107,7 +107,7 @@ func isInnerLayer(relPath string) bool {
 // sharedInfraPackages may be imported from anywhere. They are shared
 // vocabulary and process plumbing, not OS capabilities behind a port:
 //
-//   - adapter/ipc       the CLI/daemon wire protocol; the CLI is its client.
+//   - adapter/ipc       the CLI/daemon wire protocol, and the CLI is its client.
 //   - adapter/logger    logger construction and log-path resolution.
 //   - adapter/platform  the SystemPort factory, the doctor Profile, and
 //     procattr's creation flag that keeps Windows from giving a spawned
@@ -119,7 +119,7 @@ var sharedInfraPackages = []string{
 }
 
 // compositionRootFiles wire concrete adapters to ports. Reaching into infra is
-// precisely their job — they are the one place that is allowed to know which
+// precisely their job. They are the one place that is allowed to know which
 // implementation exists.
 var compositionRootFiles = []string{
 	"internal/app/wiring.go",
@@ -129,14 +129,14 @@ var compositionRootFiles = []string{
 
 // knownLayeringExceptions are edges that are still wrong but not yet fixed.
 //
-// They are listed individually, with a reason, so the count can only go down:
-// a new violation fails the test, while these stay visible instead of hiding
+// They are listed individually, with a reason, so the count can only go down.
+// A new violation fails the test, while these stay visible instead of hiding
 // behind a broad rule. Deleting an entry once it is fixed is the point.
 // It is currently empty, which is the goal state. Add an entry only when a
 // violation genuinely cannot be fixed in the same change, never to silence one.
 var knownLayeringExceptions = map[string]string{}
 
-// TestAppReachesInfraOnlyThroughPorts is the Tier-1 rule: application and
+// TestAppReachesInfraOnlyThroughPorts is the Tier-1 rule. Application and
 // domain code depends on ports, and only the composition root knows which
 // adapter satisfies them.
 func TestAppReachesInfraOnlyThroughPorts(t *testing.T) {
@@ -180,7 +180,7 @@ func TestAppReachesInfraOnlyThroughPorts(t *testing.T) {
 	}
 }
 
-// TestKnownLayeringExceptionsAreStillReal keeps the exception list honest: an
+// TestKnownLayeringExceptionsAreStillReal keeps the exception list honest. An
 // entry that no longer violates anything is stale and must be deleted, or the
 // list slowly becomes a place where rules go to die.
 func TestKnownLayeringExceptionsAreStillReal(t *testing.T) {

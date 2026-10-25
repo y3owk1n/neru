@@ -8,7 +8,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
-// A 10 px step per 50 ms is 200 px/s; a 3x cap over 200 ms is 600 px/s.
+// A 10 px step per 50 ms is 200 px/s, and a 3x cap over 200 ms is 600 px/s.
 var ramp = motion.Ramp{
 	Interval:   50 * time.Millisecond,
 	Multiplier: 3,
@@ -87,7 +87,7 @@ func TestIntegrator_Step_RampsToTheCap(t *testing.T) {
 		last = pos
 	}
 
-	// 600 px/s at the cap is 6 px per 10 ms tick; the first tick is at the
+	// 600 px/s at the cap is 6 px per 10 ms tick. The first tick is at the
 	// 200 px/s floor plus one tick of ramp, so 2 px or so.
 	if per := distances[len(distances)-1]; per != 6 {
 		t.Errorf("final tick moved %d px, want 6 at the cap", per)
@@ -141,7 +141,7 @@ func TestIntegrator_Step_ClampsToBounds(t *testing.T) {
 		t.Fatalf("x = %d, want pinned at 99", pos.X)
 	}
 
-	// Reversing moves away at once: nothing banked up beyond the edge.
+	// Reversing moves away at once, because nothing banked up beyond the edge.
 	if back := integ.Step(params, motion.Direction{X: -1}, tick); back.X >= 99 {
 		t.Errorf("after reversing x = %d, want < 99", back.X)
 	}

@@ -85,7 +85,7 @@ type FontFit struct {
 	// Requested is the configured font size. A label is never scaled up.
 	Requested float64
 	// Floor is the smallest size worth drawing. Equal to Requested it means
-	// "never shrink": the label is drawn at the configured size or not at all.
+	// "never shrink". The label is drawn at the configured size or not at all.
 	// Zero or less means no floor beyond one whole device pixel.
 	Floor float64
 	// Multiplier requires the box's short side to be at least Multiplier

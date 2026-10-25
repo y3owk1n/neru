@@ -63,7 +63,7 @@ var errBusClosed = errors.New("the session bus connection carrying the KWin brid
 
 // errNoRuntimeDir and errRuntimeDirNotPrivate are the two ways a session can
 // fail to offer somewhere the geometry script may live. They are separate
-// because a user fixes them differently: the first is a session started outside
+// because a user fixes them differently. The first is a session started outside
 // logind, the second a runtime directory pointed somewhere it should not be.
 var (
 	errNoRuntimeDir = errors.New(
@@ -80,11 +80,11 @@ var (
 // which window it is.
 //
 // The identity travels with the rectangle because a caller pairing the
-// rectangle with something of its own — the AT-SPI frame it is about to walk —
-// has no other way to tell that the two describe the same window.
+// rectangle with something of its own, such as the AT-SPI frame it is about to
+// walk, has no other way to tell that the two describe the same window.
 //
 // Class, Name and Title are KWin's resourceClass, resourceName and caption, and
-// any of them can be empty: they are a correlation key, never a requirement.
+// any of them can be empty. They are a correlation key, never a requirement.
 // Both application identifiers are here because they disagree for some windows
 // (an XWayland Firefox is class "firefox" and name "navigator") and a reader
 // comparing against a third spelling of the same application should be able to
@@ -110,7 +110,7 @@ type Geometry struct {
 	watching claim
 
 	// conn is the bridge's own session-bus connection, dialed by connection.
-	// Not the process-wide dbus.SessionBus(): closing that closes every
+	// It is not the process-wide dbus.SessionBus(). Closing that closes every
 	// signal channel subscribed on it, and the tray closes it when its loop
 	// ends, which ended the restart watch silently and left the exported
 	// receiver on a dead connection with the last window still cached.
@@ -123,13 +123,13 @@ type Geometry struct {
 	warned    bool
 
 	// installer is what one attempt runs. It is a field rather than a method
-	// call so a test can drive the whole claim-and-generation machinery —
-	// including the reinstall that a retired attempt has to schedule — without
+	// call so a test can drive the whole claim-and-generation machinery,
+	// including the reinstall that a retired attempt has to schedule, without
 	// a session bus to install into.
 	installer func() error
 
 	// generation counts how many times what an install attempt is *about* has
-	// stopped being true — KWin changing hands underneath one in flight. An
+	// stopped being true, as when KWin changes hands underneath one in flight. An
 	// attempt carries the generation it began in and publishes nothing unless
 	// that is still the current one, so a success against a compositor that has
 	// since gone cannot mark the bridge installed or erase the record of its
@@ -173,15 +173,15 @@ func newGeometry(logger *zap.Logger) *Geometry {
 }
 
 // EnsureStarted installs the KWin script, off the calling goroutine. It never
-// blocks: the install is a handful of D-Bus round trips to KWin, and the
+// blocks. The install is a handful of D-Bus round trips to KWin, and the
 // callers reaching it include the mode handler, where a slow native call holds
 // the keyboard grab.
 //
 // Until the install lands, Bounds reports nothing rather than a rectangle, and
 // a call that arrives while an attempt is in flight still gets whatever the
 // last completed attempt learned. Waiting for the in-flight one instead would
-// not answer it either — a script that loads this instant still has to call
-// back before there is a rectangle to report — so the wait would buy a stall on
+// not answer it either. A script that loads this instant still has to call
+// back before there is a rectangle to report, so the wait would buy a stall on
 // the activation path and nothing else. The install converging without a caller
 // is what start covers.
 func (g *Geometry) EnsureStarted() {
@@ -196,9 +196,9 @@ func (g *Geometry) EnsureStarted() {
 // number marshaling quirks).
 //
 // A push that does not describe a window on screen is dropped rather than
-// cached: the previous geometry is a better answer than an empty rectangle,
+// cached, because the previous geometry is a better answer than an empty rectangle,
 // which a caller cannot tell from a real one. That is why there is a second
-// method — ClearActiveWindow — for the case where the previous geometry is not
+// method, ClearActiveWindow, for the case where the previous geometry is not
 // an answer at all.
 func (g *Geometry) UpdateActiveWindow(payload string) *dbus.Error {
 	window, ok := parseWindowPayload(payload)
@@ -210,8 +210,8 @@ func (g *Geometry) UpdateActiveWindow(payload string) *dbus.Error {
 	g.window, g.valid = window, true
 	g.mu.Unlock()
 
-	// The title is a window's contents by any reasonable reading — a document
-	// name, a chat, a page — so it is correlated with and never logged. The
+	// The title is a window's contents by any reasonable reading, such as a
+	// document name, a chat or a page, so it is correlated with and never logged. The
 	// class is an application identity, which the app watcher already logs.
 	g.log().Debug("KWin active window geometry",
 		zap.Int("x", window.Rect.Min.X), zap.Int("y", window.Rect.Min.Y),
@@ -230,16 +230,16 @@ func (g *Geometry) UpdateActiveWindow(payload string) *dbus.Error {
 // degenerate push is a push that failed, and the previous rectangle survives it
 // as the best available answer. This is KWin saying the previous rectangle
 // describes nothing on screen, and keeping it would answer "the focused window
-// is here" with a rectangle no window is in — the confidently wrong answer this
-// bridge exists to end.
+// is here" with a rectangle no window is in. That is the confidently wrong
+// answer this bridge exists to end.
 //
-// Emptying the cache is not a failure: the bridge is installed and working, and
+// Emptying the cache is not a failure. The bridge is installed and working, and
 // what it reports is that nothing is focused. Callers widen to the active
 // screen knowingly, which is what they should do.
 //
 // The reason is a fixed word from the script naming which of those happened. It
-// takes an argument at all so the call has the same shape as UpdateActiveWindow
-// — a KWin script's callDBus with no arguments would be the one call here whose
+// takes an argument at all so the call has the same shape as UpdateActiveWindow.
+// A KWin script's callDBus with no arguments would be the one call here whose
 // marshaling nothing has ever exercised, and a clear that silently failed would
 // restore exactly the stale rectangle this method exists to remove.
 func (g *Geometry) ClearActiveWindow(reason string) *dbus.Error {
@@ -254,15 +254,15 @@ func (g *Geometry) ClearActiveWindow(reason string) *dbus.Error {
 //
 // The three answers are distinct on purpose. A window with ok is what KWin
 // says. ok=false with no error means the bridge is installed (or installing for
-// the first time) and has nothing to report — the desktop is focused, the
+// the first time) and has nothing to report, because the desktop is focused, the
 // focused window was minimized or closed, or activation has not moved since the
 // daemon started. A non-nil error means the bridge could not be installed,
 // which is the one case a caller must not read as "there is no focused window".
 //
 // A retry already in flight does not soften the last failure into that middle
 // answer. It is the failure that is true right now, and reporting "installing"
-// on every call would hide a session with no KWin behind a permanent maybe —
-// the silent widening to the active screen this bridge exists to end. The
+// on every call would hide a session with no KWin behind a permanent maybe,
+// which is the silent widening to the active screen this bridge exists to end. The
 // reason is cleared the moment an attempt supersedes it.
 func (g *Geometry) Focused() (Window, bool, error) {
 	g.mu.RLock()
@@ -276,7 +276,7 @@ func (g *Geometry) Focused() (Window, bool, error) {
 }
 
 // Bounds returns just the focused window's on-screen client rectangle, for the
-// caller that has nothing to correlate it against — SystemPort.FocusedWindowBounds
+// caller that has nothing to correlate it against. SystemPort.FocusedWindowBounds
 // answers about "the focused window" as such, so KWin's own answer to that is
 // the whole of it. It carries Focused's three answers unchanged.
 func (g *Geometry) Bounds() (image.Rectangle, bool, error) {
@@ -316,13 +316,13 @@ func (g *Geometry) log() *zap.Logger {
 // this goroutine before releasing the claim.
 //
 // Retrying only when the next caller arrives heals the session but not that
-// caller: the request that triggers the retry is the one that reads the
+// caller. The request that triggers the retry is the one that reads the
 // previous failure, and for the AT-SPI origin it is the one that places a
 // screenful of hints at the wrong position. Retrying here costs the request
 // path nothing, because no request ever waits for this goroutine.
 //
 // The claim is held across the whole sequence, so a request arriving mid-retry
-// does not stack a second installer; each failure is still published as it
+// does not stack a second installer. Each failure is still published as it
 // happens, so Bounds keeps naming the current reason rather than going quiet
 // for the length of the backoff.
 func (g *Geometry) start(generation uint64) {
@@ -372,12 +372,12 @@ func (g *Geometry) beginStart() (uint64, bool) {
 // An attempt from a superseded generation publishes nothing. It was about a
 // compositor that has since changed hands, so its success is not evidence that
 // this one is installed, and its outcome must not overwrite what the departure
-// recorded — a stale success would otherwise leave an empty cache with no
+// recorded. A stale success would otherwise leave an empty cache with no
 // reason, which reads as an unfocused desktop and sends callers silently back to
 // the active screen.
 //
 // It schedules a fresh attempt on its way out instead, because it was holding
-// the claim for the whole time it was stale: a compositor that arrived in that
+// the claim for the whole time it was stale. A compositor that arrived in that
 // window found the claim taken, could not start an installer of its own, and has
 // nobody else coming. Leaving that to the next caller would mean the request
 // that discovers it is the one that pays, which for the AT-SPI origin is a
@@ -419,10 +419,10 @@ func (g *Geometry) forgetInstall() uint64 {
 // recordAttempt publishes an attempt's outcome without releasing the claim, for
 // the failures the installer is about to retry itself.
 //
-// A failure is remembered as the reason Bounds cannot answer — and said out
+// A failure is remembered as the reason Bounds cannot answer, and said out
 // loud once, since the error reaches every later caller anyway and a session
 // with no KWin would otherwise warn on every hint activation. A success clears
-// the reason: it described a condition that has passed.
+// the reason, because it described a condition that has passed.
 //
 // A superseded generation publishes nothing, for the reason endStart gives.
 func (g *Geometry) recordAttempt(generation uint64, err error) {
@@ -459,8 +459,8 @@ func (g *Geometry) recordAttempt(generation uint64, err error) {
 // from a backend decision, not from an environment guess, but a KDE-labeled
 // session with no running KWin would otherwise still own a bus name and write a
 // script into $XDG_RUNTIME_DIR for nobody to read (#1430). The watch is armed
-// ahead of that check on purpose — watchKWin says why it is not the same kind
-// of act.
+// ahead of that check on purpose, and watchKWin says why it is not the same
+// kind of act.
 func (g *Geometry) install() error {
 	conn, err := g.connection()
 	if err != nil {
@@ -489,7 +489,7 @@ func (g *Geometry) install() error {
 	if nameErr != nil || reply != dbus.RequestNameReplyPrimaryOwner {
 		g.log().Warn("KWin bridge could not own its bus name",
 			zap.Error(nameErr), zap.Int("reply", int(reply)))
-		// Continue anyway: the export may still receive calls if another
+		// Continue anyway, because the export may still receive calls if another
 		// instance relinquishes the name.
 	}
 
@@ -519,7 +519,7 @@ func (g *Geometry) connection() (*dbus.Conn, error) {
 }
 
 // connectionClosed is how a watcher reports that its channel closed. It is
-// true only for the connection the bridge still holds: a watcher whose
+// true only for the connection the bridge still holds. A watcher whose
 // connection was replaced while it was busy handing over an owner change must
 // not empty the successor's cache or schedule a third install. Its claim is
 // its own to release either way, and keyed by connection so releasing it
@@ -537,7 +537,7 @@ func (g *Geometry) connectionClosed(conn *dbus.Conn) bool {
 	return true
 }
 
-// installScript writes the KWin script to disk and loads + starts it.
+// installScript writes the KWin script to disk, then loads and starts it.
 func (g *Geometry) installScript(conn *dbus.Conn) error {
 	dir, dirErr := scriptDir()
 	if dirErr != nil {
@@ -575,21 +575,21 @@ func (g *Geometry) installScript(conn *dbus.Conn) error {
 // is $XDG_RUNTIME_DIR and nowhere else.
 //
 // It used to fall back to os.TempDir() when the variable was unset, which is
-// /tmp: a directory every user on the machine can write into, holding a file
+// /tmp, a directory every user on the machine can write into, holding a file
 // with a fixed name, whose contents the compositor then executes. There is no
 // version of that which is safe to keep, and the answer to a session with no
-// runtime directory is to say so — a KDE session started by logind always has
+// runtime directory is to say so. A KDE session started by logind always has
 // one, so nothing that works today stops working, and a session that does not
 // have one gets the same loud, recorded reason as a session with no KWin.
 //
 // The mode is checked rather than assumed. The XDG base directory
 // specification requires $XDG_RUNTIME_DIR to be owned by the user and
 // accessible to nobody else, and logind creates it 0700, so the check is a
-// formality on every real session; what it catches is a runtime directory
+// formality on every real session. What it catches is a runtime directory
 // pointed somewhere shared, which is the same exposure the fallback was.
 //
 // The mode is the whole of the check because ownership adds nothing a caller
-// could act on: a 0700 directory belonging to somebody else is one this
+// could act on. A 0700 directory belonging to somebody else is one this
 // process cannot write into either, so the write below fails and says so. What
 // matters is that nobody else can write into the directory the compositor
 // loads from, and that is what the mode says.
@@ -599,8 +599,8 @@ func scriptDir() (string, error) {
 		return "", errNoRuntimeDir
 	}
 
-	// Stat, not Lstat: a symlinked runtime directory is judged by what it
-	// resolves to, which is the directory the script would really land in.
+	// Stat, not Lstat, because a symlinked runtime directory is judged by what
+	// it resolves to, which is the directory the script would really land in.
 	info, err := os.Stat(dir)
 	if err != nil {
 		return "", fmt.Errorf("XDG_RUNTIME_DIR: %w", err)
@@ -626,9 +626,9 @@ func scriptDir() (string, error) {
 //
 // Two things follow from that which truncating in place does not give. The new
 // file carries this package's mode whatever an earlier version or a stray copy
-// left behind, instead of inheriting it; and the path only ever names a
-// complete script, so the loadScript that follows cannot hand KWin half of one
-// — which matters more here than for a token, because KWin executes what it
+// left behind, instead of inheriting it. The path also only ever names a
+// complete script, so the loadScript that follows cannot hand KWin half of one.
+// That matters more here than for a token, because KWin executes what it
 // reads.
 func writeScript(path string) error {
 	// The temporary file is named after the script it will become, so a

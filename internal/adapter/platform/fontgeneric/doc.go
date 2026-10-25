@@ -4,7 +4,7 @@
 // it is a family somebody named.
 //
 // Every platform font resolver needs that reading and none of them needs a
-// different one — a person who writes "sans_serif" in their configuration
+// different one. A person who writes "sans_serif" in their configuration
 // means the same thing on macOS, Linux and Windows. Each backend supplies
 // only the part that is genuinely its own: which concrete family its sans,
 // serif and mono are. ADR 0007 has the reasoning.

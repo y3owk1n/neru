@@ -95,7 +95,7 @@ func TestControlTypeNamesAreContiguous(t *testing.T) {
 }
 
 // TestControlTypeNamesCoverTheVocabulary pins enumeration against the semantic
-// vocabulary: every UIA name a semantic role expands to must be a name the
+// vocabulary. Every UIA name a semantic role expands to must be a name the
 // enumerator can actually produce, or that role would never match anything.
 func TestControlTypeNamesCoverTheVocabulary(t *testing.T) {
 	t.Parallel()
@@ -166,7 +166,7 @@ func TestClipToFrame_DropsControlsLaidOutPastTheWindowEdge(t *testing.T) {
 }
 
 // TestSameControl_MatchesOnTypeNameAndBounds checks the identity the visible
-// check uses when walking up from a hit element: a covering panel, an
+// check uses when walking up from a hit element. A covering panel, an
 // overlapping sibling and a same-shaped neighbor with another name are all
 // rejected, so an occluded control is not mistaken for visible.
 func TestSameControl_MatchesOnTypeNameAndBounds(t *testing.T) {

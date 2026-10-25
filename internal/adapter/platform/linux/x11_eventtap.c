@@ -14,7 +14,7 @@ Display *neru_eventtap_open(void) { return XOpenDisplay(NULL); }
 // autorepeat rate, and the tap turned each of those releases into a key-up
 // that ended the mode's own held repeat after its first tick. Detectable
 // autorepeat reports the hold as further KeyPress events and one KeyRelease,
-// so the key-up means the key came up. Per connection; the hotkey connection
+// so the key-up means the key came up. It is per connection, and the hotkey connection
 // asks for the same (x11_hotkeys.c). Returns 1 when the server honors it.
 int neru_eventtap_set_detectable_autorepeat(Display *display) {
 	Bool supported = False;
@@ -139,9 +139,9 @@ static KeySym neru_eventtap_modifier_keysym(const char *modifier) {
 }
 
 int neru_eventtap_post_modifier(const char *modifier, int is_down) {
-	// Open a fresh Display connection per call to ensure thread-safety isolation
-	// from the grab Display used by runX11(). XLib is not thread-safe without
-	// XInitThreads, so we avoid sharing the grab connection for XTest injection.
+	// Open a fresh Display connection per call rather than share the grab Display
+	// used by runX11(). Xlib is not thread-safe without XInitThreads, so XTest
+	// injection gets a connection of its own.
 	Display *display = neru_eventtap_open();
 	if (display == NULL)
 		return 0;

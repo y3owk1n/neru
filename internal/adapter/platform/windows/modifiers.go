@@ -16,7 +16,7 @@ import (
 //
 // Both sides of the keyboard are here because either of them presents the
 // modifier, so suppressing one and leaving the other down suppresses nothing.
-// The left key is canonical: it is what SendInput presses when Neru has to
+// The left key is canonical. It is what SendInput presses when Neru has to
 // present a modifier itself, and the generic VK_SHIFT / VK_CONTROL / VK_MENU
 // codes are deliberately absent, because GetAsyncKeyState answers them as
 // "either side" and a plan would then read one hold twice.
@@ -78,16 +78,16 @@ func heldModifierKeycodes() []uint32 {
 
 // modifierHoldMu serializes every hold from the read of the keyboard to the
 // release that undoes it. A hold reads process-wide keyboard state and then
-// changes it, so two overlapping ones — a mode action and an IPC action can run
-// on different goroutines — would each plan against the other's edits: the
-// first releases a user-held ctrl, the second reads it up and presses it, the
+// changes it, and a mode action and an IPC action can run on different
+// goroutines. Two overlapping holds would each plan against the other's edits.
+// The first releases a user-held ctrl, the second reads it up and presses it, the
 // first then skips restoring it and the second releases it, and the user's
 // physically held ctrl reads up until they tap it again.
 var modifierHoldMu sync.Mutex
 
 // releasedDuringHold is the modifier keys the user physically let go of while
 // a hold was open, or nil when none is. The keyboard hook fills it and release
-// reads it, because the keyboard itself cannot answer the question: a key the
+// reads it, because the keyboard itself cannot answer the question. A key the
 // hold suppressed reads up whether the user is still holding it or not, and
 // pressing back one they released latches it with nothing to ever let go.
 // That window was one synchronous injection wide until the scroll animator
@@ -135,21 +135,21 @@ type modifierHold struct {
 // holdModifiers makes the keyboard present exactly modifiers, and returns the
 // hold that undoes it.
 //
-// A SendInput wheel event carries no modifier field — unlike a CGEvent, which
-// takes flags — so whatever the keyboard holds rides along on every injected
+// A SendInput wheel event carries no modifier field, unlike a CGEvent, which
+// takes flags. Whatever the keyboard holds is part of every injected
 // event. A plain scroll_down bound to Ctrl+J arrives as ctrl+scroll, which most
 // applications read as zoom (#1483). The only way to present a set is to make
 // the keyboard actually hold it: release what is held and was not asked for,
 // press what was asked for and is not held, and undo both afterwards.
 //
 // A key already held that was asked for is left exactly as it is, because a key
-// is one bit of OS state rather than a count: pressing it a second time makes
+// is one bit of OS state rather than a count. Pressing it a second time makes
 // the release afterwards tell every application the user let go while they are
 // still holding it.
 //
 // A key that fails to inject undoes what came before it, so a partial hold is
 // never left latched. The caller must release the hold on every path,
-// including failure: a modifier left released while the user is still holding
+// including failure, because a modifier left released while the user is still holding
 // it drops that modifier from everything they do next.
 //
 // Every key this presses or releases carries neruInjectedTag, so the low-level
@@ -188,13 +188,13 @@ func holdModifiers(modifiers action.Modifiers) (modifierHold, error) {
 }
 
 // release lets go of what the hold pressed and presses back what it
-// suppressed, skipping any key that reads down again: something pressed it
+// suppressed, skipping any key that reads down again. Something pressed it
 // after we let go, and a second press would leave a hold our release never
 // answers. A key the user let go of while the hold was open reads up exactly
 // as one we suppressed does, so the keyboard hook's record of physical
-// releases decides: one the user released stays up.
+// releases decides, and one the user released stays up.
 //
-// Errors are dropped: a release that fails has nothing better to try, and
+// Errors are dropped, because a release that fails has nothing better to try, and
 // reporting it would mask the outcome of the action it wraps.
 func (h modifierHold) release() {
 	defer modifierHoldMu.Unlock()
@@ -226,14 +226,14 @@ var windowsDragModifiers modifierstate.Stash
 // of undoing it when the call that took it returns.
 //
 // A press has to keep presenting its modifiers for as long as the button is
-// down, because the drag in between is what carries them: releasing them at
+// down, because the drag in between is what carries them. Releasing them at
 // the end of the press would make a shift+drag an unmodified one from the
 // first pixel of movement.
 //
 // What is kept is the plan alone. The lock and the record of physical releases
 // both go here, because a drag is as long as the user makes it and a scroll
 // fired mid-drag needs both for itself. That leaves the release with the same
-// bias X11's drag carries: a suppressed key the user lets go of mid-drag is
+// bias X11's drag carries. A suppressed key the user lets go of mid-drag is
 // pressed back at the end and reads as held until they tap it once more,
 // which is safer than dropping a modifier they are still holding.
 func (h modifierHold) keepForRelease(button action.MouseButton) {
@@ -277,7 +277,7 @@ var errUnknownModifier = errors.New("unknown modifier")
 // PostModifierKey presses or releases the canonical key for one modifier, named
 // in Neru's vocabulary (shift, ctrl, alt, cmd), as if the user had.
 //
-// It is what the event tap's PostModifierEvent injects with: a sticky modifier
+// It is what the event tap's PostModifierEvent injects with. A sticky modifier
 // is a real key held on the user's behalf, and SendInput is the only way to
 // hold one. The event is tagged as Neru's own so the keyboard hook does not
 // read it back as a toggle.

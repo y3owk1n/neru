@@ -17,14 +17,14 @@ import (
 // Desktop notifications and alerts for every Linux backend.
 //
 // Notifications are a session-bus service rather than a display-server
-// capability, so one implementation serves X11, wlroots and KDE alike — over
+// capability, so one implementation serves X11, wlroots and KDE alike, over
 // the same session bus the tray's StatusNotifierItem already speaks. None of
 // it is cgo, so the CGO_ENABLED=0 build shows notifications too and there is
 // no _nocgo twin to keep in step.
 //
 // A session with no notification daemon is an ordinary state on a minimal
 // wlroots setup, so every path here says why it could not deliver rather than
-// returning nil: a caller that cannot tell "shown" from "dropped" has nothing
+// returning nil. A caller that cannot tell "shown" from "dropped" has nothing
 // to fall back to.
 const (
 	// notifyBusName is the well-known name a notification daemon owns.
@@ -47,11 +47,11 @@ const (
 	nameHasNoOwnerError = "org.freedesktop.DBus.Error.NameHasNoOwner"
 	// urgencyHint is the hint key carrying the urgency level.
 	urgencyHint = "urgency"
-	// noNotificationIcon leaves app_icon empty: Neru installs no icon under a
-	// name every icon theme has, and daemons substitute their own.
+	// noNotificationIcon leaves app_icon empty, because Neru installs no icon
+	// under a name every icon theme has, and daemons substitute their own.
 	noNotificationIcon = ""
-	// noCallFlags sends a plain method call — a reply is what makes the
-	// failure observable, so NO_REPLY_EXPECTED is exactly what must not be set.
+	// noCallFlags sends a plain method call. A reply is what makes the
+	// failure observable, so NO_REPLY_EXPECTED must not be set.
 	noCallFlags = 0
 )
 
@@ -74,7 +74,7 @@ const (
 const replacesNothing uint32 = 0
 
 // notifyTimeout caps one round trip when the caller's context carries no
-// deadline of its own. A daemon being D-Bus activated may take a moment; one
+// deadline of its own. A daemon being D-Bus activated may take a moment, but one
 // that will never answer must not hold the caller, which is the tray's menu
 // loop or the startup path.
 const notifyTimeout = 2 * time.Second
@@ -112,9 +112,9 @@ func toastNotification(title, message string) notification {
 }
 
 // alertNotification is the shape ShowAlert sends. macOS takes the session over
-// with a modal NSAlert; no ordinary Wayland or X11 client can do that, so the
+// with a modal NSAlert. No ordinary Wayland or X11 client can do that, so the
 // nearest honest equivalent is a critical-urgency notification that stays on
-// screen until it is dismissed — the one urgency the specification requires a
+// screen until it is dismissed, the one urgency the specification requires a
 // daemon not to expire on its own.
 func alertNotification(title, message string) notification {
 	return notification{
@@ -140,12 +140,12 @@ type notifier struct {
 }
 
 // newNotifier builds a notifier over connect, waiting on an outstanding dial
-// rather than refusing one: a notification and a `neru doctor` probe reaching
+// rather than refusing one. A notification and a `neru doctor` probe reaching
 // the same slow bus must not spoil each other, and both can afford to wait
 // where the input path cannot.
 //
 // The connection is the process-wide one, which is what stops a dial nobody is
-// waiting for any more from being closed — dbus.SessionBus hands back one
+// waiting for any more from being closed. dbus.SessionBus hands back one
 // connection per process, and the tray's StatusNotifierItem speaks over it too.
 func newNotifier(connect func() (*dbus.Conn, error)) *notifier {
 	return &notifier{
@@ -177,9 +177,8 @@ func ShowAlert(ctx context.Context, title, message string) error {
 }
 
 // send delivers one notification, mapping every failure to a code a caller can
-// branch on. It never reports success it did not observe: the call waits for
-// the daemon's reply rather than firing it off with NO_REPLY_EXPECTED, which
-// is the whole difference between this and the empty body it replaces.
+// branch on. It never reports success it did not observe. The call waits for
+// the daemon's reply rather than firing it off with NO_REPLY_EXPECTED.
 func (n *notifier) send(ctx context.Context, note notification) error {
 	callCtx, cancel := withNotifyDeadline(ctx)
 	defer cancel()
@@ -215,8 +214,8 @@ func (n *notifier) send(ctx context.Context, note notification) error {
 // notifications?" without putting one on screen.
 //
 // Two questions, because ownership alone answers a narrower one than the user
-// asked. A daemon shipped as a D-Bus service — which is how most desktops ship
-// theirs — owns nothing until something calls it, and the bus starts it on the
+// asked. A daemon shipped as a D-Bus service, which is how most desktops ship
+// theirs, owns nothing until something calls it, and the bus starts it on the
 // first Notify. Reporting that session as having no notifications would send a
 // user off to install what they already have.
 func (n *notifier) daemonReachable(ctx context.Context) error {
@@ -247,8 +246,8 @@ func (n *notifier) daemonReachable(ctx context.Context) error {
 		CallWithContext(callCtx, listActivatableNamesMethod, noCallFlags).
 		Store(&activatable)
 	if err != nil {
-		// The bus could not say what it can start, and nothing owns the name:
-		// the last thing known is that nobody is listening, so that is what is
+		// The bus could not say what it can start, and nothing owns the name.
+		// The last thing known is that nobody is listening, so that is what is
 		// reported rather than a guess in either direction.
 		return derrors.Wrap(err, derrors.CodeNotSupported, noDaemonDetail)
 	}
@@ -261,7 +260,7 @@ func (n *notifier) daemonReachable(ctx context.Context) error {
 }
 
 // daemonReachableFrom turns the bus's two answers into the one the user asked
-// for: a notification sent now would reach a daemon if one holds the name, and
+// for. A notification sent now would reach a daemon if one holds the name, and
 // equally if the bus would start one on being asked.
 func daemonReachableFrom(owned bool, activatable []string) bool {
 	return owned || slices.Contains(activatable, notifyBusName)
@@ -270,20 +269,20 @@ func daemonReachableFrom(owned bool, activatable []string) bool {
 // session returns a live session-bus connection, bounded by ctx.
 //
 // The dial has to be bounded separately from the call because dbus.SessionBus
-// takes no context: the connect, the auth handshake and the Hello round trip
+// takes no context. The connect, the auth handshake and the Hello round trip
 // are all uncancellable, so a bus that accepts a connection and then stops
-// answering blocks the caller forever. session_bus_dial.go holds that bound —
-// the dial runs on a goroutine the caller can abandon, bounded by each caller's
-// own deadline rather than by the dial. One dial exists at a time — godbus
-// serializes them on its own lock, so a second could do nothing but wait behind
-// the first — and later callers share its outcome instead of being turned away,
+// answering blocks the caller forever. session_bus_dial.go holds that bound.
+// The dial runs on a goroutine the caller can abandon, bounded by each caller's
+// own deadline rather than by the dial. One dial exists at a time, because godbus
+// serializes them on its own lock and a second could do nothing but wait behind
+// the first. Later callers share its outcome instead of being turned away,
 // which is what keeps a tray notification and a `neru doctor` probe from
 // spoiling each other. A connection that succeeds is kept, so the ordinary path
 // after the first notification dials nothing at all.
 //
 // A dial that fails is reported as a failure even when a connection was cached
-// before it: the cached one had already disconnected — that is what started
-// this dial — so handing it back would have the caller talk into a dead
+// before it. The cached one had already disconnected, which is what started
+// this dial, so handing it back would have the caller talk into a dead
 // transport and report the daemon rejecting a message that never left.
 func (n *notifier) session(ctx context.Context) (*dbus.Conn, error) {
 	cached := n.cachedSession()
@@ -302,7 +301,7 @@ func (n *notifier) session(ctx context.Context) (*dbus.Conn, error) {
 		return nil, derrors.Wrap(ctx.Err(), derrors.CodeTimeout, dialTimedOutDetail)
 	}
 
-	// The dial failed, so whatever was cached is gone — reaching a dial at all
+	// The dial failed, so whatever was cached is gone. Reaching a dial at all
 	// means the cached connection had already stopped reporting itself
 	// connected. Dropping it keeps a later caller from reading a stale answer.
 	n.remember(nil)
@@ -327,8 +326,8 @@ func (n *notifier) cachedSession() *dbus.Conn {
 	return n.conn
 }
 
-// remember replaces the cached connection with what the last dial produced —
-// nothing, when it failed.
+// remember replaces the cached connection with what the last dial produced,
+// which is nothing when it failed.
 func (n *notifier) remember(conn *dbus.Conn) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -336,8 +335,8 @@ func (n *notifier) remember(conn *dbus.Conn) {
 	n.conn = conn
 }
 
-// withNotifyDeadline bounds the round trip. A caller's own deadline wins — it
-// knows what it can afford to wait — and one is imposed otherwise so a wedged
+// withNotifyDeadline bounds the round trip. A caller's own deadline wins, since
+// it knows what it can afford to wait, and one is imposed otherwise so a wedged
 // daemon cannot hold the caller open.
 func withNotifyDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
 	_, ok := ctx.Deadline()
@@ -351,7 +350,7 @@ func withNotifyDeadline(ctx context.Context) (context.Context, context.CancelFun
 // notifyError classifies a failed call so callers can tell a session that
 // cannot show notifications at all from a daemon that refused this one.
 // CodeNotSupported is reserved for the former, because that is what callers
-// degrade on; a rejected message is a live failure and stays one.
+// degrade on. A rejected message is a live failure and stays one.
 func notifyError(err error) error {
 	if isMissingDaemon(err) {
 		return derrors.Wrap(err, derrors.CodeNotSupported, noDaemonDetail)
@@ -359,7 +358,7 @@ func notifyError(err error) error {
 
 	// The connection went away between the check that it was live and this
 	// call. That is the session bus being gone, not a daemon refusing anything,
-	// and saying so is what sends the user to the right place; the next call
+	// and saying so is what sends the user to the right place. The next call
 	// redials, because the cached connection no longer reports itself connected.
 	if errors.Is(err, dbus.ErrClosed) {
 		return derrors.Wrap(err, derrors.CodeNotSupported, noSessionBusDetail)

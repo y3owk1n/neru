@@ -46,8 +46,8 @@ func TestScrollNotches_RoundsToTheNearestNotch(t *testing.T) {
 	}
 }
 
-// TestUinputScrollRemainder_WholeSendLeavesNothing is the Hyprland regression:
-// a default 50 px step is two 30 px notches, and the 10 px of rounding left
+// TestUinputScrollRemainder_WholeSendLeavesNothing is the Hyprland regression.
+// A default 50 px step is two 30 px notches, and the 10 px of rounding left
 // over must not go out again on the virtual pointer as a third notch.
 func TestUinputScrollRemainder_WholeSendLeavesNothing(t *testing.T) {
 	const scale = 30

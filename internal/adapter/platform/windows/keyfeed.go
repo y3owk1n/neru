@@ -84,7 +84,7 @@ func tapKey(virtualKey uint16) error {
 
 // releaseKeys lifts modifiers in reverse press order. Every release is
 // attempted even after one fails, so a modifier is never left held because
-// an earlier one could not be lifted; the failures are joined.
+// an earlier one could not be lifted. The failures are joined.
 func releaseKeys(keys []uint16) error {
 	var errs []error
 
@@ -164,7 +164,7 @@ func feedModifierKey(token string) (uint16, error) {
 
 // feedVirtualKey resolves a base key name to its virtual key plus the
 // modifiers the active layout needs to produce it. Named keys and letters
-// carry none; any other single character, digits included, asks VkKeyScan,
+// carry none. Any other single character, digits included, asks VkKeyScan,
 // which is the only source that knows "1" is Shift+& on French and "!" is
 // Shift+1 on US.
 func feedVirtualKey(name string) (uint16, []uint16, bool) {

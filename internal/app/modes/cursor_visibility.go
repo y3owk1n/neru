@@ -82,9 +82,9 @@ func (h *handlerState) shouldPollCursorOverlays(mode domain.Mode) bool {
 }
 
 // cursorRehideInterval is the minimum interval between automatic cursor re-hide
-// calls in the indicator polling loop. This prevents excessive main-queue
-// dispatches while ensuring the cursor is re-hidden within ~500ms after
-// macOS reveals it (e.g. right-click context menus, Mission Control).
+// calls in the indicator polling loop. It caps the main-queue dispatches and
+// still re-hides the cursor within about 500ms after macOS reveals it (for
+// example right-click context menus or Mission Control).
 const cursorRehideInterval = 500 * time.Millisecond
 
 // rehideSystemCursor re-hides the system cursor if it may have been

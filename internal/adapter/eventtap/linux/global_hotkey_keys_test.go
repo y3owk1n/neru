@@ -40,8 +40,8 @@ func TestCanonicalChordSignature(t *testing.T) {
 // TestCanonicalBindingSignature_DeleteNamesTheBackspaceKey pins what a
 // configured "Delete" binds on the Wayland listener: the backspace key, as on
 // macOS and Windows and the X11 grab. The config side folds the name, and the
-// live side does not, so a press of the forward-delete key — which the
-// decoder also spells "Delete" — keeps a signature no configured chord carries.
+// live side does not, so a press of the forward-delete key, which the
+// decoder also spells "Delete", keeps a signature no configured chord carries.
 func TestCanonicalBindingSignature_DeleteNamesTheBackspaceKey(t *testing.T) {
 	const wantModifiedDelete = "ctrl+shift+" + canonicalKeyBackspace
 

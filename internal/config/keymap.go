@@ -12,10 +12,10 @@ import (
 // each of them.
 //
 // A keymap is settled when the mode, the focused app or the configuration
-// changes — never on a keystroke, which only ever consults one. The decision,
+// changes, never on a keystroke, which only ever consults one. The decision,
 // and why the merge is not memoized deeper down instead, is ADR 0005.
 //
-// The zero Keymap is an empty one: nothing is bound and every lookup misses,
+// The zero Keymap is an empty one. Nothing is bound and every lookup misses,
 // so a holder that has not settled one yet needs no nil check.
 type Keymap struct {
 	// byKey indexes every binding under the normalized form of its key, so
@@ -32,7 +32,7 @@ type Keymap struct {
 // Binding is one entry of a Keymap: the steps a key runs, under the spelling
 // the key was written in.
 //
-// Matching uses the normalized form, but nothing downstream depends on it: the
+// Matching uses the normalized form, but nothing downstream depends on it. The
 // name flows to the log line naming what matched and to the source a sequence
 // runs under, both of which are better off saying what the user wrote.
 type Binding struct {
@@ -51,7 +51,7 @@ type Binding struct {
 // hotkey overrides applied on top. An empty focusedApp, an app with no entry,
 // or an entry with no hotkeys all leave the base bindings alone.
 //
-// The merge rules live here because they are configuration semantics —
+// The merge rules live here because they are configuration semantics:
 // precedence, the disabled sentinel, and matching a key written one way
 // against the same key written another. The caller holds the result.
 func (c *Config) ResolveKeymap(modeName, focusedApp string) Keymap {
@@ -65,7 +65,7 @@ func (c *Config) ResolveKeymap(modeName, focusedApp string) Keymap {
 //
 // It exists because the global table is read in two places that have to agree
 // about what it says. The platform hotkey backend registers from it, and a mode
-// falls back to it for a chord the mode itself does not bind — which is the only
+// falls back to it for a chord the mode itself does not bind, which is the only
 // thing that can run a global binding where the in-mode capture is exclusive
 // (internal/app/modes/keymap.go).
 func (c *Config) ResolveGlobalKeymap(focusedApp string) Keymap {
@@ -75,7 +75,7 @@ func (c *Config) ResolveGlobalKeymap(focusedApp string) Keymap {
 	}
 
 	// GlobalHotkeysForApp answers in the plain-slice shape the hotkey backend
-	// registers from; newKeymap indexes the table shape the mode tables use.
+	// registers from, and newKeymap indexes the table shape the mode tables use.
 	table := make(map[string]StringOrStringArray, len(bindings))
 	for key, steps := range bindings {
 		table[key] = StringOrStringArray(steps)
@@ -88,9 +88,10 @@ func (c *Config) ResolveGlobalKeymap(focusedApp string) Keymap {
 // modifier, and drops the rest.
 //
 // It is the line between a shortcut and typing, drawn where
-// HasPassthroughModifier already draws it: a bare key or a Shift-only combo is
-// something a mode reads as input — a hint label, a grid cell key, a navigation
-// key — and a table that may shadow a mode's own keys must not offer one.
+// HasPassthroughModifier already draws it. A bare key or a Shift-only combo is
+// something a mode reads as input, such as a hint label, a grid cell key or a
+// navigation key, and a table that may shadow a mode's own keys must not offer
+// one.
 //
 // The result binds no sequence starts. A two-keystroke sequence is spelled as a
 // pair of bare letters, so nothing that survives this filter could begin one.
@@ -172,7 +173,7 @@ func (k Keymap) Lookup(normalizedKey string) (Binding, bool) {
 }
 
 // LookupSequence is Lookup for the concatenation of two keystrokes. It skips
-// named keys: "u" then "p" is not the Up key, however it normalizes.
+// named keys, so "u" then "p" is not the Up key, however it normalizes.
 func (k Keymap) LookupSequence(normalizedKey string) (Binding, bool) {
 	binding, ok := k.Lookup(normalizedKey)
 	if !ok || binding.named {
@@ -195,8 +196,8 @@ func (k Keymap) IsSequenceStart(normalizedKey string) bool {
 }
 
 // Bindings returns every binding the keymap holds, ordered by the spelling of
-// its key. It is for a mode that shows its keys on screen: what is drawn has
-// to be what dispatch answers to, per-app overrides included.
+// its key. It is for a mode that shows its keys on screen, where what is drawn
+// has to be what dispatch answers to, per-app overrides included.
 func (k Keymap) Bindings() []Binding {
 	if len(k.byKey) == 0 {
 		return nil
@@ -216,8 +217,8 @@ func (k Keymap) Bindings() []Binding {
 
 // Keys returns every key the keymap binds, in the spelling it was written in
 // and in a stable order. It is what the modifier-passthrough lists are built
-// from: the event tap has to be told which keys the mode answers to, in the
-// form the platform canonicalizes.
+// from, since the event tap has to be told which keys the mode answers to, in
+// the form the platform canonicalizes.
 func (k Keymap) Keys() []string {
 	if len(k.byKey) == 0 {
 		return nil

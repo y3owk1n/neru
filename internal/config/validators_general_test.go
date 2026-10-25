@@ -147,7 +147,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 }
 
 // TestGeneralConfig_ShellCommand_DeprecatedKeysReplaceTheirPart pins what the
-// deprecated keys mean until v2: each one, when set, replaces its part of the
+// deprecated keys mean until v2. Each one, when set, replaces its part of the
 // shell command on every platform.
 func TestGeneralConfig_ShellCommand_DeprecatedKeysReplaceTheirPart(t *testing.T) {
 	tests := []struct {

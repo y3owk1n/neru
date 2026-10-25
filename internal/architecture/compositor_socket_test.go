@@ -7,8 +7,8 @@ import (
 )
 
 // compositorSocketEnv are the environment variables a wlroots-family compositor
-// exports to point at its own IPC endpoint. Reading one answers "which
-// compositor's CLI do I shell out to" — niri, Sway or Hyprland — which
+// exports to point at its own IPC endpoint. Reading one answers which of niri,
+// Sway or Hyprland has the CLI to shell out to, a question
 // platform.LinuxBackend deliberately cannot answer, because one value covers
 // those three plus River and Wayfire.
 //
@@ -16,9 +16,9 @@ import (
 // compositor_detector_test.go, and the two sets are disjoint on purpose. An
 // identity variable is confined to the detector, because deciding the
 // compositor family twice is what produced two disagreeing answers. A socket
-// variable stays readable outside it — but only downstream of the decision,
+// variable stays readable outside it, but only downstream of the decision,
 // never as a way to make one. The socket says which compositor is *reachable*,
-// not which one the session is running under: a systemd user unit that imported
+// not which one the session is running under. A systemd user unit that imported
 // SWAYSOCK into an X11 login leaves it set on a session with no Sway in sight.
 var compositorSocketEnv = []string{
 	"HYPRLAND_INSTANCE_SIGNATURE",
@@ -48,14 +48,14 @@ var compositorSocketReaders = map[string]string{
 }
 
 // TestCompositorSocketsAreReadOnlyBehindTheBackend pins the second half of
-// internal/adapter/platform/AGENTS.md's detection rule: the compositor is
+// internal/adapter/platform/AGENTS.md's detection rule. The compositor is
 // identified by platform.DetectLinuxBackend, and a compositor socket is a
 // detail read after that answer, never a substitute for asking.
 //
 // The rule earned a guardrail by being broken silently, with a side effect on
 // disk. The AT-SPI client chose its window-origin source from these three
 // variables alone and defaulted to the KWin bridge when none was set, so a
-// plain X11 session — which sets none of them — started the bridge: session
+// plain X11 session, which sets none of them, started the bridge: session
 // bus, exported object, bus name, and a KWin script written into
 // $XDG_RUNTIME_DIR for a compositor that was not running (#1430). Everything
 // compiled, linted and tested green, and the comment above the fallback called
@@ -84,9 +84,9 @@ func TestCompositorSocketsAreReadOnlyBehindTheBackend(t *testing.T) {
 }
 
 // TestCompositorSocketReadersStayHonest keeps an entry from outliving what it
-// describes, and doubles as this pin's floor: an allowlist naming a file that
+// describes, and doubles as this pin's floor. An allowlist naming a file that
 // reads none of these variables is a license nobody needs, sitting ready for a
-// real probe to move in under it — and if every entry has gone quiet, the match
+// real probe to move in under it. And if every entry has gone quiet, the match
 // has broken and the check above passes over nothing.
 func TestCompositorSocketReadersStayHonest(t *testing.T) {
 	reads := envNameReads(t, compositorSocketEnv)

@@ -16,11 +16,11 @@ import (
 )
 
 // Linux app-watcher backend. macOS receives focus changes from an NSWorkspace
-// observer; on Linux the focused application's identity is the app_id (Wayland
+// observer. On Linux the focused application's identity is the app_id (Wayland
 // wlroots/KDE) or WM_CLASS (X11). Where the compositor/X11 exposes a
 // focus-change notification (via linux.SubscribeFocusedApp), the watcher blocks
-// on that fd and re-samples on each wake — near-instant per-app hotkey
-// re-registration. Otherwise it falls back to polling on a fixed interval.
+// on that fd and re-samples on each wake, so per-app hotkeys re-register almost
+// at once. Otherwise it falls back to polling on a fixed interval.
 // GNOME/Mutter exposes no focused-app source, so no events fire there.
 //
 // focusPollInterval is how often the focused application is sampled on the
@@ -36,7 +36,7 @@ const focusPollInterval = 400 * time.Millisecond
 const focusEventPollTimeout = 500 * time.Millisecond
 
 // focusEventSafetyInterval bounds how long the event-driven loop goes without a
-// forced re-sample. Focus changes normally wake it immediately via the fd; this
+// forced re-sample. Focus changes normally wake it immediately via the fd. This
 // periodic re-sample is a safety net against a missed or coalesced event and
 // costs one focus query per interval (matching the polling fallback's idle
 // cost, but far less often).
@@ -57,10 +57,10 @@ var globalLinuxWatcher = &linuxAppWatcher{
 // activation changes to the registered Watcher, waking on a focus-change fd
 // where one is available and polling otherwise.
 type linuxAppWatcher struct {
-	// identity resolves the focused app_id for a backend; injectable for tests.
+	// identity resolves the focused app_id for a backend. Tests inject it.
 	identity func(backend string) (string, bool)
 	// subscribe returns an fd that becomes readable on focus changes, or
-	// ok=false to select the polling fallback; injectable for tests. A nil
+	// ok=false to select the polling fallback. Tests inject it. A nil
 	// subscribe also selects polling.
 	subscribe func(backend string) (int, bool)
 	// subscribeScreen returns an fd that becomes readable on display-configuration
@@ -90,7 +90,7 @@ func (l *linuxAppWatcher) register(w *Watcher) {
 	l.watcher = w
 }
 
-// start launches the poll loop. It is idempotent: a second call while already
+// start launches the poll loop. It is idempotent, so a second call while already
 // running is a no-op.
 func (l *linuxAppWatcher) start() {
 	l.mu.Lock()
@@ -186,10 +186,10 @@ func (l *linuxAppWatcher) loopPoll(ctx context.Context, backend string) {
 // the fd hangs up or errors, it degrades to polling so focus tracking survives.
 //
 // focusFD is owned by the platform layer (a process-lifetime pipe/monitor).
-// We poll a dup of it so this goroutine holds its own descriptor: if that layer
+// We poll a dup of it so this goroutine holds its own descriptor. If that layer
 // ever closes the underlying fd, our in-flight Poll can't become a
-// use-after-close or fd-reuse race — we simply see POLLHUP and fall back to
-// polling. dup(2) clears close-on-exec, so we re-arm it; neru spawns exec-action
+// use-after-close or fd-reuse race. We see POLLHUP and fall back to polling.
+// dup(2) clears close-on-exec, so we re-arm it, because neru spawns exec-action
 // children that must not inherit this fd.
 func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD int) {
 	dupFD, err := unix.Dup(focusFD)
@@ -221,7 +221,7 @@ func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD
 			if errors.Is(err, unix.EINTR) {
 				continue
 			}
-			// Unexpected poll failure — degrade to polling rather than spin.
+			// Unexpected poll failure. Degrade to polling rather than spin.
 			l.watcher.logger.Warn("Focus fd poll failed, falling back to polling",
 				zap.String("backend", backend),
 				zap.Error(err))
@@ -249,7 +249,7 @@ func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD
 			continue
 		}
 
-		// Poll timed out with no event: re-sample only when the safety interval
+		// Poll timed out with no event. Re-sample only when the safety interval
 		// has elapsed, so an idle X11 daemon isn't opening a display every tick.
 		if !time.Now().Before(nextSafety) {
 			l.tick(backend)
@@ -264,11 +264,11 @@ func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD
 // change to the Watcher (which regenerates overlays for the new layout). This is
 // the Linux equivalent of macOS's NSApplicationDidChangeScreenParameters
 // notification. When no fd is available (GNOME/Mutter, RandR-less X, or a nil
-// subscribe) it exits immediately — screen changes simply go unobserved, and the
+// subscribe) it exits immediately. Screen changes then go unobserved, and the
 // overlay still follows the cursor. On fd hangup/error it exits rather than
 // spinning, since there is no cheap polling equivalent for layout changes.
 //
-// The fd is owned by the platform layer; we poll a dup so a close on that side
+// The platform layer owns the fd. We poll a dup so a close on that side
 // surfaces as POLLHUP instead of a use-after-close, mirroring loopEvent.
 func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 	defer l.wg.Done()
@@ -377,7 +377,7 @@ func (l *linuxAppWatcher) tick(backend string) {
 	prev := l.last
 	l.last = appID
 
-	// On Linux the app_id is the only identity available, so it serves as both
+	// On Linux the app_id is the only identity available, so it is both
 	// the human-facing app name and the per-app bundle identifier.
 	if prev != "" {
 		l.watcher.HandleDeactivate(prev, prev)
@@ -392,6 +392,6 @@ func platformRegisterWatcher(w *Watcher) { globalLinuxWatcher.register(w) }
 func platformStartWatcher()              { globalLinuxWatcher.start() }
 func platformStopWatcher()               { globalLinuxWatcher.stop() }
 
-// platformSetMCDetection is a no-op on Linux: Mission Control is a macOS
+// platformSetMCDetection is a no-op on Linux, because Mission Control is a macOS
 // concept with no Linux equivalent.
 func platformSetMCDetection(_ bool) {}

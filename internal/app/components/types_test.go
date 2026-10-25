@@ -16,9 +16,9 @@ import (
 const testCharacters = "abcd"
 
 // newGridComponent builds a GridComponent whose Manager holds a grid created
-// from the given labels. Overlay is deliberately nil: the overlay is a native
-// type, and the logic worth pinning here — when the grid gets recreated — lives
-// entirely on the Manager side and is guarded by its own nil check.
+// from the given labels. Overlay is deliberately nil. The overlay is a native
+// type, and the logic worth pinning here, deciding when the grid gets recreated,
+// lives entirely on the Manager side and is guarded by its own nil check.
 func newGridComponent(
 	t *testing.T,
 	characters, rowLabels, colLabels string,
@@ -66,7 +66,7 @@ func gridConfig(characters, rowLabels, colLabels string) *config.Config {
 // TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges pins exactly when a
 // config reload rebuilds the grid. Rebuilding drops the user's in-flight
 // coordinate input, so doing it too eagerly is as much a bug as not doing it at
-// all — in particular, the comparison is case-insensitive, because the grid
+// all. In particular, the comparison is case-insensitive, because the grid
 // stores its labels upper-cased while config keeps whatever the user typed.
 func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 	tests := []struct {
@@ -128,7 +128,7 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 		},
 		{
 			// The same for a label set, which the derivation settles with its
-			// repeats still in it so the config can report them: the grid dropped
+			// repeats still in it so the config can report them. The grid dropped
 			// the repeat, so the two describe the same labels.
 			name:       "a row label listed twice keeps the existing grid",
 			characters: testCharacters, rowLabels: "ab", colLabels: "cd",
@@ -183,7 +183,7 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 // A config file that leaves row_labels and col_labels empty means "infer from
 // characters". The grid stores the *inferred* labels, so comparing them against
 // the bare "" from config never matched and the grid was rebuilt on every
-// reload — throwing away the user's in-flight coordinate input while grid mode
+// reload, throwing away the user's in-flight coordinate input while grid mode
 // was open. Since the option is resolved at load time, DefaultConfig() already
 // carries the inferred labels and the comparison is a plain one.
 func TestGridComponent_UpdateConfig_DefaultConfigReloadKeepsGrid(t *testing.T) {
@@ -218,7 +218,7 @@ func TestGridComponent_UpdateConfig_RecreatedGridKeepsBounds(t *testing.T) {
 }
 
 // TestGridComponent_UpdateConfig_RecreatesGridOnMaxLabelLengthChange pins hot
-// reload for the geometry option: the manager must start using the new coarse
+// reload for the geometry option. The manager must start using the new coarse
 // label bound immediately, and an unchanged follow-up reload must keep it.
 func TestGridComponent_UpdateConfig_RecreatesGridOnMaxLabelLengthChange(t *testing.T) {
 	component := newGridComponent(t, testCharacters, "", "")

@@ -14,7 +14,6 @@ type Option func(*App) error
 // Note: cfg can be nil, in which case default configuration will be used.
 func WithConfig(cfg *config.Config) Option {
 	return func(a *App) error {
-		// Config can be nil - system will use defaults
 		a.config = cfg
 
 		return nil
@@ -22,7 +21,7 @@ func WithConfig(cfg *config.Config) Option {
 }
 
 // WithWrittenConfig records what the configuration passed to WithConfig was
-// written as, before the loader settled its derived values — see
+// written as, before the loader settled its derived values. See
 // [config.LoadResult.Written]. It is what `neru config set` applies a change
 // to, so that a change to a source option can be derived from again.
 //
@@ -39,7 +38,7 @@ func WithWrittenConfig(cfg *config.Config) Option {
 // WithConfigWarnings carries the warnings the launch-time load found, for the
 // app to log once its logger exists. The load runs before there is a logger to
 // hand it, and a warning nobody prints is a warning nobody can act on (ADR
-// 0002); a hot reload logs its own through the config service.
+// 0002). A hot reload logs its own through the config service.
 func WithConfigWarnings(warnings []string) Option {
 	return func(a *App) error {
 		a.configWarnings = warnings
@@ -60,7 +59,7 @@ func WithConfigPath(path string) Option {
 // WithLogger sets the application logger.
 func WithLogger(logger *zap.Logger) Option {
 	return func(a *App) error {
-		// Logger can be nil - system will initialize a default logger if needed
+		// A nil logger makes New build the default one.
 		a.logger = logger
 
 		return nil
@@ -89,7 +88,7 @@ func WithIPCServer(ipcServer ports.IPCPort) Option {
 
 // WithOverlayPort sets the overlay implementation the app draws through.
 //
-// It is the one seam between the app and the overlay: a caller that brings its
+// It is the one seam between the app and the overlay. A caller that brings its
 // own port brings its own screen, and no native backend is built behind it.
 // Left unset, the composition root builds the platform backend and the adapter
 // over it during startup.

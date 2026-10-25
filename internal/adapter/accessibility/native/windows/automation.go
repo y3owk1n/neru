@@ -17,7 +17,7 @@ import (
 )
 
 // Pure-Go IUIAutomation (COM) element discovery for the Windows hints mode.
-// Does not perform actions; it returns a flat list of on-screen, clickable
+// Does not perform actions. It returns a flat list of on-screen, clickable
 // controls at any depth under the given top-level window.
 //
 // roleUnknown is the AX-style role returned for UIA control types that neru
@@ -25,7 +25,7 @@ import (
 const roleUnknown = "AXUnknown"
 
 // discardCall consumes a fire-and-forget COM/oleaut32 syscall result. These
-// release calls have no actionable failure path; the sink keeps errcheck happy
+// release calls have no actionable failure path. The sink keeps errcheck happy
 // without a `_, _, _ =` assignment (which trips dogsled).
 func discardCall(uintptr, uintptr, error) {}
 
@@ -89,7 +89,7 @@ const (
 	vtWalkerGetFirstChildElementBuildCache  = 10
 	vtWalkerGetNextSiblingElementBuildCache = 12
 
-	// IUIAutomationElement. Only the cached getters are called: every property
+	// IUIAutomationElement. Only the cached getters are called, since every property
 	// the walk reads is fetched by the cache request, so a Current* getter
 	// would be a second cross-process call for data already in hand.
 	vtFindAllBuildCache          = 8
@@ -153,11 +153,11 @@ const (
 )
 
 // controlTypeNames maps UI Automation CONTROLTYPEID values to the programmatic
-// names behind the UIA_*ControlTypeId constants. These names — not the
-// localized LocalizedControlType, which changes with the system language — are
-// the vocabulary users address with the "uia:" prefix.
+// names behind the UIA_*ControlTypeId constants. These names are the
+// vocabulary users address with the "uia:" prefix. LocalizedControlType is not,
+// because it changes with the system language.
 //
-// The range is contiguous and stable: 50000 is Button and 50040 is AppBar, the
+// The range is contiguous and stable. 50000 is Button and 50040 is AppBar, the
 // last control type added (Windows 8).
 var controlTypeNames = map[int32]string{
 	50000: uiaControlButton,
@@ -261,14 +261,13 @@ type enumerateOptions struct {
 
 // comCall invokes the method at vtable slot index on the COM object this.
 // It returns the HRESULT (or boolean/handle) in the low bits of the result.
-// comCall invokes the method at index in this object's COM vtable.
 //
 // CGO is disabled on Windows (see the justfile), so UI Automation is driven
 // through raw vtable calls rather than a C wrapper. All COM work for one
-// enumeration happens on a single locked OS thread — CoInitialize, object
-// creation, property reads, release — and every property is copied into a plain
-// Go value before its object is released, so no COM pointer escapes this file
-// or crosses a goroutine.
+// enumeration, from CoInitialize through object creation and property reads to
+// release, happens on a single locked OS thread. Every property is copied into a
+// plain Go value before its object is released, so no COM pointer escapes this
+// file or crosses a goroutine.
 //
 // The out-parameter addresses in args are uintptrs, which the runtime does
 // not track. If the stack grows before SyscallN runs, the caller's variables
@@ -296,7 +295,7 @@ func failed(hresult uintptr) bool {
 
 // enumerateClickableElements returns the on-screen, clickable controls of the
 // given top-level window handle, filtered as opts says. It returns nil on any
-// failure; callers treat an empty result as "no hints", never as a crash.
+// failure. Callers treat an empty result as "no hints", never as a crash.
 func enumerateClickableElements(
 	ctx context.Context,
 	hwnd uintptr,
@@ -319,7 +318,7 @@ func enumerateClickableElements(
 
 	// S_OK and S_FALSE mean this call owns initialization on the thread and
 	// must balance it with CoUninitialize. RPC_E_CHANGED_MODE means COM is
-	// already up in another mode; leave it alone.
+	// already up in another mode. Leave it alone.
 	if uint32(hresult) == hresultSOK || uint32(hresult) == hresultSFalse {
 		defer func() { discardCall(procCoUninitialize.Call()) }()
 	}
@@ -548,12 +547,12 @@ func elementAt(automation, cache unsafe.Pointer, point image.Point) unsafe.Point
 }
 
 // maxHitAncestors bounds the walk from a hit element up to the window root.
-// Real trees are far shallower; the bound only stops a provider that cycles.
+// Real trees are far shallower. The bound only stops a provider that cycles.
 const maxHitAncestors = 64
 
 // hitReaches reports whether the hit element, or one of its control-view
-// ancestors, is the control: the same walk the AX check does with element
-// identity. Cached elements from two queries carry no comparable identity, so
+// ancestors, is the control. It is the same walk the AX check does with
+// element identity. Cached elements from two queries carry no comparable identity, so
 // each ancestor is matched on its control type, name and frame-clipped
 // bounds, all three of which the control itself satisfies and a covering
 // element does not. It releases hit.
@@ -740,11 +739,11 @@ func appendControl(
 // extractWinElement copies the relevant properties from a single UIA element.
 // It returns ok=false for offscreen or zero-size controls, for controls whose
 // role is not in keptRoles (nil keeps every role), and for controls outside
-// frame. Bounds are clipped
-// to frame so a control straddling the window edge targets its visible part.
+// frame. Bounds are clipped to frame so a control straddling the window edge
+// targets its visible part.
 //
 // Role selection happens here rather than downstream because the cache request
-// returns the whole control-view subtree: rejecting an element by role before
+// returns the whole control-view subtree, and rejecting an element by role before
 // its bounds and name are decoded keeps the per-element work to one cached
 // read.
 func extractWinElement(
@@ -874,7 +873,7 @@ func cachedValue(element unsafe.Pointer) string {
 
 // controlTypeName returns the programmatic name for a UIA CONTROLTYPEID. The
 // second result is false for ids outside the known range, which a third-party
-// provider may still report; those elements carry the numeric id so they remain
+// provider may still report. Those elements carry the numeric id so they remain
 // addressable rather than silently disappearing.
 func controlTypeName(controlType int32) (string, bool) {
 	name, ok := controlTypeNames[controlType]

@@ -2,17 +2,17 @@
 
 package app_test
 
-// The one thing the simulation journeys cannot prove: that the app builds and
-// runs against the real macOS adapters. This constructs the app WITHOUT
+// The simulation journeys cannot prove that the app builds and runs against
+// the real macOS adapters. This constructs the app WITHOUT
 // injecting the system port, accessibility port, or event tap, so the real
-// platform implementations are exercised — permission checks, AX client setup,
-// event tap creation (which degrades gracefully without Input Monitoring).
+// platform implementations are exercised, such as permission checks, AX client
+// setup, and event tap creation (which degrades gracefully without Input Monitoring).
 //
 // Everything behavioral (mode journeys, hint selection, clicks, scrolling)
-// lives in the simulation journeys in simulation_journey_test.go; keep this
+// lives in the simulation journeys in simulation_journey_test.go. Keep this
 // file to construction, startup, one real-AX mode activation, and shutdown.
 //
-// Skipped under -short (the CI profile): hints activation drives the real
+// Skipped under -short (the CI profile), because hints activation drives the real
 // accessibility tree, which needs Accessibility permission and a real desktop.
 
 import (
@@ -51,10 +51,10 @@ func TestRealComponents_StartupModesShutdown(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 
-	// Overlay, IPC, watcher and hotkeys stay mocked: they would create native
+	// Overlay, IPC, watcher and hotkeys stay mocked, because they would create native
 	// windows, bind sockets, and register global hotkeys on the developer's
-	// machine. System port, accessibility and event tap stay real — that is
-	// what this test exists to cover.
+	// machine. System port, accessibility and event tap stay real, since that
+	// is what this test exists to cover.
 	application, err := app.New(
 		app.WithConfig(cfg),
 		app.WithConfigPath(""),

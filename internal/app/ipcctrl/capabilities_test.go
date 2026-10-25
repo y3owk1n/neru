@@ -72,7 +72,7 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 	}
 
 	// The IPC response must carry every registered capability, not a
-	// hand-maintained subset. This is the seam that previously drifted: the
+	// hand-maintained subset. This is the seam that previously drifted. The
 	// Windows doctor listed eight of ten capabilities and nothing noticed.
 	for _, entry := range (ports.PlatformCapabilities{}).Entries() {
 		if _, present := capabilities[string(entry.Key)]; !present {
@@ -170,9 +170,9 @@ func TestIPCController_HealthMarksStubCapabilitiesUnhealthy(t *testing.T) {
 //
 // On Linux the capability is live-probed, so "stub" is the answer both when
 // focused-app inspection is genuinely missing and when the desktop merely has
-// nothing focused. Those need opposite things from the user — nothing, or a
-// working display server — and the status alone says neither. A detail written
-// but never serialized is the failure mode this pins: the string existed and
+// nothing focused. Those need opposite things from the user, nothing or a
+// working display server, and the status alone says neither. A detail written
+// but never serialized is the failure mode this pins. The string existed and
 // `neru doctor` printed the bare status regardless.
 func TestIPCController_StatusCarriesTheFocusedAppReason(t *testing.T) {
 	const reason = "focused-app inspection found no focused window on linux backend x11"
@@ -219,7 +219,7 @@ func TestIPCController_StatusCarriesTheFocusedAppReason(t *testing.T) {
 }
 
 // TestIPCController_StatusOmitsTheFocusedAppReasonWhenSupported is the other
-// half: the sibling key is a reason a capability did not answer, so a working
+// half. The sibling key is a reason a capability did not answer, so a working
 // one must not carry a line explaining itself.
 func TestIPCController_StatusOmitsTheFocusedAppReasonWhenSupported(t *testing.T) {
 	cfg := config.DefaultConfig()

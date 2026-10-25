@@ -56,19 +56,19 @@ type bitmapInfoHeader struct {
 // region is in Neru's shared coordinate space: global origin, top-left, Y down,
 // unscaled pixels. The zero rectangle means "the whole active screen", the
 // monitor under the cursor, which is what ports.VisionPort.CaptureScreen means
-// here; it is resolved in this function so the GDI path only ever sees a
-// concrete rectangle. Honoring the region is the point of the parameter: the
+// here. It is resolved in this function so the GDI path only ever sees a
+// concrete rectangle. Honoring the region is the point of the parameter. The
 // caller is normally the focused window, and reading a whole 4K desktop back
 // to examine one window is the difference between usable and not.
 //
 // What comes back covers **exactly** the requested region. A rectangle that
 // leaves the virtual screen fails rather than coming back clipped, because a
 // clipped frame carries nothing that says where its top-left actually is. The
-// image's own bounds start at (0, 0); the region passed in is what places
-// those pixels. A region may span two monitors: the desktop DC is one surface
+// image's own bounds start at (0, 0), and the region passed in is what places
+// those pixels. A region may span two monitors, because the desktop DC is one surface
 // and BitBlt reads across the seam.
 //
-// ctx is a check at the door rather than a deadline the call carries: BitBlt
+// ctx is a check at the door rather than a deadline the call carries. BitBlt
 // is a single synchronous GDI call that cannot be canceled once entered, and
 // a Go deadline is only worth threading where the callee reads it
 // (internal/app/modes/AGENTS.md).
@@ -98,7 +98,7 @@ func CaptureScreenRegion(ctx context.Context, region image.Rectangle) (*image.RG
 // asked for and came out degenerate is refused rather than widened, because
 // the one thing a caller asking for a window must never get instead is
 // everything on screen. A region that leaves the virtual screen is refused for
-// the reason CaptureScreenRegion gives: a clipped frame cannot be placed.
+// the reason CaptureScreenRegion gives. A clipped frame cannot be placed.
 func resolveCaptureRegion(region image.Rectangle) (image.Rectangle, error) {
 	if region == (image.Rectangle{}) {
 		bounds, err := activeScreenBounds()
@@ -172,7 +172,7 @@ func virtualScreenBounds() (image.Rectangle, error) {
 //
 // The DIB is requested top-down (negative height) so its rows are in the order
 // image.RGBA wants, and BGRA so that only the red and blue channels swap on the
-// way out. Alpha is forced opaque: the desktop composites to an opaque surface
+// way out. Alpha is forced opaque, because the desktop composites to an opaque surface
 // and image.RGBA is alpha-premultiplied, so anything else would render darker
 // than the screen it came from.
 func bitBltRegion(region image.Rectangle) (*image.RGBA, error) {
@@ -253,7 +253,7 @@ func bitBltRegion(region image.Rectangle) (*image.RGBA, error) {
 		)
 	}
 
-	// The DIB is BGRA, tightly packed: a 32-bit row is already a multiple of the
+	// The DIB is BGRA and tightly packed. A 32-bit row is already a multiple of the
 	// four-byte alignment GDI pads to.
 	src := unsafe.Slice((*byte)(bits), width*height*bytesPerPixel)
 	defer clear(src)

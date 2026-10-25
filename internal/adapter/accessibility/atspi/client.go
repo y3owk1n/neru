@@ -67,7 +67,7 @@ const (
 
 	// atspiCallTimeout bounds a single AT-SPI D-Bus round-trip. A healthy
 	// toolkit answers each read (role, extents, name, children, state) in
-	// single-digit milliseconds; this only trips when an app is wedged or not
+	// single-digit milliseconds. It only trips when an app is wedged or not
 	// answering accessibility queries. Without it a single hung call would
 	// consume the whole element-scan budget and the CLI would give up with a
 	// bare timeout (or the daemon would log a broken-pipe write after the
@@ -93,7 +93,7 @@ const (
 	atspiCollectionIfc = "org.a11y.atspi.Collection"
 
 	// AtspiCollectionMatchType values (atspi-constants.h): how a criterion set is
-	// interpreted. MATCH_ALL requires all listed items; MATCH_ANY requires any.
+	// interpreted. MATCH_ALL requires all listed items, MATCH_ANY requires any.
 	// An empty set with MATCH_ALL imposes no constraint.
 	atspiMatchAll = int32(1)
 	atspiMatchAny = int32(2)
@@ -103,15 +103,15 @@ const (
 	atspiSortCanonical = uint32(1)
 
 	// Fixed word counts libatspi marshals the role/state sets into (see
-	// _atspi_match_rule_marshal in at-spi2-core/atspi/atspi-matchrule.c): the role
-	// bitfield is always 5 int32 words, the state bitset always 2.
+	// _atspi_match_rule_marshal in at-spi2-core/atspi/atspi-matchrule.c). The
+	// role bitfield is always 5 int32 words, the state bitset always 2.
 	atspiRoleWords  = 5
 	atspiStateWords = 2
 
 	// collectionMaxWorkers bounds the goroutines that materialize GetMatches
 	// results (role/extents/name lookups). These are latency-bound D-Bus calls
 	// that godbus multiplexes over one connection, so overlapping them cuts the
-	// per-match cost; the cap keeps a large page from flooding the a11y bus.
+	// per-match cost. The cap keeps a large page from flooding the a11y bus.
 	collectionMaxWorkers = 16
 )
 
@@ -191,7 +191,7 @@ type Client struct {
 // so hints-disabled sessions never touch the session-wide a11y status.
 //
 // AT-SPI itself is the accessibility API on every Linux backend, so this client
-// is built on all of them; only the window-origin source is backend-specific,
+// is built on all of them. Only the window-origin source is backend-specific,
 // and it is chosen here rather than probing for a compositor of its own.
 func New(logger *zap.Logger, configProvider config.Provider) *Client {
 	if logger == nil {
@@ -241,7 +241,7 @@ func (c *Client) FrontmostWindow(ctx context.Context) (ax.Window, error) {
 	frame, ok := c.findActiveFrame(ctx, conn, focusedAppID, focusedTitle)
 	if !ok {
 		// Distinguish a genuine "nothing focused" from an AT-SPI failure during
-		// selection: only the latter recorded a scan-fatal error. A frame that
+		// selection. Only the latter recorded a scan-fatal error. A frame that
 		// *was* found is returned even if some other app errored mid-scan.
 		ferr := diag.fatalErr()
 		if ferr != nil {
@@ -250,8 +250,8 @@ func (c *Client) FrontmostWindow(ctx context.Context) (ax.Window, error) {
 
 		c.logger.Debug("AT-SPI found no active frame")
 
-		// No active frame: hand back an empty window so the adapter simply
-		// finds no clickable elements rather than erroring out.
+		// No active frame. Hand back an empty window so the adapter finds no
+		// clickable elements rather than erroring out.
 		return &atspiWindow{}, nil
 	}
 
@@ -287,7 +287,7 @@ func (c *Client) FrontmostAndPopoverWindows(ctx context.Context) ([]ax.Window, e
 	return []ax.Window{win}, nil
 }
 
-// AllWindows is not used by hints; return empty rather than erroring.
+// AllWindows is not used by hints, so it returns empty rather than erroring.
 func (c *Client) AllWindows(_ context.Context) ([]ax.Window, error) {
 	return nil, nil
 }
@@ -361,9 +361,10 @@ func (c *Client) ClickableNodes(
 	}
 
 	// An empty scan is normal for a window with nothing clickable, but if we got
-	// here because reads kept failing fatally — the app timed out, exited, or
-	// dropped its accessibility connection — report that rather than silently
-	// showing no hints. A partial result (some nodes collected) is returned as-is.
+	// here because reads kept failing fatally, report that rather than silently
+	// showing no hints. Reads fail fatally when the app times out, exits, or
+	// drops its accessibility connection. A partial result (some nodes
+	// collected) is returned as-is.
 	if len(out) == 0 {
 		ferr := diag.fatalErr()
 		if ferr != nil {
@@ -375,7 +376,8 @@ func (c *Client) ClickableNodes(
 }
 
 // atspiMatchRule mirrors the AT-SPI Collection MatchRule D-Bus struct
-// (aiia{ss}iaiiasib); godbus marshals the exported fields in declaration order.
+// (aiia{ss}iaiiasib), and godbus marshals the exported fields in declaration
+// order.
 type atspiMatchRule struct {
 	States     []int32
 	StateMatch int32
@@ -613,11 +615,11 @@ func (c *Client) treeDepth(maxDepth int) int {
 // collectViaCollection fetches clickable elements with a single
 // org.a11y.atspi.Collection.GetMatches call rooted at the frame, instead of the
 // recursive per-node walk. It returns (nodes, true) on success, or (nil, false)
-// to signal the caller to fall back to the walk — when Collection is disabled,
-// no requested role maps to an AtspiRole, or the toolkit does not implement the
-// interface (the GetMatches call errors). Results have identical semantics to
-// the walk: SHOWING elements, ENABLED too unless anyState, whose role maps
-// (via atspiToAXRole) into roleSet.
+// to signal the caller to fall back to the walk. That happens when Collection
+// is disabled, no requested role maps to an AtspiRole, or the toolkit does not
+// implement the interface (the GetMatches call errors). Results have identical
+// semantics to the walk: SHOWING elements, ENABLED too unless anyState, whose
+// role maps (via atspiToAXRole) into roleSet.
 func (c *Client) collectViaCollection(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -633,8 +635,8 @@ func (c *Client) collectViaCollection(
 
 	ids := deriveTargetRoleIDs(roleSet)
 	if len(ids) == 0 {
-		// No requested role has an AtspiRole equivalent; the walk would also emit
-		// nothing. Fall back rather than issue a match-nothing query.
+		// No requested role has an AtspiRole equivalent, so the walk would also
+		// emit nothing. Fall back rather than issue a match-nothing query.
 		return nil, false
 	}
 
@@ -663,7 +665,7 @@ func (c *Client) collectViaCollection(
 		// GetMatches runs on the full scan budget rather than a per-call
 		// deadline, so it is the one scan call the leaf helpers don't cover.
 		// Record a scan-fatal error (a deadline, or the app leaving the bus)
-		// here so an empty fallback walk still surfaces it; a benign
+		// here so an empty fallback walk still surfaces it. A benign
 		// "Collection not implemented" error is ignored and the walk proceeds.
 		c.noteCallErr(ctx, err)
 
@@ -671,20 +673,20 @@ func (c *Client) collectViaCollection(
 	}
 
 	// Collection is implemented but returned nothing. Don't trust that as
-	// authoritative — a toolkit's Collection may be incomplete or scope the
+	// authoritative. A toolkit's Collection may be incomplete or scope the
 	// subtree differently than the per-node walk (e.g. return zero on a page the
 	// walk would find elements on). Fall back to the walk, which is the safe
-	// baseline; genuinely empty windows are cheap to walk.
+	// baseline. Genuinely empty windows are cheap to walk.
 	if len(matches) == 0 {
 		return nil, false
 	}
 
-	// Materialize each match (role re-check + extents + name) concurrently: the
+	// Materialize each match (role re-check + extents + name) concurrently. The
 	// lookups are independent, latency-bound D-Bus round-trips that godbus
 	// multiplexes safely over the one connection. The bounded semaphore paces the
 	// loop, so at most collectionMaxWorkers goroutines run at once no matter how
 	// many matches there are. Each goroutine writes its own slot, so no lock is
-	// needed; nil slots are dropped afterward.
+	// needed. Nil slots are dropped afterward.
 	results := make([]*atspiNode, len(matches))
 
 	sem := make(chan struct{}, collectionMaxWorkers)
@@ -699,7 +701,7 @@ func (c *Client) collectViaCollection(
 		// Capping on emitted nodes (like the walk) rather than raw candidates
 		// keeps invalid/zero-sized matches from crowding out valid ones past the
 		// limit. validCount lags slightly under concurrency, so a few in-flight
-		// workers may push past the cap — the output loop below trims the excess.
+		// workers may push past the cap, and the output loop below trims the excess.
 		if ctx.Err() != nil || validCount.Load() >= atspiMaxNodes {
 			break
 		}
@@ -752,8 +754,9 @@ func (c *Client) collectViaCollection(
 
 // materializeMatch turns a GetMatches result into an atspiNode, or nil if it
 // should be dropped (role not in the requested set, or no valid on-screen
-// extents). It mirrors the walk's emit filter and is safe for concurrent use —
-// it only issues reads over the shared connection, which godbus multiplexes.
+// extents). It mirrors the walk's emit filter and is safe for concurrent use
+// because it only issues reads over the shared connection, which godbus
+// multiplexes.
 func (c *Client) materializeMatch(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -762,7 +765,7 @@ func (c *Client) materializeMatch(
 	place placement,
 	readState bool,
 ) *atspiNode {
-	// Re-verify the role is in the requested set: a toolkit may return a role we
+	// Re-verify the role is in the requested set. A toolkit may return a role we
 	// did not ask for, and this keeps parity with the walk's filter.
 	roleName := strings.ToLower(c.roleName(ctx, conn, ref))
 	if !candidateRole(roleName, roleSet) {
@@ -789,7 +792,7 @@ func (c *Client) materializeMatch(
 // D-Bus error names that mean the scan cannot make progress: the target
 // application has left the bus, or its connection is gone. Deliberately NOT
 // including UnknownMethod (GetChildren has a fallback) or per-node errors on a
-// stale node, so an otherwise-healthy — or genuinely empty — window is never
+// stale node, so an otherwise-healthy or genuinely empty window is never
 // misreported as a failure.
 const (
 	atspiErrServiceUnknown = "org.freedesktop.DBus.Error.ServiceUnknown"
@@ -1102,7 +1105,7 @@ func (c *Client) walk(
 	*visited++
 
 	// Match the AT-SPI role name against the requested set. Both sides are
-	// native AT-SPI names: configured roles are resolved into this vocabulary
+	// native AT-SPI names. Configured roles are resolved into this vocabulary
 	// before they reach the client, and the node carries the native name
 	// downstream so Adapter.MatchesFilter compares like with like. A single
 	// state read tells whether the element is showing and, for text, whether

@@ -21,7 +21,7 @@ import (
 
 // startBisect activates bisect mode. The region starts as the capture area
 // the configuration names, or the one the activation's --capture-scope
-// overrides it with; the cursor goes to its center and the region is handed
+// overrides it with. The cursor goes to its center and the region is handed
 // over as the frame that takes the previous mode's drawing off the screen.
 func (h *handlerState) startBisect(activation modecmd.Activation) {
 	isRefresh := h.appState.CurrentMode() == domain.ModeBisect
@@ -44,7 +44,7 @@ func (h *handlerState) startBisect(activation modecmd.Activation) {
 		h.stopIndicatorPolling()
 	} else {
 		// Coming from another mode, the keyboard is handed over rather than
-		// given back: exit now, release at return if nothing is entered.
+		// given back. Exit now, release at return if nothing is entered.
 		defer h.exitModeForTransition()()
 	}
 
@@ -61,7 +61,7 @@ func (h *handlerState) startBisect(activation modecmd.Activation) {
 		cursorShouldFollow = resolveCursorFollowSelection(activation.CursorFollowSelection)
 	}
 
-	// The start region is global like the screen; the overlay draws in the
+	// The start region is global like the screen. The overlay draws in the
 	// screen's own space.
 	h.initializeBisectRegion(h.captureStart(domain.ModeNameBisect, screen, scope).Sub(screen.Min))
 	h.bisect.Context.SetCursorFollowSelection(cursorShouldFollow)
@@ -73,7 +73,7 @@ func (h *handlerState) startBisect(activation modecmd.Activation) {
 		h.enterMode(domain.ModeBisect)
 	}
 
-	// One draw at activation: the frame comes up as the transition, and the
+	// One draw at activation. The frame comes up as the transition, and the
 	// cursor is placed without the redraw a cut pays.
 	center := h.markBisectSelection()
 	h.showFrame(h.bisectFrame(), "show bisect overlay")
@@ -165,7 +165,8 @@ func (h *handlerState) markBisectSelection() image.Point {
 }
 
 // placeBisectCursor moves the real cursor onto center when it follows the
-// selection; when held back, the pointer stand-in on the frame marks it.
+// selection. When the cursor is held back, the pointer stand-in on the frame
+// marks it.
 func (h *handlerState) placeBisectCursor(center image.Point, moveFailureMessage string) {
 	if h.bisect.Context != nil && !h.bisect.Context.CursorFollowSelection() {
 		return
@@ -289,7 +290,7 @@ func (h *handlerState) refreshBisectForScreenChange() {
 	}
 }
 
-// remapBisect carries the session onto new screen-local bounds: the region
+// remapBisect carries the session onto new screen-local bounds. The region
 // and its history scale proportionally, and the stale selection is dropped.
 // A session with no region is built fresh over the whole screen.
 func (h *handlerState) remapBisect(normalizedBounds image.Rectangle) {
@@ -319,7 +320,7 @@ func (h *handlerState) cleanupBisectMode() {
 	}
 
 	// Stop the indicator poller before common cleanup takes the frame off
-	// the screen: a tick landing after the clear would put one back on it.
+	// the screen, because a tick landing after the clear would put one back on it.
 	h.stopIndicatorPolling()
 	h.stopHeldRepeat()
 }

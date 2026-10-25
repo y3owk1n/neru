@@ -37,7 +37,7 @@ export default defineConfig({
       // Starlight's asides and heading links only touch the dirs listed here:
       // docs/ and the root CHANGELOG.md.
       markdown: { processedDirs: [repoRoot] },
-      // Compositor configs in the Linux guides read well as ini.
+      // Compositor configs in the Linux guides highlight as ini.
       expressiveCode: { shiki: { langAlias: { sway: 'ini', hyprlang: 'ini' } } },
       customCss: ['./src/styles/theme.css'],
       components: {

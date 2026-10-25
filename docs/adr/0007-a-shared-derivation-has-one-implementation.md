@@ -3,66 +3,66 @@
 **Status**: accepted
 
 The same arithmetic is written once per platform backend in several places
-here, and the copies are not kept honest by anything. Two live instances. The
-subgrid breakpoints — where the nine cells of a 3×3 subgrid fall inside one
-grid cell — exist four times: once in the domain, deciding where the cursor
+here, and the copies are not kept honest by anything. There are two live instances. The
+subgrid breakpoints, where the nine cells of a 3×3 subgrid fall inside one
+grid cell, exist four times: once in the domain, deciding where the cursor
 lands (`internal/domain/grid/manager.go`), and once per overlay backend,
 deciding where the cell is drawn (`internal/adapter/overlay/render/grid/overlay_darwin.go`,
 `internal/adapter/overlay/linux/overlay_shared_cgo.go`,
 `internal/adapter/overlay/windows/overlay.go`), with the 0.5 they round by
-declared five times over. They agree today; nothing makes them, and
+declared five times over. They agree today, but nothing makes them agree, and
 a disagreement is a cursor that lands somewhere other than the cell a person
-selected. The font generic-alias parser existed three times and **did** diverge:
+selected. The font generic-alias parser existed three times and **did** diverge.
 `sans_serif` resolved on macOS and Windows and fell through as a literal family
 name on Linux, whitespace was trimmed on Linux only, and the Windows copy had a
 `case "sans-serif"` its own normalisation had already made unreachable.
 
 We decided the rule this repo had already been following twice without naming
-it: **a value more than one layer computes from the same inputs has exactly
+it. **A value more than one layer computes from the same inputs has exactly
 one implementation, and it lives at the lowest layer that has more than one
-caller.** *Shared derivation* is the word for such a value; `CONTEXT.md`
+caller.** *Shared derivation* is the word for such a value, and `CONTEXT.md`
 carries it.
 
-The part worth recording is the second half — *lowest layer with more than one
+The part worth recording is the second half, *lowest layer with more than one
 caller*, not "the domain". Nothing outside the three platform font resolvers
 cares what "sans" means, so the parser this ADR ships with went to
 `internal/adapter/platform/fontgeneric`, an untagged package among tagged
-siblings, and each backend kept the one thing that is genuinely its own: which
+siblings, and each backend kept the one thing that is its own: which
 concrete family its sans, serif and mono are. Both precedents say the same.
 `internal/adapter/overlay/render/badge` is untagged, tested, and imported by the
-Linux and Windows backends and both render style packages — badge sizing is not
-a domain concept, it is a thing every renderer has to agree on.
+Linux and Windows backends and both render style packages. Badge sizing is not
+a domain concept but a thing every renderer has to agree on.
 `internal/domain/grid/subgrid_keys.go` is in the domain because the set a
 subgrid is drawn with and the set it is navigated by have to be one set, and one
-of those callers is the domain. Neither package was created by this ADR; they
+of those callers is the domain. This ADR created neither package. They
 are the precedent, not the exception.
 
 ## Considered options
 
 - **Put every shared derivation in `internal/domain`.** The reading the
   hexagon suggests, and it is too strong. It would move fontconfig-flavoured
-  alias vocabulary — "sans", "monospace", the fontconfig spelling of a font
-  request — into the pure core to serve three adapters and nobody else, and the
+  alias vocabulary, such as "sans", "monospace" and the fontconfig spelling of a
+  font request, into the pure core to serve three adapters and nobody else, and the
   next contributor would reasonably read that as licence for the domain to
   learn about GDI. The domain earns a derivation when the domain is one of the
-  callers, which is exactly why `SubgridKeys` is there and `fontgeneric` is not.
+  callers, which is why `SubgridKeys` is there and `fontgeneric` is not.
 - **Leave the copies and pin them with a cross-package test.** Cheaper than any
   move, and it is the right answer in exactly one place (below). Rejected as the
-  default: a test that asserts four implementations agree still ships four
+  default, because a test that asserts four implementations agree still ships four
   implementations to maintain, and it can only compare the cases somebody
-  thought to write down. The font parser is the demonstration — the three
+  thought to write down. The font parser shows this. The three
   copies were close enough to look deliberate and different enough to be a bug.
 - **Extract pure-but-private logic for testability alone.** The Windows
-  software rasterizer — ~310 lines of alpha blending and SDF rounded-box maths
-  in `internal/adapter/platform/windows/overlay.go` — is pure Go, platform-free
+  software rasterizer, ~310 lines of alpha blending and SDF rounded-box maths
+  in `internal/adapter/platform/windows/overlay.go`, is pure Go, platform-free
   in everything but its build tag, and it stays where it is. It has one caller
   and no second implementation to disagree with, and `.github/workflows/ci.yml`
-  already runs `test` on all three operating systems, so it is testable today;
-  nobody has written the tests. Extracting it would buy a package boundary and a
+  already runs `test` on all three operating systems, so it is testable today.
+  Nobody has written the tests. Extracting it would buy a package boundary and a
   test suite the maintainer cannot run locally, which is how tests rot.
   Divergence is the problem this ADR addresses. Build tags are not.
 - **Move the Objective-C copies into Go too, for completeness.** Rejected, and
-  the exclusion is deliberate rather than pending — see below.
+  the exclusion is deliberate rather than pending. See below.
 
 ## Consequences
 
@@ -72,13 +72,13 @@ are the precedent, not the exception.
   the second implementation is in another language, Go cannot be the one
   implementation, and what this rule asks for there is a test pinning the copies
   together, not a deletion. Moving that geometry into Go would mean changing what
-  crosses the cgo boundary — that is the overlay-port work, and doing it under
+  crosses the cgo boundary. That is the overlay-port work, and doing it under
   this rule would be that redesign arriving without its design. The first such
-  pin landed with the placement vocabulary (#1289): the three values are
+  pin landed with the placement vocabulary (#1289). The three values are
   declared once in Go, and `internal/architecture/hint_placement_vocabulary_test.go`
   holds that declaration, the macros in `internal/adapter/platform/darwin/overlay.h`
   and the `HintPlacement` enum to the same numbering. It pins *which placement
-  each value means*, not where the badge is then drawn — `hintRectForPlacement:`
+  each value means*, not where the badge is then drawn. `hintRectForPlacement:`
   remains a single Objective-C implementation with no Go counterpart to
   disagree with. Two more pins followed, where the copy was a rule rather than
   a constant. They covered the recursive-grid label-autohide rule (#1298) and
@@ -109,52 +109,51 @@ are the precedent, not the exception.
   because neither can import `internal/domain/keyvocab`, held to that package by
   `internal/architecture/keyvocab_wire_test.go`. That one predates this ADR and
   is the precedent the placement-vocabulary pin followed. The fifth is the first
-  pin over a *list*: the named keys, retyped twice in Objective-C —
+  pin over a *list*. It covers the named keys, retyped twice in Objective-C.
   `gSpecialNameToCodeMap` in `keymap_darwin.m` turns a written binding into a
-  keycode, `specialKeyName` in `eventtap_darwin.m` turns a keystroke back into a
-  name — held to `internal/domain/keyvocab` and to each other by
-  `internal/architecture/named_key_tables_test.go`. What that pin had to be
-  honest about is that the two tables are not copies: the inbound one carries
+  keycode, and `specialKeyName` in `eventtap_darwin.m` turns a keystroke back
+  into a name. `internal/architecture/named_key_tables_test.go` holds both to
+  `internal/domain/keyvocab` and to each other. What that pin had to account
+  for is that the two tables are not copies. The inbound one carries
   the `Enter` and `Backspace` aliases and the outbound one must not, or one
   keystroke would reach the mode handler under two spellings. So the pin derives
   each table's expected contents from the vocabulary rather than from the other
-  table, and states the three deliberate absences out loud — F21–F24 and
+  table, and states the three deliberate absences explicitly. They are F21 to F24 and
   `Insert`, checked against the `KeyCode` enum so a gap that stops being a
-  keycode gap fails, and `Clear`, which the numpad fold spells precisely because
-  no binding can be written for it. The numpad folds from #1372 are on the
+  keycode gap fails, and `Clear`, which the numpad fold spells because no
+  binding can be written for it. The numpad folds from #1372 are on the
   keymap side only, correct because every path that can be handed a numpad
   keycode also asks `NeruKeyCodeToName` or `NeruKeyCodeToCharacter`, which
-  carry the folds; the pin holds what a fold may spell, not which key folds
-  where, which `keymap_integration_darwin_test.go` owns — on a tagged,
-  macOS-only run, so deleting a fold outright is caught there and not by the
-  pin.
+  carry the folds. The pin holds what a fold may spell, not which key folds
+  where. `keymap_integration_darwin_test.go` owns that on a tagged, macOS-only
+  run, so that test catches a fold deleted outright, and the pin does not.
 
   The sixth is a list again, and the first list whose Go side this package
   cannot link: what each keysym the keypad reports is called. That is decided
   in `neru_normalize_xkb_name`
   (`internal/adapter/platform/linux/wayland_keymap.c`) and transcribed into Go
-  three times — the keysym cascade in
+  three times: the keysym cascade in
   `internal/adapter/eventtap/linux/x11_cgo.go` (#1385), `evdevKeyNames` in
   `internal/adapter/eventtap/linux/evdev_keys.go` (#1399), and the test tables
   mirroring both, which carry `want` columns of their own and so are a copy and
   not a reading of one. `internal/architecture/wayland_keypad_folds_test.go`
   holds all four to the C source. What it had to do differently is read the Go
-  copies as text as well as the C one: both are behind `//go:build linux` and
-  one behind cgo besides, so an untagged package cannot reference them, where
+  copies as text as well as the C one. Both are behind `//go:build linux` and
+  one is behind cgo besides, so an untagged package cannot reference them, where
   the pins above hold their native side to a Go declaration they import.
   `hint_placement_vocabulary_test.go` already reads one build-tagged Go
-  function with `go/ast` for that reason; this is the same move over two whole
+  function with `go/ast` for that reason. This is the same move over two whole
   tables and the two test tables mirroring them. It declares per keysym which
-  copy must carry the name: the keypad operators and `KP_Decimal` reach the X11 tap through
+  copy must carry the name. The keypad operators and `KP_Decimal` reach the X11 tap through
   XLookupString's character branch rather than through the cascade, `KP_Enter`
   reaches it the way the main `Return` key does, and `KP_Decimal` is the
   NumLock-on keysym of the key the evdev fallback names through `KP_Delete`.
   Each of those absences fails the day it stops being one, and `KP_Decimal`,
-  excused from both, is held for presence only — no Go table spells the name
+  excused from both, is held for presence only. No Go table spells the name
   that row gives, so it is the one keypad row that is not a decision made
-  twice. The same table's rows outside the keypad — the punctuation,
-  `Page_Up`/`Page_Down` and `Caps_Lock` — are read but not pinned, and the
-  reason is a join rather than a judgement: `evdevKeyNames` answers by kernel
+  twice. The same table's rows outside the keypad, which are the punctuation,
+  `Page_Up`/`Page_Down` and `Caps_Lock`, are read but not pinned. The reason
+  is a join rather than a judgement. `evdevKeyNames` answers by kernel
   key code, and only for the keypad does the tree say which keysym a code
   reports, which is what `keypadKeyNameCases` is.
 
@@ -162,59 +161,59 @@ are the precedent, not the exception.
   is the one whose Go side this package can link. `callbackContext`
   (`internal/adapter/platform/darwin/callback_context.h`) is allocated on the C
   heap, retained across two `dispatch_async` hops, and cast straight to
-  `overlayutil.CallbackContext` by the `//export`ed Go side that reads it back;
-  a disagreement is a callback ID and a generation read from the wrong offsets,
+  `overlayutil.CallbackContext` by the `//export`ed Go side that reads it back.
+  A disagreement is a callback ID and a generation read from the wrong offsets,
   and nothing fails to compile.
   `internal/architecture/callback_context_layout_test.go` holds the two to the
   same field names, order and integer widths. It reads the header through
   `readNativeSource` like every pin here and *reflects* over the Go struct
   rather than parsing it, which is the state the sub-key-preview pin above
-  reached only after #1297 gave its Go copy an untagged home: `overlayutil`
+  reached only after #1297 gave its Go copy an untagged home. `overlayutil`
   never had a build tag, so the Go side can be linked on every CI leg, and
-  `reflect` answers with the field order and width the cast actually depends on
+  `reflect` answers with the field order and width the cast depends on
   rather than with the spelling the declaration happens to use. What the pin
   buys differs by leg, because the cgo allocator in
   `internal/adapter/platform/darwin/cstring.go` already catches some of these
-  as compile errors on macOS and nothing catches any of them off it; which
-  cases are left to the pin is written in the pin's own doc comment, where
-  someone editing it will read it.
+  as compile errors on macOS and nothing catches any of them off it. The
+  pin's own doc comment says which cases are left to the pin, where someone
+  editing it will read it.
 
-  That list is the complete set of *pinned* copies, and it is deliberately not a
-  claim that no others exist — sweeping for them while writing the sub-key
-  preview pin turned up more, the nearest one ten lines below it in the same
-  pair of methods: which sub-cell of the preview mini-grid is left blank, the
+  That list is the complete set of *pinned* copies, and it is not a claim that no
+  others exist. Sweeping for them while writing the sub-key preview pin turned
+  up more. The nearest was ten lines below it in the same pair of methods:
+  which sub-cell of the preview mini-grid is left blank, the
   center one when both next-level dimensions are odd, decided in
   `drawSubKeyPreviewInCellRect:` and again in Go. #1297 changed its count and
-  not its status — the Go copy is now `blankSubKeyPreviewIndex`
+  not its status. The Go copy is now `blankSubKeyPreviewIndex`
   (`internal/adapter/overlay/render/recursivegrid/subkeypreview.go`), which
   Linux and Windows both draw from, so the drawing that would otherwise have
   been a third copy is not one. It is still not pinned, and naming it unpinned
   is the honest form of this inventory. #1297 also found a second unpinned
-  difference in the same pair of methods and left it standing: handed fewer keys
+  difference in the same pair of methods and left it standing. Handed fewer keys
   than sub-cells, `drawSubKeyPreviewInCellRect:` refuses the whole mini-grid
-  while `SubKeyPreviewCells` labels what it can. No configuration reaches it —
-  `recursivegrid.Manager` refuses a key mapping of the wrong length and drops a
-  per-depth override that does not match its depth's shape — so correcting
-  either would be a behaviour change on a platform with no bug to fix; it is
+  while `SubKeyPreviewCells` labels what it can. No configuration reaches it,
+  because `recursivegrid.Manager` refuses a key mapping of the wrong length and
+  drops a per-depth override that does not match its depth's shape. Correcting
+  either would be a behaviour change on a platform with no bug to fix, so it is
   written down here rather than pinned. Everywhere else this
   ADR is enforced by there being nothing left to diverge from, and here it is
   enforced only by someone having written the pin. A copy that gains one adds
   itself to this paragraph in the same change.
 - **"Lowest layer with more than one caller" is a judgement someone has to
   make, and it moves.** A derivation with one caller is not shared and should
-  stay private; the second caller is what triggers the move, and the move is
-  cheap precisely because it is a pure function. The failure mode this invites
-  is a `common` package that collects everything a second caller ever touched —
+  stay private. The second caller is what triggers the move, and the move is
+  cheap because it is a pure function. The failure mode this invites
+  is a `common` package that collects everything a second caller ever touched,
   which is why `CONTEXT.md` lists *helper*, *util*, *common code* and *shared
   logic* as the words to avoid. A shared derivation is named for what it
   derives.
 - **This ADR shipped one instance and left two known ones standing.** The font
   parser is collapsed here (#1286). The subgrid breakpoints and the 3×3 written
   five times were filed separately (#1287), because they touch the drawing path on every
-  backend and deserved their own diff; they were collapsed in #1292, where the
+  backend and deserved their own diff. They were collapsed in #1292, where the
   mode layer and all three overlays came to ask `internal/domain/grid` for the
   cells rather than divide the rectangle themselves. Naming the rule before finishing the work
-  is the point: the next platform backend should not have to infer it from two
+  is the point. The next platform backend should not have to infer it from two
   packages that never explained themselves.
 - **A near-miss earns a second name, not one implementation.** #1299 finished
   the centering sweep #1288 started, and what it turned on is a pixel. Two
@@ -222,15 +221,14 @@ are the precedent, not the exception.
   the `center - half, + size` the shared `badge.CenteredIn` already spoke. They
   agree on the near edge always and on the far edge only when the dimension is
   even, so collapsing them would have moved the monitor-select panel's right
-  edge and a hint badge's by a pixel. Both are named now — `badge.CenteredOn`
-  beside `badge.CenteredIn`, each doc comment pointing at the other — and the
+  edge and a hint badge's by a pixel. Both are named now, `badge.CenteredOn`
+  beside `badge.CenteredIn`, with each doc comment pointing at the other. The
   sites that hang a static rectangle on a point (hint badges, the hint boundary
   highlight, the monitor-select panel) call one of them on both Linux and
   Windows. The animated indicators are left out on purpose, and each says so
-  where it is written: the virtual pointer floors its half at one pixel, and
+  where it is written. The virtual pointer floors its half at one pixel, and
   the mouse-action indicator rounds a float diameter on Linux and places a
-  native window on Windows, so neither is this derivation wearing a different
-  spelling. This rule asks for one implementation per derivation; two
-  derivations that merely look alike are the case where the honest answer is to
-  say so out loud, because a near-miss is exactly what a later reader
-  "simplifies".
+  native window on Windows, so neither is this derivation under a different
+  spelling. This rule asks for one implementation per derivation. Two
+  derivations that only look alike are the case where the right answer is to
+  say so explicitly, because a near-miss is what a later reader "simplifies".

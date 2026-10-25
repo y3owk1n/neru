@@ -14,8 +14,8 @@ import (
 
 // The GDI surface: a layered window updated from one persistent DIB section.
 //
-// It is the fallback for a desktop DirectComposition cannot serve — a session
-// with no D3D device, or a build for an architecture the pure-Go Direct2D
+// It is the fallback for a desktop DirectComposition cannot serve, such as a
+// session with no D3D device, or a build for an architecture the pure-Go Direct2D
 // binding cannot call (overlay_dcomp_other.go). The DIB is created once and
 // painted in place, so a frame costs its own commands plus one
 // UpdateLayeredWindowIndirect of the rectangle it changed, and nothing is
@@ -296,7 +296,7 @@ func (s *gdiSurface) present(dirty image.Rectangle) {
 // the overlay UI thread, so it needs no lock.
 //
 // Before this cache a label cost a DC, a DIB and a font created and destroyed
-// around one DrawText — and realizing the font is the slow part of that. A
+// around one DrawText, and realizing the font is the slow part of that. A
 // grid of several hundred cells paid it several hundred times per keystroke.
 type gdiTextRenderer struct {
 	scratch *dibSection
@@ -313,7 +313,7 @@ type fontKey struct {
 var gdiTextCache *gdiTextRenderer
 
 // gdiText returns the process's text renderer, creating it on first use. Its
-// scratch DC is created on the first label; a label it cannot create one for
+// scratch DC is created on the first label. A label it cannot create one for
 // is skipped.
 func gdiText() *gdiTextRenderer {
 	if gdiTextCache == nil {
@@ -389,7 +389,7 @@ func createGDIFont(family string, pixelSize int, bold bool) (uintptr, error) {
 	}
 
 	// A negative height is the character height, which is what the
-	// configured size means; a positive one would include internal leading.
+	// configured size means. A positive one would include internal leading.
 	hFont, _, _ := procCreateFontW.Call(
 		uintptr(-pixelSize), 0, 0, 0, weight, 0, 0, 0, 1, 0, 0, 0, 0,
 		uintptr(unsafe.Pointer(fontName)),
@@ -401,7 +401,7 @@ func createGDIFont(family string, pixelSize int, bold bool) (uintptr, error) {
 	return hFont, nil
 }
 
-// paint draws one text command into pixels: the glyphs are rendered white
+// paint draws one text command into pixels. The glyphs are rendered white
 // into the scratch DIB and composited in the command's color.
 func (r *gdiTextRenderer) paint(pixels []byte, bufW, bufH int, cmd drawCmd) {
 	textRect := cmd.rect.Intersect(image.Rect(0, 0, bufW, bufH))

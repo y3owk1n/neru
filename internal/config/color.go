@@ -108,22 +108,15 @@ func (c *Color) ForTheme(theme ThemeProvider, defaultLight, defaultDark string) 
 	}
 
 	if theme != nil && theme.IsDarkMode() {
-		if dark != "" {
-			return dark
-		}
-
-		return defaultDark
+		return dark
 	}
 
-	if light != "" {
-		return light
-	}
-
-	return defaultLight
+	return light
 }
 
-// ForThemeWithOverride resolves a color with a three-tier fallback:
-// per-mode override (receiver) → shared UI default → hardcoded default.
+// ForThemeWithOverride resolves a color with a three-tier fallback. The
+// per-mode override (the receiver) wins, then the shared UI default, then the
+// hardcoded default.
 func (c *Color) ForThemeWithOverride(
 	uiDefault Color,
 	theme ThemeProvider,

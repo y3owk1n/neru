@@ -12,9 +12,9 @@ import (
 
 // Flags shared by several actions, named so the table stays readable.
 //
-// Flag support is declarative: an action declares what it accepts and
+// Flag support is declarative. An action declares what it accepts and
 // rejectUnsupportedFlags refuses the rest, once, before dispatch. The
-// per-handler reject lists this replaced had drifted — backspace silently
+// per-handler reject lists this replaced had drifted. Backspace silently
 // accepted --steps, --toggle and --backward, added to the parser after the list
 // was written. Forgetting an entry here is now a rejection, not a dropped
 // flag.
@@ -34,7 +34,7 @@ var (
 
 // actionFlagSupport maps an action name to the flags it accepts.
 //
-// feed and sleep are absent on purpose: both consume their raw arguments
+// feed and sleep are absent on purpose, because both consume their raw arguments
 // before flag parsing runs, so they never reach this check.
 var actionFlagSupport = map[string][]string{
 	string(action.NameLeftClick):   clickFlags,
@@ -64,7 +64,7 @@ var actionFlagSupport = map[string][]string{
 	string(action.NameBisect):            {flagDirection, flagCount},
 
 	// The bare scroll name is only reachable from a hotkey string or raw IPC
-	// and takes no flags; the directional sub-actions below are the usable form.
+	// and takes no flags. The directional sub-actions below are the usable form.
 	string(action.NameScroll):      {},
 	string(action.NameScrollUp):    steppedScrollFlags,
 	string(action.NameScrollDown):  steppedScrollFlags,
@@ -142,7 +142,7 @@ func allowedFlagsFor(actionName string) ([]string, bool) {
 			return nil, false
 		}
 
-		// Clone before narrowing: the table's slices are shared between
+		// Clone before narrowing. The table's slices are shared between
 		// actions, so DeleteFunc must not run on one of them in place.
 		if index == 0 {
 			allowed = slices.Clone(flags)

@@ -36,7 +36,6 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 			t.Error("Expected not complete on two characters")
 		}
 
-		// Test typing "d" - still not complete
 		result3 := gridRouter.RouteKey("d")
 
 		if result3.Complete() {
@@ -80,10 +79,10 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 		}
 
 		// Tab is not one of the grid's coordinate characters and no subgrid is
-		// active here, so it must be rejected outright: no completion, and —
-		// just as important — no effect on the coordinate input the user has
-		// typed so far. An unmapped key that silently landed in the input
-		// buffer would desynchronise the overlay from the manager.
+		// active here, so it must be rejected outright. It must not complete,
+		// and it must not touch the coordinate input the user has typed so far.
+		// An unmapped key that silently landed in the input buffer would
+		// desynchronise the overlay from the manager.
 		beforeInput := gridManager.CurrentInput()
 
 		resultTab := gridRouter.RouteKey("\t")
@@ -221,7 +220,6 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 	logger := logger.Get()
 
-	// Create grid with custom labels containing symbols
 	testGrid := grid.NewGridWithLabels("ABC", "',.PYF", "AOEU", image.Rect(0, 0, 300, 300), logger)
 
 	validChars := testGrid.ValidCharacters()
@@ -392,7 +390,7 @@ func TestManager_InputValidation(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want 'A' (invalid char should be rejected)", input)
 	}
 
-	// Test 4: Backspace should still work through explicit manager API
+	// Backspace still works through the explicit manager API.
 	_, complete = manager.HandleBackspace()
 	if complete {
 		t.Error("Expected not complete after backspace")
@@ -402,7 +400,7 @@ func TestManager_InputValidation(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want '' after backspace", input)
 	}
 
-	// Test 5: Completely invalid character (not in valid characters) should be rejected
+	// A character outside the valid characters is rejected.
 	_, complete = manager.HandleInput("9") // 9 is not in valid characters "ABC"
 	if complete {
 		t.Error("Expected not complete for invalid character")
@@ -412,7 +410,7 @@ func TestManager_InputValidation(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want '' (invalid char should be rejected)", input)
 	}
 
-	// Test 6: Valid partial input should be accepted
+	// A valid partial input is accepted.
 	manager.Reset()
 
 	_, complete = manager.HandleInput("B")
@@ -435,11 +433,10 @@ func TestManager_InputValidation(t *testing.T) {
 }
 
 func TestManager_PrefixValidationRegression(t *testing.T) {
-	// Regression test specifically for the issue where typing invalid sequences
-	// would cause the grid to become empty
+	// Typing an invalid sequence used to leave the grid empty.
 	logger := logger.Get()
 
-	// Create a grid with known coordinates: AA, AB, BA, BB (for "AB" characters)
+	// A grid labeled from the two characters A and B.
 	testGrid := grid.NewGrid("AB", image.Rect(0, 0, 100, 100), logger)
 	manager := grid.NewManager(
 		testGrid,
@@ -450,7 +447,6 @@ func TestManager_PrefixValidationRegression(t *testing.T) {
 		logger,
 	)
 
-	// Get all coordinates
 	cells := testGrid.AllCells()
 
 	coordinates := make([]string, len(cells))
@@ -458,7 +454,6 @@ func TestManager_PrefixValidationRegression(t *testing.T) {
 		coordinates[i] = cell.Coordinate()
 	}
 
-	// Test that we can build up valid coordinates
 	testCoord := coordinates[0] // Test with first coordinate "AAAA"
 
 	manager.Reset()
@@ -498,7 +493,7 @@ func TestManager_PrefixValidationRegression(t *testing.T) {
 		}
 	}
 
-	// Test that invalid characters are rejected
+	// Invalid characters are rejected.
 	manager.Reset()
 
 	_, complete := manager.HandleInput("Z") // Z is not in valid character set "AB"
@@ -510,15 +505,13 @@ func TestManager_PrefixValidationRegression(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want '' for invalid character", input)
 	}
 
-	// Test that valid partial prefix works - derive from actual coordinate
-	// Use a prefix that's shorter than the complete coordinate
-	prefixLength := len(testCoord) - 1 // One character shorter than complete
+	// A prefix one character shorter than a real coordinate is accepted.
+	prefixLength := len(testCoord) - 1
 	if prefixLength > 0 {
 		validPrefix := testCoord[:prefixLength]
 
 		manager.Reset()
 
-		// Type each character of the prefix
 		for index, char := range validPrefix {
 			_, complete := manager.HandleInput(string(char))
 			if complete {

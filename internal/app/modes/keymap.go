@@ -3,9 +3,9 @@ package modes
 // The keymap the handler dispatches keys against, and the focused app it is
 // settled for.
 //
-// A keystroke consults a keymap; it never builds one and it never asks the
+// A keystroke consults a keymap. It never builds one and it never asks the
 // operating system anything. What settles one is a change of mode, of focused
-// app, or of configuration — and the focused app is learned by being told,
+// app, or of configuration, and the focused app is learned by being told,
 // which is what keeps the keystroke path free of a call that can block on
 // another process. ADR 0005 records the decision and the alternatives it turned
 // down.
@@ -13,7 +13,7 @@ package modes
 // Entering a mode and replacing the configuration settle where they happen,
 // because both are entry points the handler takes anyway and both are moments
 // the user is already waiting on. A focused-app change settles on the next read
-// instead, from what the watcher published — which is why no keystroke has
+// instead, from what the watcher published, which is why no keystroke has
 // anything to ask.
 
 import (
@@ -28,7 +28,7 @@ import (
 // focusedAppCell holds the focused app the application watcher last announced.
 //
 // It is written without any lock and read under h.mu, which is the whole point
-// of it: the watcher runs its callbacks inline under its own read lock, and on
+// of it. The watcher runs its callbacks inline under its own read lock, and on
 // macOS the notification arrives on the main queue, where taking h.mu is
 // forbidden (internal/app/modes/AGENTS.md). An atomic cell is what lets the
 // publisher and the handler meet without one waiting on the other.
@@ -39,16 +39,16 @@ import (
 // the hints probe do.
 type focusedAppCell struct {
 	// identifier is nil until something publishes. A platform with no focus
-	// watcher never does; macOS publishes when the user first switches
+	// watcher never does. macOS publishes when the user first switches
 	// application, and the Linux watcher samples once as it starts.
 	//
-	// An empty identifier is a legitimate publication, not an absent one: an
+	// An empty identifier is a legitimate publication, not an absent one. An
 	// application the platform cannot name is one no per-app override can
 	// match, and saying so beats leaving the app before it in force.
 	identifier atomic.Pointer[string]
 }
 
-// publish records the focused app. It takes no lock — see the type comment
+// publish records the focused app. It takes no lock. See the type comment
 // before making it take one.
 //
 // A handler assembled without a cell (only a test does that) publishes
@@ -82,7 +82,7 @@ func (c *focusedAppCell) published() (string, bool) {
 //
 // It takes no lock, and that is a requirement rather than an optimization. The
 // application watcher calls this inline under its own read lock and, on macOS,
-// on the main queue — and nothing running on the main queue may take h.mu, or
+// on the main queue, and nothing running on the main queue may take h.mu, or
 // the dispatch_sync this handler makes while holding it deadlocks
 // (internal/app/modes/AGENTS.md). So this writes an atomic cell and the handler
 // settles the keymap lazily, inside a locked entry point it was going to enter
@@ -91,7 +91,7 @@ func (h *Handler) PublishFocusedApp(focusedApp string) {
 	h.focusedApp.publish(focusedApp)
 }
 
-// keymapInputs is everything the settled keymap depends on: change one of them
+// keymapInputs is everything the settled keymap depends on. Change one of them
 // and the bindings in force can differ, change none and the keymap in hand is
 // still the answer. It is comparable, so settling is one equality rather than
 // an invalidation flag per trigger.
@@ -107,9 +107,9 @@ type keymapInputs struct {
 	// false when the active mode declares no per-app overrides, because then no
 	// answer could change what is bound and there is nothing to learn.
 	//
-	// Both are part of the comparison on purpose: while nothing publishes, the
+	// Both are part of the comparison on purpose. While nothing publishes, the
 	// inputs stay equal and the answer already asked for stands, so a keystroke
-	// never asks again — see resolveFocusedApp.
+	// never asks again. See resolveFocusedApp.
 	focusedApp string
 	mustAsk    bool
 }
@@ -129,7 +129,7 @@ func (inputs keymapInputs) keymapModeName() string {
 // were.
 //
 // This is what key dispatch consults first, and it is deliberately the only
-// place the three merge sites became: whoever needs to know what a mode binds
+// place the three merge sites became. Whoever needs to know what a mode binds
 // reads this rather than merging a copy of their own.
 //
 // Caller must hold h.mu.
@@ -139,15 +139,12 @@ func (h *handlerState) settledKeymap() configpkg.Keymap {
 	return h.keymap
 }
 
-// settledKeymaps returns both tables in force: the active mode's own, and the
-// global chords it falls back to.
-//
-// The first return is the active mode's own table and the second is the global
-// one it falls back to, in the order dispatch asks them.
+// settledKeymaps returns both tables in force, in the order dispatch asks them:
+// the active mode's own, then the global chords it falls back to.
 //
 // It exists so a caller that needs the pair settles once. Key dispatch is that
-// caller, and asking twice put a second keymapInputs — an [[app_configs]] scan
-// and a mode-extension assertion among it — on every keystroke, which is the
+// caller, and asking twice put a second keymapInputs (an [[app_configs]] scan
+// and a mode-extension assertion among it) on every keystroke, which is the
 // kind of cost the event tap's position on every keystroke makes it wrong to pay
 // (root AGENTS.md, Product Direction).
 //
@@ -158,11 +155,11 @@ func (h *handlerState) settledKeymaps() (configpkg.Keymap, configpkg.Keymap) {
 	return h.keymap, h.globalHotkeys
 }
 
-// settleKeymaps settles both tables in force — the mode's own and the global
-// fallback — if any of their shared inputs has changed since they last were.
+// settleKeymaps settles both tables in force (the mode's own and the global
+// fallback) if any of their shared inputs has changed since they last were.
 //
-// One settling for the two of them is what keeps the focused app resolved once:
-// asking the platform for it is the call ADR 0005 keeps off the keystroke path,
+// One settling for the two of them is what keeps the focused app resolved once.
+// Asking the platform for it is the call ADR 0005 keeps off the keystroke path,
 // so a second table may not mean a second ask.
 //
 // Caller must hold h.mu.
@@ -181,7 +178,7 @@ func (h *handlerState) settleKeymaps() {
 		h.keymap = inputs.config.ResolveKeymap(inputs.keymapModeName(), focusedApp)
 
 		// Idle takes no fallback. Nothing is captured there, so the platform's
-		// own hotkey mechanism is what runs a global binding — and a key fed
+		// own hotkey mechanism is what runs a global binding, and a key fed
 		// over IPC into idle must not fire one behind its back.
 		if inputs.mode != domain.ModeIdle {
 			h.globalHotkeys = inputs.config.ResolveGlobalKeymap(focusedApp).ModifierChords()
@@ -199,7 +196,7 @@ func (h *handlerState) settleKeymaps() {
 }
 
 // keymapInputs reads what the keymap depends on. It asks the platform nothing,
-// so it is safe to call on every keystroke: that is what makes "has anything
+// so it is safe to call on every keystroke. That is what makes "has anything
 // changed" cheap enough to answer before every dispatch.
 //
 // Caller must hold h.mu.
@@ -226,8 +223,8 @@ func (h *handlerState) keymapInputs() keymapInputs {
 // focusedAppCanChangeWhatIsBound reports whether which application is focused
 // can change the answer a keystroke gets.
 //
-// Two tables are in force while a mode is open — the mode's own and the global
-// one it falls back to — and either of them carrying a per-app override is
+// Two tables are in force while a mode is open (the mode's own and the global
+// one it falls back to), and either of them carrying a per-app override is
 // enough to make the focused app worth learning. The global half is asked only
 // outside idle, because that is where the fallback exists at all.
 //
@@ -247,11 +244,11 @@ func (h *handlerState) focusedAppCanChangeWhatIsBound(mode domain.Mode) bool {
 // nothing has.
 //
 // Asking happens only here, and only while a keymap settles for a mode being
-// entered or a configuration being replaced — never on a keystroke, which is
+// entered or a configuration being replaced, never on a keystroke, which is
 // the whole point. A keystroke can only re-settle from something the watcher
 // published, and something published is never asked for. Where a watcher exists
-// the platform is asked at most until it first fires; where none does — a Linux
-// session whose compositor exposes no focused-app source — it is asked once per
+// the platform is asked at most until it first fires. Where none does (a Linux
+// session whose compositor exposes no focused-app source) it is asked once per
 // mode opened, and there overrides settle when the mode opens rather than the
 // instant the user switches apps.
 //

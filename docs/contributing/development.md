@@ -80,7 +80,7 @@ gofumpt and golines are optional, through `go install`.
 | `just test-desktop` | Integration including the tests that drive the real cursor, keyboard and overlays |
 | `just test-foundation` | Fast cross-platform-safe slice, CI runs it too |
 | `just test-race`, `test-race-unit`, `test-race-integration` | The same tiers with `-race` |
-| `just test-all` | `test` and `test-race`, desktop tests included: the deepest sweep |
+| `just test-all` | `test` and `test-race`, desktop tests included, the deepest local check |
 | `just test-ci` | What CI gates on: foundation, unit, race-unit, short integration |
 | `just test-linux` | Run the Linux test suite in a CI-equivalent container (Docker) |
 | `just coverage`, `coverage-html` | Unit coverage as a total, or as a browsable `coverage.html` |
@@ -162,9 +162,9 @@ go build -trimpath -o bin/neru \
 
 Before or during Linux or Windows work, run `just build && just test-foundation`.
 `just test-foundation` runs every package whose behavior is identical on all
-three platforms, so a failure there is a real cross-platform regression. Only
-the target OS can run `just test` meaningfully, because integration tests are
-tagged per OS.
+three platforms, so a failure there is a real cross-platform regression. `just test`
+is complete only on the target OS, because integration tests are tagged per
+OS.
 
 - `just build-windows` cross-compiles from any host, with CGO off.
 - `just build-linux` refuses unless the C compiler targets Linux, because Linux
@@ -308,7 +308,7 @@ the Commands table of the [IPC protocol](../reference/ipc.md#commands), which
 [ipc_reference_test.go](../../internal/architecture/ipc_reference_test.go)
 checks. When a reply type changes, run `just genschema`, or
 [ipc_schema_test.go](../../internal/architecture/ipc_schema_test.go) fails.
-The `neru-add-cli-command` skill walks it.
+The `neru-add-cli-command` skill walks through these steps.
 
 **Mode flags**: add one entry to the descriptor table in
 `internal/domain/modecmd`, then run `just genflagref`. The entry registers the

@@ -38,6 +38,6 @@ func (a *App) setupThemeObserver() {
 	}()
 }
 
-// No teardown closure is registered on Windows: the poll goroutine is stopped
+// No teardown closure is registered on Windows. The poll goroutine is stopped
 // by app context cancellation (a.cancel runs before stopThemeObserver in
 // Cleanup, so <-a.ctx.Done() fires first).

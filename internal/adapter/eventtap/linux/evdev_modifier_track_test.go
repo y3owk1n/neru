@@ -4,7 +4,7 @@ package linux
 
 // Both consumers of the proxy track held modifiers through this one helper. What
 // must never happen is a count going negative, because prefix() reads a modifier
-// as held only above zero and a chord then stops matching for good; a release
+// as held only above zero and a chord then stops matching for good. A release
 // with no press behind it is reported, not counted.
 
 import "testing"
@@ -85,7 +85,7 @@ func TestWaylandEvdevKeyState_TrackModifier(t *testing.T) {
 }
 
 // With no keymap to ask, the proxy falls back to the scan-code table rather than
-// answering nothing — the names a us layout would give.
+// answering nothing. Those are the names a us layout would give.
 func TestWaylandEvdevCapture_NamesFallBackToTheScanCodeTable(t *testing.T) {
 	t.Parallel()
 
@@ -103,7 +103,7 @@ func TestWaylandEvdevCapture_NamesFallBackToTheScanCodeTable(t *testing.T) {
 		t.Errorf("modifierName(semicolon) = %q, want no modifier", got)
 	}
 
-	// Feeding a capture that has no keymap is a no-op rather than a crash: the
+	// Feeding a capture that has no keymap is a no-op rather than a crash, because the
 	// proxy feeds every key it reads and may never have got a keymap.
 	capture.feedKey(evdevKeySemicolon, true)
 }

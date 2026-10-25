@@ -48,9 +48,9 @@ func (r *deltaRecorder) count() int {
 	return len(r.deltas)
 }
 
-// TestRelativeCursorAnimatorDrainsExactly pins the core invariant: the posted
-// chunks sum exactly to the requested delta — nothing lost to rounding — and
-// the motion is chunked, not a single warp-sized jump.
+// TestRelativeCursorAnimatorDrainsExactly pins the core invariant. The posted
+// chunks sum exactly to the requested delta, with nothing lost to rounding,
+// and the motion is chunked, not a single warp-sized jump.
 func TestRelativeCursorAnimatorDrainsExactly(t *testing.T) {
 	t.Parallel()
 
@@ -78,7 +78,7 @@ func TestRelativeCursorAnimatorDrainsExactly(t *testing.T) {
 }
 
 // TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum is the drain twin
-// of TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum: this
+// of TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum. This
 // animator floors a below-floor drain at the same
 // config.MinSmoothCursorAnimationDuration, so a gesture asked for in more
 // chunks than the floor can schedule posts exactly one chunk per
@@ -92,7 +92,7 @@ func TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum(t *testing.T) {
 	rec := &deltaRecorder{}
 	animator := newRelativeCursorAnimator(rec.moveBy)
 
-	// Sized so every scheduled chunk carries at least one pixel; a chunk that
+	// Sized so every scheduled chunk carries at least one pixel. A chunk that
 	// rounded to zero would post nothing and undercount the schedule.
 	delta := image.Point{X: 10 * wantChunks, Y: 0}
 	animator.addDelta(delta, wantChunks*100, 1)
@@ -116,8 +116,8 @@ func TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum(t *testing.T) {
 }
 
 // TestRelativeCursorAnimatorComposesConcurrentDeltas pins that deltas folded
-// in from concurrent movers all reach the compositor — the drain equivalent
-// of the absolute animator's pending-endpoint extension.
+// in from concurrent movers all reach the compositor. It is the drain
+// equivalent of the absolute animator's pending-endpoint extension.
 func TestRelativeCursorAnimatorComposesConcurrentDeltas(t *testing.T) {
 	t.Parallel()
 
@@ -147,7 +147,7 @@ func TestRelativeCursorAnimatorComposesConcurrentDeltas(t *testing.T) {
 	}
 }
 
-// TestRelativeCursorAnimatorSettleFlushesRemainder pins settle(): an action
+// TestRelativeCursorAnimatorSettleFlushesRemainder pins settle(). An action
 // firing mid-drain must receive the full accumulated motion immediately, as
 // one final native flush, and waiters must be released.
 func TestRelativeCursorAnimatorSettleFlushesRemainder(t *testing.T) {
@@ -175,7 +175,7 @@ func TestRelativeCursorAnimatorSettleFlushesRemainder(t *testing.T) {
 	}
 }
 
-// TestRelativeCursorAnimatorStopDiscardsRemainder pins stop(): an absolute
+// TestRelativeCursorAnimatorStopDiscardsRemainder pins stop(). An absolute
 // move superseding the drain discards what has not been posted yet, and no
 // canceled chunk lands after the stop fence.
 func TestRelativeCursorAnimatorStopDiscardsRemainder(t *testing.T) {
@@ -237,7 +237,7 @@ func (smoothOnProvider) Get() *config.Config {
 	return cfg
 }
 
-// TestMoveCursorBySmoothKeepsStubErrorLoud pins the CGO-off contract: with
+// TestMoveCursorBySmoothKeepsStubErrorLoud pins the CGO-off contract. With
 // smooth cursor enabled on a wlroots backend, MoveCursorBy must keep
 // surfacing the nocgo stub's CodeNotSupported instead of laundering it
 // through the best-effort drain, which drops injection errors by design.
@@ -246,7 +246,7 @@ func TestMoveCursorBySmoothKeepsStubErrorLoud(t *testing.T) {
 		t.Skip("only meaningful on CGO-off builds, where the wlroots injector is the loud stub")
 	}
 
-	// No t.Parallel: this mutates the process-global config provider.
+	// No t.Parallel, because this mutates the process-global config provider.
 	SetConfigProvider(smoothOnProvider{})
 	defer SetConfigProvider(nil)
 
@@ -270,10 +270,10 @@ func failingMover(image.Point) error {
 }
 
 // TestRelativeCursorAnimatorInjectionFailureEndsDrainAndFlags pins the
-// failure contract: a failed native motion is not counted as posted, the
+// failure contract. A failed native motion is not counted as posted, the
 // drain ends instead of livelocking on a broken backend, waiters are
-// released, and the failure stays flagged — sending every subsequent move
-// down the loud direct path — until recovery is explicitly proven.
+// released, and the failure stays flagged, sending every subsequent move
+// down the loud direct path, until recovery is explicitly proven.
 func TestRelativeCursorAnimatorInjectionFailureEndsDrainAndFlags(t *testing.T) {
 	t.Parallel()
 

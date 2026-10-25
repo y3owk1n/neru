@@ -67,7 +67,7 @@ func listenAt(t *testing.T, path string, dirPerms os.FileMode) {
 	t.Cleanup(func() { _ = listener.Close() })
 }
 
-// The endpoint's own mode must never be the only gate: the directory it sits in
+// The endpoint's own mode must never be the only gate. The directory it sits in
 // is owner-only too, so no other account can even reach the socket to try.
 func TestListen_PutsTheSocketInAnOwnerOnlyDirectory(t *testing.T) {
 	runtimeDir, _ := isolateEndpoint(t)
@@ -239,7 +239,7 @@ func TestPrepareEndpoint_ClearsThisUsersOwnStaleSocket(t *testing.T) {
 }
 
 // A daemon whose environment named no runtime directory listens under the
-// temporary directory instead; a CLI that does have one must still find it.
+// temporary directory instead. A CLI that does have one must still find it.
 func TestClientPath_FindsAnEndpointOutsideTheRuntimeDirectory(t *testing.T) {
 	_, tempDir := isolateEndpoint(t)
 

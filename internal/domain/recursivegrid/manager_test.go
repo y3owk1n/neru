@@ -258,13 +258,14 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	assert.Equal(t, 1, manager.CurrentDepth())
 	assert.False(t, completeCalled)
 
-	// Depth 2 (Max) — reaching max depth does NOT complete; user gets one more selection
+	// Depth 2 (Max). Reaching max depth does NOT complete, and the user gets
+	// one more selection.
 	_, completed := manager.HandleInput("u")
 	assert.False(t, completed, "Should NOT complete when reaching max depth")
 	assert.False(t, completeCalled, "Complete callback should NOT fire yet")
 	assert.Equal(t, 2, manager.CurrentDepth(), "Should be at max depth")
 
-	// Selection AT max depth — this is the final selection that completes
+	// Selection AT max depth is the final selection that completes.
 	point3, completed3 := manager.HandleInput("k") // Select BottomRight of current
 	assert.True(t, completed3, "Should complete on selection at max depth")
 	assert.True(t, completeCalled, "Complete callback should fire")
@@ -352,8 +353,8 @@ func TestManagerWithLayers_SingleColumnValid(t *testing.T) {
 func TestManagerWithLayers_1x1_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
-	// 1×1 is degenerate (cannot subdivide), so both dimensions fall back to default.
-	// "a" has 1 key ≠ expected, so keys also fall back to DefaultKeys.
+	// 1x1 is degenerate (cannot subdivide), so both dimensions fall back to default.
+	// "a" has 1 key != expected, so keys also fall back to DefaultKeys.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"a",
@@ -416,7 +417,7 @@ func TestHandleInput_InvalidKeyLength_FallsBackToDefault(t *testing.T) {
 func TestNewManagerWithLayers_MismatchedDepthKeys_DropsOrphan(t *testing.T) {
 	bounds := image.Rect(0, 0, 120, 100)
 	logger := zap.NewNop()
-	// depthKeys has depth 0, but depthLayouts does not → depth 0 override should be dropped
+	// depthKeys has depth 0, but depthLayouts does not -> depth 0 override should be dropped
 	depthLayouts := map[int]recursivegrid.DepthLayout{}
 	depthKeys := map[int]string{
 		0: "qwerasdf", // 8 keys, but no layout for depth 0
@@ -440,7 +441,7 @@ func TestNewManagerWithLayers_MismatchedDepthKeys_DropsOrphan(t *testing.T) {
 func TestNewManagerWithLayers_MismatchedDepthLayouts_DropsOrphan(t *testing.T) {
 	bounds := image.Rect(0, 0, 120, 100)
 	logger := zap.NewNop()
-	// depthLayouts has depth 0, but depthKeys does not → depth 0 override should be dropped
+	// depthLayouts has depth 0, but depthKeys does not -> depth 0 override should be dropped
 	depthLayouts := map[int]recursivegrid.DepthLayout{
 		0: {GridCols: 3, GridRows: 3},
 	}
@@ -464,12 +465,12 @@ func TestNewManagerWithLayers_MismatchedDepthLayouts_DropsOrphan(t *testing.T) {
 func TestNewManagerWithLayers_KeyCountMismatch_DropsOverride(t *testing.T) {
 	bounds := image.Rect(0, 0, 120, 100)
 	logger := zap.NewNop()
-	// depthLayouts says 3x3 (9 cells), but depthKeys only has 4 keys → mismatch
+	// depthLayouts says 3x3 (9 cells), but depthKeys only has 4 keys -> mismatch
 	depthLayouts := map[int]recursivegrid.DepthLayout{
 		0: {GridCols: 3, GridRows: 3},
 	}
 	depthKeys := map[int]string{
-		0: "abcd", // 4 keys ≠ 9
+		0: "abcd", // 4 keys != 9
 	}
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
@@ -587,7 +588,6 @@ func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 		"Should accept valid multibyte keys",
 	)
 	assert.NotPanics(t, func() {
-		// Test handling a multibyte key input
 		// € is the first key, so it should map to Cell 0 (TopLeft)
 		center, _ := manager.HandleInput("€")
 		// TopLeft of 100x100 is 0,0 to 50,50. Center is 25,25.

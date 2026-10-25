@@ -10,8 +10,8 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/compositorcli"
 )
 
-// Sway window-origin source. `swaymsg -t get_tree` returns the full node tree;
-// the focused node's on-screen content origin is rect + window_rect (window_rect
+// Sway window-origin source. `swaymsg -t get_tree` returns the full node tree.
+// The focused node's on-screen content origin is rect + window_rect (window_rect
 // is the content area relative to rect, i.e. it excludes server-side
 // decorations so it aligns with the AT-SPI content origin).
 type swayOriginSource struct {
@@ -36,7 +36,7 @@ type swayRect struct {
 }
 
 // swayNode mirrors the fields of `swaymsg -t get_tree` we use. rect is the
-// node's absolute geometry; window_rect is the content area relative to rect.
+// node's absolute geometry, and window_rect is the content area relative to rect.
 type swayNode struct {
 	Focused       bool       `json:"focused"`
 	Rect          swayRect   `json:"rect"`
@@ -92,8 +92,8 @@ func swayComputeOrigin(
 		return image.Point{}, false
 	}
 
-	// Content origin/size: prefer window_rect (excludes decorations); fall back
-	// to rect when window_rect carries no size.
+	// Content origin/size: prefer window_rect (excludes decorations), and fall
+	// back to rect when window_rect carries no size.
 	contentW, contentH := focused.WindowRect.Width, focused.WindowRect.Height
 	originX := focused.Rect.X + focused.WindowRect.X
 	originY := focused.Rect.Y + focused.WindowRect.Y

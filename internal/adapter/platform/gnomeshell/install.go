@@ -32,7 +32,7 @@ const (
 	settingsKey     = "enabled-extensions"
 )
 
-// extensionFiles is the extension as shipped: the files under extension/ are
+// extensionFiles is the extension as shipped. The files under extension/ are
 // written verbatim into the user's extensions directory.
 //
 //go:embed extension/extension.js extension/metadata.json
@@ -99,7 +99,7 @@ func Install(dir string) (bool, error) {
 // is serving. What it did comes back as a sentence for the reason the caller
 // records, so the one warning and the doctor detail both carry the next step.
 //
-// A session with no shell on the bus is left alone: a GNOME-labeled session
+// A session with no shell on the bus is left alone. A GNOME-labeled session
 // with nothing to load the files would gain a directory for nobody to read.
 func (b *Bridge) installIfShellIsUp(conn *dbus.Conn) string {
 	b.startMu.Lock()
@@ -145,7 +145,7 @@ func (b *Bridge) installIfShellIsUp(conn *dbus.Conn) string {
 }
 
 // Installed reports whether an extension is on disk at dir, whatever its
-// version: the file the shell requires to list it is there.
+// version, by checking for the file the shell requires to list it.
 func Installed(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, "metadata.json"))
 
@@ -153,8 +153,8 @@ func Installed(dir string) bool {
 }
 
 // enable lists the extension in the shell's enabled-extensions setting so the
-// next login loads it, and reports whether it is listed afterwards. Best
-// effort: the setting is the shell's, and a session without gsettings is told
+// next login loads it, and reports whether it is listed afterwards. It is best
+// effort. The setting is the shell's, and a session without gsettings is told
 // to log out and back in either way.
 func enable() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), enableTimeout)

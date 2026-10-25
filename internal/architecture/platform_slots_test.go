@@ -12,21 +12,20 @@ import (
 
 // These tests enforce the file-layout rules documented in
 // docs/contributing/porting.md ("File Layout Rules"). The rules exist so a
-// contributor can tell what a file is for from its name alone; without a
+// contributor can tell what a file is for from its name alone. Without a
 // guardrail they drift back into ad hoc naming one PR at a time.
-//
-// knownOS lists the GOOS values the repo targets. "unix" is deliberately absent
-// — it is a build-tag family, not a GOOS, and is handled as a named slot below.
 const (
 	osDarwin  = "darwin"
 	osLinux   = "linux"
 	osWindows = "windows"
 )
 
+// knownOS lists the GOOS values the repo targets. "unix" is deliberately absent.
+// It is a build-tag family, not a GOOS, and is handled as a named slot below.
 var knownOS = []string{osDarwin, osLinux, osWindows}
 
 // wholePlatformDirs are packages that are entirely one platform's code. There
-// the directory carries the meaning, so individual files need no OS suffix —
+// the directory carries the meaning, so individual files need no OS suffix,
 // but they must still declare an explicit build tag, which
 // TestPlatformPackagesTagEveryFile checks.
 //
@@ -79,13 +78,13 @@ func wholePlatformDirs(t *testing.T) map[string]string {
 // is a pure negation (no positive GOOS term).
 //
 //   - "_other.go"  the documented non-target fallback slot
-//   - "_unix.go"   the conventional Go name for the !windows side of a split;
+//   - "_unix.go"   the conventional Go name for the !windows side of a split.
 //     "unix" is an established build-tag family, so renaming these to _other
 //     would be less clear, not more
 var fallbackSuffixes = []string{"_other.go", "_unix.go"}
 
 // bannedFallbackSuffixes are ad hoc fallback names that have shown up in the
-// past. They all mean "_other.go"; having four spellings for one slot is
+// past. They all mean "_other.go". Having four spellings for one slot is
 // exactly the drift these tests exist to stop.
 var bannedFallbackSuffixes = []string{
 	"_stub.go",
@@ -146,7 +145,7 @@ func checkBannedFallbackName(t *testing.T, file goFile) {
 }
 
 // checkOSSuffixMatchesConstraint catches a file that compiles for exactly one
-// OS but whose name does not say so — the reverse of the mistake Go's implicit
+// OS but whose name does not say so, the reverse of the mistake Go's implicit
 // suffix rule already prevents. A file named tree.go that is secretly
 // darwin-only is invisible to anyone scanning the directory.
 func checkOSSuffixMatchesConstraint(
@@ -208,9 +207,9 @@ func checkFallbackName(t *testing.T, file goFile, constraints fileConstraint) {
 
 // checkCgoSuffix requires a file gated on cgo to say so in its name.
 //
-// This one is worth the churn: before it existed, a plain name usually meant
+// This one is worth the churn. Before it existed, a plain name usually meant
 // the cgo variant (system_linux_x11.go beside system_x11_nocgo.go) but
-// in internal/ui/overlay it meant the opposite — manager_linux_wayland.go was
+// in internal/ui/overlay it meant the opposite. There manager_linux_wayland.go was
 // the *nocgo* file sitting beside manager_linux_wayland_cgo.go. Reading the
 // build tag was the only way to tell which convention a package followed.
 func checkCgoSuffix(t *testing.T, file goFile, constraints fileConstraint) {
@@ -233,7 +232,7 @@ func checkCgoSuffix(t *testing.T, file goFile, constraints fileConstraint) {
 }
 
 // TestPlatformPackagesTagEveryFile pins the other half of the whole-platform
-// package exemption: files there may skip the OS suffix precisely because the
+// package exemption. Files there may skip the OS suffix precisely because the
 // package is single-platform, which only holds if every file declares the tag.
 // An untagged file would compile into every build and break cross-compilation.
 func TestPlatformPackagesTagEveryFile(t *testing.T) {
@@ -246,7 +245,7 @@ func TestPlatformPackagesTagEveryFile(t *testing.T) {
 		}
 
 		// doc.go is allowed to stay untagged so `go vet ./...` can resolve the
-		// package on other hosts; it holds only the package comment.
+		// package on other hosts. It holds only the package comment.
 		if file.base == docGoFile {
 			continue
 		}
@@ -284,8 +283,8 @@ type goFile struct {
 	base    string
 }
 
-// goFiles returns every non-test Go file in the repo. Test files are excluded:
-// they follow the *_integration_<os>_test.go convention, which the suffix rules
+// goFiles returns every non-test Go file in the repo. Test files are excluded,
+// because they follow the *_integration_<os>_test.go convention, which the suffix rules
 // here would misread.
 func goFiles(t *testing.T) []goFile {
 	t.Helper()
@@ -414,15 +413,15 @@ func hasNameToken(base, token string) bool {
 // only exists on some platforms.
 //
 // Go takes the package comment from whichever file carries it, so putting it in
-// a build-tagged file silently removes it from every other target — `go doc`
-// shows nothing and revive's package-comments check passes only on the tagged
+// a build-tagged file silently removes it from every other target. `go doc`
+// shows nothing, and revive's package-comments check passes only on the tagged
 // platform. This was real in four packages: platform/linux had its comment
 // under `linux && cgo`, so CGO_ENABLED=0 builds had none, and modeindicator,
 // stickyindicator and overlayutil/native each hid theirs in a per-OS file.
 //
 // The rule: if a package has any untagged file, the package comment must be in
 // an untagged one. Packages that are entirely build-tagged (platform/darwin,
-// platform/linux, wlr_protocol) are exempt — there is nowhere else to put it.
+// platform/linux, wlr_protocol) are exempt, because there is nowhere else to put it.
 func TestPackageCommentsAreReachableOnEveryTarget(t *testing.T) {
 	type pkgInfo struct {
 		hasUntaggedFile    bool
@@ -474,9 +473,9 @@ func TestPackageCommentsAreReachableOnEveryTarget(t *testing.T) {
 // across files.
 //
 // golangci-lint's godoclint check finds these, but only for the platform it is
-// running on: a duplicate in a windows-tagged file is invisible to a lint run on
+// running on. A duplicate in a windows-tagged file is invisible to a lint run on
 // macOS. This test parses every file regardless of build tags, so one run on any
-// host covers all targets — which is how the duplicates in the Windows overlay
+// host covers all targets, which is how the duplicates in the Windows overlay
 // render packages were found.
 func TestPackagesHaveExactlyOnePackageComment(t *testing.T) {
 	commentFiles := make(map[string][]string)
@@ -502,7 +501,7 @@ func TestPackagesHaveExactlyOnePackageComment(t *testing.T) {
 	}
 }
 
-// hasPackageComment reports whether a file carries real package documentation —
+// hasPackageComment reports whether a file carries real package documentation:
 // a comment group immediately preceding the package clause, ignoring groups
 // that contain only tool directives.
 func hasPackageComment(t *testing.T, path string) bool {

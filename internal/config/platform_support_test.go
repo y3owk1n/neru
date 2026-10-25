@@ -68,7 +68,7 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 }
 
 // TestPlatformSupport_DeclaresTheOptionBehindAValue is the reason the strategy
-// option resolves at all on a platform with no vision engine: the option is
+// option resolves at all on a platform with no vision engine. The option is
 // recognized everywhere and only one value of it is not.
 func TestPlatformSupport_DeclaresTheOptionBehindAValue(t *testing.T) {
 	t.Parallel()
@@ -85,7 +85,7 @@ func TestPlatformSupport_DeclaresTheOptionBehindAValue(t *testing.T) {
 }
 
 // TestX11InertWords_ReportsWrittenPassthroughOnlyWhenItIsOn pins the one limit
-// finer than a platform column (#1613): the X11 backend cannot honor
+// finer than a platform column (#1613). The X11 backend cannot honor
 // passthrough, so the option and whichever dependents were written are
 // reported, and only while passthrough is actually on.
 func TestX11InertWords_ReportsWrittenPassthroughOnlyWhenItIsOn(t *testing.T) {
@@ -286,8 +286,8 @@ func TestInertWords_Steps(t *testing.T) {
 
 // TestInertWords_LeavesTheShippedBindingsSilentWhereTheyWork keeps the warning
 // about what somebody wrote. The shipped scroll bindings name scroll_left and
-// scroll_right, which inject nothing on Windows — a Known Gaps entry rather than
-// a line a user can go and fix — which is why the reading is of the user's files
+// scroll_right, which inject nothing on Windows. That is a Known Gaps entry
+// rather than a line a user can go and fix, which is why the reading is of the user's files
 // and not of the merged configuration, and why Windows is not asserted here.
 func TestInertWords_LeavesTheShippedBindingsSilentWhereTheyWork(t *testing.T) {
 	t.Parallel()

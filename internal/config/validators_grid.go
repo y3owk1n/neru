@@ -12,10 +12,10 @@ import (
 )
 
 // ValidateGrid validates the grid configuration, warning about the key sets
-// that load and leave part of the grid unreachable; see [warnGridKeySets].
+// that load and leave part of the grid unreachable. See [warnGridKeySets].
 //
 // written is what the user wrote, which is what tells a label they typed from
-// one the derivation settled; the zero value means there is none, and the
+// one the derivation settled. The zero value means there is none, and the
 // warnings fall back to a comparison. See [WrittenConfig].
 func (c *Config) ValidateGrid(warnings *Warnings, written WrittenConfig) error {
 	if !c.Grid.Enabled {
@@ -35,14 +35,12 @@ func (c *Config) ValidateGrid(warnings *Warnings, written WrittenConfig) error {
 		}
 	}
 
-	if c.Grid.SublayerKeys != "" {
-		for _, r := range c.Grid.SublayerKeys {
-			if r > unicode.MaxASCII {
-				return derrors.New(
-					derrors.CodeInvalidConfig,
-					"grid.sublayer_keys can only contain ASCII characters",
-				)
-			}
+	for _, r := range c.Grid.SublayerKeys {
+		if r > unicode.MaxASCII {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.sublayer_keys can only contain ASCII characters",
+			)
 		}
 	}
 
@@ -100,10 +98,10 @@ func (c *Config) ValidateGrid(warnings *Warnings, written WrittenConfig) error {
 }
 
 // gridKeySet is one set of characters a grid is labeled from, and what a set
-// too short to label with costs that particular field — which differs, so the
-// warning cannot word it once: a short grid.characters is replaced wholesale by
-// a-z, while short labels are used as they are and cap the grid to what they
-// can name.
+// too short to label with costs that particular field. The cost differs, so
+// the warning cannot word it once. A short grid.characters is replaced
+// wholesale by a-z, while short labels are used as they are and cap the grid
+// to what they can name.
 type gridKeySet struct {
 	field    string
 	keys     string
@@ -113,7 +111,7 @@ type gridKeySet struct {
 // derivedGridKeySet is a key set the derivation settles when the user leaves it
 // empty: the set as the grid is now labeled from it, plus how to read the same
 // field out of the configuration the user wrote, which is what says whether the
-// set is theirs to fix. grid.characters is not one of these — it is the field
+// set is theirs to fix. grid.characters is not one of these. It is the field
 // the others are inferred from, and is always the user's own.
 type derivedGridKeySet struct {
 	gridKeySet
@@ -129,32 +127,31 @@ type derivedGridKeySet struct {
 // a character used twice, or one that cannot be typed.
 //
 // It warns rather than refuses because none of the three stops a grid being
-// built — the grid is capped, relabelled, labeled from a shorter set than was
-// written, or has one cell that answers to a key nobody can press — and refusing
-// would replace the user's whole configuration with the defaults over a label set
-// they can fix in one line (ADR 0002). The refusals
-// above are unchanged: an empty or non-ASCII grid.characters still costs the
-// load, and this pass is what the fields it does not cover now get instead of
-// nothing.
+// built. The grid is capped, relabelled, labeled from a shorter set than was
+// written, or has one cell that answers to a key nobody can press. Refusing
+// would replace the user's whole configuration with the defaults over a label
+// set they can fix in one line (ADR 0002). The refusals above are unchanged.
+// An empty or non-ASCII grid.characters still costs the load, and this pass is
+// what the fields it does not cover now get instead of nothing.
 //
-// It is the tier the neighboring hints.hint_characters does not use — that one
-// refuses the same three shapes. The difference is that these labels are
-// derived: leave row_labels empty and the value validated is the one the
+// It is the tier the neighboring hints.hint_characters does not use, since
+// that one refuses the same three shapes. The difference is that these labels
+// are derived. Leave row_labels empty and the value validated is the one the
 // derivation wrote, and refusing a configuration over a line the user never
 // wrote is the shape ADR 0002 exists to avoid.
 //
 // grid.sublayer_keys is deliberately not here. The runtime trims, uppercases and
 // caps it at the number of subgrid cells (domain/grid.SubgridKeys), so which of
 // its characters are used at all depends on a subgrid size the mode layer owns
-// and this package cannot see — a warning from here would report faults in
+// and this package cannot see. A warning from here would report faults in
 // characters that are never drawn.
 //
 // It reads the resolved labels rather than the written ones, because those are
-// what the grid is now drawn with (ResolveGridLabels): the written value is
+// what the grid is now drawn with (ResolveGridLabels). The written value is
 // legitimately empty and means "infer from characters".
 //
 // Which field a fault belongs to is the other half, and it is what written
-// answers: a label the user typed is reported under its own name, and one the
+// answers. A label the user typed is reported under its own name, and one the
 // derivation settled is left to grid.characters, the one name that is in the
 // user's file. Reported against every field it reached, one mistake would read
 // as three, two of them naming a line the user cannot go and fix.
@@ -166,9 +163,9 @@ func (c *Config) warnGridKeySets(warnings *Warnings, written WrittenConfig) {
 	})
 
 	// The fallback for a caller with no written configuration to consult, and
-	// only for that: a resolved label equal to what an empty one settles to was
+	// only for that. A resolved label equal to what an empty one settles to was
 	// probably inferred. Probably, because a label somebody typed can equal the
-	// inference exactly — which is the case the written configuration is here
+	// inference exactly, which is the case the written configuration is here
 	// to settle (#1281).
 	inferred := c.inferredGridKeys()
 
@@ -192,7 +189,7 @@ func (c *Config) warnGridKeySets(warnings *Warnings, written WrittenConfig) {
 }
 
 // warnGridKeySet reports what one character set will not do. An empty set is
-// silent: it is the written value of a label the derivation has not settled
+// silent. It is the written value of a label the derivation has not settled
 // yet, and it means "infer", not "label with nothing".
 func warnGridKeySet(warnings *Warnings, set gridKeySet) {
 	if set.keys == "" {
@@ -202,7 +199,7 @@ func warnGridKeySet(warnings *Warnings, set gridKeySet) {
 	chars := []rune(set.keys)
 
 	// Counted after the repeats come out, because that is the count the grid
-	// applies its floor to (domain/grid.newGridAlphabet): "aa" is two characters
+	// applies its floor to (domain/grid.newGridAlphabet). "aa" is two characters
 	// written and one character to label with, and reading the written length
 	// here would let it reach the a-z fallback without a word said.
 	usable := len(domainGrid.DistinctKeys(set.keys))
@@ -222,11 +219,11 @@ func warnGridKeySet(warnings *Warnings, set gridKeySet) {
 // second occurrence, so that a character written three times is one thing wrong
 // rather than two.
 //
-// Case is folded because matching is: "aA" is one label written twice. The grid
-// drops the second one (domain/grid.DistinctKeys) rather than labeling a cell
-// nothing can reach, so what the repeat costs is the size of the set the grid is
-// labeled from — which is why this is worth saying even though nothing is broken
-// by it. The character is reported folded too: the grid draws its labels
+// Case is folded because matching is, so "aA" is one label written twice. The
+// grid drops the second one (domain/grid.DistinctKeys) rather than labeling a
+// cell nothing can reach, so what the repeat costs is the size of the set the
+// grid is labeled from. That is why this is worth saying even though nothing is
+// broken by it. The character is reported folded too. The grid draws its labels
 // upper-cased, so that is the form the user is looking for on screen.
 func warnDuplicateGridKeys(warnings *Warnings, field string, chars []rune) {
 	seen := make(map[rune]struct{}, len(chars))
@@ -242,7 +239,6 @@ func warnDuplicateGridKeys(warnings *Warnings, field string, chars []rune) {
 			continue
 		}
 
-		// A character written three times is one thing wrong, not two.
 		_, done := reported[upper]
 		if done {
 			continue
@@ -375,7 +371,7 @@ func validateCaptureScope(field, scope string) error {
 	}
 }
 
-// scopedAppConfigValidator is the per-app validator of a region mode: an
+// scopedAppConfigValidator is the per-app validator of a region mode. An
 // entry may set a capture scope, and nothing that belongs to hints or scroll.
 func scopedAppConfigValidator(section string) AppConfigFieldValidator {
 	return func(idx int, appConfig *AppConfig) error {
@@ -564,14 +560,9 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return err
 	}
 
-	err = validateAppConfigsWithCallback(
+	return validateAppConfigsWithCallback(
 		"recursive_grid",
 		c.RecursiveGrid.AppConfigs,
 		scopedAppConfigValidator("recursive_grid"),
 	)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

@@ -73,7 +73,7 @@ func (c *CursorState) InitialScreenBounds() image.Rectangle {
 
 // ShouldMoveCursor returns whether the cursor should be moved on mode exit.
 // The caller handles deciding the policy (restore vs center)
-// based on config; this method only tracks whether the cursor was captured
+// based on config. This method only tracks whether the cursor was captured
 // and whether a skip was requested.
 func (c *CursorState) ShouldMoveCursor() bool {
 	c.mu.RLock()

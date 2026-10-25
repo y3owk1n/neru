@@ -19,7 +19,7 @@ const notifyWait = 2 * time.Second
 // TestHandlerState_ReportMonitorSelectNotSupported_NotifiesOffTheLock pins the
 // reason the notification is handed to a goroutine. Since ShowNotification
 // gained an error it is a session-bus round trip on Linux, and this runs from
-// activateMonitorSelectMode with h.mu held — the one place the locking contract
+// activateMonitorSelectMode with h.mu held, the one place the locking contract
 // forbids a blocking call, because h.mu serializes key handling. A notification
 // daemon that never answers must cost the user nothing, and the message must
 // still be attempted.
@@ -73,7 +73,7 @@ func TestHandlerState_ReportMonitorSelectNotSupported_NotifiesOffTheLock(t *test
 
 // TestHandlerState_ReportMonitorSelectNotSupported_SurvivesNoSystemPort covers
 // the daemon built without a system port. Nothing can be notified, so the
-// report must return under the lock rather than reaching a nil port — the
+// report must return under the lock rather than reaching a nil port. The
 // assertion is that it comes back at all, since the failure mode is a panic
 // inside a locked entry point.
 func TestHandlerState_ReportMonitorSelectNotSupported_SurvivesNoSystemPort(t *testing.T) {

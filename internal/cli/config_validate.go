@@ -68,7 +68,7 @@ func runConfigValidate(cmd *cobra.Command) error {
 // printValidationWarnings says what loaded and will not do what it says, or
 // is deprecated.
 //
-// This is the whole reason a warning is worth telling apart from a refusal: it
+// This is the whole reason a warning is worth telling apart from a refusal. It
 // does not stop the configuration loading, so without a line here it would
 // exist only in the daemon's log, invisible to the command people run to check
 // their configuration.

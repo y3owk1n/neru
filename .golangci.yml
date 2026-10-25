@@ -39,7 +39,7 @@ linters:
         - wsl # Deprecated
         - interfacebloat # Complex application with legitimate large interfaces
         - nlreturn # De-facto rejected: it had accumulated 195 nolints before being disabled
-        - testpackage # In-package tests are used deliberately; it had accumulated 66 nolints
+        - testpackage # In-package tests are deliberate, and it had accumulated 66 nolints
 
     settings:
         depguard:

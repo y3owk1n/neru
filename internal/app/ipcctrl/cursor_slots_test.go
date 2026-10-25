@@ -125,7 +125,7 @@ func TestCursorSlots_NamedSlotDoesNotClobberTheDefault(t *testing.T) {
 	}
 }
 
-// Restoring consumes the slot. A second restore is not an error — it simply has
+// Restoring consumes the slot. A second restore is not an error. It has
 // nothing to move to, which keeps a sequence that restores twice from being a
 // failure a caller has to special-case.
 func TestCursorSlots_RestoreConsumesTheSlot(t *testing.T) {
@@ -146,7 +146,7 @@ func TestCursorSlots_RestoreConsumesTheSlot(t *testing.T) {
 	}
 }
 
-// "default" is an ordinary slot name, not a reserved word: naming it and
+// "default" is an ordinary slot name, not a reserved word. Naming it and
 // passing no flag have to be the same request, or a config author would have
 // two ways to mean one slot and no way to tell which they used.
 func TestCursorSlots_DefaultSlotIsAnOrdinaryName(t *testing.T) {

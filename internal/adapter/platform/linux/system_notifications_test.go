@@ -16,7 +16,7 @@ import (
 )
 
 // errNoBus stands in for whatever godbus reports when there is no session bus
-// to reach — the message never matters, only that connecting failed.
+// to reach. The message never matters, only that connecting failed.
 var errNoBus = errors.New("dbus: couldn't determine address of session bus")
 
 // unreachableNotifier is a notifier whose session bus cannot be reached, which
@@ -26,7 +26,7 @@ func unreachableNotifier() *notifier {
 }
 
 // idleTransport is enough of a connection for godbus to build a *dbus.Conn
-// around without a session bus. Nothing is ever sent over it: the tests using
+// around without a session bus. Nothing is ever sent over it. The tests using
 // it need a connection they can close, to stand for one the bus dropped.
 type idleTransport struct{}
 
@@ -49,9 +49,8 @@ func openConn(t *testing.T) *dbus.Conn {
 }
 
 // TestNotifier_SendReportsNotSupportedWithoutASessionBus is the loud-stub pin
-// for the path this change exists to close: ShowNotification used to have an
-// empty body, so a dropped message was indistinguishable from a delivered one.
-// Anything that cannot be shown must come back as CodeNotSupported, never nil.
+// for delivery. A dropped message must not look like a delivered one, so
+// anything that cannot be shown must come back as CodeNotSupported, never nil.
 func TestNotifier_SendReportsNotSupportedWithoutASessionBus(t *testing.T) {
 	sends := map[string]notification{
 		"toast": toastNotification("Neru", "something happened"),
@@ -79,7 +78,7 @@ func TestNotifier_SendReportsNotSupportedWithoutASessionBus(t *testing.T) {
 }
 
 // TestNotifier_SendGivesUpOnADialThatNeverReturns pins why the dial runs on
-// its own goroutine rather than inline: dbus.SessionBus takes no context, so a
+// its own goroutine rather than inline. dbus.SessionBus takes no context, so a
 // bus that accepts the connection and then stops answering would park the
 // caller forever. The tray calls this from the loop that also carries Quit, and
 // the config alerts call it before the daemon is up.
@@ -120,8 +119,8 @@ func TestNotifier_SendGivesUpOnADialThatNeverReturns(t *testing.T) {
 		t.Fatal("no dial was ever started")
 	}
 
-	// The dial is still outstanding. The next caller shares it — bounded by its
-	// own deadline rather than by the dial — instead of starting a second one,
+	// The dial is still outstanding. The next caller shares it, bounded by its
+	// own deadline rather than by the dial, instead of starting a second one,
 	// which godbus would only queue behind the first anyway.
 	secondCtx, cancelSecond := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancelSecond()
@@ -144,7 +143,7 @@ func TestNotifier_SendGivesUpOnADialThatNeverReturns(t *testing.T) {
 // session ending, a bus restart or a suspend all drop it, and the notifier then
 // holds a connection nothing can be sent over. Handing that back would have the
 // caller talk into a dead transport and report the daemon rejecting a message
-// that never left — sending a user to look at a daemon that is fine.
+// that never left, sending a user to look at a daemon that is fine.
 func TestNotifier_SessionReportsAFailedRedialRatherThanTheDroppedConnection(t *testing.T) {
 	dropped := openConn(t)
 	redialed := openConn(t)
@@ -203,7 +202,7 @@ func TestNotifier_SessionReportsAFailedRedialRatherThanTheDroppedConnection(t *t
 }
 
 // TestNotifier_DaemonReachableReportsNotSupportedWithoutASessionBus keeps the
-// `neru doctor` probe honest in the same session: a capability that cannot be
+// `neru doctor` probe honest in the same session. A capability that cannot be
 // confirmed must not answer "reachable".
 func TestNotifier_DaemonReachableReportsNotSupportedWithoutASessionBus(t *testing.T) {
 	err := unreachableNotifier().daemonReachable(context.Background())
@@ -218,8 +217,8 @@ func TestNotifier_DaemonReachableReportsNotSupportedWithoutASessionBus(t *testin
 }
 
 // TestNotifyError_ClassifiesWhatTheCallerCanActOn separates the two cases that
-// look alike on the wire and mean different things to a caller: nobody is
-// listening (degrade), versus the daemon refused this message (a live
+// look alike on the wire and mean different things to a caller. Either nobody
+// is listening (degrade), or the daemon refused this message (a live
 // failure). Misclassifying the second as CodeNotSupported would have callers
 // stop trying to notify for the rest of the session.
 func TestNotifyError_ClassifiesWhatTheCallerCanActOn(t *testing.T) {
@@ -276,7 +275,7 @@ func TestNotifyError_ClassifiesWhatTheCallerCanActOn(t *testing.T) {
 // probe is actually asking. Most desktops ship their notification daemon as a
 // D-Bus service, which owns nothing until the first Notify starts it, so
 // ownership alone would have `neru doctor` send a user to install what they
-// already have — and the message they would see says to install a daemon.
+// already have, and the message they would see says to install a daemon.
 func TestDaemonReachableFrom_CountsAServiceTheBusWouldStart(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -317,7 +316,7 @@ func TestDaemonReachableFrom_CountsAServiceTheBusWouldStart(t *testing.T) {
 }
 
 // TestIsMissingDaemon_MatchesBothGodbusErrorShapes guards the reason the check
-// is written twice: godbus yields dbus.Error by value from a client call and
+// is written twice. godbus yields dbus.Error by value from a client call and
 // *dbus.Error from NewError, and matching only one shape would classify a
 // missing daemon as a live failure.
 func TestIsMissingDaemon_MatchesBothGodbusErrorShapes(t *testing.T) {
@@ -337,8 +336,8 @@ func TestIsMissingDaemon_MatchesBothGodbusErrorShapes(t *testing.T) {
 	}
 }
 
-// TestAlertNotification_StaysUpUntilDismissed pins the decision this change
-// made about what an alert is on Linux: macOS blocks the user with a modal
+// TestAlertNotification_StaysUpUntilDismissed pins what an alert is on Linux.
+// macOS blocks the user with a modal
 // NSAlert, and the Linux stand-in is a critical-urgency notification with no
 // expiry. A daemon may expire a normal-urgency message on its own, so a config
 // error delivered as a toast is one the user can miss entirely.
@@ -364,7 +363,7 @@ func TestAlertNotification_StaysUpUntilDismissed(t *testing.T) {
 	}
 }
 
-// TestWithNotifyDeadline_KeepsTheCallersDeadline checks the bound: a caller
+// TestWithNotifyDeadline_KeepsTheCallersDeadline checks the bound. A caller
 // that stated what it can afford keeps it, and one that did not gets a cap, so
 // no path can wait on a wedged daemon forever.
 func TestWithNotifyDeadline_KeepsTheCallersDeadline(t *testing.T) {

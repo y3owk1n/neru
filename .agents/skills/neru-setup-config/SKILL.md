@@ -116,7 +116,7 @@ handing all hotkeys to skhd or another daemon.
 
 4. **Validate.** `neru config validate` must pass before anything else. It
    runs without the daemon and parses the mode commands inside hotkeys, so a
-   mistyped flag is caught here. Read its warnings: a flag the mode does not
+   mistyped flag is caught here. Read its warnings, because a flag the mode does not
    accept, a role the platform cannot name, or a key inert on this platform
    all load and then do nothing, which is the failure the user will report
    later.

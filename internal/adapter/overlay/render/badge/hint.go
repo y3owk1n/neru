@@ -4,9 +4,9 @@ import "image"
 
 // The geometry `hints.ui.placement` decides, in device pixels. They live here
 // rather than in a backend so that the same configured placement puts a badge
-// on the same pixel on every backend that reads them — which is the Linux and
+// on the same pixel on every backend that reads them, which is the Linux and
 // Windows ones. macOS draws the same shapes from its own constants on the
-// Objective-C side, and those are a little smaller: an offset badge sits a few
+// Objective-C side, and those are a little smaller, so an offset badge sits a few
 // pixels closer to its element there (the copy is ADR 0007's deliberate
 // exception).
 const (
@@ -33,10 +33,10 @@ const (
 // where a hint badge sits relative to the point it labels, and so whether there
 // is a connector arrow at all.
 //
-// Each backend maps the configured placement string onto one of these itself —
-// that is where a backend declares which placements it can draw — and the
-// drawing math below takes the offset rather than the string, so a placement no
-// backend branch names cannot reach a badge.
+// Each backend maps the configured placement string onto one of these itself,
+// which is where a backend declares which placements it can draw. The drawing
+// math below takes the offset rather than the string, so a placement no backend
+// branch names cannot reach a badge.
 type HintOffset int
 
 const (
@@ -82,18 +82,18 @@ func HintRadius(radius, badgeWidth int, offset HintOffset) int {
 // element center) and, for an offset badge, the connector arrow that visually
 // ties it back to the target.
 //
-// It is the one implementation of this math: the Linux (Cairo) and Windows
+// It is the one implementation of this math. The Linux (Cairo) and Windows
 // (GDI) overlays both call it, so a configured placement lands on the same
 // pixel on both, and both draw the same shapes as the macOS overlay above the
 // difference in constants noted at the top of this file.
 //
-// radius is the badge's already-resolved corner radius; it keeps the arrow base
+// radius is the badge's already-resolved corner radius. It keeps the arrow base
 // on the badge's flat edge rather than over a rounded corner. The boolean is
 // false for a badge drawn on its target, which needs nothing to tie it to one,
 // and for a badge too narrow to attach an arrow to at all.
 //
 // It takes a resolved offset rather than a configured placement string, so
-// there is no unrecognized case for it to answer: each backend refuses one
+// there is no unrecognized case for it to answer, because each backend refuses one
 // before a draw begins.
 func PlaceHint(
 	target image.Point,
@@ -116,7 +116,7 @@ func PlaceHint(
 		// the arrow has room to point down at the target.
 		centerY = target.Y - HintGap - HintArrowHeight - halfH
 	case HintBelow:
-		// Badge sits below the target; arrow points up at the target.
+		// Badge sits below the target, and the arrow points up at the target.
 		centerY = target.Y + HintGap + HintArrowHeight + halfH
 	}
 
@@ -126,8 +126,8 @@ func PlaceHint(
 
 	// Keep the arrow base within the badge's flat edge (inside the corner
 	// radius). The caller caps the radius (see HintRadius) so a flat edge
-	// remains; only a degenerately narrow badge leaves no room, in which case
-	// the arrow is dropped rather than collapsed onto the corners.
+	// remains. Only a degenerately narrow badge leaves no room, and then the
+	// arrow is dropped rather than collapsed onto the corners.
 	halfBase := HintArrowHalfBase
 	if limit := halfW - max(radius, 0); halfBase > limit {
 		halfBase = limit
@@ -137,8 +137,8 @@ func PlaceHint(
 		return badgeRect, HintArrow{}, false
 	}
 
-	// Only the two offset placements reach here, and they are mirror images:
-	// the arrow leaves the edge of the badge that faces the target.
+	// Only the two offset placements reach here, and they are mirror images.
+	// The arrow leaves the edge of the badge that faces the target.
 	baseY, tipY := badgeRect.Min.Y, badgeRect.Min.Y-HintArrowHeight
 	if offset == HintAbove {
 		baseY, tipY = badgeRect.Max.Y, badgeRect.Max.Y+HintArrowHeight

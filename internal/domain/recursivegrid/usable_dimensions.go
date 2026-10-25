@@ -15,7 +15,7 @@ const (
 
 // UsableDimensions answers the shape a recursive grid can actually be drawn and
 // navigated with, given the shape it was asked for. It returns the shape to use
-// and whether that is the one it was given: a pair with fewer than
+// and whether that is the one it was given. A pair with fewer than
 // MinGridDimension columns or rows, or fewer than MinUsableCellCount cells,
 // cannot narrow anything, so DefaultDimensions() comes back instead and the
 // second return is false.
@@ -28,15 +28,15 @@ const (
 // and in the macOS draw, and the two copies had drifted: only one of them
 // logged, only one of them reset the key mapping alongside the shape, and the
 // macOS copy's comment still named a default the constants had moved off
-// (#1345). Callers keep what is genuinely theirs — the manager warns with the
-// values it rejected, and the macOS draw reaches for DefaultKeys when this
-// reports a replacement, because a key mapping cut for the configured shape
-// does not fit the fallback.
+// (#1345). Callers keep what is theirs. The manager logs the values it
+// rejected, and the macOS draw reaches for DefaultKeys when this reports a
+// replacement, because a key mapping cut for the configured shape does not fit
+// the fallback.
 //
 // Two weaker tests of the same limits are left standing on purpose, and naming
 // them is the honest form of that claim:
 //
-//   - config.ValidateRecursiveGrid states both limits and *refuses* — a shape a
+//   - config.ValidateRecursiveGrid states both limits and *refuses*. A shape a
 //     user wrote is answered by telling them their configuration is wrong, not
 //     by quietly navigating a grid they did not ask for. It is the reason a
 //     degenerate shape does not reach a Manager in the first place.
@@ -44,7 +44,7 @@ const (
 //     and return rather than fall back, so they draw nothing for a zero side
 //     and one unnarrowable cell for a 1x1. They are not corrected here because
 //     that would be a behavior change on two platforms rather than a
-//     refactor; what makes it moot is that the two answers above run first, and
+//     refactor. It is moot because the two answers above run first, and
 //     TestRecursiveGridFrame_DegenerateShapeReachesEveryBackendAsTheDefault
 //     (internal/app/modes) pins that no backend is ever handed a shape this
 //     would have replaced.

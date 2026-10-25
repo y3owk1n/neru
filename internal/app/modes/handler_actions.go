@@ -44,7 +44,7 @@ func (h *Handler) BackspaceCurrentMode() {
 // MoveCellCurrentMode slides the active mode's selection count cells in dir
 // without changing the active layer.
 //
-// Grid mode moves an open subgrid to the neighboring cell; recursive-grid
+// Grid mode moves an open subgrid to the neighboring cell. Recursive-grid
 // mode slides the highlighted region at the current depth, crossing into a
 // neighboring parent when it runs off the edge of its own. Modes with no cell
 // selection ignore it, as does a move that would leave the screen.
@@ -194,8 +194,8 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 				// re-activation.
 			})
 
-			// Restore state so subsequent cycles continue to execute the action
-			// Guard: only restore if repeat was originally set (mode is still hints).
+			// Restore the state so later cycles keep executing the action, but
+			// only when repeat was set and the mode is still hints.
 			if repeat && h.appState.CurrentMode() == domain.ModeHints &&
 				h.hints != nil && h.hints.Context != nil {
 				h.hints.Context.SetPendingAction(pendingAction)
@@ -269,15 +269,15 @@ func (h *handlerState) startHintSearch(confirmOnLabel bool) error {
 	// asked for rather than derived a second time here.
 	bounds := h.hintSearchBounds()
 	if bounds.Empty() {
-		// The overlay put no box on screen — it draws none, or it could not
+		// The overlay put no box on screen, because it draws none or could not
 		// place the anchor it was configured with. Handing the platform's field
 		// the keyboard anyway would put an invisible input somewhere the user
-		// is not looking; the query keeps arriving through the event tap's key
+		// is not looking. The query keeps arriving through the event tap's key
 		// stream instead, which is what every overlay without a search box
 		// already relies on.
 		//
 		// That promise only holds if the tap is on, and this method opened by
-		// stopping any live session *without* re-enabling it — on the
+		// stopping any live session *without* re-enabling it, on the
 		// assumption that the session about to start would want it off. There
 		// is no session now, so give the keyboard back or the search has no way
 		// left to receive a key.

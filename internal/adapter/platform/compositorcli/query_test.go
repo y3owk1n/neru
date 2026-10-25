@@ -16,8 +16,8 @@ import (
 // The test binary doubles as the compositor CLI under test. A query spawns a
 // process and reads its stdout, and the only way to pin what happens when that
 // process is missing, fails, hangs or answers nonsense is to have one that
-// really does — but a shell script would only run on two of the three operating
-// systems this package is built for. So TestMain re-enters this binary as the
+// really does. A shell script would only run on two of the three operating
+// systems this package is built for, so TestMain re-enters this binary as the
 // fake CLI when the mode variable is set, and the parent sets it with t.Setenv
 // for the length of one case.
 const (
@@ -34,7 +34,7 @@ const (
 )
 
 // fakeCLIExitCode is the status modeFails exits with. Any non-zero value would
-// do; naming it keeps the assertion and the process agreeing.
+// do. Naming it keeps the assertion and the process agreeing.
 const fakeCLIExitCode = 3
 
 // fakeCLIAnswer is the JSON modeAnswers prints, and answerPayload the shape it
@@ -47,8 +47,8 @@ type answerPayload struct {
 }
 
 // fakeCLIGarbage is what modeGarbage prints instead of JSON. It stands in for
-// whatever a real compositor CLI writes when it will not answer — a sentence,
-// often carrying a window title — and is spelled so that finding it inside an
+// whatever a real compositor CLI writes when it will not answer, often a
+// sentence carrying a window title. It is spelled so that finding it inside an
 // error message can only mean the error repeated it.
 const fakeCLIGarbage = "Refusing: the focused window is <MyPrivateDocument.txt>"
 
@@ -87,7 +87,7 @@ func fakeCLI(t *testing.T, mode string) string {
 	return os.Args[0]
 }
 
-// TestQueryContext_DecodesWhatTheCLIAnswers is the ordinary path: a compositor
+// TestQueryContext_DecodesWhatTheCLIAnswers is the ordinary path. A compositor
 // CLI that answers gets decoded into the caller's struct and reports no
 // failure.
 func TestQueryContext_DecodesWhatTheCLIAnswers(t *testing.T) {
@@ -110,8 +110,8 @@ func TestQueryContext_DecodesWhatTheCLIAnswers(t *testing.T) {
 //
 // A query that could not be run, that the compositor refused, that outlived its
 // deadline or that answered with something undecodable are four failures, and
-// none of them is an answer. Reporting them as one — as a bare false, which is
-// what a compositor with nothing focused also returns — is how a wedged
+// none of them is an answer. Reporting them as a bare false, which is
+// what a compositor with nothing focused also returns, is how a wedged
 // swaymsg came to read as an unfocused desktop and send every caller silently
 // to the whole screen (#1493).
 //
@@ -203,7 +203,7 @@ func TestQueryContext_ReportsEveryWayAQueryCanFail(t *testing.T) {
 //
 // These queries run under the mode handler's lock, where a native call that
 // waits is a keyboard that has stopped responding. The deadline has to end the
-// query itself and not merely the process — a CLI killed with its stdout still
+// query itself and not merely the process. A CLI killed with its stdout still
 // open would otherwise leave the read waiting for the pipe.
 func TestQueryContext_EndsWithTheCallersDeadline(t *testing.T) {
 	const deadline = 50 * time.Millisecond
@@ -234,8 +234,8 @@ func TestQueryContext_EndsWithTheCallersDeadline(t *testing.T) {
 }
 
 // TestQuery_BoundsACallerThatBroughtNoDeadline pins the other entry point. Most
-// callers have no deadline of their own — hint activation reads the focused
-// window's geometry from wherever it stands — so the query supplies one rather
+// callers have no deadline of their own. Hint activation reads the focused
+// window's geometry from wherever it stands. So the query supplies one rather
 // than inheriting the absence of one.
 func TestQuery_BoundsACallerThatBroughtNoDeadline(t *testing.T) {
 	var answer answerPayload

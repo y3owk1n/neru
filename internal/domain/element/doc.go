@@ -1,6 +1,5 @@
 // Package element provides domain models for UI elements.
 //
-// This package defines the core Element type which is a UI element
-// in the accessibility tree. Elements are immutable after creation to ensure
-// thread safety and prevent accidental modification.
+// It defines Element, a UI element found in the accessibility tree or on
+// screen. Elements are immutable after creation, so goroutines can share them.
 package element

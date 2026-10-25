@@ -17,7 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
-// hookScrollStep is a hook step a journey can see run: the accessibility fake
+// hookScrollStep is a hook step a journey can see run. The accessibility fake
 // records the scroll.
 const hookScrollStep = "action scroll_down"
 
@@ -25,7 +25,7 @@ const hookScrollStep = "action scroll_down"
 const goosWindows = "windows"
 
 // TestSimulation_HookRunsWhenItsEventFires is the hook journey at its
-// simplest: entering a mode runs the steps written for it.
+// simplest. Entering a mode runs the steps written for it.
 func TestSimulation_HookRunsWhenItsEventFires(t *testing.T) {
 	cfg := simConfig()
 	cfg.Hooks.OnModeEnter = config.StringOrStringArray{hookScrollStep}
@@ -38,7 +38,7 @@ func TestSimulation_HookRunsWhenItsEventFires(t *testing.T) {
 	sim.waitFor("hook scrolled", func() bool { return len(sim.ax.recordedScrolls()) > 0 })
 }
 
-// TestSimulation_HookDoesNotStartItselfAgain pins the loop guard: a hook that
+// TestSimulation_HookDoesNotStartItselfAgain pins the loop guard. A hook that
 // enters a mode raises its own event, and that event does not run it again,
 // so the journey settles in grid instead of re-entering it forever.
 func TestSimulation_HookDoesNotStartItselfAgain(t *testing.T) {
@@ -61,7 +61,7 @@ func TestSimulation_HookDoesNotStartItselfAgain(t *testing.T) {
 }
 
 // TestSimulation_ResumeHookRunsOnceNeruIsRunning pins that the resume hook
-// sees Neru running: its event is published just before the resume applies,
+// sees Neru running. Its event is published just before the resume applies,
 // and a mode it opens would otherwise be refused.
 func TestSimulation_ResumeHookRunsOnceNeruIsRunning(t *testing.T) {
 	cfg := simConfig()
@@ -76,7 +76,7 @@ func TestSimulation_ResumeHookRunsOnceNeruIsRunning(t *testing.T) {
 }
 
 // TestSimulation_HooksWaitWhileNeruIsStopped pins that `neru stop` pauses
-// hooks too: a focus change while stopped runs nothing, and the next one after
+// hooks too. A focus change while stopped runs nothing, and the next one after
 // `neru start` runs its hook.
 func TestSimulation_HooksWaitWhileNeruIsStopped(t *testing.T) {
 	cfg := simConfig()
@@ -163,7 +163,7 @@ func TestSimulation_PauseReportsTheModeItClosed(t *testing.T) {
 }
 
 // TestSimulation_ShutdownDoesNotWaitOnARunningHook pins that a hook still
-// running when the daemon quits does not hold the quit up: its steps run on
+// running when the daemon quits does not hold the quit up. Its steps run on
 // the root context shutdown cancels.
 //
 // The timing is read around the harness's own shutdown, from a t.Cleanup
@@ -194,7 +194,7 @@ func TestSimulation_ShutdownDoesNotWaitOnARunningHook(t *testing.T) {
 }
 
 // TestSimulation_MissionControlRunsBothHookTables pins the deprecation's
-// promise: until v2 a Mission Control transition runs the [hooks] steps and
+// promise. Until v2 a Mission Control transition runs the [hooks] steps and
 // the deprecated [hints] ones, each once.
 func TestSimulation_MissionControlRunsBothHookTables(t *testing.T) {
 	cfg := simConfig()
@@ -255,7 +255,7 @@ func TestSimulation_QuitHookFinishesBeforeShutdown(t *testing.T) {
 	sim := newSimHarness(t, cfg, nil)
 
 	// Registered after the harness, so it runs first, before the app is shut
-	// down: the scroll step was skipped, because only exec steps run on quit.
+	// down. The scroll step was skipped, because only exec steps run on quit.
 	t.Cleanup(func() {
 		sim.app.Cleanup()
 
@@ -266,7 +266,7 @@ func TestSimulation_QuitHookFinishesBeforeShutdown(t *testing.T) {
 }
 
 // TestSimulation_QuitHookCannotHoldShutdownUp pins the bound on the quit
-// hook: a step whose shell leaves a child holding its output runs until the
+// hook. A step whose shell leaves a child holding its output runs until the
 // child exits, and shutdown goes on without it after one second.
 func TestSimulation_QuitHookCannotHoldShutdownUp(t *testing.T) {
 	if runtime.GOOS == goosWindows {

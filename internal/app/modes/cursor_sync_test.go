@@ -45,7 +45,7 @@ func (s *syncOrderSystem) SyncCursorPosition(context.Context) error {
 	return nil
 }
 
-// record appends an event under the fixture's own lock: the race test drives
+// record appends an event under the fixture's own lock. The race test drives
 // this system from three goroutines at once.
 func (s *syncOrderSystem) record(event string) {
 	s.mu.Lock()
@@ -128,7 +128,7 @@ func newSyncOrderHandler(system *syncOrderSystem) *Handler {
 	})
 
 	// The grid context stores the instance through a cell the component factory
-	// wires; give the test context one the same way. The recursive-grid
+	// wires. Give the test context one the same way. The recursive-grid
 	// component self-initializes on activation.
 	gridInstance := new(*domainGrid.Grid)
 	handler.grid.Context.SetGridInstance(gridInstance)
@@ -171,7 +171,7 @@ func assertSyncBeforeScreenBounds(t *testing.T, events []string) {
 }
 
 // TestActivateMode_Grid_SyncsCursorBeforeReadingScreenBounds pins the order the
-// Wayland cache contract depends on: activation refreshes the platform's
+// Wayland cache contract depends on. Activation refreshes the platform's
 // cursor cache before ScreenBounds decides which monitor the grid comes up on.
 // Read the other way around, a user who physically moved the mouse since the
 // last Neru-driven move gets the grid on the monitor Neru last put the cursor
@@ -190,7 +190,7 @@ func TestActivateMode_Grid_SyncsCursorBeforeReadingScreenBounds(t *testing.T) {
 }
 
 // TestActivateMode_RecursiveGrid_SyncsCursorBeforeReadingScreenBounds pins the
-// same order for the other mode #1279 names: recursive-grid reads ScreenBounds
+// same order for the other mode #1279 names. Recursive-grid reads ScreenBounds
 // on its own activation path, and must do so only after the cache refresh.
 func TestActivateMode_RecursiveGrid_SyncsCursorBeforeReadingScreenBounds(t *testing.T) {
 	system := newSyncOrderSystem()
@@ -206,7 +206,7 @@ func TestActivateMode_RecursiveGrid_SyncsCursorBeforeReadingScreenBounds(t *test
 }
 
 // TestMoveMonitor_SyncsCursorBeforeResolvingCurrentMonitor pins the same order
-// for the directional move: "next" is relative to the monitor under the
+// for the directional move. "next" is relative to the monitor under the
 // cursor, and resolving it from the stale cache steps from wherever Neru last
 // warped the cursor rather than from where the user's mouse is (#1279).
 func TestMoveMonitor_SyncsCursorBeforeResolvingCurrentMonitor(t *testing.T) {
@@ -222,7 +222,7 @@ func TestMoveMonitor_SyncsCursorBeforeResolvingCurrentMonitor(t *testing.T) {
 }
 
 // TestMoveMonitorByName_SyncsCursorBeforeReadingTheDisplayItLeaves pins the
-// order for the named move: whether it reports a monitor_move depends on the
+// order for the named move. Whether it reports a monitor_move depends on the
 // display under the cursor, and the stale cache names the display Neru last
 // warped to rather than the one the user's mouse is on.
 func TestMoveMonitorByName_SyncsCursorBeforeReadingTheDisplayItLeaves(t *testing.T) {
@@ -238,10 +238,10 @@ func TestMoveMonitorByName_SyncsCursorBeforeReadingTheDisplayItLeaves(t *testing
 }
 
 // TestMoveMonitor_SyncRacesActivationAndReload is the -race guard on
-// syncCursorPosition's dual lock context: MoveMonitor calls it under only
+// syncCursorPosition's dual lock context. MoveMonitor calls it under only
 // moveMonitorMu, so it may run concurrently with an activation and a config
 // reload, both of which mutate handler state under h.mu. It stays race-free
-// only while the sync touches construction-time-only fields — an edit that
+// only while the sync touches construction-time-only fields. An edit that
 // makes it read h.config or a mode component fails here under -race.
 func TestMoveMonitor_SyncRacesActivationAndReload(t *testing.T) {
 	system := newSyncOrderSystem()
@@ -274,7 +274,7 @@ func TestMoveMonitor_SyncRacesActivationAndReload(t *testing.T) {
 		<-start
 
 		for range rounds {
-			// The move's outcome is the other goroutines' business; what this
+			// The move's outcome is the other goroutines' business. What this
 			// loop asserts is that the sync it runs unlocked races cleanly.
 			_ = handler.MoveMonitor(context.Background(), MonitorDirectionNext)
 		}
@@ -283,10 +283,10 @@ func TestMoveMonitor_SyncRacesActivationAndReload(t *testing.T) {
 	close(start)
 	waitGroup.Wait()
 
-	// The race detector is the point of this test; these assertions are the
+	// The race detector is the point of this test. These assertions are the
 	// deterministic floor under it. The activation goroutine's last
 	// mode-changing call is an exit, and neither a monitor move nor a reload
-	// changes the mode, so the handler must end idle — and both racing entry
+	// changes the mode, so the handler must end idle, and both racing entry
 	// points must actually have reached the sync for the race to have been
 	// exercised at all.
 	if got := handler.appState.CurrentMode(); got != domain.ModeIdle {

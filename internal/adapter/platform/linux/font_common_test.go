@@ -6,7 +6,7 @@ import "testing"
 
 func TestLinuxFamilies_Resolve_GenericAliases(t *testing.T) {
 	// Which spellings count as generic is pinned by the shared parser
-	// (platform/fontgeneric); this pins what each generic means on Linux.
+	// (platform/fontgeneric). This pins what each generic means on Linux.
 	cases := map[string]string{
 		"":           defaultLinuxSans,
 		"sans":       defaultLinuxSans,

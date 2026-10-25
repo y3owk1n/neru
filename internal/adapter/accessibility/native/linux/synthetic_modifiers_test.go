@@ -16,7 +16,7 @@ type recordedModifier struct {
 	isDown   bool
 }
 
-// fakeSink stands in for the event tap: the injection path only ever tells it
+// fakeSink stands in for the event tap. The injection path only ever tells it
 // what is about to go out.
 type fakeSink struct {
 	mu       sync.Mutex
@@ -38,7 +38,7 @@ func (f *fakeSink) events() []recordedModifier {
 }
 
 // wireSink points the package at sink for the length of one test, and puts back
-// whatever was there — the slot is process-global, like the config provider
+// whatever was there. The slot is process-global, like the config provider
 // beside it.
 func wireSink(t *testing.T, sink tap.SyntheticModifierSink) {
 	t.Helper()
@@ -53,7 +53,7 @@ func wireSink(t *testing.T, sink tap.SyntheticModifierSink) {
 }
 
 // TestRecordSyntheticModifier_AnnouncesEachInjectionToTheWiredSink is the
-// injection side of #1484: an X11 modifier key event Neru injects re-enters its
+// injection side of #1484. An X11 modifier key event Neru injects re-enters its
 // own event tap indistinguishable from the user's, and a press followed by a
 // release latches a sticky modifier nobody pressed. Announcing both halves is
 // what lets the tap disown them.
@@ -84,8 +84,8 @@ func TestRecordSyntheticModifier_AnnouncesEachInjectionToTheWiredSink(t *testing
 // TestRecordSyntheticModifier_AnnouncesNothingWithNoSinkWired covers the daemon
 // before the tap exists, and every build with no daemon at all. Announcing to
 // nobody is what the injection path did before this seam existed, so it stays a
-// working injection rather than a refusal — and unwiring has to actually
-// release the sink, or a torn-down tap keeps being told about injections.
+// working injection rather than a refusal. Unwiring has to actually release
+// the sink, or a torn-down tap keeps being told about injections.
 func TestRecordSyntheticModifier_AnnouncesNothingWithNoSinkWired(t *testing.T) {
 	sink := &fakeSink{}
 	wireSink(t, sink)

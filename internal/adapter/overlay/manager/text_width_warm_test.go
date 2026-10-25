@@ -28,7 +28,7 @@ func (m *countingMeasurer) Measure(
 }
 
 // TestWarmBadgeTextWidths_LeavesADrawNothingToMeasure pins what the warming is
-// for: hint narrowing and the search badge redraw on every keystroke, so the
+// for. Hint narrowing and the search badge redraw on every keystroke, so the
 // characters they size their boxes around are measured when the configuration
 // arrives and never with a key waiting on it.
 func TestWarmBadgeTextWidths_LeavesADrawNothingToMeasure(t *testing.T) {
@@ -62,7 +62,7 @@ func TestWarmBadgeTextWidths_LeavesADrawNothingToMeasure(t *testing.T) {
 	}
 
 	for _, draw := range draws {
-		// Any size and any display scale: a face is warmed once for all of them.
+		// Any size and any display scale, because a face is warmed once for all of them.
 		for _, size := range []float64{10, 12.5, 20, 30} {
 			badge.TextWidth(draw.text, ports.ResolveFont(draw.family), size, draw.bold)
 		}

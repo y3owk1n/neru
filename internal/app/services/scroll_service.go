@@ -40,7 +40,7 @@ const (
 )
 
 // ScrollService orchestrates scrolling operations. Scrolling never draws, so
-// this deliberately does not embed BaseService — the overlay dependency it
+// this deliberately does not embed BaseService. The overlay dependency it
 // would carry has no use here, and a nil one would panic through a promoted
 // method.
 type ScrollService struct {
@@ -84,7 +84,7 @@ func (s *ScrollService) Scroll(
 ) error {
 	deltaX, deltaY := s.calculateDelta(ctx, direction, amount, stepOverride)
 
-	// A scroll anchors to the window under the cursor: finish any in-flight
+	// A scroll anchors to the window under the cursor. Finish any in-flight
 	// cursor animation first (ports.CursorSettler), so a scroll fired
 	// mid-animation targets the window the user aimed for instead of one the
 	// cursor happens to be gliding over.
@@ -110,7 +110,7 @@ func (s *ScrollService) Scroll(
 	scrollErr := s.accessibility.Scroll(ctx, deltaX, deltaY, modifiers)
 	if scrollErr != nil {
 		// A backend that cannot present the requested modifiers refuses with
-		// CodeNotSupported; keep that code so the reply can say so rather than
+		// CodeNotSupported. Keep that code so the reply can say so rather than
 		// reporting a generic failure.
 		if derrors.IsNotSupported(scrollErr) {
 			return scrollErr

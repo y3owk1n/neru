@@ -8,10 +8,10 @@ import "github.com/y3owk1n/neru/internal/domain"
 // A mode command parses into one, the CLI builds one directly from its typed
 // flags, and both reach the mode handler as the same value. Every flag is a
 // pointer or a slice so that "not given" stays distinguishable from "given the
-// zero value": a mode reads an absent flag as "keep what the configuration
+// zero value". A mode reads an absent flag as "keep what the configuration
 // says" and a present one as an override for this activation.
 //
-// A presence-only flag is the exception to that, and is nil or true: writing
+// A presence-only flag is the exception to that, and is nil or true. Writing
 // "--toggle" is the whole statement, so there is nothing a false could ask for
 // that leaving it out does not. Parsing never produces a false one, and
 // building one by hand says the same as leaving it nil.
@@ -21,7 +21,7 @@ type Activation struct {
 
 	// Name is the declared mode a custom activation enters, the "window" in
 	// "mode window". It is empty for every built-in mode, and a custom
-	// activation without one is refused: the word alone names nothing.
+	// activation without one is refused, because the word alone names nothing.
 	Name string
 
 	// Action is the mouse button action to perform on the selection. Commas
@@ -34,9 +34,9 @@ type Activation struct {
 	// OnExit is the sequence to run once the action is fulfilled.
 	//
 	// Nil and empty mean different things and the difference is load-bearing.
-	// Nil is "not given": the steps a previous activation stored survive, which
-	// is what a repeat re-activation needs. A non-nil slice replaces them, so a
-	// given-but-empty one clears them and leaves nothing to run.
+	// Nil is "not given", so the steps a previous activation stored survive,
+	// which is what a repeat re-activation needs. A non-nil slice replaces
+	// them, so a given-but-empty one clears them and leaves nothing to run.
 	OnExit []string
 
 	// Repeat re-activates the mode after the action, for repeated clicks.

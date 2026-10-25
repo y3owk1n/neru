@@ -14,7 +14,7 @@ import (
 )
 
 // recordingManager stands a Manager up over a live recording surface, in the
-// X11 shape — the two backends share every drawing method, so which one carries
+// X11 shape. The two backends share every drawing method, so which one carries
 // the surface changes nothing about what is painted.
 func recordingManager() (*Manager, *recordingSurface) {
 	surface := &recordingSurface{scale: 1}
@@ -43,7 +43,7 @@ func searchStyle(dark bool) hints.SearchInputStyle {
 // TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheQueryOnTheActiveScreen
 // pins what the badge is: a display of the query the mode handler already
 // holds, painted where the overlay placed it and translated onto the monitor
-// the hints are on. Nothing here reads a key — the query arrives as an
+// the hints are on. Nothing here reads a key. The query arrives as an
 // argument, the same one macOS and Windows are handed.
 func TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheQueryOnTheActiveScreen(t *testing.T) {
 	t.Parallel()
@@ -100,7 +100,7 @@ func TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheQueryOnTheActiveScreen
 }
 
 // TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheThemeItsStyleCarries
-// pins the second half of "the same style resolution as every other badge": the
+// pins the second half of "the same style resolution as every other badge". The
 // resolved Style is what reaches the surface, so a dark theme paints the dark
 // colors without this backend resolving anything itself.
 func TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheThemeItsStyleCarries(t *testing.T) {
@@ -133,7 +133,7 @@ func TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheThemeItsStyleCarries(t
 // TestLinuxOverlayManager_HideHintSearchInput_TakesTheBadgeOffTheSurface pins
 // the other direction. A Linux badge is painted onto the one shared surface
 // rather than into a window of its own, so hiding it means putting back what it
-// covered: the hints are repainted where there are hints, and the rectangle is
+// covered. The hints are repainted where there are hints, and the rectangle is
 // erased where there are none. Erasing unconditionally would punch a hole
 // through the labels the user is about to type.
 func TestLinuxOverlayManager_HideHintSearchInput_TakesTheBadgeOffTheSurface(t *testing.T) {
@@ -217,9 +217,9 @@ func TestLinuxOverlayManager_HideHintSearchInput_TakesTheBadgeOffTheSurface(t *t
 }
 
 // silentSurface is a live overlaySurface that records nothing. The race test
-// below uses it rather than recordingSurface deliberately: a recorder needs a
+// below uses it rather than recordingSurface deliberately. A recorder needs a
 // lock of its own to be driven from two goroutines, and that lock would order
-// every draw against every other one — hiding exactly the unsynchronized access
+// every draw against every other one, hiding the unsynchronized access
 // the detector is there to find.
 type silentSurface struct{}
 
@@ -252,7 +252,7 @@ func (s *silentSurface) textPrim(_, _ string, _, _, _ float64, _ uint32, _ bool)
 // the manager and the lastHints trio on the surface are written by the badge
 // draw, by the hints draw that erases it and by the hide that puts it back,
 // which reach the manager from the mode handler and from an indicator tick
-// alike — so all three have to stay inside renderMu. It only runs on the Linux
+// alike, so all three have to stay inside renderMu. It only runs on the Linux
 // leg, `go test -race ./internal/adapter/overlay/linux/` there.
 func TestLinuxOverlayManager_HintSearchInputIsSerializedWithTheHintsDraw(t *testing.T) {
 	t.Parallel()
@@ -265,7 +265,7 @@ func TestLinuxOverlayManager_HintSearchInputIsSerializedWithTheHintsDraw(t *test
 	frame := hints.NewSearchInputFrame(image.Pt(10, 20), 300)
 	style := searchStyle(false)
 
-	// Enough rounds that the two loops genuinely overlap: at 200 an unlocked
+	// Enough rounds that the two loops genuinely overlap, since at 200 an unlocked
 	// write escaped the detector on a run more often than not.
 	const rounds = 5000
 
@@ -304,8 +304,8 @@ func TestLinuxOverlayManager_HintSearchInputIsSerializedWithTheHintsDraw(t *test
 		t.Errorf("%d of %d draws were refused against a live surface", got, rounds*2)
 	}
 
-	// Both loops end on a call that forgets the badge — the hide, and the hints
-	// draw that erases it — so whichever landed last, nothing is recorded as
+	// Both loops end on a call that forgets the badge, the hide and the hints
+	// draw that erases it, so whichever landed last, nothing is recorded as
 	// being on screen. A non-empty rectangle here is a write that escaped the
 	// lock, not a timing difference.
 	manager.renderMu.Lock()

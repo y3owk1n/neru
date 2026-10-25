@@ -123,7 +123,7 @@ func derefStruct(field reflect.Value) reflect.Value {
 }
 
 // setLeafValue handles only config-relevant reflect.Kind variants (String,
-// Int, Float, Bool, Slice, Struct); all others are unreachable in valid config
+// Int, Float, Bool, Slice, Struct). All others are unreachable in valid config
 // paths. The exhaustive linter is suppressed because adding every Kind would be
 // noise.
 //
@@ -186,17 +186,15 @@ func setLeafValue(field reflect.Value, value string) error {
 		}
 
 	case reflect.Struct:
-		if field.Type().Name() == "Color" {
-			c := parseColorValue(value)
-
-			field.Set(reflect.ValueOf(c))
-		} else {
+		if field.Type().Name() != "Color" {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"cannot set struct field %q directly; use a dotted path to a leaf field or provide a JSON object",
 				field.Type().Name(),
 			)
 		}
+
+		field.Set(reflect.ValueOf(parseColorValue(value)))
 
 	default:
 		return derrors.Newf(

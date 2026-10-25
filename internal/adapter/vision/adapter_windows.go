@@ -29,17 +29,17 @@ import (
 // engine reports no per-word confidence, so the three confidence floors are
 // declared inert here and every word carries a score of one.
 //
-// Privacy runs through every line below. Recognized text is screen content: it
+// Privacy runs through every line below. Recognized text is screen content. It
 // reaches an element's title and search text, where the hint pipeline needs it,
 // and nowhere else. Nothing here logs it, counts characters of it into a
-// message, or writes it anywhere; the debug lines carry durations and counts.
+// message, or writes it anywhere. The debug lines carry durations and counts.
 
 // DetectElements captures screenBounds and returns the text and button shapes
 // found in it as hintable elements.
 //
-// screenBounds is where the caller wants hints — normally the focused window —
+// screenBounds is where the caller wants hints, normally the focused window,
 // in global top-left-origin unscaled pixels, and it is honored rather than
-// widened: it is what places the results, so an empty rectangle is refused
+// widened, because it is what places the results, so an empty rectangle is refused
 // rather than read as "the whole screen".
 func (a *Adapter) DetectElements(
 	ctx context.Context,
@@ -47,19 +47,9 @@ func (a *Adapter) DetectElements(
 	cfg config.HintsVisionConfig,
 	splitWord bool,
 ) ([]*element.Element, error) {
-	select {
-	case <-ctx.Done():
-		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
-	}
-
-	region := screenBounds.Canon()
-	if region.Empty() {
-		return nil, derrors.Newf(
-			derrors.CodeActionFailed,
-			"vision detection needs a region to read; %v is empty",
-			screenBounds,
-		)
+	region, err := detectionRegion(ctx, screenBounds, "vision")
+	if err != nil {
+		return nil, err
 	}
 
 	if !cfg.DetectText && !cfg.DetectRectangles {
@@ -68,7 +58,7 @@ func (a *Adapter) DetectElements(
 		return nil, nil
 	}
 
-	// The engine is checked before the screen is read: a machine with no OCR
+	// The engine is checked before the screen is read, because a machine with no OCR
 	// language pack would otherwise have its focused window captured on every
 	// activation only to be told there is nothing to read it with. After the
 	// first call this is a cached handle.
@@ -250,12 +240,12 @@ func (a *Adapter) captureDetectionFrame(
 
 // Health reports whether the vision strategy can run on this machine.
 //
-// Capture needs no probe: every interactive Windows desktop can read its own
+// Capture needs no probe, because every interactive Windows desktop can read its own
 // pixels, and a session without one fails at the capture rather than here.
-// The recognition half catches the failure a user can fix: the OCR language
+// The recognition half catches the failure a user can fix. The OCR language
 // pack is installed per language, separately from Windows itself, so a
 // machine that runs Neru can still have none. The error names the remedy.
-// Asking also warms the engine; the handle is kept for the process.
+// Asking also warms the engine, and the handle is kept for the process.
 func (a *Adapter) Health(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -298,7 +288,7 @@ func regionCenter(region image.Rectangle) image.Point {
 }
 
 // scaleRects multiplies detector rectangles by factor, rounding outward. A
-// detector reports points; where the frame's own pixels are what the caller
+// detector reports points. Where the frame's own pixels are what the caller
 // places results in (Windows, which works in physical pixels), its boxes are
 // scaled back up by the DPI scale it was given.
 func scaleRects(rects []image.Rectangle, factor float64) []image.Rectangle {

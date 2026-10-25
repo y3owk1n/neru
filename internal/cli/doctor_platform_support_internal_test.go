@@ -16,7 +16,7 @@ import (
 // around, named once so the fixtures cannot disagree about its spelling.
 const hideCursorAction = "hide_cursor"
 
-// errRefusedFixture stands in for whatever refused a configuration; the row
+// errRefusedFixture stands in for whatever refused a configuration. The row
 // under test only asks whether one did.
 var errRefusedFixture = derrors.New(derrors.CodeInvalidConfig, "bad file")
 
@@ -25,7 +25,7 @@ var errRefusedFixture = derrors.New(derrors.CodeInvalidConfig, "bad file")
 // platform they are on, and why.
 //
 // The findings are handed in rather than loaded, so the Linux row can be read
-// from any machine — on macOS nothing in the schema is inert, and a test that
+// from any machine. On macOS nothing in the schema is inert, and a test that
 // loaded a file would assert the empty case three times.
 func TestPrintPlatformSupportCheck(t *testing.T) {
 	inert := parity.Declaration{

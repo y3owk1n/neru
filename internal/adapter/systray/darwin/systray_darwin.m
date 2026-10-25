@@ -124,7 +124,7 @@ void NeruSetIcon(const char *iconBytes, int length, bool isTemplate) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		NSImage *image = [[NSImage alloc] initWithData:data];
 
-		// Menu bar icons are 22×22 points (44×44 @2x retina). Setting the size
+		// Menu bar icons are 22x22 points (44x44 @2x retina). Setting the size
 		// explicitly ensures macOS renders the icon at the correct dimensions
 		// regardless of the source PNG pixel size.
 		[image setSize:NSMakeSize(22, 22)];
@@ -162,12 +162,10 @@ NSMenuItem *findItemByTagInMenu(NSMenu *menu, int menuId) {
 	if (!menu)
 		return nil;
 
-	// Check top-level items first
 	NSMenuItem *item = [menu itemWithTag:menuId];
 	if (item)
 		return item;
 
-	// Recursively search submenus
 	for (NSMenuItem *menuItem in [menu itemArray]) {
 		if ([menuItem hasSubmenu]) {
 			item = findItemByTagInMenu([menuItem submenu], menuId);
@@ -259,33 +257,25 @@ void NeruAddSeparator(int parentId) {
 
 void NeruHideMenuItem(int menuId) {
 	runOnMainThread(^{
-		NSMenuItem *item = findItemByTag(menuId);
-		if (item)
-			[item setHidden:YES];
+		[findItemByTag(menuId) setHidden:YES];
 	});
 }
 
 void NeruShowMenuItem(int menuId) {
 	runOnMainThread(^{
-		NSMenuItem *item = findItemByTag(menuId);
-		if (item)
-			[item setHidden:NO];
+		[findItemByTag(menuId) setHidden:NO];
 	});
 }
 
 void NeruSetItemChecked(int menuId, short checked) {
 	runOnMainThread(^{
-		NSMenuItem *item = findItemByTag(menuId);
-		if (item)
-			[item setState:checked ? NSControlStateValueOn : NSControlStateValueOff];
+		[findItemByTag(menuId) setState:checked ? NSControlStateValueOn : NSControlStateValueOff];
 	});
 }
 
 void NeruSetItemDisabled(int menuId, short disabled) {
 	runOnMainThread(^{
-		NSMenuItem *item = findItemByTag(menuId);
-		if (item)
-			[item setEnabled:!disabled];
+		[findItemByTag(menuId) setEnabled:!disabled];
 	});
 }
 
@@ -293,8 +283,6 @@ void NeruSetItemTitle(int menuId, const char *title) {
 	NSString *str = [NSString stringWithUTF8String:title] ?: @"";
 
 	runOnMainThread(^{
-		NSMenuItem *item = findItemByTag(menuId);
-		if (item)
-			[item setTitle:str];
+		[findItemByTag(menuId) setTitle:str];
 	});
 }

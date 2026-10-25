@@ -9,7 +9,7 @@ import (
 
 // toggleStateFlag names the state a toggle command should converge on.
 //
-// The toggle commands flip a boolean, which suits a key binding: the user sees
+// The toggle commands flip a boolean, which suits a key binding. The user sees
 // the result and presses again if it is wrong. It suits a script badly, since a
 // driver that cannot read the state can only guess, and a double press leaves
 // the daemon somewhere it does not expect. --state asks for a state instead,
@@ -27,8 +27,9 @@ const (
 //
 // A nil state means "flip it": what a toggle command does with no flag, and
 // what --state toggle asks for explicitly. The explicit spelling exists so a
-// macro can pass the value straight through — "toggle-scroll-invert --state $1"
-// — without the caller having to special-case flipping.
+// macro can pass the value straight through, as in
+// "toggle-scroll-invert --state $1", without the caller having to
+// special-case flipping.
 //
 // Both --state=on and --state on are accepted, matching how action flags are
 // written.
@@ -70,7 +71,7 @@ func parseToggleState(command string, args []string) (*bool, *ipc.Response) {
 }
 
 // parseToggleStateValue resolves one --state value. A nil state with ok true is
-// "toggle" — a valid request to flip, not a parse failure.
+// "toggle", a valid request to flip, not a parse failure.
 func parseToggleStateValue(value string) (*bool, bool) {
 	switch value {
 	case toggleStateOn:

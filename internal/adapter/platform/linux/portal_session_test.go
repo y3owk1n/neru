@@ -11,7 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Tokens the fakes below hand around. They are opaque to the policy: what each
+// Tokens the fakes below hand around. They are opaque to the policy. What each
 // test asserts is which one was presented and which one was kept.
 const (
 	storedToken  = "stored-token"
@@ -93,8 +93,8 @@ func grantWithToken(token string) openerAnswer {
 	return openerAnswer{grant: portalGrant{eisFD: 7, restoreToken: token}}
 }
 
-// TestEstablishPortalGrant_RestoresTheStoredGrantWithoutPrompting is the whole
-// point of the ticket: a restart presents the token it stored last time and the
+// TestEstablishPortalGrant_RestoresTheStoredGrantWithoutPrompting is what the
+// restore token is for. A restart presents the token it stored last time and the
 // portal restores the session, so the user sees no consent dialog.
 func TestEstablishPortalGrant_RestoresTheStoredGrantWithoutPrompting(t *testing.T) {
 	store := &fakeTokenStore{token: storedToken}
@@ -138,7 +138,7 @@ func TestEstablishPortalGrant_StoresTheTokenTheGrantReturned(t *testing.T) {
 }
 
 // TestEstablishPortalGrant_ClearsTheStoredTokenWhenTheGrantIsNotPersistent
-// covers a portal that grants the session but declines to persist it — the
+// covers a portal that grants the session but declines to persist it. The
 // token that was just presented is spent, so keeping it would have the next
 // start replay a credential that cannot work.
 func TestEstablishPortalGrant_ClearsTheStoredTokenWhenTheGrantIsNotPersistent(t *testing.T) {
@@ -238,10 +238,10 @@ func TestEstablishPortalGrant_DoesNotPromptAgainWhenTheUserCanceled(t *testing.T
 
 // TestEstablishPortalGrant_KeepsTheStoredTokenWhenTheFailureWasNotItsFault
 // covers the steps at either end of the handshake that never had the token in
-// their hands — the bus dial, the reply subscription and CreateSession before
-// it is sent, ConnectToEIS after the grant is already complete. They surface as
-// ordinary action failures, so without the marking they would look exactly like
-// the portal refusing the grant, and would spend a perfectly good one.
+// their hands: the bus dial, the reply subscription and CreateSession before
+// it is sent, and ConnectToEIS after the grant is already complete. They surface
+// as ordinary action failures, so without the marking they would look exactly
+// like the portal refusing the grant, and would spend a working one.
 func TestEstablishPortalGrant_KeepsTheStoredTokenWhenTheFailureWasNotItsFault(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -287,10 +287,10 @@ func TestEstablishPortalGrant_KeepsTheStoredTokenWhenTheFailureWasNotItsFault(t 
 }
 
 // TestEstablishPortalGrant_KeepsTheStoredTokenWhenNothingReachedThePortal is
-// the other half of "prompt once": a bus that could not be reached and a
+// the other half of "prompt once". A bus that could not be reached and a
 // handshake that ran out of time are not the token's fault, so throwing it away
-// would spend a working grant — and buy a consent prompt on the next start —
-// for a failure that had nothing to do with it.
+// would spend a working grant, and buy a consent prompt on the next start, for
+// a failure that had nothing to do with it.
 func TestEstablishPortalGrant_KeepsTheStoredTokenWhenNothingReachedThePortal(t *testing.T) {
 	tests := []struct {
 		name string
@@ -322,7 +322,7 @@ func TestEstablishPortalGrant_KeepsTheStoredTokenWhenNothingReachedThePortal(t *
 }
 
 // TestPromptingFallbackAllowed_RefusesToReAskAUserWhoSaidNo guards the second
-// place a dialog could be raised: the KDE input path falls back to the
+// place a dialog could be raised. The KDE input path falls back to the
 // liboeffis handshake when its own portal attempt fails, and that handshake
 // always prompts. Falling back after a cancelation would ask the user the same
 // question twice in one start.
@@ -362,9 +362,8 @@ func TestEstablishPortalGrant_PromptsWhenNothingIsStored(t *testing.T) {
 }
 
 // TestEstablishPortalGrant_KeepsTheGrantWhenTheTokenCannotBeStored pins the
-// degradation: an unwritable state directory costs the user a prompt on the
-// next start, which is strictly better than refusing the session they just
-// approved.
+// degradation. An unwritable state directory costs the user a prompt on the
+// next start, which is better than refusing the session they just approved.
 func TestEstablishPortalGrant_KeepsTheGrantWhenTheTokenCannotBeStored(t *testing.T) {
 	store := &fakeTokenStore{saveErr: errStoreReadOnly}
 	opener := &recordingOpener{t: t, answers: []openerAnswer{grantWithToken(nextToken)}}

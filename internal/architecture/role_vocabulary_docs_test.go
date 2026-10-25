@@ -43,7 +43,7 @@ func TestConfigurationDocsCoverTheRoleVocabulary(t *testing.T) {
 }
 
 // TestConfigurationDocsMarkTheAXSubroleNames keeps the documented role table
-// honest about the AX names AppKit declares as subroles: an element reports
+// honest about the AX names AppKit declares as subroles. An element reports
 // them in its subrole while its role stays generic, and the table is where a
 // user would otherwise learn the wrong shape.
 func TestConfigurationDocsMarkTheAXSubroleNames(t *testing.T) {
@@ -73,13 +73,13 @@ func TestConfigurationDocsMarkTheAXSubroleNames(t *testing.T) {
 var axNativeName = regexp.MustCompile(`\bAX[A-Z][A-Za-z]*`)
 
 // bareAXNames returns the AX native names text writes without the ax:
-// vocabulary prefix — the spelling that became a fatal configuration error
+// vocabulary prefix, the spelling that became a fatal configuration error
 // when the role vocabulary landed.
 //
 // allowBacktickedMentions exempts names wrapped in backticks, markdown's way
-// of mentioning a native name without telling the user to write it — the role
+// of mentioning a native name without telling the user to write it. The role
 // table in docs/reference/configuration.md documents every AX expansion that way. Help
-// strings get no such exemption: they carry no mention-table, so every bare
+// strings get no such exemption, since they carry no mention-table, so every bare
 // AX name in one is advice.
 func bareAXNames(text string, allowBacktickedMentions bool) []string {
 	var bare []string
@@ -150,8 +150,8 @@ func TestConfigurationDocsUseTheCurrentRoleVocabulary(t *testing.T) {
 }
 
 // TestModeFlagVocabularyUsesTheCurrentRoleVocabulary keeps the grammar's own
-// words current: a flag's usage sentence and its missing-value message are
-// what every door — command line, IPC response, binding advice — says, so a
+// words current. A flag's usage sentence and its missing-value message are
+// what the command line, an IPC response and binding advice all say, so a
 // stale role spelling there is repeated everywhere at once.
 func TestModeFlagVocabularyUsesTheCurrentRoleVocabulary(t *testing.T) {
 	for _, descriptor := range modecmd.All() {
@@ -163,8 +163,8 @@ func TestModeFlagVocabularyUsesTheCurrentRoleVocabulary(t *testing.T) {
 }
 
 // TestCLIHelpUsesTheCurrentRoleVocabulary walks every command's compiled-in
-// help — short and long descriptions, examples, and flag usages — for the
-// same stale spelling. Help is where a user copies a role example from, so a
+// help for the same stale spelling: short and long descriptions, examples, and
+// flag usages. Help is where a user copies a role example from, so a
 // bare AX name here directs them straight to a fatal config error.
 func TestCLIHelpUsesTheCurrentRoleVocabulary(t *testing.T) {
 	var walk func(*cobra.Command)

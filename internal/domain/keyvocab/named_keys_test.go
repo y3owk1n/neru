@@ -10,8 +10,8 @@ import (
 )
 
 // Spellings the tests in this package assert against, written out rather than
-// read from the table under test. The key* constants are display forms — the
-// spelling a config file writes — and the name* constants are the lowercase
+// read from the table under test. The key* constants are display forms, the
+// spelling a config file writes, and the name* constants are the lowercase
 // inputs a caller may pass instead.
 const (
 	keyReturn    = "Return"
@@ -45,7 +45,7 @@ func documentedNamedKeys() []string {
 	return keys
 }
 
-// TestNamedKeys_IsExactlyTheDocumentedSet is the pin: the declared vocabulary
+// TestNamedKeys_IsExactlyTheDocumentedSet is the pin. The declared vocabulary
 // and the one docs/reference/configuration.md promises are the same set, so adding a key
 // in one place without the other fails here rather than in a config file.
 func TestNamedKeys_IsExactlyTheDocumentedSet(t *testing.T) {
@@ -97,7 +97,7 @@ func TestIsNamedKey_OutsideTheSet(t *testing.T) {
 }
 
 // TestNamedKeyDisplay_KeepsTheSpellingWritten checks that an alias reports its
-// own display form rather than the key it means: "Enter" is what a config file
+// own display form rather than the key it means. "Enter" is what a config file
 // wrote and what a diagnostic should echo back.
 func TestNamedKeyDisplay_KeepsTheSpellingWritten(t *testing.T) {
 	t.Parallel()

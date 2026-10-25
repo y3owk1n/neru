@@ -16,11 +16,11 @@ import (
 const wmPIDProperty = "_NET_WM_PID"
 
 // TestX11WindowPIDError is the _NET_WM_PID half of the split
-// TestX11ActiveWindowQueryError covers one property up: a window that is alive
+// TestX11ActiveWindowQueryError covers one property up. A window that is alive
 // and advertises no pid answered the question, and a window that closed under
-// the query is a failure. Collapsing them — which is what the C returning a bare
-// ok flag used to force — told a user focusing an older X client that the query
-// had failed.
+// the query is a failure. Collapsing them, which the C returning a bare ok flag
+// used to force, told a user focusing an older X client that the query had
+// failed.
 func TestX11WindowPIDError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -113,11 +113,11 @@ func TestX11WindowPIDError(t *testing.T) {
 
 // TestX11WindowPIDError_OnlyTheAbsentPropertyCarriesTheSentinel pins the half of
 // the split the capability surface reads. A window that advertises no pid is not
-// a broken session, and `neru doctor` tells the two apart by this sentinel — a
+// a broken session, and `neru doctor` tells the two apart by this sentinel. A
 // failure wearing it would put the reassuring wording on a display that really
 // did fail to answer.
 //
-// It is deliberately its own sentinel rather than errNoFocusedWindow: a window
+// It is deliberately its own sentinel rather than errNoFocusedWindow. A window
 // *does* have focus here, so the sentence that explains an unfocused desktop
 // ("answers as soon as a window takes focus") would be false.
 func TestX11WindowPIDError_OnlyTheAbsentPropertyCarriesTheSentinel(t *testing.T) {
@@ -154,7 +154,7 @@ func TestX11WindowPIDError_OnlyTheAbsentPropertyCarriesTheSentinel(t *testing.T)
 // TestSystemAdapter_UnavailableDetail_SeparatesAWindowWithNoPIDFromAFailure
 // covers what a user actually reads. `neru doctor` downgrades a capability its
 // live probe refused, and the probe refuses on a window that advertises no pid
-// as much as on a broken display — but telling someone "focused-app inspection
+// as much as on a broken display, but telling someone "focused-app inspection
 // is unavailable" because they focused an older X client sends them looking for
 // a fix that does not exist.
 func TestSystemAdapter_UnavailableDetail_SeparatesAWindowWithNoPIDFromAFailure(t *testing.T) {
@@ -174,7 +174,7 @@ func TestSystemAdapter_UnavailableDetail_SeparatesAWindowWithNoPIDFromAFailure(t
 		}
 	}
 
-	// A window that closed under the query keeps the wording it had: something
+	// A window that closed under the query keeps the wording it had. Something
 	// went wrong, and the user is not being told a healthy session is fine.
 	broken := adapter.unavailableDetail(feature, x11WindowPIDError(x11WindowPIDWindowGone))
 	if !strings.Contains(broken, "unavailable") {

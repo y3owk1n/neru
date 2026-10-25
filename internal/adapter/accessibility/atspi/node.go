@@ -15,10 +15,10 @@ type atspiWindow struct {
 	valid bool
 	// focusedAppID and focusedTitle are the compositor's focused app_id and
 	// window title captured when this window was selected (empty on X11/GNOME).
-	// ClickableNodes compares both against the live values so a focus change
-	// between selection and the walk — including a switch to another window of
-	// the same application (same app_id, different title) — is detected and the
-	// stale frame is not walked or offset.
+	// ClickableNodes compares both against the live values, so it detects a
+	// focus change between selection and the walk and does not walk or offset
+	// the stale frame. That includes a switch to another window of the same
+	// application (same app_id, different title).
 	focusedAppID string
 	focusedTitle string
 }

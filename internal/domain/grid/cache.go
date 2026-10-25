@@ -32,7 +32,8 @@ type CacheEntry struct {
 	usedAt  time.Time
 }
 
-// Cache implements an LRU cache for grid cells to improve performance by reusing previously computed grids.
+// Cache is an LRU cache of computed grid cells, so a grid built again for the
+// same inputs reuses them.
 type Cache struct {
 	mu       sync.Mutex
 	items    map[CacheKey]*list.Element
@@ -73,27 +74,28 @@ func (c *Cache) get(cacheKey CacheKey) ([]*Cell, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	element, ok := c.items[cacheKey]
-
-	if ok {
-		if entry, ok := element.Value.(*CacheEntry); ok {
-			if time.Since(entry.addedAt) > c.ttl {
-				// Evict expired entry
-				c.order.Remove(element)
-				delete(c.items, cacheKey)
-
-				return nil, false
-			}
-
-			entry.usedAt = time.Now()
-
-			c.order.MoveToFront(element)
-
-			return entry.cells, true
-		}
+	element, found := c.items[cacheKey]
+	if !found {
+		return nil, false
 	}
 
-	return nil, false
+	entry, isEntry := element.Value.(*CacheEntry)
+	if !isEntry {
+		return nil, false
+	}
+
+	if time.Since(entry.addedAt) > c.ttl {
+		c.order.Remove(element)
+		delete(c.items, cacheKey)
+
+		return nil, false
+	}
+
+	entry.usedAt = time.Now()
+
+	c.order.MoveToFront(element)
+
+	return entry.cells, true
 }
 
 func (c *Cache) put(cacheKey CacheKey, cells []*Cell) {
@@ -101,20 +103,8 @@ func (c *Cache) put(cacheKey CacheKey, cells []*Cell) {
 	defer c.mu.Unlock()
 
 	if element, ok := c.items[cacheKey]; ok {
-		entry, ok := element.Value.(*CacheEntry)
-
-		if ok {
-			entry.cells = cells
-			entry.usedAt = time.Now()
-			entry.addedAt = entry.usedAt
-
-			c.order.MoveToFront(element)
-
-			return
-		}
-		// replace unexpected type
-		newEntry := &CacheEntry{cells: cells, addedAt: time.Now(), usedAt: time.Now()}
-		element.Value = newEntry
+		now := time.Now()
+		element.Value = &CacheEntry{cells: cells, addedAt: now, usedAt: now}
 		c.order.MoveToFront(element)
 
 		return

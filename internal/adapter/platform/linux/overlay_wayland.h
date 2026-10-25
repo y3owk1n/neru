@@ -16,7 +16,7 @@ typedef struct {
 	int x, y, width, height;
 	int scale;  // legacy integer wl_output.scale (fallback when no fractional-scale)
 	// fractional_scale_120 is the compositor's preferred scale as a numerator over
-	// 120 (e.g. 180 == 1.5x), from wp_fractional_scale_v1. 0 means not received; the
+	// 120 (e.g. 180 == 1.5x), from wp_fractional_scale_v1. 0 means not received, and the
 	// integer `scale` path is used until it arrives.
 	int fractional_scale_120;
 	struct wl_output *wl_output;
@@ -71,7 +71,7 @@ typedef struct {
 	int nr_screens;
 
 	// Set once neru_wayland_overlay_new has wired xdg_output for the initial
-	// outputs; afterwards a hotplug-added wl_output wires its own xdg_output
+	// outputs. Afterwards a hotplug-added wl_output wires its own xdg_output
 	// inline in the registry handler rather than the bulk setup loop.
 	int outputs_configured;
 

@@ -64,10 +64,10 @@ func IsMouseButtonDown(button action.MouseButton) bool {
 
 // EnsureMouseUp releases every mouse button Neru is currently holding down.
 //
-// MouseUp owns the bookkeeping: it clears a button only once the release has
+// MouseUp owns the bookkeeping. It clears a button only once the release has
 // actually been posted. A button whose release fails therefore stays recorded as
-// held, so the next release retries it, rather than being forgotten while the
-// window server still holds it — which would leave a toggle pressing it again.
+// held, so the next release retries it. Forgetting it while the window server
+// still holds it would leave a toggle pressing it again.
 func EnsureMouseUp() {
 	for _, button := range heldButtons.HeldButtons() {
 		_ = MouseUp(button)
@@ -77,8 +77,8 @@ func EnsureMouseUp() {
 // dragEventType returns the event type a cursor move should be posted with, and
 // the button it belongs to. Moving while a button is held has to be posted as a
 // drag of that button or the application never sees the drag. When several
-// buttons are held the left-most held button wins; a single move event cannot
-// describe more than one.
+// buttons are held the left-most held button wins, because a single move event
+// cannot describe more than one.
 func dragEventType() (C.CGEventType, C.CGMouseButton) {
 	held := heldButtons.HeldButtons()
 	if len(held) == 0 {
@@ -128,7 +128,7 @@ func MoveMouseSmooth(end image.Point, steps int, eventType, button uint32) {
 // While an animation is in flight, the delta extends the pending endpoint
 // instead of restarting from the mid-animation cursor position, so no part of
 // a delta is lost under key repeat. The target is clamped to the active
-// screen, matching the warp fallback's clamping — and keeping the pending
+// screen, matching the warp fallback's clamping. That also keeps the pending
 // endpoint from drifting off-screen when a key is held at a screen edge.
 func MoveMouseRelativeSmooth(delta image.Point) bool {
 	cfg := currentConfig()
@@ -237,7 +237,7 @@ func MouseDownAtPoint(
 	cursorAnimator.stop()
 
 	// Recorded before posting so that a move racing the press is still posted
-	// as a drag; the state is rolled back when the press fails.
+	// as a drag. The state is rolled back when the press fails.
 	heldButtons.SetDown(button, point, modifiers)
 
 	events := eventsForButton(button)
@@ -319,7 +319,7 @@ func MouseUp(button action.MouseButton) error {
 // ScrollAtCursor performs a scroll action at the current cursor position,
 // stamping modifiers onto the event so a ctrl-modified scroll zooms rather than
 // pans. Under smooth scroll the set travels on the animation request, because
-// every chunk the animator posts has to carry it — a zoom that applied only to
+// every chunk the animator posts has to carry it. A zoom that applied only to
 // the first frame would read as a broken binding.
 func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	cfg := currentConfig()

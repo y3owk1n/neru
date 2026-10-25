@@ -405,7 +405,7 @@ func scrollControllerWithModifierCapture(
 	}
 }
 
-// TestHandleAction_ScrollAcceptsModifier pins issue #1448: every scroll
+// TestHandleAction_ScrollAcceptsModifier pins issue #1448. Every scroll
 // sub-action takes --modifier and hands the parsed set to the scroll service,
 // which is what makes ctrl + scroll_up zoom instead of pan.
 func TestHandleAction_ScrollAcceptsModifier(t *testing.T) {
@@ -436,7 +436,7 @@ func TestHandleAction_ScrollAcceptsModifier(t *testing.T) {
 	}
 }
 
-// TestHandleAction_ScrollRejectsUnknownModifier keeps a typo loud: an
+// TestHandleAction_ScrollRejectsUnknownModifier keeps a typo loud. An
 // unparseable modifier must refuse the action rather than scroll without it.
 func TestHandleAction_ScrollRejectsUnknownModifier(t *testing.T) {
 	var got action.Modifiers
@@ -739,7 +739,6 @@ func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
 		logger:   zap.NewNop(),
 	}
 
-	// Chain containing 'feed'
 	resp := controller.handleAction(context.Background(), ipc.Command{
 		Action: ActionCommand,
 		Args:   []string{leftClick + ",feed"},
@@ -748,7 +747,6 @@ func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
 		t.Fatal("expected chain validation to fail for feed action")
 	}
 
-	// Chain containing 'sleep'
 	resp = controller.handleAction(context.Background(), ipc.Command{
 		Action: ActionCommand,
 		Args:   []string{leftClick + ",sleep"},
@@ -757,7 +755,6 @@ func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
 		t.Fatal("expected chain validation to fail for sleep action")
 	}
 
-	// Chain containing 'cycle_hint'
 	resp = controller.handleAction(context.Background(), ipc.Command{
 		Action: ActionCommand,
 		Args:   []string{leftClick + ",cycle_hint"},

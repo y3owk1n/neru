@@ -14,9 +14,9 @@ const searchPrompt = "/ Search hints"
 // the query is empty, and the query with the number of hints still matching it
 // once it is not.
 //
-// It lives here rather than in a backend for the reason PlaceHint does: the
+// It lives here rather than in a backend for the reason PlaceHint does. The
 // badge is a display of state the app already holds, and where it is worded is
-// not where it is painted. Linux reads it; macOS builds the same string in
+// not where it is painted. Linux reads it. macOS builds the same string in
 // Objective-C (`drawSearchInputInRect`) and Windows composes its own inline,
 // which is why the count reads `/ sav  3` on two platforms and `/ sav  3 /` on
 // the third. Bringing that third one here is a change to what a Windows user
@@ -34,7 +34,7 @@ func SearchLabel(query string, resultCount int) string {
 // position and never narrower than minWidth.
 //
 // minWidth is `hints.search_input_ui.width`, and it is a floor rather than the
-// width because the label is the point of the badge: a query that outgrew the
+// width because the label is the point of the badge. A query that outgrew the
 // configured box widens it instead of being drawn past its own border. macOS
 // takes the same maximum (`drawSearchInputWithAttrString`).
 func SearchBounds(

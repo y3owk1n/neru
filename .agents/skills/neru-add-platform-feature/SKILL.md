@@ -12,7 +12,7 @@ unimplemented, and reports itself honestly in the capability matrix.
 
 ## Before writing code
 
-1. Read `internal/adapter/platform/AGENTS.md` — the single home for the rules
+1. Read `internal/adapter/platform/AGENTS.md`, the single home for the rules
    this skill obeys: the One Rule, file slots, the factory and Linux's runtime
    compositor axis, loud stubs, capability honesty, coordinates, generated
    Wayland bindings. Add the `darwin/` or `linux/` guide for the native
@@ -37,8 +37,8 @@ unimplemented, and reports itself honestly in the capability matrix.
 
 ## Docs (same change, not a follow-up)
 
-`docs/contributing/porting.md` has the ownership table ("Documentation Checklist") —
-each fact has exactly one home. Capability status goes in
+`docs/contributing/porting.md` has the ownership table ("Documentation Checklist"),
+and each fact has exactly one home. Capability status goes in
 `docs/reference/platform-support.md`, the API or protocol behind it in
 `docs/contributing/platform-internals.md`, and never either in
 `docs/contributing/architecture.md` (shape only).
@@ -53,6 +53,6 @@ just test-foundation
 ```
 
 Cross-compile the platforms you touched (`just build-linux`,
-`just build-windows`) even when you can't run them — build tags hide breakage
+`just build-windows`) even when you can't run them, because build tags hide breakage
 from a darwin-only `just build`. Then the standard pre-commit gate, and ask a
 maintainer to run integration tests on the target OS if you can't.

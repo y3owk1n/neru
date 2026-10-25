@@ -156,34 +156,26 @@ func TestManager_ClearReleasesSessionState(t *testing.T) {
 func TestHintManager_RouterIntegration(t *testing.T) {
 	logger := logger.Get()
 
-	// Create hint manager
 	hintManager := hint.NewManager(logger, nil)
-
-	// Create hint router
 	hintRouter := hint.NewRouter(hintManager, logger)
 
-	// Create some test elements
 	elem1, _ := element.NewElement("elem1", image.Rect(10, 10, 50, 50), element.RoleButton)
 	elem2, _ := element.NewElement("elem2", image.Rect(60, 10, 100, 50), element.RoleButton)
 	elem3, _ := element.NewElement("elem3", image.Rect(10, 60, 50, 100), element.RoleButton)
 	testElements := []*element.Element{elem1, elem2, elem3}
 
-	// Create hint generator
 	gen, err := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 	if err != nil {
 		t.Fatalf("Failed to create hint generator: %v", err)
 	}
 
-	// Generate hints
 	hintInterfaces, err := gen.Generate(context.Background(), testElements)
 	if err != nil {
 		t.Fatalf("Failed to generate hints: %v", err)
 	}
 
-	// Create hint collection
 	hints := hint.NewCollection(hintInterfaces)
 
-	// Set hints in manager
 	err = hintManager.SetHints(hints)
 	if err != nil {
 		t.Fatalf("SetHints: %v", err)
@@ -204,7 +196,6 @@ func TestHintManager_RouterIntegration(t *testing.T) {
 	t.Run("Hint manager callback integration", func(t *testing.T) {
 		var callbackCalled bool
 
-		// Set callback
 		hintManager.SetUpdateCallback(func(hints []*hint.Interface) {
 			callbackCalled = true
 		})
@@ -257,8 +248,8 @@ func TestManager_ImmediateUpdateRequiresExternalMu(t *testing.T) {
 	}
 	mut.Unlock()
 
-	// "A" narrows to 2 hints (AA, AB) — same count as the full set (2),
-	// so this triggers immediateUpdate which should fail without the lock.
+	// "A" narrows to 2 hints (AA, AB), the same count as the full set (2),
+	// so this triggers immediateUpdate, which should fail without the lock.
 	err = inputErr(manager.HandleInput("A"))
 	if !errors.Is(err, hint.ErrExternalMuNotHeld) {
 		t.Fatalf("HandleInput without externalMu: got %v, want %v", err, hint.ErrExternalMuNotHeld)
@@ -323,7 +314,7 @@ func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetHints: %v", err)
 	}
-	// "A" narrows to 2 hints (AA, AB) — same count → immediateUpdate.
+	// "A" narrows to 2 hints (AA, AB), the same count, so it takes immediateUpdate.
 	err = inputErr(manager.HandleInput("A"))
 	if err != nil {
 		t.Fatalf("HandleInput: %v", err)
@@ -357,8 +348,8 @@ func TestManager_NoMatchRepeatedUsesImmediateUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetHints: %v", err)
 	}
-	// First invalid key "X" → no match, resets to full set (count 2).
-	// Previous count was 2 (from SetHints), so same count → immediateUpdate.
+	// First invalid key "X" has no match and resets to the full set (count 2).
+	// Previous count was 2 (from SetHints), so the same count takes immediateUpdate.
 	err = inputErr(manager.HandleInput("X"))
 	if err != nil {
 		t.Fatalf("HandleInput: %v", err)
@@ -367,8 +358,8 @@ func TestManager_NoMatchRepeatedUsesImmediateUpdate(t *testing.T) {
 	if callCount != 2 { // 1 from SetHints + 1 from HandleInput("X")
 		t.Errorf("Expected 2 callback calls after first invalid key, got %d", callCount)
 	}
-	// Second invalid key "Z" → no match again, full set (count 2).
-	// Previous count was 2, same count → immediateUpdate (synchronous).
+	// Second invalid key "Z" has no match either, so the set stays full (count 2).
+	// Previous count was 2, so the same count takes immediateUpdate (synchronous).
 	err = inputErr(manager.HandleInput("Z"))
 	if err != nil {
 		t.Fatalf("HandleInput: %v", err)
@@ -384,25 +375,22 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 	logger := logger.Get()
 	hintManager := hint.NewManager(logger, nil)
 
-	// Create test elements
 	elem1, _ := element.NewElement("elem1", image.Rect(10, 10, 50, 50), element.RoleButton)
 	elem2, _ := element.NewElement("elem2", image.Rect(60, 10, 100, 50), element.RoleButton)
 	elem3, _ := element.NewElement("elem3", image.Rect(10, 60, 50, 100), element.RoleButton)
 	testElements := []*element.Element{elem1, elem2, elem3}
 
-	// Create hint generator with numbers and symbols
+	// An alphabet that mixes a letter, a number and a symbol.
 	gen, err := hint.NewAlphabetGenerator("a1!", hint.LabelDirectionReverse)
 	if err != nil {
 		t.Fatalf("Failed to create hint generator: %v", err)
 	}
 
-	// Generate hints
 	hintInterfaces, err := gen.Generate(context.Background(), testElements)
 	if err != nil {
 		t.Fatalf("Failed to generate hints: %v", err)
 	}
 
-	// Set hints
 	collection := hint.NewCollection(hintInterfaces)
 
 	err = hintManager.SetHints(collection)
@@ -410,7 +398,7 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 		t.Fatalf("SetHints: %v", err)
 	}
 
-	// Test that letters are accepted and complete for single-char hints
+	// A letter is accepted and completes a single-char hint.
 	matchedHint, complete, _, err := hintManager.HandleInput("a")
 	if err != nil {
 		t.Fatalf("HandleInput: %v", err)
@@ -429,7 +417,7 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 		t.Fatalf("Reset: %v", err)
 	}
 
-	// Test that numbers are accepted and complete for single-char hints
+	// A number is accepted and completes a single-char hint.
 	matchedHint2, complete2, _, err := hintManager.HandleInput("1")
 	if err != nil {
 		t.Fatalf("HandleInput: %v", err)
@@ -448,7 +436,7 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 		t.Fatalf("Reset: %v", err)
 	}
 
-	// Test that symbols are accepted and complete for single-char hints
+	// A symbol is accepted and completes a single-char hint.
 	matchedHint3, complete3, _, err := hintManager.HandleInput("!")
 	if err != nil {
 		t.Fatalf("HandleInput: %v", err)
@@ -467,8 +455,8 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 		t.Fatalf("Reset: %v", err)
 	}
 
-	// Note: Unicode characters like é and emoji are rejected at config validation level
-	// so they won't be present in hint_characters, making this test unnecessary
+	// Unicode characters like é and emoji are rejected by config validation,
+	// so they never reach hint_characters and need no case here.
 }
 
 // inputErr keeps only the error from HandleInput, without a `_, _, _ =`

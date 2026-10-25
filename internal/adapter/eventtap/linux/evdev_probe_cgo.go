@@ -5,7 +5,7 @@
 // keys, and kanata's excludes only a device named "kanata", keyd's only its own
 // virtual keyboard. So a remapper grabs neru-keyboard-proxy when the daemon
 // creates it, or on its own start when the daemon is already up. With the
-// remapper's output grabbed here that closes a loop: every key the user types
+// remapper's output grabbed here that closes a loop. Every key the user types
 // circles between the two processes and reaches the compositor from neither.
 // Neru cannot change the remapper's filter, so it watches its own nodes and
 // fails open when one is taken (evdevProxy.probeOwnDevices).
@@ -30,7 +30,7 @@ import (
 const proxyNodeSysnameSize = 64
 
 // proxyNode is one of the proxy's event nodes, held open for probing. Nothing
-// reads it: the kernel keeps its client buffer bounded on its own.
+// reads it. The kernel keeps its client buffer bounded on its own.
 type proxyNode struct {
 	file *os.File
 }
@@ -60,15 +60,15 @@ func openProxyNode(uinputFd C.int) *proxyNode {
 	return &proxyNode{file: file}
 }
 
-// heldByAnother reports whether another process has grabbed the node: a grab
+// heldByAnother reports whether another process has grabbed the node. A grab
 // of our own answers EBUSY exactly then, and is let go again at once otherwise.
 //
 // Only the run goroutine calls it, and that goroutine is the one writer to the
 // device, so no key can be emitted while the probe grab is in place and the
 // compositor cannot lose one to it. What the grab window can drop is an LED
 // change the compositor writes inside it, which the kernel discards from a
-// non-grabber; the next LED change repairs that. A remapper's grab-ungrab-grab
-// on registering a device can slip between two probes; the next one catches it.
+// non-grabber. The next LED change repairs that. A remapper's grab-ungrab-grab
+// on registering a device can slip between two probes, and the next one catches it.
 func (n *proxyNode) heldByAnother() bool {
 	descriptor := C.int(n.file.Fd())
 

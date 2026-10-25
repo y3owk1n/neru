@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// bannerPattern matches a file's own path written as a comment near the top —
+// bannerPattern matches a file's own path written as a comment near the top,
 // a header line restating where the file lives.
 var bannerPattern = regexp.MustCompile(`^// ((?:internal|cmd)/[A-Za-z0-9_./-]+\.go)\s*$`)
 
@@ -18,10 +18,10 @@ var bannerPattern = regexp.MustCompile(`^// ((?:internal|cmd)/[A-Za-z0-9_./-]+\.
 const bannerScanLines = 6
 
 // TestCommentPaths_HeadersMatchTheirFile catches a header comment left behind by a
-// rename. Not every file carries one; those that do must be right.
+// rename. Not every file carries one. Those that do must be right.
 //
 // A comment that names a source file is a pointer, and a pointer that no longer
-// resolves is worse than no pointer: it sends a reader somewhere that does not
+// resolves is worse than no pointer. It sends a reader somewhere that does not
 // exist and costs them the time to work out which of the two is wrong.
 //
 // Renames break these silently. The compiler does not read comments, and a
@@ -106,7 +106,7 @@ func TestCommentPaths_SiblingReferencesResolve(t *testing.T) {
 }
 
 // internalFilePaths returns the slash-relative path of every file under
-// internal/, indexed once for the whole test: the references being resolved
+// internal/, indexed once for the whole test. The references being resolved
 // number in the hundreds, and a walk apiece would read the tree that many
 // times over.
 func internalFilePaths(t *testing.T) []string {
@@ -130,7 +130,7 @@ func internalFilePaths(t *testing.T) []string {
 // two ("darwin/element.go"), or the whole path from the repository root, so it
 // matches on a path component boundary rather than on the string.
 //
-// The paths are repo-relative, which is a narrowing: matching against absolute
+// The paths are repo-relative, which is a narrowing. Matching against absolute
 // paths, as this did before the walks were shared, let the directory the
 // checkout happens to sit in complete a reference and pass it.
 func resolvesUnderInternal(internalPaths []string, name string) bool {

@@ -14,19 +14,19 @@ import (
 
 // The org.freedesktop.portal.ScreenCast handshake, spoken directly over the
 // session bus. The transport underneath it is portal_bus.go, and the policy
-// that decides which token to present is portal_session.go — the same one the
+// that decides which token to present is portal_session.go, the same one the
 // input grant uses.
 //
 // This is KDE's only pixel source. X11 reads the root window back with
 // XGetImage and the wlroots family implements wlr-screencopy, neither of which
-// needs a consent picker in front of what becomes a hint refresh; KWin
+// needs a consent picker in front of what becomes a hint refresh. KWin
 // implements no screencopy protocol Neru can use, so KDE pays the portal
 // (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md). It pays it
-// once: the grant is persisted with a restore token and restored on every later
+// once. The grant is persisted with a restore token and restored on every later
 // start, exactly as the input grant is.
 //
 // Privacy: nothing here ever holds a pixel. This file negotiates which PipeWire
-// node the frames will arrive on and hands the socket to the native reader; the
+// node the frames will arrive on and hands the socket to the native reader. The
 // frame itself is read, cropped and released in pipewire_capture.c, and only
 // dimensions, durations and booleans are ever logged anywhere on the path.
 
@@ -44,12 +44,12 @@ const (
 //
 // Windows (type 2) are deliberately not asked for. A caller's rectangle is in
 // global screen coordinates, and a window stream carries no position, so a
-// window source could not be mapped back onto the region that was asked for —
+// window source could not be mapped back onto the region that was asked for,
 // and the region contract is what makes a captured frame placeable at all.
 const screenCastSourceMonitor uint32 = 1
 
 // screenCastCursorHidden is cursor_mode 1: the pointer is left out of the
-// frames. It is the only honest choice for this caller — the frame exists to be
+// frames. It is the only honest choice for this caller. The frame exists to be
 // read for on-screen text and elements, and a cursor drawn into it is a shape
 // the detector would try to interpret. It is also the one cursor mode every
 // portal backend is required to support.
@@ -63,7 +63,7 @@ type screenCastStream struct {
 	// bounds is the monitor's place in Neru's shared coordinate space: global
 	// origin, top-left, Y down, logical pixels. It is the zero rectangle when
 	// the portal named no size for the stream, which is the one case a region
-	// cannot be honored — see selectScreenCastStream.
+	// cannot be honored. See selectScreenCastStream.
 	bounds image.Rectangle
 	// positioned reports whether the portal itself said where the monitor
 	// sits. Every released Plasma (5.27 through 6.5) names only a size for a
@@ -78,14 +78,14 @@ type screenCastStream struct {
 
 // screenCastGrant is one established ScreenCast grant: the monitors it streams,
 // the token that restores it next time, and the two things that outlive the
-// handshake — a way to open a PipeWire connection for a frame, and a way to end
+// handshake: a way to open a PipeWire connection for a frame, and a way to end
 // the session.
 type screenCastGrant struct {
 	streams      []screenCastStream
 	restoreToken string
 	// openPipeWire returns a PipeWire remote file descriptor for one capture.
 	// Ownership of the descriptor passes to the caller, which hands it to the
-	// native reader; the reader closes it on every path.
+	// native reader, and the reader closes it on every path.
 	openPipeWire func(ctx context.Context) (int, error)
 	// close ends the portal session and releases the D-Bus connection holding
 	// it, which is what takes KDE's screen-sharing indicator back off the panel.
@@ -103,12 +103,12 @@ var _ portalRestorableGrant = screenCastGrant{}
 //
 // When restoreToken is not empty the portal is asked to restore the grant it
 // names, which is what keeps the source picker off the screen on a restart. A
-// token the portal will not accept is not an error here: the specification says
+// token the portal will not accept is not an error here. The specification says
 // an unrestorable token is ignored and the user prompted normally, and the
 // caller decides whether a prompt is acceptable on the path it is on.
 //
 // Every step is bounded by ctx, including the bus dial, which godbus cannot
-// cancel on its own — see dialPortalBus.
+// cancel on its own. See dialPortalBus.
 func openScreenCastSession(ctx context.Context, restoreToken string) (screenCastGrant, error) {
 	conn, err := dialPortalBus(ctx)
 	if err != nil {
@@ -130,7 +130,7 @@ func openScreenCastSession(ctx context.Context, restoreToken string) (screenCast
 //
 // OpenPipeWireRemote is deliberately *not* run here. It is one plain method
 // call per capture rather than once per session, because a PipeWire connection
-// is consumed by the reader that drains it — the descriptor cannot be reused,
+// is consumed by the reader that drains it. The descriptor cannot be reused,
 // and holding a live stream open between captures would have the compositor
 // pushing frames of the user's screen at Neru continuously for the sake of the
 // handful it is asked for.
@@ -154,7 +154,7 @@ func negotiateScreenCast(
 		return screenCastGrant{}, unrelatedToStoredGrant(err)
 	}
 
-	// The token is in play across the next two calls: SelectSources carries it
+	// The token is in play across the next two calls. SelectSources carries it
 	// and Start consumes it, so a refusal from either is the one signal there is
 	// that the stored grant is no longer good. Their errors go back unmarked.
 	_, err = requester.call(ctx, screenCastSelectSources,
@@ -191,7 +191,7 @@ func negotiateScreenCast(
 
 // portalObjectOn builds the bare portal object a plain (non-Request) call needs.
 // OpenPipeWireRemote answers with the descriptor directly, so it needs no
-// signal subscription and must not depend on one — the handshake's subscription
+// signal subscription and must not depend on one. The handshake's subscription
 // is gone by the time the first capture runs.
 func portalObjectOn(conn *dbus.Conn) dbus.BusObject {
 	return conn.Object(portalBusName, portalObjectPath)
@@ -230,10 +230,10 @@ func openPipeWireRemote(
 // handle token is added by portalRequester.call, which owns it.
 //
 // multiple is true because a region can land on any monitor, and a grant that
-// covers one display would refuse every capture on the others — a person with
+// covers one display would refuse every capture on the others. A person with
 // two screens would meet the picker again the first time they used hints on the
-// second one. What the user shares is still their choice; asking for the option
-// is what lets them say "all of them" once.
+// second one. What the user shares is still their choice, and asking for the
+// option is what lets them say "all of them" once.
 //
 // The restore token is omitted rather than sent empty when there is nothing to
 // restore, so a portal backend that validates the key it was handed does not
@@ -267,7 +267,7 @@ func decodeScreenCastStreams(results map[string]dbus.Variant) []screenCastStream
 		return nil
 	}
 
-	// A stream entry is (node id, properties); anything shorter is malformed.
+	// A stream entry is (node id, properties). Anything shorter is malformed.
 	const streamFields = 2
 
 	streams := make([]screenCastStream, 0, len(raw))
@@ -363,7 +363,7 @@ type screenCastOutput struct {
 //
 // A stream neither can place stays where it was decoded, at the origin, which
 // is right for the one monitor of a single-display session. Guessing there
-// beats refusing: the alternative is no hints at all on every Plasma release
+// beats refusing. The alternative is no hints at all on every Plasma release
 // that exists today.
 func placeScreenCastStreams(
 	streams []screenCastStream,
@@ -433,7 +433,7 @@ func placeScreenCastStreams(
 // and expresses region in that monitor's local logical coordinates.
 //
 // Refusing a region no single monitor contains is the contract the X11 and
-// wlroots backends already keep, for the same reason: the only other way to
+// wlroots backends already keep, for the same reason. The only other way to
 // answer is to crop, and a cropped frame carries nothing that says where its
 // own top-left is. A caller that asked for one window must never silently
 // receive a different rectangle, and one that asked for a region spanning two

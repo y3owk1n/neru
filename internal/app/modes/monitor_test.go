@@ -20,10 +20,10 @@ import (
 )
 
 // targetDisplay is the display a monitor move lands the cursor on in these
-// tests. Its contents do not matter; only that it is not where the mode was.
+// tests. Its contents do not matter, only that it is not where the mode was.
 var targetDisplay = image.Rect(1920, 0, 3840, 1080)
 
-// monitorMoveFilterRole is a role a hint session was activated with: exiting
+// monitorMoveFilterRole is a role a hint session was activated with. Exiting
 // the mode resets it, which is the state a concurrent refresh reads.
 const monitorMoveFilterRole = "button"
 
@@ -69,14 +69,14 @@ func newMonitorMoveHintsHandler(regenerations *atomic.Int64) *Handler {
 }
 
 // TestRefreshActiveModeForMonitorMove_ReadsTheModeSessionUnderTheHandlerLock
-// is the concurrency test the modes area guide asks of a locking change: it
+// is the concurrency test the modes area guide asks of a locking change. It
 // must fail under -race if the monitor-move dispatch reads a mode's session
 // state outside h.mu.
 //
-// A monitor move races a mode exit by construction — the warp is animated and
-// the user can press escape during it — and the two touch the same fields.
+// A monitor move races a mode exit by construction (the warp is animated and
+// the user can press escape during it), and the two touch the same fields.
 // Exiting hints resets the session flags (filter roles, strategy override) in a
-// locked section; putting hints back on the new display reads exactly those
+// locked section. Putting hints back on the new display reads exactly those
 // flags to regenerate the labels with the same filters. While the dispatch ran
 // unlocked and each arm locked for itself, the read happened before any lock
 // was taken and the race detector saw it. Dispatching under one hold is what
@@ -91,8 +91,8 @@ func TestRefreshActiveModeForMonitorMove_ReadsTheModeSessionUnderTheHandlerLock(
 
 	handler := newMonitorMoveHintsHandler(&regenerations)
 
-	// A refresh reaches the session at all — asserted on its own, before the two
-	// loops below, because whether either of them ever catches the other
+	// A refresh reaches the session at all. That is asserted on its own, before
+	// the two loops below, because whether either of them ever catches the other
 	// mid-round is up to the scheduler. Without this the whole test could pass
 	// on a dispatch that never reached a session.
 	handler.refreshActiveModeForMonitorMove(context.Background(), targetDisplay)
@@ -118,7 +118,7 @@ func TestRefreshActiveModeForMonitorMove_ReadsTheModeSessionUnderTheHandlerLock(
 		for range rounds {
 			// Re-enter hints so the next exit has a session to tear down, the
 			// way a repeating activation does. Both sides of the round are
-			// locked writers — an activation and an exit — and the exit resets
+			// locked writers (an activation and an exit), and the exit resets
 			// the session flags the refresh reads.
 			handler.mu.Lock()
 			handler.appState.SetMode(domain.ModeHints)
@@ -130,7 +130,7 @@ func TestRefreshActiveModeForMonitorMove_ReadsTheModeSessionUnderTheHandlerLock(
 	})
 
 	// The refresher runs flat out for as long as the mode is being entered and
-	// exited, rather than for a round count of its own: under the race detector
+	// exited, rather than for a round count of its own. Under the race detector
 	// the exit side is much the slower of the two.
 	waitGroup.Go(func() {
 		<-start
@@ -149,10 +149,10 @@ func TestRefreshActiveModeForMonitorMove_ReadsTheModeSessionUnderTheHandlerLock(
 	close(start)
 	waitGroup.Wait()
 
-	// Reported rather than asserted: the exit side re-locks the moment it
+	// Reported rather than asserted. The exit side re-locks the moment it
 	// unlocks, so how many of the concurrent refreshes find a session open is
 	// the scheduler's decision. Asserting on it makes the test flaky rather
-	// than strict — the guarantee that a refresh reaches a session at all is
+	// than strict. The guarantee that a refresh reaches a session at all is
 	// the one made before the loops started.
 	t.Logf("%d of the concurrent refreshes reached an open session", regenerations.Load())
 
@@ -162,7 +162,7 @@ func TestRefreshActiveModeForMonitorMove_ReadsTheModeSessionUnderTheHandlerLock(
 }
 
 // TestRefreshActiveModeForMonitorMove_LeavesTheOverlayAloneWhileIdle pins the
-// arm the mode map answers by having no entry: a move with nothing open must
+// arm the mode map answers by having no entry. A move with nothing open must
 // not bring a frame back up, which is what the deleted idle switch arm used to
 // say.
 func TestRefreshActiveModeForMonitorMove_LeavesTheOverlayAloneWhileIdle(t *testing.T) {

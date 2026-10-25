@@ -93,7 +93,7 @@ func (n *TreeNode) FindClickableElements(
 	return out
 }
 
-// Release is a no-op: Windows nodes hold no live COM references.
+// Release is a no-op, since Windows nodes hold no live COM references.
 func (n *TreeNode) Release(_ map[*Element]struct{}) {}
 
 // TreeOptions defines options for tree building.
@@ -101,7 +101,7 @@ type TreeOptions struct {
 	MaxDepth int
 	Bounds   image.Rectangle
 	logger   *zap.Logger
-	// configProvider answers the per-app visible check; nil means off.
+	// configProvider answers the per-app visible check. nil means off.
 	configProvider config.Provider
 	// Roles is the set of UIA control-type names to enumerate. An empty set
 	// falls back to the shipped defaults. It is applied during enumeration so
@@ -121,7 +121,7 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{logger: logger}
 }
 
-// SetCache is a no-op on Windows: the UIA cache request is built inside every
+// SetCache is a no-op on Windows. The UIA cache request is built inside every
 // enumeration rather than handed in by the caller.
 func (o *TreeOptions) SetCache(_ any) {}
 
@@ -256,13 +256,11 @@ func ProcessClickableNodes(root *TreeNode, _ config.HintsConfig) []*TreeNode {
 	return root.FindClickableElements(nil, nil, false)
 }
 
-// ReleaseTree is a no-op: Windows nodes hold no live COM references.
+// ReleaseTree is a no-op, since Windows nodes hold no live COM references.
 func ReleaseTree(_ *TreeNode) {}
 
-// ReleaseTreeExcept releases all AXUIElementRefs in the tree except those
-// belonging to the keep list. This prevents leaking CFRetain'd refs from
-// NeruGetChildren/NeruGetVisibleRows that are stored in tree nodes but never returned
-// to callers.
+// ReleaseTreeExcept releases the tree except the nodes in keep. Windows nodes
+// hold no live COM references, so nothing is freed.
 func ReleaseTreeExcept(tree *TreeNode, keep []*TreeNode) {
 	keepSet := make(map[*Element]struct{}, len(keep))
 	for _, node := range keep {

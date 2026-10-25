@@ -101,8 +101,8 @@ func (m Modifiers) Has(other Modifiers) bool {
 }
 
 // cmdDisplayName returns the platform-appropriate display name for the
-// Command / Super modifier. On macOS the key is "Cmd" (⌘); on Linux it
-// is commonly called "Super".
+// Command / Super modifier. On macOS the key is "Cmd" (⌘), and on Linux it
+// is usually called "Super".
 func cmdDisplayName() string {
 	if runtime.GOOS == "darwin" {
 		return "Cmd"

@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// A command is bounded: the daemon refuses one that would make it buffer
+// A command is bounded. The daemon refuses one that would make it buffer
 // without limit, and says so rather than reporting truncated JSON.
 func TestServer_HandleConnection_RefusesAnOversizedCommand(t *testing.T) {
 	t.Parallel()

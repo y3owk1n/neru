@@ -57,8 +57,8 @@ type Style struct {
 //
 // BuildStyle is how the daemon builds one, resolving every field from config
 // and theme. This is for callers that need a style with two or three fields
-// set and defaults elsewhere — overlay tests exercising the autohide
-// thresholds, mostly.
+// set and defaults elsewhere, mostly overlay tests exercising the autohide
+// thresholds.
 type StyleOptions struct {
 	LineColor                       string
 	LineWidth                       int
@@ -336,7 +336,7 @@ const widestCommonLabel = "W"
 // which is why it runs where a style is built and never in a draw. Labels are
 // drawn upper-cased, one key to a cell, unless label_char replaces them all.
 func (s Style) measureLabels(keys string) Style {
-	// One string per character: splitting on "" cuts at every UTF-8 sequence.
+	// One string per character. Splitting on "" cuts at every UTF-8 sequence.
 	alphabet := strings.Split(widestCommonLabel+strings.ToUpper(keys), "")
 
 	labels := alphabet

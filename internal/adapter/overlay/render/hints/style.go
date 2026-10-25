@@ -6,7 +6,7 @@ import (
 )
 
 // StyleMode is the visual styling for hint overlays, one type for every
-// platform: nothing about a hint's appearance differs by operating system.
+// platform, because nothing about a hint's appearance differs by operating system.
 //
 // Colors are the hex strings the configuration uses. A backend drawing with
 // packed ARGB converts at draw time, that being a property of the drawing API
@@ -78,7 +78,7 @@ func (s StyleMode) BoundaryBackgroundColor() string { return s.boundaryBackgroun
 // BoundaryBorderColor returns the target boundary stroke color.
 func (s StyleMode) BoundaryBorderColor() string { return s.boundaryBorderColor }
 
-// BuildStyle builds the hints style from the configuration .
+// BuildStyle builds the hints style from the configuration and the active theme.
 func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 	return StyleMode{
 		fontSize:     cfg.UI.FontSize,

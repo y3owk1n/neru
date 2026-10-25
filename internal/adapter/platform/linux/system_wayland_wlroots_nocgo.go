@@ -132,9 +132,9 @@ func wlrootsHasVirtualPointer() (bool, error) {
 	)
 }
 
-// wlrootsFocusedAppID is unavailable without CGO — the foreign-toplevel client
-// lives in the CGO build. Reports "no focused app_id" so callers fall through
-// to their XWayland fallback.
+// wlrootsFocusedAppID is unavailable without CGO, because the foreign-toplevel
+// client lives in the CGO build. Reports "no focused app_id" so callers fall
+// through to their XWayland fallback.
 func wlrootsFocusedAppID() (string, bool) {
 	return "", false
 }
@@ -143,20 +143,20 @@ func wlrootsFocusedAppIdentity() (string, string, bool) {
 	return "", "", false
 }
 
-// wlrootsFocusEventFD is unavailable without CGO — the foreign-toplevel client
-// lives in the CGO build. Callers fall back to polling.
+// wlrootsFocusEventFD is unavailable without CGO, because the foreign-toplevel
+// client lives in the CGO build. Callers fall back to polling.
 func wlrootsFocusEventFD() (int, bool) {
 	return -1, false
 }
 
-// wlrootsScreenEventFD is unavailable without CGO — the wlroots client lives in
-// the CGO build. Callers receive no display-configuration-change events.
+// wlrootsScreenEventFD is unavailable without CGO, because the wlroots client
+// lives in the CGO build. Callers receive no display-configuration-change events.
 func wlrootsScreenEventFD() (int, bool) {
 	return -1, false
 }
 
-// wlrootsRefreshScreens is a no-op without CGO — there is no wlroots client to
-// re-enumerate.
+// wlrootsRefreshScreens is a no-op without CGO, because there is no wlroots
+// client to re-enumerate.
 func wlrootsRefreshScreens() {}
 
 func wlrootsSetCursor(point image.Point) error {

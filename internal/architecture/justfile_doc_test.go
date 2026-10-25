@@ -14,11 +14,11 @@ import (
 //
 // `just` documents a recipe from the last contiguous comment line above it,
 // and this justfile writes rationale paragraphs there, so for twenty-six of
-// fifty-odd recipes the listed text was the tail of a sentence: `build`
+// fifty-odd recipes the listed text was the tail of a sentence. `build`
 // advertised itself as "X11/Wayland native backends). Windows currently builds
 // with CGO disabled.", `list-foundation-packages` as "check could see.". Which
 // line `just` happens to read is a function of where someone put a blank line,
-// so the layout fix does not hold either — `build` had one and still rendered
+// so the layout fix does not hold either. `build` had one and still rendered
 // wrong.
 //
 // Nothing caught it. The justfile parses, every recipe runs, `just lint` is
@@ -27,11 +27,11 @@ import (
 // docs/contributing/development.md names `just --list` as how a newcomer sees what the
 // project can do, so the orient step of the first hour was reading as noise.
 //
-// The fix is a declaration rather than a layout: every recipe `just --list`
+// The fix is a declaration rather than a layout. Every recipe `just --list`
 // shows carries its own `[doc('…')]` attribute, which overrides the comment
 // block entirely and leaves the prose above it exactly where it is.
 //
-// This reads the justfile as text and never runs `just`, per ADR 0011: the
+// This reads the justfile as text and never runs `just`, per ADR 0011, so the
 // tests in this package hold on every CI leg regardless of what is installed.
 const firstHourADR = "docs/adr/0012-the-first-hour-must-not-lie.md"
 
@@ -39,30 +39,31 @@ const firstHourADR = "docs/adr/0012-the-first-hour-must-not-lie.md"
 //
 // It caps the summary text, not the line `just --list` prints, and the
 // difference is deliberate. `just` pads every signature out to the widest one
-// it will align — signatures past 50 columns are dropped from the alignment
-// and get their summary on a line of their own — which today is `generate-icons
-// APP_ICON TRAY_ACTIVE TRAY_DISABLED` at 49. That puts the summary column at
-// 56, so an 80-column terminal leaves 24 for the text. Summaries that short are
+// it will align, which today is `generate-icons APP_ICON TRAY_ACTIVE
+// TRAY_DISABLED` at 49. Signatures past 50 columns are dropped from the
+// alignment and get their summary on a line of their own. The widest aligned
+// signature puts the summary column at 56, so an 80-column terminal leaves 24
+// for the text. Summaries that short are
 // labels rather than sentences, and they would be a downgrade for the entries
 // that already read correctly today at 40 to 76 columns.
 //
 // So the rule this width states is that a summary is one line and not a
 // paragraph. Past it the text is rationale, and rationale belongs in the
-// comment block above the recipe — which the attribute deliberately leaves
+// comment block above the recipe, which the attribute deliberately leaves
 // alone.
 const maxSummaryColumns = 80
 
 // minListedRecipes guards against a vacuous pass. The justfile lists fifty-odd
-// recipes; a parser that matched none — a header pattern that stopped
-// resolving, a renamed justfile — would satisfy every assertion below while
+// recipes. A parser that matched none, because a header pattern stopped
+// resolving or the justfile was renamed, would satisfy every assertion below while
 // checking nothing at all.
 const minListedRecipes = 40
 
 // docAttributePattern captures the text of a `[doc('…')]` attribute, in either
-// quoting. Both are read: a single-quoted string is raw, so it cannot carry an
+// quoting. Both are read, because a single-quoted string is raw, so it cannot carry an
 // apostrophe, and the double-quoted form is the only way to write a summary
 // that needs one. The capture is the source text, so an escape in a
-// double-quoted summary counts its backslash toward the width — a summary near
+// double-quoted summary counts its backslash toward the width. A summary near
 // enough the cap for that to matter is over it in spirit anyway.
 var docAttributePattern = regexp.MustCompile(
 	`\bdoc\(\s*(?:'([^']*)'|"((?:[^"\\]|\\.)*)")\s*\)`,
@@ -151,7 +152,7 @@ var overlongFixtureSummary = strings.Repeat("x", maxSummaryColumns+1)
 
 // TestJustfileSummaryRule_RejectsWhatItMustReject holds the rule to each shape
 // it has to separate: a recipe with no attribute at all, one declaring an
-// empty string, one declaring a paragraph, and — in the other direction — the
+// empty string, one declaring a paragraph, and, in the other direction, the
 // recipes `just --list` never shows, which owe nothing.
 //
 // The real justfile can only ever show the rule passing. A rule that quietly
@@ -225,7 +226,7 @@ func recipeIsListed(name string, recipe justRecipe) bool {
 }
 
 // recipeSummary returns the text of the recipe's `[doc('…')]` attribute and
-// whether it declares one at all. The two are separate answers: a recipe with
+// whether it declares one at all. The two are separate answers. A recipe with
 // no attribute and one declaring an empty string are different mistakes, and
 // the failure message says which.
 func recipeSummary(recipe justRecipe) (string, bool) {
@@ -234,7 +235,7 @@ func recipeSummary(recipe justRecipe) (string, bool) {
 		return "", false
 	}
 
-	// One of the two quotings matched; the other capture is empty.
+	// One of the two quotings matched. The other capture is empty.
 	return match[1] + match[2], true
 }
 

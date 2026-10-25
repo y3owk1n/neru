@@ -3,10 +3,10 @@
 
 // libei input-injection client for Wayland compositors that do not implement
 // zwlr_virtual_pointer_v1 (notably KWin/KDE Plasma). Input is delivered through
-// the org.freedesktop.portal.RemoteDesktop portal: liboeffis runs the portal
-// session and hands back an EIS socket, then libei emits pointer/button/scroll/
-// keyboard events on it. Screen enumeration and overlays still go through the
-// wlroots client; this wrapper only covers input.
+// the org.freedesktop.portal.RemoteDesktop portal, where liboeffis runs the
+// portal session and hands back an EIS socket, then libei emits
+// pointer/button/scroll/keyboard events on it. Screen enumeration and overlays
+// still go through the wlroots client. This wrapper only covers input.
 
 typedef struct NeruEiClient NeruEiClient;
 
@@ -17,7 +17,7 @@ typedef struct NeruEiClient NeruEiClient;
 //
 // liboeffis exposes no restore token, so the session this opens cannot be
 // reused after a restart and the dialog appears on every start. It is the
-// fallback for a session the Go-side portal handshake could not open; the
+// fallback for a session the Go-side portal handshake could not open, and the
 // reusable path is neru_ei_connect_fd.
 NeruEiClient *neru_ei_connect(int timeout_ms);
 
@@ -27,7 +27,7 @@ NeruEiClient *neru_ei_connect(int timeout_ms);
 // can reuse a stored grant, because the Go caller runs the portal handshake and
 // can present a restore token there.
 //
-// Takes ownership of eis_fd unconditionally: on success libei closes it at
+// Takes ownership of eis_fd unconditionally. On success libei closes it at
 // teardown, and on failure it is closed before returning NULL. Returns NULL on
 // timeout or any setup failure.
 NeruEiClient *neru_ei_connect_fd(int eis_fd, int timeout_ms);
@@ -45,7 +45,7 @@ int neru_ei_button(NeruEiClient *c, int button, int pressed);
 
 // Emit a scroll event. axis: 0 = vertical, 1 = horizontal. delta is the scroll
 // distance in logical pixels (positive = down/right), and is a double because
-// ei_device_scroll_delta is pixel-precise: a fraction of a wheel notch is a
+// ei_device_scroll_delta is pixel-precise. A fraction of a wheel notch is a
 // legal delta, which is what an animated scroll sends. Returns 1 on success.
 int neru_ei_scroll(NeruEiClient *c, int axis, double delta);
 

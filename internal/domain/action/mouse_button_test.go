@@ -211,7 +211,7 @@ func TestMouseButtonName_UnknownPhase(t *testing.T) {
 	}
 }
 
-// TestLegacyLeftButtonNamesStillParse pins the compatibility promise: configs
+// TestLegacyLeftButtonNamesStillParse pins the compatibility promise. Configs
 // written before right and middle button support keep working.
 func TestLegacyLeftButtonNamesStillParse(t *testing.T) {
 	tests := []struct {

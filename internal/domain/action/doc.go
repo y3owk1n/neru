@@ -1,6 +1,5 @@
 // Package action defines domain models for user actions.
 //
-// This package provides types and utilities for representing actions
-// that can be performed on UI elements, such as clicks, mouse movements,
-// and scrolling.
+// It holds the names and types of the actions a binding or mode can perform,
+// such as clicks, mouse movement, and scrolling.
 package action

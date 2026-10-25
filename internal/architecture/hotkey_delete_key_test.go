@@ -14,7 +14,7 @@ import (
 
 // Where each platform turns the base key of a [hotkeys] chord into the
 // physical key it grabs. macOS is read through the parser in
-// named_key_tables_test.go; the other three are Go switches.
+// named_key_tables_test.go, and the other three are Go switches.
 const (
 	hotkeyKeyWindowsSource = "internal/adapter/platform/windows/keys.go"
 	hotkeyKeyWindowsFunc   = "nameToVirtualKey"
@@ -58,7 +58,7 @@ var hotkeyKeyGoTables = []hotkeyKeyGoTable{
 // binding on "Delete" meaning the same physical key on every platform: the
 // backspace key, which is what "Backspace" binds and what macOS, the
 // reference, calls kVK_Delete. Inside a mode the two names are already one
-// key, by the vocabulary's alias; this pins the four hotkey tables, which
+// key, by the vocabulary's alias. This pins the four hotkey tables, which
 // resolve names on their own, to the same answer.
 //
 // It reads each table as a map from the name a config writes to the symbol
@@ -99,10 +99,11 @@ func TestEveryHotkeyTableBindsDeleteAndBackspaceToOneKey(t *testing.T) {
 	}
 }
 
-// readHotkeyKeyGoTable reads one Go-side table: for every case in every
-// switch of the named functions, the name the case matches — lowercased, with
-// a literal, a file-level constant, or a keyvocab.Key* reference all read as
-// the name they spell — and the first expression the clause returns.
+// readHotkeyKeyGoTable reads one Go-side table. For every case in every
+// switch of the named functions, it maps the name the case matches to the
+// first expression the clause returns. The name is lowercased, and a literal,
+// a file-level constant, or a keyvocab.Key* reference all read as the name
+// they spell.
 func readHotkeyKeyGoTable(t *testing.T, table hotkeyKeyGoTable) map[string]string {
 	t.Helper()
 
@@ -149,8 +150,8 @@ func readHotkeyKeyGoTable(t *testing.T, table hotkeyKeyGoTable) map[string]strin
 }
 
 // hotkeyKeyCaseName reads the name one case expression matches. It answers for
-// string literals, file-level string constants, and keyvocab.Key* references;
-// anything else is not a named key and is skipped.
+// string literals, file-level string constants, and keyvocab.Key* references.
+// Anything else is not a named key and is skipped.
 func hotkeyKeyCaseName(expr ast.Expr, consts map[string]string) (string, bool) {
 	switch expr := expr.(type) {
 	case *ast.BasicLit:

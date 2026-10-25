@@ -55,8 +55,8 @@ func TestBus_Publish_CountsWhatAFullSubscriberMissed(t *testing.T) {
 	}
 }
 
-// TestBus_SubscribeTo_OffersOnlyTheEventsNamed pins a filtered subscription:
-// it receives only the events it named, an event left out never counts as
+// TestBus_SubscribeTo_OffersOnlyTheEventsNamed pins a filtered subscription.
+// It receives only the events it named, an event left out never counts as
 // missed however many go by, and the numbers stay the bus's own.
 func TestBus_SubscribeTo_OffersOnlyTheEventsNamed(t *testing.T) {
 	bus := event.NewBus(nil)
@@ -142,7 +142,7 @@ func TestBus_Subscribe_StopClosesTheChannelAndEndsDelivery(t *testing.T) {
 }
 
 // TestBus_Publish_RacesSubscribeAndStop is the -race pin for closing a
-// subscription under the bus lock: a close moved outside it would let a
+// subscription under the bus lock. A close moved outside it would let a
 // concurrent Publish send on a closed channel and panic.
 func TestBus_Publish_RacesSubscribeAndStop(t *testing.T) {
 	bus := event.NewBus(nil)

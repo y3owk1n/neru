@@ -28,7 +28,7 @@ func TestTable_NamesEveryNarrowWord(t *testing.T) {
 	}
 }
 
-// TestTable_RendersOneRowPerReason is what keeps the table short: words that
+// TestTable_RendersOneRowPerReason is what keeps the table short. Words that
 // share a platform column and a reason share a row, so the reason is read once.
 func TestTable_RendersOneRowPerReason(t *testing.T) {
 	t.Parallel()
@@ -68,8 +68,8 @@ func TestTable_RendersOneRowPerReason(t *testing.T) {
 }
 
 // TestTable_LeavesOutTheWordsThatWorkEverywhere is the whole reason the table is
-// readable. The declarations name several hundred words; a table of all of them
-// would bury the dozen a reader is actually looking for.
+// readable. The declarations name several hundred words, and a table of all of
+// them would bury the dozen a reader is actually looking for.
 func TestTable_LeavesOutTheWordsThatWorkEverywhere(t *testing.T) {
 	t.Parallel()
 
@@ -150,7 +150,7 @@ func TestRewrite_ReplacesOnlyTheGeneratedRegion(t *testing.T) {
 		}
 	}
 
-	// Rewriting twice changes nothing: the guardrail compares a regenerated
+	// Rewriting twice changes nothing. The guardrail compares a regenerated
 	// document against the page, so a rewrite that was not a fixed point would
 	// fail the build on a page nobody had touched.
 	twice, err := supportref.Rewrite(rewritten)

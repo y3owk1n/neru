@@ -15,12 +15,12 @@ import (
 // ocrLanguage is the language tesseract is initialized for.
 //
 // It is a constant rather than an option, and that is the "every option is a
-// cost" rule rather than an oversight: macOS's Vision framework takes no
-// language from the user either, so exposing one here would be a Linux-only
+// cost" rule rather than an oversight, because macOS's Vision framework takes
+// no language from the user either, so exposing one here would be a Linux-only
 // word with no counterpart to have parity with. Latin-script UI text recognizes
 // acceptably under eng regardless of the interface language, and a user who
-// needs another model points TESSDATA_PREFIX at it — the resolution below reads
-// the environment first for exactly that reason.
+// needs another model points TESSDATA_PREFIX at it. The resolution below reads
+// the environment first for that reason.
 const ocrLanguage = "eng"
 
 // ocrLanguageData is the file whose absence means "the vision strategy cannot
@@ -33,7 +33,7 @@ const tessdataEnvVar = "TESSDATA_PREFIX"
 
 // tessdataSystemDirs are the directories distributions install language data
 // into, in the order they are tried. They differ per distribution and per
-// tesseract major version, which is why this is a list rather than a path:
+// tesseract major version, which is why this is a list rather than a path.
 // Debian and Ubuntu version the directory, Fedora does not, Arch uses the
 // unversioned share path, and a hand-built tesseract lands in /usr/local.
 var tessdataSystemDirs = []string{
@@ -46,13 +46,13 @@ var tessdataSystemDirs = []string{
 }
 
 // tessdataDebianDir is where Debian and Ubuntu put tesseract 5's language
-// data. It is named because it is the one the tests reach for: it is the layout
-// that shows both halves of the resolution — a versioned directory, and a
+// data. It is named because it is the one the tests reach for. It is the layout
+// that shows both halves of the resolution, a versioned directory and a
 // TESSDATA_PREFIX that may point at it or at its parent.
 const tessdataDebianDir = "/usr/share/tesseract-ocr/5/tessdata"
 
 // ocrStatus mirrors the NERU_OCR_* codes in ocr.h, for the reason captureStatus
-// mirrors the capture ones: a Go test file cannot use cgo, and the mapping from
+// mirrors the capture ones. A Go test file cannot use cgo, and the mapping from
 // a native failure to the sentence a user reads is the part worth testing.
 // ocr_cgo.go carries constant expressions that fail to compile if the two lists
 // disagree.
@@ -69,23 +69,24 @@ const (
 )
 
 // OCRWord is one run of recognized text, in the coordinate space of the image
-// it was read from — origin (0, 0) at the top-left of that buffer, not of the
-// screen.
+// it was read from, with origin (0, 0) at the top-left of that buffer, not of
+// the screen.
 //
-// Text is screen content and carries the same rules the capture buffer does: it
+// Text is screen content and carries the same rules the capture buffer does. It
 // is never logged, never written to disk, and never held past the detection
 // that asked for it.
 type OCRWord struct {
 	Text   string
 	Bounds image.Rectangle
-	// Confidence is 0..1. Tesseract reports 0..100; the native bridge
+	// Confidence is 0..1. Tesseract reports 0..100, and the native bridge
 	// normalizes so this is the same scale hints.vision.minimum_confidence and
 	// the macOS backend use.
 	Confidence float64
 }
 
 // OCRStats describes the work one recognition did, so a caller can log it.
-// Durations and counts only — nothing here derives from what was on the screen.
+// It holds durations and counts only. Nothing here derives from what was on the
+// screen.
 type OCRStats struct {
 	// Recognition is how long the engine spent on the frame, which is the
 	// number that separates "gave up on the deadline" from "failed instantly".
@@ -103,7 +104,7 @@ type OCRParams struct {
 
 // ocrError maps a native OCR status onto the shared error vocabulary.
 //
-// Only initialization is CodeNotSupported: it means this machine cannot run the
+// Only initialization is CodeNotSupported. It means this machine cannot run the
 // engine, so a caller should degrade rather than retry. Everything else is a
 // live failure of one recognition.
 func ocrError(status ocrStatus) error {
@@ -138,7 +139,7 @@ func ocrError(status ocrStatus) error {
 		)
 	// ocrStatusOK rides with the recognition failure rather than getting its
 	// own sentence, the way captureError pairs captureStatusOK with
-	// captureStatusFailed: this function is only reached on a failure branch,
+	// captureStatusFailed. This function is only reached on a failure branch,
 	// so being handed the success code means the caller's branch is wrong, and
 	// answering nil would turn that into a silent success.
 	case ocrStatusOK, ocrStatusRecognize:
@@ -160,7 +161,7 @@ func ocrError(status ocrStatus) error {
 // The environment wins over the system paths, because it is the only answer a
 // user can give: a Nix store path, a tessdata_fast checkout, or a language pack
 // installed somewhere a distribution never puts one. Both readings of
-// TESSDATA_PREFIX are accepted — tesseract 4 documented it as the parent of a
+// TESSDATA_PREFIX are accepted. Tesseract 4 documented it as the parent of a
 // tessdata/ directory and tesseract 5 as the directory itself, and both
 // spellings are live in shell profiles today.
 //

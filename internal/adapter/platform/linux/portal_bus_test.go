@@ -17,14 +17,14 @@ import (
 // The portal transport both KDE grants share: the object-path convention their
 // replies arrive on, the bus dial they open on, and the two mappings the
 // restore policy branches on. Nothing here is specific to RemoteDesktop or to
-// ScreenCast, which is the point — a difference between them at this level
-// would be a bug in one of them.
+// ScreenCast. A difference between them at this level would be a bug in one of
+// them.
 
 // TestPortalRequestPath_DerivesTheHandleFromTheSenderName pins the object-path
 // convention the portal specification states, because getting it wrong is a
-// silent hang rather than an error: the Response signal is emitted on the path
-// derived from our unique bus name, and a listener on any other path simply
-// never fires.
+// silent hang rather than an error. The Response signal is emitted on the path
+// derived from our unique bus name, and a listener on any other path never
+// fires.
 func TestPortalRequestPath_DerivesTheHandleFromTheSenderName(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -58,7 +58,7 @@ func TestPortalRequestPath_DerivesTheHandleFromTheSenderName(t *testing.T) {
 }
 
 // TestPortalHandleToken_IsAValidObjectPathElement guards the other half of the
-// same hazard: the token is pasted into an object path, and a character the
+// same hazard. The token is pasted into an object path, and a character the
 // D-Bus specification does not allow there makes the portal reject the whole
 // call.
 func TestPortalHandleToken_IsAValidObjectPathElement(t *testing.T) {
@@ -107,7 +107,7 @@ func TestPortalCallFailed_KeepsTheBusErrorBodyOutOfTheMessage(t *testing.T) {
 }
 
 // TestPortalCallFailed_ReportsARanOutOfTimeCallAsATimeout matters because the
-// restore policy branches on the code: a slow portal reported as a refusal
+// restore policy branches on the code. A slow portal reported as a refusal
 // would have the stored grant thrown away and the user prompted, for a failure
 // that never reached the portal at all.
 func TestPortalCallFailed_ReportsARanOutOfTimeCallAsATimeout(t *testing.T) {
@@ -127,8 +127,8 @@ func TestPortalCallFailed_ReportsARanOutOfTimeCallAsATimeout(t *testing.T) {
 // a user is told when the session bus will not answer, because that sentence is
 // the whole of the diagnosis they get. The bound underneath is shared with the
 // notifier and the theme observer (session_bus_dial.go), and the three of them
-// report a wedged bus differently on purpose — this is the portal's half of
-// that, down to the code each answer carries.
+// report a wedged bus differently on purpose. This test covers the portal's
+// half of that, down to the code each answer carries.
 func TestPortalBusConnection_ReportsEachWayADialEndsInThePortalsOwnWords(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -191,8 +191,8 @@ func TestPortalBusConnection_ReportsEachWayADialEndsInThePortalsOwnWords(t *test
 			}
 
 			// The dial is still outstanding, and the input path reaches this
-			// holding the keyboard grab: a caller arriving now is turned away
-			// rather than piling a second uncancellable dial on the first.
+			// holding the keyboard grab, so a caller arriving now is turned
+			// away rather than piling a second uncancellable dial on the first.
 			refused, cancelRefused := context.WithTimeout(context.Background(), dialTestBudget)
 			defer cancelRefused()
 
@@ -212,7 +212,7 @@ func TestPortalBusConnection_ReportsEachWayADialEndsInThePortalsOwnWords(t *test
 
 // TestPortalResponseError_SeparatesCancelationFromFailure pins the mapping the
 // restore policy branches on. A canceled request is the user's own answer and
-// must not be met with a second dialog; anything else is a failure the policy
+// must not be met with a second dialog. Anything else is a failure the policy
 // may fall back from.
 func TestPortalResponseError_SeparatesCancelationFromFailure(t *testing.T) {
 	tests := []struct {

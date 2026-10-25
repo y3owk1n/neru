@@ -2,10 +2,10 @@
 
 package manager_test
 
-// The full build is asserted off macOS only: there the mode indicator, sticky
+// The full build is asserted off macOS only. There the mode indicator, sticky
 // indicator and virtual pointer each create their own native window, which is
 // a real desktop resource and not something a unit test should allocate. What
-// they are built from — configuration and a theme provider — is shared, so the
+// they are built from, configuration and a theme provider, is shared, so the
 // wiring this pins is the same wiring macOS runs.
 
 import (
@@ -20,9 +20,10 @@ import (
 
 // TestBase_BuildComponents_BuildsWhatTheConfigurationAsksFor pins that the
 // overlay builds its own components from the configuration and theme it is
-// handed, and that the two grid overlays exist even with their modes disabled
-// — enabling one through a config reload must not need a restart to get an
-// overlay. Hints are the exception: the mode being off means no overlay.
+// handed, and that the two grid overlays exist even with their modes disabled,
+// because enabling one through a config reload must not need a restart to get
+// an overlay. Hints are the exception, because the mode being off means no
+// overlay.
 func TestBase_BuildComponents_BuildsWhatTheConfigurationAsksFor(t *testing.T) {
 	t.Parallel()
 
@@ -101,7 +102,7 @@ func TestBase_BuildComponents_BuildsWhatTheConfigurationAsksFor(t *testing.T) {
 }
 
 // TestBase_BuildComponents_RegistersWhatItBuilt pins that the manager keeps
-// the components as well as returning them: an indicator is driven through the
+// the components as well as returning them. An indicator is driven through the
 // port, and the manager can only resolve one to a render component if the
 // build registered it.
 func TestBase_BuildComponents_RegistersWhatItBuilt(t *testing.T) {
@@ -131,7 +132,7 @@ func TestBase_BuildComponents_RegistersWhatItBuilt(t *testing.T) {
 	}
 
 	// Reached through the port vocabulary, which is how every caller reaches
-	// one: a registered indicator answers, rather than being skipped as never
+	// one. A registered indicator answers, rather than being skipped as never
 	// constructed.
 	base.ShowIndicator(ports.ModeIndicator)
 	base.HideIndicator(ports.ModeIndicator)

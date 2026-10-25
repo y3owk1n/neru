@@ -16,12 +16,12 @@ import (
 // give its slanted edges a border. The placement geometry itself is shared with
 // the Linux backend and tested beside it (render/badge).
 //
-// There is no manager-level draw test here, unlike the Linux one: reaching
+// There is no manager-level draw test here, unlike the Linux one. Reaching
 // DrawHintsWithStyle's placement branch means getting past
 // ensureWinOverlayLocked, which creates a real layered window.
 
 // TestResolveHintBadgeOffset_EveryPlacementInTheVocabulary pins this overlay to
-// config's declaration of the vocabulary: every value `hints.ui.placement`
+// config's declaration of the vocabulary. Every value `hints.ui.placement`
 // accepts has to resolve to an offset here. A placement added to
 // config.HintPlacements() without a branch below fails this test rather than
 // drawing a badge in a placement nobody chose.
@@ -87,10 +87,10 @@ func TestResolveHintBadgeOffset_UnsetDrawsTheDefault(t *testing.T) {
 	}
 }
 
-// TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported pins the other half:
-// a value outside the vocabulary is refused, not drawn. Silently drawing it at
-// some placement is exactly what this backend used to do with every value —
-// the gap this closes.
+// TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported pins the other half.
+// A value outside the vocabulary is refused, not drawn. Silently drawing it at
+// some placement is exactly what this backend used to do with every value,
+// and this closes that gap.
 func TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported(t *testing.T) {
 	t.Parallel()
 
@@ -107,7 +107,7 @@ func TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported(t *testing.T) {
 }
 
 // TestOutsetHintArrow_GrowsAwayFromTheBadge pins the border triangle drawn
-// under the arrow: it has to be strictly larger on the two slanted edges and
+// under the arrow. It has to be strictly larger on the two slanted edges and
 // pushed back into the badge at the base, so the arrow drawn over it leaves an
 // even border and nothing pokes out past the badge edge.
 func TestOutsetHintArrow_GrowsAwayFromTheBadge(t *testing.T) {
@@ -117,7 +117,7 @@ func TestOutsetHintArrow_GrowsAwayFromTheBadge(t *testing.T) {
 		name   string
 		offset badge.HintOffset
 		// toward is the sign of the direction the arrow points, spelled out
-		// rather than re-derived: deriving it here would be the production
+		// rather than re-derived. Deriving it here would be the production
 		// inference asserting itself.
 		toward int
 	}{

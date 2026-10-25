@@ -21,9 +21,9 @@ const (
 // own, so a press followed by a release of the same key *is* a modifier tap by
 // the tap's own definition, and with sticky_modifiers.enabled that latches a
 // modifier the user never touched. The tap already knows how to disown an
-// event it is about to inject; this is the entry point that lets the
-// accessibility injection path — which posts its own key events, not through
-// PostModifierEvent — say so too.
+// event it is about to inject. This is the entry point that lets the
+// accessibility injection path, which posts its own key events and not through
+// PostModifierEvent, say so too.
 func TestEventTap_RememberSyntheticModifier_MakesAnInjectedTapConsumable(t *testing.T) {
 	t.Parallel()
 
@@ -42,7 +42,7 @@ func TestEventTap_RememberSyntheticModifier_MakesAnInjectedTapConsumable(t *test
 }
 
 // TestEventTap_RememberSyntheticModifier_LeavesAModifierNobodyInjectedAlone is
-// the other half: the suppression window is 250ms wide and shared, so
+// the other half. The suppression window is 250ms wide and shared, so
 // registering more than what is actually injected would swallow a real
 // modifier press the user made inside it.
 func TestEventTap_RememberSyntheticModifier_LeavesAModifierNobodyInjectedAlone(t *testing.T) {
@@ -63,7 +63,7 @@ func TestEventTap_RememberSyntheticModifier_LeavesAModifierNobodyInjectedAlone(t
 
 // TestEventTap_RememberSyntheticModifier_RegistersOneNamePerKeyEvent pins the
 // translation from the injection path's vocabulary to the tap's, and that it is
-// one-for-one: the grab reads a key event under exactly one name, and consuming
+// one-for-one. The grab reads a key event under exactly one name, and consuming
 // it takes one entry off the queue. A second entry nothing answers would sit
 // out the whole suppression window and swallow a modifier the user pressed.
 func TestEventTap_RememberSyntheticModifier_RegistersOneNamePerKeyEvent(t *testing.T) {
@@ -221,7 +221,7 @@ func TestSetModifierPassthroughDisabledStillMatchesBlacklist(t *testing.T) {
 	t.Parallel()
 
 	// Even with the blacklist populated, a disabled passthrough never passes
-	// anything through — the enabled flag gates first.
+	// anything through. The enabled flag gates first.
 	eventTap := NewEventTap(nil, nil)
 	eventTap.SetModifierPassthrough(false, []string{"Ctrl+x"})
 
@@ -235,9 +235,9 @@ func TestSetModifierPassthroughDisabledStillMatchesBlacklist(t *testing.T) {
 //
 // Tearing this tap down closes the dispatch channel and waits for the dispatch
 // goroutine, so Destroy runs for as long as the key that goroutine is
-// delivering takes — and that key is delivered into the mode handler under its
+// delivering takes, and that key is delivered into the mode handler under its
 // own lock. The adapter must therefore not hold its lock across this call, and
-// the tap must not hold et.mu either: the callback here takes it while Destroy
+// the tap must not hold et.mu either. The callback here takes it while Destroy
 // is waiting, which is what the unlock before the wait buys.
 func TestEventTap_Destroy_WaitsForAnInFlightKeyDispatch(t *testing.T) {
 	t.Parallel()

@@ -17,8 +17,8 @@ Only the **latest release** receives security fixes. We do not back-port patches
 
 Instead, report them privately:
 
-1. **GitHub Security Advisories (preferred)** — go to [Security → Report a vulnerability](https://github.com/y3owk1n/neru/security/advisories/new) on this repository. This creates a private advisory only visible to maintainers.
-2. **Direct contact** — reach out to [@y3owk1n](https://github.com/y3owk1n) via GitHub if you cannot use the advisory flow.
+1. **GitHub Security Advisories (preferred).** Go to [Security → Report a vulnerability](https://github.com/y3owk1n/neru/security/advisories/new) on this repository. This creates a private advisory that only maintainers can see.
+2. **Direct contact.** Reach out to [@y3owk1n](https://github.com/y3owk1n) via GitHub if you cannot use the advisory flow.
 
 Please include:
 
@@ -37,7 +37,7 @@ Please include:
 
 ## Security Model
 
-Understanding Neru's security posture helps frame what constitutes a vulnerability.
+This section describes what Neru can access, which defines what counts as a vulnerability.
 
 ### Permissions
 
@@ -48,7 +48,7 @@ Neru requires **macOS Accessibility permission** to function. This grants it the
 - Monitor global keyboard events via an event tap.
 - Register global hotkeys.
 
-These are powerful system permissions. Neru uses them **only** for keyboard- driven navigation and does **not** record, transmit, or log the content of UI elements or keystrokes beyond what is needed for its navigation modes.
+These are powerful system permissions. Neru uses them **only** for keyboard-driven navigation and does **not** record, transmit, or log the content of UI elements or keystrokes beyond what is needed for its navigation modes.
 
 ### No Network Access
 
@@ -58,11 +58,11 @@ Neru does **not**:
 - Send telemetry, analytics, or crash reports.
 - Contact update servers or phone home.
 
-All communication is strictly local — the CLI and daemon talk over a **Unix domain socket** on macOS and Linux, and a **named pipe** on Windows.
+All communication is local. The CLI and daemon talk over a **Unix domain socket** on macOS and Linux, and a **named pipe** on Windows.
 
 ### IPC
 
-The CLI communicates with the running daemon over that endpoint using a JSON-based message protocol. It is never exposed over the network, and it is scoped to the user running the daemon: the socket is mode `0600` inside a `0700` directory that user owns, the named pipe carries that user's SID in its name and a security descriptor naming that SID alone, and on macOS and Linux the daemon additionally reads the connecting process's uid from the kernel and serves only its own. See [Architecture](docs/contributing/architecture.md#runtime-shape) for the exact locations.
+The CLI communicates with the running daemon over that endpoint using a JSON-based message protocol. It is never exposed over the network, and it is scoped to the user running the daemon. The socket is mode `0600` inside a `0700` directory that user owns, the named pipe carries that user's SID in its name and a security descriptor naming that SID alone, and on macOS and Linux the daemon also reads the connecting process's uid from the kernel and serves only its own. See [Architecture](docs/contributing/architecture.md#runtime-shape) for the exact locations.
 
 ### CGo / Objective-C Bridge
 
@@ -87,7 +87,7 @@ The following are **in scope** for security reports:
 The following are **out of scope**:
 
 - Issues that require the attacker to already have local root access.
-- Denial-of-service against the local daemon (the user can simply restart it).
+- Denial-of-service against the local daemon (the user can restart it).
 - Vulnerabilities in macOS itself or its Accessibility API.
 - Social engineering attacks.
 

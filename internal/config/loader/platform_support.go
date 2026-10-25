@@ -12,7 +12,7 @@ import (
 
 // listedInertWords is how many inert words a single warning names before it
 // stops listing and counts. The warning exists to tell a person that something
-// they wrote does nothing; a wall of forty paths in a `neru config validate`
+// they wrote does nothing. A wall of forty paths in a `neru config validate`
 // run does that worse than a sentence and a pointer to the command that lists
 // them all.
 const listedInertWords = 10
@@ -21,11 +21,11 @@ const listedInertWords = 10
 // does nothing on this platform, and hands the findings back for the result to
 // carry.
 //
-// One warning rather than one per word, because it is one thing to learn: an
-// option that is inert here is not a mistake in the file, it is a promise this
+// One warning rather than one per word, because it is one thing to learn. An
+// option that is inert here is not a mistake in the file. It is a promise this
 // platform does not keep, and the file is very often the same one the person
-// uses on macOS. That is also why it is a warning at all and never a refusal —
-// refusing would cost the user every other line in the file (ADR 0002), and
+// uses on macOS. That is also why it is a warning at all and never a refusal.
+// Refusing would cost the user every other line in the file (ADR 0002), and
 // would trade a silent lie for a portability break
 // (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
 //
@@ -60,7 +60,7 @@ func warnInertWords(
 // findings back for the result to carry beside the platform-inert ones.
 //
 // One warning for the set, in the voice of warnInertWords, with the reason in
-// the sentence: the platform warning can defer its reasons to `neru doctor`
+// the sentence. The platform warning can defer its reasons to `neru doctor`
 // because there is one per word, while every word here shares the one note,
 // and a person on X11 reading "passthrough does nothing here" wants to know why
 // before they go and read anything else.
@@ -114,7 +114,7 @@ func plural(count int, one, many string) string {
 // It reads the decoded files rather than the loaded configuration because only
 // the files answer "did somebody write this?". The loaded configuration is
 // every layer merged, where a default nobody chose is indistinguishable from a
-// line somebody typed — and a warning about a default is a warning nobody can
+// line somebody typed, and a warning about a default is a warning nobody can
 // act on.
 func writtenConfiguration(raw map[string]any, overridePath string) config.Written {
 	written := config.Written{Options: make(map[string]string)}
@@ -124,7 +124,7 @@ func writtenConfiguration(raw map[string]any, overridePath string) config.Writte
 	if overridePath != "" {
 		var overrideRaw map[string]any
 
-		// A parse failure here is not this reading's to report: the override
+		// A parse failure here is not this reading's to report. The override
 		// file is decoded again by the layer that applies it, which refuses the
 		// load with the message.
 		_, decodeErr := toml.DecodeFile(overridePath, &overrideRaw)
@@ -139,8 +139,8 @@ func writtenConfiguration(raw map[string]any, overridePath string) config.Writte
 // collectWritten walks a decoded TOML tree, recording the path of every key and
 // the text of every string in it.
 //
-// Every string, rather than the ones under a table this knows the name of: the
-// action strings live in the global hotkey table, in five per-mode tables, in
+// It records every string, rather than the ones under a table this knows the
+// name of. The action strings live in the global hotkey table, in five per-mode tables, in
 // the per-app overrides of both, in the macro bodies and in the two Mission
 // Control hooks, and a list of those places here would be a second copy of the
 // binding walk to drift from the first. A string that is not a step names no

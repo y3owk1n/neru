@@ -19,7 +19,7 @@ var (
 )
 
 // CustomMode implements the Mode interface for every mode the user declared
-// under [modes.<name>]. One implementation serves them all: a declared mode
+// under [modes.<name>]. One implementation serves them all. A declared mode
 // has no logic of its own, so what tells one from another is the name on the
 // handler, which picks the keymap, the indicator label and the frame.
 //
@@ -47,12 +47,12 @@ func (m *CustomMode) Activate(activation modecmd.Activation) {
 	m.handler.startCustomMode(activation.Name)
 }
 
-// HandleKey processes a key press within a declared mode. Nothing is done
-// here: a declared mode's keys are fully driven by its hotkey table.
+// HandleKey processes a key press within a declared mode. It does nothing,
+// because a declared mode's hotkey table drives all of its keys.
 func (m *CustomMode) HandleKey(_ string) {}
 
 // RefreshForMonitorMove switches the overlay back to the declared mode on the
-// display the cursor landed on, for the reason scroll does: the indicators
+// display the cursor landed on, for the reason scroll does. The indicators
 // naming the mode are painted on the shared surface on Linux.
 func (m *CustomMode) RefreshForMonitorMove(_ context.Context, _ image.Rectangle) {
 	m.handler.showFrame(m.handler.customFrame(), "refresh custom mode after monitor move")
@@ -62,7 +62,7 @@ func (m *CustomMode) RefreshForMonitorMove(_ context.Context, _ image.Rectangle)
 // leaves ModeCustom, so a late reader still sees which declaration the
 // session was in until then.
 func (m *CustomMode) Exit() {
-	// Common cleanup takes the frame off the screen; stopping the poller
+	// Common cleanup takes the frame off the screen. Stopping the poller
 	// first keeps a late tick from putting an indicator back.
 	m.handler.stopIndicatorPolling()
 	m.handler.stopHeldRepeat()
@@ -113,7 +113,7 @@ func (h *handlerState) startCustomMode(name string) {
 
 	h.enterMode(domain.ModeCustom)
 
-	// Entering a declared mode is a transition like entering scroll: the
+	// Entering a declared mode is a transition like entering scroll. The
 	// frame takes the previous mode's drawing off the shared surface and
 	// tells the overlay which mode the indicators are naming.
 	h.showFrame(h.customFrame(), "show custom mode overlay")

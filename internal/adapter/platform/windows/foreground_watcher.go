@@ -34,14 +34,14 @@ var (
 	procSetWinEventHook = user32.NewProc("SetWinEventHook")
 	procUnhookWinEvent  = user32.NewProc("UnhookWinEvent")
 
-	// activeForegroundWatcher is the watcher foregroundEventProc dispatches to,
-	// atomic for the reason activeKeyboardHook is: the pump thread stores it
-	// and Windows calls the procedure on that same thread, but Stop reads it
+	// activeForegroundWatcher is the watcher foregroundEventProc dispatches to.
+	// It is atomic for the reason activeKeyboardHook is. The pump thread stores
+	// it and Windows calls the procedure on that same thread, but Stop reads it
 	// from the caller's goroutine.
 	activeForegroundWatcher atomic.Pointer[ForegroundWatcher]
 
 	// foregroundEventProcPtr is allocated once for the process, never per
-	// watcher: a syscall.NewCallback slot is never freed and the process has a
+	// watcher. A syscall.NewCallback slot is never freed and the process has a
 	// fixed 2000 of them (see keyboardHookProcPtr).
 	foregroundEventProcPtr = sync.OnceValue(func() uintptr {
 		return syscall.NewCallback(foregroundEventProc)
@@ -94,7 +94,7 @@ func StartForegroundWatcher(callback func(hwnd uintptr)) (*ForegroundWatcher, er
 }
 
 // Stop unhooks and waits for the pump thread to exit. No callback fires after
-// it returns. Unlike KeyboardHook.Stop the join is unbounded: the callback
+// it returns. Unlike KeyboardHook.Stop the join is unbounded, because the callback
 // contract above forbids the one thing that made a bounded join necessary
 // there, a callback parked on a lock the caller holds.
 func (w *ForegroundWatcher) Stop() {
@@ -112,7 +112,7 @@ func (w *ForegroundWatcher) Stop() {
 }
 
 // foregroundEventProc is the WINEVENTPROC Windows calls on the pump thread.
-// The hook range is EVENT_SYSTEM_FOREGROUND only, so event is always that; it
+// The hook range is EVENT_SYSTEM_FOREGROUND only, so event is always that. It
 // is checked anyway because the procedure is process-wide and the range is a
 // property of the installing call, not of the procedure.
 func foregroundEventProc(

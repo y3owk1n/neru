@@ -16,20 +16,20 @@ import (
 // forms its own opinion about the compositor, which is what
 // internal/adapter/platform/AGENTS.md forbids outside the detector.
 //
-// Four of them are read by nothing today and are here anyway: the point of the
+// Four of them are read by nothing today and are here anyway. The point of the
 // list is that the *next* detector cannot be written either, and these are the
 // variables a contributor would reach for.
 //
 // Deliberately not in this set, because neither asks this question:
 //
-//   - WAYLAND_DISPLAY, DISPLAY — socket and display names. Code reads them to
+//   - WAYLAND_DISPLAY, DISPLAY: socket and display names. Code reads them to
 //     find out whether there is something to connect to, which is a
 //     precondition on a connection rather than an opinion about the compositor.
 //     WAYLAND_DISPLAY is one of the detector's own inputs, so a reader outside
-//     it can look like a rival; it is not one, because "is the Wayland socket
+//     it can look like a rival. It is not one, because "is the Wayland socket
 //     exported" and "which compositor family is this" have different answers in
 //     exactly the session that motivated this guardrail.
-//   - SWAYSOCK, NIRI_SOCKET, HYPRLAND_INSTANCE_SIGNATURE — the wlroots socket
+//   - SWAYSOCK, NIRI_SOCKET, HYPRLAND_INSTANCE_SIGNATURE: the wlroots socket
 //     trio, which asks which compositor's CLI to shell out to. LinuxBackend has
 //     one value covering niri, sway, Hyprland, River and Wayfire, so it cannot
 //     answer that and folding the trio in would lose the answer. They are
@@ -59,7 +59,7 @@ var compositorIdentityEchoes = map[string]string{
 }
 
 // TestCompositorFamilyIsDecidedInOnePlace pins
-// internal/adapter/platform/AGENTS.md: backend_linux.go detects the live
+// internal/adapter/platform/AGENTS.md. backend_linux.go detects the live
 // compositor, and nothing else probes for it.
 //
 // The rule earned a guardrail by being broken silently. DetectLinuxDisplayServer
@@ -103,7 +103,7 @@ func TestCompositorFamilyIsDecidedInOnePlace(t *testing.T) {
 }
 
 // TestCompositorIdentityEchoesStayHonest keeps an exemption from outliving what
-// it describes: an entry naming a file that no longer reads one of these
+// it describes. An entry naming a file that no longer reads one of these
 // variables is a license nobody needs, sitting ready for a real probe to move
 // in under it.
 func TestCompositorIdentityEchoesStayHonest(t *testing.T) {
@@ -131,7 +131,7 @@ func compositorIdentityReads(t *testing.T) map[string][]string {
 }
 
 // envNameReads returns, per non-test Go file of the checkout, which of names it
-// mentions as a string literal — which is how every read of an environment
+// mentions as a string literal, which is how every read of an environment
 // variable is spelled, whether through os.Getenv, os.LookupEnv or a lookup of
 // its own.
 //
@@ -139,8 +139,8 @@ func compositorIdentityReads(t *testing.T) map[string][]string {
 // "XDG_CURRENT_DESKTOP=%q" beside its read, and a message naming the variable
 // it is reporting on is not a probe.
 //
-// It serves both environment guardrails in this package — the identity
-// variables above and the compositor sockets in compositor_socket_test.go —
+// It serves both environment guardrails in this package, the identity
+// variables above and the compositor sockets in compositor_socket_test.go,
 // because what counts as a read is one question, and answering it twice is how
 // the two pins would drift into disagreeing about the same file.
 func envNameReads(t *testing.T, names []string) map[string][]string {

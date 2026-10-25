@@ -11,9 +11,9 @@ import (
 // probeOptions is what a hints probe needs to answer.
 //
 // It is deliberately not an activation. A probe draws nothing and enters
-// nothing, so the flags that describe an activation — the pending action, the
-// modifiers held during it, toggling, repeating, what runs on exit — mean
-// nothing here. Only the flags that shape which elements get collected carry
+// nothing, so the flags that describe an activation mean nothing here. Those
+// are the pending action, the modifiers held during it, toggling, repeating,
+// and what runs on exit. Only the flags that shape which elements get collected carry
 // over, plus --label-direction, which shapes the labels the probe reports.
 // That is why the probe reads its own request rather than a mode command.
 type probeOptions struct {
@@ -30,7 +30,7 @@ type probeOptions struct {
 // Anything outside the probe's own vocabulary is refused rather than ignored,
 // so a caller that sends an activation flag learns it had no effect instead of
 // assuming it did. The flags are named and spelled from the mode-command
-// grammar even so: a probe is written with the same words as the mode it
+// grammar even so. A probe is written with the same words as the mode it
 // reports on.
 func (h *ModesHandler) extractProbeOptions(cmd ipc.Command) (probeOptions, *ipc.Response) {
 	var opts probeOptions

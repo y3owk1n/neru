@@ -25,10 +25,10 @@ const defaultSubscriberCapacity = 4
 // platform-specific behavior in their own methods.
 //
 // A backend may override an individual method to add platform behavior (the
-// darwin backend does this for UseVirtualPointerOverlay); the override should
+// darwin backend does this for UseVirtualPointerOverlay). The override should
 // still delegate to the Base method for the shared bookkeeping.
 //
-// The registry accessors below are not on Interface: components are built by
+// The registry accessors below are not on Interface. Components are built by
 // BuildComponents and read by the backend drawing through them, so nothing
 // outside this package has a reason to reach one. They stay exported because
 // the backends are separate packages.
@@ -67,7 +67,7 @@ func (b *Base) Mode() Mode {
 }
 
 // SwitchTo transitions to the given mode and notifies subscribers. Switching
-// to the mode already active is a no-op: subscribers only ever see real
+// to the mode already active is a no-op, so subscribers only ever see real
 // transitions.
 func (b *Base) SwitchTo(next Mode) {
 	b.mu.Lock()
@@ -169,7 +169,7 @@ func (b *Base) ShowIndicator(indicator ports.Indicator) {
 }
 
 // HideIndicator clears an indicator's content and hides it. Owning both halves
-// of that pair is the point: the order is fixed here once instead of at every
+// of that pair is the point. The order is fixed here once instead of at every
 // call site, and content cleared after the window is hidden is content that
 // reappears on the next show.
 func (b *Base) HideIndicator(indicator ports.Indicator) {
@@ -187,10 +187,10 @@ func (b *Base) ResizeIndicatorToActiveScreen(indicator ports.Indicator) {
 }
 
 // DrawGridPointer puts the pointer stand-in on the surface a grid mode draws
-// on. A mode names the mode; which render component that is, and whether it
+// on. The caller names the mode. Which render component that is, and whether it
 // was ever built, is this package's business.
 //
-// A render component takes the size and the fill only: the char and the family
+// A render component takes the size and the fill only. The char and the family
 // it draws with are the ones ConfigureComponents already handed it. A backend
 // that paints the pointer onto its own surface instead reads the rest of the
 // appearance out of the argument, which is why it travels whole.
@@ -210,12 +210,13 @@ func (b *Base) HideGridPointer(mode Mode) {
 // ApplyGridPointer puts a pointer state onto a grid mode's surface, or takes
 // the pointer off when the state is not visible. It is the state-shaped form of
 // the two calls above, for the draws that carry the pointer with them rather
-// than being followed by a call of their own (#1492) — a subgrid open, today.
+// than being followed by a call of their own (#1492), which today is a subgrid
+// open.
 //
-// A backend that overrides DrawGridPointer must not reach this: Go dispatches
-// the two calls below to Base, not to the override. The backends that paint the
-// pointer themselves — the Linux ones — implement the carrying draw themselves
-// too, so the only callers here are the ones whose pointer is a layer of its
+// A backend that overrides DrawGridPointer must not reach this, because Go
+// dispatches the two calls below to Base, not to the override. The Linux
+// backends paint the pointer themselves and implement the carrying draw
+// themselves too, so the only callers here are the ones whose pointer is a layer of its
 // own and costs nothing to apply after the draw.
 func (b *Base) ApplyGridPointer(mode Mode, pointer recursivegrid.VirtualPointerState) {
 	if !pointer.Visible {
@@ -233,7 +234,7 @@ func (b *Base) ApplyGridPointer(mode Mode, pointer recursivegrid.VirtualPointerS
 }
 
 // gridPointerSurface is the pointer half the grid and recursive-grid render
-// components share, for the same reason indicatorSurface exists: the manager
+// components share, for the same reason indicatorSurface exists. The manager
 // answers in modes, not in render types.
 type gridPointerSurface interface {
 	ShowVirtualPointer(point image.Point, size int, fillColor string)
@@ -282,10 +283,10 @@ type indicatorSurface interface {
 }
 
 // indicatorSurfaceFor returns the render component behind an indicator, or nil
-// when that component was never constructed — a disabled indicator, or a
+// when that component was never constructed, as for a disabled indicator or a
 // headless backend with nothing to draw on.
 //
-// The nil check is on the pointer, not on the returned interface: a nil
+// The nil check is on the pointer, not on the returned interface, because a nil
 // *Overlay stored in an interface is a live interface value that passes every
 // `!= nil` guard a caller could write.
 func (b *Base) indicatorSurfaceFor(indicator ports.Indicator) indicatorSurface {

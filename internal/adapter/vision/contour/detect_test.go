@@ -301,7 +301,7 @@ func syntheticFrame(rng *rand.Rand, width, height int) *image.RGBA {
 	return img
 }
 
-// TestDetect_ExpiredDeadlineReturnsNothing pins the time budget: a frame
+// TestDetect_ExpiredDeadlineReturnsNothing pins the time budget. A frame
 // handed in with a dead context yields no rectangles, only the cancel error.
 func TestDetect_ExpiredDeadlineReturnsNothing(t *testing.T) {
 	t.Parallel()

@@ -3,10 +3,10 @@
 package linux
 
 // The proxy is driven here without devices, a uinput keyboard or its run
-// goroutine: events are handed to handle directly, so what is pinned is the
-// routing — which presses reach the compositor, the hotkey matcher and the mode,
-// and the one invariant the instant grab rests on: a release goes wherever its
-// press went.
+// goroutine. Events are handed to handle directly, so what is pinned is the
+// routing. That is which presses reach the compositor, the hotkey matcher and
+// the mode, and the one invariant the instant grab rests on, that a release goes
+// wherever its press went.
 
 import (
 	"encoding/binary"
@@ -26,7 +26,7 @@ func keyEvent(code uint16, value int32) waylandEvdevEvent {
 	return waylandEvdevEvent{eventType: evdevEventKey, code: code, value: value}
 }
 
-// newTestProxy is a passive proxy with no devices: emit is a no-op, so the
+// newTestProxy is a passive proxy with no devices. Its emit is a no-op, so the
 // forward rule's bits are the record of what would have reached the compositor.
 func newTestProxy() *evdevProxy {
 	proxy := &evdevProxy{
@@ -159,7 +159,7 @@ func TestForwardRule_AReleaseGoesWhereItsPressWent(t *testing.T) {
 	}
 }
 
-// One key held on two keyboards is one key to the compositor: it goes up when
+// One key held on two keyboards is one key to the compositor. It goes up when
 // the last of them lets go, not the first.
 func TestForwardRule_AKeyHeldOnTwoKeyboardsReleasesWithTheLast(t *testing.T) {
 	t.Parallel()
@@ -195,7 +195,7 @@ func TestForwardRule_IgnoresCodesOutsideTheKeyRange(t *testing.T) {
 }
 
 // A held chord is one press and one release to the binder, which is what lets
-// it repeat the binding for as long as the key is down: the kernel's repeats
+// it repeat the binding for as long as the key is down. The kernel's repeats
 // fire nothing, and the release comes when the key comes up, whether or not
 // the modifier is still held by then.
 func TestEvdevProxy_AHeldChordFiresPressOnceAndReleaseWhenItsKeyComesUp(t *testing.T) {
@@ -382,7 +382,7 @@ func TestEvdevProxy_SessionKeyUnderAModifierCancelsTheModifierOnlyShortcut(t *te
 	}
 }
 
-// The ordinary case, so the guards above cannot pass by matching nothing: a
+// This is the ordinary case, so the guards above cannot pass by matching nothing. A
 // chord pressed and released leaves nothing behind and matches every time.
 func TestEvdevProxy_MatchesTheChordEveryTime(t *testing.T) {
 	t.Parallel()
@@ -552,7 +552,7 @@ func TestEvdevProxy_SessionForwardsAModifierTapToTheCompositor(t *testing.T) {
 	}
 }
 
-// A press withheld for the mode is followed by its release: the mode sees both,
+// A press withheld for the mode is followed by its release. The mode sees both,
 // the compositor neither. A release for a press the mode never saw reaches it
 // no more than the press did.
 func TestEvdevProxy_SessionSeesAReleaseOnlyForAPressItSaw(t *testing.T) {
@@ -651,7 +651,7 @@ func TestEvdevProxy_PassthroughForwardsTheChordAndItsHeldModifiers(t *testing.T)
 // than hold keys it can no longer deliver, and refuses to capture for a mode
 // from then on, so the tap falls back to the overlay's keyboard focus.
 // A remapper's output keyboard also carries mouse motion and buttons. Those are
-// not keys: a mode does not capture a click, the matcher does not spell a chord
+// not keys. A mode does not capture a click, the matcher does not spell a chord
 // with one, and the forward rule owes the compositor nothing for it.
 func TestEvdevProxy_PointerEventsAreNotKeys(t *testing.T) {
 	t.Parallel()
@@ -728,14 +728,14 @@ func TestEvdevProxy_FailOpenReleasesTheKeyboardsAndRefusesSessions(t *testing.T)
 
 // A key down when the proxy fails open had its press re-emitted on the proxy
 // keyboard, and its release goes to the physical device next, where libinput
-// never saw the press: the proxy releases what it forwarded before it lets
+// never saw the press. The proxy releases what it forwarded before it lets
 // the keyboards go, or the key stays down on the proxy for the daemon's life.
 func TestEvdevProxy_FailOpen_ReleasesEveryKeyItForwarded(t *testing.T) {
 	t.Parallel()
 
 	proxy := newTestProxy()
 
-	// The activation chord, forwarded: no session is capturing.
+	// The activation chord is forwarded, because no session is capturing.
 	proxy.handle(keyEvent(evdevKeyLeftMeta, evdevValuePress))
 	proxy.handle(keyEvent(evdevKeyJ, evdevValuePress))
 
@@ -760,7 +760,7 @@ func TestEvdevProxy_FailOpen_ReleasesEveryKeyItForwarded(t *testing.T) {
 }
 
 // A keyboard yielded to a remapper is with the compositor until the remapper
-// claims it or it is taken back; a mode started meanwhile would get nothing
+// claims it or it is taken back. A mode started meanwhile would get nothing
 // while its keys went to the focused app, so it is refused and falls back.
 func TestEvdevProxy_StartSession_RefusesWhileAKeyboardIsYielded(t *testing.T) {
 	t.Parallel()
@@ -782,7 +782,7 @@ func TestEvdevProxy_StartSession_RefusesWhileAKeyboardIsYielded(t *testing.T) {
 }
 
 // A remapper's device auto-detect grabbing a proxy device closes a loop the
-// compositor sees no side of; the probe on the run goroutine is what opens it.
+// compositor sees no side of. The probe on the run goroutine is what opens it.
 func TestEvdevProxy_ProbeOwnDevices_FailsOpenWhenAnotherProcessHoldsAProxy(t *testing.T) {
 	t.Parallel()
 
@@ -852,7 +852,7 @@ func TestEvdevProxy_ProbeOwnDevices_FailsOpenWhenAnotherProcessHoldsAProxy(t *te
 	}
 }
 
-// Detaching the bindings is all a stop does now: the proxy keeps being the
+// Detaching the bindings is all a stop does now. The proxy keeps being the
 // keyboard, and a listener that has stopped matches nothing.
 func TestGlobalHotkeyListener_StopDetachesTheBindings(t *testing.T) {
 	t.Parallel()

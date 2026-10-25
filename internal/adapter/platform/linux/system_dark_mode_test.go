@@ -120,8 +120,8 @@ func TestDarkModeCapabilityDowngradesToStubWhenUnreachable(t *testing.T) {
 	if got.Status != ports.FeatureStatusStub {
 		t.Fatalf("Status = %q, want %q", got.Status, ports.FeatureStatusStub)
 	}
-	// The detail must point the user at a real fix; an empty string would
-	// regress to the same "we know nothing" UX as the original bug.
+	// The detail must point the user at a real fix. An empty string would
+	// leave them with no hint at all.
 	if !strings.Contains(got.Detail, "xdg-desktop-portal") {
 		t.Fatalf(
 			"Detail = %q, want a fix-it hint mentioning xdg-desktop-portal",
@@ -158,7 +158,7 @@ func writeKDEGlobals(t *testing.T, path, scheme string) {
 // ordering (~/.config/kdeglobals wins over ~/.config/kdedefaults/kdeglobals),
 // the no-file and no-HOME fall-throughs, and first-hit-wins semantics.
 //
-// Not parallel: t.Setenv (HOME) is incompatible with t.Parallel.
+// Not parallel, because t.Setenv (HOME) is incompatible with t.Parallel.
 func TestReadKDEColorScheme(t *testing.T) {
 	primary := func(home string) string {
 		return filepath.Join(home, ".config", "kdeglobals")

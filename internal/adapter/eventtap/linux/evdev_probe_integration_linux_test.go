@@ -2,7 +2,7 @@
 
 package linux
 
-// The probe against a real kernel: a uinput keyboard of the test's own is
+// This runs the probe against a real kernel. A uinput keyboard of the test's own is
 // found under /sys/devices/virtual/input the way the proxy finds its own, and
 // a grab from a second fd, which is what a remapper's auto-detect does to the
 // proxy, is what the probe reads. Desktop-safe: no physical keyboard is

@@ -53,7 +53,7 @@ type VisionPort interface {
 	) ([]*element.Element, error)
 
 	// CaptureScreen returns the current screen image. Which screen "current"
-	// means is the platform's own answer: macOS captures the primary display,
+	// means is the platform's own answer. macOS captures the primary display,
 	// Linux the screen holding the cursor, because Wayland exposes no primary
 	// display at all. Either way the image's bounds start at (0, 0) and carry no
 	// global origin.

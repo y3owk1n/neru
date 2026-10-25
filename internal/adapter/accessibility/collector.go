@@ -42,7 +42,7 @@ type elementCollector struct {
 
 	elements []*element.Element
 
-	// firstError fails the collection: a source that cannot be queried leaves
+	// firstError fails the collection, since a source that cannot be queried leaves
 	// the result untrustworthy, not merely incomplete.
 	firstError error
 
@@ -133,7 +133,7 @@ func (c *elementCollector) await(ctx context.Context) error {
 	case <-done:
 		return nil
 	case <-ctx.Done():
-		// Timeout and cancellation read differently here: a timeout means the
+		// Timeout and cancellation read differently here. A timeout means the
 		// backend went slow or unresponsive, which is the actionable one.
 		return derrors.WrapContextCanceled(ctx, "element collection")
 	}
@@ -150,7 +150,7 @@ type windowScan struct {
 
 	elements []*element.Element
 
-	// firstError is reported only when no window yielded anything: one bad
+	// firstError is reported only when no window yielded anything. One bad
 	// popover must not discard the frontmost window's elements, but an
 	// unreachable AT-SPI bus must not look like an empty window either.
 	firstError error

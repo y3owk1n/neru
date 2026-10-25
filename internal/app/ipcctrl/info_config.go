@@ -1,5 +1,5 @@
 // Config mutation handlers: set, set without reload, reset, and
-// in-memory-only set. Reads and status live in info.go; health and
+// in-memory-only set. Reads and status live in info.go, and health and
 // capability reporting in info_health.go.
 
 package ipcctrl
@@ -96,7 +96,7 @@ func (h *InfoHandler) handleConfigSetNoReload(
 }
 
 // handleConfigReset removes a field from the override file, reverting it to
-// the base config or default value on the next reload.  When --no-reload is
+// the base config or default value on the next reload. When --no-reload is
 // present the in-memory config is left alone so callers can batch multiple
 // resets before a final "neru config reload".
 func (h *InfoHandler) handleConfigReset(ctx context.Context, cmd ipc.Command) ipc.Response {
@@ -155,7 +155,7 @@ func (h *InfoHandler) handleConfigSetInMemory(
 	newCfg, newWritten, err := loader.ApplyFieldChange(written, key, value)
 	if err != nil {
 		// Only the copy failure is logged, and without the error a bad key or
-		// value produced: those name the value the user typed, and the log is
+		// value produced. Those name the value the user typed, and the log is
 		// not a place config content goes. The response carries it to whoever
 		// asked, which is where it belongs.
 		if derrors.IsCode(err, derrors.CodeSerializationFailed) {
@@ -207,8 +207,7 @@ func fieldChangeFailedResponse(err error) ipc.Response {
 	}
 }
 
-// configNotAvailableResponse returns a standardized response for when the
-// config is nil. Extracted as a helper to avoid repeating the string literal.
+// configNotAvailableResponse returns the response for when the config is nil.
 func (h *InfoHandler) configNotAvailableResponse() ipc.Response {
 	return ipc.Response{
 		Success: false,

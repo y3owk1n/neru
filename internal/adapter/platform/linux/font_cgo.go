@@ -12,7 +12,7 @@ package linux
 // blanks). Returns 1 when the family is installed, 0 when it is not, and -1
 // when fontconfig cannot be consulted at all.
 //
-// This lists fonts rather than matching one: FcFontMatch always answers with
+// This lists fonts rather than matching one. FcFontMatch always answers with
 // something, so it can say what would render but never whether the family
 // asked for is the family that would.
 static int fc_family_installed(const char *family) {
@@ -130,17 +130,17 @@ func (r *fontconfigResolver) Resolve(family string) string {
 }
 
 // resolve performs the actual lookup. It maps the input to a concrete family
-// and asks fontconfig whether that family is installed: if it is, that is the
-// answer — the name as the caller wrote it, which is what ports.FontResolver
-// promises and what macOS and Windows return. If it is not, the answer is this
+// and asks fontconfig whether that family is installed. If it is, the answer is
+// the name as the caller wrote it, which is what ports.FontResolver promises
+// and what macOS and Windows return. If it is not, the answer is this
 // platform's generic family for it, handed to fontconfig so that a machine
 // without the DejaVu baseline still gets a family it has.
 //
-// The question deliberately is not "what would fontconfig render for this
-// name": fontconfig always matches something, so asking that way answers a
+// The question is not "what would fontconfig render for this name". Fontconfig
+// always matches something, so asking that way answers a
 // missing "Arial" with whatever it substitutes and leaves the caller unable to
 // tell a family it has from one it does not. Substitution still happens where
-// it belongs — Pango and Cairo do it when the text is drawn.
+// it belongs, in Pango and Cairo when the text is drawn.
 func (r *fontconfigResolver) resolve(family string) string {
 	mapped := linuxFamilies.Resolve(family)
 
@@ -150,9 +150,10 @@ func (r *fontconfigResolver) resolve(family string) string {
 		return substituteFamily(defaultForMapped(mapped))
 	}
 
-	// familyPresent, or familyUnknown: nothing can be verified on a machine
+	// familyPresent, or familyUnknown. Nothing can be verified on a machine
 	// whose fontconfig cannot be consulted at all, so that case behaves like
-	// the non-CGO build — map the generics, pass the rest through as written.
+	// the non-CGO build. It maps the generics and passes the rest through as
+	// written.
 	return mapped
 }
 

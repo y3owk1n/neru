@@ -23,7 +23,7 @@ type Manager struct {
 	mu        sync.RWMutex
 }
 
-// NewManager creates and creates a new hotkey manager instance.
+// NewManager creates a hotkey manager.
 func NewManager(logger *zap.Logger) *Manager {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -54,7 +54,7 @@ func (m *Manager) Register(
 	return m.RegisterWithRelease(keyString, callback, nil)
 }
 
-// RegisterHotKey reports the press only; the registry finds the release by
+// RegisterHotKey reports the press only. The registry finds the release by
 // polling the key's state while it is held (HotkeyRegistry.RegisterWithRelease).
 // The binder reaches this by type assertion, so a signature drift would
 // silently return every hotkey to press-only instead of failing to compile.
@@ -120,6 +120,6 @@ func (m *Manager) UnregisterAll() {
 	m.nativeIDs = make(map[ports.HotkeyID]int)
 }
 
-// SetGlobalManager assigns the global manager instance (no-op on Windows; the
-// native hotkey registry dispatches callbacks directly).
+// SetGlobalManager does nothing on Windows. The native hotkey registry
+// dispatches callbacks directly.
 func SetGlobalManager(_ *Manager) {}

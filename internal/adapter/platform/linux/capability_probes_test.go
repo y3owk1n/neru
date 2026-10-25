@@ -10,27 +10,27 @@ import (
 	"time"
 )
 
-// This is an internal test: reaching the probe registry needs its unexported
-// type.
+// testProbeTimeout is how long a probe run waits before reporting that the
+// probe did not complete.
 const testProbeTimeout = 20 * time.Millisecond
 
 // errProbeFailed is a static error so probe results can be compared with
 // errors.Is.
 var errProbeFailed = errors.New("probe failed")
 
-// TestCapabilityProbes_WedgedProbeIsNotRestarted is the leak regression: while
+// TestCapabilityProbes_WedgedProbeIsNotRestarted is the leak regression. While
 // one probe is stuck, further requests must not start another.
 //
 // Capability probing runs each native call on its own goroutine so a wedged
 // display server cannot hang `neru doctor` or an IPC info request. Those native
 // calls cannot be canceled, so a probe that never returns keeps its goroutine
-// for the life of the process — and Capabilities is reached from two IPC
+// for the life of the process, and Capabilities is reached from two IPC
 // handlers in the long-lived daemon.
 //
 // Without a cap, every status or health request against a stuck backend would
 // start three more probes, growing goroutines and native handles without bound
 // for as long as the backend stayed wedged. These tests pin the cap at the
-// mechanism itself rather than through the adapter: on any real backend the
+// mechanism itself rather than through the adapter. On any real backend the
 // probes return immediately, so an adapter-level test would pass whether the
 // cap existed or not.
 func TestCapabilityProbes_WedgedProbeIsNotRestarted(t *testing.T) {
@@ -67,7 +67,7 @@ func TestCapabilityProbes_WedgedProbeIsNotRestarted(t *testing.T) {
 
 	after := goroutineFloor()
 
-	// One stuck goroutine is expected and unavoidable; hundreds are the leak.
+	// One stuck goroutine is expected. Hundreds are the leak.
 	const tolerance = 10
 
 	if after > before+tolerance {
@@ -79,7 +79,7 @@ func TestCapabilityProbes_WedgedProbeIsNotRestarted(t *testing.T) {
 }
 
 // TestCapabilityProbes_ReleasedProbeFreesTheSlot checks the cap is not a
-// one-way latch: once a stuck probe finally returns, probing resumes.
+// one-way latch. Once a stuck probe finally returns, probing resumes.
 func TestCapabilityProbes_ReleasedProbeFreesTheSlot(t *testing.T) {
 	probes := newCapabilityProbes()
 
@@ -141,7 +141,8 @@ func TestCapabilityProbes_ReportsLastResultWhileBusy(t *testing.T) {
 		t.Fatalf("run returned %v, want %v", err, errProbeFailed)
 	}
 
-	// A later probe wedges; requests during it fall back to the recorded result.
+	// A later probe wedges, and requests during it fall back to the recorded
+	// result.
 	release := make(chan struct{})
 	defer close(release)
 
@@ -165,7 +166,7 @@ func TestCapabilityProbes_ReportsLastResultWhileBusy(t *testing.T) {
 }
 
 // TestCapabilityProbes_SeparateFeaturesDoNotBlockEachOther checks the cap is
-// per feature: a wedged screen probe must not stop cursor or process reporting.
+// per feature. A wedged screen probe must not stop cursor or process reporting.
 func TestCapabilityProbes_SeparateFeaturesDoNotBlockEachOther(t *testing.T) {
 	probes := newCapabilityProbes()
 
@@ -203,8 +204,7 @@ func goroutineFloor() int {
 	return lowest
 }
 
-// atomic64 is a minimal mutex-guarded counter, avoiding an import solely for a
-// test helper.
+// atomic64 is a mutex-guarded counter.
 type atomic64 struct {
 	mu sync.Mutex
 	n  int

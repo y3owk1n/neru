@@ -11,7 +11,7 @@ import (
 // Real Win32 test for the display watcher. Changing the display mode on a CI
 // runner is not an option, so the test posts the message Windows would
 // broadcast to the watcher's own hidden window and checks that it comes out
-// the callback. WM_DPICHANGED is not exercised: Windows validates it (it must
+// the callback. WM_DPICHANGED is not exercised, because Windows validates it (it must
 // carry a RECT and only be sent, never posted) and a synthetic one does not
 // reach the window procedure.
 
@@ -55,7 +55,7 @@ func TestDisplayWatcher_ObservesDisplayChangePostedToHiddenWindow(t *testing.T) 
 	before := fired.Load()
 
 	// The window is destroyed with the pump, so the post fails rather than
-	// reaching a callback; either way nothing may fire after Stop.
+	// reaching a callback. Either way nothing may fire after Stop.
 	discardCall(procPostMessageW.Call(hwnd, wmDisplayChange, 32, 0))
 
 	time.Sleep(50 * time.Millisecond)

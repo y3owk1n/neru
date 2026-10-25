@@ -136,7 +136,7 @@ func TestApplyHintFlags_RefreshWritesTheFlagsItWasGiven(t *testing.T) {
 // TestApplyHintFlags_RefreshTellsAbsentOnExitFromEmptyOne pins the one place
 // where nil and empty are different values rather than two spellings of
 // nothing. A repeat re-activation carries no --on-exit and must keep the steps
-// the user activated the mode with; a command that gave --on-exit no steps is
+// the user activated the mode with. A command that gave --on-exit no steps is
 // asking for none to run.
 func TestApplyHintFlags_RefreshTellsAbsentOnExitFromEmptyOne(t *testing.T) {
 	absent := populatedContext()
@@ -159,7 +159,7 @@ func TestApplyHintFlags_RefreshTellsAbsentOnExitFromEmptyOne(t *testing.T) {
 	}
 }
 
-// TestApplyHintFlags_FreshResetsUnsetFlags is the other half of the rule: a
+// TestApplyHintFlags_FreshResetsUnsetFlags is the other half of the rule. A
 // command issued without a flag must not inherit that flag from the last time
 // the mode ran.
 func TestApplyHintFlags_FreshResetsUnsetFlags(t *testing.T) {

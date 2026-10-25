@@ -40,13 +40,15 @@ func x11FocusedAppIdentity() (string, string, bool) {
 	return "", "", false
 }
 
-// x11FocusEventFD is unavailable without CGO — the focus monitor uses Xlib.
+// x11FocusEventFD is unavailable without CGO, because the focus monitor uses
+// Xlib.
 // Callers fall back to polling.
 func x11FocusEventFD() (int, bool) {
 	return -1, false
 }
 
-// x11ScreenEventFD is unavailable without CGO — the RandR monitor uses Xlib.
+// x11ScreenEventFD is unavailable without CGO, because the RandR monitor uses
+// Xlib.
 // Callers receive no screen-change events.
 func x11ScreenEventFD() (int, bool) {
 	return -1, false

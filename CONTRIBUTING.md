@@ -94,7 +94,7 @@ point to the shared context, skills and review profiles. `CLAUDE.md` and
 `.claude/skills` are git symlinks, so on Windows clone with
 `git config core.symlinks true` (needs Developer Mode) or read `AGENTS.md`
 directly. Claude Code asks once for workspace trust before running the
-format-on-edit hook. You own the result: run the checks, read the diff, and do
+format-on-edit hook. You own the result. Run the checks, read the diff, and do
 not submit changes you cannot explain.
 
 ## Where help is most useful

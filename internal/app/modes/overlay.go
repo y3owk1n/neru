@@ -12,46 +12,46 @@ import (
 // overlaySurface is the part of ports.OverlayPort this package draws through:
 // frames, the grid updates that run per keystroke, the hint search input, the
 // keyboard grab, the flush and the active screen. Every method's contract is
-// the port's — this declares which of them the handler may reach, not what
+// the port's. This declares which of them the handler may reach, not what
 // they mean.
 //
 // It is declared at the consumer rather than taken from the port, which is
 // already this repo's idiom (internal/app/keybinding/hotkey.go says so in as
-// many words; monitor.go does it inline). It is deliberately not named *Port:
-// that suffix belongs to internal/ports.
+// many words, and monitor.go does it inline). It is deliberately not named
+// *Port, because that suffix belongs to internal/ports.
 //
-// What it leaves out is the point — but only the first group below is a
+// What it leaves out is the point, but only the first group below is a
 // lock-safety guarantee, and it is the compiler that makes it one. The other
 // two leave because they are not this package's business, not because they are
-// unreachable: the indicator draws still run under h.mu, through the services
+// unreachable. The indicator draws still run under h.mu, through the services
 // that own them, which the locking contract documents and allows.
 //
-//   - Config, theme and shutdown — ApplyConfig, RefreshStyles,
+//   - Config, theme and shutdown: ApplyConfig, RefreshStyles,
 //     SetHiddenInScreenShare and Destroy. These are the four calls the locking
 //     contract forbids the handler, and AGENTS.md in this directory says which
 //     inversion of the lock order each one is. They belong to the app's own
-//     config, theme and shutdown paths, which run unlocked; made from here
+//     config, theme and shutdown paths, which run unlocked. Made from here
 //     they hang the application rather than failing it, and nothing else would
-//     catch one — the port mocks are counter no-ops that can neither block nor
+//     catch one. The port mocks are counter no-ops that can neither block nor
 //     fail, so the deadlock reproduces only against a real display server.
 //     Until #1213 the resolver lived on App and the compiler enforced this;
 //     since #1423 this type does, which is why the rule is no longer a
 //     sentence anyone has to remember.
-//   - The indicator primitives — the four Draw calls, ShowIndicator,
+//   - The indicator primitives: the four Draw calls, ShowIndicator,
 //     HideIndicator and ResizeIndicatorToActiveScreen. An indicator's whole
 //     life belongs to the service that owns it (internal/app/services/
 //     modeindicator, stickyindicator, virtualpointer), each holding its own
-//     ports.OverlayPort; the handler drives those services and draws no
+//     ports.OverlayPort. The handler drives those services and draws no
 //     indicator itself.
-//   - Lifecycle and liveness — Health, Refresh and IsVisible, all of which the
-//     app answers from unlocked context and none of which a mode asks: the
+//   - Lifecycle and liveness: Health, Refresh and IsVisible, all of which the
+//     app answers from unlocked context and none of which a mode asks. The
 //     services report their own health through the port they hold, the app's
 //     screen-change path is what refreshes the overlay, and the hint service is
 //     the one caller that asks whether anything is on screen.
 //
-// A method the package stops calling leaves; one it starts needing is copied
-// down from the port. Copying down one of the first group is the change to
-// stop and reconsider.
+// A method the package stops calling leaves, and one it starts needing is
+// copied down from the port. Copying down one of the first group is the change
+// to stop and reconsider.
 type overlaySurface interface {
 	// Frames: the transition half of the port, plus the display its
 	// screen-local content belongs to.

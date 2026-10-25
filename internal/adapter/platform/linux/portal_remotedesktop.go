@@ -9,18 +9,18 @@ import (
 )
 
 // The org.freedesktop.portal.RemoteDesktop handshake, spoken directly over the
-// session bus. The transport underneath it — the bus dial, the Request/Response
-// dance, session teardown — is portal_bus.go.
+// session bus. The transport underneath it is in portal_bus.go, which owns the
+// bus dial, the Request/Response exchange and session teardown.
 //
 // liboeffis already wraps this handshake, and the libei client used it until
 // this file existed. It is not used for the session establishment path any
-// more, for one reason: its API exposes no restore token
+// more, because its API exposes no restore token
 // (oeffis_create_session takes a device mask and nothing else), so every
 // session it opens is a fresh grant and every daemon start shows KDE's "Remote
 // Control" consent dialog. The token is negotiated in SelectDevices and handed
 // back by Start, both of which liboeffis owns, so reusing a grant means owning
-// the four D-Bus calls here. Everything past the EIS socket — device binding,
-// event emission — is still libei's.
+// the four D-Bus calls here. Everything past the EIS socket, such as device
+// binding and event emission, is still libei's.
 
 // The four RemoteDesktop methods one session needs, in the order they run.
 const (
@@ -41,12 +41,12 @@ const (
 //
 // When restoreToken is not empty the portal is asked to restore the grant it
 // names, which is what keeps the consent dialog off the screen on a restart. A
-// token the portal will not accept is not an error here: the specification says
+// token the portal will not accept is not an error here. The specification says
 // an unrestorable token is ignored and the user prompted normally, and the
 // caller handles the backends that refuse instead.
 //
 // Every step is bounded by ctx, including the bus dial, which godbus cannot
-// cancel on its own — see dialPortalBus.
+// cancel on its own. See dialPortalBus.
 func openRemoteDesktopSession(ctx context.Context, restoreToken string) (portalGrant, error) {
 	conn, err := dialPortalBus(ctx)
 	if err != nil {
@@ -85,7 +85,7 @@ func negotiateRemoteDesktop(
 		return portalGrant{}, unrelatedToStoredGrant(err)
 	}
 
-	// The token is in play across the next two calls: SelectDevices carries it
+	// The token is in play across the next two calls. SelectDevices carries it
 	// and Start consumes it, so a refusal from either is the one signal there is
 	// that the stored grant is no longer good. Their errors go back unmarked.
 	err = selectRemoteDesktopDevices(ctx, requester, session, restoreToken)
@@ -136,8 +136,8 @@ func selectRemoteDesktopDevices(
 	return err
 }
 
-// startRemoteDesktopSession performs step 3 — the call that shows the consent
-// dialog when there is nothing to restore — and returns the restore token for
+// startRemoteDesktopSession performs step 3, the call that shows the consent
+// dialog when there is nothing to restore, and returns the restore token for
 // next time, which is empty when the portal declined to persist the grant.
 func startRemoteDesktopSession(
 	ctx context.Context,
@@ -152,7 +152,7 @@ func startRemoteDesktopSession(
 	}
 
 	// A portal that grants the session without persisting it returns no token.
-	// That is a supported answer, not a failure: input works, and the next
+	// That is a supported answer, not a failure. Input works, and the next
 	// start prompts again.
 	token, _ := results[portalRestoreTokenKey].Value().(string)
 
@@ -160,8 +160,8 @@ func startRemoteDesktopSession(
 }
 
 // connectToEIS performs step 4. Unlike the three before it this is a plain
-// method call — it answers with the socket directly instead of through a
-// Request — and the file descriptor it returns belongs to the caller.
+// method call that answers with the socket directly instead of through a
+// Request, and the file descriptor it returns belongs to the caller.
 func connectToEIS(
 	ctx context.Context,
 	requester *portalRequester,

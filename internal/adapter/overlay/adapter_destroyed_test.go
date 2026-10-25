@@ -25,12 +25,12 @@ import (
 // it for good and giving up on the call is the only way to observe that.
 const blockedDestroyTimeout = 2 * time.Second
 
-// countingManager is the backend as this file needs to see it: every call the
+// countingManager is the backend as this file needs to see it. Every call the
 // adapter can make on one is recorded, so a test can say the backend was not
 // reached at all rather than naming the method it expected.
 //
-// It declares the two optional capabilities as well — the keyboard grab and
-// the capability report — because the port answers both by asking the backend,
+// It declares the two optional capabilities as well, the keyboard grab and
+// the capability report, because the port answers both by asking the backend,
 // and a fake that declined them would make those two rows of the table below
 // pass without the guard.
 type countingManager struct {
@@ -185,12 +185,12 @@ type portCall struct {
 
 // everyPortCall is the whole of ports.OverlayPort bar two: Destroy, which is
 // the subject rather than a case, and HintSearchBounds, which answers from the
-// resolved Style and reaches no backend at all — what its guard changes is the
+// resolved Style and reaches no backend at all. What its guard changes is the
 // answer, which the test below asserts instead.
 //
 // Every call here has to reach the backend while the overlay is alive and none
-// of them may reach it afterwards, which is what makes the table worth having:
-// a case that reached nothing either way would pass the guard without
+// of them may reach it afterwards, which is what makes the table worth having.
+// A case that reached nothing either way would pass the guard without
 // exercising it.
 func everyPortCall() []portCall {
 	screen := image.Rect(0, 0, 1920, 1080)
@@ -255,11 +255,11 @@ func destroyedPort(manager overlay.ManagerInterface) ports.OverlayPort {
 }
 
 // TestAdapterDestroy_StopsEveryPortCallFromReachingTheBackend is the guard the
-// shutdown ordering no longer has to carry alone (#1515): once the overlay has
+// shutdown ordering no longer has to carry alone (#1515). Once the overlay has
 // been released, nothing a caller still holding the port does may reach the
-// backend that was freed. The event tap's drain is the caller that matters —
-// it delivers a queued key into the mode handler while the daemon is tearing
-// itself down — but the rule is stated for every call, because a guard that
+// backend that was freed. The event tap's drain is the caller that matters,
+// because it delivers a queued key into the mode handler while the daemon is
+// tearing itself down. But the rule is stated for every call, because a guard that
 // covers only the paths reachable today is a guard the next call site
 // silently escapes.
 func TestAdapterDestroy_StopsEveryPortCallFromReachingTheBackend(t *testing.T) {
@@ -299,7 +299,7 @@ func TestAdapterDestroy_StopsEveryPortCallFromReachingTheBackend(t *testing.T) {
 // calls answer, which is not the same question as whether they reached the
 // backend. A mode exiting into a shutdown is a race the shutdown already won,
 // not a failure the user needs told about, so the drawing calls report success
-// the way the event tap adapter's Enable and Disable do — while the two that
+// the way the event tap adapter's Enable and Disable do, while the two that
 // report screen state have to say there is none, because there is not.
 func TestAdapterDestroy_AnswersACallerThatRacedTheTeardown(t *testing.T) {
 	t.Parallel()
@@ -352,9 +352,9 @@ func TestAdapterDestroy_AnswersACallerThatRacedTheTeardown(t *testing.T) {
 }
 
 // TestAdapterDestroy_IsSafeToCallTwice covers the postcondition a second
-// caller needs: the overlay is released when Destroy returns, whoever ran the
+// caller needs. The overlay is released when Destroy returns, whoever ran the
 // teardown, and the backend is not released twice. Only App.Cleanup calls it
-// today, under a sync.Once — the guarantee is for the caller a later change
+// today, under a sync.Once. The guarantee is for the caller a later change
 // adds, which is the same reason the guard above exists.
 func TestAdapterDestroy_IsSafeToCallTwice(t *testing.T) {
 	t.Parallel()

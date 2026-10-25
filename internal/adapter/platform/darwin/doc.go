@@ -1,8 +1,7 @@
 // Package darwin provides macOS-specific platform implementations.
 //
-// It includes the CGO bridge code that wraps macOS APIs (Accessibility, CoreGraphics, etc.)
-// and provides a Go-friendly interface to them. This package is the foundation
-// for all macOS-specific integration in Neru.
+// It holds the cgo bridge that wraps the macOS APIs (Accessibility,
+// CoreGraphics, and others) for the rest of Neru.
 //
 // All functional code in this package carries //go:build darwin. This file
 // is intentionally untagged so that `go vet ./...` and other analysis tools

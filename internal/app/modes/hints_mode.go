@@ -49,19 +49,19 @@ func (m *HintsMode) HandleKey(key string) {
 // RefreshForMonitorMove regenerates the labels against the display the cursor
 // landed on. The elements the old labels pointed at are on a screen the user
 // has left, so the collection is rebuilt from the accessibility tree with the
-// session's filters preserved; nothing to label there exits the mode rather
+// session's filters preserved. Nothing to label there exits the mode rather
 // than leaving stale labels behind.
 func (m *HintsMode) RefreshForMonitorMove(ctx context.Context, targetBounds image.Rectangle) {
 	m.handler.refreshHintsForMonitorMove(ctx, targetBounds)
 }
 
 // RefreshForThemeChange draws the labels the session already holds again, so
-// they pick up the colors the overlay just re-resolved. Nothing is regenerated:
-// the elements have not moved, only the palette changed.
+// they pick up the colors the overlay just re-resolved. Nothing is regenerated,
+// because the elements have not moved and only the palette changed.
 //
 // An open search is redrawn with them. The labels and the search box are one
 // surface on the backends that paint the box themselves, so redrawing the
-// labels alone takes the box off the screen — and a search whose box vanished
+// labels alone takes the box off the screen. A search whose box vanished
 // on a theme change looks like a search that ended, while the next key still
 // goes to it.
 func (m *HintsMode) RefreshForThemeChange() bool {
@@ -93,7 +93,7 @@ func (m *HintsMode) RefreshForThemeChange() bool {
 
 // RefreshForScreenChange regenerates the labels against the display as it now
 // is. The arrangement changed under them, so the elements the old labels
-// pointed at have moved or gone: the collection is built again from the
+// pointed at have moved or gone. The collection is built again from the
 // accessibility tree with the session's filters preserved, and nothing left to
 // label leaves the mode rather than stranding labels that point nowhere.
 //
@@ -133,7 +133,7 @@ func (m *HintsMode) CursorFollowSelection() (bool, bool) {
 
 // ApplyCursorFollowSelection sets or toggles the preference.
 //
-// Unlike the grids, hints owes the change nothing after it: it draws no virtual
+// Unlike the grids, hints owes the change nothing after it. It draws no virtual
 // pointer and holds no selection point to jump the cursor to, so the preference
 // only affects the selections made after it.
 func (m *HintsMode) ApplyCursorFollowSelection(desired *bool) (bool, bool) {
@@ -155,7 +155,7 @@ func (m *HintsMode) ExitSteps() []string {
 }
 
 // ResetInput does nothing, and that is hints mode's answer rather than an
-// absence: the labels are generated from the accessibility tree once per
+// absence. The labels are generated from the accessibility tree once per
 // activation, so there is no input state to clear that would not amount to
 // re-entering the mode.
 func (m *HintsMode) ResetInput() {}

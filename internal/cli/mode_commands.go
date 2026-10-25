@@ -32,7 +32,7 @@ type ModeConfig struct {
 // BuildModeCommand creates the CLI command for a navigation mode.
 //
 // Every mode goes through here, including the ones that enter no mode at all
-// and the ones that take no flags: what separates them is what the grammar says
+// and the ones that take no flags. What separates them is what the grammar says
 // their mode accepts, not a command written by hand.
 func BuildModeCommand(config ModeConfig) *cobra.Command {
 	cmd := &cobra.Command{
@@ -43,7 +43,7 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		// A mode command is its flags and nothing else. Refusing a stray
 		// argument is what stops "neru idle left_click" from looking like it
 		// asked for something. The custom mode command is the exception by
-		// design: the one argument it takes is the declared mode it enters.
+		// design. The one argument it takes is the declared mode it enters.
 		Args: modeArgs(config.Mode),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			request, err := readModeCommand(cmd, args, config)
@@ -116,7 +116,7 @@ type modeRequest struct {
 // readModeCommand reads what the user typed into the request it describes.
 //
 // The rules are not applied here. What was written becomes an activation, the
-// grammar judges it, and the grammar writes it back out — so a command refused
+// grammar judges it, and the grammar writes it back out. So a command refused
 // on the wire is refused here in the same words, and one that travels is
 // spelled the way the daemon reads it.
 func readModeCommand(cmd *cobra.Command, args []string, config ModeConfig) (modeRequest, error) {
@@ -144,7 +144,7 @@ func readModeCommand(cmd *cobra.Command, args []string, config ModeConfig) (mode
 //
 // A flag left alone contributes nothing, which is how the activation says
 // "inherit what the configuration says" rather than "override it with the zero
-// value". A presence-only flag written off says the same as leaving it out: it
+// value". A presence-only flag written off says the same as leaving it out, and
 // asks the mode for nothing.
 func readActivation(cmd *cobra.Command, mode domain.Mode) (modecmd.Activation, error) {
 	activation := modecmd.Activation{Mode: mode}
@@ -237,7 +237,7 @@ func applyFlag(
 	}
 
 	// Unreachable while every kind is answered above, which the exhaustiveness
-	// check enforces. Saying so out loud is the point: a shape read as nothing
+	// check enforces. Saying so out loud is the point, because a shape read as nothing
 	// is a flag accepted and dropped, which is what this whole path exists to
 	// stop.
 	return derrors.Newf(

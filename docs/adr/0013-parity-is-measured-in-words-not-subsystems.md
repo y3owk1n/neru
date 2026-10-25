@@ -2,39 +2,39 @@
 
 **Status**: accepted
 
-Linux is labelled beta — "good for daily driving", with what is missing sitting
+Linux is labelled beta, "good for daily driving", with what is missing sitting
 "around the edges rather than in your way." The list of those edges is
 [Known Gaps](../reference/platform-support.md#known-gaps), and the roadmap sends every
 contributor to it rather than keeping a second copy, "so the status you read is
 the status the code reports." A sweep of the tree against that list found it was
-neither correct nor complete. Two of its seven entries are not gaps: secure
+neither correct nor complete. Two of its seven entries are not gaps. Secure
 input detection is a macOS concept with no X11 or Wayland counterpart, and GNOME
 Wayland is a supported-desktop decision rather than a missing capability. Eight
-real divergences were absent from it entirely — among them `neru services`,
-which installs a launchd plist on macOS and returns `CodeNotSupported` from
-every subcommand on Linux for want of a systemd unit; `neru docs`, which is
+real divergences were absent from it entirely. Among them, `neru services`
+installs a launchd plist on macOS and returns `CodeNotSupported` from every
+subcommand on Linux for want of a systemd unit. `neru docs` is
 `CodeNotSupported` on Linux while `systray/open_other.go` in the same repo
-already shells out to `xdg-open`; and `ShowNotification`, whose Linux body is
-empty where its sibling `ShowAlert` at least refuses out loud.
+already shells out to `xdg-open`. `ShowNotification` has an empty Linux body
+where its sibling `ShowAlert` at least refuses out loud.
 
 The drift has one cause, and it is not neglect. The list was kept at the
 granularity of the capability matrix, and the matrix asks the wrong question.
 It asks whether a subsystem works. `smooth_scroll` is a cross-platform block in
-the config schema that only `platform/darwin/scroll_animator.go` ever reads: on
+the config schema that only `platform/darwin/scroll_animator.go` ever reads. On
 Linux it is parsed, validated, and silently ignored, while the matrix reports
-scroll injection ✅ on all three backends, because scroll injection does in fact
+scroll injection ✅ on all three backends, because scroll injection does
 work. Hints are ✅ while `DrawHintSearchInput` in the Linux overlay manager
 refuses unconditionally on every backend. A subsystem can be green in every cell
 while a word a person wrote in their config file means nothing.
 
-So we decided the unit of measurement rather than the backlog: **parity is a
-promise about every name a person can write** — every Option, mode flag, action
-and command — and it is a *behavioral* promise on one named Linux stack,
-**wlroots Wayland with a CGO build**. That names a protocol family — layer
-shell, `zwlr_virtual_pointer`, evdev — rather than one compositor: sway,
+So we decided the unit of measurement rather than the backlog. **Parity is a
+promise about every name a person can write**, meaning every Option, mode flag,
+action and command, and it is a *behavioral* promise on one named Linux stack,
+**wlroots Wayland with a CGO build**. That names a protocol family of layer
+shell, `zwlr_virtual_pointer` and evdev rather than one compositor. Sway,
 Hyprland, niri, River and Wayfire are all in it, sway is what CI runs, and a
 single compositor's upstream defect is a documented exception rather than a
-parity failure. niri is the live example: its tiled windows expose no on-screen
+parity failure. niri is the live example. Its tiled windows expose no on-screen
 position (niri#2381), so hints misalign there, and no amount of work in this
 repository changes that. The other supported backends owe the same
 capabilities and carry their own documented limits. Three capabilities are
@@ -44,147 +44,148 @@ list is a gap, whatever the matrix currently claims.
 
 This is the `Vocabulary` entry in `CONTEXT.md` applied to platforms. A
 vocabulary is "a closed set of names a person can write and Neru promises to
-recognise"; a name that is recognised on one platform and inert on another is
+recognise". A name that is recognised on one platform and inert on another is
 that promise broken, and the matrix is structurally unable to see it.
 
 ## Considered options
 
-- **Matrix equality — every Linux cell matches macOS.** Cheap to state and
+- **Matrix equality: every Linux cell matches macOS.** Cheap to state and
   cheap to check, and it is what the repo has been doing. It is how
   `smooth_scroll` reached the config schema, the documentation and the
   validators without anyone noticing that no Linux code path reads it. A
   measure that cannot detect its own most recent failure is not a measure.
 - **Behavioral equivalence on all three backends.** The honest reading of "make
   Linux match macOS", and unachievable. X11 cannot do modifier passthrough at
-  all: `XGrabKeyboard` is all-or-nothing, and `XSendEvent` is ignored by most
+  all. `XGrabKeyboard` is all-or-nothing, and `XSendEvent` is ignored by most
   applications. Adopting this definition would mean either never reaching
   parity or deleting a working Wayland feature to level down.
 - **Blessing X11 instead of wlroots.** X11 is the more widely deployed, has
   proper global hotkeys through `XGrabKey` rather than a passive evdev read, and
-  needs no `input`-group membership; AT-SPI reports screen coordinates there, so
+  needs no `input`-group membership. AT-SPI reports screen coordinates there, so
   it escapes the window-origin problem that Wayland clients cannot solve for
-  themselves. It was rejected for its ceiling. Its two deltas — modifier
-  passthrough, and an unmodified scroll carrying whatever modifiers the X server
-  records the user as physically holding — are properties of the display server,
+  themselves. It was rejected for its ceiling. Its two deltas, modifier
+  passthrough and an unmodified scroll carrying whatever modifiers the X server
+  records the user as physically holding, are properties of the display server,
   and the first has no fix at any budget. Blessing the stack whose gaps cannot
   close makes the goal unreachable by construction. wlroots' remaining gaps are
   operational: an `input`-group setup step, and window origins resolved through
   compositor IPC.
 - **Keeping the matrix as the definition and adding a second list for words.**
-  Two lists, one of which is a superset of the other, and no rule saying which
-  wins. `docs/reference/platform-support.md` already owns capability status; the fix is to
+  That gives two lists, one of which is a superset of the other, and no rule
+  saying which wins. `docs/reference/platform-support.md` already owns capability status. The fix is to
   make its gap list answer the vocabulary question, not to grow a rival.
 
 ## Consequences
 
 - **Platform support per word is declared once and guardrailed.** It lives
-  beside the config schema and the modecmd descriptor table — the two places
-  that already own the words — and the load-time warning, `neru doctor` and the
+  beside the config schema and the modecmd descriptor table, the two places
+  that already own the words. The load-time warning, `neru doctor` and the
   documentation rows are projections of it, the way ADR 0006 settled for
   Options and ADR 0008 for vocabularies generally. The guardrail is the ADR 0011
-  case exactly: an option that is neither shared nor declared compiles, lints,
-  passes every test, and ships as a silent no-op, which is precisely how
+  case. An option that is neither shared nor declared compiles, lints,
+  passes every test, and ships as a silent no-op, which is how
   `smooth_scroll` got in. The declaration carries a **platform column, not a
   darwin-only flag**, so Windows rows exist from the first commit even though no
-  Windows work is scheduled here — Windows has ten known gaps of its own and the
-  same disease, and retrofitting a column into a boolean later would mean
+  Windows work is scheduled here. Windows has ten known gaps of its own and the
+  same problem, and retrofitting a column into a boolean later would mean
   touching every call site.
-- **A darwin-only option warns; it never errors.** ADR 0008 keeps `Insert` and
-  `F21`–`F24` in the shared key vocabulary although macOS has no Carbon keycode
+- **A darwin-only option warns and never errors.** ADR 0008 keeps `Insert` and
+  `F21` to `F24` in the shared key vocabulary although macOS has no Carbon keycode
   for them, so that one config file works on every platform. Refusing to start
   on an option that is inert here would trade a silent lie for a portability
   break. The daemon says so once at load, `neru doctor` carries a row, and it
   runs.
 - **Two "exclusives" were not exclusive.** Smooth scroll is documented as
-  needing "a synthesizable continuous scroll event stream"; uinput has
+  needing "a synthesizable continuous scroll event stream". But uinput has
   `REL_WHEEL_HI_RES`, `wl_pointer` axis values are continuous, and libei carries
   scroll deltas, so it moves to the gap list pending a spike that could still
   kill it. *(Amended: the spike ran and smooth scroll ships. This paragraph's
-  claim that all three injection paths have the primitive was two thirds right —
-  see the amendment at the end.)* The Vision (OCR) hint strategy is macOS-only for want of an engine,
-  not for want of an API, and Linux arguably needs it more than macOS does —
-  AT-SPI coverage is toolkit-dependent in a way the AX tree is not. It moves to
+  claim that all three injection paths have the primitive was two thirds right.
+  See the amendment at the end.)* The Vision (OCR) hint strategy is macOS-only for want of an engine,
+  not for want of an API, and Linux arguably needs it more than macOS does,
+  because AT-SPI coverage is toolkit-dependent in a way the AX tree is not. It moves to
   the gap list too. System cursor hide stays exempt, but its stated reason was
-  wrong: `xfixes` is already linked in `platform/linux/cgo.go`, so X11 could do
-  it. Wayland cannot — a client may not hide another client's cursor — and the
-  blessed stack is Wayland.
+  wrong. `xfixes` is already linked in `platform/linux/cgo.go`, so X11 could do
+  it. Wayland cannot, because a client may not hide another client's cursor, and
+  the blessed stack is Wayland.
 - **The OCR engine is linked, like every other native dependency.** Released
   Linux binaries are already built `CGO_ENABLED=1` and dynamically linked, and
   step 1 of `LINUX_SETUP.md` already makes twelve shared libraries a required
-  install — so `#cgo pkg-config: tesseract lept` costs one more line on a list
+  install, so `#cgo pkg-config: tesseract lept` costs one more line on a list
   that exists rather than a new kind of obligation. It buys the idiom the whole
   Linux tree uses, the `_cgo`/`_nocgo` twin for free, in-process operation, and
   a C API that yields word-level bounding boxes directly instead of parsed
-  output. The alternatives were a `PATH`-discovered binary and `dlopen`; the
-  first breaks the idiom for one feature, the second invents a symbol-binding
+  output. The alternatives were a `PATH`-discovered binary and `dlopen`. The
+  first breaks the idiom for one feature. The second invents a symbol-binding
   pattern nothing else in the tree pays for, and turns ABI drift into a runtime
   hazard.
 - **Which does not make the engine's absence a startup failure to shrug at.**
   Tesseract is the first library on that list required for a *non-default*
-  strategy — `hints.strategy` defaults to `axtree`, so most installs will never
+  strategy. `hints.strategy` defaults to `axtree`, so most installs will never
   invoke it, and under dynamic linking a missing `libtesseract.so` stops the
   daemon before any Neru code runs. That is ADR 0012's criterion, so the
   install documentation names it as required rather than optional, and the
   packaging lists carry it.
 - **Runtime resolution survives the linking decision anyway.** An OCR engine
-  needs language data at use — `tessdata`, found through `TESSDATA_PREFIX` and
+  needs language data at use, `tessdata`, found through `TESSDATA_PREFIX` and
   shipped as its own distribution package. No linking strategy resolves that,
   so the "fails loudly when it cannot resolve" behavior exists regardless, in
-  the one place it genuinely must: a `Health` check that reports
+  the one place it must: a `Health` check that reports
   `CodeNotSupported` naming the missing language data.
 - **The `vision` strategy is not one capability, and only part of it ports.**
-  `VisionPort.DetectElements` runs three macOS requests — text recognition,
-  rectangle detection and saliency — and `config.HintsVisionConfig` exposes the
+  `VisionPort.DetectElements` runs three macOS requests: text recognition,
+  rectangle detection and saliency. `config.HintsVisionConfig` exposes the
   second as `detect_rectangles` plus four `rectangle_*` tuning options. An OCR
   engine answers the text half only, so those five options are **declared
   darwin-only now** rather than left undefined until an OCR engine lands. The
   alternative was contour-based rectangle detection, which means a heavy new
-  required library for a sub-feature of a strategy that is not the default —
+  required library for a sub-feature of a strategy that is not the default,
   failing the "every option is a cost" rule twice over. Linux `vision` is
   text-only and says so. *(Amended: the contour detector later shipped in pure
   Go and now answers the rectangle half on Linux and Windows. See the amendment
   at the end.)* Deferring the decision was the worst of the three
-  options available, because it leaves five options in exactly the undefined
+  options available, because it leaves five options in the undefined
   state this ADR exists to end.
 - **OCR needs a screen-capture backend that does not exist.** There is no
-  capture code anywhere in the tree — no screencopy, no PipeWire, no
-  `XGetImage` — and `adapter/vision/adapter_other.go` stubs `CaptureScreen`
+  capture code anywhere in the tree, with no screencopy, no PipeWire and no
+  `XGetImage`, and `adapter/vision/adapter_other.go` stubs `CaptureScreen`
   alongside `DetectElements`. Capture is therefore a prerequisite in its own
   right, taken per backend (`wlr-screencopy` on wlroots, `XGetImage` on X11,
   the portal only for KDE) rather than through xdg-desktop-portal ScreenCast
   everywhere, because a consent picker in front of a hint refresh is a latency
   and consent-fatigue regression the blessed stack has no need to pay.
 - **The non-blessed backends get bounded fixes, not behavioral parity.** X11's
-  unmodified-scroll leak has a real symptom — binding `Ctrl+J` to a plain
+  unmodified-scroll leak has a real symptom. Binding `Ctrl+J` to a plain
   `scroll_down` sends ctrl+scroll, which most applications read as zoom, for as
-  long as ctrl is held — and a known fix in reading live key state through
+  long as ctrl is held. It also has a known fix in reading live key state through
   `XQueryKeymap` in the C bridge. It gets fixed. X11 modifier passthrough is
   documented as display-server-inherent and closed.
 - **Linux behavior becomes observable.** The definition is behavioral and the
-  project is developed on macOS, where nothing can run it; CI runs `just
+  project is developed on macOS, where nothing can run it. CI runs `just
   test-ci` on `ubuntu-latest` with no display server, so every Linux test that
   would touch one skips, and `test-desktop` runs on no platform at all. A
-  headless sway job is what makes any claim in this ADR checkable — and a
+  headless sway job is what makes any claim in this ADR checkable, and a
   disposable runner is the one place the desktop-driving tier is safe to run,
   since the reason it is opt-in locally is that it commandeers the machine.
 - **Four things are outside the boundary, and say so.** GNOME/Mutter Wayland
   and Cosmic are supported-desktop questions, not parity gaps. The
-  `CGO_ENABLED=0` Linux build is a near-total stub — full `CodeNotSupported`
-  mirrors across cursor, click, scroll, hotkeys, overlay, screens and focus —
-  for a configuration macOS does not offer at all; it is a distribution
+  `CGO_ENABLED=0` Linux build is a near-total stub, with full `CodeNotSupported`
+  mirrors across cursor, click, scroll, hotkeys, overlay, screens and focus,
+  for a configuration macOS does not offer at all. It is a distribution
   convenience and announces that at startup rather than failing feature by
-  feature. Service management covers systemd user units; other init systems
+  feature. Service management covers systemd user units, and other init systems
   report `CodeNotSupported`.
 - **A feature is not complete until its platform support is decided.** Closing
   fourteen gaps changes nothing if the fifteenth is created next month, and
-  nothing that existed before this ADR would have stopped it — `smooth_scroll`
+  nothing that existed before this ADR would have stopped it. `smooth_scroll`
   reached the schema, the validators and the documentation without a Linux code
-  path and broke no rule. macOS may still ship first; it is the reference
+  path and broke no rule. macOS may still ship first. It is the reference
   implementation and the platform the maintainer runs. What changes is that a
   feature landing on macOS alone is *incomplete* until Linux has it or it is
   declared, and that decision is made at merge, as a Known Gaps entry, rather
   than discovered by an audit two years later. For config options this is
-  enforced rather than promised — the guardrail above already fails the build.
+  enforced rather than promised, because the guardrail above already fails the
+  build.
   The policy covers what the guardrail cannot see: commands, actions, and
   behavior.
 - **Linux graduates on a stated criterion.** `CROSS_PLATFORM.md` defines
@@ -192,14 +193,14 @@ that promise broken, and the matrix is structurally unable to see it.
   nearly a restatement of parity, and nothing said when the label flips. It
   flips when the Linux entries in Known Gaps are empty for the blessed stack
   and the sway CI job is green and required for merge. A label with no
-  criterion either never moves or moves on a feeling; fourteen tickets with no
+  criterion either never moves or moves on a feeling, and fourteen tickets with no
   defined end state is how "beta" becomes permanent. *(Amended: both halves came
   true and the label did not flip. This criterion gated Stable on parity while
-  observing in the same sentence that Stable was parity restated — see the
+  observing in the same sentence that Stable was parity restated. See the
   second amendment at the end.)*
-- **Two new words in `CONTEXT.md`.** *Parity* and *Blessed stack*. The first
-  because the word is the decision and it was previously used loosely enough to
-  mean either measure; the second because without it *Parity* has to re-explain
+- **Two new words in `CONTEXT.md`.** The words are *Parity* and *Blessed stack*. The
+  first is needed because the word is the decision and it was previously used
+  loosely enough to mean either measure. The second is needed because without it *Parity* has to re-explain
   which Linux it is talking about every time it is used.
 
 ## Amendment: X11 has no sub-notch scroll
@@ -211,34 +212,34 @@ three Linux injection paths have the primitive. Two of them do. **X11 does
 not**, and no budget changes that.
 
 Core X11 scrolling is buttons 4 to 7, and a button event is one notch by
-definition — the XI2 protocol specification says so in as many words: "One unit
+definition. The XI2 protocol specification says so in as many words: "One unit
 of scrolling in either direction is considered to be equivalent to one button
 event". The smooth-scroll path real devices use is an XI2 scroll valuator, and
-the XTEST pointer that `XTestFakeButtonEvent` drives has none: the X server
+the XTEST pointer that `XTestFakeButtonEvent` drives has none. The X server
 allocates it through `CorePointerProc` (`dix/devices.c`) with exactly two axes,
 `Rel X` and `Rel Y`, and no XI2 request lets a client add a scroll class to a
-device — only an input driver can, at device init. So on X11 there is no
+device. Only an input driver can, at device init. So on X11 there is no
 sub-notch value to send, and this is a property of the display server, alongside
 modifier passthrough, rather than unbuilt work.
 
 That does not make smooth scroll an exclusive again, and the option is not
 declared inert on Linux. What a person writes `smooth_scroll` for is a scroll
 that arrives as a movement instead of a jump, and X11 delivers that from two
-notches up: the animator spreads the same eased curve over whole notches,
+notches up. The animator spreads the same eased curve over whole notches,
 honouring `steps`, `max_duration` and `duration_per_pixel` exactly as the other
 backends do, and travelling exactly as far.
 
 Be precise about the size where it does not, because it is the common one. A
 scroll worth one notch has one event to send however it is scheduled, and the
 default `scroll_step` of 50 pixels is exactly one notch, so a plain
-`scroll_down` on X11 is not animated — it goes out immediately and unchanged,
+`scroll_down` on X11 is not animated. It goes out immediately and unchanged,
 rather than being held back to arrive on a curve it cannot express. Turning the
 option on there buys nothing for that binding and costs nothing either, and
 `scroll_step_half` and `scroll_step_full` do animate. Granularity is the shape
-this ADR already has a slot for — "the other supported backends owe the same
-capabilities and carry their own documented limits" — and the limit is
+this ADR already has a slot for, "the other supported backends owe the same
+capabilities and carry their own documented limits", and the limit is
 documented as footnote ⁴ of the Capability Matrix, in the size a person will
-actually notice rather than as a protocol fact.
+notice rather than as a protocol fact.
 
 Two further findings from the spike, recorded because they cost the next person
 the same day otherwise:
@@ -250,7 +251,7 @@ the same day otherwise:
   `REL_WHEEL_HI_RES` route arrives as `axis_value120` instead, which a client
   older than `wl_pointer` version 8 accumulates to whole notches before it sees
   anything. The animator uses the virtual pointer for that reason, and because
-  it is the path the headless-sway job can actually observe: that job runs
+  it is the path the headless-sway job can observe. That job runs
   `WLR_BACKENDS=headless` with no libinput, so nothing written to a uinput
   device reaches the compositor there at all.
 - **The claim is measured on wlroots only, and on one path of it.**
@@ -266,8 +267,8 @@ the same day otherwise:
 ## Amendment: Stable was parity restated, so it could not gate on parity
 
 The graduation criterion this ADR set has been met and is not being honoured as
-written. Both halves came true — the Linux entries in Known Gaps are empty for
-the blessed stack, and the headless-sway job blocks merges — and Linux stays
+written. Both halves came true. The Linux entries in Known Gaps are empty for
+the blessed stack, and the headless-sway job blocks merges, yet Linux stays
 Beta. That is a change to this ADR rather than a lapse from it, and the reason
 is in the consequence itself.
 
@@ -275,15 +276,15 @@ is in the consequence itself.
 defined **Stable** as "fully featured — a gap on this platform is a bug", which
 is "nearly a restatement of parity", and then adopted that definition as the
 trigger anyway. So the label was always going to flip the moment parity closed,
-and not because Linux had been shown to be reliable — because Stable had never
-been defined as reliable. The criterion measured coverage twice and exposure
-never. Parity closing is what made that visible; nothing about the fourteen
+and not because Linux had been shown to be reliable. It was going to flip
+because Stable had never been defined as reliable. The criterion measured coverage twice and exposure
+never. Parity closing is what made that visible, and nothing about the fourteen
 tickets went wrong.
 
-So the two claims separate. **Parity** is a claim about coverage: every name a
+So the two claims separate. **Parity** is a claim about coverage. Every name a
 person can write means here what it means on macOS, provable against a
 checklist, and now true. **Stable** is a claim about reliability, which no
-checklist establishes — fourteen capabilities landed in a fortnight on a
+checklist establishes. Fourteen capabilities landed in a fortnight on a
 platform the maintainer does not daily-drive, each proven by a CI job rather
 than by use, and a CI job cannot tell us how they behave on a real compositor
 under a real workload over weeks. `CROSS_PLATFORM.md` now defines Stable as
@@ -291,21 +292,21 @@ under a real workload over weeks. `CROSS_PLATFORM.md` now defines Stable as
 carried before it was pressed into service as a gate.
 
 The discipline this ADR insisted on survives intact, because it has to. "A label
-with no criterion either never moves or moves on a feeling" is exactly the
+with no criterion either never moves or moves on a feeling" is the
 failure a nervous maintainer reaches for when the checklist runs out, and
 replacing a firing criterion with a judgment call would be this ADR defeated on
-its last page. The replacement is falsifiable: Linux moves to Stable after six
-consecutive releases in which no Linux-only bug is filed. Releases rather than
-calendar time, so a pause in shipping pauses the clock — exposure is the thing
-being measured, and an unreleased month provides none. Bugs *filed* in the
-window rather than still open at the end of it, because a bug found and fixed
-still happened; the query that finds them is in `CROSS_PLATFORM.md`, along with
+its last page. The replacement is falsifiable. Linux moves to Stable after six
+consecutive releases in which no Linux-only bug is filed. It counts releases rather
+than calendar time, so a pause in shipping pauses the clock, because exposure is
+the thing being measured and an unreleased month provides none. It counts bugs
+*filed* in the window rather than still open at the end of it, because a bug
+found and fixed still happened. The query that finds them is in `CROSS_PLATFORM.md`, along with
 the two things it hands back to a person rather than settling.
 
 Falsifiable is not the same as mechanical, and the difference is worth stating
 so the next reader does not mistake one for the other. Whether an individual bug
 is Linux-only is a reading, and no label makes it otherwise. What this criterion
-removes is the judgment that actually rotted the old one: whether the platform
+removes is the judgment that undermined the old one: whether the platform
 *feels* ready. Six releases and a countable set of bugs is an answer a
 maintainer can be wrong about but cannot indefinitely defer.
 
@@ -313,14 +314,14 @@ Two limits, recorded rather than papered over:
 
 - **It can graduate on silence.** If few people run Neru on Linux, no bugs are
   filed and the criterion passes for want of users rather than want of defects.
-  This is not fixable — user counts are not observable from here — and the
+  This is not fixable, because user counts are not observable from here. The
   alternative, a gate on adoption we cannot measure, is worse than a gate that
   can be satisfied quietly. A platform generating no reports is at least
   generating no harm.
 - **Performance is not in the criterion, because nothing measures it.** "Latency
   is the product", and the only benchmarks in the tree run through the
-  platform-neutral simulation harness in `internal/app/simulation_benchmark_test.go`
-  — there is no Linux latency measurement to gate on. A performance bar with no
+  platform-neutral simulation harness in `internal/app/simulation_benchmark_test.go`.
+  There is no Linux latency measurement to gate on. A performance bar with no
   benchmark behind it is the judgment call under a different name. Gating on it
   means building the measurement first.
 

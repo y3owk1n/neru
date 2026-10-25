@@ -17,7 +17,7 @@ const (
 )
 
 // Cell is the index of a cell in the grid.
-// For 3x3 grids: 0=TL, 1=TM, 2=TR, 3=ML, 4=MM, 5=MR, 6=BL, 7=BM, 8=BR (named constants below are only for 2x2).
+// For 3x3 grids: 0=TL, 1=TM, 2=TR, 3=ML, 4=MM, 5=MR, 6=BL, 7=BM, 8=BR.
 // For CxR grids: indices 0 to (C*R-1) are ordered left-to-right, top-to-bottom.
 // The named constants (TopLeft, TopRight, etc.) are only meaningful for 2x2 grids.
 type Cell int
@@ -40,8 +40,8 @@ const DefaultKeys = "rtyfghvbn"
 // was given is unusable.
 //
 // It is a function rather than a variable so that no caller can reshape the
-// fallback for everyone else, and it exists so that the places which fall back
-// — the overlay backends and the manager — ask for the shape by name instead of
+// fallback for everyone else, and it exists so that the places which fall back,
+// the overlay backends and the manager, ask for the shape by name instead of
 // each pairing the two constants up themselves. It mirrors
 // domain.SubgridDimensions for the same reason.
 func DefaultDimensions() domain.GridDimensions {
@@ -75,7 +75,7 @@ type RecursiveGrid struct {
 }
 
 // NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds
-// using the default 3×3 grid dimensions and no per-depth overrides.
+// using the default 3x3 grid dimensions and no per-depth overrides.
 func NewRecursiveGrid(
 	screenBounds image.Rectangle,
 	minSizeWidth,
@@ -119,7 +119,7 @@ func NewRecursiveGridWithLayers(
 }
 
 // LayoutForDepth returns the grid dimensions for the given depth.
-// If a per-depth override exists, it is returned; otherwise the defaults are used.
+// If a per-depth override exists, it is returned. Otherwise the defaults are used.
 func (qg *RecursiveGrid) LayoutForDepth(depth int) DepthLayout {
 	if layout, ok := qg.depthLayouts[depth]; ok {
 		return layout
@@ -145,13 +145,13 @@ func (qg *RecursiveGrid) GridRows() int {
 // positions shared by Divide() and all platform overlay renderers.
 //
 // The dimensions arrive together as a domain.GridDimensions rather than as a
-// row count and a column count so that there is no pair of ints to transpose:
+// row count and a column count so that there is no pair of ints to transpose.
 // grid.SubgridCells divides a rectangle too, and the two used to take their
 // counts in opposite orders (#1294).
 //
 // This division is deliberately not grid.SubgridCells. It gives the spare
 // pixels of an uneven division to the first cells, where the subgrid rounds
-// each break instead; both are correct for their caller and merging them would
+// each break instead. Both are correct for their caller, and merging them would
 // move where a key sends the cursor.
 func ComputeGridCells(bounds image.Rectangle, dims domain.GridDimensions) []image.Rectangle {
 	rows, cols := dims.Rows, dims.Cols
@@ -199,7 +199,7 @@ func (qg *RecursiveGrid) Divide() []image.Rectangle {
 
 	// The one place this grid's column and row counts are paired up, so a
 	// transposition here is a transposition everywhere the recursive grid
-	// divides — which is what the non-square Divide tests are watching.
+	// divides. The non-square Divide tests watch for that.
 	return ComputeGridCells(
 		qg.currentBounds,
 		domain.GridDimensions{Rows: layout.GridRows, Cols: layout.GridCols},
@@ -209,7 +209,7 @@ func (qg *RecursiveGrid) Divide() []image.Rectangle {
 // rectCenter returns the center point of rect, rounded to nearest pixel and
 // guaranteed to lie inside rect.
 //
-// The clamp matters only for a rectangle one pixel wide or tall: rounding to
+// The clamp matters only for a rectangle one pixel wide or tall. Rounding to
 // nearest puts its "center" on the exclusive Max edge, which belongs to the
 // neighboring cell. Cursor targets derived from such a cell would then address
 // the cell next door, and recursive subdivision reaches one-pixel cells with
@@ -255,7 +255,7 @@ func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 	cells := qg.Divide()
 	idx := int(cell)
 
-	// Bounds check - return center of current bounds for invalid cell
+	// An invalid cell returns the center of the current bounds.
 	if idx >= len(cells) || idx < 0 {
 		return qg.CurrentCenter(), true
 	}

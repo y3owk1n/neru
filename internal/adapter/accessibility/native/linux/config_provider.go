@@ -14,7 +14,7 @@ import (
 // internal/app/runtime_config_linux.go) and read by the smooth-scroll path.
 //
 // It is a second slot rather than a share of platform/linux's because the two
-// packages are on opposite sides of the adapter boundary: scroll injection
+// packages are on opposite sides of the adapter boundary. Scroll injection
 // lives here, beside the element walk, while cursor movement lives there, and
 // neither imports the other.
 //

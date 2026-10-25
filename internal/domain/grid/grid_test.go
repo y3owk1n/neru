@@ -52,21 +52,18 @@ func TestGrid_CellByCoordinate(t *testing.T) {
 func TestGrid_InvalidBounds(t *testing.T) {
 	logger := logger.Get()
 
-	// Test with zero width
 	gridInstance := grid.NewGrid("ABC", image.Rect(0, 0, 0, 100), logger)
 	if len(gridInstance.Cells()) != 0 {
 		t.Error("Expected empty cells for zero width")
 	}
 
-	// Test with zero height
 	gridInstance = grid.NewGrid("ABC", image.Rect(0, 0, 100, 0), logger)
 	if len(gridInstance.Cells()) != 0 {
 		t.Error("Expected empty cells for zero height")
 	}
 
-	// Test with negative dimensions (image.Rect normalizes this to positive dimensions)
-	// So this actually creates a valid grid. Let's test with truly invalid bounds
-	gridInstance = grid.NewGrid("ABC", image.Rect(100, 100, 100, 100), logger) // Zero width/height
+	// Zero width and zero height away from the origin.
+	gridInstance = grid.NewGrid("ABC", image.Rect(100, 100, 100, 100), logger)
 	if len(gridInstance.Cells()) != 0 {
 		t.Errorf(
 			"Expected empty cells for zero dimensions, got %d cells",
@@ -102,7 +99,7 @@ func TestGrid_EmptyCharacters(t *testing.T) {
 // TestGrid_RepeatedCharactersLabelOnce pins what a coordinate set that lists a
 // character twice builds: the grid the distinct characters build. A repeat used
 // to widen the alphabet the labeling pass counted on, which drew coordinates
-// twice over and left every cell past the first one carrying them unreachable —
+// twice over and left every cell past the first one carrying them unreachable.
 // `characters = "aab"` put 16 different cells under `AAAA`.
 func TestGrid_RepeatedCharactersLabelOnce(t *testing.T) {
 	log := logger.Get()
@@ -126,8 +123,8 @@ func TestGrid_RepeatedCharactersLabelOnce(t *testing.T) {
 	}
 }
 
-// TestGrid_RepeatsCanLeaveTooFewCharacters covers the floor the dedupe lands on:
-// a set that is only repeats has one distinct character, which cannot label a
+// TestGrid_RepeatsCanLeaveTooFewCharacters covers the floor the dedupe lands on.
+// A set that is only repeats has one distinct character, which cannot label a
 // grid at all, so it falls back like any other set too short to label with.
 func TestGrid_RepeatsCanLeaveTooFewCharacters(t *testing.T) {
 	gridInstance := grid.NewGrid("aA", image.Rect(0, 0, 300, 300), logger.Get())
@@ -170,7 +167,6 @@ func TestGrid_WithCustomLabels(t *testing.T) {
 		foundLabels[cell.Coordinate()] = true
 	}
 
-	// Should have unique coordinates for all cells
 	if len(foundLabels) != len(cells) {
 		t.Errorf("Expected %d unique coordinates, got %d", len(cells), len(foundLabels))
 	}
@@ -206,7 +202,6 @@ func TestGrid_CustomLabelsWithSymbols(t *testing.T) {
 
 		coordMap[coord] = true
 
-		// Verify coordinate uses valid characters
 		for _, r := range coord {
 			if !strings.ContainsRune(validChars, r) {
 				t.Errorf("Coordinate %s contains invalid character %c", coord, r)
@@ -219,7 +214,7 @@ func TestGrid_BackwardCompatibility(t *testing.T) {
 	logger := logger.Get()
 	bounds := image.Rect(0, 0, 300, 300)
 
-	// Test that old NewGrid still works (empty row/col labels)
+	// NewGrid with no row or column labels.
 	gridInstance := grid.NewGrid(testCharacters, bounds, logger)
 
 	if gridInstance.Characters() != testCharacters {
@@ -235,7 +230,6 @@ func TestGrid_BackwardCompatibility(t *testing.T) {
 		)
 	}
 
-	// Should have unique coordinates
 	cells := gridInstance.Cells()
 
 	coordMap := make(map[string]bool)
@@ -248,8 +242,8 @@ func TestGrid_BackwardCompatibility(t *testing.T) {
 	}
 }
 
-// TestGrid_MaxLabelLengthCapsCoarseSelection pins the issue #1536 workflow:
-// the main region is selected in at most two keypresses, then the existing
+// TestGrid_MaxLabelLengthCapsCoarseSelection pins the issue #1536 workflow.
+// The main region is selected in at most two keypresses, then the existing
 // subgrid supplies the local refinement key. The two grids deliberately share
 // every cache input except the label limit, so this also catches a cache key
 // that would return the old geometry after a config change.
@@ -319,8 +313,8 @@ func TestGrid_MaxLabelLengthCapsCoarseSelection(t *testing.T) {
 	}
 }
 
-// assertGridPrefixesFormRectangles keeps the first key spatially meaningful:
-// every cell sharing it forms one solid coarse region rather than scattered
+// assertGridPrefixesFormRectangles keeps the first key spatially meaningful.
+// Every cell sharing it forms one solid coarse region rather than scattered
 // cells that merely happen to have square final geometry.
 func assertGridPrefixesFormRectangles(t *testing.T, cells []*grid.Cell) {
 	t.Helper()

@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
-	// The overlay.h included above only declares its symbols; importing the
+	// The overlay.h included above only declares its symbols. Importing the
 	// bridge is what links the Objective-C that defines them (ADR 0009).
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/config"
@@ -54,22 +54,22 @@ func boolToInt(v bool) int {
 
 // hintPlacementValue translates a configured placement into the constant the
 // Objective-C overlay switches on. The strings are config's declaration of the
-// vocabulary; the constants come from the header that
+// vocabulary, and the constants come from the header that
 // internal/architecture/hint_placement_vocabulary_test.go pins the Objective-C
 // enum to.
 //
 // Every value config.HintPlacements() declares has a branch, and anything else
 // is refused rather than translated. The switch used to answer an unrecognized
-// placement with HINT_PLACEMENT_BOTTOM — right for `bottom` by coincidence, and
-// silent for a placement added to the vocabulary without a branch here: it
+// placement with HINT_PLACEMENT_BOTTOM. That was right for `bottom` by
+// coincidence, and silent for a placement added to the vocabulary without a branch here. It
 // would validate, reach the overlay, and draw every label at the bottom with
 // nothing failing anywhere. The refusal answers no constant at all, because
-// there is no honest placement to hand the drawing code; its caller does not
+// there is no honest placement to hand the drawing code. Its caller does not
 // draw once it is set.
 //
-// The empty string is not one of those: it is a style that reached the overlay
-// before a configuration settled it, and it draws at the documented default —
-// the same answer the Linux overlay gives it (`resolveHintBadgeOffset`), so a
+// The empty string is not one of those. It is a style that reached the overlay
+// before a configuration settled it, and it draws at the documented default.
+// That is the same answer the Linux overlay gives it (`resolveHintBadgeOffset`), so a
 // draw that beats the first Apply puts hints in the same place on both.
 func hintPlacementValue(placement string) (int, error) {
 	if placement == "" {
@@ -115,7 +115,7 @@ type Overlay struct {
 	cachedLabels map[string]*C.char
 
 	// drawMu serializes draw operations against cache invalidation.
-	// Draw paths hold RLock; freeAllCaches holds Lock.
+	// Draw paths hold RLock, and freeAllCaches holds Lock.
 	drawMu sync.RWMutex
 
 	// State tracking for incremental updates
@@ -227,7 +227,7 @@ func (o *Overlay) ResizeToActiveScreen() {
 		)
 	})
 	if !started {
-		// Pool exhausted — fall back to non-callback resize so the overlay
+		// Pool exhausted, so fall back to non-callback resize so the overlay
 		// is still moved to the correct screen.
 		C.NeruResizeOverlayToActiveScreen(o.window)
 	}
@@ -235,8 +235,8 @@ func (o *Overlay) ResizeToActiveScreen() {
 
 // DrawHintsWithStyle draws hints on the overlay with custom style.
 //
-// A placement this overlay cannot draw is reported rather than approximated:
-// the labels would otherwise appear in a placement the user did not configure,
+// A placement this overlay cannot draw is reported rather than approximated.
+// The labels would otherwise appear in a placement the user did not configure,
 // with nothing anywhere saying so. The caller degrades quietly on
 // CodeNotSupported, so the warning that explains the missing labels is logged
 // here.
@@ -305,7 +305,6 @@ func (o *Overlay) SetConfig(config config.HintsConfig) {
 	o.config = config
 	o.configMu.Unlock()
 
-	// Invalidate caches when config changes
 	o.freeAllCaches()
 }
 
@@ -371,14 +370,14 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 
 // drawHintsInternal is the internal implementation for drawing hints.
 //
-// The placement is resolved once, before anything is drawn: it is the same for
+// The placement is resolved once, before anything is drawn. It is the same for
 // every label in the set, and both draw paths below take the resolved constant
 // rather than the configured string, so a placement this overlay has no branch
 // for cannot reach the Objective-C side.
 //
 // An empty set is the one draw the refusal does not cover. It means "take the
 // labels off the screen", and a placement decides where a label goes, not
-// whether one can be removed — refusing here would strand whatever is on
+// whether one can be removed. Refusing here would strand whatever is on
 // screen there.
 func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bool) error {
 	if len(hints) == 0 {
@@ -390,7 +389,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	placement, placementErr := hintPlacementValue(style.Placement())
 	if placementErr != nil {
 		// The error reaches the mode handler, which degrades quietly on
-		// CodeNotSupported — so say it here too, or a placement this overlay
+		// CodeNotSupported, so say it here too, or a placement this overlay
 		// cannot draw costs the user every hint with only a debug line to
 		// explain it. The placement is a fixed configuration keyword.
 		o.placementRefusal.Warn(o.logger, style.Placement(),
@@ -420,9 +419,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	o.hintStateMu.RUnlock()
 
 	if canIncrementalUpdate {
-		// Try incremental update
 		if o.drawHintsIncremental(hints, currentInput, style, placement, showArrow) {
-			// Update cached state on successful incremental update
 			o.hintStateMu.Lock()
 			o.previousHints = make([]*Hint, len(hints))
 			copy(o.previousHints, hints)
@@ -538,9 +535,8 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 
 	*cHintsPtr = (*cHintsPtr)[:0]
 	hintDataPool.Put(cHintsPtr)
-	// Note: We don't free cached label or style strings - they're reused across draws
+	// Cached label and style strings are reused across draws, so they are not freed here.
 
-	// Update cached state
 	o.hintStateMu.Lock()
 	o.previousHints = make([]*Hint, len(hints))
 	copy(o.previousHints, hints)
@@ -576,16 +572,16 @@ func (o *Overlay) drawHintsIncremental(
 	}
 
 	if o.hintsAreStructurallyEqual(hints, previousHints) && style == previousStyle {
-		// Only input changed - we can do incremental match updates
+		// Only the input changed, so update the match states in place.
 		if currentInput != previousInput {
 			o.updateMatchesIncremental(currentInput)
 
 			return true
 		}
-		// No changes at all - but we need to ensure overlay is actually visible
-		// If the overlay was cleared between activations, we need to redraw even if nothing changed.
+		// Nothing changed, but the overlay may have been cleared between
+		// activations. Empty input with no previous input may be the first
+		// draw after a clear, so redraw.
 		if currentInput == "" && previousInput == "" {
-			// This might be a fresh activation after clear - force redraw to be safe
 			return false
 		}
 		// Otherwise, assume overlay is still showing and no redraw needed
@@ -607,7 +603,7 @@ func (o *Overlay) drawHintsIncremental(
 
 // hintsAreStructurallyEqual checks if two hint lists have the same structure (same hints at same positions).
 // It first tries a fast index-by-index comparison (O(n), zero allocations) which succeeds when
-// the slices are in the same order — the common case since previousHints is a copy of the prior
+// the slices are in the same order, the common case since previousHints is a copy of the prior
 // hints slice. Only if the fast path detects a mismatch does it fall back to a map-based lookup.
 func (o *Overlay) hintsAreStructurallyEqual(hintsA, hintsB []*Hint) bool {
 	if len(hintsA) != len(hintsB) {
@@ -678,7 +674,6 @@ func (o *Overlay) drawHintsIncrementalStructural(
 	placement int,
 	showArrow bool,
 ) bool {
-	// Build maps for efficient lookup
 	previousHintMap := make(map[image.Point]*Hint, len(previousHints))
 	for _, hint := range previousHints {
 		previousHintMap[hint.Position()] = hint
@@ -714,12 +709,9 @@ func (o *Overlay) drawHintsIncrementalStructural(
 
 	// If we need to add all hints (overlay is likely empty), do a full redraw instead
 	if len(hintsToAdd) == len(currentHints) && len(positionsToRemove) == len(previousHints) {
-		// All hints need to be added and all previous hints removed - this is effectively a full redraw
-		// Fall back to full redraw for better performance and correctness
 		return false
 	}
 
-	// If no changes, nothing to do
 	if len(hintsToAdd) == 0 && len(positionsToRemove) == 0 {
 		return true
 	}
@@ -731,7 +723,6 @@ func (o *Overlay) drawHintsIncrementalStructural(
 	// Convert hints to C structures (labels are cached, not freed per call)
 	hintsToAddC := o.convertHintsToC(hintsToAdd, currentInput)
 
-	// Convert positions to C structures
 	var positionsToRemoveC []C.CGPoint
 	if len(positionsToRemove) > 0 {
 		positionsToRemoveC = make([]C.CGPoint, len(positionsToRemove))
@@ -743,7 +734,6 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		}
 	}
 
-	// Get style strings
 	cachedStyle := o.styleCache.Get(func(_cachedStyle *overlayutil.CachedStyle) {
 		_cachedStyle.FontFamily = unsafe.Pointer(C.CString(currentStyle.FontFamily()))
 		_cachedStyle.BgColor = unsafe.Pointer(C.CString(currentStyle.BackgroundColor()))
@@ -783,7 +773,6 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		boundaryBorderColor:      (*C.char)(cachedStyle.BoundaryBorderColor),
 	}
 
-	// Call incremental C API
 	var hintsToAddPtr *C.HintData
 	var positionsToRemovePtr *C.CGPoint
 	if len(hintsToAddC) > 0 {

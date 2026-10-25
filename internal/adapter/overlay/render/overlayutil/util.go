@@ -53,7 +53,7 @@ var (
 	freeCallbackIDsMu sync.Mutex
 
 	// allocatedCallbackIDs tracks which IDs are currently allocated to prevent double-release.
-	// This is a safety net - IDs should only be released once, but this guards against bugs.
+	// This is a safety net. IDs should only be released once, but this guards against bugs.
 	allocatedCallbackIDs   = make(map[uint64]bool)
 	allocatedCallbackIDsMu sync.Mutex
 )
@@ -99,7 +99,7 @@ func releaseCallbackID(callbackID uint64) {
 }
 
 // deferredReleaseCallbackID schedules a callback ID to be released after StaleCallbackGracePeriod.
-// This is used on timeout/cancel paths: the ID stays allocated long enough for a late C callback
+// This is used on timeout/cancel paths. The ID stays allocated long enough for a late C callback
 // to arrive and be rejected via generation mismatch, but is eventually reclaimed to prevent leaks.
 // If the C callback arrives before the grace period expires and calls CompleteGlobalCallback,
 // the double-release guard in releaseCallbackID ensures the deferred release is a no-op.
@@ -186,7 +186,6 @@ func (c *CallbackManager) SetComponent(name string) {
 func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)) bool {
 	done := make(chan struct{})
 
-	// Allocate an ID from the free pool
 	freeCallbackIDsMu.Lock()
 
 	if len(freeCallbackIDs) == 0 {
@@ -217,12 +216,10 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)
 	// will never collide.
 	currentGeneration := globalGeneration.Add(1)
 
-	// Store channel in instance map
 	c.callbackMu.Lock()
 	c.callbackMap[callbackID] = done
 	c.callbackMu.Unlock()
 
-	// Register this callback manager in global registry with current generation
 	callbackManagerRegistryMu.Lock()
 
 	callbackManagerRegistry[callbackID] = registryEntry{
@@ -240,10 +237,8 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)
 		)
 	}
 
-	// Call the platform-specific resize function with both ID and generation
 	callbackFunc(callbackID, currentGeneration)
 
-	// Start background cleanup goroutine
 	go c.handleResizeCallback(callbackID, currentGeneration, done)
 
 	return true
@@ -263,7 +258,7 @@ func (c *CallbackManager) CompleteCallback(callbackID uint64) {
 
 // Cleanup cancels all pending callbacks and stops background goroutines.
 // This should be called when the overlay is being destroyed.
-// Safe to call multiple times - only executes cleanup once.
+// It is safe to call multiple times and runs the cleanup once.
 func (c *CallbackManager) Cleanup() {
 	c.cleanupOnce.Do(func() {
 		close(c.cancelCh)
@@ -313,14 +308,14 @@ func (c *CallbackManager) handleResizeCallback(
 	case <-done:
 		// Callback received, normal cleanup already handled in callback
 	case <-timer.C:
-		// Long timeout for cleanup only - callback likely failed
+		// The callback likely failed. This timeout exists for cleanup only.
 		c.callbackMu.Lock()
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
 
-		// Schedule deferred release: keep the ID allocated for StaleCallbackGracePeriod
-		// so late C callbacks can still be validated and rejected via generation mismatch,
-		// then reclaim the ID to prevent permanent leaks.
+		// Keep the ID allocated for StaleCallbackGracePeriod so late C callbacks
+		// can still be validated and rejected via generation mismatch, then
+		// reclaim the ID to prevent permanent leaks.
 		deferredReleaseCallbackID(callbackID)
 
 		if c.logger != nil {
@@ -336,7 +331,7 @@ func (c *CallbackManager) handleResizeCallback(
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
 
-		// Schedule deferred release - same reasoning as timeout case
+		// Defer the ID release for the same reason as the timeout case.
 		deferredReleaseCallbackID(callbackID)
 
 		if c.logger != nil {

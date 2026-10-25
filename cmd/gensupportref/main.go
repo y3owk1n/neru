@@ -3,7 +3,7 @@
 // that own the words.
 //
 // It is the writing half of the same contract the guardrail test in
-// internal/architecture reads: the test fails when a page is out of date, and
+// internal/architecture reads. The test fails when a page is out of date, and
 // this is what brings it back.
 package main
 

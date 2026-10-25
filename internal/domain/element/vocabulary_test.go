@@ -31,7 +31,7 @@ const (
 	testTypoRole      = "buton"
 )
 
-// TestRoleVocabulary_SemanticNamesAreUnique guards the closed vocabulary: a
+// TestRoleVocabulary_SemanticNamesAreUnique guards the closed vocabulary. A
 // duplicate semantic name would make one of the two mappings unreachable.
 func TestRoleVocabulary_SemanticNamesAreUnique(t *testing.T) {
 	t.Parallel()
@@ -50,7 +50,7 @@ func TestRoleVocabulary_SemanticNamesAreUnique(t *testing.T) {
 // TestRoleVocabulary_SemanticNamesDoNotCollideWithDifferentNativeMeanings is
 // the guard that keeps the vocabulary readable. A semantic name that is also a
 // native role name is fine when both mean the same thing ("button" is both a
-// semantic role and an AT-SPI role). It is a trap when they diverge: AT-SPI
+// semantic role and an AT-SPI role). It is a trap when they diverge. AT-SPI
 // "text" is a text-bearing element, so a semantic role named "text" meaning a
 // text field would read as one thing and resolve as another.
 func TestRoleVocabulary_SemanticNamesDoNotCollideWithDifferentNativeMeanings(t *testing.T) {
@@ -394,7 +394,7 @@ func TestResolveRoles_SemanticRoleWithNoPlatformEquivalentIsNotFatal(t *testing.
 // TestResolveRoles_LinuxNamesMatchGetRoleNameOutput pins the AT-SPI expansions
 // against what Accessible.GetRoleName actually returns. That name is the GEnum
 // nick of the role with hyphens replaced by spaces, so it is not always the
-// name a reader would guess: ATSPI_ROLE_PUSH_BUTTON_MENU reports "push button
+// name a reader would guess. ATSPI_ROLE_PUSH_BUTTON_MENU reports "push button
 // menu", never "menu button". A wrong name here matches nothing at runtime
 // while still looking plausible in the config.
 func TestResolveRoles_LinuxNamesMatchGetRoleNameOutput(t *testing.T) {
@@ -470,7 +470,7 @@ func TestDefaultClickableRoles_ResolveOnEverySupportedPlatform(t *testing.T) {
 				)
 			}
 
-			// A default that only just resolves is a smell: the shipped list
+			// A default that only just resolves is a smell. The shipped list
 			// covers buttons, links and text fields on every platform.
 			for _, semantic := range []element.SemanticRole{
 				element.SemanticButton,
@@ -503,7 +503,7 @@ func TestResolveRoles_EntriesDescribeEachConfigEntry(t *testing.T) {
 		testGOOSDarwin,
 	)
 
-	// The empty entry is skipped silently; the other four are recorded in order.
+	// The empty entry is skipped silently. The other four are recorded in order.
 	if len(resolution.Entries) != 4 {
 		t.Fatalf("Entries = %d, want 4 (empty entries skipped): %+v",
 			len(resolution.Entries), resolution.Entries)
@@ -672,11 +672,11 @@ func TestResolveRoles_SemanticNamesAreCaseSensitive(t *testing.T) {
 
 // TestAXSubroleNames_PinTheAppKitSubroleDeclarations pins the AX names in the
 // vocabulary that AppKit declares as subroles (NSAccessibilitySubrole
-// constants), not roles: elements carry them in AXSubrole, so the macOS
+// constants), not roles. Elements carry them in AXSubrole, so the macOS
 // matcher must compare them against the element's subrole or they match
-// nothing. The expected set comes from NSAccessibilityConstants.h
-// (SearchField, Switch, ToolbarButton, TabButton — all Subrole constants,
-// none declared as a role).
+// nothing. The expected set comes from NSAccessibilityConstants.h, where
+// SearchField, Switch, ToolbarButton and TabButton are all Subrole constants
+// and none is declared as a role.
 func TestAXSubroleNames_PinTheAppKitSubroleDeclarations(t *testing.T) {
 	t.Parallel()
 
@@ -695,7 +695,7 @@ func TestAXSubroleNames_PinTheAppKitSubroleDeclarations(t *testing.T) {
 }
 
 // TestAXSubroleNames_DoNotDoubleAsRoleNames guards the invariant the macOS
-// matcher relies on: a configured name is compared against both the role and
+// matcher relies on. It compares a configured name against both the role and
 // the subrole, which stays unambiguous only while no AX name appears in the
 // vocabulary as a role in one mapping and a subrole in another.
 func TestAXSubroleNames_DoNotDoubleAsRoleNames(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 // TestPortalSelectDevicesOptions_OmitsTheRestoreTokenWhenThereIsNothingToRestore
 // keeps an empty string out of the options map. A portal that validates the key
 // it was given would refuse the call outright, which would turn "no grant
-// stored yet" — the ordinary first run — into a hard failure.
+// stored yet", the ordinary first run, into a hard failure.
 func TestPortalSelectDevicesOptions_OmitsTheRestoreTokenWhenThereIsNothingToRestore(
 	t *testing.T,
 ) {
@@ -22,8 +22,8 @@ func TestPortalSelectDevicesOptions_OmitsTheRestoreTokenWhenThereIsNothingToRest
 
 // TestPortalSelectDevicesOptions_AsksForAPersistentKeyboardAndPointer pins the
 // three values the whole feature rests on: both device types, and a persistence
-// mode that outlives the process — persist_mode 1 would keep the grant only
-// while this daemon runs, which is exactly the restart that fails today.
+// mode that outlives the process. persist_mode 1 would keep the grant only
+// while this daemon runs, so it would not survive a restart.
 func TestPortalSelectDevicesOptions_AsksForAPersistentKeyboardAndPointer(t *testing.T) {
 	options := portalSelectDevicesOptions(storedToken)
 

@@ -40,25 +40,25 @@ name: publish-artifacts
 #  - Every job attests its zip with actions/attest-build-provenance, so a
 #    download can be traced back to this workflow, this commit and this runner
 #    with `gh attestation verify <file> --repo y3owk1n/neru`. That is the
-#    property the .sha256 files never had: they are produced by the same job and
+#    property the .sha256 files never had. They are produced by the same job and
 #    uploaded with the same token as the binary they describe, so they prove the
 #    download was not corrupted, not that the build was ours. Attestation needs
 #    `id-token: write` (to sign) and `attestations: write` (to store), granted
 #    per job rather than workflow-wide. A reusable workflow can only narrow the
 #    permissions its caller granted, never widen them, so nightly.yml and
 #    release-please.yml must grant the same three on the job that says
-#    `uses: ./.github/workflows/publish-artifacts.yml` — drop them there and
+#    `uses: ./.github/workflows/publish-artifacts.yml`. Drop them there and
 #    signing here stops silently.
 #
-#  - setup-just is pinned by commit, not by tag: a tag is a movable pointer, and
+#  - setup-just is pinned by commit, not by tag, because a tag is a movable pointer and
 #    these jobs later hand the release token to the upload script.
 #    Dependabot's github-actions ecosystem updates a SHA pin that carries a
 #    version comment, so the trailing `# vX.Y.Z` is load-bearing. actions/*,
 #    googleapis/* and golangci/* are deliberately left tag-pinned across this
-#    repo — accepted residual risk, weighed against the update churn.
+#    repo. That is an accepted residual risk, weighed against the update churn.
 #
 #  - The Go toolchain comes from go.mod, as it already does in ci.yml. The
-#    literal that used to sit here drifted: six jobs still said 1.26.4 after the
+#    literal that used to sit here drifted. Six jobs still said 1.26.4 after the
 #    module had moved on, and nothing failed to say so.
 jobs:
     build-darwin-arm64-artifacts:
@@ -90,15 +90,15 @@ jobs:
                   zip -r ../../neru-darwin-arm64.zip bin Neru.app share
                   cd ../..
 
-            # `hash  filename` — the format `shasum -c` and `sha256sum -c` read.
+            # `hash  filename` is the format `shasum -c` and `sha256sum -c` read.
             # The bare digest this used to emit could be fed to neither, so the
             # checksum a user downloaded had to be eyeballed. The -c line is the
             # assertion that the file we just wrote really is consumable.
             #
-            # One file per artifact rather than one SHA256SUMS per release: the
+            # One file per artifact rather than one SHA256SUMS per release. The
             # six jobs run on six runners in parallel and upload independently,
-            # so an aggregate would need a seventh job re-downloading all six —
-            # and for the `nightly` tag, which is clobbered on every push to
+            # so an aggregate would need a seventh job re-downloading all six.
+            # And for the `nightly` tag, which is clobbered on every push to
             # main, an aggregate left half-updated by one failed leg is worse
             # than none. Authenticity comes from the attestation either way.
             - name: Generate darwin arm64 checksum
@@ -328,7 +328,7 @@ jobs:
               run: Compress-Archive -Path build/windows-amd64/* -DestinationPath neru-windows-amd64.zip
 
             # Set-Content would end the line with CRLF, and `sha256sum -c` folds
-            # that CR into the filename and then reports the file as missing —
+            # that CR into the filename and then reports the file as missing,
             # so the bytes are written explicitly, and the CR check below is the
             # assertion rather than a hope.
             - name: Generate windows amd64 checksum

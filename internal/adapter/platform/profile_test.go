@@ -74,7 +74,7 @@ func TestProfileFor(t *testing.T) {
 			var got Profile
 			if testCase.target == Linux {
 				// Use linuxProfile directly so the test does not depend on
-				// ambient environment variables (DISPLAY, XDG_CURRENT_DESKTOP, …).
+				// ambient environment variables such as DISPLAY and XDG_CURRENT_DESKTOP.
 				// Which display server the running session gets is covered by
 				// TestProfileFor_LinuxReportsTheStackTheDaemonDrives.
 				got = linuxProfile(testCase.wantDisplay)

@@ -20,8 +20,8 @@ type MockEventTapPort struct {
 	// call. Tests that care about ordering use it to build a call log.
 	//
 	// Set it at construction, or through SetOnCall once anything else can
-	// reach the mock: the port is called from background goroutines, so a bare
-	// assignment races the read in record.
+	// reach the mock, because the port is called from background goroutines, so a
+	// bare assignment races the read in record.
 	OnCall func(label string)
 
 	mu                      sync.Mutex
@@ -225,7 +225,7 @@ func (m *MockEventTapPort) Destroyed() bool {
 var _ ports.EventTapPort = (*MockEventTapPort)(nil)
 
 // SetOnCall installs the call log hook after construction, for a test that
-// starts recording partway through — say, once the calls a fixture made on the
+// starts recording partway through, such as once the calls a fixture made on the
 // way to the state under test are no longer interesting.
 func (m *MockEventTapPort) SetOnCall(onCall func(label string)) {
 	m.mu.Lock()
@@ -236,9 +236,9 @@ func (m *MockEventTapPort) SetOnCall(onCall func(label string)) {
 
 // record invokes the call log hook, if one is installed.
 //
-// The hook is read under the mutex and called outside it: every caller of this
-// is already out of its own critical section, and a hook that reaches back into
-// the mock would otherwise deadlock.
+// The hook is read under the mutex and called outside it, because every caller
+// of this is already out of its own critical section, and a hook that reaches
+// back into the mock would otherwise deadlock.
 func (m *MockEventTapPort) record(label string) {
 	m.mu.Lock()
 	onCall := m.OnCall

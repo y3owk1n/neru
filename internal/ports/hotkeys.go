@@ -9,10 +9,10 @@ type HotkeyID int
 // thread. Implementations must not block in it.
 type HotkeyCallback func()
 
-// HotkeyPort registers global hotkeys — the shortcuts that reach Neru even when
+// HotkeyPort registers global hotkeys, the shortcuts that reach Neru even when
 // another application has focus.
 //
-// Unlike most ports these methods take no context: registration is a
+// Unlike most ports these methods take no context, because registration is a
 // synchronous native call (CGEventTap creation, XGrabKey, RegisterHotKey) with
 // no cancellation point, and a context parameter that could never be honored
 // would be a lie in the signature.
@@ -39,15 +39,15 @@ type HotkeyPort interface {
 // The rules for optional extensions are in system.go and apply here too.
 //
 // Implemented by all three managers, each from a different source: the macOS
-// per-hotkey CGEventTaps see both edges; on Linux the evdev proxy reads every
-// release and an XGrabKey delivers KeyRelease to the grabbing client; Win32's
+// per-hotkey CGEventTaps see both edges. On Linux the evdev proxy reads every
+// release and an XGrabKey delivers KeyRelease to the grabbing client. Win32's
 // RegisterHotKey reports the press only, so the Windows manager polls the
 // key's state while it is held. A hold is one press and one release however
-// long it lasts — autorepeat fires nothing — which is what held-key repeat
-// ([held_repeat]) is built on.
+// long it lasts, and autorepeat fires nothing. Held-key repeat
+// ([held_repeat]) is built on that.
 //
-// Callers must fall back to Register — a press-only binding is a working
-// binding; only hold-to-activate behavior is lost.
+// Callers must fall back to Register. A press-only binding is a working
+// binding, and only hold-to-activate behavior is lost.
 type HotkeyReleaseRegistrar interface {
 	// RegisterWithRelease binds keyString with separate press and release
 	// callbacks.
@@ -61,7 +61,7 @@ type HotkeyReleaseRegistrar interface {
 // HotkeyHealthReporter is an optional HotkeyPort extension for backends whose
 // hotkey grabs can be invalidated out from under them.
 //
-// Implemented by the Linux manager: an X11 server restart or a Wayland
+// Implemented by the Linux manager, because an X11 server restart or a Wayland
 // compositor reload drops existing grabs silently, so the sleep/resume handler
 // probes health and re-registers rather than leaving the user with dead keys.
 // macOS and Windows keep their registrations across sleep, so they do not

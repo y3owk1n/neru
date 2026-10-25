@@ -5,7 +5,7 @@ package linux
 import "testing"
 
 // XKB keysyms from xkbcommon-keysyms.h, the same frozen numbers as X11's. A
-// test file cannot use cgo, so they are pinned as literals; untyped constants
+// test file cannot use cgo, so they are pinned as literals. Untyped constants
 // convert at the call site.
 const (
 	xkbKeysymSpace      = 0x0020 // XKB_KEY_space
@@ -46,7 +46,7 @@ func TestXkbKeysymName(t *testing.T) {
 	}{
 		{name: "punctuation is its character", keysym: xkbKeysymSemicolon, want: ";"},
 		// The shifted level is a keysym of its own, and its *name* is not the
-		// character: "braceleft" matched nothing when it was the answer.
+		// character, which is why "braceleft" matched nothing when it was the answer.
 		{name: "the shifted level is its character", keysym: xkbKeysymBraceLeft, want: "{"},
 		{name: "a letter keeps the case the level chose", keysym: xkbKeysymUpperM, want: "M"},
 		// Latin-1 and beyond: the character, as X11 answers, not "sterling".
@@ -65,7 +65,7 @@ func TestXkbKeysymName(t *testing.T) {
 		// be keyed by the name it answers or PageUp never reaches a binding.
 		{name: "page up", keysym: xkbKeysymPageUp, want: evdevKeyNamePageUp},
 		// The keypad: with NumLock off it reports navigation keysyms that fold
-		// onto the main-keyboard names; with NumLock on, characters.
+		// onto the main-keyboard names, and with NumLock on it reports characters.
 		{name: "keypad enter is return", keysym: xkbKeysymKPEnter, want: evdevKeyNameReturn},
 		{name: "keypad home folds to home", keysym: xkbKeysymKPHome, want: evdevKeyNameHome},
 		{

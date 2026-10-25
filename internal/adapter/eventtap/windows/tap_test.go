@@ -3,7 +3,7 @@
 package windows
 
 // Windows removes a WH_KEYBOARD_LL hook whose procedure overruns
-// LowLevelHooksTimeout, and does it silently: from then on keys reach the
+// LowLevelHooksTimeout, and does it silently. From then on keys reach the
 // focused application while Neru believes a mode still has them. So the hook
 // procedure classifies the key and returns, and one dispatcher goroutine
 // delivers to the handler in order, the shape the macOS and Linux taps have.

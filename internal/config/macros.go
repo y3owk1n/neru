@@ -11,7 +11,7 @@ import (
 const MacroCommand = "macro"
 
 // macroNamePattern is what a [macros] key may be called. Keeping names to
-// identifier characters means a call can be read by splitting on spaces: the
+// identifier characters means a call can be read by splitting on spaces. The
 // second token is the whole name, and everything after it is an argument.
 var macroNamePattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 
@@ -39,7 +39,7 @@ func MacroArity(steps []string) int {
 
 // ExpandMacroSteps substitutes positional arguments into a macro body. `$1` is
 // the first argument, `$$` is a literal dollar sign, and a placeholder with no
-// matching argument expands to nothing — validation rejects that case before it
+// matching argument expands to nothing. Validation rejects that case before it
 // can reach here.
 //
 // Substitution is textual and happens before the step is split into arguments,
@@ -126,7 +126,7 @@ func ParseMacroCall(step string) (string, []string, bool) {
 
 	// This is asked of every step of every sequence, including on the
 	// key-press path, and almost none of them are macro calls. Rejecting them
-	// on a prefix keeps the step from being tokenised twice — once here and
+	// on a prefix keeps the step from being tokenised twice, once here and
 	// once when it is dispatched.
 	if !strings.HasPrefix(trimmed, MacroCommand) {
 		return "", nil, false

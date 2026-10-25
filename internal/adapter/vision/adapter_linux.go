@@ -27,19 +27,19 @@ import (
 // text half and the pure-Go contour detector the rectangle half, both over the
 // one captured frame and at the same time (rectangles.go).
 //
-// Privacy runs through every line below. Recognized text is screen content: it
+// Privacy runs through every line below. Recognized text is screen content. It
 // reaches an element's title and search text, where the hint pipeline needs it,
 // and nowhere else. Nothing here logs it, counts characters of it into a
-// message, or writes it anywhere; the debug lines carry durations and counts.
+// message, or writes it anywhere. The debug lines carry durations and counts.
 
 // DetectElements captures screenBounds and returns the text and button shapes
 // found in it as hintable elements.
 //
-// screenBounds is where the caller wants hints — normally the focused window —
+// screenBounds is where the caller wants hints, normally the focused window,
 // in global top-left-origin unscaled pixels, and it is honored rather than
-// widened: full-display OCR takes seconds, one window is tens of milliseconds
+// widened. Full-display OCR takes seconds, one window is tens of milliseconds
 // to a few hundred. It is also what places the results, so an empty rectangle
-// is refused rather than read as "the whole screen": the frame would come back
+// is refused rather than read as "the whole screen". The frame would come back
 // with no way to say where its top-left was.
 func (a *Adapter) DetectElements(
 	ctx context.Context,
@@ -47,19 +47,9 @@ func (a *Adapter) DetectElements(
 	cfg config.HintsVisionConfig,
 	splitWord bool,
 ) ([]*element.Element, error) {
-	select {
-	case <-ctx.Done():
-		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
-	}
-
-	region := screenBounds.Canon()
-	if region.Empty() {
-		return nil, derrors.Newf(
-			derrors.CodeActionFailed,
-			"vision detection needs a region to read; %v is empty",
-			screenBounds,
-		)
+	region, err := detectionRegion(ctx, screenBounds, "vision")
+	if err != nil {
+		return nil, err
 	}
 
 	if !cfg.DetectText && !cfg.DetectRectangles {
@@ -71,8 +61,8 @@ func (a *Adapter) DetectElements(
 
 	// The engine is checked before the screen is read, not after. A machine
 	// with no language data would otherwise have its focused window captured on
-	// every activation only to be told there is nothing to read it with —
-	// paying for a frame, and taking one, to answer a question about which
+	// every activation only to be told there is nothing to read it with. That
+	// would pay for a frame, and take one, to answer a question about which
 	// packages are installed. After the first call this is a cached handle.
 	if cfg.DetectText {
 		engineErr := platformlinux.OCRHealth()
@@ -247,23 +237,23 @@ func (a *Adapter) captureDetectionFrame(
 // checking both halves without exercising either destructively.
 //
 // The capture half is answered from the live backend label rather than by
-// taking a frame: a health check that read the user's screen to find out which
+// taking a frame. A health check that read the user's screen to find out which
 // display server is running would be the wrong trade twice over. That catches
-// the sessions whose label settles it — no display server at all, GNOME, an
-// unrecognized Wayland compositor — and it deliberately does not catch a KDE
+// the sessions whose label settles it: no display server at all, GNOME, or an
+// unrecognized Wayland compositor. It deliberately does not catch a KDE
 // session whose screen-sharing consent has not been approved yet. That is a
 // permission rather than a capability, and it is what
 // SystemPort.CheckScreenCapturePermission answers, ahead of the activation, so
 // the user is asked instead of told the strategy is unavailable.
 //
-// The recognition half catches the failure a user can actually fix: tesseract
+// The recognition half catches the failure a user can actually fix. Tesseract
 // language data is a separate distribution package from the library Neru links,
 // so a machine that builds and starts Neru can still have no eng.traineddata on
 // it. The error names the file.
 //
 // Initializing tesseract loads an LSTM model from disk, so a caller that does
-// ask is also warming the engine — the handle is cached for the process, and a
-// later detection finds it loaded. Nothing in the daemon calls this today; the
+// ask is also warming the engine. The handle is cached for the process, and a
+// later detection finds it loaded. Nothing in the daemon calls this today. The
 // same two checks run inside DetectElements, which is where a user meets them.
 func (a *Adapter) Health(ctx context.Context) error {
 	select {
@@ -287,12 +277,12 @@ func (a *Adapter) backend() string {
 	return platform.DetectLinuxBackend().String()
 }
 
-// captureRegion captures region — global, top-left origin, Y down, unscaled
-// pixels — through whichever backend the live session uses. An empty rectangle
+// captureRegion captures region, in global top-left-origin, Y-down, unscaled
+// pixels, through whichever backend the live session uses. An empty rectangle
 // means the whole active screen, which is what CaptureScreen asks for.
 //
 // The region exists so a caller constrained to the focused window pays for the
-// focused window: reading a 4K display back to examine one window is the
+// focused window. Reading a 4K display back to examine one window is the
 // difference between usable and not.
 //
 // Nothing derived from the returned image is logged. The debug line below

@@ -6,9 +6,9 @@
 #
 #   scripts/dist.sh [BIN] [OUT] [BUNDLE_VERSION] [SHORT_VERSION] [BUILD_ID]
 #
-# Invoked by `just dist` on macOS and Linux, which passes the git describe
-# string in NERU_DIST_VERSION. Windows uses scripts/dist.ps1. Kept out of
-# the justfile because a shebang recipe needs cygpath on Windows.
+# `just dist` runs it on macOS and Linux and passes the git describe string
+# in NERU_DIST_VERSION. Windows uses scripts/dist.ps1. It lives outside the
+# justfile because a shebang recipe needs cygpath on Windows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -29,7 +29,7 @@ version="${NERU_DIST_VERSION:-$(git describe --tags --always --dirty 2>/dev/null
 
 [ -n "$bin" ] || bin="bin/neru$exe"
 if [ ! -f "$bin" ]; then
-    echo "dist: $bin not found; run 'just build' first" >&2
+    echo "dist: $bin not found, run 'just build' first" >&2
     exit 1
 fi
 
@@ -40,7 +40,7 @@ chmod +x "$out/bin/neru$exe"
 go run -ldflags="-X github.com/y3owk1n/neru/internal/buildinfo.Version=$version" ./cmd/genman "$out/share/man/man1" >/dev/null
 
 if [ "$host" = macos ]; then
-    # Local builds derive the plist versions from the git describe string:
+    # Local builds derive the plist versions from the git describe string, so
     # v1.52.0-3-gabc-dirty becomes 1.52.0, anything else 0.0.0.
     if [ -z "$short_version" ]; then
         short_version="$(printf '%s' "$version" | sed -e 's/^v//' -e 's/-.*//')"

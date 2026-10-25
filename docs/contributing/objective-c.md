@@ -32,7 +32,7 @@ Keep headers minimal, prefer `@class` forward declarations, and group code with
 
 Every function declared in a `.h` file and called from Go uses a **`Neru`
 prefix**, PascalCase after it. This avoids collisions with system symbols and
-marks the bridge surface:
+marks which functions Go can call:
 
 ```objc
 OverlayWindow NeruCreateOverlayWindow(void);

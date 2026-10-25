@@ -102,7 +102,7 @@ func TestFunctionKeyRoundTrip(t *testing.T) {
 // the hook has to name them and a global hotkey has to register them rather
 // than fail with errUnsupportedHotkeyKey. MapVirtualKey yields no character for
 // these codes, so the explicit table is the only path that names them. Insert
-// is here for the same reason; macOS carries no entry for it, which
+// is here for the same reason. macOS carries no entry for it, which
 // internal/architecture/named_key_tables_test.go states and pins.
 func TestNavigationKeyRoundTrip(t *testing.T) {
 	t.Parallel()
@@ -163,7 +163,7 @@ func TestOEMPunctuationRoundTripLayoutAware(t *testing.T) {
 
 	// VK<->char for punctuation is keyboard-layout dependent (e.g. "`" is
 	// VK_OEM_3 on US but VK_OEM_8 on UK). Rather than hardcode VK codes, verify
-	// the layout-aware translation round-trips: the VK that produces a char must
+	// the layout-aware translation round-trips. The VK that produces a char must
 	// map back to that same char. This keeps hotkeys like "`" and "/" working on
 	// any layout. Chars that need shift on this layout are skipped.
 	for _, keyChar := range []rune{'`', '/', '-', '=', ';', '[', ']', '\''} {

@@ -8,14 +8,14 @@ import "github.com/y3owk1n/neru/internal/ports"
 // keycode, so a hold is reported as one press and one release.
 //
 // Keyed by keycode alone, and not by the chord the grab named, because the
-// release has to be found when the modifier has already come up: the state on
+// release has to be found when the modifier has already come up. The state on
 // that KeyRelease no longer spells the chord, and a lookup by chord would leave
 // the binder repeating a key nobody holds.
 type x11HeldHotkeys map[uint32]ports.HotkeyID
 
 // press records that a grabbed key went down and reports whether it is a new
 // hold. With detectable autorepeat the server reports a held key as further
-// KeyPress events with no release between; those answer false and fire nothing,
+// KeyPress events with no release between. Those answer false and fire nothing,
 // the way the macOS tap's `down` flag folds them.
 func (h x11HeldHotkeys) press(keycode uint32, id ports.HotkeyID) bool {
 	if _, down := h[keycode]; down {

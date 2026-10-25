@@ -62,8 +62,8 @@ func newHintSearchTestHandler(
 	return handler
 }
 
-// TestStartHintSearch_PlacesTheTextInputOverTheDrawnBox is the ordinary case:
-// the overlay says where it put the search box and the platform's input field
+// TestStartHintSearch_PlacesTheTextInputOverTheDrawnBox is the ordinary case.
+// The overlay says where it put the search box and the platform's input field
 // is placed over exactly that rectangle, rather than deriving the placement a
 // second time here.
 func TestStartHintSearch_PlacesTheTextInputOverTheDrawnBox(t *testing.T) {
@@ -104,10 +104,10 @@ func TestStartHintSearch_PlacesTheTextInputOverTheDrawnBox(t *testing.T) {
 // TestStartHintSearch_NoBoxOnScreenStartsNoTextInput pins the degradation that
 // comes with the overlay being able to refuse a search input it cannot place
 // (#1329). An empty rectangle means nothing was drawn, and the platform's field
-// is not sized from the box it sits over — macOS substitutes a 16x16 one at the
-// screen origin — so starting the session anyway would hand the keyboard to an
+// is not sized from the box it sits over (macOS substitutes a 16x16 one at the
+// screen origin), so starting the session anyway would hand the keyboard to an
 // invisible input in a corner while the event tap is switched off. Search still
-// works: the query arrives through the key stream, the way it does on every
+// works. The query arrives through the key stream, the way it does on every
 // overlay that draws no search box at all.
 func TestStartHintSearch_NoBoxOnScreenStartsNoTextInput(t *testing.T) {
 	t.Parallel()
@@ -140,7 +140,7 @@ func TestStartHintSearch_NoBoxOnScreenStartsNoTextInput(t *testing.T) {
 		t.Error("the handler recorded an active text input session that was never started")
 	}
 
-	// The search itself still opened — only the native field was skipped.
+	// The search itself still opened. Only the native field was skipped.
 	if !searchActive {
 		t.Error("hint search is not active; the key stream has nothing to filter")
 	}
@@ -149,7 +149,7 @@ func TestStartHintSearch_NoBoxOnScreenStartsNoTextInput(t *testing.T) {
 // TestStartHintSearch_NoBoxOnScreenGivesTheKeyboardBack pins the half of that
 // degradation the user would notice. Starting a search stops any live session
 // while deliberately leaving the event tap off, because the session about to
-// start wants it off. When no session starts, the tap has to come back on: it
+// start wants it off. When no session starts, the tap has to come back on. It
 // is the only thing left that can deliver a key, and hints mode with the
 // keyboard switched off and nothing listening is indistinguishable from a hang.
 func TestStartHintSearch_NoBoxOnScreenGivesTheKeyboardBack(t *testing.T) {
@@ -175,7 +175,7 @@ func TestStartHintSearch_NoBoxOnScreenGivesTheKeyboardBack(t *testing.T) {
 	)
 
 	handler.mu.Lock()
-	// The state a live session leaves behind: the tap is off and the handler
+	// In the state a live session leaves behind, the tap is off and the handler
 	// knows it turned it off.
 	handler.eventTap = eventTap
 	handler.hintSearchTextInputActive = true
@@ -200,8 +200,8 @@ func TestStartHintSearch_NoBoxOnScreenGivesTheKeyboardBack(t *testing.T) {
 
 // TestHintsModeRefreshForThemeChange_RedrawsAnOpenSearchBox pins the half of a
 // theme refresh a redraw of the labels alone would lose. On the backends that
-// paint the search box onto the same surface as the labels — Linux and Windows
-// — that redraw clears it, so a theme change mid-search would take the box off
+// paint the search box onto the same surface as the labels (Linux and Windows),
+// that redraw clears it, so a theme change mid-search would take the box off
 // the screen while the search is still running and still taking keys.
 func TestHintsModeRefreshForThemeChange_RedrawsAnOpenSearchBox(t *testing.T) {
 	t.Parallel()
@@ -297,7 +297,7 @@ func TestStartHintSearch_IgnoresCallbacksFromAStoppedSession(t *testing.T) {
 }
 
 // TestHandleSearchInputKey_KeepsShiftedLettersAndSpaces pins the query text
-// itself, which matching cannot: search ignores case, so a capital typed as
+// itself, which matching cannot. Search ignores case, so a capital typed as
 // "Shift+c" and kept as "c" would still find the same elements. The Linux and
 // Windows taps name a key typed with Shift held this way.
 func TestHandleSearchInputKey_KeepsShiftedLettersAndSpaces(t *testing.T) {

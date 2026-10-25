@@ -81,7 +81,7 @@ func waitFor(t *testing.T, condition func() bool) {
 }
 
 // TestScrollChunks_TravelsTheRequestedDistance is the property the whole
-// animation rests on: switching smooth scroll on changes when a scroll
+// animation rests on. Switching smooth scroll on changes when a scroll
 // arrives, never how far it goes. Every chunk is a whole number of wheel
 // units, so the total is exact for any whole-pixel delta.
 func TestScrollChunks_TravelsTheRequestedDistance(t *testing.T) {
@@ -117,7 +117,7 @@ func TestScrollChunks_TravelsTheRequestedDistance(t *testing.T) {
 }
 
 // TestScrollChunks_EasesOutInWholeWheelUnits pins the shape and the unit at
-// once: the early chunks are the long ones, and every chunk converts to an
+// once. The early chunks are the long ones, and every chunk converts to an
 // integer mouseData, which is what lets the steps go below a notch without
 // SendInput rounding them.
 func TestScrollChunks_EasesOutInWholeWheelUnits(t *testing.T) {
@@ -135,7 +135,7 @@ func TestScrollChunks_EasesOutInWholeWheelUnits(t *testing.T) {
 		}
 
 		// The last chunk carries whatever truncation left over, which can be
-		// one unit after a run of zeros; the curve is read from the rest.
+		// one unit after a run of zeros. The curve is read from the rest.
 		if index > 0 && index < len(chunks)-1 && math.Abs(chunk) > math.Abs(chunks[index-1])+1e-9 {
 			t.Fatalf("chunk %d (%v) is longer than chunk %d (%v); the curve is not easing out",
 				index, chunk, index-1, chunks[index-1])
@@ -157,7 +157,7 @@ func TestScrollAnimator_Animate_TravelsTheWholeDistance(t *testing.T) {
 
 	t.Cleanup(animator.stop)
 
-	// Both axes at once: a scroll_right bound alongside a scroll_down has to
+	// Both axes at once. A scroll_right bound alongside a scroll_down has to
 	// arrive as one diagonal animation, not as one axis lost to the other.
 	animator.animate(120, -500, 0, 8, 40, 0.1)
 
@@ -174,7 +174,7 @@ func TestScrollAnimator_Animate_TravelsTheWholeDistance(t *testing.T) {
 }
 
 // TestScrollAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning pins
-// the reason a session exists: the modifier is a real key, pressed once
+// the reason a session exists. The modifier is a real key, pressed once
 // before the animation and released once after it, not toggled around every
 // chunk.
 func TestScrollAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning(t *testing.T) {
@@ -216,7 +216,7 @@ func TestScrollAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning(t *te
 }
 
 // TestScrollAnimator_Stop_EndsTheAnimation is what the unanimated path relies
-// on after a reload switches the animation off: no chunk lands after stop()
+// on after a reload switches the animation off. No chunk lands after stop()
 // returns, and the session's modifier hold is released.
 func TestScrollAnimator_Stop_EndsTheAnimation(t *testing.T) {
 	t.Parallel()
@@ -250,7 +250,7 @@ func TestScrollAnimator_Stop_EndsTheAnimation(t *testing.T) {
 }
 
 // TestScrollAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses keeps a
-// held scroll key honest: each tick preempts the animation before it and
+// held scroll key honest. Each tick preempts the animation before it and
 // absorbs its undelivered remainder, so the run lands exactly where the same
 // number of discrete presses would.
 func TestScrollAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses(t *testing.T) {
@@ -283,7 +283,7 @@ func TestScrollAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses(t *testi
 }
 
 // TestScrollAnimator_Animate_DropsTheRemainderOnADifferentModifierSet is the
-// deliberate cancel: a plain scroll arriving mid-zoom finishes unmodified and
+// deliberate cancel. A plain scroll arriving mid-zoom finishes unmodified and
 // does not inherit the zoom's undelivered distance.
 func TestScrollAnimator_Animate_DropsTheRemainderOnADifferentModifierSet(t *testing.T) {
 	t.Parallel()

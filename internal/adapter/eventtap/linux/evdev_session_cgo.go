@@ -38,11 +38,11 @@ type evdevSession struct {
 	dispatchedDown map[uint16]bool
 
 	// forwardedModifiers is the activation chord's modifiers still down when
-	// the session began: sticky detection arms once they are all up.
+	// the session began. Sticky detection arms once they are all up.
 	forwardedModifiers map[uint16]bool
 
 	// ended is closed by the proxy if it detaches the session itself, which
-	// it does on failing open: the keyboards reach the compositor again, so a
+	// it does on failing open. The keyboards reach the compositor again, so a
 	// session still reading them would hand the mode every key the focused
 	// app also gets. The tap then falls back to the overlay's keyboard focus.
 	ended chan struct{}
@@ -87,8 +87,8 @@ func (s *evdevSession) handlePress(code uint16, modifier string, forwarded bool)
 	}
 
 	if forwarded {
-		// A second keyboard repeating a key the compositor already has down:
-		// not the mode's.
+		// A second keyboard repeating a key the compositor already has down
+		// is not the mode's.
 		return
 	}
 
@@ -223,9 +223,9 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
-	// The proxy owns the keyboard, so the overlay stays keyboard-passive: a
+	// The proxy owns the keyboard, so the overlay stays keyboard-passive, because a
 	// layer-surface grab would only deactivate the focused app's toplevel on
-	// wlroots. Said once, on the first session; the overlay keeps it.
+	// wlroots. Said once, on the first session, and the overlay keeps it.
 	et.overlayPassiveOnce.Do(func() {
 		if controller, ok := overlay.Get().(overlaymanager.KeyboardCaptureController); ok {
 			controller.SetKeyboardCaptureEnabled(false)

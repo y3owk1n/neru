@@ -63,7 +63,7 @@ func TestPerformCommonCleanup_ReleasesStickyModifiersBeforeDisablingEventTap(t *
 // TestPerformCommonCleanup_ClearsTheFrameAfterTheContextIsCanceled pins the
 // one context the leaving half must ignore. Shutdown cancels the app's root
 // context and *then* exits the mode, so a teardown that honored h.ctx would
-// leave the last mode's overlay on screen as the daemon quit — and would log
+// leave the last mode's overlay on screen as the daemon quit, and would log
 // an error on every clean exit while doing it.
 func TestPerformCommonCleanup_ClearsTheFrameAfterTheContextIsCanceled(t *testing.T) {
 	t.Parallel()
@@ -104,8 +104,8 @@ func TestPerformCommonCleanup_ClearsTheFrameAfterTheContextIsCanceled(t *testing
 	}
 }
 
-// TestExitModeForTransition_KeepsTheKeyboard pins what separates the two exits:
-// one gives the keyboard back, the other hands it to the mode coming up. See
+// TestExitModeForTransition_KeepsTheKeyboard pins what separates the two exits.
+// One gives the keyboard back, the other hands it to the mode coming up. See
 // the doc comment on exitModeForTransition for why the second one exists.
 func TestExitModeForTransition_KeepsTheKeyboard(t *testing.T) {
 	t.Parallel()
@@ -122,7 +122,7 @@ func TestExitModeForTransition_KeepsTheKeyboard(t *testing.T) {
 			t.Parallel()
 
 			appState := state.NewAppState()
-			// Monitor select is the mode whose teardown touches the least: the
+			// Monitor select is the mode whose teardown touches the least. The
 			// exit under test is the same one for every mode, and a mode with
 			// domain state of its own would only need fixtures for it.
 			appState.SetMode(domain.ModeMonitorSelect)
@@ -160,7 +160,7 @@ func TestExitModeForTransition_KeepsTheKeyboard(t *testing.T) {
 }
 
 // TestReleaseKeyboardIfNoModeEntered_ReleasesOnlyWhenNothingWasEntered covers
-// the safety net every transition defers: the keyboard exitModeForTransition
+// the safety net every transition defers. The keyboard exitModeForTransition
 // kept belongs to the mode coming up, and an activation that never got there
 // must not leave idle holding it.
 func TestReleaseKeyboardIfNoModeEntered_ReleasesOnlyWhenNothingWasEntered(t *testing.T) {

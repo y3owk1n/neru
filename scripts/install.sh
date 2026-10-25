@@ -155,7 +155,7 @@ probe_binary() {
         fi
         # Fedora names tesseract's library libtesseract.so.5.5 (CMake soname)
         # where the Ubuntu-built release wants libtesseract.so.5. Installing
-        # more packages cannot fix that; a compatibility symlink does.
+        # more packages cannot fix that, but a compatibility symlink does.
         local fedora_tess="" f
         for f in /usr/lib64/libtesseract.so.5.[0-9]* /usr/lib/libtesseract.so.5.[0-9]*; do
             [ -e "$f" ] && { fedora_tess="$f"; break; }
@@ -233,7 +233,7 @@ on_interrupt() {
     exit 130
 }
 on_error() {
-    # A command substitution inherits this trap; let the parent shell report.
+    # A command substitution inherits this trap, so let the parent shell report.
     [ "${BASH_SUBSHELL:-0}" -eq 0 ] || exit 1
     say ""
     printf '  %s✗ Unexpected failure at line %s: %s%s\n' "$c_red" "$1" "$BASH_COMMAND" "$c_reset" >&2
@@ -283,11 +283,11 @@ if [ -n "$version" ]; then
         [0-9]*) version="v$version" ;;
         *) die "--version must look like v1.52.0, got '$version'." ;;
     esac
-    [ "$channel" = nightly ] && die "--version pins a stable release; it cannot be combined with --channel nightly."
+    [ "$channel" = nightly ] && die "--version pins a stable release, so it cannot be combined with --channel nightly."
     channel=stable
 fi
 if [ -n "$from" ]; then
-    [ -z "$channel" ] && [ -z "$version" ] || die "--from installs a local build; it cannot be combined with --channel or --version."
+    [ -z "$channel" ] && [ -z "$version" ] || die "--from installs a local build, so it cannot be combined with --channel or --version."
     [ -x "$from/bin/neru" ] || die "$from/bin/neru not found. Build the tree with 'just dist' first."
     channel=source
 fi
@@ -361,7 +361,7 @@ fi
 
 # A nix-darwin or home-manager agent runs Neru straight from the store without
 # putting it on PATH, so look at the agents themselves. Every plist that
-# mentions neru is a candidate, whatever its filename; its program is the
+# mentions neru is a candidate, whatever its filename. Its program is the
 # Program key when present, else the first ProgramArguments entry. One that
 # runs anything but the binary this script installs belongs to another
 # installer, and registering ours beside it would start two daemons at login.
@@ -374,7 +374,7 @@ if [ "$os" = darwin ] && [ "$uninstall" = 0 ]; then
         [ -n "$agent_prog" ] || agent_prog="$(printf '%s\n' "$agent_args" | sed -n '2s/^ *//p')"
         [ -n "$agent_prog" ] && [ "$agent_prog" != "$neru_bin" ] || continue
         # The agent must actually run a neru binary, directly or through a
-        # shell wrapper as nix-darwin does; the word in a label or log path
+        # shell wrapper as nix-darwin does. The word in a label or log path
         # of some unrelated agent is not a conflict.
         case "$agent_prog $agent_args" in
             *bin/neru | *bin/neru\ * | *bin/neru$'\n'* | *Neru.app/Contents/MacOS/neru*) ;;
@@ -394,9 +394,9 @@ fi
 # The installer before this one wrote a plain systemd user unit without the
 # marker `neru services` looks for, so `services uninstall` refuses to touch
 # it. legacy_unit prints that unit's path only when its contents are exactly
-# what that installer wrote for the binary this script manages; a unit the
-# user edited, even by one flag, is theirs and stays. It is removed here and,
-# on update, replaced by a unit `neru services install` owns.
+# what that installer wrote for the binary this script manages. A unit the
+# user edited, even by one flag, is theirs and stays. This script removes it
+# and, on update, replaces it with a unit `neru services install` owns.
 legacy_unit() {
     local unit="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/neru.service"
     [ "$os" = linux ] && [ -f "$unit" ] || return 1
@@ -416,7 +416,7 @@ installed_version=""
 installed_channel=""
 if [ -x "$neru_bin" ]; then
     installed_version="$(neru_version "$neru_bin")"
-    # A release tag is exactly vX.Y.Z; a source build carries git describe's
+    # A release tag is exactly vX.Y.Z. A source build carries git describe's
     # -N-gSHA or -dirty suffix behind it.
     if [ -z "$installed_version" ]; then installed_channel=unknown
     elif [[ "$installed_version" == nightly* ]]; then installed_channel=nightly
@@ -469,10 +469,10 @@ if [ "$uninstall" = 1 ]; then
     # The manifest is user-writable and some removals run under sudo, so it
     # never chooses a privileged target. A manifest path is honoured only
     # when it lies inside $HOME (no sudo there) or is exactly the location
-    # this run would use anyway; anything else needs --bin-dir/--app-dir.
+    # this run would use anyway. Anything else needs --bin-dir/--app-dir.
     # The path is canonicalised through its parent directory first, so
-    # neither `..` segments nor a symlinked parent can dress a path outside
-    # the home directory up as one inside it.
+    # neither `..` segments nor a symlinked parent can make a path outside
+    # the home directory look like one inside it.
     home_real="$(cd "$HOME" 2>/dev/null && pwd -P)"
     trusted() {
         local parent real
@@ -542,7 +542,7 @@ if [ "$uninstall" = 1 ]; then
         if [ -L "$link" ]; then
             $(sudo_for "$(dirname "$link")") rm -f "$link" && ok "Removed $link"
         elif [ -e "$link" ]; then
-            warn "Left $link alone: it is not a symlink, so this script did not create it."
+            warn "Left $link alone. It is not a symlink, so this script did not create it."
         fi
         if [ -e "$app_dst" ]; then
             $(sudo_for "$(dirname "$app_dst")") rm -rf "$app_dst" && ok "Removed $app_dst"
@@ -580,7 +580,7 @@ if [ "$uninstall" = 1 ]; then
         note "Config, data and logs were kept. Rerun with --uninstall --purge to remove them."
     fi
     if [ "$os" = darwin ]; then
-        note "The Accessibility and Input Monitoring entries stay in System Settings; remove them by hand."
+        note "The Accessibility and Input Monitoring entries stay in System Settings. Remove them by hand."
     fi
     say ""
     exit 0
@@ -675,16 +675,16 @@ else
     step "Installing $target_label"
 fi
 
-# Replacing the binary under a live daemon is asking for trouble. A registered
-# login service is unloaded (a plain stop would be undone by KeepAlive on
-# macOS) and registered again after the copy; a bare daemon is stopped and
-# mentioned at the end. `services status` always exits 0, so read its text.
+# Never replace the binary under a live daemon. A registered login service
+# is unloaded (a plain stop would be undone by KeepAlive on macOS) and
+# registered again after the copy. A bare daemon is stopped and mentioned
+# at the end. `services status` always exits 0, so read its text.
 service_was_installed=0
 daemon_was_running=0
 if remove_legacy_unit; then
     service_was_installed=1
     service_unloaded=1
-    info "Removed the systemd unit the previous installer wrote; a unit 'neru services' owns replaces it"
+    info "Removed the systemd unit the previous installer wrote. A unit that 'neru services' owns replaces it"
 elif [ -x "$neru_bin" ]; then
     case "$("$neru_bin" services status 2>/dev/null)" in
         "Service loaded"* | "Service installed"*)
@@ -749,7 +749,7 @@ if [ "$want_man" = 1 ]; then
         $s cp "$src"/share/man/man1/*.1 "$man_dir/"
         ok "Man pages ${c_dim}→${c_reset} $man_dir"
     else
-        info "This build carries no man pages; skipped"
+        info "This build carries no man pages, skipped"
     fi
 fi
 

@@ -57,7 +57,7 @@ func TestRegion_Apply_ConvergesAndCenterStaysInside(t *testing.T) {
 func TestRegion_Apply_RefusesACutThatChangesNothing(t *testing.T) {
 	region := bisect.NewRegion(image.Rect(0, 0, 2, 800))
 
-	// The width is already at MinSide: a horizontal cut is refused whole,
+	// The width is already at MinSide. A horizontal cut is refused whole
 	// and costs no history, while a quadrant cut still takes the height.
 	if region.Apply(bisect.CutLeft) || region.Depth() != 0 {
 		t.Fatal("a cut on a finished axis must be refused")

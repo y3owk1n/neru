@@ -53,8 +53,8 @@ func (c *Config) ValidateSmoothCursor() error {
 	}
 
 	// The animator floors every animation at MinSmoothCursorAnimationDuration,
-	// so smaller values would be silently rounded up rather than honored;
-	// reject them instead.
+	// so smaller values would be silently rounded up rather than honored.
+	// They are rejected instead.
 	if c.SmoothCursor.RelativeMovementDuration < MinSmoothCursorAnimationDuration {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
@@ -90,13 +90,13 @@ func (c *Config) ValidateSmoothScroll() error {
 // warnings the ones that load and will not do anything.
 //
 // The split is ADR 0002's. A value out of range could not have run at all, so
-// it is refused. A setting that is valid on its own and inert in context —
-// acceleration turned on while the repeat it would scale is off — is left
+// it is refused. A setting that is valid on its own and inert in context, such
+// as acceleration turned on while the repeat it would scale is off, is left
 // loading and reported, because refusing it would stop someone switching
 // held-key repeat off without also unwinding every setting beneath it.
 //
 // The report goes through the sink rather than the log so it reaches
-// `neru config validate`; see [Warnings] for why the two are told apart.
+// `neru config validate`. See [Warnings] for why the two are told apart.
 func (c *Config) ValidateHeldRepeat(warnings *Warnings) error {
 	if c.HeldRepeat.InitialDelay < 0 {
 		return derrors.New(derrors.CodeInvalidConfig, "held_repeat.initial_delay_ms must be >= 0")
@@ -127,8 +127,8 @@ func (c *Config) ValidateHeldRepeat(warnings *Warnings) error {
 		)
 	}
 
-	// Only move_mouse_relative accepts --dx/--dy; anything else would validate
-	// and then accelerate nothing.
+	// Only move_mouse_relative accepts --dx/--dy, so anything else would
+	// validate and then accelerate nothing.
 	for _, target := range c.HeldRepeat.AccelTargets {
 		if action.Name(target) != action.NameMoveMouseRelative {
 			return derrors.New(

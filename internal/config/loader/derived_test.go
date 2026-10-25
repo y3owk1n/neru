@@ -27,7 +27,7 @@ func themeConfig(surface string) string {
 
 // loadWithOverride writes a config file and its override file, loads them, and
 // hands back the result. Both files are the whole configuration each layer
-// contributes; neither is merged by the test.
+// contributes. Neither is merged by the test.
 func loadWithOverride(t *testing.T, base, override string) *config.LoadResult {
 	t.Helper()
 
@@ -61,7 +61,7 @@ func loadWithOverride(t *testing.T, base, override string) *config.LoadResult {
 // TestLoadResolvesThemeAfterOverrides is the theme half of the ordering
 // TestLoadResolvesGridLabelsAfterOverrides pins for grid labels. Component
 // colors resolved before the override layer are resolved from a palette the
-// daemon does not run on — and because every component color comes out of that
+// daemon does not run on. Because every component color comes out of that
 // first pass non-empty, the second pass has nothing left to fill, so a theme in
 // the override file used to reach nothing at all.
 func TestLoadResolvesThemeAfterOverrides(t *testing.T) {
@@ -79,7 +79,7 @@ func TestLoadResolvesThemeAfterOverrides(t *testing.T) {
 	}
 }
 
-// TestLoadReportsWhatTheUserWrote pins the second half of a load: beside the
+// TestLoadReportsWhatTheUserWrote pins the second half of a load. Beside the
 // configuration the daemon runs on is the one it was derived from, which is
 // what lets a later field change derive again instead of re-deriving from its
 // own output.
@@ -109,7 +109,7 @@ func TestLoadReportsWhatTheUserWrote(t *testing.T) {
 // TestApplyFieldChangeReinfersGridLabels is the bug this pair exists for.
 // `neru config set` applies in memory rather than re-reading the file, so
 // before the written configuration was kept beside the resolved one, a change
-// to grid.characters landed on labels that were already settled — and settled
+// to grid.characters landed on labels that were already settled. Settled
 // labels are indistinguishable from labels a user typed, so the grid kept
 // drawing the alphabet inferred from the characters it no longer uses.
 func TestApplyFieldChangeReinfersGridLabels(t *testing.T) {
@@ -138,7 +138,7 @@ func TestApplyFieldChangeReinfersGridLabels(t *testing.T) {
 }
 
 // TestApplyFieldChangeReinfersThemeColors is the same class one derived value
-// over: a theme change has to reach the component colors derived from it.
+// over. A theme change has to reach the component colors derived from it.
 func TestApplyFieldChangeReinfersThemeColors(t *testing.T) {
 	result := loadWithOverride(t, "[general]\nlog_level = \"info\"\n", "")
 
@@ -155,8 +155,8 @@ func TestApplyFieldChangeReinfersThemeColors(t *testing.T) {
 	}
 }
 
-// TestApplyFieldChangeNormalizesADerivedField guards the other direction:
-// setting the derived option itself still records what was typed and settles
+// TestApplyFieldChangeNormalizesADerivedField guards the other direction.
+// Setting the derived option itself still records what was typed and settles
 // it, rather than being overwritten by an inference.
 func TestApplyFieldChangeNormalizesADerivedField(t *testing.T) {
 	result := loadWithOverride(t, gridConfigWithCharacters(testGridChars), "")
@@ -210,10 +210,10 @@ func TestApplyFieldChangeRejectsAnUnknownField(t *testing.T) {
 // TestLoadValidatesTheLayeredConfiguration pins which configuration a refusal
 // is a judgement of. The layers used to be validated one at a time, so a config
 // file that was invalid on its own dropped the daemon to the defaults even when
-// the override file answered for it — a reading of a configuration that was
-// never going to run. There is one reading now, of the one that will.
+// the override file answered for it. That was a reading of a configuration
+// that was never going to run. There is one reading now, of the one that will.
 func TestLoadValidatesTheLayeredConfiguration(t *testing.T) {
-	// grid.characters must not be blank while grid is enabled; the override
+	// grid.characters must not be blank while grid is enabled, and the override
 	// answers for it.
 	result := loadWithOverride(
 		t,
@@ -232,14 +232,14 @@ func TestLoadValidatesTheLayeredConfiguration(t *testing.T) {
 
 // TestApplyFieldChangeDropsLaunchersForADisabledMode covers the derivation that
 // is the loader's rather than the schema's. Switching a mode off at runtime has
-// to take its launcher binding with it, the way a reload does — and switching
+// to take its launcher binding with it, the way a reload does, and switching
 // it back on has to bring the binding back, which only works because the
 // written configuration still has it.
 func TestApplyFieldChangeDropsLaunchersForADisabledMode(t *testing.T) {
-	// The binding comes from the file rather than from the defaults, because
-	// the Linux defaults ship none — they would collide with terminal
-	// shortcuts — and this is a question about any launcher, not about which
-	// ones a platform starts with.
+	// The binding comes from the file rather than from the defaults. The Linux
+	// defaults ship none, because they would collide with terminal shortcuts,
+	// and this is a question about any launcher, not about which ones a
+	// platform starts with.
 	contents := gridConfigWithCharacters(testGridChars) +
 		"\n[hotkeys]\n\"Primary+Shift+G\" = \"grid\"\n"
 

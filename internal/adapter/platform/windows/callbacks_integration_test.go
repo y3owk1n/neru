@@ -12,7 +12,7 @@ import (
 // Go's runtime keys registered callbacks on the function value, never frees a
 // slot, and has a fixed cb_max = 2000 of them (runtime/zcallback_windows.go).
 // A path that registers one per call therefore ends the process on "too many
-// callback functions" — a runtime throw, unrecoverable — after enough mode
+// callback functions", a runtime throw that cannot be recovered, after enough mode
 // activations. These tests count the slots a workload consumes and require the
 // answer to be zero.
 //
@@ -21,15 +21,15 @@ import (
 
 // callbackWorkloadRuns is how many times a workload is repeated inside a
 // measurement. The count only has to be large enough that "one per run" is
-// unmistakable next to "one for the process"; the measurement is exact, so
+// unmistakable next to "one for the process". The measurement is exact, so
 // there is no need to approach the table's size and no reason to install two
 // thousand real keyboard hooks to prove it.
 const callbackWorkloadRuns = 20
 
 // newCallbackProbe registers one throwaway callback and returns its address.
 //
-// The closure captures tag so that each probe is a distinct function value:
-// the runtime returns the existing slot for a function value it has already
+// The closure captures tag so that each probe is a distinct function value.
+// The runtime returns the existing slot for a function value it has already
 // seen, and two identical non-capturing literals may share one static value.
 func newCallbackProbe(tag int) uintptr {
 	return syscall.NewCallback(func() uintptr {
@@ -39,14 +39,14 @@ func newCallbackProbe(tag int) uintptr {
 
 // countCallbackRegistrations reports how many callback slots work consumed.
 //
-// It reads the one property the runtime exposes without an API: a registered
+// It reads the one property the runtime exposes without an API. A registered
 // callback's address is its slot index into a single contiguous table, so
 // consecutive registrations sit a fixed stride apart. Two probes before the
 // workload measure that stride, a third after it measures the gap, and the
 // slots work took are the ones in between.
 //
 // A runtime that lays callbacks out some other way is skipped rather than
-// guessed at — a check that cannot measure must say so instead of passing.
+// guessed at. A check that cannot measure must say so instead of passing.
 func countCallbackRegistrations(t *testing.T, work func()) int {
 	t.Helper()
 
@@ -90,12 +90,12 @@ func countCallbackRegistrations(t *testing.T, work func()) int {
 // TestEnumerateMonitors_RegistersOneCallbackForTheProcess holds the monitor
 // enumeration path to a single callback registration.
 //
-// enumerateMonitors is on the mode-activation path — activeScreenBounds,
-// screenBoundsByName, screenNames and NewOverlayWindow all reach it — so a
+// enumerateMonitors is on the mode-activation path, since activeScreenBounds,
+// screenBoundsByName, screenNames and NewOverlayWindow all reach it. A
 // registration per pass was the shortest countdown of the two.
 //
 // The first pass outside the measurement is what registers that one callback.
-// The enumeration results are deliberately dropped: a headless or session-0
+// The enumeration results are deliberately dropped, because a headless or session-0
 // runner legitimately reports no monitors, and what is being counted is the
 // same either way.
 func TestEnumerateMonitors_RegistersOneCallbackForTheProcess(t *testing.T) {
@@ -117,7 +117,7 @@ func TestEnumerateMonitors_RegistersOneCallbackForTheProcess(t *testing.T) {
 }
 
 // TestEnumerateMonitors_DoesNotCarryStateBetweenPasses pins the cost of the
-// single callback: what it appends to is a package variable rather than a
+// single callback. What it appends to is a package variable rather than a
 // per-call capture, so a pass that failed to install or clear it would hand the
 // caller the previous pass's monitors as well as its own.
 //
@@ -147,7 +147,7 @@ func TestEnumerateMonitors_DoesNotCarryStateBetweenPasses(t *testing.T) {
 //
 // EventTap.Enable calls StartKeyboardHook on every enable cycle, so this is the
 // same countdown on the input path. Installing real hooks is what makes this
-// test worth having: it counts what the code path actually registers rather
+// test worth having. It counts what the code path actually registers rather
 // than what the accessor returns.
 //
 // The hook's key callback returns false throughout, so every key seen while the

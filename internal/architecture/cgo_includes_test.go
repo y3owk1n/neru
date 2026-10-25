@@ -14,11 +14,11 @@ import (
 
 var relativeIncludePattern = regexp.MustCompile(`#include\s+"(\.\.?/[^"]+)"`)
 
-// cgoSourceExtensions are the files a relative #include can appear in.
 // goExt is the Go source extension, named because three files in this package
 // test against it and goconst counts the literal.
 const goExt = ".go"
 
+// cgoSourceExtensions are the files a relative #include can appear in.
 var cgoSourceExtensions = map[string]bool{
 	goExt: true,
 	".h":  true,
@@ -26,12 +26,12 @@ var cgoSourceExtensions = map[string]bool{
 	".c":  true,
 }
 
-// cgoSourceRoots are the trees whose includes are this repo's business — the
-// reach the walkSourceRoots helper these tests used to call gave them, kept
-// exactly. It is what keeps the whole-checkout walker off .devbox, where a
+// cgoSourceRoots are the trees whose includes are this repo's business. They
+// keep exactly the reach the walkSourceRoots helper these tests used to call
+// gave them. It is what keeps the whole-checkout walker off .devbox, where a
 // vendored Rust toolchain ships C headers whose relative includes resolve
 // against rules that are not ours. Widening a guardrail is a decision of its
-// own: the answer to a new tree wanting the check is to name it here.
+// own. The answer to a new tree wanting the check is to name it here.
 var cgoSourceRoots = []string{"internal/", "cmd/"}
 
 // bridgePackageDirPrefix is where a bridge lives: internal/adapter/platform/
@@ -41,7 +41,7 @@ const bridgePackageDirPrefix = "internal/adapter/platform/"
 
 // nativeCgoFloor is the fewest .h/.m/.c files the native bridges hold. The
 // files a relative #include can appear in are mostly Go, so the floor on the
-// whole set says nothing about the half that carries the includes; this one
+// whole set says nothing about the half that carries the includes. This one
 // does.
 const nativeCgoFloor = 10
 
@@ -76,7 +76,7 @@ func isNativeSource(file repoFile) bool {
 // It fires whenever a package changes depth relative to the headers it
 // includes, which is what moving a backend into its own directory does.
 //
-// The check is trivial because the answer is purely textual: resolve the path
+// The check is trivial because the answer is purely textual. Resolve the path
 // against the including file's directory and stat it.
 func TestCgoIncludes_RelativeIncludesResolve(t *testing.T) {
 	repoRoot := findRepoRoot(t)
@@ -123,8 +123,8 @@ func TestCgoIncludes_RelativeIncludesResolve(t *testing.T) {
 	assertWalkedAtLeast(t, "native sources among them", native, nativeCgoFloor)
 }
 
-// TestNativeBridgeIsReachedByRelativeInclude documents the convention the test
-// above protects: the Objective-C and C bridges live in internal/adapter/
+// TestCgoIncludes_NativeBridgePointsAtThePlatformPackages documents the
+// convention the test above protects. The Objective-C and C bridges live in internal/adapter/
 // platform/<os>/, and adapter packages reach them by relative path rather than
 // by a cgo CFLAGS include path.
 //
@@ -176,13 +176,13 @@ func TestCgoIncludes_NativeBridgePointsAtThePlatformPackages(t *testing.T) {
 const modulePath = "github.com/y3owk1n/neru"
 
 // bridgeConsumerFloor is the fewest package-to-bridge edges expected in the
-// checkout — one per bridge a package includes a header of. Nineteen packages
-// hold one today; below half of that, the matching has stopped recognizing
+// checkout, one per bridge a package includes a header of. Nineteen packages
+// hold one today. Below half of that, the matching has stopped recognizing
 // them rather than the repo having stopped including headers.
 const bridgeConsumerFloor = 10
 
 // compiledNativeExtensions are the files that make a package compile objects
-// of its own. A .h is not one of them: a header declares symbols and defines
+// of its own. A .h is not one of them, because a header declares symbols and defines
 // none, so a package holding only headers still has an archive to link and
 // still owes the import.
 var compiledNativeExtensions = map[string]bool{".m": true, ".c": true}
@@ -199,19 +199,19 @@ type bridgeConsumer struct {
 
 // TestCgoIncludes_HeaderConsumersLinkTheBridge pins the second half of the
 // bridge boundary. TestCgoIncludes_NativeBridgePointsAtThePlatformPackages
-// above pins where a header may be reached *from*; this pins that the compiled
+// above pins where a header may be reached *from*. This pins that the compiled
 // objects behind that header are actually linked into the binary.
 //
 // Including a header only declares the symbols. What links the Objective-C or
 // C that defines them is importing the bridge's Go package, whether or not any
-// Go symbol there is called — so a package that includes a bridge header
+// Go symbol there is called. So a package that includes a bridge header
 // states that import directly, and a blank import is the right form when it
 // calls nothing (ADR 0009, and *Bridge* in CONTEXT.md).
 //
 // A package that compiles native source of its own is exempt, because it needs
-// the header and not the archive: internal/adapter/systray/darwin builds
+// the header and not the archive. internal/adapter/systray/darwin builds
 // systray_darwin.m in its own package and reaches platform/darwin not at all.
-// That is the rule stated rather than an exception carved for it — the rule is
+// That is the rule stated rather than an exception carved for it. The rule is
 // about linkage, and a package holding its own .m has nothing to link.
 //
 // Test files are left out of both halves. What has to link here is the shipped
@@ -219,9 +219,9 @@ type bridgeConsumer struct {
 // package being tested.
 //
 // The judgement is per package, not per build constraint, which is the
-// granularity the rule is stated at: it does not ask whether the file holding
+// granularity the rule is stated at. It does not ask whether the file holding
 // the include and the file holding the import are compiled together. For the
-// darwin bridge nothing can slip through that gap — the One Rule allows the
+// darwin bridge nothing can slip through that gap. The One Rule allows the
 // import only in a darwin-tagged file or a darwin/ directory, and depguard and
 // TestNonDarwinFilesDoNotImportDarwinPlatformPackage both enforce it. For a
 // bridge with no such rule the mismatch is a build failure rather than a
@@ -231,7 +231,7 @@ type bridgeConsumer struct {
 // currently reach.
 //
 // Reaching the archive transitively instead is what this forbids, and the
-// failure it prevents is the expensive kind: the whole overlay render tree
+// failure it prevents is the expensive kind. The whole overlay render tree
 // once arrived through overlay/render/overlayutil/native, so refactoring
 // overlayutil to stop needing that shim would have broken eight packages at
 // once, on macOS only, with an undefined-symbol error naming none of them.

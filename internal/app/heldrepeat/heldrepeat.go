@@ -9,7 +9,7 @@ import (
 )
 
 // Run blocks, repeating actions until ctx is canceled. The dispatch on key-down
-// belongs to the caller: the two call sites disagree about whether the press has
+// belongs to the caller, because the two call sites disagree about whether the press has
 // already fired.
 func Run(
 	ctx context.Context,

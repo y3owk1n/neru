@@ -1,4 +1,4 @@
 // Package grid provides domain models and logic for grid-based navigation.
 //
-// It includes grid generation, cell management, and label caching for efficient grid operations.
+// It generates grids, labels their cells, and caches the generated cells.
 package grid

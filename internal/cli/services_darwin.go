@@ -25,10 +25,10 @@ const (
 // daemonStderrFileName is the file the login agent's standard error is
 // redirected to, inside the per-user log directory the logger already owns.
 //
-// Standard output is deliberately not redirected: the logger's console core
+// Standard output is deliberately not redirected. The logger's console core
 // writes every log line there, so a redirect would duplicate app.log into a
-// second, unrotated file. Standard error carries what app.log cannot — a panic,
-// a native crash, or a startup failure raised before the file sink exists — so
+// second, unrotated file. Standard error carries what app.log cannot (a panic,
+// a native crash, or a startup failure raised before the file sink exists), so
 // it is the half worth keeping.
 const daemonStderrFileName = "daemon.err.log"
 
@@ -151,7 +151,7 @@ func daemonStderrPath() (string, error) {
 
 // plistTextEscaper escapes what cannot appear literally inside a plist
 // <string> element. A filesystem path is arbitrary text as far as XML is
-// concerned — a directory called "A&B" is perfectly legal on macOS — and an
+// concerned, and a directory called "A&B" is legal on macOS. An
 // unescaped one produces a plist launchctl refuses to load, leaving a file
 // behind that the next install then refuses to write over.
 var plistTextEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
@@ -193,7 +193,7 @@ func installService() error {
 	}
 
 	// launchd opens the redirect itself, before neru runs, and it creates the
-	// file but never the directory holding it — so the directory has to exist
+	// file but never the directory holding it. So the directory has to exist
 	// by the time the agent is bootstrapped or the first launch's stderr, which
 	// is the launch most likely to fail, goes nowhere.
 	stderrPath, err := daemonStderrPath()

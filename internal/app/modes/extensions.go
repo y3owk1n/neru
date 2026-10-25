@@ -14,9 +14,9 @@ import (
 // modes have, expressed as a narrow unexported interface per axis rather than
 // as a switch over domain.Mode with empty arms.
 //
-// The rules — the assertion each implementer owes, absence semantics, and the
-// matrix test that replaces what the exhaustive linter gives a mode switch —
-// are in the modes area guide (AGENTS.md). Read it before adding an axis.
+// The rules are in the modes area guide (AGENTS.md): the assertion each
+// implementer owes, absence semantics, and the matrix test that replaces what
+// the exhaustive linter gives a mode switch. Read it before adding an axis.
 
 // extensionName names one optional-extension axis. There is exactly one name
 // per axis and it is used twice: in the matrix that states which modes carry
@@ -42,10 +42,10 @@ const (
 // selectionTracker is an optional Mode extension: a mode that remembers where
 // its selection sits, separately from where the real cursor is.
 //
-// Grid and recursive grid carry a selection point; hints, scroll and monitor
-// select have nothing of the kind, and a mode that does not implement this is
-// silently absent from every call site — the same nothing the empty switch
-// arms used to say.
+// Grid, recursive grid and bisect carry a selection point. Hints, scroll and
+// monitor select have nothing of the kind, and a mode that does not implement
+// this is silently absent from every call site, the same nothing the empty
+// switch arms used to say.
 type selectionTracker interface {
 	// SelectionPoint reports the mode's current selection in global screen
 	// coordinates, and false when the mode has no session or nothing is
@@ -84,7 +84,7 @@ type cellNavigator interface {
 // or down to a quadrant, by a press. Only bisect mode carries it.
 //
 // It is an effect rather than a getter, so a mode that does not carry it says
-// so in the debug log (activeModeEffect): "l did nothing in this mode" has to
+// so in the debug log (activeModeEffect). "l did nothing in this mode" has to
 // be answerable from a log.
 type bisector interface {
 	// Bisect keeps the half or quadrant cut names, count times over as one
@@ -93,17 +93,17 @@ type bisector interface {
 }
 
 // cursorFollowSelector is an optional Mode extension: a mode whose session
-// carries the cursor-follow-selection preference — whether the real cursor is
-// dragged along to whatever the mode selects.
+// carries the cursor-follow-selection preference, which is whether the real
+// cursor is dragged along to whatever the mode selects.
 //
-// Hints, grid and recursive grid each keep it on their own session context.
-// Scroll and the monitor picker select nothing of the kind, so there is nothing
-// for a cursor to follow, and both results below are the refusal a caller
-// already handles.
+// Hints, grid, recursive grid and bisect each keep it on their own session
+// context. Scroll and the monitor picker select nothing of the kind, so there
+// is nothing for a cursor to follow, and both results below are the refusal a
+// caller already handles.
 type cursorFollowSelector interface {
 	// CursorFollowSelection reports whether the session follows the selection
 	// with the real cursor, and false when the mode has no session to answer
-	// for — the same condition under which changing it is refused.
+	// for, the same condition under which changing it is refused.
 	CursorFollowSelection() (bool, bool)
 
 	// ApplyCursorFollowSelection sets the preference to *desired, or toggles it
@@ -111,7 +111,7 @@ type cursorFollowSelector interface {
 	//
 	// Setting it to the value it already holds still runs whatever the mode
 	// owes the change, which is what makes the setter idempotent in the way a
-	// caller needs: "on" always ends with the cursor on the selection.
+	// caller needs. "on" always ends with the cursor on the selection.
 	ApplyCursorFollowSelection(desired *bool) (bool, bool)
 }
 
@@ -127,8 +127,8 @@ type exitStepReporter interface {
 }
 
 // inputEditor is an optional Mode extension: a mode with accumulated input the
-// user can edit in place — clearing it back to the start, or taking back the
-// last keystroke — without leaving the mode.
+// user can edit in place without leaving the mode, by clearing it back to the
+// start or taking back the last keystroke.
 //
 // This is an effect rather than a getter, so a mode that does not carry it says
 // so in the debug log (activeModeEffect) instead of silently doing nothing.
@@ -145,8 +145,8 @@ type inputEditor interface {
 // hotkeyOverrideReporter is an optional Mode extension: a mode whose config
 // section can bind per-application hotkey overrides.
 //
-// It exists to answer one question on the key path — whether resolving the
-// focused app's bundle ID is worth the trip — so an implementation must stay a
+// It exists to answer one question on the key path, whether resolving the
+// focused app's bundle ID is worth the trip, so an implementation must stay a
 // cheap read of config.
 type hotkeyOverrideReporter interface {
 	// HasAppHotkeyOverrides reports whether the mode's configuration binds any
@@ -157,21 +157,23 @@ type hotkeyOverrideReporter interface {
 // themeRefresher is an optional Mode extension: a mode with a themed drawing on
 // screen that has to be put back in the colors the system just switched to.
 //
-// Hints, grid, recursive grid and the monitor picker each hold a Frame the new
-// Style applies to. Scroll draws none of its own and idle has nothing up at all,
-// so both carry this by not implementing it rather than by an empty arm.
+// Hints, grid, recursive grid, bisect and the monitor picker each hold a Frame
+// the new Style applies to. Scroll draws none of its own and idle has nothing
+// up at all, so both carry this by not implementing it rather than by an empty
+// arm.
 //
 // This is an effect rather than a getter, so a mode that does not carry it says
-// so in the debug log (activeModeEffect): "the overlay stayed in the old theme"
+// so in the debug log (activeModeEffect). "The overlay stayed in the old theme"
 // has to be answerable from a log rather than by reading the dispatch.
 type themeRefresher interface {
 	// RefreshForThemeChange draws the mode's Frame again so it picks the new
 	// colors up. The overlay has already re-resolved every Style from the
 	// configuration it holds, so the same Frame is all it takes.
 	//
-	// It reports whether the mode was in a state to redraw — false when it has
-	// no session or nothing drawn to repaint. Whether the backend had a surface
-	// to draw on is its own business and is reported in the log, not here.
+	// It reports whether the mode was in a state to redraw, and false when it
+	// has no session or nothing drawn to repaint. Whether the backend had a
+	// surface to draw on is its own business and is reported in the log, not
+	// here.
 	//
 	// The caller holds h.mu across the whole dispatch, so the mode it selected
 	// is still the active one here and an implementation must not re-check
@@ -184,26 +186,27 @@ type themeRefresher interface {
 // to be built again rather than merely drawn again.
 //
 // Hints regenerates its collection from the accessibility tree, grid rebuilds
-// its instance and recursive grid remaps its zoom history onto the new bounds.
-// Scroll draws none of its own and the monitor picker places its panels per
-// display, so neither carries this; idle has nothing on screen at all.
+// its instance, recursive grid remaps its zoom history onto the new bounds and
+// bisect remaps its region. Scroll draws none of its own and the monitor picker
+// places its panels per display, so neither carries this. Idle has nothing on
+// screen at all.
 //
 // This is an effect rather than a getter, so a mode that does not carry it says
-// so in the debug log (activeModeEffect): "the overlay is still sized for the
+// so in the debug log (activeModeEffect). "The overlay is still sized for the
 // display I unplugged" has to be answerable from a log rather than by reading
 // the dispatch.
 type screenRefresher interface {
 	// RefreshForScreenChange puts the mode back on the display as it now is.
 	// The screen moved under it, so what it holds is rebuilt against the new
-	// bounds and handed over as a transition — resized, shown and drawn.
+	// bounds and handed over as a transition: resized, shown and drawn.
 	//
 	// It reports whether the overlay was left sized for the new display, which
 	// is what tells the caller it owes no resize of its own. That is not the
-	// same as the refresh having succeeded: one that found nothing to draw and
+	// same as the refresh having succeeded. One that found nothing to draw and
 	// left the mode still took the overlay off the display it was on, and
 	// resizing it afterwards would bring it back up empty. False is for the
-	// mode that rebuilt nothing at all — its feature switched off in
-	// configuration, or no session state to rebuild from — because then the
+	// mode that rebuilt nothing at all, because its feature is switched off in
+	// configuration or it has no session state to rebuild from. Then the
 	// overlay is still sized for the display that is gone.
 	//
 	// The caller holds h.mu across the whole dispatch, so the mode it selected
@@ -241,7 +244,7 @@ type captureScopeReporter interface {
 // that extension. It is the one place the comma-ok assertion is written, so a
 // call site reads as "the mode that tracks a selection, if there is one".
 //
-// T is meant to be one of the extension interfaces above; instantiating it
+// T is meant to be one of the extension interfaces above. Instantiating it
 // with anything else compiles and then matches nothing. It reads the mode map
 // newModes builds, so a handler assembled without one reports every extension
 // absent.
@@ -266,11 +269,11 @@ func activeModeExtension[T any](h *handlerState) (T, bool) {
 // axis when the mode does not carry it.
 //
 // It is for the axes that perform an effect, never for a getter. A getter's
-// absence is a zero value the caller was already prepared for; an effect's
+// absence is a zero value the caller was already prepared for. An effect's
 // absence is a key the user pressed that did nothing, and this line is the
 // difference between answering "why did backspace do nothing here?" from a log
 // and answering it by reading the code. Idle takes the same line, with no mode
-// registered to name: nothing was open to edit, which is the same nothing.
+// registered to name. Nothing was open to edit, which is the same nothing.
 func activeModeEffect[T any](state *handlerState, axis extensionName) (T, bool) {
 	extension, ok := activeModeExtension[T](state)
 	if ok {

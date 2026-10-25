@@ -13,7 +13,7 @@ import (
 // The two declarations of one struct. The resize completion path allocates it
 // on the C heap, native code retains it across two dispatch_async hops, and the
 // //export-ed Go side casts the raw pointer straight to the Go type and
-// dereferences it — so the layouts are not merely similar, they are the same
+// dereferences it. So the layouts are not merely similar, they are the same
 // bytes read twice.
 const (
 	callbackContextHeader = "internal/adapter/platform/darwin/callback_context.h"
@@ -41,19 +41,19 @@ var callbackContextGoType = reflect.TypeFor[overlayutil.CallbackContext]().Strin
 type callbackContextField struct {
 	name string
 
-	// goType is the fixed-width integer type the field is, in Go's spelling —
-	// "uint64" for a Go uint64 and for a C uint64_t alike.
+	// goType is the fixed-width integer type the field is, in Go's spelling,
+	// such as "uint64" for a Go uint64 and for a C uint64_t alike.
 	goType string
 }
 
 // TestCallbackContextLayoutIsPinnedAcrossTheLanguageBoundary holds
 // callback_context.h's struct to overlayutil.CallbackContext.
 //
-// This is ADR 0007's deliberate exception to the one-implementation rule: Go
+// This is ADR 0007's deliberate exception to the one-implementation rule. Go
 // cannot be the implementation of a C struct that native code allocates and
 // retains, so the copies get a pin instead of a deletion
 // (docs/adr/0007-a-shared-derivation-has-one-implementation.md). What makes
-// this copy worth pinning is that a disagreement is silent — nothing fails to
+// this copy worth pinning is that a disagreement is silent. Nothing fails to
 // compile, and no cast is checked. A callback ID and a generation would be read
 // from the wrong offsets, validated against the registry in
 // internal/adapter/overlay/render/overlayutil/util.go, and then dropped as
@@ -62,7 +62,7 @@ type callbackContextField struct {
 // It fails on the mistakes that happen: a field added to one side, the two
 // fields reordered, a type widened or narrowed, and a field renamed on one
 // side. The Go side is reflected over rather than read as text, because this
-// package can link it — overlayutil carries no build tag, and reflection is
+// package can link it, since overlayutil carries no build tag, and reflection is
 // what the //export-ed cast actually depends on. The C side has no such
 // counterpart off macOS and is read through readNativeSource, the entry point
 // every language-boundary pin here shares.
@@ -71,8 +71,8 @@ type callbackContextField struct {
 // elsewhere, and worth being clear about. MallocCallbackContext
 // (internal/adapter/platform/darwin/cstring.go) names the struct and both
 // members through cgo, so on a macOS build a renamed struct, a renamed member
-// and a changed width are already compile errors — verified by making each of
-// those three edits. The reorder is not: both members are uint64 and cgo
+// and a changed width are already compile errors, which was verified by making
+// each of those three edits. The reorder is not. Both members are uint64 and cgo
 // assigns them by name, so swapping them compiles and every other leg has no
 // cgo at all. That is the case this pin is the only reader of.
 func TestCallbackContextLayoutIsPinnedAcrossTheLanguageBoundary(t *testing.T) {
@@ -87,7 +87,7 @@ func TestCallbackContextLayoutIsPinnedAcrossTheLanguageBoundary(t *testing.T) {
 }
 
 // TestCallbackContextLayoutPinCatchesDrift is the ticket's acceptance check,
-// kept rather than performed once: each way the two declarations could move
+// kept rather than performed once. Each way the two declarations could move
 // apart is applied to a copy of what the pin read, and the pin has to tell it
 // from the tree.
 //
@@ -114,14 +114,14 @@ func TestCallbackContextLayoutPinCatchesDrift(t *testing.T) {
 }
 
 // TestCallbackContextLayoutPinReportsADeclarationItCannotRead pins the other
-// half of the guardrail: a declaration this pin cannot read must be reported,
+// half of the guardrail. A declaration this pin cannot read must be reported,
 // never skipped. A pin that reads nothing and passes is worse than no pin,
 // because it reads as coverage.
 //
-// The Go side needs no case here — it is linked rather than read, so renaming
+// The Go side needs no case here, because it is linked rather than read, so renaming
 // or moving overlayutil.CallbackContext fails to compile, which is the loudest
 // form of this failure. The C side is text, and the cost of reading text is
-// that the pin reads one spelling: rewriting the struct in an equivalent shape
+// that the pin reads one spelling. Rewriting the struct in an equivalent shape
 // fails here rather than being understood, and the failure names the shape it
 // expected.
 func TestCallbackContextLayoutPinReportsADeclarationItCannotRead(t *testing.T) {
@@ -318,7 +318,7 @@ func callbackContextUnreadableHeaders(
 
 // callbackContextProblems is every disagreement between the two declarations.
 //
-// Fields are compared by position, because position is what the cast reads: two
+// Fields are compared by position, because position is what the cast reads. Two
 // uint64 fields swapped is a callback ID validated as a generation, and no
 // count or name check would see it.
 func callbackContextProblems(native, goSide []callbackContextField) []string {
@@ -369,7 +369,7 @@ func callbackContextFieldProblems(index int, native, goSide callbackContextField
 }
 
 // callbackContextFieldList spells a declaration for a failure message, in the
-// vocabulary that declaration is written in: suffix is what its language spells
+// vocabulary that declaration is written in, where suffix is what its language spells
 // a fixed-width integer with, so the C side reads uint64_t and the Go side
 // uint64 rather than both reading whichever this pin compares them as.
 func callbackContextFieldList(fields []callbackContextField, suffix string) string {
@@ -385,14 +385,14 @@ func callbackContextFieldList(fields []callbackContextField, suffix string) stri
 	return strings.Join(spelled, ", ")
 }
 
-// nativeFieldSpelling spells a Go field name the way the C struct writes it:
+// nativeFieldSpelling spells a Go field name the way the C struct writes it, so
 // "CallbackID" becomes "callbackID". The C side lowercases the initial and
 // keeps the rest, which is what both fields there do today. A Go field whose
-// name does not survive that — a leading initialism like "ID" — would fail
+// name does not survive that, such as a leading initialism like "ID", would fail
 // here, and the fix is to spell the rule for it rather than to loosen it.
 //
 // This is not nativeEnumMemberName (native_constants_test.go) wearing a
-// different name: that one asks how Objective-C spells a value a *person*
+// different name. That one asks how Objective-C spells a value a *person*
 // writes in the config, and answers by capitalising. This asks how C spells a
 // Go struct field, and answers by lowercasing. One question each, opposite
 // directions.
@@ -409,15 +409,15 @@ func nativeFieldSpelling(goName string) string {
 // members this pattern does not span is reported rather than passed over.
 //
 // The body admits no brace of its own, which is what makes the name the thing
-// being addressed: were another struct to be declared above this one in the
+// being addressed. Were another struct to be declared above this one in the
 // header, the match would begin at that one's opening brace and swallow it.
-// Every match is read, not the first — see parseCallbackContextHeader for why.
+// Every match is read, not the first, and parseCallbackContextHeader says why.
 var callbackContextStructPattern = regexp.MustCompile(
 	`typedef struct \{([^{}]*)\}[ \t]*` + regexp.QuoteMeta(callbackContextTypedef) + `;`,
 )
 
 // callbackContextFieldPattern matches one `uint64_t callbackID;` member. Only
-// the fixed-width types <stdint.h> declares are read: those are the ones whose
+// the fixed-width types <stdint.h> declares are read, because those are the ones whose
 // width is the same on every ABI, which is the whole reason the C side of a
 // shared struct is written with them.
 var callbackContextFieldPattern = regexp.MustCompile(
@@ -439,7 +439,7 @@ func readCallbackContextHeader(t *testing.T) []callbackContextField {
 
 // parseCallbackContextHeader reads the struct's members in declaration order.
 // The second result describes why they could not be read, and is empty when
-// they could — an error value would buy nothing here, since the only callers
+// they could. An error value would buy nothing here, since the only callers
 // turn it straight into a test failure.
 func parseCallbackContextHeader(header string) ([]callbackContextField, string) {
 	declarations := callbackContextStructPattern.FindAllStringSubmatch(header, -1)
@@ -453,11 +453,11 @@ func parseCallbackContextHeader(header string) ([]callbackContextField, string) 
 
 	// Reading text rather than preprocessed C, this pin cannot tell a
 	// declaration the compiler sees from one inside a block comment or an
-	// inactive #if. What it can do is refuse to choose: a header spelling the
+	// inactive #if. What it can do is refuse to choose. A header spelling the
 	// typedef twice is reported, so an old copy left commented out beside a new
 	// one fails here instead of being silently pinned in the new one's place. A
 	// header carrying only a commented-out copy is the case this does not
-	// cover, and cgo does — MallocCallbackContext names the type.
+	// cover, and cgo does, because MallocCallbackContext names the type.
 	if len(declarations) > 1 {
 		return nil, fmt.Sprintf(
 			"%s: %d `typedef struct { ... } %s;` declarations; this pin reads text "+
@@ -500,7 +500,7 @@ func parseCallbackContextHeader(header string) ([]callbackContextField, string) 
 // goCallbackContextFields reads a Go struct's fields in declaration order.
 //
 // reflect is what the C side has no counterpart for and what the //export-ed
-// cast depends on: the field order here is the order of the bytes, and the Kind
+// cast depends on. The field order here is the order of the bytes, and the Kind
 // is the real width even where the declaration spells it as a named type.
 func goCallbackContextFields(t *testing.T, structType reflect.Type) []callbackContextField {
 	t.Helper()
@@ -538,7 +538,7 @@ func goCallbackContextFields(t *testing.T, structType reflect.Type) []callbackCo
 
 // goFixedWidthKinds are the field kinds a struct shared with C may be laid out
 // from, and each Kind names itself the way its declaration spells it. int, uint
-// and uintptr are left out on purpose: their width is the platform's, which is
+// and uintptr are left out on purpose, because their width is the platform's, which is
 // exactly what such a struct must not depend on.
 var goFixedWidthKinds = map[reflect.Kind]bool{
 	reflect.Int8:   true,

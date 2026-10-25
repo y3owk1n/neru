@@ -127,7 +127,7 @@ func TestManager_MoveDirection_MovesSubgridToNeighbouringCell(t *testing.T) {
 func TestManager_MoveDirection_IgnoredWithoutAnOpenSubgrid(t *testing.T) {
 	harness := newMoveHarness(t)
 
-	// Nothing typed yet: no cell is selected, so there is nothing to move.
+	// Nothing typed yet, so no cell is selected and there is nothing to move.
 	if _, moved := harness.manager.MoveDirection(domain.DirectionRight, 1); moved {
 		t.Error("MoveDirection with no selection should report no movement")
 	}
@@ -179,7 +179,7 @@ func TestManager_MoveDirection_KeepsBackspaceInputInSync(t *testing.T) {
 
 	// Backspacing out of the subgrid restores the main-grid coordinate, which
 	// has to describe the cell the move landed on rather than the one first
-	// typed — otherwise the input no longer matches the highlighted cell.
+	// typed. Otherwise the input no longer matches the highlighted cell.
 	harness.manager.HandleBackspace()
 
 	wantInput := want.Coordinate()[:len(want.Coordinate())-1]

@@ -63,10 +63,10 @@ func gridOnSurface(t *testing.T) (*Manager, *recordingSurface) {
 }
 
 // TestLinuxOverlayManager_DrawGridPointer_PaintsTheConfiguredGlyphWithTheGrid
-// is the whole of what #1463 asks for: grid mode's pointer stand-in is drawn
+// is the whole of what #1463 asks for. Grid mode's pointer stand-in is drawn
 // on Linux, as recursive grid's already is. It rides the grid's own repaint
 // rather than a window of its own, so the assertion is that the glyph reaches
-// the surface at all — and that it is the one the user configured, since the
+// the surface at all, and that it is the one the user configured, since the
 // appearance now travels with the position.
 func TestLinuxOverlayManager_DrawGridPointer_PaintsTheConfiguredGlyphWithTheGrid(t *testing.T) {
 	t.Parallel()
@@ -94,7 +94,7 @@ func TestLinuxOverlayManager_DrawGridPointer_PaintsTheConfiguredGlyphWithTheGrid
 	}
 
 	// The surface reports scale 1 here, so the drawn size is the configured
-	// one; a backend that scaled it would report otherwise.
+	// one. A backend that scaled it would report otherwise.
 	if painted.fontSize != float64(gridPointerAppearance.FontSize) {
 		t.Errorf("pointer drawn at %v points, want the resolved %d",
 			painted.fontSize, gridPointerAppearance.FontSize)
@@ -157,8 +157,8 @@ func TestLinuxOverlayManager_HideGridPointer_RepaintsTheGridWithoutIt(t *testing
 	}
 }
 
-// Narrowing is the per-keystroke path and it must keep drawing the pointer:
-// the mode sets it once when a cell is chosen and then only repaints, so a
+// Narrowing is the per-keystroke path and it must keep drawing the pointer.
+// The mode sets it once when a cell is chosen and then only repaints, so a
 // redraw that forgot it would blink the pointer out on the next key.
 func TestLinuxOverlayManager_UpdateGridMatches_KeepsThePointerOnTheSurface(t *testing.T) {
 	t.Parallel()
@@ -181,10 +181,10 @@ func TestLinuxOverlayManager_UpdateGridMatches_KeepsThePointerOnTheSurface(t *te
 
 // A subgrid replaces the cells on the same surface and the pointer stands on
 // the cell it was opened inside, so the two are one keystroke's worth of
-// change — and #1492 is that this surface must be repainted once for it.
+// change, and #1492 is that this surface must be repainted once for it.
 //
 // The pointer starts somewhere else and the open moves it, which is what makes
-// the flush count an assertion rather than an accident: a backend that ignored
+// the flush count an assertion rather than an accident. A backend that ignored
 // the pointer it was handed would need a second repaint to catch up, and one
 // that took it would paint the glyph at its new place in the frame it was
 // already painting.
@@ -222,7 +222,7 @@ func TestLinuxOverlayManager_ShowSubgrid_PaintsThePointerItCarriesInOneRepaint(t
 	}
 }
 
-// The other half of the same call: a session whose real cursor follows the
+// The other half of the same call is that a session whose real cursor follows the
 // selection has no pointer to stand in for it, and the open says so rather than
 // leaving whatever the surface last held.
 func TestLinuxOverlayManager_ShowSubgrid_TakesThePointerOffWhenItCarriesNone(t *testing.T) {
@@ -247,7 +247,7 @@ func TestLinuxOverlayManager_ShowSubgrid_TakesThePointerOffWhenItCarriesNone(t *
 }
 
 // Moving the pointer while a subgrid is open repaints the subgrid, and the
-// order it does that in decides which Wayland buffer the clear lands in:
+// order it does that in decides which Wayland buffer the clear lands in.
 // beginFrame is what selects the writable one, so clearing before it wipes the
 // buffer already on screen and shows the stale one next.
 func TestLinuxOverlayManager_DrawGridPointer_BeginsTheFrameBeforeClearingIt(t *testing.T) {
@@ -291,14 +291,14 @@ func TestLinuxOverlayManager_DrawGridPointer_LeavesTheRecursiveGridSurfaceAlone(
 	}
 }
 
-// The teardown order the overlay's leaving half runs (#1492): clear the
+// The teardown order the overlay's leaving half runs (#1492) is to clear the
 // surface, then hide the pointer. The hide has to be free, because it lands on
-// a surface that has just been cleared and is one call from being hidden — a
+// a surface that has just been cleared and is one call from being hidden. A
 // repaint there would paint the grid, or an open subgrid, back onto it.
 //
 // What makes it free is the clear having already forgotten the pointer, so the
 // equality guard in SetGridPointer has nothing to do. Asserting the flush count
-// rather than the absence of the glyph is the point: a repaint that painted no
+// rather than the absence of the glyph is the point. A repaint that painted no
 // pointer would still have repainted.
 func TestLinuxOverlayManager_HideGridPointer_PaintsNothingAfterAClear(t *testing.T) {
 	t.Parallel()
@@ -327,7 +327,7 @@ func TestLinuxOverlayManager_HideGridPointer_PaintsNothingAfterAClear(t *testing
 }
 
 // Clearing the surface takes the grid and its pointer with it, so the record
-// of what is on screen goes too: a stale one would put the pointer back on the
+// of what is on screen goes too. A stale one would put the pointer back on the
 // first repaint of the next session.
 func TestLinuxOverlayManager_Clear_ForgetsThePointerItWasDrawing(t *testing.T) {
 	t.Parallel()

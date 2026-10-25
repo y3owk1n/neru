@@ -28,8 +28,8 @@ func TestResolver_ResolvesOncePerWrittenName(t *testing.T) {
 }
 
 func TestResolver_AnswerNeverDependsOnWhatWasAskedBefore(t *testing.T) {
-	// The rule this package exists for: an answer is a function of the name
-	// asked for and nothing else. Remembering an answer under a normalised
+	// The rule this package exists for is that an answer is a function of the
+	// name asked for and nothing else. Remembering an answer under a normalised
 	// name while storing the written one would hand the second caller the
 	// first caller's spelling, which is the order-dependent behavior #1293
 	// removed.
@@ -59,9 +59,9 @@ func TestResolver_AnswerNeverDependsOnWhatWasAskedBefore(t *testing.T) {
 }
 
 func TestResolver_SecondSpellingIsResolvedOnItsOwn(t *testing.T) {
-	// The documented price of remembering a name as written: a second spelling
-	// of the same family is a second name, resolved rather than answered from
-	// the first one's entry.
+	// The documented price of remembering a name as written is that a second
+	// spelling of the same family is a second name, resolved rather than
+	// answered from the first one's entry.
 	calls := 0
 	resolver := fontcache.New(func(family string) string {
 		calls++

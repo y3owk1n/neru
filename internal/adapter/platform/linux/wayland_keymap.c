@@ -35,7 +35,7 @@ struct neru_xkb_state {
 	struct keymap_ready kr;  // listener data, alive for lifetime of this struct
 };
 
-// ── Reference layout ────────────────────────────────────────────────────
+// ---------- Reference layout ----------
 
 // The top letter row, AD01 to AD10. Its symbols tell a Latin layout from any
 // other without naming a layout.
@@ -145,7 +145,7 @@ static void keymap_ready_load(struct keymap_ready *kr, const char *map_str) {
 	choose_reference(kr);
 }
 
-// ── wl_keyboard listener (only .keymap is used) ─────────────────────────
+// ---------- wl_keyboard listener (only .keymap is used) ----------
 
 static void neru_keyboard_keymap(
     void *data, struct wl_keyboard *wl_keyboard, uint32_t format, int32_t fd, uint32_t size) {
@@ -190,7 +190,7 @@ static const struct wl_keyboard_listener keyboard_listener = {
     .repeat_info = neru_keyboard_repeat_info,
 };
 
-// ── wl_seat listener ────────────────────────────────────────────────────
+// ---------- wl_seat listener ----------
 
 static void neru_seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities) {}
 
@@ -201,7 +201,7 @@ static const struct wl_seat_listener seat_listener = {
     .name = neru_seat_name,
 };
 
-// ── wl_registry listener ────────────────────────────────────────────────
+// ---------- wl_registry listener ----------
 
 struct registry_data {
 	struct wl_seat *seat;
@@ -222,7 +222,7 @@ static const struct wl_registry_listener registry_listener = {
     .global_remove = neru_registry_global_remove,
 };
 
-// ── Public API ──────────────────────────────────────────────────────────
+// ---------- Public API ----------
 
 neru_xkb_state *neru_xkb_state_create(void) {
 	struct wl_display *display = wl_display_connect(NULL);
@@ -341,19 +341,19 @@ void neru_xkb_state_key(neru_xkb_state *state, uint16_t evdev_code, int is_press
 
 // neru_normalize_xkb_name maps the keysym names that stand for a named key onto the
 // spelling Neru binds. Only keysyms with no character of their own reach this
-// table: everything printable was already named by its character in
+// table, because everything printable was already named by its character in
 // neru_xkb_keysym_name, which is what keeps this list short.
 //
 // The keypad reports keysyms of its own while NumLock is off, and they mean the
 // same keys as their main-keyboard equivalents, so they fold onto the same
 // names. With NumLock on it reports KP_0 through KP_9 and the operators, which
 // carry a character and never get here. ISO_Left_Tab is what XKB calls the Tab
-// key once Shift has chosen the level: the same key, and a binding written
-// Shift+Tab has to reach it.
+// key once Shift has chosen the level. It is the same key, and a binding
+// written Shift+Tab has to reach it.
 //
 // The rows are keyed by the name xkb_keysym_get_name answers, which is the
 // first name xkbcommon-keysyms.h lists for a keysym and not always the
-// familiar one: the page keys are Prior and Next there, never Page_Up and
+// familiar one. The page keys are Prior and Next there, never Page_Up and
 // Page_Down. A row keyed by the alias is dead, which is how PageUp went
 // unmatched on this backend.
 static void neru_normalize_xkb_name(char *buf, size_t buf_size) {
@@ -398,17 +398,17 @@ static void neru_normalize_xkb_name(char *buf, size_t buf_size) {
 //
 // Character first is what makes the two Linux backends agree. Shift has already
 // chosen the level by the time a keysym exists, and the keysym name for the
-// shifted level is not the character: Shift+[ is "braceleft", and on a layout
+// shifted level is not the character. Shift+[ is "braceleft", and on a layout
 // that is not us the names run to "sterling" and "adiaeresis". A name table
 // written by hand can never be complete, and every key it misses is a binding
 // that matches on X11 and not here. Asking libxkbcommon for the character
 // covers every printable keysym at once, and only the keys with no character
 // (Tab, Return, the navigation keys, the keypad with NumLock off) go by name.
 //
-// Space is deliberately left to the name path: it is a named key ("Space"),
-// and a bare " " would be trimmed to nothing downstream. Control characters
-// (Tab, Return, BackSpace, Delete) have no printable form and take the same
-// path.
+// Space is deliberately left to the name path, because it is a named key
+// ("Space"), and a bare " " would be trimmed to nothing downstream. Control
+// characters (Tab, Return, BackSpace, Delete) have no printable form and take
+// the same path.
 int neru_xkb_keysym_name(uint32_t keysym, char *buf, size_t buf_size) {
 	if (!buf || buf_size == 0)
 		return -1;

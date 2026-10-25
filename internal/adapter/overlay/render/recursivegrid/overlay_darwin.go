@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
-	// The overlay.h included above only declares its symbols; importing the
+	// The overlay.h included above only declares its symbols. Importing the
 	// bridge is what links the Objective-C that defines them (ADR 0009).
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/config"
@@ -37,9 +37,9 @@ func recursiveGridResizeCompletionCallback(context unsafe.Pointer) {
 }
 
 const (
-	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	// NSWindowSharingNone represents NSWindowSharingNone (0), which hides the window from screen sharing.
 	NSWindowSharingNone = 0
-	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1), which shows the window in screen sharing.
 	NSWindowSharingReadOnly = 1
 	// millisecondsPerSecond converts config milliseconds into native seconds.
 	millisecondsPerSecond = 1000.0
@@ -69,7 +69,7 @@ type Overlay struct {
 	virtualPointerColor string
 
 	// drawMu serializes draw operations against cache invalidation.
-	// Draw paths hold RLock; freeAllCaches holds Lock.
+	// Draw paths hold RLock, and freeAllCaches holds Lock.
 	drawMu sync.RWMutex
 }
 
@@ -251,7 +251,7 @@ func (o *Overlay) ResizeToActiveScreen() {
 		)
 	})
 	if !started {
-		// Pool exhausted — fall back to non-callback resize so the overlay
+		// Pool exhausted, so fall back to non-callback resize so the overlay
 		// is still moved to the correct screen.
 		C.NeruResizeOverlayToActiveScreen(o.window)
 	}
@@ -294,10 +294,10 @@ func (o *Overlay) DrawRecursiveGrid(
 		)
 	}
 
-	// A shape that cannot narrow anything is replaced with the default one;
+	// A shape that cannot narrow anything is replaced with the default one.
 	// recursivegrid.UsableDimensions owns that rule for the manager and for
-	// this draw alike. The key mapping goes with it: the one handed over was
-	// cut for the shape being replaced, so it is the wrong length for the
+	// this draw alike. The key mapping goes with it, because the one handed
+	// over was cut for the shape being replaced, so it is the wrong length for the
 	// fallback and would leave cells unlabelled.
 	usableDims, asGiven := recursivegrid.UsableDimensions(dims)
 	if !asGiven {
@@ -314,7 +314,9 @@ func (o *Overlay) DrawRecursiveGrid(
 			zap.Int("key_count", len(keyRunes)),
 			zap.Int("expected", keyCount),
 		)
-	} // Hold drawMu.RLock for the entire span from label lookup through the C
+	}
+
+	// Hold drawMu.RLock for the entire span from label lookup through the C
 	// draw call so that freeLabelCache cannot free labels mid-draw.
 	o.drawMu.RLock()
 

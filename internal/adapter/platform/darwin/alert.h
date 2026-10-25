@@ -30,7 +30,7 @@ int NeruShowAccessibilityPermissionStartupAlert(void);
 
 /// Show a macOS notification with a title and message.
 /// Uses UNUserNotificationCenter when running as an app bundle, logs to console otherwise.
-/// @note This function is asynchronous — it returns immediately before the
+/// @note This function is asynchronous. It returns immediately before the
 ///       notification is delivered. Callers must not depend on the notification
 ///       being visible when this function returns.
 /// @param title The notification title

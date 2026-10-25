@@ -1,6 +1,6 @@
-// Package config provides comprehensive configuration management for the Neru application.
+// Package config defines Neru's TOML configuration: the schema structs, the
+// shared and per-platform defaults, the validators, and the derivations that
+// turn what a user wrote into what the daemon runs on.
 //
-// This package handles all aspects of Neru's configuration system, including loading,
-// parsing, validation, and default value management. Configuration is stored in TOML
-// format and supports multiple locations with a well-defined precedence order.
+// The loader subpackage finds, decodes, watches and persists the file.
 package config

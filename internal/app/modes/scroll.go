@@ -10,8 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// StartInteractiveScroll activates the interactive scroll mode,
-// showing the scroll overlay and enabling key handling for scrolling.
+// startInteractiveScroll enters scroll mode and shows the scroll frame.
 func (h *handlerState) startInteractiveScroll() {
 	h.prepareForModeActivation()
 	h.cursorState.SkipNextRestore()
@@ -26,8 +25,8 @@ func (h *handlerState) startInteractiveScroll() {
 
 	h.enterMode(domain.ModeScroll)
 
-	// Scroll draws nothing of its own, but entering it is still a transition:
-	// the frame takes the previous mode's drawing off the shared surface and
+	// Scroll draws nothing of its own, but entering it is still a transition.
+	// The frame takes the previous mode's drawing off the shared surface and
 	// tells the overlay which mode the indicators are naming.
 	h.showFrame(ports.ScrollFrame{}, "show scroll overlay")
 
@@ -37,7 +36,7 @@ func (h *handlerState) startInteractiveScroll() {
 // cleanupForKeymapModeTransition cleans up the current mode on the way into a
 // mode that draws nothing and answers every key from its own table: scroll,
 // and every declared mode. The event tap stays enabled, for the reason
-// exitModeForTransition states — this is where that dead window was first
+// exitModeForTransition states. This is where that dead window was first
 // found, in the shape of missed scrolling keys when activating from grid mode.
 //
 // It is a cleanup of its own rather than a call to that helper, and the three

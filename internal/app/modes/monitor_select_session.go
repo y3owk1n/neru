@@ -36,7 +36,7 @@ func newMonitorSelectSession(
 		return nil
 	}
 
-	// Sort ALL monitors in a fixed spatial order so labels are deterministic
+	// Sort all monitors in a fixed spatial order so labels are deterministic
 	// regardless of which monitor is current.
 	sortSpatially(monitors)
 

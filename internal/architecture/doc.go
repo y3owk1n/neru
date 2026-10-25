@@ -1,109 +1,109 @@
 // Package architecture holds the guardrail tests that keep the codebase's
-// shape honest. Prose rules alone don't hold; each rule here fails `just test`
-// when broken. Exemption lists are self-checking: a companion test fails when
+// shape honest. Prose rules alone don't hold. Each rule here fails `just test`
+// when broken. Exemption lists are self-checking. A companion test fails when
 // an entry stops being real, so a list can only shrink.
 //
-// Every guardrail has a file named for it, and this is all of them —
+// Every guardrail has a file named for it, and this is all of them.
 // doc_inventory_test.go fails when the two disagree:
 //
-//   - agent_contract_test.go — the agent guide layout: an AGENTS.md beside
+//   - agent_contract_test.go: the agent guide layout: an AGENTS.md beside
 //     every CLAUDE.md symlink, .agents/skills canonical, worktrees ignored.
-//   - callback_context_layout_test.go — the C callback context struct and the
+//   - callback_context_layout_test.go: the C callback context struct and the
 //     Go struct it is cast to have the same fields, in the same order, at the
 //     same widths.
-//   - client_package_test.go — the public client package builds only on the
+//   - client_package_test.go: the public client package builds only on the
 //     standard library, the endpoint lookup and the pipe libraries Windows
 //     needs, never on the daemon's own packages.
-//   - cgo_includes_test.go — relative #include paths resolve, and native
+//   - cgo_includes_test.go: relative #include paths resolve, and native
 //     headers are reached through internal/adapter/platform/<os>/.
-//   - comment_paths_test.go — a path header, or a comment pointing at a
+//   - comment_paths_test.go: a path header, or a comment pointing at a
 //     sibling source file, names a file that exists.
-//   - compositor_detector_test.go — the compositor family is decided in one
-//     place: the environment variables naming the desktop are read only by the
+//   - compositor_detector_test.go: the compositor family is decided in one
+//     place. The environment variables naming the desktop are read only by the
 //     detector that owns them.
-//   - compositor_socket_test.go — a compositor's IPC socket variable is read
+//   - compositor_socket_test.go: a compositor's IPC socket variable is read
 //     only downstream of the detected backend, never as a way to decide which
 //     compositor the session runs.
-//   - config_chain_test.go — the links no projection can show: every config
+//   - config_chain_test.go: the links no projection can show: every config
 //     validator reaching the ladder, every schema field reaching a default.
-//   - config_schema_test.go — schemas/config.schema.json is what the config
+//   - config_schema_test.go: schemas/config.schema.json is what the config
 //     structs render today.
-//   - config_derivation_test.go — every derived config value is derived in the
+//   - config_derivation_test.go: every derived config value is derived in the
 //     chain rather than recomputed at its reader.
-//   - config_example_test.go — the pairing between the config schema and the
+//   - config_example_test.go: the pairing between the config schema and the
 //     example TOML shipped with it.
-//   - daemon_log_test.go — the daemon's log carries facts rather than content,
+//   - daemon_log_test.go: the daemon's log carries facts rather than content,
 //     and every service definition sends its output to a per-user path.
-//   - darwin_entry_point_headers_test.go — every non-static Neru* entry point
+//   - darwin_entry_point_headers_test.go: every non-static Neru* entry point
 //     the darwin bridge defines is declared in its own subsystem's header.
-//   - dependency_boundary_test.go — the darwin One Rule: only darwin-tagged
+//   - dependency_boundary_test.go: the darwin One Rule: only darwin-tagged
 //     code reaches internal/adapter/platform/darwin.
 //   - doc_anchors_test.go: every link between docs, every doc URL to main in
 //     the example configs, install scripts, issue forms and skills, and every
 //     doc path the binary opens reaches a file and a heading that exist.
-//   - doc_inventory_test.go — this list, against the directory.
-//   - doc_links_test.go — no contributor doc names a path that does not exist.
-//   - foundation_slice_test.go — the test-foundation recipe holds every
+//   - doc_inventory_test.go: this list, against the directory.
+//   - doc_links_test.go: no contributor doc names a path that does not exist.
+//   - foundation_slice_test.go: the test-foundation recipe holds every
 //     package that runs everywhere, and CI runs the recipe.
-//   - guide_test_citations_test.go — a guide file may claim a test exists only
+//   - guide_test_citations_test.go: a guide file may claim a test exists only
 //     by naming it, and every test name or test file it names resolves.
-//   - hint_placement_vocabulary_test.go — the hint placement vocabulary is the
+//   - hint_placement_vocabulary_test.go: the hint placement vocabulary is the
 //     same on both sides of the Go/Objective-C boundary.
-//   - hotkey_delete_key_test.go — every platform's [hotkeys] table resolves
+//   - hotkey_delete_key_test.go: every platform's [hotkeys] table resolves
 //     "Delete" and "Backspace" to one physical key, the backspace key, so a
 //     config file binds the same key on all three.
-//   - ipc_schema_test.go — schemas/ipc.schema.json is what the IPC wire types
+//   - ipc_schema_test.go: schemas/ipc.schema.json is what the IPC wire types
 //     render today.
-//   - ipc_reference_test.go — docs/reference/ipc.md states the protocol
+//   - ipc_reference_test.go: docs/reference/ipc.md states the protocol
 //     version the daemon speaks, and its Commands table names every command
 //     the daemon answers, and nothing else.
-//   - justfile_doc_test.go — every recipe just --list shows declares its own
+//   - justfile_doc_test.go: every recipe just --list shows declares its own
 //     one-line summary, rather than inheriting whichever line of the comment
 //     block above it just happens to read.
-//   - justfile_parse_test.go — the one justfile reader the suite shares: what
+//   - justfile_parse_test.go: the one justfile reader the suite shares: what
 //     a recipe is, what it runs, and the attributes above it, so no second
 //     parser learns those cases over again.
-//   - keyvocab_wire_test.go — the native key event emitters and keyvocab agree
+//   - keyvocab_wire_test.go: the native key event emitters and keyvocab agree
 //     on what they put on the wire.
-//   - layering_test.go — domain stays pure, infra does not import app, and app
+//   - layering_test.go: domain stays pure, infra does not import app, and app
 //     reaches infra only through ports.
-//   - mode_extension_switch_test.go — behavior only some modes have is an
+//   - mode_extension_switch_test.go: behavior only some modes have is an
 //     optional extension, never an arm of a switch over domain.Mode.
-//   - mode_flag_contract_test.go — mode commands register exactly what the
+//   - mode_flag_contract_test.go: mode commands register exactly what the
 //     grammar declares, and docs/reference/cli.md is generated from the descriptor table.
-//   - mode_lock_registry_test.go — every mutex the mode handler declares has a
+//   - mode_lock_registry_test.go: every mutex the mode handler declares has a
 //     stated position in the lock order that package's guide gives.
-//   - mode_lock_release_test.go — the mode handler releases every lock via
+//   - mode_lock_release_test.go: the mode handler releases every lock via
 //     defer, in the scope that took it.
-//   - mode_transition_release_test.go — an activation that exits another mode
+//   - mode_transition_release_test.go: an activation that exits another mode
 //     keeps the keyboard and gives it back at return, written as one deferred
 //     double call, so no call site can hand it over and forget to release it.
-//   - named_key_tables_test.go — the two Objective-C key-name tables spell the
+//   - named_key_tables_test.go: the two Objective-C key-name tables spell the
 //     named-key vocabulary, agree with each other, and gap only where macOS has
 //     no keycode.
-//   - native_constants_test.go — the shared reader every language-boundary pin
+//   - native_constants_test.go: the shared reader every language-boundary pin
 //     goes through, rather than a second way to read a .h or a .m.
-//   - native_rule_test.go — the reader that finds a native definition's body,
+//   - native_rule_test.go: the reader that finds a native definition's body,
 //     so a pin addresses its copy by name and a rename fails loudly.
-//   - overlay_frame_test.go — an overlay Frame carries domain values only.
-//   - platform_slots_test.go — platform files use the documented file slots,
+//   - overlay_frame_test.go: an overlay Frame carries domain values only.
+//   - platform_slots_test.go: platform files use the documented file slots,
 //     tagged packages tag every file, package comments reach every target.
-//   - platform_support_test.go — every option, mode flag and action declares
+//   - platform_support_test.go: every option, mode flag and action declares
 //     the platforms it does something on, and docs/reference/platform-support.md publishes
 //     that declaration rather than a copy of it.
-//   - ports_test.go — every port has a mock, and every mock asserts that it
+//   - ports_test.go: every port has a mock, and every mock asserts that it
 //     satisfies the interface.
-//   - repo_walk_test.go — the one walk the suite shares: what it prunes, what
+//   - repo_walk_test.go: the one walk the suite shares: what it prunes, what
 //     it hands over, and the vacuity floor every caller asserts on it.
-//   - role_vocabulary_docs_test.go — the config docs cover the current
+//   - role_vocabulary_docs_test.go: the config docs cover the current
 //     semantic role vocabulary and nothing retired.
-//   - subgrid_cells_test.go — a subgrid's rectangles are computed once, so the
+//   - subgrid_cells_test.go: a subgrid's rectangles are computed once, so the
 //     cell drawn and the cell clicked are the same one.
-//   - subgrid_keys_test.go — the subgrid key set is decided once, and handed
+//   - subgrid_keys_test.go: the subgrid key set is decided once, and handed
 //     over by every draw that can put one on screen.
-//   - test_quality_test.go — no test swallows an error, and every test body
+//   - test_quality_test.go: no test swallows an error, and every test body
 //     can fail.
-//   - wayland_keypad_folds_test.go — the keypad names the Wayland keymap folds
+//   - wayland_keypad_folds_test.go: the keypad names the Wayland keymap folds
 //     to are the names the X11 and evdev taps answer with, and the ones their
 //     tests expect.
 package architecture

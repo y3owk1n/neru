@@ -193,21 +193,21 @@ func TestEventTapEnqueuePassthrough_PreservesSnapshotOrder(t *testing.T) {
 // TestEventTap_Destroy_WaitsForAnInFlightKeyDispatch pins the darwin half of
 // what makes eventtap.Adapter.Destroy's lock discipline load-bearing.
 //
-// This backend reaches the wait by a different route than the Linux tap —
+// This backend reaches the wait by a different route than the Linux tap.
 // stopDispatcher closes the queue and joins the dispatch goroutine, rather
-// than closing the dispatch channel — but the consequence is the same: Destroy
+// than closing the dispatch channel. The consequence is the same. Destroy
 // runs for as long as the key that goroutine is delivering takes, and that key
 // is delivered into the mode handler under its own lock. So the adapter must
 // not hold its lock across this call.
 //
 // The Linux twin of this test also re-enters the tap from the in-flight
-// callback; this one does not, and the asymmetry is the backends', not the
+// callback. This one does not, and the asymmetry is the backends', not the
 // test's. The Linux tap guards its whole state with one mutex the dispatch
 // goroutine takes, so a Destroy holding it across the wait would park the
-// dispatcher. Here nothing the dispatcher runs takes a tap lock at all —
+// dispatcher. Here nothing the dispatcher runs takes a tap lock at all.
 // handleKeyCallback reads the callback under callbackMu and releases it before
-// invoking, and Destroy takes callbackMu only after the join — so there is no
-// tap-level hold to pin, and the adapter's is the whole of the hazard.
+// invoking, and Destroy takes callbackMu only after the join. So there is no
+// tap-level hold to pin, and the adapter's lock is the whole hazard.
 func TestEventTap_Destroy_WaitsForAnInFlightKeyDispatch(t *testing.T) {
 	callbackEntered := make(chan struct{})
 	releaseCallback := make(chan struct{})

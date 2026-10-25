@@ -109,12 +109,13 @@ func removeLauncherBindingsForDisabledModes(cfg *config.Config) {
 	}
 
 	for key, actions := range cfg.Hotkeys.Bindings {
-		if len(actions) == 1 {
-			if action, ok := isBuiltInGlobalModeAction(actions); ok {
-				if modeEnabled, found := modeActions[action]; found && !modeEnabled {
-					delete(cfg.Hotkeys.Bindings, key)
-				}
-			}
+		action, ok := isBuiltInGlobalModeAction(actions)
+		if !ok {
+			continue
+		}
+
+		if modeEnabled, found := modeActions[action]; found && !modeEnabled {
+			delete(cfg.Hotkeys.Bindings, key)
 		}
 	}
 }
@@ -222,11 +223,11 @@ func safeSendConfig(channel chan<- *config.Config, cfg *config.Config) bool {
 // This replaces the global configuration pattern with dependency injection.
 type Service struct {
 	config *config.Config
-	// written is config before any derived value was settled — see
+	// written is config before any derived value was settled. See
 	// [config.LoadResult.Written]. It moves under the same lock and in the same
 	// call as config, because a running configuration paired with a stale
 	// written one would have `neru config set` deriving from values nobody
-	// wrote. Nil until a load or a WithWritten supplies one; Written() says
+	// wrote. Nil until a load or a WithWritten supplies one. Written() says
 	// what that falls back to.
 	written       *config.Config
 	path          string
@@ -249,7 +250,7 @@ type Service struct {
 	// platform column InertWords judges by. Nil, the default, means the
 	// backend keeps every promise the column makes. It is injected rather than
 	// detected here, because the detector is an adapter and this package sits
-	// below the adapters; WithBackendInert says who supplies it.
+	// below the adapters. WithBackendInert says who supplies it.
 	backendInert func(*config.Config, config.Written) parity.Declaration
 }
 
@@ -280,8 +281,8 @@ func NewService(
 // WithBackendInert names the words the display backend this process runs
 // under cannot honor, for LoadWithValidation to warn about beside the
 // platform-inert ones. The only one today is [config.X11InertWords], which the
-// composition roots pass when the detected backend is X11; a test passes it to
-// stand in for that detection.
+// composition roots pass when the detected backend is X11, and a test passes it
+// to stand in for that detection.
 func (s *Service) WithBackendInert(
 	inert func(*config.Config, config.Written) parity.Declaration,
 ) *Service {
@@ -301,7 +302,7 @@ func (s *Service) WithDefaults(cfg *config.Config) *Service {
 }
 
 // WithWritten records what the configuration the service was constructed with
-// was written as, for the caller that loaded it somewhere else — the daemon
+// was written as, for the caller that loaded it somewhere else. The daemon
 // loads once at startup and hands both halves to the app, which builds this
 // service from them.
 func (s *Service) WithWritten(cfg *config.Config) *Service {
@@ -318,7 +319,7 @@ func (s *Service) WithWritten(cfg *config.Config) *Service {
 // It falls back to the running configuration when nothing supplied one, which
 // is a service that was handed a config rather than loading one. Deriving from
 // an already-derived configuration is what this whole pair exists to avoid, but
-// it settles to itself rather than to something wrong: what is lost is the
+// it settles to itself rather than to something wrong. What is lost is the
 // re-inference, not the value.
 func (s *Service) Written() *config.Config {
 	s.mu.RLock()
@@ -357,7 +358,7 @@ func (s *Service) FindConfigFile() string {
 
 	// Also check ~/.config/neru whenever it is not already the preferred
 	// directory. That covers XDG_CONFIG_HOME pointing elsewhere, and Windows,
-	// where the preferred directory is %APPDATA%\neru — cross-platform
+	// where the preferred directory is %APPDATA%\neru, so cross-platform
 	// dotfiles keep working there without setting XDG_CONFIG_HOME.
 	if homeErr == nil {
 		dotConfigDir := filepath.Join(homeDir, ".config", "neru")
@@ -371,7 +372,6 @@ func (s *Service) FindConfigFile() string {
 
 	// Try legacy and current-directory locations
 	if homeErr == nil {
-		// Try .neru.toml
 		path := filepath.Join(homeDir, ".neru.toml")
 		if found := s.tryConfigPath(path); found != "" {
 			return found
@@ -485,7 +485,6 @@ func (s *Service) Watch(ctx context.Context) <-chan *config.Config {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
-		// Remove watcher from list
 		for i, w := range s.watchers {
 			if w == channel {
 				s.watchers = append(s.watchers[:i], s.watchers[i+1:]...)
@@ -503,14 +502,13 @@ func (s *Service) Watch(ctx context.Context) <-chan *config.Config {
 
 // Validate validates the given configuration.
 func (s *Service) Validate(cfg *config.Config) error {
-	// Delegate to Config.Validate for comprehensive validation
 	return cfg.Validate()
 }
 
 // Update updates the configuration (for testing/internal use).
 //
 // written is the configuration cfg was derived from, kept for the next field
-// change. It is not optional: a running configuration left paired with the
+// change. It is not optional. A running configuration left paired with the
 // previous written one would have that next change deriving from values nobody
 // wrote. A caller with no separate written form passes cfg for both.
 func (s *Service) Update(cfg, written *config.Config) error {
@@ -526,7 +524,6 @@ func (s *Service) Update(cfg, written *config.Config) error {
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
 
-	// Notify watchers
 	for _, watcher := range watchers {
 		if !safeSendConfig(watcher, cfg) {
 			s.logger.Debug("Watcher channel full, skipping notification")
@@ -543,7 +540,7 @@ func (s *Service) Update(cfg, written *config.Config) error {
 //
 // written is the configuration cfg was derived from, kept for the next field
 // change, and not optional for the same reason as in Update. A batch of
-// --no-reload changes is exactly where it matters: each one derives from the
+// --no-reload changes is exactly where it matters. Each one derives from the
 // last one's written half, not from its resolved output.
 func (s *Service) Replace(cfg, written *config.Config) {
 	s.mu.Lock()
@@ -566,7 +563,6 @@ func (s *Service) SaveOverrideField(key, value string) error {
 
 	overridePath := OverridePath(configPath)
 
-	// Read existing overrides
 	overrides := make(map[string]any)
 
 	_, decodeErr := toml.DecodeFile(overridePath, &overrides)
@@ -599,7 +595,7 @@ func (s *Service) SaveOverrideField(key, value string) error {
 		return saveErr
 	}
 
-	// The key names a schema field, which is not the user's content; the value
+	// The key names a schema field, which is not the user's content. The value
 	// is, and a value can be an exec command line, so only its length is logged.
 	s.logger.Debug("Config override persisted",
 		zap.String("key", key),

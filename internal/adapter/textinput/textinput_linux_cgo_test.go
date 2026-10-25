@@ -126,7 +126,7 @@ func waitFor(t *testing.T, what string, done <-chan struct{}) {
 	}
 }
 
-// TestFieldSession_StopFromInsideACallbackReturns pins the handler's path: it
+// TestFieldSession_StopFromInsideACallbackReturns pins the handler's path. It
 // stops the session from inside OnConfirm, and stop waits for the session to
 // end, so the callback must not run on the goroutine stop waits for.
 func TestFieldSession_StopFromInsideACallbackReturns(t *testing.T) {

@@ -20,11 +20,11 @@ import (
 // recordingWindow is an overlayWindow that paints nothing and remembers what
 // it was asked to paint. It stands in for the layered HWND so these tests need
 // no desktop, and it observes the grid overlay at the one boundary the window
-// sees. It is always healthy and on screen: every repaint under test is one
+// sees. It is always healthy and on screen, because every repaint under test is one
 // the real window would accept.
 type recordingWindow struct {
-	// texts is every string painted, in order, the pointer glyph included:
-	// the glyph is a label like any other on this surface, and a screen is
+	// texts is every string painted, in order, the pointer glyph included.
+	// The glyph is a label like any other on this surface, and a screen is
 	// the list of them.
 	texts []string
 	// bolds is, per entry of texts, whether it was painted bold.
@@ -191,7 +191,7 @@ func gridOnWindow(t *testing.T) (*Manager, *recordingWindow) {
 // wantSubgridOnly is a spelt-out screen, so an open that also drew the parent
 // cells fails even though every repaint after it agreed. Comparing the
 // rectangles themselves rather than counting them extends the second half to
-// geometry: a repaint that drew the subgrid somewhere else, or at another
+// geometry. A repaint that drew the subgrid somewhere else, or at another
 // size, fails too.
 func TestWindowsOverlayManager_ShowSubgrid_IsWhatEveryRepaintAfterItDraws(t *testing.T) {
 	t.Parallel()
@@ -225,7 +225,7 @@ func TestWindowsOverlayManager_ShowSubgrid_IsWhatEveryRepaintAfterItDraws(t *tes
 			},
 		},
 		{
-			// The toggle paints nothing by itself; the next repaint reads it.
+			// The toggle paints nothing by itself. The next repaint reads it.
 			name: "hide-unmatched toggled before a narrowing keystroke",
 			repaint: func(overlayManager *Manager) {
 				overlayManager.SetHideUnmatched(true)

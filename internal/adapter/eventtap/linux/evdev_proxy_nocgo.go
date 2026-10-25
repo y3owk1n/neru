@@ -8,7 +8,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// WarmEvdevProxy reports CodeNotSupported without cgo, which evdev needs: there
+// WarmEvdevProxy reports CodeNotSupported without cgo, which evdev needs. There
 // is no proxy to build, and the first mode says what it fell back to.
 func WarmEvdevProxy(_ *zap.Logger) error {
 	return derrors.New(

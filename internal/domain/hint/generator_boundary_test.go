@@ -14,8 +14,8 @@ import (
 
 // TestNewAlphabetGenerator_CharacterCountBoundary pins the accept/reject edge of
 // the character-set length check. Exactly MinCharactersLength characters is the
-// smallest usable alphabet — a two-character set still produces a prefix-free
-// labeling — so it must be accepted, and one fewer must be rejected. An
+// smallest usable alphabet, because a two-character set still produces a
+// prefix-free labeling. It must be accepted, and one fewer must be rejected. An
 // off-by-one here either locks users out of a valid config or admits a
 // single-character set that cannot generate distinct labels at all.
 func TestNewAlphabetGenerator_CharacterCountBoundary(t *testing.T) {
@@ -99,8 +99,8 @@ func TestAlphabetGenerator_UpdateCharacterCountBoundary(t *testing.T) {
 // TestAlphabetGenerator_Generate_AssignsLabelsInReadingOrder pins the element
 // ordering. Labels are handed out in sorted order, so the sort comparator
 // decides which element gets the shortest / earliest label. Users navigate by
-// position, so top-to-bottom then left-to-right is the contract; a comparator
-// that comparedeither axis alone, or compared X before Y, would scramble it.
+// position, so top-to-bottom then left-to-right is the contract. A comparator
+// that compared either axis alone, or compared X before Y, would scramble it.
 func TestAlphabetGenerator_Generate_AssignsLabelsInReadingOrder(t *testing.T) {
 	generator, err := hint.NewAlphabetGenerator("abcdefghij", hint.LabelDirectionReverse)
 	if err != nil {
@@ -159,7 +159,7 @@ func TestAlphabetGenerator_Generate_AssignsLabelsInReadingOrder(t *testing.T) {
 }
 
 // TestAlphabetGenerator_Generate_LabelsArePrefixFreeAndUnique is the invariant
-// the whole level-allocation algorithm exists to preserve: no label may be a
+// the whole level-allocation algorithm exists to preserve. No label may be a
 // prefix of another, or typing the shorter one could never be resolved without
 // an extra keystroke, and no two elements may share a label.
 //
@@ -253,12 +253,12 @@ func assertLabelsUniqueAndPrefixFree(t *testing.T, labels []string) {
 }
 
 // assertLabelsNoLongerThanNecessary pins the efficiency the level-allocation
-// algorithm exists to deliver: label length is keystrokes, so no label may be
+// algorithm exists to deliver. Label length is keystrokes, so no label may be
 // longer than the shortest fixed length that could address `count` elements
 // with `numChars` characters. A greedy step that keeps one slot too few (or too
-// many) at some level still yields unique, prefix-free labels — the property
-// checked above — but spills into an extra level and costs the user a keystroke
-// on every hint. That regression is only visible here.
+// many) at some level still yields unique, prefix-free labels, which is the
+// property checked above, but spills into an extra level and costs the user a
+// keystroke on every hint. That regression is only visible here.
 func assertLabelsNoLongerThanNecessary(t *testing.T, labels []string, numChars, count int) {
 	t.Helper()
 

@@ -14,7 +14,7 @@ func newDaemonHost() daemonHost {
 }
 
 func (windowsDaemonHost) Run(application *app.App) error {
-	// Cleanup is idempotent (sync.Once); the duplicate call from the systray
+	// Cleanup is idempotent (sync.Once), so the duplicate call from the systray
 	// OnExit callback is harmless.
 	defer application.Cleanup()
 

@@ -56,7 +56,7 @@ NeruX11Overlay *neru_x11_overlay_new(void) {
 	// override-redirect window whose rectangle equals a monitor as a
 	// fullscreen window, and GNOME Shell then hides its top bar for as long
 	// as the overlay is mapped. The extra row hangs off the bottom edge and
-	// draws nothing; every other server ignores it.
+	// draws nothing, and every other server ignores it.
 	overlay->window = XCreateWindow(
 	    display, overlay->root, 0, 0, overlay->width, neru_x11_overlay_window_height(overlay->height), 0, 32,
 	    InputOutput, overlay->visual, CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel | CWEventMask,
@@ -227,7 +227,7 @@ void neru_x11_overlay_rounded_rect(
 // triangular tail merged into one edge, as a single closed outline. edge: 0 =
 // no tail, 1 = tail on the top edge (apex above), 2 = tail on the bottom edge
 // (apex below). The tail base (a_left..a_right) is clamped to the edge's flat
-// span so it never runs onto a rounded corner; if no room remains the tail is
+// span so it never runs onto a rounded corner. If no room remains the tail is
 // dropped. Building badge and tail as one path lets the caller fill and stroke
 // once, avoiding the double-composited seam a separate overlaid triangle causes
 // with translucent colors.

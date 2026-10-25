@@ -24,16 +24,16 @@ func newGuardGrid() *recursivegrid.RecursiveGrid {
 }
 
 // TestRecursiveGrid_CellCenter_RejectsOutOfRangeCells pins the documented
-// fallback: an index outside the cell list yields the center of the current
+// fallback. An index outside the cell list yields the center of the current
 // bounds, and never panics.
 //
-// Cell indices reach these methods straight from a keypress: the key-to-cell
+// Cell indices reach these methods straight from a keypress. The key-to-cell
 // map is built from user-configurable key strings, and a stale or mismatched
 // layout override can yield an index outside the current depth's cell list.
 // Every accessor therefore guards the index and falls back to the current
 // bounds rather than indexing out of range.
 //
-// The guards were untested, which is the dangerous combination: an inverted
+// The guards were untested, which is the dangerous combination. An inverted
 // comparison in one of them turns a mistyped key into a panic that takes the
 // daemon down, and the tests would not have noticed.
 func TestRecursiveGrid_CellCenter_RejectsOutOfRangeCells(t *testing.T) {
@@ -52,7 +52,7 @@ func TestRecursiveGrid_CellCenter_RejectsOutOfRangeCells(t *testing.T) {
 		}
 	}
 
-	// Every in-range index must instead return a point inside that cell — the
+	// Every in-range index must instead return a point inside that cell. The
 	// guard must not be so eager that it swallows valid selections.
 	cells := grid.Divide()
 	for idx, bounds := range cells {
@@ -105,7 +105,7 @@ func TestRecursiveGrid_SelectCell_RejectsOutOfRangeCells(t *testing.T) {
 			t.Errorf("SelectCell(%d) complete = false, want true", cell)
 		}
 
-		// An invalid selection must not descend: the bounds and depth have to
+		// An invalid selection must not descend. The bounds and depth have to
 		// be exactly where they were, or a later backtrack unwinds to the
 		// wrong ancestor.
 		if grid.CurrentBounds() != wantBounds {
@@ -120,7 +120,7 @@ func TestRecursiveGrid_SelectCell_RejectsOutOfRangeCells(t *testing.T) {
 	}
 }
 
-// TestRecursiveGrid_SelectCell_ValidCellDescends is the counterpart: the guard
+// TestRecursiveGrid_SelectCell_ValidCellDescends is the counterpart. The guard
 // must not reject the boundary indices 0 and cellCount-1, which an off-by-one
 // in either comparison would.
 func TestRecursiveGrid_SelectCell_ValidCellDescends(t *testing.T) {
@@ -150,7 +150,7 @@ func TestRecursiveGrid_SelectCell_ValidCellDescends(t *testing.T) {
 }
 
 // TestRecursiveGrid_RemapToNewBounds_HandlesNegativeOrigins exercises the
-// rounding helper on the path that actually produces negative coordinates: on
+// rounding helper on the path that actually produces negative coordinates. On
 // macOS a display positioned left of or above the primary has a negative
 // origin, so a monitor change remaps the active region into negative space.
 // Rounding that truncates toward zero instead of to nearest drifts the region
@@ -201,7 +201,7 @@ func TestRecursiveGrid_RemapToNewBounds_HandlesNegativeOrigins(t *testing.T) {
 				t.Errorf("after remap CurrentBounds() = %v, which is empty", got)
 			}
 
-			// Remapping repositions; it must not change how deep the user is.
+			// Remapping repositions, and it must not change how deep the user is.
 			if got := grid.CurrentDepth(); got != depthBefore {
 				t.Errorf("after remap CurrentDepth() = %d, want %d unchanged", got, depthBefore)
 			}

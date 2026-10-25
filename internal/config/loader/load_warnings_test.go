@@ -37,7 +37,7 @@ accel_enabled = true
 		t.Errorf("result.Warnings = %q, want it to contain %q", result.Warnings, accelInertWarning)
 	}
 
-	// The setting the user wrote survives: a warning reports, it does not undo.
+	// The setting the user wrote survives. A warning reports, it does not undo.
 	if !result.Config.HeldRepeat.AccelEnabled {
 		t.Error("held_repeat.accel_enabled was cleared, want it left as written")
 	}
@@ -104,7 +104,7 @@ enabled = true
 }
 
 // TestLoadWithValidation_RereadsWarningsAfterAnOverride pins the other side of
-// that replacement: an override answers only what it touches, so a warning the
+// that replacement. An override answers only what it touches, so a warning the
 // config file earned must be read again and still be there.
 func TestLoadWithValidation_RereadsWarningsAfterAnOverride(t *testing.T) {
 	result, _ := loadWithObservedLogger(t, `
@@ -127,7 +127,7 @@ font_size = 30
 
 // TestLoadWithValidation_ReportsAHandWrittenLabelThatMatchesTheInference is
 // issue #1281 through the path it was reported on. The space cannot be typed at
-// a grid and is in both fields, so both are named in one load — the load is
+// a grid and is in both fields, so both are named in one load. The load is
 // what keeps the pre-derivation configuration (config.LoadResult.Written),
 // which is the only place a label the user typed can still be told from one the
 // derivation settled. Judged by value alone the two are the same string, and
@@ -157,7 +157,7 @@ row_labels = "AB C"
 // TestLoadWithValidation_LeavesAnInferredLabelToItsSource is the other half,
 // and the reason the answer above had to be the written configuration rather
 // than every field the fault reached. The labels are left empty here, so they
-// are grid.characters — reporting them too would send the user looking for two
+// are grid.characters, and reporting them too would send the user looking for two
 // lines that are not in their file.
 func TestLoadWithValidation_LeavesAnInferredLabelToItsSource(t *testing.T) {
 	result, _ := loadWithObservedLogger(t, `
@@ -275,7 +275,7 @@ func TestLoadWithValidation_ReportsADisabledKeyWithNoDefault(t *testing.T) {
 }
 
 // TestLoadWithValidation_AcceptsDisablingARelocatedLauncher pins that moving a
-// mode launcher to a new chord and disabling its old one does not warn: the
+// mode launcher to a new chord and disabling its old one does not warn, because the
 // old chord was a default, even though the move already dropped it.
 func TestLoadWithValidation_AcceptsDisablingARelocatedLauncher(t *testing.T) {
 	var defaultChord string

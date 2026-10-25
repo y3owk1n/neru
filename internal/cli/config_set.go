@@ -102,6 +102,6 @@ Use "neru config dump | jq" to explore all available keys.`,
 
 func init() {
 	configSetCmd.Flags().Bool(noReloadFlagName, false,
-		"Skip hotkey re-registration. Use when setting multiple fields; "+
-			"run `neru config reload` afterwards to apply.")
+		"Skip hotkey re-registration. Use when setting multiple fields, then "+
+			"run `neru config reload` to apply.")
 }

@@ -15,14 +15,14 @@ typedef struct {
 
 // NeruX11ActiveWindowResult distinguishes the answers reading
 // _NET_ACTIVE_WINDOW can give. A desktop with nothing focused answered the
-// question and is not a failure — collapsing it into the failures made a user
+// question and is not a failure. Collapsing it into the failures made a user
 // who clicked their wallpaper look like a broken X server. The three failures
 // are kept apart from each other too, because the fix differs: start an EWMH
 // window manager, look at the display server, or fix whatever wrote a
 // non-conforming property.
 typedef enum {
 	NERU_X11_ACTIVE_WINDOW_OK = 0,            // *out holds a live window id
-	NERU_X11_ACTIVE_WINDOW_NONE = 1,          // queried fine; nothing is focused
+	NERU_X11_ACTIVE_WINDOW_NONE = 1,          // queried fine, nothing is focused
 	NERU_X11_ACTIVE_WINDOW_NO_WM = 2,         // no live EWMH window manager owns this display
 	NERU_X11_ACTIVE_WINDOW_QUERY_FAILED = 3,  // XGetWindowProperty failed
 	NERU_X11_ACTIVE_WINDOW_MALFORMED = 4,     // present, but not a 32-bit WINDOW value
@@ -30,14 +30,14 @@ typedef enum {
 
 // NeruX11WindowPIDResult distinguishes the answers reading _NET_WM_PID off a
 // window can give, for the same reason NeruX11ActiveWindowResult exists one
-// property up. A window that simply sets no _NET_WM_PID answered the question —
-// the property is a convention, not a requirement, so plenty of older X clients
-// omit it and a remote client cannot set a pid this machine could use — while a
+// property up. A window that simply sets no _NET_WM_PID answered the question.
+// The property is a convention, not a requirement, so plenty of older X clients
+// omit it, and a remote client cannot set a pid this machine could use. A
 // window that has closed under us is a failure. Collapsing the two told a user
 // focusing an old client that their X server was broken.
 typedef enum {
 	NERU_X11_WINDOW_PID_OK = 0,            // *out holds the window's pid
-	NERU_X11_WINDOW_PID_ABSENT = 1,        // read fine; the window sets no _NET_WM_PID
+	NERU_X11_WINDOW_PID_ABSENT = 1,        // read fine, the window sets no _NET_WM_PID
 	NERU_X11_WINDOW_PID_WINDOW_GONE = 2,   // the request errored: the window has closed
 	NERU_X11_WINDOW_PID_QUERY_FAILED = 3,  // XGetWindowProperty failed
 	NERU_X11_WINDOW_PID_MALFORMED = 4,     // present, but not a 32-bit CARDINAL value
@@ -76,9 +76,9 @@ void neru_x11_free_monitors(NeruX11Monitor *monitors, int count);
 
 // neru_x11_get_window_bounds fills the global (root-relative) bounds of window
 // via XGetWindowAttributes + XTranslateCoordinates. Returns 1 on success, 0 when
-// the geometry could not be read — the window closed between the two requests,
+// the geometry could not be read, because the window closed between the two requests,
 // or the X server refused them. Which window to ask about is the caller's
-// business: _NET_ACTIVE_WINDOW is read through neru_x11_get_active_window, so
+// business. _NET_ACTIVE_WINDOW is read through neru_x11_get_active_window, so
 // that a display with nothing focused is told apart from a query that failed by
 // the one place that already knows the difference.
 int neru_x11_get_window_bounds(Display *display, Window window, int *x, int *y, int *w, int *h);
@@ -86,7 +86,7 @@ int neru_x11_get_window_bounds(Display *display, Window window, int *x, int *y, 
 // NeruX11FocusMonitor watches _NET_ACTIVE_WINDOW on the root window from a
 // dedicated X11 connection and thread, pushing a byte down a self-pipe whenever
 // the active window changes so callers can wake on focus changes rather than
-// polling. Opaque to Go; the fields live in x11_system.c.
+// polling. Opaque to Go. The fields live in x11_system.c.
 typedef struct NeruX11FocusMonitor NeruX11FocusMonitor;
 
 // neru_x11_focus_monitor_start opens a dedicated display, subscribes to
@@ -97,7 +97,7 @@ typedef struct NeruX11FocusMonitor NeruX11FocusMonitor;
 NeruX11FocusMonitor *neru_x11_focus_monitor_start(void);
 
 // neru_x11_focus_monitor_fd returns a readable fd that becomes readable on
-// active-window changes, or -1. Owned by the monitor; callers must not close it.
+// active-window changes, or -1. Owned by the monitor, and callers must not close it.
 int neru_x11_focus_monitor_fd(NeruX11FocusMonitor *monitor);
 
 // neru_x11_focus_monitor_stop signals the thread to exit, joins it, and frees
@@ -107,7 +107,7 @@ void neru_x11_focus_monitor_stop(NeruX11FocusMonitor *monitor);
 // NeruX11ScreenMonitor watches RandR screen-configuration changes (monitors
 // added/removed/resized/moved) on a dedicated X11 connection and thread, pushing
 // a byte down a self-pipe on each change so callers can wake and re-enumerate
-// instead of polling. Opaque to Go; fields live in x11_system.c. This mirrors
+// instead of polling. Opaque to Go. Fields live in x11_system.c. This mirrors
 // NeruX11FocusMonitor structurally, differing only in the event it selects.
 typedef struct NeruX11ScreenMonitor NeruX11ScreenMonitor;
 
@@ -119,7 +119,7 @@ typedef struct NeruX11ScreenMonitor NeruX11ScreenMonitor;
 NeruX11ScreenMonitor *neru_x11_screen_monitor_start(void);
 
 // neru_x11_screen_monitor_fd returns a readable fd that becomes readable on
-// screen-configuration changes, or -1. Owned by the monitor; do not close it.
+// screen-configuration changes, or -1. Owned by the monitor, so do not close it.
 int neru_x11_screen_monitor_fd(NeruX11ScreenMonitor *monitor);
 
 // neru_x11_screen_monitor_stop signals the thread to exit, joins it, and frees

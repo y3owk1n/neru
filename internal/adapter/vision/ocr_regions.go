@@ -10,8 +10,8 @@ import (
 
 // recognizedWord is one run of text an OCR engine reported.
 //
-// Bounds are in the captured image's own pixel space — origin (0, 0), which is
-// the top-left of the *captured region* rather than of the screen — because
+// Bounds are in the captured image's own pixel space, with origin (0, 0) at
+// the top-left of the *captured region* rather than of the screen, because
 // that is the only space an engine handed a buffer of pixels can answer in.
 // regionsFromWords is what puts them back on the screen.
 //
@@ -31,13 +31,13 @@ type recognizedWord struct {
 //
 // region is what the caller asked to have captured, in global top-left-origin
 // unscaled pixels. imageBounds is what the capture backend actually returned,
-// which is *not* always the same size: a Wayland compositor answers a region
+// which is *not* always the same size. A Wayland compositor answers a region
 // request in physical pixels, so a 2x output hands back a frame twice the
 // requested size (screencapture_common.go documents this). The ratio between
 // the two is the output scale, and dividing by it is what puts a hint on its
 // text rather than a quarter of the way up the window.
 //
-// minConfidence is inclusive: a word scoring exactly the configured floor is
+// minConfidence is inclusive. A word scoring exactly the configured floor is
 // kept, so a user who writes the number they observed keeps the word they wrote
 // it for.
 //
@@ -91,10 +91,10 @@ func regionsFromWords(
 
 // elementsFromRegions turns classified regions into domain elements. The second
 // result counts the regions that produced none, so a caller can log how many
-// were dropped without logging anything about them — a vision region's label is
+// were dropped without logging anything about them. A vision region's label is
 // text off the user's screen.
 //
-// Both backends share this: the classification differs by vocabulary, the
+// Both backends share this. The classification differs by vocabulary, but the
 // element it becomes does not.
 func elementsFromRegions(
 	regions []DetectedRegion,

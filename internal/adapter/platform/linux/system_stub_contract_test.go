@@ -91,8 +91,8 @@ func stubCalls() []stubCall {
 }
 
 // TestSystemAdapter_UnimplementedBackendReportsNotSupported pins the stub
-// contract: on a backend with no implementation, every method reports
-// CodeNotSupported. Callers branch on IsNotSupported to degrade — a bare error
+// contract. On a backend with no implementation, every method reports
+// CodeNotSupported. Callers branch on IsNotSupported to degrade. A bare error
 // would surface as a real failure, and a nil error with a zero value would
 // have hints placed at (0,0) on a 0x0 screen. The adapter is built with an
 // unrecognized backend name, exactly what a new compositor produces, so
@@ -126,7 +126,7 @@ func TestSystemAdapter_UnimplementedBackendReportsNotSupported(t *testing.T) {
 
 // TestSystemAdapter_NotSupportedErrorNamesTheBackend checks the message carries
 // the backend name. This is the string a user sees in `neru doctor` output and
-// in logs; without it, "not yet implemented on linux backend" gives no clue
+// in logs. Without it, "not yet implemented on linux backend" gives no clue
 // which compositor was detected, which is the first thing needed to act on it.
 func TestSystemAdapter_NotSupportedErrorNamesTheBackend(t *testing.T) {
 	adapter := linux.NewSystemAdapter(unimplementedBackend)
@@ -159,7 +159,7 @@ func TestSystemAdapter_StubsDoNotPanicOnACanceledContext(t *testing.T) {
 
 	for _, testCase := range stubCalls() {
 		t.Run(testCase.name, func(t *testing.T) {
-			// A panic here fails the subtest; the assertion is that some error
+			// A panic here fails the subtest. The assertion is that some error
 			// comes back rather than a zero value with nil.
 			err := testCase.call(ctx, adapter)
 			if err == nil {
@@ -213,10 +213,10 @@ func TestSystemAdapter_CapabilitiesCarryTheBackendSuffix(t *testing.T) {
 
 // TestSystemAdapter_CapabilitiesMatchBackendBehavior is the Linux half of the
 // capability cross-check, built directly for a named backend so it runs with
-// no display or compositor — the platform-level test skips headless. The two
-// directions are asymmetric because capabilities downgrade on any probe
-// failure: supported must not answer CodeNotSupported, and stub must return
-// some non-nil error — a runtime failure on an implemented backend counts,
+// no display or compositor, while the platform-level test skips headless. The
+// two directions are asymmetric because capabilities downgrade on any probe
+// failure. Supported must not answer CodeNotSupported, and stub must return
+// some non-nil error. A runtime failure on an implemented backend counts,
 // since only a nil-error zero value would break the surface.
 func TestSystemAdapter_CapabilitiesMatchBackendBehavior(t *testing.T) {
 	// Every backend name that reaches the dispatch, including ones with no
@@ -299,10 +299,10 @@ func TestSystemAdapter_CapabilitiesMatchBackendBehavior(t *testing.T) {
 
 				case !check.declared() && err == nil:
 					// A stubbed capability that silently succeeds breaks caller
-					// fallback: the caller acts on a zero value it believes is
-					// real. A stub may report CodeNotSupported (unimplemented) or
-					// a live failure (an implemented backend wedged at runtime) —
-					// both are honest — but it must never return nil.
+					// fallback, because the caller acts on a zero value it believes
+					// is real. A stub may report CodeNotSupported (unimplemented) or
+					// a live failure (an implemented backend wedged at runtime).
+					// Both are honest, but it must never return nil.
 					t.Errorf(
 						"backend %q declares %q stubbed but the adapter succeeded; "+
 							"a stub must return an error rather than a zero value with nil",
@@ -369,7 +369,7 @@ func TestSystemAdapter_DowngradedCapabilitiesExplainWhy(t *testing.T) {
 //
 // River and Wayfire are wlroots compositors with no IPC Neru can query, and
 // answering "no focused window" there is indistinguishable from a desktop with
-// nothing focused — so every caller silently scoped itself to the whole active
+// nothing focused, so every caller silently scoped itself to the whole active
 // screen and nothing said why. Refusing is what lets a caller tell the two
 // apart, and the message has to name the backend for the same reason every
 // other refusal here does.
@@ -399,10 +399,10 @@ func TestSystemAdapter_FocusedWindowBoundsRefusesWithNoGeometrySource(t *testing
 }
 
 // TestSystemAdapter_StartsNoCompositorBridgeOffKDE pins the other half of
-// #1430 for the platform adapter: building an adapter for a session KWin does
+// #1430 for the platform adapter. Building an adapter for a session KWin does
 // not run must touch nothing outside the process. The KDE adapter installs a
 // KWin script at construction so the first caller is not answered from a cold
-// cache; every other backend must leave $XDG_RUNTIME_DIR alone.
+// cache. Every other backend must leave $XDG_RUNTIME_DIR alone.
 func TestSystemAdapter_StartsNoCompositorBridgeOffKDE(t *testing.T) {
 	for _, backend := range []string{x11Backend, wlrootsBackend, cosmicBackend, gnomeBackend, unimplementedBackend} {
 		t.Run(backend, func(t *testing.T) {
@@ -429,8 +429,8 @@ func TestSystemAdapter_StartsNoCompositorBridgeOffKDE(t *testing.T) {
 
 // TestSystemAdapter_MoveCursorToPointReportsNotSupported covers the two mutating
 // methods worth pinning here (its sibling below is the second). They are safe on
-// an unimplemented backend precisely because nothing is wired up to move — which
-// is the behavior being asserted.
+// an unimplemented backend because nothing is wired up to move, which is the
+// behavior being asserted.
 func TestSystemAdapter_MoveCursorToPointReportsNotSupported(t *testing.T) {
 	adapter := linux.NewSystemAdapter(unimplementedBackend)
 
@@ -460,7 +460,7 @@ func TestSystemAdapter_MoveCursorInstantlyReportsNotSupported(t *testing.T) {
 }
 
 // TestSystemAdapter_FocusedApplicationPIDOnGNOMENamesTheMissingSource pins
-// that GNOME does not borrow the wlr client's "nothing focused" answer: that
+// that GNOME does not borrow the wlr client's "nothing focused" answer. That
 // sentence promises a PID once a window takes focus, and Mutter offers no
 // protocol that could ever deliver one.
 func TestSystemAdapter_FocusedApplicationPIDOnGNOMENamesTheMissingSource(t *testing.T) {
@@ -487,7 +487,7 @@ func TestSystemAdapter_FocusedApplicationPIDOnGNOMENamesTheMissingSource(t *test
 }
 
 // TestSystemAdapter_AppWatcherIsAStubOnGNOMEWithoutTheExtension pins that the
-// capability matrix does not advertise a watcher that cannot fire: with the
+// capability matrix does not advertise a watcher that cannot fire. With the
 // shell extension not running, GNOME has no focused-app source, and doctor
 // must name the fix rather than promise per-app config.
 func TestSystemAdapter_AppWatcherIsAStubOnGNOMEWithoutTheExtension(t *testing.T) {
@@ -514,7 +514,7 @@ func TestSystemAdapter_AppWatcherIsAStubOnGNOMEWithoutTheExtension(t *testing.T)
 
 // skipWhenGNOMEExtensionIsLive skips a test that pins the answer for a
 // session without the Neru GNOME Shell extension, on the one kind of machine
-// where that answer is untrue: a GNOME session running it. The bridge is
+// where that answer is untrue, a GNOME session running it. The bridge is
 // process-wide and asks the real session bus, so the test cannot fake the
 // extension away.
 func skipWhenGNOMEExtensionIsLive(t *testing.T) {

@@ -21,7 +21,7 @@ daemon's. **Unknown request fields stay refused**, as they always were.
 
 - **A level that rises with every addition**, as Neovim's API level does. A
   client could then ask for "the level that added `query-hints`" and get a
-  clean refusal from an older daemon. The cost is the bump itself: forgetting
+  clean refusal from an older daemon. The cost is the bump itself. Forgetting
   one is silent to CI, so by ADR 0011 it needs a guardrail, and that guardrail
   has to snapshot every handler name, mode flag, action name, event name and
   wire struct's JSON tags. A client already learns whether a daemon has a

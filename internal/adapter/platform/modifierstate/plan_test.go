@@ -7,7 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// keycodes are arbitrary; a plan only ever passes them back.
+// keycodes are arbitrary. A plan only ever passes them back.
 const (
 	shiftLeft    = 50
 	controlLeft  = 37
@@ -44,7 +44,7 @@ func edits(keycodes ...uint32) []modifierstate.Edit {
 }
 
 // TestPlanFor_SuppressesAHeldModifierNobodyAskedFor is the bug this package
-// exists for: on a backend with no per-event modifier field, an injected event
+// exists for. On a backend with no per-event modifier field, an injected event
 // carries whatever the display server records as held. A plain scroll fired
 // from a Ctrl+J binding therefore arrives as ctrl+scroll, which most
 // applications read as zoom.
@@ -66,7 +66,7 @@ func TestPlanFor_SuppressesAHeldModifierNobodyAskedFor(t *testing.T) {
 }
 
 // TestPlanFor_PresentsAClicksOwnModifiersOverAHeldHotkeyChord is the click
-// shape of the same bug: a hotkey chord still held while a hint is chosen
+// shape of the same bug. A hotkey chord still held while a hint is chosen
 // rides along on the injected click, so a shift+click asked for from a
 // Ctrl+Alt chord has to release both chord keys and press shift, and the
 // mouse-up that ends a drag undoes exactly that.
@@ -101,7 +101,7 @@ func TestPlanFor_PresentsAClicksOwnModifiersOverAHeldHotkeyChord(t *testing.T) {
 	}
 }
 
-// TestPlanFor_PressesOnlyWhatNothingIsAlreadyHolding pins the other half: a key
+// TestPlanFor_PressesOnlyWhatNothingIsAlreadyHolding pins the other half. A key
 // is one bit of keyboard state rather than a count, so pressing a modifier the
 // user is already holding means our release afterwards tells every application
 // they let go while they are still holding it.
@@ -127,8 +127,8 @@ func TestPlanFor_PressesOnlyWhatNothingIsAlreadyHolding(t *testing.T) {
 }
 
 // TestPlanFor_SuppressesEveryKeyCarryingAnUnwantedModifier covers the keymap's
-// left and right key for the same modifier: leaving either one down leaves the
-// modifier presented.
+// left and right key for the same modifier, because leaving either one down
+// leaves the modifier presented.
 func TestPlanFor_SuppressesEveryKeyCarryingAnUnwantedModifier(t *testing.T) {
 	keys := []modifierstate.Key{
 		{Keycode: controlLeft, Modifier: action.ModCtrl, Held: true, Canonical: true},
@@ -145,8 +145,8 @@ func TestPlanFor_SuppressesEveryKeyCarryingAnUnwantedModifier(t *testing.T) {
 }
 
 // TestPlanFor_IgnoresAKeyTheKeymapHasNoKeycodeFor keeps an unresolvable keysym
-// out of the plan: injecting keycode 0 is not a key press, and re-pressing it
-// on the way out would be a second one.
+// out of the plan, because injecting keycode 0 is not a key press, and
+// re-pressing it on the way out would be a second one.
 func TestPlanFor_IgnoresAKeyTheKeymapHasNoKeycodeFor(t *testing.T) {
 	keys := []modifierstate.Key{
 		{Keycode: 0, Modifier: action.ModCtrl, Held: true, Canonical: true},
@@ -161,7 +161,7 @@ func TestPlanFor_IgnoresAKeyTheKeymapHasNoKeycodeFor(t *testing.T) {
 }
 
 // TestPlanFor_ReadsAKeycodeOnceWhenTwoNamesShareIt covers a keymap that answers
-// two modifier names with the same key — X11 layouts routinely resolve Meta
+// two modifier names with the same key. X11 layouts routinely resolve Meta
 // onto the Alt or Super key. Reading it twice would release it twice and press
 // it back twice, and the two readings can disagree about whether it was even
 // requested.
@@ -180,7 +180,7 @@ func TestPlanFor_ReadsAKeycodeOnceWhenTwoNamesShareIt(t *testing.T) {
 }
 
 // TestPlanFor_PressesAModifierWhoseOnlyHeldKeyIsBeingSuppressed catches the
-// interaction between the two halves: a key read as holding cmd is no use for
+// interaction between the two halves. A key read as holding cmd is no use for
 // presenting cmd if it is also the alt key we are about to release. Something
 // still has to present what was asked for.
 func TestPlanFor_PressesAModifierWhoseOnlyHeldKeyIsBeingSuppressed(t *testing.T) {
@@ -203,7 +203,7 @@ func TestPlanFor_PressesAModifierWhoseOnlyHeldKeyIsBeingSuppressed(t *testing.T)
 }
 
 // TestPlanFor_EveryEditNamesTheModifierItsKeyPresents is what lets a backend
-// announce an injection to anything watching the keyboard: an injected key
+// announce an injection to anything watching the keyboard. An injected key
 // event is indistinguishable from the user's own on X11, so whatever suppresses
 // it has to be told which modifier is about to go down or up, and the plan is
 // the only thing that knows which key was chosen for it.
@@ -225,7 +225,7 @@ func TestPlanFor_EveryEditNamesTheModifierItsKeyPresents(t *testing.T) {
 }
 
 // TestPlan_Restore_PressesBackEveryKeyItSuppressed is the half that must not
-// fail: a scroll that leaves ctrl released while the user is still holding it
+// fail. A scroll that leaves ctrl released while the user is still holding it
 // is worse than the modifier leak the suppression exists to stop.
 func TestPlan_Restore_PressesBackEveryKeyItSuppressed(t *testing.T) {
 	plan := modifierstate.Plan{Suppress: edits(controlLeft, altLeft)}
@@ -239,7 +239,7 @@ func TestPlan_Restore_PressesBackEveryKeyItSuppressed(t *testing.T) {
 }
 
 // TestPlan_Restore_SkipsAKeyThatIsDownAgain covers the state changing mid
-// injection: a key that reads down was pressed by someone else after we let go
+// injection. A key that reads down was pressed by someone else after we let go
 // of it, and pressing it again would leave a press our release never answers.
 func TestPlan_Restore_SkipsAKeyThatIsDownAgain(t *testing.T) {
 	plan := modifierstate.Plan{Suppress: edits(controlLeft, altLeft)}

@@ -21,40 +21,40 @@ import (
 )
 
 // overlaySurface is the primitive contract a Linux overlay backend provides
-// to the shared drawing implementation. Everything above these primitives —
-// layout, animation, offsets, label logic — is identical between X11 and
-// Wayland and lives once on sharedOverlay; everything genuinely different
+// to the shared drawing implementation. Everything above these primitives,
+// layout, animation, offsets and label logic, is identical between X11 and
+// Wayland and lives once on sharedOverlay. Everything genuinely different
 // (buffer management, HiDPI scale, window lifecycle) lives behind this
-// interface. The shared code never touches cgo: primitives take Go types and
+// interface. The shared code never touches cgo. Primitives take Go types and
 // do their own C marshaling (including CString lifetimes).
 type overlaySurface interface {
 	// alive reports whether the backend still holds an open native handle.
 	// It is the one question the shared delegates below cannot answer for
-	// themselves: the handle is a *C.NeruX11Overlay on one side and a
+	// themselves. The handle is a *C.NeruX11Overlay on one side and a
 	// *C.NeruWaylandOverlay on the other, and a draw that reaches C through a
 	// closed one is a nil dereference inside cgo. Every exported delegate that
 	// used to guard `o.raw != nil` per backend asks this instead.
 	alive() bool
 
 	// surfaceScale is the HiDPI factor applied to fonts, stroke widths and
-	// text-fitted geometry. X11 probes Xft.dpi; Wayland reports 1.
+	// text-fitted geometry. X11 probes Xft.dpi and Wayland reports 1.
 	surfaceScale() float64
 
 	// ensureBuffers prepares the backend's drawing target without selecting
-	// it (Wayland's setup_buffers; a no-op on X11). Some paths call it
-	// without a subsequent frame selection — preserve that.
+	// it (Wayland's setup_buffers, a no-op on X11). Some paths call it
+	// without a subsequent frame selection, so preserve that.
 	ensureBuffers()
 
 	// beginFrame makes a drawable target current, reporting false when none
 	// is available and the frame must be skipped (Wayland's buffer
-	// acquisition with one sync-retry; X11 always succeeds).
+	// acquisition with one sync-retry, X11 always succeeds).
 	beginFrame() bool
 
 	// surfaceClear clears the current target without any buffer selection.
 	surfaceClear()
 
 	// clearFrame clears inside an animation frame (X11's double-buffered
-	// clear; plain clear on Wayland, which selected a buffer in beginFrame).
+	// clear, plain clear on Wayland, which selected a buffer in beginFrame).
 	clearFrame()
 
 	surfaceClearRect(rect image.Rectangle)
@@ -63,16 +63,16 @@ type overlaySurface interface {
 
 	// showIndicator maps the dedicated click-indicator surface before its
 	// animation starts. Wayland must do this under the render lock and keep
-	// the surface keyboard-passive; X11 just maps the window.
+	// the surface keyboard-passive. X11 just maps the window.
 	showIndicator()
 
-	// finishIndicator unmaps the indicator when its animation completes; the
+	// finishIndicator unmaps the indicator when its animation completes. The
 	// caller holds the render lock. X11 also clears so no stale pixmap shows
-	// on the next map; Wayland must not clear an unselected buffer.
+	// on the next map. Wayland must not clear an unselected buffer.
 	finishIndicator()
 
 	// syncBeforeAnimation flushes pending display work before a grid
-	// animation begins (Wayland sync; no-op on X11).
+	// animation begins (Wayland sync, a no-op on X11).
 	syncBeforeAnimation()
 
 	rectPrim(bounds image.Rectangle, fill, border uint32, lineWidth float64)
@@ -101,7 +101,7 @@ type sharedOverlay struct {
 
 	// gridPointer is the pointer stand-in grid mode has asked for, kept
 	// because it is painted in the same pass as the cells rather than into a
-	// window of its own — the same thing recursive grid does with the pointer
+	// window of its own, the same thing recursive grid does with the pointer
 	// its frame carries, except that grid mode's arrives between draws instead
 	// of on one. Every repaint of the grid surface reads it, so narrowing a
 	// prefix or opening a subgrid keeps the pointer where the mode put it.
@@ -112,10 +112,10 @@ type sharedOverlay struct {
 
 	// originOffset is the active screen's top-left origin in global device
 	// pixels. Grid, recursive-grid and hint content arrives in screen-local
-	// coordinates (origin 0,0); adding this offset places it on the correct
+	// coordinates (origin 0,0). Adding this offset places it on the correct
 	// monitor of the desktop-spanning overlay window. Absolute-coordinate draws
 	// (the indicator badges, monitor_select, the click indicator) do not apply
-	// it. The hints search badge does, badge though it is: its frame is placed
+	// it. The hints search badge does, badge though it is. Its frame is placed
 	// against the screen the caller named, so it arrives screen-local like the
 	// labels it sits beside.
 	originOffset image.Point
@@ -128,8 +128,8 @@ type sharedOverlay struct {
 	//
 	// It is dropped by clear() and hide(), which is where every mode transition
 	// goes (`Adapter.ClearFrame`), so nothing is repainted that is no longer on
-	// screen. The draws that clear the surface for themselves — grid, recursive
-	// grid, monitor-select — do not drop it, and do not need to: what decides
+	// screen. The draws that clear the surface for themselves, grid, recursive
+	// grid and monitor-select, do not drop it, and do not need to. What decides
 	// whether any of this is read is the manager's searchBadgeRect, and only a
 	// badge draw sets that.
 	lastHints      []*hintscomponent.Hint
@@ -138,7 +138,7 @@ type sharedOverlay struct {
 
 	// renderMu serializes rendering with the manager (and, on Wayland, with
 	// the keyboard poller's wl_display access). The manager owns the mutex
-	// object and holds it across synchronous draw calls; only the animation
+	// object and holds it across synchronous draw calls, and only the animation
 	// goroutines lock it here.
 	renderMu *sync.Mutex
 
@@ -151,10 +151,10 @@ type sharedOverlay struct {
 	lastRects        []image.Rectangle
 	currentAnimRects []image.Rectangle
 	// animSettled says the transition that painted currentAnimRects reached
-	// its last frame; one that has not is continued rather than restarted.
+	// its last frame. One that has not is continued rather than restarted.
 	animSettled bool
 	// animPointer is where the last transition frame painted the virtual
-	// pointer, and lastPointer where the last settled frame did: the pointer
+	// pointer, and lastPointer where the last settled frame did. The pointer
 	// rides the zoom from one of them to where the new frame puts it.
 	animPointer image.Point
 	lastPointer recursivegridcomponent.VirtualPointerState
@@ -162,16 +162,16 @@ type sharedOverlay struct {
 
 // The exported methods below are what the manager calls on a backend. They
 // live here rather than once per backend because seventeen of the eighteen make
-// no C call at all — the whole of each was a nil-guard prologue and one
-// delegate into the code beneath it — and the eighteenth, Flush, goes through
+// no C call at all, the whole of each being a nil-guard prologue and one
+// delegate into the code beneath it, and the eighteenth, Flush, goes through
 // the surfaceFlush primitive this seam already declares. Show, Resize and
-// Destroy stay per-backend: Wayland re-runs buffer setup before showing, layer
+// Destroy stay per-backend, because Wayland re-runs buffer setup before showing, layer
 // shells auto-resize so Resize is empty there, and Wayland's Destroy waits on
 // the keyboard poller.
 //
 // What they guard for themselves is a surface worth drawing on (`drawable`
 // below). What they cannot guard is a nil backend pointer, which the manager
-// nil-checks before every dispatch — see ../AGENTS.md.
+// nil-checks before every dispatch. See ../AGENTS.md.
 
 func (o *sharedOverlay) Hide() {
 	if !o.drawable() {
@@ -209,14 +209,14 @@ func (o *sharedOverlay) UpdateGridMatches(prefix string) {
 // the same keystroke moved.
 //
 // The pointer is recorded past the nil cell and before the surface check, which
-// is the same line SetGridPointer draws: a record kept without a surface is
+// is the same line SetGridPointer draws. A record kept without a surface is
 // state the next repaint reads rather than a draw of its own, but a call with
-// no cell is a call that said nothing about this surface at all — recording its
+// no cell is a call that said nothing about this surface at all. Recording its
 // pointer would leave the record describing a screen nobody asked for, and
 // SetGridPointer's equality guard would then swallow the call that meant it.
 //
 // Recording it and letting showSubgrid's own repaint paint it is the whole of
-// what #1492 buys — no equality guard here, because an open repaints the
+// what #1492 buys. There is no equality guard here, because an open repaints the
 // surface whether or not the pointer moved.
 func (o *sharedOverlay) ShowSubgrid(
 	cell *domainGrid.Cell,
@@ -237,7 +237,7 @@ func (o *sharedOverlay) ShowSubgrid(
 }
 
 // SetHideUnmatched sets a Go field and reaches no surface, so it deliberately
-// does not ask drawable: a backend whose handle has been closed still answers
+// does not ask drawable. A backend whose handle has been closed still answers
 // the next draw with the flag it was last given.
 func (o *sharedOverlay) SetHideUnmatched(hide bool) {
 	o.hideUnmatched = hide
@@ -256,19 +256,19 @@ func (o *sharedOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcom
 // state it is handed is not visible.
 //
 // The record is kept whether or not there is a surface to paint on, because
-// it is state the next repaint reads rather than a draw of its own — the same
+// it is state the next repaint reads rather than a draw of its own, the same
 // reason SetHideUnmatched keeps its flag. What asks drawable is the repaint.
 //
-// A state equal to the one already held paints nothing: grid mode refreshes
+// A state equal to the one already held paints nothing. Grid mode refreshes
 // the pointer on every keystroke and it moves only when a cell is chosen, so
 // the common key would otherwise cost a second full repaint of the surface the
 // narrowing has already repainted.
 //
 // Repainting the whole surface for one glyph is the deliberate half of the
-// cost. The alternative is the sticky badge's incremental shape — clear the
-// rectangle the pointer covered, paint it at its new place — and it is wrong
-// here for the reason hiding the hint search badge repaints rather than erases:
-// this surface is one Cairo target, so clearing a rectangle out of it takes a
+// cost. The alternative is the sticky badge's incremental shape, clear the
+// rectangle the pointer covered and paint it at its new place, and it is wrong
+// here for the reason hiding the hint search badge repaints rather than erases.
+// This surface is one Cairo target, so clearing a rectangle out of it takes a
 // bite out of the cell borders underneath.
 func (o *sharedOverlay) SetGridPointer(pointer recursivegridcomponent.VirtualPointerState) {
 	if pointer == o.gridPointer {
@@ -391,11 +391,11 @@ func (o *sharedOverlay) HideHintSearchInput(painted image.Rectangle) {
 
 // setRenderMu wires the mutex that serializes rendering on *this* surface. On
 // Wayland it is also what serializes wl_display access between rendering and
-// the keyboard poller — the Wayland client API is not thread-safe — which is
-// why the manager wires it before starting that poller, and why this used to
+// the keyboard poller, because the Wayland client API is not thread-safe. That
+// is why the manager wires it before starting that poller, and why this used to
 // carry a second name (setDisplayMu) on that side. One operation, one name.
 //
-// Which mutex arrives is the caller's decision and not a detail: the mode
+// Which mutex arrives is the caller's decision and not a detail. The mode
 // overlay gets the manager's renderMu, the click indicator gets its own
 // indicatorRenderMu, and the two must never be the same lock (../AGENTS.md).
 func (o *sharedOverlay) setRenderMu(mu *sync.Mutex) {
@@ -403,7 +403,7 @@ func (o *sharedOverlay) setRenderMu(mu *sync.Mutex) {
 }
 
 // forgetGridPointer drops grid mode's pointer stand-in without repainting. It
-// follows a Clear or a Hide, which take the whole surface away: there is
+// follows a Clear or a Hide, which take the whole surface away. There is
 // nothing left to paint it onto, and a record kept past one would put the
 // pointer back on the first repaint of whatever comes next.
 func (o *sharedOverlay) forgetGridPointer() {
@@ -416,8 +416,8 @@ func (o *sharedOverlay) forgetGridPointer() {
 // `o.raw != nil` prologue each of them used to carry.
 //
 // The srf half is not ceremony. Only the constructors wire it, so a backend
-// value built any other way has no surface at all — which is what the tests
-// that stand a Manager up without a display server attach — and reaching
+// value built any other way has no surface at all, which is what the tests
+// that stand a Manager up without a display server attach, and reaching
 // through a nil interface would panic where the old prologue returned.
 func (o *sharedOverlay) drawable() bool {
 	return o.srf != nil && o.srf.alive()
@@ -449,7 +449,7 @@ func (o *sharedOverlay) updateGridMatches(prefix string) {
 // one cell.
 //
 // It records the cell before painting anything, because currentSubgrid is what
-// the surface *shows* from here until a Frame replaces it — every repaint below
+// the surface *shows* from here until a Frame replaces it. Every repaint below
 // reads it, including the one that follows a frame this call could not begin.
 func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 	o.currentSubgrid = cell
@@ -459,7 +459,7 @@ func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 	}
 
 	// Dropped only once the frame was painted, so a frame that could not begin
-	// leaves both still describing the screen it did not touch: the
+	// leaves both still describing the screen it did not touch. The
 	// recursive-grid animation must not zoom out of bounds that are gone, and
 	// hiding the hint search badge must not repaint labels that are gone.
 	//
@@ -474,26 +474,26 @@ func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 // surface, and reports whether the frame was painted.
 //
 // It is the one copy of what an open subgrid looks like, and the single copy is
-// the point (#1491): the open and every repaint after it used to answer "what
+// the point (#1491). The open and every repaint after it used to answer "what
 // is behind a subgrid" separately, and the narrowing keystroke answered it with
 // the parent cells. macOS settles which answer is right and the answer is
-// nothing: its ShowSubgrid (adapter/overlay/render/grid/overlay_darwin.go)
+// nothing. Its ShowSubgrid (adapter/overlay/render/grid/overlay_darwin.go)
 // clears the overlay window and hands NeruDrawGridCells the nine subgrid cells,
 // and that bridge (adapter/platform/darwin/overlay_darwin.m) replaces the view's
-// cell array rather than adding to it — so the parent cells leave the reference
+// cell array rather than adding to it, so the parent cells leave the reference
 // platform's overlay for as long as the subgrid is up, and its own narrowing
 // call only re-marks the cells already there.
 //
-// The order of the first two calls is the load-bearing part: beginFrame is what
+// The order of the first two calls is the load-bearing part. beginFrame is what
 // selects the writable buffer on Wayland, so clearing before it wipes the
 // buffer that is on screen and leaves the one about to be shown holding
 // whatever it last held.
 //
-// It clears through the surface primitive rather than through clear(): every
+// It clears through the surface primitive rather than through clear(). Every
 // caller reaches it with renderMu held, and clear() begins by canceling a
 // running animation, which waits on a goroutine that takes renderMu on every
 // frame. The cancel an open owes is Manager.ShowSubgrid's, made before it takes
-// the lock — no repaint of this surface calls clear().
+// the lock. No repaint of this surface calls clear().
 func (o *sharedOverlay) paintSubgridSurface(cell *domainGrid.Cell) bool {
 	o.srf.ensureBuffers()
 
@@ -518,7 +518,7 @@ func (o *sharedOverlay) paintSubgridContent(cell *domainGrid.Cell) {
 // paintGridPointer puts grid mode's pointer stand-in on the surface, in the
 // pass the caller has already begun. The position it holds is screen-local
 // like the cells it sits among, so it is translated onto the active monitor
-// here — the same translation the recursive-grid draw makes on the pointer its
+// here, the same translation the recursive-grid draw makes on the pointer its
 // frame carries.
 func (o *sharedOverlay) paintGridPointer() {
 	if !o.gridPointer.Visible {
@@ -681,7 +681,7 @@ func (o *sharedOverlay) drawMonitorSelect(
 		)
 
 		if target.Subtitle != "" {
-			// The subtitle family is never empty: an unset one is settled to
+			// The subtitle family is never empty. An unset one is settled to
 			// the label's family with the rest of the Style.
 			o.drawTextCentered(
 				target.Subtitle, subtitleRect,
@@ -697,7 +697,7 @@ func (o *sharedOverlay) drawMonitorSelect(
 // drawHints paints a hint set over the whole surface, stopping any animation
 // that would otherwise paint over it.
 //
-// The cancel is why this is separate from repaintHints below: it waits for the
+// The cancel is why this is separate from repaintHints below. It waits for the
 // animation goroutine to exit and that goroutine takes renderMu on every frame,
 // so it must not run with renderMu held (see cancelAnimation). Every caller of
 // this one cancels through Manager.cancelBackendAnimation before taking the
@@ -762,7 +762,7 @@ func (o *sharedOverlay) repaintHints(
 		label := hint.Label()
 		// Size the badge from the scaled font so it fits the text drawTextCentered
 		// renders (which applies the same surface scale). Position stays in device
-		// pixels; the badge grows around the target.
+		// pixels, and the badge grows around the target.
 		sfont := fontSize * o.srf.surfaceScale()
 		paddingX := badge.AutoPadding(sfont, style.PaddingX(), true)
 		paddingY := badge.AutoPadding(sfont, style.PaddingY(), false)
@@ -779,7 +779,7 @@ func (o *sharedOverlay) repaintHints(
 
 		// pos is the element center (set in modes/hints.go). The badge is
 		// centered horizontally on it and placed above / on / below the center
-		// to match macOS; an offset badge also draws a connector arrow pointing
+		// to match macOS. An offset badge also draws a connector arrow pointing
 		// back at the target.
 		badgeRect, arrow, hasArrow := badge.PlaceHint(
 			pos, badgeWidth, badgeHeight, radius, offset,
@@ -817,7 +817,7 @@ func (o *sharedOverlay) repaintHints(
 // exists to remove.
 //
 // Painting over the surface rather than into a cleared rectangle rests on the
-// order the caller keeps: every badge draw follows a hints draw, which clears
+// order the caller keeps. Every badge draw follows a hints draw, which clears
 // the whole surface, because the mode handler filters the hints and then draws
 // the badge (`applyHintSearchFilter`) and the hint manager delivers that update
 // inside the call. Without it a backspace would leave the tail of the longer
@@ -865,9 +865,9 @@ func (o *sharedOverlay) drawHintSearchInput(
 
 // hideHintSearchInput puts back what the badge covered.
 //
-// Where there are hints on the surface that means repainting them: the badge
+// Where there are hints on the surface that means repainting them. The badge
 // sits on the same target as the labels, so erasing its rectangle alone would
-// take a bite out of the hints the user is about to type — and the confirm path
+// take a bite out of the hints the user is about to type, and the confirm path
 // hides the badge with the narrowed labels still on screen. Where there are no
 // hints there is nothing to put back and the rectangle is simply erased.
 func (o *sharedOverlay) hideHintSearchInput(painted image.Rectangle) {
@@ -890,7 +890,7 @@ func (o *sharedOverlay) drawMouseActionIndicator(
 	style ports.MouseActionIndicatorStyle,
 ) {
 	// Cancel any in-flight indicator animation before starting a new one.
-	// (Must run without the render lock held: the animation goroutine may be
+	// (Must run without the render lock held, because the animation goroutine may be
 	// blocked acquiring it, and cancelAnimation waits for the goroutine.)
 	o.cancelAnimation()
 
@@ -978,8 +978,8 @@ func (o *sharedOverlay) startMouseActionAnimation(
 			if renderMu != nil {
 				renderMu.Lock()
 				// Parent may have closed stopCh while we were waiting for the
-				// lock. Check here to avoid deadlock: parent holds the lock and
-				// waits for animDone; we hold nothing yet the parent needs.
+				// lock. Check here to avoid deadlock, since parent holds the lock and
+				// waits for animDone, and we hold nothing yet the parent needs.
 				select {
 				case <-stopCh:
 					renderMu.Unlock()
@@ -1024,11 +1024,11 @@ func (o *sharedOverlay) startMouseActionAnimation(
 }
 
 // cancelAnimation stops a running animation and waits for its goroutine to
-// exit. The caller must not hold renderMu: the goroutine takes it on every
+// exit. The caller must not hold renderMu. The goroutine takes it on every
 // frame and would never reach the stop signal.
 //
 // The nil-receiver guard matches every other method a backend exposes to the
-// manager, and buys consistency rather than safety: this one is promoted from
+// manager, and buys consistency rather than safety. This one is promoted from
 // the embedded sharedOverlay, so calling it through a nil *x11Overlay /
 // *wlrootsOverlay panics on the promotion before the guard runs (see
 // ../AGENTS.md). What keeps a nil backend out of here is Manager.cancelBackendAnimation,
@@ -1284,12 +1284,12 @@ func (o *sharedOverlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPoin
 		vpChar = "\u25CF"
 	}
 
-	// FontName arrives resolved: it comes from the Style, which settles every
+	// FontName arrives resolved. It comes from the Style, which settles every
 	// family it hands out. Resolving again here would be a lock and a cache
 	// lookup per drawn frame for the same answer.
 	fontName := vp.FontName
 	fontSize := float64(vp.Size)
-	// Not badge.CenteredOn: the half is floored at 1 so a pointer configured to
+	// Not badge.CenteredOn, because the half is floored at 1 so a pointer configured to
 	// size 0 or 1 still has a box to draw its glyph in.
 	halfSize := max(vp.Size/2, 1)
 	vpBounds := image.Rect(
@@ -1307,9 +1307,9 @@ func (o *sharedOverlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPoin
 // answer to "what does this surface show", so a narrowing keystroke, a pointer
 // move and a fresh set of cells all arrive at the same screen.
 //
-// The subgrid is the whole surface while one is open (#1491) — paintSubgridSurface
-// says what settles that — and the guard lives here rather than at each caller
-// because updateGridMatches reaches this on a keystroke: a narrowing that put
+// The subgrid is the whole surface while one is open (#1491), and
+// paintSubgridSurface says what settles that. The guard lives here rather than at each caller
+// because updateGridMatches reaches this on a keystroke. A narrowing that put
 // the parent cells back under the subgrid would change what is on screen
 // without the user asking for it.
 //
@@ -1370,7 +1370,7 @@ func (o *sharedOverlay) redrawGrid() {
 }
 
 func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
-	// bounds is screen-local; place the subgrid on the active monitor.
+	// bounds is screen-local, so place the subgrid on the active monitor.
 	bounds = o.offset(bounds)
 
 	// The keys the subgrid is drawn with, which are the keys the mode layer
@@ -1383,7 +1383,7 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 	labelSize := style.SubgridLabelFontSizeIn(o.srf.surfaceScale(), subgridFontScale, cells)
 
 	// One cell per key, and fewer keys than cells is a configuration that
-	// leaves the last cells unlabelled: the key set is capped at the same count
+	// leaves the last cells unlabelled. The key set is capped at the same count
 	// the division produces, which is what MaxKeyIndex is.
 	for index, key := range keyRunes {
 		cell := cells[index]
@@ -1404,7 +1404,7 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 // screen-local grid/recursive-grid/hint coordinates onto the correct monitor.
 //
 // It is the last of the delegates above and the one that was already
-// here: the per-backend wrappers only added the receiver guard promotion makes
+// here. The per-backend wrappers only added the receiver guard promotion makes
 // unreachable. Like SetHideUnmatched it touches no surface, so a closed handle
 // does not stop it recording where the next draw belongs.
 func (o *sharedOverlay) setOriginOffset(origin image.Point) {
@@ -1482,10 +1482,10 @@ func (o *sharedOverlay) drawLabelBackground(
 	height := badge.EstimateTextHeight(fontSize) +
 		paddingY*paddingMultiplier
 	rect := badge.CenteredIn(cell, width, height)
-	// A zero auto cap means a full pill: left at -1, the plate rounds to its
+	// A zero auto cap means a full pill. Left at -1, the plate rounds to its
 	// own half height. That is what the shared resolver documents for a label
 	// background and what Windows draws. macOS caps the same auto radius at
-	// 6 px (drawGridLabel: in overlay_darwin.m) — a divergence that predates
+	// 6 px (drawGridLabel: in overlay_darwin.m), a divergence that predates
 	// this call site and is not settled here.
 	o.drawRoundedRect(rect,
 		badge.BorderRadius(style.LabelBackgroundBorderRadius(), rect, 0),
@@ -1496,9 +1496,9 @@ func (o *sharedOverlay) drawLabelBackground(
 // drawSubKeyMiniGrid paints the next depth's keys inside one cell, each on the
 // sub-cell it would select.
 //
-// Where they go is not this backend's arithmetic: Style.SubKeyPreviewCells
+// Where they go is not this backend's arithmetic. Style.SubKeyPreviewCells
 // divides the cell and decides which sub-cell is left blank, and the GDI backend
-// draws the same list (ADR 0007). What is left here is the painting — the shared
+// draws the same list (ADR 0007). What is left here is the painting, the shared
 // text primitive, which is where the HiDPI scale is applied.
 func (o *sharedOverlay) drawSubKeyMiniGrid(
 	cell image.Rectangle,

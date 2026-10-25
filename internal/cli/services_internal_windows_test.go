@@ -32,8 +32,8 @@ func TestRenderServiceTask_EscapesThePathAndNamesTheUser(t *testing.T) {
 func TestRenderServiceTask_IsWellFormedXML(t *testing.T) {
 	rendered := renderServiceTask(`C:\Users\tester\neru.exe`, "S-1-5-21-1-2-3-1001")
 
-	// The scheduler's schema is not checked here — the integration test
-	// registers the task with the scheduler itself — but a template that does
+	// The scheduler's schema is not checked here, since the integration test
+	// registers the task with the scheduler itself, but a template that does
 	// not parse at all should fail somewhere cheaper than a real desktop.
 	var task struct {
 		XMLName xml.Name `xml:"Task"`

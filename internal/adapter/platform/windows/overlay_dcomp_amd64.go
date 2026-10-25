@@ -21,13 +21,13 @@ import (
 // The window is created with WS_EX_NOREDIRECTIONBITMAP, so it has no GDI
 // backing store at all. A DXGI swapchain with premultiplied alpha is bound to
 // a DirectComposition visual on it, Direct2D paints the frame's commands into
-// the swapchain's back buffer on the GPU, and DWM composites the result — no
+// the swapchain's back buffer on the GPU, and DWM composites the result. No
 // pixel is copied through the CPU, and text comes from DirectWrite's glyph
 // cache rather than a font GDI realizes per label.
 //
 // It is all COM, called through vtables the way the UIA adapter calls
-// IUIAutomation: this build has no cgo. Direct2D takes floats, which Windows
-// passes in XMM registers; Go's stdcall shim on amd64 mirrors the first four
+// IUIAutomation, because this build has no cgo. Direct2D takes floats, which Windows
+// passes in XMM registers. Go's stdcall shim on amd64 mirrors the first four
 // integer arguments into XMM0-XMM3 and the rest travel on the stack as their
 // bit patterns, so a float32's bits in a uintptr reach the callee intact.
 // windows/arm64 has no such mirror, which is why this file is amd64-only and
@@ -35,9 +35,9 @@ import (
 // status).
 //
 // The frame is painted into a persistent canvas bitmap first and the canvas
-// copied to the back buffer to present: a flip-model swapchain does not keep
-// a back buffer's contents across presents, and the window's frames are
-// incremental — a search badge is drawn over the hints already on screen.
+// copied to the back buffer to present, because a flip-model swapchain does
+// not keep a back buffer's contents across presents, and the window's frames
+// are incremental. A search badge is drawn over the hints already on screen.
 
 const (
 	d3dDriverTypeHardware = 1
@@ -169,7 +169,7 @@ var (
 )
 
 // comObject is a COM interface pointer. Methods are reached through the
-// vtable by index; every interface used here is called on the overlay UI
+// vtable by index. Every interface used here is called on the overlay UI
 // thread only.
 type comObject struct {
 	ptr unsafe.Pointer
@@ -338,7 +338,7 @@ func newDCompShared() (*dcompShared, error) {
 func (s *dcompShared) init() error {
 	err := s.createD3DDevice(d3dDriverTypeHardware)
 	if err != nil {
-		// No GPU for this session (a remote desktop, a VM): WARP still
+		// No GPU for this session (a remote desktop, a VM). WARP still
 		// composes through DWM without touching GDI.
 		err = s.createD3DDevice(d3dDriverTypeWARP)
 	}
@@ -543,7 +543,7 @@ type dcompSurface struct {
 	canvas    comObject
 	brush     comObject
 	// painted is whether anything has been drawn on the canvas since it was
-	// last cleared; a clear of an empty canvas is skipped.
+	// last cleared. A clear of an empty canvas is skipped.
 	painted bool
 }
 
@@ -713,7 +713,7 @@ func (s *dcompSurface) create(width, height int) error {
 		return err
 	}
 
-	// Start from a transparent canvas: a fresh bitmap's contents are
+	// Start from a transparent canvas, because a fresh bitmap's contents are
 	// undefined.
 	s.context.call(vtblD2DDCSetTarget, objArg(s.canvas))
 	s.context.call(vtblD2DRTBeginDraw)
@@ -852,7 +852,7 @@ func rectF(rect image.Rectangle) d2dRectF {
 }
 
 // strokeRect is the rectangle a Direct2D stroke of the given width is drawn
-// on so that it lands inside rect: Direct2D centers a stroke on the path,
+// on so that it lands inside rect. Direct2D centers a stroke on the path,
 // the software rasterizer keeps it inside the rectangle, and the two must
 // paint the same cell border.
 func strokeRect(rect image.Rectangle, width int) d2dRectF {
@@ -919,7 +919,7 @@ func (s *dcompSurface) paint(cmd drawCmd) {
 }
 
 // paintTriangle fills a path geometry through the three vertices. The
-// geometry is built and released per arrow: there are a handful per frame
+// geometry is built and released per arrow, because there are a handful per frame
 // and only when hints are placed off their targets.
 func (s *dcompSurface) paintTriangle(cmd drawCmd) {
 	var geometry comObject

@@ -86,7 +86,7 @@ func (m *GridMode) RefreshForThemeChange() bool {
 
 // RefreshForScreenChange rebuilds the grid for the display as it now is. The
 // cells described a screen the user is no longer looking at, so the typed input
-// and the selection go with them: a cell coordinate from the old layout picks a
+// and the selection go with them. A cell coordinate from the old layout picks a
 // different point on the new one.
 //
 // Grid switched off in configuration is the one answer that leaves the overlay
@@ -179,7 +179,7 @@ func (m *GridMode) CursorFollowSelection() (bool, bool) {
 }
 
 // ApplyCursorFollowSelection sets or toggles the preference and then settles
-// what the change owes: the virtual pointer stands in for the real cursor only
+// what the change owes. The virtual pointer stands in for the real cursor only
 // while the cursor is not following, and turning following on puts the cursor
 // on the cell that is already selected.
 func (m *GridMode) ApplyCursorFollowSelection(desired *bool) (bool, bool) {
@@ -206,7 +206,7 @@ func (m *GridMode) ExitSteps() []string {
 }
 
 // ResetInput clears the typed cell label and redraws the full grid. The
-// selection goes with the input: nothing is typed, so no cell is chosen.
+// selection goes with the input. Nothing is typed, so no cell is chosen.
 func (m *GridMode) ResetInput() {
 	handler := m.handler
 
@@ -216,9 +216,9 @@ func (m *GridMode) ResetInput() {
 
 	handler.grid.Manager.Reset()
 
-	// Clear stale selection — input was reset so no cell is selected. The
-	// session builds its Context and Manager together, so the guard above
-	// answers for both.
+	// Clear the stale selection, since no cell is selected once the input is
+	// reset. The session builds its Context and Manager together, so the guard
+	// above answers for both.
 	handler.grid.Context.ClearSelectionPoint()
 
 	gridInstancePtr := handler.grid.Context.GridInstance()

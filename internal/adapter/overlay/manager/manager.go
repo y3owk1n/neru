@@ -41,7 +41,7 @@ type StateChange struct {
 // NewStateChange records a transition from prev to next.
 //
 // The fields stay unexported so a subscriber cannot rewrite the transition it
-// was handed; the backends construct one through here.
+// was handed. The backends construct one through here.
 func NewStateChange(prev, next Mode) StateChange {
 	return StateChange{prev: prev, next: next}
 }
@@ -63,10 +63,10 @@ func (sc StateChange) Next() Mode {
 type CapabilityReporter = ports.OverlayCapabilityReporter
 
 // HeadlessReporter is the optional extension a manager implements when it can
-// state that it has no surface to draw on — a no-op manager, or a backend that
-// found no display server to attach to.
+// state that it has no surface to draw on, such as a no-op manager or a
+// backend that found no display server to attach to.
 //
-// It exists because the render overlays are built against a native surface: on
+// It exists because the render overlays are built against a native surface. On
 // a headless manager there is nothing to build them on, and the caller has to
 // know that before it tries. Reach it by type assertion and treat a manager
 // that does not implement it as able to render, the same way every other
@@ -79,7 +79,7 @@ type HeadlessReporter interface {
 // KeyboardCaptureController is the optional extension a backend implements
 // when its overlay surface can hold or release the keyboard.
 //
-// Only the Linux backends can: an evdev grab held by the overlay deactivates
+// Only the Linux backends can. An evdev grab held by the overlay deactivates
 // the focused toplevel, so the indicator poller has to release it. Reach it by
 // type assertion and skip the behavior when the assertion fails, the same way
 // every other optional platform capability works.
@@ -103,7 +103,7 @@ type MonitorSelectTarget struct {
 // through the shared font resolver, and the char and font size settled against
 // their documented defaults. All of them are resolved once per configuration
 // or theme change and travel with that notification, so no component resolves
-// per draw — and the pointer redraws on every cursor move.
+// per draw, and the pointer redraws on every cursor move.
 type PointerAppearance struct {
 	// FillColor is the themed fill, as a hex string.
 	FillColor string
@@ -140,7 +140,7 @@ type MonitorSelectStyle struct {
 }
 
 // MonitorSelector is the optional extension a backend implements when it can
-// draw the monitor-select overlay. Every shipped backend does; a backend
+// draw the monitor-select overlay. Every shipped backend does. A backend
 // without it makes the mode report CodeNotSupported.
 type MonitorSelector interface {
 	DrawMonitorSelect(targets []MonitorSelectTarget, style MonitorSelectStyle) error
@@ -174,15 +174,15 @@ type Interface interface {
 	// app-layer call sites still talk to a render component directly.
 	BuildComponents(cfg *config.Config, theme config.ThemeProvider) (Components, error)
 	// ConfigureComponents hands a new configuration to those components. It is
-	// the notification a config reload or a theme change needs; the resolved
+	// the notification a config reload or a theme change needs. The resolved
 	// virtual pointer appearance comes with it because appearance is resolved
 	// above this and never here.
 	ConfigureComponents(cfg *config.Config, pointer PointerAppearance)
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
 	// DrawHintSearchInput draws the query and result count over the hints
-	// surface. A backend that draws no such badge reports CodeNotSupported —
-	// nil means it is on screen, and a backend that answers nil without drawing
+	// surface. A backend that draws no such badge reports CodeNotSupported.
+	// A nil error means it is on screen, and a backend that answers nil without drawing
 	// leaves the mode handler with no way to know (#1328).
 	DrawHintSearchInput(
 		query string,
@@ -191,7 +191,7 @@ type Interface interface {
 		style hints.SearchInputStyle,
 	) error
 	// HideHintSearchInput takes that badge off the surface. It reports nothing
-	// on purpose: a backend that never drew one has nothing left on screen, so
+	// on purpose. A backend that never drew one has nothing left on screen, so
 	// there is no failure for it to report, and no caller could act on one from
 	// a call that runs at teardown (#1328).
 	HideHintSearchInput()
@@ -209,7 +209,7 @@ type Interface interface {
 	// preview of the depth a keystroke would produce.
 	//
 	// dims and nextDims carry each depth's cell counts whole rather than as a
-	// column count beside a row count: this contract used to spell both pairs
+	// column count beside a row count. This contract used to spell both pairs
 	// as adjacent ints, and every backend re-paired them itself right before
 	// dividing the region (#1313).
 	DrawRecursiveGrid(
@@ -237,7 +237,7 @@ type Interface interface {
 	// inside one cell.
 	//
 	// It takes the pointer stand-in the way DrawRecursiveGrid does, and for the
-	// same reason (#1492): a backend that paints both onto one surface repaints
+	// same reason (#1492). A backend that paints both onto one surface repaints
 	// that surface once per call, and the keystroke that opens a subgrid is the
 	// keystroke that moves the pointer. A backend whose pointer is a layer of
 	// its own applies it after the open and pays nothing for the pairing.
@@ -250,12 +250,12 @@ type Interface interface {
 
 	// DrawGridPointer and HideGridPointer drive the pointer stand-in drawn on
 	// a grid mode's own surface, which is not one of the cursor-following
-	// Indicators: it belongs to the mode's drawing, and the mode names it by
+	// Indicators. It belongs to the mode's drawing, and the mode names it by
 	// mode rather than by render component.
 	//
 	// The whole resolved appearance travels with the position, not the size
-	// and fill alone: a backend that paints the glyph on its own surface —
-	// every Linux one — holds no render component with the pointer's
+	// and fill alone. A backend that paints the glyph on its own surface, as
+	// every Linux one does, holds no render component with the pointer's
 	// configuration in it, so the char and the family have nowhere else to
 	// come from. The darwin components read them from the configuration
 	// ConfigureComponents hands them and ignore these two.

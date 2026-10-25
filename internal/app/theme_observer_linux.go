@@ -26,9 +26,9 @@ const (
 
 	// themeBusDialTimeout caps the session-bus dial this makes. The dial itself
 	// cannot be canceled, so without a cap a bus that accepts a connection and
-	// then stops answering holds daemon startup — this runs on the goroutine
-	// that starts it — rather than merely costing theme changes. Giving up is
-	// cheap: polling picks the theme up anyway, a few seconds later.
+	// then stops answering holds daemon startup, since this runs on the goroutine
+	// that starts it, rather than merely costing theme changes. Giving up is
+	// cheap, because polling picks the theme up anyway, a few seconds later.
 	themeBusDialTimeout = 2 * time.Second
 )
 
@@ -37,20 +37,20 @@ const (
 // changes. Falls back to polling if D-Bus is unavailable.
 //
 // A session bus that never answers counts as unavailable rather than as a
-// reason to wait: the dial is bounded (linux.ConnectSessionBus), and a dial
+// reason to wait. The dial is bounded (linux.ConnectSessionBus), and a dial
 // that outlasts its budget takes the same polling fallback as a dial that
-// failed outright — the daemon is still starting up on this goroutine, and
+// failed outright. The daemon is still starting up on this goroutine, and
 // polling notices a theme change a few seconds later either way.
 //
-// All teardown state is captured per App instance in the stop closure —
-// package-level state here would be shared across App instances, and a
+// All teardown state is captured per App instance in the stop closure.
+// Package-level state here would be shared across App instances, and a
 // process that creates more than one (tests do) would close another
 // instance's channel and leak its goroutine.
 func (a *App) setupThemeObserver() {
 	stopChan := make(chan struct{})
 	waitGroup := &sync.WaitGroup{}
 
-	// Assigned once the D-Bus signal path is established; the stop closure
+	// Assigned once the D-Bus signal path is established. The stop closure
 	// reads it at call time, so the early polling fallbacks leave it nil.
 	var dbusClose func() error
 

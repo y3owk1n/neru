@@ -18,11 +18,11 @@ const roundingFactor = 0.5
 //
 // It exists because those rectangles decide two different things and have to
 // decide them the same way. The manager computes them to answer where the
-// cursor goes when a subgrid key is pressed; every overlay backend computed
-// them again to answer where the cell is drawn. Four copies, agreeing by
-// coincidence — and a copy that drifted would draw a cell in one place and
-// click in another, which is the one failure a person cannot see coming and no
-// test was watching for.
+// cursor goes when a subgrid key is pressed, and every overlay backend computed
+// them again to answer where the cell is drawn. Four copies agreed by
+// coincidence, and a copy that drifted would draw a cell in one place and click
+// in another, which is the one failure a person cannot see coming and no test
+// was watching for.
 //
 // The breaks are rounded rather than truncated so that the columns of a cell
 // that does not divide evenly differ by at most a pixel instead of collecting
@@ -36,8 +36,8 @@ const roundingFactor = 0.5
 // somewhere else the moment that stopped being true. They arrive together as a
 // domain.GridDimensions rather than as a row count and a column count because
 // recursivegrid.ComputeGridCells divides a rectangle too, and the two used to
-// take their counts in opposite orders — a transposed call was invisible while
-// every grid was square (#1294).
+// take their counts in opposite orders, and a transposed call was invisible
+// while every grid was square (#1294).
 //
 // This division is deliberately not recursivegrid.ComputeGridCells, whose doc
 // comment says how the two differ and why merging them is not on the table.

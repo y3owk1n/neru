@@ -81,9 +81,10 @@ func (m *MockAXClient) FocusedApplication(_ context.Context) (ax.App, error) {
 	return m.MockFocusedApp, m.MockFocusedAppErr
 }
 
-// ApplicationByBundleID returns the configured application by bundle ID or error.
+// ApplicationByBundleID returns the configured focused application or error,
+// whatever the bundle ID.
 func (m *MockAXClient) ApplicationByBundleID(_ context.Context, _ string) (ax.App, error) {
-	return m.MockFocusedApp, m.MockFocusedAppErr // Reuse focused app for simplicity or add specific field
+	return m.MockFocusedApp, m.MockFocusedAppErr
 }
 
 // ClickableNodes returns the configured clickable nodes or error.
@@ -160,9 +161,7 @@ func (m *MockAXClient) Scroll(_, _ int, _ action.Modifiers) error {
 }
 
 // MoveMouse is a no-op mock implementation.
-func (m *MockAXClient) MoveMouse(_ image.Point, _ bool) {
-	// No-op
-}
+func (m *MockAXClient) MoveMouse(_ image.Point, _ bool) {}
 
 // CursorPosition returns the zero point.
 func (m *MockAXClient) CursorPosition() image.Point {

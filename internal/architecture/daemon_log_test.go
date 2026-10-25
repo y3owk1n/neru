@@ -15,7 +15,7 @@ import (
 // every one of these, so what they carry reaches a file on disk on a machine
 // nobody configured.
 //
-// Debug is deliberately absent: it is opt-in, and the rule this file pins is
+// Debug is deliberately absent, because it is opt-in, and the rule this file pins is
 // about what a default install writes down.
 var visibleLogLevels = map[string]bool{
 	"Info": true, "Warn": true, "Error": true,
@@ -25,10 +25,10 @@ var visibleLogLevels = map[string]bool{
 // contentFieldNames are the zap field names that mean "the thing itself" rather
 // than a fact about it: a config value the user typed, a shell command line
 // from their configuration, or what that command printed. AGENTS.md forbids all
-// three — counts, durations, IDs and booleans are what a log is entitled to.
+// three. Counts, durations, IDs and booleans are what a log is entitled to.
 //
 // The match is on the exact name, which is what leaves the correct idiom
-// spelling itself: cmd_length and output_bytes say the same thing about the
+// spelling itself. Fields like cmd_length and output_bytes say the same thing about the
 // same data and pass, because a length is not the content.
 var contentFieldNames = map[string]bool{
 	"cmd": true, "command": true, "output": true, "value": true,
@@ -44,9 +44,9 @@ var contentFieldNames = map[string]bool{
 // comment why it must not. The regression is invisible in review precisely
 // because each site reads like helpful diagnostics.
 //
-// This reads the call, not the data: a field constructed elsewhere and passed
+// This reads the call, not the data. A field constructed elsewhere and passed
 // in by variable is not caught. That is the trade for a check with no false
-// positives — the shape it does catch is the shape every one of these
+// positives, and the shape it does catch is the shape every one of these
 // regressions took.
 func TestNoVisibleLogFieldNamesConfigValuesOrCommandOutput(t *testing.T) {
 	var offenders []string
@@ -117,14 +117,14 @@ var sharedTempPaths = []string{"/tmp/", "/var/tmp/"}
 // TestNoServiceDefinitionWritesDaemonOutputToASharedPath keeps the daemon's
 // output in the user's own log directory.
 //
-// The service definitions are written four times over — the plist the CLI
+// The service definitions are written four times over: the plist the CLI
 // generates, the plist template shipped for a hand install, the installer
-// script's detached launch, and the Nix modules — so the answer to where a log
+// script's detached launch, and the Nix modules. So the answer to where a log
 // goes is only as good as the copy nobody remembered to change. This judges
 // every file that decides it, whatever language it is written in.
 //
 // A file that redirects nothing drops out of the subject set, which is the
-// intended behavior: it has no answer to be wrong about, and adding a redirect
+// intended behavior. It has no answer to be wrong about, and adding a redirect
 // back puts it under this rule again.
 func TestNoServiceDefinitionWritesDaemonOutputToASharedPath(t *testing.T) {
 	subjects := 0
@@ -137,7 +137,7 @@ func TestNoServiceDefinitionWritesDaemonOutputToASharedPath(t *testing.T) {
 
 		// A test file installs no service. One of them asserts that the plist
 		// it renders names no shared directory, which means quoting the
-		// directory — a subject set that judged it would be judging the rule's
+		// directory, and a subject set that judged it would be judging the rule's
 		// own statement of itself.
 		if strings.HasSuffix(file.name, "_test.go") {
 			return
@@ -185,8 +185,8 @@ func TestNoServiceDefinitionWritesDaemonOutputToASharedPath(t *testing.T) {
 }
 
 // serviceDefinitionFloor is the fewest files expected to redirect the daemon's
-// output. Four do today — the generated plist, the shipped template, the
-// installer script and the home-manager module — so three catches a check that
+// output. Four do today: the generated plist, the shipped template, the
+// installer script and the home-manager module. Three catches a check that
 // has stopped recognizing them without firing when one legitimately stops
 // redirecting.
 const serviceDefinitionFloor = 3

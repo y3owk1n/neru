@@ -205,9 +205,9 @@ func TestResolvePIDByAppID(t *testing.T) {
 
 // TestWaylandNoFocusedAppError is the wlroots half of what #1495 fixed for X11.
 // The blessed Wayland stack answers an unfocused session the same way an
-// unfocused X11 display does, so `neru doctor` has to explain it the same way:
-// "focused-app inspection is unavailable" on a session where nothing has taken
-// focus yet sends the user looking for something to install.
+// unfocused X11 display does, so `neru doctor` has to explain it the same way,
+// because "focused-app inspection is unavailable" on a session where nothing
+// has taken focus yet sends the user looking for something to install.
 func TestWaylandNoFocusedAppError(t *testing.T) {
 	t.Parallel()
 
@@ -238,8 +238,8 @@ func TestWaylandNoFocusedAppError(t *testing.T) {
 			"the capability is unavailable", detail)
 	}
 
-	// "takes focus" rather than "focus": the sentence has to promise the answer
-	// arrives when a window is focused, not merely mention the word.
+	// "takes focus" rather than "focus", because the sentence has to promise
+	// the answer arrives when a window is focused, not merely mention the word.
 	for _, word := range []string{feature, backendWaylandWlroots, "takes focus"} {
 		if !strings.Contains(detail, word) {
 			t.Errorf("the unfocused-session detail %q does not mention %q", detail, word)

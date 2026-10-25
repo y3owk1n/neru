@@ -15,7 +15,7 @@ import (
 
 // TestExampleConfigs_Validate loads each shipped config the way the daemon
 // would. These files are copied by users verbatim, so a stale role vocabulary
-// in one of them is shipped breakage that no other test sees — only
+// in one of them is shipped breakage that no other test sees, since only
 // default-config.toml is embedded and reachable through configs.DefaultConfig.
 func TestExampleConfigs_Validate(t *testing.T) {
 	for _, name := range configs.ShippedExamples {
@@ -47,8 +47,8 @@ func TestExampleConfigs_Validate(t *testing.T) {
 
 // TestCrossPlatformConfig_LoadsButSelectsNothing pins the two halves of the
 // cross-platform promise together. A config carrying only another platform's
-// native roles must still load — that is what lets one dotfile serve several
-// machines — but it must not then behave as though no filter was set.
+// native roles must still load, because that is what lets one dotfile serve
+// several machines. It must not then behave as though no filter was set.
 func TestCrossPlatformConfig_LoadsButSelectsNothing(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")

@@ -27,16 +27,14 @@ var (
 )
 
 // uinputKeyboardMu serializes chord emission. The events forming one chord
-// (modifier-down… key down/up… modifier-up) are separate write() calls to the
-// shared device fd; without this lock, two concurrent feeds could interleave
+// (modifier-down... key down/up... modifier-up) are separate write() calls to the
+// shared device fd. Without this lock, two concurrent feeds could interleave
 // their writes and deliver a garbled chord.
 var uinputKeyboardMu sync.Mutex
 
-// ensureUinputKeyboard creates the synthetic keyboard device on first call and
-// caches the result. A creation failure (typically /dev/uinput not writable) is
-// remembered so callers fall through to the compositor backends.
 // ensureUinputKeyboard creates the synthetic keyboard on first use and reuses
-// it for the life of the process.
+// it for the life of the process. A creation failure (typically /dev/uinput not
+// writable) is remembered so callers fall through to the compositor backends.
 //
 // When /dev/uinput is writable, `action feed` posts keystrokes through this
 // device instead of the compositor's virtual-keyboard or libei protocols. It
@@ -46,7 +44,7 @@ var uinputKeyboardMu sync.Mutex
 //
 // The device carries Neru's uinput vendor id and the neru- name prefix, which
 // is how the evdev keyboard proxy knows not to grab it (neru_evdev_is_neru_device,
-// isNeruInjectionDevice); its lifetime EVIOCGRAB would otherwise re-read the
+// isNeruInjectionDevice). Its lifetime EVIOCGRAB would otherwise re-read the
 // injected keys and loop them back into the event tap.
 func ensureUinputKeyboard() error {
 	uinputKeyboardOnce.Do(func() {
@@ -75,7 +73,7 @@ func uinputKeyboardAvailable() bool {
 
 // feedKeyUinput injects a key chord through the uinput virtual keyboard: press
 // modifiers in order, press and release the main key, then release modifiers in
-// reverse order. Each modifier is emitted on our own device; because libinput
+// reverse order. Each modifier is emitted on our own device. Because libinput
 // tracks key state per device, releasing our modifier never clears one the user
 // is still physically holding.
 func feedKeyUinput(modifiers []string, keycode uint32) error {
@@ -106,17 +104,17 @@ func feedKeyUinput(modifiers []string, keycode uint32) error {
 		pressed = append(pressed, code)
 	}
 
-	// A failed key-down means nothing was delivered: unwind the modifiers and
-	// report failure.
+	// A failed key-down means nothing was delivered, so unwind the modifiers
+	// and report failure.
 	if C.neru_uinput_key(uinputKeyboardFd, C.int(keycode), 1) == 0 {
 		_ = releaseUinputKeys(pressed)
 
 		return errUinputKeyboardSend
 	}
 
-	// The chord is delivered on the key-down; now release the main key and the
+	// The chord is delivered on the key-down. Now release the main key and the
 	// modifiers. Always attempt every release so one failure can't strand the
-	// rest down, and surface any failure — a discarded release would leave a
+	// rest down, and surface any failure. A discarded release would leave a
 	// key latched on the reused device and silently corrupt later input.
 	releasedOK := C.neru_uinput_key(uinputKeyboardFd, C.int(keycode), 0) != 0
 	if !releaseUinputKeys(pressed) {

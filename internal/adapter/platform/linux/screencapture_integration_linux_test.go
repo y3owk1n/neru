@@ -11,10 +11,10 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// These run against a live display server — an Xvfb :display or a headless
-// wlroots compositor — and are the only place the native capture bridges are
-// actually executed. Everything else about capture can be asserted headless;
-// whether XGetImage and wlr-screencopy hand back real pixels cannot.
+// These run against a live display server, an Xvfb :display or a headless
+// wlroots compositor, and are the only place the native capture bridges are
+// actually executed. Everything else about capture can be asserted headless.
+// Whether XGetImage and wlr-screencopy hand back real pixels cannot.
 //
 // Run with: go test -tags=integration ./internal/adapter/platform/linux/
 
@@ -23,10 +23,10 @@ import (
 //
 // A Wayland session is assumed to be wlroots-family. This file cannot ask
 // platform.DetectLinuxBackend, because internal/adapter/platform imports this
-// package and an in-package test cannot import it back; nor may it read the
+// package and an in-package test cannot import it back. Nor may it read the
 // desktop-identity environment itself, which platform/AGENTS.md confines to
-// backend_linux.go. The guess is harmless because it is not load-bearing: a
-// compositor that turns out not to implement screencopy — KWin — answers
+// backend_linux.go. The guess is harmless because it is not load-bearing. A
+// compositor that turns out not to implement screencopy, such as KWin, answers
 // CodeNotSupported and requireCapture skips, so this file reports what the
 // session can actually do rather than what it was labeled.
 func liveCaptureBackend(t *testing.T) string {
@@ -82,9 +82,9 @@ func TestCaptureScreenRegion_ReturnsPixels(t *testing.T) {
 			img.Stride, img.Rect.Dx())
 	}
 
-	// Alpha is forced opaque: image.RGBA is alpha-premultiplied, so a captured
-	// frame carrying anything else would render darker than the screen it came
-	// from.
+	// Alpha is forced opaque, because image.RGBA is alpha-premultiplied, so a
+	// captured frame carrying anything else would render darker than the screen
+	// it came from.
 	for offset := 3; offset < len(img.Pix); offset += 4 {
 		if img.Pix[offset] != 0xFF {
 			t.Fatalf("pixel %d has alpha %d, want 255", offset/4, img.Pix[offset])
@@ -97,9 +97,9 @@ func TestCaptureScreenRegion_ReturnsPixels(t *testing.T) {
 //
 // Before OCR there was no caller that captured more than once in a process, so
 // a backend that works on the first frame and not the second would have shipped
-// green: every other test here captures once. A hint activation captures every
-// time, so "works once" is the shape a capture bug takes for a user, and it is
-// the shape this asserts against.
+// green, because every other test here captures once. A hint activation
+// captures every time, so "works once" is the shape a capture bug takes for a
+// user, and it is the shape this asserts against.
 //
 // The regions differ deliberately. Both the wlroots client and the X11 path
 // resolve an output and validate the rectangle per call, and a state bug that
@@ -131,7 +131,7 @@ func TestCaptureScreenRegion_SurvivesRepeatedUse(t *testing.T) {
 	}
 }
 
-// TestCaptureScreenRegion_HonorsTheRegion is the other half of the contract: a
+// TestCaptureScreenRegion_HonorsTheRegion is the other half of the contract. A
 // caller constrained to one window must pay for one window, not for the whole
 // display.
 func TestCaptureScreenRegion_HonorsTheRegion(t *testing.T) {
@@ -147,8 +147,8 @@ func TestCaptureScreenRegion_HonorsTheRegion(t *testing.T) {
 	}
 
 	// The frame covers exactly the region, so it is never smaller than the
-	// logical rectangle asked for. It can be larger: a scaled Wayland output
-	// answers in physical pixels.
+	// logical rectangle asked for. It can be larger, because a scaled Wayland
+	// output answers in physical pixels.
 	if part.Rect.Dx() < region.Dx() || part.Rect.Dy() < region.Dy() {
 		t.Errorf("region capture returned %v, smaller than the %v logical region requested",
 			part.Rect, region)

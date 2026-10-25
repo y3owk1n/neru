@@ -38,7 +38,7 @@ indicator = ""
 `
 
 // TestLoad_ReadsDeclaredModesFromTheRawTable pins the loader's half of a
-// declaration: the hotkey table is tagged toml:"-" like every mode's, so it
+// declaration. The hotkey table is tagged toml:"-" like every mode's, so it
 // has to be read from the raw decode, merged over the default Escape binding,
 // and given to a mode declared without a table at all.
 func TestLoad_ReadsDeclaredModesFromTheRawTable(t *testing.T) {
@@ -135,7 +135,7 @@ func TestLoad_RefusesADeclaredModeItCannotLoad(t *testing.T) {
 }
 
 // TestLoad_ReadsDeclaredModeHotkeysFromTheOverrideFile pins the second file a
-// declaration can come from: the override `neru config set` writes is decoded
+// declaration can come from. The override `neru config set` writes is decoded
 // into the same toml:"-" field, so its tables have to be read from the raw
 // decode too. A mode both files declare gets the override merged over the
 // configuration's table, and a mode only the override declares is seeded with

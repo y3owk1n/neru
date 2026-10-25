@@ -23,9 +23,9 @@ var noCGOLinuxUnavailable = []string{
 }
 
 // announceBuildBoundary says once, at startup, that this build sits outside
-// the parity boundary — and says nothing at all when it does not.
+// the parity boundary, and says nothing at all when it does not.
 //
-// ADR 0013 puts the CGO_ENABLED=0 Linux build outside that boundary: it is a
+// ADR 0013 puts the CGO_ENABLED=0 Linux build outside that boundary. It is a
 // distribution convenience for a configuration macOS does not offer, and it
 // starts perfectly well before failing feature by feature. ADR 0012's
 // criterion is that the first hour must not lie, and a daemon that reports
@@ -35,7 +35,7 @@ var noCGOLinuxUnavailable = []string{
 //
 // It is a warning rather than an error because the build is a supported
 // artifact, and it is emitted from exactly one place so the blessed stack
-// never hears it: a warning every ordinary run prints is one people learn to
+// never hears it. A warning every ordinary run prints is one people learn to
 // scroll past.
 func announceBuildBoundary(logger *zap.Logger, targetOS platform.OS, cgoEnabled bool) {
 	if targetOS != platform.Linux || cgoEnabled {

@@ -12,7 +12,7 @@ type PassthroughCallback func()
 // on Linux, a low-level hook on Windows.
 //
 // The methods are what internal/adapter/eventtap.Adapter calls. Anything a
-// platform cannot do is a no-op or returns false rather than an error — a tap
+// platform cannot do is a no-op or returns false rather than an error. A tap
 // that cannot set a keyboard layout should still capture keys.
 type Tap interface {
 	// Enable starts capturing. Calling it on an enabled tap is a no-op.

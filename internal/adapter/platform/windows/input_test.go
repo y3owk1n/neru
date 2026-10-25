@@ -26,7 +26,7 @@ func TestSendInputStructLayout(t *testing.T) {
 	}
 
 	// The keyboard arm of the union carries its own padding to reach the same
-	// 40 bytes cbSize demands, so it needs the same offset check: a wVk landing
+	// 40 bytes cbSize demands, so it needs the same offset check. A wVk landing
 	// anywhere but byte 8 is a SendInput that silently posts the wrong key.
 	if got := unsafe.Sizeof(keyInput{}); got != 40 {
 		t.Fatalf("sizeof(keyInput) = %d, want 40", got)
@@ -49,13 +49,13 @@ func notches(count int) uint32 {
 }
 
 // pixels converts a signed pixel delta into mouseData the same way
-// wheelEvents does: scrollPixelsPerNotch pixels are one notch.
+// wheelEvents does, so scrollPixelsPerNotch pixels are one notch.
 func pixels(count int) uint32 {
 	return uint32(int32(count) * wheelUnitsPerPixel)
 }
 
 // TestWheelEvents_NegatesHorizontalDelta pins the sign convention across the
-// SendInput seam: Neru's positive deltaX means left everywhere, while
+// SendInput seam. Neru's positive deltaX means left everywhere, while
 // MOUSEEVENTF_HWHEEL reads positive as right, so scroll_left must arrive as
 // a negative HWHEEL notch and scroll_right as a positive one.
 func TestWheelEvents_NegatesHorizontalDelta(t *testing.T) {
@@ -230,8 +230,8 @@ func TestDragGlidePath_StepsEvenlyOntoTheTarget(t *testing.T) {
 	}
 }
 
-// TestDragGlidePath_NeverStepsBackwards guards a property a drag depends on:
-// every step of a diagonal glide moves further along the line than the one
+// TestDragGlidePath_NeverStepsBackwards guards a property a drag depends on.
+// Every step of a diagonal glide moves further along the line than the one
 // before it, so a drag never shrinks a selection partway through.
 func TestDragGlidePath_NeverStepsBackwards(t *testing.T) {
 	t.Parallel()
@@ -266,7 +266,7 @@ func TestDragGlidePath_NeverStepsBackwards(t *testing.T) {
 }
 
 // TestDragApproachPoint_LeavesAShortMoveOntoTheTarget pins the split every drag
-// step lands through: neither axis of the move from the approach point to the
+// step lands through. Neither axis of the move from the approach point to the
 // target travels more than dragLandingApproach, which is the comparison Windows
 // makes against its mouse thresholds before doubling a move, and that move is
 // the one the application reads as the end of the drag.
@@ -299,7 +299,7 @@ func TestDragApproachPoint_LeavesAShortMoveOntoTheTarget(t *testing.T) {
 	}
 }
 
-// TestDragApproachPoint_DoesNotSplitAShortStep pins the other half: a step
+// TestDragApproachPoint_DoesNotSplitAShortStep pins the other half. A step
 // already within dragLandingApproach is one move, not two, so a slow drag does
 // not post a zero-length move per step.
 func TestDragApproachPoint_DoesNotSplitAShortStep(t *testing.T) {
@@ -321,7 +321,7 @@ func TestDragApproachPoint_DoesNotSplitAShortStep(t *testing.T) {
 }
 
 // TestAbsoluteCoordinate_RoundTripsToThePixel pins the mapping against the
-// floor(value * size / 65536) Windows applies to an absolute mouse event: the
+// floor(value * size / 65536) Windows applies to an absolute mouse event. The
 // coordinate must land on the pixel it was made from, at the edges included.
 func TestAbsoluteCoordinate_RoundTripsToThePixel(t *testing.T) {
 	t.Parallel()

@@ -19,12 +19,12 @@ var (
 //
 // neru.exe is built for the console subsystem so that every subcommand can
 // write to the terminal it was invoked from. The trade-off is that the Windows
-// shell also allocates a console when it starts the binary — from Explorer, a
+// shell also allocates a console when it starts the binary, from Explorer, a
 // Start Menu shortcut, or the autostart Run key. The attached-process count
-// tells the two apart: a terminal has at least the shell attached alongside
+// tells the two apart. A terminal has at least the shell attached alongside
 // Neru, whereas a shell-allocated console has only Neru.
 func consoleProcessCount() uintptr {
-	// Two slots is enough to distinguish "only us" from "more than us"; the
+	// Two slots is enough to distinguish "only us" from "more than us". The
 	// call reports the true total even when the buffer cannot hold it.
 	var pids [2]uint32
 
@@ -52,7 +52,7 @@ func ownsConsole() bool {
 // detachConsoleIfOwned releases a console that Windows allocated for this
 // process, so the daemon does not leave a stray window on screen for the rest
 // of the session. It deliberately does nothing when Neru was started from a
-// terminal: that console belongs to the user, and `neru launch` in a terminal
+// terminal. That console belongs to the user, and `neru launch` in a terminal
 // should keep printing there.
 func detachConsoleIfOwned() {
 	if !ownsConsole() {

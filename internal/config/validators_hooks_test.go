@@ -185,7 +185,7 @@ func TestValidateHooks_WarnsAboutAQuitStepThatIsNotExec(t *testing.T) {
 }
 
 // TestValidateHooks_WarnsThatTheHintsMissionControlKeysAreDeprecated pins the
-// deprecation: the [hints] keys still load, and say where they moved.
+// deprecation. The [hints] keys still load, and say where they moved.
 func TestValidateHooks_WarnsThatTheHintsMissionControlKeysAreDeprecated(t *testing.T) {
 	t.Parallel()
 

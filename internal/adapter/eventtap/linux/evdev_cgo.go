@@ -20,7 +20,7 @@ const (
 
 	// waylandEvdevKeymapPollInterval is how often the proxy asks its Wayland
 	// connection whether the compositor replaced the keymap. Layout changes are
-	// rare and a stale name costs one mistyped binding, so this is slow; the
+	// rare and a stale name costs one mistyped binding, so this is slow. The
 	// same check runs at every mode start, where it is free.
 	waylandEvdevKeymapPollInterval = 2 * time.Second
 
@@ -31,7 +31,7 @@ const (
 
 	// waylandEvdevProxyProbeInterval is how often the proxy asks whether
 	// another process has grabbed one of its own devices (probeOwnDevices).
-	// Two ioctls per tick, nothing on the keystroke path; it bounds how long
+	// Two ioctls per tick, nothing on the keystroke path. It bounds how long
 	// the keyboard is dead when a remapper closes the loop.
 	waylandEvdevProxyProbeInterval = 500 * time.Millisecond
 
@@ -45,8 +45,8 @@ const (
 
 // waylandEvdevKeyboardActive reports whether a mode session currently owns the
 // keys, i.e. presses are captured for the mode rather than re-emitted to the
-// compositor. When true, the overlay must NOT request exclusive keyboard focus:
-// on wlroots compositors (niri, Sway, …) a layer-surface keyboard grab
+// compositor. When true, the overlay must NOT request exclusive keyboard focus.
+// On wlroots compositors (niri, Sway, …) a layer-surface keyboard grab
 // deactivates the focused app's toplevel, which makes a hints refresh re-read
 // the wrong "focused window" and tear the overlay down.
 var waylandEvdevKeyboardActive atomic.Bool
@@ -82,7 +82,7 @@ const waylandEvdevDeviceNameSize = 256
 // neruInjectionDevicePrefix identifies Neru's own synthetic uinput devices
 // (the proxy keyboard and pointer, "neru-keyboard" from key feeding,
 // "neru-scroll").
-// Capture must never grab these: grabbing the proxy would loop every key back
+// Capture must never grab these. Grabbing the proxy would loop every key back
 // into the reader, and grabbing the feed keyboard would swallow fed keys before
 // they reach the focused app.
 const neruInjectionDevicePrefix = "neru-"
@@ -121,7 +121,7 @@ func newWaylandEvdevKeyState() waylandEvdevKeyState {
 type modifierTransition int
 
 const (
-	// modifierHeld is a press: the modifier is now down. A press for a key
+	// modifierHeld is a press. The modifier is now down. A press for a key
 	// already tracked as down is the kernel repeating itself and still answers
 	// this, having counted nothing twice.
 	modifierHeld modifierTransition = iota
@@ -129,7 +129,7 @@ const (
 	modifierDropped
 	// modifierReleaseUnmatched is a release with no press behind it, so nothing
 	// was counted and nothing was decremented. The proxy's own picture sees one
-	// only for a key held before the daemon started; a mode session sees one
+	// only for a key held before the daemon started. A mode session sees one
 	// for every key held before the mode did, which is the ordinary way a mode
 	// starts under its activation chord.
 	modifierReleaseUnmatched
@@ -140,7 +140,7 @@ const (
 //
 // The refcount is per modifier *name*, not per key, so the two Shift keys held
 // together count twice and releasing one leaves the modifier down. A press for a
-// code already down is not counted again: the kernel repeats a held key, and
+// code already down is not counted again. The kernel repeats a held key, and
 // counting each repeat would leave the modifier held after the single release
 // that follows.
 func (state *waylandEvdevKeyState) trackModifier(

@@ -11,13 +11,13 @@ import (
 // Persistence for a portal session's restore token.
 //
 // The token is what turns KDE's consent prompt from a per-start interruption
-// into a one-time grant: the portal hands one back when a session is started
+// into a one-time grant. The portal hands one back when a session is started
 // with persist_mode set, and a later session that presents it is restored
 // without asking the user again.
 //
 // There are two of them, one per grant, because there are two consents. The
-// RemoteDesktop token replays permission to move the pointer and press keys;
-// the ScreenCast token replays permission to read the screen. Storing them in
+// RemoteDesktop token replays permission to move the pointer and press keys,
+// and the ScreenCast token replays permission to read the screen. Storing them in
 // one file would mean a user who revokes one silently losing the other, and
 // would tie two dialogs together that KDE deliberately asks separately.
 //
@@ -34,7 +34,7 @@ const (
 	restoreTokenDirMode os.FileMode = 0o700
 	// remoteDesktopTokenFileName holds the input grant's token, and
 	// screenCastTokenFileName the capture grant's, inside Neru's state
-	// directory. XDG_STATE_HOME is the right base: a token is state that should
+	// directory. XDG_STATE_HOME is the right base. A token is state that should
 	// survive a restart, is specific to this machine's portal, and is neither
 	// configuration the user edits nor data worth carrying to another host.
 	remoteDesktopTokenFileName = "remote-desktop.token"
@@ -42,12 +42,13 @@ const (
 )
 
 // restoreTokenStore holds the portal grant's restore token across daemon
-// restarts. It is an interface so the establish policy — restore, and prompt
-// once when the stored token is refused — is testable without a filesystem.
+// restarts. It is an interface so the establish policy, which restores and
+// prompts once when the stored token is refused, is testable without a
+// filesystem.
 type restoreTokenStore interface {
 	// load returns the stored token, or "" when none is stored or it cannot be
 	// read. An unreadable token is indistinguishable from an absent one to the
-	// caller by design: both mean "ask the portal to prompt".
+	// caller by design. Both mean "ask the portal to prompt".
 	load() string
 	// save replaces the stored token.
 	save(token string) error
@@ -66,7 +67,7 @@ var _ restoreTokenStore = (*fileRestoreTokenStore)(nil)
 
 // newFileRestoreTokenStore resolves fileName's path from the XDG base
 // directories, honoring XDG_STATE_HOME exactly as LogDir does. It creates
-// nothing: the directory is made on the first save, so a session that never
+// nothing. The directory is made on the first save, so a session that never
 // reaches the portal leaves no trace.
 func newFileRestoreTokenStore(fileName string) (*fileRestoreTokenStore, error) {
 	base, err := xdgDir("XDG_STATE_HOME", ".local", "state")
@@ -93,9 +94,9 @@ func (s *fileRestoreTokenStore) load() string {
 // save writes the token owner-readable only.
 //
 // It writes a fresh temporary file and renames it over the target rather than
-// truncating in place, for two reasons: the new file carries this package's
+// truncating in place, for two reasons. The new file carries this package's
 // mode regardless of what the old one had, so a token left loose by an earlier
-// version or by a user's editor is tightened rather than inherited; and a
+// version or by a user's editor is tightened rather than inherited. And a
 // crash mid-write leaves the previous token intact instead of a truncated one
 // the portal would refuse.
 func (s *fileRestoreTokenStore) save(token string) error {

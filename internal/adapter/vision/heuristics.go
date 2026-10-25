@@ -19,11 +19,11 @@ type DetectedRegion struct {
 
 // regionClassifier applies geometric and saliency heuristics to assign
 // roles to detected regions. It is the first-pass classifier used on all
-// platforms; a Core ML model can be swapped in later for improved accuracy.
+// platforms. A Core ML model can be swapped in later for better accuracy.
 //
-// roles is the native role vocabulary it answers in — see classifier_roles.go
+// roles is the native role vocabulary it answers in. See classifier_roles.go
 // for why the answer is native rather than semantic. Build one with
-// newRegionClassifier rather than by literal: a zero roles field would emit
+// newRegionClassifier rather than by literal. A zero roles field would emit
 // empty role names, which match nothing and hint nothing.
 type regionClassifier struct {
 	cfg   config.HintsVisionConfig
@@ -169,7 +169,6 @@ func MergeRegions(regions []DetectedRegion, iouThreshold float64) []DetectedRegi
 		iouThreshold = 0.5
 	}
 
-	// Sort by score descending
 	sorted := make([]DetectedRegion, len(regions))
 	copy(sorted, regions)
 	sortRegionsByScore(sorted)

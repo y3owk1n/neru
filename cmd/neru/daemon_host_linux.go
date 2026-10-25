@@ -88,8 +88,8 @@ func (linuxDaemonHost) Run(application *app.App) error {
 	}()
 
 	// The systray event loop is the daemon's main loop. With a systray
-	// component the tray icon + menu are exported over D-Bus (SNI); without one
-	// RunHeadless keeps the process alive until Quit. Either way this blocks
+	// component the tray icon and menu are exported over D-Bus (SNI). Without
+	// one, RunHeadless keeps the process alive until Quit. Either way this blocks
 	// until systray.Quit() fires (Quit menu item, app.Run error, or signal).
 	systrayComponent := application.GetSystrayComponent()
 	if systrayComponent != nil {

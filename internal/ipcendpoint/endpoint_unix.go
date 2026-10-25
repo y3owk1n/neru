@@ -23,7 +23,7 @@ import (
 // itself is 0600, and the directory around it is 0700 and owned by the daemon's
 // user, so the socket's own mode is never the only thing between another local
 // account and the daemon. It also means the name cannot be taken first by
-// somebody else — a squatted endpoint would otherwise stop the daemon binding
+// somebody else. A squatted endpoint would otherwise stop the daemon binding
 // at all, and `/tmp` is world-writable wherever `$TMPDIR` is unset.
 const (
 	// SocketName is the name of the socket file inside the endpoint directory.
@@ -45,8 +45,8 @@ const (
 	endpointDirPrefix = "neru-"
 
 	// runtimeDirRoot is where a Linux login session's runtime directory lives.
-	// It is probed only when $XDG_RUNTIME_DIR is absent; see endpointDirs.
-	// Nothing here is darwin-only or linux-only by construction: macOS has no
+	// It is probed only when $XDG_RUNTIME_DIR is absent (see endpointDirs).
+	// Nothing here is darwin-only or linux-only by construction. macOS has no
 	// such directory, so the probe finds nothing and costs one Lstat, and it
 	// honors $XDG_RUNTIME_DIR if a macOS user has exported one.
 	runtimeDirRoot = "/run/user"
@@ -57,7 +57,7 @@ const (
 )
 
 // endpointDirs returns the directories the endpoint may live in, most
-// preferred first. The daemon binds in the first; the CLI searches the list.
+// preferred first. The daemon binds in the first, and the CLI searches the list.
 //
 // $XDG_RUNTIME_DIR is the right home where a session provides one: private to
 // one user, and cleaned up at logout. It is an environment variable, though,
@@ -88,7 +88,7 @@ func sessionRuntimeDir(uid int) string {
 	}
 
 	// Only reached when the variable is absent, which is the whole reason to
-	// look here: where it is set at all, it already names this path.
+	// look here. Where it is set at all, it already names this path.
 	sessionDir := filepath.Join(runtimeDirRoot, strconv.Itoa(uid))
 	if verifyOwnedDir(sessionDir) != nil {
 		return ""
@@ -110,7 +110,7 @@ func DaemonPath() string {
 // no endpoint exists in the current location. That is enough for an upgraded
 // CLI to reach a daemon started by the older binary, so the version handshake
 // can tell the user to restart it instead of the CLI reporting that nothing is
-// running — and it cannot be abused, because another account can neither create
+// running. It cannot be abused, because another account can neither create
 // a file owned by this user nor unlink one from a sticky directory. Drop it
 // once daemons predating the move are no longer a realistic thing to meet.
 func legacyEndpointPath() string {
@@ -229,7 +229,7 @@ func Listen(ctx context.Context, path string) (net.Listener, error) {
 
 	// bind() applies the process umask, so the socket is briefly whatever that
 	// leaves. The 0700 directory it was created in is what makes that window
-	// harmless; this narrows the file itself to its owner regardless.
+	// harmless. This narrows the file itself to its owner regardless.
 	chmodErr := os.Chmod(path, socketPerms)
 	if chmodErr != nil {
 		_ = listener.Close()
@@ -261,8 +261,8 @@ func Cleanup(path string) error {
 }
 
 // inspectOwnedDir returns dir's own metadata once it is known to be a real
-// directory belonging to this user. A symlink is rejected outright: following
-// one would put the endpoint wherever whoever planted it decided.
+// directory belonging to this user. A symlink is rejected outright, because
+// following one would put the endpoint wherever whoever planted it decided.
 func inspectOwnedDir(dir string) (fs.FileInfo, error) {
 	info, lstatErr := os.Lstat(dir)
 	if lstatErr != nil {
@@ -298,7 +298,7 @@ func verifyOwnedDir(dir string) error {
 }
 
 // verifyPrivateDir additionally requires that nobody else can enter it. The
-// daemon repairs the mode of the directory it owns; a client uses this to
+// daemon repairs the mode of the directory it owns, and a client uses this to
 // decide whether the endpoint inside is one it should trust.
 func verifyPrivateDir(dir string) error {
 	info, err := inspectOwnedDir(dir)
@@ -318,7 +318,7 @@ func verifyPrivateDir(dir string) error {
 }
 
 // verifyOwnedSocket reports whether path is a socket belonging to this user.
-// A missing path is reported as such: the error wraps fs.ErrNotExist, which is
+// A missing path is reported as such. The error wraps fs.ErrNotExist, which is
 // the one failure the daemon reads as "nothing in the way" rather than as a
 // refusal.
 func verifyOwnedSocket(path string) error {

@@ -13,25 +13,25 @@ func (a *App) EnableEventTap() { a.enableEventTap() }
 func (a *App) DisableEventTap() { a.disableEventTap() }
 
 func (a *App) enableEventTap() {
-	if a.eventTap != nil {
-		err := a.eventTap.Enable(a.ctx)
-		if err != nil {
-			if a.logger != nil {
-				a.logger.Error("Failed to enable event tap", zap.Error(err))
-			}
-		}
+	if a.eventTap == nil {
+		return
+	}
+
+	err := a.eventTap.Enable(a.ctx)
+	if err != nil && a.logger != nil {
+		a.logger.Error("Failed to enable event tap", zap.Error(err))
 	}
 }
 
 func (a *App) disableEventTap() {
-	if a.eventTap != nil {
-		// Use Background context since this may be called during cleanup,
-		// after a.ctx has already been canceled.
-		err := a.eventTap.Disable(context.Background())
-		if err != nil {
-			if a.logger != nil {
-				a.logger.Error("Failed to disable event tap", zap.Error(err))
-			}
-		}
+	if a.eventTap == nil {
+		return
+	}
+
+	// Use Background context since this may be called during cleanup,
+	// after a.ctx has already been canceled.
+	err := a.eventTap.Disable(context.Background())
+	if err != nil && a.logger != nil {
+		a.logger.Error("Failed to disable event tap", zap.Error(err))
 	}
 }

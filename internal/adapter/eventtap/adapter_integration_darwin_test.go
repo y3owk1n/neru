@@ -26,8 +26,8 @@ func TestMain(m *testing.M) {
 }
 
 // requireDesktop skips unless this run opted into tests that drive the real
-// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable;
-// plain `just test` stays hands-off the machine.
+// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable,
+// and plain `just test` leaves the machine alone.
 func requireDesktop(t *testing.T) {
 	t.Helper()
 
@@ -37,7 +37,7 @@ func requireDesktop(t *testing.T) {
 }
 
 // TestEventTapAdapterIntegration tests the event tap adapter.
-// Note: This test requires accessibility permissions and might fail in headless CI.
+// It needs accessibility permissions and can fail in headless CI.
 func TestEventTapAdapterIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -47,7 +47,6 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 
 	logger := logger.Get()
 
-	// Create infra event tap
 	tap := eventtap.NewEventTap(func(_ string) {}, logger)
 	if tap == nil {
 		t.Skip("Skipping EventTap test: failed to create event tap (missing permissions?)")
@@ -58,31 +57,27 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Enable and Disable", func(t *testing.T) {
-		// Enable
 		enableErr := adapter.Enable(ctx)
 		if enableErr != nil {
 			t.Errorf("Enable() error = %v, want nil", enableErr)
 		}
 
-		// Verify enabled
 		if !adapter.IsEnabled() {
 			t.Error("IsEnabled() = false, want true")
 		}
 
-		// Disable
 		disableErr := adapter.Disable(ctx)
 		if disableErr != nil {
 			t.Errorf("Disable() error = %v, want nil", disableErr)
 		}
 
-		// Verify disabled
 		if adapter.IsEnabled() {
 			t.Error("IsEnabled() = true, want false")
 		}
 	})
 
 	t.Run("SetHandler is inert and leaves the tap usable", func(t *testing.T) {
-		// On darwin the key handler is fixed when NewEventTap is called;
+		// On darwin the key handler is fixed when NewEventTap is called.
 		// Adapter.SetHandler is a deliberate no-op that only warns. Pin both
 		// halves of that contract: the replacement handler never runs, and
 		// calling it does not disturb the tap's enable state.
@@ -145,7 +140,7 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("Destroy", func(t *testing.T) {
-		// Create a new adapter for this test to avoid interfering with other tests
+		// Destroying a separate tap leaves the shared adapter alone.
 		testTap := eventtap.NewEventTap(func(_ string) {}, logger)
 		if testTap == nil {
 			t.Skip("Skipping Destroy test: failed to create event tap")
@@ -153,10 +148,9 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 
 		testAdapter := eventtap.NewAdapter(testTap, logger)
 
-		// Enable first
 		_ = testAdapter.Enable(ctx)
 
-		// Then destroy - should not panic
+		// Destroy must not panic.
 		testAdapter.Destroy()
 	})
 }

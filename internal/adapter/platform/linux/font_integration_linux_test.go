@@ -17,7 +17,7 @@ const missingFamily = "Neru No Such Font Family 4f2a"
 
 func TestFontconfigResolver_Resolve_GenericAliasesGiveAnInstalledFamily(t *testing.T) {
 	// Which spellings count as generic is pinned by the shared parser
-	// (platform/fontgeneric); what matters here is that each one resolves to a
+	// (platform/fontgeneric). What matters here is that each one resolves to a
 	// family this machine has.
 	aliases := []string{
 		"", "sans", "Sans Serif", "sans-serif", "sans_serif",
@@ -53,7 +53,7 @@ func TestFontconfigResolver_Resolve_InstalledFamilyComesBackAsWritten(t *testing
 	family := aFamilyWorthRespelling(t, installed)
 	resolver := NewFontResolver()
 
-	// The respellings are the cases that separate the two rules: fontconfig
+	// The respellings are the cases that separate the two rules. Fontconfig
 	// matches them all (its family comparison ignores case and blanks) and
 	// reports the family's own capitalisation, where the port promises back the
 	// name the caller wrote.
@@ -81,7 +81,7 @@ func TestFontconfigResolver_Resolve_MissingFamilyFallsBackToTheResolvedGeneric(t
 
 	// Names a stock fontconfig carries a substitution rule for. On a machine
 	// that has none of them they are the sharp version of the missing-family
-	// case: fontconfig answers each with a different family's name, so
+	// case. Fontconfig answers each with a different family's name, so
 	// reporting what fontconfig matched and falling back to the generic are
 	// visibly different answers.
 	substituted := []string{"Helvetica", "Arial", "Times New Roman", "Courier New"}
@@ -135,7 +135,7 @@ func theResolvedGeneric(t *testing.T, installed []string, resolver ports.FontRes
 }
 
 // installedFamilies asks fontconfig which families this machine has, through
-// fc-list rather than through the resolver: every case here needs to know what
+// fc-list rather than through the resolver. Every case here needs to know what
 // is installed, and the code under test cannot be the one to say. Skips when
 // fontconfig has nothing to report, which is a machine the cases cannot run on
 // rather than a failure.
@@ -158,7 +158,7 @@ func installedFamilies(t *testing.T) []string {
 
 	for line := range strings.SplitSeq(string(listed), "\n") {
 		// A font carrying several family names is printed as one
-		// comma-separated line; each of them is installed.
+		// comma-separated line, and each of them is installed.
 		for family := range strings.SplitSeq(line, ",") {
 			if trimmed := strings.TrimSpace(family); trimmed != "" {
 				families = append(families, trimmed)
@@ -174,7 +174,7 @@ func installedFamilies(t *testing.T) []string {
 }
 
 // aFamilyWorthRespelling returns an installed family that can be asked for in a
-// spelling other than its own — one with capitals to lower and a space to
+// spelling other than its own, one with capitals to lower and a space to
 // remove, so the respellings are different strings from the name fontconfig
 // holds.
 func aFamilyWorthRespelling(t *testing.T, installed []string) string {

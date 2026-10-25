@@ -26,8 +26,9 @@ func (c FeatureCapability) Supported() bool {
 // CapabilityKey is the stable wire identifier for one platform capability.
 //
 // These keys are what `neru doctor` prints and what the IPC info response
-// serializes, so they are part of the external contract: renaming one breaks
-// every consumer that parses the output. Add keys freely; rename them never.
+// serializes, so they are part of the external contract. Renaming one breaks
+// every consumer that parses the output. Adding a key is safe, but never
+// rename one.
 type CapabilityKey string
 
 // Capability keys, in the canonical order Entries reports them.
@@ -66,7 +67,7 @@ const (
 
 // PlatformCapabilities describes the current platform support surface.
 //
-// Every FeatureCapability field must also be listed in Entries — the registry
+// Every FeatureCapability field must also be listed in Entries. The registry
 // is what `neru doctor` and the IPC info response iterate, and
 // TestPlatformCapabilities_EntriesCoverEveryField fails if a field is added
 // without registering it.

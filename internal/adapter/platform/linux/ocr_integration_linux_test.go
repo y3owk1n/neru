@@ -12,11 +12,11 @@ import (
 )
 
 // These are the only tests that run tesseract. Everything else about the OCR
-// backend — where the language data lives, which failures a caller should stop
-// retrying, how a word's box lands on the screen — is decided in Go and tested
-// without an engine; whether the bridge actually reads text cannot be.
+// backend is decided in Go and tested without an engine: where the language
+// data lives, which failures a caller should stop retrying, and how a word's
+// box lands on the screen. Whether the bridge actually reads text cannot be.
 //
-// They need no display server, unlike the capture tests beside them: the
+// They need no display server, unlike the capture tests beside them. The
 // pixels come from a buffer this file draws. What they need is the language
 // data, which docs/guide/linux.md makes a required install.
 //
@@ -40,7 +40,7 @@ func requireEngine(t *testing.T) {
 }
 
 // TestRecognizeText_ReadsRenderedText is the end-to-end claim the vision hint
-// strategy rests on: given pixels, the bridge returns the text in them and
+// strategy rests on. Given pixels, the bridge returns the text in them and
 // where it is.
 //
 // The glyphs are drawn here rather than loaded from a font, so the test needs
@@ -85,7 +85,7 @@ func TestRecognizeText_ReadsRenderedText(t *testing.T) {
 	}
 
 	if !found {
-		// Naming the text here is not a privacy question: it is a literal a few
+		// Naming the text here is not a privacy question. It is a literal a few
 		// lines up, drawn by this test, rather than anything off a screen.
 		for _, got := range words {
 			t.Logf("recognized %q at %v (confidence %.2f)", got.Text, got.Bounds, got.Confidence)
@@ -98,11 +98,11 @@ func TestRecognizeText_ReadsRenderedText(t *testing.T) {
 // nearlyEqual accepts one substituted character.
 //
 // The word is drawn in the crude 5x7 font below rather than a real typeface, so
-// a glyph or two sits close to another letter's shape — tesseract reads this
+// a glyph or two sits close to another letter's shape. Tesseract reads this
 // font's O as a U, and which characters it confuses would change with the
 // engine version and the language pack anyway. Demanding an exact string would
-// make the test a report on tesseract's release notes; one substitution still
-// only passes if recognition genuinely worked.
+// make the test a report on tesseract's release notes. One substitution still
+// only passes if recognition worked.
 func nearlyEqual(got, want string) bool {
 	if len(got) != len(want) {
 		return false
@@ -154,7 +154,7 @@ func TestRecognizeText_RefusesADegenerateImage(t *testing.T) {
 //
 // The handle is created once and reused, so every recognition after the first
 // must find it warm and free of the previous frame rather than in whatever
-// state that call left it. The frames differ in size on purpose: a reuse bug
+// state that call left it. The frames differ in size on purpose. A reuse bug
 // that only shows when the image geometry changes would pass a loop over one
 // buffer. The health probe runs between them because the adapter runs it before
 // every detection, and it takes the same lock and the same handle.
@@ -189,9 +189,9 @@ func TestRecognizeText_SurvivesRepeatedUse(t *testing.T) {
 // a sevenfold regression.
 //
 // The engine is reused across activations, so anything it accumulates is paid
-// for by every later frame. Clearing the adaptive classifier between frames —
-// which reads like the correct hygiene, since it holds shapes learned from the
-// frame just read — also resets the document dictionary, and reinitializing
+// for by every later frame. Clearing the adaptive classifier between frames,
+// which reads like the correct hygiene since it holds shapes learned from the
+// frame just read, also resets the document dictionary, and reinitializing
 // that took recognition of this frame from 0.5s to 3.5s. The opposite mistake,
 // letting real state grow unboundedly, would show here as the same shape.
 //
@@ -273,7 +273,7 @@ func scaledWidth(text string, scale int) int {
 }
 
 // blockGlyphs is a 5x7 bitmap font covering exactly the letters these tests
-// draw. It exists so the tests carry their own text rendering: adding a font
+// draw. It exists so the tests carry their own text rendering. Adding a font
 // rasterizer as a dependency to draw five letters would be a heavier price than
 // the test is worth.
 const (

@@ -16,7 +16,7 @@ import (
 // this backend's failures could mislead. captureError's vocabulary was written
 // for a compositor Neru talks to directly, so its "no display server" and "does
 // not implement wlr-screencopy-unstable-v1" sentences would send a KDE user to
-// look at KWin for a failure that belongs to the portal or to PipeWire — and
+// look at KWin for a failure that belongs to the portal or to PipeWire, and
 // they would contradict the capability matrix, which now reports KDE capture as
 // working.
 func TestPipewireCaptureError_DoesNotBorrowTheWlrootsSentences(t *testing.T) {
@@ -60,8 +60,8 @@ func TestPipewireCaptureError_DoesNotBorrowTheWlrootsSentences(t *testing.T) {
 	}
 }
 
-// TestPipewireCaptureError_NamesKDEForTheSharedFailures pins the other half:
-// everything a capture can fail with that means the same thing on all three
+// TestPipewireCaptureError_NamesKDEForTheSharedFailures pins the other half.
+// Everything a capture can fail with that means the same thing on all three
 // backends keeps the shared sentence, and says which display server it is
 // about.
 func TestPipewireCaptureError_NamesKDEForTheSharedFailures(t *testing.T) {
@@ -83,9 +83,9 @@ func TestPipewireCaptureError_NamesKDEForTheSharedFailures(t *testing.T) {
 // TestPipewireCaptureError_TreatsEveryPipewireFailureAsRetriable is the code
 // half of the same point. captureError reports "no display server", "no
 // protocol" and "unreadable pixel format" as CodeNotSupported, which makes
-// callers degrade permanently — right for a compositor that will never
-// implement a protocol, wrong here, where all three describe one frame or one
-// connection on a stack that granted the session a moment ago.
+// callers degrade permanently. That is right for a compositor that will never
+// implement a protocol and wrong here, where all three describe one frame or
+// one connection on a stack that granted the session a moment ago.
 func TestPipewireCaptureError_TreatsEveryPipewireFailureAsRetriable(t *testing.T) {
 	for _, status := range []captureStatus{
 		captureStatusNoDisplay,
@@ -106,7 +106,7 @@ func TestPipewireCaptureError_TreatsEveryPipewireFailureAsRetriable(t *testing.T
 // TestKdeCaptureRegion_RefusesBeforeAskingThePortalWithNoStoredGrant is the
 // contract that keeps a consent dialog off the capture path. A hint refresh
 // runs while the user is waiting for hints, and the mode handler holds its lock
-// across it; a portal prompt there is both a several-second stall and a
+// across it. A portal prompt there is both a several-second stall and a
 // question asked at the worst possible moment. With nothing stored to restore
 // there is nothing this path may do but refuse and name the consent it needs.
 func TestKdeCaptureRegion_RefusesBeforeAskingThePortalWithNoStoredGrant(t *testing.T) {
@@ -129,7 +129,7 @@ func TestKdeCaptureRegion_RefusesBeforeAskingThePortalWithNoStoredGrant(t *testi
 // TestSystemAdapter_CheckScreenCapturePermission_IsHonestPerBackend pins the
 // half of this change that is not about pixels at all. X11 and the wlroots
 // family have no screen-recording gate, and reporting one would have callers
-// prompt forever for a consent that is already granted; KDE reads the screen
+// prompt forever for a consent that is already granted. KDE reads the screen
 // through a portal session that is exactly such a gate, and reporting it open
 // unconditionally is what made the preflight useless on the one Linux backend
 // that has a permission.
@@ -185,7 +185,7 @@ func TestSystemAdapter_RequestScreenCapturePermission_GrantsWhereThereIsNoGate(t
 
 // TestRequestScreenCastConsent_ReportsCanceledOnACanceledContext pins that the
 // caller's cancelation reaches the handshake. The mode handler hands this
-// h.ctx, which carries no deadline and is canceled at shutdown; a handshake
+// h.ctx, which carries no deadline and is canceled at shutdown. A handshake
 // built from context.Background() would keep KDE's picker up, and this mutex
 // held, for the full two minutes a human was given to answer it.
 func TestRequestScreenCastConsent_ReportsCanceledOnACanceledContext(t *testing.T) {
@@ -203,11 +203,11 @@ func TestRequestScreenCastConsent_ReportsCanceledOnACanceledContext(t *testing.T
 // TestScreenCastConsentHeld_AnswersWhileTheSessionMutexIsHeld is the
 // concurrency regression, and it is a port-contract one rather than a
 // performance one. ports.SystemPort requires a Granted consent to be followed
-// by a true permission check; the handler enforces that at
+// by a true permission check. The handler enforces that at
 // resumeHintActivationAfterPermission and drops the activation when it fails.
 // An implementation that took the session mutex here would answer false for as
-// long as any other goroutine held it — including the moment right after the
-// consent was granted — and throw away the activation the user had just
+// long as any other goroutine held it, including the moment right after the
+// consent was granted, and throw away the activation the user had just
 // approved. It runs under the mode handler's lock too, so it must not block at
 // all.
 func TestScreenCastConsentHeld_AnswersWhileTheSessionMutexIsHeld(t *testing.T) {

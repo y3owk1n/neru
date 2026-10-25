@@ -15,21 +15,22 @@ import (
 // relativeCursorAnimator animates relative cursor moves on backends whose
 // only trustworthy motion primitive is a native delta (Wayland wlroots, where
 // there is no authoritative cursor query and read-then-warp would compound
-// the client cache error). It never reads a position: the remaining delta is
+// the client cache error). It never reads a position. The remaining delta is
 // drained in integer chunks that sum exactly to the requested total, each
 // posted as one native relative motion.
 //
 // A delta arriving while a drain is in flight is added to the remaining
 // total and the drain schedule restarts, so held-key repeat composes
-// losslessly — the wlroots twin of the absolute animator's pending-endpoint
-// extension. Completion is per session, mirroring smoothCursorAnimator, so
-// WaitForCursorIdle tracks the latest delta rather than an intermediate one.
+// losslessly. This is the wlroots twin of the absolute animator's
+// pending-endpoint extension. Completion is per session, mirroring
+// smoothCursorAnimator, so WaitForCursorIdle tracks the latest delta rather
+// than an intermediate one.
 //
-// Failure bound: animation reports success before motion completes (inherent
-// to any animated move; the absolute animator behaves the same), so when a
-// native injection fails mid-drain, at most the remainder of that one
-// gesture is lost — deliberately not stored and replayed later, which would
-// jump the cursor by stale motion after recovery. The failure is flagged on
+// Failure bound: animation reports success before motion completes, as any
+// animated move does and as the absolute animator does, so when a native
+// injection fails mid-drain, at most the remainder of that one gesture is
+// lost. It is deliberately not stored and replayed later, which would jump
+// the cursor by stale motion after recovery. The failure is flagged on
 // the first failed chunk and every subsequent move stays on the loud direct
 // path until a success proves the backend recovered.
 type relativeCursorAnimator struct {
@@ -44,13 +45,13 @@ type relativeCursorAnimator struct {
 	done      *cursorAnimationDone // session completion; nil until the first session
 
 	// injectionFailed is set when a native motion errors. The drain cannot
-	// return that error to anyone — the move call already reported handled —
-	// so the caller consumes this flag (takeInjectionFailure) and routes the
-	// next move through the direct native path, which fails loudly.
+	// return that error to anyone, because the move call already reported
+	// handled. The caller consumes this flag (takeInjectionFailure) and routes
+	// the next move through the direct native path, which fails loudly.
 	injectionFailed bool
 
 	// injectSem serializes backend injection and is the ordering handoff to
-	// stop()/settle(), exactly as in smoothCursorAnimator: the worker holds it
+	// stop()/settle(), exactly as in smoothCursorAnimator. The worker holds it
 	// across each chunk and re-checks stopCh under it, so once a canceler
 	// acquires the token no canceled chunk is mid-flight and none will start.
 	injectSem chan struct{}
@@ -64,9 +65,10 @@ func newRelativeCursorAnimator(moveBy func(image.Point) error) *relativeCursorAn
 }
 
 // addDelta folds delta into the drain in flight (starting one when idle) and
-// restarts the schedule: the combined remainder drains over durationMs in at
+// restarts the schedule. The combined remainder drains over durationMs in at
 // most steps chunks. Chunks are integer subdivisions, so the posted motions
-// always sum exactly to the accumulated deltas — nothing is lost to rounding.
+// always sum exactly to the accumulated deltas, and nothing is lost to
+// rounding.
 func (a *relativeCursorAnimator) addDelta(delta image.Point, steps, durationMs int) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -138,8 +140,8 @@ func (a *relativeCursorAnimator) run(stopCh chan struct{}) {
 // nextChunk carves the next integer chunk off the remaining delta under a.mu.
 // It reports ok == false when this worker has been superseded (stopCh
 // identity, as in smoothCursorAnimator.finishOrNext) or when the drain is
-// complete, in which case it ends the session — keeping a.done referencing
-// the closed completion so a late WaitForCursorIdle still sees "idle".
+// complete, in which case it ends the session. a.done keeps referencing the
+// closed completion so a late WaitForCursorIdle still sees "idle".
 func (a *relativeCursorAnimator) nextChunk(
 	stopCh chan struct{},
 ) (image.Point, time.Duration, bool) {
@@ -185,14 +187,12 @@ func (a *relativeCursorAnimator) nextChunk(
 //
 // The chunk is deducted from the remaining delta only after it is posted, and
 // re-clamped against remaining at post time. Together these keep the drain's
-// core invariant — posted + remaining == accumulated deltas — through every
-// cancellation interleaving: a chunk canceled between selection and injection
-// was never deducted, so settle() flushes it; a chunk selected by a new
+// core invariant, that posted + remaining equals the accumulated deltas,
+// through every cancellation interleaving. A chunk canceled between selection
+// and injection was never deducted, so settle() flushes it. A chunk selected by a new
 // session while settle() was zeroing remaining clamps to zero and is skipped
 // rather than double-posted. Taking mu while holding injectSem is safe
-// because no caller acquires injectSem while holding mu. Best-effort like the
-// absolute animator's stepMove: a failed backend motion still counts as
-// posted.
+// because no caller acquires injectSem while holding mu.
 func (a *relativeCursorAnimator) stepChunk(chunk image.Point, stopCh <-chan struct{}) bool {
 	a.injectSem <- struct{}{}
 	defer func() { <-a.injectSem }()
@@ -218,9 +218,9 @@ func (a *relativeCursorAnimator) stepChunk(chunk image.Point, stopCh <-chan stru
 	if err != nil {
 		// A failed chunk is NOT counted as posted. The backend is broken
 		// (client disconnected, virtual pointer lost), so retrying would
-		// livelock the drain: end it instead, discard the rest of the gesture,
+		// livelock the drain. End it instead, discard the rest of the gesture,
 		// and flag the failure so the caller's next move takes the direct
-		// native path — which surfaces the backend error loudly.
+		// native path, which surfaces the backend error loudly.
 		a.mu.Lock()
 		a.remaining = image.Point{}
 		a.injectionFailed = true
@@ -249,7 +249,7 @@ func (a *relativeCursorAnimator) injectionFailurePending() bool {
 }
 
 // clearInjectionFailure re-arms animation. Callers invoke it only after a
-// direct native motion succeeded — the proof the backend recovered.
+// direct native motion succeeded, which proves the backend recovered.
 func (a *relativeCursorAnimator) clearInjectionFailure() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -258,7 +258,7 @@ func (a *relativeCursorAnimator) clearInjectionFailure() {
 }
 
 // clampTowardZero limits step to the portion of remaining that shares its
-// sign, so a posted chunk can never exceed what is still owed on that axis —
+// sign, so a posted chunk can never exceed what is still owed on that axis,
 // including after opposite-sign deltas shrank or flipped the remainder.
 func clampTowardZero(step, remaining int) int {
 	if remaining >= 0 {
@@ -268,12 +268,12 @@ func clampTowardZero(step, remaining int) int {
 	return max(min(step, 0), remaining)
 }
 
-// settle finishes the drain in flight immediately: the worker is canceled and
+// settle finishes the drain in flight immediately. The worker is canceled and
 // the entire remaining delta is posted as one native relative motion, so an
 // action firing mid-drain acts where the user aimed.
 //
-// The remainder is read only after acquiring injectSem: a chunk mid-injection
-// finishes — including its deduction — before the read, and a chunk that had
+// The remainder is read only after acquiring injectSem. A chunk mid-injection
+// finishes, including its deduction, before the read, and a chunk that had
 // been selected but not yet injected sees the closed stopCh, stays in
 // remaining, and is flushed here. Either way every accumulated delta is
 // posted exactly once.
@@ -301,7 +301,7 @@ func (a *relativeCursorAnimator) settle() {
 }
 
 // stop cancels the drain in flight and discards the remaining delta. It is
-// called on paths where an absolute move supersedes the pending deltas — the
+// called on paths where an absolute move supersedes the pending deltas. The
 // cursor is about to be placed somewhere explicit, so flushing would fight
 // the warp. Like settle it zeroes the remainder only after the injectSem
 // fence, so an in-flight chunk's deduction cannot drive remaining negative.

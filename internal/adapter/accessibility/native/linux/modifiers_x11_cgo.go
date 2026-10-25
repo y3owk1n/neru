@@ -18,7 +18,7 @@ import (
 //
 // Both sides of the keyboard are here because either of them presents the
 // modifier, so suppressing one and leaving the other down suppresses nothing.
-// Meta comes last: on most layouts XKeysymToKeycode answers it with a keycode
+// Meta comes last. On most layouts XKeysymToKeycode answers it with a keycode
 // another entry already claimed, and the plan reads a keycode once, under the
 // first modifier that named it.
 var x11ModifierKeysyms = []struct {
@@ -51,28 +51,28 @@ type x11ModifierHold struct {
 //
 // An X11 button event carries the server's live modifier state rather than a
 // set the caller chooses, so a modifier the user is physically holding rides
-// along on every injected event — a plain scroll_down bound to Ctrl+J arrives
+// along on every injected event. A plain scroll_down bound to Ctrl+J arrives
 // as ctrl+scroll, which most applications read as zoom. macOS has
-// CGEventSetFlags for this; here the only way to present a set is to make the
+// CGEventSetFlags for this. Here the only way to present a set is to make the
 // keyboard actually hold it.
 //
-// The caller must release the hold on every path, including failure: a
+// The caller must release the hold on every path, including failure. A
 // modifier left released while the user is still holding it drops that modifier
 // from everything they do next.
 //
-// A requested modifier the live keymap has no key for — a layout with no Super
-// key, asked for cmd — is presented by nothing and reported by nothing, which
-// is what pressing an unresolvable keysym already did before the hold existed.
+// A requested modifier the live keymap has no key for, such as cmd on a layout
+// with no Super key, is presented by nothing and reported by nothing, which is
+// what pressing an unresolvable keysym already did before the hold existed.
 // The refusal the scroll path does make in that shape is the one
 // scroll_modifier_stub_contract_test.go pins: a backend that cannot present a
 // modifier at all.
 //
 // Two costs are accepted deliberately. Reading the keymap is a round trip to
-// the server — one per injection, and a second at release only when something
-// was actually suppressed — paid on the dispatch goroutine that runs the
-// action rather than on the one holding the keyboard grab. And the suppression
-// is real X key events: while a mode is active the tap's XGrabKeyboard is what
-// they are delivered to, but an action fired with no grab in place presents
+// the server, paid on the dispatch goroutine that runs the action rather than
+// on the one holding the keyboard grab. There is one per injection, and a
+// second at release only when something was actually suppressed. And the
+// suppression is real X key events. While a mode is active the tap's
+// XGrabKeyboard is what they are delivered to, but an action fired with no grab in place presents
 // them to the focused window like any other key.
 func x11HoldModifiers(display *C.Display, modifiers action.Modifiers) x11ModifierHold {
 	hold := x11ModifierHold{
@@ -98,12 +98,12 @@ func x11HoldModifiers(display *C.Display, modifiers action.Modifiers) x11Modifie
 // injects rather than after, because the announcement's only reader is a
 // keyboard grab on another goroutine that can see the event first otherwise.
 // XTest reports nothing back, so a key event the server drops leaves an
-// announcement nobody answers — the tap expires those on its own.
+// announcement nobody answers, and the tap expires those on its own.
 //
 // A registration names a modifier and a direction rather than an event, so the
 // user pressing that same modifier in the gap between these two lines has their
 // press matched against it instead of ours. That window is one cgo call wide
-// and cannot be closed from here: XTest offers nothing to put on the event that
+// and cannot be closed from here. XTest offers nothing to put on the event that
 // would say whose it is, which is the whole reason this channel exists. It is
 // the same window PostModifierEvent has always had for the modifiers it posts.
 func (h x11ModifierHold) inject(edit modifierstate.Edit, pressed bool) {
@@ -119,11 +119,11 @@ func (h x11ModifierHold) inject(edit modifierstate.Edit, pressed bool) {
 
 // release lets go of what the hold pressed and presses back what it suppressed,
 // against the keyboard as it reads now rather than as it read when the hold was
-// taken — the user may have let go of a key or taken hold of another while the
+// taken. The user may have let go of a key or taken hold of another while the
 // injection was in flight.
 //
 // What it pressed goes out unconditionally, where what it suppressed is
-// checked. The asymmetry is not a preference: a key this hold pressed reads
+// checked. The asymmetry is not a preference. A key this hold pressed reads
 // down whether or not the user has since taken hold of it too, so there is
 // nothing to check against. The window is one injection, and pressing the same
 // modifier inside it is the narrower case of the two.
@@ -144,10 +144,10 @@ func (h x11ModifierHold) release() {
 // x11DragModifiers is the hold a mouse-down took, kept until the mouse-up that
 // ends the drag comes to undo it.
 //
-// It is package state because the two calls share nothing else: a press opens a
+// It is package state because the two calls share nothing else. A press opens a
 // display, presses, injects and closes it, and the release opens its own. What
 // crosses that boundary is a plan of X keycodes, which name keys on the display
-// server rather than on the connection that read them — the same keycode
+// server rather than on the connection that read them, so the same keycode
 // releases the same key on the next connection.
 var x11DragModifiers modifierstate.Stash
 
@@ -156,16 +156,16 @@ var x11DragModifiers modifierstate.Stash
 // number the press injected, which is what the release has to hand back.
 //
 // A press has to keep presenting its modifiers for as long as the button is
-// down, because the drag in between is what carries them: releasing them at the
+// down, because the drag in between is what carries them. Releasing them at the
 // end of the press would make a shift+drag an unmodified one from the first
 // pixel of movement.
 //
 // That makes the window a whole drag rather than one injection, and stretches
-// the tradeoff the hold already carries: a suppressed key the user lets go of
+// the tradeoff the hold already carries. A suppressed key the user lets go of
 // mid-drag is still pressed back at the end, and reads as held until they press
 // and release it once more. Restoring is the safer bias here for the same
-// reason it is inside one injection — the opposite one drops a modifier the
-// user is still holding out of everything they do next — but the window it
+// reason it is inside one injection, since the opposite one drops a modifier
+// the user is still holding out of everything they do next. But the window it
 // applies over is as long as the user's drag.
 //
 // The keyboard is read once, by the press. What the release replays is the

@@ -25,15 +25,15 @@ func newThemeProvider(systemPort ports.SystemPort) *bridgeThemeProvider {
 	return &bridgeThemeProvider{systemPort: systemPort}
 }
 
-// HandleThemeChange is the app's entry point for a system appearance change:
-// the platform theme observers call it, and the simulation harness drives it
+// HandleThemeChange is the app's entry point for a system appearance change.
+// The platform theme observers call it, and the simulation harness drives it
 // the same way.
 //
-// It is one notification, not a fan-out: the overlay re-resolves every Style
+// It is one notification, not a fan-out. The overlay re-resolves every Style
 // from the configuration it already holds and invalidates the render
 // components' native caches, so the only thing left to do here is redraw
 // whichever mode is currently on screen. Which mode that is, and what redrawing
-// it means, belongs to the package that owns modes: this notifies, it does not
+// it means, belongs to the package that owns modes. This notifies, it does not
 // choose. A mode with nothing themed on screen answers by not carrying the axis
 // at all.
 func (a *App) HandleThemeChange(isDark bool) {

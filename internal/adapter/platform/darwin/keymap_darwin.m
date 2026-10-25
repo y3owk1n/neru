@@ -46,11 +46,10 @@ static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharShiftedCaps = nil;
 /// debounce timer for keyboard layout change notifications
 static dispatch_block_t gLayoutChangeDebounceBlock = nil;
 
-/// optional callback invoked after layout maps are rebuilt
 /// empty layout-change callback slot
 ///
-/// Spelled as a cast rather than NULL: Apple clang 15 — the newest toolchain
-/// available on macOS 14.4 and earlier — rejects NULL, 0 and nil alike as
+/// Spelled as a cast rather than NULL, because Apple clang 15, the newest toolchain
+/// available on macOS 14.4 and earlier, rejects NULL, 0 and nil alike as
 /// compile-time constant initializers for an _Atomic function pointer. A cast
 /// to the pointer type is accepted by every clang, so this builds on old and
 /// new toolchains both.
@@ -273,7 +272,7 @@ static TISInputSourceRef copyResolvedReferenceInputSource(
 	// 2. Current ASCII-capable keyboard layout (if it has Unicode layout data)
 	// 3. Preferred stable Latin layouts (ABC, US)
 	// 4. First English keyboard layout
-	// 5. Current layout (fallback — unstable across layout switches)
+	// 5. Current layout (fallback, unstable across layout switches)
 	NSArray<NSString *> *preferredIDs = @[
 		@"com.apple.keylayout.ABC",
 		@"com.apple.keylayout.US",
@@ -678,7 +677,7 @@ static void initializeSpecialKeyMaps(void) {
 
 	// Numpad keys with a named-key equivalent fold to it (issue #1372), the
 	// way the Wayland keymap folds KP_Enter -> Return. Only the code-to-name
-	// direction learns them: name-to-code must keep resolving "Return" to the
+	// direction learns them, because name-to-code must keep resolving "Return" to the
 	// main Return key for key synthesis.
 	codeToName[@(kKeyCodeNumpadEnter)] = @"Return";
 	codeToName[@(kKeyCodeNumpadClear)] = @"Clear";
@@ -711,7 +710,7 @@ static void buildLayoutMaps(void) {
 		TISInputSourceRef inputSource = copyResolvedReferenceInputSource(NULL, NULL);
 
 		if (!inputSource) {
-			// No usable layout source — populate with QWERTY fallback so special
+			// No usable layout source. Populate with QWERTY fallback so special
 			// keys and basic key lookups still work.
 			buildQWERTYNameMaps(nameToCode, codeToName);
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
@@ -730,7 +729,7 @@ static void buildLayoutMaps(void) {
 		CFDataRef layoutData = (CFDataRef)TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData);
 
 		if (!layoutData) {
-			// Layout source exists but has no uchr data — populate with QWERTY fallback.
+			// Layout source exists but has no uchr data, so populate with QWERTY fallback.
 			// Keep previous gCurrentInputSource/gCurrentKeyboardLayout if we had one
 			// so live UCKeyTranslate fallback remains valid.
 			CFRelease(inputSource);
@@ -761,7 +760,7 @@ static void buildLayoutMaps(void) {
 
 			NSString *ch = translateKeyCodeViaLayout(keyboardLayout, keyCode, 0);
 			if (!ch || ch.length == 0) {
-				// UCKeyTranslate failed — use QWERTY fallback
+				// UCKeyTranslate failed, so use QWERTY fallback
 				ch = keyCodeToNameQWERTY(keyCode);
 				if (!ch)
 					continue;
@@ -1067,9 +1066,9 @@ NSString *NeruKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 
 	// Numpad keys are layout-independent. Keys with a named-key equivalent
 	// fold to it, the way the Wayland keymap folds KP_Enter -> Return
-	// (wayland_keymap.c) — a raw control character here would either match
+	// (wayland_keymap.c). A raw control character here would either match
 	// no binding ("\x03") or impersonate the Delete key ("\x7f"). "Clear"
-	// is not a bindable named key; it deliberately matches nothing.
+	// is not a bindable named key, so it deliberately matches nothing.
 	case kKeyCodeNumpadDot:
 		return @".";
 	case kKeyCodeNumpadMultiply:
@@ -1254,7 +1253,7 @@ char *NeruCopyReferenceKeyboardLayoutID(void) {
 }
 
 int NeruSetReferenceKeyboardLayout(const char *inputSourceID) {
-	// Normalise input — treat empty string as nil (auto-detect)
+	// Normalise input, treating an empty string as nil (auto-detect)
 	NSString *trimmedInputSourceID = nil;
 	if (inputSourceID) {
 		@autoreleasepool {
@@ -1322,12 +1321,12 @@ int NeruSetReferenceKeyboardLayout(const char *inputSourceID) {
 
 		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(500 * NSEC_PER_MSEC));
 		if (dispatch_semaphore_wait(completed, timeout) != 0) {
-			// In tests/CLI runs the main queue may not be pumping — run directly
+			// In tests/CLI runs the main queue may not be pumping, so run directly
 			applyReferenceLayoutOnce();
 		}
 
-		// Re-read the authoritative value under lock to avoid a data race:
-		// the __block configuredResolved variable may be concurrently written
+		// Re-read the authoritative value under lock to avoid a data race.
+		// The __block configuredResolved variable may be concurrently written
 		// by the main queue thread and read here without synchronization.
 		[gKeymapLock lock];
 		configuredResolved = gConfiguredInputSourceResolved;

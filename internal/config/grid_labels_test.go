@@ -30,7 +30,7 @@ var gridLabelsFloor = strings.ToUpper(domainGrid.DefaultCharacters)
 
 // TestResolveGridLabels pins the answer to "what is grid.row_labels when
 // unset?". Before this resolution existed the answer lived in a consumer, so
-// every other reader had to reimplement it; these cases are the rule itself.
+// every other reader had to reimplement it. These cases are the rule itself.
 func TestResolveGridLabels(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -110,15 +110,15 @@ func TestResolveGridLabels(t *testing.T) {
 
 // TestConfigDefaults_LeaveTheDerivedGridLabelsBlank pins the invariant the
 // warning attribution stands on. What a load keeps on LoadResult.Written is
-// every layer under the derivation — the declared defaults, the platform
-// layer, the config file and the override file — so "the user wrote this
-// field" is read as "this field is not blank" (config.WrittenConfig). Give
+// every layer under the derivation, which is the declared defaults, the
+// platform layer, the config file and the override file. So "the user wrote
+// this field" is read as "this field is not blank" (config.WrittenConfig). Give
 // either label a default and every user is told to go and fix a line that is
 // not in their file, which is the failure #1281 exists to end rather than
 // relocate.
 //
 // It is the derived-option rule of internal/config/AGENTS.md read from the
-// other end: the declared default of a derived option stays the value a user
+// other end. The declared default of a derived option stays the value a user
 // would have typed, and for these two that value is the blank that means
 // "infer from characters". Read through DefaultConfigForDecoding so a platform
 // layer that filled one in fails here too.

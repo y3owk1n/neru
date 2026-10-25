@@ -321,7 +321,7 @@ func TestInfoHandler_QueryCursor_FailsWhenTheRefreshFails(t *testing.T) {
 }
 
 // TestInfoHandler_Query_TellsUnsupportedFromFailed pins the code a script
-// branches on: a platform with no way to answer says ERR_NOT_SUPPORTED, and a
+// branches on. A platform with no way to answer says ERR_NOT_SUPPORTED, and a
 // query that failed this time says ERR_ACTION_FAILED.
 func TestInfoHandler_Query_TellsUnsupportedFromFailed(t *testing.T) {
 	t.Parallel()

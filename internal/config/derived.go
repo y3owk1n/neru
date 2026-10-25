@@ -5,18 +5,18 @@ package config
 //
 // It exists so that there is one list rather than one per caller. Each step
 // writes a derived value over the written one, which destroys the difference
-// between the two — run a step twice and the second run reads its own output,
-// not the user's input — so a caller that ran some of these and not others
+// between the two. Run a step twice and the second run reads its own output,
+// not the user's input, so a caller that ran some of these and not others
 // would leave a configuration nobody can re-derive. Adding a derivation that
-// writes to the Config means adding it here;
+// writes to the Config means adding it here, and
 // TestEveryConfigDerivationRunsInTheChain fails when it is not.
 //
 // The loader has one more step of its own, which is why it wraps this rather
-// than replacing it: see loader.ResolveDerived. This package cannot reach that
-// one — config is below loader, and has to stay there.
+// than replacing it. See loader.ResolveDerived. This package cannot reach that
+// step, because config is below loader and has to stay there.
 //
 // It writes to the Config, so every caller runs it on a Config no other
-// goroutine can see yet; the mode handler reads these fields under its own lock.
+// goroutine can see yet. The mode handler reads these fields under its own lock.
 func (c *Config) ResolveDerived() {
 	c.ResolveThemeDefaults()
 	c.ResolveGridLabels()

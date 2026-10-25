@@ -79,7 +79,7 @@ func extractStringFlag(rawArgs []string, idx int, prefix string) (string, int, b
 // flagSpec describes how one action flag is parsed.
 //
 // The parser is driven by actionFlagSpecs rather than a switch so that
-// recording the flag as present cannot be forgotten: parseActionArgs marks
+// recording the flag as present cannot be forgotten, because parseActionArgs marks
 // every flag it recognizes in one place. A flag that is parsed but never
 // marked would slip past rejectUnsupportedFlags and be silently ignored.
 type flagSpec struct {
@@ -92,7 +92,7 @@ type flagSpec struct {
 }
 
 // actionFlagSpecs is the set of flags `neru action` understands. Adding an
-// entry here is all it takes to parse a new flag; declaring which actions
+// entry here is all it takes to parse a new flag. Declaring which actions
 // accept it is a separate, mandatory step in actionFlagSupport.
 var actionFlagSpecs = map[string]flagSpec{
 	flagX: {
@@ -216,7 +216,7 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 		spec, known := actionFlagSpecs[name]
 		if !known {
-			// Non-flag arguments are left for the action handlers; an
+			// Non-flag arguments are left for the action handlers. An
 			// unrecognized flag is an error.
 			if strings.HasPrefix(arg, "--") {
 				parseErr = true
@@ -259,12 +259,13 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 	return parsed, parseErr
 }
 
-// validateActionFlags rejects flag combinations the action cannot honor
-// (acceptance of each flag alone was settled by rejectUnsupportedFlags):
-// --center with --window; --selection with --bare or explicit targeting;
-// move_mouse without --x and --y when neither --center nor --window is given.
-// --center with --x/--y is allowed — they offset from center. Coordinate
-// mixed with delta flags never reaches here; no action declares both.
+// validateActionFlags rejects flag combinations the action cannot honor.
+// rejectUnsupportedFlags already settled whether each flag is accepted alone.
+// The refused combinations are --center with --window, --selection with --bare
+// or explicit targeting, and move_mouse with only one of --x and --y when
+// neither --center nor --window is given. --center with --x/--y is allowed,
+// since they offset from center. Coordinate flags mixed with delta flags never
+// reach here, because no action declares both.
 func validateActionFlags(
 	actionName string,
 	parsed parsedActionArgs,

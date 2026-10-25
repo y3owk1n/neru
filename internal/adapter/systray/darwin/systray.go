@@ -19,7 +19,7 @@ import (
 var (
 	menuItems     = make(map[int]*MenuItem)
 	menuItemsLock sync.RWMutex
-	// nextID must start at 1; 0 is reserved as the sentinel for the main menu
+	// nextID must start at 1. 0 is reserved as the sentinel for the main menu
 	// in the Objective-C NeruAddSeparator function (parentId == 0 means root menu).
 	nextID  = 1
 	onReady func()

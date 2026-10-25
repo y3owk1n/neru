@@ -12,7 +12,7 @@ import (
 )
 
 // gnomeGeometry is the part of the bridge this source uses, named so the
-// accept-or-reject rules can be tested without a GNOME Shell: the bridge is
+// accept-or-reject rules can be tested without a GNOME Shell, since the bridge is
 // process-wide by design, and a test that pushed into it would push into every
 // other test's cache too.
 type gnomeGeometry interface {
@@ -43,10 +43,10 @@ func (s *gnomeOriginSource) start() { s.geometry.EnsureStarted() }
 // originFor returns the cached origin only when the cached window is the
 // window the frame describes. The frame's app_id and title came from the same
 // bridge, so identity disagrees only when focus moved between the two reads,
-// which is the race the check exists for; size is the check that catches a
+// which is the race the check exists for. Size is the check that catches a
 // transient the shell reported and AT-SPI did not.
 func (s *gnomeOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
-	// Asked on every activation: the shell can reload the extension, and a
+	// Asked on every activation, because the shell can reload the extension and a
 	// source that only tried at startup would spend the rest of the session
 	// placing hints window-relative. It never blocks.
 	s.geometry.EnsureStarted()
@@ -93,7 +93,7 @@ func gnomeOrigin(
 	return rect.Min, true, nil
 }
 
-// gnomeAppMatches is the tolerant comparison frame selection already uses; an
+// gnomeAppMatches is the tolerant comparison frame selection already uses. An
 // identity either side did not report is not a mismatch.
 func gnomeAppMatches(windowAppID, frameAppID string) bool {
 	if windowAppID == "" || frameAppID == "" {

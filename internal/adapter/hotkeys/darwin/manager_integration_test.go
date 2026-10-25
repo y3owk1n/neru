@@ -19,15 +19,15 @@ func init() {
 
 // TestMain services the macOS main run loop while the tests run. Registering a
 // hotkey needs the keyboard layout maps and a CGEventTap, both of which are
-// built on the main queue; nothing drains that queue in a plain `go test`
+// built on the main queue, and nothing drains that queue in a plain `go test`
 // binary.
 func TestMain(m *testing.M) {
 	os.Exit(darwin.RunMainLoopForTesting(m.Run))
 }
 
 // requireDesktop skips unless this run opted into tests that drive the real
-// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable;
-// plain `just test` stays hands-off the machine.
+// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable,
+// and plain `just test` stays hands-off the machine.
 func requireDesktop(t *testing.T) {
 	t.Helper()
 
@@ -47,8 +47,8 @@ func TestManagerRegistersAgainstTheRealOS(t *testing.T) {
 	// Creating a CGEventTap is behind the macOS Accessibility TCC gate, and a
 	// `go test` binary is not normally granted it. Without the grant every
 	// Register fails, which reads as "the hotkey manager is broken" when what
-	// is missing is the permission. Skipping says what actually happened; the
-	// real path runs via `just test-desktop` on a granted machine.
+	// is missing is the permission. Skipping says what happened. The real path
+	// runs via `just test-desktop` on a granted machine.
 	if !darwin.CheckAccessibilityPermissions() {
 		t.Skip(
 			"macOS Accessibility permission is not granted to this process, so a " +
@@ -60,7 +60,7 @@ func TestManagerRegistersAgainstTheRealOS(t *testing.T) {
 	log := logger.Get()
 	manager := hotkeys.NewManager(log)
 
-	// NewManager registers the manager for the C callbacks; clear it again so a
+	// NewManager registers the manager for the C callbacks. Clear it again so a
 	// later test does not fire into this one's manager.
 	defer hotkeys.SetGlobalManager(nil)
 

@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
-	// The overlay.h included above only declares its symbols; importing the
+	// The overlay.h included above only declares its symbols. Importing the
 	// bridge is what links the Objective-C that defines them (ADR 0009).
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/config"
@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	// NSWindowSharingNone represents NSWindowSharingNone (0), which hides the window from screen sharing.
 	NSWindowSharingNone = 0
-	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1), which shows the window in screen sharing.
 	NSWindowSharingReadOnly = 1
 )
 
@@ -36,7 +36,7 @@ type Overlay struct {
 	window          C.OverlayWindow
 	indicatorConfig config.ModeIndicatorConfig
 	// customLabels is the indicator text of every declared mode that has one,
-	// by name. A declared mode has no per-mode section of its own: its label
+	// by name. A declared mode has no per-mode section of its own. Its label
 	// is the declaration's, and its colors are the shared UI defaults.
 	customLabels map[string]string
 	theme        config.ThemeProvider
@@ -142,11 +142,11 @@ func (o *Overlay) ResizeToActiveScreen() {
 }
 
 // DrawModeIndicator draws a mode label at absolute Quartz coordinates. mode
-// matches the domain.ModeName* strings; the label text comes from config. The
-// window is a small badge, not full-screen, and the native side clamps it to
-// one display (the multi-monitor flicker fix). Single-goroutine only:
+// matches the domain.ModeName* strings, and the label text comes from config.
+// The window is a small badge, not full-screen, and the native side clamps it
+// to one display (the multi-monitor flicker fix). It is single-goroutine only.
 // styleCache is refilled per mode, so concurrent calls would hand one caller
-// the other's colors — the single-poller guard enforces that today.
+// the other's colors. The single-poller guard enforces that today.
 func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	// Hold configMu.RLock for entire draw to prevent SetConfig from
 	// writing to indicatorConfig while we read it.
@@ -162,11 +162,11 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	yOffset := o.indicatorConfig.UI.IndicatorYOffset
 
 	// Hold drawMu.Lock for the entire span from mode-change invalidation
-	// through the C draw call.  This eliminates the gap between releasing
+	// through the C draw call. This eliminates the gap between releasing
 	// the write lock after invalidation and re-acquiring a read lock for
 	// drawing, during which freeAllCaches could reset lastDrawnMode and
 	// free the cache, causing a redundant invalidation cycle on the next
-	// call.  Because only one polling goroutine calls DrawModeIndicator at
+	// call. Because only one polling goroutine calls DrawModeIndicator at
 	// a time the broader lock scope has no practical concurrency cost.
 	o.drawMu.Lock()
 	defer o.drawMu.Unlock()
@@ -293,7 +293,6 @@ func (o *Overlay) SetConfig(
 	o.indicatorConfig = indicatorCfg
 	o.customLabels = customLabels
 	o.configMu.Unlock()
-	// Invalidate caches when config changes
 	o.freeAllCaches()
 }
 
@@ -367,7 +366,6 @@ func (o *Overlay) freeLabelCacheLocked() {
 			C.free(unsafe.Pointer(cStr))
 		}
 	}
-	// Re-initialize map to clear references
 	o.cachedLabels = make(map[string]*C.char)
 }
 

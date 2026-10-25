@@ -4,7 +4,7 @@ package native
 
 import "github.com/y3owk1n/neru/internal/adapter/accessibility/native/darwin"
 
-// These aliases and forwards are the dispatch slot: the shell in client.go
+// These aliases and forwards are the dispatch slot. The shell in client.go
 // and query.go is written once against these names, and the directory an
 // implementation lives in says which platform it is.
 type (
@@ -12,7 +12,6 @@ type (
 	Element = darwin.Element
 	// ElementInfo is this platform's element attribute bundle.
 	ElementInfo = darwin.ElementInfo
-	// TreeNode is this platform's tree node.
 	// TreeNode is this platform's tree node.
 	TreeNode = darwin.TreeNode
 	// TreeOptions is this platform's tree-walk options.

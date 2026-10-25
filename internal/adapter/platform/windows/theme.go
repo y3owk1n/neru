@@ -7,7 +7,7 @@ import (
 )
 
 // Reads Windows app theme state for overlay color compositing.
-// Does not implement ports.SystemPort; system.go delegates dark mode here.
+// Does not implement ports.SystemPort. system.go delegates dark mode here.
 const (
 	// Match config/theme_palette.go defaultThemeLightSurface / defaultThemeDarkSurface.
 	themeSurfaceLight uint32 = 0xEEF2FF

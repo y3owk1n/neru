@@ -73,6 +73,6 @@ Examples:
 
 func init() {
 	configResetCmd.Flags().Bool(noReloadFlagName, false,
-		"Skip reload. Use when resetting multiple fields; "+
-			"run `neru config reload` afterwards to apply.")
+		"Skip reload. Use when resetting multiple fields, then "+
+			"run `neru config reload` to apply.")
 }

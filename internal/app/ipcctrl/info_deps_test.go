@@ -15,11 +15,11 @@ import (
 )
 
 // TestIPCControllerInfoDeps_ZeroValuesAreUsable pins the contract the deps
-// struct documents: omitted fields are legitimate zero values, not a
+// struct documents. Omitted fields are legitimate zero values, not a
 // misconfiguration.
 //
 // The constructor previously took fourteen positional arguments, most of them
-// nil at any given call site; this asserts the struct form preserves that
+// nil at any given call site. This asserts the struct form preserves that
 // tolerance instead of panicking on a partially-filled dependency set.
 func TestIPCControllerInfoDeps_ZeroValuesAreUsable(t *testing.T) {
 	t.Parallel()

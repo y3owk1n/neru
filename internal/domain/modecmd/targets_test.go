@@ -9,7 +9,7 @@ import (
 )
 
 // TestParse_TargetsReadsAQueryAnswer pins --targets to the shape `neru query
-// hints --json` prints: the label it reports, and any key a later query
+// hints --json` prints. The label it reports, and any key a later query
 // gains, are ignored rather than refused.
 func TestParse_TargetsReadsAQueryAnswer(t *testing.T) {
 	t.Parallel()

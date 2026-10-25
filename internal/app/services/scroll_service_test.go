@@ -408,8 +408,8 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 		t.Fatal("Scroll() produced a zero delta; the test cannot detect a config change")
 	}
 
-	// UpdateConfig must change what a subsequent scroll actually emits — the
-	// point of the call, and what this test previously never checked.
+	// UpdateConfig must change what a subsequent scroll actually emits. That is
+	// the point of the call, and what this test previously never checked.
 	service.UpdateConfig(config.ScrollConfig{ScrollStep: 100, ScrollStepFull: 2000})
 
 	err = service.Scroll(ctx, services.ScrollDirectionDown, services.ScrollAmountChar, 0, 0)
@@ -443,7 +443,7 @@ func (s *settlingSystemPort) SettleCursor(_ context.Context) error {
 }
 
 // TestScrollService_Scroll_SettlesCursorBeforeScroll pins the interleaving fix
-// for scrolls fired during an animated relative cursor move: the in-flight
+// for scrolls fired during an animated relative cursor move. The in-flight
 // animation must be settled before the scroll is dispatched, so the scroll
 // anchors to the window the user aimed for rather than one the cursor was
 // gliding over mid-animation.
@@ -486,7 +486,7 @@ func TestScrollService_Scroll_SettlesCursorBeforeScroll(t *testing.T) {
 }
 
 // TestScrollService_Scroll_SettleErrorDoesNotBlockScroll pins that a failing
-// settle degrades to the pre-settle behavior — the scroll still runs — rather
+// settle degrades to the pre-settle behavior, where the scroll still runs, rather
 // than turning a cosmetic animation problem into a lost user action.
 func TestScrollService_Scroll_SettleErrorDoesNotBlockScroll(t *testing.T) {
 	system := &settlingSystemPort{

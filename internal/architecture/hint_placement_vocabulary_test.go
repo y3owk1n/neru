@@ -12,7 +12,7 @@ import (
 )
 
 // The three native spellings of one hint placement. The C header is what Go
-// reads through cgo, so the compiler keeps the macro *names* honest; nothing
+// reads through cgo, so the compiler keeps the macro *names* honest. Nothing
 // keeps the Objective-C enum the drawing code switches on, and nothing keeps
 // the macro each Go placement is translated to.
 const (
@@ -39,7 +39,7 @@ const (
 // overlays all read that declaration. The values then cross into Objective-C,
 // where the header macros Go reads and the enum overlay_darwin.m switches on
 // were held together by a comment saying they must match. This is ADR 0007's
-// deliberate exception to the one-implementation rule: Go cannot be the
+// deliberate exception to the one-implementation rule. Go cannot be the
 // implementation of an Objective-C enum, so the copies get a pin instead of a
 // deletion (docs/adr/0007-a-shared-derivation-has-one-implementation.md).
 //
@@ -145,10 +145,10 @@ func TestHintPlacementTranslationMatchesTheVocabulary(t *testing.T) {
 // parseHintPlacementSwitch returns the placement constant each case of
 // hintPlacementValue returns a macro for, keyed by the config constant's name
 // ("HintPlacementTop") and valued by the macro's ("HINT_PLACEMENT_TOP"). The
-// default case has no config constant to key on and is skipped: it is the
+// default case has no config constant to key on and is skipped. It is the
 // branch that refuses a placement outside the vocabulary, and the unset value
-// is settled to the documented default before the switch — both pinned by the
-// darwin-only tests in the renderer's own package.
+// is settled to the documented default before the switch. Both are pinned by
+// the darwin-only tests in the renderer's own package.
 func parseHintPlacementSwitch(t *testing.T) map[string]string {
 	t.Helper()
 

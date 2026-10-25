@@ -19,15 +19,16 @@ import (
 // Request's Response signal, and ending a session.
 //
 // Two interfaces are spoken on KDE and both are here because KWin implements
-// neither of the protocols the blessed stack uses — org.freedesktop.portal
-// .RemoteDesktop for input injection (portal_remotedesktop.go) and
-// .ScreenCast for screen capture (portal_screencast.go). They are separate
-// sessions on separate connections: a grant is what the user consented to, and
+// neither of the protocols the blessed stack uses. They are
+// org.freedesktop.portal.RemoteDesktop for input injection
+// (portal_remotedesktop.go) and .ScreenCast for screen capture
+// (portal_screencast.go). They are separate
+// sessions on separate connections. A grant is what the user consented to, and
 // folding capture into the input session would mean a person who only wants
 // hints and grid mode being asked to share their screen.
 //
 // The connections are deliberately private rather than the process-wide
-// dbus.SessionBus() the notifier and the tray share: the portal ties a
+// dbus.SessionBus() the notifier and the tray share. The portal ties a
 // session's lifetime to the connection that created it, so closing that
 // connection is how a session is ended, and it must not be a connection
 // anything else needs.
@@ -78,16 +79,16 @@ const portalSessionHandleTokenKey = "session_handle_token"
 const portalRestoreTokenKey = "restore_token"
 
 // portalNoParentWindow is the parent_window identifier Start takes. Neru has no
-// toplevel to parent the dialog to — its overlays are layer-shell surfaces —
-// so the portal places the dialog itself.
+// toplevel to parent the dialog to, because its overlays are layer-shell
+// surfaces, so the portal places the dialog itself.
 const portalNoParentWindow = ""
 
-// noPortalCallFlags sends a plain method call: the reply is what carries the
-// Request handle, so NO_REPLY_EXPECTED is exactly what must not be set.
+// noPortalCallFlags sends a plain method call. The reply is what carries the
+// Request handle, so NO_REPLY_EXPECTED must not be set.
 const noPortalCallFlags = 0
 
 // portalSignalBuffer sizes the channel Response signals arrive on. Four is one
-// per call in the longest handshake here with room to spare; godbus never
+// per call in the longest handshake here with room to spare. godbus never
 // blocks on a full channel, so this only decides how often it defers a
 // delivery.
 const portalSignalBuffer = 4
@@ -98,9 +99,9 @@ const portalSignalBuffer = 4
 const portalHandleTokenBytes = 8
 
 // The portal interfaces Neru speaks, as they are named in error messages. A
-// failure has to say which grant it was about: "the ScreenCast portal refused"
-// and "the RemoteDesktop portal refused" send a user to two different rows of
-// their system settings.
+// failure has to say which grant it was about, because "the ScreenCast portal
+// refused" and "the RemoteDesktop portal refused" send a user to two different
+// rows of their system settings.
 const (
 	portalNameRemoteDesktop = "RemoteDesktop"
 	portalNameScreenCast    = "ScreenCast"
@@ -118,27 +119,27 @@ var portalBusDialer = &sessionBusDialer{
 // dialPortalBus connects to the session bus without letting an unresponsive bus
 // hold the caller, and without starting a second dial while one is stuck.
 //
-// dbus.ConnectSessionBus takes no context: the connect, the auth handshake and
+// dbus.ConnectSessionBus takes no context. The connect, the auth handshake and
 // the Hello round trip are all uncancellable, so a bus that accepts a
 // connection and then stops answering would block until it answers. The mid-
 // action input path reaches this while holding the keyboard grab, so blocking
-// there freezes every global hotkey — the dial therefore runs on a goroutine
+// there freezes every global hotkey. The dial therefore runs on a goroutine
 // the caller can abandon, and whatever it eventually produces is closed rather
 // than leaked. session_bus_dial.go holds that machinery, which the notifier and
 // the app's theme observer need in the same shape.
 //
 // Abandoning is not enough on its own. Every mid-action input operation reaches
 // this while no session is established, so a wedged bus would otherwise buy one
-// more orphaned goroutine and half-open connection per keypress. The same rule
-// the capability probes follow applies here — one outstanding attempt, never
-// restarted while it is stuck — so a caller that arrives to find a dial already
-// hanging is refused immediately rather than adding to the pile.
+// more orphaned goroutine and half-open connection per keypress. The rule the
+// capability probes follow applies here too. There is one outstanding attempt,
+// never restarted while it is stuck, so a caller that arrives to find a dial
+// already hanging is refused immediately rather than adding to the pile.
 //
-// That cap is shared by both grants, which couples them: while a ScreenCast
+// That cap is shared by both grants, which couples them. While a ScreenCast
 // dial is outstanding, a RemoteDesktop dial is refused, and the other way
-// round. It is deliberate — what is being capped is one wedged session bus,
-// which is process-wide however many portal interfaces are speaking to it — and
-// it is bounded, because the dial stops counting as outstanding when
+// round. It is deliberate, because what is being capped is one wedged session
+// bus, which is process-wide however many portal interfaces are speaking to it.
+// It is also bounded, because the dial stops counting as outstanding when
 // ConnectSessionBus returns rather than when the handshake behind it finishes.
 // A consent dialog left open for two minutes therefore blocks nothing.
 func dialPortalBus(ctx context.Context) (*dbus.Conn, error) {
@@ -194,7 +195,7 @@ type portalRequester struct {
 // The subscription is in place before any call goes out, which is what the
 // portal specification prescribes to close the race where the Response beats
 // the method reply. It is dropped when the handshake ends rather than left
-// delivering into a channel with no reader for the daemon's lifetime — nothing
+// delivering into a channel with no reader for the daemon's lifetime. Nothing
 // after the handshake answers on a Request.
 //
 // name is the portal interface being spoken, and it reaches the user in every
@@ -257,7 +258,7 @@ func newPortalRequester(
 // call makes one portal call and waits for the Request it creates to answer.
 //
 // It mints the handle token itself and writes it into options, because the
-// object path the answer arrives on is derived from that token: a caller that
+// object path the answer arrives on is derived from that token. A caller that
 // chose one and then passed a different one in the options would wait on a path
 // nothing ever answers.
 func (r *portalRequester) call(
@@ -281,9 +282,9 @@ func (r *portalRequester) call(
 		return nil, portalCallFailed(err, "the "+r.name+" portal refused "+method)
 	}
 
-	// The portal answers on the path it chose. That is normally the derived one
-	// — which is why the subscription could be set up first — but the returned
-	// handle is what is authoritative, so it is what the wait matches on.
+	// The portal answers on the path it chose. That is normally the derived one,
+	// which is why the subscription could be set up first, but the returned
+	// handle is authoritative, so it is what the wait matches on.
 	if handle == "" {
 		handle = portalRequestPath(r.sender, handleToken)
 	}
@@ -369,7 +370,7 @@ func createPortalSession(
 //
 // It deliberately does not wrap the bus error itself. A D-Bus error body is
 // written by the portal backend and can quote the option it rejected, and one
-// of the options sent here is a restore token — a credential that must not
+// of the options sent here is a restore token, a credential that must not
 // reach an error a caller may print or log. The error *name* says what went
 // wrong without quoting anything we sent, so that is what is carried.
 //
@@ -409,14 +410,14 @@ func busErrorName(err error) string {
 
 // closePortalSession ends a session explicitly. The portal would notice the
 // connection closing eventually, but a session left open until then holds a
-// grant the user can see in their portal settings — and, for a ScreenCast
+// grant the user can see in their portal settings and, for a ScreenCast
 // session, a "screen is being shared" indicator they can see on their panel.
 //
-// It expects no reply, which is what makes it safe to call from anywhere: a
+// It expects no reply, which is what makes it safe to call from anywhere. A
 // teardown reaches this from the suspend/resume reset that runs on the
 // goroutine holding the keyboard grab, and waiting for a wedged portal to
 // acknowledge a close there would freeze every hotkey for as long as it took.
-// There is nothing to learn from the reply anyway — the session is being
+// There is nothing to learn from the reply anyway, since the session is being
 // abandoned either way.
 func closePortalSession(conn *dbus.Conn, session dbus.ObjectPath) {
 	_ = conn.Object(portalBusName, session).
@@ -507,7 +508,7 @@ func portalRequestPath(sender, handleToken string) dbus.ObjectPath {
 }
 
 // portalHandleToken returns a token unique among this connection's requests and
-// legal as a D-Bus object path element — the portal pastes it straight into
+// legal as a D-Bus object path element. The portal pastes it straight into
 // one, so anything outside [A-Za-z0-9_] would have the call rejected.
 func portalHandleToken() string {
 	buffer := make([]byte, portalHandleTokenBytes)

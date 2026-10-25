@@ -11,19 +11,19 @@ import (
 
 // modeReleaseFloor is the fewest lock releases expected in the mode handler
 // package. It holds seventy-five today across its source and its tests, so
-// twenty catches a check that has stopped recognizing an unlock — a package no
-// longer found, a scope walk that returns nothing — and never fires on the
+// twenty catches a check that has stopped recognizing an unlock, because the
+// package is no longer found or a scope walk returns nothing, and never fires on the
 // package losing a handful of call sites.
 const modeReleaseFloor = 20
 
-// lockAcquireMethods are the calls that take a lock and always get it: the
+// lockAcquireMethods are the calls that take a lock and always get it. The
 // caller returns owning it and owes the release.
 var lockAcquireMethods = []string{"Lock", "RLock"}
 
 // lockTryAcquireMethods are the calls that may fail to take the lock. The
 // caller owns it only when the call answered true, so one of these is an
-// acquisition only where the scope reads that answer — see
-// checkedTryAcquisitionsIn.
+// acquisition only where the scope reads that answer, as
+// checkedTryAcquisitionsIn describes.
 var lockTryAcquireMethods = []string{"TryLock", "TryRLock"}
 
 // lockReleaseMethods are the calls that release a lock.
@@ -33,11 +33,11 @@ var lockReleaseMethods = []string{"Unlock", "RUnlock"}
 // break the contract and are not fixed yet, keyed by "<file>:<scope>:<lock>"
 // as the failure messages below spell a site.
 //
-// Each entry carries the reason it is still here, so the list can only shrink:
+// Each entry carries the reason it is still here, so the list can only shrink.
 // TestKnownModeLockReleaseExceptionsAreStillReal deletes nothing on its own but
 // fails on an entry that has stopped violating anything, and a new violation
 // fails the guardrail rather than joining the list. It is currently empty,
-// which is the goal state — the package satisfies the contract as written. Add
+// which is the goal state. The package satisfies the contract as written. Add
 // an entry only when a violation genuinely cannot be fixed in the same change,
 // never to silence one.
 var knownModeLockReleaseExceptions = map[string]string{}
@@ -47,10 +47,10 @@ var knownModeLockReleaseExceptions = map[string]string{}
 //
 // The rule internal/app/modes/AGENTS.md states is "every lock is released, via
 // defer, by the method that took it; never unlock mid-method to make a blocking
-// call safe". The tempting breach is precisely the one it names: a method
+// call safe". The tempting breach is precisely the one it names. A method
 // holding h.mu needs to make a call that can block or re-enter, so it unlocks,
 // calls, and locks again. What that buys is a window in the middle of a method
-// whose invariants are written as if the lock were held — the active mode can
+// whose invariants are written as if the lock were held. The active mode can
 // change, the grid manager can be reassigned by a reload (#1277), and the
 // second acquisition can be the one that inverts the order against a caller
 // that was above it. The alternative the guide gives is to compute a plan under
@@ -60,18 +60,18 @@ var knownModeLockReleaseExceptions = map[string]string{}
 // in hints.go).
 //
 // Nothing catches this today. gocritic's badLock flags a mismatched pair such
-// as Lock with RUnlock, not an unlock that simply is not deferred; the lock is
-// genuinely held, so there is no runtime panic; and the inversion it opens
+// as Lock with RUnlock, not an unlock that simply is not deferred. The lock is
+// genuinely held, so there is no runtime panic. And the inversion it opens
 // surfaces only as a hang under a race no test reliably hits (ADR 0011).
 //
 // Test files are outside this half of the contract, and that is a scope rather
-// than an exemption — it is not in the list below and nothing shrinks it. The
-// rule's subject is a *method of the handler*, and a test body is not one: it
+// than an exemption. It is not in the list below and nothing shrinks it. The
+// rule's subject is a *method of the handler*, and a test body is not one. It
 // takes h.mu and releases it inline because it is standing in for the locked
 // entry point a production caller would have gone through, and there is no
 // blocking call in the middle for a defer to protect. Twenty-eight releases in
-// the package's tests are that shape. The other half below — that a scope
-// releases only what it took — is asked of the tests too, and so is the
+// the package's tests are that shape. The other half below, that a scope
+// releases only what it took, is asked of the tests too, and so is the
 // hand-off check, because neither is about a lock being held too long.
 func TestModeHandlerUnlocksAreDeferred(t *testing.T) {
 	for _, release := range modeHandlerLockReleases(t) {
@@ -101,27 +101,27 @@ func TestModeHandlerUnlocksAreDeferred(t *testing.T) {
 // package releases a lock it never takes.
 //
 // "No method releases a lock it did not take" is the sentence that makes the
-// lock order readable at all: the order in modeLockOrder describes who may hold
+// lock order readable at all. The order in modeLockOrder describes who may hold
 // what while taking what, and that reasoning is local only while every hold
 // begins and ends inside one scope. A method that unlocks on its caller's
 // behalf moves the release somewhere the reader of either method can see it,
-// and the compiler's split of Handler from handlerState — which stops a
-// lock-held method from calling a locking entry point — says nothing about a
+// and the compiler's split of Handler from handlerState, which stops a
+// lock-held method from calling a locking entry point, says nothing about a
 // stray release.
 //
 // A function literal is its own scope. It runs on its own goroutine or at its
 // own time, so a deferred unlock inside a timer callback must not stand in for
 // the missing one in the method that scheduled it. The exception is the literal
-// a function defers into itself — defer func() { ... }() runs in that
+// a function defers into itself. A defer func() { ... }() runs in that
 // function's frame at its return, and both halves of this contract read it as
 // part of the scope around it.
-// A release named but not called — h.mu.Unlock passed as a method value — is
-// the same breach with the frame left blank: whoever runs it did not take the
+// A release named but not called, such as h.mu.Unlock passed as a method value, is
+// the same breach with the frame left blank. Whoever runs it did not take the
 // lock, and no scope here can say who that is.
 //
 // A try-acquire is not a hold. h.mu.TryLock() answers false under contention
 // and the scope keeps running, so a release below it releases a lock this
-// goroutine never took — a fatal "unlock of unlocked mutex", or worse, the
+// goroutine never took. The result is a fatal "unlock of unlocked mutex", or worse, the
 // holder's lock taken out from under it. Both production uses read the answer
 // and give up on false (planIndicatorTick in indicator_polling.go,
 // rehideSystemCursor in cursor_visibility.go), each using TryLock precisely to
@@ -130,17 +130,17 @@ func TestModeHandlerUnlocksAreDeferred(t *testing.T) {
 // one. So a try-acquire counts as an acquisition only where the scope reads the
 // answer: written into a branch condition, or assigned to a name a branch
 // condition reads. Any other shape fails here, which is the direction to fail
-// in — the message names the shape the package already uses.
+// in, because the message names the shape the package already uses.
 //
 // What this cannot see is whether the failing branch actually gives up. A scope
 // that reads the answer, logs it and falls through to the release is still
 // unlocking what it may not hold, but telling that from the correct shape means
-// following a negation into the arm the failure lands in and on to the return —
-// flow analysis, not a syntactic walk. Reading the answer is the line this test
+// following a negation into the arm the failure lands in and on to the return.
+// That is flow analysis, not a syntactic walk. Reading the answer is the line this test
 // draws.
 //
-// One hold genuinely escapes this, and it escapes by leaving the package:
-// hints.go hands &h.outer.mu to domainHint.NewManager, which takes and releases
+// One hold genuinely escapes this, and it escapes by leaving the package. The
+// file hints.go hands &h.outer.mu to domainHint.NewManager, which takes and releases
 // it inside internal/domain/hint. A walk over this directory cannot follow it,
 // and a lock passed to another package is the shape to look at twice.
 func TestModeHandlerReleasesOnlyLocksItTook(t *testing.T) {
@@ -189,7 +189,7 @@ func TestModeHandlerReleasesOnlyLocksItTook(t *testing.T) {
 }
 
 // TestKnownModeLockReleaseExceptionsAreStillReal keeps the exception list
-// honest: an entry that no longer names a violating release site is stale and
+// honest. An entry that no longer names a violating release site is stale and
 // must be deleted, or the list becomes a place where the locking contract goes
 // to die.
 func TestKnownModeLockReleaseExceptionsAreStillReal(t *testing.T) {
@@ -231,9 +231,9 @@ type lockRelease struct {
 	acquired bool
 	// triedUnchecked marks a release whose scope only ever try-acquired the
 	// lock and dropped the answer, so it may hold nothing to release. It picks
-	// the failure message; the release is not acquired either way.
+	// the failure message. The release is not acquired either way.
 	triedUnchecked bool
-	// handedOff marks a release named but not called — h.mu.Unlock as a method
+	// handedOff marks a release named but not called, such as h.mu.Unlock as a method
 	// value, passed to something that will run it in a frame that never held
 	// the lock.
 	handedOff bool
@@ -241,7 +241,7 @@ type lockRelease struct {
 	isTest bool
 }
 
-// site is the key the exception list uses, stable across line moves — a
+// site is the key the exception list uses, stable across line moves, so a
 // violation that survives an edit above it keeps its entry.
 func (r lockRelease) site() string {
 	return fmt.Sprintf("%s:%s:%s", r.file, r.scope, r.lock)
@@ -344,7 +344,7 @@ type lockAcquisitions struct {
 // locksTakenIn returns the locks a single scope acquires, apart from the ones
 // it only tries for without reading the answer.
 //
-// A try-acquire is not an acquisition on its own: TryLock answers false under
+// A try-acquire is not an acquisition on its own. TryLock answers false under
 // contention and the scope runs on holding nothing, so it counts only where the
 // scope reads that answer. TestModeHandlerReleasesOnlyLocksItTook has the
 // hazard and the limits of reading it this way.
@@ -376,7 +376,7 @@ func locksTakenIn(body *ast.BlockStmt) lockAcquisitions {
 }
 
 // checkedTryAcquisitionsIn returns the try-acquires whose answer the scope
-// reads: written straight into a branch condition — if !h.mu.TryLock() — or
+// reads: written straight into a branch condition, as in if !h.mu.TryLock(), or
 // assigned to a name a branch condition reads.
 //
 // A shape it does not recognize is reported as unchecked, so the guardrail
@@ -486,7 +486,7 @@ func deferredCallsIn(body *ast.BlockStmt) map[*ast.CallExpr]bool {
 }
 
 // lockCallTarget splits a method call into the expression it was called on and
-// the method name — "h.mu" and "Unlock" for h.mu.Unlock(). It answers empty
+// the method name, such as "h.mu" and "Unlock" for h.mu.Unlock(). It answers empty
 // strings for anything that is not a method call.
 func lockCallTarget(call *ast.CallExpr) (string, string) {
 	selector, isSelector := call.Fun.(*ast.SelectorExpr)
@@ -504,7 +504,7 @@ type lockScope struct {
 	// body is the block to read.
 	body *ast.BlockStmt
 	// runsDeferred marks a function literal its enclosing function defers into
-	// itself — defer func() { ... }(). That literal runs in the enclosing
+	// itself, as in defer func() { ... }(). That literal runs in the enclosing
 	// frame, at the enclosing return, so a release inside it is a deferred
 	// release by the method that took the lock. A literal handed to go, to
 	// time.AfterFunc or to a callback struct is none of those things and stays a
@@ -579,7 +579,7 @@ func inspectScope(body *ast.BlockStmt, visit func(node ast.Node)) {
 	inspectNode(body, visit)
 }
 
-// inspectNode walks one node the way a lock scope is read — everything under
+// inspectNode walks one node the way a lock scope is read: everything under
 // it, stopping at a nested function literal, which is a scope of its own. It
 // takes any node so a branch condition can be read on the same terms as a body.
 func inspectNode(root ast.Node, visit func(node ast.Node)) {

@@ -314,7 +314,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 	@autoreleasepool {
 		// macOS disables the event tap if the callback takes too long.
 		// Re-enable it automatically so key events keep flowing.
-		// This must be checked first: timeout is a special pseudo-event,
+		// This must be checked first, because timeout is a special pseudo-event,
 		// not a real input event, so reading arbitrary fields from it
 		// (e.g., kCGEventSourceUserData) is unnecessary and fragile.
 		if (type == kCGEventTapDisabledByTimeout) {
@@ -584,7 +584,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				return NULL;
 			}
 
-			// Unknown key code — pass to system
+			// Unknown key code, so pass it to the system
 			return event;
 		}
 
@@ -873,7 +873,7 @@ EventTap NeruCreateEventTap(EventTapCallback callback, void *userData) {
 	    kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, eventMask, eventTapCallback, context);
 
 	if (!context->eventTap) {
-		// Creation failed — clean up all allocated resources
+		// Creation failed, so clean up all allocated resources
 		gEventTapContext = nil;
 		NeruSetKeymapLayoutChangeCallback(NULL);
 		context->hotkeyLookup = nil;
@@ -938,8 +938,8 @@ void NeruSetEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 		NSArray<NSString *> *copiedStrings = [newStrings copy];
 
 		// Thread-safe replacement using os_unfair_lock.
-		// Save old pointers so ARC releases them outside the lock —
-		// deallocation of a large dictionary must not block the event tap callback.
+		// Save old pointers so ARC releases them outside the lock.
+		// Deallocation of a large dictionary must not block the event tap callback.
 		NSDictionary *oldLookup;
 		NSArray *oldStrings;
 		os_unfair_lock_lock(&context->hotkeyLock);
@@ -981,7 +981,7 @@ void NeruSetEventTapModifierPassthrough(EventTap tap, int enabled, const char **
 		NSDictionary *newLookup = buildKeyLookupFromStrings(newStrings);
 		NSArray<NSString *> *copiedStrings = [newStrings copy];
 
-		// Thread-safe replacement — save old pointers for out-of-lock ARC release
+		// Thread-safe replacement. Save old pointers for out-of-lock ARC release
 		NSDictionary *oldLookup;
 		NSArray *oldStrings;
 		os_unfair_lock_lock(&context->modifierPassthroughLock);
@@ -1022,7 +1022,7 @@ void NeruSetEventTapInterceptedModifierKeys(EventTap tap, const char **keys, int
 		NSDictionary *newLookup = buildKeyLookupFromStrings(newStrings);
 		NSArray<NSString *> *copiedStrings = [newStrings copy];
 
-		// Thread-safe replacement — save old pointers for out-of-lock ARC release
+		// Thread-safe replacement. Save old pointers for out-of-lock ARC release
 		NSDictionary *oldLookup;
 		NSArray *oldStrings;
 		os_unfair_lock_lock(&context->interceptedModifierLock);
@@ -1159,7 +1159,7 @@ void NeruEnableEventTap(EventTap tap) {
 	EventTapContext *context = (EventTapContext *)tap;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		// Enable immediately — the event tap callback already lets registered
+		// Enable immediately. The event tap callback already lets registered
 		// hotkeys pass through (isHotkey check), so there is no need to delay.
 		// Removing the previous 150ms dispatch_after eliminates a dead window
 		// where key events are silently dropped right after mode activation.
@@ -1207,7 +1207,7 @@ void NeruDestroyEventTap(EventTap tap) {
 
 		// Release Core Foundation resources
 		if (context->eventTap) {
-			// See NeruDestroyHotkeyTap: invalidate the Mach port before
+			// See NeruDestroyHotkeyTap. Invalidate the Mach port before
 			// releasing it, otherwise the underlying port can leak even
 			// though the CF wrapper's refcount reaches zero.
 			CFMachPortInvalidate(context->eventTap);
@@ -1227,7 +1227,7 @@ void NeruDestroyEventTap(EventTap tap) {
 
 		// Synchronize with any in-flight event tap callback that may be
 		// holding hotkeyLock on the Mach port thread. Acquiring the lock
-		// here acts as a barrier: once we hold it, we know the callback
+		// here acts as a barrier. Once we hold it, we know the callback
 		// has left its critical section. We then nil out the ARC fields
 		// under the lock so the callback cannot retain a dangling pointer,
 		// and release the lock before freeing the struct.

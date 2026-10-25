@@ -12,9 +12,9 @@ import (
 
 // Frame is the complete description of what should be on screen for one mode.
 //
-// A mode hands over a Frame; realizing it — sizing the overlay to the active
-// screen, showing it, switching it to the frame's mode, drawing the frame's
-// content — belongs to the adapter. That sequence used to be open-coded at
+// A mode hands over a Frame, and the adapter realizes it by sizing the overlay
+// to the active screen, showing it, switching it to the frame's mode, and
+// drawing the frame's content. That sequence used to be open-coded at
 // every call site with nothing checking the order, and getting it wrong showed
 // an empty overlay or left the previous mode's on screen.
 //
@@ -22,12 +22,12 @@ import (
 // model, never a platform handle. That constraint is what keeps the overlay's
 // own vocabulary out of the app layer, so it is not negotiable.
 //
-// The interface is sealed to this package: an adapter realizes a frame by
+// The interface is sealed to this package. An adapter realizes a frame by
 // naming the surfaces it knows about, and a new surface cannot appear without
 // the adapter being told.
 type Frame interface {
 	// Mode names the mode this frame draws. Naming it on the frame is what
-	// stops a frame and the mode it is realized in from disagreeing: the
+	// stops a frame and the mode it is realized in from disagreeing. The
 	// adapter translates one value rather than deciding twice.
 	Mode() domain.Mode
 
@@ -39,7 +39,7 @@ type Frame interface {
 // the display they are drawn on.
 type HintsFrame struct {
 	// Screen is the active display in global coordinates. Hint positions are
-	// global too; translating them into the overlay's screen-local space is
+	// global too. Translating them into the overlay's screen-local space is
 	// the adapter's business.
 	Screen image.Rectangle
 
@@ -64,7 +64,7 @@ type GridFrame struct {
 	Grid *grid.Grid
 
 	// Input is what the user has typed so far. It selects which cells the
-	// draw marks as matched; narrowing an already-drawn grid is an update
+	// draw marks as matched. Narrowing an already-drawn grid is an update
 	// rather than a frame, and goes through UpdateGridMatches (ADR 0003).
 	Input string
 }
@@ -78,9 +78,9 @@ func (GridFrame) frame() {}
 // zoomed into, the keys that divide it, and a preview of what the next
 // keystroke will produce.
 //
-// Every recursive-grid keystroke redraws the whole surface — the mode has no
-// incremental path to keep off the frame — so this frame is what a keystroke
-// hands over, and it stays a plain value for that reason.
+// Every recursive-grid keystroke redraws the whole surface, because the mode
+// has no incremental path to keep off the frame. So this frame is what a
+// keystroke hands over, and it stays a plain value for that reason.
 type RecursiveGridFrame struct {
 	// Bounds is the region currently zoomed into, in the overlay's
 	// screen-local space.
@@ -103,8 +103,8 @@ type RecursiveGridFrame struct {
 }
 
 // RecursiveGridLayout is one depth of a recursive grid: the labels dividing a
-// region, and the shape they are laid out in. A frame carries two of them —
-// the depth on screen and the one a keystroke would produce — because the
+// region, and the shape they are laid out in. A frame carries two of them,
+// the depth on screen and the one a keystroke would produce, because the
 // cells preview what pressing their key leads to.
 type RecursiveGridLayout struct {
 	// Keys are the labels, one per cell, in reading order.
@@ -161,7 +161,7 @@ type MonitorSelectFrame struct {
 }
 
 // MonitorSelectTarget is one display the monitor picker offers, in global
-// coordinates: the panel is centered on the display it names.
+// coordinates. The panel is centered on the display it names.
 type MonitorSelectTarget struct {
 	// Bounds is the display, in global coordinates.
 	Bounds image.Rectangle
@@ -185,11 +185,11 @@ func (MonitorSelectFrame) Mode() domain.Mode { return domain.ModeMonitorSelect }
 
 func (MonitorSelectFrame) frame() {}
 
-// ScrollFrame is the scroll surface, which draws nothing: scroll mode is a
-// mode the indicators report, not a surface with content of its own.
+// ScrollFrame is the scroll surface, which draws nothing, because scroll mode
+// is a mode the indicators report, not a surface with content of its own.
 //
-// It is still a Frame, because entering scroll mode is still a transition —
-// whatever the previous mode drew has to come off the screen, and the overlay
+// It is still a Frame, because entering scroll mode is still a transition.
+// Whatever the previous mode drew has to come off the screen, and the overlay
 // has to know which mode it is in so the indicators can name it. Saying that
 // with a Frame is what keeps one path from a mode to the screen.
 type ScrollFrame struct{}
@@ -200,7 +200,7 @@ func (ScrollFrame) Mode() domain.Mode { return domain.ModeScroll }
 func (ScrollFrame) frame() {}
 
 // CustomFrame is the surface of a mode the user declared, which draws nothing
-// of its own for the reason ScrollFrame draws nothing: a declared mode is a
+// of its own for the reason ScrollFrame draws nothing. A declared mode is a
 // keymap the indicators report, not content.
 //
 // It carries the declared name because the overlay names its modes by name,
@@ -218,7 +218,7 @@ func (CustomFrame) frame() {}
 
 // GridPointer is the pointer stand-in a grid surface draws where the selection
 // is, for a user who has told the cursor not to follow it. It carries position
-// only: how big it is and what color it is are Style, resolved by the overlay.
+// only. How big it is and what color it is are Style, resolved by the overlay.
 type GridPointer struct {
 	// Visible is whether the pointer should be on screen at all.
 	Visible bool
@@ -262,9 +262,9 @@ type MouseActionIndicatorStyle struct {
 // Indicator names one of the small cursor-following overlays that report
 // state independently of the active mode's own drawing.
 //
-// The port speaks in indicators rather than in render objects: an indicator's
-// whole life — whether it is on screen and where it is drawn — is owned by one
-// service, and whether the overlay behind it was ever constructed is the
+// The port speaks in indicators rather than in render objects. One service
+// owns an indicator's whole life, whether it is on screen and where it is
+// drawn, and whether the overlay behind it was ever constructed is the
 // adapter's business, not the caller's.
 type Indicator int
 
@@ -301,30 +301,30 @@ type OverlayPort interface {
 	Health(ctx context.Context) error
 
 	// ShowFrame puts a Frame on screen. The adapter owns the whole sequence a
-	// transition needs — size the overlay to the active screen, show it,
-	// switch it to the frame's mode, draw the frame's content — so a caller
+	// transition needs (size the overlay to the active screen, show it,
+	// switch it to the frame's mode, draw the frame's content), so a caller
 	// says what should be on screen and never orders the steps that get it
 	// there.
 	//
-	// A draw may block; the mode handler computes what to show under its lock
+	// A draw may block. The mode handler computes what to show under its lock
 	// and shows after releasing it, with the hint update callback the one
 	// documented exception (`internal/app/modes/AGENTS.md`).
 	//
-	// It reports CodeNotSupported for the same reasons RedrawFrame does — the
-	// frame's first draw goes out through here — so a caller that acts on the
+	// It reports CodeNotSupported for the same reasons RedrawFrame does, since
+	// the frame's first draw goes out through here. A caller that acts on the
 	// verdict reads that code as degradation, not failure.
 	ShowFrame(ctx context.Context, frame Frame) error
 
 	// RedrawFrame draws a Frame whose overlay is already up, without the
-	// window sequence. It is the incremental half of this port (ADR 0003):
-	// hint labels narrow on every keystroke, and paying for a window show and
+	// window sequence. It is the incremental half of this port (ADR 0003).
+	// Hint labels narrow on every keystroke, and paying for a window show and
 	// a mode switch per keystroke is the latency regression AGENTS.md forbids.
 	//
 	// A backend with no surface for the frame reports CodeNotSupported, which
-	// is degradation rather than failure; callers branch on IsNotSupported.
-	// A backend that has the surface but cannot place what the frame carries
-	// reports the same code — a hint placement it has no branch for (#1331,
-	// #1333) — because the caller reads it as "this content is not on screen",
+	// is degradation rather than failure. Callers branch on IsNotSupported.
+	// A backend that has the surface but cannot place what the frame carries,
+	// such as a hint placement it has no branch for (#1331, #1333), reports
+	// the same code, because the caller reads it as "this content is not on screen",
 	// and drawing it somewhere the user did not configure is the silent
 	// fallback the error vocabulary exists to replace.
 	RedrawFrame(ctx context.Context, frame Frame) error
@@ -334,31 +334,31 @@ type OverlayPort interface {
 	// sequence, owned in the same place.
 	//
 	// "Content and all" includes what the incremental calls below left on the
-	// grid surface — the hide-unmatched flag and the pointer stand-in (#1492).
-	// A mode used to reset those itself on the way out, which on a backend
-	// that repaints the whole surface per call meant repainting a grid twice
-	// to throw it away; and a caller that has to take half a surface down
+	// grid surface, which is the hide-unmatched flag and the pointer stand-in
+	// (#1492). A mode used to reset those itself on the way out, which on a
+	// backend that repaints the whole surface per call meant repainting a grid
+	// twice to throw it away. A caller that has to take half a surface down
 	// itself is a caller that can leave half of it behind.
 	ClearFrame(ctx context.Context) error
 
 	// SetActiveScreen names the display the overlay's screen-local content
 	// belongs to. Grid, recursive-grid and hint content is drawn in a screen's
-	// own space; a backend whose surface spans the whole desktop needs the
+	// own space. A backend whose surface spans the whole desktop needs the
 	// screen to place that content on the right monitor, and one that gives
 	// each display its own window needs nothing and ignores it.
 	SetActiveScreen(screen image.Rectangle)
 
 	// DrawHintSearch draws the hint search input over the hints frame. Like
-	// RedrawFrame it is an update rather than a transition: it fires on every
+	// RedrawFrame it is an update rather than a transition. It fires on every
 	// keystroke typed into the search, over an overlay already on screen.
 	//
 	// An overlay that draws no search input reports CodeNotSupported, which is
-	// degradation rather than failure: search itself is unaffected, because the
+	// degradation rather than failure. Search itself is unaffected, because the
 	// query reaches the hints through the event tap's key stream and not
 	// through this. Callers branch on IsNotSupported (#1328).
 	//
 	// An overlay that does draw one reports the same code when it cannot place
-	// the anchor it was configured with (#1329) — the box does not appear
+	// the anchor it was configured with (#1329). The box does not appear
 	// either way, and drawing it somewhere the user did not ask for is the
 	// silent fallback the error vocabulary exists to replace. So a caller reads
 	// the code as "no search input on screen", not as a verdict on the backend.
@@ -367,18 +367,18 @@ type OverlayPort interface {
 	// HideHintSearch takes the search input off the screen, leaving the hint
 	// labels behind it where they are.
 	//
-	// It reports nothing, and deliberately so (#1328): unlike the draw, it
-	// makes no claim about the screen that could turn out to be untrue — an
-	// overlay that never drew a search input has nothing left to take off — and
-	// it runs from teardown, where no caller could act on an answer anyway.
+	// It reports nothing, and deliberately so (#1328). Unlike the draw, it
+	// makes no claim about the screen that could turn out to be untrue, since
+	// an overlay that never drew a search input has nothing left to take off.
+	// It also runs from teardown, where no caller could act on an answer anyway.
 	HideHintSearch()
 
 	// HintSearchBounds reports where the search input sits on a screen. The
 	// platform's IME field has to be placed over it, and the overlay is the
-	// one place that decides where "over it" is — asking beats deriving the
+	// one place that decides where "over it" is. Asking beats deriving the
 	// same rectangle a second time.
 	//
-	// The rectangle is screen-local, not global: it names a place on the
+	// The rectangle is screen-local, not global. It names a place on the
 	// overlay's own drawing surface, which is the one exception the
 	// coordinate rule in AGENTS.md already carries for drawn overlay content.
 	// ports.TextInputFrame has always been fed this space.
@@ -386,7 +386,7 @@ type OverlayPort interface {
 
 	// UpdateGridMatches narrows the grid on screen to the cells whose label
 	// starts with prefix. With SetGridHideUnmatched it is the incremental
-	// half of grid mode: both fire on every keystroke, over a grid already
+	// half of grid mode. Both fire on every keystroke, over a grid already
 	// drawn, and routing them through a frame is the latency regression
 	// AGENTS.md forbids (ADR 0003).
 	UpdateGridMatches(prefix string)
@@ -400,23 +400,23 @@ type OverlayPort interface {
 	// so it is an update rather than a frame for the same reason.
 	//
 	// It carries the pointer stand-in the way a recursive-grid frame does, and
-	// for the same reason (#1492): the keystroke that picks a cell is also the
+	// for the same reason (#1492). The keystroke that picks a cell is also the
 	// keystroke that moves the selection, and on a backend that paints both
-	// onto one surface — every Linux one — saying it in two calls repaints
+	// onto one surface, as every Linux one does, saying it in two calls repaints
 	// that surface twice. The pointer travels here so one call paints both.
 	// It is the pointer as it should stand *after* the cell was picked, so an
 	// invisible one takes it off the subgrid the same call opens.
 	ShowGridSubgrid(cell *grid.Cell, pointer GridPointer)
 
 	// UpdateGridPointer moves the pointer stand-in drawn on a grid surface,
-	// or takes it off. The mode names which surface — grid or recursive grid
-	// — the same way a frame names the mode it draws.
+	// or takes it off. The mode names which surface, grid or recursive grid,
+	// the same way a frame names the mode it draws.
 	//
 	// A recursive-grid frame carries the same value, because that backend
 	// paints the pointer in the same pass as the cells and a redraw without it
 	// would wipe it. ShowGridSubgrid carries it for the same reason. This call
-	// is for the keystrokes that move the pointer and nothing else — the
-	// activation that places it, the toggle that hides it, the screen change
+	// is for the keystrokes that move the pointer and nothing else, such as the
+	// activation that places it, the toggle that hides it, and the screen change
 	// that invalidates it.
 	UpdateGridPointer(mode domain.Mode, pointer GridPointer)
 
@@ -433,25 +433,25 @@ type OverlayPort interface {
 	// DrawMouseActionIndicator draws a transient indicator for a mouse action.
 	DrawMouseActionIndicator(point image.Point, style MouseActionIndicatorStyle)
 
-	// ShowIndicator makes an indicator visible. It draws nothing: position and
+	// ShowIndicator makes an indicator visible. It draws nothing. Position and
 	// content arrive through the matching Draw call.
 	ShowIndicator(indicator Indicator)
 
 	// HideIndicator takes an indicator off the screen, content and all. What
-	// that costs — clearing a window, erasing a rectangle from a shared
-	// surface — is the backend's business; a caller that had to sequence it
+	// that costs, clearing a window or erasing a rectangle from a shared
+	// surface, is the backend's business. A caller that had to sequence it
 	// was a caller that could leave the indicator behind.
 	HideIndicator(indicator Indicator)
 
 	// ResizeIndicatorToActiveScreen sizes an indicator's surface to the
 	// display the cursor is on. Indicators that manage their own window and
-	// backends that draw them onto the shared overlay both answer this; where
+	// backends that draw them onto the shared overlay both answer this. Where
 	// it is meaningless it is a no-op.
 	//
 	// Unlike the rest of this port, it is also called from the mode handler's
-	// locked context — entering a mode sizes the indicators before the polling
-	// goroutine starts — so an implementation must not wait on anything that
-	// could itself be waiting on the app.
+	// locked context, because entering a mode sizes the indicators before the
+	// polling goroutine starts. An implementation must not wait on anything
+	// that could itself be waiting on the app.
 	ResizeIndicatorToActiveScreen(indicator Indicator)
 
 	// Flush commits everything drawn since the last flush, so a user never
@@ -473,8 +473,8 @@ type OverlayPort interface {
 	ApplyConfig(cfg *config.Config)
 
 	// RefreshStyles re-resolves those Styles against the configuration the
-	// overlay already holds. A light/dark change goes through here: nothing
-	// about the configuration moved, only what it resolves to.
+	// overlay already holds. A light/dark change goes through here, because
+	// nothing about the configuration moved, only what it resolves to.
 	RefreshStyles()
 
 	// SetHiddenInScreenShare says whether the overlay should be excluded from
@@ -483,7 +483,7 @@ type OverlayPort interface {
 	SetHiddenInScreenShare(hidden bool)
 
 	// SetKeyboardCaptureEnabled asks the overlay to hold or release the
-	// keyboard. Only an overlay that grabs input has anything to release: on
+	// keyboard. Only an overlay that grabs input has anything to release. On
 	// Linux an evdev grab held by the overlay deactivates the focused toplevel,
 	// so the indicator poller releases it before reading which window is
 	// focused. Where the overlay never takes the keyboard from the focused
@@ -491,13 +491,13 @@ type OverlayPort interface {
 	// presents every draw.
 	SetKeyboardCaptureEnabled(enabled bool)
 
-	// Destroy releases everything the overlay owns — native windows, surfaces,
+	// Destroy releases everything the overlay owns: native windows, surfaces,
 	// connections. It runs on the shutdown path, after the modes have already
 	// cleared what they drew, and must be safe to call when nothing was ever
 	// shown.
 	//
-	// It is final: every other method on this port is a no-op afterwards, and
-	// the ones that answer report what a screenless overlay honestly can — a
+	// It is final. Every other method on this port is a no-op afterwards, and
+	// the ones that answer report what a screenless overlay honestly can. A
 	// drawing call succeeds without drawing, IsVisible is false, the hint
 	// search bounds are empty and Health reports CodeNotSupported. A caller
 	// racing a shutdown is a race the shutdown already won, not a failure it
@@ -506,7 +506,7 @@ type OverlayPort interface {
 }
 
 // OverlayCapabilityReporter is an optional OverlayPort extension for managers
-// that can report their own support state — the one subsystem whose
+// that can report their own support state. It is the one subsystem whose
 // availability is decided at runtime (Wayland without layer-shell, X11 without
 // a display). OverlayPort.Health asks through this and reports
 // CodeNotSupported with the manager's detail. Managers that do not implement

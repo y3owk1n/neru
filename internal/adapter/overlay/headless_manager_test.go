@@ -16,13 +16,13 @@ import (
 
 // headlessManager answers the overlay's backend contract without a display.
 //
-// It is test support and lives here for that reason: the app layer has had no
+// It is test support and lives here for that reason. The app layer has had no
 // use for a no-op backend since #1213, when the simulation harness started
 // implementing ports.OverlayPort outright. What is still wide is the contract
 // between this adapter and its own backends, which is deliberately out of
-// scope for the port work — so the fakes below build on this rather than
+// scope for the port work, so the fakes below build on this rather than
 // spelling out forty methods each. That means a fake here silently succeeds at
-// anything it does not override; every one of them asserts on what it recorded
+// anything it does not override. Every one of them asserts on what it recorded
 // rather than on what it was not asked.
 type headlessManager struct{}
 
@@ -71,7 +71,7 @@ func (n *headlessManager) Mode() overlay.Mode { return overlay.ModeIdle }
 func (n *headlessManager) Headless() bool { return true }
 
 // BuildComponents builds nothing. This manager declares itself headless, and
-// that is the whole reason: there is no surface to build against.
+// that is the whole reason. There is no surface to build against.
 func (n *headlessManager) BuildComponents(
 	cfg *config.Config,
 	theme config.ThemeProvider,

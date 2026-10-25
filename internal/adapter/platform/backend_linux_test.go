@@ -40,8 +40,8 @@ func TestLinuxBackend_IsWayland(t *testing.T) {
 }
 
 // TestLinuxBackend_DisplayServer pins the label every backend reports itself
-// under. It is a total mapping rather than only the arms the profile reaches:
-// the label is the answer to "what is the daemon driving", and a backend with no
+// under. It is a total mapping rather than only the arms the profile reaches.
+// The label is the answer to "what is the daemon driving", and a backend with no
 // answer here would report the unknown stack while running perfectly.
 func TestLinuxBackend_DisplayServer(t *testing.T) {
 	tests := []struct {
@@ -158,7 +158,7 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 
 // TestIsHyprlandFromEnv pins the one compositor LinuxBackend does not name.
 // The wlroots arm covers five compositors, so a caller with a Hyprland-only
-// quirk has to ask this instead — and it has to answer no for the four others,
+// quirk has to ask this instead. It has to answer no for the four others,
 // for KDE (whose modifier goes out on libei, not the wlroots keyboard), and for
 // a desktop variable left over from a session that is not running.
 func TestIsHyprlandFromEnv(t *testing.T) {

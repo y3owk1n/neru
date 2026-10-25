@@ -140,10 +140,10 @@ func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 	}
 
 	// Coming from another mode, the keyboard is handed over rather than given
-	// back: exit now, release at return if nothing is entered. Entering from
-	// idle takes the same pair — the exit is a no-op there and the release
-	// finds nothing to give back — because a picker that cannot draw returns
-	// through the same path either way.
+	// back. Exit now, release at return if nothing is entered. Entering from
+	// idle takes the same pair, because a picker that cannot draw returns
+	// through the same path either way. There the exit is a no-op and the
+	// release finds nothing to give back.
 	defer h.exitModeForTransition()()
 
 	h.monitorSelect = session
@@ -226,7 +226,7 @@ func (h *handlerState) confirmMonitorSelect(target *monitorSelectTarget) {
 }
 
 // cleanupMonitorSelectMode ends the picking session. The panels come off the
-// screen with the frame, in the common cleanup that follows this: they are the
+// screen with the frame, in the common cleanup that follows this. They are the
 // overlay's to take down, and a mode that took half of it down itself is how
 // one used to be left behind.
 func (h *handlerState) cleanupMonitorSelectMode() {
@@ -265,7 +265,7 @@ func (h *handlerState) reportMonitorSelectNotSupported() {
 	}
 
 	// This runs under h.mu, and showing a notification is a session-bus round
-	// trip on Linux — a blocking call the locking contract keeps off the lock.
+	// trip on Linux, a blocking call the locking contract keeps off the lock.
 	// The goroutine touches no handler state, only values read here, and a
 	// notification that cannot be shown is reported rather than dropped.
 	system, logger, ctx := h.system, h.logger, h.ctx

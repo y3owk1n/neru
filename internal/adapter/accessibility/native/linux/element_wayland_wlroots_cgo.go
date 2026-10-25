@@ -26,7 +26,7 @@ func wlrootsFocusedApplicationIdentity() (string, int) {
 
 	// The wlr-foreign-toplevel-management protocol (wlroots + KWin/KDE) reports
 	// the focused toplevel's app_id but not its PID, so the PID is 0. app_id is
-	// the identifier used for per-app configuration lookups; when a caller needs
+	// the identifier used for per-app configuration lookups. When a caller needs
 	// a real PID it falls back to the XWayland path if DISPLAY is set.
 	appID, ok := linux.FocusedAppID(platform.DetectLinuxBackend().String())
 	if ok && appID != "" {
@@ -132,7 +132,7 @@ func restoreLiftedModifiersAfterSync() {
 }
 
 // lift releases the chord on the proxy. A fresh lift waits the fixed period
-// the uinput side owes; one that found the chord already up owes nothing.
+// the uinput side owes. One that found the chord already up owes nothing.
 func (l *physicalLift) lift() {
 	lifted, err := l.liftHeld()
 	if err != nil || !lifted {
@@ -210,10 +210,11 @@ func (l *physicalLift) restoreLocked() {
 // length of a pointer action, so the action carries only the set it names.
 // This is the x11ClickButtonAtPoint rule applied to the one keyboard the
 // compositor reads here, the evdev proxy's (footnote 7 of
-// docs/contributing/platform-internals.md). The releases go out on uinput and the action on the
-// Wayland socket, and nothing orders the two, so a lift waits the fixed period
-// the uinput side always waits (waitForScrollDelivery). The returned restore
-// presses the lifted modifiers again once every overlapping action is done.
+// docs/contributing/platform-internals.md). The releases go out on uinput and
+// the action on the Wayland socket, and nothing orders the two, so a lift waits
+// the fixed period the uinput side always waits (waitForScrollDelivery). The
+// returned restore presses the lifted modifiers again once every overlapping
+// action is done.
 func liftPhysicalModifiers() func() {
 	globalPhysicalLift.acquire()
 
@@ -225,7 +226,7 @@ func wlrootsMouseDownAtPoint(
 	button action.MouseButton,
 	modifiers action.Modifiers,
 ) error {
-	// Lifted for the whole drag, as on X11: the release that ends the last
+	// Lifted for the whole drag, as on X11. The release that ends the last
 	// held button restores, so the press takes no hold of its own. A press
 	// that fails restores here, since no release is coming for it.
 	globalPhysicalLift.lift()
@@ -261,7 +262,7 @@ func restoreAfterRelease(button action.MouseButton) {
 
 // restoreUnlessOtherHeld puts the lifted modifiers back unless a button other
 // than this one is still held. A release that failed goes through here with
-// its button still recorded, so the idle cleanup can retry it: the modifiers
+// its button still recorded, so the idle cleanup can retry it. The modifiers
 // come back regardless, which is the documented bias, since the opposite
 // drops a modifier the user is still holding.
 func restoreUnlessOtherHeld(button action.MouseButton) {
@@ -297,8 +298,8 @@ func wlrootsMouseUpAtPoint(
 
 // wlrootsReleaseHeldButton ends a press this process recorded, letting go of
 // the modifiers it pressed. A failed release keeps the button recorded for the
-// idle cleanup to retry, naming only the modifiers whose release also failed:
-// the rest are up already, and a second release of a modifier Neru no longer
+// idle cleanup to retry, naming only the modifiers whose release also failed.
+// The rest are up already, and a second release of a modifier Neru no longer
 // holds lets go of the user's own.
 func wlrootsReleaseHeldButton(
 	point image.Point,
@@ -368,8 +369,8 @@ func wlrootsPressModifiers(modifiers action.Modifiers) error {
 // wlrootsReleaseModifiers lets go of the modifiers a pointer action presented.
 //
 // It takes the set the matching press was given rather than the set it got
-// down, because the two callers that hold across a boundary — a drag, and a
-// release with no press behind it — have only the former to hand back.
+// down, because the two callers that hold across a boundary, a drag and a
+// release with no press behind it, have only the former to hand back.
 func wlrootsReleaseModifiers(modifiers action.Modifiers) error {
 	return releaseWaylandModifiers(modifiers)
 }
@@ -448,12 +449,13 @@ func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error
 // events, holding any modifiers for the length of the animation.
 //
 // It uses the continuous axis rather than the discrete one the unanimated path
-// sends, and that choice is the whole reason smooth scroll works here: an axis
+// sends, and that choice is the whole reason smooth scroll works here. An axis
 // event with no discrete step count reaches the focused client as the fraction
 // it carries, while a discrete one declares a wheel notch that the compositor
 // may hold back until whole notches accumulate. Both wlroots (through
 // zwlr_virtual_pointer) and KWin (through libei's pixel-precise scroll delta)
-// pass the fraction through; linux.WaylandScrollContinuous picks between them.
+// pass the fraction through, and linux.WaylandScrollContinuous picks between
+// them.
 type waylandScrollSession struct {
 	modifiers action.Modifiers
 	restore   func()
@@ -492,8 +494,8 @@ func newWaylandScrollSession(modifiers action.Modifiers) (scrollSession, error) 
 	return &waylandScrollSession{modifiers: modifiers, restore: restore}, nil
 }
 
-// granularity is zero: a Wayland axis value is a distance, not a step count, so
-// there is no unit to round to.
+// granularity is zero. A Wayland axis value is a distance, not a step count,
+// so there is no unit to round to.
 func (s *waylandScrollSession) granularity() float64 { return 0 }
 
 func (s *waylandScrollSession) inject(deltaX, deltaY float64) error {
@@ -525,8 +527,8 @@ func (s *waylandScrollSession) close() {
 }
 
 // wlrootsScrollAxis sends Wayland axis events for one axis.
-// Each event carries 1 notch (axis_discrete=±1, axis_value120=±120) to
-// match what a physical mouse wheel produces — no toolkit clipping.
+// Each event carries 1 notch (axis_discrete=+/-1, axis_value120=+/-120)
+// to match what a physical mouse wheel produces, with no toolkit clipping.
 // Events are sent in batches of wlrootsScrollMaxEvents to avoid flooding
 // the compositor socket.
 //

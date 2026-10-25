@@ -12,17 +12,17 @@ import (
 )
 
 // integrationScanBudget bounds a live-AX test call. It is a hang guard, not a
-// performance assertion: the whole suite takes a couple of seconds when the AX
+// performance assertion. The whole suite takes a couple of seconds when the AX
 // API answers, so anything approaching this means a call is wedged.
 const integrationScanBudget = 30 * time.Second
 
 // runWithinBudget runs work on its own goroutine and fails if it does not
-// return within the budget. A context deadline cannot do this: the AX client
+// return within the budget. A context deadline cannot do this. The AX client
 // discards its context, so nothing observes cancellation inside the ObjC
-// bridge — without a watchdog the failure is Go's 10-minute -timeout and a
+// bridge, and without a watchdog the failure is Go's 10-minute -timeout and a
 // goroutine dump that names nothing. The goroutine is abandoned on timeout
 // (blocked in a native call, binary exiting anyway). work must not call
-// t.Fatal; assign results and assert after this returns.
+// t.Fatal. Assign results and assert after this returns.
 func runWithinBudget(t *testing.T, what string, work func()) {
 	t.Helper()
 
@@ -47,8 +47,8 @@ func runWithinBudget(t *testing.T, what string, work func()) {
 }
 
 // hasInputPermission reports whether this process has been granted macOS
-// Accessibility permission. It is resolved once: the answer cannot change
-// during a run.
+// Accessibility permission. It is resolved once, since the answer cannot
+// change during a run.
 var hasInputPermission = sync.OnceValue(darwinplatform.CheckAccessibilityPermissions)
 
 // requireInputPermission skips a test that cannot work without macOS
@@ -57,7 +57,7 @@ var hasInputPermission = sync.OnceValue(darwinplatform.CheckAccessibilityPermiss
 // Reading the AX tree and posting synthetic input are behind the same TCC gate,
 // and a `go test` binary is not normally granted it. Without the grant the
 // window server drops the posted moves, so the cursor never leaves its starting
-// point and the AX query cannot find a frontmost window — and the tests report
+// point and the AX query cannot find a frontmost window, and the tests report
 // that as a failure, which is a claim about the code that is not true. What
 // failed is the environment.
 //
@@ -67,7 +67,7 @@ var hasInputPermission = sync.OnceValue(darwinplatform.CheckAccessibilityPermiss
 //
 // These tests run for real via `just test-desktop` (or test-all) on a machine
 // where Accessibility is granted to the terminal (or the test binary) under
-// System Settings > Privacy & Security > Accessibility; the CI profile
+// System Settings > Privacy & Security > Accessibility. The CI profile
 // (-short) skips them, so a granted desktop session is where this coverage
 // actually happens.
 func requireInputPermission(t *testing.T) {
@@ -83,8 +83,8 @@ func requireInputPermission(t *testing.T) {
 }
 
 // requireDesktop skips unless this run opted into tests that drive the real
-// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable;
-// plain `just test` stays hands-off the machine.
+// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable,
+// and plain `just test` stays hands-off the machine.
 func requireDesktop(t *testing.T) {
 	t.Helper()
 

@@ -24,7 +24,6 @@ const (
 )
 
 func TestInitIntegration(t *testing.T) {
-	// Create temp directory for test logs
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
@@ -96,20 +95,17 @@ func TestInitIntegration(t *testing.T) {
 				t.Errorf("Init() error = %v, wantErr %v", initErr, testCase.wantErr)
 			}
 
-			// Verify loggerInstance was initialized
 			loggerInstance := logger.Get()
 			if loggerInstance == nil {
 				t.Error("Get() returned nil after Init()")
 			}
 
-			// Clean up
 			_ = logger.Close()
 		})
 	}
 }
 
 func TestLoggingFunctions(t *testing.T) {
-	// Initialize logger
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
@@ -128,7 +124,7 @@ func TestLoggingFunctions(t *testing.T) {
 		// wantLevel is the level the entry must be recorded at, and wantFields
 		// the structured fields that must survive into the file. Asserting the
 		// level matters because a mis-wired level would silently downgrade
-		// error reporting while still "not panicking"; asserting the fields
+		// error reporting while still "not panicking". Asserting the fields
 		// catches an encoder that drops structured context.
 		wantLevel  string
 		wantFields map[string]any
@@ -204,7 +200,6 @@ func TestLoggingFunctions(t *testing.T) {
 		})
 	}
 
-	// Verify log file was created
 	_, initErr = os.Stat(logPath)
 	if os.IsNotExist(initErr) {
 		t.Error("Log file was not created")
@@ -276,7 +271,6 @@ func TestLogLevels(t *testing.T) {
 				_ = logger.Close()
 			}()
 
-			// Logger should be initialized
 			logger := logger.Get()
 			if logger == nil {
 				t.Error("Get() returned nil")
@@ -304,10 +298,8 @@ func TestFileRotation(t *testing.T) {
 		logger.Get().Info("test message with some content to fill up the log file")
 	}
 
-	// Sync to ensure all logs are written
 	_ = logger.Sync()
 
-	// Verify log file exists
 	_, initErr = os.Stat(logPath)
 	if os.IsNotExist(initErr) {
 		t.Error("Log file was not created")

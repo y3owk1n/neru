@@ -1,7 +1,7 @@
 // Package modeindicator renders the small on-screen badge naming the active
 // mode.
 //
-// It owns the overlay's style and drawing only; when the badge is shown and
+// It owns the overlay's style and drawing only. When the badge is shown and
 // what it says are decided by the mode indicator service in
 // internal/app/services/modeindicator.
 //

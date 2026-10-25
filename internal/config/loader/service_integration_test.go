@@ -18,7 +18,6 @@ import (
 )
 
 func TestService_Reload(t *testing.T) {
-	// Create temporary config file
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.toml")
 
@@ -36,7 +35,6 @@ clickable_roles = ["button"]
 
 	service := loader.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 
-	// Test Reload
 	ctx := context.Background()
 
 	reloadErr := service.Reload(ctx, configPath)
@@ -53,7 +51,6 @@ clickable_roles = ["button"]
 		t.Errorf("Reload() did not load correct ClickableRoles, got %v", cfg.Hints.ClickableRoles)
 	}
 
-	// Test Reload with invalid file
 	anotherWriteFileErr := os.WriteFile(configPath, []byte("invalid toml content"), 0o644)
 	if anotherWriteFileErr != nil {
 		t.Fatalf("Failed to update temp config: %v", anotherWriteFileErr)

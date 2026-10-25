@@ -13,12 +13,12 @@ import (
 )
 
 // TestScrollAtCursor_RefusesModifiersWithoutABackend pins the loudness half of
-// the scroll modifier contract: with no display server to inject through there
+// the scroll modifier contract. With no display server to inject through there
 // is no way to present a held key, and answering nil would scroll unmodified
 // while reporting success. A user who asked for ctrl + scroll_up would see a
 // pan instead of a zoom and blame their binding.
 //
-// An unmodified scroll keeps its long-standing silent no-op — nothing about
+// An unmodified scroll keeps its long-standing silent no-op. Nothing about
 // this change gave it somewhere to go.
 func TestScrollAtCursor_RefusesModifiersWithoutABackend(t *testing.T) {
 	t.Setenv("XDG_CURRENT_DESKTOP", "")
@@ -58,10 +58,11 @@ func (smoothScrollConfig) Get() *config.Config {
 }
 
 // TestScrollAtCursor_RefusesWithSmoothScrollAndNoBackend is the same contract
-// for the animated path, which is the one that could quietly lose it: the
+// for the animated path, which is the one that could quietly lose it. The
 // animation runs on a worker goroutine, so a refusal discovered there has
-// nobody to go back to. The refusal therefore has to be made before the handoff
-// — and turning an option on must never turn a `CodeNotSupported` into a nil.
+// nobody to go back to. The refusal therefore has to be made before the
+// handoff, and turning an option on must never turn a `CodeNotSupported` into
+// a nil.
 func TestScrollAtCursor_RefusesWithSmoothScrollAndNoBackend(t *testing.T) {
 	t.Setenv("XDG_CURRENT_DESKTOP", "")
 	t.Setenv("WAYLAND_DISPLAY", "")

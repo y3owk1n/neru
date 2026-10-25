@@ -55,7 +55,7 @@ ignore_clickable_check = false
 ##   Linux/X11     -> WM_CLASS class     e.g. "brave-browser"      (xprop WM_CLASS)
 ##   Linux/Wayland -> toplevel app_id    e.g. "brave-browser"      (swaymsg -t get_tree / hyprctl activewindow)
 ## GNOME/Mutter on Wayland exposes no focused-app source, so per-app config
-## never applies there; GNOME on X11 and all wlroots/KDE Wayland sessions work.
+## never applies there. GNOME on X11 and all wlroots/KDE Wayland sessions work.
 
 ## macOS example:
 # [[hints.app_configs]]

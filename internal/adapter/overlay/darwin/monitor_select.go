@@ -24,11 +24,11 @@ var _ manager.MonitorSelector = (*Manager)(nil)
 // the main queue, because the dispatched block borrows the C target array
 // this function frees on return. On the main thread they run inline, because
 // shutdown removes the panels there after the Cocoa loop stops.
-// The mode handler calls this with its lock held, so the lock blocks on the
-// main queue draining — safe
-// only while nothing that runs on the main queue acquires the handler lock
-// (true today: event tap, hotkey, theme and systray callbacks all hop to
-// goroutines before reaching the handler).
+// The mode handler calls this with its lock held, so the lock waits for the
+// main queue to drain. That is safe only while nothing that runs on the main
+// queue acquires the handler lock. It holds today, because event tap, hotkey,
+// theme and systray callbacks all hop to goroutines before reaching the
+// handler.
 func (m *Manager) DrawMonitorSelect(
 	targets []manager.MonitorSelectTarget,
 	style manager.MonitorSelectStyle,

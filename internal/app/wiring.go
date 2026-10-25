@@ -48,7 +48,7 @@ func initializeLogger(cfg *config.Config) (*zap.Logger, error) {
 
 // OverlayManager is the overlay backend the port is built over.
 //
-// It is named here, in the composition root, and nowhere else: choosing which
+// It is named here, in the composition root, and nowhere else. Choosing which
 // implementation exists is this file's job, and everything the running
 // application says to the overlay it says through ports.OverlayPort.
 type OverlayManager = overlay.ManagerInterface
@@ -92,17 +92,15 @@ func initializeAdapters(
 	overlayManager OverlayManager,
 	systemPort ports.SystemPort,
 ) (ports.AccessibilityPort, ports.OverlayPort) {
-	// Respect an injected accessibility port (WithAccessibility); only build
+	// Respect an injected accessibility port (WithAccessibility). Only build
 	// the real adapter and its platform AX client when none was provided.
 	accAdapter := app.accessibility
 	if accAdapter == nil {
-		// Create infrastructure client.
 		axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService)
 
 		// Store axClient so Cleanup can release its resources (D-Bus conn, a11y status).
 		app.axClient = axClient
 
-		// Create base accessibility adapter with core functionality
 		accAdapter = accessibilityAdapter.NewAdapter(
 			logger,
 			axClient,
@@ -110,14 +108,14 @@ func initializeAdapters(
 		)
 	}
 
-	// Respect an injected overlay port (WithOverlayPort) the same way: a caller
+	// Respect an injected overlay port (WithOverlayPort) the same way. A caller
 	// that brought its own screen has no backend behind it to build an adapter
 	// over, and phase 1 built none.
 	overlayPort := app.overlayPort
 	if overlayPort == nil {
 		// The overlay owns config + theme -> Style. Building the resolver here
 		// and handing it straight to the adapter is what leaves the app with
-		// one overlay reference: a reload or a theme change tells the port, and
+		// one overlay reference. A reload or a theme change tells the port, and
 		// the port tells its own resolver.
 		overlayPort = overlay.NewAdapter(
 			overlayManager,
@@ -164,7 +162,6 @@ func initializeServices(
 	visionPort ports.VisionPort,
 	logger *zap.Logger,
 ) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, indicatorServices, error) {
-	// Hint Generator - creates unique labels for UI elements
 	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(
 		cfg.Hints.HintCharacters,
 		domainHint.LabelDirectionFromString(cfg.Hints.LabelDirectionForApp("")),
@@ -177,12 +174,11 @@ func initializeServices(
 		)
 	}
 
-	// Vision adapter - vision-based element detection (optional, used on "vision" strategy)
+	// Vision-based element detection, used by the "vision" hint strategy.
 	if visionPort == nil {
 		visionPort = visionAdapter.NewAdapter(logger)
 	}
 
-	// Hint Service - orchestrates hint generation and display
 	hintService := services.NewHintService(
 		accAdapter,
 		overlayAdapter,
@@ -193,10 +189,9 @@ func initializeServices(
 		visionPort,
 	)
 
-	// Grid Service - reports overlay health for grid mode
+	// The grid service only reports overlay health for grid mode.
 	gridService := services.NewGridService(overlayAdapter)
 
-	// Action Service - handles UI element interactions
 	actionService := services.NewActionService(
 		accAdapter,
 		overlayAdapter,
@@ -205,7 +200,6 @@ func initializeServices(
 	)
 	actionService.UpdateConfig(cfg.MouseAction)
 
-	// Scroll Service - manages scrolling operations
 	scrollService := services.NewScrollService(
 		accAdapter,
 		systemPort,
@@ -213,7 +207,6 @@ func initializeServices(
 		logger,
 	)
 
-	// Indicator services - each owns one indicator, visibility and position
 	indicators := newIndicatorServices(overlayAdapter, systemPort)
 
 	return hintService, gridService, actionService, scrollService, indicators, nil
@@ -223,7 +216,6 @@ func initializeServices(
 func processHotkeyBindings(cfg *config.Config, logger *zap.Logger) []string {
 	keys := make([]string, 0, len(cfg.Hotkeys.Bindings))
 	for key, actions := range cfg.Hotkeys.Bindings {
-		// Skip empty keys or empty action arrays
 		if strings.TrimSpace(key) == "" || len(actions) == 0 {
 			logger.Debug(
 				"Skipping empty hotkey binding",

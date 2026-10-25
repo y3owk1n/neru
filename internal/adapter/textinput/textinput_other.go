@@ -13,8 +13,8 @@ import (
 // TextInput is the slot for platforms with no native hint-search field. Hint
 // search reads the event tap's key stream there instead.
 //
-// The started == false return — rather than a CodeNotSupported error — is the
-// contract here: TextInputPort.StartHintSearchSession is defined as
+// The contract here is a started == false return rather than a
+// CodeNotSupported error. TextInputPort.StartHintSearchSession is defined as
 // best-effort, and callers already branch on started to pick the key-stream
 // path. Reporting an error would make an expected degrade look like a failure.
 // The unavailability is instead surfaced through the text_input entry in
@@ -38,7 +38,7 @@ func (t *TextInput) StartHintSearchSession(
 	return false, nil
 }
 
-// StopHintSearchSession is a no-op: no session is ever started here.
+// StopHintSearchSession is a no-op, because no session is ever started here.
 func (t *TextInput) StopHintSearchSession(_ context.Context) error {
 	return nil
 }

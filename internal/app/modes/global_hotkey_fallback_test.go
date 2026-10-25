@@ -1,9 +1,9 @@
 package modes
 
 // A global [hotkeys] chord has to keep working while a mode is open, and on
-// Linux the handler is the only thing that can run it: the in-mode capture is
+// Linux the handler is the only thing that can run it. The in-mode capture is
 // exclusive, so the mechanism that registered the chord sees nothing until the
-// mode exits. These are that fallback stated as behavior — what it runs, what it
+// mode exits. These are that fallback stated as behavior: what it runs, what it
 // refuses to shadow, and who wins when both tables bind the same chord.
 
 import (
@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	// fallbackChord is a global chord written the way a Linux user writes one;
-	// it normalizes to the "Cmd+;" the evdev tap delivers.
+	// fallbackChord is a global chord written the way a Linux user writes one.
+	// It normalizes to the "Cmd+;" the evdev tap delivers.
 	fallbackChord = "Super+;"
-	// fallbackSteps is what the global binding runs — the reported case,
+	// fallbackSteps is what the global binding runs: the reported case,
 	// reduced to the flag that makes the difference.
 	fallbackSteps = "recursive_grid --toggle"
 	modeSteps     = "action left_click"
@@ -65,8 +65,9 @@ func fallbackHandler(
 }
 
 // waitForDispatch reports the steps the handler ran, or fails if it ran none.
-// The dispatch is asynchronous by contract — handleHotkey runs the sequence on a
-// goroutine so it cannot re-enter h.mu — so this waits rather than polling once.
+// The dispatch is asynchronous by contract (handleHotkey runs the sequence on a
+// goroutine so it cannot re-enter h.mu), so this waits rather than polling
+// once.
 func waitForDispatch(t *testing.T, dispatched chan string) string {
 	t.Helper()
 
@@ -120,7 +121,7 @@ func TestHandleKeyPress_ModeBindingWinsOverTheGlobalChord(t *testing.T) {
 	}
 }
 
-// A bare key is a mode's own input — a hint label, a grid cell key — so a global
+// A bare key is a mode's own input (a hint label, a grid cell key), so a global
 // binding for one may not reach it. The key goes to the mode instead.
 func TestHandleKeyPress_GlobalBareKeyStaysTheModesOwn(t *testing.T) {
 	t.Parallel()
@@ -143,7 +144,7 @@ func TestHandleKeyPress_GlobalBareKeyStaysTheModesOwn(t *testing.T) {
 		t.Fatal("the bare key reached neither the mode nor a binding")
 	}
 
-	// Shift alone does not make a shortcut either: modes bind Shift combos of
+	// Shift alone does not make a shortcut either. Modes bind Shift combos of
 	// their own throughout.
 	handler.HandleKeyPress("Shift+m")
 
@@ -156,7 +157,7 @@ func TestHandleKeyPress_GlobalBareKeyStaysTheModesOwn(t *testing.T) {
 	}
 }
 
-// Idle takes no fallback: nothing is captured there, so the platform's own
+// Idle takes no fallback. Nothing is captured there, so the platform's own
 // hotkey mechanism owns the chord and a key fed over IPC must not fire one
 // behind its back.
 func TestSettledGlobalHotkeys_IsEmptyInIdle(t *testing.T) {

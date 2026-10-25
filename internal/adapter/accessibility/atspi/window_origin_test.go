@@ -20,7 +20,7 @@ import (
 )
 
 // TestNewWindowOriginSourceStartsNoBridgeOffWayland pins the user-visible half
-// of #1430: on a session the backend detector called X11, starting the
+// of #1430. On a session the backend detector called X11, starting the
 // window-origin source must touch nothing outside the process.
 //
 // Before the fix the source was picked from the compositor sockets alone, and a
@@ -51,7 +51,7 @@ func TestNewWindowOriginSourceStartsNoBridgeOffWayland(t *testing.T) {
 // with no compositor to ask, spelled as %T prints it.
 const noOriginType = "atspi.noWindowOrigin"
 
-// swaySocket is a plausible SWAYSOCK value; nothing ever connects to it,
+// swaySocket is a plausible SWAYSOCK value. Nothing ever connects to it,
 // because the selection under test reads only whether it is set.
 const swaySocket = "/run/sway.sock"
 
@@ -157,9 +157,9 @@ const fakeCLIMode = 0o700
 //
 // The same scaffolding stands in
 // internal/adapter/platform/linux/system_focused_window_test.go, and stays
-// duplicated on purpose: sharing it between two test packages in different
-// trees would mean a test-only package in the production tree, which is a
-// larger thing to own than sixty lines that answer to a compiler.
+// duplicated on purpose. Sharing it between two test packages in different
+// trees would mean a test-only package in the production tree, which costs
+// more to maintain than sixty duplicated lines the compiler checks.
 func fakeCompositorCLIs(t *testing.T, scripts map[string]string) {
 	t.Helper()
 
@@ -199,17 +199,17 @@ const (
 //
 // A compositor CLI that is missing, refusing or wedged used to be
 // indistinguishable from a compositor that answered with no origin, and both
-// silently dropped the offset — which on Wayland means every hint is drawn at
+// silently dropped the offset. On Wayland that means every hint is drawn at
 // its window-relative coordinates, so a screenful of them lands in the wrong
-// place with nothing said. Only the failure is a failure; a compositor that
+// place with nothing said. Only the failure is a failure. A compositor that
 // answered and has no origin to give is the ordinary degradation this path was
 // built for.
 func TestWindowOriginSource_ReportsAFailedQueryInsteadOfDroppingTheOffset(t *testing.T) {
 	const niriFloating = `{"layout":{"window_size":[946,942],` +
 		`"tile_pos_in_workspace_view":[958,52]}}`
 
-	// wantNamed is what a case expects the refusal to name — the CLI that
-	// failed, or the backend that has nothing to ask — and its absence means
+	// wantNamed is what a case expects the refusal to name, either the CLI
+	// that failed or the backend that has nothing to ask. An empty value means
 	// the case expects no refusal at all.
 	cases := []struct {
 		name      string
@@ -264,7 +264,7 @@ func TestWindowOriginSource_ReportsAFailedQueryInsteadOfDroppingTheOffset(t *tes
 		},
 		{
 			// X11 is the one session where having no origin is the complete
-			// answer: AT-SPI already reports screen coordinates there, so
+			// answer. AT-SPI already reports screen coordinates there, so
 			// nothing is missing and nothing failed.
 			name: "x11 needs no origin and reports no failure",
 			source: func(l *zap.Logger) windowOriginSource {
@@ -272,7 +272,7 @@ func TestWindowOriginSource_ReportsAFailedQueryInsteadOfDroppingTheOffset(t *tes
 			},
 		},
 		{
-			// A Wayland session with no source is the opposite: hints are about
+			// A Wayland session with no source is the opposite. Hints are about
 			// to be placed window-relative because there is nobody to ask, and
 			// that has to be distinguishable from a compositor that answered.
 			name: "a wayland backend with no source refuses and names itself",
@@ -321,10 +321,10 @@ func TestWindowOriginSource_ReportsAFailedQueryInsteadOfDroppingTheOffset(t *tes
 // contract from becoming a nuisance.
 //
 // A window-origin failure is almost always a property of the session, not of
-// this activation: a compositor CLI that is not installed stays not installed.
+// this activation. A compositor CLI that is not installed stays not installed.
 // Warning on every hint activation would repeat one fact hundreds of times a
-// day, which is how a log stops being read — so the reason is said out loud
-// once, again when it changes, and again after the source has worked in
+// day, and a log that does that stops being read. So the reason is said out
+// loud once, again when it changes, and again after the source has worked in
 // between.
 func TestClient_ReportOriginFailure_SaysOneSteadyReasonOnce(t *testing.T) {
 	core, logs := observer.New(zap.DebugLevel)
@@ -369,8 +369,9 @@ func TestClient_ReportOriginFailure_SaysOneSteadyReasonOnce(t *testing.T) {
 // (niri#2381), so a tiled window has no on-screen position and hints fall back
 // to window-relative coordinates. That is the compositor answering, and warning
 // about it would fire on every activation on the compositor's ordinary layout.
-// The output query is not even made: nothing is left to add an origin to, so a
-// broken one here — wired to fail below — must change nothing.
+// The output query is not even made. Nothing is left to add an origin to, so a
+// broken output query, which the fake below is wired to have, must change
+// nothing.
 func TestNiriOriginSource_KeepsATiledWindowAnAnswer(t *testing.T) {
 	fakeCompositorCLIs(t, niriCLI(`{"layout":{"window_size":[946,942]}}`, ""))
 
@@ -392,7 +393,7 @@ func echoJSON(body string) string {
 
 // niriCLI is a fake `niri msg -j <what>` answering the two subcommands the
 // origin query asks. An empty answer makes that subcommand exit non-zero, which
-// is how a case proves a query was made — or never made.
+// is how a case proves a query was made or never made.
 func niriCLI(focusedWindow, focusedOutput string) map[string]string {
 	answer := func(body string) string {
 		if body == "" {
@@ -412,16 +413,16 @@ func niriCLI(focusedWindow, focusedOutput string) map[string]string {
 }
 
 // swayOriginTreeJSON is a trimmed `swaymsg -t get_tree` whose focused node's
-// content origin — rect plus window_rect — is (958,52) with a 946x942 content
+// content origin, rect plus window_rect, is (958,52) with a 946x942 content
 // area, matching the frame extents the cases check against.
 const swayOriginTreeJSON = `{"focused":false,"rect":{"x":0,"y":0,"width":1920,"height":1080},
  "nodes":[{"focused":true,"rect":{"x":956,"y":28,"width":960,"height":1000},
  "window_rect":{"x":2,"y":24,"width":946,"height":942},
  "nodes":[],"floating_nodes":[]}],"floating_nodes":[]}`
 
-// TestNiriOriginTile covers the gate every niri case turns on — whether niri
-// gave this window a position at all — and the arithmetic that places the
-// position it did give.
+// TestNiriOriginTile covers the gate every niri case turns on, which is
+// whether niri gave this window a position at all, and the arithmetic that
+// places the position it did give.
 func TestNiriOriginTile(t *testing.T) {
 	out := niriOutput{}
 	out.Logical.X = 100
@@ -547,7 +548,8 @@ func TestHyprlandComputeOrigin(t *testing.T) {
 }
 
 // swayTreeJSON is a trimmed `swaymsg -t get_tree` with a focused window nested
-// under output → workspace → container, plus a decoration offset in window_rect.
+// under an output, a workspace and a container, plus a decoration offset in
+// window_rect.
 const swayTreeJSON = `{
   "focused": false, "rect": {"x":0,"y":0,"width":1920,"height":1080},
   "window_rect": {"x":0,"y":0,"width":0,"height":0},
@@ -569,8 +571,8 @@ func TestSwayComputeOrigin(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	// Content origin = rect(960,0) + window_rect(2,24) = (962,24); content size
-	// = window_rect 956x1052.
+	// Content origin = rect(960,0) + window_rect(2,24) = (962,24). The content
+	// size is window_rect, 956x1052.
 	origin, known := swayComputeOrigin(&tree, 956, 1052, zap.NewNop())
 	if !known || origin != image.Pt(962, 24) {
 		t.Fatalf("focused content origin: got (%v, %v), want ((962,24), true)", origin, known)

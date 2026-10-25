@@ -30,7 +30,6 @@ func TestSocketPath(t *testing.T) {
 		t.Error("SocketPath() returned empty string")
 	}
 
-	// Verify path contains expected components
 	if len(path) < 10 {
 		t.Errorf("SocketPath() returned suspiciously short path: %s", path)
 	}
@@ -135,7 +134,6 @@ func TestNewServer(t *testing.T) {
 				t.Error("NewServer() returned nil server")
 			}
 
-			// Clean up
 			if server != nil {
 				_ = server.Stop()
 			}
@@ -158,18 +156,15 @@ func TestServerStartStop(t *testing.T) {
 		t.Fatalf("NewServer() failed: %v", serverErr)
 	}
 
-	// Start server
 	server.Start()
 
 	// Give server time to start
 	time.Sleep(100 * time.Millisecond)
 
-	// Verify server is running
 	if !ipc.IsServerRunning() {
 		t.Error("Server should be running after Start()")
 	}
 
-	// Stop server
 	serverErr = server.Stop()
 	if serverErr != nil {
 		t.Errorf("Stop() failed: %v", serverErr)
@@ -178,7 +173,6 @@ func TestServerStartStop(t *testing.T) {
 	// Give server time to stop
 	time.Sleep(100 * time.Millisecond)
 
-	// Verify server is not running
 	if ipc.IsServerRunning() {
 		t.Error("Server should not be running after Stop()")
 	}
@@ -187,7 +181,6 @@ func TestServerStartStop(t *testing.T) {
 func TestClientSend(t *testing.T) {
 	logger := zap.NewNop()
 
-	// Create test handler
 	handler := func(_ context.Context, cmd ipc.Command) ipc.Response {
 		return ipc.Response{
 			Success: true,
@@ -198,7 +191,6 @@ func TestClientSend(t *testing.T) {
 		}
 	}
 
-	// Start server
 	server, serverErr := ipc.NewServer(handler, logger)
 	if serverErr != nil {
 		t.Fatalf("NewServer() failed: %v", serverErr)
@@ -211,7 +203,6 @@ func TestClientSend(t *testing.T) {
 	server.Start()
 	time.Sleep(100 * time.Millisecond)
 
-	// Create client
 	client := ipc.NewClient()
 
 	tests := []struct {
@@ -254,14 +245,12 @@ func TestClientSend(t *testing.T) {
 func TestClientSendWithTimeout(t *testing.T) {
 	logger := zap.NewNop()
 
-	// Create slow handler
 	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
 		time.Sleep(200 * time.Millisecond)
 
 		return ipc.Response{Success: true}
 	}
 
-	// Start server
 	server, serverErr := ipc.NewServer(handler, logger)
 	if serverErr != nil {
 		t.Fatalf("NewServer() failed: %v", serverErr)

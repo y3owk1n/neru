@@ -21,8 +21,8 @@ type intBound struct {
 	// maxValid is the largest accepted value, or 0 when unbounded above.
 	maxValid int
 	// enable turns on the feature that owns the field. Several validators
-	// return early for a disabled feature — deliberately, so a user can leave
-	// garbage in a section they do not use — so the boundary is only reachable
+	// return early for a disabled feature, deliberately, so a user can leave
+	// garbage in a section they do not use. The boundary is only reachable
 	// with the feature switched on.
 	enable func(*config.Config)
 }
@@ -116,8 +116,8 @@ func visionIntBounds() []intBound {
 }
 
 // smoothCursorIntBounds covers the smooth cursor integer fields with an
-// inclusive lower limit. The relative duration is checked unconditionally —
-// not gated on move_mouse_enabled — because it is read straight by the
+// inclusive lower limit. The relative duration is checked unconditionally,
+// not gated on move_mouse_enabled, because it is read straight by the
 // animator on the next relative move after a hot reload flips the toggle.
 func smoothCursorIntBounds() []intBound {
 	return []intBound{
@@ -160,7 +160,7 @@ func assertConfigValid(t *testing.T, cfg *config.Config, what string) {
 		"ValidateMouseAction":     (*config.Config).ValidateMouseAction,
 		"ValidateSmoothCursor":    (*config.Config).ValidateSmoothCursor,
 		"ValidateSmoothScroll":    (*config.Config).ValidateSmoothScroll,
-		// Warnings are not what this asserts: the sink is nil so only a refusal
+		// Warnings are not what this asserts. The sink is nil so only a refusal
 		// can fail the case.
 		"ValidateHeldRepeat": func(c *config.Config) error { return c.ValidateHeldRepeat(nil) },
 	}
@@ -221,7 +221,7 @@ func runIntBounds(t *testing.T, bounds []intBound) {
 				assertRejected(t, bound.validate(cfg), bound.name, value)
 			}
 
-			// The minimum itself must be accepted — the common off-by-one here
+			// The minimum itself must be accepted. The common off-by-one here
 			// silently forbids a legal setting.
 			cfg = newCfg()
 			bound.set(cfg, bound.minValid)
@@ -247,12 +247,12 @@ func runIntBounds(t *testing.T, bounds []intBound) {
 }
 
 // Every numeric config field is guarded by a range check, and every one of
-// those checks is a boundary the tests never exercised: the suite validated
+// those checks is a boundary the tests never exercised. The suite validated
 // wholesale-valid and wholesale-garbage configs, but never the value one step
 // either side of the limit.
 //
 // That is where these bugs live. A `< 1` that drifts to `<= 1` locks users out
-// of a legal setting; a `<= 0` that drifts to `< 0` admits a zero timeout or a
+// of a legal setting. A `<= 0` that drifts to `< 0` admits a zero timeout or a
 // zero-size threshold that then divides by zero or spins at runtime. Neither
 // changes anything a coarse valid/invalid test would notice.
 //
@@ -302,7 +302,7 @@ func TestConfig_GridMaxLabelLengthBoundaries(t *testing.T) {
 
 // unitFloatBound describes a float field constrained to a 0..1 confidence or
 // ratio range. inclusiveZero distinguishes validateUnitFloat (accepts 0) from
-// validatePositiveUnitFloat (rejects 0) — mixing the two up would let a
+// validatePositiveUnitFloat (rejects 0). Mixing the two up would let a
 // confidence threshold of zero through, matching everything on screen.
 type unitFloatBound struct {
 	name          string
@@ -463,7 +463,7 @@ func TestConfig_AspectPairBoundaries(t *testing.T) {
 }
 
 // visionSizeThresholds are the size fields validated together by a single
-// `<= 0` chain; each must be individually rejected when non-positive, or one
+// `<= 0` chain. Each must be individually rejected when non-positive, or one
 // clause of the chain could be dropped unnoticed.
 func visionSizeThresholds() []intBound {
 	return []intBound{

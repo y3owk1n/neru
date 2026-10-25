@@ -149,7 +149,7 @@ func TestHandleGridModeKey_EnteringSubgridDoesNotMoveWhenCursorFollowSelectionDi
 // TestApplyGridFlags_TellsAbsentOnExitFromEmptyOne pins the --on-exit contract
 // for grid, where nil and empty are different values rather than two spellings
 // of nothing. A repeat re-activation carries no --on-exit and must keep the
-// steps the mode was activated with; a command that gave --on-exit no steps is
+// steps the mode was activated with. A command that gave --on-exit no steps is
 // asking for none to run.
 func TestApplyGridFlags_TellsAbsentOnExitFromEmptyOne(t *testing.T) {
 	stored := []string{"exec done"}

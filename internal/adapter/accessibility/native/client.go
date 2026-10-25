@@ -291,7 +291,6 @@ func (c *Client) PerformAction(
 
 		return nil
 	case action.TypeScroll:
-		// Scroll actions are handled separately via the Scroll method
 		return derrors.Newf(
 			derrors.CodeInvalidInput,
 			"scroll actions should use Scroll method: %s",
@@ -310,7 +309,7 @@ func (c *Client) PerformAction(
 
 // performMouseButtonAction presses or releases the button addressed by
 // actionType. Toggle actions resolve against the button state recorded by the
-// platform adapter: held buttons are released, free buttons are pressed.
+// platform adapter. Held buttons are released and free buttons are pressed.
 func performMouseButtonAction(
 	actionType action.Type,
 	point image.Point,
@@ -348,7 +347,7 @@ func (c *Client) Scroll(deltaX, deltaY int, modifiers action.Modifiers) error {
 	scrollErr := ScrollAtCursor(deltaX, deltaY, modifiers)
 	if scrollErr != nil {
 		// A backend refusing a modifier it cannot present says so with
-		// CodeNotSupported, and derrors matches only the outermost code — so
+		// CodeNotSupported, and derrors matches only the outermost code, so
 		// wrapping here would turn "this platform cannot do that" into a
 		// generic failure before any caller could tell them apart.
 		if derrors.IsNotSupported(scrollErr) {
@@ -398,7 +397,7 @@ func (c *Client) SupportsSupplementaryElements() bool {
 	return supportsSupplementaryElements()
 }
 
-// Close is a no-op for the default infrastructure client; the macOS AX API
+// Close is a no-op for the default infrastructure client. The macOS AX API
 // does not hold process-external resources that need explicit teardown.
 func (c *Client) Close() error { return nil }
 
@@ -450,7 +449,7 @@ func (c *Client) buildClickableOpts(
 	}
 
 	// Backends that enumerate rather than walk a cached tree use the role set
-	// to prune before reading per-element properties; on the others this is a
+	// to prune before reading per-element properties. On the others this is a
 	// no-op and filtering happens in FindClickableElements.
 	opts.SetRoles(allowedRoles)
 
@@ -462,7 +461,7 @@ func (c *Client) buildClickableOpts(
 	return opts, allowedRoles, ignoreClickableCheck
 }
 
-// InfraWindow wraps an Window.
+// InfraWindow wraps a Window.
 type InfraWindow struct {
 	element *Element
 }
@@ -524,7 +523,7 @@ func (a *InfraApp) Info() (*ax.AppInfo, error) {
 	}, nil
 }
 
-// InfraNode wraps an TreeNode.
+// InfraNode wraps a TreeNode.
 type InfraNode struct {
 	node           *TreeNode
 	clickable      bool

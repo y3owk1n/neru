@@ -232,10 +232,10 @@ func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
 // about a failure a log line cannot fix.
 //
 // When vision detection reports CodeNotSupported the machine cannot run the
-// strategy at all — no tesseract language data, no capture backend, a build
-// with no engine in it — and the error names what to install. Swallowing that
-// leaves the user pressing the hotkey and getting an overlay with nothing on
-// it, since the supplementary elements the pipeline keeps are macOS surfaces
+// strategy at all. There is no tesseract language data, no capture backend,
+// or a build with no engine in it, and the error names what to install.
+// Swallowing that leaves the user pressing the hotkey and getting an overlay
+// with nothing on it, since the supplementary elements the pipeline keeps are macOS surfaces
 // with no counterpart elsewhere. The message has to reach a person, which is
 // what ADR 0002 says a log line does not do.
 func TestHintService_GenerateHintsVisionNotifiesWhenTheStrategyIsUnavailable(t *testing.T) {
@@ -282,7 +282,7 @@ func TestHintService_GenerateHintsVisionNotifiesWhenTheStrategyIsUnavailable(t *
 		t.Fatal("vision reported CodeNotSupported and the user was never told")
 	}
 
-	// Three activations, one notification: a user who keeps pressing the hotkey
+	// Three activations, one notification. A user who keeps pressing the hotkey
 	// is told once, not once per press.
 	select {
 	case extra := <-notified:
@@ -345,7 +345,7 @@ func TestHintService_ProbeHints_ReturnsAFailedCaptureDetection(t *testing.T) {
 //
 // Every caller that reaches vision detection under the mode handler's lock
 // builds its context with a hint timeout and cancels it on return, microseconds
-// after the notification is queued — and the Linux notification path honors a
+// after the notification is queued, and the Linux notification path honors a
 // caller's deadline. A notice that carried that context would be canceled
 // before the first send, which is also the send that dials the session bus, and
 // the user would be told nothing.
@@ -432,7 +432,7 @@ func TestHintService_GenerateHintsVisionRetriesANoticeThatFailedToSend(t *testin
 
 	// The release of a failed notice happens on the sending goroutine, so which
 	// later activation retries is a scheduling detail rather than a promise.
-	// What is asserted is that one of them does: a dedupe that remembered the
+	// What is asserted is that one of them does. A dedupe that remembered the
 	// attempt would let none of them.
 	seen := 0
 	deadline := time.After(5 * time.Second)
@@ -529,8 +529,8 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 
 	service.UpdateGenerator(context.Background(), normal)
 
-	// The registered generator must be retrievable under its own direction —
-	// this is what the per-activation `hints --label-direction` override reads.
+	// The registered generator must be retrievable under its own direction.
+	// This is what the per-activation `hints --label-direction` override reads.
 	got := service.Generator(hint.LabelDirectionNormal.String())
 	if got == nil {
 		t.Fatal("Generator(normal) = nil after UpdateGenerator")
@@ -645,7 +645,7 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 
 	// Five elements force both algorithms into the two-character tier, where
 	// reverse and normal produce *different* label sequences. The exact
-	// normal sequence is [A S D FA FS]; the exact reverse sequence is
+	// normal sequence is [A S D FA FS], and the exact reverse sequence is
 	// [AA SA DA FA AS]. The 4th and 5th labels expose the difference.
 	mockAcc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
 		return []*element.Element{
@@ -691,7 +691,7 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 	}
 
 	// With a reverse override, the override must resolve to the registered
-	// reverse generator — not silently fall back to the default normal one.
+	// reverse generator, not silently fall back to the default normal one.
 	// The reverse algorithm fills all 4 single-char slots ([AA SA DA FA])
 	// before yielding a 2-char label ([AS]). The 1st and 5th labels (AA, AS)
 	// prove the override actually engaged.
@@ -745,7 +745,6 @@ func TestHintService_Health(t *testing.T) {
 		nil,
 	)
 
-	// Setup mocks
 	mockAcc.HealthFunc = func(_ context.Context) error {
 		return nil
 	}
@@ -1190,7 +1189,7 @@ func TestHintService_GenerateHintsRejectsSplitWordForNonVisionStrategy(t *testin
 
 // TestHintService_GenerateHintsRoleFilterResolvingToNothing pins the behavior
 // of a role filter that is configured but resolves to no native role on this
-// platform — for example a config carrying only Linux entries, run on macOS.
+// platform, for example a config carrying only Linux entries, run on macOS.
 //
 // An empty ports.ElementFilter.Roles means "match every role", so the naive
 // outcome is that an unusable filter hints *everything*. It must hint nothing.
@@ -1265,7 +1264,7 @@ func TestHintService_GenerateHintsRoleFilterResolvingToNothing(t *testing.T) {
 }
 
 // TestHintService_GenerateHintsRoleFlagOverridesConfig covers the happy path of
-// `neru hints --role ...`: the flag replaces the configured roles entirely and
+// `neru hints --role ...`. The flag replaces the configured roles entirely and
 // is resolved through the same vocabulary, so it accepts semantic names and
 // vocabulary-prefixed native names alike.
 func TestHintService_GenerateHintsRoleFlagOverridesConfig(t *testing.T) {
@@ -1363,11 +1362,11 @@ func newVisionHintService(
 // TestHintService_GenerateHintsVisionSaysWhyItFellBackToTheScreen pins the
 // difference between the two ways vision ends up scanning a whole monitor.
 //
-// A platform that cannot report focused-window geometry — a wlroots compositor
-// with no IPC, a KWin bridge that never installed — is not the same event as a
-// desktop with nothing focused, and it used to be logged as if it were. Scoping
-// OCR to the entire screen instead of one window is slower and noisier, and the
-// reason has to be readable without a debug build.
+// A platform that cannot report focused-window geometry, such as a wlroots
+// compositor with no IPC or a KWin bridge that never installed, is not the same
+// event as a desktop with nothing focused, and it used to be logged as if it
+// were. Scoping OCR to the entire screen instead of one window is slower and
+// noisier, and the reason has to be readable without a debug build.
 func TestHintService_GenerateHintsVisionSaysWhyItFellBackToTheScreen(t *testing.T) {
 	tests := []struct {
 		name      string

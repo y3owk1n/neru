@@ -96,7 +96,7 @@ func TestRecursiveGrid_MoveDirection_StopsAtScreenEdge(t *testing.T) {
 func TestRecursiveGrid_MoveDirection_NoOpAtDepthZero(t *testing.T) {
 	grid := newMoveGrid()
 
-	// Nothing is selected yet at depth 0: the selection is the whole screen,
+	// Nothing is selected yet at depth 0. The selection is the whole screen,
 	// so a step of one screen width always lands outside.
 	for _, dir := range []domain.Direction{
 		domain.DirectionLeft,
@@ -178,7 +178,7 @@ func TestRecursiveGrid_MoveDirection_PartialCountStopsAtEdge(t *testing.T) {
 
 func TestRecursiveGrid_MoveDirection_PerDepthLayouts(t *testing.T) {
 	// Depth 1 splits 2x2 rather than the default 3x3, so a depth-2 cell is
-	// 150px wide: movement has to read the layout of each depth it walks.
+	// 150px wide, so movement has to read the layout of each depth it walks.
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 900, 900),
 		1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
@@ -288,7 +288,7 @@ func TestManager_MoveDirection_NotifiesOnlyWhenSomethingMoved(t *testing.T) {
 		zap.NewNop(),
 	)
 
-	// Drill to the top-left 100x100 cell; each selection fires its own update.
+	// Drill to the top-left 100x100 cell. Each selection fires its own update.
 	manager.HandleInput("r")
 	manager.HandleInput("r")
 
@@ -349,7 +349,7 @@ func TestRecursiveGrid_Reset_ClearsFinalCell(t *testing.T) {
 
 func TestRecursiveGrid_MoveDirection_SinglePixelCells(t *testing.T) {
 	// A 9px row split 3x3 twice bottoms out at one-pixel cells. rectCenter
-	// rounds up, so the center of a 1px cell sits outside it: probing from
+	// rounds up, so the center of a 1px cell sits outside it. Probing from
 	// there used to skip a cell and drift diagonally.
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 9, 9),
@@ -409,9 +409,9 @@ func TestRecursiveGrid_MoveDirection_AfterScreenChange(t *testing.T) {
 }
 
 // TestRecursiveGrid_SelectionCenter_StaysInsideOnePixelCells pins the invariant
-// every cursor target depends on: the reported center of a selection must lie
+// every cursor target depends on. The reported center of a selection must lie
 // inside that selection. Rounding to nearest breaks it for a one-pixel cell,
-// which puts the cursor — and any action targeting it — on the cell next door.
+// which puts the cursor, and any action targeting it, on the cell next door.
 func TestRecursiveGrid_SelectionCenter_StaysInsideOnePixelCells(t *testing.T) {
 	t.Run("after a directional move", func(t *testing.T) {
 		grid := recursivegrid.NewRecursiveGridWithLayers(

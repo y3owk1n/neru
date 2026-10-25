@@ -8,15 +8,15 @@ import (
 )
 
 // sessionTypeWayland is what a Wayland login session writes into
-// XDG_SESSION_TYPE. No detector reads it any more; the cases below set it to
+// XDG_SESSION_TYPE. No detector reads it any more. The cases below set it to
 // show that a session announcing Wayland does not by itself make the backend
-// Wayland — reading it was how the two answers came apart.
+// Wayland. Reading it was how the two answers came apart.
 const sessionTypeWayland = "wayland"
 
 // TestProfileFor_LinuxReportsTheStackTheDaemonDrives pins the profile's
 // DisplayServer to the backend NewSystemPort actually builds. The two used to be
 // read from different environment variables, and the session that pulled them
-// apart is real: sway and Hyprland launched from a systemd user unit that
+// apart is real. Sway and Hyprland launched from a systemd user unit that
 // imported SWAYSOCK but not WAYLAND_DISPLAY run the X11 adapter, while
 // `neru info` and the health output reported display_server: wayland from
 // XDG_SESSION_TYPE.
@@ -143,7 +143,7 @@ func TestLinuxKDEProfile(t *testing.T) {
 	// Notifications are a session-bus service, so the KDE stack gets the same
 	// freedesktop backend every other Linux backend gets (#1471). This plan read
 	// "not implemented" long after it shipped and doctor read that to the user
-	// (#1486), so the assertions below pin the agreement rather than a string:
+	// (#1486), so the assertions below pin the agreement rather than a string.
 	// KDE names the backend linuxProfile names, and states the one precondition
 	// it has in the words linuxProfile states it in.
 	x11Notifications := linuxProfile(DisplayServerX11).Notifications

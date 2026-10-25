@@ -8,8 +8,8 @@ import (
 
 // TestResolveSublayerKeys pins the answer to "which keys does a subgrid use
 // when sublayer_keys is unset?". Four consumers answered it before this
-// resolution existed — two overlay backends with a hardcoded alphabet of their
-// own — so the overlay could draw one set while the mode layer accepted
+// resolution existed, two of them overlay backends with a hardcoded alphabet of
+// their own, so the overlay could draw one set while the mode layer accepted
 // another. These cases are the rule itself.
 //
 // Unset settles to the characters the grid is *labeled* with, which is the
@@ -81,7 +81,7 @@ func TestResolveSublayerKeys(t *testing.T) {
 }
 
 // TestResolveSublayerKeys_SettlesToItself covers the second run every caller of
-// the derivation chain makes: settled keys are indistinguishable from typed
+// the derivation chain makes. Settled keys are indistinguishable from typed
 // ones, so re-running has to leave them alone rather than resolve them again
 // from characters that may have moved on.
 func TestResolveSublayerKeys_SettlesToItself(t *testing.T) {

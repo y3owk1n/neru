@@ -44,7 +44,7 @@ func newDeclaredModeController() (*ipcctrl.Controller, *state.AppState) {
 }
 
 // TestHandleCommand_CustomModeCommandEntersADeclaredMode pins the wire shape
-// of "mode <name>": the name travels as the first argument, a declared one is
+// of "mode <name>". The name travels as the first argument, a declared one is
 // entered, and an undeclared one is refused in the grammar's words with the
 // code a script branches on.
 func TestHandleCommand_CustomModeCommandEntersADeclaredMode(t *testing.T) {

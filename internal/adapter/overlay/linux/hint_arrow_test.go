@@ -18,7 +18,7 @@ import (
 // backend and tested beside it (render/badge).
 
 // TestResolveHintBadgeOffset_EveryPlacementInTheVocabulary pins this overlay to
-// config's declaration of the vocabulary: every value `hints.ui.placement`
+// config's declaration of the vocabulary. Every value `hints.ui.placement`
 // accepts has to resolve to an offset here. A placement added to
 // config.HintPlacements() without a branch below fails this test rather than
 // drawing a badge in a placement nobody chose.
@@ -78,10 +78,10 @@ func TestResolveHintBadgeOffset_UnsetDrawsTheDefault(t *testing.T) {
 	}
 }
 
-// TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported pins the other half:
-// a value outside the vocabulary is refused, not drawn. It used to be drawn
+// TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported pins the other half.
+// A value outside the vocabulary is refused, not drawn. It used to be drawn
 // centered, which made a placement with no Linux branch indistinguishable from
-// `center` — silent everywhere and wrong on screen.
+// `center`, silent everywhere and wrong on screen.
 func TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported(t *testing.T) {
 	offset, err := resolveHintBadgeOffset("floating")
 	if err == nil {
@@ -97,7 +97,7 @@ func TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported(t *testing.T) {
 
 // TestLinuxOverlayManager_UnknownHintPlacementIsRefusedNotDrawn pins where that
 // refusal reaches a caller: the draw call the mode handler makes, before a
-// single badge is painted. A backend is attached here on purpose — with none,
+// single badge is painted. A backend is attached here on purpose. With none,
 // every draw already reports CodeNotSupported and the assertion would prove
 // nothing about the placement.
 func TestLinuxOverlayManager_UnknownHintPlacementIsRefusedNotDrawn(t *testing.T) {

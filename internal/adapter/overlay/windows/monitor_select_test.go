@@ -38,7 +38,7 @@ func TestMonitorSelectPanelLayout_OddPanelWidthKeepsItsSize(t *testing.T) {
 func TestMonitorSelectPanelLayout_PanelHangsOnItsOwnMonitor(t *testing.T) {
 	t.Parallel()
 
-	// A second display to the right of the first: the panel must land on it,
+	// With a second display to the right of the first, the panel must land on it,
 	// not on the primary.
 	monitor := image.Rect(1920, 0, 3840, 1080)
 	style := manager.MonitorSelectStyle{FontSize: 10}

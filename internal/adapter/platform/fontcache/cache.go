@@ -24,7 +24,7 @@ func New(resolve func(family string) string) *Resolver {
 // later ones.
 //
 // A name is remembered exactly as it was written, so a caller is always
-// answered from its own spelling: resolving "Arial" and then "ARIAL" resolves
+// answered from its own spelling. Resolving "Arial" and then "ARIAL" resolves
 // both, rather than answering the second from the first one's entry.
 func (r *Resolver) Resolve(family string) string {
 	r.mu.RLock()

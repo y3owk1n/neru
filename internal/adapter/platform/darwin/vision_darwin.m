@@ -122,12 +122,12 @@ static CGImageRef awaitScreenshot(
 // its titles are let go with the content they came in. The kept entries last
 // until the display configuration changes, or until a capture made from them
 // fails. The reconfiguration callback is delivered through the main run loop,
-// which the daemon runs; a process without one relies on the failed-capture
+// which the daemon runs. A process without one relies on the failed-capture
 // reset alone.
-// Typed id so the variable needs no availability annotation; only macOS 14+
+// Typed id so the variable needs no availability annotation. Only macOS 14+
 // code reads it.
 //
-// contentLock is a leaf (internal/app/modes/AGENTS.md): held only across a
+// contentLock is a leaf (internal/app/modes/AGENTS.md), held only across a
 // pointer read or swap, never with another lock, and nothing under it reaches
 // Go.
 static os_unfair_lock contentLock = OS_UNFAIR_LOCK_INIT;
@@ -140,7 +140,7 @@ static id cachedOwnApplication = nil;
 static uint64_t displaysGeneration = 0;
 
 // forgetShareableContent drops the cached list and starts a new generation.
-// The old list is let go after the lock, in a pool of its own: the
+// The old list is let go after the lock, in a pool of its own, because the
 // display-change callback and ScreenCaptureKit's completion queues both land
 // here, and nothing should deallocate while the lock is held.
 static void forgetShareableContent(void) {
@@ -258,7 +258,7 @@ static void captureDisplay(
 // captureWithScreenCaptureKit captures source (see captureDisplay) on
 // displayID, from the remembered displays when they still list it and from a
 // fresh fetch otherwise. A whole-display capture of a display the fetch does
-// not list takes the first one, as it always has; a region capture gives up
+// not list takes the first one, as it always has. A region capture gives up
 // instead, because its source rect is local to displayID and would land on the
 // wrong pixels anywhere else. Its caller then falls back to the display path.
 static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRect source, int64_t timeoutMS) {
@@ -313,7 +313,7 @@ static CGImageRef captureDisplayImage(CGDirectDisplayID displayID, int64_t timeo
 //
 // CGGetDisplaysWithRect asserts on a process with no window-server connection
 // yet, where CGMainDisplayID opens one. The daemon's NSApplication has always
-// opened it by now; a test binary or a CLI process has not, so it is opened
+// opened it by now, but a test binary or a CLI process has not, so it is opened
 // here once rather than trusted.
 static CGDirectDisplayID displayContaining(CGRect rect) {
 	static dispatch_once_t connected;
@@ -425,9 +425,9 @@ VisionResult *NeruDetectElements(CGRect screenBounds, NeruVisionConfig config) {
 
 		CGRect imgRect = CGRectMake(0, 0, imgW, imgH);
 
-		// Vision coordinates are relative to the image (top-left origin, pixels).
-		// visionRectToCGRect converts to bottom-left position within the image.
-		// We then scale from pixels to points and offset by the display's
+		// Vision reports normalized coordinates with a bottom-left origin.
+		// visionRectToCGRect converts them to top-left-origin pixels within the
+		// image. We then scale from pixels to points and offset by the display's
 		// global origin to get global top-left-origin screen coordinates.
 		CGFloat originX = displayBounds.origin.x;
 		CGFloat originY = displayBounds.origin.y;

@@ -78,14 +78,14 @@ func TestCgoSlotWithValidAsyncRejectsStaleGeneration(t *testing.T) {
 }
 
 // TestCgoSlotDispatchesAValidSnapshot pins the half of the generation guard
-// that says yes: a snapshot nothing invalidated must actually reach its
+// that says yes. A snapshot nothing invalidated must actually reach its
 // callback, on both dispatch paths.
 //
-// Every other dispatch assertion in this file is negative — "want 0 calls" —
+// Every other dispatch assertion in this file is negative, "want 0 calls",
 // so without this one a stillValid that rejected everything would pass the
-// whole package. The async wait is bounded rather than slept on: the timeout
-// is a failure bound, not a race window, so a loaded runner is slow here, not
-// red.
+// whole package. The async wait is bounded rather than slept on, because
+// the timeout is a failure bound, not a race window, so a loaded runner is
+// slow here, not red.
 func TestCgoSlotDispatchesAValidSnapshot(t *testing.T) {
 	var (
 		slot      cgoSlot[int]
@@ -123,18 +123,18 @@ func TestCgoSlotDispatchesAValidSnapshot(t *testing.T) {
 }
 
 // TestCgoSlotStaleSnapshotDoesNotDispatchAcrossGoroutines pins the guarantee
-// the generation counter exists for: a reader holding a snapshot taken before
+// the generation counter exists for. A reader holding a snapshot taken before
 // a concurrent clear must not dispatch it.
 //
 // The interleaving is driven rather than hoped for. The reader takes its
 // snapshot and hands the generation to the writer, the writer clears the slot
-// and says so, and only then does the reader dispatch — the exact order that
-// makes the snapshot stale, on every schedule and every machine.
+// and says so, and only then does the reader dispatch. That is the exact order
+// that makes the snapshot stale, on every schedule and every machine.
 //
 // The reader stands in for the goroutine withValidAsync spawns, and runs the
-// same guard that goroutine runs rather than a copy of it: that window cannot
-// be forced through withValidAsync from outside, so driving the shared body
-// directly is what keeps the guard covered.
+// same guard that goroutine runs rather than a copy of it, because that
+// window cannot be forced through withValidAsync from outside, so driving
+// the shared body directly is what keeps the guard covered.
 func TestCgoSlotStaleSnapshotDoesNotDispatchAcrossGoroutines(t *testing.T) {
 	var (
 		slot       cgoSlot[int]
@@ -196,10 +196,10 @@ func TestCgoSlotStaleSnapshotDoesNotDispatchAcrossGoroutines(t *testing.T) {
 // TestCgoSlotConcurrentSetAndDispatch soaks the snapshot/validity pair against
 // a writer toggling the slot, under the race detector.
 //
-// It asserts only what holds under every schedule: an active snapshot always
+// It asserts only what holds under every schedule. An active snapshot always
 // carries a value. Whether any given reader is caught mid-round by the writer
-// is the scheduler's decision, so the counts are reported rather than asserted
-// — asserting on them is what made this test fail green changes on a loaded
+// is the scheduler's decision, so the counts are reported rather than asserted.
+// Asserting on them is what made this test fail green changes on a loaded
 // runner. Both directions of the guard have deterministic tests above.
 func TestCgoSlotConcurrentSetAndDispatch(t *testing.T) {
 	var (

@@ -12,7 +12,7 @@ import (
 )
 
 // This exercises the darwin platform package rather than the accessibility
-// adapter, but it lives here on purpose: it drives the one global cursor, and so
+// adapter, but it lives here on purpose. It drives the one global cursor, and so
 // does TestAccessibilityAdapterIntegration. Tests in a single package run
 // sequentially, whereas `go test ./...` runs packages concurrently, so splitting
 // the two across packages makes them fight over the cursor and fail randomly.
@@ -20,7 +20,7 @@ import (
 // kCGEventMouseMoved, as passed through to the CGEvent bridge.
 const (
 	eventMouseMoved = 5
-	// buttonLeft is kCGMouseButtonLeft; plain moves ignore the button.
+	// buttonLeft is kCGMouseButtonLeft. Plain moves ignore the button.
 	buttonLeft = 0
 )
 
@@ -29,7 +29,7 @@ const (
 //
 // This is the counterpart to the direct-move guard in
 // TestAccessibilityAdapterIntegration, and it matters most while macOS
-// Accessibility Zoom is engaged: the animator posts a move per step and each
+// Accessibility Zoom is engaged. The animator posts a move per step and each
 // step first pans the zoom viewport, which itself drags the cursor. The two have
 // to converge rather than fight, and the cursor has to end up somewhere the user
 // can actually see.
@@ -96,7 +96,7 @@ func TestSmoothCursorSettlesOnTarget(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 		}
 
-		// While zoomed in, landing on the point is only half the job — the
+		// While zoomed in, landing on the point is only half the job. The
 		// viewport has to have followed, or the cursor is correct but off screen.
 		if viewport, ok := darwinplatform.ZoomViewportAt(landed); ok && !landed.In(viewport) {
 			t.Errorf(
@@ -112,8 +112,8 @@ func TestSmoothCursorSettlesOnTarget(t *testing.T) {
 //
 // Canceling the animator closes its stop channel, but a worker that has already
 // passed its cancellation check can still post one more step. That step lands
-// after the direct move and drags the cursor back toward the abandoned target —
-// and, while zoomed, drags the zoom viewport with it, which nothing afterwards
+// after the direct move and drags the cursor back toward the abandoned target.
+// While zoomed it drags the zoom viewport with it too, which nothing afterwards
 // corrects. The interruption is timing-dependent, so sweep the delay across a
 // whole animation rather than trying a single one.
 func TestDirectMoveOverridesInFlightAnimation(t *testing.T) {
@@ -172,11 +172,11 @@ func TestDirectMoveOverridesInFlightAnimation(t *testing.T) {
 // TestConcurrentMovesKeepCursorInViewport runs cursor moves from several
 // goroutines at once and requires the cursor to end up somewhere visible.
 //
-// Cursor moves are not serialized across callers: every hotkey press dispatches
+// Cursor moves are not serialized across callers. Every hotkey press dispatches
 // its own goroutine, repeat-while-held runs another, and IPC actions run on the
 // IPC goroutine. While zoomed, each move both pans the magnified region and
 // posts the cursor, and if two moves interleave those halves the cursor is left
-// at a correct coordinate outside the magnified region — a state nothing
+// at a correct coordinate outside the magnified region, a state nothing
 // corrects until the next move. The final position is naturally undefined when
 // callers race, but it must always be somewhere the user can see.
 func TestConcurrentMovesKeepCursorInViewport(t *testing.T) {

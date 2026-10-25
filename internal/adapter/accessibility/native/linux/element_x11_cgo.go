@@ -36,15 +36,15 @@ const (
 //
 // The active window and the identity of whatever it names come from the system
 // bridge (x11_system.h) rather than from a second copy in this one. They were
-// two copies until #1499: the system one had learned to tell a window manager
+// two copies until #1499. The system one had learned to tell a window manager
 // with nothing focused from a display owned by none, and to survive a property
 // naming a window that has since closed, while the copy here still let that
 // close exit the daemon.
 //
 // The five answers that bridge distinguishes collapse to one here on purpose.
-// This signature has no error to carry, and its callers — focused-app identity
-// and the frontmost-window queries behind it — re-sample on the next focus
-// event either way, so "no identity" is the whole of what they can act on.
+// This signature has no error to carry. Its callers, focused-app identity and
+// the frontmost-window queries behind it, re-sample on the next focus event
+// either way, so "no identity" is the whole of what they can act on.
 func linuxFocusedApplicationIdentity() (string, int) {
 	if os.Getenv("DISPLAY") == "" {
 		return "", 0
@@ -69,7 +69,7 @@ func linuxFocusedApplicationIdentity() (string, int) {
 		C.free(unsafe.Pointer(className))
 	}
 
-	// The pid answers collapse here the same way the active-window ones do: this
+	// The pid answers collapse here the same way the active-window ones do. This
 	// signature has no error to carry, and a window that advertises no pid and
 	// one that closed under the query both leave this caller with no pid to
 	// report. system_x11_window_pid.go is where the difference is told, for the
@@ -180,8 +180,9 @@ func x11MouseUpAtPoint(
 	return x11MouseButtonAtPoint(point, modifiers, x11Button(button), false, false)
 }
 
-// x11MouseUp releases button at the cursor and undoes the hold its press took —
-// the modifiers that press is presenting, which nothing else will undo.
+// x11MouseUp releases button at the cursor and undoes the hold its press took.
+// That hold is the modifiers the press is presenting, which nothing else will
+// undo.
 //
 // modifiers is what the caller believes the press is holding, and is used only
 // when this connection finds no press to pick up from.
@@ -194,7 +195,7 @@ func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 
 	// Taken before the button event so the release still goes out under the
 	// modifiers the press presented, and undone after it. Runs before the
-	// display is closed: defers unwind last-in first-out.
+	// display is closed, since defers unwind last-in first-out.
 	hold := x11ResumeModifierHold(display, x11Button(button), modifiers)
 	defer hold.release()
 
@@ -217,11 +218,11 @@ func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	defer C.neru_ax_close_display(display)
 
 	// Held across every scroll button click, the way a person holding ctrl and
-	// turning the wheel produces a zoom — and, just as much, *not* held when
-	// nothing asked for it: an X11 button event carries whatever the server
+	// turning the wheel produces a zoom. Just as much, it is *not* held when
+	// nothing asked for it. An X11 button event carries whatever the server
 	// records as down, so a plain scroll_down bound to Ctrl+J would zoom. The
 	// hold presents exactly this set for the length of the whole loop. Runs
-	// before the display is closed: defers unwind last-in first-out.
+	// before the display is closed, since defers unwind last-in first-out.
 	hold := x11HoldModifiers(display, modifiers)
 	defer hold.release()
 
@@ -288,8 +289,8 @@ const (
 //
 // X11 has no sub-notch scroll to synthesize. Core scrolling is buttons 4 to 7
 // and a button event is one notch by definition, and the XTEST pointer the
-// server creates for XTestFakeButtonEvent has no scroll valuators at all — it
-// is allocated with two axes, Rel X and Rel Y — so the smooth-scrolling XI2
+// server creates for XTestFakeButtonEvent has no scroll valuators at all. It
+// is allocated with two axes, Rel X and Rel Y, so the smooth-scrolling XI2
 // path real devices use is not reachable from here. What an animation can still
 // do is spread those notches over time on the same eased curve every other
 // backend uses, which is why granularity is a whole notch rather than zero.
@@ -380,10 +381,10 @@ func x11ClickButtonAtPoint(
 	original := x11CurrentCursorPosition()
 
 	// An X11 button event carries whatever the server records as down rather
-	// than a set the sender chooses, so the click presents exactly this set:
-	// a modifier the user's hand is on is suppressed for the length of the
+	// than a set the sender chooses, so the click presents exactly this set. A
+	// modifier the user's hand is on is suppressed for the length of the
 	// click, and one they are holding is left held afterwards. Runs before the
-	// display is closed: defers unwind last-in first-out.
+	// display is closed, since defers unwind last-in first-out.
 	hold := x11HoldModifiers(display, modifiers)
 	defer hold.release()
 
@@ -426,13 +427,13 @@ func x11MouseButtonAtPoint(
 
 	original := x11CurrentCursorPosition()
 
-	// A press takes the hold; a release picks up the one its press took, so
+	// A press takes the hold, and a release picks up the one its press took, so
 	// both events and the drag between them present the same modifiers.
 	//
-	// A press keeps its hold until that release — undoing it here would make a
-	// modified drag unmodified from its first pixel of movement — so only a
-	// release undoes it on the way out. That defer runs before the display is
-	// closed: defers unwind last-in first-out.
+	// A press keeps its hold until that release, because undoing it here would
+	// make a modified drag unmodified from its first pixel of movement. So only
+	// a release undoes it on the way out. That defer runs before the display is
+	// closed, since defers unwind last-in first-out.
 	var hold x11ModifierHold
 
 	if isDown {
@@ -464,7 +465,7 @@ func x11MouseButtonAtPoint(
 	}
 
 	if C.neru_ax_button(display, button, C.int(pressed)) == 0 {
-		// Same as above: no release is coming, so undo the hold here.
+		// Same as above. No release is coming, so undo the hold here.
 		if isDown {
 			hold.release()
 		}
@@ -475,8 +476,8 @@ func x11MouseButtonAtPoint(
 		)
 	}
 
-	// The press succeeded, so its hold outlives this call and this connection:
-	// the release picks it up from here.
+	// The press succeeded, so its hold outlives this call and this connection.
+	// The release picks it up from here.
 	if isDown {
 		hold.keepForRelease(button)
 	}

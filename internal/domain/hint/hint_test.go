@@ -108,17 +108,15 @@ func TestHint_Methods(t *testing.T) {
 	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
 	testHint, _ := hint.NewHint("AS", elem, image.Point{X: 30, Y: 30})
 
-	// Test Element()
 	if testHint.Element() != elem {
 		t.Error("Element() returned wrong element")
 	}
 
-	// Test MatchedPrefix() - initially empty
+	// MatchedPrefix starts empty.
 	if testHint.MatchedPrefix() != "" {
 		t.Errorf("MatchedPrefix() = %q, want empty string", testHint.MatchedPrefix())
 	}
 
-	// Test WithMatchedPrefix()
 	hintWithPrefix := testHint.WithMatchedPrefix("A")
 	if hintWithPrefix.MatchedPrefix() != "A" {
 		t.Errorf(
@@ -128,12 +126,11 @@ func TestHint_Methods(t *testing.T) {
 		)
 	}
 
-	// Test that WithMatchedPrefix returns a new instance
+	// WithMatchedPrefix returns a new instance.
 	if hintWithPrefix == testHint {
 		t.Error("WithMatchedPrefix() should return a new instance")
 	}
 
-	// Test Bounds()
 	bounds := testHint.Bounds()
 
 	expectedBounds := image.Rect(10, 10, 50, 50)
@@ -141,7 +138,6 @@ func TestHint_Methods(t *testing.T) {
 		t.Errorf("Bounds() = %v, want %v", bounds, expectedBounds)
 	}
 
-	// Test IsVisible()
 	screenBounds := image.Rect(0, 0, 100, 100)
 	if !testHint.IsVisible(screenBounds) {
 		t.Error("IsVisible() should return true for element within screen bounds")
@@ -152,7 +148,6 @@ func TestHint_Methods(t *testing.T) {
 		t.Error("IsVisible() should return false for element outside screen bounds")
 	}
 
-	// Test MatchesLabel()
 	if !testHint.MatchesLabel("AS") {
 		t.Error("MatchesLabel() should return true for exact match")
 	}
@@ -220,7 +215,6 @@ func TestAlphabetGenerator_Generate(t *testing.T) {
 		t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
 	}
 
-	// Create test elements
 	elements := make([]*element.Element, 10)
 	for index := range elements {
 		elements[index], _ = element.NewElement(
@@ -587,7 +581,7 @@ func TestLabelDirectionFromString(t *testing.T) {
 		{dirNormalStr, hint.LabelDirectionNormal},
 		{"", hint.LabelDirectionNormal},       // empty defaults to normal
 		{"typo", hint.LabelDirectionNormal},   // unknown defaults to normal
-		{"NORMAL", hint.LabelDirectionNormal}, // case-sensitive: unknown → default
+		{"NORMAL", hint.LabelDirectionNormal}, // matching is case-sensitive
 	}
 
 	for _, testCase := range tests {
@@ -678,7 +672,6 @@ func TestNewCollection(t *testing.T) {
 		t.Errorf("Count() = %d, want 5", collection.Count())
 	}
 
-	// Test FindByLabel
 	hint := collection.FindByLabel("AS")
 	if hint == nil {
 		t.Error("FindByLabel(\"AS\") returned nil")
@@ -686,7 +679,6 @@ func TestNewCollection(t *testing.T) {
 		t.Errorf("FindByLabel(\"AS\") returned hint with label %q", hint.Label())
 	}
 
-	// Test FilterByPrefix
 	filtered := collection.FilterByPrefix("A")
 	if len(filtered) != 4 { // A, AS, AD, AF
 		t.Errorf("FilterByPrefix(\"A\") returned %d hints, want 4", len(filtered))
@@ -888,7 +880,7 @@ func TestCollection_FilterBySearch_NarrowsByTrailingLabel(t *testing.T) {
 	}
 }
 
-// Helper function for tests.
+// mustNewHint builds a hint at the origin and panics on error.
 func mustNewHint(label string, elem *element.Element) *hint.Interface {
 	hint, hintErr := hint.NewHint(label, elem, image.Point{})
 	if hintErr != nil {

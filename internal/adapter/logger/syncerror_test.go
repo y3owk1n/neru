@@ -15,8 +15,8 @@ import (
 var errFileSinkFailed = errors.New("log file failed to flush")
 
 // pipeStream returns a stream standing in for a standard stream that has been
-// piped — the shape a test binary's stderr has, and one a flush can never
-// succeed on.
+// piped. That is the shape a test binary's stderr has, and one a flush can
+// never succeed on.
 func pipeStream(t *testing.T) *os.File {
 	t.Helper()
 
@@ -52,7 +52,7 @@ func syncFailure(stream *os.File, errno syscall.Errno) *fs.PathError {
 	return &fs.PathError{Op: syncOp, Path: stream.Name(), Err: errno}
 }
 
-// A tee core reports its sinks with multierr: the unflushable-stream noise must
+// A tee core reports its sinks with multierr. The unflushable-stream noise must
 // be dropped without taking the file sink's real failure with it.
 func TestGenuineSyncFailure_KeepsRealFailureFromCombinedError(t *testing.T) {
 	stream := pipeStream(t)
@@ -84,7 +84,7 @@ func TestGenuineSyncFailure_NilWhenEverySinkErrorIsStreamNoise(t *testing.T) {
 }
 
 // A standard stream keeps its name when it is redirected, so a real file behind
-// it must still be reported — the name alone must not buy silence.
+// it must still be reported. The name alone must not silence the failure.
 func TestGenuineSyncFailure_ReportsFailureOnRedirectedRegularFile(t *testing.T) {
 	stream := regularFileStream(t)
 
@@ -96,7 +96,7 @@ func TestGenuineSyncFailure_ReportsFailureOnRedirectedRegularFile(t *testing.T) 
 	}
 }
 
-// Only a failed *flush* of a stream is noise — anything else about it is a real
+// Only a failed *flush* of a stream is noise. Anything else about it is a real
 // error.
 func TestGenuineSyncFailure_KeepsNonSyncStreamError(t *testing.T) {
 	stream := pipeStream(t)

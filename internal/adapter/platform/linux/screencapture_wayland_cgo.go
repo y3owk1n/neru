@@ -22,9 +22,9 @@ import (
 // wlrootsCaptureRegion reads region back through wlr-screencopy-unstable-v1.
 //
 // Only the wlroots family reaches here. KWin shares this client stack for
-// everything else — wl_output, xdg-output, layer shell — but advertises no
-// screencopy manager, so CaptureScreenRegion sends KDE to the portal backend
-// before this branch is considered.
+// everything else, such as wl_output, xdg-output and layer shell, but
+// advertises no screencopy manager, so CaptureScreenRegion sends KDE to the
+// portal backend before this branch is considered.
 func wlrootsCaptureRegion(region image.Rectangle) (*image.RGBA, error) {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return nil, derrors.New(

@@ -29,7 +29,7 @@ const (
 // captureScopeOptions are the paths for capture_scope, which shadows the hints
 // section per app the way strategy does, and the grid, recursive_grid and
 // bisect sections, whose region starts as the scope names. They are declared
-// everywhere: the option shapes the capture strategies and where a region
+// everywhere. The option shapes the capture strategies and where a region
 // mode starts, every platform has a capture backend now, and a platform with
 // no focused-window source warns and starts from the screen.
 var captureScopeOptions = []string{
@@ -47,7 +47,7 @@ var captureScopeOptions = []string{
 
 // darwinOnly and darwinAndLinux are the narrow columns this schema uses today,
 // named so a reader compares two options by the same words.
-// A linux-only column existed for contour until macOS fed it a frame; add one
+// A linux-only column existed for contour until macOS fed it a frame. Add one
 // back the moment an option needs it rather than reaching for the nearest fit.
 var (
 	darwinOnly     = parity.Platforms{parity.Darwin}
@@ -59,7 +59,7 @@ var (
 //
 // It is exhaustive on purpose. Being supported everywhere is written down
 // rather than inherited from a section or assumed by omission, for the reason
-// newDefaultConfig() assigns a field even when the value is Go's zero: a column
+// newDefaultConfig() assigns a field even when the value is Go's zero. A column
 // nobody wrote cannot be told from a forgotten one, and the forgotten one is
 // exactly how smooth_scroll reached the schema, the validators and the
 // documentation with no Linux code path
@@ -70,10 +70,10 @@ var (
 // rather than shipping as a silent no-op.
 //
 // A config.Color is declared at the field rather than at its light and dark
-// leaves, because that is the option a person writes: a Color takes one value
-// as readily as a table of two.
+// leaves, because that is the option a person writes, and a Color takes one
+// value as readily as a table of two.
 //
-// The narrow columns below are the ones the tree can point at today — an
+// The narrow columns below are the ones the tree can point at today. Each is an
 // entry in the Platform Exclusives table of docs/reference/platform-support.md, or a Known
 // Gaps entry naming the whole option rather than part of its behavior. A
 // capability that is partly there is not a column this type can state, and
@@ -196,7 +196,7 @@ func PlatformSupport() parity.Declaration {
 		),
 		// Unbound modifier chords reach the focused application on macOS, on
 		// the Wayland evdev tap and on Windows. X11 cannot pass them through
-		// at all, which is a display-server limit rather than a column: the
+		// at all, which is a display-server limit rather than a column, because the
 		// blessed Linux stack is Wayland (Known Gaps, docs/reference/platform-support.md).
 		// X11InertWords is where that limit is said.
 		parity.Everywhere(parity.KindOption, passthroughOptions...),
@@ -537,13 +537,13 @@ func PlatformSupport() parity.Declaration {
 //
 // It is what the platform-support warning is judged against, and it is the
 // user's files rather than the loaded configuration on purpose. Only what
-// somebody wrote can be reported to them: the shipped scroll bindings name
+// somebody wrote can be reported to them. The shipped scroll bindings name
 // scroll_left, which injects nothing on Windows, and telling every Windows user
 // about a line they never typed is noise about somebody else's bug
 // (docs/reference/platform-support.md, Known Gaps).
 type Written struct {
 	// Options maps a TOML path to the value written at it. A non-scalar value
-	// is present with an empty string: the path is what says the option was
+	// is present with an empty string. The path is what says the option was
 	// written, and only a declaration about a specific value needs more.
 	Options map[string]string
 	// Steps are the action strings the files write, in no particular order.
@@ -572,8 +572,8 @@ const noteX11Passthrough = "the X11 backend cannot pass an unbound chord " +
 //
 // The platform column is per OS and cannot say "Linux, except X11", and
 // teaching the declaration a backend axis is far too much machinery for one
-// row. So the one limit finer than a column is declared beside the column: the
-// same Word shape, the same Note, and the loader appends the findings to the
+// row. So the one limit finer than a column is declared beside the column, with
+// the same Word shape and the same Note. The loader appends the findings to the
 // ones InertWords made, which is what gets them the same warning voice and the
 // same doctor row (#1613).
 //
@@ -581,7 +581,7 @@ const noteX11Passthrough = "the X11 backend cannot pass an unbound chord " +
 // written bool arrives as a bare path with no value (Written.Options), and a
 // `passthrough_unbounded_keys = false` a user left in the file is not a promise
 // this backend is failing to keep. The dependents are reported only when they
-// were written: they are inert everywhere without passthrough, which is a
+// were written, since they are inert everywhere without passthrough, which is a
 // cross-field question and not this one.
 func X11InertWords(cfg *Config, written Written) parity.Declaration {
 	if !cfg.General.PassthroughUnboundedKeys {
@@ -622,9 +622,9 @@ func InertWords(written Written, target parity.Platform) parity.Declaration {
 // inertOptions reports the options a user wrote that do nothing on the given
 // platform.
 //
-// A path below a declared option resolves to that option — a Color written as a
-// table reaches its light and dark leaves — so the warning names the option
-// rather than the leaf.
+// A path below a declared option resolves to that option, as when a Color
+// written as a table reaches its light and dark leaves, so the warning names
+// the option rather than the leaf.
 func inertOptions(written map[string]string, target parity.Platform) parity.Declaration {
 	declaration := PlatformSupport()
 
@@ -649,8 +649,8 @@ func inertOptions(written map[string]string, target parity.Platform) parity.Decl
 }
 
 // writtenValue finds what the user wrote at an option's path, counting a path
-// written below it — the light and dark leaves of a Color — as writing the
-// option itself. The value it returns is the one written at the option's own
+// written below it, such as the light and dark leaves of a Color, as writing
+// the option itself. The value it returns is the one written at the option's own
 // path, empty when only a leaf below it was.
 func writtenValue(written map[string]string, path string) (string, bool) {
 	if value, wrote := written[path]; wrote {
@@ -669,7 +669,7 @@ func writtenValue(written map[string]string, path string) (string, bool) {
 // inertSteps reports the actions and mode flags a set of steps names that do
 // nothing on the given platform.
 //
-// A word is reported once however many steps carry it: the answer is about the
+// A word is reported once however many steps carry it. The answer is about the
 // word, and a person who bound hide_cursor to four keys has one thing to learn,
 // not four.
 func inertSteps(steps []string, target parity.Platform) parity.Declaration {
@@ -708,8 +708,8 @@ func inertSteps(steps []string, target parity.Platform) parity.Declaration {
 // so there is one answer to what a flag written with a value looks like rather
 // than a second parser here that could disagree with it.
 //
-// Only the step's own flags, and not the steps nested inside an --on-exit:
-// reading those means reading a step out of the argument list it was quoted
+// Only the step's own flags, and not the steps nested inside an --on-exit.
+// Reading those means reading a step out of the argument list it was quoted
 // into, which is the runtime's job at the moment it dispatches them, and is the
 // same line ValidateModeCommands draws.
 func wordsWritten(actionStr string) []parity.Word {

@@ -4,7 +4,7 @@
 //
 // Mutter tells a Wayland client neither which window is focused nor where it
 // is, and GNOME Shell's own introspection interface answers only the portals.
-// What GNOME does offer is extensions: this package carries a small GNOME
+// What GNOME does offer is extensions. This package carries a small GNOME
 // Shell extension that owns org.neru.Shell on the session bus, answers
 // FocusedWindow with the focused window's app id, title and frame, and emits
 // FocusedWindowChanged on every focus change and on the focused window
@@ -18,6 +18,6 @@
 //
 // The shell loads a new extension only at login, so the bridge installs the
 // extension files into the user's extensions directory when it finds the
-// shell on the bus and the extension not, enables it, and says so once; the
+// shell on the bus and the extension not, enables it, and says so once. The
 // session it is installed into starts serving after the next login.
 package gnomeshell

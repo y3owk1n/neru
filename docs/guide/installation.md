@@ -248,8 +248,9 @@ just install -y   # accept every prompt
 
 On Windows `just install` runs `scripts/install.ps1`, so use the PowerShell
 flag spelling (`-Yes`, `-NoService`). A source build reports a git describe
-version, so the script treats it as a `source` install and asks before a
-release replaces it, or it replaces a release. Other build options are in the
+version, so the script treats it as a `source` install. It asks before a
+release replaces a source install, and before a source install replaces a
+release. Other build options are in the
 [Development guide](../contributing/development.md).
 
 ## Shell completions
@@ -392,7 +393,7 @@ rm -rf ~/.config/neru ~/.local/share/neru ~/.local/state/neru
 sudo gpasswd -d "$USER" input
 ```
 
-Where the systemd unit lives, if you remove it by hand, is in
+To remove the systemd unit by hand, find where it lives in
 [Systemd user service](linux.md#systemd-user-service).
 
 Windows:

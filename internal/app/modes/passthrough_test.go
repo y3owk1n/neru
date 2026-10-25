@@ -137,7 +137,7 @@ func TestHandlePassthroughLocked_SchedulesHintRefreshForMatchingSession(t *testi
 
 const (
 	// The action steps the fixture bindings run. Which one a key runs is never
-	// asserted here — what matters is that a binding exists to be routed.
+	// asserted here. What matters is that a binding exists to be routed.
 	stepLeftClick  = "action left_click"
 	stepRightClick = "action right_click"
 
@@ -383,11 +383,11 @@ func TestRefreshPassthroughForFocusedAppChange_LeavesTheTapAlone(t *testing.T) {
 }
 
 // TestRefreshPassthroughForFocusedAppChange_IsSafeWhileKeysAreHandled pins the
-// concurrency the fix introduces: the app layer starts one of these per
+// concurrency the fix introduces. The app layer starts one of these per
 // application activation, so several can be in flight at once while the
 // handler is also dispatching keys.
 //
-// They take no application as an argument — each reads the published cell — so
+// They take no application as an argument (each reads the published cell), so
 // the answer they converge on is the last publication, whatever order they
 // arrive in. This has to fail under -race if that ever stops being true.
 func TestRefreshPassthroughForFocusedAppChange_IsSafeWhileKeysAreHandled(t *testing.T) {
@@ -447,7 +447,7 @@ func TestRefreshPassthroughForFocusedAppChange_IsSafeWhileKeysAreHandled(t *test
 // The global chords a mode falls back to have to be blacklisted like the mode's
 // own keys. Left off the list, the Wayland evdev tap reads them as unbound
 // shortcuts and re-injects them into the focused application, so the user's own
-// hotkey reaches their editor and the handler never sees the key at all — which
+// hotkey reaches their editor and the handler never sees the key at all. That
 // is the shape the reported --toggle failure took.
 func TestSyncModifierPassthrough_ConsumesTheGlobalChordsAModeFallsBackTo(t *testing.T) {
 	t.Parallel()

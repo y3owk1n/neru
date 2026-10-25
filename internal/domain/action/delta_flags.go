@@ -41,7 +41,7 @@ func ParseDeltaFlags(tokens []string) (int, int, bool) {
 	return deltaX, deltaY, true
 }
 
-// cutFlag splits "--flag=value" into its halves; a bare token is returned
+// cutFlag splits "--flag=value" into its halves. A bare token is returned
 // whole with joined == false.
 func cutFlag(token string) (string, string, bool) {
 	for idx := range len(token) {

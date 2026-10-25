@@ -18,7 +18,7 @@ func alphaAt(pixels []byte, bufW, x, y int) byte {
 //
 // The distance field is derived from the rectangle's center and half-extents,
 // so queueing the visible part instead would round the corners of that part and
-// redraw the shape smaller — while the stroke and the label, which are not
+// redraw the shape smaller, while the stroke and the label, which are not
 // clipped on the way in, stayed where the real one was. A hint label placed
 // below an element near the bottom of the screen is exactly that rectangle.
 func TestFillRoundedRect_QueuesTheUnclippedRectangle(t *testing.T) {
@@ -38,7 +38,7 @@ func TestFillRoundedRect_QueuesTheUnclippedRectangle(t *testing.T) {
 	}
 }
 
-// TestFillRoundedRect_DropsAFullyOffscreenRectangle pins the other half: the
+// TestFillRoundedRect_DropsAFullyOffscreenRectangle pins the other half. The
 // surface bounds still decide whether there is anything to draw at all.
 func TestFillRoundedRect_DropsAFullyOffscreenRectangle(t *testing.T) {
 	t.Parallel()
@@ -52,7 +52,7 @@ func TestFillRoundedRect_DropsAFullyOffscreenRectangle(t *testing.T) {
 }
 
 // TestClear_DrainsEveryCommandQueue pins that nothing queued before a Clear
-// survives it, and that the clear itself is what the next frame carries: a
+// survives it, and that the clear itself is what the next frame carries. A
 // shape queued before the Clear painted onto a surface the Clear emptied would
 // be a shape with whatever it belonged to gone.
 func TestClear_DrainsEveryCommandQueue(t *testing.T) {
@@ -78,7 +78,7 @@ func TestClear_DrainsEveryCommandQueue(t *testing.T) {
 }
 
 // TestAlphaFillTriangle_CoversTheInteriorAndNotTheOutside is the shape check
-// the hint connector arrow depends on: a solid triangle paints its middle,
+// the hint connector arrow depends on. A solid triangle paints its middle,
 // leaves the corners of its bounding box alone, and stays inside the buffer.
 func TestAlphaFillTriangle_CoversTheInteriorAndNotTheOutside(t *testing.T) {
 	t.Parallel()
@@ -111,7 +111,7 @@ func TestAlphaFillTriangle_CoversTheInteriorAndNotTheOutside(t *testing.T) {
 }
 
 // TestAlphaFillTriangle_AntiAliasesItsSlantedEdges pins the reason this is
-// sampled rather than filled by scanline: the diagonal edges have to come out
+// sampled rather than filled by scanline. The diagonal edges have to come out
 // partially covered, or the arrow reads as a staircase next to the
 // anti-aliased badge it hangs off.
 func TestAlphaFillTriangle_AntiAliasesItsSlantedEdges(t *testing.T) {
@@ -193,8 +193,8 @@ func TestAlphaFillTriangle_DegenerateAndTransparentDrawNothing(t *testing.T) {
 
 // TestAlphaFillTriangle_ClipsToTheBuffer pins that a triangle hanging off the
 // edge of the surface is clipped rather than skipped or indexed past the pixel
-// slice — a hint against the top or bottom row of the screen puts one there.
-// The run itself is half the assertion: an unclipped write panics.
+// slice. A hint against the top or bottom row of the screen puts one there.
+// The run itself is half the assertion, because an unclipped write panics.
 func TestAlphaFillTriangle_ClipsToTheBuffer(t *testing.T) {
 	t.Parallel()
 
@@ -267,7 +267,7 @@ func TestDrawPointerGlyph_CentersTheGlyphOnThePoint(t *testing.T) {
 	}
 }
 
-// TestDrawPointerGlyph_TinySizeStillDraws pins the floor on the box: a pointer
+// TestDrawPointerGlyph_TinySizeStillDraws pins the floor on the box. A pointer
 // configured to size 0 or 1 keeps a rectangle rather than vanishing into an
 // empty one, and an empty char falls back to the default disc.
 func TestDrawPointerGlyph_TinySizeStillDraws(t *testing.T) {

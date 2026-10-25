@@ -49,7 +49,7 @@ const (
 
 	// dragGlideSteps and dragGlideInterval shape the motion a warp becomes
 	// while a button is held. Applications do not turn a single move into a
-	// drag: a press, one jump, and a release select nothing in Notepad and
+	// drag. A press, one jump, and a release select nothing in Notepad and
 	// only sometimes in Edge, whether the jump is SetCursorPos or an
 	// injected absolute move. Interpolated motion between the two points
 	// selects the whole range every time in both, so a held warp is spread
@@ -89,11 +89,11 @@ const (
 
 	// scrollPixelsPerNotch maps the pixel delta every caller sends to wheel
 	// notches. Linux uses the same figure for its X11 button clicks, so one
-	// scroll_step travels the same number of notches on both; before it the
+	// scroll_step travels the same number of notches on both. Before it the
 	// pixel count was sent as a notch count and one scroll_step of 50 pixels
 	// was fifty notches.
 	scrollPixelsPerNotch = 30
-	// wheelUnitsPerPixel is that mapping in mouseData units: WHEEL_DELTA is
+	// wheelUnitsPerPixel is that mapping in mouseData units. WHEEL_DELTA is
 	// 120 per notch, so a pixel is four units and an application accumulates
 	// the fraction the way it does for a high-resolution wheel.
 	wheelUnitsPerPixel = wheelDelta / scrollPixelsPerNotch
@@ -263,7 +263,7 @@ func buttonEventAt(point image.Point, flags uint32) error {
 
 // MouseDown presses the given button at the given point and keeps modifiers
 // presented until the matching MouseUp, so the drag in between carries them.
-// A press that fails undoes its own hold: no release is coming to do it.
+// A press that fails undoes its own hold, because no release is coming to do it.
 func MouseDown(point image.Point, button action.MouseButton, modifiers action.Modifiers) error {
 	hold, err := holdModifiers(modifiers)
 	if err != nil {
@@ -315,7 +315,7 @@ func MouseUp(point image.Point, button action.MouseButton, modifiers action.Modi
 		released = err == nil
 	}
 
-	// The tracker follows the button-up, not the error: a release that went out
+	// The tracker follows the button-up, not the error. A release that went out
 	// after a failed move still left the button up, and leaving it recorded as
 	// held would make every later click a drag.
 	if released {
@@ -391,7 +391,7 @@ func dragStepTo(point image.Point) error {
 // error cannot accumulate over the moves that follow.
 //
 // The relative move's failure reaches the caller, unlike the redraw warpCursor
-// posts. The redraw is cosmetic; this is the motion the drag is made of, and a
+// posts. The redraw is cosmetic. This is the motion the drag is made of, and a
 // caller that releases the button believing the drag happened would select the
 // single character under the press instead.
 func dragMotionOnto(from, onto image.Point) error {
@@ -481,7 +481,7 @@ func dragMotionBy(delta image.Point) error {
 // dragMotionTo posts one absolute MOUSEEVENTF_MOVE at point through SendInput.
 //
 // While a button this process holds is down, Windows updates the pointer's
-// position for SetCursorPos but does not redraw the pointer image: the drag
+// position for SetCursorPos but does not redraw the pointer image. The drag
 // lands and GetCursorPos reports the target, and the arrow on screen stays
 // where the press was. An injected move at the same pixel is what redraws
 // it. The absolute coordinate is chosen so Windows floors it back to the
@@ -528,7 +528,7 @@ func virtualScreenMetrics() image.Rectangle {
 
 // absoluteCoordinate maps a pixel on one axis of the virtual desktop onto the
 // absolute range so that Windows' floor(value * size / 65536) lands on that
-// pixel again: the smallest value whose product reaches the pixel.
+// pixel again, which is the smallest value whose product reaches the pixel.
 func absoluteCoordinate(pixel, origin, size int) int32 {
 	if size <= 0 {
 		return 0
@@ -546,7 +546,7 @@ func absoluteCoordinate(pixel, origin, size int) int32 {
 // and the first error behind it.
 //
 // A failed move does not hold the release back. Losing the drag's last stretch
-// selects the wrong range, which is recoverable; skipping the button-up leaves
+// selects the wrong range, which is recoverable. Skipping the button-up leaves
 // a button held that every later click inherits, and EnsureMouseUp cannot get
 // it back, because its own MouseUp comes through here and fails the same way.
 // The release's own error outranks the move's.
@@ -571,8 +571,8 @@ type wheelEvent struct {
 }
 
 // wheelEvents turns a pixel scroll delta into the wheel records SendInput
-// needs, one per axis that moves. Deltas follow Neru's shared convention:
-// positive deltaY scrolls up and positive deltaX scrolls left, which is what
+// needs, one per axis that moves. Deltas follow Neru's shared convention.
+// Positive deltaY scrolls up and positive deltaX scrolls left, which is what
 // macOS posts verbatim and what X11 maps to buttons 4 and 6. MOUSEEVENTF_WHEEL
 // agrees on the vertical sign, but MOUSEEVENTF_HWHEEL reads positive as
 // right, so the horizontal component is negated.
@@ -580,7 +580,7 @@ func wheelEvents(deltaX, deltaY int) []wheelEvent {
 	return wheelRecords(int32(deltaY)*wheelUnitsPerPixel, int32(-deltaX)*wheelUnitsPerPixel)
 }
 
-// wheelRecords is wheelEvents below the sign convention: vertical and
+// wheelRecords is wheelEvents below the sign convention. Vertical and
 // horizontal are already in WHEEL_DELTA units with Win32's signs, and a zero
 // axis sends nothing.
 func wheelRecords(vertical, horizontal int32) []wheelEvent {
@@ -606,7 +606,7 @@ func appendWheelRecords(events []wheelEvent, flags uint32, units int32) []wheelE
 }
 
 // ScrollWheel scrolls at the current cursor position on both axes, presenting
-// exactly modifiers as held for the duration — see holdModifiers for why a
+// exactly modifiers as held for the duration. holdModifiers says why a
 // modifier the user is physically holding has to be suppressed rather than
 // merely not pressed.
 //

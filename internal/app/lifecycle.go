@@ -28,16 +28,16 @@ const (
 	StopTimeout = 5 * time.Second
 
 	// HighMemoryThreshold is the heap allocation threshold for triggering GC (100MB).
-	HighMemoryThreshold = 100 * 1024 * 1024 // 100MB
+	HighMemoryThreshold = 100 * 1024 * 1024
 
 	// LowMemoryThreshold is the normal heap allocation threshold (50MB).
-	LowMemoryThreshold = 50 * 1024 * 1024 // 50MB
+	LowMemoryThreshold = 50 * 1024 * 1024
 
 	// HighMemoryGCInterval is the GC interval when memory pressure is high.
-	HighMemoryGCInterval = 1 * time.Minute // GC every 1 minute when high memory
+	HighMemoryGCInterval = 1 * time.Minute
 
 	// LowMemoryGCInterval is the GC interval when memory pressure is normal.
-	LowMemoryGCInterval = 5 * time.Minute // GC every 5 minutes when low memory
+	LowMemoryGCInterval = 5 * time.Minute
 
 	// BytesPerMB is the number of bytes in a megabyte.
 	BytesPerMB = 1024 * 1024
@@ -59,7 +59,7 @@ func (a *App) Run() error {
 		zap.String("log_level", cfg.Logging.LogLevel),
 		zap.Bool("file_logging", !cfg.Logging.DisableFileLogging))
 
-	// Immediately after the identity line and before anything can fail: a build
+	// Immediately after the identity line and before anything can fail. A build
 	// outside the parity boundary says so once, here, rather than one stubbed
 	// keystroke at a time.
 	announceBuildBoundary(a.logger, platform.CurrentOS(), cgoEnabled)
@@ -76,9 +76,9 @@ func (a *App) Run() error {
 	a.logger.Debug("IPC server started")
 
 	// These three are ordered, not merely sequential, and the order is starting
-	// the watcher last: an activation it delivers reaches both of the things
+	// the watcher last. An activation it delivers reaches both of the things
 	// above it, and neither absorbs one until it has run. Registering after the
-	// watcher started meant a dropped activation, which nothing retries — ADR
+	// watcher started meant a dropped activation, which nothing retries. ADR
 	// 0005 has the consequence, #1348 was the bug, and
 	// TestSimulation_TheAppHearsFocusChangesFromTheMomentItWatchesForThem pins
 	// it. Registering the hotkeys after it would hand the same activation a
@@ -86,12 +86,12 @@ func (a *App) Run() error {
 	// global table over the per-app one it had just installed
 	// (keybinding/binder.go).
 	//
-	// Only the registrations belong ahead of this; nothing that can block does.
+	// Only the registrations belong ahead of this, and nothing that can block does.
 	// The observers below reach a session bus on Linux, and putting a bus round
 	// trip in front of the watcher and the hotkeys would delay the daemon
 	// accepting its first chord to hurry up something nothing is waiting on.
 	//
-	// The hook runner is a listener like the registrations: it subscribes
+	// The hook runner is a listener like the registrations. It subscribes
 	// here, ahead of the watcher, so the first focus change reaches its hook.
 	a.startHooks()
 	a.registerAppWatcherCallbacks()
@@ -109,7 +109,7 @@ func (a *App) Run() error {
 	// Gate Mission Control detection at all levels using config. It stays after
 	// the hotkeys are live because what it arms can run an action sequence, and
 	// it reads the configuration now rather than the snapshot taken at the top
-	// of Run: the IPC server is already accepting a reload by this point. The
+	// of Run, because the IPC server is already accepting a reload by this point. The
 	// apply lock stops a reload from running between the read and the write,
 	// and each reload applies it again (reconfigureAfterUpdate).
 	a.configApplyMu.Lock()
@@ -134,7 +134,7 @@ func (a *App) Run() error {
 				select {
 				case <-ticker.C:
 					highMemory := a.adaptiveGC()
-					// Adjust interval based on memory pressure
+
 					newInterval := LowMemoryGCInterval
 					if highMemory {
 						newInterval = HighMemoryGCInterval
@@ -201,36 +201,36 @@ func (a *App) adaptiveGC() bool {
 		a.gcAggressiveMode = true
 	}
 
-	if a.gcAggressiveMode {
-		a.logger.Debug("Running GC due to high memory pressure",
-			zap.Uint64("heap_alloc_mb", heapAllocMB),
-			zap.Uint64("next_gc_mb", nextGC/BytesPerMB),
-			zap.Bool("aggressive_mode", true))
-		runtime.GC()
-
-		// Re-read metrics after GC to get the actual post-GC heap size
-		postGCHeapAlloc, _ := readMemMetrics()
-		postGCHeapAllocMB := postGCHeapAlloc / BytesPerMB
-
-		// Exit aggressive mode if memory drops below low threshold
-		if postGCHeapAllocMB < lowThresholdMB {
-			a.gcAggressiveMode = false
-			a.logger.Debug("Exiting aggressive GC mode",
-				zap.Uint64("heap_alloc_mb", postGCHeapAllocMB))
-		}
-
-		return true
-	} else {
+	if !a.gcAggressiveMode {
 		a.logger.Debug("Skipping GC, memory usage normal",
 			zap.Uint64("heap_alloc_mb", heapAllocMB),
 			zap.Bool("aggressive_mode", false))
 
 		return false
 	}
+
+	a.logger.Debug("Running GC due to high memory pressure",
+		zap.Uint64("heap_alloc_mb", heapAllocMB),
+		zap.Uint64("next_gc_mb", nextGC/BytesPerMB),
+		zap.Bool("aggressive_mode", true))
+	runtime.GC()
+
+	// Re-read metrics after GC to get the actual post-GC heap size
+	postGCHeapAlloc, _ := readMemMetrics()
+	postGCHeapAllocMB := postGCHeapAlloc / BytesPerMB
+
+	// Exit aggressive mode if memory drops below low threshold
+	if postGCHeapAllocMB < lowThresholdMB {
+		a.gcAggressiveMode = false
+		a.logger.Debug("Exiting aggressive GC mode",
+			zap.Uint64("heap_alloc_mb", postGCHeapAllocMB))
+	}
+
+	return true
 }
 
 // registerAppWatcherCallbacks registers the handlers for application watcher
-// events. It only registers — everything here has to be in place before the
+// events. It only registers. Everything here has to be in place before the
 // watcher starts, so nothing that can block belongs in it (see Run).
 func (a *App) registerAppWatcherCallbacks() {
 	a.appWatcher.OnActivate(func(_, bundleID string) {
@@ -242,7 +242,6 @@ func (a *App) registerAppWatcherCallbacks() {
 		a.HandleScreenParametersChange()
 	})
 
-	// Watch for Mission Control activated events
 	a.appWatcher.OnMissionControlActivated(func() {
 		a.events.Publish(event.Event{Name: event.MissionControlActivated})
 
@@ -257,7 +256,6 @@ func (a *App) registerAppWatcherCallbacks() {
 		}
 	})
 
-	// Watch for Mission Control deactivated events
 	a.appWatcher.OnMissionControlDeactivated(func() {
 		a.events.Publish(event.Event{Name: event.MissionControlDeactivated})
 
@@ -274,12 +272,13 @@ func (a *App) registerAppWatcherCallbacks() {
 }
 
 // HandleScreenParametersChange is the app's entry point for a display
-// configuration change — a monitor plugged in or unplugged, a resolution
-// change, a laptop waking to a different arrangement: the platform screen
-// observers call it, and the simulation harness drives it the same way.
+// configuration change, such as a monitor plugged in or unplugged, a
+// resolution change, or a laptop waking to a different arrangement. The
+// platform screen observers call it, and the simulation harness drives it the
+// same way.
 //
 // It responds by putting whichever mode is on screen back onto the display as
-// it now is, and it is re-entrant by design: an event arriving while one is
+// it now is, and it is re-entrant by design. An event arriving while one is
 // being handled is coalesced into a single retry rather than processed
 // concurrently.
 func (a *App) HandleScreenParametersChange() {
@@ -315,15 +314,15 @@ func (a *App) HandleScreenParametersChange() {
 // processScreenChange performs the actual screen-change handling logic.
 //
 // Which mode is on screen, whether its feature is switched on, and what putting
-// it back onto the new display means all belong to the package that owns modes:
-// this hands the change over and then answers for the overlay it owns. One call
+// it back onto the new display means all belong to the package that owns modes.
+// This hands the change over and then answers for the overlay it owns. One call
 // under one lock hold replaces the unlocked mode snapshot this used to take and
 // the three near-identical per-mode functions it fed.
 //
-// The resize afterwards is a fallback for a mode that rebuilt nothing — scroll,
-// the monitor picker, a mode switched off in configuration. It is deliberately
+// The resize afterwards is a fallback for a mode that rebuilt nothing, such as
+// scroll, the monitor picker, or a mode switched off in configuration. It is deliberately
 // skipped when the handler reports the overlay needs nothing, because resizing
-// the overlay is what brings it up: doing it with nothing open would show an
+// the overlay is what brings it up. Doing it with nothing open would show an
 // overlay the user never asked for on every dock, undock and wake.
 func (a *App) processScreenChange() {
 	ctx := a.ctx
@@ -346,7 +345,7 @@ func (a *App) handleAppActivation(bundleID string) {
 
 	// Tell the mode handler which application is focused now, so the keymap can
 	// be settled against it. PublishFocusedApp is a lock-free write and must
-	// stay one: the watcher calls this inline and, on macOS, on the main queue
+	// stay one, because the watcher calls this inline and, on macOS, on the main queue
 	// (ADR 0005).
 	a.modes.PublishFocusedApp(bundleID)
 
@@ -356,8 +355,8 @@ func (a *App) handleAppActivation(bundleID string) {
 
 	// The keymap settles from that publication on the next read, but the event
 	// tap has to be told before the next key arrives rather than because one
-	// did: its blacklist decides whether a chord the newly focused application
-	// binds reaches Neru at all. So this one is pushed — on a goroutine, since
+	// did. Its blacklist decides whether a chord the newly focused application
+	// binds reaches Neru at all. So this one is pushed, on a goroutine, since
 	// the handler takes h.mu and this callback runs on the main queue on macOS
 	// (ADR 0005). It reads the cell published just above, so racing activations
 	// converge on the last one announced.
@@ -506,7 +505,7 @@ func (a *App) Quit() {
 	platformQuit()
 }
 
-// Cleanup cleans up resources. It is safe to call multiple times; only the
+// Cleanup cleans up resources. It is safe to call multiple times. Only the
 // first invocation performs the actual teardown.
 func (a *App) Cleanup() {
 	a.cleanupOnce.Do(func() {
@@ -522,7 +521,7 @@ func (a *App) Cleanup() {
 			a.gcCancel()
 		}
 
-		// No hook starts during teardown: the mode exit below would start one
+		// No hook starts during teardown. The mode exit below would start one
 		// against components about to be released. A hook already running is
 		// given hookStopTimeout to end on the canceled context.
 		a.stopHooks()
@@ -532,13 +531,13 @@ func (a *App) Cleanup() {
 		if a.modes != nil {
 			a.modes.ShowSystemCursor()
 		}
-		// Stop theme observer: nil the handler first so any in-flight KVO callback
+		// The theme observer nils its handler first, so any in-flight KVO callback
 		// (between the async dispatch and actual observer removal) is a no-op.
 		a.stopThemeObserver()
 		a.stopSleepObserver()
 		// Stop IPC server first to prevent new requests.
 		// Use a fresh context instead of a.ctx since the root context was
-		// canceled above; a canceled context would cause Stop() to fail
+		// canceled above. A canceled context would cause Stop() to fail
 		// immediately before it can complete graceful teardown.
 		if a.ipcServer != nil {
 			stopCtx, stopCancel := context.WithTimeout(context.Background(), StopTimeout)
@@ -561,11 +560,11 @@ func (a *App) Cleanup() {
 		}
 
 		// Unsubscribe from screen-share state before the overlay is released,
-		// for the same reason the layout-change closure goes first: a callback
+		// for the same reason the layout-change closure goes first. A callback
 		// registered against a destroyed overlay is a call nothing should
-		// still be making. It narrows the window rather than closing it —
-		// AppState publishes on a goroutine per subscriber, so one already
-		// launched is unaffected by unsubscribing — and what closes it is the
+		// still be making. It narrows the window rather than closing it, since
+		// AppState publishes on a goroutine per subscriber and one already
+		// launched is unaffected by unsubscribing. What closes it is the
 		// darwin manager serializing SetSharingType against its own teardown.
 		if a.screenShareSubscriptionID != 0 {
 			a.appState.OffScreenShareStateChanged(a.screenShareSubscriptionID)
@@ -573,13 +572,13 @@ func (a *App) Cleanup() {
 		}
 
 		// The event tap goes before the overlay, and the order is load-bearing
-		// (#1515): tearing the tap down drains its key dispatcher, and that
+		// (#1515). Tearing the tap down drains its key dispatcher, and that
 		// drain delivers whatever key was still queued into the mode handler,
 		// which draws. Released the other way round, a key arriving in the
 		// window between the two calls is handled after the overlay is gone.
 		// The overlay adapter refuses to draw once it has been destroyed, so
 		// this is no longer the only thing standing between a drained key and
-		// a freed native window — but it is what keeps the drain finishing
+		// a freed native window, but it is what keeps the drain finishing
 		// while there is still a surface to finish onto.
 		if a.eventTap != nil {
 			a.eventTap.Destroy()

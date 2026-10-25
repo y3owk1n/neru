@@ -17,8 +17,7 @@ var DocsCmd = &cobra.Command{
 	Short: "Open documentation in the browser",
 	Long: `Open version-aware Neru documentation pages in the default browser.
 
-The URL points to the documentation for the currently installed version
-of Neru, so you always see the relevant reference.
+The URL points to the documentation for the installed version of Neru.
 
 Subcommands:
   cli      Open the CLI reference documentation

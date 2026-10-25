@@ -13,7 +13,6 @@ import (
 func TestGridRouter_RouteKey(t *testing.T) {
 	logger := zap.NewNop()
 
-	// Create a simple grid for testing
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
 	manager := grid.NewManager(
 		testGrid,
@@ -71,7 +70,6 @@ func TestGridRouter_RouteKey(t *testing.T) {
 func TestGridRouter_EscapeKey(t *testing.T) {
 	logger := zap.NewNop()
 
-	// Create a simple grid for testing
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
 	manager := grid.NewManager(
 		testGrid,

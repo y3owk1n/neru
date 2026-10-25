@@ -15,11 +15,11 @@ This writes the default config, with every option set to its default value,
 to the first path in [Where Neru looks for the file](#where-neru-looks-for-the-file)
 that applies to you. Since a missing key keeps its default, you can delete
 every line you do not change. On Linux the `[hotkeys]` table is commented
-out, see [Bind your first hotkey](getting-started.md#bind-your-first-hotkey).
+out. See [Bind your first hotkey](getting-started.md#bind-your-first-hotkey).
 The flags are under [`neru config init`](../reference/cli.md#neru-config-init).
 
 The file starts with a `#:schema` line, which lets Taplo and the Even Better
-TOML extension complete keys and flag mistakes, see
+TOML extension complete keys and flag mistakes. See
 [Editor support](../reference/configuration.md#editor-support).
 
 ## Where Neru looks for the file
@@ -62,7 +62,7 @@ reload fails and Neru keeps the previous config. At launch, an error stops
 Neru instead. It shows the error, prints it to stderr, and exits.
 
 Options read only at startup, such as `[logging]` and `[systray] enabled`,
-need you to [restart the daemon](troubleshooting.md#restart-the-daemon).
+take effect after you [restart the daemon](troubleshooting.md#restart-the-daemon).
 
 ## Change one value without editing the file
 
@@ -75,8 +75,8 @@ neru config set scroll.scroll_step 25
 neru config reset scroll.scroll_step
 ```
 
-Values that only make sense together, such as a grid's size and keys, are set
-with `--no-reload` and applied with one reload at the end:
+Set values that only make sense together, such as a grid's size and keys,
+with `--no-reload`, then apply them with one reload at the end:
 
 ```bash
 neru config set --no-reload recursive_grid.grid_cols 3
@@ -85,8 +85,8 @@ neru config set --no-reload recursive_grid.keys "gcrhtnmwv"
 neru config reload
 ```
 
-`neru config dump` prints the running config as nested JSON. This lists the
-dotted path of every value it holds, with lists and per-theme colors whole:
+`neru config dump` prints the running config as nested JSON. The command
+below lists the dotted path of every value it holds, with lists and per-theme colors whole:
 
 ```bash
 neru config dump | jq -r 'def p: if type == "object" and (.light | type) != "string"
@@ -97,7 +97,7 @@ neru config dump | jq -r 'def p: if type == "object" and (.light | type) != "str
   lists. Setting a list replaces it rather than adding to it.
 - Edit hotkey tables and `app_configs` in the file itself.
 - `config set` and `config reset` also work as hotkey steps, so one key can
-  switch a setting, see [Recipes](recipes.md#switch-grid-layouts-with-one-key).
+  switch a setting. See [Recipes](recipes.md#switch-grid-layouts-with-one-key).
 
 ## How the layers combine
 

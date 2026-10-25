@@ -15,8 +15,8 @@ import (
 )
 
 // recordedRect is one rectangle a shared draw handed to its backend. rounded
-// tells the two primitives apart: a shape drawn through rectPrim has no radius
-// to report, and that is exactly the bug these tests pin — a corner radius the
+// tells the two primitives apart. A shape drawn through rectPrim has no radius
+// to report, and that is the bug these tests pin, a corner radius the
 // configuration accepts but the draw never passes on.
 type recordedRect struct {
 	bounds  image.Rectangle
@@ -30,7 +30,7 @@ type recordedRect struct {
 // it was asked to draw. It stands in for Cairo so these tests need no display,
 // and it observes the shared drawing code at the one boundary the backends see.
 //
-// A hint badge is deliberately not recorded in rects: the radius tests below
+// A hint badge is deliberately not recorded in rects. The radius tests below
 // count the shapes a draw produced, and the badge beside each label would tell
 // them nothing they assert.
 type recordingSurface struct {
@@ -42,14 +42,14 @@ type recordingSurface struct {
 	flushes      int
 
 	// frameOps is the order the frame-lifecycle primitives were called in.
-	// Which buffer a Wayland draw lands in depends on it — beginFrame selects
+	// Which buffer a Wayland draw lands in depends on it. beginFrame selects
 	// the writable one, so a clear before it wipes the buffer on screen and
-	// leaves the one about to be shown stale — and no counter can see that.
+	// leaves the one about to be shown stale, and no counter can see that.
 	frameOps []string
 }
 
 // recordedText is one string the surface was asked to paint, with everything
-// that decides how it looks. Most of these tests read only the string; a glyph
+// that decides how it looks. Most of these tests read only the string. A glyph
 // whose position, size and color are the point needs the rest.
 type recordedText struct {
 	text       string
@@ -146,7 +146,7 @@ func (s *recordingSurface) findText(text string) (recordedText, bool) {
 }
 
 // paintedStrings is what was painted, as the strings alone. Failure messages
-// read it; assertions that care how a glyph looks use findText.
+// read it, and assertions that care how a glyph looks use findText.
 func (s *recordingSurface) paintedStrings() []string {
 	painted := make([]string, len(s.texts))
 	for index, recorded := range s.texts {
@@ -171,12 +171,12 @@ func (s *recordingSurface) forget() {
 // hints.boundary_highlight.border_radius to the shape Linux draws. The expected
 // radii are the ones macOS (overlay_darwin.m, auto = 4 clamped to half the
 // shorter side) and Windows (winAutoRadiusBoundaryCap) resolve the same
-// configuration to: a boundary that is a rounded pill on two platforms and a
+// configuration to. A boundary that is a rounded pill on two platforms and a
 // square box on the third is the same config producing two different screens.
 func TestSharedOverlay_DrawHints_BoundaryHighlightHonoursItsBorderRadius(t *testing.T) {
 	t.Parallel()
 
-	// A 100x40 element: half its shorter side is 20, so the auto radius caps at
+	// For a 100x40 element, half its shorter side is 20, so the auto radius caps at
 	// 4 and an oversized configured radius clamps to 20.
 	const (
 		elementWidth  = 100
@@ -241,15 +241,15 @@ func TestSharedOverlay_DrawHints_BoundaryHighlightHonoursItsBorderRadius(t *test
 
 // TestSharedOverlay_DrawFrame_LabelBackgroundHonoursItsBorderRadius pins
 // recursive_grid.ui.label_background_border_radius the same way. The auto value
-// is a full pill here rather than a capped corner: that is what the shared
+// is a full pill here rather than a capped corner. That is what the shared
 // resolver documents for a label background and what Windows draws with it.
-// macOS resolves the same -1 to MIN(height/2, 6) in drawGridLabel: — these
+// macOS resolves the same -1 to MIN(height/2, 6) in drawGridLabel:. These
 // cases assert the resolver Linux now shares with Windows, not agreement with
 // that third copy.
 func TestSharedOverlay_DrawFrame_LabelBackgroundHonoursItsBorderRadius(t *testing.T) {
 	t.Parallel()
 
-	// Font 20 with explicit padding gives a 20x32 plate: half its shorter side
+	// Font 20 with explicit padding gives a 20x32 plate. Half its shorter side
 	// is 10, which is both the full-pill radius and the clamp ceiling.
 	const (
 		labelFontSize = 20

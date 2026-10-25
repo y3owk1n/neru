@@ -195,7 +195,7 @@ func TestStyle_LabelFontSizeIn_NeverShrinkAnswersAsTheOldAutohideRule(t *testing
 }
 
 // TestStyle_ARGBAccessorsMatchTheHexValues pins the conversion the Cairo and GDI
-// backends rely on: the packed form of a color must be the packed form of the
+// backends rely on. The packed form of a color must be the packed form of the
 // hex string beside it.
 func TestStyle_ARGBAccessorsMatchTheHexValues(t *testing.T) {
 	style := BuildStyle(config.DefaultConfig().RecursiveGrid, &mockThemeProvider{})

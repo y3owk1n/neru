@@ -1,6 +1,5 @@
-// Package app contains the main application logic for Neru.
+// Package app wires Neru's components together and runs the daemon.
 //
-// This package orchestrates all components of the Neru application, serving as the
-// central coordinator that manages state transitions, mode switching, and integration
-// between various subsystems. The App struct is the heart of the application.
+// The App struct owns state transitions, mode switching, and the connections
+// between subsystems.
 package app

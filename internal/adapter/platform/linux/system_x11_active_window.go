@@ -9,12 +9,12 @@ import (
 )
 
 // x11ActiveWindowResult names the answers reading _NET_ACTIVE_WINDOW on the X11
-// root window can give. It mirrors NeruX11ActiveWindowResult in x11_system.h;
-// the translation between the two is the switch in x11ActiveWindowQuery
+// root window can give. It mirrors NeruX11ActiveWindowResult in x11_system.h.
+// The translation between the two is the switch in x11ActiveWindowQuery
 // (system_x11_cgo.go), which maps each C constant by name, so the numbering here
 // is this package's own and need not match the header's.
 //
-// The distinction that matters is between the first two and the last three: a
+// The distinction that matters is between the first two and the last three. A
 // desktop where nothing is focused answered the question, and callers degrade
 // through it, while a query that never got an answer is a failure they surface.
 // Collapsing all five into "1 or 0" is what made clicking the desktop
@@ -25,7 +25,7 @@ const (
 	// x11ActiveWindowFound means the property held a real window id.
 	x11ActiveWindowFound x11ActiveWindowResult = iota
 	// x11ActiveWindowNone means the query succeeded and a live EWMH window
-	// manager has nothing focused — the property reads None, or it is absent
+	// manager has nothing focused. The property reads None, or it is absent
 	// because that window manager writes it only once something takes focus
 	// (openbox does, which is why the _NET_SUPPORTING_WM_CHECK handshake and
 	// not _NET_ACTIVE_WINDOW decides this).
@@ -45,14 +45,14 @@ const (
 
 // errNoFocusedWindow is the cause every "the display answered, and the answer
 // is that nothing has focus" error wraps. It exists so callers can recognize
-// that one state without string-matching a message: the capability surface
+// that one state without string-matching a message. The capability surface
 // explains it differently from a failure, because focusing any window fixes it
 // and installing something does not.
 //
 // Both arms wrap it: the X11 one for a display whose _NET_ACTIVE_WINDOW reads
 // None, and the wlroots one for a foreign-toplevel manager with nothing
 // activated (waylandNoFocusedAppError). What it does not cover is a window that
-// has focus and no pid to report — that is errNoWindowPID, a sibling sentinel,
+// has focus and no pid to report. That is errNoWindowPID, a sibling sentinel,
 // because the sentence this one buys would be false there.
 var errNoFocusedWindow = errors.New("no window has focus")
 

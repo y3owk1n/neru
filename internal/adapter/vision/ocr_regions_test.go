@@ -10,8 +10,8 @@ import (
 // the engine being wrong lives here: which coordinate space the box is in, what
 // the confidence scale is, and which findings are not worth a hint.
 
-// The text these cases pretend an engine read. Nothing depends on the words;
-// they are literals in one place so the cases differ only where they mean to.
+// The text these cases pretend an engine read. Nothing depends on the words.
+// They are literals in one place so the cases differ only where they mean to.
 const (
 	labelSave   = "Save"
 	labelSubmit = "Submit"
@@ -55,7 +55,7 @@ func TestRegionsFromWords_TranslatesIntoTheRequestedRegion(t *testing.T) {
 }
 
 // TestRegionsFromWords_UndoesTheOutputScale covers the HiDPI case the capture
-// backend documents: a compositor answers a region request in physical pixels,
+// backend documents. A compositor answers a region request in physical pixels,
 // so on a 2x output the frame comes back twice the size that was asked for.
 // Dividing the box by that ratio is the difference between hints landing on
 // their text and landing a quarter of the way up the window.
@@ -126,7 +126,7 @@ func TestRegionsFromWords_KeepsAWordExactlyAtTheConfidenceFloor(t *testing.T) {
 	}
 }
 
-// TestRegionsFromWords_RefusesAnUnmappableRegion is the safety case: with no
+// TestRegionsFromWords_RefusesAnUnmappableRegion is the safety case. With no
 // region to translate into there is no correct answer, and returning boxes in
 // image-local coordinates would put hints on the wrong part of the screen
 // rather than nowhere.
@@ -176,8 +176,8 @@ func TestRegionsFromWords_ClipsToTheRequestedRegion(t *testing.T) {
 }
 
 // elementsFromRegions is the last shared step before the hint pipeline sees a
-// vision result, and it is shared because both backends reach it the same way:
-// a classified region becomes an element whose role is native, whose title is
+// vision result, and it is shared because both backends reach it the same way.
+// A classified region becomes an element whose role is native, whose title is
 // the recognized text, and whose ID is stable for the same box.
 
 func TestElementsFromRegions_CarriesTheClassificationOntoTheElement(t *testing.T) {

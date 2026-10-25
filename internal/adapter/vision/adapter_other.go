@@ -26,7 +26,7 @@ func (a *Adapter) DetectElements(
 	)
 }
 
-// DetectContours reports not-supported: the detector is platform-neutral, but
+// DetectContours reports not-supported. The detector is platform-neutral, but
 // this slot has no capture backend to feed it a frame.
 func (a *Adapter) DetectContours(
 	_ context.Context,
@@ -55,7 +55,7 @@ func (a *Adapter) DetectSegments(
 // screen-reading scan fails before the answer matters.
 func (a *Adapter) CaptureExcludesOwnWindows() bool { return false }
 
-// CaptureScreen reports not-supported: this slot has no capture backend.
+// CaptureScreen reports not-supported, because this slot has no capture backend.
 // Linux has one in adapter_linux.go and Windows in adapter_windows.go.
 func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
 	return nil, derrors.New(

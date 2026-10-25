@@ -75,10 +75,8 @@ func TestInitializeLogger(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			// Should not panic
 			darwin.InitializeLogger(testCase.logger)
 
-			// Verify logger was set
 			if testCase.logger != nil && darwin.Logger() == nil {
 				t.Error("Expected logger to be set")
 			}
@@ -103,13 +101,10 @@ func TestSetAppWatcher(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			// Initialize logger for testing
 			darwin.InitializeLogger(zap.NewNop())
 
-			// Should not panic
 			darwin.SetAppWatcher(testCase.watcher)
 
-			// Verify watcher was set
 			if testCase.watcher != nil && darwin.AppWatcher() == nil {
 				t.Error("Expected watcher to be set")
 			}
@@ -135,10 +130,8 @@ func TestAppWatcherDispatchDroppedAfterClear(t *testing.T) {
 }
 
 func TestCallbacks(t *testing.T) {
-	// Initialize logger
 	darwin.InitializeLogger(zap.NewNop())
 
-	// Setup mock watcher
 	mock := &MockAppWatcher{}
 	darwin.SetAppWatcher(mock)
 	t.Cleanup(func() {
@@ -240,7 +233,6 @@ func TestHasClickAction(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			// Initialize logger for testing
 			darwin.InitializeLogger(zap.NewNop())
 
 			got := darwin.HasClickAction(testCase.element)
@@ -252,17 +244,14 @@ func TestHasClickAction(t *testing.T) {
 }
 
 func TestActiveScreenBounds(t *testing.T) {
-	// Initialize logger for testing
 	darwin.InitializeLogger(zap.NewNop())
 
 	bounds := darwin.ActiveScreenBounds()
 
-	// Verify bounds are valid (non-zero)
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
 		t.Errorf("ActiveScreenBounds() returned invalid bounds: %v", bounds)
 	}
 
-	// Verify bounds are reasonable (not negative, not absurdly large)
 	if bounds.Min.X < -10000 || bounds.Min.Y < -10000 {
 		t.Errorf("ActiveScreenBounds() returned unreasonable min values: %v", bounds.Min)
 	}
@@ -301,15 +290,8 @@ func TestShowConfigValidationError(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			// Initialize logger for testing
 			darwin.InitializeLogger(zap.NewNop())
 
-			// Note: This will actually show a dialog in test environment
-			// In a real test environment, we'd mock the C function
-			// For now, we just verify it doesn't panic
-			// result := ShowConfigValidationError(tt.errorMessage, tt.configPath)
-
-			// Skip actual execution in tests to avoid UI dialogs
 			t.Skip(
 				"Skipping UI dialog test - would require mocking C functions",
 			)
@@ -340,15 +322,8 @@ func TestSetApplicationAttribute(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			// Initialize logger for testing
 			darwin.InitializeLogger(zap.NewNop())
 
-			// Note: This requires actual accessibility permissions
-			// In a real test environment, we'd mock the C function
-			// For now, we just verify it doesn't panic
-			// result := SetApplicationAttribute(tt.pid, tt.attribute, tt.value)
-
-			// Skip actual execution in tests to avoid permission requirements
 			t.Skip("Skipping accessibility test - requires system permissions")
 		})
 	}
@@ -358,7 +333,7 @@ func TestSetApplicationAttribute(t *testing.T) {
 //
 // The real value depends on whether a password field happens to be focused, so
 // this cannot assert a specific result. It does assert the probe is a stable
-// pure read — two calls with nothing between them must agree, which catches an
+// pure read. Two calls with nothing between them must agree, which catches an
 // uninitialized bridge returning garbage.
 func TestIsSecureInputEnabled(t *testing.T) {
 	darwin.InitializeLogger(zap.NewNop())

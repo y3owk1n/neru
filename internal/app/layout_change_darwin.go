@@ -9,7 +9,7 @@ import (
 )
 
 // registerLayoutChangeHandler registers a Go-level callback that fires after
-// keyboard layout maps are rebuilt at runtime (e.g. switching US → Dvorak).
+// keyboard layout maps are rebuilt at runtime (e.g. switching US to Dvorak).
 //
 // Global hotkeys use per-hotkey CGEventTaps that store raw keycodes at
 // registration time. When the layout changes, the keycodes for key names

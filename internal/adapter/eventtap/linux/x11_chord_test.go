@@ -5,9 +5,9 @@ package linux
 // The X11 tap has to spell a chord the way the evdev tap does, or a binding
 // written once matches on one Linux backend and not the other. These pin the
 // spelling, and the reason the base key comes from the keysym rather than from the
-// string the server produced: with Ctrl held those two disagree.
+// string the server produced. With Ctrl held those two disagree.
 //
-// Keysym values are pinned as literals for the reason x11_keys_test.go gives — a
+// Keysym values are pinned as literals for the reason x11_keys_test.go gives. A
 // test file cannot use cgo, and untyped constants convert at the call site.
 
 import "testing"
@@ -21,8 +21,8 @@ const (
 	x11KeysymLowerC     = 0x063  // XK_c
 	x11KeysymLowerG     = 0x067  // XK_g
 	x11KeysymReturnKey  = 0xFF0D // XK_Return
-	x11KeysymCyrillicA  = 0x6C1  // XK_Cyrillic_a — outside Latin-1
-	x11KeysymISOLeftTab = 0xFE20 // XK_ISO_Left_Tab — what Shift+Tab resolves to
+	x11KeysymCyrillicA  = 0x6C1  // XK_Cyrillic_a, outside Latin-1
+	x11KeysymISOLeftTab = 0xFE20 // XK_ISO_Left_Tab, what Shift+Tab resolves to
 )
 
 func TestX11BaseKeyName(t *testing.T) {
@@ -69,7 +69,7 @@ func TestX11ChordName(t *testing.T) {
 			want:   "g",
 		},
 		{
-			// The case the string could never answer: XLookupString gives \x03.
+			// The case the string could never answer. XLookupString gives \x03.
 			name:   "ctrl names the key, not the control character",
 			mods:   linuxModifierState{ctrl: 1},
 			keysym: x11KeysymLowerC,
@@ -77,7 +77,7 @@ func TestX11ChordName(t *testing.T) {
 		},
 		{
 			// The prefix carries Shift and NormalizeKey folds the case the level
-			// chose, so this is "Shift+g" and not "Shift+G" — the same answer the
+			// chose, so this is "Shift+g" and not "Shift+G", the same answer the
 			// evdev reader gives, which is what a config "Shift+L" matches.
 			name:   "shift is carried in the prefix, with the case folded",
 			mods:   linuxModifierState{shift: 1},
