@@ -57,9 +57,6 @@ func chordSignature(chord string, baseKey func(string) string) string {
 	}
 
 	parts := strings.Split(chord, "+")
-	if len(parts) == 0 {
-		return ""
-	}
 
 	base := baseKey(parts[len(parts)-1])
 	if base == "" {

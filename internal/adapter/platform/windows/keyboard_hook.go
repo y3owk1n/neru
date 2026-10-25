@@ -204,7 +204,7 @@ func keyboardHookProc(code int, wParam uintptr, lParam unsafe.Pointer) uintptr {
 	}
 
 	current := activeKeyboardHook.Load()
-	if current == nil || current.callback == nil {
+	if current == nil {
 		ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
 
 		return ret

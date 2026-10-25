@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:godox // TODO comments are intentional contributor guidance for unimplemented stubs.
 package linux
 
 import (
@@ -272,7 +271,6 @@ func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (
 }
 
 // ScreenBounds returns the bounds of the active screen on Linux.
-// TODO(linux): implement using XRandR or Wayland display protocol.
 func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
 	if s.backend == backendX11 {
 		return x11ActiveScreenBounds()
@@ -536,7 +534,6 @@ func (s *SystemAdapter) SettleCursor(ctx context.Context) error {
 }
 
 // CursorPosition returns the current cursor position on Linux.
-// TODO(linux): implement using XQueryPointer (X11) or Wayland pointer protocol.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
 	if s.backend == backendX11 {
 		return x11CursorPosition()

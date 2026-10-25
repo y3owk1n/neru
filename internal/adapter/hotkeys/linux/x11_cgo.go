@@ -10,6 +10,7 @@ package linux
 import "C"
 
 import (
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -510,27 +511,5 @@ func x11CanonicalKeyName(key string) string {
 }
 
 func x11BindingKey(keycode C.uint, modifiers C.uint) string {
-	return strings.Join([]string{itoa(int(keycode)), itoa(int(modifiers))}, ":")
-}
-
-func itoa(value int) string {
-	if value == 0 {
-		return "0"
-	}
-
-	sign := ""
-	if value < 0 {
-		sign = "-"
-		value = -value
-	}
-
-	var buf [20]byte
-	index := len(buf)
-	for value > 0 {
-		index--
-		buf[index] = byte('0' + value%10)
-		value /= 10
-	}
-
-	return sign + string(buf[index:])
+	return strings.Join([]string{strconv.Itoa(int(keycode)), strconv.Itoa(int(modifiers))}, ":")
 }

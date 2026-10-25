@@ -380,9 +380,7 @@ func (r *HotkeyRegistry) handleHotkeyMessage(hotkeyID int) {
 		r.mu.Unlock()
 	}
 
-	if callbacks.press != nil {
-		callbacks.press()
-	}
+	callbacks.press()
 
 	if hold != nil {
 		go r.watchRelease(hotkeyID, reg.virtualKey, hold, callbacks.release)
