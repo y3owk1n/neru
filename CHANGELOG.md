@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.60.0](https://github.com/y3owk1n/neru/compare/v1.59.0...v1.60.0) (2026-10-25)
+
+
+### Features
+
+* **config:** configurable primary modifiers ([#1854](https://github.com/y3owk1n/neru/issues/1854)) ([b553a66](https://github.com/y3owk1n/neru/commit/b553a660752382baf546d05eb45e6d1ebfca1d20))
+* **config:** per-platform shell and keyboard layout ([#1856](https://github.com/y3owk1n/neru/issues/1856)) ([8067a80](https://github.com/y3owk1n/neru/commit/8067a80f2af219825c78cd556bfa01cb84426662))
+
+
+### Bug Fixes
+
+* **app:** unwind startup cleanly when an early phase fails ([#1862](https://github.com/y3owk1n/neru/issues/1862)) ([073fd59](https://github.com/y3owk1n/neru/commit/073fd5925f3b70810b1935cec8c4f279bd573fa4))
+* **config:** check every hotkey table for conflicts ([#1865](https://github.com/y3owk1n/neru/issues/1865)) ([97b5ab5](https://github.com/y3owk1n/neru/commit/97b5ab53d4d11eecf2f3dce73d4e8a1e5671b13f))
+* **config:** name the real ui key in grid validation errors ([#1864](https://github.com/y3owk1n/neru/issues/1864)) ([8effd9e](https://github.com/y3owk1n/neru/commit/8effd9e8139e3ae18f8b81cec80d23add29d4c17))
+* **darwin:** never apply the reference keyboard layout off the main thread ([#1875](https://github.com/y3owk1n/neru/issues/1875)) ([7b08065](https://github.com/y3owk1n/neru/commit/7b080657b96bdfae65aa214dd5448cad629994e9))
+* **darwin:** read keyboard layouts on the main thread ([#1881](https://github.com/y3owk1n/neru/issues/1881)) ([6282e67](https://github.com/y3owk1n/neru/commit/6282e6761e242adb91a978e94f74e89eb4ca44aa))
+* **grid:** make grid sizing deterministic and tolerate a nil logger ([#1874](https://github.com/y3owk1n/neru/issues/1874)) ([cb15419](https://github.com/y3owk1n/neru/commit/cb15419ed3e6dc70b5a3b86e4ccb5cbdf0bb4a8d))
+* **hints:** build the hints context when a reload enables hints ([#1878](https://github.com/y3owk1n/neru/issues/1878)) ([4360e4b](https://github.com/y3owk1n/neru/commit/4360e4b418aaf7d9e4b99b363bbb46f6ca28af78))
+* **hints:** keep macOS hint-search callbacks in order ([#1869](https://github.com/y3owk1n/neru/issues/1869)) ([7e48720](https://github.com/y3owk1n/neru/commit/7e48720acf63b6503b3d6b49fa8d02ae82f503c0))
+* **hints:** read vision settings from the generation snapshot ([#1863](https://github.com/y3owk1n/neru/issues/1863)) ([50f3770](https://github.com/y3owk1n/neru/commit/50f3770f74c46bdd764d6352d8a1f84303b1e6af))
+* **ipc:** report close errors from the streaming and Go clients ([#1871](https://github.com/y3owk1n/neru/issues/1871)) ([ebcef23](https://github.com/y3owk1n/neru/commit/ebcef235c2357d4c78383329cb933e9479a95d57))
+* **ipc:** report errors from closing the connection ([#1867](https://github.com/y3owk1n/neru/issues/1867)) ([b47c88c](https://github.com/y3owk1n/neru/commit/b47c88cccf833ac81e7324119815a3b1128ea554))
+* **nix:** stop the Linux package segfaulting on current nixpkgs ([#1860](https://github.com/y3owk1n/neru/issues/1860)) ([0e600c1](https://github.com/y3owk1n/neru/commit/0e600c13c66e9ba16bc52acb9e969067427e72cc))
+* **theme:** match theme fallbacks to the derived defaults ([#1866](https://github.com/y3owk1n/neru/issues/1866)) ([6752040](https://github.com/y3owk1n/neru/commit/6752040eebe9192a8a470347a4b197ae3808ec53))
+* **windows:** free the tray icon bitmap when it has no pixels ([#1868](https://github.com/y3owk1n/neru/issues/1868)) ([7bf004d](https://github.com/y3owk1n/neru/commit/7bf004d3a79ed875275895c73ebf0b962cb004c7))
+* **windows:** lock overlay bounds on every read and write ([#1876](https://github.com/y3owk1n/neru/issues/1876)) ([ec9dc36](https://github.com/y3owk1n/neru/commit/ec9dc36f0c4c28c9079da0026796c5ef48116007))
+
 ## [1.59.0](https://github.com/y3owk1n/neru/compare/v1.58.0...v1.59.0) (2026-10-18)
 
 
