@@ -1201,54 +1201,76 @@ void NeruRefreshKeyboardLayoutMaps(void) {
 	}
 }
 
-char *NeruCopyKeyboardLayoutIDs(void) {
-	@autoreleasepool {
-		NSDictionary *filter =
-		    @{(__bridge NSString *)kTISPropertyInputSourceType : (__bridge NSString *)kTISTypeKeyboardLayout};
-		CFArrayRef inputSourceList = TISCreateInputSourceList((__bridge CFDictionaryRef)filter, false);
-		if (!inputSourceList) {
-			return NULL;
-		}
+void NeruCopyKeyboardLayouts(char **layoutIDsOut, char **referenceIDOut, int *resolvedOut) {
+	*layoutIDsOut = NULL;
+	*referenceIDOut = NULL;
 
-		NSMutableArray<NSString *> *ids = [NSMutableArray array];
-		CFIndex sourceCount = CFArrayGetCount(inputSourceList);
-		for (CFIndex i = 0; i < sourceCount; i++) {
-			TISInputSourceRef source = (TISInputSourceRef)CFArrayGetValueAtIndex(inputSourceList, i);
-			NSString *sourceID = (__bridge NSString *)TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
-			if (sourceID && inputSourceHasUnicodeLayoutData(source)) {
-				[ids addObject:sourceID];
+	__block NSString *layoutIDs = nil;
+	__block NSString *referenceID = nil;
+	__block BOOL resolved = YES;
+
+	void (^readLayouts)(void) = ^{
+		@autoreleasepool {
+			NSDictionary *filter =
+			    @{(__bridge NSString *)kTISPropertyInputSourceType : (__bridge NSString *)kTISTypeKeyboardLayout};
+			CFArrayRef inputSourceList = TISCreateInputSourceList((__bridge CFDictionaryRef)filter, false);
+			if (inputSourceList) {
+				NSMutableArray<NSString *> *ids = [NSMutableArray array];
+				CFIndex sourceCount = CFArrayGetCount(inputSourceList);
+				for (CFIndex i = 0; i < sourceCount; i++) {
+					TISInputSourceRef source = (TISInputSourceRef)CFArrayGetValueAtIndex(inputSourceList, i);
+					NSString *sourceID =
+					    (__bridge NSString *)TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
+					if (sourceID && inputSourceHasUnicodeLayoutData(source)) {
+						[ids addObject:sourceID];
+					}
+				}
+				CFRelease(inputSourceList);
+				layoutIDs = [ids componentsJoinedByString:@"\n"];
+			}
+
+			TISInputSourceRef reference = copyResolvedReferenceInputSource(&resolved, NULL);
+			if (reference) {
+				referenceID =
+				    [(__bridge NSString *)TISGetInputSourceProperty(reference, kTISPropertyInputSourceID) copy];
+				CFRelease(reference);
 			}
 		}
-		CFRelease(inputSourceList);
+	};
 
-		return strdup([[ids componentsJoinedByString:@"\n"] UTF8String]);
-	}
-}
+	if ([NSThread isMainThread]) {
+		readLayouts();
+	} else {
+		// TIS must run on the main thread, so the read never falls back to
+		// this one. A main queue that does not answer in time leaves the read
+		// queued, and nobody reads its late results. The resolved flag the main
+		// thread last recorded needs no TIS, so the call still reports it.
+		dispatch_semaphore_t completed = dispatch_semaphore_create(0);
+		dispatch_async(dispatch_get_main_queue(), ^{
+			readLayouts();
+			dispatch_semaphore_signal(completed);
+		});
 
-int NeruReferenceKeyboardLayoutResolved(void) {
-	@autoreleasepool {
-		BOOL resolved = YES;
-		TISInputSourceRef source = copyResolvedReferenceInputSource(&resolved, NULL);
-		if (source) {
-			CFRelease(source);
+		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(500 * NSEC_PER_MSEC));
+		if (dispatch_semaphore_wait(completed, timeout) != 0) {
+			NeruLog(NeruLogLevelWarn, @"Timed out waiting for the main queue, keyboard layouts not read", @"500ms");
+
+			[gKeymapLock lock];
+			*resolvedOut = gConfiguredInputSourceResolved ? 1 : 0;
+			[gKeymapLock unlock];
+
+			return;
 		}
-
-		return resolved ? 1 : 0;
 	}
-}
 
-char *NeruCopyReferenceKeyboardLayoutID(void) {
 	@autoreleasepool {
-		TISInputSourceRef source = copyResolvedReferenceInputSource(NULL, NULL);
-		if (!source) {
-			return NULL;
+		if (layoutIDs) {
+			*layoutIDsOut = strdup([layoutIDs UTF8String]);
 		}
-
-		NSString *sourceID = (__bridge NSString *)TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
-		char *copied = sourceID ? strdup([sourceID UTF8String]) : NULL;
-		CFRelease(source);
-
-		return copied;
+		if (referenceID) {
+			*referenceIDOut = strdup([referenceID UTF8String]);
+		}
+		*resolvedOut = resolved ? 1 : 0;
 	}
 }
 

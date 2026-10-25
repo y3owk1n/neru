@@ -118,5 +118,19 @@ if ([NSThread isMainThread]) {
 }
 ```
 
-Use `dispatch_sync` when the caller needs the result, and `dispatch_async` for
-UI updates and other non-blocking work.
+Use `dispatch_async` for UI updates and other work the caller does not wait
+for.
+
+When a Go thread needs a result from the main thread, run the work inline if
+the caller is already on the main thread. Otherwise `dispatch_async` it to the
+main queue and wait on a semaphore with a timeout. A Go thread must never block
+on the main queue without a bound, because the main thread may be busy, or not
+running its loop at all, and the IPC or reload goroutine waiting on it would
+hang too. On timeout, leave the work queued and return an answer the caller
+can report as unknown or pending. Never run it on the calling thread instead,
+since the work is main-thread-only. `NeruSetReferenceKeyboardLayout` and
+`NeruCopyKeyboardLayouts` in `keymap_darwin.m` do this with a 500ms bound.
+
+Never `dispatch_sync` onto the main queue from the main thread, because
+libdispatch traps it. The alert and overlay bridges still `dispatch_sync` for
+work the caller has to wait out, such as a modal alert.

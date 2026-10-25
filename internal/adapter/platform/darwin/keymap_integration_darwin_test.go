@@ -215,3 +215,66 @@ func TestSetReferenceKeyboardLayout_LeavesTheApplyQueuedWhenTheMainQueueIsBlocke
 		})
 	}
 }
+
+// TestKeyboardLayouts_ReadsNothingOffTheMainThreadWhenTheMainQueueIsBlocked
+// pins that a caller off the main thread never reads the layouts through TIS
+// itself, which must run on the main thread. neru doctor and the health check
+// call it from the IPC goroutine. While the main queue is blocked it returns no
+// names and no reference, which doctor shows as not read yet. The unmatched
+// flag is the one the resolver last recorded. Only a TIS call produces the
+// names, so an empty list shows none ran here. Once the test releases the
+// queue, KeyboardLayouts reads the layouts again.
+func TestKeyboardLayouts_ReadsNothingOffTheMainThreadWhenTheMainQueueIsBlocked(t *testing.T) {
+	_, _, wantUnmatched := darwin.KeyboardLayouts()
+
+	release := darwin.BlockMainQueueForTesting()
+	t.Cleanup(release)
+
+	type layouts struct {
+		names     []string
+		reference string
+		unmatched bool
+	}
+
+	result := make(chan layouts, 1)
+
+	go func() {
+		names, reference, unmatched := darwin.KeyboardLayouts()
+		result <- layouts{names: names, reference: reference, unmatched: unmatched}
+	}()
+
+	var blocked layouts
+
+	select {
+	case blocked = <-result:
+	case <-time.After(2 * time.Second):
+		t.Fatal("KeyboardLayouts waited for the blocked main queue")
+	}
+
+	if len(blocked.names) != 0 || blocked.reference != "" {
+		t.Fatalf(
+			"KeyboardLayouts read %v and %q off the main thread",
+			blocked.names,
+			blocked.reference,
+		)
+	}
+
+	if blocked.unmatched != wantUnmatched {
+		t.Fatalf(
+			"unmatched is %v while the main queue is blocked, want %v",
+			blocked.unmatched,
+			wantUnmatched,
+		)
+	}
+
+	release()
+
+	names, reference, _ := darwin.KeyboardLayouts()
+	if len(names) == 0 {
+		t.Fatal("KeyboardLayouts read nothing after the main queue was released")
+	}
+
+	if !slices.Contains(names, reference) {
+		t.Fatalf("reference layout %q is not among the enabled layouts %v", reference, names)
+	}
+}

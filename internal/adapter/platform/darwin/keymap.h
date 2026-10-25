@@ -196,17 +196,15 @@ void NeruRefreshKeyboardLayoutMaps(void);
 /// applies once the main run loop runs it, logging a warning if it is missing.
 int NeruSetReferenceKeyboardLayout(const char *inputSourceID);
 
-/// NeruCopyKeyboardLayoutIDs returns the input source IDs of the enabled
-/// keyboard layouts, one per line, or NULL. The caller frees it.
-char *NeruCopyKeyboardLayoutIDs(void);
-
-/// NeruCopyReferenceKeyboardLayoutID returns the input source ID keys are
-/// named in, or NULL. The caller frees it.
-char *NeruCopyReferenceKeyboardLayoutID(void);
-
-/// NeruReferenceKeyboardLayoutResolved returns 0 when kb_layout_to_use names a
-/// layout the resolver could not find, and 1 otherwise.
-int NeruReferenceKeyboardLayoutResolved(void);
+/// NeruCopyKeyboardLayouts reads the keyboard layouts through TIS on the main
+/// thread. It sets layoutIDsOut to the input source IDs of the enabled layouts,
+/// one per line, and referenceIDOut to the ID keys are named in. Either is NULL
+/// when unknown, and the caller frees both. resolvedOut is 0 when
+/// kb_layout_to_use names a layout the resolver could not find, and 1 otherwise.
+/// Off the main thread the call reads on the main queue. When that queue does
+/// not answer within 500ms the call leaves both IDs NULL and sets resolvedOut
+/// to what the main thread last recorded.
+void NeruCopyKeyboardLayouts(char **layoutIDsOut, char **referenceIDOut, int *resolvedOut);
 
 /// Callback type invoked after keyboard layout maps are rebuilt.
 typedef void (*KeymapLayoutChangeCallback)(void);

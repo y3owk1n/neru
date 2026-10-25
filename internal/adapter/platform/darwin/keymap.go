@@ -93,25 +93,27 @@ func SetReferenceKeyboardLayout(inputSourceID string) bool {
 // find, which it decides itself because it also accepts localized names. It is
 // also true when the layout it found is no longer enabled, because the
 // resolver keeps its match after the user removes that layout.
+//
+// KeyboardLayouts reads the layouts on the main thread, because TIS must run
+// there. When the main queue does not answer within 500ms it returns no names
+// and no reference, and the last result says whether the resolver found the
+// layout when it last ran.
 func KeyboardLayouts() ([]string, string, bool) {
+	var cIDs, cReference *C.char
+	var cResolved C.int
+
+	C.NeruCopyKeyboardLayouts(&cIDs, &cReference, &cResolved)
+	defer C.free(unsafe.Pointer(cIDs))
+	defer C.free(unsafe.Pointer(cReference))
+
 	var names []string
-
-	if cIDs := C.NeruCopyKeyboardLayoutIDs(); cIDs != nil {
-		if ids := C.GoString(cIDs); ids != "" {
-			names = strings.Split(ids, "\n")
-		}
-
-		C.free(unsafe.Pointer(cIDs))
+	if ids := C.GoString(cIDs); ids != "" {
+		names = strings.Split(ids, "\n")
 	}
 
-	var reference string
-
-	if cReference := C.NeruCopyReferenceKeyboardLayoutID(); cReference != nil {
-		reference = C.GoString(cReference)
-		C.free(unsafe.Pointer(cReference))
-	}
-
-	unmatched := C.NeruReferenceKeyboardLayoutResolved() == 0 || !slices.Contains(names, reference)
+	// With no names listed, only the resolver can say the layout is missing.
+	reference := C.GoString(cReference)
+	unmatched := cResolved == 0 || (len(names) > 0 && !slices.Contains(names, reference))
 
 	return names, reference, unmatched
 }
