@@ -222,8 +222,8 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	} else {
 		domainHints, domainHintsErr = h.hintService.GenerateHints(
 			ctx,
-			activation.FilterRoles,
-			activation.FilterTextContains,
+			overrides.filterRoles,
+			overrides.filterTextContains,
 			bundleID,
 			overrides.strategy,
 			overrides.captureScope,

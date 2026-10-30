@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/heldmotion"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -1318,6 +1319,43 @@ func TestSimulation_HintsFlaggedBindingJourney(t *testing.T) {
 	}
 
 	sim.waitMode(domain.ModeIdle)
+}
+
+// TestSimulation_HintsRunAgainKeepsTheSessionsFilters covers `neru hints`
+// run with no flags while a session started with --role and --text is open. A
+// flag left off a re-activation keeps the session's value, so the rescan gets
+// the same role and text filter as the scan that opened the mode.
+func TestSimulation_HintsRunAgainKeepsTheSessionsFilters(t *testing.T) {
+	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	sim := newSimHarness(t, simConfig(), []*element.Element{save})
+
+	for _, args := range [][]string{{"--role=button", "--text=Save"}, nil} {
+		resp := sim.app.HandleCommand(context.Background(), ipc.Command{
+			Action: domain.ModeNameHints,
+			Args:   args,
+		})
+		if !resp.Success {
+			t.Fatalf("hints %v failed: %s (%s)", args, resp.Message, resp.Code)
+		}
+
+		sim.waitMode(domain.ModeHints)
+	}
+
+	filters := sim.ax.scanFilters()
+	if len(filters) != 2 {
+		t.Fatalf("got %d scans, want the activation and the re-activation", len(filters))
+	}
+
+	opened, rerun := filters[0], filters[1]
+
+	if !slices.Equal(rerun.Roles, opened.Roles) {
+		t.Errorf("re-activation scanned roles %v, want the session's %v", rerun.Roles, opened.Roles)
+	}
+
+	if rerun.TitleContains != opened.TitleContains {
+		t.Errorf("re-activation filtered text %q, want the session's %q",
+			rerun.TitleContains, opened.TitleContains)
+	}
 }
 
 // TestSimulation_HintsMoveMouseThenScroll covers picking a place without
