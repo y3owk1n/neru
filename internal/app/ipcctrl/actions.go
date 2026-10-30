@@ -219,6 +219,9 @@ func (h *ActionsHandler) dispatchByName(
 	case action.IsSearchHintsAction(actionName):
 		return h.handleSearchHintsAction(parsed), true
 
+	case action.IsRefreshHintsAction(actionName):
+		return h.handleRefreshHintsAction(), true
+
 	case action.IsHideCursorAction(actionName) || action.IsShowCursorAction(actionName):
 		return h.handleCursorVisibilityAction(action.IsHideCursorAction(actionName)), true
 

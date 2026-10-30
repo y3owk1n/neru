@@ -401,6 +401,8 @@ const (
 	NameCycleHint Name = "cycle_hint"
 	// NameSearchHints starts text filtering in hints mode.
 	NameSearchHints Name = "search_hints"
+	// NameRefreshHints rescans hints mode with the flags the session holds.
+	NameRefreshHints Name = "refresh_hints"
 
 	// PrefixExec is the prefix for shell command actions.
 	PrefixExec = "exec"
@@ -543,6 +545,11 @@ func IsCycleHintAction(name string) bool {
 	return Name(name) == NameCycleHint
 }
 
+// IsRefreshHintsAction reports whether the given action is refresh_hints.
+func IsRefreshHintsAction(name string) bool {
+	return Name(name) == NameRefreshHints
+}
+
 // IsSearchHintsAction reports whether the given action is search_hints.
 func IsSearchHintsAction(name string) bool {
 	return Name(name) == NameSearchHints
@@ -575,7 +582,7 @@ func IsKnownName(name Name) bool {
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints,
 		NameHideCursor, NameShowCursor:
 		return true
 	default:
@@ -604,7 +611,7 @@ func IsScrollSubAction(name string) bool {
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameMoveCell, NameBisect,
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints,
 		NameHideCursor, NameShowCursor:
 		return false
 	default:
@@ -715,6 +722,7 @@ func (n Name) ToType() (Type, error) {
 		NameSleep,
 		NameCycleHint,
 		NameSearchHints,
+		NameRefreshHints,
 		NameHideCursor,
 		NameShowCursor:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)

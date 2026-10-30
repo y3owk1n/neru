@@ -104,6 +104,29 @@ func TestSimulation_HintsTargets_ExitOnAScreenChange(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
+// TestSimulation_HintsTargets_RefreshIsRefused pins that refresh_hints
+// refuses supplied targets, since nothing can scan them again, and leaves the
+// session and its labels as they were.
+func TestSimulation_HintsTargets_RefreshIsRefused(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	activateWithTargets(t, sim)
+
+	labels := sim.overlay.lastHintLabels()
+
+	if resp := runRefreshHints(sim); resp.Success {
+		t.Fatalf("refresh_hints over supplied targets succeeded: %s", resp.Message)
+	}
+
+	if mode := sim.app.CurrentMode(); mode != domain.ModeHints {
+		t.Fatalf("refused refresh left hints for %v", mode)
+	}
+
+	if got := sim.overlay.lastHintLabels(); !slices.Equal(got, labels) {
+		t.Fatalf("refused refresh redrew labels %v, want %v", got, labels)
+	}
+}
+
 // TestSimulation_HintsTargets_ExitOnAMonitorMove pins the same for a move to
 // another display, where nothing could scan the targets either.
 func TestSimulation_HintsTargets_ExitOnAMonitorMove(t *testing.T) {

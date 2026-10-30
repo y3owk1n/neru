@@ -308,17 +308,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 		pendingAction := h.hints.Context.PendingAction()
 		pendingModifier := h.hints.Context.PendingModifier()
 		repeat := h.hints.Context.Repeat()
-		cursorFollowSelection := h.hints.Context.CursorFollowSelection()
-		filterRoles := h.hints.Context.FilterRoles()
-		filterTextContains := h.hints.Context.FilterTextContains()
-		startWithSearch := h.hints.Context.StartWithSearch()
-		confirmOnLabel := h.hints.Context.ConfirmOnLabel()
-		exitOnUnmatched := h.hints.Context.ExitOnUnmatched()
-		strategyOverride := h.hints.Context.StrategyOverride()
-		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
-		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
-		splitWord := h.hints.Context.SplitWord()
-		targets := h.hints.Context.Targets()
+		session := h.hintSessionActivation()
 
 		h.moveCursorAndHandleAction(
 			center,
@@ -327,22 +317,7 @@ func (h *handlerState) handleHintsModeKey(key string) {
 			repeat ||
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
-				h.activateHintModeInternal(modecmd.Activation{
-					Mode:                  domain.ModeHints,
-					CursorFollowSelection: &cursorFollowSelection,
-					FilterRoles:           filterRoles,
-					FilterTextContains:    filterTextContains,
-					Search:                &startWithSearch,
-					ConfirmOnLabel:        &confirmOnLabel,
-					ExitOnUnmatched:       &exitOnUnmatched,
-					Strategy:              &strategyOverride,
-					CaptureScope:          &captureScopeOverride,
-					LabelDirection:        &labelDirectionOverride,
-					SplitWord:             &splitWord,
-					Targets:               targets,
-					// OnExit is left nil to preserve the stored steps across
-					// re-activation.
-				})
+				h.activateHintModeInternal(session)
 				// Restore the session's settings on the fresh context so later
 				// selections continue the repeat cycle, but only when the
 				// re-activation succeeded and the mode is still hints.
@@ -351,16 +326,16 @@ func (h *handlerState) handleHintsModeKey(key string) {
 					h.hints.Context.SetPendingAction(pendingAction)
 					h.hints.Context.SetPendingModifier(pendingModifier)
 					h.hints.Context.SetRepeat(true)
-					h.hints.Context.SetCursorFollowSelection(cursorFollowSelection)
-					h.hints.Context.SetFilterRoles(filterRoles)
-					h.hints.Context.SetFilterTextContains(filterTextContains)
-					h.hints.Context.SetStartWithSearch(startWithSearch)
-					h.hints.Context.SetConfirmOnLabel(confirmOnLabel)
-					h.hints.Context.SetExitOnUnmatched(exitOnUnmatched)
-					h.hints.Context.SetStrategyOverride(strategyOverride)
-					h.hints.Context.SetCaptureScopeOverride(captureScopeOverride)
-					h.hints.Context.SetLabelDirectionOverride(labelDirectionOverride)
-					h.hints.Context.SetSplitWord(splitWord)
+					h.hints.Context.SetCursorFollowSelection(*session.CursorFollowSelection)
+					h.hints.Context.SetFilterRoles(session.FilterRoles)
+					h.hints.Context.SetFilterTextContains(session.FilterTextContains)
+					h.hints.Context.SetStartWithSearch(*session.Search)
+					h.hints.Context.SetConfirmOnLabel(*session.ConfirmOnLabel)
+					h.hints.Context.SetExitOnUnmatched(*session.ExitOnUnmatched)
+					h.hints.Context.SetStrategyOverride(*session.Strategy)
+					h.hints.Context.SetCaptureScopeOverride(*session.CaptureScope)
+					h.hints.Context.SetLabelDirectionOverride(*session.LabelDirection)
+					h.hints.Context.SetSplitWord(*session.SplitWord)
 				}
 			},
 		)

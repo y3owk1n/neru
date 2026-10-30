@@ -8,7 +8,6 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/bisect"
-	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -95,6 +94,51 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 	return h.cycleHint(ctx, backward, executeAction)
 }
 
+// RefreshHints rescans the open hints session with the flags it was activated
+// with, so a strategy or capture-scope cycle stays on the entry in use and the
+// filters, action and on-exit steps carry over. It bypasses ActivateMode, which
+// would advance the cycle or, with --toggle, exit.
+//
+// It refuses supplied targets, because there is nothing to scan again and
+// relabeling them would look like a refresh that found the same elements.
+func (h *Handler) RefreshHints() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeHints {
+		return derrors.New(derrors.CodeInvalidInput, "refresh_hints requires hints mode")
+	}
+
+	if h.hints == nil || h.hints.Context == nil {
+		return derrors.New(derrors.CodeActionFailed, "hints component not available")
+	}
+
+	if h.hints.Context.TargetsSupplied() {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"refresh_hints cannot rescan supplied targets",
+		)
+	}
+
+	h.activationRefusal = nil
+	h.activateHintModeInternal(h.hintSessionActivation())
+
+	// A refresh that cannot draw leaves the mode rather than keep labels
+	// pointing at elements that may be gone, and the caller hears why.
+	if h.appState.CurrentMode() != domain.ModeHints {
+		if h.activationRefusal != nil {
+			return h.activationRefusal
+		}
+
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"refresh_hints found no hints, hints mode exited",
+		)
+	}
+
+	return nil
+}
+
 // cycleHint is the body of CycleHint.
 //
 // Caller must hold h.mu.
@@ -165,34 +209,10 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 	pendingModifier := h.hints.Context.PendingModifier()
 	if pendingAction != nil && executeAction {
 		repeat := h.hints.Context.Repeat()
-		cursorFollowSelection := h.hints.Context.CursorFollowSelection()
-		filterRoles := h.hints.Context.FilterRoles()
-		filterTextContains := h.hints.Context.FilterTextContains()
-		startWithSearch := h.hints.Context.StartWithSearch()
-		confirmOnLabel := h.hints.Context.ConfirmOnLabel()
-		exitOnUnmatched := h.hints.Context.ExitOnUnmatched()
-		strategyOverride := h.hints.Context.StrategyOverride()
-		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
-		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
-		splitWord := h.hints.Context.SplitWord()
-		targets := h.hints.Context.Targets()
+		session := h.hintSessionActivation()
 
 		h.executeActionAtPoint(pendingAction, pendingModifier, center, repeat, func() {
-			h.activateHintModeInternal(modecmd.Activation{
-				Mode:               domain.ModeHints,
-				FilterRoles:        filterRoles,
-				FilterTextContains: filterTextContains,
-				Search:             &startWithSearch,
-				ConfirmOnLabel:     &confirmOnLabel,
-				ExitOnUnmatched:    &exitOnUnmatched,
-				Strategy:           &strategyOverride,
-				CaptureScope:       &captureScopeOverride,
-				LabelDirection:     &labelDirectionOverride,
-				SplitWord:          &splitWord,
-				Targets:            targets,
-				// OnExit is left nil to preserve the stored steps across
-				// re-activation.
-			})
+			h.activateHintModeInternal(session)
 
 			// Restore the state so later cycles keep executing the action, but
 			// only when repeat was set and the mode is still hints.
@@ -201,16 +221,16 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 				h.hints.Context.SetPendingAction(pendingAction)
 				h.hints.Context.SetPendingModifier(pendingModifier)
 				h.hints.Context.SetRepeat(true)
-				h.hints.Context.SetCursorFollowSelection(cursorFollowSelection)
-				h.hints.Context.SetFilterRoles(filterRoles)
-				h.hints.Context.SetFilterTextContains(filterTextContains)
-				h.hints.Context.SetStartWithSearch(startWithSearch)
-				h.hints.Context.SetConfirmOnLabel(confirmOnLabel)
-				h.hints.Context.SetExitOnUnmatched(exitOnUnmatched)
-				h.hints.Context.SetStrategyOverride(strategyOverride)
-				h.hints.Context.SetCaptureScopeOverride(captureScopeOverride)
-				h.hints.Context.SetLabelDirectionOverride(labelDirectionOverride)
-				h.hints.Context.SetSplitWord(splitWord)
+				h.hints.Context.SetCursorFollowSelection(*session.CursorFollowSelection)
+				h.hints.Context.SetFilterRoles(session.FilterRoles)
+				h.hints.Context.SetFilterTextContains(session.FilterTextContains)
+				h.hints.Context.SetStartWithSearch(*session.Search)
+				h.hints.Context.SetConfirmOnLabel(*session.ConfirmOnLabel)
+				h.hints.Context.SetExitOnUnmatched(*session.ExitOnUnmatched)
+				h.hints.Context.SetStrategyOverride(*session.Strategy)
+				h.hints.Context.SetCaptureScopeOverride(*session.CaptureScope)
+				h.hints.Context.SetLabelDirectionOverride(*session.LabelDirection)
+				h.hints.Context.SetSplitWord(*session.SplitWord)
 			}
 		})
 

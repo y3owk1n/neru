@@ -2,6 +2,7 @@ package modes
 
 import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
@@ -105,6 +106,39 @@ func applyHintFlagsFresh(ctx *hints.Context, activation modecmd.Activation) {
 	ctx.SetCaptureScopeOverride(derefOr(activation.CaptureScope, ""))
 	ctx.SetLabelDirectionOverride(derefOr(activation.LabelDirection, ""))
 	ctx.SetSplitWord(derefOr(activation.SplitWord, false))
+}
+
+// hintSessionActivation reads back the flags the open session was activated
+// with, so a re-activation inside it scans the way the session did. OnExit,
+// the pending action and the modifier are left nil, which a refresh reads as
+// keeping what the context holds.
+//
+// The caller holds h.mu and h.hints.Context is not nil.
+func (h *handlerState) hintSessionActivation() modecmd.Activation {
+	ctx := h.hints.Context
+	cursorFollowSelection := ctx.CursorFollowSelection()
+	startWithSearch := ctx.StartWithSearch()
+	confirmOnLabel := ctx.ConfirmOnLabel()
+	exitOnUnmatched := ctx.ExitOnUnmatched()
+	strategy := ctx.StrategyOverride()
+	captureScope := ctx.CaptureScopeOverride()
+	labelDirection := ctx.LabelDirectionOverride()
+	splitWord := ctx.SplitWord()
+
+	return modecmd.Activation{
+		Mode:                  domain.ModeHints,
+		CursorFollowSelection: &cursorFollowSelection,
+		FilterRoles:           ctx.FilterRoles(),
+		FilterTextContains:    ctx.FilterTextContains(),
+		Search:                &startWithSearch,
+		ConfirmOnLabel:        &confirmOnLabel,
+		ExitOnUnmatched:       &exitOnUnmatched,
+		Strategy:              &strategy,
+		CaptureScope:          &captureScope,
+		LabelDirection:        &labelDirection,
+		SplitWord:             &splitWord,
+		Targets:               ctx.Targets(),
+	}
 }
 
 // derefOr reads a flag that may not have been given, falling back to what

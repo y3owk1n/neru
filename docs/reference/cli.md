@@ -678,7 +678,7 @@ These names work as a mode `--action`, in a hotkey binding, or after
 | Toggle   | `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`                                    |
 | Movement | `move_mouse`, `move_mouse_relative`, `move_monitor`                                                 |
 | Scroll   | `scroll` ³, `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`, `page_up`, `page_down`, `go_top`, `go_bottom` |
-| Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `search_hints` ³, `wait_for_mode_exit`   |
+| Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `refresh_hints`, `search_hints` ³, `wait_for_mode_exit` |
 | Cursor   | `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`                               |
 | Keys     | `feed`                                                                                              |
 | Timing   | `sleep`, in [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
@@ -891,6 +891,25 @@ Move the hint selection without acting on it. Hints mode only.
 | Flag         | Type | Default | Description                     |
 | ------------ | ---- | ------- | ------------------------------- |
 | `--backward` | bool | `false` | Cycle to the previous hint.     |
+
+### neru action refresh_hints
+
+```
+neru action refresh_hints
+```
+
+Rescan and redraw the labels with the flags the hints session was opened
+with. Running the activation command again moves a `--strategy` or
+`--capture-scope` cycle to its next value, or exits with `--toggle`. This
+rescans with the value in use, and keeps the filters, action and `--on-exit`
+steps. Hints mode only. It refuses a session opened with `--targets`, since
+there is nothing to rescan. If the rescan finds nothing, hints mode exits and
+the command fails.
+
+```toml
+[hints.hotkeys]
+"Ctrl+R" = "action refresh_hints"
+```
 
 ### neru action wait_for_mode_exit
 

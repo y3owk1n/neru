@@ -261,6 +261,34 @@ func (h *ActionsHandler) handleCycleHintAction(
 	}
 }
 
+// handleRefreshHintsAction rescans the open hints session with its own flags.
+func (h *ActionsHandler) handleRefreshHintsAction() ipc.Response {
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgModesHandlerNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	err := h.modesHandler.RefreshHints()
+	if err != nil {
+		h.logger.Debug("Failed to refresh hints", zap.Error(err))
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to refresh hints: " + err.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "refresh_hints performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
 // handleSearchHintsAction activates text search in hints mode.
 func (h *ActionsHandler) handleSearchHintsAction(parsed parsedActionArgs) ipc.Response {
 	if h.modesHandler == nil {

@@ -26,7 +26,8 @@ Available subcommands:
   Scroll actions:   scroll_up, scroll_down, scroll_left, scroll_right,
                     go_top, go_bottom, page_up, page_down
   Mouse movement:   move_mouse, move_mouse_relative, move_monitor
-  Mode control:     reset, backspace, move_cell, bisect, wait_for_mode_exit, cycle_hint
+  Mode control:     reset, backspace, move_cell, bisect, wait_for_mode_exit, cycle_hint,
+                    refresh_hints
   Cursor saving:    save_cursor_pos, restore_cursor_pos
   Cursor visibility: hide_cursor, show_cursor
   Key injection:    feed
@@ -465,6 +466,20 @@ at the current cursor location.`,
 // ActionCycleHintCmd cycles through visible hints in hints mode.
 var ActionCycleHintCmd = BuildCycleHintCommand()
 
+// ActionRefreshHintsCmd rescans the open hints session with its own flags.
+var ActionRefreshHintsCmd = BuildActionCommand(
+	"refresh_hints",
+	"Rescan hints with the current session's flags",
+	`Rescan the elements in hints mode and redraw the labels, keeping the flags the
+session was activated with. A --strategy or --capture-scope cycle stays on the
+entry in use, and the filters, action and --on-exit steps carry over.
+
+Requires hints mode to be active. It refuses a session started with --targets,
+since there is nothing to rescan. If the rescan finds nothing, hints mode exits.`,
+	[]string{"refresh_hints"},
+	false,
+)
+
 // ActionMoveCellCmd moves the active mode's selection to a neighboring cell.
 var ActionMoveCellCmd = BuildMoveCellCommand()
 
@@ -500,6 +515,7 @@ func init() {
 	ActionCmd.AddCommand(ActionPageUpCmd)
 	ActionCmd.AddCommand(ActionPageDownCmd)
 	ActionCmd.AddCommand(ActionCycleHintCmd)
+	ActionCmd.AddCommand(ActionRefreshHintsCmd)
 	ActionCmd.AddCommand(ActionMoveCellCmd)
 	ActionCmd.AddCommand(ActionBisectCmd)
 	ActionCmd.AddCommand(ActionHideCursorCmd)
