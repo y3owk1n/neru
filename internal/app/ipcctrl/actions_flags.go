@@ -81,6 +81,7 @@ var actionFlagSupport = map[string][]string{
 	string(action.NameReset):            {},
 	string(action.NameBackspace):        {},
 	string(action.NameSearchHints):      {flagConfirmOnLabel},
+	string(action.NameRefreshHints):     {},
 	string(action.NameSaveCursorPos):    {flagSlot},
 	string(action.NameRestoreCursorPos): {flagSlot},
 	string(action.NameHideCursor):       {},

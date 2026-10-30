@@ -9,7 +9,6 @@ import (
 
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // passthroughHintRefreshDelay is the delay before refreshing hints after a
@@ -249,26 +248,7 @@ func (h *handlerState) passthroughTick(mode domain.Mode, session uint64) {
 
 		h.logger.Debug("Refreshing hints after modifier passthrough",
 			zap.Duration("delay", passthroughHintRefreshDelay))
-		filterRoles := h.hints.Context.FilterRoles()
-		filterTextContains := h.hints.Context.FilterTextContains()
-		startWithSearch := h.hints.Context.StartWithSearch()
-		strategyOverride := h.hints.Context.StrategyOverride()
-		captureScopeOverride := h.hints.Context.CaptureScopeOverride()
-		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
-		splitWord := h.hints.Context.SplitWord()
-		targets := h.hints.Context.Targets()
-		h.activateHintModeInternal(modecmd.Activation{
-			Mode:               domain.ModeHints,
-			FilterRoles:        filterRoles,
-			FilterTextContains: filterTextContains,
-			Search:             &startWithSearch,
-			Strategy:           &strategyOverride,
-			CaptureScope:       &captureScopeOverride,
-			LabelDirection:     &labelDirectionOverride,
-			SplitWord:          &splitWord,
-			Targets:            targets,
-			// OnExit is left nil to preserve the stored steps across refresh.
-		})
+		h.activateHintModeInternal(h.hintSessionActivation())
 	})
 	h.refreshHintsTimer = timer
 }

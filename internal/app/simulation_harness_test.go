@@ -825,6 +825,9 @@ type simAXPort struct {
 	scrollMods     []action.Modifiers
 	releases       int
 
+	// filters is the element filter each scan was handed, in order.
+	filters []ports.ElementFilter
+
 	// focusedApp is which application the fixture desktop routes keystrokes
 	// to, and focusedAppQueries how many times the app asked for it.
 	//
@@ -851,10 +854,12 @@ func (a *simAXPort) Health(_ context.Context) error { return nil }
 
 func (a *simAXPort) ClickableElements(
 	_ context.Context,
-	_ ports.ElementFilter,
+	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	a.filters = append(a.filters, filter)
 
 	out := make([]*element.Element, len(a.elements))
 	copy(out, a.elements)
@@ -960,6 +965,14 @@ func (a *simAXPort) setElements(elements []*element.Element) {
 
 // setFocusedApp changes which application the fixture desktop reports as
 // focused, the way switching applications does on a real one.
+// scanFilters reports the element filter each scan was handed, in order.
+func (a *simAXPort) scanFilters() []ports.ElementFilter {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return slices.Clone(a.filters)
+}
+
 func (a *simAXPort) setFocusedApp(bundleID string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()

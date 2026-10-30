@@ -88,7 +88,7 @@ func TestActionFlagSupport_CoversEveryDispatchableAction(t *testing.T) {
 		action.NameGoTop, action.NameGoBottom,
 		action.NamePageUp, action.NamePageDown,
 		action.NameReset, action.NameBackspace,
-		action.NameCycleHint, action.NameSearchHints,
+		action.NameCycleHint, action.NameSearchHints, action.NameRefreshHints,
 		action.NameWaitForModeExit,
 		action.NameSaveCursorPos, action.NameRestoreCursorPos,
 		action.NameHideCursor, action.NameShowCursor,

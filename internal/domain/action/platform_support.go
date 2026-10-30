@@ -61,6 +61,7 @@ func PlatformSupport() parity.Declaration {
 			string(NameSleep),
 			string(NameCycleHint),
 			string(NameSearchHints),
+			string(NameRefreshHints),
 		),
 	)
 }
