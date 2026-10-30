@@ -153,10 +153,12 @@ func derefOr[T any](value *T, fallback T) T {
 
 // hintOverrides are the settings that decide how a hint scan runs.
 type hintOverrides struct {
-	strategy       string
-	captureScope   string
-	labelDirection string
-	splitWord      bool
+	filterRoles        []string
+	filterTextContains []string
+	strategy           string
+	captureScope       string
+	labelDirection     string
+	splitWord          bool
 }
 
 // resolveHintOverrides reads the overrides in force. They come from the
@@ -166,18 +168,22 @@ type hintOverrides struct {
 func (h *handlerState) resolveHintOverrides(activation modecmd.Activation) hintOverrides {
 	if h.hints != nil && h.hints.Context != nil {
 		return hintOverrides{
-			strategy:       h.hints.Context.StrategyOverride(),
-			captureScope:   h.hints.Context.CaptureScopeOverride(),
-			labelDirection: h.hints.Context.LabelDirectionOverride(),
-			splitWord:      h.hints.Context.SplitWord(),
+			filterRoles:        h.hints.Context.FilterRoles(),
+			filterTextContains: h.hints.Context.FilterTextContains(),
+			strategy:           h.hints.Context.StrategyOverride(),
+			captureScope:       h.hints.Context.CaptureScopeOverride(),
+			labelDirection:     h.hints.Context.LabelDirectionOverride(),
+			splitWord:          h.hints.Context.SplitWord(),
 		}
 	}
 
 	return hintOverrides{
-		strategy:       derefOr(activation.Strategy, ""),
-		captureScope:   derefOr(activation.CaptureScope, ""),
-		labelDirection: derefOr(activation.LabelDirection, ""),
-		splitWord:      derefOr(activation.SplitWord, false),
+		filterRoles:        activation.FilterRoles,
+		filterTextContains: activation.FilterTextContains,
+		strategy:           derefOr(activation.Strategy, ""),
+		captureScope:       derefOr(activation.CaptureScope, ""),
+		labelDirection:     derefOr(activation.LabelDirection, ""),
+		splitWord:          derefOr(activation.SplitWord, false),
 	}
 }
 
