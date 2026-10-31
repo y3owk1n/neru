@@ -11,6 +11,7 @@ import "C"
 
 import (
 	"sync"
+	"time"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -64,6 +65,15 @@ type Overlay struct {
 	// drawMu serializes draw operations against cache invalidation.
 	// DrawModeIndicator and freeAllCaches both hold Lock.
 	drawMu sync.Mutex
+
+	memo overlayutil.IndicatorMemo[modeDraw]
+}
+
+// modeDraw holds the mode indicator draw inputs that the configuration does
+// not supply.
+type modeDraw struct {
+	mode string
+	x, y int
 }
 
 // NewOverlay creates a new mode indicator overlay instance with its own window.
@@ -120,25 +130,32 @@ func (o *Overlay) Logger() *zap.Logger {
 
 // Show displays the mode indicator overlay window.
 func (o *Overlay) Show() {
-	C.NeruShowOverlayWindow(o.window)
+	if o.memo.Show(time.Now()) {
+		C.NeruShowOverlayWindow(o.window)
+	}
 }
 
 // Hide conceals the mode indicator overlay window.
 func (o *Overlay) Hide() {
-	C.NeruHideOverlayWindow(o.window)
+	if o.memo.Hide() {
+		C.NeruHideOverlayWindow(o.window)
+	}
 }
 
 // Clear removes all highlights from the overlay.
 func (o *Overlay) Clear() {
-	C.NeruClearOverlay(o.window)
+	if o.memo.Clear() {
+		C.NeruClearOverlay(o.window)
+	}
 }
 
-// ResizeToActiveScreen is a no-op for mode indicator overlays.
+// ResizeToActiveScreen makes the next draw go through, because a display change
+// can move the same Quartz point to a different Cocoa frame.
 // The mode indicator uses a small window positioned dynamically by
 // DrawModeIndicator via NeruPositionAndSizeOverlayToFitHint, so full-screen resizing
 // is unnecessary and would defeat the small-window memory optimization.
 func (o *Overlay) ResizeToActiveScreen() {
-	// No-op: positioning is handled dynamically in DrawModeIndicator.
+	o.memo.Invalidate()
 }
 
 // DrawModeIndicator draws a mode label at absolute Quartz coordinates. mode
@@ -170,6 +187,13 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	// a time the broader lock scope has no practical concurrency cost.
 	o.drawMu.Lock()
 	defer o.drawMu.Unlock()
+
+	draw := modeDraw{mode: mode, x: xCoordinate, y: yCoordinate}
+
+	unchanged, epoch := o.memo.BeginDraw(draw)
+	if unchanged {
+		return
+	}
 
 	// Invalidate the style cache when the mode changes so that per-mode
 	// color overrides are re-resolved instead of reusing stale values.
@@ -281,6 +305,8 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 
 	// Reuse NeruDrawHints which can draw arbitrary labels
 	C.NeruDrawHints(o.window, &hint, 1, style)
+
+	o.memo.EndDraw(draw, epoch)
 }
 
 // SetConfig sets the overlay configuration, and the labels of the declared
@@ -354,6 +380,7 @@ func (o *Overlay) freeAllCaches() {
 	o.styleCache.Free()
 	o.lastDrawnMode = ""
 	o.freeLabelCacheLocked()
+	o.memo.Invalidate()
 }
 
 // freeLabelCacheLocked frees all cached label C strings.
