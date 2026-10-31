@@ -63,13 +63,14 @@ type runMap struct {
 }
 
 // components labels 8-connected ink over row runs with union-find, then
-// measures every blob in two more passes over the runs: its box, ink and
-// background on the first, the ink along each side of the now-known box on the
-// second. Blobs are returned in raster order of their first run, with the runs
-// they are made of.
+// takes every blob's box and pixel count in one more pass over the runs. It
+// returns blobs in raster order of their first run, with the runs they are
+// made of, each labeled with its blob's index. It reads no pixels. Detect can
+// read a frame twice and needs only the boxes the first time, so measure fills
+// in the rest once, for the blobs it keeps.
 //
 //nolint:varnamelen // pixel kernel: coordinates read as the algorithm writes them
-func components(img *image.RGBA, mask []bool, width, height int) ([]blob, runMap) {
+func components(mask []bool, width, height int) ([]blob, runMap) {
 	runs := make([]run, 0, width*height/16) //nolint:mnd // a first guess; append grows it
 	rowStart := make([]int32, height+1)
 	parent := make([]int32, 0, 1024) //nolint:mnd // a first guess; append grows it
@@ -148,29 +149,50 @@ func components(img *image.RGBA, mask []bool, width, height int) ([]blob, runMap
 	blobs := make([]blob, 0, len(parent))
 
 	for y := range height {
-		pix := img.Pix[y*img.Stride:]
-
 		for r := rowStart[y]; r < rowStart[y+1]; r++ {
 			cur := &runs[r]
 			root := find(cur.label)
-			cur.label = root
 
 			bi := index[root]
 			if bi < 0 {
 				bi = int32(len(blobs))
 				index[root] = bi
-				left := max(int(cur.x0)-1, 0) * 4 //nolint:mnd // four bytes per RGBA pixel
+
 				blobs = append(blobs, blob{
 					minX: int(cur.x0), maxX: int(cur.x1), minY: y, maxY: y,
-					bg:       rgb{int32(pix[left]), int32(pix[left+1]), int32(pix[left+2])},
 					inkDist:  -1,
 					lastLeft: -1, lastRight: -1,
 				})
 			}
 
+			cur.label = bi
 			b := &blobs[bi]
 			b.minX, b.maxX, b.maxY = min(b.minX, int(cur.x0)), max(b.maxX, int(cur.x1)), y
 			b.count += int(cur.x1 - cur.x0 + 1)
+		}
+	}
+
+	return blobs, runMap{runs: runs, rowStart: rowStart}
+}
+
+// measure fills in the rest of what classification reads from each blob,
+// which is its ink and background colors and how much ink lies along each side
+// of its box. It needs the boxes components found.
+//
+//nolint:varnamelen // pixel kernel: coordinates read as the algorithm writes them
+func measure(img *image.RGBA, blobs []blob, ink runMap) {
+	for y := range len(ink.rowStart) - 1 {
+		pix := img.Pix[y*img.Stride:]
+
+		for r := ink.rowStart[y]; r < ink.rowStart[y+1]; r++ {
+			cur := ink.runs[r]
+			b := &blobs[cur.label]
+
+			// No pixel read yet means this is the blob's first run.
+			if b.inkDist < 0 {
+				left := max(int(cur.x0)-1, 0) * 4 //nolint:mnd // four bytes per RGBA pixel
+				b.bg = rgb{int32(pix[left]), int32(pix[left+1]), int32(pix[left+2])}
+			}
 
 			for x := cur.x0; x <= cur.x1; x++ {
 				i := int(x) * 4 //nolint:mnd // four bytes per RGBA pixel
@@ -180,14 +202,7 @@ func components(img *image.RGBA, mask []bool, width, height int) ([]blob, runMap
 					b.inkDist, b.ink = d, px
 				}
 			}
-		}
-	}
 
-	for y := range height {
-		for r := rowStart[y]; r < rowStart[y+1]; r++ {
-			runs[r].label = index[runs[r].label]
-			cur := runs[r]
-			b := &blobs[cur.label]
 			n := int(cur.x1 - cur.x0 + 1)
 
 			if k := y - b.minY; k < rimWidth {
@@ -212,8 +227,6 @@ func components(img *image.RGBA, mask []bool, width, height int) ([]blob, runMap
 			}
 		}
 	}
-
-	return blobs, runMap{runs: runs, rowStart: rowStart}
 }
 
 // distance is the sum of absolute channel differences.

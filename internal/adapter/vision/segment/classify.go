@@ -631,9 +631,11 @@ func sameInk(a, b *blob) bool {
 }
 
 // grid buckets blob indices by the gridCell squares their padded boxes cover.
+// Cell c's blobs are items[start[c]:start[c+1]], in blob order.
 type grid struct {
 	cols, rows int
-	cells      [][]int32
+	start      []int32
+	items      []int32
 }
 
 //nolint:varnamelen // blob indices and box sides read as the geometry writes them
@@ -644,21 +646,51 @@ func newGrid(blobs []blob, pad func(*blob) int) *grid {
 	}
 
 	g := &grid{cols: maxX/gridCell + 1, rows: maxY/gridCell + 1}
-	g.cells = make([][]int32, g.cols*g.rows)
+	g.start = make([]int32, g.cols*g.rows+1)
 
+	// Count each cell's blobs, turn the counts into where each cell starts, then
+	// place every blob.
 	for i := range blobs {
-		b := &blobs[i]
-		p := pad(b)
-
-		x0, y0, x1, y1 := g.span(b.minX-p, b.minY-p, b.maxX+p, b.maxY+p)
+		x0, y0, x1, y1 := g.padded(&blobs[i], pad)
 		for cy := y0; cy <= y1; cy++ {
 			for cx := x0; cx <= x1; cx++ {
-				g.cells[cy*g.cols+cx] = append(g.cells[cy*g.cols+cx], int32(i))
+				g.start[cy*g.cols+cx+1]++
+			}
+		}
+	}
+
+	for c := 1; c < len(g.start); c++ {
+		g.start[c] += g.start[c-1]
+	}
+
+	g.items = make([]int32, g.start[len(g.start)-1])
+	next := make([]int32, len(g.start)-1)
+	copy(next, g.start)
+
+	for i := range blobs {
+		x0, y0, x1, y1 := g.padded(&blobs[i], pad)
+		for cy := y0; cy <= y1; cy++ {
+			for cx := x0; cx <= x1; cx++ {
+				c := cy*g.cols + cx
+				g.items[next[c]] = int32(i)
+				next[c]++
 			}
 		}
 	}
 
 	return g
+}
+
+// padded is the cells a blob's box covers once grown by pad on every side.
+func (g *grid) padded(b *blob, pad func(*blob) int) (int, int, int, int) {
+	p := pad(b)
+
+	return g.span(b.minX-p, b.minY-p, b.maxX+p, b.maxY+p)
+}
+
+// cell returns the blobs bucketed in one cell.
+func (g *grid) cell(c int) []int32 {
+	return g.items[g.start[c]:g.start[c+1]]
 }
 
 // span clamps a pixel box to the cells it covers, as the first and last
@@ -674,7 +706,7 @@ func (g *grid) span(minX, minY, maxX, maxY int) (int, int, int, int) {
 func (g *grid) at(x, y int) []int32 {
 	x0, y0, _, _ := g.span(x, y, x, y)
 
-	return g.cells[y0*g.cols+x0]
+	return g.cell(y0*g.cols + x0)
 }
 
 // each calls fn for every blob bucketed in the cells a pixel box covers. A blob
@@ -683,7 +715,7 @@ func (g *grid) each(minX, minY, maxX, maxY int, fn func(int32)) {
 	x0, y0, x1, y1 := g.span(minX, minY, maxX, maxY)
 	for cy := y0; cy <= y1; cy++ {
 		for cx := x0; cx <= x1; cx++ {
-			for _, j := range g.cells[cy*g.cols+cx] {
+			for _, j := range g.cell(cy*g.cols + cx) {
 				fn(j)
 			}
 		}

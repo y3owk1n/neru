@@ -63,7 +63,7 @@ func Detect(
 		return nil, err
 	}
 
-	comps, ink := components(frame, mask, width, height)
+	comps, ink := components(mask, width, height)
 
 	// Texture raised some tile's threshold, so read the frame again through the
 	// quieter mask, keeping the plain one inside pictures so an avatar stays
@@ -82,13 +82,15 @@ func Detect(
 	}
 
 	if raised || anyPhoto {
-		comps, _ = components(frame, mask, width, height)
+		comps, ink = components(mask, width, height)
 	}
 
 	err = checkDeadline(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	measure(frame, comps, ink)
 
 	rects := classify(comps, lim)
 
