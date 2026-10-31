@@ -149,12 +149,13 @@ func (o *Overlay) Clear() {
 	}
 }
 
-// ResizeToActiveScreen is a no-op for mode indicator overlays.
+// ResizeToActiveScreen makes the next draw go through, because a display change
+// can move the same Quartz point to a different Cocoa frame.
 // The mode indicator uses a small window positioned dynamically by
 // DrawModeIndicator via NeruPositionAndSizeOverlayToFitHint, so full-screen resizing
 // is unnecessary and would defeat the small-window memory optimization.
 func (o *Overlay) ResizeToActiveScreen() {
-	// No-op: positioning is handled dynamically in DrawModeIndicator.
+	o.memo.Invalidate()
 }
 
 // DrawModeIndicator draws a mode label at absolute Quartz coordinates. mode

@@ -119,12 +119,13 @@ func (o *Overlay) Clear() {
 	}
 }
 
-// ResizeToActiveScreen is a no-op for sticky indicator overlays.
+// ResizeToActiveScreen makes the next draw go through, because a display change
+// can move the same Quartz point to a different Cocoa frame.
 // The sticky indicator uses a small window positioned dynamically by Draw via
 // NeruPositionAndSizeOverlayToFitHint, so full-screen resizing is unnecessary and
 // would defeat the small-window memory optimization.
 func (o *Overlay) ResizeToActiveScreen() {
-	// No-op: positioning is handled dynamically in Draw.
+	o.memo.Invalidate()
 }
 
 // Draw draws the sticky modifier symbols near the specified cursor position.

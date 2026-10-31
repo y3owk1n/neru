@@ -108,8 +108,11 @@ func (o *Overlay) SetSharingType(hide bool) {
 	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
-// ResizeToActiveScreen is a no-op, because positioning is handled per draw.
-func (o *Overlay) ResizeToActiveScreen() {}
+// ResizeToActiveScreen makes the next draw go through, because a display change
+// can move the same Quartz point to a different Cocoa frame.
+func (o *Overlay) ResizeToActiveScreen() {
+	o.memo.Invalidate()
+}
 
 // Draw positions the overlay on the cursor and renders the virtual pointer indicator.
 // When a char is configured in the overlay's config, the character is drawn using the
