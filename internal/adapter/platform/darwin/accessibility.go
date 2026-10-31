@@ -110,9 +110,6 @@ func HasClickAction(element unsafe.Pointer) bool {
 		false, // preIsWidget
 		0,     // centerX
 		0,     // centerY
-		false, // preHasPressAction
-		false, // preHasShowMenuAction
-		false, // preActionsFetched
 	) != 0
 
 	return clickable

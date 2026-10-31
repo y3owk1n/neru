@@ -44,9 +44,6 @@ typedef struct {
 	int pid;                   ///< Process identifier
 	bool isHidden;             ///< Whether element is AX-hidden (CSS visibility:hidden etc.)
 	bool isVisible;            ///< Whether element is AX-visible (default true when unsupported)
-	bool hasPressAction;       ///< Whether element has AXPress action (pre-fetched)
-	bool hasShowMenuAction;    ///< Whether element has AXShowMenu action (pre-fetched)
-	bool preActionsFetched;    ///< Whether actions were successfully pre-fetched
 } ElementInfo;
 
 #pragma mark - Permission Functions
@@ -158,14 +155,10 @@ void NeruPostMouseMoveEventWithButton(CGPoint position, CGEventType eventType, C
 /// @param preIsWidget Pre-computed widget flag (from ElementInfo identifier)
 /// @param centerX Pre-computed center X (from ElementInfo position + size)
 /// @param centerY Pre-computed center Y (from ElementInfo position + size)
-/// @param preHasPressAction Pre-fetched AXPress action flag (from ElementInfo)
-/// @param preHasShowMenuAction Pre-fetched AXShowMenu action flag (from ElementInfo)
-/// @param preActionsFetched Whether action names were successfully pre-fetched
 /// @return 1 if element is clickable, 0 otherwise
 int NeruHasClickAction(
     void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
-    const char *preRole, bool preIsWidget, double centerX, double centerY, bool preHasPressAction,
-    bool preHasShowMenuAction, bool preActionsFetched);
+    const char *preRole, bool preIsWidget, double centerX, double centerY);
 
 /// Fast visibility check using a pre-computed center point (avoids redundant AX position fetch)
 /// @param element Element reference

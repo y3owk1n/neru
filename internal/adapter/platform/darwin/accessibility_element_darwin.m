@@ -234,17 +234,6 @@ char *NeruDetectBundleType(const char *bundle_id) {
 
 #pragma mark - Element Information Functions
 
-static bool shouldPrefetchActions(const char *role) {
-	if (!role)
-		return false;
-
-	return strcmp(role, "AXButton") == 0 || strcmp(role, "AXLink") == 0 || strcmp(role, "AXCheckBox") == 0 ||
-	       strcmp(role, "AXMenuItem") == 0 || strcmp(role, "AXMenuButton") == 0 || strcmp(role, "AXPopUpButton") == 0 ||
-	       strcmp(role, "AXTabButton") == 0 || strcmp(role, "AXComboBox") == 0 || strcmp(role, "AXSlider") == 0 ||
-	       strcmp(role, "AXSwitch") == 0 || strcmp(role, "AXDisclosureTriangle") == 0 ||
-	       strcmp(role, "AXGenericElement") == 0 || strcmp(role, "AXCell") == 0 || strcmp(role, "AXMenuBarItem") == 0;
-}
-
 /// Copy each attribute's value with its own call, in the shape
 /// AXUIElementCopyMultipleAttributeValues returns: one slot per attribute,
 /// kCFNull where a value could not be read. An element that dies or stops
@@ -429,31 +418,6 @@ ElementInfo *NeruGetElementInfo(void *element) {
 		}
 
 		CFRelease(values);
-
-		// Pre-fetch action names to eliminate a separate AX call during clickability checks.
-		// We only perform this pre-fetch for interactive roles to save synchronous XPC
-		// round-trips for elements that are almost certainly non-interactive (e.g. AXStaticText, AXGroup).
-		CFArrayRef actionNames = NULL;
-		if (shouldPrefetchActions(info->role) &&
-		    AXUIElementCopyActionNames(axElement, &actionNames) == kAXErrorSuccess && actionNames) {
-			info->preActionsFetched = true;
-			CFIndex actionCount = CFArrayGetCount(actionNames);
-			for (CFIndex i = 0; i < actionCount; i++) {
-				CFStringRef action = (CFStringRef)CFArrayGetValueAtIndex(actionNames, i);
-				if (!action)
-					continue;
-				if (CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
-				    CFStringCompare(action, CFSTR("AXConfirm"), 0) == kCFCompareEqualTo ||
-				    CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
-				    CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo) {
-					info->hasPressAction = true;
-				}
-				if (CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo) {
-					info->hasShowMenuAction = true;
-				}
-			}
-			CFRelease(actionNames);
-		}
 
 		pid_t pid;
 		if (AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
@@ -785,6 +749,32 @@ static bool getElementFrame(AXUIElementRef element, CGRect *outFrame) {
 	return true;
 }
 
+/// Whether the element lists an action that clicking it would perform.
+/// @param element Element reference, borrowed
+static bool hasClickActionName(AXUIElementRef element) {
+	CFArrayRef actions = NULL;
+	if (AXUIElementCopyActionNames(element, &actions) != kAXErrorSuccess || !actions)
+		return false;
+
+	bool found = false;
+	CFIndex count = CFArrayGetCount(actions);
+	for (CFIndex i = 0; i < count && !found; i++) {
+		CFStringRef action = (CFStringRef)CFArrayGetValueAtIndex(actions, i);
+		if (!action)
+			continue;
+
+		found = CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
+		        CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo ||
+		        CFStringCompare(action, CFSTR("AXConfirm"), 0) == kCFCompareEqualTo ||
+		        CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
+		        CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo;
+	}
+
+	CFRelease(actions);
+
+	return found;
+}
+
 /// Check if element has click action
 /// @param element Element reference
 /// @param skipVisCheck If true, skip the expensive hit-test visibility check
@@ -795,12 +785,10 @@ static bool getElementFrame(AXUIElementRef element, CGRect *outFrame) {
 /// @param preRole Pre-fetched AXRole as C string
 /// @param centerX Pre-computed center X (from ElementInfo)
 /// @param centerY Pre-computed center Y (from ElementInfo)
-/// @param preActionsFetched Whether action names were successfully pre-fetched
 /// @return 1 if element is clickable, 0 otherwise
 int NeruHasClickAction(
     void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
-    const char *preRole, bool preIsWidget, double centerX, double centerY, bool preHasPressAction,
-    bool preHasShowMenuAction, bool preActionsFetched) {
+    const char *preRole, bool preIsWidget, double centerX, double centerY) {
 	if (!element)
 		return 0;
 
@@ -814,104 +802,27 @@ int NeruHasClickAction(
 
 #define visHit (!skipVisCheck ? NeruIsElementVisibleAtPoint((void *)axElement, visCenter) : 1)
 
-	// Use pre-fetched action flags from ElementInfo (eliminates AXUIElementCopyActionNames call).
-	// Explicit actions are the strongest signal, so we check for them first
-	if (preHasPressAction || preHasShowMenuAction) {
-		if (hasEnabledAttr && !preEnabled)
-			return 0;
+	bool isDisabled = hasEnabledAttr && !preEnabled;
+	bool isContainer = preRole && (strcmp(preRole, "AXScrollArea") == 0 || strcmp(preRole, "AXGroup") == 0 ||
+	                               strcmp(preRole, "AXSplitGroup") == 0);
 
-		if (!visHit)
-			return 0;
+	// Neru hints an enabled element outside the container roles whatever actions
+	// it lists, so it reads the action names only for a disabled element or a
+	// container. A click action rules a disabled element out and a container in.
+	if (!isDisabled && !isContainer)
+		return visHit;
 
-		return 1;
-	}
+	if (hasClickActionName(axElement))
+		return isDisabled ? 0 : visHit;
 
-	if (!preActionsFetched) {
-		// Fall back to fetching action names when pre-fetch was unavailable or
-		// did not match AXPress/AXShowMenu. Check all known click actions here
-		// so that a transient pre-fetch failure does not cause false negatives.
-		CFArrayRef actions = NULL;
-		if (AXUIElementCopyActionNames(axElement, &actions) == kAXErrorSuccess && actions) {
-			CFIndex count = CFArrayGetCount(actions);
+	if (!isContainer)
+		return visHit;
 
-			for (CFIndex i = 0; i < count; i++) {
-				CFStringRef action = (CFStringRef)CFArrayGetValueAtIndex(actions, i);
+	// A container without a click action is hinted only when it is an enabled widget.
+	if (!preIsWidget || isDisabled)
+		return 0;
 
-				if (!action)
-					continue;
-
-				if (CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
-				    CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo ||
-				    CFStringCompare(action, CFSTR("AXConfirm"), 0) == kCFCompareEqualTo ||
-				    CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
-				    CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo) {
-					CFRelease(actions);
-
-					if (hasEnabledAttr && !preEnabled)
-						return 0;
-
-					if (!visHit)
-						return 0;
-
-					return 1;
-				}
-			}
-
-			CFRelease(actions);
-		}
-	}
-
-	// Exclude known container/structural roles unless they are widgets
-	if (preRole) {
-		bool isScrollArea = strcmp(preRole, "AXScrollArea") == 0;
-		bool isGroup = strcmp(preRole, "AXGroup") == 0;
-		bool isSplitGroup = strcmp(preRole, "AXSplitGroup") == 0;
-
-		if (isScrollArea || isGroup || isSplitGroup) {
-			if (preIsWidget) {
-				if (hasEnabledAttr && !preEnabled)
-					return 0;
-
-				if (!visHit)
-					return 0;
-
-				return 1;
-			}
-
-			return 0;
-		}
-	}
-
-	// Some elements support AXPress even if not listed in action names
-	CFStringRef pressDesc = NULL;
-	if (AXUIElementCopyActionDescription(axElement, kAXPressAction, &pressDesc) == kAXErrorSuccess && pressDesc) {
-		CFRelease(pressDesc);
-
-		if (!visHit)
-			return 0;
-
-		return 1;
-	}
-
-	// Role-specific fallback for links
-	if (preRole && strcmp(preRole, "AXLink") == 0) {
-		CFTypeRef urlAttr = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXURLAttribute, &urlAttr) == kAXErrorSuccess && urlAttr) {
-			CFRelease(urlAttr);
-
-			if (!visHit)
-				return 0;
-
-			return 1;
-		}
-	}
-
-	// Visibility check: hit-test at center to filter obscured/scroll-clipped elements.
-	if (!skipVisCheck) {
-		return NeruIsElementVisibleAtPoint((void *)axElement, visCenter);
-	}
-
-	return 1;
+	return visHit;
 
 #undef visHit
 }
