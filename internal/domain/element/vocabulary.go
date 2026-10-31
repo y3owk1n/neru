@@ -337,6 +337,10 @@ var DefaultClickableRoles = []string{
 	string(SemanticMenuItem),
 	string(SemanticCell),
 	string(SemanticRow),
+	// On macOS this resolves to the same AXRow as row, but Linux and Windows
+	// give list items their own role. The WinUI NavigationView sidebars in
+	// Settings and Microsoft Store are UIA ListItems.
+	string(SemanticListItem),
 	// macOS web content and other AX-only containers surface as
 	// AXGenericElement, which has no cross-platform meaning.
 	string(VocabularyAX) + vocabularySeparator + string(RoleGenericElement),

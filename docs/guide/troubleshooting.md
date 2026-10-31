@@ -113,7 +113,7 @@ and run `neru config reload`. If the default misses it too, open an issue.
 
 ### Hints appear on things I cannot see
 
-Neru may be hinting invisible elements such as `row` and `cell`. Copy the
+Neru may be hinting invisible elements such as `row`, `list_item` and `cell`. Copy the
 `clickable_roles` list from the
 [default config](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml),
 remove those roles, and run `neru config reload`.
