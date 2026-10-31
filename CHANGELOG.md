@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.61.0](https://github.com/y3owk1n/neru/compare/v1.60.0...v1.61.0) (2026-10-31)
+
+
+### Features
+
+* **hints:** add refresh_hints action to rescan with the same flags ([#1886](https://github.com/y3owk1n/neru/issues/1886)) ([f1a7a89](https://github.com/y3owk1n/neru/commit/f1a7a89c00fe1b6fd66843928f34502f12c3c75b))
+
+
+### Bug Fixes
+
+* **hints:** hint list items by default on windows and linux ([#1897](https://github.com/y3owk1n/neru/issues/1897)) ([4e51bc0](https://github.com/y3owk1n/neru/commit/4e51bc0ad84c74cb4a12b77859f600deb43c80f0))
+* **hints:** keep filters when hints is re-run ([#1888](https://github.com/y3owk1n/neru/issues/1888)) ([9f49fdd](https://github.com/y3owk1n/neru/commit/9f49fdd07d74c9248459725ad739629c1596b629))
+
+
+### Performance Improvements
+
+* **darwin:** serve every global hotkey from one event tap ([#1890](https://github.com/y3owk1n/neru/issues/1890)) ([367b78d](https://github.com/y3owk1n/neru/commit/367b78d4874d6e1ecba4cbf54907c54dd2758e62))
+* **darwin:** stop redrawing unchanged mode indicators ([#1894](https://github.com/y3owk1n/neru/issues/1894)) ([c9df0fb](https://github.com/y3owk1n/neru/commit/c9df0fb43034c1fd7b140006e039a3e9403dcd01))
+* **hints:** find segment hints faster ([#1896](https://github.com/y3owk1n/neru/issues/1896)) ([21bbf6f](https://github.com/y3owk1n/neru/commit/21bbf6f4c4cb85dbea52e9f7b19ca3ad275555d3))
+* **hints:** process contour hints screen images faster ([#1893](https://github.com/y3owk1n/neru/issues/1893)) ([72b875d](https://github.com/y3owk1n/neru/commit/72b875d091febce36907913948423805507381c0))
+* **hints:** read only the role when checking a button for a menu ([#1892](https://github.com/y3owk1n/neru/issues/1892)) ([ce0d5ce](https://github.com/y3owk1n/neru/commit/ce0d5cec30f7d7e14650281798fef055bf66f843))
+* **hints:** redraw narrowed labels without delay ([#1889](https://github.com/y3owk1n/neru/issues/1889)) ([6b79477](https://github.com/y3owk1n/neru/commit/6b7947724f5d93df9ec402f502c59526b648014c))
+* **hints:** remove unnecessary accessibility calls ([#1891](https://github.com/y3owk1n/neru/issues/1891)) ([0e3ea97](https://github.com/y3owk1n/neru/commit/0e3ea97b38401926a67a90c3fc3ca011a783fd66))
+
 ## [1.60.0](https://github.com/y3owk1n/neru/compare/v1.59.0...v1.60.0) (2026-10-25)
 
 
