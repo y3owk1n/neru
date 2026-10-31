@@ -11,6 +11,7 @@ import "C"
 
 import (
 	"sync"
+	"time"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -37,6 +38,15 @@ type Overlay struct {
 	logger *zap.Logger
 
 	configMu sync.RWMutex
+
+	memo overlayutil.IndicatorMemo[pointerDraw]
+}
+
+// pointerDraw holds the virtual pointer draw inputs that the configuration
+// does not supply.
+type pointerDraw struct {
+	x, y, size int
+	fillColor  string
 }
 
 // NewOverlay creates a dedicated virtual pointer overlay window.
@@ -64,21 +74,28 @@ func (o *Overlay) SetConfig(cfg config.VirtualPointerConfig) {
 	defer o.configMu.Unlock()
 
 	o.config = cfg
+	o.memo.Invalidate()
 }
 
 // Show displays the virtual pointer overlay window.
 func (o *Overlay) Show() {
-	C.NeruShowOverlayWindow(o.window)
+	if o.memo.Show(time.Now()) {
+		C.NeruShowOverlayWindow(o.window)
+	}
 }
 
 // Hide conceals the virtual pointer overlay window.
 func (o *Overlay) Hide() {
-	C.NeruHideOverlayWindow(o.window)
+	if o.memo.Hide() {
+		C.NeruHideOverlayWindow(o.window)
+	}
 }
 
 // Clear removes the virtual pointer from the overlay.
 func (o *Overlay) Clear() {
-	C.NeruHideCursorIndicator(o.window)
+	if o.memo.Clear() {
+		C.NeruHideCursorIndicator(o.window)
+	}
 }
 
 // SetSharingType sets the window sharing type for screen sharing visibility.
@@ -99,6 +116,13 @@ func (o *Overlay) ResizeToActiveScreen() {}
 // configured font and text color. Otherwise falls back to a filled circle using fillColor.
 func (o *Overlay) Draw(xCoordinate, yCoordinate, size int, fillColor string) {
 	if size < 1 || fillColor == "" {
+		return
+	}
+
+	draw := pointerDraw{x: xCoordinate, y: yCoordinate, size: size, fillColor: fillColor}
+
+	unchanged, epoch := o.memo.BeginDraw(draw)
+	if unchanged {
 		return
 	}
 
@@ -131,6 +155,8 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate, size int, fillColor string) {
 			textColor:  cTextColor,
 		},
 	)
+
+	o.memo.EndDraw(draw, epoch)
 }
 
 // Destroy releases the overlay window.

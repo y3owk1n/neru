@@ -11,6 +11,7 @@ import "C"
 
 import (
 	"sync"
+	"time"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -46,6 +47,15 @@ type Overlay struct {
 
 	// drawMu serializes draw operations against cache invalidation.
 	drawMu sync.Mutex
+
+	memo overlayutil.IndicatorMemo[stickyDraw]
+}
+
+// stickyDraw holds the sticky indicator draw inputs that the configuration
+// does not supply.
+type stickyDraw struct {
+	symbols string
+	x, y    int
 }
 
 // NewOverlay creates a new sticky modifiers indicator overlay.
@@ -90,17 +100,23 @@ func NewOverlayWithWindow(
 
 // Show displays the sticky modifiers indicator overlay window.
 func (o *Overlay) Show() {
-	C.NeruShowOverlayWindow(o.window)
+	if o.memo.Show(time.Now()) {
+		C.NeruShowOverlayWindow(o.window)
+	}
 }
 
 // Hide conceals the sticky modifiers indicator overlay window.
 func (o *Overlay) Hide() {
-	C.NeruHideOverlayWindow(o.window)
+	if o.memo.Hide() {
+		C.NeruHideOverlayWindow(o.window)
+	}
 }
 
 // Clear removes all content from the overlay.
 func (o *Overlay) Clear() {
-	C.NeruClearOverlay(o.window)
+	if o.memo.Clear() {
+		C.NeruClearOverlay(o.window)
+	}
 }
 
 // ResizeToActiveScreen is a no-op for sticky indicator overlays.
@@ -136,6 +152,13 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 
 	o.drawMu.Lock()
 	defer o.drawMu.Unlock()
+
+	draw := stickyDraw{symbols: symbols, x: xCoordinate, y: yCoordinate}
+
+	unchanged, epoch := o.memo.BeginDraw(draw)
+	if unchanged {
+		return
+	}
 
 	label := o.getOrCacheLabel(symbols)
 
@@ -227,6 +250,8 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 	}
 
 	C.NeruDrawHints(o.window, &hint, 1, style)
+
+	o.memo.EndDraw(draw, epoch)
 }
 
 // SetConfig updates the overlay configuration.
@@ -262,6 +287,7 @@ func (o *Overlay) freeAllCaches() {
 	defer o.drawMu.Unlock()
 	o.styleCache.Free()
 	o.freeLabelCacheLocked()
+	o.memo.Invalidate()
 }
 
 // freeLabelCacheLocked frees all cached label C strings.
