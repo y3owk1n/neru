@@ -228,10 +228,9 @@ func BenchmarkRecursiveGridKeystroke(b *testing.B) {
 // a shortcut. It pays for the whole key path, the keymap lookup, the hint
 // filter and the redraw, and leaves the drawn set exactly as it found it, so
 // every iteration measures the same keystroke and none of them needs untimed
-// work in between. A narrowing keystroke could not. Changing how many hints are drawn is a structural change, which the hint
-// manager deliberately debounces onto a timer, so its redraw would land outside
-// the iteration that caused it and the reset between iterations would cost far
-// more than the thing being measured.
+// work in between. A narrowing keystroke could not, because getting back to
+// the full set takes a backspace, which runs on a goroutine of its own and
+// would put an untimed wait between every two iterations.
 func BenchmarkHintsKeystroke(b *testing.B) {
 	cfg := simConfig()
 	cfg.Hints.AppConfigs = []config.AppConfig{

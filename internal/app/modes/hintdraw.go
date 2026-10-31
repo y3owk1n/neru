@@ -14,8 +14,8 @@ import (
 // the transition, which shows and switches the overlay, and every draw after
 // it is a redraw of a surface already up.
 //
-// The caller must hold h.mu. SetHints, Reset and HandleInput already do, and
-// the manager invokes this synchronously from inside them.
+// The caller must hold h.mu. SetHints, Reset, HandleInput and HandleBackspace
+// already do, and the manager invokes this synchronously from inside them.
 func (h *handlerState) drawHints(filteredHints []*domainHint.Interface) {
 	if h.overlayPort == nil {
 		return
