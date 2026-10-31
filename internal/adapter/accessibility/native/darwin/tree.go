@@ -481,12 +481,14 @@ func buildTreeRecursive(
 		children, childrenErr = parent.element.Children(parent.info.Role())
 		hasImportantContainer := false
 		if childrenErr == nil && len(children) > 0 {
+			// Only the role decides, so read just the role. The app answers
+			// that in about a quarter of the time a full Info() batch takes.
 			for _, child := range children {
-				childInfo, infoErr := child.Info()
-				if infoErr != nil {
+				role, roleErr := child.Attribute("AXRole")
+				if roleErr != nil {
 					continue
 				}
-				if childInfo != nil && importantContainerRoles[element.Role(childInfo.Role())] {
+				if importantContainerRoles[element.Role(role)] {
 					hasImportantContainer = true
 
 					break
