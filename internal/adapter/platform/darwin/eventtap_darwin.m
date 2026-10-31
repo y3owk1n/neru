@@ -401,7 +401,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 						// Suppress modifier UP events when they were part of
 						// a hotkey chord (set in modifierChordFlags by the
-						// per-hotkey tap or kCGEventKeyDown handler). Don't
+						// hotkey tap or kCGEventKeyDown handler). Don't
 						// clear the bit so subsequent inter-cycle UPs are
 						// also suppressed. If nonChordModifierPress is set
 						// (Shift/Alt was pressed), let the UP through.
@@ -605,19 +605,29 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 	}
 }
 
-#pragma mark - Per-Hotkey CGEventTap
+#pragma mark - Global Hotkey CGEventTap
 
 typedef struct {
 	int hotkeyID;
 	CGKeyCode keyCode;
 	uint8_t modifiers;
 	uint64_t cgFlags;  ///< Pre-computed CGEventFlags mask for modifier matching
-	CFMachPortRef eventTap;
-	CFRunLoopSourceRef runLoopSource;
 	HotkeyTapCallback callback;
 	void *userData;
 	int down;  ///< 1 while key is held (repeat suppression)
 } HotkeyTap;
+
+// One session tap serves every registered hotkey, so a keystroke anywhere costs
+// one round trip into Neru however many hotkeys are bound. The tap exists while
+// at least one hotkey is registered. Every refresh unregisters all hotkeys and
+// registers them again, which recreates the tap. That keeps it newer than the
+// per-mode tap, so it runs first. Only the main thread touches the entries and
+// the tap, and the callback runs there too.
+static CFMachPortRef gHotkeyEventTap = NULL;
+static CFRunLoopSourceRef gHotkeyRunLoopSource = NULL;
+static HotkeyTap **gHotkeys = NULL;
+static size_t gHotkeyCount = 0;
+static size_t gHotkeyCapacity = 0;
 
 /// Convert Neru modifier bitmask to CGEventFlags.
 static uint64_t cgFlagsForModifiers(uint8_t modifiers) {
@@ -633,71 +643,94 @@ static uint64_t cgFlagsForModifiers(uint8_t modifiers) {
 	return flags;
 }
 
-/// CGEventTap callback for a single per-hotkey tap.
+/// CGEventTap callback shared by every registered hotkey. It checks entries
+/// newest first.
 static CGEventRef hotkeyTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *userInfo) {
-	HotkeyTap *tap = (HotkeyTap *)userInfo;
-
 	if (type == kCGEventTapDisabledByTimeout) {
-		CGEventTapEnable(tap->eventTap, true);
+		CGEventTapEnable(gHotkeyEventTap, true);
 		return event;
 	}
 
 	if (type == kCGEventKeyDown) {
 		CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
-		if ((int)keyCode != tap->keyCode)
-			return event;
-
 		CGEventFlags flags = CGEventGetFlags(event) & (kCGEventFlagMaskCommand | kCGEventFlagMaskShift |
 		                                               kCGEventFlagMaskAlternate | kCGEventFlagMaskControl);
-		if (flags != tap->cgFlags)
-			return event;
 
-		if (!tap->down) {
-			tap->down = 1;
-			tap->callback(tap->hotkeyID, 1, tap->userData);  // pressed
+		for (size_t i = gHotkeyCount; i-- > 0;) {
+			HotkeyTap *tap = gHotkeys[i];
+			if (tap->keyCode != keyCode || flags != tap->cgFlags)
+				continue;
 
-			// Inform the per-mode event tap that these modifiers are part of a
-			// hotkey chord so it suppresses the corresponding modifier UP events
-			// (kCGEventFlagsChanged). Without this, the per-mode tap would emit
-			// __modifier_*_up events for modifiers released after the hotkey,
-			// triggering unintended sticky modifier toggles when the user presses
-			// the same chord again to switch modes.
-			//
-			// This is safe because:
-			// 1. The per-mode tap runs AFTER this hotkey tap (kCGHeadInsertEventTap
-			//    ordering: most-recently-created runs first), so by the time the
-			//    per-mode tap processes subsequent events (modifier UP events are
-			//    separate kCGEventFlagsChanged events), modifierChordFlags is set.
-			// 2. modifierChordFlags is protected by os_unfair_lock.
-			// 3. Both taps run on the main run loop (serialized execution).
-			if (gEventTapContext && tap->cgFlags) {
-				os_unfair_lock_lock(&gEventTapContext->stickyModifierLock);
-				// REPLACE modifierChordFlags with the hotkey's modifiers
-				// (instead of OR) to clear any stale bits from a previous
-				// cycle that weren't cleaned up by the deferred clearing
-				// (e.g., when modifiers were released while the event tap
-				// was disabled during idle).
-				gEventTapContext->modifierChordFlags = tap->cgFlags;
-				os_unfair_lock_unlock(&gEventTapContext->stickyModifierLock);
+			if (!tap->down) {
+				tap->down = 1;
+				tap->callback(tap->hotkeyID, 1, tap->userData);  // pressed
+
+				// Inform the per-mode event tap that these modifiers are part of a
+				// hotkey chord so it suppresses the corresponding modifier UP events
+				// (kCGEventFlagsChanged). Without this, the per-mode tap would emit
+				// __modifier_*_up events for modifiers released after the hotkey,
+				// triggering unintended sticky modifier toggles when the user presses
+				// the same chord again to switch modes.
+				//
+				// This is safe because:
+				// 1. The per-mode tap runs AFTER this hotkey tap (kCGHeadInsertEventTap
+				//    ordering: most-recently-created runs first), so by the time the
+				//    per-mode tap processes subsequent events (modifier UP events are
+				//    separate kCGEventFlagsChanged events), modifierChordFlags is set.
+				// 2. modifierChordFlags is protected by os_unfair_lock.
+				// 3. Both taps run on the main run loop (serialized execution).
+				if (gEventTapContext && tap->cgFlags) {
+					os_unfair_lock_lock(&gEventTapContext->stickyModifierLock);
+					// REPLACE modifierChordFlags with the hotkey's modifiers
+					// (instead of OR) to clear any stale bits from a previous
+					// cycle that weren't cleaned up by the deferred clearing
+					// (e.g., when modifiers were released while the event tap
+					// was disabled during idle).
+					gEventTapContext->modifierChordFlags = tap->cgFlags;
+					os_unfair_lock_unlock(&gEventTapContext->stickyModifierLock);
+				}
 			}
+			return NULL;  // consume
 		}
-		return NULL;  // consume
+		return event;
 	}
 
 	if (type == kCGEventKeyUp) {
 		CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
-		if ((int)keyCode != tap->keyCode)
-			return event;
 
-		if (!tap->down)
-			return event;
+		for (size_t i = gHotkeyCount; i-- > 0;) {
+			HotkeyTap *tap = gHotkeys[i];
+			if (tap->keyCode != keyCode || !tap->down)
+				continue;
 
-		tap->down = 0;
-		tap->callback(tap->hotkeyID, 2, tap->userData);  // released
-		return NULL;                                     // consume
+			tap->down = 0;
+			tap->callback(tap->hotkeyID, 2, tap->userData);  // released
+			return NULL;                                     // consume
+		}
+		return event;
 	}
 
 	return event;
+}
+
+/// Tear down the shared tap once no hotkey is left. Main thread only.
+static void destroyHotkeyEventTap(void) {
+	if (!gHotkeyEventTap)
+		return;
+
+	CGEventTapEnable(gHotkeyEventTap, false);
+	CFRunLoopRemoveSource(CFRunLoopGetMain(), gHotkeyRunLoopSource, kCFRunLoopCommonModes);
+	CFRelease(gHotkeyRunLoopSource);
+	gHotkeyRunLoopSource = NULL;
+
+	// CFRelease alone does not guarantee the underlying Mach port is
+	// torn down on the WindowServer/kernel side; CFMachPortInvalidate
+	// must be called first or the port can leak. This path runs on
+	// every app switch when per-app hotkey overrides are configured,
+	// so an un-invalidated port here leaks quickly.
+	CFMachPortInvalidate(gHotkeyEventTap);
+	CFRelease(gHotkeyEventTap);
+	gHotkeyEventTap = NULL;
 }
 
 HotkeyTapRef NeruCreateHotkeyTap(int hotkeyID, int keyCode, int modifiers, HotkeyTapCallback callback, void *userData) {
@@ -717,23 +750,36 @@ HotkeyTapRef NeruCreateHotkeyTap(int hotkeyID, int keyCode, int modifiers, Hotke
 	tap->down = 0;
 
 	__block BOOL success = NO;
-	void (^createTap)(void) = ^{
-		CGEventMask mask = CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp);
-		tap->eventTap = CGEventTapCreate(
-		    kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, mask, hotkeyTapCallback, tap);
-		if (!tap->eventTap)
-			return;
+	void (^addHotkey)(void) = ^{
+		if (gHotkeyCount == gHotkeyCapacity) {
+			size_t capacity = gHotkeyCapacity ? gHotkeyCapacity * 2 : 8;
+			HotkeyTap **grown = (HotkeyTap **)realloc(gHotkeys, capacity * sizeof(HotkeyTap *));
+			if (!grown)
+				return;
+			gHotkeys = grown;
+			gHotkeyCapacity = capacity;
+		}
 
-		tap->runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap->eventTap, 0);
-		CFRunLoopAddSource(CFRunLoopGetMain(), tap->runLoopSource, kCFRunLoopCommonModes);
-		CGEventTapEnable(tap->eventTap, true);
+		if (!gHotkeyEventTap) {
+			CGEventMask mask = CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp);
+			gHotkeyEventTap = CGEventTapCreate(
+			    kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, mask, hotkeyTapCallback, NULL);
+			if (!gHotkeyEventTap)
+				return;
+
+			gHotkeyRunLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, gHotkeyEventTap, 0);
+			CFRunLoopAddSource(CFRunLoopGetMain(), gHotkeyRunLoopSource, kCFRunLoopCommonModes);
+			CGEventTapEnable(gHotkeyEventTap, true);
+		}
+
+		gHotkeys[gHotkeyCount++] = tap;
 		success = YES;
 	};
 
 	if ([NSThread isMainThread]) {
-		createTap();
+		addHotkey();
 	} else {
-		dispatch_sync(dispatch_get_main_queue(), createTap);
+		dispatch_sync(dispatch_get_main_queue(), addHotkey);
 	}
 
 	if (!success) {
@@ -750,29 +796,24 @@ void NeruDestroyHotkeyTap(HotkeyTapRef ref) {
 
 	HotkeyTap *tap = (HotkeyTap *)ref;
 
-	void (^cleanup)(void) = ^{
-		if (tap->eventTap) {
-			CGEventTapEnable(tap->eventTap, false);
+	void (^removeHotkey)(void) = ^{
+		for (size_t i = 0; i < gHotkeyCount; i++) {
+			if (gHotkeys[i] != tap)
+				continue;
+
+			memmove(&gHotkeys[i], &gHotkeys[i + 1], (gHotkeyCount - i - 1) * sizeof(HotkeyTap *));
+			gHotkeyCount--;
+			break;
 		}
-		if (tap->runLoopSource) {
-			CFRunLoopRemoveSource(CFRunLoopGetMain(), tap->runLoopSource, kCFRunLoopCommonModes);
-			CFRelease(tap->runLoopSource);
-		}
-		if (tap->eventTap) {
-			// CFRelease alone does not guarantee the underlying Mach port is
-			// torn down on the WindowServer/kernel side; CFMachPortInvalidate
-			// must be called first or the port can leak. This path runs on
-			// every app switch when per-app hotkey overrides are configured,
-			// so an un-invalidated port here leaks quickly.
-			CFMachPortInvalidate(tap->eventTap);
-			CFRelease(tap->eventTap);
-		}
+
+		if (gHotkeyCount == 0)
+			destroyHotkeyEventTap();
 	};
 
 	if ([NSThread isMainThread]) {
-		cleanup();
+		removeHotkey();
 	} else {
-		dispatch_sync(dispatch_get_main_queue(), cleanup);
+		dispatch_sync(dispatch_get_main_queue(), removeHotkey);
 	}
 
 	free(tap);
@@ -1072,7 +1113,7 @@ void NeruSetEventTapStickyModifierToggle(EventTap tap, int enabled) {
 		// Do NOT seed modifierChordFlags from CGEventSourceFlagsState —
 		// that function returns unreliable results when called from the
 		// Go callback goroutine (non-main thread). Instead, rely on the
-		// per-hotkey tap callback which REPLACES modifierChordFlags with
+		// hotkey tap callback which REPLACES modifierChordFlags with
 		// the exact hotkey chord modifiers during F key DOWN processing.
 		// The hotkey tap runs before this function is called, so
 		// modifierChordFlags is already correct unless StickyModifierToggle
@@ -1086,7 +1127,7 @@ void NeruSetEventTapStickyModifierToggle(EventTap tap, int enabled) {
 		// chord's modifier UP events, even when modifiers are held.
 		context->stickyModifierDetectionArmed = YES;
 	} else {
-		// Do NOT clear modifierChordFlags here — the per-hotkey tap
+		// Do NOT clear modifierChordFlags here — the hotkey tap
 		// REPLACES it with the current hotkey's modifiers on every
 		// F key DOWN event. The mode exit path calls
 		// StickyModifierToggle(disable) which would undo the hotkey

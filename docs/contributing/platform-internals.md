@@ -51,7 +51,7 @@ the footnotes below give the mechanism behind its limits.
 | **Smooth scroll animation**   | continuous axis       | whole notches only ³ | continuous axis ³ (whole notches when modified on Hyprland ⁹) | libei scroll delta, unverified ³ | 120ths of a notch ³ |
 | **Element discovery (hints)** | AXUIElement           | AT-SPI walk         | AT-SPI walk               | AT-SPI walk          | UIA, control view only    |
 | **Overlay**                   | NSPanel + CoreAnimation | X11 + Cairo       | layer-shell + Cairo       | layer-shell + Cairo  | DirectComposition + Direct2D (GDI fallback, and windows/arm64 is GDI only ¹⁰) |
-| **Global hotkeys**            | per-key CGEventTap    | `XGrabKey`          | evdev proxy (`input` group) | evdev proxy (`input` group) | `RegisterHotKey`          |
+| **Global hotkeys**            | one shared CGEventTap | `XGrabKey`          | evdev proxy (`input` group) | evdev proxy (`input` group) | `RegisterHotKey`          |
 | **Keyboard capture**          | CGEventTap            | `XGrabKeyboard`     | evdev proxy (uinput, wl-keyboard fallback) | evdev proxy (uinput) | `WH_KEYBOARD_LL`          |
 | **Modifier passthrough**      | CGEventTap forwards or blocks per event | none, the grab is all-or-nothing | evdev backend only        | evdev backend only   | `WH_KEYBOARD_LL` forwards or blocks per event |
 | **Dark mode detection**       | Cocoa appearance      | xdg appearance portal | xdg appearance portal   | kdeglobals + portal  | registry                  |
@@ -207,7 +207,7 @@ backends warp the pointer and let the compositor infer the drag.
 | Aspect                | macOS                  | Linux X11               | Linux Wayland                            | Windows                 |
 | --------------------- | ---------------------- | ----------------------- | ---------------------------------------- | ----------------------- |
 | **In-mode capture**   | `CGEventTapCreate`     | `XGrabKeyboard`         | evdev proxy (uinput re-emit), wl-keyboard fallback | `WH_KEYBOARD_LL`        |
-| **Global hotkeys**    | Per-key CGEventTap     | `XGrabKey`              | Chord matcher on the evdev proxy         | `RegisterHotKey`        |
+| **Global hotkeys**    | One shared CGEventTap  | `XGrabKey`              | Chord matcher on the evdev proxy         | `RegisterHotKey`        |
 | **Modifier passthrough** | event tap forwards or blocks | none, grab is all-or-nothing | evdev proxy only              | `WH_KEYBOARD_LL` forwards or blocks |
 
 **A held global hotkey** is one press and one release on every platform, which

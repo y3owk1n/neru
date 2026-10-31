@@ -81,7 +81,7 @@ func ProfileFor(target OS) Profile {
 			Hotkeys: BackendPlan{
 				Name:      "cgeventtap-hotkeys",
 				BuildMode: BuildModeCGORequired,
-				Notes:     "Per-hotkey CGEventTaps via Objective-C bridge",
+				Notes:     "One CGEventTap for all hotkeys via Objective-C bridge",
 			},
 			KeyboardCapture: BackendPlan{
 				Name:      "quartz-event-tap",

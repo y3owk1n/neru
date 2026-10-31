@@ -199,7 +199,7 @@ func (h *handlerState) activeModeHasAppHotkeyOverrides() bool {
 // currently active navigation mode, with ok=true, when such a binding exists.
 // It returns nil, false in idle mode or when the active mode does not bind key.
 //
-// Global (idle-scope) hotkeys are delivered through an always-on, per-hotkey
+// Global (idle-scope) hotkeys are delivered through an always-on hotkey
 // event tap that is independent of the event tap used for per-mode hotkeys.
 // When a key is bound both globally and by the active mode, the global tap
 // consumes the event and runs the global action before the per-mode tap can

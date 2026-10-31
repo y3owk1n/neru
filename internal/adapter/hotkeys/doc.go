@@ -6,7 +6,7 @@
 // registers it as the process-wide manager.
 //
 // The mechanisms differ by platform, and each lives in its own subpackage:
-// per-hotkey CGEventTaps on macOS, X11 key grabs or the evdev keyboard proxy on
+// one CGEventTap shared by every hotkey on macOS, X11 key grabs or the evdev keyboard proxy on
 // Linux depending on the session, and RegisterHotKey on a dedicated message
 // thread on Windows, through the registry in internal/adapter/platform/windows.
 package hotkeys

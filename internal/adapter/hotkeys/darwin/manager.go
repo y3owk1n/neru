@@ -18,7 +18,7 @@ import (
 type callbackPair struct {
 	press   ports.HotkeyCallback
 	release ports.HotkeyCallback
-	tap     unsafe.Pointer // per-hotkey CGEventTap handle
+	tap     unsafe.Pointer // handle on the shared hotkey CGEventTap
 }
 
 // Manager handles the registration, unregistration, and dispatching of global hotkeys.
@@ -43,7 +43,7 @@ func NewManager(logger *zap.Logger) *Manager {
 		nextID:    1,
 	}
 
-	// Ensure C-allocated per-hotkey taps are destroyed if the manager is
+	// Ensure C-allocated hotkey handles are destroyed if the manager is
 	// garbage collected without an explicit UnregisterAll call.
 	runtime.SetFinalizer(manager, func(manager *Manager) {
 		manager.mu.Lock()

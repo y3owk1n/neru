@@ -33,13 +33,13 @@ typedef void (*EventTapCallback)(const char *key, void *userData);
 /// @param userData User data pointer
 typedef void (*EventTapPassthroughCallback)(void *userData);
 
-/// Per-hotkey tap callback type.
+/// Global hotkey callback type.
 /// @param hotkeyID Registered hotkey identifier
 /// @param eventKind 1 = pressed, 2 = released
 /// @param userData User data pointer
 typedef void (*HotkeyTapCallback)(int hotkeyID, int eventKind, void *userData);
 
-/// Per-hotkey tap handle
+/// Global hotkey handle
 typedef void *HotkeyTapRef;
 
 /// Event tap handle
@@ -99,20 +99,21 @@ void NeruSetEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallbac
 /// @param enabled Non-zero to enable, zero to disable
 void NeruSetEventTapStickyModifierToggle(EventTap tap, int enabled);
 
-#pragma mark - Per-Hotkey CGEventTap
+#pragma mark - Global Hotkey CGEventTap
 
-/// Create a per-hotkey CGEventTap that captures a single key+modifier combo.
-/// The tap is always active and consumes the event when matched.
+/// Register a global hotkey for a single key+modifier combo. One shared
+/// CGEventTap serves every registered hotkey. It is created with the first
+/// hotkey and destroyed with the last, and it consumes a matched event.
 /// @param hotkeyID Opaque identifier passed back in the callback
 /// @param keyCode CG keycode of the hotkey
 /// @param modifiers ModifierKey bitmask
 /// @param callback Callback invoked on press/release
 /// @param userData User data pointer
-/// @return Hotkey tap handle, or NULL on failure (e.g. no Accessibility permission)
+/// @return Hotkey handle, or NULL on failure (e.g. no Accessibility permission)
 HotkeyTapRef NeruCreateHotkeyTap(int hotkeyID, int keyCode, int modifiers, HotkeyTapCallback callback, void *userData);
 
-/// Destroy a per-hotkey CGEventTap previously created by NeruCreateHotkeyTap.
-/// @param tap Hotkey tap handle (NULL-safe)
+/// Unregister a hotkey previously registered by NeruCreateHotkeyTap.
+/// @param tap Hotkey handle (NULL-safe)
 void NeruDestroyHotkeyTap(HotkeyTapRef tap);
 
 #pragma mark - Key String Parsing
