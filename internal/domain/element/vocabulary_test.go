@@ -471,11 +471,13 @@ func TestDefaultClickableRoles_ResolveOnEverySupportedPlatform(t *testing.T) {
 			}
 
 			// A default that only just resolves is a smell. The shipped list
-			// covers buttons, links and text fields on every platform.
+			// covers buttons, links, text fields and list items on every
+			// platform.
 			for _, semantic := range []element.SemanticRole{
 				element.SemanticButton,
 				element.SemanticLink,
 				element.SemanticTextField,
+				element.SemanticListItem,
 			} {
 				want := element.ResolveRoles([]string{string(semantic)}, goos).Native
 				for _, native := range want {

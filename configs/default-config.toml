@@ -154,6 +154,7 @@ clickable_roles = [
     "menu_item",
     "cell",
     "row",
+    "list_item",
     ## Native roles (ax:, atspi:, uia:), ignored on other platforms.
     "ax:AXGenericElement",
 ]
