@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/draw"
 	"math/rand/v2"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/vision/contour"
@@ -315,5 +316,111 @@ func TestDetect_ExpiredDeadlineReturnsNothing(t *testing.T) {
 	rects, err := contour.Detect(ctx, img, 1.0, testParams())
 	if err == nil || rects != nil {
 		t.Fatalf("Detect(canceled) = %v, %v; want nil and an error", rects, err)
+	}
+}
+
+// TestDetect_GroupsEdgesIntoShapes pins how edge pixels group into shapes, and
+// that shapes come out in raster order of their first pixel.
+func TestDetect_GroupsEdgesIntoShapes(t *testing.T) {
+	t.Parallel()
+
+	line := func(x, y, dx int) []image.Rectangle {
+		dots := make([]image.Rectangle, 0, 25)
+		for i := range 25 {
+			dots = append(dots, image.Rect(x+i*dx, y+i, x+i*dx+1, y+i+1))
+		}
+
+		return dots
+	}
+
+	box := func(rect image.Rectangle) []image.Rectangle {
+		return []image.Rectangle{
+			image.Rect(rect.Min.X, rect.Min.Y, rect.Max.X, rect.Min.Y+1),
+			image.Rect(rect.Min.X, rect.Max.Y-1, rect.Max.X, rect.Max.Y),
+			image.Rect(rect.Min.X, rect.Min.Y, rect.Min.X+1, rect.Max.Y),
+			image.Rect(rect.Max.X-1, rect.Min.Y, rect.Max.X, rect.Max.Y),
+		}
+	}
+
+	tests := []struct {
+		name  string
+		scale float64
+		bars  []image.Rectangle
+		want  []image.Rectangle
+	}{
+		{
+			name:  "arms of a U join in the bottom row",
+			scale: 1,
+			bars: []image.Rectangle{
+				image.Rect(40, 40, 42, 80), image.Rect(100, 40, 102, 80),
+				image.Rect(40, 78, 102, 80),
+			},
+			want: []image.Rectangle{image.Rect(37, 37, 106, 83)},
+		},
+		{
+			name:  "three arms join in one bottom run",
+			scale: 1,
+			bars: []image.Rectangle{
+				image.Rect(40, 40, 42, 80), image.Rect(70, 40, 72, 80),
+				image.Rect(100, 40, 102, 80), image.Rect(40, 78, 102, 80),
+			},
+			want: []image.Rectangle{image.Rect(37, 37, 106, 83)},
+		},
+		{
+			// At this scale dilation is one pixel, so the line's two edges
+			// connect only diagonally. Split apart, each edge would add a long
+			// rectangle.
+			name:  "edges stepping down right join at their corners",
+			scale: 0.25,
+			bars:  line(40, 40, 1),
+			want: []image.Rectangle{
+				image.Rect(152, 152, 168, 168),
+				image.Rect(252, 252, 268, 268),
+			},
+		},
+		{
+			name:  "edges stepping down left join at their corners",
+			scale: 0.25,
+			bars:  line(70, 40, -1),
+			want: []image.Rectangle{
+				image.Rect(276, 152, 292, 168),
+				image.Rect(176, 252, 192, 268),
+			},
+		},
+		{
+			name:  "separate boxes come out top to bottom then left to right",
+			scale: 1,
+			bars: slices.Concat(
+				box(image.Rect(200, 20, 260, 46)),
+				box(image.Rect(120, 60, 180, 86)),
+				box(image.Rect(20, 60, 80, 86)),
+			),
+			want: []image.Rectangle{
+				image.Rect(197, 17, 264, 49), image.Rect(17, 57, 84, 89),
+				image.Rect(117, 57, 184, 89),
+			},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			img := image.NewRGBA(image.Rect(0, 0, 300, 200))
+			draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+
+			for _, bar := range testCase.bars {
+				draw.Draw(img, bar, &image.Uniform{color.Black}, image.Point{}, draw.Src)
+			}
+
+			got, err := contour.Detect(context.Background(), img, testCase.scale, testParams())
+			if err != nil {
+				t.Fatalf("Detect() error = %v", err)
+			}
+
+			if !slices.Equal(got, testCase.want) {
+				t.Errorf("Detect() = %v, want %v", got, testCase.want)
+			}
+		})
 	}
 }

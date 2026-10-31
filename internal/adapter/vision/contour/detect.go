@@ -1,10 +1,12 @@
 package contour
 
 import (
+	"bytes"
 	"context"
 	"image"
 	"math"
 
+	pixels "github.com/y3owk1n/neru/internal/adapter/vision/frame"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
@@ -136,17 +138,19 @@ func checkDeadline(ctx context.Context) error {
 func grayscale(pix []uint8, width, height, stride int) []uint8 {
 	gray := make([]uint8, width*height)
 
-	for y := range height {
-		row := pix[y*stride : y*stride+width*4]
-		out := gray[y*width : (y+1)*width]
+	pixels.Rows(height, func(y0, y1 int) {
+		for y := y0; y < y1; y++ {
+			row := pix[y*stride : y*stride+width*4]
+			out := gray[y*width : (y+1)*width]
 
-		for x := range width {
-			r := int(row[x*4])
-			g := int(row[x*4+1])
-			b := int(row[x*4+2])
-			out[x] = uint8((77*r + 150*g + 29*b + 128) >> 8)
+			for x := range width {
+				r := int(row[x*4])
+				g := int(row[x*4+1])
+				b := int(row[x*4+2])
+				out[x] = uint8((77*r + 150*g + 29*b + 128) >> 8)
+			}
 		}
-	}
+	})
 
 	return gray
 }
@@ -159,32 +163,36 @@ func gaussianBlur(gray []uint8, width, height int) []uint8 {
 	tmp := make([]uint8, width*height)
 	out := make([]uint8, width*height)
 
-	for y := range height {
-		row := gray[y*width : (y+1)*width]
-		dst := tmp[y*width : (y+1)*width]
+	pixels.Rows(height, func(y0, y1 int) {
+		for y := y0; y < y1; y++ {
+			row := gray[y*width : (y+1)*width]
+			dst := tmp[y*width : (y+1)*width]
 
-		for x := range width {
-			xm2 := max(x-2, 0)
-			xm1 := max(x-1, 0)
-			xp1 := min(x+1, width-1)
-			xp2 := min(x+2, width-1)
-			dst[x] = uint8((int(row[xm2]) + 4*int(row[xm1]) + 6*int(row[x]) +
-				4*int(row[xp1]) + int(row[xp2]) + 8) >> 4)
+			for x := range width {
+				xm2 := max(x-2, 0)
+				xm1 := max(x-1, 0)
+				xp1 := min(x+1, width-1)
+				xp2 := min(x+2, width-1)
+				dst[x] = uint8((int(row[xm2]) + 4*int(row[xm1]) + 6*int(row[x]) +
+					4*int(row[xp1]) + int(row[xp2]) + 8) >> 4)
+			}
 		}
-	}
+	})
 
-	for y := range height {
-		ym2 := max(y-2, 0) * width
-		ym1 := max(y-1, 0) * width
-		yp1 := min(y+1, height-1) * width
-		yp2 := min(y+2, height-1) * width
-		yw := y * width
+	pixels.Rows(height, func(y0, y1 int) {
+		for y := y0; y < y1; y++ {
+			ym2 := max(y-2, 0) * width
+			ym1 := max(y-1, 0) * width
+			yp1 := min(y+1, height-1) * width
+			yp2 := min(y+2, height-1) * width
+			yw := y * width
 
-		for x := range width {
-			out[yw+x] = uint8((int(tmp[ym2+x]) + 4*int(tmp[ym1+x]) + 6*int(tmp[yw+x]) +
-				4*int(tmp[yp1+x]) + int(tmp[yp2+x]) + 8) >> 4)
+			for x := range width {
+				out[yw+x] = uint8((int(tmp[ym2+x]) + 4*int(tmp[ym1+x]) + 6*int(tmp[yw+x]) +
+					4*int(tmp[yp1+x]) + int(tmp[yp2+x]) + 8) >> 4)
+			}
 		}
-	}
+	})
 
 	return out
 }
@@ -200,69 +208,81 @@ func cannyEdges(blurred []uint8, width, height int, params Params) []uint8 {
 	mag := make([]int16, total)
 	dir := make([]uint8, total)
 
-	for y := 1; y < height-1; y++ {
-		yw := y * width
-		yPrev := (y - 1) * width
-		yNext := (y + 1) * width
+	// This pass skips the one-pixel border, which keeps a zero magnitude.
+	pixels.Rows(height-2, func(r0, r1 int) {
+		for y := r0 + 1; y < r1+1; y++ {
+			yw := y * width
+			yPrev := (y - 1) * width
+			yNext := (y + 1) * width
 
-		for x := 1; x < width-1; x++ {
-			p00 := int(blurred[yPrev+x-1])
-			p01 := int(blurred[yPrev+x])
-			p02 := int(blurred[yPrev+x+1])
-			p10 := int(blurred[yw+x-1])
-			p12 := int(blurred[yw+x+1])
-			p20 := int(blurred[yNext+x-1])
-			p21 := int(blurred[yNext+x])
-			p22 := int(blurred[yNext+x+1])
+			for x := 1; x < width-1; x++ {
+				p00 := int(blurred[yPrev+x-1])
+				p01 := int(blurred[yPrev+x])
+				p02 := int(blurred[yPrev+x+1])
+				p10 := int(blurred[yw+x-1])
+				p12 := int(blurred[yw+x+1])
+				p20 := int(blurred[yNext+x-1])
+				p21 := int(blurred[yNext+x])
+				p22 := int(blurred[yNext+x+1])
 
-			gx := (p02 + 2*p12 + p22) - (p00 + 2*p10 + p20)
-			gy := (p20 + 2*p21 + p22) - (p00 + 2*p01 + p02)
+				gx := (p02 + 2*p12 + p22) - (p00 + 2*p10 + p20)
+				gy := (p20 + 2*p21 + p22) - (p00 + 2*p01 + p02)
 
-			absGx, absGy := abs(gx), abs(gy)
-			mag[yw+x] = int16(absGx + absGy)
+				absGx, absGy := abs(gx), abs(gy)
+				m := int16(absGx + absGy)
+				mag[yw+x] = m
 
-			switch {
-			case absGy*1024 <= absGx*424:
-				dir[yw+x] = 0 // horizontal normal
-			case absGy*1024 >= absGx*2472:
-				dir[yw+x] = 2 // vertical normal
-			case (gx > 0 && gy > 0) || (gx < 0 && gy < 0):
-				dir[yw+x] = 1 // 45 degree diagonal
-			default:
-				dir[yw+x] = 3 // 135 degree diagonal
+				// Suppression skips anything below the low threshold, so its
+				// direction is never read.
+				if m < cannyLow {
+					continue
+				}
+
+				switch {
+				case absGy*1024 <= absGx*424:
+					dir[yw+x] = 0 // horizontal normal
+				case absGy*1024 >= absGx*2472:
+					dir[yw+x] = 2 // vertical normal
+				case (gx > 0 && gy > 0) || (gx < 0 && gy < 0):
+					dir[yw+x] = 1 // 45 degree diagonal
+				default:
+					dir[yw+x] = 3 // 135 degree diagonal
+				}
 			}
 		}
-	}
+	})
 
 	nms := make([]int16, total)
 
-	for y := 1; y < height-1; y++ {
-		yw := y * width
+	pixels.Rows(height-2, func(r0, r1 int) {
+		for y := r0 + 1; y < r1+1; y++ {
+			yw := y * width
 
-		for x := 1; x < width-1; x++ {
-			m := mag[yw+x]
-			if m < cannyLow {
-				continue
-			}
+			for x := 1; x < width-1; x++ {
+				m := mag[yw+x]
+				if m < cannyLow {
+					continue
+				}
 
-			var n1, n2 int16
+				var n1, n2 int16
 
-			switch dir[yw+x] {
-			case 0:
-				n1, n2 = mag[yw+x-1], mag[yw+x+1]
-			case 1:
-				n1, n2 = mag[yw-width+x+1], mag[yw+width+x-1]
-			case 2:
-				n1, n2 = mag[yw-width+x], mag[yw+width+x]
-			default:
-				n1, n2 = mag[yw-width+x-1], mag[yw+width+x+1]
-			}
+				switch dir[yw+x] {
+				case 0:
+					n1, n2 = mag[yw+x-1], mag[yw+x+1]
+				case 1:
+					n1, n2 = mag[yw-width+x+1], mag[yw+width+x-1]
+				case 2:
+					n1, n2 = mag[yw-width+x], mag[yw+width+x]
+				default:
+					n1, n2 = mag[yw-width+x-1], mag[yw+width+x+1]
+				}
 
-			if m >= n1 && m >= n2 {
-				nms[yw+x] = m
+				if m >= n1 && m >= n2 {
+					nms[yw+x] = m
+				}
 			}
 		}
-	}
+	})
 
 	edges := make([]uint8, total)
 	queue := make([]int32, 0, total/8)
@@ -312,90 +332,150 @@ func dilate(edges []uint8, width, height int, scale float64) []uint8 {
 	out := make([]uint8, width*height)
 
 	radiusX := kw / 2
-	for y := range height {
-		yw := y * width
+	pixels.Rows(height, func(y0, y1 int) {
+		for y := y0; y < y1; y++ {
+			yw := y * width
 
-		for x := range width {
-			start := max(x-radiusX, 0)
-			end := min(x+kw-1-radiusX, width-1)
+			for x := range width {
+				start := max(x-radiusX, 0)
+				end := min(x+kw-1-radiusX, width-1)
 
-			for kx := start; kx <= end; kx++ {
-				if edges[yw+kx] != 0 {
-					horiz[yw+x] = 255
-					break
+				for kx := start; kx <= end; kx++ {
+					if edges[yw+kx] != 0 {
+						horiz[yw+x] = 255
+						break
+					}
 				}
 			}
 		}
-	}
+	})
 
+	// A pixel is set when any row the kernel covers is set at its column, so
+	// OR whole rows rather than walking each column.
 	radiusY := kh / 2
-	for x := range width {
-		for y := range height {
+	pixels.Rows(height, func(y0, y1 int) {
+		for y := y0; y < y1; y++ {
 			start := max(y-radiusY, 0)
 			end := min(y+kh-1-radiusY, height-1)
+			dst := out[y*width : (y+1)*width]
 
 			for ky := start; ky <= end; ky++ {
-				if horiz[ky*width+x] != 0 {
-					out[y*width+x] = 255
-					break
+				for x, v := range horiz[ky*width : (ky+1)*width] {
+					dst[x] |= v
 				}
 			}
 		}
-	}
+	})
 
 	return out
 }
 
-// connectedComponents labels 8-connected blobs by breadth-first search, in
-// raster order of their first pixel, and records each blob's bounding box.
+// connectedComponents labels 8-connected blobs and records each blob's
+// bounding box, in raster order of each blob's first pixel. It scans runs of
+// set pixels row by row. A union-find over run labels joins each run to every
+// run it touches in the row above, diagonals included.
 //
-//nolint:varnamelen,mnd // pixel kernel: coordinates and kernel coefficients read as the algorithm writes them
+//nolint:varnamelen,mnd // pixel kernel: coordinates and buffer sizes read as the algorithm writes them
 func connectedComponents(dilated []uint8, width, height int) []component {
-	visited := make([]bool, width*height)
-	queue := make([]int32, 0, 1024)
-	comps := make([]component, 0, 256)
+	type run struct{ x0, x1, label int32 }
+
+	runs := make([]run, 0, 4096)
+	rowStart := make([]int32, height+1)
+	parent := make([]int32, 0, 1024)
+
+	find := func(label int32) int32 {
+		for parent[label] != label {
+			parent[label] = parent[parent[label]]
+			label = parent[label]
+		}
+
+		return label
+	}
+
+	above0, above1 := 0, 0
 
 	for y := range height {
-		yw := y * width
+		rowStart[y] = int32(len(runs))
+		row := dilated[y*width : (y+1)*width]
 
-		for x := range width {
-			idx := yw + x
-			if dilated[idx] == 0 || visited[idx] {
-				continue
+		for x := 0; x < width; {
+			k := bytes.IndexByte(row[x:], 255)
+			if k < 0 {
+				break
 			}
 
-			comp := component{
-				minX: x, maxX: x, minY: y, maxY: y,
-				parent: -1, firstChild: -1, nextSibling: -1,
+			x += k
+			x0 := x
+
+			k = bytes.IndexByte(row[x:], 0)
+			if k < 0 {
+				x = width
+			} else {
+				x += k
 			}
 
-			visited[idx] = true
-			queue = append(queue[:0], int32(idx))
+			cur := run{x0: int32(x0), x1: int32(x - 1), label: -1}
 
-			for head := 0; head < len(queue); head++ {
-				curr := int(queue[head])
-				cx, cy := curr%width, curr/width
+			for above0 < above1 && runs[above0].x1+1 < cur.x0 {
+				above0++
+			}
 
-				comp.minX = min(comp.minX, cx)
-				comp.maxX = max(comp.maxX, cx)
-				comp.minY = min(comp.minY, cy)
-				comp.maxY = max(comp.maxY, cy)
+			for _, above := range runs[above0:above1] {
+				if above.x0 > cur.x1+1 {
+					break
+				}
 
-				for k := range 8 {
-					nx, ny := cx+dx8[k], cy+dy8[k]
-					if nx < 0 || nx >= width || ny < 0 || ny >= height {
-						continue
-					}
+				root := find(above.label)
 
-					nidx := ny*width + nx
-					if dilated[nidx] != 0 && !visited[nidx] {
-						visited[nidx] = true
-						queue = append(queue, int32(nidx))
-					}
+				switch {
+				case cur.label < 0:
+					cur.label = root
+				case root != cur.label:
+					low, high := min(root, cur.label), max(root, cur.label)
+					parent[high] = low
+					cur.label = low
 				}
 			}
 
-			comps = append(comps, comp)
+			if cur.label < 0 {
+				cur.label = int32(len(parent))
+				parent = append(parent, cur.label)
+			}
+
+			runs = append(runs, cur)
+		}
+
+		above0, above1 = int(rowStart[y]), len(runs)
+	}
+
+	rowStart[height] = int32(len(runs))
+
+	index := make([]int32, len(parent))
+	for i := range index {
+		index[i] = -1
+	}
+
+	comps := make([]component, 0, 256)
+
+	for y := range height {
+		for _, cur := range runs[rowStart[y]:rowStart[y+1]] {
+			root := find(cur.label)
+
+			ci := index[root]
+			if ci < 0 {
+				ci = int32(len(comps))
+				index[root] = ci
+
+				comps = append(comps, component{
+					minX: int(cur.x0), maxX: int(cur.x1), minY: y, maxY: y,
+					parent: -1, firstChild: -1, nextSibling: -1,
+				})
+			}
+
+			c := &comps[ci]
+			c.minX = min(c.minX, int(cur.x0))
+			c.maxX = max(c.maxX, int(cur.x1))
+			c.maxY = y
 		}
 	}
 
