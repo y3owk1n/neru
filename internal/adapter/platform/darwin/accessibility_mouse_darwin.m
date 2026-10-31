@@ -38,6 +38,11 @@ static os_unfair_lock mouseMoveLock = OS_UNFAIR_LOCK_INIT;
 static void postPositionedEventLocked(CGEventRef event, CGPoint position) {
 	os_unfair_lock_lock(&mouseMoveLock);
 
+	// Tag before posting so the event tap ignores it. Every synthetic mouse
+	// event Neru emits funnels through here, so this is the single point that
+	// keeps `action left_click` from being mistaken for a physical click.
+	CGEventSetIntegerValueField(event, kCGEventSourceUserData, kNeruSyntheticEventMarker);
+
 	// Go threads have no autorelease pool, and posting autoreleases a CFData per
 	// event. Without this pool the daemon keeps every one until it exits.
 	@autoreleasepool {
