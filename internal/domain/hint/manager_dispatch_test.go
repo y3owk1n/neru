@@ -4,7 +4,6 @@ import (
 	"image"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -12,24 +11,23 @@ import (
 )
 
 // updateRecorder captures how the manager delivered each hint update. The
-// distinction that matters is *when* onUpdate ran. immediateUpdate calls it
-// synchronously inside HandleInput, and debouncedUpdate schedules it on a timer.
+// distinction that matters is *when* onUpdate ran. Every update must arrive
+// synchronously inside the call that caused it, so a keystroke's redraw is
+// never left on a timer.
 type updateRecorder struct {
 	mu sync.Mutex
 
 	// synchronous counts callbacks that arrived while inCall was set.
 	synchronous int
-	// asynchronous counts callbacks that arrived after the call returned,
-	// i.e. ones delivered by the debounce timer.
+	// asynchronous counts callbacks that arrived after the call returned.
 	asynchronous int
 	inCall       bool
 	// lastCount is the number of hints carried by the most recent callback.
 	lastCount int
-	async     chan struct{}
 }
 
 func newUpdateRecorder() *updateRecorder {
-	return &updateRecorder{async: make(chan struct{}, 16)}
+	return &updateRecorder{}
 }
 
 func (r *updateRecorder) callback(hints []*hint.Interface) {
@@ -45,13 +43,6 @@ func (r *updateRecorder) callback(hints []*hint.Interface) {
 
 	r.asynchronous++
 	r.mu.Unlock()
-
-	// Only debounced deliveries are signaled, so a waiter can never be woken
-	// by a stale token left behind by a synchronous callback.
-	select {
-	case r.async <- struct{}{}:
-	default:
-	}
 }
 
 // counts returns the recorded synchronous and asynchronous callback totals.
@@ -71,7 +62,7 @@ func (r *updateRecorder) lastHintCount() int {
 }
 
 // during runs fn with the synchronous window marked, so a callback delivered
-// inside fn is distinguishable from one delivered by the debounce timer.
+// inside fn is distinguishable from one delivered after it returned.
 func (r *updateRecorder) during(fn func()) {
 	r.mu.Lock()
 	r.inCall = true
@@ -86,7 +77,7 @@ func (r *updateRecorder) during(fn func()) {
 
 // handleInput runs one keystroke with the recorder marking the synchronous
 // window, so a callback delivered inside the call is distinguishable from one
-// delivered by the debounce timer afterwards.
+// delivered afterwards.
 func (r *updateRecorder) handleInput(
 	tb testing.TB,
 	manager *hint.Manager,
@@ -171,85 +162,51 @@ func newDispatchManager(
 	return manager, recorder, mut
 }
 
-// TestManager_HandleInput_UpdateDispatchFollowsHintCount pins the heuristic
-// that decides between a synchronous repaint and a debounced one. When the
-// filtered hint count is unchanged only text colors move, so the update is
-// immediate. When the count changes the overlay has to restructure, so the
-// update is debounced to batch redraws.
+// TestManager_HandleInput_RedrawsWithinTheKeystroke pins that every narrowing
+// keystroke hands its redraw over before HandleInput returns, whether or not
+// the filtered count changed. A keystroke that only recolors the matched
+// prefix and one that drops hints must both be immediate, because a deferred
+// redraw is latency the user sees on every hint they type.
 //
-// Getting this backwards is invisible to a count-only assertion, because the
-// callback still runs, just at the wrong time. That is why this test
-// distinguishes callbacks delivered inside HandleInput from ones delivered by
-// the timer.
-func TestManager_HandleInput_UpdateDispatchFollowsHintCount(t *testing.T) {
+// A count-only assertion cannot catch a regression here, because the callback
+// still runs, just later. That is why this test distinguishes callbacks
+// delivered inside HandleInput from ones delivered after it.
+func TestManager_HandleInput_RedrawsWithinTheKeystroke(t *testing.T) {
 	// AAA and AAB share the "AA" prefix, ABC diverges at the second character,
 	// so typing A -> A narrows 3 -> 3 -> 2.
 	manager, recorder, mut := newDispatchManager(t, "AAA", "AAB", "ABC")
 	defer mut.Unlock()
 
-	// SetHints itself delivers one update.
-	syncBefore, asyncBefore := recorder.counts()
+	for _, step := range []struct {
+		name      string
+		wantCount int
+	}{
+		{name: "unchanged count", wantCount: 3},
+		{name: "narrowed count", wantCount: 2},
+	} {
+		syncBefore, asyncBefore := recorder.counts()
 
-	// First "A" matches all three. The count is unchanged, so this must be an
-	// immediate, synchronous repaint.
-	if _, found := recorder.handleInput(t, manager, "A"); found {
-		t.Fatal(`HandleInput("A") reported an exact match, want none`)
-	}
+		if _, found := recorder.handleInput(t, manager, "A"); found {
+			t.Fatalf("%s: HandleInput(%q) reported an exact match, want none", step.name, "A")
+		}
 
-	gotSync, gotAsync := recorder.counts()
+		gotSync, gotAsync := recorder.counts()
 
-	if gotSync != syncBefore+1 {
-		t.Errorf(
-			"unchanged hint count: got %d synchronous updates, want %d (the repaint must not be debounced)",
-			gotSync-syncBefore,
-			1,
-		)
-	}
+		if gotSync != syncBefore+1 {
+			t.Errorf(
+				"%s: got %d synchronous updates, want 1 (the redraw must not be deferred)",
+				step.name,
+				gotSync-syncBefore,
+			)
+		}
 
-	if gotAsync != asyncBefore {
-		t.Errorf(
-			"unchanged hint count delivered %d asynchronous updates, want 0",
-			gotAsync-asyncBefore,
-		)
-	}
+		if gotAsync != asyncBefore {
+			t.Errorf("%s: got %d asynchronous updates, want 0", step.name, gotAsync-asyncBefore)
+		}
 
-	// Second "A" narrows 3 -> 2, a structural change, so it must be debounced
-	// rather than delivered inside the call.
-	syncBefore, asyncBefore = recorder.counts()
-
-	if _, found := recorder.handleInput(t, manager, "A"); found {
-		t.Fatal(`HandleInput("AA") reported an exact match, want none`)
-	}
-
-	gotSync, _ = recorder.counts()
-
-	if gotSync != syncBefore {
-		t.Errorf(
-			"changed hint count delivered %d synchronous updates, want 0 (the restructure must be debounced)",
-			gotSync-syncBefore,
-		)
-	}
-
-	// Release the external mutex so the debounce timer's callback can take it,
-	// then wait for the deferred update to actually arrive.
-	mut.Unlock()
-
-	select {
-	case <-recorder.async:
-	case <-time.After(2 * time.Second):
-		mut.Lock()
-		t.Fatal("debounced update never fired")
-	}
-
-	mut.Lock()
-
-	if _, gotAsync = recorder.counts(); gotAsync != asyncBefore+1 {
-		t.Errorf("got %d asynchronous updates, want 1", gotAsync-asyncBefore)
-	}
-
-	// The deferred update must carry the narrowed set, not the pre-keystroke one.
-	if got := recorder.lastHintCount(); got != 2 {
-		t.Errorf("debounced update carried %d hints, want the narrowed set of 2", got)
+		if got := recorder.lastHintCount(); got != step.wantCount {
+			t.Errorf("%s: update carried %d hints, want %d", step.name, got, step.wantCount)
+		}
 	}
 }
 
@@ -374,9 +331,8 @@ func TestManager_HandleBackspace_RestoresWiderHintSet(t *testing.T) {
 		t.Fatalf("CurrentInput() = %q, want %q", got, "AA")
 	}
 
-	// Backspacing "AA" -> "A" widens the filtered set from 2 back to 3. That is
-	// a structural change, so, exactly as on the typing path, it must be
-	// debounced rather than delivered inside the call.
+	// Backspacing "AA" -> "A" widens the filtered set from 2 back to 3, and
+	// the redraw must arrive inside the call, exactly as on the typing path.
 	syncBefore, asyncBefore := recorder.counts()
 
 	recorder.backspace(t, manager)
@@ -385,28 +341,20 @@ func TestManager_HandleBackspace_RestoresWiderHintSet(t *testing.T) {
 		t.Errorf("CurrentInput() = %q after one backspace, want %q", got, "A")
 	}
 
-	gotSync, _ := recorder.counts()
+	gotSync, gotAsync := recorder.counts()
 
-	if gotSync != syncBefore {
+	if gotSync != syncBefore+1 {
 		t.Errorf(
-			"widening backspace delivered %d synchronous updates, want 0 (the restructure must be debounced)",
+			"widening backspace delivered %d synchronous updates, want 1 (the redraw must not be deferred)",
 			gotSync-syncBefore,
 		)
 	}
 
-	mut.Unlock()
-
-	select {
-	case <-recorder.async:
-	case <-time.After(2 * time.Second):
-		mut.Lock()
-		t.Fatal("debounced update never fired after a widening backspace")
-	}
-
-	mut.Lock()
-
-	if _, gotAsync := recorder.counts(); gotAsync != asyncBefore+1 {
-		t.Errorf("got %d asynchronous updates after backspace, want 1", gotAsync-asyncBefore)
+	if gotAsync != asyncBefore {
+		t.Errorf(
+			"widening backspace delivered %d asynchronous updates, want 0",
+			gotAsync-asyncBefore,
+		)
 	}
 
 	if got := recorder.lastHintCount(); got != 3 {
@@ -414,8 +362,7 @@ func TestManager_HandleBackspace_RestoresWiderHintSet(t *testing.T) {
 	}
 
 	// Backspacing "A" -> "" keeps the set at 3 (everything already matched the
-	// single-character prefix), so this one is only a color repaint and must
-	// be delivered immediately.
+	// single-character prefix), and that redraw is immediate too.
 	syncBefore, _ = recorder.counts()
 
 	recorder.backspace(t, manager)

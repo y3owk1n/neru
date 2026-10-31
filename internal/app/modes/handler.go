@@ -112,11 +112,9 @@ type handlerState struct {
 	// the overlay shown and switched, and paying for a window show per
 	// keystroke is the latency regression AGENTS.md forbids.
 	//
-	// It may only be cleared in a locked section that also invalidates the hint
-	// manager's pending update generation, or a debounce timer firing after the
-	// clear performs a window transition for an activation that is already
-	// gone. The two sites that clear it both satisfy that (`hints.go`,
-	// `hintdraw.go`).
+	// Each site that puts a new collection on screen clears it immediately
+	// before SetHints, whose synchronous update callback performs the window
+	// transition (`hints.go`, `monitor.go`, `handler_refresh.go`).
 	hintsFrameOnScreen bool
 	// Services
 	hintService            *services.HintService

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -15,56 +14,33 @@ import (
 type Manager struct {
 	domain.BaseManager
 
-	hints            *Collection
-	onUpdate         func([]*Interface) // Callback when filtered hints change
-	debounceTimer    *time.Timer
-	debounceDuration time.Duration
-	mu               sync.Mutex // Protects onUpdate callback and updateGen
+	hints    *Collection
+	onUpdate func([]*Interface) // Callback when filtered hints change
+	mu       sync.Mutex         // Protects onUpdate
 
-	// externalMu is an optional mutex acquired by debouncedUpdate's timer
-	// callback before invoking onUpdate. This allows the caller to protect
-	// shared state (e.g., screen bounds, overlay manager) that the callback
-	// reads/writes without introducing locking inside the callback itself
-	// (which would deadlock on synchronous call paths).
+	// externalMu is an optional mutex the caller holds around every method
+	// that invokes onUpdate. The callback runs synchronously in the caller's
+	// goroutine, so it can read and write the caller's shared state (e.g.,
+	// screen bounds, overlay manager) without locking inside the callback.
 	externalMu *sync.Mutex
-
-	// updateGen is a monotonically increasing counter incremented by both
-	// immediateUpdate and debouncedUpdate. The debounced timer callback
-	// captures the generation at scheduling time and skips the onUpdate
-	// call if a newer update has occurred since, preventing a stale
-	// goroutine from overwriting a fresher immediate update.
-	updateGen uint64
 
 	// Performance optimization: reuse slice buffer for filtered hints
 	cachedFilteredHints []*Interface
-
-	// lastFilteredLen caches the filtered hint count from the previous
-	// HandleInput call, avoiding a redundant FilterByPrefix to capture
-	// the "before" count on each keystroke.
-	lastFilteredLen int
 
 	// exitOnUnmatched keeps the input and skips the redraw on an unmatched
 	// key, so the mode can exit without drawing first.
 	exitOnUnmatched bool
 }
 
-const (
-	// DefaultDebounceDuration is the default debounce duration for hint updates.
-	DefaultDebounceDuration = 50 * time.Millisecond
-)
-
 // NewManager creates a new hint manager with the specified logger and an
-// optional external mutex. When non-nil, debouncedUpdate's timer callback
-// acquires externalMu before invoking onUpdate so the caller can protect
-// shared state (e.g., screen bounds, overlay manager) without locking
-// inside the callback itself (which would deadlock on synchronous paths).
+// optional external mutex. When non-nil, every method that invokes onUpdate
+// requires the caller to hold externalMu (see requireExternalMuHeld).
 func NewManager(logger *zap.Logger, externalMu *sync.Mutex) *Manager {
 	return &Manager{
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
-		debounceDuration: DefaultDebounceDuration,
-		externalMu:       externalMu,
+		externalMu: externalMu,
 	}
 }
 
@@ -90,25 +66,12 @@ func (m *Manager) SetHints(hints *Collection) error {
 		return err
 	}
 
-	if m.debounceTimer != nil {
-		m.debounceTimer.Stop()
-		m.debounceTimer = nil
-	}
-
-	m.mu.Lock()
-	m.updateGen++
-	m.mu.Unlock()
-
 	m.hints = hints
 	m.SetCurrentInput("")
 
 	if hints == nil {
-		m.lastFilteredLen = 0
-
 		return nil
 	}
-
-	m.lastFilteredLen = len(hints.All())
 
 	m.mu.Lock()
 	callback := m.onUpdate
@@ -129,24 +92,11 @@ func (m *Manager) Reset() error {
 		return err
 	}
 
-	if m.debounceTimer != nil {
-		m.debounceTimer.Stop()
-		m.debounceTimer = nil
-	}
-
-	m.mu.Lock()
-	m.updateGen++
-	m.mu.Unlock()
-
 	m.SetCurrentInput("")
 
 	if m.hints == nil {
-		m.lastFilteredLen = 0
-
 		return nil
 	}
-
-	m.lastFilteredLen = len(m.hints.All())
 
 	m.mu.Lock()
 	callback := m.onUpdate
@@ -169,18 +119,8 @@ func (m *Manager) Clear() error {
 		return err
 	}
 
-	if m.debounceTimer != nil {
-		m.debounceTimer.Stop()
-		m.debounceTimer = nil
-	}
-
-	m.mu.Lock()
-	m.updateGen++
-	m.mu.Unlock()
-
 	m.hints = nil
 	m.cachedFilteredHints = nil
-	m.lastFilteredLen = 0
 	m.exitOnUnmatched = false
 	m.SetCurrentInput("")
 
@@ -201,8 +141,6 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, bool, error) {
 		return nil, false, false, nil
 	}
 
-	prevLen := m.lastFilteredLen
-
 	m.SetCurrentInput(m.CurrentInput() + strings.ToUpper(key))
 
 	filtered := m.hints.FilterByPrefix(m.CurrentInput())
@@ -217,21 +155,10 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, bool, error) {
 
 		// No matches, so reset the input and show all hints.
 		m.SetCurrentInput("")
-		allLen := len(m.hints.All())
-		m.lastFilteredLen = allLen
 
-		// Apply the same count-based heuristic as the other paths. If the
-		// hint count didn't change (e.g., repeated invalid keystrokes that
-		// keep resetting to the full set), update immediately since only
-		// text colors change. Otherwise debounce to batch the structural
-		// redraw.
-		if allLen == prevLen {
-			err := m.immediateUpdate(m.hints.All())
-			if err != nil {
-				return nil, false, false, err
-			}
-		} else {
-			m.debouncedUpdate(m.hints.All())
+		err := m.immediateUpdate(m.hints.All())
+		if err != nil {
+			return nil, false, false, err
 		}
 
 		return nil, false, false, nil
@@ -252,38 +179,12 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, bool, error) {
 			m.Logger.Debug("Hint exact match found")
 		}
 
-		if m.debounceTimer != nil {
-			m.debounceTimer.Stop()
-			m.debounceTimer = nil
-		}
-
-		m.mu.Lock()
-		m.updateGen++
-		m.mu.Unlock()
-
-		m.lastFilteredLen = len(filtered)
-
 		return m.cachedFilteredHints[0], true, false, nil
 	}
 
-	m.lastFilteredLen = len(filtered)
-
-	// When the hint set structure changes (count differs), debounce to avoid
-	// excessive redraws. When only the matched prefix changed (same count),
-	// update immediately, because the overlay only repaints text colors.
-	//
-	// This count-based heuristic is safe because Collection is immutable after
-	// creation, so the underlying hint set cannot change between keystrokes.
-	// Typing can only narrow (or maintain) the set, and backspacing can only
-	// widen (or maintain) it. If Collection ever gains mutation methods, this
-	// assumption must be revisited.
-	if len(filtered) == prevLen {
-		err := m.immediateUpdate(m.cachedFilteredHints)
-		if err != nil {
-			return nil, false, false, err
-		}
-	} else {
-		m.debouncedUpdate(m.cachedFilteredHints)
+	err := m.immediateUpdate(m.cachedFilteredHints)
+	if err != nil {
+		return nil, false, false, err
 	}
 
 	return nil, false, false, nil
@@ -306,7 +207,6 @@ func (m *Manager) FilteredHints() []*Interface {
 // still matches. On empty input it resets to the full hint set.
 func (m *Manager) HandleBackspace() error {
 	if len(m.CurrentInput()) > 0 {
-		prevLen := m.lastFilteredLen
 		m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
 
 		if m.hints != nil {
@@ -323,19 +223,9 @@ func (m *Manager) HandleBackspace() error {
 				m.cachedFilteredHints[i] = h.WithMatchedPrefix(m.CurrentInput())
 			}
 
-			m.lastFilteredLen = len(filtered)
-
-			// When the hint set structure changes (count differs), debounce
-			// to avoid excessive redraws. When only the matched prefix
-			// changed (same count), update immediately, because the overlay
-			// only repaints text colors.
-			if len(filtered) == prevLen {
-				err := m.immediateUpdate(m.cachedFilteredHints)
-				if err != nil {
-					return err
-				}
-			} else {
-				m.debouncedUpdate(m.cachedFilteredHints)
+			err := m.immediateUpdate(m.cachedFilteredHints)
+			if err != nil {
+				return err
 			}
 		}
 
@@ -367,26 +257,18 @@ func (m *Manager) requireExternalMuHeld(caller string) error {
 	return nil
 }
 
-// immediateUpdate runs the update callback synchronously, canceling any
-// pending debounced update. It is for cheap changes where the 50ms debounce
-// would feel sluggish. The caller must hold externalMu when set, because this
-// runs in the caller's goroutine while debouncedUpdate's timer takes the lock
-// itself. There is no defensive copy of hints because the callback consumes
-// the slice before returning. Add one if that contract ever changes.
+// immediateUpdate runs the update callback synchronously, so a keystroke's
+// redraw reaches the overlay before HandleInput returns. The caller must hold
+// externalMu when set, because this runs in the caller's goroutine. There is
+// no defensive copy of hints because the callback consumes the slice before
+// returning. Add one if that contract ever changes.
 func (m *Manager) immediateUpdate(hints []*Interface) error {
 	err := m.requireExternalMuHeld("immediateUpdate")
 	if err != nil {
 		return err
 	}
 
-	if m.debounceTimer != nil {
-		m.debounceTimer.Stop()
-		m.debounceTimer = nil
-	}
-
 	m.mu.Lock()
-	m.updateGen++
-
 	callback := m.onUpdate
 	m.mu.Unlock()
 
@@ -395,46 +277,4 @@ func (m *Manager) immediateUpdate(hints []*Interface) error {
 	}
 
 	return nil
-}
-
-// debouncedUpdate schedules a debounced update of the overlay.
-func (m *Manager) debouncedUpdate(hints []*Interface) {
-	if m.debounceTimer != nil {
-		m.debounceTimer.Stop()
-	}
-
-	m.mu.Lock()
-	m.updateGen++
-	gen := m.updateGen
-	m.mu.Unlock()
-
-	// Copy hints to avoid race with slice reuse
-	hintsCopy := make([]*Interface, len(hints))
-	copy(hintsCopy, hints)
-
-	m.debounceTimer = time.AfterFunc(m.debounceDuration, func() {
-		// Acquire the external mutex first (if set) so the callback can
-		// safely access caller-owned state (e.g., screen bounds, overlay).
-		if m.externalMu != nil {
-			m.externalMu.Lock()
-			defer m.externalMu.Unlock()
-		}
-
-		m.mu.Lock()
-
-		// A newer update (immediate or debounced) has occurred since this
-		// timer was scheduled, so this data is stale and the callback is skipped.
-		if m.updateGen != gen {
-			m.mu.Unlock()
-
-			return
-		}
-
-		callback := m.onUpdate
-		m.mu.Unlock()
-
-		if callback != nil {
-			callback(hintsCopy)
-		}
-	})
 }

@@ -2816,7 +2816,9 @@ enabled = %t
 // keystroke that narrows the labels redraws it without paying for the window
 // sequence again. On macOS a show queues window-level, collection-behavior
 // and ordering work on the main thread. Doing that per keystroke is the
-// latency regression AGENTS.md forbids.
+// latency regression AGENTS.md forbids. The redraw also happens before the
+// keystroke returns, because a redraw left on a timer adds latency to every
+// label the user types.
 func TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain(t *testing.T) {
 	elements := manyButtons(t, 12)
 	sim := newSimHarness(t, simConfig(), elements)
@@ -2849,11 +2851,11 @@ func TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain(t *testing.T) {
 	drawsBefore := sim.overlay.hintDrawCount()
 
 	sim.press(prefix)
-	sim.waitFor("hints narrowed by prefix", func() bool {
-		remaining := sim.overlay.lastHintLabels()
 
-		return len(remaining) > 0 && len(remaining) < len(elements)
-	})
+	if got := len(sim.overlay.lastHintLabels()); got == 0 || got >= len(elements) {
+		t.Fatalf("labels on screen after the narrowing key returned = %d, want between 1 and %d",
+			got, len(elements)-1)
+	}
 
 	if got := sim.overlay.hintDrawCount(); got <= drawsBefore {
 		t.Fatalf("hint draws after narrowing = %d, want more than %d", got, drawsBefore)

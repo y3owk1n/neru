@@ -455,9 +455,7 @@ func (h *handlerState) refreshHintsForMonitorMove(
 
 	// The frame came off the screen before the warp, so this draw performs the
 	// window sequence again. As on the activation path, the flag is cleared
-	// immediately before SetHints, which bumps the hint manager's update
-	// generation in the same locked section, so a debounce timer that fired
-	// during the move cannot re-show the overlay on the display just left.
+	// immediately before SetHints, and SetHints draws that sequence.
 	h.hintsFrameOnScreen = false
 
 	setHintsErr := h.hints.Context.SetHints(hintCollection)

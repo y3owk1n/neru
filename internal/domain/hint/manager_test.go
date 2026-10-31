@@ -248,8 +248,8 @@ func TestManager_ImmediateUpdateRequiresExternalMu(t *testing.T) {
 	}
 	mut.Unlock()
 
-	// "A" narrows to 2 hints (AA, AB), the same count as the full set (2),
-	// so this triggers immediateUpdate, which should fail without the lock.
+	// "A" matches both hints (AA, AB), and the redraw it triggers should fail
+	// without the lock.
 	err = inputErr(manager.HandleInput("A"))
 	if !errors.Is(err, hint.ErrExternalMuNotHeld) {
 		t.Fatalf("HandleInput without externalMu: got %v, want %v", err, hint.ErrExternalMuNotHeld)
@@ -314,7 +314,7 @@ func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetHints: %v", err)
 	}
-	// "A" narrows to 2 hints (AA, AB), the same count, so it takes immediateUpdate.
+	// "A" matches both hints (AA, AB) and redraws them.
 	err = inputErr(manager.HandleInput("A"))
 	if err != nil {
 		t.Fatalf("HandleInput: %v", err)
@@ -328,9 +328,8 @@ func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
 
 func TestManager_NoMatchRepeatedUsesImmediateUpdate(t *testing.T) {
 	// When the user types an invalid key that resets to the full set, and
-	// then types another invalid key (still the full set), the count
-	// doesn't change so the no-match path should use immediateUpdate
-	// (synchronous callback) rather than debouncedUpdate.
+	// then types another invalid key (still the full set), each reset
+	// redraws synchronously inside HandleInput.
 	var mut sync.Mutex
 
 	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
@@ -349,7 +348,6 @@ func TestManager_NoMatchRepeatedUsesImmediateUpdate(t *testing.T) {
 		t.Fatalf("SetHints: %v", err)
 	}
 	// First invalid key "X" has no match and resets to the full set (count 2).
-	// Previous count was 2 (from SetHints), so the same count takes immediateUpdate.
 	err = inputErr(manager.HandleInput("X"))
 	if err != nil {
 		t.Fatalf("HandleInput: %v", err)
@@ -359,7 +357,6 @@ func TestManager_NoMatchRepeatedUsesImmediateUpdate(t *testing.T) {
 		t.Errorf("Expected 2 callback calls after first invalid key, got %d", callCount)
 	}
 	// Second invalid key "Z" has no match either, so the set stays full (count 2).
-	// Previous count was 2, so the same count takes immediateUpdate (synchronous).
 	err = inputErr(manager.HandleInput("Z"))
 	if err != nil {
 		t.Fatalf("HandleInput: %v", err)
