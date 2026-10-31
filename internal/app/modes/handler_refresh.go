@@ -111,9 +111,8 @@ func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 	// onto the new one rather than a repaint of the old. It has to be resized
 	// to the new display, shown and switched, and that whole sequence belongs
 	// to the overlay. As on the activation and monitor-move paths, the flag is
-	// cleared immediately before SetHints, which bumps the hint manager's
-	// update generation in the same locked section, so a debounce timer that
-	// fired during the change cannot re-show the overlay on the old display.
+	// cleared immediately before SetHints, and SetHints draws that
+	// transition.
 	h.hintsFrameOnScreen = false
 
 	setHintsErr := h.hints.Context.SetHints(

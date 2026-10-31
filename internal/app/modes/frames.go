@@ -88,12 +88,9 @@ func (h *handlerState) clearOverlayFrame() {
 // still running and will put it back. A monitor move clears before the cursor
 // warps so the drawing does not linger on the display being left.
 //
-// It deliberately leaves hintsFrameOnScreen alone. That flag may only be
-// cleared where the hint manager's pending debounced update is invalidated in
-// the same locked section (`handler.go`), and this cannot invalidate one,
-// because the mode is live and its debounce timer may still fire. The redraw on
-// the other side clears the flag immediately before SetHints, which is the
-// pattern that rule describes.
+// It deliberately leaves hintsFrameOnScreen alone. The redraw on the other
+// side clears the flag immediately before SetHints, and the draw SetHints
+// makes performs the window sequence.
 func (h *handlerState) clearOverlayFrameForRedraw() {
 	if h.overlayPort == nil {
 		return

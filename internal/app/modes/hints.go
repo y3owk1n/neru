@@ -296,12 +296,8 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	// where the overlay has to be re-shown on the display the user is now on.
 	//
 	// This sits immediately before SetHints on purpose. Clearing the flag says
-	// "the next draw performs the window sequence", so it may only be cleared
-	// where the hint manager's pending debounced updates are invalidated in the
-	// same locked section. SetHints below bumps the update generation, and on
-	// the teardown path Manager.Clear does. Clearing it any earlier would let a
-	// debounce timer that fired in between show and switch an overlay this
-	// activation may still abandon.
+	// "the next draw performs the window sequence", and SetHints below makes
+	// that draw.
 	h.hintsFrameOnScreen = false
 
 	setHintsErr := h.hints.Context.SetHints(hintCollection)
