@@ -137,7 +137,7 @@ Follow one event from the OS to the user-visible action:
 5. **Keyboard layout changes**: on macOS the mode-level CGEventTap rebuilds its
    key-name tables on a layout switch (`NeruSetKeymapLayoutChangeCallback` in
    [keymap_darwin.m](../../internal/adapter/platform/darwin/keymap_darwin.m)).
-   Per-hotkey CGEventTaps re-register too
+   Global hotkeys re-register too
    (`NeruSetKeymapLayoutChangeCallback2`), because `NeruKeyNameToCode` maps key
    names to layout-aware keycodes.
 

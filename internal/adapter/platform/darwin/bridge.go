@@ -50,7 +50,7 @@ func SetHotkeyHandler(handler HotkeyHandler) {
 	hotkeyHandlerSlot.Set(handler)
 }
 
-// CreateHotkeyTap creates a per-hotkey CGEventTap.
+// CreateHotkeyTap registers a global hotkey on the shared hotkey CGEventTap.
 // Returns an opaque handle (must be destroyed via DestroyHotkeyTap) or nil on failure.
 func CreateHotkeyTap(hotkeyID, keyCode, modifiers int) unsafe.Pointer {
 	return unsafe.Pointer(C.NeruCreateHotkeyTap(
@@ -62,7 +62,7 @@ func CreateHotkeyTap(hotkeyID, keyCode, modifiers int) unsafe.Pointer {
 	))
 }
 
-// DestroyHotkeyTap destroys a per-hotkey CGEventTap previously created by CreateHotkeyTap.
+// DestroyHotkeyTap unregisters a hotkey previously registered by CreateHotkeyTap.
 func DestroyHotkeyTap(tap unsafe.Pointer) {
 	if tap == nil {
 		return

@@ -39,7 +39,7 @@ type HotkeyPort interface {
 // The rules for optional extensions are in system.go and apply here too.
 //
 // Implemented by all three managers, each from a different source: the macOS
-// per-hotkey CGEventTaps see both edges. On Linux the evdev proxy reads every
+// hotkey CGEventTap sees both edges. On Linux the evdev proxy reads every
 // release and an XGrabKey delivers KeyRelease to the grabbing client. Win32's
 // RegisterHotKey reports the press only, so the Windows manager polls the
 // key's state while it is held. A hold is one press and one release however

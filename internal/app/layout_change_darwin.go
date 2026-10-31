@@ -11,7 +11,7 @@ import (
 // registerLayoutChangeHandler registers a Go-level callback that fires after
 // keyboard layout maps are rebuilt at runtime (e.g. switching US to Dvorak).
 //
-// Global hotkeys use per-hotkey CGEventTaps that store raw keycodes at
+// The hotkey CGEventTap matches global hotkeys on raw keycodes stored at
 // registration time. When the layout changes, the keycodes for key names
 // like "Space" or "H" may change. This handler unregisters all global
 // hotkeys and re-registers them with the updated keycodes.
