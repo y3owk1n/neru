@@ -118,25 +118,22 @@ func ClickableRoles() []string {
 
 // ElementInfo contains metadata and positioning information for a UI element.
 type ElementInfo struct {
-	position          image.Point
-	size              image.Point
-	title             string
-	description       string
-	value             string
-	identifier        string
-	searchText        string
-	role              string
-	subrole           string
-	roleDescription   string
-	isEnabled         bool
-	hasEnabledAttr    bool
-	isFocused         bool
-	isHidden          bool
-	isVisible         bool
-	hasPressAction    bool
-	hasShowMenuAction bool
-	preActionsFetched bool
-	pid               int
+	position        image.Point
+	size            image.Point
+	title           string
+	description     string
+	value           string
+	identifier      string
+	searchText      string
+	role            string
+	subrole         string
+	roleDescription string
+	isEnabled       bool
+	hasEnabledAttr  bool
+	isFocused       bool
+	isHidden        bool
+	isVisible       bool
+	pid             int
 }
 
 // NewElementInfo builds an ElementInfo from already-read attribute values.
@@ -217,16 +214,6 @@ func (ei *ElementInfo) IsHidden() bool {
 // When the AXVisible attribute is not supported, returns true (default).
 func (ei *ElementInfo) IsVisible() bool {
 	return ei.isVisible
-}
-
-// HasPressAction returns whether the element has AXPress action.
-func (ei *ElementInfo) HasPressAction() bool {
-	return ei.hasPressAction
-}
-
-// HasShowMenuAction returns whether the element has AXShowMenu action.
-func (ei *ElementInfo) HasShowMenuAction() bool {
-	return ei.hasShowMenuAction
 }
 
 // PID returns the process ID.
@@ -337,15 +324,12 @@ func (e *Element) Info() (*ElementInfo, error) {
 			X: int(cInfo.size.width),
 			Y: int(cInfo.size.height),
 		},
-		isEnabled:         bool(cInfo.isEnabled),
-		hasEnabledAttr:    bool(cInfo.hasEnabledAttribute),
-		isFocused:         bool(cInfo.isFocused),
-		isHidden:          bool(cInfo.isHidden),
-		isVisible:         bool(cInfo.isVisible),
-		hasPressAction:    bool(cInfo.hasPressAction),
-		hasShowMenuAction: bool(cInfo.hasShowMenuAction),
-		preActionsFetched: bool(cInfo.preActionsFetched),
-		pid:               int(cInfo.pid),
+		isEnabled:      bool(cInfo.isEnabled),
+		hasEnabledAttr: bool(cInfo.hasEnabledAttribute),
+		isFocused:      bool(cInfo.isFocused),
+		isHidden:       bool(cInfo.isHidden),
+		isVisible:      bool(cInfo.isVisible),
+		pid:            int(cInfo.pid),
 	}
 
 	if cInfo.title != nil {
@@ -752,8 +736,8 @@ func (e *Element) IsClickable(
 	if isRoleAllowed {
 		// NeruHasClickAction handles all checks internally:
 		// 1. AXHidden/AXVisible attribute check (quick reject)
-		// 2. Clickability checks: AXActionNames, then role exclusion, then AXPress
-		//    description, then link+URL (no early returns, accumulate result)
+		// 2. Action names, read only for a disabled element or a container
+		//    role, because only there do they change the answer
 		// 3. Hit-test visibility as final gate for ALL clickable results
 		cRole := C.CString(info.Role())
 
@@ -779,9 +763,6 @@ func (e *Element) IsClickable(
 			C.bool(isWidget),
 			centerX,
 			centerY,
-			C.bool(info.hasPressAction),
-			C.bool(info.hasShowMenuAction),
-			C.bool(info.preActionsFetched),
 		)
 
 		return result == 1
