@@ -100,7 +100,7 @@ stderr with a non-zero exit status.
 | `config`                                                | string | Path of the config file in use.                           |
 | `hints_enabled`, `grid_enabled`, `recursive_grid_enabled`, `bisect_enabled` | bool | Whether each mode is enabled in the config. |
 | `scroll_inverted`                                       | bool   | Set by [`toggle-scroll-invert`](#neru-toggle-scroll-invert). |
-| `hidden_for_screen_share`                               | bool   | Set by [`toggle-screen-share`](#neru-toggle-screen-share). `true` means hidden. Always `false` on Linux and Windows, where nothing hides the overlay. |
+| `hidden_for_screen_share`                               | bool   | Set by [`toggle-screen-share`](#neru-toggle-screen-share). `true` means hidden. Always `false` on Linux, where nothing hides the overlay. |
 | `cursor_follow_selection`                               | bool or null | Set by [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection). `null` unless hints, grid, recursive_grid or bisect is active, so test for `null` before reading it as a boolean. |
 | `saved_cursor_slots`                                    | object | The occupied [cursor slots](#cursor-slots), each `{"x": …, "y": …}`. Empty when none are saved. |
 | `sticky_modifiers`                                      | string | The sticky modifiers held, such as `cmd,shift`. Empty when none is. |
@@ -1271,10 +1271,12 @@ neru toggle-screen-share [--state on|off|toggle]
 ```
 
 Hide overlays from screen sharing while keeping them visible locally.
-`--state on` hides, matching `hidden_for_screen_share`. Only macOS can hide the
-overlay from a screen share. On Linux and Windows the command fails with
-`ERR_NOT_SUPPORTED` and changes nothing. Neru uses the deprecated
-`NSWindow.sharingType` API:
+`--state on` hides, matching `hidden_for_screen_share`. macOS and Windows can
+hide the overlay from a screen share. On Linux the command fails with
+`ERR_NOT_SUPPORTED` and changes nothing. On Windows it needs Windows 10 version
+2004 or later, and it also leaves the overlay out of screenshots and
+recordings. On
+macOS Neru uses the deprecated `NSWindow.sharingType` API:
 
 | macOS version  | Behavior                              |
 | -------------- | -------------------------------------- |

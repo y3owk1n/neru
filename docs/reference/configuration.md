@@ -317,7 +317,7 @@ on_config_reload = "exec [ \"$NERU_OK\" = true ] || say 'Neru config did not loa
 | `on_mission_control_activated`   | string/array | none    | Mission Control opens. macOS only, needs `hints.detect_mission_control`   |
 | `on_mission_control_deactivated` | string/array | none    | Mission Control closes. macOS only, needs `hints.detect_mission_control`  |
 | `on_scroll_invert`               | string/array | none    | Scroll inversion switches on or off                                       |
-| `on_screen_share_hide`           | string/array | none    | `toggle-screen-share` switches on or off. macOS only, since nothing hides the overlay elsewhere |
+| `on_screen_share_hide`           | string/array | none    | `toggle-screen-share` switches on or off. macOS and Windows only, since nothing hides the overlay on Linux |
 | `on_cursor_save`                 | string/array | none    | `save_cursor_pos` saves a position                                        |
 | `on_cursor_restore`              | string/array | none    | `restore_cursor_pos` takes a saved position, which empties its slot       |
 | `on_sticky_modifiers`            | string/array | none    | A sticky modifier is armed or released. Needs `sticky_modifiers.enabled`  |
@@ -424,7 +424,7 @@ passthrough_unbounded_keys = true
 | -------------------------------------- | ------ | ------------- | ------------------------------------------------------------------------------------------- |
 | `excluded_apps`                        | array  | `[]`          | Apps where Neru won't activate, by [app identity](#app-identity-across-platforms-bundle_id) |
 | `kb_layout_to_use`                     | per platform | `""`    | Keyboard layout keys are named in, as the platform names it (auto if empty). See below      |
-| `hide_overlay_in_screen_share`         | bool   | `false`       | Hide overlay in screen sharing apps                                                         |
+| `hide_overlay_in_screen_share`         | bool   | `false`       | Hide overlay in screen sharing apps. On Windows it also leaves the overlay out of screenshots and recordings |
 | `passthrough_unbounded_keys`           | bool   | `false`       | Let unbound Cmd/Ctrl/Alt shortcuts pass through                                             |
 | `should_exit_after_passthrough`        | bool   | `false`       | Exit mode after a passthrough shortcut                                                      |
 | `passthrough_unbounded_keys_blacklist` | array  | `[]`          | Shortcuts to keep consumed when passthrough is on                                           |

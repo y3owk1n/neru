@@ -231,24 +231,18 @@ func TestHandleToggleScreenShare_ConvergesOnRequestedState(t *testing.T) {
 func TestHandleToggleScreenShare_RefusesWhereNothingHidesTheOverlay(t *testing.T) {
 	t.Parallel()
 
-	for _, platform := range []parity.Platform{parity.Linux, parity.Windows} {
-		t.Run(string(platform), func(t *testing.T) {
-			t.Parallel()
+	appState := state.NewAppState()
 
-			appState := state.NewAppState()
+	handler := NewOverlayHandler(appState, zap.NewNop())
+	handler.platform = func() (parity.Platform, bool) { return parity.Linux, true }
 
-			handler := NewOverlayHandler(appState, zap.NewNop())
-			handler.platform = func() (parity.Platform, bool) { return platform, true }
+	resp := handler.handleToggleScreenShare(context.Background(), ipc.Command{})
+	if resp.Success || resp.Code != ipc.CodeNotSupported {
+		t.Fatalf("handleToggleScreenShare() = %+v, want %s", resp, ipc.CodeNotSupported)
+	}
 
-			resp := handler.handleToggleScreenShare(context.Background(), ipc.Command{})
-			if resp.Success || resp.Code != ipc.CodeNotSupported {
-				t.Fatalf("handleToggleScreenShare() = %+v, want %s", resp, ipc.CodeNotSupported)
-			}
-
-			if appState.IsHiddenForScreenShare() {
-				t.Error("hidden for screen share = true after a refused toggle")
-			}
-		})
+	if appState.IsHiddenForScreenShare() {
+		t.Error("hidden for screen share = true after a refused toggle")
 	}
 }
 

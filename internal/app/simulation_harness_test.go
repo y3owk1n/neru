@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"image"
+	"math/rand/v2"
 	"slices"
 	"sort"
 	"strings"
@@ -227,6 +228,10 @@ type simOverlayPort struct {
 	// not a frame, is what a journey can observe about one being on screen.
 	indicatorVisible map[ports.Indicator]bool
 
+	// screenShareHidden is every screen-share state the overlay was handed, in
+	// the order it arrived.
+	screenShareHidden []bool
+
 	// destroyed is whether the overlay has been released. A shutdown journey
 	// reads it to say whether a key still being delivered has a surface left to
 	// draw on (#1515).
@@ -437,7 +442,17 @@ func (m *simOverlayPort) RefreshStyles() {
 	m.styleRefreshes++
 }
 
-func (m *simOverlayPort) SetHiddenInScreenShare(_ bool) {}
+// SetHiddenInScreenShare takes up to a millisecond before it records, the way
+// a backend setting a window property does, so changes that arrive together
+// can be recorded in either order.
+func (m *simOverlayPort) SetHiddenInScreenShare(hidden bool) {
+	time.Sleep(rand.N(time.Millisecond))
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.screenShareHidden = append(m.screenShareHidden, hidden)
+}
 
 // SetKeyboardCaptureEnabled does nothing, and no journey can make it fire, because the
 // caller is gated on the event tap reporting that the overlay holds the
@@ -454,6 +469,13 @@ func (m *simOverlayPort) Destroy() {
 	defer m.mu.Unlock()
 
 	m.destroyed = true
+}
+
+func (m *simOverlayPort) screenShareStates() []bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return slices.Clone(m.screenShareHidden)
 }
 
 // isDestroyed reports whether the overlay has been released.

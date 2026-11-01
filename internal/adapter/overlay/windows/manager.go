@@ -959,8 +959,15 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 	}
 }
 
-// SetSharingType is a no-op on Windows.
-func (m *Manager) SetSharingType(_ bool) {}
+// SetSharingType hides every overlay window from screen shares and recordings,
+// or shows them again, through the display affinity the platform package keeps
+// on each window. The windows stay on the monitor either way.
+func (m *Manager) SetSharingType(hide bool) {
+	err := winplatform.SetOwnWindowsHiddenFromCapture(hide)
+	if err != nil {
+		m.logger.Warn("Overlay stays in screen shares", zap.Error(err))
+	}
+}
 
 // Flush pushes any batched overlay draws to the layered window.
 func (m *Manager) Flush() {

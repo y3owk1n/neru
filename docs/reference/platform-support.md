@@ -55,7 +55,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Alerts                         | ✅    | ⚠️ ⁹      | ⚠️ ⁹              | ⚠️ ⁹          | ✅      |
 | Login service (`neru services`) | ✅   | ⚠️ ¹⁰     | ⚠️ ¹⁰             | ⚠️ ¹⁰         | ✅      |
 | Hide the system cursor         | ✅    | ➖        | ➖                | ➖            | ➖      |
-| Hide overlays from screen share | ✅   | ➖        | ➖                | ➖            | ➖      |
+| Hide overlays from screen share | ✅   | ❌        | ❌                | ❌            | ⚠️ ¹³   |
 
 COSMIC matches the KDE column. GNOME matches it too, except that per-app
 config and window positions need the Neru GNOME Shell extension, see
@@ -135,6 +135,11 @@ Windows before Windows 10 version 2004. While a mode is open there,
 the labels off before it captures. macOS and newer Windows leave the overlay
 out of the capture.
 
+¹³ **Windows hides the overlay from every capture**, screenshots and
+recordings as well as screen shares, while it stays on the monitor. It takes
+Windows 10 version 2004 or later, and an earlier build leaves the overlay in
+the share.
+
 **Windows on ARM** draws overlays with GDI, the CPU fallback, instead of
 Direct2D.
 
@@ -153,7 +158,7 @@ load, and `neru doctor` lists them under `platform_support`.
 
 | Words | macOS | Linux | Windows | Why |
 | ---- | --- | --- | --- | --- |
-| `general.hide_overlay_in_screen_share`, `hooks.on_screen_share_hide` | ✅ | ❌ | ❌ | hiding the overlay from a screen share is an NSWindow sharing level, a Quartz concept with no X11, Wayland or Win32 counterpart |
+| `general.hide_overlay_in_screen_share`, `hooks.on_screen_share_hide` | ✅ | ❌ | ✅ | hiding the overlay from a screen share is an NSWindow sharing level on macOS and a display affinity on Windows, with no X11 or Wayland counterpart |
 | `hints.include_menubar_hints`, `hints.additional_menubar_hints_targets`, `hints.include_dock_hints`, `hints.include_nc_hints`, `hints.include_stage_manager_hints`, `hints.include_pip_hints`, `hints.include_screen_capture_hints` | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.detect_mission_control`, `hints.on_mission_control_activated`, `hints.on_mission_control_deactivated`, `hooks.on_mission_control_activated`, `hooks.on_mission_control_deactivated` | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
 | `grid.prewarm_enabled` | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
@@ -170,7 +175,6 @@ Anything else missing is a gap.
 | Feature                                   | Platform | Why it is exclusive                                          |
 | ----------------------------------------- | -------- | ------------------------------------------------------------ |
 | System cursor hide + virtual-pointer replacement | macOS | A Wayland client may not hide another client's cursor. X11 could, but the supported Linux stack is Wayland, so shipping it on one backend would not be parity |
-| Screen-sharing hide                       | macOS    | NSWindow sharing level is a Quartz concept                    |
 | Secure input detection                    | macOS    | Read through a private macOS API. Neither X11 nor Wayland has the concept |
 
 Linux and Windows have no exclusives.
@@ -200,6 +204,9 @@ These are boundaries, not gaps:
 - A source build with `CGO_ENABLED=0` cannot move the cursor, click, scroll,
   capture keys, draw overlays or run `vision`, and says so once at startup.
   The Linux release binary is built with CGO.
+- Neither X11 nor Wayland can leave one window out of a screen share, so
+  `general.hide_overlay_in_screen_share` and `neru toggle-screen-share` do
+  nothing there.
 
 **Windows**: none. These are boundaries, not gaps:
 

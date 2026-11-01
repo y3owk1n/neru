@@ -26,5 +26,5 @@ func HidesFromScreenShareHere() bool {
 }
 
 // ScreenShareHideNote says why hiding the overlay from a screen share does
-// nothing outside macOS, in the words the platform warning uses.
+// nothing on Linux, in the words the platform warning uses.
 const ScreenShareHideNote = noteScreenShareHide

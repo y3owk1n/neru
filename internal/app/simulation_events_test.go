@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/event"
-	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
 // simEvents is a subscription to the app's event bus, opened before a journey
@@ -343,9 +343,9 @@ func TestSimulation_EventsReportEachRuntimeToggle(t *testing.T) {
 
 	sim.pressHotkey(hideShare)
 
-	// Only macOS can hide the overlay from a screen share, and elsewhere the
-	// toggle is refused, so it reports nothing.
-	if platform, _ := parity.Current(); platform != parity.Darwin {
+	// Where nothing can hide the overlay from a screen share the toggle is
+	// refused, so it reports nothing.
+	if !config.HidesFromScreenShareHere() {
 		events.expectNone(100 * time.Millisecond)
 
 		return
@@ -605,5 +605,41 @@ func TestSimulation_EventsReportAStepOntoTheSamePoint(t *testing.T) {
 	center := image.Pt(simScreen.Dx()/2, simScreen.Dy()/2)
 	if got := events.nextSelect(domain.ModeNameRecursiveGrid); got != center {
 		t.Errorf("the center cell selected %v, want %v", got, center)
+	}
+}
+
+// TestSimulation_ScreenShareHidingEndsOnTheLatestToggle pins that the overlay
+// ends on the state the last toggle left. Each change reaches the overlay on a
+// goroutine of its own, so the changes can arrive out of order, and an older
+// one applied last would leave the overlay shown while the status says hidden.
+func TestSimulation_ScreenShareHidingEndsOnTheLatestToggle(t *testing.T) {
+	if !config.HidesFromScreenShareHere() {
+		t.Skip("skipping: nothing hides the overlay from a screen share here")
+	}
+
+	const toggles = 50
+
+	sim := newSimHarness(t, simConfig(), nil)
+
+	// Subscribing hands the overlay the current state once.
+	sim.waitFor("the initial screen-share state", func() bool {
+		return len(sim.overlay.screenShareStates()) == 1
+	})
+
+	for range toggles {
+		sim.app.ToggleOverlayHiddenForScreenShare()
+	}
+
+	sim.waitFor("every toggle to reach the overlay", func() bool {
+		return len(sim.overlay.screenShareStates()) == toggles+1
+	})
+
+	states := sim.overlay.screenShareStates()
+	if got, want := states[len(states)-1], sim.app.IsOverlayHiddenForScreenShare(); got != want {
+		t.Fatalf(
+			"overlay last handed hidden = %t, want %t, the state the last toggle left",
+			got,
+			want,
+		)
 	}
 }

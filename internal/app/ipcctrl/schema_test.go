@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/event"
-	"github.com/y3owk1n/neru/internal/domain/parity"
 	"github.com/y3owk1n/neru/internal/ipcschema"
 	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
@@ -54,7 +54,7 @@ func TestReplies_MatchThePublishedSchema(t *testing.T) {
 	assertMatches(t, schema, "response", screenShare)
 
 	// Elsewhere the toggle is refused, and a refusal carries no data.
-	if platform, _ := parity.Current(); platform == parity.Darwin {
+	if config.HidesFromScreenShareHere() {
 		assertMatches(t, schema, "toggle_screen_share", screenShare.Data)
 	}
 
