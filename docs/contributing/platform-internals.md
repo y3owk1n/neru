@@ -124,7 +124,9 @@ ScreenCaptureKit content filter. From Windows 10 version 2004 each capture sets
 `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` on every window Neru shows,
 waits one `DwmFlush` for the compositor to apply it, reads the screen with
 `BitBlt` and restores `WDA_NONE`. Between captures the windows stay in a screen
-share or recording. Linux and older Windows builds capture Neru's windows with
+share or recording, unless the overlay is hidden from screen shares. Then every
+window keeps `WDA_EXCLUDEFROMCAPTURE`, a window opened later gets it when it
+registers, and a capture skips the restore. Linux and older Windows builds capture Neru's windows with
 the rest of the screen. There a hints refresh with a screen-reading strategy
 takes the old labels off before it captures, and snap refuses those strategies
 while a mode is open.

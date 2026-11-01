@@ -150,7 +150,7 @@ The last column says whether the command answers while Neru is stopped by
 | `config-set` | `<key> <value>`, then optionally `--no-reload`. | none | yes |
 | `reload` | none | none | yes |
 | `toggle-scroll-invert` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"inverted": bool}` | yes |
-| `toggle-screen-share` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). `ERR_NOT_SUPPORTED` on Linux and Windows, where nothing can hide the overlay. | `{"hidden": bool}` | yes |
+| `toggle-screen-share` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). `ERR_NOT_SUPPORTED` on Linux, where nothing can hide the overlay. | `{"hidden": bool}` | yes |
 | `toggle-cursor-follow-selection` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"following": bool}` | yes, but `stop` exits the mode, so it gets `ERR_INVALID_INPUT` |
 | `query-displays`, `query-cursor`, `query-window`, `query-app` | See [Querying](#querying). | See [Querying](#querying). | yes |
 | `query-hints` | See [Querying](#querying). | See [Querying](#querying). | no |

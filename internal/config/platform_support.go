@@ -13,8 +13,8 @@ import (
 // Each note is worded as the sentence a user reads in the load-time warning and
 // in the published table, so it names the gap rather than the code that has it.
 const (
-	noteScreenShareHide = "hiding the overlay from a screen share is an NSWindow sharing level, " +
-		"a Quartz concept with no X11, Wayland or Win32 counterpart"
+	noteScreenShareHide = "hiding the overlay from a screen share is an NSWindow sharing level " +
+		"on macOS and a display affinity on Windows, with no X11 or Wayland counterpart"
 	noteVisionConfidence = "Windows.Media.Ocr reports no per-word confidence, so every word " +
 		"scores one there and a floor keeps everything; the Vision framework and tesseract " +
 		"score each word"
@@ -45,13 +45,14 @@ var captureScopeOptions = []string{
 	"app_configs.capture_scope",
 }
 
-// darwinOnly and darwinAndLinux are the narrow columns this schema uses today,
-// named so a reader compares two options by the same words.
+// darwinOnly, darwinAndLinux and darwinAndWindows are the narrow columns this
+// schema uses today, named so a reader compares two options by the same words.
 // A linux-only column existed for contour until macOS fed it a frame. Add one
 // back the moment an option needs it rather than reaching for the nearest fit.
 var (
-	darwinOnly     = parity.Platforms{parity.Darwin}
-	darwinAndLinux = parity.Platforms{parity.Darwin, parity.Linux}
+	darwinOnly       = parity.Platforms{parity.Darwin}
+	darwinAndLinux   = parity.Platforms{parity.Darwin, parity.Linux}
+	darwinAndWindows = parity.Platforms{parity.Darwin, parity.Windows}
 )
 
 // PlatformSupport declares, for every option in the schema, the platforms on
@@ -80,7 +81,7 @@ var (
 // stays a Known Gaps entry.
 func PlatformSupport() parity.Declaration {
 	return parity.Join(
-		parity.On(parity.KindOption, darwinOnly, noteScreenShareHide,
+		parity.On(parity.KindOption, darwinAndWindows, noteScreenShareHide,
 			ScreenShareHideOption,
 			"hooks.on_screen_share_hide",
 		),

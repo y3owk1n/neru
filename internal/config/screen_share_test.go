@@ -14,7 +14,7 @@ func TestHidesFromScreenShare(t *testing.T) {
 	for platform, want := range map[parity.Platform]bool{
 		parity.Darwin:  true,
 		parity.Linux:   false,
-		parity.Windows: false,
+		parity.Windows: true,
 	} {
 		if got := config.HidesFromScreenShare(platform); got != want {
 			t.Errorf("HidesFromScreenShare(%s) = %t, want %t", platform, got, want)

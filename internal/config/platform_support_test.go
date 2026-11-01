@@ -36,9 +36,9 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 		want  parity.Platforms
 	}{
 		{
-			"hiding the overlay from a screen share is a Quartz concept",
+			"hiding the overlay from a screen share has no X11 or Wayland counterpart",
 			screenShareHide, "",
-			parity.Platforms{parity.Darwin},
+			parity.Platforms{parity.Darwin, parity.Windows},
 		},
 		{
 			"Windows.Media.Ocr reports no confidence, so the floor is inert there",

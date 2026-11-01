@@ -565,8 +565,9 @@ func (a *Adapter) SetHiddenInScreenShare(hidden bool) {
 // unsubscribing does not either, because a goroutine already launched is past the
 // point where removing the subscription reaches it. It is closed where the
 // state it touches lives, in the darwin manager, which takes the mutex
-// dedicated to that flag across its own teardown (darwin/manager.go). Every
-// other backend answers SetSharingType with a no-op and has no such pair.
+// dedicated to that flag across its own teardown (darwin/manager.go). The
+// Windows backend sets a display affinity on each live window, and one already
+// destroyed refuses it harmlessly. Linux answers SetSharingType with a no-op.
 func (a *Adapter) Destroy() {
 	if !a.destroyed.CompareAndSwap(false, true) {
 		<-a.teardownDone
