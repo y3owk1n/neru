@@ -48,6 +48,8 @@ type SystemAdapter struct {
 
 // NewSystemAdapter creates a new SystemAdapter.
 func NewSystemAdapter(backend string) *SystemAdapter {
+	setTokenDesktop(backend)
+
 	adapter := &SystemAdapter{backend: backend, probes: newCapabilityProbes()}
 	adapter.cursorAnimator = newSmoothCursorAnimator(
 		adapter.currentCursorPosition,
