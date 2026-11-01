@@ -223,7 +223,9 @@ static void rememberDisplays(NSArray<SCDisplay *> *displays, SCRunningApplicatio
 // the whole display when source is CGRectNull, at its size in points: the size
 // the rest of the pipeline was written against. When own is known, the filter
 // leaves Neru's own windows out, so a scan that runs while labels are on screen
-// does not read them back as targets.
+// does not read them back as targets. The configuration leaves the pointer out
+// too, because a pixel detector reads it as a control under the cursor, where a
+// snap starts looking.
 static void captureDisplay(
     SCDisplay *display, SCRunningApplication *own, CGRect source, NeruScreenshotState *state, dispatch_group_t group)
     API_AVAILABLE(macos(14.0)) {
@@ -232,6 +234,7 @@ static void captureDisplay(
 	                                                               exceptingWindows:@[]]
 	                                     : [[SCContentFilter alloc] initWithDisplay:display excludingWindows:@[]];
 	SCStreamConfiguration *config = [[SCStreamConfiguration alloc] init];
+	config.showsCursor = NO;
 
 	if (CGRectIsNull(source)) {
 		config.width = CGDisplayPixelsWide(display.displayID);
