@@ -130,13 +130,13 @@ func TestCaptureScreenRegion_LeavesNerusOwnWindowsOut(t *testing.T) {
 	}
 
 	painted := image.Rect(screen.Min.X+40, screen.Min.Y+40, screen.Min.X+140, screen.Min.Y+140)
-	paintedOverlay(t, painted, 0xFFFF00FF)
 
-	isPainted := func(img *image.RGBA) bool {
-		pixel := img.RGBAAt(painted.Dx()/2, painted.Dy()/2)
-
-		return pixel.R == 0xFF && pixel.G == 0x00 && pixel.B == 0xFF
+	background, err := bitBltRegion(painted)
+	if err != nil {
+		t.Fatalf("bitBltRegion(%v): %v", painted, err)
 	}
+
+	paintedOverlay(t, painted, 0xFFFF00FF)
 
 	var rawElapsed, elapsed time.Duration
 
@@ -150,7 +150,7 @@ func TestCaptureScreenRegion_LeavesNerusOwnWindowsOut(t *testing.T) {
 			t.Fatalf("bitBltRegion(%v): %v", painted, err)
 		}
 
-		if !isPainted(raw) {
+		if !isMagenta(raw) {
 			t.Fatalf(
 				"round %d: the raw copy does not show the painted overlay, so the check below means nothing",
 				round,
@@ -166,13 +166,104 @@ func TestCaptureScreenRegion_LeavesNerusOwnWindowsOut(t *testing.T) {
 
 		elapsed += time.Since(start)
 
-		if isPainted(img) {
-			t.Fatalf("round %d: CaptureScreenRegion read the overlay", round)
+		if share := sameShare(img, background); share < 0.9 {
+			t.Fatalf(
+				"round %d: only %.2f of the capture matches what is behind the overlay",
+				round,
+				share,
+			)
 		}
 	}
 
 	t.Logf("a capture took %v on average with the overlay left out, against %v for the raw copy",
 		elapsed/20, rawElapsed/20)
+}
+
+// TestWithOwnWindowsExcluded_LeavesOutAWindowShownDuringTheCapture pins that
+// a Neru window shown while a capture runs, such as an indicator appearing,
+// stays out of it. The test hides the window before the capture starts and
+// shows it again just before the copy.
+func TestWithOwnWindowsExcluded_LeavesOutAWindowShownDuringTheCapture(t *testing.T) {
+	if !CaptureExcludesOwnWindows() {
+		t.Skip("skipping: leaving windows out of a capture needs Windows 10 version 2004")
+	}
+
+	screen, err := activeScreenBounds()
+	if err != nil {
+		t.Skipf("no active screen: %v", err)
+	}
+
+	painted := image.Rect(screen.Min.X+40, screen.Min.Y+40, screen.Min.X+140, screen.Min.Y+140)
+
+	background, err := bitBltRegion(painted)
+	if err != nil {
+		t.Fatalf("bitBltRegion(%v): %v", painted, err)
+	}
+
+	overlay := paintedOverlay(t, painted, 0xFFFF00FF)
+	overlay.Hide()
+	time.Sleep(100 * time.Millisecond)
+
+	img, err := withOwnWindowsExcluded(context.Background(), func() (*image.RGBA, error) {
+		overlay.Show()
+		discardCall(procDwmFlush.Call())
+		time.Sleep(100 * time.Millisecond)
+
+		return bitBltRegion(painted)
+	})
+	if err != nil {
+		t.Fatalf("capture: %v", err)
+	}
+
+	raw, err := bitBltRegion(painted)
+	if err != nil {
+		t.Fatalf("bitBltRegion(%v): %v", painted, err)
+	}
+
+	if !isMagenta(raw) {
+		t.Fatal("the overlay did not come back on screen, so the check below means nothing")
+	}
+
+	if share := sameShare(img, background); share < 0.9 {
+		t.Fatalf(
+			"only %.2f of the capture matches what is behind the overlay shown during it",
+			share,
+		)
+	}
+}
+
+// isMagenta reports whether the center of img is the opaque magenta the
+// exclusion tests paint.
+func isMagenta(img *image.RGBA) bool {
+	pixel := img.RGBAAt(img.Rect.Dx()/2, img.Rect.Dy()/2)
+
+	return pixel.R == 0xFF && pixel.G == 0x00 && pixel.B == 0xFF
+}
+
+// sameShare is the share of pixels in got within a few levels of want on
+// every channel, so a capture that blacked a window out instead of leaving it
+// out fails where the desktop behind it shows.
+func sameShare(got, want *image.RGBA) float64 {
+	const tolerance = 8
+
+	near := func(a, b uint8) bool {
+		return max(a, b)-min(a, b) <= tolerance
+	}
+
+	var same, total int
+
+	for y := got.Rect.Min.Y; y < got.Rect.Max.Y; y++ {
+		for x := got.Rect.Min.X; x < got.Rect.Max.X; x++ {
+			total++
+
+			g, w := got.RGBAAt(x, y), want.RGBAAt(x, y)
+			if near(g.R, w.R) && near(g.G, w.G) && near(g.B, w.B) {
+				same++
+			}
+		}
+	}
+
+	return float64(same) / float64(total)
 }
 
 // TestCaptureScreenRegion_ConcurrentCapturesLeaveTheOverlayOut pins why the
@@ -215,8 +306,7 @@ func TestCaptureScreenRegion_ConcurrentCapturesLeaveTheOverlayOut(t *testing.T) 
 					return
 				}
 
-				pixel := img.RGBAAt(painted.Dx()/2, painted.Dy()/2)
-				if pixel.R == 0xFF && pixel.G == 0x00 && pixel.B == 0xFF {
+				if isMagenta(img) {
 					report(fmt.Sprintf("capturer %d round %d read the overlay", capturer, round))
 				}
 			}

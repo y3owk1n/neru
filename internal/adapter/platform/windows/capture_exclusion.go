@@ -67,11 +67,13 @@ func unregisterOwnWindow(hwnd uintptr) {
 }
 
 // withOwnWindowsExcluded runs capture while every window Neru shows is left
-// out of screen captures. It skips hidden windows, which have nothing to
-// capture, so a capture with no Neru window visible pays no compositor frame.
-// It also skips a window that closed in the meantime. A live window that
-// refuses the affinity is captured with the rest, and turns
-// CaptureExcludesOwnWindows false for every capture after it.
+// out of screen captures. Hidden windows get the affinity too, so one shown
+// while the capture runs, such as an indicator appearing, is already left
+// out. Only a visible window makes the capture wait a compositor frame, so a
+// capture with none visible pays nothing. It skips a window that closed in
+// the meantime. A live window that refuses the affinity shows up in the
+// capture, and turns CaptureExcludesOwnWindows false for every capture after
+// it.
 //
 // It checks ctx again once it holds the lock, because a capture can queue here
 // behind another and its deadline can pass while it waits.
@@ -91,24 +93,27 @@ func withOwnWindowsExcluded(
 		return nil, derrors.Wrap(err, derrors.CodeContextCanceled, "screen capture canceled")
 	}
 
-	var excluded []uintptr
+	var (
+		excluded   []uintptr
+		anyVisible bool
+	)
 
 	ownWindows.Range(func(key, _ any) bool {
 		hwnd, _ := key.(uintptr)
 
-		if visible, _, _ := procIsWindowVisible.Call(hwnd); visible == 0 {
-			return true
-		}
-
 		ret, _, _ := procSetWindowDisplayAffinity.Call(hwnd, wdaExcludeFromCapture)
-		if ret != 0 {
-			excluded = append(excluded, hwnd)
+		if ret == 0 {
+			if live, _, _ := procIsWindow.Call(hwnd); live != 0 {
+				exclusionRefused.Store(true)
+			}
 
 			return true
 		}
 
-		if live, _, _ := procIsWindow.Call(hwnd); live != 0 {
-			exclusionRefused.Store(true)
+		excluded = append(excluded, hwnd)
+
+		if visible, _, _ := procIsWindowVisible.Call(hwnd); visible != 0 {
+			anyVisible = true
 		}
 
 		return true
@@ -122,7 +127,7 @@ func withOwnWindowsExcluded(
 
 	// The affinity applies at the next composition, so the capture waits for
 	// it rather than reading a frame that still has the windows in it.
-	if len(excluded) > 0 {
+	if anyVisible {
 		discardCall(procDwmFlush.Call())
 	}
 
