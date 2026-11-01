@@ -793,11 +793,12 @@ coverage-html: coverage
 # rows take every OS-specific file in the tree, so the layer rows above them
 # count only what all three platforms share. A file is OS-specific when a
 # path segment or filename suffix names the OS, or when its //go:build line
-# requires exactly one OS. Objective-C files are macOS, and the atspi, kwin
-# and gnomeshell packages are Linux. A comment line starts with //, and in
-# native files also /* or *. Tests are _test.go files, testdata, the port
-# mocks and internal/schematest. The native column is the part of the code
-# written in Objective-C or C. The wayland-scanner output gets its own line.
+# joins terms with && and builds on only one of the three. Objective-C files
+# are macOS, and the atspi, kwin and gnomeshell packages are Linux. A
+# comment line starts with //, and in native files also /* or *. Tests are
+# _test.go files, testdata, the port mocks and internal/schematest. The
+# native column is the part of the code written in Objective-C or C. The
+# wayland-scanner output gets its own line.
 [doc('Count lines of code by layer and platform, then docs.')]
 loc:
     #!/usr/bin/env bash
@@ -838,13 +839,14 @@ loc:
         }
         if (os == "" && file ~ /\.m$/) os = "darwin"
         if (os == "" && file ~ /\.go$/) {
-            if ((getline tag < file) > 0 && tag ~ /^\/\/go:build /) {
-                hits = 0
+            if ((getline tag < file) > 0 && tag ~ /^\/\/go:build / && tag !~ /\|\|/) {
+                allowed = 0
                 for (k = 1; k <= 3; k++) {
                     o = oses[k]
-                    if (tag ~ ("[ (&|]" o "([ )&|]|$)") && tag !~ ("!" o)) { hits++; found = o }
+                    if (tag ~ ("[ (&]" o "([ )&]|$)")) { allowed = 1; found = o; break }
+                    if (tag !~ ("!" o)) { allowed++; found = o }
                 }
-                if (hits == 1) os = found
+                if (allowed == 1) os = found
             }
             close(file)
         }
