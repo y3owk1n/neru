@@ -78,6 +78,11 @@ func definitions() []definition {
 			description: "The data of query-hints.",
 		},
 		{
+			name:        "action_snap",
+			goType:      reflect.TypeFor[ipc.SnapData](),
+			description: "The data of action snap.",
+		},
+		{
 			name:        "toggle_scroll_invert",
 			goType:      reflect.TypeFor[ipc.ScrollInvertData](),
 			description: "The data of toggle-scroll-invert.",

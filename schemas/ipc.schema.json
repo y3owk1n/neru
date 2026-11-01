@@ -2,6 +2,54 @@
   "$id": "https://raw.githubusercontent.com/y3owk1n/neru/main/schemas/ipc.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
+    "action_snap": {
+      "description": "The data of action snap.",
+      "properties": {
+        "bounds": {
+          "properties": {
+            "height": {
+              "type": "integer"
+            },
+            "width": {
+              "type": "integer"
+            },
+            "x": {
+              "type": "integer"
+            },
+            "y": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        "role": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "x": {
+          "type": "integer"
+        },
+        "y": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "role",
+        "source",
+        "bounds"
+      ],
+      "type": "object"
+    },
     "config": {
       "$ref": "config.schema.json",
       "description": "The data of config with no args: the running configuration, as config.toml writes it."

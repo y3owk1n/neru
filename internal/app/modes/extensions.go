@@ -37,6 +37,7 @@ const (
 	extensionScreenRefresh     extensionName = "screen change refresh"
 	extensionStrategyReport    extensionName = "strategy reporting"
 	extensionScopeReport       extensionName = "capture scope reporting"
+	extensionSelectionRegion   extensionName = "selection region reporting"
 )
 
 // selectionTracker is an optional Mode extension: a mode that remembers where
@@ -60,6 +61,11 @@ type selectionTracker interface {
 	// pointer back in step with it. It reports false when there is no session
 	// to clear.
 	ClearSelectionPoint() bool
+
+	// PlaceSelectionPoint moves the selection onto point, in global screen
+	// coordinates, and brings the mode's virtual pointer onto it. It leaves
+	// the layout alone, so a grid stays at the depth or cell it reached.
+	PlaceSelectionPoint(point image.Point)
 
 	// SelectionAnchor reports the point an indicator should be anchored to
 	// instead of the cursor: the selection, whenever the real cursor is not
@@ -237,6 +243,19 @@ type captureScopeReporter interface {
 	// ActiveCaptureScope reports the scope the open session covers, and an
 	// empty string when there is no session to answer for.
 	ActiveCaptureScope() string
+}
+
+// selectionRegionReporter is an optional Mode extension: a mode whose input
+// has narrowed the screen down to a region the user picked.
+//
+// Grid carries one while a subgrid is open, recursive grid once it has zoomed
+// in and bisect once it has cut. `neru action snap` searches that region
+// instead of the whole screen. The other modes narrow nothing.
+type selectionRegionReporter interface {
+	// SelectionRegion reports the picked region in global screen
+	// coordinates, and false when nothing has been narrowed yet or there is
+	// no session.
+	SelectionRegion() (image.Rectangle, bool)
 }
 
 // activeModeExtension resolves the active mode to the optional extension T,

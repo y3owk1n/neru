@@ -12,16 +12,17 @@ import (
 // Compile-time interface compliance checks: the core interface, then every
 // optional extension grid mode opts into (extensions.go).
 var (
-	_ Mode                   = (*GridMode)(nil)
-	_ selectionTracker       = (*GridMode)(nil)
-	_ cellNavigator          = (*GridMode)(nil)
-	_ cursorFollowSelector   = (*GridMode)(nil)
-	_ exitStepReporter       = (*GridMode)(nil)
-	_ inputEditor            = (*GridMode)(nil)
-	_ hotkeyOverrideReporter = (*GridMode)(nil)
-	_ themeRefresher         = (*GridMode)(nil)
-	_ screenRefresher        = (*GridMode)(nil)
-	_ captureScopeReporter   = (*GridMode)(nil)
+	_ Mode                    = (*GridMode)(nil)
+	_ selectionTracker        = (*GridMode)(nil)
+	_ cellNavigator           = (*GridMode)(nil)
+	_ cursorFollowSelector    = (*GridMode)(nil)
+	_ exitStepReporter        = (*GridMode)(nil)
+	_ inputEditor             = (*GridMode)(nil)
+	_ hotkeyOverrideReporter  = (*GridMode)(nil)
+	_ themeRefresher          = (*GridMode)(nil)
+	_ screenRefresher         = (*GridMode)(nil)
+	_ captureScopeReporter    = (*GridMode)(nil)
+	_ selectionRegionReporter = (*GridMode)(nil)
 )
 
 // GridMode implements the Mode interface for grid-based navigation.
@@ -121,6 +122,21 @@ func (m *GridMode) SelectionWrites() uint64 {
 	return m.handler.grid.Context.SelectionWrites()
 }
 
+// SelectionRegion reports the cell an open subgrid sits in. Before a cell is
+// picked the grid covers the whole screen and has narrowed nothing.
+func (m *GridMode) SelectionRegion() (image.Rectangle, bool) {
+	if m.handler.grid == nil || m.handler.grid.Manager == nil {
+		return image.Rectangle{}, false
+	}
+
+	cell, open := m.handler.grid.Manager.SubgridCell()
+	if !open {
+		return image.Rectangle{}, false
+	}
+
+	return cell.Bounds().Add(m.handler.screenBounds.Min), true
+}
+
 // SelectionPoint reports the cell grid mode currently has selected.
 func (m *GridMode) SelectionPoint() (image.Point, bool) {
 	if m.handler.grid == nil || m.handler.grid.Context == nil {
@@ -141,6 +157,17 @@ func (m *GridMode) ClearSelectionPoint() bool {
 	m.handler.refreshGridVirtualPointer()
 
 	return true
+}
+
+// PlaceSelectionPoint moves the selection onto point and the virtual pointer
+// with it.
+func (m *GridMode) PlaceSelectionPoint(point image.Point) {
+	if m.handler.grid == nil || m.handler.grid.Context == nil {
+		return
+	}
+
+	m.handler.grid.Context.SetSelectionPoint(point)
+	m.handler.refreshGridVirtualPointer()
 }
 
 // SelectionAnchor anchors to the selected cell, which is where the user is

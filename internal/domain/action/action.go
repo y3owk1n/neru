@@ -403,6 +403,8 @@ const (
 	NameSearchHints Name = "search_hints"
 	// NameRefreshHints rescans hints mode with the flags the session holds.
 	NameRefreshHints Name = "refresh_hints"
+	// NameSnap moves the cursor onto the nearest element hints would label.
+	NameSnap Name = "snap"
 
 	// PrefixExec is the prefix for shell command actions.
 	PrefixExec = "exec"
@@ -550,6 +552,11 @@ func IsRefreshHintsAction(name string) bool {
 	return Name(name) == NameRefreshHints
 }
 
+// IsSnapAction reports whether the given action is snap.
+func IsSnapAction(name string) bool {
+	return Name(name) == NameSnap
+}
+
 // IsSearchHintsAction reports whether the given action is search_hints.
 func IsSearchHintsAction(name string) bool {
 	return Name(name) == NameSearchHints
@@ -582,7 +589,7 @@ func IsKnownName(name Name) bool {
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints,
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSnap,
 		NameHideCursor, NameShowCursor:
 		return true
 	default:
@@ -611,7 +618,7 @@ func IsScrollSubAction(name string) bool {
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameMoveCell, NameBisect,
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints,
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSnap,
 		NameHideCursor, NameShowCursor:
 		return false
 	default:
@@ -621,13 +628,16 @@ func IsScrollSubAction(name string) bool {
 
 // IsHeldRepeatAction reports whether the action name supports held-key repeat
 // (fires repeatedly while the key is held, with no initial delay).
-// Currently applies to scroll, page, relative mouse move, and cell move actions.
+// Currently applies to scroll, page, relative mouse move, cell move and snap
+// actions. A held snap with --direction walks from element to element, and
+// one without stays on the element it found, so repeating it is harmless.
 func IsHeldRepeatAction(name Name) bool {
 	switch name { //nolint:exhaustive
 	case NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NamePageUp, NamePageDown,
 		NameMoveMouseRelative,
-		NameMoveCell:
+		NameMoveCell,
+		NameSnap:
 		return true
 	default:
 		return false
@@ -723,6 +733,7 @@ func (n Name) ToType() (Type, error) {
 		NameCycleHint,
 		NameSearchHints,
 		NameRefreshHints,
+		NameSnap,
 		NameHideCursor,
 		NameShowCursor:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)

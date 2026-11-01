@@ -55,6 +55,9 @@ const (
 	flagSteps          = "--steps"
 	flagBackward       = "--backward"
 	flagConfirmOnLabel = "--confirm-on-label"
+	flagStrategy       = "--strategy"
+	flagRole           = "--role"
+	flagText           = "--text"
 
 	// slotDataKey names the slot a cursor action acted on, in its response data.
 	slotDataKey = "slot"
@@ -221,6 +224,9 @@ func (h *ActionsHandler) dispatchByName(
 
 	case action.IsRefreshHintsAction(actionName):
 		return h.handleRefreshHintsAction(), true
+
+	case action.IsSnapAction(actionName):
+		return h.handleSnapAction(ctx, parsed), true
 
 	case action.IsHideCursorAction(actionName) || action.IsShowCursorAction(actionName):
 		return h.handleCursorVisibilityAction(action.IsHideCursorAction(actionName)), true

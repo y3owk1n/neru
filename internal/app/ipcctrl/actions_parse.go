@@ -36,6 +36,9 @@ type parsedActionArgs struct {
 	hasCount       bool
 	slotName       string
 	hasSlot        bool
+	strategy       string
+	roles          []string
+	texts          []string
 
 	// present records every flag that appeared, keyed by its canonical
 	// spelling, so rejectUnsupportedFlags can refuse flags the action does
@@ -134,6 +137,17 @@ var actionFlagSpecs = map[string]flagSpec{
 	})},
 	flagSlot: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
 		p.slotName, p.hasSlot = v, true
+	})},
+	flagStrategy: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
+		p.strategy = v
+	})},
+	// --role and --text repeat, and each takes a comma-separated list, as
+	// for hints.
+	flagRole: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
+		p.roles = append(p.roles, parseCSV(v)...)
+	})},
+	flagText: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
+		p.texts = append(p.texts, parseCSV(v)...)
 	})},
 
 	flagCenter:    {apply: intoFlag(func(p *parsedActionArgs) { p.hasCenter = true })},

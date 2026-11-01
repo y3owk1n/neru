@@ -43,3 +43,9 @@ type HintData = client.HintData
 
 // HintsData is client.HintsData.
 type HintsData = client.HintsData
+
+// SnapData is client.SnapData.
+type SnapData = client.SnapData
+
+// SnapBounds is client.SnapBounds.
+type SnapBounds = client.SnapBounds

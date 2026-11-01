@@ -53,6 +53,9 @@ var modeLockOrder = map[string]string{
 	"Handler.moveMonitorMu": "outermost: MoveMonitor holds it across two separate " +
 		"h.mu holds — the frame clear and the refresh — with the unlocked cursor " +
 		"warp between them, so it sits above h.mu and is never taken beneath it",
+	"Handler.snapMu": "above h.mu: Snap holds it across two separate h.mu holds " +
+		"with the unlocked scan and cursor move between them, so it is never " +
+		"taken beneath h.mu",
 }
 
 // TestModeHandlerMutexesArePlacedInTheLockOrder fails when internal/app/modes

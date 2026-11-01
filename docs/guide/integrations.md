@@ -14,9 +14,10 @@ installed version. See [Set up with an agent](installation.md#set-up-with-an-age
 | :----------------------------------------- | :-------------------------------------------------- | :--------------------- |
 | React to events from your config           | `[hooks]`                                           | [Configuration reference](../reference/configuration.md#hooks) |
 | Run commands from a script                 | The `neru` CLI                                      | [CLI reference](../reference/cli.md) |
-| Read state as JSON                         | `--json` on `status`, `query`, `doctor`, `roles` and `services status` | [CLI reference](../reference/cli.md#neru-status) |
+| Read state as JSON                         | `--json` on `status`, `query`, `action snap`, `doctor`, `roles` and `services status` | [CLI reference](../reference/cli.md#neru-status) |
 | Follow state live                          | `neru watch`, narrowed with `--event`               | [`neru watch`](../reference/cli.md#neru-watch) |
 | Find elements and their hint labels        | `neru query hints`                                  | [`neru query`](../reference/cli.md#neru-query) |
+| Move the cursor onto an element            | `neru action snap`, aimed with `--role`, `--text` or `--direction` | [`neru action snap`](../reference/cli.md#neru-action-snap) |
 | Supply your own targets to hints mode      | `neru hints --targets`                              | [Supplying your own targets](../reference/cli.md#supplying-your-own-targets) |
 | Talk to the socket directly                | JSON over the IPC endpoint                          | [IPC protocol](../reference/ipc.md) |
 | Drive Neru from a Go program               | The `client` package                                | [Go client](#go-client) |

@@ -18,7 +18,8 @@ const (
 	// grid cell or subgrid key, a recursive grid level, a bisect cut. Opening,
 	// refreshing or moving a mode publishes none. Mode and Point say which mode
 	// and where the target is now. Action names what the mode's --action ran
-	// there, and is empty when it ran none.
+	// there, and is empty when it ran none. A snap publishes one too, from
+	// any mode or idle, with Action snap and Point where the cursor landed.
 	Select Name = "select"
 	// AppFocus is another application coming to the front. BundleID names it.
 	AppFocus Name = "app_focus"

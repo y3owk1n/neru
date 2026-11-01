@@ -78,10 +78,13 @@ var actionFlagSupport = map[string][]string{
 	string(action.NameCycleHint):       {flagBackward},
 	string(action.NameWaitForModeExit): {flagBail},
 
-	string(action.NameReset):            {},
-	string(action.NameBackspace):        {},
-	string(action.NameSearchHints):      {flagConfirmOnLabel},
-	string(action.NameRefreshHints):     {},
+	string(action.NameReset):        {},
+	string(action.NameBackspace):    {},
+	string(action.NameSearchHints):  {flagConfirmOnLabel},
+	string(action.NameRefreshHints): {},
+	string(action.NameSnap): {
+		flagStrategy, flagRole, flagText, flagDirection, flagBare,
+	},
 	string(action.NameSaveCursorPos):    {flagSlot},
 	string(action.NameRestoreCursorPos): {flagSlot},
 	string(action.NameHideCursor):       {},
@@ -96,7 +99,8 @@ var flagRejectionMessage = map[string]string{
 	flagModifier: "--modifier is only supported with click, mouse button, " +
 		"and scroll actions",
 	flagSelection: "--selection is only supported with move_mouse, scroll, and mouse button actions",
-	flagBare:      "--bare is only supported with move_mouse, scroll, and mouse button actions",
+	flagBare: "--bare is only supported with move_mouse, scroll, mouse button, " +
+		"and snap actions",
 }
 
 // rejectUnsupportedFlags refuses any flag the named action does not accept.

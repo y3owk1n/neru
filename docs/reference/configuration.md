@@ -309,7 +309,7 @@ on_config_reload = "exec [ \"$NERU_OK\" = true ] || say 'Neru config did not loa
 | -------------------------------- | ------------ | ------- | ------------------------------------------------------------------------- |
 | `on_mode_enter`                  | string/array | none    | A mode opens                                                              |
 | `on_mode_exit`                   | string/array | none    | A mode closes, including on the way into another one                      |
-| `on_select`                      | string/array | none    | A step you take moves a mode's target, such as a hint label, a grid cell or a recursive grid level |
+| `on_select`                      | string/array | none    | A step you take moves a mode's target, such as a hint label, a grid cell or a recursive grid level, or a [`snap`](cli.md#neru-action-snap) moves the cursor |
 | `on_app_focus`                   | string/array | none    | Another application comes to the front                                    |
 | `on_enable`                      | string/array | none    | Neru resumes, such as on `neru start`                                     |
 | `on_disable`                     | string/array | none    | Neru pauses, such as on `neru stop`                                       |
@@ -331,7 +331,8 @@ A reload takes effect from the next event.
 `on_select` runs once per step, so zooming a recursive grid three levels runs
 it three times, and a `--repeat` mode runs it for each selection. A click
 from a mode key such as `Shift+L` is an action, not a step that moves the
-target, so it does not run `on_select`.
+target, so it does not run `on_select`. A `snap` that moves the cursor runs it
+once, with `NERU_ACTION` set to `snap`, in idle as well as in a mode.
 
 A hook runs for every binding. To run steps after one binding's selection
 only, give that binding [`--on-exit`](cli.md#mode-flag-reference). How the
@@ -367,7 +368,7 @@ events that carry it.
 | `NERU_EVENT`     | every hook                      | The event, such as `mode_enter`                                  |
 | `NERU_MODE`      | `on_mode_enter`, `on_mode_exit`, `on_select` | The mode, named as `neru status` names it           |
 | `NERU_REASON`    | `on_mode_exit`                  | `completed` after a selection, `switched` when another mode opens in its place, else `canceled` |
-| `NERU_ACTION`    | `on_select`, and `on_mode_exit` when `completed` | The action the selection ran, such as `left_click`, or `left_click,left_click` for a chain. Unset when it ran none, such as for a binding with no `--action` |
+| `NERU_ACTION`    | `on_select`, and `on_mode_exit` when `completed` | The action the selection ran, such as `left_click`, or `left_click,left_click` for a chain, or `snap` for a snap. Unset when it ran none, such as for a binding with no `--action` |
 | `NERU_BUNDLE_ID` | `on_app_focus`                  | The application, as [`bundle_id`](#app-identity-across-platforms-bundle_id) names it |
 | `NERU_OK`        | `on_config_reload`              | `true` or `false`                                                |
 | `NERU_ON`        | `on_scroll_invert`, `on_screen_share_hide` | `true` when switched on, else `false`                 |
@@ -1323,8 +1324,10 @@ enabled = true
 
 ## [held_repeat]
 
-Repeats scroll, page and `move_cell` actions while the key is held, and glides
-the cursor for a held `move_mouse_relative` (see [Glide](#glide)).
+Repeats scroll, page, `move_cell` and `snap` actions while the key is held, and
+glides the cursor for a held `move_mouse_relative` (see [Glide](#glide)). A held
+`snap --direction` walks from element to element, one scan per repeat, so a
+repeat waits for the scan before it.
 
 ```toml
 [held_repeat]

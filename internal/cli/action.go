@@ -25,7 +25,7 @@ Available subcommands:
   Click actions:    left_click, right_click, middle_click
   Scroll actions:   scroll_up, scroll_down, scroll_left, scroll_right,
                     go_top, go_bottom, page_up, page_down
-  Mouse movement:   move_mouse, move_mouse_relative, move_monitor
+  Mouse movement:   move_mouse, move_mouse_relative, move_monitor, snap
   Mode control:     reset, backspace, move_cell, bisect, wait_for_mode_exit, cycle_hint,
                     refresh_hints
   Cursor saving:    save_cursor_pos, restore_cursor_pos
@@ -480,6 +480,9 @@ since there is nothing to rescan. If the rescan finds nothing, hints mode exits.
 	false,
 )
 
+// ActionSnapCmd moves the cursor onto the nearest clickable element.
+var ActionSnapCmd = BuildSnapCommand()
+
 // ActionMoveCellCmd moves the active mode's selection to a neighboring cell.
 var ActionMoveCellCmd = BuildMoveCellCommand()
 
@@ -516,6 +519,7 @@ func init() {
 	ActionCmd.AddCommand(ActionPageDownCmd)
 	ActionCmd.AddCommand(ActionCycleHintCmd)
 	ActionCmd.AddCommand(ActionRefreshHintsCmd)
+	ActionCmd.AddCommand(ActionSnapCmd)
 	ActionCmd.AddCommand(ActionMoveCellCmd)
 	ActionCmd.AddCommand(ActionBisectCmd)
 	ActionCmd.AddCommand(ActionHideCursorCmd)
