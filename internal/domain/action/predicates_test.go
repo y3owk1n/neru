@@ -27,6 +27,7 @@ func namedPredicates() []namedPredicate {
 		{action.NameCycleHint, action.IsCycleHintAction},
 		{action.NameSearchHints, action.IsSearchHintsAction},
 		{action.NameRefreshHints, action.IsRefreshHintsAction},
+		{action.NameSnap, action.IsSnapAction},
 		{action.NameFeed, action.IsFeedAction},
 	}
 }

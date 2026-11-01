@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/bisect"
@@ -609,4 +610,110 @@ Requires hints mode to be active.`,
 		BoolVar(&backward, "backward", false, "Cycle to the previous hint instead of the next one")
 
 	return cmd
+}
+
+// BuildSnapCommand creates the snap action command.
+func BuildSnapCommand() *cobra.Command {
+	var (
+		strategy  string
+		direction string
+		roles     []string
+		texts     []string
+		bare      bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "snap",
+		Short: "Move the cursor onto the nearest clickable element",
+		Long: `Move the cursor onto the nearest element hints would label, or with
+--direction onto the next one that way, without drawing labels or entering a
+mode. It prints where the cursor landed and the element's role.
+
+Outside a mode it searches the active screen from the cursor. Inside grid,
+recursive grid or bisect, once the mode has narrowed the screen to a region
+(an open subgrid, a zoomed-in cell, a cut), it searches that region from the
+selection. The cursor moves onto the element and the mode's selection moves
+with it, as with move_mouse, so the next click aims at the element exactly.
+The mode stays open.
+
+Without --direction, the element that contains the starting point wins, the
+smallest one first, so a button beats the row it sits in. Otherwise the
+nearest one does, and an element in the same row beats a slightly nearer one
+in the next. An element that holds others, such as a row or a list, wins
+only when nothing smaller is in range. Pressing it again stays on the same
+element.
+
+With --direction, it steps from the element under the cursor to the next one
+that way, keeping to the same row or column over a nearer element beside it.
+From an element that holds others, such as a toolbar's empty space, it steps
+from the cursor itself. Bind the four directions to walk from element to
+element, and turn on [held_repeat] to keep walking while a key is held.
+
+The cursor lands on the center of the part of the element inside the region.
+When it finds nothing to snap to, the cursor stays put and the action fails,
+and the rest of a binding still runs. In ["action snap", "action left_click"]
+inside a grid mode, the click then lands on the grid's selection. Write
+"action snap --bail-on-error" to stop the binding instead. A mode key pressed
+while it scans drops the snap and stops the binding.
+
+--strategy picks how snap finds elements, as for hints, and takes one value.
+It defaults to the strategy hints would use for the focused app. --role and
+--text narrow the elements as for hints. --bare ignores the mode's region and
+searches the screen from the cursor.
+
+Examples:
+  neru action snap
+  neru action snap --direction right
+  neru action snap --role text_field
+  neru action snap --text Save
+  neru action snap --strategy contour --json`,
+		Args: cobra.NoArgs,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			actionArgs := []string{"snap"}
+
+			if strategy != "" {
+				actionArgs = append(actionArgs, "--strategy="+strategy)
+			}
+
+			if direction != "" {
+				actionArgs = append(actionArgs, "--direction="+direction)
+			}
+
+			for _, role := range roles {
+				actionArgs = append(actionArgs, "--role="+role)
+			}
+
+			for _, text := range texts {
+				actionArgs = append(actionArgs, "--text="+text)
+			}
+
+			if bare {
+				actionArgs = append(actionArgs, "--bare")
+			}
+
+			return runQuery(cmd, "action", actionArgs, printSnap)
+		},
+	}
+
+	cmd.Flags().StringVar(&strategy, "strategy", "",
+		"How elements are found: axtree, vision, contour or segment")
+	cmd.Flags().StringVar(&direction, "direction", "",
+		"Step to the next element left, right, up or down instead of the nearest one")
+	cmd.Flags().StringArrayVar(&roles, "role", nil,
+		"Only snap to these roles, comma-separated, as hints --role takes them. Repeatable")
+	cmd.Flags().StringArrayVar(&texts, "text", nil,
+		"Only snap to elements whose title, description or value contains one of these, "+
+			"comma-separated. Repeatable")
+	cmd.Flags().BoolVar(&bare, "bare", false,
+		"Ignore the mode's region and search the screen from the cursor")
+	cmd.Flags().Bool("json", false, "Print the answer as a JSON object")
+
+	return cmd
+}
+
+func printSnap(cmd *cobra.Command, data ipc.SnapData) {
+	cmd.Printf("Snapped to %s at %d,%d\n", data.Role, data.X, data.Y)
 }

@@ -123,6 +123,13 @@ func (c *Client) Hints(ctx context.Context, flags ...string) (HintsData, error) 
 	return call[HintsData](ctx, c, "query-hints", flags...)
 }
 
+// Snap moves the cursor onto the nearest element hints would label, as `neru
+// action snap` does, and returns where it landed. flags are the flags `neru
+// action snap` takes, such as "--direction", "right".
+func (c *Client) Snap(ctx context.Context, flags ...string) (SnapData, error) {
+	return call[SnapData](ctx, c, "action", append([]string{"snap"}, flags...)...)
+}
+
 // Watch calls each with every line of the watch stream: the status snapshot
 // it opens with, then one line per event. Naming events sends only those, and
 // every snapshot still. It returns nil when the daemon ends the stream, the

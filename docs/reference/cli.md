@@ -145,12 +145,12 @@ snapshot as the whole state and each event as a change to it.
 | `status`    | `snapshot`                     | The `neru status --json` object                                       |
 | `mode`      | `mode_enter`, `mode_exit`, `select` | The mode, named as `neru status` names it                        |
 | `reason`    | `mode_exit`                    | `completed`, `switched` or `canceled`, as `NERU_REASON` has them. A `mode_exit` with `switched` is always followed by the next mode's `mode_enter`. A switch whose next mode fails to open, such as hints finding nothing to label, reports `canceled` |
-| `action`    | `select`, and `mode_exit` when `completed` | The action the selection ran, such as `left_click`. Absent when it ran none, such as for a binding with no `--action` |
+| `action`    | `select`, and `mode_exit` when `completed` | The action the selection ran, such as `left_click`, or `snap` for a [snap](#neru-action-snap). Absent when it ran none, such as for a binding with no `--action` |
 | `bundle_id` | `app_focus`                    | The application, as [`bundle_id`](configuration.md#app-identity-across-platforms-bundle_id) names it |
 | `ok`        | `config_reload`                | `true` or `false`                                                     |
 | `on`        | `scroll_invert`, `screen_share_hide` | The state switched to, as `scroll_inverted` and `hidden_for_screen_share` report it |
 | `slot`      | `cursor_save`, `cursor_restore` | The [cursor slot](#cursor-slots)                                     |
-| `x`, `y`    | `cursor_save`, `select`        | The position saved, or the point selected                             |
+| `x`, `y`    | `cursor_save`, `select`        | The position saved, or the point selected or snapped to               |
 | `modifiers` | `sticky_modifiers`             | The set held now, as `sticky_modifiers` reports it                    |
 | `monitor`   | `monitor_move`                 | The display moved to, as `move_monitor --name` takes it               |
 | `dropped`   | a snapshot after missed events | How many events this snapshot replaces. With `--event`, only the events named count, and the rest can never fill the reader's buffer. |
@@ -676,7 +676,7 @@ These names work as a mode `--action`, in a hotkey binding, or after
 | Press    | `left_mouse_down`, `right_mouse_down`, `middle_mouse_down`                                          |
 | Release  | `left_mouse_up`, `right_mouse_up`, `middle_mouse_up`                                                |
 | Toggle   | `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`                                    |
-| Movement | `move_mouse`, `move_mouse_relative`, `move_monitor`                                                 |
+| Movement | `move_mouse`, `move_mouse_relative`, `move_monitor`, `snap`                                         |
 | Scroll   | `scroll` ³, `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`, `page_up`, `page_down`, `go_top`, `go_bottom` |
 | Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `refresh_hints`, `search_hints` ³, `wait_for_mode_exit` |
 | Cursor   | `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`                               |
@@ -779,6 +779,71 @@ one display connected, the action fails with `ERR_INVALID_INPUT`.
 
 On Windows, displays that share a driver name get their device name as a
 suffix, such as `Generic PnP Monitor (DISPLAY5)`.
+
+### neru action snap
+
+```
+neru action snap [--direction <dir>] [--role <roles>] [--text <terms>]
+                 [--strategy <name>] [--bare] [--json]
+```
+
+Move the cursor onto the nearest element hints would label, or with
+`--direction` onto the next one that way, without drawing labels or entering a
+mode. It prints where the cursor landed and the element's role.
+
+| Flag          | Type   | Default | Description                                                        |
+| ------------- | ------ | ------- | ------------------------------------------------------------------ |
+| `--direction` | string |         | `left`, `right`, `up` or `down`. Step to the next element that way instead of the nearest one. |
+| `--role`      | string |         | Only snap to these roles, comma-separated, as hints `--role` takes them. Repeatable. |
+| `--text`      | string |         | Only snap to elements whose title, description or value contains one of these, comma-separated. Repeatable. |
+| `--strategy`  | string |         | `axtree`, `vision`, `contour` or `segment`. One value, no cycle list. Defaults to the strategy hints would use for the focused app. |
+| `--bare`      | bool   | `false` | Ignore the mode's region and search the active screen from the cursor. |
+| `--json`      | bool   | `false` | Print the answer as the `action_snap` object of the [IPC schema](ipc.md#schemas). |
+
+- Outside a mode, and in a mode that has not narrowed anything yet, it
+  searches the active screen from the cursor.
+- Once grid has a subgrid open, recursive_grid has zoomed in, or bisect has
+  cut, it searches that region from the selection. The cursor moves onto the
+  element and the mode's selection moves with it, as with `move_mouse`, so the
+  next click aims at the element's exact point rather than wherever the system
+  last reported the cursor. The mode stays open.
+- Without `--direction`, the element containing the starting point wins, the
+  smallest first, so a button beats the row it sits in. Otherwise the nearest
+  one wins. Vertical distance counts more than horizontal, by the region's
+  width over its height and between one and three times, so an element in the
+  same row beats a slightly nearer one in the next. Pressing it again stays on
+  the same element.
+- An element that holds others, such as a row, a list or a web page's
+  container, wins only when nothing smaller is in range. Clipped to a zoomed
+  cell it covers, its center is the cell's center, where the selection
+  already is.
+- With `--direction`, it steps from the element under the cursor to the next
+  one that way. An element only counts when its center lies past the current
+  element's edge, and never one around the cursor, such as the toolbar the
+  button sits in. From an element that holds others, such as a toolbar's
+  empty space, it steps from the cursor itself. The gap across the direction
+  costs more than the gap along it, much more for left and right, so it keeps
+  to the same row or column over a nearer element beside it. Under
+  [`[held_repeat]`](configuration.md#held_repeat) a held key keeps walking.
+- The cursor lands on the center of the part of the element inside the region,
+  and moves the way `move_mouse` does under [`[smooth_cursor]`](configuration.md#smooth_cursor).
+  A [`select`](#neru-watch) event with the action `snap` reports where.
+- Finding nothing leaves the cursor where it was and answers
+  `ERR_ACTION_FAILED`, and the rest of a binding still runs. In
+  `["action snap", "action left_click"]` inside a grid mode the click lands on
+  the grid's selection, so a grid keeps working when detection finds nothing.
+  Write `action snap --bail-on-error` to stop instead, as
+  [Failure policy](#failure-policy) describes.
+- A mode key pressed while it scans drops the snap with `ERR_CHAIN_BAIL`,
+  which stops the binding, since you aimed the rest of it at a target you
+  have left.
+- On Linux and Windows the screen capture includes Neru's own overlay, so snap
+  refuses `vision`, `contour` and `segment` with `ERR_NOT_SUPPORTED` while a
+  mode is open. `axtree` works everywhere.
+
+```json
+{"x":120,"y":120,"role":"ax:AXButton","source":"axtree","bounds":{"x":100,"y":100,"width":40,"height":40}}
+```
 
 ### neru action move_cell
 

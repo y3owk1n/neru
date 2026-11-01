@@ -146,6 +146,7 @@ func TestCommandInitialization(t *testing.T) {
 		"bisect":              false,
 		"cycle_hint":          false,
 		"refresh_hints":       false,
+		"snap":                false,
 		"hide_cursor":         false,
 		"show_cursor":         false,
 	}

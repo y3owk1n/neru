@@ -68,6 +68,12 @@ type Handler struct {
 	// refresh, each of which takes h.mu for the length of its own call. Never
 	// acquire in the reverse order.
 	moveMonitorMu sync.Mutex
+
+	// snapMu runs one Snap at a time, scan and cursor move included, so a held
+	// snap's repeat tick starts from where the previous step landed. Lock
+	// ordering is snapMu -> h.mu. Snap takes h.mu only for its own short
+	// holds, and nothing holding h.mu takes snapMu.
+	snapMu sync.Mutex
 }
 
 // handlerState carries every field of the mode handler and every method that

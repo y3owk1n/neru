@@ -14,16 +14,17 @@ import (
 // Compile-time interface compliance checks: the core interface, then every
 // optional extension recursive-grid mode opts into (extensions.go).
 var (
-	_ Mode                   = (*RecursiveGridMode)(nil)
-	_ selectionTracker       = (*RecursiveGridMode)(nil)
-	_ cellNavigator          = (*RecursiveGridMode)(nil)
-	_ cursorFollowSelector   = (*RecursiveGridMode)(nil)
-	_ exitStepReporter       = (*RecursiveGridMode)(nil)
-	_ inputEditor            = (*RecursiveGridMode)(nil)
-	_ hotkeyOverrideReporter = (*RecursiveGridMode)(nil)
-	_ themeRefresher         = (*RecursiveGridMode)(nil)
-	_ screenRefresher        = (*RecursiveGridMode)(nil)
-	_ captureScopeReporter   = (*RecursiveGridMode)(nil)
+	_ Mode                    = (*RecursiveGridMode)(nil)
+	_ selectionTracker        = (*RecursiveGridMode)(nil)
+	_ cellNavigator           = (*RecursiveGridMode)(nil)
+	_ cursorFollowSelector    = (*RecursiveGridMode)(nil)
+	_ exitStepReporter        = (*RecursiveGridMode)(nil)
+	_ inputEditor             = (*RecursiveGridMode)(nil)
+	_ hotkeyOverrideReporter  = (*RecursiveGridMode)(nil)
+	_ themeRefresher          = (*RecursiveGridMode)(nil)
+	_ screenRefresher         = (*RecursiveGridMode)(nil)
+	_ captureScopeReporter    = (*RecursiveGridMode)(nil)
+	_ selectionRegionReporter = (*RecursiveGridMode)(nil)
 )
 
 // RecursiveGridMode implements the Mode interface for recursive-grid navigation.
@@ -114,6 +115,17 @@ func (m *RecursiveGridMode) SelectionWrites() uint64 {
 	return m.handler.recursiveGrid.Context.SelectionWrites()
 }
 
+// SelectionRegion reports the region the zoom has reached. At the top level
+// it is the whole screen, which narrows nothing.
+func (m *RecursiveGridMode) SelectionRegion() (image.Rectangle, bool) {
+	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Manager == nil ||
+		m.handler.recursiveGrid.Manager.CurrentDepth() == 0 {
+		return image.Rectangle{}, false
+	}
+
+	return m.handler.recursiveGrid.Manager.CurrentBounds().Add(m.handler.screenBounds.Min), true
+}
+
 // SelectionPoint reports the region center recursive-grid mode has selected.
 func (m *RecursiveGridMode) SelectionPoint() (image.Point, bool) {
 	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Context == nil {
@@ -134,6 +146,17 @@ func (m *RecursiveGridMode) ClearSelectionPoint() bool {
 	m.handler.refreshRecursiveGridVirtualPointer()
 
 	return true
+}
+
+// PlaceSelectionPoint moves the selection onto point and the virtual pointer
+// with it.
+func (m *RecursiveGridMode) PlaceSelectionPoint(point image.Point) {
+	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Context == nil {
+		return
+	}
+
+	m.handler.recursiveGrid.Context.SetSelectionPoint(point)
+	m.handler.refreshRecursiveGridVirtualPointer()
 }
 
 // SelectionAnchor anchors to the selected region center, which is where the

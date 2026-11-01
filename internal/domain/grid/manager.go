@@ -110,6 +110,16 @@ func (m *Manager) CurrentGrid() *Grid {
 	return m.grid
 }
 
+// SubgridCell returns the cell an open subgrid sits in, and false when no
+// subgrid is open.
+func (m *Manager) SubgridCell() (*Cell, bool) {
+	if !m.inSubgrid || m.selectedCell == nil {
+		return nil, false
+	}
+
+	return m.selectedCell, true
+}
+
 // Reset resets the input state and triggers a redraw via the onUpdate callback.
 func (m *Manager) Reset() {
 	m.ResetSilent()

@@ -846,6 +846,10 @@ type simAXPort struct {
 	// prime replaces the platform's tree warmup when a journey sets it. Left
 	// nil, every application reports ready at once.
 	prime func(ctx context.Context, bundleID string) (bool, error)
+
+	// scanGate, when a journey sets it, runs before a scan answers, outside
+	// the port's lock, so the journey can hold a scan open.
+	scanGate func()
 }
 
 var _ ports.AccessibilityPort = (*simAXPort)(nil)
@@ -856,6 +860,14 @@ func (a *simAXPort) ClickableElements(
 	_ context.Context,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
+	a.mu.Lock()
+	gate := a.scanGate
+	a.mu.Unlock()
+
+	if gate != nil {
+		gate()
+	}
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -952,6 +964,14 @@ func (a *simAXPort) setPrime(prime func(ctx context.Context, bundleID string) (b
 	defer a.mu.Unlock()
 
 	a.prime = prime
+}
+
+// setScanGate makes every scan run gate before it answers.
+func (a *simAXPort) setScanGate(gate func()) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.scanGate = gate
 }
 
 // setElements replaces the accessibility tree, the way a display change that

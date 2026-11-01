@@ -440,7 +440,8 @@ func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
 }
 
 // isHeldRepeatAction reports whether the action list contains a single
-// held-repeatable action (scroll, page, relative mouse move, or cell move).
+// held-repeatable action (scroll, page, relative mouse move, cell move or
+// snap).
 func isHeldRepeatAction(actions []string) bool {
 	return action.IsHeldRepeatAction(action.Name(config.HeldRepeatActionName(actions)))
 }

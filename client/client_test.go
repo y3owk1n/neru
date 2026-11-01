@@ -131,6 +131,39 @@ func TestClient_Hints_PassesItsFlags(t *testing.T) {
 	}
 }
 
+// TestClient_Snap_PassesItsFlagsAndDecodesTheLanding pins that Snap sends
+// `action snap` with its flags and reads back where the cursor landed.
+func TestClient_Snap_PassesItsFlagsAndDecodesTheLanding(t *testing.T) {
+	isolate(t)
+
+	requests := make(chan ipc.Command, 1)
+	want := ipc.SnapData{
+		X: 120, Y: 120, Role: "ax:AXButton", Source: "axtree",
+		Bounds: ipc.SnapBounds{X: 100, Y: 100, Width: 40, Height: 40},
+	}
+
+	serve(t, func(_ context.Context, cmd ipc.Command) ipc.Response {
+		requests <- cmd
+
+		return ipc.Response{Success: true, Data: want}
+	}, nil)
+
+	got, err := client.New().Snap(testContext(t), "--direction", "right")
+	if err != nil {
+		t.Fatalf("Snap() error = %v", err)
+	}
+
+	if got != want {
+		t.Errorf("Snap() = %+v, want %+v", got, want)
+	}
+
+	request := <-requests
+	if request.Action != "action" ||
+		!slices.Equal(request.Args, []string{"snap", "--direction", "right"}) {
+		t.Errorf("request = %+v, want action snap with its flags", request)
+	}
+}
+
 // TestClient_Watch_NamesTheEventsItWants pins that the events Watch is given
 // reach the daemon as --event, and that a refused watch comes back as the
 // daemon's code.

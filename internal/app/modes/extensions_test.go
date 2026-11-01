@@ -113,6 +113,14 @@ var allExtensions = []extensionAxis{
 			return ok
 		},
 	},
+	{
+		name: extensionSelectionRegion,
+		carried: func(mode Mode) bool {
+			_, ok := mode.(selectionRegionReporter)
+
+			return ok
+		},
+	},
 }
 
 // modeExtensionMatrix states, per mode, every optional extension that mode
@@ -142,6 +150,7 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionThemeRefresh,
 		extensionScreenRefresh,
 		extensionScopeReport,
+		extensionSelectionRegion,
 	},
 	domain.ModeRecursiveGrid: {
 		extensionSelectionTracking,
@@ -153,6 +162,7 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionThemeRefresh,
 		extensionScreenRefresh,
 		extensionScopeReport,
+		extensionSelectionRegion,
 	},
 	domain.ModeBisect: {
 		extensionBisecting,
@@ -163,6 +173,7 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionThemeRefresh,
 		extensionScreenRefresh,
 		extensionScopeReport,
+		extensionSelectionRegion,
 	},
 	domain.ModeScroll: {
 		extensionHotkeyOverrides,
@@ -399,6 +410,8 @@ func (m *stubSelectionTrackingMode) SelectionPoint() (image.Point, bool) {
 func (m *stubSelectionTrackingMode) SelectionWrites() uint64 { return 0 }
 
 func (m *stubSelectionTrackingMode) ClearSelectionPoint() bool { return false }
+
+func (m *stubSelectionTrackingMode) PlaceSelectionPoint(image.Point) {}
 
 func (m *stubSelectionTrackingMode) SelectionAnchor() (image.Point, bool) {
 	return image.Point{}, false

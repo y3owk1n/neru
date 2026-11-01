@@ -259,6 +259,64 @@ Open recursive grid already drilled down at the cursor:
 
 A depth beyond the deepest level stops at that level.
 
+## Snapping
+
+[`neru action snap`](../reference/cli.md#neru-action-snap) moves the cursor
+onto the nearest element hints would label, without drawing labels. After a
+grid gets you close, one snap lands on a small target without zooming
+further.
+
+### Land a grid selection on the element
+
+Zoom with recursive grid, then snap to the element inside the cell, and click
+it with a second key:
+
+```toml
+[recursive_grid.hotkeys]
+"Tab"       = "action snap"
+"Shift+Tab" = ["action snap", "action left_click"]
+```
+
+Snap searches only the region you zoomed into and leaves the mode open, so
+`Shift+L` still clicks afterwards. The same lines work in `[grid.hotkeys]`
+once a subgrid is open, and in `[bisect.hotkeys]` after a cut. When snap
+finds nothing, `Shift+Tab` still clicks, at the grid's selection, so the key
+works the same with or without an element to snap to. To skip the click
+instead, write `"action snap --bail-on-error"`.
+
+### Walk from element to element
+
+Step through a toolbar or a list with four keys, and keep walking while one is
+held:
+
+```toml
+[hotkeys]
+"Primary+Alt+Shift+H" = "action snap --direction left"
+"Primary+Alt+Shift+J" = "action snap --direction down"
+"Primary+Alt+Shift+K" = "action snap --direction up"
+"Primary+Alt+Shift+L" = "action snap --direction right"
+
+[held_repeat]
+enabled = true
+```
+
+A step keeps to the same row or column before it jumps to a nearer element
+beside it, and never lands on the container around the current element. Avoid
+`Primary+Alt+H` on macOS, where `Cmd+Option+H` hides every other app.
+
+### Jump to the nearest input
+
+Put the cursor in the nearest text field, or on the nearest button named Save:
+
+```toml
+[hotkeys]
+"Primary+Alt+Shift+I" = ["action snap --role text_field", "action left_click"]
+"Primary+Alt+Shift+S" = "action snap --text Save"
+```
+
+`--role` and `--text` take the values hints mode does. Quote a term with a
+space, as in `--text 'Save As'`.
+
 ## Modes and hotkeys
 
 ### Toggle a mode with one key

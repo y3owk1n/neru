@@ -112,6 +112,7 @@ such as `#/definitions/status`:
 | `request`, `response` | A request and a reply |
 | `status` | The `data` of `status`, and the `status` of a watch snapshot |
 | `query_displays`, `query_cursor`, `query_window`, `query_app`, `query_hints` | The `data` of each query |
+| `action_snap` | The `data` of `action` running `snap` |
 | `toggle_scroll_invert`, `toggle_screen_share`, `toggle_cursor_follow_selection` | The `data` of each toggle |
 | `watch_line` | One line of a watch after its reply |
 | `config` | The `data` of `config` with no `args`, a reference to `config.schema.json` |
@@ -138,7 +139,7 @@ The last column says whether the command answers while Neru is stopped by
 | `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`, `monitor_select` | The mode's flags, from the [mode flag reference](cli.md#mode-flag-reference). `--targets` carries its JSON as one entry, as `--targets={"hints":[…]}`. `OK` means the daemon accepted the activation, as [What a mode command answers](cli.md#what-a-mode-command-answers) explains. A mode the config disables gets `ERR_MODE_DISABLED`. | none | no |
 | `idle` | none | none | yes |
 | `mode` | The declared mode's name, then optionally `--toggle`. `OK` means the same as for the modes above. | none | no |
-| `action` | An [action name](cli.md#action-names), then its flags, as after `neru action`. | none | no |
+| `action` | An [action name](cli.md#action-names), then its flags, as after `neru action`. | `action_snap` for `snap`, none otherwise | no |
 | `run` | One entry per step, as [`neru run`](cli.md#neru-run) takes them. `--stop-on-error` as an entry of its own sets the policy. The daemon drops blank entries, and a request with no steps left gets `ERR_INVALID_INPUT`. The daemon refuses a sequence nested more than five levels deep with `ERR_INVALID_INPUT` before any of its steps run, and the sequence that started it reports that as one failed step. | none | no |
 | `macro` | The macro's name, then its arguments. | none | no |
 | `ping` | none | none | yes |

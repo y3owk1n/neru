@@ -111,6 +111,42 @@ func (s *HintService) ProbeHints(
 		strategyOverride, captureScopeOverride, labelDirectionOverride, splitWord, true)
 }
 
+// SnapScan is what `neru action snap` asks a scan for. Empty fields fall back
+// to the configuration for the focused app, as for hints.
+type SnapScan struct {
+	// Roles and Text narrow the elements as hints --role and --text do.
+	Roles []string
+	Text  []string
+	// Strategy overrides the configured strategy.
+	Strategy string
+	// Region, when not empty, is an area a capture strategy's scan must cover
+	// on top of the window or screen capture_scope names.
+	Region image.Rectangle
+	// OverlayDrawn says a mode has something on screen. A capture strategy is
+	// refused then when the capture would read Neru's own overlay as part of
+	// the screen.
+	OverlayDrawn bool
+}
+
+// SnapCandidates collects the elements `neru action snap` chooses among, the
+// ones hints would label in the focused window, without labeling them. A
+// failed capture is returned rather than degraded, as for ProbeHints.
+func (s *HintService) SnapCandidates(
+	ctx context.Context,
+	scan SnapScan,
+) ([]*element.Element, error) {
+	elements, _, err := s.collect(ctx, collectRequest{
+		filterRoles:        scan.Roles,
+		filterTextContains: scan.Text,
+		strategy:           scan.Strategy,
+		strict:             true,
+		region:             scan.Region,
+		refuseOwnWindows:   scan.OverlayDrawn,
+	})
+
+	return elements, err
+}
+
 // LabelElements labels elements a caller supplied, in place of a scan, with
 // the label direction a scan of bundleID's window would use unless
 // labelDirectionOverride names one.
@@ -230,6 +266,54 @@ func (s *HintService) generate(
 	splitWord bool,
 	strict bool,
 ) ([]*hint.Interface, error) {
+	elements, bundleID, err := s.collect(ctx, collectRequest{
+		filterRoles:        filterRoles,
+		filterTextContains: filterTextContains,
+		bundleID:           bundleID,
+		strategy:           strategyOverride,
+		captureScope:       captureScopeOverride,
+		splitWord:          splitWord,
+		strict:             strict,
+		// Only a caller that reports the hints shows the identifier and
+		// focus, so hints mode skips the reads behind them.
+		readState: strict,
+	})
+	if err != nil || len(elements) == 0 {
+		return nil, err
+	}
+
+	return s.LabelElements(ctx, elements, bundleID, labelDirectionOverride)
+}
+
+// collectRequest is what decides which elements a scan collects. Empty
+// overrides fall back to the configuration for the focused app.
+type collectRequest struct {
+	filterRoles        []string
+	filterTextContains []string
+	// bundleID skips the focused-app lookup when set.
+	bundleID     string
+	strategy     string
+	captureScope string
+	splitWord    bool
+	// strict returns a capture strategy's failed detection instead of
+	// degrading to what else was collected.
+	strict bool
+	// readState reads each element's identifier and focus.
+	readState bool
+	// region, when not empty, is an area a capture strategy's scan must
+	// cover on top of the window or screen captureScope names.
+	region image.Rectangle
+	// refuseOwnWindows refuses a capture strategy whose capture would see
+	// Neru's own windows.
+	refuseOwnWindows bool
+}
+
+// collect runs a scan and returns the elements it found, with the bundle ID
+// it resolved the configuration for.
+func (s *HintService) collect(
+	ctx context.Context,
+	req collectRequest,
+) ([]*element.Element, string, error) {
 	// This read must not be widened to span the strategy switch below. A
 	// failed capture takes s.mu for writing (degradeCapture, through
 	// notifyVisionUnavailable), and a sync.RWMutex is neither reentrant nor
@@ -239,6 +323,7 @@ func (s *HintService) generate(
 	cfg := s.config
 	s.mu.RUnlock()
 
+	bundleID := req.bundleID
 	if bundleID == "" {
 		var bundleIDErr error
 
@@ -251,34 +336,36 @@ func (s *HintService) generate(
 		}
 	}
 
-	filter, usable := s.hintFilter(cfg, bundleID, filterRoles, filterTextContains)
+	filter, usable := s.hintFilter(cfg, bundleID, req.filterRoles, req.filterTextContains)
 	if !usable {
-		return nil, nil
+		return nil, bundleID, nil
 	}
 
-	// Only a caller that reports the hints shows the identifier and focus, so
-	// hints mode skips the reads behind them.
-	filter.ReadElementState = strict
+	filter.ReadElementState = req.readState
 
 	strategy := cfg.StrategyForApp(bundleID)
-	if strategyOverride != "" {
-		strategy = strategyOverride
+	if req.strategy != "" {
+		strategy = req.strategy
 	}
 
 	captureScope := cfg.CaptureScopeForApp(bundleID)
-	if captureScopeOverride != "" {
-		captureScope = captureScopeOverride
+	if req.captureScope != "" {
+		captureScope = req.captureScope
 	}
 
-	labelDirection := cfg.LabelDirectionForApp(bundleID)
-	if labelDirectionOverride != "" {
-		labelDirection = labelDirectionOverride
-	}
-
-	if splitWord && strategy != domain.StrategyVision {
-		return nil, derrors.New(
+	if req.splitWord && strategy != domain.StrategyVision {
+		return nil, bundleID, derrors.New(
 			derrors.CodeInvalidInput,
 			"--split-word is only supported when resolved strategy is 'vision'",
+		)
+	}
+
+	if req.refuseOwnWindows && strategy != domain.StrategyAXTree && s.CaptureShowsOwnWindows() {
+		return nil, bundleID, derrors.Newf(
+			derrors.CodeNotSupported,
+			"the %s strategy cannot scan while a mode is on screen here, "+
+				"because the capture would read Neru's own overlay",
+			strategy,
 		)
 	}
 
@@ -294,12 +381,13 @@ func (s *HintService) generate(
 			ctx,
 			filter,
 			captureScope,
+			req.region,
 			cfg.Vision,
-			splitWord,
+			req.splitWord,
 		)
 	case domain.StrategyContour:
 		elements, captureErr = s.generateHintsFromPixels(
-			ctx, filter, captureScope, strategy,
+			ctx, filter, captureScope, req.region, strategy,
 			time.Duration(cfg.Contour.RequestTimeoutMS)*time.Millisecond,
 			func(ctx context.Context, region image.Rectangle) ([]*element.Element, error) {
 				return s.vision.DetectContours(ctx, region, cfg.Contour)
@@ -307,7 +395,7 @@ func (s *HintService) generate(
 		)
 	case domain.StrategySegment:
 		elements, captureErr = s.generateHintsFromPixels(
-			ctx, filter, captureScope, strategy, segmentTimeout,
+			ctx, filter, captureScope, req.region, strategy, segmentTimeout,
 			func(ctx context.Context, region image.Rectangle) ([]*element.Element, error) {
 				return s.vision.DetectSegments(ctx, region, cfg.Segment)
 			},
@@ -317,12 +405,12 @@ func (s *HintService) generate(
 	}
 
 	if genErr != nil {
-		return nil, genErr
+		return nil, bundleID, genErr
 	}
 
 	if captureErr != nil {
-		if strict {
-			return nil, captureErr
+		if req.strict {
+			return nil, bundleID, captureErr
 		}
 
 		s.degradeCapture(ctx, strategy, captureErr)
@@ -331,12 +419,12 @@ func (s *HintService) generate(
 	if len(elements) == 0 {
 		s.logger.Debug("No clickable elements found")
 
-		return nil, nil
+		return nil, bundleID, nil
 	}
 
 	s.logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
 
-	return s.labelElements(ctx, elements, labelDirection)
+	return elements, bundleID, nil
 }
 
 // generateHintsAX collects elements using the AX tree (default strategy).
@@ -366,6 +454,7 @@ func (s *HintService) generateHintsVision(
 	ctx context.Context,
 	filter ports.ElementFilter,
 	captureScope string,
+	region image.Rectangle,
 	visionConfig config.HintsVisionConfig,
 	splitWord bool,
 ) ([]*element.Element, error) {
@@ -377,7 +466,7 @@ func (s *HintService) generateHintsVision(
 		return allElements, nil
 	}
 
-	windowBounds, ok := s.resolveDetectionBounds(ctx, captureScope)
+	windowBounds, ok := s.resolveDetectionBounds(ctx, captureScope, region)
 	if !ok {
 		return allElements, nil
 	}
@@ -455,6 +544,7 @@ func (s *HintService) generateHintsFromPixels(
 	ctx context.Context,
 	filter ports.ElementFilter,
 	captureScope string,
+	region image.Rectangle,
 	strategy string,
 	timeout time.Duration,
 	detect func(context.Context, image.Rectangle) ([]*element.Element, error),
@@ -468,7 +558,7 @@ func (s *HintService) generateHintsFromPixels(
 		return allElements, nil
 	}
 
-	windowBounds, ok := s.resolveDetectionBounds(ctx, captureScope)
+	windowBounds, ok := s.resolveDetectionBounds(ctx, captureScope, region)
 	if !ok {
 		return allElements, nil
 	}
@@ -516,7 +606,31 @@ func (s *HintService) degradeCapture(ctx context.Context, strategy string, err e
 // answer. An error means the platform could not answer at all, and then
 // scanning the whole screen is a degradation nobody asked for: slower, noisier,
 // and silent until now, so it is logged at warn.
+//
+// A caller that names a region gets a scan covering it as well, so a snap
+// inside a grid cell past the window's edge still reads the cell. The scan is
+// never cut down to the region. The pixel detectors see a control by its whole
+// outline, and a capture cropped through a button reads as no button at all.
 func (s *HintService) resolveDetectionBounds(
+	ctx context.Context,
+	captureScope string,
+	region image.Rectangle,
+) (image.Rectangle, bool) {
+	bounds, ok := s.scopeBounds(ctx, captureScope)
+	if region.Empty() {
+		return bounds, ok
+	}
+
+	if !ok {
+		return region, true
+	}
+
+	return bounds.Union(region), true
+}
+
+// scopeBounds is the window or screen capture_scope names, as
+// resolveDetectionBounds describes.
+func (s *HintService) scopeBounds(
 	ctx context.Context,
 	captureScope string,
 ) (image.Rectangle, bool) {
