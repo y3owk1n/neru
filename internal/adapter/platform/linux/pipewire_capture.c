@@ -15,8 +15,9 @@
 #define NERU_PIPEWIRE_MAX_DIMENSION 32768
 
 // Only reached when a caller passes a non-positive budget. The Go wrapper
-// always passes screenCaptureTimeoutMS. It must never be zero, because a zero
-// timer value disarms a PipeWire timer rather than firing it immediately.
+// always passes what is left of the caller's deadline, at least 1 ms. It must
+// never be zero, because a zero timer value disarms a PipeWire timer rather
+// than firing it immediately.
 #define NERU_PIPEWIRE_FALLBACK_TIMEOUT_MS 2000
 
 #define NERU_PIPEWIRE_NSEC_PER_MSEC 1000000L

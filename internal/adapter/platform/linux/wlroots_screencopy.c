@@ -23,7 +23,7 @@
 #define NERU_SCREENCOPY_MANAGER_VERSION 1
 
 // Only reached when a caller passes a non-positive budget. The Go wrapper
-// always passes screenCaptureTimeoutMS.
+// always passes what is left of the caller's deadline, at least 1 ms.
 #define NERU_SCREENCOPY_FALLBACK_TIMEOUT_MS 2000
 
 // Largest frame dimension accepted from the compositor. Far above any real
@@ -544,8 +544,8 @@ int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, N
 	}
 
 	if (timeout_ms <= 0) {
-		// Go owns the real budget (screenCaptureTimeoutMS). This only keeps a
-		// direct C caller from waiting forever.
+		// Go owns the real budget (captureBudgetMS). This only keeps a direct C
+		// caller from waiting forever.
 		timeout_ms = NERU_SCREENCOPY_FALLBACK_TIMEOUT_MS;
 	}
 

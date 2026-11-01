@@ -214,25 +214,6 @@ func boundedByCaller(
 	return context.WithTimeout(ctx, ceiling)
 }
 
-// frameBudgetMS is how long the native reader may wait for a frame: whatever is
-// left of the caller's budget, capped at the same ceiling the wlroots backend
-// gives a screencopy exchange.
-//
-// The floor is one millisecond because the C side reads a non-positive timeout
-// as "use the default". A caller with nothing left gets a wait that gives up
-// immediately, which is what was wanted. The alternative would be a two-second
-// wait bolted onto a budget that had already run out.
-func frameBudgetMS(ctx context.Context) int {
-	budget := screenCaptureTimeoutMS
-
-	deadline, hasDeadline := ctx.Deadline()
-	if hasDeadline {
-		budget = min(budget, int(time.Until(deadline).Milliseconds()))
-	}
-
-	return max(budget, 1)
-}
-
 // ensureLocked brings the grant up if it is not up already. The caller holds mu.
 //
 // allowPrompt is the whole difference between the two callers. The permission
