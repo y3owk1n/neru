@@ -22,6 +22,15 @@ void neru_x11_overlay_destroy(NeruX11Overlay *overlay);
 void neru_x11_overlay_show(NeruX11Overlay *overlay);
 void neru_x11_overlay_hide(NeruX11Overlay *overlay);
 void neru_x11_overlay_clear(NeruX11Overlay *overlay);
+// neru_x11_overlay_blank copies what the overlay window shows into a pixmap of
+// its own, clears the window and syncs, so the server has the clear before a
+// capture on another connection asks. It sets *composited when a compositing
+// manager runs, whose repaint a capture has to wait for. It returns the copy
+// for neru_x11_overlay_unblank, or NULL when the window is not on screen. It
+// also returns NULL, with *failed set and the window untouched, when the copy
+// could not be made.
+cairo_surface_t *neru_x11_overlay_blank(NeruX11Overlay *overlay, int *composited, int *failed);
+void neru_x11_overlay_unblank(NeruX11Overlay *overlay, cairo_surface_t *saved);
 void neru_x11_overlay_clear_buffered(NeruX11Overlay *overlay);
 void neru_x11_overlay_clear_rect(NeruX11Overlay *overlay, int x, int y, int width, int height);
 void neru_x11_overlay_resize(NeruX11Overlay *overlay);

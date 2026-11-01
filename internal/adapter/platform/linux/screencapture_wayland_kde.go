@@ -192,13 +192,16 @@ func kdeCaptureRegion(ctx context.Context, region image.Rectangle) (*image.RGBA,
 		return nil, err
 	}
 
+	// Only the frame read runs with the overlay taken off the screen. The
+	// session and connection above can take round trips, and the overlay stays
+	// up for them.
 	return pipewireCaptureNode(
+		ctx,
 		remoteFD,
 		stream.nodeID,
 		local,
 		stream.bounds.Dx(),
 		stream.bounds.Dy(),
-		frameBudgetMS(ctx),
 	)
 }
 

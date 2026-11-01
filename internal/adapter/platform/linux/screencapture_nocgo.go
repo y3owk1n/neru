@@ -3,6 +3,7 @@
 package linux
 
 import (
+	"context"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -36,15 +37,15 @@ func wlrootsCaptureRegion(region image.Rectangle) (*image.RGBA, error) {
 // before it ever negotiates a session, so no descriptor is opened to leak here.
 // It exists so the KDE path compiles, and it refuses in the same words.
 func pipewireCaptureNode(
+	ctx context.Context,
 	remoteFD int,
 	nodeID uint32,
 	crop image.Rectangle,
 	logicalWidth int,
 	logicalHeight int,
-	budgetMS int,
 ) (*image.RGBA, error) {
-	_, _, _ = remoteFD, nodeID, crop
-	_, _, _ = logicalWidth, logicalHeight, budgetMS
+	_, _, _ = ctx, remoteFD, nodeID
+	_, _, _ = crop, logicalWidth, logicalHeight
 
 	return nil, derrors.New(
 		derrors.CodeNotSupported,

@@ -128,12 +128,16 @@ startup alerts go to stderr.
 `systray.enabled = false` they report that they are not supported. Alerts are
 dialogs and need no tray.
 
-¹² **Linux captures Neru's own overlay along with the screen**, and so does
-Windows before Windows 10 version 2004. While a mode is open there,
-[`neru action snap`](cli.md#neru-action-snap) refuses `vision`, `contour` and
-`segment` with `ERR_NOT_SUPPORTED`, and a hints refresh with one of them takes
-the labels off before it captures. macOS and newer Windows leave the overlay
-out of the capture.
+¹² **Linux takes Neru's overlay off the screen for each capture**, because no
+Linux display server can leave one window out of it. While a mode is open, a
+hints refresh or [`neru action snap`](cli.md#neru-action-snap) with `vision`,
+`contour` or `segment` clears the overlay, waits for the compositor to draw a
+frame without it, captures, and puts it back. The overlay is gone for that
+long, at least one frame, and the click indicator stays in the capture.
+Windows before Windows 10 version 2004 captures the overlay. There snap
+refuses those strategies with `ERR_NOT_SUPPORTED` while a mode is open, and a
+hints refresh takes the labels off before it captures. macOS and newer Windows
+leave the overlay out of the capture.
 
 ¹³ **Windows hides the overlay from every capture**, screenshots and
 recordings as well as screen shares, while it stays on the monitor. It takes

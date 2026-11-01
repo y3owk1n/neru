@@ -11,12 +11,14 @@ import "C"
 
 import (
 	"image"
+	"time"
 	"unsafe"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // x11Overlay is the X11 backend: the cgo connection, the HiDPI scale probe,
@@ -224,4 +226,40 @@ func (o *x11Overlay) textPrim(
 		C.double(centerY),
 		C.double(fontSize), C.uint(color), cBold,
 	)
+}
+
+// x11CompositorSettle is how long a capture waits after the clear for a
+// compositing manager to repaint. X11 tells a client nothing when the
+// compositor has painted, and a capture reads what it painted. 40 ms left the
+// overlay in captures under picom's xrender backend, and 120 ms did not.
+const x11CompositorSettle = 120 * time.Millisecond
+
+// withBlanked runs capture with the window cleared, then paints back exactly
+// what it showed. A window that is not on screen has nothing to clear.
+func (o *x11Overlay) withBlanked(capture func() error) error {
+	if o == nil || o.raw == nil {
+		return capture()
+	}
+
+	var composited, failed C.int
+
+	saved := C.neru_x11_overlay_blank(o.raw, &composited, &failed)
+	if failed != 0 {
+		return derrors.New(
+			derrors.CodeOverlayFailed,
+			"could not take the overlay off the screen for a capture: copying it failed",
+		)
+	}
+
+	if saved == nil {
+		return capture()
+	}
+
+	defer C.neru_x11_overlay_unblank(o.raw, saved)
+
+	if composited != 0 {
+		time.Sleep(x11CompositorSettle)
+	}
+
+	return capture()
 }

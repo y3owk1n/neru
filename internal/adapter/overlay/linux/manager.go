@@ -20,6 +20,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/stickyindicator"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
+	platformlinux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -146,6 +147,10 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 		}
 	case linuxOverlayBackendUnknown:
 		return nil
+	}
+
+	if instance.x11 != nil || instance.wlroots != nil {
+		platformlinux.SetOwnWindowsHider(instance.hideForCapture)
 	}
 
 	return instance
@@ -278,6 +283,8 @@ func (m *Manager) SetActiveScreenOrigin(origin image.Point) {
 
 // Destroy cleans up the overlay Manager.
 func (m *Manager) Destroy() {
+	platformlinux.SetOwnWindowsHider(nil)
+
 	// Capture and nil-out backend pointers under the lock, then release
 	// the lock *before* calling Destroy on each backend. The wlroots
 	// Destroy waits for the keyboardPoller goroutine to exit, and that
@@ -1549,4 +1556,27 @@ func (m *Manager) syncSublayerKeysLocked(target *string) {
 	}
 
 	*target = m.GridOverlay().Config().SublayerKeys
+}
+
+// hideForCapture runs capture with the overlay cleared off the screen, then
+// puts back exactly what it showed. It holds renderMu throughout, so no draw
+// lands between the clear and the capture, and a draw a keystroke asks for
+// meanwhile waits for the capture. On Wayland the keyboard poller reads under
+// the same lock, so keys typed during the capture are read once it ends.
+//
+// The click indicator is a surface of its own and stays in the capture. It is
+// on screen for a moment after a click.
+func (m *Manager) hideForCapture(capture func() error) error {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 != nil {
+		return m.x11.withBlanked(capture)
+	}
+
+	if m.wlroots != nil {
+		return m.wlroots.withBlanked(capture)
+	}
+
+	return capture()
 }
