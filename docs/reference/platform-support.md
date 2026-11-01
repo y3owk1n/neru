@@ -49,7 +49,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Modifier passthrough           | ✅    | ❌        | ⚠️ ⁶              | ⚠️ ⁶          | ✅      |
 | Sticky modifiers, `action feed` | ✅   | ✅        | ✅                | ✅            | ✅      |
 | Per-app config                 | ✅    | ✅        | ⚠️ ⁷              | ⚠️ ⁷          | ✅      |
-| Screen capture for hints       | ✅    | ✅        | ✅                | ⚠️ ⁸          | ✅      |
+| Screen capture for hints       | ✅    | ⚠️ ¹²     | ⚠️ ¹²             | ⚠️ ⁸ ¹²       | ✅      |
 | Tray icon                      | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Notifications                  | ✅    | ⚠️ ⁹      | ⚠️ ⁹              | ⚠️ ⁹          | ⚠️ ¹¹   |
 | Alerts                         | ✅    | ⚠️ ⁹      | ⚠️ ⁹              | ⚠️ ⁹          | ✅      |
@@ -127,6 +127,13 @@ startup alerts go to stderr.
 ¹¹ **Windows notifications are balloons on the tray icon**, so with
 `systray.enabled = false` they report that they are not supported. Alerts are
 dialogs and need no tray.
+
+¹² **Linux captures Neru's own overlay along with the screen**, and so does
+Windows before Windows 10 version 2004. While a mode is open there,
+[`neru action snap`](cli.md#neru-action-snap) refuses `vision`, `contour` and
+`segment` with `ERR_NOT_SUPPORTED`, and a hints refresh with one of them takes
+the labels off before it captures. macOS and newer Windows leave the overlay
+out of the capture.
 
 **Windows on ARM** draws overlays with GDI, the CPU fallback, instead of
 Direct2D.

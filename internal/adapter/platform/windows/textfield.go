@@ -183,6 +183,7 @@ func (f *TextField) run(bounds image.Rectangle) {
 
 	defer close(f.done)
 	defer activeTextField.CompareAndSwap(f, nil)
+	defer func() { unregisterOwnWindow(f.hwnd) }()
 
 	err := f.create(bounds)
 
@@ -272,6 +273,7 @@ func (f *TextField) create(bounds image.Rectangle) error {
 	}
 
 	f.hwnd = hwnd
+	registerOwnWindow(hwnd)
 
 	discardCall(procSetLayeredWindowAttributes.Call(hwnd, 0, textFieldAlpha, lwaAlpha))
 

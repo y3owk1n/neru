@@ -4,6 +4,7 @@ package windows
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"strings"
 	"sync"
@@ -72,10 +73,12 @@ func paintedOverlay(t *testing.T, rect image.Rectangle, argb uint32) *OverlayWin
 	return overlay
 }
 
-// TestCaptureScreenRegion_ReadsBackAKnownColor is the acceptance check. A
-// rectangle painted one color reads back as that color at the expected
-// pixel, in the RGBA layout image.RGBA promises.
-func TestCaptureScreenRegion_ReadsBackAKnownColor(t *testing.T) {
+// TestBitBltRegion_ReadsBackAKnownColor is the acceptance check. A rectangle
+// painted one color reads back as that color at the expected pixel, in the
+// RGBA layout image.RGBA promises. It reads through the raw copy, because the
+// painted rectangle is one of Neru's own windows and CaptureScreenRegion
+// leaves those out.
+func TestBitBltRegion_ReadsBackAKnownColor(t *testing.T) {
 	screen, err := activeScreenBounds()
 	if err != nil {
 		t.Skipf("no active screen: %v", err)
@@ -84,9 +87,9 @@ func TestCaptureScreenRegion_ReadsBackAKnownColor(t *testing.T) {
 	painted := image.Rect(screen.Min.X+40, screen.Min.Y+40, screen.Min.X+140, screen.Min.Y+140)
 	paintedOverlay(t, painted, 0xFF10C040)
 
-	img, err := CaptureScreenRegion(context.Background(), painted)
+	img, err := bitBltRegion(painted)
 	if err != nil {
-		t.Fatalf("CaptureScreenRegion(%v): %v", painted, err)
+		t.Fatalf("bitBltRegion(%v): %v", painted, err)
 	}
 
 	if img.Rect != image.Rect(0, 0, painted.Dx(), painted.Dy()) {
@@ -109,6 +112,167 @@ func TestCaptureScreenRegion_ReadsBackAKnownColor(t *testing.T) {
 		if got[channel] != want[channel] {
 			t.Fatalf("center pixel is %v, want %v (the overlay painted 0xFF10C040)", got, want)
 		}
+	}
+}
+
+// TestCaptureScreenRegion_LeavesNerusOwnWindowsOut pins what a capture reads
+// while an overlay is drawn. The raw copy sees the painted overlay, and
+// CaptureScreenRegion does not, every time, so a pixel detector run while a
+// mode is on screen never reads the overlay as part of the interface.
+func TestCaptureScreenRegion_LeavesNerusOwnWindowsOut(t *testing.T) {
+	if !CaptureExcludesOwnWindows() {
+		t.Skip("skipping: leaving windows out of a capture needs Windows 10 version 2004")
+	}
+
+	screen, err := activeScreenBounds()
+	if err != nil {
+		t.Skipf("no active screen: %v", err)
+	}
+
+	painted := image.Rect(screen.Min.X+40, screen.Min.Y+40, screen.Min.X+140, screen.Min.Y+140)
+	paintedOverlay(t, painted, 0xFFFF00FF)
+
+	isPainted := func(img *image.RGBA) bool {
+		pixel := img.RGBAAt(painted.Dx()/2, painted.Dy()/2)
+
+		return pixel.R == 0xFF && pixel.G == 0x00 && pixel.B == 0xFF
+	}
+
+	var rawElapsed, elapsed time.Duration
+
+	for round := range 20 {
+		rawStart := time.Now()
+
+		raw, err := bitBltRegion(painted)
+		rawElapsed += time.Since(rawStart)
+
+		if err != nil {
+			t.Fatalf("bitBltRegion(%v): %v", painted, err)
+		}
+
+		if !isPainted(raw) {
+			t.Fatalf(
+				"round %d: the raw copy does not show the painted overlay, so the check below means nothing",
+				round,
+			)
+		}
+
+		start := time.Now()
+
+		img, err := CaptureScreenRegion(context.Background(), painted)
+		if err != nil {
+			t.Fatalf("CaptureScreenRegion(%v): %v", painted, err)
+		}
+
+		elapsed += time.Since(start)
+
+		if isPainted(img) {
+			t.Fatalf("round %d: CaptureScreenRegion read the overlay", round)
+		}
+	}
+
+	t.Logf("a capture took %v on average with the overlay left out, against %v for the raw copy",
+		elapsed/20, rawElapsed/20)
+}
+
+// TestCaptureScreenRegion_ConcurrentCapturesLeaveTheOverlayOut pins why the
+// captures take turns. Two captures running at once must both leave the
+// overlay out, so one restoring the affinity never uncovers it while the other
+// is still reading.
+func TestCaptureScreenRegion_ConcurrentCapturesLeaveTheOverlayOut(t *testing.T) {
+	if !CaptureExcludesOwnWindows() {
+		t.Skip("skipping: leaving windows out of a capture needs Windows 10 version 2004")
+	}
+
+	screen, err := activeScreenBounds()
+	if err != nil {
+		t.Skipf("no active screen: %v", err)
+	}
+
+	painted := image.Rect(screen.Min.X+40, screen.Min.Y+40, screen.Min.X+140, screen.Min.Y+140)
+	paintedOverlay(t, painted, 0xFFFF00FF)
+
+	var (
+		wait     sync.WaitGroup
+		failedMu sync.Mutex
+		failed   []string
+	)
+
+	report := func(message string) {
+		failedMu.Lock()
+		defer failedMu.Unlock()
+
+		failed = append(failed, message)
+	}
+
+	for capturer := range 2 {
+		wait.Go(func() {
+			for round := range 10 {
+				img, captureErr := CaptureScreenRegion(context.Background(), painted)
+				if captureErr != nil {
+					report(captureErr.Error())
+
+					return
+				}
+
+				pixel := img.RGBAAt(painted.Dx()/2, painted.Dy()/2)
+				if pixel.R == 0xFF && pixel.G == 0x00 && pixel.B == 0xFF {
+					report(fmt.Sprintf("capturer %d round %d read the overlay", capturer, round))
+				}
+			}
+		})
+	}
+
+	wait.Wait()
+
+	if len(failed) > 0 {
+		t.Fatalf("concurrent captures: %v", failed)
+	}
+}
+
+// TestCaptureScreenRegion_DoesNotWaitOnTheOverlayThread pins that leaving the
+// overlay out of a capture never waits on the thread that owns its windows. A
+// capture can run under the mode handler's lock, and the overlay thread can be
+// busy, so a capture that waited on it would stall the handler.
+func TestCaptureScreenRegion_DoesNotWaitOnTheOverlayThread(t *testing.T) {
+	if !CaptureExcludesOwnWindows() {
+		t.Skip("skipping: leaving windows out of a capture needs Windows 10 version 2004")
+	}
+
+	screen, err := activeScreenBounds()
+	if err != nil {
+		t.Skipf("no active screen: %v", err)
+	}
+
+	painted := image.Rect(screen.Min.X+40, screen.Min.Y+40, screen.Min.X+140, screen.Min.Y+140)
+	paintedOverlay(t, painted, 0xFFFF00FF)
+
+	parked := make(chan struct{})
+	release := make(chan struct{})
+
+	postOnOverlayUI(func() {
+		close(parked)
+		<-release
+	})
+
+	<-parked
+
+	defer close(release)
+
+	done := make(chan error, 1)
+
+	go func() {
+		_, captureErr := CaptureScreenRegion(context.Background(), painted)
+		done <- captureErr
+	}()
+
+	select {
+	case captureErr := <-done:
+		if captureErr != nil {
+			t.Fatalf("CaptureScreenRegion: %v", captureErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("the capture waited on the parked overlay thread")
 	}
 }
 

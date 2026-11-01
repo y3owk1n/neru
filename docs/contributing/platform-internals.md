@@ -119,9 +119,15 @@ whole display at its size in points. Neru does not use macOS 15.2's
 Windows the `contour` and `segment` strategies get the monitor's DPI scale, so
 their size rules are in points while their results stay in physical pixels.
 The rectangle half of `vision` still applies them in physical pixels.
-On macOS the capture leaves Neru's own windows out. Every other backend
-captures them along with the rest of the screen, so a hints refresh with a
-screen-reading strategy takes the old labels off before it captures.
+On macOS the capture leaves Neru's own windows out through the
+ScreenCaptureKit content filter. From Windows 10 version 2004 each capture sets
+`SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` on every window Neru shows,
+waits one `DwmFlush` for the compositor to apply it, reads the screen with
+`BitBlt` and restores `WDA_NONE`. Between captures the windows stay in a screen
+share or recording. Linux and older Windows builds capture Neru's windows with
+the rest of the screen. There a hints refresh with a screen-reading strategy
+takes the old labels off before it captures, and snap refuses those strategies
+while a mode is open.
 
 ⁶ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing

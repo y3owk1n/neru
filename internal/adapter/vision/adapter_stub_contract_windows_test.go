@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/sys/windows"
+
 	"github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -208,12 +210,16 @@ func TestVisionAdapter_DetectionHonorsBothHalvesOff(t *testing.T) {
 	}
 }
 
-// TestVisionAdapter_CaptureIncludesOwnWindowsOnWindows pins that Windows says its
-// capture includes Neru's own windows. A hints refresh that reads the screen
-// takes the old labels off first only when this is false, so a true here would
-// let it read them back as targets.
-func TestVisionAdapter_CaptureIncludesOwnWindowsOnWindows(t *testing.T) {
-	if vision.NewAdapter(nil).CaptureExcludesOwnWindows() {
-		t.Error("CaptureExcludesOwnWindows() = true, but the desktop BitBlt reads the overlay")
+// TestVisionAdapter_CaptureExcludesOwnWindowsFromWindows10Version2004 pins
+// that Windows leaves Neru's own windows out of a capture exactly from build
+// 19041, the first to honor WDA_EXCLUDEFROMCAPTURE. A hints refresh that reads
+// the screen takes the old labels off first only when this is false, so a
+// true on an older build would let it read them back as targets.
+func TestVisionAdapter_CaptureExcludesOwnWindowsFromWindows10Version2004(t *testing.T) {
+	want := windows.RtlGetVersion().BuildNumber >= 19041
+
+	if got := vision.NewAdapter(nil).CaptureExcludesOwnWindows(); got != want {
+		t.Errorf("CaptureExcludesOwnWindows() = %v on build %d, want %v",
+			got, windows.RtlGetVersion().BuildNumber, want)
 	}
 }
