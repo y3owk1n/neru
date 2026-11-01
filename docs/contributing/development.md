@@ -84,6 +84,7 @@ gofumpt and golines are optional, through `go install`.
 | `just test-ci` | What CI gates on: foundation, unit, race-unit, short integration |
 | `just test-linux` | Run the Linux test suite in a CI-equivalent container (Docker) |
 | `just coverage`, `coverage-html` | Unit coverage as a total, or as a browsable `coverage.html` |
+| `just loc` | Line counts by layer and platform, split into code, comments and tests, then the docs |
 | `just lint` | golangci-lint, plus clang-tidy on `.m` files (macOS) |
 | `just vet`, `vuln` | `go vet`, and `govulncheck` for reachable CVEs in dependencies |
 | `just check-cross` | CGO-off type-check of the Linux and Windows builds |

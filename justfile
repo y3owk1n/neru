@@ -788,6 +788,98 @@ coverage-html: coverage
     go tool cover -html=coverage.txt -o coverage.html
     @echo "✓ Coverage report written to coverage.html"
 
+# Count the non-blank lines of the Go, Objective-C and C files git tracks,
+# by the layers of AGENTS.md (Architecture). The macOS, Linux and Windows
+# rows take every OS-specific file in the tree, so the layer rows above them
+# count only what all three platforms share. A file is OS-specific when a
+# path segment or filename suffix names the OS, or when its //go:build line
+# requires exactly one OS. Objective-C files are macOS, and the atspi, kwin
+# and gnomeshell packages are Linux. A comment line starts with //, and in
+# native files also /* or *. Tests are _test.go files, testdata, the port
+# mocks and internal/schematest. The native column is the part of the code
+# written in Objective-C or C. The wayland-scanner output gets its own line.
+[doc('Count lines of code by layer and platform, then docs.')]
+loc:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    git ls-files '*.go' '*.m' '*.h' '*.c' | awk '
+    BEGIN {
+        n = split("domain ports app config cli client adapters darwin linux windows support tooling guardrails", order, " ")
+        split("darwin linux windows", oses, " ")
+        name["domain"] = "domain"; name["ports"] = "ports"; name["app"] = "app (modes, services)"
+        name["config"] = "config"; name["cli"] = "cli and entry point"; name["client"] = "public Go client"
+        name["adapters"] = "adapters, shared"; name["darwin"] = "macOS"; name["linux"] = "Linux"
+        name["windows"] = "Windows"; name["support"] = "derrors, ipc, schemas"
+        name["tooling"] = "doc generators"; name["guardrails"] = "architecture guardrails"
+    }
+    {
+        file = $0
+        native = file ~ /\.(m|h|c)$/
+        if (native && file ~ /\/wlr_protocol\//) {
+            while ((getline line < file) > 0) if (line !~ /^[[:space:]]*$/) generated++
+            close(file)
+            next
+        }
+        np = split(file, part, "/")
+        g = (part[1] == "internal") ? part[2] : part[1]
+        if (g == "adapter") g = "adapters"
+        else if (g == "configschema" || g == "configs") g = "config"
+        else if (g == "cmd") g = (part[2] == "neru") ? "cli" : "tooling"
+        else if (g == "derrors" || g == "ipcendpoint" || g == "ipcschema" || g == "buildinfo" || g == "schematest") g = "support"
+        else if (g == "flagref" || g == "supportref" || g == "docsregion") g = "tooling"
+        else if (g == "architecture") g = "guardrails"
+        os = ""
+        for (i = 1; i < np; i++) {
+            if (part[i] == "darwin" || part[i] == "linux" || part[i] == "windows") os = part[i]
+            else if (part[i] == "atspi" || part[i] == "kwin" || part[i] == "gnomeshell") os = "linux"
+        }
+        if (os == "" && match(file, /_(darwin|linux|windows)(_test)?\.go$/)) {
+            os = substr(file, RSTART + 1); sub(/(_test)?\.go$/, "", os)
+        }
+        if (os == "" && file ~ /\.m$/) os = "darwin"
+        if (os == "" && file ~ /\.go$/) {
+            if ((getline tag < file) > 0 && tag ~ /^\/\/go:build /) {
+                hits = 0
+                for (k = 1; k <= 3; k++) {
+                    o = oses[k]
+                    if (tag ~ ("[ (&|]" o "([ )&|]|$)") && tag !~ ("!" o)) { hits++; found = o }
+                }
+                if (hits == 1) os = found
+            }
+            close(file)
+        }
+        if (os != "") g = os
+        # A folder no layer names yet still counts, under its own name.
+        if (!(g in name)) { name[g] = g; order[++n] = g }
+        test = file ~ /_test\.go$/ || file ~ /\/(testdata|mocks|schematest)\//
+        while ((getline line < file) > 0) {
+            if (line ~ /^[[:space:]]*$/) continue
+            if (test) tests[g]++
+            else if (line ~ /^[[:space:]]*\/\// || (native && line ~ /^[[:space:]]*(\/\*|\*)/)) comments[g]++
+            else { code[g]++; if (native) nat[g]++ }
+        }
+        close(file)
+    }
+    END {
+        printf "%-26s %7s %9s %7s %7s\n", "", "code", "comments", "tests", "native"
+        for (i = 1; i <= n; i++) {
+            g = order[i]
+            if (g == "adapters" || g == "support") print ""
+            printf "%-26s %7d %9d %7d %7d\n", name[g], code[g], comments[g], tests[g], nat[g]
+            c += code[g]; m += comments[g]; t += tests[g]; v += nat[g]
+        }
+        printf "\n%-26s %7d %9d %7d %7d\n", "total", c, m, t, v
+        printf "%-26s %7d\n", "wayland-scanner output", generated
+    }'
+    lines() { git ls-files "$@" | xargs cat | grep -cv '^[[:space:]]*$'; }
+    echo
+    printf '%-26s %7d\n' "user docs" "$(lines README.md 'docs/guide/*.md' 'docs/concepts/*.md' 'docs/reference/*.md')"
+    printf '%-26s %7d\n' "contributor docs" "$(lines CONTRIBUTING.md CONTEXT.md 'docs/contributing/*.md' 'docs/project/*.md')"
+    printf '%-26s %7d\n' "decision records" "$(lines 'docs/adr/*.md')"
+    printf '%-26s %7d\n' "agent guides and skills" "$(lines '*AGENTS.md' '.agents/*.md' '.claude/agents/*.md')"
+    printf '%-26s %7d\n' "shipped configs" "$(lines 'configs/*.toml')"
+    printf '%-26s %7d\n' "website" "$(lines 'website/src/*.astro' 'website/src/*.ts' 'website/src/*.mjs' 'website/src/*.css')"
+
 # Download dependencies
 [doc('Download the module dependencies and tidy go.mod.')]
 deps:
