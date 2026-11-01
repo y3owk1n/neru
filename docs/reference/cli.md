@@ -838,10 +838,11 @@ mode. It prints where the cursor landed and the element's role.
   `move_mouse_relative` in the mode while it scans, the snap answers
   `ERR_CHAIN_BAIL`, whether or not it found anything. That stops the binding,
   since you aimed the rest of it at a target you have left.
-- Where the screen capture includes Neru's own overlay, snap refuses
-  `vision`, `contour` and `segment` with `ERR_NOT_SUPPORTED` while a mode is
-  open. [Platform support](platform-support.md#notes) lists where. `axtree`
-  works everywhere.
+- On Windows before Windows 10 version 2004 the screen capture includes Neru's
+  own overlay, so snap refuses `vision`, `contour` and `segment` with
+  `ERR_NOT_SUPPORTED` while a mode is open. On Linux the overlay disappears for
+  the moment of the capture. [Platform support](platform-support.md#notes) has
+  the detail. `axtree` works everywhere.
 
 ```json
 {"x":120,"y":120,"role":"ax:AXButton","source":"axtree","bounds":{"x":100,"y":100,"width":40,"height":40}}

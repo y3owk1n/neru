@@ -168,7 +168,9 @@ func CaptureScreenRegion(
 			return nil, err
 		}
 
-		return x11CaptureRegion(resolved)
+		return withOwnWindowsHidden(func() (*image.RGBA, error) {
+			return x11CaptureRegion(resolved)
+		})
 	}
 
 	// KDE and COSMIC are checked before the wlroots family they share a client
@@ -190,7 +192,9 @@ func CaptureScreenRegion(
 			return nil, err
 		}
 
-		return wlrootsCaptureRegion(resolved)
+		return withOwnWindowsHidden(func() (*image.RGBA, error) {
+			return wlrootsCaptureRegion(resolved)
+		})
 	}
 
 	return nil, derrors.New(derrors.CodeNotSupported, unsupportedCaptureBackend(backend))

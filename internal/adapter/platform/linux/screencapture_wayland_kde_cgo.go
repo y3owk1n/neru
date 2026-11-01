@@ -49,12 +49,16 @@ func pipewireCaptureNode(
 		timeout_ms:     C.int(budgetMS),
 	}
 
-	var capture C.NeruCapture
+	// A new consumer gets a frame the compositor renders as it connects, so
+	// connecting with the overlay already off is what leaves it out.
+	return withOwnWindowsHidden(func() (*image.RGBA, error) {
+		var capture C.NeruCapture
 
-	status := C.neru_pipewire_capture(&request, &capture)
-	if status != C.NERU_CAPTURE_OK {
-		return nil, pipewireCaptureError(captureStatus(status))
-	}
+		status := C.neru_pipewire_capture(&request, &capture)
+		if status != C.NERU_CAPTURE_OK {
+			return nil, pipewireCaptureError(captureStatus(status))
+		}
 
-	return captureResult(&capture)
+		return captureResult(&capture)
+	})
 }

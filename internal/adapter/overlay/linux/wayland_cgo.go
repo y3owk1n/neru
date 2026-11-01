@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux/wlr_protocol"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 func init() {
@@ -339,4 +340,37 @@ func (o *wlrootsOverlay) textPrim(
 		C.double(centerY),
 		C.double(fontSize), C.uint(color), cBold,
 	)
+}
+
+// blankFrameTimeout bounds the wait for the compositor to draw a frame without
+// the overlay. A compositor sends no frame callback for an output it is not
+// drawing, such as one turned off, and the capture should not wait on that.
+const blankFrameTimeout = 100 * time.Millisecond
+
+// withBlanked runs capture with a cleared buffer committed in place of the one
+// on screen, once the compositor has drawn a frame with it, then commits the
+// drawn buffer again. Its pixels were never touched, so the overlay comes back
+// exactly as it was. The surface stays mapped throughout, so the overlay keeps
+// the keyboard.
+func (o *wlrootsOverlay) withBlanked(capture func() error) error {
+	if o == nil || o.raw == nil {
+		return capture()
+	}
+
+	saved := C.neru_wayland_overlay_blank(o.raw, C.int(blankFrameTimeout.Milliseconds()))
+
+	switch {
+	case saved == C.NERU_BLANK_NOTHING_SHOWN:
+		return capture()
+	case saved < 0:
+		return derrors.New(
+			derrors.CodeOverlayFailed,
+			"could not take the overlay off the screen for a capture: "+
+				"the compositor holds every spare buffer",
+		)
+	}
+
+	defer C.neru_wayland_overlay_unblank(o.raw, saved)
+
+	return capture()
 }

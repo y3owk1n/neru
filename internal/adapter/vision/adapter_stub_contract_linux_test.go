@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	platformlinux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -293,12 +294,24 @@ func TestVisionAdapter_PixelDetectorsKeepTheContractOnLinux(t *testing.T) {
 	}
 }
 
-// TestVisionAdapter_CaptureIncludesOwnWindowsOnLinux pins that Linux says its
-// capture includes Neru's own windows. A hints refresh that reads the screen
-// takes the old labels off first only when this is false, so a true here would
-// let it read them back as targets.
-func TestVisionAdapter_CaptureIncludesOwnWindowsOnLinux(t *testing.T) {
-	if vision.NewAdapter(nil).CaptureExcludesOwnWindows() {
-		t.Error("CaptureExcludesOwnWindows() = true, but every Linux capture reads the overlay")
+// TestVisionAdapter_CaptureExcludesOwnWindowsOnceTheOverlayRegisters pins that
+// Linux says its capture leaves Neru's own windows out only while an overlay
+// has registered the hider that takes it off the screen. A hints refresh that
+// reads the screen takes the old labels off first only when this is false, so
+// a true with no hider would let it read them back as targets.
+func TestVisionAdapter_CaptureExcludesOwnWindowsOnceTheOverlayRegisters(t *testing.T) {
+	adapter := vision.NewAdapter(nil)
+
+	platformlinux.SetOwnWindowsHider(nil)
+
+	if adapter.CaptureExcludesOwnWindows() {
+		t.Error("CaptureExcludesOwnWindows() = true with no overlay to take off the screen")
+	}
+
+	platformlinux.SetOwnWindowsHider(func(capture func() error) error { return capture() })
+	t.Cleanup(func() { platformlinux.SetOwnWindowsHider(nil) })
+
+	if !adapter.CaptureExcludesOwnWindows() {
+		t.Error("CaptureExcludesOwnWindows() = false with an overlay that takes itself off")
 	}
 }

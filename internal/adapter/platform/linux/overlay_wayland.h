@@ -99,6 +99,19 @@ void neru_wayland_overlay_sync(NeruWaylandOverlay *overlay);
 void neru_wayland_overlay_select_buffer(NeruWaylandOverlay *overlay, int index);
 int neru_wayland_overlay_available_buffer(NeruWaylandOverlay *overlay);
 void neru_wayland_overlay_dispatch_pending(NeruWaylandOverlay *overlay);
+
+// NERU_BLANK_NOTHING_SHOWN means the overlay had nothing on screen to clear,
+// and NERU_BLANK_NO_BUFFER that the compositor held every spare buffer.
+#define NERU_BLANK_NOTHING_SHOWN (-1)
+#define NERU_BLANK_NO_BUFFER (-2)
+
+// neru_wayland_overlay_blank commits a cleared spare buffer in place of the one
+// on screen and waits up to timeout_ms for the compositor to draw a frame
+// without it. The surface stays mapped, so the overlay keeps the keyboard. It
+// returns the index of the buffer that was on screen, whose pixels nothing
+// touched, for neru_wayland_overlay_unblank to put back, or a NERU_BLANK_ code.
+int neru_wayland_overlay_blank(NeruWaylandOverlay *overlay, int timeout_ms);
+void neru_wayland_overlay_unblank(NeruWaylandOverlay *overlay, int saved);
 void neru_wayland_overlay_rect(
     NeruWaylandOverlay *overlay, double x, double y, double width, double height, unsigned int fill,
     unsigned int stroke, double stroke_width);

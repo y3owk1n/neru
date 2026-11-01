@@ -126,10 +126,18 @@ waits one `DwmFlush` for the compositor to apply it, reads the screen with
 `BitBlt` and restores `WDA_NONE`. Between captures the windows stay in a screen
 share or recording, unless the overlay is hidden from screen shares. Then every
 window keeps `WDA_EXCLUDEFROMCAPTURE`, a window opened later gets it when it
-registers, and a capture skips the restore. Linux and older Windows builds capture Neru's windows with
-the rest of the screen. There a hints refresh with a screen-reading strategy
-takes the old labels off before it captures, and snap refuses those strategies
-while a mode is open.
+registers, and a capture skips the restore. On Linux the overlay takes itself
+off the screen around each capture, through a hider it registers with
+`platform/linux` (`capture_exclusion.go`). Under its render lock it clears
+what it shows without unmapping, so the overlay keeps the keyboard. Wayland
+commits a cleared spare buffer and waits for the compositor's frame callback.
+X11 copies the window into a server-side pixmap, clears it, syncs, and waits
+120 ms when a compositing manager owns `_NET_WM_CM_S<n>`. After the capture
+the drawn buffer or the copy goes back, untouched. The click indicator is a
+surface of its own and stays in the capture. Windows builds older than 2004
+capture Neru's windows with the rest of the screen. There a hints refresh with
+a screen-reading strategy takes the old labels off before it captures, and
+snap refuses those strategies while a mode is open.
 
 ⁶ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing

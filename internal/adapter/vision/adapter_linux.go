@@ -159,10 +159,12 @@ func toRecognizedWords(words []platformlinux.OCRWord) []recognizedWord {
 	return converted
 }
 
-// CaptureExcludesOwnWindows is false on Linux. wlr-screencopy, XGetImage and
-// the portal's ScreenCast stream all read the composited screen, overlay
-// included.
-func (a *Adapter) CaptureExcludesOwnWindows() bool { return false }
+// CaptureExcludesOwnWindows is true once the overlay is built. No Linux
+// capture can leave a window out, so the overlay takes itself off the screen
+// around each one (platform/linux capture_exclusion.go).
+func (a *Adapter) CaptureExcludesOwnWindows() bool {
+	return platformlinux.CaptureExcludesOwnWindows()
+}
 
 // CaptureScreen returns the pixels currently on the active screen.
 func (a *Adapter) CaptureScreen(ctx context.Context) (*image.RGBA, error) {

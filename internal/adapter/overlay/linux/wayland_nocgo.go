@@ -102,3 +102,6 @@ func (o *wlrootsOverlay) cancelAnimation()               {}
 func (o *wlrootsOverlay) setRenderMu(_ *sync.Mutex)      {}
 func (o *wlrootsOverlay) setKeyboardCaptureEnabled(bool) {}
 func (o *wlrootsOverlay) startPoller()                   {}
+
+// withBlanked runs capture as it is, because this build draws no overlay.
+func (o *wlrootsOverlay) withBlanked(capture func() error) error { return capture() }
