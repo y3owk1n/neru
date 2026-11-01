@@ -136,8 +136,9 @@ static int neru_x11_overlay_composited(NeruX11Overlay *overlay) {
 	return XGetSelectionOwner(overlay->display, selection) != None;
 }
 
-cairo_surface_t *neru_x11_overlay_blank(NeruX11Overlay *overlay, int *composited) {
+cairo_surface_t *neru_x11_overlay_blank(NeruX11Overlay *overlay, int *composited, int *failed) {
 	*composited = 0;
+	*failed = 0;
 	if (overlay == NULL) {
 		return NULL;
 	}
@@ -157,8 +158,18 @@ cairo_surface_t *neru_x11_overlay_blank(NeruX11Overlay *overlay, int *composited
 	cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
 	cairo_set_source_surface(cr, overlay->surface, 0, 0);
 	cairo_paint(cr);
+	cairo_status_t copied = cairo_status(cr);
 	cairo_destroy(cr);
 	cairo_surface_flush(saved);
+
+	// Without a good copy there would be nothing to put back, so the window
+	// stays as it is and the capture fails.
+	if (copied != CAIRO_STATUS_SUCCESS || cairo_surface_status(saved) != CAIRO_STATUS_SUCCESS) {
+		cairo_surface_destroy(saved);
+		*failed = 1;
+
+		return NULL;
+	}
 
 	neru_x11_overlay_clear(overlay);
 	XSync(overlay->display, False);

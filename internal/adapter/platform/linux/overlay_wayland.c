@@ -929,21 +929,32 @@ static int neru_free_buffer_except(NeruWaylandOverlay *overlay, int except) {
 
 static void neru_blank_frame_done(void *data, struct wl_callback *callback, uint32_t time) {
 	(void)time;
-	*(int *)data = 1;
+	struct wl_callback **slot = data;
+	*slot = NULL;
 	wl_callback_destroy(callback);
 }
 
 static const struct wl_callback_listener neru_blank_frame_listener = {.done = neru_blank_frame_done};
 
-// neru_wait_frame dispatches the overlay's display until *done is set or
-// timeout_ms passes. Keyboard events it dispatches land in the key ring the
-// poller drains, so none is lost.
-static void neru_wait_frame(NeruWaylandOverlay *overlay, const int *done, int timeout_ms) {
+// neru_frames_pending reports whether any output has yet to draw its frame.
+static int neru_frames_pending(struct wl_callback *const *frames, int count) {
+	for (int i = 0; i < count; i++) {
+		if (frames[i])
+			return 1;
+	}
+	return 0;
+}
+
+// neru_wait_frames dispatches the overlay's display until every output has
+// drawn a frame or timeout_ms passes. Keyboard events it dispatches land in
+// the key ring the poller drains, so none is lost.
+static void neru_wait_frames(
+    NeruWaylandOverlay *overlay, struct wl_callback *const *frames, int count, int timeout_ms) {
 	struct wl_display *display = overlay->display;
 	struct timespec start;
 	clock_gettime(CLOCK_MONOTONIC, &start);
 
-	while (!*done) {
+	while (neru_frames_pending(frames, count)) {
 		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		long elapsed = (now.tv_sec - start.tv_sec) * 1000L + (now.tv_nsec - start.tv_nsec) / 1000000L;
@@ -955,7 +966,7 @@ static void neru_wait_frame(NeruWaylandOverlay *overlay, const int *done, int ti
 			if (wl_display_dispatch_pending(display) < 0 || ++prepare_retries > 100)
 				return;
 		}
-		if (*done) {
+		if (!neru_frames_pending(frames, count)) {
 			wl_display_cancel_read(display);
 			return;
 		}
@@ -1005,25 +1016,26 @@ int neru_wayland_overlay_blank(NeruWaylandOverlay *overlay, int timeout_ms) {
 	neru_wayland_overlay_select_buffer(overlay, spare);
 	neru_wayland_overlay_clear(overlay);
 
-	int done = 0;
-	struct wl_callback *frame = NULL;
+	// One frame callback per output, because a capture can read any of them
+	// and each draws the cleared buffer on its own schedule.
+	struct wl_callback *frames[NERU_MAX_OUTPUTS] = {0};
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 		if (!scr->wl_surface || !scr->buffer)
 			continue;
 		wl_surface_attach(scr->wl_surface, scr->buffer, 0, 0);
 		wl_surface_damage_buffer(scr->wl_surface, 0, 0, INT32_MAX, INT32_MAX);
-		if (!frame) {
-			frame = wl_surface_frame(scr->wl_surface);
-			wl_callback_add_listener(frame, &neru_blank_frame_listener, &done);
-		}
+		frames[i] = wl_surface_frame(scr->wl_surface);
+		wl_callback_add_listener(frames[i], &neru_blank_frame_listener, &frames[i]);
 		wl_surface_commit(scr->wl_surface);
 		scr->busy[spare] = 1;
 	}
 
-	neru_wait_frame(overlay, &done, timeout_ms);
-	if (!done && frame)
-		wl_callback_destroy(frame);
+	neru_wait_frames(overlay, frames, overlay->nr_screens, timeout_ms);
+	for (int i = 0; i < overlay->nr_screens; i++) {
+		if (frames[i])
+			wl_callback_destroy(frames[i]);
+	}
 
 	return current;
 }

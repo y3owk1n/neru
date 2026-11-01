@@ -10,7 +10,12 @@ package linux
 import "C"
 
 import (
+	"context"
 	"image"
+
+	"golang.org/x/sys/unix"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // pipewireCaptureNode reads one frame off the PipeWire node the granted
@@ -25,33 +30,45 @@ import (
 // remoteFD's ownership passes to the native side, which closes it on every
 // path. There is exactly one frame per descriptor. The connection is opened for
 // this capture and torn down with it, so KWin is never left pushing frames of
-// the user's screen at a daemon that is not reading them.
+// the user's screen at a daemon that is not reading them. When the hider cannot
+// take the overlay off the screen, or ctx ends while the overlay is off, the
+// native side never runs and this function closes the descriptor.
 //
-// budgetMS is what is left of the caller's deadline, so the wait for a frame
-// cannot outlive the activation that asked for it.
+// The frame budget is what is left of ctx when the read starts, after the
+// overlay is off, so the wait for a frame cannot outlive the activation that
+// asked for it.
 func pipewireCaptureNode(
+	ctx context.Context,
 	remoteFD int,
 	nodeID uint32,
 	crop image.Rectangle,
 	logicalWidth int,
 	logicalHeight int,
-	budgetMS int,
 ) (*image.RGBA, error) {
-	request := C.NeruPipewireRequest{
-		fd:             C.int(remoteFD),
-		node_id:        C.uint(nodeID),
-		x:              C.int(crop.Min.X),
-		y:              C.int(crop.Min.Y),
-		w:              C.int(crop.Dx()),
-		h:              C.int(crop.Dy()),
-		logical_width:  C.int(logicalWidth),
-		logical_height: C.int(logicalHeight),
-		timeout_ms:     C.int(budgetMS),
-	}
+	handedOver := false
 
 	// A new consumer gets a frame the compositor renders as it connects, so
 	// connecting with the overlay already off is what leaves it out.
-	return withOwnWindowsHidden(func() (*image.RGBA, error) {
+	img, err := withOwnWindowsHidden(func() (*image.RGBA, error) {
+		err := ctx.Err()
+		if err != nil {
+			return nil, derrors.Wrap(err, derrors.CodeContextCanceled, "screen capture canceled")
+		}
+
+		handedOver = true
+
+		request := C.NeruPipewireRequest{
+			fd:             C.int(remoteFD),
+			node_id:        C.uint(nodeID),
+			x:              C.int(crop.Min.X),
+			y:              C.int(crop.Min.Y),
+			w:              C.int(crop.Dx()),
+			h:              C.int(crop.Dy()),
+			logical_width:  C.int(logicalWidth),
+			logical_height: C.int(logicalHeight),
+			timeout_ms:     C.int(frameBudgetMS(ctx)),
+		}
+
 		var capture C.NeruCapture
 
 		status := C.neru_pipewire_capture(&request, &capture)
@@ -61,4 +78,10 @@ func pipewireCaptureNode(
 
 		return captureResult(&capture)
 	})
+
+	if !handedOver {
+		_ = unix.Close(remoteFD)
+	}
+
+	return img, err
 }

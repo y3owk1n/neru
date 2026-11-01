@@ -18,6 +18,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // x11Overlay is the X11 backend: the cgo connection, the HiDPI scale probe,
@@ -240,9 +241,16 @@ func (o *x11Overlay) withBlanked(capture func() error) error {
 		return capture()
 	}
 
-	var composited C.int
+	var composited, failed C.int
 
-	saved := C.neru_x11_overlay_blank(o.raw, &composited)
+	saved := C.neru_x11_overlay_blank(o.raw, &composited, &failed)
+	if failed != 0 {
+		return derrors.New(
+			derrors.CodeOverlayFailed,
+			"could not take the overlay off the screen for a capture: copying it failed",
+		)
+	}
+
 	if saved == nil {
 		return capture()
 	}
