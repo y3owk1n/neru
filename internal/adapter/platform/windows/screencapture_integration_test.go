@@ -339,6 +339,63 @@ func TestSetOwnWindowsHiddenFromCapture_KeepsTheOverlayOutOfEveryCapture(t *test
 	}
 }
 
+// TestSetOwnWindowsHiddenFromCapture_HidesAnOverlayAlreadyShown pins that
+// hiding waits for the compositor before it returns. An overlay already on
+// screen is out of the next copy, so a capture queued behind the change
+// cannot read it.
+func TestSetOwnWindowsHiddenFromCapture_HidesAnOverlayAlreadyShown(t *testing.T) {
+	if !CaptureExcludesOwnWindows() {
+		t.Skip("skipping: leaving windows out of a capture needs Windows 10 version 2004")
+	}
+
+	screen, err := activeScreenBounds()
+	if err != nil {
+		t.Skipf("no active screen: %v", err)
+	}
+
+	painted := image.Rect(screen.Min.X+40, screen.Min.Y+40, screen.Min.X+140, screen.Min.Y+140)
+
+	background, err := bitBltRegion(painted)
+	if err != nil {
+		t.Fatalf("bitBltRegion(%v): %v", painted, err)
+	}
+
+	paintedOverlay(t, painted, 0xFFFF00FF)
+
+	raw, err := bitBltRegion(painted)
+	if err != nil {
+		t.Fatalf("bitBltRegion(%v): %v", painted, err)
+	}
+
+	if !isMagenta(raw) {
+		t.Fatal("the raw copy does not show the painted overlay, so the check below means nothing")
+	}
+
+	err = SetOwnWindowsHiddenFromCapture(true)
+	if err != nil {
+		t.Fatalf("SetOwnWindowsHiddenFromCapture(true): %v", err)
+	}
+
+	t.Cleanup(func() {
+		err := SetOwnWindowsHiddenFromCapture(false)
+		if err != nil {
+			t.Errorf("SetOwnWindowsHiddenFromCapture(false): %v", err)
+		}
+	})
+
+	raw, err = bitBltRegion(painted)
+	if err != nil {
+		t.Fatalf("bitBltRegion(%v): %v", painted, err)
+	}
+
+	if share := sameShare(raw, background); share < 0.9 {
+		t.Fatalf(
+			"only %.2f of the copy right after hiding matches what is behind the overlay",
+			share,
+		)
+	}
+}
+
 // TestCaptureScreenRegion_ConcurrentCapturesLeaveTheOverlayOut pins why the
 // captures take turns. Two captures running at once must both leave the
 // overlay out, so one restoring the affinity never uncovers it while the other

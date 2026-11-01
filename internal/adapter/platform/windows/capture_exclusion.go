@@ -54,7 +54,8 @@ var (
 	// hiddenFromCapture says the overlay is hidden from screen shares, so
 	// every window Neru shows keeps the affinity instead of taking it for one
 	// capture. affinityMu serializes a change of the flag with a window
-	// registering, so a new window cannot miss the change. It is a leaf, taken after captureMu.
+	// registering, so a new window cannot miss the change. It is a leaf, taken
+	// after captureMu.
 	hiddenFromCapture atomic.Bool
 	affinityMu        sync.Mutex
 )
@@ -77,18 +78,22 @@ func registerOwnWindow(hwnd uintptr) {
 	}
 }
 
-// excludeFromCapture keeps hwnd out of every capture. A live window refusing
-// it stays in them, so it turns CaptureExcludesOwnWindows false like a refusal
-// during a capture does.
-func excludeFromCapture(hwnd uintptr) {
+// excludeFromCapture keeps hwnd out of every capture, and reports whether a
+// live window refused. One that refused stays in every capture, so it turns
+// CaptureExcludesOwnWindows false like a refusal during a capture does.
+func excludeFromCapture(hwnd uintptr) bool {
 	ret, _, _ := procSetWindowDisplayAffinity.Call(hwnd, wdaExcludeFromCapture)
 	if ret != 0 {
-		return
+		return false
 	}
 
-	if live, _, _ := procIsWindow.Call(hwnd); live != 0 {
-		exclusionRefused.Store(true)
+	if live, _, _ := procIsWindow.Call(hwnd); live == 0 {
+		return false
 	}
+
+	exclusionRefused.Store(true)
+
+	return true
 }
 
 // SetOwnWindowsHiddenFromCapture keeps every window Neru shows out of screen
@@ -96,7 +101,11 @@ func excludeFromCapture(hwnd uintptr) {
 // windows stay on the monitor either way. Like the per-capture exclusion it
 // takes Windows 10 version 2004 or later. An earlier build reads the affinity
 // as WDA_MONITOR and would black the full-screen overlay out of the share, so
-// there hiding reports CodeNotSupported and changes nothing.
+// there hiding reports CodeNotSupported and changes nothing. A window that
+// refuses the affinity stays in the share, and hiding reports that too.
+//
+// It waits one compositor frame when a visible window changed, so a capture
+// queued behind it on captureMu reads a frame that already has the change.
 func SetOwnWindowsHiddenFromCapture(hidden bool) error {
 	if !supportsExclusion() && hidden {
 		return derrors.New(
@@ -117,16 +126,33 @@ func SetOwnWindowsHiddenFromCapture(hidden bool) error {
 
 	hiddenFromCapture.Store(hidden)
 
+	var refused, anyVisible bool
+
 	ownWindows.Range(func(key, _ any) bool {
 		hwnd, _ := key.(uintptr)
 		if hidden {
-			excludeFromCapture(hwnd)
+			refused = excludeFromCapture(hwnd) || refused
 		} else {
 			discardCall(procSetWindowDisplayAffinity.Call(hwnd, wdaNone))
 		}
 
+		if visible, _, _ := procIsWindowVisible.Call(hwnd); visible != 0 {
+			anyVisible = true
+		}
+
 		return true
 	})
+
+	if anyVisible {
+		discardCall(procDwmFlush.Call())
+	}
+
+	if refused {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"a window refused to be hidden from screen captures",
+		)
+	}
 
 	return nil
 }

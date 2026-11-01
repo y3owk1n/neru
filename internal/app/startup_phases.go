@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"sync"
 
 	"go.uber.org/zap"
 
@@ -412,10 +413,21 @@ func setupScreenShareStateSubscription(app *App) {
 		app.appState.SetHiddenForScreenShare(true)
 	}
 
-	app.screenShareSubscriptionID = app.appState.OnScreenShareStateChanged(func(hidden bool) {
-		if app.overlayPort != nil {
-			app.overlayPort.SetHiddenInScreenShare(hidden)
+	// AppState notifies each change on a goroutine of its own, so callbacks can
+	// run out of order. Each applies the state as it is once it holds applyMu,
+	// rather than the value it was handed, so the last one to run applies the
+	// latest change.
+	var applyMu sync.Mutex
+
+	app.screenShareSubscriptionID = app.appState.OnScreenShareStateChanged(func(bool) {
+		if app.overlayPort == nil {
+			return
 		}
+
+		applyMu.Lock()
+		defer applyMu.Unlock()
+
+		app.overlayPort.SetHiddenInScreenShare(app.appState.IsHiddenForScreenShare())
 	})
 }
 
