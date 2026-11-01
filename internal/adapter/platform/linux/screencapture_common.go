@@ -5,6 +5,7 @@ package linux
 import (
 	"context"
 	"image"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -15,6 +16,36 @@ import (
 // far longer than a real grab (a 4K frame is tens of milliseconds) and short
 // enough that a hint refresh does not appear to hang.
 const screenCaptureTimeoutMS = 2000
+
+// captureBudgetMS is how long a native capture may wait: whatever is left of
+// the caller's budget, capped at screenCaptureTimeoutMS.
+//
+// The floor is one millisecond because the C side reads a non-positive timeout
+// as "use the default". A caller with nothing left gets a wait that gives up
+// immediately, which is what was wanted. The alternative would be a two-second
+// wait bolted onto a budget that had already run out.
+func captureBudgetMS(ctx context.Context) int {
+	budget := screenCaptureTimeoutMS
+
+	deadline, hasDeadline := ctx.Deadline()
+	if hasDeadline {
+		budget = min(budget, int(time.Until(deadline).Milliseconds()))
+	}
+
+	return max(budget, 1)
+}
+
+// captureCanceled reports ctx ending as a canceled capture. A capture checks it
+// again once the overlay is off, because waiting for the overlay's render lock
+// can outlast the caller's deadline.
+func captureCanceled(ctx context.Context) error {
+	err := ctx.Err()
+	if err != nil {
+		return derrors.Wrap(err, derrors.CodeContextCanceled, "screen capture canceled")
+	}
+
+	return nil
+}
 
 // captureStatus mirrors the NERU_CAPTURE_* codes in screencapture.h.
 //
@@ -138,15 +169,16 @@ const (
 // returned image can be larger than the requested region by the output's scale
 // factor, the same thing a Retina capture does on macOS.
 //
-// ctx bounds the capture where a backend can observe it, which today means the
-// KDE one. Its D-Bus round trips add up, a session establishment, then a
-// PipeWire connection, then a frame, so without the caller's budget on top of
-// them a capture could cost more wall clock than the caller allowed, and this
-// call runs under the mode handler's lock. The X11 and wlroots backends make a
-// single native call each, already bounded by screenCaptureTimeoutMS and not
-// cancelable once entered, so for them ctx is checked once on entry and not
-// carried as a deadline. A Go deadline is only worth threading where the callee
-// reads it (internal/app/modes/AGENTS.md).
+// ctx bounds the capture where a backend can observe it. The KDE backend makes
+// several D-Bus round trips: a session, then a PipeWire connection, then a
+// frame. The wlroots backend's screencopy exchange reads a timeout too. Both
+// get what is left of ctx, capped at screenCaptureTimeoutMS, so a capture
+// cannot cost more wall clock than the caller allowed. That matters twice, because this call runs under the mode
+// handler's lock and the read runs under the overlay's render lock. X11 makes
+// one XGetImage, which reads no timeout and cannot be canceled once entered, so
+// there ctx is only checked. Every backend checks ctx again once the overlay
+// is off, since waiting for it can use up the budget. A Go deadline is only
+// worth threading where the callee reads it (internal/app/modes/AGENTS.md).
 //
 // Privacy: the returned image is the only copy that outlives this call. The
 // native buffers are wiped before they are freed or unmapped. Callers must
@@ -169,6 +201,11 @@ func CaptureScreenRegion(
 		}
 
 		return withOwnWindowsHidden(func() (*image.RGBA, error) {
+			err := captureCanceled(ctx)
+			if err != nil {
+				return nil, err
+			}
+
 			return x11CaptureRegion(resolved)
 		})
 	}
@@ -193,7 +230,12 @@ func CaptureScreenRegion(
 		}
 
 		return withOwnWindowsHidden(func() (*image.RGBA, error) {
-			return wlrootsCaptureRegion(resolved)
+			err := captureCanceled(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			return wlrootsCaptureRegion(resolved, captureBudgetMS(ctx))
 		})
 	}
 

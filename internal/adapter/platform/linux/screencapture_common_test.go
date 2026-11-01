@@ -265,3 +265,42 @@ func TestCaptureError(t *testing.T) {
 		})
 	}
 }
+
+// TestCaptureScreenRegion_GivesUpWhenTheDeadlinePassesWhileTheOverlayComesOff
+// pins the check each capture makes once the overlay is off. Taking the
+// overlay off waits for its render lock, which can outlast the caller's
+// deadline. A capture that read the screen anyway would hold that lock past
+// the deadline too. The hider here ends ctx before it runs the capture.
+// With no display set, a capture that skipped the check would answer
+// CodeNotSupported instead.
+func TestCaptureScreenRegion_GivesUpWhenTheDeadlinePassesWhileTheOverlayComesOff(t *testing.T) {
+	t.Setenv("DISPLAY", "")
+	t.Setenv("WAYLAND_DISPLAY", "")
+
+	for _, backend := range []string{backendX11, backendWaylandWlroots} {
+		t.Run(backend, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			SetOwnWindowsHider(func(capture func() error) error {
+				cancel()
+
+				return capture()
+			})
+			t.Cleanup(func() { SetOwnWindowsHider(nil) })
+
+			img, err := CaptureScreenRegion(ctx, backend, image.Rect(0, 0, 10, 10))
+			if img != nil {
+				t.Error("CaptureScreenRegion returned an image after its deadline passed")
+			}
+
+			if code := derrors.GetCode(err); code != derrors.CodeContextCanceled {
+				t.Errorf(
+					"CaptureScreenRegion returned code %q, want %q",
+					code,
+					derrors.CodeContextCanceled,
+				)
+			}
+		})
+	}
+}

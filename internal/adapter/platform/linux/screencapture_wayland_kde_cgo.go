@@ -14,8 +14,6 @@ import (
 	"image"
 
 	"golang.org/x/sys/unix"
-
-	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // pipewireCaptureNode reads one frame off the PipeWire node the granted
@@ -50,9 +48,9 @@ func pipewireCaptureNode(
 	// A new consumer gets a frame the compositor renders as it connects, so
 	// connecting with the overlay already off is what leaves it out.
 	img, err := withOwnWindowsHidden(func() (*image.RGBA, error) {
-		err := ctx.Err()
+		err := captureCanceled(ctx)
 		if err != nil {
-			return nil, derrors.Wrap(err, derrors.CodeContextCanceled, "screen capture canceled")
+			return nil, err
 		}
 
 		handedOver = true
@@ -66,7 +64,7 @@ func pipewireCaptureNode(
 			h:              C.int(crop.Dy()),
 			logical_width:  C.int(logicalWidth),
 			logical_height: C.int(logicalHeight),
-			timeout_ms:     C.int(frameBudgetMS(ctx)),
+			timeout_ms:     C.int(captureBudgetMS(ctx)),
 		}
 
 		var capture C.NeruCapture

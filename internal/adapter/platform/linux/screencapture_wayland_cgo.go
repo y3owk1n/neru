@@ -25,7 +25,10 @@ import (
 // everything else, such as wl_output, xdg-output and layer shell, but
 // advertises no screencopy manager, so CaptureScreenRegion sends KDE to the
 // portal backend before this branch is considered.
-func wlrootsCaptureRegion(region image.Rectangle) (*image.RGBA, error) {
+//
+// budgetMS bounds the whole exchange, so the capture gives up when the caller's
+// deadline does.
+func wlrootsCaptureRegion(region image.Rectangle, budgetMS int) (*image.RGBA, error) {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return nil, derrors.New(
 			derrors.CodeNotSupported,
@@ -43,7 +46,7 @@ func wlrootsCaptureRegion(region image.Rectangle) (*image.RGBA, error) {
 		C.int(region.Min.Y),
 		C.int(region.Dx()),
 		C.int(region.Dy()),
-		C.int(screenCaptureTimeoutMS),
+		C.int(budgetMS),
 		&capture,
 		&transform,
 	)

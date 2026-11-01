@@ -24,8 +24,8 @@ func x11CaptureRegion(region image.Rectangle) (*image.RGBA, error) {
 	)
 }
 
-func wlrootsCaptureRegion(region image.Rectangle) (*image.RGBA, error) {
-	_ = region
+func wlrootsCaptureRegion(region image.Rectangle, budgetMS int) (*image.RGBA, error) {
+	_, _ = region, budgetMS
 
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
