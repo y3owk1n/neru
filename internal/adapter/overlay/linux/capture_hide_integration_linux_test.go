@@ -18,46 +18,46 @@ const magenta = 0xFFFF00FF
 
 // paintRect puts one filled rectangle on the overlay, through the same
 // primitives every draw ends in, and gives the compositor time to show it.
-func paintRect(t *testing.T, m *Manager, rect image.Rectangle) {
+func paintRect(t *testing.T, mgr *Manager, rect image.Rectangle) {
 	t.Helper()
 
 	var srf overlaySurface
 
 	switch {
-	case m.x11 != nil:
-		srf = m.x11
-	case m.wlroots != nil:
-		srf = m.wlroots
+	case mgr.x11 != nil:
+		srf = mgr.x11
+	case mgr.wlroots != nil:
+		srf = mgr.wlroots
 	default:
 		t.Skip("skipping: no overlay backend on this display")
 	}
 
-	m.ResizeToActiveScreen()
-	m.Show()
+	mgr.ResizeToActiveScreen()
+	mgr.Show()
 
-	m.renderMu.Lock()
+	mgr.renderMu.Lock()
 	srf.ensureBuffers()
 
 	if !srf.beginFrame() {
-		m.renderMu.Unlock()
+		mgr.renderMu.Unlock()
 		t.Fatal("no buffer to draw the rectangle into")
 	}
 
 	srf.clearFrame()
 	srf.rectPrim(rect, magenta, magenta, 0)
 	srf.surfaceFlush()
-	m.renderMu.Unlock()
+	mgr.renderMu.Unlock()
 
 	time.Sleep(600 * time.Millisecond)
 }
 
 // rawCapture reads the screen with no overlay hider registered, the way a
-// screen share or screenshot sees it, then registers m's hider again.
-func rawCapture(t *testing.T, m *Manager, backend string, region image.Rectangle) *image.RGBA {
+// screen share or screenshot sees it, then registers mgr's hider again.
+func rawCapture(t *testing.T, mgr *Manager, backend string, region image.Rectangle) *image.RGBA {
 	t.Helper()
 
 	platformlinux.SetOwnWindowsHider(nil)
-	defer platformlinux.SetOwnWindowsHider(m.hideForCapture)
+	defer platformlinux.SetOwnWindowsHider(mgr.hideForCapture)
 
 	img, err := platformlinux.CaptureScreenRegion(context.Background(), backend, region)
 	if err != nil {
@@ -119,12 +119,12 @@ func sameShare(got, want *image.RGBA) float64 {
 // screen until its client exits, so a second run in the same process starts
 // with the first run's rectangle still showing.
 func TestManagerHideForCapture_LeavesTheOverlayOutAndPutsItBack(t *testing.T) {
-	m := NewOverlayManager(zap.NewNop())
-	if m == nil {
+	mgr := NewOverlayManager(zap.NewNop())
+	if mgr == nil {
 		t.Skip("skipping: no display")
 	}
 
-	t.Cleanup(m.Destroy)
+	t.Cleanup(mgr.Destroy)
 
 	backend := platform.DetectLinuxBackend().String()
 
@@ -133,11 +133,11 @@ func TestManagerHideForCapture_LeavesTheOverlayOutAndPutsItBack(t *testing.T) {
 	painted := image.Rect(0, 0, 400, 400)
 	region := image.Rect(100, 100, 200, 200)
 
-	background := rawCapture(t, m, backend, region)
+	background := rawCapture(t, mgr, backend, region)
 
-	paintRect(t, m, painted)
+	paintRect(t, mgr, painted)
 
-	if share := magentaShare(rawCapture(t, m, backend, region)); share < 0.9 {
+	if share := magentaShare(rawCapture(t, mgr, backend, region)); share < 0.9 {
 		t.Fatalf(
 			"only %.2f of the raw copy shows the painted overlay, so the check below means nothing",
 			share,
@@ -155,7 +155,7 @@ func TestManagerHideForCapture_LeavesTheOverlayOutAndPutsItBack(t *testing.T) {
 
 	time.Sleep(600 * time.Millisecond)
 
-	if share := magentaShare(rawCapture(t, m, backend, region)); share < 0.9 {
+	if share := magentaShare(rawCapture(t, mgr, backend, region)); share < 0.9 {
 		t.Fatalf("only %.2f of the raw copy shows the overlay after the capture", share)
 	}
 }
