@@ -653,8 +653,9 @@ The cursor lands on the center of the part of the element inside the region.
 When it finds nothing to snap to, the cursor stays put and the action fails,
 and the rest of a binding still runs. In ["action snap", "action left_click"]
 inside a grid mode, the click then lands on the grid's selection. Write
-"action snap --bail-on-error" to stop the binding instead. A mode key pressed
-while it scans drops the snap and stops the binding.
+"action snap --bail-on-error" to stop the binding instead. If you leave the
+mode, press a mode key, or run a cursor action such as move_mouse_relative in
+the mode while it scans, the snap stops the binding.
 
 --strategy picks how snap finds elements, as for hints, and takes one value.
 It defaults to the strategy hints would use for the focused app. --role and

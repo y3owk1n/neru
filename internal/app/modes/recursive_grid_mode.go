@@ -115,15 +115,21 @@ func (m *RecursiveGridMode) SelectionWrites() uint64 {
 	return m.handler.recursiveGrid.Context.SelectionWrites()
 }
 
-// SelectionRegion reports the region the zoom has reached. At the top level
-// it is the whole screen, which narrows nothing.
+// SelectionRegion reports the region the zoom has reached. Once the grid can
+// divide no further, the last pick selects a cell without zooming into it, and
+// that cell is the region. At the top level with no cell picked it is the
+// whole screen, which narrows nothing.
 func (m *RecursiveGridMode) SelectionRegion() (image.Rectangle, bool) {
-	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Manager == nil ||
-		m.handler.recursiveGrid.Manager.CurrentDepth() == 0 {
+	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Manager == nil {
 		return image.Rectangle{}, false
 	}
 
-	return m.handler.recursiveGrid.Manager.CurrentBounds().Add(m.handler.screenBounds.Min), true
+	grid := m.handler.recursiveGrid.Manager.CurrentGrid()
+	if grid.CurrentDepth() == 0 && !grid.HasFinalCell() {
+		return image.Rectangle{}, false
+	}
+
+	return grid.EffectiveBounds().Add(m.handler.screenBounds.Min), true
 }
 
 // SelectionPoint reports the region center recursive-grid mode has selected.

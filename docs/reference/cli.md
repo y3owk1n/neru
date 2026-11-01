@@ -834,9 +834,10 @@ mode. It prints where the cursor landed and the element's role.
   the grid's selection, so a grid keeps working when detection finds nothing.
   Write `action snap --bail-on-error` to stop instead, as
   [Failure policy](#failure-policy) describes.
-- A mode key pressed while it scans drops the snap with `ERR_CHAIN_BAIL`,
-  which stops the binding, since you aimed the rest of it at a target you
-  have left.
+- If you leave the mode, press a mode key, or run a cursor action such as
+  `move_mouse_relative` in the mode while it scans, the snap answers
+  `ERR_CHAIN_BAIL`, whether or not it found anything. That stops the binding,
+  since you aimed the rest of it at a target you have left.
 - On Linux and Windows the screen capture includes Neru's own overlay, so snap
   refuses `vision`, `contour` and `segment` with `ERR_NOT_SUPPORTED` while a
   mode is open. `axtree` works everywhere.

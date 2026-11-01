@@ -630,3 +630,148 @@ func TestSimulation_SnapInsideAZoomedCellSkipsTheRowCoveringIt(t *testing.T) {
 			got, want, rectCenter(region))
 	}
 }
+
+// holdScan holds the next scan open until the returned release is called, and
+// returns a channel that closes once the scan has started.
+func (h *simHarness) holdScan() (<-chan struct{}, func()) {
+	scanning := make(chan struct{})
+	release := make(chan struct{})
+
+	var once sync.Once
+
+	h.ax.setScanGate(func() {
+		held := false
+
+		once.Do(func() {
+			held = true
+
+			close(scanning)
+		})
+
+		if held {
+			<-release
+		}
+	})
+
+	return scanning, func() { close(release) }
+}
+
+// TestSimulation_SnapThatFindsNothingIsDroppedWhenTheModeExitsDuringTheScan
+// covers Escape pressed while a snap that will find nothing scans. The snap
+// answers with a chain bail rather than a plain failure, so the click after
+// it in a binding does not run on a mode the user left.
+func TestSimulation_SnapThatFindsNothingIsDroppedWhenTheModeExitsDuringTheScan(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	sim.zoomRecursiveGrid()
+
+	scanning, release := sim.holdScan()
+	answer := make(chan ipc.Response, 1)
+
+	go func() { answer <- sim.snap() }()
+
+	<-scanning
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+	release()
+
+	if resp := <-answer; resp.Success || resp.Code != ipc.CodeChainBail {
+		t.Fatalf("snap = %+v, want a chain bail once the mode exited", resp)
+	}
+}
+
+// TestSimulation_SnapIsDroppedWhenTheSelectionIsClearedDuringTheScan covers a
+// selection cleared while a snap scans, as a relative cursor move or the start
+// of a held glide clears it. A clear writes no selection, and the snap still
+// moves nothing, so it cannot put back a selection the user let go of.
+func TestSimulation_SnapIsDroppedWhenTheSelectionIsClearedDuringTheScan(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	region := sim.zoomRecursiveGrid()
+
+	inside := image.Rect(region.Min.X, region.Min.Y, region.Min.X+40, region.Min.Y+40)
+	sim.ax.setElements([]*element.Element{simElement(t, "inside", inside, "Inside")})
+
+	scanning, release := sim.holdScan()
+	answer := make(chan ipc.Response, 1)
+
+	go func() { answer <- sim.snap() }()
+
+	<-scanning
+
+	if moved := sim.action("move_mouse_relative", "--dx=5", "--dy=0"); !moved.Success {
+		t.Fatalf("move_mouse_relative failed: %s (%s)", moved.Message, moved.Code)
+	}
+
+	release()
+
+	if resp := <-answer; resp.Success || resp.Code != ipc.CodeChainBail {
+		t.Fatalf("snap = %+v, want a chain bail once the selection was cleared", resp)
+	}
+
+	if got := sim.cursor.position(); got == rectCenter(inside) {
+		t.Errorf("cursor = %v, the stale snap moved it anyway", got)
+	}
+}
+
+// TestSimulation_SnapInABottomedOutRecursiveGridSearchesTheFinalCell covers a
+// recursive grid that can divide no further. The last pick selects a cell
+// without zooming into it, and the mode stays open while the cursor holds
+// still. A snap then searches that cell, not the region around it.
+func TestSimulation_SnapInABottomedOutRecursiveGridSearchesTheFinalCell(t *testing.T) {
+	cfg := simConfig()
+	cfg.RecursiveGrid.MaxDepth = 1
+
+	sim := newSimHarness(t, cfg, nil)
+
+	resp := sim.app.HandleCommand(context.Background(), ipc.Command{
+		Action: domain.ModeNameRecursiveGrid,
+		Args:   []string{"--cursor-selection-mode=hold"},
+	})
+	if !resp.Success {
+		t.Fatalf("recursive_grid failed: %s (%s)", resp.Message, resp.Code)
+	}
+
+	sim.waitMode(domain.ModeRecursiveGrid)
+	sim.press("r")
+
+	var region image.Rectangle
+
+	sim.waitFor("recursive grid zoomed in", func() bool {
+		var ok bool
+
+		region, ok = sim.overlay.lastRecursiveGridBounds()
+
+		return ok && region != simScreen
+	})
+
+	sim.press("r")
+
+	// The top-left cell of the 3x3 split of the region.
+	final := image.Rect(region.Min.X, region.Min.Y,
+		region.Min.X+region.Dx()/3, region.Min.Y+region.Dy()/3)
+
+	sim.waitFor("the final cell selected", func() bool {
+		return sim.app.CurrentMode() == domain.ModeRecursiveGrid
+	})
+
+	finalCenter := rectCenter(final)
+	// In the final cell's corner, and just past its right edge, nearer its
+	// center. A few pixels clear of the edge, since a third of the region
+	// rounds either way.
+	inside := image.Rect(final.Min.X, final.Min.Y, final.Min.X+4, final.Min.Y+4)
+	outside := image.Rect(final.Max.X+3, finalCenter.Y-2, final.Max.X+7, finalCenter.Y+2)
+	sim.ax.setElements([]*element.Element{
+		simElement(t, "inside", inside, "Inside"),
+		simElement(t, "outside", outside, "Outside"),
+	})
+
+	snapped := sim.snap()
+	if !snapped.Success {
+		t.Fatalf("snap failed: %s (%s)", snapped.Message, snapped.Code)
+	}
+
+	if got, want := sim.cursor.position(), rectCenter(inside); got != want {
+		t.Errorf("cursor = %v after the snap, want %v, the element inside the final cell %v",
+			got, want, final)
+	}
+}

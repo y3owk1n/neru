@@ -29,8 +29,10 @@ type snapScope struct {
 	// mode names the active mode, as the select event names it.
 	mode string
 
+	// session, writes and holding are what movedOnSince compares.
 	session uint64
 	writes  uint64
+	holding bool
 }
 
 // SnapOptions is what `neru action snap` was asked for.
@@ -109,7 +111,7 @@ func (h *Handler) Snap(ctx context.Context, opts SnapOptions) (element.Target, e
 		OverlayDrawn: scope.overlayDrawn,
 	})
 	if err != nil {
-		return element.Target{}, err
+		return element.Target{}, h.unlessMovedOn(scope, err)
 	}
 
 	target, found := element.Nearest(elements, origin, region)
@@ -123,13 +125,13 @@ func (h *Handler) Snap(ctx context.Context, opts SnapOptions) (element.Target, e
 			message = "no element to snap to " + opts.Direction.String() + " of the cursor"
 		}
 
-		return element.Target{}, derrors.New(derrors.CodeElementNotFound, message)
+		return element.Target{}, h.unlessMovedOn(
+			scope, derrors.New(derrors.CodeElementNotFound, message),
+		)
 	}
 
 	if !h.placeSelectionForSnap(scope, target.Point) {
-		return element.Target{}, derrors.New(
-			derrors.CodeContextCanceled, "the mode moved on during the scan",
-		)
+		return element.Target{}, errMovedOn
 	}
 
 	err = h.actionService.MoveCursorToPointAndWait(ctx, target.Point)
@@ -162,6 +164,7 @@ func (h *Handler) readSnapScope(bare bool) snapScope {
 	tracker, tracks := activeModeExtension[selectionTracker](&h.handlerState)
 	if tracks {
 		scope.writes = tracker.SelectionWrites()
+		_, scope.holding = tracker.SelectionPoint()
 	}
 
 	if bare {
@@ -181,21 +184,53 @@ func (h *Handler) readSnapScope(bare bool) snapScope {
 	return scope
 }
 
+// errMovedOn is the answer of a snap whose mode, region or selection moved
+// while it scanned.
+var errMovedOn = derrors.New(derrors.CodeContextCanceled, "the mode moved on during the scan")
+
+// unlessMovedOn returns err, or errMovedOn when the user moved on during the
+// scan. A snap that failed is then dropped like one that succeeded too late,
+// so the rest of its binding does not act on a target the user has left.
+func (h *Handler) unlessMovedOn(scope snapScope, err error) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.movedOnSince(scope) {
+		return errMovedOn
+	}
+
+	return err
+}
+
 // placeSelectionForSnap moves the active mode's selection onto point, where
 // the snap is about to put the cursor. A click after the snap then aims at
 // that exact point, as one after move_mouse does, instead of reading the
 // cursor back from a platform that may not have caught up with the move yet.
-//
-// It reports false, and moves nothing, when the mode changed, or its region or
-// selection moved, since scope was read. The region is compared on its own
-// because a reset or a backspace out of a grid subgrid clears the selection
-// without writing one.
+// It reports false, and moves nothing, when the user moved on during the scan.
 func (h *Handler) placeSelectionForSnap(scope snapScope, point image.Point) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.modeSession != scope.session {
+	if h.movedOnSince(scope) {
 		return false
+	}
+
+	tracker, tracks := activeModeExtension[selectionTracker](&h.handlerState)
+	if tracks {
+		tracker.PlaceSelectionPoint(point)
+	}
+
+	return true
+}
+
+// movedOnSince reports whether the mode changed, or its region or selection
+// moved, since scope was read. It compares the region on its own, because a
+// reset or a backspace out of a grid subgrid clears the selection without
+// writing one. It also compares whether a selection is held, because the
+// start of a held glide clears it the same way. Caller must hold h.mu.
+func (h *handlerState) movedOnSince(scope snapScope) bool {
+	if h.modeSession != scope.session {
+		return true
 	}
 
 	if !scope.bare {
@@ -203,26 +238,22 @@ func (h *Handler) placeSelectionForSnap(scope snapScope, point image.Point) bool
 
 		narrowed := false
 
-		reporter, reports := activeModeExtension[selectionRegionReporter](&h.handlerState)
+		reporter, reports := activeModeExtension[selectionRegionReporter](h)
 		if reports {
 			region, narrowed = reporter.SelectionRegion()
 		}
 
 		if narrowed != scope.narrowed || region != scope.region {
-			return false
+			return true
 		}
 	}
 
-	tracker, tracks := activeModeExtension[selectionTracker](&h.handlerState)
+	tracker, tracks := activeModeExtension[selectionTracker](h)
 	if !tracks {
-		return true
-	}
-
-	if tracker.SelectionWrites() != scope.writes {
 		return false
 	}
 
-	tracker.PlaceSelectionPoint(point)
+	_, holding := tracker.SelectionPoint()
 
-	return true
+	return tracker.SelectionWrites() != scope.writes || holding != scope.holding
 }
