@@ -122,8 +122,6 @@ var (
 	errOverlayClass   error
 	overlayWndProcPtr uintptr
 
-	overlayRegistry sync.Map
-
 	// afterBoundsSnapshot is nil outside tests. A test sets it to stop
 	// createHWNDLocked on the UI thread right after the bounds snapshot, so
 	// it can land a ResizeTo in that gap.
@@ -1151,7 +1149,8 @@ func (o *OverlayWindow) createWindowWithSurface(
 
 	o.surface = surface
 	o.released = false
-	overlayRegistry.Store(windows.HWND(hwnd), o)
+
+	registerOwnWindow(hwnd)
 
 	discardCall(procSetWindowPos.Call(
 		hwnd,
@@ -1178,7 +1177,7 @@ func (o *OverlayWindow) destroyHWNDLocked() {
 	}
 
 	if hwnd := o.handle(); hwnd != 0 {
-		overlayRegistry.Delete(hwnd)
+		unregisterOwnWindow(uintptr(hwnd))
 		discardCall(procDestroyWindow.Call(uintptr(hwnd)))
 		o.setHandle(0)
 	}

@@ -68,6 +68,10 @@ type bitmapInfoHeader struct {
 // those pixels. A region may span two monitors, because the desktop DC is one surface
 // and BitBlt reads across the seam.
 //
+// From Windows 10 version 2004 the capture leaves Neru's own windows out, so a
+// detector never reads the overlay as part of the interface
+// (capture_exclusion.go). On an older build they are captured with the rest.
+//
 // ctx is a check at the door rather than a deadline the call carries. BitBlt
 // is a single synchronous GDI call that cannot be canceled once entered, and
 // a Go deadline is only worth threading where the callee reads it
@@ -88,7 +92,9 @@ func CaptureScreenRegion(ctx context.Context, region image.Rectangle) (*image.RG
 		return nil, err
 	}
 
-	return bitBltRegion(resolved)
+	return withOwnWindowsExcluded(ctx, func() (*image.RGBA, error) {
+		return bitBltRegion(resolved)
+	})
 }
 
 // resolveCaptureRegion turns the caller's request into the rectangle handed to

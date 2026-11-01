@@ -126,9 +126,11 @@ func readCard(
 	for {
 		time.Sleep(100 * time.Millisecond)
 
-		img, err := CaptureScreenRegion(context.Background(), card)
+		// Read through the raw copy, because the card is one of Neru's own
+		// windows, which CaptureScreenRegion leaves out.
+		img, err := bitBltRegion(card)
 		if err != nil {
-			t.Fatalf("CaptureScreenRegion(%v): %v", card, err)
+			t.Fatalf("bitBltRegion(%v): %v", card, err)
 		}
 
 		words, stats, err := RecognizeText(

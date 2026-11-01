@@ -156,10 +156,13 @@ func toRecognizedWords(words []platformwindows.OCRWord) []recognizedWord {
 	return converted
 }
 
-// CaptureExcludesOwnWindows is false on Windows. The capture is a BitBlt off
-// the desktop DC with CAPTUREBLT, which reads the overlay along with
-// everything else on screen.
-func (a *Adapter) CaptureExcludesOwnWindows() bool { return false }
+// CaptureExcludesOwnWindows is true from Windows 10 version 2004, where each
+// capture leaves Neru's own windows out through their display affinity. On an
+// older build the BitBlt reads the overlay along with everything else on
+// screen.
+func (a *Adapter) CaptureExcludesOwnWindows() bool {
+	return platformwindows.CaptureExcludesOwnWindows()
+}
 
 // CaptureScreen returns the pixels currently on the active screen, the
 // monitor under the cursor.
