@@ -251,7 +251,7 @@ func (s *screenCastState) ensureLocked(
 		return nil
 	}
 
-	store, err := newFileRestoreTokenStore(screenCastTokenFileName)
+	store, err := newFileRestoreTokenStore(screenCastTokenBase)
 	if err != nil {
 		return derrors.Wrap(
 			err,

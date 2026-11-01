@@ -20,10 +20,12 @@ Supported on Plasma 6.
 > and `neru action feed` is refused. See
 > [the fix](#key-feeding-unavailable-the-remotedesktop-portal-session-did-not-grant-a-keyboard-device).
 
-Neru keeps the grant in `remote-desktop.token` under `$XDG_STATE_HOME/neru/`,
-by default `~/.local/state/neru/`. Delete
-that file, or revoke the permission in System Settings, to see the prompt
-again.
+Neru keeps the grant in `remote-desktop.<desktop>.token` under
+`$XDG_STATE_HOME/neru/`, by default `~/.local/state/neru/`, where `<desktop>`
+is the backend `neru doctor` shows as `display_server`, such as
+`wayland-kde`. Each desktop keeps its own grant, so switching between them
+does not prompt again. Delete that file, or revoke the permission in System
+Settings, to see the prompt again.
 
 ### Screen-sharing consent
 
@@ -32,8 +34,8 @@ one needs a frame, KDE shows a source picker. Pick every screen Neru may read,
 because hints on an unshared screen fail. Neru asks for monitors only, not
 the pointer, and a capture never raises the picker by itself.
 
-Neru keeps this grant in `screen-cast.token` in the same directory. Delete that
-file, or revoke it in **System Settings > Apps & Window Management >
+Neru keeps this grant in `screen-cast.<desktop>.token` in the same directory.
+Delete that file, or revoke it in **System Settings > Apps & Window Management >
 Application Permissions**, to see the picker again.
 
 ### "could not establish a libei input session via the RemoteDesktop portal"
