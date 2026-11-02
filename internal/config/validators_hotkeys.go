@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
@@ -374,6 +375,22 @@ func validateModifierCombo(key, fieldName string) error {
 			derrors.CodeInvalidConfig,
 			"%s has invalid key '%s' in modifier combo",
 			fieldName,
+			last,
+		)
+	}
+
+	// A mouse button never arrives with modifiers encoded into its name: the
+	// tap reports the button alone however the click was modified, so a combo
+	// ending in one matches nothing and would sit in the file looking bound.
+	// Refusing it is what makes "there is no Cmd+MouseLeft" a rule rather than
+	// a description of current behavior.
+	if keyvocab.IsMouseButton(last) {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s cannot combine a modifier with a mouse button (%s); a click is "+
+				"reported as the button alone, so bind %s on its own",
+			fieldName,
+			key,
 			last,
 		)
 	}

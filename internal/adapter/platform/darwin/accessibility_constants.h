@@ -48,6 +48,14 @@ static const CFTimeInterval kNeruMouseClickProcessingDelay = 0.05;
 /// Delay after mouse move to allow event processing (seconds)
 static const CFTimeInterval kNeruMouseMoveDelay = 0.01;
 
+#pragma mark - Synthetic Event Marking
+
+/// Marks events Neru posts itself, so the mode event tap can tell its own
+/// synthetic clicks apart from ones the user physically produced. Shared with
+/// the keyboard feed, which marks its events the same way, and with the tap,
+/// which returns early on any event carrying it.
+static const int kNeruSyntheticEventMarker = 0x1337;
+
 #pragma mark - Click Detection Constants
 
 /// Maximum time between clicks to be considered a multi-click sequence (milliseconds)
