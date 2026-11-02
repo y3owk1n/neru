@@ -59,11 +59,16 @@ type winPoint struct {
 // sees, without the invisible resize borders GetWindowRect counts.
 const dwmExtendedFrameBounds = 9
 
+// dwmTransitionsForceDisabled is DWMWA_TRANSITIONS_FORCEDISABLED: no fade when
+// the window is shown or hidden.
+const dwmTransitionsForceDisabled = 3
+
 var (
 	user32 = windows.NewLazySystemDLL("user32.dll")
 	dwmapi = windows.NewLazySystemDLL("dwmapi.dll")
 
 	procDwmGetWindowAttribute = dwmapi.NewProc("DwmGetWindowAttribute")
+	procDwmSetWindowAttribute = dwmapi.NewProc("DwmSetWindowAttribute")
 
 	procGetCursorPos        = user32.NewProc("GetCursorPos")
 	procSetCursorPos        = user32.NewProc("SetCursorPos")
