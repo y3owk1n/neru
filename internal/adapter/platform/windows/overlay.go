@@ -482,8 +482,10 @@ func (o *OverlayWindow) SetColorBlendRGB(uint32) {}
 
 // Show displays the overlay without taking focus.
 //
-// A frame still waiting is presented first, so the window comes up showing
-// what was last drawn rather than the frame before it.
+// It presents everything queued first, flushed or not, so the window comes up
+// with what was last drawn rather than the frame before it. A mode exit queues
+// a clear and hides without flushing it, and the next mode must not come up
+// on the previous mode's pixels (#1906).
 func (o *OverlayWindow) Show() {
 	if o == nil {
 		return
@@ -496,6 +498,10 @@ func (o *OverlayWindow) Show() {
 				return
 			}
 		}
+
+		o.mu.Lock()
+		o.stageQueuedLocked()
+		o.mu.Unlock()
 
 		o.renderPending()
 
@@ -799,10 +805,29 @@ func (o *OverlayWindow) Flush() error {
 
 	o.mu.Lock()
 
-	if !o.dirty {
+	if !o.stageQueuedLocked() {
 		o.mu.Unlock()
 
 		return nil
+	}
+
+	enqueue := !o.renderQueued
+	o.renderQueued = true
+	o.mu.Unlock()
+
+	if enqueue {
+		postOnOverlayUI(o.renderPending)
+	}
+
+	return nil
+}
+
+// stageQueuedLocked moves the commands queued since the last Flush, and a
+// clear queued with them, into the frame waiting to be painted. It reports
+// false when nothing was queued. The caller holds o.mu.
+func (o *OverlayWindow) stageQueuedLocked() bool {
+	if !o.dirty {
+		return false
 	}
 
 	o.dirty = false
@@ -820,15 +845,7 @@ func (o *OverlayWindow) Flush() error {
 	o.pending.cmds = append(o.pending.cmds, o.cmds...)
 	o.cmds = o.cmds[:0]
 
-	enqueue := !o.renderQueued
-	o.renderQueued = true
-	o.mu.Unlock()
-
-	if enqueue {
-		postOnOverlayUI(o.renderPending)
-	}
-
-	return nil
+	return true
 }
 
 // handle reads the window handle under the lock, because a rebuild on the UI thread
@@ -877,10 +894,14 @@ func (o *OverlayWindow) releaseSurface() {
 	o.released = true
 }
 
-// restoreSurface grows a released surface back to the window's size and
-// repaints what it showed, so the next frame paints over the same pixels it
-// would have before the release. UI thread only.
-func (o *OverlayWindow) restoreSurface() error {
+// restoreSurface grows a released surface back to the window's size. When
+// repaint is set it also repaints what the surface showed, so the next frame
+// paints over the same pixels it would have before the release. The caller
+// leaves repaint off for a frame that clears, because that frame keeps none of
+// those pixels and the repaint would present the previous overlay for one more
+// frame (#1906). observer receives the repaint like any other presented frame.
+// UI thread only.
+func (o *OverlayWindow) restoreSurface(repaint bool, observer func(FrameStats)) error {
 	if !o.released {
 		return nil
 	}
@@ -896,11 +917,14 @@ func (o *OverlayWindow) restoreSurface() error {
 
 	o.released = false
 
-	if len(o.drawn) == 0 {
+	if !repaint || len(o.drawn) == 0 {
 		return nil
 	}
 
-	_, err = o.surface.render(&frame{clear: true, cmds: o.drawn})
+	stats, err := o.surface.render(&frame{clear: true, cmds: o.drawn})
+	if err == nil && observer != nil {
+		observer(stats)
+	}
 
 	return err
 }
@@ -940,7 +964,9 @@ func (o *OverlayWindow) renderPending() {
 		return
 	}
 
-	restoreErr := o.restoreSurface()
+	repaint := pending == nil || !pending.clear
+
+	restoreErr := o.restoreSurface(repaint, observer)
 	if restoreErr != nil {
 		// Growing the surface back failed the way a lost device does. Rebuild
 		// the window on GDI and repaint what it showed.
@@ -948,7 +974,7 @@ func (o *OverlayWindow) renderPending() {
 			return
 		}
 
-		if len(o.drawn) > 0 {
+		if repaint && len(o.drawn) > 0 {
 			_, _ = o.surface.render(&frame{clear: true, cmds: o.drawn})
 		}
 	}
@@ -1087,6 +1113,18 @@ func (o *OverlayWindow) createWindowWithSurface(
 	if hwnd == 0 {
 		return fmt.Errorf("CreateWindowExW: %w", err)
 	}
+
+	// DWM fades a hidden window out from its last frame, and a Show during
+	// that fade brings the frame back. Switching modes quickly flashed the
+	// previous mode's overlay that way (#1906). An overlay has no use for the
+	// fade, so it is off.
+	disabled := int32(1)
+	discardCall(procDwmSetWindowAttribute.Call(
+		hwnd,
+		dwmTransitionsForceDisabled,
+		uintptr(unsafe.Pointer(&disabled)),
+		unsafe.Sizeof(disabled),
+	))
 
 	// A layered window stays invisible until it has attributes. The GDI
 	// surface sets them with every UpdateLayeredWindow. The DirectComposition

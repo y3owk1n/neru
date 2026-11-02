@@ -122,3 +122,61 @@ func TestOverlayWindow_Show_RecreateDoesNotRaceCallerBoundsAccess(t *testing.T) 
 
 	waitGroup.Wait()
 }
+
+// TestOverlayWindow_Show_PresentsAClearQueuedBeforeTheHide covers the mode
+// switch in #1906. A mode exit queues a clear and hides without flushing it.
+// The next mode's Show has to present that clear, and nothing else, before the
+// window comes up. Skipping the clear left the previous mode's pixels on
+// screen until a later flush. Repainting them under the clear presented them
+// for one frame.
+func TestOverlayWindow_Show_PresentsAClearQueuedBeforeTheHide(t *testing.T) {
+	t.Parallel()
+
+	overlay, err := winplatform.NewOverlayWindow()
+	skipIfOverlayUnavailable(t, err)
+
+	if err != nil {
+		t.Fatalf("NewOverlayWindow: %v", err)
+	}
+
+	defer overlay.Destroy()
+
+	var (
+		framesMu sync.Mutex
+		frames   []winplatform.FrameStats
+	)
+
+	overlay.SetFrameObserver(func(stats winplatform.FrameStats) {
+		framesMu.Lock()
+		defer framesMu.Unlock()
+
+		frames = append(frames, stats)
+	})
+
+	cell := image.Rect(10, 10, 110, 60)
+
+	overlay.FillRect(cell, 0xCC3366FF)
+	_ = overlay.Flush()
+	overlay.Show()
+
+	overlay.Clear()
+	overlay.Hide()
+
+	framesMu.Lock()
+	frames = nil
+	framesMu.Unlock()
+
+	overlay.Show()
+
+	framesMu.Lock()
+	defer framesMu.Unlock()
+
+	if len(frames) != 1 {
+		t.Fatalf("Show presented %d frames, want only the queued clear", len(frames))
+	}
+
+	cleared := frames[0]
+	if cleared.Err != nil || cleared.Commands != 0 || !cleared.Dirty.Overlaps(cell) {
+		t.Fatalf("Show presented %+v, want a clear over %v", cleared, cell)
+	}
+}

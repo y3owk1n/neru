@@ -179,6 +179,10 @@ type gdiSurface struct {
 	hwnd    windows.HWND
 	dib     *dibSection
 	painted image.Rectangle
+	// resized says resize replaced the DIB since the last present. The layered
+	// window still shows the frame presented before that, so the next render
+	// presents the whole DIB, not only what that frame painted.
+	resized bool
 }
 
 func newGDISurface(hwnd windows.HWND, width, height int) (overlaySurface, error) {
@@ -201,6 +205,7 @@ func (s *gdiSurface) resize(width, height int) error {
 	s.dib.release()
 	s.dib = dib
 	s.painted = image.Rectangle{}
+	s.resized = true
 
 	return nil
 }
@@ -241,6 +246,11 @@ func (s *gdiSurface) render(pending *frame) (FrameStats, error) {
 
 		dirty = dirty.Union(touched)
 		s.painted = s.painted.Union(touched)
+	}
+
+	if s.resized {
+		dirty = image.Rect(0, 0, width, height)
+		s.resized = false
 	}
 
 	rastered := time.Now()
