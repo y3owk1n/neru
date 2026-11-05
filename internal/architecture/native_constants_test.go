@@ -98,8 +98,7 @@ func objcEnumIntConstants(t *testing.T, repoRelPath, enumName string) map[string
 // rule rather than a constant brings its own pattern rather than a second
 // reader. Two pins of that third shape existed, for the recursive-grid label
 // autohide rule and its sub-key-preview twin, until #1691 gave both rules one
-// implementation and the copies went. How a pin finds the native definition it
-// reads lives in native_rule_test.go.
+// implementation and the copies went.
 func readNativeSource(t *testing.T, repoRelPath string) string {
 	t.Helper()
 
@@ -186,9 +185,9 @@ func parseNativeInt(t *testing.T, repoRelPath, name, literal string) int64 {
 // missed would be the source in the tree, which parses fine, and the test
 // would report the pin as strict when it had tested nothing.
 //
-// It lives here rather than with named_key_tables_test.go, the pin that
-// doctors sources, for the reason readNativeSource does. Two pins reading the
-// same file two ways is the divergence these guardrails exist to catch.
+// It lives beside readNativeSource for the same reason. Two pins that read one
+// file in two ways can disagree, and that disagreement is what these guardrails
+// exist to catch.
 func mustRewrite(t *testing.T, source, from, into string) string {
 	t.Helper()
 

@@ -114,21 +114,17 @@ are the precedent, not the exception.
   pin over a *list*. It covers the named keys, retyped twice in Objective-C.
   `gSpecialNameToCodeMap` in `keymap_darwin.m` turns a written binding into a
   keycode, and `specialKeyName` in `eventtap_darwin.m` turns a keystroke back
-  into a name. `internal/architecture/named_key_tables_test.go` holds both to
-  `internal/domain/keyvocab` and to each other. What that pin had to account
-  for is that the two tables are not copies. The inbound one carries
-  the `Enter` and `Backspace` aliases and the outbound one must not, or one
-  keystroke would reach the mode handler under two spellings. So the pin derives
-  each table's expected contents from the vocabulary rather than from the other
-  table, and states the three deliberate absences explicitly. They are F21 to F24 and
-  `Insert`, checked against the `KeyCode` enum so a gap that stops being a
-  keycode gap fails, and `Clear`, which the numpad fold spells because no
-  binding can be written for it. The numpad folds from #1372 are on the
-  keymap side only, correct because every path that can be handed a numpad
-  keycode also asks `NeruKeyCodeToName` or `NeruKeyCodeToCharacter`, which
-  carry the folds. The pin holds what a fold may spell, not which key folds
-  where. `keymap_integration_darwin_test.go` owns that on a tagged, macOS-only
-  run, so that test catches a fold deleted outright, and the pin does not.
+  into a name. The two tables are not copies. The inbound one carries the
+  `Enter` and `Backspace` aliases and the outbound one must not, or one
+  keystroke would reach the mode handler under two spellings. **Amended.** The
+  first pin read both tables and the `KeyCode` enum as text. Two behaviour
+  tests in `internal/adapter/platform/darwin/named_keys_integration_darwin_test.go`
+  replace it. `TestParseKeyString_NamedKeysParseToTheirCarbonKeyCode` parses
+  every name in `internal/domain/keyvocab` and checks the Carbon key code it
+  reaches. `TestSpecialKeyName_AnswersTheVocabularySpelling` checks the name
+  the tap gives each of those key codes, and that no other key code gets one. F21 to F24 and `Insert` are the deliberate gaps, since Carbon declares
+  no key code for them. The numpad folds from #1372 are on the keymap side
+  only, and `keymap_integration_darwin_test.go` pins which key folds where.
 
   The sixth is a list again. It names each keysym the keypad reports.
   `neru_normalize_xkb_name`

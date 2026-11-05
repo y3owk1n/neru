@@ -79,13 +79,8 @@
 //   - mode_transition_release_test.go: an activation that exits another mode
 //     keeps the keyboard and gives it back at return, written as one deferred
 //     double call, so no call site can hand it over and forget to release it.
-//   - named_key_tables_test.go: the two Objective-C key-name tables spell the
-//     named-key vocabulary, agree with each other, and gap only where macOS has
-//     no keycode.
 //   - native_constants_test.go: the shared reader every language-boundary pin
 //     goes through, rather than a second way to read a .h or a .m.
-//   - native_rule_test.go: the reader that finds a native definition's body,
-//     so a pin addresses its copy by name and a rename fails loudly.
 //   - overlay_frame_test.go: an overlay Frame carries domain values only.
 //   - platform_slots_test.go: platform files use the documented file slots,
 //     tagged packages tag every file, package comments reach every target.

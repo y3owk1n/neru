@@ -443,12 +443,8 @@ var nativeStaticSpecifier = regexp.MustCompile(`\bstatic\b`)
 
 // nativeSignatures reads every Neru* signature in a native source.
 //
-// This is not nativeRuleMethodBody (native_rule_test.go) wearing a different
-// name. That one is handed the spelling of one definition and returns its body,
-// so that a pin can read the copy written inside it. A rename there has to fail
-// rather than pass over nothing, which is why it is addressed by name. This
-// asks the opposite question: what does this file state, whose names nobody
-// knows in advance? It has no body to read.
+// It lists every Neru* signature a file declares without knowing the names in
+// advance. It never reads a function body.
 //
 // Reading text rather than preprocessed C, this cannot tell a declaration the
 // compiler sees from one behind an inactive #if. But it can refuse to be
