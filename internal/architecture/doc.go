@@ -45,8 +45,8 @@
 //     package that runs everywhere, and CI runs the recipe.
 //   - guide_test_citations_test.go: a guide file may claim a test exists only
 //     by naming it, and every test name or test file it names resolves.
-//   - hint_placement_vocabulary_test.go: the hint placement vocabulary is the
-//     same on both sides of the Go/Objective-C boundary.
+//   - hint_placement_vocabulary_test.go: each configured hint placement
+//     becomes its own HINT_PLACEMENT_* macro on macOS.
 //   - hotkey_delete_key_test.go: every platform's [hotkeys] table resolves
 //     "Delete" and "Backspace" to one physical key, the backspace key, so a
 //     config file binds the same key on all three.

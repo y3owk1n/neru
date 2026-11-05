@@ -76,9 +76,12 @@ are the precedent, not the exception.
   this rule would be that redesign arriving without its design. The first such
   pin landed with the placement vocabulary (#1289). The three values are
   declared once in Go, and `internal/architecture/hint_placement_vocabulary_test.go`
-  holds that declaration, the macros in `internal/adapter/platform/darwin/overlay.h`
-  and the `HintPlacement` enum to the same numbering. It pins *which placement
-  each value means*, not where the badge is then drawn. `hintRectForPlacement:`
+  held that declaration, the macros in `internal/adapter/platform/darwin/overlay.h`
+  and the `HintPlacement` enum to the same numbering. **Amended.** The enum
+  now takes its values from the macros, so the native numbers cannot
+  disagree. The pin checks only which macro `hintPlacementValue` returns for
+  each Go placement. It pins *which placement each value means*,
+  not where the badge is then drawn. `hintRectForPlacement:`
   remains a single Objective-C implementation with no Go counterpart to
   disagree with. Two more pins followed, where the copy was a rule rather than
   a constant. They covered the recursive-grid label-autohide rule (#1298) and

@@ -12,10 +12,9 @@ package config
 // package is the lowest layer all of them already reach (ADR 0007,
 // docs/adr/0007-a-shared-derivation-has-one-implementation.md).
 //
-// The values cross into Objective-C as well, where the macOS overlay compares
-// them as an enum. Go cannot be the implementation of that copy, so
-// internal/architecture/hint_placement_vocabulary_test.go pins it to this
-// declaration instead.
+// The values cross into Objective-C as well, as the HINT_PLACEMENT_* macros in
+// the darwin bridge's overlay.h. internal/architecture/hint_placement_vocabulary_test.go
+// checks that each placement here becomes its own macro.
 const (
 	// HintPlacementTop draws the badge above its element, with a connector
 	// arrow pointing down at it.

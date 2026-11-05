@@ -18,9 +18,9 @@ import (
 const unknownPlacement = "floating"
 
 // TestHintPlacementValue_EveryPlacementMapsToItsOwnConstant is the macOS half
-// of the placement pin. The architecture test keeps the C header and the
-// Objective-C enum agreeing about the numbers, and this keeps the translation
-// honest. A placement added to config.HintPlacements() and not to this switch
+// of the placement pin. The Objective-C enum takes its numbers from the C
+// header, and this test checks the translation. A placement added to
+// config.HintPlacements() and not to this switch
 // would validate, reach the overlay and be refused rather than drawn. This
 // test is what says so before a user sees it.
 func TestHintPlacementValue_EveryPlacementMapsToItsOwnConstant(t *testing.T) {
