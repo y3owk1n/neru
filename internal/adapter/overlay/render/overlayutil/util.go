@@ -138,20 +138,29 @@ func CompleteGlobalCallback(callbackID uint64, expectedGeneration uint64) {
 	releaseCallbackID(callbackID)
 }
 
-// CallbackIDToPointer allocates a CallbackContext on the C heap via native.MallocCallbackContext
+// CallbackIDToPointer allocates a CallbackContext on the C heap via native.Malloc
 // and returns an unsafe.Pointer to it. Because the memory lives on the C heap (not the Go heap),
 // it is safe for C code to retain across async dispatch boundaries and is not subject to Go's GC.
+// Native code never reads the fields and only passes the pointer back, so this Go struct is the
+// only declaration of the layout.
 // The caller's C callback must call FreeCallbackContext after reading the values to avoid leaks.
 // On non-darwin platforms this returns nil (overlay callbacks are not used).
 func CallbackIDToPointer(callbackID uint64, generation uint64) unsafe.Pointer {
-	return native.MallocCallbackContext(callbackID, generation)
+	ptr := native.Malloc(unsafe.Sizeof(CallbackContext{}))
+	if ptr == nil {
+		return nil
+	}
+
+	*(*CallbackContext)(ptr) = CallbackContext{CallbackID: callbackID, Generation: generation}
+
+	return ptr
 }
 
 // FreeCallbackContext frees a C-heap-allocated CallbackContext previously created by CallbackIDToPointer.
 // Must be called exactly once per CallbackIDToPointer call, typically in the C callback after reading
 // the CallbackID and Generation fields. Safe to call with nil.
 func FreeCallbackContext(ptr unsafe.Pointer) {
-	native.FreeCallbackContext(ptr)
+	native.Free(ptr)
 }
 
 // CallbackManager manages asynchronous callbacks for overlay operations.

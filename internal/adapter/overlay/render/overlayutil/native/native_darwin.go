@@ -8,18 +8,16 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 )
 
-// MallocCallbackContext allocates a CallbackContext struct on the C heap.
-// The returned pointer is safe for C code to retain across async dispatch
-// boundaries because it lives outside the Go GC's reach.
-// Caller must call FreeCallbackContext exactly once when done.
-func MallocCallbackContext(callbackID, generation uint64) unsafe.Pointer {
-	return darwin.MallocCallbackContext(callbackID, generation)
+// Malloc allocates size bytes on the C heap, where the Go GC does not move or
+// free them, so C code can retain them across async dispatch boundaries. The caller must call
+// Free exactly once when done.
+func Malloc(size uintptr) unsafe.Pointer {
+	return darwin.Malloc(size)
 }
 
-// FreeCallbackContext releases a C-heap CallbackContext previously allocated
-// by MallocCallbackContext. Safe to call with nil.
-func FreeCallbackContext(ptr unsafe.Pointer) {
-	darwin.FreeCallbackContext(ptr)
+// Free releases memory allocated by Malloc. Safe to call with nil.
+func Free(ptr unsafe.Pointer) {
+	darwin.Free(ptr)
 }
 
 // FreeCString releases a C string previously allocated by C.CString.

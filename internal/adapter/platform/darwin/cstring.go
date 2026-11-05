@@ -3,7 +3,6 @@
 package darwin
 
 /*
-#include "callback_context.h"
 #include <stdlib.h>
 */
 import "C"
@@ -18,21 +17,15 @@ func FreeCString(ptr unsafe.Pointer) {
 	}
 }
 
-// MallocCallbackContext allocates a callbackContext on the C heap and returns
-// an unsafe.Pointer to it. The memory is outside Go's GC, so it is safe for
-// C code to retain across async dispatch boundaries.
-// The caller must eventually call FreeCallbackContext to avoid leaks.
-func MallocCallbackContext(callbackID, generation uint64) unsafe.Pointer {
-	ctx := (*C.callbackContext)(C.malloc(C.size_t(unsafe.Sizeof(C.callbackContext{}))))
-	ctx.callbackID = C.uint64_t(callbackID)
-	ctx.generation = C.uint64_t(generation)
-
-	return unsafe.Pointer(ctx)
+// Malloc allocates size bytes on the C heap. The memory is outside Go's GC, so
+// C code can retain it across async dispatch boundaries. The caller must
+// release it with Free.
+func Malloc(size uintptr) unsafe.Pointer {
+	return C.malloc(C.size_t(size))
 }
 
-// FreeCallbackContext frees a callbackContext previously allocated by MallocCallbackContext.
-// Safe to call with nil.
-func FreeCallbackContext(ptr unsafe.Pointer) {
+// Free releases memory allocated by Malloc. Safe to call with nil.
+func Free(ptr unsafe.Pointer) {
 	if ptr != nil {
 		C.free(ptr)
 	}

@@ -528,12 +528,11 @@ func balancedParenEnd(readable string, openParen int) int {
 // where it was.
 //
 // The comments are the removal that catches something. A prototype left
-// commented out in a header must not count as a declaration, which is the same
-// "an old copy left beside the new one" case callback_context_layout_test.go
-// reports. Emptying the literals is defensive. A parenthesis inside one would
-// otherwise be balanced against the parameter list of the call it sits in, and
-// a signature scanner should not have to reason about which side of the
-// resulting mismatch it errs on.
+// commented out in a header must not count as a declaration. Emptying the
+// literals is defensive. A parenthesis inside one would otherwise be balanced
+// against the parameter list of the call it sits in, and a signature scanner
+// should not have to reason about which side of the resulting mismatch it errs
+// on.
 func stripNativeCommentsAndLiterals(source string) string {
 	var stripped strings.Builder
 

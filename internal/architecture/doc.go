@@ -8,9 +8,6 @@
 //
 //   - agent_contract_test.go: the agent guide layout: an AGENTS.md beside
 //     every CLAUDE.md symlink, .agents/skills canonical, worktrees ignored.
-//   - callback_context_layout_test.go: the C callback context struct and the
-//     Go struct it is cast to have the same fields, in the same order, at the
-//     same widths.
 //   - client_package_test.go: the public client package builds only on the
 //     standard library, the endpoint lookup, the error vocabulary
 //     (internal/derrors) and the pipe libraries Windows needs, never on the

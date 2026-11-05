@@ -137,29 +137,19 @@ are the precedent, not the exception.
   `TestX11KeyFromLookupKeypadNavigationKeys` compare each Go copy with
   `xkbKeysymName`, which runs the C function itself, on every Linux run.
 
-  The seventh is neither a constant, a rule nor a list but a *layout*, and it
-  is the one whose Go side this package can link. `callbackContext`
-  (`internal/adapter/platform/darwin/callback_context.h`) is allocated on the C
-  heap, retained across two `dispatch_async` hops, and cast straight to
-  `overlayutil.CallbackContext` by the `//export`ed Go side that reads it back.
-  A disagreement is a callback ID and a generation read from the wrong offsets,
-  and nothing fails to compile.
-  `internal/architecture/callback_context_layout_test.go` holds the two to the
-  same field names, order and integer widths. It reads the header through
-  `readNativeSource` like every pin here and *reflects* over the Go struct
-  rather than parsing it, which is the state the sub-key-preview pin above
-  reached only after #1297 gave its Go copy an untagged home. `overlayutil`
-  never had a build tag, so the Go side can be linked on every CI leg, and
-  `reflect` answers with the field order and width the cast depends on
-  rather than with the spelling the declaration happens to use. What the pin
-  buys differs by leg, because the cgo allocator in
-  `internal/adapter/platform/darwin/cstring.go` already catches some of these
-  as compile errors on macOS and nothing catches any of them off it. The
-  pin's own doc comment says which cases are left to the pin, where someone
-  editing it will read it.
+  The seventh was a *layout*. Go allocated `callbackContext`, declared in the
+  darwin bridge's `callback_context.h`, on the C heap. Native code retained it
+  across two `dispatch_async` hops, and the `//export`ed Go side cast it
+  straight to `overlayutil.CallbackContext`. **Amended.** Native code only
+  passed the pointer back and never read a field, so nothing needed the C
+  typedef. `overlayutil.CallbackIDToPointer` now allocates the Go struct's own
+  size on the C heap and writes the Go struct into it. The same change deleted
+  the header and its pin.
 
-  That list was the complete set of *pinned* copies as of #1407, and the five
-  left after #1691 still are. It is not a claim that no others exist. Sweeping for them while writing the sub-key preview pin turned
+  That list was the complete set of *pinned* copies as of #1407. Of the five
+  left after #1691, the placement-vocabulary and wire-prefix pins still read
+  source as text, behaviour tests now cover the two key-name lists, and the layout
+  copy no longer exists. It is not a claim that no others exist. Sweeping for them while writing the sub-key preview pin turned
   up more. The nearest was ten lines below it in the same pair of methods:
   which sub-cell of the preview mini-grid is left blank, the
   center one when both next-level dimensions are odd, decided in

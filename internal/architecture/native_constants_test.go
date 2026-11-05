@@ -179,21 +179,3 @@ func parseNativeInt(t *testing.T, repoRelPath, name, literal string) int64 {
 
 	return value
 }
-
-// mustRewrite doctors a source for an unreadable-copy test, failing when the
-// text it rewrites is no longer there. Without that check a source the rewrite
-// missed would be the source in the tree, which parses fine, and the test
-// would report the pin as strict when it had tested nothing.
-//
-// It lives beside readNativeSource for the same reason. Two pins that read one
-// file in two ways can disagree, and that disagreement is what these guardrails
-// exist to catch.
-func mustRewrite(t *testing.T, source, from, into string) string {
-	t.Helper()
-
-	if !strings.Contains(source, from) {
-		t.Fatalf("no %q in the source to rewrite; this test needs updating", from)
-	}
-
-	return strings.Replace(source, from, into, 1)
-}
