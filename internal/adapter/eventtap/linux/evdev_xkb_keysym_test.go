@@ -24,7 +24,10 @@ const (
 	xkbKeysymKPHome     = 0xFF95 // XKB_KEY_KP_Home
 	xkbKeysymKPPrior    = 0xFF9A // XKB_KEY_KP_Prior, listed before KP_Page_Up
 	xkbKeysymKPBegin    = 0xFF9D // XKB_KEY_KP_Begin
+	xkbKeysymKPMultiply = 0xFFAA // XKB_KEY_KP_Multiply
 	xkbKeysymKPAdd      = 0xFFAB // XKB_KEY_KP_Add
+	xkbKeysymKPSubtract = 0xFFAD // XKB_KEY_KP_Subtract
+	xkbKeysymKPDivide   = 0xFFAF // XKB_KEY_KP_Divide
 	xkbKeysymKP7        = 0xFFB7 // XKB_KEY_KP_7
 	xkbKeysymISOLeftTab = 0xFE20 // XKB_KEY_ISO_Left_Tab
 	xkbKeysymDeadAcute  = 0xFE51 // XKB_KEY_dead_acute

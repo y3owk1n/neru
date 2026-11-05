@@ -130,34 +130,16 @@ are the precedent, not the exception.
   where. `keymap_integration_darwin_test.go` owns that on a tagged, macOS-only
   run, so that test catches a fold deleted outright, and the pin does not.
 
-  The sixth is a list again, and the first list whose Go side this package
-  cannot link: what each keysym the keypad reports is called. That is decided
-  in `neru_normalize_xkb_name`
-  (`internal/adapter/platform/linux/wayland_keymap.c`) and transcribed into Go
-  three times: the keysym cascade in
-  `internal/adapter/eventtap/linux/x11_cgo.go` (#1385), `evdevKeyNames` in
-  `internal/adapter/eventtap/linux/evdev_keys.go` (#1399), and the test tables
-  mirroring both, which carry `want` columns of their own and so are a copy and
-  not a reading of one. `internal/architecture/wayland_keypad_folds_test.go`
-  holds all four to the C source. What it had to do differently is read the Go
-  copies as text as well as the C one. Both are behind `//go:build linux` and
-  one is behind cgo besides, so an untagged package cannot reference them, where
-  the pins above hold their native side to a Go declaration they import.
-  `hint_placement_vocabulary_test.go` already reads one build-tagged Go
-  function with `go/ast` for that reason. This is the same move over two whole
-  tables and the two test tables mirroring them. It declares per keysym which
-  copy must carry the name. The keypad operators and `KP_Decimal` reach the X11 tap through
-  XLookupString's character branch rather than through the cascade, `KP_Enter`
-  reaches it the way the main `Return` key does, and `KP_Decimal` is the
-  NumLock-on keysym of the key the evdev fallback names through `KP_Delete`.
-  Each of those absences fails the day it stops being one, and `KP_Decimal`,
-  excused from both, is held for presence only. No Go table spells the name
-  that row gives, so it is the one keypad row that is not a decision made
-  twice. The same table's rows outside the keypad, which are the punctuation,
-  `Page_Up`/`Page_Down` and `Caps_Lock`, are read but not pinned. The reason
-  is a join rather than a judgement. `evdevKeyNames` answers by kernel
-  key code, and only for the keypad does the tree say which keysym a code
-  reports, which is what `keypadKeyNameCases` is.
+  The sixth is a list again. It names each keysym the keypad reports.
+  `neru_normalize_xkb_name`
+  (`internal/adapter/platform/linux/wayland_keymap.c`) decides the names, and
+  Go carries two copies of them, the keysym cascade in
+  `internal/adapter/eventtap/linux/x11_cgo.go` (#1385) and `evdevKeyNames` in
+  `internal/adapter/eventtap/linux/evdev_keys.go` (#1399). **Amended.** The
+  first pin read the C source and both Go copies as text. Two behaviour tests
+  replace it. `TestEvdevKeyName_KeypadMatchesWayland` and
+  `TestX11KeyFromLookupKeypadNavigationKeys` compare each Go copy with
+  `xkbKeysymName`, which runs the C function itself, on every Linux run.
 
   The seventh is neither a constant, a rule nor a list but a *layout*, and it
   is the one whose Go side this package can link. `callbackContext`

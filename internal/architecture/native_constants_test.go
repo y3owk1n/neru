@@ -186,10 +186,9 @@ func parseNativeInt(t *testing.T, repoRelPath, name, literal string) int64 {
 // missed would be the source in the tree, which parses fine, and the test
 // would report the pin as strict when it had tested nothing.
 //
-// It lives here rather than with either pin that doctors sources
-// (named_key_tables_test.go, wayland_keypad_folds_test.go) for the reason
-// readNativeSource does. Two pins reading the same file two ways is the
-// divergence these guardrails exist to catch.
+// It lives here rather than with named_key_tables_test.go, the pin that
+// doctors sources, for the reason readNativeSource does. Two pins reading the
+// same file two ways is the divergence these guardrails exist to catch.
 func mustRewrite(t *testing.T, source, from, into string) string {
 	t.Helper()
 

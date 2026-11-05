@@ -104,7 +104,4 @@
 //     over by every draw that can put one on screen.
 //   - test_quality_test.go: no test swallows an error, and every test body
 //     can fail.
-//   - wayland_keypad_folds_test.go: the keypad names the Wayland keymap folds
-//     to are the names the X11 and evdev taps answer with, and the ones their
-//     tests expect.
 package architecture

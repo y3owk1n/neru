@@ -25,9 +25,7 @@ var nativeRuleMethodEndPattern = regexp.MustCompile(`(?m)^\}`)
 // so a source the opening pattern does not match is reported with the spelling
 // it was looked for by.
 //
-// named_key_tables_test.go reads its tables out of two methods this way, and
-// wayland_keypad_folds_test.go reads the keypad fold table out of a C
-// function.
+// named_key_tables_test.go reads its tables out of two methods this way.
 func nativeRuleMethodBody(
 	source string,
 	opening *regexp.Regexp,
