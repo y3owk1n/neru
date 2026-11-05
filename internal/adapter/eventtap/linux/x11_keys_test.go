@@ -97,13 +97,12 @@ func TestX11KeyFromLookupNavigationKeys(t *testing.T) {
 	}
 }
 
-// TestX11KeyFromLookupKeypadNavigationKeys pins the keypad half of the same
-// vocabulary. With NumLock off the keypad reports its own KP_ keysyms, and
-// XLookupString yields no character for any of them, so the keysym lookup is
-// again the only path to the handler. The names are copied from the fold table
-// neru_normalize_xkb_name applies to these keysyms
-// (internal/adapter/platform/linux/wayland_keymap.c), the table the Wayland
-// and evdev taps both read, so this is what pins the X11 tap to it.
+// TestX11KeyFromLookupKeypadNavigationKeys checks the X11 names for the keypad
+// navigation keys against the Wayland keymap. With NumLock off the keypad
+// reports its own KP_ keysyms, and XLookupString yields no character for them,
+// so the keysym lookup is the only way they reach the handler. A name that
+// differs from what neru_xkb_keysym_name gives the same keysym sends one
+// physical key to a different binding under X11.
 func TestX11KeyFromLookupKeypadNavigationKeys(t *testing.T) {
 	t.Parallel()
 
@@ -112,29 +111,77 @@ func TestX11KeyFromLookupKeypadNavigationKeys(t *testing.T) {
 		got  string
 		want string
 	}{
-		{name: "keypad home", got: x11KeyFromLookup(0, nil, x11KeysymKPHome), want: "Home"},
-		{name: "keypad end", got: x11KeyFromLookup(0, nil, x11KeysymKPEnd), want: "End"},
-		{name: "keypad page up", got: x11KeyFromLookup(0, nil, x11KeysymKPPageUp), want: "PageUp"},
+		{
+			name: "keypad home",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPHome),
+			want: xkbKeysymName(x11KeysymKPHome),
+		},
+		{
+			name: "keypad end",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPEnd),
+			want: xkbKeysymName(x11KeysymKPEnd),
+		},
+		{
+			name: "keypad page up",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPPageUp),
+			want: xkbKeysymName(x11KeysymKPPageUp),
+		},
 		{
 			name: "keypad page down",
 			got:  x11KeyFromLookup(0, nil, x11KeysymKPPageDown),
-			want: "PageDown",
+			want: xkbKeysymName(x11KeysymKPPageDown),
 		},
-		{name: "keypad left", got: x11KeyFromLookup(0, nil, x11KeysymKPLeft), want: "Left"},
-		{name: "keypad right", got: x11KeyFromLookup(0, nil, x11KeysymKPRight), want: "Right"},
-		{name: "keypad up", got: x11KeyFromLookup(0, nil, x11KeysymKPUp), want: "Up"},
-		{name: "keypad down", got: x11KeyFromLookup(0, nil, x11KeysymKPDown), want: "Down"},
-		{name: "keypad insert", got: x11KeyFromLookup(0, nil, x11KeysymKPInsert), want: "Insert"},
-		{name: "keypad delete", got: x11KeyFromLookup(0, nil, x11KeysymKPDelete), want: "Delete"},
-		{name: "keypad begin", got: x11KeyFromLookup(0, nil, x11KeysymKPBegin), want: "5"},
+		{
+			name: "keypad left",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPLeft),
+			want: xkbKeysymName(x11KeysymKPLeft),
+		},
+		{
+			name: "keypad right",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPRight),
+			want: xkbKeysymName(x11KeysymKPRight),
+		},
+		{
+			name: "keypad up",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPUp),
+			want: xkbKeysymName(x11KeysymKPUp),
+		},
+		{
+			name: "keypad down",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPDown),
+			want: xkbKeysymName(x11KeysymKPDown),
+		},
+		{
+			name: "keypad insert",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPInsert),
+			want: xkbKeysymName(x11KeysymKPInsert),
+		},
+		{
+			name: "keypad delete",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPDelete),
+			want: xkbKeysymName(x11KeysymKPDelete),
+		},
+		{
+			name: "keypad begin",
+			got:  x11KeyFromLookup(0, nil, x11KeysymKPBegin),
+			want: xkbKeysymName(x11KeysymKPBegin),
+		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
+			if testCase.want == "" {
+				t.Fatal("the Wayland keymap names nothing for this keysym")
+			}
+
 			if testCase.got != testCase.want {
-				t.Fatalf("x11KeyFromLookup() = %q, want %q", testCase.got, testCase.want)
+				t.Fatalf(
+					"x11KeyFromLookup() = %q, want the Wayland name %q",
+					testCase.got,
+					testCase.want,
+				)
 			}
 		})
 	}

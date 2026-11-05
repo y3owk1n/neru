@@ -8,9 +8,6 @@
 //
 //   - agent_contract_test.go: the agent guide layout: an AGENTS.md beside
 //     every CLAUDE.md symlink, .agents/skills canonical, worktrees ignored.
-//   - callback_context_layout_test.go: the C callback context struct and the
-//     Go struct it is cast to have the same fields, in the same order, at the
-//     same widths.
 //   - client_package_test.go: the public client package builds only on the
 //     standard library, the endpoint lookup, the error vocabulary
 //     (internal/derrors) and the pipe libraries Windows needs, never on the
@@ -48,8 +45,8 @@
 //     package that runs everywhere, and CI runs the recipe.
 //   - guide_test_citations_test.go: a guide file may claim a test exists only
 //     by naming it, and every test name or test file it names resolves.
-//   - hint_placement_vocabulary_test.go: the hint placement vocabulary is the
-//     same on both sides of the Go/Objective-C boundary.
+//   - hint_placement_vocabulary_test.go: each configured hint placement
+//     becomes its own HINT_PLACEMENT_* macro on macOS.
 //   - hotkey_delete_key_test.go: every platform's [hotkeys] table resolves
 //     "Delete" and "Backspace" to one physical key, the backspace key, so a
 //     config file binds the same key on all three.
@@ -79,13 +76,8 @@
 //   - mode_transition_release_test.go: an activation that exits another mode
 //     keeps the keyboard and gives it back at return, written as one deferred
 //     double call, so no call site can hand it over and forget to release it.
-//   - named_key_tables_test.go: the two Objective-C key-name tables spell the
-//     named-key vocabulary, agree with each other, and gap only where macOS has
-//     no keycode.
 //   - native_constants_test.go: the shared reader every language-boundary pin
 //     goes through, rather than a second way to read a .h or a .m.
-//   - native_rule_test.go: the reader that finds a native definition's body,
-//     so a pin addresses its copy by name and a rename fails loudly.
 //   - overlay_frame_test.go: an overlay Frame carries domain values only.
 //   - platform_slots_test.go: platform files use the documented file slots,
 //     tagged packages tag every file, package comments reach every target.
@@ -104,7 +96,4 @@
 //     over by every draw that can put one on screen.
 //   - test_quality_test.go: no test swallows an error, and every test body
 //     can fail.
-//   - wayland_keypad_folds_test.go: the keypad names the Wayland keymap folds
-//     to are the names the X11 and evdev taps answer with, and the ones their
-//     tests expect.
 package architecture

@@ -82,6 +82,19 @@ func ParseKeyString(keyString string) (int, int, bool) {
 	return int(keyCode), int(modifiers), result == 1
 }
 
+// SpecialKeyName returns the name the event tap gives a named key's virtual
+// key code ("Return", "F1"), or "" when the key code is not a named key. It
+// exists so tests can pin the tap's spelling from Go.
+func SpecialKeyName(keyCode uint16) string {
+	cName := C.NeruCopySpecialKeyName(C.int(keyCode))
+	if cName == nil {
+		return ""
+	}
+	defer C.free(unsafe.Pointer(cName))
+
+	return C.GoString(cName)
+}
+
 //export hotkeyCallbackBridge
 func hotkeyCallbackBridge(hotkeyID C.int, eventKind C.int, _ unsafe.Pointer) {
 	id := int(hotkeyID)

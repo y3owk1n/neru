@@ -76,9 +76,12 @@ are the precedent, not the exception.
   this rule would be that redesign arriving without its design. The first such
   pin landed with the placement vocabulary (#1289). The three values are
   declared once in Go, and `internal/architecture/hint_placement_vocabulary_test.go`
-  holds that declaration, the macros in `internal/adapter/platform/darwin/overlay.h`
-  and the `HintPlacement` enum to the same numbering. It pins *which placement
-  each value means*, not where the badge is then drawn. `hintRectForPlacement:`
+  held that declaration, the macros in `internal/adapter/platform/darwin/overlay.h`
+  and the `HintPlacement` enum to the same numbering. **Amended.** The enum
+  now takes its values from the macros, so the native numbers cannot
+  disagree. The pin checks only which macro `hintPlacementValue` returns for
+  each Go placement. It pins *which placement each value means*,
+  not where the badge is then drawn. `hintRectForPlacement:`
   remains a single Objective-C implementation with no Go counterpart to
   disagree with. Two more pins followed, where the copy was a rule rather than
   a constant. They covered the recursive-grid label-autohide rule (#1298) and
@@ -114,74 +117,42 @@ are the precedent, not the exception.
   pin over a *list*. It covers the named keys, retyped twice in Objective-C.
   `gSpecialNameToCodeMap` in `keymap_darwin.m` turns a written binding into a
   keycode, and `specialKeyName` in `eventtap_darwin.m` turns a keystroke back
-  into a name. `internal/architecture/named_key_tables_test.go` holds both to
-  `internal/domain/keyvocab` and to each other. What that pin had to account
-  for is that the two tables are not copies. The inbound one carries
-  the `Enter` and `Backspace` aliases and the outbound one must not, or one
-  keystroke would reach the mode handler under two spellings. So the pin derives
-  each table's expected contents from the vocabulary rather than from the other
-  table, and states the three deliberate absences explicitly. They are F21 to F24 and
-  `Insert`, checked against the `KeyCode` enum so a gap that stops being a
-  keycode gap fails, and `Clear`, which the numpad fold spells because no
-  binding can be written for it. The numpad folds from #1372 are on the
-  keymap side only, correct because every path that can be handed a numpad
-  keycode also asks `NeruKeyCodeToName` or `NeruKeyCodeToCharacter`, which
-  carry the folds. The pin holds what a fold may spell, not which key folds
-  where. `keymap_integration_darwin_test.go` owns that on a tagged, macOS-only
-  run, so that test catches a fold deleted outright, and the pin does not.
+  into a name. The two tables are not copies. The inbound one carries the
+  `Enter` and `Backspace` aliases and the outbound one must not, or one
+  keystroke would reach the mode handler under two spellings. **Amended.** The
+  first pin read both tables and the `KeyCode` enum as text. Two behaviour
+  tests in `internal/adapter/platform/darwin/named_keys_integration_darwin_test.go`
+  replace it. `TestParseKeyString_NamedKeysParseToTheirCarbonKeyCode` parses
+  every name in `internal/domain/keyvocab` and checks the Carbon key code it
+  reaches. `TestSpecialKeyName_AnswersTheVocabularySpelling` checks the name
+  the tap gives each of those key codes, and that no other key code gets one. F21 to F24 and `Insert` are the deliberate gaps, since Carbon declares
+  no key code for them. The numpad folds from #1372 are on the keymap side
+  only, and `keymap_integration_darwin_test.go` pins which key folds where.
 
-  The sixth is a list again, and the first list whose Go side this package
-  cannot link: what each keysym the keypad reports is called. That is decided
-  in `neru_normalize_xkb_name`
-  (`internal/adapter/platform/linux/wayland_keymap.c`) and transcribed into Go
-  three times: the keysym cascade in
-  `internal/adapter/eventtap/linux/x11_cgo.go` (#1385), `evdevKeyNames` in
-  `internal/adapter/eventtap/linux/evdev_keys.go` (#1399), and the test tables
-  mirroring both, which carry `want` columns of their own and so are a copy and
-  not a reading of one. `internal/architecture/wayland_keypad_folds_test.go`
-  holds all four to the C source. What it had to do differently is read the Go
-  copies as text as well as the C one. Both are behind `//go:build linux` and
-  one is behind cgo besides, so an untagged package cannot reference them, where
-  the pins above hold their native side to a Go declaration they import.
-  `hint_placement_vocabulary_test.go` already reads one build-tagged Go
-  function with `go/ast` for that reason. This is the same move over two whole
-  tables and the two test tables mirroring them. It declares per keysym which
-  copy must carry the name. The keypad operators and `KP_Decimal` reach the X11 tap through
-  XLookupString's character branch rather than through the cascade, `KP_Enter`
-  reaches it the way the main `Return` key does, and `KP_Decimal` is the
-  NumLock-on keysym of the key the evdev fallback names through `KP_Delete`.
-  Each of those absences fails the day it stops being one, and `KP_Decimal`,
-  excused from both, is held for presence only. No Go table spells the name
-  that row gives, so it is the one keypad row that is not a decision made
-  twice. The same table's rows outside the keypad, which are the punctuation,
-  `Page_Up`/`Page_Down` and `Caps_Lock`, are read but not pinned. The reason
-  is a join rather than a judgement. `evdevKeyNames` answers by kernel
-  key code, and only for the keypad does the tree say which keysym a code
-  reports, which is what `keypadKeyNameCases` is.
+  The sixth is a list again. It names each keysym the keypad reports.
+  `neru_normalize_xkb_name`
+  (`internal/adapter/platform/linux/wayland_keymap.c`) decides the names, and
+  Go carries two copies of them, the keysym cascade in
+  `internal/adapter/eventtap/linux/x11_cgo.go` (#1385) and `evdevKeyNames` in
+  `internal/adapter/eventtap/linux/evdev_keys.go` (#1399). **Amended.** The
+  first pin read the C source and both Go copies as text. Two behaviour tests
+  replace it. `TestEvdevKeyName_KeypadMatchesWayland` and
+  `TestX11KeyFromLookupKeypadNavigationKeys` compare each Go copy with
+  `xkbKeysymName`, which runs the C function itself, on every Linux run.
 
-  The seventh is neither a constant, a rule nor a list but a *layout*, and it
-  is the one whose Go side this package can link. `callbackContext`
-  (`internal/adapter/platform/darwin/callback_context.h`) is allocated on the C
-  heap, retained across two `dispatch_async` hops, and cast straight to
-  `overlayutil.CallbackContext` by the `//export`ed Go side that reads it back.
-  A disagreement is a callback ID and a generation read from the wrong offsets,
-  and nothing fails to compile.
-  `internal/architecture/callback_context_layout_test.go` holds the two to the
-  same field names, order and integer widths. It reads the header through
-  `readNativeSource` like every pin here and *reflects* over the Go struct
-  rather than parsing it, which is the state the sub-key-preview pin above
-  reached only after #1297 gave its Go copy an untagged home. `overlayutil`
-  never had a build tag, so the Go side can be linked on every CI leg, and
-  `reflect` answers with the field order and width the cast depends on
-  rather than with the spelling the declaration happens to use. What the pin
-  buys differs by leg, because the cgo allocator in
-  `internal/adapter/platform/darwin/cstring.go` already catches some of these
-  as compile errors on macOS and nothing catches any of them off it. The
-  pin's own doc comment says which cases are left to the pin, where someone
-  editing it will read it.
+  The seventh was a *layout*. Go allocated `callbackContext`, declared in the
+  darwin bridge's `callback_context.h`, on the C heap. Native code retained it
+  across two `dispatch_async` hops, and the `//export`ed Go side cast it
+  straight to `overlayutil.CallbackContext`. **Amended.** Native code only
+  passed the pointer back and never read a field, so nothing needed the C
+  typedef. `overlayutil.CallbackIDToPointer` now allocates the Go struct's own
+  size on the C heap and writes the Go struct into it. The same change deleted
+  the header and its pin.
 
-  That list was the complete set of *pinned* copies as of #1407, and the five
-  left after #1691 still are. It is not a claim that no others exist. Sweeping for them while writing the sub-key preview pin turned
+  That list was the complete set of *pinned* copies as of #1407. Of the five
+  left after #1691, the placement-vocabulary and wire-prefix pins still read
+  source as text, behaviour tests now cover the two key-name lists, and the layout
+  copy no longer exists. It is not a claim that no others exist. Sweeping for them while writing the sub-key preview pin turned
   up more. The nearest was ten lines below it in the same pair of methods:
   which sub-cell of the preview mini-grid is left blank, the
   center one when both next-level dimensions are odd, decided in

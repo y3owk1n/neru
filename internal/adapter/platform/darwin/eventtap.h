@@ -125,6 +125,11 @@ void NeruDestroyHotkeyTap(HotkeyTapRef tap);
 /// @return 1 on success, 0 on failure
 int NeruParseKeyString(const char *keyString, int *keyCode, int *modifiers);
 
+/// The name the event tap gives a named key ("Return", "F1"), for the CGO boundary.
+/// @param keyCode Virtual key code
+/// @return Malloc'd UTF-8 string the caller must free(), or NULL when the key code is not a named key
+char *NeruCopySpecialKeyName(int keyCode);
+
 #pragma mark - Standalone Utilities
 
 /// Post a physical modifier key-down or key-up event to macOS.

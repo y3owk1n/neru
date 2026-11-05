@@ -108,7 +108,9 @@ shape, and *Bridge* in `CONTEXT.md` is written for both.
   convention that already runs, not a new one. The one thing it settled that
   this decision had assumed is that the Go half is *not* behind a build tag, so it is
   linked and reflected over rather than read as text, and only the header is a
-  reading. ADR 0007's inventory carries the detail.
+  reading. ADR 0007's inventory carries the detail. **Amended.** A later
+  change deleted the header. Native code never read the struct, so the Go
+  struct is now its only declaration (ADR 0007).
 - *Bridge* moves into `CONTEXT.md` and carries this rule. The one-line
   definition under `AGENTS.md` Domain Concepts goes, because each fact has one
   home.

@@ -13,8 +13,9 @@ import (
 )
 
 // Where each platform turns the base key of a [hotkeys] chord into the
-// physical key it grabs. macOS is read through the parser in
-// named_key_tables_test.go, and the other three are Go switches.
+// physical key it grabs. All three are Go switches. macOS parses chords
+// through its keymap, and TestParseKeyString_NamedKeysParseToTheirCarbonKeyCode
+// (internal/adapter/platform/darwin) checks the key code each name reaches.
 const (
 	hotkeyKeyWindowsSource = "internal/adapter/platform/windows/keys.go"
 	hotkeyKeyWindowsFunc   = "nameToVirtualKey"
@@ -58,7 +59,7 @@ var hotkeyKeyGoTables = []hotkeyKeyGoTable{
 // binding on "Delete" meaning the same physical key on every platform: the
 // backspace key, which is what "Backspace" binds and what macOS, the
 // reference, calls kVK_Delete. Inside a mode the two names are already one
-// key, by the vocabulary's alias. This pins the four hotkey tables, which
+// key, by the vocabulary's alias. This pins the three Go hotkey tables, which
 // resolve names on their own, to the same answer.
 //
 // It reads each table as a map from the name a config writes to the symbol
@@ -67,9 +68,7 @@ var hotkeyKeyGoTables = []hotkeyKeyGoTable{
 func TestEveryHotkeyTableBindsDeleteAndBackspaceToOneKey(t *testing.T) {
 	t.Parallel()
 
-	tables := map[string]map[string]string{
-		"darwin": lowercaseKeys(readDarwinNamedKeyTables(t).inbound),
-	}
+	tables := make(map[string]map[string]string, len(hotkeyKeyGoTables))
 
 	for _, table := range hotkeyKeyGoTables {
 		tables[table.platform] = readHotkeyKeyGoTable(t, table)
@@ -248,15 +247,4 @@ func funcDeclNamed(file *ast.File, name string) *ast.FuncDecl {
 	}
 
 	return nil
-}
-
-// lowercaseKeys re-keys a name table by the lowercase name, which is how the
-// Go tables are read.
-func lowercaseKeys(table map[string]string) map[string]string {
-	lowered := make(map[string]string, len(table))
-	for name, symbol := range table {
-		lowered[strings.ToLower(name)] = symbol
-	}
-
-	return lowered
 }

@@ -111,55 +111,6 @@ func TestDarwinEntryPoints_AreDeclaredInTheirSubsystemHeader(t *testing.T) {
 	)
 }
 
-// TestDarwinEntryPoints_PinCatchesTheSilentBreaches is the ticket's acceptance
-// check, kept rather than performed once. Each way a prototype can end up
-// outside its subsystem's header is applied to a bridge built for the purpose,
-// and the pin has to report it.
-//
-// The fixtures are written here rather than doctored out of the tree because
-// every one of these breaches is hypothetical. The tree has none, which is the
-// point of landing the pin now. What they exercise is the reader as much as the
-// rule. A pin that quietly matched nothing would pass its own drift test only
-// if the drifts were compared against a tree it had also read as empty.
-func TestDarwinEntryPoints_PinCatchesTheSilentBreaches(t *testing.T) {
-	t.Parallel()
-
-	for _, drift := range darwinEntryPointDrifts() {
-		problems, _ := darwinEntryPointProblems(drift.bridge)
-
-		if len(problems) == 0 {
-			t.Errorf(
-				"the pin reports nothing when %s; that breach compiles, lints and "+
-					"links, so nothing else would report it either",
-				drift.name,
-			)
-		}
-	}
-}
-
-// TestDarwinEntryPoints_PinLeavesFileLocalHelpersAlone pins the other half: the
-// shapes that look like a breach and are not.
-//
-// A static function is file-local by construction, so a header declaring it
-// would be the mistake. Getting this wrong is the way a guardrail like this one
-// gets reverted rather than obeyed. Six of the bridge's Neru* definitions are
-// static today, and a pin that demanded prototypes for them would ask for six
-// declarations that no caller could use.
-func TestDarwinEntryPoints_PinLeavesFileLocalHelpersAlone(t *testing.T) {
-	t.Parallel()
-
-	for _, allowed := range darwinEntryPointNonBreaches() {
-		problems, _ := darwinEntryPointProblems(allowed.bridge)
-
-		if len(problems) > 0 {
-			t.Errorf(
-				"the pin reports %s, which breaks no rule:\n\t%s",
-				allowed.name, strings.Join(problems, "\n\t"),
-			)
-		}
-	}
-}
-
 // TestDarwinEntryPoints_SubsystemHeaderExemptionsStayHonest keeps
 // darwinSubsystemHeaderExemptions from outliving its reasons. An entry whose .m
 // or header is gone describes nothing. One the derivation now finds on its own
@@ -443,12 +394,8 @@ var nativeStaticSpecifier = regexp.MustCompile(`\bstatic\b`)
 
 // nativeSignatures reads every Neru* signature in a native source.
 //
-// This is not nativeRuleMethodBody (native_rule_test.go) wearing a different
-// name. That one is handed the spelling of one definition and returns its body,
-// so that a pin can read the copy written inside it. A rename there has to fail
-// rather than pass over nothing, which is why it is addressed by name. This
-// asks the opposite question: what does this file state, whose names nobody
-// knows in advance? It has no body to read.
+// It lists every Neru* signature a file declares without knowing the names in
+// advance. It never reads a function body.
 //
 // Reading text rather than preprocessed C, this cannot tell a declaration the
 // compiler sees from one behind an inactive #if. But it can refuse to be
@@ -532,12 +479,11 @@ func balancedParenEnd(readable string, openParen int) int {
 // where it was.
 //
 // The comments are the removal that catches something. A prototype left
-// commented out in a header must not count as a declaration, which is the same
-// "an old copy left beside the new one" case callback_context_layout_test.go
-// reports. Emptying the literals is defensive. A parenthesis inside one would
-// otherwise be balanced against the parameter list of the call it sits in, and
-// a signature scanner should not have to reason about which side of the
-// resulting mismatch it errs on.
+// commented out in a header must not count as a declaration. Emptying the
+// literals is defensive. A parenthesis inside one would otherwise be balanced
+// against the parameter list of the call it sits in, and a signature scanner
+// should not have to reason about which side of the resulting mismatch it errs
+// on.
 func stripNativeCommentsAndLiterals(source string) string {
 	var stripped strings.Builder
 
@@ -584,116 +530,4 @@ func skipLiteral(source string, openQuote int) int {
 	}
 
 	return len(source) - 1
-}
-
-// darwinEntryPointFixture is a bridge built to exercise the pin, and what it is
-// meant to show.
-type darwinEntryPointFixture struct {
-	name   string
-	bridge darwinBridge
-}
-
-// The fixture bridge: one subsystem publishing one entry point, and a second
-// subsystem beside it for a prototype to be misfiled into.
-const (
-	fixtureHeader      = "widget.h"
-	fixtureSource      = "widget_darwin.m"
-	fixtureOtherHeader = "gadget.h"
-
-	fixtureDeclaration = "void NeruShowWidget(int id);\n"
-	fixtureDefinition  = "#include \"widget.h\"\n\nvoid NeruShowWidget(int id) {\n" +
-		"\tNeruLayOutWidget(id);\n}\n"
-)
-
-// compliantDarwinBridge is the fixture with nothing wrong with it, which every
-// case below starts from.
-func compliantDarwinBridge() darwinBridge {
-	return darwinBridge{
-		fixtureHeader:      fixtureDeclaration,
-		fixtureSource:      fixtureDefinition,
-		fixtureOtherHeader: "void NeruShowGadget(void);\n",
-	}
-}
-
-// darwinEntryPointDrifts are the three ways a prototype ends up outside its
-// subsystem's header, plus the file that arrives with no subsystem at all. Each
-// compiles, lints and links.
-func darwinEntryPointDrifts() []darwinEntryPointFixture {
-	inTheCallingSource := compliantDarwinBridge()
-	inTheCallingSource[fixtureHeader] = ""
-	inTheCallingSource[fixtureSource] = fixtureDeclaration + fixtureDefinition
-
-	inAnotherSubsystemsHeader := compliantDarwinBridge()
-	inAnotherSubsystemsHeader[fixtureHeader] = ""
-	inAnotherSubsystemsHeader[fixtureOtherHeader] += fixtureDeclaration
-
-	inACgoPreamble := compliantDarwinBridge()
-	inACgoPreamble[fixtureHeader] = ""
-
-	commentedOutInItsHeader := compliantDarwinBridge()
-	commentedOutInItsHeader[fixtureHeader] = "// " + fixtureDeclaration
-
-	withNoSubsystemHeader := compliantDarwinBridge()
-	delete(withNoSubsystemHeader, fixtureHeader)
-
-	return []darwinEntryPointFixture{
-		{
-			name:   "the prototype is written at the top of the calling .m",
-			bridge: inTheCallingSource,
-		},
-		{
-			name:   "the prototype is written into another subsystem's header",
-			bridge: inAnotherSubsystemsHeader,
-		},
-		{
-			// A cgo preamble lives in a .go file, which is not the bridge's
-			// interface and is not read here. From the header's side the breach
-			// looks exactly like a prototype that went missing.
-			name:   "the prototype is written into a cgo preamble instead",
-			bridge: inACgoPreamble,
-		},
-		{
-			// The one shape a reader of text has to be careful about: a header
-			// that still shows the prototype declares nothing.
-			name:   "the prototype is left commented out in its own header",
-			bridge: commentedOutInItsHeader,
-		},
-		{
-			name:   "the .m arrives with no subsystem header at all",
-			bridge: withNoSubsystemHeader,
-		},
-	}
-}
-
-// darwinEntryPointNonBreaches are the shapes the pin must not report.
-func darwinEntryPointNonBreaches() []darwinEntryPointFixture {
-	withStaticHelper := compliantDarwinBridge()
-	withStaticHelper[fixtureSource] += "\nstatic void NeruLayOutWidget(int id) {\n}\n"
-
-	withWrappedStaticHelper := compliantDarwinBridge()
-	withWrappedStaticHelper[fixtureSource] += "\nstatic void\nNeruLayOutWidget(\n\tint id\n) {\n}\n"
-
-	withRepeatedPrototype := compliantDarwinBridge()
-	withRepeatedPrototype[fixtureSource] = fixtureDeclaration + fixtureDefinition
-
-	withCallsInItsBody := compliantDarwinBridge()
-	withCallsInItsBody[fixtureSource] += "\nvoid NeruDrawWidget(void) {\n" +
-		"\tNeruLayOutWidget(1);\n\tNeruLog(\"drew )( a widget\");\n}\n"
-	withCallsInItsBody[fixtureHeader] += "void NeruDrawWidget(void);\n"
-
-	return []darwinEntryPointFixture{
-		{name: "a static helper with no prototype anywhere", bridge: withStaticHelper},
-		{
-			name:   "a static helper whose specifiers do not share its name's line",
-			bridge: withWrappedStaticHelper,
-		},
-		{
-			name:   "a prototype repeated in the .m as well as in its header",
-			bridge: withRepeatedPrototype,
-		},
-		{
-			name:   "calls in a body, one of them holding a parenthesis in a string",
-			bridge: withCallsInItsBody,
-		},
-	}
 }

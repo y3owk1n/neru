@@ -54,9 +54,9 @@ func boolToInt(v bool) int {
 
 // hintPlacementValue translates a configured placement into the constant the
 // Objective-C overlay switches on. The strings are config's declaration of the
-// vocabulary, and the constants come from the header that
-// internal/architecture/hint_placement_vocabulary_test.go pins the Objective-C
-// enum to.
+// vocabulary, and the constants are the overlay.h macros the Objective-C enum
+// takes its values from. internal/architecture/hint_placement_vocabulary_test.go
+// checks that each arm returns its own placement's macro.
 //
 // Every value config.HintPlacements() declares has a branch, and anything else
 // is refused rather than translated. The switch used to answer an unrecognized

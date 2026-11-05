@@ -298,6 +298,13 @@ static NSString *specialKeyName(CGKeyCode keyCode) {
 	}
 }
 
+char *NeruCopySpecialKeyName(int keyCode) {
+	@autoreleasepool {
+		NSString *name = specialKeyName((CGKeyCode)keyCode);
+		return name ? strdup(name.UTF8String) : NULL;
+	}
+}
+
 #pragma mark - Event Tap Callback
 
 /// Event tap callback function

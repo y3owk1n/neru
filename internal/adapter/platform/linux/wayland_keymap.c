@@ -361,8 +361,7 @@ static void neru_normalize_xkb_name(char *buf, size_t buf_size) {
 		const char *xkb;
 		const char *canon;
 	} table[] = {
-	    // clang-format off: one row per line is what the pin in
-	    // internal/architecture/wayland_keypad_folds_test.go reads.
+	    // clang-format off: one row per line.
 	    {"ISO_Left_Tab", "Tab"},
 	    {"Prior", "PageUp"},
 	    {"Next", "PageDown"},
