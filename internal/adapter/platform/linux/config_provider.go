@@ -8,11 +8,10 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// configProvider is a process-global runtime config source for the Linux system
-// adapter, mirroring the darwin config-provider slot. It is set once at daemon
-// startup (see internal/app/runtime_config_linux.go) and read by the smooth
-// cursor path. A nil provider (tests, or before wiring) means "no config", so
-// callers fall back to the direct, non-animated move.
+// configProvider is the process-global runtime config for the Linux system
+// adapter, set once at startup (internal/app/runtime_config_linux.go) and read
+// by the smooth-cursor path. Nil (tests, or before wiring) means callers fall
+// back to the direct, non-animated move.
 var (
 	configProviderMu sync.RWMutex
 	configProvider   config.Provider

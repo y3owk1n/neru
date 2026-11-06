@@ -3,19 +3,14 @@
 
 #include "screencapture.h"
 
-// The KDE Plasma screen-capture backend: one frame off a PipeWire node the
-// xdg-desktop-portal ScreenCast session is streaming.
+// The KDE Plasma screen-capture backend: one frame off the PipeWire node an
+// xdg-desktop-portal ScreenCast session streams. KWin offers no screencopy
+// protocol Neru can use, so pixels come through the portal. The node and its
+// monitor's position are negotiated in Go (portal_screencast.go).
 //
-// KWin implements no screencopy protocol Neru can use, so unlike X11
-// (x11_screencapture.c) and the wlroots family (wlroots_screencopy.c) this
-// backend reads its pixels through the portal. Which node, and where that
-// node's monitor sits, is negotiated in Go (portal_screencast.go), and everything
-// below the socket is here.
-//
-// Privacy: the frame is mapped, the requested rectangle is copied out of it,
-// and the mapping is handed straight back to PipeWire. Nothing outside the
-// crop is retained, nothing is written anywhere, and neru_capture_free wipes
-// the crop before releasing it.
+// Privacy: only the requested crop is copied out, the mapping goes straight
+// back to PipeWire, nothing is written anywhere, and neru_capture_free wipes
+// the crop.
 
 typedef struct {
 	// fd is a PipeWire remote connection from
@@ -43,10 +38,9 @@ typedef struct {
 // neru_pipewire_capture reads one frame off request->node_id and fills out with
 // the requested rectangle of it, in the RGBA8888 layout NeruCapture documents.
 //
-// On a scaled output the frame arrives in physical pixels, so what comes back
-// is larger than the logical rectangle by the output's scale factor. It always
-// covers exactly the rectangle asked for. A crop that does not fit inside the
-// frame is NERU_CAPTURE_ERR_REGION rather than a silently clipped result.
+// On a scaled output the frame is in physical pixels, so the result is larger
+// than the logical rectangle by the scale factor. A crop that does not fit the
+// frame is NERU_CAPTURE_ERR_REGION rather than silently clipped.
 //
 // Returns NERU_CAPTURE_OK or one of the NERU_CAPTURE_ERR_* codes.
 int neru_pipewire_capture(const NeruPipewireRequest *request, NeruCapture *out);

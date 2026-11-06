@@ -6,10 +6,9 @@
 // window's on-screen client geometry to a Neru-owned D-Bus service on every
 // focus change, and caches the last value.
 //
-// Two callers need that same fact and used to be able to answer it separately,
-// which is how one of them ended up not answering it at all. The AT-SPI client
-// offsets window-relative element coordinates by the window's origin, and
-// SystemPort.FocusedWindowBounds reports the focused window's rectangle. Both
-// read the process-wide bridge returned by Shared, so KDE has one geometry
-// source rather than one per caller.
+// Two callers need it. The AT-SPI client offsets window-relative element
+// coordinates by the window's origin, and SystemPort.FocusedWindowBounds
+// reports the focused window's rectangle. Both read the process-wide bridge
+// returned by Shared, so KDE has one geometry source rather than one per
+// caller.
 package kwin

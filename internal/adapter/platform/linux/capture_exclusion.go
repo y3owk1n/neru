@@ -7,17 +7,15 @@ import (
 	"sync/atomic"
 )
 
-// No Linux display server lets a client leave one window out of a screen
-// capture, so a capture reads Neru's overlay as part of the screen. The overlay
-// takes itself off around a capture instead. It registers a hider here, which
-// clears what it shows, waits until the screen a capture reads no longer has
-// it, runs the capture, and puts back exactly what it showed. The user's
-// monitor shows the overlay missing for that long, at least one frame.
+// No Linux display server lets a client leave one window out of a capture, so
+// the overlay takes itself off around one instead. Its registered hider clears
+// what it shows, waits until the captured screen no longer has it, runs the
+// capture, and puts back exactly what it showed. The user sees the overlay
+// vanish for at least one frame.
 //
-// Each overlay backend decides what to wait for. Wayland waits for the
-// compositor's frame callback for the cleared buffer, which covers
-// wlr-screencopy and a portal stream started after it alike. X11 waits for the
-// server's sync, then for a compositing manager to repaint.
+// Each overlay backend decides what to wait for. Wayland waits for the frame
+// callback for the cleared buffer, which covers wlr-screencopy and a portal
+// stream alike. X11 waits for the server's sync, then for a compositor repaint.
 var ownWindowsHider atomic.Pointer[func(capture func() error) error]
 
 // SetOwnWindowsHider registers the function that takes Neru's overlay off the

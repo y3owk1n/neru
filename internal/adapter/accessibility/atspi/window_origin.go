@@ -13,35 +13,24 @@ import (
 )
 
 // Window-origin sources for Wayland. A Wayland client cannot know its own
-// on-screen position, so AT-SPI reports element coordinates relative to the
-// window. To turn those into true screen coordinates for the hint overlay, the
-// focused window's screen origin is supplied by a compositor-specific source.
-// KWin (KDE) pushes it over D-Bus. The wlroots family (niri, Sway, Hyprland)
-// exposes it through its CLI, asked through
-// [github.com/y3owk1n/neru/internal/adapter/platform/compositorcli]. That is the
-// same query SystemPort.FocusedWindowBounds shells out with, because it is the
-// same process answering the same question.
+// position, so AT-SPI reports window-relative coordinates and a
+// compositor-specific source supplies the focused window's screen origin. KWin
+// pushes it over D-Bus. niri, Sway and Hyprland answer through their CLI via
+// [github.com/y3owk1n/neru/internal/adapter/platform/compositorcli], the same
+// query SystemPort.FocusedWindowBounds uses.
 //
-// Every source degrades rather than refuses. When no origin is available,
-// callers fall back to unoffset (window-relative) coordinates. What a source
-// must still separate is a compositor that answered and has no origin to give
-// from a query that never happened, because the second is a fault a person can
-// fix and the first is the ordinary case this fallback exists for.
+// Every source degrades to window-relative coordinates rather than refusing,
+// but keeps a compositor with no origin to give (routine) apart from a query
+// that never happened (a fault a person can fix).
 
 // coordPairLen is the length of a [x,y] / [w,h] pair in compositor JSON.
 const coordPairLen = 2
 
-// reportOriginFailure says out loud that the focused window's position could
-// not be read, and says it again only when the reason changes.
-//
-// The failure has to be visible. Hints in this window are about to be drawn at
-// window-relative coordinates, which on Wayland means a screenful of them in
-// the wrong place, and until now that happened silently. But it is almost
-// always a property of the session rather than of this activation, since a
-// compositor CLI that is not installed stays not installed, and this runs on
-// every hint activation. So the reason is warned once and recorded at debug
-// after that. A log that repeats one fact hundreds of times a day stops being
-// read, which costs the same as saying nothing.
+// reportOriginFailure warns that the focused window's position could not be
+// read, and warns again only when the reason changes. Hints are about to land
+// window-relative, a screenful in the wrong place, so it must be visible. But
+// the cause is almost always a session fact and this runs every activation,
+// so repeats go to debug.
 func (c *Client) reportOriginFailure(err error) {
 	reason := derrors.Message(err)
 
@@ -59,17 +48,15 @@ func (c *Client) reportOriginFailure(err error) {
 	)
 }
 
-// clearOriginFailure forgets the last reported reason, so a source that starts
-// working and later breaks again is heard the second time too. Every answer
-// clears it, including one with no origin in it, because what ends a failure is
-// the source answering at all.
+// clearOriginFailure forgets the last reported reason, so a source that
+// recovers and breaks again is heard again. Any answer clears it, even one
+// with no origin.
 func (c *Client) clearOriginFailure() { c.originFailure.Store(nil) }
 
-// windowOriginSizeTolerance is the max per-dimension difference (px) allowed
-// between the compositor-reported window size and the AT-SPI frame extents
-// before the reported origin is treated as belonging to a different window
-// (focus can change between the AT-SPI walk and the geometry query). Qt apps
-// match exactly. GTK/CSD apps can differ by a title bar's worth of pixels.
+// windowOriginSizeTolerance is the max per-dimension difference (px) between
+// the compositor's window size and the AT-SPI frame before the origin is taken
+// for a different window, since focus can change in between. Qt matches
+// exactly, and GTK/CSD can differ by a title bar.
 const windowOriginSizeTolerance = 32
 
 // absInt is the magnitude every source compares against that tolerance with.
@@ -81,22 +68,17 @@ func absInt(v int) int {
 	return v
 }
 
-// windowFrame describes the AT-SPI frame an origin is being asked for. A source
-// answers about "the focused window", and this is everything the caller knows
-// about the window it is actually going to walk, so it is also how a source
-// checks that the two are the same window.
+// windowFrame describes the AT-SPI frame an origin is asked for, so a source
+// can check that its "focused window" is the one being walked.
 type windowFrame struct {
-	// Width and Height are the frame's AT-SPI extents. Every source compares
-	// them against the size the compositor reports, within
-	// windowOriginSizeTolerance.
+	// Width and Height are the frame's AT-SPI extents, compared against the
+	// compositor's size within windowOriginSizeTolerance.
 	Width, Height int
 
-	// FocusedAppID and FocusedTitle are the compositor's focused-toplevel
-	// identity, captured when this frame was selected and by the same
-	// wlr-foreign-toplevel-management read that selected it. Both are empty on
-	// X11 and GNOME, where there is no such protocol to ask. An identity a
-	// source cannot have is not a mismatch, so a source that uses these must
-	// fall through to the size check rather than refuse.
+	// FocusedAppID and FocusedTitle are the focused-toplevel identity read when
+	// this frame was selected. Both are empty on X11 and GNOME, which lack the
+	// protocol. A missing identity is not a mismatch, so a source falls through
+	// to the size check rather than refuse.
 	FocusedAppID string
 	FocusedTitle string
 }
@@ -106,28 +88,19 @@ type windowFrame struct {
 type windowOriginSource interface {
 	// start performs any one-time setup. It is best-effort and logs failures.
 	start()
-	// originFor returns the focused window's screen origin, but only when the
-	// window it belongs to is the one the given frame describes.
-	//
-	// The three answers are distinct. An origin with ok is what the compositor
-	// said. ok=false with no error is the compositor answering that it has no
-	// origin to give. Nothing is focused, the rectangle belongs to a different
-	// window, or a niri window's tiling gives it no on-screen position. A
-	// non-nil error is the source failing to answer at all, which callers must
-	// not read as the second. Both fall back to unoffset coordinates, and only
-	// one of them is something a person can fix.
+	// originFor returns the focused window's screen origin, only when that
+	// window is the one frame describes. ok=false with no error is the
+	// compositor having no origin to give (nothing focused, another window's
+	// rectangle, a tiled niri window). A non-nil error is the source failing to
+	// answer, which callers must not read as the second. Both fall back to
+	// unoffset coordinates, and only the error is something a person can fix.
 	originFor(frame windowFrame) (origin image.Point, ok bool, err error)
 }
 
-// noWindowOrigin is the source for a session no compositor bridge belongs on:
-// X11, where AT-SPI already reports screen coordinates, and any Wayland
-// compositor Neru has no geometry source for. It never reports an origin, so
-// callers use AT-SPI's coordinates unchanged. Unlike a bridge that merely fails
-// to report one, it starts nothing.
-//
-// It logs on start because the bridge it replaces used to. On a compositor with
-// no geometry source the KWin bridge warned that its script install failed,
-// which was the wrong reason but did say hints would be unoffset here.
+// noWindowOrigin is the source for X11, where AT-SPI already reports screen
+// coordinates, and for Wayland compositors with no geometry source. It never
+// reports an origin and starts nothing. It logs on start so the session says
+// hints stay window-relative.
 type noWindowOrigin struct {
 	logger  *zap.Logger
 	backend platform.LinuxBackend
@@ -148,18 +121,12 @@ func (s noWindowOrigin) start() {
 	)
 }
 
-// originFor answers differently for the two sessions that share this type,
-// because they are not the same fact.
-//
-// On X11 nothing failed and nothing is missing. AT-SPI already reports screen
-// coordinates, so having no origin to add is the correct and complete answer.
-// On a Wayland compositor Neru has no source for, such as GNOME, River or
-// Wayfire, the fact is that there is nobody to ask, which the platform
-// contract says to report rather than dress up as an answer
-// (internal/adapter/platform/AGENTS.md, "Stubs are loud"). It is the same
-// refusal SystemPort.FocusedWindowBounds gives such a session, for the same
-// reason. Hints land window-relative either way, and only one of the two says
-// so.
+// originFor answers differently for the two sessions that share this type. On
+// X11 no origin is the correct, complete answer. On a Wayland compositor with
+// no source, such as River or Wayfire, there is nobody to ask, which the
+// platform contract says to report (internal/adapter/platform/AGENTS.md,
+// "Stubs are loud"), as SystemPort.FocusedWindowBounds does. Hints land
+// window-relative either way.
 func (s noWindowOrigin) originFor(_ windowFrame) (image.Point, bool, error) {
 	if s.backend == platform.BackendX11 {
 		return image.Point{}, false, nil
@@ -172,18 +139,12 @@ func (s noWindowOrigin) originFor(_ windowFrame) (image.Point, bool, error) {
 	)
 }
 
-// newWindowOriginSource selects the geometry source for the backend
-// platform.DetectLinuxBackend identified. The backend decides first and the
-// environment only refines it, because starting a source is not free. The KWin
-// bridge opens the session bus, owns a name and writes a script into
-// $XDG_RUNTIME_DIR, which it used to do on plain X11 sessions that set none of
-// the wlroots sockets and fell through to it (#1430).
-//
-// The compositor sockets are read only once the backend has already answered
-// "wlroots", and they answer a question LinuxBackend cannot: which of niri,
-// Sway and Hyprland to query, where the backend has one value covering all of
-// them plus River and Wayfire. A wlroots compositor with no source of its own
-// reports no origin rather than borrowing KDE's.
+// newWindowOriginSource selects the geometry source for the detected backend.
+// The backend decides first because starting a source is not free. The KWin
+// bridge opens the session bus, owns a name and writes a script, which it once
+// did on plain X11 sessions (#1430). Compositor sockets are read only for
+// "wlroots", to pick among niri, Sway and Hyprland. A wlroots compositor with
+// no source of its own reports no origin rather than borrowing KDE's.
 func newWindowOriginSource(backend platform.LinuxBackend, logger *zap.Logger) windowOriginSource {
 	switch backend {
 	case platform.BackendWaylandKDE:

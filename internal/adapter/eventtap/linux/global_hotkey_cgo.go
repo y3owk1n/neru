@@ -9,13 +9,12 @@ import (
 	"go.uber.org/zap"
 )
 
-// GlobalHotkeyListener is the Wayland substitute for OS-level global hotkeys,
-// which compositors do not expose to ordinary clients. It is a set of chord
-// bindings on the evdev proxy, which matches them while no mode is open and
-// withholds a matched chord from the focused app. The mode handler resolves
-// the same chords itself while a mode is open, out of the same global table
+// GlobalHotkeyListener is the Wayland substitute for OS global hotkeys, which
+// compositors do not expose. It is a set of chord bindings the evdev proxy
+// matches while no mode is open, withholding a matched chord from the focused
+// app. While a mode is open the mode handler resolves the same chords
 // (internal/app/modes/keymap.go, settledKeymaps), and exactly one of the two
-// sees any given press.
+// sees any press.
 type GlobalHotkeyListener struct {
 	logger *zap.Logger
 
@@ -64,8 +63,8 @@ func (l *GlobalHotkeyListener) ClearBindings() {
 }
 
 // Start attaches the bindings to the evdev proxy, building it on first use. It
-// is idempotent. An error is returned when no keyboard can be opened (typically
-// a permissions problem, meaning the user needs read access to /dev/input/event*).
+// is idempotent. It fails when no keyboard can be opened, usually for lack of
+// read access to /dev/input/event*.
 func (l *GlobalHotkeyListener) Start() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -95,8 +94,8 @@ func (l *GlobalHotkeyListener) Start() error {
 	return nil
 }
 
-// Stop detaches the bindings. The proxy keeps forwarding keys. It is the
-// keyboard now, and stays so for the daemon's lifetime. Idempotent.
+// Stop detaches the bindings. The proxy keeps forwarding keys for the
+// daemon's lifetime. Idempotent.
 func (l *GlobalHotkeyListener) Stop() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -109,8 +108,8 @@ func (l *GlobalHotkeyListener) Stop() {
 	l.publishLocked()
 }
 
-// StopWithTimeout is Stop. Detaching is a pointer swap and cannot take long.
-// The deadline is kept for the callers that pass one.
+// StopWithTimeout is Stop, a pointer swap. The deadline is kept for callers
+// that pass one.
 func (l *GlobalHotkeyListener) StopWithTimeout(_ time.Duration) bool {
 	l.Stop()
 

@@ -15,10 +15,9 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 )
 
-// Finds the frame to hint against: enumerates applications on the AT-SPI bus,
-// scores their frames against the compositor's focused app, and picks one.
-// This is where the guesswork lives, because AT-SPI exposes no "focused
-// window" of its own. See selectFrame for the ranking rules.
+// Frame selection. AT-SPI exposes no focused window of its own, so this scores
+// each application's frames against the compositor's focused app. See
+// selectFrame for the ranking.
 //
 // isVirtualKeyboardApp reports whether an AT-SPI application is an on-screen
 // virtual keyboard, which must never be treated as the focused window.
@@ -32,13 +31,10 @@ func isVirtualKeyboardApp(name string) bool {
 }
 
 // isDesktopShellApp reports whether an AT-SPI application is the KDE desktop
-// shell (plasmashell: the panel, taskbar, widgets and desktop background).
-// KWin marks plasmashell ACTIVE the instant the pointer moves over the desktop,
-// which happens immediately after a hint selection moves the cursor, so it
-// would otherwise hijack the active frame on re-activation and yield no app
-// hints. It is deprioritised to a last resort rather than skipped entirely so
-// its own UI (panel/widgets) can still be hinted when the desktop is genuinely
-// the focused surface.
+// shell (panel, taskbar, widgets, background). KWin marks it ACTIVE as soon
+// as the pointer crosses the desktop, as it does right after a hint moves the
+// cursor. It is a last resort rather than skipped, so its own UI stays
+// hintable when the desktop really is focused.
 func isDesktopShellApp(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "plasmashell", "org.kde.plasmashell":
@@ -49,13 +45,10 @@ func isDesktopShellApp(name string) bool {
 }
 
 // isNonTargetSurfaceApp reports whether an AT-SPI application is a system
-// surface that is never a valid hint target and must never be picked as the
-// focused window, even as a last resort. The XWayland video bridge
-// ("xwaylandvideobridge") and the KDE portal consent dialog briefly steal the
-// ACTIVE state the moment we inject a cursor move via libei, which on
-// re-activation makes findActiveFrame select an empty surface and tears the
-// hints overlay down. This mirrors the KWin geometry bridge blocklist in
-// internal/adapter/platform/kwin so both code paths ignore the same noise.
+// surface that must never be picked, even as a last resort. The XWayland
+// video bridge and the KDE portal consent dialog briefly take ACTIVE when
+// libei moves the cursor. Keep it in step with the KWin geometry bridge
+// blocklist in internal/adapter/platform/kwin.
 func isNonTargetSurfaceApp(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "xwaylandvideobridge",
@@ -66,17 +59,14 @@ func isNonTargetSurfaceApp(name string) bool {
 	}
 }
 
-// findActiveFrame locates the focused top-level window. The focused app_id is
-// the signal to trust: the compositor's toplevel on Wayland, the WM_CLASS of
-// _NET_ACTIVE_WINDOW on X11. AT-SPI's own ACTIVE state marks background frames
-// active on wlroots compositors and on Chromium/Electron frames under X11, so
-// an app_id match beats it. Without an app_id (GNOME without the extension, or
-// no AT-SPI frame) the order is ACTIVE+SHOWING, any ACTIVE, any SHOWING. When
-// an app_id matches no application, that fallback runs on KWin, where ACTIVE
-// is reliable, and on X11, where it is what X11 ran before it had an app_id.
-// On wlroots it could pick a background surface, so hints just do not appear.
-// focusedAppID/focusedTitle are one snapshot, so frame and stability check
-// agree.
+// findActiveFrame locates the focused top-level window. The focused app_id
+// (the Wayland toplevel, or the WM_CLASS of _NET_ACTIVE_WINDOW on X11) beats
+// AT-SPI's ACTIVE state, which marks background frames active on wlroots and
+// on Chromium/Electron under X11. Without an app_id the order is
+// ACTIVE+SHOWING, any ACTIVE, any SHOWING. When an app_id matches no
+// application that fallback runs on KWin, where ACTIVE is reliable, and on
+// X11. On wlroots hints just do not appear. focusedAppID/focusedTitle are one
+// snapshot, so frame and stability check agree.
 func (c *Client) findActiveFrame(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -86,11 +76,9 @@ func (c *Client) findActiveFrame(
 
 	start := time.Now()
 
-	// Fastest path: an event-tracked active window that still matches the
-	// compositor's focused toplevel. The background window:activate listener keeps
-	// this current, so a match resolves the frame with zero registry scanning. It
-	// is validated against the live focus identity, so a stale or missing cache
-	// falls through to the scan below and never resolves to the wrong window.
+	// Fastest path: the window:activate cache, validated against the live focus
+	// identity so a stale or missing entry falls through to the scan and never
+	// resolves to the wrong window.
 	if frame, ok := c.activeWindowMatching(focusedAppID, focusedTitle); ok {
 		c.logFrameSelection(start, "event-cache", 0, 0)
 
@@ -108,25 +96,18 @@ func (c *Client) findActiveFrame(
 	// on KWin/KDE. On wlroots it is set inconsistently across frames.
 	activeStateIdentifiesFocus := backend == platform.BackendWaylandKDE
 
-	// On X11 the ACTIVE state can be trusted within one application but not
-	// across the bus, because Chromium/Electron frames advertise ACTIVE whatever
-	// _NET_ACTIVE_WINDOW says (#1644). So a single ACTIVE frame may pick among
-	// the focused app's own siblings, and the cross-application heuristic
-	// survives only for an app whose AT-SPI name does not match its WM_CLASS.
+	// On X11 ACTIVE holds within one application but not across the bus, because
+	// Chromium/Electron frames advertise ACTIVE whatever _NET_ACTIVE_WINDOW says
+	// (#1644). So a single ACTIVE frame may pick among the focused app's siblings.
 	focusedActiveDisambiguates := backend == platform.BackendX11
 
 	apps := c.children(ctx, conn, root)
 
-	// Fast path: when the compositor reports a focused app_id, resolve the window
-	// from that one application's frames. The focused app is located with a
-	// cancel-on-match name probe (findFocusedApps) that stops the instant a match
-	// is seen, so a single wedged background app, common on a desktop with many
-	// open windows, can no longer floor the probe at the per-call timeout. Every
-	// other app on the bus is skipped. The cross-application ACTIVE/SHOWING
-	// fallbacks selectFrame would build from the other apps are never consulted
-	// while a focused app_id is present, except the KWin/KDE ACTIVE fallback used
-	// when the focused app cannot be uniquely resolved (handled by the full scan
-	// below).
+	// Fast path: resolve the window from the focused application's frames alone.
+	// findFocusedApps cancels on the first name match, so a wedged background app
+	// cannot floor the probe at the per-call timeout. The cross-application
+	// fallbacks are skipped, except KWin's ACTIVE fallback when the focused app
+	// cannot be uniquely resolved (the full scan below).
 	if haveFocused {
 		matches, names := c.findFocusedApps(ctx, conn, apps, focusedAppID)
 
@@ -200,7 +181,7 @@ func (c *Client) findActiveFrame(
 			// which needs every app's frames.
 		case focusedActiveDisambiguates:
 			// X11: no AT-SPI application answered to the WM_CLASS, so the focus
-			// identity cannot narrow the scan. Drop it and run the old heuristic.
+			// identity cannot narrow the scan. Drop it and run the cross-app heuristic.
 			haveFocused = false
 		default:
 			// wlroots: the ACTIVE-state fallback is unreliable, so a focused app
@@ -212,12 +193,10 @@ func (c *Client) findActiveFrame(
 		}
 	}
 
-	// Full scan: no focused app_id (GNOME without the extension), an X11 focus
-	// no AT-SPI app answers to, or KWin/KDE with a focused app that could not be
-	// uniquely resolved and needs the cross-app ACTIVE state.
-	// This path names every app, so a wedged app can still cost one timeout, but
-	// it is reached only without a usable focused app_id, not on the wlroots hot
-	// path above.
+	// Full scan: no focused app_id (GNOME without the extension), an X11 focus no
+	// AT-SPI app answers to, or KWin with an unresolved focused app. Naming every
+	// app means a wedged one can cost a timeout, but this is off the wlroots hot
+	// path.
 	names := c.appNames(ctx, conn, apps)
 
 	metas := make([]appMeta, len(apps))
@@ -225,10 +204,8 @@ func (c *Client) findActiveFrame(
 	for index := range apps {
 		appName := names[index]
 
-		// Skip surfaces that are never valid hint targets and that steal the
-		// ACTIVE state right after a libei cursor move: on-screen virtual
-		// keyboards (e.g. the maliit "plasma-keyboard"), the XWayland video
-		// bridge, and the portal consent dialog.
+		// Skip surfaces that are never hint targets and steal ACTIVE right after a
+		// libei cursor move.
 		if isVirtualKeyboardApp(appName) || isNonTargetSurfaceApp(appName) {
 			metas[index].skip = true
 
@@ -270,21 +247,18 @@ type titleMiss struct {
 	at   time.Time
 }
 
-// findFocusedFrameByTitle finds the focused window by its title, for a
-// focused app_id that no AT-SPI application name answers to. GNOME apps name
-// themselves after their binary ("gnome-text-editor") where their app_id is
-// reverse-DNS ("org.gnome.TextEditor"), so the name probe misses them. names
-// are the application names the probe already read, one per app. It returns
-// the frame, the path the logs name, and how many frames it read.
+// findFocusedFrameByTitle finds the focused window by title, for a focused
+// app_id that no AT-SPI application name answers to. GNOME apps name
+// themselves after the binary ("gnome-text-editor") where the app_id is
+// reverse-DNS ("org.gnome.TextEditor"). names are the ones the probe already
+// read. It returns the frame, the path the logs name, and frames read.
 //
-// Reading every window on a desktop with many apps open costs tens of
-// milliseconds, so it first reads only the application whose window last
-// matched for this app_id. The title must match there too, which a second
-// instance of the app on another connection does not satisfy. A full scan
-// that read every window cleanly and found none is remembered for
-// titleMissTTL, so an app with no accessibility tree (a terminal such as foot)
-// does not pay for it on every activation. An ambiguous or failed scan is not
-// remembered.
+// Reading every window costs tens of milliseconds on a busy desktop, so it
+// first reads only the application that last matched this app_id, where the
+// title must match too (a second instance of the app does not). A clean
+// full-scan miss is remembered for titleMissTTL, so an app with no
+// accessibility tree (foot) does not pay on every activation. An ambiguous or
+// failed scan is not remembered.
 func (c *Client) findFocusedFrameByTitle(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -323,11 +297,10 @@ func (c *Client) findFocusedFrameByTitle(
 	return accRef{}, "", scanned, false
 }
 
-// findFrameByTitle returns the one showing frame among apps whose title is
+// findFrameByTitle returns the one showing frame among apps titled
 // focusedTitle, and how many frames it read. found reports a single match.
-// none reports that every read succeeded and no window had the title. That
-// is the only result worth remembering. A title two windows share stops being
-// ambiguous once one closes, and a read that failed may succeed next time.
+// none reports a clean scan with no match, the only result worth remembering,
+// since a shared title or a failed read may resolve next time.
 func (c *Client) findFrameByTitle(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -335,9 +308,8 @@ func (c *Client) findFrameByTitle(
 	names []string,
 	focusedTitle string,
 ) (accRef, int, bool, bool) {
-	// The scan keeps its own diagnostic to tell a clean miss from a failed
-	// one, and passes any failure on to the caller's, so frame selection still
-	// reports it.
+	// A private diagnostic tells a clean miss from a failed one, and any failure
+	// is passed on to the caller's.
 	diag := &atspiScanDiag{}
 	scanCtx := context.WithValue(ctx, atspiScanDiagKey{}, diag)
 
@@ -464,11 +436,9 @@ type appFramesScan struct {
 	frames         []scannedFrame
 }
 
-// appNames reads the accessible Name of every application concurrently. Names
-// are latency-bound D-Bus reads that godbus multiplexes over the one connection,
-// so overlapping them turns an O(apps) sequential probe into one bounded by the
-// slowest single reply. The bounded semaphore caps in-flight calls so a busy
-// desktop cannot flood the a11y bus.
+// appNames reads every application's Name concurrently over the multiplexed
+// connection, so the probe costs the slowest reply rather than the sum. The
+// semaphore keeps a busy desktop from flooding the a11y bus.
 func (c *Client) appNames(ctx context.Context, conn *dbus.Conn, apps []accRef) []string {
 	names := make([]string, len(apps))
 
@@ -494,17 +464,12 @@ func (c *Client) appNames(ctx context.Context, conn *dbus.Conn, apps []accRef) [
 	return names
 }
 
-// findFocusedApps returns the indices of the applications whose name matches the
-// compositor's focused app_id. It probes names concurrently and stops the moment
-// a match is seen (canceling the outstanding probes), so a single wedged
-// background app cannot stall the probe at the per-call timeout. That is the
-// failure mode on a desktop with many open windows, where every frame
-// selection would otherwise pay ~atspiCallTimeout waiting on the same
-// unresponsive app. Virtual
-// keyboards, non-target surfaces, and the desktop shell are never focus matches
-// and are excluded. A no-match probe still waits for every app (there is nothing
-// to short-circuit on), and returns every name it read, which the title
-// fallback reuses rather than reading them again.
+// findFocusedApps returns the indices of the applications whose name matches
+// the focused app_id. It probes concurrently and cancels the rest on the
+// first match, so a wedged background app cannot cost every selection
+// atspiCallTimeout. Virtual keyboards, non-target surfaces and the shell never
+// match. A no-match probe waits for every app and returns the names it read,
+// which the title fallback reuses.
 func (c *Client) findFocusedApps(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -565,15 +530,11 @@ func (c *Client) findFocusedApps(
 
 	var matches []int
 
-	// Block for the first match, then drain any others already delivered before
-	// canceling. The common case is a single application (its multiple windows
-	// are frames *within* one AT-SPI app, counted later by scanApps), so this
-	// returns promptly. Draining still catches other co-active apps that share the
-	// app_id, so a genuinely ambiguous focus is reported as ambiguous rather than
-	// silently resolved to whichever app answered first. A matching app that only
-	// responds after the drain is not counted. That is acceptable, since it
-	// requires two distinct apps sharing one app_id with no title to
-	// disambiguate them.
+	// Take the first match, then drain any already delivered. An app's windows
+	// are frames within one AT-SPI app, so this is usually immediate. Draining
+	// reports a focus shared by co-active apps as ambiguous. A match arriving
+	// after the drain is missed, which needs two apps sharing an app_id with no
+	// title to tell them apart.
 	first, ok := <-matchCh
 	if !ok {
 		return matches, names
@@ -596,18 +557,16 @@ func (c *Client) findFocusedApps(
 		}
 	}
 
-	// Stop probing the rest of the bus so an unresponsive app never gates the
-	// result. The background goroutine drains and closes matchCh after the
-	// canceled probes return.
+	// Stop probing so an unresponsive app never gates the result. The goroutine
+	// closes matchCh once the canceled probes return.
 	cancel()
 
 	return matches, nil
 }
 
-// scanApps reads the frames of the selected applications concurrently, returning
-// one appFramesScan per app in registry order (unscanned apps keep a zero value)
-// and the total number of frames scanned. When onlyMatching is set, the fast
-// path scans only the compositor-focused application(s). Otherwise it scans every
+// scanApps reads the selected applications' frames concurrently, returning
+// one appFramesScan per app in registry order and the frames scanned.
+// onlyMatching scans only the focused application(s), otherwise every
 // non-skipped app. Each goroutine writes its own slot, so no lock is needed.
 func (c *Client) scanApps(
 	ctx context.Context,
@@ -659,11 +618,9 @@ func (c *Client) scanApps(
 	return results, framesScanned
 }
 
-// scanOneApp reads an application's window/dialog frames and their ACTIVE/SHOWING
-// state (one GetState per frame), plus the title of the focused app's showing
-// frames so a sibling window can be disambiguated. It is safe for concurrent
-// use because it only issues reads over the shared connection, which godbus
-// multiplexes.
+// scanOneApp reads an application's window frames, their ACTIVE/SHOWING
+// state, and the titles of the focused app's showing frames. It only reads
+// over the multiplexed connection, so it is safe for concurrent use.
 func (c *Client) scanOneApp(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -696,10 +653,10 @@ func (c *Client) scanOneApp(
 	return res
 }
 
-// mergeFrameScan folds the per-app scans into frameCandidates in registry order,
-// reproducing the original sequential selection exactly. The desktop shell is
-// held aside, the focused app's showing/title-matching windows are counted, and
-// the first ACTIVE/SHOWING frames become the cross-application fallbacks.
+// mergeFrameScan folds the per-app scans into frameCandidates in registry
+// order. The shell is held aside, the focused app's showing and
+// title-matching windows are counted, and the first ACTIVE/SHOWING frames
+// become the cross-application fallbacks.
 func mergeFrameScan(scans []appFramesScan) frameCandidates {
 	var cand frameCandidates
 
@@ -720,9 +677,8 @@ func mergeFrameScan(scans []appFramesScan) frameCandidates {
 				continue
 			}
 
-			// Count the focused application's showing windows and how many match
-			// the focused toplevel's title, so selectFrame can tell a unique
-			// identification from an ambiguous one.
+			// Count the focused app's showing and title-matching windows so selectFrame
+			// can tell a unique identification from an ambiguous one.
 			if scan.matchesFocused && frame.showing {
 				cand.focusedShowingCount++
 
@@ -781,8 +737,7 @@ func (c *Client) logFrameSelection(start time.Time, path string, apps, framesSca
 // by how reliably each identifies the focused window, plus the compositor
 // signals needed to choose between them.
 type frameCandidates struct {
-	// Frames of the compositor-focused application, with the counts needed to
-	// tell a unique identification from an ambiguous one.
+	// Frames of the focused application, with counts that expose ambiguity.
 	focusedTitleFrame   accRef // first window whose title matched the focused toplevel
 	focusedTitleCount   int    // windows of the focused app matching that title
 	focusedShowingFrame accRef // first showing window of the focused app
@@ -807,10 +762,9 @@ type frameCandidates struct {
 	// activeStateIdentifiesFocus is true only where the AT-SPI ACTIVE state
 	// reliably marks the focused window (KWin/KDE).
 	activeStateIdentifiesFocus bool
-	// focusedActiveDisambiguates is true where ACTIVE can be trusted among one
-	// application's own windows but not across applications (X11). Ambiguous
-	// siblings resolve to the focused app's single ACTIVE window, never to a
-	// guess among them or to another application's frame.
+	// focusedActiveDisambiguates is true where ACTIVE holds among one app's
+	// windows but not across apps (X11). Ambiguous siblings resolve only to the
+	// focused app's single ACTIVE window, never a guess or another app's frame.
 	focusedActiveDisambiguates bool
 }
 
@@ -828,15 +782,10 @@ func selectFrame(cand frameCandidates) (accRef, bool) {
 		// without a title match.
 		return cand.focusedShowingFrame, true
 	case cand.haveFocused:
-		// A focused app_id was reported but its window could not be uniquely
-		// identified. Either no AT-SPI frame matched (name differs from the
-		// app_id, or it exposes no AT-SPI), or several sibling windows share or
-		// lack the title.
-		// On KWin/KDE the ACTIVE state still marks the focused window, so an
-		// ACTIVE frame is it (covers name-mismatched apps such as GTK "Files" vs
-		// org.gnome.Nautilus and duplicate-title siblings). On wlroots ACTIVE is
-		// unreliable, so return nothing rather than guess a sibling or a
-		// background window.
+		// The focused app's window is not unique, because no frame matched or
+		// siblings share or lack the title. KWin's ACTIVE still marks it (GTK
+		// "Files" vs org.gnome.Nautilus, duplicate titles). On wlroots ACTIVE is
+		// unreliable, so return nothing rather than guess.
 		if cand.activeStateIdentifiesFocus && cand.haveActiveShowing {
 			return cand.activeShowing, true
 		}
@@ -876,13 +825,10 @@ func titleMatchesFocused(frameTitle, focusedTitle string) bool {
 	return frameTitle != "" && frameTitle == strings.TrimSpace(focusedTitle)
 }
 
-// appMatchesFocusedID reports whether an AT-SPI application name corresponds to
-// the compositor's focused app_id. The two vocabularies differ. AT-SPI reports
-// a display name ("Firefox") while wlr-foreign-toplevel reports an app_id that
-// is often reverse-DNS ("org.mozilla.firefox") or a bare id ("helium"). The
-// match is case-insensitive and also compares the last dot-segment of either
-// side, so "Firefox" matches "org.mozilla.firefox" and "Helium" matches
-// "helium".
+// appMatchesFocusedID reports whether an AT-SPI application name corresponds
+// to the focused app_id. AT-SPI reports a display name ("Firefox") where the
+// app_id is often reverse-DNS ("org.mozilla.firefox"), so the
+// case-insensitive match also compares the last dot-segment of either side.
 func appMatchesFocusedID(atspiName, appID string) bool {
 	name := strings.ToLower(strings.TrimSpace(atspiName))
 	focusedID := strings.ToLower(strings.TrimSpace(appID))

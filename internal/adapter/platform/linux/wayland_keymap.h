@@ -23,9 +23,8 @@ void neru_xkb_state_destroy(neru_xkb_state *state);
 // Feed a key press (is_press=1) or release (is_press=0) to the xkb_state.
 void neru_xkb_state_key(neru_xkb_state *state, uint16_t evdev_code, int is_press);
 
-// Resolve the xkb key name for the given evdev scan code in the live layout.
-// Writes the key name into buf (up to buf_size bytes).
-// Returns 0 on success, -1 on failure.
+// Resolve the key name for evdev_code in the live layout into buf. Returns 0 on
+// success, -1 on failure.
 int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size);
 
 // Resolve the name a key has for Neru's own bindings. The live modifiers apply

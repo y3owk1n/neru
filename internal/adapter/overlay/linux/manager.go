@@ -37,19 +37,16 @@ const (
 	halfDivisor        = 2
 	paddingMultiplier  = 2
 	// hintAutoRadiusMax caps the auto (border_radius = -1) hint badge corner
-	// radius so labels get a subtle rounded corner rather than a full pill,
-	// matching the macOS overlay's MIN(height/2, 6).
+	// radius, matching the macOS overlay's MIN(height/2, 6).
 	hintAutoRadiusMax = 6
-	// hintBoundaryAutoRadiusMax caps the auto
-	// (boundary_highlight.border_radius = -1) corner radius of the element
-	// boundary, matching the macOS overlay's 4.0 fallback and the Windows
-	// winAutoRadiusBoundaryCap. An element box is much larger than a badge, so
-	// without the cap the auto radius would round it into an oval.
+	// hintBoundaryAutoRadiusMax caps the auto boundary_highlight corner
+	// radius, matching macOS's 4.0 fallback and Windows'
+	// winAutoRadiusBoundaryCap. Without it a large element box rounds into an
+	// oval.
 	hintBoundaryAutoRadiusMax = 4
-	// searchInputAutoRadiusMax caps the auto (search_input_ui.border_radius =
-	// -1) corner radius of the hints search badge, matching the macOS overlay's
-	// MIN(height/2, 8). It is looser than the hint badge's cap because the box
-	// is taller. The same 6 would read as square corners on it.
+	// searchInputAutoRadiusMax caps the auto search_input_ui corner radius,
+	// matching macOS's MIN(height/2, 8). It is looser than the hint badge's
+	// cap because the box is taller.
 	searchInputAutoRadiusMax = 8
 
 	stickyBadgeClearPadding = 3
@@ -73,23 +70,19 @@ type Manager struct {
 	// rather than on every hints draw.
 	placementRefusal logonce.Latch
 
-	// renderMu serializes all rendering dispatch to the backend overlays.
-	// On macOS the Objective-C bridge serializes via dispatch_async to the
-	// main thread. On Linux we must do this ourselves because Cairo/X11/
-	// Wayland calls are not thread-safe.
+	// renderMu serializes all rendering dispatch to the backends, because
+	// Cairo, X11 and Wayland calls are not thread-safe.
 	renderMu sync.Mutex
 
 	backend linuxOverlayBackend
 	x11     *x11Overlay
 	wlroots *wlrootsOverlay
 
-	// The mouse-action indicator renders on its own dedicated overlay window,
-	// separate from the mode overlay above, because it fires *after* a click
-	// once the mode has exited and the mode overlay has been hidden. It is
-	// created lazily on first use. indicatorMu serializes creation and
-	// dispatch, and indicatorRenderMu is the indicator overlay's own render lock
-	// (it owns an independent X11/Wayland connection, so it must not share the
-	// mode overlay's renderMu).
+	// The mouse-action indicator has its own lazily created overlay window,
+	// because it fires after a click, once the mode overlay is hidden.
+	// indicatorMu serializes creation and dispatch. indicatorRenderMu is its
+	// render lock, and it must not share renderMu since it owns an
+	// independent X11/Wayland connection.
 	indicatorMu       sync.Mutex
 	indicatorRenderMu sync.Mutex
 	x11Indicator      *x11Overlay
@@ -103,11 +96,10 @@ type Manager struct {
 	modeIndicatorBadgeRect    image.Rectangle
 	modeIndicatorBadgeVisible bool
 
-	// searchBadgeRect is where the hints search badge was last painted, and the
-	// empty rectangle means there is none on screen. It is the third piece of
-	// screen state this manager keeps, for the same reason as the two above.
-	// The badge is painted onto the one shared surface rather than into a
-	// window of its own, so taking it off means knowing what it covered.
+	// searchBadgeRect is where the hints search badge was last painted, empty
+	// when none is on screen. Like the two badge rects above, it exists
+	// because the badge shares the one surface, so taking it off means
+	// knowing what it covered.
 	searchBadgeRect image.Rectangle
 }
 
@@ -137,10 +129,8 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 		instance.wlroots = newWlrootsOverlay(logger)
 
 		// Share renderMu with the wlroots overlay so the keyboard poller
-		// serializes wl_display access with the rendering path. The Wayland
-		// client API is not thread-safe.
-		// setRenderMu must be called before startPoller. The poller reads
-		// the mutex on every iteration, so it must be visible before launch.
+		// serializes wl_display access with rendering. setRenderMu must run
+		// before startPoller, which reads the mutex on every iteration.
 		if instance.wlroots != nil {
 			instance.wlroots.setRenderMu(&instance.renderMu)
 			instance.wlroots.startPoller()
@@ -261,13 +251,10 @@ func (m *Manager) ResizeToActiveScreen() {
 	}
 }
 
-// SetActiveScreenOrigin records the active screen's top-left origin (in global
-// coordinates) so the backend can translate screen-local overlay content, the
-// grid, recursive-grid and hint coordinates, which are normalized to a
-// screen-origin of (0,0), onto the correct monitor. The Linux overlays span
-// the whole desktop (one X11 window / one layer-shell surface per output), so
-// without this offset that content is always composited at the global origin,
-// i.e. the leftmost monitor.
+// SetActiveScreenOrigin records the active screen's top-left origin in global
+// coordinates, so the backend can move screen-local grid, recursive-grid and
+// hint content onto the right monitor. The Linux overlays span the whole
+// desktop, so without it that content lands on the leftmost monitor.
 func (m *Manager) SetActiveScreenOrigin(origin image.Point) {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
@@ -285,11 +272,10 @@ func (m *Manager) SetActiveScreenOrigin(origin image.Point) {
 func (m *Manager) Destroy() {
 	platformlinux.SetOwnWindowsHider(nil)
 
-	// Capture and nil-out backend pointers under the lock, then release
-	// the lock *before* calling Destroy on each backend. The wlroots
-	// Destroy waits for the keyboardPoller goroutine to exit, and that
-	// goroutine acquires renderMu on every iteration.
-	// Holding renderMu while waiting on the poller would deadlock.
+	// Capture and nil the backend pointers under the lock, then release it
+	// before calling Destroy. The wlroots Destroy waits for the
+	// keyboardPoller goroutine, which takes renderMu every iteration, so
+	// holding renderMu here would deadlock.
 	m.renderMu.Lock()
 	x11 := m.x11
 	wlroots := m.wlroots
@@ -305,9 +291,7 @@ func (m *Manager) Destroy() {
 		wlroots.Destroy()
 	}
 
-	// Tear down the dedicated mouse-action indicator overlay, if it was ever
-	// created. Same locking rationale as above. The wlroots Destroy waits on
-	// its poller goroutine, which acquires indicatorRenderMu each iteration.
+	// Same for the indicator overlay, whose poller takes indicatorRenderMu.
 	m.indicatorMu.Lock()
 	x11Indicator := m.x11Indicator
 	wlrootsIndicator := m.wlrootsIndicator
@@ -335,16 +319,15 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 	return nil
 }
 
-// BuildComponents constructs the render components this manager draws through,
-// on the surface it owns. The X11 and Wayland overlays render everything onto
-// that one surface, so the components hold its handle and nothing else.
+// BuildComponents constructs the render components this manager draws
+// through. Everything renders onto the one surface it owns, so the components
+// hold its handle and nothing else.
 func (m *Manager) BuildComponents(
 	cfg *config.Config,
 	theme config.ThemeProvider,
 ) (manager.Components, error) {
-	// Nil-guarded like every other exported method here, because a backend that found
-	// no display server is handed out as a typed nil, and reaching Base
-	// through it would panic before any receiver guard ran.
+	// A backend that found no display server is handed out as a typed nil,
+	// and reaching Base through it would panic.
 	if m == nil {
 		return manager.Components{}, nil
 	}
@@ -359,10 +342,9 @@ func (m *Manager) BuildComponents(
 }
 
 // ConfigureComponents hands the configuration to the render components, as
-// Base does, and then measures the characters this backend sizes its badges
-// around (manager.WarmBadgeTextWidths). This is where a configuration arrives,
-// at startup and on every reload, so the measuring is done here and a draw,
-// which runs with a key waiting on it, measures nothing.
+// Base does, then measures the characters badges are sized around
+// (manager.WarmBadgeTextWidths). Configuration arrives here at startup and on
+// reload, so a draw, which has a key waiting on it, measures nothing.
 func (m *Manager) ConfigureComponents(cfg *config.Config, pointer manager.PointerAppearance) {
 	if m == nil {
 		return
@@ -372,14 +354,11 @@ func (m *Manager) ConfigureComponents(cfg *config.Config, pointer manager.Pointe
 	manager.WarmBadgeTextWidths(cfg)
 }
 
-// Ensure the manager keeps declaring the optional headless capability. Its own
-// BuildComponents reads Headless directly, so drift there fails to compile;
-// this pins the shared spelling every backend answers headlessness with.
+// Every backend reports headlessness through manager.HeadlessReporter.
 var _ manager.HeadlessReporter = (*Manager)(nil)
 
-// Headless reports whether no backend surface was created, leaving nothing for
-// the render overlays to draw on. That happens when no display server was
-// detected, the backend failed to initialize, or this is a build without cgo.
+// Headless reports whether no backend surface was created: no display server,
+// a failed backend init, or a build without cgo.
 func (m *Manager) Headless() bool {
 	return m == nil || (m.x11 == nil && m.wlroots == nil)
 }
@@ -425,17 +404,11 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 }
 
 // DrawHintsWithStyle draws the hints overlay using the active Linux backend.
-//
-// The placement is resolved once, before anything is drawn. It is the same for
-// every badge in the frame, and a placement this overlay cannot draw is
-// reported rather than approximated. Drawing every hint centered instead would
-// leave the user looking at labels in a placement they did not choose, with
-// nothing anywhere saying so.
+// The placement is resolved once, before anything is drawn, and one this
+// overlay cannot draw is reported rather than drawn centered.
 func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.StyleMode) error {
-	// Canceling first keeps the refusal below from leaving an animation
-	// painting the surface this draw was about to replace, and the same call
-	// answers whether there is a backend to draw on, so this refusal reads
-	// the backend pointers under renderMu instead of beside it.
+	// Cancel first so a refusal cannot leave an animation painting the
+	// surface. The same call reads the backend pointers under renderMu.
 	attached := m.cancelBackendAnimation()
 	if !attached {
 		return derrors.New(
@@ -446,10 +419,9 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 
 	offset, offsetErr := resolveHintBadgeOffset(style.Placement())
 	if offsetErr != nil {
-		// The error reaches the mode handler, which degrades quietly on
-		// CodeNotSupported, so say it here too, or a placement this overlay
-		// cannot draw costs the user every hint with only a debug line to
-		// explain it. The placement is a fixed configuration keyword.
+		// The mode handler degrades quietly on CodeNotSupported, so warn here too
+		// or the user loses every hint with only a debug line. The placement is a
+		// fixed configuration keyword.
 		m.placementRefusal.Warn(m.logger, style.Placement(),
 			"Hint placement not drawn by the linux overlay",
 			zap.String("placement", style.Placement()),
@@ -463,10 +435,9 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	// A hints draw clears the whole surface, so any search badge on it went
-	// with the labels. Forgetting it here is what keeps the hide that follows a
-	// canceled search from erasing a rectangle out of the hints it just put
-	// back. There is nothing left of the badge to take down.
+	// A hints draw clears the whole surface, taking any search badge with it.
+	// Forgetting it keeps the next hide from erasing a rectangle out of the
+	// hints.
 	m.searchBadgeRect = image.Rectangle{}
 
 	if m.x11 != nil {
@@ -475,10 +446,8 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		return nil
 	}
 
-	// Nil-checked like every other dispatch here rather than trusting the
-	// answer above, because that one was taken before renderMu was released for the
-	// cancel, so a Destroy landing in between leaves this pointer nil. This is
-	// the site that used to dispatch on it unchecked (../AGENTS.md).
+	// Nil-checked again, because a Destroy may land while renderMu was
+	// released for the cancel (../AGENTS.md).
 	if m.wlroots != nil {
 		m.wlroots.DrawHints(hintsSlice, style, offset)
 	}
@@ -487,17 +456,13 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 }
 
 // DrawHintSearchInput paints the hints search badge on the active backend.
-//
-// It is a display and nothing more. The query arrives as an argument, held by
-// the mode handler, and no key reaches this surface. The keys go to the event
-// tap or, on Wayland compositors with a layer shell, to the separate
-// hint-search field in the textinput adapter. There is one owner of the query
-// string and it is not the overlay.
+// It only displays. The mode handler owns the query, and keys go to the event
+// tap or, on layer-shell Wayland compositors, to the textinput adapter's
+// hint-search field.
 //
 // Nothing is cleared first. The badge is painted over the hints the same draw
-// cycle just put on the surface, the way an indicator badge is, because a
-// search that erased the labels it is narrowing would be showing the user the
-// one thing they are not looking for.
+// cycle just put down, since erasing the labels being narrowed would defeat
+// the search.
 func (m *Manager) DrawHintSearchInput(
 	query string,
 	resultCount int,
@@ -515,11 +480,8 @@ func (m *Manager) DrawHintSearchInput(
 		m.searchBadgeRect = m.wlroots.DrawHintSearchInput(label, frame, style)
 	}
 
-	// The backend answers with the rectangle it painted, and the empty one means
-	// it painted nothing, with no backend at all or one whose native handle is
-	// closed. Reporting success then would tell the mode handler a query and a
-	// match count were on screen when the screen is blank, which is the silent
-	// no-op this method used to be for a different reason.
+	// An empty rectangle means nothing was painted (no backend, or a closed
+	// handle). Reporting success then would claim a query was on screen.
 	if m.searchBadgeRect.Empty() {
 		return derrors.New(
 			derrors.CodeNotSupported,
@@ -531,21 +493,14 @@ func (m *Manager) DrawHintSearchInput(
 }
 
 // HideHintSearchInput takes the hints search badge off the shared surface.
-//
-// It keeps its errorless signature deliberately (#1328). The two directions are
-// not symmetric. A draw makes a claim about what is on screen and the error
-// channel is the only place to withdraw it, while hiding claims nothing that
-// could be untrue. Whatever was painted is gone, and a call with nothing to
-// take down has already succeeded. Widening it would hand every platform a
-// return value no caller could act on, on a call that runs from teardown.
+// It is errorless on purpose (#1328). A draw makes a claim about the screen
+// that only the error channel can withdraw, while a hide claims nothing that
+// could be untrue, and it runs from teardown where no caller could act on an
+// error.
 func (m *Manager) HideHintSearchInput() {
-	// Canceling before the lock is what DrawHintsWithStyle does and for the
-	// same reason. Putting the badge away repaints the hints, and an animation
-	// still running would paint over that. It happens out here because
-	// cancelAnimation waits for a goroutine that takes renderMu on every frame,
-	// which is also why the repaint below goes through repaintHints rather
-	// than drawHints, so no second cancel is attempted under the lock. The same
-	// call answers whether there is a backend at all.
+	// Cancel before the lock (see cancelBackendAnimation), so a running
+	// animation does not paint over the repainted hints. For the same reason
+	// the repaint uses repaintHints, not drawHints.
 	if !m.cancelBackendAnimation() {
 		return
 	}
@@ -560,9 +515,8 @@ func (m *Manager) HideHintSearchInput() {
 
 	m.searchBadgeRect = image.Rectangle{}
 
-	// Nil-checked like every other dispatch here rather than trusting the
-	// answer above, because that one was taken before renderMu was released for the
-	// cancel, so a Destroy landing in between leaves this pointer nil.
+	// Nil-checked again, because a Destroy may land while renderMu was
+	// released for the cancel.
 	if m.x11 != nil {
 		m.x11.HideHintSearchInput(painted)
 	} else if m.wlroots != nil {
@@ -703,17 +657,13 @@ func bisectDimensions() domain.GridDimensions {
 
 // DrawGridPointer puts grid mode's pointer stand-in on the shared surface.
 //
-// Recursive grid does not come through here. The pointer it draws rides the
-// frame its every keystroke hands over (DrawRecursiveGrid), so it is already
-// painted in the same pass as the cells and a second path would repaint a grid
-// that mode never drew. Grid mode has no such frame, because narrowing a prefix
-// and opening a subgrid are plain calls (ADR 0003), so its pointer arrives on its
-// own and is kept until the next repaint reads it.
+// Recursive grid does not come through here. Its pointer rides the frame each
+// keystroke hands over, so it is already painted with the cells. Grid mode
+// has no such frame, because narrowing and opening a subgrid are plain calls
+// (ADR 0003), so its pointer arrives alone and is kept for the next repaint.
 //
-// Overrides the Base method, which resolves a mode to a render component. Off
-// darwin those components own no surface, which is why the pointer was a no-op
-// in grid mode here (#1463). Recursive grid is still delegated so the Base
-// keeps answering for a mode this backend does not paint itself.
+// Overrides the Base method, whose render components own no surface off
+// darwin (#1463). Recursive grid is still delegated to Base.
 func (m *Manager) DrawGridPointer(
 	mode manager.Mode,
 	point image.Point,
@@ -740,10 +690,8 @@ func (m *Manager) DrawGridPointer(
 }
 
 // HideGridPointer takes grid mode's pointer stand-in off the shared surface,
-// leaving the grid on it. It is what mode teardown calls before the frame is
-// cleared, so the repaint it triggers is the first one without the pointer.
-// The mode's own selection going away is the other caller, where that
-// repaint is the whole of what the user sees happen.
+// leaving the grid. Mode teardown calls it before the frame is cleared, and
+// so does the mode's selection going away.
 func (m *Manager) HideGridPointer(mode manager.Mode) {
 	if m == nil {
 		return
@@ -770,22 +718,13 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 	}
 }
 
-// ShowSubgrid shows the subgrid overlay, with the pointer stand-in that belongs
-// on the same surface once the cell has been picked.
+// ShowSubgrid shows the subgrid overlay with the pointer stand-in that belongs
+// on it once the cell is picked (#1492). Both are painted into one Cairo
+// target, so handing over the pointer before the paint keeps a keystroke to
+// one repaint, which matters for arrow keys repeating inside a subgrid.
 //
-// This is where the pointer riding the open earns its place (#1492). Both are
-// painted into one Cairo target here, so a mode that opened the subgrid and
-// then moved the pointer repainted that target twice for one keystroke, and
-// arrow keys inside a subgrid come through here on every repeat. Handing the
-// pointer to the backend before it paints leaves the keystroke the one repaint
-// the open always had.
-//
-// Canceling before the lock is what HideHintSearchInput does and for the same
-// reason. The subgrid replaces the whole surface, and an animation still running
-// would paint over it. It happens out here because cancelAnimation waits for a
-// goroutine that takes renderMu on every frame. Canceling from under the lock
-// is a deadlock, not a slow path. The same call answers whether there is a
-// backend at all.
+// It cancels before taking the lock (see cancelBackendAnimation), and the
+// same call answers whether there is a backend at all.
 func (m *Manager) ShowSubgrid(
 	cell *domainGrid.Cell,
 	style grid.Style,
@@ -798,9 +737,8 @@ func (m *Manager) ShowSubgrid(
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	// Nil-checked like every other dispatch here rather than trusting the
-	// answer above, because that one was taken before renderMu was released for the
-	// cancel, so a Destroy landing in between leaves this pointer nil.
+	// Nil-checked again, because a Destroy may land while renderMu was
+	// released for the cancel.
 	if m.x11 != nil {
 		m.syncSublayerKeysLocked(&m.x11.sublayerKeys)
 
@@ -839,15 +777,13 @@ func (m *Manager) Flush() {
 	}
 }
 
-// warnXwaylandScaleMismatch says so when the GNOME overlay is about to draw in
-// a coordinate space other than the one every other subsystem uses. Shared
-// code hands the overlay logical-layout coordinates, and Mutter keeps the X
-// root equal to that layout by default. With Mutter's xwayland-native-scaling
-// experimental feature on, the root is in physical pixels instead and Xft.dpi
-// announces the factor. The overlay would then land at the wrong place on any
-// scaled monitor, and so would the cursor position learned through the same
-// X root. The daemon still starts, since grid and scroll on a 1x layout are
-// unaffected, but the mismatch must not be silent.
+// warnXwaylandScaleMismatch warns when the GNOME overlay would draw in a
+// coordinate space other than the shared logical layout. Mutter keeps the X
+// root equal to that layout by default, but with its experimental
+// xwayland-native-scaling feature the root is in physical pixels and Xft.dpi
+// announces the factor. The overlay and the X-root cursor position would then
+// be wrong on any scaled monitor. Grid and scroll on a 1x layout still work,
+// so the daemon starts, but the mismatch must not be silent.
 func warnXwaylandScaleMismatch(logger *zap.Logger, scale float64) {
 	if logger == nil || scale == 1 ||
 		platform.DetectLinuxBackend() != platform.BackendWaylandGNOME {
@@ -860,20 +796,18 @@ func warnXwaylandScaleMismatch(logger *zap.Logger, scale float64) {
 	)
 }
 
-// detectLinuxOverlayBackend delegates to the canonical
-// platform.DetectLinuxBackend so that compositor-family detection (GNOME, KDE,
-// wlroots, etc.) is consistent across all layers.
+// detectLinuxOverlayBackend delegates to platform.DetectLinuxBackend so
+// compositor detection stays consistent across layers.
 func detectLinuxOverlayBackend() linuxOverlayBackend {
 	switch platform.DetectLinuxBackend() {
 	case platform.BackendX11:
 		return linuxOverlayBackendX11
 	case platform.BackendWaylandGNOME:
-		// Mutter has no layer shell, and a fullscreen xdg_toplevel is
-		// animated on map and takes keyboard focus. An override-redirect
-		// window on Xwayland is stacked above every toplevel, honors an
-		// empty input shape, and is neither animated nor focused, so the X11
-		// overlay serves GNOME as it is. The factory has already refused a
-		// GNOME session with no Xwayland (platform.XwaylandAvailable).
+		// Mutter has no layer shell, and a fullscreen xdg_toplevel is animated
+		// on map and takes focus. An override-redirect Xwayland window stacks
+		// above every toplevel, honors an empty input shape, and is neither
+		// animated nor focused. The factory already refused GNOME without
+		// Xwayland (platform.XwaylandAvailable).
 		return linuxOverlayBackendX11
 	case platform.BackendWaylandWlroots, platform.BackendWaylandKDE, platform.BackendWaylandCOSMIC:
 		return linuxOverlayBackendWaylandWlroots
@@ -885,10 +819,9 @@ func detectLinuxOverlayBackend() linuxOverlayBackend {
 }
 
 const (
-	// These mirror the macOS overlay (monitor_select_overlay_darwin.m) so the
-	// Linux monitor_select UI matches darwin: auto padding derived from the label
-	// font when the config uses the -1 sentinel, a small label/subtitle gap, an
-	// 80% cap on panel size relative to the monitor, and default font sizes.
+	// These mirror monitor_select_overlay_darwin.m: auto padding from the
+	// label font for -1, a label/subtitle gap, an 80% panel cap, and default
+	// font sizes.
 	monitorSelectLabelGap       = 4
 	monitorSelectAutoPadXMin    = 24
 	monitorSelectAutoPadYMin    = 12
@@ -910,11 +843,10 @@ func monitorSelectFontOr(value, fallback int) float64 {
 	return float64(value)
 }
 
-// monitorSelectPanelLayout computes, in device pixels, the centered panel rect,
-// the label/subtitle text rects, and the corner radius, mirroring the macOS
-// overlay's sizing so the Linux monitor_select UI matches darwin. Padding and
-// radius honor the same "auto" (-1) config sentinels. scale is the backend HiDPI
-// factor (X11 Xft.dpi, 1 on Wayland, which scales via the compositor buffer).
+// monitorSelectPanelLayout computes, in device pixels, the centered panel
+// rect, the label and subtitle rects, and the corner radius, mirroring macOS
+// sizing and its -1 "auto" sentinels. scale is the backend HiDPI factor (X11
+// Xft.dpi, 1 on Wayland, which scales via the compositor buffer).
 func monitorSelectPanelLayout(
 	monitor image.Rectangle,
 	label, subtitle string,
@@ -1000,11 +932,9 @@ func monitorSelectPanelLayout(
 }
 
 // monitorSelectDrawSpec holds the once-parsed colors shared by both backends'
-// DrawMonitorSelect. The font sizes are not here, because each target fits its own
-// (manager.MonitorSelectStyle.FittedTo), and the base size is passed to
-// drawTextCentered, which applies the backend scale (X11) or none (Wayland).
-// Like darwin, every panel's label uses the single text color (matched/selected
-// state is not visually distinguished).
+// DrawMonitorSelect. Font sizes are not here, because each target fits its
+// own (manager.MonitorSelectStyle.FittedTo). Like darwin, every label uses
+// the single text color, so matched and selected states look the same.
 type monitorSelectDrawSpec struct {
 	backdrop     uint32
 	background   uint32
@@ -1027,9 +957,9 @@ func newMonitorSelectDrawSpec(style manager.MonitorSelectStyle) monitorSelectDra
 	}
 }
 
-// DrawMonitorSelect renders one labeled panel per monitor for the interactive
-// monitor picker, then shows the overlay. Unlike macOS (one NSPanel per display)
-// this reuses the shared spanning X11 window / per-output layer-shell surfaces.
+// DrawMonitorSelect renders one labeled panel per monitor for the monitor
+// picker, then shows the overlay. Unlike macOS's NSPanel per display, it
+// reuses the shared spanning surface.
 func (m *Manager) DrawMonitorSelect(
 	targets []manager.MonitorSelectTarget,
 	style manager.MonitorSelectStyle,
@@ -1089,10 +1019,9 @@ func (m *Manager) DrawVirtualPointer(xCoordinate, yCoordinate, size int, fillCol
 	m.VirtualPointerOverlay().Draw(xCoordinate, yCoordinate, size, fillColor)
 }
 
-// DrawMouseActionIndicator animates a transient indicator at the click point on
-// a dedicated overlay window, independent of the mode overlay so it survives
-// the mode exit that follows a click. The indicator overlay is created lazily
-// on first use.
+// DrawMouseActionIndicator animates a transient indicator at the click point
+// on a lazily created window of its own, so it survives the mode exit that
+// follows a click.
 func (m *Manager) DrawMouseActionIndicator(
 	point image.Point,
 	style ports.MouseActionIndicatorStyle,
@@ -1104,10 +1033,9 @@ func (m *Manager) DrawMouseActionIndicator(
 	m.indicatorMu.Lock()
 	defer m.indicatorMu.Unlock()
 
-	// Both draws are nil-checked because the lazy build below can fail. A
-	// constructor that cannot reach the display server returns a raw nil, and
-	// this is the one place a backend pointer is created outside startup
-	// (../AGENTS.md).
+	// Both draws are nil-checked because the lazy build below can fail and
+	// return a raw nil. This is the one place a backend pointer is created
+	// outside startup (../AGENTS.md).
 	switch m.backend {
 	case linuxOverlayBackendX11:
 		if m.x11Indicator == nil {
@@ -1124,9 +1052,8 @@ func (m *Manager) DrawMouseActionIndicator(
 		if m.wlrootsIndicator == nil {
 			m.wlrootsIndicator = newWlrootsOverlay(m.logger)
 			if m.wlrootsIndicator != nil {
-				// The indicator surface shares the dedicated render lock and
-				// runs its own event poller (keyboard capture stays disabled,
-				// so it only pumps the surface's configure/frame events).
+				// The indicator surface uses the indicator render lock and its
+				// own poller, which only pumps configure and frame events.
 				m.wlrootsIndicator.setRenderMu(&m.indicatorRenderMu)
 				m.wlrootsIndicator.setKeyboardCaptureEnabled(false)
 				m.wlrootsIndicator.startPoller()
@@ -1140,21 +1067,16 @@ func (m *Manager) DrawMouseActionIndicator(
 	}
 }
 
-// HideIndicator takes an indicator off the screen and erases the badge it left
-// behind.
-//
-// On Linux an indicator is a badge painted onto the one shared overlay surface
-// rather than a window of its own, so the render component's own Hide is a
-// no-op and clearing the rectangle it occupied is the whole of hiding it.
-// Without this an indicator would stay painted until the entire overlay is
-// hidden, which is the mode ending, not the indicator being turned off.
+// HideIndicator takes an indicator off the screen and erases the badge it
+// left. On Linux an indicator is a badge on the shared surface, so the render
+// component's Hide is a no-op and erasing its rectangle is the hide. Without
+// this it would stay painted until the mode ends.
 func (m *Manager) HideIndicator(indicator ports.Indicator) {
 	m.Base.HideIndicator(indicator)
 
-	// The virtual pointer draws into its own surface, so there is no rectangle
-	// of it on the shared overlay to erase. Returning before the lock matters.
-	// This one is hidden from the cursor-visibility path, which runs with the
-	// mode handler's lock held, and renderMu is contended by every draw.
+	// The virtual pointer draws into its own surface, so there is nothing to
+	// erase. Return before the lock, because the cursor-visibility path calls
+	// this with the mode handler's lock held and every draw contends renderMu.
 	if indicator == ports.VirtualPointerIndicator {
 		return
 	}
@@ -1241,19 +1163,13 @@ func (m *Manager) drawRegionGrid(
 }
 
 // cancelBackendAnimation stops any animation the attached backend is running,
-// and reports whether there was a backend attached to cancel on.
+// and reports whether a backend was attached.
 //
-// Destroy nils both backend pointers under renderMu, so this call reads them
-// under it too, and then releases the lock before canceling, because the
-// cancel waits for the animation goroutine to exit and that goroutine takes
-// renderMu on every frame.
-//
-// Capturing each pointer once is what makes that read synchronized without
-// widening the hold. Reading the field twice, once to nil-test it and once to
-// make the call, would leave the nil test meaningless. A concurrent Destroy
-// landing between the two hands a nil backend to cancelAnimation, which is
-// promoted from the embedded sharedOverlay and so dereferences the receiver
-// before any guard inside it can run.
+// Destroy nils both backend pointers under renderMu, so this reads them under
+// it too, then releases the lock before canceling, because the cancel waits
+// for a goroutine that takes renderMu every frame. Each pointer is captured
+// once. Reading the field again for the call could hand a nil backend to the
+// promoted cancelAnimation, which dereferences the receiver before any guard.
 func (m *Manager) cancelBackendAnimation() bool {
 	m.renderMu.Lock()
 	x11 := m.x11
@@ -1272,10 +1188,9 @@ func (m *Manager) cancelBackendAnimation() bool {
 	return true
 }
 
-// overlayScale returns the active backend's HiDPI UI scale. The X11 overlay
-// enlarges fonts/geometry by this factor (Xft.dpi based); Wayland renders in
-// logical units and scales via the compositor buffer, so it returns 1. The
-// manager uses it to size badge clear rects consistently with what is drawn.
+// overlayScale returns the active backend's HiDPI scale. X11 scales fonts and
+// geometry by Xft.dpi. Wayland renders in logical units and returns 1. It
+// sizes badge clear rects to match what is drawn.
 func (m *Manager) overlayScale() float64 {
 	if m.x11 != nil {
 		return m.x11.Scale()
@@ -1285,16 +1200,12 @@ func (m *Manager) overlayScale() float64 {
 }
 
 // dispatchGridPointer hands the pointer state to the attached backend, which
-// keeps it and repaints the grid surface with it.
+// keeps it and repaints the grid surface.
 //
-// No animation is canceled first, the way DrawHintsWithStyle and
-// HideHintSearchInput do. This repaints the same surface UpdateGridMatches
-// already repaints on every keystroke and takes renderMu the same way, and the
-// only animation painting *that* surface is the recursive-grid transition,
-// which the frame coming up cleared and canceled before grid mode drew a cell.
-// The mouse-action indicator animates too and is not a counter-example. It runs
-// on its own backend instance behind indicatorRenderMu (DrawMouseActionIndicator
-// below), so it shares neither this surface nor this lock.
+// Unlike DrawHintsWithStyle it cancels no animation. The only animation on
+// this surface is the recursive-grid transition, which the frame coming up
+// already canceled. The mouse-action indicator runs on its own backend
+// behind indicatorRenderMu, so it shares neither surface nor lock.
 func (m *Manager) dispatchGridPointer(pointer recursivegrid.VirtualPointerState) {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
@@ -1307,9 +1218,8 @@ func (m *Manager) dispatchGridPointer(pointer recursivegrid.VirtualPointerState)
 }
 
 // forgetBadgesLocked drops every record of what is painted on the shared
-// surface. It follows a Hide or a Clear, which take the whole surface away
-// rather than one badge at a time, so there is nothing left to erase and the
-// records would only describe a screen that is gone.
+// surface. It follows a Hide or Clear, after which the records would describe
+// a screen that is gone.
 func (m *Manager) forgetBadgesLocked() {
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
@@ -1317,9 +1227,8 @@ func (m *Manager) forgetBadgesLocked() {
 	m.modeIndicatorBadgeRect = image.Rectangle{}
 	m.searchBadgeRect = image.Rectangle{}
 
-	// The grid pointer is the one record kept on the backend rather than here,
-	// because the pass that paints it is the backend's, but it describes the
-	// same surface these do and goes with them.
+	// The grid pointer record lives on the backend, whose pass paints it, but
+	// it describes the same surface and goes too.
 	if m.x11 != nil {
 		m.x11.forgetGridPointer()
 	} else if m.wlroots != nil {
@@ -1487,17 +1396,12 @@ const (
 // resolveHintBadgeOffset maps a configured placement onto the offset this
 // overlay draws it with. It is the one place the placement vocabulary is read
 // here, and every value config.HintPlacements() declares has a branch.
+// Anything else is refused, so a placement added without a Linux branch fails
+// loudly instead of drawing centered.
 //
-// Anything else is refused rather than drawn. The switch used to treat an
-// unrecognized value as its default case, which drew a centered badge with no
-// arrow. That was right for `center` by coincidence, and silent for a placement
-// added to the vocabulary without a Linux branch. It would validate, be forced to
-// exist on macOS, and then draw centered here with nothing failing anywhere.
-//
-// The empty string is not one of those. It is a style that reached the overlay
-// before a configuration settled it, and it draws at the documented default,
-// the same answer the macOS renderer gives it (`hintPlacementValue`), so a
-// draw that beats the first Apply puts hints in the same place on both.
+// The empty string is a style that reached the overlay before a configuration
+// settled it. It draws at the documented default, as macOS does
+// (`hintPlacementValue`).
 func resolveHintBadgeOffset(placement string) (badge.HintOffset, error) {
 	if placement == "" {
 		placement = config.HintPlacementDefault
@@ -1518,13 +1422,10 @@ func resolveHintBadgeOffset(placement string) (badge.HintOffset, error) {
 	}
 }
 
-// hintTailEdge reports which badge edge the connector tail merges into, so the
-// renderer can build the badge and tail as one outline. It returns hintTailNone
-// when there is no arrow.
-//
-// It stays here rather than beside badge.PlaceHint because the values it
-// answers are the C hint-badge renderer's, not geometry. The Windows backend
-// draws the same arrow without a merged outline to describe.
+// hintTailEdge reports which badge edge the connector tail merges into, so
+// the renderer can draw badge and tail as one outline. It returns
+// hintTailNone when there is no arrow. It lives here, not beside
+// badge.PlaceHint, because its values are the C renderer's.
 func hintTailEdge(badgeRect image.Rectangle, arrow badge.HintArrow, hasArrow bool) int {
 	if !hasArrow {
 		return hintTailNone
@@ -1546,10 +1447,9 @@ func expandRect(rect image.Rectangle, amount int) image.Rectangle {
 	)
 }
 
-// syncSublayerKeysLocked hands the surface the keys the subgrid is drawn with.
-// Every draw that can put a subgrid on screen calls it, because a surface with
-// no keys draws a subgrid the user cannot see but can still act on. The keys
-// themselves are resolved once, by the config (config.ResolveSublayerKeys).
+// syncSublayerKeysLocked hands the surface the subgrid keys. Every draw that
+// can show a subgrid calls it, because a surface with no keys draws a subgrid
+// the user cannot see but can still act on (config.ResolveSublayerKeys).
 func (m *Manager) syncSublayerKeysLocked(target *string) {
 	if m.GridOverlay() == nil {
 		return
@@ -1558,14 +1458,11 @@ func (m *Manager) syncSublayerKeysLocked(target *string) {
 	*target = m.GridOverlay().Config().SublayerKeys
 }
 
-// hideForCapture runs capture with the overlay cleared off the screen, then
-// puts back exactly what it showed. It holds renderMu throughout, so no draw
-// lands between the clear and the capture, and a draw a keystroke asks for
-// meanwhile waits for the capture. On Wayland the keyboard poller reads under
-// the same lock, so keys typed during the capture are read once it ends.
-//
-// The click indicator is a surface of its own and stays in the capture. It is
-// on screen for a moment after a click.
+// hideForCapture runs capture with the overlay cleared, then restores exactly
+// what it showed. It holds renderMu throughout, so no draw lands between the
+// clear and the capture. On Wayland the keyboard poller reads under the same
+// lock, so keys typed meanwhile are read once it ends. The click indicator
+// has its own surface and stays in the capture.
 func (m *Manager) hideForCapture(capture func() error) error {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()

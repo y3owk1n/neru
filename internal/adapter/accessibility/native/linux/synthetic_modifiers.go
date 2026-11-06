@@ -9,16 +9,12 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// The sink is a process-global slot for the same reason the config provider
-// beside it is. This package's injection entry points are package-level
-// functions the dispatch table in ../backend_linux.go names, with nowhere to
-// hang a dependency. The interface itself lives beside the tap contract it
-// extends (tap.SyntheticModifierSink). What is set here is the live tap, wired
-// once at daemon startup and let go of at teardown. See
-// internal/app/wiring_platform_linux.go.
-//
-// A nil sink means "nobody is listening", which is what the CLI, the tests, and
-// every moment of startup before the phase that builds a tap are in.
+// The sink is a process-global slot, like the config provider beside it,
+// because the injection entry points are package-level functions named by
+// ../backend_linux.go. The interface is tap.SyntheticModifierSink. The live
+// tap is wired at daemon startup and cleared at teardown (see
+// internal/app/wiring_platform_linux.go). A nil sink means nobody is
+// listening, as in the CLI, tests, and startup before the tap is built.
 var (
 	syntheticModifierMu   sync.RWMutex
 	syntheticModifierSink tap.SyntheticModifierSink
@@ -34,10 +30,7 @@ func SetSyntheticModifierSink(sink tap.SyntheticModifierSink) {
 }
 
 // recordSyntheticModifier announces one modifier key event to the wired sink.
-//
-// With no sink wired the injection still happens, unannounced, which is the
-// behavior this seam improves on rather than a reason to withhold the key the
-// caller asked for.
+// With no sink the injection still happens, unannounced.
 func recordSyntheticModifier(modifier action.Modifiers, isDown bool) {
 	syntheticModifierMu.RLock()
 

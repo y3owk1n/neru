@@ -1,14 +1,11 @@
 // The proxy's own event nodes, opened so the proxy can ask whether another
 // process has grabbed one of them.
 //
-// A key remapper's device auto-detect takes any node that advertises keyboard
-// keys, and kanata's excludes only a device named "kanata", keyd's only its own
-// virtual keyboard. So a remapper grabs neru-keyboard-proxy when the daemon
-// creates it, or on its own start when the daemon is already up. With the
-// remapper's output grabbed here that closes a loop. Every key the user types
-// circles between the two processes and reaches the compositor from neither.
-// Neru cannot change the remapper's filter, so it watches its own nodes and
-// fails open when one is taken (evdevProxy.probeOwnDevices).
+// Remapper auto-detect takes any node with keyboard keys (kanata excludes only
+// "kanata", keyd only its own keyboard), so a remapper grabs
+// neru-keyboard-proxy. With the remapper's output grabbed here, every key
+// circles between the two processes. Neru cannot change the remapper's filter,
+// so it fails open when one of its nodes is taken (evdevProxy.probeOwnDevices).
 
 //go:build linux && cgo
 
@@ -35,10 +32,9 @@ type proxyNode struct {
 	file *os.File
 }
 
-// openProxyNode finds the event node behind a created uinput fd, by the sysfs
-// name the fd answers and the one event directory sysfs lists under it. It
-// returns nil until udev has created the node, and the caller asks again on its
-// next tick.
+// openProxyNode finds the event node behind a uinput fd through the sysfs name
+// the fd answers. It returns nil until udev has created the node, and the
+// caller retries on its next tick.
 func openProxyNode(uinputFd C.int) *proxyNode {
 	var sysname [proxyNodeSysnameSize]C.char
 	if C.neru_uinput_get_sysname(uinputFd, &sysname[0], proxyNodeSysnameSize) < 0 {
@@ -60,15 +56,13 @@ func openProxyNode(uinputFd C.int) *proxyNode {
 	return &proxyNode{file: file}
 }
 
-// heldByAnother reports whether another process has grabbed the node. A grab
-// of our own answers EBUSY exactly then, and is let go again at once otherwise.
+// heldByAnother reports whether another process has grabbed the node. Our own
+// grab answers EBUSY exactly then, and is released at once otherwise.
 //
-// Only the run goroutine calls it, and that goroutine is the one writer to the
-// device, so no key can be emitted while the probe grab is in place and the
-// compositor cannot lose one to it. What the grab window can drop is an LED
-// change the compositor writes inside it, which the kernel discards from a
-// non-grabber. The next LED change repairs that. A remapper's grab-ungrab-grab
-// on registering a device can slip between two probes, and the next one catches it.
+// Only the run goroutine calls it, and it is the device's one writer, so no
+// key can be emitted during the probe grab. An LED change written inside the
+// window is dropped by the kernel and repaired by the next one. A remapper's
+// grab-ungrab-grab can slip between two probes, and the next catches it.
 func (n *proxyNode) heldByAnother() bool {
 	descriptor := C.int(n.file.Fd())
 

@@ -16,35 +16,29 @@ import (
 // evdevSession is the consumer of key events while a mode is open. Every
 // method runs on the proxy's run goroutine.
 //
-// It keeps its own picture of the modifiers, counting only presses made since
-// it began. Every modifier press is forwarded to the compositor, and the
-// session reads it on the way past, as the macOS tap reads the flags off an
-// event it returns. A modifier already down when the session began is the
-// activation chord's. The mode never sees that one as a sticky toggle, though
-// it still names chords while it is down. The macOS tap reads it off every
-// event's flags and the X11 tap counts it from the keyboard state after the
-// grab, so Alt held from the activation chord and Space pressed again is
-// Alt+Space on every platform.
-// Sticky detection arms once the chord has finished coming up, and the
-// session's own count starts at a clean slate.
+// It counts only modifier presses made since it began. Every modifier press
+// is forwarded to the compositor and the session reads it on the way past, as
+// the macOS tap reads flags off an event it returns. A modifier already down
+// at the start belongs to the activation chord. It is never a sticky toggle
+// but still names chords, so Alt held from the chord plus Space is Alt+Space
+// on every platform. Sticky detection arms once the chord is fully up.
 type evdevSession struct {
 	tap   *EventTap
 	proxy *evdevProxy
 
 	state waylandEvdevKeyState
 
-	// dispatchedDown marks keys whose press reached the mode, so the release
-	// that reaches it is only ever one it saw the press of.
+	// dispatchedDown marks keys whose press reached the mode, so the mode only
+	// gets releases of presses it saw.
 	dispatchedDown map[uint16]bool
 
 	// forwardedModifiers is the activation chord's modifiers still down when
 	// the session began. Sticky detection arms once they are all up.
 	forwardedModifiers map[uint16]bool
 
-	// ended is closed by the proxy if it detaches the session itself, which
-	// it does on failing open. The keyboards reach the compositor again, so a
-	// session still reading them would hand the mode every key the focused
-	// app also gets. The tap then falls back to the overlay's keyboard focus.
+	// ended is closed when the proxy detaches the session itself, on failing
+	// open. The keyboards reach the compositor again, so the tap falls back to
+	// the overlay's keyboard focus.
 	ended chan struct{}
 }
 
@@ -97,9 +91,8 @@ func (s *evdevSession) handlePress(code uint16, modifier string, forwarded bool)
 		return
 	}
 
-	// Modifier passthrough: an unbound Ctrl/Alt/Cmd chord the focused app
-	// should get goes out on the proxy keyboard after all, and stays the
-	// compositor's until it is released.
+	// Modifier passthrough: an unbound Ctrl/Alt/Cmd chord goes out on the
+	// proxy keyboard and stays the compositor's until released.
 	if s.tap.shouldPassthroughChord(chord) {
 		s.proxy.forwardWithheld(code)
 		s.tap.firePassthroughCallback()
@@ -128,7 +121,7 @@ func (s *evdevSession) handleRelease(code uint16, modifier string, forwarded boo
 	if modifier != "" {
 		if s.forwardedModifiers[code] {
 			// The compositor sees the key up only when the last keyboard
-			// holding it lets go, which is the release the rule forwards.
+			// holding it lets go, the release the rule forwards.
 			if forwarded {
 				delete(s.forwardedModifiers, code)
 				s.armIfClear()
@@ -180,9 +173,9 @@ func (s *evdevSession) dispatchStickyToggle(modifier string, isDown bool) {
 	}
 }
 
-// armIfClear arms sticky detection once no modifier is down that the mode
-// did not see pressed, matching macOS, where the activation chord's modifier
-// releases are not read as sticky toggles.
+// armIfClear arms sticky detection once every modifier down was seen pressed
+// by the mode, so activation-chord releases are not sticky toggles, as on
+// macOS.
 func (s *evdevSession) armIfClear() {
 	if s.tap.stickyDetectionArmed() {
 		return
@@ -223,9 +216,8 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
-	// The proxy owns the keyboard, so the overlay stays keyboard-passive, because a
-	// layer-surface grab would only deactivate the focused app's toplevel on
-	// wlroots. Said once, on the first session, and the overlay keeps it.
+	// The proxy owns the keyboard, so the overlay stays keyboard-passive (see
+	// waylandEvdevKeyboardActive). Set once, on the first session.
 	et.overlayPassiveOnce.Do(func() {
 		if controller, ok := overlay.Get().(overlaymanager.KeyboardCaptureController); ok {
 			controller.SetKeyboardCaptureEnabled(false)

@@ -6,14 +6,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// ftruncate is interruptible, and a signal landing mid-call leaves the
-// descriptor at its old length rather than the size the caller asked for,
-// which surfaces later as a short mapping, not as an error. Retrying on EINTR
-// is what every caller wants, so it lives here once.
-//
-// A size above OFF_T_MAX wraps to a negative length, which ftruncate rejects
-// with EINVAL. No caller can reach it, and the failure is loud if one ever
-// does.
+// ftruncate is interruptible, and a signal mid-call leaves the old length,
+// which surfaces later as a short mapping rather than an error, so retry on
+// EINTR. A size above OFF_T_MAX wraps negative and fails loudly with EINVAL.
 static int neru_shm_file_truncate(int fd, size_t size) {
 	int rc;
 
@@ -38,9 +33,8 @@ int neru_shm_file_create(const char *name, size_t size) {
 	(void)name;
 #endif
 
-	// The file is unlinked the moment it exists, so this path is never visible
-	// to anything but the mkstemp collision check. `name` labels the memfd
-	// above, and there is nothing here for it to label.
+	// The file is unlinked the moment it exists, so only mkstemp's collision
+	// check ever sees this path.
 	char path[] = "/tmp/neru-shm-XXXXXX";
 
 	int fd = mkstemp(path);
@@ -48,10 +42,9 @@ int neru_shm_file_create(const char *name, size_t size) {
 		return -1;
 	}
 
-	// Refusing on a failed unlink is the whole difference between this fallback
-	// and a named file full of screen pixels sitting in /tmp. Every caller
-	// already degrades on -1, and a /tmp that mkstemp could write but not
-	// unlink is broken enough that failing is the honest answer.
+	// Refusing on a failed unlink keeps a named file of screen pixels out of
+	// /tmp. Callers degrade on -1, and a /tmp that can be written but not
+	// unlinked is broken enough to fail on.
 	if (unlink(path) < 0) {
 		close(fd);
 

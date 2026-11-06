@@ -12,17 +12,12 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Diagnostics for a frame scan: records per-application call failures and
-// distinguishes fatal bus errors from apps that are merely uncooperative, so a
-// scan that finds nothing can say why.
+// Diagnostics for a frame scan, so a scan that finds nothing can say why.
 //
-// atspiScanDiag records diagnostics for a single ClickableNodes scan. It is
-// stored on the scan context so the leaf D-Bus helpers can report a scan-fatal
-// failure (a per-call timeout, a closed connection, or the target app
-// disappearing from the bus) without threading an extra parameter through the
-// whole walk. A scan
-// that ends up empty for one of those reasons can then surface an actionable
-// error instead of a silent empty result. Benign per-node errors are ignored.
+// atspiScanDiag rides on the scan context so the leaf D-Bus helpers can report
+// a scan-fatal failure (a per-call timeout, a closed connection, the app
+// leaving the bus) without threading a parameter through the walk. An empty
+// scan then surfaces an actionable error. Benign per-node errors are ignored.
 type atspiScanDiag struct {
 	mu  sync.Mutex
 	err error
@@ -72,9 +67,8 @@ func isScanFatalErr(err error) bool {
 	return false
 }
 
-// noteCallErr records a scan-fatal error on the scan's diagnostic (if one is
-// attached to ctx). Benign errors, and contexts with no diag attached (e.g. the
-// frame-selection reads in findActiveFrame), are ignored.
+// noteCallErr records a scan-fatal error on ctx's diagnostic, if one is
+// attached. Benign errors are ignored.
 func (c *Client) noteCallErr(ctx context.Context, err error) {
 	if !isScanFatalErr(err) {
 		return

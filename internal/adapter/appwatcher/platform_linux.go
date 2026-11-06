@@ -15,36 +15,25 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 )
 
-// Linux app-watcher backend. macOS receives focus changes from an NSWorkspace
-// observer. On Linux the focused application's identity is the app_id (Wayland
-// wlroots/KDE) or WM_CLASS (X11). Where the compositor/X11 exposes a
-// focus-change notification (via linux.SubscribeFocusedApp), the watcher blocks
-// on that fd and re-samples on each wake, so per-app hotkeys re-register almost
-// at once. Otherwise it falls back to polling on a fixed interval.
-// GNOME/Mutter exposes no focused-app source, so no events fire there.
+// Linux app-watcher backend. The focused application's identity is the
+// app_id (Wayland) or WM_CLASS (X11). Where the backend exposes a focus-change
+// fd (linux.SubscribeFocusedApp), the watcher blocks on it and re-samples on
+// each wake. Otherwise it polls.
 //
-// focusPollInterval is how often the focused application is sampled on the
-// polling fallback (backends with no focus-change fd). It trades switch latency
-// (per-app hotkeys re-register on the next poll after an alt-tab) against idle
-// cost (one lightweight focus query per interval).
+// focusPollInterval is the polling fallback's period, trading alt-tab latency
+// for per-app hotkeys against one focus query per interval.
 const focusPollInterval = 400 * time.Millisecond
 
 // focusEventPollTimeout bounds a single poll() wait on the event-driven path so
-// the loop notices context cancellation within this window even when no focus
-// event arrives. It is short enough for prompt shutdown yet long enough that an
-// idle daemon makes only a couple of no-op poll() syscalls per second.
+// the loop notices context cancellation promptly.
 const focusEventPollTimeout = 500 * time.Millisecond
 
-// focusEventSafetyInterval bounds how long the event-driven loop goes without a
-// forced re-sample. Focus changes normally wake it immediately via the fd. This
-// periodic re-sample is a safety net against a missed or coalesced event and
-// costs one focus query per interval (matching the polling fallback's idle
-// cost, but far less often).
+// focusEventSafetyInterval is how often the event-driven loop re-samples
+// without an event, a safety net against a missed or coalesced one.
 const focusEventSafetyInterval = 3 * time.Second
 
 // globalLinuxWatcher is the process-wide app watcher, mirroring the single
-// darwin.SetAppWatcher registration. NewWatcher registers itself here via
-// platformRegisterWatcher.
+// darwin.SetAppWatcher registration.
 var globalLinuxWatcher = &linuxAppWatcher{
 	identity:        linux.FocusedAppID,
 	subscribe:       linux.SubscribeFocusedApp,
@@ -60,12 +49,10 @@ type linuxAppWatcher struct {
 	// identity resolves the focused app_id for a backend. Tests inject it.
 	identity func(backend string) (string, bool)
 	// subscribe returns an fd that becomes readable on focus changes, or
-	// ok=false to select the polling fallback. Tests inject it. A nil
-	// subscribe also selects polling.
+	// ok=false (or nil) to select the polling fallback.
 	subscribe func(backend string) (int, bool)
 	// subscribeScreen returns an fd that becomes readable on display-configuration
-	// changes (monitor hotplug/resize), or ok=false when none is available.
-	// A nil subscribeScreen disables screen-change watching (e.g. in tests).
+	// changes, or ok=false when none is available. Nil disables screen watching.
 	subscribeScreen func(backend string) (int, bool)
 	// refreshScreens re-reads the display layout into the platform cache after a
 	// screen-change event, before the screen-parameters callback runs.
@@ -90,8 +77,7 @@ func (l *linuxAppWatcher) register(w *Watcher) {
 	l.watcher = w
 }
 
-// start launches the poll loop. It is idempotent, so a second call while already
-// running is a no-op.
+// start launches the poll loop. It is idempotent.
 func (l *linuxAppWatcher) start() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -138,14 +124,12 @@ func (l *linuxAppWatcher) stop() {
 	l.wg.Wait()
 }
 
-// loop samples the focused application until the context is canceled. It
-// samples once immediately, then either blocks on a focus-change fd (when the
-// backend exposes one) or polls on a fixed interval.
+// loop samples the focused application until the context is canceled, once
+// immediately, then on a focus-change fd or a fixed interval.
 func (l *linuxAppWatcher) loop(ctx context.Context, backend string) {
 	defer l.wg.Done()
 
-	// Sample once immediately so per-app state converges without waiting for the
-	// first event or poll tick.
+	// Sample at once so per-app state converges before the first event.
 	l.tick(backend)
 
 	if l.subscribe != nil {
@@ -165,7 +149,7 @@ func (l *linuxAppWatcher) loop(ctx context.Context, backend string) {
 }
 
 // loopPoll samples the focused application every interval until the context is
-// canceled. Used when the backend exposes no focus-change fd.
+// canceled.
 func (l *linuxAppWatcher) loopPoll(ctx context.Context, backend string) {
 	ticker := time.NewTicker(l.interval)
 	defer ticker.Stop()
@@ -180,17 +164,14 @@ func (l *linuxAppWatcher) loopPoll(ctx context.Context, backend string) {
 	}
 }
 
-// loopEvent blocks on the focus-change fd and re-samples on each wake. A short
-// poll timeout keeps shutdown responsive to context cancellation, and a
-// periodic safety-net re-sample guards against a missed or coalesced event. If
-// the fd hangs up or errors, it degrades to polling so focus tracking survives.
+// loopEvent blocks on the focus-change fd and re-samples on each wake, with a
+// periodic safety-net re-sample. If the fd hangs up or errors, it degrades to
+// polling.
 //
-// focusFD is owned by the platform layer (a process-lifetime pipe/monitor).
-// We poll a dup of it so this goroutine holds its own descriptor. If that layer
-// ever closes the underlying fd, our in-flight Poll can't become a
-// use-after-close or fd-reuse race. We see POLLHUP and fall back to polling.
-// dup(2) clears close-on-exec, so we re-arm it, because neru spawns exec-action
-// children that must not inherit this fd.
+// The platform layer owns focusFD. We poll a dup, so if that layer closes it
+// we see POLLHUP instead of a use-after-close or fd-reuse race. dup(2) clears
+// close-on-exec, so it is re-armed, because exec-action children must not
+// inherit this fd.
 func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD int) {
 	dupFD, err := unix.Dup(focusFD)
 	if err != nil {
@@ -261,15 +242,11 @@ func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD
 
 // loopScreen blocks on the display-configuration-change fd and, on each wake,
 // refreshes the platform's screen cache and dispatches a screen-parameters
-// change to the Watcher (which regenerates overlays for the new layout). This is
-// the Linux equivalent of macOS's NSApplicationDidChangeScreenParameters
-// notification. When no fd is available (GNOME/Mutter, RandR-less X, or a nil
-// subscribe) it exits immediately. Screen changes then go unobserved, and the
-// overlay still follows the cursor. On fd hangup/error it exits rather than
-// spinning, since there is no cheap polling equivalent for layout changes.
-//
-// The platform layer owns the fd. We poll a dup so a close on that side
-// surfaces as POLLHUP instead of a use-after-close, mirroring loopEvent.
+// change (the Linux NSApplicationDidChangeScreenParameters). With no fd
+// (GNOME/Mutter, RandR-less X, or a nil subscribe) it exits at once and the
+// overlay still follows the cursor. On hangup/error it exits rather than spin,
+// since layout changes have no cheap polling equivalent. It polls a dup of the
+// fd, as loopEvent does.
 func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 	defer l.wg.Done()
 
@@ -333,8 +310,7 @@ func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
 		if revents&unix.POLLIN != 0 {
 			drainFD(dupFD)
 
-			// Refresh the platform screen cache before the callback re-queries
-			// ScreenBounds/Screens for the new layout.
+			// Refresh the cache before the callback re-queries the layout.
 			if l.refreshScreens != nil {
 				l.refreshScreens(backend)
 			}

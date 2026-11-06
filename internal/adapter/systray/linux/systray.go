@@ -13,15 +13,12 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/systray/icon"
 )
 
-// Linux tray API: maintains the menu tree and wires it to the D-Bus SNI +
-// dbusmenu server in dbus.go. The platform-agnostic app component
-// (internal/app/components/systray) builds the menu, and this file only owns
-// the transport and the item state. The darwin and Windows trays have their
-// own backends.
+// Linux tray API: the menu tree and item state, wired to the D-Bus SNI +
+// dbusmenu server in dbus.go. The shared component
+// (internal/app/components/systray) builds the menu.
 //
-// linuxTrayIconPNG is the startup/fallback tray tile. The shared component
-// normally selects the platform-appropriate asset and passes it via SetIcon.
-// This covers the window before that first call and empty-byte calls.
+// linuxTrayIconPNG is the tray tile until the first SetIcon, and the fallback
+// for empty-byte calls.
 var linuxTrayIconPNG = icon.Brand
 
 var (
@@ -45,19 +42,16 @@ var (
 	}
 	menuInst = &menuServer{}
 
-	// trayPath must be the canonical /StatusNotifierItem. The KDE watcher
-	// registers items as "<busname>/StatusNotifierItem" and plasmashell fetches
-	// all SNI properties at that fixed path. A custom path silently yields an
+	// trayPath must be the canonical /StatusNotifierItem. The KDE watcher and
+	// plasmashell use that fixed path, so a custom one silently yields an
 	// invisible tray item.
 	trayPath = dbus.ObjectPath("/StatusNotifierItem")
 	menuPath = dbus.ObjectPath("/org/y3owk1n/neru/menu")
 
-	// quitMu guards quitCh and quitRequested. Quit can race Run/RunHeadless.
-	// The daemon host starts app.Run in a goroutine before entering the systray
-	// loop, so a fast startup failure can call Quit before quitCh exists. The
-	// quitRequested flag records that early Quit so newQuitChannel returns an
-	// already-closed channel and the loop exits immediately instead of blocking
-	// forever.
+	// quitMu guards quitCh and quitRequested. The daemon host starts app.Run
+	// before the systray loop, so a fast startup failure can call Quit before
+	// quitCh exists. quitRequested makes newQuitChannel return a closed channel
+	// so the loop exits instead of blocking forever.
 	quitMu        sync.Mutex
 	quitCh        chan struct{}
 	quitRequested bool
@@ -120,12 +114,11 @@ func (m *MenuItem) SetTitle(title string) {
 	bumpMenu()
 }
 
-// SetTooltip sets the menu item tooltip (Linux). It is an empty body by
-// protocol, not by omission, because com.canonical.dbusmenu defines no per-item
-// tooltip property, so there is nothing to send and nothing for a tray host to
-// render. Nothing in Neru calls it. The tray icon's own hover text is the
-// package-level SetTooltip below, which works. docs/contributing/platform-internals.md owns the
-// full statement, as footnote 8 of the implementation matrix.
+// SetTooltip is empty by protocol, because com.canonical.dbusmenu defines no
+// per-item tooltip property (Linux). Nothing in Neru calls it. The icon's
+// hover text is the package-level SetTooltip.
+// docs/contributing/platform-internals.md owns this as footnote 8 of the
+// implementation matrix.
 func (m *MenuItem) SetTooltip(tooltip string) {}
 
 // SetIcon sets the menu item icon (Linux).
@@ -276,11 +269,9 @@ func filterProps(all map[string]dbus.Variant, filter []string) map[string]dbus.V
 	return out
 }
 
-// Run starts the system tray loop (Linux). It connects to the session bus,
-// exports the SNI + menu objects, registers with the StatusNotifierWatcher,
-// then invokes onReadyFunc (which builds the menu) and blocks until Quit. If no
-// session bus is available it falls back to a headless blocking loop so the
-// daemon still runs.
+// Run starts the system tray loop (Linux). It exports the SNI and menu objects,
+// runs onReadyFunc, registers with the StatusNotifierWatcher, and blocks until
+// Quit. With no session bus it falls back to a headless loop.
 func Run(onReadyFunc, onExitFunc func()) {
 	conn, err := dbus.SessionBus()
 	if err != nil {
@@ -339,16 +330,14 @@ func Run(onReadyFunc, onExitFunc func()) {
 	}
 }
 
-// RunHeadless starts the system tray loop without a status icon (Linux). Used
-// when there is no systray component. It makes no D-Bus registration and just keeps the
-// process alive until Quit.
+// RunHeadless keeps the process alive until Quit with no status icon and no
+// D-Bus registration (Linux).
 func RunHeadless(onReadyFunc, onExitFunc func()) {
 	runHeadlessLoop(onReadyFunc, onExitFunc)
 }
 
-// Quit quits the application (Linux). Safe to call before Run/RunHeadless has
-// created the quit channel. The request is recorded and the loop exits as soon
-// as it starts.
+// Quit quits the application (Linux). It is safe before Run/RunHeadless
+// creates the quit channel, and the loop then exits as soon as it starts.
 func Quit() {
 	quitMu.Lock()
 	defer quitMu.Unlock()
@@ -410,8 +399,7 @@ func SetIcon(iconBytes []byte) {
 }
 
 // SetTemplateIcon sets the tray icon from the passed PNG bytes. SNI has no
-// template rendering, so the template flag is ignored and the bytes are
-// rendered literally.
+// template rendering, so the template flag is ignored.
 func SetTemplateIcon(iconBytes []byte, template bool) {
 	SetIcon(iconBytes)
 }
@@ -496,9 +484,7 @@ func ResetForTesting() {
 	quitMu.Unlock()
 }
 
-// runHeadlessLoop invokes onReady then blocks until Quit, then invokes onExit.
-// It is the fallback when no session bus is available and the implementation of
-// RunHeadless.
+// runHeadlessLoop invokes onReady, blocks until Quit, then invokes onExit.
 func runHeadlessLoop(onReadyFunc, onExitFunc func()) {
 	running.Store(false)
 
@@ -515,9 +501,8 @@ func runHeadlessLoop(onReadyFunc, onExitFunc func()) {
 	}
 }
 
-// bumpMenu increments the menu revision and emits LayoutUpdated so the tray
-// host re-fetches the tree. No-op when the tray is not running yet. The state
-// is still recorded, and the host reads it on first open.
+// bumpMenu increments the menu revision and emits LayoutUpdated so the host
+// re-fetches the tree. Before the tray runs, the state is still recorded.
 func bumpMenu() {
 	menuInst.mu.Lock()
 	menuInst.revision++
@@ -541,9 +526,8 @@ func emitSNI(signal string) {
 	_ = busConn.Emit(trayPath, "org.kde.StatusNotifierItem."+signal)
 }
 
-// exportTray exports the SNI and menu objects on the connection and requests
-// the well-known item name. Registration with StatusNotifierWatcher is deferred
-// until after onReady so the host's first IconPixmap fetch is not empty.
+// exportTray exports the SNI and menu objects and requests the well-known
+// item name. Watcher registration waits for onReady (see Run).
 func exportTray(conn *dbus.Conn) error {
 	sniInst.menuPath = menuPath
 

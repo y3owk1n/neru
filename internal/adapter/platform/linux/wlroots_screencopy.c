@@ -18,8 +18,7 @@
 
 // The manager is bound at version 1 on purpose. Versions 2 and 3 add damage
 // tracking and dmabuf negotiation, which a one-shot shm grab has no use for,
-// and version 1 guarantees the "buffer" event without the buffer_done handshake
-// That is a smaller state machine for the same pixels.
+// and version 1 sends "buffer" without the buffer_done handshake.
 #define NERU_SCREENCOPY_MANAGER_VERSION 1
 
 // Only reached when a caller passes a non-positive budget. The Go wrapper
@@ -39,9 +38,7 @@ typedef struct {
 	int h;
 	int has_position;
 	int has_size;
-	// transform is the output's wl_output.transform. A frame arrives in the
-	// output's buffer orientation, so the caller turns a rotated or flipped
-	// output's frame back to match what is on screen.
+	// transform is the output's wl_output.transform, which the caller undoes.
 	int32_t transform;
 } NeruScreencopyOutput;
 
@@ -74,11 +71,9 @@ static int64_t neru_screencopy_now_ms(void) {
 	return (int64_t)ts.tv_sec * 1000 + (int64_t)ts.tv_nsec / 1000000;
 }
 
-// wl_output, zxdg_output_v1 and the frame all send events this file has no use
-// for, but a listener with a NULL slot is a crash waiting for the compositor
-// that sends it. Every event therefore gets a correctly typed handler and the
-// unused ones do nothing. Casting one shared no-op into each slot would be an
-// incompatible function-pointer call, which is undefined behavior.
+// Every event gets a correctly typed handler, even unused ones, because a NULL
+// listener slot crashes on a compositor that sends it. One shared no-op cast
+// into each slot would be an incompatible function-pointer call, which is UB.
 static void neru_screencopy_xdg_done(void *data, struct zxdg_output_v1 *xdg_output) {
 	(void)data;
 	(void)xdg_output;
@@ -335,10 +330,9 @@ static const struct wl_callback_listener neru_screencopy_sync_listener = {
     .done = neru_screencopy_sync_done,
 };
 
-// neru_screencopy_roundtrip is wl_display_roundtrip with the caller's deadline
-// on it. The library version blocks forever, which would let a compositor that
-// stops answering during discovery hang the capture well past the budget Go
-// asked for, the one thing the timeout exists to prevent.
+// neru_screencopy_roundtrip is wl_display_roundtrip with the caller's deadline.
+// The library version blocks forever, so a compositor that stops answering
+// during discovery would hang the capture past Go's budget.
 static int neru_screencopy_roundtrip(NeruScreencopyCtx *ctx, int64_t deadline) {
 	int done = 0;
 
@@ -358,13 +352,10 @@ static int neru_screencopy_roundtrip(NeruScreencopyCtx *ctx, int64_t deadline) {
 
 // neru_screencopy_select_output finds the output that wholly contains the
 // requested region and writes the region in that output's local logical
-// coordinates. Returns NULL when no single output contains it.
-//
-// screencopy captures one output, so a region spanning two monitors could only
-// be answered by cropping, which would hand back a frame whose top-left is not
-// the caller's, with nothing in the result to say so. Refusing keeps the
-// invariant that what comes back covers exactly what was asked for. Stitching
-// several outputs is work no caller needs yet.
+// coordinates. Returns NULL when no single output contains it. A spanning
+// region could only be answered by cropping, which hands back a frame whose
+// top-left is not the caller's with nothing to say so. Stitching outputs is
+// work no caller needs yet.
 static NeruScreencopyOutput *neru_screencopy_select_output(
     NeruScreencopyCtx *ctx, int x, int y, int w, int h, int *local_x, int *local_y) {
 	for (int i = 0; i < ctx->nr_outputs; i++) {
@@ -477,11 +468,9 @@ static void neru_screencopy_teardown(NeruScreencopyCtx *ctx) {
 // compositor asked for, hand it over, wait for the result, convert.
 static int neru_screencopy_copy_frame(
     NeruScreencopyCtx *ctx, struct zwlr_screencopy_frame_v1 *frame, int64_t deadline, NeruCapture *out) {
-	// Frame metadata arrives from the compositor, so it is validated rather than
-	// trusted. The dimensions are capped and every product is computed in 64
-	// bits. Without that, a width near UINT32_MAX makes width * 4 wrap, the
-	// stride check passes, and the conversion loop then reads past a mapping
-	// sized from the wrapped value.
+	// Frame metadata comes from the compositor, so the dimensions are capped and
+	// every product is 64-bit. Otherwise a width near UINT32_MAX wraps width * 4,
+	// passes the stride check, and the loop reads past the mapping.
 	if (ctx->width == 0 || ctx->height == 0 || ctx->width > NERU_SCREENCOPY_MAX_DIMENSION ||
 	    ctx->height > NERU_SCREENCOPY_MAX_DIMENSION) {
 		return NERU_CAPTURE_ERR_FORMAT;

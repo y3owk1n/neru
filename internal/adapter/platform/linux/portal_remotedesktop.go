@@ -8,19 +8,14 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
-// The org.freedesktop.portal.RemoteDesktop handshake, spoken directly over the
-// session bus. The transport underneath it is in portal_bus.go, which owns the
-// bus dial, the Request/Response exchange and session teardown.
+// The org.freedesktop.portal.RemoteDesktop handshake over the session bus.
+// portal_bus.go owns the transport (dial, Request/Response, teardown).
 //
-// liboeffis already wraps this handshake, and the libei client used it until
-// this file existed. It is not used for the session establishment path any
-// more, because its API exposes no restore token
-// (oeffis_create_session takes a device mask and nothing else), so every
-// session it opens is a fresh grant and every daemon start shows KDE's "Remote
-// Control" consent dialog. The token is negotiated in SelectDevices and handed
-// back by Start, both of which liboeffis owns, so reusing a grant means owning
-// the four D-Bus calls here. Everything past the EIS socket, such as device
-// binding and event emission, is still libei's.
+// liboeffis wraps this handshake but exposes no restore token
+// (oeffis_create_session takes only a device mask), so every daemon start would
+// show KDE's "Remote Control" dialog. The token lives in SelectDevices and
+// Start, so this file owns the four D-Bus calls. Everything past the EIS
+// socket is still libei's.
 
 // The four RemoteDesktop methods one session needs, in the order they run.
 const (
@@ -37,16 +32,11 @@ const (
 )
 
 // openRemoteDesktopSession runs the RemoteDesktop handshake and returns the EIS
-// socket libei injects through.
-//
-// When restoreToken is not empty the portal is asked to restore the grant it
-// names, which is what keeps the consent dialog off the screen on a restart. A
-// token the portal will not accept is not an error here. The specification says
-// an unrestorable token is ignored and the user prompted normally, and the
-// caller handles the backends that refuse instead.
-//
-// Every step is bounded by ctx, including the bus dial, which godbus cannot
-// cancel on its own. See dialPortalBus.
+// socket libei injects through. A non-empty restoreToken asks the portal to
+// restore that grant without a dialog. The spec says an unrestorable token is
+// ignored and the user prompted, and the caller handles backends that refuse
+// instead. Every step, including the bus dial, is bounded by ctx (see
+// dialPortalBus).
 func openRemoteDesktopSession(ctx context.Context, restoreToken string) (portalGrant, error) {
 	conn, err := dialPortalBus(ctx)
 	if err != nil {
@@ -70,9 +60,8 @@ func negotiateRemoteDesktop(
 	conn *dbus.Conn,
 	restoreToken string,
 ) (portalGrant, error) {
-	// Everything up to and including CreateSession runs before SelectDevices
-	// presents the restore token, so each failure below is marked as one the
-	// stored grant cannot be blamed for.
+	// Everything through CreateSession runs before the token is presented, so
+	// these failures cannot be blamed on the stored grant.
 	requester, release, err := newPortalRequester(ctx, conn, portalNameRemoteDesktop)
 	if err != nil {
 		return portalGrant{}, unrelatedToStoredGrant(err)
@@ -85,9 +74,8 @@ func negotiateRemoteDesktop(
 		return portalGrant{}, unrelatedToStoredGrant(err)
 	}
 
-	// The token is in play across the next two calls. SelectDevices carries it
-	// and Start consumes it, so a refusal from either is the one signal there is
-	// that the stored grant is no longer good. Their errors go back unmarked.
+	// SelectDevices carries the token and Start consumes it, so their errors go
+	// back unmarked as the one signal that the stored grant is dead.
 	err = selectRemoteDesktopDevices(ctx, requester, session, restoreToken)
 	if err != nil {
 		closePortalSession(conn, session)
@@ -102,8 +90,7 @@ func negotiateRemoteDesktop(
 		return portalGrant{}, err
 	}
 
-	// Past Start the grant is complete and a fresh token is already in hand, so
-	// a socket the portal will not produce says nothing about the stored one.
+	// Past Start the grant is complete, so this failure is not the token's.
 	eisFD, err := connectToEIS(ctx, requester, session)
 	if err != nil {
 		closePortalSession(conn, session)
@@ -151,17 +138,15 @@ func startRemoteDesktopSession(
 		return "", err
 	}
 
-	// A portal that grants the session without persisting it returns no token.
-	// That is a supported answer, not a failure. Input works, and the next
-	// start prompts again.
+	// A grant without persistence returns no token. That is supported, and the
+	// next start prompts again.
 	token, _ := results[portalRestoreTokenKey].Value().(string)
 
 	return token, nil
 }
 
-// connectToEIS performs step 4. Unlike the three before it this is a plain
-// method call that answers with the socket directly instead of through a
-// Request, and the file descriptor it returns belongs to the caller.
+// connectToEIS performs step 4, a plain method call that returns the socket
+// directly rather than via a Request. The caller owns the returned fd.
 func connectToEIS(
 	ctx context.Context,
 	requester *portalRequester,
@@ -187,13 +172,9 @@ func connectToEIS(
 	return int(socket), nil
 }
 
-// portalSelectDevicesOptions builds the options for SelectDevices: which
-// devices are wanted, how long the grant should last, and which grant to
-// restore. The handle token is added by portalRequester.call, which owns it.
-//
-// The restore token is omitted rather than sent empty when there is nothing to
-// restore, so a portal backend that validates the key it was handed does not
-// refuse the ordinary first run.
+// portalSelectDevicesOptions builds the SelectDevices options. portalRequester
+// adds the handle token. The restore token is omitted rather than sent empty,
+// so a backend that validates it does not refuse the ordinary first run.
 func portalSelectDevicesOptions(restoreToken string) map[string]dbus.Variant {
 	options := map[string]dbus.Variant{
 		"types":        dbus.MakeVariant(portalDeviceKeyboard | portalDevicePointer),
@@ -207,7 +188,6 @@ func portalSelectDevicesOptions(restoreToken string) map[string]dbus.Variant {
 	return options
 }
 
-// Compile-time proof that the RemoteDesktop grant satisfies the shared restore
-// policy's contract. Without it a signature drift would silently take this
-// grant off establishPortalGrant and leave the consent prompt on every start.
+// Without this check a signature drift would silently take this grant off
+// establishPortalGrant and prompt on every start.
 var _ portalRestorableGrant = portalGrant{}

@@ -13,23 +13,17 @@ import (
 )
 
 // waylandFocusedApplicationPID resolves the focused application's PID on a
-// Wayland session that speaks wlr-foreign-toplevel-management (wlroots + KDE).
-//
-// The protocol exposes the focused window's app_id but deliberately not its
-// PID, because Wayland clients cannot read each other's process credentials. We
-// therefore best-effort match the app_id against running processes in /proc.
-// When no match is found the caller gets CodeNotSupported with the app_id in
-// the message, keeping the "PID is not natively available on Wayland" contract
-// honest rather than inventing a number.
+// Wayland session with wlr-foreign-toplevel-management. The protocol exposes
+// the app_id but not the PID, so the app_id is matched against /proc, and a
+// miss is CodeNotSupported rather than an invented number.
 func waylandFocusedApplicationPID() (int, error) {
 	appID, ok := WaylandFocusedAppID()
 
 	return focusedApplicationPIDFromAppID(appID, ok)
 }
 
-// gnomeFocusedApplicationPID is the GNOME arm: the same /proc match, keyed on
-// what the extension reports. An extension that is not running is its own
-// answer, not an unfocused desktop.
+// gnomeFocusedApplicationPID is the GNOME arm, matching what the extension
+// reports. An extension that is not running is not an unfocused desktop.
 func gnomeFocusedApplicationPID() (int, error) {
 	bridge := gnomeshell.Shared(nil)
 	bridge.EnsureStarted()
@@ -53,10 +47,8 @@ func focusedApplicationPIDFromAppID(appID string, ok bool) (int, error) {
 
 	pid, found := resolvePIDByAppID(appID, "/proc")
 	if !found {
-		// Not the unfocused-desktop sentinel, because a window *is* focused,
-		// and the heuristic that maps its app_id onto a process missed. Wearing
-		// the sentinel here would tell the user to focus a window they already
-		// have focused.
+		// Not errNoFocusedWindow, because a window is focused and only the
+		// app_id match missed.
 		return 0, derrors.Newf(
 			derrors.CodeNotSupported,
 			"FocusedApplicationPID: Wayland exposes no PID for the focused app (app_id=%q); no /proc match found",
@@ -68,18 +60,12 @@ func focusedApplicationPIDFromAppID(appID string, ok bool) (int, error) {
 }
 
 // waylandNoFocusedAppError explains an empty answer from the foreign-toplevel
-// manager, which is the wlroots family's version of an unfocused desktop.
+// manager, the wlroots unfocused desktop. It wraps errNoFocusedWindow like the
+// X11 arm (#1495). The CGO-off build does not, since its manager is absent.
 //
-// It wraps errNoFocusedWindow so the capability surface explains it the way the
-// X11 arm's is explained (#1495). The query works, and it answers as soon as a
-// window takes focus. The CGO-off build takes the other branch, because there
-// the manager is absent rather than idle, and the reassuring sentence would be a
-// lie on a binary that can never answer.
-//
-// What it cannot yet separate is a compositor whose foreign-toplevel manager
-// never bound. WaylandFocusedAppID reports that with the same bare false as an
-// idle session, so on a CGO build both arrive here. Telling them apart needs the
-// wlroots client to say which happened, in both its cgo and nocgo halves.
+// It cannot yet separate a manager that never bound, which WaylandFocusedAppID
+// reports with the same bare false. That needs the wlroots client, in both its
+// cgo and nocgo halves, to say which happened.
 func waylandNoFocusedAppError() error {
 	if !nativeBackendsCompiledIn {
 		return derrors.New(
@@ -96,11 +82,8 @@ func waylandNoFocusedAppError() error {
 	)
 }
 
-// resolvePIDByAppID scans procRoot (normally "/proc") for a process whose
-// identity matches appID and returns its PID. It is a heuristic. Wayland
-// app_ids and process names do not always agree, so a miss is expected and the
-// caller handles it. procRoot is a parameter so tests can point
-// it at a synthetic /proc tree.
+// resolvePIDByAppID scans procRoot (normally "/proc") for a process matching
+// appID and returns its PID. It is a heuristic, so a miss is expected.
 func resolvePIDByAppID(appID, procRoot string) (int, bool) {
 	entries, err := os.ReadDir(procRoot)
 	if err != nil {
@@ -130,9 +113,8 @@ func resolvePIDByAppID(appID, procRoot string) (int, bool) {
 	return 0, false
 }
 
-// readProcComm returns the trimmed contents of <procDir>/comm, or "".
-// The kernel truncates comm to 15 characters, so exe and cmdline are more
-// reliable for long names. comm is still a cheap first signal.
+// readProcComm returns the trimmed contents of <procDir>/comm, or "". The
+// kernel truncates comm to 15 characters, so it is only a cheap first signal.
 func readProcComm(procDir string) string {
 	data, err := os.ReadFile(filepath.Join(procDir, "comm"))
 	if err != nil {
@@ -175,16 +157,10 @@ func readProcCmdlineBase(procDir string) string {
 }
 
 // appIDMatchesProcess reports whether a Wayland app_id plausibly identifies a
-// process with the given comm, exe basename, and argv[0] basename.
-//
-// Two forms are compared, both case-insensitively:
-//   - the full app_id (covers plain ids like "firefox" or "Alacritty")
-//   - the last dotted segment (covers reverse-DNS ids like "org.kde.konsole"
-//     to "konsole" and "org.mozilla.firefox" to "firefox")
-//
-// It is intentionally conservative: an exact equality against one of the
-// process name candidates, never a substring match, to avoid false positives
-// (e.g. app_id "code" matching an unrelated "codeium" helper).
+// process with the given comm, exe basename, and argv[0] basename. It compares
+// the full app_id and its last dotted segment ("org.kde.konsole" to "konsole"),
+// case-insensitively. Matches are exact, never substring, so "code" does not
+// match "codeium".
 func appIDMatchesProcess(appID, comm, exeBase, cmdlineBase string) bool {
 	full := strings.ToLower(strings.TrimSpace(appID))
 	if full == "" {

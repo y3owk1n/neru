@@ -9,12 +9,9 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// This file canonicalizes hotkey chords into an order-independent signature so
-// config keybindings and live evdev key events compare equal. Reading devices
-// and firing callbacks is the cgo listener's job.
-//
-// The constants are the base-key spellings config parsing and the evdev decoder
-// share, so the two sides cannot drift on string literals.
+// Hotkey chords are canonicalized into an order-independent signature so
+// config bindings and live evdev key events compare equal. The constants are
+// the base-key spellings config parsing and the evdev decoder share.
 const (
 	canonicalKeyReturn    = "return"
 	canonicalKeySpace     = "space"
@@ -22,19 +19,17 @@ const (
 	canonicalKeyEscape    = "escape"
 	canonicalKeyBackspace = "backspace"
 
-	// canonicalKeyDelete is the spelling a configured "Delete" arrives as. It
-	// is a binding-side name only, because canonicalBindingBaseKey folds it to
-	// canonicalKeyBackspace, so no stored chord ever carries it.
+	// canonicalKeyDelete is the spelling a configured "Delete" arrives as.
+	// canonicalBindingBaseKey folds it to canonicalKeyBackspace, so no stored
+	// chord carries it.
 	canonicalKeyDelete = "delete"
 )
 
-// canonicalBindingSignature is canonicalChordSignature for a chord read from
-// the config, the side that can spell "Delete". In [hotkeys] that name means
-// the backspace key on every platform, which is kVK_Delete on macOS, VK_BACK on
-// Windows and XK_BackSpace on X11. So it is folded to the signature a press of
-// that key produces. A live press never takes this fold. The forward-delete
-// key keeps the "delete" signature, which no configured chord can carry, and
-// so matches nothing, as it does on the other platforms.
+// canonicalBindingSignature is canonicalChordSignature for a chord from the
+// config. In [hotkeys] "Delete" means backspace on every platform (kVK_Delete
+// on macOS, VK_BACK on Windows, XK_BackSpace on X11), so it folds to the
+// signature that key's press produces. Live presses never fold, so the
+// forward-delete key keeps "delete" and matches nothing, as elsewhere.
 func canonicalBindingSignature(chord string) string {
 	return chordSignature(chord, canonicalBindingBaseKey)
 }
@@ -42,8 +37,6 @@ func canonicalBindingSignature(chord string) string {
 // canonicalChordSignature normalizes a chord such as "Ctrl+Shift+G" or the
 // evdev-decoded "Shift+Ctrl+g" into a stable signature like "ctrl+shift+g":
 // modifiers lowercased, de-duplicated and sorted, and the base key normalized.
-// This lets the config side and the live keyboard side match regardless of the
-// order or casing each produced.
 func canonicalChordSignature(chord string) string {
 	return chordSignature(chord, canonicalBaseKey)
 }
@@ -85,10 +78,9 @@ func chordSignature(chord string, baseKey func(string) string) string {
 	return strings.Join(mods, "+") + "+" + base
 }
 
-// canonicalModifierToken maps the many modifier spellings Neru and the various
-// platforms use down to one of four canonical tokens. Hotkeys register with
-// Primary already resolved. A "primary" that still reaches this function
-// resolves to the modifier general.primary_modifier set.
+// canonicalModifierToken maps modifier spellings to one of four canonical
+// tokens. Hotkeys register with Primary already resolved, but a "primary"
+// that still arrives resolves to general.primary_modifier.
 func canonicalModifierToken(token string) string {
 	switch strings.ToLower(strings.TrimSpace(token)) {
 	case "primary":

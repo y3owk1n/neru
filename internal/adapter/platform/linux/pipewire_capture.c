@@ -14,22 +14,17 @@
 // display, and small enough that width * height * 4 cannot overflow.
 #define NERU_PIPEWIRE_MAX_DIMENSION 32768
 
-// Only reached when a caller passes a non-positive budget. The Go wrapper
-// always passes what is left of the caller's deadline, at least 1 ms. It must
-// never be zero, because a zero timer value disarms a PipeWire timer rather
-// than firing it immediately.
+// Only reached for a non-positive budget, since the Go wrapper passes at least
+// 1 ms. Never zero, because a zero value disarms a PipeWire timer.
 #define NERU_PIPEWIRE_FALLBACK_TIMEOUT_MS 2000
 
 #define NERU_PIPEWIRE_NSEC_PER_MSEC 1000000L
 #define NERU_PIPEWIRE_MSEC_PER_SEC 1000
 
-// How many values the format choice below carries: the four pixel layouts this
-// backend reads, plus the leading copy of the first that a SPA enum choice uses
-// as its default. They are the layouts a portal ScreenCast stream actually
-// offers. The xRGB/ARGB family is deliberately not negotiated, because its
-// green channel sits at a different byte offset and carrying a second
-// conversion loop for a format nothing sends would be code with no way to go
-// wrong loudly.
+// How many values the format choice carries: the four layouts a portal
+// ScreenCast stream offers, plus the leading default copy a SPA enum choice
+// needs. xRGB/ARGB is not negotiated, because its green channel sits at
+// another offset and nothing sends it.
 #define NERU_PIPEWIRE_FORMAT_CHOICES 5
 
 typedef struct {
@@ -52,10 +47,8 @@ typedef struct {
 	int finished;
 } NeruPipewireCtx;
 
-// pw_init is process-global and not safe to call concurrently, so it runs
-// exactly once however many captures a session takes. There is no matching
-// pw_deinit, because it would tear the library down under any capture still
-// running, and the library is meant to live for the process.
+// pw_init is process-global and not concurrency-safe, so it runs once. There is
+// no pw_deinit, which would tear the library down under a running capture.
 static pthread_once_t neru_pipewire_init_once = PTHREAD_ONCE_INIT;
 
 static void neru_pipewire_init(void) { pw_init(NULL, NULL); }
@@ -99,9 +92,7 @@ static int neru_pipewire_channel_offsets(uint32_t format, int *red_offset, int *
 }
 
 // neru_pipewire_scale maps one logical coordinate onto the physical grid,
-// rounding to the nearest pixel. Coordinates here are never negative, because the
-// caller's rectangle is local to a monitor, so round-half-up is round-to-
-// nearest.
+// rounding to nearest. Coordinates are monitor-local and never negative.
 static int64_t neru_pipewire_scale(int value, int physical, int logical) {
 	if (logical <= 0) {
 		return value;
@@ -111,20 +102,13 @@ static int64_t neru_pipewire_scale(int value, int physical, int logical) {
 }
 
 // neru_pipewire_crop turns the caller's logical rectangle into physical pixels
-// inside the frame that arrived.
+// inside the frame.
 //
-// A scaled output streams more pixels than its logical size, and the portal
-// reports the logical size, so the ratio between the two is the scale. Both
-// edges are scaled and rounded to the nearest pixel rather than the origin
-// being scaled and the size with it, which is what keeps a rectangle ending on
-// the monitor's edge ending on the frame's edge.
-//
-// The arithmetic is integer on purpose. Every input is a pixel count, the
-// products fit in 64 bits for any dimension this file accepts, and a rounding
-// mode that is exactly stated beats one that depends on how a double lands.
-//
-// A crop that does not fit inside the frame is refused rather than clamped. A
-// clipped frame carries nothing that says where its own top-left is.
+// A scaled output streams more pixels than its logical size, so the ratio is
+// the scale. Both edges are scaled and rounded, rather than origin and size, so
+// a rectangle ending on the monitor's edge ends on the frame's edge. Integer
+// arithmetic keeps the rounding exact. A crop that does not fit is refused
+// rather than clamped, since a clipped frame cannot say where its top-left is.
 static int neru_pipewire_crop(
     const NeruPipewireRequest *request, int frame_width, int frame_height, int *crop_x, int *crop_y, int *crop_width,
     int *crop_height) {
@@ -162,10 +146,8 @@ static int neru_pipewire_convert(NeruPipewireCtx *ctx, const struct spa_buffer *
 	int frame_width = (int)ctx->format.size.width;
 	int frame_height = (int)ctx->format.size.height;
 
-	// Frame metadata comes from the compositor, so it is validated rather than
-	// trusted. The dimensions are capped and every product is computed in 64
-	// bits, so a width near UINT32_MAX cannot wrap a size the loop then reads
-	// past.
+	// Frame metadata comes from the compositor, so the dimensions are capped and
+	// every product is computed in 64 bits, so no size can wrap.
 	if (frame_width <= 0 || frame_height <= 0 || frame_width > NERU_PIPEWIRE_MAX_DIMENSION ||
 	    frame_height > NERU_PIPEWIRE_MAX_DIMENSION) {
 		return NERU_CAPTURE_ERR_FORMAT;
@@ -183,10 +165,9 @@ static int neru_pipewire_convert(NeruPipewireCtx *ctx, const struct spa_buffer *
 		return NERU_CAPTURE_ERR_FORMAT;
 	}
 
-	// The pixels start at chunk->offset inside the mapping, not necessarily at
-	// its beginning, and both the offset and the stride come from the
-	// compositor. Everything the loop below will touch has to fit inside
-	// maxsize, computed in 64 bits so no product can wrap into a passing check.
+	// The pixels start at chunk->offset, and offset and stride come from the
+	// compositor. Everything the loop touches must fit inside maxsize, checked
+	// in 64 bits so no product can wrap into a passing check.
 	int64_t offset = (int64_t)buffer->datas[0].chunk->offset;
 	if (offset < 0) {
 		return NERU_CAPTURE_ERR_FORMAT;
@@ -265,10 +246,9 @@ static void neru_pipewire_on_param_changed(void *data, uint32_t id, const struct
 static void neru_pipewire_on_process(void *data) {
 	NeruPipewireCtx *ctx = (NeruPipewireCtx *)data;
 
-	// The first answer wins, and that has to be enforced at the door rather than
-	// only in neru_pipewire_finish. Converting a second frame would overwrite
-	// out->pixels and strand the first allocation, which neru_capture_free would
-	// then never wipe, the one way screen content could survive in freed heap.
+	// Enforced here, not only in neru_pipewire_finish. Converting a second frame
+	// would overwrite out->pixels and strand the first allocation unwiped, the
+	// one way screen content could survive in freed heap.
 	if (ctx->finished) {
 		return;
 	}
@@ -317,9 +297,8 @@ static void neru_pipewire_on_state_changed(
 
 	NeruPipewireCtx *ctx = (NeruPipewireCtx *)data;
 
-	// A stream that errors, or that goes back to unconnected before a frame
-	// arrived, will never produce one. Answering now beats waiting out the
-	// whole budget for something that cannot come.
+	// A stream that errors or disconnects before a frame will never produce
+	// one, so answer now rather than wait out the budget.
 	if (state == PW_STREAM_STATE_ERROR || state == PW_STREAM_STATE_UNCONNECTED) {
 		neru_pipewire_finish(ctx, NERU_CAPTURE_ERR_FAILED);
 	}
@@ -359,15 +338,10 @@ static struct spa_source *neru_pipewire_arm_timeout(NeruPipewireCtx *ctx, int ti
 	return timer;
 }
 
-// neru_pipewire_connect_stream describes what Neru can read and asks for the
-// node the portal named.
-//
-// Two params go out. The format enumeration lists only the four packed 32-bit
-// layouts the conversion loop handles, so a format it cannot read is refused
-// during negotiation rather than discovered on the first frame. The buffer
-// param restricts the data type to shared memory, which keeps dmabuf out of the
-// negotiation. Importing one would mean a GPU context for a job that is one
-// memcpy.
+// neru_pipewire_connect_stream asks for the node the portal named. The format
+// enumeration lists only the layouts the conversion handles, so others are
+// refused during negotiation. The buffer param restricts data to shared memory,
+// keeping out dmabuf, which would need a GPU context for one memcpy.
 static int neru_pipewire_connect_stream(NeruPipewireCtx *ctx, unsigned int node_id) {
 	uint8_t builder_buffer[1024];
 	struct spa_pod_builder builder = SPA_POD_BUILDER_INIT(builder_buffer, sizeof(builder_buffer));

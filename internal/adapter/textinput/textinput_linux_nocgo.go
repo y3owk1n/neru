@@ -13,12 +13,10 @@ import (
 // TextInput is the Linux slot without cgo, which the Wayland field needs.
 // Hint search reads the event tap's key stream instead.
 //
-// The contract here is a started == false return rather than a
-// CodeNotSupported error. TextInputPort.StartHintSearchSession is defined as
-// best-effort, and callers already branch on started to pick the key-stream
-// path. Reporting an error would make an expected degrade look like a failure.
-// The unavailability is instead surfaced through the text_input entry in
-// ports.PlatformCapabilities, which reports stub here.
+// It returns started == false rather than CodeNotSupported, because
+// StartHintSearchSession is best-effort and callers already branch on started,
+// so an expected degrade must not look like a failure. The text_input entry in
+// ports.PlatformCapabilities reports stub here.
 type TextInput struct {
 	logger *zap.Logger
 }

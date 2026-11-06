@@ -15,25 +15,20 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Service management on Linux is a systemd user unit, and only that. Neru is a
-// per-session daemon that needs a display server, so it belongs to the user
-// manager rather than the system one, and the graphical session is what it is
-// ordered against. Other init systems refuse loudly and name systemd
+// Service management on Linux is a systemd user unit, and only that. Neru
+// needs a display server, so it belongs to the user manager, ordered against
+// the graphical session. Other init systems refuse loudly and name systemd
 // (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
 const (
-	// serviceUnitName is the unit systemd knows Neru by. It is also what a user
-	// types into every `systemctl --user` command they run by hand, so it stays
-	// the plain program name rather than a reverse-DNS label.
+	// serviceUnitName stays the plain program name because users type it into
+	// `systemctl --user` by hand.
 	serviceUnitName = "neru.service"
 
-	// systemdRuntimeMarker is the directory systemd creates when it is PID 1.
-	// It is what sd_booted(3) checks, and the only reliable answer to "is this
-	// a systemd machine". `systemctl` sitting on PATH says nothing, since the
-	// binary ships in packages installed on machines running another init.
+	// systemdRuntimeMarker is what sd_booted(3) checks. `systemctl` on PATH
+	// proves nothing, since it ships on machines running another init.
 	systemdRuntimeMarker = "/run/systemd/system"
 
-	// linuxServicesDocs is the page a user is sent to when service management
-	// cannot help them.
+	// linuxServicesDocs is the page for when service management cannot help.
 	linuxServicesDocs = "docs/guide/linux.md#systemd-user-service"
 
 	unitDirPerm  = 0o755
@@ -53,21 +48,16 @@ const (
 )
 
 // serviceUnitMarker is the line Neru writes into every unit it installs, and
-// the only positive evidence that a neru.service is Neru's to disable and
-// delete. The path cannot supply that evidence. The hand-written unit this
-// feature replaces, the one LINUX_SETUP.md used to spell out, sits at exactly
-// this path under exactly this name, and so does anything a user or a
-// configuration tool wrote there by the same instructions.
+// the only evidence that a neru.service is Neru's to disable and delete. The
+// path proves nothing, since units hand-written from the old setup guide sit
+// at the same path under the same name.
 const serviceUnitMarker = "# Installed by `neru services install`"
 
-// serviceUnitTemplate is the systemd user unit Neru installs.
-//
-// The anchor is graphical-session.target rather than default.target. Every
-// Linux backend needs a display server, so starting before one exists would
-// only produce a crash loop. After= orders it behind the session, WantedBy=
-// starts it with each new session, and PartOf= stops it when that session ends.
-// Together they are what makes the unit survive a logout/login cycle rather
-// than linger as an orphan attached to a display that is gone.
+// serviceUnitTemplate is the systemd user unit Neru installs. It anchors on
+// graphical-session.target rather than default.target, because starting
+// before a display server exists only crash loops. After=, WantedBy= and
+// PartOf= together let it survive a logout/login cycle instead of lingering
+// attached to a dead display.
 const serviceUnitTemplate = serviceUnitMarker + `
 # Neru rewrites this file on install and deletes it on uninstall. A neru.service
 # without the line above is one Neru leaves alone.
@@ -99,16 +89,10 @@ func renderServiceUnit(binaryPath string) string {
 }
 
 // systemdQuoteExecPath spells a filesystem path the way an Exec line reads one
-// back unchanged.
-//
-// A Linux path may hold any byte but / and NUL, and two of them are load
-// bearing to systemd. Whitespace splits an Exec line into words, so
-// /opt/my apps/neru would be read as the command /opt/my with the argument
-// apps/neru. Double quotes are what hold it together, and inside them a
-// backslash opens a C-style escape, so a literal backslash or quote has to
-// double up. A percent opens a specifier, which is resolved before the line is
-// split and regardless of quoting. %h would silently become the home
-// directory and %y would fail the unit load, and %% is the literal one.
+// back unchanged. Whitespace splits an Exec line, so the path is
+// double-quoted, and inside the quotes a backslash or quote doubles up. A
+// percent opens a specifier even inside quotes (%h would become the home
+// directory), so it becomes %%.
 func systemdQuoteExecPath(path string) string {
 	escaped := strings.NewReplacer(
 		`\`, `\\`,
@@ -128,9 +112,7 @@ func systemdIsInit(markerDir string) bool {
 }
 
 // errNotSystemd is the refusal every subcommand returns on a machine systemd
-// did not boot. Neru manages a systemd user unit and nothing else, so the
-// message names the one init system that is supported instead of implying the
-// operation might work after some setup.
+// did not boot. It names the one supported init system.
 func errNotSystemd(action string) error {
 	return derrors.Newf(
 		derrors.CodeNotSupported,
@@ -151,10 +133,8 @@ func requireSystemd(action string) error {
 	return nil
 }
 
-// serviceUnitPath is where the unit file is written: the systemd user unit
-// directory under the XDG config home the daemon already honors, so a user who
-// relocated $XDG_CONFIG_HOME finds the unit beside their config rather than in
-// a second place nothing else in Neru uses.
+// serviceUnitPath is the systemd user unit directory under the XDG config home
+// the daemon already honors, so the unit sits beside a relocated config.
 func serviceUnitPath() (string, error) {
 	configHome, err := xdgConfigHome()
 	if err != nil {
@@ -203,10 +183,8 @@ func getBinaryPath() (string, error) {
 // systemctl runs a `systemctl --user` subcommand, returning its combined output
 // so a failure can quote systemd's own explanation instead of an exit code.
 func systemctl(args ...string) (string, error) {
-	// A user manager that has gone away, usually through a stale
-	// DBUS_SESSION_BUS_ADDRESS inherited over SSH, leaves systemctl waiting on
-	// a bus that will never answer. `status` is the subcommand a person runs when
-	// things are already broken, so it has to come back with something.
+	// A dead user manager (often a stale DBUS_SESSION_BUS_ADDRESS over SSH)
+	// leaves systemctl waiting forever, and `status` must still answer.
 	ctx, cancel := context.WithTimeout(context.Background(), systemctlTimeout)
 	defer cancel()
 
@@ -233,11 +211,10 @@ func runSystemctl(attempt string, args ...string) error {
 	return derrors.Wrapf(err, derrors.CodeExecFailed, "failed to %s: %s", attempt, output)
 }
 
-// serviceUnitExists reports whether a neru.service user unit exists at all: the
-// one Neru writes, or one a package manager (nix, home-manager, a distribution
-// package) placed on systemd's search path. `systemctl --user cat` is what
-// answers the second, and it is also what fails when there is no user manager
-// to ask, which is why the file check comes first.
+// serviceUnitExists reports whether any neru.service user unit exists, Neru's
+// own or one a package manager placed on systemd's search path (`systemctl
+// --user cat`). The file check comes first because `cat` also fails when
+// there is no user manager to ask.
 func serviceUnitExists(unitPath string) bool {
 	_, statErr := os.Stat(unitPath)
 	if statErr == nil {
@@ -299,10 +276,8 @@ func installService() error {
 		)
 	}
 
-	// A unit file systemd never accepted is worse than no unit file. It blocks
-	// the next install and starts nothing, so the write is undone. The manager
-	// is told about the removal too, or it goes on holding a unit whose file
-	// is gone.
+	// A unit file systemd never accepted blocks the next install and starts
+	// nothing, so undo the write and tell the manager about the removal.
 	err = enableService()
 	if err != nil {
 		_ = os.Remove(unitPath)
@@ -315,15 +290,10 @@ func installService() error {
 }
 
 // requireScannedUnitDir refuses an install into a directory the user manager
-// will not read.
-//
-// The manager fixed its unit search path from its own environment when the
-// session began. A $XDG_CONFIG_HOME exported in a shell rc afterwards moves
-// where Neru writes without moving where systemd looks, and the symptom
-// (`enable` reporting that a unit just written does not exist) names neither
-// half of the mismatch. Asking the manager for its search path turns that into
-// one sentence. A manager that cannot be reached at all answers nothing, and
-// the install proceeds so that `enable` is what reports it.
+// will not read. The manager fixed its search path at session start, so a
+// $XDG_CONFIG_HOME exported later moves where Neru writes but not where
+// systemd looks, and `enable` would report a baffling missing unit. An
+// unreachable manager answers nothing, and `enable` reports it.
 func requireScannedUnitDir(unitDir string) error {
 	searchPath, err := systemctl("show", "--property=UnitPath", "--value")
 	if err != nil {
@@ -346,13 +316,10 @@ func requireScannedUnitDir(unitDir string) error {
 	)
 }
 
-// unitDirIsScanned reports whether dir appears in a `systemctl show -p UnitPath`
-// answer, which is the search path spelled as space-separated directories.
-//
-// That spelling has no escaping, so a directory whose own name contains a space
-// cannot be told from two directories. There the substring hit is inconclusive
-// rather than a match, and an inconclusive answer says yes, because refusing an
-// install that would have worked is the worse of the two mistakes.
+// unitDirIsScanned reports whether dir appears in a `systemctl show -p
+// UnitPath` answer, a space-separated list with no escaping. For a directory
+// whose name contains a space the answer is inconclusive and reads as yes,
+// because refusing a working install is the worse mistake.
 func unitDirIsScanned(unitDir, searchPath string) bool {
 	cleaned := filepath.Clean(unitDir)
 	if slices.Contains(strings.Fields(searchPath), cleaned) {
@@ -362,20 +329,12 @@ func unitDirIsScanned(unitDir, searchPath string) bool {
 	return strings.Contains(cleaned, " ") && strings.Contains(searchPath, cleaned)
 }
 
-// requireOwnUnit is the mirror of install's refusal, on the way back out. It
-// stops `uninstall` from disabling or deleting a neru.service somebody else
-// owns.
-//
-// Nix and home-manager put a symlink into the store at Neru's own path, a
-// distribution package puts a real unit somewhere else on the search path
-// entirely, and a user following the setup guide that predates this feature
-// wrote a plain file at that same path by hand. Deleting any of the three
-// looks like success while breaking a setup Neru does not manage. Being a
-// regular file at the right path says nothing, so ownership is read out of the
-// file. The marker line Neru writes is the one thing only an install puts
-// there. knownToSystemd says whether the manager can resolve a neru.service at
-// all, which is the only way to tell "nothing installed" (fine, uninstall is a
-// no-op) from "installed elsewhere" (refuse).
+// requireOwnUnit stops `uninstall` from disabling or deleting a neru.service
+// somebody else owns, such as a nix or home-manager store symlink at Neru's
+// path, a distribution unit elsewhere on the search path, or a file written
+// by hand from the old setup guide. Ownership is read from the marker line.
+// knownToSystemd tells "nothing installed" (a no-op) from "installed
+// elsewhere" (refuse).
 func requireOwnUnit(unitPath string, knownToSystemd bool) error {
 	info, err := os.Lstat(unitPath)
 	if err != nil {
@@ -426,9 +385,8 @@ func requireOwnUnit(unitPath string, knownToSystemd bool) error {
 	return nil
 }
 
-// enableService is the half of install that talks to systemd. It reloads so the new
-// file is seen, then enables --now so it starts in this session and in every
-// session after it.
+// enableService reloads so systemd sees the new file, then enables --now so
+// it starts in this session and every later one.
 func enableService() error {
 	err := runSystemctl("reload the systemd user manager", "daemon-reload")
 	if err != nil {
@@ -456,18 +414,14 @@ func uninstallService() error {
 		return err
 	}
 
-	// Nothing to uninstall is not a failure, and it is the one case where there
-	// is no unit for systemd to be asked about. Asking anyway would fail on a
-	// unit that does not exist and turn a no-op into an error.
+	// Nothing to uninstall is not a failure, and asking systemd about a missing
+	// unit would turn the no-op into an error.
 	if !installed {
 		return nil
 	}
 
-	// Everything past here is reported rather than swallowed. `disable --now`
-	// is idempotent over a unit that was never enabled or is already stopped,
-	// so a failure here is a real one, usually an unreachable user manager,
-	// and hiding it would leave the daemon running and the unit still enabled
-	// for the next login while the CLI printed success.
+	// Failures past here are real, since `disable --now` is idempotent. Hiding
+	// one would leave the unit enabled while the CLI printed success.
 	err = runSystemctl(
 		"stop and disable the service (the unit file at "+unitPath+" was left in place)",
 		"disable", "--now", serviceUnitName,
@@ -515,12 +469,10 @@ func requireOwnServiceUnit(action string) error {
 }
 
 // requireManagerResolves refuses when the user manager resolves neru.service to
-// a file other than the one whose ownership was just checked. The manager
-// fixed its search path when the session began, so a $XDG_CONFIG_HOME exported
-// later can point this shell at an old unit of Neru's while the manager runs
-// one nix or home-manager linked in. A manager that cannot be asked, or that
-// knows no neru.service, answers nothing, and the systemctl call that follows
-// reports it.
+// a different file than the one just checked, as when a later
+// $XDG_CONFIG_HOME points this shell at an old unit while the manager runs a
+// nix one. A manager that cannot answer is left to the systemctl call that
+// follows.
 func requireManagerResolves(unitPath string) error {
 	fragment, err := systemctl("show", "--property=FragmentPath", "--value", serviceUnitName)
 	if err != nil || fragment == "" || filepath.Clean(fragment) == filepath.Clean(unitPath) {
@@ -549,9 +501,8 @@ func startService() error {
 	return runSystemctl("enable and start the service", "enable", "--now", serviceUnitName)
 }
 
-// stopService stops the unit and disables it, so it stays stopped across
-// logins until startService. A plain `systemctl stop` would last only until
-// the next login. The unit file stays, so startService can enable it again.
+// stopService stops and disables the unit, so it stays stopped across logins
+// until startService. The unit file stays.
 func stopService() error {
 	err := requireOwnServiceUnit("stop")
 	if err != nil {
@@ -579,33 +530,25 @@ func restartService() error {
 	return runSystemctl("restart the service", "restart", serviceUnitName)
 }
 
-// serviceUnitState is everything `neru services status` reports, gathered
-// before any of it is put into words. Keeping the two apart is what lets the
-// wording be tested on a machine with no systemd to ask.
+// serviceUnitState is everything `neru services status` reports, kept apart
+// from the wording so the wording can be tested without systemd.
 type serviceUnitState struct {
-	// systemdBooted is false on a machine running another init, where nothing
-	// below can be true.
+	// systemdBooted is false on a machine running another init.
 	systemdBooted bool
-	// installed is whether a neru.service user unit exists at all, ours or
-	// one a package manager placed on systemd's search path.
+	// installed is whether any neru.service user unit exists, ours or not.
 	installed bool
 	// unitPath is where Neru writes its unit, whether or not it is there yet.
 	unitPath string
-	// active and enabled are systemctl's own words ("active", "inactive",
-	// "failed"; "enabled", "disabled", "static"), passed through rather than
-	// translated so they match what `systemctl --user status` shows.
+	// active and enabled are systemctl's own words, passed through so they
+	// match `systemctl --user status`.
 	active  string
 	enabled string
 }
 
-// describeServiceStatus puts a gathered state into one line.
-//
-// A machine with no unit installed is not a failure, and neither is one systemd
-// did not boot. Both are ordinary answers to "what is the service doing", so
-// they read as statements of fact with the next step attached rather than as
-// errors. `status` is the one subcommand with no error to carry a code, so the
-// non-systemd answer carries the documentation link the other five put in their
-// CodeNotSupported instead.
+// describeServiceStatus puts a gathered state into one line. No unit and no
+// systemd are ordinary answers, not errors. `status` has no error to carry a
+// code, so its non-systemd answer carries the docs link the other five
+// subcommands put in their CodeNotSupported.
 func describeServiceStatus(state serviceUnitState, docsURL string) string {
 	if !state.systemdBooted {
 		return "Service management requires systemd; this machine was not " +

@@ -9,17 +9,11 @@ import (
 )
 
 // configProvider is a process-global runtime config source for the Linux
-// injection backends, mirroring the slot platform/linux and platform/darwin
-// already have. It is set once at daemon startup (see
-// internal/app/runtime_config_linux.go) and read by the smooth-scroll path.
-//
-// It is a second slot rather than a share of platform/linux's because the two
-// packages are on opposite sides of the adapter boundary. Scroll injection
-// lives here, beside the element walk, while cursor movement lives there, and
-// neither imports the other.
-//
-// A nil provider (tests, or before wiring) means "no config", so callers fall
-// back to the direct, unanimated scroll.
+// injection backends, set once at daemon startup
+// (internal/app/runtime_config_linux.go) and read by the smooth-scroll path.
+// It is a separate slot from platform/linux's because the two packages sit on
+// opposite sides of the adapter boundary and neither imports the other. A nil
+// provider (tests, before wiring) means the direct, unanimated scroll.
 var (
 	configProviderMu sync.RWMutex
 	configProvider   config.Provider

@@ -2,15 +2,11 @@
 
 package linux
 
-// SubscribeScreenChange returns a file descriptor that becomes readable whenever
-// the display configuration changes on the given backend (as produced by
-// platform.LinuxBackend.String()): RandR RRScreenChangeNotify on X11, wl_output
-// registry add/remove on the wlroots/KWin Wayland stack.
-//
-// ok is false when the backend exposes no such fd, as on unknown backends,
-// RandR-less X servers, or CGO-disabled builds. There are then no live hotplug
-// events, and the overlay still follows the cursor. The platform layer owns the
-// fd for the process lifetime. Callers poll it read-only and never close it.
+// SubscribeScreenChange returns an fd that becomes readable when the display
+// configuration changes on the given backend (RandR on X11, wl_output
+// add/remove on Wayland). ok is false when there is no such fd, and the overlay
+// still follows the cursor. The platform layer owns the fd for the process
+// lifetime, so callers poll it read-only and never close it.
 func SubscribeScreenChange(backend string) (int, bool) {
 	switch backend {
 	case backendX11:
@@ -22,10 +18,9 @@ func SubscribeScreenChange(backend string) (int, bool) {
 	}
 }
 
-// RefreshScreens re-reads the display layout into any Go-side cache after a
-// screen-change event. X11 enumerates live on every ScreenBounds call, so this
-// is a Wayland-only concern (the wlroots client caches its screen list). It is a
-// no-op on other backends.
+// RefreshScreens re-reads the display layout into the wlroots client's screen
+// cache after a screen-change event. It is a no-op elsewhere, since X11
+// enumerates live.
 func RefreshScreens(backend string) {
 	switch backend {
 	case backendWaylandWlroots, backendWaylandKDE, backendWaylandCOSMIC, backendWaylandGNOME:

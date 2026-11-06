@@ -92,15 +92,12 @@ func Install(dir string) (bool, error) {
 	return changed, nil
 }
 
-// installIfShellIsUp puts the extension files in place when GNOME Shell is on
-// the bus and the extension is not, once per process, and lists it in the
-// shell's enabled extensions so the next login loads it. It is reached only
-// after the extension was found absent, so it never touches an install that
-// is serving. What it did comes back as a sentence for the reason the caller
-// records, so the one warning and the doctor detail both carry the next step.
-//
-// A session with no shell on the bus is left alone. A GNOME-labeled session
-// with nothing to load the files would gain a directory for nobody to read.
+// installIfShellIsUp installs the extension once per process when GNOME Shell
+// is on the bus and the extension is not, and lists it as enabled so the next
+// login loads it. It runs only after the extension was found absent, so it
+// never touches a serving install. It returns a sentence naming the next step
+// for the recorded reason. A session with no shell on the bus is left alone,
+// so nothing writes a directory nobody will read.
 func (b *Bridge) installIfShellIsUp(conn *dbus.Conn) string {
 	b.startMu.Lock()
 	dir, done := b.dataDir, b.installed
@@ -154,8 +151,7 @@ func Installed(dir string) bool {
 
 // enable lists the extension in the shell's enabled-extensions setting so the
 // next login loads it, and reports whether it is listed afterwards. It is best
-// effort. The setting is the shell's, and a session without gsettings is told
-// to log out and back in either way.
+// effort, since the user is told to log out and back in either way.
 func enable() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), enableTimeout)
 	defer cancel()

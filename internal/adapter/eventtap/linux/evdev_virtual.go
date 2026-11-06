@@ -10,12 +10,11 @@ import (
 // sysfsRoot is where the kernel describes input devices to userspace.
 const sysfsRoot = "/sys"
 
-// isVirtualInputNode reports whether an event node under /dev/input belongs to
-// a uinput device, which is what a key remapper's output keyboard is. The
-// kernel registers a uinput device with no parent, so sysfs lists it directly
-// under devices/virtual/input. A keyboard on a bus sits under that bus, and a
-// Bluetooth one under virtual/misc/uhid, so neither matches. root is the sysfs
-// mount, a parameter so a test can lay out a sysfs of its own.
+// isVirtualInputNode reports whether a /dev/input event node belongs to a
+// uinput device, as a remapper's output keyboard does. uinput devices have no
+// parent, so sysfs lists them under devices/virtual/input, while bus and
+// Bluetooth (virtual/misc/uhid) keyboards sit elsewhere. root is the sysfs
+// mount, a test seam.
 func isVirtualInputNode(root string, path string) bool {
 	target, err := filepath.EvalSymlinks(filepath.Join(root, "class", "input", filepath.Base(path)))
 	if err != nil {

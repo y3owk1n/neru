@@ -16,16 +16,14 @@ const (
 	sleepSignalBuffer = 8
 	login1Interface   = "org.freedesktop.login1.Manager"
 	login1Member      = "PrepareForSleep"
-	// hibernateReinitDelay is how long after PrepareForSleep(true) we wait
-	// before reinitialising. If PrepareForSleep(false) (normal resume) arrives
-	// within this window, the reinit is canceled. This handles the systemd
-	// issue (https://github.com/systemd/systemd/issues/30666) where
-	// PrepareForSleep(false) is not emitted after hibernation.
+	// hibernateReinitDelay is how long after PrepareForSleep(true) a reinit
+	// waits, canceled by a PrepareForSleep(false) in time (see
+	// setupSleepObserver).
 	hibernateReinitDelay = 10 * time.Second
 	// postReloadCheckDelay is how long after a config reload we wait before
 	// verifying the hotkey listener started correctly.
 	postReloadCheckDelay = 2 * time.Second
-	// hotkeyReinitRetries is the default number of hotkey reinitialization retries.
+	// hotkeyReinitRetries is the number of retries during normal reinit.
 	hotkeyReinitRetries = 5
 	// hotkeyReinitDelay is the delay between retry attempts during normal reinit.
 	hotkeyReinitDelay = 500 * time.Millisecond
@@ -35,22 +33,16 @@ const (
 )
 
 // setupSleepObserver subscribes to logind's PrepareForSleep D-Bus signal. On
-// wake (signal with body=false) it reinitializes the evdev-based hotkey
-// listener and the libei input session, both of which go stale after system
-// suspend.
+// wake (body=false) it reinitializes the evdev hotkey listener and the libei
+// input session, both of which go stale across suspend. PrepareForSleep(true)
+// arms a reinit after hibernateReinitDelay unless a PrepareForSleep(false)
+// cancels it, because systemd does not emit the resume signal after
+// hibernation (https://github.com/systemd/systemd/issues/30666).
 //
-// On PrepareForSleep(true) it arms a deferred reinit timer that fires
-// hibernateReinitDelay later unless canceled by a matching
-// PrepareForSleep(false). This covers the systemd issue
-// (https://github.com/systemd/systemd/issues/30666) where the resume signal
-// is not emitted after hibernation.
-//
-// All teardown state is captured per App instance in the closures registered
-// on the App. Package-level state here would be shared across instances, and
-// a process that creates more than one (tests do) would close another
-// instance's channel and leak its goroutine. The teardown and post-reload
-// hooks are registered before the D-Bus attempt so the post-reload health
-// check keeps working when the bus is unavailable.
+// Teardown state lives in closures on the App, never in package state, which
+// a second App instance (tests) would share. The teardown and post-reload
+// hooks register before the D-Bus attempt so the post-reload health check
+// works without a bus.
 func (a *App) setupSleepObserver() {
 	stopChan := make(chan struct{})
 	waitGroup := &sync.WaitGroup{}
@@ -59,8 +51,8 @@ func (a *App) setupSleepObserver() {
 	// reads it at call time, so the degraded no-bus path leaves it nil.
 	var dbusClose func() error
 
-	// Under observerMu, because the IPC server is already live, so a reload can be
-	// reading postReloadVerify while Run is still in here.
+	// Under observerMu, because the live IPC server's reload can read
+	// postReloadVerify concurrently.
 	a.observerMu.Lock()
 
 	a.sleepObserverStop = func() {
@@ -117,9 +109,7 @@ func (a *App) setupSleepObserver() {
 	dbusClose = conn.Close
 
 	waitGroup.Go(func() {
-		// hibernateReinitTimer fires after hibernateReinitDelay unless
-		// canceled by a matching PrepareForSleep(false) signal. Only this
-		// goroutine touches it.
+		// hibernateReinitTimer is touched only by this goroutine.
 		var (
 			hibernateReinitTimer *time.Timer
 			hibernateTimerCh     <-chan time.Time
@@ -180,17 +170,15 @@ func (a *App) setupSleepObserver() {
 	})
 }
 
-// reinitializeHotkeys tears down and re-registers the global hotkey listener
-// without touching the libei/RemoteDesktop session. Use this for health-check
-// recovery after stale evdev fds. It avoids triggering a fresh RemoteDesktop
-// portal consent prompt.
+// reinitializeHotkeys re-registers the global hotkey listener without touching
+// the libei/RemoteDesktop session, so health-check recovery from stale evdev
+// fds does not trigger a fresh portal consent prompt.
 func (a *App) reinitializeHotkeys() {
 	a.reinitializeHotkeysWithParams(hotkeyReinitRetries, hotkeyReinitDelay)
 }
 
-// reinitializeHotkeysAfterSleep is used on sleep/wake resume. Some systems
-// can take several seconds for evdev input devices to settle after
-// resume, so this uses a longer retry window (10 retries x 1s = 10s).
+// reinitializeHotkeysAfterSleep uses a longer retry window (10 retries x 1s),
+// since evdev devices can take seconds to settle after resume.
 func (a *App) reinitializeHotkeysAfterSleep() {
 	a.reinitializeHotkeysWithParams(hotkeySleepRetries, 1*time.Second)
 }
@@ -240,25 +228,19 @@ func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Dura
 	a.logger.Debug("Hotkey listener reinitialized")
 }
 
-// handleWakeFromSleep reinitializes all input subsystems after the system
-// resumes from suspend. It re-registers the evdev-based hotkey listener and
-// resets the libei/RemoteDesktop portal session, both of which go stale when
-// the compositor reinitializes during resume.
-//
-// Called from the logind PrepareForSleep(false) signal handler and the
-// deferred hibernation timer. Do NOT call this from post-reload health
-// checks. Use reinitializeHotkeys instead to avoid triggering a fresh
-// RemoteDesktop consent prompt on every recovery.
+// handleWakeFromSleep reinitializes all input subsystems after resume, both the
+// evdev hotkey listener and the libei/RemoteDesktop session. It is called from
+// the PrepareForSleep(false) handler and the hibernation timer. Never call it
+// from post-reload health checks, because resetting the session prompts for
+// RemoteDesktop consent again. Use reinitializeHotkeys there.
 func (a *App) handleWakeFromSleep() {
 	a.reinitializeHotkeysAfterSleep()
 
 	a.logger.Info("Input listeners reinitialized after sleep/wake")
 }
 
-// verifyHotkeyHealth tests whether the global hotkey listener is alive when it
-// should be running, and re-registers hotkeys if not. Uses evdev-only recovery
-// (reinitializeHotkeys) rather than the full handleWakeFromSleep so the
-// libei/RemoteDesktop session is not torn down unnecessarily.
+// verifyHotkeyHealth re-registers hotkeys if the listener should be running and
+// is not, using reinitializeHotkeys so the libei session is left alone.
 func (a *App) verifyHotkeyHealth() {
 	if !a.appState.HotkeysRegistered() {
 		return

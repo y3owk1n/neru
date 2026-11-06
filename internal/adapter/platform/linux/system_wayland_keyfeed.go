@@ -9,8 +9,8 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// evdevKeycode maps canonical key names (lowercase) to evdev keycodes.
-// Based on linux/input-event-codes.h KEY_* constants.
+// evdevKeycode maps lowercase canonical key names to linux/input-event-codes.h
+// KEY_* codes.
 //
 //nolint:mnd // evdev keycodes are hardware constants, not magic numbers.
 var evdevKeycode = map[string]uint32{
@@ -77,9 +77,8 @@ var evdevKeycode = map[string]uint32{
 	"kpenter":    96,
 }
 
-// modifierNameMap maps display-form modifier names (from
-// CanonicalHotkeyForPlatform) to the lowercase names expected by
-// neru_wlr_modifier_event / waylandModifierEvent.
+// modifierNameMap maps display-form modifier names to the lowercase names
+// waylandModifierEvent expects.
 var modifierNameMap = map[string]string{
 	modNameCtrl:  modNameCtrl,
 	modNameShift: modNameShift,
@@ -88,33 +87,18 @@ var modifierNameMap = map[string]string{
 	modNameCmd:   modNameCmd,
 }
 
-// FeedKey injects a key or key chord into the Wayland compositor.
-// The key string must already be in canonical form (as returned by
-// config.CanonicalHotkeyForPlatform).
-//
-// Supported formats:
-//   - single key: "a", "Return", "F1"
-//   - modifier+key: "Ctrl+c", "Shift+F1", "Ctrl+Shift+Space"
-//
-// Backend selection:
-//   - wlroots compositors (niri, Sway, Hyprland, River) use
-//     zwp_virtual_keyboard_v1.
-//   - KDE/KWin uses libei / RemoteDesktop portal when a keyboard device was
-//     granted by the user (the portal defaults to pointer-only, so keyboard
-//     may be unavailable).
+// FeedKey injects a key or chord such as "Ctrl+Shift+Space", already in
+// config.CanonicalHotkeyForPlatform form. It prefers uinput, otherwise the
+// compositor's own path: zwp_virtual_keyboard_v1 on wlroots, libei on KWin
+// when the portal granted a keyboard.
 func FeedKey(key string) error {
-	// Validate the key before any backend probing so that invalid keys
-	// always return CodeInvalidInput regardless of compositor or CGO
-	// availability.
+	// Validate first, so an invalid key is CodeInvalidInput on any backend.
 	modifiers, keycode, err := parseKeyString(key)
 	if err != nil {
 		return err
 	}
 
-	// Prefer the uinput virtual keyboard when /dev/uinput is writable. It works
-	// uniformly across X11, wlroots, and KWin and avoids the compositor-specific
-	// protocols (KDE's RemoteDesktop portal in particular). Only when we lack
-	// evdev injection access do we fall back to the compositor backends.
+	// uinput works the same everywhere and avoids KDE's portal.
 	if uinputKeyboardAvailable() {
 		return feedKeyUinput(modifiers, keycode)
 	}
@@ -131,10 +115,9 @@ func FeedKey(key string) error {
 	return feedKeyLibei(modifiers, keycode)
 }
 
-// uinputModifierCodes resolves canonical modifier names (as produced by
-// parseKeyString) to their evdev keycodes for uinput injection, preserving
-// order. It reuses libeiModifierKeycodes, which is a provider-agnostic
-// modifier-name to keycode table despite its name.
+// uinputModifierCodes resolves parseKeyString's modifier names to evdev
+// keycodes in order. libeiModifierKeycodes is provider-agnostic despite its
+// name.
 func uinputModifierCodes(modifiers []string) ([]int, error) {
 	codes := make([]int, 0, len(modifiers))
 
@@ -157,9 +140,8 @@ func uinputModifierCodes(modifiers []string) ([]int, error) {
 func feedKeyWlroots(modifiers []string, keycode uint32) error {
 	var err error
 
-	// 1. Press modifiers through the ref-counting dispatcher so that
-	// modifiers already held (e.g. by sticky modifiers) are not
-	// released when this feed sequence ends.
+	// The ref-counting dispatcher keeps a modifier another consumer (sticky
+	// modifiers, clicks) holds from being released when this feed ends.
 	for i, modifier := range modifiers {
 		err = WaylandModifierEvent(modifier, true)
 		if err != nil {
@@ -171,15 +153,11 @@ func feedKeyWlroots(modifiers []string, keycode uint32) error {
 		}
 	}
 
-	// 2. Press and release the main key.
 	err = wlrootsKey(keycode, true)
 	if err == nil {
 		err = wlrootsKey(keycode, false)
 	}
 
-	// 3. Release modifiers in reverse order. The dispatcher ref-count
-	// suppresses the actual compositor release if another consumer
-	// (sticky modifiers, accessibility clicks) still holds the modifier.
 	for _, v := range slices.Backward(modifiers) {
 		_ = WaylandModifierEvent(v, false)
 	}
@@ -210,10 +188,7 @@ func feedKeyLibei(modifiers []string, keycode uint32) error {
 
 	var err error
 
-	// 1. Press modifier keys through the ref-counting dispatcher. On KDE
-	// the dispatcher routes to waylandModifierEvent -> libeiKey, but the
-	// ref-count prevents releasing a modifier that another consumer (sticky
-	// modifiers, accessibility clicks) still holds.
+	// Ref-counted like feedKeyWlroots, routed to libeiKey.
 	for i, modifier := range modifiers {
 		err = WaylandModifierEvent(modifier, true)
 		if err != nil {
@@ -225,15 +200,11 @@ func feedKeyLibei(modifiers []string, keycode uint32) error {
 		}
 	}
 
-	// 2. Press and release the main key.
 	err = libeiKey(int(keycode), true)
 	if err == nil {
 		err = libeiKey(int(keycode), false)
 	}
 
-	// 3. Release modifier keys in reverse order. The dispatcher ref-count
-	// suppresses the actual compositor release if another consumer still
-	// holds the modifier.
 	for _, v := range slices.Backward(modifiers) {
 		_ = WaylandModifierEvent(v, false)
 	}
@@ -241,15 +212,13 @@ func feedKeyLibei(modifiers []string, keycode uint32) error {
 	return err
 }
 
-// parseKeyString splits a canonical key string into modifier names and
-// an evdev keycode. Returns the modifiers (lowercase internal names,
-// e.g. "ctrl", "shift") and the main key's evdev keycode.
+// parseKeyString splits a canonical key string into lowercase modifier names
+// and the main key's evdev keycode.
 func parseKeyString(key string) ([]string, uint32, error) {
 	parts := strings.Split(key, "+")
 
 	var modifiers []string
 
-	// Identify modifiers (all parts except the last).
 	for i := range len(parts) - 1 {
 		lower := strings.ToLower(strings.TrimSpace(parts[i]))
 
@@ -261,7 +230,6 @@ func parseKeyString(key string) ([]string, uint32, error) {
 		modifiers = append(modifiers, internal)
 	}
 
-	// Identify the main key (last part).
 	mainKey := strings.TrimSpace(parts[len(parts)-1])
 	if mainKey == "" {
 		return nil, 0, derrors.New(derrors.CodeInvalidInput, "key is required")

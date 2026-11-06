@@ -298,10 +298,9 @@ void neru_x11_overlay_rounded_rect(
 // triangular tail merged into one edge, as a single closed outline. edge: 0 =
 // no tail, 1 = tail on the top edge (apex above), 2 = tail on the bottom edge
 // (apex below). The tail base (a_left..a_right) is clamped to the edge's flat
-// span so it never runs onto a rounded corner. If no room remains the tail is
-// dropped. Building badge and tail as one path lets the caller fill and stroke
-// once, avoiding the double-composited seam a separate overlaid triangle causes
-// with translucent colors.
+// span, and the tail is dropped if no room remains. One path lets the caller
+// fill and stroke once, avoiding the seam a separate translucent triangle
+// leaves.
 static void neru_x11_hint_badge_path(
     cairo_t *cr, double x, double y, double w, double h, double radius, int edge, double a_left, double a_right,
     double tip_x, double tip_y) {
@@ -389,9 +388,8 @@ void neru_x11_overlay_flush(NeruX11Overlay *overlay) {
 }
 
 // neru_x11_overlay_scale is neru_x11_display_scale for the overlay's display.
-// Hint and label positions are already in device pixels and stay put. Callers
-// multiply font sizes and stroke widths by this value so the overlay renders
-// at a legible size on HiDPI screens.
+// Positions are already device pixels. Callers multiply font sizes and stroke
+// widths by it so the overlay stays legible on HiDPI screens.
 double neru_x11_overlay_scale(NeruX11Overlay *overlay) {
 	if (overlay == NULL) {
 		return 1.0;

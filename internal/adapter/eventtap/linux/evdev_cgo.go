@@ -18,10 +18,9 @@ const (
 	waylandEvdevHotplugSettleDelay  = 100 * time.Millisecond
 	waylandEvdevHotplugPollInterval = 500 * time.Millisecond
 
-	// waylandEvdevKeymapPollInterval is how often the proxy asks its Wayland
-	// connection whether the compositor replaced the keymap. Layout changes are
-	// rare and a stale name costs one mistyped binding, so this is slow. The
-	// same check runs at every mode start, where it is free.
+	// waylandEvdevKeymapPollInterval is how often the proxy asks whether the
+	// compositor replaced the keymap. Layout changes are rare and a stale name
+	// costs one mistyped binding. Every mode start also checks, for free.
 	waylandEvdevKeymapPollInterval = 2 * time.Second
 
 	// waylandEvdevIdlePollInterval is how often a keyboard found with a key
@@ -29,32 +28,28 @@ const (
 	// once per device (waitIdle), never per activation.
 	waylandEvdevIdlePollInterval = 10 * time.Millisecond
 
-	// waylandEvdevProxyProbeInterval is how often the proxy asks whether
-	// another process has grabbed one of its own devices (probeOwnDevices).
-	// Two ioctls per tick, nothing on the keystroke path. It bounds how long
-	// the keyboard is dead when a remapper closes the loop.
+	// waylandEvdevProxyProbeInterval is how often the proxy checks whether
+	// another process grabbed one of its own devices (probeOwnDevices). It
+	// bounds how long the keyboard is dead when a remapper closes the loop.
 	waylandEvdevProxyProbeInterval = 500 * time.Millisecond
 
 	// waylandEvdevYieldGrace is how long a physical keyboard yielded to a
-	// remapper that just started stays with the compositor before the capture
-	// takes back one the remapper did not want. Kanata grabs its inputs two
-	// seconds after creating its output device (its startup delay), so this
-	// is that with room for its idle wait.
+	// starting remapper stays with the compositor before an unclaimed one is
+	// taken back. Kanata grabs its inputs two seconds after creating its
+	// output device, so this adds room for its idle wait.
 	waylandEvdevYieldGrace = 3 * time.Second
 )
 
-// waylandEvdevKeyboardActive reports whether a mode session currently owns the
-// keys, i.e. presses are captured for the mode rather than re-emitted to the
-// compositor. When true, the overlay must NOT request exclusive keyboard focus.
-// On wlroots compositors (niri, Sway, …) a layer-surface keyboard grab
-// deactivates the focused app's toplevel, which makes a hints refresh re-read
-// the wrong "focused window" and tear the overlay down.
+// waylandEvdevKeyboardActive reports whether a mode session owns the keys.
+// When true, the overlay must NOT request exclusive keyboard focus. On
+// wlroots compositors a layer-surface keyboard grab deactivates the focused
+// toplevel, so a hints refresh reads the wrong window and tears the overlay
+// down.
 var waylandEvdevKeyboardActive atomic.Bool
 
-// IsWaylandEvdevKeyboardActive reports whether keys are currently being captured
-// by the evdev proxy for a mode (so the overlay's keyboard grab is redundant and
-// must stay off). False on non-Wayland sessions, when the proxy is unavailable,
-// and between modes.
+// IsWaylandEvdevKeyboardActive reports whether the evdev proxy is capturing
+// keys for a mode, so the overlay's keyboard grab must stay off. False on
+// non-Wayland sessions, without a proxy, and between modes.
 func IsWaylandEvdevKeyboardActive() bool {
 	return waylandEvdevKeyboardActive.Load()
 }
@@ -79,12 +74,10 @@ var (
 
 const waylandEvdevDeviceNameSize = 256
 
-// neruInjectionDevicePrefix identifies Neru's own synthetic uinput devices
-// (the proxy keyboard and pointer, "neru-keyboard" from key feeding,
-// "neru-scroll").
-// Capture must never grab these. Grabbing the proxy would loop every key back
-// into the reader, and grabbing the feed keyboard would swallow fed keys before
-// they reach the focused app.
+// neruInjectionDevicePrefix identifies Neru's own uinput devices (the proxy
+// keyboard and pointer, "neru-keyboard", "neru-scroll"). Capture must never
+// grab these. Grabbing the proxy loops every key back into the reader, and
+// grabbing the feed keyboard swallows fed keys.
 const neruInjectionDevicePrefix = "neru-"
 
 func isNeruInjectionDevice(name string) bool {
@@ -121,28 +114,24 @@ func newWaylandEvdevKeyState() waylandEvdevKeyState {
 type modifierTransition int
 
 const (
-	// modifierHeld is a press. The modifier is now down. A press for a key
-	// already tracked as down is the kernel repeating itself and still answers
-	// this, having counted nothing twice.
+	// modifierHeld is a press. A press for a key already down is a kernel
+	// repeat and still answers this, counting nothing twice.
 	modifierHeld modifierTransition = iota
 	// modifierDropped is the release of a press this state saw.
 	modifierDropped
-	// modifierReleaseUnmatched is a release with no press behind it, so nothing
-	// was counted and nothing was decremented. The proxy's own picture sees one
-	// only for a key held before the daemon started. A mode session sees one
-	// for every key held before the mode did, which is the ordinary way a mode
-	// starts under its activation chord.
+	// modifierReleaseUnmatched is a release with no press behind it, so
+	// nothing changes. The proxy sees one for a key held before the daemon
+	// started, and a mode session for every key held before the mode, the
+	// usual case under an activation chord.
 	modifierReleaseUnmatched
 )
 
 // trackModifier records a modifier key event against the held-key picture and
 // reports what it meant.
 //
-// The refcount is per modifier *name*, not per key, so the two Shift keys held
-// together count twice and releasing one leaves the modifier down. A press for a
-// code already down is not counted again. The kernel repeats a held key, and
-// counting each repeat would leave the modifier held after the single release
-// that follows.
+// The refcount is per modifier name, so two Shift keys held together count
+// twice and releasing one leaves the modifier down. A press for a code
+// already down is a kernel repeat and is not counted again.
 func (state *waylandEvdevKeyState) trackModifier(
 	code uint16,
 	modifier string,

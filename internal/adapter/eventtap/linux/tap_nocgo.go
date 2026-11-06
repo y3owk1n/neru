@@ -5,10 +5,8 @@ package linux
 import "github.com/y3owk1n/neru/internal/derrors"
 
 // errUinputScrollNoCGO reports that uinput scroll injection is compiled out.
-//
-// It carries CodeNotSupported rather than a bare error so callers can tell
-// "this build cannot do it" from "the device failed", and degrade with
-// derrors.IsNotSupported instead of matching on message text.
+// It carries CodeNotSupported so callers can degrade with
+// derrors.IsNotSupported instead of matching message text.
 func errUinputScrollNoCGO(what string) error {
 	return derrors.Newf(
 		derrors.CodeNotSupported,

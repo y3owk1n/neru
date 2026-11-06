@@ -35,29 +35,22 @@ type x11HotkeyBinding struct {
 }
 
 type x11HotkeyState struct {
-	// displayMu serializes every Xlib call made on display.
+	// displayMu serializes every Xlib call made on display. Xlib is
+	// thread-safe only after XInitThreads, which nothing here calls, and
+	// Manager.mu guards only the Go maps. Without this lock a registration
+	// and the poll loop's XPending would share the connection buffers.
 	//
-	// Xlib is thread-safe only when XInitThreads runs before the first
-	// XOpenDisplay, and nothing in this process calls it. Manager.mu guards the
-	// Go maps and says nothing about the connection, so without this lock a
-	// registration on a caller's goroutine and the poll loop on its own would
-	// be inside the same connection buffers at once. XPending flushes the
-	// output buffer and reads from the socket, which is exactly what the
-	// XGrabKey/XSelectInput/XFlush sequence beside it is doing.
-	//
-	// It is never held across a call that waits for a key. The loop polls with
-	// neru_hotkeys_pending and only calls XNextEvent when an event is already
-	// queued, so the longest a registration can wait behind it is one
-	// non-blocking read. Holding it across a bare XNextEvent would wedge
-	// registration until the user pressed something.
+	// It is never held across a call that waits for a key. The loop calls
+	// XNextEvent only when neru_hotkeys_pending says an event is queued, so a
+	// registration waits at most one non-blocking read.
 	displayMu sync.Mutex
 
 	display  *C.Display
 	root     C.Window
 	bindings map[ports.HotkeyID]x11HotkeyBinding
 	ids      map[string]ports.HotkeyID
-	// held is owned by the poll loop, the only goroutine that reads key events,
-	// and dispatch runs the callbacks it fires, in order, off it.
+	// held is owned by the poll loop, the only goroutine reading key events.
+	// dispatch runs the callbacks it fires, in order, off that goroutine.
 	held     x11HeldHotkeys
 	dispatch *eventtaplinux.HotkeyDispatcher
 	stopCh   chan struct{} // signals runX11HotkeyLoop to exit
@@ -65,23 +58,17 @@ type x11HotkeyState struct {
 	once     sync.Once
 }
 
-// x11IgnoredModifierMasks are the lock modifiers a grab has to be repeated
-// under, because the server reports them in a key event's state and a grab
-// naming a different state does not match. Lock is CapsLock, and Mod2 is where
-// NumLock conventionally sits.
-//
-// The set is stated once so a grab and the ungrab that undoes it cannot drift.
-// An ungrab that misses a mask leaves a hotkey grabbed after Neru forgot it.
+// x11IgnoredModifierMasks are the lock modifiers a grab must be repeated
+// under, because a grab only matches the exact state the server reports. Lock
+// is CapsLock and Mod2 is usually NumLock. Stated once so grab and ungrab
+// cannot drift, since a missed mask leaves a forgotten hotkey grabbed.
 func x11IgnoredModifierMasks() [4]C.uint {
 	return [4]C.uint{0, C.Mod2Mask, C.LockMask, C.Mod2Mask | C.LockMask}
 }
 
 // grab resolves keyString against the connection's keymap and installs the
-// grabs for it, as one critical section.
-//
-// The resolve belongs inside the lock rather than beside it. XKeysymToKeycode
-// is an Xlib call on this same connection, so it is one of the calls being
-// serialized, not a pure computation that happens to precede them.
+// grabs for it, as one critical section. XKeysymToKeycode is an Xlib call on
+// this connection, so it belongs inside the lock.
 func (s *x11HotkeyState) grab(keyString string) (x11HotkeyBinding, error) {
 	s.displayMu.Lock()
 	defer s.displayMu.Unlock()
@@ -127,13 +114,9 @@ func (s *x11HotkeyState) ungrab(binding x11HotkeyBinding) {
 }
 
 // nextEvent takes one queued event off the connection, reporting false when
-// none was waiting.
-//
-// The pending check and the read are one critical section because they are one
-// sequence. XPending answering "an event is queued" is only a fact about this
-// connection while nothing else is draining it, and an XNextEvent whose event
-// another thread has taken blocks until the next one arrives. It would block
-// with displayMu held, which is the one way this lock could wedge registration.
+// none was waiting. The pending check and the read are one critical section,
+// because an XNextEvent whose event another thread took blocks for the next
+// one, with displayMu held, wedging registration.
 func (s *x11HotkeyState) nextEvent() (C.XEvent, bool) {
 	s.displayMu.Lock()
 	defer s.displayMu.Unlock()
@@ -149,9 +132,8 @@ func (s *x11HotkeyState) nextEvent() (C.XEvent, bool) {
 	return event, true
 }
 
-// closeDisplay tears down the connection. Callers must have stopped the poll
-// loop first. The lock orders this against a registration, not against a read
-// of a display that has been freed.
+// closeDisplay tears down the connection. Callers must stop the poll loop
+// first. The lock orders this against a registration only.
 func (s *x11HotkeyState) closeDisplay() {
 	s.displayMu.Lock()
 	defer s.displayMu.Unlock()
@@ -214,8 +196,8 @@ func (m *Manager) unregisterAllX11Hotkeys() {
 	}
 
 	state.once.Do(func() {
-		// Signal the event loop to stop and wait for it to exit
-		// before closing the display, preventing a use-after-free.
+		// Stop the event loop and wait for it before closing the display, to
+		// avoid a use-after-free.
 		close(state.stopCh)
 		<-state.doneCh
 
@@ -235,10 +217,8 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 		return state, nil
 	}
 
-	// XOpenDisplay and the root-window read are the two Xlib calls here that do
-	// not go through displayMu, and the only ones that need not. They run
-	// before the state exists to lock, before it is published to x11States and
-	// before the poll loop that would share the connection is started.
+	// XOpenDisplay and the root-window read skip displayMu safely, because
+	// they run before the state is published or the poll loop starts.
 	display := C.XOpenDisplay(nil)
 	if display == nil {
 		return nil, derrors.New(
@@ -247,12 +227,10 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 		)
 	}
 
-	// A held key is otherwise reported as release/press pairs at the server's
-	// autorepeat rate, and every one of those releases would end the hold.
-	// With detectable autorepeat the hold is further KeyPress events and one
-	// KeyRelease when the key comes up, which is the edge the binder repeats
-	// on. Per connection, so the in-mode tap asks for the same on its own
-	// (platform/linux/x11_eventtap.c).
+	// Without detectable autorepeat a held key arrives as release/press pairs
+	// and every release ends the hold. With it, the hold is repeated KeyPress
+	// and one KeyRelease, the edge the binder repeats on. It is per
+	// connection, so the in-mode tap sets it too (platform/linux/x11_eventtap.c).
 	if C.neru_hotkeys_set_detectable_autorepeat(display) == 0 {
 		m.logger.Warn(
 			"X server does not support detectable autorepeat; a held global hotkey " +
@@ -286,12 +264,10 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 		default:
 		}
 
-		// nextEvent polls with XPending instead of calling the blocking
-		// XNextEvent directly. This allows the stop channel to be checked
-		// between iterations, preventing a goroutine leak and a
-		// use-after-free when unregisterAllX11Hotkeys closes the display.
-		// It is also what lets every Xlib call on this connection share one
-		// lock without a registration ever waiting on a keystroke.
+		// nextEvent polls rather than blocking in XNextEvent, so the stop
+		// channel is checked between iterations (no leak or use-after-free
+		// when unregisterAllX11Hotkeys closes the display) and registration
+		// never waits on a keystroke.
 		event, hasEvent := state.nextEvent()
 		if !hasEvent {
 			time.Sleep(x11HotkeyPollInterval)
@@ -304,17 +280,13 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 		switch C.neru_xevent_type(&event) {
 		case C.KeyPress:
 			// Only the core modifiers name a binding. The state also carries
-			// the XKB layout in bits 13 and 14 while a layout switch key is
-			// held, and a grab fires on any layout.
+			// the XKB layout in bits 13 and 14, and a grab fires on any layout.
 			modifiers := C.neru_xkey_state(
 				&event,
 			) & x11CoreModifierMask &^ (C.Mod2Mask | C.LockMask)
 
-			// Hold m.mu while reading state.ids. Register/Unregister write
-			// to this map under the same lock, so an unguarded read here is a
-			// concurrent map read/write (runtime crash under the race
-			// detector). The callback is fetched in the same critical section
-			// to avoid a second lock acquisition.
+			// Register and Unregister write state.ids under m.mu, so read it
+			// (and the callback) under the same lock.
 			m.mu.RLock()
 			hotkeyID, bound := state.ids[x11BindingKey(keycode, modifiers)]
 
@@ -390,8 +362,8 @@ func parseX11Hotkey(display *C.Display, keyString string) (C.uint, C.uint, error
 
 	keycode := C.XKeysymToKeycode(display, keysym)
 
-	// A forced layout decides the grab too. Otherwise a user forcing Dvorak
-	// would have hotkeys on QWERTY keys while mode keys follow Dvorak.
+	// A forced layout decides the grab too, or a user forcing Dvorak would get
+	// hotkeys on QWERTY keys while mode keys follow Dvorak.
 	if layout := eventtaplinux.RequestedKeyboardLayout(); layout != "" {
 		cLayout := C.CString(layout)
 		defer C.free(unsafe.Pointer(cLayout))
@@ -412,26 +384,20 @@ func parseX11Hotkey(display *C.Display, keyString string) (C.uint, C.uint, error
 	return C.uint(keycode), modifiers, nil
 }
 
-// x11KeysymFor resolves the base key of a hotkey to the X11 keysym a grab
-// needs. The keys below are mapped here rather than left to XStringToKeysym,
-// which knows X11's own spellings ("Page_Up", "Prior") and not Neru's. A name
-// from the vocabulary resolves only where this switch says it does, and "Home"
-// and "End" landing on the right keysym through XStringToKeysym is a
-// coincidence of spelling, not a contract.
+// x11KeysymFor resolves the base key of a hotkey to the keysym a grab needs.
+// The keys below are mapped here because XStringToKeysym knows X11 spellings
+// ("Page_Up", "Prior"), not Neru's. "Home" and "End" matching by spelling is
+// a coincidence, not a contract.
 //
-// "Backspace" is the same story with a sharper edge. X11 spells it "BackSpace",
-// so it resolved through neither path. "Delete" reaches the same keysym on
-// purpose. In [hotkeys] the name means the backspace key on every platform
-// (kVK_Delete on macOS, VK_BACK on Windows), and X11's own "Delete", the
-// forward-delete key, is what a config file would have grabbed here alone.
-// The forward-delete key has no hotkey name. One that all three platforms can
-// bind is the way to add it, not a Linux-only meaning for this one. Insert is
-// mapped alongside the pair rather than left to its matching spelling, so a
-// reader sees the editing keys in one place.
+// "Backspace" (X11 "BackSpace") and "Delete" both map to the backspace key on
+// purpose. In [hotkeys] "Delete" means backspace on every platform (kVK_Delete
+// on macOS, VK_BACK on Windows), while X11's "Delete" is forward-delete.
+// Forward-delete has no hotkey name, and one should be added for all three
+// platforms, not as a Linux-only meaning. Insert sits with them so the
+// editing keys are in one place.
 //
-// The rest fall through to XStringToKeysym: punctuation, and F1-F24, where
-// X11's own name for the key is the name Neru writes. Those are pinned by test
-// across the range instead of restating 24 spellings here.
+// Punctuation and F1-F24 fall through to XStringToKeysym, where X11's name is
+// Neru's. A test pins the function keys.
 func x11KeysymFor(key string) C.KeySym {
 	key = strings.TrimSpace(key)
 	if len(key) == 1 {
@@ -484,20 +450,13 @@ func x11KeysymFor(key string) C.KeySym {
 
 // x11CanonicalKeyName gives a written key name its vocabulary spelling
 // ("pageup" -> "PageUp"), so the switch above compares against the named-key
-// declaration instead of a second set of lowercase literals. A name the
-// vocabulary does not know is returned unchanged for XStringToKeysym to try.
+// declaration. An unknown name is returned unchanged for XStringToKeysym.
 //
-// This is keyvocab.NormalizeKey minus the alias fold, which is how the hotkey
-// strings reaching this adapter were already canonicalized (config's
-// CanonicalHotkeyForPlatform display-cases the base key without folding
-// aliases). It is also what a grab needs. A grab names a physical key, and the
-// switch above is where each name is given one. Folding "Backspace" to
-// "Delete" the way the taps do and then handing "Delete" to XStringToKeysym
-// is how a binding written "Backspace" once grabbed the forward-delete key.
-// So a named key keeps its own spelling here. "Enter" does not become
-// "Return", though both are mapped above, and only "esc", which the
-// vocabulary deliberately keeps out of the named-key set, resolves through
-// its alias.
+// This is keyvocab.NormalizeKey without the alias fold, matching how config's
+// CanonicalHotkeyForPlatform canonicalizes hotkeys. A grab names a physical
+// key, and folding "Backspace" to "Delete" as the taps do once made it grab
+// forward-delete. So "Enter" stays "Enter", and only "esc", which the
+// vocabulary keeps out of the named-key set, resolves through its alias.
 func x11CanonicalKeyName(key string) string {
 	if display, isNamed := keyvocab.NamedKeyDisplay(key); isNamed {
 		return display

@@ -21,8 +21,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// startHotplugWatcher starts an inotify watch on /dev/input/ to detect new
-// keyboard devices being plugged in after initial capture creation.
+// startHotplugWatcher starts an inotify watch on /dev/input/ for keyboards
+// plugged in later.
 func (capture *waylandEvdevCapture) startHotplugWatcher() {
 	if capture == nil {
 		return
@@ -56,7 +56,7 @@ func (capture *waylandEvdevCapture) startHotplugWatcher() {
 
 	capture.deviceMu.Lock()
 	if capture.inotifyFd != -1 {
-		// A watcher is already running, so clean up the duplicate.
+		// A watcher is already running, so drop the duplicate.
 		capture.deviceMu.Unlock()
 
 		_ = syscall.Close(inotifyFd)
@@ -72,8 +72,8 @@ func (capture *waylandEvdevCapture) startHotplugWatcher() {
 	go capture.hotplugLoop()
 }
 
-// stopHotplugWatcher signals the hotplugLoop goroutine to stop via the stop
-// channel, closes the inotify fd, then waits for the goroutine to finish.
+// stopHotplugWatcher stops hotplugLoop, closes the inotify fd, and waits for
+// the goroutine.
 func (capture *waylandEvdevCapture) stopHotplugWatcher() {
 	capture.deviceMu.Lock()
 	inotifyFd := capture.inotifyFd
@@ -93,10 +93,9 @@ func (capture *waylandEvdevCapture) stopHotplugWatcher() {
 	capture.hotplugWg.Wait()
 }
 
-// hotplugLoop polls for inotify events with a non-blocking read and
-// rate-limits the poll via a ticker so the goroutine does not busy-wait
-// on EAGAIN.  A dedicated stop channel provides an interruptible shutdown
-// that does not rely on closing the inotify fd to unblock the read.
+// hotplugLoop polls inotify with a non-blocking read, rate-limited by a
+// ticker so it does not busy-wait on EAGAIN. A stop channel gives a shutdown
+// that does not rely on closing the fd.
 func (capture *waylandEvdevCapture) hotplugLoop() {
 	defer capture.hotplugWg.Done()
 
@@ -125,8 +124,7 @@ func (capture *waylandEvdevCapture) hotplugLoop() {
 	}
 }
 
-// handleInotifyEvents parses raw inotify event bytes and reacts to new device
-// creation events.
+// handleInotifyEvents parses raw inotify events and reacts to new devices.
 func (capture *waylandEvdevCapture) handleInotifyEvents(buf []byte) {
 	offset := 0
 	for offset+syscall.SizeofInotifyEvent <= len(buf) {
@@ -147,17 +145,14 @@ func (capture *waylandEvdevCapture) handleInotifyEvents(buf []byte) {
 	}
 }
 
-// handleNewDevice opens a newly created /dev/input/event* device and, if it
-// is a keyboard this capture should read, adds it under the same rules as the
-// initial scan, grabbed and seeded when the capture grabs, and starts a
-// reader for it. A uinput keyboard from another process is a remapper's output
-// device, and the remapper is about to grab its inputs, so the physical keyboards
-// are yielded to it, whether it is starting for the first time with this
-// capture already up, or starting again after an exit that had the capture
-// take the keyboards it released (rescan).
+// handleNewDevice adopts a new /dev/input/event* keyboard under the initial
+// scan's rules and starts a reader. Another process's uinput keyboard is a
+// remapper's output, and the remapper is about to grab its inputs, so the
+// physical keyboards are yielded to it, whether it is starting fresh or
+// restarting after an exit whose released keyboards the capture took
+// (rescan).
 func (capture *waylandEvdevCapture) handleNewDevice(name string) {
-	// Give udev a moment to fully initialize the device node and populate
-	// the input capabilities before we interrogate it.
+	// Give udev a moment to populate the node's capabilities.
 	time.Sleep(waylandEvdevHotplugSettleDelay)
 
 	adopted, virtual := capture.adopt(filepath.Join("/dev/input", name), "it appeared")
@@ -167,14 +162,13 @@ func (capture *waylandEvdevCapture) handleNewDevice(name string) {
 }
 
 // rescan runs after a captured device is gone, looking for keyboards that
-// refused the grab earlier and are free now. A remapper (kanata, keyd) that
-// exits releases the physical keyboards it held in the same instant its output
-// device, the one this capture was reading, disappears. The released keyboards
-// are existing nodes, so no inotify event announces them, and without this the
-// user's keys would bypass the proxy until the daemon restarted.
+// refused the grab earlier and are free now. An exiting remapper releases its
+// physical keyboards as its output device disappears. They are existing nodes
+// that no inotify event announces, so without this the user's keys would
+// bypass the proxy until a restart.
 func (capture *waylandEvdevCapture) rescan() {
-	// The remapper's fds close in whatever order its process teardown picks, so
-	// give the release of its inputs a moment to land before trying them.
+	// The remapper's fds close in any order, so give its inputs' release a
+	// moment to land.
 	time.Sleep(waylandEvdevHotplugSettleDelay)
 
 	paths, err := filepath.Glob("/dev/input/event*")
@@ -187,14 +181,13 @@ func (capture *waylandEvdevCapture) rescan() {
 	}
 }
 
-// adopt takes path into the capture if it is a keyboard this capture should
-// read and is not tracked already, and starts a reader for it. It reports
-// whether it did, and whether the keyboard is another process's uinput device.
-// A keyboard with a key down is adopted once it is idle instead. reason is
-// what brought the path here, for the log. Nothing is adopted once the capture
-// is closing. A reader started then would outlive the wait Close makes on the
-// readers, which is why the reader is counted under the same lock the closing
-// check takes.
+// adopt takes path into the capture if it is an untracked keyboard this
+// capture should read, and starts a reader. It reports whether it did, and
+// whether the keyboard is another process's uinput device. A keyboard with a
+// key down is adopted once idle. reason is for the log. Nothing is adopted
+// once the capture is closing, since a reader started then would outlive
+// Close's wait, which is why readers are counted under the closing check's
+// lock.
 func (capture *waylandEvdevCapture) adopt(path string, reason string) (bool, bool) {
 	capture.deviceMu.Lock()
 

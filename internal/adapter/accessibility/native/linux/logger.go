@@ -8,10 +8,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// pkgLogger is the process-global logger for the Linux injection backends,
-// a slot beside configProvider for the same reason. The scroll path picks its
-// backend at call time, deep below any struct that carries a logger, and the
-// one thing worth saying from there is which backend it ended up on.
+// pkgLogger is the process-global logger for the Linux injection backends, a
+// slot beside configProvider because the scroll path picks its backend deep
+// below any struct that carries a logger.
 var (
 	pkgLoggerMu sync.RWMutex
 	pkgLogger   = zap.NewNop()

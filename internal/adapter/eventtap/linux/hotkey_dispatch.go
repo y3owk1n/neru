@@ -4,20 +4,17 @@ package linux
 
 import "sync"
 
-// HotkeyDispatcher runs hotkey callbacks off the goroutine that reads key
-// events, one at a time, in the order they were queued.
+// HotkeyDispatcher runs hotkey callbacks off the key-reading goroutine, one at
+// a time, in queue order.
 //
-// Off that goroutine because a callback takes the mode handler's lock, and the
-// handler waits on the reader while holding it (the proxy's session ack, the
-// X11 loop's exit), so running it inline could deadlock. In order because a
-// goroutine per callback has no order. A release and the press that follows it
-// could run swapped, and the release would then cancel the repeat the new
-// press had just started, leaving a held key that stops repeating.
+// Off it because a callback takes the mode handler's lock, and the handler
+// waits on the reader while holding it (the proxy's session ack, the X11
+// loop's exit). In order because a release running after the next press
+// would cancel the repeat that press started.
 //
-// The queue is unbounded rather than dropping under pressure, because a
-// release is the one thing that ends a held key's repeat. A dropped release
-// would leave the repeat outliving the key. What queues is two callbacks per hotkey press, so
-// even a handler stuck for the length of a hold grows it by a few entries.
+// The queue is unbounded, because a dropped release would leave a repeat
+// outliving its key. It grows by two callbacks per hotkey press, so even a
+// stuck handler adds only a few entries per hold.
 type HotkeyDispatcher struct {
 	mu      sync.Mutex
 	ready   *sync.Cond

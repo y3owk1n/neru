@@ -24,17 +24,15 @@ func wlrootsFocusedApplicationIdentity() (string, int) {
 		return "", 0
 	}
 
-	// The wlr-foreign-toplevel-management protocol (wlroots + KWin/KDE) reports
-	// the focused toplevel's app_id but not its PID, so the PID is 0. app_id is
-	// the identifier used for per-app configuration lookups. When a caller needs
-	// a real PID it falls back to the XWayland path if DISPLAY is set.
+	// wlr-foreign-toplevel (wlroots and KWin) reports the focused app_id, the
+	// per-app config key, but no PID. A caller needing a PID falls back to
+	// XWayland when DISPLAY is set.
 	appID, ok := linux.FocusedAppID(platform.DetectLinuxBackend().String())
 	if ok && appID != "" {
 		return appID, 0
 	}
 
-	// No focused app_id available (nothing is focused yet, or the GNOME
-	// extension is not running). Fall through to the XWayland fallback.
+	// Nothing focused yet, or the GNOME extension is not running.
 	return "", 0
 }
 
@@ -96,12 +94,9 @@ func wlrootsButton(button action.MouseButton) int {
 }
 
 // physicalLift is the shared lifetime of one lift of the user's held chord.
-// Every pointer action that can overlap another takes a hold: a scroll from
-// its first event to its last, a drag from press to release. The chord goes
-// back on only when the last hold is gone, whichever action that turns out
-// to be. The proxy itself is not nestable, since a second lift finds nothing
-// left to lift and any restore puts everything back, so the counting lives
-// here.
+// Each overlapping pointer action takes a hold (a scroll for its events, a
+// drag from press to release), and the chord goes back only when the last
+// hold is gone. The proxy is not nestable, so the counting lives here.
 type physicalLift struct {
 	mu    sync.Mutex
 	holds int
@@ -156,9 +151,8 @@ func (l *physicalLift) acquire() {
 }
 
 // release drops one hold and puts the chord back when no hold and no held
-// button remains. A button counts on its own rather than as a hold because a
-// release that fails keeps the button recorded for the idle cleanup to retry,
-// and a retry must not drop a hold twice.
+// button remains. Buttons count separately because a failed release stays
+// recorded for the idle cleanup, and its retry must not drop a hold twice.
 func (l *physicalLift) release() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -207,14 +201,12 @@ func (l *physicalLift) restoreLocked() {
 }
 
 // liftPhysicalModifiers releases the modifiers the user's hand is on for the
-// length of a pointer action, so the action carries only the set it names.
-// This is the x11ClickButtonAtPoint rule applied to the one keyboard the
-// compositor reads here, the evdev proxy's (footnote 7 of
-// docs/contributing/platform-internals.md). The releases go out on uinput and
-// the action on the Wayland socket, and nothing orders the two, so a lift waits
-// the fixed period the uinput side always waits (waitForScrollDelivery). The
-// returned restore presses the lifted modifiers again once every overlapping
-// action is done.
+// length of a pointer action, so it carries only the set it names. It is the
+// x11ClickButtonAtPoint rule for the evdev proxy's keyboard (footnote 7 of
+// docs/contributing/platform-internals.md). Releases go out on uinput and the
+// action on the Wayland socket, unordered, so a lift waits the fixed
+// waitForScrollDelivery period. The returned restore presses them again once
+// every overlapping action is done.
 func liftPhysicalModifiers() func() {
 	globalPhysicalLift.acquire()
 
@@ -260,11 +252,9 @@ func restoreAfterRelease(button action.MouseButton) {
 	restoreUnlessOtherHeld(button)
 }
 
-// restoreUnlessOtherHeld puts the lifted modifiers back unless a button other
-// than this one is still held. A release that failed goes through here with
-// its button still recorded, so the idle cleanup can retry it. The modifiers
-// come back regardless, which is the documented bias, since the opposite
-// drops a modifier the user is still holding.
+// restoreUnlessOtherHeld puts the lifted modifiers back unless another button
+// is held. A failed release still restores, with its button recorded for the
+// idle cleanup, the documented bias against dropping a held modifier.
 func restoreUnlessOtherHeld(button action.MouseButton) {
 	globalPhysicalLift.restoreUnlessHeld(button)
 }
@@ -368,9 +358,8 @@ func wlrootsPressModifiers(modifiers action.Modifiers) error {
 
 // wlrootsReleaseModifiers lets go of the modifiers a pointer action presented.
 //
-// It takes the set the matching press was given rather than the set it got
-// down, because the two callers that hold across a boundary, a drag and a
-// release with no press behind it, have only the former to hand back.
+// It takes the set the press was given, not the set that went down, because a
+// drag and a release with no press behind it have only the former.
 func wlrootsReleaseModifiers(modifiers action.Modifiers) error {
 	return releaseWaylandModifiers(modifiers)
 }
@@ -405,12 +394,9 @@ const (
 )
 
 // wlrootsScrollAtCursor emits the scroll on the wlroots virtual pointer, with
-// modifiers held on the virtual keyboard (libei on KDE) for its duration.
-//
-// Both halves go out through the same seat, which is the whole reason a
-// modified scroll is routed here rather than through the faster uinput batch.
-// The release only lets go of what this call pressed, so a modifier the user is
-// physically holding survives it.
+// modifiers held on the virtual keyboard (libei on KDE). Both go through one
+// seat, which is why a modified scroll comes here. The release lets go only
+// of what this call pressed, so a modifier the user holds survives.
 func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return derrors.New(
@@ -445,17 +431,12 @@ func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error
 	return nil
 }
 
-// waylandScrollSession injects an animated scroll on Wayland as continuous axis
-// events, holding any modifiers for the length of the animation.
-//
-// It uses the continuous axis rather than the discrete one the unanimated path
-// sends, and that choice is the whole reason smooth scroll works here. An axis
-// event with no discrete step count reaches the focused client as the fraction
-// it carries, while a discrete one declares a wheel notch that the compositor
-// may hold back until whole notches accumulate. Both wlroots (through
-// zwlr_virtual_pointer) and KWin (through libei's pixel-precise scroll delta)
-// pass the fraction through, and linux.WaylandScrollContinuous picks between
-// them.
+// waylandScrollSession injects an animated scroll on Wayland as continuous
+// axis events, holding any modifiers for the animation. A discrete event
+// declares a wheel notch the compositor may hold back until whole notches add
+// up, while a continuous one reaches the client as the fraction it carries.
+// wlroots (zwlr_virtual_pointer) and KWin (libei pixel scroll) both pass it
+// through, and linux.WaylandScrollContinuous picks between them.
 type waylandScrollSession struct {
 	modifiers action.Modifiers
 	restore   func()
@@ -500,9 +481,8 @@ func (s *waylandScrollSession) granularity() float64 { return 0 }
 
 func (s *waylandScrollSession) inject(deltaX, deltaY float64) error {
 	if deltaY != 0 {
-		// Wayland axis convention: positive = scroll down. Application
-		// convention: positive delta = scroll up. Same negation the discrete
-		// path applies in wlrootsScrollAxis.
+		// Wayland's positive axis is down and the caller's is up, the
+		// same negation wlrootsScrollAxis applies.
 		err := linux.WaylandScrollContinuous(0, -deltaY)
 		if err != nil {
 			return err
@@ -526,16 +506,11 @@ func (s *waylandScrollSession) close() {
 	s.restore()
 }
 
-// wlrootsScrollAxis sends Wayland axis events for one axis.
-// Each event carries 1 notch (axis_discrete=+/-1, axis_value120=+/-120)
-// to match what a physical mouse wheel produces, with no toolkit clipping.
-// Events are sent in batches of wlrootsScrollMaxEvents to avoid flooding
-// the compositor socket.
-//
-// Wayland axis convention: positive = scroll down (axis 0) / right (axis 1).
-// Caller convention: positive delta = scroll up (axis 0) / right (axis 1), as
-// ScrollAtCursor passes it.
-// Vertical axis sign is negated to convert between the two.
+// wlrootsScrollAxis sends Wayland axis events for one axis, one notch each
+// (axis_discrete=+/-1, axis_value120=+/-120) like a physical wheel, in batches
+// of wlrootsScrollMaxEvents so the compositor socket is not flooded. Wayland's
+// positive vertical axis is down where the caller's is up, so
+// wlrootsScrollNotch negates that axis.
 func wlrootsScrollAxis(axis int, delta int) error {
 	totalNotches := scrollNotches(delta)
 

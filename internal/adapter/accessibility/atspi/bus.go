@@ -10,13 +10,11 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 )
 
-// Brings the AT-SPI bus up: reads and sets the org.a11y IsEnabled property and
-// opens the accessibility bus connection.
-// Toolkits only build their accessibility tree once assistive-tech mode is on,
-// so this must succeed before any scan will return anything.
+// Brings the AT-SPI bus up. Toolkits build their accessibility tree only once
+// assistive-tech mode is on, so this must succeed before a scan finds anything.
 //
-// readA11yStatus reads the current IsEnabled and ScreenReaderEnabled D-Bus
-// properties from org.a11y.Status.
+// readA11yStatus reads the IsEnabled and ScreenReaderEnabled properties from
+// org.a11y.Status.
 func (c *Client) readA11yStatus() (bool, bool, error) {
 	conn, connErr := dbus.SessionBus()
 	if connErr != nil {
@@ -101,10 +99,9 @@ func (c *Client) setA11yProp(prop string, val bool) error {
 			a11yStatusIfc, prop, dbus.MakeVariant(val)).Err
 }
 
-// ensureA11yEnabled activates AT-SPI on first call (lazy, safe to call
-// multiple times). It saves the original a11y status so Close can restore it.
-// a11yMu is held across the D-Bus calls so Close() sees a consistent view.
-// Either activation has finished (activated == true) or it hasn't started.
+// ensureA11yEnabled activates AT-SPI once and saves the original status for
+// Close to restore. a11yMu is held across the D-Bus calls, so Close sees
+// activation either finished or not started.
 func (c *Client) ensureA11yEnabled() error {
 	c.a11yMu.Lock()
 	defer c.a11yMu.Unlock()
@@ -151,12 +148,9 @@ func (c *Client) ensureA11yConn() (*dbus.Conn, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Re-check closed while holding mu, not before it. Close sets closed (under
-	// a11yMu) before its own mu section runs, so once Close's teardown has
-	// completed, any ensureA11yConn that then acquires mu sees closed==true and
-	// bails, so it cannot publish a fresh connection that Close would never clean
-	// up. If instead this call wins mu first, it publishes c.a11y and Close's
-	// later mu section closes that connection. Either ordering leaks nothing.
+	// Re-check closed under mu. Close sets closed (under a11yMu) before its mu
+	// section, so a call taking mu after Close's teardown bails, and one taking
+	// it first publishes c.a11y for Close to close. Either way nothing leaks.
 	c.a11yMu.Lock()
 	closed := c.closed
 	c.a11yMu.Unlock()
@@ -190,11 +184,9 @@ func (c *Client) ensureA11yConn() (*dbus.Conn, error) {
 	c.a11y = conn
 	c.a11yReady = true
 
-	// The window:activate listener is bound to the previous connection. Stop the
-	// old goroutine, force a re-register on the new connection, and drop the
-	// now-unreachable cached window. Closing the old stop here (rather than relying
-	// on the old connection's signal channel closing) keeps listener lifetime
-	// independent of godbus internals.
+	// The window:activate listener belongs to the old connection. Stop it, force
+	// a re-register, and drop the cached window. Closing the stop here keeps
+	// listener lifetime independent of godbus internals.
 	c.activeMu.Lock()
 
 	if c.eventsStop != nil {
@@ -210,13 +202,11 @@ func (c *Client) ensureA11yConn() (*dbus.Conn, error) {
 	return conn, nil
 }
 
-// focusStableSince reports whether the compositor's focused window still matches
-// the one captured when the frame was selected. It compares the app_id and, for
-// same-application window switches (which share an app_id), the window title. A
-// mismatch means focus changed before the walk, so the selected frame is stale
-// and must not be walked or offset. When no live app_id is available (X11)
-// there is nothing to compare, so it returns true. Identical or empty titles
-// cannot distinguish sibling windows, so a switch between them is not detected.
+// focusStableSince reports whether the focused window still matches the one
+// captured at frame selection, by app_id and, for sibling windows sharing one,
+// title. A mismatch means the frame is stale and must not be walked or offset.
+// With no live app_id (X11) it returns true. Identical or empty titles hide a
+// switch between siblings.
 func (c *Client) focusStableSince(selectedAppID, selectedTitle string) bool {
 	currentAppID, currentTitle, ok := linux.FocusedAppIdentity(
 		platform.DetectLinuxBackend().String(),

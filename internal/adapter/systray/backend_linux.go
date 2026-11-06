@@ -8,8 +8,7 @@ import "github.com/y3owk1n/neru/internal/adapter/systray/linux"
 // can name it without knowing which platform it came from.
 type menuItem = linux.MenuItem
 
-// The rest forwards the backend's process-wide tray API. Each backend wraps a
-// single native tray, so these are functions rather than methods.
+// The rest forwards the backend's process-wide tray API.
 var (
 	setTitle        = linux.SetTitle
 	setTooltip      = linux.SetTooltip

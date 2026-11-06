@@ -29,12 +29,10 @@ const (
 	backendWaylandCOSMIC  = "wayland-cosmic"
 	backendWaylandGNOME   = "wayland-gnome"
 	// backendUnknown mirrors platform.LinuxBackend.String() for BackendUnknown.
-	// This package cannot import platform (the factory there imports this one),
-	// so the label is duplicated rather than referenced.
+	// It is duplicated because platform's factory imports this package.
 	backendUnknown = "unknown"
 
-	// uinputDevicePath is the node the scroll wheel and key feed are created
-	// on, named in the words `neru doctor` prints.
+	// uinputDevicePath is the node the scroll wheel and key feed are created on.
 	uinputDevicePath = "/dev/uinput"
 )
 
@@ -55,9 +53,8 @@ func NewSystemAdapter(backend string) *SystemAdapter {
 		adapter.currentCursorPosition,
 		adapter.moveCursorDirect,
 	)
-	// Only the wlroots backend, the one with native relative motion, drives the
-	// delta-drain animator. Constructing it unconditionally keeps every method a
-	// safe no-op elsewhere.
+	// Only wlroots drives the delta-drain animator. Constructing it always keeps
+	// every method a safe no-op elsewhere.
 	adapter.relativeAnimator = newRelativeCursorAnimator(wlrootsMoveCursorBy)
 
 	warmFocusedWindowSource(backend)
@@ -65,8 +62,8 @@ func NewSystemAdapter(backend string) *SystemAdapter {
 	return adapter
 }
 
-// PlatformLabel returns "linux/<backend>" (e.g. "linux/x11", "linux/wayland-kde").
-// It reads the backend field cached at construction, with no I/O or live probes.
+// PlatformLabel returns "linux/<backend>" from the backend cached at
+// construction, with no I/O or live probes.
 func (s *SystemAdapter) PlatformLabel() string {
 	if s.backend != "" {
 		return "linux/" + s.backend
@@ -80,15 +77,9 @@ func (s *SystemAdapter) Health(ctx context.Context) error {
 	return nil
 }
 
-// Capabilities returns the current Linux capability surface.
-//
-// The dark-mode capability is live-probed. If a working source can be reached,
-// the Detail field carries the current state ("dark" / "light" / "no
-// preference") plus the source name. If none of the sources work, the status
-// is downgraded to stub with a fix-it hint. This is more useful than a
-// static "supported" claim because the user's actual question when running
-// `neru doctor` is "is dark mode being detected right now?", not "does the
-// code path exist on Linux?".
+// Capabilities returns the current Linux capability surface. Dark mode,
+// notifications, screen, cursor and process are live-probed, because `neru
+// doctor` answers "does this work right now?", not "does the code path exist?".
 func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 	capabilities := ports.LinuxCapabilities()
 
@@ -99,29 +90,20 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 	value, source, ok := darkModePreference()
 	capabilities.DarkModeDetection = darkModeCapability(value, source, ok)
 
-	// Notifications are live-probed for the same reason dark mode is. The code
-	// path exists on every backend, but whether the user will see anything
-	// depends on a notification daemon being installed, which is a session fact
-	// rather than a build one.
+	// Whether a notification shows depends on a daemon in the session.
 	capabilities.Notifications = s.notificationCapability(capabilities.Notifications)
 
-	// Screen, cursor and process support is what this binary and session can
-	// actually reach, not what the build target intends. The static preset is
-	// wrong for CGO_ENABLED=0, for compositors without the wlroots stack, and
-	// for unopenable displays. Each is probed through the same read-only call
-	// the capability describes, so doctor cannot disagree with what a caller
-	// observes. Only doctor and the info response reach this, so the reads are
-	// cheap.
+	// The static preset is wrong for CGO_ENABLED=0, compositors without the
+	// wlroots stack, and unopenable displays. Each probe uses the same read-only
+	// call the capability describes, so doctor agrees with what a caller sees.
 	capabilities.Process = s.probedCapability("focused-app inspection", capabilities.Process,
 		func() error {
 			_, err := s.FocusedApplicationPID(context.Background())
 
 			return err
 		})
-	// The watcher is built on the same focused-app source as Process, and on
-	// GNOME that source is the Neru GNOME Shell extension. A session it is
-	// not running in has a watcher that reports nothing, and doctor has to
-	// say so rather than promise per-app config.
+	// On GNOME the watcher's source is the Neru GNOME Shell extension, and
+	// without it the watcher reports nothing, which doctor has to say.
 	if s.backend == backendWaylandGNOME {
 		capabilities.AppWatcher = gnomeAppWatcherCapability()
 	}
@@ -152,11 +134,10 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 			return err
 		})
 
-	// Scroll on Wayland is the one capability whose fast path can be missing
-	// while the call still returns nil. The uinput wheel falls back to the
-	// compositor's virtual pointer, and Chromium and Electron clients on
-	// Hyprland ignore that stream. The probe creates and destroys the same
-	// wheel device, so every ioctl the real path runs is exercised.
+	// Wayland scroll can lose its fast path while still returning nil. The
+	// uinput wheel falls back to the virtual pointer, which Chromium and
+	// Electron on Hyprland ignore. The probe creates and destroys the same
+	// wheel device, exercising every ioctl the real path runs.
 	if s.waylandUsesWlrClientStack() {
 		capabilities.Scroll = scrollCapability(capabilities.Scroll, uinputScrollDeviceError())
 	}
@@ -165,8 +146,7 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 }
 
 // scrollCapability downgrades the declared scroll capability when the uinput
-// wheel device cannot be opened, naming the fix in the words the user reads
-// in `neru doctor`.
+// wheel device cannot be opened, naming the fix.
 func scrollCapability(declared ports.FeatureCapability, uinputErr error) ports.FeatureCapability {
 	if uinputErr == nil {
 		return declared
@@ -182,9 +162,8 @@ func scrollCapability(declared ports.FeatureCapability, uinputErr error) ports.F
 	}
 }
 
-// xdgDir resolves an XDG base directory per the Base Directory spec. The
-// environment variable wins when set to an absolute path (relative values
-// must be ignored per the spec), otherwise the given default under $HOME.
+// xdgDir resolves an XDG base directory. The variable wins when absolute (the
+// spec says to ignore relative values), else the default under $HOME.
 func xdgDir(envVar string, defaultParts ...string) (string, error) {
 	if dir := os.Getenv(envVar); filepath.IsAbs(dir) {
 		return dir, nil
@@ -231,12 +210,11 @@ func (s *SystemAdapter) LogDir() (string, error) {
 	return filepath.Join(base, "neru", "log"), nil
 }
 
-// FocusedApplicationPID returns the PID of the currently focused application on Linux.
-//
-// X11 reads _NET_WM_PID directly. Wayland (wlroots + KDE) has no protocol that
-// exposes another client's PID, so it resolves the focused window's app_id via
-// wlr-foreign-toplevel-management and best-effort matches it against /proc.
-// An unmatched app_id returns CodeNotSupported rather than a fabricated PID.
+// FocusedApplicationPID returns the PID of the focused application. X11 reads
+// _NET_WM_PID. GNOME reads the Neru Shell extension. Elsewhere Wayland exposes
+// no client PIDs, so the focused app_id from wlr-foreign-toplevel-management is
+// matched against /proc. An unmatched app_id returns CodeNotSupported rather
+// than a fabricated PID.
 func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) {
 	if s.backend == backendX11 {
 		return x11FocusedApplicationPID()
@@ -258,16 +236,14 @@ func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) 
 	)
 }
 
-// ApplicationNameByPID returns the name of the application with the given PID on Linux.
-// Process inspection reads procfs, so it is display-server agnostic and works on
-// every Linux backend (X11 and all Wayland compositors).
+// ApplicationNameByPID returns the name of the application with the given
+// PID. It reads procfs, so it works on every backend.
 func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
 	return linuxApplicationNameByPID(pid)
 }
 
-// ApplicationBundleIDByPID returns the application identifier (desktop ID) for Linux.
-// Derived from procfs (argv[0]), so it is display-server agnostic and works on
-// every Linux backend (X11 and all Wayland compositors).
+// ApplicationBundleIDByPID returns the desktop ID for pid, derived from
+// procfs argv[0], so it works on every backend.
 func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
 	return linuxApplicationBundleIDByPID(pid)
 }
@@ -324,17 +300,13 @@ func (s *SystemAdapter) Screens(ctx context.Context) ([]ports.Screen, error) {
 	)
 }
 
-// FocusedWindowBounds returns the global bounds of the currently focused window
-// on Linux, used to constrain hint/vision detection to the active window's
-// monitor (matching darwin). X11 reads _NET_ACTIVE_WINDOW geometry directly.
-// Wayland has no protocol exposing another client's on-screen geometry, so the
-// answer comes from the compositor: an IPC CLI on the wlroots family, the KWin
-// geometry script on KDE.
+// FocusedWindowBounds returns the global bounds of the focused window, used to
+// constrain detection to its monitor. X11 reads _NET_ACTIVE_WINDOW geometry.
+// Wayland exposes no client geometry, so the compositor answers (an IPC CLI on
+// wlroots, the KWin script on KDE).
 //
-// A compositor with no source at all says so with CodeNotSupported, because a
-// caller that falls back to the active screen should know it is falling back.
-// found=false with a nil error is the ordinary "no bounds available" answer,
-// most often for an unfocused desktop.
+// No source at all is CodeNotSupported, so a caller knows it is falling back.
+// found=false with a nil error means no bounds, usually an unfocused desktop.
 func (s *SystemAdapter) FocusedWindowBounds(
 	ctx context.Context,
 ) (image.Rectangle, bool, error) {
@@ -352,23 +324,16 @@ func (s *SystemAdapter) FocusedWindowBounds(
 	)
 }
 
-// MoveCursorToPoint moves the mouse cursor to the specified point on Linux.
-//
-// When smooth cursor is enabled (config smooth_cursor.move_mouse_enabled) and
-// the caller has not requested a bypass, the move is animated by the shared
-// cursor animator, which steps moveCursorDirect over time. Callers that need
-// the cursor settled before acting pair this with WaitForCursorIdle. Otherwise
-// (bypass, disabled, or no config wired) it warps directly. The animator is a
-// no-op wrapper on the direct path, so behavior is unchanged unless the user
-// opts into smooth cursor. Backend routing lives in moveCursorDirect.
+// MoveCursorToPoint moves the mouse cursor to point. With
+// smooth_cursor.move_mouse_enabled and no bypass, the shared animator steps
+// moveCursorDirect over time, and callers that need it settled pair this with
+// WaitForCursorIdle. Otherwise it warps directly.
 func (s *SystemAdapter) MoveCursorToPoint(
 	ctx context.Context,
 	point image.Point,
 	bypassSmooth bool,
 ) error {
-	// An absolute move supersedes any pending relative deltas. The cursor is
-	// about to be placed somewhere explicit, so flushing the drain would only
-	// fight the warp. Discard it before either branch below.
+	// An absolute move supersedes pending relative deltas.
 	s.relativeAnimator.stop()
 
 	cfg := currentLinuxConfig()
@@ -383,23 +348,18 @@ func (s *SystemAdapter) MoveCursorToPoint(
 		return nil
 	}
 
-	// Stop before warping. The animation worker must be canceled first so a
-	// pending tween step cannot override the direct warp. stop() drains the
-	// animator's injection mutex, so on return no animation step is in flight
-	// and none will start. This warp lands last instead of racing a stale step
-	// back to an intermediate point. Which of two distinct concurrent callers
-	// wins is still last-writer-wins, as on macOS.
+	// Stop before warping so a pending tween step cannot override the warp.
+	// stop() drains the injection mutex, so no step is in flight on return.
+	// Two concurrent callers are still last-writer-wins, as on macOS.
 	s.cursorAnimator.stop()
 
 	return s.moveCursorDirect(point)
 }
 
 // MoveCursorInstantly posts one cursor move and returns at once
-// (ports.InstantCursorMover). Both animators are stopped first so a stale
-// step cannot land after it. On wlroots the move is injected as a relative
-// delta against the client-side cache, for the reason MoveCursorBy stays in
-// delta space there. Nothing can query the real pointer, so an absolute warp
-// would jump by however stale the cache is. X11 and KDE warp directly.
+// (ports.InstantCursorMover), stopping both animators first. On wlroots it is
+// a relative delta against the client-side cache, because nothing can query
+// the real pointer and an absolute warp would jump by the cache's staleness.
 func (s *SystemAdapter) MoveCursorInstantly(ctx context.Context, point image.Point) error {
 	err := ctx.Err()
 	if err != nil {
@@ -421,36 +381,25 @@ func (s *SystemAdapter) MoveCursorInstantly(ctx context.Context, point image.Poi
 	return s.moveCursorDirect(point)
 }
 
-// MoveCursorBy applies a relative cursor move. With smooth cursor enabled
-// (smooth_cursor.move_mouse_enabled) the move animates over the fixed
-// per-move duration smooth_cursor.relative_movement_duration:
+// MoveCursorBy applies a relative cursor move. With smooth cursor enabled it
+// animates over smooth_cursor.relative_movement_duration. wlroots drains the
+// delta through native relative motion, never reading the stale position
+// cache, and X11 and KDE extend the absolute animator's endpoint like macOS.
 //
-//   - wlroots drains the delta in integer chunks through native relative
-//     motion, never reading the client position cache, whose staleness is
-//     why this backend applies deltas natively in the first place;
-//   - X11 and KDE extend the absolute animator's pending endpoint, exactly
-//     like macOS (KDE's fallback path was already cache-based absolute, so
-//     nothing is lost).
-//
-// With smooth cursor disabled, behavior is unchanged. wlroots posts one
-// native delta, everything else reports handled == false so callers keep
-// their absolute-position fallback.
+// With smooth cursor disabled, wlroots posts one native delta and everything
+// else reports handled == false so callers keep their absolute fallback.
 func (s *SystemAdapter) MoveCursorBy(
 	ctx context.Context,
 	delta image.Point,
 ) (bool, error) {
 	cfg := currentLinuxConfig()
-	// nativeBackendsCompiledIn gates the animated paths. On CGO-off builds the
-	// drain's injector is the loud CodeNotSupported stub, but the animator
-	// drops injection errors by design, so animating would turn the stub into
-	// a silent no-op. Falling through keeps the error surfaced to the caller.
+	// On CGO-off builds the injector is the loud stub, but the animator drops
+	// injection errors, so animating would silence it. Fall through instead.
 	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && nativeBackendsCompiledIn {
 		if s.backend == backendWaylandWlroots {
-			// A failed injection during a drain could not be surfaced (its
-			// move had already reported handled). Until recovery is proven,
-			// route every move through the direct native path. It returns the
-			// backend error loudly, and only a success, which proves the
-			// backend recovered, re-arms animation.
+			// A failed drain injection could not be surfaced, so route moves
+			// through the direct path, which errors loudly, until a success
+			// proves recovery and re-arms animation.
 			if s.relativeAnimator.injectionFailurePending() {
 				err := wlrootsMoveCursorBy(delta)
 				if err == nil {
@@ -497,8 +446,7 @@ func (s *SystemAdapter) MoveCursorBy(
 
 				return true, nil
 			}
-			// Without bounds there is nothing to clamp against. Fall through to
-			// the caller's fallback, which clamps at the service layer.
+			// Without bounds, fall through to the caller's clamping fallback.
 		}
 	}
 
@@ -509,10 +457,8 @@ func (s *SystemAdapter) MoveCursorBy(
 	return false, nil
 }
 
-// WaitForCursorIdle blocks until any in-flight smooth cursor animation settles,
-// or ctx is canceled. It returns immediately when no animation is active, the
-// common case on the direct (non-smooth) move path. Both animators are waited
-// on: the absolute glide and the wlroots relative-delta drain.
+// WaitForCursorIdle blocks until both the absolute glide and the wlroots
+// relative drain settle, or ctx is canceled.
 func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 	err := s.cursorAnimator.wait(ctx)
 	if err != nil {
@@ -522,12 +468,9 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 	return s.relativeAnimator.wait(ctx)
 }
 
-// SettleCursor finishes any in-flight cursor animation immediately. The
-// absolute animator warps straight to the endpoint it was animating toward,
-// and the relative drain flushes its remaining delta in one native motion.
-// Action paths call this before resolving their target point from the
-// cursor, so an action firing mid-animation acts at the point the user aimed
-// for, without paying the animation's remaining duration in latency.
+// SettleCursor finishes any in-flight cursor animation immediately, jumping to
+// its endpoint. Actions call it before reading the cursor, so one fired
+// mid-animation acts where the user aimed without waiting it out.
 func (s *SystemAdapter) SettleCursor(ctx context.Context) error {
 	s.cursorAnimator.settle()
 	s.relativeAnimator.settle()
@@ -551,11 +494,9 @@ func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error)
 	)
 }
 
-// SyncCursorPosition refreshes Wayland's client-side cursor cache from the
-// compositor when possible. X11 and macOS query the OS directly on every
-// CursorPosition call; Wayland does not expose a global pointer query, so the
-// Wayland backend briefly maps transparent layer-shell surfaces and captures
-// wl_pointer.enter coordinates before a mode uses the cached position.
+// SyncCursorPosition refreshes Wayland's client-side cursor cache. Wayland has
+// no global pointer query, so it briefly maps transparent layer-shell surfaces
+// and captures wl_pointer.enter coordinates.
 func (s *SystemAdapter) SyncCursorPosition(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -563,10 +504,8 @@ func (s *SystemAdapter) SyncCursorPosition(ctx context.Context) error {
 	default:
 	}
 
-	// Mutter has no layer shell for the discovery surfaces, but the same
-	// trick works one floor down. An override-redirect window on Xwayland
-	// receives the pointer's entry with global coordinates, the way the
-	// overlay itself is drawn there.
+	// Mutter has no layer shell, but an override-redirect Xwayland window
+	// receives the pointer's entry in global coordinates.
 	if s.backend == backendWaylandGNOME {
 		return xwaylandRefreshCursorPosition(ctx)
 	}
@@ -603,16 +542,14 @@ func (s *SystemAdapter) IsSecureInputEnabled() bool {
 func (s *SystemAdapter) ShowSecureInputNotification() {}
 
 // ShowAlert displays a message the user has to dismiss, through the session's
-// freedesktop notification daemon. Delivery does not depend on the display
-// server, so every Linux backend takes the same path; see alertNotification
-// for why this is a critical-urgency notification rather than a modal dialog.
+// notification daemon on every backend. See alertNotification for why it is a
+// critical-urgency notification rather than a modal dialog.
 func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) error {
 	return ShowAlert(ctx, title, message)
 }
 
-// ShowNotification displays a lightweight notification through the session's
-// freedesktop notification daemon, reporting CodeNotSupported when the session
-// has no bus or no daemon to show it rather than dropping the message.
+// ShowNotification displays a notification through the session's daemon,
+// reporting CodeNotSupported when there is no bus or daemon.
 func (s *SystemAdapter) ShowNotification(ctx context.Context, title, message string) error {
 	return ShowNotification(ctx, title, message)
 }
@@ -620,22 +557,11 @@ func (s *SystemAdapter) ShowNotification(ctx context.Context, title, message str
 // CheckScreenCapturePermission reports whether the screen can be read right
 // now, without prompting.
 //
-// Two of the three Linux backends have no gate at all and report true, which is
-// the "this platform has no such gate" answer ports/system.go specifies rather
-// than a silent no-op. X11 reads the root window back and the wlroots family
-// implements wlr-screencopy, and a client already trusted with the session
-// needs no further permission for either.
-//
-// KDE Plasma is the exception and the reason this method stopped answering
-// unconditionally. KWin implements no screencopy protocol, so capture goes
-// through xdg-desktop-portal's ScreenCast session, which *is* a consent gate.
-// A preflight that reported it open regardless would leave the one Linux
-// backend that has a permission as the only one whose permission was never
-// checked.
-//
-// A build with no native backends compiled in has no gate either, because it
-// has no capture. The refusal belongs to the capture, which names CGO, rather
-// than to a consent prompt that could not help.
+// X11 and wlroots have no gate and report true, the "no such gate" answer
+// ports/system.go specifies. Portal-capture backends (KWin, cosmic-comp,
+// Mutter) implement no screencopy, so capture goes through the ScreenCast
+// portal, which is a consent gate. A build without native backends has no
+// capture, and the capture's own refusal names CGO.
 func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
 	if !backendCapturesViaPortal(s.backend) || !nativeBackendsCompiledIn {
 		return true
@@ -644,14 +570,12 @@ func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
 	return screenCastConsentHeld()
 }
 
-// RequestScreenCapturePermission establishes KDE's screen-sharing consent and
-// reports what the user chose. On every other Linux backend it reports granted
-// without showing anything, because there is nothing to ask for.
+// RequestScreenCapturePermission establishes portal screen-sharing consent and
+// reports what the user chose. Backends with no gate report granted.
 //
-// On KDE it runs the ScreenCast handshake, which shows the portal's source
-// picker when there is no stored grant to restore and shows nothing when there
-// is. It blocks, and the caller must not hold a lock across it. It is where
-// the whole prompt budget is spent, so that no capture ever waits on a dialog.
+// It runs the ScreenCast handshake, which shows the source picker only when
+// there is no stored grant. It blocks, so the caller must not hold a lock
+// across it. All prompting happens here, so no capture waits on a dialog.
 func (s *SystemAdapter) RequestScreenCapturePermission(
 	ctx context.Context,
 ) ports.ScreenCaptureConsent {
@@ -667,14 +591,8 @@ func (s *SystemAdapter) RequestScreenCapturePermission(
 const capabilityProbeTimeout = 2 * time.Second
 
 // probedCapability reports declared when probe succeeds, and a stub explaining
-// why when it does not.
-//
-// Any probe failure downgrades the capability, not just CodeNotSupported. The
-// question `neru doctor` answers is "does this work right now?", and a backend
-// that is compiled in but cannot open its display fails with CodeActionFailed.
-// Reporting that as "supported" would be the same lie this probing exists to
-// remove. The detail distinguishes the cases so the user knows whether to
-// install something, start a session, or look at a broken display server.
+// why when it does not. Any failure downgrades, not just CodeNotSupported,
+// since a compiled-in backend that cannot open its display is not supported.
 func (s *SystemAdapter) probedCapability(
 	feature string,
 	declared ports.FeatureCapability,
@@ -700,24 +618,15 @@ func (s *SystemAdapter) probedCapability(
 	}
 }
 
-// notificationFeature names the notification probe's slot in capabilityProbes,
-// and opens the detail it reports.
+// notificationFeature names the notification probe's slot and opens its detail.
 const notificationFeature = "desktop notifications"
 
 // notificationCapability live-probes whether a notification daemon is
-// reachable right now. The question a user runs `neru doctor` to answer is
-// "will I see notifications?", and on Linux that is answered by the session
-// rather than by this code. Every backend can send one, and a session with no
-// daemon shows none. Reporting the static "supported" there would be the same
-// lie the empty ShowNotification body used to tell.
+// reachable right now.
 //
-// It shares the probe slots and the budget with probedCapability but not its
-// body, because that one explains a failure in terms of the display-server
-// backend, which decides nothing here. Notifications are a session-bus service
-// every backend reaches the same way. The budget has to be the full one because
-// the first probe of a daemon's life pays for the session-bus connect as well
-// as the question, and reporting "could not be confirmed" on a session where
-// notifications work is the same dishonesty in the other direction.
+// It shares probedCapability's slots and budget but not its wording, which
+// blames the display-server backend. The budget is the full one because the
+// first probe also pays for the session-bus connect.
 func (s *SystemAdapter) notificationCapability(
 	declared ports.FeatureCapability,
 ) ports.FeatureCapability {
@@ -749,9 +658,8 @@ func (s *SystemAdapter) notificationCapability(
 	}
 }
 
-// userFacingReason unwraps a domain error to the sentence written for the
-// user, leaving the "[CODE] ..." prefix out of a capability detail that `neru
-// doctor` prints verbatim.
+// userFacingReason unwraps a domain error to its user sentence, without the
+// "[CODE] ..." prefix, for a detail `neru doctor` prints verbatim.
 func userFacingReason(err error) string {
 	if domainErr, ok := errors.AsType[*derrors.Error](err); ok {
 		return domainErr.Message()
@@ -763,23 +671,17 @@ func userFacingReason(err error) string {
 // unavailableDetail explains why a probed capability is unavailable, in terms
 // the user can act on.
 func (s *SystemAdapter) unavailableDetail(feature string, cause error) string {
-	// An unfocused desktop is not an unavailable capability. The probe still
-	// downgrades the entry, because FocusedApplicationPID refuses right now and
-	// the matrix `neru doctor` prints has to agree with what a caller observes.
-	// But describing that as "unavailable" sends the user looking for a portal
-	// to install or a session to restart when focusing any window is the whole
-	// fix. This branch comes first because reaching this sentinel at all proves
+	// An unfocused desktop still downgrades the entry, so doctor agrees with
+	// callers, but "unavailable" would send the user to install something when
+	// focusing a window is the fix. It comes first because the sentinel proves
 	// a native backend answered, which makes every explanation below wrong.
 	if errors.Is(cause, errNoFocusedWindow) {
 		return feature + " found no focused window on linux backend " + s.backendLabel() +
 			": the query works and answers as soon as a window takes focus"
 	}
 
-	// The same argument one property down, and the reason it is a second
-	// sentinel rather than the first. A window is focused, and it advertises no
-	// _NET_WM_PID. Nothing is broken and nothing can be installed to change it,
-	// because EWMH does not require the property. The sentence above would send
-	// the user to focus a window they already focused.
+	// A focused window with no _NET_WM_PID is not broken either, since EWMH
+	// does not require it. A separate sentinel keeps the advice accurate.
 	if errors.Is(cause, errNoWindowPID) {
 		return feature + " found no _NET_WM_PID on the focused window on linux backend " +
 			s.backendLabel() + ": the query works and answers for a window that publishes one"
@@ -796,8 +698,7 @@ func (s *SystemAdapter) unavailableDetail(feature string, cause error) string {
 	}
 
 	if s.backend == backendX11 || s.waylandUsesWlrClientStack() {
-		// The backend is implemented, so this is a live failure rather than a
-		// gap. Carry the underlying reason, which is the actionable part.
+		// A live failure, not a gap. The underlying reason is the actionable part.
 		return feature + " is unavailable on linux backend " + s.backend + ": " + cause.Error()
 	}
 
@@ -814,14 +715,9 @@ func (s *SystemAdapter) backendLabel() string {
 	return s.backend
 }
 
-// capabilityProbes serializes capability probing per feature.
-//
-// A probe that times out leaves its goroutine blocked in a native call that
-// cannot be canceled. Without this, every subsequent doctor, status or health
-// request against a wedged display server would start three more, so goroutines
-// and native handles would grow without bound for as long as the backend stayed
-// stuck. Holding one slot per feature caps the outstanding probes at exactly
-// one each, however often capabilities are requested.
+// capabilityProbes serializes capability probing per feature. A timed-out
+// probe stays blocked in an uncancellable native call, so one slot per feature
+// caps outstanding probes at one each against a wedged display server.
 type capabilityProbes struct {
 	mu    sync.Mutex
 	state map[string]*probeRun
@@ -839,11 +735,8 @@ func newCapabilityProbes() *capabilityProbes {
 }
 
 // run probes feature, returning whether a result is available and what it was.
-//
-// When a probe from an earlier request is still stuck, run does not start
-// another. It reports the previous result if there is one, so a transiently
-// slow backend keeps answering with its last known state instead of degrading
-// every capability to "timed out".
+// While an earlier probe is stuck it starts none and reports the last result,
+// so a slow backend keeps its last known state instead of "timed out".
 func (p *capabilityProbes) run(
 	feature string,
 	timeout time.Duration,
@@ -892,27 +785,23 @@ func (p *capabilityProbes) run(
 	}
 }
 
-// moveCursorDirect performs a single instantaneous cursor warp, routing to the
-// backend-specific injector. It is the shared sink for both the direct move
-// path and each step of the smooth animator.
+// moveCursorDirect performs one instant cursor warp through the backend's
+// injector. It is the sink for direct moves and each animator step.
 func (s *SystemAdapter) moveCursorDirect(point image.Point) error {
 	if s.backend == backendX11 {
 		return x11MoveCursorToPoint(point)
 	}
 
 	if s.waylandUsesWlrClientStack() {
-		// Route through the Wayland input dispatcher so KDE (no virtual
-		// pointer) uses libei while wlroots compositors use the native path.
+		// The dispatcher sends KDE (no virtual pointer) to libei.
 		return waylandMoveCursorToPoint(point)
 	}
 
 	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on linux")
 }
 
-// currentCursorPosition returns the current cursor position for the animator,
-// collapsing the error to a zero point. The animator samples this once per
-// request to seed interpolation; a bad read only skews the glide path, never
-// the final landing point (the last step lands exactly on the target).
+// currentCursorPosition seeds the animator, collapsing an error to a zero
+// point. A bad read only skews the glide, never the landing point.
 func (s *SystemAdapter) currentCursorPosition() image.Point {
 	point, err := s.CursorPosition(context.Background())
 	if err != nil {
@@ -923,28 +812,23 @@ func (s *SystemAdapter) currentCursorPosition() image.Point {
 }
 
 // waylandUsesWlrClientStack is true when the session is served by the shared
-// wlroots client: xdg-output for screens, the cursor cache, and whichever of
-// the input protocols the compositor offers. KDE Plasma's KWin and cosmic-comp
-// implement most of the family for third-party clients; Mutter implements
-// xdg-output alone, which is enough for the screens and the cache, and every
-// other capability GNOME has is a portal or Xwayland one.
+// wlroots client (xdg-output, the cursor cache, whichever input protocols the
+// compositor offers). Mutter implements only xdg-output, and GNOME's other
+// capabilities come from portals or Xwayland.
 func (s *SystemAdapter) waylandUsesWlrClientStack() bool {
 	return backendUsesWlrClientStack(s.backend)
 }
 
-// backendUsesWlrClientStack answers the same question for a backend label with
-// no adapter in hand, because screen capture routes on the label alone. One
-// spelling means a future wlr-family backend is added in one place.
+// backendUsesWlrClientStack answers the same for a bare backend label, which
+// screen capture routes on. A new wlr-family backend is added here only.
 func backendUsesWlrClientStack(backend string) bool {
 	return backend == backendWaylandWlroots || backend == backendWaylandKDE ||
 		backend == backendWaylandCOSMIC || backend == backendWaylandGNOME
 }
 
-// backendCapturesViaPortal names the wlr-client-stack backends whose compositor
-// advertises no screencopy protocol, so pixels come off the portal's ScreenCast
-// session behind a consent gate: KWin, cosmic-comp and Mutter. Every consent
-// check and the smooth-cursor animator that cannot use a virtual pointer route
-// on it.
+// backendCapturesViaPortal names the backends with no screencopy protocol
+// (KWin, cosmic-comp, Mutter), which capture through the consent-gated
+// ScreenCast portal. Consent checks and the smooth-cursor animator route on it.
 func backendCapturesViaPortal(backend string) bool {
 	return backend == backendWaylandKDE || backend == backendWaylandCOSMIC ||
 		backend == backendWaylandGNOME
@@ -953,10 +837,8 @@ func backendCapturesViaPortal(backend string) bool {
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)
 
-// Ensure SystemAdapter keeps satisfying the optional SystemPort extensions it
-// opts into. Callers reach these by type assertion, so a signature drift would
-// otherwise silently downgrade Linux to the generic fallback path instead of
-// failing to compile.
+// Callers reach these optional extensions by type assertion, so signature
+// drift would silently downgrade Linux instead of failing to compile.
 var (
 	_ ports.RelativeCursorMover = (*SystemAdapter)(nil)
 	_ ports.CursorSynchronizer  = (*SystemAdapter)(nil)
@@ -978,28 +860,18 @@ const (
 	colorSchemeLight        = 2
 )
 
-// darkModePortalTimeout caps the busctl call. The portal call is normally
-// sub-millisecond on a healthy session bus. 250ms gives ample margin
-// without blocking `neru doctor` if the portal is wedged.
+// darkModePortalTimeout caps the busctl call, normally sub-millisecond, so a
+// wedged portal cannot block `neru doctor`.
 const darkModePortalTimeout = 250 * time.Millisecond
 
 // portalBusctlMinFields is the minimum token count in a successful busctl
 // Settings.Read response ("v v u N").
 const portalBusctlMinFields = 4
 
-// darkModePreference returns the active freedesktop color-scheme preference.
-//
-// Sources are tried in order:
-//  1. The xdg-desktop-portal Settings.Read interface (works on GNOME, KDE
-//     when xdg-desktop-portal-kde is installed, and any wlroots compositor
-//     where xdg-desktop-portal-gtk is the fallback responder).
-//  2. ~/.config/kdeglobals [General] ColorScheme, for vanilla KDE Plasma
-//     installs that haven't installed xdg-desktop-portal-kde and where the
-//     gtk-portal fallback returns nothing useful.
-//
-// Returns ok=false when no source could be queried (e.g. busctl missing AND
-// no kdeglobals on disk). Callers should treat that as "we don't know" rather
-// than "light mode".
+// darkModePreference returns the active freedesktop color-scheme preference,
+// trying the xdg-desktop-portal Settings.Read interface first, then
+// kdeglobals for Plasma installs without xdg-desktop-portal-kde. ok=false
+// means no source could be queried, which is "unknown", not "light".
 func darkModePreference() (int, darkModeSource, bool) {
 	if value, ok := readPortalColorScheme(); ok {
 		return value, darkModeSourcePortal, true
@@ -1012,14 +884,9 @@ func darkModePreference() (int, darkModeSource, bool) {
 	return -1, "", false
 }
 
-// readPortalColorScheme queries the xdg-desktop-portal Settings interface.
-//
-// The portal's Settings.Read returns a variant-of-variant containing a
-// uint32: 0 = no preference, 1 = prefer dark, 2 = prefer light. busctl
-// formats that as e.g. "v v u 1", and we take the trailing token.
-//
-// busctl's --quiet flag suppresses the method-call return value (not just
-// bus chatter), so we deliberately do NOT pass it.
+// readPortalColorScheme queries the xdg-desktop-portal Settings interface,
+// which busctl prints as e.g. "v v u 1". Never pass --quiet, which also
+// suppresses the return value.
 func readPortalColorScheme() (int, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), darkModePortalTimeout)
 	defer cancel()
@@ -1037,10 +904,7 @@ func readPortalColorScheme() (int, bool) {
 	}
 
 	fields := strings.Fields(string(out))
-	// Expected busctl format: "v v u N", at least 4 tokens with the uint32
-	// value as the last field. Fewer tokens means something unexpected was
-	// returned (busctl exited 0 with prose we don't recognize), so we must
-	// not treat the trailing token as a color-scheme value.
+	// Fewer tokens means busctl printed something unrecognized.
 	if len(fields) < portalBusctlMinFields {
 		return 0, false
 	}
@@ -1057,12 +921,10 @@ func readPortalColorScheme() (int, bool) {
 	return value, true
 }
 
-// readKDEColorScheme reads ~/.config/kdeglobals (and the kdedefaults variant)
-// and infers a color-scheme value from the [General] ColorScheme key. Plasma
-// scheme names containing "dark" (case-insensitive), such as BreezeDark,
-// OxygenDark and custom *Dark schemes, map to colorSchemeDark, and everything
-// else to colorSchemeLight. Returns ok=false when neither file exists or the
-// key is missing, so the caller can fall through to "unknown".
+// readKDEColorScheme infers a color scheme from [General] ColorScheme in
+// kdeglobals (or the kdedefaults variant). A name containing "dark" (any case,
+// such as BreezeDark) is dark, anything else light. ok=false when neither file
+// has the key.
 func readKDEColorScheme() (int, bool) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -1097,11 +959,9 @@ func readKDEColorScheme() (int, bool) {
 	return 0, false
 }
 
-// scanINIValue is a minimal INI-section/key reader. Used only for the
-// kdeglobals lookups above so we don't pull in a full INI parser dependency.
-// Kept generic on (section, key) rather than hardcoding "General" /
-// "ColorScheme" to keep the parsing logic and the dark-mode policy decoupled
-// (the tests exercise both axes).
+// scanINIValue is a minimal INI section/key reader for kdeglobals, avoiding an
+// INI parser dependency. It stays generic so parsing and dark-mode policy are
+// tested apart.
 func scanINIValue(r io.Reader, section, key string) string {
 	scanner := bufio.NewScanner(r)
 	sectionHeader := "[" + section + "]"
@@ -1128,11 +988,9 @@ func scanINIValue(r io.Reader, section, key string) string {
 	return ""
 }
 
-// darkModeCapability builds a FeatureCapability describing the current
-// dark-mode state for surfacing through `neru doctor` / IPC. When ok=false
-// the capability is downgraded to stub with a fix-it hint, since "we have a
-// function that returns false" is misleading. The user almost certainly has
-// a real preference set somewhere we just can't see.
+// darkModeCapability describes the current dark-mode state for `neru doctor`.
+// When ok=false it is a stub with a fix-it hint, since the user likely has a
+// preference we cannot see.
 func darkModeCapability(value int, source darkModeSource, ok bool) ports.FeatureCapability {
 	if !ok {
 		return ports.FeatureCapability{

@@ -8,12 +8,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-// XGetImage answers BadMatch for any rectangle that is not wholly inside the
-// drawable, which a display hotplug between the clip and the request can
-// produce however carefully the region was clipped, and Xlib's default error
-// handler calls exit() on it. The capture therefore runs inside the shared
-// protocol-error trap (x11_error_trap.h), which turns "the daemon dies
-// mid-capture" into "the capture failed".
+// XGetImage answers BadMatch for any rectangle not wholly inside the drawable,
+// which a hotplug between the clip and the request can produce, and Xlib's
+// default handler exits on it. So the capture runs inside the shared
+// protocol-error trap (x11_error_trap.h).
 
 // neru_x11_mask_shift returns how far right a channel mask sits.
 static int neru_x11_mask_shift(unsigned long mask) {
@@ -62,10 +60,9 @@ static unsigned char neru_x11_channel(unsigned long pixel, unsigned long mask, i
 	return (unsigned char)((value * 255UL) / max);
 }
 
-// neru_x11_read_pixel returns the raw pixel at (col, row). The 32-bits-per-pixel
-// case, which every modern TrueColor visual uses, is read straight out of the image data
-// rather than through XGetPixel, which is an indirect call per pixel and shows
-// up as tens of milliseconds on a full-screen grab.
+// neru_x11_read_pixel returns the raw pixel at (col, row). The 32-bpp case of
+// every modern TrueColor visual is read straight from the image data, because
+// XGetPixel's per-pixel indirect call costs tens of ms on a full-screen grab.
 static unsigned long neru_x11_read_pixel(XImage *image, int col, int row, int direct) {
 	if (!direct) {
 		return XGetPixel(image, col, row);
@@ -155,11 +152,7 @@ int neru_x11_capture_region(int x, int y, int w, int h, NeruCapture *out) {
 		return NERU_CAPTURE_ERR_FAILED;
 	}
 
-	// The region must lie wholly inside the root window. Clipping it instead
-	// would return a frame whose top-left is not the caller's, and nothing in
-	// the result says so, and the caller could no longer map a pixel back to a
-	// screen coordinate. Refusing keeps the invariant that what comes
-	// back covers exactly what was asked for.
+	// Refuse rather than clip (see the header).
 	if (x < 0 || y < 0 || x + w > attrs.width || y + h > attrs.height) {
 		XCloseDisplay(display);
 

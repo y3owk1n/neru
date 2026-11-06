@@ -11,10 +11,9 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// gnomeGeometry is the part of the bridge this source uses, named so the
-// accept-or-reject rules can be tested without a GNOME Shell, since the bridge is
-// process-wide by design, and a test that pushed into it would push into every
-// other test's cache too.
+// gnomeGeometry is the part of the bridge this source uses, an interface so
+// the accept-or-reject rules can be tested without GNOME Shell. The bridge is
+// process-wide, so a test pushing into it would push into every test's cache.
 type gnomeGeometry interface {
 	EnsureStarted()
 	Focused() (gnomeshell.Window, bool, error)
@@ -46,9 +45,8 @@ func (s *gnomeOriginSource) start() { s.geometry.EnsureStarted() }
 // which is the race the check exists for. Size is the check that catches a
 // transient the shell reported and AT-SPI did not.
 func (s *gnomeOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
-	// Asked on every activation, because the shell can reload the extension and a
-	// source that only tried at startup would spend the rest of the session
-	// placing hints window-relative. It never blocks.
+	// Asked on every activation, since the shell can reload the extension. It
+	// never blocks.
 	s.geometry.EnsureStarted()
 
 	window, cached, err := s.geometry.Focused()

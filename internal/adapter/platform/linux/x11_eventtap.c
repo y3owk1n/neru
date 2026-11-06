@@ -139,9 +139,8 @@ static KeySym neru_eventtap_modifier_keysym(const char *modifier) {
 }
 
 int neru_eventtap_post_modifier(const char *modifier, int is_down) {
-	// Open a fresh Display connection per call rather than share the grab Display
-	// used by runX11(). Xlib is not thread-safe without XInitThreads, so XTest
-	// injection gets a connection of its own.
+	// A fresh connection per call, not runX11()'s grab Display, because Xlib is
+	// not thread-safe without XInitThreads.
 	Display *display = neru_eventtap_open();
 	if (display == NULL)
 		return 0;

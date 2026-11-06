@@ -2,13 +2,11 @@
 
 package linux
 
-// The absolute axes that make a node a touch surface or a tablet rather than
-// a keyboard: the position of a finger or a pen. A keyboard with a trackpad
-// built in advertises them, and grabbing it for its keys would swallow its
-// touches, since re-emitting those would need the device's own axis ranges and
-// slots. Any other absolute axis is left to count for nothing. A Bluetooth
-// keyboard's consumer-control page puts a volume knob on ABS_VOLUME, and a
-// keyboard is no less a keyboard for having one.
+// The absolute axes that mark a touch surface or tablet: finger or pen
+// position. Grabbing a keyboard with a built-in trackpad would swallow its
+// touches, since re-emitting them needs the device's own axis ranges and
+// slots. Other absolute axes do not count, so a keyboard with a volume knob on
+// ABS_VOLUME is still a keyboard.
 const (
 	evdevAbsX           = 0x00
 	evdevAbsY           = 0x01

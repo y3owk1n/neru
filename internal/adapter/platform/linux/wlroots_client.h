@@ -23,25 +23,21 @@ typedef struct {
 	struct wl_surface *discovery_surface;
 } NeruWaylandScreen;
 
-// app_id / title buffer length. Reverse-DNS desktop IDs (e.g.
-// "org.kde.konsole") and freedesktop app-ids fit comfortably in 256 bytes.
+// app_id buffer length. Reverse-DNS desktop IDs fit comfortably.
 #define NERU_APP_ID_LEN 256
 
-// Window-title buffer length. Titles can be longer than app-ids; 512 bytes
-// avoids truncating most window titles so they match the AT-SPI frame name.
+// Window-title buffer length, long enough that most titles are not truncated
+// and still match the AT-SPI frame name.
 #define NERU_TITLE_LEN 512
 
-// NeruToplevel mirrors one zwlr_foreign_toplevel_handle_v1. Nodes are heap
-// allocated and threaded onto NeruWlrootsClient.toplevels via `link`, so there
-// is no fixed cap on the number of windows tracked. app_id and the activated
-// flag are committed atomically on the handle's `done` event, and the `pending_*`
-// fields buffer values arriving between `done` events so a half-applied state
-// is never observed.
-// A node mirrors exactly one of two handle kinds. On wlroots and KWin it is a
-// zwlr_foreign_toplevel_handle_v1. On cosmic-comp, which implements no wlr
-// manager, it is an ext_foreign_toplevel_handle_v1 (app_id, title) paired with
-// the zcosmic_toplevel_handle_v1 that carries the activated state and the
-// window's global geometry. Geometry exists only on the cosmic pair.
+// NeruToplevel mirrors one window. Nodes are heap allocated on
+// NeruWlrootsClient.toplevels, so there is no cap. State commits atomically on
+// `done`, and the `pending_*` fields buffer values in between so a half-applied
+// state is never observed.
+// On wlroots and KWin a node holds a zwlr_foreign_toplevel_handle_v1. On
+// cosmic-comp it holds an ext_foreign_toplevel_handle_v1 (app_id, title) paired
+// with the zcosmic_toplevel_handle_v1 that carries the activated state and the
+// global geometry. Geometry exists only on the cosmic pair.
 typedef struct {
 	struct wl_list link;  // links into NeruWlrootsClient.toplevels
 	struct zwlr_foreign_toplevel_handle_v1 *handle;
@@ -68,10 +64,8 @@ typedef struct NeruWlrootsClient {
 	struct wl_shm *shm;
 	struct zwlr_layer_shell_v1 *layer_shell;
 	struct wl_seat *seat;
-	// Atomic because the seat's capabilities event is what sets it, and that
-	// event can arrive on the dispatch thread long after connect, as with a mouse
-	// plugged into a session that started without one. Everything else here
-	// reads it.
+	// Atomic because the capabilities event sets it on the dispatch thread,
+	// possibly long after connect, as when a mouse is plugged in later.
 	_Atomic(struct wl_pointer *) pointer;
 
 	struct zwp_relative_pointer_manager_v1 *rel_ptr_mgr;
@@ -84,9 +78,8 @@ typedef struct NeruWlrootsClient {
 	int vkeyboard_ready;
 	struct zxdg_output_manager_v1 *xdg_output_mgr;
 
-	// Foreign-toplevel management: tracks every toplevel and which one holds
-	// the "activated" (focused) state so Neru can resolve the focused app_id
-	// on wlroots/KWin Wayland sessions (GNOME/Mutter does not implement it).
+	// Tracks every toplevel and the activated one, to resolve the focused app_id
+	// on wlroots and KWin (GNOME/Mutter does not implement it).
 	struct zwlr_foreign_toplevel_manager_v1 *toplevel_mgr;
 	// cosmic-comp's replacement for the wlr manager. The ext list names every
 	// toplevel, the cosmic info global says which is activated and where it is.
@@ -108,19 +101,15 @@ typedef struct NeruWlrootsClient {
 	pthread_mutex_t toplevel_mutex;
 	int toplevel_mutex_ready;
 
-	// focus_pipe is a self-pipe that pushes focus-change notifications to Go
-	// without a cross-thread callback. neru_wlr_recompute_focused writes one
-	// byte to focus_pipe[1] (the write end) whenever focused_app_id changes, and
-	// the Go app watcher blocks reading focus_pipe[0] (the read end, exposed via
-	// neru_wlr_focus_event_fd). Both ends are non-blocking so the dispatch
-	// thread never stalls under toplevel_mutex. Both are -1 until initialized.
+	// focus_pipe pushes focus changes to Go without a cross-thread callback.
+	// neru_wlr_recompute_focused writes a byte to [1] when focused_app_id
+	// changes, and Go reads [0] via neru_wlr_focus_event_fd. Both ends are
+	// non-blocking so the dispatch thread never stalls under toplevel_mutex.
+	// Both are -1 until initialized.
 	int focus_pipe[2];
 	int focus_pipe_ready;
 
-	// screen_pipe is a self-pipe that pushes display-configuration changes
-	// (outputs added/removed via wl_registry global/global_remove) to Go, the
-	// same way focus_pipe pushes focus changes. Both ends are non-blocking so the
-	// dispatch thread never stalls. Both are -1 until initialized.
+	// screen_pipe does the same for outputs added and removed.
 	int screen_pipe[2];
 	int screen_pipe_ready;
 
@@ -170,11 +159,10 @@ int neru_wlr_button(NeruWlrootsClient *c, int button, int pressed);
 int neru_wlr_click(NeruWlrootsClient *c, int button);
 int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete);
 int neru_wlr_scroll_batch(NeruWlrootsClient *c, int axis, int *deltas, int *discretes, int count);
-// Emit one continuous (sub-notch capable) scroll step: an axis event carrying a
-// fractional wl_fixed value and no discrete step count. With no discrete step
-// the compositor forwards the fraction to the focused client as a plain
-// wl_pointer.axis, which is what makes an animated scroll finer than a wheel
-// notch possible. value is in the same units neru_wlr_scroll's delta uses.
+// Emit one continuous scroll step, a fractional wl_fixed axis value with no
+// discrete count. The compositor forwards it to the focused client as a plain
+// wl_pointer.axis, which lets an animated scroll go finer than a notch. value
+// uses neru_wlr_scroll's delta units.
 int neru_wlr_scroll_continuous(NeruWlrootsClient *c, int axis, double value);
 int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_down);
 
@@ -215,11 +203,9 @@ int neru_wlr_focused_toplevel_geometry(NeruWlrootsClient *c, int32_t *x, int32_t
 // focused, or the focused toplevel has no app_id yet).
 int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len);
 
-// neru_wlr_focused_app_identity copies the app_id and title of the currently-
-// activated toplevel under a single lock, so the two always describe the same
-// window (no focus commit can interleave). Returns 1 when a focused app_id is
-// available, 0 otherwise. The title disambiguates multiple windows of the
-// focused application, which share an app_id.
+// neru_wlr_focused_app_identity copies the focused toplevel's app_id and title
+// under one lock, so both describe the same window. Returns 1 when a focused
+// app_id is available, 0 otherwise. The title tells one app's windows apart.
 int neru_wlr_focused_app_identity(NeruWlrootsClient *c, char *app_out, int app_len, char *title_out, int title_len);
 
 // neru_wlr_focus_event_fd returns a readable file descriptor that becomes
@@ -229,12 +215,9 @@ int neru_wlr_focused_app_identity(NeruWlrootsClient *c, char *app_out, int app_l
 // neru_wlr_disconnect, and callers must not close it.
 int neru_wlr_focus_event_fd(NeruWlrootsClient *c);
 
-// neru_wlr_screen_event_fd returns a readable file descriptor that becomes
-// readable whenever the display configuration changes (an output is added or
-// removed). Callers poll it, drain the pending byte(s), then re-read the screen
-// list via neru_wlr_screen_count / neru_wlr_screen_info. Returns -1 when no pipe
-// is available. The fd is owned by the client and closed by neru_wlr_disconnect,
-// and callers must not close it.
+// neru_wlr_screen_event_fd is the same for display-configuration changes,
+// after which callers re-read neru_wlr_screen_count / neru_wlr_screen_info.
+// Same ownership rule as the focus fd.
 int neru_wlr_screen_event_fd(NeruWlrootsClient *c);
 
 #endif /* WLROOTS_CLIENT_H */

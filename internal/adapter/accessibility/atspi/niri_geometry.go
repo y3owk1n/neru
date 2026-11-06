@@ -10,12 +10,10 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/compositorcli"
 )
 
-// niri window-origin source. niri exposes the focused window's position within
-// the workspace view (layout.tile_pos_in_workspace_view) plus the focused
-// output's logical origin, which together give the window's screen origin.
-// That field is populated for FLOATING windows. For tiled windows niri does not
-// expose the on-screen position (upstream niri#2381), so originFor reports no
-// origin and hints fall back to unoffset coordinates.
+// niri window-origin source. The focused window's position in the workspace
+// view (layout.tile_pos_in_workspace_view) plus the focused output's logical
+// origin give its screen origin. niri sets that field only for floating
+// windows (niri#2381), so a tiled window gets no origin.
 type niriOriginSource struct {
 	logger *zap.Logger
 }
@@ -46,13 +44,9 @@ type niriOutput struct {
 	} `json:"logical"`
 }
 
-// originFor asks niri where the focused window is, in two queries with a gate
-// between them.
-//
-// The gate is the tile position, which niri populates for floating windows only
-// (niri#2381). Without it there is no origin to compute, so the second query is
-// never made, and a focused-output query that would have failed cannot turn
-// niri's ordinary layout into a reported failure on every activation.
+// originFor asks niri where the focused window is, in two queries gated on the
+// tile position. A tiled window has none (niri#2381), so the output query is
+// skipped and cannot turn niri's ordinary layout into a reported failure.
 func (n *niriOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
 	var win niriWindow
 
@@ -76,14 +70,10 @@ func (n *niriOriginSource) originFor(frame windowFrame) (image.Point, bool, erro
 	return niriComputeOrigin(out, tileX, tileY), true, nil
 }
 
-// niriOriginTile returns the focused window's position within the workspace
-// view, or false when niri has none to give: a tiled window
-// (tile_pos_in_workspace_view absent, niri#2381), or a window whose size does
-// not match the AT-SPI frame (a focus change raced the query).
-//
-// The pair is returned unpacked as x, then y, then whether there is one, rather
-// than as niri's own slice, so the length check that makes it a pair cannot be
-// separated from the values it guards.
+// niriOriginTile returns the focused window's workspace-view position, or
+// false for a tiled window (niri#2381) or one whose size does not match the
+// AT-SPI frame (a focus change raced the query). It returns x, y and ok rather
+// than niri's slice, so the length check stays with the values it guards.
 func niriOriginTile(
 	win niriWindow,
 	frameW, frameH int,

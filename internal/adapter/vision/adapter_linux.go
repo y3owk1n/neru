@@ -18,29 +18,22 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// Linux answers this port with two native pieces: screen capture
-// (wlr-screencopy on wlroots compositors, XGetImage on X11, a PipeWire stream
-// off the portal's ScreenCast session on KDE) and tesseract through
-// platform/linux/ocr.c.
+// Linux answers this port with screen capture (wlr-screencopy on wlroots,
+// XGetImage on X11, a PipeWire stream off the portal's ScreenCast session on
+// KDE) plus tesseract (platform/linux/ocr.c) for text and the pure-Go contour
+// detector for rectangles, run concurrently over one frame (rectangles.go).
 //
-// macOS runs Vision's text and rectangle requests. Here tesseract answers the
-// text half and the pure-Go contour detector the rectangle half, both over the
-// one captured frame and at the same time (rectangles.go).
-//
-// Privacy runs through every line below. Recognized text is screen content. It
-// reaches an element's title and search text, where the hint pipeline needs it,
-// and nowhere else. Nothing here logs it, counts characters of it into a
-// message, or writes it anywhere. The debug lines carry durations and counts.
+// Privacy: recognized text is screen content. It reaches an element's title
+// and search text and nowhere else. Nothing here logs it or counts it into a
+// message. Debug lines carry durations and counts.
 
 // DetectElements captures screenBounds and returns the text and button shapes
 // found in it as hintable elements.
 //
-// screenBounds is where the caller wants hints, normally the focused window,
-// in global top-left-origin unscaled pixels, and it is honored rather than
-// widened. Full-display OCR takes seconds, one window is tens of milliseconds
-// to a few hundred. It is also what places the results, so an empty rectangle
-// is refused rather than read as "the whole screen". The frame would come back
-// with no way to say where its top-left was.
+// screenBounds, normally the focused window in global top-left-origin unscaled
+// pixels, is honored rather than widened, since full-display OCR takes
+// seconds. It also places the results, so an empty rectangle is refused
+// rather than read as "the whole screen".
 func (a *Adapter) DetectElements(
 	ctx context.Context,
 	screenBounds image.Rectangle,
@@ -53,17 +46,15 @@ func (a *Adapter) DetectElements(
 	}
 
 	if !cfg.DetectText && !cfg.DetectRectangles {
-		// Capturing the screen to find nothing in it would be a plain waste.
+		// Skip the capture when nothing would read the frame.
 		a.logger.Debug("Vision detection skipped: text and rectangle detection are disabled")
 
 		return nil, nil
 	}
 
-	// The engine is checked before the screen is read, not after. A machine
-	// with no language data would otherwise have its focused window captured on
-	// every activation only to be told there is nothing to read it with. That
-	// would pay for a frame, and take one, to answer a question about which
-	// packages are installed. After the first call this is a cached handle.
+	// Check the engine before capturing, or a machine with no language data
+	// would have its window captured on every activation for nothing. After the
+	// first call this is a cached handle.
 	if cfg.DetectText {
 		engineErr := platformlinux.OCRHealth()
 		if engineErr != nil {
@@ -94,8 +85,7 @@ func (a *Adapter) DetectElements(
 			TimeoutMS: cfg.RequestTimeoutMS,
 		})
 		if err != nil {
-			// A refusal already names what to install, and that text reaches the
-			// user as written, so it passes through unchanged.
+			// A refusal already names what to install, so it passes unchanged.
 			if derrors.IsNotSupported(err) {
 				return nil, err
 			}
@@ -142,9 +132,8 @@ func (a *Adapter) DetectElements(
 	return elements, nil
 }
 
-// toRecognizedWords adapts the platform bridge's word type to the shared one
-// the region mapping is written against, so that mapping stays testable on a
-// host with no Linux build.
+// toRecognizedWords adapts the platform bridge's word type to the shared one,
+// so the region mapping stays testable on a non-Linux host.
 func toRecognizedWords(words []platformlinux.OCRWord) []recognizedWord {
 	converted := make([]recognizedWord, 0, len(words))
 
@@ -209,9 +198,9 @@ func (a *Adapter) DetectSegments(
 	return targetElements(frame, rects, element.SourceSegment), nil
 }
 
-// captureDetectionFrame captures just screenBounds. The backends read the
-// region at the output's native resolution, so the scale is whatever the
-// frame's height says it is against the logical region.
+// captureDetectionFrame captures just screenBounds. Backends read at the
+// output's native resolution, so the scale comes from the frame's height
+// against the logical region.
 func (a *Adapter) captureDetectionFrame(
 	ctx context.Context,
 	screenBounds image.Rectangle,
@@ -235,28 +224,20 @@ func (a *Adapter) captureDetectionFrame(
 	return detectionFrame{img: img, origin: region.Min, region: region, scale: scale}, nil
 }
 
-// Health reports whether the vision strategy can run on this machine, by
-// checking both halves without exercising either destructively.
+// Health reports whether the vision strategy can run on this machine, checking
+// both halves without exercising either destructively.
 //
-// The capture half is answered from the live backend label rather than by
-// taking a frame. A health check that read the user's screen to find out which
-// display server is running would be the wrong trade twice over. That catches
-// the sessions whose label settles it: no display server at all, GNOME, or an
-// unrecognized Wayland compositor. It deliberately does not catch a KDE
-// session whose screen-sharing consent has not been approved yet. That is a
-// permission rather than a capability, and it is what
-// SystemPort.CheckScreenCapturePermission answers, ahead of the activation, so
-// the user is asked instead of told the strategy is unavailable.
+// The capture half reads the live backend label rather than taking a frame,
+// catching no display server, GNOME, or an unrecognized Wayland compositor.
+// It deliberately ignores a KDE session whose screen-sharing consent is not
+// yet approved, because that is a permission, answered by
+// SystemPort.CheckScreenCapturePermission so the user is asked rather than
+// told the strategy is unavailable.
 //
-// The recognition half catches the failure a user can actually fix. Tesseract
-// language data is a separate distribution package from the library Neru links,
-// so a machine that builds and starts Neru can still have no eng.traineddata on
-// it. The error names the file.
-//
-// Initializing tesseract loads an LSTM model from disk, so a caller that does
-// ask is also warming the engine. The handle is cached for the process, and a
-// later detection finds it loaded. Nothing in the daemon calls this today. The
-// same two checks run inside DetectElements, which is where a user meets them.
+// The recognition half catches missing tesseract language data, a separate
+// distribution package, and the error names the file. Checking it warms the
+// engine, whose handle is cached. Nothing in the daemon calls this today, and
+// DetectElements runs the same checks.
 func (a *Adapter) Health(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -272,24 +253,16 @@ func (a *Adapter) Health(ctx context.Context) error {
 	return platformlinux.OCRHealth()
 }
 
-// backend names the live display server, which is what decides whether capture
-// is possible at all. platform.DetectLinuxBackend is the one place that answer
-// comes from (internal/adapter/platform/AGENTS.md).
+// backend names the live display server, from platform.DetectLinuxBackend, the
+// one place that answer comes from (internal/adapter/platform/AGENTS.md).
 func (a *Adapter) backend() string {
 	return platform.DetectLinuxBackend().String()
 }
 
 // captureRegion captures region, in global top-left-origin, Y-down, unscaled
-// pixels, through whichever backend the live session uses. An empty rectangle
-// means the whole active screen, which is what CaptureScreen asks for.
-//
-// The region exists so a caller constrained to the focused window pays for the
-// focused window. Reading a 4K display back to examine one window is the
-// difference between usable and not.
-//
-// Nothing derived from the returned image is logged. The debug line below
-// carries a duration and the frame's dimensions, which describe the capture
-// rather than its contents.
+// pixels, through the live session's backend. An empty rectangle means the
+// whole active screen. The region lets a window-constrained caller avoid
+// reading back a whole 4K display. Nothing derived from the image is logged.
 func (a *Adapter) captureRegion(ctx context.Context, region image.Rectangle) (*image.RGBA, error) {
 	select {
 	case <-ctx.Done():

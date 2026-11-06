@@ -22,11 +22,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// AT-SPI (D-Bus) accessibility client for Linux: enables assistive-tech mode,
-// finds the active window, and walks its tree for clickable elements so hints
-// mode works on KDE/Wayland and other AT-SPI desktops.
-// It does NOT implement input injection (that stays on the embedded
-// InfraAXClient, which routes clicks through wlroots/libei).
 var errClientClosed = errors.New("AT-SPI client is closed")
 
 const (
@@ -65,41 +60,31 @@ const (
 	atspiMaxNodes         = 2000
 	atspiWalkDepthCeiling = 256
 
-	// atspiCallTimeout bounds a single AT-SPI D-Bus round-trip. A healthy
-	// toolkit answers each read (role, extents, name, children, state) in
-	// single-digit milliseconds. It only trips when an app is wedged or not
-	// answering accessibility queries. Without it a single hung call would
-	// consume the whole element-scan budget and the CLI would give up with a
-	// bare timeout (or the daemon would log a broken-pipe write after the
-	// client disconnected). Bounding each call lets a stuck node be dropped and
-	// the scan continue.
+	// atspiCallTimeout bounds one AT-SPI D-Bus round trip. A healthy toolkit
+	// answers in milliseconds, so it trips only on a wedged app, and the scan
+	// drops that node and continues instead of spending its whole budget.
 	atspiCallTimeout = 500 * time.Millisecond
 
-	// atspiPropertiesGet is the standard D-Bus Properties.Get method, called
-	// with a context so a wedged property read cannot block indefinitely (the
-	// godbus GetProperty convenience method has no context-aware variant).
+	// atspiPropertiesGet is called with a context so a wedged read cannot block,
+	// since godbus GetProperty has no context-aware variant.
 	atspiPropertiesGet = "org.freedesktop.DBus.Properties.Get"
 
-	// Capacity hint for the clickable-node slice: most windows fit well under
-	// this and the slice grows if a dense tree exceeds it.
+	// Capacity hint for the clickable-node slice.
 	atspiClickableNodesCap = 128
 
 	// org.a11y.Status D-Bus property names.
 	a11yPropIsEnabled    = "IsEnabled"
 	a11yPropScreenReader = "ScreenReaderEnabled"
 
-	// org.a11y.atspi.Collection.GetMatches fetches all descendants matching a
-	// role+state predicate in a single D-Bus call, instead of the per-node walk.
+	// Collection.GetMatches fetches every matching descendant in one call.
 	atspiCollectionIfc = "org.a11y.atspi.Collection"
 
-	// AtspiCollectionMatchType values (atspi-constants.h): how a criterion set is
-	// interpreted. MATCH_ALL requires all listed items, MATCH_ANY requires any.
-	// An empty set with MATCH_ALL imposes no constraint.
+	// AtspiCollectionMatchType values (atspi-constants.h). MATCH_ALL requires
+	// every listed item, so an empty set matches anything. MATCH_ANY requires one.
 	atspiMatchAll = int32(1)
 	atspiMatchAny = int32(2)
 
-	// AtspiCollectionSortOrder CANONICAL (atspi-constants.h). Ordering is
-	// irrelevant here since hints are re-positioned, but a valid value is required.
+	// AtspiCollectionSortOrder CANONICAL. Order is irrelevant but must be valid.
 	atspiSortCanonical = uint32(1)
 
 	// Fixed word counts libatspi marshals the role/state sets into (see
@@ -108,16 +93,12 @@ const (
 	atspiRoleWords  = 5
 	atspiStateWords = 2
 
-	// collectionMaxWorkers bounds the goroutines that materialize GetMatches
-	// results (role/extents/name lookups). These are latency-bound D-Bus calls
-	// that godbus multiplexes over one connection, so overlapping them cuts the
-	// per-match cost. The cap keeps a large page from flooding the a11y bus.
+	// collectionMaxWorkers caps the goroutines materializing GetMatches results,
+	// so a large page cannot flood the a11y bus.
 	collectionMaxWorkers = 16
 )
 
-// atspiRoleFrame is the AT-SPI role of a top-level application window, used
-// both as a vocabulary entry and to recognize window elements during frame
-// selection.
+// atspiRoleFrame is the AT-SPI role of a top-level application window.
 const atspiRoleFrame = "frame"
 
 // Role names that appear both in the ordered list below and in the alias map.
@@ -151,9 +132,8 @@ type Client struct {
 	configProvider config.Provider
 	windowOrigin   windowOriginSource
 
-	// originFailure is the reason the window-origin source last gave for not
-	// answering, so a session-long failure is warned about once rather than on
-	// every activation. Read and written from whichever goroutine is scanning.
+	// originFailure is the origin source's last failure reason, so a
+	// session-long failure warns once. Any scanning goroutine may touch it.
 	originFailure atomic.Pointer[string]
 
 	mu        sync.Mutex
@@ -167,18 +147,15 @@ type Client struct {
 	savedSrOn bool // original ScreenReaderEnabled before our first enable
 
 	// titleMatched maps a focused app_id that no AT-SPI application name
-	// answers to onto the bus name of the application whose window last
-	// matched it by title, and titleMissed records title scans that found no
-	// window. Both keep findFocusedFrameByTitle from reading every window on
-	// the bus on every activation.
+	// answers to the bus name whose window last matched it by title, and
+	// titleMissed records title scans that found nothing. Both spare
+	// findFocusedFrameByTitle from reading every window on every activation.
 	titleMatchedMu sync.Mutex
 	titleMatched   map[string]string
 	titleMissed    map[string]titleMiss
 
-	// Event-driven active-window cache. A background listener records the AT-SPI
-	// window that most recently emitted a window:activate event, so frame
-	// selection can skip the registry scan entirely when the cached window still
-	// matches the compositor's focused toplevel. See events.go.
+	// Active window as last reported by window:activate, so frame selection can
+	// skip the registry scan. See events.go.
 	activeMu     sync.Mutex
 	activeWindow *atspiActiveWindow // nil until the first window:activate arrives
 	eventsReady  bool               // true once the listener is registered on c.a11y
@@ -186,13 +163,9 @@ type Client struct {
 	eventsClosed bool               // true after Close; blocks starting a new listener
 }
 
-// New builds the Linux accessibility client. AT-SPI is not
-// activated until ensureA11yEnabled is called (lazily on first hints request),
-// so hints-disabled sessions never touch the session-wide a11y status.
-//
-// AT-SPI itself is the accessibility API on every Linux backend, so this client
-// is built on all of them. Only the window-origin source is backend-specific,
-// and it is chosen here rather than probing for a compositor of its own.
+// New builds the Linux accessibility client. AT-SPI is activated lazily on
+// the first hints request, so hints-disabled sessions never touch the
+// session-wide a11y status. Only the window-origin source is backend-specific.
 func New(logger *zap.Logger, configProvider config.Provider) *Client {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -218,31 +191,25 @@ func (c *Client) FrontmostWindow(ctx context.Context) (ax.Window, error) {
 		return nil, err
 	}
 
-	// Start (once) the window:activate listener so subsequent frame selections can
-	// read the event-tracked active window instead of scanning the registry.
+	// Start the window:activate listener once. See events.go.
 	c.ensureA11yEvents(conn)
 
-	// Attach a scan diagnostic so the bounded frame-selection reads can flag a
-	// fatal AT-SPI failure (a timeout, a closed connection, or the registry/app
-	// leaving the bus). Without it a registry that stops responding looks like
-	// "no active frame" and hints show nothing with no error.
+	// The diagnostic lets frame selection report a fatal AT-SPI failure instead
+	// of a registry that stopped responding looking like "no active frame".
 	diag := &atspiScanDiag{}
 	ctx = context.WithValue(ctx, atspiScanDiagKey{}, diag)
 
-	// Read the compositor's focused app_id and title once (together so they
-	// describe one window) and use this single snapshot both to select the frame
-	// and to record it on the window. Reading it again after selection could
-	// capture a newer window's identity against the old frame, letting the
-	// ClickableNodes stability check accept a stale frame.
+	// Read the focused app_id and title once, as one snapshot, for both selection
+	// and the window record. A second read could pair a newer window's identity
+	// with the old frame and defeat the ClickableNodes stability check.
 	focusedAppID, focusedTitle, _ := linux.FocusedAppIdentity(
 		platform.DetectLinuxBackend().String(),
 	)
 
 	frame, ok := c.findActiveFrame(ctx, conn, focusedAppID, focusedTitle)
 	if !ok {
-		// Distinguish a genuine "nothing focused" from an AT-SPI failure during
-		// selection. Only the latter recorded a scan-fatal error. A frame that
-		// *was* found is returned even if some other app errored mid-scan.
+		// Tell "nothing focused" from an AT-SPI failure during selection. A frame
+		// that was found is returned even if another app errored mid-scan.
 		ferr := diag.fatalErr()
 		if ferr != nil {
 			return nil, scanFailureError(ferr)
@@ -250,8 +217,7 @@ func (c *Client) FrontmostWindow(ctx context.Context) (ax.Window, error) {
 
 		c.logger.Debug("AT-SPI found no active frame")
 
-		// No active frame. Hand back an empty window so the adapter finds no
-		// clickable elements rather than erroring out.
+		// Nothing focused. An empty window yields no hints rather than an error.
 		return &atspiWindow{}, nil
 	}
 
@@ -310,30 +276,24 @@ func (c *Client) ClickableNodes(
 		return nil, err
 	}
 
-	// Attach a per-scan diagnostic so the leaf D-Bus helpers can flag a per-call
-	// timeout. It lets an empty result caused by an unresponsive app surface as a
-	// clear timeout below instead of looking like a window with no elements.
+	// The diagnostic lets an unresponsive app surface below as a timeout instead
+	// of a window with no elements.
 	diag := &atspiScanDiag{}
 	ctx = context.WithValue(ctx, atspiScanDiagKey{}, diag)
 
 	start := time.Now()
 
-	// Early-out: if focus already changed since this window was selected, the
-	// frame is stale, so skip the (subprocess-spawning) geometry query below and
-	// return nothing. When no focused app_id is available (GNOME without the
-	// extension) there is nothing to compare, so the walk proceeds. The
-	// stability is re-checked after the geometry query to close the race window
-	// described there.
+	// If focus changed since selection the frame is stale, so skip the
+	// subprocess-spawning geometry query. With no focused app_id (GNOME without
+	// the extension) there is nothing to compare and the walk proceeds.
 	if !c.focusStableSince(win.focusedAppID, win.focusedTitle) {
 		return nil, nil
 	}
 
 	place, haveOrigin := c.placementFor(ctx, conn, win)
 
-	// originFor reads the *current* focused window's geometry, so a focus change
-	// between the early-out above and that read would pair this frame with a
-	// different (equally sized) window's origin. Re-verify stability and abort if
-	// focus moved, rather than walk a stale frame or apply a mismatched origin.
+	// originFor reads the current focused window's geometry. Recheck so a focus
+	// change in between cannot pair this frame with another window's origin.
 	if !c.focusStableSince(win.focusedAppID, win.focusedTitle) {
 		return nil, nil
 	}
@@ -360,11 +320,9 @@ func (c *Client) ClickableNodes(
 		return out, nil
 	}
 
-	// An empty scan is normal for a window with nothing clickable, but if we got
-	// here because reads kept failing fatally, report that rather than silently
-	// showing no hints. Reads fail fatally when the app times out, exits, or
-	// drops its accessibility connection. A partial result (some nodes
-	// collected) is returned as-is.
+	// An empty result after fatal read failures (the app timed out, exited, or
+	// dropped its a11y connection) is reported, not shown as no hints. A partial
+	// result is returned as-is.
 	if len(out) == 0 {
 		ferr := diag.fatalErr()
 		if ferr != nil {
@@ -469,25 +427,18 @@ type placement struct {
 // placementFor returns how to place the elements of win, and whether a
 // compositor origin was applied.
 //
-// Without an origin, the scan reads screen coordinates and uses them as they
-// are. Those are screen positions on X11 and for XWayland clients. A native
-// Wayland client reports window-relative numbers there, so its hints land
-// window-relative, which is the best Neru can do without an origin.
+// Without an origin, the scan uses screen coordinates as they are. Those are
+// right on X11 and for XWayland, and window-relative for a native Wayland
+// client, which is the best Neru can do there.
 //
 // With an origin, the scan reads window coordinates and adds the origin less
-// the frame's own window position, which a toolkit's margin, such as a
-// client-side-decoration shadow, makes non-zero. GTK 4 needs this, because it
-// reports a zero origin for every element in screen coordinates. Other
-// toolkits report the same numbers in both, and for XWayland clients the
-// frame position cancels out.
+// the frame's own window position, which a client-side-decoration margin makes
+// non-zero. GTK 4 needs this because it reports a zero screen origin for every
+// element.
 //
-// placementFor checks the origin against the frame being walked, because an
-// origin from another window would move every hint to the wrong place. It
-// describes the frame by its size and by the focused identity it was selected
-// with, so a source that compares identities (KWin) can tell apart two windows
-// a size comparison cannot. Without frame extents it cannot check the origin,
-// so it applies none. Hints left window-relative beat hints moved to another
-// window or monitor.
+// The origin is checked against this frame by size and by focused identity
+// (KWin compares identities), because another window's origin would misplace
+// every hint. Without frame extents it applies none.
 func (c *Client) placementFor(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -507,20 +458,15 @@ func (c *Client) placementFor(
 		FocusedTitle: win.focusedTitle,
 	})
 	if originErr != nil {
-		// The two ways of having no origin are not the same event. A
-		// compositor that answered and has none to give is routine, and
-		// window-relative coordinates are the answer. A source that could not
-		// be asked leaves every hint in this window at the wrong screen
-		// position, and the reason has to be readable without a debug build.
+		// A compositor with no origin to give is routine. A source that could not be
+		// asked misplaces every hint in this window, so it is reported.
 		c.reportOriginFailure(originErr)
 
 		return screen, false
 	}
 
-	// The source answered, which is what makes a later failure news again,
-	// whether or not it had a position to give. A tiled niri window and an
-	// unfocused desktop are working sources with nothing to report, so they
-	// end a recorded failure exactly as a window with an origin does.
+	// The source answered, even with no position to give (a tiled niri window, an
+	// unfocused desktop), so a later failure is news again.
 	c.clearOriginFailure()
 
 	if !originKnown {
@@ -557,10 +503,9 @@ func (c *Client) scan(
 	place placement,
 	readState bool,
 ) ([]ax.Node, string, int) {
-	// Fast path: a single Collection.GetMatches call instead of the per-node
-	// walk. Falls back to the walk when the toolkit doesn't implement Collection.
-	// Collection matches the whole subtree and cannot stop at a depth, so a
-	// limit below the default goes to the walk.
+	// Fast path: one Collection.GetMatches call, falling back to the walk when the
+	// toolkit lacks Collection. Collection cannot stop at a depth, so a limit below
+	// the default goes to the walk.
 	if depth == 0 || depth >= config.DefaultMaxDepth {
 		nodes, ok := c.collectViaCollection(ctx, conn, root, roles, anyState, place, readState)
 		if ok {
@@ -612,14 +557,11 @@ func (c *Client) treeDepth(maxDepth int) int {
 	return cfg.Hints.MaxDepth
 }
 
-// collectViaCollection fetches clickable elements with a single
-// org.a11y.atspi.Collection.GetMatches call rooted at the frame, instead of the
-// recursive per-node walk. It returns (nodes, true) on success, or (nil, false)
-// to signal the caller to fall back to the walk. That happens when Collection
-// is disabled, no requested role maps to an AtspiRole, or the toolkit does not
-// implement the interface (the GetMatches call errors). Results have identical
-// semantics to the walk: SHOWING elements, ENABLED too unless anyState, whose
-// role maps (via atspiToAXRole) into roleSet.
+// collectViaCollection fetches clickable elements with one
+// Collection.GetMatches call rooted at the frame. It returns false to send the
+// caller to the walk when Collection is disabled, no requested role maps to an
+// AtspiRole, or the toolkit does not implement it. Results match the walk's,
+// SHOWING elements (ENABLED too unless anyState) whose role maps into roleSet.
 func (c *Client) collectViaCollection(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -662,31 +604,24 @@ func (c *Client) collectViaCollection(
 		c.logger.Debug("AT-SPI Collection.GetMatches unavailable; falling back to walk",
 			zap.Error(err))
 
-		// GetMatches runs on the full scan budget rather than a per-call
-		// deadline, so it is the one scan call the leaf helpers don't cover.
-		// Record a scan-fatal error (a deadline, or the app leaving the bus)
-		// here so an empty fallback walk still surfaces it. A benign
-		// "Collection not implemented" error is ignored and the walk proceeds.
+		// GetMatches runs on the full scan budget, outside the leaf helpers, so record
+		// a scan-fatal error here for an empty fallback walk to surface. A benign
+		// "not implemented" error is ignored.
 		c.noteCallErr(ctx, err)
 
 		return nil, false
 	}
 
-	// Collection is implemented but returned nothing. Don't trust that as
-	// authoritative. A toolkit's Collection may be incomplete or scope the
-	// subtree differently than the per-node walk (e.g. return zero on a page the
-	// walk would find elements on). Fall back to the walk, which is the safe
-	// baseline. Genuinely empty windows are cheap to walk.
+	// An empty result is not authoritative, since a toolkit's Collection may be
+	// incomplete or scope the subtree differently. The walk is the safe baseline
+	// and cheap on an empty window.
 	if len(matches) == 0 {
 		return nil, false
 	}
 
-	// Materialize each match (role re-check + extents + name) concurrently. The
-	// lookups are independent, latency-bound D-Bus round-trips that godbus
-	// multiplexes safely over the one connection. The bounded semaphore paces the
-	// loop, so at most collectionMaxWorkers goroutines run at once no matter how
-	// many matches there are. Each goroutine writes its own slot, so no lock is
-	// needed. Nil slots are dropped afterward.
+	// Materialize matches concurrently over the one multiplexed connection. The
+	// semaphore caps workers at collectionMaxWorkers, and each writes its own
+	// slot, so no lock is needed.
 	results := make([]*atspiNode, len(matches))
 
 	sem := make(chan struct{}, collectionMaxWorkers)
@@ -697,11 +632,9 @@ func (c *Client) collectViaCollection(
 	)
 
 	for index, ref := range matches {
-		// Stop scheduling once canceled, or once we have enough *valid* nodes.
-		// Capping on emitted nodes (like the walk) rather than raw candidates
-		// keeps invalid/zero-sized matches from crowding out valid ones past the
-		// limit. validCount lags slightly under concurrency, so a few in-flight
-		// workers may push past the cap, and the output loop below trims the excess.
+		// Cap on valid nodes, not raw candidates, so invalid matches cannot crowd out
+		// valid ones. validCount lags under concurrency, and the output loop trims any
+		// excess.
 		if ctx.Err() != nil || validCount.Load() >= atspiMaxNodes {
 			break
 		}
@@ -742,9 +675,8 @@ func (c *Client) collectViaCollection(
 		}
 	}
 
-	// Every match failed to materialize (e.g. a dynamic UI invalidated every
-	// reference between GetMatches and the per-match lookups). Treat that like an
-	// empty result and fall back to the walk rather than report an empty success.
+	// Every match failed to materialize (a dynamic UI invalidated them), so fall
+	// back to the walk rather than report an empty success.
 	if len(out) == 0 {
 		return nil, false
 	}
@@ -752,11 +684,9 @@ func (c *Client) collectViaCollection(
 	return out, true
 }
 
-// materializeMatch turns a GetMatches result into an atspiNode, or nil if it
-// should be dropped (role not in the requested set, or no valid on-screen
-// extents). It mirrors the walk's emit filter and is safe for concurrent use
-// because it only issues reads over the shared connection, which godbus
-// multiplexes.
+// materializeMatch turns a GetMatches result into an atspiNode, or nil where
+// the walk's filter would drop it. It only reads over the shared multiplexed
+// connection, so it is safe for concurrent use.
 func (c *Client) materializeMatch(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -765,8 +695,7 @@ func (c *Client) materializeMatch(
 	place placement,
 	readState bool,
 ) *atspiNode {
-	// Re-verify the role is in the requested set. A toolkit may return a role we
-	// did not ask for, and this keeps parity with the walk's filter.
+	// A toolkit may return a role we did not ask for.
 	roleName := strings.ToLower(c.roleName(ctx, conn, ref))
 	if !candidateRole(roleName, roleSet) {
 		return nil
@@ -789,10 +718,9 @@ func (c *Client) materializeMatch(
 	return c.readNode(ctx, conn, ref, roleName, place, readState)
 }
 
-// D-Bus error names that mean the scan cannot make progress: the target
-// application has left the bus, or its connection is gone. Deliberately NOT
-// including UnknownMethod (GetChildren has a fallback) or per-node errors on a
-// stale node, so an otherwise-healthy or genuinely empty window is never
+// D-Bus errors meaning the scan cannot progress, because the app left the bus
+// or its connection is gone. UnknownMethod (GetChildren has a fallback) and
+// stale-node errors are excluded so a healthy or empty window is never
 // misreported as a failure.
 const (
 	atspiErrServiceUnknown = "org.freedesktop.DBus.Error.ServiceUnknown"
@@ -863,24 +791,17 @@ func (c *Client) name(ctx context.Context, conn *dbus.Conn, ref accRef) string {
 		GoWithContext(callCtx, atspiPropertiesGet, 0, nil, atspiAccessibleIfc, "Name"))
 }
 
-// atspiValueRoles are the roles whose text content becomes the element's
-// value, as AXValue does on macOS. They are the fields a user types into, and
-// effectiveRole reads GTK 3's editable text as one of them. That includes a
-// multi-line text view, whose whole buffer becomes the value, as macOS reads a
-// text area's whole AXValue. The list leaves out password text so a password
+// atspiValueRoles are the roles whose text becomes the element's value, as
+// AXValue does on macOS. effectiveRole maps GTK 3 editable text, a multi-line
+// view included, to one of them. Password text is left out so a password
 // never leaves the app.
 var atspiValueRoles = map[string]struct{}{atspiRoleEntry: {}, "spin button": {}}
 
 // readNode reads a matched element's bounds as place says, its title,
-// description and, for a role in atspiValueRoles, its value. With readState it
-// also reads the identifier and focused state, which only `neru query hints`
-// reports. Each read costs the app time, so a hints-mode scan skips those two.
-// It returns nil for an element with no on-screen size.
-//
-// It sends the reads together and godbus multiplexes them over the one
-// connection, so they cost one round trip between them. It sends the text
-// reads before it knows the bounds are valid, which wastes them only for an
-// element that is showing yet has no size.
+// description and, for a role in atspiValueRoles, its value. readState adds
+// the identifier and focused state, which only `neru query hints` reports.
+// It returns nil for an element with no on-screen size. The reads go out
+// together and godbus multiplexes them, so they cost one round trip.
 func (c *Client) readNode(
 	ctx context.Context,
 	conn *dbus.Conn,
@@ -976,9 +897,8 @@ func (c *Client) propertyString(ctx context.Context, call *dbus.Call) string {
 	return s
 }
 
-// states reads the AT-SPI state bitfield of an accessible in a single GetState
-// round-trip. Callers pull individual bits with atspiStateBit, so a frame's
-// ACTIVE and SHOWING state come from one call rather than two.
+// states reads the AT-SPI state bitfield of an accessible in one GetState
+// round trip. Callers pull individual bits with atspiStateBit.
 func (c *Client) states(ctx context.Context, conn *dbus.Conn, ref accRef) ([]uint32, bool) {
 	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
 	defer cancel()
@@ -1043,9 +963,8 @@ func atspiStateBit(states []uint32, bit uint) bool {
 	return states[word]&(1<<(bit%atspiBitsPerWord)) != 0
 }
 
-// frameStates reads a frame's ACTIVE and SHOWING state from a single GetState
-// call, halving the per-frame state round-trips during frame selection.
-// The two results are the ACTIVE and SHOWING states, in that order.
+// frameStates reads a frame's ACTIVE and SHOWING state, in that order, from
+// one GetState call.
 func (c *Client) frameStates(ctx context.Context, conn *dbus.Conn, ref accRef) (bool, bool) {
 	states, ok := c.states(ctx, conn, ref)
 	if !ok {
@@ -1104,12 +1023,9 @@ func (c *Client) walk(
 
 	*visited++
 
-	// Match the AT-SPI role name against the requested set. Both sides are
-	// native AT-SPI names. Configured roles are resolved into this vocabulary
-	// before they reach the client, and the node carries the native name
-	// downstream so Adapter.MatchesFilter compares like with like. A single
-	// state read tells whether the element is showing and, for text, whether
-	// it is editable.
+	// Both sides are native AT-SPI role names, since configured roles are resolved
+	// before they reach the client. One state read covers showing and, for text,
+	// editable.
 	roleName, matched := c.showingRole(ctx, conn, ref, roles, anyState,
 		strings.ToLower(c.roleName(ctx, conn, ref)))
 

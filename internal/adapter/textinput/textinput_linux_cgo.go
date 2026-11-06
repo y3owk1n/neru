@@ -119,9 +119,8 @@ func (t *TextInput) StartHintSearchSession(
 	return true, nil
 }
 
-// fieldOpenWait bounds how long Start waits for the X11 field, which opens on
-// a goroutine of its own because its input method answers with no timeout. A
-// method slower than this leaves the search on the key stream.
+// fieldOpenWait bounds how long Start waits for the X11 field (see
+// TextInput). A slower input method leaves the search on the key stream.
 const fieldOpenWait = 250 * time.Millisecond
 
 // fieldStopWait bounds how long Stop waits for a session to end. Closing the
@@ -129,9 +128,8 @@ const fieldOpenWait = 250 * time.Millisecond
 // longer finishes closing on its own.
 const fieldStopWait = 500 * time.Millisecond
 
-// An X11 field's open: opening until it holds the focus, open once Start may
-// have it, or abandoned when Start stopped waiting first, in which case the
-// field gives the focus back and closes.
+// An X11 field's open state. An abandoned field (Start stopped waiting first)
+// gives the focus back and closes.
 const (
 	x11FieldOpening int32 = iota
 	x11FieldOpen
@@ -139,10 +137,8 @@ const (
 )
 
 // x11FieldExists is set from the moment an X11 field starts opening until it
-// has closed. Two fields would take the focus from each other, and the one
-// that lost it would read that as the user leaving and cancel its search, so
-// while an earlier field is still opening or closing a new search reads the
-// key stream instead.
+// has closed. Two fields would take the focus from each other and the loser
+// would cancel its search, so meanwhile a new search reads the key stream.
 var x11FieldExists atomic.Bool
 
 // openX11Session opens the X11 field off the caller's goroutine and returns its

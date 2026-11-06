@@ -9,28 +9,20 @@ import (
 )
 
 // x11WindowPIDResult names the answers reading _NET_WM_PID off the focused
-// window can give. It mirrors NeruX11WindowPIDResult in x11_system.h. The
-// translation between the two is the switch in x11WindowPIDQuery
-// (system_x11_cgo.go), which maps each C constant by name, so the numbering here
-// is this package's own and need not match the header's.
-//
-// It is the same split x11ActiveWindowResult makes one property up, for the same
-// reason. A window that is alive and advertises no pid answered the question,
-// and callers degrade through it, while a window that closed under the query is
-// a failure they surface.
+// window can give. It mirrors NeruX11WindowPIDResult in x11_system.h, mapped by
+// name in x11WindowPIDQuery, and makes the same split as x11ActiveWindowResult.
+// A live window with no pid answered, and one that closed mid-query failed.
 type x11WindowPIDResult int
 
 const (
 	// x11WindowPIDFound means the property held a pid.
 	x11WindowPIDFound x11WindowPIDResult = iota
-	// x11WindowPIDAbsent means the read succeeded and the window sets no
-	// _NET_WM_PID. EWMH makes the property a convention rather than a
-	// requirement. Older toolkits omit it, and a client on another machine
-	// has no pid this one could use, so this is an ordinary answer about a
-	// healthy window.
+	// x11WindowPIDAbsent means the window sets no _NET_WM_PID, which EWMH
+	// does not require. Older toolkits and remote clients omit it, so this is
+	// an ordinary answer about a healthy window.
 	x11WindowPIDAbsent
-	// x11WindowPIDWindowGone means the request drew a protocol error. The
-	// window id _NET_ACTIVE_WINDOW named has closed since it was read.
+	// x11WindowPIDWindowGone means the request drew a protocol error because
+	// the window closed since _NET_ACTIVE_WINDOW was read.
 	x11WindowPIDWindowGone
 	// x11WindowPIDQueryFailed means XGetWindowProperty itself failed.
 	x11WindowPIDQueryFailed
@@ -39,22 +31,14 @@ const (
 	x11WindowPIDMalformed
 )
 
-// errNoWindowPID is the cause the "a window has focus, and it publishes no pid"
-// error wraps. It is errNoFocusedWindow's sibling and deliberately not the same
-// sentinel. Both are queries that worked and answered no, but the fix differs,
-// and the sentence errNoFocusedWindow buys ("answers as soon as a window takes
-// focus") would be false about a session where a window is focused already.
+// errNoWindowPID is the cause a focused window with no pid wraps. It is
+// deliberately not errNoFocusedWindow, whose advice to focus a window would be
+// false here.
 var errNoWindowPID = errors.New("the focused window publishes no pid")
 
 // x11WindowPIDError returns the error a caller owes for result, or nil when a
-// pid was read.
-//
-// A window that advertises no pid is CodeNotSupported, which is the code callers
-// degrade through via derrors.IsNotSupported, matching how an unfocused desktop
-// is reported one property up. The three failures are CodeActionFailed and each
-// says which one it was, because the fix differs: re-sample after the focus
-// change that outran the query, look at a broken display server, or file a bug
-// against whatever wrote a non-conforming property.
+// pid was read. No pid is CodeNotSupported, which callers degrade through. The
+// failures are CodeActionFailed, each named because the fix differs.
 func x11WindowPIDError(result x11WindowPIDResult) error {
 	switch result {
 	case x11WindowPIDFound:

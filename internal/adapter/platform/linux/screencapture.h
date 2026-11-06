@@ -3,16 +3,13 @@
 
 #include <stddef.h>
 
-// Shared result type and status codes for the Linux screen-capture backends:
-// x11_screencapture.c (XGetImage) and wlroots_screencopy.c
-// (wlr-screencopy-unstable-v1). Both hand Go the same thing, so the Go side has
-// one conversion and one error vocabulary rather than one per backend.
+// Shared result type and status codes for the Linux screen-capture backends,
+// so Go has one conversion and one error vocabulary rather than one per
+// backend.
 //
-// Privacy: a capture buffer holds arbitrary screen content, whatever the user
-// happens to have on screen, including windows Neru was never asked about.
-// Nothing in this subsystem writes a byte of it anywhere but the buffer the
-// caller asked for, and neru_capture_free wipes that buffer before releasing
-// it so freed heap does not keep a readable copy for the next allocation.
+// Privacy: a capture buffer holds arbitrary screen content. Nothing in this
+// subsystem writes a byte of it anywhere but the caller's buffer, and
+// neru_capture_free wipes that buffer so freed heap keeps no readable copy.
 
 #define NERU_CAPTURE_OK 0
 // No display server to capture from ($DISPLAY / $WAYLAND_DISPLAY unset, or the
@@ -35,10 +32,9 @@
 
 typedef struct {
 	// pixels is width*height*4 bytes of RGBA8888 with no row padding, matching
-	// Go's image.RGBA layout so the Go side is a single copy. Alpha is always
-	// 0xFF: a screen capture is opaque, and Go's image.RGBA is
-	// alpha-premultiplied, so carrying a source alpha through would darken the
-	// image rather than describe it.
+	// Go's image.RGBA so the Go side is a single copy. Alpha is always 0xFF. A
+	// capture is opaque, and image.RGBA is premultiplied, so a source alpha
+	// would darken the image.
 	unsigned char *pixels;
 	int width;
 	int height;

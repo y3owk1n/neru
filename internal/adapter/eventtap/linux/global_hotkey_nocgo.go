@@ -11,8 +11,7 @@ import (
 )
 
 // GlobalHotkeyListener is the stub for builds without cgo, which evdev needs.
-// It watches nothing. It exists so the hotkey manager compiles, and Start says
-// so rather than letting the manager believe a reader is running.
+// It watches nothing and exists so the hotkey manager compiles.
 type GlobalHotkeyListener struct{}
 
 // NewGlobalHotkeyListener returns a stub listener.
@@ -26,9 +25,8 @@ func (l *GlobalHotkeyListener) SetBinding(_ string, _, _ func()) {}
 // ClearBindings is a no-op without cgo.
 func (l *GlobalHotkeyListener) ClearBindings() {}
 
-// Start reports CodeNotSupported without cgo, because evdev needs it and there
-// is no reader to start. Answering nil would tell the hotkey manager the user's
-// config keybindings are live while nothing is watching the keyboard.
+// Start reports CodeNotSupported without cgo. Answering nil would tell the
+// hotkey manager the config keybindings are live while nothing watches.
 func (l *GlobalHotkeyListener) Start() error {
 	return derrors.New(
 		derrors.CodeNotSupported,

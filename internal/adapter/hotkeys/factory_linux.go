@@ -11,13 +11,10 @@ import (
 
 // NewManager returns the platform hotkey manager.
 //
-// There is no wrapper adapter. Each backend implements ports.HotkeyPort
-// directly, so this is only the choice of which one exists.
-//
-// Registering the manager as the process-wide one happens here rather than at
-// the call site, because it is a consequence of building the manager and not a
-// decision the caller makes. On macOS the native callback needs it. Elsewhere
-// it is a no-op.
+// Each backend implements ports.HotkeyPort directly, with no wrapper. The
+// manager registers itself as the process-wide one here, as a consequence of
+// building it. macOS's native callback needs that, and elsewhere it is a
+// no-op.
 func NewManager(logger *zap.Logger) ports.HotkeyPort {
 	manager := linux.NewManager(logger)
 	linux.SetGlobalManager(manager)

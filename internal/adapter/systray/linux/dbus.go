@@ -14,10 +14,8 @@ import (
 )
 
 // Implements the org.kde.StatusNotifierItem + com.canonical.dbusmenu D-Bus
-// interfaces so the Linux daemon exports a real tray icon and menu on the
-// session bus (consumed by KDE/GNOME/Cinnamon SNI hosts). Hand-rolled over
-// godbus to avoid pulling in a GTK build dependency for Linux CI.
-// The darwin and Windows trays have their own backends.
+// interfaces so the Linux daemon exports a real tray icon and menu for SNI
+// hosts. Hand-rolled over godbus to avoid a GTK build dependency.
 //
 // Sentinel errors for the D-Bus property interfaces. Static errors satisfy
 // err113, and godbus wraps them into D-Bus error replies on the wire.
@@ -315,9 +313,7 @@ func getMenuProperty(iface, prop string) (dbus.Variant, error) {
 	}
 }
 
-// menuItemByID returns a menu item by id under a brief read lock. It exists so
-// the D-Bus method handlers do not cuddle lock/unlock with unrelated
-// statements (wsl_v5) and keep the hot path allocation-free.
+// menuItemByID returns a menu item by id under a brief read lock.
 func menuItemByID(id int) (*MenuItem, bool) {
 	menuItemsLock.RLock()
 	defer menuItemsLock.RUnlock()
@@ -328,8 +324,7 @@ func menuItemByID(id int) (*MenuItem, bool) {
 }
 
 // sendClicked delivers a non-blocking click signal to the item's channel and
-// reports whether a signal was dropped (channel full) or sent. The host treats
-// a click as no-op when no listener is attached yet.
+// reports whether it was dropped because the channel was full.
 func sendClicked(item *MenuItem) bool {
 	if item.ClickedCh == nil {
 		return false

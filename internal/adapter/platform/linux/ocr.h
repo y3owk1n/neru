@@ -1,20 +1,16 @@
 #ifndef OCR_H
 #define OCR_H
 
-// Tesseract-backed text recognition for the Linux half of ports.VisionPort.
-//
-// The pixels come from screencapture.h, and this file turns them into positioned words.
-// macOS answers the same port with three Vision requests (text, rectangles,
-// saliency). An OCR engine answers only the text one, which is why Linux
-// `vision` is text-only and the five rectangle options are declared macOS-only
+// Tesseract-backed text recognition for the Linux half of ports.VisionPort,
+// turning screencapture.h pixels into positioned words. macOS answers the port
+// with three Vision requests, and OCR answers only the text one, so Linux
+// `vision` is text-only and the rectangle options are declared macOS-only
 // (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
 //
-// Privacy: recognized text is screen content, exactly as the capture buffer it
-// came from is. Nothing here writes a character of it anywhere but the result
-// the caller asked for. neru_ocr_result_free wipes the strings before releasing
-// them, the engine's `tessedit_write_images` and `debug_file` are pinned so
-// tesseract writes neither an image nor a log, and every recognition ends with
-// TessBaseAPIClear so the engine holds no copy of the frame between calls.
+// Privacy: recognized text is screen content. Nothing here writes it anywhere
+// but the result. neru_ocr_result_free wipes the strings,
+// `tessedit_write_images` and `debug_file` are pinned so tesseract writes
+// neither an image nor a log, and every recognition ends with TessBaseAPIClear.
 
 #define NERU_OCR_OK 0
 // The engine could not be initialized for the given tessdata directory and
@@ -31,8 +27,7 @@
 // field held the locale guard (locale_guard.h).
 #define NERU_OCR_ERR_BUSY 5
 // Recognition ran past the caller's deadline. Split from ERR_RECOGNIZE because
-// the two want opposite responses. A timeout means raise the budget or hand
-// over a smaller region, a failure means something is wrong with the frame.
+// a timeout wants a bigger budget or smaller region, and a failure a bad frame.
 #define NERU_OCR_ERR_TIMEOUT 6
 
 typedef struct {
@@ -53,11 +48,9 @@ typedef struct {
 typedef struct {
 	NeruOCRWord *words;
 	int count;
-	// How long the recognition itself took, in milliseconds. Filled on success
-	// and on failure alike, because "it took the whole budget" and "it gave up
-	// immediately" are different bugs and only this tells them apart. A
-	// duration describes the work, not what was on the screen, so it is
-	// loggable.
+	// How long recognition took, in ms, filled on failure too, because "took
+	// the whole budget" and "gave up at once" are different bugs. A duration
+	// describes the work, not the screen, so it is loggable.
 	int elapsedMS;
 } NeruOCRResult;
 

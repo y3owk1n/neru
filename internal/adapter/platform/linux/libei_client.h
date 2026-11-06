@@ -43,10 +43,9 @@ int neru_ei_move_abs(NeruEiClient *c, int x, int y);
 // evdev code (e.g. 0x110 for BTN_LEFT). Returns 1 on success, 0 otherwise.
 int neru_ei_button(NeruEiClient *c, int button, int pressed);
 
-// Emit a scroll event. axis: 0 = vertical, 1 = horizontal. delta is the scroll
-// distance in logical pixels (positive = down/right), and is a double because
-// ei_device_scroll_delta is pixel-precise. A fraction of a wheel notch is a
-// legal delta, which is what an animated scroll sends. Returns 1 on success.
+// Emit a scroll event. axis: 0 = vertical, 1 = horizontal. delta is in logical
+// pixels (positive = down/right). A fraction of a notch is legal, which an
+// animated scroll sends. Returns 1 on success.
 int neru_ei_scroll(NeruEiClient *c, int axis, double delta);
 
 // Press or release a keyboard key (evdev keycode). Returns 1 on success, 0 when
