@@ -8,13 +8,10 @@ import (
 	"strings"
 )
 
-// The wire format between the KWin script and this package.
-//
-// It is one comma-separated string rather than typed D-Bus arguments because
-// the sender is JavaScript inside KWin, whose number marshaling is not worth
-// depending on. Parsing it is kept apart from the D-Bus method that receives it
-// so that what counts as a usable push can be decided, and tested, without
-// standing up a bus.
+// The wire format between the KWin script and this package. It is one
+// comma-separated string because KWin JavaScript's number marshaling is not
+// worth depending on. Parsing is kept off the D-Bus method so it can be tested
+// without a bus.
 
 const (
 	// UpdateActiveWindow payload is
@@ -25,25 +22,17 @@ const (
 	payloadParts    = 7
 	payloadMinParts = 4
 
-	// The identity fields, indexed as the ones a payload may stop short of.
-	// Both application identifiers are carried because neither is reliably the
-	// one a reader will be comparing against. KWin's own foreign-toplevel app_id
-	// is built from one of them, and which one differs by window (an XWayland
-	// Firefox is resourceClass "firefox" and resourceName "navigator").
+	// The optional identity fields. Both application identifiers are carried
+	// because KWin's foreign-toplevel app_id is built from either, depending
+	// on the window.
 	payloadClassField = 4
 	payloadNameField  = 5
 	payloadTitleField = 6
 )
 
 // parseWindowPayload turns a push from the script into a window, or reports
-// that there is nothing usable in it.
-//
-// The script is remote code as far as this process is concerned, so every way a
-// payload can fail to describe a window on screen is one answer, not usable.
-// That covers too few fields, a non-numeric coordinate, and a zero or negative
-// area.
-// What the caller does with that is keep whatever it already had, which is why
-// this says nothing about the previous window and cannot be told to clear one.
+// it unusable: too few fields, a non-numeric coordinate, or a non-positive
+// area. The caller then keeps what it had, so this can never clear a window.
 func parseWindowPayload(payload string) (Window, bool) {
 	parts := strings.SplitN(payload, ",", payloadParts)
 	if len(parts) < payloadMinParts {
@@ -71,9 +60,8 @@ func parseWindowPayload(payload string) (Window, bool) {
 	}, true
 }
 
-// payloadField reads an optional trailing payload field. The identity fields
-// are the ones a payload may stop short of. They are a correlation key, and a
-// KWin version that reports none of them should still report a rectangle.
+// payloadField reads an optional trailing field, so a KWin version reporting
+// no identity still reports a rectangle.
 func payloadField(parts []string, index int) string {
 	if index >= len(parts) {
 		return ""

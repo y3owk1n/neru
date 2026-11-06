@@ -24,28 +24,20 @@ const (
 	pollFallbackInterval = 5 * time.Second
 	minSignalBodyLength  = 3
 
-	// themeBusDialTimeout caps the session-bus dial this makes. The dial itself
-	// cannot be canceled, so without a cap a bus that accepts a connection and
-	// then stops answering holds daemon startup, since this runs on the goroutine
-	// that starts it, rather than merely costing theme changes. Giving up is
-	// cheap, because polling picks the theme up anyway, a few seconds later.
+	// themeBusDialTimeout caps the uncancellable session-bus dial, which runs on
+	// the goroutine starting the daemon, so a bus that stops answering cannot
+	// hold startup. Giving up is cheap, because polling picks the theme up a few
+	// seconds later.
 	themeBusDialTimeout = 2 * time.Second
 )
 
 // setupThemeObserver subscribes to xdg-desktop-portal SettingChanged
 // D-Bus signals and refreshes theme-aware styles when the color scheme
-// changes. Falls back to polling if D-Bus is unavailable.
+// changes. A bus that fails or outlasts the dial budget
+// (linux.ConnectSessionBus) falls back to polling.
 //
-// A session bus that never answers counts as unavailable rather than as a
-// reason to wait. The dial is bounded (linux.ConnectSessionBus), and a dial
-// that outlasts its budget takes the same polling fallback as a dial that
-// failed outright. The daemon is still starting up on this goroutine, and
-// polling notices a theme change a few seconds later either way.
-//
-// All teardown state is captured per App instance in the stop closure.
-// Package-level state here would be shared across App instances, and a
-// process that creates more than one (tests do) would close another
-// instance's channel and leak its goroutine.
+// Teardown state lives in the stop closure, never in package state, which a
+// second App instance (tests) would share.
 func (a *App) setupThemeObserver() {
 	stopChan := make(chan struct{})
 	waitGroup := &sync.WaitGroup{}
@@ -141,9 +133,8 @@ func (a *App) setupThemeObserver() {
 	})
 }
 
-// pollThemeChanges periodically checks IsDarkMode and calls
-// HandleThemeChange when the value transitions. Acts as a fallback
-// when the D-Bus portal signal path is unavailable.
+// pollThemeChanges calls HandleThemeChange when IsDarkMode changes, the
+// fallback when the D-Bus portal signal path is unavailable.
 func (a *App) pollThemeChanges(stopChan <-chan struct{}, lastIsDark bool) {
 	ticker := time.NewTicker(pollFallbackInterval)
 	defer ticker.Stop()

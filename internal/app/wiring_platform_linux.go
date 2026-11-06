@@ -11,28 +11,22 @@ import (
 	infrasystray "github.com/y3owk1n/neru/internal/adapter/systray"
 )
 
-// The Linux tap is the only thing the factory builds, and it is what the sink
-// is for. A build where the two have drifted apart should not link.
+// The Linux tap is the only tap the factory builds, so a build where it does
+// not implement the sink must not link.
 var _ tap.SyntheticModifierSink = (*eventtaplinux.EventTap)(nil)
 
 // initializePlatformLogger is a no-op on Linux.
 func initializePlatformLogger(_ *zap.Logger) {}
 
 // registerSyntheticModifierSink hands the live tap to the X11 injection
-// backend, so a modifier key Neru presses to present an action's modifiers is
-// announced to the tap before it goes out. A nil tap lets go of it again, which
-// the teardown of a destroyed tap owes the slot.
+// backend, so a modifier key Neru presses is announced to the tap before it
+// goes out. Otherwise the tap reads the press and release as a user tap and
+// latches a sticky modifier nobody pressed (#1484). A nil tap releases the
+// slot, which a destroyed tap's teardown owes. It is wired here because the
+// injection backend is package-level functions with nowhere to pass it.
 //
-// Without it the tap sees an injected press and release as the user tapping
-// that modifier, and latches a sticky modifier nobody pressed (#1484). It is
-// wired here, beside the tap's construction, because the injection backend is
-// reached through package-level functions with nowhere to pass it.
-//
-// Wayland needs none of this. Its virtual-keyboard modifier path generates no
-// evdev or wl_keyboard event, so nothing re-enters. It is wired on a Wayland
-// session all the same, because what makes it inert there is that the only code
-// announcing anything is the X11 backend, which does not run. That leaves the
-// compositor question where it is already answered rather than asking it twice.
+// It is wired on Wayland too, where it is inert because only the X11 backend
+// announces anything. That avoids asking the compositor question twice.
 func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 	if built == nil {
 		nativelinux.SetSyntheticModifierSink(nil)
@@ -40,9 +34,8 @@ func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 		return
 	}
 
-	// The var above pins that the Linux tap has the method. This pins that the
-	// tap the factory handed back is that one. The factory answers with the
-	// cross-platform tap.Tap, so nothing here can say so at compile time.
+	// The var above pins the Linux tap's method. This pins that the factory's
+	// cross-platform tap.Tap is that tap, which no compile-time check can.
 	sink, ok := built.(tap.SyntheticModifierSink)
 	if !ok {
 		logger.Warn(
@@ -57,8 +50,7 @@ func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 }
 
 // platformQuit unblocks the systray loop so App.Quit() (tray menu or signal)
-// actually stops the Linux daemon. Without it systray.Run/RunHeadless keeps
-// the process alive after a clean quit. Mirrors darwin/windows.
+// stops the Linux daemon. Mirrors darwin/windows.
 func platformQuit() {
 	infrasystray.Quit()
 }

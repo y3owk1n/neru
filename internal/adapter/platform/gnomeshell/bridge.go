@@ -38,17 +38,15 @@ const (
 	// FocusedWindowChanged signal: found, app id, title, x, y, width, height.
 	stateArgs    = 7
 	signalBuffer = 32
-	// queryTimeout bounds the one synchronous round trip the bridge makes,
-	// which runs off the request path but still should not wedge a start.
+	// queryTimeout bounds the bridge's one synchronous round trip.
 	queryTimeout = 2 * time.Second
 )
 
-// errExtensionAbsent is the reason recorded on a session where the extension
-// is not on the bus: not installed, not enabled, or installed into a session
-// that has not been logged into since. It is returned to callers rather than
-// logged and forgotten, because "the extension never answered" and "no window
-// is focused" are different answers and only one of them should send a caller
-// to the active screen.
+// errExtensionAbsent covers an extension not installed, not enabled, or
+// installed into a session not logged into since. It is returned to callers
+// because "the extension never answered" and "no window is focused" are
+// different answers, and only the second should send a caller to the active
+// screen.
 var errExtensionAbsent = errors.New(
 	"the Neru GNOME Shell extension is not running (org.neru.Shell is not on the session bus)",
 )
@@ -61,11 +59,10 @@ var errNotConnected = errors.New("the Neru GNOME Shell extension has not answere
 // Window is what the extension last said about the focused window: where it
 // is, and which window it is.
 //
-// AppID is Mutter's WM_CLASS for the window, which for a native Wayland client
-// is its app_id and for an Xwayland client its X class, so it is the same
-// vocabulary the foreign-toplevel protocol speaks on every other Wayland
-// desktop. Title is the window title. Either can be empty. They are a
-// correlation key, never a requirement.
+// AppID is Mutter's WM_CLASS, which is the app_id for a native Wayland client
+// and the X class for Xwayland, the same vocabulary foreign-toplevel speaks
+// elsewhere. Either field can be empty, as they are a correlation key, never a
+// requirement.
 type Window struct {
 	Rect  image.Rectangle
 	AppID string
@@ -90,14 +87,11 @@ type Bridge struct {
 	// "absent" answer carries the next step, not only the attempt's own.
 	installHint string
 	// dataDir is where the extension files go, captured on the caller's
-	// goroutine when a start is claimed so the environment it reads is the
-	// one the caller had.
+	// goroutine so it reflects the caller's environment.
 	dataDir string
 
-	// conn is the bridge's own session-bus connection, not the process-wide
-	// dbus.SessionBus(). Closing that closes every channel subscribed on it,
-	// and the tray closes it when its loop ends, which would end the signal
-	// stream here with the last answer still cached and nothing to say so.
+	// conn is the bridge's own session-bus connection, never the process-wide
+	// dbus.SessionBus(), which the tray closes when its loop ends.
 	conn *dbus.Conn
 
 	mu       sync.RWMutex
@@ -116,12 +110,9 @@ var (
 	nopLogger    = zap.NewNop()
 )
 
-// Shared returns the process-wide bridge. There is one because a cache per
-// caller is a fact per caller, and because the notification pipe the app
-// watcher polls has to be the one the signal handler writes to.
-//
-// The first non-nil logger handed in is adopted, so the caller that has one
-// names the log lines and the caller that does not silences nothing.
+// Shared returns the process-wide bridge. There is one because the
+// notification pipe the app watcher polls has to be the one the signal
+// handler writes to. The first non-nil logger handed in is adopted.
 func Shared(logger *zap.Logger) *Bridge {
 	sharedOnce.Do(func() { sharedBridge = newBridge(nil) })
 
@@ -137,11 +128,9 @@ func newBridge(logger *zap.Logger) *Bridge {
 	return bridge
 }
 
-// EnsureStarted connects to the extension, off the calling goroutine. It never
-// blocks, because the callers reaching it include the mode handler, where a slow call
-// holds the keyboard grab. Until the connection lands, Focused reports
-// errNotConnected, and a caller that arrives while an attempt is in flight
-// gets whatever the last completed attempt learned.
+// EnsureStarted connects to the extension off the calling goroutine and never
+// blocks, because callers include the mode handler, which holds the keyboard
+// grab. Until the connection lands, Focused reports errNotConnected.
 func (b *Bridge) EnsureStarted() {
 	if !b.beginStart() {
 		return
@@ -154,9 +143,8 @@ func (b *Bridge) EnsureStarted() {
 //
 // The three answers are distinct on purpose. A window with ok is what the
 // shell says. ok=false with no error means the extension is connected and has
-// nothing to report, because the desktop or the shell itself is focused. A non-nil
-// error means the extension could not be reached, which is the one case a
-// caller must not read as "there is no focused window".
+// nothing to report. A non-nil error means the extension could not be
+// reached, which a caller must not read as "there is no focused window".
 func (b *Bridge) Focused() (Window, bool, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -233,14 +221,11 @@ func (b *Bridge) start() {
 	b.record(err)
 }
 
-// record publishes an attempt's outcome. A failure is remembered as the reason
-// Focused cannot answer, and said out loud once, since the error reaches every
-// later caller anyway and a session without the extension would otherwise warn
-// on every hint activation. A success clears the reason.
-//
-// The one warning waits for a logger. The first caller is the system adapter's
-// warm-up, which has none, and a warning said into the nop logger is a warning
-// nobody reads. adoptLogger replays it.
+// record publishes an attempt's outcome. A failure becomes the reason Focused
+// cannot answer and warns once, or a session without the extension would warn
+// on every hint activation. A success clears it. The warning waits for a
+// logger, because the first caller (the system adapter's warm-up) has none,
+// and adoptLogger replays it.
 func (b *Bridge) record(err error) {
 	b.mu.Lock()
 	b.startErr = err
@@ -418,9 +403,8 @@ func (b *Bridge) watch(conn *dbus.Conn) {
 }
 
 // serve runs as long as the connection does. Every signal is checked by shape
-// rather than trusted to the match rules. The channel closing means the
-// connection went away, and a cache with no stream behind it is the stale
-// answer this bridge exists to end, so the bridge reconnects.
+// rather than trusted to the match rules. When the channel closes, the bridge
+// reconnects rather than serve a stale cache.
 func (b *Bridge) serve(conn *dbus.Conn, signals <-chan *dbus.Signal) {
 	for signal := range signals {
 		switch signal.Name {
@@ -481,9 +465,8 @@ func (b *Bridge) update(window Window, found bool) {
 	b.startErr = nil
 	b.mu.Unlock()
 
-	// The title is a window's contents by any reasonable reading, so it is
-	// never logged. The app id is an application identity, which the app
-	// watcher already logs.
+	// The title is window contents, so it is never logged. The app id is an
+	// application identity, which the app watcher already logs.
 	b.log().Debug("GNOME Shell focused window",
 		zap.Bool("found", found),
 		zap.Int("x", window.Rect.Min.X), zap.Int("y", window.Rect.Min.Y),

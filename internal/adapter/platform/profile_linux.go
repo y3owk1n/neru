@@ -2,13 +2,10 @@
 
 package platform
 
-// Runtime Linux profile selection for doctor/status output. When KDE Plasma
-// Wayland is detected, returns user-facing backend descriptions for that stack.
-// It does not perform live capability probes or alter runtime backend selection.
-//
-// Both halves come off the one detector. The profile must describe the stack
-// NewSystemPort is driving, and reading the environment a second time to name
-// it is how it came to disagree with itself (#1429).
+// Runtime Linux profile selection for doctor/status output. It does not probe
+// capabilities or alter backend selection. It reads the one detector, because
+// re-reading the environment to name the stack is how the profile came to
+// disagree with what NewSystemPort drives (#1429).
 func linuxProfileForCurrentBackend() Profile {
 	backend := DetectLinuxBackend()
 	if backend == BackendWaylandKDE {
@@ -27,9 +24,7 @@ func linuxProfileForCurrentBackend() Profile {
 }
 
 // Every plan here carries a Name only. This profile describes one live stack to
-// the user running on it, so the contributor-facing BuildMode/Notes pair the
-// target-by-target profiles use has nothing to add. The answer is whatever the
-// KDE backend already does.
+// its user, so the contributor-facing BuildMode/Notes pair has nothing to add.
 func linuxKDEProfile() Profile {
 	return Profile{
 		OS:              Linux,
@@ -84,9 +79,8 @@ func linuxCOSMICProfile() Profile {
 }
 
 // linuxGNOMEProfile describes the GNOME stack: the portal-driven pointer KDE
-// and COSMIC use, with the overlay drawn on Xwayland because Mutter has no
-// layer shell, and no window-geometry source at all, so hints stay
-// window-relative in native Wayland applications.
+// and COSMIC use, the overlay on Xwayland because Mutter has no layer shell,
+// and window geometry from the Neru GNOME Shell extension.
 func linuxGNOMEProfile() Profile {
 	return Profile{
 		OS:              Linux,

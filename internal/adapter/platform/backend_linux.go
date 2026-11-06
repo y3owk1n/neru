@@ -77,10 +77,9 @@ func (b LinuxBackend) IsWayland() bool {
 	}
 }
 
-// displayServer returns the display-stack label for this backend: what the
-// daemon is driving, said in the vocabulary `neru info` and `neru doctor`
-// report. It is derived rather than detected on purpose. A second read of the
-// environment answered "wayland" for a session whose backend was X11 (#1429).
+// displayServer returns the display-stack label `neru info` and `neru doctor`
+// report. It is derived from the backend, never re-read from the environment,
+// because a second read once said "wayland" for an X11 backend (#1429).
 func (b LinuxBackend) displayServer() DisplayServer {
 	switch b {
 	case BackendX11:
@@ -121,9 +120,9 @@ func resetLinuxBackendCache() {
 }
 
 // detectLinuxBackend inspects the process environment and determines which
-// Linux backend family Neru should target. The result is cached because
-// display-server environment variables do not change at runtime, and this
-// function is called on hot paths (cursor movement, clicks, scrolling).
+// Linux backend family Neru should target. The result is cached because the
+// environment does not change at runtime and this runs on hot paths (cursor
+// movement, clicks, scrolling).
 func detectLinuxBackend() LinuxBackend {
 	cachedBackendOnce.Do(func() {
 		cachedBackend = detectLinuxBackendFromEnv(
@@ -145,21 +144,15 @@ func DetectLinuxBackend() LinuxBackend {
 // IsHyprlandSession reports whether the wlroots session this process runs under
 // is Hyprland.
 //
-// LinuxBackend deliberately does not carry this. One value covers Sway,
-// Hyprland, niri, River and Wayfire, because every subsystem dispatching on the
-// backend wants the protocol family rather than the compositor's name, and
-// splitting the enum would make each of them answer a question it does not ask.
-// A quirk belonging to one compositor still has to be named somewhere, and it is
-// named here rather than at the call site because the compositor family is
-// decided in this file and nowhere else (internal/adapter/platform/AGENTS.md).
+// LinuxBackend deliberately does not carry this, because every subsystem
+// dispatching on it wants the protocol family, not the compositor. A
+// one-compositor quirk is named here because this file alone decides the
+// compositor family (internal/adapter/platform/AGENTS.md).
 //
-// It reads XDG_CURRENT_DESKTOP, the identity variable the backend is already
-// detected from, and not HYPRLAND_INSTANCE_SIGNATURE: the socket says which
-// compositor is reachable, not which one this session runs, and a unit that
-// imported it into another session would answer yes
-// (internal/architecture/compositor_socket_test.go). So a Hyprland session
-// exporting no XDG_CURRENT_DESKTOP reads as plain wlroots here, which leaves it
-// on the path every wlroots compositor took before this predicate existed.
+// It reads XDG_CURRENT_DESKTOP, not HYPRLAND_INSTANCE_SIGNATURE, since the
+// socket says which compositor is reachable, not which one this session runs
+// (internal/architecture/compositor_socket_test.go). A Hyprland session
+// exporting no XDG_CURRENT_DESKTOP reads as plain wlroots.
 func IsHyprlandSession() bool {
 	cachedHyprlandOnce.Do(func() {
 		cachedHyprland = isHyprlandFromEnv(
@@ -171,15 +164,12 @@ func IsHyprlandSession() bool {
 	return cachedHyprland
 }
 
-// XwaylandAvailable reports whether a Wayland session also exposes an X server,
-// which on Wayland is Xwayland. It is what the GNOME backend draws on. Mutter
-// has no layer shell, and an override-redirect X window is the one surface it
-// stacks above every toplevel without animating it (docs/guide/linux-desktops.md).
-//
-// It lives here, and not beside its one caller, because DISPLAY is one of the
-// variables that decide the backend, and reading it a second time elsewhere is
-// the disagreement #1429 was (internal/architecture/compositor_detector_test.go).
-// On an X11 session the answer is trivially true and nothing asks.
+// XwaylandAvailable reports whether a Wayland session also exposes an X server
+// (Xwayland), which the GNOME backend draws on. Mutter has no layer shell, and
+// an override-redirect X window is the one surface it stacks above every
+// toplevel without animating (docs/guide/linux-desktops.md). It lives here
+// because DISPLAY decides the backend, and a second read elsewhere is the
+// disagreement #1429 was (internal/architecture/compositor_detector_test.go).
 func XwaylandAvailable() bool {
 	cachedXwaylandOnce.Do(func() {
 		cachedXwayland = os.Getenv("DISPLAY") != ""
@@ -188,9 +178,8 @@ func XwaylandAvailable() bool {
 	return cachedXwayland
 }
 
-// isHyprlandFromEnv answers behind the backend rather than beside it. A desktop
-// naming Hyprland on a session the detector did not call wlroots is not a
-// Hyprland session, it is a stale variable.
+// isHyprlandFromEnv answers behind the backend. A desktop naming Hyprland on a
+// session the detector did not call wlroots is a stale variable.
 func isHyprlandFromEnv(currentDesktop string, waylandDisplay string) bool {
 	if detectLinuxBackendFromEnv(currentDesktop, waylandDisplay, "") != BackendWaylandWlroots {
 		return false

@@ -17,9 +17,8 @@ func NewSystemPort() (ports.SystemPort, error) {
 	case BackendX11, BackendWaylandWlroots, BackendWaylandKDE, BackendWaylandCOSMIC:
 		return linux.NewSystemAdapter(backend.String()), nil
 	case BackendWaylandGNOME:
-		// The overlay is the one piece Mutter gives no Wayland path for, and
-		// it is drawn on Xwayland. A session without one has nowhere to draw,
-		// and refusing here beats a daemon whose every mode is invisible.
+		// Mutter's overlay is drawn on Xwayland. Without it every mode would be
+		// invisible, so refuse here.
 		if !XwaylandAvailable() {
 			return nil, unsupportedLinuxBackendError(backend)
 		}
@@ -48,16 +47,11 @@ func NewTextMeasurer() ports.TextMeasurer {
 // built-in defaults, and how to get a config file, then answers with that
 // choice.
 //
-// macOS asks the question in a modal NSAlert and waits for create, use defaults,
-// or quit. Linux answers it instead of asking, deliberately. A modal dialog
-// here needs a toolkit Neru does not link or a helper (zenity, kdialog) a
-// minimal wlroots session need not have, so the honest choices were a prompt
-// that may never appear or a message plus a safe default. Blocking startup on
-// a dialog nobody can see is worse than starting, and a keyboard-driven tool
-// whose first act is to seize the session for a question is worse still. So
-// Neru answers the way the user could only have answered after being asked. It
-// runs on defaults, changes nothing on disk, and tells the user what happened
-// and what to type.
+// Unlike macOS's modal NSAlert, Linux answers instead of asking, deliberately.
+// A dialog needs a toolkit Neru does not link or a helper (zenity, kdialog) a
+// minimal session may lack, and blocking startup on an invisible dialog is
+// worse than starting. Neru runs on defaults, changes nothing on disk, and
+// says what happened and what to type.
 func ShowConfigOnboardingAlert(configPath string) int {
 	title := "Neru is running on built-in defaults"
 	message := "No configuration file at " + configPath +
@@ -78,13 +72,11 @@ func ShowConfigOnboardingAlert(configPath string) int {
 // ShowConfigValidationErrorAlert puts a rejected configuration in front of the
 // user before Neru exits, then answers as the dismissed macOS dialog does.
 //
-// It is a notification rather than a dialog for the reasons above. The alert
-// shape it uses stays on screen until dismissed, so a message that arrives
-// while the user is looking elsewhere is still there when they look back.
+// It is a notification for the reasons above, in the alert shape that stays on
+// screen until dismissed.
 func ShowConfigValidationErrorAlert(errorMessage, configPath string) int {
-	// The launcher has already written the same failure to stderr, so a
-	// missing notification daemon costs the desktop copy rather than the
-	// message, and there is nothing to fall back to here.
+	// The launcher already wrote this failure to stderr, so a missing
+	// notification daemon loses only the desktop copy.
 	_ = linux.ShowAlert(context.Background(), "Neru could not load "+configPath, errorMessage)
 
 	return ConfigValidationOK

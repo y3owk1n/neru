@@ -2,71 +2,50 @@
 
 package kwin
 
-// The KWin script, and nothing else. It is JavaScript running inside the
-// compositor rather than Go running here, and the rules it plays by are KWin's,
-// so it is kept apart from the Go that receives what it sends.
+// The KWin script, kept apart from the Go that receives what it sends.
 
 // geometryScript is loaded into KWin. It reports the focused window's client
-// geometry (content rect, excludes the titlebar so it aligns 1:1 with the
-// AT-SPI content origin), and its identity, so a reader can tell which window
-// the rectangle belongs to.
+// geometry (content rect, excluding the titlebar so it aligns 1:1 with the
+// AT-SPI content origin) and its identity.
 //
-// It is driven by three families of signal, because activation alone describes
-// only how a window's rectangle *starts*:
+// It is driven by three families of signal:
 //
 //   - activation (workspace.windowActivated) says which window to report on.
 //   - geometry (clientGeometryChanged / frameGeometryChanged, and
-//     interactiveMoveResizeFinished) covers a window dragged, resized, tiled or
-//     maximized without ever losing focus. Without these the cache is a
-//     snapshot taken at the last focus change, and everything the user did to
-//     the window since is reported at its old position.
+//     interactiveMoveResizeFinished) covers a window moved, resized, tiled or
+//     maximized without losing focus.
 //   - disappearance (workspace.windowRemoved, minimizedChanged, and activation
-//     going to nothing) lets the cache empty. Without these it never can, so after
-//     the last window closes the answer is still the dead window's rectangle
-//     rather than "nothing is focused".
+//     going to nothing) lets the cache empty, so a closed window's rectangle
+//     is not reported after it is gone.
 //
-// The geometry handlers are connected once per window at windowAdded rather
-// than connected and disconnected as focus moves, because the handler is two property
-// reads when the window is not the active one, and it never holds a reference
-// to a window KWin is destroying. Windows already open when the script loads
-// are picked up from workspace.stackingOrder.
+// Geometry handlers connect once per window at windowAdded, and windows open
+// at load are picked up from workspace.stackingOrder. The handler is cheap for
+// inactive windows and never holds a reference to a window being destroyed.
 //
-// Two things are deliberately *not* reported. A drag is skipped while it is in
-// progress (c.move / c.resize) because KWin emits a geometry signal per frame
-// and each one would be a D-Bus message off the compositor thread. The final
-// rectangle arrives on interactiveMoveResizeFinished. And a push identical to
-// the last one is dropped, which covers the client/frame geometry signals
-// arriving in pairs for one change.
+// A drag in progress (c.move / c.resize) is not reported, because KWin emits a
+// geometry signal per frame and each would be a D-Bus message off the
+// compositor thread. The final rectangle arrives on
+// interactiveMoveResizeFinished. A push identical to the last is dropped,
+// which covers client/frame signals arriving in pairs.
 //
 // Three details are load-bearing and easy to undo by accident:
 //
-//   - **The desktop is tested before neruTransient, not after.** KWin defines
-//     isSpecialWindow() as isDesktop() || isDock() || ..., and KDE's desktop is a
-//     plasmashell window, so the specialWindow flag and the class list below
-//     would each swallow it, and the clear would never fire. Activating the
-//     desktop is precisely how KDE says no application window is focused, which
-//     is the opposite of what a transient surface says.
-//   - **Every property reaching the payload goes through neruStr.** Absent KWin
-//     properties are undefined, which is falsy and therefore safe in a guard,
-//     but concatenating it yields the string "undefined", which the Go side
-//     cannot tell from a window that really is called that. It would then read
-//     as an identity that was reported and disagrees, and reject this window's
-//     origin on every activation for as long as the session lasts.
+//   - **The desktop is tested before neruTransient, not after.** KDE's desktop
+//     is a plasmashell window and isSpecialWindow() includes isDesktop(), so
+//     neruTransient would swallow it and the clear would never fire.
+//   - **Every property reaching the payload goes through neruStr.** An absent
+//     KWin property concatenates as "undefined", which the Go side would read
+//     as a disagreeing identity and reject this window's origin all session.
 //   - **A window that stops being reportable re-reads who is active** rather
 //     than clearing outright (neruRefocus). Minimizing a background window must
 //     not empty a cache that still describes the focused one.
 //
-// neruTransient filters out non-application surfaces that briefly take
-// activation but are never hint targets: panels/docks/OSD/popups/tooltips/
-// utility windows (caught by KWin's window-type flags), plus a few known
-// transient classes (the XWayland video bridge, plasmashell, and the portal
-// consent dialog). Focus landing on one of those keeps the last real window
-// cached rather than clobbering it. Without this, focus flicking to
-// plasmashell or the RemoteDesktop consent dialog would mis-offset hint clicks.
-//
-// Accessing an absent KWin property yields undefined (falsy) and an absent
-// signal yields undefined too, so the extra type flags and the guarded
-// connects are both safe across KWin versions.
+// neruTransient filters surfaces that briefly take activation but are never
+// hint targets: KWin's non-application window types plus a few transient
+// classes (the XWayland video bridge, plasmashell, the portal consent dialog).
+// Focus landing on one keeps the last real window cached, or hint clicks would
+// mis-offset. Absent KWin properties and signals are undefined, so the extra
+// type flags and guarded connects are safe across KWin versions.
 const geometryScript = `
 function neruStr(v) {
     return (v === undefined || v === null) ? "" : "" + v;
