@@ -211,9 +211,10 @@ func (s *SystemAdapter) LogDir() (string, error) {
 }
 
 // FocusedApplicationPID returns the PID of the focused application. X11 reads
-// _NET_WM_PID. Wayland exposes no client PIDs, so the focused app_id from
-// wlr-foreign-toplevel-management is matched against /proc. An unmatched
-// app_id returns CodeNotSupported rather than a fabricated PID.
+// _NET_WM_PID. GNOME reads the Neru Shell extension. Elsewhere Wayland exposes
+// no client PIDs, so the focused app_id from wlr-foreign-toplevel-management is
+// matched against /proc. An unmatched app_id returns CodeNotSupported rather
+// than a fabricated PID.
 func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) {
 	if s.backend == backendX11 {
 		return x11FocusedApplicationPID()

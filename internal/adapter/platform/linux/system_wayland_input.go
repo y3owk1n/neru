@@ -64,8 +64,9 @@ func libeiButtonRelease(button int) error {
 // KWin, which lacks them. Screens and the overlay use the wlroots client on
 // both.
 //
-// On KWin it triggers the one-time consent prompt now, so the first action
-// does not block past the IPC timeout, and elsewhere it is a no-op. It is
+// Where the compositor has no virtual pointer (KWin, cosmic-comp, Mutter) it
+// runs the one-time portal consent prompt now, so the first action does not
+// block past the IPC timeout. On wlroots and X11 it is a no-op. It is
 // best-effort, with the lazy path as fallback. A session without a keyboard
 // still succeeds, so keyboard errors come from the caller.
 func WarmWaylandInput() error {

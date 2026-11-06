@@ -413,7 +413,10 @@ func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 // paintSubgridSurface paints the finer grid inside one cell, alone on the
 // surface, and reports whether the frame was painted. It is the single copy
 // of what an open subgrid looks like (#1491). Parent cells are not drawn
-// behind it, matching macOS, whose ShowSubgrid replaces the cell array.
+// behind it, matching macOS. There ShowSubgrid (render/grid/overlay_darwin.go)
+// clears the window, and NeruDrawGridCells (platform/darwin/overlay_darwin.m)
+// replaces the cell array rather than adding to it, so narrowing only
+// re-marks cells.
 //
 // beginFrame must come before the clear. It selects the writable buffer on
 // Wayland, so clearing first wipes the buffer on screen instead.
@@ -874,8 +877,8 @@ func (o *sharedOverlay) startMouseActionAnimation(
 			renderMu := o.renderMu
 			if renderMu != nil {
 				renderMu.Lock()
-				// Parent may have closed stopCh while we waited for the lock.
-				// It holds the lock and waits for animDone, so check first.
+				// The parent may have closed stopCh while we waited for the lock.
+				// The parent holds the lock and waits for animDone, so check first.
 				select {
 				case <-stopCh:
 					renderMu.Unlock()
@@ -1048,8 +1051,8 @@ func (o *sharedOverlay) startGridAnimation(
 			renderMu := o.renderMu
 			if renderMu != nil {
 				renderMu.Lock()
-				// Parent may have closed stopCh while we waited for the lock
-				// (see drawMouseActionIndicator).
+				// The parent may have closed stopCh while we waited for the lock.
+				// The parent holds the lock and waits for animDone, so check first.
 				select {
 				case <-stopCh:
 					renderMu.Unlock()
