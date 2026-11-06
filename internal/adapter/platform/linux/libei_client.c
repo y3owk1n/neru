@@ -152,12 +152,10 @@ static int ensure_emulating(NeruEiClient *c, struct ei_device *device, int resum
 // pumps the event loop until the devices are usable. Returns 1 when the client
 // is ready to emit, 0 otherwise.
 //
-// owns_fd says whether this call is responsible for eis_fd when libei never
-// takes it. It must be 0 on the liboeffis path, where the descriptor belongs to
-// struct oeffis and closing it here would leave oeffis_unref closing it a second
-// time, and 1 on the ConnectToEIS path, where the caller handed the descriptor
-// over and nothing else will ever close it. Once ei_setup_backend_fd has been
-// called libei owns the descriptor either way and closes it at ei_unref.
+// owns_fd says whether this call must close eis_fd when libei never takes it.
+// It is 0 on the liboeffis path, where struct oeffis owns it and oeffis_unref
+// would close it again, and 1 on the ConnectToEIS path, where nothing else
+// will. Once ei_setup_backend_fd runs, libei owns it and closes it at ei_unref.
 static int attach_eis(NeruEiClient *c, int eis_fd, int owns_fd, int64_t deadline) {
 	// 1) libei sender context attached to the EIS fd.
 	c->ei = ei_new_sender(NULL);
@@ -181,20 +179,16 @@ static int attach_eis(NeruEiClient *c, int eis_fd, int owns_fd, int64_t deadline
 		ei_dispatch(c->ei);
 		drain(c);
 
-		// Two-stage capability bind: KDE bug https://bugs.kde.org/show_bug.cgi?id=520464 causes KWin to silently
-		// drop the keyboard device when keyboard and pointer are bound together
-		// in a single ei_seat_bind_capabilities() call. The workaround:
-		//   Stage 1 (in drain's EI_EVENT_SEAT_ADDED handler) binds keyboard
-		//   alone so the keyboard device is created before any pointer caps
-		//   are requested.
-		//   Stage 2 (here) flushes the keyboard bind, then binds the remaining
-		//   pointer capabilities. KWin sees the keyboard already exists and
-		//   keeps it, while also creating the pointer devices.
+		// Two-stage capability bind. KDE bug
+		// https://bugs.kde.org/show_bug.cgi?id=520464 makes KWin silently drop
+		// the keyboard when keyboard and pointer are bound in one
+		// ei_seat_bind_capabilities() call. Stage 1 (drain's
+		// EI_EVENT_SEAT_ADDED) binds the keyboard alone. Stage 2 (here) flushes
+		// it, then binds the pointer capabilities, and KWin keeps the keyboard.
 		if (c->seat && !c->seat_caps_bound) {
 			ei_dispatch(c->ei);
-			// Drain any keyboard device events that arrived in response to
-			// the stage 1 bind before queuing stage 2, so c->keyboard and
-			// c->keyboard_resumed reflect the actual state.
+			// Drain the stage 1 keyboard events first, so c->keyboard and
+			// c->keyboard_resumed are current.
 			drain(c);
 			ei_seat_bind_capabilities(
 			    c->seat, EI_DEVICE_CAP_KEYBOARD, EI_DEVICE_CAP_POINTER, EI_DEVICE_CAP_POINTER_ABSOLUTE,
@@ -203,11 +197,9 @@ static int attach_eis(NeruEiClient *c, int eis_fd, int owns_fd, int64_t deadline
 		}
 	}
 
-	// 3) Give the keyboard device a brief extra window to appear after the
-	// pointer. The portal may advertise both devices but the keyboard add/resume
-	// events can arrive slightly later. If keyboard was not granted by the portal
-	// this loop simply times out in ~1 s and the connection still succeeds so
-	// pointer/click/scroll work. The caller can check neru_ei_has_keyboard.
+	// 3) Give the keyboard a brief extra window, since its add and resume events
+	// can trail the pointer's. Without a keyboard grant this times out in ~1 s
+	// and the pointer still works. The caller can check neru_ei_has_keyboard.
 	{
 		int64_t kbd_deadline = now_ms() + 1000;
 		while (!c->keyboard_resumed && now_ms() < kbd_deadline) {
@@ -230,9 +222,8 @@ NeruEiClient *neru_ei_connect(int timeout_ms) {
 
 	int64_t deadline = now_ms() + (timeout_ms > 0 ? timeout_ms : 30000);
 
-	// Portal session via liboeffis -> EIS fd. This path cannot restore an
-	// earlier grant (liboeffis exposes no restore token), so it prompts on
-	// every start. neru_ei_connect_fd is the path that does not.
+	// Portal session via liboeffis, which prompts on every start (see the
+	// header).
 	c->oeffis = oeffis_new(NULL);
 	if (!c->oeffis) {
 		neru_ei_disconnect(c);
@@ -389,9 +380,8 @@ int neru_ei_has_keyboard(NeruEiClient *c) {
 	if (!c) {
 		return 0;
 	}
-	// The keyboard device may have been added/resumed after we finished waiting
-	// in neru_ei_connect (which only waits for the pointer device). Pump any
-	// pending EIS events so the keyboard state is visible to the caller.
+	// The keyboard may appear after connect stopped waiting (it waits only for
+	// the pointer), so pump pending events first.
 	pump(c);
 	// Only check device existence, not resume state. A transient pause by the
 	// compositor would otherwise make the Go layer report a permanent "not

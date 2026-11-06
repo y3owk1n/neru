@@ -7,18 +7,14 @@
 // anonymous shared memory, ready to hand to wl_shm_create_pool. Returns -1 on
 // failure. The caller owns the descriptor and closes it.
 //
-// The buffer comes from memfd_create where the kernel headers know the
-// syscall, and from an immediately unlinked file under /tmp where they do not,
-// so every backend gets a buffer on targets that predate memfd. The fallback
-// is a real file: unreachable by path the moment it exists, but backed by
-// whatever /tmp is, which anonymous memory is not. Every caller writes screen
-// content into it, so a caller that must never let those bytes reach a disk
-// wants its own path rather than this one. No caller has that constraint
-// today, and memfd has been in kernel headers since 3.17.
+// The buffer comes from memfd_create where the kernel headers know it, else
+// from a file under /tmp unlinked at once. That fallback is unreachable by path
+// but backed by whatever /tmp is, so a caller that must never let screen
+// content reach a disk needs its own path. None does today, and memfd has been
+// in kernel headers since 3.17.
 //
-// `name` labels the memfd for debugging, as /memfd:<name>
-// in /proc/<pid>/fd, and must not be NULL. The fallback has nothing to label.
-// Its file is unlinked before anyone could look.
+// `name` labels the memfd as /memfd:<name> in /proc/<pid>/fd for debugging,
+// and must not be NULL.
 int neru_shm_file_create(const char *name, size_t size);
 
 #endif /* SHM_FILE_H */

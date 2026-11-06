@@ -11,22 +11,18 @@
 #include <tesseract/capi.h>
 #include <time.h>
 
-// The engine is cached for the daemon's lifetime, and that is a latency
-// decision rather than a convenience. TessBaseAPIInit2 loads an LSTM model from
-// disk, which costs hundreds of milliseconds, and a hint activation that paid
-// it every time would be unusable. What is cached is the *engine*, never a
-// frame. Every recognition ends in neru_ocr_reset_locked, so between calls the
-// handle holds a loaded model and nothing derived from anyone's screen.
+// The engine is cached for the daemon's lifetime for latency, because
+// TessBaseAPIInit2 loads an LSTM model from disk in hundreds of milliseconds.
+// Only the engine is cached, never a frame. Every recognition ends in
+// neru_ocr_reset_locked, so between calls nothing derived from a screen stays.
 //
 // Recognition is serialized on this mutex. TessBaseAPI is not thread-safe, and
-// the daemon can reach here from the IPC handler and a mode at once.
+// the IPC handler and a mode can arrive at once.
 //
-// Nothing waits on it forever, which is the point of neru_ocr_lock below. The
-// only bound on a recognition is tesseract's own deadline, and tesseract checks
-// that *between* recognition units, so one pathological frame can overrun it.
-// A plain lock would then wedge every later activation in cgo, where Go cannot
-// cancel it, and the daemon would need restarting to hint again. A bounded wait
-// turns that into one failed activation that says so.
+// Nothing waits on it forever (neru_ocr_lock). Tesseract checks its deadline
+// only *between* recognition units, so one pathological frame can overrun it,
+// and a plain lock would block every later activation in uncancellable cgo. A
+// bounded wait turns that into one failed activation that says so.
 static pthread_mutex_t neru_ocr_mutex = PTHREAD_MUTEX_INITIALIZER;
 static TessBaseAPI *neru_ocr_api;
 
@@ -46,9 +42,8 @@ static char *neru_ocr_language;
 // that a wedged one is reported rather than waited on.
 #define NERU_OCR_DEFAULT_WAIT_MS 3000
 
-// neru_ocr_now_ms is a monotonic millisecond clock, for measuring how long a
-// recognition took. Monotonic so a clock adjustment mid-recognition cannot turn
-// a fast frame into a reported timeout.
+// neru_ocr_now_ms is monotonic so a clock adjustment mid-recognition cannot
+// turn a fast frame into a reported timeout.
 static int64_t neru_ocr_now_ms(void) {
 	struct timespec now;
 	if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) {
@@ -91,9 +86,7 @@ static int neru_ocr_lock(int wait_ms) {
 // RGBA8888, the layout NeruCapture and Go's image.RGBA both use.
 #define NERU_OCR_BYTES_PER_PIXEL 4
 
-// How many words to allocate room for before growing. UI text is scattered
-// labels, and a window with more than this is doubled rather than reallocated per
-// word.
+// Initial word capacity, doubled when exceeded.
 #define NERU_OCR_INITIAL_CAPACITY 64
 
 static int neru_ocr_string_equal(const char *a, const char *b) {
@@ -149,9 +142,8 @@ static TessBaseAPI *neru_ocr_acquire_locked(const NeruOCRConfig *config) {
 		return NULL;
 	}
 
-	// OEM_LSTM_ONLY rather than the legacy engine or the combination, because
-	// the legacy half is slower, needs its own data files, and is what
-	// tesseract 5 itself defaults away from.
+	// LSTM only, because the legacy engine is slower, needs its own data files,
+	// and is what tesseract 5 defaults away from.
 	int initialized = TessBaseAPIInit2(api, config->datapath, config->language, OEM_LSTM_ONLY) == 0;
 	neru_locale_guard_unlock();
 
@@ -196,18 +188,10 @@ static TessBaseAPI *neru_ocr_acquire_locked(const NeruOCRConfig *config) {
 // out of a recognition goes through it, so no pixels and no recognized text
 // reach the next one.
 //
-// It deliberately does *not* call TessBaseAPIClearAdaptiveClassifier, and that
-// is a measured decision rather than an oversight. Clearing the adaptive
-// classifier per frame reads like the tidy thing to do, since it holds character
-// shapes learned from the frame just read, but it also resets the document
-// dictionary, and the reinitialization that costs is paid by the *next*
-// recognition. On a 1904x994 frame it took recognition from 0.5s to 3.5s, a
-// sevenfold regression on the one path where latency is the product. Keeping it
-// measured flat across repeated frames instead.
-//
-// What is retained is classifier state, meaning character shape templates, and not
-// text, not pixels, and nothing that can be read back as screen content. It
-// lives in memory for the life of the daemon and never touches disk.
+// It deliberately does *not* call TessBaseAPIClearAdaptiveClassifier. That also
+// resets the document dictionary, which the next recognition pays to rebuild.
+// On a 1904x994 frame it took recognition from 0.5s to 3.5s. What is retained
+// is character shape templates, not text or pixels, and it never touches disk.
 static void neru_ocr_reset_locked(TessBaseAPI *api) { TessBaseAPIClear(api); }
 
 int neru_ocr_probe(const NeruOCRConfig *config) {
@@ -271,9 +255,8 @@ static int neru_ocr_collect(
 	do {
 		char *text = TessResultIteratorGetUTF8Text(iterator, level);
 		if (text == NULL) {
-			// In a do-while, continue evaluates the condition, which is the
-			// iterator advance, so this skips the element rather than
-			// spinning on it.
+			// In a do-while, continue runs the iterator advance, so this skips
+			// the element rather than spinning on it.
 			continue;
 		}
 
@@ -372,9 +355,8 @@ int neru_ocr_recognize(
 		neru_ocr_reset_locked(api);
 		pthread_mutex_unlock(&neru_ocr_mutex);
 
-		// Tesseract reports one failure code for "gave up on the deadline" and
-		// "could not read this frame", and the two want opposite responses from
-		// a user. The clock is what separates them. Recognition that ran to the
+		// Tesseract has one failure code for a missed deadline and an unreadable
+		// frame, which want opposite responses. Recognition that ran to the
 		// budget was stopped by it.
 		if (config->timeoutMS > 0 && elapsed >= (int64_t)config->timeoutMS) {
 			return NERU_OCR_ERR_TIMEOUT;

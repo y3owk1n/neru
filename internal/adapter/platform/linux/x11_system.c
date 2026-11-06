@@ -71,12 +71,10 @@ int neru_x11_query_pointer(Display *display, int *x, int *y) {
 
 // neru_x11_discover_pointer learns the global pointer position on an X server
 // that cannot answer XQueryPointer truthfully. Xwayland only sees the pointer
-// while it is over an X window, so the query returns wherever it last was, or
-// the screen centre before it ever was. Mapping a full-root override-redirect
-// window that accepts input makes the compositor send the pointer's entry, and
-// the position that arrives with it (or with the motion right behind it) is
-// the truth. The window is unmapped again before returning. It draws nothing
-// and takes no focus, so nothing on screen notices. timeout_ms bounds the wait.
+// over an X window, so the query returns where it last was, or the screen
+// centre. Mapping a full-root override-redirect input window makes the
+// compositor send the pointer's entry, which carries the truth. The window
+// draws nothing, takes no focus, and is unmapped before returning.
 // NERU_X11_POINTER_SETTLE_MS is how long discovery waits after the pointer's
 // entry for the motion that carries its real position.
 #define NERU_X11_POINTER_SETTLE_MS 40
@@ -94,10 +92,9 @@ int neru_x11_discover_pointer(Display *display, int timeout_ms, int *x, int *y) 
 		return 0;
 	}
 
-	// The trap covers creation and map only, so the wait below never holds
-	// the process-wide trap lock. Every resource here is our own, so the one
-	// error that can arrive is an allocation failure, and that has to become
-	// a failed sync rather than the exit the default handler performs.
+	// The trap covers creation and map only, so the wait never holds the
+	// process-wide trap lock. The only possible error is an allocation failure,
+	// which must fail the sync rather than exit.
 	XSetWindowAttributes attrs;
 	attrs.override_redirect = True;
 	attrs.event_mask = EnterWindowMask | PointerMotionMask;
@@ -118,11 +115,9 @@ int neru_x11_discover_pointer(Display *display, int timeout_ms, int *x, int *y) 
 		return 0;
 	}
 
-	// The entry event carries Xwayland's last known position, which is where
-	// the pointer left the previous X window, or the screen centre before it
-	// ever entered one. The motion Xwayland sends right behind it carries the
-	// position the compositor just reported. So an entry is provisional, and
-	// the wait continues a little for the motion that corrects it.
+	// The entry carries Xwayland's last known position, which may be stale. The
+	// motion right behind it carries the compositor's fresh one, so the wait
+	// continues briefly for it.
 	int found = 0;
 	int settled = 0;
 	int fd = ConnectionNumber(display);
@@ -178,26 +173,18 @@ int neru_x11_move_pointer(Display *display, int x, int y) {
 
 // neru_x11_root_has_live_wm reports whether an EWMH window manager owns this
 // display *right now*, by completing the _NET_SUPPORTING_WM_CHECK handshake.
-// The root window names a window the window manager created, and that window
-// names itself back through the same property.
+// The root names a window the window manager created, and that window names
+// itself back through the same property.
 //
-// Something is needed here because _NET_ACTIVE_WINDOW being absent means both
-// "no window manager" and "a window manager with nothing focused". Openbox,
-// which CI's X11 leg runs, advertises _NET_ACTIVE_WINDOW in _NET_SUPPORTED and
-// then writes no such property until something takes focus, while other window
-// managers write None instead.
+// An absent _NET_ACTIVE_WINDOW means both "no window manager" and "nothing
+// focused". Openbox, which CI's X11 leg runs, writes no such property until
+// something takes focus.
 //
-// The handshake, and not the mere presence of _NET_SUPPORTED, is what answers
-// it. Root-window properties belong to the root window, not to the client that
-// wrote them, so a window manager that is killed while any other client keeps
-// the session alive leaves every _NET_* property it ever wrote sitting there.
-// Verified on Xvfb + openbox: SIGKILL the window manager with one connection
-// held open and _NET_SUPPORTED is still readable indefinitely afterwards. A
-// presence check would call that display "a window manager with nothing
-// focused" forever. The window _NET_SUPPORTING_WM_CHECK names is the window
-// manager's own and dies with its connection, which is precisely why EWMH
-// specifies the self-reference. It distinguishes a live window manager from a
-// stale advertisement.
+// The presence of _NET_SUPPORTED cannot answer it. Root properties outlive the
+// client that wrote them, so a killed window manager leaves them behind
+// (verified on Xvfb + openbox with one other connection held open). The check
+// window dies with the window manager's connection, which is why EWMH
+// specifies the self-reference.
 static int neru_x11_root_has_live_wm(Display *display) {
 	Atom property = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
 	Atom actual_type;
@@ -273,11 +260,8 @@ int neru_x11_get_active_window(Display *display, Window *out) {
 		return NERU_X11_ACTIVE_WINDOW_QUERY_FAILED;
 	}
 
-	// XGetWindowProperty reports an absent property as Success with an actual
-	// type of None. Two very different sessions look like that, one with no
-	// window manager at all, and one whose window manager simply has nothing to
-	// point at, so the _NET_SUPPORTING_WM_CHECK handshake decides which, rather
-	// than the caller being told a healthy desktop is broken.
+	// An absent property is Success with type None, both with no window manager
+	// and with nothing focused, so the handshake decides which.
 	if (actual_type == None) {
 		if (data != NULL) {
 			XFree(data);
@@ -307,21 +291,16 @@ int neru_x11_get_active_window(Display *display, Window *out) {
 	return NERU_X11_ACTIVE_WINDOW_OK;
 }
 
-// Every request below is addressed to a window this process does not own, and
-// _NET_ACTIVE_WINDOW can name one that is already gone. The window closes
-// between the read and this call, or its window manager exited and left the
-// property behind pointing at a window that has since died. The X server
-// answers BadWindow, and Xlib's default handler calls exit(), as reproduced on
-// Xvfb, where a stale id took the whole process down. So each of them runs
-// inside the shared protocol-error trap and reports the trap instead of dying.
-// The pid query names it as its own answer, and the ones whose signature carries no
-// answer report "nothing to say".
+// Every request below targets a window this process does not own, and
+// _NET_ACTIVE_WINDOW can name one already gone (closed since the read, or left
+// behind by an exited window manager). The server answers BadWindow and Xlib's
+// default handler calls exit(), as reproduced on Xvfb. So each runs inside the
+// shared trap. The pid query reports it as its own answer, and the others
+// report "nothing to say".
 
 int neru_x11_get_window_pid(Display *display, Window window, unsigned long *out) {
 	if (window == 0) {
-		// Nobody to ask. The active-window query answers before this one is
-		// reached, so this is the same state as a window that died. There is no
-		// window there to read a property off.
+		// Nobody to ask, the same state as a window that died.
 		return NERU_X11_WINDOW_PID_WINDOW_GONE;
 	}
 
@@ -343,16 +322,14 @@ int neru_x11_get_window_pid(Display *display, Window window, unsigned long *out)
 	int result;
 
 	if (trapped) {
-		// A trapped protocol error is BadWindow. The id _NET_ACTIVE_WINDOW named
-		// has closed since it was read. That is the failure this call can hit,
-		// and it is not the same event as a window that is alive and sets no pid.
+		// A trapped error is BadWindow. The window closed since it was read,
+		// which differs from a live window that sets no pid.
 		result = NERU_X11_WINDOW_PID_WINDOW_GONE;
 	} else if (status != Success) {
 		result = NERU_X11_WINDOW_PID_QUERY_FAILED;
 	} else if (actual_type == None) {
-		// An absent property comes back as Success with an actual type of
-		// None. The window is alive and simply does not advertise a pid, which
-		// EWMH permits and no client can be made to fix.
+		// Absent is Success with type None. The window is alive and does not
+		// advertise a pid, which EWMH permits.
 		result = NERU_X11_WINDOW_PID_ABSENT;
 	} else if (actual_type != XA_CARDINAL || actual_format != 32 || item_count == 0 || data == NULL) {
 		// A type or format mismatch is also Success with nothing fetched, so
@@ -516,10 +493,9 @@ int neru_x11_get_window_bounds(Display *display, Window window, int *x, int *y, 
 		return 0;
 	}
 
-	// attrs.x/y are relative to the parent. Translate the window origin into
-	// root coordinates so the bounds are global across a multi-monitor layout.
-	// Both requests share one trapped section, because the window can die
-	// between them just as easily as before the first.
+	// attrs.x/y are parent-relative, so translate the origin into root
+	// coordinates. Both requests share one trapped section, since the window
+	// can die between them.
 	XWindowAttributes attrs;
 	int root_x = 0;
 	int root_y = 0;
@@ -594,11 +570,10 @@ static void neru_x11_close_pipe(int pipe_fds[2]) {
 	}
 }
 
-// The monitor thread blocks in poll() on the X11 connection and the quit pipe.
-// The dedicated display is used only by this thread, so no XInitThreads is
-// needed. On each _NET_ACTIVE_WINDOW PropertyNotify it writes a byte to the
-// event pipe (coalescing a burst into one signal), and the Go reader re-queries the
-// live active window on wake.
+// The monitor thread polls the X11 connection and the quit pipe. Only this
+// thread uses the dedicated display, so no XInitThreads. Each
+// _NET_ACTIVE_WINDOW PropertyNotify writes a byte to the event pipe, coalescing
+// bursts, and the Go reader re-queries the active window on wake.
 static void *neru_x11_focus_loop(void *arg) {
 	NeruX11FocusMonitor *m = (NeruX11FocusMonitor *)arg;
 	int xfd = ConnectionNumber(m->display);
@@ -653,12 +628,10 @@ static void *neru_x11_focus_loop(void *arg) {
 		}
 	}
 
-	// If the X connection died (as opposed to a clean stop), close the event
-	// pipe's write end so the Go reader observes POLLHUP and restores its
-	// polling fallback instead of silently degrading to the safety-sample
-	// interval. Cleared to -1 so a later stop()'s close is a no-op (no
-	// double-close of a possibly-reused fd). Safe without locking, because only
-	// this thread writes the pipe, and it has stopped writing by here.
+	// If the X connection died rather than stopped, close the event pipe's
+	// write end so the Go reader sees POLLHUP and restores its polling fallback.
+	// -1 keeps a later stop() from closing a possibly-reused fd. Only this
+	// thread writes the pipe, so no lock is needed.
 	if (connection_lost && m->event_pipe[1] >= 0) {
 		close(m->event_pipe[1]);
 		m->event_pipe[1] = -1;
@@ -762,10 +735,9 @@ struct NeruX11ScreenMonitor {
 	int thread_started;
 };
 
-// The monitor thread blocks in poll() on the X11 connection and the quit pipe.
-// On each RRScreenChangeNotify it keeps Xlib's cached configuration current
-// (XRRUpdateConfiguration) and writes a byte to the event pipe (coalescing a
-// burst into one signal), and the Go reader re-enumerates monitors on wake.
+// Same shape as the focus monitor. On each RRScreenChangeNotify it refreshes
+// Xlib's cached configuration and signals the event pipe, and the Go reader
+// re-enumerates monitors on wake.
 static void *neru_x11_screen_loop(void *arg) {
 	NeruX11ScreenMonitor *m = (NeruX11ScreenMonitor *)arg;
 	int xfd = ConnectionNumber(m->display);
@@ -823,10 +795,8 @@ static void *neru_x11_screen_loop(void *arg) {
 		}
 	}
 
-	// If the X connection died (as opposed to a clean stop), close the event
-	// pipe's write end so the Go reader observes POLLHUP. Cleared to -1 so a
-	// later stop()'s close is a no-op. Safe without locking, because only this
-	// thread writes the pipe, and it has stopped writing by here.
+	// As in the focus monitor, a dead connection closes the write end so the
+	// Go reader sees POLLHUP.
 	if (connection_lost && m->event_pipe[1] >= 0) {
 		close(m->event_pipe[1]);
 		m->event_pipe[1] = -1;

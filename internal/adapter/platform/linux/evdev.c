@@ -264,9 +264,8 @@ int neru_uinput_create_keyboard(int *out_fd) {
 		return 0;
 	}
 
-	// Advertise the full keyboard keycode range so any code a feed sequence
-	// emits (letters, digits, function keys, modifiers, punctuation) is a
-	// valid event on this device. KEY_MAX bounds the evdev keycode space.
+	// Advertise the full keycode range, up to KEY_MAX, so any code a feed
+	// sequence emits is valid on this device.
 	for (int code = 1; code < KEY_MAX; code++) {
 		if (ioctl(fd, UI_SET_KEYBIT, code) < 0) {
 			close(fd);
@@ -300,10 +299,9 @@ int neru_uinput_key(int fd, int keycode, int pressed) {
 	if (fd < 0)
 		return 0;
 
-	// Emit the key event and its SYN_REPORT in a single write so the pair is
-	// submitted atomically. If they were separate writes, a key-down could land
-	// while its SYN failed, leaving the event buffered until a later SYN
-	// committed it, latching the key even though this call reported failure.
+	// The key event and its SYN_REPORT go in one write. With two, a key-down
+	// could land while its SYN failed, and a later SYN would latch the key even
+	// though this call reported failure.
 	struct input_event ev[2];
 	memset(ev, 0, sizeof(ev));
 
@@ -421,13 +419,11 @@ int neru_uinput_create_proxy_keyboard(int *out_fd) {
 	return 1;
 }
 
-/* The pointer half of the proxy: where the relative motion and the mouse
- * buttons of a grabbed keyboard that carries them go. Created only once such a
- * keyboard is grabbed, so a setup without one sees no virtual mouse. Only the
- * mouse buttons are advertised. BTN_1 or a joystick or gamepad button would
- * have udev class the device as a joystick (isMouseButton is the Go side of
- * this range). On failure errno is as neru_uinput_create_proxy_keyboard leaves
- * it. */
+/* The pointer half of the proxy, for the motion and mouse buttons of a grabbed
+ * keyboard that carries them. Created only once such a keyboard is grabbed.
+ * Only mouse buttons are advertised, since BTN_1 or a joystick button would
+ * have udev class it a joystick (isMouseButton is the Go side). On failure
+ * errno is as neru_uinput_create_proxy_keyboard leaves it. */
 int neru_uinput_create_proxy_pointer(int *out_fd) {
 	int fd = open("/dev/uinput", O_RDWR);
 	if (fd < 0) {
