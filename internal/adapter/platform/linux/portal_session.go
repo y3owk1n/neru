@@ -10,23 +10,14 @@ import (
 )
 
 // The policy that turns a stored restore token into a session without a
-// consent prompt, and decides what to do when the stored token no longer
-// works.
-//
-// It is separated from the D-Bus handshakes beside it because a handshake is
-// the part no test on this repository's development platform can drive, since
-// it needs a live xdg-desktop-portal with a KDE backend, while "which token do
-// we present, and how many times do we ask" is a decision with three inputs and
-// no I/O.
-//
-// It is written once for both grants KDE needs. RemoteDesktop (input) and
-// ScreenCast (capture) are separate sessions with separate tokens, because they
-// are separate consents, but the question they ask of a stored token is
-// identical and answering it twice is how the two would drift apart.
+// consent prompt, and decides what to do when the token no longer works. It is
+// kept apart from the D-Bus handshakes, which need a live KDE
+// xdg-desktop-portal, so it can be tested without I/O. RemoteDesktop (input)
+// and ScreenCast (capture) are separate consents with separate tokens, but
+// share this policy so the two cannot drift apart.
 
-// errPortalRequestCanceled reports that the user answered the portal's consent
-// dialog with "no". It is distinguished from every other failure because it is
-// the one refusal that a second prompt would repeat back at them.
+// errPortalRequestCanceled reports that the user declined the portal's consent
+// dialog, the one refusal a second prompt would only repeat.
 var errPortalRequestCanceled = errors.New("the portal consent request was canceled")
 
 // errPortalFailureUnrelatedToGrant reports a handshake failure the stored
@@ -35,9 +26,8 @@ var errPortalFailureUnrelatedToGrant = errors.New(
 	"the portal handshake failed for a reason unrelated to the stored grant",
 )
 
-// unrelatedError marks such a failure. It is transparent on purpose. The
-// message and the derrors code are the wrapped error's, so the only new thing
-// is the extra question this type answers.
+// unrelatedError marks such a failure. It is transparent, keeping the wrapped
+// error's message and derrors code.
 type unrelatedError struct {
 	err error
 }
@@ -48,36 +38,26 @@ func (e unrelatedError) Unwrap() error { return e.err }
 
 func (e unrelatedError) Is(target error) bool { return target == errPortalFailureUnrelatedToGrant }
 
-// unrelatedToStoredGrant marks err as a failure that says nothing about the
-// stored token. Two stretches of a handshake qualify, at either end of it:
-//
-//   - everything before the call that presents the token, meaning the bus
-//     dial, the reply subscription and CreateSession. The token has not been
-//     sent yet, so nothing has been shown it to refuse.
-//   - everything after Start, because by then the grant is complete. The portal
-//     has started the session and handed back a fresh token, and a socket or a
-//     stream it will not produce is not a credential problem.
-//
-// What is left in between is the pair of calls that carry the token and consume
-// it, SelectDevices/SelectSources and Start. A failure there is treated as the
-// token's fault, deliberately erring toward one extra consent prompt rather
-// than toward a daemon that can never establish a session again.
+// unrelatedToStoredGrant marks err as saying nothing about the stored token.
+// That covers everything before the token is presented (bus dial, reply
+// subscription, CreateSession) and everything after Start, when the grant is
+// complete. A failure in SelectDevices/SelectSources or Start, the calls that
+// carry and consume the token, is blamed on the token, erring toward one extra
+// prompt rather than a daemon that can never establish a session again.
 func unrelatedToStoredGrant(err error) error {
 	return unrelatedError{err: err}
 }
 
-// errPortalGrantYieldedNoDevices reports that the portal handed over a session
-// but no input device ever came up on it. The grant itself was fine, so a
-// second handshake through any other path would ask the same portal for the
-// same devices and get the same answer, at the cost of another dialog.
+// errPortalGrantYieldedNoDevices reports a granted session on which no input
+// device came up. The grant was fine, so another handshake would get the same
+// answer at the cost of another dialog.
 var errPortalGrantYieldedNoDevices = errors.New(
 	"the granted remote desktop session brought up no input device",
 )
 
-// errNoScreenCastConsent reports that no ScreenCast grant is held and none can
-// be restored, on a path that is not allowed to put a dialog on screen. It is
-// the answer a capture gives when the user has never approved screen sharing.
-// The prompt belongs to the permission request, not to a hint refresh.
+// errNoScreenCastConsent reports that no ScreenCast grant is held or
+// restorable on a path that may not prompt, such as a capture before the user
+// ever approved sharing. The prompt belongs to the permission request.
 var errNoScreenCastConsent = errors.New(
 	"no screen-sharing consent has been granted to Neru yet",
 )
@@ -88,40 +68,31 @@ type portalGrant struct {
 	// eisFD is the file descriptor of the EIS socket. Ownership passes to the
 	// caller, which hands it to libei.
 	eisFD int
-	// restoreToken restores this grant on a later start, and is empty when the
-	// portal declined to persist it. It is a credential. See
-	// portal_restore_token.go for what that means in this package.
+	// restoreToken restores this grant on a later start, empty when the portal
+	// declined to persist it. It is a credential (portal_restore_token.go).
 	restoreToken string
-	// close ends the portal session and releases the D-Bus connection holding
-	// it. The EIS fd is not closed here, because libei owns it once it is handed
-	// over.
+	// close ends the portal session and its D-Bus connection. It leaves the EIS
+	// fd alone, because libei owns it.
 	close func()
 }
 
-// grantRestoreToken reports the token this grant handed back. It is what makes
-// portalGrant usable by the shared restore policy below.
+// grantRestoreToken implements portalRestorableGrant.
 func (g portalGrant) grantRestoreToken() string { return g.restoreToken }
 
-// portalRestorableGrant is the one thing the restore policy needs to know about
-// a grant: which token restores it next time. Everything else a grant carries,
-// such as an EIS socket or a set of PipeWire nodes, belongs to the interface
-// that negotiated it and never reaches this file.
+// portalRestorableGrant is all the restore policy needs from a grant, the
+// token that restores it next time.
 type portalRestorableGrant interface {
 	grantRestoreToken() string
 }
 
 // establishPortalGrant opens a portal grant, reusing the stored one when there
-// is one to reuse.
+// is one. It tries the portal at most twice. The first attempt presents the
+// stored token, and if that is refused the token is dropped and one fresh
+// attempt prompts. No third attempt or backoff, because a portal refusing a
+// prompt the user just answered will refuse again and would stall startup.
 //
-// It attempts the portal at most twice, ever. The first attempt presents
-// whatever token is stored. If that is refused the token is dropped and one
-// fresh attempt prompts the user. There is no third attempt and no backoff.
-// A portal that refuses a prompt the user just answered will refuse it again,
-// and looping on it would sit in front of the daemon's startup.
-//
-// Whatever token the grant hands back is stored, because a restore token is
-// invalidated by the use that consumes it. Keeping the presented one would
-// restore exactly once and prompt on every start after that.
+// The returned token is always stored, because using a token invalidates it.
+// Keeping the presented one would restore once and prompt on every later start.
 func establishPortalGrant[T portalRestorableGrant](
 	ctx context.Context,
 	store restoreTokenStore,
@@ -138,16 +109,14 @@ func establishPortalGrant[T portalRestorableGrant](
 		return grant, nil
 	}
 
-	// Nothing was presented, so no stored grant can be blamed and a second
-	// attempt would repeat the first exactly. Nor when the failure was not the
-	// token's fault, as storedGrantPresumedDead decides.
+	// With nothing presented, or a failure that was not the token's fault, a
+	// second attempt would only repeat the first.
 	if stored == "" || !storedGrantPresumedDead(err) {
 		return none, err
 	}
 
-	// The stored token is presumed revoked or expired. Drop it, so the next
-	// start begins clean rather than replaying a credential that failed, and
-	// prompt exactly once.
+	// The token is presumed revoked or expired. Drop it so the next start does
+	// not replay it, and prompt exactly once.
 	_ = store.clear()
 
 	grant, err = open(ctx, "")
@@ -160,22 +129,14 @@ func establishPortalGrant[T portalRestorableGrant](
 	return grant, nil
 }
 
-// restorePortalGrant opens a portal grant without ever putting a consent dialog
-// on screen. It presents the stored token and accepts whatever the portal makes
-// of it.
+// restorePortalGrant opens a portal grant without ever showing a consent
+// dialog, presenting the stored token and accepting the portal's answer. The
+// capture path uses it, because a dialog while the user waits for hints is a
+// stall at the worst moment. With nothing stored, the caller is told to ask for
+// consent through SystemPort.RequestScreenCapturePermission instead.
 //
-// This is the variant the capture path uses. A capture runs while the user is
-// waiting for hints to appear, so a dialog there is both a several-second stall
-// and a question asked at the worst possible moment. The prompt belongs to
-// SystemPort.RequestScreenCapturePermission, which runs off the mode handler's
-// lock with a budget sized for a human. With nothing stored there is nothing to
-// present, so the caller is told to ask for consent rather than sent into a
-// handshake whose only possible outcome is a dialog.
-//
-// A token the portal refuses is still dropped. Leaving it would have every
-// later capture replay a credential that cannot work, and the next permission
-// request would present it before falling back to a prompt, which is one
-// refused round trip in front of a dialog the user is going to see anyway.
+// A refused token is still dropped, so later captures and the next permission
+// request do not replay a credential that cannot work.
 func restorePortalGrant[T portalRestorableGrant](
 	ctx context.Context,
 	store restoreTokenStore,
@@ -206,21 +167,15 @@ func restorePortalGrant[T portalRestorableGrant](
 	return grant, nil
 }
 
-// storedGrantPresumedDead reports whether a failed restore attempt should be
-// blamed on the token it presented, which decides whether the token is thrown
-// away and the user asked afresh.
+// storedGrantPresumedDead reports whether a failed restore should be blamed on
+// the presented token, which decides whether it is thrown away and the user
+// asked again. Only a refusal by one of the two token-carrying calls counts.
+// These do not, because blaming them would discard a working grant:
 //
-// Only a refusal by one of the two calls that carry the token counts. Three
-// failures do not, and treating any of them as the token's fault would throw
-// away a grant that still works and buy a consent prompt on the next start
-// with it:
-//
-//   - a step that never had the token in its hands, at either end of the
-//     handshake. See unrelatedToStoredGrant.
-//   - the user canceled the dialog, which says nothing about the token and
-//     which a second prompt would only ask again.
-//   - the call ran out of time or the session bus was unreachable, which is the
-//     portal not answering rather than the portal saying no.
+//   - a step that never held the token (see unrelatedToStoredGrant).
+//   - the user canceling the dialog, which a second prompt would only repeat.
+//   - a timeout or unreachable session bus, the portal not answering rather
+//     than saying no.
 func storedGrantPresumedDead(err error) bool {
 	switch {
 	case errors.Is(err, errPortalFailureUnrelatedToGrant):
@@ -235,31 +190,20 @@ func storedGrantPresumedDead(err error) bool {
 }
 
 // promptingFallbackAllowed reports whether a failed handshake may be followed
-// by a second attempt that would put a consent dialog on screen.
-//
-// Two failures forbid it, and both because the dialog would buy
-// nothing. A request the user canceled has already been answered, and asking
-// again is the consent fatigue this whole file exists to remove. A grant that
-// came up with no input device was not a consent problem at all, and a second
-// handshake would ask the same portal for the same devices.
-//
-// It is a predicate rather than an inline check because the fallback it guards
-// lives in the cgo-only file, where no test can reach it.
+// by an attempt that shows a consent dialog. A canceled request was already
+// answered, and a grant with no input device was never a consent problem, so a
+// dialog buys nothing for either. It is a predicate because the fallback it
+// guards lives in the cgo-only file, where no test reaches it.
 func promptingFallbackAllowed(err error) bool {
 	return !errors.Is(err, errPortalRequestCanceled) &&
 		!errors.Is(err, errPortalGrantYieldedNoDevices)
 }
 
-// persistRestoreToken records the token this grant handed back, or clears the
-// store when it handed back none. A portal that granted the session without
-// persisting it leaves the presented token spent, and a spent token is worse
-// than no token because it costs a refused attempt before the prompt.
-//
-// A store that cannot be written is not an error the caller should see. The
-// session in hand is live and usable, and the cost of the failure is one
-// consent prompt on the next start, which is how Neru behaved before restore
-// tokens rather than a new failure. Refusing a grant the user just approved
-// because a state directory is read-only would be the worse trade.
+// persistRestoreToken stores the returned token, or clears the store when there
+// is none, because a spent token costs a refused attempt before the prompt. A
+// failed write is swallowed. The session is live and the cost is one prompt on
+// the next start, better than refusing a grant the user just approved over a
+// read-only state directory.
 func persistRestoreToken(store restoreTokenStore, token string) {
 	if token == "" {
 		_ = store.clear()

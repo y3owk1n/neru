@@ -11,11 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Inspecting a process by PID is display-server agnostic, because procfs serves
-// X11 and every Wayland backend alike, without CGO. Only "which window is
-// focused" differs. See system_x11_cgo.go and system_focused_pid.go.
-//
 // linuxApplicationNameByPID returns the process name from /proc/<pid>/comm.
+// procfs serves every backend without CGO.
 func linuxApplicationNameByPID(pid int) (string, error) {
 	data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "comm"))
 	if err != nil {

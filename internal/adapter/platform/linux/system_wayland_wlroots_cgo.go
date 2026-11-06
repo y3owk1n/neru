@@ -42,21 +42,17 @@ type wlrootsState struct {
 	screens []wlrootsScreen
 	ready   bool
 
-	// hasVirtualPointer reports whether the compositor advertises
-	// zwlr_virtual_pointer_v1. When false (notably KWin/KDE), pointer moves,
-	// clicks, and scrolls are injected through libei / the RemoteDesktop portal
-	// instead (see system_wayland_kde_cgo.go).
+	// hasVirtualPointer reports zwlr_virtual_pointer_v1. Without it (KWin),
+	// pointer input goes through libei (system_wayland_kde_cgo.go).
 	hasVirtualPointer bool
 }
 
 var globalWlrootsState = &wlrootsState{}
 
-// readWlrootsScreens reads the current output list from the C client into Go
-// values. It mirrors the C-side neru_wlr_screen_count / neru_wlr_screen_info
-// reads used elsewhere. There is no C-side lock, because the fields are only
-// mutated on the dispatch thread and read here best-effort. When no outputs are
-// known it returns a single default screen so the rest of the system has
-// something to work with.
+// readWlrootsScreens reads the current output list from the C client. There is
+// no C-side lock, because the fields are only mutated on the dispatch thread
+// and read here best-effort. With no outputs known it returns one default
+// screen.
 func readWlrootsScreens(client *C.NeruWlrootsClient) []wlrootsScreen {
 	count := int(C.neru_wlr_screen_count(client))
 	screens := make([]wlrootsScreen, 0, count)
@@ -102,10 +98,9 @@ func readWlrootsScreens(client *C.NeruWlrootsClient) []wlrootsScreen {
 	return screens
 }
 
-// wlrootsRefreshScreens re-reads the output list from the C client into the Go
-// cache after a display-configuration change (hotplug). ScreenBounds and friends
-// read globalWlrootsState.screens, so this must run before the app re-queries
-// them on a screen-change event.
+// wlrootsRefreshScreens re-reads the output list into the Go cache after a
+// hotplug. It must run before the app re-queries ScreenBounds and friends on a
+// screen-change event.
 func wlrootsRefreshScreens() {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -122,12 +117,9 @@ func wlrootsRefreshScreens() {
 	globalWlrootsState.screens = readWlrootsScreens(globalWlrootsState.client)
 }
 
-// wlrootsScreenEventFD returns a readable file descriptor that becomes ready
-// whenever the display configuration changes (an output is added or removed), so
-// the app watcher can wake and re-enumerate instead of polling. ok is false when
-// the wlroots client is unavailable or exposes no pipe. The fd is owned by the
-// client and closed on disconnect. Callers must poll it read-only and must not
-// close it.
+// wlrootsScreenEventFD returns a readable fd that becomes ready when an output
+// is added or removed. ok is false when the client is unavailable or exposes no
+// pipe. The client owns the fd, so callers poll it read-only and never close it.
 func wlrootsScreenEventFD() (int, bool) {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -173,20 +165,16 @@ func ensureWlrootsState() error {
 		)
 	}
 
-	// zwlr_virtual_pointer_v1 is the native injection path (Sway, Hyprland,
-	// niri, River). KWin/KDE intentionally does not implement it, so its
-	// absence is not fatal. Screen bounds and the overlay still come up
-	// via xdg_output + zwlr_layer_shell_v1, and pointer moves/clicks are routed
-	// through libei / the RemoteDesktop portal (connected lazily on first use).
+	// A missing zwlr_virtual_pointer_v1 (KWin) is not fatal. Screens and the
+	// overlay still work, and pointer input routes through libei.
 	hasVirtualPointer := C.neru_wlr_has_virtual_pointer(client) != 0
 
-	// Initialize cursor position to screen center. Wayland has no
-	// protocol to query global pointer position, so we track it
-	// client-side via move_absolute only (matching warpd's pattern).
+	// Wayland cannot query the global pointer, so the position is tracked
+	// client-side from move_absolute, starting at screen center.
 	C.neru_wlr_init_cursor(client)
 
-	// Start dispatch thread after init_cursor to avoid reader_count
-	// conflicts with roundtrip calls during cursor discovery.
+	// Start dispatch after init_cursor to avoid reader_count conflicts with
+	// its roundtrips.
 	C.neru_wlr_start_dispatch(client)
 
 	screens := readWlrootsScreens(client)
@@ -201,8 +189,7 @@ func ensureWlrootsState() error {
 }
 
 // wlrootsHasVirtualPointer reports whether the connected compositor advertises
-// zwlr_virtual_pointer_v1. The Wayland input dispatcher uses this to choose
-// between the native virtual-pointer path (wlroots) and libei (KWin/KDE).
+// zwlr_virtual_pointer_v1, which picks the native path over libei.
 func wlrootsHasVirtualPointer() (bool, error) {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -218,11 +205,9 @@ func wlrootsHasVirtualPointer() (bool, error) {
 // wlrootsFocusedAppIDBufferSize matches NERU_APP_ID_LEN in wlroots_client.h.
 const wlrootsFocusedAppIDBufferSize = 256
 
-// wlrootsFocusedAppID returns the app_id of the currently activated (focused)
-// toplevel as reported by wlr-foreign-toplevel-management. The bool is false
-// when the compositor exposes no such manager (GNOME/Mutter) or when nothing
-// is focused yet. This works for both wlroots compositors and KWin/KDE, since
-// both bind the same client stack via ensureWlrootsState.
+// wlrootsFocusedAppID returns the app_id of the focused toplevel from
+// wlr-foreign-toplevel-management. The bool is false when there is no manager
+// (GNOME/Mutter) or nothing is focused yet.
 func wlrootsFocusedAppID() (string, bool) {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -250,11 +235,9 @@ func wlrootsFocusedAppID() (string, bool) {
 // wlrootsFocusedTitleBufferSize matches NERU_TITLE_LEN in wlroots_client.h.
 const wlrootsFocusedTitleBufferSize = 512
 
-// wlrootsFocusedAppIdentity returns the app_id and title of the currently
-// activated (focused) toplevel, read together under a single lock so they
-// always describe the same window. The bool is false when no manager is present
-// or nothing is focused. The title disambiguates multiple windows of the
-// focused application, which share an app_id.
+// wlrootsFocusedAppIdentity returns the app_id and title of the focused
+// toplevel, read under one lock so they describe the same window. The bool is
+// false when no manager is present or nothing is focused.
 func wlrootsFocusedAppIdentity() (string, string, bool) {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -288,12 +271,9 @@ func wlrootsFocusedAppIdentity() (string, string, bool) {
 	return C.GoString(&appBuf[0]), C.GoString(&titleBuf[0]), true
 }
 
-// wlrootsFocusEventFD returns a readable file descriptor that becomes ready
-// whenever the focused app_id changes, so the app watcher can wake on focus
-// changes instead of polling. ok is false when the wlroots client is
-// unavailable (GNOME/Mutter, no compositor) or exposes no pipe. The fd is owned
-// by the client and closed on disconnect. Callers must not close it and must
-// poll it read-only.
+// wlrootsFocusEventFD returns a readable fd that becomes ready when the focused
+// app_id changes. ok is false when the client is unavailable or exposes no
+// pipe. The client owns the fd, so callers poll it read-only and never close it.
 func wlrootsFocusEventFD() (int, bool) {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -316,9 +296,8 @@ func wlrootsFocusEventFD() (int, bool) {
 	return int(fd), true
 }
 
-// wlrootsSetCursor mirrors an externally-injected pointer position (e.g. a
-// libei move on KDE) into the wlroots client's client-side cursor cache so
-// CursorPosition and screen resolution stay accurate.
+// wlrootsSetCursor mirrors an externally injected pointer position (a libei
+// move on KDE) into the client-side cursor cache.
 func wlrootsSetCursor(point image.Point) error {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -361,7 +340,6 @@ func wlrootsScreenBounds() (image.Rectangle, error) {
 	globalWlrootsState.mu.RLock()
 	defer globalWlrootsState.mu.RUnlock()
 
-	// Return bounds of the screen containing the cursor.
 	cursor, _ := wlrootsCursorPositionLocked()
 	for _, screen := range globalWlrootsState.screens {
 		if cursor.In(screen.Bounds) {
@@ -427,9 +405,8 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 		return image.Point{}, nil
 	}
 
-	// Cursor position is tracked purely client-side via move_absolute.
-	// No need to poll Wayland events. Polling here once triggered the
-	// pointer motion handler, which corrupted the position cache.
+	// Never poll Wayland events here. That triggers the pointer motion
+	// handler, which corrupts the position cache.
 	var posX, posY C.int
 	initialized := C.neru_wlr_get_cursor(client, &posX, &posY)
 
@@ -588,10 +565,8 @@ func wlrootsButtonRelease(button int) error {
 	return nil
 }
 
-// wlrootsScroll sends a scroll event on the virtual pointer.
-// axis: 0 = vertical, 1 = horizontal.
-// delta: pixel delta for the axis event.
-// discrete: discrete step count (e.g., +/-1 per logical scroll click).
+// wlrootsScroll sends a scroll event on the virtual pointer. axis is 0 for
+// vertical and 1 for horizontal, and discrete is the step count.
 func wlrootsScroll(axis, delta, discrete int) error {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -613,17 +588,10 @@ func wlrootsScroll(axis, delta, discrete int) error {
 	return nil
 }
 
-// wlrootsScrollContinuous sends one sub-notch-capable scroll step on the virtual
-// pointer: an axis event carrying a fractional value and no discrete step count.
-//
-// Smooth scroll is built on this call. wlroots leaves
-// delta_discrete at zero for a plain axis request, and a zero delta_discrete is
-// what makes the compositor pass the fraction on to the focused client as a
-// wl_pointer.axis rather than holding it in a value120 accumulator until a whole
-// notch adds up.
-//
-// axis: 0 = vertical, 1 = horizontal. delta is in the same units wlrootsScroll
-// takes, so one wheel notch is the same number either way.
+// wlrootsScrollContinuous sends one fractional scroll step with no discrete
+// count, which smooth scroll is built on. A zero delta_discrete makes the
+// compositor pass the fraction on as a wl_pointer.axis instead of holding it
+// until a whole notch adds up. delta is in wlrootsScroll's units.
 func wlrootsScrollContinuous(axis int, delta float64) error {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -713,12 +681,9 @@ func wlrootsModifierEvent(modifier string, isDown bool) error {
 }
 
 // wlrootsSync waits until the compositor has processed every request this
-// connection has issued, and reports whether it answered within timeout.
-//
-// A caller that has just injected a virtual-keyboard modifier uses it to learn
-// the modifier is applied rather than sleeping and hoping. False means the
-// compositor did not answer in time, or there is no wlroots connection to ask.
-// It never means the modifier is known not to have landed.
+// connection issued, so a caller knows an injected modifier is applied. False
+// means no answer in time or no connection, never that the modifier is known
+// not to have landed.
 func wlrootsSync(timeout time.Duration) bool {
 	err := ensureWlrootsState()
 	if err != nil {
@@ -785,12 +750,10 @@ const (
 	WlrBtnMiddle = 0x112
 )
 
-// wlrootsFocusedWindowGeometry returns the activated toplevel's global bounds
-// from the compositor's own toplevel source. Only cosmic-comp's
-// zcosmic_toplevel_info_v1 carries geometry, so on every other compositor this
-// is CodeNotSupported and the caller asks the compositor CLI or the KWin bridge
-// instead. found=false with a nil error means the source is live but nothing
-// is activated, or the compositor has not placed the window yet.
+// wlrootsFocusedWindowGeometry returns the activated toplevel's global bounds.
+// Only cosmic-comp's zcosmic_toplevel_info_v1 carries geometry, so elsewhere
+// this is CodeNotSupported. found=false with a nil error means nothing is
+// activated or the window is not placed yet.
 func wlrootsFocusedWindowGeometry() (image.Rectangle, bool, error) {
 	err := ensureWlrootsState()
 	if err != nil {

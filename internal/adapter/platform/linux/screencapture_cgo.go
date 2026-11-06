@@ -15,11 +15,9 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// A Go test file cannot use cgo, so the NERU_CAPTURE_* codes are mirrored as
-// Go constants in screencapture_common.go and the error vocabulary is written
-// against those. These constant expressions are what keeps the two halves
-// honest. Each converts a difference to uint in both directions, so a value
-// that drifts stops compiling here rather than silently mapping the wrong
+// Test files cannot use cgo, so screencapture_common.go mirrors the
+// NERU_CAPTURE_* codes as Go constants. Each line converts the difference to
+// uint both ways, so a drifted value stops compiling rather than mapping a
 // failure to the wrong sentence.
 const (
 	_ = uint(C.NERU_CAPTURE_OK-captureStatusOK) + uint(captureStatusOK-C.NERU_CAPTURE_OK)
@@ -45,15 +43,10 @@ const (
 // in screencapture.h, which is also image.RGBA's layout.
 const bytesPerCapturedPixel = 4
 
-// captureResult turns a filled NeruCapture into an image.RGBA and releases the
-// native buffer.
-//
-// The copy is deliberate and is the whole lifetime story of a captured frame.
-// C owns the pixels only until this returns, neru_capture_free wipes them
-// before releasing them, and the Go image is then the single copy in the
-// process. Nothing here logs a dimension-plus-content pair, writes a file, or
-// keeps a package-level reference. A capture cache would be a cache of the
-// user's screen.
+// captureResult copies a filled NeruCapture into an image.RGBA and releases the
+// native buffer, which neru_capture_free wipes first. The Go image is then the
+// only copy in the process. Never log its content, write it to a file, or keep
+// a package-level reference, because a capture cache caches the user's screen.
 func captureResult(capture *C.NeruCapture) (*image.RGBA, error) {
 	defer C.neru_capture_free(capture)
 

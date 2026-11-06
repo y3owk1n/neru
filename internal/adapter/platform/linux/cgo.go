@@ -1,10 +1,9 @@
 //go:build linux && cgo
 
-// Compiles the native C bridge sources (.c) in this directory. Other packages
-// include the matching headers and blank-import this package so the linker
-// resolves bridge symbols from a single compilation unit.
-// The package comment lives in doc.go, which is tagged plain `linux` so that
-// CGO_ENABLED=0 builds still have one.
+// Compiles the native C bridge sources in this directory as the single unit
+// other packages link against by blank-importing this package. The package
+// comment lives in doc.go, tagged plain `linux` so CGO_ENABLED=0 builds still
+// have one.
 
 package linux
 

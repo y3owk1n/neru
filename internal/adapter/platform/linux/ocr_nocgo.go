@@ -8,10 +8,6 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// The cgo twin lives in ocr_cgo.go. Tesseract is a C library bound through
-// #cgo pkg-config, so a pure-Go build has no engine at all and says so rather
-// than returning an empty word list a caller would read as "no text on screen".
-
 // OCRHealth reports that text recognition cannot run in this build. It always
 // returns derrors.CodeNotSupported, because tesseract is reached only through
 // cgo.

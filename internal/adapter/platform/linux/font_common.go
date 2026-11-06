@@ -5,9 +5,8 @@ package linux
 import "github.com/y3owk1n/neru/internal/adapter/platform/fontgeneric"
 
 const (
-	// defaultLinuxSans is the baseline Linux sans-serif family used when
-	// fontconfig cannot be consulted (fontconfig absent, family missing,
-	// generic alias requested).
+	// defaultLinuxSans is the baseline Linux sans-serif family, used when
+	// fontconfig is absent or the family is missing.
 	defaultLinuxSans = "DejaVu Sans"
 	// defaultLinuxMono is the baseline Linux monospace family.
 	defaultLinuxMono = "DejaVu Sans Mono"
@@ -22,15 +21,10 @@ var linuxFamilies = fontgeneric.Families{
 	Mono:  defaultLinuxMono,
 }
 
-// defaultForMapped returns the last-resort hardcoded family for a mapped
-// family, falling back to the sans-serif default.
-//
-// It matches on the mapped family rather than asking fontgeneric what the
-// written name was, which looks like the same question and is not. A person
-// who writes "DejaVu Serif" and has no DejaVu installed keeps the serif
-// baseline here, where classifying the name again would hand them the sans
-// one. Both answers are a hardcoded string for a font that is missing either
-// way, so this keeps the one it has always given.
+// defaultForMapped returns the hardcoded last-resort family for a mapped
+// family, defaulting to sans. It matches the mapped family rather than
+// reclassifying the written name, so someone who writes "DejaVu Serif" without
+// DejaVu installed keeps the serif baseline instead of getting sans.
 func defaultForMapped(mapped string) string {
 	switch mapped {
 	case defaultLinuxSerif:

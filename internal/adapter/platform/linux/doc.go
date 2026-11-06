@@ -7,8 +7,8 @@
 // time. Files split on x11/wayland and cgo/nocgo, as
 // docs/contributing/porting.md describes.
 //
-// This doc.go is tagged plain `linux` (not linux && cgo) because the package
-// contains .c files, which Go rejects without cgo. An untagged file would
-// break analysis on other hosts, and the plain tag still gives CGO_ENABLED=0
-// builds a package comment.
+// This file is tagged plain `linux`, not linux && cgo, on purpose. The .c
+// files make Go reject the package without cgo, so an untagged file would break
+// analysis on other hosts, and the plain tag still gives CGO_ENABLED=0 builds a
+// package comment.
 package linux

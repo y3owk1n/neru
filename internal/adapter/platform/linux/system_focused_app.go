@@ -5,14 +5,11 @@ package linux
 import "github.com/y3owk1n/neru/internal/adapter/platform/gnomeshell"
 
 // FocusedAppID returns the focused application's identifier for the given
-// backend (as produced by platform.LinuxBackend.String()) and whether one is
-// available. The identifier is the WM_CLASS on X11 and the app_id on Wayland,
-// the same value per-app configuration is keyed on: the foreign-toplevel
-// protocol's on wlroots, KDE and COSMIC, and the Neru GNOME Shell extension's
-// on GNOME, where Mutter offers no protocol and the extension reports Mutter's
-// own WM_CLASS for the window instead. It is empty (ok == false) on unknown
-// backends, when nothing is focused yet, when the GNOME extension is not
-// running, or on CGO-disabled builds.
+// backend (a platform.LinuxBackend.String() value), the value per-app config
+// keys on. It is WM_CLASS on X11, the foreign-toplevel app_id on wlroots, KDE
+// and COSMIC, and the extension-reported WM_CLASS on GNOME. ok is false on
+// unknown backends, with nothing focused, without the GNOME extension, or
+// without CGO.
 func FocusedAppID(backend string) (string, bool) {
 	switch backend {
 	case backendX11:
@@ -28,13 +25,9 @@ func FocusedAppID(backend string) (string, bool) {
 	}
 }
 
-// FocusedAppIdentity returns the focused window's app_id and title together,
-// read as one snapshot so they describe the same window, for the given
-// backend. The title disambiguates multiple windows of one application. On
-// X11 the pair is the active window's WM_CLASS and _NET_WM_NAME, read over one
-// connection; on Wayland it is the toplevel's app_id and title. The bool is
-// false where there is no live source: an unknown backend, nothing focused,
-// the GNOME extension not running, or a CGO-disabled build on X11.
+// FocusedAppIdentity returns the focused window's app_id and title as one
+// snapshot, so they describe the same window. The title tells windows of one
+// application apart. The bool is false where there is no live source.
 func FocusedAppIdentity(backend string) (string, string, bool) {
 	switch backend {
 	case backendX11:
@@ -46,10 +39,8 @@ func FocusedAppIdentity(backend string) (string, string, bool) {
 	}
 }
 
-// gnomeFocusedAppIdentity reads the extension's cache. EnsureStarted is asked
-// on every read for the reason the origin source asks on every activation.
-// The shell can reload the extension, and a reader that only tried at startup
-// would spend the rest of the session with nothing.
+// gnomeFocusedAppIdentity reads the extension's cache. EnsureStarted runs on
+// every read because the shell can reload the extension.
 func gnomeFocusedAppIdentity() (string, string, bool) {
 	bridge := gnomeshell.Shared(nil)
 	bridge.EnsureStarted()

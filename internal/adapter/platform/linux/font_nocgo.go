@@ -4,13 +4,10 @@ package linux
 
 import "github.com/y3owk1n/neru/internal/ports"
 
-// NewFontResolver returns a fontconfig-less ports.FontResolver. It still
-// maps generic aliases to the Linux baseline families so non-CGO builds
-// behave deterministically, and returns every other family as written, the
-// same answer the fontconfig build gives for a family that is installed. What
-// it cannot do is see that a family is missing, so nothing falls back to the
-// generic here. Cairo substitutes when the text is drawn, as NSFont does on
-// macOS. CGO builds (the default) get the fontconfig adapter in
+// NewFontResolver returns a fontconfig-less ports.FontResolver. It maps generic
+// aliases to the Linux baseline families and returns every other family as
+// written. It cannot see that a family is missing, so Cairo substitutes at draw
+// time, as NSFont does on macOS. CGO builds get the fontconfig adapter in
 // font_cgo.go.
 func NewFontResolver() ports.FontResolver {
 	return &passthroughResolver{}

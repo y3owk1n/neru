@@ -9,49 +9,34 @@ import (
 	"sync/atomic"
 )
 
-// Persistence for a portal session's restore token.
+// Persistence for portal restore tokens, which turn KDE's consent prompt into
+// a one-time grant. The portal returns one for a session started with
+// persist_mode, and presenting it later restores the session without asking.
 //
-// The token is what turns KDE's consent prompt from a per-start interruption
-// into a one-time grant. The portal hands one back when a session is started
-// with persist_mode set, and a later session that presents it is restored
-// without asking the user again.
+// RemoteDesktop (input) and ScreenCast (capture) are separate consents, so each
+// gets its own file. One file would make revoking one silently lose the other.
 //
-// There are two of them, one per grant, because there are two consents. The
-// RemoteDesktop token replays permission to move the pointer and press keys,
-// and the ScreenCast token replays permission to read the screen. Storing them in
-// one file would mean a user who revokes one silently losing the other, and
-// would tie two dialogs together that KDE deliberately asks separately.
-//
-// A token is a credential, and it is treated as one. Presenting one replays a
-// grant over this user's session, so it is written owner-readable only, under
-// the user's own state directory, and it is never logged, never put in an error
-// message, and never reported through `neru doctor`. Nothing in this file or
-// its callers formats the value into anything a human or a log file will see.
+// A token is a credential. It replays a grant over this user's session, so it
+// is stored owner-only under the user's state directory and is never logged,
+// put in an error message, or reported by `neru doctor`.
 const (
 	// restoreTokenFileMode keeps the token readable by its owner alone.
 	restoreTokenFileMode os.FileMode = 0o600
-	// restoreTokenDirMode keeps the directory holding it owner-only too, so a
-	// token is not discoverable by listing the directory either.
+	// restoreTokenDirMode keeps the token's directory owner-only too.
 	restoreTokenDirMode os.FileMode = 0o700
-	// remoteDesktopTokenBase starts the name of the input grant's token file,
-	// and screenCastTokenBase the capture grant's, inside Neru's state
-	// directory. XDG_STATE_HOME is the right base. A token is state that should
-	// survive a restart, is specific to this machine's portal, and is neither
-	// configuration the user edits nor data worth carrying to another host.
+	// remoteDesktopTokenBase and screenCastTokenBase start the token file names
+	// under XDG_STATE_HOME/neru. A token is machine-specific state that should
+	// survive restarts, not configuration.
 	remoteDesktopTokenBase = "remote-desktop"
 	screenCastTokenBase    = "screen-cast"
 	// restoreTokenSuffix ends every token file's name.
 	restoreTokenSuffix = ".token"
 )
 
-// tokenDesktop is the backend label of the desktop this process runs on, such
-// as wayland-kde or wayland-gnome. Each desktop's portal backend issues and
-// honors its own tokens. With one shared file, a user who switched desktops
-// presented KDE's grant to GNOME, which refused it and prompted, or kept a
-// grant that shared the wrong source. So each desktop's token gets a file of
-// its own.
-// The backend is fixed for the life of the process, so NewSystemAdapter
-// records it once.
+// tokenDesktop is the backend label (wayland-kde, wayland-gnome) whose portal
+// issued the stored grants. Each desktop's portal honors only its own tokens,
+// so each gets its own file, and a desktop switch never presents KDE's grant
+// to GNOME. NewSystemAdapter records it once, since it is fixed per process.
 var tokenDesktop atomic.Pointer[string]
 
 // setTokenDesktop records the backend whose portal the stored grants belong
@@ -60,14 +45,11 @@ func setTokenDesktop(backend string) {
 	tokenDesktop.Store(&backend)
 }
 
-// restoreTokenStore holds the portal grant's restore token across daemon
-// restarts. It is an interface so the establish policy, which restores and
-// prompts once when the stored token is refused, is testable without a
-// filesystem.
+// restoreTokenStore holds the restore token across daemon restarts. It is an
+// interface so the establish policy is testable without a filesystem.
 type restoreTokenStore interface {
 	// load returns the stored token, or "" when none is stored or it cannot be
-	// read. An unreadable token is indistinguishable from an absent one to the
-	// caller by design. Both mean "ask the portal to prompt".
+	// read. Both mean "ask the portal to prompt".
 	load() string
 	// save replaces the stored token.
 	save(token string) error
@@ -80,20 +62,17 @@ type restoreTokenStore interface {
 // directory.
 type fileRestoreTokenStore struct {
 	path string
-	// legacyPath is the file every desktop shared before each got its own.
-	// load reads it when this desktop has no token yet, so an upgrade restores
-	// the grant it already had instead of prompting. clear removes it with the
-	// desktop's own, since a grant the portal refused is no use to anyone. It
-	// equals path when no desktop was recorded.
+	// legacyPath is the file all desktops shared before each got its own. load
+	// falls back to it so an upgrade keeps its grant, and clear removes it too.
+	// It equals path when no desktop was recorded.
 	legacyPath string
 }
 
 var _ restoreTokenStore = (*fileRestoreTokenStore)(nil)
 
-// newFileRestoreTokenStore resolves the path of grant's token on the recorded
-// desktop from the XDG base directories, honoring XDG_STATE_HOME exactly as
-// LogDir does. It creates nothing. The directory is made on the first save, so
-// a session that never reaches the portal leaves no trace.
+// newFileRestoreTokenStore resolves grant's token path for the recorded
+// desktop under XDG_STATE_HOME, as LogDir does. It creates nothing, so a
+// session that never reaches the portal leaves no trace.
 func newFileRestoreTokenStore(grant string) (*fileRestoreTokenStore, error) {
 	base, err := xdgDir("XDG_STATE_HOME", ".local", "state")
 	if err != nil {
@@ -111,9 +90,8 @@ func newFileRestoreTokenStore(grant string) (*fileRestoreTokenStore, error) {
 	return &fileRestoreTokenStore{path: path, legacyPath: legacy}, nil
 }
 
-// load reads the stored token, trimming surrounding whitespace so a trailing
-// newline never reaches the portal as part of the value. With none stored for
-// this desktop it reads the shared one from before.
+// load reads the stored token, trimmed so a trailing newline never reaches the
+// portal, falling back to the legacy shared file.
 func (s *fileRestoreTokenStore) load() string {
 	contents, err := os.ReadFile(s.path)
 	if err != nil {
@@ -127,14 +105,9 @@ func (s *fileRestoreTokenStore) load() string {
 	return strings.TrimSpace(string(contents))
 }
 
-// save writes the token owner-readable only.
-//
-// It writes a fresh temporary file and renames it over the target rather than
-// truncating in place, for two reasons. The new file carries this package's
-// mode regardless of what the old one had, so a token left loose by an earlier
-// version or by a user's editor is tightened rather than inherited. And a
-// crash mid-write leaves the previous token intact instead of a truncated one
-// the portal would refuse.
+// save writes the token owner-readable only, via a temp file renamed over the
+// target. The new file gets restoreTokenFileMode whatever the old one had, and
+// a crash mid-write leaves the previous token intact rather than truncated.
 func (s *fileRestoreTokenStore) save(token string) error {
 	dir := filepath.Dir(s.path)
 

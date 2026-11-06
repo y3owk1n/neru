@@ -7,14 +7,10 @@ package linux
 #include <stdlib.h>
 #include <string.h>
 
-// Reports whether fontconfig knows a font whose family is the given name,
-// compared the way fontconfig compares family names (ignoring case and
-// blanks). Returns 1 when the family is installed, 0 when it is not, and -1
-// when fontconfig cannot be consulted at all.
-//
-// This lists fonts rather than matching one. FcFontMatch always answers with
-// something, so it can say what would render but never whether the family
-// asked for is the family that would.
+// Reports whether fontconfig has a font of the given family (ignoring case and
+// blanks). Returns 1 when installed, 0 when not, -1 when fontconfig is unusable.
+// Lists fonts rather than matching one, because FcFontMatch always answers with
+// something and cannot say whether the asked-for family is what would render.
 static int fc_family_installed(const char *family) {
 	if (!family || !*family) {
 		return 0;
@@ -56,8 +52,7 @@ static int fc_family_installed(const char *family) {
 }
 
 // Returns the family name fontconfig would render for the given input, or NULL
-// if it cannot be resolved. The returned string is a heap allocation; the
-// caller must free it.
+// if it cannot be resolved. The caller must free the returned string.
 static char *fc_substitute_family(const char *family) {
 	if (!family || !*family) {
 		return NULL;
@@ -106,9 +101,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// NewFontResolver returns a fontconfig-backed ports.FontResolver.
-// Each family is resolved on first use and cached for the lifetime of the
-// process.
+// NewFontResolver returns a fontconfig-backed ports.FontResolver that caches
+// each family for the lifetime of the process.
 func NewFontResolver() ports.FontResolver {
 	resolver := &fontconfigResolver{}
 	resolver.cache = fontcache.New(resolver.resolve)
@@ -116,10 +110,8 @@ func NewFontResolver() ports.FontResolver {
 	return resolver
 }
 
-// fontconfigResolver implements ports.FontResolver using libfontconfig.
-// It maps generic aliases to known-good installed families and asks
-// fontconfig whether a user-supplied family is installed, falling back to
-// this platform's generic family when it is not.
+// fontconfigResolver implements ports.FontResolver with libfontconfig, falling
+// back to this platform's generic family when a family is not installed.
 type fontconfigResolver struct {
 	cache *fontcache.Resolver
 }
@@ -129,18 +121,13 @@ func (r *fontconfigResolver) Resolve(family string) string {
 	return r.cache.Resolve(family)
 }
 
-// resolve performs the actual lookup. It maps the input to a concrete family
-// and asks fontconfig whether that family is installed. If it is, the answer is
-// the name as the caller wrote it, which is what ports.FontResolver promises
-// and what macOS and Windows return. If it is not, the answer is this
-// platform's generic family for it, handed to fontconfig so that a machine
-// without the DejaVu baseline still gets a family it has.
-//
-// The question is not "what would fontconfig render for this name". Fontconfig
-// always matches something, so asking that way answers a
-// missing "Arial" with whatever it substitutes and leaves the caller unable to
-// tell a family it has from one it does not. Substitution still happens where
-// it belongs, in Pango and Cairo when the text is drawn.
+// resolve maps the input to a concrete family and asks fontconfig whether it is
+// installed. If so it returns the name as written, which is what
+// ports.FontResolver promises and what macOS and Windows return. If not it
+// returns this platform's generic, handed to fontconfig so a machine without
+// DejaVu still gets a family it has. It never asks what fontconfig would
+// render, because fontconfig always matches something and a missing family
+// would look present. Pango and Cairo substitute when the text is drawn.
 func (r *fontconfigResolver) resolve(family string) string {
 	mapped := linuxFamilies.Resolve(family)
 
@@ -150,16 +137,13 @@ func (r *fontconfigResolver) resolve(family string) string {
 		return substituteFamily(defaultForMapped(mapped))
 	}
 
-	// familyPresent, or familyUnknown. Nothing can be verified on a machine
-	// whose fontconfig cannot be consulted at all, so that case behaves like
-	// the non-CGO build. It maps the generics and passes the rest through as
-	// written.
+	// familyPresent, or familyUnknown, which behaves like the non-CGO build
+	// because nothing can be verified.
 	return mapped
 }
 
 // familyPresence is what fontconfig can say about a family. An unusable
-// fontconfig is not the same answer as a family that is missing, so the two
-// are not one boolean.
+// fontconfig is a different answer from a missing family.
 type familyPresence int
 
 const (
