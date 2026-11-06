@@ -28,20 +28,19 @@ func init() {
 
 // wlrootsOverlay is the wlroots layer-shell backend: the cgo connection, the
 // shared-memory buffer pool, the keyboard poller, and the overlaySurface
-// primitives. Everything above the primitives, drawing, animation, and the
-// exported methods the manager calls, lives on the embedded sharedOverlay and
-// is promoted from there. What stays here is what Wayland does differently:
-// Show (buffer setup first), Resize (nothing, layer shells auto-resize),
-// Destroy (waits on the poller), the poller itself, and the primitives.
+// primitives. Drawing, animation and the manager's methods are promoted from
+// the embedded sharedOverlay. Only Show (buffer setup first), Resize (layer
+// shells auto-resize), Destroy (waits on the poller), the poller and the
+// primitives live here.
 type wlrootsOverlay struct {
 	sharedOverlay
 
 	raw    *C.NeruWaylandOverlay
 	logger *zap.Logger
 
-	// stopCh/doneCh belong to the keyboard poller's lifecycle, distinct from
-	// the animation channels on sharedOverlay. Destroy closes stopCh exactly
-	// once and then waits on doneCh before tearing down the display.
+	// stopCh/doneCh are the keyboard poller's lifecycle, separate from the
+	// animation channels. Destroy closes stopCh once, then waits on doneCh
+	// before tearing down the display.
 	stopCh chan struct{}
 	doneCh chan struct{}
 }
@@ -100,10 +99,9 @@ func (o *wlrootsOverlay) Destroy() {
 	o.raw = nil
 }
 
-// alive answers the overlaySurface question the shared delegates ask before
-// they draw: is the native handle still open. It is nil-receiver safe so
-// Healthy, which the manager may reach on a backend it never built, has one
-// implementation to defer to.
+// alive reports whether the native handle is still open. It is nil-receiver
+// safe so Healthy, which the manager may reach on a backend it never built,
+// can defer to it.
 func (o *wlrootsOverlay) alive() bool {
 	return o != nil && o.raw != nil
 }
@@ -115,9 +113,9 @@ func (o *wlrootsOverlay) startPoller() {
 }
 
 // setKeyboardCaptureEnabled toggles whether the layer surface requests
-// exclusive keyboard focus. Disabled for the click indicator and whenever an
-// evdev grab already owns the keyboard (a layer-surface grab would deactivate
-// the focused toplevel).
+// exclusive keyboard focus. It is off for the click indicator and whenever an
+// evdev grab owns the keyboard, because a layer-surface grab would deactivate
+// the focused toplevel.
 func (o *wlrootsOverlay) setKeyboardCaptureEnabled(enabled bool) {
 	if o == nil || o.raw == nil {
 		return
@@ -185,8 +183,8 @@ func (o *wlrootsOverlay) keyboardPoller() {
 	}
 }
 
-// selectAvailableBuffer picks a buffer that the compositor has released.
-// Falls back to sync (roundtrip) if none free, which forces release processing.
+// selectAvailableBuffer picks a buffer the compositor has released, falling
+// back to a sync roundtrip, which forces release processing, if none is free.
 func (o *wlrootsOverlay) selectAvailableBuffer() bool {
 	if o == nil || o.raw == nil {
 		return false
@@ -249,9 +247,8 @@ func (o *wlrootsOverlay) surfaceHide() {
 }
 
 // showIndicator maps the indicator surface under the render lock, because the
-// keyboard poller runs concurrently on this overlay's wl_display. The surface
-// must never steal keyboard focus from the app it decorates, so keyboard
-// capture is switched off before mapping.
+// keyboard poller runs on this wl_display concurrently. Keyboard capture is
+// switched off first so the surface never steals focus.
 func (o *wlrootsOverlay) showIndicator() {
 	if o.renderMu != nil {
 		o.renderMu.Lock()
@@ -343,14 +340,13 @@ func (o *wlrootsOverlay) textPrim(
 }
 
 // blankFrameTimeout bounds the wait for the compositor to draw a frame without
-// the overlay. A compositor sends no frame callback for an output it is not
-// drawing, such as one turned off, and the capture should not wait on that.
+// the overlay. An output it is not drawing, such as one turned off, sends no
+// frame callback.
 const blankFrameTimeout = 100 * time.Millisecond
 
-// withBlanked runs capture with a cleared buffer committed in place of the one
-// on screen, once the compositor has drawn a frame with it, then commits the
-// drawn buffer again. Its pixels were never touched, so the overlay comes back
-// exactly as it was. The surface stays mapped throughout, so the overlay keeps
+// withBlanked runs capture with a cleared buffer committed in place of the
+// drawn one, once the compositor has drawn a frame with it, then commits the
+// untouched drawn buffer again. The surface stays mapped, so the overlay keeps
 // the keyboard.
 func (o *wlrootsOverlay) withBlanked(capture func() error) error {
 	if o == nil || o.raw == nil {

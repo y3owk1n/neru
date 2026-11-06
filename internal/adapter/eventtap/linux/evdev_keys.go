@@ -109,9 +109,9 @@ const (
 	evdevKeyDelete     uint16 = 111
 	evdevKeyLeftMeta   uint16 = 125
 	evdevKeyRightMeta  uint16 = 126
-	// evdevKeyUnknown is KEY_UNKNOWN: a key code with no symbol in any xkb
-	// keymap, so nothing acts on it, which is what the proxy taps to cancel a
-	// compositor's modifier-only shortcut (cancelModifierShortcut).
+	// evdevKeyUnknown is KEY_UNKNOWN, a code with no symbol in any keymap,
+	// which the proxy taps to cancel a modifier-only shortcut
+	// (cancelModifierShortcut).
 	evdevKeyUnknown uint16 = 240
 	evdevKeyF13     uint16 = 183
 	evdevKeyF14     uint16 = 184
@@ -193,10 +193,9 @@ var evdevModifierNames = map[uint16]string{
 	evdevKeyRightMeta:  evdevModifierCmd,
 }
 
-// evdevKeyNames names a raw evdev key code without consulting a keyboard
-// layout. It is the fallback the evdev tap drops to when xkb state creation
-// fails, and the only table the global hotkey reader has. A code with no entry
-// here reaches nothing.
+// evdevKeyNames names a raw evdev key code without a keyboard layout. It is
+// the evdev tap's fallback when xkb state creation fails. A code with no
+// entry reaches nothing.
 var evdevKeyNames = map[uint16]string{
 	evdevKeyA:          "a",
 	evdevKeyB:          "b",
@@ -285,23 +284,16 @@ var evdevKeyNames = map[uint16]string{
 	evdevKeyPageDown:   evdevKeyNamePageDown,
 	evdevKeyInsert:     evdevKeyNameInsert,
 
-	// The keypad. Every name below is the one neru_normalize_xkb_name gives
-	// the keysym this key reports with NumLock off
-	// (internal/adapter/platform/linux/wayland_keymap.c). That is the table the
-	// Wayland tap reads and the X11 keysym lookup was copied from, so one
-	// physical key reaches one binding whichever Linux tap is running.
+	// The keypad. Each name is what neru_normalize_xkb_name gives the keysym
+	// the key reports with NumLock off
+	// (internal/adapter/platform/linux/wayland_keymap.c), so one physical key
+	// reaches one binding on every Linux tap.
 	//
-	// NumLock off is the only state this table can answer for. The kernel
-	// reports the same code either way, and resolving the digit is exactly the
-	// layout work this table has no keymap to do. The keys whose keysym does
-	// not change with NumLock are therefore right in both states. Those are
-	// the operators, the keypad Enter, and the center key, whose KP_Begin fold
-	// is the digit it carries. The ten dual-function keys are right only with
-	// NumLock off, which for the tap is the degraded half of an already-degraded
-	// path but for the global hotkey reader is the only answer it has. A Home hotkey is
-	// reachable from the keypad and a keypad 7 typed with NumLock on can reach
-	// it. Naming them a third way rather than Wayland's would trade that for a
-	// keypad no Linux backend agrees about.
+	// Without a keymap this table can only answer for NumLock off. The
+	// operators, keypad Enter and the center key are right either way. The ten
+	// dual-function keys are right only with NumLock off, a degraded answer on
+	// an already degraded path, but naming them differently from Wayland would
+	// leave a keypad no Linux backend agrees about.
 	evdevKeyKPAsterisk: "*",
 	evdevKeyKPMinus:    "-",
 	evdevKeyKPPlus:     "+",
@@ -325,13 +317,10 @@ type evdevModifierState struct {
 }
 
 // prefix is the modifier part of a chord name, in the fixed shift+ctrl+alt+cmd
-// order every reader and every blacklist entry is canonicalized to.
-//
-// It sits on the shared state rather than the evdev one because both Linux
-// backends spell a chord with it: the evdev tap and hotkey listener through their
-// modifier refcounts, and the X11 tap through the counts it keeps from KeyPress
-// and KeyRelease. One spelling is what lets a binding written once match on
-// either (docs/contributing/platform-internals.md, "One key, one name").
+// order every reader and blacklist entry is canonicalized to. It lives on the
+// shared state because the evdev and X11 taps both spell chords with it, so a
+// binding written once matches on either
+// (docs/contributing/platform-internals.md, "One key, one name").
 func (s *linuxModifierState) prefix() string {
 	if s == nil {
 		return ""

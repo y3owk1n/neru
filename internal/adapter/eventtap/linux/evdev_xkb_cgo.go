@@ -1,14 +1,11 @@
-// XKB translation for evdev key codes: mapping captured codes to key names in
-// the reference layout, and to modifier names in the active one.
+// XKB translation for evdev key codes: captured codes to key names in the
+// reference layout, and to modifier names in the active one.
 //
-// These are methods on the capture rather than on a reader, because the answer
-// belongs to the devices and their keymap and not to whoever is reading them.
-// Both readers of `/dev/input` need it and must agree: the in-mode event tap
-// (evdev_session_cgo.go) and the passive global-hotkey listener
-// (global_hotkey_cgo.go). One naming for one physical key is what lets a chord a
-// user wrote once match in both. The listener naming keys by raw scan code while
-// the tap named them by keymap meant a `[hotkeys]` binding answered a different
-// physical key inside a mode than out of it on any layout that is not us.
+// These are methods on the capture, not a reader, because both readers of
+// `/dev/input`, the in-mode tap (evdev_session_cgo.go) and the global-hotkey
+// listener (global_hotkey_cgo.go), must name a physical key the same way, or a
+// `[hotkeys]` chord answers a different key inside a mode than outside it on
+// any non-us layout.
 
 //go:build linux && cgo
 
@@ -32,14 +29,11 @@ import (
 // for neru doctor, which asks from a goroutine the capture does not run on.
 var waylandKeyboardLayouts atomic.Pointer[KeyboardLayouts]
 
-// keyName resolves a scan code to the name Neru's bindings match against. It
-// applies the live modifiers in the reference layout, which is the first
-// ASCII-capable layout of the compositor's keymap. On a us,ru keymap with
-// Russian active, the key left of W still matches a binding written q. It falls
-// back to the built-in scan-code table when there is no keymap to ask.
-//
-// The fallback is a real answer rather than a failure. It is the name the code
-// carries on a us layout, which is what the table holds.
+// keyName resolves a scan code to the name Neru's bindings match against,
+// applying the live modifiers in the reference layout, the first ASCII-capable
+// layout of the keymap. On us,ru with Russian active, the key left of W still
+// matches q. Without a keymap it falls back to the built-in scan-code table,
+// which holds the us names and is a real answer, not a failure.
 func (capture *waylandEvdevCapture) keyName(code uint16) string {
 	if capture == nil || capture.xkbState == nil {
 		return evdevKeyName(code)
@@ -61,9 +55,8 @@ func (capture *waylandEvdevCapture) keyName(code uint16) string {
 }
 
 // applyRequestedLayout hands the layout general.kb_layout_to_use forces to the
-// xkb state when it changed since the last call. It runs on the capture's own
-// goroutine, before every key it names, and costs one atomic load when nothing
-// changed.
+// xkb state when it changed. It runs on the capture's goroutine before every
+// key it names, at the cost of one atomic load.
 func (capture *waylandEvdevCapture) applyRequestedLayout() {
 	requested := requestedKeyboardLayout.Load()
 	if requested == capture.appliedLayout {
@@ -130,9 +123,9 @@ func (capture *waylandEvdevCapture) liveKeyName(code uint16) string {
 	return C.GoString(&buf[0])
 }
 
-// xkbKeysymName names a state-resolved keysym by the rule keyName applies to a
-// scan code, without needing a keymap: the character it types, else the folded
-// keysym name. It exists so that rule can be pinned from a test.
+// xkbKeysymName names a state-resolved keysym by keyName's rule, without a
+// keymap: the character it types, else the folded keysym name. It exists so a
+// test can pin that rule.
 func xkbKeysymName(keysym uint32) string {
 	var buf [64]C.char
 	if C.neru_xkb_keysym_name(C.uint32_t(keysym), &buf[0], C.size_t(len(buf))) != 0 {
@@ -142,11 +135,10 @@ func xkbKeysymName(keysym uint32) string {
 	return C.GoString(&buf[0])
 }
 
-// modifierName returns the canonical evdev modifier name for the given scan code
-// as resolved by the XKB keymap, or empty string when the key is not a modifier.
-// When XKB remaps a physical modifier to a different function (e.g. ctrl:swapcaps
-// makes Caps Lock act as Control), this returns the remapped modifier name so the
-// reader tracks the correct modifier.
+// modifierName returns the canonical modifier name for a scan code as the XKB
+// keymap resolves it, or "" when the key is not a modifier. An XKB remap such
+// as ctrl:swapcaps yields the remapped name, so the reader tracks the right
+// modifier.
 func (capture *waylandEvdevCapture) modifierName(code uint16) string {
 	if capture == nil || capture.xkbState == nil {
 		return evdevModifierName(code)
@@ -171,10 +163,9 @@ func (capture *waylandEvdevCapture) modifierName(code uint16) string {
 	return ""
 }
 
-// feedKey tells xkb_state a key went down or up, so its idea of the lock
-// modifiers and the layout group keeps up with the keyboard. A reader that
-// resolves names without feeding them gets the names the layout had when the
-// state was built and never learns of a change.
+// feedKey tells xkb_state a key went down or up, so its lock modifiers and
+// layout group keep up. Without it, names stay as they were when the state was
+// built.
 func (capture *waylandEvdevCapture) feedKey(code uint16, isDown bool) {
 	if capture == nil || capture.xkbState == nil {
 		return
@@ -188,23 +179,21 @@ func (capture *waylandEvdevCapture) feedKey(code uint16, isDown bool) {
 	C.neru_xkb_state_key((*C.neru_xkb_state)(capture.xkbState), C.uint16_t(code), down)
 }
 
-// pollKeymap asks the compositor connection behind the xkb state for anything
-// it sent since the last call, without blocking, and rebuilds the state when
-// the keymap was replaced or the connection is gone. It is what keeps the
-// names the proxy resolves following a layout the user changes mid-session,
-// now that the state is built once rather than at every mode start.
+// pollKeymap reads anything the compositor sent since the last call, without
+// blocking, and rebuilds the state when the keymap was replaced or the
+// connection is gone, so resolved names follow a layout changed mid-session.
 //
-// It reports whether the state is fresh. A fresh state has no key history. The
-// caller, which knows what is held, feeds that back in.
+// It reports whether the state is fresh. A fresh state has no key history, so
+// the caller feeds back what is held.
 func (capture *waylandEvdevCapture) pollKeymap() bool {
-	// A state that never came up already said so once, and asking again every
-	// two seconds would say it again every two seconds.
+	// A state that never came up already said so once. Do not repeat it every
+	// two seconds.
 	if capture == nil || capture.xkbState == nil {
 		return false
 	}
 
-	// A layout forced by a config reload reaches the state here even when no
-	// key is pressed, so neru doctor shows it.
+	// Applied here too, so a forced layout reaches neru doctor without a key
+	// press.
 	capture.applyRequestedLayout()
 
 	switch C.neru_xkb_state_dispatch((*C.neru_xkb_state)(capture.xkbState)) {
@@ -215,8 +204,7 @@ func (capture *waylandEvdevCapture) pollKeymap() bool {
 		capture.appliedLayout = nil
 		capture.applyRequestedLayout()
 
-		// The state under the keymap is fresh, so its lock modifiers are not.
-		// Read them off the devices again.
+		// A fresh state's lock modifiers are stale. Read them off the devices.
 		capture.syncLeds()
 	default:
 		capture.refreshXkbState()
@@ -226,8 +214,8 @@ func (capture *waylandEvdevCapture) pollKeymap() bool {
 }
 
 // refreshXkbState rebuilds xkb_state from the compositor's keymap, then syncs
-// lock modifiers from the devices' LEDs. It runs once when the proxy starts
-// and again whenever pollKeymap finds the connection gone.
+// lock modifiers from the devices' LEDs. It runs when the proxy starts and
+// whenever pollKeymap finds the connection gone.
 func (capture *waylandEvdevCapture) refreshXkbState() {
 	if capture == nil {
 		return
@@ -260,9 +248,8 @@ func (capture *waylandEvdevCapture) refreshXkbState() {
 	capture.syncLeds()
 }
 
-// syncLeds sets the xkb state's lock modifiers from the devices' LEDs, which
-// are the kernel's word on NumLock and CapsLock at a moment the state has no
-// key history for.
+// syncLeds sets the xkb state's lock modifiers from the devices' LEDs, the
+// kernel's word on NumLock and CapsLock when the state has no key history.
 func (capture *waylandEvdevCapture) syncLeds() {
 	if capture == nil || capture.xkbState == nil {
 		return

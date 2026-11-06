@@ -14,9 +14,8 @@ const (
 	animationFPS      = 120
 	animationFrameDur = time.Second / animationFPS
 
-	// defaultMouseActionDuration is the fallback animation length for the
-	// transient mouse-action indicator when the configured duration is
-	// non-positive.
+	// defaultMouseActionDuration is the mouse-action indicator's animation
+	// length when the configured one is non-positive.
 	defaultMouseActionDuration = 260 * time.Millisecond
 )
 
@@ -36,10 +35,8 @@ const (
 	alphaRoundBias        = 0.5
 )
 
-// applyEasing maps a linear progress in [0,1] through the named easing curve,
-// matching the easing names accepted by the mouse-action-indicator config
-// (linear, ease_in, ease_out, ease_in_out). Unknown names fall back to
-// ease_out to mirror the config default.
+// applyEasing maps linear progress in [0,1] through the named easing curve.
+// Unknown names fall back to ease_out, the config default.
 func applyEasing(easing string, progress float64) float64 {
 	if progress <= 0 {
 		return 0
@@ -66,9 +63,8 @@ func applyEasing(easing string, progress float64) float64 {
 	return 1 - inv*inv*inv
 }
 
-// applyOpacity scales the alpha channel of an ARGB (0xAARRGGBB) color by the
-// given opacity in [0,1], leaving the RGB channels untouched. It is used to
-// fade the transient mouse-action indicator per animation frame.
+// applyOpacity scales the alpha of an ARGB (0xAARRGGBB) color by opacity in
+// [0,1], leaving RGB untouched, to fade the mouse-action indicator.
 func applyOpacity(color uint32, opacity float64) uint32 {
 	if opacity <= 0 {
 		return color & rgbMask
@@ -85,12 +81,11 @@ func applyOpacity(color uint32, opacity float64) uint32 {
 }
 
 // mouseActionIndicatorRect returns the square bounding box of a mouse-action
-// indicator of the given diameter centered on point. A circle indicator is
-// drawn as a rounded rect with radius = diameter/2 within this box.
+// indicator of the given diameter centered on point. A circle is drawn as a
+// rounded rect with radius diameter/2 inside it.
 //
-// Not badge.CenteredOn, because the diameter animates as a float and each edge is
-// rounded separately, which keeps the odd pixel that integer halving drops.
-// The box has to track a growing circle smoothly rather than land on a pixel.
+// Not badge.CenteredOn, because the diameter animates as a float and each
+// edge is rounded separately, so the box tracks a growing circle smoothly.
 func mouseActionIndicatorRect(point image.Point, diameter float64) image.Rectangle {
 	half := diameter / halfDivisor
 	minX := int(math.Round(float64(point.X) - half))

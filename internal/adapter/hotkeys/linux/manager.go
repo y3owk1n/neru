@@ -33,16 +33,13 @@ type Manager struct {
 	backend   platform.LinuxBackend
 	mu        sync.RWMutex
 
-	// waylandHotkeys honors config keybindings on Wayland by matching chords
-	// on the evdev keyboard proxy, since compositors do not expose global
-	// hotkeys to clients.
+	// waylandHotkeys matches config chords on the evdev keyboard proxy,
+	// because Wayland compositors expose no global hotkeys to clients.
 	waylandHotkeys *eventtaplinux.GlobalHotkeyListener
 	waylandStarted bool
-	// waylandUnsupportedLogged latches the CodeNotSupported refusal so the
-	// build-is-missing-evdev warning is said once. Registration retries Start
-	// per hotkey, and the sleep/reload recovery loop retries registration up to
-	// ten times, so an unlatched warning would repeat dozens of times for an
-	// answer fixed at compile time.
+	// waylandUnsupportedLogged latches the CodeNotSupported warning, which is
+	// fixed at compile time but would otherwise repeat for every hotkey and
+	// every recovery retry.
 	waylandUnsupportedLogged bool
 }
 
@@ -76,15 +73,14 @@ func (m *Manager) Register(
 	return m.RegisterWithRelease(keyString, callback, nil)
 }
 
-// Both backends see the key come up. The evdev proxy reads every release, and
-// an XGrabKey delivers KeyRelease to the grabbing client. The binder reaches
-// this by type assertion, so a signature drift would silently return every
-// hotkey to press-only instead of failing to compile.
+// Both backends see the key come up (the evdev proxy reads every release, and
+// XGrabKey delivers KeyRelease). The binder type-asserts this, so drift would
+// silently make every hotkey press-only.
 var _ ports.HotkeyReleaseRegistrar = (*Manager)(nil)
 
-// RegisterWithRelease adds a new global hotkey with press and optional release
-// callbacks. A held chord is one press and one release, however long it is
-// held, because the backends report the hold as repeats, which fire nothing.
+// RegisterWithRelease adds a global hotkey with press and optional release
+// callbacks. A held chord is one press and one release, because the backends
+// report the hold as repeats, which fire nothing.
 func (m *Manager) RegisterWithRelease(
 	keyString string,
 	pressCallback ports.HotkeyCallback,
@@ -166,16 +162,13 @@ func (m *Manager) UnregisterAll() {
 	}
 }
 
-// Ensure the Linux Manager keeps satisfying the optional health-reporting
-// extension. The sleep/resume handler reaches it by type assertion, so a
-// signature drift would silently stop re-registering hotkeys after an X11
-// restart or compositor reload instead of failing to compile.
+// The sleep/resume handler type-asserts this, so drift would silently stop
+// re-registering hotkeys after an X11 restart or compositor reload.
 var _ ports.HotkeyHealthReporter = (*Manager)(nil)
 
-// HealthCheck returns true when the global hotkey listener is healthy.
-// On non-Wayland backends (X11) it always returns true because there is no
-// evdev listener to monitor. Callers (the app health-check loop)
-// reinitialize the listener if this returns false.
+// HealthCheck returns true when the global hotkey listener is healthy. It is
+// always true on X11, which has no evdev listener. The app health-check loop
+// reinitializes the listener on false.
 func (m *Manager) HealthCheck() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -248,13 +241,10 @@ func (m *Manager) ensureWaylandStarted() {
 // logWaylandStartFailure explains a failed Start in terms the user can act on.
 // Callers must hold m.mu.
 //
-// The two failures need different advice. A CodeNotSupported refusal means this
-// binary was built without cgo and carries no evdev reader at all, so telling
-// the user to join the `input` group sends them after a fix that cannot work.
-// A compile-time answer also never changes on a later attempt, which is why it
-// is said once. Everything else is a live listener that could not read
-// `/dev/input`, which permissions can still fix, so that one keeps warning per
-// attempt.
+// A CodeNotSupported refusal means a build without cgo and no evdev reader,
+// so `input` group advice cannot help, and the answer never changes, so it is
+// said once. Any other failure is a listener that could not read
+// `/dev/input`, which permissions can fix, so it warns per attempt.
 func (m *Manager) logWaylandStartFailure(err error) {
 	if derrors.IsNotSupported(err) {
 		if m.waylandUnsupportedLogged {

@@ -22,19 +22,16 @@ import (
 )
 
 // x11Overlay is the X11 backend: the cgo connection, the HiDPI scale probe,
-// and the overlaySurface primitives. Everything above the primitives,
-// drawing, animation, and the exported methods the manager calls, lives on
-// the embedded sharedOverlay and is promoted from there. What stays here is
-// what X11 does differently: Show, Resize and Destroy, the scale probe, and
-// the primitives themselves.
+// and the overlaySurface primitives. Drawing, animation and the manager's
+// methods are promoted from the embedded sharedOverlay. Only Show, Resize,
+// Destroy, the scale probe and the primitives live here.
 type x11Overlay struct {
 	sharedOverlay
 
 	raw *C.NeruX11Overlay
-	// scale is the desktop-wide HiDPI UI factor from Xft.dpi (>= 1.0). X11 has a
-	// single device-pixel coordinate space and no per-monitor scale, so hint/label
-	// positions stay in device pixels and only element sizes (fonts, stroke widths,
-	// badge geometry) are multiplied by this factor for legibility on HiDPI screens.
+	// scale is the desktop-wide HiDPI factor from Xft.dpi (>= 1.0). X11 has
+	// one device-pixel space, so positions stay in device pixels and only
+	// sizes (fonts, stroke widths, badge geometry) are scaled.
 	scale  float64
 	logger *zap.Logger
 }
@@ -56,8 +53,8 @@ func newX11Overlay(logger *zap.Logger) *x11Overlay {
 	return overlay
 }
 
-// Scale exposes the overlay's HiDPI scale so the manager can size badge
-// geometry (and its clear rects) consistently with what the overlay renders.
+// Scale exposes the HiDPI scale so the manager sizes badge geometry and clear
+// rects to match what the overlay renders.
 func (o *x11Overlay) Scale() float64 {
 	return o.s()
 }
@@ -94,10 +91,9 @@ func (o *x11Overlay) Destroy() {
 	}
 }
 
-// alive answers the overlaySurface question the shared delegates ask before
-// they draw: is the native handle still open. It is nil-receiver safe so
-// Healthy, which the manager may reach on a backend it never built, has one
-// implementation to defer to.
+// alive reports whether the native handle is still open. It is nil-receiver
+// safe so Healthy, which the manager may reach on a backend it never built,
+// can defer to it.
 func (o *x11Overlay) alive() bool {
 	return o != nil && o.raw != nil
 }
@@ -229,9 +225,8 @@ func (o *x11Overlay) textPrim(
 }
 
 // x11CompositorSettle is how long a capture waits after the clear for a
-// compositing manager to repaint. X11 tells a client nothing when the
-// compositor has painted, and a capture reads what it painted. 40 ms left the
-// overlay in captures under picom's xrender backend, and 120 ms did not.
+// compositing manager to repaint, since X11 never says when it has. 40 ms
+// left the overlay in captures under picom's xrender backend, 120 ms did not.
 const x11CompositorSettle = 120 * time.Millisecond
 
 // withBlanked runs capture with the window cleared, then paints back exactly

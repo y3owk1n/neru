@@ -1,7 +1,5 @@
-// The uinput scroll OUTPUT device. Unlike everything else in the evdev
-// files this is not input capture. Scroll actions are injected into the
-// session through a virtual mouse wheel so they reach the focused app
-// directly instead of being drawn through the overlay.
+// The uinput scroll output device, not input capture. Scroll actions go
+// through a virtual mouse wheel straight to the focused app.
 
 //go:build linux && cgo
 
@@ -30,11 +28,9 @@ var (
 	errUinputScroll  error
 )
 
-// uinputScrollMu serializes writes to the shared scroll device fd. A single
-// ScrollDeviceScroll emits three separate write() calls (hi-res, lo-res, SYN).
-// Without this lock, two concurrent scroll requests (each on its own IPC
-// goroutine) could interleave those writes and deliver a malformed event
-// stream.
+// uinputScrollMu serializes writes to the shared scroll device fd. One
+// ScrollDeviceScroll is three write() calls (hi-res, lo-res, SYN), and
+// concurrent IPC goroutines would interleave them into a malformed stream.
 var uinputScrollMu sync.Mutex
 
 func initUinputScroll() error {
@@ -42,9 +38,8 @@ func initUinputScroll() error {
 
 	created, errno := C.neru_uinput_create_scroll(&deviceFd)
 	if created == 0 {
-		// errno is the /dev/uinput open failure, which is what a user has to
-		// act on: "permission denied" means a udev rule or group, "no such
-		// file" means the uinput module is not loaded.
+		// errno is what the user acts on: "permission denied" means a udev
+		// rule or group, "no such file" means the uinput module is not loaded.
 		return fmt.Errorf("%w: /dev/uinput: %w", errUinputScrollUnavailable, errno)
 	}
 

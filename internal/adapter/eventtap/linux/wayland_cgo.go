@@ -32,11 +32,9 @@ func (et *EventTap) runWayland() {
 		return
 	}
 
-	// Enable keyboard capture on overlay when falling back from evdev.
-	// When the proxy cannot serve a session (no readable /dev/input, or no
-	// writable /dev/uinput to re-emit through), we need to explicitly request
-	// keyboard focus from the compositor. Only the Linux backends can, so it
-	// is an optional extension.
+	// Falling back from evdev (no readable /dev/input or writable
+	// /dev/uinput), so ask the compositor for keyboard focus. Only the Linux
+	// backends can, so it is an optional extension.
 	if capture, ok := mgr.(overlaymanager.KeyboardCaptureController); ok {
 		capture.SetKeyboardCaptureEnabled(true)
 		defer capture.SetKeyboardCaptureEnabled(false)
@@ -59,10 +57,9 @@ func (et *EventTap) runWayland() {
 			if strings.HasPrefix(key, "__modifier_") && !et.stickyToggleEnabled() {
 				continue
 			}
-			// Note: consumeSyntheticModifierEvent is intentionally NOT called here.
-			// On Wayland, PostModifierEvent drives zwp_virtual_keyboard_v1_modifiers
-			// which sets modifier state directly without producing wl_keyboard.key
-			// events. Therefore synthetic modifier events never arrive in keyCh.
+			// consumeSyntheticModifierEvent is deliberately not called here.
+			// zwp_virtual_keyboard_v1_modifiers sets modifier state without
+			// wl_keyboard.key events, so synthetic modifiers never reach keyCh.
 
 			et.dispatchKey(key)
 		}
