@@ -12,18 +12,14 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// KDE window-origin source. KWin exposes no CLI the way the wlroots family
-// does, so the geometry comes from the KWin script
-// [github.com/y3owk1n/neru/internal/adapter/platform/kwin] installs. It is the
-// same bridge SystemPort.FocusedWindowBounds reads, because it is the same fact.
-// This file is only the AT-SPI half of it, which turns the cached rectangle into
-// the origin that offsets window-relative element coordinates.
+// KDE window-origin source. KWin has no CLI, so the geometry comes from the
+// script [github.com/y3owk1n/neru/internal/adapter/platform/kwin] installs,
+// the same bridge SystemPort.FocusedWindowBounds reads. This file turns its
+// cached rectangle into an origin.
 
-// kwinGeometry is the part of the bridge this source uses. It is named here so
-// the rules for accepting or rejecting a cached window can be tested without a
-// KWin, which is the only way they can be tested at all, since the bridge is
-// process-wide by design and a test that pushed into it would be pushing into
-// every other test's cache too.
+// kwinGeometry is the part of the bridge this source uses, an interface so the
+// acceptance rules can be tested without KWin. The bridge is process-wide, so
+// a test pushing into it would push into every other test's cache.
 type kwinGeometry interface {
 	EnsureStarted()
 	Focused() (kwin.Window, bool, error)
@@ -47,47 +43,29 @@ func newKWinOriginSource(logger *zap.Logger) *kwinOriginSource {
 
 func (s *kwinOriginSource) start() { s.geometry.EnsureStarted() }
 
-// originFor returns the cached origin only when the cached window is the window
-// the given frame describes.
+// originFor returns the cached origin only when the cached window is the one
+// frame describes.
 //
-// The cache is fed by KWin, and the frame was selected from AT-SPI, so nothing
-// guarantees the two are the same window. If KWin ignored a transient surface
-// that became the active AT-SPI frame, or a transition reached one of them
-// first, the cached origin belongs to a different window and offsetting by it
-// would land every hint at that window's screen position. Two checks stand
-// between the cache and that outcome, in order of how much they can tell apart:
+// The cache comes from KWin and the frame from AT-SPI, so they can differ (a
+// transient surface KWin ignored, a transition one side saw first), and that
+// origin would move every hint to the other window. Two checks guard it:
 //
-//   - Identity. KWin reports which window its rectangle belongs to, and the
-//     frame carries the compositor's focused-toplevel identity it was selected
-//     with. Both descriptions come from KWin, so a disagreement means the
-//     rectangle is some other window's.
-//   - Size, within windowOriginSizeTolerance. It is the only check available
-//     when the identity is not, and it cannot separate two windows that happen
-//     to be the same size (#972), which is why it is no longer the only one.
+//   - Identity. KWin says whose rectangle it is, and the frame carries the
+//     focused-toplevel identity it was selected with. Both come from KWin, so
+//     a disagreement means another window.
+//   - Size, within windowOriginSizeTolerance. It is all there is without an
+//     identity, and it cannot separate two same-sized windows (#972).
 //
-// Neither check refuses when it has nothing to compare. An identity the
-// compositor never reported is not a mismatch, and treating it as one would
-// leave every hint on such a session unoffset, a far larger failure than the
-// one being closed here.
+// Neither refuses with nothing to compare, since that would unoffset every
+// hint on such a session.
 //
-// A bridge that could not be installed is reported rather than folded into that
-// same answer. The degradation is identical, an unoffset hint either way, but
-// one of them is a KDE session that will never place a hint correctly until
-// something is fixed, and telling a person that is the whole reason this source
-// carries a reason at all.
-//
-// It is reported in the same words the focused-window arm uses for the same
-// failure, because it is the same bridge. The code is CodeNotSupported, because
-// what a person has to do about it is not check a permission but install a
-// script that is missing. A single geometry source exists so that it does not
-// answer one way here and another there.
+// A bridge that could not be installed is reported, in the same words and with
+// the same CodeNotSupported as the focused-window arm, because that KDE
+// session places no hint correctly until the missing script is installed.
 func (s *kwinOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
-	// Asked on every activation rather than once at construction, for the same
-	// reason the focused-window arm asks on every call. The bridge can lose its
-	// install after having one, because a KWin restart takes the script with it,
-	// and a source that only ever tried at startup would spend the rest of the
-	// session placing hints window-relative. It is free once installed and never
-	// blocks, so the mode handler's lock is not held on anything.
+	// Asked on every activation, since a KWin restart takes the script with it.
+	// It is free once installed and never blocks, so the mode handler's lock is
+	// not held on anything.
 	s.geometry.EnsureStarted()
 
 	window, cached, err := s.geometry.Focused()
@@ -120,24 +98,14 @@ func (s *kwinOriginSource) originFor(frame windowFrame) (image.Point, bool, erro
 	return rect.Min, true, nil
 }
 
-// isFrameWindow reports whether the window KWin cached is the one the frame was
-// selected for, as far as their two identities can say.
-//
-// Both identities originate in KWin. The cached one is a script reading
-// resourceClass, resourceName and caption, and the frame's is the same
-// compositor's wlr-foreign-toplevel-management app_id and title. So where both
-// sides have something to say, a disagreement means two different windows.
-//
-// Where either side is silent the answer is yes. X11 and GNOME have no
-// foreign-toplevel protocol to read an identity from at all, and a KWin version
-// that reports no identifiers is not thereby reporting a different window.
-// Refusing on a missing identity would turn a check that closes a rare
-// misplacement into one that unoffsets every hint on a whole session.
-//
-// The same asymmetry governs how tolerant each comparison is. A false accept
-// costs at most what this check cost before it existed. A false reject unoffsets
-// hints that were placed correctly. So each comparison is written to be sure
-// before it refuses.
+// isFrameWindow reports whether the window KWin cached is the one the frame
+// was selected for, as far as their identities can say. Both come from KWin
+// (the script's resourceClass, resourceName and caption, and the compositor's
+// foreign-toplevel app_id and title), so where both speak, a disagreement
+// means two windows. Where either is silent the answer is yes, since X11 and
+// GNOME have no such protocol. A false accept costs what no check did, while
+// a false reject unoffsets correct hints, so each comparison is sure before
+// it refuses.
 func (s *kwinOriginSource) isFrameWindow(window kwin.Window, frame windowFrame) bool {
 	if !kwinAppMatches(window, frame.FocusedAppID) {
 		s.logger.Debug("KWin origin rejected: cached window is a different application")
@@ -155,15 +123,11 @@ func (s *kwinOriginSource) isFrameWindow(window kwin.Window, frame windowFrame) 
 	return true
 }
 
-// kwinAppMatches reports whether either of KWin's two identifiers for the cached
-// window names the compositor's focused application.
-//
-// Either is allowed to be the match because the two disagree for some windows.
-// An XWayland Firefox is resourceClass "firefox" and resourceName "navigator".
-// Which of them the foreign-toplevel app_id was built from is KWin's business,
-// not something to guess at here. Each comparison is the tolerant
-// one AT-SPI frame selection already uses, since the same application is spelled
-// "konsole" in one vocabulary and "org.kde.konsole" in another.
+// kwinAppMatches reports whether either of KWin's identifiers for the cached
+// window names the focused application. Either may match because they differ
+// for some windows (XWayland Firefox is class "firefox", name "navigator").
+// Each comparison is frame selection's tolerant one ("konsole" vs
+// "org.kde.konsole").
 func kwinAppMatches(window kwin.Window, appID string) bool {
 	if appID == "" || (window.Class == "" && window.Name == "") {
 		return true
@@ -172,21 +136,12 @@ func kwinAppMatches(window kwin.Window, appID string) bool {
 	return appMatchesFocusedID(window.Class, appID) || appMatchesFocusedID(window.Name, appID)
 }
 
-// kwinTitleMatches reports whether KWin's caption and the compositor's focused
-// title describe one window.
-//
-// A prefix counts as a match, in either direction, because KWin's caption is the
-// window's title plus a suffix it adds itself, such as a window shortcut, a
-// hostname, or a "<2>" when two windows share a title. Nothing here can know
-// whether the foreign-toplevel title was built before or after that suffix. An
-// exact comparison would therefore reject every activation of a window that has
-// one, permanently unoffsetting its hints.
-//
-// The case this comparison still catches is two windows of one application
-// showing different documents, whose titles are not prefixes of each other.
-// Size alone cannot separate that case (#972). Two windows whose titles agree
-// up to a "<2>" are not separated, but neither is anything else about them, as
-// frame selection already says of identical titles.
+// kwinTitleMatches reports whether KWin's caption and the focused title
+// describe one window. A prefix either way counts, because KWin appends its
+// own suffix (a shortcut, a hostname, "<2>" for a shared title) and the
+// foreign-toplevel title may predate it. Exact matching would unoffset such a
+// window for good. It still catches two windows of one app showing different
+// documents, which size cannot (#972).
 func kwinTitleMatches(caption, focusedTitle string) bool {
 	caption = strings.TrimSpace(caption)
 	focused := strings.TrimSpace(focusedTitle)

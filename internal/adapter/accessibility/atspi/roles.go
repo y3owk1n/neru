@@ -11,23 +11,17 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// The AT-SPI role vocabulary: native role names, their aliases, the name->ID
-// table, and the clickable-role defaults hints filters on.
-// It does not walk the tree. It only answers what a role is called and whether
-// it counts.
+// The AT-SPI role vocabulary: native role names, aliases, the name->ID table,
+// and the clickable-role defaults. It does not walk the tree.
 //
-// atspiRoleNames lists AT-SPI role names in AtspiRole declaration order, so a
-// name's index in this slice is its AtspiRole id. Ids are needed to build the
-// Collection.GetMatches role bitfield, and deriving them from position rather
-// than writing them out makes a gap or a duplicate impossible.
+// atspiRoleNames lists AT-SPI role names in AtspiRole declaration order, so an
+// index is its AtspiRole id, which the Collection.GetMatches bitfield needs.
+// Deriving ids from position makes a gap or a duplicate impossible.
 //
-// A name is the GEnum nick of the role with hyphens replaced by spaces, which
-// is exactly what Accessible.GetRoleName returns. The enum is ABI-stable
-// (append-only), so existing entries never move. The list is complete through
-// ATSPI_ROLE_SWITCH, and roles added later fall back to the per-node walk
-// instead of the Collection query.
-//
-// Inserting or removing a line shifts every id after it, so
+// A name is the role's GEnum nick with hyphens as spaces, exactly what
+// Accessible.GetRoleName returns. The enum is append-only. The list runs
+// through ATSPI_ROLE_SWITCH, and later roles fall back to the per-node walk.
+// Inserting or removing a line shifts every later id, so
 // TestAtspiRoleNameToIDAnchors pins ids spread across the enum.
 var atspiRoleNames = []string{
 	"invalid",
@@ -163,15 +157,11 @@ var atspiRoleNames = []string{
 	"switch",
 }
 
-// atspiRoleNameAliases map an accepted spelling onto the canonical role name it
-// shares an id with.
-//
-// Id 43 is ATSPI_ROLE_BUTTON on current at-spi2-core and was
-// ATSPI_ROLE_PUSH_BUTTON before it was renamed, and the name reported for it
-// has historically been "push button". Rather than depend on which spelling a
-// given release reports, both are accepted so one config works on either.
-// "menu button" is accepted because users reach for it before the less obvious
-// "push button menu".
+// atspiRoleNameAliases map an accepted spelling onto the canonical role name
+// it shares an id with. Id 43 is ATSPI_ROLE_BUTTON on current at-spi2-core,
+// formerly ATSPI_ROLE_PUSH_BUTTON and reported as "push button", so both are
+// accepted and one config works on either. "menu button" is accepted because
+// users reach for it before "push button menu".
 var atspiRoleNameAliases = map[string]string{
 	"button":      atspiRolePushButton,
 	"menu button": atspiRolePushButtonMenu,
@@ -194,9 +184,8 @@ var atspiRoleNameToID = func() map[string]int32 {
 	return ids
 }()
 
-// defaultClickableRoles is used when the caller passes no explicit role filter.
-// It is the shipped default role list resolved into AT-SPI role names, so the
-// fallback and a default configuration select exactly the same elements.
+// defaultClickableRoles is the shipped default role list in AT-SPI names, used
+// when the caller passes no filter, so both select the same elements.
 var defaultClickableRoles = func() map[string]struct{} {
 	resolution := element.ResolveRoles(element.DefaultClickableRoles, "linux")
 
@@ -214,12 +203,11 @@ const (
 	atspiRoleText  = "text"
 )
 
-// effectiveRole returns the role the client matches and reports an element as.
-// GTK 3 reports its entries and text views as text. Other toolkits use text for
-// read-only text, and only AT-SPI's EDITABLE state tells the two apart.
-// effectiveRole reads an editable text element as an entry, which text_field
-// and text_area resolve to. A read-only one stays text, which static_text
-// resolves to.
+// effectiveRole returns the role the client matches and reports an element
+// as. GTK 3 reports entries and text views as text, other toolkits use text
+// for read-only text, and only the EDITABLE state tells them apart. Editable
+// text reads as an entry (text_field, text_area), read-only stays text
+// (static_text).
 func effectiveRole(roleName string, states []uint32) string {
 	if roleName == atspiRoleText && atspiStateBit(states, atspiStateEditable) {
 		return atspiRoleEntry
@@ -241,10 +229,9 @@ func candidateRole(roleName string, roles map[string]struct{}) bool {
 }
 
 // deriveTargetRoleIDs returns the AtspiRole ids for the requested role names,
-// which are exactly the roles the per-node walk would keep, so the Collection
-// query has identical semantics. A request for entries also fetches text, which
-// effectiveRole may read as an entry. Requested names with no known id are
-// skipped. The caller falls back to the walk when nothing resolves.
+// so Collection keeps exactly what the walk would. Entries also fetch text,
+// which effectiveRole may read as an entry. Unknown names are skipped, and the
+// caller falls back to the walk when nothing resolves.
 func deriveTargetRoleIDs(roleSet map[string]struct{}) []int32 {
 	var ids []int32
 
@@ -321,10 +308,8 @@ func (c *Client) roleName(ctx context.Context, conn *dbus.Conn, ref accRef) stri
 }
 
 // rolesSet converts the caller's native AT-SPI role list into a lookup set,
-// falling back to the default clickable role set when empty. AT-SPI role names
-// are canonically lowercase, and both this set and the names read from
-// Accessible.GetRoleName are lowercased so a config written with different
-// casing still matches.
+// falling back to the default clickable roles when empty. It lowercases, as
+// names read from GetRoleName are, so config casing does not matter.
 func rolesSet(roles []string) map[string]struct{} {
 	if len(roles) == 0 {
 		return defaultClickableRoles

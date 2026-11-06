@@ -6,19 +6,15 @@ import (
 	"image"
 )
 
-// The ax.Window and ax.Node implementations backed by AT-SPI object references:
-// role, bounds, title, description, value, and clickability for one element.
+// The ax.Window and ax.Node implementations backed by AT-SPI object references.
 //
 // atspiWindow implements ax.Window for an AT-SPI frame.
 type atspiWindow struct {
 	ref   accRef
 	valid bool
-	// focusedAppID and focusedTitle are the compositor's focused app_id and
-	// window title captured when this window was selected (empty on X11/GNOME).
-	// ClickableNodes compares both against the live values, so it detects a
-	// focus change between selection and the walk and does not walk or offset
-	// the stale frame. That includes a switch to another window of the same
-	// application (same app_id, different title).
+	// focusedAppID and focusedTitle are the focused identity captured at
+	// selection (empty on X11/GNOME). ClickableNodes compares them with the live
+	// values so a focus change, even to a sibling window, skips the stale frame.
 	focusedAppID string
 	focusedTitle string
 }

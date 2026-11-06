@@ -9,16 +9,11 @@ import (
 	"go.uber.org/zap"
 )
 
-// Event-driven active-window tracking for the Linux AT-SPI client.
-//
-// Frame selection otherwise has to scan every application on the a11y bus to
-// find the focused window (there is no direct mapping from a Wayland toplevel to
-// an AT-SPI object). Instead, this listener subscribes once to the AT-SPI
-// window:activate event, which the toolkit emits when a window gains keyboard
-// focus, and records the activated window. findActiveFrame can then resolve the
-// frame from that cache with no scan, validating it against the compositor's
-// live focus identity so a stale or missing cache falls back to the scan rather
-// than returning the wrong window.
+// Event-driven active-window tracking. With no mapping from a Wayland toplevel
+// to an AT-SPI object, frame selection would scan every application. This
+// listener subscribes once to window:activate and records the window, and
+// findActiveFrame validates that cache against the live focus identity before
+// trusting it.
 const (
 	// atspiRegistryObjPath is the AT-SPI registry object that RegisterEvent is
 	// called on (distinct from the accessible-tree root).
@@ -37,30 +32,25 @@ const (
 	atspiEventWindowIfc       = "org.a11y.atspi.Event.Window"
 	atspiSignalWindowActivate = "org.a11y.atspi.Event.Window.activate"
 
-	// atspiEventChanBuffer sizes the signal channel. Window activations are
-	// infrequent (only on focus changes). If the channel ever fills, godbus
-	// drops rather than blocks, and the scan fallback still covers a missed event.
+	// atspiEventChanBuffer sizes the signal channel. Activations are rare, and a
+	// full channel drops rather than blocks, which the scan fallback covers.
 	atspiEventChanBuffer = 64
 )
 
-// atspiActiveWindow is a snapshot of the window that most recently emitted a
-// window:activate event, with the identity frame selection needs to validate it
-// against the compositor's focused toplevel before trusting it.
+// atspiActiveWindow is the window that last emitted window:activate, with the
+// identity needed to validate it against the focused toplevel.
 type atspiActiveWindow struct {
 	frame   accRef
 	appName string // resolved application name, for the focused-app_id cross-check
 	title   string // window title, to disambiguate sibling windows of one app
 }
 
-// ensureA11yEvents registers the window:activate listener on conn exactly once.
-// Every failure path is non-fatal. Frame selection falls back to scanning the
-// registry, so accessibility still works where the events are unavailable.
+// ensureA11yEvents registers the window:activate listener on conn once. Every
+// failure is non-fatal, since frame selection falls back to the registry scan.
 func (c *Client) ensureA11yEvents(conn *dbus.Conn) {
-	// Claim the one-time setup and publish the stop channel up front, all under
-	// activeMu, so that a concurrent Close always finds this listener's stop and
-	// closes it. The goroutine below then exits even if it starts after Close.
-	// The D-Bus registration is deliberately done *without* the lock held (see
-	// below), so a wedged registry cannot stall other activeMu/conn users.
+	// Claim the setup and publish the stop channel under activeMu, so a concurrent
+	// Close always finds and closes it, even before the goroutine starts. The D-Bus
+	// registration runs without the lock so a wedged registry stalls nobody else.
 	c.activeMu.Lock()
 	if c.eventsClosed || c.eventsReady {
 		c.activeMu.Unlock()
@@ -99,11 +89,9 @@ func (c *Client) ensureA11yEvents(conn *dbus.Conn) {
 		return
 	}
 
-	// Ask the registry to forward window activations only after the match
-	// succeeds, so a failed match leaves no registration for the retry to
-	// repeat. A timeout bounds the call so a wedged bus cannot hang the first
-	// hints request. A failure is not fatal. Some desktops broadcast the event
-	// regardless, and the scan fallback covers any gap.
+	// Register only after the match succeeds, so a failed match leaves nothing for
+	// the retry to repeat. The timeout keeps a wedged bus from hanging the first
+	// hints request. Failure is fine, since some desktops broadcast anyway.
 	regCtx, cancel := context.WithTimeout(context.Background(), atspiCallTimeout)
 	regCall := conn.Object(atspiRegistryDest, atspiRegistryObjPath).
 		CallWithContext(regCtx, atspiRegistryRegisterEvent, 0, atspiRegisterWindowActivate)
@@ -154,16 +142,14 @@ func (c *Client) consumeWindowEvents(
 				continue
 			}
 
-			// The event's source window is identified by the signal's sender bus
-			// name and object path.
+			// The source window is the signal's sender and object path.
 			c.recordActiveWindow(conn, accRef{Name: sig.Sender, Path: sig.Path})
 		}
 	}
 }
 
-// recordActiveWindow resolves and caches the identity of a newly activated
-// window. It runs on the listener goroutine, off the hints hot path, so the
-// per-frame identity reads never delay a hints request.
+// recordActiveWindow resolves and caches a newly activated window's identity
+// on the listener goroutine, off the hints hot path.
 func (c *Client) recordActiveWindow(conn *dbus.Conn, frame accRef) {
 	if frame.Name == "" || frame.Path == "" {
 		return
@@ -194,11 +180,9 @@ func (c *Client) recordActiveWindow(conn *dbus.Conn, frame accRef) {
 		zap.String("app", active.appName))
 }
 
-// activeWindowMatching returns the event-tracked active window when it still
-// matches the compositor's focused toplevel, or ok=false to fall back to the
-// registry scan. The cross-check against the live focus identity is what makes
-// the cache safe. A stale entry (focus moved without a window:activate) or a
-// missing one can never resolve to the wrong window.
+// activeWindowMatching returns the cached active window when it still matches
+// the focused toplevel, or false to fall back to the scan. The cross-check
+// keeps a stale or missing entry from resolving to the wrong window.
 func (c *Client) activeWindowMatching(focusedAppID, focusedTitle string) (accRef, bool) {
 	// Without a focus identity (GNOME without the extension) there is nothing to
 	// validate the cache against, so it cannot be trusted.
@@ -220,11 +204,9 @@ func (c *Client) activeWindowMatching(focusedAppID, focusedTitle string) (accRef
 		return accRef{}, false
 	}
 
-	// When the compositor reports a title, it must name the cached window, so a
-	// switch between sibling windows of one application (shared app_id) is not
-	// mistaken for a cache hit. A cached window with no title cannot be confirmed
-	// against a titled focus, so it is rejected rather than trusted. Otherwise a
-	// failed title read would let a stale sibling pass.
+	// A reported title must name the cached window, so switching between siblings
+	// of one app is no cache hit. An untitled cached window is rejected against a
+	// titled focus, or a failed title read would let a stale sibling pass.
 	if focusedTitle != "" &&
 		(active.title == "" || !titleMatchesFocused(active.title, focusedTitle)) {
 		return accRef{}, false

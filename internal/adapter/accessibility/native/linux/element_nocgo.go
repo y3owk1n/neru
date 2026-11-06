@@ -90,10 +90,9 @@ func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	)
 }
 
-// x11ScrollBackendAvailable refuses before the animator is ever started. The
-// backend is detected from the environment, which says nothing about cgo, so
-// without this a CGO_ENABLED=0 build with DISPLAY set would answer "scrolled"
-// and move nothing.
+// x11ScrollBackendAvailable refuses before the animator starts. The backend
+// is detected from the environment, not cgo, so otherwise a CGO_ENABLED=0
+// build would answer "scrolled" and move nothing.
 func x11ScrollBackendAvailable() error {
 	return derrors.New(
 		derrors.CodeNotSupported,

@@ -93,12 +93,10 @@ func (c *Client) visibleNodes(
 }
 
 // hitReaches reports whether the deepest element at point inside frame is
-// target or lies inside it. Firefox, Qt and GTK 3 answer the point lookup one
-// level at a time, so the descent passes through target. Chromium jumps to the
-// deepest element, often a text leaf inside a link, so the walk back up its
-// parents finds target. GTK 4 answers nothing, and an app that cannot answer,
-// or a lookup or parent read that fails partway, keeps the element rather
-// than losing hints.
+// target or inside it. Firefox, Qt and GTK 3 descend one level at a time, so
+// the descent passes target. Chromium jumps to the deepest leaf, so the walk
+// up its parents finds target. GTK 4 answers nothing, and an app or read that
+// fails keeps the element rather than losing hints.
 func (c *Client) hitReaches(
 	ctx context.Context,
 	conn *dbus.Conn,

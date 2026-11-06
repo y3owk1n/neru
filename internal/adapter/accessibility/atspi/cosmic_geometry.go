@@ -41,10 +41,9 @@ func (s *cosmicOriginSource) originFor(frame windowFrame) (image.Point, bool, er
 	return cosmicOrigin(bounds, frame, s.logger)
 }
 
-// cosmicOrigin accepts the compositor's rectangle as the frame's origin only
-// when the two describe a window of the same size, as the niri and Sway
-// sources do. A focus change that raced the AT-SPI read would otherwise offset
-// one window's hints by another's position.
+// cosmicOrigin accepts the compositor's rectangle only when its size matches
+// the frame, as niri and Sway do, so a focus change racing the AT-SPI read
+// cannot offset one window's hints by another's position.
 func cosmicOrigin(
 	bounds image.Rectangle,
 	frame windowFrame,

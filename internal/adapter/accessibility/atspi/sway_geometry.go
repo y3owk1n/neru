@@ -10,10 +10,9 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/compositorcli"
 )
 
-// Sway window-origin source. `swaymsg -t get_tree` returns the full node tree.
-// The focused node's on-screen content origin is rect + window_rect (window_rect
-// is the content area relative to rect, i.e. it excludes server-side
-// decorations so it aligns with the AT-SPI content origin).
+// Sway window-origin source. `swaymsg -t get_tree` returns the node tree. The
+// focused node's content origin is rect + window_rect, which excludes
+// server-side decorations and so aligns with the AT-SPI content origin.
 type swayOriginSource struct {
 	logger *zap.Logger
 }
@@ -79,9 +78,8 @@ func (s *swayOriginSource) originFor(frame windowFrame) (image.Point, bool, erro
 	return origin, ok, nil
 }
 
-// swayComputeOrigin finds the focused node in a sway tree and derives its
-// on-screen content origin (rect + window_rect, which excludes decorations),
-// rejecting a size mismatch with the AT-SPI frame.
+// swayComputeOrigin derives the focused node's content origin, rejecting a
+// size mismatch with the AT-SPI frame.
 func swayComputeOrigin(
 	tree *swayNode,
 	frameW, frameH int,
