@@ -9,8 +9,9 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"unicode/utf8"
 
+	"github.com/clipperhouse/displaywidth"
+	"github.com/clipperhouse/uax29/v2/graphemes"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -31,8 +32,9 @@ const (
 const IconGlyph = "□"
 
 // Word is one word read off the screen, with its bounds in global
-// coordinates. Boxes, when it has one per rune of Text, are where each rune
-// was read. Without them each rune gets an equal share of Bounds. Background
+// coordinates. Boxes, when it has one per character of Text, are where each
+// character was read. Without them each character gets a share of Bounds by
+// the cells it takes. Characters are grapheme clusters. Background
 // is the color behind it as 0xRRGGBB, or zero when unknown.
 type Word struct {
 	Text       string
@@ -163,21 +165,20 @@ func (t *Text) Edit(edits []vim.Edit) *Text {
 	return out
 }
 
-// AppRunes counts the characters of [start, end) the app on screen has: every
-// rune but the spaces before a line's first word, which stand for where the
-// line starts on screen rather than for text.
-func (t *Text) AppRunes(start, end int) int {
+// AppChars counts the characters of [start, end) the app on screen has, as
+// grapheme clusters, since a Shift+Right selects one: every character but the
+// spaces before a line's first word, which stand for where the line starts
+// on screen rather than for text, and icons.
+func (t *Text) AppChars(start, end int) int {
 	end = min(end, len(t.s))
 	count := 0
 
-	for pos := start; pos < end; {
-		char, size := utf8.DecodeRuneInString(t.s[pos:])
+	for char := graphemes.FromString(t.s[start:end]); char.Next(); {
+		pos := start + char.Start()
 		if !t.icons[pos] &&
-			(char != ' ' || strings.TrimLeft(t.s[t.starts[t.LineOf(pos)]:pos], " ") != "") {
+			(char.Value() != " " || strings.TrimLeft(t.s[t.starts[t.LineOf(pos)]:pos], " ") != "") {
 			count++
 		}
-
-		pos += size
 	}
 
 	return count
@@ -448,7 +449,7 @@ func (t *Text) addLine(builder *strings.Builder, line []Word, left, cell int) {
 
 		t.addWord(builder, word)
 		t.words = append(t.words, word.Bounds)
-		column += utf8.RuneCountInString(strings.Join(strings.Fields(word.Text), " "))
+		column += displaywidth.String(strings.Join(strings.Fields(word.Text), " "))
 	}
 }
 
@@ -459,8 +460,8 @@ func (t *Text) newline(builder *strings.Builder, box image.Rectangle) {
 	t.boxes = append(t.boxes, box)
 }
 
-// addWord writes word, each rune with the box it was read from, or else an
-// equal share of the word's width.
+// addWord writes word, each character with the box it was read from, or
+// else its share of the word's width.
 func (t *Text) addWord(builder *strings.Builder, word Word) {
 	if word.icon {
 		if t.icons == nil {
@@ -475,29 +476,19 @@ func (t *Text) addWord(builder *strings.Builder, word Word) {
 	}
 
 	text := strings.Join(strings.Fields(word.Text), " ")
-	count := utf8.RuneCountInString(text)
-	bounds := word.Bounds
-	read := len(word.Boxes) == count && text == word.Text
-	index := 0
+	chars := Characters(text)
 
-	for _, char := range text {
-		box := image.Rect(
-			bounds.Min.X+bounds.Dx()*index/count,
-			bounds.Min.Y,
-			max(bounds.Min.X+bounds.Dx()*index/count+1, bounds.Min.X+bounds.Dx()*(index+1)/count),
-			bounds.Max.Y,
-		)
-		if read {
-			box = word.Boxes[index]
+	boxes := word.Boxes
+	if len(boxes) != len(chars) || text != word.Text {
+		boxes = shares(word.Bounds, chars)
+	}
+
+	for index, char := range chars {
+		for range len(char) {
+			t.boxes = append(t.boxes, boxes[index])
 		}
 
-		for range utf8.RuneLen(char) {
-			t.boxes = append(t.boxes, box)
-		}
-
-		builder.WriteRune(char)
-
-		index++
+		builder.WriteString(char)
 	}
 }
 
@@ -553,20 +544,21 @@ func cellWidth(words []Word) int {
 			continue
 		}
 
-		runes := utf8.RuneCountInString(word.Text)
+		chars := Characters(word.Text)
 
-		if len(word.Boxes) > 1 && len(word.Boxes) == runes {
-			for index := 1; index < runes; index++ {
-				if advance := word.Boxes[index].Min.X - word.Boxes[index-1].Min.X; advance > 0 {
-					samples = append(samples, advance)
+		if len(word.Boxes) > 1 && len(word.Boxes) == len(chars) {
+			for index := 1; index < len(chars); index++ {
+				advance := word.Boxes[index].Min.X - word.Boxes[index-1].Min.X
+				if advance > 0 {
+					samples = append(samples, max(advance/cellsOf(chars[index-1]), 1))
 				}
 			}
 
 			continue
 		}
 
-		if runes > 0 {
-			samples = append(samples, max(word.Bounds.Dx()/runes, 1))
+		if cells := displaywidth.String(word.Text); cells > 0 {
+			samples = append(samples, max(word.Bounds.Dx()/cells, 1))
 		}
 	}
 

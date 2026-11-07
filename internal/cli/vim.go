@@ -52,6 +52,10 @@ such as an icon-only button, and puts a □ where each one is, so w, j and s
 reach it and Return clicks it. A yank leaves the □ out. The box beside the
 cursor shows the word under it as read.
 
+The fast read knows Latin script only. The accurate read finds each line's
+script, so it reads Chinese, Japanese, Korean, Thai, Russian and the rest,
+and a wide character, as in Chinese, takes two columns.
+
 Examples:
   neru vim                            # Read the focused window
   neru vim --capture-scope screen     # Read the whole screen

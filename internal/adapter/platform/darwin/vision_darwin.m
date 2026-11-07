@@ -1,6 +1,7 @@
 #import "vision.h"
 
 #import <CoreGraphics/CoreGraphics.h>
+#import <CoreText/CoreText.h>
 #import <Foundation/Foundation.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 #import <Vision/Vision.h>
@@ -793,7 +794,12 @@ static uint32_t backgroundOf(NeruPixels px, CGRect box) {
 	return (red << 16) | (green << 8) | blue;
 }
 
-static NSArray<NSValue *> *glyphColumns(NeruPixels px, CGRect box, NSUInteger count, NSRange *ink) {
+/// The cell of each of count glyphs in box, measured from the runs of ink.
+/// seeds, when set, are the columns the recognizer placed each character in.
+/// Each boundary between two of them then moves to the nearest blank column
+/// within window pixels. ink is set to where the word's ink runs.
+static NSArray<NSValue *> *glyphColumns(
+    NeruPixels px, CGRect box, NSUInteger count, NSArray<NSValue *> *seeds, NSUInteger window, NSRange *ink) {
 	*ink = NSMakeRange(NSNotFound, 0);
 	if (!px.data || count == 0)
 		return nil;
@@ -839,6 +845,42 @@ static NSArray<NSValue *> *glyphColumns(NeruPixels px, CGRect box, NSUInteger co
 	NSRange first = runs.firstObject.rangeValue, last = runs.lastObject.rangeValue;
 	*ink = NSMakeRange(first.location, NSMaxRange(last) - first.location);
 
+	// Many wide characters, such as 川 or 明, have gaps inside them, and
+	// punctuation such as 」 is set narrower, so neither the gaps nor an even
+	// split find where they meet. The recognizer places each one within a
+	// point or two, and moving each boundary to the nearest blank column puts
+	// it in the gap between the two characters.
+	if (seeds) {
+		BOOL (^blank)(NSInteger) = ^BOOL(NSInteger x) {
+			for (NSValue *run in runs)
+				if (NSLocationInRange((NSUInteger)x, run.rangeValue))
+					return NO;
+			return YES;
+		};
+		NSMutableArray<NSNumber *> *edges = [NSMutableArray arrayWithObject:@(ink->location)];
+		for (NSUInteger i = 1; i < seeds.count; i++) {
+			NSInteger edge = (NSInteger)(NSMaxRange(seeds[i - 1].rangeValue) + seeds[i].rangeValue.location) / 2;
+			for (NSInteger d = 0; d <= (NSInteger)window; d++) {
+				if (blank(edge - d)) {
+					edge -= d;
+					break;
+				}
+				if (blank(edge + d)) {
+					edge += d;
+					break;
+				}
+			}
+			[edges addObject:@(MAX(edge, edges.lastObject.integerValue + 1))];
+		}
+		[edges addObject:@(MAX((NSInteger)NSMaxRange(*ink), edges.lastObject.integerValue + 1))];
+		NSMutableArray<NSValue *> *cells = [NSMutableArray arrayWithCapacity:seeds.count];
+		for (NSUInteger i = 0; i < seeds.count; i++) {
+			NSUInteger left = edges[i].unsignedIntegerValue;
+			[cells addObject:[NSValue valueWithRange:NSMakeRange(left, edges[i + 1].unsignedIntegerValue - left)]];
+		}
+		return cells;
+	}
+
 	while (runs.count > count) {
 		NSUInteger narrowest = 0;
 		NSUInteger narrowestGap = NSUIntegerMax;
@@ -879,6 +921,64 @@ static NSArray<NSValue *> *glyphColumns(NeruPixels px, CGRect box, NSUInteger co
 	return cells;
 }
 
+/// Whether the composed character c takes two cells, as Chinese, Japanese and
+/// Korean characters and fullwidth forms do.
+static BOOL isWide(NSString *c) {
+	UTF32Char u = 0;
+	if (![c getBytes:&u
+	             maxLength:sizeof(u)
+	            usedLength:NULL
+	              encoding:NSUTF32LittleEndianStringEncoding
+	               options:0
+	                 range:NSMakeRange(0, c.length)
+	        remainingRange:NULL])
+		return NO;
+	return (u >= 0x1100 && u <= 0x115F) || (u >= 0x2E80 && u <= 0x303E) || (u >= 0x3041 && u <= 0x33FF) ||
+	       (u >= 0x3400 && u <= 0x4DBF) || (u >= 0x4E00 && u <= 0x9FFF) || (u >= 0xA000 && u <= 0xA4CF) ||
+	       (u >= 0xAC00 && u <= 0xD7A3) || (u >= 0xF900 && u <= 0xFAFF) || (u >= 0xFE30 && u <= 0xFE4F) ||
+	       (u >= 0xFF00 && u <= 0xFF60) || (u >= 0xFFE0 && u <= 0xFFE6) || (u >= 0x20000 && u <= 0x3FFFD);
+}
+
+/// The columns the recognizer placed each composed character of the word at
+/// range in. Returns nil when the word has no wide character, since the gaps
+/// between its characters already show where they meet.
+static NSArray<NSValue *> *seedsOf(
+    VNRecognizedText *text, NSRange range, NSArray<NSValue *> *characters, CGFloat imageW) {
+	BOOL wide = NO;
+	for (NSValue *character in characters) {
+		NSRange at = NSMakeRange(range.location + character.rangeValue.location, character.rangeValue.length);
+		wide = wide || isWide([text.string substringWithRange:at]);
+	}
+	if (!wide)
+		return nil;
+
+	NSMutableArray<NSValue *> *seeds = [NSMutableArray arrayWithCapacity:characters.count];
+	for (NSValue *character in characters) {
+		NSRange at = NSMakeRange(range.location + character.rangeValue.location, character.rangeValue.length);
+		NSError *error = nil;
+		VNRectangleObservation *box = [text boundingBoxForRange:at error:&error];
+		if (error || !box)
+			return nil;
+		CGRect b = box.boundingBox;
+		[seeds addObject:[NSValue valueWithRange:NSMakeRange(
+		                                             (NSUInteger)MAX(b.origin.x * imageW, 0),
+		                                             (NSUInteger)MAX(b.size.width * imageW, 1))]];
+	}
+	return seeds;
+}
+
+/// Whether text is written right to left, by its first letter.
+static BOOL isRightToLeft(NSString *text) {
+	NSCharacterSet *letters = [NSCharacterSet letterCharacterSet];
+	for (NSUInteger i = 0; i < text.length; i++) {
+		unichar c = [text characterAtIndex:i];
+		if (![letters characterIsMember:c])
+			continue;
+		return (c >= 0x0590 && c <= 0x08FF) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF);
+	}
+	return NO;
+}
+
 /// The ranges of the composed characters in text.
 static NSArray<NSValue *> *characterRanges(NSString *text) {
 	NSMutableArray<NSValue *> *ranges = [NSMutableArray array];
@@ -890,15 +990,17 @@ static NSArray<NSValue *> *characterRanges(NSString *text) {
 	return ranges;
 }
 
-NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t timeoutMS) {
-	@autoreleasepool {
-		// One deadline covers the capture and the read together.
-		dispatch_time_t deadline = dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC);
-		CGRect captured = CGRectZero;
-		CGImageRef image = NeruCaptureRectAtScale(rect, scale, &captured, timeoutMS);
-		if (!image)
-			return NULL;
+/// The accurate read in flight, if any. Vision runs one request at a time, so
+/// a fast read, which a key the user pressed is waiting on, cancels it rather
+/// than queue behind it. The first read that finds the script compiles its
+/// models, which takes seconds.
+static os_unfair_lock accurateLock = OS_UNFAIR_LOCK_INIT;
+static VNRequest *accurateInFlight = nil;
 
+/// Reads image's lines by deadline as NeruReadLines does, with captured as
+/// the global rect the image shows.
+static NeruTextResult *readLines(CGImageRef image, CGRect captured, int accurate, dispatch_time_t deadline) {
+	@autoreleasepool {
 		__block NSArray<VNRecognizedTextObservation *> *lines = nil;
 		dispatch_group_t group = dispatch_group_create();
 		CFRetain(image);
@@ -908,19 +1010,32 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 			    accurate ? VNRequestTextRecognitionLevelAccurate : VNRequestTextRecognitionLevelFast;
 			// Off, since it rewrites paths, flags and identifiers into words.
 			request.usesLanguageCorrection = NO;
+			// Only the accurate level reads more than Latin script, and with
+			// no language set it reads English alone. Detecting the script
+			// reads Chinese, Japanese, Korean, Thai and the rest in any mix.
+			if (@available(macOS 13.0, *))
+				request.automaticallyDetectsLanguage = accurate != 0;
 			request.minimumTextHeight = 0;
+			os_unfair_lock_lock(&accurateLock);
+			if (accurate)
+				accurateInFlight = request;
+			else
+				[accurateInFlight cancel];
+			os_unfair_lock_unlock(&accurateLock);
 			VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:image options:@{}];
 			NSError *error = nil;
 			[handler performRequests:@[ request ] error:&error];
 			if (!error)
 				lines = request.results;
+			os_unfair_lock_lock(&accurateLock);
+			if (accurateInFlight == request)
+				accurateInFlight = nil;
+			os_unfair_lock_unlock(&accurateLock);
 			CGImageRelease(image);
 		});
 		BOOL finished = dispatch_group_wait(group, deadline) == 0;
-		if (!finished || !lines) {
-			CGImageRelease(image);
+		if (!finished || !lines)
 			return NULL;
-		}
 
 		NSMutableArray<NSDictionary *> *pieces = [NSMutableArray array];
 		NeruPixels px = pixelsOf(image);
@@ -950,7 +1065,14 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 				NSString *word = [top.string substringWithRange:range];
 				NSArray<NSValue *> *characters = characterRanges(word);
 				NSRange ink;
-				NSArray<NSValue *> *glyphs = glyphColumns(px, pixel, characters.count, &ink);
+				// A seed can be off by up to three points either way.
+				NSUInteger window = (NSUInteger)ceil(3 / toPointsX);
+				NSArray<NSValue *> *glyphs =
+				    glyphColumns(px, pixel, characters.count, seedsOf(top, range, characters, imageW), window, &ink);
+				// The cells run left to right and the characters in reading
+				// order, so a word written right to left is left whole.
+				if (isRightToLeft(word))
+					glyphs = nil;
 				uint32_t background = backgroundOf(px, pixel);
 				if (ink.location != NSNotFound) {
 					pixel.origin.x = ink.location;
@@ -977,7 +1099,6 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 			lineIndex++;
 		}
 		free(px.data);
-		CGImageRelease(image);
 
 		NeruTextResult *result = calloc(1, sizeof(NeruTextResult));
 		if (!result)
@@ -1005,6 +1126,81 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 			};
 		}
 		return result;
+	}
+}
+
+NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t timeoutMS) {
+	@autoreleasepool {
+		// One deadline covers the capture and the read together.
+		dispatch_time_t deadline = dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC);
+		CGRect captured = CGRectZero;
+		CGImageRef image = NeruCaptureRectAtScale(rect, scale, &captured, timeoutMS);
+		if (!image)
+			return NULL;
+
+		NeruTextResult *result = readLines(image, captured, accurate, deadline);
+		CGImageRelease(image);
+		return result;
+	}
+}
+
+NeruTextResult *NeruReadImageLines(CGImageRef image, CGRect bounds, int accurate, int64_t timeoutMS) {
+	return readLines(image, bounds, accurate, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC));
+}
+
+/// A line in several scripts, drawn black on white at two pixels per point,
+/// for the warm-up to read. The caller releases it.
+static CGImageRef warmUpSample(CGRect *points) {
+	*points = CGRectMake(0, 0, 640, 40);
+	CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+	CGContextRef context =
+	    CGBitmapContextCreate(NULL, 1280, 80, 8, 0, space, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+	CGColorSpaceRelease(space);
+	if (!context)
+		return NULL;
+
+	CGContextSetRGBFillColor(context, 1, 1, 1, 1);
+	CGContextFillRect(context, CGRectMake(0, 0, 1280, 80));
+	CGContextScaleCTM(context, 2, 2);
+
+	CTFontRef font = CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, 16, NULL);
+	CGColorRef black = CGColorCreateGenericGray(0, 1);
+	if (!font || !black) {
+		if (font)
+			CFRelease(font);
+		CGColorRelease(black);
+		CGContextRelease(context);
+		return NULL;
+	}
+	NSDictionary *attributes =
+	    @{(id)kCTFontAttributeName : (__bridge id)font, (id)kCTForegroundColorAttributeName : (__bridge id)black};
+	NSAttributedString *sample = [[NSAttributedString alloc] initWithString:@"Text 中文 日本語 한국어 ภาษาไทย Русский"
+	                                                             attributes:attributes];
+	CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)sample);
+	CGContextSetTextPosition(context, 8, 14);
+	CTLineDraw(line, context);
+	CFRelease(line);
+	CGColorRelease(black);
+	CFRelease(font);
+
+	CGImageRef image = CGBitmapContextCreateImage(context);
+	CGContextRelease(context);
+	return image;
+}
+
+int NeruWarmTextRecognizer(int64_t timeoutMS) {
+	@autoreleasepool {
+		CGRect points = CGRectZero;
+		CGImageRef image = warmUpSample(&points);
+		if (!image)
+			return 0;
+
+		NeruTextResult *result =
+		    readLines(image, points, 1, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC));
+		CGImageRelease(image);
+		int read = result != NULL && result->count > 0;
+		NeruFreeTextResult(result);
+		return read;
 	}
 }
 

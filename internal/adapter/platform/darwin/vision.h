@@ -58,6 +58,18 @@ typedef struct {
 // the result with NeruFreeTextResult.
 NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t timeoutMS);
 
+// Reads image's text as NeruReadLines reads a capture, with bounds as the
+// global rect, in points, the image shows. For tests that cannot put pixels
+// on the screen.
+NeruTextResult *NeruReadImageLines(CGImageRef image, CGRect bounds, int accurate, int64_t timeoutMS);
+
+// Reads a sample line in several scripts with the accurate recognizer, so it
+// compiles its models now rather than on the first read that needs them, which
+// can take seconds the first time an executable runs it. A fast read that
+// starts meanwhile cancels it. Returns 1 when the sample was read, and 0 when
+// it was cancelled or took longer than timeoutMS.
+int NeruWarmTextRecognizer(int64_t timeoutMS);
+
 // Frees what NeruReadLines returned.
 void NeruFreeTextResult(NeruTextResult *result);
 

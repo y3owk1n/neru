@@ -473,6 +473,29 @@ func readTextNow(region image.Rectangle, timeout C.int64_t) (string, error) {
 // captured for ReadLines, which is a Retina display's own resolution.
 const readLinesScale = 2
 
+// Ensure the macOS adapter warms its recognizer, whose models compile on first
+// use.
+var _ ports.TextRecognizerWarmer = (*Adapter)(nil)
+
+// WarmTextRecognizer reads a sample in several scripts with the accurate
+// recognizer, so the models its script detection needs are compiled before
+// the first read that needs them.
+func (a *Adapter) WarmTextRecognizer(ctx context.Context) error {
+	timeout, err := captureTimeoutMS(ctx)
+	if err != nil {
+		return err
+	}
+
+	if C.NeruWarmTextRecognizer(timeout) == 0 {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"the text recognizer was interrupted or timed out while loading",
+		)
+	}
+
+	return nil
+}
+
 // ReadLines captures region and reads it with the recognizer level names.
 func (a *Adapter) ReadLines(
 	ctx context.Context,

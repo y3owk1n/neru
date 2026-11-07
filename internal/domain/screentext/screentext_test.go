@@ -220,14 +220,14 @@ func TestNew_PaddingFillsTheGapOnScreen(t *testing.T) {
 	}
 }
 
-func TestText_AppRunes_LeavesOutWhereALineStarts(t *testing.T) {
+func TestText_AppChars_LeavesOutWhereALineStarts(t *testing.T) {
 	text := screentext.New([]screentext.Word{
 		{Text: "if", Bounds: image.Rect(0, 0, 20, 10)},
 		{Text: "go", Bounds: image.Rect(40, 12, 60, 22)},
 	})
 
-	if got := text.AppRunes(0, text.Len()); got != len("if\ngo") {
-		t.Fatalf("AppRunes = %d, want %d", got, len("if\ngo"))
+	if got := text.AppChars(0, text.Len()); got != len("if\ngo") {
+		t.Fatalf("AppChars = %d, want %d", got, len("if\ngo"))
 	}
 }
 
@@ -311,6 +311,48 @@ func TestHost_YankInsideContainer_CopiesItsText(t *testing.T) {
 	}
 }
 
+func TestText_WideCharacters_TakeTwoCells(t *testing.T) {
+	// Each narrow character is 10 wide, so 语 and 言 are 20 each.
+	text := screentext.New([]screentext.Word{
+		{Text: "Go语言", Bounds: image.Rect(100, 100, 160, 130)}, //nolint:gosmopolitan
+		{Text: "test", Bounds: image.Rect(170, 100, 210, 130)},
+	})
+
+	if got, want := text.String(), "Go语言 test"; got != want { //nolint:gosmopolitan
+		t.Fatalf("text = %q, want %q, with one space where the screen has one cell", got, want)
+	}
+
+	narrow, _ := text.Box(0)
+	wide, _ := text.Box(len("Go"))
+
+	if narrow.Dx() != 10 || wide.Dx() != 20 {
+		t.Fatalf("G is %d wide and the first wide one %d, want 10 and 20", narrow.Dx(), wide.Dx())
+	}
+}
+
+func TestText_AppChars_CountsAVowelSignWithItsConsonant(t *testing.T) {
+	text := screentext.New([]screentext.Word{{Text: "กิน", Bounds: image.Rect(100, 100, 130, 130)}})
+
+	if got := text.AppChars(0, text.Len()); got != 2 {
+		t.Fatalf(
+			"AppChars(%q) = %d, want 2, since กิ is one character to the app",
+			text.String(),
+			got,
+		)
+	}
+}
+
+func TestText_RightToLeftWord_StartsAtTheRight(t *testing.T) {
+	text := screentext.New(
+		[]screentext.Word{{Text: "שלום", Bounds: image.Rect(100, 100, 140, 130)}},
+	)
+
+	first, _ := text.Box(0)
+	if first != image.Rect(130, 100, 140, 130) {
+		t.Fatalf("the first letter of %q is at %v, want the right end", text.String(), first)
+	}
+}
+
 func TestText_AppStart_SkipsPaddingAndIcons(t *testing.T) {
 	text := screentext.New([]screentext.Word{
 		{Text: "Title", Bounds: image.Rect(100, 100, 175, 130)},
@@ -366,8 +408,8 @@ func TestText_Icons_AreReachedButNotCopied(t *testing.T) {
 		t.Fatalf("AppText = %q, want the line without the icon", got)
 	}
 
-	if got := text.AppRunes(0, text.Len()); got != len("Save  Close") {
-		t.Fatalf("AppRunes = %d, want %d", got, len("Save  Close"))
+	if got := text.AppChars(0, text.Len()); got != len("Save  Close") {
+		t.Fatalf("AppChars = %d, want %d", got, len("Save  Close"))
 	}
 }
 

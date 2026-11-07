@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"go.uber.org/zap"
 
@@ -44,7 +45,10 @@ type SystrayComponent interface {
 type App struct {
 	ctx    context.Context //nolint:containedctx // Root context for all App operations
 	cancel context.CancelFunc
-	config *config.Config
+	// textWarmStarted is set once the text recognizer's warm-up has started,
+	// so a reload that enables vim mode starts it at most once.
+	textWarmStarted atomic.Bool
+	config          *config.Config
 	// writtenConfig is config before the loader settled its derived values,
 	// handed to the config service so a later `neru config set` derives from
 	// what the user wrote rather than from what was derived for them.

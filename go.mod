@@ -8,6 +8,8 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/Microsoft/go-winio v0.6.4
 	github.com/atotto/clipboard v0.1.4
+	github.com/clipperhouse/displaywidth v0.11.0
+	github.com/clipperhouse/uax29/v2 v2.7.0
 	github.com/godbus/dbus/v5 v5.2.4
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.2
@@ -25,8 +27,6 @@ require (
 )
 
 require (
-	github.com/clipperhouse/displaywidth v0.11.0 // indirect
-	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect

@@ -124,6 +124,8 @@ func initializeServicesAndAdapters(app *App) error {
 		app.vision = visionAdapter.NewAdapter(logger)
 	}
 
+	app.warmTextRecognizer(cfg)
+
 	hintService, gridService, actionService, scrollService, indicators, err := initializeServices(
 		cfg,
 		accAdapter,

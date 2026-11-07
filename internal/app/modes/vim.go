@@ -404,17 +404,17 @@ func vimWords(lines [][]ports.TextPiece, region image.Rectangle) []screentext.Wo
 				exact, number = true, piece.Word
 			}
 
-			runes := utf8.RuneCountInString(piece.Text)
+			chars := len(screentext.Characters(piece.Text))
 			word.Text += piece.Text
 			word.Bounds = word.Bounds.Union(piece.Bounds)
 
 			// Only a piece of one character says where that character is.
-			// A word piece leaves its runes an equal share of the word.
-			for range runes {
+			// A word piece leaves its characters a share of the word.
+			for range chars {
 				word.Boxes = append(word.Boxes, piece.Bounds)
 			}
 
-			if runes != 1 {
+			if chars != 1 {
 				exact = false
 			}
 		}
@@ -588,7 +588,7 @@ const (
 func vimEditRunes(text *screentext.Text, edits []vim.Edit) int {
 	count := 0
 	for _, e := range edits {
-		count += text.AppRunes(e.Start, e.End)
+		count += text.AppChars(e.Start, e.End)
 	}
 
 	return count
