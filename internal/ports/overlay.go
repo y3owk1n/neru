@@ -203,8 +203,8 @@ type VimFrame struct {
 	Pending bool
 	// Selection is the visual selection, a rectangle per line.
 	Selection []image.Rectangle
-	// Matches are the search matches, and Current indexes the one the cursor
-	// is on, or is -1.
+	// Matches are the search matches, or an s jump's while one is typed,
+	// and Current indexes the one the cursor is on, or is -1.
 	Matches []image.Rectangle
 	Current int
 	// Container is the block of text the cursor is in, such as a column or
@@ -215,8 +215,8 @@ type VimFrame struct {
 	// Lens is the word under the cursor as read, split around the character
 	// the cursor is on. An empty At shows no lens.
 	Lens VimLens
-	// Labels are the jump targets of an s jump, each at the character it
-	// jumps to.
+	// Labels name an s jump's matches, each drawn over the character after
+	// its match.
 	Labels []VimLabel
 }
 

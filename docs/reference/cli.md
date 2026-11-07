@@ -664,7 +664,7 @@ again.
 | `Return` | Click the character under the cursor, or with `--action` run that action there |
 | `gc`, `gr`, `gm` + motion | Left, right or middle click the middle of what the motion covers, as `gciw` |
 | `gs` + motion, or `Return` in visual mode | Drag across the text so the app selects it, then leave. Works on text that cannot be edited |
-| `s` + two characters | Jump to a match, by label when there are several |
+| `s` + characters + label | Type any number of characters to find, then a match's label to jump there, or `Return` for the nearest. `Backspace` takes back a character. A label is never the character after a match, so typing more of the text never jumps |
 | `]i`, `[i` | Move to the next or the previous icon, with a count to skip |
 | `Ctrl+W` + `h`, `j`, `k`, `l` | Move to the container left, below, above or right |
 | `Ctrl+W` + `w`, `W` | Move to the next or the previous container |

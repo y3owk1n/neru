@@ -725,25 +725,30 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 		}
 	}
 
-	current, _, typing := machine.Incremental()
-
-	for index, match := range machine.Matches(text, 0, text.Len()) {
-		if r, ok := lineRect(text, match[0], match[1]); ok {
-			frame.Matches = append(frame.Matches, r)
-		}
-
-		if (typing && match[0] == current) || (!typing && cursor >= match[0] && cursor < match[1]) {
-			frame.Current = index
-		}
-	}
-
 	if jump := session.jump; jump != nil {
-		for index, target := range jump.targets {
-			if r, ok := text.Box(target); ok && strings.HasPrefix(jump.labels[index], jump.typed) {
+		for index, match := range jump.matches {
+			if r, ok := lineRect(text, match[0], match[1]); ok {
+				frame.Matches = append(frame.Matches, r)
+			}
+
+			if r, ok := vimJumpLabelBox(text, match); ok && jump.labels[index] != "" {
 				frame.Labels = append(
 					frame.Labels,
 					ports.VimLabel{Text: jump.labels[index], Bounds: r},
 				)
+			}
+		}
+	} else {
+		current, _, typing := machine.Incremental()
+
+		for index, match := range machine.Matches(text, 0, text.Len()) {
+			if r, ok := lineRect(text, match[0], match[1]); ok {
+				frame.Matches = append(frame.Matches, r)
+			}
+
+			if (typing && match[0] == current) ||
+				(!typing && cursor >= match[0] && cursor < match[1]) {
+				frame.Current = index
 			}
 		}
 	}
@@ -785,7 +790,7 @@ func vimStatus(session *vimSession, current, matches int) string {
 
 	switch {
 	case session.jump != nil:
-		parts = append(parts, "s"+session.jump.query+session.jump.typed)
+		parts = append(parts, "s"+session.jump.query)
 	case machine.Mode() == vim.Cmdline:
 		line := machine.Line()
 		at := min(max(machine.LineCursor(), 0), len(line))
