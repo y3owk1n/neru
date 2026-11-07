@@ -1,7 +1,6 @@
 #import "vision.h"
 
 #import <CoreGraphics/CoreGraphics.h>
-#import <CoreText/CoreText.h>
 #import <Foundation/Foundation.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 #import <Vision/Vision.h>
@@ -990,13 +989,6 @@ static NSArray<NSValue *> *characterRanges(NSString *text) {
 	return ranges;
 }
 
-/// The accurate read in flight, if any. Vision runs one request at a time, so
-/// a fast read, which a key the user pressed is waiting on, cancels it rather
-/// than queue behind it. The first read that finds the script compiles its
-/// models, which takes seconds.
-static os_unfair_lock accurateLock = OS_UNFAIR_LOCK_INIT;
-static VNRequest *accurateInFlight = nil;
-
 /// Reads image's lines by deadline as NeruReadLines does, with captured as
 /// the global rect the image shows.
 static NeruTextResult *readLines(CGImageRef image, CGRect captured, int accurate, dispatch_time_t deadline) {
@@ -1016,21 +1008,11 @@ static NeruTextResult *readLines(CGImageRef image, CGRect captured, int accurate
 			if (@available(macOS 13.0, *))
 				request.automaticallyDetectsLanguage = accurate != 0;
 			request.minimumTextHeight = 0;
-			os_unfair_lock_lock(&accurateLock);
-			if (accurate)
-				accurateInFlight = request;
-			else
-				[accurateInFlight cancel];
-			os_unfair_lock_unlock(&accurateLock);
 			VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:image options:@{}];
 			NSError *error = nil;
 			[handler performRequests:@[ request ] error:&error];
 			if (!error)
 				lines = request.results;
-			os_unfair_lock_lock(&accurateLock);
-			if (accurateInFlight == request)
-				accurateInFlight = nil;
-			os_unfair_lock_unlock(&accurateLock);
 			CGImageRelease(image);
 		});
 		BOOL finished = dispatch_group_wait(group, deadline) == 0;
@@ -1146,62 +1128,6 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 
 NeruTextResult *NeruReadImageLines(CGImageRef image, CGRect bounds, int accurate, int64_t timeoutMS) {
 	return readLines(image, bounds, accurate, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC));
-}
-
-/// A line in several scripts, drawn black on white at two pixels per point,
-/// for the warm-up to read. The caller releases it.
-static CGImageRef warmUpSample(CGRect *points) {
-	*points = CGRectMake(0, 0, 640, 40);
-	CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
-	CGContextRef context =
-	    CGBitmapContextCreate(NULL, 1280, 80, 8, 0, space, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
-	CGColorSpaceRelease(space);
-	if (!context)
-		return NULL;
-
-	CGContextSetRGBFillColor(context, 1, 1, 1, 1);
-	CGContextFillRect(context, CGRectMake(0, 0, 1280, 80));
-	CGContextScaleCTM(context, 2, 2);
-
-	CTFontRef font = CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, 16, NULL);
-	CGColorRef black = CGColorCreateGenericGray(0, 1);
-	if (!font || !black) {
-		if (font)
-			CFRelease(font);
-		CGColorRelease(black);
-		CGContextRelease(context);
-		return NULL;
-	}
-	NSDictionary *attributes =
-	    @{(id)kCTFontAttributeName : (__bridge id)font, (id)kCTForegroundColorAttributeName : (__bridge id)black};
-	NSAttributedString *sample = [[NSAttributedString alloc] initWithString:@"Text 中文 日本語 한국어 ภาษาไทย Русский"
-	                                                             attributes:attributes];
-	CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)sample);
-	CGContextSetTextPosition(context, 8, 14);
-	CTLineDraw(line, context);
-	CFRelease(line);
-	CGColorRelease(black);
-	CFRelease(font);
-
-	CGImageRef image = CGBitmapContextCreateImage(context);
-	CGContextRelease(context);
-	return image;
-}
-
-int NeruWarmTextRecognizer(int64_t timeoutMS) {
-	@autoreleasepool {
-		CGRect points = CGRectZero;
-		CGImageRef image = warmUpSample(&points);
-		if (!image)
-			return 0;
-
-		NeruTextResult *result =
-		    readLines(image, points, 1, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC));
-		CGImageRelease(image);
-		int read = result != NULL && result->count > 0;
-		NeruFreeTextResult(result);
-		return read;
-	}
 }
 
 void NeruFreeTextResult(NeruTextResult *result) {

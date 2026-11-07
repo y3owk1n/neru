@@ -883,6 +883,7 @@ func (a *Adapter) drawVim(frame ports.VimFrame) error {
 		Status:    frame.Status,
 		Lens:      [3]string{frame.Lens.Before, frame.Lens.At, frame.Lens.After},
 		Labels:    vimLabels(frame.Labels, origin),
+		Notice:    frame.Notice,
 	}, ResolvedStyle(a.styles).Vim)
 	if drawErr != nil {
 		if derrors.IsNotSupported(drawErr) {

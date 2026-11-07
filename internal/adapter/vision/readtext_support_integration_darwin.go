@@ -83,48 +83,6 @@ type readPiece struct {
 	line  int
 }
 
-// withCGImage hands use img as a CGImage, with the color space it was made
-// in, and keeps the pixels alive until use returns.
-func withCGImage(img *image.RGBA, use func(C.CGImageRef, C.CGColorSpaceRef)) {
-	width, height := img.Rect.Dx(), img.Rect.Dy()
-	if width == 0 || height == 0 {
-		return
-	}
-
-	// The context keeps its buffer across calls, so the pixels are copied
-	// into C memory rather than handed over as a Go pointer.
-	size := C.size_t(len(img.Pix))
-	buffer := C.malloc(size)
-	defer C.free(buffer)
-
-	C.memcpy(buffer, unsafe.Pointer(&img.Pix[0]), size)
-
-	space := C.CGColorSpaceCreateDeviceRGB()
-	defer C.CGColorSpaceRelease(space)
-
-	context := C.CGBitmapContextCreate(
-		buffer,
-		C.size_t(width),
-		C.size_t(height),
-		8,
-		C.size_t(img.Stride),
-		space,
-		C.kCGImageAlphaPremultipliedLast,
-	)
-	if context == 0 {
-		return
-	}
-	defer C.CGContextRelease(context)
-
-	cgImage := C.CGBitmapContextCreateImage(context)
-	if uintptr(cgImage) == 0 {
-		return
-	}
-	defer C.CGImageRelease(cgImage)
-
-	use(cgImage, space)
-}
-
 // scaledImage draws image at scale times its width and height with high
 // quality interpolation. The caller releases the result.
 func scaledImage(

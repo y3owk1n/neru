@@ -696,9 +696,10 @@ takes two columns, and a character the app moves over in one step, such as
 a Thai consonant with its vowel sign, is one character to vim. Arabic and
 Hebrew are read and moved over, but laid out left to right, so an edit in
 them selects the wrong text. Japanese and Korean on one line can be read as
-one of the two. macOS compiles the models that find the script the first
-time Neru uses them, which takes several seconds, so with vim mode enabled
-Neru does that in the background at launch.
+one of the two. The first time the accurate read meets a script, macOS
+compiles a model for it, which takes up to 15 seconds. Neru reads in a
+separate process, so moving around keeps working meanwhile, and a card
+says what the wait is.
 
 Typing into the app re-sends each key, so an input method's composition does
 not work there, and `i` over text that cannot be edited sends the keys to the

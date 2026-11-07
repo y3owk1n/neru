@@ -175,6 +175,7 @@ type VimScene struct {
 	Status    string
 	Lens      [3]string
 	Labels    []VimLabel
+	Notice    string
 }
 
 // VimLabel is a jump label in screen-local space.

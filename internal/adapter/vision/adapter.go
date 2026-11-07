@@ -16,17 +16,33 @@ import (
 // heuristic classifier assigns the results roles and confidence scores.
 type Adapter struct {
 	logger *zap.Logger
+	// linesHelper is the hidden command this executable reads text lines
+	// accurately with in a process of its own, or empty to read them here.
+	linesHelper string
+}
+
+// Option configures an Adapter.
+type Option func(*Adapter)
+
+// WithLinesHelper has accurate line reads run this executable with the hidden
+// command, in a process of their own, so a model compiling for a new script
+// holds up no read in this one. lines_helper_darwin.go says why.
+func WithLinesHelper(command string) Option {
+	return func(a *Adapter) { a.linesHelper = command }
 }
 
 // NewAdapter creates a vision adapter.
-func NewAdapter(logger *zap.Logger) ports.VisionPort {
+func NewAdapter(logger *zap.Logger, opts ...Option) ports.VisionPort {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	return &Adapter{
-		logger: logger.Named("vision"),
+	adapter := &Adapter{logger: logger.Named("vision")}
+	for _, opt := range opts {
+		opt(adapter)
 	}
+
+	return adapter
 }
 
 // Ensure Adapter implements ports.VisionPort. Every platform file satisfies it,

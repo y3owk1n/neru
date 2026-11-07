@@ -121,10 +121,11 @@ func initializeServicesAndAdapters(app *App) error {
 	// Vim mode reads the screen through the same port, so it is built here
 	// rather than inside the hint service's wiring.
 	if app.vision == nil {
-		app.vision = visionAdapter.NewAdapter(logger)
+		app.vision = visionAdapter.NewAdapter(
+			logger,
+			visionAdapter.WithLinesHelper(app.linesHelper),
+		)
 	}
-
-	app.warmTextRecognizer(cfg)
 
 	hintService, gridService, actionService, scrollService, indicators, err := initializeServices(
 		cfg,

@@ -204,7 +204,6 @@ func (a *App) reconfigureRuntimeFromConfig(cfg *config.Config) {
 	a.updateControllerConfigs(cfg)
 	a.syncScreenShareConfig(cfg)
 	a.syncScrollInvertConfig(cfg)
-	a.warmTextRecognizer(cfg)
 }
 
 func (a *App) updateServiceConfigs(cfg *config.Config) {

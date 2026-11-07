@@ -631,7 +631,7 @@ func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error 
 		cstr(style.FontFamily), cstr(style.CursorColor), cstr(style.SelectionColor),
 		cstr(style.MatchColor), cstr(style.ContainerColor), cstr(style.StatusBackgroundColor),
 		cstr(style.StatusTextColor), cstr(scene.Status),
-		cstr(scene.Lens[0]), cstr(scene.Lens[1]), cstr(scene.Lens[2]),
+		cstr(scene.Lens[0]), cstr(scene.Lens[1]), cstr(scene.Lens[2]), cstr(scene.Notice),
 	}
 
 	defer func() {
@@ -689,6 +689,7 @@ func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error 
 		labels:         labels,
 		labelBounds:    bounds,
 		labelCount:     C.int(len(scene.Labels)),
+		notice:         strs[11],
 	}, C.VimStyle{
 		fontSize:              C.int(style.FontSize),
 		fontFamily:            strs[0],

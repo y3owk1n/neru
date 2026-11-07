@@ -4380,6 +4380,60 @@ static CATextLayer *NeruVimText(NSAttributedString *text, CGPoint origin, CGFloa
 	return layer;
 }
 
+/// A card near the top of region, a spinner beside a bold title and a detail
+/// line, for a wait the user should see. notice is the title and the detail
+/// split by a newline.
+static CALayer *NeruVimNotice(
+    NSString *notice, CGRect region, NSFont *font, NSFont *bold, NSColor *fill, NSColor *textColor, NSColor *accent,
+    CGFloat scale) {
+	NSArray<NSString *> *parts = [notice componentsSeparatedByString:@"\n"];
+	NSMutableAttributedString *text = [[NSMutableAttributedString alloc]
+	    initWithString:parts.firstObject
+	        attributes:@{NSFontAttributeName : bold, NSForegroundColorAttributeName : textColor}];
+	if (parts.count > 1) {
+		NSString *detail = [@"\n" stringByAppendingString:[[parts subarrayWithRange:NSMakeRange(1, parts.count - 1)]
+		                                                      componentsJoinedByString:@"\n"]];
+		[text appendAttributedString:[[NSAttributedString alloc] initWithString:detail
+		                                                             attributes:@{
+			                                                             NSFontAttributeName : font,
+			                                                             NSForegroundColorAttributeName :
+			                                                                 [textColor colorWithAlphaComponent:0.75]
+		                                                             }]];
+	}
+
+	CGFloat pad = 14, spinner = 18, gap = 12;
+	NSSize size = [text size];
+	CGFloat w = ceil(size.width) + spinner + gap + 2 * pad, h = MAX(ceil(size.height), spinner) + 2 * pad;
+	CGFloat x = region.origin.x + MAX((region.size.width - w) / 2, 0);
+	// Below the window's title bar, which the read covers.
+	CGFloat y = MAX(CGRectGetMaxY(region) - 56 - h, region.origin.y);
+	CALayer *card = NeruVimBox(CGRectMake(x, y, w, h), fill, accent, 1.5, 10);
+	card.shadowOpacity = 0.25;
+	card.shadowRadius = 12;
+	card.shadowOffset = CGSizeMake(0, -3);
+
+	CAShapeLayer *ring = [CAShapeLayer layer];
+	ring.frame = CGRectMake(pad, (h - spinner) / 2, spinner, spinner);
+	CGPathRef circle = CGPathCreateWithEllipseInRect(CGRectInset(CGRectMake(0, 0, spinner, spinner), 1.5, 1.5), NULL);
+	ring.path = circle;
+	CGPathRelease(circle);
+	ring.fillColor = [NSColor clearColor].CGColor;
+	ring.strokeColor = accent.CGColor;
+	ring.lineWidth = 2.5;
+	ring.lineCap = kCALineCapRound;
+	ring.strokeEnd = 0.7;
+	CABasicAnimation *turn = [CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];
+	turn.fromValue = @0;
+	turn.toValue = @(-2 * M_PI);
+	turn.duration = 0.9;
+	turn.repeatCount = HUGE_VALF;
+	[ring addAnimation:turn forKey:@"turn"];
+	[card addSublayer:ring];
+
+	[card addSublayer:NeruVimText(text, CGPointMake(pad + spinner + gap, (h - ceil(size.height)) / 2), scale)];
+	return card;
+}
+
 void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 	if (!window)
 		return;
@@ -4397,6 +4451,7 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 	NSString *lensBefore = NeruVimString(scene.lensBefore);
 	NSString *lensAt = NeruVimString(scene.lensAt);
 	NSString *lensAfter = NeruVimString(scene.lensAfter);
+	NSString *notice = NeruVimString(scene.notice);
 	NSArray<NSValue *> *labelBounds = NeruVimRects(scene.labelBounds, scene.labelCount);
 	NSMutableArray<NSString *> *labels = [NSMutableArray arrayWithCapacity:MAX(scene.labelCount, 0)];
 	for (int i = 0; scene.labels && i < scene.labelCount; i++)
@@ -4431,6 +4486,15 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 
 			[CATransaction begin];
 			[CATransaction setDisableActions:YES];
+
+			// The notice card is kept across draws while it says the same
+			// thing, so its spinner keeps turning instead of starting over on
+			// every key.
+			NSString *noticeName = [@"notice:" stringByAppendingString:notice];
+			CALayer *keptNotice = nil;
+			for (CALayer *layer in view.vimRoot.sublayers)
+				if (notice.length > 0 && [layer.name isEqualToString:noticeName])
+					keptNotice = layer;
 
 			view.vimRoot.sublayers = nil;
 			CALayer *root = view.vimRoot;
@@ -4517,6 +4581,15 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 				CALayer *box = NeruVimBox(bar, statusBg, [NSColor clearColor], 0, 0);
 				[box addSublayer:NeruVimText(text, CGPointMake(pad * 2, pad), scale)];
 				[root addSublayer:box];
+			}
+
+			if (notice.length > 0 && !CGRectIsEmpty(region)) {
+				CALayer *card = NeruVimNotice(
+				    notice, NeruVimFlip(region, height), font, bold, statusBg, statusText, cursorColor, scale);
+				if (keptNotice && CGRectEqualToRect(keptNotice.frame, card.frame))
+					card = keptNotice;
+				card.name = noticeName;
+				[root addSublayer:card];
 			}
 
 			[CATransaction commit];

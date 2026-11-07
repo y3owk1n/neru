@@ -24,7 +24,8 @@ import (
 
 const (
 	// vimRefineTimeout bounds the accurate read that follows an activation.
-	// Its first run loads the recognizer's model, which can take seconds.
+	// One that meets a script for the first time compiles its model, which
+	// takes seconds.
 	vimRefineTimeout = 30 * time.Second
 	// vimSettleDelay is how long the app gets to redraw after vim mode acted
 	// on it, before the screen is read again.
@@ -32,6 +33,11 @@ const (
 	// vimHalf halves a size to find a middle.
 	vimHalf = 2
 )
+
+// vimSlowRead is how long an accurate read runs before the overlay says it is
+// slow. A warm one takes well under a second. A variable so tests need not
+// wait it out.
+var vimSlowRead = 1500 * time.Millisecond
 
 // vimSession is an open vim mode: the text read off the screen, the machine
 // moving a cursor over it, and what the activation asked for.
@@ -75,8 +81,10 @@ type vimSession struct {
 	reading    bool
 	refined    *screentext.Text
 	// refining is an accurate read in flight. One runs at a time, and a read
-	// asked for meanwhile waits for it.
+	// asked for meanwhile waits for it. slowRead is set once it has taken
+	// longer than vimSlowRead, for the overlay to say why.
 	refining bool
+	slowRead bool
 
 	jump *vimJump
 
@@ -273,6 +281,10 @@ func (h *handlerState) refineVim() {
 	vision, parent, outer := h.vision, h.ctx, h.outer
 	generation, region := session.generation, session.region
 
+	// A read still going after vimSlowRead is most likely compiling the
+	// model for a script it has not met before, so the overlay says so.
+	time.AfterFunc(vimSlowRead, func() { outer.markVimReadSlow(session, generation) })
+
 	go func() {
 		ctx, cancel := context.WithTimeout(parent, vimRefineTimeout)
 		defer cancel()
@@ -288,6 +300,21 @@ func (h *handlerState) refineVim() {
 
 		outer.applyVimRefine(session, generation, region, lines, icons, err)
 	}()
+}
+
+// markVimReadSlow shows the slow read notice for the session's accurate read
+// of generation, when it has not landed yet.
+func (h *Handler) markVimReadSlow(session *vimSession, generation uint64) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.vim != session || session.generation != generation || !session.reading {
+		return
+	}
+
+	session.slowRead = true
+
+	h.redrawFrame(h.vimFrame(), "update vim overlay")
 }
 
 // applyVimRefine keeps an accurate read for the session and the read of the
@@ -317,7 +344,7 @@ func (h *Handler) applyVimRefine(
 		return
 	}
 
-	session.reading = false
+	session.reading, session.slowRead = false, false
 
 	if err != nil {
 		h.logger.Debug("Accurate vim read failed", zap.Error(err))
@@ -753,12 +780,21 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 		}
 	}
 
+	if session.reading && session.slowRead {
+		frame.Notice = vimSlowReadNotice
+	}
+
 	frame.Selection = append(frame.Selection, session.flash...)
 	frame.Status = vimStatus(session, frame.Current, len(frame.Matches))
 	frame.Lens = vimLens(text, cursor)
 
 	return frame
 }
+
+// vimSlowReadNotice is what the overlay says while an accurate read takes
+// long, which on macOS is a model compiling for a script met the first time.
+const vimSlowReadNotice = "Preparing text recognition\n" +
+	"First time for this language, up to 15 seconds. Moving around works meanwhile."
 
 // lineSegments splits [start, end) at line breaks.
 func lineSegments(text *screentext.Text, start, end int) [][2]int {

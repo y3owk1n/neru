@@ -4638,6 +4638,43 @@ func TestSimulation_VimDropsAnAccurateReadFromAClosedSession(t *testing.T) {
 	})
 }
 
+// TestSimulation_VimSaysWhenAnAccurateReadIsSlow covers an accurate read that
+// takes long, which on macOS is a model compiling for a script met the first
+// time. Past a second and a half a card says so, and it goes once the read
+// lands.
+func TestSimulation_VimSaysWhenAnAccurateReadIsSlow(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	release := make(chan struct{})
+
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, _ image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextAccurate {
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		return [][]ports.TextPiece{
+			{{Text: vimWordFile, Bounds: image.Rect(100, 100, 160, 130)}},
+		}, nil
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the slow read said on screen", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Notice, "Preparing text recognition")
+	})
+
+	close(release)
+	vimFrameShows(sim, "the notice gone once the read lands", func(f ports.VimFrame) bool {
+		return f.Notice == "" && !strings.Contains(f.Status, "reading")
+	})
+}
+
 // TestSimulation_VimJumpByLabel covers s. It takes any number of
 // characters, labels each match over the character after it, and a label
 // jumps there. Return jumps to the nearest match, and Backspace takes back a
