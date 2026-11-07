@@ -396,17 +396,19 @@ func parseX11Hotkey(display *C.Display, keyString string) (C.uint, C.uint, error
 // platforms, not as a Linux-only meaning. Insert sits with them so the
 // editing keys are in one place.
 //
-// Punctuation and F1-F24 fall through to XStringToKeysym, where X11's name is
-// Neru's. A test pins the function keys.
+// A single printable character is its own keysym, because the Latin-1 keysyms
+// share their character codes. XStringToKeysym would want the X11 name
+// ("semicolon", "colon"), which only matches the character for letters and
+// digits. F1-F24 fall through to XStringToKeysym, where X11's name is Neru's.
+// Tests pin the symbols and the function keys.
 func x11KeysymFor(key string) C.KeySym {
 	key = strings.TrimSpace(key)
 	if len(key) == 1 {
-		letter := strings.ToLower(key)
-		cKey := C.CString(letter)
+		if char := strings.ToLower(key)[0]; char > ' ' && char <= '~' {
+			return C.KeySym(char)
+		}
 
-		defer C.free(unsafe.Pointer(cKey))
-
-		return C.XStringToKeysym(cKey)
+		return 0
 	}
 
 	name := x11CanonicalKeyName(key)
