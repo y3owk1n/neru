@@ -25,6 +25,7 @@ typing, then reads the screen again:
   gc gr gm {motion}   left, right or middle click, as gciw
   gs{motion}          drag across the text, so the app selects it, then leave
   s{char}{char}       jump to a match, by label when there are several
+  ]i [i               move to the next or the previous icon
   Ctrl+W h j k l      move to the container left, below, above or right
   Ctrl+W w W          move to the next or the previous container
   ic ac               the container's text, as yic copies a card
@@ -42,7 +43,10 @@ are reading, and it outlines the one the cursor is in.
 
 Vim mode reads the screen twice. A fast read opens the mode at once, and an
 accurate read replaces it when it finishes. The status bar says "reading…"
-until then, and the box beside the cursor shows the word under it as read.
+until then. The accurate read also finds icons and pictures with no text,
+such as an icon-only button, and puts a □ where each one is, so w, j and s
+reach it and Return clicks it. A yank leaves the □ out. The box beside the
+cursor shows the word under it as read.
 
 Examples:
   neru vim                            # Read the focused window

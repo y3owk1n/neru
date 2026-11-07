@@ -12,9 +12,11 @@ import (
 	"github.com/y3owk1n/fude/vim"
 	"go.uber.org/zap"
 
+	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/screentext"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -261,7 +263,15 @@ func (h *handlerState) refineVim() {
 		defer cancel()
 
 		lines, err := vision.ReadLines(ctx, region, ports.TextAccurate)
-		outer.applyVimRefine(session, generation, region, lines, err)
+
+		// Icons have no text, so the segment detector finds them in the same
+		// region. When it fails, the text is kept without icons.
+		icons, iconErr := vision.DetectSegments(ctx, region, vimIconTargets)
+		if iconErr != nil {
+			icons = nil
+		}
+
+		outer.applyVimRefine(session, generation, region, lines, icons, err)
 	}()
 }
 
@@ -274,6 +284,7 @@ func (h *Handler) applyVimRefine(
 	generation uint64,
 	region image.Rectangle,
 	lines [][]ports.TextPiece,
+	icons []*element.Element,
 	err error,
 ) {
 	h.mu.Lock()
@@ -295,8 +306,13 @@ func (h *Handler) applyVimRefine(
 
 	if err != nil {
 		h.logger.Debug("Accurate vim read failed", zap.Error(err))
-	} else if text := screentext.New(vimWords(lines, region)); text.Len() > 0 {
-		session.refined = text
+	} else {
+		words := vimWords(lines, region)
+		if text := screentext.New(
+			append(words, vimIcons(icons, words, region)...),
+		); text.Len() > 0 {
+			session.refined = text
+		}
 	}
 
 	if !h.swapInRefinedVimText() {
@@ -394,6 +410,56 @@ func vimWords(lines [][]ports.TextPiece, region image.Rectangle) []screentext.Wo
 	}
 
 	return words
+}
+
+// vimIconTargets asks the segment detector for controls, icons and pictures,
+// and no text, since the text is read already.
+var vimIconTargets = configpkg.HintsSegmentConfig{Targets: domain.SegmentTargetsControls}
+
+const (
+	// vimIconMaxSize is the widest or tallest shape, in points, read as an
+	// icon. A bigger one is a panel or a large picture, and stays out of the
+	// text.
+	vimIconMaxSize = 160
+	// vimIconMaxTextShare is how much of a shape words may cover, in percent,
+	// before it counts as the button around them rather than an icon.
+	vimIconMaxTextShare = 20
+	// vimPercent turns a share into percent.
+	vimPercent = 100
+)
+
+// vimIcons keeps the shapes the segment detector found that are icons: in
+// region, no bigger than vimIconMaxSize, and not mostly covered by words,
+// which already reach them.
+func vimIcons(
+	elements []*element.Element,
+	words []screentext.Word,
+	region image.Rectangle,
+) []screentext.Word {
+	var icons []screentext.Word
+
+	for _, candidate := range elements {
+		bounds := candidate.Bounds()
+		if bounds.Empty() || !candidate.Center().In(region) ||
+			bounds.Dx() > vimIconMaxSize || bounds.Dy() > vimIconMaxSize {
+			continue
+		}
+
+		covered := 0
+		for _, word := range words {
+			overlap := bounds.Intersect(word.Bounds).Size()
+			covered += overlap.X * overlap.Y
+		}
+
+		area := bounds.Dx() * bounds.Dy()
+		if covered*vimPercent > area*vimIconMaxTextShare {
+			continue
+		}
+
+		icons = append(icons, screentext.Icon(bounds))
+	}
+
+	return icons
 }
 
 // finishVimWord drops a word's boxes unless every one came from a piece of

@@ -219,6 +219,21 @@ func NewMachine(host *Host) *vim.Machine {
 	machine.Object("ic", containerObject(false))
 	machine.Object("ac", containerObject(true))
 
+	// ]i and [i go to the next and the previous icon, as [[ and ]] go to
+	// sections.
+	for name, back := range map[string]bool{"nexticon": false, "previcon": true} {
+		machine.Command(name, func(_ vim.Text, pos, count int) ([]vim.Edit, string) {
+			if target, ok := host.text.IconAfter(pos, count, back); ok {
+				host.SetCursor(target)
+			}
+
+			return nil, ""
+		})
+	}
+
+	machine.Map(vim.Normal, "]i", "<Plug>(nexticon)")
+	machine.Map(vim.Normal, "[i", "<Plug>(previcon)")
+
 	return machine
 }
 

@@ -26,6 +26,10 @@ const (
 	blankLineDenominator = 3
 )
 
+// IconGlyph stands in the text for an icon or a picture on screen, which has
+// no text of its own.
+const IconGlyph = "□"
+
 // Word is one word read off the screen, with its bounds in global
 // coordinates. Boxes, when it has one per rune of Text, are where each rune
 // was read. Without them each rune gets an equal share of Bounds. Background
@@ -35,6 +39,15 @@ type Word struct {
 	Bounds     image.Rectangle
 	Boxes      []image.Rectangle
 	Background uint32
+
+	icon bool
+}
+
+// Icon is an icon or a picture at bounds, written into the text as IconGlyph
+// so motions reach it as they reach a word. The app has no such text, so it
+// is left out of what is copied and of what an edit selects.
+func Icon(bounds image.Rectangle) Word {
+	return Word{Text: IconGlyph, Bounds: bounds, Boxes: []image.Rectangle{bounds}, icon: true}
 }
 
 // Container is a block of the screen's text that belongs together, such as
@@ -52,6 +65,8 @@ type Text struct {
 	boxes      []image.Rectangle // per byte, the pixels it was read from
 	words      []image.Rectangle // every word's bounds
 	containers []Container
+	icons      map[int]bool // the bytes that are an icon's glyph
+	iconStarts []int        // where each icon's glyph starts, in order
 }
 
 // New lays words out the way the screen shows them, as a buffer vim moves
@@ -156,7 +171,8 @@ func (t *Text) AppRunes(start, end int) int {
 
 	for pos := start; pos < end; {
 		char, size := utf8.DecodeRuneInString(t.s[pos:])
-		if char != ' ' || strings.TrimLeft(t.s[t.starts[t.LineOf(pos)]:pos], " ") != "" {
+		if !t.icons[pos] &&
+			(char != ' ' || strings.TrimLeft(t.s[t.starts[t.LineOf(pos)]:pos], " ") != "") {
 			count++
 		}
 
@@ -164,6 +180,65 @@ func (t *Text) AppRunes(start, end int) int {
 	}
 
 	return count
+}
+
+// AppText returns the text of [start, end) the app has: every rune but an
+// icon's glyph, and the space an icon leaves doubled or at a line's end, so a
+// line keeps its spacing without the icon.
+func (t *Text) AppText(start, end int) string {
+	end = min(end, len(t.s))
+
+	var builder strings.Builder
+
+	for pos := start; pos < end; pos++ {
+		if !t.icons[pos] {
+			builder.WriteByte(t.s[pos])
+
+			continue
+		}
+
+		if strings.HasPrefix(t.s[pos:], IconGlyph) {
+			pos += len(IconGlyph) - 1
+
+			out := builder.String()
+			if pos+1 < end && t.s[pos+1] == ' ' &&
+				(out == "" || strings.HasSuffix(out, " ") || strings.HasSuffix(out, "\n")) {
+				pos++
+			}
+		}
+	}
+
+	// The layout ends no line with a space, so one left there stood before an
+	// icon that ended the line.
+	lines := strings.Split(builder.String(), "\n")
+	for index, line := range lines {
+		lines[index] = strings.TrimRight(line, " ")
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// IconAfter returns where the count-th icon after pos starts, or before pos
+// when back is true, or false when there are not that many that way.
+func (t *Text) IconAfter(pos, count int, back bool) (int, bool) {
+	found := 0
+
+	for index := range t.iconStarts {
+		start := t.iconStarts[index]
+		if back {
+			start = t.iconStarts[len(t.iconStarts)-1-index]
+		}
+
+		if (!back && start > pos) || (back && start < pos) {
+			found++
+
+			if found == max(count, 1) {
+				return start, true
+			}
+		}
+	}
+
+	return 0, false
 }
 
 // Words returns the bounds of every word, in reading order.
@@ -362,6 +437,18 @@ func (t *Text) newline(builder *strings.Builder, box image.Rectangle) {
 // addWord writes word, each rune with the box it was read from, or else an
 // equal share of the word's width.
 func (t *Text) addWord(builder *strings.Builder, word Word) {
+	if word.icon {
+		if t.icons == nil {
+			t.icons = map[int]bool{}
+		}
+
+		t.iconStarts = append(t.iconStarts, builder.Len())
+
+		for offset := range len(word.Text) {
+			t.icons[builder.Len()+offset] = true
+		}
+	}
+
 	text := strings.Join(strings.Fields(word.Text), " ")
 	count := utf8.RuneCountInString(text)
 	bounds := word.Bounds
@@ -431,11 +518,16 @@ func leftEdge(words []Word) int {
 
 // cellWidth is the width of one character: the median distance from one
 // character's left edge to the next where each was read, or else the median
-// share of a word's width each of its characters has.
+// share of a word's width each of its characters has. Icons say nothing about
+// it.
 func cellWidth(words []Word) int {
 	var samples []int
 
 	for _, word := range words {
+		if word.icon {
+			continue
+		}
+
 		runes := utf8.RuneCountInString(word.Text)
 
 		if len(word.Boxes) > 1 && len(word.Boxes) == runes {
