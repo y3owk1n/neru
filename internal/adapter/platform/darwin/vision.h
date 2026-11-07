@@ -60,8 +60,11 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 
 // Reads image's text as NeruReadLines reads a capture, with bounds as the
 // global rect, in points, the image shows. The helper process that reads text
-// lines accurately reads its image with it, and so do tests.
-NeruTextResult *NeruReadImageLines(CGImageRef image, CGRect bounds, int accurate, int64_t timeoutMS);
+// lines accurately reads its image with it, and so do tests. An accurate read
+// also reads with language, such as "zh-Hans", or with the Chinese, Japanese
+// or Korean language the user prefers when it is empty or NULL.
+NeruTextResult *NeruReadImageLines(
+    CGImageRef image, CGRect bounds, int accurate, const char *language, int64_t timeoutMS);
 
 // Frees what NeruReadLines returned.
 void NeruFreeTextResult(NeruTextResult *result);

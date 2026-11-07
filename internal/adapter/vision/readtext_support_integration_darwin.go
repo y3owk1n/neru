@@ -52,7 +52,7 @@ func readLinesFromImage(img *image.RGBA, pixelsPerPoint int) []readPiece {
 			C.CGFloat(img.Rect.Dx()/pixelsPerPoint), C.CGFloat(img.Rect.Dy()/pixelsPerPoint),
 		)
 
-		result := C.NeruReadImageLines(cgImage, bounds, 1, C.int64_t(readLinesTestTimeoutMS))
+		result := C.NeruReadImageLines(cgImage, bounds, 1, nil, C.int64_t(readLinesTestTimeoutMS))
 		if result == nil {
 			return
 		}
