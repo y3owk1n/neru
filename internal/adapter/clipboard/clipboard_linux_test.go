@@ -12,6 +12,13 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
+// The copiers the tests install.
+const (
+	toolWlCopy = "wl-copy"
+	toolXclip  = "xclip"
+	toolXsel   = "xsel"
+)
+
 // fakeCopier installs an executable named name in dir that writes its standard
 // input to out, standing in for a real clipboard tool.
 func fakeCopier(t *testing.T, dir, name, out string) {
@@ -33,16 +40,16 @@ func TestAdapter_WriteText_UsesTheCopierForTheSession(t *testing.T) {
 		install  []string
 		wantTool string
 	}{
-		{"wayland prefers wl-copy", "wayland-0", ":0", []string{"wl-copy", "xclip"}, "wl-copy"},
+		{"wayland prefers wl-copy", "wayland-0", ":0", []string{toolWlCopy, toolXclip}, toolWlCopy},
 		{
 			"wayland without wl-copy falls back to Xwayland",
 			"wayland-0",
 			":0",
-			[]string{"xclip"},
-			"xclip",
+			[]string{toolXclip},
+			toolXclip,
 		},
-		{"x11 uses xclip", "", ":0", []string{"wl-copy", "xclip", "xsel"}, "xclip"},
-		{"x11 without xclip uses xsel", "", ":0", []string{"xsel"}, "xsel"},
+		{"x11 uses xclip", "", ":0", []string{toolWlCopy, toolXclip, toolXsel}, toolXclip},
+		{"x11 without xclip uses xsel", "", ":0", []string{toolXsel}, toolXsel},
 	}
 
 	for _, testCase := range tests {
