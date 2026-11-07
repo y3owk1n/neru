@@ -30,3 +30,23 @@ func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, erro
 		"text recognition requires CGO-enabled Linux builds",
 	)
 }
+
+// RecognizeLines recognizes nothing in this build. It always returns
+// derrors.CodeNotSupported, as RecognizeText does.
+func RecognizeLines(img *image.RGBA, params OCRParams) ([]OCRSymbol, OCRStats, error) {
+	_, _ = img, params
+
+	return nil, OCRStats{}, derrors.New(
+		derrors.CodeNotSupported,
+		"text recognition requires CGO-enabled Linux builds",
+	)
+}
+
+// LinesReadable reports that lines cannot be read in this build. It always
+// returns derrors.CodeNotSupported, as RecognizeLines does.
+func LinesReadable() error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"text recognition requires CGO-enabled Linux builds",
+	)
+}
