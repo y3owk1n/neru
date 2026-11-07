@@ -312,8 +312,17 @@ func (h *handlerState) vimScroll(scroll vimScrollKey) {
 	point := h.vimCursorPoint()
 	text := session.host.Screen()
 
+	sideways := scroll.direction == services.ScrollDirectionLeft ||
+		scroll.direction == services.ScrollDirectionRight
+
 	step := int(float64(session.region.Dy()) * scroll.fraction)
-	if scroll.lines > 0 {
+
+	switch {
+	case sideways && scroll.columns > 0:
+		step = scroll.columns * text.CellWidth()
+	case sideways:
+		step = int(float64(session.region.Dx()) * scroll.fraction)
+	case scroll.lines > 0:
 		box, _ := text.Box(session.host.Cursor())
 		step = scroll.lines * max(box.Dy()*vimLineSpacing/vimHalf, 1)
 	}
@@ -335,10 +344,15 @@ func (h *handlerState) vimScroll(scroll vimScrollKey) {
 	time.Sleep(vimScrollSettle)
 
 	if !scroll.stays {
-		if scroll.direction == services.ScrollDirectionDown {
+		switch scroll.direction {
+		case services.ScrollDirectionDown:
 			point.Y -= step
-		} else {
+		case services.ScrollDirectionUp:
 			point.Y += step
+		case services.ScrollDirectionRight:
+			point.X -= step
+		case services.ScrollDirectionLeft:
+			point.X += step
 		}
 	}
 

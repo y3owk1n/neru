@@ -90,6 +90,11 @@ type vimSession struct {
 	lastInsert    *vimInsert
 	repeating     bool
 
+	// zPrefix is a z waiting for its second key, with the count typed before
+	// it, for the sideways scroll keys.
+	zPrefix bool
+	zCount  int
+
 	// flash is where the last yank took its text, shown briefly, and notice
 	// what the status bar says about it until the next key.
 	flash  []image.Rectangle
@@ -789,6 +794,10 @@ func vimStatus(session *vimSession, current, matches int) string {
 		parts = append(parts, machine.Message())
 	case session.notice != "":
 		parts = append(parts, session.notice)
+	case session.zPrefix && session.zCount > 0:
+		parts = append(parts, strconv.Itoa(session.zCount)+"z")
+	case session.zPrefix:
+		parts = append(parts, "z")
 	case machine.Shown() != "":
 		parts = append(parts, machine.Shown())
 	}
