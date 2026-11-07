@@ -67,6 +67,7 @@ type Text struct {
 	containers []Container
 	icons      map[int]bool // the bytes that are an icon's glyph
 	iconStarts []int        // where each icon's glyph starts, in order
+	cell       int          // the width of one character
 }
 
 // New lays words out the way the screen shows them, as a buffer vim moves
@@ -86,8 +87,8 @@ func New(words []Word) *Text {
 		return strings.TrimSpace(word.Text) == "" || word.Bounds.Empty()
 	})
 
-	text := &Text{}
 	cell := cellWidth(kept)
+	text := &Text{cell: cell}
 
 	var (
 		builder strings.Builder
@@ -240,6 +241,9 @@ func (t *Text) IconAfter(pos, count int, back bool) (int, bool) {
 
 	return 0, false
 }
+
+// CellWidth returns the width of one character on screen.
+func (t *Text) CellWidth() int { return max(t.cell, 1) }
 
 // Words returns the bounds of every word, in reading order.
 func (t *Text) Words() []image.Rectangle { return t.words }

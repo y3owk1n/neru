@@ -4675,6 +4675,38 @@ func TestSimulation_VimScrollsTheApp(t *testing.T) {
 	sim.waitFor("the screen read again", func() bool { return reads >= 2 })
 }
 
+// TestSimulation_VimScrollsTheAppSideways covers zl. It scrolls the app right
+// by eight characters without a count and by the count with one, and touches
+// nothing up or down.
+func TestSimulation_VimScrollsTheAppSideways(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("z", "l")
+	sim.waitFor(
+		"the app scrolled sideways",
+		func() bool { return len(sim.ax.recordedScrolls()) == 1 },
+	)
+
+	sim.press("3", "z")
+	vimFrameShows(sim, "the count and z waiting", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, "3z")
+	})
+
+	sim.press("l")
+	sim.waitFor("the app scrolled sideways by the count", func() bool {
+		return len(sim.ax.recordedScrolls()) == 2
+	})
+
+	scrolls := sim.ax.recordedScrolls()
+	if scrolls[0].Y != 0 || scrolls[0].X == 0 || scrolls[1].Y != 0 ||
+		scrolls[1].X*scrolls[1].X >= scrolls[0].X*scrolls[0].X {
+		t.Fatalf("zl then 3zl scrolled %v, want sideways and 3zl shorter", scrolls)
+	}
+}
+
 // TestSimulation_VimDotRepeatsTypedChange covers . after a change typed into
 // the app. The machine never saw the typing, so . must replay it with the
 // command, and change the word under the cursor the same way. A count before

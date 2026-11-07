@@ -88,6 +88,10 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 	session := h.vim
 	machine := session.machine
 
+	if h.handleVimZKey(vimKey) {
+		return
+	}
+
 	if vimKey == "." && session.lastInsert != nil && !session.repeating {
 		if count, ok := vimPendingCount(machine); ok || machine.Idle() {
 			if ok && !h.feedVim("<Esc>") {
@@ -244,6 +248,54 @@ func vimCountKeys(count int) []vim.Key {
 	}
 
 	return keys
+}
+
+// handleVimZKey scrolls the app sideways for zh, zl, zH and zL, and reports
+// whether it took key. A z with nothing or only a count before it waits for
+// its second key. Any other second key goes to the machine with the z and
+// the count.
+func (h *handlerState) handleVimZKey(vimKey vim.Key) bool {
+	session := h.vim
+	machine := session.machine
+
+	if session.zPrefix {
+		session.zPrefix = false
+
+		if scroll, ok := vimSideScrollKeys[vimKey]; ok {
+			if session.zCount > 0 && scroll.columns > 0 {
+				scroll.columns = session.zCount
+			}
+
+			h.vimScroll(scroll)
+
+			return true
+		}
+
+		for _, key := range vimCountKeys(session.zCount) {
+			if !h.feedVim(key) {
+				return true
+			}
+		}
+
+		return !h.feedVim("z")
+	}
+
+	count, countOnly := vimPendingCount(machine)
+	if vimKey != "z" || (!machine.Idle() && !countOnly) {
+		return false
+	}
+
+	session.zCount = count
+
+	if countOnly && !h.feedVim("<Esc>") {
+		return true
+	}
+
+	session.zPrefix = true
+
+	h.redrawFrame(h.vimFrame(), "update vim overlay")
+
+	return true
 }
 
 // feedVim feeds key to the machine. A panic inside it would take the daemon
@@ -516,9 +568,10 @@ func (h *handlerState) vimJumpTo(target int) {
 // or moves with the text.
 type vimScrollKey struct {
 	direction services.ScrollDirection
-	// lines scrolls this many line heights, or a fraction of the region when
-	// zero.
+	// lines scrolls this many line heights, and columns this many
+	// characters sideways, or a fraction of the region when zero.
 	lines    int
+	columns  int
 	fraction float64
 	// stays keeps the cursor at the same point on screen, as Ctrl+D does.
 	stays bool
@@ -533,6 +586,19 @@ var vimScrollKeys = map[vim.Key]vimScrollKey{
 	"<C-u>": {direction: services.ScrollDirectionUp, fraction: vimScrollHalfPage, stays: true},
 	"<C-f>": {direction: services.ScrollDirectionDown, fraction: vimScrollPage, stays: true},
 	"<C-b>": {direction: services.ScrollDirectionUp, fraction: vimScrollPage, stays: true},
+}
+
+// vimSideScrollColumns is how far zh and zl scroll without a count. One
+// character, vim's own default, barely moves a screen.
+const vimSideScrollColumns = 8
+
+// vimSideScrollKeys are the second keys after z that scroll the app sideways:
+// h and l by characters, and H and L by half the region read.
+var vimSideScrollKeys = map[vim.Key]vimScrollKey{
+	"h": {direction: services.ScrollDirectionLeft, columns: vimSideScrollColumns},
+	"l": {direction: services.ScrollDirectionRight, columns: vimSideScrollColumns},
+	"H": {direction: services.ScrollDirectionLeft, fraction: vimScrollHalfPage, stays: true},
+	"L": {direction: services.ScrollDirectionRight, fraction: vimScrollHalfPage, stays: true},
 }
 
 // vimScrollAtEdge scrolls the app when j or k tried to leave the text read,
