@@ -90,6 +90,8 @@ func TestCommandInitialization(t *testing.T) {
 		"recursive_grid":                 false,
 		"bisect":                         false,
 		"monitor_select":                 false,
+		"vim":                            false,
+		"read-text-lines":                false,
 		"mode <name>":                    false,
 	}
 

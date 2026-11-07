@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Windows implements both halves of ports.VisionPort, capture through BitBlt
@@ -232,5 +233,16 @@ func TestVisionAdapter_ReadTextDefersToThePassOnWindows(t *testing.T) {
 	text, err := vision.NewAdapter(nil).ReadText(context.Background(), image.Rect(0, 0, 100, 100))
 	if !derrors.IsNotSupported(err) || text != "" {
 		t.Fatalf("ReadText = %q, %v, want no text and CodeNotSupported", text, err)
+	}
+}
+
+// TestVisionAdapter_ReadLinesIsNotSupportedOnWindows pins that vim mode's line
+// reader is macOS only, so vim mode refuses here instead of opening on nothing.
+func TestVisionAdapter_ReadLinesIsNotSupportedOnWindows(t *testing.T) {
+	lines, err := vision.NewAdapter(nil).ReadLines(
+		context.Background(), image.Rect(0, 0, 100, 100), ports.TextAccurate,
+	)
+	if !derrors.IsNotSupported(err) || lines != nil {
+		t.Fatalf("ReadLines = %v, %v, want nothing and CodeNotSupported", lines, err)
 	}
 }

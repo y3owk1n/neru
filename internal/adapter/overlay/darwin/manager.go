@@ -208,6 +208,8 @@ func (m *Manager) Clear() {
 	if m.BisectOverlay() != nil {
 		m.BisectOverlay().Clear()
 	}
+
+	C.NeruClearVim(m.window)
 }
 
 // ClearCache is a no-op on Darwin, because each overlay owns its own NSWindow and
@@ -611,4 +613,116 @@ func (m *Manager) SetSharingType(hide bool) {
 		m.logger.Debug("Overlay screen share visibility toggled",
 			zap.Bool("hidden", hide))
 	}
+}
+
+// Ensure the manager keeps declaring that it draws the vim surface.
+var _ manager.VimDrawer = (*Manager)(nil)
+
+// DrawVim draws the vim surface on the shared window. The C strings and
+// rectangle arrays only live for the call, since the bridge copies them before
+// it hops to the main thread.
+func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error {
+	if m.window == nil {
+		return derrors.New(derrors.CodeNotSupported, "vim overlay has no window")
+	}
+
+	cstr := func(s string) *C.char { return C.CString(s) }
+	strs := []*C.char{
+		cstr(style.FontFamily), cstr(style.CursorColor), cstr(style.SelectionColor),
+		cstr(style.MatchColor), cstr(style.ContainerColor), cstr(style.StatusBackgroundColor),
+		cstr(style.StatusTextColor), cstr(scene.Status),
+		cstr(scene.Lens[0]), cstr(scene.Lens[1]), cstr(scene.Lens[2]), cstr(scene.Notice),
+	}
+
+	defer func() {
+		for _, s := range strs {
+			C.free(unsafe.Pointer(s))
+		}
+	}()
+
+	selection, freeSelection := cRects(scene.Selection)
+	defer freeSelection()
+
+	matches, freeMatches := cRects(scene.Matches)
+	defer freeMatches()
+
+	labelBounds := make([]image.Rectangle, len(scene.Labels))
+	labelTexts := make([]*C.char, len(scene.Labels))
+
+	for index, label := range scene.Labels {
+		labelBounds[index] = label.Bounds
+		labelTexts[index] = C.CString(label.Text)
+	}
+
+	defer func() {
+		for _, s := range labelTexts {
+			C.free(unsafe.Pointer(s))
+		}
+	}()
+
+	bounds, freeBounds := cRects(labelBounds)
+	defer freeBounds()
+
+	var labels **C.char
+	if len(labelTexts) > 0 {
+		labels = (**C.char)(
+			C.malloc(C.size_t(len(labelTexts)) * C.size_t(unsafe.Sizeof(labelTexts[0]))),
+		)
+		defer C.free(unsafe.Pointer(labels))
+		copy(unsafe.Slice(labels, len(labelTexts)), labelTexts)
+	}
+
+	C.NeruDrawVim(m.window, C.VimScene{
+		region:         cRect(scene.Region),
+		cursor:         cRect(scene.Cursor),
+		pending:        C.int(boolToInt(scene.Pending)),
+		selection:      selection,
+		selectionCount: C.int(len(scene.Selection)),
+		matches:        matches,
+		matchCount:     C.int(len(scene.Matches)),
+		currentMatch:   C.int(scene.Current),
+		container:      cRect(scene.Container),
+		status:         strs[7],
+		lensBefore:     strs[8],
+		lensAt:         strs[9],
+		lensAfter:      strs[10],
+		labels:         labels,
+		labelBounds:    bounds,
+		labelCount:     C.int(len(scene.Labels)),
+		notice:         strs[11],
+	}, C.VimStyle{
+		fontSize:              C.int(style.FontSize),
+		fontFamily:            strs[0],
+		cursorColor:           strs[1],
+		selectionColor:        strs[2],
+		matchColor:            strs[3],
+		containerColor:        strs[4],
+		statusBackgroundColor: strs[5],
+		statusTextColor:       strs[6],
+	})
+
+	return nil
+}
+
+func cRect(r image.Rectangle) C.CGRect {
+	return C.CGRect{
+		origin: C.CGPoint{x: C.double(r.Min.X), y: C.double(r.Min.Y)},
+		size:   C.CGSize{width: C.double(r.Dx()), height: C.double(r.Dy())},
+	}
+}
+
+// cRects copies rects into C memory the caller frees with the returned func.
+func cRects(rects []image.Rectangle) (*C.CGRect, func()) {
+	if len(rects) == 0 {
+		return nil, func() {}
+	}
+
+	ptr := (*C.CGRect)(C.malloc(C.size_t(len(rects)) * C.size_t(unsafe.Sizeof(C.CGRect{}))))
+	out := unsafe.Slice(ptr, len(rects))
+
+	for index, rect := range rects {
+		out[index] = cRect(rect)
+	}
+
+	return ptr, func() { C.free(unsafe.Pointer(ptr)) }
 }

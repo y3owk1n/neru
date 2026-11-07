@@ -27,6 +27,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 const bytesPerPixel = 4
@@ -466,4 +467,77 @@ func readTextNow(region image.Rectangle, timeout C.int64_t) (string, error) {
 	defer C.free(unsafe.Pointer(cText))
 
 	return C.GoString(cText), nil
+}
+
+// readLinesScale is how much larger than its size in points a region is
+// captured for ReadLines, which is a Retina display's own resolution.
+const readLinesScale = 2
+
+// ReadLines captures region and reads it with the recognizer level names.
+func (a *Adapter) ReadLines(
+	ctx context.Context,
+	region image.Rectangle,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	if region.Empty() {
+		return nil, derrors.New(
+			derrors.CodeInvalidInput,
+			"reading lines needs a region with an area",
+		)
+	}
+
+	timeout, err := captureTimeoutMS(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	started := time.Now()
+
+	var lines [][]ports.TextPiece
+
+	inHelper := level == ports.TextAccurate && a.linesHelper != ""
+	if inHelper {
+		lines, err = a.readLinesInHelper(ctx, region, timeout)
+	} else {
+		lines, err = readLinesHere(region, level, timeout)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	a.logger.Debug("Read lines",
+		zap.Bool("accurate", level == ports.TextAccurate),
+		zap.Bool("helper", inHelper),
+		zap.Int("line_count", len(lines)),
+		zap.Duration("duration", time.Since(started)))
+
+	return lines, nil
+}
+
+// readLinesHere captures region and reads it in this process.
+func readLinesHere(
+	region image.Rectangle,
+	level ports.TextLevel,
+	timeout C.int64_t,
+) ([][]ports.TextPiece, error) {
+	accurate := C.int(0)
+	if level == ports.TextAccurate {
+		accurate = 1
+	}
+
+	result := C.NeruReadLines(cRect(region), readLinesScale, accurate, timeout)
+	if result == nil {
+		return nil, derrors.New(derrors.CodeActionFailed, "failed to read the region's text")
+	}
+	defer C.NeruFreeTextResult(result)
+
+	return groupLines(linePiecesOf(result)), nil
+}
+
+func cRect(r image.Rectangle) C.CGRect {
+	return C.CGRect{
+		origin: C.CGPoint{x: C.double(r.Min.X), y: C.double(r.Min.Y)},
+		size:   C.CGSize{width: C.double(r.Dx()), height: C.double(r.Dy())},
+	}
 }

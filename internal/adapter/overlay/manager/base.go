@@ -264,7 +264,7 @@ func (b *Base) gridPointerSurfaceFor(mode Mode) gridPointerSurface {
 		}
 
 		return b.bisectOverlay
-	case ModeIdle, ModeHints, ModeScroll, ModeMonitorSelect:
+	case ModeIdle, ModeHints, ModeScroll, ModeMonitorSelect, ModeVim:
 		// No other mode draws a pointer of its own.
 		return nil
 	default:

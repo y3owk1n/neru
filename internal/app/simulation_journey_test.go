@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -4202,4 +4203,695 @@ func TestSimulation_StopPausesEverything(t *testing.T) {
 
 	sim.press("Escape")
 	sim.waitMode(domain.ModeIdle)
+}
+
+// simWords makes the screen read vision returns: one line per word.
+func simWords(t *testing.T, sim *simHarness, words map[string]image.Rectangle) {
+	t.Helper()
+
+	sim.vision.ReadLinesFunc = func(
+		context.Context, image.Rectangle, ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		lines := make([][]ports.TextPiece, 0, len(words))
+		for text, bounds := range words {
+			lines = append(lines, []ports.TextPiece{{Text: text, Bounds: bounds}})
+		}
+
+		return lines, nil
+	}
+}
+
+// The words and keys the vim journeys read and expect.
+const (
+	vimWordFile      = "File"
+	vimWordEdit      = "Edit"
+	vimKeyExtend     = "Shift+Right"
+	vimKeyExtendBack = "Shift+Left"
+)
+
+// TestSimulation_VimJourney covers vim mode. The screen's words are read as
+// text, 0 and w move the cursor over them, a search highlights its matches,
+// and Return clicks the character under the cursor.
+func TestSimulation_VimJourney(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
+
+	sim := newSimHarness(t, cfg, nil)
+	simWords(t, sim, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+		"Exit":      image.Rect(100, 200, 160, 230),
+	})
+
+	cursorOn := func(want image.Rectangle) func() bool {
+		return func() bool {
+			frame, ok := sim.overlay.lastVimFrame()
+
+			return ok && frame.Cursor == want
+		}
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "0")
+	sim.waitFor("cursor on the F of File", cursorOn(image.Rect(100, 100, 115, 130)))
+
+	sim.press("w")
+	sim.waitFor("cursor on the E of Edit", cursorOn(image.Rect(200, 100, 215, 130)))
+
+	sim.press("/", "x", "i")
+	sim.waitFor("the match typed is highlighted", func() bool {
+		frame, ok := sim.overlay.lastVimFrame()
+
+		return ok && len(frame.Matches) == 1 && frame.Current == 0
+	})
+
+	sim.press("Return")
+	sim.waitFor("cursor on the x of Exit", cursorOn(image.Rect(115, 200, 130, 230)))
+
+	sim.press("Return")
+	sim.waitFor("click recorded", func() bool { return len(sim.ax.recordedClicks()) > 0 })
+
+	if got, want := sim.ax.recordedClicks()[0].point, image.Pt(122, 215); got != want {
+		t.Fatalf("click landed at %v, want the x of Exit at %v", got, want)
+	}
+
+	sim.waitMode(domain.ModeIdle)
+}
+
+// TestSimulation_VimEscapeCancelsThenLeaves covers Escape in vim mode: it
+// cancels a pending operator first, and leaves the mode only once nothing is
+// pending.
+func TestSimulation_VimEscapeCancelsThenLeaves(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
+
+	sim := newSimHarness(t, cfg, nil)
+	simWords(t, sim, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "c")
+	sim.waitFor("operator pending", func() bool {
+		frame, ok := sim.overlay.lastVimFrame()
+
+		return ok && frame.Pending
+	})
+
+	sim.press("Escape")
+	sim.waitFor("operator canceled", func() bool {
+		frame, ok := sim.overlay.lastVimFrame()
+
+		return ok && !frame.Pending
+	})
+
+	if got := sim.app.CurrentMode(); got != domain.ModeVim {
+		t.Fatalf("mode after the first Escape = %v, want vim", got)
+	}
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
+		t.Fatalf("escape must not click, got %v", clicks)
+	}
+}
+
+// vimHarness opens a harness with a vim binding and the screen reading words.
+func vimHarness(t *testing.T, words map[string]image.Rectangle) *simHarness {
+	t.Helper()
+
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
+
+	sim := newSimHarness(t, cfg, nil)
+	simWords(t, sim, words)
+
+	return sim
+}
+
+const vimHotkey = "Primary+Shift+V"
+
+// vimFrameShows waits for a vim frame cond accepts.
+func vimFrameShows(sim *simHarness, what string, cond func(ports.VimFrame) bool) {
+	sim.waitFor(what, func() bool {
+		frame, ok := sim.overlay.lastVimFrame()
+
+		return ok && cond(frame)
+	})
+}
+
+// TestSimulation_VimRefusesWhereTheScreenCannotBeRead covers Linux and
+// Windows, whose vision port reads no lines. Vim mode never opens, and the
+// keyboard is free for the next mode.
+func TestSimulation_VimRefusesWhereTheScreenCannotBeRead(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(vimHotkey)
+	sim.neverMode(domain.ModeVim, 250*time.Millisecond)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+}
+
+// TestSimulation_VimRefusesBeforeAskingForAPermissionItCannotUse covers a
+// platform that cannot read lines and whose screen capture permission is not
+// granted yet, such as a portal desktop on Linux. The mode refuses without
+// asking for the permission, which would have the user share the screen for
+// a mode that can never open.
+func TestSimulation_VimRefusesBeforeAskingForAPermissionItCannotUse(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	var asked atomic.Int32
+
+	sim.system.CheckScreenCapturePermissionFunc = func(context.Context) bool { return false }
+	sim.system.RequestScreenCapturePermissionFunc = func(context.Context) ports.ScreenCaptureConsent {
+		asked.Add(1)
+
+		return ports.ScreenCaptureCanceled
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.neverMode(domain.ModeVim, 250*time.Millisecond)
+
+	if asked.Load() != 0 {
+		t.Fatalf("the screen capture permission was asked for %d times, want none", asked.Load())
+	}
+}
+
+// TestSimulation_VimRefusesWhereTheOverlayCannotDrawIt covers a backend with
+// no vim surface. The mode refuses rather than holding the keyboard over an
+// empty overlay.
+func TestSimulation_VimRefusesWhereTheOverlayCannotDrawIt(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
+
+	sim := newSimHarnessHeadlessOverlay(
+		t,
+		cfg,
+		[]simDisplay{{name: mainDisplayName, bounds: simScreen}},
+	)
+	simWords(t, sim, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.neverMode(domain.ModeVim, 250*time.Millisecond)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+}
+
+// TestSimulation_VimChangeTypesIntoTheApp covers editing through the app. ciw
+// clicks the caret before the word and selects it a character at a time, the
+// keys typed after go to the app and replace it, and Escape comes back to
+// normal mode.
+func TestSimulation_VimChangeTypesIntoTheApp(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("0", "w", "c", "i", "w")
+	vimFrameShows(sim, "typing into the app", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "INSERT")
+	})
+
+	sim.press("x")
+	sim.waitFor("Edit selected and x typed over it", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(),
+			[]string{vimKeyExtend, vimKeyExtend, vimKeyExtend, vimKeyExtend, "x"})
+	})
+
+	clicks := sim.ax.recordedClicks()
+	if len(clicks) != 1 || clicks[0].action != action.TypeLeftClick ||
+		clicks[0].point != image.Pt(200, 115) {
+		t.Fatalf("the change did not click the caret before Edit: %v", clicks)
+	}
+
+	sim.press("Escape")
+	vimFrameShows(sim, "back to normal mode", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL")
+	})
+
+	if got := sim.app.CurrentMode(); got != domain.ModeVim {
+		t.Fatalf("mode after Escape from typing = %v, want vim", got)
+	}
+}
+
+// TestSimulation_VimDeleteLineStaysInTheField covers dd on an indented last
+// line, such as a search bar under a title. The deletion starts at the line
+// break above, so it clicks the end of the line and selects backwards, rather
+// than clicking the line above, which is outside the field.
+func TestSimulation_VimDeleteLineStaysInTheField(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 140, 260, 170),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "j", "d", "d")
+	sim.waitFor("Edit and the line break before it selected backwards and erased", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(), []string{
+			vimKeyExtendBack, vimKeyExtendBack, vimKeyExtendBack, vimKeyExtendBack,
+			vimKeyExtendBack, "Delete",
+		})
+	})
+
+	clicks := sim.ax.recordedClicks()
+	if len(clicks) != 1 || clicks[0].point != image.Pt(262, 155) {
+		t.Fatalf("dd did not click the end of Edit: %v", clicks)
+	}
+}
+
+// TestSimulation_VimYankCopiesWithoutTouchingTheApp covers y. yiw copies the
+// word as it was read, says so, and sends the app nothing.
+func TestSimulation_VimYankCopiesWithoutTouchingTheApp(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordEdit: image.Rect(200, 100, 260, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("y", "i", "w")
+	sim.waitFor("the word copied", func() bool {
+		return slices.Equal(sim.clipboard.Written(), []string{vimWordEdit})
+	})
+	vimFrameShows(sim, "the copy said in the status bar", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, "copied 4 characters")
+	})
+
+	if keys, clicks := sim.keyFeed.FedKeys(), sim.ax.recordedClicks(); len(keys) != 0 ||
+		len(clicks) != 0 {
+		t.Fatalf("yank touched the app: keys %v, clicks %v", keys, clicks)
+	}
+}
+
+// TestSimulation_VimDropsTheCopyFlashOfAClosedSession covers the timer that
+// takes a yank's flash off the screen. A yank and then Escape before it fires
+// close the session, and the timer must not draw it back.
+func TestSimulation_VimDropsTheCopyFlashOfAClosedSession(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordEdit: image.Rect(200, 100, 260, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("y", "i", "w", "Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	drawn := sim.overlay.vimDrawCount()
+
+	time.Sleep(vimFlashForTest)
+
+	if got := sim.overlay.vimDrawCount(); got != drawn {
+		t.Fatalf("the flash timer drew %d vim frames after the session closed", got-drawn)
+	}
+}
+
+// vimFlashForTest is longer than a yank's flash stays on screen.
+const vimFlashForTest = 400 * time.Millisecond
+
+// TestSimulation_VimDropsAnAccurateReadFromAClosedSession covers a slow
+// accurate read that lands after its session closed and another opened. It
+// must not replace the new session's text.
+func TestSimulation_VimDropsAnAccurateReadFromAClosedSession(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	release := make(chan struct{})
+	first := true
+
+	var firstMu sync.Mutex
+
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		firstMu.Lock()
+
+		stale := level == ports.TextAccurate && first
+		if stale {
+			first = false
+		}
+		firstMu.Unlock()
+
+		if stale {
+			<-release
+
+			return [][]ports.TextPiece{
+				{{Text: "Stale", Bounds: image.Rect(500, 500, 575, 530)}},
+			}, nil
+		}
+
+		return [][]ports.TextPiece{
+			{{Text: vimWordFile, Bounds: image.Rect(100, 100, 160, 130)}},
+		}, nil
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the new session read", func(f ports.VimFrame) bool {
+		return !strings.Contains(f.Status, "reading")
+	})
+
+	close(release)
+	sim.press("l")
+	vimFrameShows(sim, "the cursor still on File", func(f ports.VimFrame) bool {
+		return f.Cursor.In(image.Rect(100, 100, 160, 130))
+	})
+}
+
+// TestSimulation_VimSaysWhenAnAccurateReadIsSlow covers an accurate read that
+// takes long, which on macOS is a model compiling for a script met the first
+// time. Past a second and a half a card says so, and it goes once the read
+// lands.
+func TestSimulation_VimSaysWhenAnAccurateReadIsSlow(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	release := make(chan struct{})
+
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, _ image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextAccurate {
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		return [][]ports.TextPiece{
+			{{Text: vimWordFile, Bounds: image.Rect(100, 100, 160, 130)}},
+		}, nil
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the slow read said on screen", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Notice, "Preparing text recognition")
+	})
+
+	close(release)
+	vimFrameShows(sim, "the notice gone once the read lands", func(f ports.VimFrame) bool {
+		return f.Notice == "" && !strings.Contains(f.Status, "reading")
+	})
+}
+
+// TestSimulation_VimJumpByLabel covers s. It takes any number of
+// characters, labels each match over the character after it, and a label
+// jumps there. Return jumps to the nearest match, and Backspace takes back a
+// character.
+func TestSimulation_VimJumpByLabel(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+		"Exit":      image.Rect(100, 200, 160, 230),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("s", "e", "x", "i", "Return")
+	vimFrameShows(sim, "cursor on the E of Exit", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 200, 115, 230) && len(f.Labels) == 0
+	})
+
+	// e matches three times, so the third match would get d after a and s.
+	// d follows the e of Edit, so it is no label, and typing it adds to the
+	// text.
+	sim.press("s", "e")
+	vimFrameShows(sim, "a label on each e, none of them d", func(f ports.VimFrame) bool {
+		return len(f.Labels) == 3 && !slices.ContainsFunc(f.Labels, func(l ports.VimLabel) bool {
+			return l.Text == "d"
+		})
+	})
+
+	sim.press("d")
+	vimFrameShows(sim, "d narrowed the jump to Edit", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, "sed") && len(f.Matches) == 1
+	})
+	sim.press("Escape")
+
+	sim.press("s", "i", "t", "x", "Backspace")
+	vimFrameShows(sim, "a label on each it", func(f ports.VimFrame) bool {
+		return len(f.Labels) == 2 && len(f.Matches) == 2
+	})
+
+	frame, _ := sim.overlay.lastVimFrame()
+	for _, label := range frame.Labels {
+		if label.Bounds.Min.Y == 100 {
+			sim.press(label.Text)
+		}
+	}
+
+	vimFrameShows(sim, "cursor on the i of Edit", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(230, 100, 245, 130)
+	})
+}
+
+// TestSimulation_VimScrollsTheApp covers Ctrl+D. The whole screen is already
+// in view, so it scrolls the app and reads the screen again.
+func TestSimulation_VimScrollsTheApp(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	reads := 0
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextFast {
+			reads++
+		}
+
+		return read(ctx, region, level)
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("Ctrl+d")
+	sim.waitFor("the app scrolled down", func() bool {
+		scrolls := sim.ax.recordedScrolls()
+
+		return len(scrolls) == 1 && scrolls[0].Y < 0
+	})
+	sim.waitFor("the screen read again", func() bool { return reads >= 2 })
+}
+
+// TestSimulation_VimScrollsTheAppSideways covers zl. It scrolls the app right
+// by eight characters without a count and by the count with one, and touches
+// nothing up or down.
+func TestSimulation_VimScrollsTheAppSideways(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("z", "l")
+	sim.waitFor(
+		"the app scrolled sideways",
+		func() bool { return len(sim.ax.recordedScrolls()) == 1 },
+	)
+
+	// A scroll key right after a scroll is a held key's repeat, and dropped.
+	time.Sleep(vimScrollSettleForTest)
+	sim.press("3", "z")
+	vimFrameShows(sim, "the count and z waiting", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, "3z")
+	})
+
+	sim.press("l")
+	sim.waitFor("the app scrolled sideways by the count", func() bool {
+		return len(sim.ax.recordedScrolls()) == 2
+	})
+
+	scrolls := sim.ax.recordedScrolls()
+	if scrolls[0].Y != 0 || scrolls[0].X == 0 || scrolls[1].Y != 0 ||
+		scrolls[1].X*scrolls[1].X >= scrolls[0].X*scrolls[0].X {
+		t.Fatalf("zl then 3zl scrolled %v, want sideways and 3zl shorter", scrolls)
+	}
+}
+
+// TestSimulation_VimDotRepeatsTypedChange covers . after a change typed into
+// the app. The machine never saw the typing, so . must replay it with the
+// command, and change the word under the cursor the same way. A count before
+// . replaces the command's own.
+func TestSimulation_VimDotRepeatsTypedChange(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("0", "w", "c", "i", "w", "x", "Escape")
+	vimFrameShows(sim, "back to normal mode", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL")
+	})
+
+	sim.press("0", ".")
+
+	change := []string{vimKeyExtend, vimKeyExtend, vimKeyExtend, vimKeyExtend, "x"}
+	sim.waitFor("the change repeated on File", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(), slices.Concat(change, change))
+	})
+
+	clicks := sim.ax.recordedClicks()
+	if len(clicks) != 2 || clicks[1].point != image.Pt(103, 115) {
+		t.Fatalf(". did not click the caret before File: %v", clicks)
+	}
+
+	vimFrameShows(sim, "normal mode after the repeat", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL")
+	})
+
+	// 2. is 2ciw, File and the spaces after it, with the x typed again.
+	sim.press("0", "2", ".")
+	sim.waitFor("the change repeated with the count", func() bool {
+		fed := sim.keyFeed.FedKeys()
+		if len(fed) <= 2*len(change) ||
+			!slices.Equal(fed[:2*len(change)], slices.Concat(change, change)) {
+			return false
+		}
+
+		third := fed[2*len(change):]
+		selected := third[:len(third)-1]
+
+		return len(selected) > len(change)-1 && third[len(third)-1] == "x" &&
+			!slices.ContainsFunc(selected, func(k string) bool { return k != vimKeyExtend })
+	})
+}
+
+// vimScrollSettleForTest is longer than vim mode waits after a scroll before
+// it takes another scroll key.
+const vimScrollSettleForTest = 200 * time.Millisecond
+
+// TestSimulation_VimDropsScrollKeysThatRepeatFasterThanAScroll covers a held
+// scroll key. Each scroll holds the keyboard while it settles and the screen
+// is read again, so repeats queued behind one would keep the app scrolling
+// long after the key is let go. The ones that arrive before a scroll has
+// settled are dropped, and a later press scrolls again.
+func TestSimulation_VimDropsScrollKeysThatRepeatFasterThanAScroll(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("Ctrl+d", "Ctrl+d", "Ctrl+d", "Ctrl+d", "Ctrl+d")
+	sim.waitFor("one scroll", func() bool { return len(sim.ax.recordedScrolls()) >= 1 })
+
+	if scrolls := sim.ax.recordedScrolls(); len(scrolls) != 1 {
+		t.Fatalf("five repeats in a row scrolled %d times, want 1", len(scrolls))
+	}
+
+	time.Sleep(vimScrollSettleForTest)
+	sim.press("Ctrl+d")
+	sim.waitFor(
+		"a later press scrolling again",
+		func() bool { return len(sim.ax.recordedScrolls()) == 2 },
+	)
+}
+
+// TestSimulation_VimCountStopsAtFourDigits covers a long count, which would
+// otherwise run a motion for minutes with the keyboard held. A fifth digit is
+// dropped and the motion runs.
+func TestSimulation_VimCountStopsAtFourDigits(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("0", "9", "9", "9", "9", "9")
+	vimFrameShows(sim, "count held at four digits", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, "9999") && !strings.Contains(f.Status, "99999")
+	})
+
+	sim.press("w")
+	vimFrameShows(sim, "the motion ran", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL") && !strings.Contains(f.Status, "9999")
+	})
+}
+
+// TestSimulation_VimMovesBetweenContainers covers containers. Two columns a
+// gutter apart are two containers, the one the cursor is in is outlined, and
+// Ctrl+W l moves to the other.
+func TestSimulation_VimMovesBetweenContainers(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		"Menu":    image.Rect(100, 100, 160, 130),
+		"Article": image.Rect(500, 100, 605, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g")
+	vimFrameShows(sim, "the menu outlined", func(f ports.VimFrame) bool {
+		return f.Container == image.Rect(100, 100, 160, 130)
+	})
+
+	sim.press("Ctrl+w", "l")
+	vimFrameShows(sim, "the article outlined with the cursor in it", func(f ports.VimFrame) bool {
+		return f.Container == image.Rect(500, 100, 605, 130) && f.Cursor.In(f.Container)
+	})
+}
+
+// TestSimulation_VimReachesIcons covers icons. An icon-only button the
+// segment detector finds joins the text as a placeholder once the accurate
+// read lands, w reaches it, Return clicks it, and a yank of its line leaves
+// it out.
+func TestSimulation_VimReachesIcons(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.vision.DetectSegmentsFunc = func(
+		context.Context, image.Rectangle, config.HintsSegmentConfig,
+	) ([]*element.Element, error) {
+		icon, err := element.NewElement(
+			"segment-icon",
+			image.Rect(180, 100, 210, 130),
+			element.RoleButton,
+		)
+
+		return []*element.Element{icon}, err
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the accurate read landed", func(f ports.VimFrame) bool {
+		return !strings.Contains(f.Status, "reading")
+	})
+
+	sim.press("y", "y")
+	sim.waitFor("the line copied without the icon", func() bool {
+		return slices.Equal(sim.clipboard.Written(), []string{vimWordFile})
+	})
+
+	sim.press("0", "w")
+	vimFrameShows(sim, "the cursor on the icon", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(180, 100, 210, 130)
+	})
+
+	sim.press("Return")
+	sim.waitFor("the icon clicked", func() bool {
+		clicks := sim.ax.recordedClicks()
+
+		return len(clicks) == 1 && clicks[0].point == image.Pt(195, 115)
+	})
 }

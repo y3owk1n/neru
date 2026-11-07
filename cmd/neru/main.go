@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/buildinfo"
+	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/configschema"
@@ -75,6 +76,7 @@ func LaunchDaemon(configPath string) {
 	handleAccessibilityPermissionStartup()
 
 	app, appErr := app.New(
+		app.WithLinesHelper(cli.ReadTextLinesCmd.Name()),
 		app.WithConfig(configResult.Config),
 		app.WithWrittenConfig(configResult.Written),
 		app.WithConfigPath(configResult.ConfigPath),

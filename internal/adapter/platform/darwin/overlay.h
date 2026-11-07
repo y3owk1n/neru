@@ -357,4 +357,45 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 /// Hide all monitor select overlay panels.
 void NeruHideMonitorSelectPanels(void);
 
+#pragma mark - Vim
+
+/// Vim surface style
+typedef struct {
+	int fontSize;                 ///< Status bar and lens font size
+	char *fontFamily;             ///< Font family (empty = monospaced system font)
+	char *cursorColor;            ///< Cursor fill
+	char *selectionColor;         ///< Visual selection fill
+	char *matchColor;             ///< Search match underline and current match fill
+	char *containerColor;         ///< Outline of the container the cursor is in
+	char *statusBackgroundColor;  ///< Status bar and lens background
+	char *statusTextColor;        ///< Status bar and lens text
+} VimStyle;
+
+/// Vim surface content. Rectangles are overlay-local with a top-left origin.
+typedef struct {
+	CGRect region;        ///< What was read; the status bar runs along its bottom
+	CGRect cursor;        ///< Character under the cursor (empty = none)
+	int pending;          ///< Draw the cursor as an outline (1) or filled (0)
+	CGRect *selection;    ///< Visual selection, one rectangle per line
+	int selectionCount;   ///< Number of selection rectangles
+	CGRect *matches;      ///< Search matches
+	int matchCount;       ///< Number of matches
+	int currentMatch;     ///< Index of the match under the cursor, or -1
+	CGRect container;     ///< The container the cursor is in (empty = none)
+	char *status;         ///< Status bar text (empty = no bar)
+	char *lensBefore;     ///< Lens text before the cursor's character
+	char *lensAt;         ///< The cursor's character (empty = no lens)
+	char *lensAfter;      ///< Lens text after the cursor's character
+	char **labels;        ///< Jump labels
+	CGRect *labelBounds;  ///< The character each jump label sits on
+	int labelCount;       ///< Number of jump labels
+	char *notice;  ///< A wait to show as a card with a spinner, title and detail split by a newline (empty = none)
+} VimScene;
+
+/// Draw the vim surface, replacing what it drew before.
+void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style);
+
+/// Take the vim surface off the overlay.
+void NeruClearVim(OverlayWindow window);
+
 #endif  // OVERLAY_H

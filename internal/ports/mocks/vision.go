@@ -18,6 +18,7 @@ import (
 type MockVisionPort struct {
 	HealthFunc         func(context.Context) error
 	ReadTextFunc       func(context.Context, image.Rectangle) (string, error)
+	ReadLinesFunc      func(context.Context, image.Rectangle, ports.TextLevel) ([][]ports.TextPiece, error)
 	DetectElementsFunc func(
 		context.Context,
 		image.Rectangle,
@@ -160,6 +161,20 @@ func (m *MockVisionPort) ReadText(ctx context.Context, rect image.Rectangle) (st
 	}
 
 	return "", derrors.New(derrors.CodeNotSupported, "text reading not supported")
+}
+
+// ReadLines implements ports.VisionPort. Without ReadLinesFunc it reports
+// CodeNotSupported, as Linux and Windows do.
+func (m *MockVisionPort) ReadLines(
+	ctx context.Context,
+	region image.Rectangle,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	if m.ReadLinesFunc != nil {
+		return m.ReadLinesFunc(ctx, region, level)
+	}
+
+	return nil, derrors.New(derrors.CodeNotSupported, "reading lines not supported")
 }
 
 // Ensure MockVisionPort implements ports.VisionPort.

@@ -64,6 +64,7 @@ the footnotes below give the mechanism behind its limits.
 | **Secure input detection**    | private macOS API     | always false        | always false              | always false         | always false              |
 | **System cursor hide**        | `CGDisplayHideCursor` | none                | none                      | none                 | none                      |
 | **`monitor_select` mode**     | native panels         | Cairo panels        | Cairo panels              | Cairo panels         | layered panels            |
+| **`vim` mode**                | CALayers on the shared window | none        | none                      | none                 | none                      |
 | **Native hint-search field**  | text view in a key panel | XIM window ⁴        | layer-shell field ⁴       | layer-shell field ⁴  | `EDIT` control in a tool window ⁴ |
 | **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁵ | `BitBlt` ⁵        |
 | **Vision / OCR detection**    | Vision framework      | tesseract and contour ⁶ | tesseract and contour ⁶ | tesseract and contour ⁶ | `Windows.Media.Ocr` and contour ⁶ |
@@ -357,6 +358,14 @@ Mode logic is shared. Only these rows differ, by rendering or element discovery.
 | **Hints**         | Label arrow / tail             | NSBezierPath            | Cairo triangle          | triangle |
 | **Scroll**        | Smooth scroll animation        | continuous              | continuous (X11: whole notches) | 120ths of a notch |
 | **Monitor select**| Whole mode                     | native panels           | Cairo panels            | one layered window per display |
+| **Vim**           | Whole mode                     | Vision line reads with per-character boxes, CALayers on the shared window | none | none |
+
+On macOS vim mode's accurate read runs in a helper process. It is the same
+binary, started with the hidden `read-text-lines` command for each read, and
+the daemon sends it the captured pixels through a pipe. The first time Vision
+meets a script, it compiles a model for it, which takes seconds, and every
+other read in the process waits for the compile. So the daemon itself runs
+only fast reads.
 
 Everything else is the same on all three, including label placement, the
 search badge, label sizing, virtual pointer indicators, transition animations,

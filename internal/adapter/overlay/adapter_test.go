@@ -1331,6 +1331,24 @@ func TestAdapterShowFrame_ReportsAMonitorPickerTheBackendCannotDraw(t *testing.T
 	}
 }
 
+// TestAdapterShowFrame_ReportsAVimSurfaceTheBackendCannotDraw pins the same
+// pattern for vim mode. A backend that cannot draw the surface refuses it, so
+// the mode refuses rather than holding the keyboard over nothing.
+func TestAdapterShowFrame_ReportsAVimSurfaceTheBackendCannotDraw(t *testing.T) {
+	t.Parallel()
+
+	adapter := overlay.NewAdapter(newScreenManager(), testStyles{}, zap.NewNop())
+
+	showErr := adapter.ShowFrame(context.Background(), ports.VimFrame{
+		Screen: image.Rect(0, 0, 100, 100),
+		Region: image.Rect(0, 0, 100, 100),
+		Cursor: image.Rect(10, 10, 20, 20),
+	})
+	if !derrors.IsNotSupported(showErr) {
+		t.Fatalf("ShowFrame() error = %v, want CodeNotSupported", showErr)
+	}
+}
+
 // TestAdapterClearFrame_TakesTheMonitorPanelsDown covers the failure the
 // Indicator work exists to prevent, one surface further. The panels are not on
 // the shared surface, so clearing that surface is not enough to take them off

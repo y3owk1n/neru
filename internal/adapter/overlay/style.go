@@ -24,6 +24,7 @@ type Style struct {
 	Bisect           recursivegrid.Style
 	MonitorSelect    MonitorSelectStyle
 	VirtualPointer   VirtualPointerStyle
+	Vim              VimStyle
 }
 
 // SearchInputLayout is where the hint search input sits and how big it is,
@@ -208,6 +209,7 @@ func (r *StyleResolver) resolve(cfg *config.Config) Style {
 		Bisect:           recursivegrid.BuildStyle(cfg.Bisect.RenderConfig(), r.theme),
 		MonitorSelect:    buildMonitorSelectStyle(cfg, r.theme),
 		VirtualPointer:   buildVirtualPointerStyle(cfg.VirtualPointer, r.theme),
+		Vim:              buildVimStyle(cfg.Vim.UI, r.theme),
 	}
 
 	r.mu.Lock()
@@ -356,6 +358,22 @@ func buildMonitorSelectStyle(cfg *config.Config, theme config.ThemeProvider) Mon
 			config.MonitorSelectSubtitleTextColorLight,
 			config.MonitorSelectSubtitleTextColorDark),
 		HideInScreenShare: cfg.General.HideOverlayInScreenShare,
+	}
+}
+
+// buildVimStyle resolves the vim surface. Its colors come out of the
+// configuration already themed (config.ResolveThemeDefaults), so a theme
+// change resolves them again through ForTheme with no fallback of their own.
+func buildVimStyle(vimUI config.VimUI, theme config.ThemeProvider) VimStyle {
+	return VimStyle{
+		FontSize:              vimUI.FontSize,
+		FontFamily:            ports.ResolveFont(vimUI.FontFamily),
+		CursorColor:           vimUI.CursorColor.ForTheme(theme, "", ""),
+		SelectionColor:        vimUI.SelectionColor.ForTheme(theme, "", ""),
+		MatchColor:            vimUI.MatchColor.ForTheme(theme, "", ""),
+		ContainerColor:        vimUI.ContainerColor.ForTheme(theme, "", ""),
+		StatusBackgroundColor: vimUI.StatusBackgroundColor.ForTheme(theme, "", ""),
+		StatusTextColor:       vimUI.StatusTextColor.ForTheme(theme, "", ""),
 	}
 }
 

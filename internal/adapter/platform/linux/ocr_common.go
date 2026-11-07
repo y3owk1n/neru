@@ -68,6 +68,16 @@ type OCRWord struct {
 	Confidence float64
 }
 
+// OCRSymbol is one character of a line read, with the box of its ink in the
+// image's own coordinates. Line and Word count from 0 in reading order, so the
+// characters of a word share a word number within their line.
+type OCRSymbol struct {
+	Text   string
+	Bounds image.Rectangle
+	Line   int
+	Word   int
+}
+
 // OCRStats describes the work one recognition did, in durations and counts
 // only, so a caller can log it.
 type OCRStats struct {

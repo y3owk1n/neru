@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	infrasystray "github.com/y3owk1n/neru/internal/adapter/systray"
 	textinputadapter "github.com/y3owk1n/neru/internal/adapter/textinput"
+	visionAdapter "github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/systray"
 	"github.com/y3owk1n/neru/internal/app/heldmotion"
@@ -116,6 +117,15 @@ func initializeServicesAndAdapters(app *App) error {
 	)
 	app.accessibility = accAdapter
 	app.overlayPort = overlayAdapter
+
+	// Vim mode reads the screen through the same port, so it is built here
+	// rather than inside the hint service's wiring.
+	if app.vision == nil {
+		app.vision = visionAdapter.NewAdapter(
+			logger,
+			visionAdapter.WithLinesHelper(app.linesHelper),
+		)
+	}
 
 	hintService, gridService, actionService, scrollService, indicators, err := initializeServices(
 		cfg,
@@ -360,6 +370,8 @@ func initializeModeHandler(app *App) {
 		TextInput:              app.textInput,
 		System:                 app.systemPort,
 		Clipboard:              app.clipboard,
+		Vision:                 app.vision,
+		KeyFeed:                app.keyFeed,
 		Motion:                 app.motion.Group("modes"),
 		Events:                 app.events,
 	})

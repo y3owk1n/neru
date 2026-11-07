@@ -17,55 +17,70 @@ import (
 // readTextFromImage reads img, drawn at scale times its size, the way
 // ReadText reads a capture, for a test that cannot put pixels on the screen.
 func readTextFromImage(img *image.RGBA, scale float64) string {
-	width, height := img.Rect.Dx(), img.Rect.Dy()
-	if width == 0 || height == 0 {
-		return ""
-	}
+	text := ""
 
-	// The context keeps its buffer across calls, so the pixels are copied
-	// into C memory rather than handed over as a Go pointer.
-	size := C.size_t(len(img.Pix))
-	buffer := C.malloc(size)
-	defer C.free(buffer)
+	withCGImage(img, func(cgImage C.CGImageRef, space C.CGColorSpaceRef) {
+		width, height := img.Rect.Dx(), img.Rect.Dy()
 
-	C.memcpy(buffer, unsafe.Pointer(&img.Pix[0]), size)
+		scaled := scaledImage(cgImage, space, width, height, scale)
+		if uintptr(scaled) == 0 {
+			return
+		}
+		defer C.CGImageRelease(scaled)
 
-	space := C.CGColorSpaceCreateDeviceRGB()
-	defer C.CGColorSpaceRelease(space)
+		read := C.NeruReadText(scaled)
+		if read == nil {
+			return
+		}
+		defer C.free(unsafe.Pointer(read))
 
-	context := C.CGBitmapContextCreate(
-		buffer,
-		C.size_t(width),
-		C.size_t(height),
-		8,
-		C.size_t(img.Stride),
-		space,
-		C.kCGImageAlphaPremultipliedLast,
-	)
-	if context == 0 {
-		return ""
-	}
-	defer C.CGContextRelease(context)
+		text = C.GoString(read)
+	})
 
-	cgImage := C.CGBitmapContextCreateImage(context)
-	if uintptr(cgImage) == 0 {
-		return ""
-	}
-	defer C.CGImageRelease(cgImage)
+	return text
+}
 
-	scaled := scaledImage(cgImage, space, width, height, scale)
-	if uintptr(scaled) == 0 {
-		return ""
-	}
-	defer C.CGImageRelease(scaled)
+// readLinesFromImage reads img's lines with the accurate recognizer the way
+// ReadLines reads a capture taken at pixelsPerPoint, as if the image showed
+// the screen from its top-left corner.
+func readLinesFromImage(img *image.RGBA, pixelsPerPoint int) []readPiece {
+	var pieces []readPiece
 
-	text := C.NeruReadText(scaled)
-	if text == nil {
-		return ""
-	}
-	defer C.free(unsafe.Pointer(text))
+	withCGImage(img, func(cgImage C.CGImageRef, _ C.CGColorSpaceRef) {
+		bounds := C.CGRectMake(
+			0, 0,
+			C.CGFloat(img.Rect.Dx()/pixelsPerPoint), C.CGFloat(img.Rect.Dy()/pixelsPerPoint),
+		)
 
-	return C.GoString(text)
+		result := C.NeruReadImageLines(cgImage, bounds, 1, nil, C.int64_t(readLinesTestTimeoutMS))
+		if result == nil {
+			return
+		}
+		defer C.NeruFreeTextResult(result)
+
+		for _, piece := range unsafe.Slice(result.pieces, int(result.count)) {
+			pieces = append(pieces, readPiece{
+				text:  C.GoString(piece.text),
+				x:     float64(piece.x),
+				width: float64(piece.width),
+				line:  int(piece.line),
+			})
+		}
+	})
+
+	return pieces
+}
+
+// readLinesTestTimeoutMS bounds a test's read, which loads the accurate
+// model the first time.
+const readLinesTestTimeoutMS = 30000
+
+// readPiece is one piece ReadLines returned, in points.
+type readPiece struct {
+	text  string
+	x     float64
+	width float64
+	line  int
 }
 
 // scaledImage draws image at scale times its width and height with high

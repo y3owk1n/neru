@@ -32,7 +32,8 @@ func WarmBadgeTextWidths(cfg *config.Config) {
 
 	indicatorTexts := cfg.ModeIndicator.Scroll.Text + cfg.ModeIndicator.Hints.Text +
 		cfg.ModeIndicator.Grid.Text + cfg.ModeIndicator.RecursiveGrid.Text +
-		cfg.ModeIndicator.Bisect.Text + cfg.ModeIndicator.MonitorSelect.Text
+		cfg.ModeIndicator.Bisect.Text + cfg.ModeIndicator.MonitorSelect.Text +
+		cfg.ModeIndicator.Vim.Text
 
 	monitorSubtitleFamily := cfg.MonitorSelect.UI.SubtitleFontFamily
 	if monitorSubtitleFamily == "" {

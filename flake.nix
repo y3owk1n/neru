@@ -24,6 +24,8 @@
         pkgs.callPackage ./nix/package.nix {
           inherit version useZip commitHash;
           apple-sdk_15 = pkgs.apple-sdk_15 or null;
+          # go.mod needs Go 1.27, which nixpkgs ships beside an older default.
+          buildGoModule = pkgs.buildGo127Module or pkgs.buildGoModule;
         };
     in
     {

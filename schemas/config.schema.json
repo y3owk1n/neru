@@ -1152,6 +1152,27 @@
             }
           },
           "type": "object"
+        },
+        "vim": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "text": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
         }
       },
       "type": "object"
@@ -1771,6 +1792,49 @@
             },
             "text": {
               "$ref": "#/definitions/solid_color"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "vim": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#vim",
+      "properties": {
+        "capture_scope": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "container_color": {
+              "$ref": "#/definitions/color"
+            },
+            "cursor_color": {
+              "$ref": "#/definitions/color"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "match_color": {
+              "$ref": "#/definitions/color"
+            },
+            "selection_color": {
+              "$ref": "#/definitions/color"
+            },
+            "status_background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "status_text_color": {
+              "$ref": "#/definitions/color"
             }
           },
           "type": "object"

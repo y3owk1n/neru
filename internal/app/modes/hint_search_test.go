@@ -217,7 +217,7 @@ func TestHintsModeRefreshForThemeChange_RedrawsAnOpenSearchBox(t *testing.T) {
 	}
 
 	handler := newHintSearchTestHandler(t, overlayPort, &portmocks.MockTextInputPort{})
-	mode := &HintsMode{baseMode: baseMode{handler: &handler.handlerState}}
+	mode := &HintsMode{handler: &handler.handlerState}
 
 	handler.mu.Lock()
 	defer handler.mu.Unlock()

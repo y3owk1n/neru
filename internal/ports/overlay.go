@@ -185,6 +185,61 @@ func (MonitorSelectFrame) Mode() domain.Mode { return domain.ModeMonitorSelect }
 
 func (MonitorSelectFrame) frame() {}
 
+// VimFrame is the vim surface: the text read off the screen, drawn as the
+// cursor on one character, the visual selection, the search matches, an
+// outline around the container the cursor is in, a status bar along the
+// region read, and a lens showing the word under the cursor as it was read. Every rectangle is in
+// global coordinates. Translating them into the overlay's screen-local space
+// is the adapter's business.
+type VimFrame struct {
+	// Screen is the active display.
+	Screen image.Rectangle
+	// Region is what was read, the focused window or the screen. The status
+	// bar runs along its bottom edge.
+	Region image.Rectangle
+	// Cursor is the character under the cursor. Pending draws it as an
+	// outline, while an operator waits for its motion.
+	Cursor  image.Rectangle
+	Pending bool
+	// Selection is the visual selection, a rectangle per line.
+	Selection []image.Rectangle
+	// Matches are the search matches, or an s jump's while one is typed,
+	// and Current indexes the one the cursor is on, or is -1.
+	Matches []image.Rectangle
+	Current int
+	// Container is the block of text the cursor is in, such as a column or
+	// a card, outlined so the reach of j, k and the ic object shows.
+	Container image.Rectangle
+	// Status is the status bar's text.
+	Status string
+	// Lens is the word under the cursor as read, split around the character
+	// the cursor is on. An empty At shows no lens.
+	Lens VimLens
+	// Labels name an s jump's matches, each drawn over the character after
+	// its match.
+	Labels []VimLabel
+	// Notice is a wait the user should see, drawn as a card with a spinner
+	// near the top of Region: a title, then a detail after a newline. Empty
+	// draws none.
+	Notice string
+}
+
+// VimLabel is one jump target's label and the character it sits on.
+type VimLabel struct {
+	Text   string
+	Bounds image.Rectangle
+}
+
+// VimLens is the word under the vim cursor, split around its character.
+type VimLens struct {
+	Before, At, After string
+}
+
+// Mode names the mode a vim frame draws.
+func (VimFrame) Mode() domain.Mode { return domain.ModeVim }
+
+func (VimFrame) frame() {}
+
 // ScrollFrame is the scroll surface, which draws nothing, because scroll mode
 // is a mode the indicators report, not a surface with content of its own.
 //

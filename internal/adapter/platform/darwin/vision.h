@@ -33,6 +33,42 @@ typedef struct {
 // Caller must call NeruFreeVisionResult() on the returned pointer.
 VisionResult *NeruDetectElements(CGRect detectionRect, NeruVisionConfig config);
 
+// One whitespace-separated word of a read line, with its box in global
+// top-left points.
+typedef struct {
+	char *text;
+	double x;
+	double y;
+	double width;
+	double height;
+	int line;             // index of the line it was read on
+	int word;             // index of the whitespace-separated word it is part of, in its line
+	uint32_t background;  // the color behind its word, 0xRRGGBB
+} NeruTextPiece;
+
+typedef struct {
+	NeruTextPiece *pieces;
+	int count;
+} NeruTextResult;
+
+// Captures rect (global top-left points) at scale times its size and reads its
+// text, with the accurate recognizer when accurate is 1 and the fast one
+// otherwise, language correction off. Waits at most timeoutMS for the capture
+// and as long again for the read. Returns NULL when either fails. Caller frees
+// the result with NeruFreeTextResult.
+NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t timeoutMS);
+
+// Reads image's text as NeruReadLines reads a capture, with bounds as the
+// global rect, in points, the image shows. The helper process that reads text
+// lines accurately reads its image with it, and so do tests. An accurate read
+// also reads with language, such as "zh-Hans", or with the Chinese, Japanese
+// or Korean language the user prefers when it is empty or NULL.
+NeruTextResult *NeruReadImageLines(
+    CGImageRef image, CGRect bounds, int accurate, const char *language, int64_t timeoutMS);
+
+// Frees what NeruReadLines returned.
+void NeruFreeTextResult(NeruTextResult *result);
+
 // Captures raw screen pixels for the main display.
 // Returns a CGImageRef (caller must CFRelease).
 CGImageRef NeruCaptureScreen(void);

@@ -339,6 +339,7 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 @property(nonatomic, strong) CALayer *gridRoot;
 @property(nonatomic, strong) CALayer *hintRoot;
 @property(nonatomic, strong) CALayer *topRoot;
+@property(nonatomic, strong) CALayer *vimRoot;  ///< The vim surface, made on its first draw
 @property(nonatomic, strong) NSMutableArray<NeruCellLayer *> *cellLayers;
 @property(nonatomic, strong) NSMutableArray<NeruItemLayer *> *hintLayers;
 @property(nonatomic, strong) NeruItemLayer *searchInputLayer;
@@ -358,10 +359,11 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 
 - (void)applyStyle:(HintStyle)style;                                                   ///< Apply hint style
 - (NSColor *)colorFromHex:(NSString *)hexString defaultColor:(NSColor *)defaultColor;  ///< Color from hex string
-- (CGFloat)currentBackingScaleFactor;                                                  ///< Current backing scale factor
-- (void)drawItemLayer:(NeruItemLayer *)layer inContext:(CGContextRef)ctx;              ///< Draw one item layer
-- (void)cancelGridTransition;             ///< Stop recursive-grid animation
-- (void)cancelCursorIndicatorTransition;  ///< Stop virtual pointer animation
+- (CALayer *)makeContainerLayer;                                           ///< A grouping layer added on top
+- (CGFloat)currentBackingScaleFactor;                                      ///< Current backing scale factor
+- (void)drawItemLayer:(NeruItemLayer *)layer inContext:(CGContextRef)ctx;  ///< Draw one item layer
+- (void)cancelGridTransition;                                              ///< Stop recursive-grid animation
+- (void)cancelCursorIndicatorTransition;                                   ///< Stop virtual pointer animation
 - (void)startGridTransitionToCells:(NSArray<GridCellItem *> *)cells
                           duration:(CFTimeInterval)duration;  ///< Animate recursive-grid between states
 - (NSArray<GridCellItem *> *)interpolatedGridCellsForProgress:(CGFloat)progress;  ///< Snapshot animated cells
@@ -4336,5 +4338,279 @@ void NeruRehideSystemCursor(void) {
 		_NeruEnableCursorInBackground();
 		CGDisplayShowCursor(kCGNullDirectDisplay);
 		CGDisplayHideCursor(kCGNullDirectDisplay);
+	});
+}
+
+#pragma mark - Vim
+
+/// Copies n rectangles, or returns an empty array.
+static NSArray<NSValue *> *NeruVimRects(CGRect *rects, int count) {
+	NSMutableArray<NSValue *> *out = [NSMutableArray arrayWithCapacity:MAX(count, 0)];
+	for (int i = 0; rects && i < count; i++)
+		[out addObject:[NSValue valueWithRect:NSRectFromCGRect(rects[i])]];
+	return out;
+}
+
+/// A string from C, or an empty one.
+static NSString *NeruVimString(const char *s) { return s ? (@(s) ?: @"") : @""; }
+
+/// Flips a top-left overlay rectangle into the view's bottom-left space.
+static CGRect NeruVimFlip(CGRect r, CGFloat height) {
+	return CGRectMake(r.origin.x, height - r.origin.y - r.size.height, r.size.width, r.size.height);
+}
+
+/// A plain layer filling rect, stroked when border is above zero.
+static CALayer *NeruVimBox(CGRect rect, NSColor *fill, NSColor *stroke, CGFloat border, CGFloat radius) {
+	CALayer *layer = [CALayer layer];
+	layer.frame = rect;
+	layer.backgroundColor = fill.CGColor;
+	layer.borderColor = stroke.CGColor;
+	layer.borderWidth = border;
+	layer.cornerRadius = radius;
+	return layer;
+}
+
+/// A text layer sized to its string, with its top-left at origin.
+static CATextLayer *NeruVimText(NSAttributedString *text, CGPoint origin, CGFloat scale) {
+	CATextLayer *layer = [CATextLayer layer];
+	layer.string = text;
+	layer.contentsScale = scale;
+	NSSize size = [text size];
+	layer.frame = CGRectMake(origin.x, origin.y, ceil(size.width), ceil(size.height));
+	return layer;
+}
+
+/// A card near the top of region, a spinner beside a bold title and a detail
+/// line, for a wait the user should see. notice is the title and the detail
+/// split by a newline.
+static CALayer *NeruVimNotice(
+    NSString *notice, CGRect region, NSFont *font, NSFont *bold, NSColor *fill, NSColor *textColor, NSColor *accent,
+    CGFloat scale) {
+	NSArray<NSString *> *parts = [notice componentsSeparatedByString:@"\n"];
+	NSMutableAttributedString *text = [[NSMutableAttributedString alloc]
+	    initWithString:parts.firstObject
+	        attributes:@{NSFontAttributeName : bold, NSForegroundColorAttributeName : textColor}];
+	if (parts.count > 1) {
+		NSString *detail = [@"\n" stringByAppendingString:[[parts subarrayWithRange:NSMakeRange(1, parts.count - 1)]
+		                                                      componentsJoinedByString:@"\n"]];
+		[text appendAttributedString:[[NSAttributedString alloc] initWithString:detail
+		                                                             attributes:@{
+			                                                             NSFontAttributeName : font,
+			                                                             NSForegroundColorAttributeName :
+			                                                                 [textColor colorWithAlphaComponent:0.75]
+		                                                             }]];
+	}
+
+	CGFloat pad = 14, spinner = 18, gap = 12;
+	NSSize size = [text size];
+	CGFloat w = ceil(size.width) + spinner + gap + 2 * pad, h = MAX(ceil(size.height), spinner) + 2 * pad;
+	CGFloat x = region.origin.x + MAX((region.size.width - w) / 2, 0);
+	// Below the window's title bar, which the read covers.
+	CGFloat y = MAX(CGRectGetMaxY(region) - 56 - h, region.origin.y);
+	CALayer *card = NeruVimBox(CGRectMake(x, y, w, h), fill, accent, 1.5, 10);
+	card.shadowOpacity = 0.25;
+	card.shadowRadius = 12;
+	card.shadowOffset = CGSizeMake(0, -3);
+
+	CAShapeLayer *ring = [CAShapeLayer layer];
+	ring.frame = CGRectMake(pad, (h - spinner) / 2, spinner, spinner);
+	CGPathRef circle = CGPathCreateWithEllipseInRect(CGRectInset(CGRectMake(0, 0, spinner, spinner), 1.5, 1.5), NULL);
+	ring.path = circle;
+	CGPathRelease(circle);
+	ring.fillColor = [NSColor clearColor].CGColor;
+	ring.strokeColor = accent.CGColor;
+	ring.lineWidth = 2.5;
+	ring.lineCap = kCALineCapRound;
+	ring.strokeEnd = 0.7;
+	CABasicAnimation *turn = [CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];
+	turn.fromValue = @0;
+	turn.toValue = @(-2 * M_PI);
+	turn.duration = 0.9;
+	turn.repeatCount = HUGE_VALF;
+	[ring addAnimation:turn forKey:@"turn"];
+	[card addSublayer:ring];
+
+	[card addSublayer:NeruVimText(text, CGPointMake(pad + spinner + gap, (h - ceil(size.height)) / 2), scale)];
+	return card;
+}
+
+void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+
+	CGRect region = scene.region;
+	CGRect cursor = scene.cursor;
+	BOOL pending = scene.pending != 0;
+	NSArray<NSValue *> *selection = NeruVimRects(scene.selection, scene.selectionCount);
+	NSArray<NSValue *> *matches = NeruVimRects(scene.matches, scene.matchCount);
+	CGRect container = scene.container;
+	int current = scene.currentMatch;
+	NSString *status = NeruVimString(scene.status);
+	NSString *lensBefore = NeruVimString(scene.lensBefore);
+	NSString *lensAt = NeruVimString(scene.lensAt);
+	NSString *lensAfter = NeruVimString(scene.lensAfter);
+	NSString *notice = NeruVimString(scene.notice);
+	NSArray<NSValue *> *labelBounds = NeruVimRects(scene.labelBounds, scene.labelCount);
+	NSMutableArray<NSString *> *labels = [NSMutableArray arrayWithCapacity:MAX(scene.labelCount, 0)];
+	for (int i = 0; scene.labels && i < scene.labelCount; i++)
+		[labels addObject:NeruVimString(scene.labels[i])];
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 13;
+	NSString *fontFamily = NeruVimString(style.fontFamily);
+	NSString *cursorHex = NeruVimString(style.cursorColor);
+	NSString *selectionHex = NeruVimString(style.selectionColor);
+	NSString *matchHex = NeruVimString(style.matchColor);
+	NSString *containerHex = NeruVimString(style.containerColor);
+	NSString *statusBgHex = NeruVimString(style.statusBackgroundColor);
+	NSString *statusTextHex = NeruVimString(style.statusTextColor);
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		@autoreleasepool {
+			OverlayView *view = controller.overlayView;
+			if (!view.vimRoot)
+				view.vimRoot = [view makeContainerLayer];
+
+			NSColor *cursorColor = NeruColorFromHexString(cursorHex, [NSColor systemBlueColor]);
+			NSColor *selectionColor = NeruColorFromHexString(selectionHex, [NSColor selectedTextBackgroundColor]);
+			NSColor *matchColor = NeruColorFromHexString(matchHex, [NSColor systemYellowColor]);
+			NSColor *containerColor = NeruColorFromHexString(containerHex, [NSColor clearColor]);
+			NSColor *statusBg = NeruColorFromHexString(statusBgHex, [NSColor windowBackgroundColor]);
+			NSColor *statusText = NeruColorFromHexString(statusTextHex, [NSColor labelColor]);
+			NSFont *font = [view resolveFont:fontFamily size:fontSize bold:NO]
+			                   ?: [NSFont monospacedSystemFontOfSize:fontSize weight:NSFontWeightRegular];
+			NSFont *bold = [view resolveFont:fontFamily size:fontSize bold:YES]
+			                   ?: [NSFont monospacedSystemFontOfSize:fontSize weight:NSFontWeightBold];
+			CGFloat height = view.bounds.size.height;
+			CGFloat scale = [view currentBackingScaleFactor];
+
+			[CATransaction begin];
+			[CATransaction setDisableActions:YES];
+
+			// The notice card is kept across draws while it says the same
+			// thing, so its spinner keeps turning instead of starting over on
+			// every key.
+			NSString *noticeName = [@"notice:" stringByAppendingString:notice];
+			CALayer *keptNotice = nil;
+			for (CALayer *layer in view.vimRoot.sublayers)
+				if (notice.length > 0 && [layer.name isEqualToString:noticeName])
+					keptNotice = layer;
+
+			view.vimRoot.sublayers = nil;
+			CALayer *root = view.vimRoot;
+
+			if (!CGRectIsEmpty(container)) {
+				CGRect r = CGRectInset(NeruVimFlip(container, height), -6, -4);
+				[root addSublayer:NeruVimBox(r, [NSColor clearColor], containerColor, 1.5, 6)];
+			}
+
+			for (NSValue *value in selection) {
+				CGRect r = NeruVimFlip(NSRectToCGRect(value.rectValue), height);
+				[root addSublayer:NeruVimBox(r, selectionColor, [NSColor clearColor], 0, 2)];
+			}
+
+			for (NSUInteger i = 0; i < matches.count; i++) {
+				CGRect r = NeruVimFlip(NSRectToCGRect(matches[i].rectValue), height);
+				if ((int)i == current) {
+					[root addSublayer:NeruVimBox(r, [matchColor colorWithAlphaComponent:0.35], matchColor, 1, 2)];
+				} else {
+					[root addSublayer:NeruVimBox(
+					                      CGRectMake(r.origin.x, r.origin.y - 1, r.size.width, 2), matchColor,
+					                      [NSColor clearColor], 0, 0)];
+				}
+			}
+
+			if (!CGRectIsEmpty(cursor)) {
+				CGRect r = CGRectInset(NeruVimFlip(cursor, height), -1, -1);
+				if (pending) {
+					[root addSublayer:NeruVimBox(r, [NSColor clearColor], cursorColor, 2, 2)];
+				} else {
+					[root addSublayer:NeruVimBox(r, cursorColor, [NSColor clearColor], 0, 2)];
+				}
+			}
+
+			for (NSUInteger i = 0; i < labels.count && i < labelBounds.count; i++) {
+				NSAttributedString *text = [[NSAttributedString alloc]
+				    initWithString:labels[i]
+				        attributes:@{NSFontAttributeName : bold, NSForegroundColorAttributeName : statusText}];
+				CGRect c = NeruVimFlip(NSRectToCGRect(labelBounds[i].rectValue), height);
+				NSSize size = [text size];
+				CGFloat pad = 2;
+				CGRect r = CGRectMake(
+				    c.origin.x, CGRectGetMaxY(c) - ceil(size.height) - pad * 2, ceil(size.width) + pad * 2,
+				    ceil(size.height) + pad * 2);
+				CALayer *badge = NeruVimBox(r, matchColor, [NSColor clearColor], 0, 3);
+				[badge addSublayer:NeruVimText(text, CGPointMake(pad, pad), scale)];
+				[root addSublayer:badge];
+			}
+
+			if (lensAt.length > 0 && !CGRectIsEmpty(cursor)) {
+				NSMutableAttributedString *lens = [[NSMutableAttributedString alloc] init];
+				NSDictionary *plain = @{NSFontAttributeName : font, NSForegroundColorAttributeName : statusText};
+				NSDictionary *mark = @{
+					NSFontAttributeName : bold,
+					NSForegroundColorAttributeName : statusText,
+					NSBackgroundColorAttributeName : cursorColor,
+				};
+				[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensBefore attributes:plain]];
+				[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensAt attributes:mark]];
+				[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensAfter attributes:plain]];
+
+				CGFloat pad = 4;
+				NSSize size = [lens size];
+				CGRect c = NeruVimFlip(cursor, height);
+				CGFloat w = ceil(size.width) + 2 * pad, h = ceil(size.height) + 2 * pad;
+				// Above the cursor, or below it when there is no room above.
+				CGFloat y = CGRectGetMaxY(c) + 6;
+				if (y + h > view.bounds.size.height)
+					y = c.origin.y - 6 - h;
+				CGFloat x = MIN(MAX(c.origin.x - pad, 0), MAX(view.bounds.size.width - w, 0));
+				CALayer *box = NeruVimBox(CGRectMake(x, y, w, h), statusBg, cursorColor, 1, 4);
+				[box addSublayer:NeruVimText(lens, CGPointMake(pad, pad), scale)];
+				[root addSublayer:box];
+			}
+
+			if (status.length > 0 && !CGRectIsEmpty(region)) {
+				NSAttributedString *text = [[NSAttributedString alloc]
+				    initWithString:status
+				        attributes:@{NSFontAttributeName : font, NSForegroundColorAttributeName : statusText}];
+				CGFloat pad = 6;
+				CGFloat h = ceil([text size].height) + 2 * pad;
+				CGRect r = NeruVimFlip(region, height);
+				CGRect bar = CGRectMake(r.origin.x, MAX(r.origin.y, 0), r.size.width, h);
+				CALayer *box = NeruVimBox(bar, statusBg, [NSColor clearColor], 0, 0);
+				[box addSublayer:NeruVimText(text, CGPointMake(pad * 2, pad), scale)];
+				[root addSublayer:box];
+			}
+
+			if (notice.length > 0 && !CGRectIsEmpty(region)) {
+				CALayer *card = NeruVimNotice(
+				    notice, NeruVimFlip(region, height), font, bold, statusBg, statusText, cursorColor, scale);
+				if (keptNotice && CGRectEqualToRect(keptNotice.frame, card.frame))
+					card = keptNotice;
+				card.name = noticeName;
+				[root addSublayer:card];
+			}
+
+			[CATransaction commit];
+
+			NeruOrderOverlayWindowIfDrawable(controller, NO);
+		}
+	});
+}
+
+void NeruClearVim(OverlayWindow window) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		@autoreleasepool {
+			[CATransaction begin];
+			[CATransaction setDisableActions:YES];
+			controller.overlayView.vimRoot.sublayers = nil;
+			[CATransaction commit];
+		}
 	});
 }

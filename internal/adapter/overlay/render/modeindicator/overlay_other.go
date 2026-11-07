@@ -133,6 +133,8 @@ func (o *Overlay) resolveModeConfigLocked(mode string) *config.ModeIndicatorMode
 		return &o.indicatorConfig.RecursiveGrid
 	case "bisect":
 		return &o.indicatorConfig.Bisect
+	case "vim":
+		return &o.indicatorConfig.Vim
 	default:
 		return customModeConfig(o.customLabels, mode)
 	}

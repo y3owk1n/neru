@@ -288,7 +288,7 @@ test-foundation:
         ./internal/domain/hint ./internal/domain/keyvocab \
         ./internal/domain/modecmd ./internal/domain/motion \
         ./internal/domain/parity \
-        ./internal/domain/recursivegrid \
+        ./internal/domain/recursivegrid ./internal/domain/screentext \
         ./internal/domain/bisect \
         ./internal/domain/state ./internal/derrors \
         ./internal/flagref ./internal/supportref ./internal/configschema \

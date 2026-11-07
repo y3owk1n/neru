@@ -1,19 +1,22 @@
 module github.com/y3owk1n/neru
 
-go 1.26.5
+go 1.27
 
-toolchain go1.26.10
+toolchain go1.27.3
 
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/Microsoft/go-winio v0.6.4
 	github.com/atotto/clipboard v0.1.4
+	github.com/clipperhouse/displaywidth v0.11.0
+	github.com/clipperhouse/uax29/v2 v2.7.0
 	github.com/godbus/dbus/v5 v5.2.4
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
 	github.com/tc-hib/go-winres v0.3.3
+	github.com/y3owk1n/fude/vim v0.4.1
 	go.uber.org/goleak v1.3.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.28.0
