@@ -692,3 +692,327 @@ CGContextRef NeruCreateBGRABitmapContext(
 	return CGBitmapContextCreate(
 	    data, width, height, 8, stride, space, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
 }
+
+#pragma mark - Read lines
+
+/// The ranges of the runs of non-whitespace in text.
+static NSArray<NSValue *> *tokenRanges(NSString *text) {
+	NSMutableArray<NSValue *> *ranges = [NSMutableArray array];
+	NSCharacterSet *space = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+	NSUInteger i = 0, n = text.length;
+	while (i < n) {
+		while (i < n && [space characterIsMember:[text characterAtIndex:i]])
+			i++;
+		NSUInteger start = i;
+		while (i < n && ![space characterIsMember:[text characterAtIndex:i]])
+			i++;
+		if (i > start)
+			[ranges addObject:[NSValue valueWithRange:NSMakeRange(start, i - start)]];
+	}
+	return ranges;
+}
+
+/// A captured image's pixels as 8-bit RGBA, for measuring glyphs.
+typedef struct {
+	uint8_t *data;
+	size_t width;
+	size_t height;
+	size_t stride;
+} NeruPixels;
+
+/// Draws image into a buffer the caller frees with free(pixels.data).
+static NeruPixels pixelsOf(CGImageRef image) {
+	NeruPixels px = {0};
+	px.width = CGImageGetWidth(image);
+	px.height = CGImageGetHeight(image);
+	px.stride = px.width * 4;
+	px.data = calloc(px.height, px.stride);
+	if (!px.data)
+		return px;
+	CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+	CGContextRef context = CGBitmapContextCreate(
+	    px.data, px.width, px.height, 8, px.stride, space, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
+	CGColorSpaceRelease(space);
+	if (!context) {
+		free(px.data);
+		px.data = NULL;
+		return px;
+	}
+	CGContextDrawImage(context, CGRectMake(0, 0, px.width, px.height), image);
+	CGContextRelease(context);
+	return px;
+}
+
+/// The luma of the pixel at x, y, top-left origin, from 0 to 255.
+static int lumaAt(NeruPixels px, size_t x, size_t y) {
+	const uint8_t *p = px.data + y * px.stride + x * 4;
+	return (p[0] * 299 + p[1] * 587 + p[2] * 114) / 1000;
+}
+
+/// The columns of a word's box, in pixels, that each of its count glyphs
+/// covers, read from where ink is: a column holds ink when a pixel in it
+/// stands apart from the box's background. Runs of ink columns are glyphs.
+/// More runs than glyphs, as a quote mark's two strokes make, are joined
+/// across the narrowest gaps. Fewer runs, glyphs that touch, return nil.
+/// ink reports the outermost ink columns whatever the count.
+/// The color behind a word: the most common color along its box's edges, at
+/// four bits a channel, as 0xRRGGBB. It is zero when there are no pixels.
+static uint32_t backgroundOf(NeruPixels px, CGRect box) {
+	if (!px.data)
+		return 0;
+
+	size_t x0 = (size_t)MAX(floor(CGRectGetMinX(box)) - 2, 0);
+	size_t x1 = (size_t)MIN(ceil(CGRectGetMaxX(box)) + 2, px.width);
+	size_t y0 = (size_t)MAX(floor(CGRectGetMinY(box)) - 2, 0);
+	size_t y1 = (size_t)MIN(ceil(CGRectGetMaxY(box)) + 2, px.height);
+	if (x1 <= x0 + 1 || y1 <= y0 + 1)
+		return 0;
+
+	uint16_t counts[1 << 12] = {0};
+	uint16_t best = 0;
+	for (size_t i = 0; i < 2 * (x1 - x0) + 2 * (y1 - y0); i++) {
+		// Walk the top and bottom rows, then the left and right columns.
+		size_t width = x1 - x0, height = y1 - y0, x, y;
+		if (i < 2 * width) {
+			x = x0 + i % width;
+			y = i < width ? y0 : y1 - 1;
+		} else {
+			size_t j = i - 2 * width;
+			x = j < height ? x0 : x1 - 1;
+			y = y0 + j % height;
+		}
+		const uint8_t *p = px.data + y * px.stride + x * 4;
+		uint16_t key = (uint16_t)(((p[0] >> 4) << 8) | ((p[1] >> 4) << 4) | (p[2] >> 4));
+		if (counts[key] < UINT16_MAX)
+			counts[key]++;
+		if (counts[key] > counts[best])
+			best = key;
+	}
+
+	uint32_t red = ((best >> 8) & 15) << 4, green = ((best >> 4) & 15) << 4, blue = (best & 15) << 4;
+	return (red << 16) | (green << 8) | blue;
+}
+
+static NSArray<NSValue *> *glyphColumns(NeruPixels px, CGRect box, NSUInteger count, NSRange *ink) {
+	*ink = NSMakeRange(NSNotFound, 0);
+	if (!px.data || count == 0)
+		return nil;
+
+	size_t x0 = (size_t)MAX(floor(CGRectGetMinX(box)) - 2, 0);
+	size_t x1 = (size_t)MIN(ceil(CGRectGetMaxX(box)) + 2, px.width);
+	size_t y0 = (size_t)MAX(floor(CGRectGetMinY(box)), 0);
+	size_t y1 = (size_t)MIN(ceil(CGRectGetMaxY(box)), px.height);
+	if (x1 <= x0 + 1 || y1 <= y0 + 1)
+		return nil;
+
+	// The background is the most common luma along the box's edges.
+	int histogram[256] = {0};
+	for (size_t x = x0; x < x1; x++) {
+		histogram[lumaAt(px, x, y0)]++;
+		histogram[lumaAt(px, x, y1 - 1)]++;
+	}
+	for (size_t y = y0; y < y1; y++) {
+		histogram[lumaAt(px, x0, y)]++;
+		histogram[lumaAt(px, x1 - 1, y)]++;
+	}
+	int background = 0;
+	for (int i = 1; i < 256; i++)
+		if (histogram[i] > histogram[background])
+			background = i;
+
+	NSMutableArray<NSValue *> *runs = [NSMutableArray array];
+	NSInteger start = -1;
+	for (size_t x = x0; x <= x1; x++) {
+		BOOL inked = NO;
+		for (size_t y = y0; x < x1 && y < y1 && !inked; y++)
+			inked = abs(lumaAt(px, x, y) - background) > 64;
+		if (inked && start < 0)
+			start = (NSInteger)x;
+		if (!inked && start >= 0) {
+			[runs addObject:[NSValue valueWithRange:NSMakeRange((NSUInteger)start, x - (NSUInteger)start)]];
+			start = -1;
+		}
+	}
+	if (runs.count == 0)
+		return nil;
+
+	NSRange first = runs.firstObject.rangeValue, last = runs.lastObject.rangeValue;
+	*ink = NSMakeRange(first.location, NSMaxRange(last) - first.location);
+
+	while (runs.count > count) {
+		NSUInteger narrowest = 0;
+		NSUInteger narrowestGap = NSUIntegerMax;
+		for (NSUInteger i = 0; i + 1 < runs.count; i++) {
+			NSUInteger gap = runs[i + 1].rangeValue.location - NSMaxRange(runs[i].rangeValue);
+			if (gap < narrowestGap) {
+				narrowestGap = gap;
+				narrowest = i;
+			}
+		}
+		NSRange a = runs[narrowest].rangeValue, b = runs[narrowest + 1].rangeValue;
+		runs[narrowest] = [NSValue valueWithRange:NSMakeRange(a.location, NSMaxRange(b) - a.location)];
+		[runs removeObjectAtIndex:narrowest + 1];
+	}
+
+	if (runs.count != count)
+		return nil;
+
+	// Each glyph's cell runs to the middle of the gaps either side of its
+	// ink, and the outer ones half a gap past it, so the cells meet where
+	// the characters do.
+	CGFloat halfGap = 1;
+	if (runs.count > 1) {
+		CGFloat gaps = 0;
+		for (NSUInteger i = 0; i + 1 < runs.count; i++)
+			gaps += runs[i + 1].rangeValue.location - NSMaxRange(runs[i].rangeValue);
+		halfGap = MAX(gaps / (runs.count - 1) / 2, 1);
+	}
+	NSMutableArray<NSValue *> *cells = [NSMutableArray arrayWithCapacity:runs.count];
+	for (NSUInteger i = 0; i < runs.count; i++) {
+		NSRange run = runs[i].rangeValue;
+		CGFloat left = i == 0 ? run.location - halfGap : (NSMaxRange(runs[i - 1].rangeValue) + run.location) / 2.0;
+		CGFloat right =
+		    i + 1 == runs.count ? NSMaxRange(run) + halfGap : (NSMaxRange(run) + runs[i + 1].rangeValue.location) / 2.0;
+		[cells
+		    addObject:[NSValue valueWithRange:NSMakeRange((NSUInteger)MAX(left, 0), (NSUInteger)MAX(right - left, 1))]];
+	}
+	return cells;
+}
+
+/// The ranges of the composed characters in text.
+static NSArray<NSValue *> *characterRanges(NSString *text) {
+	NSMutableArray<NSValue *> *ranges = [NSMutableArray array];
+	[text enumerateSubstringsInRange:NSMakeRange(0, text.length)
+	                         options:NSStringEnumerationByComposedCharacterSequences
+	                      usingBlock:^(NSString *piece, NSRange range, NSRange enclosing, BOOL *stop) {
+		                      [ranges addObject:[NSValue valueWithRange:range]];
+	                      }];
+	return ranges;
+}
+
+NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t timeoutMS) {
+	@autoreleasepool {
+		// One deadline covers the capture and the read together.
+		dispatch_time_t deadline = dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC);
+		CGRect captured = CGRectZero;
+		CGImageRef image = NeruCaptureRectAtScale(rect, scale, &captured, timeoutMS);
+		if (!image)
+			return NULL;
+
+		__block NSArray<VNRecognizedTextObservation *> *lines = nil;
+		dispatch_group_t group = dispatch_group_create();
+		CFRetain(image);
+		dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+			VNRecognizeTextRequest *request = [[VNRecognizeTextRequest alloc] init];
+			request.recognitionLevel =
+			    accurate ? VNRequestTextRecognitionLevelAccurate : VNRequestTextRecognitionLevelFast;
+			// Off, since it rewrites paths, flags and identifiers into words.
+			request.usesLanguageCorrection = NO;
+			request.minimumTextHeight = 0;
+			VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:image options:@{}];
+			NSError *error = nil;
+			[handler performRequests:@[ request ] error:&error];
+			if (!error)
+				lines = request.results;
+			CGImageRelease(image);
+		});
+		BOOL finished = dispatch_group_wait(group, deadline) == 0;
+		if (!finished || !lines) {
+			CGImageRelease(image);
+			return NULL;
+		}
+
+		NSMutableArray<NSDictionary *> *pieces = [NSMutableArray array];
+		NeruPixels px = pixelsOf(image);
+		CGFloat imageW = (CGFloat)CGImageGetWidth(image), imageH = (CGFloat)CGImageGetHeight(image);
+		CGFloat toPointsX = captured.size.width / imageW, toPointsY = captured.size.height / imageH;
+		int lineIndex = 0;
+		for (VNRecognizedTextObservation *observation in lines) {
+			VNRecognizedText *top = [[observation topCandidates:1] firstObject];
+			if (!top || top.string.length == 0)
+				continue;
+
+			NSArray<NSValue *> *words = tokenRanges(top.string);
+			for (NSUInteger wordIndex = 0; wordIndex < words.count; wordIndex++) {
+				NSRange range = words[wordIndex].rangeValue;
+				NSError *error = nil;
+				VNRectangleObservation *box = [top boundingBoxForRange:range error:&error];
+				if (error || !box)
+					continue;
+				CGRect b = box.boundingBox;  // normalized, bottom-left origin
+				CGRect pixel = CGRectMake(
+				    b.origin.x * imageW, (1.0 - b.origin.y - b.size.height) * imageH, b.size.width * imageW,
+				    b.size.height * imageH);
+
+				// Vision's word boxes run a little past the ink, and it places
+				// no character exactly, so each glyph is measured from the
+				// pixels, or at least the word is cut to its ink.
+				NSString *word = [top.string substringWithRange:range];
+				NSArray<NSValue *> *characters = characterRanges(word);
+				NSRange ink;
+				NSArray<NSValue *> *glyphs = glyphColumns(px, pixel, characters.count, &ink);
+				uint32_t background = backgroundOf(px, pixel);
+				if (ink.location != NSNotFound) {
+					pixel.origin.x = ink.location;
+					pixel.size.width = ink.length;
+				}
+
+				NSUInteger parts = glyphs ? characters.count : 1;
+				for (NSUInteger i = 0; i < parts; i++) {
+					NSString *text = glyphs ? [word substringWithRange:characters[i].rangeValue] : word;
+					CGFloat x = glyphs ? glyphs[i].rangeValue.location : pixel.origin.x;
+					CGFloat w = glyphs ? glyphs[i].rangeValue.length : pixel.size.width;
+					[pieces addObject:@{
+						@"text" : text,
+						@"x" : @(captured.origin.x + x * toPointsX),
+						@"y" : @(captured.origin.y + pixel.origin.y * toPointsY),
+						@"w" : @(w * toPointsX),
+						@"h" : @(pixel.size.height * toPointsY),
+						@"line" : @(lineIndex),
+						@"word" : @(wordIndex),
+						@"background" : @(background),
+					}];
+				}
+			}
+			lineIndex++;
+		}
+		free(px.data);
+		CGImageRelease(image);
+
+		NeruTextResult *result = calloc(1, sizeof(NeruTextResult));
+		if (!result)
+			return NULL;
+		if (pieces.count == 0)
+			return result;
+
+		result->pieces = calloc(pieces.count, sizeof(NeruTextPiece));
+		if (!result->pieces) {
+			free(result);
+			return NULL;
+		}
+		result->count = (int)pieces.count;
+		for (NSUInteger i = 0; i < pieces.count; i++) {
+			NSDictionary *piece = pieces[i];
+			result->pieces[i] = (NeruTextPiece){
+			    .text = strdup([piece[@"text"] UTF8String]),
+			    .x = [piece[@"x"] doubleValue],
+			    .y = [piece[@"y"] doubleValue],
+			    .width = [piece[@"w"] doubleValue],
+			    .height = [piece[@"h"] doubleValue],
+			    .line = [piece[@"line"] intValue],
+			    .word = [piece[@"word"] intValue],
+			    .background = [piece[@"background"] unsignedIntValue],
+			};
+		}
+		return result;
+	}
+}
+
+void NeruFreeTextResult(NeruTextResult *result) {
+	if (!result)
+		return;
+	for (int i = 0; i < result->count; i++)
+		free(result->pieces[i].text);
+	free(result->pieces);
+	free(result);
+}

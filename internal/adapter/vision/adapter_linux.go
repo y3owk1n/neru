@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Linux answers this port with screen capture (wlr-screencopy on wlroots,
@@ -290,4 +291,14 @@ func (a *Adapter) captureRegion(ctx context.Context, region image.Rectangle) (*i
 // in the detection pass, so copy_text keeps the text the hint has.
 func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
 	return "", derrors.New(derrors.CodeNotSupported, "accurate re-reading is not needed on Linux")
+}
+
+// ReadLines reports CodeNotSupported. Only the macOS recognizer reads a line
+// a piece at a time, which vim mode needs.
+func (a *Adapter) ReadLines(
+	_ context.Context,
+	_ image.Rectangle,
+	_ ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	return nil, derrors.New(derrors.CodeNotSupported, "reading lines is only supported on macOS")
 }

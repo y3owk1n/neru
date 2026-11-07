@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // DetectElements reports not-supported on the platforms with no vision
@@ -76,4 +77,14 @@ func (a *Adapter) Health(_ context.Context) error {
 // ReadText reports CodeNotSupported. This platform has no capture backend.
 func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
 	return "", derrors.New(derrors.CodeNotSupported, "text reading is only supported on macOS")
+}
+
+// ReadLines reports CodeNotSupported. Only the macOS recognizer reads a line
+// a piece at a time, which vim mode needs.
+func (a *Adapter) ReadLines(
+	_ context.Context,
+	_ image.Rectangle,
+	_ ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	return nil, derrors.New(derrors.CodeNotSupported, "reading lines is only supported on macOS")
 }
