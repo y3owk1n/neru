@@ -4339,9 +4339,10 @@ func simWords(t *testing.T, sim *simHarness, words map[string]image.Rectangle) {
 
 // The words and keys the vim journeys read and expect.
 const (
-	vimWordFile  = "File"
-	vimWordEdit  = "Edit"
-	vimKeyExtend = "Shift+Right"
+	vimWordFile      = "File"
+	vimWordEdit      = "Edit"
+	vimKeyExtend     = "Shift+Right"
+	vimKeyExtendBack = "Shift+Left"
 )
 
 // TestSimulation_VimJourney covers vim mode. The screen's words are read as
@@ -4532,6 +4533,33 @@ func TestSimulation_VimChangeTypesIntoTheApp(t *testing.T) {
 
 	if got := sim.app.CurrentMode(); got != domain.ModeVim {
 		t.Fatalf("mode after Escape from typing = %v, want vim", got)
+	}
+}
+
+// TestSimulation_VimDeleteLineStaysInTheField covers dd on an indented last
+// line, such as a search bar under a title. The deletion starts at the line
+// break above, so it clicks the end of the line and selects backwards, rather
+// than clicking the line above, which is outside the field.
+func TestSimulation_VimDeleteLineStaysInTheField(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 140, 260, 170),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "j", "d", "d")
+	sim.waitFor("Edit and the line break before it selected backwards and erased", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(), []string{
+			vimKeyExtendBack, vimKeyExtendBack, vimKeyExtendBack, vimKeyExtendBack,
+			vimKeyExtendBack, "Delete",
+		})
+	})
+
+	clicks := sim.ax.recordedClicks()
+	if len(clicks) != 1 || clicks[0].point != image.Pt(262, 155) {
+		t.Fatalf("dd did not click the end of Edit: %v", clicks)
 	}
 }
 
