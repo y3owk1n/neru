@@ -311,3 +311,9 @@ func scaleRects(rects []image.Rectangle, factor float64) []image.Rectangle {
 
 	return out
 }
+
+// ReadText reports CodeNotSupported. Windows.Media.Ocr already reads text
+// accurately in the detection pass, so copy_text keeps the text the hint has.
+func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
+	return "", derrors.New(derrors.CodeNotSupported, "accurate re-reading is not needed on Windows")
+}

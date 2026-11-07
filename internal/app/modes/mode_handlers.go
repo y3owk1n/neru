@@ -328,7 +328,7 @@ func (h *handlerState) handleHintsLabelKey(key, modifiers string) {
 
 		h.logger.Debug("Hint matched")
 
-		h.rememberSelectedHint(hint.Element().Text())
+		h.rememberSelectedHint(hint.Element())
 
 		if entry, ok := h.selectWith.Lookup(modifiers); modifiers != "" && ok {
 			h.selectWithEntry(center, entry)

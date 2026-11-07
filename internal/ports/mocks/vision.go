@@ -14,9 +14,10 @@ import (
 // MockVisionPort is a mock implementation of ports.VisionPort.
 //
 // Its zero value behaves like every non-macOS platform: CodeNotSupported from
-// all three methods. Set the Func fields to model a working Vision backend.
+// every method. Set the Func fields to model a working Vision backend.
 type MockVisionPort struct {
 	HealthFunc         func(context.Context) error
+	ReadTextFunc       func(context.Context, image.Rectangle) (string, error)
 	DetectElementsFunc func(
 		context.Context,
 		image.Rectangle,
@@ -150,6 +151,16 @@ func (m *MockVisionPort) DetectSegmentsCallCount() int {
 
 // CaptureExcludesOwnWindows implements ports.VisionPort.
 func (m *MockVisionPort) CaptureExcludesOwnWindows() bool { return m.ExcludesOwnWindows }
+
+// ReadText implements ports.VisionPort. Without ReadTextFunc it reports
+// CodeNotSupported, as Linux and Windows do.
+func (m *MockVisionPort) ReadText(ctx context.Context, rect image.Rectangle) (string, error) {
+	if m.ReadTextFunc != nil {
+		return m.ReadTextFunc(ctx, rect)
+	}
+
+	return "", derrors.New(derrors.CodeNotSupported, "text reading not supported")
+}
 
 // Ensure MockVisionPort implements ports.VisionPort.
 var _ ports.VisionPort = (*MockVisionPort)(nil)

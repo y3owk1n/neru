@@ -223,3 +223,14 @@ func TestVisionAdapter_CaptureExcludesOwnWindowsFromWindows10Version2004(t *test
 			got, windows.RtlGetVersion().BuildNumber, want)
 	}
 }
+
+// TestVisionAdapter_ReadTextDefersToThePassOnWindows pins that there is no
+// second, more careful read here. Windows.Media.Ocr already reads text
+// accurately in the detection pass, so ReadText reports CodeNotSupported with
+// no text, and copy_text keeps the text the pass read.
+func TestVisionAdapter_ReadTextDefersToThePassOnWindows(t *testing.T) {
+	text, err := vision.NewAdapter(nil).ReadText(context.Background(), image.Rect(0, 0, 100, 100))
+	if !derrors.IsNotSupported(err) || text != "" {
+		t.Fatalf("ReadText = %q, %v, want no text and CodeNotSupported", text, err)
+	}
+}

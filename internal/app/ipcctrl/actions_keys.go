@@ -329,7 +329,7 @@ func (h *ActionsHandler) handleCopyTextAction(ctx context.Context) ipc.Response 
 		}
 	}
 
-	text, err := h.modesHandler.SelectedHintText()
+	text, err := h.modesHandler.HintTextToCopy(ctx)
 	if err != nil {
 		code := ipc.CodeActionFailed
 		if derrors.IsCode(err, derrors.CodeInvalidInput) {

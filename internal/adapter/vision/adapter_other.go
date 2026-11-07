@@ -72,3 +72,8 @@ func (a *Adapter) Health(_ context.Context) error {
 		"the vision strategy is not implemented on this platform",
 	)
 }
+
+// ReadText reports CodeNotSupported. This platform has no capture backend.
+func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
+	return "", derrors.New(derrors.CodeNotSupported, "text reading is only supported on macOS")
+}

@@ -51,6 +51,16 @@ CGImageRef NeruCaptureDisplayContaining(CGRect rect, CGRect *outBounds, int64_t 
 // NeruCaptureDisplayContaining.
 CGImageRef NeruCaptureRect(CGRect rect, CGRect *outCaptured, int64_t timeoutMS);
 
+// NeruCaptureRectAtScale is NeruCaptureRect with the region captured at scale
+// times its size in points, for reading small text from it.
+CGImageRef NeruCaptureRectAtScale(CGRect rect, double scale, CGRect *outCaptured, int64_t timeoutMS);
+
+// NeruReadText reads the text in image, top to bottom, joining lines with a
+// space. A one-line image is read at several heights, and the read most of
+// them agree on wins. It returns a malloc'd UTF-8 string the caller frees, or NULL when the
+// image holds no text.
+char *NeruReadText(CGImageRef image);
+
 // Creates a bitmap context drawing into data as 32-bit little-endian BGRA with
 // premultiplied alpha, stride bytes per row, in space. The flags are combined
 // here rather than in Go because SDKs disagree on the parameter's C type

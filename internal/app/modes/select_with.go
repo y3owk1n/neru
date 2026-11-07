@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"image"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
@@ -86,22 +88,23 @@ func (h *handlerState) selectWithEntry(point image.Point, entry configpkg.Bindin
 		zap.String("entry", entry.Key),
 		zap.Int("step_count", len(entry.Steps)))
 
+	if !copiesBeforeOtherSteps(entry.Steps) {
+		h.selectedHintRereadable = false
+	}
+
 	h.runSelectionSteps(point, entry.Key, entry.Steps)
 }
 
 // copyTextSelection copies the selected hint's text in a copy_text session.
-// The clipboard is written on a goroutine, off h.mu, so a slow clipboard tool
-// cannot hold up key handling, and its result decides how the session ends. A
-// hint with no text fails at once.
+// The text is read and the clipboard written on a goroutine, off h.mu, since
+// re-reading the hint and a slow clipboard tool can each take a moment, and
+// the result decides how the session ends.
 //
 // Caller must hold h.mu.
 func (h *handlerState) copyTextSelection(point image.Point) {
 	plan := h.newSelectionPlan(point, string(action.NameCopyText))
-	text := h.selectedHintText
 
-	if text == "" || h.clipboard == nil {
-		h.logger.Debug("Selected hint has no text to copy")
-
+	if h.clipboard == nil {
 		plan.failed = true
 		h.finishSelectWith(plan)
 
@@ -111,6 +114,8 @@ func (h *handlerState) copyTextSelection(point image.Point) {
 	h.selectWithInFlight = true
 	h.selectWithSession = plan.session
 
+	hint := h.selectedHintCopy()
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -118,7 +123,11 @@ func (h *handlerState) copyTextSelection(point image.Point) {
 			}
 		}()
 
-		err := h.clipboard.WriteText(h.ctx, text)
+		text, err := h.textToCopy(h.ctx, hint)
+		if err == nil {
+			err = h.clipboard.WriteText(h.ctx, text)
+		}
+
 		if err != nil {
 			h.logger.Warn("Failed to copy the hint's text", zap.Error(err))
 
@@ -307,28 +316,115 @@ func (h *handlerState) selectWithChords() []string {
 // rememberSelectedHint records the hint the user just selected, for copy_text.
 //
 // Caller must hold h.mu.
-func (h *handlerState) rememberSelectedHint(text string) {
+func (h *handlerState) rememberSelectedHint(elem *element.Element) {
 	h.hintSelected = true
-	h.selectedHintText = text
+	h.selectedHintText = elem.Text()
+	h.selectedHintBounds = elem.Bounds()
+	h.selectedHintRereadable = elem.IsVisionOnly()
+	h.selectedHintSession = h.modeSession
 }
 
-// SelectedHintText returns the text of the hint most recently selected, for
-// copy_text. It is refused when no hint has been selected since a mode last
-// opened, and fails when the hint has no text, such as one found by contour
-// or segment.
-func (h *Handler) SelectedHintText() (string, error) {
+// copiesBeforeOtherSteps reports whether every copy_text step in steps comes
+// before any other step, so no click or key a step sends can have changed
+// the screen by the time the hint is read again.
+func copiesBeforeOtherSteps(steps []string) bool {
+	otherRan := false
+
+	for _, step := range steps {
+		fields := strings.Fields(step)
+		copies := len(fields) == 2 && fields[0] == domain.CommandAction &&
+			action.IsCopyTextAction(fields[1])
+
+		if copies && otherRan {
+			return false
+		}
+
+		otherRan = otherRan || !copies
+	}
+
+	return true
+}
+
+// hintCopy is what copying the selected hint needs from the handler, read
+// under h.mu.
+type hintCopy struct {
+	text     string
+	bounds   image.Rectangle
+	selected bool
+	// reread says the hint was found by reading the screen and the hints it
+	// was selected from are still open.
+	reread bool
+}
+
+// hintToCopy reads the selected hint under h.mu.
+func (h *Handler) hintToCopy() hintCopy {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if !h.hintSelected {
+	return h.selectedHintCopy()
+}
+
+// selectedHintCopy reads the selected hint.
+//
+// Caller must hold h.mu.
+func (h *handlerState) selectedHintCopy() hintCopy {
+	return hintCopy{
+		text:     h.selectedHintText,
+		bounds:   h.selectedHintBounds,
+		selected: h.hintSelected,
+		reread: h.selectedHintRereadable &&
+			h.appState.CurrentMode() == domain.ModeHints &&
+			h.modeSession == h.selectedHintSession,
+	}
+}
+
+// textRereadTimeout bounds copy_text's second look at a hint. Past it, the
+// copy uses the text the hint pass read.
+const textRereadTimeout = 500 * time.Millisecond
+
+// HintTextToCopy returns the text of the hint most recently selected, for
+// copy_text. It is refused when no hint has been selected since a mode last
+// opened, and fails when the hint has no text.
+//
+// A hint found by reading the screen is read again while the hints it was
+// selected from are still open, since the pass that placed it reads the whole
+// frame and can misread small text. Once they close, a click may have changed
+// what is under the hint. The pass's text is used then, and when the platform
+// does not read hints again, when the read fails or times out, and when a
+// select_with entry ran another step before copying. The read runs with h.mu
+// released.
+func (h *Handler) HintTextToCopy(ctx context.Context) (string, error) {
+	return h.textToCopy(ctx, h.hintToCopy())
+}
+
+// textToCopy is HintTextToCopy for a hint already read from the handler.
+//
+// Caller must not hold h.mu.
+func (h *handlerState) textToCopy(ctx context.Context, hint hintCopy) (string, error) {
+	if !hint.selected {
 		return "", derrors.New(derrors.CodeInvalidInput, "copy_text needs a selected hint")
 	}
 
-	if h.selectedHintText == "" {
+	if hint.reread && h.hintService != nil {
+		readCtx, cancel := context.WithTimeout(ctx, textRereadTimeout)
+		read, err := h.hintService.ReadText(readCtx, hint.bounds)
+
+		cancel()
+
+		if err == nil && strings.TrimSpace(read) != "" {
+			return read, nil
+		}
+
+		if err != nil && !derrors.IsNotSupported(err) {
+			h.logger.Debug("Re-reading the hint failed, copying the pass's text", zap.Error(err))
+		}
+	}
+
+	if hint.text == "" {
 		return "", derrors.New(derrors.CodeActionFailed, "the selected hint has no text")
 	}
 
-	return h.selectedHintText, nil
+	return hint.text, nil
 }
 
 // isCopyTextAction reports whether a session's --action is copy_text.

@@ -48,7 +48,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Global hotkeys                 | ✅    | ✅        | ⚠️ ⁶              | ⚠️ ⁶          | ✅      |
 | Modifier passthrough           | ✅    | ❌        | ⚠️ ⁶              | ⚠️ ⁶          | ✅      |
 | Sticky modifiers, `action feed` | ✅   | ✅        | ✅                | ✅            | ✅      |
-| Copy a hint's text (`copy_text`) | ✅  | ⚠️ ¹⁴     | ⚠️ ¹⁴             | ⚠️ ¹⁴         | ✅      |
+| Copy a hint's text (`copy_text`) | ✅ ¹⁵ | ⚠️ ¹⁴ ¹⁵ | ⚠️ ¹⁴ ¹⁵         | ⚠️ ¹⁴ ¹⁵     | ✅ ¹⁵   |
 | Per-app config                 | ✅    | ✅        | ⚠️ ⁷              | ⚠️ ⁷          | ✅      |
 | Screen capture for hints       | ✅    | ⚠️ ¹²     | ⚠️ ¹²             | ⚠️ ⁸ ¹²       | ✅      |
 | Tray icon                      | ✅    | ✅        | ✅                | ✅            | ✅      |
@@ -151,6 +151,16 @@ names the tools to install. Without one, `neru action copy_text` fails with
 `ERR_NOT_SUPPORTED`, and a copy from hints mode copies nothing and logs a
 warning. Neru looks for the tool on every copy, so one installed while it runs
 works right away.
+
+¹⁵ **How `copy_text` reads a hint found on screen differs by platform.**
+On macOS, hints mode places those hints from one read of the whole screen,
+and that read gets small text wrong. While hints mode is open, `copy_text`
+reads the hint's own box again, enlarged, and copies that. It also gives
+`contour` and `segment` hints, which carry no text of their own, something to
+copy. Once hints mode has closed, as for an `--on-exit` copy after a click, it
+copies what the hints pass read. Linux and Windows always copy what the hints
+pass read, since their OCR reads small UI text word for word from the whole
+screen. `contour` and `segment` hints there have nothing to copy.
 
 **Windows on ARM** draws overlays with GDI, the CPU fallback, instead of
 Direct2D.
