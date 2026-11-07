@@ -62,6 +62,7 @@ var x11DisplayCalls = map[string]struct{}{
 // assumption.
 var x11ConnectionFreeCalls = map[string]struct{}{
 	"CString":           {},
+	"KeySym":            {},
 	"XStringToKeysym":   {},
 	"free":              {},
 	"int":               {},

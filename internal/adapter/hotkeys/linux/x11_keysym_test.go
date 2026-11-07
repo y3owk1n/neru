@@ -144,6 +144,51 @@ func TestX11KeysymFor_ExistingSpellings(t *testing.T) {
 	}
 }
 
+// TestX11KeysymFor_Symbols pins the symbol keys the configuration reference
+// lists, and the shifted characters it says Shift plus a symbol is written as
+// ("Shift+:"). XStringToKeysym takes X11 names such as "semicolon", not the
+// character itself, so passing it ";" returned no keysym and every symbol
+// hotkey failed to grab. The keysyms are the X11 protocol values from
+// keysymdef.h, written as literals so a lookup that drifts from the protocol
+// fails here.
+func TestX11KeysymFor_Symbols(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		key  string
+		want uint32
+	}{
+		{name: "grave", key: "`", want: 0x0060},
+		{name: "minus", key: "-", want: 0x002D},
+		{name: "equal", key: "=", want: 0x003D},
+		{name: "left bracket", key: "[", want: 0x005B},
+		{name: "right bracket", key: "]", want: 0x005D},
+		{name: "backslash", key: `\`, want: 0x005C},
+		{name: "semicolon", key: ";", want: 0x003B},
+		{name: "apostrophe", key: "'", want: 0x0027},
+		{name: "comma", key: ",", want: 0x002C},
+		{name: "period", key: ".", want: 0x002E},
+		{name: "slash", key: "/", want: 0x002F},
+		{name: "shifted semicolon", key: ":", want: 0x003A},
+		{name: "shifted minus", key: "_", want: 0x005F},
+		{name: "shifted slash", key: "?", want: 0x003F},
+		{name: "shifted grave", key: "~", want: 0x007E},
+		{name: "shifted one", key: "!", want: 0x0021},
+		{name: "digit", key: "0", want: 0x0030},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := uint32(x11KeysymFor(testCase.key)); got != testCase.want {
+				t.Fatalf("x11KeysymFor(%q) = %#x, want %#x", testCase.key, got, testCase.want)
+			}
+		})
+	}
+}
+
 // TestX11KeysymFor_FunctionKeys walks the whole function-key range rather than
 // sampling it. F1-F24 are the one group the lookup leaves to XStringToKeysym,
 // because X11's own name for each of them is the name Neru writes. Restating 24
