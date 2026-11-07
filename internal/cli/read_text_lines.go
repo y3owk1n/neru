@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // ReadTextLinesFunc is set by main to serve ReadTextLinesCmd: read one request
@@ -23,7 +25,7 @@ var ReadTextLinesCmd = &cobra.Command{
 	Args:   cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if ReadTextLinesFunc == nil {
-			return nil
+			return derrors.New(derrors.CodeNotSupported, "this build cannot read text lines")
 		}
 
 		return ReadTextLinesFunc(cmd.Context(), os.Stdin, os.Stdout)

@@ -80,7 +80,10 @@ type VisionPort interface {
 	// fast one misreads it, and its first use loads a model that can take
 	// seconds, during which other reads in the process wait. The caller
 	// bounds the read with ctx. The text is screen content and must never be
-	// logged. Platforms without it report CodeNotSupported.
+	// logged. Platforms without it report CodeNotSupported, for any region.
+	// An empty region captures nothing, so it asks whether lines can be read
+	// at all: CodeNotSupported where they cannot, CodeInvalidInput where they
+	// can.
 	ReadLines(ctx context.Context, region image.Rectangle, level TextLevel) ([][]TextPiece, error)
 
 	// CaptureExcludesOwnWindows reports whether a capture leaves Neru's own
