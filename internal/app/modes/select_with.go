@@ -165,7 +165,11 @@ func (h *handlerState) selectWithPending() bool {
 //
 // Caller must hold h.mu.
 func (h *handlerState) finishSelectWith(plan selectWithPlan, stepsRan bool) {
-	h.selectWithInFlight = false
+	// Only this selection's own guard is cleared. A later session may have a
+	// selection of its own running.
+	if h.selectWithSession == plan.session {
+		h.selectWithInFlight = false
+	}
 
 	if h.modeSession != plan.session {
 		if h.modeSession == plan.session+1 && h.appState.CurrentMode() == domain.ModeIdle {
