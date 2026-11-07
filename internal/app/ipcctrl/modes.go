@@ -57,6 +57,7 @@ var activationMessages = map[domain.Mode]string{
 	domain.ModeMonitorSelect: "monitor_select mode activated",
 	domain.ModeIdle:          "idle mode activated",
 	domain.ModeCustom:        "custom mode activated",
+	domain.ModeVim:           "vim mode activated",
 }
 
 // activationHandler answers a mode command by entering the mode it names.

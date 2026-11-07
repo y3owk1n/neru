@@ -1,0 +1,530 @@
+// Package screentext lays the words read off the screen out as text, so the
+// vim grammar can move over the screen as it moves over a buffer. Each byte
+// of the text maps back to the pixels it was read from.
+package screentext
+
+import (
+	"image"
+	"math"
+	"slices"
+	"sort"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/y3owk1n/fude/vim"
+)
+
+const (
+	// maxBlankLines is the most blank lines one vertical gap becomes. One is
+	// what paragraph motions need, and more is a picture's empty space.
+	maxBlankLines = 2
+	// halfDivisor halves a length to find a middle.
+	halfDivisor = 2
+	// blankLineHeight is the share of a line's pitch a blank line's box
+	// covers, as a fraction blankLineNumerator over blankLineDenominator.
+	blankLineNumerator   = 2
+	blankLineDenominator = 3
+)
+
+// Word is one word read off the screen, with its bounds in global
+// coordinates. Boxes, when it has one per rune of Text, are where each rune
+// was read. Without them each rune gets an equal share of Bounds. Background
+// is the color behind it as 0xRRGGBB, or zero when unknown.
+type Word struct {
+	Text       string
+	Bounds     image.Rectangle
+	Boxes      []image.Rectangle
+	Background uint32
+}
+
+// Container is a block of the screen's text that belongs together, such as
+// a column, a sidebar or a card: where it is on screen, and the bytes of the
+// text that are its own.
+type Container struct {
+	Bounds     image.Rectangle
+	Start, End int
+}
+
+// Text is the screen as lines of words. It implements vim.Text.
+type Text struct {
+	s          string
+	starts     []int             // byte offset where each line starts
+	boxes      []image.Rectangle // per byte, the pixels it was read from
+	words      []image.Rectangle // every word's bounds
+	containers []Container
+}
+
+// New lays words out the way the screen shows them, as a buffer vim moves
+// over as it would a file of that text. Words that belong together, a column,
+// a sidebar or a card, are a container, and each container is laid out as a
+// block of its own, in reading order, with a blank line before the next, so
+// motions stay inside the block being read. Within a container, a word joins
+// the line whose vertical span covers its vertical center, and words on a
+// line sort left to right. Each word starts at the column its left edge is
+// at, counted in the width of one character from the container's left edge,
+// so indentation and wide gaps become spaces and columns line up from line to
+// line for j and k. A gap between two lines that leaves room for more becomes
+// blank lines, which is where paragraphs end. The padding is not text the app
+// has.
+func New(words []Word) *Text {
+	kept := slices.DeleteFunc(slices.Clone(words), func(word Word) bool {
+		return strings.TrimSpace(word.Text) == "" || word.Bounds.Empty()
+	})
+
+	text := &Text{}
+	cell := cellWidth(kept)
+
+	var (
+		builder strings.Builder
+		last    image.Rectangle
+	)
+
+	for index, group := range findContainers(kept, cell) {
+		bounds := boundsOf(group)
+
+		if index > 0 {
+			text.newline(&builder, image.Rect(last.Max.X, last.Min.Y, last.Max.X+1, last.Max.Y))
+			text.starts = append(text.starts, builder.Len())
+			text.newline(
+				&builder,
+				image.Rect(bounds.Min.X, bounds.Min.Y-cell, bounds.Min.X+cell, bounds.Min.Y),
+			)
+		}
+
+		start := builder.Len()
+		last = text.addBlock(&builder, group, cell)
+		text.containers = append(
+			text.containers,
+			Container{Bounds: bounds, Start: start, End: builder.Len()},
+		)
+	}
+
+	text.s = builder.String()
+	if len(text.starts) == 0 {
+		text.starts = []int{0}
+	}
+
+	return text
+}
+
+// Edit returns the text with edits made, sorted and apart, at offsets in t,
+// as vim.Host's Apply makes them. An inserted rune takes the box of the
+// character it was inserted before, since nothing on screen shows it yet.
+// The containers go with it, since their bytes moved, until the screen is
+// read again.
+func (t *Text) Edit(edits []vim.Edit) *Text {
+	out := &Text{words: t.words}
+
+	var builder strings.Builder
+
+	from := 0
+
+	for _, edit := range edits {
+		builder.WriteString(t.s[from:edit.Start])
+		out.boxes = append(out.boxes, t.boxes[from:edit.Start]...)
+
+		box := t.boxAt(edit.Start)
+		for range len(edit.Text) {
+			out.boxes = append(out.boxes, box)
+		}
+
+		builder.WriteString(edit.Text)
+
+		from = edit.End
+	}
+
+	builder.WriteString(t.s[from:])
+	out.boxes = append(out.boxes, t.boxes[from:]...)
+	out.s = builder.String()
+
+	out.starts = []int{0}
+	for offset := range len(out.s) {
+		if out.s[offset] == '\n' {
+			out.starts = append(out.starts, offset+1)
+		}
+	}
+
+	return out
+}
+
+// AppRunes counts the characters of [start, end) the app on screen has: every
+// rune but the spaces before a line's first word, which stand for where the
+// line starts on screen rather than for text.
+func (t *Text) AppRunes(start, end int) int {
+	end = min(end, len(t.s))
+	count := 0
+
+	for pos := start; pos < end; {
+		char, size := utf8.DecodeRuneInString(t.s[pos:])
+		if char != ' ' || strings.TrimLeft(t.s[t.starts[t.LineOf(pos)]:pos], " ") != "" {
+			count++
+		}
+
+		pos += size
+	}
+
+	return count
+}
+
+// Words returns the bounds of every word, in reading order.
+func (t *Text) Words() []image.Rectangle { return t.words }
+
+// Containers returns the containers, in reading order.
+func (t *Text) Containers() []Container { return t.containers }
+
+// ContainerAt returns the index of the container whose bytes hold pos, or
+// false when none does, as on the blank line between two.
+func (t *Text) ContainerAt(pos int) (int, bool) {
+	for index, container := range t.containers {
+		if pos >= container.Start && pos < max(container.End, container.Start+1) {
+			return index, true
+		}
+	}
+
+	return 0, false
+}
+
+// NearestIn returns the byte of container index whose pixels lie closest to
+// point.
+func (t *Text) NearestIn(index int, point image.Point) int {
+	container := t.containers[index]
+	best, bestDistance := container.Start, -1
+
+	for offset := container.Start; offset < container.End; offset++ {
+		box := t.boxes[offset]
+		if t.s[offset] == '\n' {
+			continue
+		}
+
+		dx := max(box.Min.X-point.X, 0, point.X-box.Max.X)
+		dy := max(box.Min.Y-point.Y, 0, point.Y-box.Max.Y)
+
+		distance := dx*dx + dy*dy
+		if bestDistance < 0 || distance < bestDistance {
+			best, bestDistance = offset, distance
+		}
+	}
+
+	return best
+}
+
+// String returns the whole text.
+func (t *Text) String() string { return t.s }
+
+// Len returns the text's length in bytes.
+func (t *Text) Len() int { return len(t.s) }
+
+// Slice returns the bytes from start to end.
+func (t *Text) Slice(start, end int) string { return t.s[start:end] }
+
+// Lines returns how many lines the text has.
+func (t *Text) Lines() int { return len(t.starts) }
+
+// LineStart returns the byte offset where line starts.
+func (t *Text) LineStart(line int) int { return t.starts[line] }
+
+// LineOf returns the line that holds pos.
+func (t *Text) LineOf(pos int) int {
+	return sort.Search(len(t.starts), func(line int) bool { return t.starts[line] > pos }) - 1
+}
+
+// Box returns the pixels the byte at pos was read from, or false past the
+// end of the text.
+func (t *Text) Box(pos int) (image.Rectangle, bool) {
+	if pos < 0 || pos >= len(t.boxes) {
+		return image.Rectangle{}, false
+	}
+
+	return t.boxes[pos], true
+}
+
+// Point returns the center of the byte at pos, clamped into the text.
+func (t *Text) Point(pos int) (image.Point, bool) {
+	if len(t.boxes) == 0 {
+		return image.Point{}, false
+	}
+
+	box, _ := t.Box(min(max(pos, 0), len(t.boxes)-1))
+
+	return box.Min.Add(box.Size().Div(halfDivisor)), true
+}
+
+// Nearest returns the byte whose pixels lie closest to point.
+func (t *Text) Nearest(point image.Point) int {
+	best, bestDistance := 0, -1
+
+	for offset, box := range t.boxes {
+		if t.s[offset] == '\n' {
+			continue
+		}
+
+		dx := max(box.Min.X-point.X, 0, point.X-box.Max.X)
+		dy := max(box.Min.Y-point.Y, 0, point.Y-box.Max.Y)
+
+		distance := dx*dx + dy*dy
+		if bestDistance < 0 || distance < bestDistance {
+			best, bestDistance = offset, distance
+		}
+	}
+
+	return best
+}
+
+// addBlock lays out one container's words as lines, and returns the box of
+// the last word written.
+func (t *Text) addBlock(builder *strings.Builder, words []Word, cell int) image.Rectangle {
+	sort.SliceStable(words, func(a, b int) bool { return centerY(words[a]) < centerY(words[b]) })
+
+	lines := groupLines(words)
+	pitch := linePitch(lines)
+	left := leftEdge(words)
+
+	for index, line := range lines {
+		sort.SliceStable(
+			line,
+			func(a, b int) bool { return line[a].Bounds.Min.X < line[b].Bounds.Min.X },
+		)
+
+		if index > 0 {
+			t.breakLine(builder, lines[index-1], line, left, cell, pitch)
+		}
+
+		t.starts = append(t.starts, builder.Len())
+		t.addLine(builder, line, left, cell)
+	}
+
+	last := lines[len(lines)-1]
+
+	return last[len(last)-1].Bounds
+}
+
+// breakLine ends the line before next, and adds the blank lines the gap
+// between their tops leaves room for at pitch.
+func (t *Text) breakLine(builder *strings.Builder, prev, next []Word, left, cell, pitch int) {
+	last := prev[len(prev)-1].Bounds
+	t.newline(builder, image.Rect(last.Max.X, last.Min.Y, last.Max.X+1, last.Max.Y))
+
+	top, prevTop := lineTop(next), lineTop(prev)
+
+	for blank := range blankLines(top-prevTop, pitch) {
+		y := prevTop + (blank+1)*pitch
+
+		t.starts = append(t.starts, builder.Len())
+		t.newline(
+			builder,
+			image.Rect(left, y, left+cell, y+pitch*blankLineNumerator/blankLineDenominator),
+		)
+	}
+}
+
+// addLine writes a line's words, each at its column, with the padding before
+// it sharing the real gap on screen, so a place on the padding is a place
+// between the two words.
+func (t *Text) addLine(builder *strings.Builder, line []Word, left, cell int) {
+	column, from := 0, left
+
+	for index, word := range line {
+		pad := int(math.Round(float64(word.Bounds.Min.X-left)/float64(cell))) - column
+		if index > 0 {
+			pad = max(pad, 1)
+		}
+
+		pad = max(pad, 0)
+		gap := max(word.Bounds.Min.X-from, pad)
+
+		for space := range pad {
+			start, end := from+gap*space/pad, from+gap*(space+1)/pad
+
+			builder.WriteByte(' ')
+
+			t.boxes = append(
+				t.boxes,
+				image.Rect(start, word.Bounds.Min.Y, max(end, start+1), word.Bounds.Max.Y),
+			)
+			column++
+		}
+
+		from = word.Bounds.Max.X
+
+		t.addWord(builder, word)
+		t.words = append(t.words, word.Bounds)
+		column += utf8.RuneCountInString(strings.Join(strings.Fields(word.Text), " "))
+	}
+}
+
+// newline writes a line break with the box it shows at.
+func (t *Text) newline(builder *strings.Builder, box image.Rectangle) {
+	builder.WriteByte('\n')
+
+	t.boxes = append(t.boxes, box)
+}
+
+// addWord writes word, each rune with the box it was read from, or else an
+// equal share of the word's width.
+func (t *Text) addWord(builder *strings.Builder, word Word) {
+	text := strings.Join(strings.Fields(word.Text), " ")
+	count := utf8.RuneCountInString(text)
+	bounds := word.Bounds
+	read := len(word.Boxes) == count && text == word.Text
+	index := 0
+
+	for _, char := range text {
+		box := image.Rect(
+			bounds.Min.X+bounds.Dx()*index/count,
+			bounds.Min.Y,
+			max(bounds.Min.X+bounds.Dx()*index/count+1, bounds.Min.X+bounds.Dx()*(index+1)/count),
+			bounds.Max.Y,
+		)
+		if read {
+			box = word.Boxes[index]
+		}
+
+		for range utf8.RuneLen(char) {
+			t.boxes = append(t.boxes, box)
+		}
+
+		builder.WriteRune(char)
+
+		index++
+	}
+}
+
+// boxAt is the box of the byte at pos, or of the last byte past the end.
+func (t *Text) boxAt(pos int) image.Rectangle {
+	if len(t.boxes) == 0 {
+		return image.Rectangle{}
+	}
+
+	return t.boxes[min(max(pos, 0), len(t.boxes)-1)]
+}
+
+// groupLines puts words sorted top to bottom into lines.
+func groupLines(words []Word) [][]Word {
+	var lines [][]Word
+
+	for _, word := range words {
+		if count := len(lines); count > 0 && sameLine(lines[count-1], word) {
+			lines[count-1] = append(lines[count-1], word)
+
+			continue
+		}
+
+		lines = append(lines, []Word{word})
+	}
+
+	return lines
+}
+
+// leftEdge is the leftmost word's left edge, or zero with no words.
+func leftEdge(words []Word) int {
+	if len(words) == 0 {
+		return 0
+	}
+
+	left := words[0].Bounds.Min.X
+	for _, word := range words {
+		left = min(left, word.Bounds.Min.X)
+	}
+
+	return left
+}
+
+// cellWidth is the width of one character: the median distance from one
+// character's left edge to the next where each was read, or else the median
+// share of a word's width each of its characters has.
+func cellWidth(words []Word) int {
+	var samples []int
+
+	for _, word := range words {
+		runes := utf8.RuneCountInString(word.Text)
+
+		if len(word.Boxes) > 1 && len(word.Boxes) == runes {
+			for index := 1; index < runes; index++ {
+				if advance := word.Boxes[index].Min.X - word.Boxes[index-1].Min.X; advance > 0 {
+					samples = append(samples, advance)
+				}
+			}
+
+			continue
+		}
+
+		if runes > 0 {
+			samples = append(samples, max(word.Bounds.Dx()/runes, 1))
+		}
+	}
+
+	if len(samples) == 0 {
+		return 1
+	}
+
+	slices.Sort(samples)
+
+	return max(samples[len(samples)/halfDivisor], 1)
+}
+
+// linePitch is how far apart two lines in a row are: the smallest distance
+// from one line's top to the next's that is at least a line's height, since
+// a paragraph only ever adds to it, or a line's height when no two lines
+// are that far apart.
+func linePitch(lines [][]Word) int {
+	heights := make([]int, 0, len(lines))
+
+	for _, line := range lines {
+		heights = append(heights, lineBottom(line)-lineTop(line))
+	}
+
+	if len(heights) == 0 {
+		return 1
+	}
+
+	slices.Sort(heights)
+	height := max(heights[len(heights)/halfDivisor], 1)
+	pitch := 0
+
+	for index := 1; index < len(lines); index++ {
+		distance := lineTop(lines[index]) - lineTop(lines[index-1])
+		if distance >= height && (pitch == 0 || distance < pitch) {
+			pitch = distance
+		}
+	}
+
+	if pitch == 0 {
+		return height
+	}
+
+	return pitch
+}
+
+// blankLines is how many blank lines a gap of dy between two lines' tops
+// leaves room for at pitch.
+func blankLines(dy, pitch int) int {
+	return min(max(int(math.Round(float64(dy)/float64(pitch)))-1, 0), maxBlankLines)
+}
+
+func lineTop(line []Word) int {
+	top := line[0].Bounds.Min.Y
+	for _, word := range line[1:] {
+		top = min(top, word.Bounds.Min.Y)
+	}
+
+	return top
+}
+
+func lineBottom(line []Word) int {
+	bottom := line[0].Bounds.Max.Y
+	for _, word := range line[1:] {
+		bottom = max(bottom, word.Bounds.Max.Y)
+	}
+
+	return bottom
+}
+
+func centerY(word Word) int { return (word.Bounds.Min.Y + word.Bounds.Max.Y) / halfDivisor }
+
+// sameLine reports whether word's vertical center falls inside the line's
+// span.
+func sameLine(line []Word, word Word) bool {
+	center := centerY(word)
+
+	return center >= lineTop(line) && center < lineBottom(line)
+}

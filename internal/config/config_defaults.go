@@ -276,6 +276,9 @@ const (
 	// DefaultStickyModifiersYOffset is the default Y offset for the sticky modifiers indicator.
 	DefaultStickyModifiersYOffset = 20
 
+	// DefaultVimFontSize is the default font size of vim mode's status bar.
+	DefaultVimFontSize = 13
+
 	// DefaultMonitorSelectFontSize is the default font size for monitor select labels.
 	DefaultMonitorSelectFontSize = 96
 	// DefaultMonitorSelectSubtitleFontSize is the default font size for monitor select subtitles.
@@ -300,6 +303,7 @@ func newDefaultConfig() *Config {
 		Grid:            defaultGrid(),
 		RecursiveGrid:   defaultRecursiveGrid(),
 		Bisect:          defaultBisect(),
+		Vim:             defaultVim(),
 		VirtualPointer:  defaultVirtualPointer(),
 		MouseAction:     defaultMouseAction(),
 		ModeIndicator:   defaultModeIndicator(),
@@ -751,6 +755,7 @@ func defaultModeIndicator() ModeIndicatorConfig {
 		RecursiveGrid: defaultModeIndicatorMode(indicatorHidden, "Recursive Grid"),
 		Bisect:        defaultModeIndicatorMode(indicatorHidden, "Bisect"),
 		MonitorSelect: defaultModeIndicatorMode(indicatorHidden, "Monitor Select"),
+		Vim:           defaultModeIndicatorMode(indicatorHidden, "Vim"),
 		UI: ModeIndicatorUI{
 			FontSize:         DefaultScrollFontSize,
 			FontFamily:       "",
@@ -783,6 +788,23 @@ func defaultStickyModifiers() StickyModifiersConfig {
 			BorderRadius:     DefaultStickyModifiersBorderRadius,
 			IndicatorXOffset: DefaultStickyModifiersXOffset,
 			IndicatorYOffset: DefaultStickyModifiersYOffset,
+		},
+	}
+}
+
+func defaultVim() VimConfig {
+	return VimConfig{
+		Enabled:      true,
+		CaptureScope: domain.CaptureScopeWindow,
+		UI: VimUI{
+			FontSize:              DefaultVimFontSize,
+			FontFamily:            "",
+			CursorColor:           Color{},
+			SelectionColor:        Color{},
+			MatchColor:            Color{},
+			ContainerColor:        Color{},
+			StatusBackgroundColor: Color{},
+			StatusTextColor:       Color{},
 		},
 	}
 }

@@ -22,7 +22,7 @@ On Linux, Neru supports X11 and the Wayland desktops listed in
 - **Alpha**: core navigation works, but hint coverage is incomplete and per-app
   config does not re-apply on focus change.
 
-Windows has no known gaps, and Linux has one, under [Known gaps](#known-gaps).
+Windows has one known gap and Linux has two, under [Known gaps](#known-gaps).
 Both stay Beta because CI proves them rather than daily use. A Beta platform
 becomes Stable after six releases in a row with no bug filed against it alone.
 
@@ -42,6 +42,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Menu bar, Dock and other system surfaces in hints | ✅ | ➖ | ➖          | ➖            | ➖      |
 | Scroll mode                    | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Monitor select                 | ✅    | ✅        | ✅                | ✅            | ✅      |
+| Vim mode                       | ✅    | ❌        | ❌                | ❌            | ❌      |
 | Clicks, drag, modified clicks  | ✅    | ✅        | ✅ ⁴              | ✅ ⁴          | ✅      |
 | Smooth cursor and held-key glide | ✅  | ✅        | ✅                | ✅            | ✅      |
 | Smooth scroll                  | ✅    | ⚠️ ⁵      | ✅ ⁵              | ⚠️ ⁵          | ✅      |
@@ -184,6 +185,7 @@ load, and `neru doctor` lists them under `platform_support`.
 | `hints.include_menubar_hints`, `hints.additional_menubar_hints_targets`, `hints.include_dock_hints`, `hints.include_nc_hints`, `hints.include_stage_manager_hints`, `hints.include_pip_hints`, `hints.include_screen_capture_hints` | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.detect_mission_control`, `hints.on_mission_control_activated`, `hints.on_mission_control_deactivated`, `hooks.on_mission_control_activated`, `hooks.on_mission_control_deactivated` | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
 | `grid.prewarm_enabled` | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
+| `vim.enabled`, `vim.capture_scope`, `vim.ui.font_size`, `vim.ui.font_family`, `vim.ui.cursor_color`, `vim.ui.selection_color`, `vim.ui.match_color`, `vim.ui.container_color`, `vim.ui.status_background_color`, `vim.ui.status_text_color`, `mode_indicator.vim.enabled`, `mode_indicator.vim.text`, `mode_indicator.vim.background_color`, `mode_indicator.vim.text_color`, `mode_indicator.vim.border_color` | ✅ | ❌ | ❌ | only the macOS overlay draws vim mode's surface |
 | `hints.vision.minimum_confidence`, `hints.vision.button_min_confidence`, `hints.vision.generic_clickable_min_confidence` | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; the Vision framework and tesseract score each word |
 | `hide_cursor` (action), `show_cursor` (action) | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 
@@ -206,8 +208,11 @@ Linux and Windows have no exclusives.
 A gap is anything you can write that means less on a platform than on macOS.
 A boundary is a requirement the platform imposes, not something Neru lacks.
 
-**Linux**: one gap.
+**Linux**: two gaps.
 
+- **Vim mode** refuses with `ERR_NOT_SUPPORTED`. It needs a text reader that
+  returns where each character is, and an overlay surface to draw its cursor,
+  and only macOS has both so far.
 - **A Wayland monitor's resolution or scale change** needs a
   [daemon restart](../guide/troubleshooting.md#restart-the-daemon) before
   overlays fit it again. Plugging in or removing a monitor is tracked live.
@@ -230,7 +235,12 @@ These are boundaries, not gaps:
   `general.hide_overlay_in_screen_share` and `neru toggle-screen-share` do
   nothing there.
 
-**Windows**: none. These are boundaries, not gaps:
+**Windows**: one gap.
+
+- **Vim mode** refuses with `ERR_NOT_SUPPORTED`, for the reason given under
+  Linux.
+
+These are boundaries, not gaps:
 
 - **Windows running as administrator.** While an elevated app has focus,
   hotkeys fire and the cursor moves, but the mode sees no keys and every

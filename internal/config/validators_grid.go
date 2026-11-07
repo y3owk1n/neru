@@ -566,3 +566,37 @@ func (c *Config) ValidateRecursiveGrid() error {
 		scopedAppConfigValidator("recursive_grid"),
 	)
 }
+
+// ValidateVim validates vim configuration.
+func (c *Config) ValidateVim() error {
+	if !c.Vim.Enabled {
+		return nil
+	}
+
+	err := validateCaptureScope("vim.capture_scope", c.Vim.CaptureScope)
+	if err != nil {
+		return err
+	}
+
+	err = validateColors([]colorField{
+		{c.Vim.UI.CursorColor, "vim.ui.cursor_color"},
+		{c.Vim.UI.SelectionColor, "vim.ui.selection_color"},
+		{c.Vim.UI.MatchColor, "vim.ui.match_color"},
+		{c.Vim.UI.ContainerColor, "vim.ui.container_color"},
+		{c.Vim.UI.StatusBackgroundColor, "vim.ui.status_background_color"},
+		{c.Vim.UI.StatusTextColor, "vim.ui.status_text_color"},
+	})
+	if err != nil {
+		return err
+	}
+
+	if c.Vim.UI.FontSize < 1 || c.Vim.UI.FontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"vim.ui.font_size must be between 1 and %d",
+			maxFontSize,
+		)
+	}
+
+	return nil
+}

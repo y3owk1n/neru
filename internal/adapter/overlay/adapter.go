@@ -141,7 +141,7 @@ func drawsOnSharedWindow(frame ports.Frame) bool {
 	case domain.ModeMonitorSelect:
 		return false
 	case domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid, domain.ModeBisect,
-		domain.ModeScroll, domain.ModeCustom, domain.ModeIdle:
+		domain.ModeScroll, domain.ModeCustom, domain.ModeVim, domain.ModeIdle:
 		return true
 	}
 
@@ -670,6 +670,8 @@ func (a *Adapter) draw(frame ports.Frame, kind drawKind) error {
 		return a.drawMonitorSelect(drawn)
 	case ports.ScrollFrame:
 		return a.drawScroll(kind)
+	case ports.VimFrame:
+		return a.drawVim(drawn)
 	default:
 		return derrors.New(derrors.CodeNotSupported, "overlay frame cannot be drawn")
 	}
@@ -848,6 +850,59 @@ func (a *Adapter) drawMonitorSelect(frame ports.MonitorSelectFrame) error {
 	a.monitorSelectDrawn.Store(true)
 
 	return nil
+}
+
+// drawVim draws the vim surface through the backend's optional vim
+// capability. A backend without it reports CodeNotSupported, and the mode
+// refuses to activate rather than engaging with nothing on screen. The frame
+// arrives in global coordinates and the overlay draws in screen-local ones.
+func (a *Adapter) drawVim(frame ports.VimFrame) error {
+	drawer, capable := a.manager.(VimDrawer)
+	if !capable {
+		return derrors.New(derrors.CodeNotSupported, "vim overlay is unavailable on this backend")
+	}
+
+	origin := frame.Screen.Min
+	local := func(rects []image.Rectangle) []image.Rectangle {
+		out := make([]image.Rectangle, len(rects))
+		for index, rect := range rects {
+			out[index] = rect.Sub(origin)
+		}
+
+		return out
+	}
+
+	drawErr := drawer.DrawVim(VimScene{
+		Region:    frame.Region.Sub(origin),
+		Cursor:    frame.Cursor.Sub(origin),
+		Pending:   frame.Pending,
+		Selection: local(frame.Selection),
+		Matches:   local(frame.Matches),
+		Current:   frame.Current,
+		Container: frame.Container.Sub(origin),
+		Status:    frame.Status,
+		Lens:      [3]string{frame.Lens.Before, frame.Lens.At, frame.Lens.After},
+		Labels:    vimLabels(frame.Labels, origin),
+	}, ResolvedStyle(a.styles).Vim)
+	if drawErr != nil {
+		if derrors.IsNotSupported(drawErr) {
+			return drawErr
+		}
+
+		return derrors.Wrap(drawErr, derrors.CodeOverlayFailed, "failed to draw vim")
+	}
+
+	return nil
+}
+
+// vimLabels moves jump labels into screen-local space.
+func vimLabels(labels []ports.VimLabel, origin image.Point) []VimLabel {
+	out := make([]VimLabel, len(labels))
+	for index, label := range labels {
+		out[index] = VimLabel{Text: label.Text, Bounds: label.Bounds.Sub(origin)}
+	}
+
+	return out
 }
 
 // clearSurfacesTheFrameDoesNotOwn takes down anything still on screen that the

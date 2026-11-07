@@ -299,6 +299,8 @@ func (h *handlerState) modeIndicatorEnabled(mode domain.Mode) bool {
 		return h.config.ModeIndicator.Bisect.Enabled
 	case domain.ModeMonitorSelect:
 		return h.config.ModeIndicator.MonitorSelect.Enabled
+	case domain.ModeVim:
+		return h.config.ModeIndicator.Vim.Enabled
 	case domain.ModeCustom:
 		// A declared mode has no enabled flag. Its indicator is shown when it
 		// was given text, and an undeclared name reads the zero value.

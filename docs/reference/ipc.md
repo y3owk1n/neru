@@ -136,7 +136,7 @@ The last column says whether the command answers while Neru is stopped by
 
 | Command | `args` | `data` | Answers while stopped |
 | ------- | ------ | ------ | --------------------- |
-| `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`, `monitor_select` | The mode's flags, from the [mode flag reference](cli.md#mode-flag-reference). `--targets` carries its JSON as one entry, as `--targets={"hints":[…]}`. `OK` means the daemon accepted the activation, as [What a mode command answers](cli.md#what-a-mode-command-answers) explains. A mode the config disables gets `ERR_MODE_DISABLED`. | none | no |
+| `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`, `monitor_select`, `vim` | The mode's flags, from the [mode flag reference](cli.md#mode-flag-reference). `--targets` carries its JSON as one entry, as `--targets={"hints":[…]}`. `OK` means the daemon accepted the activation, as [What a mode command answers](cli.md#what-a-mode-command-answers) explains. A mode the config disables gets `ERR_MODE_DISABLED`. | none | no |
 | `idle` | none | none | yes |
 | `mode` | The declared mode's name, then optionally `--toggle`. `OK` means the same as for the modes above. | none | no |
 | `action` | An [action name](cli.md#action-names), then its flags, as after `neru action`. | `action_snap` for `snap`, none otherwise | no |

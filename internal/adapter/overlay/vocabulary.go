@@ -31,6 +31,15 @@ type (
 	CapabilityReporter = manager.CapabilityReporter
 	// HeadlessReporter declares a manager that has no surface to render on.
 	HeadlessReporter = manager.HeadlessReporter
+	// VimDrawer is the optional capability a backend declares when it can
+	// draw the vim surface.
+	VimDrawer = manager.VimDrawer
+	// VimStyle styles the vim surface.
+	VimStyle = manager.VimStyle
+	// VimScene is a vim frame in screen-local space.
+	VimScene = manager.VimScene
+	// VimLabel is a jump label in screen-local space.
+	VimLabel = manager.VimLabel
 )
 
 // Overlay modes.
@@ -42,4 +51,5 @@ const (
 	ModeRecursiveGrid = manager.ModeRecursiveGrid
 	ModeBisect        = manager.ModeBisect
 	ModeMonitorSelect = manager.ModeMonitorSelect
+	ModeVim           = manager.ModeVim
 )
