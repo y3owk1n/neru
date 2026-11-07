@@ -81,6 +81,13 @@ func screenHintSimWith(
 	// A capture strategy scans the focused window, so the desktop needs one.
 	sim.desktop.focusWindow(image.Rect(50, 50, 900, 700))
 
+	// Hints mode keeps a vision element only when its role is one of this
+	// platform's native clickable roles, so the fixture hint uses the native
+	// button role rather than macOS's AXButton.
+	vocabulary, _ := element.CurrentVocabulary()
+	buttons, _ := element.LookupSemantic(element.SemanticButton)
+	buttonRole := element.Role(buttons.Native(vocabulary)[0])
+
 	sim.vision.DetectElementsFunc = func(
 		context.Context,
 		image.Rectangle,
@@ -90,7 +97,7 @@ func screenHintSimWith(
 		hint, err := element.NewElement(
 			"vision-hint",
 			screenHintBounds,
-			element.RoleButton,
+			buttonRole,
 			element.WithSource(element.SourceVision),
 			element.WithClickable(true),
 			element.WithTitle(passText),
